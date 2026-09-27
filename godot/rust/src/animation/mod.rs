@@ -304,6 +304,40 @@ impl AnimationState {
         Ok(true)
     }
 
+    /// Select local movement through JumpStart → Jump → landing, holding each
+    /// non-looping clip to completion. Call after advancing animation time.
+    pub fn update_locomotion(
+        &mut self,
+        movement_id: u16,
+        jumping: bool,
+        running_forward: bool,
+    ) -> Result<bool, String> {
+        let current_id = self.sequences[self.current].id;
+        let finished = self.time_ms >= f64::from(self.sequences[self.current].duration);
+        match current_id {
+            37 if finished => self.select_animation_id(38, true),
+            37 => Ok(false),
+            38 if !jumping => {
+                let landing_id = if running_forward
+                    && self
+                        .sequences
+                        .iter()
+                        .any(|sequence| sequence.id == 187 && sequence.variation_id == 0)
+                {
+                    187
+                } else {
+                    39
+                };
+                self.select_animation_id(landing_id, false)
+            }
+            38 => Ok(false),
+            39 | 187 if finished => self.select_animation_id(movement_id, true),
+            39 | 187 => Ok(false),
+            _ if jumping => self.select_animation_id(37, false),
+            _ => self.select_animation_id(movement_id, true),
+        }
+    }
+
     fn play_death(&mut self) {
         if let Some(index) = self.sequences.iter().position(|sequence| sequence.id == 1) {
             self.start_transition(index, false);
@@ -505,6 +539,23 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
+    pub(crate) fn update_locomotion(
+        &mut self,
+        movement_id: u16,
+        jumping: bool,
+        running_forward: bool,
+    ) -> Result<(), String> {
+        let changed = self
+            .animation
+            .as_mut()
+            .ok_or_else(|| "M2 animation has no bound model".to_string())?
+            .update_locomotion(movement_id, jumping, running_forward)?;
+        if changed {
+            self.write_poses();
+        }
+        Ok(())
+    }
+
     pub(crate) fn play_death(&mut self) -> Result<(), String> {
         self.animation
             .as_mut()
@@ -586,6 +637,9 @@ impl WowAnimationPlayer {
         self.paused = paused;
     }
 }
+
+#[cfg(test)]
+mod jump_tests;
 
 #[cfg(test)]
 mod tests {
@@ -974,7 +1028,10 @@ mod tests {
         let mut model = model();
         let walk = 1;
         let authored = AnimationState::new(&model).expect("animated model");
-        assert!(authored.sequence_animated[walk], "authored Walk moves bones");
+        assert!(
+            authored.sequence_animated[walk],
+            "authored Walk moves bones"
+        );
         for track in &mut model.bone_tracks {
             if let Some((times, values)) = track.rotation.sequences.get_mut(walk) {
                 times.truncate(1);
@@ -994,7 +1051,11 @@ mod tests {
         assert!(!player.pose_varies());
         let held = player.poses();
         player.advance(430.0).expect("advance static clip");
-        assert!(held.iter().zip(player.poses()).all(|(a, b)| near_pose(*a, b)));
+        assert!(
+            held.iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
     }
 
     #[test]
