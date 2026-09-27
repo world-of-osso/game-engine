@@ -15,6 +15,7 @@ pub mod wdt;
 #[path = "../../../src/asset/wmo_format/mod.rs"]
 pub mod wmo_format;
 
+pub use crate::char_texture_data as char_texture;
 pub use adt_format::{adt, adt_obj};
 
 // Original WMO format tests call these functions through asset::wmo.

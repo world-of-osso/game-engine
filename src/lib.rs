@@ -19,6 +19,7 @@ pub mod barber_shop_data;
 #[path = "game/buff_data.rs"]
 pub mod buff_data;
 pub mod cache_metadata;
+pub use creature_display::npc_appearance as npc_appearance_data;
 mod cache_source_mtime;
 mod cache_sqlite;
 pub mod calendar;
@@ -127,6 +128,8 @@ pub mod nameplate_style;
 pub mod network_events;
 pub mod network_runtime;
 pub mod network_tick;
+#[path = "rendering/character/npc_appearance_selection_data.rs"]
+pub mod npc_appearance_selection_data;
 #[path = "game/creatures/npc_visibility_data.rs"]
 pub mod npc_visibility_data;
 #[path = "game/equipment/outfit_data.rs"]
