@@ -80,6 +80,7 @@ impl INode3D for GameClient {
         let update = self
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
+            .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.terrain.poll())
             .and_then(|()| self.update_world_lighting())
             .and_then(|()| self.attach_terrain_materials())
