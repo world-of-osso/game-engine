@@ -13,6 +13,7 @@ mod terrain;
 mod ui;
 mod world;
 mod world_models;
+mod wmo;
 
 use std::{collections::HashMap, path::PathBuf};
 
