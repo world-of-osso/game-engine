@@ -174,6 +174,8 @@ func run_test() -> void:
 	print("FIXTURE FINAL_STAND")
 	if not await check_idle_jump(client, player, locomotion):
 		return
+	if not await check_running_jump(client, player, locomotion):
+		return
 	print("FIXTURE STOPPED")
 	client.free()
 	print("SHUTDOWN: client freed")
@@ -778,6 +780,102 @@ func check_idle_jump(client: Node, player: Node3D, locomotion: RefCounted) -> bo
 			fail("Idle jump did not remain grounded in authored Stand 0")
 			return false
 	print("PASS: idle Space 37 -> 38 -> 39 -> 0, changing bones, rise and ground return")
+	return true
+
+func check_running_jump(client: Node, player: Node3D, locomotion: RefCounted) -> bool:
+	var highest_y := player.position.y
+	push_w(true)
+	print("FIXTURE RUN_JUMP_RUN_START")
+	for frame in range(30):
+		await process_frame
+		if client.account_state().screen != "InWorld" or (frame > 10 and locomotion.animation.current_animation_id() != 5):
+			push_w(false)
+			fail("Running jump did not establish authored Run 5 at frame " + str(frame))
+			return false
+	if locomotion.animation.current_animation_id() != 5:
+		push_w(false)
+		fail("Running jump did not begin in Run 5")
+		return false
+	var takeoff := player.position
+	var run_pose: Array[Transform3D] = locomotion.capture_pose()
+	var sequence := [37, 38, 187, 5]
+	var next_id := 0
+	var changed_pose := [false, false, false]
+	var hold_frames := 0
+	var released := false
+	push_key(KEY_SPACE, true)
+	print("FIXTURE RUN_JUMP_START")
+	for frame in range(JUMP_WAIT_FRAMES):
+		await process_frame
+		if client.account_state().screen != "InWorld":
+			push_key(KEY_SPACE, false)
+			push_w(false)
+			fail("World exited during running jump at frame " + str(frame))
+			return false
+		var current_id: int = locomotion.animation.current_animation_id()
+		if current_id != sequence[next_id]:
+			if next_id == 0 and current_id == 5 and frame < 30:
+				continue
+			if next_id + 1 >= sequence.size() or current_id != sequence[next_id + 1]:
+				push_key(KEY_SPACE, false)
+				push_w(false)
+				fail("Running jump skipped authored animation " + str(sequence[next_id + 1]) + " for " + str(current_id))
+				return false
+			next_id += 1
+			if current_id == 187:
+				print("FIXTURE RUN_JUMP_LANDED")
+		highest_y = maxf(highest_y, player.position.y)
+		if next_id < 3:
+			changed_pose[next_id] = changed_pose[next_id] or locomotion.changed_from(run_pose)
+		if not released:
+			hold_frames += 1
+			if hold_frames >= JUMP_HOLD_FRAMES:
+				push_key(KEY_SPACE, false)
+				released = true
+				print("FIXTURE RUN_JUMP_RELEASED")
+		if next_id == 3:
+			break
+	if not released:
+		push_key(KEY_SPACE, false)
+	if next_id != 3 or not changed_pose[0] or not changed_pose[1] or not changed_pose[2]:
+		push_w(false)
+		fail("Running jump did not complete 37 -> 38 -> 187 -> 5 with changing bones: " + str(next_id) + " poses=" + str(changed_pose))
+		return false
+	if highest_y < takeoff.y + 0.3 or player.position.z >= takeoff.z - 0.1:
+		push_w(false)
+		fail("Running jump did not rise and advance forward: " + str(takeoff) + " peak=" + str(highest_y) + " final=" + str(player.position))
+		return false
+	print("FIXTURE RUN_JUMP_RESUMED")
+	var resumed_at := player.position
+	for frame in range(30):
+		await process_frame
+		if client.account_state().screen != "InWorld" or locomotion.animation.current_animation_id() != 5:
+			push_w(false)
+			fail("Running jump did not retain Run 5 after landing at frame " + str(frame))
+			return false
+	if player.position.z >= resumed_at.z - 0.1:
+		push_w(false)
+		fail("Running jump did not resume forward movement: " + str(resumed_at) + " -> " + str(player.position))
+		return false
+	push_w(false)
+	print("FIXTURE RUN_JUMP_W_RELEASED")
+	for frame in range(STOP_FRAMES):
+		await process_frame
+		if client.account_state().screen != "InWorld":
+			fail("World exited after running jump at frame " + str(frame))
+			return false
+	var landing_height = client.terrain_height_at(player.position.x, player.position.z)
+	if landing_height == null or locomotion.animation.current_animation_id() != 0 or absf(player.position.y - float(landing_height)) > 0.3:
+		fail("Running jump release did not return grounded to authored Stand 0")
+		return false
+	var stopped := player.position
+	for frame in range(STOP_FRAMES):
+		await process_frame
+		if locomotion.animation.current_animation_id() != 0 or player.position.distance_to(stopped) > 0.05:
+			fail("Running jump did not remain stationary in Stand 0")
+			return false
+	print("FIXTURE RUN_JUMP_STAND")
+	print("PASS: running W+Space 37 -> 38 -> 187 -> 5 -> 0, changing bones, rise and resumed movement")
 	return true
 
 func push_w(pressed: bool) -> void:

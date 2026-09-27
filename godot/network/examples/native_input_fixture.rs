@@ -458,6 +458,28 @@ fn assert_idle_jump_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
     Ok(!inputs.is_empty())
 }
 
+fn assert_running_jump_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
+    for input in &inputs {
+        let expected = Directional::Walk.expected_vector(input.facing_yaw);
+        if !input.elapsed_secs.is_finite()
+            || input.elapsed_secs <= 0.0
+            || !input.facing_yaw.is_finite()
+            || input
+                .direction
+                .iter()
+                .zip(expected)
+                .any(|(actual, expected)| !actual.is_finite() || (actual - expected).abs() > 0.15)
+            || !input.running
+            || !input.jumping
+        {
+            return Err(format!(
+                "running W+Space produced unexpected PlayerInput: {input:?}"
+            ));
+        }
+    }
+    Ok(!inputs.is_empty())
+}
+
 fn assert_directional_input(
     inputs: Vec<PlayerInput>,
     direction: Directional,
@@ -504,6 +526,13 @@ enum Phase {
     JumpReleased,
     JumpLanded,
     JumpStand,
+    RunningBeforeJump,
+    RunningJump,
+    RunningJumpReleased,
+    RunningJumpLanded,
+    RunningResumed,
+    RunningStopped,
+    RunningStand,
     Stopped,
 }
 
@@ -602,7 +631,16 @@ fn accept_phase_line(
         (Phase::Jumping, "FIXTURE JUMP_RELEASED") => *phase = Phase::JumpReleased,
         (Phase::JumpReleased, "FIXTURE JUMP_LANDED") => *phase = Phase::JumpLanded,
         (Phase::JumpLanded, "FIXTURE JUMP_STAND") => *phase = Phase::JumpStand,
-        (Phase::JumpStand, "FIXTURE STOPPED") => *phase = Phase::Stopped,
+        (Phase::JumpStand, "FIXTURE RUN_JUMP_RUN_START") => *phase = Phase::RunningBeforeJump,
+        (Phase::RunningBeforeJump, "FIXTURE RUN_JUMP_START") => *phase = Phase::RunningJump,
+        (Phase::RunningJump, "FIXTURE RUN_JUMP_RELEASED") => *phase = Phase::RunningJumpReleased,
+        (Phase::RunningJumpReleased, "FIXTURE RUN_JUMP_LANDED") => {
+            *phase = Phase::RunningJumpLanded
+        }
+        (Phase::RunningJumpLanded, "FIXTURE RUN_JUMP_RESUMED") => *phase = Phase::RunningResumed,
+        (Phase::RunningResumed, "FIXTURE RUN_JUMP_W_RELEASED") => *phase = Phase::RunningStopped,
+        (Phase::RunningStopped, "FIXTURE RUN_JUMP_STAND") => *phase = Phase::RunningStand,
+        (Phase::RunningStand, "FIXTURE STOPPED") => *phase = Phase::Stopped,
         (_, line) if line.starts_with("FIXTURE ") => {
             return Err(format!(
                 "out-of-order Godot fixture phase {phase:?}: {line}"
@@ -630,6 +668,10 @@ fn run_fixture(
     let mut saw_idle_jump = false;
     let mut jump_landed_at: Option<Instant> = None;
     let mut jump_stand_at: Option<Instant> = None;
+    let mut running_jump_at: Option<Instant> = None;
+    let mut running_release_at: Option<Instant> = None;
+    let mut saw_running_jump = false;
+    let mut saw_resumed_run = false;
     let deadline = Instant::now() + TIMEOUT;
     let mut reader = Some(reader);
     while Instant::now() < deadline {
@@ -680,12 +722,32 @@ fn run_fixture(
             if line.trim() == "FIXTURE JUMP_RELEASED" && !saw_idle_jump {
                 return Err("no decoded stationary jumping PlayerInput on InputChannel".into());
             }
+            if line.trim() == "FIXTURE RUN_JUMP_RUN_START"
+                && jump_stand_at.expect("idle Stand recorded").elapsed()
+                    < RELEASE_DRAIN + RELEASE_QUIET
+            {
+                return Err("running jump began before idle jump quiet interval".into());
+            }
+            if line.trim() == "FIXTURE RUN_JUMP_RELEASED" && !saw_running_jump {
+                return Err(
+                    "no decoded forward-running jumping PlayerInput on InputChannel".into(),
+                );
+            }
+            if line.trim() == "FIXTURE RUN_JUMP_W_RELEASED" && !saw_resumed_run {
+                return Err("no decoded resumed forward-running nonjump PlayerInput".into());
+            }
             accept_phase_line(app, selected, remote, &mut phase, line.trim())?;
             if phase == Phase::JumpLanded {
                 jump_landed_at.get_or_insert_with(Instant::now);
             }
             if phase == Phase::JumpStand {
                 jump_stand_at.get_or_insert_with(Instant::now);
+            }
+            if phase == Phase::RunningJump {
+                running_jump_at.get_or_insert_with(Instant::now);
+            }
+            if phase == Phase::RunningStopped {
+                running_release_at.get_or_insert_with(Instant::now);
             }
             if phase == Phase::Released && released_at.is_none() {
                 released_at = Some(Instant::now());
@@ -717,6 +779,49 @@ fn run_fixture(
             Phase::Jumping | Phase::JumpReleased => {
                 saw_idle_jump |= assert_idle_jump_input(take_inputs(app))?;
             }
+            Phase::RunningBeforeJump => {
+                saw_forward |= assert_forward_input(take_inputs(app))?;
+            }
+            Phase::RunningJump | Phase::RunningJumpReleased => {
+                let (jumping, forward): (Vec<_>, Vec<_>) = take_inputs(app)
+                    .into_iter()
+                    .partition(|input| input.jumping);
+                saw_running_jump |= assert_running_jump_input(jumping)?;
+                assert_forward_input(forward)?;
+            }
+            Phase::RunningJumpLanded => {
+                let (jumping, forward): (Vec<_>, Vec<_>) = take_inputs(app)
+                    .into_iter()
+                    .partition(|input| input.jumping);
+                if running_jump_at
+                    .expect("running jump start recorded")
+                    .elapsed()
+                    >= RELEASE_DRAIN
+                    && !jumping.is_empty()
+                {
+                    return Err(format!(
+                        "running jump packets continued after landing: {jumping:?}"
+                    ));
+                }
+                assert_running_jump_input(jumping)?;
+                saw_resumed_run |= assert_forward_input(forward)?;
+            }
+            Phase::RunningResumed => {
+                saw_resumed_run |= assert_forward_input(take_inputs(app))?;
+            }
+            Phase::RunningStopped | Phase::RunningStand => {
+                let inputs = take_inputs(app);
+                if running_release_at
+                    .expect("running W release recorded")
+                    .elapsed()
+                    >= RELEASE_DRAIN
+                    && !inputs.is_empty()
+                {
+                    return Err(format!(
+                        "running jump packets continued after W release: {inputs:?}"
+                    ));
+                }
+            }
             Phase::JumpLanded | Phase::JumpStand => {
                 let inputs = take_inputs(app);
                 if jump_landed_at.expect("idle landing recorded").elapsed() >= RELEASE_DRAIN
@@ -739,7 +844,7 @@ fn run_fixture(
             }
             Phase::Released | Phase::Stopped => {
                 let stopped_at = if phase == Phase::Stopped {
-                    jump_landed_at.expect("idle landing recorded")
+                    running_release_at.expect("running W release recorded")
                 } else {
                     released_at.expect("W release marker recorded")
                 };
@@ -761,10 +866,17 @@ fn run_fixture(
             if !saw_idle_jump {
                 return Err("no decoded stationary jumping PlayerInput on InputChannel".into());
             }
-            let stopped_for = jump_stand_at.expect("idle jump Stand recorded").elapsed();
+            if !saw_running_jump || !saw_resumed_run {
+                return Err(
+                    "running jump lacked decoded jumping or resumed nonjump packets".into(),
+                );
+            }
+            let stopped_for = running_release_at
+                .expect("running W release recorded")
+                .elapsed();
             if stopped_for >= RELEASE_DRAIN + RELEASE_QUIET {
                 println!(
-                    "PASS: Loading blocked input; W and Walk/Backward/Left/Right decoded UDP; idle Space sent stationary jumping packets, authored 37/38/39/0 and returned quiet"
+                    "PASS: Loading blocked input; W and Walk/Backward/Left/Right decoded UDP; idle Space sent stationary jumping packets 37/38/39/0; running W+Space sent forward jumping then nonjump packets 37/38/187/5/0 and returned quiet"
                 );
                 return Ok(());
             }
