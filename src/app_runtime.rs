@@ -49,15 +49,13 @@ pub(crate) fn take_screenshot(
     req: Option<ResMut<ScreenshotRequest>>,
     automation_queue: Option<Res<game_engine::ui::automation::UiAutomationQueue>>,
     state: Res<State<crate::game_state::GameState>>,
+    requested: Option<Res<game_state::InitialGameState>>,
 ) {
     let Some(mut req) = req else { return };
     if automation_queue.is_some_and(|q| !q.0.is_empty()) {
         return;
     }
-    if matches!(
-        *state.get(),
-        crate::game_state::GameState::Login | crate::game_state::GameState::Connecting
-    ) {
+    if screenshot_waits_for_login(*state.get(), requested.map(|state| state.0)) {
         return;
     }
     if req.frames_remaining > 0 {
@@ -72,6 +70,39 @@ pub(crate) fn take_screenshot(
             exit.write(AppExit::Success);
         },
     );
+}
+
+/// Screenshots of later screens wait out automatic login; a requested login screen
+/// itself is captured once rendered instead of waiting forever.
+fn screenshot_waits_for_login(
+    state: game_state::GameState,
+    requested: Option<game_state::GameState>,
+) -> bool {
+    use game_state::GameState;
+    matches!(state, GameState::Login | GameState::Connecting) && requested != Some(GameState::Login)
+}
+
+#[cfg(test)]
+mod screenshot_tests {
+    use super::*;
+    use game_state::GameState;
+
+    #[test]
+    fn requested_login_screen_is_captured_but_auto_login_is_waited_out() {
+        assert!(!screenshot_waits_for_login(
+            GameState::Login,
+            Some(GameState::Login)
+        ));
+        assert!(screenshot_waits_for_login(
+            GameState::Login,
+            Some(GameState::CharSelect)
+        ));
+        assert!(screenshot_waits_for_login(GameState::Connecting, None));
+        assert!(!screenshot_waits_for_login(
+            GameState::CharSelect,
+            Some(GameState::CharSelect)
+        ));
+    }
 }
 
 fn save_screenshot(img: &bevy::image::Image, output: &PathBuf) {
