@@ -24,7 +24,8 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        EquipmentAppearance, Health, Mana, ModelDisplay, Npc, Player, Position, Rotation, UnitLevel,
+        EquipmentAppearance, Health, Mana, ModelDisplay, MovementControl, Npc, Player, Position,
+        Rotation, UnitLevel,
     },
     protocol::{
         CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
@@ -72,6 +73,7 @@ pub struct UnitSnapshot {
     pub model: Option<ModelDisplay>,
     pub level: Option<UnitLevel>,
     pub equipment: Option<EquipmentAppearance>,
+    pub movement_control: Option<MovementControl>,
 }
 
 impl UnitSnapshot {
@@ -87,6 +89,7 @@ impl UnitSnapshot {
             model: entity.get::<ModelDisplay>().copied(),
             level: entity.get::<UnitLevel>().copied(),
             equipment: entity.get::<EquipmentAppearance>().cloned(),
+            movement_control: entity.get::<MovementControl>().copied(),
         }
     }
 }
@@ -431,7 +434,10 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared::protocol::{AuthChannel, LoginRequest};
+    use shared::{
+        components::MovementControl,
+        protocol::{AuthChannel, LoginRequest},
+    };
     use std::{
         net::UdpSocket,
         time::{Duration, Instant},
@@ -468,6 +474,10 @@ mod tests {
                     current: 8.0,
                     max: 10.0,
                 },
+                MovementControl {
+                    epoch: 7,
+                    controlled: true,
+                },
             ))
             .id();
         let server_id = world.spawn_empty().id().to_bits();
@@ -476,6 +486,18 @@ mod tests {
         assert_eq!(snapshot.server_id, server_id);
         assert_eq!(snapshot.npc.unwrap().name, "Loup — Écorché");
         assert_eq!(snapshot.health.unwrap().current, 8.0);
+        assert_eq!(
+            snapshot.movement_control,
+            Some(MovementControl {
+                epoch: 7,
+                controlled: true,
+            })
+        );
+
+        let entity_without_control = world.spawn_empty().id();
+        let absent = UnitSnapshot::capture(server_id, world.entity(entity_without_control));
+        world.despawn(entity_without_control);
+        assert_eq!(absent.movement_control, None);
     }
 
     #[test]
