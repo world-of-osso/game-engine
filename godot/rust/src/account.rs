@@ -318,6 +318,22 @@ mod tests {
     }
 
     #[test]
+    fn heroic_transfer_error_uses_aborted_map_name() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let account = Account::new(data_root);
+        let error = account
+            .format_transfer_error(TransferAborted {
+                map_id: 34,
+                reason: TransferAbortReason::Difficulty(2),
+            })
+            .unwrap();
+        assert_eq!(
+            error,
+            "Heroic difficulty mode is not available for Stormwind Stockade."
+        );
+    }
+
+    #[test]
     fn transfer_abort_map_name_comes_from_map_csv_id() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         assert_eq!(
