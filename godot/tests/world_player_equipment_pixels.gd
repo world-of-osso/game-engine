@@ -40,8 +40,10 @@ func inspect_visual(visual: Node3D, equipped: bool) -> String:
 	return ""
 
 func pause_and_capture_pose(visual: Node3D) -> Array[Transform3D]:
-	var animation := visual.find_child("M2Animation", true, false) as WowAnimationPlayer
-	var skeleton := visual.find_child("Skeleton3D", true, false) as Skeleton3D
+	var recursive_animation := visual.find_child("M2Animation", true, false)
+	var animation := visual.get_node_or_null("M2Animation") as WowAnimationPlayer
+	var skeleton := visual.get_node_or_null("Skeleton3D") as Skeleton3D
+	print("TRACE POSE_TARGET recursive=", recursive_animation.get_path() if recursive_animation != null else "missing", " body=", animation.get_path() if animation != null else "missing")
 	if animation == null or skeleton == null or not animation.advance_time_ms(400.0):
 		return []
 	animation.set_paused(true)
@@ -63,7 +65,7 @@ func compare_pose(visual: Node3D, expected: Array[Transform3D]) -> String:
 	return ""
 
 func resume_animation(visual: Node3D) -> void:
-	var animation := visual.find_child("M2Animation", true, false) as WowAnimationPlayer
+	var animation := visual.get_node_or_null("M2Animation") as WowAnimationPlayer
 	animation.set_paused(false)
 
 func has_visible_mesh(parent: Node3D) -> bool:
