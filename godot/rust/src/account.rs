@@ -12,8 +12,8 @@ use game_engine_session::{
 };
 use shared::protocol::{
     AuthChannel, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
-    EnterWorldResponse, ForcedDisconnect, LoadTerrain, LoginResponse, NewWorld, RegisterResponse,
-    TransferAborted, TransferChannel, WorldPortAck,
+    EnterWorldResponse, ForcedDisconnect, InputChannel, LoadTerrain, LoginResponse, NewWorld,
+    PlayerInput, RegisterResponse, TransferAborted, TransferChannel, WorldPortAck,
 };
 
 /// Godot host's account state. Only NetworkBridge owns the transport ECS world.
@@ -95,6 +95,13 @@ impl Account {
             return Ok(());
         };
         self.connected_bridge()?.send::<_, AuthChannel>(request)
+    }
+
+    pub fn send_player_input(&self, input: PlayerInput) -> Result<(), String> {
+        if self.session.screen != SessionScreen::InWorld || !self.session.gameplay_input_allowed() {
+            return Ok(());
+        }
+        self.connected_bridge()?.send::<_, InputChannel>(input)
     }
 
     /// Called by the host only after the destination is ready for world entry.

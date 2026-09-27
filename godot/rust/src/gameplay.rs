@@ -1,10 +1,14 @@
 //! Native local movement state around the shared binding decisions.
 
 use game_engine_core::{
-    input_bindings_data::{InputBindingsData, InputState},
+    input_bindings_data::{InputAction, InputBindingsData, InputState},
     movement_input_data::{
         MoveDirection, compute_movement_input, movement_speed_multiplier, movement_to_direction,
         sync_movement_toggles,
+    },
+    player_physics_data::{
+        VerticalState, apply_gravity_and_ground_snap, build_proposed_ground_movement,
+        update_grounded,
     },
 };
 use shared::{
@@ -18,6 +22,8 @@ pub(crate) struct PlayerMovement {
     pub jumping: bool,
     pub swimming: bool,
     direction: MoveDirection,
+    vertical_velocity: f32,
+    grounded: bool,
 }
 
 pub(crate) struct MovementFrame {
@@ -33,6 +39,8 @@ impl Default for PlayerMovement {
             jumping: false,
             swimming: false,
             direction: MoveDirection::None,
+            vertical_velocity: 0.0,
+            grounded: true,
         }
     }
 }
@@ -56,6 +64,68 @@ impl PlayerMovement {
         }
     }
 
+    pub fn predict(
+        &mut self,
+        mut position: glam::Vec3,
+        frame: MovementFrame,
+        jump_pressed: bool,
+        ground: &crate::ground::TerrainGround<'_>,
+        delta: f32,
+    ) -> glam::Vec3 {
+        self.grounded = update_grounded(
+            position.y,
+            ground.probe(position),
+            shared::movement::GROUND_SNAP_THRESHOLD,
+        );
+        if let Some(proposed) =
+            build_proposed_ground_movement(position, frame.direction.into(), frame.speed, delta)
+        {
+            position = ground.validate_move(position, proposed, self.grounded && !self.jumping);
+        }
+        self.update_jump(position, jump_pressed, ground);
+        let vertical = apply_gravity_and_ground_snap(
+            VerticalState {
+                y: position.y,
+                vertical_velocity: self.vertical_velocity,
+                grounded: self.grounded,
+            },
+            ground.probe(position),
+            delta,
+            shared::movement::GRAVITY,
+        );
+        self.vertical_velocity = vertical.vertical_velocity;
+        self.grounded = vertical.grounded;
+        position.y = vertical.y;
+        self.swimming = ground.swimming(position);
+        position
+    }
+
+    fn update_jump(
+        &mut self,
+        position: glam::Vec3,
+        pressed: bool,
+        ground: &crate::ground::TerrainGround<'_>,
+    ) {
+        self.swimming = ground.swimming(position);
+        if self.swimming {
+            self.jumping = false;
+            return;
+        }
+        if pressed && self.grounded && !self.jumping {
+            self.jumping = true;
+            self.vertical_velocity = 7.0;
+        }
+        let landed = match ground.probe(position) {
+            game_engine_core::player_physics_data::GroundState::Supported(height) => {
+                position.y <= height + 0.05
+            }
+            _ => true,
+        };
+        if self.jumping && self.vertical_velocity <= 0.0 && self.grounded && landed {
+            self.jumping = false;
+        }
+    }
+
     pub fn network_input(&self, yaw: f32) -> Option<PlayerInput> {
         let direction = movement_to_direction(self.direction, yaw);
         if direction == [0.0; 3] && !self.jumping {
@@ -74,6 +144,113 @@ impl PlayerMovement {
         self.autorun = false;
         self.direction = MoveDirection::None;
         self.jumping = false;
+    }
+}
+
+impl crate::GameClient {
+    pub(super) fn update_player_input(&mut self, delta: f32) -> Result<(), String> {
+        use game_engine_core::camera_input_data::CameraInput;
+        use godot::prelude::*;
+        if !self.gameplay_input_allowed() {
+            self.player_movement.stop();
+            self.physical_input.clear();
+            return Ok(());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("Gameplay root has no viewport")?;
+        if viewport
+            .get_embedded_subwindows()
+            .iter_shared()
+            .any(|window| window.is_visible() && window.is_exclusive())
+        {
+            self.player_movement.stop();
+            return Ok(());
+        }
+        let keyboard = !viewport.gui_is_dragging()
+            && !viewport
+                .gui_get_focus_owner()
+                .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
+        let Some(facing) = self.world.local_player_facing() else {
+            self.player_movement.stop();
+            return Ok(());
+        };
+        let input = self.physical_input.gameplay_state(keyboard);
+        let [delta_x, delta_y] = self.physical_input.motion();
+        let options = &self.client_options.camera;
+        self.world_camera.configure(options);
+        let yaw = self.world_camera.apply_input(
+            facing,
+            &self.client_options.bindings,
+            &input,
+            CameraInput {
+                delta_x,
+                delta_y,
+                scroll_y: self.physical_input.scroll(),
+                dt: delta,
+                look_sensitivity: options.look_sensitivity,
+                invert_y: options.invert_y,
+            },
+        );
+        self.world.set_local_player_facing(yaw);
+        if self.world.local_player_controlled() {
+            self.player_movement.stop();
+            return Ok(());
+        }
+        let frame = self
+            .player_movement
+            .resolve(&self.client_options.bindings, &input, yaw);
+        let jump = self
+            .client_options
+            .bindings
+            .is_just_pressed(InputAction::Jump, &input);
+        self.predict_player(frame, jump, yaw, delta)
+    }
+
+    fn predict_player(
+        &mut self,
+        frame: MovementFrame,
+        jump: bool,
+        yaw: f32,
+        delta: f32,
+    ) -> Result<(), String> {
+        use godot::prelude::*;
+        let mut player = self
+            .world
+            .local_player_node()
+            .ok_or("Selected player vanished during input")?;
+        let current = player.get_position();
+        let ground = crate::ground::TerrainGround {
+            terrain: &self.terrain,
+        };
+        let next = self.player_movement.predict(
+            glam::Vec3::new(current.x, current.y, current.z),
+            frame,
+            jump,
+            &ground,
+            delta,
+        );
+        player.set_position(Vector3::new(next.x, next.y, next.z));
+        player.set_rotation(Vector3::new(0.0, yaw - std::f32::consts::FRAC_PI_2, 0.0));
+        Ok(())
+    }
+
+    fn gameplay_input_allowed(&self) -> bool {
+        self.account.session.screen == game_engine_session::SessionScreen::InWorld
+            && self.account.session.gameplay_input_allowed()
+    }
+
+    pub(super) fn send_player_input(&self) -> Result<(), String> {
+        if !self.gameplay_input_allowed() || self.world.local_player_controlled() {
+            return Ok(());
+        }
+        if let Some(yaw) = self.world.local_player_facing()
+            && let Some(input) = self.player_movement.network_input(yaw)
+        {
+            self.account.send_player_input(input)?;
+        }
+        Ok(())
     }
 }
 
