@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Portable input model and unproven loopback fixture
+
+`f50dedaa` moves input-binding data into Bevy-free `src/input_bindings_data.rs`: action/section metadata, defaults, portable key/mouse values, persisted tokens, labels, parsing, and matching. `godot/core` exposes that source; `src/input_bindings.rs` is now the Bevy event/capture adapter. No native Godot adapter produces or matches input with the portable model.
+
+`6cec7882` commits `godot/network/src/wire_tests.rs`, an owned-loopback UDP fixture intended to send `PlayerInput`, observe server decoding, receive replicated `MovementControl` epochs, and observe unit removal. No compile or execution evidence exists yet. It establishes neither input/wire/readiness parity nor real-server behavior. Preserve `45fd1938`: height-grid answers, including inside authored holes, do not establish `WorldGround` support.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Combined shared physics and native motion gate
 
 At `ea5b4a85`, independent verification passes root fmt/check, core physics 7/7, core motion 8/8, native `world::tests` 6/6, root collision 14/14, and root proposal 2/2 (`/tmp/claude/verify-motion-final-summary.md`). Unchanged root `server_movement` source reuses prior 2/2 evidence. Native check is warning-free; root check retains two baseline `InputBindings` warnings.
