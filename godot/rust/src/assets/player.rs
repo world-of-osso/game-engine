@@ -18,7 +18,7 @@ use game_engine_core::{
 };
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
-use shared::{components::CharacterAppearance, protocol::CharacterListEntry};
+use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
 
 use super::{
     appearance::{PreparedAppearance, load_appearance_texture},
@@ -196,24 +196,25 @@ fn insert_player_eye_pixels(
 pub(crate) fn load_player_model(
     data_root: &Path,
     cache_root: &Path,
-    character: &CharacterListEntry,
+    player: &Player,
+    equipment: &EquipmentAppearance,
 ) -> Result<Gd<Node3D>, String> {
     let resolver = local_resolver(data_root, cache_root);
-    let path = cache_player_model(&resolver, data_root, character)?;
+    let path = cache_player_model(&resolver, data_root, player)?;
     let equipment = resolve_equipment_appearance(
-        &character.equipment_appearance,
+        equipment,
         &OutfitData::load(data_root),
-        character.race,
-        character.appearance.sex,
+        player.race,
+        player.appearance.sex,
     )?;
-    let appearance = prepare_player_appearance(&resolver, data_root, character, &equipment)?;
+    let appearance = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
     let path = GString::from(path.to_string_lossy().as_ref());
     let parsed = read_model(&path)?;
     let (mut model, missing) = build_model(&parsed, &path, &[0; 3], Some(&appearance))?;
     if !missing.is_empty() {
         godot_warn!(
             "Player {} missing authored texture FDIDs: {missing:?}",
-            character.name
+            player.name
         );
     }
     if let Err(error) = attach_equipment(
@@ -232,10 +233,10 @@ pub(crate) fn load_player_model(
 fn cache_player_model(
     resolver: &CascListfileResolver,
     data_root: &Path,
-    character: &CharacterListEntry,
+    player: &Player,
 ) -> Result<PathBuf, String> {
-    let race = character.race;
-    let sex = character.appearance.sex;
+    let race = player.race;
+    let sex = player.appearance.sex;
     let wow_path = race_model_wow_path(race, sex)
         .ok_or_else(|| format!("no player model for race {race} sex {sex}"))?;
     let fdid = resolver
@@ -249,14 +250,13 @@ fn cache_player_model(
 fn prepare_player_appearance(
     resolver: &CascListfileResolver,
     data_root: &Path,
-    character: &CharacterListEntry,
+    player: &Player,
     equipment: &ResolvedEquipmentAppearance,
 ) -> Result<PreparedAppearance, String> {
-    let race = character.race;
-    let sex = character.appearance.sex;
+    let race = player.race;
+    let sex = player.appearance.sex;
     let db = load_customization_db(data_root)?;
-    let mut selected =
-        select_player_choices(&db, race, sex, character.class, &character.appearance)?;
+    let mut selected = select_player_choices(&db, race, sex, player.class, &player.appearance)?;
     for group in &equipment.hidden_character_geoset_groups {
         selected.geosets.retain(|(active, _)| active != group);
         let variant = if *group == 0 {
