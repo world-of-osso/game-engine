@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] audit | Godot loading-readiness predicate
+
+Original `check_loading_complete` treats `LocalPlayer` as local-player readiness, not rendered character/model, appearance, or equipment readiness. `tag_local_player` adds that marker only when replicated `NetPlayer.name` exactly matches `SelectedCharacterId.character_name` (`src/game/state/game_state.rs:362-381`, `src/game/networking/player.rs:804-888`). When terrain is required, completion also requires a map and either spawned global WMO or the current-player streaming-center tile loaded; pending/failed terrain remains incomplete. Without terrain, the marker alone completes. Godot still has no native predicate integration or `InWorld` transition. Character/appearance/equipment visual parity remains separately required.
+
+Updated [[godot-conversion]], [Godot conversion specification](../specs/godot-conversion.md), and [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Portable input model and bounded loopback wire proof
 
 `f50dedaa` moves input-binding data into Bevy-free `src/input_bindings_data.rs`: action/section metadata, defaults, portable key/mouse values, persisted tokens, labels, parsing, and matching. `godot/core` exposes that source; `src/input_bindings.rs` is now the Bevy event/capture adapter. Prior binding evidence remains 4/15/1; no native Godot adapter produces or matches input with the portable model.
