@@ -46,9 +46,7 @@ func check_attachment(loader: Object, model_name: String, attachment_id: int, bo
 		return false
 	(model.get_node_or_null("M2Animation") as Node).set_process(false)
 	skeleton.reset_bone_poses()
-	for frame in range(3):
-		await process_frame
-		print("TRACE attachment frame=", frame, " point=", attachment.global_position, " offset=", attachment.position, " bone=", skeleton.get_bone_global_pose(bone_index), " rest=", skeleton.get_bone_global_rest(bone_index), " parent=", (attachment.get_parent() as Node3D).global_transform)
+	await skeleton.skeleton_updated
 	if attachment.global_position.distance_to(authored_position) > EPSILON:
 		fail(model_name + " attachment rest position: %s != %s" % [attachment.global_position, authored_position])
 		return false
@@ -58,10 +56,14 @@ func check_attachment(loader: Object, model_name: String, attachment_id: int, bo
 		fail(model_name + " local offset does not preserve authored position relative to pivot")
 		return false
 	skeleton.set_bone_pose_rotation(bone_index, Quaternion(Vector3.UP, 0.65))
-	await process_frame
+	skeleton.set_bone_pose_position(bone_index, skeleton.get_bone_pose_position(bone_index) + Vector3(0.3, 0.2, 0.1))
+	await skeleton.skeleton_updated
 	var expected := skeleton.get_bone_global_pose(bone_index) * local_offset
 	if attachment.global_position.distance_to(expected) > EPSILON:
 		fail(model_name + " attachment did not follow rotated bone: %s != %s" % [attachment.global_position, expected])
+		return false
+	if not attachment.global_basis.is_equal_approx(skeleton.get_bone_global_pose(bone_index).basis):
+		fail(model_name + " attachment did not follow bone orientation")
 		return false
 	if attachment.global_position.distance_to(authored_position) < EPSILON:
 		fail(model_name + " attachment did not move")
