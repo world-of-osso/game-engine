@@ -12,12 +12,12 @@ The Godot replacement remains incomplete. `cad33614` shares terrain material inp
 | `charselect` | Authenticated Vulkan fixture `/tmp/claude/screen-cli-charselect-runtime-a14c841e.log`, exit 0. |
 | `charcreate` | `/tmp/claude/startup-charcreate-56a6d262.log`, clean exit 0 after `412f5814` shader cleanup; PNG inspected. Explicit-server authenticated runtime remains untested. |
 | `charcreate-customize` | `/tmp/claude/startup-charcreate-customize-56a6d262.log`, clean exit 0 after `412f5814`; PNG inspected. |
-| `loading` | `/tmp/claude/startup-loading-73852401.log`, exit 0; PNG inspected. The bottom progress bar is clipped, so this proves startup/UI presence, not visual parity. |
+| `loading` | `/tmp/claude/startup-loading-73852401.log`, exit 0; PNG inspected. The bottom progress bar is clipped by the shared legacy layout at 720 px, so this proves startup/UI presence, not visual parity; it is not a confirmed Godot UI-scale regression. |
 | `inworld` | Authenticated fixture `/tmp/claude/startup-inworld-runtime-668015c5.log`, exit 0. Its mixed-case `--char` selects the second roster entry (server selection 17, not first-entry 18); this audit did not independently re-read the numeric source predicate. |
 
 Both authenticated CLI fixtures now validate local locomotion `0 → 5 → 0` and clean shutdown. Missing, invalid, and unsupported root CLI invocations each exit 1 (`/tmp/claude/startup-error-{missing,invalid,unsupported}.log`). `--state connecting` and `--state reconnecting`, plus `eula`, `selectiondebug`, `inworldselectiondebug`, `debugcharacter`, `m2debug`, `skyboxdebug`, `campsitepopup`, `gamemenu`, `optionsmenu`, `trashbutton`, `particledebug`, and `nameplatedebug`, remain explicitly unconverted.
 
-Final bounded checks: native `cargo check` passed and launcher formatting passed; native formatting failed only on then-uncommitted parallel `godot/rust/src/terrain/objects.rs`. Do not describe the checkout as fully green. This is six-name startup proof, not all `--screen` values, authenticated `charcreate` runtime proof, visual parity, or full conversion.
+Final bounded checks: native `cargo check` and launcher formatting passed. The historical native-format failure recorded with `bd8282c7` was limited to then-uncommitted parallel `godot/rust/src/terrain/objects.rs`; after terrain commit `f015f651`, `/tmp/claude/startup-native-fmt-after-terrain-commit.log` records native `cargo fmt --check` exit 0. This is six-name startup proof, not all `--screen` values, authenticated `charcreate` runtime proof, visual parity, or full conversion.
 
 ## Native camera options boundary
 
