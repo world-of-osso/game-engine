@@ -11,6 +11,8 @@ crate-type = ["cdylib", "rlib"]
 # Godot 4.7 GDExtension ABI and native scene/resource APIs replace Bevy rendering.
 godot = { version = "0.5.5", features = ["api-4-7"] }
 game-engine-core = { path = "../core" }
+# Read the existing imported creature display catalog through the shared query.
+rusqlite = { version = "0.35", features = ["bundled"] }
 # Convert native node rotations into the same quaternion math used by shared movement.
 glam = "0.32.0"
 # Reuse the original local-CASC/listfile resolver and canonical FDID asset cache.
