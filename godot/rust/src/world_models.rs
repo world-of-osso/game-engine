@@ -1,0 +1,68 @@
+//! Imported creature display catalog and native NPC visual children.
+use std::{f32::consts::FRAC_PI_2, path::PathBuf};
+
+use game_engine_core::creature_display_data::{CreatureDisplay, query_display};
+use godot::{classes::Node3D, prelude::*};
+use rusqlite::{Connection, OpenFlags};
+
+use crate::assets::creature::load_creature_model;
+
+pub(crate) struct CreatureModels {
+    data_root: PathBuf,
+    cache_root: PathBuf,
+    catalog: Option<Connection>,
+}
+
+impl CreatureModels {
+    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+        Self {
+            data_root,
+            cache_root,
+            catalog: None,
+        }
+    }
+
+    fn query_display(&mut self, display_id: u32) -> Result<CreatureDisplay, String> {
+        let path = self.data_root.join("cache/creature_display.sqlite");
+        if self.catalog.is_none() {
+            let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .map_err(|error| format!("Cannot open {}: {error}", path.display()))?;
+            self.catalog = Some(connection);
+        }
+        let connection = self.catalog.as_ref().expect("Catalog opened above");
+        query_display(connection, display_id)
+            .map_err(|error| {
+                format!(
+                    "Cannot query display {display_id} in {}: {error}",
+                    path.display()
+                )
+            })?
+            .ok_or_else(|| {
+                format!(
+                    "Creature display {display_id} absent from {}",
+                    path.display()
+                )
+            })
+    }
+
+    pub fn load_visual(&mut self, display_id: u32) -> Result<Gd<Node3D>, String> {
+        let display = self.query_display(display_id)?;
+        let (mut model, missing) =
+            load_creature_model(&self.data_root, &self.cache_root, &display)?;
+        if !missing.is_empty() {
+            godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
+        }
+        model.set_name("NpcModel");
+        let scale = if display.scale_milli == 0 {
+            1.0
+        } else {
+            display.scale_milli as f32 / 1000.0
+        };
+        let mut visual = Node3D::new_alloc();
+        visual.set_name("NpcVisualRoot");
+        visual.set_scale(Vector3::ONE * scale.max(0.01));
+        visual.set_rotation(Vector3::new(0.0, -FRAC_PI_2, 0.0));
+        visual.add_child(&model);
+        Ok(visual)
+    }
+}

@@ -8,6 +8,7 @@ mod scene;
 mod terrain;
 mod ui;
 mod world;
+mod world_models;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -62,14 +63,17 @@ impl INode3D for GameClient {
             loading_ui: None,
             errors_ui: None,
             account: Account::new(data_root.clone()),
-            terrain: terrain::streaming::StreamedTerrain::new(data_root, cache_root),
+            terrain: terrain::streaming::StreamedTerrain::new(
+                data_root.clone(),
+                cache_root.clone(),
+            ),
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_camera: camera::WorldCamera::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             units: HashMap::new(),
-            world: world::WorldUnits::default(),
+            world: world::WorldUnits::new(data_root, cache_root),
             server_hostname: if cfg!(debug_assertions) {
                 "127.0.0.1:5000"
             } else {

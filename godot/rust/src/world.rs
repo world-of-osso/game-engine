@@ -1,6 +1,8 @@
-//! Server-identified replicated unit nodes. Visual models and world readiness are separate.
+//! Server-identified replicated unit nodes and their owned creature visuals.
 
-use std::{collections::HashMap, f32::consts::PI};
+use std::{collections::HashMap, f32::consts::PI, path::PathBuf};
+
+use crate::world_models::CreatureModels;
 
 use game_engine_core::unit_motion_data::{
     MotionPose, MotionTarget, follow_server_motion, interpolate_remote_motion,
@@ -18,6 +20,8 @@ struct UnitNode {
     name: String,
     is_player: bool,
     motion: UnitMotion,
+    model_display: Option<u32>,
+    visual: Option<Gd<Node3D>>,
 }
 
 struct UnitMotion {
@@ -158,6 +162,8 @@ fn spawn_unit(
         name: name.to_owned(),
         is_player,
         motion: UnitMotion::new([position.x, position.y, position.z], yaw),
+        model_display: None,
+        visual: None,
     }
 }
 
@@ -197,15 +203,54 @@ fn resolve_selected_player(
     chosen
 }
 
-#[derive(Default)]
+fn sync_unit_visual(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut CreatureModels) {
+    let display_id = if snapshot.npc.is_some() && snapshot.player.is_none() {
+        snapshot
+            .model
+            .as_ref()
+            .map(|model| model.display_id)
+            .filter(|id| *id != 0)
+    } else {
+        None
+    };
+    if unit.model_display == display_id {
+        return;
+    }
+    unit.model_display = display_id;
+    if let Some(visual) = unit.visual.take() {
+        visual.free();
+    }
+    let Some(display_id) = display_id else {
+        return;
+    };
+    match models.load_visual(display_id) {
+        Ok(visual) => {
+            unit.node.add_child(&visual);
+            unit.visual = Some(visual);
+        }
+        Err(error) => godot_error!("NPC {} display {display_id}: {error}", snapshot.server_id),
+    }
+}
+
 pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
     units: HashMap<u64, UnitNode>,
     selected_name: Option<String>,
     local_player_id: Option<u64>,
+    models: CreatureModels,
 }
 
 impl WorldUnits {
+    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+        Self {
+            root: None,
+            units: HashMap::new(),
+            selected_name: None,
+            local_player_id: None,
+            models: CreatureModels::new(data_root, cache_root),
+        }
+    }
+
     pub fn upsert(&mut self, parent: &mut Gd<Node3D>, snapshot: &UnitSnapshot) {
         let Some(position) = unit_position(snapshot) else {
             return;
@@ -235,6 +280,7 @@ impl WorldUnits {
             unit.name = name.to_owned();
         }
         unit.is_player = snapshot.player.is_some();
+        sync_unit_visual(unit, snapshot, &mut self.models);
         unit.motion.set_target(
             [position.x, position.y, position.z],
             snapshot.rotation.map(|rotation| rotation.y),
