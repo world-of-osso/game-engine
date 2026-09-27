@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashMap;
 
 fn load_test_db() -> CustomizationDb {
     crate::customization_cache::import_customization_cache(Path::new("data"))
