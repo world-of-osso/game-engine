@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Typed native transfer wiring remains uncompiled
+
+`237d6aa3` adds typed transfer/session-account state: `NewWorld` starts a pending world port and selects `Loading`; `TransferAborted` becomes a transfer-error event; only native readiness completion may send `WorldPortAck`. `1de253b7`/`7480f999`/`3ae265ea` add and correct the owned Godot UDP transfer fixture, including typed instance-ID comparisons. Session agent evidence is targeted 4/4 only.
+
+`6a8e8d74` projects same-map terrain/material/lighting reset, destination-tile request, selected-player position/facing, readiness acknowledgment, and `UIErrors` ownership into the host. `526a7ca0` now supplies agent233's native overlay/model implementation; combined main wiring has not compiled. The only owned-loopback runtime attempt used the old `c48d2510` DLL: it reached `FIXTURE INITIAL_READY`, ignored `NewWorld`, and timed out at fixture phase 1 (`/tmp/claude/native-transfer-red-runtime-typed.log`). This RED does not test `6a8e8d74`. Independent compile and GREEN fixture verification remain required. Global WMO, WMO model/ground/camera, character-facing movement/native input, and all parity rows remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native loading-readiness wiring, proof pending
 
 `dae1f6e5` wires the shared loading predicate into the native host. Selected-unit position supplies local-player readiness and requests the current center tile; only an attached center tile is loaded; a present global WMO stays pending until native spawn; LoadingUI receives progress/status; completion selects `InWorld`. `191dee01` lets the stable-unit fixture accept either `Loading` or `InWorld`.
