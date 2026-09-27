@@ -11,6 +11,8 @@ crate-type = ["cdylib", "rlib"]
 # Godot 4.7 GDExtension ABI and native scene/resource APIs replace Bevy rendering.
 godot = { version = "0.5.5", features = ["api-4-7"] }
 game-engine-core = { path = "../core" }
+# Shared equipment slots retain the original persisted transform-config representation.
+serde = { version = "1", features = ["derive"] }
 # Parse quoted multiline descriptions in the Map.csv transfer-error catalog.
 csv = "1.4"
 # Read the existing imported creature display catalog through the shared query.

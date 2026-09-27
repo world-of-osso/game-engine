@@ -2,11 +2,13 @@ mod account;
 mod animation;
 #[path = "../../../src/rendering/character/appearance_options.rs"]
 pub mod appearance_options;
-pub use game_engine_core::customization_data;
+pub use game_engine_core::{customization_data, outfit_data};
 mod assets;
 mod camera;
 mod char_create;
 mod character_select;
+#[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
+pub mod equipment_appearance_data;
 mod gameplay;
 mod ground;
 mod input;
