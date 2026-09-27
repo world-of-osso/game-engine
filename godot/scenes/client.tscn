@@ -1,3 +1,9 @@
-[gd_scene format=3]
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/fps_overlay.gd" id="1_fps"]
 
 [node name="WorldOfOsso" type="GameClient"]
+
+[node name="FpsOverlay" type="CanvasLayer" parent="."]
+layer = 1000
+script = ExtResource("1_fps")
