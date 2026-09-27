@@ -2,8 +2,12 @@
 pub mod adt_format;
 #[path = "../../../src/asset/blp_format.rs"]
 pub mod blp_format;
+#[path = "../../../src/asset/m2_batch_data.rs"]
+pub mod m2_batch_data;
 #[path = "../../../src/asset/m2_format/pure.rs"]
 pub mod m2_format;
+#[path = "../../../src/asset/m2_texture.rs"]
+pub mod m2_texture;
 #[path = "../../../src/asset/read_bytes.rs"]
 pub mod read_bytes;
 #[path = "../../../src/asset/wdt.rs"]
