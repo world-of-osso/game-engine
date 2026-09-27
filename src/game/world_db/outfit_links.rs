@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
+use std::time::Duration;
 
-const OUTFIT_LINKS_SCHEMA_SQL: &str = "BEGIN;
-DROP TABLE IF EXISTS source_files;
+const CACHE_BUSY_TIMEOUT: Duration = Duration::from_secs(30);
+
+const OUTFIT_LINKS_SCHEMA_SQL: &str = "DROP TABLE IF EXISTS source_files;
 DROP TABLE IF EXISTS starter_outfits;
 DROP TABLE IF EXISTS item_modified_appearance_map;
 DROP TABLE IF EXISTS item_appearance_map;
@@ -60,18 +62,21 @@ CREATE INDEX idx_model_to_fdid_file_data_id ON model_to_fdid(file_data_id);";
 pub(super) fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = super::outfit_links_cache_path(data_dir);
     let csv_paths = super::required_outfit_csv_paths(data_dir);
-    if cache_path.exists() {
-        let conn = super::open_read_only(&cache_path)?;
-        if super::outfit_cache_is_fresh(&conn, &csv_paths)? {
-            return Ok(cache_path);
-        }
-    }
     if let Some(parent) = cache_path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
     }
     let conn = Connection::open(&cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
+    conn.busy_timeout(CACHE_BUSY_TIMEOUT)
+        .map_err(|err| format!("set outfit cache busy timeout: {err}"))?;
+    conn.execute_batch("BEGIN IMMEDIATE;")
+        .map_err(|err| format!("lock outfit links cache: {err}"))?;
+    if super::outfit_cache_is_fresh(&conn, &csv_paths)? {
+        conn.execute_batch("COMMIT;")
+            .map_err(|err| format!("release outfit links cache: {err}"))?;
+        return Ok(cache_path);
+    }
     init_schema(&conn)?;
     record_source_files(&conn, &csv_paths)?;
     import_rows(&conn, &csv_paths)?;
@@ -109,8 +114,10 @@ fn record_source_files(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), S
         .prepare("INSERT INTO source_files (source, mtime_secs) VALUES (?1, ?2)")
         .map_err(|err| format!("prepare source_files insert: {err}"))?;
     for path in csv_paths {
+        let source = super::outfit_csv_source_key(path)?;
+        let mtime = super::csv_mtime(path)?;
         source_insert
-            .execute((path.to_string_lossy().to_string(), super::csv_mtime(path)?))
+            .execute((source, mtime))
             .map_err(|err| format!("insert source_files {}: {err}", path.display()))?;
     }
     Ok(())
