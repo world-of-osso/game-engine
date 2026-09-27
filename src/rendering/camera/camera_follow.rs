@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings, RayCastVisibility};
 use bevy::prelude::*;
 
-use crate::camera_follow_data::follow_camera as follow_camera_data;
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
+use game_engine::camera_follow_data::follow_camera as follow_camera_data;
 
 use super::{GROUND_Y, Player, WowCamera};
 
