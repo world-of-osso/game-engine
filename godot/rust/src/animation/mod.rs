@@ -662,10 +662,12 @@ mod tests {
             transition.duration_ms,
             (model.sequences[death].blend_time as f32).max(150.0)
         );
-        assert!(outgoing
-            .iter()
-            .zip(player.poses())
-            .all(|(a, b)| near_pose(*a, b)));
+        assert!(
+            outgoing
+                .iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
         player
             .advance(model.sequences[death].duration as f64 + 500.0)
             .expect("finish Death");
@@ -673,7 +675,11 @@ mod tests {
         assert!(player.transition.is_none());
         let held = player.poses();
         player.advance(500.0).expect("hold corpse pose");
-        assert!(held.iter().zip(player.poses()).all(|(a, b)| near_pose(*a, b)));
+        assert!(
+            held.iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
     }
 
     #[test]

@@ -250,7 +250,10 @@ fn sync_unit_death(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
         .health
         .as_ref()
         .is_none_or(|health| health.current > 0.0);
-    if unit.death_applied || alive || snapshot.npc.is_none() || unit.is_player {
+    if unit.death_applied || alive {
+        return;
+    }
+    if snapshot.npc.is_none() || unit.is_player {
         return;
     }
     let Some(animation) = unit
