@@ -17,7 +17,7 @@ fn fixture(name: &str) -> Model {
 #[test]
 fn real_boar_batches_resolve_authoring_and_draw_order() {
     let model = fixture("boar");
-    let batches = m2::resolve_render_batches(&model, false, |_| None).unwrap();
+    let batches = m2::resolve_render_batches(&model, &[0, 0, 0], false, |_| None).unwrap();
     assert!(!batches.is_empty());
     assert!(
         batches
@@ -38,9 +38,52 @@ fn real_boar_batches_resolve_authoring_and_draw_order() {
 }
 
 #[test]
+fn geometry_sfid_does_not_supply_creature_texture_replacements() {
+    let mut model = fixture("boar");
+    assert_eq!(model.skin_fdids, [473273, 473272]);
+    model.batches = vec![unit(0, 0, 0)];
+    model.texture_types = vec![11, 12, 13, 0];
+    model.texture_fdids = vec![0, 0, 0, 987654];
+    model.texture_lookup = vec![0, 1, 2, 3];
+    let batches = m2::resolve_render_batches(&model, &[0, 0, 0], false, |_| None).unwrap();
+    assert_eq!(batches.len(), 1);
+    let batch = &batches[0];
+    assert_eq!(batch.texture_fdid, None);
+    assert_eq!(batch.texture_2_fdid, None);
+    assert_eq!(batch.extra_texture_fdids, [987654]);
+}
+
+#[test]
+fn explicit_creature_texture_slots_resolve_without_changing_static_txid() {
+    let mut model = fixture("boar");
+    model.batches = vec![unit(0, 0, 0)];
+    model.texture_types = vec![11, 12, 13, 0];
+    model.texture_fdids = vec![0, 0, 0, 987654];
+    model.texture_lookup = vec![0, 1, 2, 3];
+    let batches = m2::resolve_render_batches(&model, &[111, 222, 333], false, |_| None).unwrap();
+    let batch = &batches[0];
+    assert_eq!(batch.texture_fdid, Some(111));
+    assert_eq!(batch.texture_2_fdid, Some(222));
+    assert_eq!(batch.extra_texture_fdids, [333, 987654]);
+    assert_eq!(model.skin_fdids, [473273, 473272]);
+}
+
+#[test]
+fn type_two_uses_first_creature_texture_slot() {
+    let mut model = fixture("boar");
+    let mut single = unit(0, 0, 0);
+    single.texture_count = 1;
+    model.batches = vec![single];
+    model.texture_types = vec![2];
+    model.texture_lookup = vec![0];
+    let batch = m2::resolve_render_batches(&model, &[111, 222, 333], false, |_| None).unwrap();
+    assert_eq!(batch[0].texture_fdid, Some(111));
+}
+
+#[test]
 fn real_hd_model_batch_inventory() {
     let model = fixture("humanmale_hd");
-    let batches = m2::resolve_render_batches(&model, false, |_| None).unwrap();
+    let batches = m2::resolve_render_batches(&model, &[0, 0, 0], false, |_| None).unwrap();
     assert_eq!(model.batches.len(), 113);
     assert_eq!(batches.len(), 113);
     assert_eq!(model.indices.len(), 147966);
@@ -101,7 +144,7 @@ fn authored_material_texture_animation_and_opacity_resolution() {
     };
     model.texture_animations = vec![anim(0.25), anim(0.75)];
     model.uv_animation_lookup = vec![0, 1];
-    let batches = m2::resolve_render_batches(&model, false, |_| None).unwrap();
+    let batches = m2::resolve_render_batches(&model, &[0, 0, 0], false, |_| None).unwrap();
     assert_eq!(
         batches
             .iter()
@@ -176,11 +219,11 @@ fn zero_opacity_policy_filters_before_mesh_material_binding() {
         opacity: track(16384),
     }];
     assert!(
-        m2::resolve_render_batches(&model, false, |_| None)
+        m2::resolve_render_batches(&model, &[0, 0, 0], false, |_| None)
             .unwrap()
             .is_empty()
     );
-    let kept = m2::resolve_render_batches(&model, true, |_| None).unwrap();
+    let kept = m2::resolve_render_batches(&model, &[0, 0, 0], true, |_| None).unwrap();
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].transparency, 0.0);
 }
@@ -190,7 +233,7 @@ fn invalid_submesh_is_an_error_even_for_zero_opacity() {
     let mut model = fixture("boar");
     model.batches = vec![unit(u16::MAX, 0, 0)];
     assert!(
-        m2::resolve_render_batches(&model, false, |_| None)
+        m2::resolve_render_batches(&model, &[0, 0, 0], false, |_| None)
             .err()
             .unwrap()
             .contains("Batch submesh_index 65535")
