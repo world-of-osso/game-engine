@@ -58,7 +58,7 @@ CREATE TABLE model_to_fdid (
 CREATE INDEX idx_model_to_fdid_file_data_id ON model_to_fdid(file_data_id);";
 
 pub(super) fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
-    let cache_path = super::outfit_links_cache_path();
+    let cache_path = super::outfit_links_cache_path(data_dir);
     let csv_paths = super::required_outfit_csv_paths(data_dir);
     if cache_path.exists() {
         let conn = super::open_read_only(&cache_path)?;
@@ -81,7 +81,7 @@ pub(super) fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, Stri
 }
 
 pub(super) fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBuf, String> {
-    let cache_path = super::outfit_links_cache_path();
+    let cache_path = super::outfit_links_cache_path(data_dir);
     if !cache_path.exists() {
         return Err(format!(
             "{} missing; run `cargo run --bin outfit_links_cache_import` to build it",
