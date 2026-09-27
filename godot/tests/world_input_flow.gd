@@ -473,7 +473,89 @@ func camera_controls_change_orbit(client: Node, player: Node3D) -> bool:
 	if camera.global_position.distance_to(player.global_position) >= distance_before - 0.2:
 		fail("Mouse wheel failed to zoom native world camera inward")
 		return false
-	print("CAMERA: native mouse orbit, facing, and wheel zoom observed")
+	var locomotion = load("res://tests/player_locomotion_probe.gd").new()
+	var locomotion_error: String = locomotion.bind(player)
+	if locomotion_error != "":
+		fail(locomotion_error)
+		return false
+	if not await check_idle_mouse_turn(client, player, camera, locomotion, MOUSE_BUTTON_LEFT, 12, "LEFT_ORBIT"):
+		return false
+	if not await check_idle_mouse_turn(client, player, camera, locomotion, MOUSE_BUTTON_RIGHT, 12, "RIGHT_DRAG_POSITIVE"):
+		return false
+	if not await check_idle_mouse_turn(client, player, camera, locomotion, MOUSE_BUTTON_RIGHT, -12, "RIGHT_DRAG_NEGATIVE"):
+		return false
+	print("CAMERA: native mouse orbit, facing, wheel zoom, and idle turns observed")
+	return true
+
+func check_idle_mouse_turn(client: Node, player: Node3D, camera: Camera3D, locomotion: RefCounted, button: MouseButton, motion_x: float, phase: String) -> bool:
+	var position := player.position
+	var facing := player.rotation.y
+	var facing_before := facing
+	var camera_before := camera.global_transform.basis.z
+	var stand_pose: Array[Transform3D] = locomotion.capture_pose()
+	var press := InputEventMouseButton.new()
+	press.position = Vector2(640, 360)
+	press.button_index = button
+	press.pressed = true
+	root.push_input(press, true)
+	var sampled_frames := 0
+	var selected_at := -1
+	var changed_pose := false
+	var error := ""
+	for frame in range(HELD_FRAMES):
+		var motion := InputEventMouseMotion.new()
+		motion.position = press.position
+		motion.relative = Vector2(motion_x, 0)
+		root.push_input(motion, true)
+		await process_frame
+		var delta := wrapf(player.rotation.y - facing, -PI, PI)
+		facing = player.rotation.y
+		if client.account_state().screen != "InWorld" or player.position.distance_to(position) > 0.05:
+			error = phase + " exited world or moved while only mouse was held"
+			break
+		var expected_id := 0
+		if button == MOUSE_BUTTON_RIGHT and absf(delta) >= 0.02:
+			expected_id = 11 if delta > 0.0 else 12
+			sampled_frames += 1
+		if button == MOUSE_BUTTON_LEFT and (absf(delta) >= 0.02 or locomotion.animation.current_animation_id() != 0):
+			error = "Left-button orbit changed character facing or authored Stand 0: yaw delta=" + str(delta)
+			break
+		if expected_id != 0 and frame >= 3 and locomotion.animation.current_animation_id() != expected_id:
+			error = phase + " yaw delta " + str(delta) + " expected authored turn " + str(expected_id) + " got " + str(locomotion.animation.current_animation_id()) + " at frame " + str(frame)
+			break
+		if expected_id != 0 and locomotion.animation.current_animation_id() == expected_id:
+			if selected_at < 0:
+				selected_at = Time.get_ticks_msec()
+			if Time.get_ticks_msec() - selected_at >= 150:
+				changed_pose = changed_pose or locomotion.changed_from(stand_pose)
+	if error == "":
+		for frame in range(4):
+			await process_frame
+		if locomotion.animation.current_animation_id() != 0:
+			error = phase + " stopped mouse motion while held but did not return to Stand 0: " + str(locomotion.animation.current_animation_id())
+	var release := InputEventMouseButton.new()
+	release.position = press.position
+	release.button_index = button
+	release.pressed = false
+	root.push_input(release, true)
+	if error != "":
+		fail(error)
+		return false
+	if camera_before.angle_to(camera.global_transform.basis.z) < 0.01:
+		fail(phase + " mouse drag did not orbit native camera")
+		return false
+	if button == MOUSE_BUTTON_LEFT and absf(wrapf(player.rotation.y - facing_before, -PI, PI)) >= 0.01:
+		fail("Left-button orbit changed character facing: " + str(facing_before) + " -> " + str(player.rotation.y))
+		return false
+	if button == MOUSE_BUTTON_RIGHT and (sampled_frames < 10 or selected_at < 0 or not changed_pose):
+		fail(phase + " did not sustain yaw >= 0.02/frame, authored turn, and changed bones after 150ms: samples=" + str(sampled_frames) + " selected_at=" + str(selected_at))
+		return false
+	for frame in range(SETTLE_FRAMES):
+		await process_frame
+	if locomotion.animation.current_animation_id() != 0 or player.position.distance_to(position) > 0.05:
+		fail(phase + " release did not restore Stand 0 without movement: " + str(locomotion.animation.current_animation_id()))
+		return false
+	print("PASS: " + phase + " samples=" + str(sampled_frames) + " selected_at_ms=" + str(selected_at) + " -> Stand 0")
 	return true
 
 func focus_loss_stops_held_input(player: Node3D) -> bool:
