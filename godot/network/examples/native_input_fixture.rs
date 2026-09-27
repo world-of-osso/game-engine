@@ -15,8 +15,8 @@ use std::{
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender,
+    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender, server,
 };
 use shared::{
     components::{
@@ -40,6 +40,35 @@ const TICK: Duration = Duration::from_millis(5);
 const TIMEOUT: Duration = Duration::from_secs(180);
 const RELEASE_DRAIN: Duration = Duration::from_millis(250);
 const RELEASE_QUIET: Duration = Duration::from_millis(400);
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StartupScreen {
+    CharSelect,
+    InWorld,
+}
+
+impl StartupScreen {
+    fn from_example_args() -> Self {
+        let mut args = std::env::args().skip(1);
+        let screen = match args.next().as_deref() {
+            None => Self::CharSelect,
+            Some("inworld") => Self::InWorld,
+            Some(other) => panic!("unknown fixture startup screen: {other}; expected inworld"),
+        };
+        assert!(
+            args.next().is_none(),
+            "expected at most one fixture argument"
+        );
+        screen
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::CharSelect => "charselect",
+            Self::InWorld => "inworld",
+        }
+    }
+}
 
 #[derive(Resource, Default)]
 struct Incoming {
@@ -144,6 +173,7 @@ fn launch_godot(
     root: &Path,
     config: &FixtureConfig,
     address: SocketAddr,
+    screen: StartupScreen,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = root.join("target/debug/game-engine-launcher");
     let project = root.join("godot");
@@ -161,10 +191,15 @@ fn launch_godot(
             "--script",
             "res://tests/world_input_flow.gd",
             "--screen",
-            "charselect",
-            "--server",
+            screen.as_str(),
         ])
+        .args(if screen == StartupScreen::InWorld {
+            &["--char", "iNpUt fIxTuRe", "--server"][..]
+        } else {
+            &["--server"][..]
+        })
         .arg(address.to_string())
+        .env("GODOT_TEST_STARTUP_SCREEN", screen.as_str())
         .env("CARGO", env!("CARGO"))
         .env("XDG_CONFIG_HOME", &config.home)
         .env("GODOT_TEST_SERVER", address.to_string())
@@ -224,7 +259,7 @@ fn starter_equipment() -> EquipmentAppearance {
     }
 }
 
-fn respond_to_login(app: &mut App) -> Result<(), String> {
+fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().logins);
     if requests.is_empty() {
         return Ok(());
@@ -270,12 +305,17 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
         },
         ..equipped.clone()
     };
+    let characters = if screen == StartupScreen::InWorld {
+        vec![unequipped, equipped, collection]
+    } else {
+        vec![equipped, unequipped, collection]
+    };
     send::<_, AuthChannel>(
         app,
         LoginResponse {
             success: true,
             token: "fixture-only-token".into(),
-            characters: vec![equipped, unequipped, collection],
+            characters,
             error: None,
         },
     );
@@ -472,6 +512,7 @@ fn run_fixture(
     child: &mut Child,
     lines: Receiver<String>,
     reader: Vec<thread::JoinHandle<()>>,
+    screen: StartupScreen,
 ) -> Result<(), String> {
     let mut selected = None;
     let mut remote = None;
@@ -482,7 +523,7 @@ fn run_fixture(
     let mut reader = Some(reader);
     while Instant::now() < deadline {
         app.update();
-        respond_to_login(app)?;
+        respond_to_login(app, screen)?;
         respond_to_selection(app, &mut selected, &mut remote)?;
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
@@ -551,6 +592,7 @@ fn run_fixture(
 }
 
 fn main() {
+    let screen = StartupScreen::from_example_args();
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -564,8 +606,8 @@ fn main() {
         launcher.display()
     );
     let config = FixtureConfig::create(root);
-    let (mut child, lines, reader) = launch_godot(root, &config, address);
-    let result = run_fixture(&mut app, &mut child, lines, reader);
+    let (mut child, lines, reader) = launch_godot(root, &config, address, screen);
+    let result = run_fixture(&mut app, &mut child, lines, reader, screen);
     if result.is_err()
         && child
             .try_wait()
