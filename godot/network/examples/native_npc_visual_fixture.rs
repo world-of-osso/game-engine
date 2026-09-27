@@ -228,6 +228,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO choices VALUES (910012,910030),(910012,910031),(910013,910030),(910013,910031),(910014,910030),(910014,910031),(910016,910032),(910016,910033),(910016,910034),(910016,910035),(910017,910030),(910017,910036);
         INSERT INTO geosets VALUES (910012,1,2),(910013,1,1),(910017,1,1);
     ")?;
+    // Default player hair is not among any NPC's explicit choices, preserving missing-type-6 cases.
     write_sqlite_fixture(data, "customization.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
         CREATE TABLE chr_models (id INTEGER PRIMARY KEY, layout_id INTEGER NOT NULL, customize_scale REAL NOT NULL, camera_distance_offset REAL NOT NULL);
@@ -242,13 +243,16 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO chr_models VALUES (910040,910041,1.0,0.0),(910042,910043,1.0,0.0);
         INSERT INTO options VALUES (910050,'Skin',910040,910060,0,0,0),(910051,'Body',910040,910060,1,0,0),
             (910052,'Skin',910042,910060,0,0,0),(910053,'Body',910042,910060,1,0,0),
-            (910054,'Head',910042,910060,2,0,0),(910055,'Hair',910042,910060,3,0,0),(910056,'Eye',910040,910060,2,0,0);
+            (910054,'Head',910042,910060,2,0,0),(910055,'Hair',910042,910060,3,0,0),(910056,'Eye',910040,910060,2,0,0),
+            (910057,'Hair',910040,910060,3,0,0);
         INSERT INTO categories VALUES (910060,'Appearance',0,0,0);
         INSERT INTO choices VALUES (910030,910050,'Base skin',0,0,0,0,0),(910031,910051,'Body color',0,0,0,0,0),
             (910032,910052,'Base skin',0,0,0,0,0),(910033,910053,'Body color',0,0,0,0,0),
-            (910034,910054,'Head color',0,0,0,0,0),(910035,910055,'Hair color',0,0,0,0,0),(910036,910056,'Eye color',0,0,0,0,0);
+            (910034,910054,'Head color',0,0,0,0,0),(910035,910055,'Hair color',0,0,0,0,0),(910036,910056,'Eye color',0,0,0,0,0),
+            (910037,910057,'Player hair',0,0,0,0,0);
         INSERT INTO elements VALUES (910030,0,0,910070,0),(910031,910030,910080,910071,0),
-            (910032,0,0,910070,0),(910033,0,0,910071,0),(910034,0,0,910074,0),(910035,0,0,910075,0),(910036,0,0,910076,0);
+            (910032,0,0,910070,0),(910033,0,0,910071,0),(910034,0,0,910074,0),(910035,0,0,910075,0),(910036,0,0,910076,0),
+            (910037,0,0,910075,0);
         INSERT INTO materials VALUES (910070,1,910072),(910071,2,910073),(910074,9,910076),(910075,10,910077),(910076,11,910078);
         INSERT INTO geosets VALUES (910080,1,2);
         INSERT INTO texture_fdids VALUES (910072,910021),(910073,910022),(910076,910023),(910077,910024),(910078,910025);
@@ -261,9 +265,9 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO layouts VALUES (910041,2,2),(910043,2048,1024);
         INSERT INTO layers VALUES (1,0,0,-1,1,910041),(1,1,0,-1,2,910041),
             (1,0,0,-1,1,910043),(1,1,0,-1,2,910043),
-            (19,2,0,-1,11,910041),
+            (19,2,0,-1,11,910041),(6,2,0,-1,10,910041),
             (6,2,0,512,9,910043),(6,3,0,-1,10,910043);
-        INSERT INTO sections VALUES (910043,9,0,0,1024,1024),(910043,10,1024,0,1024,1024);
+        INSERT INTO sections VALUES (910041,10,0,0,2,2),(910043,9,0,0,1024,1024),(910043,10,1024,0,1024,1024);
     ")?;
     fs::write(
         data.join("ChrRaceXChrModel.csv"),
