@@ -266,6 +266,19 @@ impl AnimationState {
         Ok(())
     }
 
+    pub fn select_animation_id(&mut self, id: u16, looping: bool) -> Result<bool, String> {
+        let index = self
+            .sequences
+            .iter()
+            .position(|sequence| sequence.id == id && sequence.variation_id == 0)
+            .ok_or_else(|| format!("M2 animation ID {id} has no base variation"))?;
+        if self.sequences[self.current].id == id && self.looping == looping {
+            return Ok(false);
+        }
+        self.start_transition(index, looping);
+        Ok(true)
+    }
+
     fn play_death(&mut self) {
         if let Some(index) = self.sequences.iter().position(|sequence| sequence.id == 1) {
             self.start_transition(index, false);
@@ -455,6 +468,18 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
+    pub(crate) fn play_animation_id(&mut self, id: u16, looping: bool) -> Result<(), String> {
+        let changed = self
+            .animation
+            .as_mut()
+            .ok_or_else(|| "M2 animation has no bound model".to_string())?
+            .select_animation_id(id, looping)?;
+        if changed {
+            self.write_poses();
+        }
+        Ok(())
+    }
+
     pub(crate) fn play_death(&mut self) -> Result<(), String> {
         self.animation
             .as_mut()
@@ -478,6 +503,14 @@ impl WowAnimationPlayer {
 
 #[godot_api]
 impl WowAnimationPlayer {
+    #[func]
+    fn current_animation_id(&self) -> i32 {
+        self.animation
+            .as_ref()
+            .map(|animation| i32::from(animation.sequences[animation.current].id))
+            .unwrap_or(-1)
+    }
+
     #[func]
     fn play_sequence(&mut self, index: i32, looping: bool) -> bool {
         let result = usize::try_from(index)
@@ -553,6 +586,142 @@ mod tests {
                 .iter()
                 .zip(b.basis.rows)
                 .all(|(a, b)| near(*a, b))
+    }
+
+    #[test]
+    fn authored_id_run_selects_base_sequence_and_repeated_request_keeps_time() {
+        let model = model();
+        assert_eq!(model.sequences[2].id, 5);
+        assert_eq!(model.sequences[2].variation_id, 0);
+        assert_eq!(model.sequences[2].duration, 667);
+        let mut player = AnimationState::new(&model).expect("animated model");
+        assert!(
+            !player
+                .select_animation_id(0, true)
+                .expect("already standing")
+        );
+        assert!(player.select_animation_id(5, true).expect("Run ID"));
+        assert_eq!(player.current, 2);
+        player.advance(75.0).expect("advance Run crossfade");
+        let before = player.poses();
+        let blend_elapsed = player.transition.as_ref().expect("crossfade").elapsed_ms;
+        assert!(!player.select_animation_id(5, true).expect("same Run ID"));
+        assert_eq!(player.current, 2);
+        assert_eq!(player.time_ms, 75.0);
+        assert_eq!(
+            player.transition.as_ref().expect("crossfade").elapsed_ms,
+            blend_elapsed
+        );
+        assert!(
+            before
+                .iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
+    }
+
+    #[test]
+    fn authored_id_repeated_stand_preserves_selected_variation_and_crossfade() {
+        let model = model();
+        for index in [0, 26, 217, 376] {
+            assert_eq!(model.sequences[index].id, 0);
+        }
+        let mut player = AnimationState::new(&model).expect("animated model");
+        let duration = f64::from(model.sequences[0].duration);
+        let next_variation_roll = model.sequences[0].frequency as u32;
+        player
+            .advance_with_roll(duration, |_| next_variation_roll)
+            .expect("authored Stand variation boundary");
+        assert_eq!(player.current, 26);
+        player.advance(40.0).expect("advance variation crossfade");
+        let before = player.poses();
+        let blend_elapsed = player.transition.as_ref().expect("crossfade").elapsed_ms;
+        assert!(
+            !player
+                .select_animation_id(0, true)
+                .expect("same Stand family")
+        );
+        assert_eq!(player.current, 26);
+        assert_eq!(player.time_ms, 40.0);
+        assert_eq!(
+            player.transition.as_ref().expect("crossfade").elapsed_ms,
+            blend_elapsed
+        );
+        assert!(
+            before
+                .iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
+    }
+
+    #[test]
+    fn authored_id_missing_does_not_mutate_playback() {
+        let model = model();
+        assert!(
+            !model
+                .sequences
+                .iter()
+                .any(|sequence| sequence.id == u16::MAX)
+        );
+        let mut player = AnimationState::new(&model).expect("animated model");
+        player.select_animation_id(5, true).expect("Run ID");
+        player.advance(75.0).expect("advance crossfade");
+        let before = player.poses();
+        let elapsed = player.transition.as_ref().expect("crossfade").elapsed_ms;
+        assert!(player.select_animation_id(u16::MAX, false).is_err());
+        assert_eq!(player.current, 2);
+        assert!(player.looping);
+        assert_eq!(player.time_ms, 75.0);
+        assert_eq!(
+            player.transition.as_ref().expect("crossfade").elapsed_ms,
+            elapsed
+        );
+        assert!(
+            before
+                .iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
+    }
+
+    #[test]
+    fn authored_id_loop_mode_change_and_interruption_keep_blended_pose() {
+        let model = model();
+        let mut player = AnimationState::new(&model).expect("animated model");
+        player.advance(1000.0).expect("advance Stand");
+        let before = player.poses();
+        assert!(
+            player
+                .select_animation_id(0, false)
+                .expect("change loop mode")
+        );
+        assert!(!player.looping);
+        assert_eq!(player.time_ms, 0.0);
+        assert!(player.transition.as_ref().expect("crossfade").duration_ms >= 150.0);
+        assert!(
+            before
+                .iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
+        player.advance(75.0).expect("advance first crossfade");
+        let midblend = player.poses();
+        assert!(
+            player
+                .select_animation_id(5, true)
+                .expect("interrupt with Run")
+        );
+        assert_eq!(player.current, 2);
+        assert!(player.looping);
+        assert_eq!(player.time_ms, 0.0);
+        assert!(player.transition.as_ref().expect("crossfade").duration_ms >= 150.0);
+        assert!(
+            midblend
+                .iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
     }
 
     #[test]
