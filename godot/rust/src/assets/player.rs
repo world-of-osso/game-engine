@@ -210,6 +210,7 @@ pub(crate) fn load_player_model(
     let appearance = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
     let path = GString::from(path.to_string_lossy().as_ref());
     let parsed = read_model(&path)?;
+    cache_model_textures(&resolver, data_root, &[0; 3], &parsed)?;
     let (mut model, missing) = build_model(&parsed, &path, &[0; 3], Some(&appearance))?;
     if !missing.is_empty() {
         godot_warn!(
@@ -242,9 +243,7 @@ fn cache_player_model(
     let fdid = resolver
         .lookup_path(wow_path)
         .ok_or_else(|| format!("player model {wow_path} absent from local listfile"))?;
-    let path = cache_model_files(resolver, data_root, fdid)?;
-    cache_model_textures(resolver, data_root, &[0; 3], &path)?;
-    Ok(path)
+    cache_model_files(resolver, data_root, fdid)
 }
 
 fn prepare_player_appearance(

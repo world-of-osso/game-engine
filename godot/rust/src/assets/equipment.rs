@@ -72,9 +72,14 @@ impl EquipmentContext<'_> {
         let bound = slot_uses_bound_joints(definition.slot, authored_path);
         let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
         let path = cache_model_files(self.resolver, self.data_root, definition.fdid)?;
-        cache_model_textures(self.resolver, self.data_root, &definition.skin_fdids, &path)?;
         let path = GString::from(path.to_string_lossy().as_ref());
         let parsed = read_model(&path)?;
+        cache_model_textures(
+            self.resolver,
+            self.data_root,
+            &definition.skin_fdids,
+            &parsed,
+        )?;
         let skin = if bound {
             Some(self.bound_skin(&parsed)?)
         } else {

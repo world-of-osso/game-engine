@@ -186,7 +186,7 @@ pub(super) fn load_model_node_with_appearance(
     build_model(&model, path, skin_texture_fdids, appearance)
 }
 
-pub(super) fn build_model(
+pub(crate) fn build_model(
     model: &m2::Model,
     path: &GString,
     skin_texture_fdids: &[u32; 3],
