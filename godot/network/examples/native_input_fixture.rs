@@ -27,6 +27,7 @@ use shared::{
 };
 
 const NAME: &str = "Input Fixture";
+const UNEQUIPPED_NAME: &str = "Unequipped Fixture";
 // Authored terrain height; the transfer-only fixture's Y=83 is below this surface.
 const FIRST: [f32; 3] = [-8949.0, 112.879_913, 0.0];
 const TICK: Duration = Duration::from_millis(5);
@@ -185,20 +186,27 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
     if request.username != "fixture" || request.password != "fixture" || request.token.is_some() {
         return Err("unexpected fixture credentials or cached token".into());
     }
+    let equipped = CharacterListEntry {
+        character_id: 17,
+        name: NAME.into(),
+        level: 10,
+        race: 1,
+        class: 2,
+        appearance: Default::default(),
+        equipment_appearance: starter_equipment(),
+    };
+    let unequipped = CharacterListEntry {
+        character_id: 18,
+        name: UNEQUIPPED_NAME.into(),
+        equipment_appearance: EquipmentAppearance::default(),
+        ..equipped.clone()
+    };
     send::<_, AuthChannel>(
         app,
         LoginResponse {
             success: true,
             token: "fixture-only-token".into(),
-            characters: vec![CharacterListEntry {
-                character_id: 17,
-                name: NAME.into(),
-                level: 10,
-                race: 1,
-                class: 2,
-                appearance: Default::default(),
-                equipment_appearance: starter_equipment(),
-            }],
+            characters: vec![equipped, unequipped],
             error: None,
         },
     );
