@@ -1,10 +1,18 @@
 # Wiki Log
 
+## [2026-09-27] system | Independent native equipment verification remains bounded
+
+Independent verifier576 at `9059d471` confirms only cached selected-character equipment evidence: roster replacement, one authored collection chest's visible/deformed pixels, and native attachment behavior. Native `cargo fmt --check` and `cargo check` pass. The two warnings are existing unused WMO fields, unrelated to the audited equipment/policy/attachment files. Six function-length findings are deferred maintainability suggestions, not compile or runtime failures.
+
+Clean-cache local-CASC extraction for chest FDID `2368173` remains open; the earlier absent archive location does not prove stale roots. This does not prove all gear, race/sex coverage, authored animation sequences, visual parity, or full conversion. Next slice: replicated InWorld player visuals—`world.rs` currently projects only NPC visuals. Agent578's reported new test is not proof.
+
+Updated [[character-rendering]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native selected-equipment Vulkan proof is bounded
 
 `d44f3dd4` changes native `PlayerInput.elapsed_secs` to the exact prediction delta and passes 13/13 primitives. Real server `:5000` compatibility remains UNKNOWN because its matching shared-protocol field is uncommitted; no trial refresh/restart occurred. At `640e9f30`, `/tmp/claude/native-attachments-rendered-green.log` exits 0 under real offscreen Vulkan: camera plus `frame_post_draw` observe actual HD/boar attachment lookup, authored rest offset, and combined bone/model rotation, translation, and scale. `e0eba0d7` keeps the attachment-offset child below the bone-binding node. Earlier headless and `skeleton_updated` waits hung, so they do not support a renderer-bug claim.
 
-`/tmp/claude/godot-equipped-runtime-640e9f30.log` exits 0 with compiled Rust `e0eba0d7`: starter items 25/38/39/40/2362 produce clothing/sword/shield pixel changes; scenery, isolated sky/rays, Loading/input gating, UDP movement, camera input, and shutdown also complete. Main inspected a PNG showing blue clothing and weapons. Selection replacement, bound-collection actual-pixel proof, real-server compatibility, final native check/readability/independent verification, visual parity, and full conversion remain pending. Running trial `1500671` remains a prior background artifact.
+`/tmp/claude/godot-equipped-runtime-640e9f30.log` exits 0 with compiled Rust `e0eba0d7`: starter items 25/38/39/40/2362 produce clothing/sword/shield pixel changes; scenery, isolated sky/rays, Loading/input gating, UDP movement, camera input, and shutdown also complete. Main inspected a PNG showing blue clothing and weapons. Selection replacement, real-server compatibility, visual parity, and full conversion remain open. The later verifier576 report at `9059d471` supplies bounded cached collection-chest pixels plus native check/format evidence. Running trial `1500671` remains a prior background artifact.
 
 Updated [[character-rendering]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
