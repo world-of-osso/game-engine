@@ -1,7 +1,7 @@
 //! Native M2/BLP conversion with authored batch resolution and materials.
 pub(crate) mod appearance;
 pub(crate) mod creature;
-mod material;
+pub(crate) mod material;
 pub(crate) mod player;
 mod uv_animation;
 use std::{collections::HashMap, fs, path::Path};
