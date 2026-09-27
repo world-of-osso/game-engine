@@ -1,5 +1,15 @@
 # Wiki Log
 
+## [2026-09-27] system | Bounded native character-select campsite terrain
+
+`4c5e5735` preserves the original renderer's four terrain texture slots for real campsite chunks with five MCLY layers: all parsed layers remain available, while rendering uses only the first four. This prevents rejection of the authored tile; it is not fifth-layer support.
+
+At `df22179c`, `/tmp/claude/godot-background-runtime-df22179c.log` exits 0. The native GPU fixture attaches authored tiles `31_37` and `31_36`; selected-body and terrain mutations independently change pixels; it observes authored solo-camera/placement 55; then reaches Loading teardown, decoded UDP W/release, camera cleanup, client free, and quit request. Main inspected `data/diagnostics/godot-conversion/character-select-preview.png`. Native fmt/check pass with the existing three WMO warnings; the report file is pending.
+
+Sky, props, waterfall objects, fifth-layer rendering, clothing/equipment, complete scenery, and full conversion remain open. No volatile process/window identifier is recorded.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Godot character-select background partial wiring
 
 `3016fe0a` wires native `CharacterPreview` to the first authored Warband scene and a character-slot placement. It requests primary plus supplemental terrain, synchronizes terrain materials and Retail WDT lighting, applies shared solo framing/presentation scale, and snaps the model/camera above sampled terrain.
