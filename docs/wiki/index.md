@@ -69,6 +69,7 @@ Architecture decisions and feature designs.
 - [wmo-retail-lighting](investigations/wmo-retail-lighting.md) — Retail WMO light model (ambient + 2×MOCV + sun, interior/exterior blend by MOCV alpha), fixup, two-layer MOCV2 shaders, alpha test, metal and uniqueId placement dedup, per WebWowViewerCpp
 - [stormwind-hilly-plaza](investigations/stormwind-hilly-plaza.md) — Trade District drawn as bare hilly terrain: antiportal AABB occlusion and bbox-only camera group hid every `sw_tradedistrict` group; portal culling now follows the Retail interior/exterior traversal; MOBA large material ids and MOMT texture_2 offset fixed (one wall texture everywhere, no roofs)
 - [stockade-entrance](investigations/stockade-entrance.md) — missing instance portal (MODI-only WMOs spawned no doodads) and camera escaping the stairwell (collision ignored portal-culled groups, unchecked smoothing path, corner-only portal test)
+- [stockade-floor-fall](investigations/stockade-floor-fall.md) — falls at teleport points outside the Stockade WMO (no face in those columns); sky from the exterior-only portal view; server void fall not bounded
 - [npc-motion-validation](investigations/npc-motion-validation.md) — Revision-pinned Northshire NPC idle/facing, landing, fog, picking, WMO basis, and terrain-streaming evidence with explicit remaining boundaries.
 
 Root cause analyses and debug findings.

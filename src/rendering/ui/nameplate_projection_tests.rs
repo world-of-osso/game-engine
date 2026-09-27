@@ -65,6 +65,28 @@ fn nameplate_late_local_identity_hides_all_parts_and_removal_restores_remote_pla
     assert_plate_visibility(&app, &remote_visuals, true);
 }
 
+/// Retail draws no nameplate for a `UNIT_FLAG_NOT_SELECTABLE` unit (a trigger such as the
+/// Summon Enabler Stalker); the plate returns when the flag is cleared.
+#[test]
+fn not_selectable_unit_flags_hide_every_plate_part_until_cleared() {
+    let (mut app, _) = app_with_cameras(1.0);
+    let (owner, visuals) = spawn_casting_player(&mut app, "Stalker");
+    assert_plate_visibility(&app, &visuals, true);
+    app.world_mut()
+        .entity_mut(owner)
+        .insert(shared::components::UnitFlags(
+            shared::components::UnitFlags::NOT_SELECTABLE,
+        ));
+    settle(&mut app);
+    assert_plate_visibility(&app, &visuals, false);
+    app.world_mut()
+        .get_mut::<shared::components::UnitFlags>(owner)
+        .unwrap()
+        .0 = 0;
+    settle(&mut app);
+    assert_plate_visibility(&app, &visuals, true);
+}
+
 #[test]
 fn nameplate_parts_share_body_distance_boundary_and_non_compounding_fade() {
     let (mut app, camera) = app_with_cameras(1.0);
@@ -164,6 +186,7 @@ pub(crate) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
         crate::health_bar::HealthBarPlugin,
         crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin,
     ));
+    app.add_systems(Update, crate::networking_npc::sync_not_selectable);
     let fixture = app
         .world_mut()
         .resource_scope(|world, mut images: Mut<Assets<Image>>| {
