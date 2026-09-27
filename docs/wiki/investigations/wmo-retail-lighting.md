@@ -94,6 +94,12 @@ GPU tests set a fixed `RetailSceneLight`, and their expected values are the Reta
 
 All 13 WMO GPU tests pass. Live captures in `data/diagnostics/wmo-scene-light-20260925/`: `before-*` is master, `after-*` is this branch, 0 validation errors.
 
+## Godot standalone shader evidence
+
+Commit `8116839b` adds `godot/shaders/wmo.gdshader` and `godot/tests/wmo_material_pixels.gd`. The actual Vulkan fixture exits 0 with 25 pixels covering MOCV interior/exterior interpolation and missing defaults; MOMT 6/13, MOCV2, UV2 and missing-UV2 repeat sampling; opaque/AlphaKey/GX alpha modes; SIDN emissive and unlit; fog/unfogged behavior; and direct light before a real caster, under its shadow, and after removal (`/tmp/claude/native-wmo-shader-green-8116839b.log`).
+
+The initial RED is an absent shader at `/tmp/claude/native-wmo-shader-red.log`. A first repeat-UV1 oracle was wrong because the original root sampler is linear; only the fixture expectation was corrected. Compositor protocol warnings in the run are not shader `ERROR`s. This is standalone shader evidence, not native WMO scene or material binding, portal culling, water/doodad rendering, visual parity, or a final gate. Independent verifier458 is pending.
+
 ## Still open
 
 - MAVG/MAVD horizon and ground colors (flag 1) are not used.
