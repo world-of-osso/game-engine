@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native local-player Vulkan proof is bounded
+
+`bc86ff42` compiles native player-world visuals with two existing WMO dead-field warnings (`/tmp/claude/world-player-build-bc86ff42.log`). The first actual-Vulkan run shows body/hand pixels but exits 101 because the paused-pose probe selects the wrong recursive `M2Animation` (`/tmp/claude/world-player-runtime-bc86ff42.log`). `07ef57e4` corrects that lookup; its 90-second fixture deadline exhausts before InWorld after five preview loads take 88 seconds (`/tmp/claude/world-player-runtime-07ef57e4.log`). `cc38aad1` raises only this evidence-based deadline to 180 seconds, not runtime performance.
+
+The compiled `cc38aad1` fixture exits 0 under actual Vulkan (`/tmp/claude/world-player-runtime-cc38aad1.log`). Stable-unit equipment transitions equipped → empty → restored retain paused body poses and produce body 5,997 → 6,011 and hand 471 → 474 samples. Trace shows recursive lookup would choose `EquipmentOffHand/M2Animation`, rather than `PlayerModel/M2Animation`; Loading/input/camera checks and clean client-free/quit shutdown pass. Main inspected the initial PNG earlier; restored PNG inspection and independent verification remain pending. Remote-player rendering, broader customization, movement-animation coverage, full performance, visual parity, and full conversion remain open.
+
+Updated [[character-rendering]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Independent native equipment verification remains bounded
 
 Independent verifier576 at `9059d471` confirms only cached selected-character equipment evidence: roster replacement, one authored collection chest's visible/deformed pixels, and native attachment behavior. Native `cargo fmt --check` and `cargo check` pass. The two warnings are existing unused WMO fields, unrelated to the audited equipment/policy/attachment files. Six function-length findings are deferred maintainability suggestions, not compile or runtime failures.
