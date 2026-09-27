@@ -101,9 +101,14 @@ fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, Vec<thread::Jo
     let project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("Godot workspace directory");
+    let display_args: &[&str] = if std::env::var("GODOT_TEST_VISUAL").as_deref() == Ok("1") {
+        &["--display-driver", "wayland", "--audio-driver", "Dummy"]
+    } else {
+        &["--headless"]
+    };
     let mut child = Command::new(binary)
+        .args(display_args)
         .args([
-            "--headless",
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
