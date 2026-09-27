@@ -124,6 +124,14 @@ Agent192 reports development GREEN of seven new core tests, two root proposal te
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
+## [2026-09-26] system | Shared original M2 effect-UV sampler
+
+`8df1ec99` extracts the original M2 effect-material UV sampler into shared code. Effect materials sample sequence 0 at shared application elapsed time; declared global-sequence timing uses modulo, including preserved zero-duration behavior. This timing is independent of bone pause and active animation clips.
+
+Development core5 RED/GREEN evidence is limited to `/tmp/claude/m2-effect-uv-extraction-{red,green}.log`. Native wiring and an independent gate remain pending. The original runtime path did not contain ordinary single-texture colour/opacity animation, so none is claimed. This establishes neither native material/render behavior, visual parity, nor full conversion.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-26] system | Godot MovementControl snapshot retention and camera baseline
 
 `eff94a71d259b020f39fba4b6e7c21229bb57f7f` retains optional copied `MovementControl { epoch, controlled }` in owned `UnitSnapshot`; the native literal fixture initializes it as `None`. `/tmp/claude/godot-snapshot-movement-red.log` is genuine missing-field RED. Targeted network and native fixture commands are GREEN 1/1 at `/tmp/claude/godot-snapshot-movement-green.log` and `/tmp/claude/godot-snapshot-world-fixture-green.log`. This retains snapshot data only, not native correction, prediction, interpolation, input production/send, or decoded-UDP proof.
