@@ -68,8 +68,8 @@ func _initialize() -> void:
 	var textured := false
 	var outward_triangles := 0
 	for instance: MeshInstance3D in torch.node.find_children("*", "MeshInstance3D", true, false):
-		var material := instance.get_surface_override_material(0) as StandardMaterial3D
-		if material != null and material.albedo_texture != null:
+		var material := instance.get_surface_override_material(0) as ShaderMaterial
+		if material != null and material.get_shader_parameter("base_texture") != null:
 			textured = true
 		var arrays := instance.mesh.surface_get_arrays(0)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
