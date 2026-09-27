@@ -37,10 +37,10 @@ func run_test() -> void:
 	if not await inspect_character_preview(client):
 		return
 	await click_control(enter)
+	if not await wait_for_screen(client, "Loading", 15000):
+		return
 	if client.get_node_or_null("CharacterSelectScene") != null:
 		fail("Entering the world retained the character-selection preview")
-		return
-	if not await wait_for_screen(client, "Loading", 15000):
 		return
 	if not client.get_node("LoadingUI").visible:
 		fail("Native LoadingUI not visible while terrain is withheld")
