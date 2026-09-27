@@ -125,6 +125,7 @@ pub mod outfit_data;
 pub mod particle_color_cache;
 pub mod particle_effect_builder;
 pub mod paths;
+pub mod player_physics_data;
 #[path = "game/player_spells.rs"]
 pub mod player_spells;
 pub mod profession;

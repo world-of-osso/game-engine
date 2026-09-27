@@ -12,6 +12,8 @@ pub mod lighting_assets;
 #[path = "../../../src/game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
+#[path = "../../../src/player_physics_data.rs"]
+pub mod player_physics_data;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]

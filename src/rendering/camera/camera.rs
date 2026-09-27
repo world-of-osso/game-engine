@@ -372,8 +372,12 @@ fn player_movement(
         &facing,
     );
     let movement_delta = scripted_step.map_or(time.delta_secs(), |step| step.duration_secs);
-    let proposed =
-        build_proposed_ground_movement(current_position, direction, speed, movement_delta);
+    let proposed = game_engine::player_physics_data::build_proposed_ground_movement(
+        current_position,
+        direction,
+        speed,
+        movement_delta,
+    );
     let mut collision_elapsed = Duration::ZERO;
     let mut after_wmo = None;
     let proposed_after_collision = proposed.map(|proposed| {
@@ -588,18 +592,6 @@ fn collect_doodad_colliders<'a>(
     collider_q: &'a Query<&game_engine::culling::DoodadCollider>,
 ) -> Vec<&'a game_engine::culling::DoodadCollider> {
     collider_q.iter().collect()
-}
-
-fn build_proposed_ground_movement(
-    current: Vec3,
-    direction: Vec3,
-    speed: f32,
-    dt: f32,
-) -> Option<Vec3> {
-    if direction.length_squared() == 0.0 {
-        return None;
-    }
-    Some(current + direction.normalize() * speed * dt)
 }
 
 fn close_player_movement_for_modal(mode: UiInputMode, movement: &mut MovementState) -> bool {

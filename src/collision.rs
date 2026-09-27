@@ -11,6 +11,8 @@ use bevy::prelude::*;
 use shared::ground::{Ground, STEP_UP_HEIGHT, Surface, WmoCollision};
 use shared::movement::{GRAVITY, GROUND_SNAP_THRESHOLD, MAX_SLOPE_ANGLE};
 
+use game_engine::player_physics_data::{self, GroundState, VerticalState};
+
 use crate::camera::Player;
 use crate::game_state::GameState;
 use crate::terrain_heightmap::TerrainHeightmap;
@@ -130,14 +132,11 @@ fn update_grounded(
 ) {
     let ground = WorldGround::new(terrain.as_deref(), &floors);
     for (tf, mut physics) in query.iter_mut() {
-        physics.grounded = match ground.probe(tf.translation) {
-            GroundProbe::Supported(ground) => {
-                (tf.translation.y - ground.height).abs() < GROUND_SNAP_THRESHOLD
-            }
-            GroundProbe::Unsupported => false,
-            // No terrain data yet — treat as grounded to prevent falling through the world.
-            GroundProbe::Unloaded => true,
-        };
+        physics.grounded = player_physics_data::update_grounded(
+            tf.translation.y,
+            physics_ground_state(ground.probe(tf.translation)),
+            GROUND_SNAP_THRESHOLD,
+        );
     }
 }
 
@@ -151,36 +150,27 @@ fn apply_gravity_and_ground_snap(
     let dt = time.delta_secs();
     let ground = WorldGround::new(terrain.as_deref(), &floors);
     for (mut tf, mut physics) in query.iter_mut() {
-        let ground_y = match ground.probe(tf.translation) {
-            GroundProbe::Supported(ground) => Some(ground.height),
-            GroundProbe::Unsupported => None,
-            // No terrain loaded yet — freeze vertical position to prevent falling through the world.
-            GroundProbe::Unloaded => {
-                physics.vertical_velocity = 0.0;
-                continue;
-            }
-        };
-
-        if physics.grounded && physics.vertical_velocity <= 0.0 {
-            if let Some(ground_y) = ground_y {
-                tf.translation.y = ground_y;
-            }
-            physics.vertical_velocity = 0.0;
-        } else {
-            physics.vertical_velocity -= GRAVITY * dt;
-            tf.translation.y += physics.vertical_velocity * dt;
-            if let Some(ground_y) = ground_y {
-                clamp_to_ground(&mut tf, &mut physics, ground_y);
-            }
-        }
+        let result = player_physics_data::apply_gravity_and_ground_snap(
+            VerticalState {
+                y: tf.translation.y,
+                vertical_velocity: physics.vertical_velocity,
+                grounded: physics.grounded,
+            },
+            physics_ground_state(ground.probe(tf.translation)),
+            dt,
+            GRAVITY,
+        );
+        tf.translation.y = result.y;
+        physics.vertical_velocity = result.vertical_velocity;
+        physics.grounded = result.grounded;
     }
 }
 
-fn clamp_to_ground(tf: &mut Transform, physics: &mut CharacterPhysics, ground_y: f32) {
-    if tf.translation.y <= ground_y {
-        tf.translation.y = ground_y;
-        physics.vertical_velocity = 0.0;
-        physics.grounded = true;
+fn physics_ground_state(probe: GroundProbe) -> GroundState {
+    match probe {
+        GroundProbe::Unloaded => GroundState::Unloaded,
+        GroundProbe::Unsupported => GroundState::Unsupported,
+        GroundProbe::Supported(ground) => GroundState::Supported(ground.height),
     }
 }
 
