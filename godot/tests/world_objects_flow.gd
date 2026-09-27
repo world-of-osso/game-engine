@@ -45,7 +45,20 @@ func select_second_character(client: Node) -> void:
 			fail("Authored tile objects were not spawned: " + str(objects))
 			return
 		await create_timer(3.0).timeout
-		print("settled fps=%.1f nodes=%d" % [Engine.get_frames_per_second(), root_node.get_child_count()])
+		print("settled fps=%.1f nodes=%d draws=%d objects=%d" % [Engine.get_frames_per_second(), root_node.get_child_count(), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)])
+		var hold := OS.get_environment("GODOT_PROBE_HOLD_SECONDS")
+		if not hold.is_empty():
+			print("holding for profiler")
+			await create_timer(float(hold)).timeout
+		if OS.get_environment("GODOT_PROBE_OBJECT_COST") == "1":
+			root_node.visible = false
+			await create_timer(3.0).timeout
+			print("hidden fps=%.1f" % Engine.get_frames_per_second())
+			root_node.visible = true
+			for player in root_node.find_children("M2Animation", "", true, false):
+				player.process_mode = Node.PROCESS_MODE_DISABLED
+			await create_timer(3.0).timeout
+			print("no-anim fps=%.1f" % Engine.get_frames_per_second())
 		await capture()
 		var error = client.connect_account("127.0.0.1:5000", "admin", "admin", false)
 		if error != "":
