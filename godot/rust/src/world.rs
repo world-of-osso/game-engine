@@ -410,6 +410,23 @@ impl WorldUnits {
         Some(self.units.get(&self.local_player_id?)?.node.clone())
     }
 
+    pub fn play_local_animation(&mut self, animation_id: u16) -> Result<(), String> {
+        let Some(unit) = self.local_player_id.and_then(|id| self.units.get_mut(&id)) else {
+            return Ok(());
+        };
+        let visual = unit
+            .visual
+            .as_ref()
+            .ok_or_else(|| format!("Local player {} has no authored visual", unit.name))?;
+        let mut animation = visual
+            .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+            .ok_or_else(|| format!("Local player {} has no bone animation", unit.name))?;
+        animation
+            .bind_mut()
+            .play_animation_id(animation_id, true)
+            .map_err(|error| format!("Local player {} animation: {error}", unit.name))
+    }
+
     pub fn local_player_facing(&self) -> Option<f32> {
         Some(self.units.get(&self.local_player_id?)?.motion.facing_yaw)
     }
