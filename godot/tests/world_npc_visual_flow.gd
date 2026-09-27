@@ -1,6 +1,7 @@
 extends "res://tests/m2_loader_pixels.gd"
 
 const NPC := "Fixture Creature"
+const DEAD_ON_SPAWN := "Fixture Dead on Spawn"
 const PLAYER := "Fixture Player"
 const DISPLAY_A := 910010
 const DISPLAY_B := 910011
@@ -145,6 +146,8 @@ func run_test() -> void:
 	print("FIXTURE DEAD_ONLY_ALIVE_READY")
 	if not await wait_npc_moved(client, 7.5) or not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, false):
 		return
+	if not await wait_death_pose(client, NPC, retained_unit_id, retained_visual_id):
+		return
 	print("FIXTURE REMOTE_DEAD_READY")
 	if not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, true):
 		return
@@ -164,6 +167,9 @@ func run_test() -> void:
 	if not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, true):
 		return
 	print("FIXTURE ALWAYS_READY")
+	if not await wait_initially_dead_npc(client):
+		return
+	print("FIXTURE DEAD_ON_SPAWN_READY")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
 	if reconnect_error != "" or client.get_node_or_null("WorldUnits") != null or client.get_node_or_null("WorldLighting") != null or client.account_state().unit_count != 0:
 		fail("Reconnect retained NPC visual/root: " + reconnect_error)
@@ -238,14 +244,60 @@ func wait_authored_stand(client: Node) -> bool:
 	fail("NPC Stand pose did not advance through authored keys: Y range " + str(Vector2(minimum, maximum)))
 	return false
 
+func wait_initially_dead_npc(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var npc := client.get_node_or_null("WorldUnits/" + DEAD_ON_SPAWN) as Node3D
+		var visual := npc.get_node_or_null("NpcVisualRoot") as Node3D if npc != null else null
+		var skeleton := visual.get_node_or_null("NpcModel/Skeleton3D") as Skeleton3D if visual != null else null
+		if skeleton != null and skeleton.get_bone_count() == 1:
+			return await wait_death_pose(client, DEAD_ON_SPAWN, npc.get_instance_id(), visual.get_instance_id())
+	fail("Initially-dead NPC did not load an animated visual")
+	return false
+
+func wait_death_pose(client: Node, name: String, unit_id: int, visual_id: int) -> bool:
+	var saw_advance := false
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var npc := client.get_node_or_null("WorldUnits/" + name) as Node3D
+		var visual := npc.get_node_or_null("NpcVisualRoot") as Node3D if npc != null else null
+		if npc == null or npc.get_instance_id() != unit_id or visual == null or visual.get_instance_id() != visual_id:
+			fail("Death animation replaced or removed retained NPC unit/visual: " + name)
+			return false
+		var skeleton := visual.get_node_or_null("NpcModel/Skeleton3D") as Skeleton3D
+		if skeleton == null or skeleton.get_bone_count() != 1:
+			fail("Death animation lost authored skeleton: " + name)
+			return false
+		var pose := skeleton.get_bone_pose_position(0) - skeleton.get_bone_rest(0).origin
+		if pose.y > 2.1 and pose.y < 2.9:
+			saw_advance = true
+		if saw_advance and absf(pose.y - 3.0) < 0.05:
+			var hold_until := Time.get_ticks_msec() + 450
+			while Time.get_ticks_msec() < hold_until:
+				await process_frame
+				var held_npc := client.get_node_or_null("WorldUnits/" + name) as Node3D
+				var held_visual := held_npc.get_node_or_null("NpcVisualRoot") as Node3D if held_npc != null else null
+				if held_npc == null or held_npc.get_instance_id() != unit_id or held_visual == null or held_visual.get_instance_id() != visual_id:
+					fail("Death clip replaced or removed NPC while holding: " + name)
+					return false
+				var held_pose := skeleton.get_bone_pose_position(0) - skeleton.get_bone_rest(0).origin
+				if absf(held_pose.y - 3.0) > 0.05:
+					fail("Death clip did not hold its last pose on retained visual: " + name)
+					return false
+			return true
+	fail("Automatic Death pose never advanced to its held Y=3 end: %s, saw motion=%s" % [name, saw_advance])
+	return false
+
 func make_npc_m2() -> PackedByteArray:
 	var model := make_m2(7, 0)
 	var md20 := model.slice(8, 8 + model.decode_u32(4))
-	md20.resize(0x368)
-	put_u32(md20, 0x1c, 2) # Sequence array: Walk then Stand.
+	md20.resize(0x3d8)
+	put_u32(md20, 0x1c, 3) # Walk, Stand, Death.
 	put_u32(md20, 0x20, 0x240)
 	put_u32(md20, 0x2c, 1) # One root bone.
-	put_u32(md20, 0x30, 0x2c0)
+	put_u32(md20, 0x30, 0x300)
 	for index in 4:
 		md20[0x140 + index * 48 + 12] = 255 # All vertices bound to bone 0.
 	put_u16(md20, 0x240, 4) # Walk, deliberately first.
@@ -254,28 +306,34 @@ func make_npc_m2() -> PackedByteArray:
 	put_u16(md20, 0x280, 0) # Stand at index 1.
 	put_u32(md20, 0x284, 1000)
 	put_u16(md20, 0x2bc, 0xffff)
-	put_u32(md20, 0x2c0, 0xffffffff) # No key bone ID.
-	put_u16(md20, 0x2c8, 0xffff) # Root parent.
-	put_u16(md20, 0x2d0, 1) # Linear translation interpolation.
-	put_u16(md20, 0x2d2, 0xffff) # Local sequence, not global.
-	put_u32(md20, 0x2d4, 2) # Per-sequence timestamp M2Arrays.
-	put_u32(md20, 0x2d8, 0x318)
-	put_u32(md20, 0x2dc, 2) # Per-sequence value M2Arrays.
-	put_u32(md20, 0x2e0, 0x328)
-	put_u16(md20, 0x2e6, 0xffff) # Empty rotation global sequence.
-	put_u16(md20, 0x2fa, 0xffff) # Empty scale global sequence.
-	put_u32(md20, 0x318, 1)
-	put_u32(md20, 0x31c, 0x338)
-	put_u32(md20, 0x320, 2)
-	put_u32(md20, 0x324, 0x33c)
-	put_u32(md20, 0x328, 1)
-	put_u32(md20, 0x32c, 0x344)
-	put_u32(md20, 0x330, 2)
-	put_u32(md20, 0x334, 0x350)
-	put_u32(md20, 0x33c, 0)
-	put_u32(md20, 0x340, 1000)
-	put_float(md20, 0x344, 10.0) # Walk keeps WoW X at 10.
-	put_float(md20, 0x364, 1.0) # Stand WoW Z becomes Godot Y.
+	put_u16(md20, 0x2c0, 1) # Death at index 2.
+	put_u32(md20, 0x2c4, 1000)
+	put_u16(md20, 0x2fc, 0xffff)
+	put_u32(md20, 0x300, 0xffffffff) # No key bone ID.
+	put_u16(md20, 0x308, 0xffff) # Root parent.
+	put_u16(md20, 0x310, 1) # Linear translation interpolation.
+	put_u16(md20, 0x312, 0xffff) # Local sequence, not global.
+	put_u32(md20, 0x314, 3) # Per-sequence timestamp M2Arrays.
+	put_u32(md20, 0x318, 0x358)
+	put_u32(md20, 0x31c, 3) # Per-sequence value M2Arrays.
+	put_u32(md20, 0x320, 0x370)
+	put_u16(md20, 0x326, 0xffff) # Empty rotation global sequence.
+	put_u16(md20, 0x33a, 0xffff) # Empty scale global sequence.
+	for index in 3:
+		put_u32(md20, 0x358 + index * 8, 1 if index == 0 else 2)
+		put_u32(md20, 0x370 + index * 8, 1 if index == 0 else 2)
+	put_u32(md20, 0x35c, 0x388) # Walk timestamps.
+	put_u32(md20, 0x364, 0x38c) # Stand timestamps.
+	put_u32(md20, 0x36c, 0x394) # Death timestamps.
+	put_u32(md20, 0x374, 0x39c) # Walk values.
+	put_u32(md20, 0x37c, 0x3a8) # Stand values.
+	put_u32(md20, 0x384, 0x3c0) # Death values.
+	put_u32(md20, 0x390, 1000)
+	put_u32(md20, 0x398, 1000)
+	put_float(md20, 0x39c, 10.0) # Walk keeps WoW X at 10.
+	put_float(md20, 0x3bc, 1.0) # Stand WoW Z becomes Godot Y.
+	put_float(md20, 0x3c8, 2.0) # Death starts above Stand's entire Y range.
+	put_float(md20, 0x3d4, 3.0) # Death ends at Godot Y 3.
 	var authored := chunk("MD21", md20)
 	authored.append_array(model.slice(8 + model.decode_u32(4))) # Retain TXID.
 	return authored

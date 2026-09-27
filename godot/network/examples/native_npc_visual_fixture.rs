@@ -29,6 +29,7 @@ use shared::{
 const TICK: Duration = Duration::from_millis(5);
 const NAME: &str = "Fixture Player";
 const NPC: &str = "Fixture Creature";
+const DEAD_ON_SPAWN: &str = "Fixture Dead on Spawn";
 
 #[derive(Resource, Default)]
 struct Incoming {
@@ -527,8 +528,28 @@ fn run_fixture(
                         });
                     phase = 18;
                 }
-                (18, "FIXTURE ALWAYS_READY") => phase = 19,
-                (19, "FIXTURE RESET_READY") => phase = 20,
+                (18, "FIXTURE ALWAYS_READY") => {
+                    app.world_mut().spawn((
+                        Npc {
+                            template_id: 8,
+                            name: DEAD_ON_SPAWN.into(),
+                        },
+                        ModelDisplay { display_id: 910010 },
+                        Position {
+                            x: 5.0,
+                            y: 2.0,
+                            z: 3.0,
+                        },
+                        Health {
+                            current: 0.0,
+                            max: 10.0,
+                        },
+                        Replicate::to_clients(NetworkTarget::All),
+                    ));
+                    phase = 19;
+                }
+                (19, "FIXTURE DEAD_ON_SPAWN_READY") => phase = 20,
+                (20, "FIXTURE RESET_READY") => phase = 21,
                 (_, line) if line.starts_with("FIXTURE ") => {
                     return Err(format!("Out-of-order phase {phase}: {line}"));
                 }
@@ -536,7 +557,7 @@ fn run_fixture(
             }
         }
         if let Some(status) = status {
-            if !status.success() || phase != 20 {
+            if !status.success() || phase != 21 {
                 return Err(format!("Godot exited {status} at phase {phase}"));
             }
             println!("PASS: native UDP NPC visual lifecycle, authored lighting, and visibility");
