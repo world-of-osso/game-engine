@@ -180,7 +180,7 @@ func select_roster_preview(client: Node, index: int, expected_name: String, old_
 		var names := []
 		for item in equipment:
 			names.append(str(item.name))
-		if not names.has_all(required_equipment):
+		if not required_equipment.all(func(item): return names.has(item)):
 			continue
 		print("PASS: selected ", expected_name, " replaced prior model; equipment nodes=", equipment.size())
 		return true
