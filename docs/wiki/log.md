@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native selected-equipment Vulkan proof is bounded
+
+`d44f3dd4` changes native `PlayerInput.elapsed_secs` to the exact prediction delta and passes 13/13 primitives. Real server `:5000` compatibility remains UNKNOWN because its matching shared-protocol field is uncommitted; no trial refresh/restart occurred. At `640e9f30`, `/tmp/claude/native-attachments-rendered-green.log` exits 0 under real offscreen Vulkan: camera plus `frame_post_draw` observe actual HD/boar attachment lookup, authored rest offset, and combined bone/model rotation, translation, and scale. `e0eba0d7` keeps the attachment-offset child below the bone-binding node. Earlier headless and `skeleton_updated` waits hung, so they do not support a renderer-bug claim.
+
+`/tmp/claude/godot-equipped-runtime-640e9f30.log` exits 0 with compiled Rust `e0eba0d7`: starter items 25/38/39/40/2362 produce clothing/sword/shield pixel changes; scenery, isolated sky/rays, Loading/input gating, UDP movement, camera input, and shutdown also complete. Main inspected a PNG showing blue clothing and weapons. Selection replacement, bound-collection actual-pixel proof, real-server compatibility, final native check/readability/independent verification, visual parity, and full conversion remain pending. Running trial `1500671` remains a prior background artifact.
+
+Updated [[character-rendering]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native selected-equipment integration remains unbuilt
 
 `ef697e34` consumes shared policy `2cd73e88`: clothing/cape texture sections and exact geosets; authored M2 gear attaches through native points, collection meshes bind by semantic bone names, and shared transform config `9fc070ab` is read. `008a6326` fixes the `testVector` call. `/tmp/claude/native-equipment-primitives-ef697e34.log` stops on missing shared-protocol `PlayerInput.elapsed_secs` at `godot/src/gameplay.rs:134`; no build, GPU, runtime refresh, attachment-render, or parity proof exists. Clothing primitives remain 6/6 at `e6f2e8b9`. Verifier551 could not locate the reported policy 6/6 artifact, so it is not independent proof.
