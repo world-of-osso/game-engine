@@ -329,6 +329,8 @@ impl GameClient {
         }
         self.world
             .select_local_player(self.account.session.selected_character_name.as_deref());
+        self.world
+            .update_visibility(&self.units, self.world_minutes);
         self.account
             .session
             .finish_reconnect(self.world.local_player_node().is_some());

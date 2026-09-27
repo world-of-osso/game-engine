@@ -7,6 +7,7 @@ use crate::{
     world_models::{CreatureModels, bind_visual_light},
 };
 
+use game_engine_core::npc_visibility_data::{npc_should_be_visible, npc_visibility_policy};
 use game_engine_core::unit_motion_data::{
     MotionPose, MotionTarget, follow_server_motion, interpolate_remote_motion,
 };
@@ -306,6 +307,23 @@ impl WorldUnits {
             }
         }
         self.light = light;
+    }
+
+    pub fn update_visibility(&mut self, snapshots: &HashMap<u64, UnitSnapshot>, minutes: f32) {
+        let local_alive = self
+            .local_player_id
+            .and_then(|id| snapshots.get(&id))
+            .and_then(|snapshot| snapshot.health.as_ref())
+            .is_none_or(|health| health.current > 0.0);
+        for (id, unit) in &mut self.units {
+            let npc = snapshots.get(id).and_then(|snapshot| snapshot.npc.as_ref());
+            let visible = npc.is_none_or(|npc| {
+                npc_should_be_visible(npc_visibility_policy(npc.template_id), local_alive, minutes)
+            });
+            if unit.node.is_visible() != visible {
+                unit.node.set_visible(visible);
+            }
+        }
     }
 
     pub fn advance(&mut self, delta: f32) {
