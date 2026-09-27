@@ -27,7 +27,7 @@ pub(crate) fn load_creature_model(
     )
 }
 
-pub(super) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {
+pub(crate) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {
     CascListfileResolver::new(
         AssetResolverConfig::new()
             .with_data_root(data_root)
@@ -36,7 +36,7 @@ pub(super) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfil
     )
 }
 
-pub(super) fn cache_model_files(
+pub(crate) fn cache_model_files(
     resolver: &CascListfileResolver,
     data_root: &Path,
     model_fdid: u32,
@@ -80,7 +80,7 @@ fn cache_required(
     })
 }
 
-pub(super) fn cache_model_textures(
+pub(crate) fn cache_model_textures(
     resolver: &CascListfileResolver,
     data_root: &Path,
     skin_fdids: &[u32; 3],

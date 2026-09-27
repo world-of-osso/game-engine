@@ -9,10 +9,12 @@ use game_engine_core::warband_scene_data::{
 use godot::{classes::Node3D, prelude::*};
 
 use crate::{
-    lighting::WorldLighting,
+    lighting::{TerrainLight, WorldLighting},
     terrain::{material::TerrainMaterials, streaming::StreamedTerrain},
     world_models::bind_visual_light,
 };
+
+use super::objects::CampsiteObjects;
 
 pub(super) struct Background {
     pub scene: WarbandSceneEntry,
@@ -20,6 +22,8 @@ pub(super) struct Background {
     terrain: StreamedTerrain,
     materials: TerrainMaterials,
     lighting: WorldLighting,
+    light: Option<TerrainLight>,
+    objects: CampsiteObjects,
 }
 
 impl Background {
@@ -42,6 +46,12 @@ impl Background {
             })
             .ok_or_else(|| format!("Warband scene {} has no placement", scene.id))?
             .clone();
+        let objects = CampsiteObjects::new(
+            data_root.clone(),
+            cache_root.clone(),
+            scene.tile_coords(),
+            wow_position(placement.position),
+        );
         let mut terrain = StreamedTerrain::new(data_root, cache_root);
         terrain.request_map_tiles(
             scene.map_name(),
@@ -54,6 +64,8 @@ impl Background {
             terrain,
             materials: TerrainMaterials::default(),
             lighting: WorldLighting::default(),
+            light: None,
+            objects,
         })
     }
 
@@ -79,7 +91,8 @@ impl Background {
             ));
         }
         self.sync_lighting(root, model, minutes)?;
-        self.materials.sync(root, &self.terrain)
+        self.materials.sync(root, &self.terrain)?;
+        self.objects.sync(root, &self.terrain, self.light.as_ref())
     }
 
     fn sync_lighting(
@@ -99,12 +112,15 @@ impl Background {
             minutes,
         )? {
             bind_visual_light(model, Some(&light));
-            self.materials.update_lighting(light);
+            self.materials.update_lighting(light.clone());
+            self.objects.update_lighting(&light);
+            self.light = Some(light);
         }
         Ok(())
     }
 
     pub fn clear_nodes(&mut self) {
+        self.objects.reset();
         self.materials.reset();
         self.lighting.reset();
     }
