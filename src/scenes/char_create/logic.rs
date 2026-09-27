@@ -97,19 +97,8 @@ pub fn reduce(
             }
         }
         CharCreateAction::Randomize => randomize_appearance_with_seed(state, db, seed),
-        CharCreateAction::RandomizeName => {
-            match names {
-                Ok(catalog) => {
-                    if let Some(name) = apply_random_name_with_seed(state, catalog, name, seed) {
-                        effects.push(CharCreateEffect::SetNameText(name));
-                    }
-                }
-                Err(_) => {
-                    state.error_text = Some("Authored random names are unavailable".to_string())
-                }
-            }
-            return effects;
-        }
+        // Naming leaves the appearance untouched, so it skips normalization.
+        CharCreateAction::RandomizeName => return randomize_name(state, names, name, seed),
         CharCreateAction::NextMode => state.mode = CharCreateMode::Customize,
         CharCreateAction::Back => {
             if state.mode == CharCreateMode::Customize {
@@ -125,17 +114,7 @@ pub fn reduce(
         CharCreateAction::SelectOptionChoice(id, choice) => {
             appearance::select_choice(state, id, choice, db)
         }
-        CharCreateAction::SelectCategory(id) => {
-            if db
-                .options_for(state.selected_race, state.selected_sex)
-                .into_iter()
-                .flatten()
-                .any(|option| option.category_id == id)
-            {
-                state.selected_category = id;
-                state.open_dropdown = None;
-            }
-        }
+        CharCreateAction::SelectCategory(id) => select_category(state, id, db),
         CharCreateAction::Camera(action) => state.camera_action = Some(action),
         CharCreateAction::CreateConfirm => {
             effects.extend(create_request(state, name).map(CharCreateEffect::SendCreate));
@@ -144,6 +123,35 @@ pub fn reduce(
     }
     appearance::normalize_appearance(state, db);
     effects
+}
+
+fn randomize_name(
+    state: &mut CharCreateState,
+    names: Result<&NameCatalog, &str>,
+    current: &str,
+    seed: u64,
+) -> Vec<CharCreateEffect> {
+    let Ok(catalog) = names else {
+        state.error_text = Some("Authored random names are unavailable".to_string());
+        return Vec::new();
+    };
+    apply_random_name_with_seed(state, catalog, current, seed)
+        .map(CharCreateEffect::SetNameText)
+        .into_iter()
+        .collect()
+}
+
+/// Only categories with options for the current race and body type are selectable.
+fn select_category(state: &mut CharCreateState, id: u32, db: &CustomizationDb) {
+    let has_options = db
+        .options_for(state.selected_race, state.selected_sex)
+        .into_iter()
+        .flatten()
+        .any(|option| option.category_id == id);
+    if has_options {
+        state.selected_category = id;
+        state.open_dropdown = None;
+    }
 }
 
 fn create_request(state: &mut CharCreateState, name: &str) -> Option<CreateCharacter> {
