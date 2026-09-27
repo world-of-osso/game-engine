@@ -578,9 +578,18 @@ impl UnitFrameClick<'_> {
                 return None;
             }
             Some(action) if action.starts_with(ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX) => {
-                action[ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX.len()..]
+                let id: Option<u32> = action
+                    [ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX.len()..]
                     .parse()
-                    .ok()
+                    .ok();
+                // A disabled radio does nothing (`IsEnabled` false).
+                let enabled = menu.state.difficulty_menu.as_ref().is_some_and(|submenu| {
+                    submenu
+                        .entries
+                        .iter()
+                        .any(|entry| Some(entry.difficulty_id) == id && entry.enabled)
+                });
+                id.filter(|_| enabled)
                     .map(|id| MenuRequest::Instance(InstanceCommand::SetDungeonDifficulty(id)))
             }
             Some(action) => GroupMenuEntry::from_action(action)

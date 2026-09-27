@@ -599,18 +599,35 @@ fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
     })
 }
 
+/// The rows the Dungeon Difficulty submenu always has (Normal, Heroic, Mythic), so they
+/// exist, laid out, before it first opens.
+const DIFFICULTY_MENU_ROWS: [u32; 3] = [1, 2, 23];
+
 /// The Dungeon Difficulty submenu (`DUNGEON_DIFFICULTY`): a radio row per difficulty,
-/// grey and unclickable while disabled.
+/// grey while disabled (its click is ignored, `unit_frames::UnitFrameClick`).
 fn difficulty_menu(state: Option<&DifficultyMenuState>) -> Element {
     let hidden = state.is_none();
-    let (x, y, entries) = state.map_or((0.0, 0.0, &[][..]), |menu| {
-        (menu.x, menu.y, menu.entries.as_slice())
-    });
-    let height = difficulty_menu_height(entries.len());
-    let rows: Element = entries
+    let (x, y) = state.map_or((0.0, 0.0), |menu| (menu.x, menu.y));
+    let height = difficulty_menu_height(DIFFICULTY_MENU_ROWS.len());
+    let rows: Element = DIFFICULTY_MENU_ROWS
         .iter()
         .enumerate()
-        .flat_map(|(index, entry)| difficulty_row(index, entry))
+        .flat_map(|(index, &difficulty_id)| {
+            let entry = state
+                .and_then(|menu| {
+                    menu.entries
+                        .iter()
+                        .find(|entry| entry.difficulty_id == difficulty_id)
+                })
+                .cloned()
+                .unwrap_or(DifficultyMenuEntry {
+                    difficulty_id,
+                    label: String::new(),
+                    checked: false,
+                    enabled: false,
+                });
+            difficulty_row(index, &entry)
+        })
         .collect();
     rsx! {
         r#frame {
@@ -666,53 +683,36 @@ fn difficulty_row(index: usize, entry: &DifficultyMenuEntry) -> Element {
         "{ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX}{}",
         entry.difficulty_id
     );
-    let content = rsx! {
-        texture {
-            name: radio_name,
-            width: 18.0,
-            height: 18.0,
-            texture_fdid: RADIO_SHEET_FDID,
-            tex_coords: coords,
+    rsx! {
+        r#frame {
+            name: row_name,
+            width: {DIFFICULTY_MENU_W - 12.0},
+            height: {DIFFICULTY_ROW_H},
+            onclick: action.as_str(),
             pos_type: "absolute",
-            left: 0.0,
-            top: 1.0,
-        }
-        fontstring {
-            name: text_name,
-            width: {DIFFICULTY_MENU_W - 32.0},
-            height: 20.0,
-            text: entry.label.as_str(),
-            font_size: 10.0,
-            font_color: color,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: 19.0,
-            top: 0.0,
-        }
-    };
-    if entry.enabled {
-        rsx! {
-            r#frame {
-                name: row_name,
-                width: {DIFFICULTY_MENU_W - 12.0},
-                height: {DIFFICULTY_ROW_H},
-                onclick: action.as_str(),
+            left: 6.0,
+            top: {top},
+            texture {
+                name: radio_name,
+                width: 18.0,
+                height: 18.0,
+                texture_fdid: RADIO_SHEET_FDID,
+                tex_coords: coords,
                 pos_type: "absolute",
-                left: 6.0,
-                top: {top},
-                {content}
+                left: 0.0,
+                top: 1.0,
             }
-        }
-    } else {
-        rsx! {
-            r#frame {
-                name: row_name,
-                width: {DIFFICULTY_MENU_W - 12.0},
-                height: {DIFFICULTY_ROW_H},
+            fontstring {
+                name: text_name,
+                width: {DIFFICULTY_MENU_W - 32.0},
+                height: 20.0,
+                text: entry.label.as_str(),
+                font_size: 10.0,
+                font_color: color,
+                justify_h: "LEFT",
                 pos_type: "absolute",
-                left: 6.0,
-                top: {top},
-                {content}
+                left: 19.0,
+                top: 0.0,
             }
         }
     }

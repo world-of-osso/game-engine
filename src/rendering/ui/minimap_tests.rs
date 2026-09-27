@@ -758,7 +758,12 @@ fn instance_banner_app(state: game_engine::instance_state::InstanceState) -> App
 
 fn banner_hidden(app: &App, frame: fn(&InstanceDifficultyFrames) -> u64) -> bool {
     let id = frame(&app.world().resource::<MinimapFrames>().instance_difficulty);
-    app.world().resource::<UiState>().registry.get(id).unwrap().hidden
+    app.world()
+        .resource::<UiState>()
+        .registry
+        .get(id)
+        .unwrap()
+        .hidden
 }
 
 #[test]
@@ -780,7 +785,11 @@ fn the_instance_banner_shows_the_heroic_texture_and_player_count_in_a_heroic_cop
     assert!(!banner_hidden(&app, |f| f.heroic));
     assert!(banner_hidden(&app, |f| f.normal));
     assert!(banner_hidden(&app, |f| f.mythic));
-    let text = app.world().resource::<MinimapFrames>().instance_difficulty.text;
+    let text = app
+        .world()
+        .resource::<MinimapFrames>()
+        .instance_difficulty
+        .text;
     let ui = app.world().resource::<UiState>();
     let Some(WidgetData::FontString(font)) = &ui.registry.get(text).unwrap().widget_data else {
         panic!("banner count is not a font string");
