@@ -821,7 +821,8 @@ impl GameClient {
             .and_then(|index| self.account.session.characters.get(index))
             .cloned();
         let mut parent = self.to_gd().upcast::<Node3D>();
-        self.character_preview.sync(&mut parent, selected.as_ref())
+        self.character_preview
+            .sync(&mut parent, selected.as_ref(), self.world_minutes)
     }
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {

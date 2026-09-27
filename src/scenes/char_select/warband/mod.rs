@@ -178,13 +178,7 @@ pub fn local_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
 }
 
 /// Extra tiles needed to complete authored campsite backdrops that cross tile borders.
-pub fn supplemental_terrain_tile_coords(scene: &WarbandSceneEntry) -> Vec<(u32, u32)> {
-    match scene.id {
-        // Adventurer's Rest waterfall sits on the tile immediately west of the campsite tile.
-        1 => vec![(31, 36)],
-        _ => Vec::new(),
-    }
-}
+pub use data::supplemental_terrain_tile_coords;
 
 /// Extract the specific set of ADT tiles needed for a warband scene background.
 #[cfg(test)]
