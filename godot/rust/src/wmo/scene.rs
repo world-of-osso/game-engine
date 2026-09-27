@@ -117,9 +117,9 @@ fn prepare_group_batch<'a>(
                 asset.root_fdid, group.index, batch.material_index
             )
         })?;
-    // Shader 4 (opaque) renders as the base diffuse layer, as in the original
+    // Shaders 1 and 4 use base diffuse, matching the original
     // `describe_wmo_shader` default branch.
-    if !matches!(material.shader, 0 | 4 | 6 | 13 | 21) {
+    if !matches!(material.shader, 0 | 1 | 4 | 6 | 13 | 21) {
         return Err(format!(
             "WMO {} group {} material {} unsupported shader {}",
             asset.root_fdid, group.index, batch.material_index, material.shader
