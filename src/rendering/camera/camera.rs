@@ -37,6 +37,7 @@ impl Plugin for WowCameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<crate::client_options::CameraOptions>();
         app.init_resource::<PathingState>();
+        app.init_resource::<LocalMovementStep>();
         register_scripted_movement(app);
         app.add_systems(
             Update,
@@ -106,6 +107,13 @@ impl Default for MovementState {
             swimming: false,
         }
     }
+}
+
+/// Seconds of movement `player_movement` applied to the local player this frame; the
+/// server applies each `PlayerInput` for the same time.
+#[derive(Resource, Default)]
+pub struct LocalMovementStep {
+    pub secs: f32,
 }
 
 /// Character facing yaw (radians). RMB rotates this; the model entity rotation follows.
@@ -295,7 +303,7 @@ fn player_movement(
     mut map_status: ResMut<game_engine::status::MapStatusSnapshot>,
     bindings: Res<InputBindings>,
     mut pathing: ResMut<PathingState>,
-    mut scripted: ResMut<ScriptedMovement>,
+    (mut scripted, mut movement_step): (ResMut<ScriptedMovement>, ResMut<LocalMovementStep>),
     mut ray_cast: MeshRayCast,
     mut perf: Local<MovementPerfProbe>,
     wmo_collision_meshes_q: Query<Entity, With<collision::WmoCollisionMesh>>,
@@ -378,6 +386,7 @@ fn player_movement(
         &facing,
     );
     let movement_delta = scripted_step.map_or(time.delta_secs(), |step| step.duration_secs);
+    movement_step.secs = movement_delta;
     let proposed =
         build_proposed_ground_movement(current_position, direction, speed, movement_delta);
     let mut collision_elapsed = Duration::ZERO;

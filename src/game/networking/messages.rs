@@ -555,9 +555,10 @@ pub(crate) fn track_player_zone(
     *current_zone = CurrentZone { zone_id, area_id };
 }
 
-/// Send movement input to the server every frame.
+/// Send movement input to the server every frame the player moves.
 pub(crate) fn send_player_input(
     player_q: Query<(&MovementState, &CharacterFacing), With<Player>>,
+    movement_step: Res<crate::camera::LocalMovementStep>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut senders: MessageSenders<PlayerInput>,
 ) {
@@ -567,20 +568,33 @@ pub(crate) fn send_player_input(
     let Ok((movement, facing)) = player_q.single() else {
         return;
     };
+    let Some(input) = player_input(movement, facing, movement_step.secs) else {
+        return;
+    };
+    for mut sender in senders.iter_mut() {
+        sender.send::<InputChannel>(input.clone());
+    }
+}
+
+/// The input for a frame that moved or jumped, covering the `step_secs` the local
+/// movement applied.
+fn player_input(
+    movement: &MovementState,
+    facing: &CharacterFacing,
+    step_secs: f32,
+) -> Option<PlayerInput> {
     let direction = crate::networking::movement_to_direction(movement, facing);
     if direction == [0.0, 0.0, 0.0] && !movement.jumping {
-        return;
+        return None;
     }
-    let input = PlayerInput {
+    Some(PlayerInput {
         direction,
         facing_yaw: facing.yaw,
         jumping: movement.jumping,
         running: movement.running,
         swimming: movement.swimming,
-    };
-    for mut sender in senders.iter_mut() {
-        sender.send::<InputChannel>(input.clone());
-    }
+        elapsed_secs: step_secs,
+    })
 }
 
 #[cfg(test)]
