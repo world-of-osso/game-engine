@@ -1,10 +1,10 @@
 # Wiki Log
 
-## [2026-09-27] system | Portable character compositor extracted; native integration absent
+## [2026-09-27] system | Independent compositor and reconnect gate
 
-`0d9301a1` extracts the original byte compositor to Bevy-free `src/asset/char_texture_data.rs`, re-exported through `godot/core`. It receives decoded RGBA through an injected loader; `src/asset/char_texture.rs` keeps the Bevy resource adapter. Four synthetic exact-pixel tests are developer GREEN only. `3586` removes the redundant wrapper/getter and simplifies the fixture.
+At `0d9301a1`, independent verification passes root/native fmt and checks, portable exact-RGBA compositor tests 4/4, and root real-asset library tests 9/9 (`/tmp/claude/verify-compositor-reconnect-summary.md`). The root `--bin` selector executed 0 tests and is not evidence; `--lib asset::char_texture::tests` supplies the 9/9 proof. The same gate passes session 15/15, transfer 4/4, and the actual reconnect fixture: `INITIAL_READY` → `WORLD_RESET` → `TERRAIN_REFRESHED` → `RECONNECTED`.
 
-Godot's native model loader has no replacement-texture/geoset API and world players remain model-less, so no Godot native path invokes this compositor. Root real-asset checks and an integrated independent gate remain pending. This establishes neither visual rendering nor equipment parity.
+Readability finds no changed-line violation. The only warning is the unchanged unused `super::*` import in `tests/unit/asset/m2_retail_light_tests.rs`. `3586b99e` removes the redundant wrapper/getter and simplifies the fixture. Godot's native model loader has no replacement-texture/geoset API and world players remain model-less, so no Godot native path invokes the compositor. Native character rendering and full conversion remain open.
 
 Updated [[godot-conversion]], [[character-texture-compositing]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
