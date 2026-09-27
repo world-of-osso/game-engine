@@ -49,7 +49,7 @@ func select_second_character(client: Node) -> void:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.screen != "Loading" or state.selected_character_name != expected_name:
+		if state.screen not in ["Loading", "InWorld"] or state.selected_character_name != expected_name:
 			continue
 		var world = client.get_node_or_null("WorldUnits")
 		var player = world.get_node_or_null(expected_name) if world != null else null
