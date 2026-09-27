@@ -10,10 +10,16 @@ pub mod camera_follow_data;
 pub mod camera_input_data;
 #[path = "../../../src/asset/char_texture_data.rs"]
 pub mod char_texture_data;
+#[path = "../../../src/rendering/character/char_texture_query_data.rs"]
+pub mod char_texture_query_data;
 #[path = "../../../src/game/creatures/creature_display_data.rs"]
 pub mod creature_display_data;
 #[cfg(test)]
 mod creature_display_data_tests;
+#[path = "../../../src/csv_util.rs"]
+pub mod csv_util;
+#[path = "../../../src/rendering/character/customization_catalog.rs"]
+pub mod customization_data;
 #[path = "../../../src/geoset_visibility_data.rs"]
 pub mod geoset_visibility_data;
 #[path = "../../../src/input_bindings_data.rs"]
@@ -35,6 +41,8 @@ mod m2_batch_tests;
 pub mod npc_appearance_data;
 #[cfg(test)]
 mod npc_appearance_data_tests;
+#[path = "../../../src/rendering/character/npc_appearance_selection_data.rs"]
+pub mod npc_appearance_selection_data;
 #[path = "../../../src/game/creatures/npc_visibility_data.rs"]
 pub mod npc_visibility_data;
 #[cfg(test)]
