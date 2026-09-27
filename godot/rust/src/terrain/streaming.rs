@@ -70,6 +70,7 @@ pub(crate) struct TerrainStreamState {
     pub wdt_path: Option<PathBuf>,
     pub wdt_flags: Option<u32>,
     pub global_wmo_fdid: Option<u32>,
+    pub global_wmo_present: bool,
     pub pending_map: bool,
     pub pending_tiles: Vec<(u32, u32)>,
     pub parsed_tiles: Vec<ParsedTileState>,
@@ -211,6 +212,10 @@ impl StreamedTerrain {
                 .as_ref()
                 .and_then(|wdt| wdt.global_wmo.as_ref())
                 .and_then(|wmo| wmo.fdid),
+            global_wmo_present: self
+                .map_wdt
+                .as_ref()
+                .is_some_and(|wdt| wdt.global_wmo.is_some()),
             pending_map: self.pending_map,
             pending_tiles: self.pending_tiles.iter().copied().collect(),
             parsed_tiles: self
