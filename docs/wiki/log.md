@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Native terrain height versus ground support
+
+Native retained `Root.height_grids` contain only height-grid fields; MCNK low/high-resolution hole masks remain on separate `Root.chunks` used for mesh indices. Thus `GameClient.terrain_height_at` can return a height inside an authored hole. Its nil means no loaded grid covers the query, not the original `WorldGround` `Unloaded` state. The rendered-triangle `StaticBody3D` keeps holes open, but a mesh ray still is not `WorldGround`: it has neither WMO-floor candidates nor the `Unloaded`/`Unsupported` result distinction. Native movement remains unwired; this does not alter the WMO-floor contract or resolve the pending independent physics proof.
+
+Updated [[godot-conversion]] and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native unit-motion correction and interpolation
 
 `a60e9dea` extracts original authoritative local correction and remote interpolation into `unit_motion_data`, shared by root and `godot/core`; `ea5b4a85` applies it through native `UnitMotion`. Ordinary local snapshots retain the current predicted transform. The initial control epoch is adopted only, a changed epoch snaps, controlled positions interpolate, and optional local yaw is applied only when present. Remote units lerp/slerp; missing remote yaw retains the target, while missing local yaw cannot reuse stale facing. Native processing advances units after account polling and before terrain, lighting, and camera work.
