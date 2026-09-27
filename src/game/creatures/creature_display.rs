@@ -16,7 +16,7 @@ const NAMED_MODEL_CACHE_PATH: &str = "cache/named-model-lookups.sqlite";
 static NAMED_MODEL_FDID_CACHE: OnceLock<Mutex<HashMap<String, u32>>> = OnceLock::new();
 static NAMED_MODEL_SKIN_CACHE: OnceLock<Mutex<HashMap<String, [u32; 3]>>> = OnceLock::new();
 
-pub use crate::creature_display_data::CreatureDisplay;
+pub use game_engine::creature_display_data::CreatureDisplay;
 
 /// Bevy resource for creature display lookups.
 ///
