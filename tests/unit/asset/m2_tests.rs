@@ -1,4 +1,5 @@
 use super::*;
+use crate::asset::m2_format::parser::M2TextureUnit;
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::Mesh;
 use std::fs;
