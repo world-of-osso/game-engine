@@ -12,7 +12,8 @@ use shared::casting::CastState;
 use shared::components::{
     CombatStatus, CreatureMotion, EquipmentAppearance, Gold, GuildMembership, Health, Mana,
     ModelDisplay, Mounted, MovementControl, MovementSpeed, Npc, Player, Position, PresenceStatus,
-    Rotation, UnitAuras, UnitFactionTemplate, UnitFlags, UnitLevel, UnitPowers, UnitTarget, Zone,
+    Rotation, UnitAuras, UnitFactionTemplate, UnitFlags, UnitLevel, UnitPowers, UnitTarget,
+    WorldArrival, Zone,
 };
 use shared::level_scaling::LevelScaling;
 use shared::protocol::{GameObjectInfo, NpcFlags};
@@ -172,6 +173,7 @@ struct EntitySnapshot {
     combat_status: Option<CombatStatus>,
     mounted: Option<Mounted>,
     movement_control: Option<MovementControl>,
+    world_arrival: Option<WorldArrival>,
     zone: Option<Zone>,
     guild_membership: Option<GuildMembership>,
     presence_status: Option<PresenceStatus>,
@@ -206,6 +208,7 @@ impl EntitySnapshot {
             combat_status: entity.get::<CombatStatus>().copied(),
             mounted: entity.get::<Mounted>().cloned(),
             movement_control: entity.get::<MovementControl>().copied(),
+            world_arrival: entity.get::<WorldArrival>().copied(),
             zone: entity.get::<Zone>().copied(),
             guild_membership: entity.get::<GuildMembership>().cloned(),
             presence_status: entity.get::<PresenceStatus>().copied(),
@@ -236,6 +239,7 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.combat_status);
             apply_component(&mut entity, self.mounted);
             apply_component(&mut entity, self.movement_control);
+            apply_component(&mut entity, self.world_arrival);
             apply_component(&mut entity, self.zone);
             apply_component(&mut entity, self.guild_membership);
             apply_component(&mut entity, self.presence_status);
@@ -358,6 +362,24 @@ mod tests {
             .server_to_main(source)
             .unwrap();
         assert_eq!(main.world().get::<MovementControl>(mirror), Some(&control));
+    }
+
+    #[test]
+    fn world_arrival_snapshot_carries_the_map_arrival_count() {
+        let mut worker = World::new();
+        let source = source_player(&mut worker);
+        worker.entity_mut(source).insert(WorldArrival(3));
+        let mut main = main_app();
+        apply(main.world_mut(), snapshot(&worker, source, source, 1));
+        let mirror = main
+            .world()
+            .resource::<ReplicationMirrorMap>()
+            .server_to_main(source)
+            .unwrap();
+        assert_eq!(
+            main.world().get::<WorldArrival>(mirror),
+            Some(&WorldArrival(3))
+        );
     }
 
     #[test]
