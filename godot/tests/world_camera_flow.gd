@@ -73,8 +73,8 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 	if not await wait_camera(camera, expected):
 		return false
 	blocker.queue_free()
-	if client.account_state().screen != "Loading":
-		fail("Camera attachment fabricated world readiness")
+	if client.account_state().screen != "InWorld":
+		fail("Camera fixture lost readiness after center terrain attachment")
 		return false
 	print("PASS: original camera orbit/projection, self exclusion, mesh obstruction and hidden-mesh recovery")
 	return true
@@ -85,5 +85,5 @@ func inspect_reset(client: Node) -> bool:
 	if client.get_node_or_null("WorldCamera") != null:
 		fail("Reconnect retained previous world camera")
 		return false
-	print("PASS: reconnect removes world camera without fabricated readiness")
+	print("PASS: reconnect removes world camera")
 	return true

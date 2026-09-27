@@ -1,5 +1,7 @@
 extends SceneTree
 
+var loading_ui_checked := false
+
 func _initialize() -> void:
 	call_deferred("run_test")
 
@@ -46,6 +48,10 @@ func select_second_character_and_enter(client: Node) -> void:
 		fail("Viewport click did not select second character: " + selected_name.text + " expected " + card_name.text)
 		return
 	var expected_name: String = card_name.text
+	client.screen_requested.connect(func(screen: String):
+		if screen == "Loading":
+			loading_ui_checked = inspect_initial_loading_ui(client)
+	)
 	await click_control(enter)
 	await assert_loading_response(client, expected_name)
 
@@ -72,7 +78,7 @@ func assert_loading_response(client: Node, expected_name: String) -> void:
 		var state: Dictionary = client.account_state()
 		if state.screen == "CharacterSelect":
 			continue
-		if state.screen != "Loading":
+		if state.screen not in ["Loading", "InWorld"]:
 			fail("Enter World did not receive a successful loading transition: " + str(state))
 			return
 		if not state.has("selected_character_id") or not state.has("selected_character_name"):
@@ -81,35 +87,49 @@ func assert_loading_response(client: Node, expected_name: String) -> void:
 		if int(state.selected_character_id) <= 0 or state.selected_character_name != expected_name:
 			fail("Response selected a different character: " + str(state) + " expected " + expected_name)
 			return
-		await assert_loading_ui(client)
+		if not loading_ui_checked:
+			fail("Enter World did not present authored initial LoadingUI")
+			return
+		await assert_loading_progress(client)
 		return
 	fail("Timed out waiting for Enter World response after viewport button click")
 
-func assert_loading_ui(client: Node) -> void:
-	await process_frame
+func inspect_initial_loading_ui(client: Node) -> bool:
 	var ui = client.get_node_or_null("LoadingUI")
 	var character_ui = client.get_node_or_null("CharacterSelectUI")
 	var login_ui = client.get_node_or_null("LoginUI")
 	if ui == null or not ui.visible or character_ui != null and character_ui.visible or login_ui == null or login_ui.visible:
 		fail("Loading must replace visible character selection and login")
-		return
+		return false
 	var artwork = ui.find_child("LoadingArtwork", true, false)
 	var shell = ui.find_child("LoadingBarBackground", true, false)
 	var progress = ui.find_child("LoadingProgressText", true, false)
 	if not artwork is TextureRect or artwork.texture == null or not shell is Control or not shell.visible or not progress is Label or progress.text != "0%":
 		fail("Authored Loading artwork, shell or initial progress missing")
-		return
+		return false
 	for index in range(3):
 		var part = shell.get_node_or_null("ThreePart%d" % index)
 		if not part is TextureRect or part.texture == null:
 			fail("Authored loading shell part %d missing" % index)
-			return
+			return false
+	return true
+
+func assert_loading_progress(client: Node) -> void:
 	for _frame in range(5):
 		await process_frame
-		if client.account_state().screen != "Loading" or not ui.visible or progress.text != "0%":
-			fail("Loading advanced without established world readiness")
+		var state: Dictionary = client.account_state()
+		var ui = client.get_node_or_null("LoadingUI")
+		var progress = ui.find_child("LoadingProgressText", true, false) if ui != null else null
+		if ui == null or not progress is Label or progress.text not in ["0%", "35%", "62%", "74%", "86%", "100%"]:
+			fail("Loading lost its shared progress projection")
 			return
-	print("PASS: second selected character enters authored LoadingUI after real server response without fabricated readiness")
+		if state.screen == "Loading" and ui.visible:
+			continue
+		if state.screen == "InWorld" and not ui.visible and state.world_attached and client.get_node_or_null("WorldTerrain") != null:
+			continue
+		fail("Loading visibility does not match established world state")
+		return
+	print("PASS: selected character presents authored initial LoadingUI and projects shared loading progress")
 	client.free()
 	quit(0)
 
