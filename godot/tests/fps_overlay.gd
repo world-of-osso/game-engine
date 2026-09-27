@@ -51,23 +51,45 @@ func run_test() -> void:
 		fail("FPS label is not numeric: " + label.text)
 		return
 	var measured := Engine.get_frames_per_second()
-	if absf(float(displayed) - measured) > 15.0 or float(displayed) > FPS_CAP + 15.0:
+	var first_fps := float(displayed)
+	if absf(first_fps - measured) > 15.0 or first_fps > FPS_CAP + 15.0:
 		fail("FPS label does not match the capped measured FPS: %s vs %.2f" % [displayed, measured])
 		return
+	Engine.max_fps = 10
+	var slower_deadline := Time.get_ticks_msec() + 4000
+	var slow_fps := 0.0
+	while Time.get_ticks_msec() < slower_deadline:
+		await process_frame
+		var value := label.text.trim_prefix("FPS: ")
+		if value.is_valid_float():
+			slow_fps = float(value)
+		if absf(slow_fps - 10.0) <= 2.0 and absf(slow_fps - Engine.get_frames_per_second()) <= 2.0 and first_fps - slow_fps >= 5.0:
+			break
+	if absf(slow_fps - 10.0) > 2.0 or first_fps - slow_fps < 5.0:
+		fail("FPS text did not follow 30-to-10 cap change: %.2f -> %s, measured %.2f" % [first_fps, label.text, Engine.get_frames_per_second()])
+		return
+	var fraction := label.text.split(".")
+	if fraction.size() != 2 or fraction[1].length() != 2:
+		fail("FPS display must preserve two decimal places: " + label.text)
+		return
+
+	graph.hide()
 	await RenderingServer.frame_post_draw
-	var image := root.get_texture().get_image()
+	var without_graph := root.get_texture().get_image()
+	graph.show()
+	await RenderingServer.frame_post_draw
+	var with_graph := root.get_texture().get_image()
 	var bounds := graph.get_global_rect()
-	var colored := false
+	var changed_bars := 0
 	for y in range(int(bounds.position.y), int(bounds.end.y)):
 		for x in range(int(bounds.position.x), int(bounds.end.x)):
-			var pixel := image.get_pixel(x, y)
-			if pixel.r > pixel.b + 0.12 or pixel.g > pixel.b + 0.12:
-				colored = true
-				break
-		if colored:
-			break
-	if not colored:
-		fail("Frame-time graph did not render any colored history")
+			var drawn := with_graph.get_pixel(x, y)
+			var background := without_graph.get_pixel(x, y)
+			var difference := absf(drawn.r - background.r) + absf(drawn.g - background.g) + absf(drawn.b - background.b)
+			if difference > 0.6:
+				changed_bars += 1
+	if changed_bars < 10:
+		fail("Frame-time history did not change rendered graph pixels: %d" % changed_bars)
 		return
 	client.free()
 	print("PASS: actual capped FPS, saved visibility and rendered frame-time history")
