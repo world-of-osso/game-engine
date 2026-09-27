@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Idle local jump reaches authored landing and Stand
+
+`4df9b1e2` adds a root-launched idle-Space fixture that checks actual bone playback and decoded stationary jumping input. Its first runtime exits 101 at missing JumpStart 37 (`/tmp/claude/jump-input-runtime-red-4df9b1e2.log`). `8bebf2c4` implements local JumpStart 37 → Jump 38 → JumpEnd 39 → movement; running forward selects authored JumpLandRun 187 when present, covered by synthetic tests only. `7a6ac0d5` wires the state machine from local `PlayerMovement`, and `dac0ab3e` releases Space independently of airborne clip duration.
+
+The `dac0ab3e` runtime exits 0 (`/tmp/claude/jump-input-runtime-dac0ab3e.log`): idle Space observes 37 → 38 → 39 → Stand 0, changed body poses, rise then ground return, stationary jumping UDP, and quiet release. Existing grounded Walk/Backward/Left/Right coverage also passes. Landing 187 is not runtime-proven. Turn, swim, remote locomotion, performance, parity, and full conversion remain open. Verifier640 is running asynchronously; its result is pending.
+
+Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Six Godot startup names have bounded CLI proof
 
 Supersedes the earlier pending-runtime note. `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, and `inworld` have exit-0 CLI artifacts; parser/account/launcher proof is 6/6, 5/5, and 11/11. The authenticated `inworld` artifact covers mixed-case selection of the second roster entry, although this audit did not independently re-read its numeric source predicate. Four PNGs were inspected; clipped Loading progress means UI presence, not visual parity, and follows shared legacy layout at 720 px rather than a confirmed Godot UI-scale regression. Missing/invalid/unsupported root CLI paths exit 1. Latest authenticated fixtures also validate local locomotion `0 → 5 → 0` and clean shutdown. Twelve other canonical names and `connecting`/`reconnecting` remain explicitly unconverted. Native check and launcher fmt pass. The native fmt failure reported by `bd8282c7` applied only to then-uncommitted terrain-object code; after terrain commit `f015f651`, `/tmp/claude/startup-native-fmt-after-terrain-commit.log` records native fmt exit 0. Full conversion remains open.
