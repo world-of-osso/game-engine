@@ -25,6 +25,7 @@ use super::{
 type TexturePixels = (Vec<u8>, u32, u32);
 
 struct PlayerChoices {
+    #[cfg(test)]
     choice_ids: HashSet<u32>,
     materials: Vec<(u16, u32)>,
     geosets: Vec<(u16, u16)>,
@@ -66,6 +67,7 @@ fn select_player_choices(
         })
         .collect();
     Ok(PlayerChoices {
+        #[cfg(test)]
         choice_ids,
         materials,
         geosets,
