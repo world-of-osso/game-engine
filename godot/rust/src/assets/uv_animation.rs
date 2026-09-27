@@ -94,10 +94,10 @@ impl WowMaterialAnimation {
     ) -> Option<Gd<Self>> {
         let materials: Vec<_> = batches
             .filter(|(_, batch)| super::material::is_effect(batch))
-            .filter(|(_, batch)| batch.texture_anim_1.is_some() || batch.texture_anim_2.is_some())
+            .filter(|(_, batch)| batch.texture_anim.is_some() || batch.texture_anim_2.is_some())
             .map(|(material, batch)| AnimatedMaterial {
                 material,
-                first: batch.texture_anim_1,
+                first: batch.texture_anim,
                 second: batch.texture_anim_2,
             })
             .collect();
