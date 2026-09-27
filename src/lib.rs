@@ -86,6 +86,7 @@ mod helmet_geoset_data;
 pub mod help_data;
 pub mod ignore_list;
 pub mod input_bindings;
+pub mod input_bindings_data;
 pub mod inspect;
 pub mod ipc;
 #[path = "game/item_catalog.rs"]
