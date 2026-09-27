@@ -1,7 +1,11 @@
 mod account;
 mod animation;
+#[path = "../../../src/rendering/character/appearance_options.rs"]
+pub mod appearance_options;
+pub use game_engine_core::customization_data;
 mod assets;
 mod camera;
+mod character_select;
 mod gameplay;
 mod ground;
 mod input;
@@ -11,9 +15,9 @@ mod loading;
 mod scene;
 mod terrain;
 mod ui;
+mod wmo;
 mod world;
 mod world_models;
-mod wmo;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -41,6 +45,7 @@ pub struct GameClient {
     model_scene: Option<Gd<Node3D>>,
     login_ui: Option<Gd<ui::RegistryUi>>,
     character_ui: Option<Gd<ui::RegistryUi>>,
+    character_preview: character_select::CharacterPreview,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     account: Account,
@@ -71,6 +76,10 @@ impl INode3D for GameClient {
             model_scene: None,
             login_ui: None,
             character_ui: None,
+            character_preview: character_select::CharacterPreview::new(
+                data_root.clone(),
+                cache_root.clone(),
+            ),
             loading_ui: None,
             errors_ui: None,
             account: Account::new(data_root.clone()),
@@ -105,6 +114,7 @@ impl INode3D for GameClient {
         let update = self
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
+            .and_then(|()| self.update_character_preview())
             .and_then(|()| self.update_player_input(delta as f32))
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.send_player_input())
@@ -360,7 +370,7 @@ impl GameClient {
                 AccountEvent::WorldReset => self.reset_world()?,
                 AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
                 AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
-                AccountEvent::TransferError(error) => self.add_world_error(error)?,
+                AccountEvent::TransferError(error) => self.add_world_error(&error)?,
                 AccountEvent::UnitUpdated(unit) => {
                     let mut parent = self.to_gd().upcast::<Node3D>();
                     self.world.upsert(&mut parent, &unit);
@@ -492,6 +502,7 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.character_preview.reset();
         self.physical_input.clear();
         self.player_movement = gameplay::PlayerMovement::default();
         if let Some(ui) = self.errors_ui.as_mut() {
@@ -506,7 +517,25 @@ impl GameClient {
         self.terrain.reset()
     }
 
+    fn update_character_preview(&mut self) -> Result<(), String> {
+        if self.account.session.screen != SessionScreen::CharacterSelect {
+            self.character_preview.reset();
+            return Ok(());
+        }
+        let selected = self
+            .account
+            .session
+            .selected_index
+            .and_then(|index| self.account.session.characters.get(index))
+            .cloned();
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.character_preview.sync(&mut parent, selected.as_ref())
+    }
+
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {
+        if screen != SessionScreen::CharacterSelect {
+            self.character_preview.reset();
+        }
         if screen != SessionScreen::InWorld
             && let Some(ui) = self.errors_ui.as_mut()
             && ui.is_visible()
