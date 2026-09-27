@@ -273,7 +273,11 @@ struct NameplateScene<'w, 's> {
             Option<&'static Children>,
             Has<Health>,
         ),
-        (Without<Nameplate>, Without<crate::networking::LocalPlayer>),
+        (
+            Without<Nameplate>,
+            Without<crate::networking::LocalPlayer>,
+            Without<crate::networking_npc::NotSelectable>,
+        ),
     >,
     bars: Query<
         'w,

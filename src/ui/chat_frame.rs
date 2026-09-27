@@ -345,6 +345,12 @@ pub fn chat_message_line(msg: &ChatMessage) -> ChatLine {
         ChatChannelType::Emote => format!("{sender} {body}"),
         ChatChannelType::System => body.clone(),
         ChatChannelType::Custom => format!("[{}] [{sender}]: {body}", msg.channel_name),
+        // CHAT_MONSTER_SAY_GET / CHAT_MONSTER_YELL_GET: the creature's name, no link.
+        ChatChannelType::MonsterSay => format!("{sender} says: {body}"),
+        ChatChannelType::MonsterYell => format!("{sender} yells: {body}"),
+        ChatChannelType::MonsterEmote | ChatChannelType::RaidBossEmote => {
+            crate::chat_data::monster_emote_text(body, sender)
+        }
         ChatChannelType::Party
         | ChatChannelType::Raid
         | ChatChannelType::Guild

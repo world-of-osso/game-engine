@@ -131,6 +131,33 @@ fn floor_below_origin() -> WmoInteriorFloor {
     }
 }
 
+/// A 0.1-wide portal quad facing Z around `center`.
+fn small_quad_at(center: Vec3) -> Vec<Vec3> {
+    quad_facing_z(center, 0.05)
+}
+
+fn quad_facing_z(center: Vec3, half_size: f32) -> Vec<Vec3> {
+    [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)]
+        .into_iter()
+        .map(|(x, y)| center + Vec3::new(x * half_size, y * half_size, 0.0))
+        .collect()
+}
+
+/// A 60° perspective camera at the origin looking down -Z.
+fn spawn_perspective_test_camera(world: &mut World) {
+    use bevy::camera::{CameraProjection, PerspectiveProjection};
+    let projection = PerspectiveProjection {
+        fov: 60f32.to_radians(),
+        aspect_ratio: 16.0 / 9.0,
+        ..default()
+    };
+    world.spawn((
+        Camera3d::default(),
+        GlobalTransform::IDENTITY,
+        projection.compute_frustum(&GlobalTransform::IDENTITY),
+    ));
+}
+
 fn spawn_portal_test_camera(world: &mut World) {
     world.spawn((
         Camera3d::default(),
@@ -412,7 +439,8 @@ fn wmo_stays_visible_when_any_referenced_chunk_is_visible() {
 fn portal_culling_hides_groups_behind_non_visible_portals() {
     let mut world = World::default();
     spawn_portal_test_camera(&mut world);
-    let (_root, group0, group1) = spawn_portal_test_wmo(&mut world, vec![Vec3::new(5.0, 5.0, 5.0)]);
+    let (_root, group0, group1) =
+        spawn_portal_test_wmo(&mut world, small_quad_at(Vec3::new(5.0, 5.0, 5.0)));
     let mut state = PortalCullState::new(&mut world);
 
     run_portal_cull(&mut world, &mut state);
@@ -426,7 +454,7 @@ fn portal_culling_keeps_groups_visible_through_visible_portals() {
     let mut world = World::default();
     spawn_portal_test_camera(&mut world);
     let (_root, group0, group1) =
-        spawn_portal_test_wmo(&mut world, vec![Vec3::new(0.25, 0.25, 0.25)]);
+        spawn_portal_test_wmo(&mut world, small_quad_at(Vec3::new(0.25, 0.25, 0.25)));
     let mut state = PortalCullState::new(&mut world);
 
     run_portal_cull(&mut world, &mut state);
@@ -435,13 +463,61 @@ fn portal_culling_keeps_groups_visible_through_visible_portals() {
     assert_eq!(visibility_of(&world, group1), Visibility::Visible);
 }
 
+/// A doorway 5 yd ahead that is wider than the view: every corner lies outside the frustum,
+/// yet the camera looks straight through it.
+#[test]
+fn a_doorway_filling_the_view_draws_the_group_behind_it() {
+    let mut world = World::default();
+    spawn_perspective_test_camera(&mut world);
+    let (_root, group0, group1) =
+        spawn_portal_test_wmo(&mut world, quad_facing_z(Vec3::new(0.0, 0.0, -5.0), 20.0));
+    let mut state = PortalCullState::new(&mut world);
+
+    run_portal_cull(&mut world, &mut state);
+
+    assert_eq!(visibility_of(&world, group0), Visibility::Visible);
+    assert_eq!(visibility_of(&world, group1), Visibility::Visible);
+}
+
+/// A camera passing through a doorway, 0.05 yd from its plane and so inside the near
+/// plane: both sides stay drawn.
+#[test]
+fn a_camera_in_a_doorway_draws_the_group_beyond_it() {
+    let mut world = World::default();
+    spawn_perspective_test_camera(&mut world);
+    let (_root, group0, group1) =
+        spawn_portal_test_wmo(&mut world, quad_facing_z(Vec3::new(0.0, 0.0, -0.05), 3.0));
+    let mut state = PortalCullState::new(&mut world);
+
+    run_portal_cull(&mut world, &mut state);
+
+    assert_eq!(visibility_of(&world, group0), Visibility::Visible);
+    assert_eq!(visibility_of(&world, group1), Visibility::Visible);
+}
+
+/// A portal off to the side of the view and far from the camera stays closed.
+#[test]
+fn a_doorway_outside_the_view_hides_the_group_behind_it() {
+    let mut world = World::default();
+    spawn_perspective_test_camera(&mut world);
+    let (_root, group0, group1) =
+        spawn_portal_test_wmo(&mut world, quad_facing_z(Vec3::new(30.0, 0.0, -5.0), 2.0));
+    let mut state = PortalCullState::new(&mut world);
+
+    run_portal_cull(&mut world, &mut state);
+
+    assert_eq!(visibility_of(&world, group0), Visibility::Visible);
+    assert_eq!(visibility_of(&world, group1), Visibility::Hidden);
+}
+
 /// A camera inside an interior group's box but with no floor of it below stands outside:
 /// exterior groups are drawn, the interior only through a visible portal, antiportals never.
 #[test]
 fn camera_outside_interiors_draws_exterior_groups() {
     let mut world = World::default();
     spawn_portal_test_camera(&mut world);
-    let (root, group0, group1) = spawn_portal_test_wmo(&mut world, vec![Vec3::new(5.0, 5.0, 5.0)]);
+    let (root, group0, group1) =
+        spawn_portal_test_wmo(&mut world, small_quad_at(Vec3::new(5.0, 5.0, 5.0)));
     world.entity_mut(group0).remove::<WmoInteriorFloor>();
     world.get_mut::<WmoGroup>(group1).unwrap().is_exterior = true;
     let antiportal = world
@@ -473,7 +549,7 @@ fn interior_portal_onto_exterior_draws_every_exterior_group() {
     let mut world = World::default();
     spawn_portal_test_camera(&mut world);
     let (root, group0, group1) =
-        spawn_portal_test_wmo(&mut world, vec![Vec3::new(0.25, 0.25, 0.25)]);
+        spawn_portal_test_wmo(&mut world, small_quad_at(Vec3::new(0.25, 0.25, 0.25)));
     world.get_mut::<WmoGroup>(group1).unwrap().is_exterior = true;
     let far_exterior =
         spawn_portal_test_group(&mut world, 2, Vec3::splat(50.0), Vec3::splat(60.0), true);

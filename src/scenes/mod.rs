@@ -34,6 +34,7 @@ pub mod nameplate_debug;
 pub mod particle_debug;
 pub mod professions_frame;
 pub mod quest_ui;
+pub mod raid_warning_frame;
 pub mod scene_tree;
 pub mod selection_debug;
 pub mod setup;

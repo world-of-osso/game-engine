@@ -1,7 +1,8 @@
 //! Replicated server game objects (`GameObjectInfo`, e.g. the Guild Vault): the
 //! model from Retail `GameObjectDisplayInfo.FileDataID` at the replicated position
-//! and facing, pickable with right-click (`WorldObjectInteractionKind::ServerObject`,
-//! which sends `UseGameObject`).
+//! and facing. Usable ones (`GameObjectInfo::is_usable`) are pickable with right-click
+//! (`WorldObjectInteractionKind::ServerObject`, which sends `UseGameObject`); decoration
+//! such as fires is not.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -60,8 +61,8 @@ fn parse_game_object_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
         .collect()
 }
 
-/// Mailboxes get the mail cursor and minimap icon; every game object is used on
-/// the server.
+/// Mailboxes get the mail cursor and minimap icon; every other usable game object is
+/// used on the server.
 fn interaction_kind(info: &GameObjectInfo) -> WorldObjectInteractionKind {
     if info.go_type == shared::protocol::GAMEOBJECT_TYPE_MAILBOX {
         WorldObjectInteractionKind::Mailbox
@@ -89,10 +90,13 @@ pub(crate) fn spawn_replicated_game_object(
         Transform::from_translation(crate::networking::net_position_to_bevy(position))
             .with_rotation(Quat::from_rotation_y(yaw)),
         Visibility::default(),
-        WorldObjectInteraction {
-            kind: interaction_kind(info),
-        },
     ));
+    // Decoration and spell foci (fires) take no cursor, highlight or click.
+    if info.is_usable() {
+        commands.entity(entity).insert(WorldObjectInteraction {
+            kind: interaction_kind(info),
+        });
+    }
     let Some(fdid) = displays.and_then(|displays| displays.model_fdid(info.display_id)) else {
         warn!(
             "game object {} has no GameObjectDisplayInfo {}",
@@ -206,6 +210,43 @@ mod tests {
             entity.get::<WorldObjectInteraction>().map(|i| i.kind),
             Some(WorldObjectInteractionKind::ServerObject)
         );
+    }
+
+    #[test]
+    fn a_stockade_fire_is_placed_but_not_pickable() {
+        use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .init_resource::<Assets<Mesh>>()
+            .init_resource::<Assets<crate::retail_m2_material::M2Material>>()
+            .init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>()
+            .init_resource::<Assets<Image>>()
+            .init_resource::<Assets<SkinnedMeshInverseBindposes>>()
+            .insert_resource(GameObjectDisplays::default())
+            .add_observer(spawn_replicated_game_object);
+        // Stockade Small Fire (0.5), TrinityCore guid 235253 (GAMEOBJECT_TYPE_GENERIC, display 4251).
+        let fire = app
+            .world_mut()
+            .spawn(NetPosition {
+                x: 126.142,
+                y: -33.9396,
+                z: 33.6665,
+            })
+            .id();
+        app.world_mut().entity_mut(fire).insert(GameObjectInfo {
+            entry: 206_038,
+            go_type: shared::protocol::GAMEOBJECT_TYPE_GENERIC,
+            display_id: 4251,
+            name: "Small Fire (0.5)".into(),
+            scale: 0.5,
+        });
+        app.update();
+        let entity = app.world().entity(fire);
+        assert_eq!(
+            entity.get::<Transform>().unwrap().translation,
+            Vec3::new(126.142, -33.9396, 33.6665)
+        );
+        assert!(entity.get::<WorldObjectInteraction>().is_none());
     }
 
     #[test]

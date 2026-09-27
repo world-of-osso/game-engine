@@ -4,12 +4,12 @@ use bevy::window::{CursorIcon, CursorOptions, CustomCursor, CustomCursorImage, P
 use game_engine::faction_reaction::Reaction;
 use game_engine::loot_state::Lootable;
 use game_engine::quest_tracking::QuestTrackedItem;
-use shared::components::{Health as NetHealth, Npc, UnitFactionTemplate};
+use shared::components::{Health as NetHealth, UnitFactionTemplate};
 use shared::protocol::NpcFlags;
 
 use crate::asset;
-use crate::camera::{Player, WowCamera};
-use crate::networking::{LocalPlayer, RemoteEntity};
+use crate::camera::WowCamera;
+use crate::networking::LocalPlayer;
 use crate::target::WorldObjectInteraction;
 
 #[derive(Resource)]
@@ -224,7 +224,7 @@ fn pick_desired_cursor(
     window: &Window,
     camera: (&Camera, &GlobalTransform),
     parent_query: &Query<&ChildOf>,
-    npc_q: &Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    npc_q: &Query<Entity, crate::target::TargetableNpcs>,
     object_q: &Query<&WorldObjectInteraction>,
     quest_q: &Query<(), With<QuestTrackedItem>>,
     visibility_q: &Query<&Visibility>,
@@ -292,7 +292,7 @@ pub fn update_wow_cursor_style(
     windows: Query<(&Window, &CursorOptions, Entity), With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<WowCamera>>,
     parent_query: Query<&ChildOf>,
-    npc_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    npc_q: Query<Entity, crate::target::TargetableNpcs>,
     object_q: Query<&WorldObjectInteraction>,
     quest_q: Query<(), With<QuestTrackedItem>>,
     visibility_q: Query<&Visibility>,

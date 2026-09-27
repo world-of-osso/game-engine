@@ -282,6 +282,13 @@ fn sample_unit_frames_context() -> SharedContext {
         target_of_target: Some(SmallUnitFrameState::from(&sample_player_frame_state())),
         focus: Some(SmallUnitFrameState::from(&target)),
         target: Some(target),
+        bosses: vec![UnitFrameState {
+            level_text: "32".into(),
+            health_text: "153265 / 153265".into(),
+            health_fraction: 1.0,
+            reaction: Some(crate::faction_reaction::Reaction::Hostile),
+            ..UnitFrameState::named("Hogger")
+        }],
         menu: UnitFrameMenuState::default(),
     });
     shared

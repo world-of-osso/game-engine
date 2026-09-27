@@ -15,6 +15,7 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - [ ] A `LocalPlayer` owner has no projected name, health, or cast visual, including when the marker is added after those visuals already exist; removing the marker restores the remote plate.
 - [ ] Name, health, and cast visuals share the health-body distance anchor and fade/hide boundary. `HudOptions.nameplate_distance` remains the configured policy; no native retail cap is asserted.
 - [ ] Clicking a visible non-local plate targets its owner before mesh raycasting. Registry UI under the cursor retains input precedence.
+- [x] A unit whose replicated `UnitFlags` carry `UNIT_FLAG_NOT_SELECTABLE` (0x02000000; triggers such as the Summon Enabler Stalker) has no projected name, health or cast visual, and cannot be clicked, hovered, cursor-highlighted or tab-targeted (Retail). Clearing the flag restores the plate and selection. `sync_not_selectable` keeps the `NotSelectable` marker in step with `UnitFlags`.
 
 ## How it works
 
@@ -37,7 +38,8 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - `src/rendering/ui/nameplate_cast_bar.rs` — projected cast atlas frame/fill, labels, visibility gates, and shared distance boundary.
 - `src/rendering/ui/nameplate_picking.rs` — screen-space hit testing for projected nameplate parts.
 - `src/rendering/ui/target.rs` — registry-first click routing; a plate hit selects its owner before world mesh raycasting.
-- `src/network_runtime/replication.rs` — cast snapshots across worker/main worlds.
+- `src/network_runtime/replication.rs` — cast and `UnitFlags` snapshots across worker/main worlds.
+- `src/game/networking/npc.rs` — `NotSelectable` marker from `UnitFlags`; plate, pick, hover and target queries exclude it.
 - `../game-server/crates/server/src/cast_presentation.rs` — validated player cast-state lifecycle; no spell effect execution or NPC cast source.
 
 ## Tests asserting this spec
@@ -51,6 +53,7 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - `src/rendering/ui/nameplate_projection_tests.rs` — late-local-owner exclusion and shared body-distance/fade behavior.
 - `src/rendering/ui/target_nameplate_tests.rs` — plate-owner selection, mesh precedence, registry UI precedence, and hidden/local exclusion.
 - `src/rendering/ui/nameplate_gpu_tests.rs` — half-size visual comparison fixture.
+- `not_selectable_unit_flags_hide_every_plate_part_until_cleared`, `clicking_a_not_selectable_npc_model_selects_nothing`, `tab_target_skips_not_selectable_npcs`, `unit_frame_snapshot_preserves_powers_auras_level_faction_flags_target_and_removal`.
 
 ## Known gaps (current cycle)
 

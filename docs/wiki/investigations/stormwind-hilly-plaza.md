@@ -70,7 +70,7 @@ Proof:
 
 - **WMO floor support: fixed** by [[player-ground]]. The player stood on terrain at 94.7, under the auction house floor at 98.06, when `after.webp` was taken. Now a set-position into the auction house lands at 98.02 (`data/diagnostics/floorcollision-20260925/`). Camera collision hits the visible WMO, so the after camera sits closer than the before camera.
 - **Interior test uses render triangles.** Retail uses the group BSP (MOBN/MOBR) with collision faces only, and it compares against exterior floors too. Here a closer exterior floor inside an interior's bbox does not win.
-- **Portal test is coarse.** A portal counts as visible when any of its vertices is in the frustum. There is no portal-clipped frustum.
+- **Portal test: fixed** by [[stockade-entrance]]. The portal polygon is now clipped by the frustum, and a portal within 2.25 yd of the camera stays open. There is still no portal-clipped frustum for the groups beyond it.
 - **Duplicate placements.** `sw_tradedistrict` is still spawned once per referencing tile (4×). See [[stormwind-dark-render]].
 
 ## Sources

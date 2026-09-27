@@ -216,7 +216,15 @@ struct HealthScene<'w, 's> {
         ),
         (With<HealthBar>, Without<HealthBarVisualOwner>),
     >,
-    health: Query<'w, 's, &'static Health, Without<crate::networking::LocalPlayer>>,
+    health: Query<
+        'w,
+        's,
+        &'static Health,
+        (
+            Without<crate::networking::LocalPlayer>,
+            Without<crate::networking_npc::NotSelectable>,
+        ),
+    >,
     reactions: PlateReactions<'w, 's>,
     art: Res<'w, NameplateArtCache>,
     hud: Option<Res<'w, HudOptions>>,

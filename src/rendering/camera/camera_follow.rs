@@ -1,11 +1,14 @@
 use std::collections::HashSet;
 
+use bevy::ecs::system::SystemParam;
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings, RayCastVisibility};
 use bevy::prelude::*;
 
+use crate::collision::WmoCollisionMesh;
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
-use game_engine::camera_follow_data::follow_camera as follow_camera_data;
+use game_engine::camera_follow_data::{COLLISION_OFFSET, follow_camera as follow_camera_data};
+use game_engine::culling::WmoInteriors;
 
 use super::{GROUND_Y, Player, WowCamera};
 
@@ -39,23 +42,70 @@ fn build_collision_excluded_set(
     excluded
 }
 
-/// Cast against visible world meshes, excluding the player subtree and sky.
+/// What the camera collides with: visible meshes and WMO walls even when portal culling
+/// hides their group. Portal culling controls drawing, not solidity.
+#[derive(SystemParam)]
+pub(crate) struct CameraBlockers<'w, 's> {
+    visibility: Query<'w, 's, &'static InheritedVisibility>,
+    wmo_walls: Query<'w, 's, (), With<WmoCollisionMesh>>,
+}
+
+impl CameraBlockers<'_, '_> {
+    fn blocks(&self, entity: Entity) -> bool {
+        self.visibility.get(entity).is_ok_and(|v| v.get()) || self.wmo_walls.contains(entity)
+    }
+}
+
+fn collision_adjusted_distance(intended_distance: f32, hit_distance: Option<f32>) -> f32 {
+    match hit_distance {
+        Some(hit) if hit < intended_distance => (hit - COLLISION_OFFSET).max(0.5),
+        _ => intended_distance,
+    }
+}
+
+/// Cast against world meshes selected by the WMO-aware collision predicate.
 fn mesh_hit_distance(
     ray_cast: &mut MeshRayCast,
-    excluded: &HashSet<Entity>,
+    blocks: &dyn Fn(Entity) -> bool,
     eye_target: Vec3,
     ray_dir: Vec3,
 ) -> Option<f32> {
     let ray = Ray3d::new(eye_target, Dir3::new(ray_dir).unwrap());
-    let filter = |entity: Entity| !excluded.contains(&entity);
-    // A collided wall can leave the camera frustum without ceasing to block it.
     let settings = MeshRayCastSettings::default()
-        .with_visibility(RayCastVisibility::Visible)
-        .with_filter(&filter);
+        .with_visibility(RayCastVisibility::Any)
+        .with_filter(&blocks);
     ray_cast
         .cast_ray(ray, &settings)
         .first()
         .map(|(_, hit)| hit.distance)
+}
+
+/// Pull a smoothed camera position back in front of the first blocker between it and the eye.
+/// The collision ray validates only the target pose; smoothing moves the camera along a
+/// straight line from its last pose, which can cut through a stair nose or a wall corner.
+fn keep_in_sight(
+    eye_target: Vec3,
+    camera: Vec3,
+    ray_cast: &mut MeshRayCast,
+    blocks: &dyn Fn(Entity) -> bool,
+) -> Vec3 {
+    let offset = camera - eye_target;
+    let distance = offset.length();
+    let Ok(direction) = Dir3::new(offset) else {
+        return camera;
+    };
+    let settings = MeshRayCastSettings::default()
+        .with_visibility(RayCastVisibility::Any)
+        .with_filter(&blocks);
+    match ray_cast
+        .cast_ray(Ray3d::new(eye_target, direction), &settings)
+        .first()
+    {
+        Some((_, hit)) if hit.distance < distance => {
+            eye_target + direction * collision_adjusted_distance(distance, Some(hit.distance))
+        }
+        _ => camera,
+    }
 }
 
 /// The height the camera stays above: the terrain, `GROUND_Y` before its tile loads, and
@@ -75,7 +125,7 @@ fn follow_target(player_q: &FollowPlayerQuery<'_, '_>) -> Option<(Entity, Vec3)>
     Some((entity, transform.translation))
 }
 
-pub(super) fn camera_follow(
+pub(crate) fn camera_follow(
     time: Res<Time>,
     terrain: Option<Res<TerrainHeightmap>>,
     player_q: FollowPlayerQuery<'_, '_>,
@@ -83,6 +133,8 @@ pub(super) fn camera_follow(
     mut ray_cast: MeshRayCast,
     sky_q: Query<Entity, With<SkyDome>>,
     children_q: Query<&Children>,
+    blockers: CameraBlockers,
+    interiors: WmoInteriors,
 ) {
     let Some((player_entity, target_translation)) = follow_target(&player_q) else {
         return;
@@ -91,21 +143,28 @@ pub(super) fn camera_follow(
         return;
     };
 
+    let eye_target = target_translation + Vec3::Y * game_engine::camera_follow_data::EYE_HEIGHT;
+    // WMO interiors use their walls, not terrain above or around the interior, as bounds.
+    let in_interior = interiors.contain(eye_target);
     let excluded = build_collision_excluded_set(player_entity, &children_q, &sky_q);
+    let blocks = |entity: Entity| !excluded.contains(&entity) && blockers.blocks(entity);
     let mut height_at = |x, z| terrain.as_deref().and_then(|map| map.height_at(x, z));
-    let terrain_samples: Option<&mut dyn FnMut(f32, f32) -> Option<f32>> =
-        terrain.as_ref().map(|_| &mut height_at as &mut _);
+    let terrain_samples: Option<&mut dyn FnMut(f32, f32) -> Option<f32>> = terrain
+        .as_ref()
+        .filter(|_| !in_interior)
+        .map(|_| &mut height_at as &mut _);
     let pose = follow_camera_data(
         &mut cam,
         cam_tf.translation,
         target_translation,
         time.delta_secs(),
         terrain_samples,
-        |eye, dir| mesh_hit_distance(&mut ray_cast, &excluded, eye, dir),
-        |pos| camera_ground(terrain.as_deref(), pos),
+        |eye, dir| mesh_hit_distance(&mut ray_cast, &blocks, eye, dir),
+        |pos| camera_ground(terrain.as_deref(), pos).filter(|_| !in_interior),
     );
     let mut next_transform = *cam_tf;
-    next_transform.translation = pose.position;
+    next_transform.translation =
+        keep_in_sight(pose.eye_target, pose.position, &mut ray_cast, &blocks);
     next_transform.look_at(pose.eye_target, Vec3::Y);
     cam_tf.set_if_neq(next_transform);
 }

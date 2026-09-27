@@ -6,7 +6,7 @@
 
 use std::collections::HashSet;
 
-use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
+use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings, RayCastVisibility};
 use bevy::prelude::*;
 use shared::ground::{Ground, STEP_UP_HEIGHT, Surface, WmoCollision};
 use shared::movement::{GRAVITY, GROUND_SNAP_THRESHOLD, MAX_SLOPE_ANGLE};
@@ -235,7 +235,10 @@ pub fn clamp_movement_against_wmo_meshes(
         Dir3::new(direction).expect("non-zero horizontal movement"),
     );
     let filter = |entity: Entity| collision_meshes.contains(&entity);
-    let settings = MeshRayCastSettings::default().with_filter(&filter);
+    // Walls block whether or not they are drawn: off screen, or hidden by portal culling.
+    let settings = MeshRayCastSettings::default()
+        .with_visibility(RayCastVisibility::Any)
+        .with_filter(&filter);
     let hit_distance = ray_cast
         .cast_ray(ray, &settings)
         .first()

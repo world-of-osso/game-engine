@@ -61,7 +61,7 @@ fn raycast_hit_on_npc_child_mesh_selects_npc_root() {
         Update,
         |mut ray_cast: MeshRayCast,
          parent_query: Query<&ChildOf>,
-         remote_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+         remote_q: Query<Entity, TargetableNpcs>,
          visibility_q: Query<&Visibility>,
          mut result: ResMut<RaycastHitResult>| {
             // Ray from z=10 looking toward origin — should hit the cube at z=0
@@ -138,7 +138,7 @@ fn raycast_miss_produces_no_target() {
         Update,
         |mut ray_cast: MeshRayCast,
          parent_query: Query<&ChildOf>,
-         remote_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+         remote_q: Query<Entity, TargetableNpcs>,
          visibility_q: Query<&Visibility>,
          mut result: ResMut<RaycastHitResult>| {
             // Ray aimed far away from the mesh — should miss
@@ -211,7 +211,7 @@ fn raycast_hit_on_hidden_npc_produces_no_target() {
         Update,
         |mut ray_cast: MeshRayCast,
          parent_query: Query<&ChildOf>,
-         remote_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+         remote_q: Query<Entity, TargetableNpcs>,
          visibility_q: Query<&Visibility>,
          mut result: ResMut<RaycastHitResult>| {
             let ray = Ray3d::new(Vec3::new(0.0, 0.0, 10.0), Dir3::NEG_Z);

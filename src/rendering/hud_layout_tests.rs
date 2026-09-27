@@ -69,6 +69,7 @@ fn mount_hud(width: f32, height: f32) -> FrameRegistry {
         target: Some(unit("Defias Thug")),
         target_of_target: Some(small("Theron")),
         focus: Some(small("Hogger")),
+        bosses: vec![unit("Hogger"), unit("Warden Thelwater")],
         menu: UnitFrameMenuState::default(),
     });
     shared.insert(CastingBarState {

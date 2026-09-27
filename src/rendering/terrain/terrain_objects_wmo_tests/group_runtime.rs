@@ -217,41 +217,6 @@ fn collect_group_fogs_filters_to_valid_unique_group_fog_ids() {
 }
 
 #[test]
-fn group_bbox_marks_antiportal_groups_from_authored_name_offsets() {
-    let root = wmo::WmoRootData {
-        n_groups: 1,
-        group_names: vec![
-            crate::asset::wmo_format::parser::WmoGroupName {
-                offset: 0,
-                name: "EntryHall".into(),
-                is_antiportal: false,
-            },
-            crate::asset::wmo_format::parser::WmoGroupName {
-                offset: 24,
-                name: "antiportal01".into(),
-                is_antiportal: true,
-            },
-        ],
-        group_infos: vec![wmo::WmoGroupInfo {
-            flags: 0,
-            bbox_min: [1.0, 2.0, 3.0],
-            bbox_max: [4.0, 5.0, 6.0],
-        }],
-        ..minimal_root()
-    };
-    let group_header = wmo::WmoGroupHeader {
-        descriptive_group_name_offset: 24,
-        ..minimal_group_header()
-    };
-
-    let bbox = group_bbox(&root, 0, &group_header);
-
-    assert!(bbox.is_antiportal);
-    assert_eq!(bbox.bbox_min, Vec3::new(1.0, 3.0, -5.0));
-    assert_eq!(bbox.bbox_max, Vec3::new(4.0, 6.0, -2.0));
-}
-
-#[test]
 fn spawn_wmo_group_fog_preserves_authored_fog_fields() {
     let mut app = App::new();
     let fog = wmo::WmoFog {

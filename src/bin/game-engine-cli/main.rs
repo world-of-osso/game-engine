@@ -389,6 +389,8 @@ pub(crate) enum QuestCmd {
         #[arg(long)]
         id: u32,
     },
+    /// Take every slot of the open loot window
+    TakeLoot,
 }
 
 #[derive(Subcommand)]

@@ -15,12 +15,16 @@ use crate::game_state::GameState;
 use crate::networking::RemoteEntity;
 use game_engine::input_bindings::{InputAction, InputBindings};
 
-type RemoteTargetQuery<'w, 's> = Query<
-    'w,
-    's,
-    (Entity, &'static Transform, Option<&'static Visibility>),
-    (With<RemoteEntity>, With<Npc>, Without<Player>),
->;
+/// Replicated NPCs a player can select: not `UNIT_FLAG_NOT_SELECTABLE`.
+pub(crate) type TargetableNpcs = (
+    With<RemoteEntity>,
+    With<Npc>,
+    Without<Player>,
+    Without<crate::networking_npc::NotSelectable>,
+);
+
+type RemoteTargetQuery<'w, 's> =
+    Query<'w, 's, (Entity, &'static Transform, Option<&'static Visibility>), TargetableNpcs>;
 
 #[cfg(test)]
 #[path = "target_nameplate_tests.rs"]
@@ -79,7 +83,7 @@ pub(crate) enum InteractionTarget {
 #[derive(SystemParam)]
 struct RightClickInteractionState<'w, 's> {
     parent_query: Query<'w, 's, &'static ChildOf>,
-    npc_entities: Query<'w, 's, Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    npc_entities: Query<'w, 's, Entity, TargetableNpcs>,
     object_q: Query<'w, 's, &'static WorldObjectInteraction>,
     quest_q: Query<'w, 's, (), With<QuestTrackedItem>>,
     visibility_q: Query<'w, 's, &'static Visibility>,
@@ -256,7 +260,7 @@ fn click_to_target(
     mut ray_cast: MeshRayCast,
     plate_picker: crate::rendering::nameplate_picking::NameplatePicker,
     parent_query: Query<&ChildOf>,
-    remote_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    remote_q: Query<Entity, TargetableNpcs>,
     visibility_q: Query<&Visibility>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
@@ -307,7 +311,7 @@ fn click_to_target(
 pub(crate) fn resolve_interaction_ancestor(
     entity: Entity,
     parent_query: &Query<&ChildOf>,
-    npc_q: &Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    npc_q: &Query<Entity, TargetableNpcs>,
     object_q: &Query<&WorldObjectInteraction>,
     quest_q: &Query<(), With<QuestTrackedItem>>,
     visibility_q: &Query<&Visibility>,
@@ -398,7 +402,7 @@ fn pick_next_target(sorted: &[Entity], current: Option<Entity>) -> Option<Entity
 pub(crate) fn resolve_targetable_ancestor(
     entity: Entity,
     parent_query: &Query<&ChildOf>,
-    remote_q: &Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    remote_q: &Query<Entity, TargetableNpcs>,
     visibility_q: &Query<&Visibility>,
 ) -> Option<Entity> {
     let mut current = entity;
@@ -603,7 +607,7 @@ fn interaction_target_at_cursor(
     cameras: &Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     ray_cast: &mut MeshRayCast,
     parent_query: &Query<&ChildOf>,
-    npc_q: &Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+    npc_q: &Query<Entity, TargetableNpcs>,
     object_q: &Query<&WorldObjectInteraction>,
     quest_q: &Query<(), With<QuestTrackedItem>>,
     visibility_q: &Query<&Visibility>,
