@@ -318,7 +318,7 @@ fn forced_notice_disconnects_first_then_surfaces_message_and_resets_world() {
         session.feedback, None,
         "notice is consumed by disconnect lifecycle"
     );
-    let effects = session.receive_disconnected();
+    let effects = session.receive_disconnected_with_reason(None);
     assert_eq!(session.feedback.as_deref(), Some("Kicked"));
     assert_eq!(session.screen, SessionScreen::Login);
     assert!(
@@ -342,8 +342,6 @@ fn charselect_disconnect_with_token_resets_and_reconnects_without_auto_entry() {
     let effects = session.receive_disconnected_with_reason(Some("lost"));
     assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
     assert!(!session.gameplay_input_allowed());
-    assert!(!session.reconnect_options().auto_enter_world);
-    assert_eq!(session.reconnect_options().preselected_name, None);
     assert_eq!(session.screen, SessionScreen::CharacterSelect);
     assert!(
         effects
@@ -357,12 +355,16 @@ fn charselect_disconnect_with_token_resets_and_reconnects_without_auto_entry() {
     );
     session.receive_connected();
     assert_eq!(session.reconnect_phase, ReconnectPhase::AwaitingWorld);
-    let reconnect = session.reconnect_options();
-    assert_eq!(reconnect.preselected_name, None);
-    assert!(!reconnect.auto_enter_world);
-    session.receive_login(
-        success(vec![character(7, "Elara")]),
+    let effects = session.receive_login(
+        success(vec![character(9, "Borin"), character(7, "Elara")]),
         SessionOptions::default(),
+    );
+    assert_eq!(session.selected_index, Some(0));
+    assert_eq!(session.screen, SessionScreen::CharacterSelect);
+    assert!(
+        !effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::SelectCharacter(_)))
     );
     assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
     assert!(session.gameplay_input_allowed());
@@ -379,8 +381,6 @@ fn world_disconnect_preserves_name_auto_entry_and_inworld_screen() {
         assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
         assert_eq!(session.screen, SessionScreen::InWorld);
         assert_eq!(session.selected_character_name.as_deref(), Some("Elara"));
-        assert_eq!(session.reconnect_options().preselected_name, Some("Elara"));
-        assert!(session.reconnect_options().auto_enter_world);
         assert!(
             effects
                 .iter()
@@ -409,7 +409,7 @@ fn initial_marker_only_ignored_while_pending_without_reason_or_forced_notice() {
     session.token = Some("real-token".into());
     session.receive_disconnected_with_reason(Some("lost"));
     session.feedback = Some("unchanged".into());
-    assert!(session.receive_disconnected().is_empty());
+    assert!(session.receive_disconnected_with_reason(None).is_empty());
     assert_eq!(session.feedback.as_deref(), Some("unchanged"));
     assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
     assert!(
@@ -421,7 +421,7 @@ fn initial_marker_only_ignored_while_pending_without_reason_or_forced_notice() {
         message: "Kicked".into(),
         reconnect_allowed: false,
     });
-    let effects = session.receive_disconnected();
+    let effects = session.receive_disconnected_with_reason(None);
     assert_eq!(session.feedback.as_deref(), Some("Kicked"));
     assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
     assert!(
