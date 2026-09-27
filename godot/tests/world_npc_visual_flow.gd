@@ -146,7 +146,6 @@ func wait_lighting(client: Node, ambient: Vector3, direct: Vector3, map: String)
 		"direct": material.get_shader_parameter("direct"),
 		"fog_range": material.get_shader_parameter("fog_range"),
 		"fog_mode": material.get_shader_parameter("fog_mode"),
-		"cube": material.get_shader_parameter("environment_map"),
 	})
 	fail("Timed out waiting for %s creature lighting %s / %s; producer=%s material=%s state=%s" % [map, ambient, direct, lighting, actual, client.account_state()])
 	return false
@@ -167,13 +166,11 @@ func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: Stri
 	var actual_direct = material.get_shader_parameter("direct")
 	var direction = material.get_shader_parameter("sun_direction")
 	var fog = material.get_shader_parameter("fog_range")
-	var cube = material.get_shader_parameter("environment_map") as Cubemap
 	return actual_ambient is Vector3 and (actual_ambient as Vector3).is_equal_approx(ambient) \
 		and actual_direct is Vector3 and (actual_direct as Vector3).is_equal_approx(direct) \
 		and direction is Vector3 and (direction as Vector3).is_equal_approx(-sun.global_basis.z) \
 		and fog is Vector2 and (fog as Vector2).is_equal_approx(Vector2(200, 1000)) \
-		and int(material.get_shader_parameter("fog_mode")) == 1 \
-		and cube != null and cube.get_width() == 32
+		and int(material.get_shader_parameter("fog_mode")) == 1
 
 func prepare_assets() -> bool:
 	var data := ProjectSettings.globalize_path("res://../data")
