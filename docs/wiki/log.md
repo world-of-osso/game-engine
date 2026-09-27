@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Shared original player-physics proposal boundary
+
+`6560b238` extracts the original normalized horizontal proposal plus unloaded/unsupported/supported grounded and gravity/snap transitions into `src/player_physics_data.rs`, then exports the same source through `godot/core`. `f3bb1965` points the two root proposal tests at that shared module. Existing Bevy collision adapters still convert `GroundProbe` and retain the original `GRAVITY` and snap constants.
+
+Agent192 reports development GREEN of seven new core tests, two root proposal tests, and 14 collision tests, following missing-module RED. No supplied log artifact was located, so no path is invented and this is not independent verification. Native Godot movement is not wired; slope, step, swim, and jump input remain original Bevy-only. Independent final gate remains pending; no conversion-completion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-26] system | Godot MovementControl snapshot retention and camera baseline
 
 `eff94a71d259b020f39fba4b6e7c21229bb57f7f` retains optional copied `MovementControl { epoch, controlled }` in owned `UnitSnapshot`; the native literal fixture initializes it as `None`. `/tmp/claude/godot-snapshot-movement-red.log` is genuine missing-field RED. Targeted network and native fixture commands are GREEN 1/1 at `/tmp/claude/godot-snapshot-movement-green.log` and `/tmp/claude/godot-snapshot-world-fixture-green.log`. This retains snapshot data only, not native correction, prediction, interpolation, input production/send, or decoded-UDP proof.
