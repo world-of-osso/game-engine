@@ -2,6 +2,7 @@ mod account;
 mod animation;
 mod assets;
 mod camera;
+mod input;
 mod input_keys;
 mod lighting;
 mod loading;
