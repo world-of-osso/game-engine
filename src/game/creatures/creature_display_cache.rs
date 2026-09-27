@@ -8,7 +8,7 @@ use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
 use rusqlite::Connection;
 
-use crate::creature_display_data::{self, CreatureDisplay};
+use game_engine::creature_display_data::{self, CreatureDisplay};
 
 const CREATURE_DISPLAY_CACHE_PATH: &str = "cache/creature_display.sqlite";
 

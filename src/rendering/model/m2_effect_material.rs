@@ -6,7 +6,7 @@ use bevy::render::storage::ShaderBuffer;
 use bevy::shader::ShaderRef;
 
 use crate::asset::m2_anim::AnimTrack;
-use crate::m2_effect_uv_data::sample_effect_uv_offsets;
+use game_engine::m2_effect_uv_data::sample_effect_uv_offsets;
 
 #[derive(ShaderType, Clone)]
 pub struct M2EffectSettings {

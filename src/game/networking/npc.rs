@@ -13,13 +13,15 @@ use crate::game::inworld_scene_stage::{
 };
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::networking::{InterpolationTarget, LocalAliveState, RemoteEntity, RotationTarget};
+use crate::rendering::sky::GameTime;
 #[cfg(test)]
-use crate::npc_visibility_data::{DAWN_MINUTES, DUSK_MINUTES, NpcSchedule, schedule_is_active};
-use crate::npc_visibility_data::{
+use game_engine::npc_visibility_data::{
+    DAWN_MINUTES, DUSK_MINUTES, NpcSchedule, schedule_is_active,
+};
+use game_engine::npc_visibility_data::{
     NpcVisibilityDayPhase, NpcVisibilityPolicy, npc_should_be_visible, npc_visibility_day_phase,
     npc_visibility_policy,
 };
-use crate::rendering::sky::GameTime;
 
 #[cfg(test)]
 #[path = "npc_animation_tests.rs"]
