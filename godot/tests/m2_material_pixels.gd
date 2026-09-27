@@ -115,6 +115,34 @@ func assert_pixel(label: String, expected: Color) -> bool:
 func over_black(authored: Color, alpha: float) -> Color:
 	return (authored.srgb_to_linear() * alpha).linear_to_srgb()
 
+func assert_unlit_without_sun() -> bool:
+	viewport.remove_child(sun)
+	material.set_shader_parameter("base_texture", texture_color(Color(0.4, 0.3, 0.2)))
+	material.set_shader_parameter("second_texture", texture_color(Color.WHITE))
+	material.set_shader_parameter("shader_id", 0x10)
+	material.set_shader_parameter("render_flags", 3)
+	if not await assert_pixel("effect unlit without sun", Color(0.4, 0.3, 0.2)):
+		return false
+	material.set_shader_parameter("render_flags", 1)
+	material.set_shader_parameter("fog_mode", 1)
+	material.set_shader_parameter("fog_range", Vector2(1.0, 3.0))
+	material.set_shader_parameter("fog_opacity", 1.0)
+	material.set_shader_parameter("fog_color", Color(0.0, 0.0, 1.0).srgb_to_linear())
+	if not await assert_pixel("effect unlit fogged without sun", Color(0.2, 0.15, 0.6)):
+		return false
+	material.set_shader_parameter("effect_mode", 0)
+	var single_gamma := (Color(0.4, 0.3, 0.2).srgb_to_linear() * Color(0.5, 0.75, 1.0)).linear_to_srgb()
+	material.set_shader_parameter("render_flags", 3)
+	material.set_shader_parameter("fog_mode", 0)
+	if not await assert_pixel("single unlit without sun", single_gamma):
+		return false
+	material.set_shader_parameter("render_flags", 1)
+	material.set_shader_parameter("fog_mode", 1)
+	if not await assert_pixel("single unlit fogged without sun", single_gamma * 0.5 + Color(0.0, 0.0, 0.5)):
+		return false
+	viewport.add_child(sun)
+	return true
+
 func run_cases() -> void:
 	if not ResourceLoader.exists(SHADER_PATH):
 		fail("M2 shader missing: " + SHADER_PATH)
@@ -122,6 +150,9 @@ func run_cases() -> void:
 	material = ShaderMaterial.new()
 	material.shader = load(SHADER_PATH)
 	fixture()
+	base_inputs()
+	if not await assert_unlit_without_sun():
+		return
 	base_inputs()
 	var ids := [0x4014, 0x10, 0x11, 0x4016, 0x8015, 0x8001, 0x8002, 0x8003]
 	var expected := [
