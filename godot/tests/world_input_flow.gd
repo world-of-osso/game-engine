@@ -13,6 +13,8 @@ const LOADING_FRAMES := 24
 const HELD_FRAMES := 60
 const SETTLE_FRAMES := 20
 const STOP_FRAMES := 45
+const JUMP_WAIT_FRAMES := 360
+const JUMP_LOOP_FRAMES := 6
 const BACKGROUND_WAIT_MS := 30000
 const AUTHORED_CHARACTER_POSITION := Vector3(-2981.82, 452.826, -457.35)
 
@@ -170,6 +172,8 @@ func run_test() -> void:
 		fail("Directional sequence did not finish at authored Stand 0")
 		return
 	print("FIXTURE FINAL_STAND")
+	if not await check_idle_jump(client, player, locomotion):
+		return
 	print("FIXTURE STOPPED")
 	client.free()
 	print("SHUTDOWN: client freed")
@@ -714,6 +718,67 @@ func check_locomotion_direction(client: Node, locomotion: RefCounted, keycode: K
 		fail(phase + " release did not return to authored Stand 0: " + str(locomotion.animation.current_animation_id()))
 		return false
 	print("PASS: " + phase + " authored " + str(animation_id) + " -> Stand 0 with changed bones")
+	return true
+
+func check_idle_jump(client: Node, player: Node3D, locomotion: RefCounted) -> bool:
+	var stand_pose: Array[Transform3D] = locomotion.capture_pose()
+	var ground := player.position
+	var highest_y := ground.y
+	var sequence := [37, 38, 39, 0]
+	var next_id := 0
+	var changed_pose := [false, false, false]
+	var jump_frames := 0
+	var released := false
+	print("FIXTURE JUMP_START")
+	push_key(KEY_SPACE, true)
+	for frame in range(JUMP_WAIT_FRAMES):
+		await process_frame
+		if client.account_state().screen != "InWorld":
+			push_key(KEY_SPACE, false)
+			fail("World exited during idle jump at frame " + str(frame))
+			return false
+		var current_id: int = locomotion.animation.current_animation_id()
+		if current_id != sequence[next_id]:
+			if next_id == 0 and current_id == 0:
+				if frame < 30:
+					continue
+				push_key(KEY_SPACE, false)
+				fail("Idle Space did not select authored JumpStart 37: " + str(current_id))
+				return false
+			if next_id + 1 >= sequence.size() or current_id != sequence[next_id + 1]:
+				push_key(KEY_SPACE, false)
+				fail("Idle jump skipped authored animation " + str(sequence[next_id + 1]) + " for " + str(current_id))
+				return false
+			next_id += 1
+			jump_frames = 0
+			if current_id == 39:
+				print("FIXTURE JUMP_LANDED")
+		highest_y = maxf(highest_y, player.position.y)
+		if next_id < 3:
+			changed_pose[next_id] = changed_pose[next_id] or locomotion.changed_from(stand_pose)
+		if current_id == 38 and not released:
+			jump_frames += 1
+			if jump_frames >= JUMP_LOOP_FRAMES:
+				push_key(KEY_SPACE, false)
+				released = true
+				print("FIXTURE JUMP_RELEASED")
+		if next_id == 3:
+			break
+	if not released:
+		push_key(KEY_SPACE, false)
+	if next_id != 3 or not changed_pose[0] or not changed_pose[1] or not changed_pose[2]:
+		fail("Idle jump did not complete authored 37 -> 38 -> 39 -> 0 with changed PlayerModel bones: " + str(next_id) + " poses=" + str(changed_pose))
+		return false
+	if highest_y < ground.y + 0.3 or absf(player.position.y - ground.y) > 0.3 or Vector2(player.position.x, player.position.z).distance_to(Vector2(ground.x, ground.z)) > 0.1:
+		fail("Idle Space did not rise and return to stationary ground: " + str(ground) + " peak=" + str(highest_y) + " final=" + str(player.position))
+		return false
+	print("FIXTURE JUMP_STAND")
+	for frame in range(STOP_FRAMES):
+		await process_frame
+		if locomotion.animation.current_animation_id() != 0 or player.position.distance_to(ground) > 0.3:
+			fail("Idle jump did not remain grounded in authored Stand 0")
+			return false
+	print("PASS: idle Space 37 -> 38 -> 39 -> 0, changing bones, rise and ground return")
 	return true
 
 func push_w(pressed: bool) -> void:

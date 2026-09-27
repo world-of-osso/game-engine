@@ -435,6 +435,29 @@ impl Directional {
     }
 }
 
+fn assert_idle_jump_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
+    for input in &inputs {
+        if !input.elapsed_secs.is_finite()
+            || input.elapsed_secs <= 0.0
+            || !input.facing_yaw.is_finite()
+            || input
+                .direction
+                .iter()
+                .any(|component| !component.is_finite())
+            || input
+                .direction
+                .iter()
+                .any(|component| component.abs() > 0.01)
+            || !input.jumping
+        {
+            return Err(format!(
+                "idle Space produced unexpected PlayerInput: {input:?}"
+            ));
+        }
+    }
+    Ok(!inputs.is_empty())
+}
+
 fn assert_directional_input(
     inputs: Vec<PlayerInput>,
     direction: Directional,
@@ -477,6 +500,10 @@ enum Phase {
     Moving(Directional),
     Settling(Directional),
     FinalStand,
+    Jumping,
+    JumpReleased,
+    JumpLanded,
+    JumpStand,
     Stopped,
 }
 
@@ -571,7 +598,11 @@ fn accept_phase_line(
             *phase = Phase::Settling(Directional::Right)
         }
         (Phase::Settling(Directional::Right), "FIXTURE FINAL_STAND") => *phase = Phase::FinalStand,
-        (Phase::FinalStand, "FIXTURE STOPPED") => *phase = Phase::Stopped,
+        (Phase::FinalStand, "FIXTURE JUMP_START") => *phase = Phase::Jumping,
+        (Phase::Jumping, "FIXTURE JUMP_RELEASED") => *phase = Phase::JumpReleased,
+        (Phase::JumpReleased, "FIXTURE JUMP_LANDED") => *phase = Phase::JumpLanded,
+        (Phase::JumpLanded, "FIXTURE JUMP_STAND") => *phase = Phase::JumpStand,
+        (Phase::JumpStand, "FIXTURE STOPPED") => *phase = Phase::Stopped,
         (_, line) if line.starts_with("FIXTURE ") => {
             return Err(format!(
                 "out-of-order Godot fixture phase {phase:?}: {line}"
@@ -596,6 +627,9 @@ fn run_fixture(
     let mut released_at = None;
     let mut transition_at: Option<Instant> = None;
     let mut saw_direction = false;
+    let mut saw_idle_jump = false;
+    let mut jump_landed_at: Option<Instant> = None;
+    let mut jump_stand_at: Option<Instant> = None;
     let deadline = Instant::now() + TIMEOUT;
     let mut reader = Some(reader);
     while Instant::now() < deadline {
@@ -643,7 +677,16 @@ fn run_fixture(
             {
                 return Err("final Stand occurred before drained quiet interval".into());
             }
+            if line.trim() == "FIXTURE JUMP_RELEASED" && !saw_idle_jump {
+                return Err("no decoded stationary jumping PlayerInput on InputChannel".into());
+            }
             accept_phase_line(app, selected, remote, &mut phase, line.trim())?;
+            if phase == Phase::JumpLanded {
+                jump_landed_at.get_or_insert_with(Instant::now);
+            }
+            if phase == Phase::JumpStand {
+                jump_stand_at.get_or_insert_with(Instant::now);
+            }
             if phase == Phase::Released && released_at.is_none() {
                 released_at = Some(Instant::now());
             }
@@ -671,6 +714,19 @@ fn run_fixture(
                     saw_direction |= assert_directional_input(inputs, direction)?;
                 }
             }
+            Phase::Jumping | Phase::JumpReleased => {
+                saw_idle_jump |= assert_idle_jump_input(take_inputs(app))?;
+            }
+            Phase::JumpLanded | Phase::JumpStand => {
+                let inputs = take_inputs(app);
+                if jump_landed_at.expect("idle landing recorded").elapsed() >= RELEASE_DRAIN
+                    && !inputs.is_empty()
+                {
+                    return Err(format!(
+                        "idle jump packets continued after landing: {inputs:?}"
+                    ));
+                }
+            }
             Phase::Settling(_) | Phase::FinalStand => {
                 let inputs = take_inputs(app);
                 if transition_at.expect("direction release recorded").elapsed() >= RELEASE_DRAIN
@@ -682,9 +738,8 @@ fn run_fixture(
                 }
             }
             Phase::Released | Phase::Stopped => {
-                // The final stop uses the last directional release, not the old W release.
                 let stopped_at = if phase == Phase::Stopped {
-                    transition_at.expect("right release recorded")
+                    jump_landed_at.expect("idle landing recorded")
                 } else {
                     released_at.expect("W release marker recorded")
                 };
@@ -703,10 +758,13 @@ fn run_fixture(
             if !saw_forward {
                 return Err("no decoded held-W PlayerInput on InputChannel".into());
             }
-            let stopped_for = transition_at.expect("right release recorded").elapsed();
+            if !saw_idle_jump {
+                return Err("no decoded stationary jumping PlayerInput on InputChannel".into());
+            }
+            let stopped_for = jump_stand_at.expect("idle jump Stand recorded").elapsed();
             if stopped_for >= RELEASE_DRAIN + RELEASE_QUIET {
                 println!(
-                    "PASS: Loading blocked input; native W and Walk/Backward/Left/Right decoded UDP and authored motion; releases returned Stand and quiet"
+                    "PASS: Loading blocked input; W and Walk/Backward/Left/Right decoded UDP; idle Space sent stationary jumping packets, authored 37/38/39/0 and returned quiet"
                 );
                 return Ok(());
             }
