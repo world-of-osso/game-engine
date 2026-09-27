@@ -8,7 +8,7 @@ use crate::sound_footsteps::{
     FootstepMovement, FootstepRequest, FootstepSurface, LoadedFootstepCatalog,
     classify_player_creature, movement_from_anim,
 };
-use game_engine::input_bindings::{InputAction, InputBindings};
+use game_engine::input_bindings::InputAction;
 
 mod runtime_ambient;
 mod runtime_assets;
