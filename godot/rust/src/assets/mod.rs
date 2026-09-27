@@ -1,6 +1,7 @@
 //! Native M2/BLP conversion with authored batch resolution and materials.
 //! Character replacement textures and geoset selection remain external appearance work.
 mod material;
+mod uv_animation;
 use std::{collections::HashMap, fs, path::Path};
 
 use crate::animation::WowAnimationPlayer;
@@ -190,6 +191,13 @@ fn build_model(
             }
         }
     };
+    let material_animation = uv_animation::WowMaterialAnimation::from_batches(
+        batches
+            .iter()
+            .map(|(_, material)| material.clone())
+            .zip(resolved),
+        &model.global_sequences,
+    );
     let mut root = Node3D::new_alloc();
     root.add_child(&skeleton);
     for (batch_index, (mesh, material)) in batches.into_iter().enumerate() {
@@ -205,6 +213,10 @@ fn build_model(
     }
     if let Some(player) = player {
         root.add_child(&player);
+    }
+    if let Some(mut animation) = material_animation {
+        animation.set_name("M2MaterialAnimation");
+        root.add_child(&animation);
     }
     Ok((root, missing))
 }

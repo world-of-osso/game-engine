@@ -22,6 +22,10 @@ const RENDER_MODE: &str =
     "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
 type DecodedTexture = (Vec<u8>, u32, u32);
 
+pub(super) fn is_effect(batch: &ResolvedBatch) -> bool {
+    batch.texture_2_fdid.is_some() && batch.blend_mode >= 2 && batch.overlays.is_empty()
+}
+
 pub(super) fn load_material(
     batch: &ResolvedBatch,
     path: &GString,
@@ -36,8 +40,7 @@ pub(super) fn load_material(
     .and_then(Path::parent)
     .ok_or("Model path has no asset root")?
     .join("textures");
-    let effect =
-        batch.texture_2_fdid.is_some() && batch.blend_mode >= 2 && batch.overlays.is_empty();
+    let effect = is_effect(batch);
     let base = batch
         .texture_fdid
         .map(|fdid| load_texture(fdid, &texture_dir, missing))
