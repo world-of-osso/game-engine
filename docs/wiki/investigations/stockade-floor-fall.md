@@ -12,9 +12,9 @@
 
 Below the dungeon the camera is in no interior group, so portal culling (WebWowViewerCpp and Retail) draws only the exterior group `ext` and whatever its portals reach. Every Stockade group except `ext` is interior (MOGP 0x2000), so the view is sky. This is correct for a camera outside the WMO.
 
-## Open
+## Endless fall: fixed
 
-- The server lets an unsupported player fall forever. TrinityCore kills a player below `Map::GetMinHeight` with `DAMAGE_FALL_TO_VOID` (MovementHandler.cpp:594-612). That height is -500 without grid data (TerrainMgr.cpp:671, GridMap.cpp:549); on ADT tiles it comes from the MFBO planes. Not implemented.
+The server let an unsupported player fall forever. It now does what TrinityCore does (MovementHandler.cpp:594-612): a living player below `Map::GetMinHeight` takes `DAMAGE_FALL_TO_VOID` for max health, dies through the normal death flow, and is `OutOfBounds` (`PLAYER_FLAGS_IS_OUT_OF_BOUNDS`) until above it again. The minimum is -500 without MFBO or grid (TerrainMgr.cpp:671, GridMap.cpp:549), so the Stockade uses -500; elsewhere it is `GridMap::getMinHeight` over the root ADT's MFBO minimum planes (Eastern Kingdoms tile (38, 40): -1207.38 at (-4500, -3700)). game-server `3d4373b`.
 
 ## See Also
 
