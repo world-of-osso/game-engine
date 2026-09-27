@@ -48,6 +48,17 @@ impl Default for PlayerMovement {
     }
 }
 
+fn turn_animation_id(delta: f32) -> Option<u16> {
+    const TURN_THRESHOLD: f32 = 0.02;
+    if delta >= TURN_THRESHOLD {
+        Some(11)
+    } else if delta <= -TURN_THRESHOLD {
+        Some(12)
+    } else {
+        None
+    }
+}
+
 impl PlayerMovement {
     fn animation_id(&mut self, facing: f32) -> u16 {
         let previous = self.previous_facing.replace(facing);
@@ -60,14 +71,7 @@ impl PlayerMovement {
         };
         let delta = (facing - previous + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
             - std::f32::consts::PI;
-        const TURN_THRESHOLD: f32 = 0.02;
-        if delta >= TURN_THRESHOLD {
-            11
-        } else if delta <= -TURN_THRESHOLD {
-            12
-        } else {
-            locomotion
-        }
+        turn_animation_id(delta).unwrap_or(locomotion)
     }
 
     pub fn resolve(
@@ -294,7 +298,7 @@ impl crate::GameClient {
 
 #[cfg(test)]
 mod tests {
-    use super::PlayerMovement;
+    use super::{PlayerMovement, turn_animation_id};
     use crate::input::PhysicalInput;
     use game_engine_core::input_bindings_data::{
         BindingKey, BindingMouseButton, InputBindingsData,
@@ -328,6 +332,14 @@ mod tests {
         input.clear();
         movement.resolve(&InputBindingsData::default(), &input, 0.0);
         assert!(movement.network_input(0.0, 1.0 / 60.0).is_none());
+    }
+
+    #[test]
+    fn turn_threshold_is_inclusive_for_both_directions() {
+        assert_eq!(turn_animation_id(0.019), None);
+        assert_eq!(turn_animation_id(0.02), Some(11));
+        assert_eq!(turn_animation_id(-0.019), None);
+        assert_eq!(turn_animation_id(-0.02), Some(12));
     }
 
     #[test]
