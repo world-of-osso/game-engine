@@ -448,7 +448,7 @@ fn spawn_elevation_camera(app: &mut App, degrees: f32, order: isize) -> Handle<I
 
 fn expected_gradient_pixel(degrees: f32) -> [u8; 3] {
     let colors = gradient_test_colors();
-    let band = super::sky_gradient::sky_band_at_elevation(degrees.to_radians());
+    let band = super::sky_cubemap_data::sky_band_at_elevation(degrees.to_radians());
     let srgba = Color::from(super::sky_gradient::sky_gradient_color(&colors, band)).to_srgba();
     [srgba.red, srgba.green, srgba.blue].map(|channel| (channel * 255.0).round() as u8)
 }
