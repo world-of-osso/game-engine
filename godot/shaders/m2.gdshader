@@ -124,18 +124,23 @@ void fragment() {
 	ROUGHNESS = 1.0;
 	ALPHA = color.a;
 	authored_color = color.rgb;
-	world_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	camera_position = CAMERA_POSITION_WORLD;
+	if ((render_flags & 1) != 0) {
+		vec3 rgb = color.rgb;
+		if ((render_flags & 2) == 0) {
+			rgb = apply_retail_fog(rgb);
+		}
+		EMISSION = gamma_to_linear(rgb);
+	}
+	world_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 void light() {
-	if (LIGHT_IS_DIRECTIONAL) {
+	if (LIGHT_IS_DIRECTIONAL && (render_flags & 1) == 0) {
 		vec3 rgb = authored_color;
-		if ((render_flags & 1) == 0) {
-			vec3 normal = normalize(world_normal);
-			float n_dot_l = clamp(dot(normal, -normalize(sun_direction)), 0.0, 1.0);
-			rgb *= retail_ambient(normal, n_dot_l) + direct * n_dot_l * ATTENUATION;
-		}
+		vec3 normal = normalize(world_normal);
+		float n_dot_l = clamp(dot(normal, -normalize(sun_direction)), 0.0, 1.0);
+		rgb *= retail_ambient(normal, n_dot_l) + direct * n_dot_l * ATTENUATION;
 		if ((render_flags & 2) == 0) {
 			rgb = apply_retail_fog(rgb);
 		}
