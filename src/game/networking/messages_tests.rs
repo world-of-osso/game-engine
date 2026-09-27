@@ -321,3 +321,19 @@ fn a_raid_boss_emote_also_shows_center_screen() {
     assert_eq!(warnings.lines[0].text, "Hogger enrages!");
     assert_eq!(warnings.lines[0].color, [1.0, 0.867, 0.0]);
 }
+
+#[test]
+fn player_input_covers_the_step_the_local_movement_applied() {
+    use crate::camera::{MoveDirection, MovementState};
+    let facing = CharacterFacing { yaw: 0.0 };
+    let running_forward = MovementState {
+        direction: MoveDirection::Forward,
+        ..Default::default()
+    };
+    // A 5 fps frame: the server must move the player 200 ms too.
+    let input = player_input(&running_forward, &facing, 0.2).unwrap();
+    assert_eq!(input.elapsed_secs, 0.2);
+    assert_eq!(input.direction, [0.0, 0.0, 1.0]);
+    assert!(input.running);
+    assert!(player_input(&MovementState::default(), &facing, 0.2).is_none());
+}
