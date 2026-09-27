@@ -273,14 +273,22 @@ mod tests {
         let frame = movement.resolve(&InputBindingsData::default(), &input, 0.0);
         assert_eq!(frame.direction, [-1.0, 0.0, 2.0]);
         assert_eq!(frame.speed, 7.0);
-        let packet = movement.network_input(0.0).unwrap();
+        let packet = movement.network_input(0.0, 1.0 / 60.0).unwrap();
+        assert_eq!(packet.elapsed_secs, 1.0 / 60.0);
+        assert_eq!(
+            movement
+                .network_input(0.0, 1.0 / 30.0)
+                .unwrap()
+                .elapsed_secs,
+            1.0 / 30.0
+        );
         assert_eq!(packet.direction, [0.0, 0.0, 1.0]);
         assert!(packet.running);
         assert!(!packet.jumping);
         assert!(!packet.swimming);
         input.clear();
         movement.resolve(&InputBindingsData::default(), &input, 0.0);
-        assert!(movement.network_input(0.0).is_none());
+        assert!(movement.network_input(0.0, 1.0 / 60.0).is_none());
     }
 
     #[test]
@@ -294,11 +302,11 @@ mod tests {
             &PhysicalInput::default(),
             0.0,
         );
-        assert!(movement.network_input(0.0).is_some());
+        assert!(movement.network_input(0.0, 1.0 / 60.0).is_some());
         movement.stop();
         assert!(!movement.running);
         assert!(!movement.autorun);
         assert!(!movement.jumping);
-        assert!(movement.network_input(0.0).is_none());
+        assert!(movement.network_input(0.0, 1.0 / 60.0).is_none());
     }
 }
