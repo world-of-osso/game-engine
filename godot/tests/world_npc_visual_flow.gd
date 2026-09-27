@@ -3,6 +3,9 @@ extends "res://tests/m2_loader_pixels.gd"
 const NPC := "Fixture Creature"
 const DEAD_ON_SPAWN := "Fixture Dead on Spawn"
 const PLAYER := "Fixture Player"
+const APPEARANCE_NPC := "Fixture Appearance"
+const BAKED := Color(230.0 / 255.0, 40.0 / 255.0, 80.0 / 255.0)
+const COMPOSED := Color(30.0 / 255.0, 210.0 / 255.0, 90.0 / 255.0)
 const DISPLAY_A := 910010
 const DISPLAY_B := 910011
 const WAIT_MS := 15000
@@ -170,6 +173,12 @@ func run_test() -> void:
 	if not await wait_initially_dead_npc(client):
 		return
 	print("FIXTURE DEAD_ON_SPAWN_READY")
+	if not await wait_appearance(client, BAKED):
+		return
+	print("FIXTURE BAKED_READY")
+	if not await wait_appearance(client, COMPOSED):
+		return
+	print("FIXTURE COMPOSED_READY")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
 	if reconnect_error != "" or client.get_node_or_null("WorldUnits") != null or client.get_node_or_null("WorldLighting") != null or client.account_state().unit_count != 0:
 		fail("Reconnect retained NPC visual/root: " + reconnect_error)
@@ -338,6 +347,21 @@ func make_npc_m2() -> PackedByteArray:
 	authored.append_array(model.slice(8 + model.decode_u32(4))) # Retain TXID.
 	return authored
 
+func make_appearance_skin() -> PackedByteArray:
+	var original := make_skin(0x10, 1)
+	var skin := original.slice(0, 64)
+	skin.append_array(original.slice(64, 112)) # Geoset variant 1.
+	skin.append_array(original.slice(64, 112)) # Geoset variant 2.
+	skin.append_array(original.slice(112, 136))
+	skin.append_array(original.slice(112, 136))
+	put_u32(skin, 28, 2) # Two submeshes.
+	put_u32(skin, 36, 2) # Two batches.
+	put_u32(skin, 40, 160)
+	put_u16(skin, 64, 101)
+	put_u16(skin, 112, 102)
+	put_u16(skin, 184 + 4, 1) # Second batch uses submesh 1.
+	return skin
+
 func prepare_assets() -> bool:
 	var data := ProjectSettings.globalize_path("res://../data")
 	for folder in ["models", "textures"]:
@@ -350,12 +374,45 @@ func prepare_assets() -> bool:
 	skin_fdid.resize(4)
 	put_u32(skin_fdid, 0, 910099)
 	model.append_array(chunk("SFID", skin_fdid))
+	var body_model := make_npc_m2()
+	put_u32(body_model, 8 + 0x210, 1) # Body atlas, unlike ordinary creature type 11.
+	body_model.append_array(chunk("SFID", skin_fdid))
 	return write_fixture(data + "/models/910010.m2", model) \
 		and write_fixture(data + "/models/91001000.skin", make_skin(0x10, 1)) \
 		and write_fixture(data + "/models/910011.m2", model) \
 		and write_fixture(data + "/models/91001100.skin", make_skin(0x10, 1)) \
+		and write_fixture(data + "/models/910013.m2", body_model) \
+		and write_fixture(data + "/models/91001300.skin", make_appearance_skin()) \
 		and write_fixture(data + "/textures/910001.blp", make_blp(BASE)) \
-		and write_fixture(data + "/textures/910002.blp", make_blp(SECOND))
+		and write_fixture(data + "/textures/910002.blp", make_blp(SECOND)) \
+		and write_fixture(data + "/textures/910020.blp", make_blp(BAKED)) \
+		and write_fixture(data + "/textures/910021.blp", make_blp(BASE)) \
+		and write_fixture(data + "/textures/910022.blp", make_blp(COMPOSED))
+
+func wait_appearance(client: Node, expected: Color) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	var actual := Color.TRANSPARENT
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var npc := client.get_node_or_null("WorldUnits/" + APPEARANCE_NPC)
+		var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
+		var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
+		var material := batch.get_surface_override_material(0) as ShaderMaterial if batch != null else null
+		var texture := material.get_shader_parameter("base_texture") as Texture2D if material != null else null
+		if texture == null:
+			continue
+		var other_batch := model.find_child("Batch1", true, false) as MeshInstance3D
+		if other_batch == null or batch.mesh == null or other_batch.mesh == null:
+			continue
+		var expects_variant_one := expected == COMPOSED
+		if batch.visible != expects_variant_one or other_batch.visible == expects_variant_one:
+			continue
+		actual = texture.get_image().get_pixel(0, 0)
+		if absf(actual.r - expected.r) < TOLERANCE and absf(actual.g - expected.g) < TOLERANCE \
+			and absf(actual.b - expected.b) < TOLERANCE and absf(actual.a - expected.a) < TOLERANCE:
+			return true
+	fail("NPC appearance body expected RGBA %s, got %s" % [expected, actual])
+	return false
 
 func visual_matches(client: Node, scale: float) -> bool:
 	var npc = client.get_node_or_null("WorldUnits/" + NPC)

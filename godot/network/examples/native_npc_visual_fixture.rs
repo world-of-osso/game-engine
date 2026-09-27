@@ -30,6 +30,7 @@ const TICK: Duration = Duration::from_millis(5);
 const NAME: &str = "Fixture Player";
 const NPC: &str = "Fixture Creature";
 const DEAD_ON_SPAWN: &str = "Fixture Dead on Spawn";
+const APPEARANCE_NPC: &str = "Fixture Appearance";
 
 #[derive(Resource, Default)]
 struct Incoming {
@@ -150,7 +151,9 @@ impl FixtureProject {
         let sql = "CREATE TABLE creature_displays (display_id INTEGER PRIMARY KEY, model_fdid INTEGER NOT NULL, skin_fdid_0 INTEGER NOT NULL, skin_fdid_1 INTEGER NOT NULL, skin_fdid_2 INTEGER NOT NULL, scale_milli INTEGER NOT NULL); \
             INSERT INTO creature_displays VALUES (910010,910010,910001,0,0,1500); \
             INSERT INTO creature_displays VALUES (910011,910011,910002,0,0,2000); \
-            INSERT INTO creature_displays VALUES (910012,910011,910002,0,0,1);";
+            INSERT INTO creature_displays VALUES (910015,910011,910002,0,0,1); \
+            INSERT INTO creature_displays VALUES (910012,910013,910001,0,0,1000); \
+            INSERT INTO creature_displays VALUES (910013,910013,910001,0,0,1000);";
         let status = Command::new("sqlite3")
             .arg(data.join("cache/creature_display.sqlite"))
             .arg(sql)
@@ -160,8 +163,74 @@ impl FixtureProject {
             return Err(format!("sqlite3 fixture setup exited {status}"));
         }
         stage_lighting(&data)?;
+        stage_npc_appearance(&data)?;
         Ok(Self { root, project })
     }
+}
+
+fn write_sqlite_fixture(data: &Path, name: &str, sql: &str) -> Result<(), String> {
+    let path = data.join("cache").join(name);
+    let output = Command::new("sqlite3")
+        .arg(&path)
+        .arg(sql)
+        .output()
+        .map_err(|error| format!("Create {}: {error}", path.display()))?;
+    if !output.status.success() {
+        return Err(format!(
+            "Create {}: {}",
+            path.display(),
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(())
+}
+
+fn stage_npc_appearance(data: &Path) -> Result<(), String> {
+    write_sqlite_fixture(data, "npc_appearance.sqlite", "
+        CREATE TABLE display_coverage (display_id INTEGER PRIMARY KEY, requires_appearance INTEGER NOT NULL);
+        CREATE TABLE appearances (display_id INTEGER PRIMARY KEY, race INTEGER NOT NULL, sex INTEGER NOT NULL, class INTEGER NOT NULL, baked_texture_fdid INTEGER NOT NULL);
+        CREATE TABLE choices (display_id INTEGER NOT NULL, choice_id INTEGER NOT NULL, PRIMARY KEY(display_id, choice_id));
+        CREATE TABLE geosets (display_id INTEGER NOT NULL, geoset_index INTEGER NOT NULL, geoset_value INTEGER NOT NULL, PRIMARY KEY(display_id, geoset_index));
+        INSERT INTO display_coverage VALUES (910010,0),(910011,0),(910015,0),(910012,1),(910013,1);
+        INSERT INTO appearances VALUES (910012,1,0,2,910020),(910013,1,0,2,0);
+        INSERT INTO choices VALUES (910012,910030),(910012,910031),(910013,910030),(910013,910031);
+        INSERT INTO geosets VALUES (910012,1,2),(910013,1,1);
+    ")?;
+    write_sqlite_fixture(data, "customization.sqlite", "
+        CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
+        CREATE TABLE chr_models (id INTEGER PRIMARY KEY, layout_id INTEGER NOT NULL, customize_scale REAL NOT NULL, camera_distance_offset REAL NOT NULL);
+        CREATE TABLE options (id INTEGER PRIMARY KEY, name TEXT NOT NULL, chr_model_id INTEGER NOT NULL, category_id INTEGER NOT NULL, order_index INTEGER NOT NULL, ui_type INTEGER NOT NULL, requirement_id INTEGER NOT NULL);
+        CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT NOT NULL, order_index INTEGER NOT NULL, icon INTEGER NOT NULL, selected_icon INTEGER NOT NULL);
+        CREATE TABLE choices (id INTEGER PRIMARY KEY, option_id INTEGER NOT NULL, name TEXT NOT NULL, requirement_id INTEGER NOT NULL, order_index INTEGER NOT NULL, visibility_requirement_id INTEGER NOT NULL, swatch_color_0 INTEGER NOT NULL, swatch_color_1 INTEGER NOT NULL);
+        CREATE TABLE elements (choice_id INTEGER NOT NULL, related_choice_id INTEGER NOT NULL, geoset_id INTEGER NOT NULL, material_id INTEGER NOT NULL, has_unsupported_effects INTEGER NOT NULL);
+        CREATE TABLE materials (id INTEGER PRIMARY KEY, texture_target_id INTEGER NOT NULL, material_resources_id INTEGER NOT NULL);
+        CREATE TABLE geosets (id INTEGER PRIMARY KEY, geoset_type INTEGER NOT NULL, geoset_id INTEGER NOT NULL);
+        CREATE TABLE hair_geosets (model_id INTEGER NOT NULL, geoset_type INTEGER NOT NULL, geoset_id INTEGER NOT NULL, shows_scalp INTEGER NOT NULL, PRIMARY KEY(model_id,geoset_type,geoset_id));
+        CREATE TABLE texture_fdids (material_resources_id INTEGER PRIMARY KEY, file_data_id INTEGER NOT NULL);
+        INSERT INTO chr_models VALUES (910040,910041,1.0,0.0);
+        INSERT INTO options VALUES (910050,'Skin',910040,910060,0,0,0),(910051,'Body',910040,910060,1,0,0);
+        INSERT INTO categories VALUES (910060,'Appearance',0,0,0);
+        INSERT INTO choices VALUES (910030,910050,'Base skin',0,0,0,0,0),(910031,910051,'Body color',0,0,0,0,0);
+        INSERT INTO elements VALUES (910030,0,0,910070,0),(910031,910030,910080,910071,0);
+        INSERT INTO materials VALUES (910070,1,910072),(910071,2,910073);
+        INSERT INTO geosets VALUES (910080,1,2);
+        INSERT INTO texture_fdids VALUES (910072,910021),(910073,910022);
+    ")?;
+    write_sqlite_fixture(data, "char_texture.sqlite", "
+        CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
+        CREATE TABLE layers (texture_type INTEGER NOT NULL, layer INTEGER NOT NULL, blend_mode INTEGER NOT NULL, section_bitmask INTEGER NOT NULL, target_id INTEGER NOT NULL, layout_id INTEGER NOT NULL);
+        CREATE TABLE sections (layout_id INTEGER NOT NULL, section_type INTEGER NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY(layout_id,section_type));
+        CREATE TABLE layouts (id INTEGER PRIMARY KEY, width INTEGER NOT NULL, height INTEGER NOT NULL);
+        INSERT INTO layouts VALUES (910041,2,2);
+        INSERT INTO layers VALUES (1,0,0,-1,1,910041),(1,1,0,-1,2,910041);
+    ")?;
+    fs::write(
+        data.join("ChrRaceXChrModel.csv"),
+        "ChrRacesID,Sex,ChrModelID\n1,0,910040\n",
+    )
+    .map_err(|error| format!("Write fixture race-model CSV: {error}"))?;
+    fs::write(data.join("ChrRaces.csv"), "ID,UnalteredVisualRaceID\n1,0\n")
+        .map_err(|error| format!("Write fixture races CSV: {error}"))
 }
 
 fn stage_lighting(data: &Path) -> Result<(), String> {
@@ -315,11 +384,15 @@ fn respond_to_selection(
 }
 
 fn spawn_npc(app: &mut App, display_id: u32) -> Entity {
+    spawn_named_npc(app, display_id, NPC)
+}
+
+fn spawn_named_npc(app: &mut App, display_id: u32, name: &str) -> Entity {
     app.world_mut()
         .spawn((
             Npc {
                 template_id: 8,
-                name: NPC.into(),
+                name: name.into(),
             },
             ModelDisplay { display_id },
             Position {
@@ -395,7 +468,7 @@ fn run_fixture(
                 (3, "FIXTURE LIGHT_UPDATED") => {
                     app.world_mut()
                         .entity_mut(npc.expect("spawned NPC"))
-                        .insert(ModelDisplay { display_id: 910012 });
+                        .insert(ModelDisplay { display_id: 910015 });
                     phase = 4;
                 }
                 (4, "FIXTURE CLAMP_READY") => {
@@ -548,8 +621,18 @@ fn run_fixture(
                     ));
                     phase = 19;
                 }
-                (19, "FIXTURE DEAD_ON_SPAWN_READY") => phase = 20,
-                (20, "FIXTURE RESET_READY") => phase = 21,
+                (19, "FIXTURE DEAD_ON_SPAWN_READY") => {
+                    npc = Some(spawn_named_npc(app, 910012, APPEARANCE_NPC));
+                    phase = 20;
+                }
+                (20, "FIXTURE BAKED_READY") => {
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned baked NPC"))
+                        .insert(ModelDisplay { display_id: 910013 });
+                    phase = 21;
+                }
+                (21, "FIXTURE COMPOSED_READY") => phase = 22,
+                (22, "FIXTURE RESET_READY") => phase = 23,
                 (_, line) if line.starts_with("FIXTURE ") => {
                     return Err(format!("Out-of-order phase {phase}: {line}"));
                 }
@@ -557,7 +640,7 @@ fn run_fixture(
             }
         }
         if let Some(status) = status {
-            if !status.success() || phase != 21 {
+            if !status.success() || phase != 23 {
                 return Err(format!("Godot exited {status} at phase {phase}"));
             }
             println!("PASS: native UDP NPC visual lifecycle, authored lighting, and visibility");
