@@ -106,7 +106,9 @@ func run_test() -> void:
 		return
 	print("FIXTURE STOPPED")
 	client.free()
+	print("SHUTDOWN: client freed")
 	quit(0)
+	print("SHUTDOWN: quit requested")
 
 func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:
 	var deadline := Time.get_ticks_msec() + timeout_ms
