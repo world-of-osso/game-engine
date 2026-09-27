@@ -4,7 +4,12 @@ use crate::retail_m2_material::M2Material;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use game_engine::asset::char_texture::CharTextureData;
-use game_engine::customization_data::{CustomizationChoice, CustomizationDb};
+use game_engine::customization_data::CustomizationDb;
+#[cfg(test)]
+use game_engine::npc_appearance_selection_data::resolve_npc_choices;
+use game_engine::npc_appearance_selection_data::{
+    npc_geoset_visible, select_npc_choices, select_npc_type6_texture,
+};
 
 use crate::m2_spawn::{BatchTextureType, GeosetMesh};
 use game_engine::creature_display::npc_appearance::{
@@ -30,78 +35,6 @@ pub(super) fn load_and_queue_npc_appearance(
             appearance,
         });
     }
-}
-
-#[derive(Default)]
-struct NpcSelections {
-    materials: Vec<(u16, u32)>,
-    geosets: Vec<(u16, u16)>,
-}
-
-/// Applies the displayed model's choices. Choices of the race's unaltered form
-/// (a Worgen profile's Gilnean-form choices) resolve but belong to the other model.
-fn select_npc_choices(
-    appearance: &AuthoredNpcAppearance,
-    db: &CustomizationDb,
-) -> Result<NpcSelections, String> {
-    let (race, sex) = (appearance.race, appearance.sex);
-    let displayed = appearance
-        .choice_ids
-        .iter()
-        .filter_map(|&id| db.choice_by_id(race, sex, id));
-    resolve_npc_choices(appearance, displayed, |id| {
-        db.unaltered_form_choice_by_id(race, sex, id).is_some()
-    })
-}
-
-fn resolve_npc_choices<'a>(
-    appearance: &AuthoredNpcAppearance,
-    choices: impl IntoIterator<Item = &'a CustomizationChoice>,
-    is_other_form_choice: impl Fn(u32) -> bool,
-) -> Result<NpcSelections, String> {
-    let selected: HashSet<_> = appearance.choice_ids.iter().copied().collect();
-    let mut missing = selected.clone();
-    missing.retain(|&id| !is_other_form_choice(id));
-    let mut result = NpcSelections::default();
-    for choice in choices {
-        if !selected.contains(&choice.id) {
-            continue;
-        }
-        missing.remove(&choice.id);
-        append_selected_choice(&mut result, choice, &selected);
-    }
-    if !missing.is_empty() {
-        let mut missing: Vec<_> = missing.into_iter().collect();
-        missing.sort_unstable();
-        return Err(format!(
-            "unresolved customization choices {missing:?} for race {} sex {}",
-            appearance.race, appearance.sex
-        ));
-    }
-    Ok(result)
-}
-
-fn append_selected_choice(
-    output: &mut NpcSelections,
-    choice: &CustomizationChoice,
-    selected: &HashSet<u32>,
-) {
-    output.materials.extend_from_slice(&choice.materials);
-    output.materials.extend(
-        choice
-            .related_materials
-            .iter()
-            .filter(|material| selected.contains(&material.related_choice_id))
-            .map(|material| (material.target_id, material.fdid)),
-    );
-    output.geosets.extend_from_slice(&choice.geosets);
-    output.geosets.extend(
-        choice
-            .related_geosets
-            .iter()
-            .filter(|geoset| selected.contains(&geoset.related_choice_id))
-            .map(|geoset| (geoset.geoset_type, geoset.geoset_id)),
-    );
 }
 
 #[derive(Component)]
@@ -190,21 +123,6 @@ fn load_and_composite_npc_textures(
     Ok(textures)
 }
 
-type NpcTexturePixels = (Vec<u8>, u32, u32);
-
-fn select_npc_type6_texture(
-    declares_hair: bool,
-    hair: Option<NpcTexturePixels>,
-    head: Option<NpcTexturePixels>,
-) -> Result<Option<NpcTexturePixels>, String> {
-    if declares_hair {
-        return hair
-            .map(Some)
-            .ok_or_else(|| "declared NPC hair target 10 did not produce a texture".to_string());
-    }
-    Ok(head)
-}
-
 fn load_npc_body_texture(
     baked_fdid: Option<u32>,
     composed: (Vec<u8>, u32, u32),
@@ -214,28 +132,6 @@ fn load_npc_body_texture(
         Some(fdid) => load(fdid),
         None => Ok(crate::rgba_image(composed.0, composed.1, composed.2)),
     }
-}
-
-fn npc_geoset_visible(mesh_part: u16, prepared: &PreparedNpcAppearance) -> bool {
-    use crate::rendering::character_customization::{
-        apply_exact_geoset_overrides, is_geoset_visible,
-    };
-    if mesh_part < 100
-        && let Some((_, variant)) = prepared
-            .authored_geosets
-            .iter()
-            .rev()
-            .find(|(group, _)| *group == 0)
-    {
-        return is_geoset_visible(mesh_part, &[(0, *variant)], &[0]);
-    }
-    let active_types: Vec<_> = prepared
-        .selected_geosets
-        .iter()
-        .map(|(group, _)| *group)
-        .collect();
-    let visible = is_geoset_visible(mesh_part, &prepared.selected_geosets, &active_types);
-    apply_exact_geoset_overrides(mesh_part, visible, &prepared.authored_geosets)
 }
 
 fn is_descendant(entity: Entity, root: Entity, parents: &Query<&ChildOf>) -> bool {
@@ -281,7 +177,11 @@ fn apply_npc_geosets(
 ) {
     for (entity, geoset, mut visibility) in &mut targets.geosets {
         if is_descendant(entity, root, &targets.parents) {
-            *visibility = if npc_geoset_visible(geoset.0, prepared) {
+            *visibility = if npc_geoset_visible(
+                geoset.0,
+                &prepared.selected_geosets,
+                &prepared.authored_geosets,
+            ) {
                 Visibility::Inherited
             } else {
                 Visibility::Hidden
