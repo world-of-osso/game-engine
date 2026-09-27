@@ -26,9 +26,10 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_INSPECT, ACTION_UNIT_MENU_SET_FOCUS,
-    ACTION_UNIT_MENU_TRADE, InWorldUnitFramesState, PowerBarState, SmallUnitFrameState,
-    TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState, UnitFrameState, UnitMenuItem,
-    format_value_text, fraction, inworld_unit_frames_screen, unit_menu_height,
+    ACTION_UNIT_MENU_TRADE, InWorldUnitFramesState, MAX_BOSS_FRAMES, PowerBarState,
+    SmallUnitFrameState, TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState, UnitFrameState,
+    UnitMenuItem, boss_frame_name, format_value_text, fraction, inworld_unit_frames_screen,
+    unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -101,13 +102,15 @@ struct UnitFrameMenu {
     state: UnitFrameMenuState,
 }
 
-/// Entities currently shown by each cluster frame.
-#[derive(Clone, Copy, Default)]
+/// Entities currently shown by each cluster frame and boss frame.
+#[derive(Clone, Default)]
 struct FrameUnits {
     player: Option<Entity>,
     target: Option<Entity>,
     target_of_target: Option<Entity>,
     focus: Option<Entity>,
+    /// `boss1..boss5` that have a local mirror.
+    bosses: Vec<Entity>,
 }
 
 impl FrameUnits {
@@ -117,7 +120,9 @@ impl FrameUnits {
             "TargetFrame" => self.target,
             "TargetOfTargetFrame" => self.target_of_target,
             "FocusFrame" => self.focus,
-            _ => None,
+            boss => (0..MAX_BOSS_FRAMES)
+                .find(|&index| boss_frame_name(index) == boss)
+                .and_then(|index| self.bosses.get(index).copied()),
         }
     }
 }
@@ -159,6 +164,7 @@ pub(crate) struct FrameUnitSources<'w, 's> {
     mirror: Option<Res<'w, ReplicationMirrorMap>>,
     current_target: Res<'w, CurrentTarget>,
     focus: Res<'w, FocusTarget>,
+    encounter: Option<Res<'w, crate::game::networking_encounter::EncounterFrames>>,
 }
 
 impl FrameUnitSources<'_, '_> {
@@ -178,11 +184,20 @@ impl FrameUnitSources<'_, '_> {
 
     fn frame_units(&self) -> FrameUnits {
         let target = self.current_target.0;
+        let mirror = self.mirror.as_deref();
+        let bosses = self
+            .encounter
+            .as_deref()
+            .into_iter()
+            .flat_map(|frames| frames.boss_units())
+            .filter_map(|bits| mirror?.server_to_main(Entity::try_from_bits(bits)?))
+            .collect();
         FrameUnits {
             player: self.local_player.iter().next(),
             target,
             target_of_target: target.and_then(|entity| self.unit_target_of(entity)),
             focus: self.focus.0,
+            bosses,
         }
     }
 }
@@ -318,6 +333,11 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
         focus: unit_state(units.focus)
             .as_ref()
             .map(SmallUnitFrameState::from),
+        bosses: units
+            .bosses
+            .iter()
+            .filter_map(|&boss| unit_state(Some(boss)))
+            .collect(),
         menu: sources.menu.state.clone(),
     }
 }
@@ -599,11 +619,16 @@ impl UnitFrameClick<'_> {
 }
 
 fn cluster_root_name(registry: &FrameRegistry, mut frame: u64) -> Option<&'static str> {
-    const ROOTS: [&str; 4] = [
+    const ROOTS: [&str; 9] = [
         "PlayerFrame",
         "TargetFrame",
         "TargetOfTargetFrame",
         "FocusFrame",
+        "Boss1TargetFrame",
+        "Boss2TargetFrame",
+        "Boss3TargetFrame",
+        "Boss4TargetFrame",
+        "Boss5TargetFrame",
     ];
     loop {
         let data = registry.get(frame)?;
