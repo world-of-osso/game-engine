@@ -7,7 +7,9 @@ use game_engine_core::{
     m2_batch_data::ResolvedBatch,
 };
 use godot::{
-    classes::{ImageTexture, MeshInstance3D, Node3D, ResourceLoader, Shader, ShaderMaterial},
+    classes::{
+        ArrayMesh, ImageTexture, MeshInstance3D, Node3D, ResourceLoader, Shader, ShaderMaterial,
+    },
     prelude::*,
 };
 
@@ -46,96 +48,8 @@ impl Sky {
             ));
         }
         let model = assets::read_model(&GString::from(path.to_string_lossy().as_ref()))?;
-        let batches = m2::resolve_render_batches(&model, &[0; 3], true, |_| None)?;
-        if batches.is_empty() {
-            return Err(format!("Sky FDID {SKY_FDID} has no render batches"));
-        }
-        let shader = load_shader_source()?;
-        let mut ordered = batches;
-        ordered.sort_by_key(|batch| {
-            (
-                batch.priority_plane,
-                batch.material_layer,
-                batch.source_unit_index,
-            )
-        });
-        if ordered.len() > 256 {
-            return Err(format!(
-                "Sky FDID {SKY_FDID} needs {} render priorities (maximum 256)",
-                ordered.len()
-            ));
-        }
-        let mut prepared = Vec::with_capacity(ordered.len());
-        for (order, batch) in ordered.into_iter().enumerate() {
-            let submesh = model.submeshes.get(batch.submesh_index).ok_or_else(|| {
-                format!(
-                    "Sky batch {} references absent submesh",
-                    batch.source_unit_index
-                )
-            })?;
-            let mesh = assets::build_batch_mesh(&model, submesh)?;
-            let material = build_material(&batch, &shader, data_root, order as i32 - 128)?;
-            prepared.push((batch, mesh, material));
-        }
-        let (skeleton, skin) = assets::build_skeleton(&model.bones);
-        let player = if model.sequences.is_empty() {
-            None
-        } else {
-            match WowAnimationPlayer::from_model(&model, skeleton.clone()) {
-                Ok(player) => Some(player),
-                Err(error) => {
-                    skeleton.free();
-                    return Err(error);
-                }
-            }
-        };
-        let mut node = Node3D::new_alloc();
-        node.set_name("AuthoredSky525142");
-        node.add_child(&skeleton);
-        if let Some(mut player) = player {
-            player.set_name("M2Animation");
-            node.add_child(&player);
-        }
-        let mut animations = Vec::new();
-        for (batch, mesh, material) in prepared {
-            if batch.transparency_anim.is_some()
-                || batch.color_opacity_anim.is_some()
-                || batch.texture_anim.is_some()
-                || batch.texture_anim_2.is_some()
-            {
-                animations.push(AnimatedBatch {
-                    material: material.clone(),
-                    transparency: batch.transparency_anim,
-                    color_opacity: batch.color_opacity_anim,
-                    first_uv: batch.texture_anim,
-                    second_uv: batch.texture_anim_2,
-                });
-            }
-            let mut instance = MeshInstance3D::new_alloc();
-            instance.set_name(&format!("SkyBatch{}", batch.source_unit_index));
-            instance.set_mesh(&mesh);
-            instance.set_surface_override_material(0, &material);
-            instance.set_cast_shadows_setting(
-                godot::classes::geometry_instance_3d::ShadowCastingSetting::OFF,
-            );
-            if let Some(skin) = &skin {
-                instance.set_skin(skin);
-                instance.set_skeleton_path("../Skeleton3D");
-            }
-            node.add_child(&instance);
-        }
-        let mut sky = Self {
-            node,
-            animations,
-            global_sequences: model.global_sequences,
-            default_sequence_index: model
-                .sequences
-                .iter()
-                .position(|sequence| sequence.id == 0)
-                .unwrap_or(0),
-        };
-        sky.sample(0);
-        Ok(sky)
+        let prepared = prepare_batches(&model, data_root)?;
+        assemble_sky(model, prepared)
     }
 
     pub fn sample(&mut self, time_ms: u32) {
@@ -174,6 +88,107 @@ impl Sky {
                 .set_shader_parameter("uv_offset_2", &second.to_variant());
         }
     }
+}
+
+type PreparedBatch = (ResolvedBatch, Gd<ArrayMesh>, Gd<ShaderMaterial>);
+
+fn prepare_batches(model: &m2::Model, data_root: &Path) -> Result<Vec<PreparedBatch>, String> {
+    let batches = m2::resolve_render_batches(model, &[0; 3], true, |_| None)?;
+    if batches.is_empty() {
+        return Err(format!("Sky FDID {SKY_FDID} has no render batches"));
+    }
+    let shader = load_shader_source()?;
+    let mut ordered = batches;
+    ordered.sort_by_key(|batch| {
+        (
+            batch.priority_plane,
+            batch.material_layer,
+            batch.source_unit_index,
+        )
+    });
+    if ordered.len() > 256 {
+        return Err(format!(
+            "Sky FDID {SKY_FDID} needs {} render priorities (maximum 256)",
+            ordered.len()
+        ));
+    }
+    ordered
+        .into_iter()
+        .enumerate()
+        .map(|(order, batch)| {
+            let submesh = model.submeshes.get(batch.submesh_index).ok_or_else(|| {
+                format!(
+                    "Sky batch {} references absent submesh",
+                    batch.source_unit_index
+                )
+            })?;
+            let mesh = assets::build_batch_mesh(model, submesh)?;
+            let material = build_material(&batch, &shader, data_root, order as i32 - 128)?;
+            Ok((batch, mesh, material))
+        })
+        .collect()
+}
+
+fn assemble_sky(model: m2::Model, prepared: Vec<PreparedBatch>) -> Result<Sky, String> {
+    let (skeleton, skin) = assets::build_skeleton(&model.bones);
+    let player = if model.sequences.is_empty() {
+        None
+    } else {
+        match WowAnimationPlayer::from_model(&model, skeleton.clone()) {
+            Ok(player) => Some(player),
+            Err(error) => {
+                skeleton.free();
+                return Err(error);
+            }
+        }
+    };
+    let mut node = Node3D::new_alloc();
+    node.set_name("AuthoredSky525142");
+    node.add_child(&skeleton);
+    if let Some(mut player) = player {
+        player.set_name("M2Animation");
+        node.add_child(&player);
+    }
+    let mut animations = Vec::new();
+    for (batch, mesh, material) in prepared {
+        if batch.transparency_anim.is_some()
+            || batch.color_opacity_anim.is_some()
+            || batch.texture_anim.is_some()
+            || batch.texture_anim_2.is_some()
+        {
+            animations.push(AnimatedBatch {
+                material: material.clone(),
+                transparency: batch.transparency_anim,
+                color_opacity: batch.color_opacity_anim,
+                first_uv: batch.texture_anim,
+                second_uv: batch.texture_anim_2,
+            });
+        }
+        let mut instance = MeshInstance3D::new_alloc();
+        instance.set_name(&format!("SkyBatch{}", batch.source_unit_index));
+        instance.set_mesh(&mesh);
+        instance.set_surface_override_material(0, &material);
+        instance.set_cast_shadows_setting(
+            godot::classes::geometry_instance_3d::ShadowCastingSetting::OFF,
+        );
+        if let Some(skin) = &skin {
+            instance.set_skin(skin);
+            instance.set_skeleton_path("../Skeleton3D");
+        }
+        node.add_child(&instance);
+    }
+    let mut sky = Sky {
+        node,
+        animations,
+        global_sequences: model.global_sequences,
+        default_sequence_index: model
+            .sequences
+            .iter()
+            .position(|sequence| sequence.id == 0)
+            .unwrap_or(0),
+    };
+    sky.sample(0);
+    Ok(sky)
 }
 
 fn track_sample_time<T>(
