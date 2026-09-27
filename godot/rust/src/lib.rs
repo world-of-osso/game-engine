@@ -35,6 +35,7 @@ pub struct GameClient {
     login_ui: Option<Gd<ui::RegistryUi>>,
     character_ui: Option<Gd<ui::RegistryUi>>,
     loading_ui: Option<Gd<ui::RegistryUi>>,
+    errors_ui: Option<Gd<ui::RegistryUi>>,
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
@@ -59,6 +60,7 @@ impl INode3D for GameClient {
             login_ui: None,
             character_ui: None,
             loading_ui: None,
+            errors_ui: None,
             account: Account::new(data_root.clone()),
             terrain: terrain::streaming::StreamedTerrain::new(data_root, cache_root),
             terrain_materials: terrain::material::TerrainMaterials::default(),
@@ -86,6 +88,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_world_lighting())
             .and_then(|()| self.attach_terrain_materials())
             .and_then(|()| self.update_loading_readiness())
+            .and_then(|()| self.update_world_errors(delta as f32))
             .and_then(|()| self.update_world_camera(delta as f32));
         if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
@@ -302,6 +305,8 @@ impl GameClient {
                 }
                 AccountEvent::WorldReset => self.reset_world()?,
                 AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
+                AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
+                AccountEvent::TransferError(error) => self.add_world_error(error)?,
                 AccountEvent::UnitUpdated(unit) => {
                     let mut parent = self.to_gd().upcast::<Node3D>();
                     self.world.upsert(&mut parent, &unit);
@@ -330,6 +335,20 @@ impl GameClient {
             self.terrain_materials.reset();
             self.account.session.screen = SessionScreen::Loading;
             self.show_account_screen(SessionScreen::Loading)?;
+        }
+        Ok(())
+    }
+
+    fn transfer_world(&mut self, destination: shared::protocol::NewWorld) -> Result<(), String> {
+        self.terrain.reset()?;
+        self.terrain_materials.reset();
+        self.world_lighting.reset();
+        let [x, y, z] = destination.position;
+        let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
+        self.terrain.request_map(destination.map_directory, tile)?;
+        if let Some(mut player) = self.world.local_player_node() {
+            player.set_position(Vector3::new(x, y, z));
+            player.set_rotation(Vector3::new(0.0, destination.facing, 0.0));
         }
         Ok(())
     }
@@ -390,6 +409,7 @@ impl GameClient {
         if readiness.complete {
             self.account.session.screen = SessionScreen::InWorld;
             self.show_account_screen(SessionScreen::InWorld)?;
+            self.account.finish_world_port()?;
         }
         Ok(())
     }
@@ -407,6 +427,10 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        if let Some(ui) = self.errors_ui.as_mut() {
+            ui.bind_mut().clear_errors()?;
+            ui.set_visible(false);
+        }
         self.world_camera.reset();
         self.world_lighting.reset();
         self.terrain_materials.reset();
@@ -416,9 +440,16 @@ impl GameClient {
     }
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {
+        if screen != SessionScreen::InWorld
+            && let Some(ui) = self.errors_ui.as_mut()
+            && ui.is_visible()
+        {
+            ui.bind_mut().clear_errors()?;
+        }
         match screen {
             SessionScreen::CharacterSelect => self.attach_character_ui()?,
             SessionScreen::Loading => self.attach_loading_ui()?,
+            SessionScreen::InWorld => self.attach_errors_ui()?,
             SessionScreen::Login => {
                 if let Some(ui) = self.character_ui.take() {
                     ui.free();
@@ -437,6 +468,9 @@ impl GameClient {
     }
 
     fn set_account_ui_visibility(&mut self, screen: SessionScreen) {
+        if let Some(ui) = self.errors_ui.as_mut() {
+            ui.set_visible(screen == SessionScreen::InWorld);
+        }
         for (ui, target) in [
             (&mut self.login_ui, SessionScreen::Login),
             (&mut self.character_ui, SessionScreen::CharacterSelect),
@@ -446,6 +480,41 @@ impl GameClient {
                 ui.set_visible(screen == target);
             }
         }
+    }
+
+    fn attach_errors_ui(&mut self) -> Result<(), String> {
+        if self.errors_ui.is_some() {
+            return Ok(());
+        }
+        let mut ui = ui::RegistryUi::new_alloc();
+        ui.set_name("UIErrors");
+        self.base_mut().add_child(&ui);
+        let result = ui.bind_mut().show_errors();
+        if let Err(error) = result {
+            ui.free();
+            return Err(error);
+        }
+        ui.set_visible(self.account.session.screen == SessionScreen::InWorld);
+        self.errors_ui = Some(ui);
+        Ok(())
+    }
+
+    fn add_world_error(&mut self, error: &str) -> Result<(), String> {
+        self.attach_errors_ui()?;
+        self.errors_ui
+            .as_mut()
+            .expect("error UI attached")
+            .bind_mut()
+            .add_error(error)
+    }
+
+    fn update_world_errors(&mut self, delta: f32) -> Result<(), String> {
+        if self.account.session.screen == SessionScreen::InWorld
+            && let Some(ui) = self.errors_ui.as_mut()
+        {
+            ui.bind_mut().tick_errors(delta)?;
+        }
+        Ok(())
     }
 
     fn attach_character_ui(&mut self) -> Result<(), String> {

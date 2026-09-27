@@ -69,6 +69,9 @@ func run_test() -> void:
 		if player == null or player.get_instance_id() != first_player_id:
 			fail("Transfer lost or duplicated the selected player Node3D")
 			return
+		if absf(player.rotation.y - 0.5) > 0.001:
+			fail("Transfer did not apply server-authored model facing")
+			return
 		if overlay == null or not label is Label or not label.is_visible_in_tree() or label.text != ERROR_TEXT:
 			fail("Native UIErrors overlay lost authored transfer error")
 			return
