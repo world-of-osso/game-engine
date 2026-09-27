@@ -8,6 +8,7 @@ Status vocabulary: **Missing** — no Godot implementation and proof; **Blocked*
 
 | Source contract | Required capability | Status | Godot proof / boundary |
 | --- | --- | --- | --- |
+| [Godot client replacement](godot-conversion.md) | Root-launcher startup routing, native CLI parsing, authenticated `charselect`/`inworld`, standalone/authenticated character creation, and explicit rejection of unconverted states/destinations. | Missing | `b10eab7d` preserves native Godot arguments while routing `--screen`, `--state`, `--server`, and `--char` after `--`; launcher process tests are reported 11/11 GREEN. `ae091255` shared parser tests are reported 6/6 GREEN. `e89f4243` applies token priority, one-time option consumption, and requested-roster-name validation; `37262089` applies the intent in `GameClient::ready()`. The only owned runtime fixture remains RED: root launcher/private-XDG credentials stay at Login with no manual GDScript connection (`/tmp/claude/screen-cli-runtime-red-a69e4f4c.log`). Native build/runtime proof is pending. This is not full CLI or client parity. |
 | [Auction house](auction-house-ui.md) | Auctioneer/gossip open-close lifecycle, interaction closure and errors. | Missing | None; transport worker does not project auction state. |
 | [Auction house](auction-house-ui.md) | Buy search/categories/results/item bids/buyouts, money and Retail window/tab layout. | Missing | None. |
 | [Auction house](auction-house-ui.md) | Sell stack selection, pricing/deposit/duration/create validation and owned-auction/bid actions. | Missing | None. |
