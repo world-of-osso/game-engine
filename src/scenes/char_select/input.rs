@@ -5,14 +5,16 @@ use game_engine::network_runtime::messages::MessageSenders;
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::plugin::UiState;
-use game_engine::ui::screens::char_select_component::{CharSelectAction, DELETE_CONFIRM_INPUT};
+use game_engine::ui::screens::char_select_component::{
+    CharSelectAction, DELETE_CONFIRM_INPUT, step_selection,
+};
 use shared::protocol::{AuthChannel, DeleteCharacter, SelectCharacter};
 
 use crate::game_state::GameState;
 use crate::networking::CharacterList;
 use crate::scenes::char_select::{
     CampsitePanelVisible, CharSelectFocus, CharSelectUi, DeleteCharacterConfirmationState,
-    DeleteCharacterTarget, SelectedCharIndex, delete_confirm_ready,
+    DeleteCharacterTarget, SelectedCharIndex,
 };
 use crate::scenes::login::helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
@@ -112,7 +114,7 @@ fn handle_delete_confirm_key(
     if delete_confirm.target.is_none() {
         return false;
     }
-    if event.key_code == KeyCode::Enter && delete_confirm_ready(delete_confirm) {
+    if event.key_code == KeyCode::Enter && delete_confirm.ready() {
         try_delete_character(delete_confirm, del_senders);
         focus.0 = None;
         return true;
@@ -186,14 +188,8 @@ pub(crate) fn handle_selection_key(
         return false;
     }
     match key {
-        KeyCode::ArrowUp => {
-            let idx = selected.0.unwrap_or(0);
-            selected.0 = Some(if idx == 0 { count - 1 } else { idx - 1 });
-            true
-        }
-        KeyCode::ArrowDown => {
-            let idx = selected.0.unwrap_or(count.wrapping_sub(1));
-            selected.0 = Some(if idx + 1 >= count { 0 } else { idx + 1 });
+        KeyCode::ArrowUp | KeyCode::ArrowDown => {
+            selected.0 = step_selection(selected.0, count, key == KeyCode::ArrowDown);
             true
         }
         KeyCode::Enter if selected.0.is_some() => {
@@ -358,7 +354,7 @@ pub(crate) fn dispatch_char_select_action(
                 );
             }
             Some(CharSelectAction::ConfirmDeleteChar) => {
-                if delete_confirm_ready(&delete_confirm) {
+                if delete_confirm.ready() {
                     try_delete_character(&mut delete_confirm, &mut del_senders);
                     focus.0 = None;
                 }

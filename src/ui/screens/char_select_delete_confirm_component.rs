@@ -43,6 +43,73 @@ pub struct DeleteConfirmUiState {
     pub confirm_enabled: bool,
 }
 
+pub const DELETE_CONFIRM_TOKEN: &str = "DELETE";
+pub const DELETE_CONFIRM_DELAY_SECS: f32 = 3.0;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeleteCharacterTarget {
+    pub character_id: u64,
+    pub name: String,
+}
+
+/// Delay and typed-token gate a player must pass before a character is deleted.
+#[derive(Clone, Debug, Default)]
+pub struct DeleteConfirmation {
+    pub target: Option<DeleteCharacterTarget>,
+    pub typed_text: String,
+    pub elapsed_secs: f32,
+}
+
+impl DeleteConfirmation {
+    pub fn open(&mut self, target: DeleteCharacterTarget) {
+        *self = Self {
+            target: Some(target),
+            ..Self::default()
+        };
+    }
+
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn tick(&mut self, dt: f32) {
+        if self.target.is_some() {
+            self.elapsed_secs += dt.max(0.0);
+        }
+    }
+
+    pub fn ready(&self) -> bool {
+        self.target.is_some()
+            && self.elapsed_secs >= DELETE_CONFIRM_DELAY_SECS
+            && self.typed_text.eq_ignore_ascii_case(DELETE_CONFIRM_TOKEN)
+    }
+
+    pub fn ui_state(&self) -> DeleteConfirmUiState {
+        let Some(target) = self.target.as_ref() else {
+            return DeleteConfirmUiState::default();
+        };
+        let remaining = if self.elapsed_secs >= DELETE_CONFIRM_DELAY_SECS {
+            0
+        } else {
+            (DELETE_CONFIRM_DELAY_SECS - self.elapsed_secs).ceil() as u8
+        };
+        let countdown_text = if remaining > 0 {
+            format!("Delete unlocks in {remaining}s")
+        } else if self.typed_text.eq_ignore_ascii_case(DELETE_CONFIRM_TOKEN) {
+            "Ready. Press Delete Forever to remove this character.".to_string()
+        } else {
+            format!("Type {DELETE_CONFIRM_TOKEN} to enable deletion")
+        };
+        DeleteConfirmUiState {
+            visible: true,
+            character_name: target.name.clone(),
+            typed_text: self.typed_text.clone(),
+            countdown_text,
+            confirm_enabled: self.ready(),
+        }
+    }
+}
+
 pub fn delete_confirmation_modal(state: &DeleteConfirmUiState) -> Element {
     if !state.visible {
         return Vec::new();

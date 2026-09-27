@@ -29,7 +29,7 @@ func run_test() -> void:
 		var name_label = ui.find_child("CharSelectCharacterName", true, false) if ui != null else null
 		var card_name = ui.find_child("CharCard_1Name", true, false) if ui != null else null
 		var selected = ui.find_child("CharCard_1Selected", true, false) if ui != null else null
-		if not card is Control or not card.visible or not name_label is Label or not card_name is Label or not selected is TextureRect:
+		if not card is Control or not card.visible or not name_label is Label or not card_name is Label or not selected is Control:
 			fail("Authored character card and selection controls missing")
 			return
 		if name_label.text == card_name.text or selected.visible:
@@ -42,7 +42,7 @@ func run_test() -> void:
 		press.pressed = true
 		root.push_input(press, true)
 		await process_frame
-		if name_label.text != card_name.text or not selected.visible:
+		if name_label.text != card_name.text or not selected.visible or not selected.get_node_or_null("Parts/Part0") is TextureRect:
 			fail("Viewport left press did not select second card: selected=" + name_label.text + " expected=" + card_name.text + " highlight=" + str(selected.visible))
 			return
 		var release := InputEventMouseButton.new()

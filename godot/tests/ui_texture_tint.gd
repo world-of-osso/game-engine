@@ -28,7 +28,8 @@ func run_test() -> void:
 		if ui == null:
 			fail("Authenticated character selection UI missing")
 			return
-		var selected = ui.find_child("CharCard_0Selected", true, false)
+		var frame = ui.find_child("CharCard_0Selected", true, false)
+		var selected = frame.get_node_or_null("Parts/Part0") if frame != null else null
 		if not selected is TextureRect or selected.texture == null:
 			fail("Authored selected card texture missing")
 			return

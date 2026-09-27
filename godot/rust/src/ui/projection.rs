@@ -425,6 +425,7 @@ impl UiProjection {
     ) -> Result<(), String> {
         if node.get_text().to_string() != data.text {
             node.set_text(&data.text);
+            node.set_caret_column(data.text.chars().count() as i32);
         }
         node.set_secret(data.password);
         if let Some(max) = data.max_letters {

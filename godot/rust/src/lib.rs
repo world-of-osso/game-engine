@@ -26,7 +26,12 @@ use game_engine_core::client_options_data::{ClientOptionsFile, load_options_file
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
-    char_select_component::CharSelectAction, char_select_state_from_roster,
+    char_create_component::CharCreateAction,
+    char_select_component::{
+        CharSelectAction, DELETE_CONFIRM_INPUT, DeleteCharacterTarget, DeleteConfirmation,
+        step_selection,
+    },
+    char_select_state_from_roster,
 };
 use godot::classes::{INode3D, Node3D, ProjectSettings};
 use godot::prelude::*;
@@ -45,7 +50,9 @@ pub struct GameClient {
     model_scene: Option<Gd<Node3D>>,
     login_ui: Option<Gd<ui::RegistryUi>>,
     character_ui: Option<Gd<ui::RegistryUi>>,
+    create_ui: Option<Gd<ui::RegistryUi>>,
     character_preview: character_select::CharacterPreview,
+    delete_confirmation: DeleteConfirmation,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     account: Account,
@@ -76,6 +83,8 @@ impl INode3D for GameClient {
             model_scene: None,
             login_ui: None,
             character_ui: None,
+            create_ui: None,
+            delete_confirmation: DeleteConfirmation::default(),
             character_preview: character_select::CharacterPreview::new(
                 data_root.clone(),
                 cache_root.clone(),
@@ -110,6 +119,19 @@ impl INode3D for GameClient {
         self.physical_input.capture(&event);
     }
 
+    /// Screen keys left unhandled by focused edit boxes.
+    fn unhandled_key_input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        let Ok(key) = event.try_cast::<godot::classes::InputEventKey>() else {
+            return;
+        };
+        if !key.is_pressed() || self.account.session.screen != SessionScreen::CharacterSelect {
+            return;
+        }
+        if let Err(error) = self.handle_character_select_key(key.get_keycode()) {
+            godot_error!("Character select key failed: {error}");
+        }
+    }
+
     fn process(&mut self, delta: f64) {
         let update = self
             .poll_ui_actions()
@@ -123,6 +145,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.attach_terrain_materials())
             .and_then(|()| self.update_loading_readiness())
             .and_then(|()| self.update_world_errors(delta as f32))
+            .and_then(|()| self.tick_delete_confirmation(delta as f32))
             .and_then(|()| self.update_world_camera(delta as f32));
         self.physical_input.finish_frame();
         if let Err(error) = update {
@@ -272,6 +295,7 @@ impl GameClient {
         match self.account.session.screen {
             SessionScreen::Login => self.poll_login_actions(),
             SessionScreen::CharacterSelect => self.poll_character_actions(),
+            SessionScreen::CharacterCreate => self.poll_create_actions(),
             _ => Ok(()),
         }
     }
@@ -284,23 +308,151 @@ impl GameClient {
         if !error.is_empty() {
             return Err(error.to_string());
         }
+        let typed = ui.bind_mut().frame_text(DELETE_CONFIRM_INPUT.0.into());
         let action = ui.bind_mut().pop_action().to_string();
+        self.update_delete_typed_text(&typed.to_string())?;
         match CharSelectAction::parse(&action) {
-            Some(CharSelectAction::SelectChar(index)) => {
-                self.account.session.selected_index = Some(index);
-                let state = char_select_state_from_roster(
-                    &self.account.session.characters,
-                    self.account.session.selected_index,
-                );
-                ui.bind_mut().set_character_select_state(state)
-            }
+            Some(CharSelectAction::SelectChar(index)) => self.select_character(Some(index)),
             Some(CharSelectAction::EnterWorld) => self.account.send_enter_world(),
+            Some(CharSelectAction::CreateToggle) => {
+                self.account.session.screen = SessionScreen::CharacterCreate;
+                self.show_account_screen(SessionScreen::CharacterCreate)
+            }
+            Some(CharSelectAction::DeleteChar) => self.open_delete_confirmation(),
+            Some(CharSelectAction::ConfirmDeleteChar) => self.confirm_delete_character(),
+            Some(CharSelectAction::CancelDeleteChar) => {
+                self.delete_confirmation.clear();
+                self.sync_delete_confirmation()
+            }
             Some(CharSelectAction::Back) => {
                 self.account.session.screen = SessionScreen::Login;
                 self.show_account_screen(SessionScreen::Login)
             }
             None if action.is_empty() => Ok(()),
             _ => Err(format!("Character action not yet converted: {action}")),
+        }
+    }
+
+    /// Original character-select keys: Up/Down navigate, Enter enters or confirms deletion,
+    /// Escape cancels a pending deletion.
+    fn handle_character_select_key(&mut self, key: godot::global::Key) -> Result<(), String> {
+        use godot::global::Key;
+        let deleting = self.delete_confirmation.target.is_some();
+        match key {
+            Key::ESCAPE if deleting => {
+                self.delete_confirmation.clear();
+                self.sync_delete_confirmation()
+            }
+            Key::ENTER | Key::KP_ENTER if deleting => self.confirm_delete_character(),
+            _ if deleting => Ok(()),
+            Key::UP | Key::DOWN => {
+                let session = &self.account.session;
+                let next = step_selection(
+                    session.selected_index,
+                    session.characters.len(),
+                    key == Key::DOWN,
+                );
+                self.select_character(next)
+            }
+            Key::ENTER | Key::KP_ENTER if self.account.session.selected_index.is_some() => {
+                self.account.send_enter_world()
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn select_character(&mut self, index: Option<usize>) -> Result<(), String> {
+        self.account.session.selected_index = index;
+        self.sync_character_select_state()
+    }
+
+    fn sync_character_select_state(&mut self) -> Result<(), String> {
+        let state = char_select_state_from_roster(
+            &self.account.session.characters,
+            self.account.session.selected_index,
+        );
+        match self.character_ui.as_mut() {
+            Some(ui) => ui.bind_mut().set_state(state),
+            None => Ok(()),
+        }
+    }
+
+    fn open_delete_confirmation(&mut self) -> Result<(), String> {
+        let session = &self.account.session;
+        let Some(character) = session
+            .selected_index
+            .and_then(|index| session.characters.get(index))
+        else {
+            return Ok(());
+        };
+        self.delete_confirmation.open(DeleteCharacterTarget {
+            character_id: character.character_id,
+            name: character.name.clone(),
+        });
+        self.sync_delete_confirmation()?;
+        match self.character_ui.as_mut() {
+            Some(ui) => ui.bind_mut().focus_frame_named(DELETE_CONFIRM_INPUT.0),
+            None => Ok(()),
+        }
+    }
+
+    fn confirm_delete_character(&mut self) -> Result<(), String> {
+        if !self.delete_confirmation.ready() {
+            return Ok(());
+        }
+        let Some(target) = self.delete_confirmation.target.take() else {
+            return Ok(());
+        };
+        self.account.send_delete_character(target.character_id)?;
+        self.delete_confirmation.clear();
+        self.sync_delete_confirmation()
+    }
+
+    /// Original confirmation input is upper-cased as it is typed.
+    fn update_delete_typed_text(&mut self, typed: &str) -> Result<(), String> {
+        let typed = typed.to_ascii_uppercase();
+        if self.delete_confirmation.target.is_none() || self.delete_confirmation.typed_text == typed
+        {
+            return Ok(());
+        }
+        self.delete_confirmation.typed_text = typed;
+        self.sync_delete_confirmation()
+    }
+
+    fn tick_delete_confirmation(&mut self, delta: f32) -> Result<(), String> {
+        if self.delete_confirmation.target.is_none() {
+            return Ok(());
+        }
+        self.delete_confirmation.tick(delta);
+        self.sync_delete_confirmation()
+    }
+
+    fn sync_delete_confirmation(&mut self) -> Result<(), String> {
+        let state = self.delete_confirmation.ui_state();
+        match self.character_ui.as_mut() {
+            Some(ui) => ui.bind_mut().set_state(state),
+            None => Ok(()),
+        }
+    }
+
+    fn poll_create_actions(&mut self) -> Result<(), String> {
+        let Some(ui) = self.create_ui.as_mut() else {
+            return Ok(());
+        };
+        let error = ui.bind_mut().sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        let action = ui.bind_mut().pop_action().to_string();
+        match CharCreateAction::parse(&action) {
+            Some(CharCreateAction::Back) => {
+                self.account.session.screen = SessionScreen::CharacterSelect;
+                self.show_account_screen(SessionScreen::CharacterSelect)
+            }
+            None if action.is_empty() => Ok(()),
+            _ => Err(format!(
+                "Character creation action not yet converted: {action}"
+            )),
         }
     }
 
@@ -376,6 +528,7 @@ impl GameClient {
                     self.world.upsert(&mut parent, &unit);
                     self.units.insert(unit.server_id, unit);
                 }
+                AccountEvent::RosterChanged => self.sync_character_select_state()?,
                 AccountEvent::UnitRemoved(id) => {
                     self.world.remove(id);
                     self.units.remove(&id);
@@ -544,17 +697,20 @@ impl GameClient {
         }
         match screen {
             SessionScreen::CharacterSelect => self.attach_character_ui()?,
+            SessionScreen::CharacterCreate => self.attach_create_ui()?,
             SessionScreen::Loading => self.attach_loading_ui()?,
             SessionScreen::InWorld => self.attach_errors_ui()?,
             SessionScreen::Login => {
                 if let Some(ui) = self.character_ui.take() {
                     ui.free();
                 }
+                if let Some(ui) = self.create_ui.take() {
+                    ui.free();
+                }
                 if let Some(ui) = self.loading_ui.take() {
                     ui.free();
                 }
             }
-            _ => {}
         }
         self.set_account_ui_visibility(screen);
         let name = GString::from(format!("{screen:?}").as_str());
@@ -570,6 +726,7 @@ impl GameClient {
         for (ui, target) in [
             (&mut self.login_ui, SessionScreen::Login),
             (&mut self.character_ui, SessionScreen::CharacterSelect),
+            (&mut self.create_ui, SessionScreen::CharacterCreate),
             (&mut self.loading_ui, SessionScreen::Loading),
         ] {
             if let Some(ui) = ui {
@@ -625,7 +782,8 @@ impl GameClient {
             &self.account.session.characters,
             self.account.session.selected_index,
         );
-        let result = ui.bind_mut().set_character_select_state(state);
+        self.delete_confirmation.clear();
+        let result = ui.bind_mut().set_state(state);
         if let Err(error) = result {
             ui.free();
             return Err(error);
@@ -634,6 +792,21 @@ impl GameClient {
             previous.free();
         }
         ui.set_name("CharacterSelectUI");
+        Ok(())
+    }
+
+    fn attach_create_ui(&mut self) -> Result<(), String> {
+        let mut ui = ui::RegistryUi::new_alloc();
+        self.base_mut().add_child(&ui);
+        let error = ui.bind_mut().show_character_create();
+        if !error.is_empty() {
+            ui.free();
+            return Err(error.to_string());
+        }
+        if let Some(previous) = self.create_ui.replace(ui.clone()) {
+            previous.free();
+        }
+        ui.set_name("CharacterCreateUI");
         Ok(())
     }
 
