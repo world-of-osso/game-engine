@@ -14,6 +14,14 @@ func _initialize() -> void:
 	check_models.call_deferred()
 
 func check_models() -> void:
+	if DisplayServer.get_name() == "headless":
+		fail("Attachment pose proof requires a rendered display")
+		return
+	root.size = Vector2i(1280, 720)
+	var camera := Camera3D.new()
+	root.add_child(camera)
+	camera.look_at_from_position(Vector3(0, 1, 5), Vector3(0, 1, 0))
+	camera.make_current()
 	var loader = ClassDB.instantiate("WowAssetLoader")
 	if not await check_attachment(loader, "humanmale_hd", 5, 189, Vector3(-0.026222223, 1.7228644, 0.20848155), 65535):
 		return
@@ -46,7 +54,7 @@ func check_attachment(loader: Object, model_name: String, attachment_id: int, bo
 		return false
 	(model.get_node_or_null("M2Animation") as Node).set_process(false)
 	skeleton.reset_bone_poses()
-	await skeleton.skeleton_updated
+	await RenderingServer.frame_post_draw
 	if attachment.global_position.distance_to(authored_position) > EPSILON:
 		fail(model_name + " attachment rest position: %s != %s" % [attachment.global_position, authored_position])
 		return false
@@ -55,15 +63,17 @@ func check_attachment(loader: Object, model_name: String, attachment_id: int, bo
 	if attachment.position.distance_to(local_offset) > EPSILON:
 		fail(model_name + " local offset does not preserve authored position relative to pivot")
 		return false
+	model.position = Vector3(2.0, 0.3, -1.0)
+	model.rotation.y = 0.4
+	model.scale = Vector3.ONE * 1.1
+	var translation := Vector3(0.3, 0.2, 0.1)
 	skeleton.set_bone_pose_rotation(bone_index, Quaternion(Vector3.UP, 0.65))
-	skeleton.set_bone_pose_position(bone_index, skeleton.get_bone_pose_position(bone_index) + Vector3(0.3, 0.2, 0.1))
-	await skeleton.skeleton_updated
-	var expected := skeleton.get_bone_global_pose(bone_index) * local_offset
-	if attachment.global_position.distance_to(expected) > EPSILON:
-		fail(model_name + " attachment did not follow rotated bone: %s != %s" % [attachment.global_position, expected])
-		return false
-	if not attachment.global_basis.is_equal_approx(skeleton.get_bone_global_pose(bone_index).basis):
-		fail(model_name + " attachment did not follow bone orientation")
+	skeleton.set_bone_pose_position(bone_index, skeleton.get_bone_pose_position(bone_index) + translation)
+	await RenderingServer.frame_post_draw
+	var changed_bone := Transform3D(Basis(Vector3.UP, 0.65), pivot + translation)
+	var expected := model.global_transform * changed_bone * Transform3D(Basis.IDENTITY, local_offset)
+	if not attachment.global_transform.is_equal_approx(expected):
+		fail(model_name + " attachment did not follow bone and model transforms: %s != %s" % [attachment.global_transform, expected])
 		return false
 	if attachment.global_position.distance_to(authored_position) < EPSILON:
 		fail(model_name + " attachment did not move")
