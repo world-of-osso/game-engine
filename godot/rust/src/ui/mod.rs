@@ -31,6 +31,7 @@ pub struct RegistryUi {
     model: Option<RegistryModel>,
     projection: Option<UiProjection>,
     actions: VecDeque<String>,
+    login_fade: Option<f32>,
 }
 
 struct RegistryModel {
@@ -185,6 +186,7 @@ impl ICanvasLayer for RegistryUi {
             model: None,
             projection: None,
             actions: VecDeque::new(),
+            login_fade: None,
         }
     }
 }
@@ -215,6 +217,9 @@ impl RegistryUi {
         };
         model.sync();
         apply_login_art(&mut model.registry)?;
+        // Original login fades in from 0.1s of LOGIN_FADE_SECS.
+        self.login_fade = Some(0.1);
+        set_login_alpha(&mut model.registry, 0.0);
         self.initialize_model(model, width, height)
     }
 
@@ -578,6 +583,22 @@ impl RegistryUi {
         }
     }
 
+    /// Advance the original login fade-in; a no-op once fully opaque.
+    pub fn advance_login_fade(&mut self, dt: f32) -> Result<(), String> {
+        let Some(elapsed) = self.login_fade else {
+            return Ok(());
+        };
+        let elapsed = (elapsed + dt).min(LOGIN_FADE_SECS);
+        self.login_fade = (elapsed < LOGIN_FADE_SECS).then_some(elapsed);
+        let model = self.model.as_mut().ok_or("Login UI is not initialized")?;
+        set_login_alpha(&mut model.registry, elapsed / LOGIN_FADE_SECS);
+        let projection = self
+            .projection
+            .as_mut()
+            .ok_or("Native projection not initialized")?;
+        projection.sync(&mut model.registry)
+    }
+
     pub fn set_loading_state(&mut self, progress_percent: u8, status: &str) -> Result<(), String> {
         let model = self.model.as_mut().ok_or("Loading UI is not initialized")?;
         model.shared.insert(LoadingScreenState {
@@ -647,6 +668,14 @@ fn apply_login_focus_visual(registry: &mut FrameRegistry) {
         } else {
             ([0.22, 0.16, 0.11, 1.0], [1.0, 1.0, 1.0, 1.0])
         };
+    }
+}
+
+const LOGIN_FADE_SECS: f32 = 0.75;
+
+fn set_login_alpha(registry: &mut FrameRegistry, alpha: f32) {
+    if let Some(root) = registry.get_by_name(login::LOGIN_ROOT.0) {
+        registry.set_alpha(root, alpha);
     }
 }
 
