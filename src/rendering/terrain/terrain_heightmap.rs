@@ -7,8 +7,8 @@ use bevy::prelude::*;
 use crate::asset::adt::{self, CHUNK_SIZE, ChunkHeightGrid};
 #[cfg(test)]
 use crate::asset::adt::{UNIT_SIZE, vertex_index};
-use crate::rendering::terrain_height_data::sample_chunk_height;
 use crate::rendering::ground_effects::{self, GroundEffectEntry};
+pub(crate) use crate::rendering::terrain_height_data::sample_chunk_height;
 use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
 use crate::terrain_tile::bevy_to_tile_coords;
 
