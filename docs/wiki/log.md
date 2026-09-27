@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Explicit native creature texture slots
+
+`92ecaf25` fixes the source distinction: `Model::skin_fdids` is SFID geometry `.skin` metadata, not creature texture data. Shared M2 batch resolution now takes explicit `[u32; 3]`: type 2/11 uses slot 0, type 12 slot 1, type 13 slot 2, and type 0 stays TXID. `17ef37f5` exposes `WowAssetLoader.load_m2_with_skin_fdids(path, PackedInt64Array)`, rejecting any input except three nonnegative `u32` values; ordinary `load_m2` passes zero slots and never infers from SFID.
+
+The core selector passes 8/8 after the SFID bug RED (`/tmp/claude/m2-skin-textures-{red,green}.log`). `a40ed6e2`/`f2f5b4fa` add and correct the generated M2/SKIN/BLP GPU contract. The pre-API RED is recorded in `/tmp/claude/m2-skin-pixels-red.log`; the first six-case run incorrectly expected black from an unbound Godot sampler (`/tmp/claude/native-m2-skin-pixels-green.log`). At `f2f5b4fa`, the fixture asserts both nil texture binding and the real white default, then exits 0 with seven pixel cases and invalid-input rejection; the native build is warning-free (`/tmp/claude/native-m2-skin-{build,pixels-corrected}.log`). Verifier304 remains pending. No ordinary model integration, equipment/customization wiring, visual parity, or full conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Bounded M2 effect-UV proof boundary
 
 At `bf3e5bd7`, root sampler tests pass 5/5 after `4814ed00` adds direct `M2TextureUnit` imports (`/tmp/claude/verify-m2-effect-uv-followup-root-tests.log`). The actual-loader Vulkan fixture exits 0 with eight explicit pixel assertions and an enabled-process observation that automatic `/root/M2MaterialClock` processing changes a rendered effect pixel (`/tmp/claude/verify-m2-effect-uv-followup-pixels.log`).
