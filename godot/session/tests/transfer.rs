@@ -33,14 +33,48 @@ fn newest_destination_replaces_earlier_pending_ack() {
 fn refused_transfer_exposes_retail_error_without_clearing_pending_world() {
     let mut session = Session::default();
     session.begin_world_port(530);
-    let error = session.receive_transfer_aborted(TransferAborted {
-        map_id: 1,
-        reason: TransferAbortReason::MapNotAllowed,
-    });
+    let error = session.receive_transfer_aborted(
+        TransferAborted {
+            map_id: 1,
+            reason: TransferAbortReason::MapNotAllowed,
+        },
+        "Kalimdor",
+    );
     assert_eq!(error, "Map cannot be entered at this time.");
     assert_eq!(session.pending_world_port(), PendingWorldPort::Loading(530));
     assert_eq!(session.screen, SessionScreen::Loading);
     assert_eq!(session.feedback, None);
+}
+
+#[test]
+fn refused_heroic_transfer_names_the_aborted_destination() {
+    let mut session = Session::default();
+    session.begin_world_port(530);
+    let error = session.receive_transfer_aborted(
+        TransferAborted {
+            map_id: 34,
+            reason: TransferAbortReason::Difficulty(2),
+        },
+        "Stormwind Stockade",
+    );
+    assert_eq!(
+        error,
+        "Heroic difficulty mode is not available for Stormwind Stockade."
+    );
+    assert_eq!(session.pending_world_port(), PendingWorldPort::Loading(530));
+}
+
+#[test]
+fn refused_full_instance_preserves_exact_text() {
+    let session = Session::default();
+    let error = session.receive_transfer_aborted(
+        TransferAborted {
+            map_id: 34,
+            reason: TransferAbortReason::MaxPlayers,
+        },
+        "Stormwind Stockade",
+    );
+    assert_eq!(error, "Transfer Aborted: instance is full");
 }
 
 #[test]
