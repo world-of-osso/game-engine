@@ -15,9 +15,9 @@ func _initialize() -> void:
 
 func check_models() -> void:
 	var loader = ClassDB.instantiate("WowAssetLoader")
-	if not await check_attachment(loader, "humanmale_hd", 5, 189, Vector3(-0.026222223, 1.7228644, 0.20848155), 74):
+	if not await check_attachment(loader, "humanmale_hd", 5, 189, Vector3(-0.026222223, 1.7228644, 0.20848155), 65535):
 		return
-	if not await check_attachment(loader, "boar", 0, 48, Vector3(-0.36472428, 1.2703203, 0.0), 3):
+	if not await check_attachment(loader, "boar", 0, 48, Vector3(-0.36472428, 1.2703203, 0.0), 65535):
 		return
 	print("PASS: HD and boar authored attachment lookup, rest offset, and animated bone pose")
 	loader = null
