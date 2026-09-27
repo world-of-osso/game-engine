@@ -4,7 +4,7 @@
 
 use std::{
     fs,
-    io::{BufRead, BufReader, Read},
+    io::{BufRead, BufReader, BufWriter, Read, Write},
     net::{SocketAddr, UdpSocket},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -15,8 +15,8 @@ use std::{
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender,
+    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender, server,
 };
 use shared::{
     components::{Health, ModelDisplay, MovementControl, Npc, Player, Position},
@@ -193,7 +193,8 @@ impl FixtureProject {
         if !status.success() {
             return Err(format!("sqlite3 fixture setup exited {status}"));
         }
-        stage_lighting(&data)?;
+        stage_preview_assets(repo, &data)?;
+        stage_lighting(repo, &data)?;
         stage_npc_appearance(&data)?;
         Ok(Self { root, project })
     }
@@ -276,11 +277,59 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
     .map_err(|error| format!("Write fixture races CSV: {error}"))
 }
 
-fn stage_lighting(data: &Path) -> Result<(), String> {
-    let listfile =
-        "910090;world/maps/azeroth/azeroth.wdt\n910091;world/maps/kalimdor/kalimdor.wdt\n";
-    fs::write(data.join("community-listfile.csv"), listfile)
-        .map_err(|error| format!("Write fixture map listfile: {error}"))?;
+fn stage_preview_assets(repo: &Path, data: &Path) -> Result<(), String> {
+    for folder in ["models", "terrain"] {
+        let source = repo.join("data").join(folder);
+        for entry in
+            fs::read_dir(&source).map_err(|error| format!("Read {}: {error}", source.display()))?
+        {
+            let entry = entry.map_err(|error| format!("Read preview asset: {error}"))?;
+            let name = entry.file_name();
+            let name_text = name.to_string_lossy();
+            // Generated NPC models and WDTs remain private writable fixtures.
+            if !entry.path().is_file()
+                || name_text.starts_with("91001")
+                || name_text.starts_with("91009")
+                || name_text.ends_with(".missing")
+            {
+                continue;
+            }
+            std::os::unix::fs::symlink(entry.path(), data.join(folder).join(name))
+                .map_err(|error| format!("Link cached preview asset: {error}"))?;
+        }
+    }
+    std::os::unix::fs::symlink(repo.join("data/Map.csv"), data.join("Map.csv"))
+        .map_err(|error| format!("Link authored map catalog: {error}"))
+}
+
+fn stage_fixture_listfile(repo: &Path, data: &Path) -> Result<(), String> {
+    let source = fs::File::open(repo.join("data/community-listfile.csv"))
+        .map_err(|error| format!("Open authored listfile: {error}"))?;
+    let target = fs::File::create(data.join("community-listfile.csv"))
+        .map_err(|error| format!("Create fixture listfile: {error}"))?;
+    let mut target = BufWriter::new(target);
+    for line in BufReader::new(source).lines() {
+        let line = line.map_err(|error| format!("Read authored listfile: {error}"))?;
+        let path = line.split_once(';').map(|(_, path)| path);
+        if matches!(
+            path,
+            Some("world/maps/azeroth/azeroth.wdt" | "world/maps/kalimdor/kalimdor.wdt")
+        ) {
+            continue;
+        }
+        writeln!(target, "{line}")
+            .map_err(|error| format!("Copy authored listfile entry: {error}"))?;
+    }
+    target
+        .write_all(
+            b"910090;world/maps/azeroth/azeroth.wdt\n910091;world/maps/kalimdor/kalimdor.wdt\n",
+        )
+        .and_then(|_| target.flush())
+        .map_err(|error| format!("Write isolated fixture map overrides: {error}"))
+}
+
+fn stage_lighting(repo: &Path, data: &Path) -> Result<(), String> {
+    stage_fixture_listfile(repo, data)?;
     let mut wdt = Vec::new();
     wdt.extend_from_slice(b"REVM");
     wdt.extend_from_slice(&4u32.to_le_bytes());
