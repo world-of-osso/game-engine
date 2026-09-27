@@ -23,7 +23,7 @@ func select_second_character(client: Node) -> void:
 			if tile.chunk_count <= 0 or not FileAccess.file_exists(tile.root_path):
 				fail("Parsed tile lacks actual terrain geometry or cache file: " + str(tile))
 				return
-		if not inspect_material_tiles(client, terrain.parsed_tiles):
+		if not await inspect_material_tiles(client, terrain.parsed_tiles):
 			return
 		if state.screen != "Loading":
 			fail("Parsed assets alone must not establish rendered world readiness")
@@ -39,7 +39,7 @@ func select_second_character(client: Node) -> void:
 		if not reset.map.is_empty() or not reset.parsed_tiles.is_empty() or reset.pending_count != 0:
 			fail("Reconnect retained previous map asset state: " + str(reset))
 			return
-		if not inspect_reset(client):
+		if not await inspect_reset(client):
 			return
 		print("PASS: real LoadTerrain reads local map/tile assets asynchronously; reconnect clears them without fabricated readiness")
 		client.free()

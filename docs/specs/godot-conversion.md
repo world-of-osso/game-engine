@@ -9,6 +9,7 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 - [ ] Godot owns client rendering, scenes, input, UI, audio, lifecycle, and gameplay. Bevy remains only in the headless networking worker for transport; it is not a rendering/UI/scene/gameplay fallback.
 - [ ] Retain existing local-CASC asset resolution and supported M2/BLP/ADT/WMO parsing semantics, materials, characters, animation, equipment and world streaming.
 - [ ] Preserve existing camera, collision, light/sky/shadow, particle and sound behavior.
+- [ ] Native terrain collision follows rendered ADT triangles, leaves authored holes open, and disappears on map reset/reconnect (`godot/tests/world_collision_flow.gd`).
 
 ### Application and UI parity
 
