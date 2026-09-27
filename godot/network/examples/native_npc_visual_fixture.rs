@@ -4,7 +4,7 @@
 
 use std::{
     fs,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Read},
     net::{SocketAddr, UdpSocket},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -31,6 +31,7 @@ const NAME: &str = "Fixture Player";
 const NPC: &str = "Fixture Creature";
 const DEAD_ON_SPAWN: &str = "Fixture Dead on Spawn";
 const APPEARANCE_NPC: &str = "Fixture Appearance";
+const MISSING_TYPE6_NPC: &str = "Fixture Missing Type6";
 
 #[derive(Resource, Default)]
 struct Incoming {
@@ -166,7 +167,8 @@ impl FixtureProject {
             INSERT INTO creature_displays VALUES (910011,910011,910002,0,0,2000); \
             INSERT INTO creature_displays VALUES (910015,910011,910002,0,0,1); \
             INSERT INTO creature_displays VALUES (910012,910013,910001,0,0,1000); \
-            INSERT INTO creature_displays VALUES (910013,910013,910001,0,0,1000);";
+            INSERT INTO creature_displays VALUES (910013,910013,910001,0,0,1000); \
+            INSERT INTO creature_displays VALUES (910014,910014,910001,0,0,1000);";
         let status = Command::new("sqlite3")
             .arg(data.join("cache/creature_display.sqlite"))
             .arg(sql)
@@ -204,9 +206,9 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         CREATE TABLE appearances (display_id INTEGER PRIMARY KEY, race INTEGER NOT NULL, sex INTEGER NOT NULL, class INTEGER NOT NULL, baked_texture_fdid INTEGER NOT NULL);
         CREATE TABLE choices (display_id INTEGER NOT NULL, choice_id INTEGER NOT NULL, PRIMARY KEY(display_id, choice_id));
         CREATE TABLE geosets (display_id INTEGER NOT NULL, geoset_index INTEGER NOT NULL, geoset_value INTEGER NOT NULL, PRIMARY KEY(display_id, geoset_index));
-        INSERT INTO display_coverage VALUES (910010,0),(910011,0),(910015,0),(910012,1),(910013,1);
-        INSERT INTO appearances VALUES (910012,1,0,2,910020),(910013,1,0,2,0);
-        INSERT INTO choices VALUES (910012,910030),(910012,910031),(910013,910030),(910013,910031);
+        INSERT INTO display_coverage VALUES (910010,0),(910011,0),(910015,0),(910012,1),(910013,1),(910014,1);
+        INSERT INTO appearances VALUES (910012,1,0,2,910020),(910013,1,0,2,0),(910014,1,0,2,0);
+        INSERT INTO choices VALUES (910012,910030),(910012,910031),(910013,910030),(910013,910031),(910014,910030),(910014,910031);
         INSERT INTO geosets VALUES (910012,1,2),(910013,1,1);
     ")?;
     write_sqlite_fixture(data, "customization.sqlite", "
@@ -294,7 +296,7 @@ impl Drop for FixtureProject {
 fn launch_godot(
     project: &Path,
     address: SocketAddr,
-) -> (Child, Receiver<String>, thread::JoinHandle<()>) {
+) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let mut child = Command::new(binary)
         .args(["--headless", "--path"])
@@ -302,12 +304,24 @@ fn launch_godot(
         .args(["--script", "res://tests/world_npc_visual_flow.gd"])
         .env("GODOT_TEST_SERVER", address.to_string())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("start native Godot fixture process");
-    let output = child.stdout.take().expect("read Godot stdout");
+    let stdout = child.stdout.take().expect("read Godot stdout");
+    let stderr = child.stderr.take().expect("read Godot stderr");
     let (sender, receiver) = mpsc::channel();
-    let reader = thread::spawn(move || {
+    let readers = vec![
+        read_godot_output(stdout, sender.clone()),
+        read_godot_output(stderr, sender),
+    ];
+    (child, receiver, readers)
+}
+
+fn read_godot_output(
+    output: impl Read + Send + 'static,
+    sender: mpsc::Sender<String>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
         for line in BufReader::new(output).lines() {
             let line = line.expect("read Godot fixture output");
             println!("godot: {line}");
@@ -315,8 +329,7 @@ fn launch_godot(
                 return;
             }
         }
-    });
-    (child, receiver, reader)
+    })
 }
 
 fn respond_to_login(app: &mut App) -> Result<(), String> {
@@ -422,26 +435,30 @@ fn run_fixture(
     app: &mut App,
     child: &mut Child,
     lines: Receiver<String>,
-    reader: thread::JoinHandle<()>,
+    readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut player = None;
     let mut npc = None;
     let mut phase = 0;
     let deadline = Instant::now() + Duration::from_secs(110);
-    let mut reader = Some(reader);
+    let mut readers = Some(readers);
+    let mut saw_missing_type6_error = false;
     while Instant::now() < deadline {
         app.update();
         respond_to_login(app)?;
         respond_to_selection(app, &mut player, &mut npc)?;
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
-            reader
-                .take()
-                .expect("fixture reader")
-                .join()
-                .map_err(|_| "Godot reader panicked")?;
+            for reader in readers.take().expect("fixture readers") {
+                reader.join().map_err(|_| "Godot reader panicked")?;
+            }
         }
         for line in lines.try_iter() {
+            if line.contains("display 910014:")
+                && line.contains("missing NPC replacement texture type 6")
+            {
+                saw_missing_type6_error = true;
+            }
             match (phase, line.trim()) {
                 (0, "FIXTURE INITIAL_READY") => {
                     app.world_mut()
@@ -644,8 +661,12 @@ fn run_fixture(
                         .insert(ModelDisplay { display_id: 910013 });
                     phase = 21;
                 }
-                (21, "FIXTURE COMPOSED_READY") => phase = 22,
-                (22, "FIXTURE RESET_READY") => phase = 23,
+                (21, "FIXTURE COMPOSED_READY") => {
+                    spawn_named_npc(app, 910014, MISSING_TYPE6_NPC);
+                    phase = 22;
+                }
+                (22, "FIXTURE TYPE6_MISSING_READY") => phase = 23,
+                (23, "FIXTURE RESET_READY") => phase = 24,
                 (_, line) if line.starts_with("FIXTURE ") => {
                     return Err(format!("Out-of-order phase {phase}: {line}"));
                 }
@@ -653,10 +674,17 @@ fn run_fixture(
             }
         }
         if let Some(status) = status {
-            if !status.success() || phase != 23 {
+            if !status.success() || phase != 24 {
                 return Err(format!("Godot exited {status} at phase {phase}"));
             }
-            println!("PASS: native UDP NPC visual lifecycle, authored lighting, and visibility");
+            if !saw_missing_type6_error {
+                return Err(
+                    "Missing display 910014 required type-6 error from native model loading".into(),
+                );
+            }
+            println!(
+                "PASS: native UDP NPC visual lifecycle, authored lighting, visibility, and missing type 6"
+            );
             return Ok(());
         }
         thread::sleep(TICK);

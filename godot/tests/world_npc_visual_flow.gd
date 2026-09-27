@@ -4,6 +4,7 @@ const NPC := "Fixture Creature"
 const DEAD_ON_SPAWN := "Fixture Dead on Spawn"
 const PLAYER := "Fixture Player"
 const APPEARANCE_NPC := "Fixture Appearance"
+const MISSING_TYPE6_NPC := "Fixture Missing Type6"
 const BAKED := Color(230.0 / 255.0, 40.0 / 255.0, 80.0 / 255.0)
 const COMPOSED := Color(30.0 / 255.0, 210.0 / 255.0, 90.0 / 255.0)
 const DISPLAY_A := 910010
@@ -179,6 +180,9 @@ func run_test() -> void:
 	if not await wait_appearance(client, COMPOSED):
 		return
 	print("FIXTURE COMPOSED_READY")
+	if not await wait_missing_type6_visual(client):
+		return
+	print("FIXTURE TYPE6_MISSING_READY")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
 	if reconnect_error != "" or client.get_node_or_null("WorldUnits") != null or client.get_node_or_null("WorldLighting") != null or client.account_state().unit_count != 0:
 		fail("Reconnect retained NPC visual/root: " + reconnect_error)
@@ -381,17 +385,38 @@ func prepare_assets() -> bool:
 	var body_model := make_npc_m2()
 	put_u32(body_model, 8 + 0x210, 1) # Body atlas, unlike ordinary creature type 11.
 	body_model.append_array(chunk("SFID", skin_fdid))
+	var missing_type6_model := make_npc_m2()
+	put_u32(missing_type6_model, 8 + 0x210, 6) # Ordinary batch requires type 6; layout has no head/hair.
+	missing_type6_model.append_array(chunk("SFID", skin_fdid))
 	return write_fixture(data + "/models/910010.m2", model) \
 		and write_fixture(data + "/models/91001000.skin", make_skin(0x10, 1)) \
 		and write_fixture(data + "/models/910011.m2", model) \
 		and write_fixture(data + "/models/91001100.skin", make_skin(0x10, 1)) \
 		and write_fixture(data + "/models/910013.m2", body_model) \
 		and write_fixture(data + "/models/91001300.skin", make_appearance_skin()) \
+		and write_fixture(data + "/models/910014.m2", missing_type6_model) \
+		and write_fixture(data + "/models/91001400.skin", make_skin(0x10, 1)) \
 		and write_fixture(data + "/textures/910001.blp", make_blp(BASE)) \
 		and write_fixture(data + "/textures/910002.blp", make_blp(SECOND)) \
 		and write_fixture(data + "/textures/910020.blp", make_blp(BAKED)) \
 		and write_fixture(data + "/textures/910021.blp", make_blp(BASE)) \
 		and write_fixture(data + "/textures/910022.blp", make_blp(COMPOSED))
+
+func wait_missing_type6_visual(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var npc := client.get_node_or_null("WorldUnits/" + MISSING_TYPE6_NPC)
+		if npc == null:
+			continue
+		for _frame in 10:
+			await process_frame
+			if npc.get_node_or_null("NpcVisualRoot") != null:
+				fail("Missing required type-6 texture created a base-textured NPC visual")
+				return false
+		return true
+	fail("Missing type-6 fixture NPC never replicated")
+	return false
 
 func wait_appearance(client: Node, expected: Color) -> bool:
 	var deadline := Time.get_ticks_msec() + WAIT_MS
