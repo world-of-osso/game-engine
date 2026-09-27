@@ -126,14 +126,14 @@ func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:
 	return false
 
 func wait_for_world(client: Node, timeout_ms: int) -> bool:
-	print("FIXTURE WORLD_WAIT_START elapsed_ms=", Time.get_ticks_msec())
+	print("TRACE WORLD_WAIT_START elapsed_ms=", Time.get_ticks_msec())
 	var deadline := Time.get_ticks_msec() + timeout_ms
 	var next_report := Time.get_ticks_msec() + 5000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
 		if Time.get_ticks_msec() >= next_report:
-			print("FIXTURE WORLD_WAIT elapsed_ms=", Time.get_ticks_msec(), " screen=", state.screen, " units=", state.unit_count, " pending=", state.terrain.pending_count)
+			print("TRACE WORLD_WAIT elapsed_ms=", Time.get_ticks_msec(), " screen=", state.screen, " units=", state.unit_count, " pending=", state.terrain.pending_count)
 			next_report = Time.get_ticks_msec() + 5000
 		if state.screen != "InWorld" or state.selected_character_name != NAME or state.unit_count != 1:
 			continue
@@ -243,12 +243,21 @@ func inspect_character_preview(client: Node) -> bool:
 	if absf(camera.fov - 55.0) > 0.1:
 		fail("Solo character camera FOV is not 55 degrees: " + str(camera.fov))
 		return false
-	if client.get_node_or_null("CharacterSelectScene/CampsiteObjects") == null:
+	var objects := client.get_node_or_null("CharacterSelectScene/CampsiteObjects") as Node3D
+	if objects == null:
 		fail("Authored campsite props and waterfall placements are absent")
+		return false
+	if objects.find_children("Doodad*", "Node3D", false, false).size() != 118 or objects.get_node_or_null("Wmo48366671") == null:
+		fail("Campsite lacks its 76 primary + 42 supplemental doodads or nearby WMO")
+		return false
+	var sky := client.get_node_or_null("CharacterSelectScene/AuthoredSky525142") as Node3D
+	if sky == null:
+		fail("Original campsite sky model is absent")
 		return false
 	if DisplayServer.get_name() == "headless":
 		fail("Character background pixel probe requires a real GPU display")
 		return false
+	paused = true
 	for _frame in range(4):
 		await RenderingServer.frame_post_draw
 	var shown := root.get_texture().get_image()
@@ -284,7 +293,24 @@ func inspect_character_preview(client: Node) -> bool:
 	if count_changed_pixels(without_terrain, without_body) < 200:
 		fail("Selected body stopped contributing GPU pixels when background was hidden")
 		return false
-	print("PASS: authenticated selected character and authored terrain change GPU pixels independently; elapsed_ms=", Time.get_ticks_msec())
+	objects.visible = false
+	for _frame in range(2):
+		await RenderingServer.frame_post_draw
+	var without_objects := root.get_texture().get_image()
+	objects.visible = true
+	if count_changed_pixels(shown, without_objects) < 200:
+		fail("Authored campsite props and waterfall do not contribute visible pixels")
+		return false
+	sky.visible = false
+	for _frame in range(2):
+		await RenderingServer.frame_post_draw
+	var without_sky := root.get_texture().get_image()
+	sky.visible = true
+	paused = false
+	if count_changed_pixels(shown, without_sky) < 50:
+		fail("Original campsite sky does not contribute visible pixels")
+		return false
+	print("PASS: selected body, terrain, props and original sky change GPU pixels independently; elapsed_ms=", Time.get_ticks_msec())
 	return true
 
 func count_changed_pixels(first: Image, second: Image) -> int:
