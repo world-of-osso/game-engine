@@ -1,5 +1,15 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot lighting verification refresh
+
+At exact Rust semantic revision `2faed51b4ad02f27153ee9f36e3d75e35e392505`, `/tmp/claude/verify-native-fmt-2faed51b.log`, `verify-native-check-2faed51b.log`, and `verify-native-terrain-tests-2faed51b.log` record native fmt/check and `terrain::` 15/15 GREEN. `/tmp/claude/verify-world-lighting-flow-2faed51b.log` independently proves bounded real-fixture authored-lighting reset without fabricated readiness; proof revision is `2faed51b`, run while HEAD was `5a011a9b`.
+
+At root revision `ad9d43f4d10e60ae8a366b13257fe7749d00fb34`, wrappers are `sky_lightdata` 7/7, `retail_light` 6/6, `sky_gradient` 4/4, and cubemap 1/1 GREEN. Root check exits 0 with three warnings. `7592486f` moves `sky_band_at_elevation` into test imports; root recheck remains pending. The two `InputBindings` warnings are unchanged from `master`, so they remain reported rather than fixed. `/tmp/claude/verify-terrain-shadow-pixels-5a011a9b.log` independently verifies all six terrain-shadow GPU assertions at committed `5a011a9b`, after fixture/shader blob preflight. It is bounded material/shadow evidence, not native world-shadow, readiness, parity, or full conversion.
+
+At `b8930da0` (core `e3a78779`), `GameClient.terrain_height_at(x, z)` returns shared authored terrain height or nil when unloaded/reset. Development `/tmp/claude/godot-world-height-red.log` and `godot-world-height-green.log` cover the missing API, nine actual rendered-triangle centroids, and reconnect; `godot-world-height-build.log` is warning-free. No independent gate exists. Holes, WMO ground/collision, movement/camera use, readiness, and parity remain unproven.
+
+CSV-row cyclomatic complexity 27 is declarative field decoding with `?` propagation; splitting for that number alone is rejected. Other root/native length or nesting findings are inherited/shared and already deferred; no broad cleanup task is created. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-26] system | Godot terrain-shadow fixture development proof
 
 Committed `5a011a9b969404f61d670f2951e31a8e382b92d1` adds `godot/tests/terrain_shadow_pixels.gd` (fixture blob `204984291a0c33a1b1429ece92c7d9e898ee1e6a`). Development run `/tmp/claude/godot-terrain-shadow-pixels.log` exits 0 for six GPU assertions against terrain shader blob `3871251d3adec49f35b49fcb727c59cfcca73b1c`: terrain lit before caster; lit/shadowed StandardMaterial controls; off-center terrain unchanged; ambient survives shadow while direct/specular are removed; direct/specular return when the caster is removed.
