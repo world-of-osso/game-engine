@@ -282,11 +282,9 @@ fn run_fixture(
         respond_to_selection(app, &mut selected)?;
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
-            reader
-                .take()
-                .expect("fixture stdout reader")
-                .join()
-                .map_err(|_| "Godot stdout reader panicked")?;
+            if let Some(reader) = reader.take() {
+                reader.join().map_err(|_| "Godot stdout reader panicked")?;
+            }
         }
         for line in lines.try_iter() {
             let previous = &phase;
