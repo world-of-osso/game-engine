@@ -90,6 +90,14 @@ pub enum PendingWorldPort {
     Loaded(u32),
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ReconnectPhase {
+    #[default]
+    Inactive,
+    PendingConnect,
+    AwaitingWorld,
+}
+
 #[derive(Default)]
 pub struct Session {
     pub token: Option<String>,
@@ -99,11 +107,59 @@ pub struct Session {
     pub selected_character_id: Option<u64>,
     pub selected_character_name: Option<String>,
     pub screen: SessionScreen,
+    pub reconnect_phase: ReconnectPhase,
+    pub terrain_refresh_seen: bool,
+    reconnect_auto_enter_world: bool,
+    reconnect_preselected_name: Option<String>,
     pending_forced_disconnect: Option<ForcedDisconnect>,
     pending_world_port: PendingWorldPort,
 }
 
 impl Session {
+    pub fn gameplay_input_allowed(&self) -> bool {
+        self.reconnect_phase == ReconnectPhase::Inactive
+    }
+
+    /// Host's token-login intent; the host owns starting the transport and passing credentials.
+    pub fn reconnect_options(&self) -> SessionOptions<'_> {
+        SessionOptions {
+            preselected_name: self.reconnect_preselected_name.as_deref(),
+            auto_enter_world: self.reconnect_auto_enter_world,
+            startup_screen: None,
+        }
+    }
+
+    pub fn receive_connected(&mut self) {
+        if self.reconnect_phase != ReconnectPhase::Inactive {
+            self.reconnect_phase = ReconnectPhase::AwaitingWorld;
+        }
+    }
+
+    pub fn receive_terrain_refresh(&mut self) {
+        if self.reconnect_phase != ReconnectPhase::Inactive {
+            self.terrain_refresh_seen = true;
+        }
+    }
+
+    /// Local unit presence is the completion boundary, not rendered terrain or model readiness.
+    pub fn finish_reconnect(&mut self, local_player_present: bool) -> bool {
+        if self.reconnect_phase == ReconnectPhase::AwaitingWorld
+            && self.terrain_refresh_seen
+            && local_player_present
+        {
+            self.clear_reconnect();
+            return true;
+        }
+        false
+    }
+
+    fn clear_reconnect(&mut self) {
+        self.reconnect_phase = ReconnectPhase::Inactive;
+        self.terrain_refresh_seen = false;
+        self.reconnect_auto_enter_world = false;
+        self.reconnect_preselected_name = None;
+    }
+
     pub fn pending_world_port(&self) -> PendingWorldPort {
         self.pending_world_port
     }
@@ -167,6 +223,7 @@ impl Session {
     ) -> Vec<SessionEffect> {
         self.reset_world_port();
         if !response.success {
+            self.clear_reconnect();
             let error = response.error.unwrap_or_default();
             self.feedback = Some(user_facing_login_error(&error).to_owned());
             self.screen = SessionScreen::Login;
@@ -179,12 +236,20 @@ impl Session {
         self.token = Some(response.token.clone());
         self.feedback = None;
         self.characters = response.characters;
-        self.selected_index = resolve_selected_index(&self.characters, options.preselected_name);
+        let reconnecting = self.reconnect_phase != ReconnectPhase::Inactive;
+        let name = if reconnecting {
+            self.reconnect_preselected_name.as_deref()
+        } else {
+            options.preselected_name
+        };
+        self.selected_index = resolve_selected_index(&self.characters, name);
         let mut effects = vec![SessionEffect::PersistToken(response.token)];
-        let selected = options
-            .auto_enter_world
-            .then(|| self.select_character())
-            .flatten();
+        let auto_enter = if reconnecting {
+            self.reconnect_auto_enter_world
+        } else {
+            options.auto_enter_world
+        };
+        let selected = auto_enter.then(|| self.select_character()).flatten();
         if let Some(selection) = selected {
             effects.push(SessionEffect::SelectCharacter(selection));
             self.screen = SessionScreen::Loading;
@@ -192,6 +257,7 @@ impl Session {
             self.screen = options
                 .startup_screen
                 .unwrap_or(SessionScreen::CharacterSelect);
+            self.clear_reconnect();
         }
         effects.push(SessionEffect::Transition(self.screen));
         effects
@@ -258,6 +324,7 @@ impl Session {
 
     pub fn receive_enter_world(&mut self, response: EnterWorldResponse) -> Vec<SessionEffect> {
         if !response.success {
+            self.clear_reconnect();
             self.screen = SessionScreen::CharacterSelect;
             return vec![SessionEffect::Transition(self.screen)];
         }
@@ -278,20 +345,82 @@ impl Session {
         vec![SessionEffect::RequestDisconnect]
     }
 
-    /// Ordinary connection loss/reconnect is not implemented in this bounded package.
+    /// Compatibility entry point for hosts without a transport reason.
     pub fn receive_disconnected(&mut self) -> Vec<SessionEffect> {
-        self.reset_world_port();
-        let Some(notice) = self.pending_forced_disconnect.take() else {
+        self.receive_disconnected_with_reason(None)
+    }
+
+    pub fn receive_disconnected_with_reason(&mut self, reason: Option<&str>) -> Vec<SessionEffect> {
+        if reason.is_none()
+            && self.pending_forced_disconnect.is_none()
+            && self.reconnect_phase == ReconnectPhase::PendingConnect
+        {
             return Vec::new();
-        };
-        self.feedback = Some(notice.message);
-        let transition = self.screen != SessionScreen::Login;
-        self.screen = SessionScreen::Login;
-        let mut effects = vec![SessionEffect::ResetNetworkWorld];
-        if transition {
-            effects.push(SessionEffect::Transition(self.screen));
         }
-        effects
+        self.reset_world_port();
+        if let Some(notice) = self.pending_forced_disconnect.take() {
+            self.clear_reconnect();
+            self.feedback = Some(notice.message);
+            let transition = self.screen != SessionScreen::Login;
+            self.screen = SessionScreen::Login;
+            let mut effects = vec![SessionEffect::ResetNetworkWorld];
+            if transition {
+                effects.push(SessionEffect::Transition(self.screen));
+            }
+            return effects;
+        }
+        match self.screen {
+            SessionScreen::CharacterSelect
+                if self
+                    .token
+                    .as_deref()
+                    .and_then(normalize_auth_token)
+                    .is_some() =>
+            {
+                self.begin_reconnect(false);
+                vec![SessionEffect::ResetNetworkWorld]
+            }
+            SessionScreen::CharacterSelect => {
+                self.clear_reconnect();
+                self.feedback = Some("Connection lost. Char select is now offline.".into());
+                Vec::new()
+            }
+            SessionScreen::InWorld | SessionScreen::Loading
+                if self
+                    .token
+                    .as_deref()
+                    .and_then(normalize_auth_token)
+                    .is_some() =>
+            {
+                self.begin_reconnect(true);
+                self.screen = SessionScreen::InWorld;
+                vec![
+                    SessionEffect::ResetNetworkWorld,
+                    SessionEffect::Transition(self.screen),
+                ]
+            }
+            SessionScreen::InWorld | SessionScreen::Loading | SessionScreen::CharacterCreate => {
+                self.clear_reconnect();
+                self.feedback = Some("Connection lost.".into());
+                self.screen = SessionScreen::Login;
+                vec![SessionEffect::Transition(self.screen)]
+            }
+            SessionScreen::Login => {
+                self.clear_reconnect();
+                self.feedback = Some("Connection lost.".into());
+                Vec::new()
+            }
+        }
+    }
+
+    fn begin_reconnect(&mut self, auto_enter_world: bool) {
+        self.reconnect_phase = ReconnectPhase::PendingConnect;
+        self.terrain_refresh_seen = false;
+        self.reconnect_auto_enter_world = auto_enter_world;
+        self.reconnect_preselected_name = auto_enter_world
+            .then(|| self.selected_character_name.clone())
+            .flatten();
+        self.feedback = None;
     }
 }
 
