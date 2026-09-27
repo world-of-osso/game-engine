@@ -122,4 +122,19 @@ func run_uv_pixels() -> bool:
 	var v_passed := await assert_pixel("authored +V translation", QUADRANTS[2])
 	set_phase_ms(1000.0)
 	var wrap_passed := await assert_pixel("global duration wraps to first UV", QUADRANTS[0])
-	return control_u and control_v and effect_base and u_passed and uv_passed and shared_phase and v_passed and wrap_passed
+	var automatic := await assert_automatic_pixels()
+	return control_u and control_v and effect_base and u_passed and uv_passed and shared_phase and v_passed and wrap_passed and automatic
+
+func assert_automatic_pixels() -> bool:
+	var clock := get_root().get_node_or_null("M2MaterialClock")
+	if clock == null:
+		push_error("Automatic material clock missing")
+		return false
+	clock.set_process(true)
+	for attempt in 60:
+		var color := await read_center()
+		if color.g > 0.5 or color.b > 0.5:
+			print("PASS: automatic clock changes rendered effect pixel: ", color)
+			return true
+	push_error("Automatic clock did not move the rendered effect texture")
+	return false
