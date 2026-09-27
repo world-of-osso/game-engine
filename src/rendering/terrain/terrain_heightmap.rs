@@ -9,9 +9,14 @@ use crate::asset::adt::{self, CHUNK_SIZE, ChunkHeightGrid};
 use crate::asset::adt::{UNIT_SIZE, vertex_index};
 use crate::rendering::ground_effects::{self, GroundEffectEntry};
 pub(crate) use crate::rendering::terrain_height_data::sample_chunk_height;
+use crate::rendering::terrain_height_data::{
+    WaterLayerSurface as BorrowedWaterLayerSurface, layer_has_water,
+    sample_water_layer_height as sample_shared_water_layer_height,
+};
 use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
 use crate::terrain_tile::bevy_to_tile_coords;
 
+#[cfg(test)]
 const WATER_STEP: f32 = CHUNK_SIZE / 8.0;
 
 #[derive(Clone)]
@@ -215,70 +220,19 @@ impl TerrainHeightmap {
     }
 }
 
-fn layer_has_water(layer: &adt::WaterLayer) -> bool {
-    (0..layer.height as usize).any(|row| {
-        (0..layer.width as usize)
-            .any(|col| row < 8 && col < 8 && ((layer.exists[row] >> col) & 1 != 0))
-    })
-}
-
 fn sample_water_layer_height(layer: &WaterLayerSurface, bx: f32, bz: f32) -> Option<f32> {
-    if layer.width == 0 || layer.height == 0 {
-        return None;
-    }
-    let wow_x = bx;
-    let wow_y = -bz;
-    let abs_col_f = (layer.chunk_origin_wow_y - wow_y) / WATER_STEP;
-    let abs_row_f = (layer.chunk_origin_wow_x - wow_x) / WATER_STEP;
-    let x_min = f32::from(layer.x_offset);
-    let y_min = f32::from(layer.y_offset);
-    let x_max = x_min + f32::from(layer.width);
-    let y_max = y_min + f32::from(layer.height);
-    if abs_col_f < x_min || abs_col_f >= x_max || abs_row_f < y_min || abs_row_f >= y_max {
-        return None;
-    }
-
-    let abs_col = abs_col_f.floor() as usize;
-    let abs_row = abs_row_f.floor() as usize;
-    let col = abs_col.checked_sub(layer.x_offset as usize)?;
-    let row = abs_row.checked_sub(layer.y_offset as usize)?;
-    if !layer_quad_exists(layer, row, col) {
-        return None;
-    }
-
-    let fx = abs_col_f - abs_col as f32;
-    let fz = abs_row_f - abs_row as f32;
-    Some(interpolate_water_height(layer, row, col, fx, fz))
-}
-
-fn layer_quad_exists(layer: &WaterLayerSurface, row: usize, col: usize) -> bool {
-    row < 8 && col < 8 && ((layer.exists[row] >> col) & 1 != 0)
-}
-
-fn interpolate_water_height(
-    layer: &WaterLayerSurface,
-    row: usize,
-    col: usize,
-    fx: f32,
-    fz: f32,
-) -> f32 {
-    let top =
-        water_vertex_height(layer, row, col).lerp(water_vertex_height(layer, row, col + 1), fx);
-    let bottom = water_vertex_height(layer, row + 1, col)
-        .lerp(water_vertex_height(layer, row + 1, col + 1), fx);
-    top.lerp(bottom, fz)
-}
-
-fn water_vertex_height(layer: &WaterLayerSurface, row: usize, col: usize) -> f32 {
-    if layer.vertex_heights.is_empty() {
-        return layer.min_height;
-    }
-    let width = layer.width as usize + 1;
-    layer
-        .vertex_heights
-        .get(row * width + col)
-        .copied()
-        .unwrap_or(layer.min_height)
+    let borrowed = BorrowedWaterLayerSurface {
+        chunk_origin_wow_x: layer.chunk_origin_wow_x,
+        chunk_origin_wow_y: layer.chunk_origin_wow_y,
+        min_height: layer.min_height,
+        x_offset: layer.x_offset,
+        y_offset: layer.y_offset,
+        width: layer.width,
+        height: layer.height,
+        exists: layer.exists,
+        vertex_heights: &layer.vertex_heights,
+    };
+    sample_shared_water_layer_height(&borrowed, bx, bz)
 }
 
 fn dominant_surface_for_chunk(
