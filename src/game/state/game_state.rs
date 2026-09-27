@@ -9,9 +9,11 @@ use crate::camera::{self, WowCamera};
 use crate::game::inworld_scene_stage::{
     InWorldSceneStage, configured_inworld_scene_stage, terrain_is_required_for_loading,
 };
+use crate::game::networking_transfer::PendingWorldPort;
 use crate::networking::{CurrentZone, LocalPlayer, ServerAddr};
 use crate::shadow_config::default_cascade_shadow_config;
 use crate::terrain::AdtManager;
+use shared::components::WorldArrival;
 
 pub use game_engine::game_state_enum::GameState;
 
@@ -403,21 +405,25 @@ pub(crate) fn evaluate_world_loading(
     }
 }
 
-fn check_loading_complete(
-    local_player_q: Query<(), With<LocalPlayer>>,
+/// The world is loaded, and after a map transfer the server's arrival brought the
+/// destination's objects (their models spawn as they are replicated).
+pub(crate) fn check_loading_complete(
+    local_player_q: Query<Option<&WorldArrival>, With<LocalPlayer>>,
     player_q: Query<&Transform, With<camera::Player>>,
     adt_manager: Res<AdtManager>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    mut world_port: ResMut<PendingWorldPort>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    let local_player_ready = !local_player_q.is_empty();
+    let local_player = local_player_q.single().ok();
+    let local_player_ready = local_player.is_some();
     let scene_stage = configured_inworld_scene_stage(scene_stage);
-    let loading_complete = if terrain_is_required_for_loading(scene_stage) {
+    let map_ready = if terrain_is_required_for_loading(scene_stage) {
         evaluate_world_loading(local_player_ready, &adt_manager, player_q.single().ok()).complete
     } else {
         local_player_ready
     };
-    if loading_complete {
+    if map_ready && world_port.arrived(local_player.flatten()) {
         next_state.set(GameState::InWorld);
     }
 }
@@ -634,6 +640,7 @@ mod tests {
         app.add_plugins(bevy::state::app::StatesPlugin);
         app.insert_state(GameState::Loading);
         app.insert_resource(AdtManager::default());
+        app.init_resource::<PendingWorldPort>();
         app.add_systems(
             Update,
             check_loading_complete.run_if(in_state(GameState::Loading)),
@@ -677,6 +684,7 @@ mod tests {
         adt_manager.load_radius = 0;
         app.insert_resource(adt_manager);
         app.init_resource::<crate::terrain_heightmap::TerrainHeightmap>();
+        app.init_resource::<PendingWorldPort>();
         app.insert_resource(CurrentZone {
             zone_id: 12,
             area_id: 9,
@@ -797,6 +805,7 @@ mod tests {
         app.add_plugins(bevy::state::app::StatesPlugin);
         app.insert_state(GameState::Loading);
         app.insert_resource(AdtManager::default());
+        app.init_resource::<PendingWorldPort>();
         app.insert_resource(crate::InWorldSceneStage::Character);
         app.add_systems(
             Update,
