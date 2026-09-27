@@ -251,6 +251,11 @@ fn take_inputs(app: &mut App) -> Vec<PlayerInput> {
 
 fn assert_forward_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
     for input in &inputs {
+        if !input.elapsed_secs.is_finite() || input.elapsed_secs <= 0.0 {
+            return Err(format!(
+                "W input lost its applied frame duration: {input:?}"
+            ));
+        }
         let [x, y, z] = input.direction;
         if x.abs() > 0.15 || y.abs() > 0.01 || z > -0.9 || z < -1.1 {
             return Err(format!(

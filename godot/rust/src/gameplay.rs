@@ -126,7 +126,7 @@ impl PlayerMovement {
         }
     }
 
-    pub fn network_input(&self, yaw: f32) -> Option<PlayerInput> {
+    pub fn network_input(&self, yaw: f32, elapsed_secs: f32) -> Option<PlayerInput> {
         let direction = movement_to_direction(self.direction, yaw);
         if direction == [0.0; 3] && !self.jumping {
             return None;
@@ -137,6 +137,7 @@ impl PlayerMovement {
             running: self.running,
             jumping: self.jumping,
             swimming: self.swimming,
+            elapsed_secs,
         })
     }
 
@@ -241,12 +242,12 @@ impl crate::GameClient {
             && self.account.session.gameplay_input_allowed()
     }
 
-    pub(super) fn send_player_input(&self) -> Result<(), String> {
+    pub(super) fn send_player_input(&self, elapsed_secs: f32) -> Result<(), String> {
         if !self.gameplay_input_allowed() || self.world.local_player_controlled() {
             return Ok(());
         }
         if let Some(yaw) = self.world.local_player_facing()
-            && let Some(input) = self.player_movement.network_input(yaw)
+            && let Some(input) = self.player_movement.network_input(yaw, elapsed_secs)
         {
             self.account.send_player_input(input)?;
         }
