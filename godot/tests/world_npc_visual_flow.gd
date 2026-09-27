@@ -350,16 +350,20 @@ func make_npc_m2() -> PackedByteArray:
 func make_appearance_skin() -> PackedByteArray:
 	var original := make_skin(0x10, 1)
 	var skin := original.slice(0, 64)
+	skin.append_array(original.slice(52, 64)) # Second submesh needs its own six indices.
 	skin.append_array(original.slice(64, 112)) # Geoset variant 1.
 	skin.append_array(original.slice(64, 112)) # Geoset variant 2.
 	skin.append_array(original.slice(112, 136))
 	skin.append_array(original.slice(112, 136))
+	put_u32(skin, 12, 12) # Two sets of six indices.
 	put_u32(skin, 28, 2) # Two submeshes.
+	put_u32(skin, 32, 76)
 	put_u32(skin, 36, 2) # Two batches.
-	put_u32(skin, 40, 160)
-	put_u16(skin, 64, 101)
-	put_u16(skin, 112, 102)
-	put_u16(skin, 184 + 4, 1) # Second batch uses submesh 1.
+	put_u32(skin, 40, 172)
+	put_u16(skin, 76, 101)
+	put_u16(skin, 124, 102)
+	put_u16(skin, 124 + 8, 6) # Second submesh begins after the first six indices.
+	put_u16(skin, 196 + 4, 1) # Second batch uses submesh 1.
 	return skin
 
 func prepare_assets() -> bool:
