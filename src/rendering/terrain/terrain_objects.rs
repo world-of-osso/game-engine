@@ -755,12 +755,7 @@ pub(super) fn placement_to_bevy_absolute(raw: [f32; 3]) -> [f32; 3] {
 }
 
 fn placement_to_bevy_on_tile(raw: [f32; 3], tile_y: u32, tile_x: u32) -> [f32; 3] {
-    let absolute = placement_to_bevy_absolute(raw);
-    let (abs_ty, abs_tx) = crate::terrain_tile::bevy_to_tile_coords(absolute[0], absolute[2]);
-    if abs_ty.abs_diff(tile_y) <= 1 && abs_tx.abs_diff(tile_x) <= 1 {
-        return absolute;
-    }
-    crate::asset::m2::wow_to_bevy(raw[0], raw[2], raw[1])
+    game_engine::campsite_object_data::placement_position(raw, tile_y, tile_x).to_array()
 }
 
 /// Convert WMO placement to a Bevy Transform.

@@ -61,7 +61,11 @@ pub fn is_supplemental_campsite_doodad(model_name: Option<&str>) -> bool {
 /// Legacy absolute ADT placement, with the original per-tile check and M2
 /// coordinate fallback for placement records outside the expected tile.
 pub fn doodad_position(doodad: &DoodadPlacement, tile_y: u32, tile_x: u32) -> Vec3 {
-    let raw = doodad.position;
+    placement_position(doodad.position, tile_y, tile_x)
+}
+
+/// Shared MDDF/MODF position conversion with the original tile-coordinate check.
+pub fn placement_position(raw: [f32; 3], tile_y: u32, tile_x: u32) -> Vec3 {
     let absolute = Vec3::new(MAP_CENTER - raw[2], raw[1], raw[0] - MAP_CENTER);
     let row = ((MAP_CENTER + absolute.z) / TILE_SIZE).floor() as i32;
     let col = ((MAP_CENTER - absolute.x) / TILE_SIZE).floor() as i32;
