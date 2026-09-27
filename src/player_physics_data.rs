@@ -1,6 +1,50 @@
 //! Bevy-free horizontal proposal and vertical ground transitions.
 
-use glam::Vec3;
+use glam::{Vec2, Vec3};
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct GroundSample {
+    pub height: f32,
+    pub is_terrain: bool,
+}
+
+pub fn is_walkable_slope(height_diff: f32, horizontal_dist: f32, max_slope_angle: f32) -> bool {
+    if horizontal_dist < 0.001 {
+        return true;
+    }
+    let slope = (height_diff / horizontal_dist).abs().atan();
+    slope <= max_slope_angle
+}
+
+/// Decide whether to block or snap a movement using already-probed ground.
+/// The caller probes the target at the proposed XZ and the current Y.
+pub fn validate_movement_slope(
+    current: Vec3,
+    proposed: Vec3,
+    origin: Option<GroundSample>,
+    target: Option<GroundSample>,
+    snap_to_ground: bool,
+    max_slope_angle: f32,
+    step_up_height: f32,
+) -> Vec3 {
+    let Some(target) = target else {
+        return proposed;
+    };
+    if let Some(origin) = origin
+        && origin.is_terrain
+        && target.is_terrain
+    {
+        let horizontal = Vec2::new(proposed.x - current.x, proposed.z - current.z).length();
+        if !is_walkable_slope(target.height - origin.height, horizontal, max_slope_angle) {
+            return current;
+        }
+    }
+    if snap_to_ground && target.height >= current.y - step_up_height {
+        proposed.with_y(target.height)
+    } else {
+        proposed
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum GroundState {
