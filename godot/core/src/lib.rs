@@ -12,6 +12,8 @@ pub mod camera_input_data;
 pub mod char_texture_data;
 #[path = "../../../src/rendering/character/char_texture_query_data.rs"]
 pub mod char_texture_query_data;
+#[path = "../../../src/character_model_data.rs"]
+pub mod character_model_data;
 #[path = "../../../src/client_options_data.rs"]
 pub mod client_options_data;
 #[cfg(test)]
