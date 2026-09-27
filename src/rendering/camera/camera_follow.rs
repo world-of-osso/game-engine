@@ -113,8 +113,8 @@ pub(super) fn camera_follow(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::camera_follow_data::EYE_HEIGHT;
     use bevy::camera::primitives::Aabb;
+    use game_engine::camera_follow_data::EYE_HEIGHT;
     use std::time::Duration;
 
     #[derive(Resource, Default)]
@@ -142,7 +142,7 @@ mod tests {
         let camera = app
             .world_mut()
             .spawn((
-                WowCamera(crate::camera_control_data::CameraState {
+                WowCamera(game_engine::camera_control_data::CameraState {
                     pitch: 0.0,
                     distance: 10.0,
                     target_distance: 10.0,
@@ -328,7 +328,7 @@ mod tests {
             .world_mut()
             .spawn((
                 Camera3d::default(),
-                WowCamera(crate::camera_control_data::CameraState {
+                WowCamera(game_engine::camera_control_data::CameraState {
                     pitch: 0.0,
                     distance: 10.0,
                     target_distance: 10.0,
