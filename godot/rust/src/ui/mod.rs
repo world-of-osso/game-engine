@@ -1,4 +1,5 @@
 mod assets;
+mod icon_masks;
 mod layout;
 mod parts;
 mod projection;
@@ -37,6 +38,7 @@ struct RegistryModel {
     shared: SharedContext,
     registry: FrameRegistry,
     postsetup: ScreenPostsetup,
+    icon_masks: icon_masks::IconMasks,
 }
 
 #[derive(Clone, Copy)]
@@ -60,6 +62,7 @@ impl RegistryModel {
             ScreenPostsetup::CharacterSelect => apply_char_select_postsetup(&mut self.registry),
             ScreenPostsetup::CharacterCreate => {
                 apply_character_create_postsetup(&self.shared, &mut self.registry);
+                self.icon_masks.apply(&mut self.registry);
             }
         }
     }
@@ -207,6 +210,7 @@ impl RegistryUi {
             screen,
             shared,
             registry,
+            icon_masks: Default::default(),
             postsetup: ScreenPostsetup::Login,
         };
         model.sync();
@@ -234,6 +238,7 @@ impl RegistryUi {
             screen,
             shared,
             registry,
+            icon_masks: Default::default(),
             postsetup: ScreenPostsetup::None,
         };
         model.sync();
@@ -379,6 +384,7 @@ impl RegistryUi {
             screen,
             shared,
             registry,
+            icon_masks: Default::default(),
             postsetup: ScreenPostsetup::None,
         };
         model.sync();
@@ -408,6 +414,7 @@ impl RegistryUi {
             screen,
             shared,
             registry,
+            icon_masks: Default::default(),
             postsetup: ScreenPostsetup::CharacterSelect,
         };
         model.sync();
@@ -437,6 +444,7 @@ impl RegistryUi {
             screen,
             shared,
             registry,
+            icon_masks: Default::default(),
             postsetup: ScreenPostsetup::CharacterCreate,
         };
         model.sync();

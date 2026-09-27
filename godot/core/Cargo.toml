@@ -7,6 +7,8 @@ rust-version.workspace = true
 [dependencies]
 binrw = "0.15.1"
 image-blp = "1"
+# Same resize filter as the original character-creation portrait mask.
+image = { version = "0.25", default-features = false }
 # Same glam version as Bevy math, for shared camera vectors/quaternions.
 glam = "0.32.0"
 # Encode the shared procedural sky cubemap as linear RGBA16F pixels.

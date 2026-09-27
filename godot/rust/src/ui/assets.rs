@@ -85,6 +85,14 @@ fn decode_png(path: &str, bytes: &[u8]) -> Result<Gd<ImageTexture>, String> {
         .ok_or_else(|| format!("Create PNG texture {path}: Godot rejected decoded image"))
 }
 
+pub fn decode_blp(path: &str) -> Result<game_engine_core::blp::RgbaImage, String> {
+    decode_blp_bytes(path, &load_bytes(path)?)
+}
+
+fn decode_blp_bytes(path: &str, bytes: &[u8]) -> Result<game_engine_core::blp::RgbaImage, String> {
+    game_engine_core::blp::decode_rgba(bytes).map_err(|error| format!("Decode BLP {path}: {error}"))
+}
+
 fn load_file(path: &str) -> Result<Gd<ImageTexture>, String> {
     let bytes = load_bytes(path)?;
     if path.to_ascii_lowercase().ends_with(".ktx2") {
@@ -94,8 +102,7 @@ fn load_file(path: &str) -> Result<Gd<ImageTexture>, String> {
         return decode_png(path, &bytes);
     }
     if path.to_ascii_lowercase().ends_with(".blp") {
-        let rgba = game_engine_core::blp::decode_rgba(&bytes)
-            .map_err(|error| format!("Decode BLP {path}: {error}"))?;
+        let rgba = decode_blp_bytes(path, &bytes)?;
         return image_from_rgba(rgba.width, rgba.height, &rgba.pixels);
     }
     Err(format!("Unsupported authored UI texture file {path}"))
