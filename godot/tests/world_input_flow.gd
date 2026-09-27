@@ -1,6 +1,8 @@
 extends SceneTree
 
 const NAME := "Input Fixture"
+const REMOTE_NAME := "Remote Fixture"
+const REMOTE := Vector3(-8946.0, 112.879913, 0.0)
 const UNEQUIPPED_NAME := "Unequipped Fixture"
 const COLLECTION_NAME := "Collection Fixture"
 const SELECTION_WAIT_MS := 30000
@@ -158,17 +160,41 @@ func inspect_world_equipment(client: Node, player: Node3D) -> bool:
 	if visual == null or probe.inspect_visual(visual, true) != "":
 		fail("Replicated selected Player lacks visible authored body, skeleton or starter hands")
 		return false
+	var remote := client.get_node_or_null("WorldUnits/" + REMOTE_NAME) as Node3D
+	var remote_visual: Node3D = null
+	deadline = Time.get_ticks_msec() + SELECTION_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if remote == null:
+			remote = client.get_node_or_null("WorldUnits/" + REMOTE_NAME) as Node3D
+		if remote != null:
+			remote_visual = probe.find_visual(remote) as Node3D
+			if remote_visual != null and probe.inspect_visual(remote_visual, true) == "":
+				break
+	if remote_visual == null or probe.inspect_visual(remote_visual, true) != "" or remote.position.distance_to(REMOTE) > 0.5:
+		fail("Replicated remote human female lacks positioned authored body, skeleton or starter hands")
+		return false
+	var remote_id := remote.get_instance_id()
+	var remote_hands := equipment_hands(remote_visual)
+	var remote_pixels: String = await probe.capture_equipped(self, remote, remote_visual, "inworld-remote-female-player.png")
+	if remote_pixels != "":
+		fail(remote_pixels)
+		return false
+	var remote_poses: Array[Transform3D] = probe.pause_and_capture_pose(remote_visual)
+	if remote_poses.is_empty():
+		fail("Replicated remote human female lacks advancing authored animation")
+		return false
 	var pixel_error: String = await probe.capture_equipped(self, player, visual, "inworld-selected-player.png")
 	if pixel_error != "":
 		fail(pixel_error)
 		return false
-	var removed_hands := [weakref(visual.find_child("EquipmentMainHand", true, false)), weakref(visual.find_child("EquipmentOffHand", true, false))]
+	var removed_hands := equipment_hands(visual)
 	var paused_poses: Array[Transform3D] = probe.pause_and_capture_pose(visual)
 	if paused_poses.is_empty():
 		fail("Replicated selected Player lacks advancing authored animation")
 		return false
 	print("FIXTURE WORLD_READY")
-	if not await wait_world_equipment(client, player, unit_id, removed_hands, false, probe):
+	if not await wait_world_equipment(client, player, unit_id, removed_hands, false, probe, remote, remote_id, remote_visual, remote_hands, remote_poses):
 		return false
 	var empty_visual := probe.find_visual(player) as Node3D
 	var pose_error: String = probe.compare_pose(empty_visual, paused_poses)
@@ -176,7 +202,7 @@ func inspect_world_equipment(client: Node, player: Node3D) -> bool:
 		fail(pose_error)
 		return false
 	print("FIXTURE EQUIPMENT_REMOVED")
-	if not await wait_world_equipment(client, player, unit_id, [], true, probe):
+	if not await wait_world_equipment(client, player, unit_id, [], true, probe, remote, remote_id, remote_visual, remote_hands, remote_poses):
 		return false
 	var restored := probe.find_visual(player) as Node3D
 	pose_error = probe.compare_pose(restored, paused_poses)
@@ -187,16 +213,60 @@ func inspect_world_equipment(client: Node, player: Node3D) -> bool:
 	if pixel_error != "":
 		fail(pixel_error)
 		return false
-	probe.resume_animation(restored)
 	print("FIXTURE EQUIPMENT_RESTORED")
+	var local_hands := equipment_hands(restored)
+	if not await wait_world_equipment(client, remote, remote_id, remote_hands, false, probe, player, unit_id, restored, local_hands, paused_poses):
+		return false
+	pose_error = probe.compare_pose(probe.find_visual(remote), remote_poses)
+	if pose_error != "":
+		fail("Remote removal: " + pose_error)
+		return false
+	print("FIXTURE REMOTE_EQUIPMENT_REMOVED")
+	if not await wait_world_equipment(client, remote, remote_id, [], true, probe, player, unit_id, restored, local_hands, paused_poses):
+		return false
+	var remote_restored := probe.find_visual(remote) as Node3D
+	pose_error = probe.compare_pose(remote_restored, remote_poses)
+	if pose_error != "":
+		fail("Remote restoration: " + pose_error)
+		return false
+	remote_pixels = await probe.capture_equipped(self, remote, remote_restored, "inworld-remote-female-player-restored.png")
+	if remote_pixels != "":
+		fail(remote_pixels)
+		return false
+	var local_error := unchanged_equipment(client, player, unit_id, restored, local_hands, paused_poses, probe)
+	if local_error != "":
+		fail("Local player changed during remote pixel proof: " + local_error)
+		return false
+	probe.resume_animation(restored)
+	probe.resume_animation(remote_restored)
+	print("FIXTURE REMOTE_EQUIPMENT_RESTORED")
 	return true
 
-func wait_world_equipment(client: Node, player: Node3D, unit_id: int, removed_hands: Array, equipped: bool, probe) -> bool:
+func equipment_hands(visual: Node3D) -> Array:
+	return [weakref(visual.find_child("EquipmentMainHand", true, false)), weakref(visual.find_child("EquipmentOffHand", true, false))]
+
+func unchanged_equipment(client: Node, unit: Node3D, unit_id: int, visual: Node3D, hands: Array, poses: Array[Transform3D], probe) -> String:
+	if client.get_node_or_null("WorldUnits/" + str(unit.name)) != unit or unit.get_instance_id() != unit_id:
+		return "replicated unit identity changed: " + str(unit.name)
+	if probe.find_visual(unit) != visual or probe.inspect_visual(visual, true) != "":
+		return "replicated body or gear changed: " + str(unit.name)
+	var hand_names := ["EquipmentMainHand", "EquipmentOffHand"]
+	for index in hand_names.size():
+		var hand: WeakRef = hands[index]
+		if hand.get_ref() == null or visual.find_child(hand_names[index], true, false) != hand.get_ref():
+			return "replicated hand node changed: " + str(unit.name) + "/" + hand_names[index]
+	return probe.compare_pose(visual, poses)
+
+func wait_world_equipment(client: Node, player: Node3D, unit_id: int, removed_hands: Array, equipped: bool, probe, other: Node3D, other_id: int, other_visual: Node3D, other_hands: Array, other_poses: Array[Transform3D]) -> bool:
 	var deadline := Time.get_ticks_msec() + SELECTION_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		if client.get_node_or_null("WorldUnits/" + NAME) != player or player.get_instance_id() != unit_id:
-			fail("Replicated equipment update replaced selected server unit node")
+		if client.get_node_or_null("WorldUnits/" + str(player.name)) != player or player.get_instance_id() != unit_id:
+			fail("Replicated equipment update replaced server unit node: " + str(player.name))
+			return false
+		var other_error := unchanged_equipment(client, other, other_id, other_visual, other_hands, other_poses, probe)
+		if other_error != "":
+			fail("Equipment update affected other player: " + other_error)
 			return false
 		var visual := probe.find_visual(player) as Node3D
 		if visual == null:
@@ -264,7 +334,7 @@ func wait_for_world(client: Node, timeout_ms: int) -> bool:
 		if Time.get_ticks_msec() >= next_report:
 			print("TRACE WORLD_WAIT elapsed_ms=", Time.get_ticks_msec(), " screen=", state.screen, " units=", state.unit_count, " pending=", state.terrain.pending_count)
 			next_report = Time.get_ticks_msec() + 5000
-		if state.screen != "InWorld" or state.selected_character_name != NAME or state.unit_count != 1:
+		if state.screen != "InWorld" or state.selected_character_name != NAME or state.unit_count != 2:
 			continue
 		var terrain: Dictionary = state.terrain
 		if terrain.map != "azeroth" or terrain.pending_count != 0 or not terrain.failures.is_empty() or terrain.parsed_tiles.is_empty():

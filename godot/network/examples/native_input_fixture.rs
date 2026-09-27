@@ -27,10 +27,12 @@ use shared::{
 };
 
 const NAME: &str = "Input Fixture";
+const REMOTE_NAME: &str = "Remote Fixture";
 const UNEQUIPPED_NAME: &str = "Unequipped Fixture";
 const COLLECTION_NAME: &str = "Collection Fixture";
 // Authored terrain height; the transfer-only fixture's Y=83 is below this surface.
 const FIRST: [f32; 3] = [-8949.0, 112.879_913, 0.0];
+const REMOTE: [f32; 3] = [-8946.0, 112.879_913, 0.0];
 const TICK: Duration = Duration::from_millis(5);
 // Five authored preview loads reached 88s before world readiness on the expanded fixture.
 const TIMEOUT: Duration = Duration::from_secs(180);
@@ -229,7 +231,11 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
     Ok(())
 }
 
-fn respond_to_selection(app: &mut App, selected: &mut Option<Entity>) -> Result<(), String> {
+fn respond_to_selection(
+    app: &mut App,
+    selected: &mut Option<Entity>,
+    remote: &mut Option<Entity>,
+) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().selections);
     for request in requests {
         if selected.is_some() || request.character_id != 17 {
@@ -257,6 +263,27 @@ fn respond_to_selection(app: &mut App, selected: &mut Option<Entity>) -> Result<
             ))
             .id();
         *selected = Some(player);
+        let mut remote_player = Player {
+            name: REMOTE_NAME.into(),
+            race: 1,
+            class: 2,
+            appearance: Default::default(),
+        };
+        remote_player.appearance.sex = 1;
+        *remote = Some(
+            app.world_mut()
+                .spawn((
+                    remote_player,
+                    starter_equipment(),
+                    Position {
+                        x: REMOTE[0],
+                        y: REMOTE[1],
+                        z: REMOTE[2],
+                    },
+                    Replicate::to_clients(NetworkTarget::All),
+                ))
+                .id(),
+        );
         send::<_, AuthChannel>(
             app,
             EnterWorldResponse {
@@ -303,6 +330,8 @@ enum Phase {
     AwaitWorld,
     AwaitRemoved,
     AwaitRestored,
+    AwaitRemoteRemoved,
+    AwaitRemoteRestored,
     Held,
     Released,
     Stopped,
@@ -311,6 +340,7 @@ enum Phase {
 fn accept_phase_line(
     app: &mut App,
     player: Option<Entity>,
+    remote: Option<Entity>,
     phase: &mut Phase,
     line: &str,
 ) -> Result<(), String> {
@@ -354,6 +384,24 @@ fn accept_phase_line(
             if !take_inputs(app).is_empty() {
                 return Err("PlayerInput arrived before restored equipment".into());
             }
+            app.world_mut()
+                .entity_mut(remote.expect("remote player exists at equipment restoration"))
+                .insert(EquipmentAppearance::default());
+            *phase = Phase::AwaitRemoteRemoved;
+        }
+        (Phase::AwaitRemoteRemoved, "FIXTURE REMOTE_EQUIPMENT_REMOVED") => {
+            if !take_inputs(app).is_empty() {
+                return Err("PlayerInput arrived during remote equipment removal".into());
+            }
+            app.world_mut()
+                .entity_mut(remote.expect("remote player exists at equipment removal"))
+                .insert(starter_equipment());
+            *phase = Phase::AwaitRemoteRestored;
+        }
+        (Phase::AwaitRemoteRestored, "FIXTURE REMOTE_EQUIPMENT_RESTORED") => {
+            if !take_inputs(app).is_empty() {
+                return Err("PlayerInput arrived before remote equipment restoration".into());
+            }
             *phase = Phase::Held;
         }
         (Phase::Held, "FIXTURE RELEASED") => *phase = Phase::Released,
@@ -375,6 +423,7 @@ fn run_fixture(
     reader: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut selected = None;
+    let mut remote = None;
     let mut phase = Phase::AwaitLoading;
     let mut saw_forward = false;
     let mut released_at = None;
@@ -383,7 +432,7 @@ fn run_fixture(
     while Instant::now() < deadline {
         app.update();
         respond_to_login(app)?;
-        respond_to_selection(app, &mut selected)?;
+        respond_to_selection(app, &mut selected, &mut remote)?;
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
             if let Some(readers) = reader.take() {
@@ -400,7 +449,7 @@ fn run_fixture(
             {
                 return Err("Loading was observed before character selection".into());
             }
-            accept_phase_line(app, selected, &mut phase, line.trim())?;
+            accept_phase_line(app, selected, remote, &mut phase, line.trim())?;
             if phase == Phase::Released && released_at.is_none() {
                 released_at = Some(Instant::now());
             }
@@ -409,7 +458,9 @@ fn run_fixture(
             Phase::AwaitLoading
             | Phase::AwaitWorld
             | Phase::AwaitRemoved
-            | Phase::AwaitRestored => {
+            | Phase::AwaitRestored
+            | Phase::AwaitRemoteRemoved
+            | Phase::AwaitRemoteRestored => {
                 if !take_inputs(app).is_empty() {
                     return Err(format!("PlayerInput arrived during {phase:?}"));
                 }
