@@ -28,7 +28,11 @@ func select_second_character(client: Node) -> void:
 		if state.screen != "InWorld":
 			fail("Selected player and attached center terrain must complete original loading gate: " + str(state.screen))
 			return
-		if client.get_node("LoadingUI").visible:
+		var loading_ui := client.get_node_or_null("LoadingUI")
+		if loading_ui == null:
+			fail("Loading screen replacement lost its stable node name")
+			return
+		if loading_ui.visible:
 			fail("Completed loading gate retained visible loading screen")
 			return
 		var error = client.connect_account("127.0.0.1:5000", "admin", "admin", false)
