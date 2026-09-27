@@ -384,6 +384,83 @@ mod tests {
         );
     }
 
+    fn clothing_compositor() -> CharTextureData {
+        use game_engine_core::char_texture_data::{TextureLayout, TextureSection};
+        CharTextureData::from_parts(
+            Vec::new(),
+            HashMap::from([(
+                (7, 3),
+                TextureSection {
+                    x: 1,
+                    y: 0,
+                    width: 1,
+                    height: 2,
+                },
+            )]),
+            HashMap::from([(
+                7,
+                TextureLayout {
+                    width: 2,
+                    height: 2,
+                },
+            )]),
+        )
+    }
+
+    fn empty_choices() -> PlayerChoices {
+        PlayerChoices {
+            choice_ids: HashSet::new(),
+            materials: Vec::new(),
+            geosets: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn equipped_clothing_replaces_its_section_and_preserves_uncovered_skin() {
+        let textures = compose_player_pixels(
+            &clothing_compositor(),
+            &empty_choices(),
+            &[(3, 777)],
+            7,
+            |fdid| {
+                Ok((
+                    if fdid == 777 {
+                        vec![10, 200, 30, 255]
+                    } else {
+                        vec![120, 80, 40, 255]
+                    },
+                    1,
+                    1,
+                ))
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            textures[&1].0,
+            [
+                120, 80, 40, 255, 10, 200, 30, 255, 120, 80, 40, 255, 10, 200, 30, 255
+            ]
+        );
+    }
+
+    #[test]
+    fn missing_equipped_clothing_texture_fails_explicitly() {
+        let result = compose_player_pixels(
+            &clothing_compositor(),
+            &empty_choices(),
+            &[(3, 777)],
+            7,
+            |fdid| {
+                if fdid == 777 {
+                    Err("missing equipped texture FDID 777".into())
+                } else {
+                    Ok((vec![120, 80, 40, 255], 1, 1))
+                }
+            },
+        );
+        assert_eq!(result.unwrap_err(), "missing equipped texture FDID 777");
+    }
+
     #[test]
     fn missing_selected_texture_fails_before_compositing() {
         let compositor =
