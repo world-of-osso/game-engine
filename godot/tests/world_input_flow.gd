@@ -105,7 +105,8 @@ func run_test() -> void:
 		return
 	if not await inspect_ground_collision(client, start):
 		return
-	print("FIXTURE WORLD_READY")
+	if not await inspect_world_equipment(client, player):
+		return
 	for frame in range(6):
 		await process_frame
 		if client.account_state().screen != "InWorld":
@@ -143,6 +144,52 @@ func run_test() -> void:
 	print("SHUTDOWN: client freed")
 	quit(0)
 	print("SHUTDOWN: quit requested")
+
+func inspect_world_equipment(client: Node, player: Node3D) -> bool:
+	var probe = load("res://tests/world_player_equipment_pixels.gd").new()
+	var unit_id := player.get_instance_id()
+	var visual: Node3D = null
+	var deadline := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		visual = probe.find_visual(player) as Node3D
+		if visual != null and probe.inspect_visual(visual, true) == "":
+			break
+	if visual == null or probe.inspect_visual(visual, true) != "":
+		fail("Replicated selected Player lacks visible authored body, skeleton or starter hands")
+		return false
+	var pixel_error: String = await probe.capture_initial(self, player, visual)
+	if pixel_error != "":
+		fail(pixel_error)
+		return false
+	var old_visual := weakref(visual)
+	print("FIXTURE WORLD_READY")
+	if not await wait_world_equipment(client, player, unit_id, old_visual, false, probe):
+		return false
+	var empty_visual := probe.find_visual(player) as Node3D
+	var empty_ref := weakref(empty_visual)
+	print("FIXTURE EQUIPMENT_REMOVED")
+	if not await wait_world_equipment(client, player, unit_id, empty_ref, true, probe):
+		return false
+	print("FIXTURE EQUIPMENT_RESTORED")
+	return true
+
+func wait_world_equipment(client: Node, player: Node3D, unit_id: int, old_visual: WeakRef, equipped: bool, probe) -> bool:
+	var deadline := Time.get_ticks_msec() + SELECTION_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if client.get_node_or_null("WorldUnits/" + NAME) != player or player.get_instance_id() != unit_id:
+			fail("Replicated equipment update replaced selected server unit node")
+			return false
+		var visual := probe.find_visual(player) as Node3D
+		if visual == null or old_visual.get_ref() != null:
+			continue
+		var error: String = probe.inspect_visual(visual, equipped)
+		if error == "":
+			print("PASS: replicated selected equipment stage equipped=", equipped, " retained unit=", unit_id)
+			return true
+	fail("Timed out waiting for replicated equipment stage equipped=" + str(equipped) + " old_valid=" + str(old_visual.get_ref() != null))
+	return false
 
 func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:
 	var deadline := Time.get_ticks_msec() + timeout_ms
