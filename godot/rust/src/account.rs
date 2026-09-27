@@ -282,7 +282,7 @@ fn read_transfer_map_name(data_root: &Path, map_id: u32) -> Result<String, Strin
     let headers = parse_csv_line(header);
     let id_column = header_index(&headers, "ID", &path)?;
     let name_column = header_index(&headers, "MapName_lang", &path)?;
-    for line in lines {
+    for line in lines.filter(|line| !line.trim().is_empty()) {
         let fields = parse_csv_line(line);
         let id = fields
             .get(id_column)
