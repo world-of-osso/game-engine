@@ -23,6 +23,7 @@ Status vocabulary: **Missing** — no Godot implementation and proof; **Blocked*
 | [Character creation](character-creation.md) | Catalog-driven customization, compatibility, partial-support disclosure, name generation and complete persisted creation request. | Missing | Native login create-account action explicitly reports unsupported; no creation scene/workflow exists. |
 | [Character-selection visibility](character-selection-visibility.md) | Campsite scene fog, sky-owned light/IBL ownership and correct depth ordering. | Missing | None. |
 | [Character-selection visibility](character-selection-visibility.md) | Authored attachment point lights, track durations and item-root lifetime. | Missing | Skeleton attachment is not light attachment parity. |
+| [Boss encounters](boss-encounters.md) | Monster chat formatting/colours, timed raid-boss warnings, encounter lifecycle/reset, and five clickable boss health/power frames. | Missing | Master implementation merged; no native Godot runtime proof. |
 | [Chat frame](chat-frame.md) | Tabbed Chattynator frame, message routing/formatting/flash/scroll/copy and authored layout. | Missing | None. |
 | [Chat frame](chat-frame.md) | Edit focus/input history, slash commands, popup precedence and combat-log spell links/tooltips. | Missing | None. |
 | [Cursor item](cursor-item.md) | Pickup/drop/drag/swap/equip/clear lifecycle and cursor visual over all frames. | Missing | None. |
