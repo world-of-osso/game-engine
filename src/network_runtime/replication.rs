@@ -10,9 +10,9 @@ use bevy_replicon::shared::server_entity_map::ServerEntityMap;
 use lightyear::prelude::client::Remote;
 use shared::casting::CastState;
 use shared::components::{
-    CombatStatus, EquipmentAppearance, Gold, GuildMembership, Health, Mana, ModelDisplay, Mounted,
-    MovementControl, MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras,
-    UnitFactionTemplate, UnitFlags, UnitLevel, UnitPowers, UnitTarget, Zone,
+    CombatStatus, CreatureMotion, EquipmentAppearance, Gold, GuildMembership, Health, Mana,
+    ModelDisplay, Mounted, MovementControl, MovementSpeed, Npc, Player, Position, PresenceStatus,
+    Rotation, UnitAuras, UnitFactionTemplate, UnitFlags, UnitLevel, UnitPowers, UnitTarget, Zone,
 };
 use shared::level_scaling::LevelScaling;
 use shared::protocol::{GameObjectInfo, NpcFlags};
@@ -182,6 +182,7 @@ struct EntitySnapshot {
     level_scaling: Option<LevelScaling>,
     faction_template: Option<UnitFactionTemplate>,
     unit_flags: Option<UnitFlags>,
+    creature_motion: Option<CreatureMotion>,
     unit_target: Option<UnitTarget>,
 }
 
@@ -215,6 +216,7 @@ impl EntitySnapshot {
             level_scaling: entity.get::<LevelScaling>().copied(),
             faction_template: entity.get::<UnitFactionTemplate>().copied(),
             unit_flags: entity.get::<UnitFlags>().copied(),
+            creature_motion: entity.get::<CreatureMotion>().copied(),
             unit_target: entity.get::<UnitTarget>().copied(),
         }
     }
@@ -244,6 +246,7 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.level_scaling);
             apply_component(&mut entity, self.faction_template);
             apply_component(&mut entity, self.unit_flags);
+            apply_component(&mut entity, self.creature_motion);
             apply_component(&mut entity, self.unit_target);
             apply_component(&mut entity, self.npc_flags);
             // Add observers immediately query support components: insert identities last.
@@ -428,6 +431,7 @@ mod tests {
             UnitFactionTemplate(1),
             UnitFlags(UnitFlags::NOT_SELECTABLE),
             UnitTarget(Some(0x0000_0001_0000_002A)),
+            CreatureMotion::Run,
         ));
         let mut main = main_app();
         apply(main.world_mut(), snapshot(&worker, source, source, 1));
@@ -457,6 +461,10 @@ mod tests {
             main.world().get::<UnitTarget>(mirror),
             Some(&UnitTarget(Some(0x0000_0001_0000_002A)))
         );
+        assert_eq!(
+            main.world().get::<CreatureMotion>(mirror),
+            Some(&CreatureMotion::Run)
+        );
         worker.entity_mut(source).remove::<(
             UnitPowers,
             UnitAuras,
@@ -465,6 +473,7 @@ mod tests {
             UnitFactionTemplate,
             UnitFlags,
             UnitTarget,
+            CreatureMotion,
         )>();
         apply(main.world_mut(), snapshot(&worker, source, source, 2));
         assert!(main.world().get::<UnitPowers>(mirror).is_none());
@@ -474,6 +483,7 @@ mod tests {
         assert!(main.world().get::<UnitFactionTemplate>(mirror).is_none());
         assert!(main.world().get::<UnitFlags>(mirror).is_none());
         assert!(main.world().get::<UnitTarget>(mirror).is_none());
+        assert!(main.world().get::<CreatureMotion>(mirror).is_none());
     }
 
     #[test]
