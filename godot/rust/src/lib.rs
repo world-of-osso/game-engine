@@ -3,6 +3,7 @@ mod animation;
 mod assets;
 mod camera;
 mod gameplay;
+mod ground;
 mod input;
 mod input_keys;
 mod lighting;
@@ -50,6 +51,7 @@ pub struct GameClient {
     world_camera: camera::WorldCamera,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
+    player_movement: gameplay::PlayerMovement,
     world_minutes: f32,
     server_hostname: String,
 }
@@ -80,6 +82,7 @@ impl INode3D for GameClient {
             world_camera: camera::WorldCamera::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,
+            player_movement: gameplay::PlayerMovement::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             units: HashMap::new(),
@@ -111,7 +114,9 @@ impl INode3D for GameClient {
         let update = self
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
+            .and_then(|()| self.update_player_input(delta as f32))
             .map(|()| self.world.advance(delta as f32))
+            .and_then(|()| self.send_player_input())
             .and_then(|()| self.terrain.poll())
             .and_then(|()| self.update_world_lighting())
             .and_then(|()| self.attach_terrain_materials())
@@ -390,6 +395,8 @@ impl GameClient {
         if let Some(mut player) = self.world.local_player_node() {
             player.set_position(Vector3::new(x, y, z));
             player.set_rotation(Vector3::new(0.0, destination.facing, 0.0));
+            self.world
+                .set_local_player_facing(destination.facing + std::f32::consts::FRAC_PI_2);
         }
         Ok(())
     }
@@ -471,6 +478,7 @@ impl GameClient {
 
     fn reset_world(&mut self) -> Result<(), String> {
         self.physical_input.clear();
+        self.player_movement = gameplay::PlayerMovement::default();
         if let Some(ui) = self.errors_ui.as_mut() {
             ui.bind_mut().clear_errors()?;
             ui.set_visible(false);
