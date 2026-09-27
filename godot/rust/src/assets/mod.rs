@@ -43,15 +43,37 @@ impl WowAssetLoader {
 
     #[func]
     fn load_m2(&self, path: GString) -> VarDictionary {
-        match load_model_node(&path) {
-            Ok((node, missing_texture_fdids)) => {
-                let mut result = VarDictionary::new();
-                result.set("node", &node);
-                result.set("missing_texture_fdids", &missing_texture_fdids);
-                result
-            }
-            Err(error) => error_result(error),
+        model_result(load_model_node(&path))
+    }
+
+    #[func]
+    fn load_m2_with_skin_fdids(
+        &self,
+        path: GString,
+        skin_fdids: PackedInt64Array,
+    ) -> VarDictionary {
+        let slots = parse_skin_texture_slots(skin_fdids.as_slice());
+        model_result(slots.and_then(|slots| load_model_node_with_skin_fdids(&path, &slots)))
+    }
+}
+
+fn parse_skin_texture_slots(values: &[i64]) -> Result<[u32; 3], String> {
+    let [first, second, third] = values else {
+        return Err("Expected exactly three creature skin texture FDIDs".into());
+    };
+    let convert = |value| u32::try_from(value).map_err(|_| format!("Invalid texture FDID {value}"));
+    Ok([convert(*first)?, convert(*second)?, convert(*third)?])
+}
+
+fn model_result(result: Result<(Gd<Node3D>, PackedInt32Array), String>) -> VarDictionary {
+    match result {
+        Ok((node, missing)) => {
+            let mut result = VarDictionary::new();
+            result.set("node", &node);
+            result.set("missing_texture_fdids", &missing);
+            result
         }
+        Err(error) => error_result(error),
     }
 }
 
@@ -141,13 +163,21 @@ fn build_skeleton(bones: &[m2::Bone]) -> (Gd<Skeleton3D>, Option<Gd<Skin>>) {
 }
 
 pub fn load_model_node(path: &GString) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
+    load_model_node_with_skin_fdids(path, &[0; 3])
+}
+
+pub(crate) fn load_model_node_with_skin_fdids(
+    path: &GString,
+    skin_texture_fdids: &[u32; 3],
+) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let model = read_model(path)?;
-    build_model(&model, path)
+    build_model(&model, path, skin_texture_fdids)
 }
 
 fn build_model(
     model: &m2::Model,
     path: &GString,
+    skin_texture_fdids: &[u32; 3],
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
@@ -161,7 +191,9 @@ fn build_model(
             .with_shared_data_root(data_root)
             .with_cache_root(data_root.join("cache")),
     );
-    let resolved = m2::resolve_render_batches(model, false, |fdid| resolver.resolve_path(fdid))?;
+    let resolved = m2::resolve_render_batches(model, skin_texture_fdids, false, |fdid| {
+        resolver.resolve_path(fdid)
+    })?;
     let batches = resolved
         .iter()
         .map(|batch| {
