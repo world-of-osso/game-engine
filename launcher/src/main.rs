@@ -1,6 +1,8 @@
 use std::{
-    env, fs,
-    os::unix::{fs::PermissionsExt, process::CommandExt},
+    env,
+    ffi::OsString,
+    fs,
+    os::unix::{ffi::OsStrExt, fs::PermissionsExt, process::CommandExt},
     path::{Path, PathBuf},
     process::{self, Command, ExitStatus},
 };
@@ -24,12 +26,45 @@ fn launch() -> Result<i32, String> {
         None => root.join("data/tools/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64"),
     };
     validate_godot(&godot)?;
+    let args = route_arguments(env::args_os().skip(1))?;
 
     let status = build_native_extension(root)?;
     if !status.success() {
         return Ok(exit_code(status));
     }
-    exec_godot(root, &godot)
+    exec_godot(root, &godot, args)
+}
+
+fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsString>, String> {
+    let mut args = args.into_iter();
+    let mut engine = Vec::new();
+    let mut client = Vec::new();
+    let mut has_separator = false;
+
+    while let Some(arg) = args.next() {
+        if arg == "--" {
+            has_separator = true;
+            client.extend(args);
+            break;
+        }
+        if ["--screen", "--state", "--server", "--char"].contains(&arg.to_str().unwrap_or("")) {
+            let value = args
+                .next()
+                .filter(|value| !value.as_bytes().starts_with(b"-"));
+            let value =
+                value.ok_or_else(|| format!("{} requires a value", arg.to_string_lossy()))?;
+            client.push(arg);
+            client.push(value);
+        } else {
+            engine.push(arg);
+        }
+    }
+
+    if has_separator || !client.is_empty() {
+        engine.push("--".into());
+        engine.extend(client);
+    }
+    Ok(engine)
 }
 
 fn build_native_extension(root: &Path) -> Result<ExitStatus, String> {
@@ -45,7 +80,7 @@ fn build_native_extension(root: &Path) -> Result<ExitStatus, String> {
         .map_err(|error| format!("cannot run Cargo native build: {error}"))
 }
 
-fn exec_godot(root: &Path, godot: &Path) -> Result<i32, String> {
+fn exec_godot(root: &Path, godot: &Path, args: Vec<OsString>) -> Result<i32, String> {
     let dependencies = root.join("target/debug/deps");
     let mut library_path = dependencies.into_os_string();
     if let Some(existing) = env::var_os("LD_LIBRARY_PATH") {
@@ -55,7 +90,7 @@ fn exec_godot(root: &Path, godot: &Path) -> Result<i32, String> {
     let error = Command::new(godot)
         .arg("--path")
         .arg(root.join("godot"))
-        .args(env::args_os().skip(1))
+        .args(args)
         .env("LD_LIBRARY_PATH", library_path)
         .exec();
     Err(format!("cannot launch Godot {}: {error}", godot.display()))
