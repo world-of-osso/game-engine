@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native full-options camera boundary unverified
+
+`d7c6f5d2` has native initialization load the shared full clamped options schema from absolute legacy `data_root/ui/options_settings.ron`. World-camera synchronization applies follow speed, zoom speed, min/max distance, and FOV. Its `WorldCamera::apply_input` ownership adapter is not invoked; other settings consumers are unwired. Active agent409 supplies the shared schema dependency.
+
+Neither `d7c6f5d2` nor input callbacks `cc8c73a0` have build or runtime verification. The W fixture baseline remains RED. No native input, runtime, parity, or full-conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native input pre-callback RED
 
 At pre-callback `bcf38c70` scope with fixture commits `8af67c7e`/`a2b94931`, the main-observed native fixture reached `Loading` with zero UDP, then authored `WORLD_READY`; held W left native position unchanged at `[-8949, 83, 0]`. It exits 101 with child exit 1 (`/tmp/claude/native-input-red.log`). The baseline native build exits 0 with four unused-primitive warnings (`/tmp/claude/native-input-baseline-build.log`).
