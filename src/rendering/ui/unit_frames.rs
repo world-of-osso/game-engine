@@ -18,6 +18,10 @@ use game_engine::faction_reaction::{
     FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction,
 };
 use game_engine::group_state::{GroupCommand, GroupMenuEntry, GroupState, group_menu_entries};
+use game_engine::instance_state::{
+    InstanceCatalog, InstanceCommand, InstanceState, MENU_DUNGEON_DIFFICULTIES,
+    dungeon_difficulty_enabled,
+};
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::status::{CharacterStatsSnapshot, SecondaryResourceEntry};
 use game_engine::targeting::{CurrentTarget, FocusTarget, SetFocus, apply_set_focus};
@@ -25,11 +29,13 @@ use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::{
-    ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_INSPECT, ACTION_UNIT_MENU_SET_FOCUS,
-    ACTION_UNIT_MENU_TRADE, InWorldUnitFramesState, MAX_BOSS_FRAMES, PowerBarState,
-    SmallUnitFrameState, TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState, UnitFrameState,
-    UnitMenuItem, boss_frame_name, format_value_text, fraction, inworld_unit_frames_screen,
-    unit_menu_height,
+    ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_DUNGEON_DIFFICULTY, ACTION_UNIT_MENU_INSPECT,
+    ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX, ACTION_UNIT_MENU_SET_FOCUS,
+    ACTION_UNIT_MENU_TRADE, DIFFICULTY_MENU_W, DifficultyMenuEntry, DifficultyMenuState,
+    InWorldUnitFramesState, MAX_BOSS_FRAMES, PowerBarState, SmallUnitFrameState,
+    TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState, UnitFrameState, UnitMenuItem,
+    boss_frame_name, difficulty_menu_height, format_value_text, fraction,
+    inworld_unit_frames_screen, unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -93,6 +99,12 @@ struct InWorldUnitFramesWrap(InWorldUnitFramesRes);
 #[derive(Resource, Clone, PartialEq)]
 struct InWorldUnitFramesModel(InWorldUnitFramesState);
 
+/// Set Focus and Clear Focus precede the player entries.
+const FOCUS_MENU_ITEMS: usize = 2;
+/// menu_primitives' first button top and row pitch (22 px buttons, 3 px gap).
+const MENU_ROW_TOP: f32 = 28.0;
+const MENU_ROW_PITCH: f32 = 25.0;
+
 /// Right-click menu on a unit frame; `unit` is the entity the menu acts on.
 #[derive(Resource, Default, Clone, PartialEq)]
 struct UnitFrameMenu {
@@ -135,6 +147,7 @@ impl Plugin for InWorldUnitFramesPlugin {
         app.init_resource::<UnitFrameMenu>();
         app.init_resource::<GroupState>();
         app.add_message::<GroupCommand>();
+        app.add_message::<InstanceCommand>();
         app.insert_resource(FactionTemplates::load());
         app.add_message::<SetFocus>();
         app.add_systems(
@@ -443,6 +456,7 @@ fn handle_unit_frame_pointer(
     mut group_commands: MessageWriter<GroupCommand>,
     mut inspect: Option<ResMut<game_engine::inspect::InspectRuntimeState>>,
     mut trade: Option<ResMut<game_engine::trade::TradeClientState>>,
+    instances: InstanceMenuSources,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
@@ -464,6 +478,7 @@ fn handle_unit_frame_pointer(
     let units = sources.frame_units();
     let player_name = |entity: Entity| group.players.get(entity).ok().map(|p| p.name.clone());
     let local_name = units.player.and_then(player_name);
+    let default_instance = InstanceState::default();
     let click = UnitFrameClick {
         registry: &ui.registry,
         model: &model.0,
@@ -471,6 +486,8 @@ fn handle_unit_frame_pointer(
         group: &group.state,
         local_name: local_name.as_deref(),
         player_name: &player_name,
+        instance: instances.state.as_deref().unwrap_or(&default_instance),
+        catalog: instances.catalog.as_deref(),
     };
     match click.handle(cursor, button, &mut menu) {
         Some(MenuRequest::Focus(request)) => {
@@ -489,8 +506,19 @@ fn handle_unit_frame_pointer(
                 trade.queue(game_engine::trade::TradeAction::Initiate(name));
             }
         }
+        Some(MenuRequest::Instance(command)) => {
+            let mut instances = instances;
+            instances.commands.write(command);
+        }
         None => {}
     }
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+struct InstanceMenuSources<'w> {
+    state: Option<Res<'w, InstanceState>>,
+    catalog: Option<Res<'w, InstanceCatalog>>,
+    commands: MessageWriter<'w, InstanceCommand>,
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
@@ -506,6 +534,8 @@ enum MenuRequest {
     Inspect(Entity),
     /// `InitiateTrade` with the unit's player.
     Trade(String),
+    /// `SetDungeonDifficultyID`.
+    Instance(InstanceCommand),
 }
 
 struct UnitFrameClick<'a> {
@@ -515,6 +545,8 @@ struct UnitFrameClick<'a> {
     group: &'a GroupState,
     local_name: Option<&'a str>,
     player_name: &'a dyn Fn(Entity) -> Option<String>,
+    instance: &'a InstanceState,
+    catalog: Option<&'a InstanceCatalog>,
 }
 
 impl UnitFrameClick<'_> {
@@ -541,6 +573,16 @@ impl UnitFrameClick<'_> {
             Some(ACTION_UNIT_MENU_CLEAR_FOCUS) => Some(MenuRequest::Focus(SetFocus::Clear)),
             Some(ACTION_UNIT_MENU_INSPECT) => menu.unit.map(MenuRequest::Inspect),
             Some(ACTION_UNIT_MENU_TRADE) => menu.player_name.clone().map(MenuRequest::Trade),
+            Some(ACTION_UNIT_MENU_DUNGEON_DIFFICULTY) if menu.state.visible => {
+                menu.state.difficulty_menu = Some(self.difficulty_menu(&menu.state));
+                return None;
+            }
+            Some(action) if action.starts_with(ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX) => {
+                action[ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX.len()..]
+                    .parse()
+                    .ok()
+                    .map(|id| MenuRequest::Instance(InstanceCommand::SetDungeonDifficulty(id)))
+            }
             Some(action) => GroupMenuEntry::from_action(action)
                 .zip(menu.player_name.as_deref())
                 .map(|(entry, name)| MenuRequest::Group(entry.command(name))),
@@ -550,6 +592,43 @@ impl UnitFrameClick<'_> {
             *menu = UnitFrameMenu::default();
         }
         request
+    }
+
+    /// The Dungeon Difficulty submenu beside `menu`'s Dungeon Difficulty entry: Normal,
+    /// Heroic and Mythic, the player's checked, enabled outside instances for a player
+    /// alone or leading its group.
+    fn difficulty_menu(&self, menu: &UnitFrameMenuState) -> DifficultyMenuState {
+        let local = self.local_name.unwrap_or_default();
+        let enabled = dungeon_difficulty_enabled(
+            self.instance,
+            self.group.in_group(),
+            self.group.is_leader(local),
+        );
+        let entries: Vec<DifficultyMenuEntry> = MENU_DUNGEON_DIFFICULTIES
+            .into_iter()
+            .map(|difficulty_id| DifficultyMenuEntry {
+                difficulty_id,
+                label: self
+                    .catalog
+                    .map_or("", |catalog| catalog.difficulty_name(difficulty_id))
+                    .to_owned(),
+                checked: self.instance.dungeon_difficulty == Some(difficulty_id),
+                enabled,
+            })
+            .collect();
+        let row = FOCUS_MENU_ITEMS
+            + menu
+                .player_items
+                .iter()
+                .position(|item| item.action == ACTION_UNIT_MENU_DUNGEON_DIFFICULTY)
+                .expect("the Dungeon Difficulty entry opened its submenu");
+        let max_x = (self.registry.screen_width - DIFFICULTY_MENU_W).max(0.0);
+        let max_y = (self.registry.screen_height - difficulty_menu_height(entries.len())).max(0.0);
+        DifficultyMenuState {
+            x: (menu.x + UNIT_MENU_W).clamp(0.0, max_x),
+            y: (menu.y + MENU_ROW_TOP + row as f32 * MENU_ROW_PITCH).clamp(0.0, max_y),
+            entries,
+        }
     }
 
     fn menu_for(&self, frame: u64, cursor: Vec2) -> Option<UnitFrameMenu> {
@@ -568,6 +647,7 @@ impl UnitFrameClick<'_> {
                 x: cursor.x.clamp(0.0, max_x),
                 y: cursor.y.clamp(0.0, max_y),
                 player_items,
+                difficulty_menu: None,
             },
         })
     }
@@ -587,6 +667,14 @@ impl UnitFrameClick<'_> {
                 action: entry.action().into(),
             })
             .collect();
+        if unit == local {
+            // UnitPopupMenuSelf: UnitPopupDungeonDifficultyButtonMixin.
+            items.push(UnitMenuItem {
+                name: "UnitFrameContextMenuDungeonDifficulty".into(),
+                label: "Dungeon Difficulty".into(),
+                action: ACTION_UNIT_MENU_DUNGEON_DIFFICULTY.into(),
+            });
+        }
         if unit != local {
             items.push(UnitMenuItem {
                 name: "UnitFrameContextMenuInspect".into(),
@@ -1188,6 +1276,80 @@ mod tests {
         app.update();
         assert!(!frame(&app, "UnitFrameContextMenuLeave").hidden);
         assert!(!frame(&app, "UnitFrameContextMenuConvertToRaid").hidden);
+    }
+
+    fn radio_coords(app: &App, name: &str) -> [f32; 4] {
+        match frame(app, name).widget_data.as_ref() {
+            Some(WidgetData::Texture(texture)) => texture.tex_coords,
+            _ => panic!("{name} is not a Texture"),
+        }
+    }
+
+    #[test]
+    fn the_player_menu_dungeon_difficulty_submenu_picks_heroic_outside_instances() {
+        let mut app = unit_frames_app();
+        app.insert_resource(InstanceCatalog::load().unwrap());
+        app.insert_resource(InstanceState {
+            dungeon_difficulty: Some(1),
+            current_map: Some((0, 0)),
+            ..Default::default()
+        });
+        spawn_local_player(&mut app, Vec::new());
+        app.update();
+
+        click(&mut app, "PlayerFrame", MouseButton::Right);
+        app.update();
+        assert!(frame(&app, "UnitFrameDifficultyMenu").hidden);
+        click(
+            &mut app,
+            "UnitFrameContextMenuDungeonDifficulty",
+            MouseButton::Left,
+        );
+        app.update();
+        assert!(!frame(&app, "UnitFrameDifficultyMenu").hidden);
+        assert_eq!(text(&app, "UnitFrameDifficultyMenu1Text"), "Normal");
+        assert_eq!(text(&app, "UnitFrameDifficultyMenu2Text"), "Heroic");
+        assert_eq!(text(&app, "UnitFrameDifficultyMenu23Text"), "Mythic");
+        // Normal is checked: the yellow radial tick (common-dropdown-icon-radialtick-yellow).
+        assert_ne!(
+            radio_coords(&app, "UnitFrameDifficultyMenu1Radio"),
+            radio_coords(&app, "UnitFrameDifficultyMenu2Radio")
+        );
+
+        click(&mut app, "UnitFrameDifficultyMenu2", MouseButton::Left);
+        app.update();
+        let sent: Vec<InstanceCommand> = app
+            .world_mut()
+            .resource_mut::<Messages<InstanceCommand>>()
+            .drain()
+            .collect();
+        assert_eq!(sent, [InstanceCommand::SetDungeonDifficulty(2)]);
+        assert!(frame(&app, "UnitFrameContextMenu").hidden);
+        assert!(frame(&app, "UnitFrameDifficultyMenu").hidden);
+
+        // Inside a Heroic copy the radios are disabled: grey, no command.
+        app.world_mut().resource_mut::<InstanceState>().current_map = Some((670, 2));
+        click(&mut app, "PlayerFrame", MouseButton::Right);
+        app.update();
+        click(
+            &mut app,
+            "UnitFrameContextMenuDungeonDifficulty",
+            MouseButton::Left,
+        );
+        app.update();
+        assert_eq!(
+            text_color(&app, "UnitFrameDifficultyMenu23Text"),
+            [0.5, 0.5, 0.5, 1.0]
+        );
+        click(&mut app, "UnitFrameDifficultyMenu23", MouseButton::Left);
+        app.update();
+        assert!(
+            app.world_mut()
+                .resource_mut::<Messages<InstanceCommand>>()
+                .drain()
+                .next()
+                .is_none()
+        );
     }
 
     #[test]

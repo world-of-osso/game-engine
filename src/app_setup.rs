@@ -569,6 +569,7 @@ fn add_core_screen_plugins(app: &mut App) {
         crate::game::networking_taxi::TaxiNetworkPlugin,
         crate::game::networking_transfer::TransferNetworkPlugin,
         crate::game::networking_encounter::EncounterNetworkPlugin,
+        crate::game::networking_instance::InstanceNetworkPlugin,
         crate::game::networking_group::GroupNetworkPlugin,
         crate::game::networking_inventory::InventoryNetworkPlugin,
         crate::game::networking_bank::BankNetworkPlugin,

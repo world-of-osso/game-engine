@@ -92,6 +92,16 @@ struct MinimapFrames {
     zone_name: u64,
     coords: u64,
     mail: u64,
+    instance_difficulty: InstanceDifficultyFrames,
+}
+
+/// `MinimapCluster.InstanceDifficulty` and its difficulty textures and count.
+struct InstanceDifficultyFrames {
+    banner: u64,
+    normal: u64,
+    heroic: u64,
+    mythic: u64,
+    text: u64,
 }
 
 struct MinimapCompositeState {
@@ -134,6 +144,7 @@ fn register_minimap_systems(app: &mut App) {
             update_zone_name,
             rotate_minimap_arrow,
             sync_mail_indicator.after(sync_minimap_visibility),
+            sync_instance_difficulty.after(sync_minimap_visibility),
         )
             .run_if(in_state(GameState::InWorld))
             .run_if(inworld_scene_stage_allows_ui),
@@ -188,6 +199,25 @@ fn build_minimap_screen(registry: &mut FrameRegistry) -> MinimapFrames {
         zone_name: resolve_frame_id(registry, "MinimapZoneName"),
         coords: resolve_frame_id(registry, "MinimapCoords"),
         mail: resolve_frame_id(registry, inworld_hud_component::MINIMAP_MAIL_FRAME),
+        instance_difficulty: InstanceDifficultyFrames {
+            banner: resolve_frame_id(registry, inworld_hud_component::MINIMAP_INSTANCE_DIFFICULTY),
+            normal: resolve_frame_id(
+                registry,
+                inworld_hud_component::MINIMAP_INSTANCE_DIFFICULTY_NORMAL,
+            ),
+            heroic: resolve_frame_id(
+                registry,
+                inworld_hud_component::MINIMAP_INSTANCE_DIFFICULTY_HEROIC,
+            ),
+            mythic: resolve_frame_id(
+                registry,
+                inworld_hud_component::MINIMAP_INSTANCE_DIFFICULTY_MYTHIC,
+            ),
+            text: resolve_frame_id(
+                registry,
+                inworld_hud_component::MINIMAP_INSTANCE_DIFFICULTY_TEXT,
+            ),
+        },
     }
 }
 
@@ -239,6 +269,44 @@ fn sync_minimap_visibility(
     let visible = *game_state.get() == GameState::InWorld
         && hud_visibility.is_none_or(|toggles| toggles.show_minimap);
     set_hud_visibility(&mut ui, &frames, visible);
+}
+
+/// `InstanceDifficultyMixin:Update`: inside an instance the banner shows the texture of
+/// the copy's difficulty (`GetDifficultyInfo` displayMythic, isHeroic / displayHeroic,
+/// else Normal) and the number of players in it; outside, it is hidden.
+fn sync_instance_difficulty(
+    mut ui: ResMut<UiState>,
+    frames: Option<Res<MinimapFrames>>,
+    state: Option<Res<game_engine::instance_state::InstanceState>>,
+    catalog: Option<Res<game_engine::instance_state::InstanceCatalog>>,
+    players: Query<&shared::components::Player>,
+) {
+    use game_engine::instance_state::BannerTexture;
+    let Some(frames) = frames else { return };
+    let banner = &frames.instance_difficulty;
+    let shown = state
+        .as_deref()
+        .and_then(|state| state.current_map)
+        .filter(|&(_, difficulty)| difficulty != 0)
+        .and_then(|(_, difficulty)| catalog.as_deref()?.difficulties.get(&difficulty))
+        .map(|info| info.banner_texture());
+    ui.registry.set_hidden(banner.banner, shown.is_none());
+    let Some(texture) = shown else { return };
+    for (frame, kind) in [
+        (banner.normal, BannerTexture::Normal),
+        (banner.heroic, BannerTexture::Heroic),
+        (banner.mythic, BannerTexture::Mythic),
+    ] {
+        ui.registry.set_hidden(frame, texture != kind);
+    }
+    // instanceGroupSize: the players the client sees in its copy, itself included.
+    let count = players.iter().count().to_string();
+    if let Some(frame) = ui.registry.get_mut(banner.text)
+        && let Some(WidgetData::FontString(fs)) = &mut frame.widget_data
+        && fs.text != count
+    {
+        fs.text = count;
+    }
 }
 
 /// `MiniMapMailFrameMixin`: the mail icon shows while `PendingMail` lists senders.

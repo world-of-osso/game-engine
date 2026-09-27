@@ -85,6 +85,8 @@ pub mod help_data;
 pub mod ignore_list;
 pub mod input_bindings;
 pub mod inspect;
+#[path = "game/instance_state.rs"]
+pub mod instance_state;
 pub mod ipc;
 #[path = "game/item_catalog.rs"]
 pub mod item_catalog;
