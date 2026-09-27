@@ -13,6 +13,7 @@ use bevy::prelude::*;
 use bevy::ui::{AlignItems, BackgroundColor, JustifyContent, Node, PositionType, Val};
 use core::net::SocketAddr;
 use game_engine::network_runtime::connection::Connected;
+use game_engine::unit_motion_data::{MotionPose, MotionTarget, interpolate_remote_motion};
 use lightyear::prelude::client::Remote;
 use shared::components::{Position as NetPosition, Rotation as NetRotation};
 pub use shared::protocol::ChatType;
@@ -96,9 +97,6 @@ pub struct ChatInput(pub Option<ChatMessage>);
 /// Resource for other systems to queue outgoing social emotes.
 #[derive(Resource, Default)]
 pub struct EmoteInput(pub Option<EmoteIntent>);
-
-/// Interpolation speed: 1 / interval between server ticks (~100ms at 20Hz).
-const INTERPOLATION_SPEED: f32 = 10.0;
 
 pub(crate) const MAX_COMBAT_LOG: usize = 200;
 
@@ -629,18 +627,23 @@ fn interpolate_remote_entities(
         (With<RemoteEntity>, Without<LocalPlayer>),
     >,
 ) {
-    let t = (INTERPOLATION_SPEED * time.delta_secs()).min(1.0);
     for (interp, rot_target, mut transform) in query.iter_mut() {
-        let next_translation = transform.translation.lerp(interp.target, t);
-        if next_translation != transform.translation {
-            transform.translation = next_translation;
+        let next = interpolate_remote_motion(
+            MotionPose {
+                position: transform.translation,
+                rotation: transform.rotation,
+            },
+            MotionTarget {
+                position: interp.target,
+                yaw: rot_target.map(|rotation| rotation.yaw),
+            },
+            time.delta_secs(),
+        );
+        if next.position != transform.translation {
+            transform.translation = next.position;
         }
-        if let Some(rot) = rot_target {
-            let target_rotation = Quat::from_rotation_y(rot.yaw);
-            let next_rotation = transform.rotation.slerp(target_rotation, t);
-            if next_rotation != transform.rotation {
-                transform.rotation = next_rotation;
-            }
+        if next.rotation != transform.rotation {
+            transform.rotation = next.rotation;
         }
     }
 }
