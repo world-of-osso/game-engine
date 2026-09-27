@@ -312,7 +312,6 @@ func inspect_character_preview(client: Node) -> bool:
 	var without_sky := root.get_texture().get_image()
 	print("TRACE SKY_CAPTURED elapsed_ms=", Time.get_ticks_msec())
 	sky.visible = true
-	paused = false
 	var sky_pixels := count_changed_pixels(shown, without_sky)
 	if sky_pixels < 50:
 		without_sky.save_png("res://../data/diagnostics/godot-conversion/character-select-without-sky.png")
@@ -320,8 +319,27 @@ func inspect_character_preview(client: Node) -> bool:
 		for sky_mesh in sky.find_children("*", "MeshInstance3D", true, false):
 			var sky_material: ShaderMaterial = sky_mesh.get_surface_override_material(0)
 			print("TRACE SKY_MESH ", sky_mesh.name, " bounds=", sky_mesh.get_aabb(), " opacity=", sky_material.get_shader_parameter("transparency"), " visible=", sky_mesh.is_visible_in_tree())
+		terrain.visible = false
+		objects.visible = false
+		preview.visible = false
+		for _frame in range(2):
+			await RenderingServer.frame_post_draw
+		var isolated_sky := root.get_texture().get_image()
+		isolated_sky.save_png("res://../data/diagnostics/godot-conversion/character-select-isolated-sky.png")
+		sky.visible = false
+		for _frame in range(2):
+			await RenderingServer.frame_post_draw
+		var isolated_baseline := root.get_texture().get_image()
+		isolated_baseline.save_png("res://../data/diagnostics/godot-conversion/character-select-isolated-baseline.png")
+		print("TRACE isolated changed pixels=", count_changed_pixels(isolated_sky, isolated_baseline))
+		sky.visible = true
+		preview.visible = true
+		objects.visible = true
+		terrain.visible = true
+		paused = false
 		fail("Original campsite sky does not contribute visible pixels")
 		return false
+	paused = false
 	print("PASS: selected body, terrain, props and original sky change GPU pixels independently; elapsed_ms=", Time.get_ticks_msec())
 	return true
 
