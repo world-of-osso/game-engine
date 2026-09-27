@@ -113,7 +113,7 @@ impl EquipmentContext<'_> {
         }
         let id = model_attachment_id(slot, authored);
         self.character
-            .get_node_or_null(&format!("Skeleton3D/Attachment{id}"))
+            .get_node_or_null(&format!("Skeleton3D/AttachmentBone{id}/Attachment{id}"))
             .and_then(|node| node.try_cast::<Node3D>().ok())
             .ok_or_else(|| format!("Equipment {slot:?} requires missing character attachment {id}"))
     }

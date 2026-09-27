@@ -31,17 +31,17 @@ func check_attachment(loader: Object, model_name: String, attachment_id: int, bo
 	var model: Node3D = result.node
 	get_root().add_child(model)
 	var skeleton := model.get_node("Skeleton3D") as Skeleton3D
-	var attachment := skeleton.get_node_or_null("Attachment%d" % attachment_id) as BoneAttachment3D
-	if attachment == null or attachment.bone_idx != bone_index:
+	var attachment := skeleton.find_child("Attachment%d" % attachment_id, true, false) as Node3D
+	if attachment == null or (attachment.get_parent() as BoneAttachment3D).bone_idx != bone_index:
 		fail(model_name + " attachment %d must follow bone %d" % [attachment_id, bone_index])
 		return false
 	if model_name == "humanmale_hd":
 		for id in [0, 1, 2]:
-			var hand := skeleton.get_node_or_null("Attachment%d" % id) as BoneAttachment3D
-			if hand == null or hand.bone_idx != [201, 206, 211][id]:
+			var hand := skeleton.find_child("Attachment%d" % id, true, false) as Node3D
+			if hand == null or (hand.get_parent() as BoneAttachment3D).bone_idx != [201, 206, 211][id]:
 				fail("HD wrist/palm attachment %d mapped to wrong bone" % id)
 				return false
-	if skeleton.get_node_or_null("Attachment%d" % absent_id) != null:
+	if skeleton.find_child("Attachment%d" % absent_id, true, false) != null:
 		fail(model_name + " missing attachment ID %d was fabricated" % absent_id)
 		return false
 	(model.get_node_or_null("M2Animation") as Node).set_process(false)
