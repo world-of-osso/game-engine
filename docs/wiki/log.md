@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | NPC appearance shared-data seams recorded
+
+The shared-data matrix is now explicit: `9fdb14b0` profile query is core 7/7 GREEN; `ccf98fb4`/`a75f2d03` cover six geoset-decision cases and core export; `8207fd2c` has four customization-catalog cases; `180ee3c7`/`9c59e807` cover the compositor SQLite query and shared export; and `aecf9697`/`e65ae41f` cover eight NPC selection/geoset/type-6 policy cases and root/core exports. `064381ec` restores a root `Resource` adapter after a concrete compile failure, but that repair has not been verified. `085decc1` adds imported-SQLite-only native-core loading; `29f71b56` records missing-module RED then 3/3 GREEN for cached Human-female model 2/layout 104/full choice 85, HD layout-103 2048×1024 dimensions, and read-only missing-catalog failure without creation (`/tmp/claude/npc-appearance-assets-{red,green}.log`). A new dead-field warning awaits correction.
+
+Native appearance application is none. These boundaries do not apply a catalog, compose textures, set geosets, or prove real-UDP/pixel behavior. Imported-catalog loading is not original root-importer freshness/rebuild parity, which remains root-adapter work. Agent 361's customization query is still in progress; native integration and real-UDP validation remain future work.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native NPC Death development GREEN
 
 WorldUnits `c80488be`, helper `2d8bca7a`, and fixture `254dc68f` now select the first `id == 1` Death sequence, play it once non-looping with the authored 150-ms-clamped blend, and hold its final pose. The original marker remains once per NPC life: resurrection does not rearm it, replacement does not reset it, and a missing Death sequence leaves the current animation unchanged.

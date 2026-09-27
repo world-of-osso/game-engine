@@ -10,6 +10,18 @@ The Godot replacement remains incomplete. `cad33614` shares terrain material inp
 
 `8afcffae` moves the Bevy-free `CreatureDisplay` catalog row and `query_display` SQLite lookup into `src/game/creatures/creature_display_data.rs`, shared by the root crate and `godot/core`. The query returns `Result<Option<CreatureDisplay>>`: the core consumer can receive SQLite failures, while the existing root cache wrapper retains its `Option` boundary. Targeted core RED records the missing core export (`/tmp/claude/creature-display-query-red.log`); GREEN is 2/2 (`/tmp/claude/creature-display-query-green.log`), covering model FDID, all three skin FDIDs, scale, no row, and missing-table error propagation. `7a4add9b` consumes the catalog for ordinary NPC visuals only; player appearance remains separate.
 
+## Portable NPC appearance-data boundaries
+
+| Shared boundary | Evidence | Native appearance application |
+| --- | --- | --- |
+| Authored profile query | `9fdb14b0`: core 7/7 GREEN (`/tmp/claude/cargo-npc-appearance-core.out`) preserves full choice IDs, sorted geosets, bake-zero absence, ordinary `None`, and required/out-of-coverage errors. | None. |
+| Geoset decisions | `ccf98fb4`: six standalone cases; `a75f2d03`: core export. | None. |
+| Customization catalog | `8207fd2c`: four standalone cases; `064381ec` restores the root `Resource` adapter after a concrete compile failure. The adapter repair has not been verified. | None. |
+| Compositor query and NPC policy | `180ee3c7`: one standalone compositor SQLite-query case; `9c59e807`: shared-query export. `aecf9697`: eight standalone selection/geoset/type-6 policy cases, including the six geoset cases; `e65ae41f` wires root/core exports. | None. |
+| Imported catalog loader | `085decc1` loads imported SQLite only. `29f71b56` records missing-module RED then 3/3 GREEN (`/tmp/claude/npc-appearance-assets-{red,green}.log`): cached Human-female model 2/layout 104/full choice 85, HD layout-103 dimensions 2048×1024, and explicit read-only missing-catalog failure without creation. One dead-field warning awaits correction. | None. |
+
+These are portable data/decision/catalog-loading seams, not native NPC appearance. They do not apply a catalog, compose textures, set geosets, or establish real-UDP or pixel behavior. Imported-catalog loading is not original root-importer freshness/rebuild parity; that remains the root adapter's responsibility. Agent 361's customization-query slice remains in progress. Native appearance integration and real-UDP validation remain future work.
+
 ## Native creature local-CASC acquisition boundary
 
 `771c1f5f` adds a native helper that creates the existing local `CascListfileResolver`, caches a display's model FDID as `data/models/{model_fdid}.m2`, parses its MD21 references, caches the primary SFID geometry as `{model_fdid}00.skin`, and caches the SKID external skeleton as `{model_fdid}.skel` when present. It then parses those cached companions through the existing shared M2 parser and resolves authored batch textures plus the three explicit creature texture slots through the existing resolver, caching each as `data/textures/{fdid}.blp`. Missing texture caching remains the material loader's reported-missing-FDID behavior; no placeholder is introduced.
