@@ -126,6 +126,8 @@ pub mod nameplate_style;
 pub mod network_events;
 pub mod network_runtime;
 pub mod network_tick;
+#[path = "game/creatures/npc_visibility_data.rs"]
+pub mod npc_visibility_data;
 #[path = "game/equipment/outfit_data.rs"]
 pub mod outfit_data;
 pub mod particle_color_cache;
