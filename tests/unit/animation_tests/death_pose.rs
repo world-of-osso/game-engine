@@ -52,7 +52,8 @@ fn death_app() -> App {
     app.add_systems(
         Update,
         (
-            crate::animation::death::mark_dead_npc_models,
+            crate::animation::death::clear_revived_unit_models,
+            crate::animation::death::mark_dead_unit_models,
             switch_animation,
             crate::animation::death::play_death_animation,
         )
@@ -95,4 +96,42 @@ fn stand_and_movement_leave_a_corpse_alone() {
     let player = app.world().get::<M2AnimPlayer>(model).unwrap();
     assert_eq!(player.current_seq_idx, 1);
     assert_eq!(player.time_ms, 1200.0);
+}
+
+#[test]
+fn a_dead_player_lies_as_a_corpse_until_revived() {
+    let mut app = death_app();
+    // A player's animated model is the player entity itself.
+    let (player_anim, data) = anim_model();
+    let player = app
+        .world_mut()
+        .spawn((
+            shared::components::Player {
+                name: "Theron".into(),
+                race: 1,
+                class: 1,
+                appearance: Default::default(),
+            },
+            NetHealth {
+                current: 0.0,
+                max: 100.0,
+            },
+            player_anim,
+            data,
+        ))
+        .id();
+    app.update();
+    app.update();
+    let anim = app.world().get::<M2AnimPlayer>(player).unwrap();
+    assert_eq!(anim.current_seq_idx, 1, "a dead player plays Death");
+    assert!(!anim.looping);
+
+    app.world_mut()
+        .get_mut::<NetHealth>(player)
+        .unwrap()
+        .current = 50.0;
+    app.update();
+    app.update();
+    let anim = app.world().get::<M2AnimPlayer>(player).unwrap();
+    assert_eq!(anim.current_seq_idx, 0, "a revived player stands again");
 }

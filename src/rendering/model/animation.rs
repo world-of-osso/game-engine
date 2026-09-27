@@ -594,7 +594,8 @@ impl Plugin for AnimationPlugin {
                 (
                     bevy_player::bind_m2_animation_players,
                     (
-                        death::mark_dead_npc_models,
+                        death::clear_revived_unit_models,
+                        death::mark_dead_unit_models,
                         sync_turn_in_place_state,
                         apply_emote_animation,
                         switch_animation,
