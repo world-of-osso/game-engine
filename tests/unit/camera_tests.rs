@@ -274,16 +274,18 @@ fn autorun_toggle_sets_forward_animation_without_forward_key() {
     let bindings = InputBindings::default();
 
     let (direction, anim_dir) = compute_movement_input(
-        &keys,
-        &mouse_buttons,
         &bindings,
+        &CameraInputState {
+            keys: &keys,
+            mouse: &mouse_buttons,
+        },
         true,
         false,
-        &CharacterFacing { yaw: 0.0 },
+        0.0,
     );
 
     assert_eq!(anim_dir, MoveDirection::Forward);
-    assert_eq!(direction, Vec3::new(0.0, 0.0, 1.0));
+    assert_eq!(Vec3::from_array(direction), Vec3::new(0.0, 0.0, 1.0));
 }
 
 #[test]
@@ -293,16 +295,18 @@ fn waypoint_pathing_sets_forward_animation_without_forward_key() {
     let bindings = InputBindings::default();
 
     let (direction, anim_dir) = compute_movement_input(
-        &keys,
-        &mouse_buttons,
         &bindings,
+        &CameraInputState {
+            keys: &keys,
+            mouse: &mouse_buttons,
+        },
         false,
         true,
-        &CharacterFacing { yaw: 0.0 },
+        0.0,
     );
 
     assert_eq!(anim_dir, MoveDirection::Forward);
-    assert_eq!(direction, Vec3::new(0.0, 0.0, 1.0));
+    assert_eq!(Vec3::from_array(direction), Vec3::new(0.0, 0.0, 1.0));
 }
 
 #[test]
@@ -330,9 +334,11 @@ fn forward_input_counts_as_manual_override_for_pathing() {
     keys.press(KeyCode::KeyW);
 
     assert!(has_manual_movement_override(
-        &keys,
-        &mouse_buttons,
         &bindings,
+        &CameraInputState {
+            keys: &keys,
+            mouse: &mouse_buttons,
+        },
     ));
 }
 
