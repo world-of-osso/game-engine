@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Root Cargo command launches Godot
+
+Root `cargo run`/`rd` now selects the std-only debug launcher rather than compiling the Bevy package. It validates the pinned Godot 4.7.2 binary or `GODOT_BIN`, builds the native library, then execs Godot; no server startup or Bevy fallback. `run-tests.sh --workspace` covers root/launcher tests and Godot tests remain separate. Launcher process tests were reported 7/7 at `41036dfe` before integration/refactoring. At `2d17381e`, bare root `cargo run` reached nested native build and Godot 4.7.2 Vulkan initialization with exit 0 (`/tmp/claude/default-cargo-run-smoke-2d17381e.log`); existing WMO/cage warnings remain. This is bootstrap evidence, not client readiness; independent launcher verification remains pending.
+
+Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md).
+
 ## [2026-09-27] system | Local Godot locomotion animation is wired but unverified
 
 `d3593762` makes the original direction policy portable. Core initially fails on a missing export, then passes 2/2: land chooses Stand, Walk/Run only for forward, backward walk, or strafes; swimming chooses only swim IDs and ignores `running` (`/tmp/claude/movement-animation-{red,green}-4e896a2.out`). `5b0bec54` corrects root library import and constant visibility; no root selector evidence exists.
