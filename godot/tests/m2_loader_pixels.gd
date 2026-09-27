@@ -83,7 +83,7 @@ func make_skin(shader_id: int, texture_count: int) -> PackedByteArray:
 	for index in 4:
 		put_u16(skin, 44 + index * 2, index)
 	# Outward winding follows M2; native loader reverses it for Godot.
-	var triangles := [0, 1, 2, 0, 2, 3]
+	var triangles := [0, 2, 1, 0, 3, 2]
 	for index in triangles.size():
 		put_u16(skin, 52 + index * 2, triangles[index])
 	put_u16(skin, 64 + 4, 0)
@@ -96,6 +96,30 @@ func make_skin(shader_id: int, texture_count: int) -> PackedByteArray:
 	put_u16(skin, 112 + 14, texture_count)
 	put_u16(skin, 112 + 16, 0) # Texture lookup starts at 0.
 	return skin
+
+func fixture_vertex_offset(model: PackedByteArray, skin: PackedByteArray, triangle_corner: int) -> int:
+	var lookup_index := skin.decode_u16(52 + triangle_corner * 2)
+	var vertex_index := skin.decode_u16(44 + lookup_index * 2)
+	return 8 + model.decode_u32(8 + 0x40) + vertex_index * 48
+
+func fixture_vector(model: PackedByteArray, offset: int) -> Vector3:
+	return Vector3(model.decode_float(offset), model.decode_float(offset + 4), model.decode_float(offset + 8))
+
+func assert_fixture_winding() -> bool:
+	var model := make_m2(7, 0)
+	var skin := make_skin(0x10, 1)
+	for triangle_start in range(0, 6, 3):
+		var vertices: Array[Vector3] = []
+		for corner in 3:
+			var offset := fixture_vertex_offset(model, skin, triangle_start + corner)
+			vertices.append(fixture_vector(model, offset))
+		var normal_offset := fixture_vertex_offset(model, skin, triangle_start) + 20
+		var authored_normal := fixture_vector(model, normal_offset)
+		var face_normal := (vertices[1] - vertices[0]).cross(vertices[2] - vertices[0])
+		if face_normal.dot(authored_normal) <= 0.0:
+			push_error("M2 fixture triangle %d faces away from its authored normal" % (triangle_start / 3))
+			return false
+	return true
 
 func make_blp(color: Color) -> PackedByteArray:
 	# BLP2 direct/raw3: 148-byte header, 256-entry palette, BGRA mip 0.
@@ -211,6 +235,9 @@ func cleanup() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(FIXTURE + "/" + folder))
 
 func run_cases() -> void:
+	if not assert_fixture_winding():
+		quit(1)
+		return
 	if not ClassDB.class_exists("WowAssetLoader"):
 		push_error("WowAssetLoader not registered")
 		quit(1)
