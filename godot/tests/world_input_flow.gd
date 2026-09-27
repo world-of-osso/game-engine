@@ -1,7 +1,8 @@
 extends SceneTree
 
 const NAME := "Input Fixture"
-const FIRST := Vector3(-8949.0, 83.0, 0.0)
+# Authored terrain height at this fixture's X/Z, not the transfer-only fixture's airborne Y.
+const FIRST := Vector3(-8949.0, 112.879913, 0.0)
 const WORLD_WAIT_MS := 60000
 const LOADING_FRAMES := 24
 const HELD_FRAMES := 60
@@ -61,6 +62,10 @@ func run_test() -> void:
 		fail("Native selected player missing after world readiness")
 		return
 	var start := player.position
+	var ground_height = client.terrain_height_at(start.x, start.z)
+	if ground_height == null or absf(start.y - float(ground_height)) >= 0.3:
+		fail("Input fixture must start grounded on its authored terrain: " + str(start) + " ground=" + str(ground_height))
+		return
 	print("FIXTURE WORLD_READY")
 	for frame in range(6):
 		await process_frame
