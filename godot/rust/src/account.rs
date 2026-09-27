@@ -7,8 +7,8 @@ use std::{
 
 use game_engine_network::{Event, NetworkBridge, ProtocolMessage, UnitSnapshot};
 use game_engine_session::{
-    AuthRequest, Session, SessionEffect, SessionOptions, SessionScreen, normalize_auth_token,
-    token_path,
+    AuthRequest, ReconnectPhase, Session, SessionEffect, SessionOptions, SessionScreen,
+    normalize_auth_token, token_path,
 };
 use shared::protocol::{
     AuthChannel, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
@@ -53,11 +53,6 @@ impl Account {
         password: &str,
         register: bool,
     ) -> Result<(), String> {
-        let address = hostname
-            .to_socket_addrs()
-            .map_err(|error| format!("Resolve realm {hostname}: {error}"))?
-            .find(|address| address.is_ipv4())
-            .ok_or_else(|| format!("Realm {hostname} has no IPv4 address"))?;
         self.stop()?;
         self.reply_received = false;
         self.hostname = hostname.to_owned();
@@ -66,6 +61,22 @@ impl Account {
         if reconnect && self.session.token.is_none() {
             return Err("No saved session to reconnect".into());
         }
+        self.start_transport(username, password, register)
+    }
+
+    fn start_transport(
+        &mut self,
+        username: &str,
+        password: &str,
+        register: bool,
+    ) -> Result<(), String> {
+        let address = self
+            .hostname
+            .to_socket_addrs()
+            .map_err(|error| format!("Resolve realm {}: {error}", self.hostname))?
+            .find(|address| address.is_ipv4())
+            .ok_or_else(|| format!("Realm {} has no IPv4 address", self.hostname))?;
+        self.reply_received = false;
         let client_id = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|error| format!("Connection clock: {error}"))?
@@ -114,12 +125,11 @@ impl Account {
         let mut output = Vec::new();
         for event in events {
             match event {
-                Event::Connected => {}
+                Event::Connected => self.session.receive_connected(),
                 Event::Disconnected(reason) => {
-                    if let Some(reason) = reason {
-                        self.session.feedback = Some(reason);
-                    }
-                    let effects = self.session.receive_disconnected();
+                    let effects = self
+                        .session
+                        .receive_disconnected_with_reason(reason.as_deref());
                     self.apply_effects(effects, &mut output)?;
                 }
                 Event::Message(message) => self.dispatch_message(message, &mut output)?,
@@ -130,6 +140,11 @@ impl Account {
                 break;
             }
         }
+        // Finish the old event batch before creating a replacement worker. Reset effects stop
+        // and join the old worker, and the loop above discards its remaining queued events.
+        if self.bridge.is_none() && self.session.reconnect_phase == ReconnectPhase::PendingConnect {
+            self.start_transport("", "", false)?;
+        }
         Ok(output)
     }
 
@@ -139,7 +154,9 @@ impl Account {
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
         if message.is::<LoadTerrain>() {
-            output.push(AccountEvent::LoadTerrain(decode(message)?));
+            let request = decode(message)?;
+            self.session.receive_terrain_refresh();
+            output.push(AccountEvent::LoadTerrain(request));
             return Ok(());
         }
         if message.is::<NewWorld>() {
