@@ -8,6 +8,10 @@ pub mod camera_control_data;
 pub mod camera_follow_data;
 #[path = "../../../src/camera_input_data.rs"]
 pub mod camera_input_data;
+#[path = "../../../src/campsite_object_data.rs"]
+pub mod campsite_object_data;
+#[cfg(test)]
+mod campsite_object_data_tests;
 #[path = "../../../src/char_select_camera_data.rs"]
 pub mod char_select_camera_data;
 #[path = "../../../src/asset/char_texture_data.rs"]

@@ -27,6 +27,7 @@ pub mod camera_control;
 pub mod camera_control_data;
 pub mod camera_follow_data;
 pub mod camera_input_data;
+pub mod campsite_object_data;
 #[path = "game/casting_data.rs"]
 pub mod casting_data;
 #[path = "scenes/char_create/data.rs"]
