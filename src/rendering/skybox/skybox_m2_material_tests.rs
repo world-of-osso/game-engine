@@ -126,29 +126,33 @@ fn test_batch() -> asset::m2::M2RenderBatch {
     );
     asset::m2::M2RenderBatch {
         mesh,
-        texture_fdid: None,
-        texture_2_fdid: None,
-        extra_texture_fdids: Vec::new(),
-        texture_type: None,
-        overlays: Vec::new(),
-        render_flags: 0,
-        blend_mode: 1,
-        transparency: 0.5,
-        transparency_track_index: None,
-        color_opacity_track_index: None,
-        transparency_anim: None,
-        color_opacity_anim: None,
-        texture_anim: None,
-        texture_anim_2: None,
-        use_uv_2_1: false,
-        use_uv_2_2: false,
-        use_env_map_2: false,
-        shader_id: 0,
-        texture_count: 0,
-        uses_texture_combiner_combos: false,
-        priority_plane: 0,
-        material_layer: 0,
-        mesh_part_id: 0,
+        data: asset::m2_batch_data::ResolvedBatch {
+            source_unit_index: 0,
+            submesh_index: 0,
+            texture_fdid: None,
+            texture_2_fdid: None,
+            extra_texture_fdids: Vec::new(),
+            texture_type: None,
+            overlays: Vec::new(),
+            render_flags: 0,
+            blend_mode: 1,
+            transparency: 0.5,
+            transparency_track_index: None,
+            color_opacity_track_index: None,
+            transparency_anim: None,
+            color_opacity_anim: None,
+            texture_anim: None,
+            texture_anim_2: None,
+            use_uv_2_1: false,
+            use_uv_2_2: false,
+            use_env_map_2: false,
+            shader_id: 0,
+            texture_count: 0,
+            uses_texture_combiner_combos: false,
+            priority_plane: 0,
+            material_layer: 0,
+            mesh_part_id: 0,
+        },
     }
 }
 
@@ -168,13 +172,13 @@ fn single_pixel_srgb_image(images: &mut Assets<Image>) -> Handle<Image> {
 
 fn advanced_skybox_batch() -> asset::m2::M2RenderBatch {
     let mut batch = test_batch();
-    batch.texture_2_fdid = Some(2);
-    batch.use_uv_2_1 = true;
-    batch.use_uv_2_2 = true;
-    batch.uses_texture_combiner_combos = true;
-    batch.shader_id = SHADER_MOD2X;
-    batch.texture_count = 2;
-    batch.render_flags = 0x01;
+    batch.data.texture_2_fdid = Some(2);
+    batch.data.use_uv_2_1 = true;
+    batch.data.use_uv_2_2 = true;
+    batch.data.uses_texture_combiner_combos = true;
+    batch.data.shader_id = SHADER_MOD2X;
+    batch.data.texture_count = 2;
+    batch.data.render_flags = 0x01;
     batch
 }
 
@@ -223,8 +227,8 @@ fn skybox_material_uses_linearized_color_and_blend_mode() {
 #[test]
 fn skybox_material_ignores_batch_transparency_cutout_but_keeps_blend_mode() {
     let mut batch = test_batch();
-    batch.blend_mode = 2;
-    batch.transparency = 0.0;
+    batch.data.blend_mode = 2;
+    batch.data.transparency = 0.0;
     let material = skybox_m2_material(None, None, None, None, None, &batch, 0, &[]);
 
     assert_eq!(material.settings.color.w, 1.0);
@@ -260,8 +264,8 @@ fn skybox_material_preserves_effect_combine_state_for_advanced_batches() {
 #[test]
 fn skybox_material_marks_missing_second_texture_for_single_texture_batches() {
     let mut batch = test_batch();
-    batch.shader_id = SHADER_SINGLE_TEXTURE;
-    batch.texture_count = 1;
+    batch.data.shader_id = SHADER_SINGLE_TEXTURE;
+    batch.data.texture_count = 1;
 
     let material = skybox_m2_material(None, None, None, None, Some(Color::WHITE), &batch, 0, &[]);
 
@@ -284,8 +288,8 @@ fn skybox_material_reuses_primary_texture_for_missing_optional_stages() {
         RenderAssetUsages::default(),
     ));
     let mut batch = test_batch();
-    batch.shader_id = SHADER_THREE_STAGE;
-    batch.texture_count = 3;
+    batch.data.shader_id = SHADER_THREE_STAGE;
+    batch.data.texture_count = 3;
 
     let material = skybox_m2_material(Some(base.clone()), None, None, None, None, &batch, 0, &[]);
 
@@ -311,11 +315,11 @@ fn skybox_material_uses_internal_shader_handle() {
 #[test]
 fn skybox_material_depth_bias_respects_authored_priority_plane_then_material_layer() {
     let mut earlier_batch = test_batch();
-    earlier_batch.priority_plane = -10;
-    earlier_batch.material_layer = 0;
+    earlier_batch.data.priority_plane = -10;
+    earlier_batch.data.material_layer = 0;
     let mut later_batch = test_batch();
-    later_batch.priority_plane = -7;
-    later_batch.material_layer = 3;
+    later_batch.data.priority_plane = -7;
+    later_batch.data.material_layer = 3;
 
     let earlier = skybox_m2_material(None, None, None, None, None, &earlier_batch, 0, &[]);
     let later = skybox_m2_material(None, None, None, None, None, &later_batch, 0, &[]);
@@ -417,7 +421,7 @@ fn configure_skybox_pipeline_preserves_two_sided_batches() {
 #[test]
 fn skybox_material_disables_prepass_for_authored_blend_modes() {
     let mut batch = test_batch();
-    batch.blend_mode = 2;
+    batch.data.blend_mode = 2;
     let material = skybox_m2_material(None, None, None, None, None, &batch, 0, &[]);
 
     assert!(!<SkyboxM2Material as Material>::enable_prepass());
