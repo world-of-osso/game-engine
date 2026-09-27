@@ -23,6 +23,8 @@ mod cache_source_mtime;
 mod cache_sqlite;
 pub mod calendar;
 pub mod camera_control;
+pub mod camera_control_data;
+pub mod camera_follow_data;
 #[path = "game/casting_data.rs"]
 pub mod casting_data;
 #[path = "scenes/char_create/data.rs"]

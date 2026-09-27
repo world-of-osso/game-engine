@@ -3016,6 +3016,7 @@ name = "game-engine-core"
 version = "0.1.0"
 dependencies = [
  "binrw",
+ "glam",
  "half",
  "image-blp",
 ]

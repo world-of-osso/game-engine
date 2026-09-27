@@ -3911,6 +3911,7 @@ dependencies = [
  "criterion",
  "directories",
  "game-api",
+ "glam 0.32.1",
  "glob",
  "half",
  "image 0.25.10",

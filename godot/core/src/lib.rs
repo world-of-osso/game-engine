@@ -2,6 +2,10 @@
 pub mod adt;
 pub mod asset;
 pub mod blp;
+#[path = "../../../src/camera_control_data.rs"]
+pub mod camera_control_data;
+#[path = "../../../src/camera_follow_data.rs"]
+pub mod camera_follow_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
 pub mod light_lookup_data;
 pub mod lighting_assets;

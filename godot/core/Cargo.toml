@@ -7,5 +7,7 @@ rust-version.workspace = true
 [dependencies]
 binrw = "0.15.1"
 image-blp = "1"
+# Same glam version as Bevy math, for shared camera vectors/quaternions.
+glam = "0.32.0"
 # Encode the shared procedural sky cubemap as linear RGBA16F pixels.
 half = "2"
