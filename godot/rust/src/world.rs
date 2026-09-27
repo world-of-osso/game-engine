@@ -210,6 +210,7 @@ mod tests {
             model: None,
             level: None,
             equipment: None,
+            movement_control: None,
         }
     }
 
