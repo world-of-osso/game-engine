@@ -29,6 +29,10 @@ pub mod m2_texture_composite_data;
 pub use asset::m2_batch_data;
 #[cfg(test)]
 mod m2_batch_tests;
+#[path = "../../../src/game/creatures/npc_appearance_data.rs"]
+pub mod npc_appearance_data;
+#[cfg(test)]
+mod npc_appearance_data_tests;
 #[path = "../../../src/game/creatures/npc_visibility_data.rs"]
 pub mod npc_visibility_data;
 #[cfg(test)]
