@@ -12,6 +12,10 @@ pub mod camera_input_data;
 pub mod char_texture_data;
 #[path = "../../../src/rendering/character/char_texture_query_data.rs"]
 pub mod char_texture_query_data;
+#[path = "../../../src/client_options_data.rs"]
+pub mod client_options_data;
+#[cfg(test)]
+mod client_options_data_tests;
 #[path = "../../../src/game/creatures/creature_display_data.rs"]
 pub mod creature_display_data;
 #[cfg(test)]
@@ -38,6 +42,10 @@ pub mod m2_effect_uv_data;
 pub mod m2_texture_composite_data;
 #[path = "../../../src/movement_input_data.rs"]
 pub mod movement_input_data;
+#[path = "../../../src/game/nameplate_style_data.rs"]
+pub mod nameplate_style_data;
+#[path = "../../../src/realm_preset_data.rs"]
+pub mod realm_preset_data;
 pub use asset::m2_batch_data;
 #[cfg(test)]
 mod m2_batch_tests;

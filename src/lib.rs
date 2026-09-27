@@ -36,6 +36,7 @@ pub mod character_export;
 pub mod character_models;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
+pub mod client_options_data;
 pub mod collection;
 #[path = "game/combat_feedback.rs"]
 pub mod combat_feedback;
@@ -126,6 +127,8 @@ pub mod movement_input_data;
 pub mod nameplate_data;
 #[path = "game/nameplate_style.rs"]
 pub mod nameplate_style;
+#[path = "game/nameplate_style_data.rs"]
+pub mod nameplate_style_data;
 pub mod network_events;
 pub mod network_runtime;
 pub mod network_tick;
@@ -153,6 +156,7 @@ pub mod quest_data;
 pub mod quest_runtime;
 #[path = "game/quest_tracking.rs"]
 pub mod quest_tracking;
+pub mod realm_preset_data;
 pub mod reputation;
 #[path = "game/reputation_data.rs"]
 pub mod reputation_data;
