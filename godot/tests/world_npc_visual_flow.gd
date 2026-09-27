@@ -5,8 +5,11 @@ const DEAD_ON_SPAWN := "Fixture Dead on Spawn"
 const PLAYER := "Fixture Player"
 const APPEARANCE_NPC := "Fixture Appearance"
 const MISSING_TYPE6_NPC := "Fixture Missing Type6"
+const HAIR_TYPE6_NPC := "Fixture Hair Type6"
 const BAKED := Color(230.0 / 255.0, 40.0 / 255.0, 80.0 / 255.0)
 const COMPOSED := Color(30.0 / 255.0, 210.0 / 255.0, 90.0 / 255.0)
+const HEAD := Color(35.0 / 255.0, 70.0 / 255.0, 225.0 / 255.0)
+const HAIR := Color(245.0 / 255.0, 175.0 / 255.0, 25.0 / 255.0)
 const DISPLAY_A := 910010
 const DISPLAY_B := 910011
 const WAIT_MS := 15000
@@ -183,6 +186,9 @@ func run_test() -> void:
 	if not await wait_missing_type6_visual(client):
 		return
 	print("FIXTURE TYPE6_MISSING_READY")
+	if not await wait_hair_type6(client):
+		return
+	print("FIXTURE TYPE6_HAIR_READY")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
 	if reconnect_error != "" or client.get_node_or_null("WorldUnits") != null or client.get_node_or_null("WorldLighting") != null or client.account_state().unit_count != 0:
 		fail("Reconnect retained NPC visual/root: " + reconnect_error)
@@ -396,11 +402,55 @@ func prepare_assets() -> bool:
 		and write_fixture(data + "/models/91001300.skin", make_appearance_skin()) \
 		and write_fixture(data + "/models/910014.m2", missing_type6_model) \
 		and write_fixture(data + "/models/91001400.skin", make_skin(0x10, 1)) \
+		and write_fixture(data + "/models/910016.m2", missing_type6_model) \
+		and write_fixture(data + "/models/91001600.skin", make_skin(0x10, 1)) \
 		and write_fixture(data + "/textures/910001.blp", make_blp(BASE)) \
 		and write_fixture(data + "/textures/910002.blp", make_blp(SECOND)) \
 		and write_fixture(data + "/textures/910020.blp", make_blp(BAKED)) \
 		and write_fixture(data + "/textures/910021.blp", make_blp(BASE)) \
-		and write_fixture(data + "/textures/910022.blp", make_blp(COMPOSED))
+		and write_fixture(data + "/textures/910022.blp", make_blp(COMPOSED)) \
+		and write_fixture(data + "/textures/910023.blp", make_blp(HEAD)) \
+		and write_fixture(data + "/textures/910024.blp", make_hair_blp())
+
+func make_hair_blp() -> PackedByteArray:
+	# Target 10 fills section 10 (1024x1024), then the HD runtime crop is 512x512.
+	var bytes := make_blp(HAIR)
+	var width := 1024
+	var height := 1024
+	bytes.resize(1172 + width * height * 4)
+	put_u32(bytes, 12, width)
+	put_u32(bytes, 16, height)
+	put_u32(bytes, 84, width * height * 4)
+	for index in width * height:
+		var offset := 1172 + index * 4
+		bytes[offset] = roundi(HAIR.b * 255.0)
+		bytes[offset + 1] = roundi(HAIR.g * 255.0)
+		bytes[offset + 2] = roundi(HAIR.r * 255.0)
+		bytes[offset + 3] = 255
+	return bytes
+
+func wait_hair_type6(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	var actual := Color.TRANSPARENT
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var npc := client.get_node_or_null("WorldUnits/" + HAIR_TYPE6_NPC)
+		var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
+		var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
+		var material := batch.get_surface_override_material(0) as ShaderMaterial if batch != null else null
+		var texture := material.get_shader_parameter("base_texture") as Texture2D if material != null else null
+		if batch == null or batch.mesh == null or texture == null:
+			continue
+		var image := texture.get_image()
+		if image.get_size() != Vector2i(512, 512):
+			fail("NPC hair type-6 crop expected 512x512, got %s" % image.get_size())
+			return false
+		actual = image.get_pixel(0, 0)
+		if absf(actual.r - HAIR.r) < TOLERANCE and absf(actual.g - HAIR.g) < TOLERANCE \
+			and absf(actual.b - HAIR.b) < TOLERANCE and absf(actual.a - HAIR.a) < TOLERANCE:
+			return true
+	fail("NPC ordinary type-6 batch expected authored hair RGBA %s, got %s" % [HAIR, actual])
+	return false
 
 func wait_missing_type6_visual(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + WAIT_MS
