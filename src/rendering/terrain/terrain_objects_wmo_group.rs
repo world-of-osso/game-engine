@@ -10,6 +10,8 @@ pub(super) fn spawn_wmo_group_batches(
     group_entity: Entity,
     batches: Vec<wmo::WmoGroupBatch>,
 ) {
+    // An antiportal is an occluder, not geometry.
+    let solid = !group_header.group_flags.antiportal;
     for batch in batches {
         let material_props = wmo_material_props(root, batch.material_index);
         let second_layer = batch
@@ -21,8 +23,10 @@ pub(super) fn spawn_wmo_group_batches(
             Mesh3d(assets.meshes.add(batch.mesh)),
             Transform::default(),
             Visibility::default(),
-            WmoCollisionMesh,
         ));
+        if solid {
+            child.insert(WmoCollisionMesh);
+        }
         let base =
             wmo_batch_standard_material(assets.images, batch.material_index, &material_props);
         insert_wmo_lit_material(
@@ -460,25 +464,23 @@ pub(super) fn add_wmo_doodad_set_indices(
     indices.extend((start..end).filter_map(|idx| u16::try_from(idx).ok()));
 }
 
-/// Resolve a doodad FDID from MODI (preferred) or MODN name → listfile lookup (fallback).
+/// Resolve a doodad FDID from its MODD `name_offset`.
 ///
-/// MODD entries reference doodads by `name_offset` — a byte offset into the MODN string table.
-/// MODI entries are indexed by *name index* (sequential position), not byte offset.
+/// With MODI present, `name_offset` is an index into MODI (WebWowViewerCpp `wmoObject.cpp`:
+/// `doodadFileDataIds[doodadDef->name_offset]`). Without it, `name_offset` is a byte offset
+/// into the MODN string table, resolved through the listfile.
 pub(super) fn resolve_wmo_doodad_fdid(root: &wmo::WmoRootData, name_offset: u32) -> Option<u32> {
-    let name_index = root
+    if !root.doodad_file_ids.is_empty() {
+        return root
+            .doodad_file_ids
+            .get(name_offset as usize)
+            .copied()
+            .filter(|&id| id != 0);
+    }
+    let name = root
         .doodad_names
         .iter()
-        .position(|n| n.offset == name_offset);
-
-    // MODI path: use FDID directly, no listfile needed
-    let modi_fdid = name_index.and_then(|idx| root.doodad_file_ids.get(idx).copied());
-    if let Some(fdid) = modi_fdid.filter(|&id| id != 0) {
-        return Some(fdid);
-    }
-
-    // Fallback: MODN name → listfile path → FDID
-    let name = name_index
-        .and_then(|idx| root.doodad_names.get(idx))
+        .find(|n| n.offset == name_offset)
         .map(|n| &n.name)?;
     game_engine::listfile::lookup_path(name)
 }
@@ -508,14 +510,18 @@ pub(super) fn spawn_wmo_group_doodad(
         .and_then(|stem| stem.to_str())
         .unwrap_or("wmo_doodad")
         .to_owned();
+    let model = match crate::asset::m2::load_m2(&model_path, &[0, 0, 0]) {
+        Ok(model) => model,
+        Err(e) => {
+            warn!("Failed to load WMO doodad M2 {}: {e}", model_path.display());
+            return None;
+        }
+    };
     let entity = commands
         .spawn((Name::new(name), doodad.transform, Visibility::default()))
         .id();
     let mut spawn_assets = wmo_group_doodad_spawn_assets(assets);
-    if !m2_spawn::spawn_m2_on_entity(commands, &mut spawn_assets, &model_path, entity, &[0, 0, 0]) {
-        commands.entity(entity).despawn();
-        return None;
-    }
+    m2_spawn::spawn_m2_model_on_entity(commands, &mut spawn_assets, model, entity);
     insert_wmo_group_doodad_interaction(commands, entity, &model_path);
     Some(entity)
 }
@@ -575,19 +581,8 @@ pub(super) fn group_bbox(
         bbox_min,
         bbox_max,
         is_exterior: group_header.group_flags.exterior,
-        is_antiportal: group_is_antiportal(root, group_header),
+        is_antiportal: group_header.group_flags.antiportal,
     }
-}
-
-pub(super) fn group_is_antiportal(
-    root: &wmo::WmoRootData,
-    group_header: &wmo::WmoGroupHeader,
-) -> bool {
-    root.group_names.iter().any(|group_name| {
-        group_name.is_antiportal
-            && (group_name.offset == group_header.group_name_offset
-                || group_name.offset == group_header.descriptive_group_name_offset)
-    })
 }
 
 fn wmo_batch_standard_material(

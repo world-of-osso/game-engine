@@ -5,6 +5,7 @@ pub(super) use crate::asset::wmo_format::parser::{
 pub(super) use bevy::ecs::system::RunSystemOnce;
 
 mod alpha_gpu;
+mod camera_collision;
 mod crossfade_gpu;
 mod doodads;
 mod floor_collision;

@@ -127,7 +127,27 @@ fn npc_visibility_policy_is_active(
     }
 }
 
+/// A unit whose `UnitFlags` carry `UNIT_FLAG_NOT_SELECTABLE` (a trigger such as the Summon
+/// Enabler Stalker): Retail draws no nameplate for it and it cannot be clicked, hovered or
+/// tab-targeted.
+#[derive(Component)]
+pub struct NotSelectable;
+
+pub(crate) fn sync_not_selectable(
+    mut commands: Commands,
+    units: Query<(Entity, &shared::components::UnitFlags), Changed<shared::components::UnitFlags>>,
+) {
+    for (entity, flags) in &units {
+        if flags.is_selectable() {
+            commands.entity(entity).remove::<NotSelectable>();
+        } else {
+            commands.entity(entity).insert(NotSelectable);
+        }
+    }
+}
+
 pub(crate) fn register_npc_visibility_policy_systems(app: &mut App) {
+    app.add_systems(Update, sync_not_selectable);
     npc_appearance::register_npc_appearance_systems(app);
     app.add_systems(
         Update,

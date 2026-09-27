@@ -234,3 +234,68 @@ fn spawn_wmo_group_batches_marks_mesh_children_for_collision() {
         "WMO batch mesh should block player movement"
     );
 }
+
+/// `sw_magicdistrict` group 62 is its antiportal (MOGP flag 0x4000000; its MOGN name does not
+/// sit at the group's name offset): an occluder, so portal culling never draws it and its
+/// batches must not block the player or camera, which collide with every `WmoCollisionMesh`
+/// whether drawn or not. Group 58, the Stockade stairwell, is solid.
+#[test]
+fn magic_district_antiportal_batches_are_not_collision_meshes() {
+    let collision_marked = |group_index: usize| -> (usize, usize) {
+        let mut app = App::new();
+        app.world_mut().init_resource::<Assets<Mesh>>();
+        app.world_mut().init_resource::<Assets<M2Material>>();
+        app.world_mut().init_resource::<Assets<WaterMaterial>>();
+        app.world_mut().init_resource::<Assets<WmoLitMaterial>>();
+        app.world_mut().init_resource::<Assets<Image>>();
+        app.world_mut().init_resource::<Assets<M2EffectMaterial>>();
+        app.world_mut()
+            .init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        let group_entity = app.world_mut().spawn_empty().id();
+        let _ = app.world_mut().run_system_once(
+            move |mut commands: Commands,
+                  mut meshes: ResMut<Assets<Mesh>>,
+                  mut materials: ResMut<Assets<M2Material>>,
+                  mut water_materials: ResMut<Assets<WaterMaterial>>,
+                  mut images: ResMut<Assets<Image>>,
+                  mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+                  mut inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>| {
+                let (_, root, mut groups) = super::portal_culling::load_tile_30_48_wmo(321999);
+                let group = groups.swap_remove(group_index);
+                let mut assets = WmoAssets {
+                    meshes: &mut meshes,
+                    materials: &mut materials,
+                    water_materials: &mut water_materials,
+                    images: &mut images,
+                    effect_materials: &mut effect_materials,
+                    inverse_bindposes: &mut inverse_bindposes,
+                };
+                spawn_wmo_group_batches(
+                    &mut commands,
+                    &mut assets,
+                    &root,
+                    &group.header,
+                    [0.0; 3],
+                    group_entity,
+                    group.batches,
+                );
+            },
+        );
+        app.update();
+        let children = app.world().get::<Children>(group_entity).unwrap().to_vec();
+        let marked = children
+            .iter()
+            .filter(|&&child| app.world().get::<WmoCollisionMesh>(child).is_some())
+            .count();
+        (children.len(), marked)
+    };
+
+    let (antiportal_batches, antiportal_marked) = collision_marked(62);
+    let (stairwell_batches, stairwell_marked) = collision_marked(58);
+
+    let (_, root, groups) = super::portal_culling::load_tile_30_48_wmo(321999);
+    assert!(group_bbox(&root, 62, &groups[62].header).is_antiportal);
+    assert!(antiportal_batches > 0);
+    assert_eq!(antiportal_marked, 0);
+    assert_eq!(stairwell_marked, stairwell_batches);
+}

@@ -56,7 +56,13 @@ fn trade_district_auction_house_interior_is_drawn_from_inside() {
 }
 
 fn trade_district_culling_app(camera: Transform) -> App {
-    let (placement_transform, root, groups) = load_trade_district();
+    wmo_culling_app(load_trade_district(), camera)
+}
+
+fn wmo_culling_app(
+    (placement_transform, root, groups): (Transform, wmo::WmoRootData, Vec<wmo::WmoGroupData>),
+    camera: Transform,
+) -> App {
     let mut app = App::new();
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::InWorld)
@@ -101,16 +107,29 @@ pub(super) fn trade_district_placement() -> adt_obj::WmoPlacement {
 }
 
 pub(super) fn load_trade_district() -> (Transform, wmo::WmoRootData, Vec<wmo::WmoGroupData>) {
-    let placement = trade_district_placement();
+    load_tile_30_48_wmo(TRADE_DISTRICT_ROOT_FDID)
+}
+
+/// The MODF placement, root and groups of a WMO that `azeroth_30_48_obj0` places.
+pub(super) fn load_tile_30_48_wmo(
+    root_fdid: u32,
+) -> (Transform, wmo::WmoRootData, Vec<wmo::WmoGroupData>) {
+    let obj0 = std::fs::read(TRADE_DISTRICT_OBJ0).expect("azeroth_30_48_obj0 in data/terrain");
+    let objects = adt_obj::load_adt_obj0(&obj0).expect("parse azeroth_30_48_obj0");
+    let placement = objects
+        .wmos
+        .into_iter()
+        .find(|placement| resolve_wmo_fdid(placement) == Some(root_fdid))
+        .expect("MODF placement");
     let placement_transform = super::super::super::wmo_transform(&placement, 30, 48);
-    let root_data = std::fs::read(format!("data/models/{TRADE_DISTRICT_ROOT_FDID}.wmo"))
-        .expect("sw_tradedistrict root WMO in data/models");
-    let root = wmo::load_wmo_root(&root_data).expect("parse sw_tradedistrict root");
+    let root_data =
+        std::fs::read(format!("data/models/{root_fdid}.wmo")).expect("root WMO in data/models");
+    let root = wmo::load_wmo_root(&root_data).expect("parse WMO root");
     let groups = (0..root.n_groups as usize)
         .map(|index| {
             let fdid = root.group_file_data_ids[index];
-            let data = std::fs::read(format!("data/models/{fdid}.wmo"))
-                .expect("sw_tradedistrict group in data/models");
+            let data =
+                std::fs::read(format!("data/models/{fdid}.wmo")).expect("WMO group in data/models");
             wmo::load_wmo_group_with_root(&data, Some(&root)).expect("parse group")
         })
         .collect();
@@ -123,4 +142,32 @@ fn group_visibility(world: &mut World) -> std::collections::HashMap<u16, Visibil
         .iter(world)
         .map(|(group, visibility)| (group.group_index, *visibility))
         .collect()
+}
+
+const MAGIC_DISTRICT_ROOT_FDID: u32 = 321999;
+const GROUP_STOCKADE_STAIRWELL: u16 = 58;
+const GROUP_STOCKADE_JAIL: u16 = 59;
+
+/// A camera in the Stockade entrance doorway (WoW -8767.70, 844.08, 88.83), 0.15 yd past the
+/// `BigJailRoom01` / `Jail01` portal plane, looking at the player down the tunnel: the pose
+/// the walk down the stairs reaches with the camera low behind the player (yaw -50°, pitch
+/// 45°). It stands in `Jail01` with the portal just behind it, outside the frustum. The
+/// frustum test alone closed the portal and hid the stairwell; WebWowViewerCpp keeps a portal
+/// open within 2.25 yd of its plane.
+#[test]
+fn stockade_stairwell_is_drawn_from_a_camera_just_past_the_doorway() {
+    let camera = Transform::from_xyz(-8767.703, 88.825, -844.085)
+        .looking_to(Vec3::new(0.6562, 0.4900, -0.5738), Vec3::Y);
+    let mut app = wmo_culling_app(load_tile_30_48_wmo(MAGIC_DISTRICT_ROOT_FDID), camera);
+
+    app.update();
+
+    let visibility = group_visibility(app.world_mut());
+    for group in [GROUP_STOCKADE_JAIL, GROUP_STOCKADE_STAIRWELL] {
+        assert_eq!(
+            visibility.get(&group),
+            Some(&Visibility::Visible),
+            "group {group}"
+        );
+    }
 }

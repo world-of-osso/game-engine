@@ -89,6 +89,7 @@ pub fn quest_request(command: QuestCmd) -> Result<Request, String> {
         QuestCmd::Watch => Request::QuestWatch,
         QuestCmd::Show { id } => Request::QuestShow { quest_id: id },
         QuestCmd::Interact { npc } => Request::QuestInteract { npc },
+        QuestCmd::TakeLoot => Request::LootTakeAll,
     };
     Ok(request)
 }

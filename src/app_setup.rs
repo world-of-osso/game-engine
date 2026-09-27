@@ -568,6 +568,7 @@ fn add_core_screen_plugins(app: &mut App) {
         crate::game::networking_loot::LootNetworkPlugin,
         crate::game::networking_taxi::TaxiNetworkPlugin,
         crate::game::networking_transfer::TransferNetworkPlugin,
+        crate::game::networking_encounter::EncounterNetworkPlugin,
         crate::game::networking_group::GroupNetworkPlugin,
         crate::game::networking_inventory::InventoryNetworkPlugin,
         crate::game::networking_bank::BankNetworkPlugin,
@@ -651,6 +652,7 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(scenes::summon_popup::SummonPopupPlugin);
     app.add_plugins(scenes::death_ui::DeathUiPlugin);
     app.add_plugins(scenes::ui_errors_frame::UiErrorsFramePlugin);
+    app.add_plugins(scenes::raid_warning_frame::RaidWarningFramePlugin);
     app.add_plugins(scenes::chat_frame::ChatFramePlugin);
 }
 

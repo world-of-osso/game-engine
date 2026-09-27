@@ -322,6 +322,7 @@ fn mount_combat_cluster(app: &mut App) {
         target: Some(unit.clone()),
         target_of_target: Some(SmallUnitFrameState::from(&unit)),
         focus: Some(SmallUnitFrameState::from(&unit)),
+        bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
     });
     shared.insert(CastingBarState {

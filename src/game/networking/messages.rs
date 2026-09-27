@@ -87,12 +87,23 @@ pub(crate) fn receive_chat_messages(
     mut whisper_state: ResMut<WhisperState>,
     ignore_list: Res<IgnoreListStatusSnapshot>,
     selected_character: Option<Res<SelectedCharacterId>>,
+    mut raid_warnings: Option<ResMut<game_engine::ui::raid_warning::RaidWarnings>>,
 ) {
     let local_name = selected_character
         .as_deref()
         .and_then(|selected| selected.character_name.as_deref());
     for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
+            // RaidWarningFrameMixin:OnEvent RAID_BOSS_EMOTE: the emote center screen too.
+            if let (shared::protocol::ChatType::RaidBossEmote(_), Some(warnings)) =
+                (&msg.channel, raid_warnings.as_deref_mut())
+            {
+                let [r, g, b, _] = ChatChannelType::RaidBossEmote.color();
+                warnings.add(
+                    game_engine::chat_data::monster_emote_text(&msg.content, &msg.sender),
+                    [r, g, b],
+                );
+            }
             apply_incoming_chat_message(
                 &msg,
                 local_name,
@@ -218,6 +229,14 @@ fn map_runtime_chat_channel(
         shared::protocol::ChatType::Emote => (ChatChannelType::Emote, String::new()),
         shared::protocol::ChatType::System | shared::protocol::ChatType::ServerBroadcast => {
             (ChatChannelType::System, String::new())
+        }
+        shared::protocol::ChatType::MonsterSay(_) => (ChatChannelType::MonsterSay, String::new()),
+        shared::protocol::ChatType::MonsterYell(_) => (ChatChannelType::MonsterYell, String::new()),
+        shared::protocol::ChatType::MonsterEmote(_) => {
+            (ChatChannelType::MonsterEmote, String::new())
+        }
+        shared::protocol::ChatType::RaidBossEmote(_) => {
+            (ChatChannelType::RaidBossEmote, String::new())
         }
         shared::protocol::ChatType::Whisper(target) => {
             let is_outgoing = local_name.is_some_and(|name| sender.eq_ignore_ascii_case(name));

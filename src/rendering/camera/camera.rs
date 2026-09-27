@@ -26,6 +26,8 @@ mod camera_post_process;
 
 use camera_controls::CameraInputState;
 use camera_follow::camera_follow;
+#[cfg(test)]
+pub(crate) use camera_follow::camera_follow as camera_follow_system;
 pub(crate) use camera_post_process::{MsaaDisabled, world_camera_tonemapping};
 use camera_post_process::{sync_camera_graphics_post_process, sync_ui_camera_msaa};
 use game_engine::camera_input_data::{CameraInput, apply_camera_input};

@@ -324,6 +324,7 @@ struct IpcSenderParams<'w, 's> {
     connected_query: Query<'w, 's, Entity, With<Connected>>,
     npc_interactions: MessageWriter<'w, game_engine::quest_runtime::NpcInteractionRequest>,
     loot_requests: MessageWriter<'w, crate::loot_state::LootRequest>,
+    loot: Option<Res<'w, crate::loot_state::LootState>>,
     current_target: ResMut<'w, CurrentTarget>,
     npcs: Query<
         'w,
@@ -713,6 +714,7 @@ fn dispatch_map_and_equipment_request(
             let player = Vec2::new(ctx.map_status.player_x, ctx.map_status.player_z);
             handle_quest_interact(cmd.respond, sender_params, &npc, player)
         }
+        Request::LootTakeAll => handle_loot_take_all(cmd.respond, sender_params),
         Request::EquipmentSet { .. } => {
             dispatch_equipment_set_request(cmd, &mut sender_params.equipment_control);
         }
@@ -734,6 +736,22 @@ fn dispatch_map_and_equipment_request(
         }
         _ => {}
     }
+}
+
+/// Every slot of the open loot window is taken; the answer lists what was on them.
+fn handle_loot_take_all(respond: mpsc::Sender<Response>, params: &mut IpcSenderParams) {
+    let Some(loot) = params.loot.as_deref().filter(|loot| loot.is_open()) else {
+        let _ = respond.send(Response::Error("no loot window open".into()));
+        return;
+    };
+    let taken: Vec<String> = loot
+        .slots
+        .iter()
+        .map(|entry| crate::loot_state::loot_chat_text(&entry.content))
+        .collect();
+    let requests = loot.take_all();
+    params.loot_requests.write_batch(requests);
+    let _ = respond.send(Response::Text(taken.join("\n")));
 }
 
 /// A right-click on the nearest NPC named `name`: it becomes the target and is

@@ -39,6 +39,14 @@ impl LootState {
         Some(self.slots.remove(index).content)
     }
 
+    /// `LootSlot(i)` for every slot of the open window, in slot order.
+    pub fn take_all(&self) -> Vec<LootRequest> {
+        self.slots
+            .iter()
+            .map(|entry| LootRequest::Take { slot: entry.slot })
+            .collect()
+    }
+
     /// `LOOT_CLOSED` for `corpse`.
     pub fn close(&mut self, corpse: u64) {
         if self.corpse == Some(corpse) {
@@ -171,6 +179,19 @@ mod tests {
         assert!(state.is_open());
         state.close(42);
         assert_eq!(state, LootState::default());
+    }
+
+    #[test]
+    fn taking_all_asks_for_every_slot_still_on_the_corpse() {
+        let mut state = LootState::default();
+        assert!(state.take_all().is_empty(), "no window open");
+        state.open(response());
+        assert_eq!(
+            state.take_all(),
+            vec![LootRequest::Take { slot: 0 }, LootRequest::Take { slot: 1 }]
+        );
+        state.remove(42, 0);
+        assert_eq!(state.take_all(), vec![LootRequest::Take { slot: 1 }]);
     }
 
     #[test]

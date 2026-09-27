@@ -33,7 +33,16 @@ impl Plugin for UnitHoverPlugin {
     }
 }
 
-type Units<'w, 's> = Query<'w, 's, (), (With<RemoteEntity>, Or<(With<Npc>, With<NetPlayer>)>)>;
+type Units<'w, 's> = Query<
+    'w,
+    's,
+    (),
+    (
+        With<RemoteEntity>,
+        Or<(With<Npc>, With<NetPlayer>)>,
+        Without<crate::networking_npc::NotSelectable>,
+    ),
+>;
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct WorldPick<'w, 's> {

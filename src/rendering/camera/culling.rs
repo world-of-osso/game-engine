@@ -2,6 +2,7 @@ use std::collections::{HashSet, VecDeque};
 
 use bevy::camera::primitives::Frustum;
 use bevy::ecs::query::QueryFilter;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::game_state_enum::GameState;
@@ -276,12 +277,18 @@ type WmoGroupCullQuery<'w, 's> = Query<
     ),
 >;
 
+/// Distance from a portal's plane within which the portal counts as visible whatever the
+/// frustum says (WebWowViewerCpp `dotepsilon`, 1.5²): a camera passing through a doorway
+/// looks along its plane, where the frustum test is unreliable.
+const PORTAL_NEAR_DISTANCE: f32 = 2.25;
+
 /// BFS from the start groups through portals visible in the frustum.
 fn bfs_visible_groups(
     start_groups: &[u16],
     graph: &WmoPortalGraph,
     frustum: &Frustum,
     wmo_transform: &GlobalTransform,
+    cam_pos: Vec3,
 ) -> HashSet<u16> {
     let mut visible: HashSet<u16> = start_groups.iter().copied().collect();
     let mut queue: VecDeque<u16> = start_groups.iter().copied().collect();
@@ -294,7 +301,7 @@ fn bfs_visible_groups(
             if visible.contains(&dest_group) {
                 continue;
             }
-            if portal_in_frustum(graph, portal_idx, frustum, wmo_transform) {
+            if portal_visible(graph, portal_idx, frustum, wmo_transform, cam_pos) {
                 visible.insert(dest_group);
                 queue.push_back(dest_group);
             }
@@ -304,40 +311,77 @@ fn bfs_visible_groups(
     visible
 }
 
-/// Check if a portal polygon has any vertex inside the camera frustum.
-fn portal_in_frustum(
+/// A portal is visible when the camera is next to its plane or when part of its polygon lies
+/// inside the frustum (WebWowViewerCpp `MathHelper::planeCull`). Testing only its vertices
+/// misses a doorway the camera looks straight through: every corner is outside the view.
+fn portal_visible(
     graph: &WmoPortalGraph,
     portal_idx: usize,
     frustum: &Frustum,
     wmo_transform: &GlobalTransform,
+    cam_pos: Vec3,
 ) -> bool {
     let Some(verts) = graph.portal_verts.get(portal_idx) else {
         return false;
     };
-    if verts.is_empty() {
-        return true; // No geometry = assume visible
+    if verts.len() < 3 {
+        return false;
     }
-    // Check if any portal vertex is inside all frustum half-spaces
-    for local_v in verts {
-        let world_v = wmo_transform.transform_point(*local_v);
-        if point_in_frustum(world_v, frustum) {
-            return true;
-        }
-    }
-    false
+    let polygon: Vec<Vec3> = verts
+        .iter()
+        .map(|local_v| wmo_transform.transform_point(*local_v))
+        .collect();
+    camera_near_plane(&polygon, cam_pos) || polygon_in_frustum(polygon, frustum)
 }
 
-/// Test if a point is inside all 6 frustum half-spaces.
-fn point_in_frustum(point: Vec3, frustum: &Frustum) -> bool {
-    let point = Vec3A::from(point);
+fn camera_near_plane(polygon: &[Vec3], cam_pos: Vec3) -> bool {
+    let normal = polygon_normal(polygon);
+    normal != Vec3::ZERO && normal.dot(cam_pos - polygon[0]).abs() <= PORTAL_NEAR_DISTANCE
+}
+
+/// Unit normal of a planar polygon (Newell's method), zero when it is degenerate.
+fn polygon_normal(polygon: &[Vec3]) -> Vec3 {
+    polygon
+        .iter()
+        .zip(polygon.iter().cycle().skip(1))
+        .fold(Vec3::ZERO, |normal, (a, b)| {
+            normal
+                + Vec3::new(
+                    (a.y - b.y) * (a.z + b.z),
+                    (a.z - b.z) * (a.x + b.x),
+                    (a.x - b.x) * (a.y + b.y),
+                )
+        })
+        .normalize_or_zero()
+}
+
+/// Clip the polygon by each frustum half-space (Sutherland-Hodgman); it is in the frustum
+/// when an area survives every plane.
+fn polygon_in_frustum(mut polygon: Vec<Vec3>, frustum: &Frustum) -> bool {
     for half_space in &frustum.half_spaces {
-        let normal = half_space.normal();
+        let normal = Vec3::from(half_space.normal());
         let d = half_space.d();
-        if normal.dot(point) + d < 0.0 {
+        polygon = clip_polygon(&polygon, |point| normal.dot(point) + d);
+        if polygon.len() < 3 {
             return false;
         }
     }
     true
+}
+
+/// The part of `polygon` where `signed_distance` is non-negative.
+fn clip_polygon(polygon: &[Vec3], signed_distance: impl Fn(Vec3) -> f32) -> Vec<Vec3> {
+    let mut clipped = Vec::with_capacity(polygon.len() + 2);
+    for (&a, &b) in polygon.iter().zip(polygon.iter().cycle().skip(1)) {
+        let (da, db) = (signed_distance(a), signed_distance(b));
+        if da >= 0.0 {
+            clipped.push(a);
+        }
+        if (da >= 0.0) != (db >= 0.0) {
+            clipped.push(a.lerp(b, da / (da - db)));
+        }
+    }
+    clipped
 }
 
 /// Height of the highest floor triangle directly below `point` (WMO-local Bevy space, Y up).
@@ -361,6 +405,35 @@ fn triangle_height_at(triangle: &[Vec3; 3], x: f32, z: f32) -> Option<f32> {
     let wb = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / det;
     let wc = 1.0 - wa - wb;
     (wa >= 0.0 && wb >= 0.0 && wc >= 0.0).then_some(wa * a.y + wb * b.y + wc * c.y)
+}
+
+/// The interior (non-EXTERIOR) WMO groups, to tell whether a world point stands inside one:
+/// inside its bounding box with a floor of it below, the rule portal culling uses for the
+/// camera.
+#[derive(SystemParam)]
+pub struct WmoInteriors<'w, 's> {
+    wmos: Query<'w, 's, &'static GlobalTransform, With<Wmo>>,
+    groups: Query<
+        'w,
+        's,
+        (
+            &'static WmoGroup,
+            &'static WmoInteriorFloor,
+            &'static ChildOf,
+        ),
+    >,
+}
+
+impl WmoInteriors<'_, '_> {
+    pub fn contain(&self, point: Vec3) -> bool {
+        self.groups.iter().any(|(group, floor, child_of)| {
+            let Ok(wmo_gtf) = self.wmos.get(child_of.parent()) else {
+                return false;
+            };
+            let local = wmo_gtf.affine().inverse().transform_point3(point);
+            bbox_contains(group, local) && floor_height_below(floor, local).is_some()
+        })
+    }
 }
 
 fn bbox_contains(group: &WmoGroup, point: Vec3) -> bool {
@@ -399,18 +472,19 @@ fn cull_wmo_portal_visibility(
 
     let visible_set = match find_camera_interior_group(local_cam, wmo_entity, group_q) {
         Some(cam_group) => {
-            let mut visible = bfs_visible_groups(&[cam_group], graph, frustum, wmo_gtf);
+            let mut visible = bfs_visible_groups(&[cam_group], graph, frustum, wmo_gtf, cam_pos);
             if exterior_groups.iter().any(|group| visible.contains(group)) {
                 visible.extend(bfs_visible_groups(
                     &exterior_groups,
                     graph,
                     frustum,
                     wmo_gtf,
+                    cam_pos,
                 ));
             }
             visible
         }
-        None => bfs_visible_groups(&exterior_groups, graph, frustum, wmo_gtf),
+        None => bfs_visible_groups(&exterior_groups, graph, frustum, wmo_gtf, cam_pos),
     };
     apply_portal_group_visibility(wmo_entity, &visible_set, group_q);
 }

@@ -11,7 +11,7 @@ How the client shows the character bank, the Warband bank and the guild bank. Th
 - **Vault:** a replicated server object (`GameObjectInfo`).
   - It mirrors through `EntitySnapshot`.
   - `networking/game_objects.rs::spawn_replicated_game_object` places it and attaches the M2. The M2 FDID comes from `data/db2/12.1.0.69933/GameObjectDisplayInfo.csv`.
-  - It gets `WorldObjectInteraction { kind: ServerObject }`.
+  - It gets `WorldObjectInteraction { kind: ServerObject }`, as does every usable object (`GameObjectInfo::is_usable`); decoration such as fires gets none (no cursor, highlight or click).
   - `target.rs` sends `NpcInteractionRequest::UseObject` without a client range check; the server checks the model-box reach. `quests.rs` turns that request into `UseGameObject`.
 
 ### Contents

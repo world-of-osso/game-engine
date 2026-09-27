@@ -1398,3 +1398,15 @@ Created [[bevy-godot-shadow-comparison]]. Revision-pinned source review records 
 ## [2026-09-26] system | Godot full-contract parity inventory
 
 Created [Godot feature parity matrix](../specs/godot-parity-matrix.md) and linked it from [[godot-conversion]] and the conversion specification. It inventories every existing feature specification by concrete capability, without duplicating those contracts. Every conversion row remains Missing: current parser/core, preview, portable-UI-model, account-host, and headless transport results do not establish Godot runtime parity. The authorized Bevy boundary remains transport-only; the integrated full-client conversion gate is unchanged and open.
+
+## [2026-09-26] investigation | Stockade entrance
+
+Created [[stockade-entrance]]: MODD name_offset indexes MODI (WMO doodads of MODI-only roots now spawn, including the Stockade instance portal); camera collides with portal-culled WMO groups, smoothed pose ray-checked, portal visibility clips the polygon and opens within 2.25 yd. Updated [[collision-system]], [[stormwind-hilly-plaza]], [[wmo-format]].
+
+## [2026-09-26] update | Doodad particles, player walls, antiportal flag, interior camera terrain
+
+[[stockade-entrance]]: all doodads spawn M2 emitters; player movement ignores visibility for WMO walls; antiportals from the MOGP flag; no camera terrain clamp inside WMO interiors. [[collision-system]] updated.
+
+## [2026-09-26] investigation | Stockade floor fall
+
+Created [[stockade-floor-fall]]: the failing teleport points lie outside WMO 108631 (no face crosses them); server ground matches brute force on all 7,650 floor samples; sky is the exterior-only portal view. Open: TrinityCore fall-to-void kill.
