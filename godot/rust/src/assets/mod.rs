@@ -214,9 +214,14 @@ fn build_model(
                 )
             })?;
             let mesh = build_batch_mesh(model, sub)?;
-            let replacement = appearance
-                .filter(|_| !material::is_effect(batch))
-                .and_then(|appearance| batch.texture_type.and_then(|kind| appearance.textures.get(&kind)));
+            let replacement =
+                appearance
+                    .filter(|_| !material::is_effect(batch))
+                    .and_then(|appearance| {
+                        batch
+                            .texture_type
+                            .and_then(|kind| appearance.textures.get(&kind))
+                    });
             let material = material::load_material(batch, path, &mut missing, replacement)?;
             let visible = appearance.is_none_or(|appearance| {
                 game_engine_core::npc_appearance_selection_data::npc_geoset_visible(

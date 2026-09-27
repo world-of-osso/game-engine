@@ -229,7 +229,11 @@ fn compose_texture(
     Ok(())
 }
 
-pub(super) fn texture_from_rgba(pixels: &[u8], width: u32, height: u32) -> Result<Gd<ImageTexture>, String> {
+pub(super) fn texture_from_rgba(
+    pixels: &[u8],
+    width: u32,
+    height: u32,
+) -> Result<Gd<ImageTexture>, String> {
     let image = Image::create_from_data(
         width as i32,
         height as i32,
