@@ -17,15 +17,15 @@ use crate::game_state::GameState;
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::InputBindings;
 pub use portable::{
-    AntiAliasMode, DEFAULT_NAMEPLATE_DISTANCE, MAX_CHAT_FONT_SIZE, MAX_FRAME_RATE_LIMIT,
-    MAX_MOUSE_SENSITIVITY, MAX_NAMEPLATE_DISTANCE, MAX_UI_SCALE, MIN_CHAT_FONT_SIZE,
-    MIN_FRAME_RATE_LIMIT, MIN_MOUSE_SENSITIVITY, MIN_NAMEPLATE_DISTANCE, MIN_UI_SCALE,
+    AntiAliasMode, DEFAULT_NAMEPLATE_DISTANCE, LoginCredentials, MAX_CHAT_FONT_SIZE,
+    MAX_FRAME_RATE_LIMIT, MAX_MOUSE_SENSITIVITY, MAX_NAMEPLATE_DISTANCE, MAX_UI_SCALE,
+    MIN_CHAT_FONT_SIZE, MIN_FRAME_RATE_LIMIT, MIN_MOUSE_SENSITIVITY, MIN_NAMEPLATE_DISTANCE,
+    MIN_UI_SCALE, load_login_credentials, login_credentials_path,
 };
 
 const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
 const OPTIONS_FILE_NAME: &str = "options_settings.ron";
 const LEGACY_CREDENTIALS_PATH: &str = "data/ui/credentials.ron";
-const CREDENTIALS_FILE_NAME: &str = "credentials.ron";
 const UI_LAYOUT_FILE_NAME: &str = "ui_layout.ron";
 
 #[path = "client_options_storage.rs"]
@@ -72,12 +72,6 @@ impl Plugin for ClientOptionsPlugin {
             )
             .add_systems(First, limit_frame_rate);
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct LoginCredentials {
-    pub username: String,
-    pub password: String,
 }
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -375,10 +369,6 @@ pub fn save_client_options_values(
     storage::save_client_options_values(sound, camera, graphics, hud, bindings, modal_offset)
 }
 
-pub fn load_login_credentials() -> Option<LoginCredentials> {
-    storage::load_login_credentials()
-}
-
 /// Saved window positions and edit-mode layouts, next to the options file.
 pub fn ui_layout_path() -> PathBuf {
     storage::ui_layout_path()
@@ -398,10 +388,6 @@ pub fn save_preferred_realm(realm: RealmPreset) -> Result<(), String> {
 
 pub fn save_eula_accepted(accepted: bool) -> Result<(), String> {
     storage::save_eula_accepted(accepted)
-}
-
-pub fn login_credentials_path() -> PathBuf {
-    storage::login_credentials_path()
 }
 
 fn apply_loaded_client_options(

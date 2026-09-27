@@ -1,5 +1,6 @@
 mod assets;
 mod layout;
+mod parts;
 mod projection;
 
 use std::collections::VecDeque;
@@ -41,6 +42,7 @@ struct RegistryModel {
 #[derive(Clone, Copy)]
 enum ScreenPostsetup {
     None,
+    Login,
     CharacterSelect,
     CharacterCreate,
 }
@@ -54,6 +56,7 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         match self.postsetup {
             ScreenPostsetup::None => {}
+            ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
             ScreenPostsetup::CharacterSelect => size_char_select_root(&mut self.registry),
             ScreenPostsetup::CharacterCreate => {
                 apply_character_create_postsetup(&self.shared, &mut self.registry);
@@ -89,6 +92,44 @@ impl RegistryModel {
             });
         if !disabled && let Some(action) = self.registry.click_frame(id) {
             actions.push_back(action);
+        }
+    }
+
+    fn set_button(
+        &mut self,
+        id: u64,
+        update: impl FnOnce(&mut ui_toolkit::widgets::button::ButtonData),
+    ) {
+        if let Some(WidgetData::Button(button)) = self
+            .registry
+            .get_mut(id)
+            .and_then(|frame| frame.widget_data.as_mut())
+        {
+            update(button);
+        }
+    }
+
+    /// Original `sync_button_input`: pressing pushes an enabled button; release restores it.
+    fn press_button(&mut self, id: u64, pushed: bool) {
+        self.set_button(id, |button| {
+            if button.state != ButtonState::Disabled {
+                button.state = if pushed {
+                    ButtonState::Pushed
+                } else {
+                    ButtonState::Normal
+                };
+            }
+        });
+    }
+
+    /// Original login Enter submits from either field unless a login is already in flight.
+    fn submit(&self, actions: &mut VecDeque<String>) {
+        let connecting = self
+            .shared
+            .get::<login::SharedConnecting>()
+            .is_some_and(|connecting| connecting.0);
+        if matches!(self.postsetup, ScreenPostsetup::Login) && !connecting {
+            actions.push_back(login::LoginAction::Connect.to_string());
         }
     }
 
@@ -159,7 +200,7 @@ impl RegistryUi {
             screen,
             shared,
             registry,
-            postsetup: ScreenPostsetup::None,
+            postsetup: ScreenPostsetup::Login,
         };
         model.sync();
         apply_login_art(&mut model.registry)?;
@@ -406,6 +447,12 @@ impl RegistryUi {
                 UiInput::Focus(id) => model.focus_frame(id),
                 UiInput::Blur(id) => model.blur_frame(id),
                 UiInput::Text(id, text) => model.edit_text(id, text),
+                UiInput::Submit => model.submit(&mut self.actions),
+                UiInput::Hover(id, hovered) => {
+                    model.set_button(id, |button| button.hovered = hovered)
+                }
+                UiInput::Press(id) => model.press_button(id, true),
+                UiInput::Release(id) => model.press_button(id, false),
             }
         }
         GString::from(self.sync_model().err().unwrap_or_default().as_str())
@@ -429,6 +476,34 @@ impl RegistryUi {
             credentials.set("password", password);
         }
         credentials
+    }
+
+    /// Original development-realm prefill: fill both fields, then focus the first empty one.
+    pub fn prefill_login(&mut self, username: &str, password: &str) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Login UI is not initialized")?;
+        let field = |name: &str| {
+            model
+                .registry
+                .get_by_name(name)
+                .ok_or_else(|| format!("Missing login frame {name}"))
+        };
+        let (user_id, password_id) = (
+            field(login::USERNAME_INPUT.0)?,
+            field(login::PASSWORD_INPUT.0)?,
+        );
+        model.edit_text(user_id, username.to_owned());
+        model.edit_text(password_id, password.to_owned());
+        self.sync_model()?;
+        let focus = if username.is_empty() {
+            user_id
+        } else {
+            password_id
+        };
+        self.projection
+            .as_ref()
+            .ok_or("Native projection not initialized")?
+            .grab_focus(focus);
+        Ok(())
     }
 
     #[func]
@@ -503,6 +578,27 @@ impl RegistryUi {
                 .unwrap_or_default()
                 .as_str(),
         )
+    }
+}
+
+/// Original `sync_editbox_focus_visual`: focused login fields brighten their border and fill.
+fn apply_login_focus_visual(registry: &mut FrameRegistry) {
+    let focused = registry.focused_frame;
+    for name in [login::USERNAME_INPUT.0, login::PASSWORD_INPUT.0] {
+        let Some(id) = registry.get_by_name(name) else {
+            continue;
+        };
+        let Some(slice) = registry
+            .get_mut(id)
+            .and_then(|frame| frame.nine_slice.as_mut())
+        else {
+            continue;
+        };
+        (slice.bg_color, slice.border_color) = if focused == Some(id) {
+            ([0.32, 0.24, 0.16, 1.0], [1.0, 0.78, 0.0, 1.0])
+        } else {
+            ([0.22, 0.16, 0.11, 1.0], [1.0, 1.0, 1.0, 1.0])
+        };
     }
 }
 

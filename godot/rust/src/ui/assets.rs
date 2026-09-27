@@ -101,15 +101,23 @@ fn load_file(path: &str) -> Result<Gd<ImageTexture>, String> {
     Err(format!("Unsupported authored UI texture file {path}"))
 }
 
-pub fn load_texture(
+/// Decoded source image and the pixel region `[x, y, w, h]` an atlas name selects.
+pub fn load_source(
     source: &TextureSource,
     registry: &FrameRegistry,
-) -> Result<Gd<Texture2D>, String> {
+) -> Result<(Gd<Texture2D>, [f32; 4]), String> {
+    let full = |image: Gd<ImageTexture>| {
+        let region = [
+            0.0,
+            0.0,
+            image.get_width() as f32,
+            image.get_height() as f32,
+        ];
+        (image.upcast::<Texture2D>(), region)
+    };
     match source {
-        TextureSource::File(path) => load_file(path).map(Gd::upcast),
-        TextureSource::FileDataId(id) => {
-            load_file(&format!("data/textures/{id}.blp")).map(Gd::upcast)
-        }
+        TextureSource::File(path) => load_file(path).map(full),
+        TextureSource::FileDataId(id) => load_file(&format!("data/textures/{id}.blp")).map(full),
         TextureSource::Atlas(name) => {
             let region =
                 atlas::get_region(name).ok_or_else(|| format!("Unknown UI atlas region {name}"))?;
@@ -117,17 +125,15 @@ pub fn load_texture(
                 AtlasSource::File(path) => TextureSource::File(path.into()),
                 AtlasSource::FileDataId(id) => TextureSource::FileDataId(id),
             };
-            let full = load_texture(&source, registry)?;
-            let width = full.get_width();
-            let height = full.get_height();
-            let pixels = region.rect_pixels(width as u32, height as u32);
-            let mut atlas = AtlasTexture::new_gd();
-            atlas.set_atlas(&full);
-            atlas.set_region(Rect2::new(
-                Vector2::new(pixels.min[0], pixels.min[1]),
-                Vector2::new(pixels.max[0] - pixels.min[0], pixels.max[1] - pixels.min[1]),
-            ));
-            Ok(atlas.upcast())
+            let (image, _) = load_source(&source, registry)?;
+            let pixels = region.rect_pixels(image.get_width() as u32, image.get_height() as u32);
+            let rect = [
+                pixels.min[0],
+                pixels.min[1],
+                pixels.max[0] - pixels.min[0],
+                pixels.max[1] - pixels.min[1],
+            ];
+            Ok((image, rect))
         }
         TextureSource::None => Err("No authored texture source".into()),
         TextureSource::SolidColor(_) => Err("Solid color must be drawn natively".into()),
@@ -135,7 +141,19 @@ pub fn load_texture(
             let image = registry
                 .dynamic_texture(*id)
                 .ok_or_else(|| format!("Dynamic UI texture {} not found", id.0))?;
-            image_from_rgba(image.width, image.height, &image.rgba8).map(Gd::upcast)
+            image_from_rgba(image.width, image.height, &image.rgba8).map(full)
         }
     }
+}
+
+/// `image` restricted to pixel `region`; whole images are returned unchanged.
+pub fn sub_texture(image: &Gd<Texture2D>, region: [f32; 4]) -> Gd<Texture2D> {
+    let [x, y, w, h] = region;
+    if x == 0.0 && y == 0.0 && w == image.get_width() as f32 && h == image.get_height() as f32 {
+        return image.clone();
+    }
+    let mut atlas = AtlasTexture::new_gd();
+    atlas.set_atlas(image);
+    atlas.set_region(Rect2::new(Vector2::new(x, y), Vector2::new(w, h)));
+    atlas.upcast()
 }

@@ -12,6 +12,7 @@ use std::{
 
 const OPTIONS_FILE_NAME: &str = "options_settings.ron";
 const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
+const CREDENTIALS_FILE_NAME: &str = "credentials.ron";
 pub const MIN_UI_SCALE: f32 = 0.75;
 pub const MAX_UI_SCALE: f32 = 1.5;
 pub const MIN_MOUSE_SENSITIVITY: f32 = 0.001;
@@ -312,6 +313,26 @@ impl ClientOptionsFile {
 pub fn options_path() -> PathBuf {
     world_of_osso_config_dir().join(OPTIONS_FILE_NAME)
 }
+/// Saved account used to prefill development-realm login.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoginCredentials {
+    pub username: String,
+    pub password: String,
+}
+
+pub fn login_credentials_path() -> PathBuf {
+    world_of_osso_config_dir().join(CREDENTIALS_FILE_NAME)
+}
+
+pub fn load_login_credentials() -> Option<LoginCredentials> {
+    let raw = fs::read_to_string(login_credentials_path()).ok()?;
+    let creds = ron::de::from_str::<LoginCredentials>(&raw).ok()?;
+    if creds.username.trim().is_empty() || creds.password.trim().is_empty() {
+        return None;
+    }
+    Some(creds)
+}
+
 pub(crate) fn world_of_osso_config_dir() -> PathBuf {
     directories::BaseDirs::new()
         .map(|dirs| dirs.config_dir().to_path_buf())

@@ -658,6 +658,16 @@ impl GameClient {
         let mut login = ui::create_login_ui(size.x, size.y)?;
         login.set_name("LoginUI");
         self.base_mut().add_child(&login);
+        if self.is_development_realm() {
+            let credentials = game_engine_core::client_options_data::load_login_credentials()
+                .unwrap_or(game_engine_core::client_options_data::LoginCredentials {
+                    username: "admin".into(),
+                    password: "admin".into(),
+                });
+            login
+                .bind_mut()
+                .prefill_login(&credentials.username, &credentials.password)?;
+        }
         self.login_ui = Some(login);
         Ok(())
     }
@@ -686,6 +696,17 @@ impl GameClient {
             login.set_visible(false);
         }
         Ok((bounds, missing_textures))
+    }
+}
+
+impl GameClient {
+    /// Original login prefills credentials only for the development realm.
+    fn is_development_realm(&self) -> bool {
+        use game_engine_core::realm_preset_data::RealmPreset;
+        RealmPreset::ALL
+            .into_iter()
+            .find(|preset| preset.matches_hostname(&self.server_hostname))
+            .is_some_and(RealmPreset::is_dev)
     }
 }
 

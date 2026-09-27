@@ -21,7 +21,7 @@ func run():
     if screen == null or enter == null:
         fail("Missing authored character selection controls", ui)
         return
-    if enter.text != "Enter World":
+    if enter.get_node("Parts/Text").text != "Enter World":
         fail("Authored Enter World label changed", ui)
         return
     var viewport_rect := Rect2(Vector2.ZERO, Vector2(root.size))
