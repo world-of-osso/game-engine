@@ -14,7 +14,9 @@ The Godot replacement remains incomplete. `cad33614` shares terrain material inp
 
 `8df1ec99` extracts the original M2 effect-material UV sampler into shared code. It samples sequence 0 from shared application elapsed time, applies declared global-sequence modulo timing while preserving zero-duration behavior, and does not follow bone pause or the active animation clip. Development core5 RED/GREEN evidence is limited to `/tmp/claude/m2-effect-uv-extraction-{red,green}.log`.
 
-This is an extraction boundary only: native Godot wiring and independent verification remain pending. No ordinary single-texture colour/opacity runtime animation was found in the original runtime path, so this work does not claim or add that behavior. It proves no native material binding, rendered output, visual parity, or full conversion.
+`fc5a657f`, corrected by `aa04c18c`, wires eligible two-texture effect batches to per-model `M2MaterialAnimation` nodes and adds `/root/M2MaterialClock` as an application-clock autoload; the native field is `texture_anim`, not `texture_anim_1`. The actual-loader GPU fixture exits 0 with eight assertions at `/tmp/claude/m2-effect-uv-pixels-green.log`: ordinary single-texture unchanged at 250/500 ms; effect 0 ms, +U, +U+V, a later model at the shared 500-ms phase, +V, and duration wrap. Its predecessor `/tmp/claude/m2-uv-pixels-red.log` is corrected RED; `0c5a9b04` is superseded as an invalid single-texture parity demand. The native build command's output was lost, so no build-PASS claim is made; runtime proves the new DLL loads. Independent verification remains pending.
+
+No ordinary single-texture colour/opacity runtime animation was found in the original runtime path, so this work does not claim or add that behavior. Full conversion and visual parity remain open.
 
 `6560b238` moves the original Bevy normalized horizontal proposal and unloaded/unsupported/supported grounding plus gravity/snap transitions into `player_physics_data`, exported unchanged by `godot/core`; `f3bb1965` repoints the two root proposal tests to that source. Bevy collision adapters retain `GroundProbe` conversion and the shared gravity/snap constants; root jump impulse remains local. The independent combined gate at `ea5b4a85` passes root fmt/check, core physics 7/7, root proposal 2/2, and root collision 14/14; unchanged root `server_movement` reuses prior 2/2 evidence (`/tmp/claude/verify-motion-final-summary.md`). Godot has no movement wiring: slope, step, swim, and jump input remain Bevy-only. The `45fd1938` boundary remains: native height-grid answers, including inside authored holes, are not `WorldGround` support.
 
@@ -149,9 +151,11 @@ The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventori
 - `/tmp/claude/godot-client_login-ac02b9a0.log` — named-login-control GREEN; texture-file messages are cwd-preflight only.
 - `/tmp/claude/godot-model_scene-ac02b9a0.log` — login-canvas occlusion RED before `5ca2dc8d`.
 - [Preview helpers](../../godot/rust/src/scene.rs) — bounds, camera, and light helper behavior.
-- [Native assets](../../godot/rust/src/assets/mod.rs) — raw-batch M2/BLP conversion and supported material subset; no resolved-batch binding yet.
+- [Native assets](../../godot/rust/src/assets/mod.rs) — M2/BLP conversion, resolved batches, and effect-UV animation attachment.
 - [Portable M2 batch resolution](../../godot/core/src/m2.rs) — callback-FDID `m2::resolve_render_batches` data boundary at `c3ec6086`.
 - [Native animation](../../godot/rust/src/animation/mod.rs) — skeleton-pose playback and transition behavior.
+- [Native effect-UV animation](../../godot/rust/src/assets/uv_animation.rs) — shared application clock and effect-material UV sampling.
+- [Actual-loader M2 UV fixture](../../godot/tests/m2_uv_pixels.gd) — ordinary/effect pixel contract.
 - [Model-scene script](../../godot/tests/model_scene.gd) — `ac02b9a0` canvas-occlusion RED; `5ca2dc8d` correction awaits rebuild.
 - [M2-assets script](../../godot/tests/m2_assets.gd) — agent39-reported GREEN on the `ac02b9a0` native library after `97d97af1`/`5297d394`.
 - [Sibling UI core registry](../../../../ui-toolkit-godot-conversion/core/src/registry.rs) — extracted frame/model registry boundary.

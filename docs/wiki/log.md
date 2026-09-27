@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-26] system | Native shared-clock M2 effect UVs
+
+`fc5a657f` attaches a native material animator only to eligible two-texture effect batches and registers `/root/M2MaterialClock` as the shared application-time autoload. `aa04c18c` corrects the native field to `texture_anim`. This remains independent of native bone clip selection and pause.
+
+`/tmp/claude/m2-effect-uv-pixels-green.log` exits 0 with eight actual-loader GPU assertions: ordinary single-texture unchanged at 250/500 ms; effect baseline, +U, +U+V, later-model shared 500-ms phase, +V, and wrap. `/tmp/claude/m2-uv-pixels-red.log` is corrected RED; `0c5a9b04` is superseded because its single-texture animation demand was invalid. Build-command output was lost, so no build-PASS claim is made; the runtime fixture proves the new DLL loads. Verifier294 and native-check evidence remain pending. No ordinary single-texture opacity/colour behavior, full conversion, or visual parity is claimed.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native authored M2 batch binder
 
 `7cc4dfbd` exposes the shared CPU M2 compositor to native code. `5701f466`, `5ba9d672`, `0386e091`, and `fe792f20` replace the native `StandardMaterial` loader with resolved authored-batch `ShaderMaterial`s. Original single/effect routing retains CPU second-texture/overlay composition when required; source blend/cull/depth, UV/transparency, lighting and fog variants are bound; opaque/mask variants omit `ALPHA`; missing texture FDIDs are returned while their samplers stay unbound, with no placeholder palette.
