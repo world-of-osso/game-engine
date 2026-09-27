@@ -28,45 +28,10 @@ func run_test() -> void:
 		return
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	if not await wait_for_screen(client, "CharacterSelect", 15000):
-		return
-	var ui = client.get_node_or_null("CharacterSelectUI")
-	var card = ui.find_child("CharCard_0", true, false) if ui != null else null
-	if not card is Control or not card.visible:
-		fail("Authenticated equipped character card missing")
-		return
-	await click_control(card)
-	ui = client.get_node_or_null("CharacterSelectUI")
-	var initial_name = ui.find_child("CharSelectCharacterName", true, false) if ui != null else null
-	var initial_highlight = ui.find_child("CharCard_0Selected", true, false) if ui != null else null
-	if not initial_name is Label or initial_name.text != NAME or not initial_highlight is Control or not initial_highlight.visible:
-		fail("Equipped roster character 17 is not selected")
-		return
-	if not await inspect_character_preview(client):
-		return
-	var equipped_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
-	if not await select_roster_preview(client, 1, UNEQUIPPED_NAME, weakref(equipped_model), []):
-		return
-	var unequipped_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
-	if not await select_roster_preview(client, 0, NAME, weakref(unequipped_model), ["EquipmentMainHand", "EquipmentOffHand"]):
-		return
-	var restored_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
-	if not await select_roster_preview(client, 2, COLLECTION_NAME, weakref(restored_model), ["EquipmentChest"]):
-		return
-	var collection_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
-	var pose_probe = load("res://tests/equipment_pose_pixels.gd").new()
-	var pose_error: String = await pose_probe.check(self, collection_model)
-	if pose_error != "":
-		fail(pose_error)
-		return
-	if not await select_roster_preview(client, 0, NAME, weakref(collection_model), ["EquipmentMainHand", "EquipmentOffHand"]):
-		return
-	var current_ui = client.get_node_or_null("CharacterSelectUI")
-	var enter = current_ui.find_child("EnterWorld", true, false) if current_ui != null else null
-	if not enter is Button or not enter.visible:
-		fail("Enter World action missing after roster preview replacement")
-		return
-	await click_control(enter)
+	var startup_screen := OS.get_environment("GODOT_TEST_STARTUP_SCREEN")
+	if startup_screen != "inworld":
+		if not await enter_world_from_charselect(client):
+			return
 	if not await wait_for_screen(client, "Loading", 15000):
 		return
 	if client.get_node_or_null("CharacterSelectScene") != null:
@@ -189,6 +154,48 @@ func run_test() -> void:
 	print("SHUTDOWN: client freed")
 	quit(0)
 	print("SHUTDOWN: quit requested")
+
+func enter_world_from_charselect(client: Node) -> bool:
+	if not await wait_for_screen(client, "CharacterSelect", 15000):
+		return false
+	var ui = client.get_node_or_null("CharacterSelectUI")
+	var card = ui.find_child("CharCard_0", true, false) if ui != null else null
+	if not card is Control or not card.visible:
+		fail("Authenticated equipped character card missing")
+		return false
+	await click_control(card)
+	ui = client.get_node_or_null("CharacterSelectUI")
+	var initial_name = ui.find_child("CharSelectCharacterName", true, false) if ui != null else null
+	var initial_highlight = ui.find_child("CharCard_0Selected", true, false) if ui != null else null
+	if not initial_name is Label or initial_name.text != NAME or not initial_highlight is Control or not initial_highlight.visible:
+		fail("Equipped roster character 17 is not selected")
+		return false
+	if not await inspect_character_preview(client):
+		return false
+	var equipped_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
+	if not await select_roster_preview(client, 1, UNEQUIPPED_NAME, weakref(equipped_model), []):
+		return false
+	var unequipped_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
+	if not await select_roster_preview(client, 0, NAME, weakref(unequipped_model), ["EquipmentMainHand", "EquipmentOffHand"]):
+		return false
+	var restored_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
+	if not await select_roster_preview(client, 2, COLLECTION_NAME, weakref(restored_model), ["EquipmentChest"]):
+		return false
+	var collection_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
+	var pose_probe = load("res://tests/equipment_pose_pixels.gd").new()
+	var pose_error: String = await pose_probe.check(self, collection_model)
+	if pose_error != "":
+		fail(pose_error)
+		return false
+	if not await select_roster_preview(client, 0, NAME, weakref(collection_model), ["EquipmentMainHand", "EquipmentOffHand"]):
+		return false
+	var current_ui = client.get_node_or_null("CharacterSelectUI")
+	var enter = current_ui.find_child("EnterWorld", true, false) if current_ui != null else null
+	if not enter is Button or not enter.visible:
+		fail("Enter World action missing after roster preview replacement")
+		return false
+	await click_control(enter)
+	return true
 
 func inspect_world_equipment(client: Node, player: Node3D) -> bool:
 	var probe = load("res://tests/world_player_equipment_pixels.gd").new()
