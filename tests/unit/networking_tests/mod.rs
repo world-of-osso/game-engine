@@ -8,12 +8,12 @@ use crate::networking::{
     advance_network_update_frame, drive_inworld_reconnect, finish_reconnect_when_world_ready,
     flush_pending_network_world_reset, network_world_reset_is_due, reset_network_world,
 };
-use crate::networking_npc::{NpcVisibilityPolicy, npc_visibility_policy};
 use crate::networking_player::{
     choose_local_player_entity, is_local_player_entity, net_player_customization_selection,
     resolve_player_model_path, sync_local_alive_state,
 };
 use game_engine::chat_data::WhisperState;
+use game_engine::npc_visibility_data::{NpcVisibilityPolicy, npc_visibility_policy};
 use shared::components::{CharacterAppearance, Health as NetHealth, Player as NetPlayer};
 use shared::protocol::ForcedDisconnect;
 
