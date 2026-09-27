@@ -145,10 +145,6 @@ const RUN_SPEED: f32 = 7.0; // M2 Run movespeed (7.0 yards/sec)
 const ZOOM_STEP: f32 = 2.0;
 const KEY_ROTATE_SPEED: f32 = 2.5; // radians/sec for arrow key rotation
 const KEY_ZOOM_SPEED: f32 = 15.0; // units/sec for page up/down zoom
-pub(super) const COLLISION_OFFSET: f32 = 0.3;
-pub(super) const EYE_HEIGHT: f32 = 1.8;
-/// Speed at which camera recovers (lerps back out) after collision clears.
-pub(super) const COLLISION_RECOVERY_SPEED: f32 = 5.0;
 const PITCH_LIMIT: f32 =
     game_engine::camera_control::PITCH_LIMIT_DEGREES * std::f32::consts::PI / 180.0;
 const LANDING_EPSILON: f32 = 0.05;
