@@ -158,23 +158,40 @@ func inspect_world_equipment(client: Node, player: Node3D) -> bool:
 	if visual == null or probe.inspect_visual(visual, true) != "":
 		fail("Replicated selected Player lacks visible authored body, skeleton or starter hands")
 		return false
-	var pixel_error: String = await probe.capture_initial(self, player, visual)
+	var pixel_error: String = await probe.capture_equipped(self, player, visual, "inworld-selected-player.png")
 	if pixel_error != "":
 		fail(pixel_error)
 		return false
-	var old_visual := weakref(visual)
+	var removed_hands := [weakref(visual.find_child("EquipmentMainHand", true, false)), weakref(visual.find_child("EquipmentOffHand", true, false))]
+	var paused_poses: Array[Transform3D] = probe.pause_and_capture_pose(visual)
+	if paused_poses.is_empty():
+		fail("Replicated selected Player lacks advancing authored animation")
+		return false
 	print("FIXTURE WORLD_READY")
-	if not await wait_world_equipment(client, player, unit_id, old_visual, false, probe):
+	if not await wait_world_equipment(client, player, unit_id, removed_hands, false, probe):
 		return false
 	var empty_visual := probe.find_visual(player) as Node3D
-	var empty_ref := weakref(empty_visual)
-	print("FIXTURE EQUIPMENT_REMOVED")
-	if not await wait_world_equipment(client, player, unit_id, empty_ref, true, probe):
+	var pose_error: String = probe.compare_pose(empty_visual, paused_poses)
+	if pose_error != "":
+		fail(pose_error)
 		return false
+	print("FIXTURE EQUIPMENT_REMOVED")
+	if not await wait_world_equipment(client, player, unit_id, [], true, probe):
+		return false
+	var restored := probe.find_visual(player) as Node3D
+	pose_error = probe.compare_pose(restored, paused_poses)
+	if pose_error != "":
+		fail(pose_error)
+		return false
+	pixel_error = await probe.capture_equipped(self, player, restored, "inworld-selected-player-restored.png")
+	if pixel_error != "":
+		fail(pixel_error)
+		return false
+	probe.resume_animation(restored)
 	print("FIXTURE EQUIPMENT_RESTORED")
 	return true
 
-func wait_world_equipment(client: Node, player: Node3D, unit_id: int, old_visual: WeakRef, equipped: bool, probe) -> bool:
+func wait_world_equipment(client: Node, player: Node3D, unit_id: int, removed_hands: Array, equipped: bool, probe) -> bool:
 	var deadline := Time.get_ticks_msec() + SELECTION_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
@@ -182,13 +199,16 @@ func wait_world_equipment(client: Node, player: Node3D, unit_id: int, old_visual
 			fail("Replicated equipment update replaced selected server unit node")
 			return false
 		var visual := probe.find_visual(player) as Node3D
-		if visual == null or old_visual.get_ref() != null:
+		if visual == null:
+			continue
+		var old_hands_freed := removed_hands.all(func(hand): return hand.get_ref() == null)
+		if not old_hands_freed:
 			continue
 		var error: String = probe.inspect_visual(visual, equipped)
 		if error == "":
 			print("PASS: replicated selected equipment stage equipped=", equipped, " retained unit=", unit_id)
 			return true
-	fail("Timed out waiting for replicated equipment stage equipped=" + str(equipped) + " old_valid=" + str(old_visual.get_ref() != null))
+	fail("Timed out waiting for replicated equipment stage equipped=" + str(equipped))
 	return false
 
 func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:

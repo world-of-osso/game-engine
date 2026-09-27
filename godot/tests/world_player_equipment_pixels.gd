@@ -1,6 +1,6 @@
 extends RefCounted
 
-const SCREENSHOT := "res://../data/diagnostics/godot-conversion/inworld-selected-player.png"
+const DIAGNOSTICS := "res://../data/diagnostics/godot-conversion/"
 const MIN_MODEL_SAMPLES := 200
 const MIN_WEAPON_SAMPLES := 5
 
@@ -39,6 +39,33 @@ func inspect_visual(visual: Node3D, equipped: bool) -> String:
 			return "Replicated starter hand lacks visible authored model: " + hand_name
 	return ""
 
+func pause_and_capture_pose(visual: Node3D) -> Array[Transform3D]:
+	var animation := visual.find_child("M2Animation", true, false) as WowAnimationPlayer
+	var skeleton := visual.find_child("Skeleton3D", true, false) as Skeleton3D
+	if animation == null or skeleton == null or not animation.advance_time_ms(400.0):
+		return []
+	animation.set_paused(true)
+	var poses: Array[Transform3D] = []
+	for bone in skeleton.get_bone_count():
+		poses.append(skeleton.get_bone_pose(bone))
+	return poses
+
+func compare_pose(visual: Node3D, expected: Array[Transform3D]) -> String:
+	var skeleton := visual.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skeleton == null or skeleton.get_bone_count() != expected.size():
+		return "Equipment update lost character skeleton bone count"
+	for bone in expected.size():
+		var actual := skeleton.get_bone_pose(bone)
+		var position_error := actual.origin.distance_to(expected[bone].origin)
+		var rotation_error := actual.basis.get_rotation_quaternion().angle_to(expected[bone].basis.get_rotation_quaternion())
+		if position_error > 0.03 or rotation_error > 0.03:
+			return "Equipment update snapped paused character bone " + str(bone) + ": position=" + str(position_error) + " rotation=" + str(rotation_error)
+	return ""
+
+func resume_animation(visual: Node3D) -> void:
+	var animation := visual.find_child("M2Animation", true, false) as WowAnimationPlayer
+	animation.set_paused(false)
+
 func has_visible_mesh(parent: Node3D) -> bool:
 	for node in parent.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
@@ -46,7 +73,7 @@ func has_visible_mesh(parent: Node3D) -> bool:
 			return true
 	return false
 
-func capture_initial(tree: SceneTree, player: Node3D, visual: Node3D) -> String:
+func capture_equipped(tree: SceneTree, player: Node3D, visual: Node3D, screenshot_name: String) -> String:
 	if DisplayServer.get_name() == "headless":
 		return "Replicated player GPU proof requires a real display"
 	var viewport := SubViewport.new()
@@ -63,7 +90,7 @@ func capture_initial(tree: SceneTree, player: Node3D, visual: Node3D) -> String:
 	var was_paused := tree.paused
 	tree.paused = true
 	var shown := await capture_frame(viewport)
-	var save_error := shown.save_png(SCREENSHOT)
+	var save_error := shown.save_png(DIAGNOSTICS + screenshot_name)
 	if save_error != OK:
 		tree.paused = was_paused
 		viewport.free()
@@ -83,7 +110,7 @@ func capture_initial(tree: SceneTree, player: Node3D, visual: Node3D) -> String:
 	var weapon_pixels := count_changed_pixels(shown, without_hands)
 	if model_pixels < MIN_MODEL_SAMPLES or weapon_pixels < MIN_WEAPON_SAMPLES:
 		return "Replicated player/hand GPU pixels missing: model=" + str(model_pixels) + " hands=" + str(weapon_pixels)
-	print("PASS: selected world player GPU model samples=", model_pixels, " hand samples=", weapon_pixels, " screenshot=", SCREENSHOT)
+	print("PASS: selected world player GPU model samples=", model_pixels, " hand samples=", weapon_pixels, " screenshot=", DIAGNOSTICS + screenshot_name)
 	return ""
 
 func capture_frame(viewport: SubViewport) -> Image:
