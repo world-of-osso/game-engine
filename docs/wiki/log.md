@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native NPC Death development GREEN
+
+WorldUnits `c80488be`, helper `2d8bca7a`, and fixture `254dc68f` now select the first `id == 1` Death sequence, play it once non-looping with the authored 150-ms-clamped blend, and hold its final pose. The original marker remains once per NPC life: resurrection does not rearm it, replacement does not reset it, and a missing Death sequence leaves the current animation unchanged.
+
+The phase-12 RED exits 101 because automatic Death stays Stand and never reaches held Y=3 (`/tmp/claude/native-npc-death-red.log`). Rebuilt native `2d8bca7a` passes its build and the 21-phase real-UDP fixture (`/tmp/claude/native-npc-death-{build,green}.log`): initially-dead and living-to-dead automatic bone motion, final hold, retained identity, and the prior 20 phases. Targeted native unit coverage is 1/1 (`/tmp/claude/cargo-death-green-final.out`). This is development evidence only: independent final-gate, pixels, InWorld, animation parity, and full conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native NPC visibility development GREEN
 
 `df77110d` extracts the original NPC visibility policy into shared core data. `52accdce` projects it through `WorldUnits.update_visibility` after local-player selection, reading retained snapshots and current `world_minutes`; missing selected-local health is alive, while present health needs `current > 0`. It toggles existing `Node3D` visibility without replacing visual/mesh children or maintaining duplicate health/policy state.
