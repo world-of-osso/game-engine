@@ -60,6 +60,14 @@ Running landings (`JumpLandRun`, ID187) remain in the jump state machine until t
 - Movement IDs cover Walk, Run, ShuffleLeft, ShuffleRight, WalkBackwards
 - Jump IDs: JumpStart, Jump (loop), JumpEnd
 
+## Native Godot locomotion boundary
+
+`d3593762` shares the original direction selector through `godot/core`; its two tests are RED for the missing export (`/tmp/claude/movement-animation-red-4e896a2.out`) then GREEN 2/2 (`/tmp/claude/movement-animation-green-4e896a2.out`). Land maps None/Forward/Backward/Left/Right to Stand (0), Walk (4) or Run (5) only for running Forward, WalkBackwards (13), ShuffleLeft (11), and ShuffleRight (12). Swimming ignores `running` and maps the same directions to SwimIdle (41), Swim (42), SwimBackwards (45), SwimLeft (43), and SwimRight (44). `5b0bec54` corrects the root library import and constant visibility; its root selector is not yet checked.
+
+`2df84899` adds native authored-ID selection: it selects variation 0, preserves time, active variation, and pose for an unchanged family request, preserves the blended outgoing pose on a loop-mode change or interruption, and leaves playback unchanged for a missing ID. The missing-API RED is `/tmp/claude/native-animation-authored-id-red.log`; four targeted tests are GREEN (`/tmp/claude/native-animation-authored-id-green.log`). It exposes read-only `current_animation_id`, returning `-1` while no model is bound. Existing Death semantics remain separate: first authored Death, non-looping, final-pose hold, once per NPC life; resurrection and replacement do not rearm it.
+
+`bca569a5`'s real-input fixture reads the selected ID and bones but does not select clips. Its Vulkan RED ends `Held W did not select authored Run 5: 0` (`/tmp/claude/native-locomotion-input-red-2df84899.log`). `de3c0835` wires original local `PlayerMovement` direction/running/swimming through the shared selector after prediction and world advance, targeting only the local body. This source is unbuilt and unverified; main runtime work remains next. No remote protocol was added: original remote entities still lack `MovementState` and remain Stand. The selector intentionally does not infer displacement: a local W held against a wall can remain Run. Jump, turning, full-fluid behavior, performance, and full conversion remain open.
+
 ## Generated Character Animation
 
 For original (non-WoW) generated characters, the same crossfade logic applies but clips come from Bevy `AnimationClip` assets (glTF) rather than M2 tracks. An additive breathing layer (Chest + Spine2 + Clavicles, ~2° pitch on 3s cycle) runs on top of all base movement animations. See [character-generation.md](../character-generation.md).
@@ -92,6 +100,8 @@ Sequence-local constant TRS tracks fold to the existing fixed raw-pose curve whe
 - `src/rendering/model/animation/bevy_curves.rs` and `bevy_player.rs` — runtime implementation and deferred teardown
 - `data/diagnostics/event-driven-updates-20260907/bevy-animation/native-offline/explicit-m2debug/` — native model motion evidence
 - `../../data/diagnostics/npc-motion-20260909/{npc-animation-green,npc-lod-green,npc-existing-lod-green,landing-run-green-final}.txt` — current focused NPC idle/LOD and landing proof
+- `/tmp/claude/movement-animation-{red,green}-4e896a2.out` and `/tmp/claude/native-animation-authored-id-{red,green}.log` — shared selector and authored-ID unit evidence
+- `/tmp/claude/native-locomotion-input-red-2df84899.log` — real-input fixture boundary before local selector wiring
 - [character-generation.md](../character-generation.md) — glTF animation pipeline, template skeletons, crossfade table
 
 ## See Also

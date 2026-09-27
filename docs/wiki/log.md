@@ -1,5 +1,15 @@
 # Wiki Log
 
+## [2026-09-27] system | Local Godot locomotion animation is wired but unverified
+
+`d3593762` makes the original direction policy portable. Core initially fails on a missing export, then passes 2/2: land chooses Stand, Walk/Run only for forward, backward walk, or strafes; swimming chooses only swim IDs and ignores `running` (`/tmp/claude/movement-animation-{red,green}-4e896a2.out`). `5b0bec54` corrects root library import and constant visibility; no root selector evidence exists.
+
+`2df84899` adds authored-ID selection. The missing-API RED becomes 4/4 GREEN: base-variation selection, repeated family requests retain time/variation/blend, missing IDs do not mutate playback, and loop-mode/interruption retain the outgoing blended pose (`/tmp/claude/native-animation-authored-id-{red,green}.log`). `current_animation_id` is read-only and returns `-1` before binding. Death behavior is unchanged: first authored Death, one-shot final hold, no resurrection/replacement reset.
+
+`bca569a5` adds an input fixture that observes IDs and poses but does not choose clips; Vulkan exits 101 with `Held W did not select authored Run 5: 0` (`/tmp/claude/native-locomotion-input-red-2df84899.log`). `de3c0835` supplies the next local-only wiring after prediction/world advance. It is unbuilt and unverified. Remote entities retain no `MovementState` and Stand; no protocol or displacement inference was added, so blocked forward input can remain Run. Jump, turning, full-fluid behavior, performance, runtime/parity proof, and full conversion remain open.
+
+Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] investigation | Isolated NPC fixture now reaches the diagnostic boundary
 
 The isolated fixture bootstrap was repaired incrementally: `0f83d8f9` supplies UI and Warband CSV inputs; `54f6bf69` stages cached models and terrain; `36449a60` supplies a default player hair choice while retaining explicit NPC negative choices; `09c5f94d` creates a private SQLite backup, local alias catalog, and community-CSV source symlink; `40fc60a4` recursively stages the skybox directory. The successive runtime logs all exit 101: missing fixture hair (`54f6bf69`), map alias (`36449a60`), and nested skybox model (`09c5f94d`) are bootstrap failures. The last run reaches `INITIAL_READY` through `RESET_READY`, including `TYPE6_MISSING_READY`, then fails because the generic unit logger no longer includes display `910014` in the required type-6 error, although that error is emitted (`/tmp/claude/npc-fixture-bootstrap-runtime-{54f6bf69,36449a60,09c5f94d,40fc60a4}.log`).
