@@ -78,6 +78,8 @@ pub mod terrain_height_data;
 pub mod terrain_material_data;
 #[path = "../../../src/unit_motion_data.rs"]
 pub mod unit_motion_data;
+#[path = "../../../src/warband_scene_data.rs"]
+pub mod warband_scene_data;
 pub mod wdt;
 pub mod wmo;
 #[path = "../../../src/rendering/terrain/terrain_objects_wmo_material.rs"]
