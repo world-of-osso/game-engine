@@ -128,6 +128,13 @@ impl StreamedTerrain {
         self.map.as_deref()
     }
 
+    pub fn height_at(&self, x: f32, z: f32) -> Option<f32> {
+        self.parsed_tiles
+            .values()
+            .flat_map(|tile| &tile.root.height_grids)
+            .find_map(|grid| game_engine_core::terrain_height_data::sample_chunk_height(grid, x, z))
+    }
+
     pub fn request_map(&mut self, map: String, tile: (u32, u32)) -> Result<(), String> {
         if tile.0 >= MAP_TILE_BOUND || tile.1 >= MAP_TILE_BOUND {
             return Err(format!(

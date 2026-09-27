@@ -170,6 +170,15 @@ impl GameClient {
         state
     }
 
+    /// Authored terrain surface at world X/Z, or nil when no loaded grid covers the point.
+    #[func]
+    fn terrain_height_at(&self, x: f32, z: f32) -> Variant {
+        self.terrain
+            .height_at(x, z)
+            .map(|height| height.to_variant())
+            .unwrap_or_default()
+    }
+
     #[func]
     fn load_model_scene(&mut self, path: GString) -> VarDictionary {
         let mut result = VarDictionary::new();

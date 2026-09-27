@@ -39,11 +39,16 @@ func select_second_character(client: Node) -> void:
 		if not reset.map.is_empty() or not reset.parsed_tiles.is_empty() or reset.pending_count != 0:
 			fail("Reconnect retained previous map asset state: " + str(reset))
 			return
+		if not inspect_reset(client):
+			return
 		print("PASS: real LoadTerrain reads local map/tile assets asynchronously; reconnect clears them without fabricated readiness")
 		client.free()
 		quit(0)
 		return
 	fail("Timed out waiting for server-requested terrain assets: " + str(client.account_state()))
+
+func inspect_reset(_client: Node) -> bool:
+	return true
 
 func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 	var root := client.get_node_or_null("WorldTerrain")
