@@ -28,6 +28,7 @@ use shared::{
 
 const NAME: &str = "Input Fixture";
 const UNEQUIPPED_NAME: &str = "Unequipped Fixture";
+const COLLECTION_NAME: &str = "Collection Fixture";
 // Authored terrain height; the transfer-only fixture's Y=83 is below this surface.
 const FIRST: [f32; 3] = [-8949.0, 112.879_913, 0.0];
 const TICK: Duration = Duration::from_millis(5);
@@ -201,12 +202,26 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
         equipment_appearance: EquipmentAppearance::default(),
         ..equipped.clone()
     };
+    let collection = CharacterListEntry {
+        character_id: 19,
+        name: COLLECTION_NAME.into(),
+        equipment_appearance: EquipmentAppearance {
+            entries: vec![EquippedAppearanceEntry {
+                slot: EquipmentVisualSlot::Chest,
+                item_id: Some(1),
+                display_info_id: Some(175942),
+                inventory_type: 5,
+                hidden: false,
+            }],
+        },
+        ..equipped.clone()
+    };
     send::<_, AuthChannel>(
         app,
         LoginResponse {
             success: true,
             token: "fixture-only-token".into(),
-            characters: vec![equipped, unequipped],
+            characters: vec![equipped, unequipped, collection],
             error: None,
         },
     );
