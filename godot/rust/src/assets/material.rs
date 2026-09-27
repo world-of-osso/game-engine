@@ -20,14 +20,9 @@ use godot::{
 const SHADER_PATH: &str = "res://shaders/m2.gdshader";
 const RENDER_MODE: &str =
     "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
-const PLACEHOLDER_COLORS: [[u8; 3]; 4] = [
-    [204, 128, 77],
-    [77, 128, 204],
-    [179, 179, 77],
-    [153, 77, 179],
-];
+type DecodedTexture = (Vec<u8>, u32, u32);
 
-pub(super) fn build_material(
+pub(super) fn load_material(
     batch: &ResolvedBatch,
     path: &GString,
     missing: &mut PackedInt32Array,
@@ -57,15 +52,13 @@ pub(super) fn build_material(
     } else {
         None
     };
-    let effect = effect && base.is_some() && second.is_some();
     let base = if effect {
-        base.unwrap()
+        base
     } else if let Some((mut pixels, width, height)) = base {
         compose_texture(&mut pixels, width, height, batch, &texture_dir, missing)?;
-        (pixels, width, height)
+        Some((pixels, width, height))
     } else {
-        let rgb = PLACEHOLDER_COLORS[batch.source_unit_index % PLACEHOLDER_COLORS.len()];
-        (vec![rgb[0], rgb[1], rgb[2], 255], 1, 1)
+        None
     };
 
     let source = ResourceLoader::singleton()
@@ -80,16 +73,32 @@ pub(super) fn build_material(
     shader.set_code(&variant);
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
-    material.set_shader_parameter(
-        "base_texture",
-        &texture_from_rgba(&base.0, base.1, base.2)?.to_variant(),
-    );
-    if let Some((pixels, width, height)) = second.filter(|_| effect) {
+    bind_textures(&mut material, base, second)?;
+    bind_uniforms(&mut material, batch, effect);
+    Ok(material)
+}
+
+fn bind_textures(
+    material: &mut Gd<ShaderMaterial>,
+    base: Option<DecodedTexture>,
+    second: Option<DecodedTexture>,
+) -> Result<(), String> {
+    if let Some((pixels, width, height)) = base {
+        material.set_shader_parameter(
+            "base_texture",
+            &texture_from_rgba(&pixels, width, height)?.to_variant(),
+        );
+    }
+    if let Some((pixels, width, height)) = second {
         material.set_shader_parameter(
             "second_texture",
             &texture_from_rgba(&pixels, width, height)?.to_variant(),
         );
     }
+    Ok(())
+}
+
+fn bind_uniforms(material: &mut Gd<ShaderMaterial>, batch: &ResolvedBatch, effect: bool) {
     material.set_shader_parameter("effect_mode", &(effect as i32).to_variant());
     material.set_shader_parameter("shader_id", &(batch.shader_id as i32).to_variant());
     material.set_shader_parameter("render_flags", &(batch.render_flags as i32).to_variant());
@@ -103,7 +112,6 @@ pub(super) fn build_material(
         _ => 0.0,
     };
     material.set_shader_parameter("alpha_test", &alpha_test.to_variant());
-    Ok(material)
 }
 
 fn shader_variant(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<String, String> {
@@ -161,7 +169,7 @@ fn load_texture(
     fdid: u32,
     dir: &Path,
     missing: &mut PackedInt32Array,
-) -> Result<Option<(Vec<u8>, u32, u32)>, String> {
+) -> Result<Option<DecodedTexture>, String> {
     let path = texture_path(fdid, dir);
     let bytes = match fs::read(&path) {
         Ok(bytes) => bytes,
