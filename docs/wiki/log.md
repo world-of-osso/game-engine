@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Standalone Godot WMO shader pixels
+
+`8116839b` adds standalone `wmo.gdshader` plus an actual Vulkan fixture. Its 25 pixel cases pass: MOCV interior/exterior/missing behavior; MOMT 6/13, MOCV2, UV2 and missing-UV2 repeat sampling; alpha modes; emissive/unlit; fog; and direct-shadow recovery (`/tmp/claude/native-wmo-shader-green-8116839b.log`). The initial absent-shader RED is `/tmp/claude/native-wmo-shader-red.log`. The first repeat-UV1 oracle was corrected only in the fixture because the original root sampler is linear. Compositor protocol warnings are not shader `ERROR`s. Independent verifier458 is pending; native WMO scene/material binding, portal culling, water, doodads, visual parity, and full conversion remain open.
+
+Updated [[wmo-retail-lighting]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Bounded root tests and native global-WMO asset loading
 
 At `580d7300`, root `cargo fmt --check` and bounded `--bin game-engine` selectors pass 193 tests with no failures; 1,916 tests are listed, so this is not a full suite. The foliage depth-prepass GPU test is excluded. The test-only delta preserves the warning-free `e8466601` production root check. Stockade camera collision is 4/4 GREEN (`/tmp/claude/verify-root-tests-580d7300.md`, `/tmp/claude/verify-stockade-camera-580d7300.log`).
