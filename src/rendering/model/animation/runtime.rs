@@ -578,7 +578,7 @@ mod tests {
             bones: vec![],
             spherical_billboards: vec![],
             sequences: vec![test_sequence(0, 200), test_sequence(1, 200)],
-            bone_tracks: vec![],
+            bone_tracks: Arc::from([]),
             joint_entities: vec![],
         };
 

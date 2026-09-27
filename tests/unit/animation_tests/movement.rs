@@ -25,7 +25,7 @@ fn running_landing_finishes_without_restarting_jump() {
                     sequence(ANIM_JUMP_LAND_RUN, 250),
                     sequence(ANIM_RUN, 1000),
                 ],
-                bone_tracks: vec![],
+                bone_tracks: vec![].into(),
                 joint_entities: vec![],
             },
             MovementState {
@@ -277,7 +277,7 @@ fn switch_animation_uses_swim_idle_when_stationary_in_water() {
                         variation_next: -1,
                     },
                 ],
-                bone_tracks: Vec::new(),
+                bone_tracks: Vec::new().into(),
                 joint_entities: Vec::new(),
             },
             MovementState {
@@ -334,7 +334,7 @@ fn switch_animation_uses_turn_left_when_idle_and_rotating() {
                     sequence(ANIM_SHUFFLE_LEFT, 250),
                     sequence(ANIM_SHUFFLE_RIGHT, 250),
                 ],
-                bone_tracks: Vec::new(),
+                bone_tracks: Vec::new().into(),
                 joint_entities: Vec::new(),
             },
             MovementState::default(),

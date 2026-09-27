@@ -1,6 +1,7 @@
 //! Bind M2 joints to Bevy playback; WoW sequence policy remains in `M2AnimPlayer`.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Weak};
 
 use bevy::animation::{
     AnimatedBy, AnimationTargetId,
@@ -11,6 +12,7 @@ use bevy::prelude::*;
 
 use super::lod::AnimationLod;
 use super::{M2AnimData, M2AnimPlayer, TransitionSource, animation_active_state, bevy_curves};
+use crate::asset::m2_anim::BoneAnimTracks;
 use crate::game_state::GameState;
 use bevy::diagnostic::FrameCount;
 
@@ -36,12 +38,14 @@ pub(crate) fn bind_m2_animation_players(
     joints: Query<(), (With<super::BonePivot>, Allow<Disabled>)>,
     mut clips: ResMut<Assets<AnimationClip>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
+    mut shared_clips: Local<SequenceClipCache>,
 ) {
     for (owner, data, previous) in &models {
         if let Some(previous) = previous {
             detach_obsolete_targets(&mut commands, owner, &previous.joints, &data.joint_entities);
         }
-        let (graph, binding) = build_animation_graph(data, &mut clips, &mut graphs);
+        let sequence_clips = shared_clips.sequence_clips(data, &mut clips);
+        let (graph, binding) = build_animation_graph(data, sequence_clips, &mut clips, &mut graphs);
         for (index, &joint) in data.joint_entities.iter().enumerate() {
             if joints.contains(joint) {
                 commands
@@ -55,15 +59,67 @@ pub(crate) fn bind_m2_animation_players(
     }
 }
 
+/// One clip per sequence of a model's tracks, shared by all instances of the model: each
+/// HD humanoid model has hundreds of sequences, and building them per NPC cost tens of MB
+/// per instance. Only asset ids are kept, so the clips drop with the model's last instance;
+/// the `Weak` keeps the tracks' address from being reused by another model meanwhile.
+#[derive(Default)]
+pub(crate) struct SequenceClipCache(HashMap<SequenceClipKey, SharedSequenceClips>);
+
+/// The tracks' address and the sequence durations: everything `build_clip` reads.
+#[derive(PartialEq, Eq, Hash)]
+struct SequenceClipKey {
+    tracks: usize,
+    durations: Vec<u32>,
+}
+
+struct SharedSequenceClips {
+    _tracks: Weak<[BoneAnimTracks]>,
+    clips: Vec<AssetId<AnimationClip>>,
+}
+
+impl SequenceClipCache {
+    fn sequence_clips(
+        &mut self,
+        data: &M2AnimData,
+        clips: &mut Assets<AnimationClip>,
+    ) -> Vec<Handle<AnimationClip>> {
+        let key = SequenceClipKey {
+            tracks: Arc::as_ptr(&data.bone_tracks) as *const BoneAnimTracks as usize,
+            durations: data
+                .sequences
+                .iter()
+                .map(|sequence| sequence.duration)
+                .collect(),
+        };
+        if let Some(live) = self.0.get(&key).and_then(|shared| {
+            shared
+                .clips
+                .iter()
+                .map(|id| clips.get_strong_handle(*id))
+                .collect::<Option<Vec<_>>>()
+        }) {
+            return live;
+        }
+        let built: Vec<_> = (0..data.sequences.len().max(1))
+            .map(|sequence| clips.add(bevy_curves::build_clip(data, sequence)))
+            .collect();
+        let shared = SharedSequenceClips {
+            _tracks: Arc::downgrade(&data.bone_tracks),
+            clips: built.iter().map(Handle::id).collect(),
+        };
+        self.0.insert(key, shared);
+        built
+    }
+}
+
 fn build_animation_graph(
     data: &M2AnimData,
+    sequence_clips: Vec<Handle<AnimationClip>>,
     clips: &mut Assets<AnimationClip>,
     graphs: &mut Assets<AnimationGraph>,
 ) -> (AnimationGraphHandle, M2BevyAnimation) {
     let mut graph = AnimationGraph::new();
-    let sequence_clips: Vec<_> = (0..data.sequences.len().max(1))
-        .map(|sequence| clips.add(bevy_curves::build_clip(data, sequence)))
-        .collect();
     let current_node = graph.add_clip(sequence_clips[0].clone(), 1.0, graph.root);
     let outgoing_node = graph.add_clip(sequence_clips[0].clone(), 1.0, graph.root);
     let snapshot_clip = clips.add(bevy_curves::build_pose_clip(std::iter::empty()));
@@ -312,7 +368,7 @@ mod tests {
                 replay: [0, 0],
                 variation_next: -1,
             }],
-            bone_tracks: vec![BoneAnimTracks {
+            bone_tracks: Arc::from([BoneAnimTracks {
                 translation: AnimTrack {
                     interpolation_type: 1,
                     global_sequence: -1,
@@ -320,7 +376,7 @@ mod tests {
                 },
                 rotation: empty_track(),
                 scale: empty_track(),
-            }],
+            }]),
             joint_entities: vec![joint],
         }
     }
@@ -394,7 +450,9 @@ mod tests {
                     ..sequence.clone()
                 })
                 .collect();
-            model.bone_tracks[0].translation.sequences = (0..64)
+            Arc::make_mut(&mut model.bone_tracks)[0]
+                .translation
+                .sequences = (0..64)
                 .map(|index| {
                     let start = index as f32 * 10.0;
                     (
@@ -511,7 +569,9 @@ mod tests {
                     variation_next: -1,
                 })
                 .collect();
-            model.bone_tracks[0].translation.sequences = [0.0, 10.0, 30.0]
+            Arc::make_mut(&mut model.bone_tracks)[0]
+                .translation
+                .sequences = [0.0, 10.0, 30.0]
                 .into_iter()
                 .map(|x| (vec![0], vec![[x, 0.0, 0.0]]))
                 .collect();
@@ -616,7 +676,7 @@ mod tests {
                     variation_next: -1,
                 })
                 .collect();
-            let tracks = &mut model.bone_tracks[0];
+            let tracks = &mut Arc::make_mut(&mut model.bone_tracks)[0];
             tracks.translation.sequences = [[0.0; 3], [10.0, 2.0, -4.0], [30.0, -5.0, 8.0]]
                 .into_iter()
                 .map(|value| (vec![0], vec![value]))
