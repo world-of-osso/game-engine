@@ -6,6 +6,8 @@ pub mod blp;
 pub mod camera_control_data;
 #[path = "../../../src/camera_follow_data.rs"]
 pub mod camera_follow_data;
+#[path = "../../../src/input_bindings_data.rs"]
+pub mod input_bindings_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
 pub mod light_lookup_data;
 pub mod lighting_assets;

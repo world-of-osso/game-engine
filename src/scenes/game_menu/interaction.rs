@@ -156,9 +156,13 @@ fn handle_binding_capture_keys(
         {
             continue;
         }
-        if let Some(binding) = captured_keyboard_binding(event.key_code, keyboard) {
-            assign_binding(action, binding, overlay, commands);
-            return true;
+        match captured_keyboard_binding(event.key_code, keyboard) {
+            Ok(Some(binding)) => {
+                assign_binding(action, binding, overlay, commands);
+                return true;
+            }
+            Ok(None) => {}
+            Err(key) => bevy::log::warn!("Cannot bind unsupported key {key:?}"),
         }
     }
     false
@@ -187,7 +191,12 @@ fn capture_mouse_binding(
         MouseButton::Forward,
     ] {
         if mouse.just_pressed(button) {
-            assign_binding(action, InputBinding::Mouse(button), overlay, commands);
+            assign_binding(
+                action,
+                InputBinding::Mouse(button.into()),
+                overlay,
+                commands,
+            );
             return true;
         }
     }

@@ -221,7 +221,7 @@ fn graphics_config_effects_round_trip_preserves_unrelated_options() {
     let mut bindings = loaded.bindings.clone();
     bindings.assign(
         InputAction::TargetNearest,
-        InputBinding::Keyboard(KeyCode::F5),
+        InputBinding::Keyboard(game_engine::input_bindings::BindingKey::F5),
     );
     let saved = storage::build_options_file_from_existing(
         &loaded,
@@ -345,7 +345,7 @@ fn options_file_round_trips_target_nearest_binding() {
     let mut bindings = InputBindings::default();
     bindings.assign(
         InputAction::TargetNearest,
-        InputBinding::Keyboard(KeyCode::F2),
+        InputBinding::Keyboard(game_engine::input_bindings::BindingKey::F2),
     );
 
     let file = ClientOptionsFile {
@@ -358,7 +358,9 @@ fn options_file_round_trips_target_nearest_binding() {
 
     assert_eq!(
         parsed.bindings.binding(InputAction::TargetNearest),
-        Some(InputBinding::Keyboard(KeyCode::F2))
+        Some(InputBinding::Keyboard(
+            game_engine::input_bindings::BindingKey::F2
+        ))
     );
     assert!(serialized.contains("TargetNearest"));
     assert!(serialized.contains("key:F2"));
@@ -425,7 +427,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
     let mut bindings = InputBindings::default();
     bindings.assign(
         InputAction::TargetNearest,
-        InputBinding::Keyboard(KeyCode::F3),
+        InputBinding::Keyboard(game_engine::input_bindings::BindingKey::F3),
     );
     let file = ClientOptionsFile {
         accepted_eula: true,
@@ -500,7 +502,9 @@ fn save_options_file_to_path_persists_and_loads_back() {
     assert_eq!(loaded.modal_offset, Some([123.0, -45.0]));
     assert_eq!(
         loaded.bindings.binding(InputAction::TargetNearest),
-        Some(InputBinding::Keyboard(KeyCode::F3))
+        Some(InputBinding::Keyboard(
+            game_engine::input_bindings::BindingKey::F3
+        ))
     );
 }
 

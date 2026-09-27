@@ -306,13 +306,15 @@ fn draft_bindings_assign_updates_mapping() {
     let mut model = default_model();
     model.draft_bindings.assign(
         InputAction::MoveForward,
-        game_engine::input_bindings::InputBinding::Keyboard(bevy::prelude::KeyCode::KeyZ),
+        game_engine::input_bindings::InputBinding::Keyboard(
+            game_engine::input_bindings::BindingKey::KeyZ,
+        ),
     );
     let binding = model.draft_bindings.binding(InputAction::MoveForward);
     assert_eq!(
         binding,
         Some(game_engine::input_bindings::InputBinding::Keyboard(
-            bevy::prelude::KeyCode::KeyZ
+            game_engine::input_bindings::BindingKey::KeyZ
         ))
     );
 }
