@@ -44,6 +44,10 @@ pub(crate) fn shared_shader(code: &str) -> Gd<Shader> {
     })
 }
 
+pub(crate) fn clear_shared_shaders() {
+    SHADERS.with_borrow_mut(HashMap::clear);
+}
+
 pub(super) fn is_effect(batch: &ResolvedBatch) -> bool {
     batch.texture_2_fdid.is_some() && batch.blend_mode >= 2 && batch.overlays.is_empty()
 }

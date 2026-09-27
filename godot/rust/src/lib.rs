@@ -44,7 +44,14 @@ struct GameEngineExtension;
 
 // SAFETY: Godot owns extension initialization and all exposed objects use gdext's bindings.
 #[gdextension]
-unsafe impl ExtensionLibrary for GameEngineExtension {}
+unsafe impl ExtensionLibrary for GameEngineExtension {
+    fn on_stage_deinit(stage: godot::init::InitStage) {
+        // Release cached shaders before Godot tears down its rendering storage.
+        if stage == godot::init::InitStage::MainLoop {
+            assets::material::clear_shared_shaders();
+        }
+    }
+}
 
 /// Native root for the Godot client scene.
 #[derive(GodotClass)]
