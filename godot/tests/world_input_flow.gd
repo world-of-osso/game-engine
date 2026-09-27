@@ -2,6 +2,7 @@ extends SceneTree
 
 const NAME := "Input Fixture"
 const UNEQUIPPED_NAME := "Unequipped Fixture"
+const COLLECTION_NAME := "Collection Fixture"
 const SELECTION_WAIT_MS := 30000
 # Authored terrain height at this fixture's X/Z, not the transfer-only fixture's airborne Y.
 const FIRST := Vector3(-8949.0, 112.879913, 0.0)
@@ -46,10 +47,21 @@ func run_test() -> void:
 	if not await inspect_character_preview(client):
 		return
 	var equipped_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
-	if not await select_roster_preview(client, 1, UNEQUIPPED_NAME, weakref(equipped_model), false):
+	if not await select_roster_preview(client, 1, UNEQUIPPED_NAME, weakref(equipped_model), []):
 		return
 	var unequipped_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
-	if not await select_roster_preview(client, 0, NAME, weakref(unequipped_model), true):
+	if not await select_roster_preview(client, 0, NAME, weakref(unequipped_model), ["EquipmentMainHand", "EquipmentOffHand"]):
+		return
+	var restored_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
+	if not await select_roster_preview(client, 2, COLLECTION_NAME, weakref(restored_model), ["EquipmentChest"]):
+		return
+	var collection_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
+	var pose_probe = load("res://tests/equipment_pose_pixels.gd").new()
+	var pose_error: String = await pose_probe.check(self, collection_model)
+	if pose_error != "":
+		fail(pose_error)
+		return
+	if not await select_roster_preview(client, 0, NAME, weakref(collection_model), ["EquipmentMainHand", "EquipmentOffHand"]):
 		return
 	var current_ui = client.get_node_or_null("CharacterSelectUI")
 	var enter = current_ui.find_child("EnterWorld", true, false) if current_ui != null else null
@@ -138,14 +150,14 @@ func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:
 		await process_frame
 		var state: Dictionary = client.account_state()
 		if state.screen == wanted:
-			if wanted == "CharacterSelect" and (not state.reply_received or state.character_count != 2):
+			if wanted == "CharacterSelect" and (not state.reply_received or state.character_count != 3):
 				fail("Fixture authentication did not populate character selection: " + str(state))
 				return false
 			return true
 	fail("Timed out waiting for " + wanted + ": " + str(client.account_state()))
 	return false
 
-func select_roster_preview(client: Node, index: int, expected_name: String, old_model: WeakRef, equipped: bool) -> bool:
+func select_roster_preview(client: Node, index: int, expected_name: String, old_model: WeakRef, required_equipment: Array[String]) -> bool:
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	var card = ui.find_child("CharCard_" + str(index), true, false) if ui != null else null
 	if not card is Control or not card.visible:
@@ -163,11 +175,12 @@ func select_roster_preview(client: Node, index: int, expected_name: String, old_
 			continue
 		await RenderingServer.frame_post_draw
 		var equipment := preview.find_children("Equipment*", "Node3D", true, false)
-		var main_hand := preview.find_child("EquipmentMainHand", true, false) as Node3D
-		var off_hand := preview.find_child("EquipmentOffHand", true, false) as Node3D
-		if equipped and (main_hand == null or off_hand == null):
+		if equipment.size() != required_equipment.size():
 			continue
-		if not equipped and not equipment.is_empty():
+		var names := []
+		for item in equipment:
+			names.append(str(item.name))
+		if not names.has_all(required_equipment):
 			continue
 		print("PASS: selected ", expected_name, " replaced prior model; equipment nodes=", equipment.size())
 		return true
