@@ -92,6 +92,23 @@ pub fn has_manual_movement_override(bindings: &InputBindingsData, state: &impl I
             && state.mouse_pressed(BindingMouseButton::Right))
 }
 
+/// Encode the animation direction, rather than the diagonal prediction vector, for the wire.
+pub fn movement_to_direction(direction: MoveDirection, facing_yaw: f32) -> [f32; 3] {
+    let forward = [facing_yaw.sin(), 0.0, facing_yaw.cos()];
+    let right = [-forward[2], 0.0, forward[0]];
+    let mut result = [0.0; 3];
+    let contribution = match direction {
+        MoveDirection::Forward => forward,
+        MoveDirection::Backward => [-forward[0], 0.0, -forward[2]],
+        MoveDirection::Left => [-right[0], 0.0, -right[2]],
+        MoveDirection::Right => right,
+        MoveDirection::None => [0.0; 3],
+    };
+    result[0] += contribution[0];
+    result[2] += contribution[2];
+    result
+}
+
 pub fn movement_speed_multiplier(direction: MoveDirection) -> f32 {
     match direction {
         MoveDirection::Backward => 0.6, // shared::movement::BACKPEDAL_MULTIPLIER

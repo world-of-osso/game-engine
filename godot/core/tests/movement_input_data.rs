@@ -140,6 +140,31 @@ fn jump_edge_autorun_edge_and_both_mouse_override_but_scripted_alone_does_not() 
 }
 
 #[test]
+fn wire_direction_uses_animation_direction_not_prediction_vector() {
+    use game_engine_core::movement_input_data::movement_to_direction;
+    assert_eq!(movement_to_direction(MoveDirection::None, 0.0), [0.0; 3]);
+    assert_eq!(
+        movement_to_direction(MoveDirection::Forward, 0.0),
+        [0.0, 0.0, 1.0]
+    );
+    assert_eq!(
+        movement_to_direction(MoveDirection::Backward, 0.0),
+        [0.0, 0.0, -1.0]
+    );
+    assert_eq!(
+        movement_to_direction(MoveDirection::Left, 0.0),
+        [1.0, 0.0, 0.0]
+    );
+    assert_eq!(
+        movement_to_direction(MoveDirection::Right, 0.0),
+        [-1.0, 0.0, 0.0]
+    );
+    let turned = movement_to_direction(MoveDirection::Forward, std::f32::consts::FRAC_PI_2);
+    assert!((turned[0] - 1.0).abs() < 1e-6);
+    assert!(turned[2].abs() < 1e-6);
+}
+
+#[test]
 fn animation_direction_selects_original_speed_multiplier() {
     assert_eq!(movement_speed_multiplier(MoveDirection::None), 1.0);
     assert_eq!(movement_speed_multiplier(MoveDirection::Forward), 1.0);

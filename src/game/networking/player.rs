@@ -11,7 +11,7 @@ use shared::components::{
     Player as NetPlayer, Position as NetPosition, Rotation as NetRotation,
 };
 
-use crate::camera::{CharacterFacing, MoveDirection, MovementState, Player};
+use crate::camera::{CharacterFacing, MovementState, Player};
 use crate::character_customization::CharacterCustomizationSelection;
 use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display::CreatureDisplayMap;
@@ -122,29 +122,7 @@ pub(crate) fn movement_to_direction(
     movement: &MovementState,
     facing: &CharacterFacing,
 ) -> [f32; 3] {
-    let forward = [facing.yaw.sin(), 0.0, facing.yaw.cos()];
-    let right = [-forward[2], 0.0, forward[0]];
-    let mut dir = [0.0f32; 3];
-    match movement.direction {
-        MoveDirection::Forward => {
-            dir[0] += forward[0];
-            dir[2] += forward[2];
-        }
-        MoveDirection::Backward => {
-            dir[0] -= forward[0];
-            dir[2] -= forward[2];
-        }
-        MoveDirection::Left => {
-            dir[0] -= right[0];
-            dir[2] -= right[2];
-        }
-        MoveDirection::Right => {
-            dir[0] += right[0];
-            dir[2] += right[2];
-        }
-        MoveDirection::None => {}
-    }
-    dir
+    game_engine::movement_input_data::movement_to_direction(movement.direction, facing.yaw)
 }
 
 /// When the server replicates a new player, spawn a visible capsule mesh.
