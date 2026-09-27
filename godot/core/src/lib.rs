@@ -14,8 +14,6 @@ pub mod loading_readiness;
 pub mod m2;
 #[path = "../../../src/player_physics_data.rs"]
 pub mod player_physics_data;
-#[path = "../../../src/unit_motion_data.rs"]
-pub mod unit_motion_data;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]
@@ -26,6 +24,8 @@ pub mod sky_lightdata_data;
 pub mod terrain_height_data;
 #[path = "../../../src/rendering/terrain/terrain_material_data.rs"]
 pub mod terrain_material_data;
+#[path = "../../../src/unit_motion_data.rs"]
+pub mod unit_motion_data;
 pub mod wdt;
 pub mod wmo;
 
