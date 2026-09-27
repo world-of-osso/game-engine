@@ -126,10 +126,15 @@ func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:
 	return false
 
 func wait_for_world(client: Node, timeout_ms: int) -> bool:
+	print("FIXTURE WORLD_WAIT_START elapsed_ms=", Time.get_ticks_msec())
 	var deadline := Time.get_ticks_msec() + timeout_ms
+	var next_report := Time.get_ticks_msec() + 5000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
+		if Time.get_ticks_msec() >= next_report:
+			print("FIXTURE WORLD_WAIT elapsed_ms=", Time.get_ticks_msec(), " screen=", state.screen, " units=", state.unit_count, " pending=", state.terrain.pending_count)
+			next_report = Time.get_ticks_msec() + 5000
 		if state.screen != "InWorld" or state.selected_character_name != NAME or state.unit_count != 1:
 			continue
 		var terrain: Dictionary = state.terrain
@@ -279,7 +284,7 @@ func inspect_character_preview(client: Node) -> bool:
 	if count_changed_pixels(without_terrain, without_body) < 200:
 		fail("Selected body stopped contributing GPU pixels when background was hidden")
 		return false
-	print("PASS: authenticated selected character and authored terrain change GPU pixels independently")
+	print("PASS: authenticated selected character and authored terrain change GPU pixels independently; elapsed_ms=", Time.get_ticks_msec())
 	return true
 
 func count_changed_pixels(first: Image, second: Image) -> int:
