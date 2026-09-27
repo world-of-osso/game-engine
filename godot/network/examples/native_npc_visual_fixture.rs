@@ -19,7 +19,7 @@ use lightyear::prelude::{
     ReplicationSender, server,
 };
 use shared::{
-    components::{ModelDisplay, Npc, Player, Position},
+    components::{ModelDisplay, MovementControl, Npc, Player, Position},
     protocol::{
         AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
         LoginResponse, SelectCharacter, TerrainChannel,
@@ -378,11 +378,17 @@ fn run_fixture(
                 (2, "FIXTURE CHANGED_READY") => {
                     app.world_mut()
                         .entity_mut(player.expect("spawned player"))
-                        .insert(Position {
-                            x: 60.0,
-                            y: 2.0,
-                            z: 3.0,
-                        });
+                        .insert((
+                            Position {
+                                x: 60.0,
+                                y: 2.0,
+                                z: 3.0,
+                            },
+                            MovementControl {
+                                epoch: 1,
+                                controlled: true,
+                            },
+                        ));
                     phase = 3;
                 }
                 (3, "FIXTURE LIGHT_UPDATED") => {
