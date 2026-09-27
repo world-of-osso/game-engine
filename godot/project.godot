@@ -6,6 +6,9 @@ config/name="World of Osso"
 run/main_scene="res://scenes/client.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
+[autoload]
+M2MaterialClock="*res://scenes/material_clock.tscn"
+
 [display]
 window/size/viewport_width=1280
 window/size/viewport_height=720
