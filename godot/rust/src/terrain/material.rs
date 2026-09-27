@@ -5,7 +5,8 @@ use std::collections::{BTreeSet, HashMap};
 use game_engine_core::{adt, blp};
 use godot::{
     classes::{
-        Image, ImageTexture, MeshInstance3D, Node3D, ResourceLoader, Shader, ShaderMaterial, image,
+        ArrayMesh, CollisionShape3D, ConcavePolygonShape3D, Image, ImageTexture, MeshInstance3D,
+        Node3D, ResourceLoader, Shader, ShaderMaterial, StaticBody3D, image,
     },
     prelude::*,
 };
@@ -100,21 +101,24 @@ impl TerrainMaterials {
             }
             let material = self.build_material(parsed, &layers.layers, &shader)?;
             let mesh = super::build_mesh(geometry, &chunk.vertex_colors);
+            let collision = mesh.create_trimesh_shape().ok_or_else(|| {
+                format!(
+                    "Cannot create terrain collision for chunk {}, {}",
+                    chunk.index_x, chunk.index_y
+                )
+            })?;
             chunks.push((
                 format!("Chunk{}_{}", chunk.index_x, chunk.index_y),
                 mesh,
                 material,
+                collision,
             ));
         }
         // Allocate manual-lifetime nodes only after all fallible resource construction.
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Tile{}_{}", tile.0, tile.1));
-        for (name, mesh, material) in chunks {
-            let mut instance = MeshInstance3D::new_alloc();
-            instance.set_name(&name);
-            instance.set_mesh(&mesh);
-            instance.set_surface_override_material(0, &material);
-            root.add_child(&instance);
+        for (name, mesh, material, collision) in chunks {
+            root.add_child(&spawn_chunk(&name, &mesh, &material, &collision));
             self.materials.push(material);
         }
         Ok(root)
@@ -195,6 +199,26 @@ impl TerrainMaterials {
         self.textures.insert(fdid, texture.clone());
         Ok(texture)
     }
+}
+
+fn spawn_chunk(
+    name: &str,
+    mesh: &Gd<ArrayMesh>,
+    material: &Gd<ShaderMaterial>,
+    collision: &Gd<ConcavePolygonShape3D>,
+) -> Gd<MeshInstance3D> {
+    let mut instance = MeshInstance3D::new_alloc();
+    instance.set_name(name);
+    instance.set_mesh(mesh);
+    instance.set_surface_override_material(0, material);
+    let mut body = StaticBody3D::new_alloc();
+    body.set_name("TerrainCollision");
+    let mut shape = CollisionShape3D::new_alloc();
+    shape.set_name("Shape");
+    shape.set_shape(collision);
+    body.add_child(&shape);
+    instance.add_child(&body);
+    instance
 }
 
 fn vector4(values: [f32; 4]) -> Vector4 {
