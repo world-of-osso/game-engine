@@ -1,10 +1,10 @@
 # Wiki Log
 
-## [2026-09-27] system | Portable input model and unproven loopback fixture
+## [2026-09-27] system | Portable input model and bounded loopback wire proof
 
-`f50dedaa` moves input-binding data into Bevy-free `src/input_bindings_data.rs`: action/section metadata, defaults, portable key/mouse values, persisted tokens, labels, parsing, and matching. `godot/core` exposes that source; `src/input_bindings.rs` is now the Bevy event/capture adapter. No native Godot adapter produces or matches input with the portable model.
+`f50dedaa` moves input-binding data into Bevy-free `src/input_bindings_data.rs`: action/section metadata, defaults, portable key/mouse values, persisted tokens, labels, parsing, and matching. `godot/core` exposes that source; `src/input_bindings.rs` is now the Bevy event/capture adapter. Prior binding evidence remains 4/15/1; no native Godot adapter produces or matches input with the portable model.
 
-`6cec7882` commits `godot/network/src/wire_tests.rs`, an owned-loopback UDP fixture intended to send `PlayerInput`, observe server decoding, receive replicated `MovementControl` epochs, and observe unit removal. No compile or execution evidence exists yet. It establishes neither input/wire/readiness parity nor real-server behavior. Preserve `45fd1938`: height-grid answers, including inside authored holes, do not establish `WorldGround` support.
+At `f50dedaa + 6cec7882`, independent verification passes owned-loopback `wire_tests` 1/1, root and Godot `fmt --check`, root `cargo check`, and `cargo check -p game-engine-network` (`/tmp/claude/verify-bindings-{wire,root-fmt,godot-fmt,root-check,godot-network-check}.log`). Root check exits 0 with the two existing unused `InputBindings` imports. The fixture proves only bridge `PlayerInput` decoding, replicated `MovementControl` epochs, and unit removal under owned loopback; it does not prove native Godot input production/matching, readiness, or real-server wire behavior. The evaluator retains exhaustive flat key conversions, original long metadata match tables, and tiny domain helpers; no speculative macro/refactor (`/tmp/claude/verify-bindings-readability-audit.log`). Preserve `45fd1938`: height-grid answers, including inside authored holes, do not establish `WorldGround` support.
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
