@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Independent native input gate
+
+Independent gate at `cd7ea9fa18b9bcdd686d30f457f0148990b6edf6` passes root and `godot/` formatting; `cargo check -p game-engine-godot` is warning-free. The bounded real fixture proves Loading suppression, W motion, decoded `PlayerInput`, release quietness, deferred focus clearing, and post-scope `3f404f26` right-mouse orbit/facing plus wheel zoom. Root `cargo check` fails on five stale-import/`ChatType` errors and is not acceptance proof. `default_realm_preset` and `CHUNK_SIZE` warnings were introduced by the options/water extraction; `b35e5c31` removes them and the duplicate config-directory helper without fresh check evidence. Two `InputBindings` warnings remain outside the bounded input slice. Native experimental trial is available; full conversion/parity remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native input bounded terrain-flow GREEN
 
 `c1c05d16` reuses canonical authored-water sampling. `bbb156d1` corrects the fixture from Y=83 to sampled terrain Y=112.879913 and rejects fatal stderr. The earlier Y=83 failure was correct gravity below authored terrain, not a production movement defect (`/tmp/claude/native-input-ground-notification-probe.log`).
