@@ -1,11 +1,11 @@
-//! Server-identified replicated unit nodes and their owned creature visuals.
+//! Server-identified replicated unit nodes and their authored visual children.
 
 use std::{collections::HashMap, f32::consts::PI, path::PathBuf};
 
 use crate::{
     animation::WowAnimationPlayer,
     lighting::TerrainLight,
-    world_models::{CreatureModels, bind_visual_light},
+    world_models::{UnitAppearance, WorldModels, bind_visual_light},
 };
 
 use game_engine_core::npc_visibility_data::{npc_should_be_visible, npc_visibility_policy};
@@ -25,7 +25,7 @@ struct UnitNode {
     name: String,
     is_player: bool,
     motion: UnitMotion,
-    model_display: Option<u32>,
+    appearance: Option<UnitAppearance>,
     visual: Option<Gd<Node3D>>,
     death_applied: bool,
 }
@@ -173,7 +173,7 @@ fn spawn_unit(
         name: name.to_owned(),
         is_player,
         motion: UnitMotion::new([position.x, position.y, position.z], yaw),
-        model_display: None,
+        appearance: None,
         visual: None,
         death_applied: false,
     }
@@ -215,38 +215,49 @@ fn resolve_selected_player(
     chosen
 }
 
+fn unit_appearance(snapshot: &UnitSnapshot) -> Option<UnitAppearance> {
+    if let Some(player) = &snapshot.player {
+        return Some(UnitAppearance::Player(
+            player.clone(),
+            snapshot.equipment.clone().unwrap_or_default(),
+        ));
+    }
+    snapshot.npc.as_ref()?;
+    let display = snapshot.model.as_ref()?.display_id;
+    (display != 0).then_some(UnitAppearance::Creature(display))
+}
+
 fn sync_unit_visual(
     unit: &mut UnitNode,
     snapshot: &UnitSnapshot,
-    models: &mut CreatureModels,
+    models: &mut WorldModels,
     light: Option<&TerrainLight>,
 ) {
-    let display_id = if snapshot.npc.is_some() && snapshot.player.is_none() {
-        snapshot
-            .model
-            .as_ref()
-            .map(|model| model.display_id)
-            .filter(|id| *id != 0)
-    } else {
-        None
-    };
-    if unit.model_display == display_id {
+    let appearance = unit_appearance(snapshot);
+    if unit.appearance == appearance {
         return;
     }
-    unit.model_display = display_id;
-    if let Some(visual) = unit.visual.take() {
-        visual.free();
+    let preserve_playback = unit
+        .appearance
+        .as_ref()
+        .zip(appearance.as_ref())
+        .is_some_and(|(old, new)| old.same_player_model(new));
+    let previous = unit.visual.take();
+    unit.appearance = appearance;
+    let replacement = unit.appearance.as_ref().map(|appearance| {
+        models.load_visual(appearance, previous.as_ref().filter(|_| preserve_playback))
+    });
+    if let Some(previous) = previous {
+        previous.free();
     }
-    let Some(display_id) = display_id else {
-        return;
-    };
-    match models.load_visual(display_id) {
-        Ok(visual) => {
+    match replacement {
+        Some(Ok(visual)) => {
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
             unit.visual = Some(visual);
         }
-        Err(error) => godot_error!("NPC {} display {display_id}: {error}", snapshot.server_id),
+        Some(Err(error)) => godot_error!("Unit {} visual: {error}", snapshot.server_id),
+        None => {}
     }
 }
 
@@ -280,7 +291,7 @@ pub struct WorldUnits {
     units: HashMap<u64, UnitNode>,
     selected_name: Option<String>,
     local_player_id: Option<u64>,
-    models: CreatureModels,
+    models: WorldModels,
     light: Option<TerrainLight>,
 }
 
@@ -291,7 +302,7 @@ impl WorldUnits {
             units: HashMap::new(),
             selected_name: None,
             local_player_id: None,
-            models: CreatureModels::new(data_root, cache_root),
+            models: WorldModels::new(data_root, cache_root),
             light: None,
         }
     }

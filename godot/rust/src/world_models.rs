@@ -1,4 +1,4 @@
-//! Imported creature display catalog and native NPC visual children.
+//! Authored player and creature visual children for replicated units.
 use std::{f32::consts::FRAC_PI_2, path::PathBuf};
 
 use game_engine_core::creature_display_data::{CreatureDisplay, query_display};
@@ -7,9 +7,13 @@ use godot::{
     prelude::*,
 };
 use rusqlite::{Connection, OpenFlags};
+use shared::components::{EquipmentAppearance, Player};
 
 use crate::{
-    assets::{appearance::NpcAppearances, creature::load_creature_model},
+    animation::WowAnimationPlayer,
+    assets::{
+        appearance::NpcAppearances, creature::load_creature_model, player::load_player_model,
+    },
     lighting::TerrainLight,
 };
 
@@ -33,14 +37,40 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
     }
 }
 
-pub(crate) struct CreatureModels {
+#[derive(PartialEq)]
+pub(crate) enum UnitAppearance {
+    Creature(u32),
+    Player(Player, EquipmentAppearance),
+}
+
+impl UnitAppearance {
+    pub fn same_player_model(&self, other: &Self) -> bool {
+        matches!((self, other), (Self::Player(left, _), Self::Player(right, _))
+            if left.race == right.race && left.appearance.sex == right.appearance.sex)
+    }
+}
+
+fn transfer_player_playback(previous: &Gd<Node3D>, replacement: &Gd<Node3D>) -> Result<(), String> {
+    let mut old_animation = previous
+        .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+        .ok_or("Previous player visual has no bone animation")?;
+    let mut new_animation = replacement
+        .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+        .ok_or("Replacement player visual has no bone animation")?;
+    new_animation.set_process(old_animation.is_processing());
+    new_animation
+        .bind_mut()
+        .transfer_playback_from(&mut old_animation.bind_mut())
+}
+
+pub(crate) struct WorldModels {
     data_root: PathBuf,
     cache_root: PathBuf,
     catalog: Option<Connection>,
     appearances: NpcAppearances,
 }
 
-impl CreatureModels {
+impl WorldModels {
     pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
         Self {
             data_root,
@@ -73,7 +103,37 @@ impl CreatureModels {
             })
     }
 
-    pub fn load_visual(&mut self, display_id: u32) -> Result<Gd<Node3D>, String> {
+    pub fn load_visual(
+        &mut self,
+        appearance: &UnitAppearance,
+        previous_player: Option<&Gd<Node3D>>,
+    ) -> Result<Gd<Node3D>, String> {
+        match appearance {
+            UnitAppearance::Creature(display_id) => self.load_creature_visual(*display_id),
+            UnitAppearance::Player(player, equipment) => {
+                self.load_player_visual(player, equipment, previous_player)
+            }
+        }
+    }
+
+    fn load_player_visual(
+        &self,
+        player: &Player,
+        equipment: &EquipmentAppearance,
+        previous_player: Option<&Gd<Node3D>>,
+    ) -> Result<Gd<Node3D>, String> {
+        let mut model = load_player_model(&self.data_root, &self.cache_root, player, equipment)?;
+        model.set_name("PlayerModel");
+        if let Some(previous) = previous_player {
+            if let Err(error) = transfer_player_playback(previous, &model) {
+                model.free();
+                return Err(error);
+            }
+        }
+        Ok(model)
+    }
+
+    fn load_creature_visual(&mut self, display_id: u32) -> Result<Gd<Node3D>, String> {
         let display = self.query_display(display_id)?;
         let appearance = self
             .appearances
