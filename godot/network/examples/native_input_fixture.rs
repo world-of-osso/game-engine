@@ -458,7 +458,7 @@ fn assert_idle_jump_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
     Ok(!inputs.is_empty())
 }
 
-fn assert_running_jump_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
+fn assert_running_input(inputs: Vec<PlayerInput>, jumping: bool) -> Result<bool, String> {
     for input in &inputs {
         let expected = Directional::Walk.expected_vector(input.facing_yaw);
         if !input.elapsed_secs.is_finite()
@@ -470,7 +470,7 @@ fn assert_running_jump_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
                 .zip(expected)
                 .any(|(actual, expected)| !actual.is_finite() || (actual - expected).abs() > 0.15)
             || !input.running
-            || !input.jumping
+            || input.jumping != jumping
         {
             return Err(format!(
                 "running W+Space produced unexpected PlayerInput: {input:?}"
@@ -780,14 +780,14 @@ fn run_fixture(
                 saw_idle_jump |= assert_idle_jump_input(take_inputs(app))?;
             }
             Phase::RunningBeforeJump => {
-                saw_forward |= assert_forward_input(take_inputs(app))?;
+                saw_forward |= assert_running_input(take_inputs(app), false)?;
             }
             Phase::RunningJump | Phase::RunningJumpReleased => {
                 let (jumping, forward): (Vec<_>, Vec<_>) = take_inputs(app)
                     .into_iter()
                     .partition(|input| input.jumping);
-                saw_running_jump |= assert_running_jump_input(jumping)?;
-                assert_forward_input(forward)?;
+                saw_running_jump |= assert_running_input(jumping, true)?;
+                assert_running_input(forward, false)?;
             }
             Phase::RunningJumpLanded => {
                 let (jumping, forward): (Vec<_>, Vec<_>) = take_inputs(app)
@@ -803,11 +803,11 @@ fn run_fixture(
                         "running jump packets continued after landing: {jumping:?}"
                     ));
                 }
-                assert_running_jump_input(jumping)?;
-                saw_resumed_run |= assert_forward_input(forward)?;
+                assert_running_input(jumping, true)?;
+                saw_resumed_run |= assert_running_input(forward, false)?;
             }
             Phase::RunningResumed => {
-                saw_resumed_run |= assert_forward_input(take_inputs(app))?;
+                saw_resumed_run |= assert_running_input(take_inputs(app), false)?;
             }
             Phase::RunningStopped | Phase::RunningStand => {
                 let inputs = take_inputs(app);
