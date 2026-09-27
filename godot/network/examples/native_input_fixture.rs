@@ -25,7 +25,8 @@ use shared::{
 };
 
 const NAME: &str = "Input Fixture";
-const FIRST: [f32; 3] = [-8949.0, 83.0, 0.0];
+// Authored terrain height; the transfer-only fixture's Y=83 is below this surface.
+const FIRST: [f32; 3] = [-8949.0, 112.879_913, 0.0];
 const TICK: Duration = Duration::from_millis(5);
 const TIMEOUT: Duration = Duration::from_secs(90);
 const RELEASE_DRAIN: Duration = Duration::from_millis(250);
@@ -95,7 +96,7 @@ fn start_server() -> (App, SocketAddr) {
     (app, address)
 }
 
-fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, thread::JoinHandle<()>) {
+fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -110,21 +111,38 @@ fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, thread::JoinHa
         ])
         .env("GODOT_TEST_SERVER", address.to_string())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("start native Godot fixture process");
     let output = child.stdout.take().expect("read Godot stdout");
+    let errors = child.stderr.take().expect("read Godot stderr");
     let (sender, receiver) = mpsc::channel();
-    let reader = thread::spawn(move || {
+    let readers = vec![
+        read_output(output, sender.clone(), false),
+        read_output(errors, sender, true),
+    ];
+    (child, receiver, readers)
+}
+
+fn read_output(
+    output: impl std::io::Read + Send + 'static,
+    sender: mpsc::Sender<String>,
+    stderr: bool,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
         for line in BufReader::new(output).lines() {
             let line = line.expect("read Godot fixture output");
             println!("godot: {line}");
+            let line = if stderr {
+                format!("GODOT_STDERR: {line}")
+            } else {
+                line
+            };
             if sender.send(line).is_err() {
                 return;
             }
         }
-    });
-    (child, receiver, reader)
+    })
 }
 
 fn respond_to_login(app: &mut App) -> Result<(), String> {
@@ -232,6 +250,9 @@ enum Phase {
 
 fn accept_phase_line(app: &mut App, phase: &mut Phase, line: &str) -> Result<(), String> {
     match (&*phase, line) {
+        (_, line) if line.starts_with("GODOT_STDERR: ERROR:") => {
+            return Err(format!("Godot runtime error: {line}"));
+        }
         (Phase::AwaitLoading, "FIXTURE LOADING_OBSERVED") => {
             if !take_inputs(app).is_empty() {
                 return Err("PlayerInput arrived during withheld-terrain Loading interval".into());
@@ -268,7 +289,7 @@ fn run_fixture(
     app: &mut App,
     child: &mut Child,
     lines: Receiver<String>,
-    reader: thread::JoinHandle<()>,
+    reader: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut selected = false;
     let mut phase = Phase::AwaitLoading;
@@ -282,8 +303,10 @@ fn run_fixture(
         respond_to_selection(app, &mut selected)?;
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
-            if let Some(reader) = reader.take() {
-                reader.join().map_err(|_| "Godot stdout reader panicked")?;
+            if let Some(readers) = reader.take() {
+                for reader in readers {
+                    reader.join().map_err(|_| "Godot output reader panicked")?;
+                }
             }
         }
         for line in lines.try_iter() {
