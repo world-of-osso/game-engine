@@ -41,9 +41,9 @@ func run_test() -> void:
 	if first_terrain == null or first_player == null:
 		fail("Initial world has no native terrain and selected player")
 		return
-	var first_terrain_id := first_terrain.get_instance_id()
-	var first_tile_id := first_terrain.get_child(0).get_instance_id()
-	var first_player_id := first_player.get_instance_id()
+	var first_terrain_id: int = first_terrain.get_instance_id()
+	var first_tile_id: int = first_terrain.get_child(0).get_instance_id()
+	var first_player_id: int = first_player.get_instance_id()
 	transfer_requested = true
 	print("FIXTURE INITIAL_READY")
 	var deadline := Time.get_ticks_msec() + 60000
