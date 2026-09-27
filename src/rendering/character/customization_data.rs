@@ -13,6 +13,7 @@ mod catalog;
 #[path = "customization_data_support.rs"]
 mod support;
 
+pub use catalog::CustomizationCatalog;
 pub use catalog::{
     ChoiceGeoset, ChoiceMaterial, CustomizationChoice, CustomizationOption, ModelPresentation,
     OptionType,

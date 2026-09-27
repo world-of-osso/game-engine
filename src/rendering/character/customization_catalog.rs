@@ -196,6 +196,9 @@ pub struct CustomizationOption {
     pub choices: Vec<CustomizationChoice>,
 }
 
+/// Bevy-free catalog name shared by both clients; the Bevy crate wraps it as a resource.
+pub type CustomizationCatalog = CustomizationDb;
+
 #[derive(Default, Debug)]
 pub struct CustomizationDb {
     pub(super) options_by_model: HashMap<u32, Vec<CustomizationOption>>,

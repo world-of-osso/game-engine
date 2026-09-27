@@ -143,7 +143,7 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
 
     app.update();
 
-    let new_race = app.world().resource::<CharCreateState>().selected_race;
+    let new_race = app.world().resource::<CharCreateStateRes>().selected_race;
     assert_eq!(new_race, 2, "Race_2 click should update selected_race");
 
     let displayed = app.world().resource::<DisplayedModels>();

@@ -1,21 +1,16 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use bevy::prelude::Resource;
-
 const MAX_CHARACTER_NAME_BYTES: usize = 12;
 
 /// Authored NameGen names indexed by the playable race and body-type IDs.
 #[derive(Default)]
-pub(super) struct NameCatalog {
+pub struct NameCatalog {
     names: HashMap<(u8, u8), Vec<String>>,
 }
 
-#[derive(Resource)]
-pub(super) struct NameCatalogResource(pub(super) Result<NameCatalog, String>);
-
 impl NameCatalog {
-    pub(super) fn load(path: &Path) -> Result<Self, String> {
+    pub fn load(path: &Path) -> Result<Self, String> {
         let csv = std::fs::read_to_string(path).map_err(|err| {
             format!(
                 "Cannot read authored name catalog {}: {err}",
@@ -61,11 +56,11 @@ impl NameCatalog {
         Ok(catalog)
     }
 
-    pub(super) fn has_names(&self, race: u8, sex: u8) -> bool {
+    pub fn has_names(&self, race: u8, sex: u8) -> bool {
         self.names.contains_key(&(canonical_name_race(race), sex))
     }
 
-    pub(super) fn pick_name(&self, race: u8, sex: u8, current: &str, seed: u64) -> Option<&str> {
+    pub fn pick_name(&self, race: u8, sex: u8, current: &str, seed: u64) -> Option<&str> {
         let names = self.names.get(&(canonical_name_race(race), sex))?;
         if names.len() == 1 {
             return Some(&names[0]);

@@ -22,7 +22,7 @@ fn response_fixture() -> (App, ResponseTransport) {
     app.insert_resource(State::new(GameState::CharCreate));
     app.init_resource::<NextState<GameState>>();
     app.init_resource::<CharacterList>();
-    app.init_resource::<CharCreateState>();
+    app.init_resource::<CharCreateStateRes>();
     app.add_observer(handle_create_response);
     game_engine::network_events::register_message_handler::<CreateCharacterResponse, _>(
         &mut app,
@@ -159,7 +159,7 @@ fn creation_failure_displays_server_error_without_transition() {
         );
         assert_eq!(
             app.world()
-                .resource::<CharCreateState>()
+                .resource::<CharCreateStateRes>()
                 .error_text
                 .as_deref(),
             Some(expected.as_str())
@@ -177,7 +177,7 @@ fn creation_response_after_scene_exit_does_not_require_scene_resources() {
     let (mut app, mut transport) = response_fixture();
     app.world_mut()
         .insert_resource(State::new(GameState::CharSelect));
-    app.world_mut().remove_resource::<CharCreateState>();
+    app.world_mut().remove_resource::<CharCreateStateRes>();
     deliver_response(
         &mut app,
         &mut transport,
