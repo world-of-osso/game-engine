@@ -155,6 +155,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_loading_readiness())
             .and_then(|()| self.update_world_errors(delta as f32))
             .and_then(|()| self.tick_delete_confirmation(delta as f32))
+            .and_then(|()| self.advance_login_fade(delta as f32))
             .and_then(|()| self.update_world_camera(delta as f32));
         self.physical_input.finish_frame();
         if let Err(error) = update {
@@ -620,6 +621,13 @@ impl GameClient {
                 Ok(())
             }
             other => Err(format!("Login action not yet converted: {other}")),
+        }
+    }
+
+    fn advance_login_fade(&mut self, delta: f32) -> Result<(), String> {
+        match self.login_ui.as_mut() {
+            Some(login) => login.bind_mut().advance_login_fade(delta),
+            None => Ok(()),
         }
     }
 

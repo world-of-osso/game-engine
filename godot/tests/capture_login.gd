@@ -12,6 +12,10 @@ func _run() -> void:
 	var scene: PackedScene = load("res://scenes/client.tscn")
 	var client = scene.instantiate()
 	root.add_child(client)
+	# Wait out the original 0.75s login fade-in.
+	var faded = Time.get_ticks_msec() + 1000
+	while Time.get_ticks_msec() < faded:
+		await process_frame
 	for frame in range(3):
 		await process_frame
 		await RenderingServer.frame_post_draw
