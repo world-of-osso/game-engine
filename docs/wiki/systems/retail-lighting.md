@@ -42,6 +42,12 @@ Fog uses the camera's `DistanceFog` range and colour, applied in authored space.
 - `M2EffectMaterial` (`assets/shaders/m2_effect.wgsl`): combiners in authored space, then the same lighting and fog.
 - `TerrainMaterial` (`assets/shaders/terrain.wgsl`): layers blended in authored space. The MTXF cube-map reflection samples the sky cubemap. MCSH baked shadows are not rendered (WebWowViewerCpp ignores them): the ADT parser still reads MCSH, but no texture is built, uploaded or bound. The PBR roughness/reflectance are gone.
 
+## Native Godot producer boundary
+
+`90f91a5a` gives native `TerrainLight` a common `bind_model`/`clear_model` boundary for the nine M2 ambient/direct/sun/fog uniforms. It does not bind `environment_map`: terrain retains that cube-map binding, while the native M2 shader declares no cube uniform.
+
+`b628997e` lets `WorldUnits` retain the current sampled light. Native creature visuals receive it on spawn or display replacement, existing visuals rebind on a live sample change, and map changes/transfers clear both material overrides and retained light; world reset drops retained light with its nodes. The synthetic-WDT/no-ADT fixture deliberately stays `Loading`; its RED observes a `WorldLighting` node and NPC authored material with null common uniforms before this path (`/tmp/claude/native-npc-light-red-22627188.log`). Native build/runtime GREEN is pending. This is producer wiring only, not rendered-pixel, lighting-correctness, InWorld/readiness, visual-parity, or full-conversion proof.
+
 ## Display
 
 World cameras use `Tonemapping::None` (`world_camera_tonemapping`). Measured on the GPU, TonyMcMapface turned Retail texels 200/180/150 into 173/158/135 and 250/245/235 into 195/192/186. Cameras no longer get Bevy image-based lighting (the 300-intensity `GeneratedEnvironmentMapLight`).
@@ -68,3 +74,4 @@ World cameras use `Tonemapping::None` (`world_camera_tonemapping`). Measured on 
 - [[wmo-retail-lighting]]: WMO interior/exterior light on the same scene light
 - [[skybox]]: sky systems that compute the blend
 - [[terrain]]: layer blending
+- [[character-rendering]]: native authored M2 creature materials
