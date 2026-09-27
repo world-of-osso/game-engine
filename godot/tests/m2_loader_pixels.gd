@@ -34,7 +34,7 @@ func chunk(magic: String, payload: PackedByteArray) -> PackedByteArray:
 	bytes.append_array(payload)
 	return bytes
 
-func make_m2(flags: int) -> PackedByteArray:
+func make_m2(flags: int, blend_mode: int) -> PackedByteArray:
 	var md20 := PackedByteArray()
 	md20.resize(0x240)
 	put_magic(md20, 0, "MD20")
@@ -57,7 +57,7 @@ func make_m2(flags: int) -> PackedByteArray:
 		put_float(md20, offset + 32, 0.5)
 		put_float(md20, offset + 36, 0.5)
 	put_u16(md20, 0x200, flags)
-	put_u16(md20, 0x202, 0) # Opaque.
+	put_u16(md20, 0x202, blend_mode)
 	put_u16(md20, 0x230, 0)
 	put_u16(md20, 0x232, 1)
 	var txid := PackedByteArray()
@@ -126,7 +126,7 @@ func write_fixture(path: String, bytes: PackedByteArray) -> bool:
 	file.close()
 	return true
 
-func prepare_fixture(flags: int, shader_id: int, texture_count: int) -> bool:
+func prepare_fixture(flags: int, shader_id: int, texture_count: int, blend_mode: int = 0) -> bool:
 	var dir := ProjectSettings.globalize_path(FIXTURE)
 	var created := DirAccess.make_dir_recursive_absolute(dir + "/models")
 	if created != OK:
@@ -136,7 +136,7 @@ func prepare_fixture(flags: int, shader_id: int, texture_count: int) -> bool:
 	if created != OK:
 		push_error("Cannot create BLP fixture: " + error_string(created))
 		return false
-	return write_fixture(FIXTURE + "/models/quad.m2", make_m2(flags)) \
+	return write_fixture(FIXTURE + "/models/quad.m2", make_m2(flags, blend_mode)) \
 		and write_fixture(FIXTURE + "/models/quad00.skin", make_skin(shader_id, texture_count)) \
 		and write_fixture(FIXTURE + "/textures/910001.blp", make_blp(BASE)) \
 		and write_fixture(FIXTURE + "/textures/910002.blp", make_blp(SECOND))
@@ -234,4 +234,7 @@ func run_pixels() -> bool:
 		return false
 	var combined := Color(BASE.r * SECOND.r * 2.0, BASE.g * SECOND.g * 2.0, BASE.b * SECOND.b * 2.0)
 	var combiner_passed := await assert_pixel("two-texture 0x4014", combined)
-	return base_passed and lit_passed and combiner_passed
+	if not prepare_fixture(7, 0x4014, 2, 2) or not await load_quad():
+		return false
+	var effect_passed := await assert_pixel("blend-2 two-texture 0x4014", combined)
+	return base_passed and lit_passed and combiner_passed and effect_passed
