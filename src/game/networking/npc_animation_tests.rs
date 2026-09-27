@@ -258,3 +258,38 @@ fn npc_instances_of_one_model_share_sequence_clips_until_the_last_despawns() {
         "clips must not outlive the model's last instance"
     );
 }
+
+fn playing_id(app: &App, owner: Entity) -> u16 {
+    let player = app
+        .world()
+        .get::<crate::animation::M2AnimPlayer>(owner)
+        .unwrap();
+    let data = app
+        .world()
+        .get::<crate::animation::M2AnimData>(owner)
+        .unwrap();
+    data.sequences[player.current_seq_idx].id
+}
+
+/// Riverpaw Slayer (display 384, the Stockade gnoll model 3886641; the hierarchy check
+/// expects a 0.6 root scale) plays the animation of
+/// its replicated `CreatureMotion`: Run (5) chasing, Walk (4) wandering, Stand (0) stopped.
+#[test]
+fn riverpaw_plays_run_walk_and_stand_from_its_replicated_motion() {
+    let mut app = animated_app();
+    app.add_systems(Update, sync_npc_motion_animation);
+    let (npc, root) = spawn_display(&mut app, 384, 0.6);
+    let owner = assert_animated_hierarchy(&mut app, npc, root);
+    for (motion, anim_id) in [
+        (CreatureMotion::Still, 0),
+        (CreatureMotion::Run, 5),
+        (CreatureMotion::Walk, 4),
+        (CreatureMotion::Still, 0),
+    ] {
+        app.world_mut().entity_mut(npc).insert(motion);
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(playing_id(&app, owner), anim_id, "{motion:?}");
+    }
+}
