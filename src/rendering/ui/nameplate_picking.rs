@@ -34,7 +34,10 @@ pub(crate) struct NameplatePicker<'w, 's> {
         'w,
         's,
         (&'static GlobalTransform, &'static InheritedVisibility),
-        Without<LocalPlayer>,
+        (
+            Without<LocalPlayer>,
+            Without<crate::networking_npc::NotSelectable>,
+        ),
     >,
 }
 

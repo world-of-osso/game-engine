@@ -22,7 +22,7 @@ fn test_resolve_targetable_ancestor_finds_remote_root_from_child_mesh() {
     app.add_systems(
         Update,
         move |parent_query: Query<&ChildOf>,
-              remote_query: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+              remote_query: Query<Entity, TargetableNpcs>,
               visibility_query: Query<&Visibility>,
               mut result: ResMut<TargetResolutionResult>| {
             result.0 =
@@ -61,7 +61,7 @@ fn test_resolve_targetable_ancestor_ignores_remote_players() {
     app.add_systems(
         Update,
         move |parent_query: Query<&ChildOf>,
-              remote_query: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+              remote_query: Query<Entity, TargetableNpcs>,
               visibility_query: Query<&Visibility>,
               mut result: ResMut<TargetResolutionResult>| {
             result.0 =
@@ -96,7 +96,7 @@ fn test_resolve_targetable_ancestor_ignores_hidden_npcs() {
     app.add_systems(
         Update,
         move |parent_query: Query<&ChildOf>,
-              remote_query: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+              remote_query: Query<Entity, TargetableNpcs>,
               visibility_query: Query<&Visibility>,
               mut result: ResMut<TargetResolutionResult>| {
             result.0 =
@@ -128,7 +128,7 @@ fn resolve_interaction_ancestor_finds_world_object_root() {
     app.add_systems(
         Update,
         move |parent_query: Query<&ChildOf>,
-              npc_query: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
+              npc_query: Query<Entity, TargetableNpcs>,
               object_query: Query<&WorldObjectInteraction>,
               quest_query: Query<(), With<game_engine::quest_tracking::QuestTrackedItem>>,
               visibility_query: Query<&Visibility>,

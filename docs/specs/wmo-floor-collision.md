@@ -27,6 +27,7 @@ Players stand on WMO floors (building interiors, paving, ramps), not only on ADT
 - [x] A `set-position` just above the auction house floor lands on it under server gravity.
 - [x] A reposition (a new `MovementControl` epoch: set-position, graveyard, resurrect, taxi landing) is not a fall and deals no fall damage.
 - [x] A fall has landed once the player is within `GROUND_SNAP_THRESHOLD` of the ground, so resting a hair above a WMO floor deals the fall's damage and clears the fall.
+- [x] A player falling below `Map::GetMinHeight` dies (TrinityCore fall to void): -500 in the Stockade and on tiles without MFBO, else the root ADT's MFBO minimum plane (game-server `ground::grid_min_height`).
 
 ## How it works
 
