@@ -14,7 +14,7 @@ const HELD_FRAMES := 60
 const SETTLE_FRAMES := 20
 const STOP_FRAMES := 45
 const JUMP_WAIT_FRAMES := 360
-const JUMP_LOOP_FRAMES := 6
+const JUMP_HOLD_FRAMES := 6
 const BACKGROUND_WAIT_MS := 30000
 const AUTHORED_CHARACTER_POSITION := Vector3(-2981.82, 452.826, -457.35)
 
@@ -750,15 +750,14 @@ func check_idle_jump(client: Node, player: Node3D, locomotion: RefCounted) -> bo
 				fail("Idle jump skipped authored animation " + str(sequence[next_id + 1]) + " for " + str(current_id))
 				return false
 			next_id += 1
-			jump_frames = 0
 			if current_id == 39:
 				print("FIXTURE JUMP_LANDED")
 		highest_y = maxf(highest_y, player.position.y)
 		if next_id < 3:
 			changed_pose[next_id] = changed_pose[next_id] or locomotion.changed_from(stand_pose)
-		if current_id == 38 and not released:
+		if not released:
 			jump_frames += 1
-			if jump_frames >= JUMP_LOOP_FRAMES:
+			if jump_frames >= JUMP_HOLD_FRAMES:
 				push_key(KEY_SPACE, false)
 				released = true
 				print("FIXTURE JUMP_RELEASED")

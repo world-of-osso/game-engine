@@ -527,18 +527,6 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
-    pub(crate) fn play_animation_id(&mut self, id: u16, looping: bool) -> Result<(), String> {
-        let changed = self
-            .animation
-            .as_mut()
-            .ok_or_else(|| "M2 animation has no bound model".to_string())?
-            .select_animation_id(id, looping)?;
-        if changed {
-            self.write_poses();
-        }
-        Ok(())
-    }
-
     pub(crate) fn update_locomotion(
         &mut self,
         movement_id: u16,
