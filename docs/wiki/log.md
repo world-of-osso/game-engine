@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Shared creature display SQLite lookup
+
+`8afcffae` extracts the Bevy-free `CreatureDisplay` row and `query_display` SQLite query into source shared by the root crate and `godot/core`. It returns `Result<Option<CreatureDisplay>>`: root preserves its existing error-hiding `Option` cache boundary, while reusable core callers retain SQLite errors. The targeted core RED records the missing export (`/tmp/claude/creature-display-query-red.log`); GREEN passes 2/2 (`/tmp/claude/creature-display-query-green.log`), covering full model/three-skin/scale mapping, absent rows, and a missing-table error.
+
+No native model attachment, catalog consumption, runtime/visual proof, or independent gate is claimed.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Explicit native creature texture slots
 
 `92ecaf25` fixes the source distinction: `Model::skin_fdids` is SFID geometry `.skin` metadata, not creature texture data. Shared M2 batch resolution now takes explicit `[u32; 3]`: type 2/11 uses slot 0, type 12 slot 1, type 13 slot 2, and type 0 stays TXID. `17ef37f5` exposes `WowAssetLoader.load_m2_with_skin_fdids(path, PackedInt64Array)`, rejecting any input except three nonnegative `u32` values; ordinary `load_m2` passes zero slots and never infers from SFID.
