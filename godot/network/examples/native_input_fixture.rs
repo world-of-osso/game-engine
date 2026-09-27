@@ -32,7 +32,7 @@ const UNEQUIPPED_NAME: &str = "Unequipped Fixture";
 const COLLECTION_NAME: &str = "Collection Fixture";
 // Authored terrain height; the transfer-only fixture's Y=83 is below this surface.
 const FIRST: [f32; 3] = [-8949.0, 112.879_913, 0.0];
-const REMOTE: [f32; 3] = [-8946.0, 112.879_913, 0.0];
+const REMOTE: [f32; 3] = [-8946.0, 114.245_974, 0.0];
 const TICK: Duration = Duration::from_millis(5);
 // Five authored preview loads reached 88s before world readiness on the expanded fixture.
 const TIMEOUT: Duration = Duration::from_secs(180);
