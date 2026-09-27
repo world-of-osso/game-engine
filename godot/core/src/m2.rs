@@ -63,9 +63,11 @@ pub struct Model {
 }
 
 /// Resolve authored skin batches in the same draw order and opacity policy as the Bevy renderer.
+/// Creature texture slots are separate from `Model::skin_fdids` (geometry skin file IDs).
 /// The caller supplies the FDID path lookup used by the original empty-UV-table envmap heuristic.
 pub fn resolve_render_batches(
     model: &Model,
+    skin_texture_fdids: &[u32; 3],
     keep_zero_opacity_batches: bool,
     fdid_path: impl Fn(u32) -> Option<String>,
 ) -> Result<Vec<ResolvedBatch>, String> {
@@ -75,7 +77,6 @@ pub fn resolve_render_batches(
         .iter()
         .map(|mat| (mat.flags, mat.blend_mode))
         .collect();
-    let skin_fdids = std::array::from_fn(|i| model.skin_fdids.get(i).copied().unwrap_or(0));
     m2_batch_data::resolve_batches(
         &BatchInputs {
             units: &model.batches,
@@ -85,7 +86,7 @@ pub fn resolve_render_batches(
                 tex_lookup: &model.texture_lookup,
                 tex_types: &model.texture_types,
                 txid: &model.texture_fdids,
-                skin_fdids: &skin_fdids,
+                skin_fdids: skin_texture_fdids,
             },
             color_tracks: &model.color_tracks,
             transparencies: &model.transparency_tracks,
