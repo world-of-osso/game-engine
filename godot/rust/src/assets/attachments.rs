@@ -1,7 +1,7 @@
 //! Authored M2 attachment lookup nodes driven by the native skeleton pose.
 use game_engine_core::{asset::m2_format::m2_attach::M2Attachment, m2};
 use godot::{
-    classes::{BoneAttachment3D, Skeleton3D},
+    classes::{BoneAttachment3D, Node3D, Skeleton3D},
     prelude::*,
 };
 
@@ -39,10 +39,13 @@ fn add_attachment_node(
         .get(attachment.bone as usize)
         .ok_or_else(|| format!("Attachment {id} references absent bone {}", attachment.bone))?;
     let mut node = BoneAttachment3D::new_alloc();
-    node.set_name(&format!("Attachment{id}"));
+    node.set_name(&format!("AttachmentBone{id}"));
     node.set_bone_idx(attachment.bone as i32);
-    // The original joint origin is zero at rest; native bones rest at their M2 pivots.
-    node.set_position(wow_vec3(attachment.position) - wow_vec3(bone.pivot));
+    // BoneAttachment3D owns its transform. Keep the authored offset on its child.
+    let mut point = Node3D::new_alloc();
+    point.set_name(&format!("Attachment{id}"));
+    point.set_position(wow_vec3(attachment.position) - wow_vec3(bone.pivot));
+    node.add_child(&point);
     skeleton.add_child(&node);
     Ok(())
 }
