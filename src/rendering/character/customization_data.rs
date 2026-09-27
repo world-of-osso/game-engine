@@ -3,9 +3,10 @@
 //! The catalog resolves authored CSV data without Bevy; this wrapper owns Bevy
 //! registration, cache loading, logging, and asset-backed swatch sampling.
 
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
-use bevy::prelude::{info, warn, Resource};
+use bevy::prelude::{Resource, info, warn};
 
 #[path = "customization_catalog.rs"]
 mod catalog;
@@ -13,8 +14,8 @@ mod catalog;
 mod support;
 
 pub use catalog::{
-    ChoiceGeoset, ChoiceMaterial, CustomizationChoice, CustomizationDb, CustomizationOption,
-    ModelPresentation, OptionType,
+    ChoiceGeoset, ChoiceMaterial, CustomizationChoice, CustomizationOption, ModelPresentation,
+    OptionType,
 };
 pub(crate) use catalog::{
     RaceModels, RawCategory, RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial,
@@ -25,9 +26,28 @@ pub(crate) use catalog::{
 #[path = "../../../tests/unit/customization_data_tests.rs"]
 mod tests;
 
-impl Resource for CustomizationDb {}
+#[derive(Resource, Default, Debug)]
+pub struct CustomizationDb(catalog::CustomizationDb);
+
+impl Deref for CustomizationDb {
+    type Target = catalog::CustomizationDb;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for CustomizationDb {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl CustomizationDb {
+    pub(crate) fn from_raw(raw: &RawData) -> Self {
+        Self(catalog::CustomizationDb::from_raw(raw))
+    }
+
     pub fn load(data_dir: &Path) -> Self {
         match Self::try_load(data_dir) {
             Ok(db) => {
