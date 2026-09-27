@@ -182,6 +182,11 @@ impl GameClient {
     fn screen_requested(screen: GString);
 
     #[func]
+    fn fps_overlay_enabled(&self) -> bool {
+        self.client_options.hud.show_fps_overlay
+    }
+
+    #[func]
     fn clear_physical_input(&mut self) {
         self.physical_input.clear();
     }
