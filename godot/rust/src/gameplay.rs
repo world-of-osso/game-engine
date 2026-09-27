@@ -154,7 +154,11 @@ impl crate::GameClient {
         let movement = &self.player_movement;
         let animation_id =
             direction_to_anim_id(movement.direction, movement.running, movement.swimming);
-        self.world.play_local_animation(animation_id)
+        self.world.update_local_locomotion(
+            animation_id,
+            movement.jumping,
+            movement.running && movement.direction == MoveDirection::Forward,
+        )
     }
 
     pub(super) fn update_player_input(&mut self, delta: f32) -> Result<(), String> {

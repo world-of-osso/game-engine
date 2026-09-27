@@ -410,7 +410,12 @@ impl WorldUnits {
         Some(self.units.get(&self.local_player_id?)?.node.clone())
     }
 
-    pub fn play_local_animation(&mut self, animation_id: u16) -> Result<(), String> {
+    pub fn update_local_locomotion(
+        &mut self,
+        animation_id: u16,
+        jumping: bool,
+        running_forward: bool,
+    ) -> Result<(), String> {
         let Some(unit) = self.local_player_id.and_then(|id| self.units.get_mut(&id)) else {
             return Ok(());
         };
@@ -423,7 +428,7 @@ impl WorldUnits {
             .ok_or_else(|| format!("Local player {} has no bone animation", unit.name))?;
         animation
             .bind_mut()
-            .play_animation_id(animation_id, true)
+            .update_locomotion(animation_id, jumping, running_forward)
             .map_err(|error| format!("Local player {} animation: {error}", unit.name))
     }
 
