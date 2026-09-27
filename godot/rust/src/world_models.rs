@@ -8,7 +8,7 @@ use godot::{
 };
 use rusqlite::{Connection, OpenFlags};
 
-use crate::{assets::creature::load_creature_model, lighting::TerrainLight};
+use crate::{assets::{appearance::NpcAppearances, creature::load_creature_model}, lighting::TerrainLight};
 
 pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight>) {
     let meshes = visual
@@ -34,6 +34,7 @@ pub(crate) struct CreatureModels {
     data_root: PathBuf,
     cache_root: PathBuf,
     catalog: Option<Connection>,
+    appearances: NpcAppearances,
 }
 
 impl CreatureModels {
@@ -42,6 +43,7 @@ impl CreatureModels {
             data_root,
             cache_root,
             catalog: None,
+            appearances: NpcAppearances::default(),
         }
     }
 
@@ -70,8 +72,10 @@ impl CreatureModels {
 
     pub fn load_visual(&mut self, display_id: u32) -> Result<Gd<Node3D>, String> {
         let display = self.query_display(display_id)?;
-        let (mut model, missing) =
-            load_creature_model(&self.data_root, &self.cache_root, &display)?;
+        let appearance = self.appearances.prepare(&self.data_root, &self.cache_root, display_id)?;
+        let (mut model, missing) = load_creature_model(
+            &self.data_root, &self.cache_root, &display, appearance.as_ref(),
+        )?;
         if !missing.is_empty() {
             godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
         }

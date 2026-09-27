@@ -30,6 +30,7 @@ pub(super) fn load_material(
     batch: &ResolvedBatch,
     path: &GString,
     missing: &mut PackedInt32Array,
+    replacement: Option<&Gd<ImageTexture>>,
 ) -> Result<Gd<ShaderMaterial>, String> {
     let texture_dir = Path::new(
         &ProjectSettings::singleton()
@@ -43,6 +44,7 @@ pub(super) fn load_material(
     let effect = is_effect(batch);
     let base = batch
         .texture_fdid
+        .filter(|_| replacement.is_none())
         .map(|fdid| load_texture(fdid, &texture_dir, missing))
         .transpose()?
         .flatten();
@@ -77,6 +79,9 @@ pub(super) fn load_material(
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
     bind_textures(&mut material, base, second)?;
+    if let Some(texture) = replacement {
+        material.set_shader_parameter("base_texture", &texture.to_variant());
+    }
     bind_uniforms(&mut material, batch, effect);
     Ok(material)
 }
@@ -224,7 +229,7 @@ fn compose_texture(
     Ok(())
 }
 
-fn texture_from_rgba(pixels: &[u8], width: u32, height: u32) -> Result<Gd<ImageTexture>, String> {
+pub(super) fn texture_from_rgba(pixels: &[u8], width: u32, height: u32) -> Result<Gd<ImageTexture>, String> {
     let image = Image::create_from_data(
         width as i32,
         height as i32,

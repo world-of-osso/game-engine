@@ -1,5 +1,5 @@
 //! Native M2/BLP conversion with authored batch resolution and materials.
-//! Character replacement textures and geoset selection remain external appearance work.
+pub(crate) mod appearance;
 pub(crate) mod creature;
 mod material;
 mod uv_animation;
@@ -171,14 +171,23 @@ pub(crate) fn load_model_node_with_skin_fdids(
     path: &GString,
     skin_texture_fdids: &[u32; 3],
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
+    load_model_node_with_appearance(path, skin_texture_fdids, None)
+}
+
+fn load_model_node_with_appearance(
+    path: &GString,
+    skin_texture_fdids: &[u32; 3],
+    appearance: Option<&appearance::PreparedNpcAppearance>,
+) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let model = read_model(path)?;
-    build_model(&model, path, skin_texture_fdids)
+    build_model(&model, path, skin_texture_fdids, appearance)
 }
 
 fn build_model(
     model: &m2::Model,
     path: &GString,
     skin_texture_fdids: &[u32; 3],
+    appearance: Option<&appearance::PreparedNpcAppearance>,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
@@ -205,8 +214,18 @@ fn build_model(
                 )
             })?;
             let mesh = build_batch_mesh(model, sub)?;
-            let material = material::load_material(batch, path, &mut missing)?;
-            Ok((mesh, material))
+            let replacement = appearance
+                .filter(|_| !material::is_effect(batch))
+                .and_then(|appearance| batch.texture_type.and_then(|kind| appearance.textures.get(&kind)));
+            let material = material::load_material(batch, path, &mut missing, replacement)?;
+            let visible = appearance.is_none_or(|appearance| {
+                game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
+                    batch.mesh_part_id,
+                    &appearance.selected_geosets,
+                    &appearance.authored_geosets,
+                )
+            });
+            Ok((mesh, material, visible))
         })
         .collect::<Result<Vec<_>, String>>()?;
     let (skeleton, skin) = build_skeleton(&model.bones);
@@ -227,16 +246,17 @@ fn build_model(
     let material_animation = uv_animation::WowMaterialAnimation::from_batches(
         batches
             .iter()
-            .map(|(_, material)| material.clone())
+            .map(|(_, material, _)| material.clone())
             .zip(resolved),
         &model.global_sequences,
     );
     let mut root = Node3D::new_alloc();
     root.add_child(&skeleton);
-    for (batch_index, (mesh, material)) in batches.into_iter().enumerate() {
+    for (batch_index, (mesh, material, visible)) in batches.into_iter().enumerate() {
         let mut instance = MeshInstance3D::new_alloc();
         instance.set_name(&format!("Batch{batch_index}"));
         instance.set_mesh(&mesh);
+        instance.set_visible(visible);
         if let Some(skin) = &skin {
             instance.set_skin(skin);
             instance.set_skeleton_path("../Skeleton3D");
