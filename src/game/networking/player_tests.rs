@@ -1,5 +1,6 @@
 use super::*;
 use bevy::ecs::system::RunSystemOnce;
+use game_engine::movement_input_data::MoveDirection;
 
 #[test]
 fn idle_mount_movement_only_changes_for_parent_updates_or_new_roots() {
