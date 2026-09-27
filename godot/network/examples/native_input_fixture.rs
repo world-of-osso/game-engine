@@ -228,16 +228,15 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
     Ok(())
 }
 
-fn respond_to_selection(app: &mut App, selected: &mut bool) -> Result<(), String> {
+fn respond_to_selection(app: &mut App, selected: &mut Option<Entity>) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().selections);
     for request in requests {
-        if *selected || request.character_id != 17 {
+        if selected.is_some() || request.character_id != 17 {
             return Err(format!(
                 "unexpected SelectCharacter: {}",
                 request.character_id
             ));
         }
-        *selected = true;
         let player = app
             .world_mut()
             .spawn((
@@ -247,6 +246,7 @@ fn respond_to_selection(app: &mut App, selected: &mut bool) -> Result<(), String
                     class: 2,
                     appearance: Default::default(),
                 },
+                starter_equipment(),
                 Position {
                     x: FIRST[0],
                     y: FIRST[1],
@@ -255,6 +255,7 @@ fn respond_to_selection(app: &mut App, selected: &mut bool) -> Result<(), String
                 Replicate::to_clients(NetworkTarget::All),
             ))
             .id();
+        *selected = Some(player);
         send::<_, AuthChannel>(
             app,
             EnterWorldResponse {
@@ -299,12 +300,19 @@ fn assert_forward_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
 enum Phase {
     AwaitLoading,
     AwaitWorld,
+    AwaitRemoved,
+    AwaitRestored,
     Held,
     Released,
     Stopped,
 }
 
-fn accept_phase_line(app: &mut App, phase: &mut Phase, line: &str) -> Result<(), String> {
+fn accept_phase_line(
+    app: &mut App,
+    player: Option<Entity>,
+    phase: &mut Phase,
+    line: &str,
+) -> Result<(), String> {
     match (&*phase, line) {
         (_, line) if line.starts_with("GODOT_STDERR: ERROR:") => {
             return Err(format!("Godot runtime error: {line}"));
@@ -327,6 +335,24 @@ fn accept_phase_line(app: &mut App, phase: &mut Phase, line: &str) -> Result<(),
             if !take_inputs(app).is_empty() {
                 return Err("PlayerInput arrived before native InWorld readiness".into());
             }
+            app.world_mut()
+                .entity_mut(player.expect("selected player exists at world readiness"))
+                .insert(EquipmentAppearance::default());
+            *phase = Phase::AwaitRemoved;
+        }
+        (Phase::AwaitRemoved, "FIXTURE EQUIPMENT_REMOVED") => {
+            if !take_inputs(app).is_empty() {
+                return Err("PlayerInput arrived during equipment removal".into());
+            }
+            app.world_mut()
+                .entity_mut(player.expect("selected player exists at equipment removal"))
+                .insert(starter_equipment());
+            *phase = Phase::AwaitRestored;
+        }
+        (Phase::AwaitRestored, "FIXTURE EQUIPMENT_RESTORED") => {
+            if !take_inputs(app).is_empty() {
+                return Err("PlayerInput arrived before restored equipment".into());
+            }
             *phase = Phase::Held;
         }
         (Phase::Held, "FIXTURE RELEASED") => *phase = Phase::Released,
@@ -347,7 +373,7 @@ fn run_fixture(
     lines: Receiver<String>,
     reader: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
-    let mut selected = false;
+    let mut selected = None;
     let mut phase = Phase::AwaitLoading;
     let mut saw_forward = false;
     let mut released_at = None;
@@ -369,17 +395,20 @@ fn run_fixture(
             let previous = &phase;
             if *previous == Phase::AwaitLoading
                 && line.trim() == "FIXTURE LOADING_OBSERVED"
-                && !selected
+                && selected.is_none()
             {
                 return Err("Loading was observed before character selection".into());
             }
-            accept_phase_line(app, &mut phase, line.trim())?;
+            accept_phase_line(app, selected, &mut phase, line.trim())?;
             if phase == Phase::Released && released_at.is_none() {
                 released_at = Some(Instant::now());
             }
         }
         match phase {
-            Phase::AwaitLoading | Phase::AwaitWorld => {
+            Phase::AwaitLoading
+            | Phase::AwaitWorld
+            | Phase::AwaitRemoved
+            | Phase::AwaitRestored => {
                 if !take_inputs(app).is_empty() {
                     return Err(format!("PlayerInput arrived during {phase:?}"));
                 }
