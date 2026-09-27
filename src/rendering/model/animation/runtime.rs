@@ -1,6 +1,6 @@
 use super::*;
-pub(crate) use crate::movement_animation_data::direction_to_anim_id;
 use crate::skybox_m2_material::SkyboxTimeOverrideMs;
+pub(crate) use game_engine::movement_animation_data::direction_to_anim_id;
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
 
