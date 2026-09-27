@@ -154,6 +154,11 @@ impl GameClient {
         let session = &self.account.session;
         let mut state = VarDictionary::new();
         state.set("screen", format!("{:?}", session.screen).as_str());
+        state.set(
+            "reconnect_phase",
+            format!("{:?}", session.reconnect_phase).as_str(),
+        );
+        state.set("gameplay_input_allowed", session.gameplay_input_allowed());
         state.set("status", session.feedback.as_deref().unwrap_or(""));
         state.set("character_count", session.characters.len() as i64);
         state.set("unit_count", self.units.len() as i64);
@@ -320,6 +325,9 @@ impl GameClient {
         }
         self.world
             .select_local_player(self.account.session.selected_character_name.as_deref());
+        self.account
+            .session
+            .finish_reconnect(self.world.local_player_node().is_some());
         Ok(())
     }
 
