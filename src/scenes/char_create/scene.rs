@@ -3,8 +3,6 @@
 //! Preloads both sex models for the selected race so toggling sex is instant.
 
 use crate::retail_m2_material::M2Material;
-use std::f32::consts::{PI, TAU};
-
 use bevy::ecs::system::SystemParam;
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -24,10 +22,10 @@ use crate::m2_spawn::GeosetMesh;
 use crate::model_path_resolver::resolve_model_path;
 use crate::orbit_camera::scaled_orbit_delta;
 use crate::scenes::char_create::CharCreateStateRes;
+use crate::scenes::char_create::camera_orbit::CreationOrbit;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::creation_scene_data::CreationSceneCatalog;
-use game_engine::customization_data::{CustomizationDb, OptionType};
-use game_engine::ui::screens::char_create_component::CameraControl;
+use game_engine::customization_data::CustomizationDb;
 use shared::components::CharacterAppearance;
 
 #[path = "background.rs"]
@@ -57,25 +55,8 @@ struct DisplayedModels {
     background: Option<background::Backdrop>,
 }
 
-#[derive(Component)]
-struct CharCreateOrbit {
-    yaw: f32,
-    pitch: f32,
-    focus: Vec3,
-    distance: f32,
-    base_pitch: f32,
-    manual_distance: Option<f32>,
-    default_focus: Vec3,
-    default_distance: f32,
-}
-
-const ORBIT_PITCH_LIMIT: f32 = 0.15;
-
-const DEFAULT_FOCUS: Vec3 = Vec3::new(0.0, 1.0, 0.0);
-const DEFAULT_EYE: Vec3 = Vec3::new(0.0, 1.8, 6.0);
-const FACE_FOCUS: Vec3 = Vec3::new(0.0, 1.55, 0.0);
-const FACE_DISTANCE: f32 = 2.5;
-const CAMERA_ZOOM_SPEED: f32 = 5.0;
+#[derive(Component, Deref, DerefMut)]
+struct CharCreateOrbit(CreationOrbit);
 
 pub struct CharCreateScenePlugin;
 
@@ -108,11 +89,6 @@ impl Plugin for CharCreateScenePlugin {
 }
 
 fn spawn_camera(commands: &mut Commands, framing: background::Framing) -> Entity {
-    let focus = framing.focus;
-    let eye = framing.eye;
-    let offset = eye - focus;
-    let distance = offset.length();
-    let base_pitch = (offset.y / distance).asin();
     commands
         .spawn((
             Name::new("CharCreateCamera"),
@@ -126,31 +102,15 @@ fn spawn_camera(commands: &mut Commands, framing: background::Framing) -> Entity
                 ..default()
             }),
             world_camera_tonemapping(),
-            Transform::from_translation(eye).looking_at(focus, Vec3::Y),
-            CharCreateOrbit {
-                yaw: 0.0,
-                pitch: 0.0,
-                focus,
-                distance,
-                base_pitch,
-                manual_distance: None,
-                default_focus: focus,
-                default_distance: distance,
-            },
+            Transform::from_translation(framing.eye).looking_at(framing.focus, Vec3::Y),
+            CharCreateOrbit(CreationOrbit::new(framing.eye, framing.focus)),
         ))
         .id()
 }
 
 /// Compute eye position from orbit parameters and update the camera transform.
-fn apply_orbit_transform(orbit: &CharCreateOrbit, transform: &mut Transform) {
-    let pitch = orbit.base_pitch + orbit.pitch;
-    let eye = orbit.focus
-        + Vec3::new(
-            orbit.yaw.sin() * pitch.cos(),
-            pitch.sin(),
-            orbit.yaw.cos() * pitch.cos(),
-        ) * orbit.distance;
-    *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
+fn apply_orbit_transform(orbit: &CreationOrbit, transform: &mut Transform) {
+    *transform = Transform::from_translation(orbit.eye()).looking_at(orbit.focus, Vec3::Y);
 }
 
 fn orbit_camera(
@@ -164,8 +124,7 @@ fn orbit_camera(
     }
     let orbit_delta = scaled_orbit_delta(motion.delta, options.mouse_sensitivity);
     for (mut orbit, mut transform) in &mut query {
-        orbit.yaw = (orbit.yaw + orbit_delta.x).rem_euclid(TAU);
-        orbit.pitch = (orbit.pitch + orbit_delta.y).clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
+        orbit.drag(orbit_delta);
         apply_orbit_transform(&orbit, &mut transform);
     }
 }
@@ -175,53 +134,12 @@ fn apply_camera_control(
     mut cameras: Query<(&mut CharCreateOrbit, &mut Transform)>,
 ) {
     let Some(mut state) = state else { return };
-    if state.camera_action.is_none() {
+    let Some(action) = state.camera_action.take() else {
         return;
-    }
-    let action = state
-        .camera_action
-        .take()
-        .expect("camera action checked above");
+    };
     for (mut orbit, mut transform) in &mut cameras {
-        match action {
-            CameraControl::Reset => {
-                orbit.yaw = 0.0;
-                orbit.pitch = 0.0;
-                orbit.manual_distance = None;
-            }
-            CameraControl::ZoomIn => {
-                orbit.manual_distance =
-                    Some((orbit.manual_distance.unwrap_or(orbit.distance) - 0.5).max(1.0))
-            }
-            CameraControl::ZoomOut => {
-                orbit.manual_distance =
-                    Some((orbit.manual_distance.unwrap_or(orbit.distance) + 0.5).min(10.0))
-            }
-            CameraControl::RotateLeft => orbit.yaw = (orbit.yaw - PI / 12.0).rem_euclid(TAU),
-            CameraControl::RotateRight => orbit.yaw = (orbit.yaw + PI / 12.0).rem_euclid(TAU),
-        }
+        orbit.apply_control(action);
         apply_orbit_transform(&orbit, &mut transform);
-    }
-}
-
-fn zoom_target_for_dropdown(open_dropdown: Option<OptionType>) -> (Vec3, f32) {
-    let is_face_field = open_dropdown.is_some_and(|f| {
-        matches!(
-            f,
-            OptionType::Face
-                | OptionType::EyeColor
-                | OptionType::HairStyle
-                | OptionType::HairColor
-                | OptionType::FacialHair
-                | OptionType::Ears
-                | OptionType::Horns
-                | OptionType::Blindfold
-        )
-    });
-    if is_face_field {
-        (FACE_FOCUS, FACE_DISTANCE)
-    } else {
-        (DEFAULT_FOCUS, (DEFAULT_EYE - DEFAULT_FOCUS).length())
     }
 }
 
@@ -237,27 +155,8 @@ fn camera_zoom_for_dropdown(
             .map(|option| option.option_type)
     });
     let presentation = db.presentation_for(state.selected_race, state.selected_sex);
-    let (field_focus, field_distance) = zoom_target_for_dropdown(dropdown);
-    let face_focused = field_focus == FACE_FOCUS;
-    let t = (CAMERA_ZOOM_SPEED * time.delta_secs()).min(1.0);
-
     for (mut orbit, mut transform) in &mut query {
-        let (target_focus, target_distance) = if face_focused {
-            (
-                field_focus * presentation.customize_scale,
-                field_distance * presentation.customize_scale,
-            )
-        } else {
-            (
-                orbit.default_focus,
-                orbit.default_distance + presentation.camera_distance_offset,
-            )
-        };
-        orbit.focus = orbit.focus.lerp(target_focus, t);
-        orbit.distance = orbit
-            .distance
-            .lerp(orbit.manual_distance.unwrap_or(target_distance), t);
-
+        orbit.ease_toward(dropdown, presentation, time.delta_secs());
         apply_orbit_transform(&orbit, &mut transform);
     }
 }
@@ -500,20 +399,12 @@ fn sync_backdrop(
 }
 
 fn reset_scene_framing(
-    orbit: &mut CharCreateOrbit,
+    orbit: &mut CreationOrbit,
     transform: &mut Transform,
     projection: &mut Projection,
     framing: background::Framing,
 ) {
-    let offset = framing.eye - framing.focus;
-    orbit.default_focus = framing.focus;
-    orbit.default_distance = offset.length();
-    orbit.focus = framing.focus;
-    orbit.distance = offset.length();
-    orbit.base_pitch = (offset.y / offset.length()).asin();
-    orbit.yaw = 0.0;
-    orbit.pitch = 0.0;
-    orbit.manual_distance = None;
+    *orbit = CreationOrbit::new(framing.eye, framing.focus);
     *projection = Projection::Perspective(PerspectiveProjection {
         fov: framing.fov,
         near: framing.near,

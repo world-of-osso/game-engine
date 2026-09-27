@@ -153,7 +153,7 @@ impl INode3D for GameClient {
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
             .and_then(|()| self.update_character_preview())
-            .and_then(|()| self.update_creation_scene())
+            .and_then(|()| self.update_creation_scene(delta as f32))
             .and_then(|()| self.update_player_input(delta as f32))
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.update_player_animation())
@@ -831,20 +831,30 @@ impl GameClient {
             .selected_index
             .and_then(|index| self.account.session.characters.get(index))
             .cloned();
+        let drag = self.account_orbit_drag();
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.character_preview
-            .sync(&mut parent, selected.as_ref(), self.world_minutes)
+            .sync(&mut parent, selected.as_ref(), self.world_minutes, drag)
     }
 
-    fn update_creation_scene(&mut self) -> Result<(), String> {
-        let (Some(state), Some(db), SessionScreen::CharacterCreate) = (
-            self.creation.as_ref(),
-            self.creation_catalog.as_ref(),
-            self.account.session.screen,
-        ) else {
+    /// Original account-scene orbit: left-drag motion scaled by camera sensitivity.
+    fn account_orbit_drag(&self) -> glam::Vec2 {
+        use game_engine_core::input_bindings_data::{BindingMouseButton, InputState};
+        if !self.physical_input.mouse_pressed(BindingMouseButton::Left) {
+            return glam::Vec2::ZERO;
+        }
+        game_engine_core::char_select_camera_data::scaled_orbit_delta(
+            glam::Vec2::from_array(self.physical_input.motion()),
+            self.client_options.camera.mouse_sensitivity,
+        )
+    }
+
+    fn update_creation_scene(&mut self, delta: f32) -> Result<(), String> {
+        if self.account.session.screen != SessionScreen::CharacterCreate {
             self.creation_scene.reset();
             return Ok(());
-        };
+        }
+        let drag = self.account_orbit_drag();
         let size = self
             .base()
             .get_viewport()
@@ -852,8 +862,19 @@ impl GameClient {
             .get_visible_rect()
             .size;
         let mut parent = self.to_gd().upcast::<Node3D>();
-        self.creation_scene
-            .sync(&mut parent, state, db, size.x / size.y.max(1.0))
+        let (Some(state), Some(db)) = (self.creation.as_mut(), self.creation_catalog.as_ref())
+        else {
+            self.creation_scene.reset();
+            return Ok(());
+        };
+        self.creation_scene.sync(
+            &mut parent,
+            state,
+            db,
+            size.x / size.y.max(1.0),
+            drag,
+            delta,
+        )
     }
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {

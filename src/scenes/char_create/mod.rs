@@ -30,10 +30,11 @@ mod deps {
     pub(crate) use game_engine::char_create_data;
     pub(crate) use game_engine::customization_data::{
         CustomizationCatalog as CustomizationDb, CustomizationChoice, CustomizationOption,
-        OptionType,
+        ModelPresentation, OptionType,
     };
     pub(crate) use game_engine::ui::screens::char_create_component;
 }
+mod camera_orbit;
 mod icon_masks;
 mod input;
 mod logic;

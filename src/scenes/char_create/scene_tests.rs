@@ -1,5 +1,9 @@
 use super::*;
 use crate::scenes::char_create::CharCreateState;
+use crate::scenes::char_create::camera_orbit::{
+    DEFAULT_EYE, DEFAULT_FOCUS, FACE_DISTANCE, FACE_FOCUS, zoom_target_for_dropdown,
+};
+use game_engine::ui::screens::char_create_component::CameraControl;
 use std::path::Path;
 
 use crate::character_customization::{
@@ -757,15 +761,9 @@ mod projection_tests;
 
 #[test]
 fn apply_orbit_produces_valid_transform() {
-    let orbit = CharCreateOrbit {
-        yaw: 0.0,
-        pitch: 0.0,
-        focus: DEFAULT_FOCUS,
-        distance: (DEFAULT_EYE - DEFAULT_FOCUS).length(),
+    let orbit = CreationOrbit {
         base_pitch: 0.0,
-        manual_distance: None,
-        default_focus: DEFAULT_FOCUS,
-        default_distance: (DEFAULT_EYE - DEFAULT_FOCUS).length(),
+        ..CreationOrbit::new(DEFAULT_EYE, DEFAULT_FOCUS)
     };
     let mut transform = Transform::default();
     apply_orbit_transform(&orbit, &mut transform);
@@ -785,17 +783,7 @@ impl CameraFixture {
         world.init_resource::<CharCreateStateRes>();
         world.init_resource::<CustomizationDb>();
         world.insert_resource(Time::<()>::default());
-        let offset = DEFAULT_EYE - DEFAULT_FOCUS;
-        let orbit = CharCreateOrbit {
-            yaw: 0.0,
-            pitch: 0.0,
-            focus: DEFAULT_FOCUS,
-            distance: offset.length(),
-            base_pitch: (offset.y / offset.length()).asin(),
-            manual_distance: None,
-            default_focus: DEFAULT_FOCUS,
-            default_distance: offset.length(),
-        };
+        let orbit = CharCreateOrbit(CreationOrbit::new(DEFAULT_EYE, DEFAULT_FOCUS));
         let mut transform = Transform::default();
         apply_orbit_transform(&orbit, &mut transform);
         let camera = world.spawn((orbit, transform)).id();

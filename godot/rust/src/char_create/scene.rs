@@ -18,7 +18,7 @@ use godot::{
 };
 use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
 
-use super::CharCreateState;
+use super::{CharCreateState, camera_orbit::CreationOrbit};
 use crate::assets::{
     creature::{cache_model_files, cache_model_textures, local_resolver},
     load_model_node,
@@ -43,6 +43,7 @@ struct CharacterKey {
 struct Scene {
     root: Gd<Node3D>,
     camera: Gd<Camera3D>,
+    orbit: CreationOrbit,
     backdrop: Backdrop,
     character: Option<(CharacterKey, Gd<Node3D>)>,
 }
@@ -70,12 +71,15 @@ impl CreationScene {
         }
     }
 
+    /// `drag` is the scaled left-drag orbit delta for this frame.
     pub fn sync(
         &mut self,
         parent: &mut Gd<Node3D>,
-        state: &CharCreateState,
+        state: &mut CharCreateState,
         db: &CustomizationDb,
         aspect: f32,
+        drag: glam::Vec2,
+        delta_secs: f32,
     ) -> Result<(), String> {
         let fdid = self.catalog()?.lookup(state.selected_race)?;
         if self
@@ -88,8 +92,19 @@ impl CreationScene {
         }
         let scene = self.scene.as_mut().expect("backdrop loaded above");
         scene.sync_character(&self.data_root, &self.cache_root, state, db)?;
+        if let Some(control) = state.camera_action.take() {
+            scene.orbit.apply_control(control);
+        }
+        if drag != glam::Vec2::ZERO {
+            scene.orbit.drag(drag);
+        }
+        let dropdown = state.open_dropdown.and_then(|id| {
+            db.option_by_id(state.selected_race, state.selected_sex, id)
+                .map(|option| option.option_type)
+        });
         let presentation = db.presentation_for(state.selected_race, state.selected_sex);
-        scene.frame_camera(presentation.camera_distance_offset, aspect);
+        scene.orbit.ease_toward(dropdown, presentation, delta_secs);
+        scene.place_camera(aspect);
         Ok(())
     }
 
@@ -120,12 +135,14 @@ impl CreationScene {
             self.scene = Some(Scene {
                 root,
                 camera,
+                orbit: CreationOrbit::new(backdrop.framing.eye, backdrop.framing.focus),
                 backdrop,
                 character: None,
             });
             return;
         };
         scene.root.add_child(&backdrop.node);
+        scene.orbit = CreationOrbit::new(backdrop.framing.eye, backdrop.framing.focus);
         let previous = std::mem::replace(&mut scene.backdrop, backdrop);
         previous.node.free();
         if let Some((_, node)) = &scene.character {
@@ -182,19 +199,15 @@ impl Scene {
         Ok(())
     }
 
-    /// Original default framing: authored shot plus the race camera distance offset.
-    fn frame_camera(&mut self, distance_offset: f32, aspect: f32) {
+    fn place_camera(&mut self, aspect: f32) {
         let framing = self.backdrop.framing;
-        let offset = framing.eye - framing.focus;
-        let distance = offset.length() + distance_offset;
-        let eye = framing.focus + offset.normalize() * distance;
-        let fov = vertical_fov(framing.fov, aspect).to_degrees();
-        self.camera.set_fov(fov);
+        self.camera
+            .set_fov(vertical_fov(framing.fov, aspect).to_degrees());
         self.camera.set_near(framing.near);
         self.camera.set_far(framing.far);
         self.camera.look_at_from_position(
-            Vector3::from_array(eye.to_array()),
-            Vector3::from_array(framing.focus.to_array()),
+            Vector3::from_array(self.orbit.eye().to_array()),
+            Vector3::from_array(self.orbit.focus.to_array()),
         );
     }
 }
