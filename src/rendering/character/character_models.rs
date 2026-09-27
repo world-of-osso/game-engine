@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::asset;
-pub use crate::character_model_data::race_model_wow_path;
+pub use game_engine::character_model_data::race_model_wow_path;
 
 struct RaceNameEntry {
     race: u8,
