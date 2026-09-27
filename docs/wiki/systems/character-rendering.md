@@ -24,6 +24,10 @@ WoW attachment IDs are semantic mount points, not generic main/off-hand slots: r
 
 Final bounded native capture shows Theron's shirt, pants, and boots. The rear camera does not independently distinguish the sword or shield. Theron's five physical records (GUIDs 10–14) persisted across a server restart. This does not add combat/stat support.
 
+### Native selected-equipment integration (unbuilt)
+
+`ef697e34` consumes shared policy `2cd73e88` for clothing/cape sections and exact geosets, attaches authored M2 gear through native attachment points, binds collection meshes by semantic bone names, and reads shared transform configuration `9fc070ab`; `008a6326` fixes the native test-vector call. `/tmp/claude/native-equipment-primitives-ef697e34.log` stops at missing shared-protocol `PlayerInput.elapsed_secs` in `godot/src/gameplay.rs:134`. Thus there is no current build, GPU, runtime-refresh, attachment-render, or parity proof. The separate `e6f2e8b9` clothing primitives are 6/6; verifier551 could not locate the reported policy 6/6 artifact, so it is not independent proof.
+
 ## Character Models and HD Skeletons
 
 Legacy models (`humanmale.m2`) store 215 bones inline in the MD20 header. HD models (`humanmale_hd.m2`) store bones externally in a `.skel` file (referenced via the SKID chunk). The `.skel` file contains SKS1 (sequences + global sequences) and SKB1 (216 bones + animation tracks). `load_skel_data()` handles both paths transparently.

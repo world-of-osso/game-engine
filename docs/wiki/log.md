@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Native selected-equipment integration remains unbuilt
+
+`ef697e34` consumes shared policy `2cd73e88`: clothing/cape texture sections and exact geosets; authored M2 gear attaches through native points, collection meshes bind by semantic bone names, and shared transform config `9fc070ab` is read. `008a6326` fixes the `testVector` call. `/tmp/claude/native-equipment-primitives-ef697e34.log` stops on missing shared-protocol `PlayerInput.elapsed_secs` at `godot/src/gameplay.rs:134`; no build, GPU, runtime refresh, attachment-render, or parity proof exists. Clothing primitives remain 6/6 at `e6f2e8b9`. Verifier551 could not locate the reported policy 6/6 artifact, so it is not independent proof.
+
+Updated [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Portable outfit catalog and concurrent cache import
 
 `a7a33681` shares original outfit/item/display/texture/model/geoset resolution through Bevy-free `godot/core`, retaining the Bevy Resource adapter; `ca1ffc83` indexes local M2 names once per data root; `7b5969d6` restores root helmet extraction. The initial parallel root outfit selector failed 2/4 after absolute/relative data-root imports alternately invalidated one SQLite cache. A real-local-CSV two-importer fixture was RED with `database is locked` (`/tmp/claude/outfit-import-concurrency-red.log`). `e005b96a` canonicalizes source keys and serializes import/freshness decisions: core outfit 3/3 and root adapter 4/4 focused GREEN (`/tmp/claude/outfit-core-green-e005b96a.log`, `/tmp/claude/outfit-root-green-e005b96a.log`). Native selected-player rendering and complete conversion remain separate.
