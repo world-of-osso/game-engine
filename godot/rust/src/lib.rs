@@ -3,6 +3,7 @@ mod animation;
 mod assets;
 mod camera;
 mod lighting;
+mod loading;
 mod scene;
 mod terrain;
 mod ui;
@@ -84,6 +85,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.terrain.poll())
             .and_then(|()| self.update_world_lighting())
             .and_then(|()| self.attach_terrain_materials())
+            .and_then(|()| self.update_loading_readiness())
             .and_then(|()| self.update_world_camera(delta as f32));
         if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
@@ -361,6 +363,35 @@ impl GameClient {
     fn attach_terrain_materials(&mut self) -> Result<(), String> {
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.terrain_materials.sync(&mut parent, &self.terrain)
+    }
+
+    fn update_loading_readiness(&mut self) -> Result<(), String> {
+        if self.account.session.screen != SessionScreen::Loading {
+            return Ok(());
+        }
+        let position = self.world.local_player_transform().map(|transform| {
+            let origin = transform.origin;
+            (origin.x, origin.z)
+        });
+        if let (Some((x, z)), Some(map)) = (position, self.terrain.map_name().map(str::to_owned)) {
+            let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
+            self.terrain.request_map(map, tile)?;
+        }
+        let state = self.terrain.state();
+        let readiness = loading::evaluate_native_loading(
+            position,
+            &state,
+            self.terrain_materials.attached_tiles(),
+        );
+        if let Some(ui) = self.loading_ui.as_mut() {
+            ui.bind_mut()
+                .set_loading_state(readiness.progress_percent, readiness.status_text)?;
+        }
+        if readiness.complete {
+            self.account.session.screen = SessionScreen::InWorld;
+            self.show_account_screen(SessionScreen::InWorld)?;
+        }
+        Ok(())
     }
 
     fn update_world_camera(&mut self, delta: f32) -> Result<(), String> {

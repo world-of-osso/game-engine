@@ -25,8 +25,11 @@ func select_second_character(client: Node) -> void:
 				return
 		if not await inspect_material_tiles(client, terrain.parsed_tiles):
 			return
-		if state.screen != "Loading":
-			fail("Parsed assets alone must not establish rendered world readiness")
+		if state.screen != "InWorld":
+			fail("Selected player and attached center terrain must complete original loading gate: " + str(state.screen))
+			return
+		if client.get_node("LoadingUI").visible:
+			fail("Completed loading gate retained visible loading screen")
 			return
 		var error = client.connect_account("127.0.0.1:5000", "admin", "admin", false)
 		if error != "":
@@ -41,7 +44,7 @@ func select_second_character(client: Node) -> void:
 			return
 		if not await inspect_reset(client):
 			return
-		print("PASS: real LoadTerrain reads local map/tile assets asynchronously; reconnect clears them without fabricated readiness")
+		print("PASS: real LoadTerrain projects authored terrain, completes original loading gate, and reconnect clears the world")
 		client.free()
 		quit(0)
 		return

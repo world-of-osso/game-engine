@@ -2,6 +2,15 @@
 
 use crate::asset::adt_format::adt::{CHUNK_SIZE, ChunkHeightGrid, UNIT_SIZE, vertex_index};
 
+/// Convert Bevy world X/Z to ADT filename (row, column), clamped to the map grid.
+pub fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
+    let tile_size = CHUNK_SIZE * 16.0;
+    let center = 32.0 * tile_size;
+    let row = ((center + bz) / tile_size).floor() as i32;
+    let col = ((center - bx) / tile_size).floor() as i32;
+    (row.clamp(0, 63) as u32, col.clamp(0, 63) as u32)
+}
+
 /// Try to get height from a single chunk. Returns None if (bx, bz) is outside this chunk.
 pub fn sample_chunk_height(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
     let local_x = g.origin_x - bx;

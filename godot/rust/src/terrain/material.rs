@@ -27,6 +27,10 @@ pub(crate) struct TerrainMaterials {
 }
 
 impl TerrainMaterials {
+    pub fn attached_tiles(&self) -> &BTreeSet<(u32, u32)> {
+        &self.attached
+    }
+
     pub fn sync(
         &mut self,
         parent: &mut Gd<Node3D>,

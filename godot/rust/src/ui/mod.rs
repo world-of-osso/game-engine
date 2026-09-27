@@ -8,7 +8,7 @@ use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectState, size_char_select_root};
 use game_engine_ui_model::{
     CharacterCreateModel, CharacterSelectModel, LoadingModel, LoginModel,
-    apply_character_create_postsetup, login,
+    apply_character_create_postsetup, loading_component::LoadingScreenState, login,
 };
 use godot::classes::{CanvasLayer, ICanvasLayer};
 use godot::prelude::*;
@@ -396,6 +396,16 @@ impl RegistryUi {
             Some(WidgetData::Button(button)) => button.text.as_str().into(),
             _ => GString::new(),
         }
+    }
+
+    pub fn set_loading_state(&mut self, progress_percent: u8, status: &str) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Loading UI is not initialized")?;
+        model.shared.insert(LoadingScreenState {
+            progress_percent,
+            status_text: status.into(),
+            ..Default::default()
+        });
+        self.sync_model()
     }
 
     #[func]
