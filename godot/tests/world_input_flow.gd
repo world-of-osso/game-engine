@@ -8,6 +8,8 @@ const LOADING_FRAMES := 24
 const HELD_FRAMES := 60
 const SETTLE_FRAMES := 20
 const STOP_FRAMES := 45
+const BACKGROUND_WAIT_MS := 30000
+const AUTHORED_CHARACTER_POSITION := Vector3(-2981.82, 452.826, -457.35)
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -221,29 +223,93 @@ func inspect_character_preview(client: Node) -> bool:
 		var mesh := node as MeshInstance3D
 		if mesh.is_visible_in_tree() and mesh.mesh != null and mesh.mesh.get_surface_count() > 0:
 			visible_meshes += 1
-	if visible_meshes == 0 or root.get_camera_3d() == null:
+	var camera := root.get_camera_3d()
+	if visible_meshes == 0 or camera == null:
 		fail("Character preview lacks visible mesh geometry or a current camera")
 		return false
-	if DisplayServer.get_name() != "headless":
-		for _frame in range(4):
-			await RenderingServer.frame_post_draw
-		var shown := root.get_texture().get_image()
-		shown.save_png("res://../data/diagnostics/godot-conversion/character-select-preview.png")
-		preview.visible = false
-		for _frame in range(2):
-			await RenderingServer.frame_post_draw
-		var hidden := root.get_texture().get_image()
-		preview.visible = true
-		var changed := 0
-		for y in range(0, shown.get_height(), 4):
-			for x in range(0, shown.get_width(), 4):
-				if shown.get_pixel(x, y).is_equal_approx(hidden.get_pixel(x, y)) == false:
-					changed += 1
-		if changed < 200:
-			fail("Selected character does not change rendered pixels: " + str(changed))
-			return false
-	print("PASS: authenticated selected character has visible native 3D geometry")
+	var terrain := await wait_for_character_background(client)
+	if terrain == null:
+		return false
+	var authored := AUTHORED_CHARACTER_POSITION
+	var position := preview.global_position
+	if absf(position.x - authored.x) > 0.1 or absf(position.z - authored.z) > 0.1 or position.y < authored.y - 0.1:
+		fail("Selected character is not at the authored first-slot location or above its floor: " + str(position))
+		return false
+	if absf(camera.fov - 55.0) > 0.1:
+		fail("Solo character camera FOV is not 55 degrees: " + str(camera.fov))
+		return false
+	if DisplayServer.get_name() == "headless":
+		fail("Character background pixel probe requires a real GPU display")
+		return false
+	for _frame in range(4):
+		await RenderingServer.frame_post_draw
+	var shown := root.get_texture().get_image()
+	shown.save_png("res://../data/diagnostics/godot-conversion/character-select-preview.png")
+	preview.visible = false
+	for _frame in range(2):
+		await RenderingServer.frame_post_draw
+	var hidden := root.get_texture().get_image()
+	preview.visible = true
+	var changed := count_changed_pixels(shown, hidden)
+	if changed < 200:
+		fail("Selected character does not change rendered pixels: " + str(changed))
+		return false
+	terrain.visible = false
+	for _frame in range(2):
+		await RenderingServer.frame_post_draw
+	var without_terrain := root.get_texture().get_image()
+	if not preview.is_visible_in_tree():
+		fail("Hiding background also hid the selected character")
+		terrain.visible = true
+		return false
+	var background_changed := count_changed_pixels(shown, without_terrain)
+	if background_changed < 200:
+		fail("Authored terrain does not change GPU background pixels: " + str(background_changed))
+		terrain.visible = true
+		return false
+	preview.visible = false
+	for _frame in range(2):
+		await RenderingServer.frame_post_draw
+	var without_body := root.get_texture().get_image()
+	preview.visible = true
+	terrain.visible = true
+	if count_changed_pixels(without_terrain, without_body) < 200:
+		fail("Selected body stopped contributing GPU pixels when background was hidden")
+		return false
+	print("PASS: authenticated selected character and authored terrain change GPU pixels independently")
 	return true
+
+func count_changed_pixels(first: Image, second: Image) -> int:
+	var changed := 0
+	for y in range(0, first.get_height(), 4):
+		for x in range(0, first.get_width(), 4):
+			if not first.get_pixel(x, y).is_equal_approx(second.get_pixel(x, y)):
+				changed += 1
+	return changed
+
+func wait_for_character_background(client: Node) -> Node3D:
+	var deadline := Time.get_ticks_msec() + BACKGROUND_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var terrain := client.get_node_or_null("CharacterSelectScene/WorldTerrain") as Node3D
+		if terrain == null:
+			continue
+		var primary := terrain.get_node_or_null("Tile31_37") as Node3D
+		var supplemental := terrain.get_node_or_null("Tile31_36") as Node3D
+		if primary == null or supplemental == null:
+			continue
+		if not has_visible_mesh(primary) or not has_visible_mesh(supplemental):
+			continue
+		return terrain
+	fail("Authenticated character selection never attached both authored terrain tiles 31_37 and 31_36")
+	return null
+
+func has_visible_mesh(tile: Node3D) -> bool:
+	for node in tile.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.is_visible_in_tree() and mesh.mesh != null and mesh.mesh.get_surface_count() > 0:
+			return true
+	return false
 
 func clear_ui_focus() -> void:
 	var focused := root.gui_get_focus_owner()
