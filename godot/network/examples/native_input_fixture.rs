@@ -668,7 +668,7 @@ fn run_fixture(
     let mut saw_idle_jump = false;
     let mut jump_landed_at: Option<Instant> = None;
     let mut jump_stand_at: Option<Instant> = None;
-    let mut running_jump_at: Option<Instant> = None;
+    let mut running_landed_at: Option<Instant> = None;
     let mut running_release_at: Option<Instant> = None;
     let mut saw_running_jump = false;
     let mut saw_resumed_run = false;
@@ -743,8 +743,8 @@ fn run_fixture(
             if phase == Phase::JumpStand {
                 jump_stand_at.get_or_insert_with(Instant::now);
             }
-            if phase == Phase::RunningJump {
-                running_jump_at.get_or_insert_with(Instant::now);
+            if phase == Phase::RunningJumpLanded {
+                running_landed_at.get_or_insert_with(Instant::now);
             }
             if phase == Phase::RunningStopped {
                 running_release_at.get_or_insert_with(Instant::now);
@@ -793,8 +793,8 @@ fn run_fixture(
                 let (jumping, forward): (Vec<_>, Vec<_>) = take_inputs(app)
                     .into_iter()
                     .partition(|input| input.jumping);
-                if running_jump_at
-                    .expect("running jump start recorded")
+                if running_landed_at
+                    .expect("running landing recorded")
                     .elapsed()
                     >= RELEASE_DRAIN
                     && !jumping.is_empty()
