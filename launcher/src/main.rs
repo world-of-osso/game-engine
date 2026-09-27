@@ -25,8 +25,16 @@ fn launch() -> Result<i32, String> {
     };
     validate_godot(&godot)?;
 
+    let status = build_native_extension(root)?;
+    if !status.success() {
+        return Ok(exit_code(status));
+    }
+    exec_godot(root, &godot)
+}
+
+fn build_native_extension(root: &Path) -> Result<ExitStatus, String> {
     let cargo = env::var_os("CARGO").ok_or("CARGO is unset; launch through cargo run")?;
-    let status = Command::new(cargo)
+    Command::new(cargo)
         .current_dir(root)
         .env("CARGO_TARGET_DIR", root.join("target"))
         .arg("build")
@@ -34,18 +42,17 @@ fn launch() -> Result<i32, String> {
         .arg(root.join("godot/Cargo.toml"))
         .args(["-p", "game-engine-godot", "--lib"])
         .status()
-        .map_err(|error| format!("cannot run Cargo native build: {error}"))?;
-    if !status.success() {
-        return Ok(exit_code(status));
-    }
+        .map_err(|error| format!("cannot run Cargo native build: {error}"))
+}
 
+fn exec_godot(root: &Path, godot: &Path) -> Result<i32, String> {
     let dependencies = root.join("target/debug/deps");
     let mut library_path = dependencies.into_os_string();
     if let Some(existing) = env::var_os("LD_LIBRARY_PATH") {
         library_path.push(":");
         library_path.push(existing);
     }
-    let error = Command::new(&godot)
+    let error = Command::new(godot)
         .arg("--path")
         .arg(root.join("godot"))
         .args(env::args_os().skip(1))
