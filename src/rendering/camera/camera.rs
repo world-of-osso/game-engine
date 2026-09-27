@@ -29,6 +29,11 @@ use camera_follow::camera_follow;
 pub(crate) use camera_post_process::{MsaaDisabled, world_camera_tonemapping};
 use camera_post_process::{sync_camera_graphics_post_process, sync_ui_camera_msaa};
 use game_engine::camera_input_data::{CameraInput, apply_camera_input};
+pub use game_engine::movement_input_data::MoveDirection;
+use game_engine::movement_input_data::{
+    compute_movement_input, has_manual_movement_override, movement_speed_multiplier,
+    sync_movement_toggles,
+};
 
 pub struct WowCameraPlugin;
 
@@ -70,17 +75,6 @@ fn stop_scripted_movement(mut movement: ResMut<ScriptedMovement>) {
 /// Marker for the player entity the camera orbits around.
 #[derive(Component)]
 pub struct Player;
-
-/// Movement direction relative to the character's facing.
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MoveDirection {
-    #[default]
-    None,
-    Forward,
-    Backward,
-    Left,
-    Right,
-}
 
 /// Base Y position (ground level) for the player (when no terrain is loaded).
 pub(super) const GROUND_Y: f32 = 0.0;
@@ -218,57 +212,6 @@ fn sync_camera_options(
     }
 }
 
-/// Compute movement direction vector and animation direction from input.
-fn compute_movement_input(
-    keys: &ButtonInput<KeyCode>,
-    mouse_buttons: &ButtonInput<MouseButton>,
-    bindings: &InputBindings,
-    autorun: bool,
-    scripted_forward: bool,
-    facing: &CharacterFacing,
-) -> (Vec3, MoveDirection) {
-    let forward = Vec3::new(facing.yaw.sin(), 0.0, facing.yaw.cos());
-    let right = Vec3::new(-forward.z, 0.0, forward.x);
-
-    let mut direction = Vec3::ZERO;
-    if bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
-        || autorun
-        || scripted_forward
-    {
-        direction += forward;
-    }
-    if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
-        direction -= forward;
-    }
-    if bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons) {
-        direction -= right;
-    }
-    if bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons) {
-        direction += right;
-    }
-    if mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right) {
-        direction += forward;
-    }
-
-    let fwd = bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
-        || autorun
-        || scripted_forward
-        || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right));
-    let anim_dir = if fwd {
-        MoveDirection::Forward
-    } else if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
-        MoveDirection::Backward
-    } else if bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons) {
-        MoveDirection::Left
-    } else if bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons) {
-        MoveDirection::Right
-    } else {
-        MoveDirection::None
-    };
-
-    (direction, anim_dir)
-}
-
 fn player_movement(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -324,7 +267,13 @@ fn player_movement(
     sync_swimming_state(transform.translation, &ground, &mut movement);
 
     sync_player_movement_toggles(keys, &mouse_buttons, &bindings, &mut movement);
-    let manual_override = has_manual_movement_override(keys, &mouse_buttons, &bindings);
+    let manual_override = has_manual_movement_override(
+        &bindings,
+        &CameraInputState {
+            keys,
+            mouse: &mouse_buttons,
+        },
+    );
     let scripted_step = advance_scripted_movement(
         &mut scripted,
         &mut movement,
@@ -599,15 +548,15 @@ fn sync_player_movement_toggles(
     bindings: &InputBindings,
     movement: &mut MovementState,
 ) {
-    if bindings.is_just_pressed(InputAction::AutoRun, keys, mouse_buttons) {
-        movement.autorun = !movement.autorun;
-    }
-    if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
-        movement.autorun = false;
-    }
-    if bindings.is_just_pressed(InputAction::RunToggle, keys, mouse_buttons) {
-        movement.running = !movement.running;
-    }
+    (movement.autorun, movement.running) = sync_movement_toggles(
+        bindings,
+        &CameraInputState {
+            keys,
+            mouse: mouse_buttons,
+        },
+        movement.autorun,
+        movement.running,
+    );
 }
 
 fn resolve_player_movement_state(
@@ -619,12 +568,14 @@ fn resolve_player_movement_state(
     facing: &CharacterFacing,
 ) -> (Vec3, f32) {
     let (direction, anim_dir) = compute_movement_input(
-        keys,
-        mouse_buttons,
         bindings,
+        &CameraInputState {
+            keys,
+            mouse: mouse_buttons,
+        },
         movement.autorun,
         scripted_forward,
-        facing,
+        facing.yaw,
     );
     movement.direction = anim_dir;
     let base_speed = if movement.running {
@@ -633,29 +584,7 @@ fn resolve_player_movement_state(
         WALK_SPEED
     };
     let speed = base_speed * movement_speed_multiplier(anim_dir);
-    (direction, speed)
-}
-
-fn has_manual_movement_override(
-    keys: &ButtonInput<KeyCode>,
-    mouse_buttons: &ButtonInput<MouseButton>,
-    bindings: &InputBindings,
-) -> bool {
-    bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
-        || bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons)
-        || bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons)
-        || bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons)
-        || bindings.is_just_pressed(InputAction::Jump, keys, mouse_buttons)
-        || bindings.is_just_pressed(InputAction::AutoRun, keys, mouse_buttons)
-        || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right))
-}
-
-fn movement_speed_multiplier(direction: MoveDirection) -> f32 {
-    match direction {
-        MoveDirection::Backward => shared::movement::BACKPEDAL_MULTIPLIER,
-        MoveDirection::Left | MoveDirection::Right => shared::movement::STRAFE_MULTIPLIER,
-        MoveDirection::None | MoveDirection::Forward => 1.0,
-    }
+    (Vec3::from_array(direction), speed)
 }
 
 struct HorizontalMovementContext<'a> {
