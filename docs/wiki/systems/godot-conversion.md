@@ -137,9 +137,18 @@ The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventori
 | Character-select UI | `d1641bc9`/`9249929e` construct native `CharacterSelectUI` from the original `CharacterSelectModel`, map protocol roster data, and hide LoginUI. It includes empty authored UI and Back action; EnterWorld remains enabled as in the original authored button. `1296be4b` adds host `SelectChar` dispatch; `b7070542` adds Frame left-press routing; `b90efecf` corrects shared original postsetup registry sizing. | `character_select_ui.gd` is GREEN at `08ab89ca`/`b47cd855`/`191fe69a`. No world readiness, `InWorld`, delete/create, character/world scene, background/appearance, or matched visual proof. |
 | Tooling and parity | No Godot automation, screenshots, diagnostics, CLI/IPC, audio, debug scenes, or complete UI workflows. | Open. No milestone completion claim. |
 
+## Root-test and native global-WMO asset boundary
+
+At `580d7300`, root `cargo fmt --check` and bounded `--bin game-engine` selectors pass 193 tests with no failures; the inventory lists 1,916 tests, so this is not full-suite evidence. The GPU foliage depth-prepass test is explicitly excluded. Since the source delta is test-only, the warning-free production root check at `e8466601` remains applicable. Stockade camera collision is independently 4/4 GREEN.
+
+Native `4c7927a6` loads cached local-CASC WMO roots and indexed complete groups into mesh batches, retaining raw-group metadata and shared floor-collision data. Abbey/Stockade targeted evidence is agent-reported 6/6. `e2537c87` supplies the WDT global-WMO payload to the map worker. The missing-field RED is recorded before the 1/1 cached-map-flags/global-placement GREEN. That GREEN emits the current unused `collision` field warning. Neither scene spawn/render readiness nor a floor-query consumer exists: global-WMO readiness remains `Pending`, collision is unused, and this is not WMO runtime or parity proof.
+
 ## Sources
 
 - [Godot conversion specification](../../specs/godot-conversion.md) — acceptance target and current capability/proof matrix.
+- `/tmp/claude/verify-root-tests-580d7300.md` — bounded root format/test proof and test-only-delta scope.
+- `/tmp/claude/verify-stockade-camera-580d7300.log` — Stockade camera-collision selector 4/4.
+- `/tmp/claude/native-global-wmo-assets-{red,green}.log` — missing-field RED and cached global-WMO placement GREEN.
 - [Godot feature parity matrix](../../specs/godot-parity-matrix.md) — all preexisting feature contracts and current conversion status.
 - [Godot workspace](../../godot/Cargo.toml) — members and local dependency patches.
 - [Network manifest](../../godot/network/Cargo.toml) — current headless transport dependencies.
