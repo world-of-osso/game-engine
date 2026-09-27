@@ -64,7 +64,7 @@ A second injection path in `m2_texture.rs` was removed — the compositor in `ch
 
 HD face texture (FDID 1027494, 512×512): face skin + inner mouth + eyeball atlas. Scalp hair overlay (FDID 1043094) composited on top. These form the type-6 replaceable texture assigned to hair geosets.
 
-`55c0167e` also moves M2 render-batch CPU pixel algorithms into Bevy-free `src/asset/m2_texture_composite_data.rs`: tiled secondary-texture composition for the existing shader IDs, plus positioned alpha overlays with optional nearest-neighbor 2× scaling and clipping. `m2_texture_composite.rs` remains the Bevy adapter for cache keys and BLP/cache I/O. A standalone `rustc` run passes four unit tests covering those byte rules. The file is not yet exported by root Cargo or `godot/core`; no native Godot binding, material application, rendered output, or parity claim follows. `1d25779c` subsequently consolidates the overlay blit and 2× scale helpers with BLP code; uncommitted standalone shader and batch-metadata changes remain outside this boundary.
+`55c0167e` moves M2 render-batch CPU pixel algorithms into Bevy-free `src/asset/m2_texture_composite_data.rs`: tiled secondary-texture composition for existing shader IDs, plus positioned alpha overlays with optional nearest-neighbor 2× scaling and clipping. `m2_texture_composite.rs` retains cache keys and BLP/cache I/O; `1d25779c` shares overlay-blit and 2× scale helpers with BLP code. `c3ec6086` separately makes original render-batch decision data portable: `godot/core` exposes `m2::resolve_render_batches` with a caller-provided FDID resolver, preserving the original texture heuristic, and the root `Mesh` wrapper delegates to it. Developer core7 proves real HD model 113 resolves 113 batches and 147,966 indices; root UV2 is GREEN. No independent integration gate, native binding, material application, rendered output, or parity proof follows: the native loader still converts raw batches into `StandardMaterial`, and shader work from agent267 is in progress.
 
 ## Helmet Geoset Hiding
 
@@ -99,7 +99,7 @@ WoW renders selection circles procedurally (ground-projected ring tinted by unit
 - [hd-skeleton-status.md](../hd-skeleton-status.md) — HD model status, known issues, texture FDIDs
 - [geosets.md](../geosets.md) — geoset groups, texture types, ItemDisplayInfo slot mappings
 - [character-texture-debugging-2026-03-27.md](../character-texture-debugging-2026-03-27.md) — duplicate injection path cleanup
-- `src/asset/m2_texture_composite_data.rs` at `55c0167e` and `src/asset/rgba_blit.rs` at `1d25779c` — portable M2 secondary-texture/overlay algorithms and shared RGBA helpers
+- `src/asset/m2_texture_composite_data.rs` at `55c0167e`, `src/asset/rgba_blit.rs` at `1d25779c`, and portable M2 batch resolution at `c3ec6086` — CPU composition, shared RGBA helpers, and callback-FDID render-batch decisions
 - [helmet-geoset-extra-field-investigation-2026-03-28.md](../helmet-geoset-extra-field-investigation-2026-03-28.md) — extra DB2 field observation
 - [helmet-hair-hiding-investigation-2026-03-28.md](../helmet-hair-hiding-investigation-2026-03-28.md) — helmet hair hiding mechanisms
 - [target-circle-styles-2026-03-30.md](../target-circle-styles-2026-03-30.md) — selection circle styles, BLP blend mode detection

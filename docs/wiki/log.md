@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Portable M2 render-batch decision boundary
+
+`c3ec6086` extracts original M2 render-batch decisions into portable code. `godot/core` exposes `m2::resolve_render_batches` with a callback FDID resolver that preserves the original texture heuristic; the root `Mesh` wrapper delegates to that pure resolution. Developer core7 proves real HD model 113 resolves 113 batches and 147,966 indices; root UV2 is GREEN. No independent gate has run.
+
+This does not bind materials or prove rendering. The native loader still consumes raw batches into `StandardMaterial`; it does not use resolved decisions, the `55c0167e`/`1d25779c` portable CPU compositor, or agent267 shader work in progress. Material binding, rendered output, visual parity, and full conversion remain open.
+
+Updated [[godot-conversion]], [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Portable M2 texture-composite boundary
 
 `55c0167e` extracts the existing CPU M2 secondary-texture shader byte composition and positioned/scaled overlay blit into Bevy-free `src/asset/m2_texture_composite_data.rs`. The root `m2_texture_composite` adapter retains cache keys and BLP/cache I/O. Standalone `rustc` tests are 4/4 GREEN: shader byte rounding/alpha behavior, repeated secondary sampling, integer-alpha overlay blending, and scaled/clipped overlays.
