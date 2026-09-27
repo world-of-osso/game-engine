@@ -40,8 +40,12 @@ func run_test() -> void:
 	if graph.size != Vector2(192, 64) or graph.position.y < label.position.y + label.size.y:
 		fail("Frame-time graph must be 192x64 below FPS text")
 		return
-	var deadline := Time.get_ticks_msec() + 3000
-	while Time.get_ticks_msec() < deadline and (Engine.get_frames_per_second() <= 0.0 or not label.text.trim_prefix("FPS: ").is_valid_float()):
+	# The first engine sample includes shader/font startup; wait for the cap to settle.
+	var deadline := Time.get_ticks_msec() + 6000
+	while Time.get_ticks_msec() < deadline:
+		var value := label.text.trim_prefix("FPS: ")
+		if value.is_valid_float() and absf(float(value) - FPS_CAP) <= 2.0 and absf(Engine.get_frames_per_second() - FPS_CAP) <= 2.0:
+			break
 		await process_frame
 	if not label.text.begins_with("FPS: "):
 		fail("FPS label has no real measurement: " + label.text)
