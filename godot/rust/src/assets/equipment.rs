@@ -224,11 +224,7 @@ mod tests {
             scale: [2.0, 3.0, 4.0],
         };
         let transform = native_transform(&definition);
-        assert!(
-            transform
-                .origin
-                .is_equal_approx(Vector3::new(1.0, 2.0, 3.0))
-        );
-        assert!((transform * Vector3::UP).is_equal_approx(Vector3::new(1.0, 2.0, 6.0)));
+        assert!(transform.origin.distance_to(Vector3::new(1.0, 2.0, 3.0)) < 0.00001);
+        assert!((transform * Vector3::UP).distance_to(Vector3::new(1.0, 2.0, 6.0)) < 0.00001);
     }
 }
