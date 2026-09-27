@@ -11,7 +11,7 @@ use bevy::prelude::*;
 use shared::ground::{Ground, STEP_UP_HEIGHT, Surface, WmoCollision};
 use shared::movement::{GRAVITY, GROUND_SNAP_THRESHOLD, MAX_SLOPE_ANGLE};
 
-use game_engine::player_physics_data::{self, GroundState, VerticalState};
+use game_engine::player_physics_data::{self, GroundSample, GroundState, VerticalState};
 
 use crate::camera::Player;
 use crate::game_state::GameState;
@@ -177,11 +177,7 @@ fn physics_ground_state(probe: GroundProbe) -> GroundState {
 /// Check if terrain slope between two positions is walkable.
 /// Returns true if the slope angle is within MAX_SLOPE_ANGLE.
 pub fn is_walkable_slope(height_diff: f32, horizontal_dist: f32) -> bool {
-    if horizontal_dist < 0.001 {
-        return true;
-    }
-    let slope = (height_diff / horizontal_dist).abs().atan();
-    slope <= MAX_SLOPE_ANGLE
+    player_physics_data::is_walkable_slope(height_diff, horizontal_dist, MAX_SLOPE_ANGLE)
 }
 
 /// Validate a proposed movement against the ground at its destination.
@@ -195,22 +191,29 @@ pub fn validate_movement_slope(
     ground: &WorldGround,
     snap_to_ground: bool,
 ) -> Vec3 {
-    let GroundProbe::Supported(target) = ground.probe(proposed.with_y(current.y)) else {
+    let target = slope_ground_sample(ground.probe(proposed.with_y(current.y)));
+    if target.is_none() {
         return proposed;
-    };
-    if let GroundProbe::Supported(origin) = ground.probe(current)
-        && origin.surface == Surface::Terrain
-        && target.surface == Surface::Terrain
-    {
-        let horizontal = Vec2::new(proposed.x - current.x, proposed.z - current.z).length();
-        if !is_walkable_slope(target.height - origin.height, horizontal) {
-            return current;
-        }
     }
-    if snap_to_ground && target.height >= current.y - STEP_UP_HEIGHT {
-        proposed.with_y(target.height)
-    } else {
-        proposed
+    let origin = slope_ground_sample(ground.probe(current));
+    player_physics_data::validate_movement_slope(
+        current,
+        proposed,
+        origin,
+        target,
+        snap_to_ground,
+        MAX_SLOPE_ANGLE,
+        STEP_UP_HEIGHT,
+    )
+}
+
+fn slope_ground_sample(probe: GroundProbe) -> Option<GroundSample> {
+    match probe {
+        GroundProbe::Supported(ground) => Some(GroundSample {
+            height: ground.height,
+            is_terrain: ground.surface == Surface::Terrain,
+        }),
+        GroundProbe::Unloaded | GroundProbe::Unsupported => None,
     }
 }
 

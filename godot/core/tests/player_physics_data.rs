@@ -1,11 +1,116 @@
 use game_engine_core::player_physics_data::{
-    GroundState, VerticalState, apply_gravity_and_ground_snap, build_proposed_ground_movement,
-    update_grounded,
+    GroundSample, GroundState, VerticalState, apply_gravity_and_ground_snap,
+    build_proposed_ground_movement, is_walkable_slope, update_grounded, validate_movement_slope,
 };
 use glam::Vec3;
 
 const GRAVITY: f32 = 19.6;
 const SNAP: f32 = 0.3;
+const MAX_SLOPE_ANGLE: f32 = std::f32::consts::FRAC_PI_4;
+const STEP_UP_HEIGHT: f32 = 1.6;
+
+fn terrain(height: f32) -> Option<GroundSample> {
+    Some(GroundSample {
+        height,
+        is_terrain: true,
+    })
+}
+
+fn wmo(height: f32) -> Option<GroundSample> {
+    Some(GroundSample {
+        height,
+        is_terrain: false,
+    })
+}
+
+fn slope_move(
+    current: Vec3,
+    proposed: Vec3,
+    origin: Option<GroundSample>,
+    target: Option<GroundSample>,
+    snap: bool,
+) -> Vec3 {
+    validate_movement_slope(
+        current,
+        proposed,
+        origin,
+        target,
+        snap,
+        MAX_SLOPE_ANGLE,
+        STEP_UP_HEIGHT,
+    )
+}
+
+#[test]
+fn missing_target_preserves_proposal_even_when_snap_requested() {
+    let current = Vec3::new(0.0, 4.0, 0.0);
+    let proposed = Vec3::new(1.0, 5.0, 0.0);
+    assert_eq!(
+        slope_move(current, proposed, terrain(4.0), None, true),
+        proposed
+    );
+}
+
+#[test]
+fn only_terrain_to_terrain_checks_slope_in_both_directions() {
+    let current = Vec3::new(0.0, 4.0, 0.0);
+    let proposed = Vec3::new(1.0, 4.0, 0.0);
+    assert_eq!(
+        slope_move(current, proposed, terrain(4.0), terrain(6.0), false),
+        current
+    );
+    assert_eq!(
+        slope_move(current, proposed, terrain(4.0), terrain(2.0), false),
+        current
+    );
+    assert_eq!(
+        slope_move(current, proposed, wmo(4.0), terrain(6.0), false),
+        proposed
+    );
+    assert_eq!(
+        slope_move(current, proposed, terrain(4.0), wmo(6.0), false),
+        proposed
+    );
+    assert_eq!(
+        slope_move(current, proposed, None, terrain(6.0), false),
+        proposed
+    );
+}
+
+#[test]
+fn short_horizontal_distance_is_walkable_even_with_large_height_difference() {
+    assert!(is_walkable_slope(100.0, 0.0009, MAX_SLOPE_ANGLE));
+    assert!(!is_walkable_slope(100.0, 0.001, MAX_SLOPE_ANGLE));
+}
+
+#[test]
+fn slope_angle_limit_is_inclusive_and_uses_absolute_height_difference() {
+    assert!(is_walkable_slope(1.0, 1.0, MAX_SLOPE_ANGLE));
+    assert!(is_walkable_slope(-1.0, 1.0, MAX_SLOPE_ANGLE));
+    assert!(!is_walkable_slope(1.01, 1.0, MAX_SLOPE_ANGLE));
+}
+
+#[test]
+fn snapping_requires_target_within_step_below_current_height() {
+    let current = Vec3::new(0.0, 4.0, 0.0);
+    let proposed = Vec3::new(1.0, 8.0, 0.0);
+    assert_eq!(
+        slope_move(current, proposed, None, terrain(2.4), true),
+        proposed.with_y(2.4)
+    );
+    assert_eq!(
+        slope_move(current, proposed, None, terrain(2.39), true),
+        proposed
+    );
+    assert_eq!(
+        slope_move(current, proposed, None, terrain(5.0), true),
+        proposed.with_y(5.0)
+    );
+    assert_eq!(
+        slope_move(current, proposed, None, terrain(2.4), false),
+        proposed
+    );
+}
 
 fn step(state: VerticalState, ground: GroundState, dt: f32) -> VerticalState {
     let grounded = update_grounded(state.y, ground, SNAP);
