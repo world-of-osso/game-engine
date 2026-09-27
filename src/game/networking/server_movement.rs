@@ -10,9 +10,7 @@ use shared::components::{MovementControl, Position as NetPosition, Rotation as N
 
 use crate::camera::CharacterFacing;
 use crate::networking::{LocalPlayer, net_position_to_bevy};
-
-/// Follow rate of a server-driven player, the remote-unit interpolation speed.
-const FOLLOW_SPEED: f32 = 10.0;
+use game_engine::unit_motion_data::{MotionPose, MotionTarget, follow_server_motion};
 
 /// The last `MovementControl::epoch` the local player adopted.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,25 +31,33 @@ pub(crate) fn follow_server_movement(
     mut players: Query<ServerMovedPlayer, With<LocalPlayer>>,
     mut commands: Commands,
 ) {
-    let t = (FOLLOW_SPEED * time.delta_secs()).min(1.0);
     for (entity, control, position, rotation, mut transform, facing, adopted) in &mut players {
-        let target = net_position_to_bevy(position);
-        if adopted.is_some_and(|adopted| adopted.0 != control.epoch) {
-            transform.translation = target;
-        }
-        if adopted.is_none_or(|adopted| adopted.0 != control.epoch) {
+        let result = follow_server_motion(
+            MotionPose {
+                position: transform.translation,
+                rotation: transform.rotation,
+            },
+            MotionTarget {
+                position: net_position_to_bevy(position),
+                yaw: rotation.map(|rotation| rotation.y),
+            },
+            adopted.map(|adopted| adopted.0),
+            control.epoch,
+            control.controlled,
+            time.delta_secs(),
+        );
+        if adopted.is_none_or(|adopted| adopted.0 != result.adopted_epoch) {
             commands
                 .entity(entity)
-                .insert(AdoptedMovementEpoch(control.epoch));
+                .insert(AdoptedMovementEpoch(result.adopted_epoch));
         }
-        if !control.controlled {
-            continue;
+        if adopted.is_some_and(|adopted| adopted.0 != control.epoch) || control.controlled {
+            transform.translation = result.pose.position;
         }
-        transform.translation = transform.translation.lerp(target, t);
-        if let Some(rotation) = rotation {
-            transform.rotation = Quat::from_rotation_y(rotation.y);
+        if let Some(yaw) = result.facing_yaw {
+            transform.rotation = result.pose.rotation;
             if let Some(mut facing) = facing {
-                facing.yaw = rotation.y;
+                facing.yaw = yaw;
             }
         }
     }

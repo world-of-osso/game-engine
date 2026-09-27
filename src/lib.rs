@@ -167,6 +167,7 @@ pub mod trade;
 #[path = "game/trainer_data.rs"]
 pub mod trainer_data;
 pub mod ui;
+pub mod unit_motion_data;
 pub mod who;
 #[path = "game/world_db/mod.rs"]
 pub mod world_db;
