@@ -31,7 +31,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## Known gaps (current cycle)
 
-- [ ] Only texture types 1, 6 and 19 get NPC textures. Other layout texture types (Dracthyr 7–26, types 7/8/20 of other layouts) keep the M2 defaults or are blitted into the body atlas; not visually validated.
+- [ ] NPC composition currently binds texture types 1, 6 and 19 only. These are compositor bindings, not the three creature skin-replacement slots (M2 types 2/11, 12 and 13). Other layout texture types (Dracthyr 7–26, types 7/8/20 of other layouts) keep the M2 defaults or are blitted into the body atlas; not visually validated.
 
 - [ ] Parent integration must import current display data and visually validate the actual replicated Northshire NPCs; synthetic material tests are not visual acceptance.
 
