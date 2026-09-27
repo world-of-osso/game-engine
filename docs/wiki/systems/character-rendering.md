@@ -24,9 +24,13 @@ WoW attachment IDs are semantic mount points, not generic main/off-hand slots: r
 
 Final bounded native capture shows Theron's shirt, pants, and boots. The rear camera does not independently distinguish the sword or shield. Theron's five physical records (GUIDs 10–14) persisted across a server restart. This does not add combat/stat support.
 
-### Native selected-equipment integration (unbuilt)
+### Native selected-equipment integration
 
-`ef697e34` consumes shared policy `2cd73e88` for clothing/cape sections and exact geosets, attaches authored M2 gear through native attachment points, binds collection meshes by semantic bone names, and reads shared transform configuration `9fc070ab`; `008a6326` fixes the native test-vector call. `/tmp/claude/native-equipment-primitives-ef697e34.log` stops at missing shared-protocol `PlayerInput.elapsed_secs` in `godot/src/gameplay.rs:134`. Thus there is no current build, GPU, runtime-refresh, attachment-render, or parity proof. The separate `e6f2e8b9` clothing primitives are 6/6; verifier551 could not locate the reported policy 6/6 artifact, so it is not independent proof.
+`ef697e34` consumes shared policy `2cd73e88` for clothing/cape sections and exact geosets, attaches authored M2 gear through native attachment points, binds collection meshes by semantic bone names, and reads shared transform configuration `9fc070ab`; `008a6326` fixes the native test-vector call. `d44f3dd4` changes `PlayerInput.elapsed_secs` to the exact prediction delta and passes 13/13 native primitives. Real server `:5000` compatibility remains UNKNOWN: the matching shared-protocol field is uncommitted, and no trial refresh/restart occurred.
+
+At `640e9f30`, `/tmp/claude/native-attachments-rendered-green.log` exits 0 under real offscreen Vulkan. A camera and `frame_post_draw` prove actual HD/boar attachment lookup, authored rest offset, and the combined bone/model rotation, translation, and scale. `e0eba0d7` keeps the attachment-offset child below the bone-binding node. Earlier headless and `skeleton_updated` waits hung; they are not renderer-bug evidence. `/tmp/claude/godot-equipped-runtime-640e9f30.log` exits 0 with compiled Rust `e0eba0d7`: starter clothing, sword, and shield independently change selected-character pixels; scenery, isolated sky/rays, Loading/input gating, UDP movement, camera input, and clean shutdown also occur. Main inspected the output PNG: blue clothing with weapons.
+
+This is bounded equipment/render evidence. Selection replacement, bound-collection actual-pixel proof, real-server compatibility, final native check/readability/independent verification, visual parity, and full conversion remain pending. Running trial `1500671` is a prior background artifact.
 
 ## Character Models and HD Skeletons
 
@@ -118,6 +122,8 @@ WoW renders selection circles procedurally (ground-projected ring tinted by unit
 - `../../../data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` — bounded physical-equipment persistence and render evidence
 - `src/game/equipment/outfit_catalog.rs`, `src/game/outfit_catalog_db.rs`, `godot/core/src/outfit_data_tests.rs` at `e005b96a` — shared catalog boundary and concurrent importer fixture
 - `src/game/equipment/equipment.rs` — runtime attachment selection at `496a057b`
+- `/tmp/claude/native-attachments-rendered-green.log` — real offscreen-Vulkan attachment lookup/rest-transform GREEN at `640e9f30`
+- `/tmp/claude/godot-equipped-runtime-640e9f30.log` — bounded selected-equipment GPU/runtime fixture GREEN with compiled Rust `e0eba0d7`
 - `/home/osso/Repos/WMVx/src/core/game/GameConstants.h` and `/home/osso/Repos/WMVx/src/core/modeling/AttachmentCustomization.cpp` — local reference attachment semantics
 
 ## See Also

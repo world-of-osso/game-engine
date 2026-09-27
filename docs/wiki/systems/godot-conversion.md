@@ -123,7 +123,11 @@ Before `4c9bd0b5`, the authenticated Vulkan fixture times out awaiting `Loading`
 
 ## Selected-roster equipment boundary
 
-`e909b136` records the concrete authenticated fixture payload: starter item 25 sword, 38 shirt, 39 legs, 40 feet, and 2362 shield. The actual selected preview exits 101 because native gear is unsupported and weapons are missing (`/tmp/claude/godot-equipment-red-e909b136.log`). `2a58d68a` creates native M2 attachment nodes and a focused test, but an old-extension headless RED lacks `Attachment5`; an integrated build and GREEN proof are pending. This does not revise `0266003e` background evidence or the current FPS fixture proof, which remain scope-specific.
+`e909b136` records the concrete authenticated fixture payload: starter item 25 sword, 38 shirt, 39 legs, 40 feet, and 2362 shield. The actual selected preview exits 101 because native gear is unsupported and weapons are missing (`/tmp/claude/godot-equipment-red-e909b136.log`). `2a58d68a` creates native M2 attachment nodes and a focused test, but its old-extension headless RED lacks `Attachment5`; its headless and `skeleton_updated` waits hung, so neither supports a renderer-bug claim.
+
+`d44f3dd4` changes native `PlayerInput.elapsed_secs` to the exact prediction delta and passes 13/13 primitives. Real server `:5000` compatibility is UNKNOWN because the matching shared-protocol field is uncommitted; no trial refresh/restart occurred. At `640e9f30`, `/tmp/claude/native-attachments-rendered-green.log` exits 0 under real offscreen Vulkan: camera plus `frame_post_draw` observe actual HD/boar attachment lookup, authored rest offset, and combined bone/model rotation, translation, and scale. `e0eba0d7` retains the attachment-offset child below the bone-binding node. `/tmp/claude/godot-equipped-runtime-640e9f30.log` exits 0 with compiled Rust `e0eba0d7`: starter clothing, sword, and shield independently change selected-character pixels; scenery, isolated sky/rays, Loading/input gating, UDP movement, camera input, and clean shutdown also occur. Main inspected a PNG showing blue clothing and weapons.
+
+This is bounded equipment/render evidence. It does not revise `0266003e` background/FPS evidence. Selection replacement, bound-collection actual-pixel proof, real-server compatibility, final native check/readability/independent verification, visual parity, and full conversion remain pending. Running trial `1500671` is a prior background artifact.
 
 ## Capability and proof matrix
 
@@ -227,6 +231,8 @@ Native `4c7927a6` loads cached local-CASC WMO roots and indexed complete groups 
 - `/tmp/claude/godot-charselect-user-red.png` — user-trial blank character-select UI screenshot.
 - [Selected-body loader](../../godot/rust/src/assets/player.rs) — `d4061019` actual roster appearance/geoset loading; `264e6eee` behavior-equivalent helper extraction.
 - [Character-select lifecycle](../../godot/rust/src/character_select.rs) — selected-roster preview lifecycle at `d6b45c13`, Loading teardown check at `5c0c9db2`.
+- `/tmp/claude/native-attachments-rendered-green.log` — real offscreen-Vulkan attachment lookup/rest-transform GREEN at `640e9f30`.
+- `/tmp/claude/godot-equipped-runtime-640e9f30.log` — bounded selected-equipment GPU/runtime fixture GREEN with compiled Rust `e0eba0d7`.
 - `/tmp/claude/godot-login_flow-host-revision-pending.log` — verifier67 login PASS on a timing-qualified `d1641bc9`/`12a23693` artifact.
 - `/tmp/claude/godot-ui_projection-host-revision-pending.log` — verifier67 UI-projection PASS on the same timing-qualified artifact.
 - `/tmp/claude/godot-ui_projection-3de5946b.log` — current UI-projection exit 0, empty stderr.
