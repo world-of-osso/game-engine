@@ -1,6 +1,8 @@
 extends SceneTree
 
 const NAME := "Input Fixture"
+const UNEQUIPPED_NAME := "Unequipped Fixture"
+const SELECTION_WAIT_MS := 30000
 # Authored terrain height at this fixture's X/Z, not the transfer-only fixture's airborne Y.
 const FIRST := Vector3(-8949.0, 112.879913, 0.0)
 const WORLD_WAIT_MS := 60000
@@ -31,12 +33,28 @@ func run_test() -> void:
 		return
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	var card = ui.find_child("CharCard_0", true, false) if ui != null else null
-	var enter = ui.find_child("EnterWorld", true, false) if ui != null else null
-	if not card is Control or not enter is Button or not card.visible or not enter.visible:
-		fail("Authenticated character card and Enter World action missing")
+	if not card is Control or not card.visible:
+		fail("Authenticated equipped character card missing")
 		return
 	await click_control(card)
+	ui = client.get_node_or_null("CharacterSelectUI")
+	var initial_name = ui.find_child("CharSelectCharacterName", true, false) if ui != null else null
+	var initial_highlight = ui.find_child("CharCard_0Selected", true, false) if ui != null else null
+	if not initial_name is Label or initial_name.text != NAME or not initial_highlight is Control or not initial_highlight.visible:
+		fail("Equipped roster character 17 is not selected")
+		return
 	if not await inspect_character_preview(client):
+		return
+	var equipped_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
+	if not await select_roster_preview(client, 1, UNEQUIPPED_NAME, weakref(equipped_model), false):
+		return
+	var unequipped_model := client.get_node("CharacterSelectScene/SelectedCharacter") as Node3D
+	if not await select_roster_preview(client, 0, NAME, weakref(unequipped_model), true):
+		return
+	var current_ui = client.get_node_or_null("CharacterSelectUI")
+	var enter = current_ui.find_child("EnterWorld", true, false) if current_ui != null else null
+	if not enter is Button or not enter.visible:
+		fail("Enter World action missing after roster preview replacement")
 		return
 	await click_control(enter)
 	if not await wait_for_screen(client, "Loading", 15000):
@@ -120,11 +138,40 @@ func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:
 		await process_frame
 		var state: Dictionary = client.account_state()
 		if state.screen == wanted:
-			if wanted == "CharacterSelect" and (not state.reply_received or state.character_count != 1):
+			if wanted == "CharacterSelect" and (not state.reply_received or state.character_count != 2):
 				fail("Fixture authentication did not populate character selection: " + str(state))
 				return false
 			return true
 	fail("Timed out waiting for " + wanted + ": " + str(client.account_state()))
+	return false
+
+func select_roster_preview(client: Node, index: int, expected_name: String, old_model: WeakRef, equipped: bool) -> bool:
+	var ui = client.get_node_or_null("CharacterSelectUI")
+	var card = ui.find_child("CharCard_" + str(index), true, false) if ui != null else null
+	if not card is Control or not card.visible:
+		fail("Character card missing for " + expected_name)
+		return false
+	await click_control(card)
+	var deadline := Time.get_ticks_msec() + SELECTION_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		ui = client.get_node_or_null("CharacterSelectUI")
+		var selected_name = ui.find_child("CharSelectCharacterName", true, false) if ui != null else null
+		var selected_card = ui.find_child("CharCard_" + str(index) + "Selected", true, false) if ui != null else null
+		var preview := client.get_node_or_null("CharacterSelectScene/SelectedCharacter") as Node3D
+		if not selected_name is Label or selected_name.text != expected_name or not selected_card is Control or not selected_card.visible or old_model.get_ref() != null or preview == null:
+			continue
+		await RenderingServer.frame_post_draw
+		var equipment := preview.find_children("Equipment*", "Node3D", true, false)
+		var main_hand := preview.find_child("EquipmentMainHand", true, false) as Node3D
+		var off_hand := preview.find_child("EquipmentOffHand", true, false) as Node3D
+		if equipped and (main_hand == null or off_hand == null):
+			continue
+		if not equipped and not equipment.is_empty():
+			continue
+		print("PASS: selected ", expected_name, " replaced prior model; equipment nodes=", equipment.size())
+		return true
+	fail("Timed out replacing selected preview with " + expected_name + "; old_valid=" + str(old_model.get_ref() != null))
 	return false
 
 func wait_for_world(client: Node, timeout_ms: int) -> bool:
