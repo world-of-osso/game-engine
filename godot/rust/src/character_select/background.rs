@@ -73,6 +73,13 @@ impl Background {
         })
     }
 
+    /// Light a newly shown character with the scene's current light.
+    pub fn bind_light(&self, model: &Gd<Node3D>) {
+        if let Some(light) = &self.light {
+            bind_visual_light(model, Some(light));
+        }
+    }
+
     pub fn height_at(&self, position: Vector3) -> Option<f32> {
         self.terrain.height_at(position.x, position.z)
     }
@@ -80,7 +87,7 @@ impl Background {
     pub fn sync(
         &mut self,
         root: &mut Gd<Node3D>,
-        model: &Gd<Node3D>,
+        model: Option<&Gd<Node3D>>,
         minutes: f32,
     ) -> Result<(), String> {
         self.terrain.poll()?;
@@ -104,7 +111,7 @@ impl Background {
     fn sync_lighting(
         &mut self,
         root: &mut Gd<Node3D>,
-        model: &Gd<Node3D>,
+        model: Option<&Gd<Node3D>>,
         minutes: f32,
     ) -> Result<(), String> {
         let Some(wdt) = self.terrain.map_wdt.as_ref() else {
@@ -117,7 +124,9 @@ impl Background {
             wow_position(self.scene.position),
             minutes,
         )? {
-            bind_visual_light(model, Some(&light));
+            if let Some(model) = model {
+                bind_visual_light(model, Some(&light));
+            }
             self.materials.update_lighting(light.clone());
             self.objects.update_lighting(&light);
             self.light = Some(light);
