@@ -4,9 +4,20 @@ The Godot replacement remains incomplete. `cad33614` shares terrain material inp
 
 ## Launcher startup CLI boundary
 
-`b10eab7d` keeps native Godot arguments intact while moving launcher-owned `--screen`, `--state`, `--server`, and `--char` after Godot's `--` separator; the launcher process suite is reported 11/11 GREEN. `ae091255` shares pure `ScreenArg`/`StartupArgs` parsing between root and `godot/core`, reported 6/6 GREEN. `37262089` reads only Godot user arguments in `GameClient::ready()`: `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, and `inworld` are recognized. `charselect` and `inworld` authenticate against the default realm using a saved token or configured credentials; `--char` is validated against the actual roster and `inworld` enters it. `charcreate` is standalone without `--server`; with one, it authenticates first. `dev` and `prod` are server aliases. `e89f4243` gives startup token use priority, consumes session options once, and rejects an unavailable requested character. `--state connecting`, `--state reconnecting`, and other legacy screen destinations error as unconverted rather than silently returning to Login.
+`b10eab7d` keeps native Godot arguments intact while moving launcher-owned `--screen`, `--state`, `--server`, and `--char` after Godot's `--` separator; launcher process evidence remains 11/11 GREEN. `ae091255` shares pure `ScreenArg`/`StartupArgs` parsing between root and `godot/core`; current parser evidence is 6/6 GREEN (`/tmp/claude/game-core-startup-green.log`), superseding verifier624's guessed-path unavailable note. `e89f4243` gives startup token use priority, consumes session options once, and rejects an unavailable requested character; account evidence remains 5/5 GREEN. `37262089` reads only Godot user arguments in `GameClient::ready()`.
 
-The root-launcher/private-XDG credential fixture at `a69e4f4c` remains RED: it starts at Login with no manual GDScript connection (`/tmp/claude/screen-cli-runtime-red-a69e4f4c.log`). Native build and runtime proof for the new startup paths remain pending. This does not close the conversion, locomotion, or full-parity gates.
+| Startup name | Current bounded evidence |
+| --- | --- |
+| `login` | `/tmp/claude/startup-login-73852401.log`, exit 0; PNG inspected. |
+| `charselect` | Authenticated Vulkan fixture `/tmp/claude/screen-cli-charselect-runtime-a14c841e.log`, exit 0. |
+| `charcreate` | `/tmp/claude/startup-charcreate-56a6d262.log`, clean exit 0 after `412f5814` shader cleanup; PNG inspected. Explicit-server authenticated runtime remains untested. |
+| `charcreate-customize` | `/tmp/claude/startup-charcreate-customize-56a6d262.log`, clean exit 0 after `412f5814`; PNG inspected. |
+| `loading` | `/tmp/claude/startup-loading-73852401.log`, exit 0; PNG inspected. The bottom progress bar is clipped, so this proves startup/UI presence, not visual parity. |
+| `inworld` | Authenticated fixture `/tmp/claude/startup-inworld-runtime-668015c5.log`, exit 0. Its mixed-case `--char` selects the second roster entry (server selection 17, not first-entry 18); this audit did not independently re-read the numeric source predicate. |
+
+Both authenticated CLI fixtures now validate local locomotion `0 → 5 → 0` and clean shutdown. Missing, invalid, and unsupported root CLI invocations each exit 1 (`/tmp/claude/startup-error-{missing,invalid,unsupported}.log`). `--state connecting` and `--state reconnecting`, plus `eula`, `selectiondebug`, `inworldselectiondebug`, `debugcharacter`, `m2debug`, `skyboxdebug`, `campsitepopup`, `gamemenu`, `optionsmenu`, `trashbutton`, `particledebug`, and `nameplatedebug`, remain explicitly unconverted.
+
+Final bounded checks: native `cargo check` passed and launcher formatting passed; native formatting failed only on then-uncommitted parallel `godot/rust/src/terrain/objects.rs`. Do not describe the checkout as fully green. This is six-name startup proof, not all `--screen` values, authenticated `charcreate` runtime proof, visual parity, or full conversion.
 
 ## Native camera options boundary
 
