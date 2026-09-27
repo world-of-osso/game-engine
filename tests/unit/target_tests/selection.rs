@@ -1,4 +1,5 @@
 use super::*;
+use game_engine::input_bindings::InputBindings;
 
 #[test]
 fn test_tab_cycles_targets() {
