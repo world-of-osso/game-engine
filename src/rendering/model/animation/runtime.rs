@@ -1,4 +1,5 @@
 use super::*;
+pub(crate) use crate::movement_animation_data::direction_to_anim_id;
 use crate::skybox_m2_material::SkyboxTimeOverrideMs;
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
@@ -99,32 +100,6 @@ fn movement_or_turn_anim_id(
         return turn_in_place_anim_id(turn_in_place.and_then(|state| state.direction).unwrap());
     }
     direction_to_anim_id(movement.direction, movement.running, movement.swimming)
-}
-
-/// Map movement direction to a WoW animation ID.
-pub(crate) fn direction_to_anim_id(dir: MoveDirection, running: bool, swimming: bool) -> u16 {
-    if swimming {
-        return match dir {
-            MoveDirection::None => ANIM_SWIM_IDLE,
-            MoveDirection::Forward => ANIM_SWIM,
-            MoveDirection::Backward => ANIM_SWIM_BACKWARDS,
-            MoveDirection::Left => ANIM_SWIM_LEFT,
-            MoveDirection::Right => ANIM_SWIM_RIGHT,
-        };
-    }
-    match dir {
-        MoveDirection::None => ANIM_STAND,
-        MoveDirection::Forward => {
-            if running {
-                ANIM_RUN
-            } else {
-                ANIM_WALK
-            }
-        }
-        MoveDirection::Backward => ANIM_WALK_BACKWARDS,
-        MoveDirection::Left => ANIM_SHUFFLE_LEFT,
-        MoveDirection::Right => ANIM_SHUFFLE_RIGHT,
-    }
 }
 
 fn normalize_yaw_delta(delta: f32) -> f32 {

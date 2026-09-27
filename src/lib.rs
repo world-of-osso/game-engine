@@ -124,6 +124,7 @@ pub mod mesh_asset_stats;
 pub mod minimap_data;
 #[path = "game/missile_data.rs"]
 pub mod missile_data;
+pub mod movement_animation_data;
 pub mod movement_control;
 pub mod movement_input_data;
 #[path = "game/nameplate_data.rs"]
