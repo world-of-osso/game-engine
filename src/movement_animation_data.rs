@@ -2,11 +2,11 @@
 
 use crate::movement_input_data::MoveDirection;
 
-pub(crate) const ANIM_STAND: u16 = 0;
-pub(crate) const ANIM_WALK: u16 = 4;
-pub(crate) const ANIM_RUN: u16 = 5;
-pub(crate) const ANIM_SHUFFLE_LEFT: u16 = 11;
-pub(crate) const ANIM_SHUFFLE_RIGHT: u16 = 12;
+pub const ANIM_STAND: u16 = 0;
+pub const ANIM_WALK: u16 = 4;
+pub const ANIM_RUN: u16 = 5;
+pub const ANIM_SHUFFLE_LEFT: u16 = 11;
+pub const ANIM_SHUFFLE_RIGHT: u16 = 12;
 pub(crate) const ANIM_WALK_BACKWARDS: u16 = 13;
 pub(crate) const ANIM_SWIM_IDLE: u16 = 41;
 pub(crate) const ANIM_SWIM: u16 = 42;

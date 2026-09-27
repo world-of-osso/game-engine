@@ -19,10 +19,10 @@ use crate::asset::m2_anim::{
 };
 use crate::asset::m2_light;
 use crate::game_state::GameState;
-use crate::movement_animation_data::{
+use bevy::prelude::*;
+use game_engine::movement_animation_data::{
     ANIM_RUN, ANIM_SHUFFLE_LEFT, ANIM_SHUFFLE_RIGHT, ANIM_STAND, ANIM_WALK,
 };
-use bevy::prelude::*;
 use shared::protocol::EmoteKind;
 
 use super::m2_spawn::RuntimeM2PointLight;
