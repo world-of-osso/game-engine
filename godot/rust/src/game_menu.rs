@@ -1,5 +1,7 @@
 //! Main-menu overlay and native Options controller; the underlying scene stays attached.
 
+pub(crate) mod drag;
+
 use game_engine_core::{
     client_options_data::{load_options_file_with_legacy, options_path, save_options_file_to_path},
     input_bindings_data::InputBinding,
@@ -10,10 +12,15 @@ use game_engine_ui_model::{
     game_menu_main::{
         ACTION_ADDONS, ACTION_EXIT, ACTION_LOGOUT, ACTION_OPTIONS, ACTION_RESUME, ACTION_SUPPORT,
     },
-    options_menu_component::{ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, OptionsCategory},
+    options_menu_component::{
+        ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, OPTIONS_DRAG_HANDLE, OptionsCategory,
+    },
     options_menu_data::{self as policy, BindingCapture, OptionsModel},
 };
-use godot::{classes::InputEvent, prelude::*};
+use godot::{
+    classes::{Control, InputEvent, InputEventMouseButton, InputEventMouseMotion},
+    prelude::*,
+};
 
 use crate::{GameClient, ui::RegistryUi};
 
@@ -53,7 +60,11 @@ impl GameClient {
             logged_in: true,
             view: GameMenuView::MainMenu,
             category: OptionsCategory::Sound,
-            modal_position: file.modal_offset.unwrap_or([0.0, 0.0]),
+            modal_position: drag::initial_position(
+                file.modal_offset,
+                file.modal_position,
+                self.game_menu_logical_viewport(),
+            ),
             draft_graphics: graphics.clone(),
             draft_sound: sound.clone(),
             draft_camera: camera.clone(),
@@ -70,6 +81,7 @@ impl GameClient {
     }
 
     pub(super) fn close_game_menu(&mut self) {
+        self.game_menu_drag = None;
         if let Some(ui) = self.game_menu_ui.take() {
             ui.free();
             self.game_menu_options = None;
@@ -88,6 +100,7 @@ impl GameClient {
                     model.binding_capture = BindingCapture::None;
                     self.refresh_game_menu()?;
                 } else if model.view == GameMenuView::Options {
+                    self.game_menu_drag = None;
                     model.view = GameMenuView::MainMenu;
                     self.refresh_game_menu()?;
                 } else {
@@ -162,6 +175,143 @@ impl GameClient {
             return true;
         }
         false
+    }
+
+    fn game_menu_logical_viewport(&self) -> Vector2 {
+        let size = self
+            .base()
+            .get_viewport()
+            .expect("menu viewport")
+            .get_visible_rect()
+            .size;
+        let scale = crate::ui_scale::effective_ui_scale(
+            [size.x, size.y],
+            self.client_options.graphics.ui_scale,
+            self.account.session.screen == SessionScreen::InWorld,
+        );
+        size / scale
+    }
+
+    fn drag_pointer_position(&self, position: Vector2) -> Result<(Vector2, Vector2), String> {
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("Options has no viewport")?;
+        let menu = self.game_menu_ui.as_ref().ok_or("Options has no UI")?;
+        let canvas = menu
+            .find_child_ex("RegistryCanvas")
+            .owned(false)
+            .done()
+            .ok_or("Options has no RegistryCanvas")?
+            .try_cast::<Control>()
+            .map_err(|_| "Options RegistryCanvas is not a Control")?;
+        let scale = canvas.get_scale().x;
+        if scale <= 0.0 {
+            return Err("Options canvas scale must be positive".into());
+        }
+        Ok((position / scale, viewport.get_visible_rect().size / scale))
+    }
+
+    fn pointer_on_options_title(&self) -> bool {
+        let Some(viewport) = self.base().get_viewport() else {
+            return false;
+        };
+        let Some(menu) = self.game_menu_ui.as_ref() else {
+            return false;
+        };
+        let Some(title) = menu
+            .find_child_ex(OPTIONS_DRAG_HANDLE.0)
+            .owned(false)
+            .done()
+        else {
+            return false;
+        };
+        let Some(mut hovered) = viewport
+            .gui_get_hovered_control()
+            .map(|node| node.upcast::<Node>())
+        else {
+            return false;
+        };
+        loop {
+            if hovered == title {
+                return true;
+            }
+            let Some(parent) = hovered.get_parent() else {
+                return false;
+            };
+            hovered = parent;
+        }
+    }
+
+    /// Consume title capture, motion, and release before other pointer routing.
+    pub(super) fn handle_game_menu_pointer(
+        &mut self,
+        event: &Gd<InputEvent>,
+    ) -> Result<bool, String> {
+        if self
+            .game_menu_options
+            .as_ref()
+            .is_none_or(|model| model.view != GameMenuView::Options)
+        {
+            self.game_menu_drag = None;
+            return Ok(false);
+        }
+        if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() {
+            if button.get_button_index() != godot::global::MouseButton::LEFT {
+                return Ok(false);
+            }
+            if button.is_pressed() {
+                if !self.pointer_on_options_title() {
+                    return Ok(false);
+                }
+                let (cursor, viewport) = self.drag_pointer_position(button.get_position())?;
+                let position = self
+                    .game_menu_options
+                    .as_ref()
+                    .expect("Options model")
+                    .modal_position;
+                self.game_menu_drag = Some(drag::OptionsDrag::begin(cursor, position, viewport));
+                return Ok(true);
+            }
+            if self.game_menu_drag.take().is_some() {
+                self.save_game_menu_drag_position()?;
+                return Ok(true);
+            }
+            return Ok(false);
+        }
+        if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>()
+            && self.game_menu_drag.is_some()
+        {
+            let (cursor, viewport) = self.drag_pointer_position(motion.get_position())?;
+            let position = self
+                .game_menu_drag
+                .as_ref()
+                .expect("Drag capture")
+                .position(cursor, viewport);
+            self.game_menu_options
+                .as_mut()
+                .expect("Options model")
+                .modal_position = position;
+            self.refresh_game_menu()?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn save_game_menu_drag_position(&mut self) -> Result<(), String> {
+        let position = self
+            .game_menu_options
+            .as_ref()
+            .expect("Options model")
+            .modal_position;
+        let legacy_path = self.data_root.join("ui/options_settings.ron");
+        let path = options_path();
+        let mut file = load_options_file_with_legacy(&legacy_path);
+        file.modal_offset = Some(position);
+        file.modal_position = None;
+        save_options_file_to_path(&path, &file)?;
+        self.client_options = file;
+        Ok(())
     }
 
     fn refresh_game_menu(&mut self) -> Result<(), String> {
