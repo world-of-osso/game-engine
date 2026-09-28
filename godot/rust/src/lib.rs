@@ -388,6 +388,16 @@ impl GameClient {
         self.nameplates_snapshot()
     }
 
+    /// The nameplate rule inputs for unit `id` (enemy, distance, shown, ...).
+    #[func]
+    fn nameplate_rules(&mut self, id: i64) -> VarDictionary {
+        self.nameplate_rule_state(id as u64)
+            .unwrap_or_else(|error| {
+                godot_error!("Nameplate rules: {error}");
+                VarDictionary::new()
+            })
+    }
+
     #[func]
     fn target_state(&self) -> VarDictionary {
         self.targeting_snapshot()
