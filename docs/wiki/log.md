@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] system | Godot nameplates with Retail visibility
+
+Godot draws nameplates only for the target and units fighting the player (`nameplateShowAll` 0), enemies only, within 60 yd, and dims plates behind terrain or WMO collision to 0.4. See [[nameplate-design]].
+
 ## [2026-09-28] system | Godot local player speed and stop input
 
 The Godot client now predicts at the server's speed (swim speed, aura multiplier from the replicated `MovementSpeed`) and reports one stop input on release. Updated [[networking]].
