@@ -52,7 +52,9 @@ mod tests {
     use ui_toolkit::screen::Screen;
 
     use crate::ui::registry::FrameRegistry;
-    use crate::ui::screens::char_select_component::{CampsiteEntry, CampsiteState};
+    use crate::ui::screens::char_select_component::{
+        CampsiteEntry, CampsitePreview, CampsiteState,
+    };
 
     #[test]
     fn popup_screen_renders_visible_campsite_panel() {
@@ -62,7 +64,10 @@ mod tests {
             scenes: vec![CampsiteEntry {
                 id: 1,
                 name: "Adventurer's Rest".to_string(),
-                preview_image: Some("data/ui/campsites/adventurers-rest.ktx2".to_string()),
+                preview_image: Some(CampsitePreview {
+                    fdid: 6_375_814,
+                    tex_coords: [1.0 / 1024.0, 215.0 / 1024.0, 1.0 / 1024.0, 174.0 / 1024.0],
+                }),
             }],
             panel_visible: true,
             selected_id: Some(1),

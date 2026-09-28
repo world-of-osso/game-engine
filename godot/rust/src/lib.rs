@@ -34,7 +34,7 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     char_create_component::{CREATE_NAME_INPUT, CharCreateAction, CharCreateMode},
     char_select_component::{
-        CampsiteEntry, CampsiteState, CharSelectAction, DELETE_CONFIRM_INPUT,
+        CampsiteEntry, CampsitePreview, CampsiteState, CharSelectAction, DELETE_CONFIRM_INPUT,
         DeleteCharacterTarget, DeleteConfirmation, step_selection,
     },
     char_select_state_from_roster,
@@ -1242,7 +1242,14 @@ fn authored_campsites(
     data_root: &std::path::Path,
     selected: Option<u32>,
 ) -> Result<CampsiteState, String> {
-    let catalog = game_engine_core::warband_scene_data::read_authored_catalog(data_root)?;
+    use game_engine_core::warband_scene_data::{read_authored_catalog, read_texture_kit_art};
+    let catalog = read_authored_catalog(data_root)?;
+    let kits: Vec<u32> = catalog
+        .scenes
+        .iter()
+        .map(|scene| scene.texture_kit)
+        .collect();
+    let art = read_texture_kit_art(data_root, &kits)?;
     Ok(CampsiteState {
         selected_id: selected.or_else(|| catalog.scenes.first().map(|scene| scene.id)),
         scenes: catalog
@@ -1251,7 +1258,10 @@ fn authored_campsites(
             .map(|scene| CampsiteEntry {
                 id: scene.id,
                 name: scene.name.clone(),
-                preview_image: scene.preview_image_path().map(str::to_string),
+                preview_image: art.get(&scene.texture_kit).map(|art| CampsitePreview {
+                    fdid: art.fdid,
+                    tex_coords: art.tex_coords,
+                }),
             })
             .collect(),
         panel_visible: false,

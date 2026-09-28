@@ -11,7 +11,7 @@ use ui_toolkit::widget_def::Element;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
-use super::char_select_component::{CampsiteState, CharSelectAction};
+use super::char_select_component::{CampsitePreview, CampsiteState, CharSelectAction};
 
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_SUBTITLE: FontColor = FontColor::new(0.92, 0.88, 0.74, 1.0);
@@ -49,14 +49,17 @@ fn dyn_name(s: String) -> DynName {
     DynName(s)
 }
 
-fn card_backdrop(id: u32, preview_image: Option<&str>) -> Element {
-    if let Some(preview_image) = preview_image {
+fn card_backdrop(id: u32, preview_image: Option<CampsitePreview>) -> Element {
+    if let Some(preview) = preview_image {
+        let [left, right, top, bottom] = preview.tex_coords;
+        let tex_coords = format!("{left},{right},{top},{bottom}");
         rsx! {
             texture {
                 name: dyn_name(format!("CampsiteCard_{id}")),
                 width: CARD_PREVIEW_WIDTH,
                 height: CARD_PREVIEW_HEIGHT,
-                texture_file: preview_image,
+                texture_fdid: {preview.fdid},
+                tex_coords: {tex_coords.as_str()},
                 pos_type: "absolute",
                 left: "50%",
                 translate_x: "-50%",
@@ -120,7 +123,12 @@ fn card_label(id: u32, name: &str, is_selected: bool) -> Element {
     }
 }
 
-fn campsite_card(id: u32, name: &str, preview_image: Option<&str>, is_selected: bool) -> Element {
+fn campsite_card(
+    id: u32,
+    name: &str,
+    preview_image: Option<CampsitePreview>,
+    is_selected: bool,
+) -> Element {
     let border = if is_selected {
         "2px solid 0.95,0.78,0.14,0.95"
     } else {
@@ -169,7 +177,7 @@ fn build_campsite_cards(state: &CampsiteState) -> Element {
             campsite_card(
                 e.id,
                 &e.name,
-                e.preview_image.as_deref(),
+                e.preview_image,
                 state.selected_id == Some(e.id),
             )
         })
