@@ -10,7 +10,7 @@ Official tile requests resolve their listfile FDID and call the existing `AssetR
 
 ## Shared terrain surface selection
 
-`src/rendering/terrain/terrain_surface_data.rs` is the Bevy-free source of dominant effect ID, dominant texture FDID, and footstep surface selection for the root client and `godot/core`. The first layer weighs 1,000,000; subsequent layers use summed alpha bytes; equal weights favor the later layer. Zero effect IDs are skipped, while an invalid texture index ends FDID selection. Resolved effect surfaces precede texture-path classification; unresolved paths remain Dirt. Bevy retains its existing GroundEffect loading and cache in the heightmap adapter. This is a pure selection prerequisite, not native playback or a changed fallback policy.
+`70e047ff` makes `src/rendering/terrain/terrain_surface_data.rs` the Bevy-free source of dominant effect ID, dominant texture FDID, and footstep surface selection for the root client and `godot/core`. The first layer weighs 1,000,000; subsequent layers use summed alpha bytes; equal weights favor the later layer. Zero effect IDs are skipped, while an invalid texture index ends FDID selection. Resolved effect surfaces precede texture-path classification; unresolved paths remain Dirt. Bevy retains its existing GroundEffect loading/cache and FDID-path lookup in the heightmap adapter; loaders are unchanged. This is a pure selection prerequisite: Godot has no native terrain-surface runtime consumer or footstep playback, and verifier839 is pending.
 
 ## ADT Split Files
 
