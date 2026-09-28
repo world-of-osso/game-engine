@@ -5,6 +5,7 @@ pub(crate) mod objects;
 pub(crate) mod state;
 pub(crate) mod streaming;
 mod textures;
+mod water;
 
 use std::fs;
 
