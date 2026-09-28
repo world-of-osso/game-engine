@@ -56,13 +56,21 @@ mod tests {
             (5.0, false, Frozen),
             (45.0, false, Frozen),
         ] {
-            assert_eq!(AnimationLod::new(distance, visible), expected, "{distance} {visible}");
+            assert_eq!(
+                AnimationLod::new(distance, visible),
+                expected,
+                "{distance} {visible}"
+            );
         }
     }
 
     #[test]
     fn half_rate_alternates_frames_and_staggers_units() {
-        let sampled = |owner| (0..6).filter(|frame| Half.samples_frame(*frame, owner)).count();
+        let sampled = |owner| {
+            (0..6)
+                .filter(|frame| Half.samples_frame(*frame, owner))
+                .count()
+        };
         assert_eq!(sampled(7), 3);
         assert_ne!(Half.samples_frame(10, 7), Half.samples_frame(11, 7));
         assert_ne!(Half.samples_frame(10, 7), Half.samples_frame(10, 8));
