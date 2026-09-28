@@ -11,41 +11,10 @@ use shared::casting::CastType;
 
 use crate::faction_reaction::Reaction;
 use crate::nameplate_data::ClassColor;
-use crate::ui::screens::options_menu_component::NameplateBarThickness;
 
 pub use crate::nameplate_style_data::*;
 
 impl NameplateStyle {
-    pub fn from_presets(health: NameplateBarThickness, cast: NameplateBarThickness) -> Self {
-        let mut style = Self::default();
-        style.apply_health_preset(health);
-        style.apply_cast_preset(cast);
-        style
-    }
-
-    pub fn apply_health_preset(&mut self, preset: NameplateBarThickness) {
-        self.health_height = match preset {
-            NameplateBarThickness::Thick => THICK_HEALTH_HEIGHT,
-            NameplateBarThickness::Thin => THIN_HEALTH_HEIGHT,
-        };
-    }
-
-    pub fn apply_cast_preset(&mut self, preset: NameplateBarThickness) {
-        self.cast_height = match preset {
-            NameplateBarThickness::Thick => THICK_CAST_HEIGHT,
-            NameplateBarThickness::Thin => THIN_CAST_HEIGHT,
-        };
-    }
-
-    /// Nearest preset: selects the frame skin and the Thin/Thick selector state.
-    pub fn health_preset(&self) -> NameplateBarThickness {
-        nearest_preset(self.health_height, THIN_HEALTH_HEIGHT, THICK_HEALTH_HEIGHT)
-    }
-
-    pub fn cast_preset(&self) -> NameplateBarThickness {
-        nearest_preset(self.cast_height, THIN_CAST_HEIGHT, THICK_CAST_HEIGHT)
-    }
-
     /// Health fill: class colour for players when enabled, else the reaction colour.
     pub fn health_color(&self, reaction: Reaction, player_class: Option<ClassColor>) -> Rgb {
         if self.class_colored_players
@@ -72,178 +41,9 @@ impl NameplateStyle {
     }
 }
 
-/// A colour the Options page edits.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StyleColor {
-    Hostile,
-    Neutral,
-    Friendly,
-    Cast,
-    Channel,
-    Uninterruptible,
-}
-
-impl StyleColor {
-    pub const ALL: [Self; 6] = [
-        Self::Hostile,
-        Self::Neutral,
-        Self::Friendly,
-        Self::Cast,
-        Self::Channel,
-        Self::Uninterruptible,
-    ];
-
-    fn key(self) -> &'static str {
-        match self {
-            Self::Hostile => "hostile",
-            Self::Neutral => "neutral",
-            Self::Friendly => "friendly",
-            Self::Cast => "cast",
-            Self::Channel => "channel",
-            Self::Uninterruptible => "uninterruptible",
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Hostile => "Hostile",
-            Self::Neutral => "Neutral",
-            Self::Friendly => "Friendly",
-            Self::Cast => "Cast",
-            Self::Channel => "Channel",
-            Self::Uninterruptible => "Uninterruptible",
-        }
-    }
-
-    pub fn rgb(self, style: &NameplateStyle) -> Rgb {
-        let mut style = *style;
-        *self.rgb_mut(&mut style)
-    }
-
-    fn rgb_mut(self, style: &mut NameplateStyle) -> &mut Rgb {
-        match self {
-            Self::Hostile => &mut style.health_colors.hostile,
-            Self::Neutral => &mut style.health_colors.neutral,
-            Self::Friendly => &mut style.health_colors.friendly,
-            Self::Cast => &mut style.cast_colors.normal,
-            Self::Channel => &mut style.cast_colors.channel,
-            Self::Uninterruptible => &mut style.cast_colors.uninterruptible,
-        }
-    }
-}
-
-const CHANNEL_KEYS: [&str; 3] = ["r", "g", "b"];
-
-/// One slider on the Options nameplate page; its key names the slider's frames and action.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum StyleSlider {
-    HealthWidth,
-    HealthHeight,
-    CastWidth,
-    CastHeight,
-    NameFontSize,
-    CastFontSize,
-    /// Red, green or blue (0, 1, 2) of a colour.
-    Channel(StyleColor, usize),
-}
-
-impl StyleSlider {
-    pub const SIZES: [Self; 6] = [
-        Self::HealthWidth,
-        Self::HealthHeight,
-        Self::CastWidth,
-        Self::CastHeight,
-        Self::NameFontSize,
-        Self::CastFontSize,
-    ];
-
-    pub fn key(self) -> String {
-        let size = match self {
-            Self::HealthWidth => "health_width",
-            Self::HealthHeight => "health_height",
-            Self::CastWidth => "cast_width",
-            Self::CastHeight => "cast_height",
-            Self::NameFontSize => "name_font_size",
-            Self::CastFontSize => "cast_font_size",
-            Self::Channel(color, channel) => {
-                return format!("nameplate_{}_{}", color.key(), CHANNEL_KEYS[channel]);
-            }
-        };
-        format!("nameplate_{size}")
-    }
-
-    pub fn from_key(key: &str) -> Option<Self> {
-        let channels = StyleColor::ALL
-            .into_iter()
-            .flat_map(|color| (0..3).map(move |channel| Self::Channel(color, channel)));
-        Self::SIZES
-            .into_iter()
-            .chain(channels)
-            .find(|slider| slider.key() == key)
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::HealthWidth => "Health Width",
-            Self::HealthHeight => "Health Height",
-            Self::CastWidth => "Cast Width",
-            Self::CastHeight => "Cast Height",
-            Self::NameFontSize => "Name Font",
-            Self::CastFontSize => "Cast Font",
-            Self::Channel(_, channel) => ["R", "G", "B"][channel],
-        }
-    }
-
-    pub fn bounds(self) -> (f32, f32) {
-        match self {
-            Self::HealthWidth | Self::CastWidth => (MIN_BAR_WIDTH, MAX_BAR_WIDTH),
-            Self::HealthHeight => (MIN_HEALTH_HEIGHT, MAX_HEALTH_HEIGHT),
-            Self::CastHeight => (MIN_CAST_HEIGHT, MAX_CAST_HEIGHT),
-            Self::NameFontSize | Self::CastFontSize => (MIN_FONT_SIZE, MAX_FONT_SIZE),
-            Self::Channel(..) => (0.0, 1.0),
-        }
-    }
-
-    pub fn get(self, style: &NameplateStyle) -> f32 {
-        let mut style = *style;
-        *self.value_mut(&mut style)
-    }
-
-    /// Sizes snap to whole pixels; colour channels stay continuous.
-    pub fn set(self, style: &mut NameplateStyle, value: f32) {
-        let (min, max) = self.bounds();
-        let value = value.clamp(min, max);
-        *self.value_mut(style) = match self {
-            Self::Channel(..) => value,
-            _ => value.round(),
-        };
-    }
-
-    fn value_mut(self, style: &mut NameplateStyle) -> &mut f32 {
-        match self {
-            Self::HealthWidth => &mut style.health_width,
-            Self::HealthHeight => &mut style.health_height,
-            Self::CastWidth => &mut style.cast_width,
-            Self::CastHeight => &mut style.cast_height,
-            Self::NameFontSize => &mut style.name_font_size,
-            Self::CastFontSize => &mut style.cast_font_size,
-            Self::Channel(color, channel) => &mut color.rgb_mut(style)[channel],
-        }
-    }
-}
-
-fn nearest_preset(value: f32, thin: f32, thick: f32) -> NameplateBarThickness {
-    if value >= (thin + thick) / 2.0 {
-        NameplateBarThickness::Thick
-    } else {
-        NameplateBarThickness::Thin
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use NameplateBarThickness::{Thick, Thin};
 
     #[test]
     fn health_colour_follows_reaction_and_players_use_class_colour() {
@@ -277,45 +77,6 @@ mod tests {
         assert_eq!(style.cast_color(CastType::Channel, true), [0.1, 0.2, 0.3]);
         assert_eq!(style.cast_color(CastType::Normal, false), [0.7, 0.7, 0.7]);
         assert_eq!(style.cast_color(CastType::Channel, false), [0.7, 0.7, 0.7]);
-    }
-
-    #[test]
-    fn presets_set_heights_and_edited_heights_map_to_the_nearest_preset() {
-        let style = NameplateStyle::default();
-        assert_eq!((style.health_height, style.cast_height), (20.0, 6.0));
-        assert_eq!((style.health_preset(), style.cast_preset()), (Thick, Thin));
-        let mut style = NameplateStyle::from_presets(Thin, Thick);
-        assert_eq!((style.health_height, style.cast_height), (10.0, 10.0));
-        style.health_width = 150.0;
-        style.apply_health_preset(Thick);
-        assert_eq!((style.health_width, style.health_height), (150.0, 20.0));
-        style.health_height = 14.0;
-        assert_eq!(style.health_preset(), Thin);
-        style.health_height = 16.0;
-        assert_eq!(style.health_preset(), Thick);
-    }
-
-    #[test]
-    fn sliders_round_trip_their_keys_and_edit_the_style() {
-        let mut style = NameplateStyle::default();
-        let neutral_green = StyleSlider::Channel(StyleColor::Neutral, 1);
-        assert_eq!(neutral_green.key(), "nameplate_neutral_g");
-        assert_eq!(
-            StyleSlider::from_key("nameplate_neutral_g"),
-            Some(neutral_green)
-        );
-        assert_eq!(
-            StyleSlider::from_key("nameplate_health_width"),
-            Some(StyleSlider::HealthWidth)
-        );
-        assert_eq!(StyleSlider::from_key("nameplate_neutral_a"), None);
-        neutral_green.set(&mut style, 0.35);
-        assert_eq!(style.health_colors.neutral, [1.0, 0.35, 0.0]);
-        StyleSlider::HealthWidth.set(&mut style, 150.4);
-        assert_eq!(style.health_width, 150.0);
-        StyleSlider::CastHeight.set(&mut style, 99.0);
-        assert_eq!(StyleSlider::CastHeight.get(&style), MAX_CAST_HEIGHT);
-        assert_eq!(StyleColor::Channel.rgb(&style), [0.0, 1.0, 0.0]);
     }
 
     #[test]
