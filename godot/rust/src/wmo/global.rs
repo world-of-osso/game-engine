@@ -53,7 +53,11 @@ impl GlobalWmoScene {
             placed.placement.doodad_set,
             self.light.as_ref(),
         ) {
-            Ok(mut node) => {
+            Ok(wmo) => {
+                for error in &wmo.batch_errors {
+                    godot_error!("Global WMO {}: {error}", placed.asset.root_fdid);
+                }
+                let mut node = wmo.node;
                 let (scale, rotation, translation) =
                     placed.world_from_local.to_scale_rotation_translation();
                 node.set_name(&format!("GlobalWmo{}", placed.asset.root_fdid));
