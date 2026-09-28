@@ -15,7 +15,7 @@ func run_test() -> void:
 	if not server.begins_with("127.0.0.1:") or server.ends_with(":0"):
 		fail("Menu fixture requires its owned loopback endpoint")
 		return
-	var client = load("res://scenes/client.tscn").instantiate()
+	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await wait_screen(client, "CharacterSelect", 15000):
 		return
@@ -49,7 +49,7 @@ func run_test() -> void:
 	await click(tab)
 	if not await wait_menu(client):
 		return
-	await click_menu_action(client, "Return")
+	await click_menu_action(client, "MenuBtnResume")
 	if not await wait_menu_closed(client, scene):
 		return
 	if not roster_unchanged(client, scene, ui):
@@ -117,7 +117,7 @@ func run_test() -> void:
 			fail("Could not capture authored game menu: " + str(error))
 			return
 	print("FIXTURE MENU_BLOCK_DONE")
-	await click_menu_action(client, "Return")
+	await click_menu_action(client, "MenuBtnResume")
 	if not await wait_menu_closed(client, null):
 		return
 	push_key(KEY_W, true)
@@ -143,7 +143,7 @@ func run_test() -> void:
 		fail("Final Escape did not reopen authored menu")
 		return
 	print("FIXTURE MENU_EXIT_READY")
-	await click_menu_action(client, "Exit")
+	await click_menu_action(client, "MenuBtnExit")
 	# Exit must terminate the real client; the Rust runner requires this child to exit 0.
 	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
@@ -156,7 +156,7 @@ func roster_unchanged(client: Node, scene: Node, ui: Node) -> bool:
 
 func menu_authored(client: Node) -> bool:
 	var menu := client.get_node_or_null("GameMenuUI")
-	return menu != null and menu.visible and menu.find_child("GameMenuRoot", true, false) != null and menu.find_child("Return", true, false) != null and menu.find_child("Exit", true, false) != null
+	return menu != null and menu.visible and menu.find_child("GameMenuRoot", true, false) != null and menu.find_child("MenuBtnResume", true, false) != null and menu.find_child("MenuBtnExit", true, false) != null
 
 func wait_menu(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
@@ -214,6 +214,7 @@ func wait_world(client: Node) -> bool:
 
 func push_key(code: Key, pressed: bool) -> void:
 	var event := InputEventKey.new()
+	event.keycode = code
 	event.physical_keycode = code
 	event.pressed = pressed
 	root.push_input(event, true)
