@@ -223,6 +223,27 @@ mod asset_references_tests {
 
 /// Parse the primary skin. Models with external SKID skeletons require the separate skeleton bytes.
 /// Sequences kept in external `.anim` files get no keyframes.
+/// A track whose sampled value never changes: every key of every sequence holds the
+/// same value. A track with keys in some sequences but none in another is not
+/// constant, since the empty sequence samples the default.
+pub fn track_is_constant<T: PartialEq>(track: &AnimTrack<T>) -> bool {
+    let mut values = track.sequences.iter().flat_map(|(_, values)| values);
+    let Some(first) = values.next() else {
+        return true;
+    };
+    values.all(|value| value == first)
+        && track.sequences.iter().all(|(_, values)| !values.is_empty())
+}
+
+/// No bone track of `model` changes its pose over time.
+pub fn bones_are_static(model: &Model) -> bool {
+    model.bone_tracks.iter().all(|bone| {
+        track_is_constant(&bone.translation)
+            && track_is_constant(&bone.rotation)
+            && track_is_constant(&bone.scale)
+    })
+}
+
 pub fn parse_model(model: &[u8], skin: &[u8]) -> Result<Model, String> {
     parse_model_with_skeleton(model, skin, None, |_| None)
 }

@@ -81,6 +81,8 @@ func run() -> void:
 		return
 	if not assert_group_cull(probe, wmo, portal):
 		return
+	if not await assert_material_animation(probe, wmo):
+		return
 	print("PASS: sw_magicdistrict places MODD 1112 instanceportal at area trigger 101 within the object budget")
 	probe.free()
 	run_global()
@@ -169,4 +171,68 @@ func assert_group_cull(probe: Node, wmo: Node3D, portal: Node3D) -> bool:
 		fail("At the trigger Jail01 drawn=%s, portal drawn=%s, animating=%s; expected all drawn" % [jail[0].visible, portal.visible, animation.is_processing()])
 		return false
 	print("group cull: portal hidden with Jail01 above the district, drawn at the trigger")
+	return true
+
+func material_state(doodad: Node3D) -> Array:
+	var state := []
+	for mesh in doodad.find_children("Batch*", "MeshInstance3D", false, false):
+		var material := (mesh as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		state.append([material.get_shader_parameter("mesh_color"), material.get_shader_parameter("transparency"), material.get_shader_parameter("uv_offset_1")])
+	return state
+
+# Advances the shared material clock by `ms` and lets one frame process.
+func advance_clock(ms: float) -> void:
+	root.get_node("M2MaterialClock").advance_time_ms(ms)
+	await process_frame
+
+func animation_processing(node: Node, child: String) -> bool:
+	var animation := node.get_node_or_null(child)
+	return animation != null and animation.is_processing()
+
+# Jail01 lamp 199823 (MODD 32, 10 yd from the trigger) animates its batch colour but
+# not its bones. Culled, its colour animation (M2MaterialAnimation) stops
+# and its material does not change as the shared clock advances; drawn again at the
+# trigger, it animates. Its bones and those of the Jail01 cobweb 199565 (MODD 1105),
+# whose bone and material tracks are all constant, never process.
+func assert_material_animation(probe: Node, wmo: Node3D) -> bool:
+	var lamp := wmo.get_node("WmoDoodad32") as Node3D
+	var cobweb := wmo.get_node("WmoDoodad1105") as Node3D
+	if lamp.get_node_or_null("M2MaterialAnimation") == null:
+		fail("Lamp 199823 has no material animation")
+		return false
+	# 300 yd up, looking away: beyond the lamp's scenery distance and outside Jail01.
+	var far := TRIGGER + Vector3(0.0, 300.0, 0.0)
+	cull_from(probe, far, far + Vector3(1.0, 0.0, 0.0))
+	if lamp.visible or animation_processing(lamp, "M2MaterialAnimation"):
+		fail("Culled lamp: drawn=%s, material animation processing=%s" % [lamp.visible, animation_processing(lamp, "M2MaterialAnimation")])
+		return false
+	var frozen := material_state(lamp)
+	for step in 10:
+		await advance_clock(137.0)
+	if material_state(lamp) != frozen:
+		fail("Culled lamp material advanced: %s -> %s" % [frozen, material_state(lamp)])
+		return false
+	var eye := TRIGGER + Vector3(0.0, 2.0, 0.0)
+	cull_from(probe, eye, eye + Vector3(1.0, 0.0, 0.0))
+	if not lamp.visible or not animation_processing(lamp, "M2MaterialAnimation"):
+		fail("Drawn lamp: drawn=%s, material animation processing=%s" % [lamp.visible, animation_processing(lamp, "M2MaterialAnimation")])
+		return false
+	var changed := false
+	for step in 10:
+		await advance_clock(137.0)
+		changed = changed or material_state(lamp) != frozen
+	if not changed:
+		fail("Drawn lamp material did not animate: %s" % [frozen])
+		return false
+	# The cobweb is out of view from the trigger; look at it from 3 yd.
+	var near := cobweb.global_position + Vector3(0.0, 0.5, 0.0)
+	cull_from(probe, near - (near - eye).normalized() * -3.0, near)
+	for prop in [lamp, cobweb]:
+		if not prop.visible or animation_processing(prop, "M2Animation"):
+			fail("Static-boned %s: drawn=%s, M2Animation processing=%s" % [prop.name, prop.visible, animation_processing(prop, "M2Animation")])
+			return false
+	if animation_processing(cobweb, "M2MaterialAnimation"):
+		fail("Static cobweb material animation processes")
+		return false
+	print("material animation: stops with the culled lamp, resumes when drawn; static bones and materials never process")
 	return true
