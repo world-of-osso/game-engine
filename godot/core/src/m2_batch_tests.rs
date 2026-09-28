@@ -8,7 +8,7 @@ fn fixture(name: &str) -> Model {
     let skin = std::fs::read(directory.join(format!("{name}00.skin"))).unwrap();
     if name == "humanmale_hd" {
         let skeleton = std::fs::read(directory.join("humanmale_hd.skel")).unwrap();
-        m2::parse_model_with_skeleton(&model, &skin, Some(&skeleton)).unwrap()
+        m2::parse_model_with_skeleton(&model, &skin, Some(&skeleton), |_| None).unwrap()
     } else {
         m2::parse_model(&model, &skin).unwrap()
     }

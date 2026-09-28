@@ -110,7 +110,26 @@ pub(crate) fn read_model(path: &GString) -> Result<m2::Model, String> {
     } else {
         None
     };
-    m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref())
+    let model_dir = Path::new(&global_path(path))
+        .parent()
+        .map(Path::to_path_buf);
+    m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), |fdid| {
+        read_anim_file(model_dir.as_deref()?, fdid, &base)
+    })
+}
+
+/// An external sequence's `.anim` file, cached beside its model by `cache_model_files`;
+/// without it that sequence has no keyframes.
+fn read_anim_file(model_dir: &Path, fdid: u32, model: &str) -> Option<Vec<u8>> {
+    let path = model_dir.join(format!("{fdid}.anim"));
+    std::fs::read(&path)
+        .map_err(|error| {
+            godot_error!(
+                "M2 {model}: .anim FDID {fdid} at {}: {error}",
+                path.display()
+            )
+        })
+        .ok()
 }
 
 fn result_image(decoded: Result<blp::RgbaImage, String>) -> VarDictionary {
