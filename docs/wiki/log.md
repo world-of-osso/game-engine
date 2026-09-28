@@ -1691,3 +1691,8 @@ Godot maps every MOMT id 0-23 to WebWowViewerCpp's vertex/pixel shader pair. It 
 ## [2026-09-28] fix | Campsite fog and WMO selection
 
 Godot fogs with WebWowViewerCpp's legacy exponential fog from FogScaler/FogDensity, so FogEnd-0 campsites (Freywold Spring, Gallagio Grand Gallery) no longer render as flat fog. Campsite WMOs are selected by MODF extents, so Cultists' Quay shows its delve WMO. See [[campsite-fog-and-wmo-selection]].
+
+
+## [2026-09-28] port | Godot WMO doodads
+
+Godot spawns WMO MODD doodads (set 0 plus the MODF doodad set, MODI/MODN models) under their WMO node within the object budget, for ADT and WDT global WMOs, with the retail scenery-distance cull. The Stockade portal now stands in the Jail01 doorway. See [[godot-conversion]], [[wmo-format]], [[stockade-entrance]].
