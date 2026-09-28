@@ -45,6 +45,8 @@ func select_second_character(client: Node) -> void:
 			fail("Authored tile objects were not spawned: " + str(objects))
 			return
 		await create_timer(3.0).timeout
+		if not assert_scenery_distance(client, root_node):
+			return
 		print("settled fps=%.1f nodes=%d draws=%d objects=%d" % [Engine.get_frames_per_second(), root_node.get_child_count(), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)])
 		var hold := OS.get_environment("GODOT_PROBE_HOLD_SECONDS")
 		if not hold.is_empty():
@@ -73,6 +75,39 @@ func select_second_character(client: Node) -> void:
 		quit(0)
 		return
 	fail("Timed out waiting for world objects: " + str(client.account_state().world_objects))
+
+# Retail scenery distance: the smallest size class is drawn to 30 yd from its
+# box center, larger classes farther, so a doodad whose origin is within 29 yd of
+# the camera is drawn and a hidden one lies beyond that. Hidden doodads do not
+# animate.
+func assert_scenery_distance(client: Node, root_node: Node) -> bool:
+	var camera: Camera3D = client.get_node("WorldCamera")
+	var eye := camera.global_position
+	var shown := 0
+	var hidden := 0
+	for child in root_node.get_children():
+		if not child.name.begins_with("Doodad"):
+			continue
+		var distance: float = eye.distance_to(child.global_position)
+		var animation = child.get_node_or_null("M2Animation")
+		if child.visible:
+			shown += 1
+			if animation != null and not animation.is_processing():
+				fail("Drawn doodad %s does not animate" % child.name)
+				return false
+		else:
+			hidden += 1
+			if distance <= 29.0:
+				fail("Doodad %s hidden %.1f yd from the camera" % [child.name, distance])
+				return false
+			if animation != null and animation.is_processing():
+				fail("Hidden doodad %s still animates" % child.name)
+				return false
+	print("scenery distance: shown=%d hidden=%d" % [shown, hidden])
+	if shown == 0 or hidden == 0:
+		fail("Scenery distance must draw near doodads and hide far ones: shown=%d hidden=%d" % [shown, hidden])
+		return false
+	return true
 
 func capture() -> void:
 	var output := OS.get_environment("GODOT_CAPTURE_PATH")

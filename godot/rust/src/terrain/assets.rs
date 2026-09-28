@@ -1,10 +1,16 @@
 //! Local-CASC map and split-ADT reads for the native world host.
 
 use std::path::{Path, PathBuf};
-use std::{cell::RefCell, collections::BTreeMap, fs, sync::Arc};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, HashMap},
+    fs,
+    sync::Arc,
+};
 
 use game_engine_core::{adt, wdt};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
+use shared::ground::{WmoCollision, WmoGroupCollision};
 
 use super::textures::{TerrainLayerTextures, TerrainTextureCache};
 use crate::lighting::assets::LightingCatalog;
@@ -16,6 +22,8 @@ pub(crate) struct NativeTerrainAssets {
     data_root: PathBuf,
     textures: RefCell<TerrainTextureCache>,
     lighting: RefCell<Option<Arc<LightingCatalog>>>,
+    /// Group floors of each WMO root placed so far, by root FDID.
+    wmo_groups: RefCell<HashMap<u32, Vec<Arc<WmoGroupCollision>>>>,
 }
 
 pub(crate) struct NativeMapWdt {
@@ -33,6 +41,9 @@ pub(crate) struct NativeTerrainTile {
     pub tex: Option<adt::AdtTexData>,
     pub obj: Option<adt::AdtObjData>,
     pub textures: BTreeMap<u32, TerrainLayerTextures>,
+    /// Floors of the tile's `_obj0` MODF WMOs, placed as they render. They are the
+    /// player's ground from the moment the tile is parsed, before any WMO node spawns.
+    pub wmo_floors: Vec<WmoCollision>,
 }
 
 impl NativeTerrainAssets {
@@ -47,6 +58,7 @@ impl NativeTerrainAssets {
             data_root,
             textures: RefCell::new(TerrainTextureCache::default()),
             lighting: RefCell::new(None),
+            wmo_groups: RefCell::new(HashMap::new()),
         }
     }
 
@@ -122,6 +134,10 @@ impl NativeTerrainAssets {
             }
             None => BTreeMap::new(),
         };
+        let wmo_floors = obj
+            .as_ref()
+            .map(|obj| self.read_wmo_floors(&obj.wmos, (tile_y, tile_x)))
+            .unwrap_or_default();
         Ok(NativeTerrainTile {
             root_path,
             tex_path: tex_file.map(|(path, _)| path),
@@ -130,7 +146,53 @@ impl NativeTerrainAssets {
             tex,
             obj,
             textures,
+            wmo_floors,
         })
+    }
+
+    /// A WMO whose files cannot be read has no floor, as on the server (`GroundMap`).
+    fn read_wmo_floors(
+        &self,
+        placements: &[adt::WmoPlacement],
+        tile: (u32, u32),
+    ) -> Vec<WmoCollision> {
+        placements
+            .iter()
+            .filter_map(|placement| match self.read_wmo_groups(placement) {
+                Ok(groups) => Some(crate::wmo::placement::adt_wmo_collision(
+                    placement, tile, groups,
+                )),
+                Err(error) => {
+                    eprintln!(
+                        "WMO {} on tile {tile:?} has no floor: {error}",
+                        placement.unique_id
+                    );
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn read_wmo_groups(
+        &self,
+        placement: &adt::WmoPlacement,
+    ) -> Result<Vec<Arc<WmoGroupCollision>>, String> {
+        if let Some(groups) = placement
+            .fdid
+            .and_then(|fdid| self.wmo_groups.borrow().get(&fdid).cloned())
+        {
+            return Ok(groups);
+        }
+        let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
+        let groups: Vec<_> = asset
+            .groups
+            .iter()
+            .map(|group| Arc::clone(&group.collision))
+            .collect();
+        self.wmo_groups
+            .borrow_mut()
+            .insert(asset.root_fdid, groups.clone());
+        Ok(groups)
     }
 
     fn read_optional_companion(
