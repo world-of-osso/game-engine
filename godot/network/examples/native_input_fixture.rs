@@ -32,6 +32,8 @@ use shared::{
 mod logout;
 #[path = "native_input_fixture/menu.rs"]
 mod menu;
+#[path = "native_input_fixture/sound.rs"]
+mod sound;
 #[path = "native_input_fixture/swimming.rs"]
 mod swimming;
 
@@ -58,6 +60,7 @@ enum StartupScreen {
     Swimming,
     Menu,
     Logout,
+    Sound,
 }
 
 impl StartupScreen {
@@ -70,9 +73,10 @@ impl StartupScreen {
             Some("swimming") => Self::Swimming,
             Some("menu") => Self::Menu,
             Some("logout") => Self::Logout,
+            Some("sound") => Self::Sound,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu or logout"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout or sound"
                 )
             }
         };
@@ -86,7 +90,9 @@ impl StartupScreen {
     fn as_str(self) -> &'static str {
         match self {
             Self::CharSelect | Self::Menu => "charselect",
-            Self::InWorld | Self::Overlay | Self::Swimming | Self::Logout => "inworld",
+            Self::InWorld | Self::Overlay | Self::Swimming | Self::Logout | Self::Sound => {
+                "inworld"
+            }
         }
     }
 }
@@ -188,6 +194,13 @@ impl FixtureConfig {
             .expect("create fixture credentials directory");
         fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
             .expect("write fixture-only credentials");
+        if screen == StartupScreen::Sound {
+            fs::write(
+                config.home.join("world-of-osso/options_settings.ron"),
+                "(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))",
+            )
+            .expect("write isolated deterministic sound options");
+        }
         config
     }
 }
@@ -209,7 +222,16 @@ fn launch_godot(
     address: SocketAddr,
     screen: StartupScreen,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
-    let binary = root.join("target/debug/game-engine-launcher");
+    let binary = if screen == StartupScreen::Sound {
+        std::env::var_os("GODOT_BIN")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                PathBuf::from(std::env::var_os("HOME").expect("HOME for pinned Godot"))
+                    .join(".cache/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64")
+            })
+    } else {
+        root.join("target/debug/game-engine-launcher")
+    };
     let project = root.join("godot");
     let display_args: &[&str] = if std::env::var("GODOT_TEST_VISUAL").as_deref() == Ok("1") {
         &["--display-driver", "wayland", "--audio-driver", "Dummy"]
@@ -223,16 +245,22 @@ fn launch_godot(
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
-            if screen == StartupScreen::Logout {
+            if screen == StartupScreen::Sound {
+                "res://tests/world_sound_flow.gd"
+            } else if screen == StartupScreen::Logout {
                 "res://tests/world_logout_flow.gd"
             } else if screen == StartupScreen::Menu {
                 "res://tests/world_menu_flow.gd"
             } else {
                 "res://tests/world_input_flow.gd"
             },
-            "--screen",
-            screen.as_str(),
         ])
+        .args(if screen == StartupScreen::Sound {
+            &["--"][..]
+        } else {
+            &[][..]
+        })
+        .args(["--screen", screen.as_str()])
         .args(
             if !matches!(screen, StartupScreen::CharSelect | StartupScreen::Menu) {
                 &["--char", "iNpUt fIxTuRe", "--server"][..]
@@ -1023,11 +1051,13 @@ fn main() {
         .and_then(Path::parent)
         .expect("checkout root above Godot network workspace");
     let launcher = root.join("target/debug/game-engine-launcher");
-    assert!(
-        launcher.is_file(),
-        "build root launcher first: missing {}",
-        launcher.display()
-    );
+    if screen != StartupScreen::Sound {
+        assert!(
+            launcher.is_file(),
+            "build root launcher first: missing {}",
+            launcher.display()
+        );
+    }
     let config = FixtureConfig::create(root, screen);
     let (mut child, lines, reader) = launch_godot(root, &config, address, screen);
     let result = if screen == StartupScreen::Swimming {
@@ -1036,6 +1066,8 @@ fn main() {
         menu::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Logout {
         logout::run(&mut app, &mut child, lines, reader, root, address)
+    } else if screen == StartupScreen::Sound {
+        sound::run(&mut app, &mut child, lines, reader)
     } else {
         run_fixture(&mut app, &mut child, lines, reader, screen)
     };
