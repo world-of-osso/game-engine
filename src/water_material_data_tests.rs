@@ -1,4 +1,4 @@
-use super::{generate_water_normal_rgba, WATER_NORMAL_SIZE};
+use super::{WATER_NORMAL_SIZE, generate_water_normal_rgba};
 
 #[test]
 fn normal_map_matches_original_encoded_pixels() {
