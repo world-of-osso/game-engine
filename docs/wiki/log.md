@@ -1679,3 +1679,7 @@ Godot M2 blend 3/5/6/7 now follow WebWowViewerCpp's GL factors and batch colour 
 ## [2026-09-28] fix | Godot reaches and enters the Stockade
 
 Placed WMO floors are ground once their tile is parsed (not once the object queue spawns the WMO); lighting takes the map ID from Map.db2; WMO-only maps request no ADT tiles, spawn their global WMO and run the camera. A live walk from the room floor into area trigger 101 reaches InWorld on stormwindjail. See [[stockade-entrance]].
+
+## [2026-09-28] port | Godot WMO: all retail MOMT shaders
+
+Godot maps every MOMT id 0-23 to WebWowViewerCpp's vertex/pixel shader pair. It binds the nine material textures, four MOTV sets, MOCV2 and MOC2, and ports every caclWMOFragMat case, including MapObjParallax and the MapObjDFShader height blend. A batch that cannot be built no longer drops its WMO. See [[wmo-retail-lighting]].
