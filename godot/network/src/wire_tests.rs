@@ -246,3 +246,58 @@ fn native_bridge_receives_creature_motion_changes() {
     assert_eq!(stopped.position.unwrap().x, -9050.0);
     bridge.stop().expect("join fixture worker");
 }
+
+/// The nameplate rule inputs reach the host with the unit: FactionTemplate, UnitFlags
+/// and the combat flag, including a combat drop that changes nothing else.
+#[test]
+fn native_bridge_receives_faction_flags_and_combat_status() {
+    use shared::components::{CombatStatus, UnitFactionTemplate, UnitFlags};
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8194).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    let entity = server
+        .world_mut()
+        .spawn((
+            Npc {
+                template_id: 38,
+                name: "Defias Thug".into(),
+            },
+            Position {
+                x: -8900.0,
+                y: 80.0,
+                z: -120.0,
+            },
+            UnitFactionTemplate(7),
+            UnitFlags(UnitFlags::NOT_SELECTABLE),
+            CombatStatus(true),
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let server_id = entity.to_bits();
+    let Event::UnitUpdated(fighting) = await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "unit in combat",
+        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && unit.in_combat),
+    ) else {
+        unreachable!()
+    };
+    assert_eq!(fighting.faction_template, Some(7));
+    assert_eq!(fighting.unit_flags, Some(UnitFlags::NOT_SELECTABLE));
+    server
+        .world_mut()
+        .entity_mut(entity)
+        .insert(CombatStatus(false));
+    let Event::UnitUpdated(calm) = await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "combat drop",
+        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && !unit.in_combat),
+    ) else {
+        unreachable!()
+    };
+    assert_eq!(calm.faction_template, Some(7));
+    bridge.stop().expect("join fixture worker");
+}
