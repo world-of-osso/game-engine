@@ -11,7 +11,7 @@ mod types;
 mod wdc5;
 
 pub use data::{LightEntry, WeightedLightParams, map_name_to_id};
-use data::{LightParamsSlot, light_params_blend};
+use data::{LightParamsSlot, ZoneLight, light_params_blend, parse_zone_lights};
 use types::LightSkyboxMetadata;
 pub use types::{LightParamsFlags, LightSkyboxFlags, ResolvedLightSkyboxModel};
 use wdc5::ParsedWdc5Db2;
@@ -27,6 +27,7 @@ const LIGHT_PARAMS_FLAGS_FIELD_INDEX: usize = 10;
 const LIGHT_SKYBOX_FLAGS_FIELD_INDEX: usize = 1;
 const LIGHT_SKYBOX_FDID_FIELD_INDEX: usize = 2;
 static LIGHTS: OnceLock<Vec<LightEntry>> = OnceLock::new();
+static ZONE_LIGHTS: OnceLock<Vec<ZoneLight>> = OnceLock::new();
 static LIGHT_PARAMS_SKYBOX_IDS: OnceLock<Vec<(u32, u32)>> = OnceLock::new();
 static LIGHT_PARAMS_FLAGS: OnceLock<Vec<(u32, LightParamsFlags)>> = OnceLock::new();
 static LIGHT_SKYBOX_METADATA: OnceLock<Vec<(u32, LightSkyboxMetadata)>> = OnceLock::new();
@@ -188,6 +189,18 @@ fn cached_lights() -> &'static [LightEntry] {
     )
 }
 
+fn cached_zone_lights() -> &'static [ZoneLight] {
+    ZONE_LIGHTS.get_or_init(|| {
+        let read = |path| std::fs::read_to_string(path).map_err(|err| format!("{path}: {err}"));
+        read("data/ZoneLight.csv")
+            .and_then(|zones| parse_zone_lights(&zones, &read("data/ZoneLightPoint.csv")?))
+            .unwrap_or_else(|err| {
+                eprintln!("Failed to load zone lights: {err}");
+                Vec::new()
+            })
+    })
+}
+
 /// Clear-weather LightParams lighting `wow_position`, in overlay order.
 pub fn resolve_clear_light_params_blend(
     map_id: u32,
@@ -195,6 +208,7 @@ pub fn resolve_clear_light_params_blend(
 ) -> Vec<WeightedLightParams> {
     light_params_blend(
         cached_lights(),
+        cached_zone_lights(),
         map_id,
         wow_position,
         LightParamsSlot::Clear,

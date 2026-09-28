@@ -204,7 +204,8 @@ fn inworld_light_blend_follows_the_local_player_into_overlapping_lights() {
             .map(|light| light.light_params_id)
             .collect()
     };
-    assert_eq!(ids(&app), [12], "Elwynn spot is lit by the global light");
+    // Elwynn's ZoneLight 2471 (Light 12786, LightParams 6080) covers the global light.
+    assert_eq!(ids(&app), [12, 6080], "Elwynn spot is lit by its zone light");
     let global_noon = app
         .world()
         .resource::<crate::sky::LightKeyframes>()
@@ -217,7 +218,7 @@ fn inworld_light_blend_follows_the_local_player_into_overlapping_lights() {
     players.single_mut(app.world_mut()).unwrap().translation = Vec3::new(-8405.36, 80.92, -548.28);
     app.update();
 
-    assert_eq!(ids(&app), [12, 62, 62]);
+    assert_eq!(ids(&app), [12, 6080, 62, 62]);
     let keyframes = app.world().resource::<crate::sky::LightKeyframes>();
     assert!(!keyframes.rows_by_param[&62].is_empty());
     let blended_noon = keyframes.sample(1440.0);
