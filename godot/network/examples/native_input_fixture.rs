@@ -28,7 +28,7 @@ use shared::{
     },
 };
 
-#[path = "native_input_fixture_swimming.rs"]
+#[path = "native_input_fixture/swimming.rs"]
 mod swimming;
 
 const NAME: &str = "Input Fixture";
@@ -353,6 +353,7 @@ fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> 
 
 fn respond_to_selection(
     app: &mut App,
+    screen: StartupScreen,
     selected: &mut Option<Entity>,
     remote: &mut Option<Entity>,
 ) -> Result<(), String> {
@@ -724,7 +725,7 @@ fn run_fixture(
     while Instant::now() < deadline {
         app.update();
         respond_to_login(app, screen)?;
-        respond_to_selection(app, &mut selected, &mut remote)?;
+        respond_to_selection(app, screen, &mut selected, &mut remote)?;
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
             if let Some(readers) = reader.take() {
