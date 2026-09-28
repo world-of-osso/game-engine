@@ -85,6 +85,17 @@ fn decode_png(path: &str, bytes: &[u8]) -> Result<Gd<ImageTexture>, String> {
         .ok_or_else(|| format!("Create PNG texture {path}: Godot rejected decoded image"))
 }
 
+/// Addon art such as Plumber's `LoadingIndicator32.tga`.
+fn decode_tga(path: &str, bytes: &[u8]) -> Result<Gd<ImageTexture>, String> {
+    let mut image = Image::new_gd();
+    let error = image.load_tga_from_buffer(&PackedByteArray::from(bytes));
+    if error != godot::global::Error::OK {
+        return Err(format!("Decode TGA {path}: {error:?}"));
+    }
+    ImageTexture::create_from_image(&image)
+        .ok_or_else(|| format!("Create TGA texture {path}: Godot rejected decoded image"))
+}
+
 pub fn decode_blp(path: &str) -> Result<game_engine_core::blp::RgbaImage, String> {
     decode_blp_bytes(path, &load_bytes(path)?)
 }
@@ -100,6 +111,9 @@ fn load_file(path: &str) -> Result<Gd<ImageTexture>, String> {
     }
     if path.to_ascii_lowercase().ends_with(".png") {
         return decode_png(path, &bytes);
+    }
+    if path.to_ascii_lowercase().ends_with(".tga") {
+        return decode_tga(path, &bytes);
     }
     if path.to_ascii_lowercase().ends_with(".blp") {
         let rgba = decode_blp_bytes(path, &bytes)?;

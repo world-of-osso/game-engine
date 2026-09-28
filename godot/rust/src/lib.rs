@@ -7,6 +7,7 @@ mod assets;
 mod camera;
 mod char_create;
 mod character_select;
+mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
 #[path = "../../../src/game/faction_reaction.rs"]
@@ -83,6 +84,7 @@ pub struct GameClient {
     errors_ui: Option<Gd<ui::RegistryUi>>,
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
+    entrance_bar: entrance_bar::EntranceBar,
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
@@ -135,6 +137,7 @@ impl INode3D for GameClient {
             errors_ui: None,
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
+            entrance_bar: entrance_bar::EntranceBar::default(),
             account: Account::new(data_root.clone()),
             terrain: terrain::streaming::StreamedTerrain::new(
                 data_root.clone(),
@@ -235,6 +238,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_player_input(delta as f32))
             .and_then(|()| self.update_targeting())
             .and_then(|()| self.update_world_map())
+            .and_then(|()| self.update_entrance_bar(delta as f32))
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.update_player_animation())
             .and_then(|()| self.send_player_input())
@@ -1031,6 +1035,7 @@ impl GameClient {
         self.world_camera.reset();
         self.world_lighting.reset();
         self.world_map_id = None;
+        self.entrance_bar.close();
         self.terrain_materials.reset();
         self.world_objects.reset();
         self.global_wmo.reset();
