@@ -659,18 +659,23 @@ impl TerrainObjects {
             return;
         };
         let view = view_basis(camera);
+        let started = Instant::now();
         pools.begin_frame();
+        let mut updated = 0;
         for doodad in &mut self.doodads {
             let Some(placed) = &mut doodad.particles else {
                 continue;
             };
             if doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum) {
                 placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
+                updated += placed.emitter_count();
             } else {
                 placed.defer(delta);
             }
         }
+        let simulated = Instant::now();
         pools.end_frame();
+        pools.record_timing(updated, simulated - started, simulated.elapsed());
     }
 
     /// Pools, placed emitters, particles drawn last frame and pool capacity; `None`
@@ -688,6 +693,10 @@ impl TerrainObjects {
         state.set("emitters", emitters as i64);
         state.set("drawn", pools.drawn() as i64);
         state.set("capacity", pools.capacity() as i64);
+        let (updated, simulate, upload) = pools.timing();
+        state.set("updated_emitters", updated as i64);
+        state.set("simulate_us", simulate.as_micros() as i64);
+        state.set("upload_us", upload.as_micros() as i64);
         Some(state)
     }
 

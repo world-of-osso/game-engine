@@ -2,7 +2,7 @@
 //! emitter (model FDID, emitter index), simulated by the shared core
 //! `m2_particles` for every placement that is drawn and in view.
 
-use std::{cell::RefCell, collections::HashMap, path::Path, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, path::Path, rc::Rc, time::Duration};
 
 use game_engine_core::{
     m2::{self, ParticleEmitter},
@@ -451,6 +451,8 @@ pub(crate) struct ParticlePools {
     by_emitter: HashMap<(u32, usize), usize>,
     density: f32,
     quads: Vec<Quad>,
+    /// Last frame's updated emitters, simulation and upload time.
+    timing: (usize, Duration, Duration),
 }
 
 impl ParticlePools {
@@ -462,6 +464,7 @@ impl ParticlePools {
             by_emitter: HashMap::new(),
             density,
             quads: Vec::new(),
+            timing: (0, Duration::ZERO, Duration::ZERO),
         }
     }
 
@@ -545,6 +548,14 @@ impl ParticlePools {
         for pool in &mut self.pools {
             pool.end_frame();
         }
+    }
+
+    pub fn record_timing(&mut self, updated: usize, simulate: Duration, upload: Duration) {
+        self.timing = (updated, simulate, upload);
+    }
+
+    pub fn timing(&self) -> (usize, Duration, Duration) {
+        self.timing
     }
 
     pub fn pool_count(&self) -> usize {
