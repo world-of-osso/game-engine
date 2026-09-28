@@ -198,7 +198,28 @@ Proof: `godot/core/tests/wmo_doodads.rs` 6/6 (real `sw_magicdistrict` Jail01 MOD
 
 Branch `wmodoodads-anim` (`adce94b9`, merged with master at `d4df58c8`): master's cull already stops bone and material animation on undrawn doodads, so the branch keeps only the static-track rule. A player whose bone tracks, or a material animation whose UV/colour/transparency tracks, are all constant (`godot/core` `m2::track_is_constant`, `m2::bones_are_static`) samples once: `CulledDoodad` keeps no handle to it, and outside the in-world cull it stops its own processing in `ready()`. Fixture: the culled Jail01 lamp 199823 keeps its material while the clock advances and animates when drawn; the static-boned lamp and cobweb 199565 never change pose or process, and a cobweb loaded outside the cull processes nothing. Before the merge (own cull, base `a880a509`), processing `M2Animation` fell 1,729 -> 172 and `M2MaterialAnimation` 631 -> 135 at the Stormwind spot. `m2_uv_pixels.gd` "Automatic clock did not move the rendered effect texture" fails on both revisions.
 
-Not handled: MODD colour and interior doodad lighting (WWV `applyLightingParamsToDoodad`: MOLT/MDDI), MODF flag `0x80` MWDS doodad sets, and M2 particles.
+Not handled: MODD colour and interior doodad lighting (WWV `applyLightingParamsToDoodad`: MOLT/MDDI) and MODF flag `0x80` MWDS doodad sets. M2 particles: see [Native M2 particles](#native-m2-particles).
+
+## Native M2 particles
+
+Branch `particles` draws the particle emitters of placed doodads (contract: [m2-particles](../../specs/m2-particles.md)).
+
+- **Data.** `m2::Model::particle_emitters` comes from the shared MD20 parser. The EXP2 chunk overrides zSource and supplies colorMult/alphaMult/alpha cutoff (WWV `M2Object::initParticleEmitters`). `instanceportal.m2` (197007) has six sphere emitters on bones 2-7: sparkles (blend 4, multitexture, 200/s), two swirl sheets (blend 4, 2×2 random cell, 100/s), two BlendAdd multitexture swirls (blend 7) and one emitter-plane glow (0x1000, 12/s). All spawn on a 4.44 yd shell in the emitter XZ plane and move inward.
+- **Simulation** (`godot/core/src/m2_particles.rs`, engine-free) follows WWV `particleEmitter.cpp`: `CRndSeed` stream, `CSphereGenerator`/`CPlaneGenerator` spawn, 0.1 s steps capped at one lifespan, ballistic motion with drag, lifetime ramps at age / max lifespan, twinkle, spin, head quads. The emitter frame is placement × bone skin matrix × emitter position × `particleCoordinatesFix`, then WoW → Godot axes.
+- **Pools.** Each emitter's pool is ceil((rate + var) × (life + var) × 1.15), capped at 500 (solarityclient `reserve_authored_capacity`; WWV's 500-quad budget). One `MultiMeshInstance3D` per (model FDID, emitter index) is shared by every placement and capped at 4096 instances (80 B each). This replaces Hanabi's 65,536-particle slab per effect ([[stormwind-vram]]). Instance data holds the quad axes (basis x/y), the layer-1 UV offset and doodad fade (basis z), the colour, the atlas cell and the layer-2 UV offset (custom).
+- **Culling.** `TerrainObjects::update_particles` runs after the doodad cull. A doodad advances and draws its emitters only while its scenery opacity is above 0 (including the WMO group portal cull) and its world box is in the frustum. The time it skips is replayed later, bounded by the lifespan. Particles fade with the doodad. `particleEffectsEnabled` gates the pools and `particleDensity` scales emission.
+- **Blend.** `particle.gdshader` samples in authored space and maps blend 0-7 to the M2 GL factors in Godot's linear framebuffer, like M2 batches. Mod/Mod2x/NoAlphaAdd fade toward their identity colour.
+
+Proof: `godot/core/tests/m2_particles.rs` 14/14; `godot/tests/particle_blend_pixels.gd` 14/14 (blend 0-7, colour tint, fade 0.5 for 2/3/4/5/7); `wmo_doodads_flow.gd` PASS with the portal's six pools at 0 quads while Jail01 is culled and [204, 94, 49, 52, 89, 6] at the trigger (district: 53 pools, 431 emitters, capacity 7,769). Stormwind measurement (live :5000, Fbcamera at the Stockade entrance, WoW -8766.11, 845.5, 88.5; headless cage on a shared machine at load ~13; `data/diagnostics/particles-20260928/`; base = master `7e839a73` built in a temporary worktree). After all 16,501 objects settled: 3,218 emitters placed in 302 pools with 62,340 reserved instances. From that spot 19 emitters update and about 1,200 particles draw per frame.
+- **VRAM.** Process VRAM (DRM fdinfo) is 1,273-1,274 MiB for base and all three branch runs, so no measurable change.
+- **Frame time.** Base settled at 73 ms; branch runs at 110 and 90 ms. Each run varies 65-150 ms internally with no change in conditions, so the A/B is not decisive.
+- **Particle cost (in-process).** Simulation 1.6-2.6 ms per frame (debug build; the core simulation is opt-level 2, the Godot glue opt-level 0). Upload was 2.9-4.6 ms when every drawing pool uploaded its full reservation. It is 0.44-0.59 ms at the same particle count mid-load after `023012b7`, which grows each MultiMesh by powers of two.
+- **Draw cost.** Detaching the pool root moved the frame by less than the run noise.
+- **Settle.** All objects spawned in 1,027 s (base) vs 1,008 and 997 s (branch); loading is not slowed.
+
+The portal visual is recorded in [stockade-entrance](../investigations/stockade-entrance.md).
+
+Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x40000), spline and model particles, follow/inherit velocity, TXAC variants, alpha-cutoff discard, lit particles, fog, per-particle depth sorting.
 
 ## Sources
 

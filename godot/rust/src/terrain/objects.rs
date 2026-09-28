@@ -27,6 +27,7 @@ use crate::{
         uv_animation::WowMaterialAnimation,
     },
     lighting::TerrainLight,
+    particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
     terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
     wmo::{
         assets::wmo_fog_volume,
@@ -73,6 +74,14 @@ enum Pending {
 struct ParsedModel {
     path: GString,
     model: m2::Model,
+    particles: Option<std::rc::Rc<ModelParticles>>,
+}
+
+/// A built doodad node, its M2 header render box in engine axes, and its emitters.
+struct BuiltDoodad {
+    node: Gd<Node3D>,
+    render_box: (Vec3, Vec3),
+    particles: Option<std::rc::Rc<ModelParticles>>,
 }
 
 /// A spawned WMO node and the doodads it still places as children.
@@ -98,6 +107,8 @@ struct CulledDoodad {
     driven: bool,
     /// A WMO doodad's portal-culled WMO and the groups whose MODR references it.
     wmo_groups: Option<(usize, Vec<u16>)>,
+    /// Particle emitters, when the model has any and particle effects are on.
+    particles: Option<PlacedParticles>,
 }
 
 impl CulledDoodad {
@@ -124,6 +135,7 @@ impl CulledDoodad {
             clock: DeferredClock::default(),
             driven: false,
             wmo_groups,
+            particles: None,
         }
     }
 
@@ -233,6 +245,8 @@ pub(crate) struct TerrainObjects {
     models: HashMap<u32, ParsedModel>,
     light: Option<TerrainLight>,
     failures: usize,
+    /// `None` while the particle-effects graphics setting is off.
+    particles: Option<ParticlePools>,
 }
 
 impl TerrainObjects {
@@ -258,7 +272,14 @@ impl TerrainObjects {
             models: HashMap::new(),
             light: None,
             failures: 0,
+            particles: None,
         }
+    }
+
+    /// Draws M2 particle emitters of doodads spawned from now on, emitting at
+    /// `density` (0.1..=1) of their authored rates.
+    pub fn enable_particles(&mut self, density: f32) {
+        self.particles = Some(ParticlePools::new(density));
     }
 
     /// Objects spawned so far, excluding failures.
@@ -280,6 +301,9 @@ impl TerrainObjects {
         terrain: &StreamedTerrain,
         selection: &impl ObjectSelection,
     ) {
+        if let Some(pools) = &mut self.particles {
+            pools.attach(parent);
+        }
         self.queue_tiles(terrain, selection);
         let started = Instant::now();
         while started.elapsed() < self.budget {
@@ -343,14 +367,10 @@ impl TerrainObjects {
                 if self.spawned_doodads.contains(&doodad.unique_id) {
                     return Ok(());
                 }
-                let (model, scenery) = self.load_placed_doodad(doodad, tile, terrain)?;
+                let (built, scenery) = self.load_placed_doodad(doodad, tile, terrain)?;
                 self.spawned_doodads.insert(doodad.unique_id);
-                self.doodads.push(CulledDoodad::new(
-                    model.clone(),
-                    scenery,
-                    doodad.unique_id,
-                    None,
-                ));
+                let model = built.node.clone();
+                self.push_doodad(built, scenery, doodad.unique_id, None);
                 model
             }
             Pending::Wmo(tile, index) => {
@@ -385,12 +405,33 @@ impl TerrainObjects {
         Ok(())
     }
 
+    /// Tracks a spawned doodad for culling, with its particle emitters when enabled.
+    fn push_doodad(
+        &mut self,
+        built: BuiltDoodad,
+        scenery: SceneryDistance,
+        unique_id: u32,
+        wmo_groups: Option<(usize, Vec<u16>)>,
+    ) {
+        let mut doodad = CulledDoodad::new(built.node, scenery, unique_id, wmo_groups);
+        if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
+            let texture_dir = self.data_root.join("textures");
+            let (placed, errors) = pools.place(particles, &doodad.node, unique_id, &texture_dir);
+            for error in errors {
+                self.failures += 1;
+                godot_error!("{}: {error}", self.name);
+            }
+            doodad.particles = Some(placed);
+        }
+        self.doodads.push(doodad);
+    }
+
     fn load_placed_doodad(
         &mut self,
         doodad: &DoodadPlacement,
         tile: Tile,
         terrain: &StreamedTerrain,
-    ) -> Result<(Gd<Node3D>, SceneryDistance), String> {
+    ) -> Result<(BuiltDoodad, SceneryDistance), String> {
         let model_path = self.doodad_model_path(doodad);
         let fdid = doodad
             .fdid
@@ -400,7 +441,8 @@ impl TerrainObjects {
                     .and_then(|path| self.resolver.lookup_path(path))
             })
             .ok_or_else(|| format!("doodad {} has no resolvable model", doodad.unique_id))?;
-        let (mut model, render_box) = self.build_doodad_model(fdid)?;
+        let mut built = self.build_doodad_model(fdid)?;
+        let (model, render_box) = (&mut built.node, built.render_box);
         let position = doodad_position(doodad, tile.0, tile.1);
         let height = terrain.height_at(position.x, position.z);
         let placement =
@@ -418,18 +460,25 @@ impl TerrainObjects {
             placement.translation,
         );
         let scenery = SceneryDistance::new(render_box.0, render_box.1, world_from_model);
-        Ok((model, scenery))
+        Ok((built, scenery))
     }
 
-    /// Parse and cache each model FDID once; build a node per placement. Also returns
-    /// the M2 header render box in engine axes.
-    fn build_doodad_model(&mut self, fdid: u32) -> Result<(Gd<Node3D>, (Vec3, Vec3)), String> {
+    /// Parse and cache each model FDID once; build a node per placement.
+    fn build_doodad_model(&mut self, fdid: u32) -> Result<BuiltDoodad, String> {
         if !self.models.contains_key(&fdid) {
             let path = cache_model_files(&self.resolver, &self.data_root, fdid)?;
             let path = GString::from(path.to_string_lossy().as_ref());
             let model = read_model(&path)?;
             cache_model_textures(&self.resolver, &self.data_root, &[0; 3], &model)?;
-            self.models.insert(fdid, ParsedModel { path, model });
+            let particles = ModelParticles::from_model(fdid, &model);
+            self.models.insert(
+                fdid,
+                ParsedModel {
+                    path,
+                    model,
+                    particles,
+                },
+            );
         }
         let parsed = &self.models[&fdid];
         let (model, missing) = build_model(&parsed.model, &parsed.path, &[0; 3], None)?;
@@ -442,7 +491,11 @@ impl TerrainObjects {
             engine_axes(parsed.model.bounding_box_min),
             engine_axes(parsed.model.bounding_box_max),
         );
-        Ok((model, render_box))
+        Ok(BuiltDoodad {
+            node: model,
+            render_box,
+            particles: parsed.particles.clone(),
+        })
     }
 
     /// Doodads spawn later, one per pending entry, so the object budget covers them.
@@ -484,9 +537,10 @@ impl TerrainObjects {
                 format!("WMO {wmo} doodad {}: {path} not in listfile", doodad.index)
             })?,
         };
-        let (mut model, render_box) = self
+        let mut built = self
             .build_doodad_model(fdid)
             .map_err(|error| format!("WMO {wmo} doodad {}: {error}", doodad.index))?;
+        let (model, render_box) = (&mut built.node, built.render_box);
         let rotation = doodad.rotation;
         model.set_name(&format!("WmoDoodad{}", doodad.index));
         model.set_position(Vector3::from_array(doodad.translation.to_array()));
@@ -494,8 +548,8 @@ impl TerrainObjects {
             rotation.x, rotation.y, rotation.z, rotation.w,
         ));
         model.set_scale(Vector3::ONE * doodad.scale);
-        bind_visual_light(&model, self.light.as_ref());
-        parent.add_child(&model);
+        bind_visual_light(model, self.light.as_ref());
+        parent.add_child(&*model);
         // Retail 12340 gates WMO-attached doodads by the same scenery distance as ADT
         // doodads (solarityclient `terrain_frame/m2/doodad_scene.rs`, 799B70 admission).
         let world_from_model = affine(parent.get_global_transform())
@@ -506,12 +560,8 @@ impl TerrainObjects {
             );
         // WMO doodads have no ADT unique ID; this only staggers half-rate animation.
         let stagger = wmo.wrapping_mul(8191).wrapping_add(u32::from(doodad.index));
-        self.doodads.push(CulledDoodad::new(
-            model,
-            SceneryDistance::new(render_box.0, render_box.1, world_from_model),
-            stagger,
-            wmo_groups,
-        ));
+        let scenery = SceneryDistance::new(render_box.0, render_box.1, world_from_model);
+        self.push_doodad(built, scenery, stagger, wmo_groups);
         Ok(())
     }
 
@@ -601,6 +651,55 @@ impl TerrainObjects {
         }
     }
 
+    /// Advances and draws the particle emitters of every doodad that is drawn and in
+    /// `frustum` (world space) after `cull_doodads`, faded with it; others emit and move
+    /// nothing, and later replay at most one lifespan of the time they skipped.
+    pub fn update_particles(&mut self, camera: Transform3D, frustum: &[HalfSpace], delta: f32) {
+        let Some(pools) = &mut self.particles else {
+            return;
+        };
+        let view = view_basis(camera);
+        let started = Instant::now();
+        pools.begin_frame();
+        let mut updated = 0;
+        for doodad in &mut self.doodads {
+            let Some(placed) = &mut doodad.particles else {
+                continue;
+            };
+            if doodad.opacity > 0.0 && doodad.scenery.box_in_frustum(frustum) {
+                placed.update_and_draw(&doodad.node, delta, doodad.opacity, &view, pools);
+                updated += placed.emitter_count();
+            } else {
+                placed.defer(delta);
+            }
+        }
+        let simulated = Instant::now();
+        pools.end_frame();
+        pools.record_timing(updated, simulated - started, simulated.elapsed());
+    }
+
+    /// Pools, placed emitters, particles drawn last frame and pool capacity; `None`
+    /// while particle effects are off.
+    pub fn particle_state(&self) -> Option<VarDictionary> {
+        let pools = self.particles.as_ref()?;
+        let emitters: usize = self
+            .doodads
+            .iter()
+            .filter_map(|doodad| doodad.particles.as_ref())
+            .map(PlacedParticles::emitter_count)
+            .sum();
+        let mut state = VarDictionary::new();
+        state.set("pools", pools.pool_count() as i64);
+        state.set("emitters", emitters as i64);
+        state.set("drawn", pools.drawn() as i64);
+        state.set("capacity", pools.capacity() as i64);
+        let (updated, simulate, upload) = pools.timing();
+        state.set("updated_emitters", updated as i64);
+        state.set("simulate_us", simulate.as_micros() as i64);
+        state.set("upload_us", upload.as_micros() as i64);
+        Some(state)
+    }
+
     pub fn update_lighting(&mut self, light: &TerrainLight) {
         if let Some(root) = &self.root {
             bind_visual_light(root, Some(light));
@@ -622,6 +721,9 @@ impl TerrainObjects {
         self.models.clear();
         self.light = None;
         self.failures = 0;
+        if let Some(pools) = &mut self.particles {
+            pools.reset();
+        }
     }
 }
 

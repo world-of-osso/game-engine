@@ -83,6 +83,8 @@ func run() -> void:
 		return
 	if not assert_material_animation(probe, wmo):
 		return
+	if not assert_portal_particles(probe, portal):
+		return
 	if not await assert_unculled_static_models():
 		return
 	print("PASS: sw_magicdistrict places MODD 1112 instanceportal at area trigger 101 within the object budget")
@@ -180,6 +182,32 @@ func assert_group_cull(probe: Node, wmo: Node3D, portal: Node3D) -> bool:
 		fail("At the trigger Jail01 drawn=%s, portal drawn=%s, animated=%s; expected all drawn" % [jail[0].visible, portal.visible, drawn[0] != drawn[1]])
 		return false
 	print("group cull: portal hidden and still with Jail01 above the district, drawn and animating at the trigger")
+	return true
+
+# Drawn quads of each of the portal's six emitter pools (instanceportal.m2, 197007).
+func portal_particles(probe: Node) -> Array:
+	var drawn := []
+	for index in 6:
+		var pool := probe.find_child("Particles197007_%d" % index, true, false) as MultiMeshInstance3D
+		drawn.append(-1 if pool == null else pool.multimesh.visible_instance_count)
+	return drawn
+
+# The portal's emitters update and draw only while it is drawn: nothing 20 yd above the
+# district with Jail01 portal-culled, all six emitting at the trigger facing it.
+func assert_portal_particles(probe: Node, portal: Node3D) -> bool:
+	var above := portal.global_position + Vector3(0.0, 20.0, 0.0)
+	for frame in 5:
+		cull_from(probe, above, above + Vector3(1.0, 0.0, 0.0))
+	var culled := portal_particles(probe)
+	var eye := TRIGGER + Vector3(0.0, 2.0, 0.0)
+	for frame in 10:
+		cull_from(probe, eye, portal.global_position + Vector3(0.0, 1.0, 0.0))
+	var drawn := portal_particles(probe)
+	var state: Dictionary = probe.objects_state()
+	print("portal particles: culled=%s drawn=%s pools=%s" % [culled, drawn, state.get("particles")])
+	if culled != [0, 0, 0, 0, 0, 0] or drawn.any(func(count): return count <= 0):
+		fail("Portal emitters culled=%s drawn=%s; expected none above and all six at the trigger" % [culled, drawn])
+		return false
 	return true
 
 func material_state(doodad: Node3D) -> Array:

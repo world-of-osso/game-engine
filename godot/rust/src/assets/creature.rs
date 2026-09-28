@@ -171,6 +171,7 @@ fn creature_texture_fdids(
         textures.extend(batch.extra_texture_fdids);
         textures.extend(batch.overlays.into_iter().map(|overlay| overlay.fdid));
     }
+    textures.extend(crate::particles::ModelParticles::texture_fdids(model));
     Ok(textures)
 }
 
