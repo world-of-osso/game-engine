@@ -1,7 +1,7 @@
 extends SceneTree
 
-const FIRST := Vector3(-8949.0, 83.0, 0.0)
-const SECOND := Vector3(-8940.0, 83.0, 0.0)
+const FIRST := Vector3(-8949.0, 112.87991, 0.0)
+const SECOND := Vector3(-8940.0, 117.38283, 0.0)
 const NAME := "Reconnect Fixture"
 const WAIT_MS := 60000
 
