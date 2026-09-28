@@ -41,7 +41,7 @@ func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial
 		if wmo != null:
 			for child in wmo.get_children():
 				if not child is MeshInstance3D or not child.name.begins_with("Group38_Batch"):
-				continue
+					continue
 				var material := child.get_surface_override_material(0) as ShaderMaterial
 				if material == null or material.get_shader_parameter("two_layer_shader") != 7:
 					continue
