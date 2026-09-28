@@ -50,6 +50,43 @@ pub struct FootstepRequest {
     pub seed: u64,
 }
 
+/// Observes the current movement clip at one instant; missed halves are not replayed.
+#[derive(Debug, Default)]
+pub struct FootstepPhaseTracker {
+    last_half: u8,
+    last_seq_idx: usize,
+}
+
+impl FootstepPhaseTracker {
+    pub fn observe(
+        &mut self,
+        seq_idx: usize,
+        anim_id: u16,
+        duration: f32,
+        time_ms: f32,
+    ) -> Option<(FootstepMovement, u64)> {
+        let Some(movement) = movement_from_anim(anim_id) else {
+            self.last_seq_idx = seq_idx;
+            return None;
+        };
+        if seq_idx != self.last_seq_idx {
+            self.last_half = 0;
+            self.last_seq_idx = seq_idx;
+        }
+        if duration <= 0.0 {
+            return None;
+        }
+        let progress = (time_ms % duration) / duration;
+        let current_half = if progress < 0.5 { 0 } else { 1 };
+        if current_half == self.last_half {
+            return None;
+        }
+        self.last_half = current_half;
+        let seed = (seq_idx as u64) << 8 | u64::from(current_half);
+        Some((movement, seed))
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct FootstepCatalog {
     pub entries: Vec<FootstepCatalogEntry>,
