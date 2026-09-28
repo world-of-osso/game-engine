@@ -3121,6 +3121,7 @@ name = "game-engine-ui-model"
 version = "0.1.0"
 dependencies = [
  "game-engine-core",
+ "serde",
  "shared",
  "ui-toolkit-core",
 ]
