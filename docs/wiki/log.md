@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] investigation | Camera collision recovery lag
+
+`fe9faa73` recovers camera collision from the stored pulled-in distance instead of the lagging camera pose, so the camera keeps following a running player after a pull-in. Created [[camera-collision-recovery-lag]].
+
 ## [2026-09-28] system | Native main-menu overlay reaches bounded runtime GREEN
 
 `c3e5a59c` shares the original logged-in main-menu tree; `17d9ea46` resolves its default-panel skin. `e0c744e1` enables Panel through the existing nine-slice renderer and opens the overlay from character-select `MENU` and in-world Escape. Final bounded proof at `6f37e119`: root/native `fmt --check` and targeted checks pass; root shared-menu proof remains 25 tests because only an unused adapter changed; native model proof is current at 2/2. The real Vulkan fixture exits 0 (`/tmp/claude/game-menu-runtime-6f37e119.log`): repeated roster-key preservation → charselect overlay/block/dismiss → world modal block → decoded UDP → Return restoration → release quietness → Exit. Main inspected `data/diagnostics/godot-conversion/game-menu.png`. The unused root adapter warning is resolved; three native pre-existing dead-code warnings and the fixture's intentional flat 42-line marker length debt remain. This is bounded behavior/render inspection, not pixel equality or full parity. Options, AddOns, and logout remain unported; Support is a placeholder; `--screen gamemenu` remains unimplemented. The full matrix remains 0 handled.
