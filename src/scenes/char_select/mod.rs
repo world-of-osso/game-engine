@@ -55,7 +55,10 @@ pub(crate) struct SelectedCharIndex(pub(crate) Option<usize>);
 pub(crate) struct PreselectedCharName(pub(crate) String);
 
 #[derive(Resource, Default)]
-pub(crate) struct CampsitePanelVisible(pub(crate) bool);
+pub(crate) struct CampsitePanel {
+    pub(crate) visible: bool,
+    pub(crate) page: usize,
+}
 
 #[derive(Resource, Default)]
 pub(crate) struct CharSelectFocus(pub(crate) Option<u64>);
@@ -135,7 +138,7 @@ fn build_char_select_ui(
 
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state);
-    shared.insert(build_campsite_state(false));
+    shared.insert(build_campsite_state(&CampsitePanel::default()));
     shared.insert(DeleteConfirmUiState::default());
     let mut screen = Screen::new(char_select_screen);
     screen.sync(&shared, &mut ui.registry);
@@ -144,7 +147,7 @@ fn build_char_select_ui(
     apply_post_setup(&mut ui.registry, &cs);
 
     commands.insert_resource(SelectedCharIndex(initial_selected));
-    commands.insert_resource(CampsitePanelVisible(false));
+    commands.insert_resource(CampsitePanel::default());
     commands.insert_resource(CharSelectFocus(None));
     commands.insert_resource(DeleteCharacterConfirmationState::default());
     commands.insert_resource(CharSelectScreenWrap(CharSelectScreenRes { screen, shared }));
@@ -201,7 +204,7 @@ fn char_select_update_visuals(
     mut ui: ResMut<UiState>,
     cs_ui: Option<Res<CharSelectUi>>,
     selected: Res<SelectedCharIndex>,
-    campsite_visible: Res<CampsitePanelVisible>,
+    campsite_panel: Res<CampsitePanel>,
     mut focus: ResMut<CharSelectFocus>,
     char_list: Res<CharacterList>,
     delete_confirm: Res<DeleteCharacterConfirmationState>,
@@ -213,7 +216,7 @@ fn char_select_update_visuals(
         cs_ui.as_deref(),
         &char_list,
         &selected,
-        &campsite_visible,
+        &campsite_panel,
         &mut focus,
         &delete_confirm,
     );
@@ -226,7 +229,7 @@ fn sync_screen_state(
     cs_ui: Option<&CharSelectUi>,
     char_list: &CharacterList,
     selected: &SelectedCharIndex,
-    campsite_visible: &CampsitePanelVisible,
+    campsite_panel: &CampsitePanel,
     focus: &mut CharSelectFocus,
     delete_confirm: &DeleteCharacterConfirmationState,
 ) {
@@ -238,7 +241,7 @@ fn sync_screen_state(
     if inner.shared.get::<CharSelectState>() != Some(&new_state) {
         inner.shared.insert(new_state);
     }
-    let campsite_state = build_campsite_state(campsite_visible.0);
+    let campsite_state = build_campsite_state(campsite_panel);
     if inner.shared.get::<CampsiteState>() != Some(&campsite_state) {
         inner.shared.insert(campsite_state);
     }
@@ -298,7 +301,7 @@ fn tick_delete_confirmation(mut state: ResMut<DeleteCharacterConfirmationState>,
     state.tick(time.delta_secs());
 }
 
-pub(crate) fn build_campsite_state(panel_visible: bool) -> CampsiteState {
+pub(crate) fn build_campsite_state(panel: &CampsitePanel) -> CampsiteState {
     let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let selected_id = warband.scenes.first().map(|s| s.id);
     CampsiteState {
@@ -311,8 +314,9 @@ pub(crate) fn build_campsite_state(panel_visible: bool) -> CampsiteState {
                 preview_image: s.preview_image_path().map(str::to_string),
             })
             .collect(),
-        panel_visible,
+        panel_visible: panel.visible,
         selected_id,
+        page: panel.page,
     }
 }
 

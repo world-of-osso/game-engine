@@ -71,7 +71,16 @@ func capture(path: String) -> bool:
 func switch_campsite(client: Node, scene_id: int) -> String:
 	var ui = client.get_node("CharacterSelectUI")
 	await click(ui.find_child("CharSelectCampsitesTab", true, false))
+	# The panel pages four campsites at a time and keeps its page; rewind, then page forward.
+	var pages := int(ui.frame_text("CampsitePageText").get_slice("/", 1))
+	for page in range(pages - 1):
+		await click(ui.find_child("CampsitePrevPage", true, false))
 	var card = ui.find_child("CampsiteScene_%d" % scene_id, true, false)
+	for page in range(pages - 1):
+		if card != null:
+			break
+		await click(ui.find_child("CampsiteNextPage", true, false))
+		card = ui.find_child("CampsiteScene_%d" % scene_id, true, false)
 	if card == null or not card.is_visible_in_tree():
 		return "Campsite panel must list authored scene %d" % scene_id
 	var scene_before = client.find_child("CharacterSelectScene", true, false)
@@ -97,7 +106,10 @@ func run() -> void:
 	if server.is_empty() or output_dir.is_empty():
 		fail("Set GODOT_TEST_SERVER and GODOT_CAPTURE_DIR", client)
 		return
-	var error = client.connect_account(server, "admin", "admin", false)
+	# GODOT_TEST_USER/GODOT_TEST_PASSWORD select a per-agent dev account.
+	var user = OS.get_environment("GODOT_TEST_USER") if OS.has_environment("GODOT_TEST_USER") else "admin"
+	var password = OS.get_environment("GODOT_TEST_PASSWORD") if OS.has_environment("GODOT_TEST_PASSWORD") else "admin"
+	var error = client.connect_account(server, user, password, false)
 	if error != "":
 		fail(error, client)
 		return

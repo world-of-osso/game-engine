@@ -378,6 +378,7 @@ fn hovered_pressed_and_open_campsite_tabs_are_boxed_with_white_labels() {
         }],
         panel_visible: true,
         selected_id: Some(1),
+        ..Default::default()
     });
     model.sync();
     assert!(!frame(&model, "CampsitePanel").hidden);
@@ -390,5 +391,76 @@ fn hovered_pressed_and_open_campsite_tabs_are_boxed_with_white_labels() {
             (false, GOLD),
             (true, WHITE)
         ]
+    );
+}
+
+fn campsites(count: u32, page: usize) -> CampsiteState {
+    CampsiteState {
+        scenes: (1..=count)
+            .map(|id| CampsiteEntry {
+                id,
+                name: format!("Camp {id}"),
+                preview_image: None,
+            })
+            .collect(),
+        panel_visible: true,
+        selected_id: Some(1),
+        page,
+    }
+}
+
+fn listed_campsites(model: &CharacterSelectModel) -> Vec<u32> {
+    (1..=8)
+        .filter(|id| {
+            model
+                .registry
+                .get_by_name(&format!("CampsiteScene_{id}"))
+                .is_some()
+        })
+        .collect()
+}
+
+#[test]
+fn eight_campsites_page_four_at_a_time_like_retail_paging_controls() {
+    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    model.shared.insert(campsites(8, 0));
+    model.sync();
+    assert_eq!(listed_campsites(&model), [1, 2, 3, 4]);
+    assert_eq!(text(&model, "CampsitePageText"), "Page 1/2");
+    assert_eq!(
+        action(&model, "CampsitePrevPage"),
+        Some(CharSelectAction::CampsitePage(0)),
+        "disabled prev stays on the first page"
+    );
+    assert_eq!(
+        action(&model, "CampsiteNextPage"),
+        Some(CharSelectAction::CampsitePage(1))
+    );
+
+    model.shared.insert(campsites(8, 1));
+    model.sync();
+    assert_eq!(listed_campsites(&model), [5, 6, 7, 8]);
+    assert_eq!(text(&model, "CampsitePageText"), "Page 2/2");
+    assert_eq!(
+        action(&model, "CampsitePrevPage"),
+        Some(CharSelectAction::CampsitePage(0))
+    );
+    assert_eq!(
+        action(&model, "CampsiteNextPage"),
+        Some(CharSelectAction::CampsitePage(1)),
+        "disabled next stays on the last page"
+    );
+
+    model.shared.insert(campsites(5, 7));
+    model.sync();
+    assert_eq!(
+        listed_campsites(&model),
+        [5],
+        "stale page clamps to the last"
+    );
+    assert_eq!(text(&model, "CampsitePageText"), "Page 2/2");
+    assert_eq!(
+        CharSelectAction::parse(&CharSelectAction::CampsitePage(1).to_string()),
+        Some(CharSelectAction::CampsitePage(1))
     );
 }

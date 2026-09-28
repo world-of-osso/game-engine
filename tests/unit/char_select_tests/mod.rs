@@ -129,6 +129,7 @@ pub(super) fn one_scene_campsite_state() -> CampsiteState {
         }],
         panel_visible: true,
         selected_id: Some(1),
+        page: 0,
     }
 }
 
