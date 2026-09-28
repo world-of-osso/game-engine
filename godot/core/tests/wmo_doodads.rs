@@ -114,6 +114,7 @@ fn synthetic_root() -> wmo::WmoRootData {
         doodad_defs: (0..6)
             .map(|index| doodad(index % 2 * 11, [0.0, 0.0, 0.0, 1.0]))
             .collect(),
+        doodad_intensities: vec![],
         fogs: vec![],
         visible_block_vertices: vec![],
         visible_blocks: vec![],

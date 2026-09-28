@@ -13,6 +13,9 @@ pub struct WmoRootData {
     pub doodad_names: Vec<WmoDoodadName>,
     pub doodad_file_ids: Vec<u32>,
     pub doodad_defs: Vec<WmoDoodadDef>,
+    /// MDDI: per MODD entry, the intensity a doodad with MODD flag 0x10 scales its
+    /// colour by.
+    pub doodad_intensities: Vec<f32>,
     pub fogs: Vec<WmoFog>,
     pub visible_block_vertices: Vec<[f32; 3]>,
     pub visible_blocks: Vec<WmoVisibleBlock>,
