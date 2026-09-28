@@ -16,6 +16,8 @@ The sound system coexists with the rest of the engine as a Bevy plugin registere
 
 `FootstepPhaseTracker` in the same shared file now owns the legacy half-cycle observer: it emits only when the observed movement clip changes half (seed = sequence index shifted 8 bits OR half), resets the half on movement sequence changes, retains it through nonmovement clips, and skips zero-duration clips. It never replays missed steps. Bevy carries it in `FootstepTracker`; native `WowAnimationPlayer::footstep_phase` read-only exposes the selected—not outgoing crossfade—clip index/ID, duration, and clock. `70e047ff` separately shares the ADT dominant-effect/texture surface decision through `terrain_surface_data`; existing root terrain and footstep loaders remain unchanged. Both are prerequisites only: Godot has no terrain-surface runtime consumer or native footstep playback; verifier839 is pending.
 
+`src/sound/ground_effect_data.rs` shares the fixed-layout WDC5 GroundEffectTexture and TerrainTypeSounds row readers and ordered terrain-name surface classification with root and `godot/core`. The root `ground_effects` adapter still owns local DB2 loading/cache and clutter, and reexports the same `GroundEffectEntry` type. Core byte fixtures cover the two ground-effect and three terrain-sound layouts, rows, strings, errors, and keyword precedence. Native terrain-surface resolution and playback are not wired by this extraction.
+
 ## Shared catalog boundary
 
 `5f74a859` extracts the root music-zone row parser, `music_manifest.csv` ambient reader, and music/ambient overlap removal into Bevy-free `catalog_data`, exposed to `godot/core`. The root music cache delegates row parsing; root ambient and overlap adapters use the same source. Both readers retain per-area first-encounter track order while deduplicating track indices. `d60a3037` separately shares `AreaTable` `ID` → nonzero `ParentAreaID` parsing and root-ancestor traversal: it stops at a missing parent, limits bad-data traversal to 16 links, and leaves an unknown ID unchanged. This complements `959112e9`'s MCNK `area_id` exposure.
@@ -48,6 +50,7 @@ Post-fix PID `2468254` remained focused, `InWorld`, and connected with one link/
 - [app setup](../../../src/app_setup.rs) — stage and audio-plugin registration
 - [area_zone_data](../../../src/area_zone_data.rs) — shared AreaTable parent parsing and bounded ancestor traversal
 - [footstep_data](../../../src/sound/footstep_data.rs) — shared footstep classification and catalog selection
+- [ground_effect_data](../../../src/sound/ground_effect_data.rs) — shared WDC5 row parsing and terrain-name surface classification
 - [ui_click_data](../../../src/sound/ui_click_data.rs) — legacy click PCM and gain
 - [real-client fixture log](../../../data/diagnostics/native-sound-client-final.log) — authenticated area/zone/music and Options-state observations at `ce2a8c92`
 
