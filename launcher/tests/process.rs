@@ -25,8 +25,12 @@ impl Fixture {
             NEXT_ID.fetch_add(1, Ordering::Relaxed)
         ));
         fs::create_dir(&directory).unwrap();
-        let cargo = directory.join("cargo");
-        let godot = directory.join("godot");
+        // An already-imported project, so launches skip the one-time import.
+        fs::create_dir_all(directory.join("godot/.godot")).unwrap();
+        fs::write(directory.join("godot/.godot/extension_list.cfg"), "").unwrap();
+        fs::create_dir(directory.join("bin")).unwrap();
+        let cargo = directory.join("bin/cargo");
+        let godot = directory.join("bin/godot");
         for binary in [&cargo, &godot] {
             fs::write(binary, FAKE_PROCESS).unwrap();
             fs::set_permissions(binary, fs::Permissions::from_mode(0o755)).unwrap();
@@ -45,6 +49,7 @@ impl Fixture {
             .env("CARGO", &self.cargo)
             .env("GODOT_BIN", &self.godot)
             .env("FAKE_LOG", self.directory.join("log"))
+            .env("GAME_ENGINE_ROOT", &self.directory)
             .env("LD_LIBRARY_PATH", "/existing/libraries")
             .output()
             .unwrap()
@@ -57,6 +62,7 @@ impl Fixture {
             .env("CARGO", &self.cargo)
             .env("GODOT_BIN", &self.godot)
             .env("FAKE_LOG", self.directory.join("log"))
+            .env("GAME_ENGINE_ROOT", &self.directory)
             .output()
             .unwrap()
     }
@@ -98,7 +104,8 @@ with open(os.environ['FAKE_LOG'], 'a', encoding='ascii') as log:
           hex_bytes(os.environ.get('LD_LIBRARY_PATH', '')),
           ','.join(hex_bytes(arg) for arg in sys.argv[1:]),
           sep='\t', file=log)
-sys.exit(int(os.environ.get('FAKE_' + role.upper() + '_STATUS', '0')))
+suffix = '_IMPORT_STATUS' if '--import' in sys.argv else '_STATUS'
+sys.exit(int(os.environ.get('FAKE_' + role.upper() + suffix, '0')))
 "#;
 
 fn hex(value: impl AsRef<std::ffi::OsStr>) -> String {
@@ -110,13 +117,6 @@ fn hex(value: impl AsRef<std::ffi::OsStr>) -> String {
         .collect()
 }
 
-fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .to_path_buf()
-}
-
 #[test]
 fn successful_build_then_launch_forwards_arguments_and_environment() {
     let fixture = Fixture::new();
@@ -126,9 +126,9 @@ fn successful_build_then_launch_forwards_arguments_and_environment() {
     assert_eq!(records.len(), 2, "{records:?}");
     let cargo = records[0].split('\t').collect::<Vec<_>>();
     let godot = records[1].split('\t').collect::<Vec<_>>();
-    let root = root();
+    let root = &fixture.directory;
     assert_eq!(cargo[0], "cargo");
-    assert_eq!(cargo[1], hex(&root));
+    assert_eq!(cargo[1], hex(root));
     assert_eq!(cargo[2], hex(root.join("target")));
     assert_eq!(
         cargo[4],
@@ -185,7 +185,7 @@ fn interspersed_client_pairs_follow_native_engine_arguments() {
         "Alice",
     ]);
     assert!(output.status.success(), "{output:?}");
-    let godot_project = root().join("godot");
+    let godot_project = fixture.directory.join("godot");
     let expected = [
         "--path",
         godot_project.to_str().unwrap(),
@@ -220,7 +220,7 @@ fn explicit_separator_keeps_remainder_in_client_order_without_duplication() {
         "value",
     ]);
     assert!(output.status.success(), "{output:?}");
-    let godot_project = root().join("godot");
+    let godot_project = fixture.directory.join("godot");
     let expected = [
         "--path",
         godot_project.to_str().unwrap(),
@@ -276,7 +276,7 @@ fn non_utf8_native_and_client_values_survive_routing() {
         fixture.godot_args(),
         [
             hex("--path"),
-            hex(root().join("godot")),
+            hex(fixture.directory.join("godot")),
             hex(&native),
             hex("--verbose"),
             hex("--"),
@@ -293,6 +293,7 @@ fn build_failure_preserves_status_and_prevents_godot() {
         .env("CARGO", &fixture.cargo)
         .env("GODOT_BIN", &fixture.godot)
         .env("FAKE_LOG", fixture.directory.join("log"))
+        .env("GAME_ENGINE_ROOT", &fixture.directory)
         .env("FAKE_CARGO_STATUS", "37")
         .output()
         .unwrap();
@@ -308,6 +309,7 @@ fn godot_exit_status_is_preserved() {
         .env("CARGO", &fixture.cargo)
         .env("GODOT_BIN", &fixture.godot)
         .env("FAKE_LOG", fixture.directory.join("log"))
+        .env("GAME_ENGINE_ROOT", &fixture.directory)
         .env("FAKE_GODOT_STATUS", "43")
         .output()
         .unwrap();
@@ -323,6 +325,7 @@ fn missing_godot_fails_before_build() {
         .env("CARGO", &fixture.cargo)
         .env("GODOT_BIN", &missing)
         .env("FAKE_LOG", fixture.directory.join("log"))
+        .env("GAME_ENGINE_ROOT", &fixture.directory)
         .output()
         .unwrap();
     assert!(!output.status.success());
@@ -340,6 +343,7 @@ fn non_utf8_argument_reaches_godot_unchanged() {
         .env("CARGO", &fixture.cargo)
         .env("GODOT_BIN", &fixture.godot)
         .env("FAKE_LOG", fixture.directory.join("log"))
+        .env("GAME_ENGINE_ROOT", &fixture.directory)
         .output()
         .unwrap();
     assert!(output.status.success(), "{output:?}");
@@ -370,9 +374,129 @@ fn missing_cargo_context_fails_before_godot() {
         .env_remove("CARGO")
         .env("GODOT_BIN", &fixture.godot)
         .env("FAKE_LOG", fixture.directory.join("log"))
+        .env("GAME_ENGINE_ROOT", &fixture.directory)
         .output()
         .unwrap();
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("CARGO"));
     assert!(fixture.log().is_empty());
+}
+
+const FAKE_CURL: &str = r#"#!/usr/bin/env python3
+import os
+import sys
+
+with open(os.environ['FAKE_LOG'], 'a', encoding='ascii') as log:
+    print('curl', *sys.argv[1:], sep='\t', file=log)
+output = sys.argv[sys.argv.index('--output') + 1]
+with open(output, 'wb') as body:
+    body.write(b'not the pinned Godot release')
+"#;
+
+impl Fixture {
+    /// Launch without GODOT_BIN, resolving Godot from `cache` with a fake `curl` first on PATH.
+    fn launch_with_cache(&self, cache: &Path) -> Output {
+        let bin = self.directory.join("bin");
+        fs::create_dir_all(&bin).unwrap();
+        let curl = bin.join("curl");
+        fs::write(&curl, FAKE_CURL).unwrap();
+        fs::set_permissions(&curl, fs::Permissions::from_mode(0o755)).unwrap();
+        let path = format!("{}:{}", bin.display(), env::var("PATH").unwrap());
+        Command::new(env!("CARGO_BIN_EXE_game-engine-launcher"))
+            .env("CARGO", &self.cargo)
+            .env_remove("GODOT_BIN")
+            .env("XDG_CACHE_HOME", cache)
+            .env("PATH", path)
+            .env("FAKE_LOG", self.directory.join("log"))
+            .env("GAME_ENGINE_ROOT", &self.directory)
+            .output()
+            .unwrap()
+    }
+}
+
+#[test]
+fn cached_godot_launches_without_download() {
+    let fixture = Fixture::new();
+    let cache = fixture.directory.join("cache");
+    let version = cache.join("game-engine/godot/4.7.2");
+    fs::create_dir_all(&version).unwrap();
+    let cached = version.join("Godot_v4.7.2-stable_linux.x86_64");
+    fs::copy(&fixture.godot, &cached).unwrap();
+    let output = fixture.launch_with_cache(&cache);
+    assert!(output.status.success(), "{output:?}");
+    let roles: Vec<_> = fixture
+        .log()
+        .lines()
+        .map(|line| line.split('\t').next().unwrap().to_owned())
+        .collect();
+    // The cached copy keeps the fake's basename-derived role.
+    assert_eq!(roles, ["cargo", "Godot_v4.7.2-stable_linux.x86_64"]);
+}
+
+#[test]
+fn checksum_mismatch_installs_nothing_and_prevents_build() {
+    let fixture = Fixture::new();
+    let cache = fixture.directory.join("cache");
+    let output = fixture.launch_with_cache(&cache);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("SHA-512"), "{stderr}");
+    assert!(fixture.log().starts_with("curl\t"));
+    assert_eq!(fixture.log().lines().count(), 1, "cargo must not run");
+    let godot_cache = cache.join("game-engine/godot");
+    assert_eq!(
+        fs::read_dir(&godot_cache).unwrap().count(),
+        0,
+        "no partial install left"
+    );
+}
+
+#[test]
+fn fresh_checkout_imports_once_after_build_before_launch() {
+    let fixture = Fixture::new();
+    fs::remove_dir_all(fixture.directory.join("godot/.godot")).unwrap();
+    let output = fixture.launch(&["--verbose"]);
+    assert!(output.status.success(), "{output:?}");
+    let records: Vec<Vec<String>> = fixture
+        .log()
+        .lines()
+        .map(|line| line.split('\t').map(str::to_owned).collect())
+        .collect();
+    let roles: Vec<_> = records.iter().map(|record| record[0].as_str()).collect();
+    assert_eq!(roles, ["cargo", "godot", "godot"]);
+    let project = fixture.directory.join("godot");
+    assert_eq!(
+        records[1][4],
+        [
+            hex("--headless"),
+            hex("--import"),
+            hex("--path"),
+            hex(&project)
+        ]
+        .join(",")
+    );
+    assert_eq!(
+        records[2][4],
+        [hex("--path"), hex(&project), hex("--verbose")].join(",")
+    );
+}
+
+#[test]
+fn failed_import_preserves_status_and_prevents_launch() {
+    let fixture = Fixture::new();
+    fs::remove_dir_all(fixture.directory.join("godot/.godot")).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_game-engine-launcher"))
+        .env("CARGO", &fixture.cargo)
+        .env("GODOT_BIN", &fixture.godot)
+        .env("FAKE_LOG", fixture.directory.join("log"))
+        .env("GAME_ENGINE_ROOT", &fixture.directory)
+        .env("FAKE_GODOT_IMPORT_STATUS", "41")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(41));
+    assert_eq!(
+        fixture.log().lines().count(),
+        2,
+        "Godot must not launch after a failed import"
+    );
 }

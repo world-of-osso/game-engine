@@ -409,7 +409,8 @@ fn apply_geoset_visibility(
     apply_hidden_geoset_groups(
         &mut active_geosets,
         hidden_groups,
-        selection,
+        selection.race,
+        selection.sex,
         customization_db,
     );
 
@@ -461,29 +462,27 @@ fn collect_active_geosets(
         .collect()
 }
 
-fn apply_hidden_geoset_groups(
+/// Replace each equipment-hidden group's geoset: group 0 (hair) by the scalp.
+pub(crate) fn apply_hidden_geoset_groups(
     active_geosets: &mut Vec<(u16, u16)>,
     hidden_groups: &HashSet<u16>,
-    selection: &CharacterCustomizationSelection,
+    race: u8,
+    sex: u8,
     customization_db: &CustomizationDb,
 ) {
     for &group in hidden_groups {
         active_geosets.retain(|(existing_group, _)| *existing_group != group);
         active_geosets.push((
             group,
-            hidden_group_variant(group, selection, customization_db),
+            hidden_group_variant(group, race, sex, customization_db),
         ));
     }
 }
 
-fn hidden_group_variant(
-    group: u16,
-    selection: &CharacterCustomizationSelection,
-    customization_db: &CustomizationDb,
-) -> u16 {
+fn hidden_group_variant(group: u16, race: u8, sex: u8, customization_db: &CustomizationDb) -> u16 {
     if group == 0 {
         customization_db
-            .scalp_fallback_hair_geoset(selection.race, selection.sex)
+            .scalp_fallback_hair_geoset(race, sex)
             .unwrap_or(1)
     } else {
         1

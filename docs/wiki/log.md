@@ -38,6 +38,10 @@ Independent verification reran native `cargo fmt --check` and `cargo check -p ga
 
 Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
+## [2026-09-28] investigation | NPC stance and gear
+
+Created [[npc-stance-gear]]; updated [[m2-format]] (external `.anim` sequences). NPCs now hold their `UnitPose` (stand state or emote state), render virtual items drawn or sheathed and their display's authored armor; the replication mirror carries `UnitPose`; HumanMale HD Sit/Sleep read their `.anim` files.
+
 ## [2026-09-28] investigation | Godot texture VRAM
 
 Created [[godot-texture-vram]]. The Godot client built a new RGBA8 `ImageTexture` per M2 material per placement and per WMO build. `224eb4f8` adds `core::blp::decode_gpu` (DXT kept with mips); `0f36a6cb` shares one texture per FDID/composite. In-world VRAM: 4,994 MiB and rising before, 1,029 MiB settled after.
@@ -1650,3 +1654,11 @@ Created [[stockade-entrance]]: MODD name_offset indexes MODI (WMO doodads of MOD
 ## [2026-09-26] investigation | Stockade floor fall
 
 Created [[stockade-floor-fall]]: the failing teleport points lie outside WMO 108631 (no face crosses them); server ground matches brute force on all 7,650 floor samples; sky is the exterior-only portal view. Open: TrinityCore fall-to-void kill.
+
+## [2026-09-27] change | Launcher caches Godot
+
+The launcher resolves Godot as `GODOT_BIN`, else `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2/`, downloading the official 4.7.2 zip and verifying its pinned SHA-512 on first use. `data/tools/godot` is no longer read. See [[godot-conversion]].
+
+## [2026-09-28] change | Launcher imports fresh checkouts
+
+After the native build, the launcher runs `godot --headless --import --path godot` once when `godot/.godot/extension_list.cfg` is missing; failure keeps its exit status and prevents launch. `GAME_ENGINE_ROOT` overrides the checkout root (used by launcher tests). See [[godot-conversion]].

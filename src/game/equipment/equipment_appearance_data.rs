@@ -17,6 +17,8 @@ pub enum EquipmentSlot {
     Feet,
     MainHand,
     OffHand,
+    /// A creature's ranged virtual item.
+    Ranged,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,6 +54,7 @@ pub fn visual_slot_to_runtime_slots(slot: EquipmentVisualSlot) -> Vec<EquipmentS
         EquipmentVisualSlot::Feet => vec![EquipmentSlot::Feet],
         EquipmentVisualSlot::MainHand => vec![EquipmentSlot::MainHand],
         EquipmentVisualSlot::OffHand => vec![EquipmentSlot::OffHand],
+        EquipmentVisualSlot::Ranged => vec![EquipmentSlot::Ranged],
         _ => Vec::new(),
     }
 }
@@ -225,33 +228,26 @@ fn slot_geoset_overrides(
         EquipmentVisualSlot::Waist => {
             single_geoset_override(18, data.hand_geoset_variant(display_id))
         }
-        EquipmentVisualSlot::Legs => {
-            let mut overrides = Vec::new();
-            push_optional_geoset_override(
-                &mut overrides,
-                11,
-                data.pants_geoset_variant(display_id),
-            );
-            push_optional_geoset_override(
-                &mut overrides,
-                9,
-                data.kneepad_geoset_variant(display_id),
-            );
-            push_optional_geoset_override(
-                &mut overrides,
-                13,
-                data.trouser_geoset_variant(display_id),
-            );
-            (!overrides.is_empty()).then_some(overrides)
-        }
+        EquipmentVisualSlot::Legs => legs_geoset_overrides(display_id, data),
         EquipmentVisualSlot::Back => {
             single_geoset_override(15, data.cape_geoset_variant(display_id))
+        }
+        EquipmentVisualSlot::Tabard => {
+            single_geoset_override(12, data.tabard_geoset_variant(display_id))
         }
         EquipmentVisualSlot::Feet => data
             .boot_geoset_variant(display_id)
             .map(|variant| vec![(5, variant), (20, variant)]),
         _ => None,
     }
+}
+
+fn legs_geoset_overrides(display_id: u32, data: &OutfitData) -> Option<Vec<(u16, u16)>> {
+    let mut overrides = Vec::new();
+    push_optional_geoset_override(&mut overrides, 11, data.pants_geoset_variant(display_id));
+    push_optional_geoset_override(&mut overrides, 9, data.kneepad_geoset_variant(display_id));
+    push_optional_geoset_override(&mut overrides, 13, data.trouser_geoset_variant(display_id));
+    (!overrides.is_empty()).then_some(overrides)
 }
 
 fn single_geoset_override(group: u16, variant: Option<u16>) -> Option<Vec<(u16, u16)>> {
@@ -291,6 +287,7 @@ pub fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
         EquipmentSlot::Feet => unreachable!("feet runtime models anchor on the character root"),
         EquipmentSlot::MainHand => 1,
         EquipmentSlot::OffHand => 2,
+        EquipmentSlot::Ranged => 1,
     }
 }
 
@@ -466,6 +463,29 @@ mod tests {
         assert!(!runtime_mesh_part_allowed(EquipmentSlot::Feet, 1701));
         assert!(runtime_mesh_part_allowed(EquipmentSlot::MainHand, 1801));
         assert!(!runtime_mesh_part_allowed(EquipmentSlot::MainHand, 1701));
+    }
+
+    /// Stockade Guard display 2989's authored armor (Extra 1274): gloves 9449, boots 6229
+    /// and tabard 6255 each have ItemDisplayInfo GeosetGroup_0 = 1.
+    #[test]
+    fn stockade_guard_armor_switches_glove_boot_and_tabard_geosets() {
+        let display = |slot, id| EquippedAppearanceEntry {
+            display_info_id: Some(id),
+            item_id: None,
+            ..entry(slot, 0)
+        };
+        let armor = resolve(vec![
+            display(EquipmentVisualSlot::Hands, 9449),
+            display(EquipmentVisualSlot::Feet, 6229),
+            display(EquipmentVisualSlot::Tabard, 6255),
+        ]);
+        for geoset in [(4, 2), (5, 2), (20, 2), (12, 2)] {
+            assert!(
+                armor.outfit.geoset_overrides.contains(&geoset),
+                "{geoset:?} in {:?}",
+                armor.outfit.geoset_overrides
+            );
+        }
     }
 
     #[test]
