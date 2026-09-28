@@ -35,6 +35,7 @@ func check(tree: SceneTree, client: Node) -> String:
 
 func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial:
 	var deadline := Time.get_ticks_msec() + WAIT_MS
+	var observed := {}
 	while Time.get_ticks_msec() < deadline:
 		var objects := client.get_node_or_null("WorldObjects")
 		if objects != null:
@@ -48,9 +49,14 @@ func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial
 				if texture == null or texture.get_size() != Vector2(512, 512):
 					continue
 				var image := texture.get_image()
+				if image != null and not image.is_empty() and not observed.has(child.get_instance_id()):
+					observed[child.get_instance_id()] = true
+					print("OVERLAY_CANDIDATE ", child.get_path(), " pixel=", image.get_pixel(0, 0), " expected=", EXPECTED)
 				if image != null and not image.is_empty() and image.get_pixel(0, 0) == EXPECTED:
 					return material
 		await tree.process_frame
+	var objects := client.get_node_or_null("WorldObjects")
+	print("OVERLAY_TIMEOUT objects=", objects, " batches=", objects.find_children("Group38_Batch*", "MeshInstance3D", true, false).size() if objects != null else -1)
 	return null
 
 func render_bound_material(tree: SceneTree, authored: ShaderMaterial) -> Image:
