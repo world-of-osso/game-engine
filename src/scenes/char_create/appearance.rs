@@ -1,5 +1,6 @@
-//! Appearance selection rules: every choice comes from the class-available catalog list and
-//! the combined selection satisfies each choice's ChrCustomizationReqChoice groups.
+//! Appearance selection rules: every choice comes from the catalog's offered list and the
+//! combined selection satisfies each choice's ChrCustomizationReqChoice groups. Picks are
+//! stored by choice ID through `set_choice`, which maps core selectors to their stored index.
 
 use std::collections::HashSet;
 
@@ -59,7 +60,21 @@ pub fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
         clamp_appearance_field(core_field(&mut state.appearance, option_type), count);
     }
     appearance_options::normalize_additional_choices(db, race, sex, class, &mut state.appearance);
+    replace_unoffered_choices(state, db);
     repair_required_choices(state, db, None);
+}
+
+/// Selections outside the offered list (NPC, other-class or locked) become the first
+/// offered choice. Only what is selected changes; stored indices keep their meaning.
+fn replace_unoffered_choices(state: &mut CharCreateState, db: &CustomizationDb) {
+    for (option_id, choice) in selected_option_choices(state, db) {
+        let offered = selectable_choices(state, db, option_id);
+        if let Some(first) = offered.first()
+            && !offered.iter().any(|candidate| candidate.id == choice.id)
+        {
+            apply_choice(state, db, option_id, first.id);
+        }
+    }
 }
 
 fn core_field(appearance: &mut CharacterAppearance, option_type: OptionType) -> &mut u8 {
@@ -109,6 +124,15 @@ pub fn select_choice(
     choice_id: u32,
     db: &CustomizationDb,
 ) {
+    if !selectable_choices(state, db, option_id)
+        .iter()
+        .any(|choice| choice.id == choice_id)
+    {
+        state.error_text = Some(format!(
+            "Choice {choice_id} is not available for this character"
+        ));
+        return;
+    }
     let result = appearance_options::set_choice(
         db,
         state.selected_race,
@@ -133,7 +157,7 @@ fn selectable_choices<'a>(
     db: &'a CustomizationDb,
     option_id: u32,
 ) -> Vec<&'a CustomizationChoice> {
-    db.choices_for_option(
+    db.offered_choices(
         state.selected_race,
         state.selected_sex,
         state.selected_class,
