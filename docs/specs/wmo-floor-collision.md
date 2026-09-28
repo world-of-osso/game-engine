@@ -19,6 +19,7 @@ Players stand on WMO floors (building interiors, paving, ramps), not only on ADT
 - [x] A player set down just above the auction house floor lands on the floor.
 - [x] Vertical physics is frozen only while the terrain tile under the feet is not loaded. In an ADT hole the player can fall onto a WMO floor.
 - [x] Godot client: the floors of every `_obj0` MODF WMO of a parsed tile are ground candidates from the moment the terrain worker parses the tile, as on the server (`GroundMap`), not once the in-world object queue (thousands of placements at 8 ms a frame, minutes) spawns the WMO's node. At the Stockade entrance (`sw_magicdistrict` 321999) the player stands on the room floor (97.63) and the doorway (88.0) and runs down the stairwell, not on the terrain 11.4 yd below (`godot/rust/src/ground.rs` `stockade_entrance_ground_is_the_placed_wmo_floor_and_stairs`; live: `godot/tests/stockade_walk.gd`).
+- [x] Godot client: the camera collides with WMO walls. Every collidable face of every non-antiportal, reachable WMO group (the same `WmoGroupCollision` faces as the floors, placed with the same transform) is a `ConcavePolygonShape3D` on physics layer 2 (`wmo::collision::WMO_LAYER`), under `WmoCollision`, never under a render node, so portal or distance culling does not remove it. Camera rays query terrain (layer 1) and WMO walls. The smoothed camera position is ray-checked from the eye (`camera_follow_data::keep_in_sight`, Bevy `c55ae4c5`). Shapes build for the global WMO and each parsed tile's MODF WMOs (no doodads), group by group within 2 ms a frame, nearest group bounds first; one shape per group asset is shared by its placements. Inside the Stockade the camera is pulled in at every yaw instead of framing the dungeon from outside (`godot/tests/world_wmo_camera_collision.gd`; `godot/rust/src/wmo/collision_tests.rs` on real `sw_magicdistrict` stairwell and `stormwindjail` faces).
 - [ ] The slope limit applies only between two terrain samples. A move onto a WMO floor is judged by the face normal, and a grounded move walks off a ledge more than 1.6 yd high instead of snapping down.
 - [ ] Deep terrain water under a WMO floor (a bridge) does not make the player swim.
 
@@ -43,7 +44,8 @@ Players stand on WMO floors (building interiors, paving, ramps), not only on ADT
 - `src/asset/wmo.rs`: `WmoGroupData.collision`, parsed with the group.
 - `src/rendering/terrain/terrain_objects_wmo.rs`: `finish_wmo_root` puts `WmoFloors` on each spawned WMO root.
 - `src/collision.rs`: `WmoFloors`, `WorldGround` / `GroundProbe`, grounding, gravity and movement validation.
-- `godot/rust/src/terrain/assets.rs`: `NativeTerrainTile.wmo_floors`, read by the terrain worker; `godot/rust/src/ground.rs`: `TerrainGround`.
+- `godot/rust/src/terrain/assets.rs`: `NativeTerrainTile.wmo_floors` (by MODF unique id), read by the terrain worker; `godot/rust/src/ground.rs`: `TerrainGround`.
+- `godot/rust/src/wmo/collision.rs`: `WmoCollisionBodies`, the WMO wall physics bodies; `godot/rust/src/camera.rs`: `follow_pose`, the camera's terrain + WMO ray.
 - `src/rendering/camera/camera.rs`: player movement, jump landing and swimming on `WorldGround`.
 - `src/rendering/terrain/terrain_heightmap.rs`: `has_tile_at`.
 - game-server `crates/server/src/ground.rs`: `GroundMap`, the lazy per-tile terrain and WMO loader.
@@ -52,6 +54,7 @@ Players stand on WMO floors (building interiors, paving, ramps), not only on ADT
 ## Tests asserting this spec
 
 - shared-protocol `src/ground_tests.rs`
+- `godot/rust/src/wmo/collision_tests.rs`, `godot/core/tests/camera_data.rs`, `godot/tests/world_wmo_camera_collision.gd`
 - `src/rendering/terrain/terrain_objects_wmo_tests/floor_collision.rs`
 - game-server `crates/server/src/ground_tests.rs`
 - game-server `crates/server/src/networking_tests/physics.rs` (step reach, noisy-floor landing)
