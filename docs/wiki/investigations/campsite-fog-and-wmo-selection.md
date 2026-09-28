@@ -13,7 +13,7 @@ WebWowViewerCpp never uses FogEnd as a range for this data:
 - `DayNightLightHolder.cpp:606-649` `fixLightTimedData`: FogScaler clamps to [-1, 1] and FogEnd rises to at least 10. A keyframe without FogDensity derives one from `FogEnd - FogEnd * FogScaler`.
 - `DayNightLightHolder.cpp:1020-1030`: after mixing keyframes, density is at least 0.9. FogScaler is at least -0.2 when a keyframe authored density, otherwise at least 0.
 
-`0a4a9d6e` carries raw FogScaler/FogDensity through the shared `sky_lightdata_data` and derives `RetailFog` there. Godot binds `fog_range = (start, end)` and `fog_density`, and the m2, wmo and terrain shaders apply the legacy term. Scene 7 now gets (20, 1000, 0.002) and scene 25 gets (0, 1000, 0.0025). Far clip is WebWowViewerCpp's default 1000 (`config.h:119`). The map flag2 0x2 density override is not applied because Map.db2 is not available locally.
+`0a4a9d6e` carries raw FogScaler/FogDensity through the shared `sky_lightdata_data` and derives `RetailFog` there. Godot binds `fog_range = (start, end)` and `fog_density`, and the m2, wmo and terrain shaders apply the legacy term. Scene 7 now gets (20, 1000, 0.002) and scene 25 gets (0, 1000, 0.0025). Far clip is WebWowViewerCpp's default 1000 (`config.h:119`). The map flag2 0x2 density override (`DayNightLightHolder.cpp:16`, `:1023-1026`: FogDensity = 1.0) is not ported. Map.db2 (FDID 1349477) is not in the local CASC archives, but `data/db2/12.1.0.69933/Map.csv` has all 1,184 maps and none sets `Flags_2 & 0x2`, so the override changes nothing on this build.
 
 ## Cultists' Quay (5): only untextured terrain
 
@@ -21,6 +21,25 @@ The tile `2837_27_31` has no MCLY layers and one MODF WMO (5356285, doodad set 1
 
 ## Still missing after these fixes
 
-- Scene 5: the WMO's 1,663 MODD doodads (set 0 DefaultGlobal 1,612, set 1 Warband 50) are not placed. Map 2837 has no Light rows, so lighting falls back to Light 1 (LightParams 12). ZoneLight.db2 is not extracted locally.
+- Scene 5: the WMO's 1,663 MODD doodads (set 0 DefaultGlobal 1,612, set 1 Warband 50) are not placed.
+- Scene 5: grey instead of Retail's blue (see below).
+
+## Cultists' Quay (5): grey instead of blue
+
+The Light table does not cause this. With local-CASC 12.1.0.69933 data, the reference lighting rule gives the same result as the engine: Light 1, LightParams 12.
+
+- Light.db2 (FDID 1375579, 5,355 rows) has no row for map 2837. DBCache.bin (build 69933) has no hotfixes for Light, LightParams, LightData, ZoneLight or ZoneLightPoint.
+- ZoneLight.db2 (735 rows, 144 maps) has no zone on maps 2703, 2837, 2847 or 2851.
+- WebWowViewerCpp has no ParentMapID fallback for lights. Without a Light row on the map, it takes the continent-0 zero-position Light (`LightParamCalculate.h:72-93`, `CSqliteDB.cpp:77-96`), which is Light 1.
+
+The blue comes from the WMO. `11xp_arathorzealots01.wmo` (5356285) has 17 interior groups out of 18. Its data:
+
+- MFOG record 0: flag 0x1000, end 578, start scalar 0.129, colour RGB (21, 80, 99).
+- MAVG ambient: RGB (40, 55, 76).
+- MOHD ambient: black.
+
+Godot applies MAVG as the interior ambient (`wmo/scene.rs` `wmo_interior_ambient`). It does not port WMO fog, WebWowViewerCpp `WmoObject::checkFog` (`wmoObject.cpp:1631`), which `DayNightLightHolder.cpp:390-396` blends when the camera is inside a WMO group. The capture at `cf8d8153` (`data/diagnostics/zonelight-20260928/campsite-5-cf8d8153.png`) shows the cave and ship grey under LightParams 12. The Retail preview is `data/ui/campsites/cultists-quay.ktx2` (as PNG: `cultists-quay-retail.png` in the same folder).
+
+`cf8d8153` ports the reference light selection anyway (see [[retail-lighting]]). It changes in-world lighting (Stormwind, Elwynn), not the campsites.
 - Scene 7: MH2O water uses the placeholder procedural shader (pale fresnel sheet), not Retail liquid colours and textures.
 - Fixed in `736ed0f6`: `M2 variation 1 has zero duration` in scene 7 came from `pa_redbird_stand.m2` (FDID 588287), Stand variation 1 with duration 0 and frequency 30583. See [weighted loop variations](../systems/animation.md#weighted-loop-variations).

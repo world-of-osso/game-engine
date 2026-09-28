@@ -1695,3 +1695,7 @@ Godot fogs with WebWowViewerCpp's legacy exponential fog from FogScaler/FogDensi
 ## [2026-09-28] fix | Weighted zero-duration M2 variations
 
 Both clients share `VariationFamily`. A weighted zero-duration variation plays for no time, as in WebWowViewerCpp, so the Freywold Spring redbird (FDID 588287) keeps looping Stand. Before, Godot logged an error every frame and Bevy panicked. See [[animation]].
+
+## [2026-09-28] fix | Light selection with ZoneLight polygons
+
+Both clients now select LightParams in WebWowViewerCpp's order: the map default, then ZoneLight polygons, then local lights (strongest first). ZoneLight and ZoneLightPoint are exported from local CASC. Stormwind and Elwynn gain LightParams 6080. Cultists' Quay keeps LightParams 12, because no Light or ZoneLight row covers map 2837. Its Retail blue comes from the WMO's MFOG fog, which is not ported. See [[retail-lighting]] and [[campsite-fog-and-wmo-selection]].
