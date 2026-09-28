@@ -63,7 +63,7 @@ World cameras use `Tonemapping::None` (`world_camera_tonemapping`). Measured on 
 ## Gaps
 
 - **Point lights:** M2 and WMO point lights are still Bevy PBR lights and do not reach Retail materials (`accumLight`).
-- **Fog model:** Retail fog is the full `makeFog2` (exponential, height and end colour). Only the linear LightData fog is implemented.
+- **Fog model:** Retail fog is the full `makeFog2` (exponential, height and end colour). Godot implements the legacy exponential term only (start `farClip * FogScaler`, density `FogDensity * 0.0005`, end fade at farClip; see [[campsite-fog-and-wmo-selection]]); height fog, artistic fog, end/height/sun fog colours and WMO MFOG are not ported. Bevy still fogs linearly from `FogEnd / 36`, which fogs every FogEnd-0 LightParams (54% of LightData rows) completely.
 - **Combiners:** single-texture M2 batches use StandardMaterial's texture × colour, not WebWowViewerCpp's `calcM2FragMaterial` pixel-shader combiners.
 - **LightParams sun overrides:** flags 0x100 and 0x200 (SunPolar/SunAzimuth, OverrideSunPosition) are not decoded.
 - **Interpolation space:** LightData colours still interpolate in linear space, not bytes.
