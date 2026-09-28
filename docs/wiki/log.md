@@ -40,6 +40,10 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | Shared footstep selection prerequisite
+
+Moved pure footstep classification and catalog selection into `src/sound/footstep_data.rs`, available to root and `godot/core`; Bevy retains existing loading and handles. Moved five existing policy tests to core and added tied-seed/no-eligible cases. No native playback or fallback change. Updated [[sound]].
+
 ## [2026-09-28] system | UI-click and Sound Defaults independently verified
 
 `5274d0c0` independently passes the authenticated world fixture: master changes to 0.25, Music/Ambient/Effects become 0.1125/0.075/0.025, then Defaults restores Music/Ambient to 0.45/0.3. This proves Defaults after material state mutation.
