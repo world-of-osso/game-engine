@@ -42,7 +42,7 @@ Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`
 
 ## [2026-09-28] system | Shared footstep selection prerequisite
 
-Moved pure footstep classification and catalog selection into `src/sound/footstep_data.rs`, available to root and `godot/core`; Bevy retains existing loading and handles. Moved five existing policy tests to core and added tied-seed/no-eligible cases. No native playback or fallback change. Updated [[sound]].
+Moved pure footstep classification and catalog selection into `src/sound/footstep_data.rs`, available to root and `godot/core`; Bevy retains existing loading and handles. Moved five existing policy tests to core and added tied-seed/no-eligible cases. No native playback or adapter fallback behavior change; verifier831 is pending. Updated [[sound]] and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
 ## [2026-09-28] system | UI-click and Sound Defaults independently verified
 
