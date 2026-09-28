@@ -19,6 +19,19 @@ func run_test() -> void:
 	if not ClassDB.class_exists("NativeSound"):
 		fail("NativeSound production node missing")
 		return
+	var rejected: Node = ClassDB.instantiate("NativeSound")
+	get_root().add_child(rejected)
+	if rejected.configure(ProjectSettings.globalize_path(ROOT + "/missing")):
+		fail("Missing catalog unexpectedly accepted")
+		return
+	if rejected.get_node_or_null("Music") == null or rejected.get_node_or_null("Ambient") == null:
+		fail("Failed load left manually allocated players unattached to their owner")
+		return
+	rejected.queue_free()
+	await process_frame
+	if is_instance_valid(rejected):
+		fail("Failed-load NativeSound did not release its children")
+		return
 	var sound: Node = ClassDB.instantiate("NativeSound")
 	get_root().add_child(sound)
 	if not sound.configure(ProjectSettings.globalize_path(ROOT)):

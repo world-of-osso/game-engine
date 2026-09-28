@@ -60,6 +60,15 @@ impl Channel {
         } else if self.player.is_playing() || self.failed.is_some() {
             return Ok(());
         }
+        self.play_next(zone, tracks, cache)
+    }
+
+    fn play_next(
+        &mut self,
+        zone: u32,
+        tracks: &[PathBuf],
+        cache: &mut HashMap<usize, Gd<AudioStream>>,
+    ) -> Result<(), String> {
         let Some(indices) = self.by_zone.get(&zone) else {
             return Ok(());
         };
@@ -69,13 +78,10 @@ impl Channel {
         let cursor = self.cursors.entry(zone).or_default();
         let index = indices[*cursor % indices.len()];
         self.active_zone = Some(zone);
-        let stream = match load_stream(&tracks[index], index, cache) {
-            Ok(stream) => stream,
-            Err(error) => {
-                self.failed = Some((zone, index));
-                return Err(error);
-            }
-        };
+        let stream = load_stream(&tracks[index], index, cache).map_err(|error| {
+            self.failed = Some((zone, index));
+            error
+        })?;
         self.player.set_stream(&stream);
         self.player.play();
         *cursor = cursor.wrapping_add(1);
@@ -192,6 +198,13 @@ impl INode for NativeSound {
             ambient: Channel::new("Ambient"),
         }
     }
+
+    fn ready(&mut self) {
+        let music = self.music.player.clone();
+        let ambient = self.ambient.player.clone();
+        self.base_mut().add_child(&music);
+        self.base_mut().add_child(&ambient);
+    }
 }
 
 #[godot_api]
@@ -262,12 +275,6 @@ impl NativeSound {
         self.ambient.by_zone = ambient;
         self.music.cursors.clear();
         self.ambient.cursors.clear();
-        if self.music.player.get_parent().is_none() {
-            let music = self.music.player.clone();
-            let ambient = self.ambient.player.clone();
-            self.base_mut().add_child(&music);
-            self.base_mut().add_child(&ambient);
-        }
         Ok(())
     }
 
