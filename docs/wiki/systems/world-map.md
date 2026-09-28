@@ -14,6 +14,10 @@ Contract: [world-map spec](../../specs/world-map.md).
 
 Engine forward is `(sin yaw, 0, cos yaw)` → world `(sin yaw, -cos yaw)` → map `(cos yaw, -sin yaw)`. Registry rotation is counter-clockwise on screen, so the north-up arrow uses `yaw - π/2`. The Godot projection turns controls clockwise and negates it. `world_map_view_data_tests::arrow_points_where_forward_movement_goes_on_the_map` and the Godot fixture assert arrow direction against actual movement.
 
+## Native scaled pointer conversion
+
+At `364a29ac`, the native map layout uses the effective UI-scale logical viewport and maps physical mouse coordinates by dividing them by that scale before frame containment, canvas UV, hover, or navigation handling. The pure helper is 1/1 GREEN for a scaled center hit and outside miss (`/tmp/claude/cargo-ui-scale-map.out`). An authenticated live map click remains untested; this is not input or visual parity.
+
 ## Local CASC gaps
 
 The synced WoW install is incomplete: many `interface/worldmap/*` tiles report "Archive location not found" (all Elwynn Forest tiles, 11/12 Stormwind City, parts of Eastern Kingdoms/Azeroth; Kalimdor and Durotar extract). The Godot host asks the resolver for every texture, keeps a per-FDID availability map, and drops unavailable tiles from the state so the projection never loads a missing file.
