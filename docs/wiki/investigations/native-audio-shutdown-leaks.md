@@ -22,7 +22,7 @@ The retained Godot 4.7.2 source snapshot shows `AudioStreamPlayerInternal` remov
 
 ## Status
 
-No production shutdown delay is proposed. The targeted fixture establishes headless object/state behavior only; no audible-output claim follows. The overall gate remains open: source formatting/readability remediation `809` and root-adapter compilation are pending.
+Independent 811 verification at `cda9a648` passes Godot `fmt --check`, native `cargo check -p game-engine-godot`, and root `cargo check --locked -p game-engine --bin game-engine`. Existing `NativeWmoGroup::fdid` and `skeleton_afid` warnings remain; the protected root `Cargo.lock` SHA-256 is unchanged. No production shutdown delay is proposed. Godot 4.7.2 remains pinned; the engine-level shutdown-timing issue is documented but will not be patched now, and client work continues. This is not a full-parity waiver. The targeted fixture establishes headless object/state behavior at `741344ca` only; actual `GameClient` zone-to-sound/GUI integration and audible output remain unproven.
 
 ## Sources
 
