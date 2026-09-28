@@ -8,6 +8,10 @@ Official tile requests resolve their listfile FDID and call the existing `AssetR
 
 `terrain_tile::resolver_tests` uses temporary filesystem caches to prove root/companion extraction, byte-preserving reuse, named-sidecar behavior, and lookup/extraction errors. Bounded native cold-edge capture extracted two roots and their declared companions from local CASC; one tile fully spawned before the 30-second cap. A third tile was not observed before the cap, not classified as an extraction failure. See [[npc-motion-validation]].
 
+## Shared terrain surface selection
+
+`src/rendering/terrain/terrain_surface_data.rs` is the Bevy-free source of dominant effect ID, dominant texture FDID, and footstep surface selection for the root client and `godot/core`. The first layer weighs 1,000,000; subsequent layers use summed alpha bytes; equal weights favor the later layer. Zero effect IDs are skipped, while an invalid texture index ends FDID selection. Resolved effect surfaces precede texture-path classification; unresolved paths remain Dirt. Bevy retains its existing GroundEffect loading and cache in the heightmap adapter. This is a pure selection prerequisite, not native playback or a changed fallback policy.
+
 ## ADT Split Files
 
 Each tile is three files:
@@ -79,6 +83,9 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 - **Terrain normals and campsite floor**: `510b44a5` corrects MCNR decoding from `[b2, b1, -b0]` to `[b0, b2, -b1]`. The verified `2703_31_37.adt` geometric alignment is `0.997198` for the corrected mapping versus `0.089730` before it. Parser RED/GREEN is recorded. `a20f6b84` removes the separate character-select `StandardMaterial` grass overlay; its regression confirms ADT terrain and a height at the campsite focus remain while no character-select `StandardMaterial` floor exists. Cross-map and rendered regression proof remains pending. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
 
 ## Sources
+
+- [terrain surface selection](../../../src/rendering/terrain/terrain_surface_data.rs) — shared effect, texture, and surface decisions
+- [terrain heightmap](../../../src/rendering/terrain/terrain_heightmap.rs) — Bevy GroundEffect adapter and FDID path lookup
 
 - [adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md) — tile ordering bug, mountain silhouette issues
 - [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md) — verified MCNR normal-axis failure and bright workaround plane

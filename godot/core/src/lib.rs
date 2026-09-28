@@ -138,6 +138,9 @@ mod target_selection_data_tests;
 pub mod terrain_height_data;
 #[path = "../../../src/rendering/terrain/terrain_material_data.rs"]
 pub mod terrain_material_data;
+#[path = "../../../src/rendering/terrain/terrain_surface_data.rs"]
+pub mod terrain_surface_data;
+pub use footstep_data as sound_footsteps;
 #[path = "../../../src/unit_motion_data.rs"]
 pub mod unit_motion_data;
 #[path = "../../../src/warband_scene_data.rs"]
@@ -146,6 +149,125 @@ pub mod wdt;
 pub mod wmo;
 #[path = "../../../src/rendering/terrain/terrain_objects_wmo_material.rs"]
 pub mod wmo_material_data;
+
+#[cfg(test)]
+mod terrain_surface_data_tests {
+    use crate::adt::{AdtTexData, ChunkTexLayers, TextureLayer};
+    use crate::asset::adt_format::adt_tex::{MclyFlags, MphdFlags};
+    use crate::footstep_data::FootstepSurface;
+    use crate::terrain_surface_data::{
+        dominant_effect_id, dominant_surface_for_chunk_with_resolver, dominant_texture_fdid,
+    };
+
+    fn layer(texture_index: u32, effect_id: u32, alpha_map: Option<Vec<u8>>) -> TextureLayer {
+        TextureLayer {
+            texture_index,
+            flags: MclyFlags::default(),
+            effect_id,
+            material_id: 0,
+            alpha_map,
+        }
+    }
+
+    fn tex(fdids: Vec<u32>) -> AdtTexData {
+        AdtTexData {
+            map_flags: MphdFlags::default(),
+            texture_amplifier: None,
+            texture_fdids: fdids,
+            height_texture_fdids: Vec::new(),
+            texture_flags: Vec::new(),
+            texture_params: Vec::new(),
+            chunk_layers: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn effects_skip_zero_and_use_base_weight_and_later_ties() {
+        let chunk = ChunkTexLayers {
+            layers: vec![
+                layer(0, 5, None),
+                layer(1, 0, Some(vec![255; 4096])),
+                layer(2, 9, Some(vec![250; 4000])),
+                layer(3, 11, Some(vec![250; 4000])),
+            ],
+        };
+        assert_eq!(dominant_effect_id(&chunk), Some(11));
+        assert_eq!(
+            dominant_effect_id(&ChunkTexLayers {
+                layers: vec![layer(0, 0, None)]
+            }),
+            None
+        );
+        assert_eq!(
+            dominant_effect_id(&ChunkTexLayers {
+                layers: vec![layer(0, 7, None), layer(1, 8, Some(vec![255; 100]))]
+            }),
+            Some(7)
+        );
+    }
+
+    #[test]
+    fn texture_alpha_sum_ties_and_invalid_index_stop_selection() {
+        let tex = tex(vec![10, 20, 30]);
+        let chunk = ChunkTexLayers {
+            layers: vec![
+                layer(0, 1, None),
+                layer(1, 2, Some(vec![250; 4000])),
+                layer(2, 3, Some(vec![250; 4000])),
+            ],
+        };
+        assert_eq!(dominant_texture_fdid(&tex, &chunk), Some(30));
+        let base = ChunkTexLayers {
+            layers: vec![layer(0, 1, None), layer(1, 2, None)],
+        };
+        assert_eq!(dominant_texture_fdid(&tex, &base), Some(10));
+        let invalid = ChunkTexLayers {
+            layers: vec![
+                layer(0, 1, None),
+                layer(9, 2, None),
+                layer(2, 3, Some(vec![255; 4096])),
+            ],
+        };
+        assert_eq!(dominant_texture_fdid(&tex, &invalid), None);
+        assert_eq!(
+            dominant_texture_fdid(&tex, &ChunkTexLayers { layers: vec![] }),
+            None
+        );
+    }
+
+    #[test]
+    fn resolved_effect_precedes_texture_and_unresolved_uses_path_or_dirt() {
+        let tex = tex(vec![123]);
+        let chunk = ChunkTexLayers {
+            layers: vec![layer(0, 42, None)],
+        };
+        let surface = |effect| (effect == 42).then_some(FootstepSurface::Stone);
+        let path = |fdid| (fdid == 123).then_some("world/terrain/grass.blp");
+        assert_eq!(
+            dominant_surface_for_chunk_with_resolver(&tex, &chunk, surface, path),
+            FootstepSurface::Stone
+        );
+        assert_eq!(
+            dominant_surface_for_chunk_with_resolver(&tex, &chunk, |_| None, path),
+            FootstepSurface::Grass
+        );
+        assert_eq!(
+            dominant_surface_for_chunk_with_resolver(&tex, &chunk, |_| None, |_| None),
+            FootstepSurface::Dirt
+        );
+        assert_eq!(
+            dominant_surface_for_chunk_with_resolver(
+                &tex,
+                &ChunkTexLayers {
+                    layers: vec![layer(9, 42, None)]
+                },
+                |_| None,
+                path
+            ),
+            FootstepSurface::Dirt
+        );
+    }
+}
 
 #[cfg(test)]
 mod terrain_height_data_tests {
