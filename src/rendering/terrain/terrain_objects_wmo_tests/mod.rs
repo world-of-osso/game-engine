@@ -16,6 +16,7 @@ mod liquid;
 mod metal_gpu;
 mod portal_culling;
 mod root_runtime;
+mod texture_upload;
 mod two_layer_gpu;
 mod unified_gpu;
 
