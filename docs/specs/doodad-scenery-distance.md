@@ -10,6 +10,7 @@ Placed ADT doodads are drawn only near the camera and fade out before their far 
 - [x] A doodad at opacity 0 is not drawn and does not animate.
 - [x] A fading doodad's opaque materials blend by its opacity alone (ignoring texture alpha); its blended materials multiply their own alpha by it.
 - [x] A doodad at opacity 1 keeps its opaque materials in the opaque pass.
+- [ ] A fading doodad keeps its depth writes and casts no shadow (retail admits scenery shadows only within the fade-start radius, solarityclient `SceneryDistance::admits_shadow`).
 - [ ] Moving through a fade band changes a doodad's drawn opacity continuously, with no pop between drawn and undrawn.
 
 ## How it works

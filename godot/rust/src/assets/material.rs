@@ -15,7 +15,7 @@ use game_engine_core::{
 use godot::{
     classes::{
         Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, ResourceLoader, Shader,
-        ShaderMaterial, image,
+        ShaderMaterial, geometry_instance_3d::ShadowCastingSetting, image,
     },
     prelude::*,
 };
@@ -203,9 +203,18 @@ pub(crate) const SCENERY_FADE_SHADER_META: &str = "scenery_fade_shader";
 
 /// A placed model's batch materials, faded together by retail scenery distance.
 pub(crate) struct SceneryFade {
-    /// Each batch material with its authored shader and, when opaque, its fade shader.
-    batches: Vec<(Gd<ShaderMaterial>, Gd<Shader>, Option<Gd<Shader>>)>,
+    /// Each batch mesh with its authored shadow casting, material, authored shader
+    /// and, when opaque, its fade shader.
+    batches: Vec<FadedBatch>,
     opacity: f32,
+}
+
+struct FadedBatch {
+    mesh: Gd<MeshInstance3D>,
+    shadows: ShadowCastingSetting,
+    material: Gd<ShaderMaterial>,
+    authored: Gd<Shader>,
+    fade: Option<Gd<Shader>>,
 }
 
 impl SceneryFade {
@@ -215,14 +224,21 @@ impl SceneryFade {
             .get_children()
             .iter_shared()
             .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
-            .filter_map(|mesh| mesh.get_surface_override_material(0)?.try_cast().ok())
-            .filter_map(|material: Gd<ShaderMaterial>| {
+            .filter_map(|mesh| {
+                let material: Gd<ShaderMaterial> =
+                    mesh.get_surface_override_material(0)?.try_cast().ok()?;
                 let authored = material.get_shader()?;
                 let fade = material
                     .has_meta(SCENERY_FADE_SHADER_META)
                     .then(|| material.get_meta(SCENERY_FADE_SHADER_META).try_to().ok())
                     .flatten();
-                Some((material, authored, fade))
+                Some(FadedBatch {
+                    shadows: mesh.get_cast_shadows_setting(),
+                    mesh,
+                    material,
+                    authored,
+                    fade,
+                })
             })
             .collect();
         Self {
@@ -231,18 +247,31 @@ impl SceneryFade {
         }
     }
 
-    /// Opaque batches blend only while `opacity` is below 1.
+    /// Opaque batches blend only while `opacity` is below 1. A fading placement casts
+    /// no shadow: retail admits scenery shadows only within the fade-start radius
+    /// (solarityclient `SceneryDistance::admits_shadow`).
     pub fn set_opacity(&mut self, opacity: f32) {
         if opacity == self.opacity {
             return;
         }
         let fading = opacity < 1.0;
         let swap = fading != (self.opacity < 1.0);
-        for (material, authored, fade) in &mut self.batches {
-            if let (true, Some(fade)) = (swap, fade.as_ref()) {
-                material.set_shader(if fading { fade } else { &*authored });
+        for batch in &mut self.batches {
+            if swap {
+                if let Some(fade) = &batch.fade {
+                    batch
+                        .material
+                        .set_shader(if fading { fade } else { &batch.authored });
+                }
+                batch.mesh.set_cast_shadows_setting(if fading {
+                    ShadowCastingSetting::OFF
+                } else {
+                    batch.shadows
+                });
             }
-            material.set_shader_parameter("scenery_opacity", &opacity.to_variant());
+            batch
+                .material
+                .set_shader_parameter("scenery_opacity", &opacity.to_variant());
         }
         self.opacity = opacity;
     }
@@ -269,7 +298,13 @@ fn scenery_fade_variant(
     if batch.blend_mode > 1 {
         return Ok(None);
     }
-    let variant = with_render_mode(source, batch, effect)?;
+    // Keep the opaque depth write, as the fade only enables blending: without it the
+    // overlapping cards of a fading tree compound their coverage toward opaque.
+    let variant = with_render_mode(source, batch, effect)?.replacen(
+        "blend_mix;",
+        "blend_mix, depth_draw_always;",
+        1,
+    );
     replace_alpha(&variant, "ALPHA = scenery_opacity;").map(Some)
 }
 
