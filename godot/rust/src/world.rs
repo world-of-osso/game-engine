@@ -449,6 +449,17 @@ impl WorldUnits {
             .is_some_and(|control| control.controlled)
     }
 
+    /// The newest server-replicated position of the local player.
+    pub fn local_player_server_position(&self) -> Option<Vector3> {
+        let target = self
+            .units
+            .get(&self.local_player_id?)?
+            .motion
+            .target
+            .position;
+        Some(Vector3::new(target.x, target.y, target.z))
+    }
+
     pub fn local_player_transform(&self) -> Option<Transform3D> {
         let unit = self.units.get(&self.local_player_id?)?;
         Some(unit.node.get_transform())
