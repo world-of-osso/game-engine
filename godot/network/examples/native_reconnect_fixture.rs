@@ -13,8 +13,8 @@ use std::{
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender,
+    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender, server,
 };
 use shared::{
     components::{Player, Position},
