@@ -7,17 +7,15 @@ use bevy::prelude::*;
 use crate::collision::WmoCollisionMesh;
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
+use game_engine::camera_follow_data::{COLLISION_OFFSET, follow_camera as follow_camera_data};
 use game_engine::culling::WmoInteriors;
 
-use super::{COLLISION_OFFSET, COLLISION_RECOVERY_SPEED, EYE_HEIGHT, GROUND_Y, Player, WowCamera};
+use super::{GROUND_Y, Player, WowCamera};
 
 type FollowPlayerQuery<'w, 's> =
     Query<'w, 's, (Entity, &'static Transform), (With<Player>, Without<WowCamera>)>;
 type FollowCameraQuery<'w, 's> =
     Query<'w, 's, (&'static mut WowCamera, &'static mut Transform), Without<Player>>;
-
-const TERRAIN_COLLISION_STEPS: usize = 24;
-const TERRAIN_COLLISION_CLEARANCE: f32 = 0.2;
 
 /// Recursively collect all descendant entities into the set.
 fn collect_descendants(entity: Entity, children_q: &Query<&Children>, out: &mut HashSet<Entity>) {
@@ -27,43 +25,6 @@ fn collect_descendants(entity: Entity, children_q: &Query<&Children>, out: &mut 
             collect_descendants(child, children_q, out);
         }
     }
-}
-
-/// Compute camera distance clamped by a collision hit.
-/// Returns the adjusted distance if hit is closer than intended, otherwise the intended distance.
-fn collision_adjusted_distance(intended_distance: f32, hit_distance: Option<f32>) -> f32 {
-    match hit_distance {
-        Some(hit) if hit < intended_distance => (hit - COLLISION_OFFSET).max(0.5),
-        _ => intended_distance,
-    }
-}
-
-fn terrain_adjusted_distance(
-    intended_distance: f32,
-    eye_target: Vec3,
-    orbit_dir: Vec3,
-    mut terrain_height_at: impl FnMut(f32, f32) -> Option<f32>,
-) -> f32 {
-    if intended_distance <= 0.0 || orbit_dir.length_squared() == 0.0 {
-        return intended_distance;
-    }
-
-    let intended_pos = eye_target - orbit_dir * intended_distance;
-    for step in 1..=TERRAIN_COLLISION_STEPS {
-        let t = step as f32 / TERRAIN_COLLISION_STEPS as f32;
-        let sample = eye_target.lerp(intended_pos, t);
-        let Some(terrain_y) = terrain_height_at(sample.x, sample.z) else {
-            continue;
-        };
-        if terrain_y + TERRAIN_COLLISION_CLEARANCE <= sample.y {
-            continue;
-        }
-
-        let blocked_distance = eye_target.distance(sample);
-        return (blocked_distance - COLLISION_OFFSET).max(0.5);
-    }
-
-    intended_distance
 }
 
 /// Build the set of entities excluded from camera collision (player + children + sky).
@@ -81,10 +42,8 @@ fn build_collision_excluded_set(
     excluded
 }
 
-/// What the camera collides with: meshes that are drawn, and WMO walls (`WmoCollisionMesh`)
-/// even when portal culling hid their group. Portal culling decides what is drawn, not what
-/// is solid; a hidden group's walls must still hold the camera in, or it leaves the group
-/// and the group stays culled.
+/// What the camera collides with: visible meshes and WMO walls even when portal culling
+/// hides their group. Portal culling controls drawing, not solidity.
 #[derive(SystemParam)]
 pub(crate) struct CameraBlockers<'w, 's> {
     visibility: Query<'w, 's, &'static InheritedVisibility>,
@@ -97,57 +56,28 @@ impl CameraBlockers<'_, '_> {
     }
 }
 
-/// Compute effective camera distance accounting for mesh collision and recovery.
-fn compute_effective_distance(
-    cam: &mut WowCamera,
-    cam_tf: &Transform,
-    eye_target: Vec3,
-    orbit_dir: Vec3,
-    ray_cast: &mut MeshRayCast,
-    terrain: Option<&TerrainHeightmap>,
-    blocks: &dyn Fn(Entity) -> bool,
-    dt: f32,
-) -> f32 {
-    let terrain_distance = terrain
-        .map(|terrain| {
-            terrain_adjusted_distance(cam.distance, eye_target, orbit_dir, |x, z| {
-                terrain.height_at(x, z)
-            })
-        })
-        .unwrap_or(cam.distance);
-    let intended_pos = eye_target - orbit_dir * terrain_distance;
-    let ray_dir = (intended_pos - eye_target).normalize_or_zero();
-    if ray_dir.length_squared() == 0.0 {
-        return terrain_distance;
+fn collision_adjusted_distance(intended_distance: f32, hit_distance: Option<f32>) -> f32 {
+    match hit_distance {
+        Some(hit) if hit < intended_distance => (hit - COLLISION_OFFSET).max(0.5),
+        _ => intended_distance,
     }
+}
 
+/// Cast against world meshes selected by the WMO-aware collision predicate.
+fn mesh_hit_distance(
+    ray_cast: &mut MeshRayCast,
+    blocks: &dyn Fn(Entity) -> bool,
+    eye_target: Vec3,
+    ray_dir: Vec3,
+) -> Option<f32> {
     let ray = Ray3d::new(eye_target, Dir3::new(ray_dir).unwrap());
-    // A collided wall can leave the camera frustum without ceasing to block it; `blocks`
-    // decides which hidden meshes still do.
     let settings = MeshRayCastSettings::default()
         .with_visibility(RayCastVisibility::Any)
         .with_filter(&blocks);
-    let hits = ray_cast.cast_ray(ray, &settings);
-    let closest_hit = hits.first().map(|(_, hit)| hit.distance);
-    let adjusted = collision_adjusted_distance(terrain_distance, closest_hit);
-    if adjusted < cam.distance {
-        cam.collided = true;
-        return adjusted;
-    }
-
-    if cam.collided {
-        let recovery_t = (COLLISION_RECOVERY_SPEED * dt).min(1.0);
-        let recovered = cam_tf
-            .translation
-            .distance(eye_target)
-            .lerp(cam.distance, recovery_t);
-        if (recovered - cam.distance).abs() < 0.05 {
-            cam.collided = false;
-        }
-        return recovered;
-    }
-
-    cam.distance
+    ray_cast
+        .cast_ray(ray, &settings)
+        .first()
+        .map(|(_, hit)| hit.distance)
 }
 
 /// Pull a smoothed camera position back in front of the first blocker between it and the eye.
@@ -213,37 +143,29 @@ pub(crate) fn camera_follow(
         return;
     };
 
-    let dt = time.delta_secs();
-    let zoom_t = (cam.zoom_speed * dt).min(1.0);
-    cam.distance = cam.distance.lerp(cam.target_distance, zoom_t);
-    let follow_t = (cam.follow_speed * dt).min(1.0);
-    let eye_target = target_translation + Vec3::Y * EYE_HEIGHT;
-    // Inside a WMO interior its walls bound the camera, as on a WMO-only map; the terrain
-    // above or around the interior (the Stockade entrance tunnel runs under the canal
-    // street) does not.
+    let eye_target = target_translation + Vec3::Y * game_engine::camera_follow_data::EYE_HEIGHT;
+    // WMO interiors use their walls, not terrain above or around the interior, as bounds.
     let in_interior = interiors.contain(eye_target);
-    let rotation = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
-    let orbit_dir = rotation * Vec3::NEG_Z;
     let excluded = build_collision_excluded_set(player_entity, &children_q, &sky_q);
     let blocks = |entity: Entity| !excluded.contains(&entity) && blockers.blocks(entity);
-    let effective_distance = compute_effective_distance(
+    let mut height_at = |x, z| terrain.as_deref().and_then(|map| map.height_at(x, z));
+    let terrain_samples: Option<&mut dyn FnMut(f32, f32) -> Option<f32>> = terrain
+        .as_ref()
+        .filter(|_| !in_interior)
+        .map(|_| &mut height_at as &mut _);
+    let pose = follow_camera_data(
         &mut cam,
-        &cam_tf,
-        eye_target,
-        orbit_dir,
-        &mut ray_cast,
-        terrain.as_deref().filter(|_| !in_interior),
-        &blocks,
-        dt,
+        cam_tf.translation,
+        target_translation,
+        time.delta_secs(),
+        terrain_samples,
+        |eye, dir| mesh_hit_distance(&mut ray_cast, &blocks, eye, dir),
+        |pos| camera_ground(terrain.as_deref(), pos).filter(|_| !in_interior),
     );
-    let mut pos = eye_target - orbit_dir * effective_distance;
-    if let Some(cam_ground) = camera_ground(terrain.as_deref(), pos).filter(|_| !in_interior) {
-        pos.y = pos.y.max(cam_ground + 0.5);
-    }
-    let smoothed = cam_tf.translation.lerp(pos, follow_t);
     let mut next_transform = *cam_tf;
-    next_transform.translation = keep_in_sight(eye_target, smoothed, &mut ray_cast, &blocks);
-    next_transform.look_at(eye_target, Vec3::Y);
+    next_transform.translation =
+        keep_in_sight(pose.eye_target, pose.position, &mut ray_cast, &blocks);
+    next_transform.look_at(pose.eye_target, Vec3::Y);
     cam_tf.set_if_neq(next_transform);
 }
 
@@ -251,6 +173,7 @@ pub(crate) fn camera_follow(
 mod tests {
     use super::*;
     use bevy::camera::primitives::Aabb;
+    use game_engine::camera_follow_data::EYE_HEIGHT;
     use std::time::Duration;
 
     #[derive(Resource, Default)]
@@ -278,12 +201,12 @@ mod tests {
         let camera = app
             .world_mut()
             .spawn((
-                WowCamera {
+                WowCamera(game_engine::camera_control_data::CameraState {
                     pitch: 0.0,
                     distance: 10.0,
                     target_distance: 10.0,
                     ..default()
-                },
+                }),
                 Transform::from_xyz(1.0, EYE_HEIGHT, 12.0)
                     .looking_at(target + Vec3::Y * EYE_HEIGHT, Vec3::Y)
                     .with_scale(Vec3::new(1.25, 0.75, 1.5)),
@@ -464,12 +387,12 @@ mod tests {
             .world_mut()
             .spawn((
                 Camera3d::default(),
-                WowCamera {
+                WowCamera(game_engine::camera_control_data::CameraState {
                     pitch: 0.0,
                     distance: 10.0,
                     target_distance: 10.0,
                     ..default()
-                },
+                }),
                 Transform::from_translation(eye + Vec3::Z * 10.0).looking_at(eye, Vec3::Y),
             ))
             .id();
@@ -522,99 +445,6 @@ mod tests {
         assert!(
             (app.world().get::<Transform>(camera).unwrap().translation.z - 7.1).abs() < 0.0001,
             "a hierarchically hidden wall must permit normal collision recovery"
-        );
-    }
-
-    #[test]
-    fn test_smooth_follow_lerps() {
-        let current = Vec3::new(0.0, 5.0, 10.0);
-        let target = Vec3::new(10.0, 5.0, 10.0);
-        let follow_speed: f32 = 10.0;
-        let dt: f32 = 0.016;
-        let t = (follow_speed * dt).min(1.0);
-        let result = current.lerp(target, t);
-
-        assert!(result.x > current.x, "should move toward target");
-        assert!(result.x < target.x, "should not reach target in one frame");
-        assert!(
-            (result.x - 1.6).abs() < 0.1,
-            "expected ~1.6, got {}",
-            result.x
-        );
-    }
-
-    #[test]
-    fn test_collision_pulls_camera_forward() {
-        let intended = 15.0;
-        let hit = Some(8.0);
-        let result = collision_adjusted_distance(intended, hit);
-        assert!(
-            (result - 7.7).abs() < 0.01,
-            "expected 8.0 - 0.3 = 7.7, got {}",
-            result
-        );
-
-        let result_no_hit = collision_adjusted_distance(intended, None);
-        assert_eq!(result_no_hit, intended);
-
-        let result_far = collision_adjusted_distance(intended, Some(20.0));
-        assert_eq!(result_far, intended);
-
-        let result_close = collision_adjusted_distance(15.0, Some(0.2));
-        assert!(
-            (result_close - 0.5).abs() < 0.01,
-            "should clamp to 0.5, got {}",
-            result_close
-        );
-    }
-
-    #[test]
-    fn test_collision_recovery_lerps_back() {
-        let current_dist: f32 = 5.0;
-        let target_dist: f32 = 15.0;
-        let recovery_speed: f32 = 5.0;
-        let dt: f32 = 0.016;
-        let recovery_t = (recovery_speed * dt).min(1.0);
-        let recovered = current_dist.lerp(target_dist, recovery_t);
-
-        assert!(recovered > current_dist, "should move outward");
-        assert!(recovered < target_dist, "should not snap to target");
-        assert!(
-            (recovered - 5.8).abs() < 0.5,
-            "expected gradual recovery, got {}",
-            recovered
-        );
-    }
-
-    #[test]
-    fn terrain_occlusion_keeps_full_distance_when_segment_is_clear() {
-        let eye_target = Vec3::new(0.0, 2.0, 0.0);
-        let orbit_dir = Vec3::NEG_Z;
-        let intended = 12.0;
-
-        let adjusted = terrain_adjusted_distance(intended, eye_target, orbit_dir, |_, _| Some(0.0));
-
-        assert_eq!(adjusted, intended);
-    }
-
-    #[test]
-    fn terrain_occlusion_pulls_camera_forward_when_hill_blocks_view() {
-        let eye_target = Vec3::new(0.0, 2.0, 0.0);
-        let orbit_dir = Vec3::NEG_Z;
-        let intended = 12.0;
-
-        let adjusted = terrain_adjusted_distance(intended, eye_target, orbit_dir, |x, z| {
-            if x.abs() < 0.5 && z > 5.0 && z < 7.5 {
-                Some(2.4)
-            } else {
-                Some(0.0)
-            }
-        });
-
-        assert!(adjusted < intended, "hill should pull camera forward");
-        assert!(
-            adjusted > 0.5,
-            "camera should still keep a minimum distance"
         );
     }
 }

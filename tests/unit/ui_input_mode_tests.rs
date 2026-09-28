@@ -88,7 +88,7 @@ fn rebound_character_toggle_uses_new_key_only() {
     let mut app = panel_app(ui);
     app.world_mut().resource_mut::<InputBindings>().assign(
         InputAction::ToggleCharacter,
-        InputBinding::Keyboard(KeyCode::KeyP),
+        InputBinding::Keyboard(game_engine::input_bindings::BindingKey::KeyP),
     );
 
     tap(&mut app, KeyCode::KeyC);

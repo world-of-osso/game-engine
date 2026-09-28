@@ -1,25 +1,22 @@
 use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::frame::Dimension;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
-    BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT, CameraControl,
-    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON,
-    RANDOM_NAME_BUTTON, RANDOMIZE_BUTTON, apply_character_create_styles, char_create_screen,
+    BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT, CharCreateAction,
+    CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON, RANDOM_NAME_BUTTON,
+    RANDOMIZE_BUTTON, apply_character_create_styles, char_create_screen,
 };
 use game_engine::ui_resource;
-use shared::components::CharacterAppearance;
 use shared::protocol::{AuthChannel, CreateCharacter};
 use ui_toolkit::screen::Screen;
 
 use crate::game_state::GameState;
 use crate::scenes::login::helpers;
-use game_engine::char_create_data::{CLASSES, first_available_class, race_can_be_class};
 use game_engine::customization_data::CustomizationDb;
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
@@ -27,19 +24,27 @@ use helpers::{
     set_editbox_text,
 };
 
-mod appearance;
-mod customization_view;
+/// Paths the shared creation logic resolves through `super::deps`.
+mod deps {
+    pub(crate) use game_engine::appearance_options;
+    pub(crate) use game_engine::char_create_data;
+    pub(crate) use game_engine::customization_data::{
+        CustomizationCatalog as CustomizationDb, CustomizationChoice, CustomizationOption,
+        ModelPresentation, OptionType,
+    };
+    pub(crate) use game_engine::ui::screens::char_create_component;
+}
+mod camera_orbit;
 mod icon_masks;
 mod input;
-mod name_catalog;
-use customization_view::build_ui_state;
-use name_catalog::{NameCatalog, NameCatalogResource};
+mod logic;
+mod navigation_art_bevy;
+pub(crate) use logic::*;
 pub mod scene;
 
-use appearance as appearance_logic;
 use input::{
     char_create_keyboard_input, char_create_mouse_input, char_create_run_automation,
-    clamp_appearance_field, hit_active_frame,
+    hit_active_frame,
 };
 pub use scene::CharCreateScenePlugin;
 
@@ -55,34 +60,16 @@ ui_resource! {
     }
 }
 
-#[derive(Resource)]
-pub(crate) struct CharCreateState {
-    pub(crate) selected_race: u8,
-    pub(crate) selected_class: u8,
-    pub(crate) selected_sex: u8,
-    pub(crate) name: String,
-    pub(crate) appearance: CharacterAppearance,
-    pub(crate) mode: CharCreateMode,
-    pub(crate) error_text: Option<String>,
-    pub(crate) open_dropdown: Option<u32>,
-    pub(crate) selected_category: u32,
-    pub(crate) camera_action: Option<CameraControl>,
-}
+/// Bevy resource holding the shared creation state.
+#[derive(Resource, Default, Deref, DerefMut)]
+pub(crate) struct CharCreateStateRes(pub(crate) CharCreateState);
 
-impl Default for CharCreateState {
-    fn default() -> Self {
-        Self {
-            selected_race: 1,
-            selected_class: 1,
-            selected_sex: 0,
-            name: String::new(),
-            appearance: CharacterAppearance::default(),
-            mode: CharCreateMode::RaceClass,
-            error_text: None,
-            open_dropdown: None,
-            selected_category: 0,
-            camera_action: None,
-        }
+#[derive(Resource)]
+pub(crate) struct NameCatalogResource(pub(crate) Result<NameCatalog, String>);
+
+impl NameCatalogResource {
+    fn catalog(&self) -> Result<&NameCatalog, &str> {
+        self.0.as_ref().map_err(String::as_str)
     }
 }
 
@@ -118,7 +105,7 @@ impl Plugin for CharCreatePlugin {
         app.add_observer(handle_create_response);
         app.add_systems(
             PostUpdate,
-            game_engine::ui::screens::char_create_component::navigation_art::sync_navigation_art
+            navigation_art_bevy::sync_navigation_art
                 .before(ui_toolkit::plugin::UiRenderSet::Prepare)
                 .run_if(in_state(GameState::CharCreate)),
         );
@@ -149,13 +136,17 @@ fn build_char_create_ui(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let initial_state = initial_char_create_state(startup_mode.as_deref().copied(), &cust_db);
-    let mut ui_state = build_ui_state(&initial_state, &cust_db);
-    ui_state.random_name_available = name_catalog.0.as_ref().is_ok_and(|catalog| {
-        catalog.has_names(initial_state.selected_race, initial_state.selected_sex)
-    });
-    ui_state.viewport_width = ui.registry.screen_width as u32;
-    ui_state.viewport_height = ui.registry.screen_height as u32;
+    let initial_state = initial_state(startup_mode.as_deref().map(|mode| mode.0), &cust_db);
+    let ui_state = ui_state(
+        &initial_state,
+        &cust_db,
+        name_catalog.catalog(),
+        false,
+        (
+            ui.registry.screen_width as u32,
+            ui.registry.screen_height as u32,
+        ),
+    );
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(ui_state);
     let mut screen = Screen::new(char_create_screen);
@@ -165,58 +156,12 @@ fn build_char_create_ui(
     let cc = CharCreateUi::resolve(&ui.registry);
     apply_post_setup(&mut ui.registry, &cc);
 
-    commands.insert_resource(initial_state);
+    commands.insert_resource(CharCreateStateRes(initial_state));
     commands.init_resource::<CharCreateFocus>();
     commands.insert_resource(CharCreateScreenWrap(CharCreateScreenRes { screen, shared }));
     commands.insert_resource(cc);
     commands.remove_resource::<crate::game_state::StartupScreenTarget>();
     commands.remove_resource::<StartupCharCreateMode>();
-}
-
-fn initial_char_create_state(
-    startup_mode: Option<StartupCharCreateMode>,
-    db: &CustomizationDb,
-) -> CharCreateState {
-    let mut state = CharCreateState::default();
-    if let Some(mode) = startup_mode {
-        state.mode = mode.0;
-    }
-    randomize_appearance(&mut state, db);
-    state
-}
-
-const CHAR_CREATE_RANDOM_SEED_MIX: u64 = 0x9e37_79b9_7f4a_7c15;
-const CHAR_CREATE_RANDOM_SEED_MUL_1: u64 = 0xbf58_476d_1ce4_e5b9;
-const CHAR_CREATE_RANDOM_SEED_MUL_2: u64 = 0x94d0_49bb_1331_11eb;
-
-fn fresh_random_seed() -> u64 {
-    match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(duration) => duration.as_nanos() as u64,
-        Err(_) => CHAR_CREATE_RANDOM_SEED_MIX,
-    }
-}
-
-fn mix_seed(seed: u64) -> u64 {
-    let mut z = seed.wrapping_add(CHAR_CREATE_RANDOM_SEED_MIX);
-    z = (z ^ (z >> 30)).wrapping_mul(CHAR_CREATE_RANDOM_SEED_MUL_1);
-    z = (z ^ (z >> 27)).wrapping_mul(CHAR_CREATE_RANDOM_SEED_MUL_2);
-    z ^ (z >> 31)
-}
-
-fn pick_random_choice(seed: &mut u64, count: u8) -> u8 {
-    if count == 0 {
-        return 0;
-    }
-    *seed = mix_seed(*seed);
-    (*seed % count as u64) as u8
-}
-
-fn randomize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
-    randomize_appearance_with_seed(state, db, fresh_random_seed());
-}
-
-fn randomize_appearance_with_seed(state: &mut CharCreateState, db: &CustomizationDb, seed: u64) {
-    appearance_logic::randomize_appearance_with_seed(state, db, seed);
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, cc: &CharCreateUi) {
@@ -237,7 +182,7 @@ fn teardown_char_create_ui(
     }
     commands.remove_resource::<CharCreateScreenWrap>();
     commands.remove_resource::<CharCreateUi>();
-    commands.remove_resource::<CharCreateState>();
+    commands.remove_resource::<CharCreateStateRes>();
     commands.remove_resource::<CharCreateFocus>();
     ui.focused_frame = None;
 }
@@ -248,21 +193,15 @@ fn handle_create_response(
     result: On<crate::networking_auth::CharacterCreationResult>,
     game_state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
-    state: Option<ResMut<CharCreateState>>,
+    state: Option<ResMut<CharCreateStateRes>>,
 ) {
     if *game_state.get() != GameState::CharCreate {
         return;
     }
     let Some(mut state) = state else { return };
-    if result.success {
+    if receive_create_result(&mut state, result.success, result.error.clone()).is_some() {
         info!("Character created, returning to CharSelect");
         next_state.set(GameState::CharSelect);
-    } else {
-        let err = result
-            .error
-            .clone()
-            .unwrap_or_else(|| "Creation failed".to_string());
-        state.error_text = Some(err);
     }
 }
 
@@ -303,7 +242,7 @@ fn char_create_hover_visuals(
 fn char_create_update_visuals(
     mut ui: ResMut<UiState>,
     cc_ui: Option<Res<CharCreateUi>>,
-    mut state: Option<ResMut<CharCreateState>>,
+    mut state: Option<ResMut<CharCreateStateRes>>,
     focus: Res<CharCreateFocus>,
     mut screen_res: Option<ResMut<CharCreateScreenWrap>>,
     cust_db: Res<CustomizationDb>,
@@ -342,26 +281,18 @@ fn sync_screen_state(
     if let Some(id) = reg.get_by_name(CREATE_NAME_INPUT.0) {
         state.name = get_editbox_text(reg, id);
     }
-    let mut new_state = build_ui_state(state, cust_db);
-    new_state.random_name_available = name_catalog
-        .0
-        .as_ref()
-        .is_ok_and(|catalog| catalog.has_names(state.selected_race, state.selected_sex));
-    new_state.name_input_focused = name_input_focused;
-    new_state.viewport_width = reg.screen_width as u32;
-    new_state.viewport_height = reg.screen_height as u32;
+    let new_state = ui_state(
+        state,
+        cust_db,
+        name_catalog.catalog(),
+        name_input_focused,
+        (reg.screen_width as u32, reg.screen_height as u32),
+    );
     if inner.shared.get::<CharCreateUiState>() != Some(&new_state) {
         inner.shared.insert(new_state);
     }
     inner.screen.sync(&inner.shared, reg);
     apply_character_create_styles(reg, state.open_dropdown);
-}
-
-fn build_class_availability(race: u8) -> Vec<(u8, &'static str, u32, bool)> {
-    CLASSES
-        .iter()
-        .map(|c| (c.id, c.name, c.icon_fdid, race_can_be_class(race, c.id)))
-        .collect()
 }
 
 #[cfg(test)]

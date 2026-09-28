@@ -1,13 +1,14 @@
 # Wiki Index
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-09-26.
+Last updated: 2026-09-27.
 
 ## Systems
 
 Engine subsystems and how they work.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
+- [godot-conversion](systems/godot-conversion.md) — Godot 4.7.2/Rust GDExtension experiment: six launcher startup names have bounded CLI proof (`login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, `inworld`), while visual/client parity and other canonical destinations remain open. Local authored-ID locomotion is validated through both authenticated CLI fixtures; remote entities remain Stand without a new protocol. M2 material/render parity and all feature parity remain open; see the [detailed parity matrix](../specs/godot-parity-matrix.md).
 - [animation](systems/animation.md) — Bevy-backed M2 bone playback, raw-TRS pivot semantics, crossfade rules, landing completion, HD skeleton loading, replicated NPC authored-idle orientation and distance/visibility sampling LOD
 - [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
@@ -28,10 +29,10 @@ Engine subsystems and how they work.
 - [player-ground](systems/player-ground.md) — shared terrain + WMO floor rule (MOPY/BSP, 1.6 yd step reach) on client and server, lazy server tile loading, and fall tracking on repositions
 - [terrain](systems/terrain.md) — ADT loading, split files, authored MCVT axes, tile ordering, object placement rotation, doodad collision, map switches and WMO-only maps (WDT global WMO)
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution for runtime/UI consumers, TACT keys
-- [character-rendering](systems/character-rendering.md) — HD skeletons, player model-completion appearance boundary, authored NPC compositing, geosets, helmet hiding, target circles
+- [character-rendering](systems/character-rendering.md) — HD skeletons, shared Godot/Bevy outfit catalog with serialized cache imports, player model-completion appearance boundary, authored NPC compositing, geosets, helmet hiding, target circles
 - [character-creation](systems/character-creation.md) — local-Retail reference contract, catalog-driven core/additional selections, persistence boundary, FileDataID UI/backdrop artwork, authored framing/scale/camera-distance application, scoped lighting/material evidence, and explicit current limits
 - [skybox](systems/skybox.md) — explicit procedural-vs-authored InWorld sky selection, authored lookup chain, and environmental sun/camera-IBL ownership boundary
-- [retail-lighting](systems/retail-lighting.md) — one RetailSceneLight from the LightParams blend; terrain, M2 and M2 effect shaders use WebWowViewerCpp calcLight and fog in authored space; no tonemapping, no Bevy IBL; SkySun only casts shadows
+- [retail-lighting](systems/retail-lighting.md) — one RetailSceneLight from the LightParams blend; terrain, M2 and M2 effect shaders use WebWowViewerCpp calcLight and fog in authored space; native creature producer wiring covers nine common light/fog uniforms, not terrain's cube map; no tonemapping, no Bevy IBL; SkySun only casts shadows
 - [sound](systems/sound.md) — Footsteps, music catalog, zone music, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
 - [lore-knowledge-graph](systems/lore-knowledge-graph.md) — Graph schema for NPC AI, quest generation, faction relations
 

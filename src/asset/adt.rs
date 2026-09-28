@@ -1,4 +1,7 @@
 #[cfg(test)]
+#[path = "../../tests/unit/asset/adt_seam_tests.rs"]
+mod adt_seam_tests;
+#[cfg(test)]
 #[path = "../../tests/unit/asset/terrain_axis_tests.rs"]
 mod terrain_axis_tests;
 
@@ -9,6 +12,11 @@ pub use super::adt_format::adt::{
     CHUNK_SIZE, ChunkHeightGrid, ChunkIter, FlightBounds, LodHeader, LodLevel, LodLiquidDirectory,
     LodLiquidPatch, LodLiquidPatchHeader, LodObjectPlacement, LodObjectVisibility, LodQuadTreeNode,
     ParsedLodData, UNIT_SIZE, vertex_index,
+};
+use super::adt_format::adt_geometry::{Geometry, GeometryChunk, build_mcnk_geometry};
+#[cfg(test)]
+use super::adt_format::adt_geometry::{
+    build_mcnk_indices, high_res_hole_at, low_res_hole_at, terrain_hole_at,
 };
 pub use super::adt_format::adt_tex::{
     AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, MphdFlags, TextureLayer,
@@ -41,7 +49,6 @@ pub struct AdtData {
 
 pub type LodData = ParsedLodData;
 
-type McnkGeometry = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>, Vec<u32>);
 type WaterGeometry = (
     Vec<[f32; 3]>,
     Vec<[f32; 3]>,
@@ -67,127 +74,31 @@ fn mccv_color_to_shader_color(bgra: [u8; 4]) -> [f32; 4] {
     ]
 }
 
-fn decode_mcnk_vertex_grid(index: usize) -> (usize, usize) {
-    let pair = index / 17;
-    let rem = index % 17;
-    if rem < 9 {
-        (pair * 2, rem)
-    } else {
-        (pair * 2 + 1, rem - 9)
-    }
-}
-
-fn terrain_vertex_uv(grid_row: usize, col: usize) -> [f32; 2] {
-    if grid_row.is_multiple_of(2) {
-        [col as f32 / 8.0, (grid_row / 2) as f32 / 8.0]
-    } else {
-        [
-            (col as f32 + 0.5) / 8.0,
-            ((grid_row / 2) as f32 + 0.5) / 8.0,
-        ]
-    }
-}
-
-type McnkVertexData = (Vec<[f32; 3]>, Vec<[f32; 3]>, Vec<[f32; 2]>);
-
-fn collect_mcnk_vertices(
-    chunk: &super::adt_format::adt::McnkData,
-    tile_coords: Option<(u32, u32)>,
-) -> McnkVertexData {
-    let mut positions = Vec::with_capacity(145);
-    let mut normals = Vec::with_capacity(145);
-    let mut uvs = Vec::with_capacity(145);
-    let (origin_x, origin_z) = super::adt_format::adt::chunk_origin_bevy(chunk, tile_coords);
-
-    for i in 0..145 {
-        let (grid_row, col) = decode_mcnk_vertex_grid(i);
-        positions.push(super::adt_format::adt::vertex_position_from_origin(
-            grid_row,
-            col,
-            origin_x,
-            origin_z,
-            chunk.pos[2],
-            &chunk.heights,
-        ));
-        normals.push(chunk.normals[i]);
-        uvs.push(terrain_vertex_uv(grid_row, col));
-    }
-
-    (positions, normals, uvs)
-}
-
-fn build_mcnk_geometry(
-    chunk: &super::adt_format::adt::McnkData,
-    tile_coords: Option<(u32, u32)>,
-) -> McnkGeometry {
-    let (positions, normals_out, uvs) = collect_mcnk_vertices(chunk, tile_coords);
-    let holes_high_res = if chunk.flags.high_res_holes {
-        chunk.holes_high_res
-    } else {
-        None
-    };
-    (
-        positions,
-        normals_out,
-        uvs,
-        build_mcnk_indices(chunk.holes_low_res, holes_high_res),
-    )
-}
-
-fn build_mcnk_indices(holes_low_res: u16, holes_high_res: Option<u64>) -> Vec<u32> {
-    let mut indices = Vec::with_capacity(8 * 8 * 4 * 3);
-    for qr in 0..8usize {
-        for qc in 0..8usize {
-            if terrain_hole_at(holes_low_res, holes_high_res, qc, qr) {
-                continue;
-            }
-            let tl = vertex_index(qr * 2, qc) as u32;
-            let tr = vertex_index(qr * 2, qc + 1) as u32;
-            let bl = vertex_index(qr * 2 + 2, qc) as u32;
-            let br = vertex_index(qr * 2 + 2, qc + 1) as u32;
-            let center = vertex_index(qr * 2 + 1, qc) as u32;
-            indices.extend_from_slice(&[tl, center, tr]);
-            indices.extend_from_slice(&[tr, center, br]);
-            indices.extend_from_slice(&[br, center, bl]);
-            indices.extend_from_slice(&[bl, center, tl]);
-        }
-    }
-    indices
-}
-
-fn terrain_hole_at(
-    holes_low_res: u16,
-    holes_high_res: Option<u64>,
-    col: usize,
-    row: usize,
-) -> bool {
-    if let Some(mask) = holes_high_res {
-        return high_res_hole_at(mask, col, row);
-    }
-    low_res_hole_at(holes_low_res, col / 2, row / 2)
-}
-
-fn low_res_hole_at(holes_low_res: u16, col: usize, row: usize) -> bool {
-    if col >= 4 || row >= 4 {
-        return false;
-    }
-    let bit = row * 4 + col;
-    ((holes_low_res >> bit) & 1) != 0
-}
-
-fn high_res_hole_at(holes_high_res: u64, col: usize, row: usize) -> bool {
-    if col >= 8 || row >= 8 {
-        return false;
-    }
-    let bit = row * 8 + col;
-    ((holes_high_res >> bit) & 1) != 0
-}
-
 fn build_mcnk_mesh(
     chunk: &super::adt_format::adt::McnkData,
     tile_coords: Option<(u32, u32)>,
 ) -> Mesh {
-    let (positions, normals, uvs, indices) = build_mcnk_geometry(chunk, tile_coords);
+    let Geometry {
+        positions,
+        normals,
+        uvs,
+        indices,
+    } = build_mcnk_geometry(
+        GeometryChunk {
+            index_x: chunk.index_x,
+            index_y: chunk.index_y,
+            position: chunk.pos,
+            heights: &chunk.heights,
+            normals: &chunk.normals,
+            holes_low_res: chunk.holes_low_res,
+            holes_high_res: chunk
+                .flags
+                .high_res_holes
+                .then_some(chunk.holes_high_res)
+                .flatten(),
+        },
+        tile_coords,
+    );
     let colors = combine_mcnk_vertex_colors(chunk.vertex_colors, chunk.vertex_lighting);
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,

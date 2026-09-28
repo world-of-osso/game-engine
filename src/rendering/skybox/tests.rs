@@ -603,7 +603,7 @@ fn environment_map_follows_dome_bands_for_noon_light_params_12() {
     // +Z face, centre column: rows run from about 44° above to 44° below the horizon.
     for y in [0, 6, 12, 14, 15, 16, 20, 31] {
         let direction = cubemap_direction(4, 16, y);
-        let band = super::sky_gradient::sky_band_at_elevation(direction.y.asin());
+        let band = super::sky_cubemap_data::sky_band_at_elevation(direction.y.asin());
         let expected = super::sky_gradient::sky_gradient_color(&noon, band);
         let actual = read_rgba16f(data, 4, 16, y);
         let expected = [expected.red, expected.green, expected.blue];

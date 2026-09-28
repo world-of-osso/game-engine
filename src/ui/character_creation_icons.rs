@@ -5,9 +5,11 @@ use std::collections::HashMap;
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::{Assets, Handle, Image, Resource};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use image::{GrayImage, Luma, RgbaImage};
+use image::{GrayImage, RgbaImage};
 
-const PORTRAIT_MASK_FDID: u32 = 130_924;
+#[path = "character_creation_icon_mask_data.rs"]
+mod mask_data;
+use mask_data::{PORTRAIT_MASK_FDID, mask_alpha};
 
 /// Owns masked images for one `Assets<Image>` collection.
 #[derive(Resource, Default)]
@@ -41,9 +43,7 @@ impl CharacterCreationIconMasks {
             Some(mask) => mask,
             empty => {
                 let mask = load_nonempty_texture(PORTRAIT_MASK_FDID, "mask", &mut load)?;
-                empty.insert(GrayImage::from_fn(mask.width(), mask.height(), |x, y| {
-                    Luma([mask.get_pixel(x, y)[3]])
-                }))
+                empty.insert(mask_alpha(&mask))
             }
         };
         let handle = images.add(compose_masked_icon(source, mask_alpha));
@@ -67,24 +67,16 @@ fn load_nonempty_texture(
     Ok(image)
 }
 
-fn compose_masked_icon(mut source: RgbaImage, mask_alpha: &GrayImage) -> Image {
-    let alpha = image::imageops::resize(
-        mask_alpha,
-        source.width(),
-        source.height(),
-        image::imageops::FilterType::Triangle,
-    );
-    for (pixel, mask) in source.pixels_mut().zip(alpha.pixels()) {
-        pixel[3] = (u16::from(pixel[3]) * u16::from(mask[0]) / 255) as u8;
-    }
+fn compose_masked_icon(source: RgbaImage, mask_alpha: &GrayImage) -> Image {
+    let masked = mask_data::compose_masked_icon(source, mask_alpha);
     Image::new(
         Extent3d {
-            width: source.width(),
-            height: source.height(),
+            width: masked.width(),
+            height: masked.height(),
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        source.into_raw(),
+        masked.into_raw(),
         TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     )

@@ -16,14 +16,6 @@ const NAMED_MODEL_CACHE_PATH: &str = "cache/named-model-lookups.sqlite";
 static NAMED_MODEL_FDID_CACHE: OnceLock<Mutex<HashMap<String, u32>>> = OnceLock::new();
 static NAMED_MODEL_SKIN_CACHE: OnceLock<Mutex<HashMap<String, [u32; 3]>>> = OnceLock::new();
 
-/// Per-display creature data: M2 model FDID and up to 3 skin texture FDIDs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CreatureDisplay {
-    pub model_fdid: u32,
-    pub skin_fdids: [u32; 3],
-    pub scale_milli: u32,
-}
-
 /// Bevy resource for creature display lookups.
 ///
 /// Queries `cache/creature_display.sqlite` on demand instead of loading all

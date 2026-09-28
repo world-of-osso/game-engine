@@ -21,7 +21,7 @@ fn real_catalog_selects_authored_valid_name_for_race_and_sex() {
 #[test]
 fn every_selectable_race_and_body_type_has_authored_names() {
     let catalog = NameCatalog::load(std::path::Path::new("data/NameGen.csv")).unwrap();
-    for race in game_engine::char_create_data::RACES {
+    for race in super::super::deps::char_create_data::RACES {
         for sex in [0, 1] {
             assert!(
                 catalog.has_names(race.id, sex),

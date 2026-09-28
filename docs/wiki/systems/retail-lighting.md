@@ -42,6 +42,12 @@ Fog uses the camera's `DistanceFog` range and colour, applied in authored space.
 - `M2EffectMaterial` (`assets/shaders/m2_effect.wgsl`): combiners in authored space, then the same lighting and fog.
 - `TerrainMaterial` (`assets/shaders/terrain.wgsl`): layers blended in authored space. The MTXF cube-map reflection samples the sky cubemap. MCSH baked shadows are not rendered (WebWowViewerCpp ignores them): the ADT parser still reads MCSH, but no texture is built, uploaded or bound. The PBR roughness/reflectance are gone.
 
+## Native Godot producer boundary
+
+`90f91a5a` gives native `TerrainLight` a common `bind_model`/`clear_model` boundary for the nine M2 ambient/direct/sun/fog uniforms. It does not bind `environment_map`: terrain retains that cube-map binding, while the native M2 shader declares no cube uniform.
+
+`b628997e` lets `WorldUnits` retain the current sampled light. Native creature visuals receive it on spawn or display replacement, existing visuals rebind on a live sample change, and map changes/transfers clear both material overrides and retained light; world reset drops retained light with its nodes. Bounded PASS at `0f4be666`: native `cargo fmt --all -- --check` and `cargo check -p game-engine-godot` exit 0 with no warnings; retained real-UDP headless fixture proof exits 0 through 11 phases, covering static geometry/texture, lifecycle, live sampled-light update, replacement, new-map light, and reset (`/tmp/claude/native-creature-light-green-0f4be666.log`). It asserts native resource values, not rendered pixels. The synthetic WDT has no ADT and deliberately is not `InWorld`; no readiness conclusion follows. The fixture's `authoredFogEnd / 36` input is the same shared-original value. Intermediate material clearing on map change/transfer, transfer itself, reset material values after freed nodes, and terrain cube preservation remain source-only; `clear_model` intentionally excludes `environment_map`. This establishes neither lighting correctness, visual parity, nor full conversion. Test-only review findings remain non-feature work: explicit phase state machine (cognitive 14), RGB hex authored data, and sequential `create` fixture staging.
+
 ## Display
 
 World cameras use `Tonemapping::None` (`world_camera_tonemapping`). Measured on the GPU, TonyMcMapface turned Retail texels 200/180/150 into 173/158/135 and 250/245/235 into 195/192/186. Cameras no longer get Bevy image-based lighting (the 300-intensity `GeneratedEnvironmentMapLight`).
@@ -68,3 +74,4 @@ World cameras use `Tonemapping::None` (`world_camera_tonemapping`). Measured on 
 - [[wmo-retail-lighting]]: WMO interior/exterior light on the same scene light
 - [[skybox]]: sky systems that compute the blend
 - [[terrain]]: layer blending
+- [[character-rendering]]: native authored M2 creature materials

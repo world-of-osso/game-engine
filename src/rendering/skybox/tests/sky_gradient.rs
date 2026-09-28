@@ -1,3 +1,4 @@
+use super::super::sky_cubemap_data::sky_band_at_elevation;
 use super::*;
 use crate::sky_lightdata::default_sky_colors;
 

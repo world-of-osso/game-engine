@@ -17,15 +17,23 @@ Historical accumulation of two injection sites for the same texture data. No sin
 
 ## Resolution
 
-- Compositor-seeded body atlas in `char_texture.rs` is retained as the single authoritative path.
+- `0d9301a1` moves the authoritative byte composition into Bevy-free `src/asset/char_texture_data.rs`; `char_texture.rs` retains the Bevy resource adapter. `godot/core` shares the byte algorithm through an injected decoded-RGBA loader, not native renderer integration.
 - M2-side body overlay injection removed from `m2_texture.rs`.
 - HD type-6 scalp fallback removed from `m2_texture.rs`.
 
 After cleanup, body/head skin composition has one path and isolation tests are reliable.
 
+## Independent gate
+
+At `0d9301a1`, independent verification passes root/native fmt and checks, portable exact-RGBA tests 4/4, and actual root-asset library tests 9/9 (`/tmp/claude/verify-compositor-reconnect-summary.md`). The root `--bin` selector executed 0 tests and is not proof; the `--lib asset::char_texture::tests` selector supplies the 9/9 evidence. The gate also passes session 15/15, transfer 4/4, and the actual reconnect fixture (`INITIAL_READY` → `WORLD_RESET` → `TERRAIN_REFRESHED` → `RECONNECTED`).
+
+Readability reports no changed-line violation. The lone unused `super::*` import warning is baseline in unchanged `tests/unit/asset/m2_retail_light_tests.rs`. This proves the portable compositor and root adapter behavior only. Native Godot character rendering and full conversion remain open.
+
 ## Sources
 
 - [character-texture-debugging-2026-03-27.md](../../character-texture-debugging-2026-03-27.md) — duplication finding and cleanup summary
+- [char_texture_data.rs](../../src/asset/char_texture_data.rs) — portable compositor after `0d9301a1`
+- [char_texture.rs](../../src/asset/char_texture.rs) — retained Bevy asset adapter
 
 ## See Also
 

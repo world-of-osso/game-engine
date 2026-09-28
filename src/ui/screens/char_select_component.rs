@@ -1,12 +1,16 @@
 use std::fmt;
 
+use ui_toolkit::frame::{Dimension, NineSlice};
+use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::texture::TextureSource;
 
 pub use super::char_select_delete_confirm_component::{
-    DELETE_CANCEL_BUTTON, DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT,
-    DeleteConfirmUiState, delete_confirmation_modal,
+    DELETE_CANCEL_BUTTON, DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DELAY_SECS, DELETE_CONFIRM_DIALOG,
+    DELETE_CONFIRM_INPUT, DeleteCharacterTarget, DeleteConfirmUiState, DeleteConfirmation,
+    delete_confirmation_modal,
 };
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
@@ -113,6 +117,57 @@ pub struct CampsiteState {
 // --- Frame names ---
 
 pub const CHAR_SELECT_ROOT: FrameName = FrameName("CharSelectRoot");
+
+pub fn size_char_select_root(registry: &mut FrameRegistry) {
+    let (width, height) = (registry.screen_width, registry.screen_height);
+    if let Some(root) = registry.get_by_name(CHAR_SELECT_ROOT.0)
+        && let Some(frame) = registry.get_mut(root)
+    {
+        frame.width = Dimension::Fixed(width);
+        frame.height = Dimension::Fixed(height);
+    }
+}
+/// Original Up/Down roster navigation: wraps, and starts from the far end when unselected.
+pub fn step_selection(selected: Option<usize>, count: usize, forward: bool) -> Option<usize> {
+    if count == 0 {
+        return selected;
+    }
+    Some(match (selected, forward) {
+        (Some(index), true) if index + 1 < count => index + 1,
+        (Some(_) | None, true) => 0,
+        (Some(0) | None, false) => count - 1,
+        (Some(index), false) => index - 1,
+    })
+}
+
+const LIST_PANEL_BG_ATLAS: &str = "glues-characterselect-card-all-bg";
+
+/// Chrome applied after every sync: viewport-sized root and the character list backdrop.
+pub fn apply_char_select_postsetup(registry: &mut FrameRegistry) {
+    size_char_select_root(registry);
+    if let Some(id) = registry.get_by_name(CHAR_LIST_PANEL.0)
+        && let Some(frame) = registry.get_mut(id)
+    {
+        frame.nine_slice = atlas_nine_slice(LIST_PANEL_BG_ATLAS);
+    }
+}
+
+/// Nine-slice of an atlas region drawn with its authored margins at native size.
+pub fn atlas_nine_slice(name: &str) -> Option<NineSlice> {
+    let edges = ui_toolkit::atlas::nine_slice_margins(name)?;
+    Some(NineSlice {
+        edge_size: edges[0],
+        edge_size_v: Some(edges[1]),
+        edge_sizes: Some(edges),
+        uv_edge_size: Some(edges[0]),
+        uv_edge_sizes: Some(edges),
+        texture: Some(TextureSource::Atlas(name.to_string())),
+        bg_color: [1.0, 1.0, 1.0, 1.0],
+        border_color: [1.0, 1.0, 1.0, 1.0],
+        ..Default::default()
+    })
+}
+
 pub const CHAR_LIST_PANEL: FrameName = FrameName("CharacterListPanel");
 pub const ENTER_WORLD_BUTTON: FrameName = FrameName("EnterWorld");
 pub const CREATE_CHAR_BUTTON: FrameName = FrameName("CreateChar");

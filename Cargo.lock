@@ -3911,6 +3911,7 @@ dependencies = [
  "criterion",
  "directories",
  "game-api",
+ "glam 0.32.1",
  "glob",
  "half",
  "image 0.25.10",
@@ -3933,6 +3934,10 @@ dependencies = [
  "webp",
  "winit",
 ]
+
+[[package]]
+name = "game-engine-launcher"
+version = "0.1.0"
 
 [[package]]
 name = "generic-array"

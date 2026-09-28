@@ -3,7 +3,7 @@
 use shared::components::{CharacterAppearance, CustomizationChoiceSelection};
 
 use crate::customization_data::{
-    CustomizationChoice, CustomizationDb, CustomizationOption, OptionType,
+    CustomizationCatalog as CustomizationDb, CustomizationChoice, CustomizationOption, OptionType,
 };
 
 /// Choices with mixed effects retain their supported material/geoset changes.

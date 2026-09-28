@@ -4,6 +4,7 @@ mod native_layout_support;
 
 use super::*;
 use game_engine::customization_data::OptionType;
+use shared::components::CharacterAppearance;
 use std::path::Path;
 
 const RANDOMIZED_APPEARANCE_TEST_SEED: u64 = 0x1234_5678_9abc_def0;
@@ -11,15 +12,14 @@ const RANDOMIZED_APPEARANCE_TEST_SEED: u64 = 0x1234_5678_9abc_def0;
 #[test]
 fn startup_mode_can_open_customize_directly() {
     let db = CustomizationDb::load(Path::new("data"));
-    let state =
-        initial_char_create_state(Some(StartupCharCreateMode(CharCreateMode::Customize)), &db);
+    let state = initial_state(Some(CharCreateMode::Customize), &db);
     assert_eq!(state.mode, CharCreateMode::Customize);
 }
 
 #[test]
 fn default_startup_mode_stays_on_race_class() {
     let db = CustomizationDb::load(Path::new("data"));
-    let state = initial_char_create_state(None, &db);
+    let state = initial_state(None, &db);
     assert_eq!(state.mode, CharCreateMode::RaceClass);
 }
 
@@ -151,7 +151,7 @@ fn changing_skin_color_reclamps_face_to_compatible_set() {
         .map(|option| option.id)
         .min()
         .unwrap();
-    input::adjust_appearance(&mut state, skin_option, 1, &db);
+    appearance::adjust_appearance(&mut state, skin_option, 1, &db);
 
     assert!(face_is_compatible_with_skin(
         &db,
@@ -168,17 +168,17 @@ fn race_class_and_sex_changes_re_randomize_appearance() {
     let db = CustomizationDb::load(Path::new("data"));
     let mut state = CharCreateState::default();
 
-    input::apply_race_change_with_seed(&mut state, 10, &db, 1);
+    apply_race_change_with_seed(&mut state, 10, &db, 1);
     assert_eq!(state.selected_race, 10);
     assert_ne!(state.appearance, CharacterAppearance::default());
 
     let race_appearance = state.appearance.clone();
-    input::apply_class_change_with_seed(&mut state, 3, &db, 2);
+    apply_class_change_with_seed(&mut state, 3, &db, 2);
     assert_eq!(state.selected_class, 3);
     assert_ne!(state.appearance, race_appearance);
 
     let class_appearance = state.appearance.clone();
-    input::apply_sex_toggle_with_seed(&mut state, &db, 3);
+    apply_sex_toggle_with_seed(&mut state, &db, 3);
     assert_eq!(state.selected_sex, 1);
     assert_eq!(state.appearance.sex, 1);
     assert_ne!(state.appearance, class_appearance);
@@ -197,7 +197,7 @@ fn explicit_randomize_re_rolls_appearance_without_changing_selection() {
     randomize_appearance_with_seed(&mut state, &db, 11);
     let original = state.appearance.clone();
 
-    input::apply_randomize_with_seed(&mut state, &db, 12);
+    randomize_appearance_with_seed(&mut state, &db, 12);
 
     assert_eq!(state.selected_race, 10);
     assert_eq!(state.selected_class, 3);
@@ -253,7 +253,7 @@ fn clicking_race_button_changes_selected_race() {
         .expect("layout recompute should run");
 
     // Verify initial state is race 1
-    let initial_race = app.world().resource::<CharCreateState>().selected_race;
+    let initial_race = app.world().resource::<CharCreateStateRes>().selected_race;
     assert_eq!(initial_race, 1, "initial race should be human (1)");
 
     // Find Race_2 button center
@@ -289,7 +289,7 @@ fn clicking_race_button_changes_selected_race() {
         .run_system_once(input::char_create_mouse_input)
         .expect("char_create_mouse_input should run");
 
-    let new_race = app.world().resource::<CharCreateState>().selected_race;
+    let new_race = app.world().resource::<CharCreateStateRes>().selected_race;
     assert_eq!(
         new_race, 2,
         "clicking Race_2 should change selected_race from 1 to 2, got {new_race}"
@@ -349,12 +349,12 @@ fn entering_char_create_spawns_renderable_model_without_clicks() {
 
     // CharCreateState is normally inserted by CharCreatePlugin's OnEnter.
     // Insert it manually since we only have CharCreateScenePlugin.
-    app.insert_resource(CharCreateState::default());
+    app.insert_resource(CharCreateStateRes::default());
     app.update(); // let sync_model see the initial state
 
     // Now change race to orc (2) via state mutation (simulating UI click)
     app.world_mut()
-        .resource_mut::<CharCreateState>()
+        .resource_mut::<CharCreateStateRes>()
         .selected_race = 2;
 
     // Run update — sync_model should detect the race change and respawn
@@ -400,7 +400,7 @@ fn clicking_race_button_changes_race_through_full_app_update() {
     app.update();
     app.update();
 
-    let initial_race = app.world().resource::<CharCreateState>().selected_race;
+    let initial_race = app.world().resource::<CharCreateStateRes>().selected_race;
     assert_eq!(initial_race, 1);
 
     let race_2_center = {
@@ -435,7 +435,7 @@ fn clicking_race_button_changes_race_through_full_app_update() {
     // Run through the full scheduler (all systems including UiPlugin)
     app.update();
 
-    let new_race = app.world().resource::<CharCreateState>().selected_race;
+    let new_race = app.world().resource::<CharCreateStateRes>().selected_race;
     assert_eq!(
         new_race, 2,
         "clicking Race_2 through full app.update() should change selected_race, got {new_race}"

@@ -24,12 +24,18 @@ mod camera_follow;
 #[path = "camera_post_process.rs"]
 mod camera_post_process;
 
-use camera_controls::{apply_keyboard_camera, camera_pitch_delta};
+use camera_controls::CameraInputState;
 use camera_follow::camera_follow;
 #[cfg(test)]
 pub(crate) use camera_follow::camera_follow as camera_follow_system;
 pub(crate) use camera_post_process::{MsaaDisabled, world_camera_tonemapping};
 use camera_post_process::{sync_camera_graphics_post_process, sync_ui_camera_msaa};
+use game_engine::camera_input_data::{CameraInput, apply_camera_input};
+pub use game_engine::movement_input_data::MoveDirection;
+use game_engine::movement_input_data::{
+    compute_movement_input, has_manual_movement_override, movement_speed_multiplier,
+    sync_movement_toggles,
+};
 
 pub struct WowCameraPlugin;
 
@@ -72,17 +78,6 @@ fn stop_scripted_movement(mut movement: ResMut<ScriptedMovement>) {
 /// Marker for the player entity the camera orbits around.
 #[derive(Component)]
 pub struct Player;
-
-/// Movement direction relative to the character's facing.
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MoveDirection {
-    #[default]
-    None,
-    Forward,
-    Backward,
-    Left,
-    Right,
-}
 
 /// Base Y position (ground level) for the player (when no terrain is loaded).
 pub(super) const GROUND_Y: f32 = 0.0;
@@ -152,15 +147,6 @@ pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
 
 const WALK_SPEED: f32 = 2.5; // M2 Walk movespeed (2.5 yards/sec)
 const RUN_SPEED: f32 = 7.0; // M2 Run movespeed (7.0 yards/sec)
-const ZOOM_STEP: f32 = 2.0;
-const KEY_ROTATE_SPEED: f32 = 2.5; // radians/sec for arrow key rotation
-const KEY_ZOOM_SPEED: f32 = 15.0; // units/sec for page up/down zoom
-pub(super) const COLLISION_OFFSET: f32 = 0.3;
-pub(super) const EYE_HEIGHT: f32 = 1.8;
-/// Speed at which camera recovers (lerps back out) after collision clears.
-pub(super) const COLLISION_RECOVERY_SPEED: f32 = 5.0;
-const PITCH_LIMIT: f32 =
-    game_engine::camera_control::PITCH_LIMIT_DEGREES * std::f32::consts::PI / 180.0;
 const LANDING_EPSILON: f32 = 0.05;
 const SWIM_DEPTH_THRESHOLD: f32 = 1.25;
 
@@ -185,34 +171,28 @@ fn camera_input(
         return;
     };
 
-    let rmb = mouse_buttons.pressed(MouseButton::Right);
-    let lmb = mouse_buttons.pressed(MouseButton::Left);
     let delta = mouse_motion.delta;
     let dt = time.delta_secs();
-
-    if rmb {
-        // RMB: character snaps to face camera direction, then both rotate together
-        let yaw_delta = -delta.x * options.look_sensitivity;
-        cam.yaw += yaw_delta;
-        cam.pitch += camera_pitch_delta(delta.y, &options);
-        cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
-        if let Ok(mut facing) = facing_q.single_mut() {
-            facing.yaw = cam.yaw + std::f32::consts::PI;
-        }
-    } else if lmb {
-        // LMB: orbit camera only (character doesn't turn)
-        cam.yaw -= delta.x * options.look_sensitivity;
-        cam.pitch += camera_pitch_delta(delta.y, &options);
-        cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
-    }
-
-    apply_keyboard_camera(keys, &mouse_buttons, &bindings, dt, &mut cam, &mut facing_q);
-
-    if mouse_scroll.delta.y != 0.0 {
-        cam.target_distance -= mouse_scroll.delta.y * ZOOM_STEP;
-        cam.target_distance = cam
-            .target_distance
-            .clamp(cam.min_distance, cam.max_distance);
+    let facing = facing_q.single_mut().ok();
+    let next_facing = apply_camera_input(
+        &mut cam.0,
+        facing.as_ref().map(|facing| facing.yaw),
+        &bindings,
+        &CameraInputState {
+            keys,
+            mouse: &mouse_buttons,
+        },
+        CameraInput {
+            delta_x: delta.x,
+            delta_y: delta.y,
+            scroll_y: mouse_scroll.delta.y,
+            dt,
+            look_sensitivity: options.look_sensitivity,
+            invert_y: options.invert_y,
+        },
+    );
+    if let (Some(mut facing), Some(yaw)) = (facing, next_facing) {
+        facing.yaw = yaw;
     }
 }
 
@@ -240,57 +220,6 @@ fn sync_camera_options(
             perspective.fov = options.fov_degrees.to_radians();
         }
     }
-}
-
-/// Compute movement direction vector and animation direction from input.
-fn compute_movement_input(
-    keys: &ButtonInput<KeyCode>,
-    mouse_buttons: &ButtonInput<MouseButton>,
-    bindings: &InputBindings,
-    autorun: bool,
-    scripted_forward: bool,
-    facing: &CharacterFacing,
-) -> (Vec3, MoveDirection) {
-    let forward = Vec3::new(facing.yaw.sin(), 0.0, facing.yaw.cos());
-    let right = Vec3::new(-forward.z, 0.0, forward.x);
-
-    let mut direction = Vec3::ZERO;
-    if bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
-        || autorun
-        || scripted_forward
-    {
-        direction += forward;
-    }
-    if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
-        direction -= forward;
-    }
-    if bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons) {
-        direction -= right;
-    }
-    if bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons) {
-        direction += right;
-    }
-    if mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right) {
-        direction += forward;
-    }
-
-    let fwd = bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
-        || autorun
-        || scripted_forward
-        || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right));
-    let anim_dir = if fwd {
-        MoveDirection::Forward
-    } else if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
-        MoveDirection::Backward
-    } else if bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons) {
-        MoveDirection::Left
-    } else if bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons) {
-        MoveDirection::Right
-    } else {
-        MoveDirection::None
-    };
-
-    (direction, anim_dir)
 }
 
 fn player_movement(
@@ -352,7 +281,13 @@ fn player_movement(
     sync_swimming_state(transform.translation, &ground, &mut movement);
 
     sync_player_movement_toggles(keys, &mouse_buttons, &bindings, &mut movement);
-    let manual_override = has_manual_movement_override(keys, &mouse_buttons, &bindings);
+    let manual_override = has_manual_movement_override(
+        &bindings,
+        &CameraInputState {
+            keys,
+            mouse: &mouse_buttons,
+        },
+    );
     let scripted_step = advance_scripted_movement(
         &mut scripted,
         &mut movement,
@@ -391,8 +326,12 @@ fn player_movement(
     );
     let movement_delta = scripted_step.map_or(time.delta_secs(), |step| step.duration_secs);
     movement_step.secs = movement_delta;
-    let proposed =
-        build_proposed_ground_movement(current_position, direction, speed, movement_delta);
+    let proposed = game_engine::player_physics_data::build_proposed_ground_movement(
+        current_position,
+        direction,
+        speed,
+        movement_delta,
+    );
     let mut collision_elapsed = Duration::ZERO;
     let mut after_wmo = None;
     let proposed_after_collision = proposed.map(|proposed| {
@@ -609,18 +548,6 @@ fn collect_doodad_colliders<'a>(
     collider_q.iter().collect()
 }
 
-fn build_proposed_ground_movement(
-    current: Vec3,
-    direction: Vec3,
-    speed: f32,
-    dt: f32,
-) -> Option<Vec3> {
-    if direction.length_squared() == 0.0 {
-        return None;
-    }
-    Some(current + direction.normalize() * speed * dt)
-}
-
 fn close_player_movement_for_modal(mode: UiInputMode, movement: &mut MovementState) -> bool {
     if mode != UiInputMode::Modal {
         return false;
@@ -636,15 +563,15 @@ fn sync_player_movement_toggles(
     bindings: &InputBindings,
     movement: &mut MovementState,
 ) {
-    if bindings.is_just_pressed(InputAction::AutoRun, keys, mouse_buttons) {
-        movement.autorun = !movement.autorun;
-    }
-    if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
-        movement.autorun = false;
-    }
-    if bindings.is_just_pressed(InputAction::RunToggle, keys, mouse_buttons) {
-        movement.running = !movement.running;
-    }
+    (movement.autorun, movement.running) = sync_movement_toggles(
+        bindings,
+        &CameraInputState {
+            keys,
+            mouse: mouse_buttons,
+        },
+        movement.autorun,
+        movement.running,
+    );
 }
 
 fn resolve_player_movement_state(
@@ -656,12 +583,14 @@ fn resolve_player_movement_state(
     facing: &CharacterFacing,
 ) -> (Vec3, f32) {
     let (direction, anim_dir) = compute_movement_input(
-        keys,
-        mouse_buttons,
         bindings,
+        &CameraInputState {
+            keys,
+            mouse: mouse_buttons,
+        },
         movement.autorun,
         scripted_forward,
-        facing,
+        facing.yaw,
     );
     movement.direction = anim_dir;
     let base_speed = if movement.running {
@@ -670,29 +599,7 @@ fn resolve_player_movement_state(
         WALK_SPEED
     };
     let speed = base_speed * movement_speed_multiplier(anim_dir);
-    (direction, speed)
-}
-
-fn has_manual_movement_override(
-    keys: &ButtonInput<KeyCode>,
-    mouse_buttons: &ButtonInput<MouseButton>,
-    bindings: &InputBindings,
-) -> bool {
-    bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
-        || bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons)
-        || bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons)
-        || bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons)
-        || bindings.is_just_pressed(InputAction::Jump, keys, mouse_buttons)
-        || bindings.is_just_pressed(InputAction::AutoRun, keys, mouse_buttons)
-        || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right))
-}
-
-fn movement_speed_multiplier(direction: MoveDirection) -> f32 {
-    match direction {
-        MoveDirection::Backward => shared::movement::BACKPEDAL_MULTIPLIER,
-        MoveDirection::Left | MoveDirection::Right => shared::movement::STRAFE_MULTIPLIER,
-        MoveDirection::None | MoveDirection::Forward => 1.0,
-    }
+    (Vec3::from_array(direction), speed)
 }
 
 struct HorizontalMovementContext<'a> {

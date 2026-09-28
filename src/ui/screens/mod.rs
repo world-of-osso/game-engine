@@ -70,6 +70,8 @@ pub mod talent_frame_view;
 pub mod trade_frame_component;
 pub mod trainer_frame_component;
 pub mod trash_button_component;
+#[cfg(test)]
+mod trash_button_layout_tests;
 pub mod ui_errors_frame_component;
 pub mod world_builder_component;
 pub mod world_map_frame_component;

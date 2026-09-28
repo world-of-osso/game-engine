@@ -15,6 +15,17 @@ pub const TEX_LOADING_BAR_CENTER: &str = "data/ui/loading-bar-steel-shell-center
 pub const TEX_LOADING_BAR_RIGHT: &str = "data/ui/loading-bar-steel-shell-right.png";
 pub const TEX_LOADING_BAR_FILL: &str = "data/ui/loading-bar-fill-v3-alchemical.png";
 
+pub fn loading_bar_shell() -> ui_toolkit::frame::ThreeSlice {
+    use ui_toolkit::widgets::texture::TextureSource;
+    ui_toolkit::frame::ThreeSlice {
+        cap_width: BAR_CAP_WIDTH,
+        left: TextureSource::File(TEX_LOADING_BAR_LEFT.to_owned()),
+        center: TextureSource::File(TEX_LOADING_BAR_CENTER.to_owned()),
+        right: TextureSource::File(TEX_LOADING_BAR_RIGHT.to_owned()),
+        color: [1.0; 4],
+    }
+}
+
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_SUBTLE: FontColor = FontColor::new(0.95, 0.9, 0.78, 1.0);
 const COLOR_TIP: FontColor = FontColor::new(0.78, 0.74, 0.66, 1.0);

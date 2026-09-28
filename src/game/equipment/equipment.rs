@@ -15,7 +15,6 @@ use std::path::{Path, PathBuf};
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
-use serde::{Deserialize, Serialize};
 
 use crate::animation::M2AnimData;
 use crate::asset::m2_attach::M2Attachment;
@@ -26,21 +25,12 @@ use transforms::EquipmentTransforms;
 #[cfg(test)]
 use transforms::{EquipmentTransformConfig, EquipmentTransformDef};
 
-/// Equipment slot for attaching items to a character model.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum EquipmentSlot {
-    Head,
-    ShoulderLeft,
-    ShoulderRight,
-    Back,
-    Chest,
-    Hands,
-    Waist,
-    Legs,
-    Feet,
-    MainHand,
-    OffHand,
-}
+pub use crate::equipment_appearance::equipment_appearance_data::EquipmentSlot;
+#[cfg(test)]
+use crate::equipment_appearance::equipment_appearance_data::slot_attachment_id;
+use crate::equipment_appearance::equipment_appearance_data::{
+    model_attachment_id, runtime_mesh_part_allowed, slot_uses_bound_joints,
+};
 
 /// Maps equipment slots to item M2 file paths.
 #[derive(Component, Default, Clone, PartialEq, Eq)]
@@ -104,23 +94,6 @@ struct RenderEquipmentRequested {
 /// Coalesces model insert notifications until their deferred commands are applied.
 #[derive(Resource, Default)]
 struct PendingEquipmentUpdates(HashMap<Entity, bool>);
-
-/// Attachment lookup ID for each equipment slot.
-fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
-    match slot {
-        EquipmentSlot::Head => 11,         // Helm
-        EquipmentSlot::ShoulderLeft => 6,  // ShoulderLeft
-        EquipmentSlot::ShoulderRight => 5, // ShoulderRight
-        EquipmentSlot::Back => 12,         // Back
-        EquipmentSlot::Chest => unreachable!("chest runtime models anchor on the character root"),
-        EquipmentSlot::Hands => unreachable!("hands runtime models anchor on the character root"),
-        EquipmentSlot::Waist => 53, // Belt buckle
-        EquipmentSlot::Legs => unreachable!("legs runtime models anchor on the character root"),
-        EquipmentSlot::Feet => unreachable!("feet runtime models anchor on the character root"),
-        EquipmentSlot::MainHand => 1, // RightPalm
-        EquipmentSlot::OffHand => 2,  // LeftPalm
-    }
-}
 
 /// Build an `AttachmentPoints` component from parsed M2 attachment data.
 pub fn build_attachment_points(
@@ -506,13 +479,6 @@ fn spawn_equipment_slot(
     finalize_equipment_slot_spawn(ctx, slot, m2_path, skin_fdids, item_root, use_bound_joints)
 }
 
-fn slot_uses_bound_joints(slot: EquipmentSlot, m2_path: &Path) -> bool {
-    matches!(
-        slot,
-        EquipmentSlot::Chest | EquipmentSlot::Hands | EquipmentSlot::Legs | EquipmentSlot::Feet
-    ) || (matches!(slot, EquipmentSlot::Head) && is_collection_model(m2_path))
-}
-
 fn resolve_equipment_parent(
     ctx: &mut EquipmentSpawnContext<'_, '_, '_>,
     slot: EquipmentSlot,
@@ -549,19 +515,6 @@ fn resolve_equipment_parent(
         return None;
     };
     Some((joint, base_offset))
-}
-
-fn model_attachment_id(slot: EquipmentSlot, path: &Path) -> u32 {
-    // Runtime item paths retain their authored listfile category.
-    let is_shield = path
-        .parent()
-        .and_then(Path::file_name)
-        .and_then(|category| category.to_str())
-        .is_some_and(|category| category.eq_ignore_ascii_case("shield"));
-    if slot == EquipmentSlot::OffHand && is_shield {
-        return 0; // LeftWrist
-    }
-    slot_attachment_id(slot)
 }
 
 fn validate_equipment_model_path(
@@ -673,25 +626,6 @@ fn bound_visual_root(
         .get(first_joint)
         .map(ChildOf::parent)
         .unwrap_or(owner)
-}
-
-fn runtime_mesh_part_allowed(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
-    if mesh_part_id / 100 == 17 {
-        return false;
-    }
-    match slot {
-        EquipmentSlot::Chest => mesh_part_id / 100 == 22,
-        EquipmentSlot::Waist => mesh_part_id == 0 || mesh_part_id / 100 == 18,
-        EquipmentSlot::Legs => matches!(mesh_part_id / 100, 11 | 13),
-        EquipmentSlot::Hands => mesh_part_id / 100 == 4,
-        EquipmentSlot::Feet => matches!(mesh_part_id / 100, 5 | 20),
-        _ => true,
-    }
-}
-
-fn is_collection_model(path: &Path) -> bool {
-    let lower = path.to_string_lossy().to_ascii_lowercase();
-    lower.contains("item/objectcomponents/collections/")
 }
 
 fn warn_once(warned: &mut HashSet<String>, message: String) {

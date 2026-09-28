@@ -59,14 +59,13 @@ src/
 
 ## Dev
 
-- Plain Cargo build/run/test enables `dev` (Bevy dynamic linking) by default; `bd`/`rd` remain aliases. Run through Cargo for shared-library paths.
-- Distribution builds must use `cargo build --release --no-default-features --features ipc,casc` to omit `dev`; `--release` alone does not disable it.
-- `cargo run --bin game-engine -- [model.m2]` — Launch 3D scene with M2 model
-- `cargo run --bin game-engine -- [terrain.adt]` — Launch 3D scene with ADT terrain
-- `cargo run --bin game-engine -- screenshot output.webp model.m2` — Capture screenshot and exit
-- `cargo run --bin game-engine -- model.m2 --dump-tree` — Dump entity hierarchy (named bones, meshes)
-- `cargo run --bin game-engine -- --screen charselect --dump-scene --server 127.0.0.1:5000` — Dump semantic scene tree (Character, Background, Camera, Lights, equipment slots)
-- `cargo run --bin game-engine -- --screen inworld` — Auto-login (admin/admin), pick first char, enter world (defaults to 127.0.0.1:5000). Use `--char Name` to pick a specific character.
+- Plain root `cargo run`/`rd` builds the debug `game-engine-launcher`, then launches Godot; `bd` is `cargo build`. The launcher validates pinned `data/tools/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64` or `GODOT_BIN`, builds `godot/`'s native library, and forwards user startup flags after Godot's `--` separator. It neither starts the server nor falls back to Bevy.
+- `cargo run -- --screen charselect` — Authenticate with configured credentials or a saved token and open character select.
+- `cargo run -- --server dev --screen inworld --char Name` — Resolve `dev`/`prod` server aliases, authenticate, select the named roster character, and enter the world. Omit `--char` to select the default character.
+- `cargo run -- --screen charcreate` — Open standalone character creation. Add `--server <host>` to authenticate before entering it; `charcreate-customize` opens its Customize mode.
+- `cargo run -- --screen login` or `cargo run -- --screen loading` — Open those native screens. `--state connecting` and `--state reconnecting`, plus legacy screen destinations outside `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, and `inworld`, fail explicitly as unconverted.
+- The launcher routes `--screen`, `--state`, `--server`, and `--char` after Godot's separator; other arguments remain native Godot arguments. Direct Godot invocation must put client flags after `--`.
+- The preserved Bevy package requires explicit `-p game-engine`/`--bin game-engine`; its distribution build remains `cargo build -p game-engine --release --no-default-features --features ipc,casc`.
 - `LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js` — Drive the real login UI path via JS automation, wait for `CharSelect`, then dump the entity tree
 - `cargo run --bin game-engine-cli -- --socket /tmp/game-engine-<pid>.sock <command>` — IPC CLI for running instance
   - `dump-scene` — Dump semantic scene tree (high-level: character, background, camera, lights)
@@ -77,7 +76,7 @@ src/
   - `ping` — Check if instance is alive
   - Socket auto-discovered via `/tmp/game-engine-*.sock` glob
 - `cargo run --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
-- `./run-tests.sh` — cargo test + clippy
+- `./run-tests.sh` — root and launcher workspace tests, clippy, and format check; run Godot workspace tests separately from `godot/`.
 - Parallel-agent tooling in `scripts/agent/`:
   - `link-worktree-data.py <canonical> <worktree>` links untracked `data/` into a worktree.
   - `seed-target.sh <repo> <dir>` reflink-clones a warm `CARGO_TARGET_DIR`; never start an agent on an empty one.

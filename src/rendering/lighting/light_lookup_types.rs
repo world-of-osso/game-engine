@@ -1,36 +1,5 @@
 use std::path::PathBuf;
 
-// Light.csv stores multiple LightParams circumstances, not a list of fallback
-// skybox candidates. The authored skybox resolver should pick an explicit slot,
-// not scavenge whichever row happens to resolve through LightSkybox.db2.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum LightParamsSlot {
-    Clear,
-    ClearUnderwater,
-    Storm,
-    StormUnderwater,
-    Death,
-}
-
-impl LightParamsSlot {
-    pub(crate) const fn index(self) -> usize {
-        match self {
-            Self::Clear => 0,
-            Self::ClearUnderwater => 1,
-            Self::Storm => 2,
-            Self::StormUnderwater => 3,
-            Self::Death => 4,
-        }
-    }
-}
-
-/// One LightParams contributing to a position, with its overlay weight.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct WeightedLightParams {
-    pub light_params_id: u32,
-    pub weight: f32,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LightParamsFlags(u32);
 

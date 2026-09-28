@@ -1,958 +1,276 @@
-use std::collections::BTreeMap;
-
+//! Bevy resource and physical-input adapter for portable bindings.
+pub use crate::input_bindings_data::{
+    BindingKey, BindingMouseButton, BindingSection, InputAction, InputBinding, InputBindingsData,
+    InputState, actions_for_section, binding_token, key_display, parse_binding_token,
+};
 use bevy::prelude::*;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
 
-const LETTER_KEYS: [(&str, KeyCode); 26] = [
-    ("A", KeyCode::KeyA),
-    ("B", KeyCode::KeyB),
-    ("C", KeyCode::KeyC),
-    ("D", KeyCode::KeyD),
-    ("E", KeyCode::KeyE),
-    ("F", KeyCode::KeyF),
-    ("G", KeyCode::KeyG),
-    ("H", KeyCode::KeyH),
-    ("I", KeyCode::KeyI),
-    ("J", KeyCode::KeyJ),
-    ("K", KeyCode::KeyK),
-    ("L", KeyCode::KeyL),
-    ("M", KeyCode::KeyM),
-    ("N", KeyCode::KeyN),
-    ("O", KeyCode::KeyO),
-    ("P", KeyCode::KeyP),
-    ("Q", KeyCode::KeyQ),
-    ("R", KeyCode::KeyR),
-    ("S", KeyCode::KeyS),
-    ("T", KeyCode::KeyT),
-    ("U", KeyCode::KeyU),
-    ("V", KeyCode::KeyV),
-    ("W", KeyCode::KeyW),
-    ("X", KeyCode::KeyX),
-    ("Y", KeyCode::KeyY),
-    ("Z", KeyCode::KeyZ),
-];
-
-const DIGIT_KEYS: [(&str, KeyCode); 10] = [
-    ("0", KeyCode::Digit0),
-    ("1", KeyCode::Digit1),
-    ("2", KeyCode::Digit2),
-    ("3", KeyCode::Digit3),
-    ("4", KeyCode::Digit4),
-    ("5", KeyCode::Digit5),
-    ("6", KeyCode::Digit6),
-    ("7", KeyCode::Digit7),
-    ("8", KeyCode::Digit8),
-    ("9", KeyCode::Digit9),
-];
-
-const FUNCTION_KEYS: [(&str, KeyCode); 12] = [
-    ("F1", KeyCode::F1),
-    ("F2", KeyCode::F2),
-    ("F3", KeyCode::F3),
-    ("F4", KeyCode::F4),
-    ("F5", KeyCode::F5),
-    ("F6", KeyCode::F6),
-    ("F7", KeyCode::F7),
-    ("F8", KeyCode::F8),
-    ("F9", KeyCode::F9),
-    ("F10", KeyCode::F10),
-    ("F11", KeyCode::F11),
-    ("F12", KeyCode::F12),
-];
-
-const NAMED_KEYS: [(&str, KeyCode); 20] = [
-    ("Space", KeyCode::Space),
-    ("Tab", KeyCode::Tab),
-    ("Escape", KeyCode::Escape),
-    ("Minus", KeyCode::Minus),
-    ("Equal", KeyCode::Equal),
-    ("BracketLeft", KeyCode::BracketLeft),
-    ("BracketRight", KeyCode::BracketRight),
-    ("ArrowLeft", KeyCode::ArrowLeft),
-    ("ArrowRight", KeyCode::ArrowRight),
-    ("ArrowUp", KeyCode::ArrowUp),
-    ("ArrowDown", KeyCode::ArrowDown),
-    ("PageUp", KeyCode::PageUp),
-    ("PageDown", KeyCode::PageDown),
-    ("NumLock", KeyCode::NumLock),
-    ("Home", KeyCode::Home),
-    ("End", KeyCode::End),
-    ("Insert", KeyCode::Insert),
-    ("Delete", KeyCode::Delete),
-    ("Backspace", KeyCode::Backspace),
-    ("Enter", KeyCode::Enter),
-];
-
-struct InputActionMeta {
-    key: &'static str,
-    label: &'static str,
-    section: BindingSection,
-    default_binding: Option<InputBinding>,
-}
-
-#[derive(
-    Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Copy,
-)]
-pub enum InputAction {
-    MoveForward,
-    MoveBackward,
-    StrafeLeft,
-    StrafeRight,
-    Jump,
-    RunToggle,
-    AutoRun,
-    TurnLeft,
-    TurnRight,
-    PitchUp,
-    PitchDown,
-    ZoomIn,
-    ZoomOut,
-    TargetNearest,
-    TargetSelf,
-    ActionSlot1,
-    ActionSlot2,
-    ActionSlot3,
-    ActionSlot4,
-    ActionSlot5,
-    ActionSlot6,
-    ActionSlot7,
-    ActionSlot8,
-    ActionSlot9,
-    ActionSlot10,
-    ActionSlot11,
-    ActionSlot12,
-    ToggleMute,
-    ToggleCharacter,
-    ToggleSpellbook,
-    ToggleProfessions,
-    ToggleAchievements,
-    ToggleTalents,
-    ToggleEncounterJournal,
-    ToggleSocial,
-    ToggleLootRules,
-    ToggleQuestLog,
-    ToggleWorldMap,
-}
-
-impl InputAction {
-    pub const ALL: [Self; 38] = [
-        Self::MoveForward,
-        Self::MoveBackward,
-        Self::StrafeLeft,
-        Self::StrafeRight,
-        Self::Jump,
-        Self::RunToggle,
-        Self::AutoRun,
-        Self::TurnLeft,
-        Self::TurnRight,
-        Self::PitchUp,
-        Self::PitchDown,
-        Self::ZoomIn,
-        Self::ZoomOut,
-        Self::TargetNearest,
-        Self::TargetSelf,
-        Self::ActionSlot1,
-        Self::ActionSlot2,
-        Self::ActionSlot3,
-        Self::ActionSlot4,
-        Self::ActionSlot5,
-        Self::ActionSlot6,
-        Self::ActionSlot7,
-        Self::ActionSlot8,
-        Self::ActionSlot9,
-        Self::ActionSlot10,
-        Self::ActionSlot11,
-        Self::ActionSlot12,
-        Self::ToggleMute,
-        Self::ToggleCharacter,
-        Self::ToggleSpellbook,
-        Self::ToggleProfessions,
-        Self::ToggleAchievements,
-        Self::ToggleTalents,
-        Self::ToggleEncounterJournal,
-        Self::ToggleSocial,
-        Self::ToggleLootRules,
-        Self::ToggleQuestLog,
-        Self::ToggleWorldMap,
-    ];
-
-    pub fn key(self) -> &'static str {
-        self.meta().key
-    }
-
-    pub fn from_key(key: &str) -> Option<Self> {
-        movement_action_from_key(key)
-            .or_else(|| camera_action_from_key(key))
-            .or_else(|| targeting_action_from_key(key))
-            .or_else(|| action_slot_from_key(key))
-            .or_else(|| audio_action_from_key(key))
-            .or_else(|| interface_action_from_key(key))
-    }
-
-    pub fn label(self) -> &'static str {
-        self.meta().label
-    }
-
-    pub fn section(self) -> BindingSection {
-        self.meta().section
-    }
-
-    pub fn default_binding(self) -> Option<InputBinding> {
-        self.meta().default_binding
-    }
-
-    fn meta(self) -> InputActionMeta {
-        if let Some(meta) = self.action_slot_meta() {
-            return meta;
-        }
-        if let Some(meta) = self.interface_meta() {
-            return meta;
-        }
-        self.non_action_slot_meta()
-    }
-
-    fn interface_meta(self) -> Option<InputActionMeta> {
-        let (key, label, binding) = match self {
-            Self::ToggleCharacter => (
-                "toggle_character",
-                "Character Info",
-                Some(keyboard(KeyCode::KeyC)),
-            ),
-            Self::ToggleSpellbook => (
-                "toggle_spellbook",
-                "Spellbook",
-                Some(keyboard(KeyCode::KeyP)),
-            ),
-            Self::ToggleProfessions => (
-                "toggle_professions",
-                "Professions",
-                Some(keyboard(KeyCode::KeyK)),
-            ),
-            Self::ToggleAchievements => (
-                "toggle_achievements",
-                "Achievements",
-                Some(keyboard(KeyCode::KeyY)),
-            ),
-            Self::ToggleTalents => ("toggle_talents", "Talents", Some(keyboard(KeyCode::KeyN))),
-            Self::ToggleEncounterJournal => (
-                "toggle_encounter_journal",
-                "Adventure Guide",
-                Some(keyboard(KeyCode::KeyJ)),
-            ),
-            Self::ToggleSocial => ("toggle_social", "Social", Some(keyboard(KeyCode::KeyO))),
-            Self::ToggleLootRules => ("toggle_loot_rules", "Loot Rules", None),
-            // Retail TOGGLEQUESTLOG default binding.
-            Self::ToggleQuestLog => (
-                "toggle_quest_log",
-                "Quest Log",
-                Some(keyboard(KeyCode::KeyL)),
-            ),
-            Self::ToggleWorldMap => (
-                "toggle_world_map",
-                "World Map",
-                Some(keyboard(KeyCode::KeyM)),
-            ),
-            _ => return None,
-        };
-        Some(input_action_meta(
-            key,
-            label,
-            BindingSection::Interface,
-            binding,
-        ))
-    }
-
-    fn non_action_slot_meta(self) -> InputActionMeta {
-        match self {
-            Self::MoveForward => movement_meta("move_forward", "Move Forward", KeyCode::KeyW),
-            Self::MoveBackward => movement_meta("move_backward", "Move Backward", KeyCode::KeyS),
-            Self::StrafeLeft => movement_meta("strafe_left", "Strafe Left", KeyCode::KeyA),
-            Self::StrafeRight => movement_meta("strafe_right", "Strafe Right", KeyCode::KeyD),
-            Self::Jump => movement_meta("jump", "Jump", KeyCode::Space),
-            Self::RunToggle => movement_meta("run_toggle", "Run / Walk Toggle", KeyCode::KeyZ),
-            Self::AutoRun => movement_meta("auto_run", "Auto-Run", KeyCode::NumLock),
-            Self::TurnLeft => camera_meta("turn_left", "Turn Left", KeyCode::ArrowLeft),
-            Self::TurnRight => camera_meta("turn_right", "Turn Right", KeyCode::ArrowRight),
-            Self::PitchUp => camera_meta("pitch_up", "Pitch Up", KeyCode::ArrowUp),
-            Self::PitchDown => camera_meta("pitch_down", "Pitch Down", KeyCode::ArrowDown),
-            Self::ZoomIn => camera_meta("zoom_in", "Zoom In", KeyCode::PageUp),
-            Self::ZoomOut => camera_meta("zoom_out", "Zoom Out", KeyCode::PageDown),
-            Self::TargetNearest => targeting_meta("target_nearest", "Target Nearest", KeyCode::Tab),
-            Self::TargetSelf => targeting_meta("target_self", "Target Self", KeyCode::F1),
-            Self::ToggleMute => input_action_meta(
-                "toggle_mute",
-                "Toggle Mute",
-                BindingSection::Audio,
-                Some(InputBinding::CtrlKeyboard(KeyCode::KeyS)),
-            ),
-            Self::ToggleCharacter
-            | Self::ToggleSpellbook
-            | Self::ToggleProfessions
-            | Self::ToggleAchievements
-            | Self::ToggleTalents
-            | Self::ToggleEncounterJournal
-            | Self::ToggleSocial
-            | Self::ToggleLootRules
-            | Self::ToggleQuestLog
-            | Self::ToggleWorldMap => unreachable!("panel toggles handled by interface_meta"),
-            Self::ActionSlot1
-            | Self::ActionSlot2
-            | Self::ActionSlot3
-            | Self::ActionSlot4
-            | Self::ActionSlot5
-            | Self::ActionSlot6
-            | Self::ActionSlot7
-            | Self::ActionSlot8
-            | Self::ActionSlot9
-            | Self::ActionSlot10
-            | Self::ActionSlot11
-            | Self::ActionSlot12 => unreachable!("action slots handled by action_slot_meta"),
-        }
-    }
-
-    fn action_slot_meta(self) -> Option<InputActionMeta> {
-        let (slot, key) = match self {
-            Self::ActionSlot1 => (1, KeyCode::Digit1),
-            Self::ActionSlot2 => (2, KeyCode::Digit2),
-            Self::ActionSlot3 => (3, KeyCode::Digit3),
-            Self::ActionSlot4 => (4, KeyCode::Digit4),
-            Self::ActionSlot5 => (5, KeyCode::Digit5),
-            Self::ActionSlot6 => (6, KeyCode::Digit6),
-            Self::ActionSlot7 => (7, KeyCode::Digit7),
-            Self::ActionSlot8 => (8, KeyCode::Digit8),
-            Self::ActionSlot9 => (9, KeyCode::Digit9),
-            Self::ActionSlot10 => (10, KeyCode::Digit0),
-            Self::ActionSlot11 => (11, KeyCode::Minus),
-            Self::ActionSlot12 => (12, KeyCode::Equal),
-            _ => return None,
-        };
-        Some(action_slot_meta(slot, self, key))
+#[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(transparent)]
+pub struct InputBindings(pub InputBindingsData);
+impl Deref for InputBindings {
+    type Target = InputBindingsData;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Copy)]
-pub enum BindingSection {
-    Movement,
-    Camera,
-    Targeting,
-    ActionBar,
-    Audio,
-    Interface,
-}
-
-impl BindingSection {
-    pub const ALL: [Self; 6] = [
-        Self::Movement,
-        Self::Camera,
-        Self::Targeting,
-        Self::ActionBar,
-        Self::Audio,
-        Self::Interface,
-    ];
-
-    pub fn key(self) -> &'static str {
-        match self {
-            Self::Movement => "movement",
-            Self::Camera => "camera",
-            Self::Targeting => "targeting",
-            Self::ActionBar => "action_bar",
-            Self::Audio => "audio",
-            Self::Interface => "interface",
-        }
-    }
-
-    pub fn from_key(key: &str) -> Option<Self> {
-        Some(match key {
-            "movement" => Self::Movement,
-            "camera" => Self::Camera,
-            "targeting" => Self::Targeting,
-            "action_bar" => Self::ActionBar,
-            "audio" => Self::Audio,
-            "interface" => Self::Interface,
-            _ => return None,
-        })
-    }
-
-    pub fn title(self) -> &'static str {
-        match self {
-            Self::Movement => "Movement",
-            Self::Camera => "Camera",
-            Self::Targeting => "Targeting",
-            Self::ActionBar => "Action Bar",
-            Self::Audio => "Audio",
-            Self::Interface => "Interface",
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
-pub enum InputBinding {
-    Keyboard(KeyCode),
-    /// Key pressed while either Shift is held.
-    ShiftKeyboard(KeyCode),
-    /// Key pressed while either Ctrl is held.
-    CtrlKeyboard(KeyCode),
-    Mouse(MouseButton),
-}
-
-impl InputBinding {
-    pub fn pressed(
-        self,
-        keys: &ButtonInput<KeyCode>,
-        mouse_buttons: &ButtonInput<MouseButton>,
-    ) -> bool {
-        match self {
-            Self::Keyboard(key) => keys.pressed(key),
-            Self::ShiftKeyboard(key) => shift_held(keys) && keys.pressed(key),
-            Self::CtrlKeyboard(key) => ctrl_held(keys) && keys.pressed(key),
-            Self::Mouse(button) => mouse_buttons.pressed(button),
-        }
-    }
-
-    pub fn just_pressed(
-        self,
-        keys: &ButtonInput<KeyCode>,
-        mouse_buttons: &ButtonInput<MouseButton>,
-    ) -> bool {
-        match self {
-            Self::Keyboard(key) => keys.just_pressed(key),
-            Self::ShiftKeyboard(key) => shift_held(keys) && keys.just_pressed(key),
-            Self::CtrlKeyboard(key) => ctrl_held(keys) && keys.just_pressed(key),
-            Self::Mouse(button) => mouse_buttons.just_pressed(button),
-        }
-    }
-
-    pub fn display(self) -> String {
-        match self {
-            Self::Keyboard(key) => key_display(key),
-            Self::ShiftKeyboard(key) => format!("Shift-{}", key_display(key)),
-            Self::CtrlKeyboard(key) => format!("Ctrl-{}", key_display(key)),
-            Self::Mouse(button) => mouse_button_display(button),
-        }
-    }
-}
-
-/// Binding captured from a key press. Shift and Ctrl act as modifiers and are
-/// never captured on their own; Ctrl wins when both are held.
-pub fn captured_keyboard_binding(
-    key: KeyCode,
-    keys: &ButtonInput<KeyCode>,
-) -> Option<InputBinding> {
-    if matches!(
-        key,
-        KeyCode::ShiftLeft | KeyCode::ShiftRight | KeyCode::ControlLeft | KeyCode::ControlRight
-    ) {
-        return None;
-    }
-    Some(if ctrl_held(keys) {
-        InputBinding::CtrlKeyboard(key)
-    } else if shift_held(keys) {
-        InputBinding::ShiftKeyboard(key)
-    } else {
-        InputBinding::Keyboard(key)
-    })
-}
-
-impl Serialize for InputBinding {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&binding_token(*self))
-    }
-}
-
-impl<'de> Deserialize<'de> for InputBinding {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let token = String::deserialize(deserializer)?;
-        parse_binding_token(&token).map_err(serde::de::Error::custom)
-    }
-}
-
-#[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(from = "SavedInputBindings")]
-pub struct InputBindings {
-    bindings: BTreeMap<InputAction, Option<InputBinding>>,
-}
-
-/// Persisted form. Saved files store every action, so a saved value equal to a
-/// retired default is treated as "never customized".
-#[derive(Deserialize)]
-struct SavedInputBindings {
-    bindings: BTreeMap<InputAction, Option<InputBinding>>,
-}
-
-/// Defaults that shipped and were later changed: (action, old default).
-const RETIRED_DEFAULTS: [(InputAction, InputBinding); 1] = [(
-    InputAction::ToggleMute,
-    InputBinding::Keyboard(KeyCode::KeyM),
-)];
-
-impl From<SavedInputBindings> for InputBindings {
-    /// Explicit saved bindings win. Actions missing from the file or still on a
-    /// retired default get the current default unless an explicit binding owns it.
-    fn from(saved: SavedInputBindings) -> Self {
-        let mut bindings: BTreeMap<_, _> = saved
-            .bindings
-            .into_iter()
-            .filter(|(action, binding)| !is_retired_default(*action, *binding))
-            .collect();
-        for action in InputAction::ALL {
-            if bindings.contains_key(&action) {
-                continue;
-            }
-            let default = action
-                .default_binding()
-                .filter(|binding| !bindings.values().any(|owned| *owned == Some(*binding)));
-            bindings.insert(action, default);
-        }
-        Self { bindings }
-    }
-}
-
-fn is_retired_default(action: InputAction, binding: Option<InputBinding>) -> bool {
-    RETIRED_DEFAULTS
-        .iter()
-        .any(|(retired_action, retired)| *retired_action == action && binding == Some(*retired))
-}
-
-impl Default for InputBindings {
-    fn default() -> Self {
-        let bindings = InputAction::ALL
-            .into_iter()
-            .map(|action| (action, action.default_binding()))
-            .collect();
-        Self { bindings }
+impl DerefMut for InputBindings {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
 impl InputBindings {
-    pub fn binding(&self, action: InputAction) -> Option<InputBinding> {
-        self.bindings.get(&action).copied().flatten()
-    }
-
     pub fn is_pressed(
         &self,
         action: InputAction,
         keys: &ButtonInput<KeyCode>,
-        mouse_buttons: &ButtonInput<MouseButton>,
+        mouse: &ButtonInput<MouseButton>,
     ) -> bool {
-        self.binding(action).is_some_and(|binding| {
-            binding.pressed(keys, mouse_buttons)
-                && !self.shadowed_by_modified_binding(binding, keys)
-        })
+        self.0.is_pressed(action, &BevyInput { keys, mouse })
     }
-
     pub fn is_just_pressed(
         &self,
         action: InputAction,
         keys: &ButtonInput<KeyCode>,
-        mouse_buttons: &ButtonInput<MouseButton>,
+        mouse: &ButtonInput<MouseButton>,
     ) -> bool {
-        self.binding(action).is_some_and(|binding| {
-            binding.just_pressed(keys, mouse_buttons)
-                && !self.shadowed_by_modified_binding(binding, keys)
-        })
+        self.0.is_just_pressed(action, &BevyInput { keys, mouse })
     }
+}
 
-    /// A plain key yields to a Shift+key or Ctrl+key binding on the same key
-    /// while that modifier is held.
-    fn shadowed_by_modified_binding(
-        &self,
-        binding: InputBinding,
-        keys: &ButtonInput<KeyCode>,
-    ) -> bool {
-        let InputBinding::Keyboard(key) = binding else {
-            return false;
-        };
-        let owned = |modified| self.bindings.values().any(|b| *b == Some(modified));
-        (shift_held(keys) && owned(InputBinding::ShiftKeyboard(key)))
-            || (ctrl_held(keys) && owned(InputBinding::CtrlKeyboard(key)))
+struct BevyInput<'a> {
+    keys: &'a ButtonInput<KeyCode>,
+    mouse: &'a ButtonInput<MouseButton>,
+}
+impl InputState for BevyInput<'_> {
+    fn key_pressed(&self, key: BindingKey) -> bool {
+        self.keys.pressed(key.into())
     }
+    fn key_just_pressed(&self, key: BindingKey) -> bool {
+        self.keys.just_pressed(key.into())
+    }
+    fn mouse_pressed(&self, button: BindingMouseButton) -> bool {
+        self.mouse.pressed(button.into())
+    }
+    fn mouse_just_pressed(&self, button: BindingMouseButton) -> bool {
+        self.mouse.just_pressed(button.into())
+    }
+    fn shift_held(&self) -> bool {
+        self.keys.pressed(KeyCode::ShiftLeft) || self.keys.pressed(KeyCode::ShiftRight)
+    }
+    fn ctrl_held(&self) -> bool {
+        self.keys.pressed(KeyCode::ControlLeft) || self.keys.pressed(KeyCode::ControlRight)
+    }
+}
 
-    pub fn assign(&mut self, action: InputAction, binding: InputBinding) {
-        for existing in InputAction::ALL {
-            if existing != action && self.binding(existing) == Some(binding) {
-                self.bindings.insert(existing, None);
-            }
+impl TryFrom<KeyCode> for BindingKey {
+    type Error = KeyCode;
+    fn try_from(key: KeyCode) -> Result<Self, Self::Error> {
+        match key {
+            KeyCode::KeyA => Ok(Self::KeyA),
+            KeyCode::KeyB => Ok(Self::KeyB),
+            KeyCode::KeyC => Ok(Self::KeyC),
+            KeyCode::KeyD => Ok(Self::KeyD),
+            KeyCode::KeyE => Ok(Self::KeyE),
+            KeyCode::KeyF => Ok(Self::KeyF),
+            KeyCode::KeyG => Ok(Self::KeyG),
+            KeyCode::KeyH => Ok(Self::KeyH),
+            KeyCode::KeyI => Ok(Self::KeyI),
+            KeyCode::KeyJ => Ok(Self::KeyJ),
+            KeyCode::KeyK => Ok(Self::KeyK),
+            KeyCode::KeyL => Ok(Self::KeyL),
+            KeyCode::KeyM => Ok(Self::KeyM),
+            KeyCode::KeyN => Ok(Self::KeyN),
+            KeyCode::KeyO => Ok(Self::KeyO),
+            KeyCode::KeyP => Ok(Self::KeyP),
+            KeyCode::KeyQ => Ok(Self::KeyQ),
+            KeyCode::KeyR => Ok(Self::KeyR),
+            KeyCode::KeyS => Ok(Self::KeyS),
+            KeyCode::KeyT => Ok(Self::KeyT),
+            KeyCode::KeyU => Ok(Self::KeyU),
+            KeyCode::KeyV => Ok(Self::KeyV),
+            KeyCode::KeyW => Ok(Self::KeyW),
+            KeyCode::KeyX => Ok(Self::KeyX),
+            KeyCode::KeyY => Ok(Self::KeyY),
+            KeyCode::KeyZ => Ok(Self::KeyZ),
+            KeyCode::Digit0 => Ok(Self::Digit0),
+            KeyCode::Digit1 => Ok(Self::Digit1),
+            KeyCode::Digit2 => Ok(Self::Digit2),
+            KeyCode::Digit3 => Ok(Self::Digit3),
+            KeyCode::Digit4 => Ok(Self::Digit4),
+            KeyCode::Digit5 => Ok(Self::Digit5),
+            KeyCode::Digit6 => Ok(Self::Digit6),
+            KeyCode::Digit7 => Ok(Self::Digit7),
+            KeyCode::Digit8 => Ok(Self::Digit8),
+            KeyCode::Digit9 => Ok(Self::Digit9),
+            KeyCode::F1 => Ok(Self::F1),
+            KeyCode::F2 => Ok(Self::F2),
+            KeyCode::F3 => Ok(Self::F3),
+            KeyCode::F4 => Ok(Self::F4),
+            KeyCode::F5 => Ok(Self::F5),
+            KeyCode::F6 => Ok(Self::F6),
+            KeyCode::F7 => Ok(Self::F7),
+            KeyCode::F8 => Ok(Self::F8),
+            KeyCode::F9 => Ok(Self::F9),
+            KeyCode::F10 => Ok(Self::F10),
+            KeyCode::F11 => Ok(Self::F11),
+            KeyCode::F12 => Ok(Self::F12),
+            KeyCode::Space => Ok(Self::Space),
+            KeyCode::Tab => Ok(Self::Tab),
+            KeyCode::Escape => Ok(Self::Escape),
+            KeyCode::Minus => Ok(Self::Minus),
+            KeyCode::Equal => Ok(Self::Equal),
+            KeyCode::BracketLeft => Ok(Self::BracketLeft),
+            KeyCode::BracketRight => Ok(Self::BracketRight),
+            KeyCode::ArrowLeft => Ok(Self::ArrowLeft),
+            KeyCode::ArrowRight => Ok(Self::ArrowRight),
+            KeyCode::ArrowUp => Ok(Self::ArrowUp),
+            KeyCode::ArrowDown => Ok(Self::ArrowDown),
+            KeyCode::PageUp => Ok(Self::PageUp),
+            KeyCode::PageDown => Ok(Self::PageDown),
+            KeyCode::NumLock => Ok(Self::NumLock),
+            KeyCode::Home => Ok(Self::Home),
+            KeyCode::End => Ok(Self::End),
+            KeyCode::Insert => Ok(Self::Insert),
+            KeyCode::Delete => Ok(Self::Delete),
+            KeyCode::Backspace => Ok(Self::Backspace),
+            KeyCode::Enter => Ok(Self::Enter),
+            _ => Err(key),
         }
-        self.bindings.insert(action, Some(binding));
     }
-
-    pub fn clear(&mut self, action: InputAction) {
-        self.bindings.insert(action, None);
+}
+impl From<BindingKey> for KeyCode {
+    fn from(key: BindingKey) -> Self {
+        match key {
+            BindingKey::KeyA => Self::KeyA,
+            BindingKey::KeyB => Self::KeyB,
+            BindingKey::KeyC => Self::KeyC,
+            BindingKey::KeyD => Self::KeyD,
+            BindingKey::KeyE => Self::KeyE,
+            BindingKey::KeyF => Self::KeyF,
+            BindingKey::KeyG => Self::KeyG,
+            BindingKey::KeyH => Self::KeyH,
+            BindingKey::KeyI => Self::KeyI,
+            BindingKey::KeyJ => Self::KeyJ,
+            BindingKey::KeyK => Self::KeyK,
+            BindingKey::KeyL => Self::KeyL,
+            BindingKey::KeyM => Self::KeyM,
+            BindingKey::KeyN => Self::KeyN,
+            BindingKey::KeyO => Self::KeyO,
+            BindingKey::KeyP => Self::KeyP,
+            BindingKey::KeyQ => Self::KeyQ,
+            BindingKey::KeyR => Self::KeyR,
+            BindingKey::KeyS => Self::KeyS,
+            BindingKey::KeyT => Self::KeyT,
+            BindingKey::KeyU => Self::KeyU,
+            BindingKey::KeyV => Self::KeyV,
+            BindingKey::KeyW => Self::KeyW,
+            BindingKey::KeyX => Self::KeyX,
+            BindingKey::KeyY => Self::KeyY,
+            BindingKey::KeyZ => Self::KeyZ,
+            BindingKey::Digit0 => Self::Digit0,
+            BindingKey::Digit1 => Self::Digit1,
+            BindingKey::Digit2 => Self::Digit2,
+            BindingKey::Digit3 => Self::Digit3,
+            BindingKey::Digit4 => Self::Digit4,
+            BindingKey::Digit5 => Self::Digit5,
+            BindingKey::Digit6 => Self::Digit6,
+            BindingKey::Digit7 => Self::Digit7,
+            BindingKey::Digit8 => Self::Digit8,
+            BindingKey::Digit9 => Self::Digit9,
+            BindingKey::F1 => Self::F1,
+            BindingKey::F2 => Self::F2,
+            BindingKey::F3 => Self::F3,
+            BindingKey::F4 => Self::F4,
+            BindingKey::F5 => Self::F5,
+            BindingKey::F6 => Self::F6,
+            BindingKey::F7 => Self::F7,
+            BindingKey::F8 => Self::F8,
+            BindingKey::F9 => Self::F9,
+            BindingKey::F10 => Self::F10,
+            BindingKey::F11 => Self::F11,
+            BindingKey::F12 => Self::F12,
+            BindingKey::Space => Self::Space,
+            BindingKey::Tab => Self::Tab,
+            BindingKey::Escape => Self::Escape,
+            BindingKey::Minus => Self::Minus,
+            BindingKey::Equal => Self::Equal,
+            BindingKey::BracketLeft => Self::BracketLeft,
+            BindingKey::BracketRight => Self::BracketRight,
+            BindingKey::ArrowLeft => Self::ArrowLeft,
+            BindingKey::ArrowRight => Self::ArrowRight,
+            BindingKey::ArrowUp => Self::ArrowUp,
+            BindingKey::ArrowDown => Self::ArrowDown,
+            BindingKey::PageUp => Self::PageUp,
+            BindingKey::PageDown => Self::PageDown,
+            BindingKey::NumLock => Self::NumLock,
+            BindingKey::Home => Self::Home,
+            BindingKey::End => Self::End,
+            BindingKey::Insert => Self::Insert,
+            BindingKey::Delete => Self::Delete,
+            BindingKey::Backspace => Self::Backspace,
+            BindingKey::Enter => Self::Enter,
+        }
     }
-
-    pub fn reset_section(&mut self, section: BindingSection) {
-        for action in actions_for_section(section) {
-            self.bindings.insert(*action, action.default_binding());
+}
+impl From<MouseButton> for BindingMouseButton {
+    fn from(button: MouseButton) -> Self {
+        match button {
+            MouseButton::Left => Self::Left,
+            MouseButton::Right => Self::Right,
+            MouseButton::Middle => Self::Middle,
+            MouseButton::Back => Self::Back,
+            MouseButton::Forward => Self::Forward,
+            MouseButton::Other(id) => Self::Other(id),
+        }
+    }
+}
+impl From<BindingMouseButton> for MouseButton {
+    fn from(button: BindingMouseButton) -> Self {
+        match button {
+            BindingMouseButton::Left => Self::Left,
+            BindingMouseButton::Right => Self::Right,
+            BindingMouseButton::Middle => Self::Middle,
+            BindingMouseButton::Back => Self::Back,
+            BindingMouseButton::Forward => Self::Forward,
+            BindingMouseButton::Other(id) => Self::Other(id),
         }
     }
 }
 
-fn shift_held(keys: &ButtonInput<KeyCode>) -> bool {
-    keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight)
-}
-
-fn ctrl_held(keys: &ButtonInput<KeyCode>) -> bool {
-    keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight)
-}
-
-fn keyboard(key: KeyCode) -> InputBinding {
-    InputBinding::Keyboard(key)
-}
-
-fn action_slot_meta(slot: u8, _action: InputAction, default_key: KeyCode) -> InputActionMeta {
-    let (key, label) = match slot {
-        1 => ("action_slot_1", "Action Button 1"),
-        2 => ("action_slot_2", "Action Button 2"),
-        3 => ("action_slot_3", "Action Button 3"),
-        4 => ("action_slot_4", "Action Button 4"),
-        5 => ("action_slot_5", "Action Button 5"),
-        6 => ("action_slot_6", "Action Button 6"),
-        7 => ("action_slot_7", "Action Button 7"),
-        8 => ("action_slot_8", "Action Button 8"),
-        9 => ("action_slot_9", "Action Button 9"),
-        10 => ("action_slot_10", "Action Button 10"),
-        11 => ("action_slot_11", "Action Button 11"),
-        12 => ("action_slot_12", "Action Button 12"),
-        _ => unreachable!("unsupported action slot"),
-    };
-    InputActionMeta {
+/// Modifier-only capture is deliberately ignored; unsupported physical keys are errors.
+pub fn captured_keyboard_binding(
+    key: KeyCode,
+    keys: &ButtonInput<KeyCode>,
+) -> Result<Option<InputBinding>, KeyCode> {
+    if matches!(
         key,
-        label,
-        section: BindingSection::ActionBar,
-        default_binding: Some(InputBinding::Keyboard(default_key)),
+        KeyCode::ShiftLeft | KeyCode::ShiftRight | KeyCode::ControlLeft | KeyCode::ControlRight
+    ) {
+        return Ok(None);
     }
+    let key = BindingKey::try_from(key)?;
+    Ok(Some(
+        if keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight) {
+            InputBinding::CtrlKeyboard(key)
+        } else if keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight) {
+            InputBinding::ShiftKeyboard(key)
+        } else {
+            InputBinding::Keyboard(key)
+        },
+    ))
 }
 
-fn movement_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
-    input_action_meta(
-        key,
-        label,
-        BindingSection::Movement,
-        Some(InputBinding::Keyboard(default_key)),
-    )
-}
-
-fn camera_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
-    input_action_meta(
-        key,
-        label,
-        BindingSection::Camera,
-        Some(InputBinding::Keyboard(default_key)),
-    )
-}
-
-fn targeting_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
-    input_action_meta(
-        key,
-        label,
-        BindingSection::Targeting,
-        Some(InputBinding::Keyboard(default_key)),
-    )
-}
-
-fn movement_action_from_key(key: &str) -> Option<InputAction> {
-    Some(match key {
-        "move_forward" => InputAction::MoveForward,
-        "move_backward" => InputAction::MoveBackward,
-        "strafe_left" => InputAction::StrafeLeft,
-        "strafe_right" => InputAction::StrafeRight,
-        "jump" => InputAction::Jump,
-        "run_toggle" => InputAction::RunToggle,
-        "auto_run" => InputAction::AutoRun,
-        _ => return None,
-    })
-}
-
-fn camera_action_from_key(key: &str) -> Option<InputAction> {
-    Some(match key {
-        "turn_left" => InputAction::TurnLeft,
-        "turn_right" => InputAction::TurnRight,
-        "pitch_up" => InputAction::PitchUp,
-        "pitch_down" => InputAction::PitchDown,
-        "zoom_in" => InputAction::ZoomIn,
-        "zoom_out" => InputAction::ZoomOut,
-        _ => return None,
-    })
-}
-
-fn targeting_action_from_key(key: &str) -> Option<InputAction> {
-    Some(match key {
-        "target_nearest" => InputAction::TargetNearest,
-        "target_self" => InputAction::TargetSelf,
-        _ => return None,
-    })
-}
-
-fn action_slot_from_key(key: &str) -> Option<InputAction> {
-    Some(match key {
-        "action_slot_1" => InputAction::ActionSlot1,
-        "action_slot_2" => InputAction::ActionSlot2,
-        "action_slot_3" => InputAction::ActionSlot3,
-        "action_slot_4" => InputAction::ActionSlot4,
-        "action_slot_5" => InputAction::ActionSlot5,
-        "action_slot_6" => InputAction::ActionSlot6,
-        "action_slot_7" => InputAction::ActionSlot7,
-        "action_slot_8" => InputAction::ActionSlot8,
-        "action_slot_9" => InputAction::ActionSlot9,
-        "action_slot_10" => InputAction::ActionSlot10,
-        "action_slot_11" => InputAction::ActionSlot11,
-        "action_slot_12" => InputAction::ActionSlot12,
-        _ => return None,
-    })
-}
-
-fn interface_action_from_key(key: &str) -> Option<InputAction> {
-    Some(match key {
-        "toggle_character" => InputAction::ToggleCharacter,
-        "toggle_spellbook" => InputAction::ToggleSpellbook,
-        "toggle_professions" => InputAction::ToggleProfessions,
-        "toggle_achievements" => InputAction::ToggleAchievements,
-        "toggle_talents" => InputAction::ToggleTalents,
-        "toggle_encounter_journal" => InputAction::ToggleEncounterJournal,
-        "toggle_social" => InputAction::ToggleSocial,
-        "toggle_loot_rules" => InputAction::ToggleLootRules,
-        "toggle_quest_log" => InputAction::ToggleQuestLog,
-        "toggle_world_map" => InputAction::ToggleWorldMap,
-        _ => return None,
-    })
-}
-
-fn audio_action_from_key(key: &str) -> Option<InputAction> {
-    match key {
-        "toggle_mute" => Some(InputAction::ToggleMute),
-        _ => None,
-    }
-}
-
-fn input_action_meta(
-    key: &'static str,
-    label: &'static str,
-    section: BindingSection,
-    default_binding: Option<InputBinding>,
-) -> InputActionMeta {
-    InputActionMeta {
-        key,
-        label,
-        section,
-        default_binding,
-    }
-}
-
-pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
-    match section {
-        BindingSection::Movement => movement_section_actions(),
-        BindingSection::Camera => camera_section_actions(),
-        BindingSection::Targeting => targeting_section_actions(),
-        BindingSection::ActionBar => action_bar_section_actions(),
-        BindingSection::Audio => audio_section_actions(),
-        BindingSection::Interface => interface_section_actions(),
-    }
-}
-
-fn movement_section_actions() -> &'static [InputAction] {
-    &[
-        InputAction::MoveForward,
-        InputAction::MoveBackward,
-        InputAction::StrafeLeft,
-        InputAction::StrafeRight,
-        InputAction::Jump,
-        InputAction::RunToggle,
-        InputAction::AutoRun,
-    ]
-}
-
-fn camera_section_actions() -> &'static [InputAction] {
-    &[
-        InputAction::TurnLeft,
-        InputAction::TurnRight,
-        InputAction::PitchUp,
-        InputAction::PitchDown,
-        InputAction::ZoomIn,
-        InputAction::ZoomOut,
-    ]
-}
-
-fn targeting_section_actions() -> &'static [InputAction] {
-    &[InputAction::TargetNearest, InputAction::TargetSelf]
-}
-
-fn action_bar_section_actions() -> &'static [InputAction] {
-    &[
-        InputAction::ActionSlot1,
-        InputAction::ActionSlot2,
-        InputAction::ActionSlot3,
-        InputAction::ActionSlot4,
-        InputAction::ActionSlot5,
-        InputAction::ActionSlot6,
-        InputAction::ActionSlot7,
-        InputAction::ActionSlot8,
-        InputAction::ActionSlot9,
-        InputAction::ActionSlot10,
-        InputAction::ActionSlot11,
-        InputAction::ActionSlot12,
-    ]
-}
-
-fn audio_section_actions() -> &'static [InputAction] {
-    &[InputAction::ToggleMute]
-}
-
-fn interface_section_actions() -> &'static [InputAction] {
-    &[
-        InputAction::ToggleCharacter,
-        InputAction::ToggleSpellbook,
-        InputAction::ToggleProfessions,
-        InputAction::ToggleAchievements,
-        InputAction::ToggleTalents,
-        InputAction::ToggleEncounterJournal,
-        InputAction::ToggleSocial,
-        InputAction::ToggleLootRules,
-        InputAction::ToggleQuestLog,
-        InputAction::ToggleWorldMap,
-    ]
-}
-
-fn binding_token(binding: InputBinding) -> String {
-    match binding {
-        InputBinding::Keyboard(key) => format!("key:{key:?}"),
-        InputBinding::ShiftKeyboard(key) => format!("shift+key:{key:?}"),
-        InputBinding::CtrlKeyboard(key) => format!("ctrl+key:{key:?}"),
-        InputBinding::Mouse(button) => format!("mouse:{button:?}"),
-    }
-}
-
-fn parse_binding_token(token: &str) -> Result<InputBinding, String> {
-    if let Some(key) = token.strip_prefix("shift+key:") {
-        return parse_key_code(key)
-            .map(InputBinding::ShiftKeyboard)
-            .ok_or_else(|| format!("unsupported key binding token '{token}'"));
-    }
-    if let Some(key) = token.strip_prefix("ctrl+key:") {
-        return parse_key_code(key)
-            .map(InputBinding::CtrlKeyboard)
-            .ok_or_else(|| format!("unsupported key binding token '{token}'"));
-    }
-    if let Some(key) = token.strip_prefix("key:") {
-        return parse_key_code(key)
-            .map(InputBinding::Keyboard)
-            .ok_or_else(|| format!("unsupported key binding token '{token}'"));
-    }
-    if let Some(button) = token.strip_prefix("mouse:") {
-        return parse_mouse_button(button)
-            .map(InputBinding::Mouse)
-            .ok_or_else(|| format!("unsupported mouse binding token '{token}'"));
-    }
-    Err(format!("invalid binding token '{token}'"))
-}
-
-fn key_display(key: KeyCode) -> String {
-    key_short_label(key)
-        .map(str::to_string)
-        .unwrap_or_else(|| format!("{key:?}"))
-}
-
-fn key_short_label(key: KeyCode) -> Option<&'static str> {
-    match key {
-        KeyCode::Space => Some("Space"),
-        KeyCode::Tab => Some("Tab"),
-        KeyCode::Escape => Some("Escape"),
-        KeyCode::Minus => Some("-"),
-        KeyCode::Equal => Some("="),
-        KeyCode::BracketLeft => Some("["),
-        KeyCode::BracketRight => Some("]"),
-        KeyCode::ArrowLeft => Some("Left Arrow"),
-        KeyCode::ArrowRight => Some("Right Arrow"),
-        KeyCode::ArrowUp => Some("Up Arrow"),
-        KeyCode::ArrowDown => Some("Down Arrow"),
-        KeyCode::PageUp => Some("Page Up"),
-        KeyCode::PageDown => Some("Page Down"),
-        KeyCode::NumLock => Some("Num Lock"),
-        _ => key_alpha_numeric_label(key),
-    }
-}
-
-/// Label of a letter or digit key ("A" for `KeyA`, "1" for `Digit1`).
-pub fn key_alpha_numeric_label(key: KeyCode) -> Option<&'static str> {
-    LETTER_KEYS
-        .iter()
-        .chain(DIGIT_KEYS.iter())
-        .find_map(|(label, code)| (*code == key).then_some(*label))
-}
-
-fn mouse_button_display(button: MouseButton) -> String {
-    match button {
-        MouseButton::Left => "Left Mouse".to_string(),
-        MouseButton::Right => "Right Mouse".to_string(),
-        MouseButton::Middle => "Middle Mouse".to_string(),
-        MouseButton::Back => "Back Mouse".to_string(),
-        MouseButton::Forward => "Forward Mouse".to_string(),
-        MouseButton::Other(id) => format!("Mouse Button {id}"),
-    }
-}
-
-/// Parse a human key name ("M", "KeyM", "1", "F10", "Escape"), ignoring ASCII case.
 pub fn parse_key_name(token: &str) -> Option<KeyCode> {
-    let token = token.strip_prefix("Key").unwrap_or(token);
-    let token = token.strip_prefix("Digit").unwrap_or(token);
-    LETTER_KEYS
-        .iter()
-        .chain(DIGIT_KEYS.iter())
-        .chain(FUNCTION_KEYS.iter())
-        .chain(NAMED_KEYS.iter())
-        .find_map(|(name, code)| name.eq_ignore_ascii_case(token).then_some(*code))
+    crate::input_bindings_data::parse_key_name(token).map(Into::into)
 }
-
-fn parse_key_code(token: &str) -> Option<KeyCode> {
-    parse_letter_key(token)
-        .or_else(|| parse_digit_key(token))
-        .or_else(|| parse_function_key(token))
-        .or_else(|| parse_named_key(token))
-}
-
-fn parse_letter_key(token: &str) -> Option<KeyCode> {
-    let token = token.strip_prefix("Key")?;
-    lookup_named_key(token, &LETTER_KEYS)
-}
-
-fn parse_digit_key(token: &str) -> Option<KeyCode> {
-    let token = token.strip_prefix("Digit")?;
-    lookup_named_key(token, &DIGIT_KEYS)
-}
-
-fn parse_function_key(token: &str) -> Option<KeyCode> {
-    lookup_named_key(token, &FUNCTION_KEYS)
-}
-
-fn lookup_named_key(token: &str, entries: &[(&str, KeyCode)]) -> Option<KeyCode> {
-    entries
-        .iter()
-        .find_map(|(name, code)| (*name == token).then_some(*code))
-}
-
-fn parse_named_key(token: &str) -> Option<KeyCode> {
-    lookup_named_key(token, &NAMED_KEYS)
-}
-
-fn parse_mouse_button(token: &str) -> Option<MouseButton> {
-    match token {
-        "Left" => Some(MouseButton::Left),
-        "Right" => Some(MouseButton::Right),
-        "Middle" => Some(MouseButton::Middle),
-        "Back" => Some(MouseButton::Back),
-        "Forward" => Some(MouseButton::Forward),
-        _ => token
-            .strip_prefix("Other(")?
-            .strip_suffix(')')?
-            .parse()
-            .ok()
-            .map(MouseButton::Other),
-    }
+pub fn key_alpha_numeric_label(key: KeyCode) -> Option<&'static str> {
+    BindingKey::try_from(key)
+        .ok()
+        .and_then(crate::input_bindings_data::key_alpha_numeric_label)
 }
 
 #[cfg(test)]

@@ -1,9 +1,8 @@
-use std::f32::consts::FRAC_PI_8;
-
 use bevy::camera::ClearColorConfig;
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
+use game_engine::char_select_camera_data::{SelectOrbit, solo_camera_params};
 use game_engine::customization_data::ModelPresentation;
 
 use crate::camera::world_camera_tonemapping;
@@ -15,15 +14,8 @@ use super::{CharSelectModelRoot, CharSelectScene};
 pub(super) type SceneEntry = crate::scenes::char_select::warband::WarbandSceneEntry;
 pub(super) type ScenePlacement = crate::scenes::char_select::warband::WarbandScenePlacement;
 
-#[derive(Component, Clone)]
-pub(super) struct CharSelectOrbit {
-    pub(super) yaw: f32,
-    pub(super) base_yaw: f32,
-    pub(super) pitch: f32,
-    pub(super) focus: Vec3,
-    pub(super) distance: f32,
-    pub(super) base_pitch: f32,
-}
+#[derive(Component, Clone, Deref, DerefMut)]
+pub(super) struct CharSelectOrbit(pub(super) SelectOrbit);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct OrbitInputDebugState {
@@ -32,10 +24,6 @@ pub(super) struct OrbitInputDebugState {
     pub(super) orbit_entity_count: usize,
 }
 
-const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8;
-const ORBIT_PITCH_LIMIT: f32 = 0.15;
-const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
-const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
 pub(super) const CHAR_SELECT_CAMERA_GROUND_CLEARANCE: f32 = 0.5;
 // Keep the nearby campsite clear; fog uses world distance, not portrait framing.
 const CHAR_SELECT_FOG_START_DISTANCE: f32 = 75.0;
@@ -79,17 +67,6 @@ pub(super) fn char_select_fog() -> DistanceFog {
     }
 }
 
-fn single_character_focus(
-    scene: &SceneEntry,
-    placement: &ScenePlacement,
-    presentation: ModelPresentation,
-) -> Vec3 {
-    let _ = scene;
-    let char_pos = placement.bevy_position();
-    let focus_y = char_pos.y + presentation.customize_scale.max(0.01);
-    Vec3::new(char_pos.x, focus_y, char_pos.z)
-}
-
 pub(super) fn camera_params(
     scene: Option<&SceneEntry>,
     placement: Option<&ScenePlacement>,
@@ -99,12 +76,13 @@ pub(super) fn camera_params(
         CameraTarget::Solo { scene, placement } => {
             let scene_eye = scene.bevy_position();
             let scene_focus = scene.bevy_look_at();
-            let focus = single_character_focus(scene, placement, presentation);
-            let distance = (SOLO_CHARACTER_CAMERA_DISTANCE + presentation.camera_distance_offset)
-                .clamp(3.5, (scene_eye - scene_focus).length());
-            let eye = solo_camera_eye(scene_eye, scene_focus, focus, distance);
-            let fov = scene.fov.min(SOLO_CHARACTER_MAX_FOV_DEGREES);
-            (eye, focus, fov)
+            solo_camera_params(
+                scene_eye,
+                scene_focus,
+                scene.fov,
+                placement.bevy_position(),
+                presentation,
+            )
         }
         CameraTarget::Scene(scene) => (scene.bevy_position(), scene.bevy_look_at(), scene.fov),
         CameraTarget::Default => (
@@ -115,43 +93,12 @@ pub(super) fn camera_params(
     }
 }
 
-fn solo_camera_eye(scene_eye: Vec3, scene_focus: Vec3, focus: Vec3, distance: f32) -> Vec3 {
-    let scene_offset = scene_eye - scene_focus;
-    let vertical = scene_offset.y;
-    let horizontal = Vec3::new(scene_offset.x, 0.0, scene_offset.z);
-    let horizontal_dir = horizontal.normalize_or_zero();
-    let horizontal_distance = (distance * distance - vertical * vertical).max(0.0).sqrt();
-    focus + horizontal_dir * horizontal_distance + Vec3::Y * vertical
-}
-
 pub(super) fn orbit_from_eye_focus(eye: Vec3, focus: Vec3) -> CharSelectOrbit {
-    let offset = eye - focus;
-    let distance = offset.length();
-    let base_yaw = offset.x.atan2(offset.z);
-    let base_pitch = if distance > 0.0 {
-        (offset.y / distance).asin()
-    } else {
-        0.0
-    };
-    CharSelectOrbit {
-        yaw: 0.0,
-        base_yaw,
-        pitch: 0.0,
-        focus,
-        distance,
-        base_pitch,
-    }
+    CharSelectOrbit(SelectOrbit::from_eye_focus(eye, focus))
 }
 
 pub(super) fn orbit_eye(orbit: &CharSelectOrbit) -> Vec3 {
-    let yaw = orbit.base_yaw + orbit.yaw;
-    let pitch = orbit.base_pitch + orbit.pitch;
-    orbit.focus
-        + Vec3::new(
-            yaw.sin() * pitch.cos(),
-            pitch.sin(),
-            yaw.cos() * pitch.cos(),
-        ) * orbit.distance
+    orbit.eye()
 }
 
 pub(super) fn clamp_char_select_eye(eye: Vec3, heightmap: Option<&TerrainHeightmap>) -> Vec3 {
@@ -227,8 +174,7 @@ pub(super) fn char_select_orbit_camera(
     }
     let orbit_delta = scaled_orbit_delta(delta, options.mouse_sensitivity);
     for (mut orbit, mut transform) in &mut query {
-        orbit.yaw = (orbit.yaw + orbit_delta.x).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
-        orbit.pitch = (orbit.pitch + orbit_delta.y).clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
+        orbit.drag(orbit_delta);
         let eye = clamp_char_select_eye(orbit_eye(&orbit), heightmap.as_deref());
         *transform = Transform::from_translation(eye).looking_at(orbit.focus, Vec3::Y);
     }

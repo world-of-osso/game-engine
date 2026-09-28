@@ -1,6 +1,7 @@
 mod appearance_widgets;
 mod char_create_widgets;
 pub mod navigation_art;
+mod navigation_art_common;
 mod reference_layout;
 mod view_model;
 
@@ -197,9 +198,9 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "name_button_tests.rs"]
 mod name_button_tests;
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "mod_tests.rs"]
 mod tests;

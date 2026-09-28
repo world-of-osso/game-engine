@@ -79,7 +79,7 @@ fn build_ui_errors_ui(
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let mut shared = SharedContext::new();
-    shared.insert(errors.clone());
+    shared.insert(errors.0.clone());
     let mut screen = Screen::new(ui_errors_frame_screen);
     screen.sync(&shared, &mut ui.registry);
     commands.insert_resource(UiErrorsFrameWrap(UiErrorsFrameRes { screen, shared }));
@@ -120,7 +120,7 @@ fn sync_ui_errors_ui(
     }
     last_model.0 = errors.clone();
     let res = &mut wrap.0;
-    res.shared.insert(errors.clone());
+    res.shared.insert(errors.0.clone());
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 

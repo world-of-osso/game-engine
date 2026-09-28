@@ -6,6 +6,9 @@ use bevy::prelude::*;
 
 use crate::asset;
 
+#[path = "../../asset/m2_texture_composite_data.rs"]
+pub(crate) mod m2_texture_composite_data;
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct TextureCacheKey {
     base_path: std::path::PathBuf,
@@ -18,9 +21,6 @@ pub(crate) struct TextureCacheKey {
 pub(crate) static COMPOSITED_TEXTURE_CACHE: OnceLock<
     Mutex<std::collections::HashMap<TextureCacheKey, Result<AssetId<Image>, String>>>,
 > = OnceLock::new();
-
-const M2_SHADER_ALPHA_MASK: u16 = 0x8000;
-const M2_SHADER_MOD_2X_ALPHA: u16 = 0x4014;
 
 pub(crate) fn load_composited_texture(
     base_path: &Path,
@@ -107,106 +107,15 @@ fn composite_second_texture(
         return;
     };
 
-    for y in 0..base_height {
-        for x in 0..base_width {
-            let base_idx = ((y * base_width + x) * 4) as usize;
-            let ox = x.rem_euclid(overlay_width);
-            let oy = y.rem_euclid(overlay_height);
-            let overlay_idx = ((oy * overlay_width + ox) * 4) as usize;
-            let base = &mut base_pixels[base_idx..base_idx + 4];
-            let overlay = &overlay_pixels[overlay_idx..overlay_idx + 4];
-            apply_m2_multitexture_shader(base, overlay, shader_id);
-        }
-    }
-}
-
-fn apply_m2_multitexture_shader(base: &mut [u8], overlay: &[u8], shader_id: u16) {
-    let base_rgb = [
-        base[0] as f32 / 255.0,
-        base[1] as f32 / 255.0,
-        base[2] as f32 / 255.0,
-    ];
-    let base_a = base[3] as f32 / 255.0;
-    let overlay_rgb = [
-        overlay[0] as f32 / 255.0,
-        overlay[1] as f32 / 255.0,
-        overlay[2] as f32 / 255.0,
-    ];
-    let overlay_a = overlay[3] as f32 / 255.0;
-
-    let (rgb, a) = shader_blend(base_rgb, base_a, overlay_rgb, overlay_a, shader_id);
-
-    base[0] = (rgb[0] * 255.0).round() as u8;
-    base[1] = (rgb[1] * 255.0).round() as u8;
-    base[2] = (rgb[2] * 255.0).round() as u8;
-    base[3] = (a * 255.0).round() as u8;
-}
-
-fn shader_blend(
-    base_rgb: [f32; 3],
-    base_a: f32,
-    overlay_rgb: [f32; 3],
-    overlay_a: f32,
-    shader_id: u16,
-) -> ([f32; 3], f32) {
-    match shader_id {
-        M2_SHADER_ALPHA_MASK => (base_rgb, (base_a * overlay_a).clamp(0.0, 1.0)),
-        M2_SHADER_MOD_2X_ALPHA => (
-            mul_2x_rgb(base_rgb, overlay_rgb),
-            (base_a * overlay_a * 2.0).clamp(0.0, 1.0),
-        ),
-        0x0010 => (mul_rgb(base_rgb, overlay_rgb), base_a),
-        0x0011 => (
-            mul_rgb(base_rgb, overlay_rgb),
-            (base_a * overlay_a).clamp(0.0, 1.0),
-        ),
-        0x4016 => (mul_2x_rgb(base_rgb, overlay_rgb), base_a),
-        0x8015 => (add_overlay_rgb(base_rgb, overlay_rgb, overlay_a, 1.0), 1.0),
-        0x8001 => (shader_8001_rgb(base_rgb, base_a, overlay_rgb), 1.0),
-        0x8002 => (add_overlay_rgb(base_rgb, overlay_rgb, overlay_a, 1.0), 1.0),
-        0x8003 => (
-            add_overlay_rgb(base_rgb, overlay_rgb, overlay_a, base_a),
-            1.0,
-        ),
-        _ => (base_rgb, base_a),
-    }
-}
-
-fn mul_rgb(base_rgb: [f32; 3], overlay_rgb: [f32; 3]) -> [f32; 3] {
-    [
-        (base_rgb[0] * overlay_rgb[0]).clamp(0.0, 1.0),
-        (base_rgb[1] * overlay_rgb[1]).clamp(0.0, 1.0),
-        (base_rgb[2] * overlay_rgb[2]).clamp(0.0, 1.0),
-    ]
-}
-
-fn mul_2x_rgb(base_rgb: [f32; 3], overlay_rgb: [f32; 3]) -> [f32; 3] {
-    [
-        (base_rgb[0] * overlay_rgb[0] * 2.0).clamp(0.0, 1.0),
-        (base_rgb[1] * overlay_rgb[1] * 2.0).clamp(0.0, 1.0),
-        (base_rgb[2] * overlay_rgb[2] * 2.0).clamp(0.0, 1.0),
-    ]
-}
-
-fn add_overlay_rgb(
-    base_rgb: [f32; 3],
-    overlay_rgb: [f32; 3],
-    overlay_a: f32,
-    weight: f32,
-) -> [f32; 3] {
-    [
-        (base_rgb[0] + overlay_rgb[0] * overlay_a * weight).clamp(0.0, 1.0),
-        (base_rgb[1] + overlay_rgb[1] * overlay_a * weight).clamp(0.0, 1.0),
-        (base_rgb[2] + overlay_rgb[2] * overlay_a * weight).clamp(0.0, 1.0),
-    ]
-}
-
-fn shader_8001_rgb(base_rgb: [f32; 3], base_a: f32, overlay_rgb: [f32; 3]) -> [f32; 3] {
-    [
-        (base_rgb[0] * ((overlay_rgb[0] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
-        (base_rgb[1] * ((overlay_rgb[1] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
-        (base_rgb[2] * ((overlay_rgb[2] * 2.0) * (1.0 - base_a) + base_a)).clamp(0.0, 1.0),
-    ]
+    m2_texture_composite_data::composite_second_texture_pixels(
+        base_pixels,
+        base_width,
+        base_height,
+        &overlay_pixels,
+        overlay_width,
+        overlay_height,
+        shader_id,
+    );
 }
 
 fn composite_overlay(
@@ -219,22 +128,23 @@ fn composite_overlay(
     let ov_path = asset::asset_cache::texture(ov.fdid)
         .unwrap_or_else(|| texture_dir.join(format!("{}.blp", ov.fdid)));
     match asset::blp::load_blp_rgba(&ov_path) {
-        Ok((ov_pixels, ov_w, ov_h)) => match ov.scale {
-            OverlayScale::None => {
-                asset::blp::blit_region(pixels, base_width, &ov_pixels, ov_w, ov_h, ov.x, ov.y);
-            }
-            OverlayScale::Uniform2x => {
-                let (scaled, sw, sh) = asset::blp::scale_2x(&ov_pixels, ov_w, ov_h);
-                asset::blp::blit_region(pixels, base_width, &scaled, sw, sh, ov.x, ov.y);
-            }
-        },
+        Ok((ov_pixels, ov_w, ov_h)) => m2_texture_composite_data::composite_overlay_pixels(
+            pixels,
+            base_width,
+            &ov_pixels,
+            ov_w,
+            ov_h,
+            ov.x,
+            ov.y,
+            matches!(ov.scale, OverlayScale::Uniform2x),
+        ),
         Err(e) => eprintln!("Failed to load overlay {}: {e}", ov_path.display()),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::apply_m2_multitexture_shader;
+    use super::m2_texture_composite_data::apply_m2_multitexture_shader;
 
     #[test]
     fn shader_8015_uses_secondary_alpha_as_additive_mask() {

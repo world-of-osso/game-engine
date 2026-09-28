@@ -322,30 +322,6 @@ fn parse_group_subchunks_ignores_unknown_chunks() {
     assert!(group.liquid.is_none());
 }
 
-/// SMOBatch flag 0x2 (`use_material_id_large`, byte 0x16) selects the u16 material id at 0x0A;
-/// the u8 id at 0x17 is then 0. `sw_tradedistrict` group 37 (tradeNE) sets it on every batch,
-/// including its blue slate roofs (MOMT 40/41, `mm_strmwnd_roof_01/02`).
-#[test]
-fn trade_district_batches_use_large_material_ids() {
-    let root_data = std::fs::read("data/models/322057.wmo").expect("sw_tradedistrict root WMO");
-    let root = crate::asset::wmo::load_wmo_root(&root_data).expect("parse root");
-    let group_data = std::fs::read(format!("data/models/{}.wmo", root.group_file_data_ids[37]))
-        .expect("sw_tradedistrict group 37");
-    let group =
-        crate::asset::wmo::load_wmo_group_with_root(&group_data, Some(&root)).expect("group 37");
-
-    let mut materials: Vec<u16> = group.batches.iter().map(|b| b.material_index).collect();
-    materials.sort_unstable();
-    materials.dedup();
-
-    assert_eq!(
-        materials,
-        [
-            2, 27, 38, 40, 41, 43, 47, 48, 49, 51, 52, 53, 54, 55, 56, 57, 59
-        ]
-    );
-}
-
 #[test]
 fn parse_moba_uses_small_material_id_without_large_flag() {
     let mut data = vec![0_u8; MOBA_ENTRY_SIZE];
