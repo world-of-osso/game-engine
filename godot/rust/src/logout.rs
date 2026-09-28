@@ -82,7 +82,8 @@ impl GameClient {
             .try_get_node_as::<Label>("Panel/Countdown")
             .ok_or("Logout overlay is missing Countdown")?;
         label.set_text(&text);
-        overlay.set_visible(!text.is_empty());
+        let visible = self.account.session.screen == SessionScreen::InWorld && !text.is_empty();
+        overlay.set_visible(visible);
         Ok(())
     }
 }
