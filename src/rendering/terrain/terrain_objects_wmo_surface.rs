@@ -1,4 +1,5 @@
 use super::*;
+use crate::terrain_objects::terrain_objects_wmo_material::WmoLayerCombine;
 
 pub(super) struct WmoMaterialProps {
     pub(super) texture_fdid: u32,
@@ -101,9 +102,18 @@ pub(super) fn load_wmo_material_image(
     {
         return cached;
     }
-    let (mut pixels, w, h) = blp::load_blp_rgba(base_path)?;
-    composite_wmo_overlay_layers(&mut pixels, w, h, shader, [texture_2_fdid, texture_3_fdid]);
-    let handle = images.add(build_wmo_material_image(pixels, w, h));
+    let overlay_fdids = [texture_2_fdid, texture_3_fdid];
+    let image = if wmo_shader_composites_layers(shader, overlay_fdids) {
+        let (mut pixels, w, h) = blp::load_blp_rgba(base_path)?;
+        composite_wmo_overlay_layers(&mut pixels, w, h, shader, overlay_fdids);
+        build_wmo_material_image(pixels, w, h)
+    } else {
+        // Nothing to composite: upload the BLP block-compressed as authored.
+        let mut image = blp::load_blp_gpu_material_image(base_path)?;
+        image.sampler = wmo_repeat_sampler();
+        image
+    };
+    let handle = images.add(image);
     crate::asset_lifetime::prune_unused_result_asset_handles(cache, images);
     cache.lock().unwrap().insert(key, Ok(handle.id()));
     Ok(handle)
@@ -112,6 +122,14 @@ pub(super) fn load_wmo_material_image(
 pub(super) fn wmo_texture_cache()
 -> &'static Mutex<std::collections::HashMap<WmoTextureCacheKey, Result<AssetId<Image>, String>>> {
     WMO_TEXTURE_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+}
+
+fn wmo_shader_composites_layers(shader: u32, overlay_fdids: [u32; 2]) -> bool {
+    let descriptor = describe_wmo_shader(shader);
+    [descriptor.second_layer, descriptor.third_layer]
+        .into_iter()
+        .zip(overlay_fdids)
+        .any(|(combine, fdid)| fdid != 0 && !matches!(combine, WmoLayerCombine::None))
 }
 
 pub(super) fn composite_wmo_overlay_layers(
@@ -152,12 +170,16 @@ pub(super) fn build_wmo_material_image(pixels: Vec<u8>, width: u32, height: u32)
         bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
         bevy::asset::RenderAssetUsages::default(),
     );
-    image.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
+    image.sampler = wmo_repeat_sampler();
+    image
+}
+
+fn wmo_repeat_sampler() -> bevy::image::ImageSampler {
+    bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
         address_mode_u: bevy::image::ImageAddressMode::Repeat,
         address_mode_v: bevy::image::ImageAddressMode::Repeat,
         ..bevy::image::ImageSamplerDescriptor::linear()
-    });
-    image
+    })
 }
 
 pub(crate) fn wmo_standard_material(
