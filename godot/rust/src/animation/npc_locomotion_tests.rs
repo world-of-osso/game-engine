@@ -1,6 +1,6 @@
 //! Replicated creature motion driving authored locomotion clips.
 use super::{AnimationState, MIN_MOVEMENT_BLEND_MS};
-use crate::world::{creature_locomotion_change, creature_motion_animation_id};
+use crate::world::{creature_animation_change, creature_motion_animation_id};
 use game_engine_core::m2;
 use shared::components::CreatureMotion;
 use std::{fs, path::PathBuf};
@@ -19,7 +19,7 @@ fn current_id(player: &AnimationState) -> u16 {
 
 /// One server snapshot: select the motion's clip only when it differs from the applied one.
 fn receive(player: &mut AnimationState, applied: &mut Option<u16>, motion: CreatureMotion) -> bool {
-    let Some(id) = creature_locomotion_change(*applied, Some(motion)) else {
+    let Some(id) = creature_animation_change(*applied, Some(motion), None) else {
         return false;
     };
     *applied = Some(id);
@@ -31,13 +31,13 @@ fn replicated_motion_maps_through_the_shared_direction_selector() {
     assert_eq!(creature_motion_animation_id(CreatureMotion::Still), 0);
     assert_eq!(creature_motion_animation_id(CreatureMotion::Walk), 4);
     assert_eq!(creature_motion_animation_id(CreatureMotion::Run), 5);
-    assert_eq!(creature_locomotion_change(None, None), None);
+    assert_eq!(creature_animation_change(None, None, None), None);
     assert_eq!(
-        creature_locomotion_change(Some(4), Some(CreatureMotion::Walk)),
+        creature_animation_change(Some(4), Some(CreatureMotion::Walk), None),
         None
     );
     assert_eq!(
-        creature_locomotion_change(Some(4), Some(CreatureMotion::Run)),
+        creature_animation_change(Some(4), Some(CreatureMotion::Run), None),
         Some(5)
     );
 }

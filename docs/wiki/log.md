@@ -1739,3 +1739,7 @@ Godot spawns WMO MODD doodads (set 0 plus the MODF doodad set, MODI/MODN models)
 ## [2026-09-28] perf | Godot doodad animation culling
 
 Hidden doodads stop their material (UV/colour) animation with their bone animation, and models whose bone or material tracks are all constant never process. In Stormwind, processing animation nodes fall from 1,729 + 631 to 172 + 135. See [[godot-conversion]].
+
+## [2026-09-28] feature | Godot NPC poses and gear
+
+Godot replicated creatures hold their `UnitPose` (Sit 97, Sleep 100, Emotes.AnimID such as Ready1H 26 / ReadyRifle 48) while still and play Walk/Run while moving, crossfaded; virtual items attach drawn in hand or at their `Item.SheatheType` sheath and move on a sheath change; the display's `NPCModelItemSlotDisplayInfo` armor switches body geosets and attaches its item models. The pose/gear data (`npc_gear_data.rs`) is now engine-free and shared with Bevy. See [npc-stance-gear](investigations/npc-stance-gear.md).
