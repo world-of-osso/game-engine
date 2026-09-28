@@ -68,6 +68,7 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     if let Some(slice) = &frame.three_slice {
         project_three_slice(slice, width, height, &mut parts);
     }
+    project_border(frame, width, height, &mut parts);
     project_highlight(frame, width, height, &mut parts);
     parts
 }
@@ -213,6 +214,22 @@ fn project_three_slice(slice: &ThreeSlice, width: f32, height: f32, parts: &mut 
             TextureSource::None => solid(rect, slice.color),
             source => textured(rect, source.clone(), Crop::Full, slice.color),
         });
+    }
+}
+
+/// CSS-style solid border inset within the frame (`render_border.rs` `css_edge_geometry`).
+fn project_border(frame: &Frame, width: f32, height: f32, parts: &mut Vec<ImagePart>) {
+    let Some(border) = &frame.border else {
+        return;
+    };
+    let edge = border.width;
+    for rect in [
+        [0.0, 0.0, width, edge],
+        [width - edge, 0.0, edge, height],
+        [0.0, height - edge, width, edge],
+        [0.0, 0.0, edge, height],
+    ] {
+        parts.push(solid(rect, border.color));
     }
 }
 
