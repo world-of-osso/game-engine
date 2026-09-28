@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")"
-cargo test "$@"
-cargo clippy -- -D warnings
-cargo fmt --check
+cargo test --workspace "$@"
+cargo clippy --workspace -- -D warnings
+cargo fmt --all --check

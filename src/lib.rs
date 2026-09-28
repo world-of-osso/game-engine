@@ -19,19 +19,27 @@ pub mod barber_shop_data;
 #[path = "game/buff_data.rs"]
 pub mod buff_data;
 pub mod cache_metadata;
+pub use creature_display::npc_appearance as npc_appearance_data;
 mod cache_source_mtime;
 mod cache_sqlite;
 pub mod calendar;
 pub mod camera_control;
+pub mod camera_control_data;
+pub mod camera_follow_data;
+pub mod camera_input_data;
+pub mod campsite_object_data;
 #[path = "game/casting_data.rs"]
 pub mod casting_data;
 #[path = "scenes/char_create/data.rs"]
 pub mod char_create_data;
+pub mod char_select_camera_data;
 pub mod character_export;
+pub mod character_model_data;
 #[path = "rendering/character/character_models.rs"]
 pub mod character_models;
 #[path = "game/chat_data.rs"]
 pub mod chat_data;
+pub mod client_options_data;
 pub mod collection;
 #[path = "game/combat_feedback.rs"]
 pub mod combat_feedback;
@@ -41,10 +49,11 @@ pub mod communities_data;
 pub mod cooldown_data;
 #[cfg(feature = "cpu-system-profile")]
 pub mod cpu_system_profile;
-#[path = "scenes/char_create/background_data.rs"]
 pub mod creation_scene_data;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
+#[path = "game/creatures/creature_display_data.rs"]
+pub mod creature_display_data;
 pub mod csv_util;
 pub mod currency;
 #[path = "game/cursor_item.rs"]
@@ -71,6 +80,7 @@ pub mod friends;
 pub mod friends_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
+pub mod geoset_visibility_data;
 #[path = "game/group_state.rs"]
 pub mod group_state;
 pub mod guild;
@@ -84,6 +94,7 @@ mod helmet_geoset_data;
 pub mod help_data;
 pub mod ignore_list;
 pub mod input_bindings;
+pub mod input_bindings_data;
 pub mod inspect;
 #[path = "game/instance_state.rs"]
 pub mod instance_state;
@@ -103,6 +114,8 @@ pub mod little_endian;
 pub mod loot_state;
 #[path = "game/loss_of_control_data.rs"]
 pub mod loss_of_control_data;
+#[path = "asset/m2_effect_uv_data.rs"]
+pub mod m2_effect_uv_data;
 #[path = "game/mail_data.rs"]
 pub mod mail_data;
 #[path = "game/merchant_data.rs"]
@@ -112,19 +125,34 @@ pub mod mesh_asset_stats;
 pub mod minimap_data;
 #[path = "game/missile_data.rs"]
 pub mod missile_data;
+pub mod movement_animation_data;
 pub mod movement_control;
+pub mod movement_input_data;
 #[path = "game/nameplate_data.rs"]
 pub mod nameplate_data;
 #[path = "game/nameplate_style.rs"]
 pub mod nameplate_style;
+#[path = "game/nameplate_style_data.rs"]
+pub mod nameplate_style_data;
 pub mod network_events;
 pub mod network_runtime;
 pub mod network_tick;
+#[path = "rendering/character/npc_appearance_selection_data.rs"]
+pub mod npc_appearance_selection_data;
+#[path = "game/creatures/npc_visibility_data.rs"]
+pub mod npc_visibility_data;
+#[path = "game/equipment/outfit_catalog.rs"]
+mod outfit_catalog;
+#[path = "game/outfit_catalog_db.rs"]
+mod outfit_catalog_db;
 #[path = "game/equipment/outfit_data.rs"]
 pub mod outfit_data;
+#[path = "game/outfit_listfile.rs"]
+mod outfit_listfile;
 pub mod particle_color_cache;
 pub mod particle_effect_builder;
 pub mod paths;
+pub mod player_physics_data;
 #[path = "game/player_spells.rs"]
 pub mod player_spells;
 pub mod profession;
@@ -139,10 +167,12 @@ pub mod quest_data;
 pub mod quest_runtime;
 #[path = "game/quest_tracking.rs"]
 pub mod quest_tracking;
+pub mod realm_preset_data;
 pub mod reputation;
 #[path = "game/reputation_data.rs"]
 pub mod reputation_data;
 pub mod scene_graph_utils;
+pub mod screen_arg_data;
 #[path = "scenes/scene_tree.rs"]
 pub mod scene_tree;
 pub mod screenshot;
@@ -155,6 +185,7 @@ pub mod spell_visual_data;
 pub mod sqlite_util;
 #[path = "game/stack_split.rs"]
 pub mod stack_split;
+pub mod startup_args_data;
 pub mod status;
 pub mod talent;
 #[path = "game/talent_tree/mod.rs"]
@@ -166,6 +197,7 @@ pub mod trade;
 #[path = "game/trainer_data.rs"]
 pub mod trainer_data;
 pub mod ui;
+pub mod unit_motion_data;
 pub mod who;
 #[path = "game/world_db/mod.rs"]
 pub mod world_db;

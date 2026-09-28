@@ -5,7 +5,11 @@ use shared::components::{EquipmentAppearance as NetEquipmentAppearance, Equipmen
 
 use crate::asset::asset_cache;
 use crate::equipment::{Equipment, EquipmentSlot};
-use game_engine::outfit_data::{OutfitData, OutfitResult};
+use game_engine::outfit_data::{self, OutfitData, OutfitResult};
+
+#[path = "equipment_appearance_data.rs"]
+pub mod equipment_appearance_data;
+use equipment_appearance_data as policy;
 
 #[cfg(test)]
 #[path = "../../../tests/unit/equipment_item_tests.rs"]
@@ -19,32 +23,26 @@ pub struct RuntimeModelAppearance {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/equipment_cloak_tests.rs"]
-mod cloak_tests;
-
-#[cfg(test)]
 #[path = "../../../tests/unit/equipment_chest_tests.rs"]
 mod chest_tests;
-
+#[cfg(test)]
+#[path = "../../../tests/unit/equipment_cloak_tests.rs"]
+mod cloak_tests;
 #[cfg(test)]
 #[path = "../../../tests/unit/equipment_feet_tests.rs"]
 mod feet_tests;
-
 #[cfg(test)]
 #[path = "../../../tests/unit/equipment_hands_tests.rs"]
 mod hands_tests;
-
 #[cfg(test)]
 #[path = "../../../tests/unit/equipment_legs_tests.rs"]
 mod legs_tests;
-
-#[cfg(test)]
-#[path = "../../../tests/unit/equipment_waist_tests.rs"]
-mod waist_tests;
-
 #[cfg(test)]
 #[path = "../../../tests/unit/equipment_shoulder_tests.rs"]
 mod shoulder_tests;
+#[cfg(test)]
+#[path = "../../../tests/unit/equipment_waist_tests.rs"]
+mod waist_tests;
 
 #[derive(Debug, Clone, Default)]
 pub struct ResolvedEquipmentAppearance {
@@ -54,14 +52,6 @@ pub struct ResolvedEquipmentAppearance {
     pub explicit_slots: HashSet<EquipmentVisualSlot>,
     pub hidden_character_geoset_groups: HashSet<u16>,
     pub hidden_character_geoset_ids: HashSet<u16>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-struct HeadAppearanceEffects {
-    has_vis_data: bool,
-    hidden_geoset_groups: Vec<u16>,
-    geoset_overrides: Vec<(u16, u16)>,
-    runtime_model: Option<(PathBuf, [u32; 3])>,
 }
 
 pub fn resolve_equipment_appearance(
@@ -88,332 +78,35 @@ fn resolve_equipment_appearance_with_texture_cache(
     sex: u8,
     cache_texture: &mut dyn FnMut(u32),
 ) -> ResolvedEquipmentAppearance {
-    let mut resolved = ResolvedEquipmentAppearance::default();
-    for entry in &appearance.entries {
-        apply_equipment_entry(&mut resolved, entry, outfit_data, race, sex, cache_texture);
-    }
-    resolved
-}
-
-fn apply_equipment_entry(
-    resolved: &mut ResolvedEquipmentAppearance,
-    entry: &shared::components::EquippedAppearanceEntry,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    cache_texture: &mut dyn FnMut(u32),
-) {
-    resolved.explicit_slots.insert(entry.slot);
-    if entry.hidden {
-        return;
-    }
-    let display_info_id = match (entry.display_info_id, entry.item_id) {
-        (Some(display_id), _) => display_id,
-        (None, Some(item_id)) => match outfit_data.resolve_item_display_id(item_id) {
-            Ok(display_id) => display_id,
-            Err(error) => {
-                bevy::log::error!("Equipment {:?}: {error}", entry.slot);
-                return;
-            }
-        },
-        (None, None) => return,
-    };
-    apply_visible_equipment_entry(
-        resolved,
-        entry.slot,
-        display_info_id,
+    let decision = policy::resolve_equipment_appearance_with_errors(
+        appearance,
         outfit_data,
         race,
         sex,
-        cache_texture,
+        |error| bevy::log::error!("{error}"),
     );
-}
-
-fn apply_visible_equipment_entry(
-    resolved: &mut ResolvedEquipmentAppearance,
-    slot: EquipmentVisualSlot,
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    cache_texture: &mut dyn FnMut(u32),
-) {
-    match slot {
-        EquipmentVisualSlot::Head => {
-            apply_head_equipment_entry(resolved, display_info_id, outfit_data, race, sex);
-        }
-        EquipmentVisualSlot::Back => apply_back_equipment_entry(
-            resolved,
-            display_info_id,
-            outfit_data,
-            race,
-            sex,
-            cache_texture,
-        ),
-        EquipmentVisualSlot::Waist => apply_waist_equipment_entry(
-            resolved,
-            display_info_id,
-            outfit_data,
-            race,
-            sex,
-            cache_texture,
-        ),
-        _ => apply_non_head_equipment_entry(
-            resolved,
-            slot,
-            display_info_id,
-            outfit_data,
-            race,
-            sex,
-            cache_texture,
-        ),
+    for &fdid in &decision.texture_fdids {
+        cache_texture(fdid);
     }
-}
-
-fn apply_head_equipment_entry(
-    resolved: &mut ResolvedEquipmentAppearance,
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-) {
-    let mut display = outfit_data.resolve_display_info(display_info_id);
-    let head = resolve_head_appearance_effects(display_info_id, outfit_data, race, sex);
-    resolved
-        .hidden_character_geoset_groups
-        .extend(head.hidden_geoset_groups);
-    apply_geoset_overrides(&mut display, head.geoset_overrides);
-    resolved.outfit =
-        crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
-    if let Some((path, skin_fdids)) = head.runtime_model {
-        // Old helmets without HelmetGeosetVisData hide hair by default.
-        // Modern items (tiaras, circlets) that show hair have vis data
-        // with permissive flags that don't hide group 0.
-        if !head.has_vis_data {
-            resolved.hidden_character_geoset_groups.insert(0);
-        }
-        resolved.runtime_models.push(RuntimeModelAppearance {
-            slot: EquipmentSlot::Head,
-            path,
-            skin_fdids,
-        });
-    }
-}
-
-fn apply_non_head_equipment_entry(
-    resolved: &mut ResolvedEquipmentAppearance,
-    slot: EquipmentVisualSlot,
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    cache_texture: &mut dyn FnMut(u32),
-) {
-    let mut display = outfit_data.resolve_display_info(display_info_id);
-    ensure_item_component_textures(&display, cache_texture);
-    apply_slot_geoset_overrides(slot, display_info_id, outfit_data, &mut display);
-    resolved.outfit =
-        crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
-    for runtime_slot in visual_slot_to_runtime_slots(slot) {
-        maybe_push_runtime_model(
-            resolved,
-            runtime_slot,
-            display_info_id,
-            &display,
-            outfit_data,
-            race,
-            sex,
-            cache_texture,
-        );
-    }
-}
-
-fn apply_back_equipment_entry(
-    resolved: &mut ResolvedEquipmentAppearance,
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    cache_texture: &mut dyn FnMut(u32),
-) {
-    if let Some(cape_texture_fdid) = outfit_data.cape_texture_fdid(display_info_id) {
-        cache_texture(cape_texture_fdid);
-        resolved.merged_cape_texture_fdid = Some(cape_texture_fdid);
-    }
-    apply_non_head_equipment_entry(
-        resolved,
-        EquipmentVisualSlot::Back,
-        display_info_id,
-        outfit_data,
-        race,
-        sex,
-        cache_texture,
-    );
-}
-
-fn apply_waist_equipment_entry(
-    resolved: &mut ResolvedEquipmentAppearance,
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    cache_texture: &mut dyn FnMut(u32),
-) {
-    let before_runtime = resolved.runtime_models.len();
-    let before_geosets = resolved.outfit.geoset_overrides.len();
-    let before_textures = resolved.outfit.item_textures.len();
-    apply_non_head_equipment_entry(
-        resolved,
-        EquipmentVisualSlot::Waist,
-        display_info_id,
-        outfit_data,
-        race,
-        sex,
-        cache_texture,
-    );
-    eprintln!(
-        "waist display {} resolved: new_item_textures={:?} new_geosets={:?} new_runtime_models={:?}",
-        display_info_id,
-        &resolved.outfit.item_textures[before_textures..],
-        &resolved.outfit.geoset_overrides[before_geosets..],
-        &resolved.runtime_models[before_runtime..]
-    );
-}
-
-fn apply_slot_geoset_overrides(
-    slot: EquipmentVisualSlot,
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-    display: &mut OutfitResult,
-) {
-    if let Some(overrides) = slot_geoset_overrides(slot, display_info_id, outfit_data) {
-        apply_geoset_overrides(display, overrides);
-    }
-}
-
-fn slot_geoset_overrides(
-    slot: EquipmentVisualSlot,
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-) -> Option<Vec<(u16, u16)>> {
-    match slot {
-        EquipmentVisualSlot::Chest => {
-            single_geoset_override(22, outfit_data.chest_geoset_variant(display_info_id))
-        }
-        EquipmentVisualSlot::Hands => {
-            single_geoset_override(4, outfit_data.hand_geoset_variant(display_info_id))
-        }
-        EquipmentVisualSlot::Waist => {
-            single_geoset_override(18, outfit_data.hand_geoset_variant(display_info_id))
-        }
-        EquipmentVisualSlot::Legs => leg_geoset_overrides(display_info_id, outfit_data),
-        EquipmentVisualSlot::Back => {
-            single_geoset_override(15, outfit_data.cape_geoset_variant(display_info_id))
-        }
-        EquipmentVisualSlot::Feet => foot_geoset_overrides(display_info_id, outfit_data),
-        _ => None,
-    }
-}
-
-fn single_geoset_override(group: u16, variant: Option<u16>) -> Option<Vec<(u16, u16)>> {
-    variant.map(|value| vec![(group, value)])
-}
-
-fn leg_geoset_overrides(display_info_id: u32, outfit_data: &OutfitData) -> Option<Vec<(u16, u16)>> {
-    let mut overrides = Vec::new();
-    push_optional_geoset_override(
-        &mut overrides,
-        11,
-        outfit_data.pants_geoset_variant(display_info_id),
-    );
-    push_optional_geoset_override(
-        &mut overrides,
-        9,
-        outfit_data.kneepad_geoset_variant(display_info_id),
-    );
-    push_optional_geoset_override(
-        &mut overrides,
-        13,
-        outfit_data.trouser_geoset_variant(display_info_id),
-    );
-    (!overrides.is_empty()).then_some(overrides)
-}
-
-fn foot_geoset_overrides(
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-) -> Option<Vec<(u16, u16)>> {
-    outfit_data
-        .boot_geoset_variant(display_info_id)
-        .map(|variant| vec![(5, variant), (20, variant)])
-}
-
-fn push_optional_geoset_override(
-    overrides: &mut Vec<(u16, u16)>,
-    group: u16,
-    variant: Option<u16>,
-) {
-    if let Some(value) = variant {
-        overrides.push((group, value));
-    }
-}
-
-fn apply_geoset_overrides(display: &mut OutfitResult, overrides: Vec<(u16, u16)>) {
-    for (group, value) in overrides {
-        display
-            .geoset_overrides
-            .retain(|(existing_group, _)| *existing_group != group);
-        display.geoset_overrides.push((group, value));
-    }
-}
-
-fn resolve_head_appearance_effects(
-    display_info_id: u32,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-) -> HeadAppearanceEffects {
-    let has_vis_data = outfit_data.has_helmet_geoset_vis_data(display_info_id);
-    let hidden_geoset_groups = outfit_data.helmet_hide_geoset_groups(display_info_id, race);
-    let geoset_overrides = outfit_data.head_geoset_overrides(display_info_id);
-    let runtime_model = outfit_data
-        .resolve_runtime_model(display_info_id, race, sex)
-        .and_then(|(fdid, skin_fdids)| {
-            let path = resolve_model_path(fdid)?;
-            Some((path, skin_fdids))
-        });
-    HeadAppearanceEffects {
-        has_vis_data,
-        hidden_geoset_groups,
-        geoset_overrides,
-        runtime_model,
-    }
-}
-
-fn maybe_push_runtime_model(
-    resolved: &mut ResolvedEquipmentAppearance,
-    slot: EquipmentSlot,
-    display_info_id: u32,
-    display: &OutfitResult,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    cache_texture: &mut dyn FnMut(u32),
-) {
-    if let Some((model_path, skin_fdids)) = runtime_model_for_slot(
-        slot,
-        display_info_id,
-        display,
-        outfit_data,
-        race,
-        sex,
-        cache_texture,
-    ) {
-        resolved.runtime_models.push(RuntimeModelAppearance {
-            slot,
-            path: model_path,
-            skin_fdids,
-        });
+    let runtime_models = decision
+        .runtime_models
+        .iter()
+        .filter_map(|model| {
+            let path = resolve_model_path(model.fdid)?;
+            Some(RuntimeModelAppearance {
+                slot: model.slot,
+                path,
+                skin_fdids: model.skin_fdids,
+            })
+        })
+        .collect();
+    ResolvedEquipmentAppearance {
+        outfit: decision.outfit,
+        runtime_models,
+        merged_cape_texture_fdid: decision.merged_cape_texture_fdid,
+        explicit_slots: decision.explicit_slots,
+        hidden_character_geoset_groups: decision.hidden_character_geoset_groups,
+        hidden_character_geoset_ids: decision.hidden_character_geoset_ids,
     }
 }
 
@@ -438,44 +131,7 @@ pub fn apply_runtime_equipment(equipment: &mut Equipment, resolved: &ResolvedEqu
 }
 
 fn visual_slot_to_runtime_slots(slot: EquipmentVisualSlot) -> Vec<EquipmentSlot> {
-    match slot {
-        EquipmentVisualSlot::Head => vec![EquipmentSlot::Head],
-        EquipmentVisualSlot::Shoulder => {
-            vec![EquipmentSlot::ShoulderLeft, EquipmentSlot::ShoulderRight]
-        }
-        EquipmentVisualSlot::Back => vec![EquipmentSlot::Back],
-        EquipmentVisualSlot::Chest => vec![EquipmentSlot::Chest],
-        EquipmentVisualSlot::Waist => vec![EquipmentSlot::Waist],
-        EquipmentVisualSlot::Legs => vec![EquipmentSlot::Legs],
-        EquipmentVisualSlot::Hands => vec![EquipmentSlot::Hands],
-        EquipmentVisualSlot::Feet => vec![EquipmentSlot::Feet],
-        EquipmentVisualSlot::MainHand => vec![EquipmentSlot::MainHand],
-        EquipmentVisualSlot::OffHand => vec![EquipmentSlot::OffHand],
-        _ => Vec::new(),
-    }
-}
-
-fn runtime_model_for_slot(
-    slot: EquipmentSlot,
-    display_info_id: u32,
-    _display: &OutfitResult,
-    outfit_data: &OutfitData,
-    race: u8,
-    sex: u8,
-    cache_texture: &mut dyn FnMut(u32),
-) -> Option<(PathBuf, [u32; 3])> {
-    let (fdid, skin_fdids) = match slot {
-        EquipmentSlot::ShoulderLeft => {
-            outfit_data.resolve_shoulder_runtime_model(display_info_id, 0, race, sex)?
-        }
-        EquipmentSlot::ShoulderRight => {
-            outfit_data.resolve_shoulder_runtime_model(display_info_id, 1, race, sex)?
-        }
-        _ => outfit_data.resolve_runtime_model(display_info_id, race, sex)?,
-    };
-    let path = resolve_model_path(fdid)?;
-    ensure_runtime_model_textures(&skin_fdids, cache_texture);
-    Some((path, skin_fdids))
+    policy::visual_slot_to_runtime_slots(slot)
 }
 
 fn first_model_path(display: &OutfitResult) -> Option<PathBuf> {
@@ -491,20 +147,6 @@ fn resolve_model_path(fdid: u32) -> Option<PathBuf> {
     let path = asset_cache::file_at_path(fdid, &out_path)?;
     let _ = crate::asset::m2::ensure_primary_skin_path(&path);
     Some(path)
-}
-
-fn ensure_runtime_model_textures(skin_fdids: &[u32; 3], cache_texture: &mut dyn FnMut(u32)) {
-    for &fdid in skin_fdids {
-        if fdid != 0 {
-            cache_texture(fdid);
-        }
-    }
-}
-
-fn ensure_item_component_textures(display: &OutfitResult, cache_texture: &mut dyn FnMut(u32)) {
-    for &(_, fdid) in &display.item_textures {
-        cache_texture(fdid);
-    }
 }
 
 #[cfg(test)]

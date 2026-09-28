@@ -1,4 +1,5 @@
 use super::*;
+use game_engine::ui::screens::char_select_component::DELETE_CONFIRM_DELAY_SECS;
 
 #[test]
 fn screen_builds_with_empty_char_list() {
@@ -296,14 +297,12 @@ fn delete_confirmation_modal_keeps_confirm_disabled_until_timer_and_phrase_are_b
         name: "Elara".to_string(),
     });
 
-    let timer_locked = super::build_delete_confirm_ui_state(
-        &DeleteCharacterConfirmationState {
-            target: delete_target.clone(),
-            typed_text: "DELETE".to_string(),
-            elapsed_secs: super::DELETE_CONFIRM_DELAY_SECS - 0.1,
-        },
-        &CharSelectFocus(None),
-    );
+    let timer_locked = DeleteConfirmation {
+        target: delete_target.clone(),
+        typed_text: "DELETE".to_string(),
+        elapsed_secs: DELETE_CONFIRM_DELAY_SECS - 0.1,
+    }
+    .ui_state();
     assert!(
         !timer_locked.confirm_enabled,
         "matching the phrase alone must not enable delete before the timer elapses"
@@ -333,14 +332,12 @@ fn delete_confirmation_modal_keeps_confirm_disabled_until_timer_and_phrase_are_b
     };
     assert_eq!(timer_locked_button.state, ButtonState::Disabled);
 
-    let phrase_locked = super::build_delete_confirm_ui_state(
-        &DeleteCharacterConfirmationState {
-            target: delete_target,
-            typed_text: "DEL".to_string(),
-            elapsed_secs: super::DELETE_CONFIRM_DELAY_SECS,
-        },
-        &CharSelectFocus(None),
-    );
+    let phrase_locked = DeleteConfirmation {
+        target: delete_target,
+        typed_text: "DEL".to_string(),
+        elapsed_secs: DELETE_CONFIRM_DELAY_SECS,
+    }
+    .ui_state();
     assert!(
         !phrase_locked.confirm_enabled,
         "elapsed timer alone must not enable delete without the full phrase"
@@ -477,8 +474,10 @@ fn screen_does_not_include_inline_create_panel() {
 
 #[test]
 fn character_list_backdrop_uses_atlas_slice_metadata() {
-    let ns = atlas_nine_slice("glues-characterselect-card-all-bg", 386.0, 520.0)
-        .expect("atlas-backed nine-slice");
+    let ns = game_engine::ui::screens::char_select_component::atlas_nine_slice(
+        "glues-characterselect-card-all-bg",
+    )
+    .expect("atlas-backed nine-slice");
     assert_eq!(ns.uv_edge_sizes, Some([14.0, 11.0, 14.0, 17.0]));
     let display = ns.edge_sizes.expect("display edge sizes");
     assert_eq!(display, [14.0, 11.0, 14.0, 17.0]);

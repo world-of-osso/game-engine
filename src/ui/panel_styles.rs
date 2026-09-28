@@ -2,11 +2,9 @@ use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
-use crate::ui::frame::{NineSlice, ThreeSlice};
+use crate::ui::frame::NineSlice;
 use crate::ui::plugin::UiState;
-use crate::ui::screens::loading_component::{
-    TEX_LOADING_BAR_CENTER, TEX_LOADING_BAR_LEFT, TEX_LOADING_BAR_RIGHT,
-};
+use crate::ui::screens::loading_component::loading_bar_shell;
 use crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE;
 use crate::ui::widgets::texture::TextureSource;
 
@@ -278,16 +276,8 @@ fn register_metal_frame_style(
 }
 
 fn register_three_slice_styles(ui: &mut UiState) {
-    ui.registry.register_three_slice_style(
-        "loading_bar_shell",
-        ThreeSlice {
-            cap_width: 25.0,
-            left: TextureSource::File(TEX_LOADING_BAR_LEFT.to_string()),
-            center: TextureSource::File(TEX_LOADING_BAR_CENTER.to_string()),
-            right: TextureSource::File(TEX_LOADING_BAR_RIGHT.to_string()),
-            color: [1.0, 1.0, 1.0, 1.0],
-        },
-    );
+    ui.registry
+        .register_three_slice_style("loading_bar_shell", loading_bar_shell());
 }
 
 #[cfg(test)]

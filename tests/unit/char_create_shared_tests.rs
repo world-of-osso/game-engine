@@ -2,6 +2,7 @@ use super::*;
 use bevy::ecs::system::{RunSystemOnce, SystemState};
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::screens::char_create_component::CustomizationOptionUi;
+use shared::components::CharacterAppearance;
 use std::path::Path;
 use ui_toolkit::screen::SharedContext;
 
@@ -405,7 +406,7 @@ fn char_create_shared_request_uses_live_name_after_next_and_category_changes() {
         event_bus: EventBus::new(),
         focused_frame: None,
     });
-    world.insert_resource(state);
+    world.insert_resource(CharCreateStateRes(state));
     world.insert_resource(db);
     world.insert_resource(startup_ui);
     world.init_resource::<CharCreateFocus>();
@@ -426,7 +427,7 @@ fn char_create_shared_request_uses_live_name_after_next_and_category_changes() {
     ] {
         run_creation_action(&mut world, action);
     }
-    let expected = world.resource::<CharCreateState>().appearance.clone();
+    let expected = world.resource::<CharCreateStateRes>().appearance.clone();
     assert!(
         expected
             .customization_choices
@@ -443,7 +444,7 @@ fn char_create_shared_request_uses_live_name_after_next_and_category_changes() {
         &mut world,
         UiAutomationAction::ClickFrame(CREATE_BUTTON.0.to_owned()),
     );
-    assert!(world.resource::<CharCreateState>().error_text.is_none());
+    assert!(world.resource::<CharCreateStateRes>().error_text.is_none());
     let command = requests
         .try_recv()
         .expect("valid live name must enqueue a creation request");

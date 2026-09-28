@@ -2,9 +2,6 @@ use super::*;
 use crate::ui_input::walk_up_for_onclick;
 use game_engine::network_runtime::messages::MessageSenders;
 
-const MALE: u8 = 0;
-const FEMALE: u8 = 1;
-
 struct ActionDispatchContext<'a, 'w, 's> {
     state: &'a mut CharCreateState,
     focus: &'a mut CharCreateFocus,
@@ -30,7 +27,7 @@ pub(super) fn char_create_mouse_input(
     windows: Query<&Window>,
     mut ui: ResMut<UiState>,
     cc_ui: Option<Res<CharCreateUi>>,
-    mut state: ResMut<CharCreateState>,
+    mut state: ResMut<CharCreateStateRes>,
     mut focus: ResMut<CharCreateFocus>,
     mut create_senders: MessageSenders<CreateCharacter>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -91,200 +88,40 @@ fn dispatch_action(
         ctx.focus.0 = None;
         return;
     };
-    match action {
-        CharCreateAction::SelectRace(id) => apply_race_change(ctx.state, id, ctx.cust_db),
-        CharCreateAction::SelectClass(id) => apply_class_change(ctx.state, id, ctx.cust_db),
-        CharCreateAction::SelectSex(sex) => {
-            if sex <= 1 && sex != ctx.state.selected_sex {
-                apply_sex_toggle_with_seed(ctx.state, ctx.cust_db, fresh_random_seed());
+    let name_input = ctx.reg.get_by_name(CREATE_NAME_INPUT.0);
+    let name = name_input.map_or_else(
+        || ctx.state.name.clone(),
+        |id| get_editbox_text(ctx.reg, id),
+    );
+    let effects = reduce(
+        ctx.state,
+        action,
+        ctx.cust_db,
+        ctx.name_catalog.catalog(),
+        &name,
+        fresh_random_seed(),
+    );
+    for effect in effects {
+        match effect {
+            CharCreateEffect::ExitToCharSelect => next_state.set(GameState::CharSelect),
+            CharCreateEffect::SetNameText(name) => {
+                if let Some(id) = name_input {
+                    set_editbox_text(ctx.reg, id, &name);
+                }
             }
-        }
-        CharCreateAction::Randomize => apply_randomize(ctx.state, ctx.cust_db),
-        CharCreateAction::RandomizeName => {
-            if let Ok(catalog) = &ctx.name_catalog.0 {
-                apply_random_name_with_seed(ctx.state, ctx.reg, catalog, fresh_random_seed());
-            } else {
-                ctx.state.error_text = Some("Authored random names are unavailable".to_string());
+            CharCreateEffect::SendCreate(request) => {
+                info!("Requested create character '{}'", request.name);
+                for mut sender in create_senders.iter_mut() {
+                    sender.send::<AuthChannel>(request.clone());
+                }
             }
-            return;
-        }
-        CharCreateAction::NextMode => ctx.state.mode = CharCreateMode::Customize,
-        CharCreateAction::Back => handle_back(ctx.state, next_state),
-        CharCreateAction::AdjustOption(id, delta) => {
-            adjust_appearance(ctx.state, id, delta, ctx.cust_db)
-        }
-        CharCreateAction::ToggleOption(id) => toggle_dropdown(ctx.state, id),
-        CharCreateAction::SelectOptionChoice(id, choice) => {
-            select_choice(ctx.state, id, choice, ctx.cust_db)
-        }
-        CharCreateAction::SelectCategory(id) => {
-            if ctx
-                .cust_db
-                .options_for(ctx.state.selected_race, ctx.state.selected_sex)
-                .into_iter()
-                .flatten()
-                .any(|option| option.category_id == id)
-            {
-                ctx.state.selected_category = id;
-                ctx.state.open_dropdown = None;
-            }
-        }
-        CharCreateAction::Camera(action) => ctx.state.camera_action = Some(action),
-        CharCreateAction::CreateConfirm => {
-            send_create_request(ctx.state, ctx.reg, ctx.cc, create_senders);
-            if let Some(id) = ctx.reg.get_by_name(CREATE_NAME_INPUT.0) {
-                ctx.focus.0 = Some(id);
+            CharCreateEffect::FocusNameInput => {
+                if let Some(id) = name_input {
+                    ctx.focus.0 = Some(id);
+                }
             }
         }
     }
-
-    normalize_appearance(ctx.state, ctx.cust_db);
-}
-
-fn apply_race_change(state: &mut CharCreateState, race_id: u8, db: &CustomizationDb) {
-    apply_race_change_with_seed(state, race_id, db, fresh_random_seed());
-}
-
-pub(super) fn apply_race_change_with_seed(
-    state: &mut CharCreateState,
-    race_id: u8,
-    db: &CustomizationDb,
-    seed: u64,
-) {
-    state.selected_race = race_id;
-    if !race_can_be_class(race_id, state.selected_class) {
-        state.selected_class = first_available_class(race_id);
-    }
-    randomize_appearance_with_seed(state, db, seed);
-}
-
-fn apply_class_change(state: &mut CharCreateState, class_id: u8, db: &CustomizationDb) {
-    apply_class_change_with_seed(state, class_id, db, fresh_random_seed());
-}
-
-pub(super) fn apply_class_change_with_seed(
-    state: &mut CharCreateState,
-    class_id: u8,
-    db: &CustomizationDb,
-    seed: u64,
-) {
-    if race_can_be_class(state.selected_race, class_id) {
-        state.selected_class = class_id;
-        randomize_appearance_with_seed(state, db, seed);
-    }
-}
-
-pub(super) fn apply_sex_toggle_with_seed(
-    state: &mut CharCreateState,
-    db: &CustomizationDb,
-    seed: u64,
-) {
-    state.selected_sex = if state.selected_sex == MALE {
-        FEMALE
-    } else {
-        MALE
-    };
-    randomize_appearance_with_seed(state, db, seed);
-}
-
-pub(super) fn apply_random_name_with_seed(
-    state: &mut CharCreateState,
-    reg: &mut FrameRegistry,
-    catalog: &NameCatalog,
-    seed: u64,
-) {
-    let input_id = reg.get_by_name(CREATE_NAME_INPUT.0);
-    let current = input_id.map_or_else(|| state.name.clone(), |id| get_editbox_text(reg, id));
-    let Some(name) = catalog.pick_name(state.selected_race, state.selected_sex, &current, seed)
-    else {
-        state.error_text = Some("No authored names for this race and body type".to_string());
-        return;
-    };
-    state.name = name.to_string();
-    if let Some(id) = input_id {
-        set_editbox_text(reg, id, name);
-    }
-    state.error_text = None;
-}
-
-fn apply_randomize(state: &mut CharCreateState, db: &CustomizationDb) {
-    apply_randomize_with_seed(state, db, fresh_random_seed());
-}
-
-pub(super) fn apply_randomize_with_seed(
-    state: &mut CharCreateState,
-    db: &CustomizationDb,
-    seed: u64,
-) {
-    randomize_appearance_with_seed(state, db, seed);
-}
-
-fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
-    appearance_logic::normalize_appearance(state, db);
-}
-
-pub(super) fn clamp_appearance_field(value: &mut u8, count: u8) {
-    if count == 0 {
-        *value = 0;
-    } else if *value >= count {
-        *value = count - 1;
-    }
-}
-
-fn handle_back(state: &mut CharCreateState, next_state: &mut NextState<GameState>) {
-    if state.mode == CharCreateMode::Customize {
-        state.mode = CharCreateMode::RaceClass;
-    } else {
-        next_state.set(GameState::CharSelect);
-    }
-}
-
-pub(super) fn adjust_appearance(
-    state: &mut CharCreateState,
-    field: u32,
-    delta: i8,
-    db: &CustomizationDb,
-) {
-    appearance_logic::adjust_appearance(state, field, delta, db);
-}
-
-fn toggle_dropdown(state: &mut CharCreateState, field: u32) {
-    state.open_dropdown = if state.open_dropdown == Some(field) {
-        None
-    } else {
-        Some(field)
-    };
-}
-
-fn select_choice(state: &mut CharCreateState, field: u32, idx: u32, db: &CustomizationDb) {
-    appearance_logic::select_choice(state, field, idx, db);
-}
-
-fn send_create_request(
-    state: &mut CharCreateState,
-    reg: &FrameRegistry,
-    _cc: &CharCreateUi,
-    senders: &mut MessageSenders<CreateCharacter>,
-) {
-    let name = reg
-        .get_by_name(CREATE_NAME_INPUT.0)
-        .map(|id| get_editbox_text(reg, id))
-        .unwrap_or_default();
-    if name.is_empty() {
-        state.error_text = Some("Please enter a name".to_string());
-        return;
-    }
-    let msg = CreateCharacter {
-        name: name.clone(),
-        race: state.selected_race,
-        class: state.selected_class,
-        appearance: state.appearance.clone(),
-    };
-    for mut sender in senders.iter_mut() {
-        sender.send::<AuthChannel>(msg.clone());
-    }
-    state.error_text = None;
-    info!("Requested create character '{name}'");
 }
 
 pub(super) fn char_create_keyboard_input(
@@ -322,7 +159,7 @@ fn handle_char_create_key(key: KeyCode, focused_id: u64, ui: &mut UiState) {
 pub(super) fn char_create_run_automation(
     mut ui: ResMut<UiState>,
     cc_ui: Option<Res<CharCreateUi>>,
-    mut state: ResMut<CharCreateState>,
+    mut state: ResMut<CharCreateStateRes>,
     mut focus: ResMut<CharCreateFocus>,
     mut create_senders: MessageSenders<CreateCharacter>,
     mut next_state: ResMut<NextState<GameState>>,

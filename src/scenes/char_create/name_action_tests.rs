@@ -33,16 +33,26 @@ fn clicked_name_button_changes_draft_and_editbox_without_changing_customization(
     assert_eq!(action, Some(CharCreateAction::RandomizeName));
     let original_appearance = state.appearance.clone();
 
-    input::apply_random_name_with_seed(&mut state, &mut registry, &catalog, 123);
+    let current = get_editbox_text(
+        &registry,
+        registry.get_by_name(CREATE_NAME_INPUT.0).unwrap(),
+    );
+    let effects = reduce(
+        &mut state,
+        CharCreateAction::RandomizeName,
+        &db,
+        Ok(&catalog),
+        &current,
+        123,
+    );
 
     assert_ne!(state.name, "Previous");
-    assert_eq!(
-        get_editbox_text(
-            &registry,
-            registry.get_by_name(CREATE_NAME_INPUT.0).unwrap()
-        ),
-        state.name
+    assert!(
+        matches!(effects.as_slice(), [CharCreateEffect::SetNameText(name)] if *name == state.name),
+        "{effects:?}"
     );
+    let input = registry.get_by_name(CREATE_NAME_INPUT.0).unwrap();
+    set_editbox_text(&mut registry, input, &state.name);
     assert_eq!(state.appearance, original_appearance);
     assert_eq!(state.selected_category, 17);
     assert_eq!(state.open_dropdown, Some(31));
@@ -82,7 +92,7 @@ fn automation_click_updates_live_editbox_without_sending_create_request() {
         event_bus: EventBus::new(),
         focused_frame: None,
     });
-    world.insert_resource(state);
+    world.insert_resource(CharCreateStateRes(state));
     world.insert_resource(cc);
     world.insert_resource(db);
     world.insert_resource(NameCatalogResource(NameCatalog::load(
@@ -106,14 +116,14 @@ fn automation_click_updates_live_editbox_without_sending_create_request() {
             .run_system_once(input::char_create_run_automation)
             .unwrap();
         assert!(world.resource::<UiAutomationRunner>().last_error.is_none());
-        let current = &world.resource::<CharCreateState>().name;
+        let current = &world.resource::<CharCreateStateRes>().name;
         assert_ne!(current, &previous);
         previous = current.clone();
         let ui = world.resource::<UiState>();
         let input = ui.registry.get_by_name(CREATE_NAME_INPUT.0).unwrap();
         assert_eq!(&get_editbox_text(&ui.registry, input), current);
         assert_eq!(
-            world.resource::<CharCreateState>().open_dropdown,
+            world.resource::<CharCreateStateRes>().open_dropdown,
             Some(8789)
         );
     }
@@ -124,13 +134,16 @@ fn automation_click_updates_live_editbox_without_sending_create_request() {
 fn unsupported_race_does_not_replace_existing_name() {
     let catalog =
         name_catalog::NameCatalog::load(std::path::Path::new("data/NameGen.csv")).unwrap();
-    let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut state = CharCreateState {
         selected_race: 99,
         name: "Previous".to_owned(),
         ..Default::default()
     };
-    input::apply_random_name_with_seed(&mut state, &mut registry, &catalog, 123);
+    let current = state.name.clone();
+    assert_eq!(
+        apply_random_name_with_seed(&mut state, &catalog, &current, 123),
+        None
+    );
     assert_eq!(state.name, "Previous");
     assert!(state.error_text.as_deref().unwrap().contains("No authored"));
 }

@@ -1,0 +1,8 @@
+[package]
+name = "game-engine-session"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+
+[dependencies]
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }

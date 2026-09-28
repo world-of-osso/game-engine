@@ -1,5 +1,6 @@
 use super::*;
 use crate::retail_m2_material::M2Material;
+use crate::scenes::char_create::CharCreateState;
 use game_engine::asset::m2_format::m2_camera::parse_camera_snapshot;
 use std::collections::HashSet;
 
@@ -138,12 +139,12 @@ fn assert_renderable_backdrop(
 }
 
 fn select_race(app: &mut App, race: u8) {
-    app.insert_resource(CharCreateState {
+    app.insert_resource(CharCreateStateRes(CharCreateState {
         selected_race: race,
         selected_class: 1,
         selected_sex: 0,
         ..Default::default()
-    });
+    }));
     app.world_mut().run_system_once(sync_model).unwrap();
     app.update();
 }
@@ -272,10 +273,10 @@ fn authored_camera_resets_on_switch_zoom_and_reentry() {
     app.world_mut()
         .resource_mut::<Time>()
         .advance_by(std::time::Duration::from_secs(1));
-    app.insert_resource(CharCreateState {
+    app.insert_resource(CharCreateStateRes(CharCreateState {
         camera_action: Some(CameraControl::ZoomIn),
         ..Default::default()
-    });
+    }));
     app.world_mut()
         .run_system_once(apply_camera_control)
         .unwrap();
@@ -308,7 +309,7 @@ fn authored_camera_resets_on_switch_zoom_and_reentry() {
         .expect("Orc face option")
         .id;
     app.world_mut()
-        .resource_mut::<CharCreateState>()
+        .resource_mut::<CharCreateStateRes>()
         .open_dropdown = Some(face_id);
     app.world_mut()
         .run_system_once(camera_zoom_for_dropdown)
@@ -317,10 +318,10 @@ fn authored_camera_resets_on_switch_zoom_and_reentry() {
     assert_eq!(focused.focus, FACE_FOCUS);
     assert!((focused.distance - FACE_DISTANCE).abs() < 0.001);
     app.world_mut()
-        .resource_mut::<CharCreateState>()
+        .resource_mut::<CharCreateStateRes>()
         .open_dropdown = None;
     app.world_mut()
-        .resource_mut::<CharCreateState>()
+        .resource_mut::<CharCreateStateRes>()
         .camera_action = Some(CameraControl::Reset);
     app.world_mut()
         .run_system_once(apply_camera_control)

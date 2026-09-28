@@ -1,9 +1,7 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::little_endian::{read_le, read_le_u16, read_le_u32};
-
-const HELMET_GEOSET_DATA_FDID: u32 = 2_821_752;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct HelmetGeosetRule {
@@ -15,18 +13,9 @@ pub(crate) struct HelmetGeosetRule {
 pub(crate) fn load_helmet_geoset_rules(
     data_dir: &Path,
 ) -> Result<HashMap<u32, Vec<HelmetGeosetRule>>, String> {
-    let path = ensure_helmet_geoset_data_path(data_dir)?;
+    let path = data_dir.join("db2/HelmetGeosetData.db2");
     let bytes = std::fs::read(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
     Ok(ParsedHelmetGeosetDb2::parse(&bytes)?.rules_by_vis_id())
-}
-
-fn ensure_helmet_geoset_data_path(data_dir: &Path) -> Result<PathBuf, String> {
-    let path = data_dir.join("db2/HelmetGeosetData.db2");
-    if path.exists() {
-        return Ok(path);
-    }
-    crate::asset::asset_cache::file_at_path(HELMET_GEOSET_DATA_FDID, &path)
-        .ok_or_else(|| format!("extract HelmetGeosetData.db2 FDID {HELMET_GEOSET_DATA_FDID}"))
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -78,82 +67,88 @@ impl<'a> ParsedHelmetGeosetDb2<'a> {
     }
 
     fn rules_by_vis_id(&self) -> HashMap<u32, Vec<HelmetGeosetRule>> {
+        let relations = helmet_relations(self.bytes, self.relation_offset, self.relation_size);
+        let common = self.common_values();
         let mut rules = HashMap::new();
         for row_index in 0..self.record_count {
-            let Some(vis_id) = helmet_relation_value(
-                self.bytes,
-                self.relation_offset,
-                self.relation_size,
-                row_index,
-            ) else {
+            let Some(&vis_id) = relations.get(&row_index) else {
                 continue;
             };
             rules
                 .entry(vis_id)
                 .or_insert_with(Vec::new)
-                .push(self.decode_row(row_index));
+                .push(self.decode_row(row_index, &common));
         }
         rules
     }
 
-    fn decode_row(&self, row_index: usize) -> HelmetGeosetRule {
+    /// Per-field `row id -> value` for common-storage (type 2) fields.
+    fn common_values(&self) -> [HashMap<u32, u32>; 4] {
+        std::array::from_fn(|field_index| {
+            let field = self.fields[field_index];
+            if field.storage_type != 2 {
+                return HashMap::new();
+            }
+            let start = self.pallet_offset + self.pallet_offsets[field_index];
+            let end = start + field.additional_data_size as usize;
+            let mut values = HashMap::new();
+            for cursor in (start..end).step_by(8) {
+                values
+                    .entry(read_le_u32(self.bytes, cursor))
+                    .or_insert_with(|| read_le_u32(self.bytes, cursor + 4));
+            }
+            values
+        })
+    }
+
+    fn decode_row(&self, row_index: usize, common: &[HashMap<u32, u32>; 4]) -> HelmetGeosetRule {
         let record_offset = self.file_offset + row_index * self.record_size;
+        let field = |index| self.decode_field(record_offset, row_index, index, common);
         HelmetGeosetRule {
-            race_id: self.decode_field(record_offset, row_index, 0) as u8,
-            hide_geoset_group: self.decode_field(record_offset, row_index, 1) as u16,
-            race_bit_selection: self.decode_field(record_offset, row_index, 2),
+            race_id: field(0) as u8,
+            hide_geoset_group: field(1) as u16,
+            race_bit_selection: field(2),
         }
     }
 
-    fn decode_field(&self, record_offset: usize, row_index: usize, field_index: usize) -> u32 {
+    fn decode_field(
+        &self,
+        record_offset: usize,
+        row_index: usize,
+        field_index: usize,
+        common: &[HashMap<u32, u32>; 4],
+    ) -> u32 {
         let field = self.fields[field_index];
+        if field.storage_type == 2 {
+            let row_id = read_le_u32(self.bytes, self.id_list_offset + row_index * 4);
+            return common[field_index].get(&row_id).copied().unwrap_or(0);
+        }
         if field.size_bits == 0 {
-            return decode_helmet_storage_value(self, field_index, row_index, 0);
+            return decode_helmet_storage_value(self, field_index, 0);
         }
         let lo = field.offset_bits as usize / 8;
         let hi = (field.offset_bits as usize + field.size_bits as usize - 1) / 8;
         let raw = read_le(self.bytes, record_offset + lo, hi - lo + 1);
         let mask = (1u64 << field.size_bits as usize) - 1;
         let value = (raw >> (field.offset_bits as usize % 8)) & mask;
-        decode_helmet_storage_value(self, field_index, row_index, value as usize)
+        decode_helmet_storage_value(self, field_index, value as usize)
     }
 }
 
 fn decode_helmet_storage_value(
     parsed: &ParsedHelmetGeosetDb2<'_>,
     field_index: usize,
-    row_index: usize,
     pallet_index: usize,
 ) -> u32 {
     let field = parsed.fields[field_index];
     match field.storage_type {
         1 | 5 => pallet_index as u32,
-        2 => parsed_common_value(parsed, field_index, row_index),
         3 => read_le_u32(
             parsed.bytes,
             parsed.pallet_offset + parsed.pallet_offsets[field_index] + pallet_index * 4,
         ),
         other => panic!("unsupported HelmetGeosetData storage type {other}"),
     }
-}
-
-fn parsed_common_value(
-    parsed: &ParsedHelmetGeosetDb2<'_>,
-    field_index: usize,
-    row_index: usize,
-) -> u32 {
-    let field = parsed.fields[field_index];
-    let row_id = read_le_u32(parsed.bytes, parsed.id_list_offset + row_index * 4);
-    let start = parsed.pallet_offset + parsed.pallet_offsets[field_index];
-    let end = start + field.additional_data_size as usize;
-    let mut cursor = start;
-    while cursor < end {
-        if read_le_u32(parsed.bytes, cursor) == row_id {
-            return read_le_u32(parsed.bytes, cursor + 4);
-        }
-        cursor += 8;
-    }
-    0
 }
 
 fn helmet_pallet_offsets(fields: &[HelmetFieldStorage; 4]) -> [usize; 4] {
@@ -218,19 +213,14 @@ fn parse_helmet_field_storage(bytes: &[u8], offset: usize) -> [HelmetFieldStorag
     fields
 }
 
-fn helmet_relation_value(
-    bytes: &[u8],
-    offset: usize,
-    size: usize,
-    row_index: usize,
-) -> Option<u32> {
-    let mut cursor = offset + 12;
-    let end = offset + size;
-    while cursor < end {
-        if read_le_u32(bytes, cursor + 4) as usize == row_index {
-            return Some(read_le_u32(bytes, cursor));
-        }
-        cursor += 8;
+/// Relationship map `row index -> ItemDisplayInfo visibility ID`; the first
+/// entry for a row wins, as in the original linear lookup.
+fn helmet_relations(bytes: &[u8], offset: usize, size: usize) -> HashMap<usize, u32> {
+    let mut relations = HashMap::new();
+    for cursor in (offset + 12..offset + size).step_by(8) {
+        relations
+            .entry(read_le_u32(bytes, cursor + 4) as usize)
+            .or_insert_with(|| read_le_u32(bytes, cursor));
     }
-    None
+    relations
 }

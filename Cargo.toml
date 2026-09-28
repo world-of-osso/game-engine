@@ -1,3 +1,9 @@
+[workspace]
+members = ["launcher"]
+default-members = ["launcher"]
+exclude = ["godot"]
+resolver = "3"
+
 [package]
 name = "game-engine"
 version = "0.1.0"
@@ -7,6 +13,8 @@ rust-version = "1.95"
 [dependencies]
 bevy = { version = "0.19", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
 bevy_hanabi = "0.19"
+# Camera orbit/collision math shared with Bevy-free Godot core (Bevy 0.19 uses glam 0.32).
+glam = "0.32.0"
 # Bevy's aggregate trace feature omits transform-worker spans; reuse its existing crate.
 bevy_transform = { version = "0.19", default-features = false, features = ["trace"], optional = true }
 image-blp = "1"

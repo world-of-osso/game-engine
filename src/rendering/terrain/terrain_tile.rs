@@ -6,6 +6,7 @@ use crate::asset::asset_resolver::{AssetResolver, resolver};
 use game_engine::paths;
 
 use crate::asset::adt::{self, CHUNK_SIZE};
+pub use crate::rendering::terrain_height_data::bevy_to_tile_coords;
 use crate::terrain::DoodadLod;
 
 /// Distance threshold in tiles: tiles farther than this use LOD1 doodads.
@@ -29,19 +30,6 @@ pub(crate) fn tile_lod_for_distance(ty: u32, tx: u32, center_y: u32, center_x: u
 
 /// WoW tile size in yards: 16 chunks × 33.33 yards/chunk = 533.33.
 pub(crate) const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
-
-/// Convert a Bevy world position to WoW ADT tile coordinates.
-///
-/// Returns (row, col) matching the ADT filename convention: `map_{row}_{col}.adt`.
-/// WoW world positions use X/Y on the horizontal plane and Z for height.
-/// ADT filename row comes from world Y, and column comes from world X.
-/// In Bevy world space that means row = f(-bz) and col = f(bx).
-pub fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
-    let center = 32.0 * TILE_SIZE;
-    let row = ((center + bz) / TILE_SIZE).floor() as i32;
-    let col = ((center - bx) / TILE_SIZE).floor() as i32;
-    (row.clamp(0, 63) as u32, col.clamp(0, 63) as u32)
-}
 
 /// Resolve the local file path for an ADT tile via listfile FDID lookup.
 pub(crate) fn resolve_tile_path(

@@ -8,7 +8,7 @@ use crate::sqlite_util::is_missing_table_error;
 use game_engine::paths;
 use rusqlite::Connection;
 
-use crate::creature_display::CreatureDisplay;
+use game_engine::creature_display_data::{self, CreatureDisplay};
 
 const CREATURE_DISPLAY_CACHE_PATH: &str = "cache/creature_display.sqlite";
 
@@ -65,20 +65,9 @@ pub(crate) fn import_creature_display_cache() -> Result<PathBuf, String> {
 pub(crate) fn query_display(display_id: u32) -> Option<CreatureDisplay> {
     let cache_path = creature_display_cache_path();
     let conn = open_read_only(&cache_path).ok()?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, scale_milli
-             FROM creature_displays WHERE display_id = ?1",
-        )
-        .ok()?;
-    stmt.query_row([display_id], |row| {
-        Ok(CreatureDisplay {
-            model_fdid: row.get(0)?,
-            skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?],
-            scale_milli: row.get(4)?,
-        })
-    })
-    .ok()
+    creature_display_data::query_display(&conn, display_id)
+        .ok()
+        .flatten()
 }
 
 pub(crate) fn query_preferred_skins(model_fdid: u32) -> Option<[u32; 3]> {

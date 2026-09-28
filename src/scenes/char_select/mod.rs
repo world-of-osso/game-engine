@@ -2,17 +2,16 @@ use bevy::prelude::*;
 use std::time::Instant;
 
 use game_engine::network_runtime::messages::MessageSenders;
-use game_engine::ui::atlas;
-use game_engine::ui::frame::{Dimension, NineSlice};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
+pub(crate) use game_engine::ui::screens::char_select_component::DeleteCharacterTarget;
 use game_engine::ui::screens::char_select_component::{
     BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CampsiteEntry,
     CampsiteState, CharDisplayEntry, CharSelectState, DELETE_CANCEL_BUTTON, DELETE_CHAR_BUTTON,
     DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT, DeleteConfirmUiState,
-    ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT, char_select_screen,
+    DeleteConfirmation, ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT,
+    apply_char_select_postsetup, char_select_screen,
 };
-use game_engine::ui::widgets::texture::TextureSource;
 use game_engine::ui_resource;
 use shared::protocol::CharacterListEntry;
 use ui_toolkit::screen::Screen;
@@ -61,18 +60,8 @@ pub(crate) struct CampsitePanelVisible(pub(crate) bool);
 #[derive(Resource, Default)]
 pub(crate) struct CharSelectFocus(pub(crate) Option<u64>);
 
-#[derive(Resource, Default)]
-pub(crate) struct DeleteCharacterConfirmationState {
-    pub(crate) target: Option<DeleteCharacterTarget>,
-    pub(crate) typed_text: String,
-    pub(crate) elapsed_secs: f32,
-}
-
-#[derive(Clone)]
-pub(crate) struct DeleteCharacterTarget {
-    pub(crate) character_id: u64,
-    pub(crate) name: String,
-}
+#[derive(Resource, Default, Deref, DerefMut)]
+pub(crate) struct DeleteCharacterConfirmationState(DeleteConfirmation);
 
 #[derive(Resource, Default)]
 struct CharSelectReadyLogged(bool);
@@ -166,40 +155,8 @@ fn build_char_select_ui(
     );
 }
 
-fn apply_post_setup(reg: &mut FrameRegistry, cs: &CharSelectUi) {
-    let (sw, sh) = (reg.screen_width, reg.screen_height);
-    if let Some(frame) = reg.get_mut(cs.root) {
-        frame.width = Dimension::Fixed(sw);
-        frame.height = Dimension::Fixed(sh);
-    }
-    set_list_panel_backdrop(reg, cs.list_panel);
-}
-
-fn set_list_panel_backdrop(reg: &mut FrameRegistry, id: u64) {
-    if let Some(frame) = reg.get_mut(id) {
-        frame.nine_slice = atlas_nine_slice(
-            "glues-characterselect-card-all-bg",
-            frame.resolved_width(),
-            frame.resolved_height(),
-        );
-    }
-}
-
-pub(crate) fn atlas_nine_slice(name: &str, frame_w: f32, frame_h: f32) -> Option<NineSlice> {
-    let uv_edges = atlas::nine_slice_margins(name)?;
-    let _ = (frame_w, frame_h);
-    let edge_sizes = uv_edges;
-    Some(NineSlice {
-        edge_size: edge_sizes[0],
-        edge_size_v: Some(edge_sizes[1]),
-        edge_sizes: Some(edge_sizes),
-        uv_edge_size: Some(uv_edges[0]),
-        uv_edge_sizes: Some(uv_edges),
-        texture: Some(TextureSource::Atlas(name.to_string())),
-        bg_color: [1.0, 1.0, 1.0, 1.0],
-        border_color: [1.0, 1.0, 1.0, 1.0],
-        ..Default::default()
-    })
+fn apply_post_setup(reg: &mut FrameRegistry, _cs: &CharSelectUi) {
+    apply_char_select_postsetup(reg);
 }
 
 fn teardown_char_select_ui(
@@ -285,7 +242,7 @@ fn sync_screen_state(
     if inner.shared.get::<CampsiteState>() != Some(&campsite_state) {
         inner.shared.insert(campsite_state);
     }
-    let delete_state = build_delete_confirm_ui_state(delete_confirm, focus);
+    let delete_state = delete_confirm.ui_state();
     if inner.shared.get::<DeleteConfirmUiState>() != Some(&delete_state) {
         inner.shared.insert(delete_state);
     }
@@ -337,52 +294,8 @@ fn compute_status_text(chars: &[CharacterListEntry], selected: Option<usize>) ->
     }
 }
 
-const DELETE_CONFIRM_TOKEN: &str = "DELETE";
-const DELETE_CONFIRM_DELAY_SECS: f32 = 3.0;
-
-pub(crate) fn delete_confirm_ready(state: &DeleteCharacterConfirmationState) -> bool {
-    state.target.is_some()
-        && state.elapsed_secs >= DELETE_CONFIRM_DELAY_SECS
-        && state.typed_text.eq_ignore_ascii_case(DELETE_CONFIRM_TOKEN)
-}
-
-fn delete_confirm_remaining_secs(state: &DeleteCharacterConfirmationState) -> u8 {
-    if state.elapsed_secs >= DELETE_CONFIRM_DELAY_SECS {
-        0
-    } else {
-        (DELETE_CONFIRM_DELAY_SECS - state.elapsed_secs).ceil() as u8
-    }
-}
-
-fn build_delete_confirm_ui_state(
-    state: &DeleteCharacterConfirmationState,
-    _focus: &CharSelectFocus,
-) -> DeleteConfirmUiState {
-    let Some(target) = state.target.as_ref() else {
-        return DeleteConfirmUiState::default();
-    };
-    let remaining = delete_confirm_remaining_secs(state);
-    let countdown_text = if remaining > 0 {
-        format!("Delete unlocks in {remaining}s")
-    } else if state.typed_text.eq_ignore_ascii_case(DELETE_CONFIRM_TOKEN) {
-        "Ready. Press Delete Forever to remove this character.".to_string()
-    } else {
-        format!("Type {DELETE_CONFIRM_TOKEN} to enable deletion")
-    };
-    DeleteConfirmUiState {
-        visible: true,
-        character_name: target.name.clone(),
-        typed_text: state.typed_text.clone(),
-        countdown_text,
-        confirm_enabled: delete_confirm_ready(state),
-    }
-}
-
 fn tick_delete_confirmation(mut state: ResMut<DeleteCharacterConfirmationState>, time: Res<Time>) {
-    if state.target.is_none() {
-        return;
-    }
-    state.elapsed_secs += time.delta_secs().max(0.0);
+    state.tick(time.delta_secs());
 }
 
 pub(crate) fn build_campsite_state(panel_visible: bool) -> CampsiteState {

@@ -1,5 +1,7 @@
 use super::*;
+use crate::cli_args::default_realm_preset;
 use game_engine::input_bindings::{InputAction, InputBinding};
+use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
@@ -64,7 +66,7 @@ fn default_file_uses_expected_modal_position() {
     assert_eq!(file.preferred_realm, default_realm_preset());
     assert_eq!(file.modal_offset, None);
     assert_eq!(file.modal_position, None);
-    assert_eq!(file.bindings, InputBindings::default());
+    assert_eq!(file.bindings, InputBindings::default().0);
 }
 
 #[test]
@@ -218,14 +220,14 @@ fn graphics_config_effects_round_trip_preserves_unrelated_options() {
     );
     let graphics = GraphicsOptions::from_file(&loaded.graphics);
     assert_graphics_effect_controls(&graphics, (false, true, true, AntiAliasMode::Taa, true));
-    let mut bindings = loaded.bindings.clone();
+    let mut bindings = InputBindings(loaded.bindings.clone());
     bindings.assign(
         InputAction::TargetNearest,
-        InputBinding::Keyboard(KeyCode::F5),
+        InputBinding::Keyboard(game_engine::input_bindings::BindingKey::F5),
     );
     let saved = storage::build_options_file_from_existing(
         &loaded,
-        Some(&loaded.sound.to_runtime()),
+        Some(&storage::sound_options_file_to_runtime(&loaded.sound)),
         &CameraOptions::from_file(&loaded.camera),
         &graphics,
         &HudOptions::from_file(&loaded.hud),
@@ -246,7 +248,7 @@ fn graphics_config_effects_round_trip_preserves_unrelated_options() {
     assert!(restored.accepted_eula);
     assert_eq!(restored.preferred_realm, RealmPreset::Prod);
     assert_eq!(restored.modal_offset, Some([13.0, -9.0]));
-    assert_eq!(restored.bindings, bindings);
+    assert_eq!(restored.bindings, bindings.0);
 }
 
 #[test]
@@ -345,11 +347,11 @@ fn options_file_round_trips_target_nearest_binding() {
     let mut bindings = InputBindings::default();
     bindings.assign(
         InputAction::TargetNearest,
-        InputBinding::Keyboard(KeyCode::F2),
+        InputBinding::Keyboard(game_engine::input_bindings::BindingKey::F2),
     );
 
     let file = ClientOptionsFile {
-        bindings: bindings.clone(),
+        bindings: bindings.0.clone(),
         ..ClientOptionsFile::default()
     };
 
@@ -358,7 +360,9 @@ fn options_file_round_trips_target_nearest_binding() {
 
     assert_eq!(
         parsed.bindings.binding(InputAction::TargetNearest),
-        Some(InputBinding::Keyboard(KeyCode::F2))
+        Some(InputBinding::Keyboard(
+            game_engine::input_bindings::BindingKey::F2
+        ))
     );
     assert!(serialized.contains("TargetNearest"));
     assert!(serialized.contains("key:F2"));
@@ -425,12 +429,12 @@ fn save_options_file_to_path_persists_and_loads_back() {
     let mut bindings = InputBindings::default();
     bindings.assign(
         InputAction::TargetNearest,
-        InputBinding::Keyboard(KeyCode::F3),
+        InputBinding::Keyboard(game_engine::input_bindings::BindingKey::F3),
     );
     let file = ClientOptionsFile {
         accepted_eula: true,
         preferred_realm: RealmPreset::Prod,
-        sound: storage::SoundOptionsFile {
+        sound: portable::SoundOptionsFile {
             master_volume: 0.25,
             ambient_volume: 0.5,
             effects_volume: 0.75,
@@ -472,7 +476,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
             show_fps_overlay: false,
             chat_font_size: 13.0,
         },
-        bindings: bindings.clone(),
+        bindings: bindings.0.clone(),
         modal_offset: Some([123.0, -45.0]),
         modal_position: None,
     };
@@ -500,7 +504,9 @@ fn save_options_file_to_path_persists_and_loads_back() {
     assert_eq!(loaded.modal_offset, Some([123.0, -45.0]));
     assert_eq!(
         loaded.bindings.binding(InputAction::TargetNearest),
-        Some(InputBinding::Keyboard(KeyCode::F3))
+        Some(InputBinding::Keyboard(
+            game_engine::input_bindings::BindingKey::F3
+        ))
     );
 }
 

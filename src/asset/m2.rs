@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "../../tests/unit/asset/m2_retail_light_tests.rs"]
+mod retail_light_tests;
+
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues};
 use std::path::Path;
@@ -17,11 +21,10 @@ pub use super::m2_format::m2_collision::M2CollisionMesh;
 #[cfg(test)]
 pub(crate) use super::m2_format::parse_skin_full;
 pub(crate) use super::m2_format::{
-    M2Chunks, M2Material, M2Submesh, M2TextureUnit, M2Vertex, SkinData, TextureTables,
-    load_anim_data, load_skin_data, parse_chunks, parse_materials, parse_model_flags,
-    parse_texture_lookup, parse_texture_types, parse_texture_unit_lookup,
-    parse_transparency_lookup, parse_txid, parse_uv_animation_lookup, parse_vertices, read_u32,
-    resolve_indices,
+    M2Chunks, M2Material, M2Submesh, M2Vertex, SkinData, TextureTables, load_anim_data,
+    load_skin_data, parse_chunks, parse_materials, parse_model_flags, parse_texture_lookup,
+    parse_texture_types, parse_texture_unit_lookup, parse_transparency_lookup, parse_txid,
+    parse_uv_animation_lookup, parse_vertices, read_u32, resolve_indices,
 };
 pub use m2_loader::{load_m2, load_m2_uncached, load_skybox_m2, load_skybox_m2_uncached};
 
@@ -30,49 +33,20 @@ pub fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
     [x, z, -y]
 }
 
-/// How to scale a texture overlay before blitting.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum OverlayScale {
-    None,
-    Uniform2x,
-}
-
-/// A region overlay to composite onto the base texture.
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct TextureOverlay {
-    pub fdid: u32,
-    pub x: u32,
-    pub y: u32,
-    pub scale: OverlayScale,
-}
+pub use super::m2_batch_data::{OverlayScale, TextureOverlay};
 
 #[derive(Clone)]
 pub struct M2RenderBatch {
     pub mesh: Mesh,
-    pub texture_fdid: Option<u32>,
-    pub texture_2_fdid: Option<u32>,
-    pub extra_texture_fdids: Vec<u32>,
-    pub texture_type: Option<u32>,
-    pub overlays: Vec<TextureOverlay>,
-    pub render_flags: u16,
-    pub blend_mode: u16,
-    pub transparency: f32,
-    pub transparency_track_index: Option<usize>,
-    pub color_opacity_track_index: Option<usize>,
-    pub transparency_anim: Option<super::m2_anim::AnimTrack<i16>>,
-    pub color_opacity_anim: Option<super::m2_anim::AnimTrack<i16>>,
-    pub texture_anim: Option<super::m2_anim::AnimTrack<[f32; 3]>>,
-    pub texture_anim_2: Option<super::m2_anim::AnimTrack<[f32; 3]>>,
-    pub use_uv_2_1: bool,
-    pub use_uv_2_2: bool,
-    pub use_env_map_2: bool,
-    pub shader_id: u16,
-    pub texture_count: u16,
-    pub uses_texture_combiner_combos: bool,
-    pub priority_plane: i8,
-    pub material_layer: u16,
-    /// M2 submesh mesh_part_id (geoset group*100 + variant). Used for geoset visibility.
-    pub mesh_part_id: u16,
+    pub data: super::m2_batch_data::ResolvedBatch,
+}
+
+impl std::ops::Deref for M2RenderBatch {
+    type Target = super::m2_batch_data::ResolvedBatch;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
 }
 
 #[derive(Clone)]
@@ -213,20 +187,7 @@ pub(crate) fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
     build_batch_mesh(vertices, &identity_lookup, &indices, &sub, true)
 }
 
-/// Default geoset visibility for initial model display.
-pub fn default_geoset_visible(mesh_part_id: u16) -> bool {
-    let group = mesh_part_id / 100;
-    let variant = mesh_part_id % 100;
-    match group {
-        0 => matches!(mesh_part_id, 0 | 1 | 5 | 16 | 17 | 27..=33),
-        1..=3 => variant == 2,
-        7 => matches!(variant, 1 | 2),
-        15 => false,
-        17 => false,
-        32 => variant >= 1,
-        _ => variant == 1,
-    }
-}
+pub use crate::geoset_visibility_data::default_geoset_visible;
 
 #[cfg(test)]
 pub(crate) fn mesh_has_meaningful_uv1(mesh: &Mesh) -> bool {

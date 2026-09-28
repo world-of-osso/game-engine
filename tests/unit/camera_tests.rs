@@ -242,14 +242,19 @@ fn jump_state_stays_active_until_player_reaches_ground() {
 #[test]
 fn proposed_ground_movement_is_absent_without_input() {
     assert_eq!(
-        build_proposed_ground_movement(Vec3::new(1.0, 2.0, 3.0), Vec3::ZERO, 7.0, 0.5),
+        game_engine::player_physics_data::build_proposed_ground_movement(
+            Vec3::new(1.0, 2.0, 3.0),
+            Vec3::ZERO,
+            7.0,
+            0.5,
+        ),
         None
     );
 }
 
 #[test]
 fn proposed_ground_movement_advances_in_normalized_input_direction() {
-    let proposed = build_proposed_ground_movement(
+    let proposed = game_engine::player_physics_data::build_proposed_ground_movement(
         Vec3::new(1.0, 2.0, 3.0),
         Vec3::new(3.0, 0.0, 4.0),
         10.0,
@@ -269,16 +274,18 @@ fn autorun_toggle_sets_forward_animation_without_forward_key() {
     let bindings = InputBindings::default();
 
     let (direction, anim_dir) = compute_movement_input(
-        &keys,
-        &mouse_buttons,
         &bindings,
+        &CameraInputState {
+            keys: &keys,
+            mouse: &mouse_buttons,
+        },
         true,
         false,
-        &CharacterFacing { yaw: 0.0 },
+        0.0,
     );
 
     assert_eq!(anim_dir, MoveDirection::Forward);
-    assert_eq!(direction, Vec3::new(0.0, 0.0, 1.0));
+    assert_eq!(Vec3::from_array(direction), Vec3::new(0.0, 0.0, 1.0));
 }
 
 #[test]
@@ -288,16 +295,18 @@ fn waypoint_pathing_sets_forward_animation_without_forward_key() {
     let bindings = InputBindings::default();
 
     let (direction, anim_dir) = compute_movement_input(
-        &keys,
-        &mouse_buttons,
         &bindings,
+        &CameraInputState {
+            keys: &keys,
+            mouse: &mouse_buttons,
+        },
         false,
         true,
-        &CharacterFacing { yaw: 0.0 },
+        0.0,
     );
 
     assert_eq!(anim_dir, MoveDirection::Forward);
-    assert_eq!(direction, Vec3::new(0.0, 0.0, 1.0));
+    assert_eq!(Vec3::from_array(direction), Vec3::new(0.0, 0.0, 1.0));
 }
 
 #[test]
@@ -325,9 +334,11 @@ fn forward_input_counts_as_manual_override_for_pathing() {
     keys.press(KeyCode::KeyW);
 
     assert!(has_manual_movement_override(
-        &keys,
-        &mouse_buttons,
         &bindings,
+        &CameraInputState {
+            keys: &keys,
+            mouse: &mouse_buttons,
+        },
     ));
 }
 

@@ -1,206 +1,5 @@
 use super::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct ClientOptionsFile {
-    #[serde(default)]
-    pub(super) accepted_eula: bool,
-    #[serde(default = "default_realm_preset", rename = "preferredRealm")]
-    pub(super) preferred_realm: RealmPreset,
-    #[serde(default)]
-    pub(super) sound: SoundOptionsFile,
-    #[serde(default)]
-    pub(super) camera: CameraOptionsFile,
-    #[serde(default)]
-    pub(super) graphics: GraphicsOptionsFile,
-    #[serde(default)]
-    pub(super) hud: HudOptionsFile,
-    #[serde(default)]
-    pub(super) bindings: InputBindings,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(super) modal_offset: Option<[f32; 2]>,
-    #[serde(default)]
-    #[serde(rename = "modal_position", skip_serializing_if = "Option::is_none")]
-    pub(super) modal_position: Option<[f32; 2]>,
-}
-
-impl Default for ClientOptionsFile {
-    fn default() -> Self {
-        Self {
-            accepted_eula: false,
-            preferred_realm: default_realm_preset(),
-            sound: SoundOptionsFile::default(),
-            camera: CameraOptionsFile::default(),
-            graphics: GraphicsOptionsFile::default(),
-            hud: HudOptionsFile::default(),
-            bindings: InputBindings::default(),
-            modal_offset: None,
-            modal_position: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct SoundOptionsFile {
-    pub(super) master_volume: f32,
-    pub(super) ambient_volume: f32,
-    pub(super) effects_volume: f32,
-    pub(super) music_volume: f32,
-    pub(super) music_enabled: bool,
-    pub(super) muted: bool,
-}
-
-impl Default for SoundOptionsFile {
-    fn default() -> Self {
-        Self::from_runtime(&SoundSettings::default())
-    }
-}
-
-impl SoundOptionsFile {
-    fn from_runtime(settings: &SoundSettings) -> Self {
-        Self {
-            master_volume: settings.master_volume,
-            ambient_volume: settings.ambient_volume,
-            effects_volume: settings.effects_volume,
-            music_volume: settings.music_volume,
-            music_enabled: settings.music_enabled,
-            muted: settings.muted,
-        }
-    }
-
-    pub(super) fn to_runtime(&self) -> SoundSettings {
-        SoundSettings {
-            master_volume: self.master_volume,
-            ambient_volume: self.ambient_volume,
-            effects_volume: self.effects_volume,
-            music_volume: self.music_volume,
-            music_enabled: self.music_enabled,
-            muted: self.muted,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct CameraOptionsFile {
-    #[serde(default = "default_mouse_sensitivity", rename = "mouseSensitivity")]
-    pub(super) mouse_sensitivity: f32,
-    pub(super) look_sensitivity: f32,
-    pub(super) invert_y: bool,
-    #[serde(default = "default_camera_fov_degrees", rename = "fovDegrees")]
-    pub(super) fov_degrees: f32,
-    pub(super) follow_speed: f32,
-    pub(super) zoom_speed: f32,
-    pub(super) min_distance: f32,
-    pub(super) max_distance: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct GraphicsOptionsFile {
-    #[serde(
-        default = "default_particle_effects_enabled",
-        rename = "particleEffectsEnabled"
-    )]
-    pub(super) particle_effects_enabled: bool,
-    #[serde(default, rename = "ssaoEnabled")]
-    pub(super) ssao_enabled: bool,
-    #[serde(default, rename = "depthOfField")]
-    pub(super) depth_of_field: bool,
-    #[serde(default, rename = "antiAlias")]
-    pub(super) anti_alias: AntiAliasMode,
-    #[serde(default = "default_particle_density", rename = "particleDensity")]
-    pub(super) particle_density: u8,
-    #[serde(default = "default_render_scale", rename = "renderScale")]
-    pub(super) render_scale: f32,
-    #[serde(default = "default_ui_scale", rename = "uiScale")]
-    pub(super) ui_scale: f32,
-    #[serde(default = "default_vsync_enabled", rename = "vsyncEnabled")]
-    pub(super) vsync_enabled: bool,
-    #[serde(
-        default = "default_frame_rate_limit_enabled",
-        rename = "frameRateLimitEnabled"
-    )]
-    pub(super) frame_rate_limit_enabled: bool,
-    #[serde(default = "default_frame_rate_limit", rename = "frameRateLimit")]
-    pub(super) frame_rate_limit: u16,
-    #[serde(default = "default_colorblind_mode", rename = "colorblindMode")]
-    pub(super) colorblind_mode: bool,
-    #[serde(default = "default_bloom_enabled", rename = "bloomEnabled")]
-    pub(super) bloom_enabled: bool,
-    #[serde(default = "default_bloom_intensity", rename = "bloomIntensity")]
-    pub(super) bloom_intensity: f32,
-}
-
-impl Default for GraphicsOptionsFile {
-    fn default() -> Self {
-        Self {
-            particle_effects_enabled: default_particle_effects_enabled(),
-            ssao_enabled: false,
-            depth_of_field: false,
-            anti_alias: AntiAliasMode::default(),
-            particle_density: default_particle_density(),
-            render_scale: default_render_scale(),
-            ui_scale: default_ui_scale(),
-            vsync_enabled: default_vsync_enabled(),
-            frame_rate_limit_enabled: default_frame_rate_limit_enabled(),
-            frame_rate_limit: default_frame_rate_limit(),
-            colorblind_mode: default_colorblind_mode(),
-            bloom_enabled: default_bloom_enabled(),
-            bloom_intensity: default_bloom_intensity(),
-        }
-    }
-}
-
-impl Default for CameraOptionsFile {
-    fn default() -> Self {
-        let defaults = CameraOptions::default();
-        Self {
-            mouse_sensitivity: defaults.mouse_sensitivity,
-            look_sensitivity: defaults.look_sensitivity,
-            invert_y: defaults.invert_y,
-            fov_degrees: defaults.fov_degrees,
-            follow_speed: defaults.follow_speed,
-            zoom_speed: defaults.zoom_speed,
-            min_distance: defaults.min_distance,
-            max_distance: defaults.max_distance,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct HudOptionsFile {
-    pub(super) show_minimap: bool,
-    pub(super) show_action_bars: bool,
-    pub(super) show_nameplates: bool,
-    #[serde(default = "default_nameplate_distance", rename = "nameplateDistance")]
-    pub(super) nameplate_distance: f32,
-    #[serde(default, rename = "nameplateStyle")]
-    pub(super) nameplate_style: NameplateStyle,
-    pub(super) show_health_bars: bool,
-    pub(super) show_target_marker: bool,
-    #[serde(default, rename = "autoLoot")]
-    pub(super) auto_loot: bool,
-    pub(super) show_fps_overlay: bool,
-    #[serde(default = "default_chat_font_size", rename = "chatFontSize")]
-    pub(super) chat_font_size: f32,
-}
-
-impl Default for HudOptionsFile {
-    fn default() -> Self {
-        let defaults = HudOptions::default();
-        Self {
-            show_minimap: defaults.show_minimap,
-            show_action_bars: defaults.show_action_bars,
-            show_nameplates: defaults.show_nameplates,
-            nameplate_distance: defaults.nameplate_distance,
-            nameplate_style: defaults.nameplate_style,
-            show_health_bars: defaults.show_health_bars,
-            show_target_marker: defaults.show_target_marker,
-            auto_loot: defaults.auto_loot,
-            show_fps_overlay: defaults.show_fps_overlay,
-            chat_font_size: defaults.chat_font_size,
-        }
-    }
-}
-
 pub fn save_client_options(
     sound: Option<&SoundSettings>,
     camera: &CameraOptions,
@@ -261,15 +60,37 @@ pub(super) fn build_options_file_from_existing(
         camera: build_camera_options_file(camera),
         graphics: build_graphics_options_file(graphics),
         hud: build_hud_options_file(hud),
-        bindings: bindings.clone(),
+        bindings: bindings.0.clone(),
         modal_offset: Some(modal_offset),
         modal_position: None,
     }
 }
 
-fn build_sound_options_file(sound: Option<&SoundSettings>) -> SoundOptionsFile {
+pub(super) fn sound_options_file_from_runtime(
+    settings: &SoundSettings,
+) -> portable::SoundOptionsFile {
+    portable::SoundOptionsFile {
+        master_volume: settings.master_volume,
+        ambient_volume: settings.ambient_volume,
+        effects_volume: settings.effects_volume,
+        music_volume: settings.music_volume,
+        music_enabled: settings.music_enabled,
+        muted: settings.muted,
+    }
+}
+pub(super) fn sound_options_file_to_runtime(file: &portable::SoundOptionsFile) -> SoundSettings {
+    SoundSettings {
+        master_volume: file.master_volume,
+        ambient_volume: file.ambient_volume,
+        effects_volume: file.effects_volume,
+        music_volume: file.music_volume,
+        music_enabled: file.music_enabled,
+        muted: file.muted,
+    }
+}
+fn build_sound_options_file(sound: Option<&SoundSettings>) -> portable::SoundOptionsFile {
     sound
-        .map(SoundOptionsFile::from_runtime)
+        .map(sound_options_file_from_runtime)
         .unwrap_or_default()
 }
 
@@ -333,46 +154,16 @@ pub(super) fn save_options_file_to_path(
     path: &Path,
     file: &ClientOptionsFile,
 ) -> Result<(), String> {
-    GraphicsOptions::from_file(&file.graphics).validate()?;
-    let pretty = ron::ser::PrettyConfig::new();
-    let serialized = ron::ser::to_string_pretty(file, pretty)
-        .map_err(|err| format!("failed to serialize client options: {err}"))?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|err| format!("failed to create options dir {}: {err}", parent.display()))?;
-    }
-    info!("Saving client options to {}", path.display());
-    fs::write(path, serialized)
-        .map_err(|err| format!("failed to write client options {}: {err}", path.display()))
+    portable::save_options_file_to_path(path, file)
 }
-
 pub(super) fn load_options_file() -> ClientOptionsFile {
-    let path = load_options_path();
-    load_options_file_from_path(&path)
+    portable::load_options_file()
 }
-
 fn load_options_path() -> PathBuf {
-    let config_path = options_path();
-    let legacy_path = PathBuf::from(LEGACY_OPTIONS_PATH);
-    select_load_options_path(&config_path, &legacy_path)
+    select_load_options_path(&options_path(), Path::new(LEGACY_OPTIONS_PATH))
 }
-
 fn options_path() -> PathBuf {
-    world_of_osso_config_dir().join(OPTIONS_FILE_NAME)
-}
-
-pub fn load_login_credentials() -> Option<LoginCredentials> {
-    let path = login_credentials_path();
-    if !path.exists() {
-        return None;
-    }
-
-    let raw = fs::read_to_string(&path).ok()?;
-    let creds = ron::de::from_str::<LoginCredentials>(&raw).ok()?;
-    if creds.username.trim().is_empty() || creds.password.trim().is_empty() {
-        return None;
-    }
-    Some(creds)
+    portable::options_path()
 }
 
 pub fn load_preferred_realm() -> RealmPreset {
@@ -404,47 +195,12 @@ pub fn save_eula_accepted(accepted: bool) -> Result<(), String> {
 }
 
 pub(super) fn ui_layout_path() -> PathBuf {
-    world_of_osso_config_dir().join(UI_LAYOUT_FILE_NAME)
-}
-
-pub fn login_credentials_path() -> PathBuf {
-    world_of_osso_config_dir().join(CREDENTIALS_FILE_NAME)
-}
-
-fn world_of_osso_config_dir() -> PathBuf {
-    directories::BaseDirs::new()
-        .map(|dirs| dirs.config_dir().to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("world-of-osso")
+    portable::world_of_osso_config_dir().join(UI_LAYOUT_FILE_NAME)
 }
 
 pub(super) fn select_load_options_path(config_path: &Path, legacy_path: &Path) -> PathBuf {
-    if config_path.exists() {
-        return config_path.to_path_buf();
-    }
-    if legacy_path.exists() {
-        return legacy_path.to_path_buf();
-    }
-    config_path.to_path_buf()
+    portable::select_load_options_path(config_path, legacy_path)
 }
-
 pub(super) fn load_options_file_from_path(path: &Path) -> ClientOptionsFile {
-    if !path.exists() {
-        info!(
-            "No client options file found at {}; using defaults",
-            path.display()
-        );
-        return ClientOptionsFile::default();
-    }
-
-    info!("Loading client options from {}", path.display());
-    let raw = fs::read_to_string(path).unwrap_or_else(|error| {
-        panic!("failed to read client options {}: {error}", path.display())
-    });
-    let file: ClientOptionsFile = ron::de::from_str(&raw)
-        .unwrap_or_else(|error| panic!("invalid client options {}: {error}", path.display()));
-    GraphicsOptions::from_file(&file.graphics)
-        .validate()
-        .unwrap_or_else(|error| panic!("invalid client options {}: {error}", path.display()));
-    file
+    portable::load_options_file_from_path(path)
 }

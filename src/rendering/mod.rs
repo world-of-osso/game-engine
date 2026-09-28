@@ -53,6 +53,8 @@ pub mod ground;
 pub mod ground_effects;
 #[path = "terrain/terrain.rs"]
 pub mod terrain;
+#[path = "terrain/terrain_height_data.rs"]
+pub mod terrain_height_data;
 #[path = "terrain/terrain_heightmap.rs"]
 pub mod terrain_heightmap;
 #[path = "terrain/terrain_load_limits.rs"]

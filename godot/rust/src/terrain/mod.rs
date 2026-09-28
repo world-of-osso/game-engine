@@ -1,0 +1,136 @@
+//! Native ADT geometry and streamed texture resources. World lighting/readiness are separate.
+mod assets;
+pub(crate) mod material;
+pub(crate) mod objects;
+pub(crate) mod state;
+pub(crate) mod streaming;
+mod textures;
+
+use std::fs;
+
+use game_engine_core::adt::{self, Chunk, Geometry};
+use godot::{
+    classes::{ArrayMesh, MeshInstance3D, Node3D, ProjectSettings, RefCounted, mesh},
+    prelude::*,
+};
+
+#[derive(GodotClass)]
+#[class(base = RefCounted)]
+pub struct WowTerrainLoader {
+    base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for WowTerrainLoader {
+    fn init(base: Base<RefCounted>) -> Self {
+        Self { base }
+    }
+}
+
+#[godot_api]
+impl WowTerrainLoader {
+    /// `(-1, -1)` uses authored chunk positions; otherwise pass tile row and column in 0..64.
+    #[func]
+    fn load_adt_geometry(&self, path: GString, tile_row: i32, tile_col: i32) -> VarDictionary {
+        match read_terrain(&path, tile_row, tile_col) {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("node", &node);
+                result
+            }
+            Err(error) => {
+                let mut result = VarDictionary::new();
+                result.set("error", error);
+                result
+            }
+        }
+    }
+}
+
+fn tile_coordinates(row: i32, col: i32) -> Result<Option<(u32, u32)>, String> {
+    if row == -1 && col == -1 {
+        return Ok(None);
+    }
+    if !(0..64).contains(&row) || !(0..64).contains(&col) {
+        return Err("Tile row and column must both be in 0..64, or both -1".into());
+    }
+    Ok(Some((row as u32, col as u32)))
+}
+
+fn read_terrain(path: &GString, row: i32, col: i32) -> Result<Gd<Node3D>, String> {
+    let tile = tile_coordinates(row, col)?;
+    let filename = ProjectSettings::singleton()
+        .globalize_path(path)
+        .to_string();
+    let bytes = fs::read(&filename).map_err(|error| format!("Cannot read {path}: {error}"))?;
+    let root = adt::parse_root(&bytes).map_err(|error| format!("Cannot parse {path}: {error}"))?;
+    Ok(build_terrain(root.chunks, tile))
+}
+
+fn build_terrain(chunks: Vec<Chunk>, tile: Option<(u32, u32)>) -> Gd<Node3D> {
+    let mut root = Node3D::new_alloc();
+    root.set_name("TerrainGeometry");
+    for chunk in chunks {
+        let geometry = adt::chunk_geometry(&chunk, tile);
+        if geometry.indices.is_empty() {
+            continue;
+        }
+        let mut instance = MeshInstance3D::new_alloc();
+        instance.set_name(&format!("Chunk{}_{}", chunk.index_x, chunk.index_y));
+        instance.set_mesh(&build_mesh(geometry, &chunk.vertex_colors));
+        root.add_child(&instance);
+    }
+    root
+}
+
+fn build_mesh(geometry: Geometry, colors: &[[f32; 4]; 145]) -> Gd<ArrayMesh> {
+    let mut positions = PackedVector3Array::new();
+    let mut normals = PackedVector3Array::new();
+    let mut uvs = PackedVector2Array::new();
+    let mut vertex_colors = PackedColorArray::new();
+    let mut indices = PackedInt32Array::new();
+    for position in geometry.positions {
+        positions.push(Vector3::new(position[0], position[1], position[2]));
+    }
+    for normal in geometry.normals {
+        normals.push(Vector3::new(normal[0], normal[1], normal[2]));
+    }
+    for uv in geometry.uvs {
+        uvs.push(Vector2::new(uv[0], uv[1]));
+    }
+    // ArrayMesh packs COLOR into byte/255; the shader restores authored byte/127.
+    const MCCV_TO_VERTEX_COLOR: f32 = 127.0 / 255.0;
+    for color in colors {
+        vertex_colors.push(Color::from_rgba(
+            color[0] * MCCV_TO_VERTEX_COLOR,
+            color[1] * MCCV_TO_VERTEX_COLOR,
+            color[2] * MCCV_TO_VERTEX_COLOR,
+            color[3],
+        ));
+    }
+    // Godot ArrayMesh front faces are clockwise; Bevy's authored indices are counterclockwise.
+    for triangle in geometry.indices.chunks_exact(3) {
+        indices.push(triangle[0] as i32);
+        indices.push(triangle[2] as i32);
+        indices.push(triangle[1] as i32);
+    }
+    let mut arrays = VarArray::new();
+    arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
+    arrays.set(
+        mesh::ArrayType::VERTEX.ord() as usize,
+        &positions.to_variant(),
+    );
+    arrays.set(
+        mesh::ArrayType::NORMAL.ord() as usize,
+        &normals.to_variant(),
+    );
+    arrays.set(
+        mesh::ArrayType::COLOR.ord() as usize,
+        &vertex_colors.to_variant(),
+    );
+    arrays.set(mesh::ArrayType::TEX_UV.ord() as usize, &uvs.to_variant());
+    arrays.set(mesh::ArrayType::INDEX.ord() as usize, &indices.to_variant());
+    let mut mesh = ArrayMesh::new_gd();
+    mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
+    mesh
+}

@@ -17,6 +17,7 @@ use crate::asset::adt_format::adt_obj;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use crate::water_material::WaterMaterial;
+use game_engine::campsite_object_data;
 
 use crate::terrain::resolve_companion_path;
 use crate::terrain_heightmap::TerrainHeightmap;
@@ -324,9 +325,15 @@ pub fn spawn_nearby_campsite_objects(
         obj_data,
         &doodad_chunk_refs,
         |doodad| {
-            is_waterfall_backdrop_doodad(doodad)
-                || (doodad_position(doodad, tile_y, tile_x).distance(focus) <= doodad_radius
-                    && !is_charselect_clutter_doodad(doodad))
+            let model = doodad_model_name(doodad);
+            campsite_object_data::is_primary_campsite_doodad(
+                doodad,
+                model.as_deref(),
+                tile_y,
+                tile_x,
+                focus,
+                doodad_radius,
+            )
         },
         &mut spawned.doodads,
     );
@@ -642,27 +649,14 @@ fn doodad_model_name(doodad: &adt_obj::DoodadPlacement) -> Option<String> {
 }
 
 fn is_waterfall_backdrop_doodad(doodad: &adt_obj::DoodadPlacement) -> bool {
-    let Some(model) = doodad_model_name(doodad) else {
-        return false;
-    };
-    let model = model.to_ascii_lowercase();
-    model.contains("waterfall") || model.contains("ripple01_misty")
+    let model = doodad_model_name(doodad);
+    campsite_object_data::is_supplemental_campsite_doodad(model.as_deref())
 }
 
+#[cfg(test)]
 fn is_charselect_clutter_doodad(doodad: &adt_obj::DoodadPlacement) -> bool {
-    let Some(model) = doodad_model_name(doodad) else {
-        return false;
-    };
-    let model = model.to_ascii_lowercase();
-    model.contains("spells/")
-        || model.contains("pineneedles")
-        || model.contains("pinecone")
-        || model.contains("twigs")
-        || model.contains("forestflowers")
-        || model.contains("spriggyplant")
-        || model.contains("groundivy")
-        || model.contains("grass")
-        || model.contains("smoke")
+    let model = doodad_model_name(doodad);
+    campsite_object_data::is_charselect_clutter_model(model.as_deref())
 }
 
 /// Convert WoW doodad placement to a Bevy Transform.
@@ -672,20 +666,23 @@ fn doodad_transform(
     tile_y: u32,
     tile_x: u32,
 ) -> Transform {
-    let mut pos = doodad_position(d, tile_y, tile_x);
-    if !is_waterfall_backdrop_doodad(d)
-        && let Some(terrain_y) = heightmap.and_then(|heightmap| heightmap.height_at(pos.x, pos.z))
-    {
-        pos.y = pos.y.max(terrain_y);
-    }
-    let rotation = placement_rotation(d.rotation);
-    Transform::from_translation(pos)
-        .with_rotation(rotation)
-        .with_scale(Vec3::splat(d.scale))
+    let pos = doodad_position(d, tile_y, tile_x);
+    let terrain_y = heightmap.and_then(|heightmap| heightmap.height_at(pos.x, pos.z));
+    let model = doodad_model_name(d);
+    let placed = campsite_object_data::campsite_doodad_placement(
+        d,
+        model.as_deref(),
+        tile_y,
+        tile_x,
+        terrain_y,
+    );
+    Transform::from_translation(placed.translation)
+        .with_rotation(placed.rotation)
+        .with_scale(placed.scale)
 }
 
 fn doodad_position(d: &adt_obj::DoodadPlacement, tile_y: u32, tile_x: u32) -> Vec3 {
-    Vec3::from(placement_to_bevy_on_tile(d.position, tile_y, tile_x))
+    campsite_object_data::doodad_position(d, tile_y, tile_x)
 }
 
 /// Convert WoW MDDF/MODF Euler rotation to Bevy (the server places WMO
@@ -758,12 +755,7 @@ pub(super) fn placement_to_bevy_absolute(raw: [f32; 3]) -> [f32; 3] {
 }
 
 fn placement_to_bevy_on_tile(raw: [f32; 3], tile_y: u32, tile_x: u32) -> [f32; 3] {
-    let absolute = placement_to_bevy_absolute(raw);
-    let (abs_ty, abs_tx) = crate::terrain_tile::bevy_to_tile_coords(absolute[0], absolute[2]);
-    if abs_ty.abs_diff(tile_y) <= 1 && abs_tx.abs_diff(tile_x) <= 1 {
-        return absolute;
-    }
-    crate::asset::m2::wow_to_bevy(raw[0], raw[2], raw[1])
+    game_engine::campsite_object_data::placement_position(raw, tile_y, tile_x).to_array()
 }
 
 /// Convert WMO placement to a Bevy Transform.

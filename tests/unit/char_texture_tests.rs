@@ -33,11 +33,7 @@ fn full_head_atlas_layers_do_not_stretch_across_body_canvas() {
             height: 2,
         },
     );
-    let data = CharTextureData {
-        layers: Vec::new(),
-        sections,
-        layouts: HashMap::new(),
-    };
+    let data = CharTextureData::from_parts(Vec::new(), sections, HashMap::new());
     let layer = TextureLayer {
         texture_type: 6,
         layer: 0,
@@ -81,11 +77,7 @@ fn hd_layout_is_converted_to_runtime_body_and_head_textures() {
             height: 1024,
         },
     );
-    let data = CharTextureData {
-        layers: Vec::new(),
-        sections,
-        layouts: HashMap::new(),
-    };
+    let data = CharTextureData::from_parts(Vec::new(), sections, HashMap::new());
     let mut pixels = vec![0u8; (2048 * 1024 * 4) as usize];
     for y in 0..1024u32 {
         for x in 0..2048u32 {
@@ -119,11 +111,7 @@ fn hd_layout_extracts_runtime_hair_texture_from_section_ten() {
             height: 1024,
         },
     );
-    let data = CharTextureData {
-        layers: Vec::new(),
-        sections,
-        layouts: HashMap::new(),
-    };
+    let data = CharTextureData::from_parts(Vec::new(), sections, HashMap::new());
     let mut pixels = vec![0u8; (2048 * 1024 * 4) as usize];
     for y in 0..1024u32 {
         for x in 0..2048u32 {

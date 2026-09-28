@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -9,24 +8,30 @@ use bevy::window::{PresentMode, PrimaryWindow, Window};
 use game_engine::ui::render::UiCamera;
 use serde::{Deserialize, Serialize};
 
-use crate::cli_args::{RealmPreset, default_realm_preset};
+use crate::cli_args::RealmPreset;
+#[path = "../../client_options_data.rs"]
+mod portable;
 use crate::game::inworld_scene_stage::InWorldSceneStage;
 use crate::game_state::GameState;
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::InputBindings;
+pub use portable::{
+    AntiAliasMode, DEFAULT_NAMEPLATE_DISTANCE, LoginCredentials, MAX_CHAT_FONT_SIZE,
+    MAX_FRAME_RATE_LIMIT, MAX_MOUSE_SENSITIVITY, MAX_NAMEPLATE_DISTANCE, MAX_UI_SCALE,
+    MIN_CHAT_FONT_SIZE, MIN_FRAME_RATE_LIMIT, MIN_MOUSE_SENSITIVITY, MIN_NAMEPLATE_DISTANCE,
+    MIN_UI_SCALE, load_login_credentials, login_credentials_path,
+};
 
 const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
 const OPTIONS_FILE_NAME: &str = "options_settings.ron";
 const LEGACY_CREDENTIALS_PATH: &str = "data/ui/credentials.ron";
-const CREDENTIALS_FILE_NAME: &str = "credentials.ron";
 const UI_LAYOUT_FILE_NAME: &str = "ui_layout.ron";
 
 #[path = "client_options_storage.rs"]
 mod storage;
 
-use storage::{
-    CameraOptionsFile, ClientOptionsFile, GraphicsOptionsFile, HudOptionsFile, load_options_file,
-};
+use portable::{CameraOptionsFile, ClientOptionsFile, GraphicsOptionsFile, HudOptionsFile};
+use storage::load_options_file;
 
 pub struct ClientOptionsPlugin;
 
@@ -39,14 +44,14 @@ pub(crate) struct UiDisabled;
 impl Plugin for ClientOptionsPlugin {
     fn build(&self, app: &mut App) {
         let loaded = load_options_file();
-        app.insert_resource(loaded.sound.to_runtime())
+        app.insert_resource(storage::sound_options_file_to_runtime(&loaded.sound))
             .insert_resource(CameraOptions::from_file(&loaded.camera))
             .insert_resource(GraphicsOptions::from_file(&loaded.graphics))
             .insert_resource(HudOptions::from_file(&loaded.hud))
             .insert_resource(HudVisibilityToggles::from_hud_options(
                 &HudOptions::from_file(&loaded.hud),
             ))
-            .insert_resource(loaded.bindings.clone())
+            .insert_resource(InputBindings(loaded.bindings.clone()))
             .insert_resource(ClientOptionsUiState {
                 modal_offset: loaded.modal_offset,
                 legacy_modal_position: loaded.modal_position,
@@ -66,12 +71,6 @@ impl Plugin for ClientOptionsPlugin {
             )
             .add_systems(First, limit_frame_rate);
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct LoginCredentials {
-    pub username: String,
-    pub password: String,
 }
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -118,14 +117,6 @@ impl CameraOptions {
             max_distance: file.max_distance,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum AntiAliasMode {
-    None,
-    #[default]
-    Msaa4x,
-    Taa,
 }
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -312,76 +303,48 @@ struct LoadedClientOptions {
     applied: bool,
 }
 
-const fn default_particle_density() -> u8 {
-    100
+fn default_particle_density() -> u8 {
+    GraphicsOptionsFile::default().particle_density
 }
-
-const fn default_render_scale() -> f32 {
-    1.0
+fn default_render_scale() -> f32 {
+    GraphicsOptionsFile::default().render_scale
 }
-
-const fn default_ui_scale() -> f32 {
-    1.0
+fn default_ui_scale() -> f32 {
+    GraphicsOptionsFile::default().ui_scale
 }
-
-const fn default_vsync_enabled() -> bool {
-    true
+fn default_vsync_enabled() -> bool {
+    GraphicsOptionsFile::default().vsync_enabled
 }
-
-const fn default_frame_rate_limit_enabled() -> bool {
-    false
+fn default_frame_rate_limit_enabled() -> bool {
+    GraphicsOptionsFile::default().frame_rate_limit_enabled
 }
-
-const fn default_frame_rate_limit() -> u16 {
-    144
+fn default_frame_rate_limit() -> u16 {
+    GraphicsOptionsFile::default().frame_rate_limit
 }
-
-const fn default_colorblind_mode() -> bool {
-    false
+fn default_colorblind_mode() -> bool {
+    GraphicsOptionsFile::default().colorblind_mode
 }
-
-const fn default_particle_effects_enabled() -> bool {
-    true
+fn default_particle_effects_enabled() -> bool {
+    GraphicsOptionsFile::default().particle_effects_enabled
 }
-
-const fn default_bloom_enabled() -> bool {
-    false
+fn default_bloom_enabled() -> bool {
+    GraphicsOptionsFile::default().bloom_enabled
 }
-
-const fn default_bloom_intensity() -> f32 {
-    0.08
+fn default_bloom_intensity() -> f32 {
+    GraphicsOptionsFile::default().bloom_intensity
 }
-
-pub const MIN_UI_SCALE: f32 = 0.75;
-pub const MAX_UI_SCALE: f32 = 1.5;
-pub const MIN_MOUSE_SENSITIVITY: f32 = 0.001;
-pub const MAX_MOUSE_SENSITIVITY: f32 = 0.01;
-pub const MIN_CAMERA_FOV_DEGREES: f32 = 90.0;
-pub const MAX_CAMERA_FOV_DEGREES: f32 = 120.0;
-pub const DEFAULT_CAMERA_FOV_DEGREES: f32 = MIN_CAMERA_FOV_DEGREES;
-pub const MIN_FRAME_RATE_LIMIT: u16 = 30;
-pub const MAX_FRAME_RATE_LIMIT: u16 = 240;
-pub const MIN_NAMEPLATE_DISTANCE: f32 = 20.0;
-pub const MAX_NAMEPLATE_DISTANCE: f32 = 80.0;
-pub const DEFAULT_NAMEPLATE_DISTANCE: f32 = 40.0;
-pub const MIN_CHAT_FONT_SIZE: f32 = 8.0;
-pub const MAX_CHAT_FONT_SIZE: f32 = 16.0;
-
-const fn default_nameplate_distance() -> f32 {
-    DEFAULT_NAMEPLATE_DISTANCE
+fn default_nameplate_distance() -> f32 {
+    HudOptionsFile::default().nameplate_distance
 }
-
-const fn default_chat_font_size() -> f32 {
-    10.0
+fn default_chat_font_size() -> f32 {
+    HudOptionsFile::default().chat_font_size
 }
-
-const fn default_mouse_sensitivity() -> f32 {
-    0.003
+fn default_mouse_sensitivity() -> f32 {
+    CameraOptionsFile::default().mouse_sensitivity
 }
-
-const fn default_camera_fov_degrees() -> f32 {
-    DEFAULT_CAMERA_FOV_DEGREES
-}
+pub use game_engine::camera_control_data::{
+    DEFAULT_CAMERA_FOV_DEGREES, MAX_CAMERA_FOV_DEGREES, MIN_CAMERA_FOV_DEGREES,
+};
 
 pub fn save_client_options(
     sound: Option<&SoundSettings>,
@@ -405,10 +368,6 @@ pub fn save_client_options_values(
     storage::save_client_options_values(sound, camera, graphics, hud, bindings, modal_offset)
 }
 
-pub fn load_login_credentials() -> Option<LoginCredentials> {
-    storage::load_login_credentials()
-}
-
 /// Saved window positions and edit-mode layouts, next to the options file.
 pub fn ui_layout_path() -> PathBuf {
     storage::ui_layout_path()
@@ -428,10 +387,6 @@ pub fn save_preferred_realm(realm: RealmPreset) -> Result<(), String> {
 
 pub fn save_eula_accepted(accepted: bool) -> Result<(), String> {
     storage::save_eula_accepted(accepted)
-}
-
-pub fn login_credentials_path() -> PathBuf {
-    storage::login_credentials_path()
 }
 
 fn apply_loaded_client_options(

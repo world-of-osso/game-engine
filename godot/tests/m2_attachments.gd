@@ -1,0 +1,83 @@
+extends SceneTree
+
+const DATA := "res://../data/models/"
+const EPSILON := 0.001
+
+func fail(message: String) -> void:
+	push_error(message)
+	quit(1)
+
+func _initialize() -> void:
+	if not ClassDB.class_exists("WowAssetLoader"):
+		fail("WowAssetLoader not registered")
+		return
+	check_models.call_deferred()
+
+func check_models() -> void:
+	if DisplayServer.get_name() == "headless":
+		fail("Attachment pose proof requires a rendered display")
+		return
+	root.size = Vector2i(1280, 720)
+	var camera := Camera3D.new()
+	root.add_child(camera)
+	camera.look_at_from_position(Vector3(0, 1, 5), Vector3(0, 1, 0))
+	camera.make_current()
+	var loader = ClassDB.instantiate("WowAssetLoader")
+	if not await check_attachment(loader, "humanmale_hd", 5, 189, Vector3(-0.026222223, 1.7228644, 0.20848155), 65535):
+		return
+	if not await check_attachment(loader, "boar", 0, 48, Vector3(-0.36472428, 1.2703203, 0.0), 65535):
+		return
+	print("PASS: HD and boar authored attachment lookup, rest offset, and animated bone pose")
+	loader = null
+	quit(0)
+
+func check_attachment(loader: Object, model_name: String, attachment_id: int, bone_index: int, authored_position: Vector3, absent_id: int) -> bool:
+	var result: Dictionary = loader.load_m2(DATA + model_name + ".m2")
+	if result.has("error"):
+		fail(model_name + " load: " + str(result.error))
+		return false
+	var model: Node3D = result.node
+	get_root().add_child(model)
+	var skeleton := model.get_node("Skeleton3D") as Skeleton3D
+	var attachment := skeleton.find_child("Attachment%d" % attachment_id, true, false) as Node3D
+	if attachment == null or (attachment.get_parent() as BoneAttachment3D).bone_idx != bone_index:
+		fail(model_name + " attachment %d must follow bone %d" % [attachment_id, bone_index])
+		return false
+	if model_name == "humanmale_hd":
+		for id in [0, 1, 2]:
+			var hand := skeleton.find_child("Attachment%d" % id, true, false) as Node3D
+			if hand == null or (hand.get_parent() as BoneAttachment3D).bone_idx != [201, 206, 211][id]:
+				fail("HD wrist/palm attachment %d mapped to wrong bone" % id)
+				return false
+	if skeleton.find_child("Attachment%d" % absent_id, true, false) != null:
+		fail(model_name + " missing attachment ID %d was fabricated" % absent_id)
+		return false
+	(model.get_node_or_null("M2Animation") as Node).set_process(false)
+	skeleton.reset_bone_poses()
+	await RenderingServer.frame_post_draw
+	if attachment.global_position.distance_to(authored_position) > EPSILON:
+		fail(model_name + " attachment rest position: %s != %s" % [attachment.global_position, authored_position])
+		return false
+	var pivot := skeleton.get_bone_global_rest(bone_index).origin
+	var local_offset := authored_position - pivot
+	if attachment.position.distance_to(local_offset) > EPSILON:
+		fail(model_name + " local offset does not preserve authored position relative to pivot")
+		return false
+	model.position = Vector3(2.0, 0.3, -1.0)
+	model.rotation.y = 0.4
+	model.scale = Vector3.ONE * 1.1
+	var translation := Vector3(0.3, 0.2, 0.1)
+	skeleton.set_bone_pose_rotation(bone_index, Quaternion(Vector3.UP, 0.65))
+	skeleton.set_bone_pose_position(bone_index, skeleton.get_bone_pose_position(bone_index) + translation)
+	await RenderingServer.frame_post_draw
+	var changed_bone := Transform3D(Basis(Vector3.UP, 0.65), pivot + translation)
+	var expected := model.global_transform * changed_bone * Transform3D(Basis.IDENTITY, local_offset)
+	if not attachment.global_transform.is_equal_approx(expected):
+		fail(model_name + " attachment did not follow bone and model transforms: %s != %s" % [attachment.global_transform, expected])
+		return false
+	if attachment.global_position.distance_to(authored_position) < EPSILON:
+		fail(model_name + " attachment did not move")
+		return false
+	model.free()
+	result.clear()
+	return true

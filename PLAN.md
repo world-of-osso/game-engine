@@ -1,0 +1,57 @@
+# PLAN.md
+
+## Goal
+- [ ] Complete full Godot conversion: feature, visual/input, gameplay, performance and automation parity, tracked in `docs/specs/godot-parity-matrix.md`.
+
+## Context
+- Master uses Bevy ui-toolkit's `native_render` (nine-slice button textures, focus colors)
+- Extracted master's character-creation state into a shared module; both Bevy and Godot now use it
+- Restarted dev server (:5000) to match current shared-protocol
+- Fixed master's `--screen login screenshot` hang in `src/app_runtime.rs`
+
+## Completed
+- **Login**: buttons match master (12px corners, hover/press skins), Enter submits, Tab/Escape/focus colors work, dev prefill/auto-focus
+- **Character select**: list panel backdrop, Create New Character → creation flow, delete with 3s countdown and confirmation, Up/Down/Enter/Escape keys
+- **Character create**: shared reducer in `src/game/character_creation/logic.rs`, icon masks (round portraits), error handling
+- **Polish**: 0.75s fade-in, vsync disabled
+- **Tests**: UI fixtures pass (login, character select, character create actions)
+
+## In Progress
+- [x] Reconcile bounded startup CLI proof: six destinations remain proven; post-`f015f651` native fmt passes, while the `bd8282c7` terrain-object fmt failure remains historical. Loading clipping follows shared legacy layout and is not a confirmed Godot regression.
+- [x] Prove selected-roster gear replacement/removal and one cached bound chest's rendered pose response.
+- [x] Complete bounded native fmt/check and independent equipment verification (`9059d471`); two existing WMO warnings remain.
+- [x] Reproduce and implement local/remote InWorld body/gear with stable unit identity and paused-pose continuity; grounded female probe `6acd4ec0` independently audited.
+- [ ] Close repaired NPC regression audit (`ca0c9204` runtime exit 0; dummy-renderer diagnostic remains).
+- [x] Prove local grounded Walk (4), Backward (13), Left (11), and Right (12) through real root-launched key/bone/decoded-UDP input: each changes bones, returns Stand, and becomes quiet (`0fcb9578`).
+- [ ] Continue original jump/swim/turn animation behavior; remote player Stand matches original renderer and needs no invented wire fields.
+- [ ] Resolve real-server protocol compatibility before refreshing the visible trial.
+
+## Blockers & Next Steps
+1. **Character select nav bar** (MODE/SHOP/MENU/REALMS/CAMPSITES): blocked on 3D campsite data; other session owns
+2. **Game menu screen**: not yet wired
+3. **Bevy tests**: `transfer.rs` error from other session prevents root test run; not a blocker to merge
+4. **Visual verify Customize mode**: need rebuilt master binary
+
+**Parity matrix updated**: `docs/specs/godot-parity-matrix.md`
+
+## Authored selection background
+- [x] Launch saved-option FPS counter/graph; current visible fixture exits 0, historical timeout remains unexplained.
+- [x] Share authored Warband records, solo camera, and explicit terrain tile requests.
+- [x] Render both authored textured terrain tiles with selected body; GPU/input clean exit at `df22179c`.
+- [x] Preserve original first-four-layer terrain rendering; retain fifth layers in parsed data.
+- [x] Share/test campsite inclusion and MDDF/MODF transforms against local fixtures.
+- [x] Wire 76 primary and 42 supplemental doodads plus the nearby WMO.
+- [x] Finish original sky materials/animation integration and isolated GPU proof.
+- [x] Inspect combined scenery, body, sky; prove scene cleanup and world/input transition at `0266003e`.
+- [x] Refresh affected trial client and obtain final independent scoped verification (535/539).
+- [x] Reconcile parity matrix; full conversion/equipment/other campsite gaps remain open.
+
+## Full conversion: selected-roster equipment
+- [x] Reproduce missing equipped-item appearance with concrete roster data (`e909b136` RED).
+- [x] Share original item/display resolution and clothing/geoset decisions without duplicating policies.
+- [x] Apply equipment textures and geosets to selected player customization; starter render recorded at `640e9f30`.
+- [x] Attach authored equipment models; HD/boar attachment transforms and one collection chest weighted-pose response verified.
+- [x] Inspect starter/chest rendering and selection replacement/cleanup; independently verify bounded evidence.
+- [ ] Keep uncached FDID2368173 extraction, broader slots/races and authored animation-sequence coverage explicit in matrix.
+- [ ] Continue remaining feature, visual/input, gameplay, performance and automation parity scopes from the matrix.
+- [ ] Refactor `godot/rust/src/char_create/scene.rs`: load_backdrop (line 189): 35 body lines (max 30) — extract into helper functions

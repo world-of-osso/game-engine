@@ -1,0 +1,37 @@
+[package]
+name = "game-engine-godot"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Godot 4.7 GDExtension ABI and native scene/resource APIs replace Bevy rendering.
+godot = { version = "0.5.5", features = ["api-4-7"] }
+game-engine-core = { path = "../core" }
+# Shared equipment slots retain the original persisted transform-config representation.
+serde = { version = "1", features = ["derive"] }
+# Read the original equipment-transform configuration without a renderer-specific copy.
+ron = "0.8"
+# Parse quoted multiline descriptions in the Map.csv transfer-error catalog.
+csv = "1.4"
+# Read the existing imported creature display catalog through the shared query.
+rusqlite = { version = "0.35", features = ["bundled"] }
+# Convert native node rotations into the same quaternion math used by shared movement.
+glam = "0.32.0"
+# Masked character-creation icons use the shared image-crate portrait composition.
+image = { version = "0.25", default-features = false }
+# Reuse the original local-CASC/listfile resolver and canonical FDID asset cache.
+osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resolver" }
+game-engine-network = { path = "../network" }
+game-engine-session = { path = "../session" }
+# Authoritative wire message types; engine scheduling stays inside the network worker.
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
+game-engine-ui-model = { path = "../ui-model" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
+# Preserve the authored registry layout semantics and local rounding fix.
+taffy = "0.10.1"
+# Decode the existing authored KTX2 UI assets without converting their source files.
+ktx2-rw = "0.2.4"

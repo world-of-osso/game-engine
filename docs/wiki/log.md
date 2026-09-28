@@ -1,5 +1,595 @@
 # Wiki Log
 
+## [2026-09-27] system | Idle right-drag reaches authored turns before later WMO blocker
+
+`93f38c13` adds actual idle right-drag coverage. Its runtime RED observes yaw delta `-0.12`, expects authored turn 12, and receives Stand 0 (`/tmp/claude/idle-turn-runtime-red-93f38c13.log`). `167ef65b` selects idle turns from normalized consecutive local-facing samples; `8ee6c5ea` makes the 0.02-radian thresholds inclusive. Six targeted tests are reported GREEN.
+
+The rerun preserves unchanged left orbit and reaches both right-drag assertions: 60 samples each, authored 11/12 with changed bones after 150 ms, then Stand 0 (`/tmp/claude/idle-turn-runtime-8ee6c5ea.log`). It exits 101 later at WMO 108238 group 38 material 52 unsupported shader 5. This reaches bounded turn assertions, not a whole-runtime PASS. Verifier649 is asynchronous.
+
+Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Local running jump reaches landing and resumed Run
+
+`f990867f` adds the running-landing fixture and `5a698a23` drains jumping packets at its landing boundary. `23c8f08f` corrects the fixture's forward-vector check to use current yaw. The actual root-launcher in-world runtime exits 0 (`/tmp/claude/running-jump-runtime-23c8f08f.log`): W+Space observes 37 → 38 → 187 → 5 → 0, changing body motion, rise, resumed displacement, decoded forward-running jumping then nonjump input, and quiet release. Idle jump and grounded Walk/Backward/Left/Right remain covered; production stays at `dac0ab3e`.
+
+This proves one bounded local grounded running-jump path only. Turn, swim, remote locomotion, broader races/equipment, physical all-case coverage, performance, parity, and full conversion remain open. Verifier643 is pending.
+
+Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Idle local jump reaches authored landing and Stand
+
+`4df9b1e2` adds a root-launched idle-Space fixture that checks actual bone playback and decoded stationary jumping input. Its first runtime exits 101 at missing JumpStart 37 (`/tmp/claude/jump-input-runtime-red-4df9b1e2.log`). `8bebf2c4` implements local JumpStart 37 → Jump 38 → JumpEnd 39 → movement; running forward selects authored JumpLandRun 187 when present, covered by synthetic tests only. `7a6ac0d5` wires the state machine from local `PlayerMovement`, and `dac0ab3e` releases Space independently of airborne clip duration.
+
+The `dac0ab3e` runtime exits 0 (`/tmp/claude/jump-input-runtime-dac0ab3e.log`): idle Space observes 37 → 38 → 39 → Stand 0, changed body poses, rise then ground return, stationary jumping UDP, and quiet release. Existing grounded Walk/Backward/Left/Right coverage also passes. Landing 187 is not runtime-proven. Turn, swim, remote locomotion, performance, parity, and full conversion remain open. Verifier640 is running asynchronously; its result is pending.
+
+Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Six Godot startup names have bounded CLI proof
+
+Supersedes the earlier pending-runtime note. `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, and `inworld` have exit-0 CLI artifacts; parser/account/launcher proof is 6/6, 5/5, and 11/11. The authenticated `inworld` artifact covers mixed-case selection of the second roster entry, although this audit did not independently re-read its numeric source predicate. Four PNGs were inspected; clipped Loading progress means UI presence, not visual parity, and follows shared legacy layout at 720 px rather than a confirmed Godot UI-scale regression. Missing/invalid/unsupported root CLI paths exit 1. Latest authenticated fixtures also validate local locomotion `0 → 5 → 0` and clean shutdown. Twelve other canonical names and `connecting`/`reconnecting` remain explicitly unconverted. Native check and launcher fmt pass. The native fmt failure reported by `bd8282c7` applied only to then-uncommitted terrain-object code; after terrain commit `f015f651`, `/tmp/claude/startup-native-fmt-after-terrain-commit.log` records native fmt exit 0. Full conversion remains open.
+
+Updated [[godot-conversion]], [[animation]], and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Godot startup CLI is separated from native Godot flags
+
+`b10eab7d` keeps native Godot arguments intact and sends launcher-owned `--screen`, `--state`, `--server`, and `--char` after Godot's `--` separator; the process suite is reported 11/11 GREEN. `ae091255` shares pure `ScreenArg`/`StartupArgs` parsing, reported 6/6 GREEN. `37262089` consumes Godot user arguments in `GameClient::ready()`, supporting `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, and `inworld`. `charselect` and `inworld` authenticate via saved token or configured credentials; `--char` must name a roster character and `inworld` enters it. `charcreate` is standalone unless `--server` is explicit, then authenticates first. `dev`/`prod` remain server aliases. `e89f4243` prioritizes startup tokens, consumes options once, and validates requested names. `connecting`, `reconnecting`, and legacy destinations outside that set error explicitly as unconverted.
+
+The root-launcher/private-XDG credential fixture at `a69e4f4c` remains RED: startup stays at Login without a manual GDScript connection (`/tmp/claude/screen-cli-runtime-red-a69e4f4c.log`). Native build/runtime proof is pending; this does not close conversion or locomotion gates.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Root Cargo command launches Godot
+
+Root `cargo run`/`rd` now selects the std-only debug launcher rather than compiling the Bevy package. It validates the pinned Godot 4.7.2 binary or `GODOT_BIN`, builds the native library, then execs Godot; no server startup or Bevy fallback. `run-tests.sh --workspace` covers root/launcher tests and Godot tests remain separate. Launcher process tests were reported 7/7 at `41036dfe` before integration/refactoring. At `2d17381e`, bare root `cargo run` reached nested native build and Godot 4.7.2 Vulkan initialization with exit 0 (`/tmp/claude/default-cargo-run-smoke-2d17381e.log`); existing WMO/cage warnings remain. This is bootstrap evidence, not client readiness; independent launcher verification remains pending.
+
+Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md).
+
+## [2026-09-27] system | Local Godot locomotion animation is wired but unverified
+
+`d3593762` makes the original direction policy portable. Core initially fails on a missing export, then passes 2/2: land chooses Stand, Walk/Run only for forward, backward walk, or strafes; swimming chooses only swim IDs and ignores `running` (`/tmp/claude/movement-animation-{red,green}-4e896a2.out`). `5b0bec54` corrects root library import and constant visibility; no root selector evidence exists.
+
+`2df84899` adds authored-ID selection. The missing-API RED becomes 4/4 GREEN: base-variation selection, repeated family requests retain time/variation/blend, missing IDs do not mutate playback, and loop-mode/interruption retain the outgoing blended pose (`/tmp/claude/native-animation-authored-id-{red,green}.log`). `current_animation_id` is read-only and returns `-1` before binding. Death behavior is unchanged: first authored Death, one-shot final hold, no resurrection/replacement reset.
+
+`bca569a5` adds an input fixture that observes IDs and poses but does not choose clips; Vulkan exits 101 with `Held W did not select authored Run 5: 0` (`/tmp/claude/native-locomotion-input-red-2df84899.log`). `de3c0835` supplies the next local-only wiring after prediction/world advance. It is unbuilt and unverified. Remote entities retain no `MovementState` and Stand; no protocol or displacement inference was added, so blocked forward input can remain Run. Jump, turning, full-fluid behavior, performance, runtime/parity proof, and full conversion remain open.
+
+Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] investigation | Isolated NPC fixture now reaches the diagnostic boundary
+
+The isolated fixture bootstrap was repaired incrementally: `0f83d8f9` supplies UI and Warband CSV inputs; `54f6bf69` stages cached models and terrain; `36449a60` supplies a default player hair choice while retaining explicit NPC negative choices; `09c5f94d` creates a private SQLite backup, local alias catalog, and community-CSV source symlink; `40fc60a4` recursively stages the skybox directory. The successive runtime logs all exit 101: missing fixture hair (`54f6bf69`), map alias (`36449a60`), and nested skybox model (`09c5f94d`) are bootstrap failures. The last run reaches `INITIAL_READY` through `RESET_READY`, including `TYPE6_MISSING_READY`, then fails because the generic unit logger no longer includes display `910014` in the required type-6 error, although that error is emitted (`/tmp/claude/npc-fixture-bootstrap-runtime-{54f6bf69,36449a60,09c5f94d,40fc60a4}.log`).
+
+`ca0c9204` restores NPC server-ID/display-ID and player-name error context. Its native build exits 0 with the two existing unused-WMO-field warnings (`/tmp/claude/npc-diagnostic-build-ca0c9204.log`); the runtime exits 0 through NPC, lighting, death, visibility, missing-type-6, bound-hair, type-19, effect, and reset stages, observing the corrected `NPC … display 910014` error (`/tmp/claude/npc-diagnostic-runtime-ca0c9204.log`). The headless dummy-renderer `Parameter "material" is null` diagnostic remains nonfatal; this is not error-free evidence. A new verifier audit remains pending. The separate `6acd4ec0` remote-player Vulkan artifact PASS remains valid (`/tmp/claude/verify-remote-player-6acd4ec0.md`).
+
+Updated [[character-rendering]], [NPC appearance](../specs/npc-appearance.md), the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native remote-player Vulkan proof is bounded
+
+`47a8f1ea` first exits 0 under actual Vulkan for the remote fixture, but main image inspection finds the remote female buried 1.366 m. It is not whole-body proof. The independent typed terrain-mesh oracle gives authored floor 114.245974 at remote XZ (`/tmp/claude/remote-player-floor-oracle-typed.log`); `6acd4ec0` adds a floor assertion.
+
+`6acd4ec0` then exits 0 under actual Vulkan (`/tmp/claude/remote-player-runtime-6acd4ec0.log`). Local and remote-female body/gear independently remove and restore on their stable units; other hand references remain independent and paused poses remain continuous. Remote samples are body 3,588 → 3,562 and hands 1,631 → 1,626. Before/after provenance confirms unchanged fixture inputs and native library (`/tmp/claude/remote-player-runtime-6acd4ec0-provenance.json`). Verifier585 independently audits native fmt/check and world 7/7 at unchanged `bc86ff42` library; invalid verifier585 input rerun overlapped edits and is excluded. New artifact verification remains pending. NPC regression proof is blocked on stale isolated project state pending current repair603.
+
+This is bounded remote body/equipment proof. Original remote locomotion remains `Stand`; no new protocol requirement follows. Locomotion, performance, visual parity, and full conversion remain open.
+
+Updated [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native local-player Vulkan proof is bounded
+
+`bc86ff42` compiles native player-world visuals with two existing WMO dead-field warnings (`/tmp/claude/world-player-build-bc86ff42.log`). The first actual-Vulkan run shows body/hand pixels but exits 101 because the paused-pose probe selects the wrong recursive `M2Animation` (`/tmp/claude/world-player-runtime-bc86ff42.log`). `07ef57e4` corrects that lookup; its 90-second fixture deadline exhausts before InWorld after five preview loads take 88 seconds (`/tmp/claude/world-player-runtime-07ef57e4.log`). `cc38aad1` raises only this evidence-based deadline to 180 seconds, not runtime performance.
+
+The compiled `cc38aad1` fixture exits 0 under actual Vulkan (`/tmp/claude/world-player-runtime-cc38aad1.log`). Stable-unit equipment transitions equipped → empty → restored retain paused body poses and produce body 5,997 → 6,011 and hand 471 → 474 samples. Trace shows recursive lookup would choose `EquipmentOffHand/M2Animation`, rather than `PlayerModel/M2Animation`; Loading/input/camera checks and clean client-free/quit shutdown pass. Main inspected the initial PNG earlier; restored PNG inspection and independent verification remain pending. Remote-player rendering, broader customization, movement-animation coverage, full performance, visual parity, and full conversion remain open.
+
+Updated [[character-rendering]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Independent native equipment verification remains bounded
+
+Independent verifier576 at `9059d471` confirms only cached selected-character equipment evidence: roster replacement, one authored collection chest's visible/deformed pixels, and native attachment behavior. Native `cargo fmt --check` and `cargo check` pass. The two warnings are existing unused WMO fields, unrelated to the audited equipment/policy/attachment files. Six function-length findings are deferred maintainability suggestions, not compile or runtime failures.
+
+Clean-cache local-CASC extraction for chest FDID `2368173` remains open; the earlier absent archive location does not prove stale roots. This does not prove all gear, race/sex coverage, authored animation sequences, visual parity, or full conversion. Next slice: replicated InWorld player visuals—`world.rs` currently projects only NPC visuals. Agent578's reported new test is not proof.
+
+Updated [[character-rendering]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native selected-equipment Vulkan proof is bounded
+
+`d44f3dd4` changes native `PlayerInput.elapsed_secs` to the exact prediction delta and passes 13/13 primitives. Real server `:5000` compatibility remains UNKNOWN because its matching shared-protocol field is uncommitted; no trial refresh/restart occurred. At `640e9f30`, `/tmp/claude/native-attachments-rendered-green.log` exits 0 under real offscreen Vulkan: camera plus `frame_post_draw` observe actual HD/boar attachment lookup, authored rest offset, and combined bone/model rotation, translation, and scale. `e0eba0d7` keeps the attachment-offset child below the bone-binding node. Earlier headless and `skeleton_updated` waits hung, so they do not support a renderer-bug claim.
+
+`/tmp/claude/godot-equipped-runtime-640e9f30.log` exits 0 with compiled Rust `e0eba0d7`: starter items 25/38/39/40/2362 produce clothing/sword/shield pixel changes; scenery, isolated sky/rays, Loading/input gating, UDP movement, camera input, and shutdown also complete. Main inspected a PNG showing blue clothing and weapons. Selection replacement, real-server compatibility, visual parity, and full conversion remain open. The later verifier576 report at `9059d471` supplies bounded cached collection-chest pixels plus native check/format evidence. Running trial `1500671` remains a prior background artifact.
+
+Updated [[character-rendering]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native selected-equipment integration remains unbuilt
+
+`ef697e34` consumes shared policy `2cd73e88`: clothing/cape texture sections and exact geosets; authored M2 gear attaches through native points, collection meshes bind by semantic bone names, and shared transform config `9fc070ab` is read. `008a6326` fixes the `testVector` call. `/tmp/claude/native-equipment-primitives-ef697e34.log` stops on missing shared-protocol `PlayerInput.elapsed_secs` at `godot/src/gameplay.rs:134`; no build, GPU, runtime refresh, attachment-render, or parity proof exists. Clothing primitives remain 6/6 at `e6f2e8b9`. Verifier551 could not locate the reported policy 6/6 artifact, so it is not independent proof.
+
+Updated [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Portable outfit catalog and concurrent cache import
+
+`a7a33681` shares original outfit/item/display/texture/model/geoset resolution through Bevy-free `godot/core`, retaining the Bevy Resource adapter; `ca1ffc83` indexes local M2 names once per data root; `7b5969d6` restores root helmet extraction. The initial parallel root outfit selector failed 2/4 after absolute/relative data-root imports alternately invalidated one SQLite cache. A real-local-CSV two-importer fixture was RED with `database is locked` (`/tmp/claude/outfit-import-concurrency-red.log`). `e005b96a` canonicalizes source keys and serializes import/freshness decisions: core outfit 3/3 and root adapter 4/4 focused GREEN (`/tmp/claude/outfit-core-green-e005b96a.log`, `/tmp/claude/outfit-root-green-e005b96a.log`). Native selected-player rendering and complete conversion remain separate.
+
+Updated [[character-rendering]] and index.
+
+## [2026-09-27] system | Selected-roster equipment remains RED
+
+`e909b136` records an authenticated fixture sending starter item 25 sword, 38 shirt, 39 legs, 40 feet, and 2362 shield. The actual preview exits 101 with native gear unsupported and missing weapons (`/tmp/claude/godot-equipment-red-e909b136.log`). `2a58d68a` adds native M2 attachment nodes/test, but old-extension headless RED lacks `Attachment5`; integrated-build GREEN remains pending. Existing `0266003e` background and current FPS evidence retain their separate bounded scopes.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] investigation | Native campsite collision/sky fixture blocker
+
+Before `4c9bd0b5`, the authenticated Vulkan fixture times out awaiting `Loading`; v2 corrects the monitor cwd and captures `TerrainMaterials::build_tile` → `Mesh::create_trimesh_shape` waiting on a Vulkan fence at 35 seconds (`/tmp/claude/campsite-live-stack-v2.log`). `4c9bd0b5`'s CPU-geometry collision faces reach `PREVIEW_ENTRY` at 16.5 seconds and pass the campsite ray hit. The full-frame sky delta remains 22 pixels, but `00383009` isolation yields 27,041 pixels and inspected PNGs show default mountains occluding real sky (`/tmp/claude/godot-sky-isolation-4c9bd0b5.log`). `0266003e` changes only the foreground-isolated >=200-pixel assertion. At that same code, `/tmp/claude/godot-full-background-0266003e.log` exits 0: body, both terrain tiles, 118 doodads plus the attached WMO, and isolated sky independently affect GPU pixels; two terrain rays hit; Loading removes the preview and blocks input; InWorld UDP W/release/focus plus native orbit/facing/wheel zoom complete; client free/quit and clean exit follow. This is bounded background/input-lifecycle evidence, not WMO-specific rendering/collision/water/doodads, gear, fifth-layer terrain, FPS/performance, root transfer, visual parity, or conversion completion. Verifier535's independent fmt/check/readability/artifact audit remains pending.
+
+## [2026-09-27] system | Native campsite M2 props and first WMO attachment
+
+`1aebb3c8` shares original authored campsite-object policy; `70ccce02` adds the authored WMO placement. `7ef1dfd9` selects/spawns 76 primary-tile M2 doodads (62 props, 14 waterfall/ripple) and 42 supplemental waterfall/ripple doodads. Its GPU fixture observes background pixels but exits 101 at a later `AwaitWorld` 90-second timeout (`/tmp/claude/godot-campsite-objects-7ef1dfd9.log`), not clean GREEN or full-props acceptance.
+
+`8dc48975` builds typed WMO scene meshes/materials. `db417843` integrates primary-tile WMO FDID `4214993`, UID `48366671`, within 120 units; five real-asset tests pass. No WMO GPU/runtime check exists. Uncommitted sky is excluded. `df22179c` remains clean terrain-only evidence; full scenery, WMO collision/water/doodads, sky, clothing/equipment, and conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Bounded native character-select campsite terrain
+
+`4c5e5735` preserves the original renderer's four terrain texture slots for real campsite chunks with five MCLY layers: all parsed layers remain available, while rendering uses only the first four. This prevents rejection of the authored tile; it is not fifth-layer support.
+
+At `df22179c`, `/tmp/claude/godot-background-runtime-df22179c.log` exits 0. The native GPU fixture attaches authored tiles `31_37` and `31_36`; selected-body and terrain mutations independently change pixels; it observes authored solo-camera/placement 55; then reaches Loading teardown, decoded UDP W/release, camera cleanup, client free, and quit request. Main inspected `data/diagnostics/godot-conversion/character-select-preview.png`. Native fmt/check pass with the existing three WMO warnings; the report file is pending.
+
+Sky, props, waterfall objects, fifth-layer rendering, clothing/equipment, complete scenery, and full conversion remain open. No volatile process/window identifier is recorded.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Godot character-select background partial wiring
+
+`3016fe0a` wires native `CharacterPreview` to the first authored Warband scene and a character-slot placement. It requests primary plus supplemental terrain, synchronizes terrain materials and Retail WDT lighting, applies shared solo framing/presentation scale, and snaps the model/camera above sampled terrain.
+
+No compile or GREEN runtime proof exists. The pre-implementation GPU fixture RED at `a3874f40` exits 101 because neither required tile `31_37` nor `31_36` attached (`/tmp/claude/godot-character-background-red.log`); it does not test `3016fe0a`. Sky, props, waterfall objects, complete scenery, and conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Godot character-select background prerequisites and bounded FPS overlay evidence
+
+`425466b5` shares authored Warband scene/placement records with `godot/core`; `36db5dca` shares the solo character-select camera calculation; and `0d9fc55f` adds explicit initial native terrain tile sets. They make background work possible but do not integrate or render a Godot campsite/background.
+
+For `524fd1c0`, manual inspection verifies a visible actual FPS counter and frame-time graph. Hidden/default and persisted-false visibility runs exit 0. The current visible Vulkan/cage fixture also PASSes and exits 0 after independently inspected saved-visibility, 30→10 FPS-cap, and rendered-graph-pixel assertions (`/tmp/claude/fps-visible-shutdown-current.log`). This successful execution does not explain or fix the historical intermittent visible shutdown timeout. The overlay uses Godot's default font, not Fira Mono. No performance-parity or full-conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] investigation | Godot selected-character body preview now has bounded GPU evidence
+
+The former blank-UI evidence remains historical: before `d6b45c13`, `attach_character_ui` had no selected-character spawn; its owned UDP/Godot RED is `/tmp/claude/character-select-preview-red.log` and user screenshot is `/tmp/claude/godot-charselect-user-red.png`. `d4061019` now resolves/caches the selected roster body's local-CASC model path and loads actual race/sex/class/customization, composed textures, and selected geosets; four tests cover core/additional choice effects, body/eye pixels, and missing textures. `264e6eee` is behavior-equivalent helper extraction. `d6b45c13` owns replacement/reset plus preview camera/light; `5c0c9db2` checks removal after `Loading` begins. Actual GPU evidence is `data/diagnostics/godot-conversion/character-select-preview.png`.
+
+`/tmp/claude/character-select-preview-visual-green.log` reaches visible geometry, Loading, world-ready, release, and mouse-camera/wheel markers but exits 101 after timing out waiting for `Stopped`; it is not a passing gate. Instrumentation-only `243a9a42` proves the same preview marker, Loading teardown, decoded UDP, W/mouse/wheel/release, client freeing, and quit request; `/tmp/claude/character-select-shutdown-probe.log` ends PASS/exit 0. The earlier timeout remains unexplained, not fixed. The user client restart on the tested DLL (PID 1371941/window 214) is not deployment or full-client readiness. Gear is explicitly unsupported; campsite/background and clothing/equipment remain separate. `4166b35b` uses a quoted multiline CSV reader for `Map.csv`; the supplied account proof path `/tmp/claude/csv-map-account-green.log` was not locally available, so no account-test result is recorded.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Standalone Godot WMO shader pixels
+
+`8116839b` adds standalone `wmo.gdshader` plus an actual Vulkan fixture. Its 25 pixel cases pass: MOCV interior/exterior/missing behavior; MOMT 6/13, MOCV2, UV2 and missing-UV2 repeat sampling; alpha modes; emissive/unlit; fog; and direct-shadow recovery (`/tmp/claude/native-wmo-shader-green-8116839b.log`). The initial absent-shader RED is `/tmp/claude/native-wmo-shader-red.log`. The first repeat-UV1 oracle was corrected only in the fixture because the original root sampler is linear. Compositor protocol warnings are not shader `ERROR`s. Independent verifier458 is pending; native WMO scene/material binding, portal culling, water, doodads, visual parity, and full conversion remain open.
+
+Updated [[wmo-retail-lighting]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Bounded root tests and native global-WMO asset loading
+
+At `580d7300`, root `cargo fmt --check` and bounded `--bin game-engine` selectors pass 193 tests with no failures; 1,916 tests are listed, so this is not a full suite. The foliage depth-prepass GPU test is excluded. The test-only delta preserves the warning-free `e8466601` production root check. Stockade camera collision is 4/4 GREEN (`/tmp/claude/verify-root-tests-580d7300.md`, `/tmp/claude/verify-stockade-camera-580d7300.log`).
+
+Native `4c7927a6` adds cached local-CASC WMO root/indexed-complete-group loading, mesh batches, raw-group metadata, and retained floor collision; Abbey/Stockade targeted evidence is agent-reported 6/6. `e2537c87` passes global-WMO placement to the map worker. The missing-field RED becomes cached-flags/global-placement 1/1 GREEN, which still warns that collision is unused (`/tmp/claude/native-global-wmo-assets-{red,green}.log`). No scene spawn/render readiness or floor-query consumer exists: global readiness remains `Pending`; WMO runtime/parity remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Root integration imports repaired; WMO readiness boundary retained
+
+Supplied verification at `75e5911` records the import-only repair, and at `e8466601` records root `cargo fmt --check` plus `cargo check` PASS with zero warnings (`/tmp/claude/verify-root-imports-75e5911.md`, `/tmp/claude/verify-root-test-migration-e8466601.md`). The former root production-import failures are resolved. Native `50e33def` scope is unchanged; its prior fmt/check evidence remains the native proof.
+
+The root `camera_follow` selector compiled no tests at `e8466601`: one duplicate `game_engine::RealmPreset` type and eight stale `WowCamera` field initializers block the binary. No camera-selector, runtime, or parity claim follows. Local filesystem presence is confirmed for `data/models/{107074,107075,108631,322057,321999}.wmo` and `data/terrain/{777627,777628}.adt`; ignored-file searches do not establish asset absence. Native WMO metadata has no spawn or floor registry, and `loading.rs` retains global-WMO readiness as `Pending`. Full conversion remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Independent native input gate
+
+Independent gate at `cd7ea9fa18b9bcdd686d30f457f0148990b6edf6` passes root and `godot/` formatting; `cargo check -p game-engine-godot` is warning-free. The bounded real fixture proves Loading suppression, W motion, decoded `PlayerInput`, release quietness, deferred focus clearing, and post-scope `3f404f26` right-mouse orbit/facing plus wheel zoom. Root `cargo check` fails on five stale-import/`ChatType` errors and is not acceptance proof. `default_realm_preset` and `CHUNK_SIZE` warnings were introduced by the options/water extraction; `b35e5c31` removes them and the duplicate config-directory helper without fresh check evidence. Two `InputBindings` warnings remain outside the bounded input slice. Native experimental trial is available; full conversion/parity remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native input bounded terrain-flow GREEN
+
+`c1c05d16` reuses canonical authored-water sampling. `bbb156d1` corrects the fixture from Y=83 to sampled terrain Y=112.879913 and rejects fatal stderr. The earlier Y=83 failure was correct gravity below authored terrain, not a production movement defect (`/tmp/claude/native-input-ground-notification-probe.log`).
+
+`cd7ea9fa` fixes a production `GameClient::on_notification` re-entry: deferred `Window.focus_exited` clears physical input without re-entering the mutable callback. The fixture now tests focus loss while W is held. The warning-free native build exits 0 (`/tmp/claude/native-input-focus-build.log`); a real headless process exits 0 after `Loading` blocks input, `WORLD_READY`, local W motion, decoded server `InputChannel::PlayerInput`, then quiet release (`/tmp/claude/native-input-focus-runtime.log`). The earlier broad callback re-entry is recorded in `/tmp/claude/native-input-integrated-runtime.log`.
+
+GDScript-only `3f404f26` adds native right-mouse orbit/player-facing and wheel-zoom assertions without changing the `cd7ea9fa` binary. Its real fixture exits 0 with no `ERROR` and emits the camera-observed marker (`/tmp/claude/native-input-camera-runtime.log`). This is bounded transform/input proof, not rendered camera parity. WMO/doodad collision/resources, pathing/scripted movement, final-gate verification, and full conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native input primitives and unbuilt movement source
+
+`c8363678` supplies the canonical full persisted options schema to root and `godot/core`; its three core tests are agent-reported GREEN. The recorded root selector is blocked by 135 pre-existing compile errors and 13 warnings (`/tmp/claude/options-root-targeted.log`), so the owned test-reference repair is unrerun.
+
+At `b6540078`, retained input state is 4/4 GREEN, native gameplay state 2/2, local facing 1/1, and shared movement-wire decisions 7/7 (`/tmp/claude/{native-input-state,native-gameplay-state,native-facing,movement-wire}-green.log`). Initial REDs are `/tmp/claude/native-input-state-red.log` and `/tmp/claude/movement-wire-red.log`. These tests prove primitives, not runtime event-to-movement, prediction, UDP, fixture, or parity behavior.
+
+`db2c311e` extracts terrain-only slope blocking and step snapping. The reported 12/12 slope result has no locally discoverable proof log, so it remains pending. `10c75463` adds unbuilt source calls through camera input, terrain prediction, and typed `PlayerInput` sending; exclusive modal windows stop movement. Native terrain ground excludes WMO/doodad floor resources; pathing/scripted producers and water API compilation remain pending. No runtime movement, fixture GREEN, collision, parity, or full-conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native full-options camera boundary unverified
+
+`d7c6f5d2` has native initialization load the shared full clamped options schema from absolute legacy `data_root/ui/options_settings.ron`. World-camera synchronization applies follow speed, zoom speed, min/max distance, and FOV. Its `WorldCamera::apply_input` ownership adapter is not invoked; other settings consumers are unwired. Active agent409 supplies the shared schema dependency.
+
+Neither `d7c6f5d2` nor input callbacks `cc8c73a0` have build or runtime verification. The W fixture baseline remains RED. No native input, runtime, parity, or full-conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native input pre-callback RED
+
+At pre-callback `bcf38c70` scope with fixture commits `8af67c7e`/`a2b94931`, the main-observed native fixture reached `Loading` with zero UDP, then authored `WORLD_READY`; held W left native position unchanged at `[-8949, 83, 0]`. It exits 101 with child exit 1 (`/tmp/claude/native-input-red.log`). The baseline native build exits 0 with four unused-primitive warnings (`/tmp/claude/native-input-baseline-build.log`).
+
+`cc8c73a0` captures physical-key, mouse/wheel/motion events, clears focus/reset state, and clears frame edges. It is NOT YET BUILT OR VERIFIED: no movement, camera, or sending wiring and no GREEN.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native physical input primitives
+
+`1ee7c51c`/`78696f8e` map physical Godot keys and mouse buttons to portable binding values. Targeted mapping GREEN is 4/4 (`/tmp/claude/input-keys-green.log`) after the missing-module RED in `/tmp/claude/input-keys-red.log`. `79043809` adds retained held/one-frame-edge key/button state, modifiers, accumulated motion/scroll, and focus-loss clearing; targeted state GREEN is 3/3 (`/tmp/claude/physical-input-green.log`) after `/tmp/claude/physical-input-red.log`.
+
+The modules are UNWIRED: no event, projection, binding-match, prediction, UDP, or native-gameplay proof. Independent primitives audit agent406 and final integration gates remain pending.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Portable original movement-input decisions
+
+`c2e3297d` moves original movement-input decisions into Bevy-free `movement_input_data`, exposed by `godot/core`; the root Bevy camera adapter supplies its existing input state. The source retains unnormalized forward/both-mouse accumulation, facing-relative vector and animation priority, autorun/run-toggle ordering, manual-override edges, and backward/strafe speed multipliers.
+
+`/tmp/claude/movement-input-red.log` records the initial missing-export RED. `/tmp/claude/movement-input-green.log` records targeted core GREEN 6/6: dual forward/mouse accumulation, opposed-action vector versus animation priority, modified bindings/scripted forward, toggle ordering, manual overrides, and speed multipliers. Native Godot event production, player prediction, camera input/options integration, and decoded-UDP proof remain absent; no parity or final verification follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native NPC appearance proof corrected
+
+The shared-data matrix is now explicit: `9fdb14b0` profile query is core 7/7 GREEN; `ccf98fb4`/`a75f2d03` cover six geoset-decision cases and core export; `8207fd2c` has four customization-catalog cases; `180ee3c7`/`9c59e807` cover the compositor SQLite query and shared export; and `aecf9697`/`e65ae41f` cover eight NPC selection/geoset/type-6 policy cases and root/core exports. `064381ec` restores a root `Resource` adapter after a concrete compile failure, but that repair has not been verified. `085decc1` adds imported-SQLite-only native-core loading; `29f71b56` records missing-module RED then 3/3 GREEN for cached Human-female model 2/layout 104/full choice 85, HD layout-103 2048×1024 dimensions, and read-only missing-catalog failure without creation (`/tmp/claude/npc-appearance-assets-{red,green}.log`). A new dead-field warning awaits correction.
+
+`27cf3c13`/`e222933f` now apply imported appearance data in native Godot. At `7526c855`, warning-free native build and the actual 24-phase UDP fixture exit 0 (`/tmp/claude/native-npc-type6-{build,green}-7526c855.log`): display `910014` reports missing type 6 for batch 0 without creating a visual, then reset passes. The captured dummy-material-null diagnostic occurs between `BAKED_READY` and `COMPOSED_READY` during baked-model replacement, not proven shutdown-only. Root library fmt/check and core `npcassets` 4/4 remain unchanged at `25d59471` (`/tmp/claude/verify-native-npc-appearance-*`). Verifier376 passes at `fcac4099`: `cargo fmt --check` and `cargo check -p game-engine-godot` exit 0 in `godot/` (`/tmp/claude/final-native-npc-appearance-{native-fmt,native-check}-fcac4099.log`); native sources remain `7526c855`/`0475ef39`. Defer only pre-existing `build_model` assembly length (63 body lines): new batch selection is extracted; cognitive 9/cyclomatic 14; no behavioral or complexity failure authorizes broader refactoring. Effect routing and optional type 19 are source-inspection-only; runtime proof covers missing required type 6 only. Pixels, a successful type-6-texture fixture, importer freshness/rebuild parity, and full parity remain open.
+
+Updated [[godot-conversion]], [character rendering](systems/character-rendering.md#native-godot-wiring), the [NPC appearance specification](../specs/npc-appearance.md), the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native NPC Death development GREEN
+
+WorldUnits `c80488be`, helper `2d8bca7a`, and fixture `254dc68f` now select the first `id == 1` Death sequence, play it once non-looping with the authored 150-ms-clamped blend, and hold its final pose. The original marker remains once per NPC life: resurrection does not rearm it, replacement does not reset it, and a missing Death sequence leaves the current animation unchanged.
+
+The phase-12 RED exits 101 because automatic Death stays Stand and never reaches held Y=3 (`/tmp/claude/native-npc-death-red.log`). Rebuilt native `2d8bca7a` passes its build and the 21-phase real-UDP fixture (`/tmp/claude/native-npc-death-{build,green}.log`): initially-dead and living-to-dead automatic bone motion, final hold, retained identity, and the prior 20 phases. Targeted native unit coverage is 1/1 (`/tmp/claude/cargo-death-green-final.out`). This is development evidence only: independent final-gate, pixels, InWorld, animation parity, and full conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native NPC visibility development GREEN
+
+`df77110d` extracts the original NPC visibility policy into shared core data. `52accdce` projects it through `WorldUnits.update_visibility` after local-player selection, reading retained snapshots and current `world_minutes`; missing selected-local health is alive, while present health needs `current > 0`. It toggles existing `Node3D` visibility without replacing visual/mesh children or maintaining duplicate health/policy state.
+
+The old-DLL RED at `6875a283` correctly fails phase 10 because a hidden-template mesh remains visible (`/tmp/claude/native-npc-visibility-red.log`). The rebuilt native `52accdce` plus fixture `f842d56d` build without warnings and pass 20 real-UDP phases: the retained 11 lighting/lifecycle phases plus nine visibility cases (`/tmp/claude/native-npc-visibility-{build,green}.log`). This is development proof; verifier331 is pending. Fixed native time 1440, non-`InWorld` execution, absent pixel proof, and unchanged root stage/schedule systems leave advancing-clock, stage, parity, and full-conversion claims open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native creature light development GREEN and acquisition closure
+
+The `0f4be666` native fixture exits 0 across 11 real-UDP headless phases (`/tmp/claude/native-creature-light-green-0f4be666.log`): static geometry/texture, visual lifecycle, live sampled-light update, replacement, new-map light, and reset. It asserts native resource values rather than pixels. The synthetic WDT has no ADT and deliberately is not `InWorld`; no readiness, rendered-lighting, visual-parity, or full-conversion conclusion follows. The fixture retains the same shared-original `authoredFogEnd / 36`; local `Position` deliberately preserves prediction, so `MovementControl { controlled: true }` drives the light-sample movement.
+
+Acquisition proof is closed at `b628997e`: core asset-reference tests pass 2/2 and native creature tests pass 3/3 (`/tmp/claude/verify-creature-acquisition-{core,native}.log`). This proves exact cached-path SFID/SKID selection/use and authored texture-FDID collection, not uncached local-CASC extraction or texture caching. Independent agent 323 remains underway, so this is development GREEN, not a gate.
+
+Updated [[retail-lighting]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native creature light producer lifecycle
+
+`90f91a5a` centralizes native M2's nine common ambient/direct/sun/fog shader writes in `TerrainLight::bind_model`; `clear_model` nils that same set. Terrain's cube-map binding is unchanged: the M2 shader declares no `environment_map` uniform.
+
+`b628997e` retains the sampled light in `WorldUnits`, binds it to creature visuals on spawn/replacement, rebinds existing visuals on live updates, clears material overrides and retained state on map change/transfer, and drops it during world reset. The synthetic-WDT/no-ADT fixture intentionally stays `Loading`; its RED observes a real `WorldLighting` node, an NPC authored material, and null common uniforms before the producer path (`/tmp/claude/native-npc-light-red-22627188.log`). Native build/runtime GREEN is pending. No rendered-pixel, lighting-correctness, InWorld/readiness, visual-parity, or full-conversion conclusion follows.
+
+Updated [[retail-lighting]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native WorldUnits creature visuals
+
+`7a4add9b` connects ordinary replicated NPC `WorldUnits` nodes to the lazy read-only creature-display catalog and local-CASC model path. A nonzero NPC display resolves model FDID, three texture slots, and scale; its owned `NpcVisualRoot` uses yaw `-PI/2`. Same-display updates retain the child, display changes/removal free and replace/remove it, and world reset frees the owned tree. Players remain outside this path. Query/catalog/load failures report explicit NPC/display errors with no capsule/substitute.
+
+`89980e62` records the pre-integration real-UDP two-unit no-visual RED. At `6f4f850e`, the independent bounded gate passes Godot/root format and compilation checks with exit 0 and no warnings (`/tmp/claude/verify-native-creature-{godot-fmt,godot-check,root-fmt,root-lib-check}.log`). Scoped code is unchanged since fixture-only `8ef9be4b`; its actual owned-UDP fixture passes all nine phases (`/tmp/claude/native-npc-visual-fixture-8ef9be4b.log`). It proves UDP data, mesh/material inspection, visual ownership lifecycle, reconnect reset, and positive tiny-scale clamping. Pixels, lighting, appearance correctness, and NPC visibility policy remain unproven. Native catalog-open/query and absent-row errors, zero-scale default, and acquired no-SFID/adjacent-`.skin` input are source-only; direct-path loading supports the last case. No fallback is claimed. The fixture state machine is test-only (cyclomatic 23; cognitive 14).
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native creature local-CASC acquisition boundary
+
+`771c1f5f` adds a native helper that reuses the local `CascListfileResolver` to cache a creature display's model FDID as `.m2`, primary parsed SFID as adjacent `00.skin`, and optional parsed SKID as `.skel`. It reparses those cached companions through the existing M2 loader, resolves authored batch textures and explicit creature texture slots, and caches the resulting `.blp` files. A missing texture remains a reported native material-loader FDID rather than a placeholder.
+
+At `b628997e`, focused acquisition proof is core 2/2 and native 3/3 (`/tmp/claude/verify-creature-acquisition-{core,native}.log`): cached-path SFID primary-skin and SKID skeleton selection/use, plus authored batch/explicit texture-FDID collection. It does not prove uncached local-CASC extraction or texture caching. `7a4add9b` attaches catalog consumption to replicated NPC world units; the later `0f4be666` runtime fixture covers its bounded lifecycle/light-resource path. Independent verification is underway. NPC appearance parity and full conversion remain open.
+
+Updated [[godot-conversion]], [[asset-pipeline]], [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Shared creature display SQLite lookup
+
+`8afcffae` extracts the Bevy-free `CreatureDisplay` row and `query_display` SQLite query into source shared by the root crate and `godot/core`. It returns `Result<Option<CreatureDisplay>>`: root preserves its existing error-hiding `Option` cache boundary, while reusable core callers retain SQLite errors. The targeted core RED records the missing export (`/tmp/claude/creature-display-query-red.log`); GREEN passes 2/2 (`/tmp/claude/creature-display-query-green.log`), covering full model/three-skin/scale mapping, absent rows, and a missing-table error.
+
+No native model attachment, catalog consumption, runtime/visual proof, or independent gate is claimed.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Explicit native creature texture slots
+
+`92ecaf25` fixes the source distinction: `Model::skin_fdids` is SFID geometry `.skin` metadata, not creature texture data. Shared M2 batch resolution now takes explicit `[u32; 3]`: type 2/11 uses slot 0, type 12 slot 1, type 13 slot 2, and type 0 stays TXID. `17ef37f5` exposes `WowAssetLoader.load_m2_with_skin_fdids(path, PackedInt64Array)`, rejecting any input except three nonnegative `u32` values; ordinary `load_m2` passes zero slots and never infers from SFID.
+
+The core selector passes 8/8 after the SFID bug RED (`/tmp/claude/m2-skin-textures-{red,green}.log`). `a40ed6e2`/`f2f5b4fa` add and correct the generated M2/SKIN/BLP GPU contract. The pre-API RED is recorded in `/tmp/claude/m2-skin-pixels-red.log`; the first six-case run incorrectly expected black from an unbound Godot sampler (`/tmp/claude/native-m2-skin-pixels-green.log`). At `f2f5b4fa`, the fixture asserts both nil texture binding and the real white default, then exits 0 with seven pixel cases and invalid-input rejection; the native build is warning-free (`/tmp/claude/native-m2-skin-{build,pixels-corrected}.log`). At `2b972da2`, verifier304 records bounded PASS: fresh native `cargo fmt --all --check` and `cargo check -p game-engine-godot`; reused core 8/8 and the unchanged corrected actual-loader fixture's seven pixel cases plus invalid-input group. No production unit-model integration, equipment/customization wiring, appearance parity, visual parity, or full conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Bounded M2 effect-UV proof boundary
+
+At `bf3e5bd7`, root sampler tests pass 5/5 after `4814ed00` adds direct `M2TextureUnit` imports (`/tmp/claude/verify-m2-effect-uv-followup-root-tests.log`). The actual-loader Vulkan fixture exits 0 with eight explicit pixel assertions and an enabled-process observation that automatic `/root/M2MaterialClock` processing changes a rendered effect pixel (`/tmp/claude/verify-m2-effect-uv-followup-pixels.log`).
+
+Prior bounded native/root fmt and checks, and reused core5 sampler proof, remain unchanged PASS (`/tmp/claude/verify-m2-effect-uv-summary.md`). The pre-existing out-of-scope `unused import: super::*` test warning remains. Main rejected length-only readability findings because they show no behavioral failure; no scope expansion follows. World light/material animation, character appearance parity, visual parity, and full conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native authored M2 batch binder
+
+`7cc4dfbd` exposes the shared CPU M2 compositor to native code. `5701f466`, `5ba9d672`, `0386e091`, and `fe792f20` replace the native `StandardMaterial` loader with resolved authored-batch `ShaderMaterial`s. Original single/effect routing retains CPU second-texture/overlay composition when required; source blend/cull/depth, UV/transparency, lighting and fog variants are bound; opaque/mask variants omit `ALPHA`; missing texture FDIDs are returned while their samplers stay unbound, with no placeholder palette.
+
+`e86504d7` and `a6ad7d47` repair the root M2 extraction failures. Native build, real HD asset/BLP decode, and real HD animation pass (`/tmp/claude/native-m2-loader-{build,m2_assets,m2_animation}.log`). Independent native fmt/check and core compositor 4/4 pass (`/tmp/claude/verify-native-m2-summary.md`). At `87bab0ff`, root library fmt/check pass (`/tmp/claude/native-m2-root-{fmt,lib}-87bab0ff.log`); the root binary target reaches binder code and is blocked only by unrelated non-exhaustive `ChatType`. The unchanged `1458ccd8` fixture exits 0 with four corrected generated-M2/skin/BLP pixel assertions passing and its process group gone (`/tmp/claude/native-m2-shutdown-{captured,live}.log`). An earlier shutdown timeout is unexplained; no reliability fix is claimed. The verifier's first culling-regression finding was false; no culling fix is recorded. World light/material animation, replacement-texture/geoset APIs, native model/world appearance, and visual parity remain open.
+
+Updated [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Bounded shared-M2 data proof
+
+`7cc4dfbd` newly re-exports the shared CPU M2 compositor to native code. Agent277 reports bounded core 5/5, root 6/6, standalone CPU 4/4, and native check PASS. `/tmp/claude/verify-m2-data-summary.md` was unavailable during this documentation update, so those supplied counts are not recorded as a current integrated gate; `7cc4dfbd` itself has no check proof.
+
+A root check stopped at M2 batch-data destructuring. `e86504d7` fixes that source error but has not been rechecked; unrelated non-exhaustive `ChatType` remains unresolved. `1c6340aa` supplies a real-loader RED: the original shader is lit black and CPU secondary composition is ignored, while its base case passes. Native material binding is underway, not proven. No native material/render, visual, appearance, or full-conversion parity claim follows.
+
+Updated [[godot-conversion]], [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Portable M2 render-batch decision boundary
+
+`c3ec6086` extracts original M2 render-batch decisions into portable code. `godot/core` exposes `m2::resolve_render_batches` with a callback FDID resolver that preserves the original texture heuristic; the root `Mesh` wrapper delegates to that pure resolution. Developer core7 proves real HD model 113 resolves 113 batches and 147,966 indices; root UV2 is GREEN. No independent gate has run.
+
+This does not bind materials or prove rendering. The native loader still consumes raw batches into `StandardMaterial`; it does not use resolved decisions, the `55c0167e`/`1d25779c` portable CPU compositor, or agent267 shader work in progress. Material binding, rendered output, visual parity, and full conversion remain open.
+
+Updated [[godot-conversion]], [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Portable M2 texture-composite boundary
+
+`55c0167e` extracts the existing CPU M2 secondary-texture shader byte composition and positioned/scaled overlay blit into Bevy-free `src/asset/m2_texture_composite_data.rs`. The root `m2_texture_composite` adapter retains cache keys and BLP/cache I/O. Standalone `rustc` tests are 4/4 GREEN: shader byte rounding/alpha behavior, repeated secondary sampling, integer-alpha overlay blending, and scaled/clipped overlays.
+
+This is portable algorithm evidence only. `1d25779c` subsequently commits the shared overlay-blit and 2×-scale helpers used by BLP and the M2 module. Root Cargo and `godot/core` exposure are not yet verified; Godot has no consumer, material binding, rendered output, or visual-parity proof. Uncommitted standalone shader and shared batch-metadata work are not recorded as integration. Full conversion remains open.
+
+Updated [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Independent compositor and reconnect gate
+
+At `0d9301a1`, independent verification passes root/native fmt and checks, portable exact-RGBA compositor tests 4/4, and root real-asset library tests 9/9 (`/tmp/claude/verify-compositor-reconnect-summary.md`). The root `--bin` selector executed 0 tests and is not evidence; `--lib asset::char_texture::tests` supplies the 9/9 proof. The same gate passes session 15/15, transfer 4/4, and the actual reconnect fixture: `INITIAL_READY` → `WORLD_RESET` → `TERRAIN_REFRESHED` → `RECONNECTED`.
+
+Readability finds no changed-line violation. The only warning is the unchanged unused `super::*` import in `tests/unit/asset/m2_retail_light_tests.rs`. `3586b99e` removes the redundant wrapper/getter and simplifies the fixture. Godot's native model loader has no replacement-texture/geoset API and world players remain model-less, so no Godot native path invokes the compositor. Native character rendering and full conversion remain open.
+
+Updated [[godot-conversion]], [[character-texture-compositing]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Ordinary native reconnect integrated; runtime GREEN pending
+
+`af6cf7ca` adds pure session reconnect phases and captures the in-world selection for token login. It blocks gameplay input until connection, terrain refresh, and selected local-player presence complete reconnect; forced disconnect and failed login/entry clear the state. `7fd6c61d` integrates this in the account/host: it stops and joins the old transport, discards the rest of that batch, then begins token transport; `LoadTerrain` records refresh and the host supplies local-marker completion. `07aa1ebc` aligns the owned fixture with the configured 60-second Netcode timeout.
+
+`/tmp/claude/native-reconnect-red-60s.log` records real `ConnectionTimedOut`. At `7fd6c61d`, the native build exits 0 (`/tmp/claude/native-reconnect-build.log`) and the owned fixture exits 0 (`/tmp/claude/native-reconnect-green.log`): `INITIAL_READY` → `WORLD_RESET` → `TERRAIN_REFRESHED` → `RECONNECTED`; token-login roster reordering retains the captured selection and completion waits for the local marker. Development GREEN only; independent gate pending. No native Godot input adapter, full lifecycle, or full-conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Independent native transfer boundary gate
+
+At `e028babadf408e760b8aea7d925116efff90fd11`, independent verification passes root/native fmt and checks, loading 3/3, core camera-input 6/6 and WMO-mesh 2/2, root WMO-mesh 1/1 and `UIErrors` wrapper 4/4, plus native `world_camera_flow` and `enter_world_flow` (`/tmp/claude/verify-native-transfer-summary.md` and listed logs). Root warning findings remain baseline: unused `InputBindings` imports, plus the root `UIErrors` test's unused `super::*`.
+
+The unchanged owned transfer runtime evidence was inspected but not rerun; `native-transfer-green.log` remains earlier evidence, not a fresh e028 result. `UIErrors` and account `RegistryUi` screens are mutually exclusive today, so no ordering fix is justified. Native global-WMO spawn is absent; WMO mesh data is not native WMO rendering, shared camera calculation is not native input, and reconnect has no proof. Full conversion remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Typed native transfer wiring remains uncompiled
+
+`237d6aa3` adds typed transfer/session-account state: `NewWorld` starts a pending world port and selects `Loading`; `TransferAborted` becomes a transfer-error event; only native readiness completion may send `WorldPortAck`. `1de253b7`/`7480f999`/`3ae265ea` add and correct the owned Godot UDP transfer fixture, including typed instance-ID comparisons. Session agent evidence is targeted 4/4 only.
+
+`6a8e8d74` projects same-map terrain/material/lighting reset, destination-tile request, selected-player position/facing, readiness acknowledgment, and `UIErrors` ownership into the host. `526a7ca0` now supplies agent233's native overlay/model implementation; combined main wiring has not compiled. The only owned-loopback runtime attempt used the old `c48d2510` DLL: it reached `FIXTURE INITIAL_READY`, ignored `NewWorld`, and timed out at fixture phase 1 (`/tmp/claude/native-transfer-red-runtime-typed.log`). This RED does not test `6a8e8d74`. Independent compile and GREEN fixture verification remain required. Global WMO, WMO model/ground/camera, character-facing movement/native input, and all parity rows remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native loading-readiness wiring, proof pending
+
+`dae1f6e5` wires the shared loading predicate into the native host. Selected-unit position supplies local-player readiness and requests the current center tile; only an attached center tile is loaded; a present global WMO stays pending until native spawn; LoadingUI receives progress/status; completion selects `InWorld`. `191dee01` lets the stable-unit fixture accept either `Loading` or `InWorld`.
+
+No native GREEN/proof exists. `/tmp/claude/native-readiness-red.log` still observes `Loading`; build/proof awaits223. `NewWorld`, `WorldPortAck`, WMO spawn, rendered-world, and parity claims remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Shared camera-input calculation boundary
+
+`6c6d994a` moves original in-world mouse/keyboard/wheel camera calculation into Bevy-free `camera_input_data`, reusing `CameraState`, pitch limits, and portable binding matching. The root adapter maps only Bevy capture/events to that shared calculation; `47c9dac8` removes its unnecessary mutable facing binding. Core `camera_input_data` is 6/6 GREEN (`/tmp/claude/camera-input-green.log`), covering mouse orbit/facing and keyboard ordering, pitch bounds/inversion, binding modifiers/opposed actions, keyboard/wheel zoom ordering, and no-player-facing behavior. `/tmp/claude/camera-input-red.log` records the initial unexported-module RED.
+
+No native Godot input adapter, capture, options integration, or runtime proof exists. The post-warning root test attempt is blocked by concurrent unrelated terrain wiring errors (`/tmp/claude/camera-input-bevy-final.log`); this is not an integrated/full gate.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] audit | Godot loading-readiness predicate
+
+Original `check_loading_complete` treats `LocalPlayer` as local-player readiness, not rendered character/model, appearance, or equipment readiness. `tag_local_player` adds that marker only when replicated `NetPlayer.name` exactly matches `SelectedCharacterId.character_name` (`src/game/state/game_state.rs:362-381`, `src/game/networking/player.rs:804-888`). When terrain is required, completion also requires a map and either spawned global WMO or the current-player streaming-center tile loaded; pending/failed terrain remains incomplete. Without terrain, the marker alone completes. Godot still has no native predicate integration or `InWorld` transition. Character/appearance/equipment visual parity remains separately required.
+
+Updated [[godot-conversion]], [Godot conversion specification](../specs/godot-conversion.md), and [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Portable input model and bounded loopback wire proof
+
+`f50dedaa` moves input-binding data into Bevy-free `src/input_bindings_data.rs`: action/section metadata, defaults, portable key/mouse values, persisted tokens, labels, parsing, and matching. `godot/core` exposes that source; `src/input_bindings.rs` is now the Bevy event/capture adapter. Prior binding evidence remains 4/15/1; no native Godot adapter produces or matches input with the portable model.
+
+At `f50dedaa + 6cec7882`, independent verification passes owned-loopback `wire_tests` 1/1, root and Godot `fmt --check`, root `cargo check`, and `cargo check -p game-engine-network` (`/tmp/claude/verify-bindings-{wire,root-fmt,godot-fmt,root-check,godot-network-check}.log`). Root check exits 0 with the two existing unused `InputBindings` imports. The fixture proves only bridge `PlayerInput` decoding, replicated `MovementControl` epochs, and unit removal under owned loopback; it does not prove native Godot input production/matching, readiness, or real-server wire behavior. The evaluator retains exhaustive flat key conversions, original long metadata match tables, and tiny domain helpers; no speculative macro/refactor (`/tmp/claude/verify-bindings-readability-audit.log`). Preserve `45fd1938`: height-grid answers, including inside authored holes, do not establish `WorldGround` support.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Combined shared physics and native motion gate
+
+At `ea5b4a85`, independent verification passes root fmt/check, core physics 7/7, core motion 8/8, native `world::tests` 6/6, root collision 14/14, and root proposal 2/2 (`/tmp/claude/verify-motion-final-summary.md`). Unchanged root `server_movement` source reuses prior 2/2 evidence. Native check is warning-free; root check retains two baseline `InputBindings` warnings.
+
+The initial native fmt failure was only `unit_motion_data` module ordering. `775b14a3` makes that declaration order canonical, and independent208 records native fmt PASS (`/tmp/claude/verify-motion-format-775b14a3.log`). This proves shared-helper/root-adapter/native-host-state behavior only. It does not prove decoded wire control epochs, player-input prediction/production/send, readiness, runtime fixture wire control, or real wire epochs. Agent209 portable bindings are in progress and outside this gate. Preserve `45fd1938`: height-grid answers, including inside authored holes, do not establish `WorldGround` support.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native terrain height versus ground support
+
+Native retained `Root.height_grids` contain only height-grid fields; MCNK low/high-resolution hole masks remain on separate `Root.chunks` used for mesh indices. Thus `GameClient.terrain_height_at` can return a height inside an authored hole. Its nil means no loaded grid covers the query, not the original `WorldGround` `Unloaded` state. The rendered-triangle `StaticBody3D` keeps holes open, but a mesh ray still is not `WorldGround`: it has neither WMO-floor candidates nor the `Unloaded`/`Unsupported` result distinction. Native movement remains unwired; this does not alter the WMO-floor contract or resolve the pending independent physics proof.
+
+Updated [[godot-conversion]] and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Native unit-motion correction and interpolation
+
+`a60e9dea` extracts original authoritative local correction and remote interpolation into `unit_motion_data`, shared by root and `godot/core`; `ea5b4a85` applies it through native `UnitMotion`. Ordinary local snapshots retain the current predicted transform. The initial control epoch is adopted only, a changed epoch snaps, controlled positions interpolate, and optional local yaw is applied only when present. Remote units lerp/slerp; missing remote yaw retains the target, while missing local yaw cannot reuse stale facing. Native processing advances units after account polling and before terrain, lighting, and camera work.
+
+`/tmp/claude/unit-motion-{red,green,server-movement}.log` records supplied core/root development evidence; `/tmp/claude/native-unit-motion-red.log` is the native missing-`UnitMotion` RED; `/tmp/claude/native-world-motion-green.log` is native world tests 6/6 GREEN. These prove pure/helper and host-state behavior, not decoded live-wire `MovementControl` epochs. Actual player-input prediction/production/send, readiness, and the independent combined gate remain open. The preceding `6560b238`/`f3bb1965` physics gate is independently pending. No missing first-main-output path is invented.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Shared original player-physics proposal boundary
+
+`6560b238` extracts the original normalized horizontal proposal plus unloaded/unsupported/supported grounded and gravity/snap transitions into `src/player_physics_data.rs`, then exports the same source through `godot/core`. `f3bb1965` points the two root proposal tests at that shared module. Existing Bevy collision adapters still convert `GroundProbe` and retain the original `GRAVITY` and snap constants.
+
+Agent192 reports development GREEN of seven new core tests, two root proposal tests, and 14 collision tests, following missing-module RED. No supplied log artifact was located, so no path is invented and this is not independent verification. Native Godot movement is not wired; slope, step, swim, and jump input remain original Bevy-only. Independent final gate remains pending; no conversion-completion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-26] system | Shared original M2 effect-UV sampler
+
+`8df1ec99` extracts the original M2 effect-material UV sampler into shared code. Effect materials sample sequence 0 at shared application elapsed time; declared global-sequence timing uses modulo, including preserved zero-duration behavior. This timing is independent of bone pause and active animation clips.
+
+Development core5 RED/GREEN evidence is limited to `/tmp/claude/m2-effect-uv-extraction-{red,green}.log`. Native wiring and an independent gate remain pending. The original runtime path did not contain ordinary single-texture colour/opacity animation, so none is claimed. This establishes neither native material/render behavior, visual parity, nor full conversion.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-26] system | Godot MovementControl snapshot retention and camera baseline
+
+`eff94a71d259b020f39fba4b6e7c21229bb57f7f` retains optional copied `MovementControl { epoch, controlled }` in owned `UnitSnapshot`; the native literal fixture initializes it as `None`. `/tmp/claude/godot-snapshot-movement-red.log` is genuine missing-field RED. Targeted network and native fixture commands are GREEN 1/1 at `/tmp/claude/godot-snapshot-movement-green.log` and `/tmp/claude/godot-snapshot-world-fixture-green.log`. This retains snapshot data only, not native correction, prediction, interpolation, input production/send, or decoded-UDP proof.
+
+Agent178 independently baselines `2cacf913`/`aedd9fe6`: native fmt/check, core terrain-height 3/3, core camera-data 7/7, and actual `world_camera_flow` PASS (`/tmp/claude/verify-camera-{native-fmt,native-check,core-terrain-height-data,core-camera-data,world-camera-flow}.log`). `/tmp/claude/verify-camera-artifact-record.log` records native artifact SHA-256 `a83fe827f8edd1f36972732a2963380915facb030c36164bf85c4804261f065b`. Root `cargo check --bin game-engine` passes at `6237af9d` with two baseline `InputBindings` warnings (`/tmp/claude/verify-camera-root-check-6237af9d.log`); later root edits are test-only. Independent190 at `eff94a71` records root camera 6/6, terrain-height 8/8, sky-gradient 4/4, root/native fmt, warning-free native schema check, and snapshot network/world fixture reads 1/1 each (`/tmp/claude/verify-root-snapshot-{summary,root-camera-follow-tests,root-terrain-heightmap-tests,root-sky-gradient-tests,root-fmt-check,godot-fmt-check-corrected,godot-schema-check}.log`). It excludes later native player-physics edits. Full conversion remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-27] system | Correct Godot `PlayerInput` registration boundary
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md). Source inspection shows `godot/network/src/lib.rs` `run_worker` installs `shared::ProtocolPlugin`; `godot/Cargo.toml` patches `shared` to the local checkout at current HEAD `70dccb0`, where `src/protocol/registration.rs` registers `PlayerInput` client-to-server. Nominal pinned `e25c79d` also registers it in `src/protocol.rs`. Transport registration is therefore not missing; native input production/send invocation and real decoded-UDP `PlayerInput` proof remain absent.
+
+Root adapter import fix `6237af9d` still awaits an independent root gate, so no passing root claim is recorded. Report178's native fmt/check, core 3+7, and actual camera-fixture GREEN are not a finalized independent gate; historical `2cacf913` proof boundaries remain unchanged.
+
+## [2026-09-27] system | Godot terrain collision and world-camera development GREEN
+
+`33c31c8e` creates a `StaticBody3D`/`ConcavePolygonShape3D` per rendered terrain chunk from the same `ArrayMesh` triangles. Authored holes remain absent because the source render mesh omits them; tile-root teardown also removes the colliders. At `f23033a8f1ec2214606cfc99a16cd3d4f5cf27d5`, the real fixture is GREEN for nine rendered tiles, 90 authored holes, terrain-height reset, collision reset, and asynchronous local assets; `/tmp/claude/godot-world-collision-build.log` is warning-free.
+
+`f23033a8` shares the original Bevy 0.19 camera state/follow math through the existing `glam` 0.32 version, rather than introducing a second math implementation. At `2cacf913`, the native world camera consumes that state and uses real physics rays with inherited-hidden and selected-player-descendant filtering; map reset removes it. `/tmp/claude/godot-world-camera-green.log` is GREEN for original orbit, FOV 90, near 0.1/far 1000 projection, fixture-only elevated native-player placement, obstruction and hidden-mesh recovery, self/descendant exclusion, reconnect teardown, and continued `Loading`. `/tmp/claude/godot-world-camera-build.log` is warning-free. Independent collision/camera gates remain pending. No camera input/options, WMO support, readiness, visual parity, or full conversion claim follows.
+
+Independent height verification at exact `40b3ad10635152937d81685681c5d593f50b8046` records native fmt and check GREEN (`/tmp/claude/verify-height-{native-fmt,native-check}.log`) and a real-server nine-tile centroid/reset fixture PASS (`/tmp/claude/verify-height-world-height-flow.log`). The initial `terrain_height_data::tests` core filter and `terrain_heightmap::tests` root filter selected zero tests; future focused filters are `core terrain_height_data_tests` and `bin rendering::terrain_heightmap::tests`. The root check failed only because `sample_chunk_height` ceased to be publicly re-exported; `aa7f00b1` restores the original public path, but its verification is pending. Readability accepts the paired flat bounds guard; inherited opaque sampler name `bxx` is deferred without a functional-bug claim. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-26] system | Godot lighting verification refresh
+
+At exact Rust semantic revision `2faed51b4ad02f27153ee9f36e3d75e35e392505`, `/tmp/claude/verify-native-fmt-2faed51b.log`, `verify-native-check-2faed51b.log`, and `verify-native-terrain-tests-2faed51b.log` record native fmt/check and `terrain::` 15/15 GREEN. `/tmp/claude/verify-world-lighting-flow-2faed51b.log` independently proves bounded real-fixture authored-lighting reset without fabricated readiness; proof revision is `2faed51b`, run while HEAD was `5a011a9b`.
+
+At root revision `ad9d43f4d10e60ae8a366b13257fe7749d00fb34`, wrappers are `sky_lightdata` 7/7, `retail_light` 6/6, `sky_gradient` 4/4, and cubemap 1/1 GREEN. Root check exits 0 with three warnings. `7592486f` moves `sky_band_at_elevation` into test imports; root recheck remains pending. The two `InputBindings` warnings are unchanged from `master`, so they remain reported rather than fixed. `/tmp/claude/verify-terrain-shadow-pixels-5a011a9b.log` independently verifies all six terrain-shadow GPU assertions at committed `5a011a9b`, after fixture/shader blob preflight. It is bounded material/shadow evidence, not native world-shadow, readiness, parity, or full conversion.
+
+At `b8930da0` (core `e3a78779`), `GameClient.terrain_height_at(x, z)` returns shared authored terrain height or nil when unloaded/reset. Development `/tmp/claude/godot-world-height-red.log` and `godot-world-height-green.log` cover the missing API, nine actual rendered-triangle centroids, and reconnect; `godot-world-height-build.log` is warning-free. No independent gate exists. Holes, WMO ground/collision, movement/camera use, readiness, and parity remain unproven.
+
+CSV-row cyclomatic complexity 27 is declarative field decoding with `?` propagation; splitting for that number alone is rejected. Other root/native length or nesting findings are inherited/shared and already deferred; no broad cleanup task is created. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-26] system | Godot terrain-shadow fixture development proof
+
+Committed `5a011a9b969404f61d670f2951e31a8e382b92d1` adds `godot/tests/terrain_shadow_pixels.gd` (fixture blob `204984291a0c33a1b1429ece92c7d9e898ee1e6a`). Development run `/tmp/claude/godot-terrain-shadow-pixels.log` exits 0 for six GPU assertions against terrain shader blob `3871251d3adec49f35b49fcb727c59cfcca73b1c`: terrain lit before caster; lit/shadowed StandardMaterial controls; off-center terrain unchanged; ambient survives shadow while direct/specular are removed; direct/specular return when the caster is removed.
+
+Probe 1 failed because its off-center expected value differed from the fixture output; Probe 2 corrected that fixture specification. This is not a product bug. No independent verifier has rerun the committed fixture. It establishes neither native world-shadow configuration, world-rendering parity, readiness, nor conversion completion. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+
+## [2026-09-26] system | Godot native world-lighting producer and independently verified terrain shader
+
+`6a51f613` adds shared volume lookup (five targeted tests); `d70998c9` adds shared sky-gradient/cubemap pixels (three); and `0cfd21ef` makes CSV parsing strict (three), including observed signed ARGB `-3502459`, which must not become black. `2faed51b` has the native worker load the `Light`/`LightData` catalogs, select the original blend at the local player’s WoW coordinates (default noon), create/update a native `DirectionalLight3D`, `Environment`, and 32×32 RGBA16F cubemap, and update actual terrain materials. Map IDs use only the existing limited map-name lookup; this is not all-map coverage.
+
+`/tmp/claude/godot-world-lighting-red.log` is genuine RED for the missing producer. `/tmp/claude/godot-world-lighting-build-green.log` is GREEN. `/tmp/claude/godot-world-lighting-flow.log` is a real-fixture pre-commit GREEN, but the reset assertion was added after that pass, so current fixture verification remains pending. Root `sky_lightdata` tests failed because an old `Dimension` import remained after main removed the parent import; `7e8c5e40` fixes that conversion issue. Do not classify it as pre-existing; the new root/focused gate is still ongoing.
+
+`/tmp/claude/godot-terrain-shader-12case-verify.log` independently records 12/12 GPU cases PASS at exact revision `a0517118384a992cdee773b817333d03a16bd8fc`, shader blob `3871251d3adec49f35b49fcb727c59cfcca73b1c`, and fixture blob `ddcc12700531550d6f389632a3e36762839e8d31`. This supersedes the prior unlogged agent report only for those 12 cases. It does not prove shadows: the rejected `SHADOWS_ONLY` caster probe establishes no shadow parity. Actual world camera/visual terrain capture, camera streaming/collision, WMO/doodads/water, weather/live game-time/material clock/mips, loading readiness/transfers, and full conversion remain open. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-26] system | Godot shared LightData interpolation and expanded shader fixture boundary
+
+`b267c69a` shares generic `LightDataRow`/`SkyColorSet` interpolation for every authored field, with no fallback in the shared path. Agent140 reports core 5/5; root `cargo test --bin game-engine sky_lightdata::tests` remains running, so no result is recorded. No actual native authored producer exists.
+
+`602b76f7` plus fixture `a391f772` define 12 shader cases: three blends; authored gamma and specular; overbright; MCCV byte 255; linear fog; UV start/offset/repeat; unshadowed direct; and float-cubemap Fresnel. Agent128 reports 12 passes, but no inspectable saved log exists; this is not independent proof. Shadow control is inconclusive even with StandardMaterial. Native map-time, cubemap, sun, camera, fog, UV-clock, and mip inputs remain missing. This establishes neither GPU/world rendering nor parity. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-26] system | Godot MCCV byte encoding and shader-case boundary
+
+`e65dbb59` corrects authored neutral MCCV storage from byte 127 to byte 255 before `ArrayMesh` construction and reverses that conversion in the shader. `/tmp/claude/godot-terrain-mccv-red.log` is genuine RED for the former encoding; `/tmp/claude/godot-terrain-mccv-build.log` and `/tmp/claude/godot-terrain-mccv-green.log` are GREEN and cover exact formatted pre-commit content. `39e04423` shares Retail-array arithmetic through the API; agent137 reports four targeted tests, but no integrated map-time producer exists. `602b76f7` tracks four shader pixel cases; agent128 reports 4/4, but no inspectable logs were available. Its fixture expansion remains uncommitted and is excluded. Verifier139 only completed an audit: no Cargo proof exists, and the focused terrain check remains pending. This does not establish GPU/world rendering or parity. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+
+## [2026-09-26] system | Godot native terrain-material attachment boundary
+
+`0953ef72` decodes referenced terrain BLPs from local CASC. `9f6000f6` then attaches `ShaderMaterial` mesh children to all nine streamed tiles with native diffuse and MCAL `ImageTexture` inputs. `/tmp/claude/godot-terrain-material-binding-red.log` is genuine RED: parsed terrain had no corresponding native material tiles. `/tmp/claude/godot-terrain-material-binding-green.log` is GREEN: all nine attachments exist, reconnect frees `WorldTerrain`, and the host remains `Loading`. `/tmp/claude/godot-terrain-material-binding-build.log` exits 0.
+
+The build covers source before formatting but does not identify an exact tracked shader revision; agent128's initial GPU cases were uncommitted and remain separately pending. This is material-binding protocol evidence, not GPU/world rendering or parity. Actual Retail map-time, fog, cubemap, sun, camera and animation clock; mip parity; WMO/doodads; water; collision; readiness; and transfer remain open. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-26] system | Godot terminal terrain-worker error retention
+
+At exact `2ee88127`, `StreamedTerrain` retains a terminal worker panic error, so repeated `poll` calls continue returning that error rather than succeeding after the worker disconnects. Verifier130's focused native check passes (`/tmp/claude/worker-terminal-check-2ee88127.log`). The same revision's formatting check fails (`/tmp/claude/worker-terminal-fmt-2ee88127.log`); main committed formatting-only `01c78a5b`, which is not yet reverified. Earlier `/tmp/claude/cargo-streaming-red.out` and `/tmp/claude/cargo-streaming-green.out` establish the targeted repeated-poll RED/GREEN boundary but lack embedded revision metadata. This does not establish world rendering, readiness, `InWorld`, or conversion parity. Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md).
+
+
+## [2026-09-26] system | Godot async native terrain-asset boundary
+
+`cad33614` shares terrain material inputs with Godot core and has five pure tests. This is input-data proof only; no native shader/material parity is claimed.
+
+`27944c68`/`1261766c`/`79267767` add generation-isolated asynchronous native `LoadTerrain` loading. `/tmp/claude/godot-world-terrain-flow-79267767.log` exits 0 after a real local CASC/cache fixture parses nine tiles, then reconnect clears the asset state while the host remains `Loading`. The nine `_obj0` lines on stderr report parsed placement counts and are informational, not errors. `/tmp/claude/godot-world-terrain-integrated-build.log` exits 0 without warnings; the prior five unused-terrain-API warnings are resolved by an async consumer and duplicate WDT tile-field removal. Independent verifier113 at exact `79267767` records `terrain::` 7/7 GREEN (`/tmp/claude/godot-world-terrain-native-tests-79267767.log`), native `fmt --check` GREEN (`/tmp/claude/native-fmt-79267767.log`), and native check exit 0 without warnings (`/tmp/claude/native-check-79267767.log`). The 9-finding readability report has no metrics-limit breach; findings are not automatic tasks.
+
+At docs-only `773dbb91`, main-root `cargo check --bin game-engine` exits 0 with two `InputBindings` unused-import warnings, unchanged from `master` in `src/rendering/ui/target.rs:16` and `src/sound/runtime.rs:11` (`/tmp/claude/godot-shared-source-bevy-check.log`); root tests did not run. No rendered terrain, WMO objects, textures, collision, readiness, `InWorld`, `NewWorld`, or `WorldPortAck` follows. Pending main panic-regression work is outside this proof. Updated [[godot-conversion]].
+
+
+## [2026-09-26] system | Godot verifier97 and local-CASC dependency boundary
+
+Verifier97 at exact engine `251f3263` plus sibling `9206f9e` records `world::tests` 3/3 GREEN, native `fmt --check` GREEN, and focused native check exit 0 without warnings at `/tmp/claude/godot-{world-tests,native-rust-fmt-check,native-check}-251f3263.log`. This refreshes proof only; prior native fixtures remain bounded. Transform updates and ordinary despawn are unproven; visible models, map, readiness, and `InWorld` remain absent.
+
+`e2821b83`/`1961bd14` add the existing local-CASC resolver dependency through the pinned same-project SDK source. `/tmp/claude/godot-terrain-assets-red.log` is genuine RED for a missing API, not terrain feature GREEN. `c94a6aa6` native character-create fixture is genuine RED for a missing method. Agents100 terrain,101 UI, and102 world refactor remain active; no pending-code claim follows.
+
+## [2026-09-26] system | Godot transport snapshots project WorldUnits
+
+`087d3d74`/`5910ce51` add Godot-owned server-ID-keyed WorldUnits node lifecycle from actual transport snapshots: spawn/update/despawn/reset, direct authoritative position axes, wire-Y yaw, and original spawn defaults. The host selects the local player by exact selected-character name; initial duplicate selection preserves original child creation order rather than sorting server IDs. `account_state` now exposes `world_attached` and `local_player_position`.
+
+Proof remains open. The preceding `b90efecf` `world_units_flow.gd` is genuine RED at `/tmp/claude/godot-world_units_flow-b90efecf.log`, timing out for the selected-character node. `087d3d74`/`5910ce51` are unbuilt and unexecuted. No model/map/readiness/`InWorld`/visual claim follows. `cc324f51` button-margin code remains separately unbuilt and unproven; its genuine pre-fix RED is `/tmp/claude/godot-button-size-red.log` (`actual(256,71)`).
+
+## [2026-09-26] system | Godot viewport EnterWorld reaches Loading
+
+At `b90efecf`, shared original character-select postsetup registry sizing corrects the `dd45d9bc` viewport no-dispatch root cause; it is not a generic layout workaround. Clean native build exits 0 at `/tmp/claude/godot-enter-world-build-b90efecf.log`. `character_select_ui.gd` exits 0 with empty stderr at `/tmp/claude/godot-character_select_ui-b90efecf.log`. `enter_world_flow.gd` exits 0 with empty stderr at `/tmp/claude/godot-enter_world_flow-b90efecf.log`: the real viewport selects `Elara`, activates EnterWorld, receives the actual local-server response, establishes the selected character, and transitions to `LoadingUI`. Authored PNG/shell are visible at 0%; no `InWorld` is fabricated.
+
+This is bounded auth-to-Loading evidence. At `b90efecf`, `world_units_flow.gd` is genuine RED at `/tmp/claude/godot-world_units_flow-b90efecf.log`, timing out waiting for the selected-character unit node. World readiness, unit application, a world scene, visual parity, and full conversion remain open. `cc324f51` subsequently fixes native Button theme content margins that enlarged authored 64px buttons to 71px and adds a size assertion; `/tmp/claude/godot-button-size-red.log` records genuine `actual(256,71)`. That code/test is committed but unbuilt and unproven, so `b90efecf` GREEN evidence does not cover it.
+
+## [2026-09-26] system | Godot loading-model and input-routing boundary
+
+Corrected stale proof through `c3911dff`. The `c3911dff`-inclusive native build exits 0 at `/tmp/claude/godot-loading-shell-build.log`, including `203d2d85` authored three-slice loading projection. `loading_ui.gd` exits 0 with empty stderr at `/tmp/claude/godot-loading-shell-fixture.log`: authored loading PNG artwork, shell, and initial progress. `b7070542` card input is GREEN at `/tmp/claude/character_card_input.gd.green.log`: a viewport left press selects the authored second card. Current `ui_projection.gd` and `character_select_flow.gd` both exit 0 with empty stderr, covering `a89ab4d4` input readability and real auth→roster→Back.
+
+No `GameClient` Loading route or world-readiness logic exists. No rendered visual parity, full workflow, or feature-parity row is closed; full conversion remains open.
+
+## [2026-09-26] system | Godot successful auth to native character select
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) through `d1641bc9`/`9249929e`. `character_select_flow.gd` is GREEN with empty stderr at `/tmp/claude/godot-character_select_flow-d1641bc9.log`: successful `admin`/`admin` auth against explicitly local UDP `127.0.0.1:5000` creates `CharacterSelectUI` from the original `CharacterSelectModel`, maps protocol roster data, and hides `LoginUI`. `character_select_ui.gd` is GREEN with empty stderr at `/tmp/claude/godot-character-select-ui-corrected.log`: empty authored UI and Back action. The initial EnterWorld-disabled assumption was removed because the original authored button is enabled. `744f3e1b3` mapping tests are pure.
+
+This remains fixture-bounded evidence. Current `1296be4b` native-build and auth→Back-flow logs are GREEN with empty stderr: Back restores LoginUI. `1296be4b` adds host `SelectChar` dispatch, but original cards are Frame `onclick` while native projection supports only Button callbacks, so functional roster selection is unproven. Verifier67 reran `login_flow.gd` and `ui_projection.gd` PASS on an artifact timing-qualified to `d1641bc9` or `12a23693` (host files identical; tint-only difference). Agent65 reports targeted real selected-card tint RED/GREEN evidence only. EnterWorld/create/delete/campsite/menu remain unsupported; no character/world scene, background/appearance, or matched visual proof exists. No parity row closes.
+
+## [2026-09-26] system | Godot native login/UI and parser proof boundary
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) through `aadb3597`. Latest `/tmp/claude/godot-login_flow-3de5946b.log` and `/tmp/claude/godot-ui_projection-3de5946b.log` identify `3de5946b`, exit 0, and have empty stderr. `50cd3c63`/`33ed3a57` wire native input/action synchronization, connect/reconnect/exit, selected-host routing, and pending status; `1251724a` projects disabled buttons and suppresses callbacks. The login fixture uses existing local UDP port 5000 and wrong `admin` credentials, proving rejection reaches the native button/status path only. No account creation; successful login stops at `screen_requested`; no native character-select exists; realm cycle/menu/create-account explicitly report unsupported.
+
+The UI fixture covers true viewport Unicode/Ctrl-A/backspace/focus editing, gold/resize/removal updates, disabled-state/callback behavior, asset/font/insets. Screenshot `04aa3610` is RealForward+ but predates final colour/focus changes, so it is not an exact visual baseline. A seeded Bevy screenshot hung for ten minutes; parent terminated PIDs 136318/136334 and verified both gone. Its wrapper exit 0 and absent screenshot provide no visual evidence.
+
+Reported `fb54637f` pure-core proof is 233/233 `--lib` tests GREEN with no warnings, including concurrent ADT changes. `3de5946b`/`18666116` retain ADT metadata, expose tile/LOD parsing, and correct fixture coordinate/companion coverage. `1a5c9045`/`aadb3597` move engine-dependent ADT/WMO/M2 tests into Bevy adapters; those legacy adapter tests were not compiled or executed, so they remain an obligation. No parser, login, UI-fixture, or raw-terrain result closes a full parity row.
+
+## [2026-09-26] system | Godot integrated native proof ledger
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) for `ac02b9a0`. The native extension build exits 0 with 27 `game-engine-core` warnings and 2 native-animation dead-code warnings. `client_login.gd` exits 0 with named authored credential controls; `terrain_geometry.gd` exits 0 with 256 raw chunks, authored heights/UVs/colors, holes, and Godot winding; `account_failure.gd` exits 0 when local UDP port 5000 rejects wrong `admin` credentials and native account status receives the feedback. The logged texture-file messages are cwd-only preflight failures: source paths remain retained and the native loader still loads them, so they do not demonstrate missing artwork.
+
+`model_scene.gd` exits 1 because the login canvas covers the model; `5ca2dc8d` hides it only after successful import, and GREEN awaits a rebuilt native binary. Agent39 reports `m2_assets.gd` GREEN after `97d97af1`/`5297d394` on the same `.so` (216 bones, 113 batches, 37,813 vertices, 147,966 indices, torch BLP, no leaks); this remains reported, nonvisual evidence. Agent42's UI projection test is RED for wrong positions/input and requires actual keyboard exercise. Agent58 reports ownership fixes without supplied proof. `CharacterSelectModel` pure tests are GREEN at `a828a028`/`fcd34042`, but no native character-select exists. All feature-parity and full-conversion acceptance gates remain open.
+
+## [2026-09-26] system | Godot account host and raw ADT geometry boundary
+
+Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md) after account host `7880fc74` and native ADT geometry `2ee292bb`. `GameClient.connect_account`/`account_state` now route typed auth through the headless worker and `Session`; polling emits `screen_requested`, but does not create or route real character-select, creation, loading, or world scenes. `account_failure.gd` is RED (exit 1) against an old binary lacking `connect_account`; real-server GREEN remains pending. `WowTerrainLoader.load_adt_geometry` converts raw ADT chunk geometry (positions, normals, colors, UVs, holes, reversed winding) only; `terrain_geometry.gd` is RED against an old binary and awaits ADT52's core geometry API. No terrain materials, objects, water, collision, or streaming claim follows. Verifier48 reported parser 7/7 GREEN with timing-qualified source evidence; network verification was 4/4 GREEN at `73339584`, before a `WireMessage` re-export. Verifier49 assigned core warnings to ADT52/M254; network readability findings remain unfixed. All conversion acceptance gates remain open.
+
+## [2026-09-26] system | Godot authorized transport/UI boundary
+
+Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md) after `eef95b16`. Godot is authorized to own rendering, UI, scenes, and gameplay; Bevy remains only as the headless networking transport worker. `godot/network` contains an actual transport bridge, but auth has not passed through it. Sibling UI core `70db707` removes all Bevy dependencies with `DynamicTextureId`, RGBA8 registry data, and atlas `PixelRect` arrays; agent46 reports two targeted model tests GREEN, not independently verified by main. Main `baf769ab` wires login UI startup, while `client_login.gd` remains RED against the old native binary because `LoginUI` is absent. Native compilation is blocked by UI API errors under agent42 work. All parity gates remain open.
+
+## [2026-09-26] system | Godot native M2 preview boundary
+
+Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md) through `e21f7c40`, `74ccbd8f`, `9c09cfb6`, and workspace integration `a9c8f58b`. The documented capability was a native M2 preview path with skinned batches, limited BLP/type-0 albedo material conversion, sequence attachment, and fixed framing. At that revision, the model-scene and M2-assets scripts were unexecuted because the portable UI-toolkit `WidgetDef` macro-anchor mismatch blocked the integrated build; the later local macro patch fixed that blocker. Headless transport still carries Bevy state and, through `shared`, Bevy camera/mesh dependencies; no runtime, material-fidelity, UI-parity, or migration-completion claim follows.
+
+## [2026-09-26] system | Godot conversion bootstrap
+
+Created [[godot-conversion]] for game-engine `85794170`: verified Godot 4.7.2 archive, `godot` 0.5.5 Rust GDExtension workspace, and RED/GREEN `GameClient` native-`Node3D` headless smoke. Editor import scan `SIGABRT` remains separate and unresolved; all feature parity remains open.
+
 ## [2026-09-27] investigation | Release-spirit OOM kill
 
 Created [[release-spirit-oom]]. The client that "terminated" on Stockade spirit release was SIGTERMed by earlyoom at 10.3 GB RSS. A jemalloc profile found per-NPC animation clips (3.8 GB) and per-NPC clones of bone tracks (3.0 GB). Both are now shared per model. In the live run, Stockade RSS went from 12.4–13.0 GB to 5.1 GB, and the release → Stormwind transfer completed.
@@ -990,6 +1580,10 @@ Created [[bevy-godot-shadow-comparison]]. Revision-pinned source review records 
 ## [2026-09-26] update | Map transfers and WMO-only maps
 
 [[terrain]]: maps named by Map.db2 Directory; WDT MPHD 0x1 global WMO maps (Stockade) spawn one WMO placed from the world origin, no tiles; WMO floors are the only ground and the camera is not terrain-clamped there. Spec [instances](../specs/instances.md) (NewWorld/WorldPortAck, TransferAborted, CONFIRM_SUMMON after loading).
+
+## [2026-09-26] system | Godot full-contract parity inventory
+
+Created [Godot feature parity matrix](../specs/godot-parity-matrix.md) and linked it from [[godot-conversion]] and the conversion specification. It inventories every existing feature specification by concrete capability, without duplicating those contracts. Every conversion row remains Missing: current parser/core, preview, portable-UI-model, account-host, and headless transport results do not establish Godot runtime parity. The authorized Bevy boundary remains transport-only; the integrated full-client conversion gate is unchanged and open.
 
 ## [2026-09-26] investigation | Stockade entrance
 
