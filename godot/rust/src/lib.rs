@@ -437,7 +437,10 @@ impl GameClient {
         state.set("world_attached", self.world.root().is_some());
         state.set(
             "zone_id",
-            &self.current_zone_id().map(|id| id.to_variant()).unwrap_or_default(),
+            &self
+                .current_zone_id()
+                .map(|id| id.to_variant())
+                .unwrap_or_default(),
         );
         state.set("terrain", &terrain::state::terrain_state(&self.terrain));
         let area_id = local_transform.and_then(|transform| {
