@@ -1,4 +1,5 @@
-//! Periodic GPU memory breakdown from the wgpu allocator (`GAME_ENGINE_GPU_MEMORY_LOG=SECONDS`).
+//! Periodic GPU memory breakdown from the wgpu allocator (`GAME_ENGINE_GPU_MEMORY_LOG=SECONDS`),
+//! also logged as soon as the allocated total moves by `JUMP_BYTES`.
 //!
 //! Vulkan allocations are grouped by resource label; textures are additionally summed
 //! from `RenderAssets<GpuImage>` by format, since Bevy leaves image textures unlabeled.
@@ -15,11 +16,14 @@ use bevy::render::{Render, RenderApp, RenderSystems};
 
 const ENV: &str = "GAME_ENGINE_GPU_MEMORY_LOG";
 const TOP_GROUPS: usize = 15;
+const JUMP_BYTES: u64 = 256 * 1024 * 1024;
 
 #[derive(Resource)]
 struct ReportClock {
+    start: Instant,
     interval: Duration,
     next: Instant,
+    last_allocated: u64,
 }
 
 pub(crate) fn configure(app: &mut App) {
@@ -33,8 +37,10 @@ pub(crate) fn configure(app: &mut App) {
     app.get_sub_app_mut(RenderApp)
         .expect("GPU memory report requires RenderApp")
         .insert_resource(ReportClock {
+            start: Instant::now(),
             interval,
             next: Instant::now() + interval,
+            last_allocated: 0,
         })
         .add_systems(Render, log_gpu_memory.in_set(RenderSystems::Cleanup));
 }
@@ -44,17 +50,20 @@ fn log_gpu_memory(
     device: Res<RenderDevice>,
     images: Res<RenderAssets<GpuImage>>,
 ) {
-    let now = Instant::now();
-    if now < clock.next {
-        return;
-    }
-    clock.next = now + clock.interval;
     let Some(report) = device.wgpu_device().generate_allocator_report() else {
         eprintln!("GPU mem: allocator report unavailable on this backend");
         return;
     };
+    let now = Instant::now();
+    if now < clock.next && report.total_allocated_bytes.abs_diff(clock.last_allocated) < JUMP_BYTES
+    {
+        return;
+    }
+    clock.next = now + clock.interval;
+    clock.last_allocated = report.total_allocated_bytes;
     eprintln!(
-        "GPU mem: allocated={} reserved={} blocks={} allocations={}",
+        "GPU mem: t={:.1}s allocated={} reserved={} blocks={} allocations={}",
+        (now - clock.start).as_secs_f64(),
         mib(report.total_allocated_bytes),
         mib(report.total_reserved_bytes),
         report.blocks.len(),
