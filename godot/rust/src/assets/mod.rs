@@ -161,6 +161,8 @@ fn wow_vec3(value: [f32; 3]) -> Vector3 {
 
 /// Root metadata: the M2 header bounding box in the model root's axes.
 pub(crate) const M2_BOUNDS_META: &str = "m2_bounds";
+/// Batch metadata: the skin section's mesh part (geoset) ID.
+const M2_MESH_PART_META: &str = "m2_mesh_part";
 
 fn m2_bounds(model: &m2::Model) -> Aabb {
     let [min_x, min_y, min_z] = model.bounding_box_min;
@@ -260,6 +262,7 @@ pub(super) fn build_model_filtered(
         .iter()
         .map(|batch| load_batch(model, batch, path, &mut missing, appearance))
         .collect::<Result<Vec<_>, String>>()?;
+    let mesh_parts: Vec<u16> = resolved.iter().map(|batch| batch.mesh_part_id).collect();
     let (mut skeleton, skin) = build_skeleton(&model.bones);
     if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
         skeleton.free();
@@ -289,9 +292,12 @@ pub(super) fn build_model_filtered(
     let mut root = Node3D::new_alloc();
     root.set_meta(M2_BOUNDS_META, &m2_bounds(model).to_variant());
     root.add_child(&skeleton);
-    for (batch_index, (mesh, material, visible)) in batches.into_iter().enumerate() {
+    for (batch_index, ((mesh, material, visible), mesh_part)) in
+        batches.into_iter().zip(mesh_parts).enumerate()
+    {
         let mut instance = MeshInstance3D::new_alloc();
         instance.set_name(&format!("Batch{batch_index}"));
+        instance.set_meta(M2_MESH_PART_META, &i64::from(mesh_part).to_variant());
         instance.set_mesh(&mesh);
         instance.set_visible(visible);
         if let Some(skin) = &skin {
