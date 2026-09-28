@@ -11,6 +11,9 @@ Replicated NPCs render the appearance selected by their creature display data. R
 - [x] Bind distinct body/hair textures to individual NPCs without mutating shared materials or ordinary entities outside the affected visual subtree. Material target10 declares a separate hair texture for M2 type6; failed declared hair composition is an error, not a head-texture substitute. Without target10, type6 uses the composed head atlas.
 - [x] Apply selected geosets followed by authored overrides, preserving character group-zero body rules; apply each added request once rather than reallocating materials every update.
 - [ ] The real replicated-NPC spawn path must produce visibly correct clothing and distinct authored hairstyles/colors for the affected Northshire scene.
+- [x] Apply the display's authored armor (`CreatureDisplayInfoExtra` → `NPCModelItemSlotDisplayInfo`, ItemSlot 0 head … 10 back) through the shared equipment policy: item geosets after the customization and display geosets (tabard 12, gloves 4, boots 5/20, …), helmet-hidden groups, and item models (helm, shoulders, cape) on the model's `Equipment`. Item textures stay in the display's bake.
+- [x] Render replicated creature virtual items (`EquipmentAppearance` MainHand, OffHand, Ranged) as item models: main and off hand drawn with `SheathState::Melee` (right palm, left palm, shield on the left wrist), ranged with `SheathState::Ranged` (bow left palm, else right palm); otherwise at the item's `Item.SheatheType` position (WMVx `sheathTypeAttachmentPosition`: 1 → 27, 2 → 30, 3 → 32 main / 33 off hand, 4 → 28). A hand item without a sheath position stays in the hand; a ranged item without one is not shown.
+- [x] Hold the replicated `UnitPose` while the creature does not move: stand state Sit 97, Sleep 100, SitLow/Medium/HighChair 102/103/104, Dead 6, Kneel 115, Submerged 202 (AnimationData IDs); standing, the `Emotes.AnimID` of its emote state (333 → Ready1H 26, 214 → ReadyRifle 48). Stand state SitChair (2), an emote missing from `Emotes.csv` and a model without the animation are errors.
 
 ## How it works
 
@@ -19,6 +22,8 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## Implementation inventory
 
+- `src/game/creatures/npc_gear_data.rs` — pose → animation, `Emotes.csv`, virtual-item attachment policy, display → `NPCModelItemSlotDisplayInfo.csv` armor (`data/db2/12.1.0.69933`, exported from local CASC by `scripts/export_db2_csv.py`).
+- `src/game/networking/npc_gear.rs` — `NpcGear`, `sync_npc_equipment` (model `Equipment` with `slot_attachments`), `sync_npc_pose_animation` (`IdleAnim`).
 - `src/rendering/character/npc_appearance.rs` — request processing, full-ID selection, compositing and isolated per-mesh application.
 - `src/game/networking/npc.rs` — request creation after M2 spawning and update-system registration.
 - `src/rendering/character/character_customization.rs` — shared geoset visibility and override rules.
@@ -30,6 +35,9 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## Tests asserting this spec
 
+- `src/game/creatures/npc_gear_data_tests.rs` — Stockade poses (guard emote 333, criminal Sleep/Sit, rifleman 214), guard sword/shield and rifleman rifle attachments per sheath state, guard display 2989 armor rows.
+- `src/game/networking/npc_animation_tests.rs::stockade_guard_and_criminals_hold_their_authored_poses`, `::stockade_guard_draws_and_sheathes_sword_and_shield` — real models 2989/35069: played sequence IDs and item parent bones.
+- `src/rendering/character/npc_appearance.rs::tests::npc_armor_geosets_switch_body_groups_but_not_equipment_models`; `equipment_appearance_data::tests::stockade_guard_armor_switches_glove_boot_and_tabard_geosets`.
 - `src/rendering/character/npc_appearance.rs::tests` — body pixels/error semantics, full-ID related selections, two-NPC material/geoset isolation and once-only updates; real-data Kul Tiran 140376, Worgen 31054 mixed forms, Dracthyr 110154 without hair; ignored `sweep_all_spawned_profiles` (`SWEEP_CACHE`, `SWEEP_IDS`) prepares every listed profile and reports failures.
 - `tests/unit/character_customization_tests.rs` — shared group-zero and exact geoset override semantics.
 

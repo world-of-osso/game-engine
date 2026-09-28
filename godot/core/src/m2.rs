@@ -200,7 +200,8 @@ pub fn parse_model_with_skeleton(
     }
     let skin = format::parser::parse_skin_full(skin)?;
     let (bones, sequences, bone_tracks, global_sequences) = if let Some(skeleton) = skeleton {
-        let parsed = format::parser::parse_skel_data(skeleton)?;
+        // External `.anim` sequences are not loaded here: they keep no keyframes.
+        let parsed = format::parser::parse_skel_data_with_anims(skeleton, |_| None)?;
         if parsed.bones.is_empty() {
             return Err("SKB1 skeleton chunk missing or empty".into());
         }

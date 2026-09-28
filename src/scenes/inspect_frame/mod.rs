@@ -208,6 +208,7 @@ fn slot_label(slot: EquipmentVisualSlot) -> &'static str {
         EquipmentVisualSlot::Feet => "Feet",
         EquipmentVisualSlot::MainHand => "Main Hand",
         EquipmentVisualSlot::OffHand => "Off Hand",
+        EquipmentVisualSlot::Ranged => "Ranged",
     }
 }
 

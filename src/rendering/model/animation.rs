@@ -378,6 +378,11 @@ impl CastAnimState {
     }
 }
 
+/// The looping animation a model holds instead of Stand while it does not move (a
+/// creature's stand state or emote state).
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct IdleAnim(pub u16);
+
 /// Component that triggers a social emote animation on a model.
 #[derive(Component, Clone, Debug, PartialEq, Eq)]
 pub struct EmoteAnimState {

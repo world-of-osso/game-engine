@@ -12,8 +12,8 @@ use shared::casting::CastState;
 use shared::components::{
     CombatStatus, CreatureMotion, EquipmentAppearance, Gold, GuildMembership, Health, Mana,
     ModelDisplay, Mounted, MovementControl, MovementSpeed, Npc, Player, Position, PresenceStatus,
-    Rotation, UnitAuras, UnitFactionTemplate, UnitFlags, UnitLevel, UnitPowers, UnitTarget,
-    WorldArrival, Zone,
+    Rotation, UnitAuras, UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers,
+    UnitTarget, WorldArrival, Zone,
 };
 use shared::level_scaling::LevelScaling;
 use shared::protocol::{GameObjectInfo, NpcFlags};
@@ -185,6 +185,7 @@ struct EntitySnapshot {
     faction_template: Option<UnitFactionTemplate>,
     unit_flags: Option<UnitFlags>,
     creature_motion: Option<CreatureMotion>,
+    unit_pose: Option<UnitPose>,
     unit_target: Option<UnitTarget>,
 }
 
@@ -220,6 +221,7 @@ impl EntitySnapshot {
             faction_template: entity.get::<UnitFactionTemplate>().copied(),
             unit_flags: entity.get::<UnitFlags>().copied(),
             creature_motion: entity.get::<CreatureMotion>().copied(),
+            unit_pose: entity.get::<UnitPose>().copied(),
             unit_target: entity.get::<UnitTarget>().copied(),
         }
     }
@@ -251,6 +253,7 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.faction_template);
             apply_component(&mut entity, self.unit_flags);
             apply_component(&mut entity, self.creature_motion);
+            apply_component(&mut entity, self.unit_pose);
             apply_component(&mut entity, self.unit_target);
             apply_component(&mut entity, self.npc_flags);
             // Add observers immediately query support components: insert identities last.
@@ -454,6 +457,7 @@ mod tests {
             UnitFlags(UnitFlags::NOT_SELECTABLE),
             UnitTarget(Some(0x0000_0001_0000_002A)),
             CreatureMotion::Run,
+            petty_criminal_pose(),
         ));
         let mut main = main_app();
         apply(main.world_mut(), snapshot(&worker, source, source, 1));
@@ -487,6 +491,10 @@ mod tests {
             main.world().get::<CreatureMotion>(mirror),
             Some(&CreatureMotion::Run)
         );
+        assert_eq!(
+            main.world().get::<UnitPose>(mirror),
+            Some(&petty_criminal_pose())
+        );
         worker.entity_mut(source).remove::<(
             UnitPowers,
             UnitAuras,
@@ -496,6 +504,7 @@ mod tests {
             UnitFlags,
             UnitTarget,
             CreatureMotion,
+            UnitPose,
         )>();
         apply(main.world_mut(), snapshot(&worker, source, source, 2));
         assert!(main.world().get::<UnitPowers>(mirror).is_none());
@@ -506,6 +515,16 @@ mod tests {
         assert!(main.world().get::<UnitFlags>(mirror).is_none());
         assert!(main.world().get::<UnitTarget>(mirror).is_none());
         assert!(main.world().get::<CreatureMotion>(mirror).is_none());
+        assert!(main.world().get::<UnitPose>(mirror).is_none());
+    }
+
+    /// Petty Criminal 46382's creature_template_addon: StandState 3, SheathState 1.
+    fn petty_criminal_pose() -> UnitPose {
+        UnitPose {
+            stand_state: shared::components::StandState::Sleep,
+            sheath_state: shared::components::SheathState::Melee,
+            emote_state: 0,
+        }
     }
 
     #[test]
