@@ -706,3 +706,7 @@ fn apply_login_art(registry: &mut FrameRegistry) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "button_style_tests.rs"]
+mod button_style_tests;

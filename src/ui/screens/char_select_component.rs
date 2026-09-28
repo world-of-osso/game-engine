@@ -17,6 +17,10 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 use super::campsite_component::{campsite_panel, campsite_tab};
+use super::default_button_atlas::{
+    DISABLED as BUTTON_ATLAS_DISABLED, HIGHLIGHT as BUTTON_ATLAS_HIGHLIGHT,
+    PRESSED as BUTTON_ATLAS_PRESSED, UP as BUTTON_ATLAS_UP,
+};
 use super::trash_button_component::trash_icon_button;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -184,14 +188,6 @@ const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_SUBTITLE: FontColor = FontColor::new(0.92, 0.88, 0.74, 1.0);
 const COLOR_MUTED: FontColor = FontColor::new(0.75, 0.72, 0.65, 1.0);
 
-const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
-const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
-const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
-const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
-const BIG_BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
-const BIG_BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
-const BIG_BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
-const BIG_BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-tophud-left-bg";
 const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-tophud-middle-bg";
 const TOP_HUD_RIGHT_ATLAS: &str = "glues-characterselect-tophud-right-bg";
@@ -598,10 +594,10 @@ fn enter_world_button() -> Element {
             text: "Enter World",
             font_size: 18.0,
             onclick: CharSelectAction::EnterWorld,
-            button_atlas_up: BIG_BUTTON_ATLAS_UP,
-            button_atlas_pressed: BIG_BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BIG_BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BIG_BUTTON_ATLAS_DISABLED,
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             pos_type: "absolute",
             left: "50%",
             top: "100%",
