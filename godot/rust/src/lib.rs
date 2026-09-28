@@ -97,6 +97,7 @@ pub struct GameClient {
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     entrance_bar: entrance_bar::EntranceBar,
+    game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     logout: game_engine_session::logout::LogoutState,
     in_rest_area: bool,
     account: Account,
@@ -171,6 +172,7 @@ impl INode3D for GameClient {
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
+            game_menu_options: None,
             logout: Default::default(),
             in_rest_area: false,
             account: Account::new(data_root.clone()),
@@ -207,6 +209,12 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        if self.capture_game_menu_binding(&event) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         if self.world_map_pointer(&event) {
             return;
         }
