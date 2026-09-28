@@ -7,6 +7,8 @@ counted on stderr.
 
 Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   Emotes                       FDID 1343602
+  JournalInstance              FDID 1237438 (localized: pass its enUS copy)
+  JournalInstanceEntrance      FDID 5228481
   NPCModelItemSlotDisplayInfo  FDID 1340661
   UiTextureKit                 FDID 939159
   ZoneLight                    FDID 1310253
@@ -22,6 +24,23 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field.
 TABLES = {
     "Emotes": (0x0A598B68, [("ID", "id"), ("AnimID", 1)]),
+    "JournalInstance": (
+        0x6C5ED7F2,
+        [("ID", "id"), ("Name_lang", ("string", 0)), ("MapID", 2), ("Flags", 7), ("AreaID", 8)],
+    ),
+    "JournalInstanceEntrance": (
+        0x874E7CC2,
+        [
+            ("ID", "id"),
+            ("Pos_0", ("float", 0, 0)),
+            ("Pos_1", ("float", 0, 1)),
+            ("Pos_2", ("float", 0, 2)),
+            ("MapID", 1),
+            ("AreaTableID", 2),
+            ("Faction", 3),
+            ("JournalInstanceID", "parent"),
+        ],
+    ),
     "NPCModelItemSlotDisplayInfo": (
         0xC2057F5B,
         [("ID", "id"), ("NpcModelID", "parent"), ("ItemDisplayInfoID", 0), ("ItemSlot", 1)],

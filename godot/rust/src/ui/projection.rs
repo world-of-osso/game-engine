@@ -12,7 +12,7 @@ use ui_toolkit::frame::{Dimension, Frame, WidgetData, WidgetType};
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::button::ButtonState;
-use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV};
+use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
 use ui_toolkit::widgets::texture::TextureSource;
 
 use super::assets;
@@ -369,6 +369,14 @@ impl UiProjection {
         label.add_theme_font_override("font", &font);
         label.add_theme_font_size_override("font_size", text.font_size as i32);
         label.add_theme_color_override("font_color", color(text.color));
+        // `OUTLINE` / `THICKOUTLINE` font flags: a black outline around each glyph.
+        let outline = match text.outline {
+            Outline::None => 0,
+            Outline::Outline => 2,
+            Outline::ThickOutline => 4,
+        };
+        label.add_theme_constant_override("outline_size", outline);
+        label.add_theme_color_override("font_outline_color", Color::from_rgba(0.0, 0.0, 0.0, 1.0));
         Ok(())
     }
 
@@ -418,6 +426,7 @@ impl UiProjection {
             color: data.color,
             justify_h: data.justify_h,
             justify_v: data.justify_v,
+            outline: data.outline,
         };
         self.style_label(&mut node, &text)
     }
