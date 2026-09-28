@@ -42,7 +42,7 @@ Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`
 
 ## [2026-09-28] system | Options policy is shared; native parity remains absent
 
-`0c68d89e` centralizes Options drafts, view construction, action/reset policy, and apply snapshots in shared `options_menu_data`; reported `ui-model` policy proof is 3/3, with independent verification pending. `80b3c664` migrates the original Bevy runtime adapters to that policy while retaining immediate root apply and host-owned persistence. Native Options routing, live consumers, and persistence remain missing. Source sharing is not native parity or a final gate; the detailed matrix remains 0 handled.
+`0c68d89e` centralizes Options drafts, view construction, action/reset policy, and apply snapshots in shared `options_menu_data`; `80b3c664` migrates the original Bevy runtime adapters to that policy while retaining immediate root apply and host-owned persistence. Independent verifier754 records root Options 26/26 and game-menu 12/12; native `ui-model` policy 3/3, views 2/2, and menu 2/2; root formatting plus `cargo check --bin game-engine` and native `ui-model` check exit 0 (`/tmp/claude/options-policy-*.log`). The root `skeleton_afid` dead-code warning is existing. Native Options routing, live consumers, and persistence remain missing. Source sharing is not native parity or a final gate; the detailed matrix remains 0 handled.
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
