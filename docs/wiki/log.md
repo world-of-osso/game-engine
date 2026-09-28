@@ -40,6 +40,12 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | Native Options controller is bounded; independent proof pending
+
+`a15b441e` gives `GameClient` an owned Options model and routes the authored Options view from Options and AddOns (Social/Addons). It dispatches policy actions and captured slider values, saves snapshots after re-reading the canonical file so external EULA/realm edits survive, prioritizes Escape cancellation while binding capture is armed, returns Options to the main menu on the next Escape, and closes on Done. Agent760 reports the real headless `options_menu_flow.gd` exits 0 through live FPS visibility, outside-slider clamp/persistence, Defaults, keyboard/mouse capture and Escape cancellation, Options Escape-back, AddOns, Done, and external EULA/realm preservation. That runtime result awaits independent verification. Existing consumer scope is FPS overlay, camera, and input bindings only; graphics, audio, and other HUD consumers remain unverified/unwired. No restart/runtime GPU parity is claimed: `/tmp/claude/display-options-red.log` is RED, exit 1. Exclude uncommitted display behavior. The matrix remains 0 handled.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] system | Authored Options projection remains unwired
 
 `d620c812` adds full authored `GameMenuViewModel` projection through `GameMenuModel::from_view` and `RegistryUi` full-view show/update APIs, plus Slider projection and viewport-level captured drag events. Agent-reported targeted `options_views` 3/3 and native slider 1/1 pass. This does not route the real game menu or integrate its controller: a real headless Options click at `d620c812` correctly reports `menu_options not converted` and creates no Options panel. Native Options and full conversion remain incomplete; matrix result stays 0 handled.
