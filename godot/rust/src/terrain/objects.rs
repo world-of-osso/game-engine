@@ -345,7 +345,7 @@ impl TerrainObjects {
                 format!("WMO {wmo} doodad {}: {path} not in listfile", doodad.index)
             })?,
         };
-        let (mut model, _) = self
+        let (mut model, render_box) = self
             .build_doodad_model(fdid)
             .map_err(|error| format!("WMO {wmo} doodad {}: {error}", doodad.index))?;
         let rotation = doodad.rotation;
@@ -357,6 +357,19 @@ impl TerrainObjects {
         model.set_scale(Vector3::ONE * doodad.scale);
         bind_visual_light(&model, self.light.as_ref());
         parent.add_child(&model);
+        // Retail 12340 gates WMO-attached doodads by the same scenery distance as ADT
+        // doodads (solarityclient `terrain_frame/m2/doodad_scene.rs`, 799B70 admission).
+        let world_from_model = affine(parent.get_global_transform())
+            * Affine3A::from_scale_rotation_translation(
+                Vec3::splat(doodad.scale),
+                doodad.rotation,
+                doodad.translation,
+            );
+        self.doodads.push(CulledDoodad {
+            node: model,
+            scenery: SceneryDistance::new(render_box.0, render_box.1, world_from_model),
+            shown: true,
+        });
         Ok(())
     }
 
@@ -469,4 +482,14 @@ fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
         }
     }
     groups
+}
+
+fn affine(transform: Transform3D) -> Affine3A {
+    let column = |vector: Vector3| Vec3::new(vector.x, vector.y, vector.z);
+    Affine3A::from_cols(
+        column(transform.basis.col_a()).into(),
+        column(transform.basis.col_b()).into(),
+        column(transform.basis.col_c()).into(),
+        column(transform.origin).into(),
+    )
 }
