@@ -1699,3 +1699,7 @@ Both clients share `VariationFamily`. A weighted zero-duration variation plays f
 ## [2026-09-28] fix | Light selection with ZoneLight polygons
 
 Both clients now select LightParams in WebWowViewerCpp's order: the map default, then ZoneLight polygons, then local lights (strongest first). ZoneLight and ZoneLightPoint are exported from local CASC. Stormwind and Elwynn gain LightParams 6080. Cultists' Quay keeps LightParams 12, because no Light or ZoneLight row covers map 2837. Its Retail blue comes from the WMO's MFOG fog, which is not ported. See [[retail-lighting]] and [[campsite-fog-and-wmo-selection]].
+
+## [2026-09-28] feature | Godot NPC locomotion from CreatureMotion
+
+Replicated NPCs in the Godot client now play Walk 4, Run 5 and Stand 0 from the server's `CreatureMotion`, as the Bevy client does, instead of always standing. See [animation](systems/animation.md#native-godot-replicated-npc-locomotion).
