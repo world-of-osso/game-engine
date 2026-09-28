@@ -2,9 +2,9 @@
 
 ## [2026-09-28] system | Cached authored shore swimming fixture exits 0
 
-`d7dae274` commits only a GDScript screenshot-image type correction; native production is unchanged. The actual cached `azeroth(32,48)` fixture exits 0 (`/tmp/claude/swimming-runtime-typed-image.log`): at X=-8558, W/S/Space crosses dry Z522 → deep Z500 → dry Z522, observes 5 → Swim 42 → SwimIdle 41, suppresses wet Space while stationary and moving, then reaches SwimBackwards 45 (43 is SwimLeft) → WalkBackwards 13 → Stand 0. Bones change after 150 ms; decoded UDP orders swimming false → true → false and is quiet after release. Main inspected the captured deep-water image separately.
+`d7dae274` commits only a GDScript screenshot-image type correction; native production is unchanged. The actual cached `azeroth(32,48)` fixture exits 0 (`/tmp/claude/swimming-runtime-typed-image.log`): at X=-8558, W/S/Space crosses dry Z522 → deep Z500 → dry Z522, observes 5 → Swim 42 → SwimIdle 41, suppresses wet Space while stationary and moving, then reaches SwimBackwards 45 (43 is SwimLeft) → WalkBackwards 13 → Stand 0. Bones change after 150 ms; decoded UDP orders swimming false → true → false and is quiet after release. Main read the rendered deep-water PNG: it shows the swimming body and terrain, but no water surface; verifier inspection was PNG metadata only.
 
-Historical compile/parse failures were fixture/test errors, not production REDs. Earlier native fmt/check remains valid; fresh-fixture verification is pending. This is not water-rendering, lateral-swimming, speed, floating-physics, real-server, parity, or full-conversion proof; full conversion remains open.
+Independent verification reran native `cargo fmt --check` and `cargo check -p game-engine-network --example native_input_fixture`, both exit 0. The new `swimming.rs` module has zero readability issues; the parent fixture retains seven existing structural issues. No default or runtime fixture reran. Historical compile/parse failures were fixture/test errors, not production REDs. This is not water-rendering, lateral-swimming, speed, floating-physics, real-server, parity, or full-conversion proof; full conversion remains open.
 
 Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
