@@ -91,11 +91,30 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
     let mut shared = SharedContext::new();
     let mut screen = Screen::new(game_menu_screen);
     let mut view = model();
-    for category in OptionsCategory::ALL {
+    let categories = [
+        (OptionsCategory::Graphics, "Particle Density"),
+        (OptionsCategory::Sound, "Master Volume"),
+        (OptionsCategory::Camera, "Mouse Sensitivity"),
+        (OptionsCategory::Interface, "Chat Font Size"),
+        (OptionsCategory::Hud, "Show Minimap"),
+        (OptionsCategory::Nameplates, "Border"),
+        (OptionsCategory::Controls, "Mouse Turn Style"),
+        (OptionsCategory::Accessibility, "UI Scale"),
+        (OptionsCategory::Keybindings, "Move Forward"),
+        (OptionsCategory::Macros, "General Macros"),
+        (OptionsCategory::SocialAddons, "Addon Directory"),
+        (OptionsCategory::Advanced, "Show FPS Overlay"),
+        (OptionsCategory::Support, "About"),
+    ];
+    assert_eq!(categories.len(), OptionsCategory::ALL.len());
+    for (category, body_label) in categories {
         view.options.category = category;
         shared.insert(view.clone());
         screen.sync(&shared, &mut registry);
         assert_eq!(label(&registry, "OptionsSectionTitle"), category.title());
+        assert!(registry.frames_iter().any(|frame| {
+            matches!(&frame.widget_data, Some(WidgetData::FontString(data)) if data.text == body_label)
+        }), "Missing {category:?} content: {body_label}");
         for tab in OptionsCategory::ALL {
             let id = registry
                 .get_by_name(&format!("OptionsTab{}", tab.key()))
@@ -136,9 +155,9 @@ fn sound_values_update_without_replacing_the_screen() {
         registry.click_frame(slider).as_deref(),
         Some("options_slider:master_volume")
     );
-    assert_eq!(label(&registry, "SliderValuemaster_volume"), "80%");
+    assert_eq!(label(&registry, "SliderValuemaster_volume"), "0.80");
     view.options.sound.master_volume = 0.25;
     shared.insert(view);
     screen.sync(&shared, &mut registry);
-    assert_eq!(label(&registry, "SliderValuemaster_volume"), "25%");
+    assert_eq!(label(&registry, "SliderValuemaster_volume"), "0.25");
 }
