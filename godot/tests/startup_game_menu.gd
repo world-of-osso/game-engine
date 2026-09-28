@@ -5,8 +5,8 @@ const STARTUP_WAIT_MS := 15000
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
 	var action := OS.get_environment("GODOT_MENU_ACTION")
-	if action not in ["escape", "resume", "exit"]:
-		fail("Startup menu fixture requires GODOT_MENU_ACTION=escape|resume|exit")
+	if action not in ["escape", "resume", "exit", "logout"]:
+		fail("Startup menu fixture requires GODOT_MENU_ACTION=escape|resume|exit|logout")
 		return
 	var screenshot := OS.get_environment("GODOT_STARTUP_SCREENSHOT")
 	if screenshot.is_empty():
@@ -41,6 +41,8 @@ func run_test() -> void:
 			push_key(KEY_ESCAPE, false)
 		"resume":
 			await click_menu_action(client, "MenuBtnResume")
+		"logout":
+			await click_menu_action(client, "MenuBtnLogout")
 		"exit":
 			await click_menu_action(client, "MenuBtnExit")
 			var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
@@ -50,8 +52,13 @@ func run_test() -> void:
 			return
 	if not await wait_menu_closed(client, null):
 		return
-	for frame in range(8):
+	var observe_until := Time.get_ticks_msec() + 1000
+	while Time.get_ticks_msec() < observe_until:
 		await process_frame
+		var countdown := client.get_node("LogoutOverlay") as CanvasLayer
+		if countdown.visible:
+			fail("Standalone menu displayed an InWorld-only logout countdown")
+			return
 	error = inspect_offline_state(client)
 	if error != "":
 		fail(error)
