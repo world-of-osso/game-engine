@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] system | Godot vertical swimming and breath bar
+
+Swimmers now float: Space ascends and X (`SitOrStand`) descends at swim speed, clamped to the surface and seabed; the loopback probe now expects the floating height. The server still clamps y to the seabed. Retail MirrorTimer breath bar ported, driven only by GDScript until the server sends mirror timers. Added [[swimming]].
+
 ## [2026-09-28] investigation | Godot player walks through WMO walls
 
 The Godot player had no wall collision; the original wall ray now runs against the WMO wall bodies before the slope rule. Updated [[stockade-entrance]] and [[collision-system]].
