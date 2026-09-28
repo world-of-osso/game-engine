@@ -60,6 +60,22 @@ impl WorldCamera {
             .expect("camera input preserves a present player facing")
     }
 
+    /// View frustum planes as inside half spaces, for portal culling.
+    pub fn frustum(&self) -> Vec<crate::wmo::portals::HalfSpace> {
+        let Some(camera) = &self.node else {
+            return Vec::new();
+        };
+        // Godot planes face outward: a point is inside when `normal.dot(p) <= d`.
+        camera
+            .get_frustum()
+            .iter_shared()
+            .map(|plane| crate::wmo::portals::HalfSpace {
+                normal: -glam::Vec3::new(plane.normal.x, plane.normal.y, plane.normal.z),
+                d: plane.d,
+            })
+            .collect()
+    }
+
     pub fn position(&self) -> Option<Vector3> {
         self.node
             .as_ref()
