@@ -5,7 +5,8 @@ use bevy::ecs::schedule::common_conditions::resource_changed;
 use bevy::prelude::*;
 
 use crate::sound_footsteps::{
-    FootstepRequest, FootstepSurface, LoadedFootstepCatalog, classify_player_creature,
+    FootstepMovement, FootstepRequest, FootstepSurface, LoadedFootstepCatalog,
+    classify_player_creature,
 };
 use game_engine::input_bindings::InputAction;
 
