@@ -144,34 +144,21 @@ fn advance_marker(app: &mut App, progress: &mut Progress, line: &str) -> Result<
 
 fn check_inputs(app: &mut App, progress: &mut Progress) -> Result<(), String> {
     let inputs = take_inputs(app);
-    match progress.stage {
-        Stage::Resumed => progress.saw_forward |= assert_forward_input(inputs)?,
-        Stage::Blocked
-        | Stage::BlockedQuiet
-        | Stage::Released
-        | Stage::FinalQuiet
-        | Stage::ExitRequested => {
-            if progress.stage == Stage::Blocked
-                || progress.stage == Stage::BlockedQuiet
-                || progress
-                    .quiet_at
-                    .is_some_and(|at| at.elapsed() >= RELEASE_DRAIN)
-            {
-                if !inputs.is_empty() {
-                    return Err(format!(
-                        "decoded PlayerInput during {:?}: {inputs:?}",
-                        progress.stage
-                    ));
-                }
-            }
-        }
-        Stage::CharacterSelect | Stage::Loading | Stage::World => {
-            if !inputs.is_empty() {
-                return Err(format!(
-                    "decoded PlayerInput before menu movement: {inputs:?}"
-                ));
-            }
-        }
+    if progress.stage == Stage::Resumed {
+        progress.saw_forward |= assert_forward_input(inputs)?;
+        return Ok(());
+    }
+    let require_quiet = match progress.stage {
+        Stage::Released | Stage::FinalQuiet | Stage::ExitRequested => progress
+            .quiet_at
+            .is_some_and(|at| at.elapsed() >= RELEASE_DRAIN),
+        _ => true,
+    };
+    if require_quiet && !inputs.is_empty() {
+        return Err(format!(
+            "decoded PlayerInput during {:?}: {inputs:?}",
+            progress.stage
+        ));
     }
     Ok(())
 }
