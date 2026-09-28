@@ -23,4 +23,4 @@ The tile `2837_27_31` has no MCLY layers and one MODF WMO (5356285, doodad set 1
 
 - Scene 5: the WMO's 1,663 MODD doodads (set 0 DefaultGlobal 1,612, set 1 Warband 50) are not placed. Map 2837 has no Light rows, so lighting falls back to Light 1 (LightParams 12). ZoneLight.db2 is not extracted locally.
 - Scene 7: MH2O water uses the placeholder procedural shader (pale fresnel sheet), not Retail liquid colours and textures.
-- `M2 variation 1 has zero duration` in scene 7 comes from `pa_redbird_stand.m2` (FDID 588287): sequence 1 (Stand variation 1) has duration 0 and frequency 30583.
+- Fixed in `736ed0f6`: `M2 variation 1 has zero duration` in scene 7 came from `pa_redbird_stand.m2` (FDID 588287), Stand variation 1 with duration 0 and frequency 30583. See [weighted loop variations](../systems/animation.md#weighted-loop-variations).
