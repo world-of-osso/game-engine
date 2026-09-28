@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] investigation | Godot texture VRAM
+
+Created [[godot-texture-vram]]. The Godot client built a new RGBA8 `ImageTexture` per M2 material per placement and per WMO build. `224eb4f8` adds `core::blp::decode_gpu` (DXT kept with mips); `0f36a6cb` shares one texture per FDID/composite. In-world VRAM: 4,994 MiB and rising before, 1,029 MiB settled after.
+
 ## [2026-09-27] system | Idle right-drag reaches authored turns before later WMO blocker
 
 `93f38c13` adds actual idle right-drag coverage. Its runtime RED observes yaw delta `-0.12`, expects authored turn 12, and receives Stand 0 (`/tmp/claude/idle-turn-runtime-red-93f38c13.log`). `167ef65b` selects idle turns from normalized consecutive local-facing samples; `8ee6c5ea` makes the 0.02-radian thresholds inclusive. Six targeted tests are reported GREEN.
