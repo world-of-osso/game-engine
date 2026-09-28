@@ -13,7 +13,7 @@ References:
 - [x] A swimmer has no gravity and no jump: idle it stays where it is.
 - [x] Held Jump (default Space) ascends and held Sit/Move Down (`SitOrStand`, default X) descends at `SWIM_SPEED` (4.7222 yd/s); both held cancel.
 - [x] A swimmer rises no higher than feet `SWIM_DEPTH` under the surface, and one floating there follows the surface while swimming level; it sinks no lower than the ground.
-- [x] Walking into deep water floats at the surface; swimming onto a rising shore lifts the feet onto it and walking resumes.
+- [x] Walking into deep water starts swimming at the floating height (a walk frame that crosses the threshold past it is lifted to it, never below the seabed) and stays at the surface; a spawn or fall into water keeps its depth. Swimming onto a rising shore lifts the feet onto it and walking resumes.
 - [x] Horizontal swimming uses `SWIM_SPEED` times the backpedal/strafe multipliers, the speed the server grants a `swimming` input.
 - [x] Right-mouse-steered forward/backward swimming follows the camera pitch; strafing and keyboard-only forward stay level.
 - [x] `PlayerInput` while swimming: `swimming` true, `jumping` false, `position` the predicted feet; a vertical-only swim step that changed height sends an input with zero direction.
@@ -25,7 +25,7 @@ References:
 
 ## Tests
 
-- `godot/rust/src/gameplay.rs`: `space_ascends_to_the_surface_and_x_descends_to_the_seabed`, `walking_into_deep_water_floats_at_the_surface_at_swim_speed`, `mouse_steered_forward_swim_follows_camera_pitch` on cached `azeroth_32_48`.
+- `godot/rust/src/gameplay.rs`: `space_ascends_to_the_surface_and_x_descends_to_the_seabed`, `walking_into_deep_water_floats_at_the_surface_at_swim_speed`, `slow_frames_wade_in_to_the_floating_height`, `mouse_steered_forward_swim_follows_camera_pitch` on cached `azeroth_32_48`.
 - `godot/core/tests/input_bindings_data.rs`: `SitOrStand` default X, label, section.
 - `godot/ui-model/tests/mirror_timer.rs`: countdown/pause/stop/refill, retail layout, atlas crop, label, stacking.
 - `godot/tests/swimming_live.gd`: dev server 127.0.0.1:5000, real Space/X key events, breath bar drawn under water.
