@@ -343,14 +343,14 @@ fn load_stage(
     let Some(fdid) = fdid else {
         return Ok(None);
     };
-    let (pixels, width, height) =
-        assets::material::load_texture(fdid, dir, missing)?.ok_or_else(|| {
+    assets::material::shared_texture(fdid, dir, missing)?
+        .ok_or_else(|| {
             format!(
                 "Sky FDID {SKY_FDID} missing texture {fdid} at {}",
                 dir.display()
             )
-        })?;
-    assets::material::texture_from_rgba(&pixels, width, height).map(Some)
+        })
+        .map(Some)
 }
 
 fn combine_mode(batch: &ResolvedBatch) -> u16 {
