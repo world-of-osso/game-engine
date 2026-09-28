@@ -40,6 +40,12 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | Options policy is shared; native parity remains absent
+
+`0c68d89e` centralizes Options drafts, view construction, action/reset policy, and apply snapshots in shared `options_menu_data`; reported `ui-model` policy proof is 3/3, with independent verification pending. `80b3c664` migrates the original Bevy runtime adapters to that policy while retaining immediate root apply and host-owned persistence. Native Options routing, live consumers, and persistence remain missing. Source sharing is not native parity or a final gate; the detailed matrix remains 0 handled.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] investigation | Camera collision recovery lag
 
 `fe9faa73` recovers camera collision from the stored pulled-in distance instead of the lagging camera pose, so the camera keeps following a running player after a pull-in. Created [[camera-collision-recovery-lag]].
