@@ -24,8 +24,8 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        EquipmentAppearance, Health, Mana, ModelDisplay, MovementControl, Npc, Player, Position,
-        Rotation, UnitLevel,
+        CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay, MovementControl, Npc,
+        Player, Position, Rotation, UnitLevel,
     },
     protocol::{
         CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
@@ -75,6 +75,8 @@ pub struct UnitSnapshot {
     pub level: Option<UnitLevel>,
     pub equipment: Option<EquipmentAppearance>,
     pub movement_control: Option<MovementControl>,
+    /// A creature's stand/walk/run; players carry none.
+    pub creature_motion: Option<CreatureMotion>,
 }
 
 impl UnitSnapshot {
@@ -91,6 +93,7 @@ impl UnitSnapshot {
             level: entity.get::<UnitLevel>().copied(),
             equipment: entity.get::<EquipmentAppearance>().cloned(),
             movement_control: entity.get::<MovementControl>().copied(),
+            creature_motion: entity.get::<CreatureMotion>().copied(),
         }
     }
 }
