@@ -16,6 +16,19 @@ pub(crate) struct NativeWmoAsset {
     pub groups: Vec<NativeWmoGroup>,
 }
 
+impl NativeWmoAsset {
+    /// The MODD doodads a placement with MODF `doodad_set` draws.
+    pub fn doodads(&self, doodad_set: u16) -> Vec<wmo::WmoDoodad> {
+        wmo::placed_doodads(
+            &self.root,
+            self.groups
+                .iter()
+                .map(|group| group.group.geometry.doodad_refs.as_slice()),
+            doodad_set,
+        )
+    }
+}
+
 pub(crate) struct NativeWmoGroup {
     pub index: u32,
     pub fdid: u32,
