@@ -6,7 +6,7 @@ fn blend_mode_1_respects_partial_alpha() {
     let mut dst = [100, 120, 140, 255];
     let src = [200, 40, 20, 64];
 
-    super::blend_pixel(&mut dst, 0, &src, 0, true);
+    super::blend_pixel(&mut dst, 0, &src, 0, 1);
 
     assert_eq!(dst, [125, 99, 109, 255]);
 }
@@ -16,7 +16,7 @@ fn opaque_modes_still_copy_nonzero_alpha_pixels() {
     let mut dst = [100, 120, 140, 255];
     let src = [200, 40, 20, 64];
 
-    super::blend_pixel(&mut dst, 0, &src, 0, false);
+    super::blend_pixel(&mut dst, 0, &src, 0, 0);
 
     assert_eq!(dst, [200, 40, 20, 255]);
 }

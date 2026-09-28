@@ -158,3 +158,56 @@ fn hd_body_head_and_hair_keep_nearest_neighbor_crop_bytes() {
         Some((512, 512, &[40, 50, 60, 255][..]))
     );
 }
+
+/// ChrModelTextureLayer.BlendMode 4/6/7 (multiply/overlay/screen, WMVx
+/// `CharacterTextureBuilder::BlendMode`) tint the composited layers below them.
+fn tinted_base(blend_mode: u32, tint: [u8; 4]) -> Vec<u8> {
+    let data = data(vec![layer(1, 0, 0, -1, 1), layer(30, 4, blend_mode, -1, 1)]);
+    let (pixels, _, _) = data
+        .composite_with(&[(1, 10), (30, 11)], 1, |fdid| match fdid {
+            10 => Some((vec![200, 150, 100, 255], 1, 1)),
+            11 => Some((tint.to_vec(), 1, 1)),
+            _ => None,
+        })
+        .unwrap();
+    pixels[..4].to_vec()
+}
+
+#[test]
+fn overlay_multiply_and_screen_layers_tint_the_base_skin() {
+    assert_eq!(tinted_base(6, [80, 97, 97, 255]), [180, 125, 76, 255]);
+    assert_eq!(tinted_base(4, [80, 97, 97, 255]), [62, 57, 38, 255]);
+    assert_eq!(tinted_base(7, [80, 97, 97, 255]), [218, 190, 159, 255]);
+}
+
+#[test]
+fn tint_layers_weight_the_blend_by_source_alpha() {
+    assert_eq!(tinted_base(6, [80, 97, 97, 128]), [189, 137, 87, 255]);
+    assert_eq!(tinted_base(6, [80, 97, 97, 0]), [200, 150, 100, 255]);
+}
+
+#[test]
+fn straight_alpha_layers_blend_instead_of_replacing_the_base() {
+    assert_eq!(tinted_base(9, [80, 97, 97, 128]), [139, 123, 98, 255]);
+}
+
+/// Only TextureType 1 layers belong to the body atlas; accessory slots such as
+/// TextureType 20 (target 38) are separate M2 textures and must not paint the body.
+#[test]
+fn non_body_texture_type_layers_do_not_paint_the_body_atlas() {
+    let data = data(vec![layer(1, 0, 1, -1, 1), layer(38, 1, 1, -1, 20)]);
+    let result = data
+        .composite_model_textures_with(&[(1, 10), (38, 11)], &[], 1, 10, |fdid| match fdid {
+            10 => Some((vec![200, 150, 100, 255], 1, 1)),
+            11 => Some((vec![1, 2, 3, 255], 1, 1)),
+            _ => None,
+        })
+        .unwrap();
+    assert!(
+        result
+            .body
+            .0
+            .chunks_exact(4)
+            .all(|pixel| pixel == [200, 150, 100, 255])
+    );
+}

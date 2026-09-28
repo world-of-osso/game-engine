@@ -523,3 +523,134 @@ mod tests {
         assert!(result.unwrap_err().contains(&format!("FDID {missing}")));
     }
 }
+
+/// Rendered skin against the Customize swatch on the real catalog and local textures.
+#[cfg(test)]
+mod swatch_tests {
+    use super::*;
+    use crate::char_create::{CharCreateState, appearance::select_choice};
+    use game_engine_core::{
+        customization_data::OptionType, npc_appearance_assets::load_customization_db,
+    };
+
+    fn data_root() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+    }
+
+    fn rgb(raw: i32) -> [f64; 3] {
+        let argb = raw as u32;
+        [(argb >> 16) as u8, (argb >> 8) as u8, argb as u8].map(f64::from)
+    }
+
+    /// Mean opaque colour of the body atlas' left half (arms, torso and legs).
+    fn body_mean((pixels, width, height): &TexturePixels) -> [f64; 3] {
+        let (mut sum, mut count) = ([0.0; 3], 0.0);
+        for y in 0..*height {
+            for x in 0..width / 2 {
+                let pixel = &pixels[((y * width + x) * 4) as usize..][..4];
+                if pixel[3] == 255 {
+                    (0..3).for_each(|channel| sum[channel] += f64::from(pixel[channel]));
+                    count += 1.0;
+                }
+            }
+        }
+        sum.map(|channel| channel / count)
+    }
+
+    /// Chromaticity distance (x100): lighting shades the body darker than its swatch,
+    /// so hue/saturation are compared rather than brightness.
+    fn chroma_distance(a: [f64; 3], b: [f64; 3]) -> f64 {
+        let (sum_a, sum_b) = (a.iter().sum::<f64>(), b.iter().sum::<f64>());
+        (0..3)
+            .map(|channel| (a[channel] / sum_a - b[channel] / sum_b).powi(2))
+            .sum::<f64>()
+            .sqrt()
+            * 100.0
+    }
+
+    /// Select `skin_id` through the shared creation rules and composite the player body.
+    fn rendered_body(
+        db: &CustomizationDb,
+        state: &mut CharCreateState,
+        skin_option: u32,
+        skin_id: u32,
+    ) -> TexturePixels {
+        select_choice(state, skin_option, skin_id, db);
+        let (race, sex, class) = (
+            state.selected_race,
+            state.selected_sex,
+            state.selected_class,
+        );
+        let chosen = select_player_choices(db, race, sex, class, &state.appearance).unwrap();
+        let compositor =
+            game_engine_core::npc_appearance_assets::load_compositor(&data_root()).unwrap();
+        let resolver =
+            super::super::creature::local_resolver(&data_root(), &data_root().join("cache"));
+        let layout = db.layout_id(race, sex).unwrap();
+        let mut textures = compose_player_pixels(&compositor, &chosen, &[], layout, |fdid| {
+            load_appearance_texture(&resolver, &data_root(), fdid, "swatch test")
+        })
+        .unwrap_or_else(|error| panic!("race {race} sex {sex} skin {skin_id}: {error}"));
+        textures.remove(&1).unwrap()
+    }
+
+    fn creation_state(race: u8, sex: u8, class: u8, db: &CustomizationDb) -> CharCreateState {
+        let mut state = CharCreateState {
+            selected_race: race,
+            selected_sex: sex,
+            selected_class: class,
+            ..CharCreateState::default()
+        };
+        crate::char_create::randomize_appearance_with_seed(&mut state, db, 11);
+        state
+    }
+
+    /// Reported: tan swatch 4978 with face 27 rendered a flat teal body because the
+    /// authored target-30 overlay layer replaced the skin instead of tinting it.
+    #[test]
+    fn reported_tan_skin_renders_its_swatch_color() {
+        let db = load_customization_db(&data_root()).unwrap();
+        let mut state = creation_state(1, 0, 1, &db);
+        select_choice(&mut state, 10, 15430, &db);
+        let body = rendered_body(&db, &mut state, 9, 4978);
+        let swatch = rgb(db.choice_by_id(1, 0, 4978).unwrap().swatch_colors[0]);
+        let distance = chroma_distance(body_mean(&body), swatch);
+        assert!(
+            distance < 14.0,
+            "body {:?} vs swatch {swatch:?}: {distance:.1}",
+            body_mean(&body)
+        );
+    }
+
+    #[test]
+    fn every_offered_skin_renders_close_to_its_swatch() {
+        let db = load_customization_db(&data_root()).unwrap();
+        for (race, class) in [(1, 1), (2, 1), (3, 1), (4, 1), (10, 2)] {
+            for sex in [0, 1] {
+                let mut state = creation_state(race, sex, class, &db);
+                let skin_option = db
+                    .options_for(race, sex)
+                    .unwrap()
+                    .iter()
+                    .filter(|option| option.option_type == OptionType::SkinColor)
+                    .map(|option| option.id)
+                    .min()
+                    .unwrap();
+                for skin in db.choices_for_option(race, sex, class, skin_option) {
+                    if skin.swatch_colors[0] == 0 {
+                        continue;
+                    }
+                    let body = rendered_body(&db, &mut state, skin_option, skin.id);
+                    let swatch = rgb(skin.swatch_colors[0]);
+                    let distance = chroma_distance(body_mean(&body), swatch);
+                    assert!(
+                        distance < 14.0,
+                        "race {race} sex {sex} skin {}: body {:?} vs swatch {swatch:?}: {distance:.1}",
+                        skin.id,
+                        body_mean(&body)
+                    );
+                }
+            }
+        }
+    }
+}
