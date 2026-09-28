@@ -62,18 +62,7 @@ impl WorldCamera {
 
     /// View frustum planes as inside half spaces, for portal culling.
     pub fn frustum(&self) -> Vec<crate::wmo::portals::HalfSpace> {
-        let Some(camera) = &self.node else {
-            return Vec::new();
-        };
-        // Godot planes face outward: a point is inside when `normal.dot(p) <= d`.
-        camera
-            .get_frustum()
-            .iter_shared()
-            .map(|plane| crate::wmo::portals::HalfSpace {
-                normal: -glam::Vec3::new(plane.normal.x, plane.normal.y, plane.normal.z),
-                d: plane.d,
-            })
-            .collect()
+        self.node.as_ref().map(frustum).unwrap_or_default()
     }
 
     pub fn position(&self) -> Option<Vector3> {
@@ -193,4 +182,17 @@ fn raycast_visible_mesh(
             .to::<Vector3>();
         return Some(origin.distance_to(position));
     }
+}
+
+/// `camera`'s view frustum planes as inside half spaces.
+pub(crate) fn frustum(camera: &Gd<Camera3D>) -> Vec<crate::wmo::portals::HalfSpace> {
+    // Godot planes face outward: a point is inside when `normal.dot(p) <= d`.
+    camera
+        .get_frustum()
+        .iter_shared()
+        .map(|plane| crate::wmo::portals::HalfSpace {
+            normal: -glam::Vec3::new(plane.normal.x, plane.normal.y, plane.normal.z),
+            d: plane.d,
+        })
+        .collect()
 }

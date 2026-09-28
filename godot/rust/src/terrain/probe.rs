@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use game_engine_core::adt::{DoodadPlacement, WmoPlacement};
 use godot::{
-    classes::{INode3D, Node3D, ProjectSettings},
+    classes::{Camera3D, INode3D, Node3D, ProjectSettings},
     prelude::*,
 };
 
@@ -77,7 +77,7 @@ impl INode3D for WowWmoPlacementProbe {
         }
         loaded.global.sync(&mut parent, &loaded.terrain);
         if let Some((wmo, node, doodads)) = loaded.global.take_doodads() {
-            loaded.objects.queue_wmo_doodads(wmo, &node, doodads);
+            loaded.objects.queue_wmo_doodads(wmo, &node, doodads, None);
         }
         loaded
             .objects
@@ -117,11 +117,14 @@ impl WowWmoPlacementProbe {
         GString::new()
     }
 
-    /// The in-world per-frame scenery-distance cull from `camera`.
+    /// The in-world per-frame portal and scenery-distance cull from `camera`.
     #[func]
-    fn cull_doodads(&mut self, camera: Vector3) {
+    fn cull_from(&mut self, camera: Gd<Camera3D>) {
         if let Some(loaded) = self.loaded.as_mut() {
-            loaded.objects.cull_doodads(camera);
+            loaded.objects.cull(
+                camera.get_global_position(),
+                &crate::camera::frustum(&camera),
+            );
         }
     }
 
