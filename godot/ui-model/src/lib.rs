@@ -10,6 +10,7 @@ pub mod ui {
     }
 
     pub mod screens {
+        pub(crate) use crate::screen_title;
         pub use crate::{default_button_atlas, trash_button_component};
     }
 
@@ -39,10 +40,14 @@ pub mod ui_errors_data;
 #[path = "../../../src/ui/screens/ui_errors_frame_component.rs"]
 pub mod ui_errors_frame_component;
 
+#[path = "../../../src/ui/screens/game_menu_main.rs"]
+pub mod game_menu_main;
 #[path = "../../../src/ui/screens/loading_component.rs"]
 pub mod loading_component;
 #[path = "../../../src/ui/screens/login_component.rs"]
 pub mod login;
+#[path = "../../../src/ui/screens/screen_title.rs"]
+mod screen_title;
 
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -55,6 +60,7 @@ use char_select_component::{
     CharDisplayEntry, CharSelectState, DeleteConfirmUiState, apply_char_select_postsetup,
     char_select_screen,
 };
+use game_menu_main::{GAME_MENU_ROOT, main_menu_screen};
 use loading_component::{LoadingScreenState, loading_screen};
 use login::{
     PASSWORD_INPUT, SharedConnecting, SharedRealmSelectable, SharedRealmText, SharedStatusText,
@@ -198,6 +204,36 @@ impl CharacterSelectModel {
     pub fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
         apply_char_select_postsetup(&mut self.registry);
+    }
+}
+
+/// Original main-menu tree only. The host owns opening, actions, and Options routing.
+pub struct GameMenuModel {
+    pub screen: Screen,
+    pub shared: SharedContext,
+    pub registry: FrameRegistry,
+}
+
+impl GameMenuModel {
+    pub fn new(screen_width: f32, screen_height: f32, logged_in: bool) -> Self {
+        let mut shared = SharedContext::new();
+        shared.insert(logged_in);
+        Self {
+            screen: Screen::new(main_menu_screen),
+            shared,
+            registry: FrameRegistry::new(screen_width, screen_height),
+        }
+    }
+
+    pub fn sync(&mut self) {
+        self.screen.sync(&self.shared, &mut self.registry);
+        let (width, height) = (self.registry.screen_width, self.registry.screen_height);
+        if let Some(id) = self.registry.get_by_name(GAME_MENU_ROOT.0)
+            && let Some(root) = self.registry.get_mut(id)
+        {
+            root.width = ui_toolkit::frame::Dimension::Fixed(width);
+            root.height = ui_toolkit::frame::Dimension::Fixed(height);
+        }
     }
 }
 
