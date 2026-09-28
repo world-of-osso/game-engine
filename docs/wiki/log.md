@@ -4,7 +4,9 @@
 
 `b412f7e4` restores original ADT MH2O rendering: shared Bevy/core water geometry and procedural-normal bytes, native normal/fresnel/specular/depth-alpha shader execution, shared-clock sampling, and tile/reset cleanup. `/tmp/claude/adt-water-runtime-clock-typed.log` exits 0: authored geometry covers the fixture point; 4,608 pixels change and are translucent; paused clock pixels remain stable; a 2-second advance changes at least 64 pixels; swim/UDP/release, freed water-node, and client-exit checks complete. Main read `swimming.png`, `swimming-shoreline.png`, and `swimming-water-isolated.png`: blue translucent water and authored shore are visible.
 
-`3341c9b6`'s missing `WorldTerrain/Tile32_48/Water` is the genuine production RED. Historical fixture marker/type/compile/parse failures remain historical fixture errors, not production defects. Independent verification is pending. No waves, foam, liquid-type-specific textures, WMO water, buoyancy, performance, visual equivalence, parity, or full-conversion claim.
+`a160bdbf` is an import-order-only follow-up. Final root and Godot `fmt --check` pass; earlier root/native checks, core geometry 3/3, normal-byte 2/2, and runtime pixels/clock/client-free proof remain valid. Native checks retain two known WMO warnings; the narrow normal test retains one unused-import warning. Client-free proves cleanup only: live-world transfer/reconnect water reset/recreation remains unverified while agent682 audits it.
+
+`3341c9b6`'s missing `WorldTerrain/Tile32_48/Water` is the genuine production RED. Historical fixture marker/type/compile/parse failures remain historical fixture errors, not production defects. No waves, foam, liquid-type-specific textures, WMO water, buoyancy, performance, visual equivalence, parity, or full-conversion claim.
 
 Updated [[godot-conversion]], [[terrain]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
