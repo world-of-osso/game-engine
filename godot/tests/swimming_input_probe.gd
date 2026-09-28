@@ -108,6 +108,15 @@ func check(flow, client: Node, player: Node3D) -> String:
 		await flow.process_frame
 		if animation.animation.current_animation_id() != 41:
 			return "Wet forward release did not return to SwimIdle 41"
+	error = await check_lateral(flow, client, player, animation, KEY_A, 43, "LEFT")
+	if error != "":
+		return error
+	error = await check_lateral(flow, client, player, animation, KEY_D, 44, "RIGHT")
+	if error != "":
+		return error
+	if absf(player.position.x - START.x) > 0.3:
+		return "Lateral return missed original X before S: " + str(player.position)
+	print("FIXTURE SWIM_BACKWARD_START")
 	flow.push_key(KEY_S, true)
 	var backward_seen := false
 	var dry_seen := false
@@ -138,6 +147,65 @@ func check(flow, client: Node, player: Node3D) -> String:
 		if frame >= 10 and animation.animation.current_animation_id() != 0:
 			return "Dry S release did not remain Stand 0"
 	print("FIXTURE SWIM_DONE")
+	return ""
+
+func check_lateral(flow, client: Node, player: Node3D, animation: RefCounted, keycode: Key, clip: int, label: String) -> String:
+	var origin := player.position
+	var idle_pose: Array[Transform3D] = animation.capture_pose()
+	var selected_at := -1
+	var changed_pose := false
+	print("FIXTURE SWIM_" + label + "_START")
+	flow.push_key(keycode, true)
+	var error := ""
+	for frame in range(120):
+		await flow.process_frame
+		if client.account_state().screen != "InWorld":
+			error = label + " exited world at frame " + str(frame)
+			break
+		var current_id: int = animation.animation.current_animation_id()
+		if current_id == clip and selected_at < 0:
+			selected_at = Time.get_ticks_msec()
+		if selected_at >= 0 and current_id != clip:
+			error = label + " left Swim clip " + str(clip) + ": " + str(current_id)
+			break
+		error = check_lateral_ground(client, player, origin)
+		if error != "":
+			break
+		if selected_at >= 0 and Time.get_ticks_msec() - selected_at >= POSE_BLEND_MS:
+			changed_pose = changed_pose or animation.changed_from(idle_pose)
+		var dx := player.position.x - origin.x
+		var arrived: bool = dx >= 1.8 if keycode == KEY_A else absf(player.position.x - START.x) <= 0.3 and dx <= -1.5
+		if arrived and changed_pose:
+			break
+	flow.push_key(keycode, false)
+	print("FIXTURE SWIM_" + label + "_END")
+	if error != "":
+		return error
+	var displacement := player.position.x - origin.x
+	if selected_at < 0 or not changed_pose or (keycode == KEY_A and displacement < 1.8) or (keycode == KEY_D and (displacement > -1.5 or absf(player.position.x - START.x) > 0.3)):
+		return label + " lacked signed lateral displacement, Swim clip " + str(clip) + ", or changed bones after blend: " + str(player.position)
+	var stopped := player.position
+	for frame in range(STILL_FRAMES + 10):
+		await flow.process_frame
+		if frame == 10:
+			stopped = player.position
+		if frame >= 10 and animation.animation.current_animation_id() != 41:
+			return label + " release did not select SwimIdle 41"
+		if frame > 10 and player.position.distance_to(stopped) > 0.05:
+			return label + " release drifted: " + str(player.position)
+		error = check_lateral_ground(client, player, origin)
+		if error != "":
+			return error
+	print("FIXTURE SWIM_" + label + "_IDLE_DONE")
+	return ""
+
+func check_lateral_ground(client: Node, player: Node3D, origin: Vector3) -> String:
+	var position := player.position
+	var ground = client.terrain_height_at(position.x, position.z)
+	if ground == null or absf(position.y - float(ground)) > 0.3 or WATER_LEVEL - float(ground) < 3.0:
+		return "Lateral swim lost grounded deep-water sample: " + str(position) + " ground=" + str(ground)
+	if position.x < START.x - 4.0 or position.x > START.x + 4.0 or position.z < 490.0 or position.z > DEEP_Z + 0.5 or absf(position.z - origin.z) > 0.3:
+		return "Lateral swim left measured flat corridor: " + str(position)
 	return ""
 
 func check_ground(client: Node, player: Node3D, wet: bool) -> String:

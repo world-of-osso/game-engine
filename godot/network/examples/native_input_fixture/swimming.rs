@@ -5,6 +5,8 @@ use super::*;
 enum Shore {
     DryForward,
     WetForward,
+    WetLeft,
+    WetRight,
     WetBackward,
     DryBackward,
 }
@@ -21,6 +23,8 @@ impl Shore {
         }
         let forward = Directional::Walk.expected_vector(input.facing_yaw);
         let backward = Directional::Backward.expected_vector(input.facing_yaw);
+        let left = Directional::Left.expected_vector(input.facing_yaw);
+        let right = Directional::Right.expected_vector(input.facing_yaw);
         let matches = |expected: [f32; 3]| {
             input
                 .direction
@@ -28,11 +32,19 @@ impl Shore {
                 .zip(expected)
                 .all(|(actual, expected)| actual.is_finite() && (actual - expected).abs() < 0.15)
         };
-        match (matches(forward), matches(backward), input.swimming) {
-            (true, false, false) => Ok(Self::DryForward),
-            (true, false, true) => Ok(Self::WetForward),
-            (false, true, true) => Ok(Self::WetBackward),
-            (false, true, false) => Ok(Self::DryBackward),
+        match (
+            input.swimming,
+            matches(forward),
+            matches(backward),
+            matches(left),
+            matches(right),
+        ) {
+            (false, true, false, false, false) => Ok(Self::DryForward),
+            (true, true, false, false, false) => Ok(Self::WetForward),
+            (true, false, false, true, false) => Ok(Self::WetLeft),
+            (true, false, false, false, true) => Ok(Self::WetRight),
+            (true, false, true, false, false) => Ok(Self::WetBackward),
+            (false, false, true, false, false) => Ok(Self::DryBackward),
             _ => Err(format!("unexpected shore direction/swim flags: {input:?}")),
         }
     }
@@ -46,6 +58,10 @@ enum Stage {
     Idle,
     SpaceIdle,
     SpaceForward,
+    Left,
+    LeftIdle,
+    Right,
+    RightIdle,
     Backward,
     Dry,
     Done,
@@ -62,6 +78,8 @@ pub(super) fn run(
     let mut stage = Stage::Loading;
     let mut shore = None;
     let mut saw_space_forward = false;
+    let mut saw_left = false;
+    let mut saw_right = false;
     let mut released_at: Option<Instant> = None;
     let mut readers = Some(readers);
     let deadline = Instant::now() + TIMEOUT;
@@ -111,8 +129,32 @@ pub(super) fn run(
                     if !saw_space_forward {
                         return Err("no decoded wet W+Space packets".into());
                     }
-                    stage = Stage::Backward;
+                    stage = Stage::Left;
                 }
+                (Stage::Left, "FIXTURE SWIM_LEFT_START") => {}
+                (Stage::Left, "FIXTURE SWIM_LEFT_END") => {
+                    released_at = Some(Instant::now());
+                    stage = Stage::LeftIdle;
+                }
+                (Stage::LeftIdle, "FIXTURE SWIM_LEFT_IDLE_DONE") => {
+                    ensure_quiet(released_at, "swim left release")?;
+                    if !saw_left {
+                        return Err("no decoded wet A/SwimLeft packets".into());
+                    }
+                    stage = Stage::Right;
+                }
+                (Stage::Right, "FIXTURE SWIM_RIGHT_START") => {}
+                (Stage::Right, "FIXTURE SWIM_RIGHT_END") => {
+                    released_at = Some(Instant::now());
+                    stage = Stage::RightIdle;
+                }
+                (Stage::RightIdle, "FIXTURE SWIM_RIGHT_IDLE_DONE") => {
+                    ensure_quiet(released_at, "swim right release")?;
+                    if !saw_right {
+                        return Err("no decoded wet D/SwimRight packets".into());
+                    }
+                }
+                (Stage::RightIdle, "FIXTURE SWIM_BACKWARD_START") => stage = Stage::Backward,
                 (Stage::Backward, "FIXTURE SWIM_BACKWARD_RELEASED") => {
                     released_at = Some(Instant::now());
                     stage = Stage::Dry;
@@ -133,7 +175,12 @@ pub(super) fn run(
             }
             if matches!(
                 stage,
-                Stage::Idle | Stage::SpaceIdle | Stage::Dry | Stage::Done
+                Stage::Idle
+                    | Stage::SpaceIdle
+                    | Stage::LeftIdle
+                    | Stage::RightIdle
+                    | Stage::Dry
+                    | Stage::Done
             ) {
                 if released_at.is_some_and(|at| at.elapsed() >= RELEASE_DRAIN) {
                     return Err(format!(
@@ -144,17 +191,30 @@ pub(super) fn run(
                 // ordered shore crossing; they are never discarded.
             }
             let current = Shore::from_input(&input)?;
+            if (current == Shore::WetLeft
+                && !matches!(stage, Stage::Left | Stage::LeftIdle | Stage::Right))
+                || (current == Shore::WetRight
+                    && !matches!(stage, Stage::Right | Stage::RightIdle | Stage::Backward))
+            {
+                return Err(format!(
+                    "lateral input outside held/release stage {stage:?}: {input:?}"
+                ));
+            }
             let step = match current {
                 Shore::DryForward => 0,
                 Shore::WetForward => 1,
-                Shore::WetBackward => 2,
-                Shore::DryBackward => 3,
+                Shore::WetLeft => 2,
+                Shore::WetRight => 3,
+                Shore::WetBackward => 4,
+                Shore::DryBackward => 5,
             };
             let previous = shore.map(|state| match state {
                 Shore::DryForward => 0,
                 Shore::WetForward => 1,
-                Shore::WetBackward => 2,
-                Shore::DryBackward => 3,
+                Shore::WetLeft => 2,
+                Shore::WetRight => 3,
+                Shore::WetBackward => 4,
+                Shore::DryBackward => 5,
             });
             if step > previous.map_or(0, |index| index + 1)
                 || previous.is_some_and(|index| step < index)
@@ -166,6 +226,8 @@ pub(super) fn run(
             if stage == Stage::SpaceForward && current == Shore::WetForward {
                 saw_space_forward = true;
             }
+            saw_left |= current == Shore::WetLeft;
+            saw_right |= current == Shore::WetRight;
             shore = Some(current);
         }
         if let Some(status) = status {
@@ -176,7 +238,7 @@ pub(super) fn run(
             }
             ensure_quiet(released_at, "final dry stand")?;
             println!(
-                "PASS: real shore W dry->wet, wet W+Space, reverse S wet->dry; no jumping; released UDP quiet"
+                "PASS: real shore W dry->wet, wet W+Space, A SwimLeft43, D SwimRight44, reverse S wet->dry; no jumping; released UDP quiet"
             );
             return Ok(());
         }
