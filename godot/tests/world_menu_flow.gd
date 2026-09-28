@@ -55,6 +55,19 @@ func run_test() -> void:
 	if not roster_unchanged(client, scene, ui):
 		fail("Return replaced character-select scene or roster")
 		return
+	# Closing the overlay must preserve the existing repeated roster-key behavior.
+	push_key(KEY_DOWN, true, true)
+	await process_frame
+	push_key(KEY_DOWN, false)
+	if ui.find_child("CharSelectCharacterName", true, false).text != "Unequipped Fixture":
+		fail("Closed menu suppressed repeated roster key")
+		return
+	push_key(KEY_UP, true)
+	await process_frame
+	push_key(KEY_UP, false)
+	if not roster_unchanged(client, scene, ui):
+		fail("Roster navigation did not return to original selection")
+		return
 	print("FIXTURE MENU_CHARSELECT_DONE")
 	var enter = ui.find_child("EnterWorld", true, false)
 	if not enter is Button:
@@ -218,11 +231,12 @@ func wait_world(client: Node) -> bool:
 	fail("Timed out waiting for native world and terrain: " + str(client.account_state()))
 	return false
 
-func push_key(code: Key, pressed: bool) -> void:
+func push_key(code: Key, pressed: bool, echo: bool = false) -> void:
 	var event := InputEventKey.new()
 	event.keycode = code
 	event.physical_keycode = code
 	event.pressed = pressed
+	event.echo = echo
 	root.push_input(event, true)
 
 func click(control: Control) -> void:
