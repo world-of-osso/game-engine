@@ -30,7 +30,7 @@ Final bounded checks: native `cargo check` and launcher formatting passed. The h
 
 ## Portable sound catalog boundary
 
-`5f74a859` puts music-zone row parsing, manifest-based ambient parsing, and music/ambient overlap removal in Bevy-free `catalog_data`, exposed to `godot/core`. The root music cache delegates row policy, while root ambient and overlap adapters delegate the same source. Per-area track order is the CSV encounter order after deduplication. Core targeted proof is 5/5 only; root compilation and a native catalog consumer/playback await independent verification. This is source sharing, not audio parity or a conversion claim.
+`5f74a859` puts music-zone row parsing, manifest-based ambient parsing, and music/ambient overlap removal in Bevy-free `catalog_data`, exposed to `godot/core`. The root music cache delegates row policy, while root ambient and overlap adapters delegate the same source. Per-area track order is the CSV encounter order after deduplication. `d60a3037` also exposes shared `AreaTable` parent parsing and root-ancestor traversal: only nonzero parents are stored; traversal stops on no parent after at most 16 links, and an unknown ID remains itself. This complements `959112e9`'s MCNK `area_id` prerequisite without resolving or selecting native audio. The catalog and AreaTable core targeted proofs are each 5/5 only; root adapter compilation and a native catalog consumer/playback await independent verification. Native audio source at `ba028e7c` is not build or integration proof. This is source sharing, not audio parity or a conversion claim.
 
 ## Portable creature display catalog boundary
 
@@ -235,6 +235,7 @@ Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x
 ## Sources
 
 - [Godot conversion specification](../../specs/godot-conversion.md) — acceptance target and current capability/proof matrix.
+- [shared AreaTable data](../../../src/area_zone_data.rs) — parent parsing and bounded root traversal.
 - `/tmp/claude/verify-root-tests-580d7300.md` — bounded root format/test proof and test-only-delta scope.
 - `/tmp/claude/verify-stockade-camera-580d7300.log` — Stockade camera-collision selector 4/4.
 - `/tmp/claude/native-global-wmo-assets-{red,green}.log` — missing-field RED and cached global-WMO placement GREEN.

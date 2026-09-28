@@ -12,7 +12,7 @@ The sound system coexists with the rest of the engine as a Bevy plugin registere
 
 ## Shared catalog boundary
 
-`5f74a859` extracts the root music-zone row parser, `music_manifest.csv` ambient reader, and music/ambient overlap removal into Bevy-free `catalog_data`, exposed to `godot/core`. The root music cache delegates row parsing; root ambient and overlap adapters use the same source. Both readers retain per-area first-encounter track order while deduplicating track indices. Core targeted proof is 5/5. Root compilation and native catalog consumption/playback remain pending independent verification, so this is neither audio parity nor native playback evidence.
+`5f74a859` extracts the root music-zone row parser, `music_manifest.csv` ambient reader, and music/ambient overlap removal into Bevy-free `catalog_data`, exposed to `godot/core`. The root music cache delegates row parsing; root ambient and overlap adapters use the same source. Both readers retain per-area first-encounter track order while deduplicating track indices. `d60a3037` separately shares `AreaTable` `ID` → nonzero `ParentAreaID` parsing and root-ancestor traversal: it stops at a missing parent, limits bad-data traversal to 16 links, and leaves an unknown ID unchanged. This complements `959112e9`'s MCNK `area_id` exposure; it does not connect that area ID to catalog selection. The catalog and AreaTable core targeted proofs are each 5/5. Root adapter compilation and native catalog consumption/playback remain pending independent verification. Native audio source at `ba028e7c` is not build or integration proof, so this is neither audio parity nor native playback evidence.
 
 ## Runtime scheduling
 
@@ -30,6 +30,7 @@ Post-fix PID `2468254` remained focused, `InWorld`, and connected with one link/
 
 - AGENTS.md — `src/sound/` structure listing
 - [app setup](../../../src/app_setup.rs) — stage and audio-plugin registration
+- [area_zone_data](../../../src/area_zone_data.rs) — shared AreaTable parent parsing and bounded ancestor traversal
 
 ## See Also
 
