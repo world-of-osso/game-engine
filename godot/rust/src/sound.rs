@@ -211,8 +211,8 @@ impl INode for NativeSound {
 
     fn exit_tree(&mut self) {
         self.stop();
-        self.music.player.set_stream(None::<Gd<AudioStream>>);
-        self.ambient.player.set_stream(None::<Gd<AudioStream>>);
+        self.music.player.set_stream(&None::<Gd<AudioStream>>);
+        self.ambient.player.set_stream(&None::<Gd<AudioStream>>);
         self.cache.clear();
     }
 }
