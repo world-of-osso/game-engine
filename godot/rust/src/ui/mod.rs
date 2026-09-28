@@ -27,6 +27,7 @@ use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
 use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
+use game_engine_ui_model::game_menu_component::GameMenuViewModel;
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
@@ -57,8 +58,16 @@ pub struct RegistryUi {
     actions: VecDeque<String>,
     /// Right-clicks and Shift-left-clicks: `(action, right, shift)`.
     alt_clicks: VecDeque<(String, bool, bool)>,
+    slider_events: VecDeque<SliderInput>,
     login_fade: Option<f32>,
     loading_displayed_percent: f32,
+}
+
+/// Raw authored-slider input; the host applies its own policy and passes back a view.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SliderInput {
+    pub action: String,
+    pub value: f32,
 }
 
 struct RegistryModel {
@@ -138,6 +147,17 @@ impl RegistryModel {
             _ => self.apply_postsetup(),
         }
         self.registry.mark_all_rects_dirty();
+    }
+
+    fn slider_input(&self, id: u64, percent: f32) -> Option<SliderInput> {
+        let frame = self.registry.get(id)?;
+        let WidgetData::Slider(data) = frame.widget_data.as_ref()? else {
+            return None;
+        };
+        Some(SliderInput {
+            action: frame.onclick.clone()?,
+            value: (data.min + (data.max - data.min) * f64::from(percent)) as f32,
+        })
     }
 
     fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
@@ -235,6 +255,12 @@ impl RegistryModel {
 
 #[godot_api]
 impl ICanvasLayer for RegistryUi {
+    fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        if let Some(projection) = self.projection.as_mut() {
+            projection.handle_pointer(&event);
+        }
+    }
+
     fn init(base: Base<CanvasLayer>) -> Self {
         Self {
             base,
@@ -242,6 +268,7 @@ impl ICanvasLayer for RegistryUi {
             projection: None,
             actions: VecDeque::new(),
             alt_clicks: VecDeque::new(),
+            slider_events: VecDeque::new(),
             login_fade: None,
             loading_displayed_percent: 0.0,
         }
@@ -300,6 +327,50 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_model(model, size.x, size.y)
+    }
+
+    /// Project the full authored game-menu view; existing main-only startup stays unchanged.
+    pub fn show_game_menu_view(&mut self, view: GameMenuViewModel) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("Game menu has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let GameMenuModel {
+            screen,
+            shared,
+            registry,
+        } = GameMenuModel::from_view(size.x, size.y, view);
+        let mut model = RegistryModel {
+            screen,
+            shared,
+            registry,
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
+    }
+
+    /// Reproject changed category/value/style in place without replacing the CanvasLayer.
+    pub fn set_game_menu_view(&mut self, view: GameMenuViewModel) -> Result<(), String> {
+        if self
+            .model
+            .as_ref()
+            .and_then(|model| model.shared.get::<GameMenuViewModel>())
+            .is_none()
+        {
+            return Err("Full game menu view not initialized".into());
+        }
+        self.set_state(view)
+    }
+
+    /// Drain input after processing Godot events with `sync_input`.
+    pub fn drain_slider_events(&mut self) -> Vec<SliderInput> {
+        self.slider_events.drain(..).collect()
     }
 
     /// Initialize a dedicated RegistryUi instance for the shared world map frame.
@@ -823,6 +894,11 @@ impl RegistryUi {
                 }
                 UiInput::Press(id) => model.press_button(id, true),
                 UiInput::Release(id) => model.press_button(id, false),
+                UiInput::Slider(id, percent) => {
+                    if let Some(input) = model.slider_input(id, percent) {
+                        self.slider_events.push_back(input);
+                    }
+                }
             }
         }
         GString::from(self.sync_model().err().unwrap_or_default().as_str())

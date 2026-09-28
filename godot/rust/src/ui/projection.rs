@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
 use godot::classes::{
-    Button, ColorRect, Control, InputEventMouseButton, Label, LineEdit, StyleBoxEmpty, Texture2D,
-    TextureRect,
+    Button, ColorRect, Control, InputEvent, InputEventMouseButton, InputEventMouseMotion, Label,
+    LineEdit, StyleBoxEmpty, Texture2D, TextureRect,
 };
 use godot::global::{HorizontalAlignment, VerticalAlignment};
 use godot::prelude::*;
@@ -39,6 +39,19 @@ pub enum UiInput {
     Hover(u64, bool),
     Press(u64),
     Release(u64),
+    Slider(u64, f32),
+}
+
+#[cfg(test)]
+mod slider_tests {
+    use super::slider_percent;
+
+    #[test]
+    fn slider_uses_full_interactive_width_and_clamps_both_ends() {
+        assert_eq!(slider_percent(250.0, 100.0, 200.0), 0.75);
+        assert_eq!(slider_percent(20.0, 100.0, 200.0), 0.0);
+        assert_eq!(slider_percent(400.0, 100.0, 200.0), 1.0);
+    }
 }
 
 /// Projected visuals of one frame; unchanged parts keep their Godot nodes.
@@ -53,6 +66,7 @@ pub struct UiProjection {
     nodes: HashMap<u64, Gd<Control>>,
     visuals: HashMap<u64, FrameVisual>,
     pending: PendingInputs,
+    slider_capture: Rc<RefCell<Option<SliderCapture>>>,
     fonts: HashMap<GameFont, Gd<godot::classes::FontFile>>,
     textures: HashMap<String, (Gd<Texture2D>, [f32; 4])>,
 }
@@ -67,6 +81,7 @@ impl UiProjection {
             nodes: HashMap::new(),
             visuals: HashMap::new(),
             pending: Rc::new(RefCell::new(VecDeque::new())),
+            slider_capture: Rc::new(RefCell::new(None)),
             fonts: HashMap::new(),
             textures: HashMap::new(),
         }
@@ -80,6 +95,27 @@ impl UiProjection {
 
     pub fn drain_input(&mut self) -> Vec<UiInput> {
         self.pending.borrow_mut().drain(..).collect()
+    }
+
+    /// Viewport-level motion/release keeps capture after the pointer leaves the slider.
+    pub fn handle_pointer(&mut self, event: &Gd<InputEvent>) {
+        let capture = *self.slider_capture.borrow();
+        let Some(capture) = capture else { return };
+        if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            self.pending.borrow_mut().push_back(UiInput::Slider(
+                capture.id,
+                slider_percent(motion.get_global_position().x, capture.x, capture.width),
+            ));
+        } else if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>()
+            && button.get_button_index() == godot::global::MouseButton::LEFT
+            && !button.is_pressed()
+        {
+            self.pending.borrow_mut().push_back(UiInput::Slider(
+                capture.id,
+                slider_percent(button.get_global_position().x, capture.x, capture.width),
+            ));
+            *self.slider_capture.borrow_mut() = None;
+        }
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) -> Result<(), String> {
@@ -168,7 +204,9 @@ impl UiProjection {
             ));
         }
         let mut node: Gd<Control> = match frame.widget_type {
-            WidgetType::Frame | WidgetType::Texture | WidgetType::Panel => Control::new_alloc(),
+            WidgetType::Frame | WidgetType::Texture | WidgetType::Panel | WidgetType::Slider => {
+                Control::new_alloc()
+            }
             WidgetType::Button => flat_button().upcast(),
             WidgetType::EditBox => LineEdit::new_alloc().upcast(),
             WidgetType::FontString => Label::new_alloc().upcast(),
@@ -187,7 +225,11 @@ impl UiProjection {
         );
         node.set_mouse_filter(
             if frame.mouse_enabled
-                || matches!(frame.widget_type, WidgetType::Button | WidgetType::EditBox)
+                || frame.onclick.is_some()
+                || matches!(
+                    frame.widget_type,
+                    WidgetType::Button | WidgetType::EditBox | WidgetType::Slider
+                )
             {
                 godot::classes::control::MouseFilter::STOP
             } else {
@@ -212,6 +254,7 @@ impl UiProjection {
             }
             WidgetType::Button => connect_button(pending, frame.id, node),
             WidgetType::EditBox => connect_edit_box(pending, frame.id, node),
+            WidgetType::Slider => connect_slider(pending, &self.slider_capture, frame.id, node),
             _ => {}
         }
     }
@@ -289,7 +332,7 @@ impl UiProjection {
                 self.update_editbox(node.cast::<LineEdit>(), edit)?
             }
             Some(WidgetData::FontString(text)) => self.update_label(node.cast::<Label>(), text)?,
-            None | Some(WidgetData::Texture(_)) => {}
+            None | Some(WidgetData::Texture(_)) | Some(WidgetData::Slider(_)) => {}
             Some(other) => {
                 return Err(format!(
                     "Unconverted native widget data {other:?}: {}",
@@ -487,6 +530,50 @@ fn color([r, g, b, a]: [f32; 4]) -> Color {
 }
 
 type PendingInputs = Rc<RefCell<VecDeque<UiInput>>>;
+
+#[derive(Clone, Copy)]
+struct SliderCapture {
+    id: u64,
+    x: f32,
+    width: f32,
+}
+
+fn slider_percent(pointer_x: f32, x: f32, width: f32) -> f32 {
+    ((pointer_x - x) / width.max(f32::EPSILON)).clamp(0.0, 1.0)
+}
+
+fn connect_slider(
+    pending: &PendingInputs,
+    capture: &Rc<RefCell<Option<SliderCapture>>>,
+    id: u64,
+    node: &mut Gd<Control>,
+) {
+    let pending = pending.clone();
+    let capture = capture.clone();
+    let control = node.clone();
+    let callback = Callable::from_fn("registry-slider-gui-input", move |args| {
+        let Some(button) = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<InputEventMouseButton>>().ok())
+        else {
+            return;
+        };
+        if button.get_button_index() != godot::global::MouseButton::LEFT || !button.is_pressed() {
+            return;
+        }
+        let rect = control.get_global_rect();
+        *capture.borrow_mut() = Some(SliderCapture {
+            id,
+            x: rect.position.x,
+            width: rect.size.x,
+        });
+        pending.borrow_mut().push_back(UiInput::Slider(
+            id,
+            slider_percent(button.get_global_position().x, rect.position.x, rect.size.x),
+        ));
+    });
+    node.connect("gui_input", &callback);
+}
 
 fn emit(pending: &PendingInputs, input: UiInput) -> Callable {
     let pending = pending.clone();
