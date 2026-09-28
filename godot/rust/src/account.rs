@@ -17,7 +17,7 @@ use shared::protocol::{
     DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel,
     InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse,
     MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot,
-    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, SetDungeonDifficulty,
+    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, RequestRaidInfo, SetDungeonDifficulty,
     SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellsLearned,
     SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
@@ -67,6 +67,7 @@ pub struct Account {
 pub enum AccountEvent {
     Screen(SessionScreen),
     WorldReset,
+    RestState(RestStateUpdate),
     LoadTerrain(LoadTerrain),
     NewWorld(NewWorld),
     TransferError(String),
@@ -387,6 +388,10 @@ impl Account {
         }
         if self.receive_spell_message(&message) {
             return self.dispatch_spell_message(message, output);
+        }
+        if message.is::<RestStateUpdate>() {
+            output.push(AccountEvent::RestState(decode(message)?));
+            return Ok(());
         }
         if message.is::<LoadTerrain>() {
             let request = decode(message)?;

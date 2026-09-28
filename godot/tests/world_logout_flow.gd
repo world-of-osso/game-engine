@@ -20,10 +20,11 @@ func run_test() -> void:
 		return
 	await click_menu_action(client, "MenuBtnLogout")
 	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
-	while Time.get_ticks_msec() < deadline and client.get_node_or_null("LogoutOverlay") == null:
+	var overlay := client.get_node_or_null("LogoutOverlay") as CanvasLayer
+	while Time.get_ticks_msec() < deadline and (overlay == null or not overlay.visible):
 		await process_frame
-	var overlay := client.get_node_or_null("LogoutOverlay")
-	if overlay == null:
+		overlay = client.get_node_or_null("LogoutOverlay") as CanvasLayer
+	if overlay == null or not overlay.visible:
 		fail("Authored Logout did not show countdown overlay")
 		return
 	if not await wait_menu_closed(client, null):
