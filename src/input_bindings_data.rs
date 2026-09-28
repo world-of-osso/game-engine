@@ -188,6 +188,7 @@ pub enum InputAction {
     StrafeLeft,
     StrafeRight,
     Jump,
+    SitOrStand,
     RunToggle,
     AutoRun,
     TurnLeft,
@@ -224,12 +225,13 @@ pub enum InputAction {
 }
 
 impl InputAction {
-    pub const ALL: [Self; 38] = [
+    pub const ALL: [Self; 39] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
         Self::StrafeRight,
         Self::Jump,
+        Self::SitOrStand,
         Self::RunToggle,
         Self::AutoRun,
         Self::TurnLeft,
@@ -362,6 +364,8 @@ impl InputAction {
             Self::StrafeLeft => movement_meta("strafe_left", "Strafe Left", BindingKey::KeyA),
             Self::StrafeRight => movement_meta("strafe_right", "Strafe Right", BindingKey::KeyD),
             Self::Jump => movement_meta("jump", "Jump", BindingKey::Space),
+            // Retail `SITORSTAND` (`BINDING_NAME_SITORSTAND`): descends while swimming.
+            Self::SitOrStand => movement_meta("sit_or_stand", "Sit/Move Down", BindingKey::KeyX),
             Self::RunToggle => movement_meta("run_toggle", "Run / Walk Toggle", BindingKey::KeyZ),
             Self::AutoRun => movement_meta("auto_run", "Auto-Run", BindingKey::NumLock),
             Self::TurnLeft => camera_meta("turn_left", "Turn Left", BindingKey::ArrowLeft),
@@ -711,6 +715,7 @@ fn movement_action_from_key(key: &str) -> Option<InputAction> {
         "strafe_left" => InputAction::StrafeLeft,
         "strafe_right" => InputAction::StrafeRight,
         "jump" => InputAction::Jump,
+        "sit_or_stand" => InputAction::SitOrStand,
         "run_toggle" => InputAction::RunToggle,
         "auto_run" => InputAction::AutoRun,
         _ => return None,
@@ -810,6 +815,7 @@ fn movement_section_actions() -> &'static [InputAction] {
         InputAction::StrafeLeft,
         InputAction::StrafeRight,
         InputAction::Jump,
+        InputAction::SitOrStand,
         InputAction::RunToggle,
         InputAction::AutoRun,
     ]

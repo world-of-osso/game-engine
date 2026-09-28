@@ -1,17 +1,18 @@
 //! Native local movement state around the shared binding decisions.
 
 use game_engine_core::{
-    input_bindings_data::{InputAction, InputBindingsData, InputState},
+    input_bindings_data::{BindingMouseButton, InputAction, InputBindingsData, InputState},
     movement_animation_data::direction_to_anim_id,
     movement_input_data::{
         MoveDirection, compute_movement_input, movement_speed_multiplier, movement_to_direction,
         sync_movement_toggles,
     },
     player_physics_data::{
-        VerticalState, apply_gravity_and_ground_snap, build_proposed_ground_movement,
-        update_grounded,
+        GroundState, SWIM_DEPTH, VerticalState, apply_gravity_and_ground_snap, at_swim_surface,
+        build_proposed_ground_movement, swim_height, update_grounded,
     },
 };
+use glam::Vec3;
 use shared::{
     movement::{RUN_SPEED, SWIM_SPEED, WALK_SPEED},
     protocol::PlayerInput,
@@ -23,6 +24,12 @@ pub(crate) struct PlayerMovement {
     pub jumping: bool,
     pub swimming: bool,
     direction: MoveDirection,
+    /// Whether the swimmer floats at the water surface.
+    at_surface: bool,
+    /// Whether the last swim step changed height, for a vertical-only input.
+    swim_rose: bool,
+    /// Whether the previous `predict` left the player walking on dry ground.
+    wading: bool,
     previous_facing: Option<f32>,
     vertical_velocity: f32,
     grounded: bool,
@@ -37,9 +44,19 @@ pub(crate) struct PlayerMovement {
     reported_motion: bool,
 }
 
+/// What an input reports moving: a direction, a jump, or a swim step that changed height.
+struct ReportedMotion {
+    direction: [f32; 3],
+    jumping: bool,
+    swimming_vertically: bool,
+}
+
 pub(crate) struct MovementFrame {
+    /// World direction; its Y is the pitched part of mouse-steered swimming.
     pub direction: [f32; 3],
     pub speed: f32,
+    /// Swim ascend (+) or descend (-) speed: `SWIM_SPEED` × the server's aura modifier.
+    pub vertical: f32,
 }
 
 impl Default for PlayerMovement {
@@ -50,6 +67,9 @@ impl Default for PlayerMovement {
             jumping: false,
             swimming: false,
             direction: MoveDirection::None,
+            at_surface: false,
+            swim_rose: false,
+            wading: false,
             previous_facing: None,
             vertical_velocity: 0.0,
             grounded: true,
@@ -73,6 +93,22 @@ fn turn_animation_id(delta: f32) -> Option<u16> {
     }
 }
 
+/// Retail `JumpOrAscendStart` / `SitStandOrDescendStart`: the held swim vertical input.
+fn swim_vertical_input(bindings: &InputBindingsData, input: &impl InputState) -> f32 {
+    let ascend = bindings.is_pressed(InputAction::Jump, input);
+    let descend = bindings.is_pressed(InputAction::SitOrStand, input);
+    f32::from(u8::from(ascend)) - f32::from(u8::from(descend))
+}
+
+/// Tilt the forward part of `direction` by the camera `pitch` (the mouse-steered swimmer
+/// follows the view); the lateral part stays level.
+fn pitch_forward(direction: Vec3, yaw: f32, pitch: f32) -> Vec3 {
+    let forward = Vec3::new(yaw.sin(), 0.0, yaw.cos());
+    let along = direction.dot(forward);
+    let lateral = direction - forward * along;
+    lateral + (forward * pitch.cos() + Vec3::Y * pitch.sin()) * along
+}
+
 impl PlayerMovement {
     fn animation_id(&mut self, facing: f32) -> u16 {
         let previous = self.previous_facing.replace(facing);
@@ -88,20 +124,31 @@ impl PlayerMovement {
         turn_animation_id(delta).unwrap_or(locomotion)
     }
 
+    /// `pitch` is the camera pitch, steering a swimmer moved with the right mouse button.
     pub fn resolve(
         &mut self,
         bindings: &InputBindingsData,
         input: &impl InputState,
         yaw: f32,
+        pitch: f32,
     ) -> MovementFrame {
         (self.autorun, self.running) =
             sync_movement_toggles(bindings, input, self.autorun, self.running);
         let (direction, animation) =
             compute_movement_input(bindings, input, self.autorun, false, yaw);
         self.direction = animation;
+        let mut direction = Vec3::from_array(direction);
+        if self.swimming && input.mouse_pressed(BindingMouseButton::Right) {
+            direction = pitch_forward(direction, yaw, pitch);
+        }
         MovementFrame {
-            direction,
+            direction: direction.to_array(),
             speed: self.unmodified_speed() * self.speed_modifier,
+            vertical: if self.swimming {
+                swim_vertical_input(bindings, input) * SWIM_SPEED * self.speed_modifier
+            } else {
+                0.0
+            },
         }
     }
 
@@ -132,12 +179,61 @@ impl PlayerMovement {
 
     pub fn predict(
         &mut self,
-        mut position: glam::Vec3,
+        position: Vec3,
         frame: MovementFrame,
         jump_pressed: bool,
         ground: &crate::ground::TerrainGround<'_>,
         delta: f32,
-    ) -> glam::Vec3 {
+    ) -> Vec3 {
+        self.swim_rose = false;
+        let position = if self.swimming {
+            self.swim(position, &frame, ground, delta)
+        } else {
+            self.walk(position, &frame, jump_pressed, ground, delta)
+        };
+        let was_swimming = self.swimming;
+        let wading = self.wading && self.grounded;
+        self.swimming = ground.swimming(position);
+        self.wading = !self.swimming && self.grounded;
+        if !self.swimming {
+            return position;
+        }
+        self.jumping = false;
+        self.vertical_velocity = 0.0;
+        if was_swimming {
+            return position;
+        }
+        self.enter_water(position, wading, ground)
+    }
+
+    /// Wading in turns into swimming at the floating height: a frame's walk can cross the
+    /// threshold past it, onto a seabed below it. A fall or a spawn keeps its depth.
+    fn enter_water(
+        &mut self,
+        feet: Vec3,
+        wading: bool,
+        ground: &crate::ground::TerrainGround<'_>,
+    ) -> Vec3 {
+        let Some(surface) = ground.water_surface(feet) else {
+            return feet;
+        };
+        let feet = if wading {
+            feet.with_y(feet.y.max(surface - SWIM_DEPTH))
+        } else {
+            feet
+        };
+        self.at_surface = at_swim_surface(feet.y, surface);
+        feet
+    }
+
+    fn walk(
+        &mut self,
+        mut position: Vec3,
+        frame: &MovementFrame,
+        jump_pressed: bool,
+        ground: &crate::ground::TerrainGround<'_>,
+        delta: f32,
+    ) -> Vec3 {
         self.grounded = update_grounded(
             position.y,
             ground.probe(position),
@@ -162,29 +258,48 @@ impl PlayerMovement {
         self.vertical_velocity = vertical.vertical_velocity;
         self.grounded = vertical.grounded;
         position.y = vertical.y;
-        self.swimming = ground.swimming(position);
         position
+    }
+
+    /// Swim along `frame` and the held ascend/descend, floating under the water surface.
+    fn swim(
+        &mut self,
+        current: Vec3,
+        frame: &MovementFrame,
+        ground: &crate::ground::TerrainGround<'_>,
+        delta: f32,
+    ) -> Vec3 {
+        let proposed =
+            build_proposed_ground_movement(current, frame.direction.into(), frame.speed, delta)
+                .unwrap_or(current);
+        let moved = ground.validate_swim_move(current, proposed.with_y(current.y));
+        let rise = proposed.y - current.y + frame.vertical * delta;
+        let Some(surface) = ground.water_surface(moved) else {
+            return moved;
+        };
+        let floor = match ground.probe(moved) {
+            GroundState::Supported(height) => Some(height),
+            _ => None,
+        };
+        let y = swim_height(moved.y, rise, surface, floor, self.at_surface);
+        self.swim_rose = y != current.y;
+        self.at_surface = at_swim_surface(y, surface);
+        self.grounded = floor.is_some_and(|floor| y <= floor + 0.05);
+        moved.with_y(y)
     }
 
     fn update_jump(
         &mut self,
-        position: glam::Vec3,
+        position: Vec3,
         pressed: bool,
         ground: &crate::ground::TerrainGround<'_>,
     ) {
-        self.swimming = ground.swimming(position);
-        if self.swimming {
-            self.jumping = false;
-            return;
-        }
         if pressed && self.grounded && !self.jumping {
             self.jumping = true;
             self.vertical_velocity = 7.0;
         }
         let landed = match ground.probe(position) {
-            game_engine_core::player_physics_data::GroundState::Supported(height) => {
-                position.y <= height + 0.05
-            }
+            GroundState::Supported(height) => position.y <= height + 0.05,
             _ => true,
         };
         if self.jumping && self.vertical_velocity <= 0.0 && self.grounded && landed {
@@ -202,7 +317,13 @@ impl PlayerMovement {
         epoch: u32,
     ) -> Option<PlayerInput> {
         let direction = movement_to_direction(self.direction, yaw);
-        self.report(direction, self.jumping, yaw, position, epoch)
+        let swimming_vertically = self.swimming && self.swim_rose;
+        let motion = ReportedMotion {
+            direction,
+            jumping: self.jumping,
+            swimming_vertically,
+        };
+        self.report(motion, yaw, position, epoch)
     }
 
     /// The one stop input for movement a modal halted, keeping any airborne state local.
@@ -212,18 +333,27 @@ impl PlayerMovement {
         position: glam::Vec3,
         epoch: u32,
     ) -> Option<PlayerInput> {
-        self.report([0.0; 3], false, yaw, position, epoch)
+        let halted = ReportedMotion {
+            direction: [0.0; 3],
+            jumping: false,
+            swimming_vertically: false,
+        };
+        self.report(halted, yaw, position, epoch)
     }
 
     fn report(
         &mut self,
-        direction: [f32; 3],
-        jumping: bool,
+        motion: ReportedMotion,
         yaw: f32,
         position: glam::Vec3,
         epoch: u32,
     ) -> Option<PlayerInput> {
-        let moving = direction != [0.0; 3] || jumping;
+        let ReportedMotion {
+            direction,
+            jumping,
+            swimming_vertically,
+        } = motion;
+        let moving = direction != [0.0; 3] || jumping || swimming_vertically;
         if !moving && !self.reported_motion {
             return None;
         }
@@ -317,9 +447,12 @@ impl crate::GameClient {
             self.player_movement.stop();
             return Ok(());
         }
-        let frame = self
-            .player_movement
-            .resolve(&self.client_options.bindings, &input, yaw);
+        let frame = self.player_movement.resolve(
+            &self.client_options.bindings,
+            &input,
+            yaw,
+            self.world_camera.pitch(),
+        );
         let jump = self
             .client_options
             .bindings
@@ -413,6 +546,7 @@ mod tests {
     };
     use game_engine_core::movement_input_data::MoveDirection;
     use glam::Vec3;
+    use shared::movement::SWIM_SPEED;
 
     use crate::ground::TerrainGround;
     use crate::terrain::streaming::StreamedTerrain;
@@ -428,7 +562,7 @@ mod tests {
         input.set_key(BindingKey::KeyD, true);
         input.set_mouse(BindingMouseButton::Left, true);
         input.set_mouse(BindingMouseButton::Right, true);
-        let frame = movement.resolve(&InputBindingsData::default(), &input, 0.0);
+        let frame = movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
         assert_eq!(frame.direction, [-1.0, 0.0, 2.0]);
         assert_eq!(frame.speed, 7.0);
         let packet = movement.network_input(0.0, FEET, 3).unwrap();
@@ -437,7 +571,7 @@ mod tests {
         assert!(!packet.jumping);
         assert!(!packet.swimming);
         input.clear();
-        movement.resolve(&InputBindingsData::default(), &input, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
         let stop = movement.network_input(0.0, FEET, 3).unwrap();
         assert_eq!(stop.direction, [0.0; 3]);
         assert!(movement.network_input(0.0, FEET, 3).is_none());
@@ -451,11 +585,11 @@ mod tests {
         let mut input = PhysicalInput::default();
         assert!(movement.network_input(0.0, FEET, 4).is_none());
         input.set_key(BindingKey::KeyW, true);
-        movement.resolve(&InputBindingsData::default(), &input, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
         let moving = movement.network_input(0.0, FEET, 4).unwrap();
         assert_eq!(moving.direction, [0.0, 0.0, 1.0]);
         input.clear();
-        movement.resolve(&InputBindingsData::default(), &input, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
         let last = FEET + Vec3::new(0.0, 0.0, 0.117);
         let stop = movement.network_input(0.0, last, 4).unwrap();
         assert_eq!(stop.direction, [0.0; 3]);
@@ -464,7 +598,7 @@ mod tests {
         assert_eq!(stop.position, last.to_array());
         assert_eq!(stop.epoch, 4);
         for _ in 0..3 {
-            movement.resolve(&InputBindingsData::default(), &input, 0.0);
+            movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
             assert!(movement.network_input(0.0, last, 4).is_none());
         }
     }
@@ -477,7 +611,7 @@ mod tests {
         assert!(movement.stop_input(0.0, FEET, 2).is_none());
         let mut input = PhysicalInput::default();
         input.set_key(BindingKey::KeyW, true);
-        movement.resolve(&InputBindingsData::default(), &input, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
         assert!(movement.network_input(0.0, FEET, 2).is_some());
         movement.stop();
         let stop = movement.stop_input(0.0, FEET, 2).unwrap();
@@ -492,7 +626,7 @@ mod tests {
             input.set_key(*key, true);
         }
         movement
-            .resolve(&InputBindingsData::default(), &input, 0.0)
+            .resolve(&InputBindingsData::default(), &input, 0.0, 0.0)
             .speed
     }
 
@@ -573,12 +707,12 @@ mod tests {
         let mut movement = PlayerMovement::default();
         let mut input = PhysicalInput::default();
         input.set_key(BindingKey::KeyW, true);
-        movement.resolve(&InputBindingsData::default(), &input, yaw);
+        movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0);
         movement.network_input(yaw, FEET, 3).unwrap();
         movement.adopt_server_speed(3.5);
         let mut feet = FEET;
         for _ in 0..60 {
-            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw);
+            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0);
             feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
         }
         let ran = (feet - FEET).length();
@@ -603,7 +737,7 @@ mod tests {
         input.set_key(BindingKey::KeyD, true);
         let mut feet = FEET;
         for _ in 0..60 {
-            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw);
+            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0);
             feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
         }
         let packet = movement.network_input(yaw, feet, 3).unwrap();
@@ -674,6 +808,7 @@ mod tests {
             &InputBindingsData::default(),
             &PhysicalInput::default(),
             0.0,
+            0.0,
         );
         assert!(movement.network_input(0.0, FEET, 3).is_some());
         movement.stop();
@@ -682,5 +817,402 @@ mod tests {
         assert!(!movement.jumping);
         assert!(movement.network_input(0.0, FEET, 3).unwrap().direction == [0.0; 3]);
         assert!(movement.network_input(0.0, FEET, 3).is_none());
+    }
+
+    /// Cached `azeroth_32_48` at the swimming fixture's X=-8558 line: dry shore at Z522,
+    /// water standing at least 3.76 yd deep over the seabed at Z500.
+    const SHORE: Vec3 = Vec3::new(-8558.0, 144.960_08, 522.0);
+    const DEEP_Z: f32 = 500.0;
+    const WATER: f32 = 143.988_92;
+    const DT: f32 = 1.0 / 60.0;
+    /// Facing -Z (toward deep water): forward is `(sin yaw, 0, cos yaw)`.
+    const INTO_WATER: f32 = std::f32::consts::PI;
+
+    fn swimming_terrain() -> StreamedTerrain {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
+        terrain.request_map("azeroth".into(), (32, 48)).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while !terrain.parsed_tiles.contains_key(&(32, 48)) {
+            terrain.poll().expect("terrain worker alive");
+            assert!(
+                std::time::Instant::now() < deadline,
+                "azeroth_32_48 timed out: {:?}",
+                terrain.state().map_error
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        terrain
+    }
+
+    /// Hold `input` for `frames` frames at `yaw` and camera `pitch`.
+    fn hold(
+        movement: &mut PlayerMovement,
+        ground: &TerrainGround<'_>,
+        input: &PhysicalInput,
+        feet: Vec3,
+        view: (f32, f32),
+        frames: usize,
+    ) -> Vec3 {
+        hold_at(movement, ground, input, feet, view, frames, DT)
+    }
+
+    fn hold_at(
+        movement: &mut PlayerMovement,
+        ground: &TerrainGround<'_>,
+        input: &PhysicalInput,
+        mut feet: Vec3,
+        (yaw, pitch): (f32, f32),
+        frames: usize,
+        dt: f32,
+    ) -> Vec3 {
+        for _ in 0..frames {
+            let frame = movement.resolve(&InputBindingsData::default(), input, yaw, pitch);
+            feet = movement.predict(feet, frame, false, ground, dt);
+        }
+        feet
+    }
+
+    fn seabed(terrain: &StreamedTerrain) -> Vec3 {
+        let y = terrain.height_at(SHORE.x, DEEP_Z).expect("seabed height");
+        assert!(WATER - y > 3.0, "fixture water too shallow: {y}");
+        Vec3::new(SHORE.x, y, DEEP_Z)
+    }
+
+    /// Retail `JUMP` runs `JumpOrAscendStart`, `SITORSTAND` `SitStandOrDescendStart`
+    /// (Bindings_Standard.xml): in water Space ascends and X descends at swim speed. The
+    /// swimmer floats with its feet `SWIM_DEPTH` under the surface and rises no higher.
+    #[test]
+    fn space_ascends_to_the_surface_and_x_descends_to_the_seabed() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let bed = seabed(&terrain);
+        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        let idle = hold(&mut movement, &ground, &input, bed, (INTO_WATER, 0.0), 30);
+        assert!(movement.swimming);
+        assert!((idle - bed).length() < 1e-4, "seabed idle drifted: {idle}");
+
+        input.set_key(BindingKey::Space, true);
+        let rising = hold(&mut movement, &ground, &input, idle, (INTO_WATER, 0.0), 12);
+        let rate = (rising.y - idle.y) / (12.0 * DT);
+        assert!((rate - SWIM_SPEED).abs() < 0.01, "ascend rate {rate}");
+        let packet = movement
+            .network_input(INTO_WATER, rising, 4)
+            .expect("ascend input");
+        assert!(packet.swimming && !packet.jumping, "{packet:?}");
+        assert_eq!(packet.position, rising.to_array());
+        assert_eq!(packet.direction, [0.0; 3]);
+        let surfaced = hold(
+            &mut movement,
+            &ground,
+            &input,
+            rising,
+            (INTO_WATER, 0.0),
+            120,
+        );
+        assert!(
+            (surfaced.y - top).abs() < 1e-3,
+            "not bobbing at the surface: {surfaced}"
+        );
+        assert!(movement.swimming && !movement.jumping);
+        assert_eq!((surfaced.x, surfaced.z), (bed.x, bed.z));
+        // Reaching the surface ends the vertical motion: exactly one stop, then quiet
+        // while Space stays held there.
+        let stop = movement
+            .network_input(INTO_WATER, surfaced, 4)
+            .expect("one stop at the surface");
+        assert_eq!(stop.direction, [0.0; 3]);
+        assert_eq!(stop.position, surfaced.to_array());
+        assert!(stop.swimming && !stop.jumping);
+        assert!(
+            movement.network_input(INTO_WATER, surfaced, 4).is_none(),
+            "Space held at the surface moves nothing and sends nothing"
+        );
+
+        input.set_key(BindingKey::Space, false);
+        let floating = hold(
+            &mut movement,
+            &ground,
+            &input,
+            surfaced,
+            (INTO_WATER, 0.0),
+            60,
+        );
+        assert!(
+            (floating - surfaced).length() < 1e-4,
+            "surface idle drifted: {floating}"
+        );
+        assert!(movement.network_input(INTO_WATER, floating, 4).is_none());
+
+        input.set_key(BindingKey::KeyX, true);
+        let sinking = hold(
+            &mut movement,
+            &ground,
+            &input,
+            floating,
+            (INTO_WATER, 0.0),
+            12,
+        );
+        let rate = (floating.y - sinking.y) / (12.0 * DT);
+        assert!((rate - SWIM_SPEED).abs() < 0.01, "descend rate {rate}");
+        let descent = movement.network_input(INTO_WATER, sinking, 4).unwrap();
+        assert_eq!(descent.position, sinking.to_array());
+        // Releasing X mid-water sends exactly one stop.
+        input.set_key(BindingKey::KeyX, false);
+        let paused = hold(
+            &mut movement,
+            &ground,
+            &input,
+            sinking,
+            (INTO_WATER, 0.0),
+            1,
+        );
+        assert_eq!(paused, sinking, "released X kept sinking");
+        let stop = movement.network_input(INTO_WATER, paused, 4).unwrap();
+        assert_eq!(stop.direction, [0.0; 3]);
+        assert!(movement.network_input(INTO_WATER, paused, 4).is_none());
+        input.set_key(BindingKey::KeyX, true);
+        let sunk = hold(
+            &mut movement,
+            &ground,
+            &input,
+            sinking,
+            (INTO_WATER, 0.0),
+            120,
+        );
+        assert!(
+            (sunk.y - bed.y).abs() < 1e-3,
+            "did not reach the seabed: {sunk}"
+        );
+        assert!(movement.swimming);
+
+        input.set_key(BindingKey::KeyX, false);
+        input.set_key(BindingKey::Space, true);
+        input.set_key(BindingKey::KeyX, true);
+        let both = hold(&mut movement, &ground, &input, sunk, (INTO_WATER, 0.0), 30);
+        assert!(
+            (both - sunk).length() < 1e-4,
+            "Space+X should cancel: {both}"
+        );
+    }
+
+    /// Vertical swim speed carries the server's aura modifier: half speed ascends at
+    /// half `SWIM_SPEED`, a root (replicated speed 0) holds the swimmer in place.
+    #[test]
+    fn vertical_swim_speed_follows_the_server_speed_modifier() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let bed = seabed(&terrain);
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        let idle = hold(&mut movement, &ground, &input, bed, (INTO_WATER, 0.0), 1);
+        input.set_key(BindingKey::Space, true);
+        let rising = hold(&mut movement, &ground, &input, idle, (INTO_WATER, 0.0), 1);
+        movement.network_input(INTO_WATER, rising, 4).unwrap();
+        movement.adopt_server_speed(SWIM_SPEED / 2.0);
+        let slowed = hold(
+            &mut movement,
+            &ground,
+            &input,
+            rising,
+            (INTO_WATER, 0.0),
+            12,
+        );
+        let rate = (slowed.y - rising.y) / (12.0 * DT);
+        assert!(
+            (rate - SWIM_SPEED / 2.0).abs() < 0.01,
+            "slowed ascend {rate}"
+        );
+        movement.network_input(INTO_WATER, slowed, 4).unwrap();
+        movement.adopt_server_speed(0.0);
+        let rooted = hold(
+            &mut movement,
+            &ground,
+            &input,
+            slowed,
+            (INTO_WATER, 0.0),
+            12,
+        );
+        assert_eq!(rooted, slowed, "rooted swimmer ascended");
+    }
+
+    /// Walking off the shore turns into swimming where the water reaches `SWIM_DEPTH` over
+    /// the feet; from there the swimmer stays at the surface over deeper water, at the
+    /// swim speed the server grants (`input.swimming` → `SWIM_SPEED`).
+    #[test]
+    fn walking_into_deep_water_floats_at_the_surface_at_swim_speed() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        let mut feet = SHORE;
+        let mut frames = 0;
+        while feet.z > DEEP_Z + 2.0 {
+            feet = hold(&mut movement, &ground, &input, feet, (INTO_WATER, 0.0), 1);
+            frames += 1;
+            assert!(frames < 600, "never reached deep water: {feet}");
+        }
+        assert!(movement.swimming);
+        // Wading turns into swimming at the floating height: no per-frame overshoot below
+        // the surface, so Space there moves nothing and sends nothing.
+        assert!(
+            (feet.y - top).abs() < 1e-4,
+            "not floating at the surface: {feet}"
+        );
+        input.set_key(BindingKey::KeyW, false);
+        input.set_key(BindingKey::Space, true);
+        let held = hold(&mut movement, &ground, &input, feet, (INTO_WATER, 0.0), 10);
+        assert_eq!(held, feet, "Space at the surface moved the swimmer");
+        assert!(movement.network_input(INTO_WATER, held, 4).is_none());
+        input.set_key(BindingKey::Space, false);
+        input.set_key(BindingKey::KeyW, true);
+        let start = feet;
+        let swum = hold(&mut movement, &ground, &input, start, (INTO_WATER, 0.0), 30);
+        let speed = (start.z - swum.z) / (30.0 * DT);
+        assert!((speed - SWIM_SPEED).abs() < 0.01, "swim speed {speed}");
+        assert!((swum.y - top).abs() < 0.02, "left the surface: {swum}");
+        let packet = movement.network_input(INTO_WATER, swum, 4).unwrap();
+        assert!(packet.swimming && !packet.jumping);
+
+        // Back to the shore: the rising seabed lifts the swimmer onto it, and it walks.
+        input.set_key(BindingKey::KeyW, false);
+        input.set_key(BindingKey::KeyS, true);
+        let mut feet = swum;
+        let mut frames = 0;
+        while feet.z < SHORE.z {
+            feet = hold(&mut movement, &ground, &input, feet, (INTO_WATER, 0.0), 1);
+            frames += 1;
+            assert!(frames < 1200, "never returned to the shore: {feet}");
+        }
+        assert!(!movement.swimming);
+        let shore = terrain.height_at(feet.x, feet.z).unwrap();
+        assert!(
+            (feet.y - shore).abs() < 0.05,
+            "not walking on the shore: {feet}"
+        );
+    }
+
+    /// At 20 fps a frame wades 0.35 yd, far enough for the seabed to drop past the swim
+    /// threshold: the swimmer still starts at the floating height, and Space there is quiet.
+    #[test]
+    fn slow_frames_wade_in_to_the_floating_height() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        let mut feet = SHORE;
+        let mut frames = 0;
+        while !movement.swimming {
+            feet = hold_at(
+                &mut movement,
+                &ground,
+                &input,
+                feet,
+                (INTO_WATER, 0.0),
+                1,
+                0.05,
+            );
+            frames += 1;
+            assert!(frames < 200, "never started swimming: {feet}");
+        }
+        assert!(
+            (top..top + 0.02).contains(&feet.y),
+            "not wading in at the floating height: {feet}"
+        );
+        input.set_key(BindingKey::KeyW, false);
+        input.set_key(BindingKey::Space, true);
+        let held = hold_at(
+            &mut movement,
+            &ground,
+            &input,
+            feet,
+            (INTO_WATER, 0.0),
+            10,
+            0.05,
+        );
+        assert_eq!(held, feet, "Space at the surface moved the swimmer");
+        assert!(movement.network_input(INTO_WATER, held, 4).is_none());
+    }
+
+    /// Mouse-steered (right button) forward swimming follows the camera pitch; strafing
+    /// and keyboard-only forward stay level.
+    #[test]
+    fn mouse_steered_forward_swim_follows_camera_pitch() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let start = Vec3::new(SHORE.x, top - 1.0, DEEP_Z);
+        let pitch = -0.5_f32;
+        let mut movement = PlayerMovement::default();
+        movement.swimming = true;
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        let level = hold(
+            &mut movement,
+            &ground,
+            &input,
+            start,
+            (INTO_WATER, pitch),
+            30,
+        );
+        assert!(
+            (level.y - start.y).abs() < 1e-4,
+            "keyboard forward pitched: {level}"
+        );
+        input.set_mouse(BindingMouseButton::Right, true);
+        let dove = hold(
+            &mut movement,
+            &ground,
+            &input,
+            level,
+            (INTO_WATER, pitch),
+            30,
+        );
+        let travel = SWIM_SPEED * 30.0 * DT;
+        assert!(
+            (level.y - dove.y - travel * 0.5_f32.sin()).abs() < 0.01,
+            "dive depth {}",
+            level.y - dove.y
+        );
+        assert!(
+            (level.z - dove.z - travel * 0.5_f32.cos()).abs() < 0.01,
+            "dive run {}",
+            level.z - dove.z
+        );
+        input.set_key(BindingKey::KeyW, false);
+        input.set_key(BindingKey::KeyA, true);
+        let strafed = hold(
+            &mut movement,
+            &ground,
+            &input,
+            dove,
+            (INTO_WATER, pitch),
+            30,
+        );
+        assert!(
+            (strafed.y - dove.y).abs() < 1e-4,
+            "strafe pitched: {strafed}"
+        );
     }
 }

@@ -3,6 +3,8 @@ extends RefCounted
 # Measured from cached azeroth_32_48 ADT; movement and swim flags stay production-owned.
 const START := Vector3(-8558.0, 144.96008, 522.0)
 const WATER_LEVEL := 143.98892
+## A swimmer floats with its feet `SWIM_DEPTH` under the surface.
+const FLOAT_Y := WATER_LEVEL - 1.25
 const DEEP_Z := 500.0
 const SHORE_Z := 522.0
 const FRAMES_LIMIT := 540
@@ -87,7 +89,7 @@ func check(flow, client: Node, player: Node3D) -> String:
 		await flow.process_frame
 		if animation.animation.current_animation_id() != 41 or player.position.distance_to(stationary) > 0.05:
 			flow.push_key(KEY_SPACE, false)
-			return "Stationary Space jumped, rose, or left SwimIdle 41 at frame " + str(frame)
+			return "Stationary Space at the surface jumped, rose above it, or left SwimIdle 41 at frame " + str(frame)
 	flow.push_key(KEY_SPACE, false)
 	print("FIXTURE SWIM_SPACE_IDLE_DONE")
 	flow.push_key(KEY_W, true)
@@ -203,8 +205,8 @@ func check_lateral(flow, client: Node, player: Node3D, animation: RefCounted, ke
 func check_lateral_ground(client: Node, player: Node3D, origin: Vector3) -> String:
 	var position := player.position
 	var ground = client.terrain_height_at(position.x, position.z)
-	if ground == null or absf(position.y - float(ground)) > 0.3 or WATER_LEVEL - float(ground) < 3.0:
-		return "Lateral swim lost grounded deep-water sample: " + str(position) + " ground=" + str(ground)
+	if ground == null or absf(position.y - FLOAT_Y) > 0.05 or WATER_LEVEL - float(ground) < 3.0:
+		return "Lateral swim left the deep-water surface: " + str(position) + " ground=" + str(ground)
 	if position.x < START.x - 4.0 or position.x > START.x + 4.0 or position.z < 480.0 or position.z > DEEP_Z + 0.5 or absf(position.z - origin.z) > 0.3:
 		return "Lateral swim left measured flat corridor: " + str(position)
 	return ""
@@ -212,8 +214,11 @@ func check_lateral_ground(client: Node, player: Node3D, origin: Vector3) -> Stri
 func check_ground(client: Node, player: Node3D, wet: bool) -> String:
 	var position := player.position
 	var ground = client.terrain_height_at(position.x, position.z)
-	if ground == null or absf(position.y - float(ground)) > 0.3 or absf(position.x - START.x) > 0.5:
-		return "Player left sampled authored ground or X line: " + str(position) + " ground=" + str(ground)
+	if ground == null:
+		return "No sampled authored ground under " + str(position)
+	var expected_y: float = FLOAT_Y if wet else float(ground)
+	if absf(position.y - expected_y) > (0.05 if wet else 0.3) or absf(position.x - START.x) > 0.5:
+		return "Player left the sampled surface or X line: " + str(position) + " ground=" + str(ground) + " expected=" + str(expected_y)
 	var depth := WATER_LEVEL - float(ground)
 	if wet and (depth < 3.0 or absf(position.z - DEEP_Z) > 1.0):
 		return "Deep-water sample lacks measured water depth at z500: " + str(position) + " depth=" + str(depth)

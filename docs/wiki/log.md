@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] system | Godot vertical swimming and breath bar
+
+Swimmers now float: Space ascends and X (`SitOrStand`) descends at swim speed, clamped to the surface and seabed; the loopback probe now expects the floating height. The server still clamps y to the seabed. Retail MirrorTimer breath bar ported, driven only by GDScript until the server sends mirror timers. Added [[swimming]].
+
 ## [2026-09-28] port | Godot M2 particles
 
 Godot draws doodad M2 particle emitters: a shared CPU simulation after WebWowViewerCpp `particleEmitter.cpp` in `godot/core`, and one pooled MultiMesh per (model, emitter). Pools are sized from authored rate × lifetime × 1.15 (cap 500 per emitter, 4096 per pool). Emitters update only while their doodad is drawn and in view, and fade with it. The Stockade portal's six emitters draw. See [godot-conversion](systems/godot-conversion.md#native-m2-particles).

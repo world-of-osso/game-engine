@@ -28,6 +28,7 @@ Engine subsystems and how they work.
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, native Bevy projection, authored UI FileDataID resolution, layout, widgets, input, automation, unit frames, and World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
 - [unit-tooltip](systems/unit-tooltip.md) — Retail unit GameTooltip (hover by unit frame/nameplate/ray, default anchor), NPC drops/vendor sections with appearance-collection check/cross marks from server CreatureTooltip data
+- [swimming](systems/swimming.md) — Godot swim path: Space/X ascend/descend, float at `SWIM_DEPTH` under the surface, pitch steering, server keeps seabed y; MirrorTimer breath bar (no server source)
 - [player-ground](systems/player-ground.md) — shared terrain + WMO floor rule (MOPY/BSP, 1.6 yd step reach) on client and server, lazy server tile loading, and fall tracking on repositions
 - [terrain](systems/terrain.md) — ADT loading, split files, authored MCVT axes, tile ordering, object placement rotation, doodad collision, map switches and WMO-only maps (WDT global WMO)
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution for runtime/UI consumers, TACT keys
