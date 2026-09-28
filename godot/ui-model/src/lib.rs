@@ -19,7 +19,7 @@ pub mod ui {
     pub mod screens {
         pub(crate) use crate::screen_title;
         pub use crate::{
-            bag_frame_component, default_button_atlas, inworld_unit_frames_component,
+            bag_frame_component, default_button_atlas, game_menu_component, inworld_unit_frames_component,
             menu_primitives, merchant_frame_component, quest_art, stack_split_frame_component,
             options_menu_active_sections, options_menu_component, options_menu_sections,
             trash_button_component, world_map_frame_art, world_map_frame_component,
@@ -96,7 +96,11 @@ pub mod ui_errors_data;
 #[path = "../../../src/ui/screens/ui_errors_frame_component.rs"]
 pub mod ui_errors_frame_component;
 
+pub use game_engine_core::camera_control_data;
+pub use game_engine_core::client_options_data;
+pub use game_engine_core::input_bindings_data;
 pub use game_engine_core::input_bindings_data as input_bindings;
+pub use game_engine_core::nameplate_style_data;
 pub use game_engine_core::nameplate_style_data as nameplate_style;
 
 #[path = "../../../src/ui/screens/game_menu_component.rs"]
@@ -107,6 +111,8 @@ pub mod game_menu_main;
 pub mod options_menu_active_sections;
 #[path = "../../../src/ui/screens/options_menu_component.rs"]
 pub mod options_menu_component;
+#[path = "../../../src/ui/options_menu_data.rs"]
+pub mod options_menu_data;
 #[path = "../../../src/ui/screens/options_menu_sections.rs"]
 pub mod options_menu_sections;
 #[path = "../../../src/ui/panel_style_data.rs"]

@@ -134,6 +134,7 @@ pub mod character_creation_icons;
 pub mod chat_frame;
 pub mod game_plugin;
 pub mod js_automation;
+pub mod options_menu_data;
 pub mod panel_styles;
 pub mod popup;
 pub mod raid_warning;
