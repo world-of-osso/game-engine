@@ -5,7 +5,7 @@ pub(crate) mod creature;
 mod equipment;
 pub(crate) mod material;
 pub(crate) mod player;
-mod uv_animation;
+pub(crate) mod uv_animation;
 use std::{collections::HashMap, fs, path::Path};
 
 use crate::animation::WowAnimationPlayer;

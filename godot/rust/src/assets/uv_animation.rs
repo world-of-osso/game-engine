@@ -58,6 +58,17 @@ struct AnimatedMaterial {
     color: Option<AnimatedColor>,
 }
 
+impl AnimatedMaterial {
+    fn animates(&self) -> bool {
+        let changes = |track: Option<&m2::AnimTrack<[f32; 3]>>| {
+            track.is_some_and(|track| !m2::track_is_constant(track))
+        };
+        changes(self.first.as_ref())
+            || changes(self.second.as_ref())
+            || self.color.as_ref().is_some_and(AnimatedColor::animates)
+    }
+}
+
 struct AnimatedColor {
     rgb: Option<m2::AnimTrack<[f32; 3]>>,
     transparency: Option<m2::AnimTrack<i16>>,
@@ -85,6 +96,16 @@ impl AnimatedColor {
             transparency: batch.transparency_anim.clone(),
             color_opacity: batch.color_opacity_anim.clone(),
         })
+    }
+
+    fn animates(&self) -> bool {
+        self.rgb
+            .as_ref()
+            .is_some_and(|track| !m2::track_is_constant(track))
+            || [&self.transparency, &self.color_opacity]
+                .into_iter()
+                .flatten()
+                .any(|track| !m2::track_is_constant(track))
     }
 
     /// `meshColor` RGB and the batch opacity (transparency x colour alpha) at `elapsed_ms`.
@@ -134,6 +155,9 @@ pub struct WowMaterialAnimation {
     materials: Vec<AnimatedMaterial>,
     global_sequences: Vec<u32>,
     clock: Option<Gd<WowMaterialClock>>,
+    /// Some material track changes over time; otherwise the first sample holds and the
+    /// node never processes.
+    animates: bool,
 }
 
 #[godot_api]
@@ -144,6 +168,7 @@ impl INode for WowMaterialAnimation {
             materials: Vec::new(),
             global_sequences: Vec::new(),
             clock: None,
+            animates: true,
         }
     }
 
@@ -157,6 +182,9 @@ impl INode for WowMaterialAnimation {
             return;
         }
         self.sample_materials();
+        if !self.animates {
+            self.base_mut().set_process(false);
+        }
     }
 
     fn process(&mut self, _delta: f64) {
@@ -185,12 +213,18 @@ impl WowMaterialAnimation {
         if materials.is_empty() {
             return None;
         }
+        let animates = materials.iter().any(AnimatedMaterial::animates);
         Some(Gd::from_init_fn(|base| Self {
             base,
             materials,
             global_sequences: model.global_sequences.clone(),
             clock: None,
+            animates,
         }))
+    }
+
+    pub fn animates(&self) -> bool {
+        self.animates
     }
 
     fn sample_materials(&mut self) {

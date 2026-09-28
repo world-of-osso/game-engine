@@ -18,6 +18,8 @@ use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
 use crate::{
+    animation::WowAnimationPlayer,
+    assets::uv_animation::WowMaterialAnimation,
     assets::{
         build_model,
         creature::{cache_model_files, cache_model_textures, local_resolver},
@@ -470,9 +472,7 @@ impl TerrainObjects {
             }
             doodad.shown = shown;
             doodad.node.set_visible(shown);
-            if let Some(mut animation) = doodad.node.get_node_or_null("M2Animation") {
-                animation.set_process(shown);
-            }
+            set_animating(&doodad.node, shown);
         }
     }
 
@@ -524,4 +524,18 @@ fn affine(transform: Transform3D) -> Affine3A {
         column(transform.basis.col_c()).into(),
         column(transform.origin).into(),
     )
+}
+
+/// Bone and material animation of a doodad run only while it is drawn, and never for
+/// tracks that do not change.
+fn set_animating(node: &Gd<Node3D>, shown: bool) {
+    if let Some(mut animation) = node.try_get_node_as::<WowAnimationPlayer>("M2Animation") {
+        let animates = animation.bind().animates();
+        animation.set_process(shown && animates);
+    }
+    if let Some(mut animation) = node.try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation")
+    {
+        let animates = animation.bind().animates();
+        animation.set_process(shown && animates);
+    }
 }
