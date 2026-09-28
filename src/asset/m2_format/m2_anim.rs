@@ -259,7 +259,8 @@ fn parse_anim_track<T: Copy>(
 
     let mut sequences = Vec::with_capacity(count);
     for i in 0..count {
-        let elements = match sources.get(i).copied().unwrap_or(SequenceData::InFile) {
+        let source = sources.get(i).copied().unwrap_or(SequenceData::InFile);
+        let elements = match source {
             SequenceData::InFile => md20,
             SequenceData::External(file) => file,
             SequenceData::Missing => {
@@ -267,15 +268,24 @@ fn parse_anim_track<T: Copy>(
                 continue;
             }
         };
-        let timestamps = read_inner_u32_array(md20, elements, ts_outer_offset + i * 8)?;
-        let values = read_inner_value_array(
-            md20,
-            elements,
-            keys_outer_offset + i * 8,
-            value_size,
-            &parse_value,
-        )?;
-        sequences.push((timestamps, values));
+        let keyframes =
+            read_inner_u32_array(md20, elements, ts_outer_offset + i * 8).and_then(|timestamps| {
+                let inner = keys_outer_offset + i * 8;
+                read_inner_value_array(md20, elements, inner, value_size, &parse_value)
+                    .map(|values| (timestamps, values))
+            });
+        match (keyframes, source) {
+            (Ok(keyframes), _) => sequences.push(keyframes),
+            // One track of an `.anim` file running past its chunk (HumanFemale HD
+            // 1000800.anim, bone 128) leaves that sequence's track without keyframes.
+            (Err(error), SequenceData::External(_)) => {
+                eprintln!(
+                    "M2 sequence {i}: .anim track at {block_offset:#x}: {error}; no keyframes"
+                );
+                sequences.push((Vec::new(), Vec::new()));
+            }
+            (Err(error), _) => return Err(error),
+        }
     }
 
     Ok(AnimTrack {
