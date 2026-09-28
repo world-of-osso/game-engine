@@ -163,8 +163,12 @@ struct FixtureConfig {
 }
 
 impl FixtureConfig {
-    fn create(root: &Path) -> Self {
-        let diagnostics = root.join("data/diagnostics");
+    fn create(root: &Path, screen: StartupScreen) -> Self {
+        let diagnostics = if screen == StartupScreen::Logout {
+            std::env::temp_dir().join("game-engine-logout-config")
+        } else {
+            root.join("data/diagnostics")
+        };
         fs::create_dir_all(&diagnostics).expect("create fixture diagnostics directory");
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1017,14 +1021,14 @@ fn main() {
         "build root launcher first: missing {}",
         launcher.display()
     );
-    let config = FixtureConfig::create(root);
+    let config = FixtureConfig::create(root, screen);
     let (mut child, lines, reader) = launch_godot(root, &config, address, screen);
     let result = if screen == StartupScreen::Swimming {
         swimming::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Menu {
         menu::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Logout {
-        logout::run(&mut app, &mut child, lines, reader)
+        logout::run(&mut app, &mut child, lines, reader, root, address)
     } else {
         run_fixture(&mut app, &mut child, lines, reader, screen)
     };
