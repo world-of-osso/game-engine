@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-28] system | Cached authored shore swimming fixture exits 0
+
+`d7dae274` commits only a GDScript screenshot-image type correction; native production is unchanged. The actual cached `azeroth(32,48)` fixture exits 0 (`/tmp/claude/swimming-runtime-typed-image.log`): at X=-8558, W/S/Space crosses dry Z522 → deep Z500 → dry Z522, observes 5 → Swim 42 → SwimIdle 41, suppresses wet Space while stationary and moving, then reaches SwimBackwards 45 (43 is SwimLeft) → WalkBackwards 13 → Stand 0. Bones change after 150 ms; decoded UDP orders swimming false → true → false and is quiet after release. Main inspected the captured deep-water image separately.
+
+Historical compile/parse failures were fixture/test errors, not production REDs. Earlier native fmt/check remains valid; fresh-fixture verification is pending. This is not water-rendering, lateral-swimming, speed, floating-physics, real-server, parity, or full-conversion proof; full conversion remains open.
+
+Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] investigation | Godot texture VRAM
 
 Created [[godot-texture-vram]]. The Godot client built a new RGBA8 `ImageTexture` per M2 material per placement and per WMO build. `224eb4f8` adds `core::blp::decode_gpu` (DXT kept with mips); `0f36a6cb` shares one texture per FDID/composite. In-world VRAM: 4,994 MiB and rising before, 1,029 MiB settled after.
