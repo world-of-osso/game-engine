@@ -69,9 +69,15 @@ func run_test() -> void:
 	var player := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
 	var camera := client.get_node_or_null("WorldCamera") as Camera3D
 	var animation = load("res://tests/player_locomotion_probe.gd").new()
-	if player == null or camera == null or animation.bind(player) != "":
-		fail("Native world player, camera or animation missing")
+	if player == null or camera == null:
+		fail("Native world player or camera missing")
 		return
+	var model_deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
+	while animation.bind(player) != "":
+		if Time.get_ticks_msec() > model_deadline:
+			fail("Timed out loading native player animation")
+			return
+		await process_frame
 	if animation.animation.current_animation_id() != 0:
 		fail("World player did not start idle Stand 0")
 		return

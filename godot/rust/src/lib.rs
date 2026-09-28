@@ -9,6 +9,7 @@ mod char_create;
 mod character_select;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
+mod game_menu;
 mod gameplay;
 mod ground;
 mod input;
@@ -75,6 +76,7 @@ pub struct GameClient {
     data_root: PathBuf,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
+    game_menu_ui: Option<Gd<ui::RegistryUi>>,
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
@@ -119,6 +121,7 @@ impl INode3D for GameClient {
             creation_scene: char_create::CreationScene::new(data_root.clone(), cache_root.clone()),
             loading_ui: None,
             errors_ui: None,
+            game_menu_ui: None,
             account: Account::new(data_root.clone()),
             terrain: terrain::streaming::StreamedTerrain::new(
                 data_root.clone(),
@@ -151,7 +154,9 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
-        self.physical_input.capture(&event);
+        if self.game_menu_ui.is_none() {
+            self.physical_input.capture(&event);
+        }
     }
 
     /// Screen keys left unhandled by focused edit boxes.
@@ -159,7 +164,23 @@ impl INode3D for GameClient {
         let Ok(key) = event.try_cast::<godot::classes::InputEventKey>() else {
             return;
         };
-        if !key.is_pressed() || self.account.session.screen != SessionScreen::CharacterSelect {
+        if !key.is_pressed() || key.is_echo() {
+            return;
+        }
+        match self.handle_game_menu_key(key.get_keycode()) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Err(error) => {
+                godot_error!("Game menu key failed: {error}");
+                return;
+            }
+            Ok(false) => {}
+        }
+        if self.account.session.screen != SessionScreen::CharacterSelect {
             return;
         }
         if let Err(error) = self.handle_character_select_key(key.get_keycode()) {
@@ -342,6 +363,9 @@ impl GameClient {
     }
 
     fn poll_ui_actions(&mut self) -> Result<(), String> {
+        if self.game_menu_ui.is_some() {
+            return self.poll_game_menu_actions();
+        }
         match self.account.session.screen {
             SessionScreen::Login => self.poll_login_actions(),
             SessionScreen::CharacterSelect => self.poll_character_actions(),
@@ -378,8 +402,7 @@ impl GameClient {
                 self.account.session.screen = SessionScreen::Login;
                 self.show_account_screen(SessionScreen::Login)
             }
-            // The game menu is not converted to Godot yet; MENU stays inert here.
-            Some(CharSelectAction::Menu) => Ok(()),
+            Some(CharSelectAction::Menu) => self.open_game_menu(),
             Some(CharSelectAction::CampsiteToggle) => {
                 self.campsite.panel_visible = !self.campsite.panel_visible;
                 self.sync_campsite_state()
@@ -932,6 +955,7 @@ impl GameClient {
     }
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {
+        self.close_game_menu();
         if screen != SessionScreen::CharacterSelect {
             self.character_preview.reset();
         }

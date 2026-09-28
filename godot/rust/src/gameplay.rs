@@ -193,6 +193,12 @@ impl crate::GameClient {
     pub(super) fn update_player_input(&mut self, delta: f32) -> Result<(), String> {
         use game_engine_core::camera_input_data::CameraInput;
         use godot::prelude::*;
+        if self.game_menu_ui.is_some() {
+            // Match original modal movement: stop direction/autorun, retain airborne state.
+            self.player_movement.autorun = false;
+            self.player_movement.direction = MoveDirection::None;
+            return Ok(());
+        }
         if !self.gameplay_input_allowed() {
             self.player_movement.stop();
             return Ok(());
@@ -284,7 +290,10 @@ impl crate::GameClient {
     }
 
     pub(super) fn send_player_input(&self, elapsed_secs: f32) -> Result<(), String> {
-        if !self.gameplay_input_allowed() || self.world.local_player_controlled() {
+        if self.game_menu_ui.is_some()
+            || !self.gameplay_input_allowed()
+            || self.world.local_player_controlled()
+        {
             return Ok(());
         }
         if let Some(yaw) = self.world.local_player_facing()
