@@ -57,6 +57,8 @@ func check(flow, client: Node, player: Node3D) -> String:
 	if DisplayServer.get_name() == "headless":
 		flow.push_key(KEY_W, false)
 		return "Swimming screenshot requires rendered Godot display"
+	flow.push_key(KEY_W, false)
+	print("FIXTURE SWIM_RELEASED")
 	var water_pixels = load("res://tests/adt_water_pixels.gd").new()
 	var water_error: String = await water_pixels.check(flow, client)
 	if water_error != "":
@@ -67,8 +69,6 @@ func check(flow, client: Node, player: Node3D) -> String:
 	if screenshot == null or screenshot.is_empty() or screenshot.save_png("res://../data/diagnostics/godot-conversion/swimming.png") != OK:
 		flow.push_key(KEY_W, false)
 		return "Could not capture deep-water swimming frame"
-	flow.push_key(KEY_W, false)
-	print("FIXTURE SWIM_RELEASED")
 	for frame in range(STILL_FRAMES):
 		await flow.process_frame
 		if frame >= 10 and animation.animation.current_animation_id() != 41:
@@ -174,7 +174,8 @@ func check_lateral(flow, client: Node, player: Node3D, animation: RefCounted, ke
 		if selected_at >= 0 and Time.get_ticks_msec() - selected_at >= POSE_BLEND_MS:
 			changed_pose = changed_pose or animation.changed_from(idle_pose)
 		var dx := player.position.x - origin.x
-		var arrived: bool = dx >= 1.8 if keycode == KEY_A else absf(player.position.x - START.x) <= 0.3 and dx <= -1.5
+		# This fixture faces PI: left strafe decreases world X, right increases it.
+		var arrived: bool = dx <= -1.8 if keycode == KEY_A else absf(player.position.x - START.x) <= 0.3 and dx >= 1.5
 		if arrived and changed_pose:
 			break
 	flow.push_key(keycode, false)
@@ -182,7 +183,7 @@ func check_lateral(flow, client: Node, player: Node3D, animation: RefCounted, ke
 	if error != "":
 		return error
 	var displacement := player.position.x - origin.x
-	if selected_at < 0 or not changed_pose or (keycode == KEY_A and displacement < 1.8) or (keycode == KEY_D and (displacement > -1.5 or absf(player.position.x - START.x) > 0.3)):
+	if selected_at < 0 or not changed_pose or (keycode == KEY_A and displacement > -1.8) or (keycode == KEY_D and (displacement < 1.5 or absf(player.position.x - START.x) > 0.3)):
 		return label + " lacked signed lateral displacement, Swim clip " + str(clip) + ", or changed bones after blend: " + str(player.position)
 	var stopped := player.position
 	for frame in range(STILL_FRAMES + 10):
