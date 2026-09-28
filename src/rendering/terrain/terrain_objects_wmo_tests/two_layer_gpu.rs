@@ -179,7 +179,10 @@ fn trade_district_two_layer_batch_binds_its_momt_second_texture() {
         .and_then(|image| image.data.clone())
         .expect("second texture pixels");
     let path = crate::asset::asset_cache::texture(464811).expect("strmwnd_crenlatn_burned");
-    let (expected, _, _) = crate::asset::blp::load_blp_rgba(&path).expect("decode 464811");
+    let expected = crate::asset::blp::load_blp_gpu_material_image(&path)
+        .expect("load 464811")
+        .data
+        .expect("464811 blocks");
     assert!(
         bound == expected,
         "second layer is not strmwnd_crenlatn_burned"
