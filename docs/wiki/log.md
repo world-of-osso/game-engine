@@ -40,11 +40,13 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
-## [2026-09-28] system | Shared audio-preparation data is core-only
+## [2026-09-28] investigation | Native audio shutdown leak timing is bounded
 
-`5f74a859` extracts the music-zone parser, manifest-based ambient parser, and music/ambient overlap policy into Bevy-free `catalog_data`, exposed through `godot/core`. The root music cache delegates its row policy; root ambient and overlap adapters delegate the same source. The parser preserves per-area first-encounter track order after deduplication. `d60a3037` adds shared `AreaTable` parent parsing and root traversal: it stores only nonzero parents, stops at a missing parent or after 16 links, and returns unknown IDs unchanged. It complements `959112e9` MCNK `area_id` exposure without connecting that ID to audio selection. Catalog and AreaTable core targeted proofs are each 5/5. Root adapter compilation and native catalog consumption/playback remain pending independent verification; native audio source at `ba028e7c` is not build or integration proof. No audio-parity or handled-matrix claim follows.
+`741344ca` adds `NativeSound`: owned Music/Ambient Godot players consume the shared catalogs, decode local MP3/Ogg/WAV bytes, reject FLAC, sequence tracks by zone, cache streams, and apply live sound options. Its targeted headless fixture exits 0 for playback state, natural completion, zone changes, and lifecycle; missing-catalog and FLAC errors are expected. Verbose exit reports 16 leaked audio stream/playback/Ogg-packet objects and no native sound/player nodes.
 
-Updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+A pure-GDScript control with the same two player classes, playback/state steps, stop/stream-clear/free sequence, one frame, and a real 0.5-second timer exits 0 with zero leaked classes. The otherwise-identical immediate variant exits 0 but leaks six audio objects. Timing therefore rules out Rust-specific node ownership as necessary, but does not prove all sixteen native objects share one owner. The native timed copy has no retained result log, so it is not independent proof. The Godot 4.7.2 snapshot supports deferred mix-path cleanup and a Dummy-driver shutdown join without a forced final mix. No production delay or audible-output claim follows. Source formatting/readability remediation `809` and root-adapter compilation remain open.
+
+Created [[native-audio-shutdown-leaks]]; updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
 ## [2026-09-28] system | Native Options corrections and standalone startup regressions are bounded
 
