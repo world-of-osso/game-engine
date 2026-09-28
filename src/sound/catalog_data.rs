@@ -76,19 +76,13 @@ pub fn read_ambient_zone_catalog<R: BufRead>(
             break;
         }
         let fields = parse_csv_line(line.trim_end_matches(['\r', '\n']));
-        let Some(wow_path) = fields.get(wow_path_idx) else {
-            continue;
-        };
-        if !wow_path.to_ascii_lowercase().contains("ambient")
-            || fields.get(extracted_idx).map(String::as_str) != Some("1")
-        {
-            continue;
-        }
-        let Some(track_idx) = fields
-            .get(fdid_idx)
-            .and_then(|field| field.parse::<u32>().ok())
-            .and_then(|fdid| track_index_by_fdid.get(&fdid))
-        else {
+        let Some(track_idx) = ambient_track_index(
+            &fields,
+            wow_path_idx,
+            extracted_idx,
+            fdid_idx,
+            track_index_by_fdid,
+        ) else {
             continue;
         };
         let Some(area_ids) = fields.get(area_ids_idx) else {
@@ -102,6 +96,25 @@ pub fn read_ambient_zone_catalog<R: BufRead>(
         }
     }
     Ok(by_zone)
+}
+
+fn ambient_track_index<'a>(
+    fields: &[String],
+    wow_path_idx: usize,
+    extracted_idx: usize,
+    fdid_idx: usize,
+    track_index_by_fdid: &'a HashMap<u32, usize>,
+) -> Option<&'a usize> {
+    let wow_path = fields.get(wow_path_idx)?;
+    if !wow_path.to_ascii_lowercase().contains("ambient")
+        || fields.get(extracted_idx).map(String::as_str) != Some("1")
+    {
+        return None;
+    }
+    fields
+        .get(fdid_idx)
+        .and_then(|field| field.parse::<u32>().ok())
+        .and_then(|fdid| track_index_by_fdid.get(&fdid))
 }
 
 fn insert_zone_track(

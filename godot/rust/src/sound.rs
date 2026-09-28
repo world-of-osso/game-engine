@@ -147,22 +147,9 @@ fn discover_tracks(root: &Path) -> Result<(Vec<PathBuf>, HashMap<u32, usize>), S
             .collect::<Result<Vec<_>, _>>()?;
         entries.sort();
         for path in entries {
-            if !path.is_file() {
-                continue;
-            }
-            let Some(fdid) = path
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .and_then(|stem| stem.parse::<u32>().ok())
-            else {
+            let Some(fdid) = music_file_id(&path) else {
                 continue;
             };
-            if !matches!(
-                path.extension().and_then(|extension| extension.to_str()),
-                Some("mp3" | "ogg" | "wav" | "flac")
-            ) {
-                continue;
-            }
             if indices.contains_key(&fdid) {
                 continue;
             }
@@ -171,6 +158,20 @@ fn discover_tracks(root: &Path) -> Result<(Vec<PathBuf>, HashMap<u32, usize>), S
         }
     }
     Ok((tracks, indices))
+}
+
+fn music_file_id(path: &Path) -> Option<u32> {
+    if !path.is_file()
+        || !matches!(
+            path.extension().and_then(|extension| extension.to_str()),
+            Some("mp3" | "ogg" | "wav" | "flac")
+        )
+    {
+        return None;
+    }
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .and_then(|stem| stem.parse().ok())
 }
 
 fn open_catalog(root: &Path, name: &str) -> Result<BufReader<File>, String> {
