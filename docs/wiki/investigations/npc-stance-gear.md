@@ -17,5 +17,5 @@ Petty Criminal positions equal TDB exactly (18 spawns, `wander_distance` 0, `Mov
 
 ## Gaps
 - Stand state SitChair (2) has no established Retail animation (error logged; 29 spawns world-wide).
-- Godot client: no pose, weapons or armor; its skeleton parse ignores `.anim` files.
+- Godot client (2026-09-28): renders pose, virtual items and display armor through the shared engine-free `NpcGearData` (see [[godot-conversion]] and [npc-appearance](../../specs/npc-appearance.md)); external `.anim` files load (95b478f6). Live proof `godot/tests/npc_pose_gear.gd`, close-ups `data/diagnostics/npcposes/npc-pose-gear-{guards,criminals}-yaw{0,90,180,270}.png` (Ready1H guards with sword, shield, tabard, gloves, boots; riflemen with rifles; criminals asleep/sitting), matching the Bevy shots above. A live sheath change is not yet exercised.
 - HumanFemale HD `.anim` 1000800/1000774/1000773 do not fit the AFSB layout for most tracks.

@@ -9,20 +9,63 @@ use game_engine_core::{creature_display_data::CreatureDisplay, m2};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
-use super::{appearance::PreparedAppearance, build_model, read_model};
+use super::{
+    appearance::PreparedAppearance,
+    build_model,
+    equipment::{attach_each_equipment, place_equipment},
+    read_model,
+};
+use crate::equipment_appearance_data::RuntimeModelAppearance;
+
+/// What a creature model holds: its display's armor item models and its virtual items.
+#[derive(Default)]
+pub(crate) struct CreatureGear {
+    /// Armor item models, at their slots' default attachments.
+    pub(crate) armor_models: Vec<RuntimeModelAppearance>,
+    /// Virtual item models, each with the attachment its sheath state places it on
+    /// (`None`: not shown).
+    pub(crate) items: Vec<(RuntimeModelAppearance, Option<u32>)>,
+}
 
 pub(crate) fn load_creature_model(
     data_root: &Path,
     cache_root: &Path,
     display: &CreatureDisplay,
     appearance: Option<&PreparedAppearance>,
+    gear: &CreatureGear,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let resolver = local_resolver(data_root, cache_root);
     let path = cache_model_files(&resolver, data_root, display.model_fdid)?;
     let path = GString::from(path.to_string_lossy().as_ref());
     let parsed = read_model(&path)?;
     cache_model_textures(&resolver, data_root, &display.skin_fdids, &parsed)?;
-    build_model(&parsed, &path, &display.skin_fdids, appearance)
+    let (mut model, missing) = build_model(&parsed, &path, &display.skin_fdids, appearance)?;
+    let models: Vec<_> = gear
+        .armor_models
+        .iter()
+        .chain(gear.items.iter().map(|(item, _)| item))
+        .cloned()
+        .collect();
+    let report = |item: &RuntimeModelAppearance, error: String| {
+        godot_error!(
+            "Creature model {}: {:?} item FDID {}: {error}",
+            display.model_fdid,
+            item.slot,
+            item.fdid
+        );
+    };
+    if let Err(error) =
+        attach_each_equipment(&mut model, &parsed, &resolver, data_root, &models, report)
+    {
+        model.free();
+        return Err(error);
+    }
+    for (item, attachment) in &gear.items {
+        if let Err(error) = place_equipment(&model, item.slot, *attachment) {
+            godot_error!("Creature model {}: {error}", display.model_fdid);
+        }
+    }
+    Ok((model, missing))
 }
 
 pub(crate) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {

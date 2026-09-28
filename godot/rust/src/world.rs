@@ -5,7 +5,7 @@ use std::{collections::HashMap, f32::consts::PI, path::PathBuf};
 use crate::{
     animation::{WowAnimationPlayer, lod::AnimationLod},
     lighting::TerrainLight,
-    world_models::{UnitAppearance, WorldModels, bind_visual_light},
+    world_models::{UnitAppearance, WorldModels, bind_visual_light, place_virtual_items},
 };
 
 use game_engine_core::movement_animation_data::{ANIM_RUN, direction_to_anim_id};
@@ -20,7 +20,10 @@ use godot::{
     classes::{Node3D, VisibleOnScreenNotifier3D},
     prelude::*,
 };
-use shared::components::{CreatureMotion, MovementControl};
+use shared::components::{CreatureMotion, MovementControl, SheathState, UnitPose};
+
+/// Unit node metadata: the replicated name (Godot renames duplicate siblings `@Node3D@N`).
+const UNIT_NAME_META: &str = "unit_name";
 
 struct UnitNode {
     node: Gd<Node3D>,
@@ -30,8 +33,14 @@ struct UnitNode {
     appearance: Option<UnitAppearance>,
     visual: Option<Gd<Node3D>>,
     death_applied: bool,
-    /// Locomotion animation ID last selected on `visual` from its `CreatureMotion`.
-    locomotion: Option<u16>,
+    /// Animation ID last selected on `visual` from its `CreatureMotion` and `UnitPose`.
+    animation: Option<u16>,
+    /// The replicated pose `pose_anim` was resolved from.
+    pose: Option<UnitPose>,
+    /// The looping animation `pose` holds while the creature stands still.
+    pose_anim: Option<u16>,
+    /// The sheath state `visual`'s virtual items are placed for.
+    sheath: Option<SheathState>,
 }
 
 struct UnitMotion {
@@ -169,6 +178,7 @@ fn spawn_unit(
     let root = root.get_or_insert_with(|| spawn_root(parent));
     let mut node = Node3D::new_alloc();
     node.set_name(name);
+    node.set_meta(UNIT_NAME_META, &name.to_variant());
     node.set_position(position);
     node.set_rotation(Vector3::new(0.0, yaw, 0.0));
     root.add_child(&node);
@@ -180,7 +190,10 @@ fn spawn_unit(
         appearance: None,
         visual: None,
         death_applied: false,
-        locomotion: None,
+        animation: None,
+        pose: None,
+        pose_anim: None,
+        sheath: None,
     }
 }
 
@@ -228,8 +241,18 @@ fn unit_appearance(snapshot: &UnitSnapshot) -> Option<UnitAppearance> {
         ));
     }
     snapshot.npc.as_ref()?;
-    let display = snapshot.model.as_ref()?.display_id;
-    (display != 0).then_some(UnitAppearance::Creature(display))
+    let display_id = snapshot.model.as_ref()?.display_id;
+    (display_id != 0).then(|| UnitAppearance::Creature {
+        display_id,
+        items: snapshot.equipment.clone().unwrap_or_default(),
+    })
+}
+
+fn unit_sheath(snapshot: &UnitSnapshot) -> SheathState {
+    snapshot
+        .unit_pose
+        .map(|pose| pose.sheath_state)
+        .unwrap_or_default()
 }
 
 fn sync_unit_visual(
@@ -249,9 +272,15 @@ fn sync_unit_visual(
         .is_some_and(|(old, new)| old.same_player_model(new));
     let previous = unit.visual.take();
     unit.appearance = appearance;
-    unit.locomotion = None;
+    unit.animation = None;
+    let sheath = unit_sheath(snapshot);
+    unit.sheath = Some(sheath);
     let replacement = unit.appearance.as_ref().map(|appearance| {
-        models.load_visual(appearance, previous.as_ref().filter(|_| preserve_playback))
+        models.load_visual(
+            appearance,
+            sheath,
+            previous.as_ref().filter(|_| preserve_playback),
+        )
     });
     if let Some(previous) = previous {
         previous.free();
@@ -312,20 +341,82 @@ pub(crate) fn creature_motion_animation_id(motion: CreatureMotion) -> u16 {
     direction_to_anim_id(direction, running, false)
 }
 
-/// The locomotion ID a snapshot's motion selects, or `None` when it is already applied.
-pub(crate) fn creature_locomotion_change(
+/// The clip a replicated creature plays (Bevy `switch_animation` precedence): while it
+/// walks or runs, its locomotion; while still, the animation its pose holds (sit, sleep,
+/// an emote state's stance), else Stand. `None` before any motion or pose arrives.
+pub(crate) fn creature_animation_id(
+    motion: Option<CreatureMotion>,
+    pose_anim: Option<u16>,
+) -> Option<u16> {
+    match motion {
+        Some(CreatureMotion::Walk | CreatureMotion::Run) => {
+            motion.map(creature_motion_animation_id)
+        }
+        _ => pose_anim.or(motion.map(creature_motion_animation_id)),
+    }
+}
+
+/// The animation ID a snapshot's motion and pose select, or `None` when it is already
+/// applied.
+pub(crate) fn creature_animation_change(
     applied: Option<u16>,
     motion: Option<CreatureMotion>,
+    pose_anim: Option<u16>,
 ) -> Option<u16> {
-    let id = creature_motion_animation_id(motion?);
+    let id = creature_animation_id(motion, pose_anim)?;
     (applied != Some(id)).then_some(id)
 }
 
-fn sync_unit_locomotion(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
+/// Resolve the held animation of a changed replicated pose; an unmapped pose holds none.
+fn sync_unit_pose(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut WorldModels) {
+    if unit.is_player || unit.pose == snapshot.unit_pose {
+        return;
+    }
+    unit.pose = snapshot.unit_pose;
+    let Some(pose) = snapshot.unit_pose else {
+        unit.pose_anim = None;
+        return;
+    };
+    unit.pose_anim = models
+        .gear()
+        .and_then(|gear| gear.pose_anim_id(&pose))
+        .unwrap_or_else(|error| {
+            godot_error!(
+                "NPC {} ({}) {pose:?}: {error}",
+                snapshot.server_id,
+                unit.name
+            );
+            None
+        });
+}
+
+/// Move the virtual items of a creature whose sheath state changed.
+fn sync_unit_sheath(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut WorldModels) {
+    let sheath = unit_sheath(snapshot);
+    let (Some(visual), Some(UnitAppearance::Creature { items, .. })) =
+        (&unit.visual, &unit.appearance)
+    else {
+        return;
+    };
+    if unit.sheath == Some(sheath) {
+        return;
+    }
+    unit.sheath = Some(sheath);
+    let placed = models
+        .virtual_item_placements(items, sheath)
+        .and_then(|placements| place_virtual_items(visual, &placements));
+    if let Err(error) = placed {
+        godot_error!("NPC {} {sheath:?}: {error}", snapshot.server_id);
+    }
+}
+
+fn sync_unit_animation(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
     if unit.death_applied {
         return;
     }
-    let Some(id) = creature_locomotion_change(unit.locomotion, snapshot.creature_motion) else {
+    let Some(id) =
+        creature_animation_change(unit.animation, snapshot.creature_motion, unit.pose_anim)
+    else {
         return;
     };
     let Some(mut animation) = unit
@@ -335,12 +426,12 @@ fn sync_unit_locomotion(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
     else {
         return;
     };
-    unit.locomotion = Some(id);
+    unit.animation = Some(id);
     if let Err(error) = animation
         .bind_mut()
         .update_locomotion(id, false, id == ANIM_RUN)
     {
-        godot_error!("NPC {} locomotion {id}: {error}", snapshot.server_id);
+        godot_error!("NPC {} animation {id}: {error}", snapshot.server_id);
     }
 }
 
@@ -391,12 +482,15 @@ impl WorldUnits {
         });
         if unit.name != name {
             unit.node.set_name(name);
+            unit.node.set_meta(UNIT_NAME_META, &name.to_variant());
             unit.name = name.to_owned();
         }
         unit.is_player = snapshot.player.is_some();
         sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
+        sync_unit_sheath(unit, snapshot, &mut self.models);
+        sync_unit_pose(unit, snapshot, &mut self.models);
         sync_unit_death(unit, snapshot);
-        sync_unit_locomotion(unit, snapshot);
+        sync_unit_animation(unit, snapshot);
         unit.motion.set_target(
             [position.x, position.y, position.z],
             snapshot.rotation.map(|rotation| rotation.y),
@@ -601,6 +695,7 @@ mod tests {
             movement_control: None,
             movement_speed: None,
             creature_motion: None,
+            unit_pose: None,
             unit_target: None,
             faction_template: None,
             unit_flags: None,

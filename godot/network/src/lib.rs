@@ -26,7 +26,7 @@ use shared::{
     components::{
         CombatStatus, CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay,
         MovementControl, MovementSpeed, Npc, Player, Position, Rotation, UnitFactionTemplate,
-        UnitFlags, UnitLevel, UnitTarget,
+        UnitFlags, UnitLevel, UnitPose, UnitTarget,
     },
     protocol::{
         CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
@@ -80,6 +80,8 @@ pub struct UnitSnapshot {
     pub movement_speed: Option<MovementSpeed>,
     /// A creature's stand/walk/run; players carry none.
     pub creature_motion: Option<CreatureMotion>,
+    /// A creature's stand, sheath and emote state (`creature_addon`); players carry none.
+    pub unit_pose: Option<UnitPose>,
     /// Server entity bits of the unit's own target (`SetTarget` echo for players).
     pub unit_target: Option<u64>,
     /// Retail `FactionTemplate` id, for reaction to the local player.
@@ -106,6 +108,7 @@ impl UnitSnapshot {
             movement_control: entity.get::<MovementControl>().copied(),
             movement_speed: entity.get::<MovementSpeed>().copied(),
             creature_motion: entity.get::<CreatureMotion>().copied(),
+            unit_pose: entity.get::<UnitPose>().copied(),
             unit_target: entity.get::<UnitTarget>().and_then(|target| target.0),
             faction_template: entity
                 .get::<UnitFactionTemplate>()
