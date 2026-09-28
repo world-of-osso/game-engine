@@ -24,10 +24,10 @@ pub(crate) struct PlayerMovement {
     pub jumping: bool,
     pub swimming: bool,
     direction: MoveDirection,
-    /// Held swim ascend (+1, Jump) or descend (-1, Sit/Move Down).
-    swim_vertical: f32,
     /// Whether the swimmer floats at the water surface.
     at_surface: bool,
+    /// Whether the last swim step changed height, for a vertical-only input.
+    swim_rose: bool,
     previous_facing: Option<f32>,
     vertical_velocity: f32,
     grounded: bool,
@@ -49,8 +49,8 @@ impl Default for PlayerMovement {
             jumping: false,
             swimming: false,
             direction: MoveDirection::None,
-            swim_vertical: 0.0,
             at_surface: false,
+            swim_rose: false,
             previous_facing: None,
             vertical_velocity: 0.0,
             grounded: true,
@@ -113,7 +113,6 @@ impl PlayerMovement {
         let (direction, animation) =
             compute_movement_input(bindings, input, self.autorun, false, yaw);
         self.direction = animation;
-        self.swim_vertical = swim_vertical_input(bindings, input);
         let mut direction = Vec3::from_array(direction);
         let speed = if self.swimming {
             if input.mouse_pressed(BindingMouseButton::Right) {
@@ -129,7 +128,7 @@ impl PlayerMovement {
             direction: direction.to_array(),
             speed: speed * movement_speed_multiplier(animation),
             vertical: if self.swimming {
-                self.swim_vertical
+                swim_vertical_input(bindings, input)
             } else {
                 0.0
             },
@@ -144,6 +143,7 @@ impl PlayerMovement {
         ground: &crate::ground::TerrainGround<'_>,
         delta: f32,
     ) -> Vec3 {
+        self.swim_rose = false;
         let position = if self.swimming {
             self.swim(position, &frame, ground, delta)
         } else {
@@ -219,6 +219,7 @@ impl PlayerMovement {
             _ => None,
         };
         let y = swim_height(moved.y, rise, surface, floor, self.at_surface);
+        self.swim_rose = y != current.y;
         self.at_surface = at_swim_surface(y, surface);
         self.grounded = floor.is_some_and(|floor| y <= floor + 0.05);
         moved.with_y(y)
@@ -247,7 +248,7 @@ impl PlayerMovement {
     /// adopt; `epoch` is the server teleport that position follows.
     pub fn network_input(&self, yaw: f32, position: glam::Vec3, epoch: u32) -> Option<PlayerInput> {
         let direction = movement_to_direction(self.direction, yaw);
-        let swimming_vertically = self.swimming && self.swim_vertical != 0.0;
+        let swimming_vertically = self.swimming && self.swim_rose;
         if direction == [0.0; 3] && !self.jumping && !swimming_vertically {
             return None;
         }
@@ -640,6 +641,10 @@ mod tests {
         );
         assert!(movement.swimming && !movement.jumping);
         assert_eq!((surfaced.x, surfaced.z), (bed.x, bed.z));
+        assert!(
+            movement.network_input(INTO_WATER, surfaced, 4).is_none(),
+            "Space held at the surface moves nothing and sends nothing"
+        );
 
         input.set_key(BindingKey::Space, false);
         let floating = hold(
