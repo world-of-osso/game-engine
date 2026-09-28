@@ -69,7 +69,8 @@ impl GameClient {
             ACTION_EXIT => self.base().get_tree().quit(),
             // Preserve the original Support placeholder; other destinations remain unported.
             ACTION_SUPPORT => godot_print!("menu_support: placeholder"),
-            ACTION_OPTIONS | ACTION_ADDONS | ACTION_LOGOUT => {
+            ACTION_LOGOUT => self.request_logout()?,
+            ACTION_OPTIONS | ACTION_ADDONS => {
                 godot_warn!("Game menu action not yet converted: {action}");
             }
             _ => return Err(format!("Unknown game menu action: {action}")),

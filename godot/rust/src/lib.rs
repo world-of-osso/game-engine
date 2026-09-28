@@ -26,6 +26,7 @@ mod nameplates;
 pub mod npc_gear_data;
 mod particles;
 mod player_spells;
+mod logout;
 mod scene;
 mod spell_tooltip;
 mod spells;
@@ -96,6 +97,8 @@ pub struct GameClient {
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     entrance_bar: entrance_bar::EntranceBar,
+    logout: game_engine_session::logout::LogoutState,
+    in_rest_area: bool,
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
@@ -168,6 +171,8 @@ impl INode3D for GameClient {
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
+            logout: Default::default(),
+            in_rest_area: false,
             account: Account::new(data_root.clone()),
             terrain: terrain::streaming::StreamedTerrain::new(
                 data_root.clone(),
@@ -280,6 +285,7 @@ impl INode3D for GameClient {
         let update = self
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
+            .and_then(|()| self.update_logout(delta))
             .and_then(|()| self.update_character_preview())
             .and_then(|()| self.update_creation_scene(delta as f32))
             .and_then(|()| self.update_player_input(delta as f32))
@@ -916,6 +922,9 @@ impl GameClient {
                     self.update_login_status(&status, false)?;
                 }
                 AccountEvent::WorldReset => self.reset_world()?,
+                AccountEvent::RestState(update) => {
+                    self.in_rest_area = update.snapshot.is_some_and(|rest| rest.in_rest_area);
+                }
                 AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
                 AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
                 AccountEvent::TransferError(error) => self.add_world_error(&error)?,
@@ -1117,6 +1126,8 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.logout.clear();
+        self.in_rest_area = false;
         self.character_preview.reset();
         self.creation_scene.reset();
         self.physical_input.clear();
@@ -1197,6 +1208,10 @@ impl GameClient {
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {
         self.close_game_menu();
+        if screen != SessionScreen::InWorld {
+            self.logout.clear();
+            self.sync_logout_overlay()?;
+        }
         if screen != SessionScreen::CharacterSelect {
             self.character_preview.reset();
         }
