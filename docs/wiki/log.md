@@ -40,9 +40,9 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
-## [2026-09-28] system | Shared sound catalog parsing is core-only
+## [2026-09-28] system | Shared audio-preparation data is core-only
 
-`5f74a859` extracts the music-zone parser, manifest-based ambient parser, and music/ambient overlap policy into Bevy-free `catalog_data`, exposed through `godot/core`. The root music cache delegates its row policy; root ambient and overlap adapters delegate the same source. The parser preserves per-area first-encounter track order after deduplication. Core targeted proof is 5/5. Root compilation and native catalog consumption/playback remain pending independent verification; no audio-parity or handled-matrix claim follows.
+`5f74a859` extracts the music-zone parser, manifest-based ambient parser, and music/ambient overlap policy into Bevy-free `catalog_data`, exposed through `godot/core`. The root music cache delegates its row policy; root ambient and overlap adapters delegate the same source. The parser preserves per-area first-encounter track order after deduplication. `d60a3037` adds shared `AreaTable` parent parsing and root traversal: it stores only nonzero parents, stops at a missing parent or after 16 links, and returns unknown IDs unchanged. It complements `959112e9` MCNK `area_id` exposure without connecting that ID to audio selection. Catalog and AreaTable core targeted proofs are each 5/5. Root adapter compilation and native catalog consumption/playback remain pending independent verification; native audio source at `ba028e7c` is not build or integration proof. No audio-parity or handled-matrix claim follows.
 
 Updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
