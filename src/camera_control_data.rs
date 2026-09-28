@@ -17,8 +17,8 @@ pub struct CameraState {
     pub follow_speed: f32,
     /// How fast the camera zooms toward target_distance (lerp speed).
     pub zoom_speed: f32,
-    /// Whether the camera is currently pulled in due to collision.
-    pub collided: bool,
+    /// Orbit distance the camera is pulled in to by collision, recovering toward `distance`.
+    pub collision_distance: Option<f32>,
 }
 
 impl CameraState {
@@ -62,7 +62,7 @@ impl Default for CameraState {
             max_distance: 40.0,
             follow_speed: 10.0,
             zoom_speed: 8.0,
-            collided: false,
+            collision_distance: None,
         }
     }
 }

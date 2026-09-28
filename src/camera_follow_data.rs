@@ -50,7 +50,6 @@ fn terrain_adjusted_distance(
 
 fn effective_distance(
     cam: &mut CameraState,
-    current_position: Vec3,
     eye_target: Vec3,
     orbit_dir: Vec3,
     terrain_height_at: Option<&mut dyn FnMut(f32, f32) -> Option<f32>>,
@@ -69,21 +68,19 @@ fn effective_distance(
     let closest_hit = mesh_hit_at(eye_target, ray_dir);
     let adjusted = collision_adjusted_distance(terrain_distance, closest_hit);
     if adjusted < cam.distance {
-        cam.collided = true;
+        cam.collision_distance = Some(adjusted);
         return adjusted;
     }
 
-    if cam.collided {
-        let recovery_t = (COLLISION_RECOVERY_SPEED * dt).min(1.0);
-        let recovered = current_position
-            .distance(eye_target)
-            .lerp(cam.distance, recovery_t);
-        if (recovered - cam.distance).abs() < 0.05 {
-            cam.collided = false;
-        }
-        return recovered;
-    }
-    cam.distance
+    let Some(pulled_in) = cam.collision_distance else {
+        return cam.distance;
+    };
+    // Recover from the pulled-in orbit distance, not the smoothed camera's distance to the moving
+    // eye: that includes follow lag, so a running player would hold recovery open indefinitely.
+    let recovery_t = (COLLISION_RECOVERY_SPEED * dt).min(1.0);
+    let recovered = pulled_in.lerp(cam.distance, recovery_t);
+    cam.collision_distance = ((recovered - cam.distance).abs() >= 0.05).then_some(recovered);
+    recovered
 }
 
 /// Advance the original camera calculation. Callers supply actual terrain heights, mesh ray
@@ -106,7 +103,6 @@ pub fn follow_camera(
     let orbit_dir = rotation * Vec3::NEG_Z;
     let distance = effective_distance(
         cam,
-        current_position,
         eye_target,
         orbit_dir,
         terrain_height_at,
