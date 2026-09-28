@@ -350,40 +350,62 @@ fn validate_startup_name(response: &LoginResponse, name: Option<&str>) -> Result
 }
 
 fn read_transfer_map_name(data_root: &Path, map_id: u32) -> Result<String, String> {
+    find_map_field(data_root, "ID", &map_id.to_string(), "MapName_lang")
+        .map_err(|error| format!("{error} (map {map_id})"))
+}
+
+/// The `Map.db2` ID of the map whose `Directory` is `directory` (`stormwindjail` is 34).
+pub(crate) fn read_map_id(data_root: &Path, directory: &str) -> Result<u32, String> {
+    let id = find_map_field(data_root, "Directory", directory, "ID")?;
+    id.parse()
+        .map_err(|error| format!("Map.csv: invalid ID {id:?} for {directory}: {error}"))
+}
+
+/// The non-empty `value_column` of the first `Map.csv` row whose `key_column` equals `key`,
+/// ignoring ASCII case.
+fn find_map_field(
+    data_root: &Path,
+    key_column: &str,
+    key: &str,
+    value_column: &str,
+) -> Result<String, String> {
     use game_engine_core::csv_util::header_index;
 
     let path = data_root.join("db2/12.1.0.69933/Map.csv");
-    let file = fs::File::open(&path)
-        .map_err(|error| format!("Read map names {}: {error}", path.display()))?;
+    let read_error = |error: &dyn std::fmt::Display| format!("Read {}: {error}", path.display());
+    let file = fs::File::open(&path).map_err(|error| read_error(&error))?;
     let mut reader = csv::Reader::from_reader(file);
-    let headers = reader
+    let headers: Vec<String> = reader
         .headers()
-        .map_err(|error| format!("Read map names {}: {error}", path.display()))?;
+        .map_err(|error| read_error(&error))?
+        .iter()
+        .map(str::to_owned)
+        .collect();
     if headers.is_empty() {
         return Err(format!("{} is empty", path.display()));
     }
-    let headers: Vec<String> = headers.iter().map(str::to_owned).collect();
-    let id_column = header_index(&headers, "ID", &path)?;
-    let name_column = header_index(&headers, "MapName_lang", &path)?;
+    let key_index = header_index(&headers, key_column, &path)?;
+    let value_index = header_index(&headers, value_column, &path)?;
     for record in reader.records() {
-        let fields =
-            record.map_err(|error| format!("Read map names {}: {error}", path.display()))?;
-        let id = fields
-            .get(id_column)
-            .ok_or_else(|| format!("{}: missing map ID in {fields:?}", path.display()))?
-            .parse::<u32>()
-            .map_err(|error| {
-                format!("{}: invalid map ID in {fields:?}: {error}", path.display())
-            })?;
-        if id == map_id {
-            return fields
-                .get(name_column)
-                .filter(|name| !name.is_empty())
-                .map(str::to_owned)
-                .ok_or_else(|| format!("{}: missing name for map {map_id}", path.display()));
+        let fields = record.map_err(|error| read_error(&error))?;
+        if !fields
+            .get(key_index)
+            .is_some_and(|field| field.eq_ignore_ascii_case(key))
+        {
+            continue;
         }
+        return fields
+            .get(value_index)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .ok_or_else(|| {
+                format!(
+                    "{}: {key_column} {key} has no {value_column}",
+                    path.display()
+                )
+            });
     }
-    Err(format!("{}: map {map_id} not found", path.display()))
+    Err(format!("{}: no {key_column} {key}", path.display()))
 }
 
 #[cfg(test)]
@@ -467,6 +489,14 @@ mod tests {
             "Shadowfang Keep"
         );
         assert!(read_transfer_map_name(&data_root, u32::MAX).is_err());
+    }
+
+    #[test]
+    fn map_id_comes_from_the_map_directory() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        assert_eq!(read_map_id(&data_root, "stormwindjail").unwrap(), 34);
+        assert_eq!(read_map_id(&data_root, "azeroth").unwrap(), 0);
+        assert!(read_map_id(&data_root, "no_such_map").is_err());
     }
 }
 

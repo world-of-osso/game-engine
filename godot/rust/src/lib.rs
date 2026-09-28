@@ -84,6 +84,8 @@ pub struct GameClient {
     terrain_materials: terrain::material::TerrainMaterials,
     world_objects: terrain::objects::TerrainObjects,
     world_lighting: lighting::WorldLighting,
+    /// `Map.db2` ID of the map whose terrain is loaded; lighting selects its Light rows.
+    world_map_id: Option<u32>,
     world_camera: camera::WorldCamera,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
@@ -135,6 +137,7 @@ impl INode3D for GameClient {
                 cache_root.clone(),
             ),
             world_lighting: lighting::WorldLighting::default(),
+            world_map_id: None,
             world_camera: camera::WorldCamera::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,
@@ -308,6 +311,14 @@ impl GameClient {
             "local_player_position",
             &local_transform
                 .map(|transform| transform.origin.to_variant())
+                .unwrap_or_default(),
+        );
+        state.set(
+            "local_server_position",
+            &self
+                .world
+                .local_player_server_position()
+                .map(|position| position.to_variant())
                 .unwrap_or_default(),
         );
         state.set("reply_received", self.account.reply_received);
@@ -766,6 +777,9 @@ impl GameClient {
 
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
         let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
+        if map_changed {
+            self.world_map_id = Some(account::read_map_id(&self.data_root, &request.map_name)?);
+        }
         self.terrain.request_map(
             request.map_name,
             (request.initial_tile_y, request.initial_tile_x),
@@ -791,6 +805,7 @@ impl GameClient {
         let [x, y, z] = destination.position;
         let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
         self.terrain.request_map(destination.map_directory, tile)?;
+        self.world_map_id = Some(destination.map_id);
         if let Some(mut player) = self.world.local_player_node() {
             player.set_position(Vector3::new(x, y, z));
             player.set_rotation(Vector3::new(0.0, destination.facing, 0.0));
@@ -808,12 +823,7 @@ impl GameClient {
         let Some(player) = self.world.local_player_transform() else {
             return Ok(());
         };
-        let map = self
-            .terrain
-            .map_name()
-            .ok_or("Parsed WDT has no map name")?;
-        let map_id = game_engine_core::light_lookup_data::map_name_to_id(map)
-            .ok_or_else(|| format!("No authored map ID for terrain map {map}"))?;
+        let map_id = self.world_map_id.ok_or("Loaded terrain has no map ID")?;
         if let Some(light) = self.world_lighting.sync(
             &mut parent,
             &wdt.lighting,
@@ -897,6 +907,7 @@ impl GameClient {
         }
         self.world_camera.reset();
         self.world_lighting.reset();
+        self.world_map_id = None;
         self.terrain_materials.reset();
         self.world_objects.reset();
         self.world.reset();
