@@ -4,7 +4,7 @@ pub(crate) mod drag;
 
 use game_engine_core::{
     client_options_data::{load_options_file_with_legacy, options_path, save_options_file_to_path},
-    input_bindings_data::InputBinding,
+    input_bindings_data::{InputAction, InputBinding},
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
@@ -18,11 +18,22 @@ use game_engine_ui_model::{
     options_menu_data::{self as policy, BindingCapture, OptionsModel},
 };
 use godot::{
-    classes::{Control, InputEvent, InputEventMouseButton, InputEventMouseMotion},
+    classes::{Control, InputEvent, InputEventKey, InputEventMouseButton, InputEventMouseMotion},
     prelude::*,
 };
 
 use crate::{GameClient, ui::RegistryUi};
+
+fn keyboard_binding(key: &InputEventKey) -> Option<InputBinding> {
+    let binding = crate::input_keys::binding_key(key.get_physical_keycode())?;
+    Some(if key.is_ctrl_pressed() {
+        InputBinding::CtrlKeyboard(binding)
+    } else if key.is_shift_pressed() {
+        InputBinding::ShiftKeyboard(binding)
+    } else {
+        InputBinding::Keyboard(binding)
+    })
+}
 
 impl GameClient {
     pub(super) fn open_game_menu(&mut self) -> Result<(), String> {
@@ -120,61 +131,49 @@ impl GameClient {
     }
 
     pub(super) fn capture_game_menu_binding(&mut self, event: &Gd<InputEvent>) -> bool {
-        let Some(model) = self.game_menu_options.as_mut() else {
+        let Some(model) = self.game_menu_options.as_ref() else {
             return false;
         };
         let BindingCapture::Listening(action) = model.binding_capture else {
             return false;
         };
-        if let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() {
+        if let Ok(key) = event.clone().try_cast::<InputEventKey>() {
             if !key.is_pressed() || key.is_echo() {
                 return true;
             }
             if key.get_keycode() == godot::global::Key::ESCAPE {
                 return false;
             }
-            if let Some(binding) = crate::input_keys::binding_key(key.get_physical_keycode()) {
-                let binding = if key.is_ctrl_pressed() {
-                    InputBinding::CtrlKeyboard(binding)
-                } else if key.is_shift_pressed() {
-                    InputBinding::ShiftKeyboard(binding)
-                } else {
-                    InputBinding::Keyboard(binding)
-                };
-                model.draft_bindings.assign(action, binding);
-                model.binding_capture = BindingCapture::None;
-                if let Err(error) = self
-                    .commit_game_menu_options()
-                    .and_then(|()| self.refresh_game_menu())
-                {
-                    godot_error!("Cannot save captured menu binding: {error}");
-                }
+            if let Some(binding) = keyboard_binding(&key) {
+                self.assign_captured_game_menu_binding(action, binding);
             }
             return true;
         }
-        if let Ok(button) = event
-            .clone()
-            .try_cast::<godot::classes::InputEventMouseButton>()
-        {
-            if button.is_pressed() {
-                if let Some(binding) =
+        if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() {
+            if button.is_pressed()
+                && let Some(binding) =
                     crate::input_keys::binding_mouse_button(button.get_button_index())
-                {
-                    model
-                        .draft_bindings
-                        .assign(action, InputBinding::Mouse(binding));
-                    model.binding_capture = BindingCapture::None;
-                    if let Err(error) = self
-                        .commit_game_menu_options()
-                        .and_then(|()| self.refresh_game_menu())
-                    {
-                        godot_error!("Cannot save captured menu binding: {error}");
-                    }
-                }
+            {
+                self.assign_captured_game_menu_binding(action, InputBinding::Mouse(binding));
             }
             return true;
         }
         false
+    }
+
+    fn assign_captured_game_menu_binding(&mut self, action: InputAction, binding: InputBinding) {
+        let model = self
+            .game_menu_options
+            .as_mut()
+            .expect("menu has options model");
+        model.draft_bindings.assign(action, binding);
+        model.binding_capture = BindingCapture::None;
+        if let Err(error) = self
+            .commit_game_menu_options()
+            .and_then(|()| self.refresh_game_menu())
+        {
+            godot_error!("Cannot save captured menu binding: {error}");
+        }
     }
 
     fn game_menu_logical_viewport(&self) -> Vector2 {
@@ -257,45 +256,56 @@ impl GameClient {
             return Ok(false);
         }
         if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() {
-            if button.get_button_index() != godot::global::MouseButton::LEFT {
-                return Ok(false);
-            }
-            if button.is_pressed() {
-                if !self.pointer_on_options_title() {
-                    return Ok(false);
-                }
-                let (cursor, viewport) = self.drag_pointer_position(button.get_position())?;
-                let position = self
-                    .game_menu_options
-                    .as_ref()
-                    .expect("Options model")
-                    .modal_position;
-                self.game_menu_drag = Some(drag::OptionsDrag::begin(cursor, position, viewport));
-                return Ok(true);
-            }
-            if self.game_menu_drag.take().is_some() {
-                self.save_game_menu_drag_position()?;
-                return Ok(true);
-            }
+            return self.handle_options_drag_button(&button);
+        }
+        if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            return self.handle_options_drag_motion(&motion);
+        }
+        Ok(false)
+    }
+
+    fn handle_options_drag_button(
+        &mut self,
+        button: &InputEventMouseButton,
+    ) -> Result<bool, String> {
+        if button.get_button_index() != godot::global::MouseButton::LEFT {
             return Ok(false);
         }
-        if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>()
-            && self.game_menu_drag.is_some()
-        {
-            let (cursor, viewport) = self.drag_pointer_position(motion.get_position())?;
+        if button.is_pressed() {
+            if !self.pointer_on_options_title() {
+                return Ok(false);
+            }
+            let (cursor, viewport) = self.drag_pointer_position(button.get_position())?;
             let position = self
-                .game_menu_drag
+                .game_menu_options
                 .as_ref()
-                .expect("Drag capture")
-                .position(cursor, viewport);
-            self.game_menu_options
-                .as_mut()
                 .expect("Options model")
-                .modal_position = position;
-            self.refresh_game_menu()?;
+                .modal_position;
+            self.game_menu_drag = Some(drag::OptionsDrag::begin(cursor, position, viewport));
+            return Ok(true);
+        }
+        if self.game_menu_drag.take().is_some() {
+            self.save_game_menu_drag_position()?;
             return Ok(true);
         }
         Ok(false)
+    }
+
+    fn handle_options_drag_motion(
+        &mut self,
+        motion: &InputEventMouseMotion,
+    ) -> Result<bool, String> {
+        let Some(drag) = self.game_menu_drag.as_ref() else {
+            return Ok(false);
+        };
+        let (cursor, viewport) = self.drag_pointer_position(motion.get_position())?;
+        let position = drag.position(cursor, viewport);
+        self.game_menu_options
+            .as_mut()
+            .expect("Options model")
+            .modal_position = position;
+        self.refresh_game_menu()?;
+        Ok(true)
     }
 
     fn save_game_menu_drag_position(&mut self) -> Result<(), String> {
