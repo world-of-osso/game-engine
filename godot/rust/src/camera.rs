@@ -68,6 +68,12 @@ impl WorldCamera {
         self.node.as_ref().map(frustum).unwrap_or_default()
     }
 
+    pub fn transform(&self) -> Option<Transform3D> {
+        self.node
+            .as_ref()
+            .map(|camera| camera.get_global_transform())
+    }
+
     pub fn position(&self) -> Option<Vector3> {
         self.node
             .as_ref()

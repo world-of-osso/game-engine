@@ -102,14 +102,16 @@ impl WowWmoPlacementProbe {
         if let Err(error) = terrain.request_map_tiles(map.to_string(), tile, &[]) {
             return error.as_str().into();
         }
+        let mut objects = TerrainObjects::new(
+            "WorldObjects",
+            crate::WORLD_OBJECT_BUDGET,
+            data_root.clone(),
+            cache_root.clone(),
+        );
+        objects.enable_particles(1.0);
         self.loaded = Some(Loaded {
             terrain,
-            objects: TerrainObjects::new(
-                "WorldObjects",
-                crate::WORLD_OBJECT_BUDGET,
-                data_root.clone(),
-                cache_root.clone(),
-            ),
+            objects,
             selection: WmoRootSelection {
                 tile,
                 fdid: wmo_fdid,
@@ -132,6 +134,11 @@ impl WowWmoPlacementProbe {
         loaded
             .objects
             .cull_doodads(position, &frustum, delta_ms, self.frame);
+        loaded.objects.update_particles(
+            camera.get_global_transform(),
+            &frustum,
+            (delta_ms / 1000.0) as f32,
+        );
         self.frame += 1;
     }
 
@@ -144,6 +151,9 @@ impl WowWmoPlacementProbe {
             state.set("spawned", loaded.objects.spawned_count() as i64);
             state.set("pending", loaded.objects.pending_count() as i64);
             state.set("failures", loaded.objects.failure_count() as i64);
+            if let Some(particles) = loaded.objects.particle_state() {
+                state.set("particles", &particles);
+            }
             let terrain = loaded.terrain.state();
             let tile_errors: Vec<String> = terrain
                 .failures
