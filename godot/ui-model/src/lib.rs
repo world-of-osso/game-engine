@@ -15,6 +15,9 @@ pub mod ui {
             default_button_atlas, inworld_unit_frames_component, menu_primitives,
             trash_button_component, world_map_frame_art, world_map_frame_component,
         };
+
+        #[cfg(test)]
+        pub(crate) use crate::screen_test_helpers;
     }
 
     pub use crate::ui_errors_data;
@@ -40,6 +43,8 @@ pub mod trash_button_component;
 
 #[path = "../../../src/csv_util.rs"]
 pub mod csv_util;
+#[path = "../../../src/dungeon_entrance_data.rs"]
+pub mod dungeon_entrance_data;
 #[path = "../../../src/ui_map_data.rs"]
 pub mod ui_map_data;
 #[path = "../../../src/ui/screens/world_map_frame_art.rs"]
@@ -74,6 +79,9 @@ mod panel_style_data;
 pub mod loading_component;
 #[path = "../../../src/ui/screens/login_component.rs"]
 pub mod login;
+#[cfg(test)]
+#[path = "../../../src/ui/screens/screen_test_helpers.rs"]
+mod screen_test_helpers;
 #[path = "../../../src/ui/screens/screen_title.rs"]
 mod screen_title;
 
