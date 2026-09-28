@@ -39,6 +39,9 @@ func run_test() -> void:
 	await click_menu_action(client, "MenuBtnOptions")
 	await process_frame
 	await click_option(client, "OptionsTabsound")
+	await click_slider(client, "Slidermaster_volume", 0.25)
+	if not await expect_volumes(music, ambient, 0.1125, 0.075, 0.025):
+		return
 	await click_option(client, "OptionsDefaultsButton")
 	if not await expect_volumes(music, ambient, 0.45, 0.3):
 		return
