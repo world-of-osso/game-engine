@@ -101,11 +101,7 @@ fn load_stream(
     let buffer = PackedByteArray::from(bytes.as_slice());
     let mut stream: Gd<AudioStream> = if bytes.starts_with(b"OggS") {
         AudioStreamOggVorbis::load_from_buffer(&buffer).map(|value| value.upcast())
-    } else if bytes.starts_with(b"ID3")
-        || bytes.starts_with(&[0xff, 0xfb])
-        || bytes.starts_with(&[0xff, 0xf3])
-        || bytes.starts_with(&[0xff, 0xf2])
-    {
+    } else if bytes.starts_with(b"ID3") || is_mp3_frame(&bytes) {
         AudioStreamMp3::load_from_buffer(&buffer).map(|value| value.upcast())
     } else if bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WAVE") {
         AudioStreamWav::load_from_buffer(&buffer).map(|value| value.upcast())
@@ -125,6 +121,13 @@ fn load_stream(
     );
     cache.insert(index, stream.clone());
     Ok(stream)
+}
+
+fn is_mp3_frame(bytes: &[u8]) -> bool {
+    let Some(&[0xff, header, ..]) = bytes.get(..4) else {
+        return false;
+    };
+    header & 0xe0 == 0xe0 && (header >> 3) & 3 != 1 && (header >> 1) & 3 != 0
 }
 
 fn discover_tracks(root: &Path) -> Result<(Vec<PathBuf>, HashMap<u32, usize>), String> {

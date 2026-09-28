@@ -29,6 +29,8 @@ mod particles;
 mod player_spells;
 mod logout;
 mod scene;
+mod sound;
+mod sound_client;
 mod spell_tooltip;
 mod spells;
 mod startup;
@@ -104,6 +106,8 @@ pub struct GameClient {
     logout: game_engine_session::logout::LogoutState,
     in_rest_area: bool,
     account: Account,
+    sound: Option<Gd<sound::NativeSound>>,
+    area_parents: HashMap<u32, u32>,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
     terrain: terrain::streaming::StreamedTerrain,
@@ -180,6 +184,8 @@ impl INode3D for GameClient {
             logout: Default::default(),
             in_rest_area: false,
             account: Account::new(data_root.clone()),
+            sound: None,
+            area_parents: HashMap::new(),
             terrain: terrain::streaming::StreamedTerrain::new(
                 data_root.clone(),
                 cache_root.clone(),
@@ -336,6 +342,9 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_nameplates())
             .map(|()| self.cull_world_objects());
         self.physical_input.finish_frame();
+        if let Err(error) = self.update_sound() {
+            godot_error!("Sound update failed: {error}");
+        }
         if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
             godot_error!("Account update failed: {error}");
@@ -349,6 +358,7 @@ impl INode3D for GameClient {
     }
 
     fn exit_tree(&mut self) {
+        self.stop_sound();
         if let Err(error) = self.account.stop() {
             godot_error!("Account shutdown failed: {error}");
         }
@@ -358,6 +368,7 @@ impl INode3D for GameClient {
         display_options::apply_graphics_display_options(&self.client_options.graphics);
         if let Err(error) = self
             .connect_focus_reset()
+            .and_then(|()| self.initialize_sound())
             .and_then(|()| self.initialize_startup())
         {
             godot_error!("Cannot initialize client: {error}");
@@ -424,6 +435,10 @@ impl GameClient {
         state.set("character_count", session.characters.len() as i64);
         state.set("unit_count", self.units.len() as i64);
         state.set("world_attached", self.world.root().is_some());
+        state.set(
+            "zone_id",
+            &self.current_zone_id().map(|id| id.to_variant()).unwrap_or_default(),
+        );
         state.set("terrain", &terrain::state::terrain_state(&self.terrain));
         let area_id = local_transform.and_then(|transform| {
             self.terrain
@@ -1191,6 +1206,7 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.stop_sound();
         self.logout.clear();
         self.in_rest_area = false;
         self.character_preview.reset();
