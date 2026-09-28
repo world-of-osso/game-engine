@@ -13,7 +13,7 @@ use shared::protocol::{AuthChannel, DeleteCharacter, SelectCharacter};
 use crate::game_state::GameState;
 use crate::networking::CharacterList;
 use crate::scenes::char_select::{
-    CampsitePanelVisible, CharSelectFocus, CharSelectUi, DeleteCharacterConfirmationState,
+    CampsitePanel, CharSelectFocus, CharSelectUi, DeleteCharacterConfirmationState,
     DeleteCharacterTarget, SelectedCharIndex,
 };
 use crate::scenes::login::helpers::{
@@ -318,7 +318,7 @@ pub(crate) fn dispatch_char_select_action(
     mut events: MessageReader<CharSelectClickEvent>,
     mut selected: ResMut<SelectedCharIndex>,
     mut focus: ResMut<CharSelectFocus>,
-    mut campsite_visible: ResMut<CampsitePanelVisible>,
+    mut campsite_panel: ResMut<CampsitePanel>,
     mut senders: MessageSenders<SelectCharacter>,
     mut del_senders: MessageSenders<DeleteCharacter>,
     char_list: Res<CharacterList>,
@@ -371,13 +371,16 @@ pub(crate) fn dispatch_char_select_action(
                 );
             }
             Some(CharSelectAction::CampsiteToggle) => {
-                campsite_visible.0 = !campsite_visible.0;
+                campsite_panel.visible = !campsite_panel.visible;
+            }
+            Some(CharSelectAction::CampsitePage(page)) => {
+                campsite_panel.page = page;
             }
             Some(CharSelectAction::SelectCampsite(id)) => {
                 if let Some(ref mut sel) = selected_scene {
                     sel.scene_id = id;
                 }
-                campsite_visible.0 = false;
+                campsite_panel.visible = false;
             }
             None => {
                 focus.0 = None;

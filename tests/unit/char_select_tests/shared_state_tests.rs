@@ -8,7 +8,7 @@ struct Fixture {
     registry: FrameRegistry,
     characters: CharacterList,
     selected: SelectedCharIndex,
-    campsite: CampsitePanelVisible,
+    campsite: CampsitePanel,
     focus: CharSelectFocus,
     delete: DeleteCharacterConfirmationState,
 }
@@ -22,7 +22,7 @@ impl Fixture {
             registry: test_registry(),
             characters: CharacterList(vec![character(1, "Elara"), character(2, "Theron")]),
             selected: SelectedCharIndex(Some(0)),
-            campsite: CampsitePanelVisible(false),
+            campsite: CampsitePanel::default(),
             focus: CharSelectFocus(None),
             delete: DeleteCharacterConfirmationState::default(),
         }
@@ -157,7 +157,7 @@ fn charselect_shared_selection_list_and_campsite_changes_are_independent() {
     );
     fixture.assert_stable();
 
-    fixture.campsite.0 = true;
+    fixture.campsite.visible = true;
     fixture.sync(false);
     assert_eq!(fixture.generations(), [3, 2, 1]);
     assert!(
@@ -168,7 +168,7 @@ fn charselect_shared_selection_list_and_campsite_changes_are_independent() {
             .panel_visible
     );
     fixture.assert_stable();
-    fixture.campsite.0 = false;
+    fixture.campsite.visible = false;
     fixture.sync(false);
     assert_eq!(fixture.generations(), [3, 3, 1]);
     assert!(

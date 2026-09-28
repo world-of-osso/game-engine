@@ -437,6 +437,10 @@ impl GameClient {
                 self.campsite.panel_visible = !self.campsite.panel_visible;
                 self.sync_campsite_state()
             }
+            Some(CharSelectAction::CampsitePage(page)) => {
+                self.campsite.page = page;
+                self.sync_campsite_state()
+            }
             Some(CharSelectAction::SelectCampsite(id)) => {
                 self.character_preview.select_scene(id);
                 self.campsite.selected_id = Some(id);
@@ -1227,5 +1231,6 @@ fn authored_campsites(
             })
             .collect(),
         panel_visible: false,
+        page: 0,
     })
 }

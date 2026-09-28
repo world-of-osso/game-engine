@@ -67,6 +67,7 @@ fn build_campsite_popup_state() -> CampsiteState {
             .collect(),
         panel_visible: true,
         selected_id,
+        page: 0,
     }
 }
 

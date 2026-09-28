@@ -36,6 +36,7 @@ pub enum CharSelectAction {
     Menu,
     CampsiteToggle,
     SelectCampsite(u32),
+    CampsitePage(usize),
 }
 
 impl fmt::Display for CharSelectAction {
@@ -51,6 +52,7 @@ impl fmt::Display for CharSelectAction {
             Self::Menu => f.write_str("menu"),
             Self::CampsiteToggle => f.write_str("campsite_toggle"),
             Self::SelectCampsite(id) => write!(f, "select_campsite:{id}"),
+            Self::CampsitePage(page) => write!(f, "campsite_page:{page}"),
         }
     }
 }
@@ -62,6 +64,9 @@ impl CharSelectAction {
         }
         if let Some(id_str) = s.strip_prefix("select_campsite:") {
             return id_str.parse().ok().map(Self::SelectCampsite);
+        }
+        if let Some(page) = s.strip_prefix("campsite_page:") {
+            return page.parse().ok().map(Self::CampsitePage);
         }
         match s {
             "enter_world" => Some(Self::EnterWorld),
@@ -117,6 +122,8 @@ pub struct CampsiteState {
     pub scenes: Vec<CampsiteEntry>,
     pub panel_visible: bool,
     pub selected_id: Option<u32>,
+    /// Zero-based campsite page; the panel clamps it to the available pages.
+    pub page: usize,
 }
 
 // --- Frame names ---
