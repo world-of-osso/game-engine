@@ -105,7 +105,7 @@ pub(super) fn run(
 
 fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().logins);
-    for request in requests {
+    for (connection, request) in requests {
         let credentials = request.username == "fixture"
             && request.password == "fixture"
             && request.token.is_none();
@@ -123,7 +123,7 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
             ));
         }
         let mut incoming = app.world_mut().resource_mut::<Incoming>();
-        incoming.logins.push(request);
+        incoming.logins.push((connection, request));
         respond_to_login(app, StartupScreen::Logout)?;
     }
     Ok(())
