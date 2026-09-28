@@ -12,7 +12,7 @@ The sound system coexists with the rest of the engine as a Bevy plugin registere
 
 ## Shared footstep policy
 
-`src/sound/footstep_data.rs` is the Bevy-free source for footstep creature/race/model and surface classification, animation-to-movement mapping, catalog entry interpretation, and ranked seeded selection. Both the root library and `godot/core` expose it via `#[path]`; `src/sound/footsteps.rs` reexports its API and retains Bevy handles, listfile/cache loading, bucket limits, and byte loading unchanged. Core tests cover the existing classification/ranking examples plus tied seed and no-eligible-entry selection. This is a policy prerequisite only: native playback and fallback behavior are unchanged.
+`src/sound/footstep_data.rs` is the Bevy-free source for footstep creature/race/model and surface classification, animation-to-movement mapping, catalog entry interpretation, and ranked seeded selection. Both the root library and `godot/core` expose it via `#[path]`; `src/sound/footsteps.rs` reexports its API and retains Bevy handles, listfile/cache loading, bucket limits, and byte loading unchanged. Core tests cover the existing classification/ranking examples plus tied seed and no-eligible-entry selection. This is a policy prerequisite only: it adds no native playback and does not change adapter fallback behavior. Independent verifier831 is pending.
 
 ## Shared catalog boundary
 
