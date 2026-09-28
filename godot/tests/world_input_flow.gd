@@ -887,6 +887,8 @@ func check_running_jump(client: Node, player: Node3D, locomotion: RefCounted) ->
 		fail("Running jump did not begin in Run 5")
 		return false
 	var takeoff := player.position
+	var facing := player.rotation.y + PI / 2.0
+	var forward := Vector3(sin(facing), 0.0, cos(facing))
 	var run_pose: Array[Transform3D] = locomotion.capture_pose()
 	var sequence := [37, 38, 187, 5]
 	var next_id := 0
@@ -931,7 +933,7 @@ func check_running_jump(client: Node, player: Node3D, locomotion: RefCounted) ->
 		push_w(false)
 		fail("Running jump did not complete 37 -> 38 -> 187 -> 5 with changing bones: " + str(next_id) + " poses=" + str(changed_pose))
 		return false
-	if highest_y < takeoff.y + 0.3 or player.position.z >= takeoff.z - 0.1:
+	if highest_y < takeoff.y + 0.3 or (player.position - takeoff).dot(forward) <= 0.1:
 		push_w(false)
 		fail("Running jump did not rise and advance forward: " + str(takeoff) + " peak=" + str(highest_y) + " final=" + str(player.position))
 		return false
@@ -943,7 +945,7 @@ func check_running_jump(client: Node, player: Node3D, locomotion: RefCounted) ->
 			push_w(false)
 			fail("Running jump did not retain Run 5 after landing at frame " + str(frame))
 			return false
-	if player.position.z >= resumed_at.z - 0.1:
+	if (player.position - resumed_at).dot(forward) <= 0.1:
 		push_w(false)
 		fail("Running jump did not resume forward movement: " + str(resumed_at) + " -> " + str(player.position))
 		return false
