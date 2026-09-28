@@ -1,7 +1,7 @@
 extends SceneTree
 
 # Real-server character-select top navigation through viewport mouse input:
-# hover boxes a tab, MODE/SHOP/MENU stay on character select, CAMPSITES opens the
+# hover boxes a tab, MODE/SHOP stay inert, MENU overlays character select, CAMPSITES opens the
 # campsite panel and a card switches the campsite, REALMS returns to login.
 
 const TABS := [
@@ -103,13 +103,23 @@ func run() -> void:
 		fail("Unhovered MODE must return to a gold unboxed label", client)
 		return
 
-	for tab in ["CharSelectModeTab", "CharSelectShopTab", "CharSelectMenuTab"]:
+	for tab in ["CharSelectModeTab", "CharSelectShopTab"]:
 		await click(ui.find_child(tab, true, false))
 		var problem = still_selecting(client)
 		var closed = ui.find_child("CampsitePanel", true, false)
 		if problem != "" or (closed != null and closed.is_visible_in_tree()):
 			fail("%s must stay inert on character select: %s" % [tab, problem], client)
 			return
+
+	await click(ui.find_child("CharSelectMenuTab", true, false))
+	var menu = client.get_node_or_null("GameMenuUI")
+	if menu == null or still_selecting(client) != "":
+		fail("MENU must overlay character select", client)
+		return
+	await click(menu.find_child("MenuBtnResume", true, false))
+	if client.get_node_or_null("GameMenuUI") != null or still_selecting(client) != "":
+		fail("Return must dismiss MENU without leaving character select", client)
+		return
 
 	var scene_before = client.find_child("CharacterSelectScene", true, false)
 	await click(ui.find_child("CharSelectCampsitesTab", true, false))
@@ -142,6 +152,6 @@ func run() -> void:
 	if client.account_state().screen != "Login":
 		fail("REALMS must return to login like Back: %s" % client.account_state().screen, client)
 		return
-	print("PASS: top navigation hover, inert tabs, campsite panel/selection and REALMS")
+	print("PASS: top navigation hover, inert tabs, MENU, campsite panel/selection and REALMS")
 	client.queue_free()
 	quit(0)

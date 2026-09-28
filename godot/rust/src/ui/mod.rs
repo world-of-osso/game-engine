@@ -9,8 +9,8 @@ use std::collections::VecDeque;
 use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
 use game_engine_ui_model::{
-    CharacterCreateModel, CharacterSelectModel, LoadingModel, LoginModel, UiErrorsModel,
-    apply_character_create_postsetup, loading_component::LoadingScreenState, login,
+    CharacterCreateModel, CharacterSelectModel, GameMenuModel, LoadingModel, LoginModel,
+    UiErrorsModel, apply_character_create_postsetup, loading_component::LoadingScreenState, login,
     ui_errors_data::UiErrorsData,
 };
 use godot::classes::{CanvasLayer, ICanvasLayer};
@@ -221,6 +221,28 @@ impl RegistryUi {
         self.login_fade = Some(0.1);
         set_login_alpha(&mut model.registry, 0.0);
         self.initialize_model(model, width, height)
+    }
+
+    pub fn show_game_menu(&mut self, logged_in: bool) -> Result<(), String> {
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("Game menu has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let GameMenuModel {
+            screen,
+            shared,
+            registry,
+        } = GameMenuModel::new(size.x, size.y, logged_in);
+        let mut model = RegistryModel {
+            screen,
+            shared,
+            registry,
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
     }
 
     /// Initialize a dedicated RegistryUi instance for the authored error overlay.
