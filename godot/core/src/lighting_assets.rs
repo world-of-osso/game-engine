@@ -88,6 +88,8 @@ fn read_light_data_row(row: &CsvRow<'_>) -> Result<LightDataRow<[f32; 3]>, Strin
         ground_ambient_color: row.color("GroundAmbientColor")?,
         fog_end,
         fog_start: fog_end * row.number("FogScaler")?,
+        fog_scaler: row.number("FogScaler")?,
+        fog_density: row.number("FogDensity")?,
         glow: row.number("SunFogStrength")?,
         cloud_density: row.number("CloudDensity")?,
         unk1: row.number("Field_10_0_0_44649_042")?,

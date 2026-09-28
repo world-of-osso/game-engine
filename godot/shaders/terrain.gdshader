@@ -34,11 +34,13 @@ uniform vec3 ground_ambient = vec3(1.0);
 uniform vec3 direct;
 // World direction sunlight travels, not the direction towards the sun.
 uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
-// Godot's fog is disabled: original DistanceFog values, in linear space.
+// Godot's fog is disabled: fog colour in linear space.
 uniform vec3 fog_color;
+// Retail legacy exponential fog: (start, end) in yards and density per yard.
 uniform vec2 fog_range;
+uniform float fog_density;
 uniform float fog_opacity;
-// 0 off, 1 linear, 2 exponential, 3 exponential squared.
+// 0 off, 1 retail legacy fog.
 uniform int fog_mode = 0;
 
 varying vec3 terrain_world_position;
@@ -107,12 +109,10 @@ vec3 apply_retail_fog(vec3 color, vec3 world_position, vec3 camera_position) {
 	float distance_to_camera = length(world_position - camera_position);
 	float amount = 0.0;
 	if (fog_mode == 1) {
-		amount = 1.0 - clamp((fog_range.y - distance_to_camera) / (fog_range.y - fog_range.x), 0.0, 1.0);
-	} else if (fog_mode == 2) {
-		amount = 1.0 - 1.0 / exp(distance_to_camera * fog_range.x);
-	} else if (fog_mode == 3) {
-		float scaled = distance_to_camera * fog_range.x;
-		amount = 1.0 - 1.0 / exp(scaled * scaled);
+		// commonFogFunctions.slang calculateLegacyFog, without height fog.
+		float exp_fog = exp(-max(0.0, distance_to_camera - fog_range.x) * fog_density);
+		float end_fade = clamp(1.42857146 * (1.0 - distance_to_camera / fog_range.y), 0.0, 1.0);
+		amount = 1.0 - min(exp_fog, end_fade);
 	}
 	return mix(color, linear_to_gamma(fog_color), amount * fog_opacity);
 }

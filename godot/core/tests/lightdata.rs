@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use game_engine_core::sky_lightdata_data::{
-    LightDataRow, interpolate_colors, lerp_color_sets, sample_light_blend,
+    LightDataRow, interpolate_colors, lerp_color_sets, retail_fog, sample_light_blend,
 };
 
 fn mix(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
@@ -38,6 +38,8 @@ fn row(time: f32, color: [f32; 3]) -> LightDataRow<[f32; 3]> {
         ground_ambient_color: color,
         fog_end: 0.0,
         fog_start: 0.0,
+        fog_scaler: 0.0,
+        fog_density: 0.0,
         glow: 0.0,
         cloud_density: 0.0,
         unk1: 0.0,
@@ -120,4 +122,31 @@ fn color_set_blend_does_not_convert_fog_units_twice() {
     second_row.fog_end = 3600.0;
     let second = interpolate_colors(&[second_row], 0.0, mix).unwrap();
     assert_eq!(lerp_color_sets(&first, &second, 0.5, mix).fog_end, 50.0);
+}
+
+// DayNightLightHolder.cpp:606-649 fixLightTimedData, then :1020-1030 per-LightParams floors.
+#[test]
+fn retail_fog_follows_reference_row_fixes_and_density_floor() {
+    let mut legacy = row(0.0, [0.0; 3]);
+    legacy.fog_end = 200.0;
+    legacy.fog_scaler = 0.5;
+    // No FogDensity: derived from FogEnd - FogEnd * FogScaler = 100 within (700 - 200).
+    let fog = retail_fog(&interpolate_colors(&[legacy.clone()], 0.0, mix).unwrap());
+    assert!((fog.density - (((1.0 - 100.0 / 500.0) * 5.5 + 1.5) * 0.0005)).abs() < 1e-7);
+    assert_eq!((fog.start, fog.end), (500.0, 1000.0));
+
+    // FogEnd below 10 is raised to 10 before the density heuristic; FogScaler is clamped to 1.
+    legacy.fog_end = 0.0;
+    legacy.fog_scaler = 3.0;
+    let fog = retail_fog(&interpolate_colors(&[legacy], 0.0, mix).unwrap());
+    assert_eq!(fog.start, 1000.0);
+    assert!((fog.density - 1.5 * 0.0005).abs() < 1e-7);
+
+    // Authored density is floored at 0.9 and lets FogScaler reach -0.2, but no lower.
+    let mut modern = row(0.0, [0.0; 3]);
+    modern.fog_density = 0.5;
+    modern.fog_scaler = -0.6;
+    let fog = retail_fog(&interpolate_colors(&[modern], 0.0, mix).unwrap());
+    assert!((fog.density - 0.9 * 0.0005).abs() < 1e-7);
+    assert!((fog.start + 200.0).abs() < 1e-3);
 }

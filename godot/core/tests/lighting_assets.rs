@@ -1,4 +1,8 @@
-use game_engine_core::lighting_assets::{parse_light_csv, parse_light_data_csv};
+use game_engine_core::{
+    light_lookup_data::{LightParamsSlot, light_params_blend},
+    lighting_assets::{parse_light_csv, parse_light_data_csv},
+    sky_lightdata_data::{RetailFog, retail_fog, sample_light_blend},
+};
 use std::{fs, path::PathBuf};
 
 fn fixture(name: &str) -> String {
@@ -57,6 +61,64 @@ fn authored_lightdata_rows_are_sorted_and_keep_linear_color_and_raw_fog_units() 
         .zip([0.59061885, 0.2704978, 0.23455058])
     {
         assert!((actual - expected).abs() < 0.000001);
+    }
+}
+
+fn lerp_rgb(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
+    std::array::from_fn(|index| a[index] + (b[index] - a[index]) * t)
+}
+
+// WarbandScene 7 (Freywold Spring) and 25 (Gallagio Grand Gallery) resolve to map-global
+// LightParams whose every keyframe authors FogEnd 0. Retail does not read FogEnd as a linear
+// range: MapSceneRenderer.cpp:225-246 fogs exponentially from farClip * FogScaler with
+// FogDensity * 0.0005 per yard and fades out at farClip, so these scenes stay visible.
+#[test]
+fn campsite_light_params_with_zero_fog_end_use_retail_exponential_fog() {
+    let lights = parse_light_csv(&fixture("Light.csv")).expect("authored Light.csv");
+    let keyframes =
+        parse_light_data_csv(&fixture("LightData.csv")).expect("authored LightData.csv");
+    for (map_id, position, light_params_id, expected) in [
+        (
+            2847,
+            [-2808.0034, 395.20139, 81.541237],
+            5615,
+            RetailFog {
+                start: 20.0,
+                end: 1000.0,
+                density: 0.002,
+            },
+        ),
+        (
+            2851,
+            [431.86978, -802.94617, 27.449316],
+            6412,
+            RetailFog {
+                start: 0.0,
+                end: 1000.0,
+                density: 0.0025,
+            },
+        ),
+    ] {
+        let blend = light_params_blend(&lights, map_id, position, LightParamsSlot::Clear);
+        let weights: Vec<_> = blend
+            .iter()
+            .map(|light| (light.light_params_id, light.weight))
+            .collect();
+        assert_eq!(weights, [(light_params_id, 1.0)]);
+        assert!(
+            keyframes[&light_params_id]
+                .iter()
+                .all(|row| row.fog_end == 0.0)
+        );
+        let sky = sample_light_blend(&keyframes, &weights, 1440.0, lerp_rgb).unwrap();
+        let fog = retail_fog(&sky);
+        for (actual, expected) in [
+            (fog.start, expected.start),
+            (fog.end, expected.end),
+            (fog.density, expected.density),
+        ] {
+            assert!((actual - expected).abs() < 1e-5, "{fog:?} != {expected:?}");
+        }
     }
 }
 

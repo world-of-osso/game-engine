@@ -2,7 +2,9 @@
 
 pub(crate) mod assets;
 
-use game_engine_core::{retail_light_data::RetailLightData, sky_cubemap_data};
+use game_engine_core::{
+    retail_light_data::RetailLightData, sky_cubemap_data, sky_lightdata_data::RetailFog,
+};
 use godot::{
     classes::{
         Cubemap, DirectionalLight3D, Environment, Image, Node3D, ShaderMaterial, WorldEnvironment,
@@ -18,6 +20,7 @@ type SkyStops = [[f32; 3]; 7];
 #[derive(Clone)]
 pub(crate) struct TerrainLight {
     retail: RetailLightData,
+    fog: RetailFog,
     fog_color: [f32; 3],
     cube: Gd<Cubemap>,
 }
@@ -39,8 +42,9 @@ impl TerrainLight {
         ] {
             material.set_shader_parameter(name, &Vector3::from_array(value).to_variant());
         }
-        let range = Vector2::new(self.retail.fog_start, self.retail.fog_end);
+        let range = Vector2::new(self.fog.start, self.fog.end);
         material.set_shader_parameter("fog_range", &range.to_variant());
+        material.set_shader_parameter("fog_density", &self.fog.density.to_variant());
         material.set_shader_parameter("fog_opacity", &1.0f32.to_variant());
         material.set_shader_parameter("fog_mode", &1i32.to_variant());
     }
@@ -54,6 +58,7 @@ impl TerrainLight {
             "sun_direction",
             "fog_color",
             "fog_range",
+            "fog_density",
             "fog_opacity",
             "fog_mode",
         ] {
@@ -66,7 +71,7 @@ impl TerrainLight {
 pub(crate) struct WorldLighting {
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
-    previous: Option<(RetailLightData, SkyStops)>,
+    previous: Option<(RetailLightData, RetailFog, SkyStops)>,
 }
 
 impl WorldLighting {
@@ -89,7 +94,7 @@ impl WorldLighting {
             sky.fog_color,
             sky.fog_color,
         ];
-        let values = (sample.retail.clone(), stops);
+        let values = (sample.retail.clone(), sample.fog, stops);
         if self.previous.as_ref() == Some(&values) {
             return Ok(None);
         }
@@ -103,6 +108,7 @@ impl WorldLighting {
         self.previous = Some(values);
         Ok(Some(TerrainLight {
             retail: sample.retail,
+            fog: sample.fog,
             fog_color: sky.fog_color,
             cube,
         }))

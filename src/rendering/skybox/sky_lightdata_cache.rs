@@ -156,6 +156,8 @@ fn decode_light_data_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LightDataR
         ground_ambient_color: decode_light_color(row.get(25)?),
         fog_end: scalars.fog_end,
         fog_start: scalars.fog_start,
+        fog_scaler: 0.0,
+        fog_density: 0.0,
         glow: scalars.glow,
         cloud_density: scalars.cloud_density,
         unk1: scalars.unk1,

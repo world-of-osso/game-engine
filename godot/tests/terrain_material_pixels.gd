@@ -193,13 +193,26 @@ func _run() -> void:
 		return
 	set_vertex_color(Color(0.5, 0.5, 0.5))
 	material.set_shader_parameter("fog_mode", 1)
-	material.set_shader_parameter("fog_range", Vector2(1.0, 3.0))
+	# Half fog at the fixture distance of 2: exp(-(2 - 1) * ln 2).
+	material.set_shader_parameter("fog_range", Vector2(1.0, 100.0))
+	material.set_shader_parameter("fog_density", log(2.0))
 	material.set_shader_parameter("fog_opacity", 1.0)
 	material.set_shader_parameter("fog_color", Vector3(0.5, 0.0, 0.0))
 	var fog_red := Color(0.5, 0.0, 0.0).linear_to_srgb().r
 	var fogged := Color((0.25 * tint * 1.1 + fog_red) * 0.5, 0.25 * tint * 1.1 * 0.5, 0.25 * tint * 1.1 * 0.5)
-	if not await assert_pixel("linear distance fog in authored space", fogged):
+	if not await assert_pixel("retail exponential fog in authored space", fogged):
 		return
+	# calculateLegacyFog end fade: 1.42857 * (1 - 2 / (2 / 0.65)) leaves half the colour.
+	material.set_shader_parameter("fog_density", 0.0)
+	material.set_shader_parameter("fog_range", Vector2(0.0, 2.0 / 0.65))
+	if not await assert_pixel("retail fog end fade", fogged):
+		return
+	# Fog starts at fog_range.x: nothing is fogged before it.
+	material.set_shader_parameter("fog_density", log(2.0))
+	material.set_shader_parameter("fog_range", Vector2(2.0, 100.0))
+	if not await assert_pixel("no terrain fog before fog start", Color(0.25 * tint * 1.1, 0.25 * tint * 1.1, 0.25 * tint * 1.1)):
+		return
+	material.set_shader_parameter("fog_range", Vector2(1.0, 100.0))
 	material.set_shader_parameter("fog_mode", 0)
 	material.set_shader_parameter("ground_0", striped_texture())
 	material.set_shader_parameter("animation_params_0", Vector4(0.5, 0.0, 0.0, 0.0))
