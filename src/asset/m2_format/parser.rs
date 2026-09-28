@@ -415,6 +415,23 @@ pub(crate) fn parse_skel_data_with_anims(
     Ok(result)
 }
 
+/// The skeleton's `AFID` entries (its external sequences' `.anim` files).
+pub(crate) fn skeleton_afid(data: &[u8]) -> Result<Vec<(u16, u16, u32)>, String> {
+    let mut off = 0;
+    while off + 8 <= data.len() {
+        let size = read_u32(data, off + 4)? as usize;
+        let end = off + 8 + size;
+        if end > data.len() {
+            break;
+        }
+        if &data[off..off + 4] == b"AFID" {
+            return Ok(parse_afid(&data[off + 8..end]));
+        }
+        off = end;
+    }
+    Ok(Vec::new())
+}
+
 /// `AFID`: (animation ID, variation, `.anim` FDID) per external sequence.
 pub(crate) fn parse_afid(data: &[u8]) -> Vec<(u16, u16, u32)> {
     data.chunks_exact(8)

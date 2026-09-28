@@ -55,12 +55,32 @@ pub(crate) fn cache_model_files(
         skin_fdid,
         &models.join(format!("{model_fdid}00.skin")),
     )?;
-    if let Some(skeleton_fdid) = references.skeleton_fdid {
-        cache_required(
-            resolver,
-            skeleton_fdid,
-            &models.join(format!("{model_fdid}.skel")),
-        )?;
+    let skeleton = match references.skeleton_fdid {
+        Some(skeleton_fdid) => {
+            let skel_path = cache_required(
+                resolver,
+                skeleton_fdid,
+                &models.join(format!("{model_fdid}.skel")),
+            )?;
+            Some(
+                fs::read(&skel_path)
+                    .map_err(|error| format!("{}: {error}", skel_path.display()))?,
+            )
+        }
+        None => None,
+    };
+    let anim_fdids = m2::external_anim_fdids(&bytes, skeleton.as_deref())
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+    // A `.anim` that can't be extracted leaves its sequence without keyframes (read_model).
+    for fdid in anim_fdids {
+        let destination = models.join(format!("{fdid}.anim"));
+        if resolver.ensure_cached(fdid, &destination).is_none() {
+            godot_error!(
+                "{}: .anim FDID {fdid} not extractable to {}",
+                path.display(),
+                destination.display()
+            );
+        }
     }
     Ok(path)
 }
@@ -168,7 +188,7 @@ mod tests {
         let skin = std::fs::read(data_root.join("models/101165300.skin")).unwrap();
         let skel = std::fs::read(data_root.join("models/1011653.skel")).unwrap();
         assert!(
-            !game_engine_core::m2::parse_model_with_skeleton(&model, &skin, Some(&skel))
+            !game_engine_core::m2::parse_model_with_skeleton(&model, &skin, Some(&skel), |_| None)
                 .unwrap()
                 .bones
                 .is_empty()
