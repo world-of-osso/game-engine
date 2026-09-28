@@ -6,8 +6,8 @@ pub use game_engine_core::{customization_data, outfit_data};
 mod assets;
 mod camera;
 mod char_create;
-mod display_options;
 mod character_select;
+mod display_options;
 mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
