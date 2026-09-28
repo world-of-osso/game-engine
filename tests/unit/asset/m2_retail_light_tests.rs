@@ -1,4 +1,3 @@
-use super::*;
 use crate::asset::m2_anim::{evaluate_f32_track, evaluate_vec3_track};
 use crate::asset::m2_light::{M2_LIGHT_TYPE_POINT, M2Light, evaluate_light};
 
