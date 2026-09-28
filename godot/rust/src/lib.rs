@@ -32,8 +32,8 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     char_create_component::{CREATE_NAME_INPUT, CharCreateAction, CharCreateMode},
     char_select_component::{
-        CharSelectAction, DELETE_CONFIRM_INPUT, DeleteCharacterTarget, DeleteConfirmation,
-        step_selection,
+        CampsiteEntry, CampsiteState, CharSelectAction, DELETE_CONFIRM_INPUT,
+        DeleteCharacterTarget, DeleteConfirmation, step_selection,
     },
     char_select_state_from_roster,
 };
@@ -66,6 +66,7 @@ pub struct GameClient {
     character_ui: Option<Gd<ui::RegistryUi>>,
     create_ui: Option<Gd<ui::RegistryUi>>,
     character_preview: character_select::CharacterPreview,
+    campsite: CampsiteState,
     creation_scene: char_create::CreationScene,
     delete_confirmation: DeleteConfirmation,
     creation: Option<char_create::CharCreateState>,
@@ -114,6 +115,7 @@ impl INode3D for GameClient {
                 data_root.clone(),
                 cache_root.clone(),
             ),
+            campsite: CampsiteState::default(),
             creation_scene: char_create::CreationScene::new(data_root.clone(), cache_root.clone()),
             loading_ui: None,
             errors_ui: None,
@@ -376,6 +378,18 @@ impl GameClient {
                 self.account.session.screen = SessionScreen::Login;
                 self.show_account_screen(SessionScreen::Login)
             }
+            // The game menu is not converted to Godot yet; MENU stays inert here.
+            Some(CharSelectAction::Menu) => Ok(()),
+            Some(CharSelectAction::CampsiteToggle) => {
+                self.campsite.panel_visible = !self.campsite.panel_visible;
+                self.sync_campsite_state()
+            }
+            Some(CharSelectAction::SelectCampsite(id)) => {
+                self.character_preview.select_scene(id);
+                self.campsite.selected_id = Some(id);
+                self.campsite.panel_visible = false;
+                self.sync_campsite_state()
+            }
             None if action.is_empty() => Ok(()),
             _ => Err(format!("Character action not yet converted: {action}")),
         }
@@ -421,6 +435,13 @@ impl GameClient {
         );
         match self.character_ui.as_mut() {
             Some(ui) => ui.bind_mut().set_state(state),
+            None => Ok(()),
+        }
+    }
+
+    fn sync_campsite_state(&mut self) -> Result<(), String> {
+        match self.character_ui.as_mut() {
+            Some(ui) => ui.bind_mut().set_state(self.campsite.clone()),
             None => Ok(()),
         }
     }
@@ -1009,7 +1030,12 @@ impl GameClient {
             self.account.session.selected_index,
         );
         self.delete_confirmation.clear();
-        let result = ui.bind_mut().set_state(state);
+        let result =
+            authored_campsites(&self.data_root, self.campsite.selected_id).and_then(|campsite| {
+                self.campsite = campsite;
+                ui.bind_mut().set_state(state)?;
+                ui.bind_mut().set_state(self.campsite.clone())
+            });
         if let Err(error) = result {
             ui.free();
             return Err(error);
@@ -1117,4 +1143,25 @@ fn credential_field(credentials: &VarDictionary, name: &str) -> Result<String, S
         .try_to::<GString>()
         .map_err(|_| format!("Invalid login field type {name}"))?;
     Ok(value.to_string())
+}
+
+/// Campsite selector entries from the authored Warband catalog, panel closed.
+fn authored_campsites(
+    data_root: &std::path::Path,
+    selected: Option<u32>,
+) -> Result<CampsiteState, String> {
+    let catalog = game_engine_core::warband_scene_data::read_authored_catalog(data_root)?;
+    Ok(CampsiteState {
+        selected_id: selected.or_else(|| catalog.scenes.first().map(|scene| scene.id)),
+        scenes: catalog
+            .scenes
+            .iter()
+            .map(|scene| CampsiteEntry {
+                id: scene.id,
+                name: scene.name.clone(),
+                preview_image: scene.preview_image_path().map(str::to_string),
+            })
+            .collect(),
+        panel_visible: false,
+    })
 }

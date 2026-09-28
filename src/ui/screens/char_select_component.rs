@@ -16,7 +16,8 @@ use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
-use super::campsite_component::{campsite_panel, campsite_tab};
+use super::campsite_component::campsite_panel;
+use super::char_select_top_nav_component::{char_select_top_nav, sync_top_nav_tabs};
 use super::default_button_atlas::{
     DISABLED as BUTTON_ATLAS_DISABLED, HIGHLIGHT as BUTTON_ATLAS_HIGHLIGHT,
     PRESSED as BUTTON_ATLAS_PRESSED, UP as BUTTON_ATLAS_UP,
@@ -104,14 +105,14 @@ pub struct CharDisplayEntry {
     pub status: String,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct CampsiteEntry {
     pub id: u32,
     pub name: String,
     pub preview_image: Option<String>,
 }
 
-#[derive(Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct CampsiteState {
     pub scenes: Vec<CampsiteEntry>,
     pub panel_visible: bool,
@@ -146,9 +147,11 @@ pub fn step_selection(selected: Option<usize>, count: usize, forward: bool) -> O
 
 const LIST_PANEL_BG_ATLAS: &str = "glues-characterselect-card-all-bg";
 
-/// Chrome applied after every sync: viewport-sized root and the character list backdrop.
+/// Chrome applied after every sync: viewport-sized root, character list backdrop and
+/// top-navigation tab states.
 pub fn apply_char_select_postsetup(registry: &mut FrameRegistry) {
     size_char_select_root(registry);
+    sync_top_nav_tabs(registry);
     if let Some(id) = registry.get_by_name(CHAR_LIST_PANEL.0)
         && let Some(frame) = registry.get_mut(id)
     {
@@ -188,9 +191,6 @@ const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_SUBTITLE: FontColor = FontColor::new(0.92, 0.88, 0.74, 1.0);
 const COLOR_MUTED: FontColor = FontColor::new(0.75, 0.72, 0.65, 1.0);
 
-const TOP_HUD_LEFT_ATLAS: &str = "glues-characterselect-tophud-left-bg";
-const TOP_HUD_MIDDLE_ATLAS: &str = "glues-characterselect-tophud-middle-bg";
-const TOP_HUD_RIGHT_ATLAS: &str = "glues-characterselect-tophud-right-bg";
 const NAME_BG_ATLAS: &str = "custom-nameplate-bg";
 const LIST_REALM_BG_ATLAS: &str = "glues-characterselect-listrealm-bg";
 const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
@@ -232,60 +232,7 @@ fn cs_logo() -> Element {
     Vec::new()
 }
 
-// --- Top HUD banner (3 atlas pieces) ---
-
-fn cs_top_hud_left() -> Element {
-    rsx! {
-        texture {
-            name: "CharSelectTopHudLeft",
-            width: 212.0,
-            height: 51.0,
-            texture_atlas: TOP_HUD_LEFT_ATLAS,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-100%",
-            margin_left: {-15},
-            margin_top: {22.0},
-        }
-    }
-}
-
-fn cs_top_hud_right() -> Element {
-    rsx! {
-        texture {
-            name: "CharSelectTopHudMiddle",
-            width: 30.0,
-            height: 51.0,
-            texture_atlas: TOP_HUD_MIDDLE_ATLAS,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            margin_left: {-15},
-            margin_top: {22.0},
-        }
-        texture {
-            name: "CharSelectTopHudRight",
-            width: 212.0,
-            height: 51.0,
-            texture_atlas: TOP_HUD_RIGHT_ATLAS,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            margin_left: {15},
-            margin_top: {22.0},
-        }
-    }
-}
-
-fn cs_top_hud() -> Element {
-    [cs_top_hud_left(), cs_top_hud_right()]
-        .into_iter()
-        .flatten()
-        .collect()
-}
-
-// --- Name area (below top HUD) ---
+// --- Name area (below top navigation) ---
 
 fn cs_name_area(selected_name: &str, has_selection: bool) -> Element {
     let hide_name_bg = !has_selection;
@@ -720,7 +667,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
         r#frame { name: CHAR_SELECT_ROOT, strata: FrameStrata::Background,
             {cs_background()}
             {cs_logo()}
-            {top_hud(campsite.is_some())}
+            {char_select_top_nav()}
             {cs_name_area(&state.selected_name, has_selection)}
             {cs_character_list(&state.characters, state.selected_index)}
             {cs_action_buttons()}
@@ -731,22 +678,6 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn top_hud(campsite_visible: bool) -> Element {
-    if campsite_visible {
-        return Vec::new();
-    }
-    cs_top_hud()
-}
-
 fn campsite_ui(campsite: Option<&CampsiteState>) -> Element {
-    let Some(campsite) = campsite else {
-        return Vec::new();
-    };
-    [
-        campsite_tab(campsite.panel_visible),
-        campsite_panel(campsite),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    campsite.map(campsite_panel).unwrap_or_default()
 }
