@@ -5,6 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::mirror_timers::MirrorTimerMessage;
 use game_engine_network::{Event, NetworkBridge, ProtocolMessage, UnitSnapshot};
 use game_engine_session::{
     AuthRequest, ReconnectPhase, Session, SessionEffect, SessionOptions, SessionScreen,
@@ -14,9 +15,9 @@ use shared::protocol::{
     AuthChannel, CharacterListUpdate, CombatChannel, CreateCharacter, CreateCharacterResponse,
     DeleteCharacter, DeleteCharacterResponse, DungeonDifficultySet, EnterWorldResponse,
     ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo, LoadTerrain,
-    LoginResponse, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate,
-    RegisterResponse, RequestRaidInfo, SetDungeonDifficulty, SetTarget, TransferAborted,
-    TransferChannel, WorldPortAck,
+    LoginResponse, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput,
+    QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
+    SetDungeonDifficulty, SetTarget, TransferAborted, TransferChannel, WorldPortAck,
 };
 
 #[derive(Default)]
@@ -52,6 +53,8 @@ pub enum AccountEvent {
     UnitRemoved(u64),
     /// The character roster changed through a server update or response.
     RosterChanged,
+    /// A server breath, fatigue or feign-death bar change.
+    MirrorTimer(crate::mirror_timers::MirrorTimerMessage),
     /// Server answer to the pending character-creation request.
     CharacterCreated {
         success: bool,
@@ -255,6 +258,24 @@ impl Account {
         if message.is::<InstanceInfo>() {
             let info: InstanceInfo = decode(message)?;
             self.instance_locks = info.locks;
+            return Ok(());
+        }
+        if message.is::<MirrorTimerStart>() {
+            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Start(
+                decode(message)?,
+            )));
+            return Ok(());
+        }
+        if message.is::<MirrorTimerPause>() {
+            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Pause(
+                decode(message)?,
+            )));
+            return Ok(());
+        }
+        if message.is::<MirrorTimerStop>() {
+            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Stop(decode(
+                message,
+            )?)));
             return Ok(());
         }
         if message.is::<LoadTerrain>() {
