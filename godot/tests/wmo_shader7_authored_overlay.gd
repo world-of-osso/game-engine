@@ -1,9 +1,13 @@
 extends RefCounted
 
+# Streamed WMO 108238 group 38 material 58 is MOMT 7 (MapObjTwoLayerEnvMetal). Its
+# layers stay separate GPU textures at their authored sizes (948125 512x512, 922678
+# 128x128, no texture 3) and the shader blends them per WebWowViewerCpp
+# caclWMOFragMat case 7: diffuse = mix(t1, t2, 1 - MOCV2.a). Unlit rendering of the
+# bound material shows t1 at MOCV2.a = 1 and t2 at MOCV2.a = 0.
+
 const DIAGNOSTICS := "res://../data/diagnostics/godot-conversion/"
-const COMPOSITE_PNG := DIAGNOSTICS + "wmo-shader7-authored-composite.png"
 const RENDER_PNG := DIAGNOSTICS + "wmo-shader7-authored-render.png"
-const EXPECTED := Color8(27, 32, 38, 255)
 const TOLERANCE := 0.02
 const WAIT_MS := 120000
 const RENDER_SIZE := 64
@@ -11,30 +15,34 @@ const RENDER_SIZE := 64
 func check(tree: SceneTree, client: Node) -> String:
 	var material := await wait_for_authored_material(tree, client)
 	if material == null:
-		return "WMO 108238 group 38 lacks a streamed shader 7 material with a 512x512 composite"
-	var texture := material.get_shader_parameter("base_texture") as ImageTexture
-	if texture == null or texture.get_size() != Vector2(512, 512):
-		return "WMO 108238 group 38 shader 7 lacks bound 512x512 composite"
-	var composite := texture.get_image()
-	if composite == null or composite.is_empty():
-		return "WMO 108238 group 38 shader 7 composite image unavailable"
-	var composite_pixel := composite.get_pixel(0, 0)
-	if composite_pixel != EXPECTED:
-		return "WMO 108238 group 38 shader 7 composite pixel (0,0) expected %s, got %s" % [EXPECTED, composite_pixel]
-	var error := composite.save_png(COMPOSITE_PNG)
-	if error != OK:
-		return "Could not save authored WMO composite: " + error_string(error)
-	var rendered := await render_bound_material(tree, material)
-	if rendered == null or rendered.is_empty():
+		return "WMO 108238 group 38 lacks a streamed MOMT 7 material with 512x512 and 128x128 layers"
+	var base := texel(material, "base_texture", Vector2i.ZERO)
+	var second := texel(material, "second_texture", Vector2i.ZERO)
+	var first_render := await render_bound_material(tree, material, 1.0)
+	var second_render := await render_bound_material(tree, material, 0.0)
+	if first_render == null or second_render == null:
 		return "Authored WMO shader 7 GPU readback unavailable"
-	error = rendered.save_png(RENDER_PNG)
+	var error := first_render.save_png(RENDER_PNG)
 	if error != OK:
 		return "Could not save authored WMO render: " + error_string(error)
-	var actual := rendered.get_pixel(RENDER_SIZE / 2, RENDER_SIZE / 2)
-	if absf(actual.r - EXPECTED.r) > TOLERANCE or absf(actual.g - EXPECTED.g) > TOLERANCE or absf(actual.b - EXPECTED.b) > TOLERANCE:
-		return "Authored WMO shader 7 rendered texel expected %s, got %s" % [EXPECTED, actual]
-	print("PASS: authored WMO 108238 group 38 shader 7 composite and GPU texel ", actual, " screenshots=", COMPOSITE_PNG, ", ", RENDER_PNG)
+	for pair in [[first_render, base, "MOCV2.a=1 shows texture 1"], [second_render, second, "MOCV2.a=0 shows texture 2"]]:
+		var actual: Color = pair[0].get_pixel(RENDER_SIZE / 2, RENDER_SIZE / 2)
+		var expected: Color = pair[1]
+		if absf(actual.r - expected.r) > TOLERANCE or absf(actual.g - expected.g) > TOLERANCE or absf(actual.b - expected.b) > TOLERANCE:
+			return "Authored WMO shader 7 %s: expected %s, got %s" % [pair[2], expected, actual]
+	print("PASS: authored WMO 108238 group 38 MOMT 7 layers ", base, " / ", second, " screenshot=", RENDER_PNG)
 	return ""
+
+func layer_size(material: ShaderMaterial, slot: String) -> Vector2:
+	var texture := material.get_shader_parameter(slot) as Texture2D
+	return texture.get_size() if texture != null else Vector2.ZERO
+
+# Authored texel from the bound (possibly block-compressed) texture.
+func texel(material: ShaderMaterial, slot: String, pixel: Vector2i) -> Color:
+	var image := (material.get_shader_parameter(slot) as Texture2D).get_image()
+	if image.is_compressed():
+		image.decompress()
+	return image.get_pixelv(pixel)
 
 func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial:
 	var deadline := Time.get_ticks_msec() + WAIT_MS
@@ -42,30 +50,26 @@ func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial
 	while Time.get_ticks_msec() < deadline:
 		var objects := client.get_node_or_null("WorldObjects")
 		if objects != null:
-			var descendants := objects.find_children("*", "MeshInstance3D", true, false)
-			var candidate: ShaderMaterial = null
-			for child in descendants:
+			for child in objects.find_children("*", "MeshInstance3D", true, false):
 				var mesh := child as MeshInstance3D
 				var material := mesh.get_surface_override_material(0) as ShaderMaterial
-				if material == null or material.get_shader_parameter("two_layer_shader") != 7:
+				if material == null or material.get_shader_parameter("pixel_shader") != 7:
 					continue
-				var texture := material.get_shader_parameter("base_texture") as ImageTexture
-				var image := texture.get_image() if texture != null else null
+				var sizes := [layer_size(material, "base_texture"), layer_size(material, "second_texture"), layer_size(material, "third_texture")]
 				if not observed.has(mesh.get_instance_id()):
 					observed[mesh.get_instance_id()] = true
-					print("OVERLAY_CANDIDATE path=", mesh.get_path(), " size=", texture.get_size() if texture != null else "unbound", " pixel=", image.get_pixel(0, 0) if image != null and not image.is_empty() else "unavailable")
+					print("OVERLAY_CANDIDATE path=", mesh.get_path(), " sizes=", sizes)
 				var authored_group := mesh.name.begins_with("Group38_Batch") and mesh.get_parent().name == "Wmo373730"
-				var bound_composite := texture != null and texture.get_size() == Vector2(512, 512) and image != null and not image.is_empty()
-				if candidate == null and authored_group and bound_composite:
-					candidate = material
-			if candidate != null:
-				return candidate
+				if authored_group and sizes == [Vector2(512, 512), Vector2(128, 128), Vector2(1, 1)]:
+					return material
 		await tree.process_frame
 	var objects := client.get_node_or_null("WorldObjects")
 	print("OVERLAY_TIMEOUT objects=", objects, " descendants=", objects.find_children("*", "MeshInstance3D", true, false).size() if objects != null else -1, " shader7_candidates=", observed.size())
 	return null
 
-func render_bound_material(tree: SceneTree, authored: ShaderMaterial) -> Image:
+# The bound material on a quad whose UV/UV2 hit texel (0,0) of each layer, unlit and
+# unfogged, with the given second MOCV alpha.
+func render_bound_material(tree: SceneTree, authored: ShaderMaterial, second_alpha: float) -> Image:
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(RENDER_SIZE, RENDER_SIZE)
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -88,11 +92,17 @@ func render_bound_material(tree: SceneTree, authored: ShaderMaterial) -> Image:
 	camera.current = true
 	var arrays := PlaneMesh.new().surface_get_arrays(0)
 	var uvs := PackedVector2Array()
+	var uv2s := PackedVector2Array()
+	var alphas := PackedFloat32Array()
 	for vertex in arrays[Mesh.ARRAY_VERTEX].size():
 		uvs.append(Vector2(0.5 / 512.0, 0.5 / 512.0))
+		uv2s.append(Vector2(0.5 / 128.0, 0.5 / 128.0))
+		alphas.append(second_alpha)
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
+	arrays[Mesh.ARRAY_CUSTOM2] = alphas
 	var quad := ArrayMesh.new()
-	quad.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	quad.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_R_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM2_SHIFT)
 	var surface := MeshInstance3D.new()
 	surface.mesh = quad
 	var material := authored.duplicate() as ShaderMaterial
@@ -100,6 +110,8 @@ func render_bound_material(tree: SceneTree, authored: ShaderMaterial) -> Image:
 	material.set_shader_parameter("unfogged", true)
 	material.set_shader_parameter("emissive", Vector3.ZERO)
 	material.set_shader_parameter("base_color", Color.WHITE)
+	material.set_shader_parameter("has_uv2", true)
+	material.set_shader_parameter("has_second_mocv", true)
 	surface.material_override = material
 	viewport.add_child(surface)
 	for frame in 2:

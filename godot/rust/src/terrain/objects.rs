@@ -211,9 +211,14 @@ impl TerrainObjects {
                 if self.spawned_wmos.contains(&wmo.unique_id) {
                     return Ok(());
                 }
-                let model = self.load_placed_wmo(wmo, tile)?;
+                let wmo_node = self.load_placed_wmo(wmo, tile)?;
                 self.spawned_wmos.insert(wmo.unique_id);
-                model
+                // Batches that cannot be drawn are failures; the rest of the WMO stays.
+                for error in wmo_node.batch_errors {
+                    self.failures += 1;
+                    godot_error!("{}: {error}", self.name);
+                }
+                wmo_node.node
             }
         };
         bind_visual_light(&model, self.light.as_ref());
@@ -289,15 +294,20 @@ impl TerrainObjects {
         Ok((model, render_box))
     }
 
-    fn load_placed_wmo(&self, placement: &WmoPlacement, tile: Tile) -> Result<Gd<Node3D>, String> {
+    fn load_placed_wmo(
+        &self,
+        placement: &WmoPlacement,
+        tile: Tile,
+    ) -> Result<crate::wmo::scene::WmoNode, String> {
         let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
-        let mut model = crate::wmo::scene::build_wmo_node(
+        let mut wmo_node = crate::wmo::scene::build_wmo_node(
             &asset,
             &self.resolver,
             &self.data_root,
             placement.doodad_set,
             self.light.as_ref(),
         )?;
+        let model = &mut wmo_node.node;
         let position = placement_position(placement.position, tile.0, tile.1);
         let rotation = shared::ground::placement_rotation(placement.rotation);
         model.set_name(&format!("Wmo{}", placement.unique_id));
@@ -306,7 +316,7 @@ impl TerrainObjects {
             rotation.x, rotation.y, rotation.z, rotation.w,
         ));
         model.set_scale(Vector3::ONE * placement.scale);
-        Ok(model)
+        Ok(wmo_node)
     }
 
     /// Draws each doodad only within its retail scenery distance of `camera`; a
