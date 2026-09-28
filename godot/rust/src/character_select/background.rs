@@ -112,6 +112,11 @@ impl Background {
         }
         self.sync_lighting(root, model, minutes)?;
         self.materials.sync(root, &self.terrain)?;
+        // Campsite tiles are fixed authored scenery: a tile that cannot render fails the
+        // background exactly like a tile that cannot parse.
+        if let Some(error) = self.materials.failures().values().next() {
+            return Err(format!("Character background {error}"));
+        }
         self.objects.sync(root, &self.terrain);
         self.sync_sky(root)
     }

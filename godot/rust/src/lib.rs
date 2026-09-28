@@ -205,7 +205,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_world_lighting())
             .and_then(|()| self.attach_terrain_materials())
             .map(|()| self.attach_world_objects())
-            .and_then(|()| self.update_loading_readiness())
+            .and_then(|()| self.update_loading_readiness(delta as f32))
             .and_then(|()| self.update_world_errors(delta as f32))
             .and_then(|()| self.tick_delete_confirmation(delta as f32))
             .and_then(|()| self.advance_login_fade(delta as f32))
@@ -839,7 +839,7 @@ impl GameClient {
         self.terrain_materials.sync(&mut parent, &self.terrain)
     }
 
-    fn update_loading_readiness(&mut self) -> Result<(), String> {
+    fn update_loading_readiness(&mut self, delta: f32) -> Result<(), String> {
         if self.account.session.screen != SessionScreen::Loading {
             return Ok(());
         }
@@ -856,10 +856,11 @@ impl GameClient {
             position,
             &state,
             self.terrain_materials.attached_tiles(),
+            self.terrain_materials.failures(),
         );
         if let Some(ui) = self.loading_ui.as_mut() {
             ui.bind_mut()
-                .set_loading_state(readiness.progress_percent, readiness.status_text)?;
+                .advance_loading(readiness.progress_percent, readiness.status_text, delta)?;
         }
         if readiness.complete {
             self.account.session.screen = SessionScreen::InWorld;
