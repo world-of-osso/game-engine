@@ -1,7 +1,7 @@
 //! Main-menu overlay and native Options controller; the underlying scene stays attached.
 
 use game_engine_core::{
-    client_options_data::{load_options_file_with_legacy, save_options_file_to_path},
+    client_options_data::{load_options_file_with_legacy, options_path, save_options_file_to_path},
     input_bindings_data::InputBinding,
 };
 use game_engine_session::SessionScreen;
@@ -121,9 +121,14 @@ impl GameClient {
                 return false;
             }
             if let Some(binding) = crate::input_keys::binding_key(key.get_physical_keycode()) {
-                model
-                    .draft_bindings
-                    .assign(action, InputBinding::Keyboard(binding));
+                let binding = if key.is_ctrl_pressed() {
+                    InputBinding::CtrlKeyboard(binding)
+                } else if key.is_shift_pressed() {
+                    InputBinding::ShiftKeyboard(binding)
+                } else {
+                    InputBinding::Keyboard(binding)
+                };
+                model.draft_bindings.assign(action, binding);
                 model.binding_capture = BindingCapture::None;
                 if let Err(error) = self
                     .commit_game_menu_options()
@@ -177,9 +182,10 @@ impl GameClient {
                 .as_mut()
                 .expect("menu has options model"),
         );
-        let path = self.data_root.join("ui/options_settings.ron");
+        let legacy_path = self.data_root.join("ui/options_settings.ron");
+        let path = options_path();
         // Re-read externally owned realm/EULA before each write, not just at startup.
-        let mut file = load_options_file_with_legacy(&path);
+        let mut file = load_options_file_with_legacy(&legacy_path);
         policy::apply_graphics_file_snapshot(&mut file.graphics, &snapshot.graphics);
         policy::apply_sound_file_snapshot(&mut file.sound, &snapshot.sound);
         policy::apply_camera_file_snapshot(&mut file.camera, &snapshot.camera);
