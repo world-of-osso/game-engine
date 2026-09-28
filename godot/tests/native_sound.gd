@@ -68,6 +68,12 @@ func run_test() -> void:
 	if not sound.sync_options(-1, 1.0, 1.0, 1.0, true, false) or music.is_playing() or ambient.is_playing():
 		fail("Leaving zone did not stop both channels")
 		return
+	if sound.sync_options(7, 1.0, 1.0, 1.0, true, false) or music.is_playing():
+		fail("Unsupported FLAC did not report a decode error")
+		return
+	if not sound.sync_options(7, 1.0, 1.0, 1.0, true, false) or music.is_playing():
+		fail("Unsupported track retried each frame")
+		return
 	if not sound.sync_options(5, 1.0, 1.0, 1.0, true, false) or not expect_playing(music, "629319", 1.0):
 		return
 	sound.queue_free()
