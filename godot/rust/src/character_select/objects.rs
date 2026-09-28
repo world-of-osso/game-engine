@@ -5,7 +5,7 @@ use std::{path::PathBuf, time::Duration};
 use game_engine_core::{
     adt::{DoodadPlacement, WmoPlacement},
     campsite_object_data::{
-        is_primary_campsite_doodad, is_supplemental_campsite_doodad, placement_position,
+        is_primary_campsite_doodad, is_supplemental_campsite_doodad, wmo_within_radius,
     },
 };
 use godot::{classes::Node3D, prelude::*};
@@ -62,8 +62,7 @@ impl ObjectSelection for CampsiteSelection {
 
     fn wmo(&self, wmo: &WmoPlacement, tile: (u32, u32)) -> bool {
         tile == self.primary
-            && placement_position(wmo.position, tile.0, tile.1).distance(self.focus)
-                <= CAMPSITE_WMO_RADIUS
+            && wmo_within_radius(wmo, tile.0, tile.1, self.focus, CAMPSITE_WMO_RADIUS)
     }
 }
 
