@@ -9,7 +9,7 @@ use std::{
 
 use game_engine_core::{
     blp,
-    m2_batch_data::{OverlayScale, ResolvedBatch},
+    m2_batch_data::{OverlayScale, ResolvedBatch, TextureOverlay},
     m2_texture_composite_data,
 };
 use godot::{
@@ -27,6 +27,50 @@ type DecodedTexture = (Vec<u8>, u32, u32);
 thread_local! {
     /// Compiled shaders by exact variant source, shared by every material.
     static SHADERS: RefCell<HashMap<String, Gd<Shader>>> = RefCell::new(HashMap::new());
+    /// One GPU texture per texture file or per distinct composite, shared by every
+    /// placement: building textures per material uploaded a copy for every doodad.
+    static TEXTURES: RefCell<HashMap<TextureKey, Gd<ImageTexture>>> =
+        RefCell::new(HashMap::new());
+}
+
+/// A batch's base texture: the file itself, or the file with its second texture
+/// and overlays composited onto it on the CPU.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct TextureKey {
+    dir: PathBuf,
+    fdid: u32,
+    /// Second texture composited with this shader, unless it is an environment map.
+    second: Option<(u32, u16)>,
+    overlays: Vec<TextureOverlay>,
+}
+
+impl TextureKey {
+    fn plain(fdid: u32, dir: &Path) -> Self {
+        Self {
+            dir: dir.to_path_buf(),
+            fdid,
+            second: None,
+            overlays: Vec::new(),
+        }
+    }
+
+    fn for_batch(fdid: u32, batch: &ResolvedBatch, effect: bool, dir: &Path) -> Self {
+        if effect {
+            return Self::plain(fdid, dir);
+        }
+        Self {
+            second: batch
+                .texture_2_fdid
+                .filter(|_| !batch.use_env_map_2)
+                .map(|second| (second, batch.shader_id)),
+            overlays: batch.overlays.clone(),
+            ..Self::plain(fdid, dir)
+        }
+    }
+
+    fn is_composite(&self) -> bool {
+        self.second.is_some() || !self.overlays.is_empty()
+    }
 }
 
 /// One Godot `Shader` per distinct source: each new resource is compiled
@@ -46,6 +90,7 @@ pub(crate) fn shared_shader(code: &str) -> Gd<Shader> {
 
 pub(crate) fn clear_shared_shaders() {
     SHADERS.with_borrow_mut(HashMap::clear);
+    TEXTURES.with_borrow_mut(HashMap::clear);
 }
 
 pub(super) fn is_effect(batch: &ResolvedBatch) -> bool {
@@ -71,26 +116,15 @@ pub(super) fn load_material(
     let base = batch
         .texture_fdid
         .filter(|_| replacement.is_none())
-        .map(|fdid| load_texture(fdid, &texture_dir, missing))
+        .map(|fdid| batch_texture(fdid, batch, effect, &texture_dir, missing))
         .transpose()?
         .flatten();
-    let second = if effect {
-        batch
-            .texture_2_fdid
-            .map(|fdid| load_texture(fdid, &texture_dir, missing))
-            .transpose()?
-            .flatten()
-    } else {
-        None
-    };
-    let base = if effect {
-        base
-    } else if let Some((mut pixels, width, height)) = base {
-        compose_texture(&mut pixels, width, height, batch, &texture_dir, missing)?;
-        Some((pixels, width, height))
-    } else {
-        None
-    };
+    let second = batch
+        .texture_2_fdid
+        .filter(|_| effect)
+        .map(|fdid| shared_texture(fdid, &texture_dir, missing))
+        .transpose()?
+        .flatten();
 
     let source = ResourceLoader::singleton()
         .load(SHADER_PATH)
@@ -112,20 +146,14 @@ pub(super) fn load_material(
 
 fn bind_textures(
     material: &mut Gd<ShaderMaterial>,
-    base: Option<DecodedTexture>,
-    second: Option<DecodedTexture>,
+    base: Option<Gd<ImageTexture>>,
+    second: Option<Gd<ImageTexture>>,
 ) -> Result<(), String> {
-    if let Some((pixels, width, height)) = base {
-        material.set_shader_parameter(
-            "base_texture",
-            &texture_from_rgba(&pixels, width, height)?.to_variant(),
-        );
+    if let Some(texture) = base {
+        material.set_shader_parameter("base_texture", &texture.to_variant());
     }
-    if let Some((pixels, width, height)) = second {
-        material.set_shader_parameter(
-            "second_texture",
-            &texture_from_rgba(&pixels, width, height)?.to_variant(),
-        );
+    if let Some(texture) = second {
+        material.set_shader_parameter("second_texture", &texture.to_variant());
     }
     Ok(())
 }
@@ -215,29 +243,98 @@ pub(crate) fn load_texture(
     Ok(Some((rgba.pixels, rgba.width, rgba.height)))
 }
 
+fn batch_texture(
+    fdid: u32,
+    batch: &ResolvedBatch,
+    effect: bool,
+    dir: &Path,
+    missing: &mut PackedInt32Array,
+) -> Result<Option<Gd<ImageTexture>>, String> {
+    let key = TextureKey::for_batch(fdid, batch, effect, dir);
+    if !key.is_composite() {
+        return shared_texture(fdid, dir, missing);
+    }
+    if let Some(texture) = TEXTURES.with_borrow(|textures| textures.get(&key).cloned()) {
+        return Ok(Some(texture));
+    }
+    let Some((mut pixels, width, height)) = load_texture(fdid, dir, missing)? else {
+        return Ok(None);
+    };
+    let missing_before = missing.len();
+    compose_texture(&mut pixels, width, height, &key, missing)?;
+    let texture = texture_from_rgba(&pixels, width, height)?;
+    // A composite missing a layer is reported again to every model that uses it.
+    if missing.len() == missing_before {
+        TEXTURES.with_borrow_mut(|textures| textures.insert(key, texture.clone()));
+    }
+    Ok(Some(texture))
+}
+
+/// The texture file as authored, block-compressed when it is DXT, shared by every user.
+pub(crate) fn shared_texture(
+    fdid: u32,
+    dir: &Path,
+    missing: &mut PackedInt32Array,
+) -> Result<Option<Gd<ImageTexture>>, String> {
+    let key = TextureKey::plain(fdid, dir);
+    if let Some(texture) = TEXTURES.with_borrow(|textures| textures.get(&key).cloned()) {
+        return Ok(Some(texture));
+    }
+    let bytes = match fs::read(texture_path(fdid, dir)) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            missing.push(fdid as i32);
+            return Ok(None);
+        }
+        Err(error) => return Err(format!("Cannot read texture {fdid}: {error}")),
+    };
+    let image = blp::decode_gpu(&bytes).map_err(|error| format!("Texture {fdid}: {error}"))?;
+    let texture = texture_from_gpu_image(image)?;
+    TEXTURES.with_borrow_mut(|textures| textures.insert(key, texture.clone()));
+    Ok(Some(texture))
+}
+
+pub(crate) fn texture_from_gpu_image(image: blp::GpuImage) -> Result<Gd<ImageTexture>, String> {
+    let image = match image {
+        blp::GpuImage::Compressed(image) => image,
+        blp::GpuImage::Rgba(rgba) => {
+            return texture_from_rgba(&rgba.pixels, rgba.width, rgba.height);
+        }
+    };
+    let format = match image.format {
+        blp::BlockFormat::Dxt1 => image::Format::DXT1,
+        blp::BlockFormat::Dxt3 => image::Format::DXT3,
+        blp::BlockFormat::Dxt5 => image::Format::DXT5,
+    };
+    let (width, height) = (image.width, image.height);
+    let godot_image = Image::create_from_data(
+        width as i32,
+        height as i32,
+        image.mipmaps,
+        format,
+        &PackedByteArray::from(image.data.as_slice()),
+    )
+    .ok_or_else(|| format!("Godot rejected {width}x{height} {format:?} image"))?;
+    ImageTexture::create_from_image(&godot_image)
+        .ok_or_else(|| format!("Godot rejected {width}x{height} compressed texture"))
+}
+
 fn compose_texture(
     pixels: &mut [u8],
     width: u32,
     height: u32,
-    batch: &ResolvedBatch,
-    dir: &Path,
+    key: &TextureKey,
     missing: &mut PackedInt32Array,
 ) -> Result<(), String> {
-    if let Some(fdid) = batch.texture_2_fdid.filter(|_| !batch.use_env_map_2) {
-        if let Some((second, w, h)) = load_texture(fdid, dir, missing)? {
+    if let Some((fdid, shader_id)) = key.second {
+        if let Some((second, w, h)) = load_texture(fdid, &key.dir, missing)? {
             m2_texture_composite_data::composite_second_texture_pixels(
-                pixels,
-                width,
-                height,
-                &second,
-                w,
-                h,
-                batch.shader_id,
+                pixels, width, height, &second, w, h, shader_id,
             );
         }
     }
-    for overlay in &batch.overlays {
-        if let Some((bytes, w, h)) = load_texture(overlay.fdid, dir, missing)? {
+    for overlay in &key.overlays {
+        if let Some((bytes, w, h)) = load_texture(overlay.fdid, &key.dir, missing)? {
             m2_texture_composite_data::composite_overlay_pixels(
                 pixels,
                 width,

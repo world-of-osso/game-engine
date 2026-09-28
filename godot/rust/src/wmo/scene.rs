@@ -49,7 +49,6 @@ pub(crate) fn build_wmo_node(
         .map_err(|_| format!("WMO shader {SHADER_PATH} has wrong resource type"))?
         .get_code()
         .to_string();
-    let mut textures = HashMap::new();
     let mut composites = HashMap::new();
     let mut resources = Vec::with_capacity(batches.len());
     for (index, batch) in batches.iter().enumerate() {
@@ -58,16 +57,9 @@ pub(crate) fn build_wmo_node(
             asset.root_fdid, batch.group_index
         );
         let mesh = build_batch_mesh(&batch.mesh);
-        let material = build_batch_material(
-            batch,
-            &source,
-            resolver,
-            data_root,
-            &mut textures,
-            &mut composites,
-            light,
-        )
-        .map_err(|error| format!("{context}: {error}"))?;
+        let material =
+            build_batch_material(batch, &source, resolver, data_root, &mut composites, light)
+                .map_err(|error| format!("{context}: {error}"))?;
         resources.push((batch.group_index, mesh, material));
     }
     let mut root = Node3D::new_alloc();
@@ -264,7 +256,6 @@ fn build_batch_material(
     source: &str,
     resolver: &CascListfileResolver,
     data_root: &Path,
-    textures: &mut HashMap<u32, Gd<ImageTexture>>,
     composites: &mut HashMap<[u32; 3], Gd<ImageTexture>>,
     light: Option<&TerrainLight>,
 ) -> Result<Gd<ShaderMaterial>, String> {
@@ -275,11 +266,11 @@ fn build_batch_material(
     let base = if authored.shader == 7 {
         read_shader_seven_texture(resolver, data_root, composites, authored)?
     } else {
-        read_wmo_texture(resolver, data_root, textures, authored.texture_fdid)?
+        read_wmo_texture(resolver, data_root, authored.texture_fdid)?
     };
     material.set_shader_parameter("base_texture", &base.to_variant());
     if matches!(authored.shader, 6 | 13) {
-        let second = read_wmo_texture(resolver, data_root, textures, authored.texture_2_fdid)?;
+        let second = read_wmo_texture(resolver, data_root, authored.texture_2_fdid)?;
         material.set_shader_parameter("second_texture", &second.to_variant());
     }
     let ambient = Vector3::from_array(batch.interior_ambient);
@@ -370,22 +361,31 @@ fn clamp_wmo_shader_uv(mut code: String, material: &WmoMaterialDef) -> Result<St
     Ok(code.replace("void vertex() {", &format!("{uv}void vertex() {{")))
 }
 
+/// The authored texture, shared with every WMO and model that uses it and
+/// block-compressed when it is DXT.
 fn read_wmo_texture(
     resolver: &CascListfileResolver,
     data_root: &Path,
-    textures: &mut HashMap<u32, Gd<ImageTexture>>,
     fdid: u32,
 ) -> Result<Gd<ImageTexture>, String> {
     if fdid == 0 {
         return Err("WMO material has no authored texture FDID".into());
     }
-    if let Some(texture) = textures.get(&fdid) {
-        return Ok(texture.clone());
-    }
-    let image = read_wmo_image(resolver, data_root, fdid)?;
-    let texture = create_wmo_texture(image, &format!("FDID {fdid}"))?;
-    textures.insert(fdid, texture.clone());
-    Ok(texture)
+    let dir = data_root.join("textures");
+    let destination = dir.join(format!("{fdid}.blp"));
+    resolver.ensure_cached(fdid, &destination).ok_or_else(|| {
+        format!(
+            "Local CASC WMO texture FDID {fdid} unavailable at {}",
+            destination.display()
+        )
+    })?;
+    let mut missing = PackedInt32Array::new();
+    crate::assets::material::shared_texture(fdid, &dir, &mut missing)?.ok_or_else(|| {
+        format!(
+            "WMO texture FDID {fdid} missing at {}",
+            destination.display()
+        )
+    })
 }
 
 fn read_shader_seven_texture(
