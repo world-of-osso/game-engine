@@ -4,7 +4,7 @@
 //! reach and the whole exterior once a portal opens onto it; otherwise draw every
 //! exterior group and the interiors whose portals are in view.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use game_engine_core::asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume};
 use glam::{Affine3A, Vec3};
@@ -124,13 +124,14 @@ impl WmoPortals {
         }
     }
 
-    /// Group indices to draw for a camera at world `camera` looking through `frustum`.
+    /// Per group index, whether to draw it for a camera at world `camera` looking
+    /// through `frustum`.
     pub fn visible_groups(
         &self,
         world_from_local: Affine3A,
         frustum: &[HalfSpace],
         camera: Vec3,
-    ) -> HashSet<u16> {
+    ) -> Vec<bool> {
         let local_camera = world_from_local.inverse().transform_point3(camera);
         let exterior: Vec<u16> = self
             .groups
@@ -146,8 +147,13 @@ impl WmoPortals {
         match self.camera_interior_group(local_camera) {
             Some(group) => {
                 let mut visible = traverse(&[group]);
-                if exterior.iter().any(|group| visible.contains(group)) {
-                    visible.extend(traverse(&exterior));
+                if exterior
+                    .iter()
+                    .any(|&group| visible.get(group as usize) == Some(&true))
+                {
+                    for (drawn, outside) in visible.iter_mut().zip(traverse(&exterior)) {
+                        *drawn |= outside;
+                    }
                 }
                 visible
             }
@@ -169,17 +175,24 @@ impl WmoPortals {
         fog.camera_fog(group, file_axes(local_camera))
     }
 
-    /// BFS from `start` through portals `visible` accepts.
-    fn traverse(&self, start: &[u16], visible: impl Fn(usize) -> bool) -> HashSet<u16> {
-        let mut reached: HashSet<u16> = start.iter().copied().collect();
-        let mut queue: VecDeque<u16> = start.iter().copied().collect();
+    /// BFS from `start` through portals `visible` accepts; per group index, whether
+    /// it was reached.
+    fn traverse(&self, start: &[u16], visible: impl Fn(usize) -> bool) -> Vec<bool> {
+        let mut reached = vec![false; self.adjacency.len()];
+        let mut queue = VecDeque::with_capacity(start.len());
+        for &group in start {
+            if let Some(slot) = reached.get_mut(group as usize) {
+                *slot = true;
+                queue.push_back(group);
+            }
+        }
         while let Some(current) = queue.pop_front() {
-            let Some(neighbors) = self.adjacency.get(current as usize) else {
-                continue;
-            };
-            for &(portal, destination) in neighbors {
-                if !reached.contains(&destination) && visible(portal) {
-                    reached.insert(destination);
+            for &(portal, destination) in &self.adjacency[current as usize] {
+                let Some(slot) = reached.get_mut(destination as usize) else {
+                    continue;
+                };
+                if !*slot && visible(portal) {
+                    *slot = true;
                     queue.push_back(destination);
                 }
             }
@@ -357,13 +370,18 @@ mod tests {
         .to_vec()
     }
 
+    fn drawn_indices(drawn: Vec<bool>) -> Vec<u16> {
+        (0..drawn.len() as u16)
+            .filter(|&group| drawn[group as usize])
+            .collect()
+    }
+
     fn visible(eye: Vec3, forward: Vec3) -> Vec<u16> {
-        let mut groups: Vec<u16> = courtyard_and_room()
-            .visible_groups(Affine3A::IDENTITY, &view(eye, forward), eye)
-            .into_iter()
-            .collect();
-        groups.sort();
-        groups
+        drawn_indices(courtyard_and_room().visible_groups(
+            Affine3A::IDENTITY,
+            &view(eye, forward),
+            eye,
+        ))
     }
 
     #[test]
@@ -490,11 +508,7 @@ mod tests {
         let portals = courtyard_and_room();
         let placed = Affine3A::from_translation(Vec3::new(100.0, 0.0, 0.0));
         let eye = Vec3::new(105.0, 1.0, 8.0);
-        let mut groups: Vec<u16> = portals
-            .visible_groups(placed, &view(eye, Vec3::Z), eye)
-            .into_iter()
-            .collect();
-        groups.sort();
+        let groups = drawn_indices(portals.visible_groups(placed, &view(eye, Vec3::Z), eye));
         assert_eq!(groups, [1]);
     }
 }
