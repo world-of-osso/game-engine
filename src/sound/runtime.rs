@@ -6,7 +6,7 @@ use bevy::prelude::*;
 
 use crate::sound_footsteps::{
     FootstepMovement, FootstepRequest, FootstepSurface, LoadedFootstepCatalog,
-    classify_player_creature,
+    classify_player_creature, movement_from_anim,
 };
 use game_engine::input_bindings::InputAction;
 
