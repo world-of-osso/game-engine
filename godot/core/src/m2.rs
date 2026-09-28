@@ -4,6 +4,7 @@ use crate::asset::m2_format::{self as format, m2_anim, m2_attach};
 use format::parser::TextureTables;
 
 pub use format::m2_collision::M2CollisionMesh;
+pub use format::m2_variation::VariationFamily;
 
 #[derive(Debug)]
 pub struct Vertex {

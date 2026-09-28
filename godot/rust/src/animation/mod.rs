@@ -80,71 +80,6 @@ struct Transition {
     duration_ms: f32,
 }
 
-struct VariationFamily {
-    candidates: Vec<(usize, u32)>,
-    total: u32,
-}
-
-impl VariationFamily {
-    fn read(sequences: &[m2::Sequence], current: usize) -> Result<Self, String> {
-        let id = sequences[current].id;
-        let base = sequences
-            .iter()
-            .position(|sequence| sequence.id == id && sequence.variation_id == 0)
-            .ok_or_else(|| format!("M2 animation {id} lacks base variation"))?;
-        let mut candidates = Vec::new();
-        let mut seen = std::collections::HashSet::new();
-        let mut next = Some(base);
-        let mut total = 0u32;
-        while let Some(index) = next {
-            if !seen.insert(index) {
-                return Err(format!("M2 animation {id} has cyclic variations"));
-            }
-            let sequence = sequences
-                .get(index)
-                .ok_or_else(|| format!("M2 animation {id} links absent variation {index}"))?;
-            if sequence.id != id {
-                return Err(format!(
-                    "M2 animation {id} links other animation {}",
-                    sequence.id
-                ));
-            }
-            let weight = u32::try_from(sequence.frequency)
-                .map_err(|_| format!("M2 variation {index} has negative weight"))?;
-            if weight > 0 && sequence.duration == 0 {
-                return Err(format!("M2 variation {index} has zero duration"));
-            }
-            total = total
-                .checked_add(weight)
-                .ok_or("M2 variation weight overflow")?;
-            candidates.push((index, weight));
-            next = match sequence.variation_next {
-                -1 => None,
-                index if index >= 0 => Some(index as usize),
-                index => return Err(format!("M2 invalid variation link {index}")),
-            };
-        }
-        if candidates.len() > 1 && total == 0 {
-            return Err(format!("M2 animation {id} has no variation weights"));
-        }
-        Ok(Self { candidates, total })
-    }
-
-    fn choose(&self, roll: u32) -> Result<usize, String> {
-        if roll >= self.total {
-            return Err(format!("M2 variation roll {roll} exceeds {}", self.total));
-        }
-        let mut remaining = roll;
-        for &(index, weight) in &self.candidates {
-            if remaining < weight {
-                return Ok(index);
-            }
-            remaining -= weight;
-        }
-        Err("M2 variation weights do not cover roll".into())
-    }
-}
-
 fn sample_roll(state: &mut u64, upper: u32) -> u32 {
     let threshold = upper.wrapping_neg() % upper;
     loop {
@@ -394,22 +329,13 @@ impl AnimationState {
             self.tick_transition(delta_ms);
             return Ok(());
         }
-        let family = VariationFamily::read(&self.sequences, self.current)?;
-        if family.candidates.len() == 1 {
+        let family = m2::VariationFamily::read(&self.sequences, self.current)?;
+        if family.is_single() {
             self.time_ms = elapsed % duration;
             self.tick_transition(delta_ms);
             return Ok(());
         }
-        let shortest = family
-            .candidates
-            .iter()
-            .filter(|(_, weight)| *weight > 0)
-            .map(|(index, _)| self.sequences[*index].duration)
-            .min()
-            .ok_or("M2 variation family has no playable duration")?;
-        if elapsed / f64::from(shortest) >= 4096.0 {
-            return Err("M2 elapsed animation requires 4096 or more variation boundaries".into());
-        }
+        family.validate_elapsed(elapsed)?;
         let mut remaining = delta_ms;
         loop {
             let duration = f64::from(self.sequences[self.current].duration);
@@ -422,7 +348,7 @@ impl AnimationState {
             remaining -= until_boundary;
             self.time_ms = duration;
             self.tick_transition(until_boundary);
-            let next = family.choose(roll(family.total))?;
+            let next = family.choose(&mut roll)?;
             if next != self.current {
                 self.select(next, true)?;
             }
@@ -610,7 +536,7 @@ impl WowAnimationPlayer {
     }
 
     #[func]
-    fn advance_time_ms(&mut self, delta_ms: f64) -> bool {
+    pub(crate) fn advance_time_ms(&mut self, delta_ms: f64) -> bool {
         if self.paused {
             return true;
         }
@@ -1119,6 +1045,42 @@ mod tests {
             at_end
                 .iter()
                 .zip(direct.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
+    }
+
+    /// FDID 588287 pa_redbird_stand.m2: Stand variation 1 is weighted 30583 of
+    /// 32767 but lasts 0 ms, so it plays for no time and Stand variation 0 loops.
+    #[test]
+    fn redbird_zero_duration_stand_variation_keeps_the_bird_animating() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+        let read = |name| fs::read(root.join(name)).expect("authored fixture");
+        let model =
+            m2::parse_model(&read("588287.m2"), &read("58828700.skin")).expect("redbird model");
+        let stand = &model.sequences;
+        assert_eq!(
+            [
+                (stand[0].duration, stand[0].frequency),
+                (stand[1].duration, stand[1].frequency)
+            ],
+            [(3333, 2184), (0, 30583)]
+        );
+        let mut player = AnimationState::new(&model).expect("animated model");
+        let start = player.poses();
+        for roll in [30000, 0, 32766] {
+            player
+                .advance_with_roll(3333.0, |_| roll)
+                .expect("Stand loops past its zero-duration variation");
+            assert_eq!(player.current, 0);
+            assert_eq!(player.time_ms, 0.0);
+        }
+        player.advance(1000.0).expect("advance within Stand");
+        assert_eq!(player.time_ms, 1000.0);
+        assert!(player.pose_varies());
+        assert!(
+            !start
+                .iter()
+                .zip(player.poses())
                 .all(|(a, b)| near_pose(*a, b))
         );
     }
