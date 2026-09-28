@@ -17,6 +17,18 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - [ ] Clicking a visible non-local plate targets its owner before mesh raycasting. Registry UI under the cursor retains input precedence.
 - [x] A unit whose replicated `UnitFlags` carry `UNIT_FLAG_NOT_SELECTABLE` (0x02000000; triggers such as the Summon Enabler Stalker) has no projected name, health or cast visual, and cannot be clicked, hovered, cursor-highlighted or tab-targeted (Retail). Clearing the flag restores the plate and selection. `sync_not_selectable` keeps the `NotSelectable` marker in step with `UnitFlags`.
 
+### Retail visibility and occlusion (Godot client)
+
+Retail decides plate visibility in the engine from CVars; the default UI only exposes them (`Blizzard_SettingsDefinitions_Frame/Nameplates.lua:454,460,480,513`, `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns`). Defaults are the engine CVar table (wow-ui-sim `src/cvars.yaml:977-1008`, from wowless). The UI source does not contain the engine's per-unit combat test.
+
+- [x] `nameplateShowAll = 0` (cvars.yaml:993): a plate shows only for the local player's target and for units in combat with the player. "Nameplates by default are only shown in combat. Check this to show all nameplates all the time." (`OPTION_TOOLTIP_UNIT_NAMEPLATES_AUTOMODE`, GlobalStrings); the NAMEPLATES binding reports "Enemy Nameplates Turned On (Combat)" while it is 0 (`Blizzard_FrameXML/Bindings_Standard.xml:1121-1133`). With 1, every unit of an enabled kind shows.
+- [x] "In combat with the player" is the unit's replicated `CombatStatus` with the local player as its replicated `UnitTarget`. The client has no threat list, so a unit fighting the player while targeting someone else has no plate.
+- [x] `nameplateShowEnemies = 1` (cvars.yaml:997) covers units the player can attack (`shared::faction_reaction::can_attack` and no `UNIT_FLAG_NON_ATTACKABLE_2`), neutral ones included. `nameplateShowFriendlyPlayers = 0` (cvars.yaml:1008) and `nameplateShowFriendlyNpcs = 0` (cvars.yaml:1004) hide every friendly plate, the target's included.
+- [x] `nameplateMaxDistance = 60` (cvars.yaml:977): no plate beyond 60 yd from the local player. In the Godot client this replaces `HudOptions.nameplate_distance`; `HudOptions.show_nameplates` still turns every plate off.
+- [x] The local player, dead units and `UNIT_FLAG_NOT_SELECTABLE` units never have a plate.
+- [x] `nameplateOccludedAlphaMult = 0.4` (cvars.yaml:984): a plate whose unit is hidden from the camera has alpha 0.4, else 1. The test is a ray from the camera to the centre of the unit's pick box against terrain (physics layer 1) and WMO collision (layer 2). M2 doodads have no collision and do not occlude.
+- [x] Godot look and layout come from the Bevy client: reference skins, the Thick/Thin frame chosen by the nearest preset, the fill desaturated then tinted by reaction, a white 13px Friz name with a black shadow 2px above the plate, and the body centred 2.5 yd above the unit origin (Bevy `BAR_Y_OFFSET`). 1 UI unit is 1 viewport pixel.
+
 ## How it works
 
 - [Nameplate design](../wiki/design/nameplate-design.md)
@@ -42,6 +54,10 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - `src/game/networking/npc.rs` — `NotSelectable` marker from `UnitFlags`; plate, pick, hover and target queries exclude it.
 - `../game-server/crates/server/src/cast_presentation.rs` — validated player cast-state lifecycle; no spell effect execution or NPC cast source.
 
+- `src/rendering/ui/nameplate_visibility_data.rs` — engine-free CVar defaults and the Retail visibility/alpha rules, shared by both clients.
+- `godot/rust/src/nameplates.rs` — Godot plates: rule inputs from snapshots, occlusion ray, CanvasLayer nodes, `nameplate_state()`/`nameplate_rules(id)` automation, `NameplateProbe`.
+- `godot/network/src/lib.rs` — `UnitSnapshot` carries `faction_template`, `unit_flags`, `in_combat`.
+
 ## Tests asserting this spec
 
 - `src/game/nameplate_style.rs` — colour per reaction/class and cast type, presets, clamping, slider keys.
@@ -53,9 +69,17 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - `src/rendering/ui/nameplate_projection_tests.rs` — late-local-owner exclusion and shared body-distance/fade behavior.
 - `src/rendering/ui/target_nameplate_tests.rs` — plate-owner selection, mesh precedence, registry UI precedence, and hidden/local exclusion.
 - `src/rendering/ui/nameplate_gpu_tests.rs` — half-size visual comparison fixture.
+- `godot/core/src/nameplate_visibility_data_tests.rs` — CVar defaults; target/combat/show-all rules; enemy vs friendly player/NPC switches; local, unselectable, dead and far units; occluded alpha.
+- `godot/network/src/wire_tests.rs` `native_bridge_receives_faction_flags_and_combat_status` — the rule inputs over loopback UDP, including a combat drop.
+- `godot/rust/src/nameplates.rs` tests — plate layout around the anchor (Thick, borderless Thin, health fill).
+- `godot/tests/nameplate_occlusion.gd` — the occlusion ray on real Godot physics.
+- `godot/tests/world_nameplate_flow.gd` — in world on the dev server.
 - `not_selectable_unit_flags_hide_every_plate_part_until_cleared`, `clicking_a_not_selectable_npc_model_selects_nothing`, `tab_target_skips_not_selectable_npcs`, `unit_frame_snapshot_preserves_powers_auras_level_faction_flags_target_and_removal`.
 
 ## Known gaps (current cycle)
+
+- [ ] Godot: combat-driven plates are proven by unit and replication tests only. The client cannot attack or cast, and the creatures near Fbworldmap are neutral, so no in-world fixture starts combat.
+- [ ] Godot: no cast bar, class colours, plate click-to-target, distance-based alpha (`nameplateMinAlpha` 0.6 over `nameplate{Min,Max}AlphaDistance`), selected/min scale, overlap stacking, or Options UI for the CVars (they are fixed defaults).
 
 - [ ] Reaction is template-only: reputation (forced ranks, at-war, Faction reputation bases) is not consulted, on client or server. Diseased Timber/Young Wolves (FactionTemplate 32) therefore read neutral although Retail shows them hostile.
 - [ ] Fills are the reference crops desaturated to their HSV value and tinted, so the default hostile body is (195, 0, 0) where the reference shows (195, 43, 41), and the cast fill loses its white highlights. The pixel-match item above is unaffected in status (still open).
@@ -66,6 +90,8 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - [ ] Prove server-to-client cast replication over a connected network session.
 
 ## Verification status
+
+- [x] 2026-09-28, branch `nameplates` (Godot): core rules 10/10, wire test 1/1, Godot lib layout 3/3 and FactionTemplate 1/1; `tests/nameplate_occlusion.gd` exits 0. `tests/world_nameplate_flow.gd` exits 0 on 127.0.0.1:5000 as Fbworldmap (`data/diagnostics/nameplates-godot-20260928/`): no plates untargeted; three enemy Tab targets (Goblin Assassin, Blackrock Worg) each showed the only plate, friendly ones none; a Blackrock Worg behind a terrain rise read alpha 0.4 with the independent ray blocked; Escape removed the plate. Captures inspected.
 
 - [x] 2026-09-25, branch `nameplates`: targeted bin (153) and lib (76) tests pass. Headless in-world captures (`data/diagnostics/nameplate-20260925/`, `before-*` from master `07dc8db1`, `after-*` from the branch): Defias Thug yellow (was red), Deputy Willem green (was red), Mangy Wolf (FactionTemplate 38) red, names centred above the bar (were offset left); Options > Nameplates edits persisted and applied (neutral green channel 0.5, health width 200, name font 15).
 - [ ] No current-cycle test execution or rendered runtime verification is claimed for local-owner hiding, shared distance, plate selection, or the offline debug screen.

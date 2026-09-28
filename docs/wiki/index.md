@@ -55,7 +55,7 @@ Architecture decisions and feature designs.
 - [character-generation](design/character-generation.md) — Original character creation: glTF format, template skeletons, race scaling
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
 - [ui-frame-order](design/ui-frame-order.md) — implemented shared plugin ordering; standalone setup preserved, named scheduling sets and revision-scoped verification
-- [nameplate-design](design/nameplate-design.md) — `NameplateStyle` sizes/colours (Options > Nameplates, Thin/Thick presets), FactionTemplate reaction tints, name centred above the bar in overlay units, half-scale reference calibration, local-owner exclusion, shared name/health/cast distance policy, registry-first plate-owner selection, and offline cast/channel preview; rendered/test verification remains open
+- [nameplate-design](design/nameplate-design.md) — `NameplateStyle` sizes/colours (Options > Nameplates, Thin/Thick presets), FactionTemplate reaction tints, name centred above the bar in overlay units, half-scale reference calibration, local-owner exclusion, shared name/health/cast distance policy, registry-first plate-owner selection, and offline cast/channel preview; rendered/test verification remains open; Godot Retail CVar visibility (target/combat only, enemies, 60 yd) and 0.4 occluded alpha
 - [collision-system](design/collision-system.md) — collision layers: terrain and WMO floors (see player-ground), horizontal WMO/M2 blocking; no M2 floors
 
 ## Investigations

@@ -38,7 +38,7 @@ use crate::{
 
 const LAYER_NAME: &str = "Nameplates";
 const FACTION_TEMPLATE_CSV: &str = "db2/12.1.0.69933/FactionTemplate.csv";
-/// Retail `HEALTH_BAR_TO_NAME_ABOVE_SPACING` (Blizzard_NamePlateConstants.lua).
+/// Retail `HEALTH_BAR_TO_NAME_ABOVE_SPACING` (Blizzard_NamePlateConstants.lua:33).
 const NAME_ABOVE_BAR_SPACING: f32 = 2.0;
 /// Bevy `NAMEPLATE_SCALE`: the skins are unscaled reference-screenshot pixels.
 const NAMEPLATE_SCALE: f32 = 0.5;

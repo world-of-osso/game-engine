@@ -1,7 +1,7 @@
-//! Engine-free retail nameplate visibility and alpha rules, shared by the Bevy and
-//! Godot clients. Retail decides plate visibility in the engine from CVars; the
+//! Engine-free retail nameplate visibility and alpha rules (used by the Godot client
+//! through `game-engine-core`). Retail decides plate visibility in the engine from CVars; the
 //! default UI only exposes them (Blizzard_SettingsDefinitions_Frame/Nameplates.lua).
-//! Defaults are the engine CVar table (wow-ui-sim `src/cvars.yaml`, from wowless).
+//! Defaults are the engine CVar table (wow-ui-sim `src/cvars.yaml:977-1008`, from wowless).
 
 /// The nameplate CVars that decide which units get a plate and how opaque it is.
 #[derive(Clone, Copy, Debug, PartialEq)]
