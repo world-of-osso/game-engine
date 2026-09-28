@@ -8,7 +8,7 @@ use game_engine_core::{
         sync_movement_toggles,
     },
     player_physics_data::{
-        GroundState, VerticalState, apply_gravity_and_ground_snap, at_swim_surface,
+        GroundState, SWIM_DEPTH, VerticalState, apply_gravity_and_ground_snap, at_swim_surface,
         build_proposed_ground_movement, swim_height, update_grounded,
     },
 };
@@ -28,6 +28,8 @@ pub(crate) struct PlayerMovement {
     at_surface: bool,
     /// Whether the last swim step changed height, for a vertical-only input.
     swim_rose: bool,
+    /// Whether the previous `predict` left the player walking on dry ground.
+    wading: bool,
     previous_facing: Option<f32>,
     vertical_velocity: f32,
     grounded: bool,
@@ -51,6 +53,7 @@ impl Default for PlayerMovement {
             direction: MoveDirection::None,
             at_surface: false,
             swim_rose: false,
+            wading: false,
             previous_facing: None,
             vertical_velocity: 0.0,
             grounded: true,
@@ -150,17 +153,38 @@ impl PlayerMovement {
             self.walk(position, &frame, jump_pressed, ground, delta)
         };
         let was_swimming = self.swimming;
+        let wading = self.wading && self.grounded;
         self.swimming = ground.swimming(position);
-        if self.swimming {
-            self.jumping = false;
-            self.vertical_velocity = 0.0;
-            if !was_swimming {
-                self.at_surface = ground
-                    .water_surface(position)
-                    .is_some_and(|surface| at_swim_surface(position.y, surface));
-            }
+        self.wading = !self.swimming && self.grounded;
+        if !self.swimming {
+            return position;
         }
-        position
+        self.jumping = false;
+        self.vertical_velocity = 0.0;
+        if was_swimming {
+            return position;
+        }
+        self.enter_water(position, wading, ground)
+    }
+
+    /// Wading in turns into swimming at the floating height: a frame's walk can cross the
+    /// threshold past it, onto a seabed below it. A fall or a spawn keeps its depth.
+    fn enter_water(
+        &mut self,
+        feet: Vec3,
+        wading: bool,
+        ground: &crate::ground::TerrainGround<'_>,
+    ) -> Vec3 {
+        let Some(surface) = ground.water_surface(feet) else {
+            return feet;
+        };
+        let feet = if wading {
+            feet.with_y(feet.y.max(surface - SWIM_DEPTH))
+        } else {
+            feet
+        };
+        self.at_surface = at_swim_surface(feet.y, surface);
+        feet
     }
 
     fn walk(
@@ -582,13 +606,25 @@ mod tests {
         movement: &mut PlayerMovement,
         ground: &TerrainGround<'_>,
         input: &PhysicalInput,
+        feet: Vec3,
+        view: (f32, f32),
+        frames: usize,
+    ) -> Vec3 {
+        hold_at(movement, ground, input, feet, view, frames, DT)
+    }
+
+    fn hold_at(
+        movement: &mut PlayerMovement,
+        ground: &TerrainGround<'_>,
+        input: &PhysicalInput,
         mut feet: Vec3,
         (yaw, pitch): (f32, f32),
         frames: usize,
+        dt: f32,
     ) -> Vec3 {
         for _ in 0..frames {
             let frame = movement.resolve(&InputBindingsData::default(), input, yaw, pitch);
-            feet = movement.predict(feet, frame, false, ground, DT);
+            feet = movement.predict(feet, frame, false, ground, dt);
         }
         feet
     }
@@ -718,10 +754,19 @@ mod tests {
             assert!(frames < 600, "never reached deep water: {feet}");
         }
         assert!(movement.swimming);
+        // Wading turns into swimming at the floating height: no per-frame overshoot below
+        // the surface, so Space there moves nothing and sends nothing.
         assert!(
-            (feet.y - top).abs() < 0.02,
-            "sank to the seabed instead of floating: {feet}"
+            (feet.y - top).abs() < 1e-4,
+            "not floating at the surface: {feet}"
         );
+        input.set_key(BindingKey::KeyW, false);
+        input.set_key(BindingKey::Space, true);
+        let held = hold(&mut movement, &ground, &input, feet, (INTO_WATER, 0.0), 10);
+        assert_eq!(held, feet, "Space at the surface moved the swimmer");
+        assert!(movement.network_input(INTO_WATER, held, 4).is_none());
+        input.set_key(BindingKey::Space, false);
+        input.set_key(BindingKey::KeyW, true);
         let start = feet;
         let swum = hold(&mut movement, &ground, &input, start, (INTO_WATER, 0.0), 30);
         let speed = (start.z - swum.z) / (30.0 * DT);
@@ -746,6 +791,53 @@ mod tests {
             (feet.y - shore).abs() < 0.05,
             "not walking on the shore: {feet}"
         );
+    }
+
+    /// At 20 fps a frame wades 0.35 yd, far enough for the seabed to drop past the swim
+    /// threshold: the swimmer still starts at the floating height, and Space there is quiet.
+    #[test]
+    fn slow_frames_wade_in_to_the_floating_height() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        let mut feet = SHORE;
+        let mut frames = 0;
+        while !movement.swimming {
+            feet = hold_at(
+                &mut movement,
+                &ground,
+                &input,
+                feet,
+                (INTO_WATER, 0.0),
+                1,
+                0.05,
+            );
+            frames += 1;
+            assert!(frames < 200, "never started swimming: {feet}");
+        }
+        assert!(
+            (top..top + 0.02).contains(&feet.y),
+            "not wading in at the floating height: {feet}"
+        );
+        input.set_key(BindingKey::KeyW, false);
+        input.set_key(BindingKey::Space, true);
+        let held = hold_at(
+            &mut movement,
+            &ground,
+            &input,
+            feet,
+            (INTO_WATER, 0.0),
+            10,
+            0.05,
+        );
+        assert_eq!(held, feet, "Space at the surface moved the swimmer");
+        assert!(movement.network_input(INTO_WATER, held, 4).is_none());
     }
 
     /// Mouse-steered (right button) forward swimming follows the camera pitch; strafing
