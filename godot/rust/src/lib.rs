@@ -36,6 +36,7 @@ mod swim;
 mod targeting;
 mod terrain;
 mod ui;
+mod ui_scale;
 mod wmo;
 mod world;
 mod world_map;
@@ -292,7 +293,8 @@ impl INode3D for GameClient {
 
     fn process(&mut self, delta: f64) {
         let update = self
-            .poll_ui_actions()
+            .sync_registry_ui_scale()
+            .and_then(|()| self.poll_ui_actions())
             .and_then(|()| self.poll_account())
             .and_then(|()| self.update_logout(delta))
             .and_then(|()| self.update_character_preview())
@@ -541,6 +543,36 @@ impl GameClient {
 }
 
 impl GameClient {
+    fn effective_ui_scale(&self) -> f32 {
+        let viewport = self
+            .base()
+            .get_viewport()
+            .map(|viewport| viewport.get_visible_rect().size)
+            .unwrap_or_default();
+        ui_scale::effective_ui_scale(
+            [viewport.x, viewport.y],
+            self.client_options.graphics.ui_scale,
+            self.account.session.screen == SessionScreen::InWorld,
+        )
+    }
+
+    fn sync_registry_ui_scale(&mut self) -> Result<(), String> {
+        let scale = self.effective_ui_scale();
+        for ui in [
+            &mut self.login_ui,
+            &mut self.character_ui,
+            &mut self.create_ui,
+            &mut self.loading_ui,
+            &mut self.errors_ui,
+            &mut self.game_menu_ui,
+        ] {
+            if let Some(ui) = ui {
+                ui.bind_mut().set_ui_scale(scale)?;
+            }
+        }
+        Ok(())
+    }
+
     fn connect_focus_reset(&mut self) -> Result<(), String> {
         let mut window = self.base().get_window().ok_or("Client has no window")?;
         let callback = self.to_gd().callable("clear_physical_input");

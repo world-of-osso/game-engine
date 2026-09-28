@@ -61,6 +61,7 @@ pub struct RegistryUi {
     slider_events: VecDeque<SliderInput>,
     login_fade: Option<f32>,
     loading_displayed_percent: f32,
+    ui_scale: f32,
 }
 
 /// Raw authored-slider input; the host applies its own policy and passes back a view.
@@ -271,6 +272,7 @@ impl ICanvasLayer for RegistryUi {
             slider_events: VecDeque::new(),
             login_fade: None,
             loading_displayed_percent: 0.0,
+            ui_scale: 1.0,
         }
     }
 }
@@ -367,7 +369,12 @@ impl RegistryUi {
             postsetup: ScreenPostsetup::WorldMap,
         };
         model.sync();
-        self.initialize_model(model, width, height)
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("World map has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        self.initialize_model(model, size.x, size.y)
     }
 
     /// Initialize a dedicated RegistryUi instance for the dungeon-entrance difficulty bar.
@@ -634,7 +641,12 @@ impl RegistryUi {
         height: f32,
     ) -> Result<(), String> {
         let mut projection = UiProjection::new();
-        projection.root.set_size(Vector2::new(width, height));
+        projection.root.set_scale(Vector2::ONE * self.ui_scale);
+        projection
+            .root
+            .set_size(Vector2::new(width, height) / self.ui_scale);
+        model.registry.ui_scale = self.ui_scale;
+        model.resize(width / self.ui_scale, height / self.ui_scale);
         self.base_mut().add_child(&projection.root);
         projection.sync(&mut model.registry)?;
         self.projection = Some(projection);
@@ -698,23 +710,40 @@ impl RegistryUi {
         Ok(())
     }
 
+    /// Apply the effective camera-equivalent scale to both layout and projected pixels.
+    pub fn set_ui_scale(&mut self, scale: f32) -> Result<(), String> {
+        if self.ui_scale != scale {
+            self.ui_scale = scale;
+            if self.model.is_some() {
+                self.sync_viewport()?;
+            }
+        }
+        Ok(())
+    }
+
     fn sync_viewport(&mut self) -> Result<(), String> {
         let viewport = self
             .base()
             .get_viewport()
             .ok_or("RegistryUi has no viewport")?;
         let size = viewport.get_visible_rect().size;
+        let logical = size / self.ui_scale;
         let Some(model) = self.model.as_mut() else {
-            return Err("Login model not initialized".into());
+            return Err("Registry model not initialized".into());
         };
-        if model.registry.screen_width == size.x && model.registry.screen_height == size.y {
+        if model.registry.screen_width == logical.x
+            && model.registry.screen_height == logical.y
+            && model.registry.ui_scale == self.ui_scale
+        {
             return Ok(());
         }
-        model.resize(size.x, size.y);
+        model.registry.ui_scale = self.ui_scale;
+        model.resize(logical.x, logical.y);
         let Some(projection) = self.projection.as_mut() else {
             return Err("Native projection not initialized".into());
         };
-        projection.root.set_size(size);
+        projection.root.set_scale(Vector2::ONE * self.ui_scale);
+        projection.root.set_size(logical);
         projection.sync(&mut model.registry)
     }
 
