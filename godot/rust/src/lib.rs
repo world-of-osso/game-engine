@@ -425,6 +425,14 @@ impl GameClient {
         state.set("unit_count", self.units.len() as i64);
         state.set("world_attached", self.world.root().is_some());
         state.set("terrain", &terrain::state::terrain_state(&self.terrain));
+        let area_id = local_transform.and_then(|transform| {
+            self.terrain
+                .area_id_at(transform.origin.x, transform.origin.z)
+        });
+        state.set(
+            "area_id",
+            &area_id.map(|id| id.to_variant()).unwrap_or_default(),
+        );
         let mut objects = VarDictionary::new();
         objects.set("spawned", self.world_objects.spawned_count() as i64);
         objects.set("pending", self.world_objects.pending_count() as i64);
