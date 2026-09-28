@@ -160,6 +160,17 @@ impl AnimationState {
         })
     }
 
+    /// Current selected clip and clock, not the outgoing crossfade clip.
+    fn footstep_phase(&self) -> (usize, u16, f32, f32) {
+        let sequence = &self.sequences[self.current];
+        (
+            self.current,
+            sequence.id,
+            sequence.duration as f32,
+            self.time_ms as f32,
+        )
+    }
+
     /// Whether the sampled pose can change as time advances: a crossfade, or a
     /// current sequence with keyframed motion. Static props hold one pose.
     pub fn pose_varies(&self) -> bool {
@@ -495,6 +506,11 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
+    /// Read-only clip phase for a future native footstep observer.
+    pub fn footstep_phase(&self) -> Option<(usize, u16, f32, f32)> {
+        self.animation.as_ref().map(AnimationState::footstep_phase)
+    }
+
     pub(crate) fn play_death(&mut self) -> Result<(), String> {
         self.animation
             .as_mut()
@@ -526,9 +542,8 @@ impl WowAnimationPlayer {
 impl WowAnimationPlayer {
     #[func]
     fn current_animation_id(&self) -> i32 {
-        self.animation
-            .as_ref()
-            .map(|animation| i32::from(animation.sequences[animation.current].id))
+        self.footstep_phase()
+            .map(|(_, id, _, _)| i32::from(id))
             .unwrap_or(-1)
     }
 
@@ -654,6 +669,15 @@ mod tests {
                 .iter()
                 .zip(b.basis.rows)
                 .all(|(a, b)| near(*a, b))
+    }
+
+    #[test]
+    fn active_phase_reports_selected_sequence_and_advanced_time() {
+        let model = model();
+        let mut player = AnimationState::new(&model).expect("animated model");
+        player.select_animation_id(5, true).expect("Run ID");
+        player.advance(75.0).expect("advance Run");
+        assert_eq!(player.footstep_phase(), (2, 5, 667.0, 75.0));
     }
 
     #[test]

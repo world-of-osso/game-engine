@@ -151,3 +151,80 @@ fn catalog_with_no_eligible_creature_returns_none() {
     assert_eq!(catalog.select(request), None);
     assert_eq!(catalog.select_index(request), None);
 }
+
+#[test]
+fn half_cycle_emits_once_per_observed_half_and_wrap() {
+    let mut tracker = FootstepPhaseTracker::default();
+    assert_eq!(tracker.observe(3, 5, 600.0, 0.0), None);
+    assert_eq!(
+        tracker.observe(3, 5, 600.0, 300.0),
+        Some((FootstepMovement::Run, 769))
+    );
+    assert_eq!(tracker.observe(3, 5, 600.0, 450.0), None);
+    assert_eq!(
+        tracker.observe(3, 5, 600.0, 600.0),
+        Some((FootstepMovement::Run, 768))
+    );
+    assert_eq!(
+        tracker.observe(3, 5, 600.0, 900.0),
+        Some((FootstepMovement::Run, 769))
+    );
+}
+
+#[test]
+fn half_cycle_does_not_invent_missed_steps() {
+    let mut tracker = FootstepPhaseTracker::default();
+    assert_eq!(tracker.observe(2, 4, 400.0, 1200.0), None);
+    assert_eq!(tracker.observe(2, 4, 400.0, 2050.0), None);
+    assert_eq!(
+        tracker.observe(2, 4, 400.0, 2300.0),
+        Some((FootstepMovement::Walk, 513))
+    );
+}
+
+#[test]
+fn nonmovement_updates_sequence_index_without_resetting_half() {
+    let mut tracker = FootstepPhaseTracker::default();
+    assert_eq!(
+        tracker.observe(3, 5, 600.0, 300.0),
+        Some((FootstepMovement::Run, 769))
+    );
+    assert_eq!(tracker.observe(7, 0, 600.0, 20.0), None);
+    assert_eq!(tracker.observe(7, 5, 600.0, 300.0), None);
+    assert_eq!(
+        tracker.observe(7, 5, 600.0, 0.0),
+        Some((FootstepMovement::Run, 1792))
+    );
+}
+
+#[test]
+fn new_movement_sequence_resets_half_before_sampling() {
+    let mut tracker = FootstepPhaseTracker::default();
+    assert_eq!(
+        tracker.observe(2, 5, 600.0, 300.0),
+        Some((FootstepMovement::Run, 513))
+    );
+    assert_eq!(tracker.observe(4, 11, 600.0, 0.0), None);
+    assert_eq!(
+        tracker.observe(4, 11, 600.0, 300.0),
+        Some((FootstepMovement::Strafe, 1025))
+    );
+    assert_eq!(
+        tracker.observe(5, 13, 600.0, 300.0),
+        Some((FootstepMovement::Backpedal, 1281))
+    );
+}
+
+#[test]
+fn zero_duration_skips_but_records_movement_sequence_change() {
+    let mut tracker = FootstepPhaseTracker::default();
+    assert_eq!(
+        tracker.observe(2, 5, 600.0, 300.0),
+        Some((FootstepMovement::Run, 513))
+    );
+    assert_eq!(tracker.observe(4, 4, 0.0, 300.0), None);
+    assert_eq!(
+        tracker.observe(4, 4, 600.0, 300.0),
+        Some((FootstepMovement::Walk, 1025))
+    );
+}

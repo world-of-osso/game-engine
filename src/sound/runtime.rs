@@ -5,8 +5,7 @@ use bevy::ecs::schedule::common_conditions::resource_changed;
 use bevy::prelude::*;
 
 use crate::sound_footsteps::{
-    FootstepMovement, FootstepRequest, FootstepSurface, LoadedFootstepCatalog,
-    classify_player_creature, movement_from_anim,
+    FootstepRequest, FootstepSurface, LoadedFootstepCatalog, classify_player_creature,
 };
 use game_engine::input_bindings::InputAction;
 
@@ -168,12 +167,9 @@ struct SpellCastSoundState {
     last_active_spell_id: Option<u32>,
 }
 
-/// Tracks the last footstep trigger point to avoid double-plays.
+/// Bevy component carrying the shared half-cycle observer.
 #[derive(Component, Default)]
-pub struct FootstepTracker {
-    last_half: u8,
-    last_seq_idx: usize,
-}
+pub struct FootstepTracker(game_engine::footstep_data::FootstepPhaseTracker);
 
 fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<AudioSource>>) {
     commands.insert_resource(build_sound_assets(&mut audio_assets));
@@ -288,29 +284,15 @@ fn footstep_trigger(
     };
 
     for (entity, anim_player, anim_data, transform, mut tracker) in &mut player_q {
-        let seq = &anim_data.sequences[anim_player.current_seq_idx];
-        let Some(movement) = movement_from_anim(seq.id) else {
-            tracker.last_seq_idx = anim_player.current_seq_idx;
+        let seq_idx = anim_player.current_seq_idx;
+        let seq = &anim_data.sequences[seq_idx];
+        let Some((movement, seed)) =
+            tracker
+                .0
+                .observe(seq_idx, seq.id, seq.duration as f32, anim_player.time_ms)
+        else {
             continue;
         };
-
-        if anim_player.current_seq_idx != tracker.last_seq_idx {
-            tracker.last_half = 0;
-            tracker.last_seq_idx = anim_player.current_seq_idx;
-        }
-
-        let duration = seq.duration as f32;
-        if duration <= 0.0 {
-            continue;
-        }
-
-        let progress = (anim_player.time_ms % duration) / duration;
-        let current_half = if progress < 0.5 { 0 } else { 1 };
-        if current_half == tracker.last_half {
-            continue;
-        }
-
-        tracker.last_half = current_half;
         let creature = stats
             .as_ref()
             .and_then(|stats| stats.race)
@@ -330,7 +312,7 @@ fn footstep_trigger(
             creature,
             surface,
             movement,
-            seed: (anim_player.current_seq_idx as u64) << 8 | u64::from(current_half),
+            seed,
         };
         play_footstep(&mut commands, request, &sound_assets, &settings, entity);
     }
