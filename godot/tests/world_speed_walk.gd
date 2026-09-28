@@ -2,14 +2,16 @@ extends SceneTree
 
 ## Dev-server regression: the client predicts at the speed the server grants, and releasing
 ## movement reports one stop the server applies. Place the character with
-## `game-server-admin teleport <name> <map> <x> <y> <z>` while offline (deep water tests swim
-## speed; the server caps a client-reported position at swim speed × its movement bank).
-## Holds W for SPEED_RUN_FRAMES, releases, then compares the client's and the server's
-## positions; then holds S (backpedal: the server replicates speed × 0.6) and releases: only
-## a stop input makes the server replicate the unmodified speed again.
+## `game-server-admin teleport <name> <map> <x> <y> <z>` while offline; deep water tests swim
+## speed (the server caps a client-reported position at swim speed x its movement bank).
+## Holds W for SPEED_RUN_SECONDS (default 2.5) of game time, releases, and compares the
+## client's and the server's positions; then holds S (the server replicates speed x 0.6) and
+## releases: only a stop input makes the server replicate the unmodified speed again.
 ## Requires GODOT_TEST_SERVER=127.0.0.1:5000, SPEED_ACCOUNT, SPEED_PASSWORD, SPEED_CHARACTER
-## (card 0), and --fixed-fps 60. SPEED_YAW (radians, default PI) is the run heading;
-## SPEED_SWIM=1 requires the player to be swimming for the whole run.
+## (card 0), and --fixed-fps 60 or SPEED_REAL_TIME=1. Off-screen --fixed-fps runs at ~18 fps,
+## 3x slower than wall time, so the server's bank never caps it; real frame deltas can, but
+## then a server simulating slower than wall time caps a correct client too.
+## SPEED_YAW (radians, default PI) is the run heading; SPEED_SWIM=1 requires swimming.
 const WORLD_WAIT_MS := 180000
 const YAW_TOLERANCE := 0.05
 const SETTLE_FRAMES := 60
@@ -26,8 +28,9 @@ func _initialize() -> void:
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
 	await process_frame
-	if not is_equal_approx(root.get_process_delta_time(), 1.0 / 60.0):
-		fail("Run with --fixed-fps 60")
+	var real_time := OS.get_environment("SPEED_REAL_TIME") == "1"
+	if not real_time and not is_equal_approx(root.get_process_delta_time(), 1.0 / 60.0):
+		fail("Run with --fixed-fps 60, or SPEED_REAL_TIME=1")
 		return
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	if server != "127.0.0.1:5000":
@@ -38,7 +41,7 @@ func run_test() -> void:
 	if account == "" or password == "" or NAME == "":
 		fail("SPEED_ACCOUNT, SPEED_PASSWORD and SPEED_CHARACTER are required")
 		return
-	var run_frames := int(OS.get_environment("SPEED_RUN_FRAMES")) if OS.get_environment("SPEED_RUN_FRAMES") != "" else 180
+	var seconds := float(OS.get_environment("SPEED_RUN_SECONDS")) if OS.get_environment("SPEED_RUN_SECONDS") != "" else 2.5
 	var yaw := float(OS.get_environment("SPEED_YAW")) if OS.get_environment("SPEED_YAW") != "" else PI
 	var swim := OS.get_environment("SPEED_SWIM") == "1"
 	var client = load("res://scenes/client.tscn").instantiate()
@@ -59,27 +62,35 @@ func run_test() -> void:
 	var start := flat(player.position)
 	var state: Dictionary = client.account_state()
 	print("START client=", player.position, " server=", state.local_server_position, " swimming=", state.local_player_swimming, " server_speed=", state.local_server_speed)
+	var run_started := Time.get_ticks_msec()
 	push_key(KEY_W, true)
 	var max_drift := 0.0
 	var run_speed := 0.0
-	for frame in run_frames:
+	var ran := 0.0
+	var frame := 0
+	while ran < seconds:
 		await process_frame
+		ran += root.get_process_delta_time()
+		frame += 1
 		state = client.account_state()
 		if swim and frame > 2 and not state.local_player_swimming:
 			push_key(KEY_W, false)
 			fail("Left the water at frame %d: %s" % [frame, player.position])
 			return
-		max_drift = max(max_drift, flat(player.position).distance_to(flat(state.local_server_position)))
+		var drift := flat(player.position).distance_to(flat(state.local_server_position))
+		if frame % 15 == 0:
+			print("DRIFT frame=%d drift=%.3f server_speed=%.3f" % [frame, drift, float(state.local_server_speed)])
+		max_drift = max(max_drift, drift)
 		run_speed = max(run_speed, float(state.local_server_speed))
 	push_key(KEY_W, false)
+	var wall_seconds := (Time.get_ticks_msec() - run_started) / 1000.0
 	for _frame in SETTLE_FRAMES:
 		await process_frame
 	state = client.account_state()
 	var walked := flat(player.position).distance_to(start)
 	var server_walked := flat(state.local_server_position).distance_to(start)
 	var gap := flat(player.position).distance_to(flat(state.local_server_position))
-	var seconds := run_frames / 60.0
-	print("RUN client=", player.position, " server=", state.local_server_position, " walked=%.2f server_walked=%.2f gap=%.3f max_drift=%.3f client_speed=%.3f server_speed=%.3f" % [walked, server_walked, gap, max_drift, walked / seconds, run_speed])
+	print("RUN client=", player.position, " server=", state.local_server_position, " walked=%.2f server_walked=%.2f gap=%.3f max_drift=%.3f client_speed=%.3f game_seconds=%.2f wall_seconds=%.2f server_speed=%.3f" % [walked, server_walked, gap, max_drift, walked / ran, ran, wall_seconds, run_speed])
 	if walked < 1.0:
 		fail("Held W did not move the player: %.2f yd" % walked)
 		return
