@@ -24,6 +24,7 @@ pub(crate) struct TerrainMaterials {
     shader: Option<Gd<Shader>>,
     materials: Vec<Gd<ShaderMaterial>>,
     light: Option<TerrainLight>,
+    water: super::water::WaterMaterials,
 }
 
 impl TerrainMaterials {
@@ -52,7 +53,7 @@ impl TerrainMaterials {
             root.add_child(&node);
             self.attached.insert(tile);
         }
-        Ok(())
+        self.water.sample_clock(parent)
     }
 
     pub fn reset(&mut self) {
@@ -63,6 +64,7 @@ impl TerrainMaterials {
         self.textures.clear();
         self.materials.clear();
         self.light = None;
+        self.water = super::water::WaterMaterials::default();
     }
 
     pub fn update_lighting(&mut self, light: TerrainLight) {
@@ -113,9 +115,13 @@ impl TerrainMaterials {
                 collision,
             ));
         }
+        let water = self.water.build(&parsed.root)?;
         // Allocate manual-lifetime nodes only after all fallible resource construction.
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Tile{}_{}", tile.0, tile.1));
+        if let Some(water) = water {
+            root.add_child(&water);
+        }
         for (name, mesh, material, collision) in chunks {
             root.add_child(&spawn_chunk(&name, &mesh, &material, &collision));
             self.materials.push(material);

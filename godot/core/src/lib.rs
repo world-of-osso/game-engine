@@ -60,6 +60,8 @@ pub mod movement_input_data;
 pub mod nameplate_style_data;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
+#[path = "../../../src/water_material_data.rs"]
+pub mod water_material_data;
 pub use asset::m2_batch_data;
 #[path = "../../../src/cache_source_mtime.rs"]
 mod cache_source_mtime;
