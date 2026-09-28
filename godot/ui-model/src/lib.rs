@@ -64,7 +64,7 @@ use char_select_component::{
     char_select_screen,
 };
 use game_menu_main::{GAME_MENU_ROOT, main_menu_view};
-use loading_component::{LoadingScreenState, loading_screen};
+use loading_component::{LoadingScreenState, LoadingViewportHeight, loading_screen};
 use login::{
     PASSWORD_INPUT, SharedConnecting, SharedRealmSelectable, SharedRealmText, SharedStatusText,
     USERNAME_INPUT, login_screen,
@@ -258,7 +258,8 @@ pub struct LoadingModel {
 impl LoadingModel {
     pub fn new(screen_width: f32, screen_height: f32) -> Self {
         let mut shared = SharedContext::new();
-        shared.insert(LoadingScreenState::default());
+        shared.insert(LoadingScreenState::with_default_text("", 0));
+        shared.insert(LoadingViewportHeight(screen_height));
         let mut registry = FrameRegistry::new(screen_width, screen_height);
         registry.register_three_slice_style(
             "loading_bar_shell",

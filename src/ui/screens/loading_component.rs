@@ -7,8 +7,6 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 const TEX_LOADING_ART: &str = "data/ui/loading-screen-cathedral-bg-v1.png";
-const TEX_LOADING_FILLER_TOP: &str = "data/ui/loading-screen-parchment-band-top-v1.png";
-const TEX_LOADING_FILLER_BOTTOM: &str = "data/ui/loading-screen-parchment-band-bottom-v1.png";
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
 pub const TEX_LOADING_BAR_LEFT: &str = "data/ui/loading-bar-steel-shell-left.png";
 pub const TEX_LOADING_BAR_CENTER: &str = "data/ui/loading-bar-steel-shell-center.png";
@@ -31,10 +29,6 @@ const COLOR_SUBTLE: FontColor = FontColor::new(0.95, 0.9, 0.78, 1.0);
 const COLOR_TIP: FontColor = FontColor::new(0.78, 0.74, 0.66, 1.0);
 const ART_WIDTH: f32 = 1280.0;
 const ART_HEIGHT: f32 = 640.0;
-const FILLER_WIDTH: f32 = 2048.0;
-const FILLER_HEIGHT: f32 = 160.0;
-const FILLER_TOP_Y: f32 = 0.0;
-const FILLER_BOTTOM_Y: f32 = 0.0;
 const BAR_CAP_WIDTH: f32 = 25.0;
 const BAR_FILL_START_X: f32 = 6.0;
 const BAR_WIDTH: f32 = 610.0;
@@ -44,15 +38,26 @@ const BAR_FILL_HEIGHT: f32 = 23.0;
 const PROGRESS_TEXT_X: f32 = -42.0;
 const PROGRESS_TEXT_Y: f32 = -1.0;
 const STATUS_TEXT_Y: f32 = -1.0;
-const BAR_Y: f32 = -10.0;
-const LOGO_Y: f32 = -150.0;
-const ZONE_TEXT_Y: f32 = 8.0;
-const TIP_TEXT_Y: f32 = -5.0;
+const BAR_BOTTOM_MARGIN: f32 = 56.0;
+const LOGO_TOP: f32 = 24.0;
+const ZONE_TEXT_GAP: f32 = 8.0;
+const TIP_TEXT_GAP: f32 = 6.0;
+const ZONE_TEXT_HEIGHT: f32 = 28.0;
+const TIP_TEXT_HEIGHT: f32 = 22.0;
+const LOGO_WIDTH: f32 = 360.0;
+const LOGO_HEIGHT: f32 = 140.0;
 
 pub const LOADING_ROOT: FrameName = FrameName("LoadingRoot");
 pub const LOADING_BAR_FILL: FrameName = FrameName("LoadingBarFill");
 pub const LOADING_STATUS_TEXT: FrameName = FrameName("LoadingStatusText");
 pub const LOADING_PROGRESS_TEXT: FrameName = FrameName("LoadingProgressText");
+
+/// Zone line shown when the host has no resolved zone name.
+pub const DEFAULT_ZONE_TEXT: &str = "Entering Elwynn Forest";
+pub const DEFAULT_TIP_TEXT: &str =
+    "Tip: The first zone load streams terrain and replicated actors before gameplay begins.";
+/// Displayed bar fill speed; readiness jumps are eased at this rate instead of snapping.
+pub const LOADING_BAR_FILL_RATE_PERCENT_PER_SEC: f32 = 6.0;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LoadingScreenState {
@@ -62,14 +67,38 @@ pub struct LoadingScreenState {
     pub progress_percent: u8,
 }
 
+impl LoadingScreenState {
+    /// State for a host without a resolved zone: default zone and tip lines.
+    pub fn with_default_text(status_text: &str, progress_percent: u8) -> Self {
+        Self {
+            status_text: status_text.to_owned(),
+            zone_text: DEFAULT_ZONE_TEXT.to_owned(),
+            tip_text: DEFAULT_TIP_TEXT.to_owned(),
+            progress_percent,
+        }
+    }
+}
+
+/// Move the displayed percent toward readiness at the fixed fill rate, never past it.
+pub fn advance_displayed_progress(current: f32, target: f32, delta_secs: f32) -> f32 {
+    if delta_secs <= 0.0 {
+        return current.min(target);
+    }
+    if current >= target {
+        return target;
+    }
+    let step = delta_secs * LOADING_BAR_FILL_RATE_PERCENT_PER_SEC;
+    (current + step).min(target)
+}
+
+/// Window height the loading artwork fills; hosts update it on resize.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LoadingViewportHeight(pub f32);
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoadingScreenLayout {
     pub art_width: f32,
     pub art_height: f32,
-    pub filler_width: f32,
-    pub filler_height: f32,
-    pub filler_top_y: f32,
-    pub filler_bottom_y: f32,
     pub bar_cap_width: f32,
     pub bar_fill_start_x: f32,
     pub bar_width: f32,
@@ -79,10 +108,10 @@ pub struct LoadingScreenLayout {
     pub progress_text_x: f32,
     pub progress_text_y: f32,
     pub status_text_y: f32,
-    pub bar_y: f32,
-    pub logo_y: f32,
-    pub zone_text_y: f32,
-    pub tip_text_y: f32,
+    pub bar_bottom_margin: f32,
+    pub logo_top: f32,
+    pub zone_text_gap: f32,
+    pub tip_text_gap: f32,
 }
 
 impl Default for LoadingScreenLayout {
@@ -90,10 +119,6 @@ impl Default for LoadingScreenLayout {
         Self {
             art_width: ART_WIDTH,
             art_height: ART_HEIGHT,
-            filler_width: FILLER_WIDTH,
-            filler_height: FILLER_HEIGHT,
-            filler_top_y: FILLER_TOP_Y,
-            filler_bottom_y: FILLER_BOTTOM_Y,
             bar_cap_width: BAR_CAP_WIDTH,
             bar_fill_start_x: BAR_FILL_START_X,
             bar_width: BAR_WIDTH,
@@ -103,11 +128,18 @@ impl Default for LoadingScreenLayout {
             progress_text_x: PROGRESS_TEXT_X,
             progress_text_y: PROGRESS_TEXT_Y,
             status_text_y: STATUS_TEXT_Y,
-            bar_y: BAR_Y,
-            logo_y: LOGO_Y,
-            zone_text_y: ZONE_TEXT_Y,
-            tip_text_y: TIP_TEXT_Y,
+            bar_bottom_margin: BAR_BOTTOM_MARGIN,
+            logo_top: LOGO_TOP,
+            zone_text_gap: ZONE_TEXT_GAP,
+            tip_text_gap: TIP_TEXT_GAP,
         }
+    }
+}
+
+impl LoadingScreenLayout {
+    /// Offset from the window bottom to the bar's vertical centre.
+    fn bar_center_from_bottom(&self) -> f32 {
+        self.bar_bottom_margin + self.bar_height / 2.0
     }
 }
 
@@ -115,6 +147,10 @@ pub fn loading_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<LoadingScreenState>()
         .expect("LoadingScreenState must be in SharedContext");
+    let viewport_height = ctx
+        .get::<LoadingViewportHeight>()
+        .expect("LoadingViewportHeight must be in SharedContext")
+        .0;
     let layout = ctx
         .get::<LoadingScreenLayout>()
         .cloned()
@@ -127,8 +163,7 @@ pub fn loading_screen(ctx: &SharedContext) -> Element {
             width: "auto", height: "auto",
             background_color: "0.0,0.0,0.0,1.0",
             strata: FrameStrata::Background,
-            {filler_bands(&layout)}
-            {artwork_frame(&layout)}
+            {artwork_frame(&layout, viewport_height)}
             {logo_frame(&layout)}
             {zone_text(state, &layout)}
             {status_text(state, &layout)}
@@ -139,56 +174,19 @@ pub fn loading_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn filler_bands(layout: &LoadingScreenLayout) -> Element {
+/// Artwork fills the window height at its authored aspect; wider art crops at the sides.
+fn artwork_frame(layout: &LoadingScreenLayout, viewport_height: f32) -> Element {
+    let width = viewport_height * layout.art_width / layout.art_height;
     rsx! {
-        texture {
-            name: "LoadingTopFiller",
-            width: layout.filler_width,
-            height: layout.filler_height,
-            texture_file: TEX_LOADING_FILLER_TOP,
-            strata: FrameStrata::Background,
-            pos_type: "absolute",
-            left: "50%", top: "50%",
-            translate_x: "-50%", translate_y: "-100%",
-            margin_top: {50.0 - layout.art_height / 2.0 - layout.filler_top_y},
-        }
-        texture {
-            name: "LoadingBottomFiller",
-            width: layout.filler_width,
-            height: layout.filler_height,
-            texture_file: TEX_LOADING_FILLER_BOTTOM,
-            strata: FrameStrata::Background,
-            pos_type: "absolute",
-            left: "50%", top: "50%",
-            translate_x: "-50%",
-            margin_top: {50.0 + layout.art_height / 2.0 - layout.filler_bottom_y},
-        }
-    }
-}
-
-fn artwork_frame(layout: &LoadingScreenLayout) -> Element {
-    rsx! {
-        r#frame {
-            name: "LoadingArtworkMatte",
-            width: 1328.0,
-            height: 704.0,
-            background_color: "0.0,0.0,0.0,0.82",
-            strata: FrameStrata::Background,
-            pos_type: "absolute",
-            left: "50%", top: "50%",
-            translate_x: "-50%", translate_y: "-50%",
-            margin_top: 18.0,
-        }
         texture {
             name: "LoadingArtwork",
-            width: layout.art_width,
-            height: layout.art_height,
+            width,
+            height: viewport_height,
             texture_file: TEX_LOADING_ART,
             strata: FrameStrata::Background,
             pos_type: "absolute",
-            left: "50%", top: "50%",
-            translate_x: "-50%", translate_y: "-50%",
-            margin_top: 50.0,
+            left: "50%", top: 0.0,
+            translate_x: "-50%",
         }
     }
 }
@@ -197,14 +195,13 @@ fn logo_frame(layout: &LoadingScreenLayout) -> Element {
     rsx! {
         texture {
             name: "LoadingLogo",
-            width: 360.0,
-            height: 140.0,
+            width: LOGO_WIDTH,
+            height: LOGO_HEIGHT,
             texture_file: TEX_GAME_LOGO,
             strata: FrameStrata::High,
             pos_type: "absolute",
-            left: "50%", top: "50%",
-            translate_x: "-50%", translate_y: "-100%",
-            margin_top: {50.0 - layout.art_height / 2.0 - layout.logo_y},
+            left: "50%", top: layout.logo_top,
+            translate_x: "-50%",
         }
     }
 }
@@ -215,15 +212,15 @@ fn zone_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Elemen
             name: "LoadingZoneText",
             strata: FrameStrata::Medium,
             width: 560.0,
-            height: 28.0,
+            height: ZONE_TEXT_HEIGHT,
             text: state.zone_text.clone(),
             font_size: 22.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_GOLD,
             pos_type: "absolute",
-            left: "50%", top: "50%",
+            left: "50%", top: "100%",
             translate_x: "-50%", translate_y: "-100%",
-            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y - layout.bar_height - layout.zone_text_y},
+            margin_top: {-(layout.bar_bottom_margin + layout.bar_height + layout.zone_text_gap)},
         }
     }
 }
@@ -240,9 +237,9 @@ fn status_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Elem
             font: GameFont::FrizQuadrata,
             font_color: COLOR_SUBTLE,
             pos_type: "absolute",
-            left: "50%", top: "50%",
+            left: "50%", top: "100%",
             translate_x: "-50%", translate_y: "-50%",
-            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y - layout.bar_height / 2.0 - layout.status_text_y},
+            margin_top: {-layout.bar_center_from_bottom() - layout.status_text_y},
         }
     }
 }
@@ -256,9 +253,9 @@ fn bar_background(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> E
             three_slice_style: "loading_bar_shell",
             strata: FrameStrata::Medium,
             pos_type: "absolute",
-            left: "50%", top: "50%",
+            left: "50%", top: "100%",
             translate_x: "-50%", translate_y: "-100%",
-            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y},
+            margin_top: {-layout.bar_bottom_margin},
             {bar_fill_clip(state.progress_percent, layout)}
         }
     }
@@ -310,10 +307,10 @@ fn progress_text(progress_percent: u8, layout: &LoadingScreenLayout) -> Element 
             font: GameFont::FrizQuadrata,
             font_color: COLOR_GOLD,
             pos_type: "absolute",
-            left: "50%", top: "50%",
+            left: "50%", top: "100%",
             translate_x: "-100%", translate_y: "-50%",
             margin_left: {layout.bar_width / 2.0 + layout.progress_text_x},
-            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y - layout.bar_height / 2.0 - layout.progress_text_y},
+            margin_top: {-layout.bar_center_from_bottom() - layout.progress_text_y},
         }
     }
 }
@@ -324,15 +321,15 @@ fn tip_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Element
             name: "LoadingTipText",
             strata: FrameStrata::Medium,
             width: 980.0,
-            height: 22.0,
+            height: TIP_TEXT_HEIGHT,
             text: state.tip_text.clone(),
             font_size: 14.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_TIP,
             pos_type: "absolute",
-            left: "50%", top: "50%",
+            left: "50%", top: "100%",
             translate_x: "-50%",
-            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y - layout.tip_text_y},
+            margin_top: {-layout.bar_bottom_margin + layout.tip_text_gap},
         }
     }
 }
@@ -389,22 +386,6 @@ const LAYOUT_CONST_OVERRIDES: &[LayoutConstOverride] = &[
         setter: set_art_height,
     },
     LayoutConstOverride {
-        name: "FILLER_WIDTH",
-        setter: set_filler_width,
-    },
-    LayoutConstOverride {
-        name: "FILLER_HEIGHT",
-        setter: set_filler_height,
-    },
-    LayoutConstOverride {
-        name: "FILLER_TOP_Y",
-        setter: set_filler_top_y,
-    },
-    LayoutConstOverride {
-        name: "FILLER_BOTTOM_Y",
-        setter: set_filler_bottom_y,
-    },
-    LayoutConstOverride {
         name: "BAR_CAP_WIDTH",
         setter: set_bar_cap_width,
     },
@@ -441,20 +422,20 @@ const LAYOUT_CONST_OVERRIDES: &[LayoutConstOverride] = &[
         setter: set_status_text_y,
     },
     LayoutConstOverride {
-        name: "BAR_Y",
-        setter: set_bar_y,
+        name: "BAR_BOTTOM_MARGIN",
+        setter: set_bar_bottom_margin,
     },
     LayoutConstOverride {
-        name: "LOGO_Y",
-        setter: set_logo_y,
+        name: "LOGO_TOP",
+        setter: set_logo_top,
     },
     LayoutConstOverride {
-        name: "ZONE_TEXT_Y",
-        setter: set_zone_text_y,
+        name: "ZONE_TEXT_GAP",
+        setter: set_zone_text_gap,
     },
     LayoutConstOverride {
-        name: "TIP_TEXT_Y",
-        setter: set_tip_text_y,
+        name: "TIP_TEXT_GAP",
+        setter: set_tip_text_gap,
     },
 ];
 
@@ -477,26 +458,6 @@ fn set_art_width(layout: &mut LoadingScreenLayout, value: f32) {
 #[cfg(debug_assertions)]
 fn set_art_height(layout: &mut LoadingScreenLayout, value: f32) {
     layout.art_height = value;
-}
-
-#[cfg(debug_assertions)]
-fn set_filler_width(layout: &mut LoadingScreenLayout, value: f32) {
-    layout.filler_width = value;
-}
-
-#[cfg(debug_assertions)]
-fn set_filler_height(layout: &mut LoadingScreenLayout, value: f32) {
-    layout.filler_height = value;
-}
-
-#[cfg(debug_assertions)]
-fn set_filler_top_y(layout: &mut LoadingScreenLayout, value: f32) {
-    layout.filler_top_y = value;
-}
-
-#[cfg(debug_assertions)]
-fn set_filler_bottom_y(layout: &mut LoadingScreenLayout, value: f32) {
-    layout.filler_bottom_y = value;
 }
 
 #[cfg(debug_assertions)]
@@ -545,23 +506,23 @@ fn set_status_text_y(layout: &mut LoadingScreenLayout, value: f32) {
 }
 
 #[cfg(debug_assertions)]
-fn set_bar_y(layout: &mut LoadingScreenLayout, value: f32) {
-    layout.bar_y = value;
+fn set_bar_bottom_margin(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.bar_bottom_margin = value;
 }
 
 #[cfg(debug_assertions)]
-fn set_logo_y(layout: &mut LoadingScreenLayout, value: f32) {
-    layout.logo_y = value;
+fn set_logo_top(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.logo_top = value;
 }
 
 #[cfg(debug_assertions)]
-fn set_zone_text_y(layout: &mut LoadingScreenLayout, value: f32) {
-    layout.zone_text_y = value;
+fn set_zone_text_gap(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.zone_text_gap = value;
 }
 
 #[cfg(debug_assertions)]
-fn set_tip_text_y(layout: &mut LoadingScreenLayout, value: f32) {
-    layout.tip_text_y = value;
+fn set_tip_text_gap(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.tip_text_gap = value;
 }
 
 #[cfg(all(test, debug_assertions))]
@@ -571,8 +532,8 @@ mod tests {
     #[test]
     fn apply_debug_const_override_updates_known_layout_const() {
         let mut layout = LoadingScreenLayout::default();
-        apply_debug_const_override("const BAR_Y: f32 = -24.5;", &mut layout);
-        assert_eq!(layout.bar_y, -24.5);
+        apply_debug_const_override("const BAR_BOTTOM_MARGIN: f32 = 24.5;", &mut layout);
+        assert_eq!(layout.bar_bottom_margin, 24.5);
     }
 
     #[test]
@@ -587,7 +548,7 @@ mod tests {
     fn apply_debug_const_override_ignores_non_const_lines() {
         let mut layout = LoadingScreenLayout::default();
         let before = layout.clone();
-        apply_debug_const_override("fn bar_y() -> f32 { -10.0 }", &mut layout);
+        apply_debug_const_override("fn bar_bottom_margin() -> f32 { 10.0 }", &mut layout);
         assert_eq!(layout, before);
     }
 }

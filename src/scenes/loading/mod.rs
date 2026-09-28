@@ -3,8 +3,9 @@ use bevy::prelude::*;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::loading_component::{
-    LOADING_ROOT, LoadingScreenLayout, LoadingScreenState, debug_loading_layout_from_source,
-    loading_screen,
+    DEFAULT_TIP_TEXT, DEFAULT_ZONE_TEXT, LOADING_BAR_FILL_RATE_PERCENT_PER_SEC, LOADING_ROOT,
+    LoadingScreenLayout, LoadingScreenState, LoadingViewportHeight, advance_displayed_progress,
+    debug_loading_layout_from_source, loading_screen,
 };
 use game_engine::ui_resource;
 
@@ -17,10 +18,6 @@ use crate::zone_names::zone_id_to_name;
 #[path = "../../ui/screens/menu_character_layout_test_support.rs"]
 mod layout_support;
 
-const DEFAULT_ZONE_TEXT: &str = "Entering Elwynn Forest";
-const DEFAULT_TIP_TEXT: &str =
-    "Tip: The first zone load streams terrain and replicated actors before gameplay begins.";
-const LOADING_BAR_FILL_RATE_PERCENT_PER_SEC: f32 = 6.0;
 const PREVIEW_MODE_HOLD_PERCENT: f32 = 100.0;
 
 ui_resource! {
@@ -47,7 +44,7 @@ struct LoadingScreenWrap(LoadingScreenRes);
 struct LoadingUiState(LoadingScreenState);
 
 #[derive(Resource, Clone, PartialEq)]
-struct LoadingLayoutState(LoadingScreenLayout);
+struct LoadingLayoutState(LoadingScreenLayout, LoadingViewportHeight);
 
 #[derive(Resource)]
 struct LoadingProgressAnimation {
@@ -96,16 +93,18 @@ fn build_loading_ui(
         0.0,
     );
     let layout = debug_loading_layout_from_source();
+    let viewport = LoadingViewportHeight(ui.registry.screen_height);
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state.clone());
     shared.insert(layout.clone());
+    shared.insert(viewport);
     let mut screen = Screen::new(loading_screen);
     screen.sync(&shared, &mut ui.registry);
 
     let loading_ui = LoadingUi::resolve(&ui.registry);
 
     commands.insert_resource(LoadingUiState(state));
-    commands.insert_resource(LoadingLayoutState(layout));
+    commands.insert_resource(LoadingLayoutState(layout, viewport));
     commands.insert_resource(progress_animation);
     commands.insert_resource(LoadingScreenWrap(LoadingScreenRes { screen, shared }));
     commands.insert_resource(loading_ui);
@@ -162,16 +161,20 @@ fn loading_update_visuals(
         &mut progress_animation,
         time.delta_secs(),
     );
-    let layout = debug_loading_layout_from_source();
-    if last_state.0 == state && last_layout.0 == layout {
+    let layout = LoadingLayoutState(
+        debug_loading_layout_from_source(),
+        LoadingViewportHeight(ui.registry.screen_height),
+    );
+    if last_state.0 == state && *last_layout == layout {
         return;
     }
 
     last_state.0 = state.clone();
-    last_layout.0 = layout.clone();
+    *last_layout = layout.clone();
     let res = &mut screen_wrap.0;
     res.shared.insert(state);
-    res.shared.insert(layout.clone());
+    res.shared.insert(layout.0);
+    res.shared.insert(layout.1);
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
@@ -219,18 +222,6 @@ fn preview_target_progress(elapsed_secs: f32) -> f32 {
     (elapsed_secs.max(0.0) * LOADING_BAR_FILL_RATE_PERCENT_PER_SEC).min(PREVIEW_MODE_HOLD_PERCENT)
 }
 
-fn advance_displayed_progress(current: f32, target: f32, delta_secs: f32) -> f32 {
-    if delta_secs <= 0.0 {
-        return current.min(target);
-    }
-    if current >= target {
-        return target;
-    }
-
-    let step = delta_secs * LOADING_BAR_FILL_RATE_PERCENT_PER_SEC;
-    (current + step).min(target)
-}
-
 #[cfg(test)]
 mod tests {
     use super::layout_support::compute_layout as recompute_layouts;
@@ -246,11 +237,81 @@ mod tests {
         }
     }
 
+    fn laid_out_loading_screen(width: f32, height: f32, progress_percent: u8) -> FrameRegistry {
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(sample_loading_state(progress_percent));
+        shared.insert(LoadingScreenLayout::default());
+        shared.insert(LoadingViewportHeight(height));
+        let mut reg = FrameRegistry::new(width, height);
+        reg.register_three_slice_style(
+            "loading_bar_shell",
+            game_engine::ui::screens::loading_component::loading_bar_shell(),
+        );
+        Screen::new(loading_screen).sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        reg
+    }
+
+    fn rect(reg: &FrameRegistry, name: &str) -> game_engine::ui::layout::LayoutRect {
+        reg.get_by_name(name)
+            .and_then(|id| reg.get(id))
+            .and_then(|frame| frame.layout_rect.clone())
+            .unwrap_or_else(|| panic!("{name} rect"))
+    }
+
+    const LOADING_ELEMENTS: [&str; 6] = [
+        "LoadingLogo",
+        "LoadingZoneText",
+        "LoadingBarBackground",
+        "LoadingStatusText",
+        "LoadingProgressText",
+        "LoadingTipText",
+    ];
+
+    fn assert_loading_screen_fits(width: f32, height: f32) {
+        let reg = laid_out_loading_screen(width, height, 40);
+        for name in LOADING_ELEMENTS {
+            let r = rect(&reg, name);
+            assert!(
+                r.x >= 0.0 && r.y >= 0.0 && r.x + r.width <= width && r.y + r.height <= height,
+                "{name} {r:?} escapes {width}x{height}"
+            );
+        }
+        let art = rect(&reg, "LoadingArtwork");
+        assert_eq!((art.y, art.height), (0.0, height), "artwork fills height");
+        assert!((art.x + art.width / 2.0 - width / 2.0).abs() < 0.5);
+
+        let (logo, zone, bar, tip) = (
+            rect(&reg, "LoadingLogo"),
+            rect(&reg, "LoadingZoneText"),
+            rect(&reg, "LoadingBarBackground"),
+            rect(&reg, "LoadingTipText"),
+        );
+        assert!(logo.y + logo.height <= zone.y, "logo overlaps zone text");
+        assert!(zone.y + zone.height <= bar.y, "zone text overlaps bar");
+        assert!(bar.y + bar.height <= tip.y, "bar overlaps tip text");
+        for inside in ["LoadingStatusText", "LoadingProgressText"] {
+            let r = rect(&reg, inside);
+            assert!(r.y >= bar.y && r.y + r.height <= bar.y + bar.height + 1.0);
+        }
+    }
+
+    #[test]
+    fn loading_screen_fits_1280x720() {
+        assert_loading_screen_fits(1280.0, 720.0);
+    }
+
+    #[test]
+    fn loading_screen_fits_1920x1080() {
+        assert_loading_screen_fits(1920.0, 1080.0);
+    }
+
     #[test]
     fn loading_screen_builds_expected_frames() {
         let mut shared = ui_toolkit::screen::SharedContext::new();
         shared.insert(sample_loading_state(86));
         shared.insert(LoadingScreenLayout::default());
+        shared.insert(LoadingViewportHeight(1080.0));
 
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(loading_screen);
@@ -267,6 +328,7 @@ mod tests {
         shared.insert(sample_loading_state(50));
         let layout = LoadingScreenLayout::default();
         shared.insert(layout.clone());
+        shared.insert(LoadingViewportHeight(1080.0));
 
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(loading_screen);
@@ -294,6 +356,7 @@ mod tests {
         shared.insert(sample_loading_state(50));
         let layout = LoadingScreenLayout::default();
         shared.insert(layout.clone());
+        shared.insert(LoadingViewportHeight(1080.0));
 
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(loading_screen);
@@ -315,6 +378,7 @@ mod tests {
         let mut shared = ui_toolkit::screen::SharedContext::new();
         shared.insert(sample_loading_state(86));
         shared.insert(LoadingScreenLayout::default());
+        shared.insert(LoadingViewportHeight(1080.0));
 
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut screen = Screen::new(loading_screen);
