@@ -267,6 +267,7 @@ fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
             let frame = crate::gameplay::MovementFrame {
                 direction,
                 speed: shared::movement::RUN_SPEED,
+                vertical: 0.0,
             };
             *feet = movement.predict(*feet, frame, false, &ground, 1.0 / 60.0);
         }
