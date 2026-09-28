@@ -19,6 +19,7 @@ enum Stage {
     Repeated,
     Expired,
     LoginQuiet,
+    LiveConnection,
     Relogin,
     Reloading,
     RestFinal,
@@ -114,7 +115,7 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
             && request.token.as_deref() == Some("fixture-only-token");
         if progress.stage == Stage::Loading && credentials {
             // Initial startup still uses the original fixture credentials.
-        } else if matches!(progress.stage, Stage::LoginQuiet | Stage::Relogin) && token {
+        } else if matches!(progress.stage, Stage::LiveConnection | Stage::Relogin) && token {
             progress.saw_token_login = true;
         } else {
             return Err(format!(
@@ -223,8 +224,18 @@ fn advance_marker(
             verify_token(token_path, progress.saved_token.as_deref())?;
             progress.stage = Stage::Expired;
         }
-        (Stage::Expired, "FIXTURE LOGOUT_LOGIN_QUIET") => progress.stage = Stage::LoginQuiet,
-        (Stage::LoginQuiet, "FIXTURE LOGOUT_RELOGIN") => {
+        (Stage::Expired, "FIXTURE LOGOUT_LOGIN_QUIET") => {
+            let remote = progress.remote.ok_or("Post-logout remote player missing")?;
+            app.world_mut()
+                .get_mut::<Position>(remote)
+                .ok_or("Post-logout remote player has no position")?
+                .x += 4.0;
+            progress.stage = Stage::LoginQuiet;
+        }
+        (Stage::LoginQuiet, "FIXTURE LOGOUT_LIVE_CONNECTION") => {
+            progress.stage = Stage::LiveConnection;
+        }
+        (Stage::LiveConnection, "FIXTURE LOGOUT_RELOGIN") => {
             if let Some(player) = progress.selected.take() {
                 app.world_mut().despawn(player);
             }

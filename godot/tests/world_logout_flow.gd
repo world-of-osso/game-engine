@@ -89,7 +89,19 @@ func run_test() -> void:
 	push_key(KEY_W, true)
 	await wait_frames(15)
 	push_key(KEY_W, false)
+	var remote := client.get_node_or_null("WorldUnits/Remote Fixture") as Node3D
+	if remote == null:
+		fail("Post-logout remote player missing")
+		return
+	var remote_before := remote.position
 	print("FIXTURE LOGOUT_LOGIN_QUIET")
+	var live_deadline := Time.get_ticks_msec() + MENU_WAIT_MS
+	while remote.position.distance_to(remote_before) < 1.0 and Time.get_ticks_msec() < live_deadline:
+		await process_frame
+	if remote.position.distance_to(remote_before) < 1.0 or client.account_state().screen != "Login" or client.get_node_or_null("WorldUnits/Remote Fixture") != remote:
+		fail("Login did not retain live replicated world connection")
+		return
+	print("FIXTURE LOGOUT_LIVE_CONNECTION")
 	var error: String = client.connect_account(server, "", "", false)
 	if error != "":
 		fail("Saved-token login failed: " + error)
