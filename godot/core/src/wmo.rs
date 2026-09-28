@@ -1,5 +1,5 @@
 //! WMO root and raw group data (WoW local coordinates, no Bevy mesh).
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 use crate::asset::wmo_format::parser;
 use glam::{Mat3, Quat, Vec3};
@@ -50,6 +50,8 @@ pub enum WmoDoodadModel {
 pub struct WmoDoodad {
     /// MODD index.
     pub index: u16,
+    /// Groups whose MODR references the doodad; it is drawn while one of them is.
+    pub groups: Vec<u16>,
     pub model: WmoDoodadModel,
     pub translation: Vec3,
     pub rotation: Quat,
@@ -59,22 +61,31 @@ pub struct WmoDoodad {
 }
 
 /// The MODD doodads a WMO placement draws, each once in MODD order: those the groups
-/// reference through MODR that lie in doodad set 0 (`$DefaultGlobal`, always active) or
+/// (group index, MODR) reference that lie in doodad set 0 (`$DefaultGlobal`, always active) or
 /// the placement's MODF `doodad_set` (WebWowViewerCpp `wmoObject.cpp` `getDoodad`,
 /// `setLoadingParam`). A root without MODS places every referenced doodad.
 pub fn placed_doodads<'a>(
     root: &WmoRootData,
-    group_refs: impl IntoIterator<Item = &'a [u16]>,
+    group_refs: impl IntoIterator<Item = (u16, &'a [u16])>,
     doodad_set: u16,
 ) -> Vec<WmoDoodad> {
-    let referenced: BTreeSet<u16> = group_refs.into_iter().flatten().copied().collect();
+    let mut referenced: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
+    for (group, refs) in group_refs {
+        for &index in refs {
+            let groups = referenced.entry(index).or_default();
+            if !groups.contains(&group) {
+                groups.push(group);
+            }
+        }
+    }
     referenced
         .into_iter()
-        .filter(|&index| in_active_set(root, doodad_set, index))
-        .filter_map(|index| {
+        .filter(|&(index, _)| in_active_set(root, doodad_set, index))
+        .filter_map(|(index, groups)| {
             let def = root.doodad_defs.get(index as usize)?;
             Some(WmoDoodad {
                 index,
+                groups,
                 model: doodad_model(root, def.name_offset)?,
                 translation: Vec3::from_array(parser::wmo_local_to_bevy(
                     def.position[0],

@@ -2,7 +2,7 @@
 //! spawned in selection order within a per-frame time budget.
 
 use std::{
-    collections::{BTreeSet, HashMap, VecDeque},
+    collections::{BTreeSet, HashMap, HashSet, VecDeque},
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -73,12 +73,16 @@ struct ParsedModel {
 struct WmoDoodads {
     node: Gd<Node3D>,
     doodads: Vec<wmo::WmoDoodad>,
+    /// Index of the WMO in `TerrainObjects::wmos`, when it is portal-culled.
+    culled: Option<usize>,
 }
 
 /// A spawned doodad and the retail distance it is drawn to.
 struct CulledDoodad {
     node: Gd<Node3D>,
     scenery: SceneryDistance,
+    /// A WMO doodad's portal-culled WMO and the groups that reference it.
+    wmo_groups: Option<(usize, Vec<u16>)>,
     shown: bool,
 }
 
@@ -87,6 +91,8 @@ struct CulledWmo {
     portals: WmoPortals,
     world_from_local: Affine3A,
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
+    /// Groups drawn after the last cull; `None` before the first.
+    visible: Option<HashSet<u16>>,
 }
 
 pub(crate) struct TerrainObjects {
@@ -220,6 +226,7 @@ impl TerrainObjects {
                 self.doodads.push(CulledDoodad {
                     node: model.clone(),
                     scenery,
+                    wmo_groups: None,
                     shown: true,
                 });
                 model
@@ -238,7 +245,8 @@ impl TerrainObjects {
                     self.failures += 1;
                     godot_error!("{}: {error}", self.name);
                 }
-                self.queue_wmo_doodads(wmo.unique_id, &wmo_node.node, doodads);
+                let culled = Some(self.wmos.len() - 1);
+                self.queue_wmo_doodads(wmo.unique_id, &wmo_node.node, doodads, culled);
                 wmo_node.node
             }
         };
@@ -321,6 +329,7 @@ impl TerrainObjects {
         wmo: u32,
         node: &Gd<Node3D>,
         doodads: Vec<wmo::WmoDoodad>,
+        culled: Option<usize>,
     ) {
         if doodads.is_empty() {
             return;
@@ -328,7 +337,14 @@ impl TerrainObjects {
         self.pending
             .extend((0..doodads.len()).map(|index| Pending::WmoDoodad(wmo, index)));
         let node = node.clone();
-        self.wmo_doodads.insert(wmo, WmoDoodads { node, doodads });
+        self.wmo_doodads.insert(
+            wmo,
+            WmoDoodads {
+                node,
+                doodads,
+                culled,
+            },
+        );
     }
 
     /// A MODD doodad as a child of its WMO node, which carries the MODF transform.
@@ -336,6 +352,7 @@ impl TerrainObjects {
         let placed = &self.wmo_doodads[&wmo];
         let doodad = placed.doodads[index].clone();
         let mut parent = placed.node.clone();
+        let wmo_groups = placed.culled.map(|culled| (culled, doodad.groups.clone()));
         if index + 1 == placed.doodads.len() {
             self.wmo_doodads.remove(&wmo);
         }
@@ -368,6 +385,7 @@ impl TerrainObjects {
         self.doodads.push(CulledDoodad {
             node: model,
             scenery: SceneryDistance::new(render_box.0, render_box.1, world_from_model),
+            wmo_groups,
             shown: true,
         });
         Ok(())
@@ -404,14 +422,21 @@ impl TerrainObjects {
                 position,
             ),
             groups: group_batches(model),
+            visible: None,
         };
         Ok((wmo_node, culled, doodads))
     }
 
-    /// Shows the WMO groups visible through portals from `camera` looking through
-    /// `frustum` (world space).
-    pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
+    /// Culls WMO groups through portals from `camera` looking through `frustum`
+    /// (world space), then doodads.
+    pub fn cull(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
+        self.cull_wmos(camera, frustum);
+        self.cull_doodads(camera);
+    }
+
+    /// Shows the WMO groups visible through portals.
+    fn cull_wmos(&mut self, camera: Vec3, frustum: &[HalfSpace]) {
         for wmo in &mut self.wmos {
             let visible = wmo
                 .portals
@@ -424,15 +449,22 @@ impl TerrainObjects {
                     }
                 }
             }
+            wmo.visible = Some(visible);
         }
     }
 
-    /// Draws each doodad only within its retail scenery distance of `camera`; a
-    /// hidden doodad also stops animating.
-    pub fn cull_doodads(&mut self, camera: Vector3) {
-        let camera = Vec3::new(camera.x, camera.y, camera.z);
+    /// Draws each doodad only within its retail scenery distance of `camera`, and a
+    /// WMO doodad only while a group referencing it is drawn; a hidden doodad also
+    /// stops animating.
+    fn cull_doodads(&mut self, camera: Vec3) {
         for doodad in &mut self.doodads {
-            let shown = doodad.scenery.visible_from(camera);
+            let group_drawn = doodad.wmo_groups.as_ref().is_none_or(|(wmo, groups)| {
+                self.wmos[*wmo]
+                    .visible
+                    .as_ref()
+                    .is_none_or(|visible| groups.iter().any(|group| visible.contains(group)))
+            });
+            let shown = group_drawn && doodad.scenery.visible_from(camera);
             if shown == doodad.shown {
                 continue;
             }

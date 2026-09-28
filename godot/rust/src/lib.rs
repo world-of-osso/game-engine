@@ -881,9 +881,8 @@ impl GameClient {
 
     fn cull_world_objects(&mut self) {
         if let Some(camera) = self.world_camera.position() {
-            self.world_objects.cull_doodads(camera);
             self.world_objects
-                .cull_wmos(camera, &self.world_camera.frustum());
+                .cull(camera, &self.world_camera.frustum());
             let frame = godot::classes::Engine::singleton().get_process_frames();
             self.world.apply_animation_lod(camera, frame);
         }
@@ -909,7 +908,8 @@ impl GameClient {
         let mut parent = self.to_gd().upcast::<Node3D>();
         let global_wmo = self.global_wmo.sync(&mut parent, &self.terrain);
         if let Some((wmo, node, doodads)) = self.global_wmo.take_doodads() {
-            self.world_objects.queue_wmo_doodads(wmo, &node, doodads);
+            self.world_objects
+                .queue_wmo_doodads(wmo, &node, doodads, None);
         }
         let state = self.terrain.state();
         let readiness = loading::evaluate_native_loading(

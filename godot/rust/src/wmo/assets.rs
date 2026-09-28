@@ -21,9 +21,12 @@ impl NativeWmoAsset {
     pub fn doodads(&self, doodad_set: u16) -> Vec<wmo::WmoDoodad> {
         wmo::placed_doodads(
             &self.root,
-            self.groups
-                .iter()
-                .map(|group| group.group.geometry.doodad_refs.as_slice()),
+            self.groups.iter().map(|group| {
+                (
+                    group.index as u16,
+                    group.group.geometry.doodad_refs.as_slice(),
+                )
+            }),
             doodad_set,
         )
     }

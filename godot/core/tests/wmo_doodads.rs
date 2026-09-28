@@ -24,7 +24,7 @@ fn magic_district_jail_places_the_instance_portal_at_its_authored_transform() {
     let root = wmo::parse_root(&read_model(MAGIC_DISTRICT_ROOT_FDID)).expect("parse root");
     let jail = wmo::parse_group(&read_model(JAIL_GROUP_FDID)).expect("parse Jail01");
 
-    let doodads = wmo::placed_doodads(&root, [jail.geometry.doodad_refs.as_slice()], 0);
+    let doodads = wmo::placed_doodads(&root, [(59, jail.geometry.doodad_refs.as_slice())], 0);
 
     assert_eq!(
         doodads.len(),
@@ -36,6 +36,11 @@ fn magic_district_jail_places_the_instance_portal_at_its_authored_transform() {
         .find(|doodad| doodad.index == 1112)
         .expect("MODD 1112");
     assert_eq!(portal.model, WmoDoodadModel::FileId(INSTANCE_PORTAL_FDID));
+    assert_eq!(
+        portal.groups,
+        [59],
+        "drawn with the group that references it"
+    );
     // WMO-local (x, y, z) in engine axes is (x, z, -y).
     let expected = Vec3::new(-323.412_26, -16.113_346, 136.293_42);
     assert!(
@@ -51,16 +56,17 @@ fn magic_district_jail_places_the_instance_portal_at_its_authored_transform() {
     );
 }
 
-/// A doodad referenced by several groups is placed once.
+/// A doodad referenced by several groups is placed once and belongs to each of them.
 #[test]
 fn doodads_shared_by_groups_are_placed_once() {
     let root = wmo::parse_root(&read_model(MAGIC_DISTRICT_ROOT_FDID)).expect("parse root");
     let jail = wmo::parse_group(&read_model(JAIL_GROUP_FDID)).expect("parse Jail01");
     let refs = jail.geometry.doodad_refs.as_slice();
 
-    let doodads = wmo::placed_doodads(&root, [refs, refs], 0);
+    let doodads = wmo::placed_doodads(&root, [(3, refs), (7, refs)], 0);
 
     assert_eq!(doodads.len(), 18);
+    assert!(doodads.iter().all(|doodad| doodad.groups == [3, 7]));
 }
 
 fn doodad(name_offset: u32, rotation: [f32; 4]) -> wmo::WmoDoodadDef {
@@ -136,12 +142,12 @@ fn default_set_and_placement_set_are_active() {
     let root = synthetic_root();
     let refs: &[u16] = &[0, 1, 2, 3, 4, 5];
 
-    assert_eq!(indices(&wmo::placed_doodads(&root, [refs], 0)), [0, 1]);
+    assert_eq!(indices(&wmo::placed_doodads(&root, [(0, refs)], 0)), [0, 1]);
     assert_eq!(
-        indices(&wmo::placed_doodads(&root, [refs], 2)),
+        indices(&wmo::placed_doodads(&root, [(0, refs)], 2)),
         [0, 1, 4, 5]
     );
-    assert_eq!(indices(&wmo::placed_doodads(&root, [refs], 9)), [0, 1]);
+    assert_eq!(indices(&wmo::placed_doodads(&root, [(0, refs)], 9)), [0, 1]);
 }
 
 /// Only doodads a group references through MODR are placed.
@@ -149,7 +155,10 @@ fn default_set_and_placement_set_are_active() {
 fn unreferenced_doodads_are_not_placed() {
     let root = synthetic_root();
 
-    assert_eq!(indices(&wmo::placed_doodads(&root, [&[1u16][..]], 1)), [1]);
+    assert_eq!(
+        indices(&wmo::placed_doodads(&root, [(0, &[1u16][..])], 1)),
+        [1]
+    );
 }
 
 /// Without MODI, `name_offset` is a byte offset into MODN.
@@ -157,7 +166,7 @@ fn unreferenced_doodads_are_not_placed() {
 fn modn_names_resolve_by_byte_offset() {
     let root = synthetic_root();
 
-    let doodads = wmo::placed_doodads(&root, [&[0u16, 1][..]], 0);
+    let doodads = wmo::placed_doodads(&root, [(0, &[0u16, 1][..])], 0);
 
     assert_eq!(doodads[0].model, WmoDoodadModel::Path("world/a.m2".into()));
     assert_eq!(doodads[1].model, WmoDoodadModel::Path("world/b.m2".into()));
@@ -171,7 +180,7 @@ fn rotation_and_position_convert_to_engine_axes() {
     let half = std::f32::consts::FRAC_1_SQRT_2;
     root.doodad_defs[0] = doodad(0, [0.0, 0.0, half, half]);
 
-    let placed = &wmo::placed_doodads(&root, [&[0u16][..]], 0)[0];
+    let placed = &wmo::placed_doodads(&root, [(0, &[0u16][..])], 0)[0];
 
     assert!(placed.translation.distance(Vec3::new(1.0, 3.0, -2.0)) < 1e-6);
     // WoW +X turned a quarter about +Z is WoW +Y, engine -Z.

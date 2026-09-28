@@ -79,6 +79,8 @@ func run() -> void:
 		return
 	if not assert_scenery_distance(probe, doodads, portal):
 		return
+	if not assert_group_cull(probe, wmo, portal):
+		return
 	print("PASS: sw_magicdistrict places MODD 1112 instanceportal at area trigger 101 within the object budget")
 	probe.free()
 	run_global()
@@ -115,12 +117,13 @@ func run_global() -> void:
 	print("PASS: the Stockade global WMO places its 748 default-set doodads")
 	quit(0)
 
-# Retail gates WMO doodads by the ADT doodad scenery distance: from a camera at the
-# trigger the portal and every doodad within 29 yd are drawn and animate; the far
-# side of the district is hidden and does not animate.
+# Retail gates WMO doodads by the ADT doodad scenery distance and by their groups'
+# portal visibility: from a camera at the trigger (looking +X down the tunnel) the
+# portal is drawn and animates; the rest of the district is mostly hidden and hidden
+# doodads do not animate.
 func assert_scenery_distance(probe: Node, doodads: Array, portal: Node3D) -> bool:
 	var eye := TRIGGER + Vector3(0.0, 2.0, 0.0)
-	probe.cull_doodads(eye)
+	cull_from(probe, eye, eye + Vector3(1.0, 0.0, 0.0))
 	var shown := 0
 	var hidden := 0
 	for doodad in doodads:
@@ -129,14 +132,41 @@ func assert_scenery_distance(probe: Node, doodads: Array, portal: Node3D) -> boo
 			shown += 1
 		else:
 			hidden += 1
-			if eye.distance_to(doodad.global_position) <= 29.0:
-				fail("WMO doodad %s hidden %.1f yd from the camera" % [doodad.name, eye.distance_to(doodad.global_position)])
-				return false
 			if animation != null and animation.is_processing():
 				fail("Hidden WMO doodad %s still animates" % doodad.name)
 				return false
-	print("scenery distance: shown=%d hidden=%d" % [shown, hidden])
+	print("cull from the trigger: shown=%d hidden=%d" % [shown, hidden])
 	if not portal.visible or shown == 0 or hidden == 0:
-		fail("Scenery distance must draw the portal and near doodads and hide far ones: portal=%s shown=%d hidden=%d" % [portal.visible, shown, hidden])
+		fail("The cull must draw the portal and near doodads and hide far ones: portal=%s shown=%d hidden=%d" % [portal.visible, shown, hidden])
 		return false
+	return true
+
+func cull_from(probe: Node, eye: Vector3, target: Vector3) -> void:
+	var camera := Camera3D.new()
+	root.add_child(camera)
+	camera.look_at_from_position(eye, target, Vector3.UP)
+	probe.cull_from(camera)
+	camera.free()
+
+# A WMO doodad is drawn only while a group referencing it (Jail01, group 59, for
+# MODD 1112) is drawn. 20 yd above the portal, looking away from the district, the
+# portal is within every scenery distance but Jail01 is portal-culled, so the portal
+# is hidden and stops animating; at the trigger, inside Jail01, it is drawn again.
+func assert_group_cull(probe: Node, wmo: Node3D, portal: Node3D) -> bool:
+	var jail := wmo.find_children("Group59_Batch*", "", false, false)
+	if jail.is_empty():
+		fail("Jail01 (group 59) has no batches")
+		return false
+	var above := portal.global_position + Vector3(0.0, 20.0, 0.0)
+	cull_from(probe, above, above + Vector3(1.0, 0.0, 0.0))
+	var animation := portal.get_node("M2Animation")
+	if jail[0].visible or portal.visible or animation.is_processing():
+		fail("Above the district Jail01 drawn=%s, portal drawn=%s, animating=%s; expected all culled" % [jail[0].visible, portal.visible, animation.is_processing()])
+		return false
+	var eye := TRIGGER + Vector3(0.0, 2.0, 0.0)
+	cull_from(probe, eye, eye + Vector3(1.0, 0.0, 0.0))
+	if not jail[0].visible or not portal.visible or not animation.is_processing():
+		fail("At the trigger Jail01 drawn=%s, portal drawn=%s, animating=%s; expected all drawn" % [jail[0].visible, portal.visible, animation.is_processing()])
+		return false
+	print("group cull: portal hidden with Jail01 above the district, drawn at the trigger")
 	return true
