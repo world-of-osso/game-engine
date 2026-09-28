@@ -25,6 +25,8 @@ fn default_skin_button_stretches_the_whole_state_region() {
             crop: Crop::Full,
             color: [1.0; 4],
             overlay: false,
+            rotation: 0.0,
+            additive: false,
         }]
     );
 }
@@ -184,6 +186,8 @@ fn css_border_draws_four_inset_edges_above_the_fill() {
         crop: Crop::Full,
         color,
         overlay: false,
+        rotation: 0.0,
+        additive: false,
     };
     let gold = [1.0, 0.82, 0.0, 0.9];
     assert_eq!(
@@ -196,4 +200,28 @@ fn css_border_draws_four_inset_edges_above_the_fill() {
             solid([0.0, 0.0, 1.0, 34.0], gold),
         ]
     );
+}
+
+#[test]
+fn texture_rotation_reaches_its_image_part() {
+    let mut frame = Frame::new(1, Some("Arrow".into()), WidgetType::Texture);
+    frame.widget_data = Some(WidgetData::Texture(TextureData {
+        source: TextureSource::FileDataId(803_894),
+        rotation: 1.25,
+        ..Default::default()
+    }));
+    let parts = project_images(&frame, 32.0, 32.0);
+    assert_eq!(parts.len(), 1);
+    assert_eq!(parts[0].rotation, 1.25);
+}
+
+#[test]
+fn additive_texture_blend_reaches_its_image_part() {
+    let mut frame = Frame::new(1, Some("Highlight".into()), WidgetType::Texture);
+    frame.widget_data = Some(WidgetData::Texture(TextureData {
+        source: TextureSource::FileDataId(137_138),
+        blend_mode: BlendMode::Additive,
+        ..Default::default()
+    }));
+    assert!(project_images(&frame, 64.0, 64.0)[0].additive);
 }

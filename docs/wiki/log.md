@@ -1666,3 +1666,7 @@ The launcher resolves Godot as `GODOT_BIN`, else `${XDG_CACHE_HOME:-~/.cache}/ga
 ## [2026-09-28] change | Launcher imports fresh checkouts
 
 After the native build, the launcher runs `godot --headless --import --path godot` once when `godot/.godot/extension_list.cfg` is missing; failure keeps its exit status and prevents launch. `GAME_ENGINE_ROOT` overrides the checkout root (used by launcher tests). See [[godot-conversion]].
+
+## [2026-09-28] feature | World map
+
+Shared `UiMap` catalog and view model drive a Retail-style world map in Godot and Bevy: `M` opens the player's zone, right-click zooms to continent and world, arrow follows the player. Local CASC lacks many map tiles. See [[world-map]].

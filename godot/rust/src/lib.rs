@@ -22,6 +22,7 @@ mod terrain;
 mod ui;
 mod wmo;
 mod world;
+mod world_map;
 mod world_models;
 
 use std::{collections::HashMap, path::PathBuf};
@@ -77,6 +78,7 @@ pub struct GameClient {
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
+    world_map: world_map::WorldMap,
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
@@ -124,6 +126,7 @@ impl INode3D for GameClient {
             loading_ui: None,
             errors_ui: None,
             game_menu_ui: None,
+            world_map: world_map::WorldMap::default(),
             account: Account::new(data_root.clone()),
             terrain: terrain::streaming::StreamedTerrain::new(
                 data_root.clone(),
@@ -157,6 +160,9 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        if self.world_map_pointer(&event) {
+            return;
+        }
         if self.game_menu_ui.is_none() {
             self.physical_input.capture(&event);
         }
@@ -171,6 +177,14 @@ impl INode3D for GameClient {
             return;
         }
         if key.is_echo() && key.get_keycode() == godot::global::Key::ESCAPE {
+            return;
+        }
+        // Retail Escape closes the open world map before the game menu.
+        if key.get_keycode() == godot::global::Key::ESCAPE && self.world_map.is_open() {
+            self.close_world_map();
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
             return;
         }
         match self.handle_game_menu_key(key.get_keycode()) {
@@ -201,6 +215,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_character_preview())
             .and_then(|()| self.update_creation_scene(delta as f32))
             .and_then(|()| self.update_player_input(delta as f32))
+            .and_then(|()| self.update_world_map())
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.update_player_animation())
             .and_then(|()| self.send_player_input(delta as f32))

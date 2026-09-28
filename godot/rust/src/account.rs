@@ -13,8 +13,8 @@ use game_engine_session::{
 use shared::protocol::{
     AuthChannel, CharacterListUpdate, CreateCharacter, CreateCharacterResponse, DeleteCharacter,
     DeleteCharacterResponse, EnterWorldResponse, ForcedDisconnect, InputChannel, LoadTerrain,
-    LoginResponse, NewWorld, PlayerInput, RegisterResponse, TransferAborted, TransferChannel,
-    WorldPortAck,
+    LoginResponse, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate,
+    RegisterResponse, TransferAborted, TransferChannel, WorldPortAck,
 };
 
 #[derive(Default)]
@@ -32,6 +32,8 @@ pub struct Account {
     bridge: Option<NetworkBridge>,
     data_root: PathBuf,
     hostname: String,
+    /// Server quest log in log order, for the world map's quest areas.
+    pub quest_log: Vec<QuestEntrySnapshot>,
 }
 
 pub enum AccountEvent {
@@ -60,6 +62,7 @@ impl Account {
             bridge: None,
             data_root,
             hostname: String::new(),
+            quest_log: Vec::new(),
         }
     }
 
@@ -205,6 +208,15 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<QuestLogSnapshot>() {
+            let snapshot: QuestLogSnapshot = decode(message)?;
+            self.quest_log = snapshot.entries;
+            return Ok(());
+        }
+        if message.is::<QuestLogUpdate>() {
+            apply_quest_log_update(&mut self.quest_log, decode(message)?);
+            return Ok(());
+        }
         if message.is::<LoadTerrain>() {
             let request = decode(message)?;
             self.session.receive_terrain_refresh();
@@ -408,9 +420,59 @@ fn find_map_field(
     Err(format!("{}: no {key_column} {key}", path.display()))
 }
 
+/// Original `QuestLogUpdate`: changed entries replace or append, removed ids leave.
+fn apply_quest_log_update(log: &mut Vec<QuestEntrySnapshot>, update: QuestLogUpdate) {
+    log.retain(|entry| !update.removed.contains(&entry.quest_id));
+    for changed in update.changed {
+        match log
+            .iter_mut()
+            .find(|entry| entry.quest_id == changed.quest_id)
+        {
+            Some(entry) => *entry = changed,
+            None => log.push(changed),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn quest_entry(quest_id: u32, title: &str) -> QuestEntrySnapshot {
+        QuestEntrySnapshot {
+            quest_id,
+            title: title.into(),
+            zone: String::new(),
+            completed: false,
+            repeatability: shared::protocol::QuestRepeatability::Normal,
+            objectives: Vec::new(),
+            level: 1,
+            sort_id: 0,
+            objectives_text: String::new(),
+            completion_text: String::new(),
+            watched: false,
+            pois: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn quest_log_update_replaces_appends_and_removes_in_log_order() {
+        let mut log = vec![
+            quest_entry(1, "A"),
+            quest_entry(2, "B"),
+            quest_entry(3, "C"),
+        ];
+        apply_quest_log_update(
+            &mut log,
+            QuestLogUpdate {
+                changed: vec![quest_entry(3, "C done"), quest_entry(4, "D")],
+                removed: vec![2],
+                watched_quest_ids: Vec::new(),
+            },
+        );
+        let titles: Vec<_> = log.iter().map(|entry| entry.title.as_str()).collect();
+        assert_eq!(titles, ["A", "C done", "D"]);
+    }
     use shared::components::{CharacterAppearance, EquipmentAppearance};
     use shared::protocol::{CharacterListEntry, TransferAbortReason};
 

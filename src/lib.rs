@@ -199,6 +199,7 @@ pub mod trade;
 #[path = "game/trainer_data.rs"]
 pub mod trainer_data;
 pub mod ui;
+pub mod ui_map_data;
 pub mod unit_motion_data;
 pub mod who;
 #[path = "game/world_db/mod.rs"]
@@ -206,6 +207,7 @@ pub mod world_db;
 pub mod world_map;
 #[path = "game/world_map_data.rs"]
 pub mod world_map_data;
+pub mod world_map_view_data;
 
 #[path = "rendering/character/appearance_options.rs"]
 pub mod appearance_options;
