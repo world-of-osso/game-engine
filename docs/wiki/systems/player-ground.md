@@ -31,7 +31,7 @@ The engine's former `wmo_format/bsp.rs` read axis 0x01 as X and 0x02 as Y, and n
   - `Unloaded`: the tile under the feet has no heights, so physics freezes.
   - `Unsupported`: the player falls.
   - `Supported(Ground)`.
-- **Callers:** `update_grounded`, `apply_gravity_and_ground_snap`, `validate_movement_slope`, `should_end_jump` and `is_swimming` all use `WorldGround`. The slope limit applies only terrain to terrain. A grounded move snaps onto a destination at most 1.6 yd below and otherwise walks off the ledge.
+- **Callers:** `update_grounded`, `apply_gravity_and_ground_snap`, `validate_movement_slope`, `should_end_jump` and `is_swimming` all use `WorldGround`. Godot swimming: [[swimming]]. The slope limit applies only terrain to terrain. A grounded move snaps onto a destination at most 1.6 yd below and otherwise walks off the ledge.
 - **Timing:** terrain heights register in the same system that queues the tile's WMO spawn. For at most one frame the terrain is known and the floors are not. Gravity starts from rest and a frame is capped at 250 ms, so the player falls at most about 1.2 yd in that frame, and the floor is still within step reach.
 
 ## Server
