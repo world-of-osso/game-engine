@@ -92,6 +92,9 @@ struct Incoming {
     logins: Vec<LoginRequest>,
     selections: Vec<SelectCharacter>,
     inputs: Vec<PlayerInput>,
+    /// A moving or jumping input arrived whose release no stop input has reported yet.
+    unreported_release: bool,
+    stops: u32,
 }
 
 fn receive_requests(
@@ -433,8 +436,37 @@ fn respond_to_selection(
     Ok(())
 }
 
+/// Moving and jumping inputs since the last call. Each release must report exactly one
+/// stop input (no direction, no jump); stops are checked here and not returned.
 fn take_inputs(app: &mut App) -> Vec<PlayerInput> {
-    std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().inputs)
+    let mut incoming = app.world_mut().resource_mut::<Incoming>();
+    let inputs = std::mem::take(&mut incoming.inputs);
+    let mut moving = Vec::with_capacity(inputs.len());
+    for input in inputs {
+        if input.direction != [0.0; 3] || input.jumping {
+            incoming.unreported_release = true;
+            moving.push(input);
+            continue;
+        }
+        assert!(
+            std::mem::take(&mut incoming.unreported_release),
+            "stop PlayerInput without preceding movement: {input:?}"
+        );
+        assert!(
+            input.position.iter().all(|axis| axis.is_finite()),
+            "stop PlayerInput lost its reported position: {input:?}"
+        );
+        incoming.stops += 1;
+    }
+    moving
+}
+
+/// Fails when a drained release has not reported its stop input.
+fn ensure_release_reported(app: &App, stage: impl std::fmt::Debug) -> Result<(), String> {
+    if app.world().resource::<Incoming>().unreported_release {
+        return Err(format!("{stage:?}: the release sent no stop PlayerInput"));
+    }
+    Ok(())
 }
 
 fn assert_forward_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
@@ -876,31 +908,35 @@ fn run_fixture(
                     .expect("running W release recorded")
                     .elapsed()
                     >= RELEASE_DRAIN
-                    && !inputs.is_empty()
                 {
-                    return Err(format!(
-                        "running jump packets continued after W release: {inputs:?}"
-                    ));
+                    if !inputs.is_empty() {
+                        return Err(format!(
+                            "running jump packets continued after W release: {inputs:?}"
+                        ));
+                    }
+                    ensure_release_reported(app, phase)?;
                 }
             }
             Phase::JumpLanded | Phase::JumpStand => {
                 let inputs = take_inputs(app);
-                if jump_landed_at.expect("idle landing recorded").elapsed() >= RELEASE_DRAIN
-                    && !inputs.is_empty()
-                {
-                    return Err(format!(
-                        "idle jump packets continued after landing: {inputs:?}"
-                    ));
+                if jump_landed_at.expect("idle landing recorded").elapsed() >= RELEASE_DRAIN {
+                    if !inputs.is_empty() {
+                        return Err(format!(
+                            "idle jump packets continued after landing: {inputs:?}"
+                        ));
+                    }
+                    ensure_release_reported(app, phase)?;
                 }
             }
             Phase::Settling(_) | Phase::FinalStand => {
                 let inputs = take_inputs(app);
-                if transition_at.expect("direction release recorded").elapsed() >= RELEASE_DRAIN
-                    && !inputs.is_empty()
-                {
-                    return Err(format!(
-                        "direction packets continued after release: {inputs:?}"
-                    ));
+                if transition_at.expect("direction release recorded").elapsed() >= RELEASE_DRAIN {
+                    if !inputs.is_empty() {
+                        return Err(format!(
+                            "direction packets continued after release: {inputs:?}"
+                        ));
+                    }
+                    ensure_release_reported(app, phase)?;
                 }
             }
             Phase::Released | Phase::Stopped => {
@@ -910,10 +946,13 @@ fn run_fixture(
                     released_at.expect("W release marker recorded")
                 };
                 let inputs = take_inputs(app);
-                if stopped_at.elapsed() >= RELEASE_DRAIN && !inputs.is_empty() {
-                    return Err(format!(
-                        "movement packets continued after release: {inputs:?}"
-                    ));
+                if stopped_at.elapsed() >= RELEASE_DRAIN {
+                    if !inputs.is_empty() {
+                        return Err(format!(
+                            "movement packets continued after release: {inputs:?}"
+                        ));
+                    }
+                    ensure_release_reported(app, phase)?;
                 }
             }
         }
@@ -942,6 +981,9 @@ fn run_fixture(
                 .expect("running W release recorded")
                 .elapsed();
             if stopped_for >= RELEASE_DRAIN + RELEASE_QUIET {
+                ensure_release_reported(app, phase)?;
+                let stops = app.world().resource::<Incoming>().stops;
+                println!("stop inputs: {stops}, one per release");
                 println!(
                     "PASS: Loading blocked input; W and Walk/Backward/Left/Right decoded UDP; idle Space sent stationary jumping packets 37/38/39/0; running W+Space sent forward jumping then nonjump packets 37/38/187/5/0 and returned quiet"
                 );
