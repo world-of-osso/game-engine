@@ -40,6 +40,12 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | Real-client native sound fixture is bounded
+
+`ce2a8c92` authenticates an owned loopback `GameClient`, loads MCNK area 9 → root zone 12, observes Music `53492`, and observes no zone-12 ambient track. It then drives authored Options Sound controls and observes native player volume/mute/music-enable state. The retained [fixture log](../../data/diagnostics/native-sound-client-final.log) records those markers and exit-0 result.
+
+This is player-state/volume evidence, not audible-output or full-parity proof. Fixture marker discovery is a harness sentinel rather than a production RED; mutation assertions are harness sensitivity only. Independent verifier817 remains pending. Updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] investigation | Native audio shutdown leak timing is bounded
 
 `741344ca` adds `NativeSound`: owned Music/Ambient Godot players consume the shared catalogs, decode local MP3/Ogg/WAV bytes, reject FLAC, sequence tracks by zone, cache streams, and apply live sound options. Its targeted headless fixture exits 0 for playback state, natural completion, zone changes, and lifecycle; missing-catalog and FLAC errors are expected. Verbose exit reports 16 leaked audio stream/playback/Ogg-packet objects and no native sound/player nodes.
