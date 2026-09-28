@@ -38,7 +38,9 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - [x] Race, class, body-type and category changes keep supported selections and preview output coherent; skin/face compatibility is retained.
 - [x] Support the dropdown and two-choice checkbox control types present in local data. Unsupported control types are explained rather than represented by inert controls.
 - [x] Keep supported material/geoset effects selectable when a choice also contains unimplemented effects; show a partial-support notice. Disable unsupported-only choices explicitly.
-- [x] Preserve eligibility metadata without inventing account/unlock rules; disclose the missing general eligibility evaluation below.
+- [x] Offer only choices whose `ChrCustomizationReq` allows a new character of the selected race and class: ReqType bit 0 set, ClassMask and RaceMask matching, and no achievement, quest or item-appearance unlock. NPC (ReqType 2) and transmog (ReqType 4) choices are never offered. Hide options that have no offered choices.
+- [x] Every selection, stepper, randomize and normalize result satisfies `ChrCustomizationReqChoice`. The picked choice is kept and the options it depends on, or that depend on it, are repaired.
+- [x] The rendered body matches the selected skin swatch. BlendMode 4/6/7 layers tint and BlendMode 9 blends by source alpha; only TextureType 1 layers compose the body atlas.
 
 ### Creation flow
 
@@ -72,6 +74,8 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - `src/scenes/char_create/{name_catalog_tests,name_action_tests}.rs` and `src/ui/screens/char_create_component/name_button_tests.rs` — real authored race/body-type coverage, validation, distinct action, native placement, missing data, draft/editbox preservation.
 - `src/scenes/char_create/{scene_tests,scene_tests_runtime,neutral_capture_tests}.rs` — authored backdrop lighting/material boundaries, camera/preview presentation, neutral loader-only capture and native mouse-input scheduling.
 - `tests/unit/{customization_data_tests,customization_catalog_cache_tests}.rs` — catalog fidelity, filtering, stale-schema autoload and real local-data loading.
+- `godot/rust/src/char_create/tests.rs` — real-catalog Human skin eligibility, a rejected Death Knight skin for a warrior, the reported skin 4978/face 27 combination, and a sweep over races 1/2/3/4/10/22 × sex × class checking requirements, randomize and select-any-choice ReqChoice validity.
+- `godot/rust/src/assets/player.rs` `swatch_tests`, `godot/core/tests/char_texture_data.rs` — rendered body chromaticity against every offered skin swatch (Human, Orc, Dwarf, Night Elf, Blood Elf), and exact blend-mode and non-body-layer bytes.
 - `src/ui/character_creation_icons.rs` — decoded pixel/mask/cache/error regressions.
 - Shared/server appearance tests — wire roundtrips, six historical storage schemas, temporary-database reopen and login roster preservation.
 - `debug/character-create.js` — real offline controls, eyes/ears, name entry, camera actions and Back/Next, without character submission.
@@ -85,7 +89,8 @@ Closed-value centering and authored circular hover sizes passed independent nati
 
 - [ ] Inspect a new GUI capture after the authored-creation lighting revision. Existing scoped RED/GREEN evidence in `data/diagnostics/charcreate-authored-scenes-20260923/` covers the removed 8,000-lux fill, unbound/removed procedural map, ambient conversion, diffuse backdrop materials, presentation scale/distance, and neutral loader-only GPU capture; it is not final three-backdrop visual acceptance.
 - [ ] Pixel-perfect Retail visual parity has not been established. The contracts above are source-, layout- and native-layer-tested; no uninspected screenshot comparison or pixel-parity claim is made. Native additive glow, tooltip/hold-repeat details and unsupported effect families are not claimed complete.
-- [ ] Local `ChrCustomizationReq.csv` is absent. General account/unlock eligibility is not implemented; existing class filtering is not full retail eligibility parity.
+- [ ] Account unlocks (achievement, quest, item appearance) cannot be evaluated locally, so those choices are treated as locked. Visibility requirements are not interpreted, and ineligible-but-selectable choices have no distinct colour.
+- [ ] Core selectors index the requirement-filtered choice list, so a stored character that used a now-hidden index resolves to a different choice.
 - [ ] Bone sets, conditional/skinned models, voice, animation-kit and other non-material/geoset effects remain unsupported or partial, as shown by the controls.
 - [ ] Slider type 2 has no records in the local option data and is not implemented; types 0/1 are the supported contract for this data set.
 - [ ] The local install reports build `12.1.0.69875`; independent version provenance of the extracted Interface source is unconfirmed. The local files themselves are the chosen reference.

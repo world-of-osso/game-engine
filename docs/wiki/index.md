@@ -60,6 +60,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [charcreate-invalid-customization-combos](investigations/charcreate-invalid-customization-combos.md) — Tan swatch + face 27 rendered a teal body: overlay/tint layer blend modes were copied opaquely; Death Knight/NPC/transmog choices were offered because ChrCustomizationReq/ReqChoice were not evaluated.
 - [godot-stormwind-fps](investigations/godot-stormwind-fps.md) — Godot Stormwind at 13–20 FPS: per-frame doodad/NPC animation outweighed ~6.4k draws; retail scenery distance, NPC animation LOD and WMO portal culling bring it to ~20–25 FPS and ~4.3–5k draws; drawn-doodad animation remains.
 - [campsite-fog-and-wmo-selection](investigations/campsite-fog-and-wmo-selection.md) — Campsites 7/25 fully fogged by FogEnd-0 LightData read as a linear range; now the reference exponential fog. Cultists' Quay lost its WMO to an origin-distance radius; now selected by extents. Its blue is WMO MFOG fog, not Light/ZoneLight.
 - [camera-collision-recovery-lag](investigations/camera-collision-recovery-lag.md) — Follow camera stalled behind a running player after any collision pull-in: recovery measured the lagging camera pose; now recovers from the stored pulled-in distance.
