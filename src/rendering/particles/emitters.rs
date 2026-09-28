@@ -7,7 +7,8 @@ use crate::asset::m2::wow_to_bevy;
 use crate::asset::{m2_anim::M2Bone, m2_particle::M2ParticleEmitter};
 use crate::client_options::GraphicsOptions;
 
-use super::effect_builder::{build_effect_asset_with_mode, load_emitter_textures};
+use super::effect_asset_cache::{EffectAssetCache, EffectAssetKey};
+use super::effect_builder::load_emitter_textures;
 use super::emitters_model_particles::spawn_model_particle_emitter;
 use super::{
     DYNAMIC_WIND_ACCEL_PROPERTY, DynamicParticleWind, INHERIT_POSITION_BACK_DELTA_PROPERTY,
@@ -86,6 +87,7 @@ pub(crate) fn model_particle_spawn_count(
 pub(crate) fn register_pending_particle_effects(
     mut commands: Commands,
     mut effects: ResMut<Assets<EffectAsset>>,
+    mut effect_assets: Local<EffectAssetCache>,
     mut query: Query<(Entity, &mut Transform, &ParticleEmitterComp), Without<ParticleEffect>>,
     global_transforms: Query<&GlobalTransform>,
     graphics: Option<Res<GraphicsOptions>>,
@@ -109,6 +111,7 @@ pub(crate) fn register_pending_particle_effects(
             &global_transforms,
             particle_density_multiplier,
             &mut effects,
+            &mut effect_assets,
             &mut commands,
         );
         insert_optional_particle_effect_properties(entity, comp, &global_transforms, &mut ec);
@@ -134,21 +137,22 @@ fn register_particle_effect_entity<'a>(
     global_transforms: &Query<&GlobalTransform>,
     particle_density_multiplier: f32,
     effects: &mut Assets<EffectAsset>,
+    effect_assets: &mut EffectAssetCache,
     commands: &'a mut Commands,
 ) -> EntityCommands<'a> {
     let model_scale = global_transforms
         .get(comp.scale_source)
         .map(|tf| tf.compute_transform().scale.x)
         .unwrap_or(1.0);
-    let asset = build_effect_asset_with_mode(
-        &comp.emitter,
+    let key = EffectAssetKey {
+        emitter: comp.emitter.clone(),
         model_scale,
         particle_density_multiplier,
-        comp.spawn_mode,
-        comp.spawn_source,
-        &comp.child_emitters,
-    );
-    let handle = effects.add(asset);
+        spawn_mode: comp.spawn_mode,
+        spawn_source: comp.spawn_source,
+        child_emitters: comp.child_emitters.clone(),
+    };
+    let handle = effect_assets.handle(key, effects);
     let mut ec = commands.entity(entity);
     ec.insert(ParticleEffect::new(handle));
     if let Some(parent_effect) = comp.effect_parent {
