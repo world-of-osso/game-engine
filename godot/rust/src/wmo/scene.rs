@@ -2,6 +2,7 @@
 
 use std::{collections::HashMap, fs, path::Path};
 
+use ::image::imageops::{FilterType, resize};
 use game_engine_core::{
     asset::wmo_format::parser::WmoMaterialDef,
     blp, wmo,
@@ -415,6 +416,7 @@ fn load_shader_seven_image(
     let [base_fdid, second_fdid, third_fdid] = fdids;
     let mut base =
         read_image(base_fdid).map_err(|error| format!("base FDID {base_fdid}: {error}"))?;
+    validate_rgba_buffer(&base, &format!("base FDID {base_fdid}"))?;
     let descriptor = describe_wmo_shader(7);
     for (fdid, mode) in [
         (second_fdid, descriptor.second_layer),
@@ -424,15 +426,29 @@ fn load_shader_seven_image(
             continue;
         }
         let overlay = read_image(fdid).map_err(|error| format!("overlay FDID {fdid}: {error}"))?;
-        if (base.width, base.height) != (overlay.width, overlay.height) {
-            return Err(format!(
-                "WMO overlay FDID {fdid} {}x{} differs from base FDID {base_fdid} {}x{}",
-                overlay.width, overlay.height, base.width, base.height
-            ));
-        }
-        composite_wmo_shader_layer(&mut base.pixels, &overlay.pixels, mode);
+        validate_rgba_buffer(&overlay, &format!("overlay FDID {fdid}"))?;
+        let pixels = if (base.width, base.height) == (overlay.width, overlay.height) {
+            overlay.pixels
+        } else {
+            let image = ::image::RgbaImage::from_raw(overlay.width, overlay.height, overlay.pixels)
+                .ok_or_else(|| format!("overlay FDID {fdid}: invalid RGBA buffer"))?;
+            resize(&image, base.width, base.height, FilterType::Triangle).into_raw()
+        };
+        composite_wmo_shader_layer(&mut base.pixels, &pixels, mode);
     }
     Ok(base)
+}
+
+fn validate_rgba_buffer(image: &blp::RgbaImage, label: &str) -> Result<(), String> {
+    let expected = image
+        .width
+        .checked_mul(image.height)
+        .and_then(|pixels| pixels.checked_mul(4))
+        .map(|bytes| bytes as usize);
+    if image.width == 0 || image.height == 0 || expected != Some(image.pixels.len()) {
+        return Err(format!("{label}: invalid RGBA buffer"));
+    }
+    Ok(())
 }
 
 fn create_wmo_texture(image: blp::RgbaImage, label: &str) -> Result<Gd<ImageTexture>, String> {
@@ -628,6 +644,8 @@ mod tests {
         .unwrap();
         assert_eq!((composite.width, composite.height), (512, 512));
         assert_ne!(composite.pixels, base.pixels);
+        assert_ne!(&composite.pixels[..4], &base.pixels[..4]);
+        assert_eq!(&composite.pixels[..4], &[27, 32, 38, 255]);
     }
 
     #[test]
