@@ -24,6 +24,7 @@ use crate::{
     },
     lighting::TerrainLight,
     terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
+    wmo::portals::{HalfSpace, WmoPortals},
     world_models::bind_visual_light,
 };
 
@@ -72,6 +73,13 @@ struct CulledDoodad {
     shown: bool,
 }
 
+/// A spawned WMO's portal graph and the batch meshes of each drawable group.
+struct CulledWmo {
+    portals: WmoPortals,
+    world_from_local: Affine3A,
+    groups: HashMap<u16, Vec<Gd<Node3D>>>,
+}
+
 pub(crate) struct TerrainObjects {
     name: &'static str,
     budget: Duration,
@@ -83,6 +91,7 @@ pub(crate) struct TerrainObjects {
     spawned_doodads: BTreeSet<u32>,
     spawned_wmos: BTreeSet<u32>,
     doodads: Vec<CulledDoodad>,
+    wmos: Vec<CulledWmo>,
     models: HashMap<u32, ParsedModel>,
     light: Option<TerrainLight>,
     failures: usize,
@@ -106,6 +115,7 @@ impl TerrainObjects {
             spawned_doodads: BTreeSet::new(),
             spawned_wmos: BTreeSet::new(),
             doodads: Vec::new(),
+            wmos: Vec::new(),
             models: HashMap::new(),
             light: None,
             failures: 0,
@@ -211,8 +221,9 @@ impl TerrainObjects {
                 if self.spawned_wmos.contains(&wmo.unique_id) {
                     return Ok(());
                 }
-                let wmo_node = self.load_placed_wmo(wmo, tile)?;
+                let (wmo_node, culled) = self.load_placed_wmo(wmo, tile)?;
                 self.spawned_wmos.insert(wmo.unique_id);
+                self.wmos.push(culled);
                 // Batches that cannot be drawn are failures; the rest of the WMO stays.
                 for error in wmo_node.batch_errors {
                     self.failures += 1;
@@ -298,7 +309,7 @@ impl TerrainObjects {
         &self,
         placement: &WmoPlacement,
         tile: Tile,
-    ) -> Result<crate::wmo::scene::WmoNode, String> {
+    ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo), String> {
         let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
         let mut wmo_node = crate::wmo::scene::build_wmo_node(
             &asset,
@@ -316,7 +327,35 @@ impl TerrainObjects {
             rotation.x, rotation.y, rotation.z, rotation.w,
         ));
         model.set_scale(Vector3::ONE * placement.scale);
-        Ok(wmo_node)
+        let culled = CulledWmo {
+            portals: WmoPortals::new(&asset),
+            world_from_local: Affine3A::from_scale_rotation_translation(
+                Vec3::splat(placement.scale),
+                rotation,
+                position,
+            ),
+            groups: group_batches(model),
+        };
+        Ok((wmo_node, culled))
+    }
+
+    /// Shows the WMO groups visible through portals from `camera` looking through
+    /// `frustum` (world space).
+    pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
+        let camera = Vec3::new(camera.x, camera.y, camera.z);
+        for wmo in &mut self.wmos {
+            let visible = wmo
+                .portals
+                .visible_groups(wmo.world_from_local, frustum, camera);
+            for (group, batches) in &mut wmo.groups {
+                let shown = visible.contains(group);
+                for batch in batches {
+                    if batch.is_visible() != shown {
+                        batch.set_visible(shown);
+                    }
+                }
+            }
+        }
     }
 
     /// Draws each doodad only within its retail scenery distance of `camera`; a
@@ -352,8 +391,25 @@ impl TerrainObjects {
         self.spawned_doodads.clear();
         self.spawned_wmos.clear();
         self.doodads.clear();
+        self.wmos.clear();
         self.models.clear();
         self.light = None;
         self.failures = 0;
     }
+}
+
+/// Batch meshes by group index, from their `Group{g}_Batch{i}` names.
+fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
+    let mut groups: HashMap<u16, Vec<Gd<Node3D>>> = HashMap::new();
+    for child in wmo.get_children().iter_shared() {
+        let name = child.get_name().to_string();
+        let group = name
+            .strip_prefix("Group")
+            .and_then(|rest| rest.split_once("_Batch"))
+            .and_then(|(group, _)| group.parse().ok());
+        if let (Some(group), Ok(batch)) = (group, child.try_cast::<Node3D>()) {
+            groups.entry(group).or_default().push(batch);
+        }
+    }
+    groups
 }
