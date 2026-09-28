@@ -351,6 +351,16 @@ impl GameClient {
                 .map(|position| position.to_variant())
                 .unwrap_or_default(),
         );
+        state.set("local_player_swimming", self.player_movement.swimming);
+        state.set(
+            "local_server_speed",
+            &self
+                .world
+                .local_player_id()
+                .and_then(|id| self.units.get(&id)?.movement_speed)
+                .map(|speed| speed.0.to_variant())
+                .unwrap_or_default(),
+        );
         state.set(
             "local_player_health",
             &self
