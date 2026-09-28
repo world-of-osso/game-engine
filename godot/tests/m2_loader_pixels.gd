@@ -138,7 +138,7 @@ func make_blp(color: Color) -> PackedByteArray:
 		bytes[offset] = roundi(color.b * 255.0)
 		bytes[offset + 1] = roundi(color.g * 255.0)
 		bytes[offset + 2] = roundi(color.r * 255.0)
-		bytes[offset + 3] = 255
+		bytes[offset + 3] = roundi(color.a * 255.0)
 	return bytes
 
 func write_fixture(path: String, bytes: PackedByteArray) -> bool:

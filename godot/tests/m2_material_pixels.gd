@@ -266,7 +266,8 @@ func run_cases() -> void:
 	if not await assert_pixel("modulate GX fog white", lit_single * 0.5 + Color(0.5, 0.5, 0.5)):
 		return
 	material.set_shader_parameter("gx_blend", 5)
-	if not await assert_pixel("modulate2 GX fog grey", lit_single * 0.5 + Color(0.25, 0.25, 0.25)):
+	# Mod2x also doubles its output for the DST_COLOR, SRC_COLOR blend.
+	if not await assert_pixel("modulate2 GX fog grey", (lit_single * 0.5 + Color(0.25, 0.25, 0.25)) * 2.0):
 		return
 	material.set_shader_parameter("gx_blend", 10)
 	if not await assert_pixel("GX fog black variant 10", lit_single * 0.5):

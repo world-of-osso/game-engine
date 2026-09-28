@@ -1670,3 +1670,8 @@ After the native build, the launcher runs `godot --headless --import --path godo
 ## [2026-09-28] feature | World map
 
 Shared `UiMap` catalog and view model drive a Retail-style world map in Godot and Bevy: `M` opens the player's zone, right-click zooms to continent and world, arrow follows the player. Local CASC lacks many map tiles. See [[world-map]].
+
+
+## [2026-09-28] fix | Godot M2 blend modes and batch colour
+
+Godot M2 blend 3/5/6/7 now follow WebWowViewerCpp's GL factors and batch colour tracks (meshColor) multiply every batch, animated with transparency and colour alpha; the Stockade portal sheet turns blue. WMO doodads and particles remain absent in Godot. See [[stockade-entrance]].
