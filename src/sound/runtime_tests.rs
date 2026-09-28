@@ -80,20 +80,25 @@ fn maintenance_attaches_tracker_at_either_relevance_boundary_without_an_update()
     app.world_mut().flush();
     assert!(app.world().get::<FootstepTracker>(player_first).is_some());
     assert!(app.world().get::<FootstepTracker>(model_first).is_some());
-    app.world_mut()
-        .get_mut::<FootstepTracker>(player_first)
-        .unwrap()
-        .last_half = 1;
+    assert_eq!(
+        app.world_mut()
+            .get_mut::<FootstepTracker>(player_first)
+            .unwrap()
+            .0
+            .observe(0, 5, 600.0, 300.0),
+        Some((FootstepMovement::Run, 1))
+    );
     app.world_mut()
         .entity_mut(player_first)
         .insert(test_anim_player());
     app.world_mut().flush();
     assert_eq!(
-        app.world()
-            .get::<FootstepTracker>(player_first)
+        app.world_mut()
+            .get_mut::<FootstepTracker>(player_first)
             .unwrap()
-            .last_half,
-        1
+            .0
+            .observe(0, 5, 600.0, 300.0),
+        None
     );
 }
 
@@ -342,13 +347,6 @@ fn movement_anim_detection() {
     assert!(is_movement_anim(13));
     assert!(!is_movement_anim(0));
     assert!(!is_movement_anim(37));
-}
-
-#[test]
-fn footstep_tracker_defaults() {
-    let tracker = FootstepTracker::default();
-    assert_eq!(tracker.last_half, 0);
-    assert_eq!(tracker.last_seq_idx, 0);
 }
 
 #[test]
