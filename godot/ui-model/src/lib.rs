@@ -63,7 +63,7 @@ use char_select_component::{
     CharDisplayEntry, CharSelectState, DeleteConfirmUiState, apply_char_select_postsetup,
     char_select_screen,
 };
-use game_menu_main::{GAME_MENU_ROOT, main_menu_screen};
+use game_menu_main::{GAME_MENU_ROOT, main_menu_view};
 use loading_component::{LoadingScreenState, loading_screen};
 use login::{
     PASSWORD_INPUT, SharedConnecting, SharedRealmSelectable, SharedRealmText, SharedStatusText,
@@ -208,6 +208,12 @@ impl CharacterSelectModel {
         self.screen.sync(&self.shared, &mut self.registry);
         apply_char_select_postsetup(&mut self.registry);
     }
+}
+
+fn main_menu_screen(shared: &SharedContext) -> ui_toolkit::widget_def::Element {
+    shared
+        .get::<bool>()
+        .map_or_else(Vec::new, |logged_in| main_menu_view(*logged_in))
 }
 
 /// Original main-menu tree only. The host owns opening, actions, and Options routing.
