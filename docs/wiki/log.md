@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] port | Godot M2 particles
+
+Godot draws doodad M2 particle emitters: a shared CPU simulation after WebWowViewerCpp `particleEmitter.cpp` in `godot/core`, and one pooled MultiMesh per (model, emitter). Pools are sized from authored rate × lifetime × 1.15 (cap 500 per emitter, 4096 per pool). Emitters update only while their doodad is drawn and in view, and fade with it. The Stockade portal's six emitters draw. See [godot-conversion](systems/godot-conversion.md#native-m2-particles).
+
 ## [2026-09-28] investigation | Godot player walks through WMO walls
 
 The Godot player had no wall collision; the original wall ray now runs against the WMO wall bodies before the slope rule. Updated [[stockade-entrance]] and [[collision-system]].
