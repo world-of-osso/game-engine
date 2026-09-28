@@ -108,9 +108,19 @@ func run_test() -> void:
 		if login_button == null or live_effects == null:
 			require(false, "GameClient click integration nodes missing")
 		else:
+			var completions := [0]
+			var initial_volume := live_effects.volume_linear
+			var original_fps := Engine.max_fps
+			live_effects.finished.connect(func(): completions[0] += 1)
+			# A capped frame can outlast the 40 ms click; completion is also playback proof.
+			Engine.max_fps = 5
 			pointer(login_button.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
 			await process_frame
-			require(live_effects.is_playing(), "GameClient left down must play owned effect before action release")
+			var playing_after_press := live_effects.is_playing()
+			if not playing_after_press and completions[0] == 0:
+				await process_frame
+			require(live_effects.volume_linear != initial_volume and (playing_after_press or completions[0] == 1), "GameClient left down must play owned effect before action release")
+			Engine.max_fps = original_fps
 			pointer(login_button.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
 			await process_frame
 	client.queue_free()
