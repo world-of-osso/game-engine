@@ -26,8 +26,9 @@ use shared::{
 
 const NAME: &str = "Reconnect Fixture";
 const OTHER: &str = "Other Fixture";
-const FIRST: [f32; 3] = [-8949.0, 83.0, 0.0];
-const SECOND: [f32; 3] = [-8940.0, 83.0, 0.0];
+// Authored terrain heights; Y=83 was below both surfaces and outside floor step reach.
+const FIRST: [f32; 3] = [-8949.0, 112.879_91, 0.0];
+const SECOND: [f32; 3] = [-8940.0, 117.382_83, 0.0];
 const TICK: Duration = Duration::from_millis(5);
 // The native NetworkBridge configures a 60-second Netcode client timeout.
 const TRANSPORT_SILENCE: Duration = Duration::from_secs(65);
