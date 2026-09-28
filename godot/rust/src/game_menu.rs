@@ -284,7 +284,10 @@ impl GameClient {
                 }
                 ACTION_EXIT => self.base().get_tree().quit(),
                 ACTION_SUPPORT => godot_print!("menu_support: placeholder"),
-                ACTION_LOGOUT => self.request_logout()?,
+                ACTION_LOGOUT => {
+                    self.request_logout()?;
+                    break;
+                }
                 ACTION_OPTIONS | ACTION_ADDONS => {
                     let model = self
                         .game_menu_options
