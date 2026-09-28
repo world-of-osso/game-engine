@@ -18,6 +18,7 @@ Players stand on WMO floors (building interiors, paving, ramps), not only on ADT
 - [x] Inside the Stormwind auction house the ground is its floor (98.06), not the terrain 3.4 yd below it.
 - [x] A player set down just above the auction house floor lands on the floor.
 - [x] Vertical physics is frozen only while the terrain tile under the feet is not loaded. In an ADT hole the player can fall onto a WMO floor.
+- [x] Godot client: the floors of every spawned ADT-placed WMO are ground candidates, as in the Bevy client. At the Stockade entrance (`sw_magicdistrict` 321999) the player stands on the room floor (97.63) and runs down the stairwell, not on the terrain 11.4 yd below (`godot/rust/src/ground.rs` `stockade_entrance_ground_is_the_placed_wmo_floor_and_stairs`).
 - [ ] The slope limit applies only between two terrain samples. A move onto a WMO floor is judged by the face normal, and a grounded move walks off a ledge more than 1.6 yd high instead of snapping down.
 - [ ] Deep terrain water under a WMO floor (a bridge) does not make the player swim.
 
