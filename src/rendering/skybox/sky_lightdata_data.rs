@@ -27,6 +27,10 @@ pub struct LightDataRow<C> {
     pub ground_ambient_color: C,
     pub fog_end: f32,
     pub fog_start: f32,
+    /// Raw LightData FogScaler. Bevy's loaders leave it 0: Bevy fogs linearly from fog_start/fog_end.
+    pub fog_scaler: f32,
+    /// Raw LightData FogDensity. Bevy's loaders leave it 0 for the same reason.
+    pub fog_density: f32,
     pub glow: f32,
     pub cloud_density: f32,
     pub unk1: f32,
@@ -57,10 +61,64 @@ pub struct SkyColorSet<C> {
     pub ground_ambient_color: C,
     pub fog_end: f32,
     pub fog_start: f32,
+    /// FogScaler and FogDensity after the reference's per-keyframe and per-LightParams fixes.
+    pub fog_scaler: f32,
+    pub fog_density: f32,
     pub glow: f32,
     pub cloud_density: f32,
     pub unk1: f32,
     pub unk2: f32,
+}
+
+/// Retail legacy exponential fog in yards (commonFogFunctions.slang calculateLegacyFog):
+/// fog grows as `1 - exp(-max(0, d - start) * density)` and is total at `end`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RetailFog {
+    pub start: f32,
+    pub end: f32,
+    pub density: f32,
+}
+
+/// WebWowViewerCpp's default `farPlane` (config.h:119), the far clip its fog derives from.
+const FOG_FAR_CLIP: f32 = 1000.0;
+
+/// MapSceneRenderer.cpp:225-246: LightData FogEnd is not a fog distance for modern data;
+/// fog starts at farClip * FogScaler with FogDensity * 0.0005 per yard and ends at farClip.
+pub fn retail_fog<C>(colors: &SkyColorSet<C>) -> RetailFog {
+    RetailFog {
+        start: FOG_FAR_CLIP.min(3000.0) * colors.fog_scaler,
+        end: FOG_FAR_CLIP.max(277.5).min(FOG_FAR_CLIP),
+        density: colors.fog_density * 0.000_5,
+    }
+}
+
+/// DayNightLightHolder.cpp:620-621 and :633-645 fixLightTimedData: authored FogDensity, or
+/// one derived from the FogEnd..FogEnd*FogScaler span when the keyframe has none.
+fn keyframe_fog_density<C>(row: &LightDataRow<C>) -> f32 {
+    if row.fog_density > 0.0 {
+        return row.fog_density;
+    }
+    let far = FOG_FAR_CLIP.min(700.0) - 200.0;
+    let fog_end = row.fog_end.max(10.0);
+    let difference = fog_end - fog_end * row.fog_scaler.clamp(-1.0, 1.0);
+    if difference > far || difference <= 0.0 {
+        1.5
+    } else {
+        (1.0 - difference / far) * 5.5 + 1.5
+    }
+}
+
+/// DayNightLightHolder.cpp:1020-1030: after mixing keyframes, density is at least 0.9 and
+/// FogScaler at least -0.2 when a keyframe authored density, otherwise at least 0.
+fn floor_fog<C>(mut colors: SkyColorSet<C>, rows: [&LightDataRow<C>; 2]) -> SkyColorSet<C> {
+    let scaler_floor = if rows.iter().any(|row| row.fog_density > 0.0) {
+        -0.2
+    } else {
+        0.0
+    };
+    colors.fog_density = colors.fog_density.max(0.9);
+    colors.fog_scaler = colors.fog_scaler.max(scaler_floor);
+    colors
 }
 
 /// LightData FogEnd is authored as fog distance multiplied by 36.
@@ -90,6 +148,8 @@ fn row_colors<C: Copy>(row: &LightDataRow<C>) -> SkyColorSet<C> {
         ground_ambient_color: row.ground_ambient_color,
         fog_end: row.fog_end / LIGHT_DATA_FOG_UNITS_PER_YARD,
         fog_start: row.fog_start / LIGHT_DATA_FOG_UNITS_PER_YARD,
+        fog_scaler: row.fog_scaler.clamp(-1.0, 1.0),
+        fog_density: keyframe_fog_density(row),
         glow: row.glow,
         cloud_density: row.cloud_density,
         unk1: row.unk1,
@@ -138,6 +198,8 @@ pub fn lerp_color_sets<C: Copy, F: Fn(C, C, f32) -> C>(
         ground_ambient_color: lerp_color(a.ground_ambient_color, b.ground_ambient_color, t),
         fog_end: lerp_scalar(a.fog_end, b.fog_end, t),
         fog_start: lerp_scalar(a.fog_start, b.fog_start, t),
+        fog_scaler: lerp_scalar(a.fog_scaler, b.fog_scaler, t),
+        fog_density: lerp_scalar(a.fog_density, b.fog_density, t),
         glow: lerp_scalar(a.glow, b.glow, t),
         cloud_density: lerp_scalar(a.cloud_density, b.cloud_density, t),
         unk1: lerp_scalar(a.unk1, b.unk1, t),
@@ -180,17 +242,14 @@ pub fn interpolate_colors<C: Copy, F: Fn(C, C, f32) -> C>(
         0 => None,
         1 => {
             let colors = row_colors(&rows[0]);
-            Some(lerp_color_sets(&colors, &colors, 0.0, lerp_color))
+            let colors = lerp_color_sets(&colors, &colors, 0.0, lerp_color);
+            Some(floor_fog(colors, [&rows[0], &rows[0]]))
         }
         _ => {
             let m = minutes.rem_euclid(DAY_MINUTES);
             let (a, b, t) = find_bracket(rows, m);
-            Some(lerp_color_sets(
-                &row_colors(a),
-                &row_colors(b),
-                t,
-                lerp_color,
-            ))
+            let colors = lerp_color_sets(&row_colors(a), &row_colors(b), t, lerp_color);
+            Some(floor_fog(colors, [a, b]))
         }
     }
 }

@@ -292,12 +292,25 @@ func assert_alpha_and_fog() -> bool:
 		return false
 	material.set_shader_parameter("emissive", Vector3.ZERO)
 	material.set_shader_parameter("fog_mode", 1)
-	material.set_shader_parameter("fog_range", Vector2(1.0, 3.0))
+	# Half fog at the fixture distance of 2: exp(-(2 - 1) * ln 2).
+	material.set_shader_parameter("fog_range", Vector2(1.0, 100.0))
+	material.set_shader_parameter("fog_density", log(2.0))
 	material.set_shader_parameter("fog_opacity", 1.0)
 	material.set_shader_parameter("fog_color", Color(0.0, 0.0, 1.0).srgb_to_linear())
 	material.set_shader_parameter("unfogged", false)
 	if not await assert_pixel("unlit still fogged halfway", Color(0.2, 0.15, 0.6)):
 		return false
+	# calculateLegacyFog end fade: 1.42857 * (1 - 2 / (2 / 0.65)) leaves half the colour.
+	material.set_shader_parameter("fog_density", 0.0)
+	material.set_shader_parameter("fog_range", Vector2(0.0, 2.0 / 0.65))
+	if not await assert_pixel("end fade fogs halfway", Color(0.2, 0.15, 0.6)):
+		return false
+	# Fog starts at fog_range.x: nothing is fogged before it.
+	material.set_shader_parameter("fog_density", log(2.0))
+	material.set_shader_parameter("fog_range", Vector2(2.0, 100.0))
+	if not await assert_pixel("no fog before fog start", TEXEL):
+		return false
+	material.set_shader_parameter("fog_range", Vector2(1.0, 100.0))
 	material.set_shader_parameter("blend_mode", 3)
 	if not await assert_pixel("GxBlend 3 fogs to black", Color(0.2, 0.15, 0.1)):
 		return false

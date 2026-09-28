@@ -8,7 +8,7 @@ use game_engine_core::{
         LightKeyframes, linear_to_authored_rgb, parse_light_csv, parse_light_data_csv,
     },
     retail_light_data::{RetailLightColors, RetailLightData, scene_light},
-    sky_lightdata_data::{SkyColorSet, sample_light_blend},
+    sky_lightdata_data::{RetailFog, SkyColorSet, retail_fog, sample_light_blend},
 };
 
 pub(crate) struct LightingCatalog {
@@ -18,6 +18,7 @@ pub(crate) struct LightingCatalog {
 
 pub(crate) struct LightingSample {
     pub retail: RetailLightData,
+    pub fog: RetailFog,
     pub sky: SkyColorSet<[f32; 3]>,
 }
 
@@ -58,7 +59,8 @@ impl LightingCatalog {
         let sky = sample_light_blend(&self.keyframes, &weights, minutes, lerp_rgb)
             .ok_or_else(|| format!("No authored lighting for map {map_id} at {wow_position:?}"))?;
         let retail = scene_light(&retail_colors(&sky), minutes);
-        Ok(LightingSample { retail, sky })
+        let fog = retail_fog(&sky);
+        Ok(LightingSample { retail, fog, sky })
     }
 }
 

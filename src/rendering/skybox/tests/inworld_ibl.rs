@@ -197,6 +197,8 @@ fn light_row(time: f32, tint: Color) -> LightDataRow {
         ground_ambient_color: tint,
         fog_end: 1200.0,
         fog_start: 300.0,
+        fog_scaler: 0.0,
+        fog_density: 0.0,
         glow: 1.0,
         cloud_density: 0.0,
         unk1: 0.0,
