@@ -244,11 +244,11 @@ pub(super) fn build_model_filtered(
         }
     };
     let material_animation = uv_animation::WowMaterialAnimation::from_batches(
+        model,
         batches
             .iter()
             .map(|(_, material, _)| material.clone())
             .zip(resolved),
-        &model.global_sequences,
     );
     let mut root = Node3D::new_alloc();
     root.add_child(&skeleton);
@@ -291,7 +291,13 @@ fn load_batch(
     })?;
     let mesh = build_batch_mesh(model, sub)?;
     let replacement = replacement_texture(batch, appearance)?;
-    let material = material::load_material(batch, path, missing, replacement)?;
+    let material = material::load_material(
+        batch,
+        m2::batch_mesh_color(model, batch),
+        path,
+        missing,
+        replacement,
+    )?;
     let visible = appearance.is_none_or(|appearance| {
         let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
             && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(

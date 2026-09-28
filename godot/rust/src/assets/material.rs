@@ -99,6 +99,7 @@ pub(super) fn is_effect(batch: &ResolvedBatch) -> bool {
 
 pub(super) fn load_material(
     batch: &ResolvedBatch,
+    mesh_color: [f32; 3],
     path: &GString,
     missing: &mut PackedInt32Array,
     replacement: Option<&Gd<ImageTexture>>,
@@ -141,6 +142,7 @@ pub(super) fn load_material(
         material.set_shader_parameter("base_texture", &texture.to_variant());
     }
     bind_uniforms(&mut material, batch, effect);
+    material.set_shader_parameter("mesh_color", &Vector3::from_array(mesh_color).to_variant());
     Ok(material)
 }
 
@@ -174,11 +176,23 @@ fn bind_uniforms(material: &mut Gd<ShaderMaterial>, batch: &ResolvedBatch, effec
     material.set_shader_parameter("alpha_test", &alpha_test.to_variant());
 }
 
-fn shader_variant(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<String, String> {
-    let blend = match batch.blend_mode {
-        0 | 1 | 2 | 3 | 7 => "blend_mix",
+/// Godot blend state for an M2 blend mode, after WebWowViewerCpp's M2 → EGxBlend
+/// table and its GL blend factors: Alpha (SRC_ALPHA, 1-SRC_ALPHA), NoAlphaAdd (ONE,
+/// ONE), Add (SRC_ALPHA, ONE), Mod (DST_COLOR, ZERO), Mod2x (DST_COLOR, SRC_COLOR),
+/// BlendAdd (ONE, 1-SRC_ALPHA). Mod2x multiplies by twice the output (the shader
+/// doubles it); NoAlphaAdd writes alpha 1 so the add ignores it.
+fn blend_render_mode(blend_mode: u16) -> &'static str {
+    match blend_mode {
+        0..=2 => "blend_mix",
+        3 | 4 => "blend_add",
+        5 | 6 => "blend_mul",
+        7 => "blend_premul_alpha",
         _ => "blend_add",
-    };
+    }
+}
+
+fn shader_variant(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<String, String> {
+    let blend = blend_render_mode(batch.blend_mode);
     let cull = if !effect && batch.render_flags & 4 != 0 {
         "cull_disabled"
     } else {
@@ -197,14 +211,15 @@ fn shader_variant(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<S
             "Expected one M2 render_mode declaration, found {count}"
         ));
     }
-    if batch.blend_mode <= 1 {
-        if variant.matches("ALPHA = color.a;").count() != 1 {
-            return Err("Expected one M2 alpha output".into());
-        }
-        Ok(variant.replace("ALPHA = color.a;", ""))
-    } else {
-        Ok(variant)
+    let alpha = match batch.blend_mode {
+        0 | 1 => "",
+        3 => "ALPHA = 1.0;",
+        _ => return Ok(variant),
+    };
+    if variant.matches("ALPHA = color.a;").count() != 1 {
+        return Err("Expected one M2 alpha output".into());
     }
+    Ok(variant.replace("ALPHA = color.a;", alpha))
 }
 
 fn gx_blend(mode: u16) -> i32 {
