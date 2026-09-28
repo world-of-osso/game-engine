@@ -98,7 +98,7 @@ impl SceneryDistance {
 
     /// Whether any part of the world box can be inside every half space: the corner
     /// farthest along each plane normal must not be behind it.
-    fn box_in_frustum(&self, frustum: &[HalfSpace]) -> bool {
+    pub fn box_in_frustum(&self, frustum: &[HalfSpace]) -> bool {
         frustum.iter().all(|plane| {
             let corner = Vec3::select(
                 plane.normal.cmpge(Vec3::ZERO),

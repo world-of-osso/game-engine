@@ -16,6 +16,7 @@ mod input;
 mod input_keys;
 mod lighting;
 mod loading;
+mod particles;
 mod scene;
 mod startup;
 mod targeting;
@@ -55,6 +56,7 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
         // Release cached shaders before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
             assets::material::clear_shared_shaders();
+            particles::clear_quad_mesh();
         }
     }
 }
@@ -110,6 +112,16 @@ impl INode3D for GameClient {
             PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
         let client_options =
             load_options_file_with_legacy(&data_root.join("ui/options_settings.ron")).clamped();
+        let mut world_objects = terrain::objects::TerrainObjects::new(
+            "WorldObjects",
+            WORLD_OBJECT_BUDGET,
+            data_root.clone(),
+            cache_root.clone(),
+        );
+        let graphics = &client_options.graphics;
+        if graphics.particle_effects_enabled {
+            world_objects.enable_particles(f32::from(graphics.particle_density) / 100.0);
+        }
         Self {
             base,
             model_scene: None,
@@ -137,12 +149,7 @@ impl INode3D for GameClient {
                 cache_root.clone(),
             ),
             terrain_materials: terrain::material::TerrainMaterials::default(),
-            world_objects: terrain::objects::TerrainObjects::new(
-                "WorldObjects",
-                WORLD_OBJECT_BUDGET,
-                data_root.clone(),
-                cache_root.clone(),
-            ),
+            world_objects,
             global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone(), &cache_root),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
@@ -336,6 +343,9 @@ impl GameClient {
         objects.set("spawned", self.world_objects.spawned_count() as i64);
         objects.set("pending", self.world_objects.pending_count() as i64);
         objects.set("failures", self.world_objects.failure_count() as i64);
+        if let Some(particles) = self.world_objects.particle_state() {
+            objects.set("particles", &particles);
+        }
         state.set("world_objects", &objects);
         state.set(
             "local_player_position",
@@ -923,6 +933,13 @@ impl GameClient {
             self.world_objects.cull_wmos(camera, &frustum);
             self.world_objects
                 .cull_doodads(camera, &frustum, delta_ms, frame);
+            if let Some(transform) = self.world_camera.transform() {
+                self.world_objects.update_particles(
+                    transform,
+                    &frustum,
+                    (delta_ms / 1000.0) as f32,
+                );
+            }
             self.world.apply_animation_lod(camera, frame);
         }
     }
