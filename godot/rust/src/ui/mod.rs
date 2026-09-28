@@ -58,6 +58,7 @@ pub struct RegistryUi {
     actions: VecDeque<String>,
     /// Right-clicks and Shift-left-clicks: `(action, right, shift)`.
     alt_clicks: VecDeque<(String, bool, bool)>,
+    pointer_clicks: u32,
     slider_events: VecDeque<SliderInput>,
     login_fade: Option<f32>,
     loading_displayed_percent: f32,
@@ -159,6 +160,27 @@ impl RegistryModel {
             action: frame.onclick.clone()?,
             value: (data.min + (data.max - data.min) * f64::from(percent)) as f32,
         })
+    }
+
+    fn pointer_click_eligible(&self, mut id: u64) -> bool {
+        loop {
+            let Some(frame) = self.registry.get(id) else {
+                return false;
+            };
+            if frame.widget_data.as_ref().is_some_and(|data| {
+                matches!(data, WidgetData::Button(button)
+                    if !button.enabled || button.state == ButtonState::Disabled)
+            }) {
+                return false;
+            }
+            if frame.onclick.is_some() {
+                return true;
+            }
+            let Some(parent) = frame.parent_id else {
+                return false;
+            };
+            id = parent;
+        }
     }
 
     fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
@@ -269,6 +291,7 @@ impl ICanvasLayer for RegistryUi {
             projection: None,
             actions: VecDeque::new(),
             alt_clicks: VecDeque::new(),
+            pointer_clicks: 0,
             slider_events: VecDeque::new(),
             login_fade: None,
             loading_displayed_percent: 0.0,
@@ -892,6 +915,11 @@ impl RegistryUi {
                         self.alt_clicks.push_back((action, right, shift));
                     }
                 }
+                UiInput::PointerDown(id) => {
+                    if model.pointer_click_eligible(id) {
+                        self.pointer_clicks += 1;
+                    }
+                }
                 UiInput::Focus(id) => model.focus_frame(id),
                 UiInput::Blur(id) => model.blur_frame(id),
                 UiInput::Text(id, text) => model.edit_text(id, text),
@@ -909,6 +937,27 @@ impl RegistryUi {
             }
         }
         GString::from(self.sync_model().err().unwrap_or_default().as_str())
+    }
+
+    pub fn sync_pointer_clicks(&mut self) -> Result<u32, String> {
+        if self
+            .projection
+            .as_ref()
+            .is_some_and(UiProjection::has_pointer_down)
+        {
+            let error = self.sync_input();
+            if !error.is_empty() {
+                return Err(error.to_string());
+            }
+        }
+        Ok(self.pop_ui_clicks())
+    }
+
+    #[func]
+    pub fn pop_ui_clicks(&mut self) -> u32 {
+        let clicks = self.pointer_clicks;
+        self.pointer_clicks = 0;
+        clicks
     }
 
     #[func]

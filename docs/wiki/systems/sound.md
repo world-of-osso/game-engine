@@ -18,6 +18,10 @@ At `741344ca`, native `NativeSound` consumes those catalogs: two owned Godot pla
 
 `ce2a8c92` adds a real authenticated `GameClient` fixture. The retained run reaches MCNK area 9 → root zone 12, observes Music player track `53492`, confirms no zone-12 ambient track, then drives the authored Options Sound controls and observes native player volume/mute/music-enable state. The fixture log is [native-sound-client-final.log](../../../data/diagnostics/native-sound-client-final.log). This is volume/player-state proof only: no audible-output, full audio parity, or independent-verifier claim follows; verifier817 is pending. Unexpected fixture markers are ordering/discovery sentinels, not production REDs, and mutation assertions are harness-sensitivity checks only. Its verbose exit reports 16 leaked stream/playback/Ogg-packet objects but no native sound/player nodes; see [[native-audio-shutdown-leaks]]. Godot 4.7.2 remains pinned; the documented engine-level shutdown-timing issue is not being patched now, and client work continues without a full-parity waiver.
 
+## Native UI click
+
+`src/sound/ui_click_data.rs` shares the legacy normalized-phase 1,764-sample mono 44.1 kHz click and 0.55 gain with Bevy and Godot. Projected Godot controls enqueue a click only on left mouse-down; `RegistryUi` resolves `onclick` through frame ancestry and rejects disabled buttons. `GameClient` drains pointer clicks before dispatching actions, so closing a screen on action does not drop its click. `NativeSound` plays the PCM WAV on its owned Effects player at `master × effects × 0.55` (zero when muted), independent of the music switch. `godot/tests/ui_click_sound.gd` exercises pointer eligibility and actual GameClient playback; `godot/core/tests/ui_click.rs` checks sample content. Audible output and broader sound parity remain unproven.
+
 ## Runtime scheduling
 
 Commit `550b637a` removes sound clean-frame maintenance. Footstep trackers attach when relevant player/model entities appear. Ambient and music reconciliation run when their inputs change or playback is removed; they do not poll on otherwise clean render frames. Active playback remains active presentation work. No CPU or FPS improvement is claimed without controlled measurement and user observation.
@@ -35,6 +39,7 @@ Post-fix PID `2468254` remained focused, `InWorld`, and connected with one link/
 - AGENTS.md — `src/sound/` structure listing
 - [app setup](../../../src/app_setup.rs) — stage and audio-plugin registration
 - [area_zone_data](../../../src/area_zone_data.rs) — shared AreaTable parent parsing and bounded ancestor traversal
+- [ui_click_data](../../../src/sound/ui_click_data.rs) — legacy click PCM and gain
 - [real-client fixture log](../../../data/diagnostics/native-sound-client-final.log) — authenticated area/zone/music and Options-state observations at `ce2a8c92`
 
 ## See Also

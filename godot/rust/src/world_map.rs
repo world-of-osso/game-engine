@@ -28,7 +28,7 @@ const DB2_DIR: &str = "db2/12.1.0.69933";
 /// Map navigation and the open frame.
 #[derive(Default)]
 pub(crate) struct WorldMap {
-    ui: Option<Gd<RegistryUi>>,
+    pub(crate) ui: Option<Gd<RegistryUi>>,
     data: Option<Result<WorldMapData, String>>,
     /// Displayed `UiMap`.
     map_id: u32,

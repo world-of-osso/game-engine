@@ -27,6 +27,34 @@ impl GameClient {
         Ok(())
     }
 
+    pub(super) fn play_ui_clicks(&mut self) -> Result<(), String> {
+        let mut clicks = 0;
+        for ui in [
+            &mut self.login_ui,
+            &mut self.character_ui,
+            &mut self.create_ui,
+            &mut self.loading_ui,
+            &mut self.errors_ui,
+            &mut self.game_menu_ui,
+            &mut self.world_map.ui,
+        ] {
+            if let Some(ui) = ui {
+                clicks += ui.bind_mut().sync_pointer_clicks()?;
+            }
+        }
+        if let Some(sound) = &mut self.sound {
+            let settings = &self.client_options.sound;
+            for _ in 0..clicks {
+                sound.bind_mut().play_ui_click(
+                    settings.master_volume,
+                    settings.effects_volume,
+                    settings.muted,
+                );
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn current_zone_id(&self) -> Option<u32> {
         if self.account.session.screen != SessionScreen::InWorld {
             return None;

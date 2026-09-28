@@ -32,6 +32,7 @@ pub enum UiInput {
         right: bool,
         shift: bool,
     },
+    PointerDown(u64),
     Focus(u64),
     Blur(u64),
     Text(u64, String),
@@ -95,6 +96,13 @@ impl UiProjection {
 
     pub fn drain_input(&mut self) -> Vec<UiInput> {
         self.pending.borrow_mut().drain(..).collect()
+    }
+
+    pub fn has_pointer_down(&self) -> bool {
+        self.pending
+            .borrow()
+            .iter()
+            .any(|input| matches!(input, UiInput::PointerDown(_)))
     }
 
     /// Viewport-level motion/release keeps capture after the pointer leaves the slider.
@@ -243,6 +251,9 @@ impl UiProjection {
         parts.set_draw_behind_parent(true);
         node.add_child(&parts);
         self.connect_input(frame, &mut node);
+        if node.get_mouse_filter() == godot::classes::control::MouseFilter::STOP {
+            connect_pointer_down(&self.pending, frame.id, &mut node);
+        }
         Ok(node)
     }
 
@@ -580,6 +591,22 @@ fn emit(pending: &PendingInputs, input: UiInput) -> Callable {
     Callable::from_fn("registry-input", move |_| {
         pending.borrow_mut().push_back(input.clone())
     })
+}
+
+fn connect_pointer_down(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let pending = pending.clone();
+    let callback = Callable::from_fn("registry-pointer-down", move |args| {
+        let left_press = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<InputEventMouseButton>>().ok())
+            .is_some_and(|event| {
+                event.is_pressed() && event.get_button_index() == godot::global::MouseButton::LEFT
+            });
+        if left_press {
+            pending.borrow_mut().push_back(UiInput::PointerDown(id));
+        }
+    });
+    node.connect("gui_input", &callback);
 }
 
 fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
