@@ -84,6 +84,7 @@ bevy_transform = { path = "../bevy-patches/bevy_transform" }
 bevy_pbr = { path = "../bevy-patches/bevy_pbr" }
 bevy_render = { path = "../bevy-patches/bevy_render" }
 taffy = { path = "../bevy-patches/taffy" }
+bevy_hanabi = { path = "../bevy-patches/bevy_hanabi" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../shared-protocol" }
