@@ -87,15 +87,15 @@ fn handle_escape(
     if !kb.just_pressed(KeyCode::Escape) {
         return;
     }
-    if current_capture_action(overlay.model.binding_capture).is_some() {
-        overlay.model.binding_capture = BindingCapture::None;
+    if current_capture_action(overlay.model.options.binding_capture).is_some() {
+        overlay.model.options.binding_capture = BindingCapture::None;
         overlay.model.pressed_action = None;
         return;
     }
-    if overlay.model.view == GameMenuView::Options {
+    if overlay.model.options.view == GameMenuView::Options {
         overlay.model.drag_capture = DragCapture::None;
         overlay.model.pressed_action = None;
-        overlay.model.view = GameMenuView::MainMenu;
+        overlay.model.options.view = GameMenuView::MainMenu;
     } else {
         close_game_menu(commands);
     }
@@ -148,7 +148,7 @@ fn handle_binding_capture_keys(
             continue;
         }
         if event.key_code == KeyCode::Escape {
-            overlay.model.binding_capture = BindingCapture::None;
+            overlay.model.options.binding_capture = BindingCapture::None;
             return true;
         }
         if event.key_code
@@ -169,7 +169,7 @@ fn handle_binding_capture_keys(
 }
 
 fn listening_binding_action(overlay: &GameMenuOverlay) -> Option<InputAction> {
-    match overlay.model.binding_capture {
+    match overlay.model.options.binding_capture {
         BindingCapture::Listening(action) => Some(action),
         _ => None,
     }
@@ -209,8 +209,8 @@ fn assign_binding(
     overlay: &mut GameMenuOverlay,
     commands: &mut Commands,
 ) {
-    overlay.model.draft_bindings.assign(action, binding);
-    overlay.model.binding_capture = BindingCapture::None;
+    overlay.model.options.draft_bindings.assign(action, binding);
+    overlay.model.options.binding_capture = BindingCapture::None;
     queue_apply_current_options(overlay, commands);
 }
 
@@ -226,11 +226,11 @@ fn begin_slider_drag(
 }
 
 fn begin_window_drag(cursor: Vec2, overlay: &mut GameMenuOverlay, reg: &FrameRegistry) {
-    if overlay.model.view != GameMenuView::Options {
+    if overlay.model.options.view != GameMenuView::Options {
         return;
     }
     overlay.model.drag_capture = DragCapture::Window;
-    overlay.model.drag_offset = cursor - modal_top_left(overlay.model.modal_position, reg);
+    overlay.model.drag_offset = cursor - modal_top_left(overlay.model.options.modal_position, reg);
 }
 
 fn handle_drag(
@@ -253,7 +253,7 @@ fn handle_drag(
 
 fn drag_window(cursor: Vec2, overlay: &mut GameMenuOverlay, reg: &FrameRegistry) {
     let pos = cursor - overlay.model.drag_offset;
-    overlay.model.modal_position = super::clamp_top_left(pos, reg);
+    overlay.model.options.modal_position = super::clamp_top_left(pos, reg);
 }
 
 fn update_slider(
@@ -268,7 +268,7 @@ fn update_slider(
         .map(|rect| ((cursor.x - rect.x) / rect.width.max(f32::EPSILON)).clamp(0.0, 1.0))
         .unwrap_or(0.0);
     let raw = min + (max - min) * pct;
-    apply_slider_value(slider, raw, &mut overlay.model);
+    apply_slider_value(slider, raw, &mut overlay.model.options);
     queue_apply_current_options(overlay, commands);
     overlay.model.drag_origin.y = slider_row(slider);
 }
@@ -327,8 +327,8 @@ fn handle_release(
     };
     if walk_up_for_onclick(reg, frame_id).as_deref() == Some(action.as_str()) {
         dispatch_overlay_action(action.as_str(), overlay, exit, commands, state);
-        if let BindingCapture::Armed(action) = overlay.model.binding_capture {
-            overlay.model.binding_capture = BindingCapture::Listening(action);
+        if let BindingCapture::Armed(action) = overlay.model.options.binding_capture {
+            overlay.model.options.binding_capture = BindingCapture::Listening(action);
         }
         sync_overlay_model_only(overlay, reg);
     }
@@ -336,7 +336,9 @@ fn handle_release(
 
 fn finish_drag(overlay: &mut GameMenuOverlay, commands: &mut Commands) {
     if overlay.model.drag_capture == DragCapture::Window {
-        commands.queue(SaveModalPositionCommand(overlay.model.modal_position));
+        commands.queue(SaveModalPositionCommand(
+            overlay.model.options.modal_position,
+        ));
     }
     overlay.model.drag_capture = DragCapture::None;
 }
@@ -389,32 +391,32 @@ fn handle_overlay_parsed_action(
     commands: &mut Commands,
 ) -> bool {
     if let Some(category) = parse_category_action(action) {
-        overlay.model.category = category;
+        overlay.model.options.category = category;
         return true;
     }
     if let Some(section) = parse_binding_section_action(action) {
-        overlay.model.binding_section = section;
-        overlay.model.binding_capture = BindingCapture::None;
+        overlay.model.options.binding_section = section;
+        overlay.model.options.binding_capture = BindingCapture::None;
         return true;
     }
     if let Some(action) = parse_binding_rebind_action(action) {
-        overlay.model.binding_capture = BindingCapture::Armed(action);
+        overlay.model.options.binding_capture = BindingCapture::Armed(action);
         return true;
     }
     if let Some(action) = parse_binding_clear_action(action) {
-        overlay.model.draft_bindings.clear(action);
-        overlay.model.binding_capture = BindingCapture::None;
+        overlay.model.options.draft_bindings.clear(action);
+        overlay.model.options.binding_capture = BindingCapture::None;
         queue_apply_current_options(overlay, commands);
         return true;
     }
     if let Some((key, delta)) = parse_step_action(action) {
-        apply_step(key, delta, &mut overlay.model);
+        apply_step(key, delta, &mut overlay.model.options);
         queue_apply_current_options(overlay, commands);
         return true;
     }
     if let Some(key) = parse_toggle_action(action) {
-        apply_toggle(key, &mut overlay.model);
-        overlay.model.binding_capture = BindingCapture::None;
+        apply_toggle(key, &mut overlay.model.options);
+        overlay.model.options.binding_capture = BindingCapture::None;
         queue_apply_current_options(overlay, commands);
         return true;
     }
@@ -434,14 +436,14 @@ fn handle_overlay_command_action(
         }
         ACTION_LOGOUT => queue_logout(commands),
         ACTION_RESUME => close_game_menu(commands),
-        ACTION_OPTIONS => overlay.model.view = GameMenuView::Options,
+        ACTION_OPTIONS => overlay.model.options.view = GameMenuView::Options,
         ACTION_ADDONS => {
-            overlay.model.view = GameMenuView::Options;
-            overlay.model.category = OptionsCategory::SocialAddons;
+            overlay.model.options.view = GameMenuView::Options;
+            overlay.model.options.category = OptionsCategory::SocialAddons;
         }
         ACTION_SUPPORT => info!("{action}: placeholder"),
         ACTION_OPTIONS_DEFAULTS => {
-            reset_category_defaults(&mut overlay.model);
+            reset_category_defaults(&mut overlay.model.options);
             queue_apply_current_options(overlay, commands);
         }
         ACTION_OPTIONS_OKAY => close_game_menu(commands),

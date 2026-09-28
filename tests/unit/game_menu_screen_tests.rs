@@ -329,8 +329,8 @@ fn interface_reset_window_positions_button_clears_saved_positions() {
         .clear();
     app.world_mut()
         .resource_scope(|world, mut overlay: Mut<GameMenuOverlay>| {
-            overlay.model.view = GameMenuView::Options;
-            overlay.model.category = OptionsCategory::Interface;
+            overlay.model.options.view = GameMenuView::Options;
+            overlay.model.options.category = OptionsCategory::Interface;
             let mut ui = world.resource_mut::<UiState>();
             sync_overlay_model_only(&mut overlay, &mut ui.registry);
             layout_support::compute_layout(&mut ui.registry);
