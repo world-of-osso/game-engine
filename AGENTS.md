@@ -59,7 +59,7 @@ src/
 
 ## Dev
 
-- Plain root `cargo run`/`rd` builds the debug `game-engine-launcher`, then launches Godot; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else pinned Godot 4.7.2 at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2/`, downloading the official release zip and checking its SHA-512 on first use; builds `godot/`'s native library, and forwards user startup flags after Godot's `--` separator. It neither starts the server nor falls back to Bevy.
+- Plain root `cargo run`/`rd` builds the debug `game-engine-launcher`, then launches Godot; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else pinned Godot 4.7.2 at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2/`, downloading the official release zip and checking its SHA-512 on first use; runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; builds `godot/`'s native library, and forwards user startup flags after Godot's `--` separator. It neither starts the server nor falls back to Bevy.
 - `cargo run -- --screen charselect` — Authenticate with configured credentials or a saved token and open character select.
 - `cargo run -- --server dev --screen inworld --char Name` — Resolve `dev`/`prod` server aliases, authenticate, select the named roster character, and enter the world. Omit `--char` to select the default character.
 - `cargo run -- --screen charcreate` — Open standalone character creation. Add `--server <host>` to authenticate before entering it; `charcreate-customize` opens its Customize mode.

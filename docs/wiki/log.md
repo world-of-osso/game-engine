@@ -1652,3 +1652,7 @@ Created [[stockade-floor-fall]]: the failing teleport points lie outside WMO 108
 ## [2026-09-27] change | Launcher caches Godot
 
 The launcher resolves Godot as `GODOT_BIN`, else `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2/`, downloading the official 4.7.2 zip and verifying its pinned SHA-512 on first use. `data/tools/godot` is no longer read. See [[godot-conversion]].
+
+## [2026-09-28] change | Launcher imports fresh checkouts
+
+After the native build, the launcher runs `godot --headless --import --path godot` once when `godot/.godot/extension_list.cfg` is missing; failure keeps its exit status and prevents launch. `GAME_ENGINE_ROOT` overrides the checkout root (used by launcher tests). See [[godot-conversion]].

@@ -18,9 +18,14 @@ fn main() {
 }
 
 fn launch() -> Result<i32, String> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .ok_or("launcher manifest has no checkout parent")?;
+    let root = match env::var_os("GAME_ENGINE_ROOT") {
+        Some(path) => PathBuf::from(path),
+        None => Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .ok_or("launcher manifest has no checkout parent")?
+            .to_path_buf(),
+    };
+    let root = root.as_path();
     let godot = match env::var_os("GODOT_BIN") {
         Some(path) => PathBuf::from(path),
         None => ensure_cached_godot()?,
@@ -32,7 +37,39 @@ fn launch() -> Result<i32, String> {
     if !status.success() {
         return Ok(exit_code(status));
     }
+    let status = import_project_once(root, &godot)?;
+    if !status.success() {
+        return Ok(exit_code(status));
+    }
     exec_godot(root, &godot, args)
+}
+
+/// A fresh checkout has no `godot/.godot` cache; without it Godot cannot load the
+/// native extension classes, so import once before the first launch.
+fn import_project_once(root: &Path, godot: &Path) -> Result<ExitStatus, String> {
+    let project = root.join("godot");
+    if project.join(".godot/extension_list.cfg").is_file() {
+        return Ok(ExitStatus::default());
+    }
+    eprintln!(
+        "game-engine-launcher: importing Godot project {}",
+        project.display()
+    );
+    Command::new(godot)
+        .args(["--headless", "--import", "--path"])
+        .arg(&project)
+        .env("LD_LIBRARY_PATH", native_library_path(root))
+        .status()
+        .map_err(|error| format!("cannot run Godot import: {error}"))
+}
+
+fn native_library_path(root: &Path) -> OsString {
+    let mut library_path = root.join("target/debug/deps").into_os_string();
+    if let Some(existing) = env::var_os("LD_LIBRARY_PATH") {
+        library_path.push(":");
+        library_path.push(existing);
+    }
+    library_path
 }
 
 fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsString>, String> {
@@ -81,17 +118,11 @@ fn build_native_extension(root: &Path) -> Result<ExitStatus, String> {
 }
 
 fn exec_godot(root: &Path, godot: &Path, args: Vec<OsString>) -> Result<i32, String> {
-    let dependencies = root.join("target/debug/deps");
-    let mut library_path = dependencies.into_os_string();
-    if let Some(existing) = env::var_os("LD_LIBRARY_PATH") {
-        library_path.push(":");
-        library_path.push(existing);
-    }
     let error = Command::new(godot)
         .arg("--path")
         .arg(root.join("godot"))
         .args(args)
-        .env("LD_LIBRARY_PATH", library_path)
+        .env("LD_LIBRARY_PATH", native_library_path(root))
         .exec();
     Err(format!("cannot launch Godot {}: {error}", godot.display()))
 }
