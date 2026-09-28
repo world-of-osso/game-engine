@@ -188,6 +188,7 @@ impl GameClient {
         file.modal_offset = Some(snapshot.modal_position);
         save_options_file_to_path(&path, &file)?;
         self.client_options = file;
+        crate::display_options::apply_graphics_display_options(&self.client_options.graphics);
         Ok(())
     }
 
