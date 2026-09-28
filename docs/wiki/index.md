@@ -59,6 +59,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [camera-collision-recovery-lag](investigations/camera-collision-recovery-lag.md) — Follow camera stalled behind a running player after any collision pull-in: recovery measured the lagging camera pose; now recovers from the stored pulled-in distance.
 - [godot-texture-vram](investigations/godot-texture-vram.md) — Godot client uploaded an RGBA8 copy of every texture per placement; one shared DXT texture per FDID cut in-world VRAM from 4,994 MiB (rising) to 1,029 MiB.
 - [ui-rounding-seams](investigations/ui-rounding-seams.md) — 1 px seams between abutting UI textures at UI scale 2/3 (auction house tabs): taffy 0.10.1 parent-relative location rounding; patched in bevy-patches.
 - [bevy-godot-shadow-comparison](investigations/bevy-godot-shadow-comparison.md) — Source-only Bevy 0.19/Godot 4.7.2 directional-shadow comparison: CPU caster scans, Godot silhouette-plane culling, batching, geometry substitution/LOD, redraw, and conditional Bevy GPU preprocessing; no runtime winner claimed.
