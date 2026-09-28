@@ -297,3 +297,41 @@ fn slerp_identity() {
     assert!((result[3] - 1.0).abs() < 0.001);
     assert!(result[0].abs() < 0.001);
 }
+
+/// HumanMale HD (model 1011653, Stockade Guard display 2989) keeps SitGround (97) and
+/// Sleep (100) in the `.anim` files its skeleton's AFID names (1012989, 1012994), without
+/// `M2_SEQUENCE_IN_FILE`: their bones take keyframes from those files, ordered within the
+/// sequence's duration with unit rotations, not skeleton bytes at the files' offsets.
+#[test]
+fn human_hd_sit_and_sleep_keyframes_come_from_their_anim_files() {
+    let path = crate::asset::asset_cache::model(1011653).expect("HumanMale HD model");
+    let data = std::fs::read(&path).unwrap();
+    let chunks = crate::asset::m2_format::parse_chunks(&data).unwrap();
+    let anim = crate::asset::m2_format::load_anim_data(&path, &chunks);
+    for anim_id in [97, 100] {
+        let index = anim
+            .sequences
+            .iter()
+            .position(|sequence| sequence.id == anim_id && sequence.variation_id == 0)
+            .unwrap();
+        let sequence = &anim.sequences[index];
+        assert_eq!(sequence.flags & M2_SEQUENCE_IN_FILE, 0, "{anim_id}");
+        let keyed: Vec<_> = anim
+            .bone_tracks
+            .iter()
+            .filter_map(|track| track.rotation.sequences.get(index))
+            .filter(|(times, _)| !times.is_empty())
+            .collect();
+        assert!(keyed.len() > 10, "{anim_id}: {} keyed bones", keyed.len());
+        for (times, values) in keyed {
+            assert_eq!(times.len(), values.len());
+            assert!(times.windows(2).all(|pair| pair[0] <= pair[1]));
+            assert!(times.iter().all(|&time| time <= sequence.duration));
+            for value in values {
+                let q = unpack_rotation(value);
+                let norm = q.iter().map(|c| c * c).sum::<f32>().sqrt();
+                assert!((norm - 1.0).abs() < 0.01, "{anim_id}: |q| = {norm}");
+            }
+        }
+    }
+}
