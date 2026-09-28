@@ -878,12 +878,19 @@ impl GameClient {
             return Ok(());
         };
         let map_id = self.world_map_id.ok_or("Loaded terrain has no map ID")?;
+        // WebWowViewerCpp applies the MFOG fog of the WMO interior the camera is in.
+        let wmo_fog = self.world_camera.position().and_then(|camera| {
+            self.world_objects
+                .camera_fog(camera)
+                .or_else(|| self.global_wmo.camera_fog(camera))
+        });
         if let Some(light) = self.world_lighting.sync(
             &mut parent,
             &wdt.lighting,
             map_id,
             player.origin,
             self.world_minutes,
+            wmo_fog.as_ref(),
         )? {
             self.world.update_lighting(Some(light.clone()));
             self.world_objects.update_lighting(&light);

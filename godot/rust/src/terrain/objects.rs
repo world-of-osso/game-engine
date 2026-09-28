@@ -9,6 +9,7 @@ use std::{
 
 use game_engine_core::{
     adt::{DoodadPlacement, WmoPlacement},
+    asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
     campsite_object_data::{campsite_doodad_placement, doodad_position, placement_position},
     m2,
 };
@@ -26,7 +27,10 @@ use crate::{
     },
     lighting::TerrainLight,
     terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
-    wmo::portals::{HalfSpace, WmoPortals},
+    wmo::{
+        assets::wmo_fog_volume,
+        portals::{HalfSpace, WmoPortals},
+    },
     world_models::bind_visual_light,
 };
 
@@ -136,9 +140,10 @@ impl CulledDoodad {
     }
 }
 
-/// A spawned WMO's portal graph and the batch meshes of each drawable group.
+/// A spawned WMO's portal graph, MFOG fog and the batch meshes of each drawable group.
 struct CulledWmo {
     portals: WmoPortals,
+    fog: WmoFogVolume,
     world_from_local: Affine3A,
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
 }
@@ -389,6 +394,7 @@ impl TerrainObjects {
         model.set_scale(Vector3::ONE * placement.scale);
         let culled = CulledWmo {
             portals: WmoPortals::new(&asset),
+            fog: wmo_fog_volume(&asset),
             world_from_local: Affine3A::from_scale_rotation_translation(
                 Vec3::splat(placement.scale),
                 rotation,
@@ -397,6 +403,15 @@ impl TerrainObjects {
             groups: group_batches(model),
         };
         Ok((wmo_node, culled))
+    }
+
+    /// The MFOG fog of the first spawned WMO whose interior group holds world `camera`.
+    pub fn camera_fog(&self, camera: Vector3) -> Option<WmoFogBlend> {
+        let camera = Vec3::new(camera.x, camera.y, camera.z);
+        self.wmos.iter().find_map(|wmo| {
+            wmo.portals
+                .camera_fog(&wmo.fog, wmo.world_from_local, camera)
+        })
     }
 
     /// Shows the WMO groups visible through portals from `camera` looking through
