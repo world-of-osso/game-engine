@@ -71,6 +71,8 @@ pub mod terrain_memory_debug;
 pub mod terrain_objects;
 #[path = "terrain/terrain_shared_wmos.rs"]
 pub mod terrain_shared_wmos;
+#[path = "terrain/terrain_surface_data.rs"]
+pub mod terrain_surface_data;
 #[path = "terrain/terrain_tile.rs"]
 pub mod terrain_tile;
 #[path = "terrain/water_material.rs"]
