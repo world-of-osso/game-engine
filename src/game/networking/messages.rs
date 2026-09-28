@@ -557,18 +557,26 @@ pub(crate) fn track_player_zone(
 
 /// Send movement input to the server every frame the player moves.
 pub(crate) fn send_player_input(
-    player_q: Query<(&MovementState, &CharacterFacing), With<Player>>,
-    movement_step: Res<crate::camera::LocalMovementStep>,
+    player_q: Query<
+        (
+            &MovementState,
+            &CharacterFacing,
+            &Transform,
+            Option<&crate::game::networking_server_movement::AdoptedMovementEpoch>,
+        ),
+        With<Player>,
+    >,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut senders: MessageSenders<PlayerInput>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) {
         return;
     }
-    let Ok((movement, facing)) = player_q.single() else {
+    let Ok((movement, facing, transform, epoch)) = player_q.single() else {
         return;
     };
-    let Some(input) = player_input(movement, facing, movement_step.secs) else {
+    let epoch = epoch.map_or(0, |epoch| epoch.0);
+    let Some(input) = player_input(movement, facing, transform.translation, epoch) else {
         return;
     };
     for mut sender in senders.iter_mut() {
@@ -576,12 +584,13 @@ pub(crate) fn send_player_input(
     }
 }
 
-/// The input for a frame that moved or jumped, covering the `step_secs` the local
-/// movement applied.
+/// The input for a frame that moved or jumped, reporting where the local movement put
+/// the player.
 fn player_input(
     movement: &MovementState,
     facing: &CharacterFacing,
-    step_secs: f32,
+    position: Vec3,
+    epoch: u32,
 ) -> Option<PlayerInput> {
     let direction = crate::networking::movement_to_direction(movement, facing);
     if direction == [0.0, 0.0, 0.0] && !movement.jumping {
@@ -593,7 +602,8 @@ fn player_input(
         jumping: movement.jumping,
         running: movement.running,
         swimming: movement.swimming,
-        elapsed_secs: step_secs,
+        position: position.to_array(),
+        epoch,
     })
 }
 

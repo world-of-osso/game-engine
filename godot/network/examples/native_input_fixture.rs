@@ -439,10 +439,8 @@ fn take_inputs(app: &mut App) -> Vec<PlayerInput> {
 
 fn assert_forward_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
     for input in &inputs {
-        if !input.elapsed_secs.is_finite() || input.elapsed_secs <= 0.0 {
-            return Err(format!(
-                "W input lost its applied frame duration: {input:?}"
-            ));
+        if !input.position.iter().all(|axis| axis.is_finite()) {
+            return Err(format!("W input lost its reported position: {input:?}"));
         }
         let [x, y, z] = input.direction;
         if x.abs() > 0.15 || y.abs() > 0.01 || z > -0.9 || z < -1.1 {
@@ -482,8 +480,7 @@ impl Directional {
 
 fn assert_idle_jump_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
     for input in &inputs {
-        if !input.elapsed_secs.is_finite()
-            || input.elapsed_secs <= 0.0
+        if !input.position.iter().all(|axis| axis.is_finite())
             || !input.facing_yaw.is_finite()
             || input
                 .direction
@@ -506,8 +503,7 @@ fn assert_idle_jump_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
 fn assert_running_input(inputs: Vec<PlayerInput>, jumping: bool) -> Result<bool, String> {
     for input in &inputs {
         let expected = Directional::Walk.expected_vector(input.facing_yaw);
-        if !input.elapsed_secs.is_finite()
-            || input.elapsed_secs <= 0.0
+        if !input.position.iter().all(|axis| axis.is_finite())
             || !input.facing_yaw.is_finite()
             || input
                 .direction
@@ -531,8 +527,7 @@ fn assert_directional_input(
 ) -> Result<bool, String> {
     for input in &inputs {
         let expected = direction.expected_vector(input.facing_yaw);
-        if !input.elapsed_secs.is_finite()
-            || input.elapsed_secs <= 0.0
+        if !input.position.iter().all(|axis| axis.is_finite())
             || !input.facing_yaw.is_finite()
             || input
                 .direction

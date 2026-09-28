@@ -154,7 +154,9 @@ impl PlayerMovement {
         }
     }
 
-    pub fn network_input(&self, yaw: f32, elapsed_secs: f32) -> Option<PlayerInput> {
+    /// The input reporting `position`, where `predict` put the player, for the server to
+    /// adopt; `epoch` is the server teleport that position follows.
+    pub fn network_input(&self, yaw: f32, position: glam::Vec3, epoch: u32) -> Option<PlayerInput> {
         let direction = movement_to_direction(self.direction, yaw);
         if direction == [0.0; 3] && !self.jumping {
             return None;
@@ -165,7 +167,8 @@ impl PlayerMovement {
             running: self.running,
             jumping: self.jumping,
             swimming: self.swimming,
-            elapsed_secs,
+            position: position.to_array(),
+            epoch,
         })
     }
 
@@ -289,7 +292,7 @@ impl crate::GameClient {
             && self.account.session.gameplay_input_allowed()
     }
 
-    pub(super) fn send_player_input(&self, elapsed_secs: f32) -> Result<(), String> {
+    pub(super) fn send_player_input(&self) -> Result<(), String> {
         if self.game_menu_ui.is_some()
             || !self.gameplay_input_allowed()
             || self.world.local_player_controlled()
@@ -297,9 +300,14 @@ impl crate::GameClient {
             return Ok(());
         }
         if let Some(yaw) = self.world.local_player_facing()
-            && let Some(input) = self.player_movement.network_input(yaw, elapsed_secs)
+            && let Some(node) = self.world.local_player_node()
+            && let Some(epoch) = self.world.local_player_epoch()
         {
-            self.account.send_player_input(input)?;
+            let position = node.get_position();
+            let position = glam::Vec3::new(position.x, position.y, position.z);
+            if let Some(input) = self.player_movement.network_input(yaw, position, epoch) {
+                self.account.send_player_input(input)?;
+            }
         }
         Ok(())
     }
@@ -313,6 +321,13 @@ mod tests {
         BindingKey, BindingMouseButton, InputBindingsData,
     };
     use game_engine_core::movement_input_data::MoveDirection;
+    use glam::Vec3;
+
+    use crate::ground::TerrainGround;
+    use crate::terrain::streaming::StreamedTerrain;
+
+    /// The Stockade entrance (`tdb_world_safe_locs` 3599), world space.
+    const FEET: Vec3 = Vec3::new(56.682, -19.269, -0.624);
 
     #[test]
     fn diagonal_prediction_keeps_original_forward_wire_priority() {
@@ -325,22 +340,46 @@ mod tests {
         let frame = movement.resolve(&InputBindingsData::default(), &input, 0.0);
         assert_eq!(frame.direction, [-1.0, 0.0, 2.0]);
         assert_eq!(frame.speed, 7.0);
-        let packet = movement.network_input(0.0, 1.0 / 60.0).unwrap();
-        assert_eq!(packet.elapsed_secs, 1.0 / 60.0);
-        assert_eq!(
-            movement
-                .network_input(0.0, 1.0 / 30.0)
-                .unwrap()
-                .elapsed_secs,
-            1.0 / 30.0
-        );
+        let packet = movement.network_input(0.0, FEET, 3).unwrap();
         assert_eq!(packet.direction, [0.0, 0.0, 1.0]);
         assert!(packet.running);
         assert!(!packet.jumping);
         assert!(!packet.swimming);
         input.clear();
         movement.resolve(&InputBindingsData::default(), &input, 0.0);
-        assert!(movement.network_input(0.0, 1.0 / 60.0).is_none());
+        assert!(movement.network_input(0.0, FEET, 3).is_none());
+    }
+
+    /// W+D facing east for one second from the Stockade entrance: the input reports where
+    /// `predict` ran the player, 7 yd along forward + right, while its wire direction is
+    /// forward; the server adopts that position.
+    #[test]
+    fn strafe_run_reports_the_predicted_diagonal_position() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
+        let ground = TerrainGround {
+            terrain: &terrain,
+            wmos: &[],
+        };
+        let yaw = std::f32::consts::FRAC_PI_2;
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        input.set_key(BindingKey::KeyD, true);
+        let mut feet = FEET;
+        for _ in 0..60 {
+            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw);
+            feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
+        }
+        let packet = movement.network_input(yaw, feet, 3).unwrap();
+        assert_eq!(packet.position, feet.to_array());
+        assert_eq!(packet.epoch, 3);
+        let ran = feet - FEET;
+        let diagonal = Vec3::new(1.0, 0.0, 1.0).normalize();
+        assert!((ran.length() - 7.0).abs() < 0.01, "{ran}");
+        assert!((ran.normalize() - diagonal).length() < 0.001, "{ran}");
+        let wire = Vec3::from_array(packet.direction);
+        assert!((wire - Vec3::X).length() < 1e-6, "{wire}");
     }
 
     #[test]
@@ -401,11 +440,11 @@ mod tests {
             &PhysicalInput::default(),
             0.0,
         );
-        assert!(movement.network_input(0.0, 1.0 / 60.0).is_some());
+        assert!(movement.network_input(0.0, FEET, 3).is_some());
         movement.stop();
         assert!(!movement.running);
         assert!(!movement.autorun);
         assert!(!movement.jumping);
-        assert!(movement.network_input(0.0, 1.0 / 60.0).is_none());
+        assert!(movement.network_input(0.0, FEET, 3).is_none());
     }
 }
