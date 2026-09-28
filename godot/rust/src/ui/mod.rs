@@ -11,6 +11,8 @@ use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_s
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, inworld_unit_frames_screen,
 };
+use game_engine_ui_model::mirror_timer_component::{MIRROR_TIMER_CONTAINER, mirror_timer_screen};
+use game_engine_ui_model::mirror_timer_data::MirrorTimersData;
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
@@ -334,6 +336,62 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_model(model, size.x, size.y)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the retail mirror timer bars.
+    pub fn show_mirror_timers(&mut self) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let mut shared = SharedContext::new();
+        shared.insert(MirrorTimersData::default());
+        let mut model = RegistryModel {
+            screen: Screen::new(mirror_timer_screen),
+            shared,
+            registry: FrameRegistry::new(size.x, size.y),
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
+    }
+
+    /// Apply `update` to the mirror timers; unchanged timers do not resync.
+    pub fn update_mirror_timers(
+        &mut self,
+        update: impl FnOnce(&mut MirrorTimersData),
+    ) -> Result<(), String> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or("Mirror timer UI is not initialized")?;
+        if model
+            .registry
+            .get_by_name(MIRROR_TIMER_CONTAINER.0)
+            .is_none()
+        {
+            return Err("RegistryUi is not a mirror timer overlay".into());
+        }
+        let mut timers = model
+            .shared
+            .get::<MirrorTimersData>()
+            .ok_or("Mirror timer data is not initialized")?
+            .clone();
+        update(&mut timers);
+        self.set_state(timers)
+    }
+
+    pub fn mirror_timer_fraction(
+        &self,
+        kind: game_engine_ui_model::mirror_timer_data::MirrorTimerKind,
+    ) -> Option<f32> {
+        let timers = self.model.as_ref()?.shared.get::<MirrorTimersData>()?;
+        timers.timer(kind).map(|timer| timer.fraction())
     }
 
     fn update_errors(&mut self, update: impl FnOnce(&mut UiErrorsData)) -> Result<(), String> {

@@ -16,6 +16,7 @@ mod input;
 mod input_keys;
 mod lighting;
 mod loading;
+mod mirror_timers;
 mod scene;
 mod startup;
 mod targeting;
@@ -78,6 +79,7 @@ pub struct GameClient {
     data_root: PathBuf,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
+    mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     account: Account,
@@ -129,6 +131,7 @@ impl INode3D for GameClient {
             creation_scene: char_create::CreationScene::new(data_root.clone(), cache_root.clone()),
             loading_ui: None,
             errors_ui: None,
+            mirror_timer_ui: None,
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             account: Account::new(data_root.clone()),
@@ -239,6 +242,7 @@ impl INode3D for GameClient {
             .map(|()| self.attach_world_objects())
             .and_then(|()| self.update_loading_readiness(delta as f32))
             .and_then(|()| self.update_world_errors(delta as f32))
+            .and_then(|()| self.update_mirror_timers(delta as f32))
             .and_then(|()| self.tick_delete_confirmation(delta as f32))
             .and_then(|()| self.advance_login_fade(delta as f32))
             .and_then(|()| self.update_world_camera(delta as f32))
@@ -379,6 +383,55 @@ impl GameClient {
     #[func]
     fn target_state(&self) -> VarDictionary {
         self.targeting_snapshot()
+    }
+
+    /// Start (or restart) retail mirror timer `timer` (0 fatigue, 1 breath, 2 feign death):
+    /// `value` of `max_value` ms changing by `scale` ms per ms. Returns an error or "".
+    #[func]
+    fn start_mirror_timer(
+        &mut self,
+        timer: i64,
+        value: i64,
+        max_value: i64,
+        scale: f32,
+        paused: bool,
+    ) -> GString {
+        let started = mirror_timers::mirror_timer_kind(timer).and_then(|kind| {
+            self.start_mirror(game_engine_ui_model::mirror_timer_data::MirrorTimerStart {
+                kind,
+                value: value as i32,
+                max_value: max_value as i32,
+                scale,
+                paused,
+            })
+        });
+        GString::from(started.err().unwrap_or_default().as_str())
+    }
+
+    #[func]
+    fn stop_mirror_timer(&mut self, timer: i64) -> GString {
+        let stopped =
+            mirror_timers::mirror_timer_kind(timer).and_then(|kind| self.stop_mirror(kind));
+        GString::from(stopped.err().unwrap_or_default().as_str())
+    }
+
+    /// The shown fill of mirror timer `timer`'s bar, or nil while it is not running.
+    #[func]
+    fn mirror_timer_fraction(&self, timer: i64) -> Variant {
+        mirror_timers::mirror_timer_kind(timer)
+            .ok()
+            .and_then(|kind| self.mirror_fraction(kind))
+            .map(|fraction| fraction.to_variant())
+            .unwrap_or_default()
+    }
+
+    /// Terrain water surface at world X/Z, or nil where none is loaded.
+    #[func]
+    fn water_surface_at(&self, x: f32, z: f32) -> Variant {
+        self.terrain
+            .water_surface_at(x, z)
+            .map(|height| height.to_variant())
+            .unwrap_or_default()
     }
 
     /// Authored terrain surface at world X/Z, or nil when no loaded grid covers the point.
