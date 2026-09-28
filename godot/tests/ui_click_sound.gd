@@ -17,6 +17,41 @@ func pointer(position: Vector2, button: MouseButton, down: bool) -> void:
 func _initialize() -> void:
 	call_deferred("run_test")
 
+func check_owned_click(fps: int, label: String) -> void:
+	var original_fps := Engine.max_fps
+	var client: Node = load("res://scenes/client.tscn").instantiate()
+	root.add_child(client)
+	await process_frame
+	var client_ui := client.get_node_or_null("LoginUI")
+	var client_sound := client.get_node_or_null("NativeSound")
+	if client_ui == null or client_sound == null:
+		require(false, "%s GameClient did not own login UI and NativeSound" % label)
+	else:
+		var login_button := client_ui.find_child("ConnectButton", true, false) as Button
+		var live_effects := client_sound.get_node_or_null("Effects") as AudioStreamPlayer
+		if login_button == null or live_effects == null:
+			require(false, "%s GameClient click integration nodes missing" % label)
+		else:
+			var completions := [0]
+			live_effects.finished.connect(func(): completions[0] += 1)
+			Engine.max_fps = fps
+			pointer(login_button.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
+			await process_frame
+			var playing_after_press := live_effects.is_playing()
+			# A capped frame can outlast the 40 ms click; completion is also playback proof.
+			if not playing_after_press and completions[0] == 0:
+				await process_frame
+			var played: bool = playing_after_press or completions[0] == 1
+			var gain_matches := absf(live_effects.volume_linear - 0.44) < 0.001
+			require(gain_matches and played, "%s GameClient left down must play owned effect before action release" % label)
+			if gain_matches and played:
+				print("PASS: GameClient owned click %s (%s)" % [label, "active" if playing_after_press else "finished"])
+			pointer(login_button.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+			await process_frame
+	Engine.max_fps = original_fps
+	client.queue_free()
+	await process_frame
+
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
 	var ui: Node = ClassDB.instantiate("RegistryUi")
@@ -95,36 +130,31 @@ func run_test() -> void:
 		require(false, "clickable ancestor fixture child missing")
 	roster_ui.queue_free()
 	await process_frame
-	var client: Node = load("res://scenes/client.tscn").instantiate()
-	root.add_child(client)
-	await process_frame
-	var client_ui := client.get_node_or_null("LoginUI")
-	var client_sound := client.get_node_or_null("NativeSound")
-	if client_ui == null or client_sound == null:
-		require(false, "GameClient did not own login UI and NativeSound")
+	var original_config := OS.get_environment("XDG_CONFIG_HOME")
+	var config_dir := OS.get_cache_dir().path_join("game-engine-ui-click-%d" % OS.get_process_id())
+	var options_dir := config_dir.path_join("world-of-osso")
+	if DirAccess.make_dir_recursive_absolute(options_dir) != OK:
+		require(false, "Cannot create isolated UI click options directory")
+		quit(1)
+		return
+	var options_path := options_dir.path_join("options_settings.ron")
+	var options := FileAccess.open(options_path, FileAccess.WRITE)
+	if options == null:
+		require(false, "Cannot write isolated UI click options")
+		quit(1)
+		return
+	options.store_string("(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))")
+	options.close()
+	OS.set_environment("XDG_CONFIG_HOME", config_dir)
+	await check_owned_click(0, "default FPS")
+	await check_owned_click(5, "5 FPS")
+	if original_config.is_empty():
+		OS.unset_environment("XDG_CONFIG_HOME")
 	else:
-		var login_button := client_ui.find_child("ConnectButton", true, false) as Button
-		var live_effects := client_sound.get_node("Effects") as AudioStreamPlayer
-		if login_button == null or live_effects == null:
-			require(false, "GameClient click integration nodes missing")
-		else:
-			var completions := [0]
-			var initial_volume := live_effects.volume_linear
-			var original_fps := Engine.max_fps
-			live_effects.finished.connect(func(): completions[0] += 1)
-			# A capped frame can outlast the 40 ms click; completion is also playback proof.
-			Engine.max_fps = 5
-			pointer(login_button.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
-			await process_frame
-			var playing_after_press := live_effects.is_playing()
-			if not playing_after_press and completions[0] == 0:
-				await process_frame
-			require(live_effects.volume_linear != initial_volume and (playing_after_press or completions[0] == 1), "GameClient left down must play owned effect before action release")
-			Engine.max_fps = original_fps
-			pointer(login_button.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
-			await process_frame
-	client.queue_free()
-	await process_frame
+		OS.set_environment("XDG_CONFIG_HOME", original_config)
+	DirAccess.remove_absolute(options_path)
+	DirAccess.remove_absolute(options_dir)
+	DirAccess.remove_absolute(config_dir)
 	if failures == 0:
 		print("PASS: native pointer click eligibility, PCM WAV, volume and mute")
 	quit(1 if failures else 0)
