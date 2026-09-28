@@ -147,7 +147,8 @@ impl UiProjection {
     }
 
     fn create_node(&self, frame: &Frame) -> Result<Gd<Control>, String> {
-        if frame.backdrop.is_some() || frame.panel_style.is_some() {
+        let unresolved_panel = frame.panel_style.is_some() && frame.nine_slice.is_none();
+        if frame.backdrop.is_some() || unresolved_panel {
             return Err(format!(
                 "Unconverted native frame decoration: {}",
                 frame.name.as_deref().unwrap_or("unnamed")

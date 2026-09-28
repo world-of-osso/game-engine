@@ -33,6 +33,24 @@ fn logged_in_menu_preserves_authored_actions_and_labels() {
         );
     }
     assert_eq!(model.registry.get_by_name("OptionsRoot"), None);
+    for name in ["GameMenuPanel", "GameMenuTitleFrame"] {
+        let frame = model
+            .registry
+            .get(model.registry.get_by_name(name).unwrap())
+            .unwrap();
+        let border = frame
+            .nine_slice
+            .as_ref()
+            .expect("authored panel style resolved");
+        assert_eq!(border.edge_size, 8.0);
+        assert_eq!(border.uv_edge_size, Some(8.0));
+        assert_eq!(
+            border.texture,
+            Some(ui_toolkit::widgets::texture::TextureSource::File(
+                "data/textures/ui/panel_slate_gold_512.ktx2".into()
+            ))
+        );
+    }
 }
 
 #[test]
