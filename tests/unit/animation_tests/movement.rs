@@ -1,4 +1,7 @@
 use super::*;
+use game_engine::movement_animation_data::{
+    ANIM_SWIM, ANIM_SWIM_BACKWARDS, ANIM_SWIM_IDLE, ANIM_SWIM_LEFT, ANIM_SWIM_RIGHT,
+};
 
 #[test]
 fn running_landing_finishes_without_restarting_jump() {
