@@ -49,6 +49,84 @@ impl RaceModels {
     }
 }
 
+/// One ChrCustomizationReq row, which gates who may select an option or choice.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct CustomizationRequirement {
+    req_type: u32,
+    class_mask: i32,
+    race_masks: [i32; 2],
+    /// Achievement, quest or item-appearance unlocks are account collection state.
+    unlock_gated: bool,
+}
+
+impl CustomizationRequirement {
+    /// TrinityCore `WorldSession::MeetsChrCustomizationReq` for a new character with no
+    /// account unlocks. ReqType bit 0 marks player rows; WoWDBDefs names the remaining
+    /// ReqType values NPC (2) and Transmog (4), which players cannot select.
+    fn allows_new_character(&self, race: u8, class: u8) -> bool {
+        let class_allowed = self.class_mask == 0
+            || class
+                .checked_sub(1)
+                .is_some_and(|bit| bit < 32 && (self.class_mask as u32) & (1 << bit) != 0);
+        let race_allowed = self.race_masks == [0, 0]
+            || support::race_mask_bit(race).is_some_and(|bit| {
+                (self.race_masks[(bit / 32) as usize] as u32) & (1 << (bit % 32)) != 0
+            });
+        self.req_type & 1 != 0 && !self.unlock_gated && class_allowed && race_allowed
+    }
+}
+
+/// Read `ChrCustomizationReq.csv` (build-pinned export; see the character-creation spec).
+pub(crate) fn load_requirements(
+    data_dir: &Path,
+) -> Result<HashMap<u32, CustomizationRequirement>, String> {
+    let mut requirements = HashMap::new();
+    for_each_csv_row(&data_dir.join("ChrCustomizationReq.csv"), |row| {
+        let unlock_gated = [
+            "ReqAchievementID",
+            "ReqQuestID",
+            "ReqItemModifiedAppearanceID",
+        ]
+        .into_iter()
+        .map(|column| row.i32(column))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .any(|id| id != 0);
+        requirements.insert(
+            row.u32("ID")?,
+            CustomizationRequirement {
+                req_type: row.u32("ReqType")?,
+                class_mask: row.i32("ClassMask")?,
+                race_masks: [row.i32("RaceMasks_0")?, row.i32("RaceMasks_1")?],
+                unlock_gated,
+            },
+        );
+        Ok(())
+    })?;
+    Ok(requirements)
+}
+
+/// Read `ChrCustomizationReqChoice.csv`: requirement ID -> required choice IDs.
+fn load_required_choice_ids(data_dir: &Path) -> Result<HashMap<u32, Vec<u32>>, String> {
+    let mut required: HashMap<u32, Vec<u32>> = HashMap::new();
+    for_each_csv_row(&data_dir.join("ChrCustomizationReqChoice.csv"), |row| {
+        required
+            .entry(row.u32("ChrCustomizationReqID")?)
+            .or_default()
+            .push(row.u32("ChrCustomizationChoiceID")?);
+        Ok(())
+    })?;
+    Ok(required)
+}
+
+/// One ChrCustomizationReqChoice group: the selection must contain one of `choice_ids`
+/// for `option_id` (TrinityCore `MeetsChrCustomizationReq` required dependent choices).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequiredChoices {
+    pub option_id: u32,
+    pub choice_ids: Vec<u32>,
+}
+
 struct CsvRow<'a> {
     headers: &'a [String],
     fields: Vec<String>,
@@ -57,6 +135,17 @@ struct CsvRow<'a> {
 
 impl CsvRow<'_> {
     fn u32(&self, column: &str) -> Result<u32, String> {
+        let index = crate::csv_util::header_index(self.headers, column, self.path)?;
+        let value = self.fields.get(index).map(String::as_str).unwrap_or("");
+        value.parse().map_err(|err| {
+            format!(
+                "invalid {column} {value:?} in {}: {err}",
+                self.path.display()
+            )
+        })
+    }
+
+    fn i32(&self, column: &str) -> Result<i32, String> {
         let index = crate::csv_util::header_index(self.headers, column, self.path)?;
         let value = self.fields.get(index).map(String::as_str).unwrap_or("");
         value.parse().map_err(|err| {
@@ -207,6 +296,8 @@ pub struct CustomizationDb {
     presentation_by_model: HashMap<u32, ModelPresentation>,
     hair_scalp_fallback_by_model: HashMap<u32, u16>,
     race_models: RaceModels,
+    requirements: HashMap<u32, CustomizationRequirement>,
+    required_choices: HashMap<u32, Vec<RequiredChoices>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -286,6 +377,8 @@ impl CustomizationDb {
             .find(|option| option.id == option_id)
     }
 
+    /// Choices a new `class` character of this race may select, in authored order.
+    /// Core selector indices address this list.
     pub fn choices_for_option(
         &self,
         race: u8,
@@ -293,16 +386,87 @@ impl CustomizationDb {
         class: u8,
         option_id: u32,
     ) -> Vec<&CustomizationChoice> {
-        let Some(option) = self.option_by_id(race, sex, option_id) else {
-            return Vec::new();
-        };
-        option
-            .choices
-            .iter()
-            .filter(|choice| {
-                support::choice_visible_for_class(race, class, option.option_type, choice)
+        self.option_by_id(race, sex, option_id)
+            .map(|option| self.available_choices(race, sex, class, option).collect())
+            .unwrap_or_default()
+    }
+
+    fn available_choices<'a>(
+        &'a self,
+        race: u8,
+        sex: u8,
+        class: u8,
+        option: &'a CustomizationOption,
+    ) -> impl Iterator<Item = &'a CustomizationChoice> {
+        let option_available = self.option_available(race, class, option);
+        option.choices.iter().filter(move |choice| {
+            option_available
+                && self.requirement_allows(choice.requirement_id, race, class)
+                && self.required_choices(choice).iter().all(|group| {
+                    group
+                        .choice_ids
+                        .iter()
+                        .any(|&id| self.choice_id_available(race, sex, class, group.option_id, id))
+                })
+        })
+    }
+
+    fn option_available(&self, race: u8, class: u8, option: &CustomizationOption) -> bool {
+        support::option_visible_for_class(race, class, option.option_type)
+            && self.requirement_allows(option.requirement_id, race, class)
+    }
+
+    /// Option and choice requirements only; required-choice groups are not followed.
+    fn choice_id_available(
+        &self,
+        race: u8,
+        sex: u8,
+        class: u8,
+        option_id: u32,
+        choice_id: u32,
+    ) -> bool {
+        self.option_by_id(race, sex, option_id)
+            .is_some_and(|option| self.option_available(race, class, option))
+            && self
+                .choice_by_id(race, sex, choice_id)
+                .is_some_and(|choice| self.requirement_allows(choice.requirement_id, race, class))
+    }
+
+    /// Requirement 0 is ungated; an unknown requirement ID is not selectable.
+    fn requirement_allows(&self, requirement_id: u32, race: u8, class: u8) -> bool {
+        requirement_id == 0
+            || self
+                .requirements
+                .get(&requirement_id)
+                .is_some_and(|requirement| requirement.allows_new_character(race, class))
+    }
+
+    /// Other options' choices this choice's requirement needs selected alongside it.
+    pub fn required_choices(&self, choice: &CustomizationChoice) -> &[RequiredChoices] {
+        self.required_choices
+            .get(&choice.requirement_id)
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// Load `ChrCustomizationReq` and `ChrCustomizationReqChoice` from `data_dir`.
+    pub(crate) fn load_requirements(&mut self, data_dir: &Path) -> Result<(), String> {
+        self.requirements = load_requirements(data_dir)?;
+        let option_by_choice: HashMap<u32, u32> = self
+            .options_by_model
+            .values()
+            .flatten()
+            .flat_map(|option| option.choices.iter().map(|choice| (choice.id, option.id)))
+            .collect();
+        self.required_choices = load_required_choice_ids(data_dir)?
+            .into_iter()
+            .map(|(requirement_id, choice_ids)| {
+                (
+                    requirement_id,
+                    group_by_option(&choice_ids, &option_by_choice),
+                )
             })
-            .collect()
+            .collect();
+        Ok(())
     }
 
     pub(super) fn option_for_type(
@@ -327,12 +491,8 @@ impl CustomizationDb {
 
     pub fn choice_count_for_class(&self, race: u8, sex: u8, class: u8, opt_type: OptionType) -> u8 {
         self.option_for_type(race, sex, opt_type)
-            .map(|o| {
-                o.choices
-                    .iter()
-                    .filter(|choice| {
-                        support::choice_visible_for_class(race, class, opt_type, choice)
-                    })
+            .map(|option| {
+                self.available_choices(race, sex, class, option)
                     .count()
                     .min(255) as u8
             })
@@ -359,10 +519,8 @@ impl CustomizationDb {
         opt_type: OptionType,
         index: u8,
     ) -> Option<&CustomizationChoice> {
-        self.option_for_type(race, sex, opt_type)?
-            .choices
-            .iter()
-            .filter(|choice| support::choice_visible_for_class(race, class, opt_type, choice))
+        let option = self.option_for_type(race, sex, opt_type)?;
+        self.available_choices(race, sex, class, option)
             .nth(index as usize)
     }
 
@@ -408,6 +566,26 @@ impl CustomizationDb {
         let model_id = self.chr_model_id(race, sex)?;
         self.hair_scalp_fallback_by_model.get(&model_id).copied()
     }
+}
+
+/// Group required choice IDs by their option, keeping authored option and choice order.
+/// Choices without a known option cannot be selected and form their own unsatisfiable group.
+fn group_by_option(
+    choice_ids: &[u32],
+    option_by_choice: &HashMap<u32, u32>,
+) -> Vec<RequiredChoices> {
+    let mut groups: Vec<RequiredChoices> = Vec::new();
+    for &choice_id in choice_ids {
+        let option_id = option_by_choice.get(&choice_id).copied().unwrap_or(0);
+        match groups.iter_mut().find(|group| group.option_id == option_id) {
+            Some(group) => group.choice_ids.push(choice_id),
+            None => groups.push(RequiredChoices {
+                option_id,
+                choice_ids: vec![choice_id],
+            }),
+        }
+    }
+    groups
 }
 
 // --- Indexed data for join resolution ---

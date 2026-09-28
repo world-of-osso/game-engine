@@ -5,6 +5,7 @@ mod deps {
     pub use crate::appearance_options;
     pub use game_engine_core::customization_data::{
         CustomizationChoice, CustomizationDb, CustomizationOption, ModelPresentation, OptionType,
+        RequiredChoices,
     };
     pub use game_engine_ui_model::{char_create_component, char_create_data};
 }
@@ -18,3 +19,6 @@ pub use logic::*;
 
 mod scene;
 pub(crate) use scene::CreationScene;
+
+#[cfg(test)]
+mod tests;

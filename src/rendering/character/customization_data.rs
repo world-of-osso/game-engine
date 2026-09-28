@@ -16,7 +16,7 @@ mod support;
 pub use catalog::CustomizationCatalog;
 pub use catalog::{
     ChoiceGeoset, ChoiceMaterial, CustomizationChoice, CustomizationOption, ModelPresentation,
-    OptionType,
+    OptionType, RequiredChoices,
 };
 pub(crate) use catalog::{
     RaceModels, RawCategory, RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial,
@@ -67,7 +67,9 @@ impl CustomizationDb {
 
     pub fn try_load(data_dir: &Path) -> Result<Self, String> {
         let raw = crate::customization_cache::load_customization_raw_data(data_dir)?;
-        Ok(Self::from_raw(&raw))
+        let mut db = Self::from_raw(&raw);
+        db.0.load_requirements(data_dir)?;
+        Ok(db)
     }
 
     pub fn swatch_color(

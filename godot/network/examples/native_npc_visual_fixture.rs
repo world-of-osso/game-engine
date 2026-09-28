@@ -278,7 +278,18 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         data.join("ChrRaces.csv"),
         "ID,UnalteredVisualRaceID\n1,0\n2,0\n",
     )
-    .map_err(|error| format!("Write fixture races CSV: {error}"))
+    .map_err(|error| format!("Write fixture races CSV: {error}"))?;
+    // Every fixture option and choice is ungated (requirement 0).
+    fs::write(
+        data.join("ChrCustomizationReq.csv"),
+        "ID,ReqType,ClassMask,ReqAchievementID,ReqQuestID,ReqItemModifiedAppearanceID,RaceMasks_0,RaceMasks_1\n",
+    )
+    .map_err(|error| format!("Write fixture customization requirement CSV: {error}"))?;
+    fs::write(
+        data.join("ChrCustomizationReqChoice.csv"),
+        "ID,ChrCustomizationChoiceID,ChrCustomizationReqID\n",
+    )
+    .map_err(|error| format!("Write fixture required-choice CSV: {error}"))
 }
 
 fn stage_preview_assets(repo: &Path, data: &Path) -> Result<(), String> {
