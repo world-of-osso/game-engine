@@ -325,7 +325,10 @@ fn human_hd_sit_and_sleep_keyframes_come_from_their_anim_files() {
         assert!(keyed.len() > 10, "{anim_id}: {} keyed bones", keyed.len());
         for (times, values) in keyed {
             assert_eq!(times.len(), values.len());
-            assert_eq!(times[0], 0, "{anim_id}: a track starts at the sequence start");
+            assert_eq!(
+                times[0], 0,
+                "{anim_id}: a track starts at the sequence start"
+            );
             assert!(times.windows(2).all(|pair| pair[0] <= pair[1]));
             assert!(times.iter().all(|&time| time <= sequence.duration));
             for value in values {
