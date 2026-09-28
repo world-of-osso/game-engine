@@ -1,7 +1,7 @@
 //! Ground queries for the terrain currently loaded by the native host.
 
 use game_engine_core::player_physics_data::{
-    GroundSample, GroundState, clamp_movement_to_walls, validate_movement_slope,
+    GroundSample, GroundState, clamp_movement_to_walls, is_swimming, validate_movement_slope,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 use glam::Vec3;
@@ -77,13 +77,25 @@ impl TerrainGround<'_> {
         )
     }
 
+    /// Swimming where the water stands `SWIM_DEPTH` over the feet, above the ground.
     pub fn swimming(&self, feet: Vec3) -> bool {
-        let Some(ground) = self.sample(feet) else {
-            return false;
-        };
-        self.terrain
-            .water_surface_at(feet.x, feet.z)
-            .is_some_and(|water| water > ground.height && water - ground.height >= 1.25)
+        self.sample(feet)
+            .is_some_and(|ground| is_swimming(feet.y, ground.height, self.water_surface(feet)))
+    }
+
+    pub fn water_surface(&self, feet: Vec3) -> Option<f32> {
+        self.terrain.water_surface_at(feet.x, feet.z)
+    }
+
+    /// A level swim move: stop short of a WMO wall and of ground beyond step reach (an
+    /// underwater cliff); ground rising over the feet lifts the swimmer onto it (the shore).
+    pub fn validate_swim_move(&self, current: Vec3, proposed: Vec3) -> Vec3 {
+        let proposed = clamp_movement_to_walls(current, proposed, self.walls);
+        match self.sample(proposed) {
+            Some(ground) => proposed.with_y(proposed.y.max(ground.height)),
+            None if self.terrain.height_at(proposed.x, proposed.z).is_some() => current,
+            None => proposed,
+        }
     }
 }
 
@@ -198,6 +210,7 @@ mod tests {
             let frame = crate::gameplay::MovementFrame {
                 direction: [1.0, 0.0, 0.0],
                 speed: shared::movement::RUN_SPEED,
+                vertical: 0.0,
             };
             feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
             lowest = lowest.min(feet.y);

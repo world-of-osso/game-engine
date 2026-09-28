@@ -63,6 +63,11 @@ impl WorldCamera {
             .expect("camera input preserves a present player facing")
     }
 
+    /// Camera pitch; negative looks down.
+    pub fn pitch(&self) -> f32 {
+        self.state.pitch
+    }
+
     /// View frustum planes as inside half spaces, for portal culling.
     pub fn frustum(&self) -> Vec<crate::wmo::portals::HalfSpace> {
         self.node.as_ref().map(frustum).unwrap_or_default()
