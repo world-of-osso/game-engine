@@ -30,6 +30,9 @@ func check(flow: SceneTree, client: Node) -> String:
 		return "Water render sample has no deep authored ground beneath it"
 	if DisplayServer.get_name() == "headless":
 		return "Rendered ADT water pixel assertion requires a display"
+	var clock := flow.root.get_node("M2MaterialClock")
+	var clock_processing := clock.is_processing()
+	clock.set_process(false)
 	var viewport := make_viewport(flow, float(ground))
 	var water_root := Node3D.new()
 	viewport.add_child(water_root)
@@ -54,6 +57,17 @@ func check(flow: SceneTree, client: Node) -> String:
 	water_root.visible = false
 	var hidden_blue := await capture(flow, viewport)
 	var error := evaluate_pixels(hidden_red, visible_red, visible_blue, hidden_blue)
+	if error == "":
+		water_root.visible = true
+		var frozen := await capture(flow, viewport)
+		var still_frozen := await capture(flow, viewport)
+		if changed_pixels(frozen, still_frozen, 0.01) > 0:
+			error = "Water animation advanced while shared material clock was stopped"
+		clock.advance_time_ms(2000.0)
+		var advanced := await capture(flow, viewport)
+		if error == "" and changed_pixels(still_frozen, advanced, 0.003) < MIN_CHANGED_PIXELS:
+			error = "Water normals did not animate after advancing shared clock by two seconds"
+	clock.set_process(clock_processing)
 	if error == "":
 		if visible_red.save_png(DIAGNOSTICS + "swimming-water-isolated.png") != OK:
 			error = "Could not save isolated ADT water screenshot"
@@ -164,8 +178,16 @@ func evaluate_pixels(hidden_red: Image, visible_red: Image, visible_blue: Image,
 		return "Rendered ADT water changed only %d isolated GPU pixels (need %d)" % [changed, MIN_CHANGED_PIXELS]
 	if translucent < MIN_CHANGED_PIXELS:
 		return "Rendered ADT water has only %d translucent GPU pixels (need %d)" % [translucent, MIN_CHANGED_PIXELS]
-	print("FIXTURE ADT_WATER_PIXELS changed=", changed, " translucent=", translucent)
+	print("PASS: ADT_WATER_PIXELS changed=", changed, " translucent=", translucent)
 	return ""
+
+func changed_pixels(first: Image, second: Image, threshold: float) -> int:
+	var changed := 0
+	for y in VIEW_SIZE:
+		for x in VIEW_SIZE:
+			if color_distance(first.get_pixel(x, y), second.get_pixel(x, y)) > threshold:
+				changed += 1
+	return changed
 
 func color_distance(a: Color, b: Color) -> float:
 	return absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b)
