@@ -39,8 +39,11 @@ func run_test() -> void:
 		return
 	var first_terrain_id: int = first_terrain.get_instance_id()
 	var first_player_id: int = first_player.get_instance_id()
+	var first_water := water_identity(client)
+	if first_water.is_empty():
+		return
 	print("FIXTURE INITIAL_READY")
-	if not await wait_for_world_reset(client, 90000):
+	if not await wait_for_world_reset(client, first_water, 90000):
 		return
 	print("FIXTURE WORLD_RESET")
 	if not await wait_for_terrain_refresh(client, WAIT_MS):
@@ -60,6 +63,14 @@ func run_test() -> void:
 	if player == null or player.get_instance_id() == first_player_id:
 		fail("Reconnect retained old local player node")
 		return
+	var refreshed_water := water_identity(client)
+	if refreshed_water.is_empty():
+		return
+	if refreshed_water.node_id == first_water.node_id or refreshed_water.material_id == first_water.material_id:
+		fail("Reconnect reused old water node or shader material")
+		return
+	if not await wait_for_water_clock(client):
+		return
 	if client.get_node("LoadingUI").visible:
 		fail("Loading screen remained visible after reconnect")
 		return
@@ -67,7 +78,49 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-func wait_for_world_reset(client: Node, timeout_ms: int) -> bool:
+func water_identity(client: Node) -> Dictionary:
+	var water = client.get_node_or_null("WorldTerrain/Tile32_48/Water")
+	if water == null:
+		fail("Loaded tile 32_48 has no authored Water node")
+		return {}
+	for child in water.get_children():
+		if child is MeshInstance3D and child.mesh != null and child.mesh.get_surface_count() > 0:
+			var material = child.get_surface_override_material(0)
+			if material is ShaderMaterial:
+				return {
+					"node_ref": weakref(water), "node_id": water.get_instance_id(),
+					"material_ref": weakref(material), "material_id": material.get_instance_id()
+				}
+	fail("Authored Water has no nonempty mesh with a ShaderMaterial")
+	return {}
+
+func wait_for_water_clock(client: Node) -> bool:
+	var clock = root.get_node("M2MaterialClock")
+	var previous_time := -1.0
+	var previous_sample := -1.0
+	for frame in range(12):
+		await process_frame
+		var water = client.get_node_or_null("WorldTerrain/Tile32_48/Water")
+		if water == null:
+			fail("Refreshed Water disappeared during clock sampling")
+			return false
+		var material = water.get_child(0).get_surface_override_material(0) as ShaderMaterial
+		if material == null:
+			fail("Refreshed Water lost its shader material")
+			return false
+		var expected: float = fmod(clock.elapsed_time_ms() / 1000.0, 3600.0)
+		var sampled: float = material.get_shader_parameter("animation_time")
+		if frame > 0 and absf(sampled - expected) > 0.2:
+			fail("Refreshed Water clock diverged: sampled=%s expected=%s" % [sampled, expected])
+			return false
+		if frame > 0 and expected > previous_time and sampled > previous_sample and sampled > 0.0:
+			return true
+		previous_time = expected
+		previous_sample = sampled
+	fail("Refreshed Water did not advance with shared material clock")
+	return false
+
+func wait_for_world_reset(client: Node, first_water: Dictionary, timeout_ms: int) -> bool:
 	var deadline := Time.get_ticks_msec() + timeout_ms
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
@@ -83,6 +136,16 @@ func wait_for_world_reset(client: Node, timeout_ms: int) -> bool:
 			return false
 		if client.get_node_or_null("WorldTerrain") != null or client.get_node_or_null("WorldUnits/" + NAME) != null:
 			fail("Reconnect retained stale world nodes")
+			return false
+		if client.get_node_or_null("WorldTerrain/Tile32_48/Water") != null:
+			fail("Reconnect retained old authored Water in scene tree")
+			return false
+		for frame in range(120):
+			if first_water.node_ref.get_ref() == null and first_water.material_ref.get_ref() == null:
+				break
+			await process_frame
+		if first_water.node_ref.get_ref() != null or first_water.material_ref.get_ref() != null:
+			fail("World reset retained old Water node or cached shader material")
 			return false
 		if state.get("gameplay_input_allowed") != false or state.selected_character_name != NAME:
 			fail("Reconnect lost selected character or accepted gameplay input: " + str(state))
@@ -136,14 +199,19 @@ func wait_for_world(client: Node, position: Vector3, timeout_ms: int) -> bool:
 			continue
 		var tile_root = client.get_node_or_null("WorldTerrain")
 		var player = client.get_node_or_null("WorldUnits/" + NAME) as Node3D
-		if tile_root == null or tile_root.get_child_count() == 0 or player == null or player.position.distance_to(position) > 0.5:
+		if tile_root == null or tile_root.get_child_count() == 0 or player == null:
+			continue
+		if Vector2(player.position.x, player.position.z).distance_to(Vector2(position.x, position.z)) > 0.5:
+			continue
+		var ground = client.terrain_height_at(player.position.x, player.position.z)
+		if ground == null or absf(player.position.y - float(ground)) >= 0.3:
 			continue
 		for tile in terrain.parsed_tiles:
 			if tile.chunk_count <= 0 or not FileAccess.file_exists(tile.root_path):
 				fail("World tile lacks parsed geometry or asset cache file: " + str(tile))
 				return false
 		return true
-	fail("Timed out waiting for selected player and refreshed world at " + str(position) + ": " + str(client.account_state()))
+	fail("Timed out waiting for selected grounded player and refreshed world near " + str(position) + ": " + str(client.account_state()))
 	return false
 
 func click_control(control: Control) -> void:
