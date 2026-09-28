@@ -42,22 +42,86 @@ pub(super) fn attach_equipment(
     if models.is_empty() {
         return Ok(());
     }
-    let path = data_root.join("equipment_transforms.ron");
-    let content =
-        std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
-    let transforms = transforms::EquipmentTransformConfig::parse(&content)
-        .map_err(|error| format!("{}: {error}", path.display()))?;
-    let mut context = EquipmentContext {
-        character,
-        character_model,
-        resolver,
-        data_root,
-        transforms,
-    };
+    let mut context = EquipmentContext::new(character, character_model, resolver, data_root)?;
     for model in models {
         context.attach(model)?;
     }
     Ok(())
+}
+
+/// Attach each model at its slot's default attachment; a model that fails is reported
+/// with its error and the others are still attached.
+pub(super) fn attach_each_equipment(
+    character: &mut Gd<Node3D>,
+    character_model: &m2::Model,
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    models: &[RuntimeModelAppearance],
+    mut report: impl FnMut(&RuntimeModelAppearance, String),
+) -> Result<(), String> {
+    if models.is_empty() {
+        return Ok(());
+    }
+    let mut context = EquipmentContext::new(character, character_model, resolver, data_root)?;
+    for model in models {
+        if let Err(error) = context.attach(model) {
+            report(model, error);
+        }
+    }
+    Ok(())
+}
+
+/// Move the item attached for `slot` onto attachment `attachment` (keeping its item
+/// transform), or hide it for `None`. A slot without an attached item is left alone.
+pub(crate) fn place_equipment(
+    character: &Gd<Node3D>,
+    slot: EquipmentSlot,
+    attachment: Option<u32>,
+) -> Result<(), String> {
+    let Some(mut item) = character
+        .find_child_ex(&format!("Equipment{slot:?}"))
+        .owned(false)
+        .done()
+        .and_then(|node| node.try_cast::<Node3D>().ok())
+    else {
+        return Ok(());
+    };
+    let Some(id) = attachment else {
+        item.set_visible(false);
+        return Ok(());
+    };
+    let parent = character
+        .get_node_or_null(&format!("Skeleton3D/AttachmentBone{id}/Attachment{id}"))
+        .ok_or_else(|| format!("Equipment {slot:?} requires missing attachment {id}"))?;
+    if item.get_parent().as_ref() != Some(&parent) {
+        item.reparent_ex(&parent)
+            .keep_global_transform(false)
+            .done();
+    }
+    item.set_visible(true);
+    Ok(())
+}
+
+impl<'a> EquipmentContext<'a> {
+    fn new(
+        character: &'a mut Gd<Node3D>,
+        character_model: &'a m2::Model,
+        resolver: &'a CascListfileResolver,
+        data_root: &'a Path,
+    ) -> Result<Self, String> {
+        let path = data_root.join("equipment_transforms.ron");
+        let content = std::fs::read_to_string(&path)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        let transforms = transforms::EquipmentTransformConfig::parse(&content)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        Ok(Self {
+            character,
+            character_model,
+            resolver,
+            data_root,
+            transforms,
+        })
+    }
 }
 
 impl EquipmentContext<'_> {

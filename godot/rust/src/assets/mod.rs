@@ -2,7 +2,7 @@
 pub(crate) mod appearance;
 mod attachments;
 pub(crate) mod creature;
-mod equipment;
+pub(crate) mod equipment;
 pub(crate) mod material;
 pub(crate) mod player;
 pub(crate) mod uv_animation;
