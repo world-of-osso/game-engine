@@ -10,6 +10,10 @@ The sound system lives in `src/sound/` and covers three areas: footstep sounds, 
 
 The sound system coexists with the rest of the engine as a Bevy plugin registered from `src/main.rs`.
 
+## Shared catalog boundary
+
+`5f74a859` extracts the root music-zone row parser, `music_manifest.csv` ambient reader, and music/ambient overlap removal into Bevy-free `catalog_data`, exposed to `godot/core`. The root music cache delegates row parsing; root ambient and overlap adapters use the same source. Both readers retain per-area first-encounter track order while deduplicating track indices. Core targeted proof is 5/5. Root compilation and native catalog consumption/playback remain pending independent verification, so this is neither audio parity nor native playback evidence.
+
 ## Runtime scheduling
 
 Commit `550b637a` removes sound clean-frame maintenance. Footstep trackers attach when relevant player/model entities appear. Ambient and music reconciliation run when their inputs change or playback is removed; they do not poll on otherwise clean render frames. Active playback remains active presentation work. No CPU or FPS improvement is claimed without controlled measurement and user observation.

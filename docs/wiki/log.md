@@ -40,6 +40,12 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | Shared sound catalog parsing is core-only
+
+`5f74a859` extracts the music-zone parser, manifest-based ambient parser, and music/ambient overlap policy into Bevy-free `catalog_data`, exposed through `godot/core`. The root music cache delegates its row policy; root ambient and overlap adapters delegate the same source. The parser preserves per-area first-encounter track order after deduplication. Core targeted proof is 5/5. Root compilation and native catalog consumption/playback remain pending independent verification; no audio-parity or handled-matrix claim follows.
+
+Updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] system | Native Options corrections and standalone startup regressions are bounded
 
 `a15b441e` routes and projects the bounded Options controller, but wrote edits to legacy `data_root/ui/options_settings.ron`; its reported flow therefore did not prove canonical persistence. `7b1d60ff` writes the loaded canonical XDG file and corrects capture handling. Actual REDs record outside-slider release persistence failure (`data/diagnostics/options-capture-avcdvc_6/red.log`) and Ctrl+Shift+R capture failure (`data/diagnostics/options-modifier-5vspamlj/red.log`). Committed `options_menu_flow.gd` GREEN (`data/diagnostics/options-proof-pa459243/green.log`) proves isolated-XDG canonical save and new-client reload at 240, unchanged legacy bytes, external EULA/realm preservation, graphics Defaults, Ctrl precedence, Shift capture, ignored modifier-only keys, and mouse capture. `verifier767` independently verifies that `7b1d60ff` canonical-persistence/capture boundary: Godot `cargo fmt --check` and `cargo check -p game-engine-godot` exit 0 with the one existing `NativeWmoGroup::fdid` warning. This verifier predates the startup commits.
