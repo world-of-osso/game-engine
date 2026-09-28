@@ -35,6 +35,13 @@ impl GameClient {
         if self.logout.tick(Duration::from_secs_f64(delta)) {
             return self.finish_logout();
         }
+        if self.logout_cancelled_by_input()? {
+            self.logout.cancel();
+        }
+        self.sync_logout_overlay()
+    }
+
+    fn logout_cancelled_by_input(&self) -> Result<bool, String> {
         let viewport = self
             .base()
             .get_viewport()
@@ -44,7 +51,7 @@ impl GameClient {
                 .gui_get_focus_owner()
                 .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
         let input = self.physical_input.gameplay_state(keyboard);
-        if [
+        Ok([
             InputAction::MoveForward,
             InputAction::MoveBackward,
             InputAction::StrafeLeft,
@@ -55,11 +62,7 @@ impl GameClient {
             InputAction::TurnRight,
         ]
         .into_iter()
-        .any(|action| self.client_options.bindings.is_pressed(action, &input))
-        {
-            self.logout.cancel();
-        }
-        self.sync_logout_overlay()
+        .any(|action| self.client_options.bindings.is_pressed(action, &input)))
     }
 
     fn finish_logout(&mut self) -> Result<(), String> {
