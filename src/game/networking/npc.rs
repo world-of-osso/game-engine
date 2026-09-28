@@ -1,5 +1,7 @@
 #[path = "../../rendering/character/npc_appearance.rs"]
 mod npc_appearance;
+#[path = "npc_gear.rs"]
+mod npc_gear;
 
 use crate::retail_m2_material::M2Material;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -151,7 +153,15 @@ pub(crate) fn sync_not_selectable(
 }
 
 pub(crate) fn register_npc_visibility_policy_systems(app: &mut App) {
-    app.add_systems(Update, (sync_not_selectable, sync_npc_motion_animation));
+    app.add_systems(
+        Update,
+        (
+            sync_not_selectable,
+            sync_npc_motion_animation,
+            npc_gear::sync_npc_pose_animation,
+            npc_gear::sync_npc_equipment,
+        ),
+    );
     npc_appearance::register_npc_appearance_systems(app);
     app.add_systems(
         Update,
@@ -563,6 +573,7 @@ pub(crate) fn spawn_replicated_npc(
     query: NpcReplicatedQuery,
     display_map: Option<Res<CreatureDisplayMap>>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    outfit_data: Res<game_engine::outfit_data::OutfitData>,
 ) {
     let entity = trigger.entity;
     let Ok((pos, npc, rotation, model_display)) = query.get(entity) else {
@@ -587,12 +598,33 @@ pub(crate) fn spawn_replicated_npc(
     );
     if m2_loaded {
         let display_id = model_display.map_or(0, |display| display.display_id);
-        npc_appearance::load_and_queue_npc_appearance(&mut commands, visual_root, display_id);
+        dress_npc(&mut commands, entity, visual_root, display_id, &outfit_data);
     }
     debug!(
         "Spawned NPC template_id={} m2={m2_loaded} at ({:.0}, {:.0}, {:.0})",
         npc.template_id, pos.x, pos.y, pos.z
     );
+}
+
+/// Queue the display's authored appearance and armor for the spawned model.
+fn dress_npc(
+    commands: &mut Commands,
+    entity: Entity,
+    visual_root: Entity,
+    display_id: u32,
+    outfit_data: &game_engine::outfit_data::OutfitData,
+) {
+    let appearance = npc_appearance::load_npc_appearance(display_id);
+    let (race, sex) = appearance
+        .as_ref()
+        .map_or((0, 0), |appearance| (appearance.race, appearance.sex));
+    let armor = npc_gear::resolve_display_armor(display_id, race, sex, outfit_data);
+    commands
+        .entity(entity)
+        .insert(npc_gear::NpcGear::new(race, sex, &armor));
+    if let Some(appearance) = appearance {
+        npc_appearance::queue_npc_appearance(commands, visual_root, display_id, appearance, &armor);
+    }
 }
 
 fn spawn_npc_model_or_capsule(

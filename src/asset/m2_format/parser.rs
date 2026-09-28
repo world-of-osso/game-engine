@@ -128,6 +128,8 @@ pub(crate) struct M2Chunks<'a> {
     pub txid: Option<&'a [u8]>,
     pub skid: Option<u32>,
     pub sfid: Vec<u32>,
+    /// (animation ID, variation, `.anim` FDID) of the model's external sequences.
+    pub afid: Vec<(u16, u16, u32)>,
 }
 
 pub struct TextureTables<'a> {
@@ -186,6 +188,7 @@ pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     let mut txid = None;
     let mut skid = None;
     let mut sfid = Vec::new();
+    let mut afid = Vec::new();
     let mut off = 0;
     while off + CHUNK_HEADER_SIZE <= data.len() {
         let tag = &data[off..off + 4];
@@ -201,6 +204,7 @@ pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
             b"TXID" => txid = Some(&data[off + CHUNK_HEADER_SIZE..end]),
             b"SKID" if size >= 4 => skid = Some(read_u32(data, off + CHUNK_HEADER_SIZE)?),
             b"SFID" => sfid = parse_sfid(&data[off + CHUNK_HEADER_SIZE..end]),
+            b"AFID" => afid = parse_afid(&data[off + CHUNK_HEADER_SIZE..end]),
             _ => {}
         }
         off = end;
@@ -211,6 +215,7 @@ pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
         txid,
         skid,
         sfid,
+        afid,
     })
 }
 
@@ -372,13 +377,19 @@ pub(crate) struct SkelData {
     pub global_sequences: Vec<u32>,
 }
 
-pub(crate) fn parse_skel_data(data: &[u8]) -> Result<SkelData, String> {
+/// A skeleton with the keyframes of its external sequences read from their `.anim` files
+/// (`AFID` FDID → the file's bytes, `None` when unavailable).
+pub(crate) fn parse_skel_data_with_anims(
+    data: &[u8],
+    load_anim: impl FnMut(u32) -> Option<Vec<u8>>,
+) -> Result<SkelData, String> {
     let mut result = SkelData {
         bones: Vec::new(),
         sequences: Vec::new(),
         bone_tracks: Vec::new(),
         global_sequences: Vec::new(),
     };
+    let (mut skb1, mut afid) = (None, Vec::new());
     let mut off = 0;
     while off + 8 <= data.len() {
         let tag = &data[off..off + 4];
@@ -390,12 +401,74 @@ pub(crate) fn parse_skel_data(data: &[u8]) -> Result<SkelData, String> {
         let chunk = &data[off + 8..end];
         match tag {
             b"SKS1" if chunk.len() >= 24 => parse_sks1_chunk(chunk, &mut result)?,
-            b"SKB1" if chunk.len() >= 16 => parse_skb1_chunk(chunk, &mut result)?,
+            b"SKB1" if chunk.len() >= 16 => skb1 = Some(chunk),
+            b"AFID" => afid = parse_afid(chunk),
             _ => {}
         }
         off = end;
     }
+    if let Some(chunk) = skb1 {
+        let anim_files = load_anim_track_chunks(&result.sequences, &afid, b"AFSB", load_anim);
+        let sources = super::m2_anim::sequence_data_sources(&result.sequences, &anim_files);
+        parse_skb1_chunk(chunk, &sources, &mut result)?;
+    }
     Ok(result)
+}
+
+/// `AFID`: (animation ID, variation, `.anim` FDID) per external sequence.
+pub(crate) fn parse_afid(data: &[u8]) -> Vec<(u16, u16, u32)> {
+    data.chunks_exact(8)
+        .map(|entry| {
+            (
+                u16::from_le_bytes([entry[0], entry[1]]),
+                u16::from_le_bytes([entry[2], entry[3]]),
+                u32::from_le_bytes([entry[4], entry[5], entry[6], entry[7]]),
+            )
+        })
+        .collect()
+}
+
+/// The track chunk (`AFSB` for skeleton bones, `AFM2` for model tracks) of each external
+/// sequence's `.anim` file, by (animation ID, variation); a chunkless (pre-Legion) file is
+/// its own track data.
+pub(crate) fn load_anim_track_chunks(
+    sequences: &[super::m2_anim::M2AnimSequence],
+    afid: &[(u16, u16, u32)],
+    tag: &[u8; 4],
+    mut load_anim: impl FnMut(u32) -> Option<Vec<u8>>,
+) -> std::collections::HashMap<(u16, u16), Vec<u8>> {
+    let external = |id, variation| {
+        sequences.iter().any(|sequence| {
+            (sequence.id, sequence.variation_id) == (id, variation)
+                && sequence.flags
+                    & (super::m2_anim::M2_SEQUENCE_IN_FILE | super::m2_anim::M2_SEQUENCE_ALIAS)
+                    == 0
+        })
+    };
+    afid.iter()
+        .filter(|&&(id, variation, fdid)| fdid != 0 && external(id, variation))
+        .filter_map(|&(id, variation, fdid)| {
+            let file = load_anim(fdid)?;
+            Some(((id, variation), anim_track_chunk(&file, tag).to_vec()))
+        })
+        .collect()
+}
+
+fn anim_track_chunk<'a>(file: &'a [u8], tag: &[u8; 4]) -> &'a [u8] {
+    let chunked = file.len() >= 4 && matches!(&file[..4], b"AFM2" | b"AFSA" | b"AFSB");
+    if !chunked {
+        return file;
+    }
+    let mut off = 0;
+    while off + 8 <= file.len() {
+        let size = u32::from_le_bytes(file[off + 4..off + 8].try_into().unwrap()) as usize;
+        let end = (off + 8 + size).min(file.len());
+        if &file[off..off + 4] == tag {
+            return &file[off + 8..end];
+        }
+        off = end;
+    }
+    &[]
 }
 
 fn parse_sks1_chunk(chunk: &[u8], result: &mut SkelData) -> Result<(), String> {
@@ -409,10 +482,15 @@ fn parse_sks1_chunk(chunk: &[u8], result: &mut SkelData) -> Result<(), String> {
     Ok(())
 }
 
-fn parse_skb1_chunk(chunk: &[u8], result: &mut SkelData) -> Result<(), String> {
+fn parse_skb1_chunk(
+    chunk: &[u8],
+    sources: &[super::m2_anim::SequenceData<'_>],
+    result: &mut SkelData,
+) -> Result<(), String> {
     let bone_count = read_u32(chunk, 0)? as usize;
     let bone_offset = read_u32(chunk, 4)? as usize;
     result.bones = super::m2_anim::parse_bones_at(chunk, bone_offset, bone_count)?;
-    result.bone_tracks = super::m2_anim::parse_bone_animations_at(chunk, bone_offset, bone_count)?;
+    result.bone_tracks =
+        super::m2_anim::parse_bone_animations_with(chunk, bone_offset, bone_count, sources)?;
     Ok(())
 }

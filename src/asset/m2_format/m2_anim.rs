@@ -215,14 +215,32 @@ pub struct ColorAnimTracks {
     pub opacity: AnimTrack<i16>,
 }
 
+/// M2Sequence flag 0x20: the sequence's keyframes are in the model (or skeleton) itself;
+/// without it they are in the sequence's `.anim` file (`AFID`).
+pub const M2_SEQUENCE_IN_FILE: u32 = 0x20;
+/// M2Sequence flag 0x40: an alias of another sequence, without keyframes of its own.
+pub const M2_SEQUENCE_ALIAS: u32 = 0x40;
+
+/// Where one sequence's keyframe elements are: in the blob holding the tracks, in the
+/// track chunk of its `.anim` file, or nowhere (that file is unavailable: no keyframes).
+#[derive(Clone, Copy)]
+pub enum SequenceData<'a> {
+    InFile,
+    External(&'a [u8]),
+    Missing,
+}
+
 /// Parse an AnimBlock's nested M2Array structure.
 /// `block_offset` is the offset of the AnimBlock within the MD20 blob.
 /// `value_size` is the byte size of each keyframe value.
 /// `parse_value` converts raw bytes at a given offset to a value of type T.
+/// Sequence `i`'s inner array headers are in `md20`; their elements are where `sources[i]`
+/// says (in `md20` when absent).
 fn parse_anim_track<T: Copy>(
     md20: &[u8],
     block_offset: usize,
     value_size: usize,
+    sources: &[SequenceData<'_>],
     parse_value: impl Fn(&[u8], usize) -> Result<T, String>,
 ) -> Result<AnimTrack<T>, String> {
     let interp = read_u16(md20, block_offset)?;
@@ -241,10 +259,33 @@ fn parse_anim_track<T: Copy>(
 
     let mut sequences = Vec::with_capacity(count);
     for i in 0..count {
-        let timestamps = read_inner_u32_array(md20, ts_outer_offset + i * 8)?;
-        let values =
-            read_inner_value_array(md20, keys_outer_offset + i * 8, value_size, &parse_value)?;
-        sequences.push((timestamps, values));
+        let source = sources.get(i).copied().unwrap_or(SequenceData::InFile);
+        let elements = match source {
+            SequenceData::InFile => md20,
+            SequenceData::External(file) => file,
+            SequenceData::Missing => {
+                sequences.push((Vec::new(), Vec::new()));
+                continue;
+            }
+        };
+        let keyframes =
+            read_inner_u32_array(md20, elements, ts_outer_offset + i * 8).and_then(|timestamps| {
+                let inner = keys_outer_offset + i * 8;
+                read_inner_value_array(md20, elements, inner, value_size, &parse_value)
+                    .map(|values| (timestamps, values))
+            });
+        match (keyframes, source) {
+            (Ok(keyframes), _) => sequences.push(keyframes),
+            // One track of an `.anim` file running past its chunk (HumanFemale HD
+            // 1000800.anim, bone 128) leaves that sequence's track without keyframes.
+            (Err(error), SequenceData::External(_)) => {
+                eprintln!(
+                    "M2 sequence {i}: .anim track at {block_offset:#x}: {error}; no keyframes"
+                );
+                sequences.push((Vec::new(), Vec::new()));
+            }
+            (Err(error), _) => return Err(error),
+        }
     }
 
     Ok(AnimTrack {
@@ -254,18 +295,23 @@ fn parse_anim_track<T: Copy>(
     })
 }
 
-fn read_inner_u32_array(md20: &[u8], inner_off: usize) -> Result<Vec<u32>, String> {
+fn read_inner_u32_array(
+    md20: &[u8],
+    elements: &[u8],
+    inner_off: usize,
+) -> Result<Vec<u32>, String> {
     let count = read_u32(md20, inner_off)? as usize;
     let data_off = read_u32(md20, inner_off + 4)? as usize;
     let mut out = Vec::with_capacity(count);
     for j in 0..count {
-        out.push(read_u32(md20, data_off + j * 4)?);
+        out.push(read_u32(elements, data_off + j * 4)?);
     }
     Ok(out)
 }
 
 fn read_inner_value_array<T: Copy>(
     md20: &[u8],
+    elements: &[u8],
     inner_off: usize,
     value_size: usize,
     parse_value: impl Fn(&[u8], usize) -> Result<T, String>,
@@ -274,9 +320,28 @@ fn read_inner_value_array<T: Copy>(
     let data_off = read_u32(md20, inner_off + 4)? as usize;
     let mut out = Vec::with_capacity(count);
     for j in 0..count {
-        out.push(parse_value(md20, data_off + j * value_size)?);
+        out.push(parse_value(elements, data_off + j * value_size)?);
     }
     Ok(out)
+}
+
+/// Each sequence's keyframe source: in the file for `M2_SEQUENCE_IN_FILE` and aliases,
+/// else the track chunk loaded for its (id, variation) `AFID` entry.
+pub fn sequence_data_sources<'a>(
+    sequences: &[M2AnimSequence],
+    anim_files: &'a std::collections::HashMap<(u16, u16), Vec<u8>>,
+) -> Vec<SequenceData<'a>> {
+    sequences
+        .iter()
+        .map(|sequence| {
+            if sequence.flags & (M2_SEQUENCE_IN_FILE | M2_SEQUENCE_ALIAS) != 0 {
+                return SequenceData::InFile;
+            }
+            anim_files
+                .get(&(sequence.id, sequence.variation_id))
+                .map_or(SequenceData::Missing, |file| SequenceData::External(file))
+        })
+        .collect()
 }
 
 /// Parse animation tracks for `count` bones starting at `offset` in `data`.
@@ -285,16 +350,37 @@ pub fn parse_bone_animations_at(
     offset: usize,
     count: usize,
 ) -> Result<Vec<BoneAnimTracks>, String> {
+    parse_bone_animations_with(data, offset, count, &[])
+}
+
+/// `parse_bone_animations_at` with each sequence's keyframes read from `sources`.
+pub fn parse_bone_animations_with(
+    data: &[u8],
+    offset: usize,
+    count: usize,
+    sources: &[SequenceData<'_>],
+) -> Result<Vec<BoneAnimTracks>, String> {
     let mut tracks = Vec::with_capacity(count);
     for i in 0..count {
         let base = offset + i * BONE_SIZE;
         if base + BONE_SIZE > data.len() {
             return Err(format!("Bone {i} out of bounds at offset {base:#x}"));
         }
-        let translation =
-            parse_anim_track(data, base + BONE_TRANSLATION_BLOCK_OFFSET, 12, read_vec3)?;
-        let rotation = parse_anim_track(data, base + BONE_ROTATION_BLOCK_OFFSET, 8, read_quat_i16)?;
-        let scale = parse_anim_track(data, base + BONE_SCALE_BLOCK_OFFSET, 12, read_vec3)?;
+        let translation = parse_anim_track(
+            data,
+            base + BONE_TRANSLATION_BLOCK_OFFSET,
+            12,
+            sources,
+            read_vec3,
+        )?;
+        let rotation = parse_anim_track(
+            data,
+            base + BONE_ROTATION_BLOCK_OFFSET,
+            8,
+            sources,
+            read_quat_i16,
+        )?;
+        let scale = parse_anim_track(data, base + BONE_SCALE_BLOCK_OFFSET, 12, sources, read_vec3)?;
         tracks.push(BoneAnimTracks {
             translation,
             rotation,
@@ -307,8 +393,16 @@ pub fn parse_bone_animations_at(
 /// Parse animation tracks for all bones from the MD20 blob.
 /// Returns one BoneAnimTracks per bone, in the same order as parse_bones.
 pub fn parse_bone_animations(md20: &[u8]) -> Result<Vec<BoneAnimTracks>, String> {
+    parse_md20_bone_animations(md20, &[])
+}
+
+/// `parse_bone_animations` with each sequence's keyframes read from `sources`.
+pub fn parse_md20_bone_animations(
+    md20: &[u8],
+    sources: &[SequenceData<'_>],
+) -> Result<Vec<BoneAnimTracks>, String> {
     let (count, offset) = read_m2_array_header(md20, MD20_BONES_COUNT_OFFSET)?;
-    parse_bone_animations_at(md20, offset, count)
+    parse_bone_animations_with(md20, offset, count, sources)
 }
 
 pub fn parse_transparency_tracks(md20: &[u8]) -> Result<Vec<AnimTrack<i16>>, String> {
@@ -321,7 +415,7 @@ pub fn parse_transparency_tracks(md20: &[u8]) -> Result<Vec<AnimTrack<i16>>, Str
                 "Transparency track {i} out of bounds at offset {base:#x}"
             ));
         }
-        tracks.push(parse_anim_track(md20, base, 2, read_i16)?);
+        tracks.push(parse_anim_track(md20, base, 2, &[], read_i16)?);
     }
     Ok(tracks)
 }
@@ -335,8 +429,8 @@ pub fn parse_color_tracks(md20: &[u8]) -> Result<Vec<ColorAnimTracks>, String> {
             return Err(format!("Color track {i} out of bounds at offset {base:#x}"));
         }
         tracks.push(ColorAnimTracks {
-            color: parse_anim_track(md20, base, 12, read_vec3)?,
-            opacity: parse_anim_track(md20, base + 20, 2, read_i16)?,
+            color: parse_anim_track(md20, base, 12, &[], read_vec3)?,
+            opacity: parse_anim_track(md20, base + 20, 2, &[], read_i16)?,
         });
     }
     Ok(tracks)
@@ -353,9 +447,9 @@ pub fn parse_texture_animations(md20: &[u8]) -> Result<Vec<TextureAnimTracks>, S
             ));
         }
         tracks.push(TextureAnimTracks {
-            translation: parse_anim_track(md20, base, 12, read_vec3)?,
-            rotation: parse_anim_track(md20, base + 20, 8, read_quat_i16)?,
-            scale: parse_anim_track(md20, base + 40, 12, read_vec3)?,
+            translation: parse_anim_track(md20, base, 12, &[], read_vec3)?,
+            rotation: parse_anim_track(md20, base + 20, 8, &[], read_quat_i16)?,
+            scale: parse_anim_track(md20, base + 40, 12, &[], read_vec3)?,
         });
     }
     Ok(tracks)

@@ -2,6 +2,7 @@ use super::*;
 use bevy::asset::{AssetApp, AssetPlugin};
 use bevy::ecs::system::RunSystemOnce;
 use bevy::state::app::StatesPlugin;
+use shared::components::{SheathState, StandState, UnitPose};
 use std::time::Duration;
 
 fn animated_app() -> App {
@@ -291,5 +292,174 @@ fn riverpaw_plays_run_walk_and_stand_from_its_replicated_motion() {
             app.update();
         }
         assert_eq!(playing_id(&app, owner), anim_id, "{motion:?}");
+    }
+}
+
+fn stockade_npc(template_id: u32, name: &str) -> Npc {
+    Npc {
+        template_id,
+        name: name.into(),
+    }
+}
+
+fn pose(stand_state: StandState, sheath_state: SheathState, emote_state: u32) -> UnitPose {
+    UnitPose {
+        stand_state,
+        sheath_state,
+        emote_state,
+    }
+}
+
+/// The Stockade (map 34) TDB addons on the Retail models: Stockade Guard 375782 holds
+/// Ready1H (26, emote 333) until it walks, Petty Criminal 46382 sleeps (100) and spawn
+/// 375707 sits (97).
+#[test]
+fn stockade_guard_and_criminals_hold_their_authored_poses() {
+    let mut app = animated_app();
+    app.add_systems(
+        Update,
+        (sync_npc_motion_animation, npc_gear::sync_npc_pose_animation),
+    );
+    let (guard, guard_root) = spawn_display(&mut app, 2989, 1.0);
+    let (criminal, criminal_root) = spawn_display(&mut app, 35069, 1.0);
+    app.update();
+    let owner = |app: &App, root: Entity| {
+        app.world()
+            .get::<Children>(root)
+            .unwrap()
+            .iter()
+            .find(|child| {
+                app.world()
+                    .get::<crate::animation::M2AnimData>(*child)
+                    .is_some()
+            })
+            .unwrap()
+    };
+    let (guard_model, criminal_model) = (owner(&app, guard_root), owner(&app, criminal_root));
+    app.world_mut().entity_mut(guard).insert((
+        stockade_npc(46405, "Stockade Guard"),
+        pose(StandState::Stand, SheathState::Melee, 333),
+        CreatureMotion::Still,
+    ));
+    app.world_mut().entity_mut(criminal).insert((
+        stockade_npc(46382, "Petty Criminal"),
+        pose(StandState::Sleep, SheathState::Melee, 0),
+        CreatureMotion::Still,
+    ));
+    for _ in 0..3 {
+        app.update();
+    }
+    assert_eq!(playing_id(&app, guard_model), 26);
+    assert_eq!(playing_id(&app, criminal_model), 100);
+
+    app.world_mut()
+        .entity_mut(guard)
+        .insert(CreatureMotion::Walk);
+    app.world_mut()
+        .entity_mut(criminal)
+        .insert(pose(StandState::Sit, SheathState::Melee, 0));
+    for _ in 0..3 {
+        app.update();
+    }
+    assert_eq!(
+        playing_id(&app, guard_model),
+        4,
+        "walking ends the ready stance"
+    );
+    assert_eq!(playing_id(&app, criminal_model), 97);
+
+    app.world_mut()
+        .entity_mut(guard)
+        .insert(CreatureMotion::Still);
+    app.world_mut()
+        .entity_mut(criminal)
+        .insert(pose(StandState::Stand, SheathState::Melee, 0));
+    for _ in 0..3 {
+        app.update();
+    }
+    assert_eq!(playing_id(&app, guard_model), 26);
+    assert_eq!(playing_id(&app, criminal_model), 0);
+}
+
+/// Stockade Guard 46405 equipment 1 as the server replicates it: sword 5305
+/// (ItemDisplayInfo 7526) and shield 1984 (1705). Drawn (SheathState 1) the sword sits
+/// in the right palm (attachment 1) and the shield on the left wrist (0); sheathed the
+/// sword hangs at the left hip (32) and the shield on the back (28).
+#[test]
+fn stockade_guard_draws_and_sheathes_sword_and_shield() {
+    use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
+    let mut app = animated_app();
+    app.insert_resource(game_engine::outfit_data::OutfitData::load(
+        std::path::Path::new("data"),
+    ));
+    app.add_plugins(crate::equipment::EquipmentPlugin);
+    app.add_systems(Update, npc_gear::sync_npc_equipment);
+    let (guard, root) = spawn_display(&mut app, 2989, 1.0);
+    app.update();
+    let model = app
+        .world()
+        .get::<Children>(root)
+        .unwrap()
+        .iter()
+        .find(|child| {
+            app.world()
+                .get::<crate::animation::M2AnimData>(*child)
+                .is_some()
+        })
+        .unwrap();
+    let item = |slot, item_id, display_info_id, inventory_type| EquippedAppearanceEntry {
+        slot,
+        item_id: Some(item_id),
+        display_info_id: Some(display_info_id),
+        inventory_type,
+        hidden: false,
+    };
+    let armor = npc_gear::resolve_display_armor(
+        2989,
+        1,
+        0,
+        app.world()
+            .resource::<game_engine::outfit_data::OutfitData>(),
+    );
+    app.world_mut().entity_mut(guard).insert((
+        npc_gear::NpcGear::new(1, 0, &armor),
+        shared::components::EquipmentAppearance {
+            entries: vec![
+                item(EquipmentVisualSlot::MainHand, 5305, 7526, 13),
+                item(EquipmentVisualSlot::OffHand, 1984, 1705, 14),
+            ],
+        },
+        pose(StandState::Stand, SheathState::Melee, 333),
+    ));
+    for (sheath, main_hand, off_hand) in
+        [(SheathState::Melee, 1, 0), (SheathState::Unarmed, 32, 28)]
+    {
+        app.world_mut()
+            .entity_mut(guard)
+            .insert(pose(StandState::Stand, sheath, 333));
+        for _ in 0..3 {
+            app.update();
+        }
+        let points = &app
+            .world()
+            .get::<crate::equipment::AttachmentPoints>(model)
+            .unwrap()
+            .points;
+        let joints = &app
+            .world()
+            .get::<crate::animation::M2AnimData>(model)
+            .unwrap()
+            .joint_entities;
+        let joint_of = |attachment: u32| joints[points[&attachment].0 as usize];
+        let mut expected = vec![joint_of(main_hand), joint_of(off_hand)];
+        let mut items: Vec<_> = app
+            .world_mut()
+            .query::<(&crate::equipment::EquipmentItem, &ChildOf)>()
+            .iter(app.world())
+            .map(|(_, parent)| parent.parent())
+            .collect();
+        items.sort();
+        expected.sort();
+        assert_eq!(items, expected, "{sheath:?}");
     }
 }
