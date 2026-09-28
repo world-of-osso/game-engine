@@ -24,7 +24,9 @@ pub fn load_customization_db(data_root: &Path) -> Result<CustomizationDb, String
     let connection = open_catalog(data_root, "customization.sqlite")?;
     let races = RaceModels::load(data_root)?;
     let raw = query_customization_raw_data(&connection, races)?;
-    Ok(CustomizationDb::from_raw(&raw))
+    let mut db = CustomizationDb::from_raw(&raw);
+    db.load_requirements(data_root)?;
+    Ok(db)
 }
 
 pub fn load_compositor(data_root: &Path) -> Result<CharTextureData, String> {

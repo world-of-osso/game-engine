@@ -5,12 +5,30 @@ use super::deps::char_create_component::{
 use super::deps::{CustomizationDb, CustomizationOption};
 use super::{CharCreateState, CharCreateUiState, build_class_availability};
 
+/// Options with at least one choice this race, body type and class may select.
+pub fn offered_options<'a>(
+    state: &CharCreateState,
+    db: &'a CustomizationDb,
+) -> Vec<&'a CustomizationOption> {
+    db.options_for(state.selected_race, state.selected_sex)
+        .unwrap_or(&[])
+        .iter()
+        .filter(|option| {
+            !db.choices_for_option(
+                state.selected_race,
+                state.selected_sex,
+                state.selected_class,
+                option.id,
+            )
+            .is_empty()
+        })
+        .collect()
+}
+
 pub fn build_ui_state(state: &CharCreateState, db: &CustomizationDb) -> CharCreateUiState {
-    let options = db
-        .options_for(state.selected_race, state.selected_sex)
-        .unwrap_or(&[]);
+    let options = offered_options(state, db);
     let mut categories = Vec::new();
-    for option in options {
+    for option in &options {
         if categories
             .iter()
             .any(|category: &CustomizationCategoryUi| category.id == option.category_id)
@@ -103,23 +121,10 @@ fn build_option(
         &state.appearance,
         option,
     );
-    let compatible_faces = (option.option_type == super::deps::OptionType::Face
-        && appearance_options::is_core_option(db, state.selected_race, state.selected_sex, option))
-    .then(|| {
-        super::appearance::compatible_face_indices(
-            db,
-            state.selected_race,
-            state.selected_sex,
-            state.selected_class,
-            state.appearance.skin_color,
-        )
-    });
     let supported = choices
         .iter()
         .any(|choice| appearance_options::choice_can_render(choice));
-    let disabled_reason = if choices.is_empty() {
-        Some("No choices available for this character".to_owned())
-    } else if !supported {
+    let disabled_reason = if !supported {
         Some("These appearance effects are not supported yet".to_owned())
     } else if option.ui_type > 1 {
         Some("This customization control type is not supported yet".to_owned())
@@ -143,10 +148,7 @@ fn build_option(
                 },
                 swatch: rgb(choice.swatch_colors[0]),
                 secondary_swatch: rgb(choice.swatch_colors[1]),
-                enabled: appearance_options::choice_can_render(choice)
-                    && compatible_faces.as_ref().is_none_or(|indices| {
-                        indices.iter().any(|&valid| usize::from(valid) == index)
-                    }),
+                enabled: appearance_options::choice_can_render(choice),
             })
             .collect(),
         enabled: disabled_reason.is_none(),

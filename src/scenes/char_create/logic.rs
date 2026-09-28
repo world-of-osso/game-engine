@@ -141,12 +141,10 @@ fn randomize_name(
         .collect()
 }
 
-/// Only categories with options for the current race and body type are selectable.
+/// Only categories with offered options for the current race, body type and class are selectable.
 fn select_category(state: &mut CharCreateState, id: u32, db: &CustomizationDb) {
-    let has_options = db
-        .options_for(state.selected_race, state.selected_sex)
+    let has_options = customization_view::offered_options(state, db)
         .into_iter()
-        .flatten()
         .any(|option| option.category_id == id);
     if has_options {
         state.selected_category = id;
@@ -295,12 +293,4 @@ fn mix_seed(seed: u64) -> u64 {
     z = (z ^ (z >> 30)).wrapping_mul(CHAR_CREATE_RANDOM_SEED_MUL_1);
     z = (z ^ (z >> 27)).wrapping_mul(CHAR_CREATE_RANDOM_SEED_MUL_2);
     z ^ (z >> 31)
-}
-
-fn pick_random_choice(seed: &mut u64, count: u8) -> u8 {
-    if count == 0 {
-        return 0;
-    }
-    *seed = mix_seed(*seed);
-    (*seed % count as u64) as u8
 }
