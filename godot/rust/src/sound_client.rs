@@ -4,6 +4,7 @@ use std::{fs::File, io::BufReader};
 
 use game_engine_core::area_zone_data::{load_area_parents, root_area};
 use game_engine_session::SessionScreen;
+use godot::classes::INode;
 use godot::prelude::*;
 
 use crate::{GameClient, sound::NativeSound};
@@ -14,7 +15,7 @@ impl GameClient {
         let file = File::open(&path)
             .map_err(|error| format!("Cannot open {}: {error}", path.display()))?;
         self.area_parents = load_area_parents(BufReader::new(file), &path)?;
-        let mut sound = Gd::<NativeSound>::default();
+        let mut sound = Gd::<NativeSound>::from_init_fn(NativeSound::init);
         sound.set_name("NativeSound");
         self.base_mut().add_child(&sound);
         if let Err(error) = sound.bind_mut().load_catalog(&self.data_root) {

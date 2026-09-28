@@ -50,7 +50,12 @@ func run_test() -> void:
 	if not (music.stream is AudioStreamMP3) or not (ambient.stream is AudioStreamOggVorbis):
 		fail("Local bytes did not decode as MP3 and Ogg")
 		return
-	music.stop()
+	var deadline := Time.get_ticks_msec() + 5000
+	while music.is_playing() and Time.get_ticks_msec() < deadline:
+		await process_frame
+	if music.is_playing():
+		fail("Short MP3 did not finish naturally within 5 seconds")
+		return
 	if not sound.sync_options(5, 0.8, 0.5, 0.25, true, false) or not expect_playing(music, "629320", 0.4):
 		return
 	if not sound.sync_options(5, 0.8, 0.5, 0.25, true, true) or not expect_playing(music, "629320", 0.0) or not expect_playing(ambient, "2851182", 0.0):
