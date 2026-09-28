@@ -41,7 +41,7 @@ func run_test() -> void:
 	player.set_paused(true)
 	# Cached HumanMale HD base variations: SitGround (78), Sleep (137).
 	for sequence in [Vector2i(78, 97), Vector2i(137, 100)]:
-		var animation_id := sequence.y
+		var animation_id: int = sequence.y
 		if not select_animation(player, sequence.x, animation_id):
 			return
 		player.set_paused(false)
