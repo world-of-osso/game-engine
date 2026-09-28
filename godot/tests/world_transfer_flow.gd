@@ -94,6 +94,13 @@ func run_test() -> void:
 			return
 		if not await wait_for_water_clock(refreshed_water):
 			return
+		if OS.get_environment("GODOT_TEST_VISUAL") == "1":
+			var water_pixels = load("res://tests/adt_water_pixels.gd").new()
+			var water_error: String = await water_pixels.check(self, client, "transfer-water-isolated.png")
+			if water_error != "":
+				fail(water_error)
+				return
+			print("PASS: TRANSFER_WATER_PIXELS")
 		for _frame in range(60):
 			await process_frame
 			if client.account_state().screen != "InWorld" or client.account_state().unit_count != 1:

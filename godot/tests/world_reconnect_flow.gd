@@ -71,6 +71,13 @@ func run_test() -> void:
 		return
 	if not await wait_for_water_clock(client):
 		return
+	if OS.get_environment("GODOT_TEST_VISUAL") == "1":
+		var water_pixels = load("res://tests/adt_water_pixels.gd").new()
+		var water_error: String = await water_pixels.check(self, client, "reconnect-water-isolated.png")
+		if water_error != "":
+			fail(water_error)
+			return
+		print("PASS: RECONNECT_WATER_PIXELS")
 	if client.get_node("LoadingUI").visible:
 		fail("Loading screen remained visible after reconnect")
 		return

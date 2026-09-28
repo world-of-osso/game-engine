@@ -10,7 +10,7 @@ const MIN_BACKING_RESPONSE := 0.05
 const MAX_BACKING_RESPONSE := 0.95
 const DIAGNOSTICS := "res://../data/diagnostics/godot-conversion/"
 
-func check(flow: SceneTree, client: Node) -> String:
+func check(flow: SceneTree, client: Node, output_filename: String = "swimming-water-isolated.png") -> String:
 	var tile := client.get_node_or_null(TILE_PATH)
 	if tile == null:
 		return "Missing native ADT tile for rendered water: " + TILE_PATH
@@ -69,7 +69,7 @@ func check(flow: SceneTree, client: Node) -> String:
 			error = "Water normals did not animate after advancing shared clock by two seconds"
 	clock.set_process(clock_processing)
 	if error == "":
-		if visible_red.save_png(DIAGNOSTICS + "swimming-water-isolated.png") != OK:
+		if visible_red.save_png(DIAGNOSTICS + output_filename) != OK:
 			error = "Could not save isolated ADT water screenshot"
 	viewport.queue_free()
 	return error
