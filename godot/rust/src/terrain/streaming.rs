@@ -212,7 +212,12 @@ impl StreamedTerrain {
         if self.initial_tiles.contains(&tile) || !self.requested_tiles.insert(tile) {
             return Ok(());
         }
-        if self.map_wdt.is_some() {
+        // A global-WMO map has no ADT tiles.
+        if self
+            .map_wdt
+            .as_ref()
+            .is_some_and(|wdt| wdt.global_wmo.is_none())
+        {
             self.queue_tile(tile)?;
         }
         Ok(())
@@ -616,6 +621,13 @@ mod tests {
         assert!(state.parsed_tiles.is_empty());
         assert!(state.failures.is_empty());
         assert!(stream.map_wdt.is_some());
+        // The player's tile, requested once the WDT is parsed, has no ADT on a WMO-only map.
+        stream
+            .request_map("stormwindjail".into(), (31, 31))
+            .unwrap();
+        let state = stream.state();
+        assert!(state.pending_tiles.is_empty());
+        assert!(state.failures.is_empty());
     }
 
     #[test]
