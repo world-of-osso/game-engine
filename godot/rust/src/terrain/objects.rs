@@ -2,7 +2,7 @@
 //! spawned in selection order within a per-frame time budget.
 
 use std::{
-    collections::{BTreeSet, HashMap, HashSet, VecDeque},
+    collections::{BTreeSet, HashMap, VecDeque},
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -143,12 +143,9 @@ impl CulledDoodad {
     /// Whether a group referencing this WMO doodad was drawn by the last portal cull;
     /// always for ADT doodads and WMOs without portal culling.
     fn group_drawn(&self, wmos: &[CulledWmo]) -> bool {
-        self.wmo_groups.as_ref().is_none_or(|(wmo, groups)| {
-            wmos[*wmo]
-                .visible
-                .as_ref()
-                .is_none_or(|visible| groups.iter().any(|group| visible.contains(group)))
-        })
+        self.wmo_groups
+            .as_ref()
+            .is_none_or(|(wmo, groups)| wmos[*wmo].draws_any(groups))
     }
 
     /// Retail distance fade: hidden at opacity 0, blended while fading. A WMO
@@ -214,8 +211,8 @@ pub(crate) struct CulledWmo {
     fog: WmoFogVolume,
     world_from_local: Affine3A,
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
-    /// Groups drawn after the last cull; `None` before the first.
-    visible: Option<HashSet<u16>>,
+    /// Per group index, whether the last cull drew it; `None` before the first.
+    drawn: Option<Vec<bool>>,
 }
 
 impl CulledWmo {
@@ -230,8 +227,17 @@ impl CulledWmo {
             fog: wmo_fog_volume(asset),
             world_from_local,
             groups: group_batches(node),
-            visible: None,
+            drawn: None,
         }
+    }
+
+    /// Whether the last cull drew one of `groups`; always before the first cull.
+    fn draws_any(&self, groups: &[u16]) -> bool {
+        self.drawn.as_ref().is_none_or(|drawn| {
+            groups
+                .iter()
+                .any(|&group| drawn.get(group as usize).copied().unwrap_or(false))
+        })
     }
 }
 
@@ -596,18 +602,23 @@ impl TerrainObjects {
     pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         for wmo in &mut self.wmos {
-            let visible = wmo
+            let drawn = wmo
                 .portals
                 .visible_groups(wmo.world_from_local, frustum, camera);
-            for (group, batches) in &mut wmo.groups {
-                let shown = visible.contains(group);
-                for batch in batches {
-                    if batch.is_visible() != shown {
+            // Only groups whose state changed touch their batch nodes.
+            let previous = wmo.drawn.take();
+            for (&group, batches) in &mut wmo.groups {
+                let shown = drawn.get(group as usize).copied().unwrap_or(false);
+                let was = previous
+                    .as_ref()
+                    .map(|previous| previous.get(group as usize).copied().unwrap_or(false));
+                if was != Some(shown) {
+                    for batch in batches {
                         batch.set_visible(shown);
                     }
                 }
             }
-            wmo.visible = Some(visible);
+            wmo.drawn = Some(drawn);
         }
     }
 
