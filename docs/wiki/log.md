@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-28] system | Lateral swimming reaches real A/D input
+
+Test-only `61a8bf98`, fixture-only `6de10e60`, and fixture-only `00a9871e` leave native production unchanged. Main's native fixture build exits 0 (`/tmp/claude/swimming-lateral-build-61a8bf98.log`). The actual root-launched Vulkan GPU loopback exits 0 (`/tmp/claude/swimming-lateral-runtime-00a9871e.log`): it retains W dry→wet, wet-Space suppression, reverse-S shore return, and 4,608 changed / 4,607 translucent water pixels; at facing π, A selects SwimLeft 43 and D SwimRight 44, each changes bones after ≥150 ms, moves on signed X, returns on the opposite key, and remains idle/release quiet. Decoded wet lateral packets are yaw-relative and ordered with `swimming=true`, `jumping=false`. The authored corridor is X=-8562..-8554/Z=480..500 at depth ≥3.761963 (`/tmp/claude/swim-lateral-native-parser-full.log`). The two initial failures were held-W capture, a Z=490 corridor assumption, and a yaw-0 sign assumption—not production defects. Independent verification is pending.
+
+This is not buoyancy, speed, real-server, whole-world visual, parity, or full-conversion proof.
+
+Updated [[godot-conversion]], [[terrain]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] system | Native ADT MH2O water restored
 
 `b412f7e4` restores original ADT MH2O rendering: shared Bevy/core water geometry and procedural-normal bytes, native normal/fresnel/specular/depth-alpha shader execution, shared-clock sampling, and tile/reset cleanup. `/tmp/claude/adt-water-runtime-clock-typed.log` exits 0: authored geometry covers the fixture point; 4,608 pixels change and are translucent; paused clock pixels remain stable; a 2-second advance changes at least 64 pixels; swim/UDP/release, freed water-node, and client-exit checks complete. Main read `swimming.png`, `swimming-shoreline.png`, and `swimming-water-isolated.png`: blue translucent water and authored shore are visible.
