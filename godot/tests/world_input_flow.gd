@@ -18,7 +18,10 @@ const JUMP_HOLD_FRAMES := 6
 const BACKGROUND_WAIT_MS := 30000
 const AUTHORED_CHARACTER_POSITION := Vector3(-2981.82, 452.826, -457.35)
 
+var focus_losses := 0
+
 func _initialize() -> void:
+	root.focus_exited.connect(func(): focus_losses += 1)
 	Engine.max_fps = 60
 	call_deferred("run_test")
 
@@ -789,7 +792,7 @@ func check_locomotion_direction(client: Node, locomotion: RefCounted, keycode: K
 			selected_at = Time.get_ticks_msec()
 		if selected_at >= 0 and current_id != animation_id:
 			push_key(keycode, false)
-			fail(phase + " left authored animation " + str(animation_id) + " for " + str(current_id))
+			fail(phase + " left authored animation " + str(animation_id) + " for " + str(current_id) + " frame=" + str(frame) + " focus_losses=" + str(focus_losses) + " window_focused=" + str(root.has_focus()) + " focus_owner=" + str(root.gui_get_focus_owner()) + " key_pressed=" + str(Input.is_physical_key_pressed(keycode)))
 			return false
 		if selected_at >= 0 and Time.get_ticks_msec() - selected_at >= 150:
 			changed_pose = changed_pose or locomotion.changed_from(stand_pose)
