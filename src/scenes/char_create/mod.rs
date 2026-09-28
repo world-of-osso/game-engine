@@ -38,7 +38,6 @@ mod camera_orbit;
 mod icon_masks;
 mod input;
 mod logic;
-mod navigation_art_bevy;
 pub(crate) use logic::*;
 pub mod scene;
 
@@ -103,12 +102,6 @@ impl Plugin for CharCreatePlugin {
         app.add_systems(OnEnter(GameState::CharCreate), build_char_create_ui);
         app.add_systems(OnExit(GameState::CharCreate), teardown_char_create_ui);
         app.add_observer(handle_create_response);
-        app.add_systems(
-            PostUpdate,
-            navigation_art_bevy::sync_navigation_art
-                .before(ui_toolkit::plugin::UiRenderSet::Prepare)
-                .run_if(in_state(GameState::CharCreate)),
-        );
         app.add_systems(
             Update,
             (

@@ -10,7 +10,7 @@ pub mod ui {
     }
 
     pub mod screens {
-        pub use crate::trash_button_component;
+        pub use crate::{default_button_atlas, trash_button_component};
     }
 
     pub use crate::ui_errors_data;
@@ -29,6 +29,8 @@ pub mod char_select_component;
 mod char_select_delete_confirm_component;
 #[path = "../../../src/ui/screens/char_select_top_nav_component.rs"]
 pub mod char_select_top_nav_component;
+#[path = "../../../src/ui/screens/default_button_atlas.rs"]
+pub mod default_button_atlas;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
 pub mod trash_button_component;
 
@@ -159,7 +161,7 @@ impl CharacterCreateModel {
     }
 }
 
-/// Apply authored styles, root dimensions and navigation art after a screen sync or resize.
+/// Apply authored styles and root dimensions after a screen sync or resize.
 pub fn apply_character_create_postsetup(shared: &SharedContext, registry: &mut FrameRegistry) {
     let open = shared
         .get::<CharCreateUiState>()
@@ -172,7 +174,6 @@ pub fn apply_character_create_postsetup(shared: &SharedContext, registry: &mut F
         root.width = ui_toolkit::frame::Dimension::Fixed(width);
         root.height = ui_toolkit::frame::Dimension::Fixed(height);
     }
-    char_create_component::navigation_art::sync_navigation_art_registry(registry);
 }
 
 /// Authored character selection tree. The host owns roster, action routing and deletion effects.

@@ -17,6 +17,7 @@ pub mod character_frame_component;
 pub mod chat_frame_component;
 pub mod communities_frame_component;
 pub mod compact_unit_frame_component;
+pub mod default_button_atlas;
 pub mod dress_up_frame_component;
 pub mod edit_mode_component;
 pub mod encounter_journal_component;
