@@ -82,6 +82,45 @@ func wmo_quad(second_alpha: float, with_custom: bool) -> ArrayMesh:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
 	return mesh
 
+# One mesh: near layer (y=0.5) indexed before far layer (y=0), like WMO group
+# triangles in arbitrary authored order. Only depth writes keep the near layer.
+func layered_quad(near_color: Color, far_color: Color) -> ArrayMesh:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var uvs := PackedVector2Array()
+	for layer in [[0.5, near_color], [0.0, far_color]]:
+		for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+			vertices.append(Vector3(corner.x, layer[0], corner.y))
+			normals.append(Vector3.UP)
+			colors.append(layer[1])
+			uvs.append(Vector2(0.25, 0.5))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+func blended_shader() -> Shader:
+	var shader := Shader.new()
+	shader.code = load(SHADER_PATH).code.replace("shader_type spatial;", "shader_type spatial;\n#define WMO_BLENDED")
+	return shader
+
+func assert_opaque_depth() -> bool:
+	var interior_dot := 0.9 / Vector3(-0.30822, -0.9, 0.30822).length()
+	var interior_scale := lerpf(0.7, 1.1, 0.5 + 0.5 * interior_dot)
+	var near := Color(0.4 * 0.4, 0.3 * 0.3, 0.2 * 0.25) * interior_scale
+	var previous := surface.mesh
+	surface.mesh = layered_quad(Color(0.1, 0.05, 0.025, 0.0), Color(0.0, 0.0, 0.0, 0.0))
+	if not await assert_pixel("opaque WMO near layer occludes later far layer", near):
+		return false
+	surface.mesh = previous
+	return true
+
 func set_vertex_color(color: Color) -> void:
 	var arrays := surface.mesh.surface_get_arrays(0)
 	var colors := PackedColorArray()
@@ -205,10 +244,13 @@ func assert_alpha_and_fog() -> bool:
 	material.set_shader_parameter("base_texture", solid_texture(Color(1.0, 0.0, 0.0, 128.0 / 255.0)))
 	if not await assert_pixel("AlphaKey 128 retained as opaque", Color.RED):
 		return false
+	var opaque_shader := material.shader
+	material.shader = blended_shader()
 	for mode in [2, 3]:
 		material.set_shader_parameter("blend_mode", mode)
 		if not await assert_pixel("GxBlend %d retains source alpha" % mode, Color(128.0 / 255.0, 0.0, 0.0).linear_to_srgb()):
 			return false
+	material.shader = opaque_shader
 	material.set_shader_parameter("blend_mode", 0)
 	material.set_shader_parameter("base_texture", solid_texture(TEXEL))
 	material.set_shader_parameter("unlit", false)
@@ -276,6 +318,9 @@ func run_cases() -> void:
 	material = ShaderMaterial.new()
 	material.shader = load(SHADER_PATH)
 	fixture_scene()
+	base_inputs()
+	if not await assert_opaque_depth():
+		return
 	base_inputs()
 	if not await assert_lighting():
 		return
