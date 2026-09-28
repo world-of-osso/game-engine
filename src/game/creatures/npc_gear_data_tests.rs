@@ -117,6 +117,16 @@ fn stockade_guard_display_authors_its_armor() {
             (Tabard, Some(6255)),
         ]
     );
+    // Display 36656's Extra 150806 has an ItemSlot 11 row (ItemDisplayInfo 185704), which
+    // dresses nothing.
+    let with_slot_11 = slots.appearance(36656).unwrap();
+    assert!(
+        with_slot_11
+            .entries
+            .iter()
+            .all(|entry| entry.display_info_id != Some(185704)),
+        "{with_slot_11:?}"
+    );
     // A display without an Extra authors no armor.
     assert!(slots.appearance(u32::MAX).unwrap().entries.is_empty());
 }
