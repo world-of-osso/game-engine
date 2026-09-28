@@ -58,7 +58,7 @@ func check(flow, client: Node, player: Node3D) -> String:
 		flow.push_key(KEY_W, false)
 		return "Swimming screenshot requires rendered Godot display"
 	await RenderingServer.frame_post_draw
-	var screenshot := flow.root.get_texture().get_image()
+	var screenshot: Image = flow.root.get_texture().get_image()
 	if screenshot == null or screenshot.is_empty() or screenshot.save_png("res://../data/diagnostics/godot-conversion/swimming.png") != OK:
 		flow.push_key(KEY_W, false)
 		return "Could not capture deep-water swimming frame"
