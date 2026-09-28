@@ -32,6 +32,14 @@ func run_test() -> void:
 	if loaded.has("error"):
 		fail("Load HumanMale HD external-animation fixture: " + str(loaded.error))
 		return
+	var camera := root.get_camera_3d()
+	if camera == null:
+		fail("External-animation preview camera missing")
+		return
+	var target: Vector3 = loaded.bounds.get_center()
+	target.y *= 0.5
+	camera.position = target + (camera.position - target) * 1.5
+	camera.look_at(target)
 	var scene := client.get_node("ModelScene")
 	var player := scene.find_child("M2Animation", true, false)
 	var skeleton := scene.find_child("Skeleton3D", true, false) as Skeleton3D
