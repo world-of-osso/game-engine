@@ -22,7 +22,7 @@ See also: [awesome-wow-rust](https://github.com/arlyon/awesome-wow-rust) — cur
 
 | Project | Lang | Status | Notes |
 |---------|------|--------|-------|
-| [WebWowViewerCpp](https://github.com/Deamon87/WebWowViewerCpp) | C++ / Vulkan | Active | Powers wow.tools live map viewer |
+| [WebWowViewerCpp](https://github.com/Deamon87/WebWowViewerCpp) (`~/Repos/WebWowViewerCpp`) | C++ / Vulkan | Active | Powers wow.tools live map viewer. **Primary retail WMO shading reference:** MOMT shader 0–23 → vertex/pixel shader table `wowViewerLib/src/engine/objects/iWmoApi.h` (`wmoMaterialShader`), pixel shaders in `wowViewerLib/shaders/slang/common/commonWMOMaterial.slang` |
 | [wowmapview](https://sourceforge.net/projects/wowmapview/) | C++ | Legacy | ADT/WMO/M2 rendering reference |
 | [jsWoWModelViewer](https://github.com/vjeux/jsWoWModelViewer) | JS / WebGL | Abandoned | Browser M2 viewer |
 | [forge](https://github.com/bigglesss/forge) | Rust / Bevy | — | Pure-Rust WoW renderer (WDT/ADT/BLP via wow_chunky) |
