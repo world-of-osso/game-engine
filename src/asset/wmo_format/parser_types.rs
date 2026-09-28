@@ -100,6 +100,10 @@ pub struct WmoMaterialDef {
     pub blend_mode: u32,
     pub shader: u32,
     pub uv_translation_speed: Option<[[f32; 2]; 2]>,
+    /// SMOMaterial `color_2`, `flags_2` and `runTimeData[0..4]`, which retail
+    /// MapObjParallax/MapObjDFShader bind as textures 4..9 (WebWowViewerCpp
+    /// `wmoObject.cpp` `getMaterialInstance`).
+    pub extra_texture_fdids: [u32; 6],
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -148,6 +152,22 @@ impl WmoMaterialDef {
 
     pub fn uses_third_uv_set(&self) -> bool {
         self.flags & Self::THIRD_UV_FLAG != 0 && self.shader == 18
+    }
+
+    /// The nine texture FDIDs WebWowViewerCpp binds for `pixel_shader`
+    /// (`wmoObject.cpp` `getMaterialInstance`): diffuse, env and texture_2 always;
+    /// `color_2`, `flags_2`, `runTimeData[0]` for MapObjParallax (19); those plus
+    /// `runTimeData[1..4]` for MapObjDFShader (20). Zero means no texture.
+    pub fn retail_texture_fdids(&self, pixel_shader: i32) -> [u32; 9] {
+        let extra = match pixel_shader {
+            19 => 3,
+            20 => 6,
+            _ => 0,
+        };
+        let mut fdids = [0; 9];
+        fdids[..3].copy_from_slice(&[self.texture_fdid, self.texture_2_fdid, self.texture_3_fdid]);
+        fdids[3..3 + extra].copy_from_slice(&self.extra_texture_fdids[..extra]);
+        fdids
     }
 }
 
@@ -329,8 +349,11 @@ pub struct RawGroupData {
     pub uvs: Vec<[f32; 2]>,
     pub second_uvs: Vec<[f32; 2]>,
     pub third_uvs: Vec<[f32; 2]>,
+    pub fourth_uvs: Vec<[f32; 2]>,
     pub colors: Vec<[f32; 4]>,
     pub second_color_blend_alphas: Vec<f32>,
+    /// MOC2 (retail "colorSecond"): MapObjDFShader layer weights and AO blend.
+    pub moc2_colors: Vec<[f32; 4]>,
     pub indices: Vec<u16>,
     pub batches: Vec<RawBatch>,
 }
@@ -430,9 +453,9 @@ pub struct RawWmoMaterialDef {
     pub _diff_color: u32,
     pub _terrain_type: u32,
     pub texture_3_fdid: u32,
-    pub _color_2: u32,
-    pub _flags_2: u32,
-    pub _run_time_data: [u32; 4],
+    pub color_2: u32,
+    pub flags_2: u32,
+    pub run_time_data: [u32; 4],
 }
 
 #[derive(BinRead)]

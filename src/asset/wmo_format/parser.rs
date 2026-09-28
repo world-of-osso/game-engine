@@ -85,6 +85,14 @@ pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
                 blend_mode: mat.blend_mode,
                 shader: mat.shader,
                 uv_translation_speed: None,
+                extra_texture_fdids: [
+                    mat.color_2,
+                    mat.flags_2,
+                    mat.run_time_data[0],
+                    mat.run_time_data[1],
+                    mat.run_time_data[2],
+                    mat.run_time_data[3],
+                ],
             })
             .collect(),
     )
