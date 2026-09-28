@@ -62,6 +62,30 @@ fn inside([x, y, w, h]: [f32; 4], point: Vector2) -> bool {
     point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h
 }
 
+fn map_pointer(layout: &WorldMapLayout, physical: Vector2, scale: f32) -> (bool, Option<[f32; 2]>) {
+    let logical = physical / scale;
+    (
+        inside(layout.frame_rect(), logical),
+        canvas_uv(layout, logical),
+    )
+}
+
+#[cfg(test)]
+mod pointer_tests {
+    use super::*;
+
+    #[test]
+    fn scaled_physical_map_pointer_hits_logical_canvas_and_frame() {
+        let layout = WorldMapLayout::for_viewport([2560.0, 1440.0]);
+        let [x, y, w, h] = layout.canvas_rect();
+        let center = Vector2::new(x + w * 0.5, y + h * 0.5);
+        let (inside_frame, uv) = map_pointer(&layout, center * 0.5, 0.5);
+        assert!(inside_frame);
+        assert_eq!(uv, Some([0.5, 0.5]));
+        assert_eq!(map_pointer(&layout, Vector2::ZERO, 0.5), (false, None));
+    }
+}
+
 impl GameClient {
     fn world_map_viewport(&self) -> [f32; 2] {
         let size = self
@@ -69,7 +93,8 @@ impl GameClient {
             .get_viewport()
             .map(|viewport| viewport.get_visible_rect().size)
             .unwrap_or_default();
-        [size.x, size.y]
+        let scale = self.effective_ui_scale();
+        [size.x / scale, size.y / scale]
     }
 
     fn world_map_player(&self) -> Option<WorldMapPlayer> {
@@ -177,6 +202,7 @@ impl GameClient {
         ui.set_name("WorldMapUI");
         ui.set_layer(5);
         self.base_mut().add_child(&ui);
+        ui.bind_mut().set_ui_scale(self.effective_ui_scale())?;
         let shown = ui.bind_mut().show_world_map(state);
         if let Err(error) = shown {
             ui.free();
@@ -257,7 +283,9 @@ impl GameClient {
             return Ok(());
         }
         let state = self.drawable_world_map()?;
+        let scale = self.effective_ui_scale();
         let ui = self.world_map.ui.as_mut().ok_or("World map UI vanished")?;
+        ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(state)
     }
 
@@ -268,20 +296,21 @@ impl GameClient {
             return false;
         }
         let layout = WorldMapLayout::for_viewport(self.world_map_viewport());
+        let scale = self.effective_ui_scale();
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
-            let point = motion.get_position();
-            self.world_map.hovered = canvas_uv(&layout, point);
-            return inside(layout.frame_rect(), point);
+            let (inside_frame, uv) = map_pointer(&layout, motion.get_position(), scale);
+            self.world_map.hovered = uv;
+            return inside_frame;
         }
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
         };
-        let point = button.get_position();
+        let (inside_frame, uv) = map_pointer(&layout, button.get_position(), scale);
         // Releases always reach gameplay input so a drag begun outside cannot stick.
-        if !button.is_pressed() || !inside(layout.frame_rect(), point) {
+        if !button.is_pressed() || !inside_frame {
             return false;
         }
-        if let Some(uv) = canvas_uv(&layout, point) {
+        if let Some(uv) = uv {
             self.navigate_world_map(button.get_button_index(), uv);
         }
         true
