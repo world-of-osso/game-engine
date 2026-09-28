@@ -244,7 +244,13 @@ fn hidden_helmet_groups_use_scalp_fallback_for_group_zero() {
         },
     };
 
-    apply_hidden_geoset_groups(&mut active_geosets, &hidden_groups, &selection, &db);
+    apply_hidden_geoset_groups(
+        &mut active_geosets,
+        &hidden_groups,
+        selection.race,
+        selection.sex,
+        &db,
+    );
 
     assert!(active_geosets.contains(&(0, 0)));
     assert!(active_geosets.contains(&(7, 1)));

@@ -219,6 +219,10 @@ impl OutfitData {
         self.display_geoset_variant(display_info_id, 0)
     }
 
+    pub fn tabard_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
+        self.display_geoset_variant(display_info_id, 0)
+    }
+
     pub fn chest_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
         let data = self.loaded()?;
         let display = self.display_info(data, display_info_id)?;

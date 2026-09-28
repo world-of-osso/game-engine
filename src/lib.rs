@@ -139,6 +139,8 @@ pub mod network_runtime;
 pub mod network_tick;
 #[path = "rendering/character/npc_appearance_selection_data.rs"]
 pub mod npc_appearance_selection_data;
+#[path = "game/creatures/npc_gear_data.rs"]
+pub mod npc_gear_data;
 #[path = "game/creatures/npc_visibility_data.rs"]
 pub mod npc_visibility_data;
 #[path = "game/equipment/outfit_catalog.rs"]
