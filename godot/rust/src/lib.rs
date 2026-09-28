@@ -164,7 +164,10 @@ impl INode3D for GameClient {
         let Ok(key) = event.try_cast::<godot::classes::InputEventKey>() else {
             return;
         };
-        if !key.is_pressed() || key.is_echo() {
+        if !key.is_pressed() {
+            return;
+        }
+        if key.is_echo() && key.get_keycode() == godot::global::Key::ESCAPE {
             return;
         }
         match self.handle_game_menu_key(key.get_keycode()) {
