@@ -1,4 +1,5 @@
 use super::*;
+use crate::asset::m2_variation::VariationFamily;
 use crate::skybox_m2_material::SkyboxTimeOverrideMs;
 pub(crate) use game_engine::movement_animation_data::direction_to_anim_id;
 
@@ -377,13 +378,13 @@ pub(crate) fn advance_player_time(
         update_player_transition(player, data, delta_ms);
         return Ok(());
     }
-    let family = super::variants::VariationFamily::read(&data.sequences, player.current_seq_idx)?;
+    let family = VariationFamily::read(&data.sequences, player.current_seq_idx)?;
     if family.is_single() {
         player.time_ms = (elapsed % duration) as f32;
         update_player_transition(player, data, delta_ms);
         return Ok(());
     }
-    family.validate_elapsed(&data.sequences, elapsed)?;
+    family.validate_elapsed(elapsed)?;
     advance_loop_variations(player, data, delta_ms, &family, &mut sample)
 }
 
@@ -402,7 +403,7 @@ fn advance_loop_variations(
     player: &mut M2AnimPlayer,
     data: &M2AnimData,
     delta_ms: f32,
-    family: &super::variants::VariationFamily,
+    family: &VariationFamily,
     sample: &mut impl FnMut(u32) -> u32,
 ) -> Result<(), String> {
     let mut remaining = f64::from(delta_ms);

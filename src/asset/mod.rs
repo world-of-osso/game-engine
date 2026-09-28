@@ -16,4 +16,4 @@ pub mod wmo;
 pub mod wmo_format;
 
 pub use adt_format::{adt_obj, adt_tex};
-pub use m2_format::{m2_anim, m2_attach, m2_bone_names, m2_light, m2_particle};
+pub use m2_format::{m2_anim, m2_attach, m2_bone_names, m2_light, m2_particle, m2_variation};

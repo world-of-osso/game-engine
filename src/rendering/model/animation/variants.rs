@@ -1,4 +1,5 @@
-//! Authored weighted variation lists. Links enumerate candidates, never playback order.
+//! Per-entity random stream for choosing authored weighted variations
+//! (`asset::m2_variation::VariationFamily`).
 
 use super::*;
 
@@ -26,133 +27,10 @@ impl VariantRandom {
     }
 }
 
-pub(super) struct VariationFamily {
-    candidates: Vec<(usize, u32)>,
-    total: u32,
-}
-
-impl VariationFamily {
-    pub(super) fn read(sequences: &[M2AnimSequence], current: usize) -> Result<Self, String> {
-        let sequence = sequences
-            .get(current)
-            .ok_or("missing active animation sequence")?;
-        let base = sequences
-            .iter()
-            .position(|s| s.id == sequence.id && s.variation_id == 0)
-            .ok_or_else(|| format!("animation {} has no base variation", sequence.id))?;
-        Self::collect_linked(sequences, base, sequence.id)
-    }
-
-    fn collect_linked(
-        sequences: &[M2AnimSequence],
-        base: usize,
-        animation: u16,
-    ) -> Result<Self, String> {
-        let mut family = Self {
-            candidates: Vec::new(),
-            total: 0,
-        };
-        let mut visited = std::collections::HashSet::new();
-        let mut next = Some(base);
-        while let Some(index) = next {
-            if !visited.insert(index) {
-                return Err(format!("animation {animation} has a cyclic variation list"));
-            }
-            let candidate = sequences
-                .get(index)
-                .ok_or_else(|| format!("invalid variation index {index}"))?;
-            family.append(index, candidate, animation)?;
-            next = match candidate.variation_next {
-                -1 => None,
-                index if index >= 0 => Some(index as usize),
-                index => return Err(format!("invalid variation link {index}")),
-            };
-        }
-        if family.candidates.len() > 1 && family.total == 0 {
-            return Err(format!(
-                "animation {animation} has no positive variation weights"
-            ));
-        }
-        Ok(family)
-    }
-
-    fn append(
-        &mut self,
-        index: usize,
-        sequence: &M2AnimSequence,
-        animation: u16,
-    ) -> Result<(), String> {
-        if sequence.id != animation {
-            return Err(format!(
-                "animation {animation} links to different animation {}",
-                sequence.id
-            ));
-        }
-        let weight = u32::try_from(sequence.frequency)
-            .map_err(|_| format!("negative variation weight at sequence {index}"))?;
-        if sequence.duration == 0 && weight > 0 {
-            return Err(format!("weighted variation {index} has zero duration"));
-        }
-        self.total = self
-            .total
-            .checked_add(weight)
-            .ok_or("variation weight total overflow")?;
-        self.candidates.push((index, weight));
-        Ok(())
-    }
-
-    pub(super) fn validate_elapsed(
-        &self,
-        sequences: &[M2AnimSequence],
-        elapsed_ms: f64,
-    ) -> Result<(), String> {
-        // Exact random selection is sequential. Reject pathological catch-up rather than
-        // silently skipping draws or monopolizing a frame with millions of transitions.
-        const MAX_BOUNDARIES: f64 = 4096.0;
-        let shortest = self
-            .candidates
-            .iter()
-            .filter(|(_, weight)| *weight > 0)
-            .map(|(index, _)| sequences[*index].duration)
-            .min()
-            .ok_or("variation family has no playable duration")?;
-        if elapsed_ms / f64::from(shortest) >= MAX_BOUNDARIES {
-            return Err("elapsed animation requires more than 4096 variation boundaries".into());
-        }
-        Ok(())
-    }
-
-    pub(super) fn is_single(&self) -> bool {
-        self.candidates.len() == 1
-    }
-
-    pub(super) fn choose(&self, sample: &mut impl FnMut(u32) -> u32) -> Result<usize, String> {
-        if self.candidates.len() == 1 {
-            return Ok(self.candidates[0].0);
-        }
-        self.choose_roll(sample(self.total))
-    }
-
-    fn choose_roll(&self, mut roll: u32) -> Result<usize, String> {
-        if roll >= self.total {
-            return Err(format!(
-                "variation roll {roll} exceeds weight total {}",
-                self.total
-            ));
-        }
-        for &(index, weight) in &self.candidates {
-            if roll < weight {
-                return Ok(index);
-            }
-            roll -= weight;
-        }
-        Err("variation weights did not cover the supplied roll".into())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::asset::m2_variation::VariationFamily;
 
     pub(super) fn wolf_sequences() -> Vec<M2AnimSequence> {
         crate::asset::m2::load_m2(std::path::Path::new("data/models/126487.m2"), &[0; 3])
@@ -238,6 +116,30 @@ mod tests {
         assert!(once.transition.is_none());
     }
 
+    /// FDID 588287 pa_redbird_stand.m2: Stand variation 1 is weighted 30583 of
+    /// 32767 but lasts 0 ms, so it plays for no time and Stand variation 0 loops.
+    #[test]
+    fn redbird_zero_duration_stand_variation_keeps_the_bird_animating() {
+        let data = M2AnimData {
+            sequences: crate::asset::m2::load_m2(
+                std::path::Path::new("data/models/588287.m2"),
+                &[0; 3],
+            )
+            .unwrap()
+            .sequences,
+            ..wolf_data()
+        };
+        let mut stand = player(0, true);
+        for roll in [30000, 0, 32766] {
+            super::super::runtime::advance_player_time(&mut stand, &data, 3333.0, |_| roll)
+                .expect("Stand loops past its zero-duration variation");
+            assert_eq!(stand.current_seq_idx, 0);
+            assert_eq!(stand.time_ms, 0.0);
+        }
+        super::super::runtime::advance_player_time(&mut stand, &data, 1000.0, |_| 0).unwrap();
+        assert_eq!(stand.time_ms, 1000.0);
+    }
+
     #[test]
     fn weighted_sequence_parser_retains_replay_and_signed_weight() {
         let mut bytes = [0u8; 64];
@@ -279,7 +181,11 @@ mod tests {
                 0 => sequences[11].variation_next = 2,
                 1 => sequences[9].frequency = -1,
                 2 => sequences[9].id = 98,
-                3 => sequences[9].duration = 0,
+                3 => {
+                    for index in [2, 9, 10, 11] {
+                        sequences[index].duration = 0;
+                    }
+                }
                 _ => {
                     for index in [2, 9, 10, 11] {
                         sequences[index].frequency = 0;

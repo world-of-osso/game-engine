@@ -19,6 +19,8 @@ pub mod m2_light;
 pub mod m2_particle;
 #[path = "m2_ribbon.rs"]
 pub mod m2_ribbon;
+#[path = "m2_variation.rs"]
+pub mod m2_variation;
 #[path = "parser.rs"]
 pub mod parser;
 pub(crate) use crate::asset::read_bytes::{
