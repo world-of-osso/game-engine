@@ -621,10 +621,6 @@ impl WorldUnits {
         }
     }
 
-    pub fn local_player_id(&self) -> Option<u64> {
-        self.local_player_id
-    }
-
     pub fn local_player_controlled(&self) -> bool {
         self.local_player_id
             .and_then(|id| self.units.get(&id))
