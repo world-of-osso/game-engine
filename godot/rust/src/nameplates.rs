@@ -42,6 +42,9 @@ const FACTION_TEMPLATE_CSV: &str = "db2/12.1.0.69933/FactionTemplate.csv";
 const NAME_ABOVE_BAR_SPACING: f32 = 2.0;
 /// Bevy `NAMEPLATE_SCALE`: the skins are unscaled reference-screenshot pixels.
 const NAMEPLATE_SCALE: f32 = 0.5;
+/// Bevy `BAR_Y_OFFSET` (health_bar.rs): the health body centre above the unit origin, in
+/// the unit's space.
+const BAR_Y_OFFSET: f32 = 2.5;
 /// Physics layers that hide a unit from the camera.
 const OCCLUDER_MASK: u32 = TERRAIN_LAYER | WMO_LAYER;
 
@@ -74,8 +77,8 @@ fn thick_preset(style: &NameplateStyle) -> bool {
         <= (style.health_height - THIN_HEALTH_HEIGHT).abs()
 }
 
-/// Plate part rectangles relative to the anchor point (the plate's bottom centre on the
-/// unit's head), y down, in UI pixels.
+/// Plate part rectangles relative to the anchor point (the health body's centre), y down,
+/// in UI pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct PlateLayout {
     frame: Rect2,
@@ -88,13 +91,8 @@ fn plate_layout(style: &NameplateStyle, fraction: f32) -> PlateLayout {
     let skin = health_skin(thick_preset(style));
     let body = Vector2::new(style.health_width, style.health_height);
     let frame_size = body + skin.frame_margin;
-    let bottom = if style.show_border {
-        frame_size.y / 2.0 + skin.frame_offset.y
-    } else {
-        body.y / 2.0
-    };
-    // Body centre, above the anchor by the plate's lower half.
-    let center = Vector2::new(0.0, -bottom);
+    // Bevy parity: the anchor is the health body's centre.
+    let center = Vector2::ZERO;
     let frame = Rect2::new(center + skin.frame_offset - frame_size / 2.0, frame_size);
     let fill_size = Vector2::new(body.x * fraction, body.y - skin.fill_inset);
     let fill = Rect2::new(
@@ -391,18 +389,13 @@ fn occluded(camera: &Gd<Camera3D>, point: Vector3) -> bool {
     !space.intersect_ray(&query).is_empty()
 }
 
-/// The unit's plate anchor (top centre of its pick box) and occlusion probe (its centre).
+/// The unit's plate anchor (Bevy `BAR_Y_OFFSET` above its origin) and occlusion probe
+/// (the centre of its pick box), once its model has loaded.
 fn unit_points(node: &Gd<Node3D>) -> Option<(Vector3, Vector3)> {
-    let shape = unit_pick_shape(node)?;
-    let size = shape
-        .get_shape()?
-        .try_cast::<godot::classes::BoxShape3D>()
-        .ok()?
-        .get_size();
-    let transform = shape.get_global_transform();
+    let probe = unit_pick_shape(node)?.get_global_position();
     Some((
-        transform * Vector3::new(0.0, size.y / 2.0, 0.0),
-        transform.origin,
+        node.get_global_transform() * Vector3::new(0.0, BAR_Y_OFFSET, 0.0),
+        probe,
     ))
 }
 
@@ -412,6 +405,25 @@ struct Viewer<'a> {
     target: Option<u64>,
     position: Vector3,
     template: Option<&'a FactionTemplateEntry>,
+}
+
+fn build_viewer<'a>(
+    world: &crate::world::WorldUnits,
+    units: &HashMap<u64, UnitSnapshot>,
+    target: Option<u64>,
+    templates: &'a HashMap<u32, FactionTemplateEntry>,
+) -> Option<Viewer<'a>> {
+    let id = world.local_player_id()?;
+    let node = world.local_player_node()?;
+    Some(Viewer {
+        id,
+        target,
+        position: node.get_global_position(),
+        template: units
+            .get(&id)
+            .and_then(|unit| unit.faction_template)
+            .and_then(|template| templates.get(&template)),
+    })
 }
 
 fn plate_rule_input(
@@ -474,12 +486,11 @@ impl GameClient {
             .base()
             .get_viewport()
             .and_then(|viewport| viewport.get_camera_3d());
-        let (Some(camera), Some(local_id), true) = (camera, self.world.local_player_id(), enabled)
-        else {
+        let (Some(camera), true) = (camera, enabled) else {
             self.nameplates.clear();
             return Ok(());
         };
-        let views = self.nameplate_views(&camera, local_id)?;
+        let views = self.nameplate_views(&camera)?;
         let style = self.client_options.hud.nameplate_style;
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.nameplates.sync_nodes(&mut parent, views, &style)
@@ -488,24 +499,13 @@ impl GameClient {
     fn nameplate_views(
         &mut self,
         camera: &Gd<Camera3D>,
-        local_id: u64,
     ) -> Result<HashMap<u64, PlateView>, String> {
-        let Some(local_node) = self.world.local_player_node() else {
-            return Ok(HashMap::new());
-        };
-        let local_template = self
-            .units
-            .get(&local_id)
-            .and_then(|unit| unit.faction_template);
         let target = self.targeting_target();
         let cvars = self.nameplates.cvars;
         let style = self.client_options.hud.nameplate_style;
         let templates = self.nameplates.templates(&self.data_root)?;
-        let viewer = Viewer {
-            id: local_id,
-            target,
-            position: local_node.get_global_position(),
-            template: local_template.and_then(|id| templates.get(&id)),
+        let Some(viewer) = build_viewer(&self.world, &self.units, target, templates) else {
+            return Ok(HashMap::new());
         };
         let views = self
             .units
@@ -523,6 +523,39 @@ impl GameClient {
             })
             .collect();
         Ok(views)
+    }
+
+    /// The plate rule inputs for one unit, for automation; empty when it is unknown.
+    pub(super) fn nameplate_rule_state(&mut self, id: u64) -> Result<VarDictionary, String> {
+        let mut state = VarDictionary::new();
+        let target = self.targeting_target();
+        let cvars = self.nameplates.cvars;
+        let templates = self.nameplates.templates(&self.data_root)?;
+        let (Some(viewer), Some(node), Some(unit)) = (
+            build_viewer(&self.world, &self.units, target, templates),
+            self.world.unit_node(id),
+            self.units.get(&id),
+        ) else {
+            return Ok(state);
+        };
+        let template = unit.faction_template.and_then(|id| templates.get(&id));
+        let rules = plate_rule_input(&viewer, unit, template, &node);
+        state.set("enemy", rules.enemy);
+        state.set("selectable", rules.selectable);
+        state.set("alive", rules.alive);
+        state.set("targeted", rules.targeted);
+        state.set("in_combat_with_player", rules.in_combat_with_player);
+        state.set("distance", rules.distance);
+        state.set("shown", plate_shown(&cvars, &rules));
+        state.set(
+            "faction_template",
+            unit.faction_template.unwrap_or_default() as i64,
+        );
+        state.set(
+            "reaction",
+            format!("{:?}", reaction(template, viewer.template)).as_str(),
+        );
+        Ok(state)
     }
 
     /// Plates for automation: unit id to name, alpha, occlusion, screen anchor, fill.
@@ -573,16 +606,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn thick_plate_sits_on_the_anchor_with_the_name_two_pixels_above_the_frame() {
+    fn thick_plate_centres_its_body_on_the_anchor_with_the_name_two_pixels_above_the_frame() {
         let style = NameplateStyle::default();
         let layout = plate_layout(&style, 1.0);
         // 188x20 body; the Thick frame adds 10x4 and sits 1px right, 0.5px up.
         assert_eq!(layout.frame.size, Vector2::new(198.0, 24.0));
-        assert_eq!(layout.frame.end().y, 0.0);
+        assert_eq!(layout.frame.position, Vector2::new(-98.0, -12.5));
         assert_eq!(layout.fill.size, Vector2::new(188.0, 19.0));
-        assert_eq!(layout.fill.position.x, -94.0);
-        assert_eq!(layout.name_bottom.y, layout.frame.position.y - 2.0);
-        assert_eq!(layout.name_bottom.x, 0.0);
+        assert_eq!(layout.fill.position, Vector2::new(-94.0, -9.5));
+        assert_eq!(layout.name_bottom, Vector2::new(0.0, -14.5));
     }
 
     #[test]
@@ -603,7 +635,7 @@ mod tests {
         };
         let layout = plate_layout(&style, 1.0);
         assert!(!thick_preset(&style));
-        // Body bottom on the anchor, 10px tall, name 2px above its top.
-        assert_eq!(layout.name_bottom.y, -12.0);
+        // 10px body centred on the anchor, name 2px above its top.
+        assert_eq!(layout.name_bottom.y, -7.0);
     }
 }
