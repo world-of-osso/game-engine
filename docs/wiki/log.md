@@ -1696,3 +1696,7 @@ Godot fogs with WebWowViewerCpp's legacy exponential fog from FogScaler/FogDensi
 ## [2026-09-28] port | Godot WMO doodads
 
 Godot spawns WMO MODD doodads (set 0 plus the MODF doodad set, MODI/MODN models) under their WMO node within the object budget, for ADT and WDT global WMOs, with the retail scenery-distance cull. The Stockade portal now stands in the Jail01 doorway. See [[godot-conversion]], [[wmo-format]], [[stockade-entrance]].
+
+## [2026-09-28] perf | Godot doodad animation culling
+
+Hidden doodads stop their material (UV/colour) animation with their bone animation, and models whose bone or material tracks are all constant never process. In Stormwind, processing animation nodes fall from 1,729 + 631 to 172 + 135. See [[godot-conversion]].
