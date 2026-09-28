@@ -100,6 +100,7 @@ pub struct GameClient {
     world_map: world_map::WorldMap,
     entrance_bar: entrance_bar::EntranceBar,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
+    game_menu_drag: Option<game_menu::drag::OptionsDrag>,
     logout: game_engine_session::logout::LogoutState,
     in_rest_area: bool,
     account: Account,
@@ -175,6 +176,7 @@ impl INode3D for GameClient {
             world_map: world_map::WorldMap::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
             game_menu_options: None,
+            game_menu_drag: None,
             logout: Default::default(),
             in_rest_area: false,
             account: Account::new(data_root.clone()),
@@ -216,6 +218,19 @@ impl INode3D for GameClient {
                 viewport.set_input_as_handled();
             }
             return;
+        }
+        match self.handle_game_menu_pointer(&event) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                godot_error!("Game menu drag failed: {error}");
+                return;
+            }
         }
         if self.world_map_pointer(&event) {
             return;
