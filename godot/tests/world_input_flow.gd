@@ -87,7 +87,7 @@ func run_test() -> void:
 		if swim_error != "":
 			fail(swim_error)
 			return
-		var water := client.get_node("WorldTerrain/Tile32_48/Water")
+		var water: Node = client.get_node("WorldTerrain/Tile32_48/Water")
 		client.free()
 		if is_instance_valid(water):
 			fail("Client teardown retained authored water nodes")
