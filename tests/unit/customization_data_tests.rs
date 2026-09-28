@@ -315,8 +315,21 @@ fn catalog_filtered_choice_ids_names_and_swatches_use_the_same_sequence() {
             })
             .collect::<Vec<_>>()
     };
-    assert_eq!(values(1), vec![(500, "Hair second", Some([59, 71, 83]))]);
-    assert_eq!(values(12), vec![(501, "Hair first", Some([17, 29, 43]))]);
+    // The original class split keeps its stored positions; the choices it hid follow.
+    assert_eq!(
+        values(1),
+        vec![
+            (500, "Hair second", Some([59, 71, 83])),
+            (501, "Hair first", Some([17, 29, 43]))
+        ]
+    );
+    assert_eq!(
+        values(12),
+        vec![
+            (501, "Hair first", Some([17, 29, 43])),
+            (500, "Hair second", Some([59, 71, 83]))
+        ]
+    );
     assert!(db.choices_for_option(10, 1, 1, 10).is_empty());
     assert!(db.choices_for_option(10, 0, 1, 999_999).is_empty());
 }
@@ -429,14 +442,28 @@ fn human_male_hair_style_has_display_name() {
 }
 
 #[test]
-fn blood_elf_face_choices_are_filtered_by_class() {
+fn blood_elf_face_choices_keep_class_split_stored_positions() {
     let db = load_test_db();
 
     let warrior_faces = db.choice_count_for_class(10, 0, 1, OptionType::Face);
     let demon_hunter_faces = db.choice_count_for_class(10, 0, 12, OptionType::Face);
 
-    assert_eq!(warrior_faces, 10);
-    assert_eq!(demon_hunter_faces, 6);
+    // The original split's 10 warrior / 6 Demon Hunter faces keep indices 0.., and the
+    // faces it hid follow them, so every class indexes all 20 authored faces.
+    assert_eq!(warrior_faces, 20);
+    assert_eq!(demon_hunter_faces, 20);
+    assert_eq!(
+        db.get_choice_for_class(10, 0, 1, OptionType::Face, 10)
+            .unwrap()
+            .requirement_id,
+        146
+    );
+    assert_eq!(
+        db.get_choice_for_class(10, 0, 12, OptionType::Face, 6)
+            .unwrap()
+            .requirement_id,
+        144
+    );
     assert_eq!(
         db.get_choice_for_class(10, 0, 1, OptionType::Face, 0)
             .unwrap()

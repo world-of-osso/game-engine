@@ -311,11 +311,13 @@ impl CharTextureData {
             .collect()
     }
 
+    /// Only TextureType 1 (body) layers compose into the body atlas; every other
+    /// type (cape 2, hair 6, skin extra 8, eye 19, accessory 20, ...) is its own M2 texture.
     fn target_uses_atlas(&self, layout_id: u32, target_id: u16) -> bool {
         self.layers
             .iter()
             .filter(|layer| layer.layout_id == layout_id && layer.target_id == target_id)
-            .all(|layer| !matches!(layer.texture_type, 2 | 6 | 19))
+            .all(|layer| layer.texture_type == 1)
     }
 
     pub fn full_texture_section(
