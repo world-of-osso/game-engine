@@ -1723,3 +1723,7 @@ Doodads now take the NPC animation LOD in both clients (user decision; [npc-anim
 ## [2026-09-28] feature | Godot doodad scenery fade
 
 Godot ADT doodads fade over the retail 5/10/15/20/50 yd band before their far radius instead of popping, as solarityclient's `SceneryDistance::opacity`. Opaque batches take a blended shader variant only while fading. Spec: [doodad-scenery-distance](../specs/doodad-scenery-distance.md); see [[godot-stormwind-fps]].
+
+## [2026-09-28] port | Godot WMO doodads
+
+Godot spawns WMO MODD doodads (set 0 plus the MODF doodad set, MODI/MODN models) under their WMO node within the object budget, for ADT and WDT global WMOs, with the retail scenery-distance cull. The Stockade portal now stands in the Jail01 doorway. See [[godot-conversion]], [[wmo-format]], [[stockade-entrance]].

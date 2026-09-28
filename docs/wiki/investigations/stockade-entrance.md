@@ -33,7 +33,7 @@ The portal sheet is `instanceportal.m2` (197007) batch 0: blend 7, shader `0x802
 - **Colour.** No M2 colour track reached the shader. WWV multiplies every combiner by `meshColor` (`commonM2Material.slang:61-66`: `matDiffuse = meshColor * tex.rgb`), the batch colour's animated RGB (`animationManager.cpp:1064-1094`); opacity is colour alpha × texture weight (`m2shader_text.slang:72-83`). `godot/core` `m2::batch_mesh_color` feeds `mesh_color`, multiplied in authored space; `WowMaterialAnimation` samples animated colour RGB, transparency and colour alpha with the effect-UV clock rule.
 - **Proof.** `godot/tests/m2_portal_pixels.gd` loads the real batch material with a known texel over a known background: RED `[120,162,115]`, GREEN `[84,149,142]` against WWV's shading and factors `[85,149,142]`. `m2_blend_pixels.gd` covers modes 0, 2–7 and a two-key colour track (RED on 3, 5, 6, 7 and colour; GREEN 10/10).
 - **Framebuffer.** WWV's UNORM framebuffer (`GFrameBufferVLK.cpp:21`) blends in gamma space; Godot blends in its linear framebuffer, as Bevy did. The expected value above uses linear blending; a gamma blend of the same inputs is `[106,186,156]`.
-- **Not drawn in world.** No Godot code spawns WMO MODD doodads, so MODD 1112 of `sw_magicdistrict` is absent in the live client. `portalgodot-20260928/{before,after}-view*.png` place 197007 by hand at its MODD transform (diagnostic `portal_capture.gd`); `*-game.png` is the unmodified client with no portal.
+- **Drawn in world** since branch `wmodoodads` (`ab510ad7`): Godot spawns WMO MODD doodads (see [[wmo-format]] for the set rule), so MODD 1112 of `sw_magicdistrict` stands in the Jail01 doorway, 2.5 yd from area trigger 101's box centre. `wmodoodads-20260928/after-view0.png` is the live client from behind the player on the stairs (compare Retail `portalgodot-20260928/retail-reference.png`); `before-game.png`/`after-game.png` are the client's own camera without and with doodads. Earlier `portalgodot-20260928` images placed 197007 by hand.
 - **Particles.** The Godot client has no particle system; the portal's six emitters (the white sparkles) are missing.
 
 ## Godot: player under the entrance floor
@@ -51,7 +51,7 @@ A live walk (`godot/tests/stockade_walk.gd`, real arrow/W keys, own dev-server a
 
 A server-side dead character does not move (`process_player_inputs` drops a corpse's input), and the Godot client has no release UI: a character killed in the Stockade stays at its spawn, with the client walking alone. `stockade_walk.gd` fails fast on health 0.
 
-Still open: WMO doodads and particles are absent in Godot.
+Still open: particles are absent in Godot.
 
 ## Godot: camera outside the walls
 

@@ -11,6 +11,8 @@ A WMO consists of a root file and one or more group files:
 | `<name>.wmo` | Root: group count, doodad sets, material list, portal planes, GFID/MODI chunks |
 | `<name>_000.wmo` … `<name>_NNN.wmo` | Groups: geometry, vertex data, batch definitions, per-group lighting |
 
+A placement draws the MODD doodads its groups reference through MODR that lie in doodad set 0 (`Set_$DefaultGlobal`, always active) or in the MODF `doodadSet` (WebWowViewerCpp `wmoObject.h` constructor `m_activeDoodadSets.set(0)`, `wmoObject.cpp` `setLoadingParam` and `getDoodad`). A doodad referenced by several groups is placed once. MODD position and quaternion `(x, y, z, w)` are WMO-local; the doodad matrix is `wmoPlacement * translate(position) * quat * scale` (`m2Object.cpp` `createPlacementMatrix(SMODoodadDef)`). MODF flag `0x80` (sets from MWDS/MWDR) is not handled. Godot: `godot/core` `wmo::placed_doodads`.
+
 Modern WMOs carry a `GFID` chunk in the root with FDIDs for all group files, and a `MODI` chunk with FDIDs for embedded doodad M2 models. When MODI is present, MODD `name_offset` is an index into MODI, not a MODN byte offset; many modern roots (the Stormwind districts) carry no MODN at all. The engine currently resolves group FDIDs via a listfile path-pattern roundtrip rather than reading GFID directly (known improvement opportunity).
 
 ## World Placement
