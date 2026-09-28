@@ -93,7 +93,8 @@ impl StartupScreen {
 
 #[derive(Resource, Default)]
 struct Incoming {
-    logins: Vec<LoginRequest>,
+    logins: Vec<(Entity, LoginRequest)>,
+    connection: Option<Entity>,
     selections: Vec<SelectCharacter>,
     inputs: Vec<PlayerInput>,
     /// A moving or jumping input arrived whose release no stop input has reported yet.
@@ -102,13 +103,15 @@ struct Incoming {
 }
 
 fn receive_requests(
-    mut logins: Query<&mut MessageReceiver<LoginRequest>>,
+    mut logins: Query<(Entity, &mut MessageReceiver<LoginRequest>)>,
     mut selections: Query<&mut MessageReceiver<SelectCharacter>>,
     mut inputs: Query<&mut MessageReceiver<PlayerInput>>,
     mut incoming: ResMut<Incoming>,
 ) {
-    for mut receiver in &mut logins {
-        incoming.logins.extend(receiver.receive());
+    for (entity, mut receiver) in &mut logins {
+        incoming
+            .logins
+            .extend(receiver.receive().map(|request| (entity, request)));
     }
     for mut receiver in &mut selections {
         incoming.selections.extend(receiver.receive());
@@ -120,10 +123,13 @@ fn receive_requests(
 
 fn send<M: network::Message, C: network::Channel>(app: &mut App, message: M) {
     let world = app.world_mut();
+    let connection = world
+        .resource::<Incoming>()
+        .connection
+        .expect("fixture response requires an authenticated requester");
     let mut sender = world
-        .query::<&mut MessageSender<M>>()
-        .single_mut(world)
-        .expect("one connected fixture sender");
+        .get_mut::<MessageSender<M>>(connection)
+        .expect("requesting fixture connection has no message sender");
     sender.send::<C>(message);
 }
 
@@ -319,7 +325,8 @@ fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> 
     if requests.len() != 1 {
         return Err(format!("expected one LoginRequest, got {}", requests.len()));
     }
-    let request = &requests[0];
+    let (connection, request) = &requests[0];
+    app.world_mut().resource_mut::<Incoming>().connection = Some(*connection);
     let fixture_credentials =
         request.username == "fixture" && request.password == "fixture" && request.token.is_none();
     let fixture_token = request.username.is_empty()
