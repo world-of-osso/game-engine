@@ -18,7 +18,8 @@ impl GameClient {
         let mut sound = Gd::<NativeSound>::from_init_fn(NativeSound::init);
         sound.set_name("NativeSound");
         self.base_mut().add_child(&sound);
-        if let Err(error) = sound.bind_mut().load_catalog(&self.data_root) {
+        let loaded = sound.bind_mut().load_catalog(&self.data_root);
+        if let Err(error) = loaded {
             sound.queue_free();
             return Err(error);
         }
