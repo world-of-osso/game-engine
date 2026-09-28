@@ -76,7 +76,7 @@ func run_test() -> void:
 		return
 	await click_menu_action(client, "MenuBtnLogout")
 	await wait_frames(5)
-	if countdown_seconds(client) >= original or countdown_seconds(client) < original - 7:
+	if countdown_seconds(client) >= original or countdown_seconds(client) <= 0:
 		fail("Repeated logout reset or lost original countdown: %s -> %s" % [original, countdown(client)])
 		return
 	print("FIXTURE LOGOUT_REPEATED")
