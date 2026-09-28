@@ -29,7 +29,7 @@ use crate::{
     lighting::TerrainLight,
     terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
     wmo::{
-        assets::wmo_fog_volume,
+        assets::{NativeWmoAsset, wmo_fog_volume},
         portals::{HalfSpace, WmoPortals},
     },
     world_models::bind_visual_light,
@@ -79,8 +79,8 @@ struct ParsedModel {
 struct WmoDoodads {
     node: Gd<Node3D>,
     doodads: Vec<wmo::WmoDoodad>,
-    /// Index of the WMO in `TerrainObjects::wmos`, when it is portal-culled.
-    culled: Option<usize>,
+    /// Index of the WMO in `TerrainObjects::wmos`.
+    culled: usize,
 }
 
 /// A spawned doodad, the retail distance it is drawn to, and its animation. Once the
@@ -208,13 +208,30 @@ impl CulledDoodad {
 }
 
 /// A spawned WMO's portal graph, MFOG fog and the batch meshes of each drawable group.
-struct CulledWmo {
+pub(crate) struct CulledWmo {
     portals: WmoPortals,
     fog: WmoFogVolume,
     world_from_local: Affine3A,
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
     /// Groups drawn after the last cull; `None` before the first.
     visible: Option<HashSet<u16>>,
+}
+
+impl CulledWmo {
+    /// The culling state of WMO `node`, built from `asset` and placed by `world_from_local`.
+    pub(crate) fn new(
+        asset: &NativeWmoAsset,
+        world_from_local: Affine3A,
+        node: &Gd<Node3D>,
+    ) -> Self {
+        Self {
+            portals: WmoPortals::new(asset),
+            fog: wmo_fog_volume(asset),
+            world_from_local,
+            groups: group_batches(node),
+            visible: None,
+        }
+    }
 }
 
 pub(crate) struct TerrainObjects {
@@ -359,16 +376,15 @@ impl TerrainObjects {
                 if self.spawned_wmos.contains(&wmo.unique_id) {
                     return Ok(());
                 }
-                let (wmo_node, culled, doodads) = self.load_placed_wmo(wmo, tile)?;
+                let doodad_sets = tile_objects(tile).wmo_active_doodad_sets(wmo);
+                let (wmo_node, culled, doodads) = self.load_placed_wmo(wmo, tile, &doodad_sets)?;
                 self.spawned_wmos.insert(wmo.unique_id);
-                self.wmos.push(culled);
                 // Batches that cannot be drawn are failures; the rest of the WMO stays.
                 for error in wmo_node.batch_errors {
                     self.failures += 1;
                     godot_error!("{}: {error}", self.name);
                 }
-                let culled = Some(self.wmos.len() - 1);
-                self.queue_wmo_doodads(wmo.unique_id, &wmo_node.node, doodads, culled);
+                self.adopt_wmo(wmo.unique_id, &wmo_node.node, doodads, culled);
                 wmo_node.node
             }
         };
@@ -445,13 +461,26 @@ impl TerrainObjects {
         Ok((model, render_box))
     }
 
-    /// Doodads spawn later, one per pending entry, so the object budget covers them.
-    pub(crate) fn queue_wmo_doodads(
+    /// Portal-culls a WMO spawned elsewhere (a WDT global WMO) with the ADT WMOs, and
+    /// spawns its doodads within the object budget.
+    pub(crate) fn adopt_wmo(
         &mut self,
         wmo: u32,
         node: &Gd<Node3D>,
         doodads: Vec<wmo::WmoDoodad>,
-        culled: Option<usize>,
+        culled: CulledWmo,
+    ) {
+        self.wmos.push(culled);
+        self.queue_wmo_doodads(wmo, node, doodads, self.wmos.len() - 1);
+    }
+
+    /// Doodads spawn later, one per pending entry, so the object budget covers them.
+    fn queue_wmo_doodads(
+        &mut self,
+        wmo: u32,
+        node: &Gd<Node3D>,
+        doodads: Vec<wmo::WmoDoodad>,
+        culled: usize,
     ) {
         if doodads.is_empty() {
             return;
@@ -474,7 +503,7 @@ impl TerrainObjects {
         let placed = &self.wmo_doodads[&wmo];
         let doodad = placed.doodads[index].clone();
         let mut parent = placed.node.clone();
-        let wmo_groups = placed.culled.map(|culled| (culled, doodad.groups.clone()));
+        let wmo_groups = Some((placed.culled, doodad.groups.clone()));
         if index + 1 == placed.doodads.len() {
             self.wmo_doodads.remove(&wmo);
         }
@@ -519,14 +548,15 @@ impl TerrainObjects {
         &self,
         placement: &WmoPlacement,
         tile: Tile,
+        doodad_sets: &[u16],
     ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<wmo::WmoDoodad>), String> {
         let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
-        let doodads = asset.doodads(placement.doodad_set);
+        let doodads = asset.doodads(doodad_sets);
         let mut wmo_node = crate::wmo::scene::build_wmo_node(
             &asset,
             &self.resolver,
             &self.data_root,
-            placement.doodad_set,
+            doodad_sets,
             self.light.as_ref(),
         )?;
         let model = &mut wmo_node.node;
@@ -538,17 +568,12 @@ impl TerrainObjects {
             rotation.x, rotation.y, rotation.z, rotation.w,
         ));
         model.set_scale(Vector3::ONE * placement.scale);
-        let culled = CulledWmo {
-            portals: WmoPortals::new(&asset),
-            fog: wmo_fog_volume(&asset),
-            world_from_local: Affine3A::from_scale_rotation_translation(
-                Vec3::splat(placement.scale),
-                rotation,
-                position,
-            ),
-            groups: group_batches(model),
-            visible: None,
-        };
+        let world_from_local = Affine3A::from_scale_rotation_translation(
+            Vec3::splat(placement.scale),
+            rotation,
+            position,
+        );
+        let culled = CulledWmo::new(&asset, world_from_local, model);
         Ok((wmo_node, culled, doodads))
     }
 

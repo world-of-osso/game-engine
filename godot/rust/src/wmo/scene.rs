@@ -156,10 +156,10 @@ pub(crate) fn build_wmo_node(
     asset: &NativeWmoAsset,
     resolver: &CascListfileResolver,
     data_root: &Path,
-    doodad_set: u16,
+    doodad_sets: &[u16],
     light: Option<&TerrainLight>,
 ) -> Result<WmoNode, String> {
-    let (batches, mut batch_errors) = prepare_wmo_batches(asset, doodad_set);
+    let (batches, mut batch_errors) = prepare_wmo_batches(asset, doodad_sets);
     let source = ResourceLoader::singleton()
         .load(SHADER_PATH)
         .ok_or_else(|| format!("Cannot load WMO shader {SHADER_PATH}"))?
@@ -197,11 +197,11 @@ pub(crate) fn build_wmo_node(
 
 /// Renderable batches plus one error per batch that cannot be drawn; one bad
 /// batch must not hide the rest of the WMO.
-fn prepare_wmo_batches(
-    asset: &NativeWmoAsset,
-    doodad_set: u16,
-) -> (Vec<PreparedWmoBatch<'_>>, Vec<String>) {
-    let interior_ambient = wmo_interior_ambient(&asset.root, doodad_set);
+fn prepare_wmo_batches<'a>(
+    asset: &'a NativeWmoAsset,
+    doodad_sets: &[u16],
+) -> (Vec<PreparedWmoBatch<'a>>, Vec<String>) {
+    let interior_ambient = wmo_interior_ambient(&asset.root, doodad_sets);
     let mut prepared = Vec::new();
     let mut errors = Vec::new();
     for group in &asset.groups {
@@ -221,11 +221,13 @@ fn prepare_wmo_batches(
     (prepared, errors)
 }
 
-fn wmo_interior_ambient(root: &wmo::WmoRootData, doodad_set: u16) -> [f32; 3] {
+/// The first MAVG of an active doodad set, else MAVG 0, MAVD 0 or the MOHD ambient
+/// (WebWowViewerCpp `wmoObject.cpp` `calculateAmbient`).
+fn wmo_interior_ambient(root: &wmo::WmoRootData, doodad_sets: &[u16]) -> [f32; 3] {
     let global = root
         .global_ambient_volumes
         .iter()
-        .find(|volume| volume.doodad_set_id == 0 || volume.doodad_set_id == doodad_set)
+        .find(|volume| doodad_sets.contains(&volume.doodad_set_id))
         .or(root.global_ambient_volumes.first());
     let ambient = global
         .or(root.ambient_volumes.first())
@@ -618,7 +620,7 @@ mod tests {
     }
 
     fn prepared(asset: &NativeWmoAsset) -> Vec<PreparedWmoBatch<'_>> {
-        let (batches, errors) = prepare_wmo_batches(asset, 0);
+        let (batches, errors) = prepare_wmo_batches(asset, &[0]);
         assert!(errors.is_empty(), "{errors:?}");
         batches
     }
@@ -831,7 +833,7 @@ mod tests {
             .iter()
             .filter(|batch| !batch.indices.is_empty() && batch.material_index as usize == index)
             .count();
-        let (batches, errors) = prepare_wmo_batches(&asset, 0);
+        let (batches, errors) = prepare_wmo_batches(&asset, &[0]);
         assert_eq!(errors.len(), affected);
         assert_eq!(batches.len(), total - affected);
         assert!(!batches.is_empty());
