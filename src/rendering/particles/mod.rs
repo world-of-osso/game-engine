@@ -3,6 +3,7 @@
 //! Each M2 emitter is translated to a bevy_hanabi `EffectAsset` and spawned as
 //! a `ParticleEffect` entity parented to the model (or its bone).
 
+mod effect_asset_cache;
 pub(crate) mod effect_builder;
 mod effect_builder_motion;
 mod effect_builder_setup;
@@ -88,7 +89,7 @@ impl Default for DynamicParticleWind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ParticleSpawnMode {
     Continuous,
     BurstOnce,
@@ -99,7 +100,7 @@ pub struct PendingParticleBurst {
     pub armed: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ParticleSpawnSource {
     Standalone,
     ChildFromParentParticles,

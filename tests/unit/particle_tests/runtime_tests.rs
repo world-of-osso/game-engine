@@ -558,3 +558,66 @@ fn sync_dynamic_wind_properties_updates_effect_property() {
         Some(Value::from(Vec3::new(1.0, 2.0, 3.0)))
     );
 }
+
+fn spawn_torch_emitter(app: &mut App, emitter: &M2ParticleEmitter, scale: f32) -> Entity {
+    let transform = Transform::from_scale(Vec3::splat(scale));
+    let entity = app
+        .world_mut()
+        .spawn((transform, GlobalTransform::from(transform)))
+        .id();
+    app.world_mut()
+        .entity_mut(entity)
+        .insert(ParticleEmitterComp {
+            emitter: emitter.clone(),
+            bone_entity: None,
+            scale_source: entity,
+            spawn_mode: ParticleSpawnMode::Continuous,
+            spawn_source: ParticleSpawnSource::Standalone,
+            child_emitters: Vec::new(),
+            effect_parent: None,
+            pending_textures: Vec::new(),
+        });
+    entity
+}
+
+/// bevy_hanabi backs every EffectAsset with its own particle slab of at least 65536
+/// particles, so identical emitters (every guard's torch) must share one asset.
+#[test]
+fn identical_emitters_share_one_effect_asset() {
+    let model =
+        crate::asset::m2::load_m2_uncached(Path::new("data/models/club_1h_torch_a_01.m2"), &[0; 3])
+            .expect("torch model must load");
+    let flame = model
+        .particle_emitters
+        .iter()
+        .find(|emitter| !emitter_uses_model_particles(emitter))
+        .expect("torch has a quad particle emitter")
+        .clone();
+    let mut app = App::new();
+    app.world_mut().init_resource::<Assets<EffectAsset>>();
+    let torches: Vec<Entity> = (0..3)
+        .map(|_| spawn_torch_emitter(&mut app, &flame, 1.0))
+        .collect();
+    let large_torch = spawn_torch_emitter(&mut app, &flame, 2.0);
+
+    app.world_mut()
+        .run_system_once(super::super::emitters::register_pending_particle_effects)
+        .expect("particle registration should run");
+    app.world_mut().flush();
+
+    let effect_id = |entity: Entity| {
+        app.world()
+            .entity(entity)
+            .get::<ParticleEffect>()
+            .expect("emitter registered")
+            .handle
+            .id()
+    };
+    assert!(
+        torches
+            .iter()
+            .all(|&torch| effect_id(torch) == effect_id(torches[0]))
+    );
+    assert_ne!(effect_id(large_torch), effect_id(torches[0]));
+    assert_eq!(app.world().resource::<Assets<EffectAsset>>().len(), 2);
+}

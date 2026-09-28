@@ -300,8 +300,7 @@ fn load_repeat_texture(
     if !blp_path.exists() {
         return None;
     }
-    let (pixels, width, height) = asset::blp::load_blp_rgba(&blp_path).ok()?;
-    let mut image = crate::rgba_image(pixels, width, height);
+    let mut image = asset::blp::load_blp_gpu_material_image(&blp_path).ok()?;
     image.sampler = m2_effect_material::repeat_sampler();
     let handle = images.add(image);
     crate::asset_lifetime::prune_unused_asset_handles(cache, images);

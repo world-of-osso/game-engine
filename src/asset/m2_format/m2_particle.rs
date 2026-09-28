@@ -36,7 +36,7 @@ pub struct M2ParticleMultiTexture {
 }
 
 /// Parsed M2 particle emitter.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct M2ParticleEmitter {
     pub flags: u32,
     /// Position in WoW coordinates (relative to bone).

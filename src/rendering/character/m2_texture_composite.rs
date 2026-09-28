@@ -61,24 +61,29 @@ fn build_composited_texture_handle(
     texture_dir: &Path,
     images: &mut Assets<Image>,
 ) -> Result<Handle<Image>, String> {
-    let (mut pixels, w, h) = asset::blp::load_blp_rgba(base_path)
-        .map_err(|e| format!("Failed to load BLP {}: {e}", base_path.display()))?;
-    if let Some(texture_2_fdid) = batch.texture_2_fdid
-        && !batch.use_env_map_2
-    {
-        composite_second_texture(
-            &mut pixels,
-            w,
-            h,
-            texture_2_fdid,
-            batch.shader_id,
-            texture_dir,
-        );
-    }
-    for ov in &batch.overlays {
-        composite_overlay(&mut pixels, w, ov, texture_dir);
-    }
-    let mut image = crate::rgba_image(pixels, w, h);
+    let second_texture = batch.texture_2_fdid.filter(|_| !batch.use_env_map_2);
+    let mut image = if second_texture.is_none() && batch.overlays.is_empty() {
+        // Nothing to composite: upload the BLP block-compressed as authored.
+        asset::blp::load_blp_gpu_material_image(base_path)
+            .map_err(|e| format!("Failed to load BLP {}: {e}", base_path.display()))?
+    } else {
+        let (mut pixels, w, h) = asset::blp::load_blp_rgba(base_path)
+            .map_err(|e| format!("Failed to load BLP {}: {e}", base_path.display()))?;
+        if let Some(texture_2_fdid) = second_texture {
+            composite_second_texture(
+                &mut pixels,
+                w,
+                h,
+                texture_2_fdid,
+                batch.shader_id,
+                texture_dir,
+            );
+        }
+        for ov in &batch.overlays {
+            composite_overlay(&mut pixels, w, ov, texture_dir);
+        }
+        crate::rgba_image(pixels, w, h)
+    };
     image.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
         address_mode_u: bevy::image::ImageAddressMode::Repeat,
         address_mode_v: bevy::image::ImageAddressMode::Repeat,
@@ -145,6 +150,41 @@ fn composite_overlay(
 #[cfg(test)]
 mod tests {
     use super::m2_texture_composite_data::apply_m2_multitexture_shader;
+    use bevy::prelude::*;
+    use bevy::render::render_resource::TextureFormat;
+    use std::path::Path;
+
+    /// A DXT BLP with nothing composited onto it must reach the GPU block-compressed
+    /// (BC1 is 1/8 and BC3 1/4 of RGBA8), not decoded to RGBA8.
+    #[test]
+    fn uncomposited_dxt_texture_stays_block_compressed() {
+        let model = crate::asset::m2::load_m2_uncached(
+            Path::new("data/models/club_1h_torch_a_01.m2"),
+            &[0; 3],
+        )
+        .expect("torch model must load");
+        let batch = model
+            .batches
+            .iter()
+            .find(|batch| batch.texture_fdid.is_some() && batch.overlays.is_empty())
+            .expect("torch has a plain textured batch");
+        let fdid = batch.texture_fdid.unwrap();
+        let path = crate::asset::asset_cache::texture(fdid).expect("torch texture extracted");
+        let mut images = Assets::<Image>::default();
+
+        let handle =
+            super::load_composited_texture(&path, batch, Path::new("data/textures"), &mut images)
+                .expect("torch texture loads");
+
+        let image = images.get(&handle).unwrap();
+        let (width, height) = (image.width() as usize, image.height() as usize);
+        let bytes = image.data.as_ref().unwrap().len();
+        match image.texture_descriptor.format {
+            TextureFormat::Bc1RgbaUnormSrgb => assert_eq!(bytes, width * height / 2),
+            TextureFormat::Bc3RgbaUnormSrgb => assert_eq!(bytes, width * height),
+            other => panic!("texture {fdid} uploaded as {other:?}, {bytes} bytes"),
+        }
+    }
 
     #[test]
     fn shader_8015_uses_secondary_alpha_as_additive_mask() {
