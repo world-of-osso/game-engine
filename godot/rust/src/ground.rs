@@ -1,6 +1,8 @@
 //! Ground queries for the terrain currently loaded by the native host.
 
-use game_engine_core::player_physics_data::{GroundSample, GroundState, validate_movement_slope};
+use game_engine_core::player_physics_data::{
+    GroundSample, GroundState, clamp_movement_to_walls, validate_movement_slope,
+};
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 use glam::Vec3;
 use shared::ground::{Ground, STEP_UP_HEIGHT, Surface};
@@ -10,6 +12,8 @@ use crate::terrain::streaming::StreamedTerrain;
 
 pub(crate) struct TerrainGround<'a> {
     pub terrain: &'a StreamedTerrain,
+    /// Distance to the first WMO wall on a ray `(origin, direction, length)`.
+    pub walls: &'a dyn Fn(Vec3, Vec3, f32) -> Option<f32>,
 }
 
 impl TerrainGround<'_> {
@@ -54,12 +58,14 @@ impl TerrainGround<'_> {
                     self.terrain
                         .parsed_tiles
                         .values()
-                        .flat_map(|tile| &tile.wmo_floors),
+                        .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
                 ),
         )
     }
 
+    /// The original order: stop short of a WMO wall, then apply the slope and step rules.
     pub fn validate_move(&self, current: Vec3, proposed: Vec3, snap: bool) -> Vec3 {
+        let proposed = clamp_movement_to_walls(current, proposed, self.walls);
         validate_movement_slope(
             current,
             proposed,
@@ -104,7 +110,11 @@ mod tests {
         let inside = Vec3::new(103.0, -34.5, -76.0);
         let outside = Vec3::new(99.0, -34.5, -77.0);
         assert_eq!(
-            TerrainGround { terrain: &terrain }.probe(inside),
+            TerrainGround {
+                terrain: &terrain,
+                walls: &|_, _, _| None,
+            }
+            .probe(inside),
             GroundState::Unloaded
         );
         terrain
@@ -125,7 +135,10 @@ mod tests {
             "{:?}",
             terrain.state().map_error
         );
-        let ground = TerrainGround { terrain: &terrain };
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
         match ground.probe(inside) {
             GroundState::Supported(height) => assert!((height + 34.9).abs() < 0.2, "{height}"),
             other => panic!("Stockade floor unsupported: {other:?}"),
@@ -133,7 +146,11 @@ mod tests {
         assert_eq!(ground.probe(outside), GroundState::Unsupported);
         terrain.reset().unwrap();
         assert_eq!(
-            TerrainGround { terrain: &terrain }.probe(inside),
+            TerrainGround {
+                terrain: &terrain,
+                walls: &|_, _, _| None,
+            }
+            .probe(inside),
             GroundState::Unloaded
         );
     }
@@ -158,7 +175,10 @@ mod tests {
             );
             std::thread::sleep(Duration::from_millis(10));
         }
-        let ground = TerrainGround { terrain: &terrain };
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
         // Where the server stood the player: WoW (-8785.926, 820.665, 97.652).
         let room = Vec3::new(-8785.926, 97.652, -820.665);
         match ground.probe(room) {

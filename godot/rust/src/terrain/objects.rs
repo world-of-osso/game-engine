@@ -9,6 +9,7 @@ use std::{
 
 use game_engine_core::{
     adt::{DoodadPlacement, WmoPlacement},
+    asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
     campsite_object_data::{campsite_doodad_placement, doodad_position, placement_position},
     m2,
     wmo::{self, WmoDoodadModel},
@@ -18,16 +19,19 @@ use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
 use crate::{
-    animation::WowAnimationPlayer,
-    assets::uv_animation::WowMaterialAnimation,
+    animation::{WowAnimationPlayer, lod::DeferredClock},
     assets::{
         build_model,
         creature::{cache_model_files, cache_model_textures, local_resolver},
         read_model,
+        uv_animation::WowMaterialAnimation,
     },
     lighting::TerrainLight,
     terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
-    wmo::portals::{HalfSpace, WmoPortals},
+    wmo::{
+        assets::wmo_fog_volume,
+        portals::{HalfSpace, WmoPortals},
+    },
     world_models::bind_visual_light,
 };
 
@@ -79,18 +83,134 @@ struct WmoDoodads {
     culled: Option<usize>,
 }
 
-/// A spawned doodad and the retail distance it is drawn to.
+/// A spawned doodad, the retail distance it is drawn to, and its animation. Once the
+/// in-world cull drives it, the animation advances only on the frames its animation
+/// LOD samples; other scenes leave it processing every frame.
 struct CulledDoodad {
     node: Gd<Node3D>,
     scenery: SceneryDistance,
-    /// A WMO doodad's portal-culled WMO and the groups that reference it.
+    opacity: f32,
+    fade: crate::assets::material::SceneryFade,
+    unique_id: u32,
+    bones: Option<Gd<WowAnimationPlayer>>,
+    materials: Option<Gd<WowMaterialAnimation>>,
+    clock: DeferredClock,
+    driven: bool,
+    /// A WMO doodad's portal-culled WMO and the groups whose MODR references it.
     wmo_groups: Option<(usize, Vec<u16>)>,
-    shown: bool,
 }
 
-/// A spawned WMO's portal graph and the batch meshes of each drawable group.
+impl CulledDoodad {
+    fn new(
+        node: Gd<Node3D>,
+        scenery: SceneryDistance,
+        unique_id: u32,
+        wmo_groups: Option<(usize, Vec<u16>)>,
+    ) -> Self {
+        Self {
+            // A model whose tracks are all constant keeps its first sample and is never
+            // advanced.
+            bones: node
+                .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+                .filter(|bones| bones.bind().animates()),
+            materials: node
+                .try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation")
+                .filter(|materials| materials.bind().animates()),
+            fade: crate::assets::material::SceneryFade::from_model(&node),
+            node,
+            scenery,
+            opacity: 1.0,
+            unique_id,
+            clock: DeferredClock::default(),
+            driven: false,
+            wmo_groups,
+        }
+    }
+
+    /// Stops the animation nodes' own processing. Godot enables processing of a node
+    /// that implements `_process` when it becomes ready, so this runs after spawn.
+    fn take_over_processing(&mut self) {
+        self.driven = true;
+        if let Some(bones) = &mut self.bones {
+            bones.set_process(false);
+        }
+        if let Some(materials) = &mut self.materials {
+            materials.set_process(false);
+        }
+    }
+
+    /// Whether a group referencing this WMO doodad was drawn by the last portal cull;
+    /// always for ADT doodads and WMOs without portal culling.
+    fn group_drawn(&self, wmos: &[CulledWmo]) -> bool {
+        self.wmo_groups.as_ref().is_none_or(|(wmo, groups)| {
+            wmos[*wmo]
+                .visible
+                .as_ref()
+                .is_none_or(|visible| groups.iter().any(|group| visible.contains(group)))
+        })
+    }
+
+    /// Retail distance fade: hidden at opacity 0, blended while fading. A WMO
+    /// doodad whose groups are all portal-culled is not drawn.
+    fn fade(&mut self, camera: Vec3, group_drawn: bool) {
+        let opacity = if group_drawn {
+            self.scenery.opacity(camera)
+        } else {
+            0.0
+        };
+        if opacity == self.opacity {
+            return;
+        }
+        let shown = opacity > 0.0;
+        if shown != (self.opacity > 0.0) {
+            self.node.set_visible(shown);
+        }
+        if shown {
+            self.fade.set_opacity(opacity);
+        }
+        self.opacity = opacity;
+    }
+
+    fn animate(
+        &mut self,
+        camera: Vec3,
+        frustum: &[HalfSpace],
+        delta_ms: f64,
+        frame: u64,
+        group_drawn: bool,
+    ) {
+        if self.bones.is_none() && self.materials.is_none() {
+            return;
+        }
+        if !self.driven {
+            self.take_over_processing();
+        }
+        let sampled = group_drawn
+            && self
+                .scenery
+                .animation_lod(camera, frustum)
+                .samples_frame(frame, u64::from(self.unique_id));
+        let Some(owed) = self.clock.tick(delta_ms, sampled) else {
+            return;
+        };
+        if let Some(bones) = &mut self.bones {
+            let mut bones = bones.bind_mut();
+            for step_ms in owed {
+                bones.advance_time_ms(step_ms);
+            }
+        }
+        // Material animation reads the shared material clock, so a late sample is
+        // already at the current time.
+        if let Some(materials) = &mut self.materials {
+            materials.bind_mut().sample_materials();
+        }
+    }
+}
+
+/// A spawned WMO's portal graph, MFOG fog and the batch meshes of each drawable group.
 struct CulledWmo {
     portals: WmoPortals,
+    fog: WmoFogVolume,
     world_from_local: Affine3A,
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
     /// Groups drawn after the last cull; `None` before the first.
@@ -225,12 +345,12 @@ impl TerrainObjects {
                 }
                 let (model, scenery) = self.load_placed_doodad(doodad, tile, terrain)?;
                 self.spawned_doodads.insert(doodad.unique_id);
-                self.doodads.push(CulledDoodad {
-                    node: model.clone(),
+                self.doodads.push(CulledDoodad::new(
+                    model.clone(),
                     scenery,
-                    wmo_groups: None,
-                    shown: true,
-                });
+                    doodad.unique_id,
+                    None,
+                ));
                 model
             }
             Pending::Wmo(tile, index) => {
@@ -384,12 +504,14 @@ impl TerrainObjects {
                 doodad.rotation,
                 doodad.translation,
             );
-        self.doodads.push(CulledDoodad {
-            node: model,
-            scenery: SceneryDistance::new(render_box.0, render_box.1, world_from_model),
+        // WMO doodads have no ADT unique ID; this only staggers half-rate animation.
+        let stagger = wmo.wrapping_mul(8191).wrapping_add(u32::from(doodad.index));
+        self.doodads.push(CulledDoodad::new(
+            model,
+            SceneryDistance::new(render_box.0, render_box.1, world_from_model),
+            stagger,
             wmo_groups,
-            shown: true,
-        });
+        ));
         Ok(())
     }
 
@@ -418,6 +540,7 @@ impl TerrainObjects {
         model.set_scale(Vector3::ONE * placement.scale);
         let culled = CulledWmo {
             portals: WmoPortals::new(&asset),
+            fog: wmo_fog_volume(&asset),
             world_from_local: Affine3A::from_scale_rotation_translation(
                 Vec3::splat(placement.scale),
                 rotation,
@@ -429,16 +552,20 @@ impl TerrainObjects {
         Ok((wmo_node, culled, doodads))
     }
 
-    /// Culls WMO groups through portals from `camera` looking through `frustum`
-    /// (world space), then doodads.
-    pub fn cull(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
+    /// The MFOG fog of the first spawned WMO whose interior group holds world `camera`.
+    pub fn camera_fog(&self, camera: Vector3) -> Option<WmoFogBlend> {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
-        self.cull_wmos(camera, frustum);
-        self.cull_doodads(camera);
+        self.wmos.iter().find_map(|wmo| {
+            wmo.portals
+                .camera_fog(&wmo.fog, wmo.world_from_local, camera)
+        })
     }
 
-    /// Shows the WMO groups visible through portals.
-    fn cull_wmos(&mut self, camera: Vec3, frustum: &[HalfSpace]) {
+    /// Shows the WMO groups visible through portals from `camera` looking through
+    /// `frustum` (world space). Runs before `cull_doodads`, which hides WMO doodads
+    /// whose groups this frame culled.
+    pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
+        let camera = Vec3::new(camera.x, camera.y, camera.z);
         for wmo in &mut self.wmos {
             let visible = wmo
                 .portals
@@ -455,24 +582,22 @@ impl TerrainObjects {
         }
     }
 
-    /// Draws each doodad only within its retail scenery distance of `camera`, and a
-    /// WMO doodad only while a group referencing it is drawn; a hidden doodad also
-    /// stops animating.
-    fn cull_doodads(&mut self, camera: Vec3) {
+    /// Fades each doodad by its retail scenery distance from `camera`, and
+    /// advances its animation `delta_ms` at its animation LOD rate through `frustum`
+    /// (world space); an undrawn doodad does not animate. A WMO doodad is drawn only
+    /// while a group referencing it is.
+    pub fn cull_doodads(
+        &mut self,
+        camera: Vector3,
+        frustum: &[HalfSpace],
+        delta_ms: f64,
+        frame: u64,
+    ) {
+        let camera = Vec3::new(camera.x, camera.y, camera.z);
         for doodad in &mut self.doodads {
-            let group_drawn = doodad.wmo_groups.as_ref().is_none_or(|(wmo, groups)| {
-                self.wmos[*wmo]
-                    .visible
-                    .as_ref()
-                    .is_none_or(|visible| groups.iter().any(|group| visible.contains(group)))
-            });
-            let shown = group_drawn && doodad.scenery.visible_from(camera);
-            if shown == doodad.shown {
-                continue;
-            }
-            doodad.shown = shown;
-            doodad.node.set_visible(shown);
-            set_animating(&doodad.node, shown);
+            let group_drawn = doodad.group_drawn(&self.wmos);
+            doodad.fade(camera, group_drawn);
+            doodad.animate(camera, frustum, delta_ms, frame, group_drawn);
         }
     }
 
@@ -524,18 +649,4 @@ fn affine(transform: Transform3D) -> Affine3A {
         column(transform.basis.col_c()).into(),
         column(transform.origin).into(),
     )
-}
-
-/// Bone and material animation of a doodad run only while it is drawn, and never for
-/// tracks that do not change.
-fn set_animating(node: &Gd<Node3D>, shown: bool) {
-    if let Some(mut animation) = node.try_get_node_as::<WowAnimationPlayer>("M2Animation") {
-        let animates = animation.bind().animates();
-        animation.set_process(shown && animates);
-    }
-    if let Some(mut animation) = node.try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation")
-    {
-        let animates = animation.bind().animates();
-        animation.set_process(shown && animates);
-    }
 }

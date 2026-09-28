@@ -120,6 +120,10 @@ The Godot client used to whitelist MOMT 0/1/4/5/6/7/13/21 and drop the whole WMO
 - `native_input_fixture overlay`: streamed WMO 108238 group 38 (MOMT 7) binds its layers at authored sizes 512/128; the GPU shows texture 1 at MOCV2.a = 1 and texture 2 at 0.
 - Live character select, campsites 7 and 25: 457 and 706 pixel-20 batches plus MOMT 2/7/9/11/12/13/19 batches spawn, with no WMO errors. Both scenes are hidden by fog. Their scene light has linear fog with `fog_range` (0,0), which fogs every material fully (`apply_retail_fog` divides by zero). That is a separate lighting bug. With fog off, campsite 7 shows DF-shaded stone buildings, which disappear when pixel-20 batches are hidden, and campsite 25 shows its interior.
 
+## WMO fog
+
+The Godot client applies WMO MFOG fog inside interior groups (`03db2144`). See [[retail-lighting]], WMO fog.
+
 ## Still open
 
 - MAVG/MAVD horizon and ground colors (flag 1) are not used.

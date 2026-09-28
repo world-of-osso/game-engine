@@ -14,7 +14,8 @@ use game_engine_core::{
 };
 use godot::{
     classes::{
-        Image, ImageTexture, ProjectSettings, ResourceLoader, Shader, ShaderMaterial, image,
+        Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, ResourceLoader, Shader,
+        ShaderMaterial, image,
     },
     prelude::*,
 };
@@ -137,6 +138,9 @@ pub(super) fn load_material(
     let variant = shader_variant(&source, batch, effect)?;
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shared_shader(&variant));
+    if let Some(fade) = scenery_fade_variant(&source, batch, effect)? {
+        material.set_meta(SCENERY_FADE_SHADER_META, &shared_shader(&fade).to_variant());
+    }
     bind_textures(&mut material, base, second)?;
     if let Some(texture) = replacement {
         material.set_shader_parameter("base_texture", &texture.to_variant());
@@ -191,7 +195,93 @@ fn blend_render_mode(blend_mode: u16) -> &'static str {
     }
 }
 
+/// Metadata of an opaque (blend 0/1) M2 material: the shader variant a placement
+/// swaps in while it fades by distance. Godot draws any material that writes ALPHA
+/// in its transparent pass, so the authored opaque variant writes none and only
+/// fading placements take the blended one (solarityclient `with_runtime_alpha_fade`).
+pub(crate) const SCENERY_FADE_SHADER_META: &str = "scenery_fade_shader";
+
+/// A placed model's batch materials, faded together by retail scenery distance.
+pub(crate) struct SceneryFade {
+    /// Each batch material with its authored shader and, when opaque, its fade shader.
+    batches: Vec<(Gd<ShaderMaterial>, Gd<Shader>, Option<Gd<Shader>>)>,
+    opacity: f32,
+}
+
+impl SceneryFade {
+    /// The `Batch*` mesh materials under a `build_model` root.
+    pub fn from_model(root: &Gd<Node3D>) -> Self {
+        let batches = root
+            .get_children()
+            .iter_shared()
+            .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
+            .filter_map(|mesh| mesh.get_surface_override_material(0)?.try_cast().ok())
+            .filter_map(|material: Gd<ShaderMaterial>| {
+                let authored = material.get_shader()?;
+                let fade = material
+                    .has_meta(SCENERY_FADE_SHADER_META)
+                    .then(|| material.get_meta(SCENERY_FADE_SHADER_META).try_to().ok())
+                    .flatten();
+                Some((material, authored, fade))
+            })
+            .collect();
+        Self {
+            batches,
+            opacity: 1.0,
+        }
+    }
+
+    /// Opaque batches blend only while `opacity` is below 1.
+    pub fn set_opacity(&mut self, opacity: f32) {
+        if opacity == self.opacity {
+            return;
+        }
+        let fading = opacity < 1.0;
+        let swap = fading != (self.opacity < 1.0);
+        for (material, authored, fade) in &mut self.batches {
+            if let (true, Some(fade)) = (swap, fade.as_ref()) {
+                material.set_shader(if fading { fade } else { &*authored });
+            }
+            material.set_shader_parameter("scenery_opacity", &opacity.to_variant());
+        }
+        self.opacity = opacity;
+    }
+}
+
 fn shader_variant(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<String, String> {
+    let variant = with_render_mode(source, batch, effect)?;
+    let alpha = match batch.blend_mode {
+        0 | 1 => "",
+        3 => "ALPHA = 1.0;",
+        _ => return Ok(variant),
+    };
+    replace_alpha(&variant, alpha)
+}
+
+/// The blended variant of an opaque batch: source-alpha blending by the placement's
+/// `scenery_opacity` alone, as the opaque combiners ignore texture alpha. Blended
+/// batches already multiply their alpha by it.
+fn scenery_fade_variant(
+    source: &str,
+    batch: &ResolvedBatch,
+    effect: bool,
+) -> Result<Option<String>, String> {
+    if batch.blend_mode > 1 {
+        return Ok(None);
+    }
+    let variant = with_render_mode(source, batch, effect)?;
+    replace_alpha(&variant, "ALPHA = scenery_opacity;").map(Some)
+}
+
+fn replace_alpha(variant: &str, alpha: &str) -> Result<String, String> {
+    const AUTHORED: &str = "ALPHA = color.a * scenery_opacity;";
+    if variant.matches(AUTHORED).count() != 1 {
+        return Err("Expected one M2 alpha output".into());
+    }
+    Ok(variant.replace(AUTHORED, alpha))
+}
+
+fn with_render_mode(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<String, String> {
     let blend = blend_render_mode(batch.blend_mode);
     let cull = if !effect && batch.render_flags & 4 != 0 {
         "cull_disabled"
@@ -211,15 +301,7 @@ fn shader_variant(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<S
             "Expected one M2 render_mode declaration, found {count}"
         ));
     }
-    let alpha = match batch.blend_mode {
-        0 | 1 => "",
-        3 => "ALPHA = 1.0;",
-        _ => return Ok(variant),
-    };
-    if variant.matches("ALPHA = color.a;").count() != 1 {
-        return Err("Expected one M2 alpha output".into());
-    }
-    Ok(variant.replace("ALPHA = color.a;", alpha))
+    Ok(variant)
 }
 
 fn gx_blend(mode: u16) -> i32 {

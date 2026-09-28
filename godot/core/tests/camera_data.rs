@@ -1,7 +1,7 @@
 use game_engine_core::camera_control_data::{
     CameraState, DEFAULT_CAMERA_FOV_DEGREES, MAX_CAMERA_FOV_DEGREES, MIN_CAMERA_FOV_DEGREES,
 };
-use game_engine_core::camera_follow_data::follow_camera;
+use game_engine_core::camera_follow_data::{follow_camera, keep_in_sight};
 use glam::Vec3;
 
 fn camera_at(distance: f32) -> CameraState {
@@ -239,4 +239,23 @@ fn ground_floor_and_wmo_only_no_floor_are_caller_selected() {
     assert!((no_floor.y - (-19.3 + 1.8)).abs() < 1e-5);
     let floor = step(&mut camera, current, target, 0.1, None, None, Some(0.0));
     assert!((floor.y - 0.5).abs() < 1e-5);
+}
+
+#[test]
+fn smoothed_camera_is_pulled_in_front_of_a_blocker_between_it_and_the_eye() {
+    let eye = Vec3::new(0.0, 1.8, 0.0);
+    let camera = Vec3::new(0.0, 1.8, 10.0);
+    let mut rays = Vec::new();
+    let pulled = keep_in_sight(eye, camera, |origin, direction| {
+        rays.push((origin, direction));
+        Some(4.0)
+    });
+    assert_eq!(rays, vec![(eye, Vec3::Z)]);
+    assert!(
+        (pulled - Vec3::new(0.0, 1.8, 3.7)).length() < 1e-5,
+        "{pulled}"
+    );
+    assert_eq!(keep_in_sight(eye, camera, |_, _| Some(12.0)), camera);
+    assert_eq!(keep_in_sight(eye, camera, |_, _| None), camera);
+    assert_eq!(keep_in_sight(eye, eye, |_, _| Some(0.1)), eye);
 }

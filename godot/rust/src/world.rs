@@ -8,6 +8,8 @@ use crate::{
     world_models::{UnitAppearance, WorldModels, bind_visual_light},
 };
 
+use game_engine_core::movement_animation_data::{ANIM_RUN, direction_to_anim_id};
+use game_engine_core::movement_input_data::MoveDirection;
 use game_engine_core::npc_visibility_data::{npc_should_be_visible, npc_visibility_policy};
 use game_engine_core::unit_motion_data::{
     MotionPose, MotionTarget, follow_server_motion, interpolate_remote_motion,
@@ -18,7 +20,7 @@ use godot::{
     classes::{Node3D, VisibleOnScreenNotifier3D},
     prelude::*,
 };
-use shared::components::MovementControl;
+use shared::components::{CreatureMotion, MovementControl};
 
 struct UnitNode {
     node: Gd<Node3D>,
@@ -28,6 +30,8 @@ struct UnitNode {
     appearance: Option<UnitAppearance>,
     visual: Option<Gd<Node3D>>,
     death_applied: bool,
+    /// Locomotion animation ID last selected on `visual` from its `CreatureMotion`.
+    locomotion: Option<u16>,
 }
 
 struct UnitMotion {
@@ -176,6 +180,7 @@ fn spawn_unit(
         appearance: None,
         visual: None,
         death_applied: false,
+        locomotion: None,
     }
 }
 
@@ -244,6 +249,7 @@ fn sync_unit_visual(
         .is_some_and(|(old, new)| old.same_player_model(new));
     let previous = unit.visual.take();
     unit.appearance = appearance;
+    unit.locomotion = None;
     let replacement = unit.appearance.as_ref().map(|appearance| {
         models.load_visual(appearance, previous.as_ref().filter(|_| preserve_playback))
     });
@@ -252,6 +258,9 @@ fn sync_unit_visual(
     }
     match replacement {
         Some(Ok(visual)) => {
+            if let Err(error) = crate::targeting::attach_pick_area(&visual, snapshot.server_id) {
+                godot_error!("{error}");
+            }
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
             unit.visual = Some(visual);
@@ -289,6 +298,49 @@ fn sync_unit_death(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
     match animation.bind_mut().play_death() {
         Ok(()) => unit.death_applied = true,
         Err(error) => godot_error!("NPC {} death animation: {error}", snapshot.server_id),
+    }
+}
+
+/// Original locomotion animation of a replicated creature's motion (Bevy
+/// `motion_movement_state`): Still stands, Walk and Run move forward.
+pub(crate) fn creature_motion_animation_id(motion: CreatureMotion) -> u16 {
+    let (direction, running) = match motion {
+        CreatureMotion::Still => (MoveDirection::None, false),
+        CreatureMotion::Walk => (MoveDirection::Forward, false),
+        CreatureMotion::Run => (MoveDirection::Forward, true),
+    };
+    direction_to_anim_id(direction, running, false)
+}
+
+/// The locomotion ID a snapshot's motion selects, or `None` when it is already applied.
+pub(crate) fn creature_locomotion_change(
+    applied: Option<u16>,
+    motion: Option<CreatureMotion>,
+) -> Option<u16> {
+    let id = creature_motion_animation_id(motion?);
+    (applied != Some(id)).then_some(id)
+}
+
+fn sync_unit_locomotion(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
+    if unit.death_applied {
+        return;
+    }
+    let Some(id) = creature_locomotion_change(unit.locomotion, snapshot.creature_motion) else {
+        return;
+    };
+    let Some(mut animation) = unit
+        .visual
+        .as_ref()
+        .and_then(|visual| visual.try_get_node_as::<WowAnimationPlayer>("NpcModel/M2Animation"))
+    else {
+        return;
+    };
+    unit.locomotion = Some(id);
+    if let Err(error) = animation
+        .bind_mut()
+        .update_locomotion(id, false, id == ANIM_RUN)
+    {
+        godot_error!("NPC {} locomotion {id}: {error}", snapshot.server_id);
     }
 }
 
@@ -344,6 +396,7 @@ impl WorldUnits {
         unit.is_player = snapshot.player.is_some();
         sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
         sync_unit_death(unit, snapshot);
+        sync_unit_locomotion(unit, snapshot);
         unit.motion.set_target(
             [position.x, position.y, position.z],
             snapshot.rotation.map(|rotation| rotation.y),
@@ -432,6 +485,10 @@ impl WorldUnits {
 
     pub fn root(&self) -> Option<Gd<Node3D>> {
         self.root.clone()
+    }
+
+    pub fn unit_node(&self, id: u64) -> Option<Gd<Node3D>> {
+        Some(self.units.get(&id)?.node.clone())
     }
 
     pub fn local_player_node(&self) -> Option<Gd<Node3D>> {
@@ -542,6 +599,8 @@ mod tests {
             level: None,
             equipment: None,
             movement_control: None,
+            creature_motion: None,
+            unit_target: None,
         }
     }
 

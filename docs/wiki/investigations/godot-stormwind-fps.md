@@ -1,6 +1,6 @@
 # Godot Stormwind FPS
 
-The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, headless cage, Vulkan, AMD 890M), with about 6,400–7,400 draw calls. Hiding categories in a probe showed where the cost was. Draw calls were a real cost, but per-frame animation processing was a larger one. Three changes, each taken from the original client or from retail, bring the same views to about 20–25 FPS and about 4,300–5,000 draws. The rest of the cost is doodad animation for doodads still drawn, and the draws that remain.
+The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, headless cage, Vulkan, AMD 890M), with about 6,400–7,400 draw calls. Hiding categories in a probe showed where the cost was. Draw calls were a real cost, but per-frame animation processing was a larger one. Three changes, each taken from the original client or from retail, bring the same views to about 20–25 FPS and about 4,300–5,000 draws. A fourth change (doodad animation LOD plus manual skeleton processing) brings the indoor view to about 31–38 FPS. The rest of the cost is the draws that remain.
 
 ## Method
 
@@ -40,7 +40,7 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
    - Rule (build 12340 `CMapObj`): the largest axis of the transformed M2 header render box (`0xA0`) picks a class, with inclusive limits of 1/4/15/100 yd. The class draws the doodad within 30/100/200/750/1250 yd of the box center.
    - Source: as reproduced by solarityclient `crates/runtime/src/application/m2_spatial.rs`, with `environmentDetail` at 1.
    - A hidden doodad also stops animating.
-   - Retail's 5–50 yd fade band is not reproduced: a doodad stays opaque until its far radius.
+   - Retail's 5/10/15/20/50 yd fade band before the far radius is reproduced ([doodad-scenery-distance](../../specs/doodad-scenery-distance.md)): a fading doodad's opaque batches switch to a blended variant of their shader, and switch back at opacity 1, so fully opaque doodads stay in Godot's opaque pass.
    - Result: about 1,400 of 7,997 doodads are drawn. Draws fell 6,393–7,490 → 4,269–5,090, and FPS rose 13–14.5 → 19–26 in the same session.
    - Screenshots with the cull and with every doodad forced on differ in 3 pixels indoors and 25 pixels at the Stockade exit, out of 768k. Those pixels are animation timing.
 2. **NPC animation LOD** (`0be4373f`), a port of the original client's [npc-animation-lod](../../specs/npc-animation-lod.md).
@@ -54,14 +54,18 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
    - About 1,600 of 4,597 WMO batches are hidden, but draws fell by only 60–140. Most hidden groups were already outside Godot's frustum.
    - No FPS change could be separated from the noise.
    - Screenshots with the cull and with it forced off differ in 2 pixels indoors and 57 pixels outdoors (foliage sway).
+4. **Doodad animation LOD and manual skeleton processing** (user decision: doodads take the NPC LOD; [npc-animation-lod](../../specs/npc-animation-lod.md)).
+   - Cause of the remaining ~20 ms: every doodad `Skeleton3D` (all 7,997, drawn or not) ran an engine internal process each frame. The default `modifier_callback_mode_process` (idle) enables it even with no `SkeletonModifier3D` to run. With the doodad `M2Animation`/`M2MaterialAnimation` nodes not processing, `WorldObjects` still reported 7,997 `Skeleton3D` internal processors, and disabling `WorldObjects` processing still raised FPS.
+   - Fix 1: `build_skeleton` sets `MODIFIER_CALLBACK_MODE_PROCESS_MANUAL`. M2 skeletons have no modifiers; pose writes still mark the skeleton dirty and update the skin (Godot 4.7.2 `skeleton_3d.cpp`: `_make_dirty` → `_update_deferred`, independent of the mode).
+   - Fix 2: the in-world doodad cull drives doodad animation instead of per-node `_process`. It uses `AnimationLod` from [lod.rs](../../../godot/rust/src/animation/lod.rs) (the NPC thresholds): not drawn, box outside the view frustum, or center beyond 60 yd → no sample; 30–60 yd → every other frame, staggered by unique ID; within 30 yd → every frame. A sampled frame advances by all time owed since the last sample (`DeferredClock`), so a doodad resumes at the current clock time. Material animation samples the shared material clock on the same frames. This matches solarityclient, which culls static placements from their bounds before advancing playback (`terrain_frame/m2.rs`).
+   - Campsite doodads are not driven by the cull and keep processing every frame.
+   - In practice at the indoor spot: of 1,387–1,389 drawn doodads, 519–523 are beyond 60 yd, 824–831 are off screen, 36–39 are 30–60 yd, and none are within 30 yd and on screen. 149 drawn doodads have a varying pose.
+   - A/B (indoor spot, same session, 60-frame averages, 2 runs × 3 cycles, load 5–7): new (LOD + manual skeletons) 31–38 FPS; before (drawn doodads processing every frame + idle skeletons) 25–28.5 FPS. The new variant was faster in all 6 pairs. Splitting the two: LOD with idle skeletons 26.5–37; every-frame processing with manual skeletons 30.5–41. The manual skeleton mode is most of the gain; the LOD's own share is within the noise at this spot, where almost nothing drawn is on screen and near. The "before" variant also advances the LOD-sampled doodads a second time, which overstates its cost slightly.
+   - A half-rate doodad still animates: Doodad5820806 at 36 yd, on screen through the doorway, changed its bone poses over 0.5 s and 398 pixels changed in a 120 px box around it (screenshots from the scratch probe).
 
 ## Remaining cost (after)
 
-- **Doodad animation for drawn doodads:**
-  - The drawn doodads are 1,387–1,440 processing `M2Animation` nodes, plus 346 `M2MaterialAnimation` nodes that are never culled.
-  - Turning `WorldObjects` processing off and on in the same session gave 20.7/21.0/21.1 FPS off versus 14.4/11.3/16.4 on, about 20 ms per frame.
-  - This is not the Rust sampling: static poses already skip their writes. The cost is in the engine, from skeleton and skin updates plus per-node process calls, which matches the eu-stack samples of the stripped Godot binary.
-  - The original client never rate-limits doodads ([npc-animation-lod](../../specs/npc-animation-lod.md): "doodads … are never rate-limited"). Freezing off-screen doodads, or not animating static doodads at all, would therefore be a new rule.
+- **Doodad animation:** resolved by change 4. Before it, turning `WorldObjects` processing off and on gave 20.7/21.0/21.1 FPS off versus 14.4/11.3/16.4 on, about 20 ms per frame; most of it was `Skeleton3D` internal processing, not the animation nodes.
 - **Draws:** about 4,300–5,000 remain. Of these, doodads are about 1,500, WMO batches about 1,300–1,600, terrain about 950, and units about 450–900.
   - Merging each WMO group's batches into one multi-surface mesh would cut instance count, not draw calls: Godot draws each surface separately.
 

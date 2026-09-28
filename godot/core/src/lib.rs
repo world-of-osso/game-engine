@@ -110,6 +110,10 @@ mod sqlite_util;
 pub mod startup_args_data;
 #[cfg(test)]
 mod startup_args_data_tests;
+#[path = "../../../src/rendering/ui/target_selection_data.rs"]
+pub mod target_selection_data;
+#[cfg(test)]
+mod target_selection_data_tests;
 #[path = "../../../src/rendering/terrain/terrain_height_data.rs"]
 pub mod terrain_height_data;
 #[path = "../../../src/rendering/terrain/terrain_material_data.rs"]

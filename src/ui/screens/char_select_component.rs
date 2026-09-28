@@ -114,7 +114,15 @@ pub struct CharDisplayEntry {
 pub struct CampsiteEntry {
     pub id: u32,
     pub name: String,
-    pub preview_image: Option<String>,
+    pub preview_image: Option<CampsitePreview>,
+}
+
+/// Campsite card art: the scene texture kit's atlas member (texture FileDataID and its
+/// normalized `[left, right, top, bottom]` crop).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CampsitePreview {
+    pub fdid: u32,
+    pub tex_coords: [f32; 4],
 }
 
 #[derive(Clone, Default, PartialEq)]

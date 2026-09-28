@@ -93,11 +93,13 @@ impl Background {
         self.terrain.height_at(position.x, position.z)
     }
 
+    /// `camera` is the world position whose WMO interior fog applies.
     pub fn sync(
         &mut self,
         root: &mut Gd<Node3D>,
         model: Option<&Gd<Node3D>>,
         minutes: f32,
+        camera: Vector3,
     ) -> Result<(), String> {
         self.terrain.poll()?;
         let state = self.terrain.state();
@@ -110,7 +112,7 @@ impl Background {
                 failure.tile, failure.error
             ));
         }
-        self.sync_lighting(root, model, minutes)?;
+        self.sync_lighting(root, model, minutes, camera)?;
         self.materials.sync(root, &self.terrain)?;
         // Campsite tiles are fixed authored scenery: a tile that cannot render fails the
         // background exactly like a tile that cannot parse.
@@ -126,6 +128,7 @@ impl Background {
         root: &mut Gd<Node3D>,
         model: Option<&Gd<Node3D>>,
         minutes: f32,
+        camera: Vector3,
     ) -> Result<(), String> {
         let Some(wdt) = self.terrain.map_wdt.as_ref() else {
             return Ok(());
@@ -136,6 +139,7 @@ impl Background {
             self.scene.map_id,
             wow_position(self.scene.position),
             minutes,
+            self.objects.camera_fog(camera).as_ref(),
         )? {
             if let Some(model) = model {
                 bind_visual_light(model, Some(&light));

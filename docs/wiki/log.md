@@ -1,5 +1,17 @@
 # Wiki Log
 
+## [2026-09-28] investigation | Godot player walks through WMO walls
+
+The Godot player had no wall collision; the original wall ray now runs against the WMO wall bodies before the slope rule. Updated [[stockade-entrance]] and [[collision-system]].
+
+## [2026-09-28] system | WMO interior fog (MFOG) in Godot
+
+`03db2144` ports WebWowViewerCpp `WmoObject::checkFog` into the shared lib and blends its result into the Godot scene fog. Cultists' Quay now uses cave fog RGB (21, 80, 99) at weight 1; Retail is still brighter and bluer there. Updated [[retail-lighting]], [[campsite-fog-and-wmo-selection]] and [[wmo-retail-lighting]].
+
+## [2026-09-28] investigation | Godot camera outside WMO walls
+
+The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound it; WMO wall physics bodies from the shared collision faces now do, built lazily within a frame budget. Updated [[stockade-entrance]] and [[collision-system]].
+
 ## [2026-09-28] investigation | Godot Stormwind FPS
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
@@ -1692,6 +1704,25 @@ Godot maps every MOMT id 0-23 to WebWowViewerCpp's vertex/pixel shader pair. It 
 
 Godot fogs with WebWowViewerCpp's legacy exponential fog from FogScaler/FogDensity, so FogEnd-0 campsites (Freywold Spring, Gallagio Grand Gallery) no longer render as flat fog. Campsite WMOs are selected by MODF extents, so Cultists' Quay shows its delve WMO. See [[campsite-fog-and-wmo-selection]].
 
+## [2026-09-28] fix | Weighted zero-duration M2 variations
+
+Both clients share `VariationFamily`. A weighted zero-duration variation plays for no time, as in WebWowViewerCpp, so the Freywold Spring redbird (FDID 588287) keeps looping Stand. Before, Godot logged an error every frame and Bevy panicked. See [[animation]].
+
+## [2026-09-28] fix | Light selection with ZoneLight polygons
+
+Both clients now select LightParams in WebWowViewerCpp's order: the map default, then ZoneLight polygons, then local lights (strongest first). ZoneLight and ZoneLightPoint are exported from local CASC. Stormwind and Elwynn gain LightParams 6080. Cultists' Quay keeps LightParams 12, because no Light or ZoneLight row covers map 2837. Its Retail blue comes from the WMO's MFOG fog, which is not ported. See [[retail-lighting]] and [[campsite-fog-and-wmo-selection]].
+
+## [2026-09-28] feature | Godot NPC locomotion from CreatureMotion
+
+Replicated NPCs in the Godot client now play Walk 4, Run 5 and Stand 0 from the server's `CreatureMotion`, as the Bevy client does, instead of always standing. See [animation](systems/animation.md#native-godot-replicated-npc-locomotion).
+
+## [2026-09-28] perf | Doodad animation LOD
+
+Doodads now take the NPC animation LOD in both clients (user decision; [npc-animation-lod](../specs/npc-animation-lod.md)). Godot's in-world doodad cull advances doodad bone and material animation only on sampled frames, with the time owed, and M2 skeletons use manual modifier processing, which removes 7,997 per-frame `Skeleton3D` internal processes. Stormwind indoor A/B: 25–28.5 → 31–38 FPS. See [[godot-stormwind-fps]] and [[animation]].
+
+## [2026-09-28] feature | Godot doodad scenery fade
+
+Godot ADT doodads fade over the retail 5/10/15/20/50 yd band before their far radius instead of popping, as solarityclient's `SceneryDistance::opacity`. Opaque batches take a blended shader variant only while fading. Spec: [doodad-scenery-distance](../specs/doodad-scenery-distance.md); see [[godot-stormwind-fps]].
 
 ## [2026-09-28] port | Godot WMO doodads
 
