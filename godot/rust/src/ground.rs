@@ -54,7 +54,7 @@ impl TerrainGround<'_> {
                     self.terrain
                         .parsed_tiles
                         .values()
-                        .flat_map(|tile| &tile.wmo_floors),
+                        .flat_map(|tile| tile.wmo_floors.iter().map(|(_, wmo)| wmo)),
                 ),
         )
     }

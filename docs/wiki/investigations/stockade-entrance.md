@@ -51,7 +51,15 @@ A live walk (`godot/tests/stockade_walk.gd`, real arrow/W keys, own dev-server a
 
 A server-side dead character does not move (`process_player_inputs` drops a corpse's input), and the Godot client has no release UI: a character killed in the Stockade stays at its spawn, with the client walking alone. `stockade_walk.gd` fails fast on health 0.
 
-Still open: the camera does not collide with the Stockade interior (it frames from outside the walls), and WMO doodads and particles are absent in Godot.
+Still open: WMO doodads and particles are absent in Godot.
+
+## Godot: camera outside the walls
+
+The Godot camera rays hit only physics bodies, and only terrain chunks had any: WMOs were meshes, and their collision data was used only for the player's ground. Inside the Stockade and on the entrance stairs the camera stayed at its full orbit behind the walls, showing the WMO from outside against the grey void. Fix: `wmo::collision::WmoCollisionBodies` builds physics shapes (layer 2) from the same shared collision faces as the floors, for the global WMO and each parsed tile's MODF WMOs, and the camera ray queries them; the smoothed position is ray-checked from the eye as in Bevy `c55ae4c5`.
+
+- Rust, real faces (`godot/rust/src/wmo/collision_tests.rs`): walking down the stairwell (yaw -50°, pitch 10°, 10 yd) the camera is behind a wall on 0 of 91 frames and ends under 9 yd; without WMO faces, on 91 of 91 at 10.0 yd. In `stormwindjail` (108631) no yaw of a 15 yd orbit ends behind a wall; without faces, yaw 0 does.
+- Live (`godot/tests/world_wmo_camera_collision.gd`, Fbcamera, 8 turn-key steps): Stockade entrance, all 8 steps at 15.0 yd before; 4.6–13.9 yd after, none behind a wall. Stormwind stairs, 15.0 yd before (the view under the floor); 4.8–8.2 yd on 7 steps and 15.0 on the open one after.
+- Cost: one Stormwind tile is 62 WMOs, 515 groups, ~350k triangles. Built in one frame that took 460–570 ms (debug build); with a 2 ms budget, nearest group first, the worst frame is 14 ms and all shapes exist ~140 frames after the tile parses, the stairwell's first. A camera ray costs 4.1 µs with WMO bodies against 2.9 µs without; frame rate with and without the bodies differs less than the run-to-run noise (28–60 FPS on this loaded host).
 
 ## See Also
 

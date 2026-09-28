@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] investigation | Godot camera outside WMO walls
+
+The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound it; WMO wall physics bodies from the shared collision faces now do, built lazily within a frame budget. Updated [[stockade-entrance]] and [[collision-system]].
+
 ## [2026-09-28] investigation | Godot Stormwind FPS
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].

@@ -87,6 +87,7 @@ pub struct GameClient {
     terrain_materials: terrain::material::TerrainMaterials,
     world_objects: terrain::objects::TerrainObjects,
     global_wmo: wmo::global::GlobalWmoScene,
+    wmo_collision: wmo::collision::WmoCollisionBodies,
     world_lighting: lighting::WorldLighting,
     /// `Map.db2` ID of the map whose terrain is loaded; lighting selects its Light rows.
     world_map_id: Option<u32>,
@@ -143,6 +144,7 @@ impl INode3D for GameClient {
                 cache_root.clone(),
             ),
             global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone(), &cache_root),
+            wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_map_id: None,
             world_camera: camera::WorldCamera::default(),
@@ -838,6 +840,7 @@ impl GameClient {
             self.terrain_materials.reset();
             self.world_objects.reset();
             self.global_wmo.reset();
+            self.wmo_collision.reset();
             self.account.session.screen = SessionScreen::Loading;
             self.show_account_screen(SessionScreen::Loading)?;
         }
@@ -850,6 +853,7 @@ impl GameClient {
         self.terrain_materials.reset();
         self.world_objects.reset();
         self.global_wmo.reset();
+        self.wmo_collision.reset();
         self.world_lighting.reset();
         self.world.update_lighting(None);
         let [x, y, z] = destination.position;
@@ -893,6 +897,14 @@ impl GameClient {
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.world_objects
             .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
+        if let Some(player) = self.world.local_player_transform() {
+            let origin = player.origin;
+            self.wmo_collision.sync(
+                &mut parent,
+                &self.terrain,
+                glam::Vec3::new(origin.x, origin.y, origin.z),
+            );
+        }
     }
 
     fn cull_world_objects(&mut self) {
@@ -978,6 +990,7 @@ impl GameClient {
         self.terrain_materials.reset();
         self.world_objects.reset();
         self.global_wmo.reset();
+        self.wmo_collision.reset();
         self.world.reset();
         self.units.clear();
         self.terrain.reset()
