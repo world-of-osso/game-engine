@@ -1,4 +1,3 @@
-
 use crate::footstep_data::*;
 
 fn sample_entry(path: &str) -> FootstepCatalogEntry {
