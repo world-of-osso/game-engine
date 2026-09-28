@@ -376,3 +376,71 @@ fn missing_cargo_context_fails_before_godot() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("CARGO"));
     assert!(fixture.log().is_empty());
 }
+
+const FAKE_CURL: &str = r#"#!/usr/bin/env python3
+import os
+import sys
+
+with open(os.environ['FAKE_LOG'], 'a', encoding='ascii') as log:
+    print('curl', *sys.argv[1:], sep='\t', file=log)
+output = sys.argv[sys.argv.index('--output') + 1]
+with open(output, 'wb') as body:
+    body.write(b'not the pinned Godot release')
+"#;
+
+impl Fixture {
+    /// Launch without GODOT_BIN, resolving Godot from `cache` with a fake `curl` first on PATH.
+    fn launch_with_cache(&self, cache: &Path) -> Output {
+        let bin = self.directory.join("bin");
+        fs::create_dir_all(&bin).unwrap();
+        let curl = bin.join("curl");
+        fs::write(&curl, FAKE_CURL).unwrap();
+        fs::set_permissions(&curl, fs::Permissions::from_mode(0o755)).unwrap();
+        let path = format!("{}:{}", bin.display(), env::var("PATH").unwrap());
+        Command::new(env!("CARGO_BIN_EXE_game-engine-launcher"))
+            .env("CARGO", &self.cargo)
+            .env_remove("GODOT_BIN")
+            .env("XDG_CACHE_HOME", cache)
+            .env("PATH", path)
+            .env("FAKE_LOG", self.directory.join("log"))
+            .output()
+            .unwrap()
+    }
+}
+
+#[test]
+fn cached_godot_launches_without_download() {
+    let fixture = Fixture::new();
+    let cache = fixture.directory.join("cache");
+    let version = cache.join("game-engine/godot/4.7.2");
+    fs::create_dir_all(&version).unwrap();
+    let cached = version.join("Godot_v4.7.2-stable_linux.x86_64");
+    fs::copy(&fixture.godot, &cached).unwrap();
+    let output = fixture.launch_with_cache(&cache);
+    assert!(output.status.success(), "{output:?}");
+    let roles: Vec<_> = fixture
+        .log()
+        .lines()
+        .map(|line| line.split('\t').next().unwrap().to_owned())
+        .collect();
+    // The cached copy keeps the fake's basename-derived role.
+    assert_eq!(roles, ["cargo", "Godot_v4.7.2-stable_linux.x86_64"]);
+}
+
+#[test]
+fn checksum_mismatch_installs_nothing_and_prevents_build() {
+    let fixture = Fixture::new();
+    let cache = fixture.directory.join("cache");
+    let output = fixture.launch_with_cache(&cache);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("SHA-512"), "{stderr}");
+    assert!(fixture.log().starts_with("curl\t"));
+    assert_eq!(fixture.log().lines().count(), 1, "cargo must not run");
+    let godot_cache = cache.join("game-engine/godot");
+    assert_eq!(
+        fs::read_dir(&godot_cache).unwrap().count(),
+        0,
+        "no partial install left"
+    );
+}
