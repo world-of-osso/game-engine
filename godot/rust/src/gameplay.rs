@@ -356,10 +356,7 @@ mod tests {
     fn strafe_run_reports_the_predicted_diagonal_position() {
         let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
-        let ground = TerrainGround {
-            terrain: &terrain,
-            wmos: &[],
-        };
+        let ground = TerrainGround { terrain: &terrain };
         let yaw = std::f32::consts::FRAC_PI_2;
         let mut movement = PlayerMovement::default();
         let mut input = PhysicalInput::default();
