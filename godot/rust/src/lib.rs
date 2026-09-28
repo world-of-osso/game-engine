@@ -315,6 +315,7 @@ impl INode3D for GameClient {
     fn process(&mut self, delta: f64) {
         let update = self
             .sync_registry_ui_scale()
+            .and_then(|()| self.play_ui_clicks())
             .and_then(|()| self.poll_ui_actions())
             .and_then(|()| self.poll_account())
             .and_then(|()| self.update_logout(delta))

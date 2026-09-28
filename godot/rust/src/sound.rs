@@ -8,6 +8,9 @@ use game_engine_core::catalog_data::{
     read_ambient_zone_catalog, read_music_zone_catalog, strip_ambient_tracks_from_music_catalog,
 };
 use game_engine_core::client_options_data::SoundOptionsFile;
+use game_engine_core::ui_click_data::{
+    CLICK_SAMPLE_RATE, CLICK_VOLUME_SCALE, generate_button_click_samples,
+};
 use godot::classes::{
     AudioStream, AudioStreamMp3, AudioStreamOggVorbis, AudioStreamPlayer, AudioStreamWav, INode,
     Node,
@@ -123,6 +126,29 @@ fn load_stream(
     Ok(stream)
 }
 
+fn click_stream() -> Gd<AudioStreamWav> {
+    let samples = generate_button_click_samples();
+    let data_size = (samples.len() * 2) as u32;
+    let mut wav = Vec::with_capacity(44 + data_size as usize);
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(36 + data_size).to_le_bytes());
+    wav.extend_from_slice(b"WAVEfmt ");
+    wav.extend_from_slice(&16_u32.to_le_bytes());
+    wav.extend_from_slice(&1_u16.to_le_bytes());
+    wav.extend_from_slice(&1_u16.to_le_bytes());
+    wav.extend_from_slice(&(CLICK_SAMPLE_RATE as u32).to_le_bytes());
+    wav.extend_from_slice(&(CLICK_SAMPLE_RATE as u32 * 2).to_le_bytes());
+    wav.extend_from_slice(&2_u16.to_le_bytes());
+    wav.extend_from_slice(&16_u16.to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&data_size.to_le_bytes());
+    for sample in samples {
+        wav.extend_from_slice(&sample.to_le_bytes());
+    }
+    AudioStreamWav::load_from_buffer(&PackedByteArray::from(wav.as_slice()))
+        .expect("generated click is valid mono PCM WAV")
+}
+
 fn is_mp3_frame(bytes: &[u8]) -> bool {
     let Some(&[0xff, header, ..]) = bytes.get(..4) else {
         return false;
@@ -189,6 +215,7 @@ pub struct NativeSound {
     cache: HashMap<usize, Gd<AudioStream>>,
     music: Channel,
     ambient: Channel,
+    effects: Gd<AudioStreamPlayer>,
 }
 
 #[godot_api]
@@ -200,6 +227,7 @@ impl INode for NativeSound {
             cache: HashMap::new(),
             music: Channel::new("Music"),
             ambient: Channel::new("Ambient"),
+            effects: AudioStreamPlayer::new_alloc(),
         }
     }
 
@@ -208,10 +236,16 @@ impl INode for NativeSound {
         let ambient = self.ambient.player.clone();
         self.base_mut().add_child(&music);
         self.base_mut().add_child(&ambient);
+        let mut effects = self.effects.clone();
+        effects.set_name("Effects");
+        self.base_mut().add_child(&effects);
+        self.effects.set_stream(&click_stream());
     }
 
     fn exit_tree(&mut self) {
         self.stop();
+        self.effects.stop();
+        self.effects.set_stream(Gd::<AudioStream>::null_arg());
         self.music.player.set_stream(Gd::<AudioStream>::null_arg());
         self.ambient
             .player
@@ -231,6 +265,17 @@ impl NativeSound {
                 false
             }
         }
+    }
+
+    #[func]
+    pub fn play_ui_click(&mut self, master: f32, effects: f32, muted: bool) -> bool {
+        self.effects.set_volume_linear(if muted {
+            0.0
+        } else {
+            master * effects * CLICK_VOLUME_SCALE
+        });
+        self.effects.play();
+        true
     }
 
     #[func]

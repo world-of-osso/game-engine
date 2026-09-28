@@ -202,6 +202,8 @@ pub mod trade;
 #[path = "game/trainer_data.rs"]
 pub mod trainer_data;
 pub mod ui;
+#[path = "sound/ui_click_data.rs"]
+pub mod ui_click_data;
 pub mod ui_map_data;
 pub mod unit_motion_data;
 pub mod who;

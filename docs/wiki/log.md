@@ -40,6 +40,10 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | Native UI click parity slice
+
+Shared the legacy normalized-phase click generator and 0.55 gain through `ui_click_data`. Projected left pointer-down on an actionable frame or ancestor reaches `GameClient`'s owned `NativeSound` Effects player; disabled buttons and non-pointer actions do not trigger it. Targeted PCM and headless Godot fixture cover behavior and player volume/mute. This is not audible-output or full-parity proof. Updated [[sound]].
+
 ## [2026-09-28] system | Real-client native sound fixture is bounded
 
 `ce2a8c92` authenticates an owned loopback `GameClient`, loads MCNK area 9 → root zone 12, observes Music `53492`, and observes no zone-12 ambient track. It then drives authored Options Sound controls and observes native player volume/mute/music-enable state. The retained [fixture log](../../data/diagnostics/native-sound-client-final.log) records those markers and exit-0 result.
