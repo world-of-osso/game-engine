@@ -1,6 +1,8 @@
 //! Headless account and character-session decisions. The host owns transport, token I/O,
 //! screen projection, network resets, and world/reconnect completion.
 
+pub mod logout;
+
 use shared::protocol::{
     CharacterListEntry, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
     EnterWorldResponse, ForcedDisconnect, LoginRequest, LoginResponse, RegisterRequest,
