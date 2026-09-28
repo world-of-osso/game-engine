@@ -167,7 +167,7 @@ pub struct CameraOptionsView {
     pub max_distance: f32,
 }
 
-pub use crate::nameplate_style_data::NameplateBarThickness;
+pub use crate::nameplate_style::NameplateBarThickness;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HudOptionsView {

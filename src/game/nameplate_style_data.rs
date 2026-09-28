@@ -310,46 +310,5 @@ fn nearest_preset(value: f32, thin: f32, thick: f32) -> NameplateBarThickness {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use NameplateBarThickness::{Thick, Thin};
-
-    #[test]
-    fn presets_set_heights_and_edited_heights_map_to_the_nearest_preset() {
-        let style = NameplateStyle::default();
-        assert_eq!((style.health_height, style.cast_height), (20.0, 6.0));
-        assert_eq!((style.health_preset(), style.cast_preset()), (Thick, Thin));
-        let mut style = NameplateStyle::from_presets(Thin, Thick);
-        assert_eq!((style.health_height, style.cast_height), (10.0, 10.0));
-        style.health_width = 150.0;
-        style.apply_health_preset(Thick);
-        assert_eq!((style.health_width, style.health_height), (150.0, 20.0));
-        style.health_height = 14.0;
-        assert_eq!(style.health_preset(), Thin);
-        style.health_height = 16.0;
-        assert_eq!(style.health_preset(), Thick);
-    }
-
-    #[test]
-    fn sliders_round_trip_their_keys_and_edit_the_style() {
-        let mut style = NameplateStyle::default();
-        let neutral_green = StyleSlider::Channel(StyleColor::Neutral, 1);
-        assert_eq!(neutral_green.key(), "nameplate_neutral_g");
-        assert_eq!(
-            StyleSlider::from_key("nameplate_neutral_g"),
-            Some(neutral_green)
-        );
-        assert_eq!(
-            StyleSlider::from_key("nameplate_health_width"),
-            Some(StyleSlider::HealthWidth)
-        );
-        assert_eq!(StyleSlider::from_key("nameplate_neutral_a"), None);
-        neutral_green.set(&mut style, 0.35);
-        assert_eq!(style.health_colors.neutral, [1.0, 0.35, 0.0]);
-        StyleSlider::HealthWidth.set(&mut style, 150.4);
-        assert_eq!(style.health_width, 150.0);
-        StyleSlider::CastHeight.set(&mut style, 99.0);
-        assert_eq!(StyleSlider::CastHeight.get(&style), MAX_CAST_HEIGHT);
-        assert_eq!(StyleColor::Channel.rgb(&style), [0.0, 1.0, 0.0]);
-    }
-}
+#[path = "nameplate_style_data_tests.rs"]
+mod tests;
