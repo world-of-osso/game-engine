@@ -6,6 +6,8 @@ uniform int effect_mode = 0; // 0: StandardMaterial-style single, 1: two-texture
 uniform sampler2D base_texture : source_color, repeat_enable;
 uniform sampler2D second_texture : source_color, repeat_enable;
 uniform vec4 base_color : source_color = vec4(1.0);
+// Batch colour track RGB (authored gamma space): the combiners' meshColor.
+uniform vec3 mesh_color = vec3(1.0);
 uniform int shader_id = 16;
 uniform int uv_mode_1 = 0;
 uniform int uv_mode_2 = 0;
@@ -100,6 +102,12 @@ vec3 apply_retail_fog(vec3 color) {
 	return mix(color, retail_fog_color(), amount * fog_opacity);
 }
 
+// GxBlend_Mod2x blends DST_COLOR, SRC_COLOR: the destination times twice the colour,
+// doubled in authored space so grey 0.5 stays neutral in the linear framebuffer.
+vec3 blend_output(vec3 rgb) {
+	return gamma_to_linear(gx_blend == 5 ? rgb * 2.0 : rgb);
+}
+
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -112,10 +120,11 @@ void fragment() {
 		vec2 second_uv = (uv_mode_2 == 1 ? UV2 : UV) + uv_offset_2;
 		vec4 second = texture(second_texture, second_uv);
 		color = combine_textures(vec4(linear_to_gamma(first.rgb), first.a), vec4(linear_to_gamma(second.rgb), second.a), shader_id);
+		color.rgb *= mesh_color;
 		color.a = clamp(color.a * transparency, 0.0, 1.0);
 	} else {
 		vec3 linear_diffuse = first.rgb * base_color.rgb * COLOR.rgb;
-		color = vec4(linear_to_gamma(linear_diffuse), clamp(first.a * base_color.a * COLOR.a * transparency, 0.0, 1.0));
+		color = vec4(linear_to_gamma(linear_diffuse) * mesh_color, clamp(first.a * base_color.a * COLOR.a * transparency, 0.0, 1.0));
 	}
 	if (color.a < alpha_test) {
 		discard;
@@ -130,7 +139,7 @@ void fragment() {
 		if ((render_flags & 2) == 0) {
 			rgb = apply_retail_fog(rgb);
 		}
-		EMISSION = gamma_to_linear(rgb);
+		EMISSION = blend_output(rgb);
 	}
 	world_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
@@ -144,6 +153,6 @@ void light() {
 		if ((render_flags & 2) == 0) {
 			rgb = apply_retail_fog(rgb);
 		}
-		DIFFUSE_LIGHT += gamma_to_linear(rgb);
+		DIFFUSE_LIGHT += blend_output(rgb);
 	}
 }
