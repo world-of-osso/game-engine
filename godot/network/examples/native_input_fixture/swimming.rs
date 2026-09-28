@@ -68,7 +68,7 @@ pub(super) fn run(
     while Instant::now() < deadline {
         app.update();
         respond_to_login(app, StartupScreen::Swimming)?;
-        respond_to_selection(app, &mut selected, &mut remote)?;
+        respond_to_selection(app, StartupScreen::Swimming, &mut selected, &mut remote)?;
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
             for reader in readers.take().expect("join output once") {
