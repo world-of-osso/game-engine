@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] investigation | Stormwind VRAM
+
+Created [[stormwind-vram]]. The ~6.8 GB Stormwind login came from bevy_hanabi's 65536-particle minimum per EffectAsset slab. With one asset per emitter, 614 slabs held 2.46 GB at t=45 s and kept rising. Identical emitters now share an asset, which leaves 1282 distinct assets. Uncomposited M2/WMO textures upload as BC (599 → 275 MiB). With a scratch `MIN_CAPACITY` 4096 hanabi, the full login settles at 2.13 GB for the client.
+
 ## [2026-09-27] system | Idle right-drag reaches authored turns before later WMO blocker
 
 `93f38c13` adds actual idle right-drag coverage. Its runtime RED observes yaw delta `-0.12`, expects authored turn 12, and receives Stand 0 (`/tmp/claude/idle-turn-runtime-red-93f38c13.log`). `167ef65b` selects idle turns from normalized consecutive local-facing samples; `8ee6c5ea` makes the 0.02-radian thresholds inclusive. Six targeted tests are reported GREEN.
