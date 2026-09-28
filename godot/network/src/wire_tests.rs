@@ -3,8 +3,8 @@
 use super::*;
 use lightyear::prelude::{LinkOf, NetworkTarget, Replicate, ReplicationSender, server};
 use shared::{
-    components::{CreatureMotion, MovementControl, SheathState, StandState, UnitPose},
-    protocol::{InputChannel, PlayerInput},
+    components::{CombatStatus, CreatureMotion, MovementControl, SheathState, StandState, UnitPose},
+    protocol::{InputChannel, PlayerInput, RestChannel, RestSnapshot, RestStateUpdate},
 };
 use std::net::UdpSocket;
 
@@ -143,6 +143,122 @@ fn await_control(
         unreachable!()
     };
     unit
+}
+
+fn await_combat(
+    server: &mut App,
+    bridge: &mut NetworkBridge,
+    server_id: u64,
+    expected: Option<CombatStatus>,
+) -> UnitSnapshot {
+    let event = await_bridge_event(
+        server,
+        bridge,
+        "replicated combat transition",
+        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && unit.combat_status == expected),
+    );
+    let Event::UnitUpdated(unit) = event else {
+        unreachable!()
+    };
+    unit
+}
+
+fn send_rest(server: &mut App, update: RestStateUpdate) {
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<RestStateUpdate>>()
+        .single_mut(world)
+        .expect("connected fixture rest sender")
+        .send::<RestChannel>(update);
+}
+
+fn await_rest(server: &mut App, bridge: &mut NetworkBridge, expected: RestStateUpdate) {
+    let event = await_bridge_event(
+        server,
+        bridge,
+        "rest state update",
+        |event| matches!(event, Event::Message(message) if message.is::<RestStateUpdate>()),
+    );
+    let Event::Message(message) = event else {
+        unreachable!()
+    };
+    assert_eq!(message.downcast::<RestStateUpdate>().ok(), Some(expected));
+}
+
+#[test]
+fn native_bridge_tracks_combat_and_rest_transitions_over_udp() {
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8193).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+
+    let entity = server
+        .world_mut()
+        .spawn((
+            Player {
+                name: "Resting fighter".into(),
+                race: 1,
+                class: 1,
+                appearance: Default::default(),
+            },
+            CombatStatus(false),
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let id = entity.to_bits();
+    assert_eq!(
+        await_combat(&mut server, &mut bridge, id, Some(CombatStatus(false))).combat_status,
+        Some(CombatStatus(false))
+    );
+
+    server
+        .world_mut()
+        .entity_mut(entity)
+        .insert(CombatStatus(true));
+    assert_eq!(
+        await_combat(&mut server, &mut bridge, id, Some(CombatStatus(true))).combat_status,
+        Some(CombatStatus(true))
+    );
+
+    server
+        .world_mut()
+        .entity_mut(entity)
+        .insert(CombatStatus(false));
+    assert_eq!(
+        await_combat(&mut server, &mut bridge, id, Some(CombatStatus(false))).combat_status,
+        Some(CombatStatus(false))
+    );
+
+    server
+        .world_mut()
+        .entity_mut(entity)
+        .remove::<CombatStatus>();
+    assert_eq!(
+        await_combat(&mut server, &mut bridge, id, None).combat_status,
+        None
+    );
+
+    let present = RestStateUpdate {
+        snapshot: Some(RestSnapshot {
+            in_rest_area: true,
+            rest_area_kind: None,
+            rested_xp: 42,
+            rested_xp_max: 100,
+        }),
+        message: None,
+        error: None,
+    };
+    send_rest(&mut server, present.clone());
+    await_rest(&mut server, &mut bridge, present);
+    let cleared = RestStateUpdate {
+        snapshot: None,
+        message: None,
+        error: None,
+    };
+    send_rest(&mut server, cleared.clone());
+    await_rest(&mut server, &mut bridge, cleared);
+    bridge.stop().expect("join fixture worker");
 }
 
 #[test]

@@ -36,7 +36,7 @@ use shared::{
         InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta, InventoryError,
         InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed,
         MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, NpcFlags, QuestLogSnapshot,
-        QuestLogUpdate, RegisterResponse, SpecializationChanged, SpellCooldownUpdate,
+        QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged, SpellCooldownUpdate,
         SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
     },
 };
@@ -105,6 +105,7 @@ pub struct UnitSnapshot {
     pub npc_flags: Option<u64>,
     /// The local player's money in copper; other units carry none.
     pub gold: Option<u64>,
+    pub combat_status: Option<CombatStatus>,
 }
 
 impl UnitSnapshot {
@@ -135,6 +136,7 @@ impl UnitSnapshot {
             auras: entity.get::<UnitAuras>().cloned(),
             npc_flags: entity.get::<NpcFlags>().map(|flags| flags.0),
             gold: entity.get::<Gold>().map(|gold| gold.0),
+            combat_status: entity.get::<CombatStatus>().copied(),
         }
     }
 }
@@ -225,6 +227,7 @@ impl NetworkBridge {
             .receive::<InventoryDelta>()
             .receive::<InventoryError>()
             .receive::<DurabilityStateUpdate>()
+            .receive::<RestStateUpdate>()
             .connect(server_addr, client_id)
     }
 
