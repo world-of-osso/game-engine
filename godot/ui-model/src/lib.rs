@@ -42,6 +42,9 @@ pub mod ui_errors_frame_component;
 
 #[path = "../../../src/ui/screens/game_menu_main.rs"]
 pub mod game_menu_main;
+#[path = "../../../src/ui/panel_style_data.rs"]
+mod panel_style_data;
+
 #[path = "../../../src/ui/screens/loading_component.rs"]
 pub mod loading_component;
 #[path = "../../../src/ui/screens/login_component.rs"]
@@ -218,10 +221,12 @@ impl GameMenuModel {
     pub fn new(screen_width: f32, screen_height: f32, logged_in: bool) -> Self {
         let mut shared = SharedContext::new();
         shared.insert(logged_in);
+        let mut registry = FrameRegistry::new(screen_width, screen_height);
+        registry.register_panel_style("default", panel_style_data::default_panel_style());
         Self {
             screen: Screen::new(main_menu_screen),
             shared,
-            registry: FrameRegistry::new(screen_width, screen_height),
+            registry,
         }
     }
 

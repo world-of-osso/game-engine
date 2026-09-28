@@ -1,3 +1,6 @@
+#[path = "panel_style_data.rs"]
+mod data;
+
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
@@ -26,19 +29,8 @@ pub fn register_panel_styles(mut ui: ResMut<UiState>, mut images: ResMut<Assets<
 }
 
 fn register_nine_slice_styles(ui: &mut UiState) {
-    ui.registry.register_panel_style(
-        "default",
-        NineSlice {
-            edge_size: 8.0,
-            uv_edge_size: Some(8.0),
-            bg_color: [1.0, 1.0, 1.0, 1.0],
-            border_color: [1.0, 1.0, 1.0, 1.0],
-            texture: Some(TextureSource::File(
-                "data/textures/ui/panel_slate_gold_512.ktx2".to_string(),
-            )),
-            ..Default::default()
-        },
-    );
+    ui.registry
+        .register_panel_style("default", data::default_panel_style());
     ui.registry.register_panel_style(
         "inner_plain",
         NineSlice {
