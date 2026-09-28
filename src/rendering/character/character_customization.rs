@@ -20,7 +20,8 @@ use crate::m2_spawn::{BatchTextureType, GeosetMesh};
 #[path = "character_customization_textures.rs"]
 mod character_customization_textures;
 
-pub(crate) use character_customization_textures::merge_overlay_texture_sets;
+#[cfg(test)]
+use character_customization_textures::merge_overlay_texture_sets;
 use character_customization_textures::{
     apply_base_skin_and_overlay_textures, apply_explicit_equipment_overlays,
 };
