@@ -9,6 +9,8 @@ mod char_create;
 mod character_select;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
+#[path = "../../../src/game/faction_reaction.rs"]
+mod faction_reaction;
 mod game_menu;
 mod gameplay;
 mod ground;
@@ -16,6 +18,7 @@ mod input;
 mod input_keys;
 mod lighting;
 mod loading;
+mod nameplates;
 mod scene;
 mod startup;
 mod targeting;
@@ -99,6 +102,7 @@ pub struct GameClient {
     server_hostname: String,
     startup_customize: bool,
     targeting: targeting::Targeting,
+    nameplates: nameplates::Nameplates,
 }
 
 #[godot_api]
@@ -155,6 +159,7 @@ impl INode3D for GameClient {
             world_minutes: 1440.0,
             startup_customize: false,
             targeting: targeting::Targeting::new(data_root.clone()),
+            nameplates: nameplates::Nameplates::new(),
             units: HashMap::new(),
             world: world::WorldUnits::new(data_root, cache_root),
             server_hostname: if cfg!(debug_assertions) {
@@ -242,6 +247,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.tick_delete_confirmation(delta as f32))
             .and_then(|()| self.advance_login_fade(delta as f32))
             .and_then(|()| self.update_world_camera(delta as f32))
+            .and_then(|()| self.update_nameplates())
             .map(|()| self.cull_world_objects());
         self.physical_input.finish_frame();
         if let Err(error) = update {
@@ -376,6 +382,12 @@ impl GameClient {
     }
 
     /// The selected unit, its name, what the server echoes back, and the ring's owner.
+    /// Plates on screen by unit id: name, alpha, occluded, anchor, fill fraction/colour.
+    #[func]
+    fn nameplate_state(&self) -> VarDictionary {
+        self.nameplates_snapshot()
+    }
+
     #[func]
     fn target_state(&self) -> VarDictionary {
         self.targeting_snapshot()

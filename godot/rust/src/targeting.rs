@@ -136,6 +136,16 @@ pub(crate) fn attach_pick_area(visual: &Gd<Node3D>, server_id: u64) -> Result<()
     Ok(())
 }
 
+/// The pick box of a unit node's visual, once its model has loaded.
+pub(crate) fn unit_pick_shape(unit: &Gd<Node3D>) -> Option<Gd<CollisionShape3D>> {
+    unit.find_child_ex(PICK_AREA)
+        .owned(false)
+        .done()?
+        .get_child(0)?
+        .try_cast::<CollisionShape3D>()
+        .ok()
+}
+
 /// The unit under `screen_point`: the ray from the camera through it stops at the
 /// first visible surface, and selects that surface's unit, if any.
 pub(crate) fn pick_unit(camera: &Gd<Camera3D>, screen_point: Vector2) -> Option<u64> {
@@ -257,6 +267,10 @@ fn unit_frames_state(target: Option<UnitFrameState>) -> InWorldUnitFramesState {
 }
 
 impl GameClient {
+    pub(super) fn targeting_target(&self) -> Option<u64> {
+        self.targeting.target
+    }
+
     /// Per frame, before input edges clear: selection input, then its presentation.
     pub(super) fn update_targeting(&mut self) -> Result<(), String> {
         if self.account.session.screen != SessionScreen::InWorld {
