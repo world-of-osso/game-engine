@@ -349,7 +349,11 @@ pub fn spawn_nearby_campsite_objects(
         tile_x,
         obj_data,
         &wmo_chunk_refs,
-        |wmo| wmo_position(wmo, tile_y, tile_x).distance(focus) <= wmo_radius,
+        |wmo| {
+            game_engine::campsite_object_data::wmo_within_radius(
+                wmo, tile_y, tile_x, focus, wmo_radius,
+            )
+        },
         &mut spawned.wmos,
     );
     spawned

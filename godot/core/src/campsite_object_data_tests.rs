@@ -6,7 +6,7 @@ use glam::{EulerRot, Quat, Vec3};
 use crate::adt::{AdtObjData, DoodadPlacement};
 use crate::campsite_object_data::{
     campsite_doodad_placement, doodad_position, is_primary_campsite_doodad,
-    is_supplemental_campsite_doodad,
+    is_supplemental_campsite_doodad, placement_position, wmo_within_radius,
 };
 
 const FOCUS: Vec3 = Vec3::new(-2981.820_1, 452.826, -457.35);
@@ -201,4 +201,39 @@ fn authored_tiles_select_primary_props_and_backdrop_and_supplemental_backdrop() 
     assert_eq!(selected.len() - backdrop, 62);
     assert_eq!(backdrop, 14);
     assert_eq!(supplemental_backdrop, 42);
+}
+
+/// Cultists' Quay (WarbandScene 5) stands inside its delve WMO: the MODF origin is 161 yd
+/// from the character slot, but the authored extents contain it.
+#[test]
+fn campsite_inside_a_distant_wmo_origin_selects_that_wmo() {
+    // world/maps/2837/2837_27_31_obj0.adt, cached by FDID.
+    let path = format!(
+        "{}/../../data/terrain/6252664.adt",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let bytes = std::fs::read(path).expect("local Cultists' Quay object fixture");
+    let objects = crate::adt::parse_obj(&bytes).expect("parse authored object fixture");
+    // WarbandScenePlacement 40 (scene 5, slot 0) in engine axes.
+    let focus = Vec3::new(194.243, 91.256_2, -2500.98);
+    assert_eq!(objects.wmos.len(), 1);
+    let quay = &objects.wmos[0];
+    assert_eq!(quay.fdid, Some(5356285));
+    assert!(placement_position(quay.position, 27, 31).distance(focus) > 160.0);
+    assert!(wmo_within_radius(quay, 27, 31, focus, 120.0));
+    // Extents span X 0..567 and Z -2633..-2273: 120 yd past the east edge is out of range.
+    assert!(wmo_within_radius(
+        quay,
+        27,
+        31,
+        Vec3::new(686.0, 91.0, -2500.0),
+        120.0
+    ));
+    assert!(!wmo_within_radius(
+        quay,
+        27,
+        31,
+        Vec3::new(688.0, 91.0, -2500.0),
+        120.0
+    ));
 }

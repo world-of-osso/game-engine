@@ -3,7 +3,7 @@
 use glam::{EulerRot, Quat, Vec3};
 
 use crate::asset::adt_format::adt::CHUNK_SIZE;
-use crate::asset::adt_format::adt_obj::DoodadPlacement;
+use crate::asset::adt_format::adt_obj::{DoodadPlacement, WmoPlacement};
 
 const TILE_SIZE: f32 = CHUNK_SIZE * 16.0;
 const MAP_CENTER: f32 = 32.0 * TILE_SIZE;
@@ -66,16 +66,39 @@ pub fn doodad_position(doodad: &DoodadPlacement, tile_y: u32, tile_x: u32) -> Ve
 
 /// Shared MDDF/MODF position conversion with the original tile-coordinate check.
 pub fn placement_position(raw: [f32; 3], tile_y: u32, tile_x: u32) -> Vec3 {
-    let absolute = Vec3::new(MAP_CENTER - raw[2], raw[1], raw[0] - MAP_CENTER);
+    placement_axes(raw, tile_y, tile_x)(raw)
+}
+
+/// The conversion `placement_position` picks for `origin`, applicable to its extents too.
+fn placement_axes(origin: [f32; 3], tile_y: u32, tile_x: u32) -> fn([f32; 3]) -> Vec3 {
+    let absolute = absolute_placement(origin);
     let row = ((MAP_CENTER + absolute.z) / TILE_SIZE).floor() as i32;
     let col = ((MAP_CENTER - absolute.x) / TILE_SIZE).floor() as i32;
     let row = row.clamp(0, 63) as u32;
     let col = col.clamp(0, 63) as u32;
     if row.abs_diff(tile_y) <= 1 && col.abs_diff(tile_x) <= 1 {
-        absolute
+        absolute_placement
     } else {
-        Vec3::new(raw[0], raw[1], -raw[2])
+        |raw| Vec3::new(raw[0], raw[1], -raw[2])
     }
+}
+
+fn absolute_placement(raw: [f32; 3]) -> Vec3 {
+    Vec3::new(MAP_CENTER - raw[2], raw[1], raw[0] - MAP_CENTER)
+}
+
+/// Whether any part of the WMO's MODF extents lies within `radius` of `focus`. A scene
+/// inside a large WMO keeps it even when the WMO origin is far away.
+pub fn wmo_within_radius(
+    wmo: &WmoPlacement,
+    tile_y: u32,
+    tile_x: u32,
+    focus: Vec3,
+    radius: f32,
+) -> bool {
+    let axes = placement_axes(wmo.position, tile_y, tile_x);
+    let (a, b) = (axes(wmo.extents_min), axes(wmo.extents_max));
+    focus.clamp(a.min(b), a.max(b)).distance(focus) <= radius
 }
 
 /// Renderer-neutral equivalent of the original Bevy transform fields.
