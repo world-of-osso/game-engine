@@ -162,7 +162,7 @@ impl UiProjection {
             ));
         }
         let mut node: Gd<Control> = match frame.widget_type {
-            WidgetType::Frame | WidgetType::Texture => Control::new_alloc(),
+            WidgetType::Frame | WidgetType::Texture | WidgetType::Panel => Control::new_alloc(),
             WidgetType::Button => flat_button().upcast(),
             WidgetType::EditBox => LineEdit::new_alloc().upcast(),
             WidgetType::FontString => Label::new_alloc().upcast(),
