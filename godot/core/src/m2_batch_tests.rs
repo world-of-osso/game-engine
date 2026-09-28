@@ -239,3 +239,22 @@ fn invalid_submesh_is_an_error_even_for_zero_opacity() {
             .contains("Batch submesh_index 65535")
     );
 }
+
+#[test]
+fn instance_portal_sheet_carries_its_colour_track_rgb() {
+    // instanceportal.m2 (197007): the doorway sheet uses colour 0, authored
+    // (108, 133, 203) / 255, the blue tint WebWowViewer's meshColor applies.
+    let model = fixture("197007");
+    let batches = m2::resolve_render_batches(&model, &[0, 0, 0], false, |_| None).unwrap();
+    let sheet = batches
+        .iter()
+        .find(|batch| batch.texture_fdid == Some(7361559))
+        .unwrap();
+    assert_eq!(sheet.blend_mode, 7);
+    assert_eq!(sheet.color_opacity_track_index, Some(0));
+    let expected = [108.0 / 255.0, 133.0 / 255.0, 203.0 / 255.0];
+    let mesh_color = m2::batch_mesh_color(&model, sheet);
+    for (actual, expected) in mesh_color.iter().zip(expected) {
+        assert!((actual - expected).abs() < 1e-6, "{mesh_color:?}");
+    }
+}
