@@ -357,7 +357,7 @@ fn local_light_weight_is_full_inside_inner_radius_and_fades_to_outer() {
         light(1, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 12),
         light(2, 0, [100.0, 0.0, 0.0], [10.0, 20.0], 40),
     ];
-    let at = |x: f32| light_params_blend(&lights, 0, [x, 0.0, 0.0], LightParamsSlot::Clear);
+    let at = |x: f32| light_params_blend(&lights, &[], 0, [x, 0.0, 0.0], LightParamsSlot::Clear);
     assert_blend(&at(105.0), &[(12, 1.0), (40, 1.0)]);
     assert_blend(&at(115.0), &[(12, 1.0), (40, 0.5)]);
     assert_blend(&at(118.0), &[(12, 1.0), (40, 0.2)]);
@@ -365,7 +365,7 @@ fn local_light_weight_is_full_inside_inner_radius_and_fades_to_outer() {
 }
 
 #[test]
-fn local_lights_overlay_farthest_first_and_skip_other_maps_and_empty_slots() {
+fn local_lights_overlay_strongest_first_and_skip_other_maps_and_empty_slots() {
     let lights = [
         light(1, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 12),
         light(2, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 13),
@@ -374,19 +374,20 @@ fn local_lights_overlay_farthest_first_and_skip_other_maps_and_empty_slots() {
         light(5, 1, [20.0, 0.0, 0.0], [5.0, 50.0], 32),
         light(6, 0, [20.0, 0.0, 0.0], [5.0, 50.0], 0),
     ];
-    let blend = light_params_blend(&lights, 0, [25.0, 0.0, 0.0], LightParamsSlot::Clear);
-    // Map 0's last global row wins; light 3 (15 yd) overlays before light 4 (5 yd).
-    assert_blend(&blend, &[(13, 1.0), (30, 1.0 - 10.0 / 45.0), (31, 1.0)]);
+    let blend = light_params_blend(&lights, &[], 0, [25.0, 0.0, 0.0], LightParamsSlot::Clear);
+    // Map 0's highest-ID global row wins; light 4 (weight 1) overlays before light 3
+    // (LightParamCalculate.h:176-191).
+    assert_blend(&blend, &[(13, 1.0), (31, 1.0), (30, 1.0 - 10.0 / 45.0)]);
 }
 
 #[test]
-fn coincident_local_lights_overlay_larger_inner_radius_first() {
+fn nearby_local_lights_overlay_by_descending_weight() {
     let lights = [
         light(1, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 12),
         light(2, 0, [50.0, 0.0, 0.0], [2.0, 40.0], 21),
         light(3, 0, [50.1, 0.0, 0.0], [8.0, 40.0], 22),
     ];
-    let blend = light_params_blend(&lights, 0, [60.0, 0.0, 0.0], LightParamsSlot::Clear);
+    let blend = light_params_blend(&lights, &[], 0, [60.0, 0.0, 0.0], LightParamsSlot::Clear);
     let ids: Vec<u32> = blend.iter().map(|light| light.light_params_id).collect();
     assert_eq!(ids, [12, 22, 21]);
 }
@@ -397,22 +398,24 @@ fn map_without_global_row_uses_light_id_1() {
         light(1, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 12),
         light(7, 530, [10.0, 0.0, 0.0], [5.0, 50.0], 70),
     ];
-    let blend = light_params_blend(&lights, 530, [500.0, 0.0, 0.0], LightParamsSlot::Clear);
+    let blend = light_params_blend(&lights, &[], 530, [500.0, 0.0, 0.0], LightParamsSlot::Clear);
     assert_blend(&blend, &[(12, 1.0)]);
 }
 
 #[test]
-fn northshire_and_trade_district_are_lit_by_azeroth_global_light_only() {
-    // No map 0 local Light row reaches either spot, so both use Light 1 -> LightParams 12.
+fn northshire_and_trade_district_are_lit_by_their_zone_lights() {
+    // No map 0 local Light row reaches either spot. Northshire lies inside ZoneLight 2471
+    // (Light 12786) and the Trade District inside ZoneLight 1859 (Light 9651); both Lights
+    // use LightParams 6080, which fully covers Light 1's LightParams 12.
     let northshire = [-8949.95, -132.49, 83.53];
     let trade_district = [-8830.0, 630.0, 94.5];
     assert_blend(
         &resolve_clear_light_params_blend(0, northshire),
-        &[(12, 1.0)],
+        &[(12, 1.0), (6080, 1.0)],
     );
     assert_blend(
         &resolve_clear_light_params_blend(0, trade_district),
-        &[(12, 1.0)],
+        &[(12, 1.0), (6080, 1.0)],
     );
 }
 
@@ -421,5 +424,8 @@ fn overlapping_stormwind_lights_51_and_52_blend_by_falloff() {
     // Light 51 (-8480.4, 548.3, 80.9; 65.6-84.5 yd) and Light 52 (-8405.5, 620.9, 70.9;
     // 62.6-89.6 yd) both reach this point from inside their fade bands.
     let blend = resolve_clear_light_params_blend(0, [-8405.36, 548.28, 80.92]);
-    assert_blend(&blend, &[(12, 1.0), (62, 0.5043), (62, 0.6053)]);
+    assert_blend(
+        &blend,
+        &[(12, 1.0), (6080, 1.0), (62, 0.6053), (62, 0.5043)],
+    );
 }

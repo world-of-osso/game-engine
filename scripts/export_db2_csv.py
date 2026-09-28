@@ -9,14 +9,17 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   Emotes                       FDID 1343602
   NPCModelItemSlotDisplayInfo  FDID 1340661
   UiTextureKit                 FDID 939159
+  ZoneLight                    FDID 1310253
+  ZoneLightPoint               FDID 1310256
 """
 
 import csv
 import struct
 import sys
 
-# (layout hash, [(CSV column, source)]); source is "id", "parent", a field index, or
-# ("string", field index) for an inline string field of a single-section table.
+# (layout hash, [(CSV column, source)]); source is "id", "parent", a field index,
+# ("string", field index) for an inline string field of a single-section table, or
+# ("float", field index, element) for 32-bit element `element` of a float field.
 TABLES = {
     "Emotes": (0x0A598B68, [("ID", "id"), ("AnimID", 1)]),
     "NPCModelItemSlotDisplayInfo": (
@@ -24,6 +27,30 @@ TABLES = {
         [("ID", "id"), ("NpcModelID", "parent"), ("ItemDisplayInfoID", 0), ("ItemSlot", 1)],
     ),
     "UiTextureKit": (0x4740638A, [("ID", "id"), ("KitPrefix", ("string", 0))]),
+    "ZoneLight": (
+        0x94CE95E0,
+        [
+            ("ID", "id"),
+            ("Name", ("string", 0)),
+            ("MapID", 1),
+            ("LightID", 2),
+            ("Flags", 3),
+            ("Zmin", ("float", 4, 0)),
+            ("Zmax", ("float", 5, 0)),
+            ("TransitionType", 6),
+            ("PlayerConditionID", 7),
+        ],
+    ),
+    "ZoneLightPoint": (
+        0xDE2377FB,
+        [
+            ("ID", "id"),
+            ("Pos_0", ("float", 0, 0)),
+            ("Pos_1", ("float", 0, 1)),
+            ("PointOrder", 1),
+            ("ZoneLightID", "parent"),
+        ],
+    ),
 }
 
 
@@ -102,7 +129,7 @@ def main():
     layout, columns = TABLES[table]
     data = open(db2_path, "rb").read()
     rows, dropped, fields, sections = read_wdc5(data, layout)
-    if sections != 1 and any(isinstance(s, tuple) for _, s in columns):
+    if sections != 1 and any(isinstance(s, tuple) and s[0] == "string" for _, s in columns):
         raise ValueError(f"string columns need a single-section table, got {sections} sections")
     with open(out_path, "w", newline="") as handle:
         out = csv.writer(handle)
@@ -111,6 +138,9 @@ def main():
             values, parent, record_offset = rows[row_id]
 
             def column(s):
+                if isinstance(s, tuple) and s[0] == "float":
+                    bits = (values[s[1]] >> (32 * s[2])) & 0xFFFFFFFF
+                    return "%.9g" % struct.unpack("<f", struct.pack("<I", bits))[0]
                 if isinstance(s, tuple):
                     return read_string(data, record_offset, fields[s[1]], values[s[1]])
                 return {"id": row_id, "parent": parent}[s] if isinstance(s, str) else values[s]

@@ -3,7 +3,9 @@
 use std::{fs, path::Path};
 
 use game_engine_core::{
-    light_lookup_data::{LightEntry, LightParamsSlot, light_params_blend},
+    light_lookup_data::{
+        LightEntry, LightParamsSlot, ZoneLight, light_params_blend, parse_zone_lights,
+    },
     lighting_assets::{
         LightKeyframes, linear_to_authored_rgb, parse_light_csv, parse_light_data_csv,
     },
@@ -13,6 +15,7 @@ use game_engine_core::{
 
 pub(crate) struct LightingCatalog {
     lights: Vec<LightEntry>,
+    zone_lights: Vec<ZoneLight>,
     keyframes: LightKeyframes,
 }
 
@@ -30,7 +33,16 @@ impl LightingCatalog {
             .map_err(|error| format!("{}: {error}", lights_path.display()))?;
         let keyframes = parse_light_data_csv(&read_text(&keyframes_path)?)
             .map_err(|error| format!("{}: {error}", keyframes_path.display()))?;
-        Ok(Self { lights, keyframes })
+        let zone_lights = parse_zone_lights(
+            &read_text(&data_root.join("ZoneLight.csv"))?,
+            &read_text(&data_root.join("ZoneLightPoint.csv"))?,
+        )
+        .map_err(|error| format!("{}: {error}", data_root.display()))?;
+        Ok(Self {
+            lights,
+            zone_lights,
+            keyframes,
+        })
     }
 
     pub fn sample(
@@ -39,7 +51,13 @@ impl LightingCatalog {
         wow_position: [f32; 3],
         minutes: f32,
     ) -> Result<LightingSample, String> {
-        let blend = light_params_blend(&self.lights, map_id, wow_position, LightParamsSlot::Clear);
+        let blend = light_params_blend(
+            &self.lights,
+            &self.zone_lights,
+            map_id,
+            wow_position,
+            LightParamsSlot::Clear,
+        );
         for light in &blend {
             if self
                 .keyframes
