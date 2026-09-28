@@ -142,3 +142,40 @@ pub fn apply_gravity_and_ground_snap(
     }
     state
 }
+
+/// Depth of the feet under the water surface where a character swims: wading turns into
+/// swimming there, and a swimmer floats there at the surface.
+pub const SWIM_DEPTH: f32 = 1.25;
+/// Slack for float error at the swim threshold and the surface.
+const SWIM_EPSILON: f32 = 0.01;
+
+/// Swimming while terrain water stands `SWIM_DEPTH` over the feet (a floor above the water,
+/// such as a bridge, keeps the character dry).
+pub fn is_swimming(feet_y: f32, ground_y: f32, surface_y: Option<f32>) -> bool {
+    surface_y
+        .is_some_and(|surface| surface > ground_y && surface - feet_y >= SWIM_DEPTH - SWIM_EPSILON)
+}
+
+/// Whether a swimmer at `feet_y` floats at the surface.
+pub fn at_swim_surface(feet_y: f32, surface_y: f32) -> bool {
+    feet_y >= surface_y - SWIM_DEPTH - SWIM_EPSILON
+}
+
+/// A swimmer's height after `rise`, this frame's intended vertical travel (ascend/descend
+/// and pitched movement). A swimmer floating at the surface stays on it while not diving;
+/// none rises above it or sinks through the ground.
+pub fn swim_height(
+    feet_y: f32,
+    rise: f32,
+    surface_y: f32,
+    ground_y: Option<f32>,
+    at_surface: bool,
+) -> f32 {
+    let top = surface_y - SWIM_DEPTH;
+    let y = if at_surface && rise >= 0.0 {
+        top
+    } else {
+        (feet_y + rise).min(top)
+    };
+    ground_y.map_or(y, |ground| y.max(ground))
+}
