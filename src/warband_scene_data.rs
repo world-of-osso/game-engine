@@ -87,6 +87,19 @@ impl WarbandSceneEntry {
     pub fn map_name(&self) -> String {
         self.map_id.to_string()
     }
+
+    /// Campsite selector preview art for this scene's texture kit.
+    pub fn preview_image_path(&self) -> Option<&'static str> {
+        match self.texture_kit {
+            5671 => Some("data/ui/campsites/adventurers-rest.ktx2"),
+            5672 => Some("data/ui/campsites/ohnahran-overlook.ktx2"),
+            5673 => Some("data/ui/campsites/cultists-quay.ktx2"),
+            5674 => Some("data/ui/campsites/freywold-spring.ktx2"),
+            5675 => Some("data/ui/campsites/randomize-from-favorites.ktx2"),
+            5676 => Some("data/ui/campsites/gallagio-grand-gallery.ktx2"),
+            _ => None,
+        }
+    }
 }
 
 /// Extra tiles needed to complete authored campsite backdrops across tile borders.

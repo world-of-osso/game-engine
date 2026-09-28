@@ -29,13 +29,22 @@ pub(super) struct Background {
 }
 
 impl Background {
-    pub fn load(data_root: PathBuf, cache_root: PathBuf) -> Result<Self, String> {
+    /// Load `scene_id`, or the first authored scene when none was chosen.
+    pub fn load(
+        data_root: PathBuf,
+        cache_root: PathBuf,
+        scene_id: Option<u32>,
+    ) -> Result<Self, String> {
         let catalog = read_authored_catalog(&data_root)?;
-        let scene = catalog
-            .scenes
-            .first()
-            .ok_or("No authored Warband scenes")?
-            .clone();
+        let scene = match scene_id {
+            Some(id) => catalog
+                .scenes
+                .iter()
+                .find(|scene| scene.id == id)
+                .ok_or_else(|| format!("No authored Warband scene {id}"))?,
+            None => catalog.scenes.first().ok_or("No authored Warband scenes")?,
+        }
+        .clone();
         let placement = catalog
             .placements
             .iter()

@@ -169,3 +169,31 @@ fn button_text_color_follows_state() {
         assert_eq!((text.content.as_str(), text.color), ("Login", color));
     }
 }
+
+#[test]
+fn css_border_draws_four_inset_edges_above_the_fill() {
+    let mut frame = Frame::new(1, Some("TabBox".into()), WidgetType::Frame);
+    frame.background_color = Some([0.02, 0.015, 0.01, 0.82]);
+    frame.border = Some(ui_toolkit::frame::Border {
+        width: 1.0,
+        color: [1.0, 0.82, 0.0, 0.9],
+    });
+    let solid = |rect, color| ImagePart {
+        rect,
+        source: None,
+        crop: Crop::Full,
+        color,
+        overlay: false,
+    };
+    let gold = [1.0, 0.82, 0.0, 0.9];
+    assert_eq!(
+        project_images(&frame, 80.0, 34.0),
+        vec![
+            solid([0.0, 0.0, 80.0, 34.0], [0.02, 0.015, 0.01, 0.82]),
+            solid([0.0, 0.0, 80.0, 1.0], gold),
+            solid([79.0, 0.0, 1.0, 34.0], gold),
+            solid([0.0, 33.0, 80.0, 1.0], gold),
+            solid([0.0, 0.0, 1.0, 34.0], gold),
+        ]
+    );
+}

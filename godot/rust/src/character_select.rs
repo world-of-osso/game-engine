@@ -107,6 +107,8 @@ pub(crate) struct CharacterPreview {
     cache_root: PathBuf,
     customization: Option<CustomizationDb>,
     preview: Option<Preview>,
+    /// Chosen campsite; `None` shows the first authored scene.
+    scene_id: Option<u32>,
 }
 
 impl CharacterPreview {
@@ -116,6 +118,15 @@ impl CharacterPreview {
             cache_root,
             customization: None,
             preview: None,
+            scene_id: None,
+        }
+    }
+
+    /// Show campsite `id` from the next sync, rebuilding the scene when it changes.
+    pub fn select_scene(&mut self, id: u32) {
+        if self.scene_id != Some(id) {
+            self.scene_id = Some(id);
+            self.reset();
         }
     }
 
@@ -161,7 +172,11 @@ impl CharacterPreview {
     }
 
     fn load_scene(&self, parent: &mut Gd<Node3D>) -> Result<Preview, String> {
-        let background = Background::load(self.data_root.clone(), self.cache_root.clone())?;
+        let background = Background::load(
+            self.data_root.clone(),
+            self.cache_root.clone(),
+            self.scene_id,
+        )?;
         let mut root = Node3D::new_alloc();
         root.set_name("CharacterSelectScene");
         parent.add_child(&root);

@@ -27,6 +27,8 @@ pub mod campsite_component;
 pub mod char_select_component;
 #[path = "../../../src/ui/screens/char_select_delete_confirm_component.rs"]
 mod char_select_delete_confirm_component;
+#[path = "../../../src/ui/screens/char_select_top_nav_component.rs"]
+pub mod char_select_top_nav_component;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
 pub mod trash_button_component;
 
