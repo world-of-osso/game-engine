@@ -28,6 +28,36 @@ Effect: Stormwind (ZoneLight 1859, Light 9651) and Elwynn (ZoneLight 2471, Light
 
 Known data gap: `data/Light.csv` (5,072 rows) is older than the local Light.db2 (5,355). ZoneLights 2956 and 3016 name Lights that are missing from the CSV, so they contribute nothing.
 
+## WMO fog
+
+`03db2144` ports WebWowViewerCpp's WMO fog (commit 1a8cccb) into the Godot client. The selection lives in the shared lib, so the Bevy client could use it too.
+
+- **Selection** (`src/asset/wmo_format/fog.rs`, `WmoFogVolume::camera_fog`, from `WmoObject::checkFog`, `wmoObject.cpp:1631-1778`). Positions are in WMO file-local coordinates.
+  - The camera's group must not be exterior (0x8) or exterior-lit (0x40).
+  - Record 0 is the base. The fog is off when record 0 is the only record and lacks F_FOGVOLUME 0x1000, or when record 0 has both 0x1000 and 0x10000.
+  - The group's MOGP fog ids above 0 are blended in. Records flagged 0x1 (F_IEBLEND) are skipped. So are records farther from the camera than their larger radius.
+  - With 0x1000 on record 0, the result is the radial-weight average (`:1540-1545`), and record 0 fills the weight up to 1. The average colour rounds back to bytes. Without 0x1000, records are lerped into record 0 farthest first, with the byte lerp `lerpImVector` (`:1564-1581`).
+  - `dist_to_exit` is the distance to the nearest MOPR portal polygon of the group (`distanceToPortalPolygon`, `:1588-1622`), or `f32::MAX` when the group has no portals.
+- **Conversion** (`sky_lightdata_data.rs` `wmo_retail_fog`, from `wmoFogDataToFogResult`, `DayNightLightHolder.cpp:666-691`). The end is clamped to [30, farClip]. The start is `end * start_scalar`, floored at 0. The density comes from `calcFogDensityFromStartEnd` (`:652-660`) × 0.0005, and the fog still ends at farClip.
+- **Blend** (`blend_wmo_fog`, and `lighting::apply_wmo_fog` in Godot; `DayNightLightHolder.cpp:491-497`, `:712-722`). The weight is `clamp(dist_to_exit * 0.04)`: the exterior fog applies at a portal and the WMO fog applies fully 25 yd inside. Start and density mix linearly. The colour mixes in authored space, then goes back to the linear `fog_color` uniform.
+- **Godot wiring.**
+  - `WmoPortals::camera_fog` finds the camera's interior group with `camera_interior_group`: the group whose bounding box contains the camera and whose floor below it is the highest. This approximates `getGroupWmoThatCameraIsInside` (`wmoObject.cpp:1343-1404`) without its MOBN BSP. `TerrainObjects`, `CampsiteObjects` and `GlobalWmoScene` return the first matching WMO. The reference keeps the last candidate (`map.cpp:487-512`).
+  - `WorldLighting::sync` applies the fog before its change check. So every `bind_model`/`bind` consumer (terrain, M2, WMO, characters, creatures) gets the same fog through the existing uniforms. The shader math does not change.
+  - In-world, the camera position selects the fog, and the light is still sampled at the player. Character select uses the camera's previous-frame position.
+- **Data.**
+  - Cultists' Quay 5356285 has one record: 0x1000, end 578, start scalar 0.129, RGB (21, 80, 99).
+  - The Stockade (108631) has record 0 plain (end 133.3, start scalar 0.1, RGB (49, 91, 143)) and record 1 F_IEBLEND. The native fixture spawn is 27.1 yd from a portal, so the weight is 1.
+  - The Northshire Abbey (107074) has one plain record, so it gets no WMO fog.
+- **Proof.**
+  - `cargo test -p game-engine-core --lib fog::`: 7 synthetic cases.
+  - `--test wmo_fog`: the real 5356285 MFOG record and the conversion values.
+  - `cargo test -p game-engine-godot --lib`:
+    - `cultists_quay_camera_and_character_take_the_cave_fog`: group 3, weight 1.
+    - `stockade_cell_block_takes_its_blue_mfog`.
+    - `cultists_quay_scene_fog_takes_the_cave_mfog`: the noon LightParams 12 sample becomes start 74.562, density 0.00075 and the cave colour.
+  - The `native_transfer_fixture --global-wmo` fixture passes.
+  - There is no visual capture of Stormwind or the Stockade.
+
 ## Scene light
 
 `src/rendering/lighting/retail_light.rs` defines `RetailSceneLight`: ambient, horizon ambient, ground ambient, direct colour, sun direction and fog colour/range. `update_scene_light` samples the blend at `GameTime` and writes the resource and the world cameras' `DistanceFog`. Weather still tints and shortens the fog. `upload_retail_scene_light` writes the shading fields into one `ShaderBuffer`. It has a UUID handle (`RETAIL_SCENE_LIGHT_BUFFER`) and is updated in place, so every material binds the same GPU buffer.
@@ -77,9 +107,9 @@ World cameras use `Tonemapping::None` (`world_camera_tonemapping`). Measured on 
 ## Gaps
 
 - **Point lights:** M2 and WMO point lights are still Bevy PBR lights and do not reach Retail materials (`accumLight`).
-- **Fog model:** Retail fog is the full `makeFog2` (exponential, height and end colour). Godot implements the legacy exponential term only (start `farClip * FogScaler`, density `FogDensity * 0.0005`, end fade at farClip; see [[campsite-fog-and-wmo-selection]]); height fog, artistic fog, end/height/sun fog colours and WMO MFOG are not ported. Bevy still fogs linearly from `FogEnd / 36`, which fogs every FogEnd-0 LightParams (54% of LightData rows) completely.
+- **Fog model:** Retail fog is the full `makeFog2` (exponential, height and end colour). Godot implements the legacy exponential term only (start `farClip * FogScaler`, density `FogDensity * 0.0005`, end fade at farClip; see [[campsite-fog-and-wmo-selection]]); height fog, artistic fog and end/height/sun fog colours are not ported. Bevy still fogs linearly from `FogEnd / 36`, which fogs every FogEnd-0 LightParams (54% of LightData rows) completely.
 - **Combiners:** single-texture M2 batches use StandardMaterial's texture × colour, not WebWowViewerCpp's `calcM2FragMaterial` pixel-shader combiners.
-- **WMO fog:** MFOG and `WmoObject::checkFog` are not ported, so WMO interiors use the exterior LightParams fog (Cultists' Quay; see [[campsite-fog-and-wmo-selection]]).
+- **WMO fog (Godot):** underwater MFOG fog is selected but not used (Godot has no underwater fog). The camera's group comes from `camera_interior_group`, not the reference BSP query. Bevy parses MFOG and spawns `WmoGroupFogVolume` entities, but nothing reads them.
 - **Map flag2 0x2:** the fog-density override is not ported. No map sets it in `data/db2/12.1.0.69933/Map.csv`.
 - **LightParams sun overrides:** flags 0x100 and 0x200 (SunPolar/SunAzimuth, OverrideSunPosition) are not decoded.
 - **Interpolation space:** LightData colours still interpolate in linear space, not bytes.

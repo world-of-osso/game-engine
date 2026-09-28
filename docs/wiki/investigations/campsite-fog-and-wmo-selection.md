@@ -22,7 +22,7 @@ The tile `2837_27_31` has no MCLY layers and one MODF WMO (5356285, doodad set 1
 ## Still missing after these fixes
 
 - Scene 5: the WMO's 1,663 MODD doodads (set 0 DefaultGlobal 1,612, set 1 Warband 50) are not placed.
-- Scene 5: grey instead of Retail's blue (see below).
+- Scene 5: darker and less blue than Retail even with the WMO fog ported (see below).
 
 ## Cultists' Quay (5): grey instead of blue
 
@@ -41,5 +41,11 @@ The blue comes from the WMO. `11xp_arathorzealots01.wmo` (5356285) has 17 interi
 Godot applies MAVG as the interior ambient (`wmo/scene.rs` `wmo_interior_ambient`). It does not port WMO fog, WebWowViewerCpp `WmoObject::checkFog` (`wmoObject.cpp:1631`), which `DayNightLightHolder.cpp:390-396` blends when the camera is inside a WMO group. The capture at `cf8d8153` (`data/diagnostics/zonelight-20260928/campsite-5-cf8d8153.png`) shows the cave and ship grey under LightParams 12. The Retail preview is `data/ui/campsites/cultists-quay.ktx2` (as PNG: `cultists-quay-retail.png` in the same folder).
 
 `cf8d8153` ports the reference light selection anyway (see [[retail-lighting]]). It changes in-world lighting (Stormwind, Elwynn), not the campsites.
+
+### WMO fog ported (`03db2144`)
+
+`03db2144` ports the WMO fog (see [[retail-lighting]], WMO fog). At the authored camera (WarbandScene 5 Position) and at the character slot (WarbandScenePlacement 40), the camera stands in cave group 3. That group is interior (flags 0x83002a05) and has no portals, so the distance to the exit is `f32::MAX` and the weight is 1. Record 0 applies in full: legacy fog start 74.6 yd and density 0.00075 per yard (a 503 yd span, over 500, so density 1.5). The colour is RGB (21, 80, 99).
+
+Capture `data/diagnostics/wmo-fog-20260928/campsite-5.png`: the far ship and walls move toward teal, for example (16,17,18) → (16,22,25) and (37,32,26) → (35,37,33). Near pixels do not change. Retail stays much brighter and bluer, and the fog does not explain that. Fog can only pull pixels toward (21, 80, 99), which is darker than Retail's lit ship. At this density, 150 yd of fog is about 5%. The remaining gap is lighting or content (the 1,663 unplaced MODD doodads, including light shafts), not fog selection.
 - Scene 7: MH2O water uses the placeholder procedural shader (pale fresnel sheet), not Retail liquid colours and textures.
 - Fixed in `736ed0f6`: `M2 variation 1 has zero duration` in scene 7 came from `pa_redbird_stand.m2` (FDID 588287), Stand variation 1 with duration 0 and frequency 30583. See [weighted loop variations](../systems/animation.md#weighted-loop-variations).
