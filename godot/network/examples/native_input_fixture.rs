@@ -28,6 +28,8 @@ use shared::{
     },
 };
 
+#[path = "native_input_fixture/menu.rs"]
+mod menu;
 #[path = "native_input_fixture/swimming.rs"]
 mod swimming;
 
@@ -52,6 +54,7 @@ enum StartupScreen {
     InWorld,
     Overlay,
     Swimming,
+    Menu,
 }
 
 impl StartupScreen {
@@ -62,9 +65,10 @@ impl StartupScreen {
             Some("inworld") => Self::InWorld,
             Some("overlay") => Self::Overlay,
             Some("swimming") => Self::Swimming,
+            Some("menu") => Self::Menu,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay or swimming"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming or menu"
                 )
             }
         };
@@ -77,7 +81,7 @@ impl StartupScreen {
 
     fn as_str(self) -> &'static str {
         match self {
-            Self::CharSelect => "charselect",
+            Self::CharSelect | Self::Menu => "charselect",
             Self::InWorld | Self::Overlay | Self::Swimming => "inworld",
         }
     }
@@ -202,15 +206,21 @@ fn launch_godot(
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
-            "res://tests/world_input_flow.gd",
+            if screen == StartupScreen::Menu {
+                "res://tests/world_menu_flow.gd"
+            } else {
+                "res://tests/world_input_flow.gd"
+            },
             "--screen",
             screen.as_str(),
         ])
-        .args(if screen != StartupScreen::CharSelect {
-            &["--char", "iNpUt fIxTuRe", "--server"][..]
-        } else {
-            &["--server"][..]
-        })
+        .args(
+            if !matches!(screen, StartupScreen::CharSelect | StartupScreen::Menu) {
+                &["--char", "iNpUt fIxTuRe", "--server"][..]
+            } else {
+                &["--server"][..]
+            },
+        )
         .arg(address.to_string())
         .env("GODOT_TEST_STARTUP_SCREEN", screen.as_str())
         .env(
@@ -334,7 +344,7 @@ fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> 
         },
         ..equipped.clone()
     };
-    let characters = if screen != StartupScreen::CharSelect {
+    let characters = if !matches!(screen, StartupScreen::CharSelect | StartupScreen::Menu) {
         vec![unequipped, equipped, collection]
     } else {
         vec![equipped, unequipped, collection]
@@ -968,6 +978,8 @@ fn main() {
     let (mut child, lines, reader) = launch_godot(root, &config, address, screen);
     let result = if screen == StartupScreen::Swimming {
         swimming::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::Menu {
+        menu::run(&mut app, &mut child, lines, reader)
     } else {
         run_fixture(&mut app, &mut child, lines, reader, screen)
     };
