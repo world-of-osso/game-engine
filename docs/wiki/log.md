@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] system | Godot local player speed and stop input
+
+The Godot client now predicts at the server's speed (swim speed, aura multiplier from the replicated `MovementSpeed`) and reports one stop input on release. Updated [[networking]].
+
 ## [2026-09-28] investigation | Godot player walks through WMO walls
 
 The Godot player had no wall collision; the original wall ray now runs against the WMO wall bodies before the slope rule. Updated [[stockade-entrance]] and [[collision-system]].

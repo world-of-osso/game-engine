@@ -74,6 +74,14 @@ The client uses Lightyear 0.28's `Remote` receive marker; `Replicated` is only t
 
 **Security note**: passwords are transmitted in plaintext over UDP — netcode has no encryption. Acceptable for LAN/dev only.
 
+## Local Player Speed and Stop Input
+
+The Godot client predicts its own player and reports each position in `PlayerInput`; game-server adopts it only within speed × a 0.5 s movement bank, at most 0.25 s per input. A client faster than the server's speed drifts ahead once the bank is spent: before `888ea4ca` it swam at run speed (7 yd/s, 20.9 yd in 178 frames live) while the server capped it at `SWIM_SPEED` 4.72, and it ignored snares.
+
+- **Speed.** `PlayerMovement` mirrors the server's `compute_movement_speed`: swim/run/walk base × direction multiplier (backpedal 0.6, strafe 0.8) × an aura multiplier. The server sends no aura multiplier; its replicated `MovementSpeed` is base × aura × direction for the newest input it applied, written only when it applies one. The client divides a newly replicated value by the unmodified speed of its newest reported input. The value is read only on change, so a later input of another direction does not re-derive it. After a direction change in flight the ratio is wrong for about one round trip, then the next replicated value corrects it; the bank absorbs the overshoot.
+- **Stop.** The first idle frame after movement or a jump sends one `PlayerInput` with no direction and the final position; a game menu that halts movement sends it through `stop_input`. The server then recomputes speed with direction multiplier 1, so a backpedal release is visible as `MovementSpeed` going from 0.6× back to 1×.
+- Gap: an aura gained while standing still is only replicated after the next applied input. See [player movement sync](../../specs/player-movement-sync.md).
+
 ## Entity Replication
 
 On `Added<Position>` with Lightyear's `Remote` marker:
