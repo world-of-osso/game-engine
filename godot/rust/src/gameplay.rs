@@ -265,6 +265,7 @@ impl crate::GameClient {
         let current = player.get_position();
         let ground = crate::ground::TerrainGround {
             terrain: &self.terrain,
+            wmos: self.world_objects.wmo_floors(),
         };
         let next = self.player_movement.predict(
             glam::Vec3::new(current.x, current.y, current.z),
