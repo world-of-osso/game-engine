@@ -5,7 +5,7 @@ pub(crate) mod creature;
 mod equipment;
 pub(crate) mod material;
 pub(crate) mod player;
-mod uv_animation;
+pub(crate) mod uv_animation;
 use std::{collections::HashMap, fs, path::Path};
 
 use crate::animation::WowAnimationPlayer;
@@ -162,6 +162,11 @@ fn wow_vec3(value: [f32; 3]) -> Vector3 {
 pub(crate) fn build_skeleton(bones: &[m2::Bone]) -> (Gd<Skeleton3D>, Option<Gd<Skin>>) {
     let mut skeleton = Skeleton3D::new_alloc();
     skeleton.set_name("Skeleton3D");
+    // M2 skeletons have no SkeletonModifier3D; the default idle mode still runs an
+    // internal process per skeleton every frame, about 20 ms for Stormwind's 8k doodads.
+    skeleton.set_modifier_callback_mode_process(
+        godot::classes::skeleton_3d::ModifierCallbackModeProcess::MANUAL,
+    );
     if bones.is_empty() {
         return (skeleton, None);
     }

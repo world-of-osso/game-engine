@@ -1703,3 +1703,7 @@ Both clients now select LightParams in WebWowViewerCpp's order: the map default,
 ## [2026-09-28] feature | Godot NPC locomotion from CreatureMotion
 
 Replicated NPCs in the Godot client now play Walk 4, Run 5 and Stand 0 from the server's `CreatureMotion`, as the Bevy client does, instead of always standing. See [animation](systems/animation.md#native-godot-replicated-npc-locomotion).
+
+## [2026-09-28] perf | Doodad animation LOD
+
+Doodads now take the NPC animation LOD in both clients (user decision; [npc-animation-lod](../specs/npc-animation-lod.md)). Godot's in-world doodad cull advances doodad bone and material animation only on sampled frames, with the time owed, and M2 skeletons use manual modifier processing, which removes 7,997 per-frame `Skeleton3D` internal processes. Stormwind indoor A/B: 25–28.5 → 31–38 FPS. See [[godot-stormwind-fps]] and [[animation]].
