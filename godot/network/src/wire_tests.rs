@@ -132,7 +132,8 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
         jumping: false,
         running: true,
         swimming: true,
-        elapsed_secs: 0.05,
+        position: [-8949.5, 112.88, 0.25],
+        epoch: 7,
     };
     bridge
         .send::<PlayerInput, InputChannel>(input.clone())
@@ -143,7 +144,8 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
     assert_eq!(received.jumping, input.jumping);
     assert_eq!(received.running, input.running);
     assert_eq!(received.swimming, input.swimming);
-    assert_eq!(received.elapsed_secs, input.elapsed_secs);
+    assert_eq!(received.position, input.position);
+    assert_eq!(received.epoch, input.epoch);
 
     let first_control = MovementControl {
         epoch: 7,

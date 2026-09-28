@@ -13,8 +13,7 @@ enum Shore {
 
 impl Shore {
     fn from_input(input: &PlayerInput) -> Result<Self, String> {
-        if !input.elapsed_secs.is_finite()
-            || input.elapsed_secs <= 0.0
+        if !input.position.iter().all(|axis| axis.is_finite())
             || !input.facing_yaw.is_finite()
             || !input.running
             || input.jumping
