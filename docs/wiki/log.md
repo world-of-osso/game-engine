@@ -1644,3 +1644,7 @@ Created [[stockade-entrance]]: MODD name_offset indexes MODI (WMO doodads of MOD
 ## [2026-09-26] investigation | Stockade floor fall
 
 Created [[stockade-floor-fall]]: the failing teleport points lie outside WMO 108631 (no face crosses them); server ground matches brute force on all 7,650 floor samples; sky is the exterior-only portal view. Open: TrinityCore fall-to-void kill.
+
+## [2026-09-27] change | Launcher caches Godot
+
+The launcher resolves Godot as `GODOT_BIN`, else `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2/`, downloading the official 4.7.2 zip and verifying its pinned SHA-512 on first use. `data/tools/godot` is no longer read. See [[godot-conversion]].
