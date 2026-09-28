@@ -1,5 +1,7 @@
 //! Bevy-free parsers over authored WoW asset bytes.
 pub mod adt;
+#[path = "../../../src/area_zone_data.rs"]
+pub mod area_zone_data;
 pub mod asset;
 pub mod blp;
 #[path = "../../../src/camera_control_data.rs"]
