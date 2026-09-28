@@ -1226,6 +1226,7 @@ impl GameClient {
             SessionScreen::CharacterCreate => self.attach_create_ui()?,
             SessionScreen::Loading => self.attach_loading_ui()?,
             SessionScreen::InWorld => self.attach_errors_ui()?,
+            SessionScreen::GameMenu => {}
             SessionScreen::Login => {
                 if let Some(ui) = self.character_ui.take() {
                     ui.free();
