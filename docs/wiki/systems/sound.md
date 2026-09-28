@@ -12,7 +12,9 @@ The sound system coexists with the rest of the engine as a Bevy plugin registere
 
 ## Shared catalog boundary
 
-`5f74a859` extracts the root music-zone row parser, `music_manifest.csv` ambient reader, and music/ambient overlap removal into Bevy-free `catalog_data`, exposed to `godot/core`. The root music cache delegates row parsing; root ambient and overlap adapters use the same source. Both readers retain per-area first-encounter track order while deduplicating track indices. `d60a3037` separately shares `AreaTable` `ID` → nonzero `ParentAreaID` parsing and root-ancestor traversal: it stops at a missing parent, limits bad-data traversal to 16 links, and leaves an unknown ID unchanged. This complements `959112e9`'s MCNK `area_id` exposure; it does not connect that area ID to catalog selection. The catalog and AreaTable core targeted proofs are each 5/5. Root adapter compilation and native catalog consumption/playback remain pending independent verification. Native audio source at `ba028e7c` is not build or integration proof, so this is neither audio parity nor native playback evidence.
+`5f74a859` extracts the root music-zone row parser, `music_manifest.csv` ambient reader, and music/ambient overlap removal into Bevy-free `catalog_data`, exposed to `godot/core`. The root music cache delegates row parsing; root ambient and overlap adapters use the same source. Both readers retain per-area first-encounter track order while deduplicating track indices. `d60a3037` separately shares `AreaTable` `ID` → nonzero `ParentAreaID` parsing and root-ancestor traversal: it stops at a missing parent, limits bad-data traversal to 16 links, and leaves an unknown ID unchanged. This complements `959112e9`'s MCNK `area_id` exposure.
+
+At `741344ca`, native `NativeSound` consumes those catalogs: two owned Godot players decode local MP3/Ogg/WAV bytes, reject FLAC, select music and ambience by zone, cache streams, and apply live volume/mute/music-enable options. Its targeted headless fixture exits 0 for playback state, natural completion, sequence, zone and option changes, expected missing-catalog/FLAC errors, and lifecycle. This is not audible-output, in-world integration, or parity proof. Its verbose exit reports 16 leaked stream/playback/Ogg-packet objects but no native sound/player nodes; see [[native-audio-shutdown-leaks]]. Root-adapter compilation and source formatting/readability remediation `809` remain open.
 
 ## Runtime scheduling
 
@@ -36,3 +38,4 @@ Post-fix PID `2468254` remained focused, `InWorld`, and connected with one link/
 
 - [[terrain]] — zone data that drives zone music selection
 - [[networking]] — zone component replicated from server (Zone component in shared crate)
+- [[native-audio-shutdown-leaks]] — bounded native and pure-GDScript shutdown evidence
