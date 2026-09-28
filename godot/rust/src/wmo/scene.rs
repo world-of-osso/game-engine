@@ -1,13 +1,12 @@
 //! Native WMO group meshes and authored shader materials.
+//!
+//! Every retail MOMT shader id maps to WebWowViewerCpp's vertex/pixel shader pair
+//! (`wowViewerLib/src/engine/objects/iWmoApi.h` `wmoMaterialShader`), whose math
+//! `shaders/wmo.gdshader` ports from `commonWMOMaterial.slang`.
 
-use std::{collections::HashMap, fs, path::Path};
+use std::{ops::RangeInclusive, path::Path};
 
-use ::image::imageops::{FilterType, resize};
-use game_engine_core::{
-    asset::wmo_format::parser::WmoMaterialDef,
-    blp, wmo,
-    wmo_material_data::{composite_wmo_shader_layer, describe_wmo_shader},
-};
+use game_engine_core::{asset::wmo_format::parser::WmoMaterialDef, wmo};
 use godot::{
     classes::{
         ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ResourceLoader, Shader,
@@ -26,23 +25,141 @@ const SHADER_TYPE: &str = "shader_type spatial;";
 const RENDER_MODE: &str =
     "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
 
+/// `iWmoApi.h` `wmoMaterialShader[MAX_WMO_SHADERS]`: MOMT shader id ->
+/// (WmoVertexShader, WmoPixelShader). 10 waterWindow and 14 submarineWindow are
+/// (None, None) = (-1, -1), which the reference still draws through its `-1`
+/// branches (`commonWMOMaterial.slang` `calcWMOVertMat`/`caclWMOFragMat` case -1).
+const RETAIL_WMO_SHADERS: [(i32, i32); 24] = [
+    (0, 0),   // 0 MapObjDiffuse: Diffuse_T1 / MapObjDiffuse
+    (3, 1),   // 1 MapObjSpecular: Specular_T1 / MapObjSpecular
+    (3, 2),   // 2 MapObjMetal: Specular_T1 / MapObjMetal
+    (1, 3),   // 3 MapObjEnv: Diffuse_T1_Refl / MapObjEnv
+    (0, 4),   // 4 MapObjOpaque: Diffuse_T1 / MapObjOpaque
+    (1, 5),   // 5 MapObjEnvMetal: Diffuse_T1_Refl / MapObjEnvMetal
+    (4, 6),   // 6 MapObjTwoLayerDiffuse: Diffuse_Comp / TwoLayerDiffuse
+    (0, 7),   // 7 MapObjTwoLayerEnvMetal: Diffuse_T1 / TwoLayerEnvMetal
+    (6, 8),   // 8 TwoLayerTerrain: Diffuse_Comp_Terrain / TwoLayerTerrain
+    (4, 9),   // 9 MapObjDiffuseEmissive: Diffuse_Comp / DiffuseEmissive
+    (-1, -1), // 10 waterWindow: None / None
+    (2, 10),  // 11 MapObjMaskedEnvMetal: Diffuse_T1_Env_T2 / MaskedEnvMetal
+    (2, 11),  // 12 MapObjEnvMetalEmissive: Diffuse_T1_Env_T2 / EnvMetalEmissive
+    (4, 12),  // 13 TwoLayerDiffuseOpaque: Diffuse_Comp / TwoLayerDiffuseOpaque
+    (-1, -1), // 14 submarineWindow: None / None
+    (4, 13),  // 15 TwoLayerDiffuseEmissive: Diffuse_Comp / TwoLayerDiffuseEmissive
+    (0, 0),   // 16 MapObjDiffuseTerrain: Diffuse_T1 / MapObjDiffuse
+    (2, 14),  // 17: Diffuse_T1_Env_T2 / AdditiveMaskedEnvMetal
+    (7, 15),  // 18: Diffuse_CompAlpha / TwoLayerDiffuseMod2x
+    (4, 16),  // 19: Diffuse_Comp / TwoLayerDiffuseMod2xNA
+    (7, 17),  // 20: Diffuse_CompAlpha / TwoLayerDiffuseAlpha
+    (0, 18),  // 21: Diffuse_T1 / MapObjLod
+    (8, 19),  // 22: MapObjParallax / MapObjParallax
+    (0, 20),  // 23: Diffuse_T1 / MapObjDFShader
+];
+
+/// Shader uniforms for the nine WebWowViewerCpp WMO texture slots, in
+/// `WMOMaterialTemplate.textures` order.
+const TEXTURE_UNIFORMS: [&str; 9] = [
+    "base_texture",
+    "second_texture",
+    "third_texture",
+    "texture_4",
+    "texture_5",
+    "texture_6",
+    "texture_7",
+    "texture_8",
+    "texture_9",
+];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct RetailWmoShader {
+    vertex: i32,
+    pixel: i32,
+}
+
+fn retail_wmo_shader(momt_shader: u32) -> Result<RetailWmoShader, String> {
+    let (vertex, pixel) = RETAIL_WMO_SHADERS
+        .get(momt_shader as usize)
+        .copied()
+        .ok_or_else(|| {
+            format!("unsupported shader {momt_shader} (retail MOMT shaders are 0..=23)")
+        })?;
+    Ok(RetailWmoShader { vertex, pixel })
+}
+
+/// Texture slots each pixel shader samples in `caclWMOFragMat` (bit N = slot N).
+/// Unread slots stay black, so their FDIDs need not be loaded.
+fn pixel_shader_texture_slots(pixel: i32) -> u16 {
+    match pixel {
+        0 | 1 | 2 | 4 | 18 => 0b1,
+        -1 | 3 | 5 | 6 | 8 | 9 | 12 | 13 | 16 => 0b11,
+        7 | 10 | 11 | 14 | 15 | 17 => 0b111,
+        19 => 0b11_1101,
+        20 => 0b1_1111_1111,
+        _ => unreachable!("pixel shader {pixel} is not in RETAIL_WMO_SHADERS"),
+    }
+}
+
+/// Vertex streams the retail shaders read beyond MOCV, as WebWowViewerCpp
+/// binds them (`wmoGroupGeom.cpp` `getVBO`): every MOTV set, the second MOCV and
+/// MOC2 the group file carries, whatever the material flags. Missing streams use
+/// the reference defaults in the shader: UV (1,1), MOCV2 alpha 1, MOC2 (0,0,0,1).
+#[derive(Default)]
+struct RetailWmoStreams {
+    uv2: Option<Vec<[f32; 2]>>,
+    uv3: Option<Vec<[f32; 2]>>,
+    uv4: Option<Vec<[f32; 2]>>,
+    second_mocv_alpha: Option<Vec<f32>>,
+    moc2: Option<Vec<[f32; 4]>>,
+}
+
+fn retail_streams(raw: &wmo::RawGroupData, range: RangeInclusive<usize>) -> RetailWmoStreams {
+    fn slice<T: Clone>(values: &[T], range: &RangeInclusive<usize>) -> Option<Vec<T>> {
+        values.get(range.clone()).map(<[T]>::to_vec)
+    }
+    RetailWmoStreams {
+        uv2: slice(&raw.second_uvs, &range),
+        uv3: slice(&raw.third_uvs, &range),
+        uv4: slice(&raw.fourth_uvs, &range),
+        second_mocv_alpha: slice(&raw.second_color_blend_alphas, &range),
+        moc2: slice(&raw.moc2_colors, &range),
+    }
+}
+
+/// The group vertex range a shared mesh batch was sliced from
+/// (`wmo_format::mesh_data` `build_split_group_batch`/`build_whole_group_batch`).
+fn batch_vertex_range(raw: &wmo::RawGroupData, batch_index: usize) -> RangeInclusive<usize> {
+    let last = raw.vertices.len().saturating_sub(1);
+    match raw.batches.get(batch_index) {
+        Some(batch) => batch.min_index as usize..=(batch.max_index as usize).min(last),
+        None => 0..=last,
+    }
+}
+
 struct PreparedWmoBatch<'a> {
     group_index: u32,
     group_flags: u32,
     mesh: wmo::WmoMeshBatch,
+    streams: RetailWmoStreams,
     material: &'a WmoMaterialDef,
+    shader: RetailWmoShader,
     interior_ambient: [f32; 3],
 }
 
-/// Returns unplaced WMO-local geometry; the caller owns the ADT MODF transform.
+/// Unplaced WMO-local geometry plus the batches that could not be built; the
+/// caller owns the ADT MODF transform and reports each batch error.
+pub(crate) struct WmoNode {
+    pub node: Gd<Node3D>,
+    pub batch_errors: Vec<String>,
+}
+
 pub(crate) fn build_wmo_node(
     asset: &NativeWmoAsset,
     resolver: &CascListfileResolver,
     data_root: &Path,
     doodad_set: u16,
     light: Option<&TerrainLight>,
-) -> Result<Gd<Node3D>, String> {
-    let batches = prepare_wmo_batches(asset, doodad_set)?;
+) -> Result<WmoNode, String> {
+    let (batches, mut batch_errors) = prepare_wmo_batches(asset, doodad_set);
     let source = ResourceLoader::singleton()
         .load(SHADER_PATH)
         .ok_or_else(|| format!("Cannot load WMO shader {SHADER_PATH}"))?
@@ -50,48 +167,58 @@ pub(crate) fn build_wmo_node(
         .map_err(|_| format!("WMO shader {SHADER_PATH} has wrong resource type"))?
         .get_code()
         .to_string();
-    let mut composites = HashMap::new();
-    let mut resources = Vec::with_capacity(batches.len());
+    let black = black_pixel_texture()?;
+    let mut root = Node3D::new_alloc();
+    root.set_name(&format!("Wmo{}", asset.root_fdid));
     for (index, batch) in batches.iter().enumerate() {
         let context = format!(
             "WMO {} group {} batch {index}",
             asset.root_fdid, batch.group_index
         );
-        let mesh = build_batch_mesh(&batch.mesh);
         let material =
-            build_batch_material(batch, &source, resolver, data_root, &mut composites, light)
-                .map_err(|error| format!("{context}: {error}"))?;
-        resources.push((batch.group_index, mesh, material));
-    }
-    let mut root = Node3D::new_alloc();
-    root.set_name(&format!("Wmo{}", asset.root_fdid));
-    for (index, (group_index, mesh, material)) in resources.into_iter().enumerate() {
+            match build_batch_material(batch, &source, resolver, data_root, &black, light) {
+                Ok(material) => material,
+                Err(error) => {
+                    batch_errors.push(format!("{context}: {error}"));
+                    continue;
+                }
+            };
         let mut instance = MeshInstance3D::new_alloc();
-        instance.set_name(&format!("Group{group_index}_Batch{index}"));
-        instance.set_mesh(&mesh);
+        instance.set_name(&format!("Group{}_Batch{index}", batch.group_index));
+        instance.set_mesh(&build_batch_mesh(batch));
         instance.set_surface_override_material(0, &material);
         root.add_child(&instance);
     }
-    Ok(root)
+    Ok(WmoNode {
+        node: root,
+        batch_errors,
+    })
 }
 
+/// Renderable batches plus one error per batch that cannot be drawn; one bad
+/// batch must not hide the rest of the WMO.
 fn prepare_wmo_batches(
     asset: &NativeWmoAsset,
     doodad_set: u16,
-) -> Result<Vec<PreparedWmoBatch<'_>>, String> {
+) -> (Vec<PreparedWmoBatch<'_>>, Vec<String>) {
     let interior_ambient = wmo_interior_ambient(&asset.root, doodad_set);
     let mut prepared = Vec::new();
+    let mut errors = Vec::new();
     for group in &asset.groups {
         if group.group.header.group_flags.antiportal {
             continue;
         }
-        for batch in &group.batches {
-            if !batch.indices.is_empty() {
-                prepared.push(prepare_group_batch(asset, group, batch, interior_ambient)?);
+        for (index, batch) in group.batches.iter().enumerate() {
+            if batch.indices.is_empty() {
+                continue;
+            }
+            match prepare_group_batch(asset, group, index, batch, interior_ambient) {
+                Ok(batch) => prepared.push(batch),
+                Err(error) => errors.push(error),
             }
         }
     }
-    Ok(prepared)
+    (prepared, errors)
 }
 
 fn wmo_interior_ambient(root: &wmo::WmoRootData, doodad_set: u16) -> [f32; 3] {
@@ -110,31 +237,25 @@ fn wmo_interior_ambient(root: &wmo::WmoRootData, doodad_set: u16) -> [f32; 3] {
 fn prepare_group_batch<'a>(
     asset: &'a NativeWmoAsset,
     group: &super::assets::NativeWmoGroup,
+    batch_index: usize,
     batch: &wmo::WmoMeshBatch,
     interior_ambient: [f32; 3],
 ) -> Result<PreparedWmoBatch<'a>, String> {
+    let context = format!(
+        "WMO {} group {} material {}",
+        asset.root_fdid, group.index, batch.material_index
+    );
     let material = asset
         .root
         .materials
         .get(batch.material_index as usize)
-        .ok_or_else(|| {
-            format!(
-                "WMO {} group {} missing material {}",
-                asset.root_fdid, group.index, batch.material_index
-            )
-        })?;
-    // Original WmoLitMaterial shades shader 5 through retail_shade, not PBR;
-    // its StandardMaterial roughness/reflectance do not affect that fragment.
-    if !matches!(material.shader, 0 | 1 | 4 | 5 | 6 | 7 | 13 | 21) {
-        return Err(format!(
-            "WMO {} group {} material {} unsupported shader {}",
-            asset.root_fdid, group.index, batch.material_index, material.shader
-        ));
-    }
+        .ok_or_else(|| format!("{context} missing"))?;
+    let shader =
+        retail_wmo_shader(material.shader).map_err(|error| format!("{context} {error}"))?;
     if !matches!(material.blend_mode, 0..=3) {
         return Err(format!(
-            "WMO {} group {} material {} unsupported blend mode {}",
-            asset.root_fdid, group.index, batch.material_index, material.blend_mode
+            "{context} unsupported blend mode {}",
+            material.blend_mode
         ));
     }
     let invalid_index = batch
@@ -147,6 +268,8 @@ fn prepare_group_batch<'a>(
             asset.root_fdid, group.index
         ));
     }
+    let raw = &group.group.geometry;
+    let streams = retail_streams(raw, batch_vertex_range(raw, batch_index));
     let mut mesh = batch.clone();
     // Shared WMO batches already apply the sole [x,z,-y] conversion.
     // Godot's front-face convention is opposite Bevy's for these indices.
@@ -157,22 +280,20 @@ fn prepare_group_batch<'a>(
         group_index: group.index,
         group_flags: group.group.header.flags,
         mesh,
+        streams,
         material,
+        shader,
         interior_ambient,
     })
 }
 
-fn build_batch_mesh(batch: &wmo::WmoMeshBatch) -> Gd<ArrayMesh> {
-    let mut arrays = wmo_mesh_arrays(batch);
+fn build_batch_mesh(batch: &PreparedWmoBatch<'_>) -> Gd<ArrayMesh> {
+    let mut arrays = wmo_mesh_arrays(&batch.mesh);
+    let flags = bind_retail_streams(&mut arrays, &batch.streams);
     let mut mesh = ArrayMesh::new_gd();
-    if let Some(alphas) = &batch.second_color_blend_alphas {
-        let flags = bind_second_mocv_alphas(&mut arrays, alphas);
-        mesh.add_surface_from_arrays_ex(mesh::PrimitiveType::TRIANGLES, &arrays)
-            .flags(flags)
-            .done();
-    } else {
-        mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
-    }
+    mesh.add_surface_from_arrays_ex(mesh::PrimitiveType::TRIANGLES, &arrays)
+        .flags(flags)
+        .done();
     mesh
 }
 
@@ -186,11 +307,6 @@ fn wmo_mesh_arrays(batch: &wmo::WmoMeshBatch) -> VarArray {
         .normals
         .iter()
         .map(|value| Vector3::from_array(*value))
-        .collect::<Vec<_>>();
-    let uvs = batch
-        .uvs
-        .iter()
-        .map(|value| Vector2::new(value[0], value[1]))
         .collect::<Vec<_>>();
     let indices = batch
         .indices
@@ -209,22 +325,12 @@ fn wmo_mesh_arrays(batch: &wmo::WmoMeshBatch) -> VarArray {
     );
     arrays.set(
         mesh::ArrayType::TEX_UV.ord() as usize,
-        &PackedVector2Array::from(uvs.as_slice()).to_variant(),
+        &uv_array(&batch.uvs).to_variant(),
     );
     arrays.set(
         mesh::ArrayType::INDEX.ord() as usize,
         &PackedInt32Array::from(indices.as_slice()).to_variant(),
     );
-    if let Some(second) = &batch.second_uvs {
-        let uv2 = second
-            .iter()
-            .map(|value| Vector2::new(value[0], value[1]))
-            .collect::<Vec<_>>();
-        arrays.set(
-            mesh::ArrayType::TEX_UV2.ord() as usize,
-            &PackedVector2Array::from(uv2.as_slice()).to_variant(),
-        );
-    }
     if let Some(colors) = &batch.colors {
         let colors = colors
             .iter()
@@ -238,18 +344,73 @@ fn wmo_mesh_arrays(batch: &wmo::WmoMeshBatch) -> VarArray {
     arrays
 }
 
-fn bind_second_mocv_alphas(arrays: &mut VarArray, alphas: &[f32]) -> mesh::ArrayFormat {
-    let custom = alphas
+fn uv_array(uvs: &[[f32; 2]]) -> PackedVector2Array {
+    let uvs = uvs
         .iter()
-        .flat_map(|&alpha| [alpha, 0.0, 0.0, 0.0])
+        .map(|value| Vector2::new(value[0], value[1]))
         .collect::<Vec<_>>();
-    arrays.set(
-        mesh::ArrayType::CUSTOM0.ord() as usize,
-        &PackedFloat32Array::from(custom.as_slice()).to_variant(),
-    );
-    let format = mesh::ArrayCustomFormat::RGBA_FLOAT.ord() as u64;
-    let shift = mesh::ArrayFormat::CUSTOM0_SHIFT.ord();
-    mesh::ArrayFormat::try_from_ord(format << shift).expect("Godot custom format")
+    PackedVector2Array::from(uvs.as_slice())
+}
+
+/// UV2 = MOTV2; CUSTOM0 = (MOTV3, MOTV4); CUSTOM1 = MOC2 RGBA8; CUSTOM2.x = MOCV2 alpha.
+fn bind_retail_streams(arrays: &mut VarArray, streams: &RetailWmoStreams) -> mesh::ArrayFormat {
+    if let Some(uv2) = &streams.uv2 {
+        arrays.set(
+            mesh::ArrayType::TEX_UV2.ord() as usize,
+            &uv_array(uv2).to_variant(),
+        );
+    }
+    let mut format = 0_u64;
+    let mut custom = |slot: mesh::ArrayType,
+                      shift: mesh::ArrayFormat,
+                      kind: mesh::ArrayCustomFormat,
+                      value: Variant| {
+        arrays.set(slot.ord() as usize, &value);
+        format |= (kind.ord() as u64) << shift.ord();
+    };
+    if streams.uv3.is_some() || streams.uv4.is_some() {
+        let count = streams
+            .uv3
+            .as_ref()
+            .or(streams.uv4.as_ref())
+            .map_or(0, Vec::len);
+        let uv3 = streams.uv3.as_deref();
+        let uv4 = streams.uv4.as_deref();
+        let packed = (0..count)
+            .flat_map(|index| {
+                let [u3, v3] = uv3.map_or([1.0; 2], |set| set[index]);
+                let [u4, v4] = uv4.map_or([1.0; 2], |set| set[index]);
+                [u3, v3, u4, v4]
+            })
+            .collect::<Vec<_>>();
+        custom(
+            mesh::ArrayType::CUSTOM0,
+            mesh::ArrayFormat::CUSTOM0_SHIFT,
+            mesh::ArrayCustomFormat::RGBA_FLOAT,
+            PackedFloat32Array::from(packed.as_slice()).to_variant(),
+        );
+    }
+    if let Some(moc2) = &streams.moc2 {
+        let bytes = moc2
+            .iter()
+            .flat_map(|color| color.map(|channel| (channel * 255.0).round() as u8))
+            .collect::<Vec<_>>();
+        custom(
+            mesh::ArrayType::CUSTOM1,
+            mesh::ArrayFormat::CUSTOM1_SHIFT,
+            mesh::ArrayCustomFormat::RGBA8_UNORM,
+            PackedByteArray::from(bytes.as_slice()).to_variant(),
+        );
+    }
+    if let Some(alphas) = &streams.second_mocv_alpha {
+        custom(
+            mesh::ArrayType::CUSTOM2,
+            mesh::ArrayFormat::CUSTOM2_SHIFT,
+            mesh::ArrayCustomFormat::R_FLOAT,
+            PackedFloat32Array::from(alphas.as_slice()).to_variant(),
+        );
+    }
+    mesh::ArrayFormat::try_from_ord(format).expect("Godot custom format")
 }
 
 fn build_batch_material(
@@ -257,24 +418,28 @@ fn build_batch_material(
     source: &str,
     resolver: &CascListfileResolver,
     data_root: &Path,
-    composites: &mut HashMap<[u32; 3], Gd<ImageTexture>>,
+    black: &Gd<ImageTexture>,
     light: Option<&TerrainLight>,
 ) -> Result<Gd<ShaderMaterial>, String> {
     let authored = batch.material;
     let shader_code = shader_variant(source, authored)?;
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&crate::assets::material::shared_shader(&shader_code));
-    let base = if authored.shader == 7 {
-        read_shader_seven_texture(resolver, data_root, composites, authored)?
-    } else {
-        read_wmo_texture(resolver, data_root, authored.texture_fdid)?
-    };
-    material.set_shader_parameter("base_texture", &base.to_variant());
-    if matches!(authored.shader, 6 | 13) {
-        let second = read_wmo_texture(resolver, data_root, authored.texture_2_fdid)?;
-        material.set_shader_parameter("second_texture", &second.to_variant());
+    let slots = pixel_shader_texture_slots(batch.shader.pixel);
+    let fdids = authored.retail_texture_fdids(batch.shader.pixel);
+    for (slot, (name, fdid)) in TEXTURE_UNIFORMS.into_iter().zip(fdids).enumerate() {
+        // WebWowViewerCpp binds its black pixel for FDID 0
+        // (`GDescriptorSet.cpp` texture_internal, `GDeviceVulkan.cpp` m_blackPixelTexture).
+        let texture = if fdid == 0 || slots & (1 << slot) == 0 {
+            black.clone()
+        } else {
+            read_wmo_texture(resolver, data_root, fdid)
+                .map_err(|error| format!("texture slot {}: {error}", slot + 1))?
+        };
+        material.set_shader_parameter(name, &texture.to_variant());
     }
     let ambient = Vector3::from_array(batch.interior_ambient);
+    let streams = &batch.streams;
     for (name, value) in [
         ("interior_ambient", ambient.to_variant()),
         ("base_color", Color::WHITE.to_variant()),
@@ -288,10 +453,14 @@ fn build_batch_material(
         ("has_mocv", batch.mesh.colors.is_some().to_variant()),
         (
             "has_second_mocv",
-            batch.mesh.second_color_blend_alphas.is_some().to_variant(),
+            streams.second_mocv_alpha.is_some().to_variant(),
         ),
-        ("has_uv2", batch.mesh.second_uvs.is_some().to_variant()),
-        ("two_layer_shader", (authored.shader as i32).to_variant()),
+        ("has_uv2", streams.uv2.is_some().to_variant()),
+        ("has_uv3", streams.uv3.is_some().to_variant()),
+        ("has_uv4", streams.uv4.is_some().to_variant()),
+        ("has_moc2", streams.moc2.is_some().to_variant()),
+        ("vertex_shader", batch.shader.vertex.to_variant()),
+        ("pixel_shader", batch.shader.pixel.to_variant()),
         ("blend_mode", (authored.blend_mode as i32).to_variant()),
     ] {
         material.set_shader_parameter(name, &value);
@@ -369,9 +538,6 @@ fn read_wmo_texture(
     data_root: &Path,
     fdid: u32,
 ) -> Result<Gd<ImageTexture>, String> {
-    if fdid == 0 {
-        return Err("WMO material has no authored texture FDID".into());
-    }
     let dir = data_root.join("textures");
     let destination = dir.join(format!("{fdid}.blp"));
     resolver.ensure_cached(fdid, &destination).ok_or_else(|| {
@@ -389,112 +555,31 @@ fn read_wmo_texture(
     })
 }
 
-fn read_shader_seven_texture(
-    resolver: &CascListfileResolver,
-    data_root: &Path,
-    composites: &mut HashMap<[u32; 3], Gd<ImageTexture>>,
-    authored: &WmoMaterialDef,
-) -> Result<Gd<ImageTexture>, String> {
-    let fdids = [
-        authored.texture_fdid,
-        authored.texture_2_fdid,
-        authored.texture_3_fdid,
-    ];
-    if let Some(texture) = composites.get(&fdids) {
-        return Ok(texture.clone());
-    }
-    let image = load_shader_seven_image(fdids, |fdid| read_wmo_image(resolver, data_root, fdid))?;
-    let texture = create_wmo_texture(image, &format!("shader 7 FDIDs {fdids:?}"))?;
-    composites.insert(fdids, texture.clone());
-    Ok(texture)
-}
-
-fn load_shader_seven_image(
-    fdids: [u32; 3],
-    mut read_image: impl FnMut(u32) -> Result<blp::RgbaImage, String>,
-) -> Result<blp::RgbaImage, String> {
-    let [base_fdid, second_fdid, third_fdid] = fdids;
-    let mut base =
-        read_image(base_fdid).map_err(|error| format!("base FDID {base_fdid}: {error}"))?;
-    validate_rgba_buffer(&base, &format!("base FDID {base_fdid}"))?;
-    let descriptor = describe_wmo_shader(7);
-    for (fdid, mode) in [
-        (second_fdid, descriptor.second_layer),
-        (third_fdid, descriptor.third_layer),
-    ] {
-        if fdid == 0 {
-            continue;
-        }
-        let overlay = read_image(fdid).map_err(|error| format!("overlay FDID {fdid}: {error}"))?;
-        validate_rgba_buffer(&overlay, &format!("overlay FDID {fdid}"))?;
-        let pixels = if (base.width, base.height) == (overlay.width, overlay.height) {
-            overlay.pixels
-        } else {
-            let image = ::image::RgbaImage::from_raw(overlay.width, overlay.height, overlay.pixels)
-                .ok_or_else(|| format!("overlay FDID {fdid}: invalid RGBA buffer"))?;
-            resize(&image, base.width, base.height, FilterType::Triangle).into_raw()
-        };
-        composite_wmo_shader_layer(&mut base.pixels, &pixels, mode);
-    }
-    Ok(base)
-}
-
-fn validate_rgba_buffer(image: &blp::RgbaImage, label: &str) -> Result<(), String> {
-    let expected = image
-        .width
-        .checked_mul(image.height)
-        .and_then(|pixels| pixels.checked_mul(4))
-        .map(|bytes| bytes as usize);
-    if image.width == 0 || image.height == 0 || expected != Some(image.pixels.len()) {
-        return Err(format!("{label}: invalid RGBA buffer"));
-    }
-    Ok(())
-}
-
-fn create_wmo_texture(image: blp::RgbaImage, label: &str) -> Result<Gd<ImageTexture>, String> {
-    let godot_image = Image::create_from_data(
-        image.width as i32,
-        image.height as i32,
+/// WebWowViewerCpp's `m_blackPixelTexture`: one RGBA (0,0,0,0) texel.
+fn black_pixel_texture() -> Result<Gd<ImageTexture>, String> {
+    let image = Image::create_from_data(
+        1,
+        1,
         false,
         image::Format::RGBA8,
-        &PackedByteArray::from(image.pixels.as_slice()),
+        &PackedByteArray::from([0_u8; 4].as_slice()),
     )
-    .ok_or_else(|| format!("Godot rejected WMO texture {label}"))?;
-    ImageTexture::create_from_image(&godot_image)
-        .ok_or_else(|| format!("Godot rejected WMO image {label}"))
-}
-
-fn read_wmo_image(
-    resolver: &CascListfileResolver,
-    data_root: &Path,
-    fdid: u32,
-) -> Result<blp::RgbaImage, String> {
-    if fdid == 0 {
-        return Err("WMO material has no authored texture FDID".into());
-    }
-    let destination = data_root.join("textures").join(format!("{fdid}.blp"));
-    let path = resolver.ensure_cached(fdid, &destination).ok_or_else(|| {
-        format!(
-            "Local CASC WMO texture FDID {fdid} unavailable at {}",
-            destination.display()
-        )
-    })?;
-    let bytes = fs::read(&path)
-        .map_err(|error| format!("WMO texture FDID {fdid} {}: {error}", path.display()))?;
-    blp::decode_rgba(&bytes).map_err(|error| format!("WMO texture FDID {fdid}: {error}"))
+    .ok_or("Godot rejected the WMO black pixel image")?;
+    ImageTexture::create_from_image(&image)
+        .ok_or_else(|| "Godot rejected the WMO black pixel".into())
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
-    use game_engine_core::adt::WmoPlacement;
+    use game_engine_core::{adt::WmoPlacement, blp};
     use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
     use super::*;
     use crate::wmo::assets;
 
-    fn campsite_asset() -> (NativeWmoAsset, CascListfileResolver, PathBuf) {
+    fn resolver() -> (CascListfileResolver, PathBuf) {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let resolver = CascListfileResolver::new(
             AssetResolverConfig::new()
@@ -502,11 +587,10 @@ mod tests {
                 .with_shared_data_root(&data_root)
                 .with_cache_root(data_root.join("cache")),
         );
-        let asset = assets::read_placement(&resolver, &data_root, &campsite_placement()).unwrap();
-        (asset, resolver, data_root)
+        (resolver, data_root)
     }
 
-    fn campsite_placement() -> WmoPlacement {
+    fn placement(fdid: u32) -> WmoPlacement {
         WmoPlacement {
             name_id: 0,
             unique_id: 48_366_671,
@@ -518,140 +602,189 @@ mod tests {
             doodad_set: 0,
             name_set: 0,
             scale: 1.0,
-            fdid: Some(4_214_993),
+            fdid: Some(fdid),
             path: None,
         }
     }
 
-    fn pixel(pixels: [u8; 4], width: u32, height: u32) -> blp::RgbaImage {
-        blp::RgbaImage {
-            pixels: pixels.to_vec(),
-            width,
-            height,
-        }
+    fn read_asset(fdid: u32) -> (NativeWmoAsset, CascListfileResolver, PathBuf) {
+        let (resolver, data_root) = resolver();
+        let asset = assets::read_placement(&resolver, &data_root, &placement(fdid)).unwrap();
+        (asset, resolver, data_root)
     }
 
-    #[test]
-    fn shader_seven_blends_second_then_adds_third() {
-        let image = load_shader_seven_image([10, 20, 30], |fdid| {
-            Ok(match fdid {
-                10 => pixel([100, 100, 100, 255], 1, 1),
-                20 => pixel([200, 50, 0, 128], 1, 1),
-                30 => pixel([20, 40, 80, 128], 1, 1),
-                _ => unreachable!(),
-            })
-        })
-        .unwrap();
-        assert_eq!(image.pixels, [160, 95, 90, 255]);
+    fn campsite_asset() -> (NativeWmoAsset, CascListfileResolver, PathBuf) {
+        read_asset(4_214_993)
     }
 
-    #[test]
-    fn shader_seven_zero_overlays_leave_base_unchanged() {
-        let mut loaded = Vec::new();
-        let image = load_shader_seven_image([10, 0, 0], |fdid| {
-            loaded.push(fdid);
-            Ok(pixel([12, 34, 56, 255], 1, 1))
-        })
-        .unwrap();
-        assert_eq!(loaded, [10]);
-        assert_eq!(image.pixels, [12, 34, 56, 255]);
+    fn prepared(asset: &NativeWmoAsset) -> Vec<PreparedWmoBatch<'_>> {
+        let (batches, errors) = prepare_wmo_batches(asset, 0);
+        assert!(errors.is_empty(), "{errors:?}");
+        batches
     }
 
-    #[test]
-    fn shader_seven_reports_missing_and_decode_errors_by_overlay_fdid() {
-        for reason in ["missing", "decode failed"] {
-            let error = load_shader_seven_image([10, 20, 0], |fdid| {
-                if fdid == 20 {
-                    Err(reason.to_owned())
-                } else {
-                    Ok(pixel([1, 2, 3, 255], 1, 1))
+    /// Every texture a prepared batch's pixel shader samples resolves from local
+    /// CASC and decodes.
+    fn assert_batch_textures_decode(
+        batches: &[PreparedWmoBatch<'_>],
+        resolver: &CascListfileResolver,
+        data_root: &Path,
+    ) {
+        for batch in batches {
+            let slots = pixel_shader_texture_slots(batch.shader.pixel);
+            let fdids = batch.material.retail_texture_fdids(batch.shader.pixel);
+            for (slot, fdid) in fdids.into_iter().enumerate() {
+                if fdid == 0 || slots & (1 << slot) == 0 {
+                    continue;
                 }
-            })
-            .err()
-            .unwrap();
-            assert!(error.contains("20"), "{error}");
-            assert!(error.contains(reason), "{error}");
+                let path = data_root.join("textures").join(format!("{fdid}.blp"));
+                let path = resolver
+                    .ensure_cached(fdid, &path)
+                    .unwrap_or_else(|| panic!("texture FDID {fdid} not in local CASC"));
+                let image = blp::decode_rgba(&std::fs::read(path).unwrap()).unwrap();
+                assert!(image.width > 0 && image.height > 0, "FDID {fdid}");
+            }
         }
     }
 
     #[test]
-    fn shader_seven_resizes_overlays_before_blending_and_adding() {
-        let image = load_shader_seven_image([10, 20, 30], |fdid| {
-            Ok(match fdid {
-                10 => blp::RgbaImage {
-                    pixels: [100, 100, 100, 255].repeat(4),
-                    width: 2,
-                    height: 2,
-                },
-                20 => pixel([200, 50, 0, 128], 1, 1),
-                30 => pixel([20, 40, 80, 128], 1, 1),
-                _ => unreachable!(),
-            })
-        })
-        .unwrap();
-        assert_eq!((image.width, image.height), (2, 2));
-        assert_eq!(image.pixels, [160, 95, 90, 255].repeat(4));
-    }
-
-    #[test]
-    fn shader_seven_rejects_invalid_overlay_pixel_buffer() {
-        let error = load_shader_seven_image([10, 20, 0], |fdid| {
-            Ok(if fdid == 10 {
-                pixel([100, 100, 100, 255], 1, 1)
-            } else {
-                pixel([200, 50, 0, 128], 2, 2)
-            })
-        })
-        .err()
-        .expect("invalid overlay buffer");
-        assert!(error.contains("overlay FDID 20"), "{error}");
-        assert!(error.contains("invalid RGBA buffer"), "{error}");
-    }
-
-    #[test]
-    fn authored_wmo_108238_group_38_material_58_composites_resized_overlay() {
-        let (_, resolver, data_root) = campsite_asset();
-        let placement = WmoPlacement {
-            fdid: Some(108_238),
-            ..campsite_placement()
-        };
-        let asset = assets::read_placement(&resolver, &data_root, &placement).unwrap();
-        let group = asset.groups.iter().find(|group| group.index == 38).unwrap();
-        assert!(group.batches.iter().any(|batch| batch.material_index == 58));
-        let batches = prepare_wmo_batches(&asset, 0).unwrap();
+    fn retail_table_matches_web_wow_viewer_pairs_for_every_momt_shader() {
+        let expected = [
+            (2, (3, 2)),
+            (7, (0, 7)),
+            (9, (4, 9)),
+            (10, (-1, -1)),
+            (12, (2, 11)),
+            (14, (-1, -1)),
+            (16, (0, 0)),
+            (22, (8, 19)),
+            (23, (0, 20)),
+        ];
+        for (momt, (vertex, pixel)) in expected {
+            assert_eq!(
+                retail_wmo_shader(momt).unwrap(),
+                RetailWmoShader { vertex, pixel },
+                "MOMT {momt}"
+            );
+        }
+        for momt in 0..24 {
+            let shader = retail_wmo_shader(momt).unwrap();
+            assert_ne!(pixel_shader_texture_slots(shader.pixel), 0);
+        }
         assert!(
-            batches
-                .iter()
-                .any(|batch| batch.group_index == 38 && batch.material.shader == 7)
+            retail_wmo_shader(24)
+                .unwrap_err()
+                .contains("unsupported shader 24")
         );
-        let material = &asset.root.materials[58];
-        assert_eq!(material.shader, 7);
-        assert_eq!(material.texture_fdid, 948_125);
-        assert_eq!(material.texture_2_fdid, 922_678);
-        assert_eq!(material.texture_3_fdid, 0);
-        let base = read_wmo_image(&resolver, &data_root, material.texture_fdid).unwrap();
-        let overlay = read_wmo_image(&resolver, &data_root, material.texture_2_fdid).unwrap();
-        assert_eq!((base.width, base.height), (512, 512));
-        assert_eq!((overlay.width, overlay.height), (128, 128));
-        let composite = load_shader_seven_image(
-            [
-                material.texture_fdid,
-                material.texture_2_fdid,
-                material.texture_3_fdid,
-            ],
-            |fdid| read_wmo_image(&resolver, &data_root, fdid),
-        )
-        .unwrap();
-        assert_eq!((composite.width, composite.height), (512, 512));
-        assert_ne!(composite.pixels, base.pixels);
-        assert_ne!(&composite.pixels[..4], &base.pixels[..4]);
-        assert_eq!(&composite.pixels[..4], &[27, 32, 38, 255]);
+    }
+
+    /// Character-select campsite WMOs whose ground is one MOMT 23
+    /// (MapObjDFShader) batch, previously rejected as "unsupported shader 23".
+    #[test]
+    fn campsite_df_shader_wmos_prepare_with_four_uv_sets_and_moc2() {
+        for fdid in [4_907_674, 4_684_716, 4_684_717, 5_484_842, 4_883_307] {
+            let (asset, resolver, data_root) = read_asset(fdid);
+            let batches = prepared(&asset);
+            let ground = batches
+                .iter()
+                .find(|batch| batch.material.shader == 23)
+                .unwrap_or_else(|| panic!("WMO {fdid} has no shader 23 batch"));
+            assert_eq!(
+                ground.shader,
+                RetailWmoShader {
+                    vertex: 0,
+                    pixel: 20
+                }
+            );
+            let vertices = ground.mesh.positions.len();
+            let streams = &ground.streams;
+            for set in [&streams.uv2, &streams.uv3, &streams.uv4] {
+                assert_eq!(set.as_ref().map(Vec::len), Some(vertices), "WMO {fdid}");
+            }
+            assert_eq!(streams.moc2.as_ref().map(Vec::len), Some(vertices));
+            assert!(ground.mesh.colors.is_none());
+            assert_batch_textures_decode(&batches, &resolver, &data_root);
+        }
+    }
+
+    /// Stormwind portal room 8sw_portalroom01: MOMT 9, 12, 7, 5, 13 and 23.
+    #[test]
+    fn stormwind_portal_room_prepares_every_material() {
+        let (asset, resolver, data_root) = read_asset(2_320_850);
+        let batches = prepared(&asset);
+        for shader in [5, 7, 9, 12, 13, 23] {
+            assert!(
+                batches.iter().any(|batch| batch.material.shader == shader),
+                "shader {shader}"
+            );
+        }
+        let emissive = batches
+            .iter()
+            .find(|batch| batch.material.shader == 9)
+            .unwrap();
+        // MapObjDiffuseEmissive reads MOTV2 and the second MOCV alpha.
+        assert!(emissive.streams.uv2.is_some());
+        assert!(emissive.streams.second_mocv_alpha.is_some());
+        assert_batch_textures_decode(&batches, &resolver, &data_root);
+    }
+
+    /// Garrison farm: MOMT 16 (MapObjDiffuseTerrain) and 7.
+    #[test]
+    fn garrison_farm_prepares_diffuse_terrain_and_two_layer_env_metal() {
+        let (asset, resolver, data_root) = read_asset(892_927);
+        let batches = prepared(&asset);
+        let terrain = batches
+            .iter()
+            .find(|batch| batch.material.shader == 16)
+            .unwrap();
+        assert_eq!(
+            terrain.shader,
+            RetailWmoShader {
+                vertex: 0,
+                pixel: 0
+            }
+        );
+        assert!(batches.iter().any(|batch| batch.material.shader == 7));
+        assert_batch_textures_decode(&batches, &resolver, &data_root);
+    }
+
+    /// Campsite 5/25 building: MOMT 2 (MapObjMetal), 15 and 22 (MapObjParallax).
+    #[test]
+    fn campsite_building_prepares_metal_and_parallax() {
+        let (asset, resolver, data_root) = read_asset(6_357_544);
+        let batches = prepared(&asset);
+        for shader in [2, 15, 22] {
+            assert!(
+                batches.iter().any(|batch| batch.material.shader == shader),
+                "shader {shader}"
+            );
+        }
+        assert_batch_textures_decode(&batches, &resolver, &data_root);
+    }
+
+    #[test]
+    fn missing_second_uv_set_is_absent_not_defaulted_on_the_cpu() {
+        let (asset, _, _) = read_asset(892_927);
+        let batches = prepared(&asset);
+        // Group 892930 has one MOTV and one MOCV.
+        let group = asset
+            .groups
+            .iter()
+            .find(|group| group.fdid == 892_930)
+            .unwrap();
+        let batch = batches
+            .iter()
+            .find(|batch| batch.group_index == group.index)
+            .unwrap();
+        assert!(batch.streams.uv2.is_none());
+        assert!(batch.streams.second_mocv_alpha.is_none());
+        assert!(batch.streams.moc2.is_none());
     }
 
     #[test]
     fn campsite_wmo_has_renderable_authored_batches_without_unsupported_materials() {
         let (asset, _, _) = campsite_asset();
-        let batches = prepare_wmo_batches(&asset, 0).unwrap();
+        let batches = prepared(&asset);
         assert_eq!(asset.root.n_groups, 1);
         assert_eq!(asset.groups.len(), 1);
         assert!(!batches.is_empty());
@@ -666,7 +799,7 @@ mod tests {
         let raw = &asset.groups[0].group.geometry;
         let source = raw.vertices[raw.batches[0].min_index as usize];
         assert_eq!(batch.positions[0], [source[0], source[2], -source[1]]);
-        let prepared = prepare_wmo_batches(&asset, 0).unwrap();
+        let prepared = prepared(&asset);
         let group_batch = prepared.iter().find(|part| part.group_index == 0).unwrap();
         assert_eq!(group_batch.mesh.positions[0], batch.positions[0]);
         assert_eq!(group_batch.mesh.indices[0], batch.indices[0]);
@@ -677,55 +810,42 @@ mod tests {
     /// Stormwind city WMO whose opaque materials use authored shader 4.
     #[test]
     fn opaque_shader_four_wmo_prepares_like_diffuse() {
-        let (_, resolver, data_root) = campsite_asset();
-        let placement = WmoPlacement {
-            fdid: Some(111_538),
-            ..campsite_placement()
-        };
-        let asset = assets::read_placement(&resolver, &data_root, &placement).unwrap();
-        let batches = prepare_wmo_batches(&asset, 0).unwrap();
+        let (asset, _, _) = read_asset(111_538);
+        let batches = prepared(&asset);
         assert!(batches.iter().any(|batch| batch.material.shader == 4));
     }
 
+    /// An out-of-table shader drops only its own batches, with context.
     #[test]
-    fn unsupported_wmo_shader_is_contextual_error() {
+    fn unsupported_wmo_shader_drops_only_its_batch() {
         let (mut asset, _, _) = campsite_asset();
         let index = asset.groups[0].batches[0].material_index as usize;
         asset.root.materials[index].shader = 99;
-        let error = prepare_wmo_batches(&asset, 0).err().unwrap();
-        assert!(error.contains("shader 99"), "{error}");
-        assert!(error.contains("4214993"), "{error}");
+        let total = asset.groups[0]
+            .batches
+            .iter()
+            .filter(|batch| !batch.indices.is_empty())
+            .count();
+        let affected = asset.groups[0]
+            .batches
+            .iter()
+            .filter(|batch| !batch.indices.is_empty() && batch.material_index as usize == index)
+            .count();
+        let (batches, errors) = prepare_wmo_batches(&asset, 0);
+        assert_eq!(errors.len(), affected);
+        assert_eq!(batches.len(), total - affected);
+        assert!(!batches.is_empty());
+        assert!(errors[0].contains("shader 99"), "{}", errors[0]);
+        assert!(errors[0].contains("4214993"), "{}", errors[0]);
     }
 
     #[test]
     fn missing_wmo_texture_reports_fdid_and_local_casc_failure() {
         let (_, resolver, data_root) = campsite_asset();
-        let error = read_wmo_image(&resolver, &data_root, 999_999_999)
+        let error = read_wmo_texture(&resolver, &data_root, 999_999_999)
             .err()
             .unwrap();
         assert!(error.contains("999999999"), "{error}");
         assert!(error.contains("Local CASC"), "{error}");
-    }
-
-    #[test]
-    fn campsite_two_layer_textures_resolve_from_local_casc() {
-        let (asset, resolver, data_root) = campsite_asset();
-        let layers = prepare_wmo_batches(&asset, 0).unwrap();
-        let layer = layers
-            .iter()
-            .find(|batch| batch.material.shader == 13)
-            .unwrap();
-        assert_ne!(layer.material.texture_fdid, 0);
-        assert_ne!(layer.material.texture_2_fdid, 0);
-        let first = read_wmo_image(&resolver, &data_root, layer.material.texture_fdid).unwrap();
-        let second = read_wmo_image(&resolver, &data_root, layer.material.texture_2_fdid).unwrap();
-        assert_eq!(
-            first.pixels.len(),
-            first.width as usize * first.height as usize * 4
-        );
-        assert_eq!(
-            second.pixels.len(),
-            second.width as usize * second.height as usize * 4
-        );
     }
 }
