@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] system | WMO interior fog (MFOG) in Godot
+
+`03db2144` ports WebWowViewerCpp `WmoObject::checkFog` into the shared lib and blends its result into the Godot scene fog. Cultists' Quay now uses cave fog RGB (21, 80, 99) at weight 1; Retail is still brighter and bluer there. Updated [[retail-lighting]], [[campsite-fog-and-wmo-selection]] and [[wmo-retail-lighting]].
+
 ## [2026-09-28] investigation | Godot camera outside WMO walls
 
 The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound it; WMO wall physics bodies from the shared collision faces now do, built lazily within a frame budget. Updated [[stockade-entrance]] and [[collision-system]].
