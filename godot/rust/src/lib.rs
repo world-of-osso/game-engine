@@ -859,8 +859,11 @@ impl GameClient {
             self.terrain_materials.failures(),
         );
         if let Some(ui) = self.loading_ui.as_mut() {
-            ui.bind_mut()
-                .advance_loading(readiness.progress_percent, readiness.status_text, delta)?;
+            ui.bind_mut().advance_loading(
+                readiness.progress_percent,
+                readiness.status_text,
+                delta,
+            )?;
         }
         if readiness.complete {
             self.account.session.screen = SessionScreen::InWorld;

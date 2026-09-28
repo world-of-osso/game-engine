@@ -10,7 +10,9 @@ use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
 use game_engine_ui_model::{
     CharacterCreateModel, CharacterSelectModel, GameMenuModel, LoadingModel, LoginModel,
-    UiErrorsModel, apply_character_create_postsetup, loading_component::LoadingScreenState, login,
+    UiErrorsModel, apply_character_create_postsetup,
+    loading_component::{LoadingScreenState, LoadingViewportHeight, advance_displayed_progress},
+    login,
     ui_errors_data::UiErrorsData,
 };
 use godot::classes::{CanvasLayer, ICanvasLayer};
@@ -32,6 +34,7 @@ pub struct RegistryUi {
     projection: Option<UiProjection>,
     actions: VecDeque<String>,
     login_fade: Option<f32>,
+    loading_displayed_percent: f32,
 }
 
 struct RegistryModel {
@@ -48,6 +51,7 @@ enum ScreenPostsetup {
     Login,
     CharacterSelect,
     CharacterCreate,
+    Loading,
 }
 
 impl RegistryModel {
@@ -58,7 +62,7 @@ impl RegistryModel {
 
     fn apply_postsetup(&mut self) {
         match self.postsetup {
-            ScreenPostsetup::None => {}
+            ScreenPostsetup::None | ScreenPostsetup::Loading => {}
             ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
             ScreenPostsetup::CharacterSelect => apply_char_select_postsetup(&mut self.registry),
             ScreenPostsetup::CharacterCreate => {
@@ -71,16 +75,21 @@ impl RegistryModel {
     fn resize(&mut self, width: f32, height: f32) {
         self.registry.screen_width = width;
         self.registry.screen_height = height;
-        if let ScreenPostsetup::CharacterCreate = self.postsetup {
-            if let Some(state) = self.shared.get::<CharCreateUiState>() {
-                let mut state = state.clone();
-                state.viewport_width = width as u32;
-                state.viewport_height = height as u32;
-                self.shared.insert(state);
+        match self.postsetup {
+            ScreenPostsetup::CharacterCreate => {
+                if let Some(state) = self.shared.get::<CharCreateUiState>() {
+                    let mut state = state.clone();
+                    state.viewport_width = width as u32;
+                    state.viewport_height = height as u32;
+                    self.shared.insert(state);
+                }
+                self.sync();
             }
-            self.sync();
-        } else {
-            self.apply_postsetup();
+            ScreenPostsetup::Loading => {
+                self.shared.insert(LoadingViewportHeight(height));
+                self.sync();
+            }
+            _ => self.apply_postsetup(),
         }
         self.registry.mark_all_rects_dirty();
     }
@@ -187,6 +196,7 @@ impl ICanvasLayer for RegistryUi {
             projection: None,
             actions: VecDeque::new(),
             login_fade: None,
+            loading_displayed_percent: 0.0,
         }
     }
 }
@@ -412,7 +422,7 @@ impl RegistryUi {
             shared,
             registry,
             icon_masks: Default::default(),
-            postsetup: ScreenPostsetup::None,
+            postsetup: ScreenPostsetup::Loading,
         };
         model.sync();
         GString::from(
@@ -621,14 +631,38 @@ impl RegistryUi {
         projection.sync(&mut model.registry)
     }
 
-    pub fn set_loading_state(&mut self, progress_percent: u8, status: &str) -> Result<(), String> {
-        let model = self.model.as_mut().ok_or("Loading UI is not initialized")?;
-        model.shared.insert(LoadingScreenState {
-            progress_percent,
-            status_text: status.into(),
-            ..Default::default()
-        });
-        self.sync_model()
+    /// Ease the displayed bar toward readiness; zone and tip use the shared defaults.
+    pub fn advance_loading(
+        &mut self,
+        target_percent: u8,
+        status: &str,
+        delta: f32,
+    ) -> Result<(), String> {
+        self.loading_displayed_percent = advance_displayed_progress(
+            self.loading_displayed_percent,
+            f32::from(target_percent),
+            delta,
+        );
+        let state = LoadingScreenState::with_default_text(
+            status,
+            self.loading_displayed_percent.round() as u8,
+        );
+        self.set_state(state)
+    }
+
+    #[func]
+    fn advance_loading_progress(
+        &mut self,
+        target_percent: u8,
+        status: GString,
+        delta: f32,
+    ) -> GString {
+        GString::from(
+            self.advance_loading(target_percent, &status.to_string(), delta)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
     }
 
     #[func]
