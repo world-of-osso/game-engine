@@ -31,8 +31,8 @@ use shared::{
     protocol::{
         CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
         DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InstanceInfo, LoadTerrain,
-        LoginResponse, NewWorld, QuestLogSnapshot, QuestLogUpdate, RegisterResponse,
-        TransferAborted,
+        LoginResponse, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld,
+        QuestLogSnapshot, QuestLogUpdate, RegisterResponse, TransferAborted,
     },
 };
 
@@ -145,6 +145,13 @@ impl BridgeConfig {
         self
     }
 
+    /// `MirrorTimerStart`, `MirrorTimerPause` and `MirrorTimerStop` in the order the server
+    /// sent them on `MirrorTimerChannel`.
+    pub fn receive_mirror_timers(mut self) -> Self {
+        self.relays.push(install_mirror_timer_relay);
+        self
+    }
+
     pub fn connect(self, server_addr: SocketAddr, client_id: u64) -> Result<NetworkBridge, String> {
         NetworkBridge::start(server_addr, client_id, self.relays)
     }
@@ -177,6 +184,8 @@ impl NetworkBridge {
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
+            // Server-driven breath, fatigue and feign-death bars.
+            .receive_mirror_timers()
             .connect(server_addr, client_id)
     }
 
@@ -381,6 +390,47 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
                         .send(Event::Message(ProtocolMessage(Box::new(message))))
                         .expect("host event receiver closed");
                 }
+            }
+        },
+    );
+}
+
+/// One relay for the three mirror timer types, sorted by their `MirrorTimerChannel` message
+/// id: a receiver per type would hand one frame's messages over in system order, so a stop
+/// could overtake the start sent before it.
+fn install_mirror_timer_relay(app: &mut App, events: Sender<Event>) {
+    app.add_systems(
+        Update,
+        move |mut starts: Query<&mut MessageReceiver<MirrorTimerStart>>,
+              mut pauses: Query<&mut MessageReceiver<MirrorTimerPause>>,
+              mut stops: Query<&mut MessageReceiver<MirrorTimerStop>>| {
+            let mut received = Vec::new();
+            for mut receiver in &mut starts {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            for mut receiver in &mut pauses {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            for mut receiver in &mut stops {
+                received.extend(
+                    receiver.receive_with_tick().map(|message| {
+                        (message.message_id, ProtocolMessage(Box::new(message.data)))
+                    }),
+                );
+            }
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
             }
         },
     );

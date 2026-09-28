@@ -79,6 +79,33 @@ fn await_bridge_event(
     panic!("timed out waiting for {description}");
 }
 
+/// The next `count` protocol messages, polled together (one drain can hold several).
+fn await_messages(
+    server: &mut App,
+    bridge: &mut NetworkBridge,
+    count: usize,
+) -> Vec<ProtocolMessage> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut messages = Vec::new();
+    while Instant::now() < deadline && messages.len() < count {
+        server.update();
+        for event in bridge.drain_events().expect("poll fixture bridge") {
+            match event {
+                Event::Message(message) => messages.push(message),
+                Event::Disconnected(_) => panic!("fixture disconnected waiting for messages"),
+                _ => {}
+            }
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(
+        messages.len(),
+        count,
+        "timed out waiting for {count} messages"
+    );
+    messages
+}
+
 fn await_input(server: &mut App, bridge: &mut NetworkBridge) -> PlayerInput {
     let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline {
@@ -353,5 +380,69 @@ fn native_bridge_receives_unit_pose_changes() {
         unreachable!()
     };
     assert_eq!(standing.position.unwrap().x, 100.0);
+    bridge.stop().expect("join fixture worker");
+}
+
+/// Server-driven mirror timers (TrinityCore `SMSG_START/PAUSE/STOP_MIRROR_TIMER`) reach the
+/// host in send order on `MirrorTimerChannel`: a breath start, a pause and a stop.
+#[test]
+fn native_bridge_receives_mirror_timer_messages_in_order() {
+    use shared::protocol::{
+        MIRROR_TIMER_BREATH, MirrorTimerChannel, MirrorTimerPause, MirrorTimerStart,
+        MirrorTimerStop,
+    };
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8195).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    let start = MirrorTimerStart {
+        timer: MIRROR_TIMER_BREATH,
+        value_ms: 180_000,
+        max_value_ms: 180_000,
+        scale: -1.0,
+        paused: false,
+        spell_id: 0,
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<MirrorTimerStart>>()
+        .single_mut(world)
+        .expect("one connected fixture sender")
+        .send::<MirrorTimerChannel>(start);
+    world
+        .query::<&mut MessageSender<MirrorTimerPause>>()
+        .single_mut(world)
+        .expect("one connected fixture sender")
+        .send::<MirrorTimerChannel>(MirrorTimerPause {
+            timer: MIRROR_TIMER_BREATH,
+            paused: true,
+        });
+    world
+        .query::<&mut MessageSender<MirrorTimerStop>>()
+        .single_mut(world)
+        .expect("one connected fixture sender")
+        .send::<MirrorTimerChannel>(MirrorTimerStop {
+            timer: MIRROR_TIMER_BREATH,
+        });
+    let received = await_messages(&mut server, &mut bridge, 3);
+    let mut received = received.into_iter();
+    assert_eq!(
+        received.next().unwrap().downcast::<MirrorTimerStart>().ok(),
+        Some(start)
+    );
+    assert_eq!(
+        received.next().unwrap().downcast::<MirrorTimerPause>().ok(),
+        Some(MirrorTimerPause {
+            timer: MIRROR_TIMER_BREATH,
+            paused: true
+        })
+    );
+    assert_eq!(
+        received.next().unwrap().downcast::<MirrorTimerStop>().ok(),
+        Some(MirrorTimerStop {
+            timer: MIRROR_TIMER_BREATH
+        })
+    );
     bridge.stop().expect("join fixture worker");
 }
