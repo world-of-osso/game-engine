@@ -599,6 +599,7 @@ mod tests {
             level: None,
             equipment: None,
             movement_control: None,
+            movement_speed: None,
             creature_motion: None,
             unit_target: None,
         }
