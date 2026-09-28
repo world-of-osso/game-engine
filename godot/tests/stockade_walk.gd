@@ -1,11 +1,18 @@
 extends SceneTree
 
-## Live walk from Theron's room-floor spawn to the Stockade entrance (area trigger 101) on the
-## dev server, driven by real arrow/W key events. Logs client and server-replicated position.
+## Live walk from the room-floor spawn of `sw_magicdistrict` to the Stockade entrance (area trigger
+## 101) on the dev server, driven by real arrow/W key events, until the client is in the Stockade.
+## Logs client and server-replicated position. A character saved in the Stockade first walks out
+## through its exit (area trigger 503), then back up the stairwell and in again. Account and
+## character (card 0) come from STOCKADE_WALK_ACCOUNT, STOCKADE_WALK_PASSWORD, STOCKADE_WALK_CHARACTER;
+## place the character with `game-server-admin set-position` while it is offline.
 
-const NAME := "Theron"
+var NAME := OS.get_environment("STOCKADE_WALK_CHARACTER")
 ## Bevy (x, z) = WoW (x, -y). The last point is area trigger 101's box center.
 const WAYPOINTS := [Vector2(-8786.0, -836.0), Vector2(-8772.0, -836.0), Vector2(-8761.85, -848.557)]
+## Area trigger 503's box center inside the Stockade.
+const STOCKADE_EXIT := Vector2(48.0937, -0.933267)
+const STOCKADE := "stormwindjail"
 const ARRIVE := 0.8
 const YAW_TOLERANCE := 0.06
 const LEG_TIMEOUT_MS := 20000
@@ -26,18 +33,40 @@ func run_test() -> void:
 		return
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	var error = client.connect_account(server, "admin", "admin", false)
+	var account := OS.get_environment("STOCKADE_WALK_ACCOUNT")
+	var password := OS.get_environment("STOCKADE_WALK_PASSWORD")
+	if account == "" or password == "" or NAME == "":
+		fail("STOCKADE_WALK_ACCOUNT, STOCKADE_WALK_PASSWORD and STOCKADE_WALK_CHARACTER are required")
+		return
+	var error = client.connect_account(server, account, password, false)
 	if error != "":
 		fail("connect: " + error)
 		return
 	if not await enter_world(client):
 		return
+	if not check_on_server_ground(client, "entered"):
+		return
 	var player := client.get_node("WorldUnits/" + NAME) as Node3D
 	await snapshot("spawn")
-	trace(client, player, "spawn")
+	trace(client, "spawn")
+	if client.account_state().terrain.map == STOCKADE:
+		var exit: String = await walk_to(client, player, STOCKADE_EXIT)
+		trace(client, "exit " + exit)
+		if exit != "transfer":
+			fail("Stockade exit stopped: " + exit)
+			return
+		if not await wait_until(client, func(state): return in_world(state, "azeroth"), 120000, "InWorld on azeroth"):
+			return
+		for _frame in 60:
+			await process_frame
+		player = client.get_node("WorldUnits/" + NAME) as Node3D
+		if not check_on_server_ground(client, "back in Stormwind"):
+			return
+		await snapshot("stormwind")
+		trace(client, "back in Stormwind")
 	for index in WAYPOINTS.size():
 		var result: String = await walk_to(client, player, WAYPOINTS[index])
-		trace(client, player, "leg%d %s" % [index, result])
+		trace(client, "leg%d %s" % [index, result])
 		await snapshot("leg%d" % index)
 		if result == "transfer":
 			await follow_transfer(client)
@@ -51,7 +80,7 @@ func run_test() -> void:
 		if client.account_state().screen != "InWorld":
 			await follow_transfer(client)
 			return
-	trace(client, player, "at trigger, no transfer")
+	trace(client, "at trigger, no transfer")
 	fail("Reached trigger 101 center without a transfer")
 
 func enter_world(client: Node) -> bool:
@@ -65,11 +94,13 @@ func enter_world(client: Node) -> bool:
 		fail("Card 0 is %s, not %s" % [selected.text, NAME])
 		return false
 	await click_control(ui.find_child("EnterWorld", true, false))
+	if not await wait_until(client, func(state): return state.screen == "InWorld", 120000, "InWorld"):
+		return false
+	var entered: Dictionary = client.account_state()
+	print("TRACE entered world: objects=", entered.world_objects, " tiles=", entered.terrain.parsed_tiles.size())
+	trace(client, "entered")
 	var ready := func(state):
-		return state.screen == "InWorld" and state.selected_character_name == NAME \
-			and state.local_player_position != null and state.local_server_position != null \
-			and state.terrain.pending_count == 0 and not state.terrain.parsed_tiles.is_empty() \
-			and state.world_objects.pending == 0 and state.world_objects.spawned > 0
+		return in_world(state, "azeroth") or in_world(state, STOCKADE)
 	if not await wait_until(client, ready, 120000, "InWorld with terrain and WMOs"):
 		return false
 	# Let the placed WMOs settle and the first server snapshots arrive.
@@ -77,20 +108,43 @@ func enter_world(client: Node) -> bool:
 		await process_frame
 	return true
 
+## In the world on `map` with its terrain parsed. Placed WMOs may still be spawning.
+func in_world(state: Dictionary, map: String) -> bool:
+	if state.screen != "InWorld" or state.selected_character_name != NAME or state.terrain.map != map:
+		return false
+	if state.local_player_position == null or state.local_server_position == null or state.terrain.pending_count != 0:
+		return false
+	return map == STOCKADE or not state.terrain.parsed_tiles.is_empty()
+
+## The predicted feet match the server's once settled: placed WMO floors are ground before their
+## nodes spawn, so the client does not drop to the terrain under a building.
+func check_on_server_ground(client: Node, phase: String) -> bool:
+	var state: Dictionary = client.account_state()
+	trace(client, "%s, objects=%s" % [phase, state.world_objects])
+	if state.local_player_health == 0.0:
+		fail("%s is dead; the server drops a corpse's movement" % NAME)
+		return false
+	if absf(state.local_player_position.y - state.local_server_position.y) > 0.2:
+		fail("%s: client feet %s left the server's %s" % [phase, state.local_player_position, state.local_server_position])
+		return false
+	return true
+
 func walk_to(client: Node, player: Node3D, target: Vector2) -> String:
 	var deadline := Time.get_ticks_msec() + LEG_TIMEOUT_MS
 	var best := INF
 	var best_at := Time.get_ticks_msec()
 	var running := false
+	var map: String = client.account_state().terrain.map
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.screen != "InWorld":
+		# A transfer to a WMO-only map can load between two script frames.
+		if state.screen != "InWorld" or state.terrain.map != map:
 			release_all()
 			return "transfer"
 		var here := Vector2(player.position.x, player.position.z)
 		var distance := here.distance_to(target)
-		trace_throttled(client, player)
+		trace_throttled(client)
 		if distance < ARRIVE:
 			release_all()
 			return "arrived"
@@ -146,30 +200,55 @@ func release_all() -> void:
 func follow_transfer(client: Node) -> void:
 	print("TRACE transfer began: ", client.account_state().screen)
 	await snapshot("transfer")
-	var arrived := func(state):
-		return state.screen == "InWorld" and state.terrain.map == "stormwindjail" and state.local_server_position != null
-	if not await wait_until(client, arrived, 90000, "InWorld on stormwindjail"):
+	if not await wait_until(client, func(state): return in_world(state, STOCKADE), 90000, "InWorld on stormwindjail"):
 		return
 	for _frame in 90:
 		await process_frame
 	var state: Dictionary = client.account_state()
 	print("TRACE arrived map=", state.terrain.map, " client=", state.local_player_position, " server=", state.local_server_position)
+	dump_scene(client)
 	await snapshot("stockade")
+	var camera := client.get_viewport().get_camera_3d()
+	var player := client.get_node("WorldUnits/" + NAME) as Node3D
+	if camera == null or camera.global_position.distance_to(player.global_position) > 20.0:
+		fail("World camera did not follow the player into the Stockade")
+		return
 	print("PASS: entered the Stockade")
 	quit(0)
 
-func trace_throttled(client: Node, player: Node3D) -> void:
+func dump_scene(client: Node) -> void:
+	var camera := client.get_viewport().get_camera_3d()
+	print("TRACE camera=", camera.get_path() if camera else "none", " at ", camera.global_position if camera else Vector3.ZERO, " far=", camera.far if camera else 0.0)
+	var player := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
+	print("TRACE player visible=", player.is_visible_in_tree() if player else false, " at ", player.global_position if player else Vector3.ZERO)
+	var wmos := client.get_node_or_null("WorldWmos") as Node3D
+	if wmos == null:
+		print("TRACE no WorldWmos")
+		return
+	for placement in wmos.get_children():
+		var meshes := placement.find_children("*", "MeshInstance3D", true, false)
+		var aabb := AABB()
+		for mesh in meshes:
+			var box: AABB = mesh.global_transform * mesh.get_aabb()
+			aabb = box if aabb.size == Vector3.ZERO else aabb.merge(box)
+		print("TRACE wmo ", placement.name, " visible=", placement.is_visible_in_tree(), " meshes=", meshes.size(), " at ", placement.global_transform, " aabb=", aabb)
+
+func trace_throttled(client: Node) -> void:
 	if Time.get_ticks_msec() < log_next:
 		return
 	log_next = Time.get_ticks_msec() + 250
-	trace(client, player, "")
+	trace(client, "")
 
-func trace(client: Node, player: Node3D, label: String) -> void:
+func trace(client: Node, label: String) -> void:
 	var state: Dictionary = client.account_state()
+	var player := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
+	if player == null:
+		print("TRACE t=%d %s no player node server=%s screen=%s" % [Time.get_ticks_msec(), label, state.local_server_position, state.screen])
+		return
 	var ground = client.terrain_height_at(player.position.x, player.position.z)
-	print("TRACE t=%d %s client=%s server=%s yaw=%.3f terrain=%s screen=%s" % [
-		Time.get_ticks_msec(), label, player.position, state.local_server_position,
-		facing(player), ground, state.screen])
+	print("TRACE t=%d %s map=%s client=%s server=%s yaw=%.3f terrain=%s health=%s screen=%s" % [
+		Time.get_ticks_msec(), label, state.terrain.map, player.position, state.local_server_position,
+		facing(player), ground, state.local_player_health, state.screen])
 
 func snapshot(label: String) -> void:
 	await RenderingServer.frame_post_draw
