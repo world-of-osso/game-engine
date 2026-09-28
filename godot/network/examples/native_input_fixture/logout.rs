@@ -122,7 +122,7 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
                 progress.stage, token, credentials
             ));
         }
-        let incoming = app.world_mut().resource_mut::<Incoming>();
+        let mut incoming = app.world_mut().resource_mut::<Incoming>();
         incoming.logins.push(request);
         respond_to_login(app, StartupScreen::Logout)?;
     }
