@@ -15,6 +15,7 @@ use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_s
 use game_engine_ui_model::entrance_difficulty_component::{
     EntranceBarState, apply_entrance_bar_postsetup, entrance_difficulty_screen,
 };
+use game_engine_ui_model::game_menu_component::GameMenuViewModel;
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, inworld_unit_frames_screen,
 };
@@ -27,7 +28,6 @@ use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
 use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
-use game_engine_ui_model::game_menu_component::GameMenuViewModel;
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
