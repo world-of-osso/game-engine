@@ -1,35 +1,98 @@
-extends "res://tests/world_objects_flow.gd"
+extends RefCounted
 
-# Run with GODOT_TEST_SERVER=127.0.0.1:5000 and a roster character whose
-# loaded tiles contain WMO 108238. Uses the real ADT object → WMO loader.
-func capture() -> void:
-	var objects := root.find_child("WorldObjects", true, false)
-	if objects == null:
-		fail("WorldObjects root missing")
-		return
-	var wmo := objects.get_node_or_null("Wmo108238")
-	if wmo == null:
-		fail("Fixture requires authored WMO 108238 in loaded tiles")
-		return
-	var matched := false
-	for child in wmo.get_children():
-		if not child.name.begins_with("Group38_Batch") or not child is MeshInstance3D:
-			continue
-		var material := child.get_surface_override_material(0) as ShaderMaterial
-		if material == null:
-			continue
-		var texture := material.get_shader_parameter("base_texture") as ImageTexture
-		if texture == null or texture.get_width() != 512 or texture.get_height() != 512:
-			continue
-		var pixels := texture.get_image()
-		if pixels == null or pixels.is_empty():
-			fail("WMO 108238 group 38 has no bound composite pixels")
-			return
-		if pixels.get_pixel(0, 0) != Color8(27, 32, 38, 255):
-			continue
-		matched = true
-		break
-	if not matched:
-		fail("WMO 108238 group 38 lacks authored 512x512 shader 7 composite pixel")
-		return
-	print("PASS: authored WMO 108238 group 38 binds a 512x512 composite texture")
+const DIAGNOSTICS := "res://../data/diagnostics/godot-conversion/"
+const COMPOSITE_PNG := DIAGNOSTICS + "wmo-shader7-authored-composite.png"
+const RENDER_PNG := DIAGNOSTICS + "wmo-shader7-authored-render.png"
+const EXPECTED := Color8(27, 32, 38, 255)
+const TOLERANCE := 0.02
+const WAIT_MS := 15000
+const RENDER_SIZE := 64
+
+func check(tree: SceneTree, client: Node) -> String:
+	var material := await wait_for_authored_material(tree, client)
+	if material == null:
+		return "WMO 108238 group 38 lacks a streamed shader 7 material with authored 512x512 composite pixel"
+	var texture := material.get_shader_parameter("base_texture") as ImageTexture
+	if texture == null or texture.get_size() != Vector2i(512, 512):
+		return "WMO 108238 group 38 shader 7 lacks bound 512x512 composite"
+	var composite := texture.get_image()
+	if composite == null or composite.is_empty() or composite.get_pixel(0, 0) != EXPECTED:
+		return "WMO 108238 group 38 shader 7 composite pixel (0,0) differs from " + str(EXPECTED)
+	var error := composite.save_png(COMPOSITE_PNG)
+	if error != OK:
+		return "Could not save authored WMO composite: " + error_string(error)
+	var rendered := await render_bound_material(tree, material)
+	if rendered == null or rendered.is_empty():
+		return "Authored WMO shader 7 GPU readback unavailable"
+	error = rendered.save_png(RENDER_PNG)
+	if error != OK:
+		return "Could not save authored WMO render: " + error_string(error)
+	var actual := rendered.get_pixel(RENDER_SIZE / 2, RENDER_SIZE / 2)
+	if absf(actual.r - EXPECTED.r) > TOLERANCE or absf(actual.g - EXPECTED.g) > TOLERANCE or absf(actual.b - EXPECTED.b) > TOLERANCE:
+		return "Authored WMO shader 7 rendered texel expected %s, got %s" % [EXPECTED, actual]
+	print("PASS: authored WMO 108238 group 38 shader 7 composite and GPU texel ", actual, " screenshots=", COMPOSITE_PNG, ", ", RENDER_PNG)
+	return ""
+
+func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		var objects := client.get_node_or_null("WorldObjects")
+		var wmo := objects.get_node_or_null("Wmo108238") if objects != null else null
+		if wmo != null:
+			for child in wmo.get_children():
+				if not child is MeshInstance3D or not child.name.begins_with("Group38_Batch"):
+				continue
+				var material := child.get_surface_override_material(0) as ShaderMaterial
+				if material == null or material.get_shader_parameter("two_layer_shader") != 7:
+					continue
+				var texture := material.get_shader_parameter("base_texture") as ImageTexture
+				if texture == null or texture.get_size() != Vector2i(512, 512):
+					continue
+				var image := texture.get_image()
+				if image != null and not image.is_empty() and image.get_pixel(0, 0) == EXPECTED:
+					return material
+		await tree.process_frame
+	return null
+
+func render_bound_material(tree: SceneTree, authored: ShaderMaterial) -> Image:
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(RENDER_SIZE, RENDER_SIZE)
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	viewport.own_world_3d = true
+	tree.root.add_child(viewport)
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color.BLACK
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED
+	environment.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+	environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	var world_environment := WorldEnvironment.new()
+	world_environment.environment = environment
+	viewport.add_child(world_environment)
+	var camera := Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 2.0
+	camera.look_at_from_position(Vector3(0, 2, 0), Vector3.ZERO, Vector3(0, 0, -1))
+	viewport.add_child(camera)
+	camera.current = true
+	var arrays := PlaneMesh.new().surface_get_arrays(0)
+	var uvs := PackedVector2Array()
+	for vertex in arrays[Mesh.ARRAY_VERTEX].size():
+		uvs.append(Vector2(0.5 / 512.0, 0.5 / 512.0))
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	var quad := ArrayMesh.new()
+	quad.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var surface := MeshInstance3D.new()
+	surface.mesh = quad
+	var material := authored.duplicate() as ShaderMaterial
+	material.set_shader_parameter("unlit", true)
+	material.set_shader_parameter("unfogged", true)
+	material.set_shader_parameter("emissive", Vector3.ZERO)
+	material.set_shader_parameter("base_color", Color.WHITE)
+	surface.material_override = material
+	viewport.add_child(surface)
+	for frame in 2:
+		await RenderingServer.frame_post_draw
+	var rendered := viewport.get_texture().get_image()
+	viewport.free()
+	return rendered
