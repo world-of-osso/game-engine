@@ -16,6 +16,10 @@ pub mod campsite_object_data;
 mod campsite_object_data_tests;
 #[path = "../../../src/sound/catalog_data.rs"]
 pub mod catalog_data;
+#[path = "../../../src/sound/footstep_data.rs"]
+pub mod footstep_data;
+#[cfg(test)]
+mod footstep_data_tests;
 #[path = "../../../src/char_select_camera_data.rs"]
 pub mod char_select_camera_data;
 #[path = "../../../src/asset/char_texture_data.rs"]

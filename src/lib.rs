@@ -78,6 +78,8 @@ pub mod experience_data;
 pub mod faction_reaction;
 #[path = "game/floating_combat_text.rs"]
 pub mod floating_combat_text;
+#[path = "sound/footstep_data.rs"]
+pub mod footstep_data;
 pub mod friends;
 #[path = "game/friends_data.rs"]
 pub mod friends_data;
