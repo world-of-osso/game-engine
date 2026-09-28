@@ -54,7 +54,7 @@ func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial
 				if not observed.has(mesh.get_instance_id()):
 					observed[mesh.get_instance_id()] = true
 					print("OVERLAY_CANDIDATE path=", mesh.get_path(), " size=", texture.get_size() if texture != null else "unbound", " pixel=", image.get_pixel(0, 0) if image != null and not image.is_empty() else "unavailable")
-				var authored_group := mesh.name.begins_with("Group38_Batch") and mesh.get_parent().name == "Wmo108238"
+				var authored_group := mesh.name.begins_with("Group38_Batch") and mesh.get_parent().name == "Wmo373730"
 				var bound_composite := texture != null and texture.get_size() == Vector2(512, 512) and image != null and not image.is_empty()
 				if candidate == null and authored_group and bound_composite:
 					candidate = material
