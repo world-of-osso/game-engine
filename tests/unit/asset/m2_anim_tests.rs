@@ -335,3 +335,35 @@ fn human_hd_sit_and_sleep_keyframes_come_from_their_anim_files() {
         }
     }
 }
+
+/// HumanFemale HD's (model 1000764) `.anim` 1000800 (animation 74) holds bone 128's rotation keys past the
+/// end of its AFSB chunk: that track has no keyframes; the skeleton, its other bones and
+/// its global sequences still load.
+#[test]
+fn human_female_hd_overrunning_anim_track_keeps_the_skeleton() {
+    let path = crate::asset::asset_cache::model(1000764).expect("HumanFemale HD model");
+    let data = std::fs::read(&path).unwrap();
+    let chunks = crate::asset::m2_format::parse_chunks(&data).unwrap();
+    let anim = crate::asset::m2_format::load_anim_data(&path, &chunks);
+    assert!(anim.bones.len() > 128);
+    assert!(!anim.global_sequences.is_empty());
+    let index = anim
+        .sequences
+        .iter()
+        .position(|sequence| sequence.id == 74 && sequence.variation_id == 0)
+        .unwrap();
+    let rotation_keys = |bone: usize| {
+        anim.bone_tracks[bone]
+            .rotation
+            .sequences
+            .get(index)
+            .map_or(0, |(times, _)| times.len())
+    };
+    assert_eq!(rotation_keys(128), 0);
+    assert!(
+        (0..anim.bones.len())
+            .filter(|&bone| rotation_keys(bone) > 0)
+            .count()
+            > 10
+    );
+}
