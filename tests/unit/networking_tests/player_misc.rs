@@ -199,6 +199,7 @@ fn npc_visibility_schedule_test_app(
     }
     app.init_resource::<LocalAliveState>();
     app.init_resource::<crate::rendering::sky::GameTime>();
+    app.init_resource::<game_engine::outfit_data::OutfitData>();
     app.init_resource::<NpcVisibilityChangeCount>();
     register_npc_visibility_policy_systems(&mut app);
     app.add_systems(Last, count_npc_visibility_changes);
