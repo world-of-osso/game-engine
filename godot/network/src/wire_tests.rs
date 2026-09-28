@@ -3,7 +3,9 @@
 use super::*;
 use lightyear::prelude::{LinkOf, NetworkTarget, Replicate, ReplicationSender, server};
 use shared::{
-    components::{CombatStatus, CreatureMotion, MovementControl, SheathState, StandState, UnitPose},
+    components::{
+        CombatStatus, CreatureMotion, MovementControl, SheathState, StandState, UnitPose,
+    },
     protocol::{InputChannel, PlayerInput, RestChannel, RestSnapshot, RestStateUpdate},
 };
 use std::net::UdpSocket;

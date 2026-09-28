@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use crate::footstep_data::FootstepSurface;
-use crate::ground_effect_data::{
+use crate::rendering::db2_path::ensure_db2_path;
+use game_engine::footstep_data::FootstepSurface;
+use game_engine::ground_effect_data::{
     classify_surface_from_terrain_sound_name, parse_ground_effect_entries,
     parse_terrain_type_sounds,
 };
-use crate::rendering::db2_path::ensure_db2_path;
 
 const GROUND_EFFECT_TEXTURE_DB2_FDID: u32 = 1_308_499;
 const TERRAIN_TYPE_SOUNDS_DB2_FDID: u32 = 1_284_822;
@@ -20,7 +20,7 @@ const RANDOM_FRACTION_MASK: u32 = 0xFFFF;
 static GROUND_EFFECTS: OnceLock<HashMap<u32, GroundEffectEntry>> = OnceLock::new();
 static TERRAIN_SOUND_SURFACES: OnceLock<HashMap<u8, FootstepSurface>> = OnceLock::new();
 
-pub use crate::ground_effect_data::GroundEffectEntry;
+pub use game_engine::ground_effect_data::GroundEffectEntry;
 
 /// A ground clutter placement for a single chunk.
 #[derive(Debug, Clone, PartialEq)]
