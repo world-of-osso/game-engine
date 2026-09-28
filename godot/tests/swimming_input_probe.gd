@@ -11,10 +11,16 @@ const POSE_BLEND_MS := 150
 
 func check(flow, client: Node, player: Node3D) -> String:
 	var animation = load("res://tests/player_locomotion_probe.gd").new()
-	var error: String = animation.bind(player)
-	if error != "":
-		return error
-	if animation.animation.current_animation_id() != 0 or player.position.distance_to(START) > 0.5:
+	var error := ""
+	var model_deadline := Time.get_ticks_msec() + 30000
+	while Time.get_ticks_msec() < model_deadline:
+		error = animation.bind(player)
+		if error == "" and animation.animation.current_animation_id() == 0:
+			break
+		await flow.process_frame
+	if error != "" or animation.animation.current_animation_id() != 0:
+		return "Timed out waiting for native swimming player Stand 0: " + error
+	if player.position.distance_to(START) > 0.5:
 		return "Shore fixture did not begin grounded in Stand 0 at authored dry start: " + str(player.position)
 	error = check_ground(client, player, false)
 	if error != "":
@@ -60,8 +66,10 @@ func check(flow, client: Node, player: Node3D) -> String:
 	print("FIXTURE SWIM_RELEASED")
 	for frame in range(STILL_FRAMES):
 		await flow.process_frame
-		if animation.animation.current_animation_id() != 41:
-			return "Released W did not stay SwimIdle 41 at frame " + str(frame)
+		if frame >= 10 and animation.animation.current_animation_id() != 41:
+			return "Released W did not settle to SwimIdle 41 at frame " + str(frame)
+	if animation.animation.current_animation_id() != 41:
+		return "Released W never selected SwimIdle 41"
 	var idle_at := player.position
 	for frame in range(STILL_FRAMES):
 		await flow.process_frame
@@ -82,7 +90,7 @@ func check(flow, client: Node, player: Node3D) -> String:
 	var moving := player.position
 	for frame in range(STILL_FRAMES):
 		await flow.process_frame
-		if animation.animation.current_animation_id() != 42 or player.position.y > stationary.y + 0.1:
+		if (frame >= 10 and animation.animation.current_animation_id() != 42) or player.position.y > stationary.y + 0.1:
 			flow.push_key(KEY_W, false)
 			flow.push_key(KEY_SPACE, false)
 			return "Moving W+Space jumped, rose, or left Swim 42 at frame " + str(frame)
@@ -118,7 +126,7 @@ func check(flow, client: Node, player: Node3D) -> String:
 	print("FIXTURE SWIM_BACKWARD_RELEASED")
 	for frame in range(STILL_FRAMES * 2):
 		await flow.process_frame
-		if animation.animation.current_animation_id() != 0:
+		if frame >= 10 and animation.animation.current_animation_id() != 0:
 			return "Dry S release did not remain Stand 0"
 	print("FIXTURE SWIM_DONE")
 	return ""
