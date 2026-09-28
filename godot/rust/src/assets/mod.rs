@@ -159,6 +159,18 @@ fn wow_vec3(value: [f32; 3]) -> Vector3 {
     Vector3::new(value[0], value[2], -value[1])
 }
 
+/// Root metadata: the M2 header bounding box in the model root's axes.
+pub(crate) const M2_BOUNDS_META: &str = "m2_bounds";
+
+fn m2_bounds(model: &m2::Model) -> Aabb {
+    let [min_x, min_y, min_z] = model.bounding_box_min;
+    let [max_x, max_y, max_z] = model.bounding_box_max;
+    // `wow_vec3` negates WoW Y into engine -Z, so the extremes swap on that axis.
+    let min = Vector3::new(min_x, min_z, -max_y);
+    let max = Vector3::new(max_x, max_z, -min_y);
+    Aabb::new(min, max - min)
+}
+
 pub(crate) fn build_skeleton(bones: &[m2::Bone]) -> (Gd<Skeleton3D>, Option<Gd<Skin>>) {
     let mut skeleton = Skeleton3D::new_alloc();
     skeleton.set_name("Skeleton3D");
@@ -275,6 +287,7 @@ pub(super) fn build_model_filtered(
             .zip(resolved),
     );
     let mut root = Node3D::new_alloc();
+    root.set_meta(M2_BOUNDS_META, &m2_bounds(model).to_variant());
     root.add_child(&skeleton);
     for (batch_index, (mesh, material, visible)) in batches.into_iter().enumerate() {
         let mut instance = MeshInstance3D::new_alloc();

@@ -14,6 +14,8 @@ pub(crate) struct PhysicalInput {
     ctrl: bool,
     motion: [f32; 2],
     scroll: f32,
+    /// Viewport position of the latest mouse event.
+    pointer: [f32; 2],
 }
 
 impl PhysicalInput {
@@ -29,8 +31,10 @@ impl PhysicalInput {
                 self.set_key(binding, key.is_pressed());
             }
         } else if let Ok(mouse) = event.clone().try_cast::<InputEventMouseButton>() {
+            self.pointer = mouse.get_position().to_array();
             self.capture_mouse(&mouse);
         } else if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            self.pointer = motion.get_position().to_array();
             let relative = motion.get_relative();
             self.add_motion(relative.x, relative.y);
         }
@@ -90,6 +94,10 @@ impl PhysicalInput {
 
     pub fn scroll(&self) -> f32 {
         self.scroll
+    }
+
+    pub fn pointer(&self) -> [f32; 2] {
+        self.pointer
     }
 
     pub fn finish_frame(&mut self) {

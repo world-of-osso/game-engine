@@ -353,7 +353,7 @@ fn context_menu_height(item_count: usize) -> f32 {
         + MENU_BOTTOM_PADDING
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 mod tests {
     use super::*;
     use crate::ui::screens::menu_character_layout_test_support::compute_layout;

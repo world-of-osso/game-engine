@@ -18,6 +18,7 @@ mod lighting;
 mod loading;
 mod scene;
 mod startup;
+mod targeting;
 mod terrain;
 mod ui;
 mod wmo;
@@ -96,6 +97,7 @@ pub struct GameClient {
     world_minutes: f32,
     server_hostname: String,
     startup_customize: bool,
+    targeting: targeting::Targeting,
 }
 
 #[godot_api]
@@ -150,6 +152,7 @@ impl INode3D for GameClient {
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             startup_customize: false,
+            targeting: targeting::Targeting::new(data_root.clone()),
             units: HashMap::new(),
             world: world::WorldUnits::new(data_root, cache_root),
             server_hostname: if cfg!(debug_assertions) {
@@ -189,6 +192,12 @@ impl INode3D for GameClient {
             }
             return;
         }
+        if key.get_keycode() == godot::global::Key::ESCAPE && self.clear_target_on_escape() {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         match self.handle_game_menu_key(key.get_keycode()) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -217,6 +226,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_character_preview())
             .and_then(|()| self.update_creation_scene(delta as f32))
             .and_then(|()| self.update_player_input(delta as f32))
+            .and_then(|()| self.update_targeting())
             .and_then(|()| self.update_world_map())
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.update_player_animation())
@@ -361,6 +371,12 @@ impl GameClient {
             session.selected_character_name.as_deref().unwrap_or(""),
         );
         state
+    }
+
+    /// The selected unit, its name, what the server echoes back, and the ring's owner.
+    #[func]
+    fn target_state(&self) -> VarDictionary {
+        self.targeting_snapshot()
     }
 
     /// Authored terrain surface at world X/Z, or nil when no loaded grid covers the point.

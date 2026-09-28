@@ -258,6 +258,9 @@ fn sync_unit_visual(
     }
     match replacement {
         Some(Ok(visual)) => {
+            if let Err(error) = crate::targeting::attach_pick_area(&visual, snapshot.server_id) {
+                godot_error!("{error}");
+            }
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
             unit.visual = Some(visual);
@@ -484,6 +487,10 @@ impl WorldUnits {
         self.root.clone()
     }
 
+    pub fn unit_node(&self, id: u64) -> Option<Gd<Node3D>> {
+        Some(self.units.get(&id)?.node.clone())
+    }
+
     pub fn local_player_node(&self) -> Option<Gd<Node3D>> {
         Some(self.units.get(&self.local_player_id?)?.node.clone())
     }
@@ -593,6 +600,7 @@ mod tests {
             equipment: None,
             movement_control: None,
             creature_motion: None,
+            unit_target: None,
         }
     }
 
