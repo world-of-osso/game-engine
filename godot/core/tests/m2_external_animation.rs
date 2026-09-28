@@ -38,6 +38,9 @@ fn populated_tracks(model: &m2::Model, index: usize) -> usize {
 
 #[test]
 fn human_male_external_sit_and_sleep_retain_authored_keys() {
+    let fdids =
+        m2::external_anim_fdids(&fixture("1011653.m2"), Some(&fixture("1011653.skel"))).unwrap();
+    assert!(fdids.contains(&1012989) && fdids.contains(&1012994));
     let model = parse_hd("1011653", |fdid| match fdid {
         1012989 | 1012994 => Some(fixture(&format!("{fdid}.anim"))),
         _ => None,
