@@ -167,20 +167,7 @@ pub struct CameraOptionsView {
     pub max_distance: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum NameplateBarThickness {
-    Thin,
-    Thick,
-}
-
-impl NameplateBarThickness {
-    pub const fn toggled(self) -> Self {
-        match self {
-            Self::Thin => Self::Thick,
-            Self::Thick => Self::Thin,
-        }
-    }
-}
+pub use crate::nameplate_style_data::NameplateBarThickness;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HudOptionsView {
