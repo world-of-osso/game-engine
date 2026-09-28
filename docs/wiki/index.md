@@ -60,6 +60,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [campsite-fog-and-wmo-selection](investigations/campsite-fog-and-wmo-selection.md) — Campsites 7/25 fully fogged by FogEnd-0 LightData read as a linear range; now the reference exponential fog. Cultists' Quay lost its WMO to an origin-distance radius; now selected by extents.
 - [camera-collision-recovery-lag](investigations/camera-collision-recovery-lag.md) — Follow camera stalled behind a running player after any collision pull-in: recovery measured the lagging camera pose; now recovers from the stored pulled-in distance.
 - [godot-texture-vram](investigations/godot-texture-vram.md) — Godot client uploaded an RGBA8 copy of every texture per placement; one shared DXT texture per FDID cut in-world VRAM from 4,994 MiB (rising) to 1,029 MiB.
 - [ui-rounding-seams](investigations/ui-rounding-seams.md) — 1 px seams between abutting UI textures at UI scale 2/3 (auction house tabs): taffy 0.10.1 parent-relative location rounding; patched in bevy-patches.

@@ -1683,3 +1683,7 @@ Placed WMO floors are ground once their tile is parsed (not once the object queu
 ## [2026-09-28] port | Godot WMO: all retail MOMT shaders
 
 Godot maps every MOMT id 0-23 to WebWowViewerCpp's vertex/pixel shader pair. It binds the nine material textures, four MOTV sets, MOCV2 and MOC2, and ports every caclWMOFragMat case, including MapObjParallax and the MapObjDFShader height blend. A batch that cannot be built no longer drops its WMO. See [[wmo-retail-lighting]].
+
+## [2026-09-28] fix | Campsite fog and WMO selection
+
+Godot fogs with WebWowViewerCpp's legacy exponential fog from FogScaler/FogDensity, so FogEnd-0 campsites (Freywold Spring, Gallagio Grand Gallery) no longer render as flat fog. Campsite WMOs are selected by MODF extents, so Cultists' Quay shows its delve WMO. See [[campsite-fog-and-wmo-selection]].
