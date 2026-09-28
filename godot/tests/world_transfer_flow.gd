@@ -1,7 +1,7 @@
 extends SceneTree
 
-const FIRST := Vector3(-8949.0, 83.0, 0.0)
-const SECOND := Vector3(-8940.0, 83.0, 0.0)
+const FIRST := Vector3(-8949.0, 112.87991, 0.0)
+const SECOND := Vector3(-8940.0, 117.38283, 0.0)
 const ERROR_TEXT := "Transfer Aborted: instance is full"
 
 var transfer_requested := false
@@ -44,9 +44,13 @@ func run_test() -> void:
 	var first_terrain_id: int = first_terrain.get_instance_id()
 	var first_tile_id: int = first_terrain.get_child(0).get_instance_id()
 	var first_player_id: int = first_player.get_instance_id()
+	var first_water := water_identity(client)
+	if first_water.is_empty():
+		return
 	transfer_requested = true
 	print("FIXTURE INITIAL_READY")
 	var deadline := Time.get_ticks_msec() + 60000
+	var water_released := false
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if transfer_loading_error != "":
@@ -54,6 +58,10 @@ func run_test() -> void:
 			return
 		if not transfer_loading_seen:
 			continue
+		if not water_released:
+			if not await wait_for_water_release(first_water):
+				return
+			water_released = true
 		var state: Dictionary = client.account_state()
 		var overlay = client.get_node_or_null("UIErrors")
 		var label = overlay.find_child("UIErrorsFrameLine1", true, false) if overlay != null else null
@@ -78,11 +86,20 @@ func run_test() -> void:
 		if client.get_node("LoadingUI").visible:
 			fail("Loading screen remained visible after terrain readiness")
 			return
+		var refreshed_water := water_identity(client)
+		if refreshed_water.is_empty():
+			return
+		if refreshed_water.node_id == first_water.node_id or refreshed_water.material_id == first_water.material_id:
+			fail("Transfer reused old Water node or shader material")
+			return
+		if not await wait_for_water_clock(refreshed_water):
+			return
 		for _frame in range(60):
 			await process_frame
 			if client.account_state().screen != "InWorld" or client.account_state().unit_count != 1:
 				fail("Transfer did not retain the live connected world")
 				return
+		print("FIXTURE TRANSFER_WATER_READY")
 		print("FIXTURE TRANSFER_READY")
 		client.free()
 		quit(0)
@@ -97,7 +114,58 @@ func on_screen_requested(screen: String, client: Node) -> void:
 	if ui == null or not ui.visible:
 		transfer_loading_error = "Transfer did not show native LoadingUI"
 		return
+	var old_water = client.get_node_or_null("WorldTerrain/Tile32_48/Water")
+	if old_water != null:
+		transfer_loading_error = "NewWorld retained old authored Water at Loading boundary"
+		return
 	print("FIXTURE TRANSFER_LOADING")
+
+func water_identity(client: Node) -> Dictionary:
+	var water = client.get_node_or_null("WorldTerrain/Tile32_48/Water")
+	if water == null:
+		fail("Loaded tile 32_48 has no authored Water node")
+		return {}
+	for child in water.get_children():
+		if child is MeshInstance3D and child.mesh != null and child.mesh.get_surface_count() > 0:
+			var material = child.get_surface_override_material(0)
+			if material is ShaderMaterial:
+				return {
+					"node_ref": weakref(water), "node_id": water.get_instance_id(),
+					"material_ref": weakref(material), "material_id": material.get_instance_id()
+				}
+	fail("Authored Water has no nonempty mesh with a ShaderMaterial")
+	return {}
+
+func wait_for_water_release(first_water: Dictionary) -> bool:
+	for _frame in range(120):
+		if first_water.node_ref.get_ref() == null and first_water.material_ref.get_ref() == null:
+			return true
+		await process_frame
+	fail("NewWorld retained old Water node or cached shader material")
+	return false
+
+func wait_for_water_clock(water: Dictionary) -> bool:
+	var clock = root.get_node("M2MaterialClock")
+	var previous_time := -1.0
+	var previous_sample := -1.0
+	for frame in range(12):
+		await process_frame
+		var node = water.node_ref.get_ref()
+		var material = water.material_ref.get_ref() as ShaderMaterial
+		if node == null or material == null:
+			fail("Destination Water or its shader material disappeared during clock sampling")
+			return false
+		var expected: float = fmod(clock.elapsed_time_ms() / 1000.0, 3600.0)
+		var sampled: float = material.get_shader_parameter("animation_time")
+		if frame > 0 and absf(sampled - expected) > 0.2:
+			fail("Destination Water clock diverged: sampled=%s expected=%s" % [sampled, expected])
+			return false
+		if frame > 0 and expected > previous_time and sampled > previous_sample and sampled > 0.0:
+			return true
+		previous_time = expected
+		previous_sample = sampled
+	fail("Destination Water did not advance with shared material clock")
+	return false
 
 func wait_for_screen(client: Node, wanted: String, timeout_ms: int) -> bool:
 	var deadline := Time.get_ticks_msec() + timeout_ms

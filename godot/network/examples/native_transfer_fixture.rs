@@ -27,8 +27,8 @@ use shared::{
 };
 
 const NAME: &str = "Transfer Fixture";
-const FIRST: [f32; 3] = [-8949.0, 83.0, 0.0];
-const SECOND: [f32; 3] = [-8940.0, 83.0, 0.0];
+const FIRST: [f32; 3] = [-8949.0, 112.87991, 0.0];
+const SECOND: [f32; 3] = [-8940.0, 117.38283, 0.0];
 const STOCKADE: [f32; 3] = [103.0, -34.5, -76.0];
 const TICK: Duration = Duration::from_millis(5);
 
@@ -296,7 +296,8 @@ fn run_fixture(
                     );
                     phase = 2;
                 }
-                (2, "FIXTURE TRANSFER_READY") => phase = 3,
+                (2, "FIXTURE TRANSFER_WATER_READY") => phase = 3,
+                (3, "FIXTURE TRANSFER_READY") => phase = 4,
                 (_, line) if line.starts_with("FIXTURE ") => {
                     return Err(format!("out-of-order Godot fixture phase {phase}: {line}"));
                 }
@@ -304,14 +305,16 @@ fn run_fixture(
             }
         }
         if let Some(status) = status {
-            if !status.success() || phase != 3 {
+            if !status.success() || phase != 4 {
                 return Err(format!("Godot exited {status} at phase {phase}"));
             }
             let acks = app.world().resource::<Incoming>().acks;
             if acks != 1 {
                 return Err(format!("expected exactly one WorldPortAck, got {acks}"));
             }
-            println!("PASS: real Godot transfer loaded new terrain and sent one WorldPortAck");
+            println!(
+                "PASS: real Godot transfer released old Water and material, recreated advancing water, and sent one WorldPortAck"
+            );
             return Ok(());
         }
         thread::sleep(TICK);
