@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-28] system | Native ADT MH2O water restored
+
+`b412f7e4` restores original ADT MH2O rendering: shared Bevy/core water geometry and procedural-normal bytes, native normal/fresnel/specular/depth-alpha shader execution, shared-clock sampling, and tile/reset cleanup. `/tmp/claude/adt-water-runtime-clock-typed.log` exits 0: authored geometry covers the fixture point; 4,608 pixels change and are translucent; paused clock pixels remain stable; a 2-second advance changes at least 64 pixels; swim/UDP/release, freed water-node, and client-exit checks complete. Main read `swimming.png`, `swimming-shoreline.png`, and `swimming-water-isolated.png`: blue translucent water and authored shore are visible.
+
+`3341c9b6`'s missing `WorldTerrain/Tile32_48/Water` is the genuine production RED. Historical fixture marker/type/compile/parse failures remain historical fixture errors, not production defects. Independent verification is pending. No waves, foam, liquid-type-specific textures, WMO water, buoyancy, performance, visual equivalence, parity, or full-conversion claim.
+
+Updated [[godot-conversion]], [[terrain]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] system | Cached authored shore swimming fixture exits 0
 
 `d7dae274` commits only a GDScript screenshot-image type correction; native production is unchanged. The actual cached `azeroth(32,48)` fixture exits 0 (`/tmp/claude/swimming-runtime-typed-image.log`): at X=-8558, W/S/Space crosses dry Z522 → deep Z500 → dry Z522, observes 5 → Swim 42 → SwimIdle 41, suppresses wet Space while stationary and moving, then reaches SwimBackwards 45 (43 is SwimLeft) → WalkBackwards 13 → Stand 0. Bones change after 150 ms; decoded UDP orders swimming false → true → false and is quiet after release. Main read the rendered deep-water PNG: it shows the swimming body and terrain, but no water surface; verifier inspection was PNG metadata only.
