@@ -1,8 +1,12 @@
 //! One WDT global WMO payload and its matching placed collision geometry.
 
 use game_engine_core::{adt::WmoPlacement, campsite_object_data::placement_position};
+use std::sync::Arc;
+
 use glam::{Affine3A, Vec3};
-use shared::ground::{WmoCollision, global_wmo_placement_position, placement_rotation};
+use shared::ground::{
+    WmoCollision, WmoGroupCollision, global_wmo_placement_position, placement_rotation,
+};
 
 use super::assets::NativeWmoAsset;
 
@@ -34,14 +38,14 @@ impl PlacedWmo {
 pub(crate) fn adt_wmo_collision(
     placement: &WmoPlacement,
     tile: (u32, u32),
-    asset: &NativeWmoAsset,
+    groups: Vec<Arc<WmoGroupCollision>>,
 ) -> WmoCollision {
     let world_from_local = Affine3A::from_scale_rotation_translation(
         Vec3::splat(placement.scale),
         placement_rotation(placement.rotation),
         placement_position(placement.position, tile.0, tile.1),
     );
-    placed_collision(world_from_local, asset)
+    WmoCollision::new(world_from_local, groups)
 }
 
 fn placed_collision(world_from_local: Affine3A, asset: &NativeWmoAsset) -> WmoCollision {

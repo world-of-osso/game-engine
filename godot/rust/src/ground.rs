@@ -3,15 +3,13 @@
 use game_engine_core::player_physics_data::{GroundSample, GroundState, validate_movement_slope};
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 use glam::Vec3;
-use shared::ground::{Ground, STEP_UP_HEIGHT, Surface, WmoCollision};
+use shared::ground::{Ground, STEP_UP_HEIGHT, Surface};
 use shared::movement::MAX_SLOPE_ANGLE;
 
 use crate::terrain::streaming::StreamedTerrain;
 
 pub(crate) struct TerrainGround<'a> {
     pub terrain: &'a StreamedTerrain,
-    /// Floors of the ADT-placed WMOs spawned so far.
-    pub wmos: &'a [WmoCollision],
 }
 
 impl TerrainGround<'_> {
@@ -52,7 +50,12 @@ impl TerrainGround<'_> {
                 .and_then(|map| map.global_wmo.as_ref())
                 .map(|wmo| &wmo.collision)
                 .into_iter()
-                .chain(self.wmos),
+                .chain(
+                    self.terrain
+                        .parsed_tiles
+                        .values()
+                        .flat_map(|tile| &tile.wmo_floors),
+                ),
         )
     }
 
@@ -101,11 +104,7 @@ mod tests {
         let inside = Vec3::new(103.0, -34.5, -76.0);
         let outside = Vec3::new(99.0, -34.5, -77.0);
         assert_eq!(
-            TerrainGround {
-                terrain: &terrain,
-                wmos: &[],
-            }
-            .probe(inside),
+            TerrainGround { terrain: &terrain }.probe(inside),
             GroundState::Unloaded
         );
         terrain
@@ -126,10 +125,7 @@ mod tests {
             "{:?}",
             terrain.state().map_error
         );
-        let ground = TerrainGround {
-            terrain: &terrain,
-            wmos: &[],
-        };
+        let ground = TerrainGround { terrain: &terrain };
         match ground.probe(inside) {
             GroundState::Supported(height) => assert!((height + 34.9).abs() < 0.2, "{height}"),
             other => panic!("Stockade floor unsupported: {other:?}"),
@@ -137,18 +133,15 @@ mod tests {
         assert_eq!(ground.probe(outside), GroundState::Unsupported);
         terrain.reset().unwrap();
         assert_eq!(
-            TerrainGround {
-                terrain: &terrain,
-                wmos: &[],
-            }
-            .probe(inside),
+            TerrainGround { terrain: &terrain }.probe(inside),
             GroundState::Unloaded
         );
     }
 
     /// Stormwind's Stockade entrance (`sw_magicdistrict` 321999 on azeroth_30_48): the room
     /// floor at 97.63 and the stairwell down to the Stockade door are WMO floors, over flat
-    /// terrain at 86.21.
+    /// terrain at 86.21. They are ground as soon as the tile is parsed, before any WMO node
+    /// of the tile is spawned (the in-world object queue takes minutes).
     #[test]
     fn stockade_entrance_ground_is_the_placed_wmo_floor_and_stairs() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -165,31 +158,17 @@ mod tests {
             );
             std::thread::sleep(Duration::from_millis(10));
         }
-        let placement = terrain.parsed_tiles[&(30, 48)]
-            .obj
-            .as_ref()
-            .expect("azeroth_30_48_obj0")
-            .wmos
-            .iter()
-            .find(|placement| placement.fdid == Some(321_999))
-            .expect("sw_magicdistrict MODF")
-            .clone();
-        let resolver = crate::assets::creature::local_resolver(&data_root, &cache_root);
-        let asset = crate::wmo::assets::read_placement(&resolver, &data_root, &placement).unwrap();
-        let floors = [crate::wmo::placement::adt_wmo_collision(
-            &placement,
-            (30, 48),
-            &asset,
-        )];
-        let ground = TerrainGround {
-            terrain: &terrain,
-            wmos: &floors,
-        };
+        let ground = TerrainGround { terrain: &terrain };
         // Where the server stood the player: WoW (-8785.926, 820.665, 97.652).
         let room = Vec3::new(-8785.926, 97.652, -820.665);
         match ground.probe(room) {
             GroundState::Supported(height) => assert!((height - 97.63).abs() < 0.05, "{height}"),
             other => panic!("room floor unsupported: {other:?}"),
+        }
+        // The Stockade exit arrival (world_safe_locs 3618) on the doorway floor at 88.
+        match ground.probe(Vec3::new(-8766.11, 88.0, -845.5)) {
+            GroundState::Supported(height) => assert!((height - 88.0).abs() < 0.3, "{height}"),
+            other => panic!("doorway floor unsupported: {other:?}"),
         }
         // Run east down the stairwell from its top step (WoW y 836) for two seconds.
         let mut movement = crate::gameplay::PlayerMovement::default();

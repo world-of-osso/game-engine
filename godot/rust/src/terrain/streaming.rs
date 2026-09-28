@@ -528,6 +528,7 @@ mod tests {
             tex: None,
             obj: None,
             textures: BTreeMap::new(),
+            wmo_floors: Vec::new(),
         }
     }
 

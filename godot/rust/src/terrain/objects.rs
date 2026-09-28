@@ -12,6 +12,7 @@ use game_engine_core::{
     campsite_object_data::{campsite_doodad_placement, doodad_position, placement_position},
     m2,
 };
+use glam::{Affine3A, Vec3};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 use shared::ground::WmoCollision;
@@ -23,7 +24,7 @@ use crate::{
         read_model,
     },
     lighting::TerrainLight,
-    terrain::streaming::StreamedTerrain,
+    terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
     world_models::bind_visual_light,
 };
 
@@ -65,6 +66,13 @@ struct ParsedModel {
     model: m2::Model,
 }
 
+/// A spawned doodad and the retail distance it is drawn to.
+struct CulledDoodad {
+    node: Gd<Node3D>,
+    scenery: SceneryDistance,
+    shown: bool,
+}
+
 pub(crate) struct TerrainObjects {
     name: &'static str,
     budget: Duration,
@@ -75,6 +83,7 @@ pub(crate) struct TerrainObjects {
     pending: VecDeque<Pending>,
     spawned_doodads: BTreeSet<u32>,
     spawned_wmos: BTreeSet<u32>,
+    doodads: Vec<CulledDoodad>,
     /// Floors of the spawned WMOs, for the player's ground.
     wmo_floors: Vec<WmoCollision>,
     models: HashMap<u32, ParsedModel>,
@@ -99,6 +108,7 @@ impl TerrainObjects {
             pending: VecDeque::new(),
             spawned_doodads: BTreeSet::new(),
             spawned_wmos: BTreeSet::new(),
+            doodads: Vec::new(),
             wmo_floors: Vec::new(),
             models: HashMap::new(),
             light: None,
@@ -194,8 +204,13 @@ impl TerrainObjects {
                 if self.spawned_doodads.contains(&doodad.unique_id) {
                     return Ok(());
                 }
-                let model = self.load_placed_doodad(doodad, tile, terrain)?;
+                let (model, scenery) = self.load_placed_doodad(doodad, tile, terrain)?;
                 self.spawned_doodads.insert(doodad.unique_id);
+                self.doodads.push(CulledDoodad {
+                    node: model.clone(),
+                    scenery,
+                    shown: true,
+                });
                 model
             }
             Pending::Wmo(_, index) => {
@@ -228,7 +243,7 @@ impl TerrainObjects {
         doodad: &DoodadPlacement,
         tile: Tile,
         terrain: &StreamedTerrain,
-    ) -> Result<Gd<Node3D>, String> {
+    ) -> Result<(Gd<Node3D>, SceneryDistance), String> {
         let model_path = self.doodad_model_path(doodad);
         let fdid = doodad
             .fdid
@@ -238,7 +253,7 @@ impl TerrainObjects {
                     .and_then(|path| self.resolver.lookup_path(path))
             })
             .ok_or_else(|| format!("doodad {} has no resolvable model", doodad.unique_id))?;
-        let mut model = self.build_doodad_model(fdid)?;
+        let (mut model, render_box) = self.build_doodad_model(fdid)?;
         let position = doodad_position(doodad, tile.0, tile.1);
         let height = terrain.height_at(position.x, position.z);
         let placement =
@@ -250,11 +265,18 @@ impl TerrainObjects {
             rotation.x, rotation.y, rotation.z, rotation.w,
         ));
         model.set_scale(Vector3::from_array(placement.scale.to_array()));
-        Ok(model)
+        let world_from_model = Affine3A::from_scale_rotation_translation(
+            placement.scale,
+            placement.rotation,
+            placement.translation,
+        );
+        let scenery = SceneryDistance::new(render_box.0, render_box.1, world_from_model);
+        Ok((model, scenery))
     }
 
-    /// Parse and cache each model FDID once; build a node per placement.
-    fn build_doodad_model(&mut self, fdid: u32) -> Result<Gd<Node3D>, String> {
+    /// Parse and cache each model FDID once; build a node per placement. Also returns
+    /// the M2 header render box in engine axes.
+    fn build_doodad_model(&mut self, fdid: u32) -> Result<(Gd<Node3D>, (Vec3, Vec3)), String> {
         if !self.models.contains_key(&fdid) {
             let path = cache_model_files(&self.resolver, &self.data_root, fdid)?;
             let path = GString::from(path.to_string_lossy().as_ref());
@@ -268,7 +290,12 @@ impl TerrainObjects {
             model.free();
             return Err(format!("model {fdid} missing textures {missing:?}"));
         }
-        Ok(model)
+        let engine_axes = |[x, y, z]: [f32; 3]| Vec3::new(x, z, -y);
+        let render_box = (
+            engine_axes(parsed.model.bounding_box_min),
+            engine_axes(parsed.model.bounding_box_max),
+        );
+        Ok((model, render_box))
     }
 
     fn load_placed_wmo(
@@ -296,6 +323,23 @@ impl TerrainObjects {
         Ok((model, floors))
     }
 
+    /// Draws each doodad only within its retail scenery distance of `camera`; a
+    /// hidden doodad also stops animating.
+    pub fn cull_doodads(&mut self, camera: Vector3) {
+        let camera = Vec3::new(camera.x, camera.y, camera.z);
+        for doodad in &mut self.doodads {
+            let shown = doodad.scenery.visible_from(camera);
+            if shown == doodad.shown {
+                continue;
+            }
+            doodad.shown = shown;
+            doodad.node.set_visible(shown);
+            if let Some(mut animation) = doodad.node.get_node_or_null("M2Animation") {
+                animation.set_process(shown);
+            }
+        }
+    }
+
     pub fn update_lighting(&mut self, light: &TerrainLight) {
         if let Some(root) = &self.root {
             bind_visual_light(root, Some(light));
@@ -311,6 +355,7 @@ impl TerrainObjects {
         self.pending.clear();
         self.spawned_doodads.clear();
         self.spawned_wmos.clear();
+        self.doodads.clear();
         self.wmo_floors.clear();
         self.models.clear();
         self.light = None;

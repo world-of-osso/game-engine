@@ -227,7 +227,8 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_world_errors(delta as f32))
             .and_then(|()| self.tick_delete_confirmation(delta as f32))
             .and_then(|()| self.advance_login_fade(delta as f32))
-            .and_then(|()| self.update_world_camera(delta as f32));
+            .and_then(|()| self.update_world_camera(delta as f32))
+            .map(|()| self.cull_world_objects());
         self.physical_input.finish_frame();
         if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
@@ -857,6 +858,12 @@ impl GameClient {
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.world_objects
             .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
+    }
+
+    fn cull_world_objects(&mut self) {
+        if let Some(camera) = self.world_camera.position() {
+            self.world_objects.cull_doodads(camera);
+        }
     }
 
     fn attach_terrain_materials(&mut self) -> Result<(), String> {

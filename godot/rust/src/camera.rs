@@ -60,6 +60,12 @@ impl WorldCamera {
             .expect("camera input preserves a present player facing")
     }
 
+    pub fn position(&self) -> Option<Vector3> {
+        self.node
+            .as_ref()
+            .map(|camera| camera.get_global_position())
+    }
+
     pub fn reset(&mut self) {
         if let Some(node) = self.node.take() {
             node.free();
