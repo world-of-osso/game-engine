@@ -40,6 +40,12 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | UI-click and Sound Defaults fixture boundaries
+
+`9145a605` shares the legacy 1,764-sample 44.1 kHz normalized-phase UI-click generator and 0.55 gain through `ui_click_data` for Bevy and Godot. Native playback is triggered only by eligible left-pointer-down on an enabled actionable frame or ancestor, then drained before action dispatch; keyboard/programmatic actions, releases, right-button input, nonactionable controls, and disabled paths are excluded. The owned Effects player receives PCM WAV at `master × effects × 0.55`, or zero when muted.
+
+`5274d0c0` strengthens `world_sound_flow.gd` by first setting master to 0.25 and observing Music/Ambient/Effects levels 0.1125/0.075/0.025 before invoking Defaults and observing Music/Ambient restoration to 0.45/0.3. These are committed source/fixture boundaries. Verifier821 is in progress; no PASS, audible-output, or full-parity claim follows. Updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] system | Native UI click parity slice
 
 Shared the legacy normalized-phase click generator and 0.55 gain through `ui_click_data`. Projected left pointer-down on an actionable frame or ancestor reaches `GameClient`'s owned `NativeSound` Effects player; disabled buttons and non-pointer actions do not trigger it. Targeted PCM and headless Godot fixture cover behavior and player volume/mute. This is not audible-output or full-parity proof. Updated [[sound]].
