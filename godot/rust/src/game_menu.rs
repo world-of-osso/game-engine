@@ -50,7 +50,7 @@ impl GameClient {
         let camera = policy::camera_draft_from_file(&file.camera);
         let hud = policy::hud_draft_from_file(&file.hud);
         OptionsModel {
-            logged_in: self.account.session.screen != SessionScreen::GameMenu,
+            logged_in: true,
             view: GameMenuView::MainMenu,
             category: OptionsCategory::Sound,
             modal_position: file.modal_offset.unwrap_or([0.0, 0.0]),
