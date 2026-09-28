@@ -307,29 +307,7 @@ impl RegistryUi {
         self.initialize_model(model, width, height)
     }
 
-    pub fn show_game_menu(&mut self, logged_in: bool) -> Result<(), String> {
-        let viewport = self
-            .base()
-            .get_viewport()
-            .ok_or("Game menu has no viewport")?;
-        let size = viewport.get_visible_rect().size;
-        let GameMenuModel {
-            screen,
-            shared,
-            registry,
-        } = GameMenuModel::new(size.x, size.y, logged_in);
-        let mut model = RegistryModel {
-            screen,
-            shared,
-            registry,
-            icon_masks: Default::default(),
-            postsetup: ScreenPostsetup::None,
-        };
-        model.sync();
-        self.initialize_model(model, size.x, size.y)
-    }
-
-    /// Project the full authored game-menu view; existing main-only startup stays unchanged.
+    /// Project the full authored game-menu view.
     pub fn show_game_menu_view(&mut self, view: GameMenuViewModel) -> Result<(), String> {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
