@@ -135,6 +135,24 @@ pub fn parse_asset_references(model: &[u8]) -> Result<AssetReferences, String> {
     })
 }
 
+/// FDIDs of the external `.anim` files the model's and its skeleton's `AFID` chunks name, so
+/// a caller can fetch them before parsing.
+pub fn external_anim_fdids(model: &[u8], skeleton: Option<&[u8]>) -> Result<Vec<u32>, String> {
+    let chunks = format::parse_chunks(model)?;
+    let mut fdids: Vec<u32> = chunks.afid.iter().map(|&(_, _, fdid)| fdid).collect();
+    if let Some(skeleton) = skeleton {
+        fdids.extend(
+            format::parser::skeleton_afid(skeleton)?
+                .iter()
+                .map(|&(_, _, fdid)| fdid),
+        );
+    }
+    fdids.retain(|&fdid| fdid != 0);
+    fdids.sort_unstable();
+    fdids.dedup();
+    Ok(fdids)
+}
+
 fn find_skeleton_ska1(skeleton: &[u8]) -> Result<Option<&[u8]>, String> {
     let mut offset = 0;
     while offset + 8 <= skeleton.len() {
@@ -203,14 +221,18 @@ mod asset_references_tests {
 }
 
 /// Parse the primary skin. Models with external SKID skeletons require the separate skeleton bytes.
+/// Sequences kept in external `.anim` files get no keyframes.
 pub fn parse_model(model: &[u8], skin: &[u8]) -> Result<Model, String> {
-    parse_model_with_skeleton(model, skin, None)
+    parse_model_with_skeleton(model, skin, None, |_| None)
 }
 
+/// `load_anim` returns the bytes of an external sequence's `.anim` file by FDID (the model's or
+/// skeleton's `AFID`); a sequence whose file it can't provide has no keyframes.
 pub fn parse_model_with_skeleton(
     model: &[u8],
     skin: &[u8],
     skeleton: Option<&[u8]>,
+    mut load_anim: impl FnMut(u32) -> Option<Vec<u8>>,
 ) -> Result<Model, String> {
     let chunks = format::parse_chunks(model)?;
     if chunks.skid.is_some() && skeleton.is_none() {
@@ -218,8 +240,7 @@ pub fn parse_model_with_skeleton(
     }
     let skin = format::parser::parse_skin_full(skin)?;
     let (bones, sequences, bone_tracks, global_sequences) = if let Some(skeleton) = skeleton {
-        // External `.anim` sequences are not loaded here: they keep no keyframes.
-        let parsed = format::parser::parse_skel_data_with_anims(skeleton, |_| None)?;
+        let parsed = format::parser::parse_skel_data_with_anims(skeleton, &mut load_anim)?;
         if parsed.bones.is_empty() {
             return Err("SKB1 skeleton chunk missing or empty".into());
         }
@@ -230,10 +251,19 @@ pub fn parse_model_with_skeleton(
             parsed.global_sequences,
         )
     } else {
+        let sequences = m2_anim::parse_sequences(chunks.md20)?;
+        let anim_files = format::parser::load_anim_track_chunks(
+            &sequences,
+            &chunks.afid,
+            b"AFM2",
+            &mut load_anim,
+        );
+        let sources = m2_anim::sequence_data_sources(&sequences, &anim_files);
+        let bone_tracks = m2_anim::parse_md20_bone_animations(chunks.md20, &sources)?;
         (
             m2_anim::parse_bones(chunks.md20)?,
-            m2_anim::parse_sequences(chunks.md20)?,
-            m2_anim::parse_bone_animations(chunks.md20)?,
+            sequences,
+            bone_tracks,
             m2_anim::parse_global_sequences(chunks.md20)?,
         )
     };
