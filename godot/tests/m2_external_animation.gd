@@ -9,14 +9,10 @@ func fail(message: String) -> void:
 	push_error(message)
 	quit(1)
 
-func select_animation(player: Node, animation_id: int) -> bool:
-	# Select by authored ID using the existing sequence API, not a test-only host method.
-	for index in range(1024):
-		if not player.play_sequence(index, true):
-			break
-		if player.current_animation_id() == animation_id:
-			return true
-	fail("Authored animation missing: " + str(animation_id))
+func select_animation(player: Node, index: int, animation_id: int) -> bool:
+	if player.play_sequence(index, true) and player.current_animation_id() == animation_id:
+		return true
+	fail("Authored sequence %d is not animation %d" % [index, animation_id])
 	return false
 
 func changed_from_rest(skeleton: Skeleton3D) -> int:
@@ -43,8 +39,10 @@ func run_test() -> void:
 		fail("External-animation fixture has no animation player/skeleton")
 		return
 	player.set_paused(true)
-	for animation_id in [97, 100]:
-		if not select_animation(player, animation_id):
+	# Cached HumanMale HD base variations: SitGround (78), Sleep (137).
+	for sequence in [Vector2i(78, 97), Vector2i(137, 100)]:
+		var animation_id := sequence.y
+		if not select_animation(player, sequence.x, animation_id):
 			return
 		player.set_paused(false)
 		if not player.advance_time_ms(5000.0):

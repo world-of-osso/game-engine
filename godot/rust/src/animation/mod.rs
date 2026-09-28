@@ -634,7 +634,7 @@ mod tests {
             &read("humanmale_hd.m2"),
             &read("humanmale_hd00.skin"),
             Some(&read("humanmale_hd.skel")),
-            |_| None,
+            |fdid| fs::read(root.join(format!("{fdid}.anim"))).ok(),
         )
         .expect("HD model with authored tracks")
     }
