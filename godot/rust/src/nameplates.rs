@@ -1,0 +1,641 @@
+//! In-world nameplates with Retail visibility: the shared `nameplate_visibility_data`
+//! rules decide which units get a plate (default CVars: only the target and units
+//! fighting the player, enemies only), and a camera ray against terrain and WMO
+//! collision dims plates of units behind world geometry (`nameplateOccludedAlphaMult`).
+//! Look and layout follow docs/specs/nameplate-style.md: the reference-derived health
+//! frame and fill skins of the Bevy client, the fill tinted by the unit's reaction to the
+//! local player, and the white Friz name 2px above the plate.
+
+use std::collections::HashMap;
+use std::path::Path;
+
+use game_engine_core::nameplate_style_data::{
+    NameplateStyle, THICK_HEALTH_HEIGHT, THIN_HEALTH_HEIGHT,
+};
+use game_engine_core::nameplate_visibility_data::{
+    NameplateCvars, PlateUnit, in_combat_with_player, plate_alpha, plate_shown,
+};
+use game_engine_network::UnitSnapshot;
+use game_engine_session::SessionScreen;
+use godot::{
+    classes::{
+        Camera3D, CanvasLayer, Control, Image, ImageTexture, Label, PhysicsRayQueryParameters3D,
+        TextureRect, control::MouseFilter, texture_rect::ExpandMode, texture_rect::StretchMode,
+    },
+    prelude::*,
+};
+use shared::{
+    components::UnitFlags,
+    faction_reaction::{Unit, can_attack},
+};
+
+use crate::{
+    GameClient,
+    faction_reaction::{FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction},
+    targeting::unit_pick_shape,
+    wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
+};
+
+const LAYER_NAME: &str = "Nameplates";
+const FACTION_TEMPLATE_CSV: &str = "db2/12.1.0.69933/FactionTemplate.csv";
+/// Retail `HEALTH_BAR_TO_NAME_ABOVE_SPACING` (Blizzard_NamePlateConstants.lua:33).
+const NAME_ABOVE_BAR_SPACING: f32 = 2.0;
+/// Bevy `NAMEPLATE_SCALE`: the skins are unscaled reference-screenshot pixels.
+const NAMEPLATE_SCALE: f32 = 0.5;
+/// Bevy `BAR_Y_OFFSET` (health_bar.rs): the health body centre above the unit origin, in
+/// the unit's space.
+const BAR_Y_OFFSET: f32 = 2.5;
+/// Physics layers that hide a unit from the camera.
+const OCCLUDER_MASK: u32 = TERRAIN_LAYER | WMO_LAYER;
+
+/// Bevy `HealthSkin` (health_bar.rs), in reference pixels: the fill is shorter than the
+/// body and the frame bitmap extends past it by a fixed margin.
+struct HealthSkin {
+    fill_inset: f32,
+    fill_y: f32,
+    frame_margin: Vector2,
+    frame_offset: Vector2,
+}
+
+fn health_skin(thick: bool) -> HealthSkin {
+    let (fill_inset, fill_y, margin, offset) = if thick {
+        (2.0, 0.0, Vector2::new(20.0, 8.0), Vector2::new(2.0, -1.0))
+    } else {
+        (1.0, 0.5, Vector2::new(20.0, 10.0), Vector2::new(2.0, 0.0))
+    };
+    HealthSkin {
+        fill_inset: fill_inset * NAMEPLATE_SCALE,
+        fill_y: fill_y * NAMEPLATE_SCALE,
+        frame_margin: margin * NAMEPLATE_SCALE,
+        frame_offset: offset * NAMEPLATE_SCALE,
+    }
+}
+
+/// Bevy `NameplateStyle::health_preset`: the nearer of the Thin/Thick heights.
+fn thick_preset(style: &NameplateStyle) -> bool {
+    (style.health_height - THICK_HEALTH_HEIGHT).abs()
+        <= (style.health_height - THIN_HEALTH_HEIGHT).abs()
+}
+
+/// Plate part rectangles relative to the anchor point (the health body's centre), y down,
+/// in UI pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct PlateLayout {
+    frame: Rect2,
+    fill: Rect2,
+    /// Bottom centre of the name label.
+    name_bottom: Vector2,
+}
+
+fn plate_layout(style: &NameplateStyle, fraction: f32) -> PlateLayout {
+    let skin = health_skin(thick_preset(style));
+    let body = Vector2::new(style.health_width, style.health_height);
+    let frame_size = body + skin.frame_margin;
+    // Bevy parity: the anchor is the health body's centre.
+    let center = Vector2::ZERO;
+    let frame = Rect2::new(center + skin.frame_offset - frame_size / 2.0, frame_size);
+    let fill_size = Vector2::new(body.x * fraction, body.y - skin.fill_inset);
+    let fill = Rect2::new(
+        center + Vector2::new(-body.x / 2.0, skin.fill_y - fill_size.y / 2.0),
+        fill_size,
+    );
+    let top = if style.show_border {
+        frame_size.y / 2.0 - skin.frame_offset.y
+    } else {
+        body.y / 2.0
+    };
+    PlateLayout {
+        frame,
+        fill,
+        name_bottom: center - Vector2::new(0.0, top + NAME_ABOVE_BAR_SPACING),
+    }
+}
+
+fn reaction_color(style: &NameplateStyle, reaction: Reaction) -> Color {
+    let [r, g, b] = match reaction {
+        Reaction::Hostile => style.health_colors.hostile,
+        Reaction::Neutral => style.health_colors.neutral,
+        Reaction::Friendly => style.health_colors.friendly,
+    };
+    Color::from_rgb(r, g, b)
+}
+
+struct PlateArt {
+    thick_frame: Gd<ImageTexture>,
+    thin_frame: Gd<ImageTexture>,
+    thick_fill: Gd<ImageTexture>,
+    thin_fill: Gd<ImageTexture>,
+    font: Gd<godot::classes::FontFile>,
+}
+
+fn png_texture(bytes: &[u8], desaturate: bool) -> Result<Gd<ImageTexture>, String> {
+    let mut image = Image::new_gd();
+    let error = image.load_png_from_buffer(&PackedByteArray::from(bytes));
+    if error != godot::global::Error::OK {
+        return Err(format!("Decode nameplate skin: {error:?}"));
+    }
+    if desaturate {
+        // Bevy `desaturate`: each pixel's HSV value, so the tint is the colour.
+        image.convert(godot::classes::image::Format::RGBA8);
+        let mut pixels = image.get_data().to_vec();
+        for pixel in pixels.chunks_exact_mut(4) {
+            let value = pixel[0].max(pixel[1]).max(pixel[2]);
+            pixel[..3].fill(value);
+        }
+        let (width, height) = (image.get_width(), image.get_height());
+        image.set_data(
+            width,
+            height,
+            false,
+            godot::classes::image::Format::RGBA8,
+            &PackedByteArray::from(pixels.as_slice()),
+        );
+    }
+    ImageTexture::create_from_image(&image).ok_or_else(|| "Godot rejected a nameplate skin".into())
+}
+
+impl PlateArt {
+    fn load() -> Result<Self, String> {
+        let skin = |bytes: &[u8]| png_texture(bytes, false);
+        let fill = |bytes: &[u8]| png_texture(bytes, true);
+        Ok(Self {
+            thick_frame: skin(include_bytes!(
+                "../../../src/rendering/ui/nameplate_skins/health-thick.png"
+            ))?,
+            thin_frame: skin(include_bytes!(
+                "../../../src/rendering/ui/nameplate_skins/health-thin.png"
+            ))?,
+            thick_fill: fill(include_bytes!(
+                "../../../src/rendering/ui/nameplate_skins/health-fill-thick.png"
+            ))?,
+            thin_fill: fill(include_bytes!(
+                "../../../src/rendering/ui/nameplate_skins/health-fill.png"
+            ))?,
+            font: crate::ui::assets::load_font(
+                ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+            )?,
+        })
+    }
+}
+
+struct PlateNodes {
+    root: Gd<Control>,
+    frame: Gd<TextureRect>,
+    fill: Gd<TextureRect>,
+    name: Gd<Label>,
+}
+
+/// One unit's plate this frame, also reported to automation.
+#[derive(Clone, Debug, PartialEq)]
+struct PlateView {
+    name: String,
+    alpha: f32,
+    occluded: bool,
+    anchor: Vector2,
+    fraction: f32,
+    color: Color,
+}
+
+pub(crate) struct Nameplates {
+    cvars: NameplateCvars,
+    templates: Option<Result<HashMap<u32, FactionTemplateEntry>, String>>,
+    art: Option<PlateArt>,
+    layer: Option<Gd<CanvasLayer>>,
+    plates: HashMap<u64, PlateNodes>,
+    views: HashMap<u64, PlateView>,
+}
+
+impl Nameplates {
+    pub fn new() -> Self {
+        Self {
+            cvars: NameplateCvars::default(),
+            templates: None,
+            art: None,
+            layer: None,
+            plates: HashMap::new(),
+            views: HashMap::new(),
+        }
+    }
+
+    fn clear(&mut self) {
+        self.views.clear();
+        for (_, plate) in self.plates.drain() {
+            plate.root.free();
+        }
+    }
+
+    fn templates(
+        &mut self,
+        data_root: &Path,
+    ) -> Result<&HashMap<u32, FactionTemplateEntry>, String> {
+        self.templates
+            .get_or_insert_with(|| {
+                let path = data_root.join(FACTION_TEMPLATE_CSV);
+                std::fs::read_to_string(&path)
+                    .map_err(|error| format!("Read {}: {error}", path.display()))
+                    .and_then(|text| parse_faction_template_csv(&text))
+            })
+            .as_ref()
+            .map_err(Clone::clone)
+    }
+
+    fn sync_nodes(
+        &mut self,
+        parent: &mut Gd<Node3D>,
+        views: HashMap<u64, PlateView>,
+        style: &NameplateStyle,
+    ) -> Result<(), String> {
+        if self.art.is_none() {
+            self.art = Some(PlateArt::load()?);
+        }
+        let art = self.art.as_ref().expect("art loaded above");
+        let layer = self.layer.get_or_insert_with(|| {
+            let mut layer = CanvasLayer::new_alloc();
+            layer.set_name(LAYER_NAME);
+            // Below the registry UI layers (1): plates never cover HUD frames.
+            layer.set_layer(0);
+            parent.add_child(&layer);
+            layer
+        });
+        self.plates.retain(|id, plate| {
+            let keep = views.contains_key(id);
+            if !keep {
+                plate.root.clone().free();
+            }
+            keep
+        });
+        let thick = thick_preset(style);
+        for (id, view) in &views {
+            let plate = self
+                .plates
+                .entry(*id)
+                .or_insert_with(|| spawn_plate(layer, art));
+            apply_plate(plate, view, style, thick, art);
+        }
+        self.views = views;
+        Ok(())
+    }
+}
+
+fn ignore_mouse(control: &mut Gd<impl Inherits<Control>>) {
+    control.upcast_mut().set_mouse_filter(MouseFilter::IGNORE);
+}
+
+fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt) -> PlateNodes {
+    let mut root = Control::new_alloc();
+    ignore_mouse(&mut root);
+    let texture_rect = || {
+        let mut rect = TextureRect::new_alloc();
+        rect.set_expand_mode(ExpandMode::IGNORE_SIZE);
+        rect.set_stretch_mode(StretchMode::SCALE);
+        ignore_mouse(&mut rect);
+        rect
+    };
+    let fill = texture_rect();
+    let frame = texture_rect();
+    let mut name = Label::new_alloc();
+    ignore_mouse(&mut name);
+    name.add_theme_font_override("font", &art.font);
+    name.add_theme_color_override("font_color", Color::WHITE);
+    name.add_theme_color_override("font_shadow_color", Color::BLACK);
+    name.add_theme_constant_override("shadow_offset_x", 1);
+    name.add_theme_constant_override("shadow_offset_y", 1);
+    // Fill under the frame, whose interior is transparent.
+    root.add_child(&fill);
+    root.add_child(&frame);
+    root.add_child(&name);
+    layer.add_child(&root);
+    PlateNodes {
+        root,
+        frame,
+        fill,
+        name,
+    }
+}
+
+fn apply_plate(
+    plate: &mut PlateNodes,
+    view: &PlateView,
+    style: &NameplateStyle,
+    thick: bool,
+    art: &PlateArt,
+) {
+    let layout = plate_layout(style, view.fraction);
+    plate.root.set_position(view.anchor);
+    plate
+        .root
+        .set_modulate(Color::from_rgba(1.0, 1.0, 1.0, view.alpha));
+    plate.frame.set_visible(style.show_border);
+    plate.frame.set_texture(if thick {
+        &art.thick_frame
+    } else {
+        &art.thin_frame
+    });
+    plate.frame.set_position(layout.frame.position);
+    plate.frame.set_size(layout.frame.size);
+    plate.fill.set_visible(view.fraction > 0.0);
+    plate.fill.set_texture(if thick {
+        &art.thick_fill
+    } else {
+        &art.thin_fill
+    });
+    plate.fill.set_self_modulate(view.color);
+    plate.fill.set_position(layout.fill.position);
+    plate.fill.set_size(layout.fill.size);
+    if plate.name.get_text().to_string() != view.name {
+        plate.name.set_text(&view.name);
+    }
+    plate
+        .name
+        .add_theme_font_size_override("font_size", style.name_font_size.round() as i32);
+    plate.name.reset_size();
+    let size = plate.name.get_minimum_size();
+    plate.name.set_size(size);
+    plate
+        .name
+        .set_position(layout.name_bottom - Vector2::new(size.x / 2.0, size.y));
+}
+
+fn unit_name(unit: &UnitSnapshot) -> String {
+    unit.player
+        .as_ref()
+        .map(|player| player.name.clone())
+        .or_else(|| unit.npc.as_ref().map(|npc| npc.name.clone()))
+        .unwrap_or_default()
+}
+
+fn health_fraction(unit: &UnitSnapshot) -> f32 {
+    unit.health
+        .filter(|health| health.max > 0.0)
+        .map_or(1.0, |health| (health.current / health.max).clamp(0.0, 1.0))
+}
+
+/// Whether world geometry (terrain, WMO collision) lies between the camera and `point`.
+fn occluded(camera: &Gd<Camera3D>, point: Vector3) -> bool {
+    let Some(mut space) = camera
+        .get_world_3d()
+        .and_then(|world| world.get_direct_space_state())
+    else {
+        return false;
+    };
+    let Some(mut query) =
+        PhysicsRayQueryParameters3D::create_ex(camera.get_global_position(), point)
+            .collision_mask(OCCLUDER_MASK)
+            .done()
+    else {
+        return false;
+    };
+    query.set_collide_with_areas(false);
+    !space.intersect_ray(&query).is_empty()
+}
+
+/// The unit's plate anchor (Bevy `BAR_Y_OFFSET` above its origin) and occlusion probe
+/// (the centre of its pick box), once its model has loaded.
+fn unit_points(node: &Gd<Node3D>) -> Option<(Vector3, Vector3)> {
+    let probe = unit_pick_shape(node)?.get_global_position();
+    Some((
+        node.get_global_transform() * Vector3::new(0.0, BAR_Y_OFFSET, 0.0),
+        probe,
+    ))
+}
+
+/// The local player as the plate rules see it.
+struct Viewer<'a> {
+    id: u64,
+    target: Option<u64>,
+    position: Vector3,
+    template: Option<&'a FactionTemplateEntry>,
+}
+
+fn build_viewer<'a>(
+    world: &crate::world::WorldUnits,
+    units: &HashMap<u64, UnitSnapshot>,
+    target: Option<u64>,
+    templates: &'a HashMap<u32, FactionTemplateEntry>,
+) -> Option<Viewer<'a>> {
+    let id = world.local_player_id()?;
+    let node = world.local_player_node()?;
+    Some(Viewer {
+        id,
+        target,
+        position: node.get_global_position(),
+        template: units
+            .get(&id)
+            .and_then(|unit| unit.faction_template)
+            .and_then(|template| templates.get(&template)),
+    })
+}
+
+fn plate_rule_input(
+    viewer: &Viewer,
+    unit: &UnitSnapshot,
+    template: Option<&FactionTemplateEntry>,
+    node: &Gd<Node3D>,
+) -> PlateUnit {
+    let flags = UnitFlags(unit.unit_flags.unwrap_or_default());
+    let is_player = unit.player.is_some();
+    let attacker = Unit {
+        template: viewer.template,
+        is_player: true,
+    };
+    let defender = Unit {
+        template,
+        is_player,
+    };
+    PlateUnit {
+        is_local_player: unit.server_id == viewer.id,
+        selectable: flags.is_selectable(),
+        alive: unit.health.is_none_or(|health| health.current > 0.0),
+        is_player,
+        enemy: flags.is_attackable() && can_attack(attacker, defender),
+        targeted: viewer.target == Some(unit.server_id),
+        in_combat_with_player: in_combat_with_player(unit.in_combat, unit.unit_target, viewer.id),
+        distance: node.get_global_position().distance_to(viewer.position),
+    }
+}
+
+/// A shown unit's plate on screen, or none while its head is off screen.
+fn project_plate(
+    camera: &Gd<Camera3D>,
+    cvars: &NameplateCvars,
+    unit: &UnitSnapshot,
+    node: &Gd<Node3D>,
+    color: Color,
+) -> Option<PlateView> {
+    let (top, center) = unit_points(node)?;
+    if !camera.is_position_in_frustum(top) {
+        return None;
+    }
+    let is_occluded = occluded(camera, center);
+    Some(PlateView {
+        name: unit_name(unit),
+        alpha: plate_alpha(cvars, is_occluded),
+        occluded: is_occluded,
+        anchor: camera.unproject_position(top),
+        fraction: health_fraction(unit),
+        color,
+    })
+}
+
+impl GameClient {
+    /// Per frame after the camera moves: which units have plates, their alpha, and nodes.
+    pub(super) fn update_nameplates(&mut self) -> Result<(), String> {
+        let enabled = self.account.session.screen == SessionScreen::InWorld
+            && self.client_options.hud.show_nameplates;
+        let camera = self
+            .base()
+            .get_viewport()
+            .and_then(|viewport| viewport.get_camera_3d());
+        let (Some(camera), true) = (camera, enabled) else {
+            self.nameplates.clear();
+            return Ok(());
+        };
+        let views = self.nameplate_views(&camera)?;
+        let style = self.client_options.hud.nameplate_style;
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.nameplates.sync_nodes(&mut parent, views, &style)
+    }
+
+    fn nameplate_views(
+        &mut self,
+        camera: &Gd<Camera3D>,
+    ) -> Result<HashMap<u64, PlateView>, String> {
+        let target = self.targeting_target();
+        let cvars = self.nameplates.cvars;
+        let style = self.client_options.hud.nameplate_style;
+        let templates = self.nameplates.templates(&self.data_root)?;
+        let Some(viewer) = build_viewer(&self.world, &self.units, target, templates) else {
+            return Ok(HashMap::new());
+        };
+        let views = self
+            .units
+            .values()
+            .filter_map(|unit| {
+                let node = self.world.unit_node(unit.server_id)?;
+                let template = unit.faction_template.and_then(|id| templates.get(&id));
+                let rules = plate_rule_input(&viewer, unit, template, &node);
+                if !node.is_visible_in_tree() || !plate_shown(&cvars, &rules) {
+                    return None;
+                }
+                let color = reaction_color(&style, reaction(template, viewer.template));
+                let view = project_plate(camera, &cvars, unit, &node, color)?;
+                Some((unit.server_id, view))
+            })
+            .collect();
+        Ok(views)
+    }
+
+    /// The plate rule inputs for one unit, for automation; empty when it is unknown.
+    pub(super) fn nameplate_rule_state(&mut self, id: u64) -> Result<VarDictionary, String> {
+        let mut state = VarDictionary::new();
+        let target = self.targeting_target();
+        let cvars = self.nameplates.cvars;
+        let templates = self.nameplates.templates(&self.data_root)?;
+        let (Some(viewer), Some(node), Some(unit)) = (
+            build_viewer(&self.world, &self.units, target, templates),
+            self.world.unit_node(id),
+            self.units.get(&id),
+        ) else {
+            return Ok(state);
+        };
+        let template = unit.faction_template.and_then(|id| templates.get(&id));
+        let rules = plate_rule_input(&viewer, unit, template, &node);
+        state.set("enemy", rules.enemy);
+        state.set("selectable", rules.selectable);
+        state.set("alive", rules.alive);
+        state.set("targeted", rules.targeted);
+        state.set("in_combat_with_player", rules.in_combat_with_player);
+        state.set("distance", rules.distance);
+        state.set("shown", plate_shown(&cvars, &rules));
+        state.set(
+            "faction_template",
+            unit.faction_template.unwrap_or_default() as i64,
+        );
+        state.set(
+            "reaction",
+            format!("{:?}", reaction(template, viewer.template)).as_str(),
+        );
+        Ok(state)
+    }
+
+    /// Plates for automation: unit id to name, alpha, occlusion, screen anchor, fill.
+    pub(super) fn nameplates_snapshot(&self) -> VarDictionary {
+        let mut plates = VarDictionary::new();
+        for (id, view) in &self.nameplates.views {
+            let mut entry = VarDictionary::new();
+            entry.set("name", view.name.as_str());
+            entry.set("alpha", view.alpha);
+            entry.set("occluded", view.occluded);
+            entry.set("anchor", view.anchor);
+            entry.set("fraction", view.fraction);
+            entry.set("color", view.color);
+            if let Some(plate) = self.nameplates.plates.get(id) {
+                entry.set("frame_rect", plate.frame.get_global_rect());
+                entry.set("name_rect", plate.name.get_global_rect());
+            }
+            plates.set(*id as i64, &entry);
+        }
+        plates
+    }
+}
+
+/// Script access to the native occlusion ray and alpha, for physics-level fixtures.
+#[derive(GodotClass)]
+#[class(base = RefCounted, init)]
+pub struct NameplateProbe {
+    base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl NameplateProbe {
+    /// Whether terrain or WMO collision hides `point` from `camera`.
+    #[func]
+    fn occluded(camera: Gd<Camera3D>, point: Vector3) -> bool {
+        occluded(&camera, point)
+    }
+
+    /// The Retail-default plate alpha for an occluded or clear unit.
+    #[func]
+    fn alpha(is_occluded: bool) -> f32 {
+        plate_alpha(&NameplateCvars::default(), is_occluded)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn thick_plate_centres_its_body_on_the_anchor_with_the_name_two_pixels_above_the_frame() {
+        let style = NameplateStyle::default();
+        let layout = plate_layout(&style, 1.0);
+        // 188x20 body; the Thick frame adds 10x4 and sits 1px right, 0.5px up.
+        assert_eq!(layout.frame.size, Vector2::new(198.0, 24.0));
+        assert_eq!(layout.frame.position, Vector2::new(-98.0, -12.5));
+        assert_eq!(layout.fill.size, Vector2::new(188.0, 19.0));
+        assert_eq!(layout.fill.position, Vector2::new(-94.0, -9.5));
+        assert_eq!(layout.name_bottom, Vector2::new(0.0, -14.5));
+    }
+
+    #[test]
+    fn fill_shrinks_from_the_right_with_health() {
+        let style = NameplateStyle::default();
+        let full = plate_layout(&style, 1.0).fill;
+        let half = plate_layout(&style, 0.5).fill;
+        assert_eq!(half.position, full.position);
+        assert_eq!(half.size.x, full.size.x / 2.0);
+    }
+
+    #[test]
+    fn borderless_thin_plate_names_sit_two_pixels_above_the_body() {
+        let style = NameplateStyle {
+            health_height: THIN_HEALTH_HEIGHT,
+            show_border: false,
+            ..NameplateStyle::default()
+        };
+        let layout = plate_layout(&style, 1.0);
+        assert!(!thick_preset(&style));
+        // 10px body centred on the anchor, name 2px above its top.
+        assert_eq!(layout.name_bottom.y, -7.0);
+    }
+}

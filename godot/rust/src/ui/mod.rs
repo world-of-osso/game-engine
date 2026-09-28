@@ -1,4 +1,4 @@
-mod assets;
+pub(crate) mod assets;
 mod icon_masks;
 mod layout;
 mod parts;

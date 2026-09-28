@@ -1,4 +1,24 @@
 use super::*;
+use std::path::PathBuf;
+use std::sync::OnceLock;
+
+/// The build-pinned exports under the repository's `data/` (root or Godot crate).
+fn data() -> &'static NpcGearData {
+    static DATA: OnceLock<NpcGearData> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let dir = [manifest.join("data"), manifest.join("../../data")]
+            .into_iter()
+            .find(|dir| dir.is_dir())
+            .expect("repository data directory")
+            .join("db2/12.1.0.69933");
+        NpcGearData::load(&dir).unwrap()
+    })
+}
+
+fn emote_anim_id(emote: u32) -> Option<u16> {
+    data().emote_anim_id(emote)
+}
 
 fn pose(stand_state: StandState, sheath_state: SheathState, emote_state: u32) -> UnitPose {
     UnitPose {
@@ -98,8 +118,8 @@ fn rifle_without_sheath_position_stays_in_hand_and_ranged_copy_hides() {
 /// Stockade Guard display 2989 → CreatureDisplayInfoExtra 1274, build 12.1.0.69933.
 #[test]
 fn stockade_guard_display_authors_its_armor() {
-    let slots = npc_item_slots();
-    let armor = slots.appearance(2989).unwrap();
+    let slots = data();
+    let armor = slots.display_armor(2989).unwrap();
     let entries: Vec<_> = armor
         .entries
         .iter()
@@ -119,7 +139,7 @@ fn stockade_guard_display_authors_its_armor() {
     );
     // Display 36656's Extra 150806 has an ItemSlot 11 row (ItemDisplayInfo 185704), which
     // dresses nothing.
-    let with_slot_11 = slots.appearance(36656).unwrap();
+    let with_slot_11 = slots.display_armor(36656).unwrap();
     assert!(
         with_slot_11
             .entries
@@ -128,5 +148,53 @@ fn stockade_guard_display_authors_its_armor() {
         "{with_slot_11:?}"
     );
     // A display without an Extra authors no armor.
-    assert!(slots.appearance(u32::MAX).unwrap().entries.is_empty());
+    assert!(slots.display_armor(u32::MAX).unwrap().entries.is_empty());
+}
+
+/// Stockade Guard 46405's sword 5305 (SheatheType 3) and shield 1984 (SheatheType 4) from
+/// Item.db2: drawn in hand and on the wrist, sheathed at the left hip and on the back.
+#[test]
+fn guard_virtual_items_resolve_their_sheath_position_from_item_db2() {
+    use EquipmentVisualSlot::{MainHand, OffHand, Ranged};
+    assert_eq!(data().sheathe_type(5305), Some(3));
+    assert_eq!(data().sheathe_type(1984), Some(4));
+    let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
+        slot,
+        item_id: Some(item_id),
+        display_info_id: None,
+        inventory_type,
+        hidden: false,
+    };
+    let guard = EquipmentAppearance {
+        entries: vec![item(MainHand, 5305, 13), item(OffHand, 1984, 14)],
+    };
+    let attachments = |sheath| -> Vec<_> {
+        data()
+            .virtual_item_attachments(&guard, sheath)
+            .into_iter()
+            .map(|(entry, attachment)| (entry.slot, attachment))
+            .collect()
+    };
+    assert_eq!(
+        attachments(SheathState::Melee),
+        [(MainHand, 1), (OffHand, 0)]
+    );
+    assert_eq!(
+        attachments(SheathState::Unarmed),
+        [(MainHand, 32), (OffHand, 28)]
+    );
+    // Stockade Rifleman 46406: rifle 12523 as main hand and ranged, sheath state 0.
+    let rifleman = EquipmentAppearance {
+        entries: vec![item(MainHand, 12523, 26), item(Ranged, 12523, 26)],
+    };
+    let shown: Vec<_> = data()
+        .virtual_item_attachments(&rifleman, SheathState::Unarmed)
+        .into_iter()
+        .map(|(entry, attachment)| (entry.slot, attachment))
+        .collect();
+    assert_eq!(shown, [(MainHand, 1)]);
+    assert_eq!(
+        data().pose_anim_id(&pose(StandState::Stand, SheathState::Unarmed, 214)),
+        Ok(Some(48))
+    );
 }

@@ -601,6 +601,9 @@ mod jump_tests;
 mod npc_locomotion_tests;
 
 #[cfg(test)]
+mod npc_pose_tests;
+
+#[cfg(test)]
 mod sampling_tests {
     use super::pose_write_due;
 

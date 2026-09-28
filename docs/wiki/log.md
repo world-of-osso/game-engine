@@ -4,6 +4,14 @@
 
 Swimmers now float: Space ascends and X (`SitOrStand`) descends at swim speed, clamped to the surface and seabed; the loopback probe now expects the floating height. The server still clamps y to the seabed. Retail MirrorTimer breath bar ported, driven only by GDScript until the server sends mirror timers. Added [[swimming]].
 
+## [2026-09-28] system | Godot nameplates with Retail visibility
+
+Godot draws nameplates only for the target and units fighting the player (`nameplateShowAll` 0), enemies only, within 60 yd, and dims plates behind terrain or WMO collision to 0.4. See [[nameplate-design]].
+
+## [2026-09-28] system | Godot local player speed and stop input
+
+The Godot client now predicts at the server's speed (swim speed, aura multiplier from the replicated `MovementSpeed`) and reports one stop input on release. Updated [[networking]].
+
 ## [2026-09-28] investigation | Godot player walks through WMO walls
 
 The Godot player had no wall collision; the original wall ray now runs against the WMO wall bodies before the slope rule. Updated [[stockade-entrance]] and [[collision-system]].
@@ -1735,3 +1743,7 @@ Godot spawns WMO MODD doodads (set 0 plus the MODF doodad set, MODI/MODN models)
 ## [2026-09-28] perf | Godot doodad animation culling
 
 Hidden doodads stop their material (UV/colour) animation with their bone animation, and models whose bone or material tracks are all constant never process. In Stormwind, processing animation nodes fall from 1,729 + 631 to 172 + 135. See [[godot-conversion]].
+
+## [2026-09-28] feature | Godot NPC poses and gear
+
+Godot replicated creatures hold their `UnitPose` (Sit 97, Sleep 100, Emotes.AnimID such as Ready1H 26 / ReadyRifle 48) while still and play Walk/Run while moving, crossfaded; virtual items attach drawn in hand or at their `Item.SheatheType` sheath and move on a sheath change; the display's `NPCModelItemSlotDisplayInfo` armor switches body geosets and attaches its item models. The pose/gear data (`npc_gear_data.rs`) is now engine-free and shared with Bevy. See [npc-stance-gear](investigations/npc-stance-gear.md).

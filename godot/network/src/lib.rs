@@ -24,8 +24,9 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay, MovementControl, Npc,
-        Player, Position, Rotation, UnitLevel, UnitTarget,
+        CombatStatus, CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay,
+        MovementControl, MovementSpeed, Npc, Player, Position, Rotation, UnitFactionTemplate,
+        UnitFlags, UnitLevel, UnitPose, UnitTarget,
     },
     protocol::{
         CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
@@ -75,10 +76,20 @@ pub struct UnitSnapshot {
     pub level: Option<UnitLevel>,
     pub equipment: Option<EquipmentAppearance>,
     pub movement_control: Option<MovementControl>,
+    /// Server speed (yd/s) for the unit's newest applied movement: base × auras × direction.
+    pub movement_speed: Option<MovementSpeed>,
     /// A creature's stand/walk/run; players carry none.
     pub creature_motion: Option<CreatureMotion>,
+    /// A creature's stand, sheath and emote state (`creature_addon`); players carry none.
+    pub unit_pose: Option<UnitPose>,
     /// Server entity bits of the unit's own target (`SetTarget` echo for players).
     pub unit_target: Option<u64>,
+    /// Retail `FactionTemplate` id, for reaction to the local player.
+    pub faction_template: Option<u32>,
+    /// `UNIT_FIELD_FLAGS` bits.
+    pub unit_flags: Option<u32>,
+    /// Replicated `CombatStatus`.
+    pub in_combat: bool,
 }
 
 impl UnitSnapshot {
@@ -95,8 +106,15 @@ impl UnitSnapshot {
             level: entity.get::<UnitLevel>().copied(),
             equipment: entity.get::<EquipmentAppearance>().cloned(),
             movement_control: entity.get::<MovementControl>().copied(),
+            movement_speed: entity.get::<MovementSpeed>().copied(),
             creature_motion: entity.get::<CreatureMotion>().copied(),
+            unit_pose: entity.get::<UnitPose>().copied(),
             unit_target: entity.get::<UnitTarget>().and_then(|target| target.0),
+            faction_template: entity
+                .get::<UnitFactionTemplate>()
+                .map(|template| template.0),
+            unit_flags: entity.get::<UnitFlags>().map(|flags| flags.0),
+            in_combat: entity.get::<CombatStatus>().is_some_and(|status| status.0),
         }
     }
 }
@@ -493,6 +511,7 @@ mod tests {
                     epoch: 7,
                     controlled: true,
                 },
+                MovementSpeed(3.5),
             ))
             .id();
         let server_id = world.spawn_empty().id().to_bits();
@@ -501,6 +520,7 @@ mod tests {
         assert_eq!(snapshot.server_id, server_id);
         assert_eq!(snapshot.npc.unwrap().name, "Loup — Écorché");
         assert_eq!(snapshot.health.unwrap().current, 8.0);
+        assert_eq!(snapshot.movement_speed, Some(MovementSpeed(3.5)));
         assert_eq!(
             snapshot.movement_control,
             Some(MovementControl {
@@ -513,6 +533,7 @@ mod tests {
         let absent = UnitSnapshot::capture(server_id, world.entity(entity_without_control));
         world.despawn(entity_without_control);
         assert_eq!(absent.movement_control, None);
+        assert_eq!(absent.movement_speed, None);
     }
 
     #[test]

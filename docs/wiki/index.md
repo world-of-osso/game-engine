@@ -1,7 +1,7 @@
 # Wiki Index
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-09-27.
+Last updated: 2026-09-28.
 
 ## Systems
 
@@ -56,7 +56,7 @@ Architecture decisions and feature designs.
 - [character-generation](design/character-generation.md) — Original character creation: glTF format, template skeletons, race scaling
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
 - [ui-frame-order](design/ui-frame-order.md) — implemented shared plugin ordering; standalone setup preserved, named scheduling sets and revision-scoped verification
-- [nameplate-design](design/nameplate-design.md) — `NameplateStyle` sizes/colours (Options > Nameplates, Thin/Thick presets), FactionTemplate reaction tints, name centred above the bar in overlay units, half-scale reference calibration, local-owner exclusion, shared name/health/cast distance policy, registry-first plate-owner selection, and offline cast/channel preview; rendered/test verification remains open
+- [nameplate-design](design/nameplate-design.md) — `NameplateStyle` sizes/colours (Options > Nameplates, Thin/Thick presets), FactionTemplate reaction tints, name centred above the bar in overlay units, half-scale reference calibration, local-owner exclusion, shared name/health/cast distance policy, registry-first plate-owner selection, and offline cast/channel preview; rendered/test verification remains open; Godot Retail CVar visibility (target/combat only, enemies, 60 yd) and 0.4 occluded alpha
 - [collision-system](design/collision-system.md) — collision layers: terrain and WMO floors (see player-ground), horizontal WMO/M2 blocking; no M2 floors
 
 ## Investigations
@@ -104,7 +104,7 @@ Root cause analyses and debug findings.
 - [washed-out-sky](investigations/washed-out-sky.md) — near-white noon sky: swapped/linear LightData colours, horizon bands spread over the dome, raw FogEnd units and Smog fog colour; sky and fog now blend the player's Light zones
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, capped-measurement retirement, and September 5 replicated-NPC M2 cache reuse; uncapped Green remains pending
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
-- [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes
+- [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`)
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
 
 ## Reference
