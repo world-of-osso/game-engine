@@ -1,5 +1,4 @@
 use ui_toolkit::rsx;
-use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::FrameName;
@@ -129,12 +128,6 @@ fn menu_mount_height(logged_in: bool) -> f32 {
         + (gaps * PANEL_GAP)
         + (PANEL_PADDING * 2.0)
         - TITLE_PANEL_OVERLAP
-}
-
-pub fn main_menu_screen(shared: &SharedContext) -> Element {
-    shared
-        .get::<bool>()
-        .map_or_else(Vec::new, |logged_in| main_menu_view(*logged_in))
 }
 
 pub fn main_menu_view(logged_in: bool) -> Element {
