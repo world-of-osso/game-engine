@@ -30,6 +30,8 @@ pub mod camera_input_data;
 pub mod campsite_object_data;
 #[path = "game/casting_data.rs"]
 pub mod casting_data;
+#[path = "sound/catalog_data.rs"]
+pub mod catalog_data;
 #[path = "scenes/char_create/data.rs"]
 pub mod char_create_data;
 pub mod char_select_camera_data;

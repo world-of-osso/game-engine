@@ -12,6 +12,8 @@ pub mod camera_input_data;
 pub mod campsite_object_data;
 #[cfg(test)]
 mod campsite_object_data_tests;
+#[path = "../../../src/sound/catalog_data.rs"]
+pub mod catalog_data;
 #[path = "../../../src/char_select_camera_data.rs"]
 pub mod char_select_camera_data;
 #[path = "../../../src/asset/char_texture_data.rs"]

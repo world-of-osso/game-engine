@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
-use std::io::{BufRead, BufReader};
+use std::collections::HashMap;
+use std::io::BufReader;
 
 use bevy::audio::Volume;
 use bevy::prelude::*;
@@ -154,116 +154,14 @@ fn load_zone_ambient_catalog_inner(
     track_index_by_fdid: &HashMap<u32, usize>,
 ) -> Result<HashMap<u32, Vec<usize>>, String> {
     let path = paths::shared_data_path("music_manifest.csv");
-    let mut reader = open_music_manifest_reader(&path)?;
-    let manifest_columns = load_manifest_columns(&mut reader, &path)?;
-    read_zone_ambient_rows(&mut reader, &path, &manifest_columns, track_index_by_fdid)
-}
-
-fn read_zone_ambient_rows(
-    reader: &mut BufReader<std::fs::File>,
-    path: &std::path::Path,
-    manifest_columns: &ManifestColumns,
-    track_index_by_fdid: &HashMap<u32, usize>,
-) -> Result<HashMap<u32, Vec<usize>>, String> {
-    let mut by_zone = HashMap::new();
-    let mut seen: HashMap<u32, HashSet<usize>> = HashMap::new();
-    let mut line = String::new();
-    loop {
-        line.clear();
-        if reader
-            .read_line(&mut line)
-            .map_err(|err| format!("read {} row: {err}", path.display()))?
-            == 0
-        {
-            break;
-        }
-        insert_zone_ambient_link(
-            line.trim_end_matches(['\r', '\n']),
-            manifest_columns.fdid_idx,
-            manifest_columns.extracted_idx,
-            manifest_columns.wow_path_idx,
-            manifest_columns.area_ids_idx,
-            track_index_by_fdid,
-            &mut by_zone,
-            &mut seen,
-        );
-    }
-    Ok(by_zone)
+    let reader = open_music_manifest_reader(&path)?;
+    game_engine::catalog_data::read_ambient_zone_catalog(reader, &path, track_index_by_fdid)
 }
 
 fn open_music_manifest_reader(path: &std::path::Path) -> Result<BufReader<std::fs::File>, String> {
     let file =
         std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
     Ok(BufReader::new(file))
-}
-
-fn load_manifest_columns(
-    reader: &mut BufReader<std::fs::File>,
-    path: &std::path::Path,
-) -> Result<ManifestColumns, String> {
-    let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    let headers = crate::csv_util::parse_csv_line(header.trim_end_matches(['\r', '\n']));
-    Ok(ManifestColumns {
-        fdid_idx: crate::csv_util::header_index(&headers, "fdid", path)?,
-        extracted_idx: crate::csv_util::header_index(&headers, "extracted", path)?,
-        wow_path_idx: crate::csv_util::header_index(&headers, "wow_path", path)?,
-        area_ids_idx: crate::csv_util::header_index(&headers, "area_ids", path)?,
-    })
-}
-
-struct ManifestColumns {
-    fdid_idx: usize,
-    extracted_idx: usize,
-    wow_path_idx: usize,
-    area_ids_idx: usize,
-}
-
-fn insert_zone_ambient_link(
-    line: &str,
-    fdid_idx: usize,
-    extracted_idx: usize,
-    wow_path_idx: usize,
-    area_ids_idx: usize,
-    track_index_by_fdid: &HashMap<u32, usize>,
-    by_zone: &mut HashMap<u32, Vec<usize>>,
-    seen: &mut HashMap<u32, HashSet<usize>>,
-) {
-    if line.is_empty() {
-        return;
-    }
-    let fields = crate::csv_util::parse_csv_line(line);
-    let Some(wow_path) = fields.get(wow_path_idx) else {
-        return;
-    };
-    if !wow_path.to_ascii_lowercase().contains("ambient") {
-        return;
-    }
-    if fields.get(extracted_idx).map(String::as_str) != Some("1") {
-        return;
-    }
-    let Some(fdid) = fields
-        .get(fdid_idx)
-        .and_then(|field| field.parse::<u32>().ok())
-    else {
-        return;
-    };
-    let Some(&track_idx) = track_index_by_fdid.get(&fdid) else {
-        return;
-    };
-    let Some(area_ids) = fields.get(area_ids_idx) else {
-        return;
-    };
-    for area_id in area_ids
-        .split('|')
-        .filter_map(|value| value.parse::<u32>().ok())
-    {
-        if seen.entry(area_id).or_default().insert(track_idx) {
-            by_zone.entry(area_id).or_default().push(track_idx);
-        }
-    }
 }
 
 #[cfg(test)]
@@ -332,82 +230,5 @@ mod tests {
         let second = next_zone_ambient_track(&sound_assets, Some(5), &mut state).unwrap();
         assert_eq!(first.1, "ambient:5:a");
         assert_eq!(second.1, "ambient:5:b");
-    }
-
-    #[test]
-    fn insert_zone_ambient_link_filters_non_ambient_rows() {
-        let mut by_zone = HashMap::new();
-        let mut seen = HashMap::new();
-        let track_index_by_fdid = HashMap::from([(915694, 0usize)]);
-        let line = [
-            "915694",
-            "mp3",
-            "1",
-            "data/music/915694.mp3",
-            "sound/music/pandaria/mus_54_vale_walk_01.mp3",
-            "pandaria",
-            "pandaria",
-            "exact_zone_music",
-            "",
-            "",
-            "",
-            "1388",
-            "Dread Wastes",
-            "Dread Wastes",
-            "DreadWastes",
-        ]
-        .join(",");
-
-        insert_zone_ambient_link(
-            &line,
-            0,
-            2,
-            4,
-            11,
-            &track_index_by_fdid,
-            &mut by_zone,
-            &mut seen,
-        );
-
-        assert!(by_zone.is_empty());
-    }
-
-    #[test]
-    fn insert_zone_ambient_link_maps_all_area_ids() {
-        let mut by_zone = HashMap::new();
-        let mut seen = HashMap::new();
-        let track_index_by_fdid = HashMap::from([(915694, 7usize)]);
-        let line = [
-            "915694",
-            "mp3",
-            "1",
-            "data/music/915694.mp3",
-            "sound/music/pandaria/mus_54_shaambient_01.mp3",
-            "pandaria",
-            "pandaria",
-            "exact_zone_music",
-            "",
-            "",
-            "",
-            "1388|1411",
-            "Dread Wastes|The Golden Pagoda",
-            "Dread Wastes|The Golden Pagoda",
-            "DreadWastes|TheGoldenPagoda",
-        ]
-        .join(",");
-
-        insert_zone_ambient_link(
-            &line,
-            0,
-            2,
-            4,
-            11,
-            &track_index_by_fdid,
-            &mut by_zone,
-            &mut seen,
-        );
-
-        assert_eq!(by_zone.get(&1388), Some(&vec![7]));
-        assert_eq!(by_zone.get(&1411), Some(&vec![7]));
     }
 }

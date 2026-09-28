@@ -123,18 +123,7 @@ pub(super) fn load_external_music_tracks(
     (tracks, tracks_by_zone, track_index_by_fdid)
 }
 
-pub(super) fn strip_ambient_tracks_from_music_catalog(
-    music_tracks_by_zone: &mut HashMap<u32, Vec<usize>>,
-    ambient_tracks_by_zone: &HashMap<u32, Vec<usize>>,
-) {
-    for (zone_id, music_indices) in music_tracks_by_zone.iter_mut() {
-        let Some(ambient_indices) = ambient_tracks_by_zone.get(zone_id) else {
-            continue;
-        };
-        music_indices.retain(|track_idx| !ambient_indices.contains(track_idx));
-    }
-    music_tracks_by_zone.retain(|_, track_indices| !track_indices.is_empty());
-}
+pub(super) use game_engine::catalog_data::strip_ambient_tracks_from_music_catalog;
 
 fn load_external_music_tracks_from_dir(
     audio_assets: &mut Assets<AudioSource>,

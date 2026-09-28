@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::cache_source_mtime::csv_mtime;
 use crate::cache_sqlite::open_read_only;
-use crate::csv_util::parse_csv_line;
+use crate::catalog_data::parse_music_zone_link;
 use crate::sqlite_util::is_missing_table_error;
 use rusqlite::Connection;
 
@@ -106,14 +106,7 @@ fn import_zone_music_row(
     if line_idx == 0 || line.is_empty() {
         return Ok(());
     }
-    let fields = parse_csv_line(line);
-    if fields.len() < 12 || fields[2] != "1" {
-        return Ok(());
-    }
-    let Ok(file_data_id) = fields[0].parse::<u32>() else {
-        return Ok(());
-    };
-    let Ok(area_id) = fields[9].parse::<u32>() else {
+    let Some((file_data_id, area_id)) = parse_music_zone_link(line) else {
         return Ok(());
     };
     insert
