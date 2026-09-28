@@ -919,9 +919,10 @@ impl GameClient {
             let frustum = self.world_camera.frustum();
             let frame = godot::classes::Engine::singleton().get_process_frames();
             let delta_ms = self.base().get_process_delta_time() * 1000.0;
+            // Portal culling first: it decides which WMO doodads are drawn this frame.
+            self.world_objects.cull_wmos(camera, &frustum);
             self.world_objects
                 .cull_doodads(camera, &frustum, delta_ms, frame);
-            self.world_objects.cull_wmos(camera, &frustum);
             self.world.apply_animation_lod(camera, frame);
         }
     }
@@ -945,6 +946,10 @@ impl GameClient {
         }
         let mut parent = self.to_gd().upcast::<Node3D>();
         let global_wmo = self.global_wmo.sync(&mut parent, &self.terrain);
+        if let Some((wmo, node, doodads)) = self.global_wmo.take_doodads() {
+            self.world_objects
+                .queue_wmo_doodads(wmo, &node, doodads, None);
+        }
         let state = self.terrain.state();
         let readiness = loading::evaluate_native_loading(
             position,
