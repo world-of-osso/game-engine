@@ -13,7 +13,7 @@ func check(tree: SceneTree, client: Node) -> String:
 	if material == null:
 		return "WMO 108238 group 38 lacks a streamed shader 7 material with authored 512x512 composite pixel"
 	var texture := material.get_shader_parameter("base_texture") as ImageTexture
-	if texture == null or texture.get_size() != Vector2i(512, 512):
+	if texture == null or texture.get_size() != Vector2(512, 512):
 		return "WMO 108238 group 38 shader 7 lacks bound 512x512 composite"
 	var composite := texture.get_image()
 	if composite == null or composite.is_empty() or composite.get_pixel(0, 0) != EXPECTED:
@@ -46,7 +46,7 @@ func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial
 				if material == null or material.get_shader_parameter("two_layer_shader") != 7:
 					continue
 				var texture := material.get_shader_parameter("base_texture") as ImageTexture
-				if texture == null or texture.get_size() != Vector2i(512, 512):
+				if texture == null or texture.get_size() != Vector2(512, 512):
 					continue
 				var image := texture.get_image()
 				if image != null and not image.is_empty() and image.get_pixel(0, 0) == EXPECTED:
