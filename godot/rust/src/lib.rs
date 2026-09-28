@@ -6,6 +6,7 @@ pub use game_engine_core::{customization_data, outfit_data};
 mod assets;
 mod camera;
 mod char_create;
+mod display_options;
 mod character_select;
 mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
@@ -337,6 +338,7 @@ impl INode3D for GameClient {
     }
 
     fn ready(&mut self) {
+        display_options::apply_graphics_display_options(&self.client_options.graphics);
         if let Err(error) = self
             .connect_focus_reset()
             .and_then(|()| self.initialize_startup())
