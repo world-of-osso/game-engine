@@ -59,6 +59,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [godot-texture-vram](investigations/godot-texture-vram.md) — Godot client uploaded an RGBA8 copy of every texture per placement; one shared DXT texture per FDID cut in-world VRAM from 4,994 MiB (rising) to 1,029 MiB.
 - [ui-rounding-seams](investigations/ui-rounding-seams.md) — 1 px seams between abutting UI textures at UI scale 2/3 (auction house tabs): taffy 0.10.1 parent-relative location rounding; patched in bevy-patches.
 - [bevy-godot-shadow-comparison](investigations/bevy-godot-shadow-comparison.md) — Source-only Bevy 0.19/Godot 4.7.2 directional-shadow comparison: CPU caster scans, Godot silhouette-plane culling, batching, geometry substitution/LOD, redraw, and conditional Bevy GPU preprocessing; no runtime winner claimed.
 - [bevy-godot-bone-comparison](investigations/bevy-godot-bone-comparison.md) — Source-only Bevy 0.19, Godot 4.7.2, and solarityclient skeletal-animation comparison: CPU bone representation, dirty/equality boundaries, palette identity/upload, and deformation pass boundaries; no runtime winner or array-conversion recommendation.
