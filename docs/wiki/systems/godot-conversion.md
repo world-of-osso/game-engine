@@ -126,7 +126,7 @@ The historical `login_flow.gd` log identifies `3de5946b`, exits 0, and has empty
 
 ## Native main-menu boundary
 
-`c3e5a59c` shares the original logged-in main-menu tree with the portable UI model. `17d9ea46` supplies the original default-panel skin and passes the two model tests. Historical REDs identify missing native default-panel style metadata and then unsupported Panel projection; they are not product menu failures. At revision `e0c744e1`, the existing nine-slice renderer projects Panel and the native host opens the overlay from character-select `MENU` and in-world Escape. Dismissal restores the underlying screen; the modal blocks world input; Return restores in-world movement and decoded UDP; Exit quits. The main-owned Vulkan loopback exits 0 across this full character-select-to-world sequence (`/tmp/claude/game-menu-runtime-e0c744e1.log`). Main inspected `data/diagnostics/godot-conversion/game-menu.png`: centered slate/gold original panel, six authored bronze buttons, and the darkened underlying world. This is bounded behavior and render inspection, not original-video pixel equality, full menu parity, or final verification; independent verifier709 remains pending. Options, AddOns, and logout are explicitly unported logged warnings; Support remains the original logged placeholder; standalone `--screen gamemenu` remains unimplemented.
+`c3e5a59c` shares the original logged-in main-menu tree with the portable UI model; `17d9ea46` supplies its default-panel skin. Historical REDs were missing native default-panel metadata and unsupported Panel projection, not product menu behavior. `e0c744e1` projects Panel through the existing nine-slice renderer and opens the overlay from character-select `MENU` and in-world Escape. At `6f37e119`, root/native `fmt --check` and targeted checks pass; the unchanged authored tree retains root shared-menu proof of 25 tests, and current model proof is 2/2. The real Vulkan fixture exits 0 after repeated-key preservation, modal block/dismissal, decoded UDP, Return restoration, and Exit (`/tmp/claude/game-menu-runtime-6f37e119.log`). Main inspected `data/diagnostics/godot-conversion/game-menu.png`; it remains bounded rendering evidence, not original-video pixel equality or full parity. The unused root adapter warning is resolved; three native pre-existing dead-code warnings and the fixture's intentional flat 42-line marker length debt remain. Options, AddOns, and logout are unported; Support is a placeholder; standalone `--screen gamemenu` remains unimplemented.
 
 ## Native asset and preview boundary
 
@@ -193,8 +193,9 @@ Native `4c7927a6` loads cached local-CASC WMO roots and indexed complete groups 
 - `/tmp/claude/verify-stockade-camera-580d7300.log` — Stockade camera-collision selector 4/4.
 - `/tmp/claude/native-global-wmo-assets-{red,green}.log` — missing-field RED and cached global-WMO placement GREEN.
 - [Godot feature parity matrix](../../specs/godot-parity-matrix.md) — all preexisting feature contracts and current conversion status.
-- `/tmp/claude/game-menu-proof-ledger.md` — revision-bound menu RED/GREEN history, runtime sequence, render inspection, and pending gate.
-- `/tmp/claude/game-menu-runtime-e0c744e1.log` — main-owned Vulkan loopback exit-0 evidence.
+- `/tmp/claude/game-menu-proof-ledger.md` — revision-bound menu RED/GREEN history and current proof ledger.
+- `/tmp/claude/verify-game-menu-final.md` — bounded final source/check/readability verification at `6f37e119`.
+- `/tmp/claude/game-menu-runtime-6f37e119.log` — real Vulkan fixture exit-0 evidence.
 - [Root workspace](../../Cargo.toml) — default launcher membership and excluded independent Godot workspace.
 - [Root Cargo aliases](../../.cargo/config.toml) — plain `bd`/`rd` aliases.
 - [Godot launcher](../../launcher/src/main.rs) — default-command validation, native build, and Godot exec boundary.
