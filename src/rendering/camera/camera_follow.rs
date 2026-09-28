@@ -340,7 +340,13 @@ mod tests {
                 .translation
                 .abs_diff_eq(Vec3::new(1.0, EYE_HEIGHT, 6.2), 0.0001,)
         );
-        assert!(app.world().get::<WowCamera>(camera).unwrap().collided);
+        assert!(
+            app.world()
+                .get::<WowCamera>(camera)
+                .unwrap()
+                .collision_distance
+                .is_some()
+        );
         assert_eq!(app.world().resource::<CameraTransformChanges>().0.len(), 1);
 
         app.world_mut().despawn(wall);
@@ -352,9 +358,21 @@ mod tests {
                 .translation
                 .abs_diff_eq(Vec3::new(1.0, EYE_HEIGHT, 9.1), 0.0001,)
         );
-        assert!(app.world().get::<WowCamera>(camera).unwrap().collided);
+        assert!(
+            app.world()
+                .get::<WowCamera>(camera)
+                .unwrap()
+                .collision_distance
+                .is_some()
+        );
         advance_follow(&mut app, 0.2);
-        assert!(!app.world().get::<WowCamera>(camera).unwrap().collided);
+        assert!(
+            app.world()
+                .get::<WowCamera>(camera)
+                .unwrap()
+                .collision_distance
+                .is_none()
+        );
         assert!(
             app.world()
                 .get::<Transform>(camera)

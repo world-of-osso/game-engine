@@ -51,9 +51,9 @@ fn original_defaults_and_angle_validation_are_atomic() {
             camera.max_distance,
             camera.follow_speed,
             camera.zoom_speed,
-            camera.collided
+            camera.collision_distance
         ),
-        (2.0, 40.0, 10.0, 8.0, false)
+        (2.0, 40.0, 10.0, 8.0, None)
     );
     assert_eq!(
         camera.set_direction_degrees(None, None),
@@ -119,7 +119,7 @@ fn clear_terrain_preserves_distance_and_samples_full_segment() {
     );
     assert_eq!(count, 24);
     assert!(position.abs_diff_eq(Vec3::new(0.0, 2.0, 12.0), 1e-5));
-    assert!(!camera.collided);
+    assert_eq!(camera.collision_distance, None);
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn hill_pulls_forward_with_clearance_and_first_sample_rule() {
     );
     // First blocking sample z=5.0; 5.0 - 0.3 collision offset.
     assert!(position.abs_diff_eq(Vec3::new(0.0, 2.0, 4.7), 1e-5));
-    assert!(camera.collided);
+    assert!(camera.collision_distance.is_some());
 }
 
 #[test]
@@ -161,12 +161,12 @@ fn mesh_near_far_and_tiny_hits_keep_original_distance_policy() {
             (position.z - expected).abs() < 1e-5,
             "hit {hit:?}: {position:?}"
         );
-        assert_eq!(camera.collided, collided);
+        assert_eq!(camera.collision_distance.is_some(), collided);
     }
 }
 
 #[test]
-fn collision_recovery_uses_current_pose_and_clears_near_target() {
+fn collision_recovery_resumes_from_pulled_in_distance_and_clears_near_target() {
     let mut camera = camera_at(10.0);
     step(
         &mut camera,
@@ -177,7 +177,7 @@ fn collision_recovery_uses_current_pose_and_clears_near_target() {
         Some(4.5),
         None,
     );
-    assert!(camera.collided);
+    assert!(camera.collision_distance.is_some());
     let recovered = step(
         &mut camera,
         Vec3::new(0.0, 1.8, 4.2),
@@ -188,10 +188,46 @@ fn collision_recovery_uses_current_pose_and_clears_near_target() {
         None,
     );
     assert!((recovered.z - 7.1).abs() < 1e-5);
-    assert!(camera.collided);
+    assert!(camera.collision_distance.is_some());
     let finished = step(&mut camera, recovered, Vec3::ZERO, 0.2, None, None, None);
     assert!((finished.z - 10.0).abs() < 1e-5);
-    assert!(!camera.collided);
+    assert_eq!(camera.collision_distance, None);
+}
+
+#[test]
+fn collision_recovery_keeps_following_a_player_running_away() {
+    const DT: f32 = 1.0 / 60.0;
+    const RUN_SPEED: f32 = 7.0;
+    let mut camera = CameraState {
+        pitch: 0.0,
+        distance: 10.0,
+        target_distance: 10.0,
+        follow_speed: 10.0,
+        ..Default::default()
+    };
+    let mut target = Vec3::ZERO;
+    let mut current = Vec3::new(0.0, 1.8, 10.0);
+    let mut run = |camera: &mut CameraState, current: &mut Vec3, hit: Option<f32>| {
+        target.z -= RUN_SPEED * DT;
+        *current = step(camera, *current, target, DT, None, hit, None);
+        current.distance(target + Vec3::Y * 1.8)
+    };
+    for _ in 0..60 {
+        run(&mut camera, &mut current, None);
+    }
+    // One frame of obstruction just inside the steady running distance.
+    run(&mut camera, &mut current, Some(9.5));
+    assert_eq!(camera.collision_distance, Some(9.2));
+    let mut worst = 0.0_f32;
+    for _ in 0..60 {
+        worst = worst.max(run(&mut camera, &mut current, None));
+    }
+    // Follow smoothing alone trails by about run speed / follow speed.
+    assert!(
+        worst < 10.0 + RUN_SPEED / 10.0 + 0.1,
+        "camera fell {worst} m behind"
+    );
+    assert_eq!(camera.collision_distance, None);
 }
 
 #[test]
