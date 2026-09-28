@@ -2,15 +2,21 @@ use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
 use crate::char_create_data::{Faction, RACES, RaceInfo};
+use crate::ui::screens::default_button_atlas::{
+    DISABLED as BUTTON_ATLAS_DISABLED, HIGHLIGHT as BUTTON_ATLAS_HIGHLIGHT,
+    PRESSED as BUTTON_ATLAS_PRESSED, UP as BUTTON_ATLAS_UP,
+};
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
-use super::navigation_art::navigation_layers;
 use super::reference_layout::*;
 use super::{
     BACK_BUTTON, COLOR_DISABLED, COLOR_GOLD, COLOR_WHITE, CREATE_BUTTON, CREATE_NAME_INPUT,
     CameraControl, CharCreateAction, CharCreateMode, CharCreateUiState, CustomizationCategoryUi,
     DynName, ERROR_TEXT, NEXT_BUTTON,
 };
+
+/// Text size of character select's equally sized Enter World button.
+const NAV_FONT_SIZE: f32 = 18.0;
 
 pub(super) fn atlas_centered(
     name: String,
@@ -280,9 +286,10 @@ pub(super) fn small_button(
 ) -> Element {
     rsx! {
         button { name: DynName(name.to_string()), width: 48.0, height: 48.0, onclick: action,
-            button_atlas_up: "common-button-square-gray-up",
-            button_atlas_pressed: "common-button-square-gray-down",
-            button_atlas_highlight: "common-button-square-gray-up",
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             pos_type: "absolute", left: x, top: y,
             {atlas_centered(format!("{name}_Icon"), icon_atlas, 24.0, 23.0, false)}
         }
@@ -401,9 +408,10 @@ pub(super) fn name_input_field(state: &CharCreateUiState) -> Element {
             button { name: super::RANDOM_NAME_BUTTON, width: 48.0, height: 48.0,
                 disabled: name_button_disabled, onclick: name_button_action,
                 hit_rect_insets: "6,6,6,6",
-                button_atlas_up: "common-button-square-gray-up",
-                button_atlas_pressed: "common-button-square-gray-down",
-                button_atlas_highlight: "common-button-square-gray-up",
+                button_atlas_up: BUTTON_ATLAS_UP,
+                button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+                button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+                button_atlas_disabled: BUTTON_ATLAS_DISABLED,
                 pos_type: "absolute", left: 2.0, top: 20.0,
                 {atlas_centered("RandomNameIcon".to_string(), "charactercreate-icon-dice", 24.0, 23.0, false)}
             }
@@ -433,16 +441,20 @@ pub(super) fn bottom_buttons(mode: CharCreateMode) -> Element {
     };
     rsx! {
         button { name: BACK_BUTTON, width: NAV_WIDTH, height: NAV_HEIGHT,
-            text: "", onclick: CharCreateAction::Back,
-            button_default_skin: false,
+            text: "Back", font_size: NAV_FONT_SIZE, onclick: CharCreateAction::Back,
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             pos_type: "absolute", left: NAV_SIDE, bottom: NAV_BOTTOM,
-            {navigation_layers(BACK_BUTTON.0, "Back", NAV_WIDTH, NAV_HEIGHT)}
         }
         button { name: forward_name, width: NAV_WIDTH, height: NAV_HEIGHT,
-            text: "", onclick: action,
-            button_default_skin: false,
+            text, font_size: NAV_FONT_SIZE, onclick: action,
+            button_atlas_up: BUTTON_ATLAS_UP,
+            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
             pos_type: "absolute", right: NAV_SIDE, bottom: NAV_BOTTOM,
-            {navigation_layers(forward_name.0, text, NAV_WIDTH, NAV_HEIGHT)}
         }
     }
 }

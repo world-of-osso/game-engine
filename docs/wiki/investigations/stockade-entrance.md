@@ -25,6 +25,10 @@ With all three fixes, a 36-pose yaw × pitch matrix of the walk culls the stairw
 - **Terrain in interiors: fixed** in `4eadf9b1`. With the eye inside a WMO interior group, the camera skips the terrain clamp, as on WMO-only maps. The canal-street terrain rising through the tunnel (87.2–92.5) had pulled the camera from 8.0 to 5.0 yd.
 - Live proof is static poses only: the headless client cannot hold movement keys.
 
+## Godot: player under the entrance floor
+
+In the Godot client the Stockade entrance showed the stairwell as a plank floor the player could not get past. No WMO, ADT doodad, gameobject or terrain surface lies above the stairwell treads in the data; the planks are authored `mm_strmwnd_jail_trim_01` surfaces (group 58/59, material 70), and a native render of 321999 over tile 30_48 draws the stairs as authored. The cause was the ground: on continents the Godot `TerrainGround` passed only a WDT global WMO to `shared::ground::ground_at`, so ADT-placed WMO floors were not candidates. From the server's position on the room floor (WoW -8785.93, 820.67, 97.65) the local prediction fell to the flat, hole-free terrain at 86.21 and walked under the room floor and the stairs, while the server kept the player on the WMO floors. `TerrainObjects` now keeps each spawned WMO's placed collision and the player's ground includes it.
+
 ## See Also
 
 - [[stormwind-hilly-plaza]]: the portal traversal these fixes refine

@@ -14,6 +14,7 @@ use game_engine_core::{
 };
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
+use shared::ground::WmoCollision;
 
 use crate::{
     assets::{
@@ -74,6 +75,8 @@ pub(crate) struct TerrainObjects {
     pending: VecDeque<Pending>,
     spawned_doodads: BTreeSet<u32>,
     spawned_wmos: BTreeSet<u32>,
+    /// Floors of the spawned WMOs, for the player's ground.
+    wmo_floors: Vec<WmoCollision>,
     models: HashMap<u32, ParsedModel>,
     light: Option<TerrainLight>,
     failures: usize,
@@ -96,6 +99,7 @@ impl TerrainObjects {
             pending: VecDeque::new(),
             spawned_doodads: BTreeSet::new(),
             spawned_wmos: BTreeSet::new(),
+            wmo_floors: Vec::new(),
             models: HashMap::new(),
             light: None,
             failures: 0,
@@ -105,6 +109,10 @@ impl TerrainObjects {
     /// Objects spawned so far, excluding failures.
     pub fn spawned_count(&self) -> usize {
         self.spawned_doodads.len() + self.spawned_wmos.len()
+    }
+
+    pub fn wmo_floors(&self) -> &[WmoCollision] {
+        &self.wmo_floors
     }
 
     pub fn pending_count(&self) -> usize {
@@ -196,8 +204,9 @@ impl TerrainObjects {
                 if self.spawned_wmos.contains(&wmo.unique_id) {
                     return Ok(());
                 }
-                let model = self.load_placed_wmo(wmo, tile)?;
+                let (model, floors) = self.load_placed_wmo(wmo, tile)?;
                 self.spawned_wmos.insert(wmo.unique_id);
+                self.wmo_floors.push(floors);
                 model
             }
         };
@@ -262,7 +271,11 @@ impl TerrainObjects {
         Ok(model)
     }
 
-    fn load_placed_wmo(&self, placement: &WmoPlacement, tile: Tile) -> Result<Gd<Node3D>, String> {
+    fn load_placed_wmo(
+        &self,
+        placement: &WmoPlacement,
+        tile: Tile,
+    ) -> Result<(Gd<Node3D>, WmoCollision), String> {
         let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
         let mut model = crate::wmo::scene::build_wmo_node(
             &asset,
@@ -279,7 +292,8 @@ impl TerrainObjects {
             rotation.x, rotation.y, rotation.z, rotation.w,
         ));
         model.set_scale(Vector3::ONE * placement.scale);
-        Ok(model)
+        let floors = crate::wmo::placement::adt_wmo_collision(placement, tile, &asset);
+        Ok((model, floors))
     }
 
     pub fn update_lighting(&mut self, light: &TerrainLight) {
@@ -297,6 +311,7 @@ impl TerrainObjects {
         self.pending.clear();
         self.spawned_doodads.clear();
         self.spawned_wmos.clear();
+        self.wmo_floors.clear();
         self.models.clear();
         self.light = None;
         self.failures = 0;
