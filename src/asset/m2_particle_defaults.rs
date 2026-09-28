@@ -57,6 +57,11 @@ macro_rules! zeroed_emitter {
             twinkle_scale_max: 0.0,
             head_cell_track: [0; 3],
             tail_cell_track: [0; 3],
+            head_cell_keys: Vec::new(),
+            tail_cell_keys: Vec::new(),
+            color_mult: 1.0,
+            alpha_mult: 1.0,
+            alpha_cutoff_keys: Vec::new(),
             burst_multiplier: 0.0,
             mid_point: 0.0,
         }
