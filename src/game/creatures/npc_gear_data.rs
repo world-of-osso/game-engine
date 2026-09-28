@@ -134,6 +134,10 @@ pub fn virtual_item_attachment(
     })
 }
 
+/// `NPCModelItemSlotDisplayInfo.ItemSlot` 11: its 1,635 rows (build 12.1.0.69933) all
+/// reference ItemDisplayInfo 185704, which has no model, texture or geoset.
+const ITEM_SLOT_UNDRESSED: u8 = 11;
+
 /// `NPCModelItemSlotDisplayInfo.ItemSlot` → the visual slot it dresses.
 pub fn npc_item_slot_visual_slot(item_slot: u8) -> Option<EquipmentVisualSlot> {
     Some(match item_slot {
@@ -208,6 +212,7 @@ impl NpcItemSlots {
             .map_or(&[][..], Vec::as_slice);
         let entries = rows
             .iter()
+            .filter(|(item_slot, _)| *item_slot != ITEM_SLOT_UNDRESSED)
             .map(|&(item_slot, display_info_id)| {
                 let slot = npc_item_slot_visual_slot(item_slot).ok_or_else(|| {
                     format!("display {display_id} Extra {extra}: unknown ItemSlot {item_slot}")
