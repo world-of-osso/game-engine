@@ -24,6 +24,10 @@ The UI system uses Dioxus `rsx!` authoring, `SharedContext` generation tracking,
 
 Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are set after the first `screen.sync()` because rsx! attrs don't cover all frame properties.
 
+## Godot native UI scale (bounded)
+
+Commit `364a29ac` applies `clamp(user_scale, 0.75, 1.5)` outside `InWorld`; `InWorld` uses `max(min(viewport_width / 1920, viewport_height / 1080), 2/3) × clamped_user_scale`. Each attached `RegistryUi` lays out in physical viewport divided by that effective scale, records that logical scale in the registry, and scales its projection root back to physical pixels. The FPS overlay and LogoutOverlay are intentionally separate unscaled CanvasLayers. The native `ui_scale.gd` fixture exits 0 for 0.75/1.25 slider persistence, resize recentering, category switching, Done, and physical-pixel slider/button input (`/tmp/claude/godot-ui-scale-green.out`); the pure scale helper is 1/1 GREEN (`/tmp/claude/cargo-ui-scale.out`). This is targeted development proof, not independent verification, visual parity, or full UI parity.
+
 ## Registry-native migration status
 
 Registry-native UI was merged into engine `master` by `6fa018d6`; bounded native captures were made from engine source `4415f5fc` and toolkit `791b282`. They confirm the menu title y337–373 overlaps its panel y371–666 by two pixels and loading zone/tip labels remain above artwork while status/progress labels remain above the bar/fill. Earlier compatible captures establish local authentication to character select, UTF-8 username editing (`adminé`, byte cursor `7`), and sampled caret blinking. Evidence: `data/diagnostics/native-layout-api/{fixed-loading,fixed-menu,final-auth,final-caret}/`.
