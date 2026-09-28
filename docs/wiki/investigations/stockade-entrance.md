@@ -34,7 +34,7 @@ The portal sheet is `instanceportal.m2` (197007) batch 0: blend 7, shader `0x802
 - **Proof.** `godot/tests/m2_portal_pixels.gd` loads the real batch material with a known texel over a known background: RED `[120,162,115]`, GREEN `[84,149,142]` against WWV's shading and factors `[85,149,142]`. `m2_blend_pixels.gd` covers modes 0, 2–7 and a two-key colour track (RED on 3, 5, 6, 7 and colour; GREEN 10/10).
 - **Framebuffer.** WWV's UNORM framebuffer (`GFrameBufferVLK.cpp:21`) blends in gamma space; Godot blends in its linear framebuffer, as Bevy did. The expected value above uses linear blending; a gamma blend of the same inputs is `[106,186,156]`.
 - **Drawn in world** since branch `wmodoodads` (`ab510ad7`): Godot spawns WMO MODD doodads (see [[wmo-format]] for the set rule), so MODD 1112 of `sw_magicdistrict` stands in the Jail01 doorway, 2.5 yd from area trigger 101's box centre. `wmodoodads-20260928/after-view0.png` is the live client from behind the player on the stairs (compare Retail `portalgodot-20260928/retail-reference.png`); `before-game.png`/`after-game.png` are the client's own camera without and with doodads. Earlier `portalgodot-20260928` images placed 197007 by hand.
-- **Particles.** The Godot client has no particle system; the portal's six emitters (the white sparkles) are missing.
+- **Particles.** Since branch `particles` the portal's six emitters draw ([Native M2 particles](../systems/godot-conversion.md#native-m2-particles)). Live capture on :5000 (Fbcamera teleported offline to WoW -8766.11, 845.5, 88.5; `data/diagnostics/particles-20260928/`): `run2-branch-view1.png` vs `run2-branch-view1-noparticles.png` is the same frame with and without the pool root. The particles add a blue additive swirl over the sheet and faint sparkles (up to 78/255 per channel, 146k pixels changed; `run2-branch-view1-particles-diff.png`, ×4). Retail's white sparkles are brighter and larger. Emitter 0 (the sparkles) is multitexture shader 3, and its layers 1 and 2 are 7361548, a flat 8×8 grey 128 texture. WWV's and the Bevy client's `tex0 × tex1 × tex2` combiner therefore quarters them. A doubling (Mod2x-style) combiner would keep grey neutral, but no reference confirms it, so it is not applied.
 
 ## Godot: player under the entrance floor
 
@@ -51,7 +51,7 @@ A live walk (`godot/tests/stockade_walk.gd`, real arrow/W keys, own dev-server a
 
 A server-side dead character does not move (`process_player_inputs` drops a corpse's input), and the Godot client has no release UI: a character killed in the Stockade stays at its spawn, with the client walking alone. `stockade_walk.gd` fails fast on health 0.
 
-Still open: particles are absent in Godot.
+Still open: the portal's sparkles are dimmer than retail (see the particles note above).
 
 ## Godot: camera outside the walls
 

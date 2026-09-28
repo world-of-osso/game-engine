@@ -206,7 +206,14 @@ Branch `particles` draws the particle emitters of placed doodads (contract: [m2-
 - **Culling.** `TerrainObjects::update_particles` runs after the doodad cull. A doodad advances and draws its emitters only while its scenery opacity is above 0 (including the WMO group portal cull) and its world box is in the frustum. The time it skips is replayed later, bounded by the lifespan. Particles fade with the doodad. `particleEffectsEnabled` gates the pools and `particleDensity` scales emission.
 - **Blend.** `particle.gdshader` samples in authored space and maps blend 0-7 to the M2 GL factors in Godot's linear framebuffer, like M2 batches. Mod/Mod2x/NoAlphaAdd fade toward their identity colour.
 
-Proof: `godot/core/tests/m2_particles.rs` 14/14; `godot/tests/particle_blend_pixels.gd` 14/14 (blend 0-7, colour tint, fade 0.5 for 2/3/4/5/7); `wmo_doodads_flow.gd` PASS with the portal's six pools at 0 quads while Jail01 is culled and [204, 94, 49, 52, 89, 6] at the trigger (district: 53 pools, 431 emitters, capacity 7,769). In-world capture and VRAM/FPS: see [stockade-entrance](../investigations/stockade-entrance.md).
+Proof: `godot/core/tests/m2_particles.rs` 14/14; `godot/tests/particle_blend_pixels.gd` 14/14 (blend 0-7, colour tint, fade 0.5 for 2/3/4/5/7); `wmo_doodads_flow.gd` PASS with the portal's six pools at 0 quads while Jail01 is culled and [204, 94, 49, 52, 89, 6] at the trigger (district: 53 pools, 431 emitters, capacity 7,769). Stormwind measurement (live :5000, Fbcamera at the Stockade entrance, WoW -8766.11, 845.5, 88.5; headless cage on a shared machine at load ~13; `data/diagnostics/particles-20260928/`; base = master `7e839a73` built in a temporary worktree). After all 16,501 objects settled: 3,218 emitters placed in 302 pools with 62,340 reserved instances. From that spot 19 emitters update and about 1,200 particles draw per frame.
+- **VRAM.** Process VRAM (DRM fdinfo) is 1,273-1,274 MiB for base and all three branch runs, so no measurable change.
+- **Frame time.** Base settled at 73 ms; branch runs at 110 and 90 ms. Each run varies 65-150 ms internally with no change in conditions, so the A/B is not decisive.
+- **Particle cost (in-process).** Simulation 1.6-2.6 ms per frame (debug build; the core simulation is opt-level 2, the Godot glue opt-level 0). Upload was 2.9-4.6 ms when every drawing pool uploaded its full reservation. It is 0.44-0.59 ms at the same particle count mid-load after `023012b7`, which grows each MultiMesh by powers of two.
+- **Draw cost.** Detaching the pool root moved the frame by less than the run noise.
+- **Settle.** All objects spawned in 1,027 s (base) vs 1,008 and 997 s (branch); loading is not slowed.
+
+The portal visual is recorded in [stockade-entrance](../investigations/stockade-entrance.md).
 
 Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x40000), spline and model particles, follow/inherit velocity, TXAC variants, alpha-cutoff discard, lit particles, fog, per-particle depth sorting.
 
