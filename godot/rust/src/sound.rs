@@ -208,6 +208,13 @@ impl INode for NativeSound {
         self.base_mut().add_child(&music);
         self.base_mut().add_child(&ambient);
     }
+
+    fn exit_tree(&mut self) {
+        self.stop();
+        self.music.player.set_stream(None::<Gd<AudioStream>>);
+        self.ambient.player.set_stream(None::<Gd<AudioStream>>);
+        self.cache.clear();
+    }
 }
 
 #[godot_api]
