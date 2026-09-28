@@ -24,6 +24,7 @@ mod mesh_data_tests {
             blend_mode: 0,
             shader,
             uv_translation_speed: None,
+            extra_texture_fdids: [0; 6],
         };
         WmoRootData {
             n_groups: 1,

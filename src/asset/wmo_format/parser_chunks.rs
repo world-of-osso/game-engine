@@ -41,6 +41,7 @@ const GROUP_CHUNK_HANDLERS: &[(&[u8; 4], GroupChunkHandler)] = &[
     (b"RNOM", apply_group_monr_chunk),
     (b"VTOM", apply_group_motv_chunk),
     (b"VCOM", apply_group_mocv_chunk),
+    (b"2COM", apply_group_moc2_chunk),
     (b"IVOM", apply_group_movi_chunk),
     (b"ABOM", apply_group_moba_chunk),
 ];
@@ -350,8 +351,10 @@ fn empty_group_data() -> RawGroupData {
         uvs: Vec::new(),
         second_uvs: Vec::new(),
         third_uvs: Vec::new(),
+        fourth_uvs: Vec::new(),
         colors: Vec::new(),
         second_color_blend_alphas: Vec::new(),
+        moc2_colors: Vec::new(),
         indices: Vec::new(),
         batches: Vec::new(),
     }
@@ -411,6 +414,11 @@ fn apply_group_mocv_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<()
     Ok(())
 }
 
+fn apply_group_moc2_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.moc2_colors = parse_mocv(payload);
+    Ok(())
+}
+
 fn apply_group_movi_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
     group.indices = parse_u16_array(payload);
     Ok(())
@@ -427,8 +435,12 @@ fn apply_group_uv_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), 
         group.uvs = parsed;
     } else if group.second_uvs.is_empty() {
         group.second_uvs = parsed;
-    } else {
+    } else if group.third_uvs.is_empty() {
         group.third_uvs = parsed;
+    } else if group.fourth_uvs.is_empty() {
+        // WebWowViewerCpp `wmoGroupGeom.cpp` MOTV reader keeps four sets and
+        // skips any further chunk.
+        group.fourth_uvs = parsed;
     }
     Ok(())
 }

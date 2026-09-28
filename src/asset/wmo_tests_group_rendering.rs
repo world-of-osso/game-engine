@@ -79,6 +79,7 @@ fn load_wmo_group_with_root_skips_third_uv_attribute_for_non_shader_18_materials
             blend_mode: 0,
             shader: 17,
             uv_translation_speed: None,
+            extra_texture_fdids: [0; 6],
         },
     );
     let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
@@ -149,6 +150,7 @@ fn material_with(flags: u32, shader: u32) -> WmoMaterialDef {
         blend_mode: 0,
         shader,
         uv_translation_speed: None,
+        extra_texture_fdids: [0; 6],
     }
 }
 
@@ -238,6 +240,7 @@ fn load_wmo_group_with_root_skips_blend_alpha_for_non_second_mocv_materials() {
             blend_mode: 0,
             shader: 0,
             uv_translation_speed: None,
+            extra_texture_fdids: [0; 6],
         },
     );
     let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
@@ -302,6 +305,7 @@ fn load_wmo_group_with_root_generates_tangents_for_water_window_materials() {
             blend_mode: 0,
             shader: 10,
             uv_translation_speed: None,
+            extra_texture_fdids: [0; 6],
         },
     );
     let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
@@ -365,6 +369,7 @@ fn load_wmo_group_with_root_skips_tangents_for_non_window_materials() {
             blend_mode: 0,
             shader: 0,
             uv_translation_speed: None,
+            extra_texture_fdids: [0; 6],
         },
     );
     let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");

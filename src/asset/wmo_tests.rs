@@ -377,6 +377,7 @@ fn load_wmo_group_with_root_adds_uv1_for_dual_uv_materials() {
             blend_mode: 0,
             shader: 6,
             uv_translation_speed: None,
+            extra_texture_fdids: [0; 6],
         },
     );
     let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
@@ -448,6 +449,7 @@ fn load_wmo_group_with_root_skips_uv1_for_non_dual_uv_materials() {
             blend_mode: 0,
             shader: 5,
             uv_translation_speed: None,
+            extra_texture_fdids: [0; 6],
         },
     );
     let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
@@ -538,6 +540,7 @@ fn load_wmo_group_with_root_adds_third_uv_attribute_for_shader_18_materials() {
             blend_mode: 0,
             shader: 18,
             uv_translation_speed: None,
+            extra_texture_fdids: [0; 6],
         },
     );
     let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");

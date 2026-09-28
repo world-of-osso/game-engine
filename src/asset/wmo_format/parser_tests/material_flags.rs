@@ -13,6 +13,7 @@ fn mat_with_shader(shader: u32, flags: u32) -> WmoMaterialDef {
         blend_mode: 0,
         shader,
         uv_translation_speed: None,
+        extra_texture_fdids: [0; 6],
     }
 }
 
