@@ -81,6 +81,10 @@ func run() -> void:
 		return
 	if not assert_group_cull(probe, wmo, portal):
 		return
+	if not assert_material_animation(probe, wmo):
+		return
+	if not await assert_unculled_static_models():
+		return
 	print("PASS: sw_magicdistrict places MODD 1112 instanceportal at area trigger 101 within the object budget")
 	probe.free()
 	run_global()
@@ -176,4 +180,89 @@ func assert_group_cull(probe: Node, wmo: Node3D, portal: Node3D) -> bool:
 		fail("At the trigger Jail01 drawn=%s, portal drawn=%s, animated=%s; expected all drawn" % [jail[0].visible, portal.visible, drawn[0] != drawn[1]])
 		return false
 	print("group cull: portal hidden and still with Jail01 above the district, drawn and animating at the trigger")
+	return true
+
+func material_state(doodad: Node3D) -> Array:
+	var state := []
+	for mesh in doodad.find_children("Batch*", "MeshInstance3D", false, false):
+		var material := (mesh as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		state.append([material.get_shader_parameter("mesh_color"), material.get_shader_parameter("transparency"), material.get_shader_parameter("uv_offset_1")])
+	return state
+
+# Ten cull frames from `eye` looking at `target`, each after the shared material clock
+# advances 137 ms.
+func animate_frames(probe: Node, eye: Vector3, target: Vector3) -> void:
+	for step in 10:
+		root.get_node("M2MaterialClock").advance_time_ms(137.0)
+		cull_from(probe, eye, target)
+
+func animation_processing(node: Node, child: String) -> bool:
+	var animation := node.get_node_or_null(child)
+	return animation != null and animation.is_processing()
+
+# Jail01 lamp 199823 (MODD 32, 10 yd from the trigger) animates its batch colour but
+# not its bones. Culled, its colour animation (M2MaterialAnimation) does not advance
+# and its material does not change as the shared clock advances; drawn again at the
+# trigger, it animates. Its bones and those of the Jail01 cobweb 199565 (MODD 1105),
+# whose bone and material tracks are all constant, never advance or process.
+func assert_material_animation(probe: Node, wmo: Node3D) -> bool:
+	var lamp := wmo.get_node("WmoDoodad32") as Node3D
+	var cobweb := wmo.get_node("WmoDoodad1105") as Node3D
+	if lamp.get_node_or_null("M2MaterialAnimation") == null:
+		fail("Lamp 199823 has no material animation")
+		return false
+	var target := lamp.global_position + Vector3(0.0, 0.5, 0.0)
+	# 300 yd up, looking away: beyond the lamp's scenery distance and outside Jail01.
+	var far := TRIGGER + Vector3(0.0, 300.0, 0.0)
+	cull_from(probe, far, far + Vector3(1.0, 0.0, 0.0))
+	var frozen := material_state(lamp)
+	animate_frames(probe, far, far + Vector3(1.0, 0.0, 0.0))
+	if lamp.visible or material_state(lamp) != frozen:
+		fail("Culled lamp: drawn=%s, material %s -> %s" % [lamp.visible, frozen, material_state(lamp)])
+		return false
+	var eye := TRIGGER + Vector3(0.0, 2.0, 0.0)
+	var lamp_bones := bone_pose(lamp)
+	animate_frames(probe, eye, target)
+	if not lamp.visible or material_state(lamp) == frozen:
+		fail("Drawn lamp: drawn=%s, material did not animate: %s" % [lamp.visible, frozen])
+		return false
+	if bone_pose(lamp) != lamp_bones:
+		fail("Lamp 199823 has constant bone tracks but its pose changed")
+		return false
+	# The cobweb is out of view from the trigger; look at it from 3 yd.
+	var near := cobweb.global_position + Vector3(0.0, 0.5, 0.0)
+	var cobweb_eye := near + (near - eye).normalized() * 3.0
+	var cobweb_bones := bone_pose(cobweb)
+	var cobweb_material := material_state(cobweb)
+	animate_frames(probe, cobweb_eye, near)
+	if not cobweb.visible or bone_pose(cobweb) != cobweb_bones or material_state(cobweb) != cobweb_material:
+		fail("Static cobweb: drawn=%s, pose or material changed" % cobweb.visible)
+		return false
+	for prop in [lamp, cobweb]:
+		if animation_processing(prop, "M2Animation") or animation_processing(prop, "M2MaterialAnimation"):
+			fail("Static-boned %s has a processing animation node" % prop.name)
+			return false
+	print("material animation: frozen on the culled lamp, animates when drawn; static bones and materials never advance or process")
+	return true
+
+# Outside the in-world cull (character select, previews) a model's own nodes animate:
+# the cobweb 199565, whose tracks are all constant, has none processing, while the
+# portal 197007 animates its bones.
+func assert_unculled_static_models() -> bool:
+	var loader: Object = ClassDB.instantiate("WowAssetLoader")
+	var processing := {}
+	for fdid in [199565, 197007]:
+		var result: Dictionary = loader.load_m2("res://../data/models/%d.m2" % fdid)
+		if result.has("error"):
+			fail("Load %d: %s" % [fdid, result.error])
+			return false
+		var model: Node3D = result.node
+		root.add_child(model)
+		await process_frame
+		processing[fdid] = [animation_processing(model, "M2Animation"), animation_processing(model, "M2MaterialAnimation")]
+		model.free()
+	if processing[199565] != [false, false] or not processing[197007][0]:
+		fail("Unculled animation processing (bones, material): cobweb %s, portal %s" % [processing[199565], processing[197007]])
+		return false
+	print("unculled models: static cobweb processes nothing, portal animates")
 	return true

@@ -386,6 +386,9 @@ pub struct WowAnimationPlayer {
     sampling: bool,
     /// A pose change was skipped while not sampling.
     stale: bool,
+    /// Some bone track changes over time; a static model keeps its first pose and never
+    /// processes.
+    animates: bool,
 }
 
 #[godot_api]
@@ -398,6 +401,13 @@ impl INode for WowAnimationPlayer {
             paused: false,
             sampling: true,
             stale: false,
+            animates: true,
+        }
+    }
+
+    fn ready(&mut self) {
+        if !self.animates {
+            self.base_mut().set_process(false);
         }
     }
 
@@ -423,10 +433,15 @@ impl WowAnimationPlayer {
             paused: false,
             sampling: true,
             stale: false,
+            animates: !m2::bones_are_static(model),
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
         Ok(player)
+    }
+
+    pub fn animates(&self) -> bool {
+        self.animates
     }
 
     fn validated_bone_count(&self, label: &str) -> Result<usize, String> {

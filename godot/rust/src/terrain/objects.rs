@@ -108,8 +108,14 @@ impl CulledDoodad {
         wmo_groups: Option<(usize, Vec<u16>)>,
     ) -> Self {
         Self {
-            bones: node.try_get_node_as("M2Animation"),
-            materials: node.try_get_node_as("M2MaterialAnimation"),
+            // A model whose tracks are all constant keeps its first sample and is never
+            // advanced.
+            bones: node
+                .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+                .filter(|bones| bones.bind().animates()),
+            materials: node
+                .try_get_node_as::<WowMaterialAnimation>("M2MaterialAnimation")
+                .filter(|materials| materials.bind().animates()),
             fade: crate::assets::material::SceneryFade::from_model(&node),
             node,
             scenery,
