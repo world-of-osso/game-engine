@@ -46,6 +46,7 @@ mod dump_systems;
 mod edit_mode;
 mod empty_window;
 mod game;
+mod gpu_memory_report;
 mod little_endian;
 mod logout;
 mod mesh_asset_stats;
@@ -507,6 +508,7 @@ fn insert_startup_resources(
     system_isolation::configure(app, args);
     update_schedule_isolation::configure(app, args);
     render_set_isolation::configure(app, args);
+    gpu_memory_report::configure(app);
     insert_data_resources(app);
 }
 
