@@ -94,18 +94,6 @@ impl WarbandSceneEntry {
         Vec3::new(bx, by, bz)
     }
 
-    pub fn preview_image_path(&self) -> Option<&'static str> {
-        match self.texture_kit {
-            5671 => Some("data/ui/campsites/adventurers-rest.ktx2"),
-            5672 => Some("data/ui/campsites/ohnahran-overlook.ktx2"),
-            5673 => Some("data/ui/campsites/cultists-quay.ktx2"),
-            5674 => Some("data/ui/campsites/freywold-spring.ktx2"),
-            5675 => Some("data/ui/campsites/randomize-from-favorites.ktx2"),
-            5676 => Some("data/ui/campsites/gallagio-grand-gallery.ktx2"),
-            _ => None,
-        }
-    }
-
     pub fn authored_light_params_id(&self) -> Option<u32> {
         crate::light_lookup::resolve_light_params_id(self.map_id, self.position)
     }

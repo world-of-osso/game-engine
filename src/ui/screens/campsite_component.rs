@@ -1,5 +1,5 @@
 //! Campsite selector UI for the char select screen.
-//! Top HUD tab (gs-tophud atlas) + grid panel with scene preview cards.
+//! Grid panel with scene preview cards, opened from the top navigation CAMPSITES tab.
 
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
@@ -11,19 +11,8 @@ use super::char_select_component::{CampsiteState, CharSelectAction};
 
 const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_SUBTITLE: FontColor = FontColor::new(0.92, 0.88, 0.74, 1.0);
-const COLOR_DISABLED: FontColor = FontColor::new(0.50, 0.48, 0.42, 0.6);
 
 const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
-const MENU_BAR_WIDTH: f32 = 470.0;
-const MENU_BAR_HEIGHT: f32 = 44.0;
-const MENU_ITEM_HEIGHT: f32 = 44.0;
-const MENU_CAMPSITES_WIDTH: f32 = 113.0;
-const MENU_ITEM_Y: f32 = -1.0;
-const MENU_DIVIDER_HEIGHT: f32 = 22.0;
-const MENU_DIVIDER_Y: f32 = -10.0;
-const MENU_CAMPSITES_X: &str = "357";
-const MENU_TAB_X: &str = "173";
-const MENU_TAB_WIDTH: f32 = 92.0;
 const CARD_WIDTH: f32 = 215.0;
 const CARD_HEIGHT: f32 = 173.0;
 const CARD_PREVIEW_WIDTH: f32 = 206.0;
@@ -38,186 +27,10 @@ const PANEL_WIDTH: f32 = 470.0;
 pub const CAMPSITE_PANEL_WIDTH: f32 = PANEL_WIDTH;
 pub const CAMPSITE_PANEL_TOP_OFFSET: f32 = 58.0;
 
-const DISABLED_ITEMS: &[(&str, &str, f32, &str)] = &[
-    ("CampsiteModeTab", "MODE", 100.0, "0"),
-    ("CampsiteShopTab", "SHOP", 73.0, "100"),
-    ("CampsiteRealmsTab", "REALMS", 92.0, "265"),
-];
-const DIVIDER_POSITIONS: &[(&str, &str)] = &[
-    ("CampsiteShopDivider", "100"),
-    ("CampsiteMenuDivider", "173"),
-    ("CampsiteRealmsDivider", "265"),
-    ("CampsiteCampsitesDivider", "357"),
-];
-
 struct DynName(String);
 
 fn dyn_name(s: String) -> DynName {
     DynName(s)
-}
-
-fn menu_divider(name: &'static str, x: &str) -> Element {
-    let name = dyn_name(name.to_string());
-    rsx! {
-        r#frame {
-            name,
-            width: 1.0,
-            height: MENU_DIVIDER_HEIGHT,
-            background_color: "0.95,0.72,0.12,0.55",
-            pos_type: "absolute",
-            left: {x},
-            top: {-(MENU_DIVIDER_Y)},
-        }
-    }
-}
-
-fn menu_item_underline(name_id: &str, width: f32) -> Element {
-    let underline_width = width - 18.0;
-    rsx! {
-        r#frame {
-            name: dyn_name(format!("{name_id}Underline")),
-            width: underline_width,
-            height: 2.0,
-            background_color: "1.0,0.78,0.10,0.95",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            bottom: 2.0,
-        }
-    }
-}
-
-fn menu_item_label(name_id: &str, text: &str, width: f32, color: FontColor) -> Element {
-    rsx! {
-        fontstring {
-            name: dyn_name(format!("{name_id}Label")),
-            width,
-            height: MENU_ITEM_HEIGHT,
-            text,
-            font: GameFont::FrizQuadrata,
-            font_size: 14.0,
-            font_color: color,
-            justify_h: JustifyH::Center,
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: "50%",
-            translate_y: "-50%",
-        }
-    }
-}
-
-fn disabled_menu_item(name: &str, text: &str, width: f32, x: &str) -> Element {
-    let name_id = name.to_string();
-    rsx! {
-        r#frame {
-            name: dyn_name(name_id.clone()),
-            width,
-            height: MENU_ITEM_HEIGHT,
-            pos_type: "absolute",
-            left: {x},
-            top: {-(MENU_ITEM_Y)},
-            {menu_item_label(&name_id, text, width, COLOR_DISABLED)}
-        }
-    }
-}
-
-/// Active MENU tab — opens the game menu overlay.
-fn menu_tab_item() -> Element {
-    rsx! {
-        r#frame {
-            name: "CampsiteMenuTab",
-            width: MENU_TAB_WIDTH,
-            height: MENU_ITEM_HEIGHT,
-            onclick: CharSelectAction::Menu,
-            pos_type: "absolute",
-            left: {MENU_TAB_X},
-            top: {-(MENU_ITEM_Y)},
-            {menu_item_label("CampsiteMenuTab", "MENU", MENU_TAB_WIDTH, COLOR_SUBTITLE)}
-        }
-    }
-}
-
-fn campsite_menu_item(selected: bool) -> Element {
-    let label_color = if selected { COLOR_GOLD } else { COLOR_SUBTITLE };
-    let underline: Element = if selected {
-        menu_item_underline("CampsiteTab", MENU_CAMPSITES_WIDTH)
-    } else {
-        Vec::new()
-    };
-    rsx! {
-        r#frame {
-            name: "CampsiteTab",
-            width: MENU_CAMPSITES_WIDTH,
-            height: MENU_ITEM_HEIGHT,
-            onclick: CharSelectAction::CampsiteToggle,
-            pos_type: "absolute",
-            left: {MENU_CAMPSITES_X},
-            top: {-(MENU_ITEM_Y)},
-            {menu_item_label("CampsiteTab", "CAMPSITES", MENU_CAMPSITES_WIDTH, label_color)}
-            {underline}
-        }
-    }
-}
-
-fn menu_bar_chrome() -> Element {
-    rsx! {
-        r#frame {
-            name: "CampsiteMenuBarTopShade",
-            width: "fill",
-            height: 12.0,
-            background_color: "0.18,0.14,0.08,0.20",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: -0.0,
-        }
-        r#frame {
-            name: "CampsiteMenuBarBottomGlow",
-            width: "fill",
-            height: 3.0,
-            background_color: "0.96,0.74,0.11,0.92",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            bottom: 0.0,
-        }
-    }
-}
-
-fn disabled_items_and_dividers() -> Element {
-    let items: Element = DISABLED_ITEMS
-        .iter()
-        .flat_map(|(name, text, width, x)| disabled_menu_item(name, text, *width, x))
-        .collect();
-    let dividers: Element = DIVIDER_POSITIONS
-        .iter()
-        .flat_map(|(name, x)| menu_divider(name, x))
-        .collect();
-    [items, dividers].into_iter().flatten().collect()
-}
-
-pub fn campsite_tab(selected: bool) -> Element {
-    let campsites = campsite_menu_item(selected);
-    let menu = menu_tab_item();
-    rsx! {
-        r#frame {
-            name: "CampsiteMenuBar",
-            width: MENU_BAR_WIDTH,
-            height: MENU_BAR_HEIGHT,
-            strata: FrameStrata::Dialog,
-            background_color: "0.05,0.04,0.03,0.72",
-            border: "1px solid 0.22,0.17,0.05,0.55",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: -0.0,
-            {menu_bar_chrome()}
-            {disabled_items_and_dividers()}
-            {menu}
-            {campsites}
-        }
-    }
 }
 
 fn card_backdrop(id: u32, preview_image: Option<&str>) -> Element {

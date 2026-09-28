@@ -1,9 +1,9 @@
 use game_engine_ui_model::CharacterSelectModel;
 use game_engine_ui_model::char_select_component::{
-    BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CharDisplayEntry,
-    CharSelectAction, CharSelectState, DELETE_CANCEL_BUTTON, DELETE_CHAR_BUTTON,
-    DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT, DeleteConfirmUiState,
-    ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT,
+    BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CampsiteEntry,
+    CampsiteState, CharDisplayEntry, CharSelectAction, CharSelectState, DELETE_CANCEL_BUTTON,
+    DELETE_CHAR_BUTTON, DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT,
+    DeleteConfirmUiState, ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT,
 };
 use ui_toolkit::frame::{Dimension, WidgetData};
 use ui_toolkit::layout_values::{PositionType, Val};
@@ -230,5 +230,165 @@ fn roster_selection_and_delete_confirmation_follow_shared_state() {
     assert_eq!(
         action(&model, ENTER_WORLD_BUTTON.0),
         Some(CharSelectAction::EnterWorld)
+    );
+}
+
+fn frame<'a>(model: &'a CharacterSelectModel, name: &str) -> &'a ui_toolkit::frame::Frame {
+    model
+        .registry
+        .get(
+            model
+                .registry
+                .get_by_name(name)
+                .unwrap_or_else(|| panic!("missing {name}")),
+        )
+        .unwrap()
+}
+
+fn label_color(model: &CharacterSelectModel, name: &str) -> [f32; 4] {
+    let Some(WidgetData::FontString(label)) = &frame(model, name).widget_data else {
+        panic!("{name} is not a label")
+    };
+    label.color
+}
+
+/// Box visibility and label colour of each tab, left to right.
+fn tab_looks(model: &CharacterSelectModel) -> Vec<(bool, [f32; 4])> {
+    TOP_NAV_TABS
+        .iter()
+        .map(|tab| {
+            (
+                !frame(model, &format!("{tab}Box")).hidden,
+                label_color(model, &format!("{tab}Label")),
+            )
+        })
+        .collect()
+}
+
+const TOP_NAV_TABS: [&str; 5] = [
+    "CharSelectModeTab",
+    "CharSelectShopTab",
+    "CharSelectMenuTab",
+    "CharSelectRealmsTab",
+    "CharSelectCampsitesTab",
+];
+const GOLD: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
+const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+
+#[test]
+fn top_navigation_tabs_replace_tophud_art_with_retail_labels_and_actions() {
+    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    model.sync();
+    for art in [
+        "CharSelectTopHudLeft",
+        "CharSelectTopHudMiddle",
+        "CharSelectTopHudRight",
+    ] {
+        assert!(model.registry.get_by_name(art).is_none(), "{art} remains");
+    }
+    let row = model.registry.get_by_name("CharSelectTopNavTabs").unwrap();
+    let children: Vec<String> = model
+        .registry
+        .get(row)
+        .unwrap()
+        .children
+        .iter()
+        .map(|id| model.registry.get(*id).unwrap().name.clone().unwrap())
+        .collect();
+    assert_eq!(children, TOP_NAV_TABS);
+    let labels: Vec<String> = TOP_NAV_TABS
+        .iter()
+        .map(|tab| text(&model, &format!("{tab}Label")))
+        .collect();
+    assert_eq!(labels, ["MODE", "SHOP", "MENU", "REALMS", "CAMPSITES"]);
+    let actions: Vec<Option<CharSelectAction>> =
+        TOP_NAV_TABS.iter().map(|tab| action(&model, tab)).collect();
+    assert_eq!(
+        actions,
+        [
+            None,
+            None,
+            Some(CharSelectAction::Menu),
+            Some(CharSelectAction::Back),
+            Some(CharSelectAction::CampsiteToggle),
+        ]
+    );
+    for rule in ["CharSelectTopNavRuleTop", "CharSelectTopNavRuleBottom"] {
+        assert_eq!(
+            frame(&model, rule)
+                .background_color
+                .map(|c| c[..3].to_vec()),
+            Some(GOLD[..3].to_vec())
+        );
+    }
+    assert_eq!(tab_looks(&model), vec![(false, GOLD); 5]);
+}
+
+#[test]
+fn hovered_pressed_and_open_campsite_tabs_are_boxed_with_white_labels() {
+    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    model.sync();
+    let set_button = |model: &mut CharacterSelectModel, name: &str, hovered: bool, state| {
+        let id = model.registry.get_by_name(name).unwrap();
+        let Some(WidgetData::Button(button)) = &mut model.registry.get_mut(id).unwrap().widget_data
+        else {
+            panic!("{name} is not a button")
+        };
+        button.hovered = hovered;
+        button.state = state;
+    };
+    set_button(&mut model, "CharSelectModeTab", true, ButtonState::Normal);
+    set_button(
+        &mut model,
+        "CharSelectRealmsTab",
+        false,
+        ButtonState::Pushed,
+    );
+    model.sync();
+    let boxed = frame(&model, "CharSelectModeTabBox");
+    assert!(matches!(boxed.border, Some(ref b) if b.width == 1.0 && b.color[..3] == GOLD[..3]));
+    assert!(
+        boxed
+            .background_color
+            .is_some_and(|c| c[0] < 0.1 && c[3] < 1.0)
+    );
+    assert_eq!(
+        tab_looks(&model),
+        vec![
+            (true, WHITE),
+            (false, GOLD),
+            (false, GOLD),
+            (true, WHITE),
+            (false, GOLD)
+        ]
+    );
+
+    set_button(&mut model, "CharSelectModeTab", false, ButtonState::Normal);
+    set_button(
+        &mut model,
+        "CharSelectRealmsTab",
+        false,
+        ButtonState::Normal,
+    );
+    model.shared.insert(CampsiteState {
+        scenes: vec![CampsiteEntry {
+            id: 1,
+            name: "Adventurer's Rest".into(),
+            preview_image: None,
+        }],
+        panel_visible: true,
+        selected_id: Some(1),
+    });
+    model.sync();
+    assert!(!frame(&model, "CampsitePanel").hidden);
+    assert_eq!(
+        tab_looks(&model),
+        vec![
+            (false, GOLD),
+            (false, GOLD),
+            (false, GOLD),
+            (false, GOLD),
+            (true, WHITE)
+        ]
     );
 }
