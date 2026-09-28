@@ -40,6 +40,19 @@ The portal sheet is `instanceportal.m2` (197007) batch 0: blend 7, shader `0x802
 
 In the Godot client the Stockade entrance showed the stairwell as a plank floor the player could not get past. No WMO, ADT doodad, gameobject or terrain surface lies above the stairwell treads in the data; the planks are authored `mm_strmwnd_jail_trim_01` surfaces (group 58/59, material 70), and a native render of 321999 over tile 30_48 draws the stairs as authored. The cause was the ground: on continents the Godot `TerrainGround` passed only a WDT global WMO to `shared::ground::ground_at`, so ADT-placed WMO floors were not candidates. From the server's position on the room floor (WoW -8785.93, 820.67, 97.65) the local prediction fell to the flat, hole-free terrain at 86.21 and walked under the room floor and the stairs, while the server kept the player on the WMO floors. `TerrainObjects` now keeps each spawned WMO's placed collision and the player's ground includes it.
 
+## Godot: reaching and entering the Stockade
+
+A live walk (`godot/tests/stockade_walk.gd`, real arrow/W keys, own dev-server account) from the room-floor spawn down the stairwell into area trigger 101 found four client faults in a row; the server fired the trigger and transferred every time.
+
+1. **Floors before the WMO spawned.** The previous fix took WMO floors from `TerrainObjects`, which spawns the ~8,200 placements of the 3x3 tiles at 8 ms a frame (minutes). Entering on the room floor (97.65) or at the Stockade exit arrival on the doorway (88.0), the prediction fell to the terrain (86.21) first; the floor was then more than `STEP_UP_HEIGHT` above the feet, so the player stayed under the building while the server kept it on the floor. The terrain worker now reads each tile's MODF WMO floors (`NativeTerrainTile.wmo_floors`), as the server's `GroundMap` does (`8fdc22d0`, `6b89cb28`).
+2. **Lighting map ID.** `update_world_lighting` resolved the map ID from a hard-coded continent table; `stormwindjail` failed "No authored map ID" every frame, and the process chain stopped the account right after the transfer. The ID now comes from `NewWorld.map_id` or `Map.csv` `Directory` (`347f86c2`).
+3. **ADT tiles on a WMO-only map.** Loading readiness requested `stormwindjail_31_31.adt` for the player's tile and recorded a failure (`a98b6029`).
+4. **No global WMO, no camera.** Native global-WMO spawn did not exist, so the Stockade loading screen never finished; the world camera also waited for ADT tiles and kept its Stormwind pose after a transfer. `wmo::global::GlobalWmoScene` spawns the WDT WMO and reports `Spawned` to loading readiness; the camera runs on a global-WMO map and resets on `NewWorld`.
+
+A server-side dead character does not move (`process_player_inputs` drops a corpse's input), and the Godot client has no release UI: a character killed in the Stockade stays at its spawn, with the client walking alone. `stockade_walk.gd` fails fast on health 0.
+
+Still open: the camera does not collide with the Stockade interior (it frames from outside the walls), and WMO doodads and particles are absent in Godot.
+
 ## See Also
 
 - [[stormwind-hilly-plaza]]: the portal traversal these fixes refine

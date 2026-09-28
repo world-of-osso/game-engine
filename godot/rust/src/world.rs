@@ -449,6 +449,10 @@ impl WorldUnits {
             .is_some_and(|control| control.controlled)
     }
 
+    pub fn local_player_id(&self) -> Option<u64> {
+        self.local_player_id
+    }
+
     /// The newest server-replicated position of the local player.
     pub fn local_player_server_position(&self) -> Option<Vector3> {
         let target = self

@@ -13,6 +13,7 @@ pub(crate) fn evaluate_native_loading(
     stream: &TerrainStreamState,
     attached: &BTreeSet<(u32, u32)>,
     unbuildable: &BTreeMap<(u32, u32), String>,
+    global_wmo: GlobalWmoState,
 ) -> LoadingReadiness {
     let center = player_position
         .map(|(x, z)| game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z));
@@ -37,11 +38,7 @@ pub(crate) fn evaluate_native_loading(
         map_ready: stream.map.as_ref().is_some_and(|map| !map.is_empty())
             && stream.wdt_path.is_some()
             && stream.map_error.is_none(),
-        global_wmo: if stream.global_wmo_present {
-            GlobalWmoState::Pending
-        } else {
-            GlobalWmoState::None
-        },
+        global_wmo,
         center_tile,
     })
 }
@@ -69,26 +66,51 @@ mod tests {
     fn selected_player_and_successful_map_are_both_required() {
         let attached = BTreeSet::from([(32, 48)]);
         assert_eq!(
-            evaluate_native_loading(None, &stream(), &attached, &BTreeMap::new()).progress_percent,
+            evaluate_native_loading(
+                None,
+                &stream(),
+                &attached,
+                &BTreeMap::new(),
+                GlobalWmoState::None
+            )
+            .progress_percent,
             35
         );
         let mut map = stream();
         map.map = None;
         assert!(
-            !evaluate_native_loading(Some((-8949.0, 0.0)), &map, &attached, &BTreeMap::new())
-                .complete
+            !evaluate_native_loading(
+                Some((-8949.0, 0.0)),
+                &map,
+                &attached,
+                &BTreeMap::new(),
+                GlobalWmoState::None
+            )
+            .complete
         );
         map.map = Some("azeroth".into());
         map.wdt_path = None;
         assert!(
-            !evaluate_native_loading(Some((-8949.0, 0.0)), &map, &attached, &BTreeMap::new())
-                .complete
+            !evaluate_native_loading(
+                Some((-8949.0, 0.0)),
+                &map,
+                &attached,
+                &BTreeMap::new(),
+                GlobalWmoState::None
+            )
+            .complete
         );
         map.wdt_path = Some("azeroth.wdt".into());
         map.map_error = Some("unreadable WDT".into());
         assert!(
-            !evaluate_native_loading(Some((-8949.0, 0.0)), &map, &attached, &BTreeMap::new())
-                .complete
+            !evaluate_native_loading(
+                Some((-8949.0, 0.0)),
+                &map,
+                &attached,
+                &BTreeMap::new(),
+                GlobalWmoState::None
+            )
+            .complete
         );
     }
 
@@ -112,23 +134,50 @@ mod tests {
             });
         let neighbor = BTreeSet::from([(32, 47)]);
         assert!(
-            !evaluate_native_loading(Some(position), &map, &neighbor, &BTreeMap::new()).complete
+            !evaluate_native_loading(
+                Some(position),
+                &map,
+                &neighbor,
+                &BTreeMap::new(),
+                GlobalWmoState::None
+            )
+            .complete
         );
         let attached = BTreeSet::from([(32, 48)]);
         assert!(
-            evaluate_native_loading(Some(position), &map, &attached, &BTreeMap::new()).complete
+            evaluate_native_loading(
+                Some(position),
+                &map,
+                &attached,
+                &BTreeMap::new(),
+                GlobalWmoState::None
+            )
+            .complete
         );
         // A moved player cannot finish based on their old center tile.
         assert!(
-            !evaluate_native_loading(Some((0.0, 0.0)), &map, &attached, &BTreeMap::new()).complete
+            !evaluate_native_loading(
+                Some((0.0, 0.0)),
+                &map,
+                &attached,
+                &BTreeMap::new(),
+                GlobalWmoState::None
+            )
+            .complete
         );
         map.failures.push(crate::terrain::streaming::TileFailure {
             tile: (32, 32),
             error: "invalid ADT".into(),
         });
         assert_eq!(
-            evaluate_native_loading(Some((0.0, 0.0)), &map, &attached, &BTreeMap::new())
-                .status_text,
+            evaluate_native_loading(
+                Some((0.0, 0.0)),
+                &map,
+                &attached,
+                &BTreeMap::new(),
+                GlobalWmoState::None
+            )
+            .status_text,
             "Terrain failed to load"
         );
     }
@@ -139,28 +188,50 @@ mod tests {
         map.pending_tiles.clear();
         let position = (-8949.0, 0.0);
         let unbuildable = BTreeMap::from([((32, 48), "Terrain (32, 48): bad chunk".to_string())]);
-        let readiness =
-            evaluate_native_loading(Some(position), &map, &BTreeSet::new(), &unbuildable);
+        let readiness = evaluate_native_loading(
+            Some(position),
+            &map,
+            &BTreeSet::new(),
+            &unbuildable,
+            GlobalWmoState::None,
+        );
         assert!(!readiness.complete);
         assert_eq!(readiness.status_text, "Terrain failed to load");
         // A neighbour that cannot be built does not block the player's own tile.
         let neighbour = BTreeMap::from([((32, 47), "Terrain (32, 47): bad chunk".to_string())]);
         let attached = BTreeSet::from([(32, 48)]);
-        assert!(evaluate_native_loading(Some(position), &map, &attached, &neighbour).complete);
+        assert!(
+            evaluate_native_loading(
+                Some(position),
+                &map,
+                &attached,
+                &neighbour,
+                GlobalWmoState::None
+            )
+            .complete
+        );
     }
 
     #[test]
-    fn global_wmo_stays_pending_until_a_native_spawn_exists() {
+    fn global_wmo_map_completes_once_its_wmo_spawned_without_adt_tiles() {
         let mut map = stream();
+        map.map = Some("stormwindjail".into());
         map.global_wmo_present = true;
-        assert!(
-            !evaluate_native_loading(
-                Some((-8949.0, 0.0)),
+        map.pending_tiles.clear();
+        let loading = |global_wmo| {
+            evaluate_native_loading(
+                Some((103.0, -76.0)),
                 &map,
-                &BTreeSet::from([(32, 48)]),
-                &BTreeMap::new()
+                &BTreeSet::new(),
+                &BTreeMap::new(),
+                global_wmo,
             )
-            .complete
+        };
+        assert!(!loading(GlobalWmoState::Pending).complete);
+        assert!(loading(GlobalWmoState::Spawned).complete);
+        assert_eq!(
+            loading(GlobalWmoState::Failed).status_text,
+            "Terrain failed to load"
         );
     }
 }

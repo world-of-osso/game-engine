@@ -117,23 +117,29 @@ func wait_for_stockade_scene(client: Node, timeout_ms: int) -> bool:
 		if absf(player.position.x - STOCKADE.x) > 0.5 or absf(player.position.z - STOCKADE.z) > 0.5:
 			fail("Local player moved away from authored Stockade entry: " + str(player.position))
 			return false
-		if absf(player.position.y - FLOOR_Y) <= 0.2:
+		# The world camera follows the player (15 yd from the eye) on a map without ADT tiles.
+		var camera := client.get_viewport().get_camera_3d()
+		if absf(player.position.y - FLOOR_Y) <= 0.2 and camera != null \
+				and camera.global_position.distance_to(player.global_position) < 20.0:
 			return true
-	fail("Timed out waiting for 27 authored Stockade groups and grounded player near -34.9: " + str(client.account_state()))
+	var camera := client.get_viewport().get_camera_3d()
+	fail("Timed out waiting for 27 authored Stockade groups, grounded player near -34.9 and its camera (%s): %s" % [
+		camera.global_position if camera != null else "none", client.account_state()])
 	return false
 
+## Every one of the 27 authored groups draws at least one mesh batch ("Group<g>_Batch<i>").
 func has_authored_groups(wmos: Node) -> bool:
 	if wmos.get_child_count() != 1:
 		return false
 	var placement = wmos.get_node_or_null("GlobalWmo108631") as Node3D
-	if placement == null or placement.get_child_count() != GROUP_COUNT:
+	if placement == null:
 		return false
-	var total_surfaces := 0
+	var drawn := {}
+	for instance in placement.find_children("Group*_Batch*", "MeshInstance3D", true, false):
+		if instance.mesh != null and instance.mesh.get_surface_count() > 0:
+			drawn[str(instance.name).get_slice("_", 0)] = true
 	for index in GROUP_COUNT:
-		var group = placement.get_node_or_null("Group%d" % index)
-		if group == null:
+		if not drawn.has("Group%d" % index):
+			print("FIXTURE GLOBAL_WMO_MISSING_GROUP ", index, " drawn=", drawn.size())
 			return false
-		for instance in group.find_children("*", "MeshInstance3D", true, false):
-			if instance.mesh != null:
-				total_surfaces += instance.mesh.get_surface_count()
-	return total_surfaces > 0
+	return true

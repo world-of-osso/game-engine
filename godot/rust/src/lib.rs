@@ -85,6 +85,7 @@ pub struct GameClient {
     terrain: terrain::streaming::StreamedTerrain,
     terrain_materials: terrain::material::TerrainMaterials,
     world_objects: terrain::objects::TerrainObjects,
+    global_wmo: wmo::global::GlobalWmoScene,
     world_lighting: lighting::WorldLighting,
     /// `Map.db2` ID of the map whose terrain is loaded; lighting selects its Light rows.
     world_map_id: Option<u32>,
@@ -139,6 +140,7 @@ impl INode3D for GameClient {
                 data_root.clone(),
                 cache_root.clone(),
             ),
+            global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone(), &cache_root),
             world_lighting: lighting::WorldLighting::default(),
             world_map_id: None,
             world_camera: camera::WorldCamera::default(),
@@ -335,6 +337,15 @@ impl GameClient {
                 .world
                 .local_player_server_position()
                 .map(|position| position.to_variant())
+                .unwrap_or_default(),
+        );
+        state.set(
+            "local_player_health",
+            &self
+                .world
+                .local_player_id()
+                .and_then(|id| self.units.get(&id)?.health)
+                .map(|health| health.current.to_variant())
                 .unwrap_or_default(),
         );
         state.set("reply_received", self.account.reply_received);
@@ -810,6 +821,7 @@ impl GameClient {
             self.world.update_lighting(None);
             self.terrain_materials.reset();
             self.world_objects.reset();
+            self.global_wmo.reset();
             self.account.session.screen = SessionScreen::Loading;
             self.show_account_screen(SessionScreen::Loading)?;
         }
@@ -818,8 +830,10 @@ impl GameClient {
 
     fn transfer_world(&mut self, destination: shared::protocol::NewWorld) -> Result<(), String> {
         self.terrain.reset()?;
+        self.world_camera.reset();
         self.terrain_materials.reset();
         self.world_objects.reset();
+        self.global_wmo.reset();
         self.world_lighting.reset();
         self.world.update_lighting(None);
         let [x, y, z] = destination.position;
@@ -853,6 +867,7 @@ impl GameClient {
         )? {
             self.world.update_lighting(Some(light.clone()));
             self.world_objects.update_lighting(&light);
+            self.global_wmo.update_lighting(&light);
             self.terrain_materials.update_lighting(light);
         }
         Ok(())
@@ -887,12 +902,15 @@ impl GameClient {
             let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
             self.terrain.request_map(map, tile)?;
         }
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        let global_wmo = self.global_wmo.sync(&mut parent, &self.terrain);
         let state = self.terrain.state();
         let readiness = loading::evaluate_native_loading(
             position,
             &state,
             self.terrain_materials.attached_tiles(),
             self.terrain_materials.failures(),
+            global_wmo,
         );
         if let Some(ui) = self.loading_ui.as_mut() {
             ui.bind_mut().advance_loading(
@@ -910,7 +928,8 @@ impl GameClient {
     }
 
     fn update_world_camera(&mut self, delta: f32) -> Result<(), String> {
-        if self.terrain.parsed_tiles.is_empty() {
+        // A WMO-only map (a dungeon) has no ADT tiles; its world is the global WMO.
+        if self.terrain.parsed_tiles.is_empty() && !self.terrain.state().global_wmo_present {
             return Ok(());
         }
         let Some(player) = self.world.local_player_node() else {
@@ -936,6 +955,7 @@ impl GameClient {
         self.world_map_id = None;
         self.terrain_materials.reset();
         self.world_objects.reset();
+        self.global_wmo.reset();
         self.world.reset();
         self.units.clear();
         self.terrain.reset()
