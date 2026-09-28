@@ -21,6 +21,7 @@ use super::assets::NativeWmoAsset;
 use crate::lighting::TerrainLight;
 
 const SHADER_PATH: &str = "res://shaders/wmo.gdshader";
+const SHADER_TYPE: &str = "shader_type spatial;";
 const RENDER_MODE: &str =
     "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
 
@@ -310,8 +311,8 @@ fn build_batch_material(
 }
 
 fn shader_variant(source: &str, material: &WmoMaterialDef) -> Result<String, String> {
-    if source.matches(RENDER_MODE).count() != 1 {
-        return Err("WMO shader render-mode declaration changed".into());
+    if source.matches(RENDER_MODE).count() != 1 || !source.starts_with(SHADER_TYPE) {
+        return Err("WMO shader type/render-mode declaration changed".into());
     }
     let cull = if material.material_flags.unculled {
         "cull_disabled"
@@ -321,7 +322,14 @@ fn shader_variant(source: &str, material: &WmoMaterialDef) -> Result<String, Str
     let render_mode = format!(
         "render_mode ambient_light_disabled, fog_disabled, specular_disabled, {cull}, blend_mix;"
     );
-    let code = source.replace(RENDER_MODE, &render_mode);
+    let mut code = source.replace(RENDER_MODE, &render_mode);
+    if matches!(material.blend_mode, 2 | 3) {
+        code = code.replacen(
+            SHADER_TYPE,
+            &format!("{SHADER_TYPE}\n#define WMO_BLENDED"),
+            1,
+        );
+    }
     if material.material_flags.clamp_s || material.material_flags.clamp_t {
         return clamp_wmo_shader_uv(code, material);
     }
@@ -551,19 +559,41 @@ mod tests {
     }
 
     #[test]
-    fn shader_seven_rejects_overlay_dimension_mismatch() {
-        let error = load_shader_seven_image([10, 20, 0], |fdid| {
-            Ok(pixel([1, 2, 3, 255], if fdid == 10 { 1 } else { 2 }, 1))
+    fn shader_seven_resizes_overlays_before_blending_and_adding() {
+        let image = load_shader_seven_image([10, 20, 30], |fdid| {
+            Ok(match fdid {
+                10 => blp::RgbaImage {
+                    pixels: [100, 100, 100, 255].repeat(4),
+                    width: 2,
+                    height: 2,
+                },
+                20 => pixel([200, 50, 0, 128], 1, 1),
+                30 => pixel([20, 40, 80, 128], 1, 1),
+                _ => unreachable!(),
+            })
         })
-        .err()
         .unwrap();
-        assert!(error.contains("20"), "{error}");
-        assert!(error.contains("2x1"), "{error}");
-        assert!(error.contains("1x1"), "{error}");
+        assert_eq!((image.width, image.height), (2, 2));
+        assert_eq!(image.pixels, [160, 95, 90, 255].repeat(4));
     }
 
     #[test]
-    fn authored_wmo_108238_group_38_material_58_reports_overlay_size_mismatch() {
+    fn shader_seven_rejects_invalid_overlay_pixel_buffer() {
+        let error = load_shader_seven_image([10, 20, 0], |fdid| {
+            Ok(if fdid == 10 {
+                pixel([100, 100, 100, 255], 1, 1)
+            } else {
+                pixel([200, 50, 0, 128], 2, 2)
+            })
+        })
+        .err()
+        .expect("invalid overlay buffer");
+        assert!(error.contains("overlay FDID 20"), "{error}");
+        assert!(error.contains("invalid RGBA buffer"), "{error}");
+    }
+
+    #[test]
+    fn authored_wmo_108238_group_38_material_58_composites_resized_overlay() {
         let (_, resolver, data_root) = campsite_asset();
         let placement = WmoPlacement {
             fdid: Some(108_238),
@@ -583,7 +613,11 @@ mod tests {
         assert_eq!(material.texture_fdid, 948_125);
         assert_eq!(material.texture_2_fdid, 922_678);
         assert_eq!(material.texture_3_fdid, 0);
-        let error = load_shader_seven_image(
+        let base = read_wmo_image(&resolver, &data_root, material.texture_fdid).unwrap();
+        let overlay = read_wmo_image(&resolver, &data_root, material.texture_2_fdid).unwrap();
+        assert_eq!((base.width, base.height), (512, 512));
+        assert_eq!((overlay.width, overlay.height), (128, 128));
+        let composite = load_shader_seven_image(
             [
                 material.texture_fdid,
                 material.texture_2_fdid,
@@ -591,10 +625,9 @@ mod tests {
             ],
             |fdid| read_wmo_image(&resolver, &data_root, fdid),
         )
-        .err()
-        .expect("authored overlay sizes differ");
-        assert!(error.contains("922678 128x128"), "{error}");
-        assert!(error.contains("948125 512x512"), "{error}");
+        .unwrap();
+        assert_eq!((composite.width, composite.height), (512, 512));
+        assert_ne!(composite.pixels, base.pixels);
     }
 
     #[test]

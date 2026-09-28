@@ -115,7 +115,11 @@ void fragment() {
 	if (blend_mode == 1 && texel.a < (128.0 / 255.0)) {
 		discard;
 	}
-	ALPHA = (blend_mode == 2 || blend_mode == 3) ? texel.a : 1.0;
+	// Any ALPHA write moves a Godot material to the unsorted, depth-less
+	// transparent pass; only GxBlend 2/3 variants define WMO_BLENDED.
+#ifdef WMO_BLENDED
+	ALPHA = texel.a;
+#endif
 	ALBEDO = vec3(1.0);
 	ROUGHNESS = 1.0;
 	world_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
