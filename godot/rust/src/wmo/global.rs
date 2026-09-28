@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use game_engine_core::{loading_readiness::GlobalWmoState, wmo::WmoDoodad};
+use game_engine_core::loading_readiness::GlobalWmoState;
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
@@ -25,7 +25,7 @@ pub(crate) struct GlobalWmoScene {
 pub(crate) struct SpawnedGlobalWmo {
     pub unique_id: u32,
     pub node: Gd<Node3D>,
-    pub doodads: Vec<WmoDoodad>,
+    pub doodads: Vec<crate::wmo::assets::LitDoodad>,
     pub culled: CulledWmo,
 }
 

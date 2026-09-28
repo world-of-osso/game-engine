@@ -123,7 +123,28 @@ func run_global() -> void:
 	print("PASS: the Stockade global WMO places its 748 default-set doodads")
 	if not assert_global_portal_cull(probe, wmo, doodads):
 		return
+	if not assert_interior_doodad_light(wmo):
+		return
 	quit(0)
+
+# Stockade MODD 100 (flags 0x2, colour (77, 78, 86), interior groups): every batch
+# is lit as interior with the MODD colour as direct light and the MOHD ambient
+# (25, 25, 25), as `wmo::doodad_light` derives from WebWowViewerCpp.
+func assert_interior_doodad_light(wmo: Node3D) -> bool:
+	var doodad := wmo.get_node("WmoDoodad100") as Node3D
+	var direct := Vector3(77.0, 78.0, 86.0) / 255.0
+	var ambient := Vector3(25.0, 25.0, 25.0) / 255.0
+	var batches := doodad.find_children("*", "MeshInstance3D", true, false)
+	for mesh in batches:
+		var material := (mesh as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		var blend = material.get_shader_parameter("exterior_blend")
+		var lit = material.get_shader_parameter("interior_direct")
+		var amb = material.get_shader_parameter("interior_ambient")
+		if blend != 0.0 or lit == null or not lit.is_equal_approx(direct) or amb == null or not amb.is_equal_approx(ambient):
+			fail("MODD 100 %s: exterior_blend %s, interior_direct %s, interior_ambient %s" % [mesh.name, blend, lit, amb])
+			return false
+	print("PASS: Stockade MODD 100's %d batches take its interior light" % batches.size())
+	return true
 
 # The global WMO is portal-culled like ADT WMOs: from the owned fixture's Stockade
 # spawn (engine (103, -34.5, -76), 2 yd up) only the groups its portals reach through

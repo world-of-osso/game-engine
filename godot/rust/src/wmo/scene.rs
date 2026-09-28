@@ -221,19 +221,8 @@ fn prepare_wmo_batches<'a>(
     (prepared, errors)
 }
 
-/// The first MAVG of an active doodad set, else MAVG 0, MAVD 0 or the MOHD ambient
-/// (WebWowViewerCpp `wmoObject.cpp` `calculateAmbient`).
 fn wmo_interior_ambient(root: &wmo::WmoRootData, doodad_sets: &[u16]) -> [f32; 3] {
-    let global = root
-        .global_ambient_volumes
-        .iter()
-        .find(|volume| doodad_sets.contains(&volume.doodad_set_id))
-        .or(root.global_ambient_volumes.first());
-    let ambient = global
-        .or(root.ambient_volumes.first())
-        .map(|volume| volume.color_1)
-        .unwrap_or(root.ambient_color);
-    [ambient[0], ambient[1], ambient[2]]
+    super::doodad_light::wmo_ambient_colors(root, doodad_sets)[0].to_array()
 }
 
 fn prepare_group_batch<'a>(
@@ -448,7 +437,7 @@ fn build_batch_material(
         ("emissive", Vector3::ZERO.to_variant()),
         (
             "exterior_lit",
-            ((batch.group_flags & 0x48 != 0) || (batch.group_flags & 0x2000 == 0)).to_variant(),
+            super::doodad_light::group_exterior_lit(batch.group_flags).to_variant(),
         ),
         ("unlit", authored.material_flags.unlit.to_variant()),
         ("unfogged", authored.material_flags.unfogged.to_variant()),

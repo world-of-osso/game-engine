@@ -6,7 +6,7 @@ use glam::{Mat3, Quat, Vec3};
 
 pub use crate::asset::wmo_format::mesh_data::{WmoBatchType, WmoMeshBatch};
 pub use parser::{
-    RawGroupData, WmoDoodadDef, WmoDoodadName, WmoDoodadSet, WmoGroupHeader, WmoRootData,
+    RawGroupData, WmoDoodadDef, WmoDoodadName, WmoDoodadSet, WmoGroupHeader, WmoLight, WmoRootData,
 };
 
 pub fn parse_root(bytes: &[u8]) -> Result<WmoRootData, String> {
@@ -56,8 +56,10 @@ pub struct WmoDoodad {
     pub translation: Vec3,
     pub rotation: Quat,
     pub scale: f32,
-    /// MODD colour as RGBA.
+    /// MODD colour as RGBA; alpha * 255 is a MOLT index, or 255 for none.
     pub color: [f32; 4],
+    /// MODD flags (the top byte of `name_offset`).
+    pub flags: u8,
 }
 
 /// The MODD doodads a WMO placement draws, each once in MODD order: those the groups
@@ -95,6 +97,7 @@ pub fn placed_doodads<'a>(
                 rotation: wmo_local_rotation(def.rotation),
                 scale: def.scale,
                 color: def.color,
+                flags: def.flags,
             })
         })
         .collect()

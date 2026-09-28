@@ -12,7 +12,7 @@ use game_engine_core::{
     asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
     campsite_object_data::{campsite_doodad_placement, doodad_position, placement_position},
     m2,
-    wmo::{self, WmoDoodadModel},
+    wmo::WmoDoodadModel,
 };
 use glam::{Affine3A, Vec3};
 use godot::{classes::Node3D, prelude::*};
@@ -29,7 +29,8 @@ use crate::{
     lighting::TerrainLight,
     terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
     wmo::{
-        assets::{NativeWmoAsset, wmo_fog_volume},
+        assets::{LitDoodad, NativeWmoAsset, wmo_fog_volume},
+        doodad_light::bind_doodad_light,
         portals::{HalfSpace, WmoPortals},
     },
     world_models::bind_visual_light,
@@ -78,7 +79,7 @@ struct ParsedModel {
 /// A spawned WMO node and the doodads it still places as children.
 struct WmoDoodads {
     node: Gd<Node3D>,
-    doodads: Vec<wmo::WmoDoodad>,
+    doodads: Vec<LitDoodad>,
     /// Index of the WMO in `TerrainObjects::wmos`.
     culled: usize,
 }
@@ -467,7 +468,7 @@ impl TerrainObjects {
         &mut self,
         wmo: u32,
         node: &Gd<Node3D>,
-        doodads: Vec<wmo::WmoDoodad>,
+        doodads: Vec<LitDoodad>,
         culled: CulledWmo,
     ) {
         self.wmos.push(culled);
@@ -479,7 +480,7 @@ impl TerrainObjects {
         &mut self,
         wmo: u32,
         node: &Gd<Node3D>,
-        doodads: Vec<wmo::WmoDoodad>,
+        doodads: Vec<LitDoodad>,
         culled: usize,
     ) {
         if doodads.is_empty() {
@@ -501,7 +502,7 @@ impl TerrainObjects {
     /// A MODD doodad as a child of its WMO node, which carries the MODF transform.
     fn spawn_wmo_doodad(&mut self, wmo: u32, index: usize) -> Result<(), String> {
         let placed = &self.wmo_doodads[&wmo];
-        let doodad = placed.doodads[index].clone();
+        let (doodad, light) = placed.doodads[index].clone();
         let mut parent = placed.node.clone();
         let wmo_groups = Some((placed.culled, doodad.groups.clone()));
         if index + 1 == placed.doodads.len() {
@@ -527,12 +528,15 @@ impl TerrainObjects {
         parent.add_child(&model);
         // Retail 12340 gates WMO-attached doodads by the same scenery distance as ADT
         // doodads (solarityclient `terrain_frame/m2/doodad_scene.rs`, 799B70 admission).
-        let world_from_model = affine(parent.get_global_transform())
+        let world_from_wmo = affine(parent.get_global_transform());
+        let world_from_model = world_from_wmo
             * Affine3A::from_scale_rotation_translation(
                 Vec3::splat(doodad.scale),
                 doodad.rotation,
                 doodad.translation,
             );
+        let center = world_from_model.transform_point3((render_box.0 + render_box.1) * 0.5);
+        bind_doodad_light(&model, &light, world_from_wmo, center);
         // WMO doodads have no ADT unique ID; this only staggers half-rate animation.
         let stagger = wmo.wrapping_mul(8191).wrapping_add(u32::from(doodad.index));
         self.doodads.push(CulledDoodad::new(
@@ -549,7 +553,7 @@ impl TerrainObjects {
         placement: &WmoPlacement,
         tile: Tile,
         doodad_sets: &[u16],
-    ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<wmo::WmoDoodad>), String> {
+    ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<LitDoodad>), String> {
         let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
         let doodads = asset.doodads(doodad_sets);
         let mut wmo_node = crate::wmo::scene::build_wmo_node(
