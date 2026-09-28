@@ -1691,3 +1691,7 @@ Godot maps every MOMT id 0-23 to WebWowViewerCpp's vertex/pixel shader pair. It 
 ## [2026-09-28] fix | Campsite fog and WMO selection
 
 Godot fogs with WebWowViewerCpp's legacy exponential fog from FogScaler/FogDensity, so FogEnd-0 campsites (Freywold Spring, Gallagio Grand Gallery) no longer render as flat fog. Campsite WMOs are selected by MODF extents, so Cultists' Quay shows its delve WMO. See [[campsite-fog-and-wmo-selection]].
+
+## [2026-09-28] fix | Weighted zero-duration M2 variations
+
+Both clients share `VariationFamily`. A weighted zero-duration variation plays for no time, as in WebWowViewerCpp, so the Freywold Spring redbird (FDID 588287) keeps looping Stand. Before, Godot logged an error every frame and Bevy panicked. See [[animation]].
