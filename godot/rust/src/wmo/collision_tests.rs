@@ -9,7 +9,7 @@ use game_engine_core::{camera_control_data::CameraState, camera_follow_data::EYE
 use glam::Vec3;
 use shared::ground::WmoCollision;
 
-use crate::{camera::follow_pose, terrain::streaming::StreamedTerrain};
+use crate::{camera::follow_pose, ground::TerrainGround, terrain::streaming::StreamedTerrain};
 
 /// WoW `(x, y, z)` to this client's world `(x, z, -y)`.
 fn wow(x: f32, y: f32, z: f32) -> Vec3 {
@@ -210,4 +210,74 @@ fn stockade_interior_walls_keep_the_camera_in_sight_at_every_yaw() {
         distances.iter().any(|&(_, distance)| distance < 12.0),
         "no yaw pulled in: {distances:?}"
     );
+}
+
+fn stairwell() -> (StreamedTerrain, Vec<[Vec3; 3]>) {
+    let terrain = load("azeroth", (30, 48), |terrain| {
+        terrain.parsed_tiles.contains_key(&(30, 48))
+    });
+    let triangles = world_triangles(
+        terrain.parsed_tiles[&(30, 48)]
+            .wmo_floors
+            .iter()
+            .map(|(_, wmo)| wmo),
+        wow(-8774.0, 838.0, 92.1),
+        40.0,
+    );
+    (terrain, triangles)
+}
+
+/// The original client's stairs test: on the Stockade entrance stairs (WoW -8774, 838) an 8 yd
+/// move sideways, across the stairwell (WMO-local -Y of the district, yaw 38.5°), meets the
+/// stairwell wall 6.2 yd away. It went the full 8.0 yd through the wall without WMO walls.
+#[test]
+fn player_on_the_stockade_stairs_is_blocked_by_the_stairwell_wall() {
+    let (terrain, triangles) = stairwell();
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+    };
+    let current = wow(-8774.0, 838.0, 92.1);
+    let proposed = current + wow(-0.622, 0.783, 0.0) * 8.0;
+
+    let moved = ground.validate_move(current, proposed, true);
+
+    let walked = (moved - current).with_y(0.0).length();
+    assert!(
+        walked < 6.3,
+        "walked {walked:.2} yd through the stairwell wall"
+    );
+}
+
+/// Between the stairwell walls the player still runs down the stairs from the top step to the
+/// lower steps, and back up to the top.
+#[test]
+fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
+    let (terrain, triangles) = stairwell();
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+    };
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut feet = Vec3::new(-8786.0, 96.1, -836.0);
+    let mut run = |feet: &mut Vec3, direction: [f32; 3]| {
+        for _ in 0..120 {
+            let frame = crate::gameplay::MovementFrame {
+                direction,
+                speed: shared::movement::RUN_SPEED,
+            };
+            *feet = movement.predict(*feet, frame, false, &ground, 1.0 / 60.0);
+        }
+    };
+    run(&mut feet, [1.0, 0.0, 0.0]);
+    assert!(feet.x > -8773.0, "stopped on the way down at {feet}");
+    assert!(
+        (90.5..92.5).contains(&feet.y),
+        "not on the lower steps: {feet}"
+    );
+    run(&mut feet, [-1.0, 0.0, 0.0]);
+    assert!(feet.x < -8784.0, "stopped on the way up at {feet}");
+    assert!(feet.y > 95.5, "not back on the top step: {feet}");
 }

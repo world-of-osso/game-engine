@@ -1,6 +1,7 @@
 use game_engine_core::player_physics_data::{
     GroundSample, GroundState, VerticalState, apply_gravity_and_ground_snap,
-    build_proposed_ground_movement, is_walkable_slope, update_grounded, validate_movement_slope,
+    build_proposed_ground_movement, clamp_movement_to_walls, is_walkable_slope, update_grounded,
+    validate_movement_slope,
 };
 use glam::Vec3;
 
@@ -232,4 +233,38 @@ fn falling_across_supported_height_clamps_and_lands() {
             grounded: true
         }
     );
+}
+
+/// The original `clamp_movement_against_wmo_meshes`: one horizontal ray 0.6 yd above the feet
+/// along the move; a wall before the destination (plus a 0.05 yd margin) stops the move 0.05 yd
+/// short of it, keeping the proposed height; no slide.
+#[test]
+fn wall_before_destination_stops_the_move_short_of_it() {
+    let current = Vec3::new(1.0, 5.0, 2.0);
+    let proposed = Vec3::new(5.0, 5.5, 2.0);
+    let mut rays = Vec::new();
+    let clamped = clamp_movement_to_walls(current, proposed, |origin, direction, length| {
+        rays.push((origin, direction, length));
+        Some(2.0)
+    });
+    assert_eq!(rays, vec![(Vec3::new(1.0, 5.6, 2.0), Vec3::X, 4.05)]);
+    assert!(
+        (clamped - Vec3::new(2.95, 5.5, 2.0)).length() < 1e-5,
+        "{clamped}"
+    );
+
+    for hit in [None, Some(4.05), Some(10.0)] {
+        assert_eq!(
+            clamp_movement_to_walls(current, proposed, |_, _, _| hit),
+            proposed,
+            "{hit:?}"
+        );
+    }
+    assert_eq!(
+        clamp_movement_to_walls(current, current.with_y(9.0), |_, _, _| Some(0.0)),
+        current.with_y(9.0),
+        "a vertical move casts nothing"
+    );
+    let touching = clamp_movement_to_walls(current, proposed, |_, _, _| Some(0.01));
+    assert_eq!(touching, Vec3::new(1.0, 5.5, 2.0));
 }

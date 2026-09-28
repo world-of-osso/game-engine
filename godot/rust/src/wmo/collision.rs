@@ -18,7 +18,10 @@ use std::{
 
 use glam::{Affine3A, Vec3};
 use godot::{
-    classes::{CollisionShape3D, ConcavePolygonShape3D, Node3D, StaticBody3D},
+    classes::{
+        CollisionShape3D, ConcavePolygonShape3D, Node3D, PhysicsDirectSpaceState3D,
+        PhysicsRayQueryParameters3D, StaticBody3D,
+    },
     prelude::*,
 };
 use shared::ground::{WmoCollision, WmoGroupCollision};
@@ -209,6 +212,23 @@ impl WmoCollisionBodies {
         self.shapes.insert(key, (Arc::clone(group), shape.clone()));
         Some(shape)
     }
+}
+
+/// Distance to the first WMO wall on the ray from `origin`, if within `length`.
+pub(crate) fn wall_hit(
+    space: &Gd<PhysicsDirectSpaceState3D>,
+    origin: Vec3,
+    direction: Vec3,
+    length: f32,
+) -> Option<f32> {
+    let from = Vector3::from_array(origin.to_array());
+    let to = from + Vector3::from_array(direction.to_array()) * length;
+    let mut query = PhysicsRayQueryParameters3D::create(from, to)
+        .expect("Godot could not allocate wall ray parameters");
+    query.set_collision_mask(WMO_LAYER);
+    let hit = space.clone().intersect_ray(&query);
+    let position = hit.get("position")?.to::<Vector3>();
+    Some(from.distance_to(position))
 }
 
 /// Distance from the player to the group's bounding box, in whole centimetres for ordering.

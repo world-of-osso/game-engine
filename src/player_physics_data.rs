@@ -72,6 +72,35 @@ pub fn build_proposed_ground_movement(
     Some(current + direction.normalize() * speed * dt)
 }
 
+/// Height above the feet of the wall ray (original `WMO_COLLISION_RAY_HEIGHT`).
+pub const WALL_RAY_HEIGHT: f32 = 0.6;
+/// Distance a move stops short of a wall (original `WMO_COLLISION_MARGIN`).
+pub const WALL_MARGIN: f32 = 0.05;
+
+/// Stop a horizontal move short of the first wall along it, keeping the proposed height; no
+/// slide. `wall_hit(origin, direction, length)` is the distance to the first wall on the ray.
+pub fn clamp_movement_to_walls(
+    current: Vec3,
+    proposed: Vec3,
+    wall_hit: impl FnOnce(Vec3, Vec3, f32) -> Option<f32>,
+) -> Vec3 {
+    let movement = Vec3::new(proposed.x - current.x, 0.0, proposed.z - current.z);
+    let distance = movement.length();
+    if distance <= f32::EPSILON {
+        return proposed;
+    }
+    let direction = movement / distance;
+    let reach = distance + WALL_MARGIN;
+    let Some(hit) = wall_hit(current + Vec3::Y * WALL_RAY_HEIGHT, direction, reach) else {
+        return proposed;
+    };
+    if hit >= reach {
+        return proposed;
+    }
+    let clamped = current + direction * (hit - WALL_MARGIN).max(0.0);
+    Vec3::new(clamped.x, proposed.y, clamped.z)
+}
+
 pub fn update_grounded(y: f32, ground: GroundState, snap_threshold: f32) -> bool {
     match ground {
         GroundState::Supported(height) => (y - height).abs() < snap_threshold,
