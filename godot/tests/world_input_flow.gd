@@ -35,6 +35,7 @@ func run_test() -> void:
 	root.add_child(client)
 	var startup_screen := OS.get_environment("GODOT_TEST_STARTUP_SCREEN")
 	var overlay_only := OS.get_environment("GODOT_TEST_OVERLAY_ONLY") == "1"
+	var swimming := OS.get_environment("GODOT_TEST_SWIMMING") == "1"
 	if startup_screen != "inworld":
 		if not await enter_world_from_charselect(client):
 			return
@@ -63,7 +64,7 @@ func run_test() -> void:
 			return
 	print("FIXTURE LOADING_OBSERVED")
 	var world_wait_ms := 120000 if overlay_only else WORLD_WAIT_MS
-	if not await wait_for_world(client, world_wait_ms):
+	if not await wait_for_world(client, world_wait_ms, swimming):
 		return
 	if overlay_only:
 		var overlay_probe = load("res://tests/wmo_shader7_authored_overlay.gd").new()
@@ -79,6 +80,15 @@ func run_test() -> void:
 	var player := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
 	if player == null:
 		fail("Native selected player missing after world readiness")
+		return
+	if swimming:
+		var swim_probe = load("res://tests/swimming_input_probe.gd").new()
+		var swim_error: String = await swim_probe.check(self, client, player)
+		if swim_error != "":
+			fail(swim_error)
+			return
+		client.free()
+		quit(0)
 		return
 	var start := player.position
 	var ground_height = client.terrain_height_at(start.x, start.z)
@@ -427,7 +437,7 @@ func select_roster_preview(client: Node, index: int, expected_name: String, old_
 	fail("Timed out replacing selected preview with " + expected_name + "; old_valid=" + str(old_model.get_ref() != null))
 	return false
 
-func wait_for_world(client: Node, timeout_ms: int) -> bool:
+func wait_for_world(client: Node, timeout_ms: int, swimming: bool = false) -> bool:
 	print("TRACE WORLD_WAIT_START elapsed_ms=", Time.get_ticks_msec())
 	var deadline := Time.get_ticks_msec() + timeout_ms
 	var next_report := Time.get_ticks_msec() + 5000
@@ -444,7 +454,8 @@ func wait_for_world(client: Node, timeout_ms: int) -> bool:
 			continue
 		var terrain_root = client.get_node_or_null("WorldTerrain")
 		var player = client.get_node_or_null("WorldUnits/" + NAME) as Node3D
-		if terrain_root == null or terrain_root.get_child_count() == 0 or player == null or player.position.distance_to(FIRST) > 0.5:
+		var expected_start := Vector3(-8558.0, 144.96008, 522.0) if swimming else FIRST
+		if terrain_root == null or terrain_root.get_child_count() == 0 or player == null or player.position.distance_to(expected_start) > 0.5:
 			continue
 		for tile in terrain.parsed_tiles:
 			if tile.chunk_count <= 0 or not FileAccess.file_exists(tile.root_path):
