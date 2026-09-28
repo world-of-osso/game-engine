@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] investigation | Invalid character-creation customization combos
+
+`27d02d52` evaluates ChrCustomizationReq/ReqChoice. A Human warrior is now offered 16 skins instead of 24, and a picked choice repairs the options it depends on. `e18ebee4` composites BlendMode 4/6/7/9 and keeps non-body texture types out of the body atlas, so tan skin 4978 with face 27 renders tan instead of teal. Created [[charcreate-invalid-customization-combos]]; updated [[character-creation]] and [[character-texture-compositing]].
+
 ## [2026-09-28] system | Godot local player speed and stop input
 
 The Godot client now predicts at the server's speed (swim speed, aura multiplier from the replicated `MovementSpeed`) and reports one stop input on release. Updated [[networking]].
