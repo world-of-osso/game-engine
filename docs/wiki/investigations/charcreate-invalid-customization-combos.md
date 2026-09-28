@@ -23,7 +23,7 @@ Reported on Human male Customize: Face 27 with a tan Skin Color swatch rendered 
 
 ## Fix
 
-- `27d02d52`: the catalog loads `ChrCustomizationReq.csv` and `ChrCustomizationReqChoice.csv` (build-pinned Wago `12.1.0.69875`, provenance in `data/diagnostics/charcreate-customize-req-20260928/`). `choices_for_option` returns only choices whose option and choice requirements allow the race/class and whose required groups can be met, so core selector indices address that list. `src/scenes/char_create/appearance.rs` randomizes, normalizes and selects through ReqChoice repair. Rows with no selectable choices are hidden.
+- `27d02d52`: the catalog loads `ChrCustomizationReq.csv` and `ChrCustomizationReqChoice.csv` (provenance in `data/diagnostics/charcreate-customize-req-20260928/`). `ChrCustomizationReqChoice` comes from local CASC `12.1.0.69933` (FDID 3580359, `scripts/export_db2_csv.py`) and matches the Wago `12.1.0.69875` export row for row. `ChrCustomizationReq` (FDID 3450453) is missing from the local archives, so it remains the Wago `12.1.0.69875` export. `fc59a04a` keeps the persisted index space unchanged: `choices_for_option`/`get_choice_for_class` are the authored `(OrderIndex, ID)` list with the original Night Elf/Blood Elf per-class face split, and faces that split hid are appended after it. `offered_choices` applies requirements and required groups, and only the Customize UI, stepper, select, randomize and normalize use it. Picks are stored through `set_choice` by choice ID. `src/scenes/char_create/appearance.rs` randomizes, normalizes and selects through ReqChoice repair. Rows with no selectable choices are hidden.
 - `e18ebee4`: BlendMode 4/6/7 tint by source alpha, 9 blends by source alpha, and only TextureType 1 layers compose the body atlas.
 
 ## Evidence
@@ -34,7 +34,7 @@ Reported on Human male Customize: Face 27 with a tan Skin Color swatch rendered 
 
 ## Remaining limits
 
-- Core selectors are indices into the requirement-filtered list, so a stored character that used a now-hidden index resolves to a different choice.
+- A stored character with a no-longer-offered choice (for example an NPC skin) still renders it. Opening Customize replaces it with the first offered choice; the stored meaning is unchanged.
 - Choices whose ReqChoice needs a different option are selectable, as in retail, but the UI has no distinct ineligible colour.
 - Pandaren, Draenei and Nightborne skin swatches do not describe the mean body colour (chromaticity distance 15–30), so the swatch sweep excludes them.
 - Non-body texture types (8 skin extra, 20 accessory, ...) are not rendered to their own M2 texture slots.

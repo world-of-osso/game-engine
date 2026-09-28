@@ -6,6 +6,8 @@ TACT key is unknown arrive zero-filled from casc-local; their records are droppe
 counted on stderr.
 
 Usage: export_db2_csv.py <table> <file.db2> <out.csv>
+  ChrCustomizationReq          FDID 3450453
+  ChrCustomizationReqChoice    FDID 3580359
   Emotes                       FDID 1343602
   NPCModelItemSlotDisplayInfo  FDID 1340661
   UiTextureKit                 FDID 939159
@@ -18,9 +20,31 @@ import struct
 import sys
 
 # (layout hash, [(CSV column, source)]); source is "id", "parent", a field index,
-# ("string", field index) for an inline string field of a single-section table, or
-# ("float", field index, element) for 32-bit element `element` of a float field.
+# ("string", field index) for an inline string field of a single-section table,
+# ("float", field index, element) for 32-bit element `element` of a float field, or
+# ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # WoWDBDefs layout CA154412: ReqSource_lang (field 0) is not exported.
+    "ChrCustomizationReq": (
+        0xCA154412,
+        [
+            ("ID", "id"),
+            ("ReqType", ("int", 1, 0)),
+            ("ClassMask", ("int", 2, 0)),
+            ("RegionGroupMask", ("int", 3, 0)),
+            ("ReqAchievementID", ("int", 4, 0)),
+            ("ReqQuestID", ("int", 5, 0)),
+            ("OverrideArchive", ("int", 6, 0)),
+            ("ReqItemModifiedAppearanceID", ("int", 7, 0)),
+            ("RaceMasks_0", ("int", 8, 0)),
+            ("RaceMasks_1", ("int", 8, 1)),
+        ],
+    ),
+    # WoWDBDefs layout F925BC6F: the requirement is the relation (parent) column.
+    "ChrCustomizationReqChoice": (
+        0xF925BC6F,
+        [("ID", "id"), ("ChrCustomizationChoiceID", 0), ("ChrCustomizationReqID", "parent")],
+    ),
     "Emotes": (0x0A598B68, [("ID", "id"), ("AnimID", 1)]),
     "NPCModelItemSlotDisplayInfo": (
         0xC2057F5B,
@@ -138,8 +162,12 @@ def main():
             values, parent, record_offset = rows[row_id]
 
             def column(s):
-                if isinstance(s, tuple) and s[0] == "float":
-                    bits = (values[s[1]] >> (32 * s[2])) & 0xFFFFFFFF
+                if isinstance(s, tuple) and s[0] in ("float", "int"):
+                    value = values[s[1]]
+                    bits = value[s[2]] if isinstance(value, tuple) else (value >> (32 * s[2])) & 0xFFFFFFFF
+                    bits &= 0xFFFFFFFF
+                    if s[0] == "int":
+                        return struct.unpack("<i", struct.pack("<I", bits))[0]
                     return "%.9g" % struct.unpack("<f", struct.pack("<I", bits))[0]
                 if isinstance(s, tuple):
                     return read_string(data, record_offset, fields[s[1]], values[s[1]])
