@@ -8,19 +8,22 @@ counted on stderr.
 Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   Emotes                       FDID 1343602
   NPCModelItemSlotDisplayInfo  FDID 1340661
+  UiTextureKit                 FDID 939159
 """
 
 import csv
 import struct
 import sys
 
-# (layout hash, [(CSV column, source)]); source is "id", "parent" or a field index.
+# (layout hash, [(CSV column, source)]); source is "id", "parent", a field index, or
+# ("string", field index) for an inline string field of a single-section table.
 TABLES = {
     "Emotes": (0x0A598B68, [("ID", "id"), ("AnimID", 1)]),
     "NPCModelItemSlotDisplayInfo": (
         0xC2057F5B,
         [("ID", "id"), ("NpcModelID", "parent"), ("ItemDisplayInfoID", 0), ("ItemSlot", 1)],
     ),
+    "UiTextureKit": (0x4740638A, [("ID", "id"), ("KitPrefix", ("string", 0))]),
 }
 
 
@@ -82,23 +85,37 @@ def read_wdc5(data, layout):
             raw = int.from_bytes(payload[i * record_size : (i + 1) * record_size], "little")
             values = [decode_field(raw, f, palette, o) for f, o in zip(fields, palette_offsets)]
             row_id = struct.unpack_from("<I", data, id_start + i * 4)[0] if id_size else values[0]
-            rows[row_id] = (values, relations.get(i))
+            rows[row_id] = (values, relations.get(i), start + i * record_size)
         for new_id, source in struct.iter_unpack("<II", data[copy_start : copy_start + copies * 8]):
             rows[new_id] = rows[source]
-    return rows, dropped
+    return rows, dropped, fields, sections
+
+
+def read_string(data, record_offset, field, value):
+    """Inline string fields hold the string's offset from the field's own byte position."""
+    start = record_offset + field[0] // 8 + value
+    return data[start : data.index(b"\0", start)].decode("utf-8")
 
 
 def main():
     table, db2_path, out_path = sys.argv[1:4]
     layout, columns = TABLES[table]
-    rows, dropped = read_wdc5(open(db2_path, "rb").read(), layout)
+    data = open(db2_path, "rb").read()
+    rows, dropped, fields, sections = read_wdc5(data, layout)
+    if sections != 1 and any(isinstance(s, tuple) for _, s in columns):
+        raise ValueError(f"string columns need a single-section table, got {sections} sections")
     with open(out_path, "w", newline="") as handle:
         out = csv.writer(handle)
         out.writerow([name for name, _ in columns])
         for row_id in sorted(rows):
-            values, parent = rows[row_id]
-            source = {"id": row_id, "parent": parent}
-            out.writerow([source[s] if isinstance(s, str) else values[s] for _, s in columns])
+            values, parent, record_offset = rows[row_id]
+
+            def column(s):
+                if isinstance(s, tuple):
+                    return read_string(data, record_offset, fields[s[1]], values[s[1]])
+                return {"id": row_id, "parent": parent}[s] if isinstance(s, str) else values[s]
+
+            out.writerow([column(s) for _, s in columns])
     print(f"{table}: {len(rows)} rows, {dropped} encrypted records dropped", file=sys.stderr)
 
 

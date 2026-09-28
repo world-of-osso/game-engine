@@ -6,8 +6,8 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 pub(crate) use game_engine::ui::screens::char_select_component::DeleteCharacterTarget;
 use game_engine::ui::screens::char_select_component::{
-    BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CampsiteEntry,
-    CampsiteState, CharDisplayEntry, CharSelectState, DELETE_CANCEL_BUTTON, DELETE_CHAR_BUTTON,
+    BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CampsiteState,
+    CharDisplayEntry, CharSelectState, DELETE_CANCEL_BUTTON, DELETE_CHAR_BUTTON,
     DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT, DeleteConfirmUiState,
     DeleteConfirmation, ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT,
     apply_char_select_postsetup, char_select_screen,
@@ -305,15 +305,7 @@ pub(crate) fn build_campsite_state(panel: &CampsitePanel) -> CampsiteState {
     let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let selected_id = warband.scenes.first().map(|s| s.id);
     CampsiteState {
-        scenes: warband
-            .scenes
-            .iter()
-            .map(|s| CampsiteEntry {
-                id: s.id,
-                name: s.name.clone(),
-                preview_image: s.preview_image_path().map(str::to_string),
-            })
-            .collect(),
+        scenes: warband.campsite_entries(),
         panel_visible: panel.visible,
         selected_id,
         page: panel.page,
