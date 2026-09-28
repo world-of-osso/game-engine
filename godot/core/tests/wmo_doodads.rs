@@ -24,7 +24,7 @@ fn magic_district_jail_places_the_instance_portal_at_its_authored_transform() {
     let root = wmo::parse_root(&read_model(MAGIC_DISTRICT_ROOT_FDID)).expect("parse root");
     let jail = wmo::parse_group(&read_model(JAIL_GROUP_FDID)).expect("parse Jail01");
 
-    let doodads = wmo::placed_doodads(&root, [(59, jail.geometry.doodad_refs.as_slice())], 0);
+    let doodads = wmo::placed_doodads(&root, [(59, jail.geometry.doodad_refs.as_slice())], &[0, 0]);
 
     assert_eq!(
         doodads.len(),
@@ -63,7 +63,7 @@ fn doodads_shared_by_groups_are_placed_once() {
     let jail = wmo::parse_group(&read_model(JAIL_GROUP_FDID)).expect("parse Jail01");
     let refs = jail.geometry.doodad_refs.as_slice();
 
-    let doodads = wmo::placed_doodads(&root, [(3, refs), (7, refs)], 0);
+    let doodads = wmo::placed_doodads(&root, [(3, refs), (7, refs)], &[0, 0]);
 
     assert_eq!(doodads.len(), 18);
     assert!(doodads.iter().all(|doodad| doodad.groups == [3, 7]));
@@ -142,12 +142,18 @@ fn default_set_and_placement_set_are_active() {
     let root = synthetic_root();
     let refs: &[u16] = &[0, 1, 2, 3, 4, 5];
 
-    assert_eq!(indices(&wmo::placed_doodads(&root, [(0, refs)], 0)), [0, 1]);
     assert_eq!(
-        indices(&wmo::placed_doodads(&root, [(0, refs)], 2)),
+        indices(&wmo::placed_doodads(&root, [(0, refs)], &[0, 0])),
+        [0, 1]
+    );
+    assert_eq!(
+        indices(&wmo::placed_doodads(&root, [(0, refs)], &[0, 2])),
         [0, 1, 4, 5]
     );
-    assert_eq!(indices(&wmo::placed_doodads(&root, [(0, refs)], 9)), [0, 1]);
+    assert_eq!(
+        indices(&wmo::placed_doodads(&root, [(0, refs)], &[0, 9])),
+        [0, 1]
+    );
 }
 
 /// Only doodads a group references through MODR are placed.
@@ -156,7 +162,7 @@ fn unreferenced_doodads_are_not_placed() {
     let root = synthetic_root();
 
     assert_eq!(
-        indices(&wmo::placed_doodads(&root, [(0, &[1u16][..])], 1)),
+        indices(&wmo::placed_doodads(&root, [(0, &[1u16][..])], &[0, 1])),
         [1]
     );
 }
@@ -166,7 +172,7 @@ fn unreferenced_doodads_are_not_placed() {
 fn modn_names_resolve_by_byte_offset() {
     let root = synthetic_root();
 
-    let doodads = wmo::placed_doodads(&root, [(0, &[0u16, 1][..])], 0);
+    let doodads = wmo::placed_doodads(&root, [(0, &[0u16, 1][..])], &[0, 0]);
 
     assert_eq!(doodads[0].model, WmoDoodadModel::Path("world/a.m2".into()));
     assert_eq!(doodads[1].model, WmoDoodadModel::Path("world/b.m2".into()));
@@ -180,9 +186,69 @@ fn rotation_and_position_convert_to_engine_axes() {
     let half = std::f32::consts::FRAC_1_SQRT_2;
     root.doodad_defs[0] = doodad(0, [0.0, 0.0, half, half]);
 
-    let placed = &wmo::placed_doodads(&root, [(0, &[0u16][..])], 0)[0];
+    let placed = &wmo::placed_doodads(&root, [(0, &[0u16][..])], &[0, 0])[0];
 
     assert!(placed.translation.distance(Vec3::new(1.0, 3.0, -2.0)) < 1e-6);
     // WoW +X turned a quarter about +Z is WoW +Y, engine -Z.
     assert!((placed.rotation * Vec3::X).distance(Vec3::NEG_Z) < 1e-6);
+}
+
+fn read_obj(name: &str) -> game_engine_core::adt::AdtObjData {
+    let path = format!("{}/../../data/terrain/{name}", env!("CARGO_MANIFEST_DIR"));
+    let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path}: {error}"));
+    game_engine_core::adt::parse_obj(&bytes).expect("parse _obj0")
+}
+
+/// Stormwind `azeroth_31_48_obj0` (FDID 777828) places `9sw_warriordistrict_house2`
+/// (root 3389421, uniqueId 5478984) with MODF flags 0x8C and doodad set 0. Flag 0x80
+/// makes `doodad_set` index MWDR: range 0 is MWDS [0, 1] = doodad sets 1 and 2
+/// ("Training Hall", MODD 1..=253). As in WebWowViewerCpp `setActiveDoodadFromMWDR`,
+/// the listed sets replace `$DefaultGlobal`, whose only doodad (MODD 0, a candelabra)
+/// is not placed.
+#[test]
+fn mwds_placement_activates_its_listed_doodad_sets() {
+    let objects = read_obj("777828.adt");
+    let house = objects
+        .wmos
+        .iter()
+        .find(|wmo| wmo.unique_id == 5_478_984)
+        .expect("warrior district house");
+    assert_eq!((house.flags, house.doodad_set), (0x8C, 0));
+    assert_eq!(objects.wmo_active_doodad_sets(house), [1, 2]);
+    let plain = objects
+        .wmos
+        .iter()
+        .find(|wmo| wmo.flags & 0x80 == 0)
+        .expect("a placement without flag 0x80");
+    assert_eq!(objects.wmo_active_doodad_sets(plain), [0, plain.doodad_set]);
+
+    let root = wmo::parse_root(&read_model(3_389_421)).expect("parse house root");
+    let every: Vec<u16> = (0..root.doodad_defs.len() as u16).collect();
+    let placed = wmo::placed_doodads(
+        &root,
+        [(0, every.as_slice())],
+        &objects.wmo_active_doodad_sets(house),
+    );
+    let indices: Vec<u16> = placed.iter().map(|doodad| doodad.index).collect();
+    assert_eq!(indices, (1..=253).collect::<Vec<u16>>());
+}
+
+/// Earthen country houses on `2847_31_37_obj0`: MWDR ranges [0,2] [3,4] [5,7] [8,9]
+/// over MWDS [1,5,11,1,13,2,6,10,5,8]; the last range ends at the last MWDS entry, so
+/// MWDR `last` is inclusive.
+#[test]
+fn mwdr_ranges_are_inclusive() {
+    let objects = read_obj("2847_31_37_obj0.adt");
+    let sets = |unique_id: u32| {
+        let placement = objects
+            .wmos
+            .iter()
+            .find(|wmo| wmo.unique_id == unique_id)
+            .expect("placement");
+        objects.wmo_active_doodad_sets(placement)
+    };
+    assert_eq!(sets(59_608_997), [1, 5, 11]);
+    assert_eq!(sets(59_609_301), [1, 13]);
+    assert_eq!(sets(59_609_477), [2, 6, 10]);
+    assert_eq!(sets(59_609_963), [5, 8]);
 }

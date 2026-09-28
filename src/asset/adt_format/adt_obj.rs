@@ -41,6 +41,36 @@ pub struct AdtObjData {
     pub doodads: Vec<DoodadPlacement>,
     pub wmos: Vec<WmoPlacement>,
     pub chunk_refs: Vec<ChunkObjectRefs>,
+    /// MWDR: per MODF `doodad_set` of a flag-0x80 placement, an inclusive
+    /// `[first, last]` range of MWDS entries.
+    pub wmo_doodad_set_ranges: Vec<[u32; 2]>,
+    /// MWDS: WMO doodad set indices the MWDR ranges list.
+    pub wmo_doodad_sets: Vec<u16>,
+}
+
+/// MODF flag: `doodad_set` indexes MWDR, whose MWDS sets replace the WMO's active sets.
+const MODF_FLAG_USE_SETS_FROM_MWDS: u16 = 0x80;
+
+impl AdtObjData {
+    /// The WMO doodad sets `placement` activates (WebWowViewerCpp `wmoObject.cpp`
+    /// `setLoadingParam`/`setActiveDoodadFromMWDR`): with MODF flag 0x80 only the MWDS
+    /// sets its MWDR range lists, otherwise set 0 (`$DefaultGlobal`) and `doodad_set`.
+    /// MWDR `last` is inclusive: every local ADT's last range ends at the final MWDS
+    /// entry. The reference loop stops before it, and sizes MWDS by `sizeof(MWDR)`.
+    pub fn wmo_active_doodad_sets(&self, placement: &WmoPlacement) -> Vec<u16> {
+        if placement.flags & MODF_FLAG_USE_SETS_FROM_MWDS == 0 {
+            return vec![0, placement.doodad_set];
+        }
+        let Some(&[first, last]) = self
+            .wmo_doodad_set_ranges
+            .get(placement.doodad_set as usize)
+        else {
+            return vec![0, placement.doodad_set];
+        };
+        (first..=last)
+            .filter_map(|index| self.wmo_doodad_sets.get(index as usize).copied())
+            .collect()
+    }
 }
 
 pub fn load_adt_obj0(data: &[u8]) -> Result<AdtObjData, String> {
@@ -71,6 +101,15 @@ pub fn load_adt_obj0(data: &[u8]) -> Result<AdtObjData, String> {
         doodads,
         wmos,
         chunk_refs,
+        wmo_doodad_set_ranges: parse_u32_array(&chunks.mwdr)
+            .chunks_exact(2)
+            .map(|range| [range[0], range[1]])
+            .collect(),
+        wmo_doodad_sets: chunks
+            .mwds
+            .chunks_exact(2)
+            .map(|set| u16::from_le_bytes([set[0], set[1]]))
+            .collect(),
     })
 }
 
@@ -81,6 +120,8 @@ struct Obj0Chunks {
     mwid: Vec<u32>,
     mddf: Option<Vec<u8>>,
     modf: Option<Vec<u8>>,
+    mwdr: Vec<u8>,
+    mwds: Vec<u8>,
     mcnk_chunks: Vec<Vec<u8>>,
 }
 
@@ -118,6 +159,8 @@ fn collect_obj0_chunks(data: &[u8]) -> Result<Obj0Chunks, String> {
         mwid: Vec::new(),
         mddf: None,
         modf: None,
+        mwdr: Vec::new(),
+        mwds: Vec::new(),
         mcnk_chunks: Vec::new(),
     };
     for chunk in ChunkIter::new(data) {
@@ -129,6 +172,8 @@ fn collect_obj0_chunks(data: &[u8]) -> Result<Obj0Chunks, String> {
             b"DIWM" => c.mwid = parse_u32_array(payload),
             b"FDDM" => c.mddf = Some(payload.to_vec()),
             b"FDOM" => c.modf = Some(payload.to_vec()),
+            b"RDWM" => c.mwdr = payload.to_vec(),
+            b"SDWM" => c.mwds = payload.to_vec(),
             b"KNCM" => c.mcnk_chunks.push(payload.to_vec()),
             _ => {}
         }

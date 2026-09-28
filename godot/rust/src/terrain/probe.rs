@@ -78,8 +78,10 @@ impl INode3D for WowWmoPlacementProbe {
             return;
         }
         loaded.global.sync(&mut parent, &loaded.terrain);
-        if let Some((wmo, node, doodads)) = loaded.global.take_doodads() {
-            loaded.objects.queue_wmo_doodads(wmo, &node, doodads, None);
+        if let Some(wmo) = loaded.global.take_spawned() {
+            loaded
+                .objects
+                .adopt_wmo(wmo.unique_id, &wmo.node, wmo.doodads, wmo.culled);
         }
         loaded
             .objects
