@@ -141,7 +141,6 @@ pub(crate) fn blit_section(
     layer: &TextureLayer,
 ) {
     let (scaled, sw, sh) = scale_to(tex, tex_w, tex_h, section.width, section.height);
-    let use_src_alpha = uses_source_alpha(layer.blend_mode);
     for row in 0..sh.min(section.height) {
         for col in 0..sw.min(section.width) {
             let si = ((row * sw + col) * 4) as usize;
@@ -151,7 +150,7 @@ pub(crate) fn blit_section(
             if di + 3 >= pixels.len() || si + 3 >= scaled.len() {
                 continue;
             }
-            blend_pixel(pixels, di, &scaled, si, use_src_alpha);
+            blend_pixel(pixels, di, &scaled, si, layer.blend_mode);
         }
     }
 }
@@ -170,7 +169,6 @@ pub(crate) fn blit_scaled(input: BlitScaledInput<'_>) {
         target_h,
         layer,
     } = input;
-    let use_src_alpha = uses_source_alpha(layer.blend_mode);
     for row in 0..target_h.min(canvas_h - dy) {
         for col in 0..target_w.min(canvas_w - dx) {
             let sx = (col * tex_w / target_w).min(tex_w - 1);
@@ -182,21 +180,48 @@ pub(crate) fn blit_scaled(input: BlitScaledInput<'_>) {
             if di + 3 >= pixels.len() || si + 3 >= tex.len() {
                 continue;
             }
-            blend_pixel(pixels, di, tex, si, use_src_alpha);
+            blend_pixel(pixels, di, tex, si, layer.blend_mode);
         }
     }
 }
 
+/// 1 blit, 9 straight alpha and 15 inferred alpha all weight by source alpha.
 fn uses_source_alpha(blend_mode: u32) -> bool {
-    matches!(blend_mode, 1 | 15)
+    matches!(blend_mode, 1 | 9 | 15)
 }
 
-pub(crate) fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, use_src_alpha: bool) {
+/// ChrModelTextureLayer.BlendMode values that tint the pixels already composited
+/// below them (WMVx `CharacterTextureBuilder::BlendMode`: 4 multiply, 6 overlay,
+/// 7 screen). Authored HD skin-color layers (target 30) use overlay.
+fn is_tint_blend(blend_mode: u32) -> bool {
+    matches!(blend_mode, 4 | 6 | 7)
+}
+
+fn tint_channel(blend_mode: u32, src: u8, dst: u8) -> u16 {
+    let (s, d) = (u32::from(src), u32::from(dst));
+    let tinted = match blend_mode {
+        4 => s * d / 255,
+        6 if d < 128 => 2 * s * d / 255,
+        6 => 255 - 2 * (255 - s) * (255 - d) / 255,
+        _ => 255 - (255 - s) * (255 - d) / 255,
+    };
+    tinted as u16
+}
+
+pub(crate) fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, blend_mode: u32) {
     let alpha = src[si + 3] as u16;
     if alpha == 0 {
         return;
     }
-    if !use_src_alpha || alpha == 255 {
+    if is_tint_blend(blend_mode) {
+        for channel in 0..3 {
+            let tinted = tint_channel(blend_mode, src[si + channel], dst[di + channel]);
+            let base = dst[di + channel] as u16;
+            dst[di + channel] = ((alpha * tinted + (255 - alpha) * base) / 255) as u8;
+        }
+        return;
+    }
+    if !uses_source_alpha(blend_mode) || alpha == 255 {
         dst[di] = src[si];
         dst[di + 1] = src[si + 1];
         dst[di + 2] = src[si + 2];
