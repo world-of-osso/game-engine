@@ -60,6 +60,11 @@ pub mod menu_primitives;
 #[path = "../../../src/status_unit_resource_data.rs"]
 pub mod status;
 
+#[path = "../../../src/ui/screens/mirror_timer_component.rs"]
+pub mod mirror_timer_component;
+#[path = "../../../src/mirror_timer_data.rs"]
+pub mod mirror_timer_data;
+
 #[path = "../../../src/ui/ui_errors_data.rs"]
 pub mod ui_errors_data;
 #[path = "../../../src/ui/screens/ui_errors_frame_component.rs"]
