@@ -10,5 +10,5 @@ dev = []
 
 [dependencies]
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
-ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
 
