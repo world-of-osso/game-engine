@@ -244,9 +244,7 @@ fn spawn_target_textured(
         warn!("Failed to load target texture: {}", blp_path.display());
         return;
     };
-    if is_fully_opaque(&image) {
-        convert_opaque_image_to_alpha_mask(&mut image);
-    }
+    convert_opaque_image_to_alpha_mask(&mut image);
     image.sampler = clamp_linear_sampler();
     let texture = images.add(image);
     let tint = Color::linear_rgba(emissive.red, emissive.green, emissive.blue, 1.0);
@@ -276,23 +274,10 @@ fn spawn_target_textured(
     ));
 }
 
-fn is_fully_opaque(image: &Image) -> bool {
-    let Some(data) = image.data.as_ref() else {
-        return false;
-    };
-    data.iter().skip(3).step_by(4).all(|&a| a == 255)
-}
-
+/// Opaque ring textures draw their intensity as alpha (`opaque_to_alpha_mask`).
 pub(super) fn convert_opaque_image_to_alpha_mask(image: &mut Image) {
-    let Some(data) = image.data.as_mut() else {
-        return;
-    };
-    for rgba in data.chunks_exact_mut(4) {
-        let intensity = rgba[0].max(rgba[1]).max(rgba[2]);
-        rgba[0] = intensity;
-        rgba[1] = intensity;
-        rgba[2] = intensity;
-        rgba[3] = intensity;
+    if let Some(data) = image.data.as_mut() {
+        game_engine::target_selection_data::opaque_to_alpha_mask(data);
     }
 }
 

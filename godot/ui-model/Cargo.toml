@@ -9,6 +9,7 @@ rust-version = "1.95"
 dev = []
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
 
