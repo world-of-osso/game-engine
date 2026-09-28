@@ -211,6 +211,7 @@ mod tests {
         app.insert_resource(InWorldSceneStage::Npcs);
         app.init_resource::<LocalAliveState>();
         app.init_resource::<GameTime>();
+        app.init_resource::<game_engine::outfit_data::OutfitData>();
         app.init_resource::<VisibilityChangeCount>();
         register_npc_visibility_policy_systems(&mut app);
         app.add_systems(Last, count_visibility_changes);
@@ -224,6 +225,7 @@ mod tests {
         app.insert_resource(stage);
         app.init_resource::<LocalAliveState>();
         app.init_resource::<GameTime>();
+        app.init_resource::<game_engine::outfit_data::OutfitData>();
 
         if sync_alive_state {
             app.add_systems(Update, sync_local_alive_state);
