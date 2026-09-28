@@ -32,6 +32,10 @@ Independent verification reran native `cargo fmt --check` and `cargo check -p ga
 
 Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
+## [2026-09-28] investigation | NPC stance and gear
+
+Created [[npc-stance-gear]]; updated [[m2-format]] (external `.anim` sequences). NPCs now hold their `UnitPose` (stand state or emote state), render virtual items drawn or sheathed and their display's authored armor; the replication mirror carries `UnitPose`; HumanMale HD Sit/Sleep read their `.anim` files.
+
 ## [2026-09-28] investigation | Godot texture VRAM
 
 Created [[godot-texture-vram]]. The Godot client built a new RGBA8 `ImageTexture` per M2 material per placement and per WMO build. `224eb4f8` adds `core::blp::decode_gpu` (DXT kept with mips); `0f36a6cb` shares one texture per FDID/composite. In-world VRAM: 4,994 MiB and rising before, 1,029 MiB settled after.

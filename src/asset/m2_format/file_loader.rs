@@ -1,21 +1,46 @@
 use std::path::{Path, PathBuf};
 
 use super::pure::parser::{
-    M2Chunks, SkelData, SkinData, parse_chunks, parse_skel_data, parse_skin_full,
+    M2Chunks, SkelData, SkinData, load_anim_track_chunks, parse_chunks, parse_skel_data_with_anims,
+    parse_skin_full,
 };
 
 fn load_skel_data(skel_path: &Path) -> Result<SkelData, String> {
     let data = std::fs::read(skel_path).map_err(|e| format!("Failed to read .skel file: {e}"))?;
-    parse_skel_data(&data)
+    parse_skel_data_with_anims(&data, |fdid| load_anim_file(skel_path, fdid))
 }
 
-fn load_anim_from_md20(md20: &[u8]) -> SkelData {
+fn load_anim_from_md20(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
+    let md20 = chunks.md20;
+    let sequences = super::m2_anim::parse_sequences(md20).unwrap_or_default();
+    let anim_files = load_anim_track_chunks(&sequences, &chunks.afid, b"AFM2", |fdid| {
+        load_anim_file(path, fdid)
+    });
+    let sources = super::m2_anim::sequence_data_sources(&sequences, &anim_files);
+    let bone_tracks =
+        super::m2_anim::parse_md20_bone_animations(md20, &sources).unwrap_or_default();
     SkelData {
         bones: super::m2_anim::parse_bones(md20).unwrap_or_default(),
-        sequences: super::m2_anim::parse_sequences(md20).unwrap_or_default(),
-        bone_tracks: super::m2_anim::parse_bone_animations(md20).unwrap_or_default(),
+        sequences,
+        bone_tracks,
         global_sequences: super::m2_anim::parse_global_sequences(md20).unwrap_or_default(),
     }
+}
+
+/// An external sequence's `.anim` file (`AFID` FDID), cached beside the model.
+fn load_anim_file(model_path: &Path, fdid: u32) -> Option<Vec<u8>> {
+    let anim_path = model_path.with_file_name(format!("{fdid}.anim"));
+    let loaded = super::super::asset_cache::file_at_path(fdid, &anim_path)
+        .ok_or_else(|| format!("not extractable to {}", anim_path.display()))
+        .and_then(|path| std::fs::read(&path).map_err(|error| error.to_string()));
+    loaded
+        .map_err(|error| {
+            eprintln!(
+                "M2 {}: .anim FDID {fdid}: {error}; its sequence has no keyframes",
+                model_path.display()
+            )
+        })
+        .ok()
 }
 
 pub(crate) fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
@@ -28,7 +53,7 @@ pub(crate) fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
             Err(e) => eprintln!("Failed to load .skel: {e}"),
         }
     }
-    load_anim_from_md20(chunks.md20)
+    load_anim_from_md20(path, chunks)
 }
 
 pub(crate) fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {

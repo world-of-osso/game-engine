@@ -38,6 +38,8 @@ use crate::equipment_appearance::equipment_appearance_data::{
 pub struct Equipment {
     pub slots: HashMap<EquipmentSlot, PathBuf>,
     pub slot_skin_fdids: HashMap<EquipmentSlot, [u32; 3]>,
+    /// Attachment lookup IDs replacing the slot's default (a creature's sheathed weapons).
+    pub slot_attachments: HashMap<EquipmentSlot, u32>,
 }
 
 /// Resolved attachment points from the character model.
@@ -58,6 +60,7 @@ struct RenderedItem {
     entity: Entity,
     path: PathBuf,
     skin_fdids: [u32; 3],
+    attachment: Option<u32>,
 }
 
 /// Tracks currently-rendered equipment for each character entity.
@@ -178,7 +181,8 @@ fn rendered_equipment_matches(
                 .get(slot)
                 .copied()
                 .unwrap_or([0; 3]);
-            !equipment_slot_needs_respawn(rendered, items, *slot, path, skins)
+            let attachment = equipment.slot_attachments.get(slot).copied();
+            !equipment_slot_needs_respawn(rendered, items, *slot, path, skins, attachment)
         })
 }
 
@@ -362,6 +366,7 @@ fn sync_desired_equipment_slot<'w, 's>(
             transforms,
             warned,
             owner,
+            attachment: equipment.slot_attachments.get(&slot).copied(),
         },
         slot,
         path,
@@ -369,16 +374,23 @@ fn sync_desired_equipment_slot<'w, 's>(
     ) else {
         return;
     };
+    let attachment = equipment.slot_attachments.get(&slot).copied();
     rendered
         .slots
-        .insert(slot, rendered_item(spawned, path, skin_fdids));
+        .insert(slot, rendered_item(spawned, path, skin_fdids, attachment));
 }
 
-fn rendered_item(entity: Entity, path: &Path, skin_fdids: [u32; 3]) -> RenderedItem {
+fn rendered_item(
+    entity: Entity,
+    path: &Path,
+    skin_fdids: [u32; 3],
+    attachment: Option<u32>,
+) -> RenderedItem {
     RenderedItem {
         entity,
         path: path.to_path_buf(),
         skin_fdids,
+        attachment,
     }
 }
 
@@ -408,7 +420,8 @@ fn desired_equipment_skin_fdids(
         .get(&slot)
         .copied()
         .unwrap_or([0, 0, 0]);
-    equipment_slot_needs_respawn(rendered, existing_items, slot, path, skin_fdids)
+    let attachment = equipment.slot_attachments.get(&slot).copied();
+    equipment_slot_needs_respawn(rendered, existing_items, slot, path, skin_fdids, attachment)
         .then_some(skin_fdids)
 }
 
@@ -418,11 +431,13 @@ fn equipment_slot_needs_respawn(
     slot: EquipmentSlot,
     path: &Path,
     skin_fdids: [u32; 3],
+    attachment: Option<u32>,
 ) -> bool {
     match rendered.slots.get(&slot) {
         Some(item) => {
             item.path != path
                 || item.skin_fdids != skin_fdids
+                || item.attachment != attachment
                 || existing_items.get(item.entity).is_err()
         }
         None => true,
@@ -460,6 +475,7 @@ struct EquipmentSpawnContext<'a, 'w, 's> {
     transforms: &'a EquipmentTransforms,
     warned: &'a mut HashSet<String>,
     owner: Entity,
+    attachment: Option<u32>,
 }
 
 fn spawn_equipment_slot(
@@ -492,7 +508,9 @@ fn resolve_equipment_parent(
         ));
     }
 
-    let att_id = model_attachment_id(slot, m2_path);
+    let att_id = ctx
+        .attachment
+        .unwrap_or_else(|| model_attachment_id(slot, m2_path));
     let Some(&(bone_idx, base_offset)) = ctx.attach_points.points.get(&att_id) else {
         warn_once(
             ctx.warned,

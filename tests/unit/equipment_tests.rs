@@ -202,6 +202,7 @@ pub(super) fn spawn_head_equipment_owner(
             Equipment {
                 slots: HashMap::from([(EquipmentSlot::Head, helm_path.to_path_buf())]),
                 slot_skin_fdids: HashMap::from([(EquipmentSlot::Head, skin_fdids)]),
+                ..Default::default()
             },
             AttachmentPoints {
                 points: HashMap::from([(
