@@ -7,10 +7,12 @@ use std::{
 };
 
 use game_engine_core::{
-    customization_data::CustomizationDb, npc_appearance_assets::load_customization_db,
+    customization_data::{CustomizationDb, OptionType},
+    npc_appearance_assets::load_customization_db,
 };
 use game_engine_ui_model::char_create_component::{CharCreateAction, CustomizationOptionUi};
 use game_engine_ui_model::char_create_data::race_can_be_class;
+use shared::components::CharacterAppearance;
 
 use super::{CharCreateState, build_ui_state, reduce};
 
@@ -322,4 +324,117 @@ fn state_with_race(race: u8, sex: u8, class: u8) -> CharCreateState {
         selected_class: class,
         ..CharCreateState::default()
     }
+}
+
+fn appearance(
+    sex: u8,
+    [skin, face, eye, hair_style, hair_color, facial]: [u8; 6],
+) -> CharacterAppearance {
+    CharacterAppearance {
+        sex,
+        skin_color: skin,
+        face,
+        eye_color: eye,
+        hair_style,
+        hair_color,
+        facial_style: facial,
+        customization_choices: Vec::new(),
+    }
+}
+
+fn core_choice_ids(
+    race: u8,
+    class: u8,
+    appearance: &CharacterAppearance,
+) -> Vec<(OptionType, u32)> {
+    [
+        OptionType::SkinColor,
+        OptionType::Face,
+        OptionType::EyeColor,
+        OptionType::HairStyle,
+        OptionType::HairColor,
+        OptionType::FacialHair,
+    ]
+    .into_iter()
+    .filter_map(|kind| {
+        let index = match kind {
+            OptionType::SkinColor => appearance.skin_color,
+            OptionType::Face => appearance.face,
+            OptionType::EyeColor => appearance.eye_color,
+            OptionType::HairStyle => appearance.hair_style,
+            OptionType::HairColor => appearance.hair_color,
+            _ => appearance.facial_style,
+        };
+        db().get_choice_for_class(race, appearance.sex, class, kind, index)
+            .map(|choice| (kind, choice.id))
+    })
+    .collect()
+}
+
+/// Dev-server roster appearances (account admin: Theron, Elara; fb_camera: Fbcamera, all
+/// Human Warriors) keep resolving to the choice IDs they had before requirement filtering:
+/// positions in the authored (OrderIndex, ID) choice list of each core option.
+#[test]
+fn saved_character_appearances_resolve_to_their_original_choice_ids() {
+    use OptionType::*;
+    let theron = appearance(0, [0, 1, 0, 1, 2, 1]);
+    assert_eq!(
+        core_choice_ids(HUMAN, WARRIOR, &theron),
+        [
+            (SkinColor, 1),
+            (Face, 21),
+            (EyeColor, 4126),
+            (HairStyle, 45),
+            (HairColor, 63),
+            (FacialHair, 77)
+        ]
+    );
+    let elara = appearance(1, [2, 3, 0, 2, 4, 0]);
+    assert_eq!(
+        core_choice_ids(HUMAN, WARRIOR, &elara),
+        [
+            (SkinColor, 87),
+            (Face, 105),
+            (EyeColor, 4150),
+            (HairStyle, 134),
+            (HairColor, 160)
+        ]
+    );
+    let fbcamera = appearance(0, [0; 6]);
+    assert_eq!(
+        core_choice_ids(HUMAN, WARRIOR, &fbcamera),
+        [
+            (SkinColor, 1),
+            (Face, 20),
+            (EyeColor, 4126),
+            (HairStyle, 44),
+            (HairColor, 61),
+            (FacialHair, 76)
+        ]
+    );
+}
+
+/// Hidden choices keep their stored positions: Human male skin index 22 is still choice
+/// 4978 and index 12 still the Death Knight skin 13, which a warrior is not offered.
+#[test]
+fn filtering_changes_offers_but_not_stored_skin_indices() {
+    let mut warrior = state(HUMAN, 0, WARRIOR);
+    reduce(
+        &mut warrior,
+        CharCreateAction::SelectOptionChoice(HUMAN_MALE_SKIN_COLOR, 4978),
+        db(),
+        Err("no names"),
+        "",
+        5,
+    );
+    assert_eq!(warrior.appearance.skin_color, 22);
+    let death_knight_skin = db()
+        .get_choice_for_class(HUMAN, 0, WARRIOR, OptionType::SkinColor, 12)
+        .unwrap();
+    assert_eq!(death_knight_skin.id, 13);
+    // Night Elf/Blood Elf faces keep the original per-class split at their old indices.
+    let night_elf_warrior_face = db()
+        .get_choice_for_class(4, 0, WARRIOR, OptionType::Face, 0)
+        .unwrap();
+    assert_eq!(night_elf_warrior_face.requirement_id, 142);
 }

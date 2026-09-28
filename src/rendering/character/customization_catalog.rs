@@ -377,8 +377,9 @@ impl CustomizationDb {
             .find(|option| option.id == option_id)
     }
 
-    /// Choices a new `class` character of this race may select, in authored order.
-    /// Core selector indices address this list.
+    /// Stored-index space: the choices a core selector index addresses, in authored order.
+    /// Persisted `CharacterAppearance` indices mean positions in this list, so it never
+    /// depends on requirement data; use `offered_choices` for what creation may select.
     pub fn choices_for_option(
         &self,
         race: u8,
@@ -387,28 +388,35 @@ impl CustomizationDb {
         option_id: u32,
     ) -> Vec<&CustomizationChoice> {
         self.option_by_id(race, sex, option_id)
-            .map(|option| self.available_choices(race, sex, class, option).collect())
+            .map(|option| stored_choices(race, class, option).collect())
             .unwrap_or_default()
     }
 
-    fn available_choices<'a>(
-        &'a self,
+    /// Choices a new `class` character may select: requirement-allowed members of the
+    /// stored list whose required-choice groups can be met.
+    pub fn offered_choices(
+        &self,
         race: u8,
         sex: u8,
         class: u8,
-        option: &'a CustomizationOption,
-    ) -> impl Iterator<Item = &'a CustomizationChoice> {
-        let option_available = self.option_available(race, class, option);
-        option.choices.iter().filter(move |choice| {
-            option_available
-                && self.requirement_allows(choice.requirement_id, race, class)
-                && self.required_choices(choice).iter().all(|group| {
-                    group
-                        .choice_ids
-                        .iter()
-                        .any(|&id| self.choice_id_available(race, sex, class, group.option_id, id))
-                })
-        })
+        option_id: u32,
+    ) -> Vec<&CustomizationChoice> {
+        let Some(option) = self.option_by_id(race, sex, option_id) else {
+            return Vec::new();
+        };
+        if !self.requirement_allows(option.requirement_id, race, class) {
+            return Vec::new();
+        }
+        stored_choices(race, class, option)
+            .filter(|choice| {
+                self.requirement_allows(choice.requirement_id, race, class)
+                    && self.required_choices(choice).iter().all(|group| {
+                        group.choice_ids.iter().any(|&id| {
+                            self.choice_id_available(race, sex, class, group.option_id, id)
+                        })
+                    })
+            })
+            .collect()
     }
 
     fn option_available(&self, race: u8, class: u8, option: &CustomizationOption) -> bool {
@@ -491,11 +499,7 @@ impl CustomizationDb {
 
     pub fn choice_count_for_class(&self, race: u8, sex: u8, class: u8, opt_type: OptionType) -> u8 {
         self.option_for_type(race, sex, opt_type)
-            .map(|option| {
-                self.available_choices(race, sex, class, option)
-                    .count()
-                    .min(255) as u8
-            })
+            .map(|option| stored_choices(race, class, option).count().min(255) as u8)
             .unwrap_or(0)
     }
 
@@ -520,8 +524,7 @@ impl CustomizationDb {
         index: u8,
     ) -> Option<&CustomizationChoice> {
         let option = self.option_for_type(race, sex, opt_type)?;
-        self.available_choices(race, sex, class, option)
-            .nth(index as usize)
+        stored_choices(race, class, option).nth(index as usize)
     }
 
     pub fn choice_name(&self, race: u8, sex: u8, opt_type: OptionType, index: u8) -> Option<&str> {
@@ -566,6 +569,23 @@ impl CustomizationDb {
         let model_id = self.chr_model_id(race, sex)?;
         self.hair_scalp_fallback_by_model.get(&model_id).copied()
     }
+}
+
+/// Choices the original class filter showed keep their persisted indices; choices it hid
+/// (Night Elf/Blood Elf faces of other classes) follow them, so old indices stay stable
+/// while every authored choice gets an index. Whole-option class gates still apply.
+fn stored_choices<'a>(
+    race: u8,
+    class: u8,
+    option: &'a CustomizationOption,
+) -> impl Iterator<Item = &'a CustomizationChoice> {
+    let option_visible = support::option_visible_for_class(race, class, option.option_type);
+    let legacy = move |choice: &&CustomizationChoice| {
+        support::legacy_choice_visible(race, class, option.option_type, choice)
+    };
+    let visible = option.choices.iter().filter(legacy);
+    let hidden = option.choices.iter().filter(move |choice| !legacy(choice));
+    visible.chain(hidden).filter(move |_| option_visible)
 }
 
 /// Group required choice IDs by their option, keeping authored option and choice order.

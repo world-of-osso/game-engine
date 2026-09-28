@@ -636,7 +636,7 @@ mod swatch_tests {
                     .map(|option| option.id)
                     .min()
                     .unwrap();
-                for skin in db.choices_for_option(race, sex, class, skin_option) {
+                for skin in db.offered_choices(race, sex, class, skin_option) {
                     if skin.swatch_colors[0] == 0 {
                         continue;
                     }

@@ -14,7 +14,7 @@ pub fn offered_options<'a>(
         .unwrap_or(&[])
         .iter()
         .filter(|option| {
-            !db.choices_for_option(
+            !db.offered_choices(
                 state.selected_race,
                 state.selected_sex,
                 state.selected_class,
@@ -56,7 +56,7 @@ pub fn build_ui_state(state: &CharCreateState, db: &CustomizationDb) -> CharCrea
         .iter()
         .filter(|option| option.category_id == selected_category)
         .filter(|option| {
-            db.choices_for_option(
+            db.offered_choices(
                 state.selected_race,
                 state.selected_sex,
                 state.selected_class,
@@ -107,7 +107,7 @@ fn build_option(
     db: &CustomizationDb,
     option: &CustomizationOption,
 ) -> CustomizationOptionUi {
-    let choices = db.choices_for_option(
+    let choices = db.offered_choices(
         state.selected_race,
         state.selected_sex,
         state.selected_class,
