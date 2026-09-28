@@ -4,7 +4,8 @@ extends SceneTree
 # placed by azeroth_30_48's `_obj0` MODF places MODD 1112 (instanceportal.m2, FDID
 # 197007) in its Jail01 doorway. The in-world object path must spawn it as a child of
 # the WMO node at area trigger 101, WoW (-8761.85, 848.56, 87.81), engine
-# (x, z, -y), with its MODD scale, within the in-world per-frame object budget.
+# (x, z, -y), with its MODD scale, within the in-world per-frame object budget. A
+# WMO-only map's global WMO places its doodads the same way.
 
 const MAGIC_DISTRICT := 321999
 const TRIGGER := Vector3(-8761.85, 87.81, -848.56)
@@ -77,4 +78,37 @@ func run() -> void:
 		fail("Expected all 1177 default-set doodads without failures; got %d, %d failures" % [doodads.size(), state.failures])
 		return
 	print("PASS: sw_magicdistrict places MODD 1112 instanceportal at area trigger 101 within the object budget")
+	probe.free()
+	run_global()
+
+# The Stockade (`stormwindjail`) is a WMO-only map: its WDT global WMO (FDID 108631)
+# places all 748 MODD entries of `Set_$DefaultGlobal`, each referenced by a group MODR.
+func run_global() -> void:
+	var probe = ClassDB.instantiate("WowWmoPlacementProbe")
+	root.add_child(probe)
+	var error: String = probe.load("stormwindjail", 32, 32, 0)
+	if error != "":
+		fail("Load failed: " + error)
+		return
+	var deadline := Time.get_ticks_msec() + 300000
+	var state: Dictionary = probe.objects_state()
+	var wmo: Node3D = null
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		state = probe.objects_state()
+		if state.error != "":
+			fail("Probe failed: " + str(state))
+			return
+		wmo = probe.find_child("GlobalWmo108631", true, false) as Node3D
+		if wmo != null and state.pending == 0:
+			break
+	if wmo == null or state.pending != 0:
+		fail("Stockade global WMO did not finish spawning: " + str(state))
+		return
+	var doodads := wmo.find_children("WmoDoodad*", "", false, false)
+	print("stormwindjail: doodads=%d failures=%d" % [doodads.size(), state.failures])
+	if doodads.size() != 748 or state.failures != 0:
+		fail("Expected all 748 Stockade doodads without failures; got %d, %d failures" % [doodads.size(), state.failures])
+		return
+	print("PASS: the Stockade global WMO places its 748 default-set doodads")
 	quit(0)

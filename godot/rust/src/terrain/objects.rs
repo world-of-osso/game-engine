@@ -316,7 +316,12 @@ impl TerrainObjects {
     }
 
     /// Doodads spawn later, one per pending entry, so the object budget covers them.
-    fn queue_wmo_doodads(&mut self, wmo: u32, node: &Gd<Node3D>, doodads: Vec<wmo::WmoDoodad>) {
+    pub(crate) fn queue_wmo_doodads(
+        &mut self,
+        wmo: u32,
+        node: &Gd<Node3D>,
+        doodads: Vec<wmo::WmoDoodad>,
+    ) {
         if doodads.is_empty() {
             return;
         }
@@ -361,14 +366,7 @@ impl TerrainObjects {
         tile: Tile,
     ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<wmo::WmoDoodad>), String> {
         let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
-        let doodads = wmo::placed_doodads(
-            &asset.root,
-            asset
-                .groups
-                .iter()
-                .map(|group| group.group.geometry.doodad_refs.as_slice()),
-            placement.doodad_set,
-        );
+        let doodads = asset.doodads(placement.doodad_set);
         let mut wmo_node = crate::wmo::scene::build_wmo_node(
             &asset,
             &self.resolver,

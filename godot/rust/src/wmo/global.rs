@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use game_engine_core::loading_readiness::GlobalWmoState;
+use game_engine_core::{loading_readiness::GlobalWmoState, wmo::WmoDoodad};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
@@ -16,7 +16,11 @@ pub(crate) struct GlobalWmoScene {
     data_root: PathBuf,
     state: GlobalWmoState,
     light: Option<TerrainLight>,
+    doodads: Option<SpawnedDoodads>,
 }
+
+/// The spawned global WMO's unique ID and node, and the doodads it places.
+pub(crate) type SpawnedDoodads = (u32, Gd<Node3D>, Vec<WmoDoodad>);
 
 impl GlobalWmoScene {
     pub fn new(data_root: PathBuf, cache_root: &Path) -> Self {
@@ -26,6 +30,7 @@ impl GlobalWmoScene {
             data_root,
             state: GlobalWmoState::None,
             light: None,
+            doodads: None,
         }
     }
 
@@ -70,6 +75,8 @@ impl GlobalWmoScene {
                 root.set_name("WorldWmos");
                 root.add_child(&node);
                 parent.add_child(&root);
+                let doodads = placed.asset.doodads(placed.placement.doodad_set);
+                self.doodads = Some((placed.placement.unique_id, node, doodads));
                 self.root = Some(root);
                 GlobalWmoState::Spawned
             }
@@ -79,6 +86,11 @@ impl GlobalWmoScene {
             }
         };
         self.state
+    }
+
+    /// The doodads of a just-spawned global WMO, for `TerrainObjects` to spawn in budget.
+    pub fn take_doodads(&mut self) -> Option<SpawnedDoodads> {
+        self.doodads.take()
     }
 
     pub fn update_lighting(&mut self, light: &TerrainLight) {
@@ -94,5 +106,6 @@ impl GlobalWmoScene {
         }
         self.state = GlobalWmoState::None;
         self.light = None;
+        self.doodads = None;
     }
 }

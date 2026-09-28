@@ -908,6 +908,9 @@ impl GameClient {
         }
         let mut parent = self.to_gd().upcast::<Node3D>();
         let global_wmo = self.global_wmo.sync(&mut parent, &self.terrain);
+        if let Some((wmo, node, doodads)) = self.global_wmo.take_doodads() {
+            self.world_objects.queue_wmo_doodads(wmo, &node, doodads);
+        }
         let state = self.terrain.state();
         let readiness = loading::evaluate_native_loading(
             position,

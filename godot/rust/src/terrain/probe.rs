@@ -1,5 +1,6 @@
-//! Fixture entry: the placements of one WMO root on one ADT tile, streamed and spawned
-//! by the in-world `TerrainObjects` path within the in-world per-frame object budget.
+//! Fixture entry: the placements of one WMO root on one ADT tile, or a WMO-only map's
+//! global WMO, streamed and spawned by the in-world `TerrainObjects` and `GlobalWmoScene`
+//! paths within the in-world per-frame object budget.
 
 use std::path::PathBuf;
 
@@ -13,6 +14,7 @@ use super::{
     objects::{ObjectSelection, TerrainObjects},
     streaming::StreamedTerrain,
 };
+use crate::wmo::global::GlobalWmoScene;
 
 type Tile = (u32, u32);
 
@@ -43,6 +45,7 @@ struct Loaded {
     terrain: StreamedTerrain,
     objects: TerrainObjects,
     selection: WmoRootSelection,
+    global: GlobalWmoScene,
 }
 
 #[derive(GodotClass)]
@@ -72,6 +75,10 @@ impl INode3D for WowWmoPlacementProbe {
             self.error = error;
             return;
         }
+        loaded.global.sync(&mut parent, &loaded.terrain);
+        if let Some((wmo, node, doodads)) = loaded.global.take_doodads() {
+            loaded.objects.queue_wmo_doodads(wmo, &node, doodads);
+        }
         loaded
             .objects
             .sync(&mut parent, &loaded.terrain, &loaded.selection);
@@ -80,7 +87,8 @@ impl INode3D for WowWmoPlacementProbe {
 
 #[godot_api]
 impl WowWmoPlacementProbe {
-    /// Stream `map` tile (`tile_y`, `tile_x`) and spawn its placements of WMO root `wmo_fdid`.
+    /// Stream `map` tile (`tile_y`, `tile_x`) and spawn its placements of WMO root
+    /// `wmo_fdid`; a WMO-only map spawns its global WMO instead.
     #[func]
     fn load(&mut self, map: GString, tile_y: u32, tile_x: u32, wmo_fdid: u32) -> GString {
         let settings = ProjectSettings::singleton();
@@ -97,13 +105,14 @@ impl WowWmoPlacementProbe {
             objects: TerrainObjects::new(
                 "WorldObjects",
                 crate::WORLD_OBJECT_BUDGET,
-                data_root,
-                cache_root,
+                data_root.clone(),
+                cache_root.clone(),
             ),
             selection: WmoRootSelection {
                 tile,
                 fdid: wmo_fdid,
             },
+            global: GlobalWmoScene::new(data_root, &cache_root),
         });
         GString::new()
     }
