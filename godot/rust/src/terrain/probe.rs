@@ -117,6 +117,14 @@ impl WowWmoPlacementProbe {
         GString::new()
     }
 
+    /// The in-world per-frame scenery-distance cull from `camera`.
+    #[func]
+    fn cull_doodads(&mut self, camera: Vector3) {
+        if let Some(loaded) = self.loaded.as_mut() {
+            loaded.objects.cull_doodads(camera);
+        }
+    }
+
     #[func]
     fn objects_state(&self) -> VarDictionary {
         let mut state = VarDictionary::new();

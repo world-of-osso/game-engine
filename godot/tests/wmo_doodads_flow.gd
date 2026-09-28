@@ -77,6 +77,8 @@ func run() -> void:
 	if doodads.size() != 1177 or state.failures != 0:
 		fail("Expected all 1177 default-set doodads without failures; got %d, %d failures" % [doodads.size(), state.failures])
 		return
+	if not assert_scenery_distance(probe, doodads, portal):
+		return
 	print("PASS: sw_magicdistrict places MODD 1112 instanceportal at area trigger 101 within the object budget")
 	probe.free()
 	run_global()
@@ -112,3 +114,29 @@ func run_global() -> void:
 		return
 	print("PASS: the Stockade global WMO places its 748 default-set doodads")
 	quit(0)
+
+# Retail gates WMO doodads by the ADT doodad scenery distance: from a camera at the
+# trigger the portal and every doodad within 29 yd are drawn and animate; the far
+# side of the district is hidden and does not animate.
+func assert_scenery_distance(probe: Node, doodads: Array, portal: Node3D) -> bool:
+	var eye := TRIGGER + Vector3(0.0, 2.0, 0.0)
+	probe.cull_doodads(eye)
+	var shown := 0
+	var hidden := 0
+	for doodad in doodads:
+		var animation = doodad.get_node_or_null("M2Animation")
+		if doodad.visible:
+			shown += 1
+		else:
+			hidden += 1
+			if eye.distance_to(doodad.global_position) <= 29.0:
+				fail("WMO doodad %s hidden %.1f yd from the camera" % [doodad.name, eye.distance_to(doodad.global_position)])
+				return false
+			if animation != null and animation.is_processing():
+				fail("Hidden WMO doodad %s still animates" % doodad.name)
+				return false
+	print("scenery distance: shown=%d hidden=%d" % [shown, hidden])
+	if not portal.visible or shown == 0 or hidden == 0:
+		fail("Scenery distance must draw the portal and near doodads and hide far ones: portal=%s shown=%d hidden=%d" % [portal.visible, shown, hidden])
+		return false
+	return true
