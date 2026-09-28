@@ -41,6 +41,7 @@ fn parses_class_and_icon_by_item_id() {
         (7, 5, 132889)
     );
     assert_eq!(catalog.get(25).map(|item| item.class_id), Some(2));
+    assert_eq!(catalog.get(25).map(|item| item.sheathe_type), Some(3));
     assert_eq!(catalog.subclass_name(2, 7), Some("Sword"));
     assert_eq!(catalog.subclass_name(2, 8), None);
     assert_eq!(catalog.get(9999), None);

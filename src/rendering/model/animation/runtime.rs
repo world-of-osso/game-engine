@@ -102,6 +102,10 @@ fn movement_or_turn_anim_id(
     direction_to_anim_id(movement.direction, movement.running, movement.swimming)
 }
 
+fn movement_is_idle(movement: &MovementState) -> bool {
+    movement.direction == MoveDirection::None && !movement.jumping && !movement.swimming
+}
+
 fn normalize_yaw_delta(delta: f32) -> f32 {
     let two_pi = std::f32::consts::TAU;
     ((delta + std::f32::consts::PI).rem_euclid(two_pi)) - std::f32::consts::PI
@@ -213,11 +217,12 @@ pub(crate) fn switch_animation(
             Option<&TurnInPlaceState>,
             &M2AnimData,
             Option<&EmoteAnimState>,
+            Option<&IdleAnim>,
         ),
         Without<super::death::DeathPose>,
     >,
 ) {
-    for (mut player, movement, turn_in_place, data, emote) in &mut players {
+    for (mut player, movement, turn_in_place, data, emote, idle) in &mut players {
         if emote.is_some() {
             continue;
         }
@@ -231,7 +236,10 @@ pub(crate) fn switch_animation(
             continue;
         }
 
-        let target_id = movement_or_turn_anim_id(movement, turn_in_place);
+        let target_id = match idle {
+            Some(idle) if movement_is_idle(movement) => idle.0,
+            _ => movement_or_turn_anim_id(movement, turn_in_place),
+        };
         if current_id == Some(target_id) {
             continue;
         }

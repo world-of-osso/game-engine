@@ -18,6 +18,8 @@ pub struct ItemCatalogEntry {
     pub class_id: u8,
     pub subclass_id: u8,
     pub icon_fdid: u32,
+    /// `SheatheType`: where the item sits when sheathed (0 none).
+    pub sheathe_type: u8,
     /// `Display_lang`.
     pub name: String,
     /// `OverallQualityID` (Retail `Enum.ItemQuality`, 0 Poor … 7 Heirloom).
@@ -163,14 +165,21 @@ pub(crate) fn parse_item_catalog(table: &CsvTable) -> Result<ItemCatalog, String
     let mut items = HashMap::new();
     csv_rows(
         table,
-        ["ID", "ClassID", "SubclassID", "IconFileDataID"],
-        |[id, class, subclass, icon]| {
+        [
+            "ID",
+            "ClassID",
+            "SubclassID",
+            "IconFileDataID",
+            "SheatheType",
+        ],
+        |[id, class, subclass, icon, sheathe]| {
             items.insert(
                 number(id, path)? as u32,
                 ItemCatalogEntry {
                     class_id: number(class, path)? as u8,
                     subclass_id: number(subclass, path)? as u8,
                     icon_fdid: number(icon, path)?.max(0) as u32,
+                    sheathe_type: number(sheathe, path)? as u8,
                     ..Default::default()
                 },
             );
