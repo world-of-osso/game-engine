@@ -26,6 +26,7 @@ pub mod npc_gear_data;
 mod particles;
 mod scene;
 mod startup;
+mod swim;
 mod targeting;
 mod terrain;
 mod ui;
