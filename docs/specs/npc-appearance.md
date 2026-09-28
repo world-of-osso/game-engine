@@ -22,8 +22,11 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## Implementation inventory
 
-- `src/game/creatures/npc_gear_data.rs` — pose → animation, `Emotes.csv`, virtual-item attachment policy, display → `NPCModelItemSlotDisplayInfo.csv` armor (`data/db2/12.1.0.69933`, exported from local CASC by `scripts/export_db2_csv.py`).
+- `src/game/creatures/npc_gear_data.rs` — engine-free `NpcGearData` (Bevy and Godot): pose → animation, `Emotes.csv`, virtual-item attachment policy with `Item.csv` `SheatheType`, display → `CreatureDisplayInfo.csv` Extra → `NPCModelItemSlotDisplayInfo.csv` armor (`data/db2/12.1.0.69933`, exported from local CASC by `scripts/export_db2_csv.py`).
 - `src/game/networking/npc_gear.rs` — `NpcGear`, `sync_npc_equipment` (model `Equipment` with `slot_attachments`), `sync_npc_pose_animation` (`IdleAnim`).
+- `godot/rust/src/world_models.rs` (Godot) — creature visual keyed by display and virtual items; resolves display armor through `NpcAppearances::prepare` (geosets, hidden groups, item models) and virtual items to models with their sheath attachment; `place_virtual_items` moves them on a sheath change.
+- `godot/rust/src/assets/creature.rs`, `assets/equipment.rs` (Godot) — attach armor and virtual item models (`attach_each_equipment`, a failed item is reported, others kept), `place_equipment` (reparent to the attachment, hidden for none).
+- `godot/rust/src/world.rs` (Godot) — `UnitSnapshot.unit_pose` → held animation; `creature_animation_id` precedence: death, Walk/Run while moving, else the pose's animation, else Stand; crossfaded via `update_locomotion`.
 - `src/rendering/character/npc_appearance.rs` — request processing, full-ID selection, compositing and isolated per-mesh application.
 - `src/game/networking/npc.rs` — request creation after M2 spawning and update-system registration.
 - `src/rendering/character/character_customization.rs` — shared geoset visibility and override rules.
@@ -40,8 +43,11 @@ Replicated NPCs render the appearance selected by their creature display data. R
 - `src/rendering/character/npc_appearance.rs::tests::npc_armor_geosets_switch_body_groups_but_not_equipment_models`; `equipment_appearance_data::tests::stockade_guard_armor_switches_glove_boot_and_tabard_geosets`.
 - `src/rendering/character/npc_appearance.rs::tests` — body pixels/error semantics, full-ID related selections, two-NPC material/geoset isolation and once-only updates; real-data Kul Tiran 140376, Worgen 31054 mixed forms, Dracthyr 110154 without hair; ignored `sweep_all_spawned_profiles` (`SWEEP_CACHE`, `SWEEP_IDS`) prepares every listed profile and reports failures.
 - `tests/unit/character_customization_tests.rs` — shared group-zero and exact geoset override semantics.
+- Godot: `godot/rust/src/animation/npc_pose_tests.rs` (HumanMale HD guard Ready1H → Walk → Ready1H continuous crossfades; criminal Sleep/Sit leave Stand), `world_models::tests` (display 2989 armor geosets; sword/shield/rifle placements per sheath), `godot/network/src/wire_tests.rs::native_bridge_receives_unit_pose_changes`, live `godot/tests/npc_pose_gear.gd` (Stockade map 34).
 
 ## Known gaps (current cycle)
+
+- [ ] Godot: a live sheath change (combat draw/sheathe) is covered by placement unit tests only; `npc_pose_gear.gd` observes spawn-time placement. Displays without a bake (1 of 7,825 in `npc_appearance.sqlite`) do not composite armor item textures in either client.
 
 - [ ] NPC composition currently binds texture types 1, 6 and 19 only. These are compositor bindings, not the three creature skin-replacement slots (M2 types 2/11, 12 and 13). Other layout texture types (Dracthyr 7–26, types 7/8/20 of other layouts) keep the M2 defaults or are blitted into the body atlas; not visually validated.
 

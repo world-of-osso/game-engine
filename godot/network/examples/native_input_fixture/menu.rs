@@ -125,6 +125,7 @@ fn advance_marker(app: &mut App, progress: &mut Progress, line: &str) -> Result<
         }
         (Stage::Released, "FIXTURE MENU_FINAL_QUIET") => {
             ensure_quiet(progress.quiet_at, "movement release")?;
+            ensure_release_reported(app, "movement release")?;
             progress.stage = Stage::FinalQuiet;
         }
         (Stage::FinalQuiet, "FIXTURE MENU_EXIT_READY") => {

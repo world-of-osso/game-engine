@@ -3,7 +3,7 @@
 use super::*;
 use lightyear::prelude::{LinkOf, NetworkTarget, Replicate, ReplicationSender, server};
 use shared::{
-    components::{CreatureMotion, MovementControl},
+    components::{CreatureMotion, MovementControl, SheathState, StandState, UnitPose},
     protocol::{InputChannel, PlayerInput},
 };
 use std::net::UdpSocket;
@@ -244,5 +244,114 @@ fn native_bridge_receives_creature_motion_changes() {
         unreachable!()
     };
     assert_eq!(stopped.position.unwrap().x, -9050.0);
+    bridge.stop().expect("join fixture worker");
+}
+
+/// The nameplate rule inputs reach the host with the unit: FactionTemplate, UnitFlags
+/// and the combat flag, including a combat drop that changes nothing else.
+#[test]
+fn native_bridge_receives_faction_flags_and_combat_status() {
+    use shared::components::{CombatStatus, UnitFactionTemplate, UnitFlags};
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8194).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    let entity = server
+        .world_mut()
+        .spawn((
+            Npc {
+                template_id: 38,
+                name: "Defias Thug".into(),
+            },
+            Position {
+                x: -8900.0,
+                y: 80.0,
+                z: -120.0,
+            },
+            UnitFactionTemplate(7),
+            UnitFlags(UnitFlags::NOT_SELECTABLE),
+            CombatStatus(true),
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let server_id = entity.to_bits();
+    let Event::UnitUpdated(fighting) = await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "unit in combat",
+        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && unit.in_combat),
+    ) else {
+        unreachable!()
+    };
+    assert_eq!(fighting.faction_template, Some(7));
+    assert_eq!(fighting.unit_flags, Some(UnitFlags::NOT_SELECTABLE));
+    server
+        .world_mut()
+        .entity_mut(entity)
+        .insert(CombatStatus(false));
+    let Event::UnitUpdated(calm) = await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "combat drop",
+        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && !unit.in_combat),
+    ) else {
+        unreachable!()
+    };
+    assert_eq!(calm.faction_template, Some(7));
+    bridge.stop().expect("join fixture worker");
+}
+
+/// A creature's replicated `UnitPose` reaches the host with its unit, and a pose-only
+/// change (Stockade guard drawing its sword, a criminal waking) arrives on its own.
+#[test]
+fn native_bridge_receives_unit_pose_changes() {
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8194).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    let asleep = UnitPose {
+        stand_state: StandState::Sleep,
+        sheath_state: SheathState::Unarmed,
+        emote_state: 0,
+    };
+    let entity = server
+        .world_mut()
+        .spawn((
+            Npc {
+                template_id: 46382,
+                name: "Petty Criminal".into(),
+            },
+            Position {
+                x: 100.0,
+                y: 5.0,
+                z: 1.0,
+            },
+            asleep,
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let server_id = entity.to_bits();
+    let mut await_pose = |server: &mut App, pose: UnitPose| {
+        await_bridge_event(server, &mut bridge, "replicated unit pose", |event| {
+            matches!(event, Event::UnitUpdated(unit)
+                if unit.server_id == server_id && unit.unit_pose == Some(pose))
+        })
+    };
+    let Event::UnitUpdated(sleeping) = await_pose(&mut server, asleep) else {
+        unreachable!()
+    };
+    assert_eq!(sleeping.npc.as_ref().unwrap().name, "Petty Criminal");
+    let ready = UnitPose {
+        stand_state: StandState::Stand,
+        sheath_state: SheathState::Melee,
+        emote_state: 333,
+    };
+    server.world_mut().entity_mut(entity).insert(ready);
+    let Event::UnitUpdated(standing) = await_pose(&mut server, ready) else {
+        unreachable!()
+    };
+    assert_eq!(standing.position.unwrap().x, 100.0);
     bridge.stop().expect("join fixture worker");
 }

@@ -33,13 +33,29 @@ pub(crate) struct PlayerMovement {
     previous_facing: Option<f32>,
     vertical_velocity: f32,
     grounded: bool,
+    /// Aura speed multiplier the server applies: its replicated `MovementSpeed` over the
+    /// speed it computes without auras for the newest input reported to it.
+    speed_modifier: f32,
+    /// The newest replicated `MovementSpeed` of the local player.
+    server_speed: Option<f32>,
+    /// `unmodified_speed` of the newest input reported to the server.
+    reported_speed: f32,
+    /// Whether the newest reported input moved or jumped, so a release reports one stop.
+    reported_motion: bool,
+}
+
+/// What an input reports moving: a direction, a jump, or a swim step that changed height.
+struct ReportedMotion {
+    direction: [f32; 3],
+    jumping: bool,
+    swimming_vertically: bool,
 }
 
 pub(crate) struct MovementFrame {
     /// World direction; its Y is the pitched part of mouse-steered swimming.
     pub direction: [f32; 3],
     pub speed: f32,
-    /// Ascend (+1) or descend (-1) while swimming.
+    /// Swim ascend (+) or descend (-) speed: `SWIM_SPEED` × the server's aura modifier.
     pub vertical: f32,
 }
 
@@ -57,6 +73,11 @@ impl Default for PlayerMovement {
             previous_facing: None,
             vertical_velocity: 0.0,
             grounded: true,
+            speed_modifier: 1.0,
+            server_speed: None,
+            // The server spawns players with `MovementSpeed(RUN_SPEED)`.
+            reported_speed: RUN_SPEED,
+            reported_motion: false,
         }
     }
 }
@@ -117,25 +138,43 @@ impl PlayerMovement {
             compute_movement_input(bindings, input, self.autorun, false, yaw);
         self.direction = animation;
         let mut direction = Vec3::from_array(direction);
-        let speed = if self.swimming {
-            if input.mouse_pressed(BindingMouseButton::Right) {
-                direction = pitch_forward(direction, yaw, pitch);
-            }
+        if self.swimming && input.mouse_pressed(BindingMouseButton::Right) {
+            direction = pitch_forward(direction, yaw, pitch);
+        }
+        MovementFrame {
+            direction: direction.to_array(),
+            speed: self.unmodified_speed() * self.speed_modifier,
+            vertical: if self.swimming {
+                swim_vertical_input(bindings, input) * SWIM_SPEED * self.speed_modifier
+            } else {
+                0.0
+            },
+        }
+    }
+
+    /// The server's speed for the current state without auras (game-server
+    /// `compute_movement_speed`): swim, run or walk base × the direction multiplier.
+    fn unmodified_speed(&self) -> f32 {
+        let base = if self.swimming {
             SWIM_SPEED
         } else if self.running {
             RUN_SPEED
         } else {
             WALK_SPEED
         };
-        MovementFrame {
-            direction: direction.to_array(),
-            speed: speed * movement_speed_multiplier(animation),
-            vertical: if self.swimming {
-                swim_vertical_input(bindings, input)
-            } else {
-                0.0
-            },
+        base * movement_speed_multiplier(self.direction)
+    }
+
+    /// Adopt the local player's replicated `MovementSpeed` (base × auras × direction of the
+    /// input the server applied) as the aura multiplier of the newest reported input. The
+    /// server rewrites it only when it applies an input, so an unchanged value is not read
+    /// again against a newer input.
+    pub fn adopt_server_speed(&mut self, speed: f32) {
+        if self.server_speed == Some(speed) {
+            return;
         }
+        self.server_speed = Some(speed);
+        self.speed_modifier = speed / self.reported_speed;
     }
 
     pub fn predict(
@@ -234,7 +273,7 @@ impl PlayerMovement {
             build_proposed_ground_movement(current, frame.direction.into(), frame.speed, delta)
                 .unwrap_or(current);
         let moved = ground.validate_swim_move(current, proposed.with_y(current.y));
-        let rise = proposed.y - current.y + frame.vertical * SWIM_SPEED * delta;
+        let rise = proposed.y - current.y + frame.vertical * delta;
         let Some(surface) = ground.water_surface(moved) else {
             return moved;
         };
@@ -269,18 +308,62 @@ impl PlayerMovement {
     }
 
     /// The input reporting `position`, where `predict` put the player, for the server to
-    /// adopt; `epoch` is the server teleport that position follows.
-    pub fn network_input(&self, yaw: f32, position: glam::Vec3, epoch: u32) -> Option<PlayerInput> {
+    /// adopt; `epoch` is the server teleport that position follows. The first idle frame
+    /// after movement reports one stop; later idle frames report nothing.
+    pub fn network_input(
+        &mut self,
+        yaw: f32,
+        position: glam::Vec3,
+        epoch: u32,
+    ) -> Option<PlayerInput> {
         let direction = movement_to_direction(self.direction, yaw);
         let swimming_vertically = self.swimming && self.swim_rose;
-        if direction == [0.0; 3] && !self.jumping && !swimming_vertically {
+        let motion = ReportedMotion {
+            direction,
+            jumping: self.jumping,
+            swimming_vertically,
+        };
+        self.report(motion, yaw, position, epoch)
+    }
+
+    /// The one stop input for movement a modal halted, keeping any airborne state local.
+    pub fn stop_input(
+        &mut self,
+        yaw: f32,
+        position: glam::Vec3,
+        epoch: u32,
+    ) -> Option<PlayerInput> {
+        let halted = ReportedMotion {
+            direction: [0.0; 3],
+            jumping: false,
+            swimming_vertically: false,
+        };
+        self.report(halted, yaw, position, epoch)
+    }
+
+    fn report(
+        &mut self,
+        motion: ReportedMotion,
+        yaw: f32,
+        position: glam::Vec3,
+        epoch: u32,
+    ) -> Option<PlayerInput> {
+        let ReportedMotion {
+            direction,
+            jumping,
+            swimming_vertically,
+        } = motion;
+        let moving = direction != [0.0; 3] || jumping || swimming_vertically;
+        if !moving && !self.reported_motion {
             return None;
         }
+        self.reported_motion = moving;
+        self.reported_speed = self.unmodified_speed();
         Some(PlayerInput {
             direction,
             facing_yaw: yaw,
             running: self.running,
-            jumping: self.jumping,
+            jumping,
             swimming: self.swimming,
             position: position.to_array(),
             epoch,
@@ -321,6 +404,7 @@ impl crate::GameClient {
             self.player_movement.stop();
             return Ok(());
         }
+        self.adopt_server_speed();
         let viewport = self
             .base()
             .get_viewport()
@@ -417,24 +501,39 @@ impl crate::GameClient {
             && self.account.session.gameplay_input_allowed()
     }
 
-    pub(super) fn send_player_input(&self) -> Result<(), String> {
-        if self.game_menu_ui.is_some()
-            || !self.gameplay_input_allowed()
-            || self.world.local_player_controlled()
-        {
+    pub(super) fn send_player_input(&mut self) -> Result<(), String> {
+        if !self.gameplay_input_allowed() || self.world.local_player_controlled() {
             return Ok(());
         }
-        if let Some(yaw) = self.world.local_player_facing()
-            && let Some(node) = self.world.local_player_node()
-            && let Some(epoch) = self.world.local_player_epoch()
-        {
-            let position = node.get_position();
-            let position = glam::Vec3::new(position.x, position.y, position.z);
-            if let Some(input) = self.player_movement.network_input(yaw, position, epoch) {
-                self.account.send_player_input(input)?;
-            }
+        let (Some(yaw), Some(node), Some(epoch)) = (
+            self.world.local_player_facing(),
+            self.world.local_player_node(),
+            self.world.local_player_epoch(),
+        ) else {
+            return Ok(());
+        };
+        let position = node.get_position();
+        let position = glam::Vec3::new(position.x, position.y, position.z);
+        let input = if self.game_menu_ui.is_some() {
+            self.player_movement.stop_input(yaw, position, epoch)
+        } else {
+            self.player_movement.network_input(yaw, position, epoch)
+        };
+        match input {
+            Some(input) => self.account.send_player_input(input),
+            None => Ok(()),
         }
-        Ok(())
+    }
+
+    /// The local player's replicated `MovementSpeed`, as the aura speed multiplier.
+    fn adopt_server_speed(&mut self) {
+        if let Some(speed) = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.units.get(&id)?.movement_speed)
+        {
+            self.player_movement.adopt_server_speed(speed.0);
+        }
     }
 }
 
@@ -473,7 +572,151 @@ mod tests {
         assert!(!packet.swimming);
         input.clear();
         movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        let stop = movement.network_input(0.0, FEET, 3).unwrap();
+        assert_eq!(stop.direction, [0.0; 3]);
         assert!(movement.network_input(0.0, FEET, 3).is_none());
+    }
+
+    /// Releasing W reports exactly one stop: no direction, no jump, the final predicted
+    /// position and the adopted epoch; idle frames after it send nothing.
+    #[test]
+    fn release_sends_exactly_one_stop_input_with_final_position_and_epoch() {
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        assert!(movement.network_input(0.0, FEET, 4).is_none());
+        input.set_key(BindingKey::KeyW, true);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        let moving = movement.network_input(0.0, FEET, 4).unwrap();
+        assert_eq!(moving.direction, [0.0, 0.0, 1.0]);
+        input.clear();
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        let last = FEET + Vec3::new(0.0, 0.0, 0.117);
+        let stop = movement.network_input(0.0, last, 4).unwrap();
+        assert_eq!(stop.direction, [0.0; 3]);
+        assert!(!stop.jumping);
+        assert!(stop.running);
+        assert_eq!(stop.position, last.to_array());
+        assert_eq!(stop.epoch, 4);
+        for _ in 0..3 {
+            movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+            assert!(movement.network_input(0.0, last, 4).is_none());
+        }
+    }
+
+    /// A modal stops a running player: `stop_input` reports the stop once, and nothing
+    /// while the player never moved.
+    #[test]
+    fn stop_input_reports_a_modal_stop_once() {
+        let mut movement = PlayerMovement::default();
+        assert!(movement.stop_input(0.0, FEET, 2).is_none());
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        assert!(movement.network_input(0.0, FEET, 2).is_some());
+        movement.stop();
+        let stop = movement.stop_input(0.0, FEET, 2).unwrap();
+        assert_eq!(stop.direction, [0.0; 3]);
+        assert!(movement.stop_input(0.0, FEET, 2).is_none());
+        assert!(movement.network_input(0.0, FEET, 2).is_none());
+    }
+
+    fn resolve_speed(movement: &mut PlayerMovement, keys: &[BindingKey]) -> f32 {
+        let mut input = PhysicalInput::default();
+        for key in keys {
+            input.set_key(*key, true);
+        }
+        movement
+            .resolve(&InputBindingsData::default(), &input, 0.0, 0.0)
+            .speed
+    }
+
+    /// The server replicates `MovementSpeed` = base × aura × direction for the input it
+    /// applied. Running forward, 3.5 yd/s is a 50% snare; it then scales every speed.
+    #[test]
+    fn replicated_snare_scales_run_walk_backward_strafe_and_swim_speeds() {
+        let mut movement = PlayerMovement::default();
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 7.0);
+        movement.network_input(0.0, FEET, 1).unwrap();
+        movement.adopt_server_speed(3.5);
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 3.5);
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyS]) - 2.1).abs() < 1e-5);
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyA]) - 2.8).abs() < 1e-5);
+        movement.running = false;
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 1.25);
+        movement.running = true;
+        movement.swimming = true;
+        let swim = resolve_speed(&mut movement, &[BindingKey::KeyW]);
+        assert!(
+            (swim - shared::movement::SWIM_SPEED * 0.5).abs() < 1e-5,
+            "{swim}"
+        );
+    }
+
+    /// Unsnared swimming uses the server's swim speed, not run speed.
+    #[test]
+    fn swimming_predicts_at_swim_speed() {
+        let mut movement = PlayerMovement::default();
+        movement.swimming = true;
+        let swim = resolve_speed(&mut movement, &[BindingKey::KeyW]);
+        assert_eq!(swim, shared::movement::SWIM_SPEED);
+        let back = resolve_speed(&mut movement, &[BindingKey::KeyS]);
+        assert!(
+            (back - shared::movement::SWIM_SPEED * 0.6).abs() < 1e-5,
+            "{back}"
+        );
+    }
+
+    /// The replicated speed pairs with the input it was computed for: backpedalling
+    /// unsnared replicates 4.2 = 7 × 0.6, which is no snare; the same value for a forward
+    /// input is a 40% snare. An unchanged value does not re-derive against a newer input.
+    #[test]
+    fn replicated_speed_is_read_against_the_newest_reported_input() {
+        let mut movement = PlayerMovement::default();
+        resolve_speed(&mut movement, &[BindingKey::KeyS]);
+        movement.network_input(0.0, FEET, 1).unwrap();
+        movement.adopt_server_speed(4.2);
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyW]) - 7.0).abs() < 1e-5);
+        movement.network_input(0.0, FEET, 1).unwrap();
+        movement.adopt_server_speed(4.2);
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyW]) - 7.0).abs() < 1e-5);
+        movement.adopt_server_speed(4.9);
+        assert!((resolve_speed(&mut movement, &[BindingKey::KeyW]) - 4.9).abs() < 1e-5);
+    }
+
+    /// A root replicates 0: the player predicts no movement.
+    #[test]
+    fn replicated_root_stops_prediction() {
+        let mut movement = PlayerMovement::default();
+        resolve_speed(&mut movement, &[BindingKey::KeyW]);
+        movement.network_input(0.0, FEET, 1).unwrap();
+        movement.adopt_server_speed(0.0);
+        assert_eq!(resolve_speed(&mut movement, &[BindingKey::KeyW]), 0.0);
+    }
+
+    /// One second of W from the Stockade entrance under a 50% snare predicts 3.5 yd,
+    /// what the server grants in that second.
+    #[test]
+    fn snared_run_predicts_the_server_distance() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let yaw = std::f32::consts::FRAC_PI_2;
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0);
+        movement.network_input(yaw, FEET, 3).unwrap();
+        movement.adopt_server_speed(3.5);
+        let mut feet = FEET;
+        for _ in 0..60 {
+            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0);
+            feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
+        }
+        let ran = (feet - FEET).length();
+        assert!((ran - 3.5).abs() < 0.01, "{ran}");
     }
 
     /// W+D facing east for one second from the Stockade entrance: the input reports where
@@ -572,6 +815,7 @@ mod tests {
         assert!(!movement.running);
         assert!(!movement.autorun);
         assert!(!movement.jumping);
+        assert!(movement.network_input(0.0, FEET, 3).unwrap().direction == [0.0; 3]);
         assert!(movement.network_input(0.0, FEET, 3).is_none());
     }
 
@@ -677,6 +921,14 @@ mod tests {
         );
         assert!(movement.swimming && !movement.jumping);
         assert_eq!((surfaced.x, surfaced.z), (bed.x, bed.z));
+        // Reaching the surface ends the vertical motion: exactly one stop, then quiet
+        // while Space stays held there.
+        let stop = movement
+            .network_input(INTO_WATER, surfaced, 4)
+            .expect("one stop at the surface");
+        assert_eq!(stop.direction, [0.0; 3]);
+        assert_eq!(stop.position, surfaced.to_array());
+        assert!(stop.swimming && !stop.jumping);
         assert!(
             movement.network_input(INTO_WATER, surfaced, 4).is_none(),
             "Space held at the surface moves nothing and sends nothing"
@@ -708,6 +960,23 @@ mod tests {
         );
         let rate = (floating.y - sinking.y) / (12.0 * DT);
         assert!((rate - SWIM_SPEED).abs() < 0.01, "descend rate {rate}");
+        let descent = movement.network_input(INTO_WATER, sinking, 4).unwrap();
+        assert_eq!(descent.position, sinking.to_array());
+        // Releasing X mid-water sends exactly one stop.
+        input.set_key(BindingKey::KeyX, false);
+        let paused = hold(
+            &mut movement,
+            &ground,
+            &input,
+            sinking,
+            (INTO_WATER, 0.0),
+            1,
+        );
+        assert_eq!(paused, sinking, "released X kept sinking");
+        let stop = movement.network_input(INTO_WATER, paused, 4).unwrap();
+        assert_eq!(stop.direction, [0.0; 3]);
+        assert!(movement.network_input(INTO_WATER, paused, 4).is_none());
+        input.set_key(BindingKey::KeyX, true);
         let sunk = hold(
             &mut movement,
             &ground,
@@ -730,6 +999,49 @@ mod tests {
             (both - sunk).length() < 1e-4,
             "Space+X should cancel: {both}"
         );
+    }
+
+    /// Vertical swim speed carries the server's aura modifier: half speed ascends at
+    /// half `SWIM_SPEED`, a root (replicated speed 0) holds the swimmer in place.
+    #[test]
+    fn vertical_swim_speed_follows_the_server_speed_modifier() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let bed = seabed(&terrain);
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        let idle = hold(&mut movement, &ground, &input, bed, (INTO_WATER, 0.0), 1);
+        input.set_key(BindingKey::Space, true);
+        let rising = hold(&mut movement, &ground, &input, idle, (INTO_WATER, 0.0), 1);
+        movement.network_input(INTO_WATER, rising, 4).unwrap();
+        movement.adopt_server_speed(SWIM_SPEED / 2.0);
+        let slowed = hold(
+            &mut movement,
+            &ground,
+            &input,
+            rising,
+            (INTO_WATER, 0.0),
+            12,
+        );
+        let rate = (slowed.y - rising.y) / (12.0 * DT);
+        assert!(
+            (rate - SWIM_SPEED / 2.0).abs() < 0.01,
+            "slowed ascend {rate}"
+        );
+        movement.network_input(INTO_WATER, slowed, 4).unwrap();
+        movement.adopt_server_speed(0.0);
+        let rooted = hold(
+            &mut movement,
+            &ground,
+            &input,
+            slowed,
+            (INTO_WATER, 0.0),
+            12,
+        );
+        assert_eq!(rooted, slowed, "rooted swimmer ascended");
     }
 
     /// Walking off the shore turns into swimming where the water reaches `SWIM_DEPTH` over

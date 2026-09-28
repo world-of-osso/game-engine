@@ -58,6 +58,10 @@ pub mod movement_animation_data;
 pub mod movement_input_data;
 #[path = "../../../src/game/nameplate_style_data.rs"]
 pub mod nameplate_style_data;
+#[path = "../../../src/rendering/ui/nameplate_visibility_data.rs"]
+pub mod nameplate_visibility_data;
+#[cfg(test)]
+mod nameplate_visibility_data_tests;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
 #[path = "../../../src/water_material_data.rs"]

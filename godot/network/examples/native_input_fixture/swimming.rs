@@ -114,7 +114,7 @@ pub(super) fn run(
         join_readers_on_exit(status.as_ref(), &mut readers)?;
         consume_fixture_lines(app, &lines, &mut progress)?;
         check_decoded_inputs(app, &mut progress)?;
-        if finish_on_exit(status, &progress)? {
+        if finish_on_exit(app, status, &progress)? {
             return Ok(());
         }
         thread::sleep(TICK);
@@ -180,7 +180,7 @@ fn advance_fixture_marker(
             progress.stage = Stage::Idle;
         }
         (Stage::Idle, "FIXTURE SWIM_IDLE_DONE") => {
-            ensure_quiet(progress.released_at, "swim idle")?;
+            ensure_quiet(app, progress.released_at, "swim idle")?;
             progress.stage = Stage::SpaceIdle;
         }
         (Stage::SpaceIdle, "FIXTURE SWIM_SPACE_IDLE_DONE") => {
@@ -198,7 +198,7 @@ fn advance_fixture_marker(
             progress.stage = Stage::LeftIdle;
         }
         (Stage::LeftIdle, "FIXTURE SWIM_LEFT_IDLE_DONE") => {
-            ensure_quiet(progress.released_at, "swim left release")?;
+            ensure_quiet(app, progress.released_at, "swim left release")?;
             if !progress.saw_left {
                 return Err("no decoded wet A/SwimLeft packets".into());
             }
@@ -210,7 +210,7 @@ fn advance_fixture_marker(
             progress.stage = Stage::RightIdle;
         }
         (Stage::RightIdle, "FIXTURE SWIM_RIGHT_IDLE_DONE") => {
-            ensure_quiet(progress.released_at, "swim right release")?;
+            ensure_quiet(app, progress.released_at, "swim right release")?;
             if !progress.saw_right {
                 return Err("no decoded wet D/SwimRight packets".into());
             }
@@ -221,7 +221,7 @@ fn advance_fixture_marker(
             progress.stage = Stage::Dry;
         }
         (Stage::Dry, "FIXTURE SWIM_DONE") => {
-            ensure_quiet(progress.released_at, "dry stand")?;
+            ensure_quiet(app, progress.released_at, "dry stand")?;
             progress.stage = Stage::Done;
         }
         (_, line) if line.starts_with("FIXTURE ") => {
@@ -308,6 +308,7 @@ fn check_decoded_input(input: &PlayerInput, progress: &mut FixtureProgress) -> R
 }
 
 fn finish_on_exit(
+    app: &App,
     status: Option<std::process::ExitStatus>,
     progress: &FixtureProgress,
 ) -> Result<bool, String> {
@@ -323,16 +324,16 @@ fn finish_on_exit(
             progress.stage, progress.shore
         ));
     }
-    ensure_quiet(progress.released_at, "final dry stand")?;
+    ensure_quiet(app, progress.released_at, "final dry stand")?;
     println!(
         "PASS: real shore W dry->wet, wet W+Space, A SwimLeft43, D SwimRight44, reverse S wet->dry; no jumping; released UDP quiet"
     );
     Ok(true)
 }
 
-fn ensure_quiet(released_at: Option<Instant>, stage: &str) -> Result<(), String> {
+fn ensure_quiet(app: &App, released_at: Option<Instant>, stage: &str) -> Result<(), String> {
     if !released_at.is_some_and(|at| at.elapsed() >= RELEASE_DRAIN + RELEASE_QUIET) {
         return Err(format!("{stage} ended before bounded UDP quiet interval"));
     }
-    Ok(())
+    ensure_release_reported(app, stage)
 }

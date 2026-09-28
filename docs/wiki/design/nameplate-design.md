@@ -18,6 +18,17 @@ This page records the intended target-first nameplate design and the current sou
 - Server cast presentation accepts player cast intents, validates available spell data, exposes timed cast state, and removes it on stop, movement cancellation, or expiry. It does not apply spell effects or supply NPC casts.
 - Pixel-match verification is pending: the GPU fixture must produce aligned half-size captures for all four thickness combinations and mask only glyph regions. Frame alpha reconstruction from the composited reference is ambiguous despite reproducible linear unmatting, so no perfect-match claim is valid before GPU comparison. Connected server-to-client replication remains unproven. The local-owner, distance, selection, and preview code is documented from source through `f3dab635`; no current-cycle test execution or rendered runtime verification is claimed. Do not infer the planned display states below from this implementation.
 
+## Godot client (Retail visibility)
+
+The Godot client implements Retail's CVar-driven visibility, not the target-first state machine below. `src/rendering/ui/nameplate_visibility_data.rs` holds the rules and CVar defaults (see the [spec](../../specs/nameplate-style.md) for citations); `godot/rust/src/nameplates.rs` feeds them from replicated snapshots and draws plates on a CanvasLayer (layer 0, below the registry UI; mouse ignored so world clicks still pick units).
+
+- Defaults: plates only for the target and units in combat with the player, enemies (attackable, neutral included) only, within 60 yd of the player. Friendly plates are off, the target's included.
+- "In combat with the player" = replicated `CombatStatus` plus `UnitTarget` == local player. There is no replicated threat list.
+- Occlusion: a camera ray to the pick-box centre against terrain (layer 1) and WMO collision (layer 2) sets alpha 0.4. Doodads have no collision and never occlude.
+- Anchor: body centre 2.5 yd above the unit origin in unit space (Bevy `BAR_Y_OFFSET`). The M2 header box was tried first; it reached 3.5 yd on a goblin and 4.4 yd on a lying soldier, so plates floated.
+- The fill uses the Bevy skins, desaturated at load and tinted by `FactionTemplate` reaction. Class colours are not applied yet.
+- Automation: `nameplate_state()` lists shown plates (alpha, occluded, anchor, rects); `nameplate_rules(id)` returns the rule inputs for any unit.
+
 ## Intended display states
 
 | State | When | Content |
@@ -81,6 +92,9 @@ Cast bars and elite/quest markers come after the base system validates.
 - [nameplate debug spec](../../specs/nameplate-debug.md) — offline preview contract and open verification
 - [`src/network_runtime/replication.rs`](../../../src/network_runtime/replication.rs) — worker-to-render-world cast snapshots
 - [`../../../game-server/crates/server/src/cast_presentation.rs`](../../../../game-server/crates/server/src/cast_presentation.rs) — authoritative player cast presentation lifecycle
+
+- [`src/rendering/ui/nameplate_visibility_data.rs`](../../../src/rendering/ui/nameplate_visibility_data.rs) — Retail CVar visibility and occluded-alpha rules
+- [`godot/rust/src/nameplates.rs`](../../../godot/rust/src/nameplates.rs) — Godot plates, occlusion ray and automation
 
 ## See Also
 

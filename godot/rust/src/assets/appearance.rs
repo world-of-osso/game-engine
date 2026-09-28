@@ -19,6 +19,7 @@ use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 use rusqlite::{Connection, OpenFlags};
 
 use super::material::texture_from_rgba;
+use crate::equipment_appearance_data::ResolvedEquipmentAppearance;
 
 type TexturePixels = (Vec<u8>, u32, u32);
 
@@ -38,17 +39,35 @@ pub(crate) struct PreparedAppearance {
     pub(super) hidden_geoset_ids: HashSet<u16>,
 }
 
+/// An authored NPC body with its display's armor (`NPCModelItemSlotDisplayInfo`).
+pub(crate) struct PreparedNpc {
+    pub(crate) appearance: PreparedAppearance,
+    /// Item models, textures and geosets of the armor; its textures are in the bake.
+    pub(crate) armor: ResolvedEquipmentAppearance,
+    pub(crate) race: u8,
+    pub(crate) sex: u8,
+}
+
 impl NpcAppearances {
+    /// The display's authored body, dressed in the armor `resolve_armor` resolves for its
+    /// race and sex; `None` for a display without a `CreatureDisplayInfoExtra`.
     pub(crate) fn prepare(
         &mut self,
         data_root: &Path,
         cache_root: &Path,
         display_id: u32,
-    ) -> Result<Option<PreparedAppearance>, String> {
+        resolve_armor: impl FnOnce(u8, u8) -> Result<ResolvedEquipmentAppearance, String>,
+    ) -> Result<Option<PreparedNpc>, String> {
         let Some(appearance) = self.query_appearance(data_root, display_id)? else {
             return Ok(None);
         };
-        let (selected, layout_id) = self.select_choices_and_layout(data_root, &appearance)?;
+        let armor = resolve_armor(appearance.race, appearance.sex)?;
+        let (mut selected, layout_id) = self.select_choices_and_layout(data_root, &appearance)?;
+        let db = self
+            .customization
+            .as_ref()
+            .expect("loaded customization db");
+        hide_armor_geoset_groups(&mut selected.geosets, &armor, db, &appearance);
         if self.compositor.is_none() {
             self.compositor = Some(load_compositor(data_root)?);
         }
@@ -68,13 +87,18 @@ impl NpcAppearances {
             data_root,
             display_id,
         )?;
-        Ok(Some(PreparedAppearance {
-            source: "NPC",
-            textures,
-            selected_geosets: selected.geosets,
-            authored_geosets: appearance.geosets,
-            equipment_geosets: Vec::new(),
-            hidden_geoset_ids: HashSet::new(),
+        Ok(Some(PreparedNpc {
+            appearance: PreparedAppearance {
+                source: "NPC",
+                textures,
+                selected_geosets: selected.geosets,
+                authored_geosets: appearance.geosets,
+                equipment_geosets: armor.outfit.geoset_overrides.clone(),
+                hidden_geoset_ids: armor.hidden_character_geoset_ids.clone(),
+            },
+            armor,
+            race: appearance.race,
+            sex: appearance.sex,
         }))
     }
 
@@ -124,6 +148,26 @@ impl NpcAppearances {
                 )
             })?;
         Ok((selected, layout_id))
+    }
+}
+
+/// Replace each customization geoset group the armor hides: hair (0) by the scalp,
+/// others by variant 1 (Bevy `apply_hidden_geoset_groups`).
+fn hide_armor_geoset_groups(
+    geosets: &mut Vec<(u16, u16)>,
+    armor: &ResolvedEquipmentAppearance,
+    db: &CustomizationDb,
+    appearance: &AuthoredNpcAppearance,
+) {
+    for &group in &armor.hidden_character_geoset_groups {
+        geosets.retain(|(active, _)| *active != group);
+        let variant = if group == 0 {
+            db.scalp_fallback_hair_geoset(appearance.race, appearance.sex)
+                .unwrap_or(1)
+        } else {
+            1
+        };
+        geosets.push((group, variant));
     }
 }
 

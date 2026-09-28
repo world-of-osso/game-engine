@@ -6,9 +6,9 @@
 use bevy::prelude::*;
 use shared::components::{EquipmentAppearance as NetEquipmentAppearance, Npc, UnitPose};
 
-use game_engine::npc_gear_data::{
-    emote_anim_id, npc_item_slots, unit_pose_anim_id, virtual_item_attachment,
-};
+use std::sync::OnceLock;
+
+use game_engine::npc_gear_data::NpcGearData;
 use game_engine::outfit_data::OutfitData;
 
 use super::NpcAnimModel;
@@ -35,6 +35,20 @@ impl NpcGear {
     }
 }
 
+/// The pinned DB2 exports' pose and gear rows; they load on first use.
+fn npc_gear_data() -> &'static NpcGearData {
+    static DATA: OnceLock<NpcGearData> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let dir = game_engine::paths::resolve_data_path(
+            std::path::Path::new("db2").join(game_engine::spell_catalog::SPELL_DB2_BUILD),
+        );
+        NpcGearData::load(&dir).unwrap_or_else(|error| {
+            error!("NPC pose and gear data unavailable: {error}");
+            NpcGearData::default()
+        })
+    })
+}
+
 /// The armor `NPCModelItemSlotDisplayInfo` authors for `display_id`, resolved to item
 /// models and body geosets.
 pub(super) fn resolve_display_armor(
@@ -43,8 +57,8 @@ pub(super) fn resolve_display_armor(
     sex: u8,
     outfit_data: &OutfitData,
 ) -> ResolvedEquipmentAppearance {
-    let armor = npc_item_slots()
-        .appearance(display_id)
+    let armor = npc_gear_data()
+        .display_armor(display_id)
         .unwrap_or_else(|error| panic!("NPC display {display_id}: {error}"));
     equipment_appearance::resolve_equipment_appearance(&armor, outfit_data, race, sex)
 }
@@ -97,18 +111,16 @@ fn npc_equipment(
     for model in &gear.armor_models {
         insert_model(&mut equipment, model);
     }
-    for entry in items.into_iter().flat_map(|items| &items.entries) {
-        let sheathe_type = entry.item_id.map_or(0, item_sheathe_type);
-        let Some(attachment) = virtual_item_attachment(
-            entry.slot,
-            entry.inventory_type,
-            sheathe_type,
-            pose.sheath_state,
-        ) else {
-            continue;
-        };
+    let items = items.cloned().unwrap_or_default();
+    for (entry, attachment) in npc_gear_data().virtual_item_attachments(&items, pose.sheath_state) {
+        if let Some(item_id) = entry
+            .item_id
+            .filter(|&id| npc_gear_data().sheathe_type(id).is_none())
+        {
+            error!("creature virtual item {item_id} is not in Item.db2");
+        }
         let single = NetEquipmentAppearance {
-            entries: vec![entry.clone()],
+            entries: vec![entry],
         };
         let resolved = equipment_appearance::resolve_equipment_appearance(
             &single,
@@ -131,16 +143,6 @@ fn insert_model(equipment: &mut Equipment, model: &RuntimeModelAppearance) {
         .insert(model.slot, model.skin_fdids);
 }
 
-fn item_sheathe_type(item_id: u32) -> u8 {
-    match game_engine::item_catalog::item_catalog_entry(item_id) {
-        Some(item) => item.sheathe_type,
-        None => {
-            error!("creature virtual item {item_id} is not in Item.db2");
-            0
-        }
-    }
-}
-
 /// Holds the pose of a creature's stand state or emote state while it stands still.
 pub(super) fn sync_npc_pose_animation(
     mut commands: Commands,
@@ -148,7 +150,7 @@ pub(super) fn sync_npc_pose_animation(
     models: Query<&M2AnimData>,
 ) {
     for (npc, pose, model) in &npcs {
-        let anim = unit_pose_anim_id(pose, emote_anim_id).unwrap_or_else(|error| {
+        let anim = npc_gear_data().pose_anim_id(pose).unwrap_or_else(|error| {
             error!("NPC {} ({}): {error}", npc.name, npc.template_id);
             None
         });
