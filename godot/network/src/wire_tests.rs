@@ -3,7 +3,7 @@
 use super::*;
 use lightyear::prelude::{LinkOf, NetworkTarget, Replicate, ReplicationSender, server};
 use shared::{
-    components::MovementControl,
+    components::{CreatureMotion, MovementControl},
     protocol::{InputChannel, PlayerInput},
 };
 use std::net::UdpSocket;
@@ -197,5 +197,52 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
         "replicated unit removal",
         |event| matches!(event, Event::UnitRemoved(id) if *id == entity.to_bits()),
     );
+    bridge.stop().expect("join fixture worker");
+}
+
+/// A wandering creature's replicated `CreatureMotion` reaches the host with its unit,
+/// including a stop that changes no other component.
+#[test]
+fn native_bridge_receives_creature_motion_changes() {
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8193).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    let entity = server
+        .world_mut()
+        .spawn((
+            Npc {
+                template_id: 116,
+                name: "Defias Bandit".into(),
+            },
+            Position {
+                x: -9050.0,
+                y: 5.0,
+                z: 60.0,
+            },
+            CreatureMotion::Walk,
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let server_id = entity.to_bits();
+    let mut await_motion = |server: &mut App, motion: CreatureMotion| {
+        await_bridge_event(server, &mut bridge, "replicated creature motion", |event| {
+            matches!(event, Event::UnitUpdated(unit)
+                if unit.server_id == server_id && unit.creature_motion == Some(motion))
+        })
+    };
+    let Event::UnitUpdated(walking) = await_motion(&mut server, CreatureMotion::Walk) else {
+        unreachable!()
+    };
+    assert_eq!(walking.npc.as_ref().unwrap().name, "Defias Bandit");
+    server
+        .world_mut()
+        .entity_mut(entity)
+        .insert(CreatureMotion::Still);
+    let Event::UnitUpdated(stopped) = await_motion(&mut server, CreatureMotion::Still) else {
+        unreachable!()
+    };
+    assert_eq!(stopped.position.unwrap().x, -9050.0);
     bridge.stop().expect("join fixture worker");
 }

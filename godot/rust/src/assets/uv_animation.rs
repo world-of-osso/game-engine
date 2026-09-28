@@ -193,7 +193,7 @@ impl WowMaterialAnimation {
         }))
     }
 
-    fn sample_materials(&mut self) {
+    pub(crate) fn sample_materials(&mut self) {
         let Some(clock) = &self.clock else { return };
         let elapsed_ms = clock.bind().elapsed_ms as u32;
         for entry in &mut self.materials {

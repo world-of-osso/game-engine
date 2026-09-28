@@ -14,6 +14,8 @@ uniform int uv_mode_2 = 0;
 uniform vec2 uv_offset_1;
 uniform vec2 uv_offset_2;
 uniform float transparency = 1.0;
+// Retail scenery distance fade of the placement (1 unless it is in its fade band).
+uniform float scenery_opacity = 1.0;
 uniform float alpha_test = 0.0;
 uniform int render_flags = 0;
 uniform int gx_blend = 0;
@@ -132,7 +134,7 @@ void fragment() {
 	}
 	ALBEDO = vec3(1.0);
 	ROUGHNESS = 1.0;
-	ALPHA = color.a;
+	ALPHA = color.a * scenery_opacity;
 	authored_color = color.rgb;
 	camera_position = CAMERA_POSITION_WORLD;
 	if ((render_flags & 1) != 0) {

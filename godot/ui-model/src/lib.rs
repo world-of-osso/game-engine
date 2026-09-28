@@ -12,8 +12,8 @@ pub mod ui {
     pub mod screens {
         pub(crate) use crate::screen_title;
         pub use crate::{
-            default_button_atlas, trash_button_component, world_map_frame_art,
-            world_map_frame_component,
+            default_button_atlas, inworld_unit_frames_component, menu_primitives,
+            trash_button_component, world_map_frame_art, world_map_frame_component,
         };
     }
 
@@ -48,6 +48,17 @@ pub mod world_map_frame_art;
 pub mod world_map_frame_component;
 #[path = "../../../src/world_map_view_data.rs"]
 pub mod world_map_view_data;
+
+/// Retail reaction colours for the unit frames, shared with the server's rules.
+pub mod faction_reaction {
+    pub use shared::faction_reaction::Reaction;
+}
+#[path = "../../../src/ui/screens/inworld_unit_frames_component.rs"]
+pub mod inworld_unit_frames_component;
+#[path = "../../../src/ui/screens/menu_primitives.rs"]
+pub mod menu_primitives;
+#[path = "../../../src/status_unit_resource_data.rs"]
+pub mod status;
 
 #[path = "../../../src/ui/ui_errors_data.rs"]
 pub mod ui_errors_data;

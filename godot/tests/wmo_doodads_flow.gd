@@ -35,7 +35,7 @@ func run() -> void:
 		await process_frame
 		frames += 1
 		state = probe.objects_state()
-		if state.error != "":
+		if state.error != "" or state.get("map_error", "") != "" or state.get("terrain_errors", "") != "":
 			fail("Probe failed: " + str(state))
 			return
 		if state.get("parsed", false) and state.spawned > 0 and state.pending == 0:
@@ -100,7 +100,7 @@ func run_global() -> void:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		state = probe.objects_state()
-		if state.error != "":
+		if state.error != "" or state.get("map_error", "") != "" or state.get("terrain_errors", "") != "":
 			fail("Probe failed: " + str(state))
 			return
 		wmo = probe.find_child("GlobalWmo108631", true, false) as Node3D
@@ -119,54 +119,61 @@ func run_global() -> void:
 
 # Retail gates WMO doodads by the ADT doodad scenery distance and by their groups'
 # portal visibility: from a camera at the trigger (looking +X down the tunnel) the
-# portal is drawn and animates; the rest of the district is mostly hidden and hidden
-# doodads do not animate.
+# portal is drawn; the rest of the district is mostly hidden.
 func assert_scenery_distance(probe: Node, doodads: Array, portal: Node3D) -> bool:
 	var eye := TRIGGER + Vector3(0.0, 2.0, 0.0)
 	cull_from(probe, eye, eye + Vector3(1.0, 0.0, 0.0))
 	var shown := 0
-	var hidden := 0
 	for doodad in doodads:
-		var animation = doodad.get_node_or_null("M2Animation")
-		if doodad.visible:
-			shown += 1
-		else:
-			hidden += 1
-			if animation != null and animation.is_processing():
-				fail("Hidden WMO doodad %s still animates" % doodad.name)
-				return false
+		shown += int(doodad.visible)
+	var hidden := doodads.size() - shown
 	print("cull from the trigger: shown=%d hidden=%d" % [shown, hidden])
 	if not portal.visible or shown == 0 or hidden == 0:
 		fail("The cull must draw the portal and near doodads and hide far ones: portal=%s shown=%d hidden=%d" % [portal.visible, shown, hidden])
 		return false
 	return true
 
+# One in-world cull frame, 100 ms after the previous one.
 func cull_from(probe: Node, eye: Vector3, target: Vector3) -> void:
 	var camera := Camera3D.new()
 	root.add_child(camera)
 	camera.look_at_from_position(eye, target, Vector3.UP)
-	probe.cull_from(camera)
+	probe.cull_from(camera, 100.0)
 	camera.free()
+
+func bone_pose(doodad: Node3D) -> Array:
+	var skeleton := doodad.get_node("Skeleton3D") as Skeleton3D
+	var pose := []
+	for bone in skeleton.get_bone_count():
+		pose.append([skeleton.get_bone_pose_position(bone), skeleton.get_bone_pose_rotation(bone), skeleton.get_bone_pose_scale(bone)])
+	return pose
+
+# The portal's bone pose after five cull frames from `eye` looking at `target`.
+func pose_after_frames(probe: Node, portal: Node3D, eye: Vector3, target: Vector3) -> Array:
+	var before := bone_pose(portal)
+	for frame in 5:
+		cull_from(probe, eye, target)
+	return [before, bone_pose(portal)]
 
 # A WMO doodad is drawn only while a group referencing it (Jail01, group 59, for
 # MODD 1112) is drawn. 20 yd above the portal, looking away from the district, the
 # portal is within every scenery distance but Jail01 is portal-culled, so the portal
-# is hidden and stops animating; at the trigger, inside Jail01, it is drawn again.
+# is hidden and its bones do not advance; at the trigger, inside Jail01 and facing
+# it, it is drawn and animates.
 func assert_group_cull(probe: Node, wmo: Node3D, portal: Node3D) -> bool:
 	var jail := wmo.find_children("Group59_Batch*", "", false, false)
 	if jail.is_empty():
 		fail("Jail01 (group 59) has no batches")
 		return false
 	var above := portal.global_position + Vector3(0.0, 20.0, 0.0)
-	cull_from(probe, above, above + Vector3(1.0, 0.0, 0.0))
-	var animation := portal.get_node("M2Animation")
-	if jail[0].visible or portal.visible or animation.is_processing():
-		fail("Above the district Jail01 drawn=%s, portal drawn=%s, animating=%s; expected all culled" % [jail[0].visible, portal.visible, animation.is_processing()])
+	var culled := pose_after_frames(probe, portal, above, above + Vector3(1.0, 0.0, 0.0))
+	if jail[0].visible or portal.visible or culled[0] != culled[1]:
+		fail("Above the district Jail01 drawn=%s, portal drawn=%s, animated=%s; expected all culled" % [jail[0].visible, portal.visible, culled[0] != culled[1]])
 		return false
 	var eye := TRIGGER + Vector3(0.0, 2.0, 0.0)
-	cull_from(probe, eye, eye + Vector3(1.0, 0.0, 0.0))
-	if not jail[0].visible or not portal.visible or not animation.is_processing():
-		fail("At the trigger Jail01 drawn=%s, portal drawn=%s, animating=%s; expected all drawn" % [jail[0].visible, portal.visible, animation.is_processing()])
+	var drawn := pose_after_frames(probe, portal, eye, portal.global_position + Vector3(0.0, 1.0, 0.0))
+	if not jail[0].visible or not portal.visible or drawn[0] == drawn[1]:
+		fail("At the trigger Jail01 drawn=%s, portal drawn=%s, animated=%s; expected all drawn" % [jail[0].visible, portal.visible, drawn[0] != drawn[1]])
 		return false
-	print("group cull: portal hidden with Jail01 above the district, drawn at the trigger")
+	print("group cull: portal hidden and still with Jail01 above the district, drawn and animating at the trigger")
 	return true

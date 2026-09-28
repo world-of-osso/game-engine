@@ -118,3 +118,25 @@ pub fn follow_camera(
         eye_target,
     }
 }
+
+/// Pull a smoothed camera position back in front of the first blocker between it and the eye.
+/// `follow_camera` ray-checks only the target pose; smoothing moves the camera on a straight
+/// line from its last pose, which can cut through a stair nose or a wall corner.
+pub fn keep_in_sight(
+    eye_target: Vec3,
+    camera: Vec3,
+    mut mesh_hit_at: impl FnMut(Vec3, Vec3) -> Option<f32>,
+) -> Vec3 {
+    let offset = camera - eye_target;
+    let distance = offset.length();
+    let direction = offset.normalize_or_zero();
+    if direction == Vec3::ZERO {
+        return camera;
+    }
+    match mesh_hit_at(eye_target, direction) {
+        Some(hit) if hit < distance => {
+            eye_target + direction * collision_adjusted_distance(distance, Some(hit))
+        }
+        _ => camera,
+    }
+}

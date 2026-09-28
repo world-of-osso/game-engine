@@ -224,6 +224,8 @@ pub mod minimap_render;
 #[path = "rendering/skybox/validation.rs"]
 pub mod skybox_validation;
 pub mod summon;
+#[path = "rendering/ui/target_selection_data.rs"]
+pub mod target_selection_data;
 #[path = "rendering/ui/targeting.rs"]
 pub mod targeting;
 #[path = "rendering/terrain/terrain_load_limits.rs"]

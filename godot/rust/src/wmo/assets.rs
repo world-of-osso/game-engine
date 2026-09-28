@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use game_engine_core::{adt, wmo};
+use game_engine_core::{adt, asset::wmo_format::fog::WmoFogVolume, wmo};
 use osso_asset_resolver::CascListfileResolver;
 use shared::ground::WmoGroupCollision;
 
@@ -38,6 +38,17 @@ pub(crate) struct NativeWmoGroup {
     pub group: wmo::Group,
     pub batches: Vec<wmo::WmoMeshBatch>,
     pub collision: Arc<WmoGroupCollision>,
+}
+
+/// The asset's MFOG records with each loaded group's MOGP fog references and portals.
+pub(crate) fn wmo_fog_volume(asset: &NativeWmoAsset) -> WmoFogVolume {
+    WmoFogVolume::new(
+        &asset.root,
+        asset
+            .groups
+            .iter()
+            .map(|group| (group.index as usize, &group.group.header)),
+    )
 }
 
 pub(crate) fn read_placement(
