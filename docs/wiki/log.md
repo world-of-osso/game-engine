@@ -1,10 +1,10 @@
 # Wiki Log
 
-## [2026-09-28] system | Shader 7 CPU resampling is verified; exact GPU probe remains open
+## [2026-09-28] system | Exclusive shader-7 overlay diagnostic reaches CPU/GPU GREEN
 
-User-approved `85efccc1` diverges from Bevy's skip for differing-size shader-7 overlays: `imageops::resize` with Triangle filtering resizes the overlay to its base before the unchanged shared composite. `/tmp/claude/wmo-shader7-resize-final-targeted.log` is 12/12 CPU GREEN; `/tmp/claude/verify-overlay-current.md` records native fmt/check PASS. `/tmp/claude/wmo-overlay-movement-runtime-85efccc1.log` exits 0 through movement, idle turns, and jumps, but does not invoke the exact GPU texel probe.
+User-approved `85efccc1` diverges from Bevy's skip for differing-size shader-7 overlays: `imageops::resize` with Triangle filtering resizes the overlay to its base before the unchanged shared composite. `/tmp/claude/wmo-shader7-resize-final-targeted.log` is 12/12 CPU GREEN; `/tmp/claude/verify-overlay-current.md` records native fmt/check PASS. `/tmp/claude/wmo-overlay-movement-runtime-85efccc1.log` exits 0 through movement, idle turns, and jumps, but is separate from the exact probe.
 
-The isolated `d3604958` diagnostic initially watched `Wmo373730`, while the intended material belongs to WMO FDID 108238. `ceb0ce84` corrects that identity, but the probe has not passed: streaming timed out at 755 descendants, after the earlier 12,613-descendant diagnostic. Historical held-input/time-out hangs remain limits. Another Godot session mutates the shared asset/import cache; coordination is pending and this is not a proven root cause. Exact GPU texel proof, shader 5 and other WMO materials, portals, water, doodads, collision, visual parity, and full conversion remain open.
+Exclusive `/tmp/claude/overlay-exclusive-runtime-560c1676.log` exits 0 without `PlayerInput`: actual `Wmo373730` placement resolves authored WMO 108238 group 38 shader 7, base FDID 948125 (512×512), and overlay FDID 922678 (128×128). CPU cases 27/32/38 match GPU; main inspected the authored-composite and rendered images. Historical held-input/time-out, wrong-node, and parse failures remain evidence history. Concurrent shared asset/import-cache mutation was user-paused before this success, so it is not a proven cause. Final verifier is asynchronous. Shader 5 and other WMO materials, portals, water, doodads, collision, visual parity, and full conversion remain open.
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
