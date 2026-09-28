@@ -186,6 +186,14 @@ At `580d7300`, root `cargo fmt --check` and bounded `--bin game-engine` selector
 
 Native `4c7927a6` loads cached local-CASC WMO roots and indexed complete groups into mesh batches, retaining raw-group metadata and shared floor-collision data. Abbey/Stockade targeted evidence is agent-reported 6/6. `e2537c87` supplies the WDT global-WMO payload to the map worker. The missing-field RED is recorded before the 1/1 cached-map-flags/global-placement GREEN. That GREEN emits the current unused `collision` field warning. Neither scene spawn/render readiness nor a floor-query consumer exists: global-WMO readiness remains `Pending`, collision is unused, and this is not WMO runtime or parity proof.
 
+## Native WMO doodads
+
+Branch `wmodoodads` spawns the M2 doodads a WMO places itself. `godot/core` `wmo::placed_doodads` (`02af7d8c`) takes each group's MODR references, keeps those in doodad set 0 or the MODF `doodad_set`, resolves the model through MODI (or MODN without MODI), and converts the MODD transform to WMO-local engine axes; the rule and citations are in [[wmo-format]]. `TerrainObjects` (`ab510ad7`) queues one pending entry per doodad after the WMO spawns, so doodads load within `WORLD_OBJECT_BUDGET`; models are parsed once per FDID and textures stay shared per FDID. Each doodad is a `WmoDoodad<MODD index>` child of its `Wmo<unique id>` node, so the MODF transform applies through the scene tree. WDT global WMOs hand their doodads to the same queue (`2d294310`). WMO doodads use the ADT doodad scenery-distance cull, which also stops a hidden doodad's animation (`d4ff0b76`), as build 12340 gates WMO-attached doodads (solarityclient `terrain_frame/m2/doodad_scene.rs`, 799B70).
+
+Proof: `godot/core/tests/wmo_doodads.rs` 6/6 (real `sw_magicdistrict` Jail01 MODD 1112 -> 197007 at its authored transform; set, MODN, dedupe and axis rules). The headless fixture `godot/tests/wmo_doodads_flow.gd` drives `WowWmoPlacementProbe` over the real `azeroth_30_48` MODF: 1,177 doodads over 143-239 frames with no failures, MODD 1112 2.5 yd from area trigger 101 at scale 1.3597; 131 of them drawn from the trigger; the Stockade global WMO 108631 places 748. Live on :5000 in Stormwind (`data/diagnostics/wmodoodads-20260928`): 8,442 WMO doodads, process VRAM 1,014 -> 1,273 MiB, objects settle in 180-240 s instead of 44-64 s, and fps in the shared headless cage fell from 27-36 to 13-17.
+
+Not handled: MODD colour and interior doodad lighting (WWV `applyLightingParamsToDoodad`: MOLT/MDDI), MODF flag `0x80` MWDS doodad sets, WMO portal/group culling of doodads, and M2 particles.
+
 ## Sources
 
 - [Godot conversion specification](../../specs/godot-conversion.md) — acceptance target and current capability/proof matrix.

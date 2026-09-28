@@ -45,7 +45,7 @@ WoW file format specifications as used by the engine.
 - [adt-format](formats/adt-format.md) — Split files, MCNK MCVT row/column axes and center-fan topology, texture layers, MDDF/MODF placement
 - [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
-- [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis
+- [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis, doodad-set rule
 - [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer
 
 ## Design
