@@ -98,6 +98,12 @@ func run_test() -> void:
 	if not await wait_screen(client, "CharacterSelect", 15000):
 		return
 	var ui := client.get_node_or_null("CharacterSelectUI")
+	# This fixture's roster puts the unequipped character first; select Input Fixture.
+	var card = ui.find_child("CharCard_1", true, false) if ui != null else null
+	if not card is Control:
+		fail("Relogin roster missing Input Fixture card")
+		return
+	await click(card)
 	var enter = ui.find_child("EnterWorld", true, false) if ui != null else null
 	if not enter is Button:
 		fail("Relogin roster missing Enter World")
