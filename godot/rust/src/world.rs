@@ -22,6 +22,9 @@ use godot::{
 };
 use shared::components::{CreatureMotion, MovementControl, SheathState, UnitPose};
 
+/// Unit node metadata: the replicated name (Godot renames duplicate siblings `@Node3D@N`).
+const UNIT_NAME_META: &str = "unit_name";
+
 struct UnitNode {
     node: Gd<Node3D>,
     name: String,
@@ -175,6 +178,7 @@ fn spawn_unit(
     let root = root.get_or_insert_with(|| spawn_root(parent));
     let mut node = Node3D::new_alloc();
     node.set_name(name);
+    node.set_meta(UNIT_NAME_META, &name.to_variant());
     node.set_position(position);
     node.set_rotation(Vector3::new(0.0, yaw, 0.0));
     root.add_child(&node);
@@ -478,6 +482,7 @@ impl WorldUnits {
         });
         if unit.name != name {
             unit.node.set_name(name);
+            unit.node.set_meta(UNIT_NAME_META, &name.to_variant());
             unit.name = name.to_owned();
         }
         unit.is_player = snapshot.player.is_some();
