@@ -136,6 +136,22 @@ impl StreamedTerrain {
             .find_map(|grid| game_engine_core::terrain_height_data::sample_chunk_height(grid, x, z))
     }
 
+    pub fn area_id_at(&self, x: f32, z: f32) -> Option<u32> {
+        use game_engine_core::asset::adt_format::adt::CHUNK_SIZE;
+        use game_engine_core::terrain_height_data::bevy_to_tile_coords;
+
+        let root = &self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?.root;
+        let grid = root.height_grids.iter().find(|grid| {
+            (0.0..CHUNK_SIZE).contains(&(grid.origin_x - x))
+                && (0.0..CHUNK_SIZE).contains(&(z - grid.origin_z))
+        })?;
+        root.chunks
+            .iter()
+            .find(|chunk| chunk.index_x == grid.index_x && chunk.index_y == grid.index_y)
+            .map(|chunk| chunk.area_id)
+            .filter(|&area_id| area_id != 0)
+    }
+
     pub fn water_surface_at(&self, x: f32, z: f32) -> Option<f32> {
         use game_engine_core::terrain_height_data::{
             WaterLayerSurface, bevy_to_tile_coords, layer_has_water, sample_water_layer_height,
@@ -550,6 +566,89 @@ mod tests {
             vertex_uvs: Vec::new(),
             vertex_depths: Vec::new(),
         }
+    }
+
+    fn area_fixture() -> NativeTerrainTile {
+        let path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/terrain/azeroth_32_48.adt");
+        let bytes = std::fs::read(&path).expect("local ADT fixture");
+        let root = game_engine_core::adt::parse_root_for_tile(&bytes, 32, 48, None)
+            .expect("parsed ADT fixture");
+        let mut tile = water_tile(Vec::new());
+        tile.root = root;
+        tile
+    }
+
+    #[test]
+    fn area_query_uses_loaded_tile_and_chunk_bounds() {
+        use game_engine_core::asset::adt_format::adt::CHUNK_SIZE;
+
+        let mut stream = StreamedTerrain::with_reader(cached_assets());
+        let mut tile = area_fixture();
+        for chunk in &mut tile.root.chunks {
+            chunk.area_id = match (chunk.index_x, chunk.index_y) {
+                (0, 0) => 1519,
+                (0, 1) => 1537,
+                (0, 2) => 0,
+                _ => 0,
+            };
+        }
+        let first = tile
+            .root
+            .height_grids
+            .iter()
+            .find(|g| (g.index_x, g.index_y) == (0, 0))
+            .unwrap();
+        let (x, z) = (first.origin_x, first.origin_z);
+        let next = tile
+            .root
+            .height_grids
+            .iter()
+            .find(|g| (g.index_x, g.index_y) == (0, 1))
+            .unwrap();
+        let adjacent_x = next.origin_x - 1.0;
+        stream.parsed_tiles.insert((32, 48), tile);
+
+        assert_eq!(stream.area_id_at(x, z + 1.0), Some(1519));
+        assert_eq!(stream.area_id_at(x - 1.0, z + 1.0), Some(1519));
+        assert_eq!(stream.area_id_at(adjacent_x, z + 1.0), Some(1537));
+        assert_eq!(stream.area_id_at(x - 2.0 * CHUNK_SIZE - 1.0, z + 1.0), None);
+        assert_eq!(stream.area_id_at(x + 1.0, z + 1.0), None);
+        assert_eq!(stream.area_id_at(x - 1.0, z - 1.0), None);
+        assert_eq!(stream.area_id_at(f32::NAN, z), None);
+    }
+
+    #[test]
+    fn area_query_forgets_cleared_generation_and_reads_reloaded_root() {
+        let mut stream = StreamedTerrain::with_reader(cached_assets());
+        let mut tile = area_fixture();
+        let first = tile
+            .root
+            .height_grids
+            .iter()
+            .find(|g| (g.index_x, g.index_y) == (0, 0))
+            .unwrap();
+        let (x, z) = (first.origin_x - 1.0, first.origin_z + 1.0);
+        tile.root
+            .chunks
+            .iter_mut()
+            .find(|c| (c.index_x, c.index_y) == (0, 0))
+            .unwrap()
+            .area_id = 1519;
+        stream.parsed_tiles.insert((32, 48), tile);
+        assert_eq!(stream.area_id_at(x, z), Some(1519));
+        stream.reset().unwrap();
+        assert_eq!(stream.area_id_at(x, z), None);
+        let mut reloaded = area_fixture();
+        reloaded
+            .root
+            .chunks
+            .iter_mut()
+            .find(|c| (c.index_x, c.index_y) == (0, 0))
+            .unwrap()
+            .area_id = 1537;
+        stream.parsed_tiles.insert((32, 48), reloaded);
+        assert_eq!(stream.area_id_at(x, z), Some(1537));
     }
 
     #[test]
