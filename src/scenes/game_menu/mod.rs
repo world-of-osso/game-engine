@@ -15,7 +15,7 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::scenes::game_menu::interaction::handle_overlay_input;
 use crate::scenes::game_menu::options::{
-    ApplySnapshot, BindingCapture, DragCapture, OverlayModel, apply_camera_snapshot,
+    ApplySnapshot, BindingCapture, DragCapture, OptionsModel, OverlayModel, apply_camera_snapshot,
     apply_graphics_snapshot, apply_hud_snapshot, apply_snapshot, apply_sound_snapshot,
     build_view_model, camera_draft, graphics_draft, hud_draft, sound_draft,
 };
@@ -118,7 +118,7 @@ impl Command for OpenMenuCommand {
             .map(|res| res.0);
         let model = build_overlay_model(world, self.0, startup_view);
         let mut shared = SharedContext::new();
-        shared.insert(build_view_model(&model));
+        shared.insert(build_view_model(&model.options));
         let mut screen = Screen::new(game_menu_screen);
         let mut ui = world.resource_mut::<UiState>();
         screen.sync(&shared, &mut ui.registry);
@@ -159,16 +159,11 @@ fn build_overlay_model(
     } else {
         initial_modal_offset(ui_state, registry)
     };
-    OverlayModel {
+    let options = OptionsModel {
         logged_in: game_state.is_logged_in(),
         view,
         category: OptionsCategory::Sound,
         modal_position,
-        drag_capture: DragCapture::None,
-        drag_origin: Vec2::ZERO,
-        drag_offset: Vec2::ZERO,
-        pressed_action: None,
-        pressed_origin: Vec2::ZERO,
         draft_graphics: graphics_d.clone(),
         draft_sound: sound_draft.clone(),
         draft_camera: camera_d.clone(),
@@ -177,10 +172,18 @@ fn build_overlay_model(
         committed_sound: sound_draft,
         committed_camera: camera_d,
         committed_hud: hud_d,
-        draft_bindings: bindings.clone(),
-        committed_bindings: bindings,
+        draft_bindings: bindings.0.clone(),
+        committed_bindings: bindings.0,
         binding_section: BindingSection::Movement,
         binding_capture: BindingCapture::None,
+    };
+    OverlayModel {
+        options,
+        drag_capture: DragCapture::None,
+        drag_origin: Vec2::ZERO,
+        drag_offset: Vec2::ZERO,
+        pressed_action: None,
+        pressed_origin: Vec2::ZERO,
     }
 }
 
@@ -328,7 +331,9 @@ fn queue_logout(commands: &mut Commands) {
 }
 
 fn queue_apply_current_options(overlay: &mut GameMenuOverlay, commands: &mut Commands) {
-    commands.queue(ApplyDraftOptionsCommand(apply_snapshot(&mut overlay.model)));
+    commands.queue(ApplyDraftOptionsCommand(apply_snapshot(
+        &mut overlay.model.options,
+    )));
 }
 
 struct ApplyDraftOptionsCommand(ApplySnapshot);
@@ -360,7 +365,7 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
     }
     apply_camera_snapshot(&mut world.resource_mut::<CameraOptions>(), &snapshot.camera);
     apply_hud_snapshot(&mut world.resource_mut::<HudOptions>(), &snapshot.hud);
-    *world.resource_mut::<InputBindings>() = snapshot.bindings.clone();
+    world.resource_mut::<InputBindings>().0 = snapshot.bindings.clone();
     apply_fps_overlay_snapshot(world, snapshot.hud.show_fps_overlay);
     let mut ui_state = world.resource_mut::<ClientOptionsUiState>();
     ui_state.modal_offset = Some(snapshot.modal_position);
@@ -398,7 +403,7 @@ fn save_snapshot(world: &mut World, snapshot: &ApplySnapshot) {
         &camera,
         &graphics,
         &hud,
-        &snapshot.bindings,
+        &InputBindings(snapshot.bindings.clone()),
         snapshot.modal_position,
     ) {
         warn!("{err}");
@@ -510,7 +515,10 @@ impl Command for SetStateCommand {
 }
 
 fn sync_overlay_model_only(overlay: &mut GameMenuOverlay, reg: &mut FrameRegistry) {
-    overlay.wrap.shared.insert(build_view_model(&overlay.model));
+    overlay
+        .wrap
+        .shared
+        .insert(build_view_model(&overlay.model.options));
     overlay.wrap.screen.sync(&overlay.wrap.shared, reg);
 }
 
