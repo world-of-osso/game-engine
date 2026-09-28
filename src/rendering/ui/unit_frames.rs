@@ -35,7 +35,7 @@ use game_engine::ui::screens::inworld_unit_frames_component::{
     InWorldUnitFramesState, MAX_BOSS_FRAMES, PowerBarState, SmallUnitFrameState,
     TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState, UnitFrameState, UnitMenuItem,
     boss_frame_name, difficulty_menu_height, format_value_text, fraction,
-    inworld_unit_frames_screen, unit_menu_height,
+    inworld_unit_frames_screen, target_level_text, unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -419,15 +419,6 @@ fn resolve_target_name(
 fn difficulty_color(difficulty: LevelDifficulty) -> String {
     let [r, g, b] = difficulty.color();
     format!("{r},{g},{b},1.0")
-}
-
-/// Retail hides the level of units 10 or more levels above the player behind "??".
-fn target_level_text(level: Option<u8>, player_level: Option<u8>) -> String {
-    match (level, player_level) {
-        (Some(level), Some(player)) if u16::from(level) >= u16::from(player) + 10 => "??".into(),
-        (Some(level), _) => level.to_string(),
-        (None, _) => String::new(),
-    }
 }
 
 fn populate_resources(

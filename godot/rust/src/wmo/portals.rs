@@ -6,6 +6,7 @@
 
 use std::collections::{HashSet, VecDeque};
 
+use game_engine_core::asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume};
 use glam::{Affine3A, Vec3};
 
 use super::assets::NativeWmoAsset;
@@ -17,6 +18,11 @@ const PORTAL_NEAR_DISTANCE: f32 = 2.25;
 /// WMO-local file axes to engine axes, the conversion the shared mesh batches use.
 fn engine_axes([x, y, z]: [f32; 3]) -> Vec3 {
     Vec3::new(x, z, -y)
+}
+
+/// Engine axes back to WMO-local file axes (Z up).
+fn file_axes(local: Vec3) -> [f32; 3] {
+    [local.x, -local.z, local.y]
 }
 
 /// A frustum plane; points with `normal.dot(p) + d >= 0` are inside.
@@ -147,6 +153,20 @@ impl WmoPortals {
             }
             None => traverse(&exterior),
         }
+    }
+
+    /// The MFOG fog at world `camera`: WebWowViewerCpp picks the group the camera stands
+    /// in (`map.cpp:487-512`) and asks it for `checkFog` (`DayNightLightHolder.cpp:390-396`).
+    /// The group comes from `camera_interior_group`, not the reference's BSP query.
+    pub fn camera_fog(
+        &self,
+        fog: &WmoFogVolume,
+        world_from_local: Affine3A,
+        camera: Vec3,
+    ) -> Option<WmoFogBlend> {
+        let local_camera = world_from_local.inverse().transform_point3(camera);
+        let group = self.camera_interior_group(local_camera)?;
+        fog.camera_fog(group, file_axes(local_camera))
     }
 
     /// BFS from `start` through portals `visible` accepts.
@@ -369,6 +389,100 @@ mod tests {
     #[test]
     fn standing_in_the_doorway_sees_both_sides_whatever_the_view() {
         assert_eq!(visible(Vec3::new(5.0, 1.0, 1.0), Vec3::Z), [0, 1]);
+    }
+
+    /// Cultists' Quay (WarbandScene 5, tile 2837_27_31): the scene's camera and its
+    /// character slot stand in portal-less interior cave groups of WMO 5356285, so its
+    /// MFOG record 0 applies at full weight.
+    #[test]
+    fn cultists_quay_camera_and_character_take_the_cave_fog() {
+        use game_engine_core::asset::wmo_format::fog::WmoFogData;
+
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let resolver = osso_asset_resolver::CascListfileResolver::new(
+            osso_asset_resolver::AssetResolverConfig::new()
+                .with_data_root(&data_root)
+                .with_shared_data_root(&data_root)
+                .with_cache_root(data_root.join("cache")),
+        );
+        let bytes = std::fs::read(data_root.join("terrain/6252664.adt")).unwrap();
+        let objects = game_engine_core::adt::parse_obj(&bytes).unwrap();
+        let placement = &objects.wmos[0];
+        let asset = crate::wmo::assets::read_placement(&resolver, &data_root, placement).unwrap();
+        assert_eq!(asset.root_fdid, 5_356_285);
+        let portals = WmoPortals::new(&asset);
+        let fog = crate::wmo::assets::wmo_fog_volume(&asset);
+        let world_from_local = crate::wmo::placement::adt_world_from_local(placement, (27, 31));
+        let cave = WmoFogData {
+            end: 578.0,
+            start_scalar: 0.129,
+            color: [21, 80, 99],
+        };
+        // WarbandScene 5 Position (the authored camera) and WarbandScenePlacement 40.
+        for point in [
+            Vec3::new(181.911_45, 94.236_43, -2500.392_3),
+            Vec3::new(194.243, 91.256_2, -2500.98),
+        ] {
+            let blend = portals
+                .camera_fog(&fog, world_from_local, point)
+                .expect("inside an interior cave group");
+            assert_eq!(blend.fog, cave);
+            assert_eq!(blend.weight(), 1.0);
+        }
+        // 50 yd above the cave's MOHD box: exterior fog only.
+        assert_eq!(
+            portals.camera_fog(&fog, world_from_local, Vec3::new(194.0, 460.0, -2500.0)),
+            None
+        );
+    }
+
+    /// Stormwind Stockade (WDT 791060 places WMO 108631 at the origin): its MFOG record 0
+    /// is a plain record, record 1 is F_IEBLEND, so the cells take record 0's blue fog.
+    #[test]
+    fn stockade_cell_block_takes_its_blue_mfog() {
+        use game_engine_core::{adt::WmoPlacement, asset::wmo_format::fog::WmoFogData};
+
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let resolver = osso_asset_resolver::CascListfileResolver::new(
+            osso_asset_resolver::AssetResolverConfig::new()
+                .with_data_root(&data_root)
+                .with_shared_data_root(&data_root)
+                .with_cache_root(data_root.join("cache")),
+        );
+        let placement = WmoPlacement {
+            name_id: 0,
+            unique_id: 0,
+            position: [0.0; 3],
+            rotation: [0.0; 3],
+            extents_min: [0.0; 3],
+            extents_max: [0.0; 3],
+            flags: 0,
+            doodad_set: 0,
+            name_set: 0,
+            scale: 1.0,
+            fdid: Some(108_631),
+            path: None,
+        };
+        let asset = crate::wmo::assets::read_placement(&resolver, &data_root, &placement).unwrap();
+        let fog = crate::wmo::assets::wmo_fog_volume(&asset);
+        let portals = WmoPortals::new(&asset);
+        let placed = crate::wmo::placement::PlacedWmo::new(placement, asset);
+        // The owned global-WMO fixture's spawn (native_transfer_fixture STOCKADE), 2 yd up.
+        let camera = Vec3::new(103.0, -32.5, -76.0);
+        let blend = portals
+            .camera_fog(&fog, placed.world_from_local, camera)
+            .expect("inside a Stockade interior group");
+        // 27.1 yd from the group's nearest portal: past the 25 yd full-weight depth.
+        assert!((blend.dist_to_exit - 27.11).abs() < 0.01, "{blend:?}");
+        assert_eq!(blend.weight(), 1.0);
+        assert_eq!(
+            blend.fog,
+            WmoFogData {
+                end: 133.333_33,
+                start_scalar: 0.1,
+                color: [49, 91, 143],
+            }
+        );
     }
 
     #[test]

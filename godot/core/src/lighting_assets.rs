@@ -163,15 +163,21 @@ impl<'a> CsvRow<'a> {
             ));
         }
         let [_, red, green, blue] = (value as u32).to_be_bytes();
-        Ok([red, green, blue].map(|channel| {
-            let authored = f32::from(channel) / 255.0;
-            if authored <= 0.04045 {
-                authored / 12.92
-            } else {
-                ((authored + 0.055) / 1.055).powf(2.4)
-            }
-        }))
+        Ok(authored_to_linear_rgb(
+            [red, green, blue].map(|channel| f32::from(channel) / 255.0),
+        ))
     }
+}
+
+/// Authored (sRGB-encoded) RGB to the linear RGB keyframes interpolate in.
+pub fn authored_to_linear_rgb(authored: [f32; 3]) -> [f32; 3] {
+    authored.map(|channel| {
+        if channel <= 0.04045 {
+            channel / 12.92
+        } else {
+            ((channel + 0.055) / 1.055).powf(2.4)
+        }
+    })
 }
 
 /// Retail shading consumes authored RGB even though keyframes interpolate in linear RGB.

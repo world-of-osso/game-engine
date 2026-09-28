@@ -598,6 +598,9 @@ fn pose_write_due(changed: bool, sampling: bool, stale: &mut bool) -> bool {
 mod jump_tests;
 
 #[cfg(test)]
+mod npc_locomotion_tests;
+
+#[cfg(test)]
 mod sampling_tests {
     use super::pose_write_due;
 

@@ -41,9 +41,10 @@ pub(crate) struct NativeTerrainTile {
     pub tex: Option<adt::AdtTexData>,
     pub obj: Option<adt::AdtObjData>,
     pub textures: BTreeMap<u32, TerrainLayerTextures>,
-    /// Floors of the tile's `_obj0` MODF WMOs, placed as they render. They are the
-    /// player's ground from the moment the tile is parsed, before any WMO node spawns.
-    pub wmo_floors: Vec<WmoCollision>,
+    /// Collision of the tile's `_obj0` MODF WMOs by MODF unique id, placed as they render.
+    /// Their floors are the player's ground and their faces physics walls from the moment the
+    /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
+    pub wmo_floors: Vec<(u32, WmoCollision)>,
 }
 
 impl NativeTerrainAssets {
@@ -155,12 +156,13 @@ impl NativeTerrainAssets {
         &self,
         placements: &[adt::WmoPlacement],
         tile: (u32, u32),
-    ) -> Vec<WmoCollision> {
+    ) -> Vec<(u32, WmoCollision)> {
         placements
             .iter()
             .filter_map(|placement| match self.read_wmo_groups(placement) {
-                Ok(groups) => Some(crate::wmo::placement::adt_wmo_collision(
-                    placement, tile, groups,
+                Ok(groups) => Some((
+                    placement.unique_id,
+                    crate::wmo::placement::adt_wmo_collision(placement, tile, groups),
                 )),
                 Err(error) => {
                     eprintln!(

@@ -92,6 +92,38 @@ pub fn retail_fog<C>(colors: &SkyColorSet<C>) -> RetailFog {
     }
 }
 
+/// A WMO MFOG record's fog (`end` yards, start at `end * start_scalar`) as legacy fog:
+/// DayNightLightHolder.cpp:666-691 wmoFogDataToFogResult (end clamped to [30, farClip],
+/// density from the start..end span by calcFogDensityFromStartEnd :652-660, FogEnd =
+/// farClip, FogScaler = max(start, 0) / min(farClip, 3000)), read like `retail_fog`.
+pub fn wmo_retail_fog(end: f32, start_scalar: f32) -> RetailFog {
+    let fog_end = FOG_FAR_CLIP.min(end).max(30.0);
+    let fog_start = fog_end * start_scalar;
+    let far = FOG_FAR_CLIP.min(700.0) - 200.0;
+    let difference = fog_end - fog_start;
+    let density = if difference > far || far <= 0.0 {
+        1.5
+    } else {
+        (1.0 - difference / far) * 5.5 + 1.5
+    };
+    RetailFog {
+        start: fog_start.max(0.0),
+        end: FOG_FAR_CLIP.max(277.5).min(FOG_FAR_CLIP),
+        density: density * 0.000_5,
+    }
+}
+
+/// DayNightLightHolder.cpp:712-722 blendWmoFogIntoFogResult: FogScaler and FogDensity
+/// mix linearly by `weight`, so the derived start and density do too; the end stays farClip.
+pub fn blend_wmo_fog(exterior: RetailFog, wmo: RetailFog, weight: f32) -> RetailFog {
+    let mix = |a: f32, b: f32| a + (b - a) * weight;
+    RetailFog {
+        start: mix(exterior.start, wmo.start),
+        end: mix(exterior.end, wmo.end),
+        density: mix(exterior.density, wmo.density),
+    }
+}
+
 /// DayNightLightHolder.cpp:620-621 and :633-645 fixLightTimedData: authored FogDensity, or
 /// one derived from the FogEnd..FogEnd*FogScaler span when the keyframe has none.
 fn keyframe_fog_density<C>(row: &LightDataRow<C>) -> f32 {

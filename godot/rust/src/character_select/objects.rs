@@ -4,6 +4,7 @@ use std::{path::PathBuf, time::Duration};
 
 use game_engine_core::{
     adt::{DoodadPlacement, WmoPlacement},
+    asset::wmo_format::fog::WmoFogBlend,
     campsite_object_data::{
         is_primary_campsite_doodad, is_supplemental_campsite_doodad, wmo_within_radius,
     },
@@ -98,6 +99,10 @@ impl CampsiteObjects {
 
     pub fn update_lighting(&mut self, light: &TerrainLight) {
         self.objects.update_lighting(light);
+    }
+
+    pub fn camera_fog(&self, camera: Vector3) -> Option<WmoFogBlend> {
+        self.objects.camera_fog(camera)
     }
 
     pub fn reset(&mut self) {

@@ -2,7 +2,7 @@
 
 use game_engine_core::{
     camera_control_data::{CameraState, DEFAULT_CAMERA_FOV_DEGREES},
-    camera_follow_data::follow_camera,
+    camera_follow_data::{CameraPose, follow_camera, keep_in_sight},
     camera_input_data::{CameraInput, apply_camera_input},
     client_options_data::CameraOptionsFile,
     input_bindings_data::{InputBindingsData, InputState},
@@ -14,7 +14,10 @@ use godot::{
     prelude::*,
 };
 
-use crate::terrain::streaming::StreamedTerrain;
+use crate::{
+    terrain::streaming::StreamedTerrain,
+    wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
+};
 
 pub(crate) struct WorldCamera {
     node: Option<Gd<Camera3D>>,
@@ -96,23 +99,20 @@ impl WorldCamera {
             .ok_or("World camera has no physics space")?;
         let current = camera.get_global_position();
         let target = player.get_global_position();
-        let ray_length = self.state.distance.max(self.state.target_distance);
-        let mut height_at = |x, z| terrain.height_at(x, z);
-        let pose = follow_camera(
+        let pose = follow_pose(
             &mut self.state,
             [current.x, current.y, current.z].into(),
             [target.x, target.y, target.z].into(),
             delta,
-            Some(&mut height_at),
-            |origin, direction| {
-                raycast_visible_mesh(
+            terrain,
+            |origin, direction, length| {
+                raycast_solid(
                     &mut space,
                     Vector3::new(origin.x, origin.y, origin.z),
-                    Vector3::new(direction.x, direction.y, direction.z) * ray_length,
+                    Vector3::new(direction.x, direction.y, direction.z) * length,
                     player,
                 )
             },
-            |point| camera_ground(terrain, point.x, point.z),
         );
         camera.set_global_position(Vector3::new(
             pose.position.x,
@@ -126,6 +126,37 @@ impl WorldCamera {
         ));
         camera.make_current();
         Ok(())
+    }
+}
+
+/// One follow step: the shared follow calculation, then the smoothed position kept in sight of
+/// the eye. `solid_hit(origin, direction, length)` is the distance to the first solid surface
+/// (terrain or WMO) along the ray, if within `length`.
+pub(crate) fn follow_pose(
+    state: &mut CameraState,
+    current: glam::Vec3,
+    target: glam::Vec3,
+    delta: f32,
+    terrain: &StreamedTerrain,
+    mut solid_hit: impl FnMut(glam::Vec3, glam::Vec3, f32) -> Option<f32>,
+) -> CameraPose {
+    let ray_length = state.distance.max(state.target_distance);
+    let mut height_at = |x, z| terrain.height_at(x, z);
+    let pose = follow_camera(
+        state,
+        current,
+        target,
+        delta,
+        Some(&mut height_at),
+        |origin, direction| solid_hit(origin, direction, ray_length),
+        |point| camera_ground(terrain, point.x, point.z),
+    );
+    let sight = pose.position.distance(pose.eye_target);
+    CameraPose {
+        position: keep_in_sight(pose.eye_target, pose.position, |origin, direction| {
+            solid_hit(origin, direction, sight)
+        }),
+        eye_target: pose.eye_target,
     }
 }
 
@@ -152,7 +183,9 @@ fn camera_ground(terrain: &StreamedTerrain, x: f32, z: f32) -> Option<f32> {
     Some(terrain.height_at(x, z).unwrap_or(0.0))
 }
 
-fn raycast_visible_mesh(
+/// Nearest hit on visible terrain or on WMO collision, which is solid whether or not the WMO
+/// group is drawn.
+fn raycast_solid(
     space: &mut Gd<PhysicsDirectSpaceState3D>,
     origin: Vector3,
     ray: Vector3,
@@ -160,6 +193,7 @@ fn raycast_visible_mesh(
 ) -> Option<f32> {
     let mut query = PhysicsRayQueryParameters3D::create(origin, origin + ray)
         .expect("Godot could not allocate camera ray parameters");
+    query.set_collision_mask(TERRAIN_LAYER | WMO_LAYER);
     let mut excluded = Array::new();
     loop {
         let hit = space.intersect_ray(&query);

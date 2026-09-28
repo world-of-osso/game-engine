@@ -1,6 +1,6 @@
-# NPC animation LOD
+# NPC and doodad animation LOD
 
-Replicated NPC models sample their bone animation at a rate chosen from camera distance and last frame's frustum result. The `M2AnimPlayer` clock, sequence selection, and crossfades keep running every frame; only Bevy clip sampling and joint writes are skipped. The server interest radius (100 yd) is unchanged.
+Replicated NPC models and placed doodads sample their bone animation at a rate chosen from camera distance and whether they are on screen. The animation clock, sequence selection, and crossfades keep running; only pose sampling and joint writes are skipped. The server interest radius (100 yd) is unchanged. Both clients (Bevy and Godot) share these rules.
 
 ## What it must do
 
@@ -11,7 +11,11 @@ Replicated NPC models sample their bone animation at a rate chosen from camera d
 - [ ] NPC models beyond 60 yd, or with no mesh visible in the previous frame, do not sample; their joints keep the last written pose.
 - [x] A new binding samples until Bevy has evaluated it once, so an NPC frozen since spawn holds an authored pose, not the bind pose.
 - [ ] A skipped frame writes no joint transform, so the NPC's transform subtree is not dirtied.
-- [ ] Models not parented to an NPC visual root (the local player, doodads, debug scenes) are never rate-limited.
+- [ ] Models that are neither NPCs nor doodads (the local player, other players, debug scenes) are never rate-limited.
+- [x] Doodads use the same distance bands and rates as NPCs, measured from the camera to the doodad (Godot: its transformed render-box center).
+- [x] A doodad that is not drawn (beyond its scenery distance) or not on screen does not sample, as in the build-12340 reproduction, which culls static placements from their bounds before advancing their playback (solarityclient `crates/runtime/src/application/terrain_frame/m2.rs`, "ADT/WMO placements were culled from compact immutable bounds before touching instance state").
+- [x] A doodad that starts sampling again shows the pose for the current clock time: no restart from the sequence start and no replay of the skipped time.
+- [x] A doodad's material (texture and color) animation follows the same sampling rule as its bones and is at the current clock time whenever it samples.
 - [ ] Without a `WowCamera` in the world, no model is rate-limited.
 - [ ] Applies only in `GameState::InWorld`.
 
@@ -24,12 +28,20 @@ Replicated NPC models sample their bone animation at a rate chosen from camera d
 - `src/rendering/model/animation/lod.rs`: thresholds, `AnimationLod`, per-frame assignment from `WowCamera` distance and descendant `ViewVisibility`, including meshes beneath a grounded model root.
 - `src/rendering/model/animation/bevy_player.rs`: `sync_m2_animation_players` leaves clips stopped on skipped frames.
 - `src/game/networking/npc.rs`: `NpcVisualRoot` marker on the replicated NPC's visual root.
+- `src/rendering/camera/culling.rs`: `Doodad` marker; Bevy doodads are rate-limited through it.
+- `godot/rust/src/animation/lod.rs`: the Godot thresholds, `AnimationLod`, and `DeferredClock` (time owed to a doodad advanced only on sampled frames).
+- `godot/rust/src/terrain/scenery.rs`: doodad drawn/on-screen/distance classification into `AnimationLod`.
+- `godot/rust/src/terrain/objects.rs`: the in-world doodad cull advances bone and material animation on sampled frames.
+- `godot/rust/src/world.rs`: NPC assignment in the Godot client.
 
 ## Tests asserting this spec
 
 - `tests/unit/animation_tests/lod.rs`: threshold table, alternate-frame sampling, and App-level joint-write behavior for near, mid, far, off-screen, non-NPC, and camera-less cases, plus first-sample authored pose for NPCs frozen since spawn.
 - `src/rendering/model/animation/lod_tests.rs`: nested grounded-root visibility plus near/mid/far and visibility-loss transitions.
 - `src/game/networking/npc_animation_tests.rs`: actual sheep and HumanMaleHD attachment/playback, display texture pixels, logical-facing basis, and non-player/equipment isolation.
+- `tests/unit/animation_tests/lod.rs` `doodads_follow_the_npc_distance_and_visibility_rates`: Bevy near, mid, far, and off-screen doodad joint writes.
+- `godot/rust/src/animation/lod.rs`: thresholds, stagger, and `deferred_clock_resumes_at_the_every_frame_time`.
+- `godot/rust/src/terrain/scenery.rs` `drawn_doodads_animate_at_the_shared_lod_rate`: near, mid, far, behind, beside, partly in view, and beyond scenery distance.
 
 ## Known gaps
 

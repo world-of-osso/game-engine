@@ -271,8 +271,16 @@ impl crate::GameClient {
             .local_player_node()
             .ok_or("Selected player vanished during input")?;
         let current = player.get_position();
+        let space = player
+            .get_world_3d()
+            .and_then(|world| world.get_direct_space_state())
+            .ok_or("Local player has no physics space")?;
+        let walls = |origin, direction, length| {
+            crate::wmo::collision::wall_hit(&space, origin, direction, length)
+        };
         let ground = crate::ground::TerrainGround {
             terrain: &self.terrain,
+            walls: &walls,
         };
         let next = self.player_movement.predict(
             glam::Vec3::new(current.x, current.y, current.z),
@@ -356,7 +364,10 @@ mod tests {
     fn strafe_run_reports_the_predicted_diagonal_position() {
         let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
-        let ground = TerrainGround { terrain: &terrain };
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
         let yaw = std::f32::consts::FRAC_PI_2;
         let mut movement = PlayerMovement::default();
         let mut input = PhysicalInput::default();

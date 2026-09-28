@@ -1,10 +1,13 @@
 //! WarbandScene DB2 data: camera positions + character placements for char select backgrounds.
 
+use std::collections::HashMap;
 #[cfg(test)]
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use bevy::prelude::*;
+use game_engine::ui::screens::char_select_component::{CampsiteEntry, CampsitePreview};
 
 use crate::asset::asset_cache;
 use crate::asset::m2::wow_to_bevy;
@@ -44,6 +47,29 @@ impl WarbandScenes {
             }
         };
         Self { scenes, placements }
+    }
+
+    /// Campsite selector entries with their texture kit's card art (read once per process).
+    pub fn campsite_entries(&self) -> Vec<CampsiteEntry> {
+        static ART: OnceLock<HashMap<u32, data::AtlasArt>> = OnceLock::new();
+        let art = ART.get_or_init(|| {
+            let kits: Vec<u32> = self.scenes.iter().map(|scene| scene.texture_kit).collect();
+            data::read_texture_kit_art(Path::new("data"), &kits).unwrap_or_else(|err| {
+                eprintln!("Failed to load campsite card art: {err}");
+                HashMap::new()
+            })
+        });
+        self.scenes
+            .iter()
+            .map(|scene| CampsiteEntry {
+                id: scene.id,
+                name: scene.name.clone(),
+                preview_image: art.get(&scene.texture_kit).map(|art| CampsitePreview {
+                    fdid: art.fdid,
+                    tex_coords: art.tex_coords,
+                }),
+            })
+            .collect()
     }
 
     /// Get the first character placement for a given scene (slot 0).
@@ -298,28 +324,6 @@ mod tests {
     }
 
     #[test]
-    fn preview_image_paths_cover_current_char_select_scenes() {
-        let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
-        for scene_id in [1, 4, 5, 7, 25] {
-            let scene = scenes
-                .iter()
-                .find(|scene| scene.id == scene_id)
-                .unwrap_or_else(|| panic!("missing expected campsite scene {scene_id}"));
-            assert!(
-                scene.preview_image_path().is_some(),
-                "missing preview image path for scene {} ({})",
-                scene.id,
-                scene.name
-            );
-        }
-        assert!(
-            scenes
-                .iter()
-                .any(|scene| scene.preview_image_path().is_none())
-        );
-    }
-
-    #[test]
     fn warband_scene_tile_coords_match_existing_tiles() {
         let scenes = load_scenes(Path::new("data/WarbandScene.csv"));
         let rest = scenes
@@ -401,7 +405,7 @@ mod tests {
         for scene in warband
             .scenes
             .iter()
-            .filter(|scene| scene.preview_image_path().is_some())
+            .filter(|scene| [1, 4, 5, 7, 25].contains(&scene.id))
         {
             assert!(
                 scene.skybox_model_wow_path().is_some(),

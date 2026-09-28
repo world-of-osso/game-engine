@@ -3,7 +3,11 @@
 pub(crate) mod assets;
 
 use game_engine_core::{
-    retail_light_data::RetailLightData, sky_cubemap_data, sky_lightdata_data::RetailFog,
+    asset::wmo_format::fog::WmoFogBlend,
+    lighting_assets::{authored_to_linear_rgb, linear_to_authored_rgb},
+    retail_light_data::RetailLightData,
+    sky_cubemap_data,
+    sky_lightdata_data::{RetailFog, blend_wmo_fog, wmo_retail_fog},
 };
 use godot::{
     classes::{
@@ -71,10 +75,12 @@ impl TerrainLight {
 pub(crate) struct WorldLighting {
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
-    previous: Option<(RetailLightData, RetailFog, SkyStops)>,
+    previous: Option<(RetailLightData, RetailFog, [f32; 3], SkyStops)>,
 }
 
 impl WorldLighting {
+    /// Samples the authored light at `position`; `wmo_fog` is the MFOG fog of the WMO
+    /// interior the camera is in.
     pub fn sync(
         &mut self,
         parent: &mut Gd<Node3D>,
@@ -82,6 +88,7 @@ impl WorldLighting {
         map_id: u32,
         position: Vector3,
         minutes: f32,
+        wmo_fog: Option<&WmoFogBlend>,
     ) -> Result<Option<TerrainLight>, String> {
         let sample = catalog.sample(map_id, [position.x, -position.z, position.y], minutes)?;
         let sky = &sample.sky;
@@ -94,7 +101,8 @@ impl WorldLighting {
             sky.fog_color,
             sky.fog_color,
         ];
-        let values = (sample.retail.clone(), sample.fog, stops);
+        let (fog, fog_color) = apply_wmo_fog(sample.fog, sky.fog_color, wmo_fog);
+        let values = (sample.retail.clone(), fog, fog_color, stops);
         if self.previous.as_ref() == Some(&values) {
             return Ok(None);
         }
@@ -108,8 +116,8 @@ impl WorldLighting {
         self.previous = Some(values);
         Ok(Some(TerrainLight {
             retail: sample.retail,
-            fog: sample.fog,
-            fog_color: sky.fog_color,
+            fog,
+            fog_color,
             cube,
         }))
     }
@@ -146,6 +154,32 @@ impl WorldLighting {
     }
 }
 
+/// DayNightLightHolder.cpp:491-497: inside a WMO interior group, the exterior fog
+/// (`fog_color` linear) mixes toward the WMO's MFOG fog by `WmoFogBlend::weight`. Colours
+/// mix in authored space, as the reference mixes its byte colours
+/// (`blendWmoFogIntoFogResult` :712-716). Underwater fog is not ported.
+pub(crate) fn apply_wmo_fog(
+    fog: RetailFog,
+    fog_color: [f32; 3],
+    wmo: Option<&WmoFogBlend>,
+) -> (RetailFog, [f32; 3]) {
+    let Some(wmo) = wmo else {
+        return (fog, fog_color);
+    };
+    let weight = wmo.weight();
+    let fog = blend_wmo_fog(
+        fog,
+        wmo_retail_fog(wmo.fog.end, wmo.fog.start_scalar),
+        weight,
+    );
+    let exterior = linear_to_authored_rgb(fog_color);
+    let authored = std::array::from_fn(|channel| {
+        let target = f32::from(wmo.fog.color[channel]) / 255.0;
+        exterior[channel] + (target - exterior[channel]) * weight
+    });
+    (fog, authored_to_linear_rgb(authored))
+}
+
 fn create_cubemap(stops: SkyStops) -> Result<Gd<Cubemap>, String> {
     let pixels = sky_cubemap_data::build_sky_cubemap(&stops);
     let size = sky_cubemap_data::ENV_MAP_SIZE as i32;
@@ -168,4 +202,60 @@ fn create_cubemap(stops: SkyStops) -> Result<Gd<Cubemap>, String> {
         return Err(format!("Godot rejected authored sky cubemap: {error:?}"));
     }
     Ok(cube)
+}
+
+#[cfg(test)]
+mod tests {
+    use game_engine_core::{
+        asset::wmo_format::fog::{WmoFogBlend, WmoFogData},
+        lighting_assets::{authored_to_linear_rgb, linear_to_authored_rgb},
+    };
+
+    use super::{apply_wmo_fog, assets::LightingCatalog};
+
+    const CAVE: WmoFogData = WmoFogData {
+        end: 578.0,
+        start_scalar: 0.129,
+        color: [21, 80, 99],
+    };
+
+    fn cave_at(dist_to_exit: f32) -> WmoFogBlend {
+        WmoFogBlend {
+            fog: CAVE,
+            underwater: CAVE,
+            dist_to_exit,
+        }
+    }
+
+    /// Cultists' Quay at noon: LightParams 12 fog, replaced by the cave's MFOG record 0
+    /// deep inside, and half of each 12.5 yd from a portal.
+    #[test]
+    fn cultists_quay_scene_fog_takes_the_cave_mfog() {
+        let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = LightingCatalog::read(&data_root).unwrap();
+        let sample = catalog
+            .sample(2837, [181.911_45, 2500.392_3, 94.236_43], 1440.0)
+            .unwrap();
+        let exterior = (sample.fog, sample.sky.fog_color);
+        assert_eq!(apply_wmo_fog(exterior.0, exterior.1, None), exterior);
+
+        let (fog, color) = apply_wmo_fog(exterior.0, exterior.1, Some(&cave_at(f32::MAX)));
+        assert!((fog.start - 74.562).abs() < 1e-3, "{fog:?}");
+        assert_eq!(fog.end, 1000.0);
+        assert!((fog.density - 0.000_75).abs() < 1e-9, "{fog:?}");
+        let expected = authored_to_linear_rgb([21.0, 80.0, 99.0].map(|byte| byte / 255.0));
+        for (channel, want) in color.iter().zip(expected) {
+            assert!((channel - want).abs() < 1e-6, "{color:?} vs {expected:?}");
+        }
+
+        let (half, half_color) = apply_wmo_fog(exterior.0, exterior.1, Some(&cave_at(12.5)));
+        assert!((half.start - (exterior.0.start + 74.562) / 2.0).abs() < 1e-3);
+        assert!((half.density - (exterior.0.density + 0.000_75) / 2.0).abs() < 1e-9);
+        let authored = linear_to_authored_rgb(exterior.1);
+        let mixed = linear_to_authored_rgb(half_color);
+        for channel in 0..3 {
+            let want = (authored[channel] + [21.0, 80.0, 99.0][channel] / 255.0) / 2.0;
+            assert!((mixed[channel] - want).abs() < 1e-5);
+        }
+    }
 }

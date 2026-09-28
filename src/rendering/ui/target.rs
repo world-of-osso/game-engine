@@ -386,17 +386,7 @@ fn sorted_targets_by_distance(
 
 /// Pick the next target after the current one in the sorted list, wrapping around.
 fn pick_next_target(sorted: &[Entity], current: Option<Entity>) -> Option<Entity> {
-    if sorted.is_empty() {
-        return None;
-    }
-    let Some(cur) = current else {
-        return Some(sorted[0]);
-    };
-    let idx = sorted.iter().position(|&e| e == cur);
-    match idx {
-        Some(i) => Some(sorted[(i + 1) % sorted.len()]),
-        None => Some(sorted[0]),
-    }
+    game_engine::target_selection_data::next_target(sorted, current)
 }
 
 pub(crate) fn resolve_targetable_ancestor(
