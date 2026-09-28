@@ -28,23 +28,29 @@ func press(ui: Node, name: String) -> bool:
 	await frames(2)
 	return true
 
+# A physical drag: press, then motion on later frames while the button stays held.
 func left_drag(relative: Vector2) -> void:
 	var down := InputEventMouseButton.new()
 	down.position = Vector2(640, 300)
 	down.button_index = MOUSE_BUTTON_LEFT
+	down.button_mask = MOUSE_BUTTON_MASK_LEFT
 	down.pressed = true
-	root.push_input(down, true)
-	var motion := InputEventMouseMotion.new()
-	motion.position = down.position
-	motion.relative = relative
-	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
-	root.push_input(motion, true)
+	Input.parse_input_event(down)
 	await frames(2)
+	var steps := 4
+	for step in range(steps):
+		var motion := InputEventMouseMotion.new()
+		motion.relative = relative / steps
+		motion.position = down.position + motion.relative * (step + 1)
+		motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		Input.parse_input_event(motion)
+		await frames(1)
+	await frames(1)
 	var up := InputEventMouseButton.new()
 	up.position = down.position
 	up.button_index = MOUSE_BUTTON_LEFT
 	up.pressed = false
-	root.push_input(up, true)
+	Input.parse_input_event(up)
 	await frames(2)
 
 func wait_for(path: String) -> Node:

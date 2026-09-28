@@ -195,7 +195,6 @@ impl crate::GameClient {
         use godot::prelude::*;
         if !self.gameplay_input_allowed() {
             self.player_movement.stop();
-            self.physical_input.clear();
             return Ok(());
         }
         let viewport = self
