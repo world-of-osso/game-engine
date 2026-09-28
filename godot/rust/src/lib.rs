@@ -16,6 +16,8 @@ mod input;
 mod input_keys;
 mod lighting;
 mod loading;
+#[path = "../../../src/game/creatures/npc_gear_data.rs"]
+pub mod npc_gear_data;
 mod scene;
 mod startup;
 mod targeting;

@@ -2,18 +2,15 @@
 //! exports: its `UnitPose` (TrinityCore `UnitStandStateType`, `SheathState`,
 //! `UnitData::EmoteState`), its virtual items (`EquipmentAppearance`) and the armor its
 //! display authors (`NPCModelItemSlotDisplayInfo` of its `CreatureDisplayInfoExtra`).
+//! Engine-free: the Bevy and Godot clients both read it.
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::OnceLock;
 
 use shared::components::{
     EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, SheathState, StandState,
     UnitPose,
 };
-
-use crate::spell_catalog::SPELL_DB2_BUILD;
-use crate::spell_catalog::csv_records::CsvTable;
 
 // AnimationData IDs (wowdev.wiki M2/AnimationList).
 const ANIM_DEAD: u16 = 6;
@@ -48,35 +45,6 @@ pub fn unit_pose_anim_id(
         StandState::Submerged => ANIM_SUBMERGED,
     };
     Ok(Some(anim))
-}
-
-/// `Emotes.AnimID` of `emote`; the table loads on first use.
-pub fn emote_anim_id(emote: u32) -> Option<u16> {
-    static EMOTES: OnceLock<HashMap<u32, u16>> = OnceLock::new();
-    EMOTES
-        .get_or_init(|| {
-            let path = db2_path("Emotes.csv");
-            load_emote_anims(&path).unwrap_or_else(|error| {
-                bevy::log::error!("{error}");
-                HashMap::new()
-            })
-        })
-        .get(&emote)
-        .copied()
-}
-
-/// Emotes with `AnimID` -1 play no animation and are left out.
-fn load_emote_anims(path: &Path) -> Result<HashMap<u32, u16>, String> {
-    let table = CsvTable::read(path)?;
-    let (id, anim) = (table.column("ID")?, table.column("AnimID")?);
-    let mut anims = HashMap::new();
-    for record in table.records() {
-        let anim_id: i32 = number(&record, anim, path)?;
-        if let Ok(anim_id) = u16::try_from(anim_id) {
-            anims.insert(number(&record, id, path)?, anim_id);
-        }
-    }
-    Ok(anims)
 }
 
 // WMVx `AttachmentPosition` / M2 attachment IDs.
@@ -156,53 +124,80 @@ pub fn npc_item_slot_visual_slot(item_slot: u8) -> Option<EquipmentVisualSlot> {
     })
 }
 
-/// Creature display → `CreatureDisplayInfoExtra` → its authored armor.
+/// The DB2 rows a creature's pose and gear resolve through.
 #[derive(Debug, Default)]
-pub struct NpcItemSlots {
+pub struct NpcGearData {
+    /// `Emotes.ID` → `AnimID`; emotes with `AnimID` -1 play no animation and are absent.
+    emote_anims: HashMap<u32, u16>,
+    /// `CreatureDisplayInfo.ID` → `ExtendedDisplayInfoID` (non-zero only).
     extra_by_display: HashMap<u32, u32>,
+    /// `NPCModelItemSlotDisplayInfo.NpcModelID` → (`ItemSlot`, `ItemDisplayInfoID`).
     items_by_extra: HashMap<u32, Vec<(u8, u32)>>,
+    /// `Item.ID` → `SheatheType`.
+    sheathe_types: HashMap<u32, u8>,
 }
 
-impl NpcItemSlots {
-    pub(crate) fn from_tables(
-        display_info: &CsvTable,
-        item_slots: &CsvTable,
-    ) -> Result<Self, String> {
-        let mut slots = Self::default();
-        let path = display_info.path();
-        let (id, extra) = (
-            display_info.column("ID")?,
-            display_info.column("ExtendedDisplayInfoID")?,
-        );
-        for record in display_info.records() {
-            let extra_id: u32 = number(&record, extra, path)?;
-            if extra_id != 0 {
-                slots
-                    .extra_by_display
-                    .insert(number(&record, id, path)?, extra_id);
-            }
-        }
-        let path = item_slots.path();
-        let (model, display, slot) = (
-            item_slots.column("NpcModelID")?,
-            item_slots.column("ItemDisplayInfoID")?,
-            item_slots.column("ItemSlot")?,
-        );
-        for record in item_slots.records() {
-            slots
-                .items_by_extra
-                .entry(number(&record, model, path)?)
-                .or_default()
-                .push((
-                    number(&record, slot, path)?,
-                    number(&record, display, path)?,
-                ));
-        }
-        Ok(slots)
+impl NpcGearData {
+    /// `Emotes`, `CreatureDisplayInfo`, `NPCModelItemSlotDisplayInfo` and `Item` from one
+    /// DB2 export directory.
+    pub fn load(db2_dir: &Path) -> Result<Self, String> {
+        let mut data = Self::default();
+        read_rows(
+            &db2_dir.join("Emotes.csv"),
+            ["ID", "AnimID"],
+            |[id, anim]| {
+                if let Ok(anim) = u16::try_from(anim) {
+                    data.emote_anims.insert(id as u32, anim);
+                }
+            },
+        )?;
+        read_rows(
+            &db2_dir.join("CreatureDisplayInfo.csv"),
+            ["ID", "ExtendedDisplayInfoID"],
+            |[id, extra]| {
+                if extra != 0 {
+                    data.extra_by_display.insert(id as u32, extra as u32);
+                }
+            },
+        )?;
+        read_rows(
+            &db2_dir.join("NPCModelItemSlotDisplayInfo.csv"),
+            ["NpcModelID", "ItemSlot", "ItemDisplayInfoID"],
+            |[extra, slot, display]| {
+                data.items_by_extra
+                    .entry(extra as u32)
+                    .or_default()
+                    .push((slot as u8, display as u32));
+            },
+        )?;
+        read_rows(
+            &db2_dir.join("Item.csv"),
+            ["ID", "SheatheType"],
+            |[id, sheathe]| {
+                data.sheathe_types.insert(id as u32, sheathe as u8);
+            },
+        )?;
+        Ok(data)
+    }
+
+    /// `Emotes.AnimID` of `emote`.
+    pub fn emote_anim_id(&self, emote: u32) -> Option<u16> {
+        self.emote_anims.get(&emote).copied()
+    }
+
+    /// The looping animation `pose` holds while the unit stands still (see
+    /// [`unit_pose_anim_id`]).
+    pub fn pose_anim_id(&self, pose: &UnitPose) -> Result<Option<u16>, String> {
+        unit_pose_anim_id(pose, |emote| self.emote_anim_id(emote))
+    }
+
+    /// `Item.SheatheType` of `item_id`, or `None` when Item.db2 has no such item.
+    pub fn sheathe_type(&self, item_id: u32) -> Option<u8> {
+        self.sheathe_types.get(&item_id).copied()
     }
 
     /// The display's armor as ItemDisplayInfo entries; empty without an Extra.
-    pub fn appearance(&self, display_id: u32) -> Result<EquipmentAppearance, String> {
+    pub fn display_armor(&self, display_id: u32) -> Result<EquipmentAppearance, String> {
         let Some(extra) = self.extra_by_display.get(&display_id) else {
             return Ok(EquipmentAppearance::default());
         };
@@ -228,41 +223,75 @@ impl NpcItemSlots {
             .collect::<Result<_, String>>()?;
         Ok(EquipmentAppearance { entries })
     }
+
+    /// The attachment virtual item `entry` renders on under `sheath`, or `None` when it
+    /// is not shown (see [`virtual_item_attachment`]); an item absent from Item.db2 sits
+    /// as one without a sheath position.
+    pub fn virtual_item_placement(
+        &self,
+        entry: &EquippedAppearanceEntry,
+        sheath: SheathState,
+    ) -> Option<u32> {
+        let sheathe_type = entry
+            .item_id
+            .and_then(|item| self.sheathe_type(item))
+            .unwrap_or(0);
+        virtual_item_attachment(entry.slot, entry.inventory_type, sheathe_type, sheath)
+    }
+
+    /// Each shown virtual item with its attachment under `sheath`.
+    pub fn virtual_item_attachments(
+        &self,
+        items: &EquipmentAppearance,
+        sheath: SheathState,
+    ) -> Vec<(EquippedAppearanceEntry, u32)> {
+        items
+            .entries
+            .iter()
+            .filter_map(|entry| {
+                self.virtual_item_placement(entry, sheath)
+                    .map(|attachment| (entry.clone(), attachment))
+            })
+            .collect()
+    }
 }
 
-/// The pinned exports' item slots; they load on first use.
-pub fn npc_item_slots() -> &'static NpcItemSlots {
-    static SLOTS: OnceLock<NpcItemSlots> = OnceLock::new();
-    SLOTS.get_or_init(|| {
-        let tables = CsvTable::read(&db2_path("CreatureDisplayInfo.csv")).and_then(|display| {
-            let slots = CsvTable::read(&db2_path("NPCModelItemSlotDisplayInfo.csv"))?;
-            NpcItemSlots::from_tables(&display, &slots)
-        });
-        tables.unwrap_or_else(|error| {
-            bevy::log::error!("NPC item slots unavailable: {error}");
-            NpcItemSlots::default()
-        })
-    })
-}
-
-fn db2_path(file: &str) -> std::path::PathBuf {
-    crate::paths::resolve_data_path(Path::new("db2").join(SPELL_DB2_BUILD).join(file))
-}
-
-fn number<T: std::str::FromStr>(
-    record: &[std::borrow::Cow<'_, str>],
-    index: usize,
+/// Call `row` with the integer values of `columns` for each record of the numeric CSV
+/// export at `path`. A quoted field is an error: these tables hold numbers only.
+fn read_rows<const N: usize>(
     path: &Path,
-) -> Result<T, String>
-where
-    T::Err: std::fmt::Display,
-{
-    let value = record
-        .get(index)
-        .ok_or_else(|| format!("{}: short row {record:?}", path.display()))?;
-    value
-        .parse()
-        .map_err(|error| format!("{}: bad value {value:?}: {error}", path.display()))
+    columns: [&str; N],
+    mut row: impl FnMut([i64; N]),
+) -> Result<(), String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|error| format!("read {}: {error}", path.display()))?;
+    let mut lines = text.lines();
+    let header: Vec<&str> = lines
+        .next()
+        .ok_or_else(|| format!("{} has no header", path.display()))?
+        .split(',')
+        .collect();
+    let mut indexes = [0; N];
+    for (index, column) in indexes.iter_mut().zip(columns) {
+        *index = header
+            .iter()
+            .position(|name| *name == column)
+            .ok_or_else(|| format!("{} has no column {column}", path.display()))?;
+    }
+    for line in lines.filter(|line| !line.is_empty()) {
+        let fields: Vec<&str> = line.split(',').collect();
+        let mut values = [0; N];
+        for (value, index) in values.iter_mut().zip(indexes) {
+            let field = fields
+                .get(index)
+                .ok_or_else(|| format!("{}: short row {line:?}", path.display()))?;
+            *value = field
+                .parse()
+                .map_err(|error| format!("{}: bad value {field:?}: {error}", path.display()))?;
+        }
+        row(values);
+    }
+    Ok(())
 }
 
 #[cfg(test)]
