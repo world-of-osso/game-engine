@@ -1,4 +1,5 @@
 //! ADT root, texture companion and object companion byte parsers.
+pub use crate::asset::adt_format::adt_water_geometry::{WaterGeometry, build_water_geometry};
 use crate::asset::adt_format::{adt, adt_geometry, adt_obj, adt_tex};
 
 pub use crate::terrain_material_data::{
@@ -11,7 +12,9 @@ pub use adt::{
 };
 pub use adt_geometry::Geometry;
 pub use adt_obj::{AdtObjData, ChunkObjectRefs, DoodadPlacement, WmoPlacement};
-pub use adt_tex::{AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, TextureParams};
+pub use adt_tex::{
+    AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, TextureParams, WaterLayer,
+};
 
 pub struct Root {
     pub chunks: Vec<Chunk>,
