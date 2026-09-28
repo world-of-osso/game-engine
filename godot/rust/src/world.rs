@@ -601,6 +601,9 @@ mod tests {
             movement_control: None,
             creature_motion: None,
             unit_target: None,
+            faction_template: None,
+            unit_flags: None,
+            in_combat: false,
         }
     }
 

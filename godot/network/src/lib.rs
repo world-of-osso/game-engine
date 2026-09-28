@@ -24,8 +24,9 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay, MovementControl, Npc,
-        Player, Position, Rotation, UnitLevel, UnitTarget,
+        CombatStatus, CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay,
+        MovementControl, Npc, Player, Position, Rotation, UnitFactionTemplate, UnitFlags,
+        UnitLevel, UnitTarget,
     },
     protocol::{
         CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
@@ -79,6 +80,12 @@ pub struct UnitSnapshot {
     pub creature_motion: Option<CreatureMotion>,
     /// Server entity bits of the unit's own target (`SetTarget` echo for players).
     pub unit_target: Option<u64>,
+    /// Retail `FactionTemplate` id, for reaction to the local player.
+    pub faction_template: Option<u32>,
+    /// `UNIT_FIELD_FLAGS` bits.
+    pub unit_flags: Option<u32>,
+    /// Replicated `CombatStatus`.
+    pub in_combat: bool,
 }
 
 impl UnitSnapshot {
@@ -97,6 +104,11 @@ impl UnitSnapshot {
             movement_control: entity.get::<MovementControl>().copied(),
             creature_motion: entity.get::<CreatureMotion>().copied(),
             unit_target: entity.get::<UnitTarget>().and_then(|target| target.0),
+            faction_template: entity
+                .get::<UnitFactionTemplate>()
+                .map(|template| template.0),
+            unit_flags: entity.get::<UnitFlags>().map(|flags| flags.0),
+            in_combat: entity.get::<CombatStatus>().is_some_and(|status| status.0),
         }
     }
 }
