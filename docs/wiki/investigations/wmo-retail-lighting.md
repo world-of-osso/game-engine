@@ -120,13 +120,26 @@ The Godot client used to whitelist MOMT 0/1/4/5/6/7/13/21 and drop the whole WMO
 - `native_input_fixture overlay`: streamed WMO 108238 group 38 (MOMT 7) binds its layers at authored sizes 512/128; the GPU shows texture 1 at MOCV2.a = 1 and texture 2 at 0.
 - Live character select, campsites 7 and 25: 457 and 706 pixel-20 batches plus MOMT 2/7/9/11/12/13/19 batches spawn, with no WMO errors. Both scenes are hidden by fog. Their scene light has linear fog with `fog_range` (0,0), which fogs every material fully (`apply_retail_fog` divides by zero). That is a separate lighting bug. With fog off, campsite 7 shows DF-shaded stone buildings, which disappear when pixel-20 batches are hidden, and campsite 25 shows its interior.
 
+## Godot: WMO doodad light (branch `wmodoodadcost`)
+
+An M2 placed by a WMO is lit as WebWowViewerCpp lights it (reference commit `1a8cccb`), in `godot/rust/src/wmo/doodad_light.rs`:
+
+- **Blend.** Every WMO doodad starts interior-lit (`wmoObject.cpp:98`, `setInteriorExteriorBlend(0)`); it is exterior-lit once a group whose MODR references it is exterior-lit (`wmoGroupObject.cpp:246-256`, the same group rule as above).
+- **Interior light**, only when the first referencing group is interior-lit (`wmoObject.cpp:114-122`): `applyColorFromMOLT` (`:186-268`) and `applyLightingParamsToDoodad` (`:270-326`) turn the MODD colour, MODD flags (`0x2` no colour adjustment, `0x4` direct light from the MOLT light named by the colour alpha, `0x8` colour is the ambient, `0x10` add colour times MDDI, `0x40` no direct, `0x80` no colour in the sum), the MOLT light and the WMO ambient into interior ambient, horizon and ground colours, a direct colour, and a personal interior sun from the MOLT light or the first group's box centre toward the doodad's box centre. `fixDirectColor`/`fixAmbient1` clamp to 0x70/0x60 (their HSV value scaling scales every component alike). The WMO ambient is `calculateAmbient` (`:1923-1966`), now with MAVG/MAVD flag-1 horizon and ground colours; WMO batches use its first colour as before.
+- **Shader.** `m2.gdshader` mixes `calcLight`'s interior light, `applyAndMixAmbients(interior colours) + interior_direct * N·L(interior sun)`, with the exterior light by `exterior_blend` (`commonLightFunctions.slang:103-197`). The interior part takes no sun shadow. ADT doodads keep the default blend 1.
+- **Examples.** Stockade MODD 100 (flags `0x2`, colour (77, 78, 86)): direct = the MODD colour, ambient = MOHD (25, 25, 25). Stockade MODD 3 (flags `0x6`, MOLT 0): no direct colour, sun from MOLT 0. `sw_magicdistrict` Jail01 lamp MODD 32 (flags `0x10`, colour (179, 125, 95), MAVG (33, 33, 33)): direct (212, 158, 128), ambient that darkened to 0x60.
+
+Proof: `cargo test -p game-engine-godot --lib doodad_light` 4/4 (the three examples, hand-derived from the file bytes, plus an exterior-group doodad at blend 1). `godot/tests/m2_material_pixels.gd` on Vulkan: at blend 0 under a real shadow caster the pixel is `0.4 * (0.2 * 1.1 + 0.5)` = 0.286 (expected 0.288), at blend 0.5 the half mix; the old shader gives the shadowed exterior 0.235. `godot/tests/wmo_doodads_flow.gd`: the spawned Stockade MODD 100 batches carry blend 0 and those colours.
+
+Not ported: the reference's per-group MOCV sampling for doodads (`wmoGroupObject.cpp` `assignInteriorParams`, commented out there), M2 fog's interior sun mix, and MNLD/MOLT point lights.
+
 ## WMO fog
 
 The Godot client applies WMO MFOG fog inside interior groups (`03db2144`). See [[retail-lighting]], WMO fog.
 
 ## Still open
 
-- MAVG/MAVD horizon and ground colors (flag 1) are not used.
+- WMO batches: MAVG/MAVD horizon and ground colors (flag 1) are not used (WMO doodads use them).
 - Bevy: MOCV2 shaders 7, 8, 9, 15, 18 and 19 still use CPU texel-alpha compositing. In both clients, blend modes above 1 do not get the reference's 128/255 discard (`wmoObject.cpp:1875` enables it for every blend mode above 0).
 - Godot: MOUV UV animation is not ported. Blend modes above 3 are rejected per batch.
 - `reset_streamed_terrain` clears `shared_wmos` without despawning, like `tile_doodad_entities`.

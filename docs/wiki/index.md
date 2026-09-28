@@ -45,7 +45,7 @@ WoW file format specifications as used by the engine.
 - [adt-format](formats/adt-format.md) — Split files, MCNK MCVT row/column axes and center-fan topology, texture layers, MDDF/MODF placement
 - [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
-- [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis, doodad-set rule
+- [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis, doodad-set rule, MODF 0x80 MWDS sets and MDDI
 - [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer
 
 ## Design
@@ -72,7 +72,7 @@ Architecture decisions and feature designs.
 - [empty-window-baseline](investigations/empty-window-baseline.md) — Native/core/reactive blank-renderer stages remain low-cost; continuous blank rendering reaches 216.31478% process CPU before project services. Independent runtime audit passes the bounded attribution.
 - [abbey-interior-black-world](investigations/abbey-interior-black-world.md) — MOCV lighting alpha used as vertex opacity discarded interior WMO color while the depth prepass occluded the world
 - [stormwind-dark-render](investigations/stormwind-dark-render.md) — unified MapObj (MOHD 0x02) district WMOs drawn unlit as texture×MOCV turned black; MOCV is now added to daylight/MOHD ambient
-- [wmo-retail-lighting](investigations/wmo-retail-lighting.md) — Retail WMO light model (ambient + 2×MOCV + sun, interior/exterior blend by MOCV alpha), fixup, two-layer MOCV2 shaders, alpha test, metal and uniqueId placement dedup, per WebWowViewerCpp; Godot implements every MOMT shader 0-23 (DFShader, Parallax, env/emissive)
+- [wmo-retail-lighting](investigations/wmo-retail-lighting.md) — Retail WMO light model (ambient + 2×MOCV + sun, interior/exterior blend by MOCV alpha), fixup, two-layer MOCV2 shaders, alpha test, metal and uniqueId placement dedup, per WebWowViewerCpp; Godot implements every MOMT shader 0-23 (DFShader, Parallax, env/emissive); Godot WMO doodads take WWV's MODD colour/MOLT/MDDI interior light
 - [stormwind-hilly-plaza](investigations/stormwind-hilly-plaza.md) — Trade District drawn as bare hilly terrain: antiportal AABB occlusion and bbox-only camera group hid every `sw_tradedistrict` group; portal culling now follows the Retail interior/exterior traversal; MOBA large material ids and MOMT texture_2 offset fixed (one wall texture everywhere, no roofs)
 - [stockade-entrance](investigations/stockade-entrance.md) — missing instance portal (MODI-only WMOs spawned no doodads) and camera escaping the stairwell (collision ignored portal-culled groups, unchecked smoothing path, corner-only portal test); Godot portal sheet blend 7/colour track fixed, WMO doodads and particles still absent in Godot
 - [stockade-floor-fall](investigations/stockade-floor-fall.md) — falls at teleport points outside the Stockade WMO (no face in those columns); sky from the exterior-only portal view; server void fall not bounded
