@@ -14,6 +14,20 @@ Deamon87/WebWowViewerCpp at `1a8cccbeffc46231c6497e6b3f5bfbf3507d8071`:
 - `wowViewerLib/src/engine/algorithms/mathHelper.cpp`: `directionalLightPhiTable` / `directionalLightThetaTable` for the sun direction.
 - `wowViewerLib/src/engine/objects/scenes/m2Scene.cpp` and `m2Object.cpp` (`getM2SceneAmbientLight`): standalone M2 scenes.
 
+## Light selection
+
+`light_params_blend` (`src/rendering/lighting/light_lookup_data.rs`) is shared by both clients. It ports WebWowViewerCpp `calculateLightParamBlends` (`LightParamCalculate.h:42-194`, commit 1a8cccb, `cf8d8153`). It returns LightParams in overlay order: each entry is mixed over the running result by its weight.
+
+1. **Default, weight 1.** The map's zero-position Light with the highest ID. Without one, continent 0's (Light 1). See `LightParamCalculate.h:72-93` and `CSqliteDB.cpp:77-96`. There is no ParentMapID fallback.
+2. **Zone lights.** Every ZoneLight polygon on the map within 50 yd of its border and of its Zmin/Zmax range. The weight is `clamp(-(signed distance - 50) / 100)`, so it is 0.5 on the border and 1 at 50 yd inside. Zones are sorted by TransitionType, then by descending LightID (`:104-172`). The inside test and border distance are `mathHelper.cpp:680-805`. PlayerConditionID and Flags are ignored, as in the reference.
+3. **Local lights.** Light spheres on the map within GameFalloffEnd. The weight is 1 inside GameFalloffStart, then fades linearly (`CSqliteDB.cpp:421-429`). They are applied strongest first (`LightParamCalculate.h:176-191`). This replaced solarityclient's farthest-first order.
+
+Data: `data/ZoneLight.csv` and `data/ZoneLightPoint.csv` come from local CASC 12.1.0.69933 (FDIDs 1310253 and 1310256), exported by `scripts/export_db2_csv.py`. Godot's `LightingCatalog::read` requires both files. Bevy logs an error and runs without zone lights.
+
+Effect: Stormwind (ZoneLight 1859, Light 9651) and Elwynn (ZoneLight 2471, Light 12786) now overlay LightParams 6080 at weight 1 over Light 1's LightParams 12. Campsite maps have no zone lights, so scenes 1, 5, 7 and 25 keep LightParams 12, 12, 5615 and 6412.
+
+Known data gap: `data/Light.csv` (5,072 rows) is older than the local Light.db2 (5,355). ZoneLights 2956 and 3016 name Lights that are missing from the CSV, so they contribute nothing.
+
 ## Scene light
 
 `src/rendering/lighting/retail_light.rs` defines `RetailSceneLight`: ambient, horizon ambient, ground ambient, direct colour, sun direction and fog colour/range. `update_scene_light` samples the blend at `GameTime` and writes the resource and the world cameras' `DistanceFog`. Weather still tints and shortens the fog. `upload_retail_scene_light` writes the shading fields into one `ShaderBuffer`. It has a UUID handle (`RETAIL_SCENE_LIGHT_BUFFER`) and is updated in place, so every material binds the same GPU buffer.
@@ -65,6 +79,8 @@ World cameras use `Tonemapping::None` (`world_camera_tonemapping`). Measured on 
 - **Point lights:** M2 and WMO point lights are still Bevy PBR lights and do not reach Retail materials (`accumLight`).
 - **Fog model:** Retail fog is the full `makeFog2` (exponential, height and end colour). Godot implements the legacy exponential term only (start `farClip * FogScaler`, density `FogDensity * 0.0005`, end fade at farClip; see [[campsite-fog-and-wmo-selection]]); height fog, artistic fog, end/height/sun fog colours and WMO MFOG are not ported. Bevy still fogs linearly from `FogEnd / 36`, which fogs every FogEnd-0 LightParams (54% of LightData rows) completely.
 - **Combiners:** single-texture M2 batches use StandardMaterial's texture × colour, not WebWowViewerCpp's `calcM2FragMaterial` pixel-shader combiners.
+- **WMO fog:** MFOG and `WmoObject::checkFog` are not ported, so WMO interiors use the exterior LightParams fog (Cultists' Quay; see [[campsite-fog-and-wmo-selection]]).
+- **Map flag2 0x2:** the fog-density override is not ported. No map sets it in `data/db2/12.1.0.69933/Map.csv`.
 - **LightParams sun overrides:** flags 0x100 and 0x200 (SunPolar/SunAzimuth, OverrideSunPosition) are not decoded.
 - **Interpolation space:** LightData colours still interpolate in linear space, not bytes.
 
