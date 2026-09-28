@@ -1662,3 +1662,7 @@ The launcher resolves Godot as `GODOT_BIN`, else `${XDG_CACHE_HOME:-~/.cache}/ga
 ## [2026-09-28] change | Launcher imports fresh checkouts
 
 After the native build, the launcher runs `godot --headless --import --path godot` once when `godot/.godot/extension_list.cfg` is missing; failure keeps its exit status and prevents launch. `GAME_ENGINE_ROOT` overrides the checkout root (used by launcher tests). See [[godot-conversion]].
+
+## [2026-09-28] fix | Godot M2 blend modes and batch colour
+
+Godot M2 blend 3/5/6/7 now follow WebWowViewerCpp's GL factors and batch colour tracks (meshColor) multiply every batch, animated with transparency and colour alpha; the Stockade portal sheet turns blue. WMO doodads and particles remain absent in Godot. See [[stockade-entrance]].
