@@ -78,7 +78,8 @@ struct ParsedModel {
 struct CulledDoodad {
     node: Gd<Node3D>,
     scenery: SceneryDistance,
-    shown: bool,
+    opacity: f32,
+    fade: crate::assets::material::SceneryFade,
     unique_id: u32,
     bones: Option<Gd<WowAnimationPlayer>>,
     materials: Option<Gd<WowMaterialAnimation>>,
@@ -91,9 +92,10 @@ impl CulledDoodad {
         Self {
             bones: node.try_get_node_as("M2Animation"),
             materials: node.try_get_node_as("M2MaterialAnimation"),
+            fade: crate::assets::material::SceneryFade::from_model(&node),
             node,
             scenery,
-            shown: true,
+            opacity: 1.0,
             unique_id,
             clock: DeferredClock::default(),
             driven: false,
@@ -110,6 +112,22 @@ impl CulledDoodad {
         if let Some(materials) = &mut self.materials {
             materials.set_process(false);
         }
+    }
+
+    /// Retail distance fade: hidden at opacity 0, blended while fading.
+    fn fade(&mut self, camera: Vec3) {
+        let opacity = self.scenery.opacity(camera);
+        if opacity == self.opacity {
+            return;
+        }
+        let shown = opacity > 0.0;
+        if shown != (self.opacity > 0.0) {
+            self.node.set_visible(shown);
+        }
+        if shown {
+            self.fade.set_opacity(opacity);
+        }
+        self.opacity = opacity;
     }
 
     fn animate(&mut self, camera: Vec3, frustum: &[HalfSpace], delta_ms: f64, frame: u64) {
@@ -433,7 +451,7 @@ impl TerrainObjects {
         }
     }
 
-    /// Draws each doodad only within its retail scenery distance of `camera`, and
+    /// Fades each doodad by its retail scenery distance from `camera`, and
     /// advances its animation `delta_ms` at its animation LOD rate through `frustum`
     /// (world space); an undrawn doodad does not animate.
     pub fn cull_doodads(
@@ -445,11 +463,7 @@ impl TerrainObjects {
     ) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         for doodad in &mut self.doodads {
-            let shown = doodad.scenery.visible_from(camera);
-            if shown != doodad.shown {
-                doodad.shown = shown;
-                doodad.node.set_visible(shown);
-            }
+            doodad.fade(camera);
             doodad.animate(camera, frustum, delta_ms, frame);
         }
     }

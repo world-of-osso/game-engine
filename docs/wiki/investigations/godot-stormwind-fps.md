@@ -40,7 +40,7 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
    - Rule (build 12340 `CMapObj`): the largest axis of the transformed M2 header render box (`0xA0`) picks a class, with inclusive limits of 1/4/15/100 yd. The class draws the doodad within 30/100/200/750/1250 yd of the box center.
    - Source: as reproduced by solarityclient `crates/runtime/src/application/m2_spatial.rs`, with `environmentDetail` at 1.
    - A hidden doodad also stops animating.
-   - Retail's 5–50 yd fade band is not reproduced: a doodad stays opaque until its far radius.
+   - Retail's 5/10/15/20/50 yd fade band before the far radius is reproduced ([doodad-scenery-distance](../../specs/doodad-scenery-distance.md)): a fading doodad's opaque batches switch to a blended variant of their shader, and switch back at opacity 1, so fully opaque doodads stay in Godot's opaque pass.
    - Result: about 1,400 of 7,997 doodads are drawn. Draws fell 6,393–7,490 → 4,269–5,090, and FPS rose 13–14.5 → 19–26 in the same session.
    - Screenshots with the cull and with every doodad forced on differ in 3 pixels indoors and 25 pixels at the Stockade exit, out of 768k. Those pixels are animation timing.
 2. **NPC animation LOD** (`0be4373f`), a port of the original client's [npc-animation-lod](../../specs/npc-animation-lod.md).
