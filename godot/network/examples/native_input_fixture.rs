@@ -28,7 +28,11 @@ use shared::{
     },
 };
 
+#[path = "native_input_fixture_swimming.rs"]
+mod swimming;
+
 const NAME: &str = "Input Fixture";
+const SWIM_START: [f32; 3] = [-8558.0, 144.960_08, 522.0];
 const REMOTE_NAME: &str = "Remote Fixture";
 const UNEQUIPPED_NAME: &str = "Unequipped Fixture";
 const COLLECTION_NAME: &str = "Collection Fixture";
@@ -47,6 +51,7 @@ enum StartupScreen {
     CharSelect,
     InWorld,
     Overlay,
+    Swimming,
 }
 
 impl StartupScreen {
@@ -56,8 +61,11 @@ impl StartupScreen {
             None => Self::CharSelect,
             Some("inworld") => Self::InWorld,
             Some("overlay") => Self::Overlay,
+            Some("swimming") => Self::Swimming,
             Some(other) => {
-                panic!("unknown fixture startup screen: {other}; expected inworld or overlay")
+                panic!(
+                    "unknown fixture startup screen: {other}; expected inworld, overlay or swimming"
+                )
             }
         };
         assert!(
@@ -70,7 +78,7 @@ impl StartupScreen {
     fn as_str(self) -> &'static str {
         match self {
             Self::CharSelect => "charselect",
-            Self::InWorld | Self::Overlay => "inworld",
+            Self::InWorld | Self::Overlay | Self::Swimming => "inworld",
         }
     }
 }
@@ -205,6 +213,14 @@ fn launch_godot(
         })
         .arg(address.to_string())
         .env("GODOT_TEST_STARTUP_SCREEN", screen.as_str())
+        .env(
+            "GODOT_TEST_SWIMMING",
+            if screen == StartupScreen::Swimming {
+                "1"
+            } else {
+                "0"
+            },
+        )
         .env(
             "GODOT_TEST_OVERLAY_ONLY",
             if screen == StartupScreen::Overlay {
@@ -348,6 +364,11 @@ fn respond_to_selection(
                 request.character_id
             ));
         }
+        let spawn = if screen == StartupScreen::Swimming {
+            SWIM_START
+        } else {
+            FIRST
+        };
         let player = app
             .world_mut()
             .spawn((
@@ -359,9 +380,9 @@ fn respond_to_selection(
                 },
                 starter_equipment(),
                 Position {
-                    x: FIRST[0],
-                    y: FIRST[1],
-                    z: FIRST[2],
+                    x: spawn[0],
+                    y: spawn[1],
+                    z: spawn[2],
                 },
                 Replicate::to_clients(NetworkTarget::All),
             ))
@@ -944,7 +965,11 @@ fn main() {
     );
     let config = FixtureConfig::create(root);
     let (mut child, lines, reader) = launch_godot(root, &config, address, screen);
-    let result = run_fixture(&mut app, &mut child, lines, reader, screen);
+    let result = if screen == StartupScreen::Swimming {
+        swimming::run(&mut app, &mut child, lines, reader)
+    } else {
+        run_fixture(&mut app, &mut child, lines, reader, screen)
+    };
     if result.is_err()
         && child
             .try_wait()
