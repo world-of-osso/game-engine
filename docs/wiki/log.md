@@ -40,6 +40,10 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | Shared footstep phase remains a prerequisite
+
+`2f8a7bfb` moves the Bevy half-cycle observer into shared `FootstepPhaseTracker`; Bevy carries it as `FootstepTracker`. Native `WowAnimationPlayer::footstep_phase` read-only exposes the selected clip's index/ID, duration, and clock for a future observer. `c5b83b15` restores the root adapter's movement-policy import. No native footstep playback or fallback behavior changed; verifier835 and tests remain separate pending work. Updated [[sound]] and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] system | Shared footstep selection prerequisite
 
 Moved pure footstep classification and catalog selection into `src/sound/footstep_data.rs`, available to root and `godot/core`; Bevy retains existing loading and handles. Moved five existing policy tests to core and added tied-seed/no-eligible cases. No native playback or adapter fallback behavior change; verifier831 is pending. Updated [[sound]] and the [detailed parity matrix](../specs/godot-parity-matrix.md).

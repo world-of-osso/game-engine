@@ -37,7 +37,7 @@ Engine subsystems and how they work.
 - [character-creation](systems/character-creation.md) — local-Retail reference contract, catalog-driven core/additional selections, persistence boundary, FileDataID UI/backdrop artwork, authored framing/scale/camera-distance application, scoped lighting/material evidence, and explicit current limits
 - [skybox](systems/skybox.md) — explicit procedural-vs-authored InWorld sky selection, authored lookup chain, and environmental sun/camera-IBL ownership boundary
 - [retail-lighting](systems/retail-lighting.md) — one RetailSceneLight from the LightParams blend (map default, ZoneLight polygons, local lights, per WebWowViewerCpp); terrain, M2 and M2 effect shaders use WebWowViewerCpp calcLight and fog in authored space; native creature producer wiring covers nine common light/fog uniforms, not terrain's cube map; no tonemapping, no Bevy IBL; SkySun only casts shadows
-- [sound](systems/sound.md) — Footsteps, music catalog, zone music, shared catalog parsing, native UI click PCM/trigger, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
+- [sound](systems/sound.md) — Footsteps, shared selection/phase policy, music catalog, zone music, native UI click PCM/trigger, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
 - [lore-knowledge-graph](systems/lore-knowledge-graph.md) — Graph schema for NPC AI, quest generation, faction relations
 
 ## Formats
