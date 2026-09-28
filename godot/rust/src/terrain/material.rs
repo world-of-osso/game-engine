@@ -11,7 +11,9 @@ use godot::{
     prelude::*,
 };
 
-use super::{assets::NativeTerrainTile, streaming::StreamedTerrain};
+use super::{
+    assets::NativeTerrainTile, streaming::StreamedTerrain, textures::TerrainLayerTextures,
+};
 use crate::lighting::TerrainLight;
 
 type Tile = (u32, u32);
@@ -21,6 +23,7 @@ pub(crate) struct TerrainMaterials {
     root: Option<Gd<Node3D>>,
     attached: BTreeSet<Tile>,
     textures: HashMap<u32, Gd<ImageTexture>>,
+    placeholder: Option<Gd<ImageTexture>>,
     shader: Option<Gd<Shader>>,
     materials: Vec<Gd<ShaderMaterial>>,
     light: Option<TerrainLight>,
@@ -62,6 +65,7 @@ impl TerrainMaterials {
         }
         self.attached.clear();
         self.textures.clear();
+        self.placeholder = None;
         self.materials.clear();
         self.light = None;
         self.water = super::water::WaterMaterials::default();
@@ -135,36 +139,22 @@ impl TerrainMaterials {
         layers: &[adt::TextureLayer],
         shader: &Gd<Shader>,
     ) -> Result<Gd<ShaderMaterial>, String> {
-        if layers.is_empty() {
-            return Err("Terrain chunk has no authored texture layers".into());
-        }
-        // Preserve the original renderer's four texture slots, including campsite
-        // chunks with a fifth MCLY record; do not reject the entire authored tile.
-        let layers = &layers[..layers.len().min(4)];
-        let tex = parsed.tex.as_ref().ok_or("Missing texture companion")?;
+        let inputs = ChunkMaterialInputs::new(parsed, layers)?;
         let mut material = ShaderMaterial::new_gd();
         material.set_shader(shader);
-        let config = Vector4::new(
-            layers.len() as f32,
-            adt::terrain_blend_mode(tex.map_flags) as u32 as f32,
-            adt::terrain_texture_repeat(tex.texture_amplifier),
-            0.0,
-        );
-        material.set_shader_parameter("config", &config.to_variant());
-        let has_height = self.bind_layer_textures(&mut material, parsed, layers)?;
-        let params = adt::texture_layer_params(&tex.texture_params, layers, has_height);
-        let animation = adt::terrain_layer_animation_params(layers);
+        material.set_shader_parameter("config", &vector4(inputs.config).to_variant());
+        self.bind_layer_textures(&mut material, &inputs.textures)?;
         for slot in 0..4 {
             material.set_shader_parameter(
                 &format!("layer_params_{slot}"),
-                &vector4(params[slot]).to_variant(),
+                &vector4(inputs.layer_params[slot]).to_variant(),
             );
             material.set_shader_parameter(
                 &format!("animation_params_{slot}"),
-                &vector4(animation[slot]).to_variant(),
+                &vector4(inputs.animation[slot]).to_variant(),
             );
         }
-        let alpha = texture_from_rgba(64, 64, &adt::pack_alpha_map_bytes(layers))?;
+        let alpha = texture_from_rgba(64, 64, &inputs.alpha)?;
         material.set_shader_parameter("alpha_packed", &alpha.to_variant());
         if let Some(light) = &self.light {
             light.bind(&mut material);
@@ -175,24 +165,35 @@ impl TerrainMaterials {
     fn bind_layer_textures(
         &mut self,
         material: &mut Gd<ShaderMaterial>,
-        parsed: &NativeTerrainTile,
-        layers: &[adt::TextureLayer],
-    ) -> Result<[bool; 4], String> {
-        let mut has_height = [false; 4];
-        for (slot, layer) in layers.iter().enumerate() {
-            let images = parsed
-                .textures
-                .get(&layer.texture_index)
-                .ok_or_else(|| format!("Texture index {} was not decoded", layer.texture_index))?;
+        textures: &[&TerrainLayerTextures],
+    ) -> Result<(), String> {
+        if textures.is_empty() {
+            // Original untextured chunk: every ground and height slot samples one gray texel.
+            let placeholder = self.placeholder()?;
+            for slot in 0..4 {
+                material.set_shader_parameter(&format!("ground_{slot}"), &placeholder.to_variant());
+                material.set_shader_parameter(&format!("height_{slot}"), &placeholder.to_variant());
+            }
+            return Ok(());
+        }
+        for (slot, images) in textures.iter().enumerate() {
             let diffuse = self.texture(images.diffuse_fdid, &images.diffuse)?;
             material.set_shader_parameter(&format!("ground_{slot}"), &diffuse.to_variant());
             if let Some(height) = &images.height {
                 let texture = self.texture(height.fdid, &height.image)?;
                 material.set_shader_parameter(&format!("height_{slot}"), &texture.to_variant());
-                has_height[slot] = true;
             }
         }
-        Ok(has_height)
+        Ok(())
+    }
+
+    fn placeholder(&mut self) -> Result<Gd<ImageTexture>, String> {
+        if let Some(texture) = &self.placeholder {
+            return Ok(texture.clone());
+        }
+        let texture = texture_from_rgba(1, 1, &UNTEXTURED_GROUND_RGBA)?;
+        self.placeholder = Some(texture.clone());
+        Ok(texture)
     }
 
     fn texture(&mut self, fdid: u32, pixels: &blp::RgbaImage) -> Result<Gd<ImageTexture>, String> {
@@ -203,6 +204,63 @@ impl TerrainMaterials {
             .map_err(|error| format!("Texture FDID {fdid}: {error}"))?;
         self.textures.insert(fdid, texture.clone());
         Ok(texture)
+    }
+}
+
+/// The original renderer's color placeholder for chunks without MCLY layers.
+const UNTEXTURED_GROUND_RGBA: [u8; 4] = [128, 128, 128, 255];
+
+/// Shader inputs for one MCNK chunk, resolved before any Godot resource exists.
+struct ChunkMaterialInputs<'a> {
+    config: [f32; 4],
+    /// Decoded images per used slot; empty for a chunk with no authored layers.
+    textures: Vec<&'a TerrainLayerTextures>,
+    layer_params: [[f32; 4]; 4],
+    animation: [[f32; 4]; 4],
+    alpha: Vec<u8>,
+}
+
+impl<'a> ChunkMaterialInputs<'a> {
+    fn new(parsed: &'a NativeTerrainTile, layers: &[adt::TextureLayer]) -> Result<Self, String> {
+        let tex = parsed.tex.as_ref().ok_or("Missing texture companion")?;
+        // Preserve the original renderer's four texture slots, including campsite
+        // chunks with a fifth MCLY record; do not reject the entire authored tile.
+        let layers = &layers[..layers.len().min(4)];
+        let textures = layers
+            .iter()
+            .map(|layer| {
+                parsed
+                    .textures
+                    .get(&layer.texture_index)
+                    .ok_or_else(|| format!("Texture index {} was not decoded", layer.texture_index))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        // A chunk without MCLY layers renders untextured with default map settings,
+        // matching the original renderer's fallback material.
+        let (blend, amplifier) = if layers.is_empty() {
+            (adt::TerrainBlendMode::Layered, None)
+        } else {
+            (
+                adt::terrain_blend_mode(tex.map_flags),
+                tex.texture_amplifier,
+            )
+        };
+        let mut has_height = [false; 4];
+        for (slot, images) in textures.iter().enumerate() {
+            has_height[slot] = images.height.is_some();
+        }
+        Ok(Self {
+            config: [
+                layers.len() as f32,
+                blend as u32 as f32,
+                adt::terrain_texture_repeat(amplifier),
+                0.0,
+            ],
+            textures,
+            layer_params: adt::texture_layer_params(&tex.texture_params, layers, has_height),
+            animation: adt::terrain_layer_animation_params(layers),
+            alpha: adt::pack_alpha_map_bytes(layers),
+        })
     }
 }
 
@@ -253,4 +311,67 @@ fn texture_from_rgba(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageT
     )
     .ok_or_else(|| format!("Godot rejected {width}x{height} terrain image"))?;
     ImageTexture::create_from_image(&image).ok_or_else(|| "Godot rejected terrain texture".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use game_engine_core::warband_scene_data::{
+        read_authored_catalog, supplemental_terrain_tile_coords,
+    };
+
+    use super::*;
+    use crate::terrain::assets::{cached_assets, test_data_root};
+
+    /// Every authored tile a campsite streams, as the character-select background requests it.
+    fn campsite_tiles(scene_id: u32) -> Vec<NativeTerrainTile> {
+        let catalog = read_authored_catalog(&test_data_root()).expect("authored campsites");
+        let scene = catalog
+            .scenes
+            .iter()
+            .find(|scene| scene.id == scene_id)
+            .expect("authored scene");
+        let assets = cached_assets();
+        let mut tiles = supplemental_terrain_tile_coords(scene);
+        tiles.push(scene.tile_coords());
+        tiles
+            .into_iter()
+            .map(|(y, x)| {
+                assets
+                    .read_tile(&scene.map_name(), y, x)
+                    .expect("cached campsite tile")
+            })
+            .collect()
+    }
+
+    fn assert_untextured_chunks_use_original_fallback(scene_id: u32) {
+        let mut untextured = 0;
+        for tile in campsite_tiles(scene_id) {
+            let tex = tile.tex.as_ref().expect("texture companion");
+            for layers in &tex.chunk_layers {
+                let inputs = ChunkMaterialInputs::new(&tile, &layers.layers)
+                    .unwrap_or_else(|error| panic!("scene {scene_id}: {error}"));
+                if !layers.layers.is_empty() {
+                    continue;
+                }
+                untextured += 1;
+                assert_eq!(inputs.config, [0.0, 0.0, 8.0, 0.0]);
+                assert!(inputs.textures.is_empty());
+                // Original DEFAULT_LAYER_PARAMS: no height scale, unit offset, 1x brightness.
+                assert_eq!(inputs.layer_params, [[0.0, 1.0, 0.0, 1.0]; 4]);
+                assert_eq!(inputs.animation, [[0.0; 4]; 4]);
+                assert!(inputs.alpha.chunks_exact(4).all(|px| px == [0, 0, 0, 255]));
+            }
+        }
+        assert!(untextured > 0, "scene {scene_id} has no MCLY-less chunk");
+    }
+
+    #[test]
+    fn cultists_quay_untextured_chunks_build_original_fallback_material() {
+        assert_untextured_chunks_use_original_fallback(5);
+    }
+
+    #[test]
+    fn gallagio_grand_gallery_untextured_chunks_build_original_fallback_material() {
+        assert_untextured_chunks_use_original_fallback(25);
+    }
 }

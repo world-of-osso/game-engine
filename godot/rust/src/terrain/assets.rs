@@ -171,20 +171,25 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
     fs::read(path).map_err(|error| format!("{}: {error}", path.display()))
 }
 
+/// Repository `data/` plus the user's local-CASC resolver cache.
+#[cfg(test)]
+pub(crate) fn cached_assets() -> NativeTerrainAssets {
+    let cache_root = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
+        .expect("cache location")
+        .join("asset-resolver");
+    NativeTerrainAssets::new(test_data_root(), cache_root)
+}
+
+#[cfg(test)]
+pub(crate) fn test_data_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-
-    fn cached_assets() -> NativeTerrainAssets {
-        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let cache_root = std::env::var_os("XDG_CACHE_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
-            .expect("cache location")
-            .join("asset-resolver");
-        NativeTerrainAssets::new(data_root, cache_root)
-    }
 
     #[test]
     fn reads_cached_map_flags_and_global_wmo_placement() {
