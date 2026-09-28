@@ -18,7 +18,10 @@ const JUMP_HOLD_FRAMES := 6
 const BACKGROUND_WAIT_MS := 30000
 const AUTHORED_CHARACTER_POSITION := Vector3(-2981.82, 452.826, -457.35)
 
+var focus_losses := 0
+
 func _initialize() -> void:
+	root.focus_exited.connect(func(): focus_losses += 1)
 	Engine.max_fps = 60
 	call_deferred("run_test")
 
@@ -31,6 +34,7 @@ func run_test() -> void:
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var startup_screen := OS.get_environment("GODOT_TEST_STARTUP_SCREEN")
+	var overlay_only := OS.get_environment("GODOT_TEST_OVERLAY_ONLY") == "1"
 	if startup_screen != "inworld":
 		if not await enter_world_from_charselect(client):
 			return
@@ -43,20 +47,33 @@ func run_test() -> void:
 		fail("Native LoadingUI not visible while terrain is withheld")
 		return
 	clear_ui_focus()
-	push_w(true)
+	if not overlay_only:
+		push_w(true)
 	for frame in range(LOADING_FRAMES):
 		await process_frame
 		if client.account_state().screen != "Loading" or not client.get_node("LoadingUI").visible:
 			fail("Loading ended before LoadTerrain at frame " + str(frame))
 			return
-	push_w(false)
+	if not overlay_only:
+		push_w(false)
 	for frame in range(SETTLE_FRAMES):
 		await process_frame
 		if client.account_state().screen != "Loading":
 			fail("Loading ended before withheld-terrain input observation at frame " + str(frame))
 			return
 	print("FIXTURE LOADING_OBSERVED")
-	if not await wait_for_world(client, WORLD_WAIT_MS):
+	var world_wait_ms := 120000 if overlay_only else WORLD_WAIT_MS
+	if not await wait_for_world(client, world_wait_ms):
+		return
+	if overlay_only:
+		var overlay_probe = load("res://tests/wmo_shader7_authored_overlay.gd").new()
+		var overlay_error: String = await overlay_probe.check(self, client)
+		if overlay_error != "":
+			fail(overlay_error)
+			return
+		print("FIXTURE OVERLAY_DONE")
+		client.free()
+		quit(0)
 		return
 	clear_ui_focus()
 	var player := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
@@ -177,6 +194,11 @@ func run_test() -> void:
 	if not await check_running_jump(client, player, locomotion):
 		return
 	print("FIXTURE STOPPED")
+	var overlay_probe = load("res://tests/wmo_shader7_authored_overlay.gd").new()
+	var overlay_error: String = await overlay_probe.check(self, client)
+	if overlay_error != "":
+		fail(overlay_error)
+		return
 	client.free()
 	print("SHUTDOWN: client freed")
 	quit(0)
@@ -784,7 +806,7 @@ func check_locomotion_direction(client: Node, locomotion: RefCounted, keycode: K
 			selected_at = Time.get_ticks_msec()
 		if selected_at >= 0 and current_id != animation_id:
 			push_key(keycode, false)
-			fail(phase + " left authored animation " + str(animation_id) + " for " + str(current_id))
+			fail(phase + " left authored animation " + str(animation_id) + " for " + str(current_id) + " frame=" + str(frame) + " focus_losses=" + str(focus_losses) + " window_focused=" + str(root.has_focus()) + " focus_owner=" + str(root.gui_get_focus_owner()) + " key_pressed=" + str(Input.is_physical_key_pressed(keycode)))
 			return false
 		if selected_at >= 0 and Time.get_ticks_msec() - selected_at >= 150:
 			changed_pose = changed_pose or locomotion.changed_from(stand_pose)
@@ -879,6 +901,8 @@ func check_running_jump(client: Node, player: Node3D, locomotion: RefCounted) ->
 		fail("Running jump did not begin in Run 5")
 		return false
 	var takeoff := player.position
+	var facing := player.rotation.y + PI / 2.0
+	var forward := Vector3(sin(facing), 0.0, cos(facing))
 	var run_pose: Array[Transform3D] = locomotion.capture_pose()
 	var sequence := [37, 38, 187, 5]
 	var next_id := 0
@@ -923,7 +947,7 @@ func check_running_jump(client: Node, player: Node3D, locomotion: RefCounted) ->
 		push_w(false)
 		fail("Running jump did not complete 37 -> 38 -> 187 -> 5 with changing bones: " + str(next_id) + " poses=" + str(changed_pose))
 		return false
-	if highest_y < takeoff.y + 0.3 or player.position.z >= takeoff.z - 0.1:
+	if highest_y < takeoff.y + 0.3 or (player.position - takeoff).dot(forward) <= 0.1:
 		push_w(false)
 		fail("Running jump did not rise and advance forward: " + str(takeoff) + " peak=" + str(highest_y) + " final=" + str(player.position))
 		return false
@@ -935,7 +959,7 @@ func check_running_jump(client: Node, player: Node3D, locomotion: RefCounted) ->
 			push_w(false)
 			fail("Running jump did not retain Run 5 after landing at frame " + str(frame))
 			return false
-	if player.position.z >= resumed_at.z - 0.1:
+	if (player.position - resumed_at).dot(forward) <= 0.1:
 		push_w(false)
 		fail("Running jump did not resume forward movement: " + str(resumed_at) + " -> " + str(player.position))
 		return false

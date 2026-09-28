@@ -38,6 +38,7 @@ const REMOTE: [f32; 3] = [-8946.0, 114.245_974, 0.0];
 const TICK: Duration = Duration::from_millis(5);
 // Five authored preview loads reached 88s before world readiness on the expanded fixture.
 const TIMEOUT: Duration = Duration::from_secs(180);
+const OVERLAY_TIMEOUT: Duration = Duration::from_secs(240);
 const RELEASE_DRAIN: Duration = Duration::from_millis(250);
 const RELEASE_QUIET: Duration = Duration::from_millis(400);
 
@@ -45,6 +46,7 @@ const RELEASE_QUIET: Duration = Duration::from_millis(400);
 enum StartupScreen {
     CharSelect,
     InWorld,
+    Overlay,
 }
 
 impl StartupScreen {
@@ -53,7 +55,10 @@ impl StartupScreen {
         let screen = match args.next().as_deref() {
             None => Self::CharSelect,
             Some("inworld") => Self::InWorld,
-            Some(other) => panic!("unknown fixture startup screen: {other}; expected inworld"),
+            Some("overlay") => Self::Overlay,
+            Some(other) => {
+                panic!("unknown fixture startup screen: {other}; expected inworld or overlay")
+            }
         };
         assert!(
             args.next().is_none(),
@@ -65,7 +70,7 @@ impl StartupScreen {
     fn as_str(self) -> &'static str {
         match self {
             Self::CharSelect => "charselect",
-            Self::InWorld => "inworld",
+            Self::InWorld | Self::Overlay => "inworld",
         }
     }
 }
@@ -193,13 +198,21 @@ fn launch_godot(
             "--screen",
             screen.as_str(),
         ])
-        .args(if screen == StartupScreen::InWorld {
+        .args(if screen != StartupScreen::CharSelect {
             &["--char", "iNpUt fIxTuRe", "--server"][..]
         } else {
             &["--server"][..]
         })
         .arg(address.to_string())
         .env("GODOT_TEST_STARTUP_SCREEN", screen.as_str())
+        .env(
+            "GODOT_TEST_OVERLAY_ONLY",
+            if screen == StartupScreen::Overlay {
+                "1"
+            } else {
+                "0"
+            },
+        )
         .env("CARGO", env!("CARGO"))
         .env("XDG_CONFIG_HOME", &config.home)
         .env("GODOT_TEST_SERVER", address.to_string())
@@ -305,7 +318,7 @@ fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> 
         },
         ..equipped.clone()
     };
-    let characters = if screen == StartupScreen::InWorld {
+    let characters = if screen != StartupScreen::CharSelect {
         vec![unequipped, equipped, collection]
     } else {
         vec![equipped, unequipped, collection]
@@ -513,6 +526,7 @@ fn assert_directional_input(
 enum Phase {
     AwaitLoading,
     AwaitWorld,
+    OverlayDone,
     AwaitRemoved,
     AwaitRestored,
     AwaitRemoteRemoved,
@@ -542,6 +556,7 @@ fn accept_phase_line(
     remote: Option<Entity>,
     phase: &mut Phase,
     line: &str,
+    overlay_only: bool,
 ) -> Result<(), String> {
     match (&*phase, line) {
         (_, line) if line.starts_with("GODOT_STDERR: ERROR:") => {
@@ -561,7 +576,13 @@ fn accept_phase_line(
             );
             *phase = Phase::AwaitWorld;
         }
-        (Phase::AwaitWorld, "FIXTURE WORLD_READY") => {
+        (Phase::AwaitWorld, "FIXTURE OVERLAY_DONE") if overlay_only => {
+            if !take_inputs(app).is_empty() {
+                return Err("PlayerInput arrived during overlay-only world loading".into());
+            }
+            *phase = Phase::OverlayDone;
+        }
+        (Phase::AwaitWorld, "FIXTURE WORLD_READY") if !overlay_only => {
             if !take_inputs(app).is_empty() {
                 return Err("PlayerInput arrived before native InWorld readiness".into());
             }
@@ -672,7 +693,12 @@ fn run_fixture(
     let mut running_release_at: Option<Instant> = None;
     let mut saw_running_jump = false;
     let mut saw_resumed_run = false;
-    let deadline = Instant::now() + TIMEOUT;
+    let deadline = Instant::now()
+        + if screen == StartupScreen::Overlay {
+            OVERLAY_TIMEOUT
+        } else {
+            TIMEOUT
+        };
     let mut reader = Some(reader);
     while Instant::now() < deadline {
         app.update();
@@ -736,7 +762,14 @@ fn run_fixture(
             if line.trim() == "FIXTURE RUN_JUMP_W_RELEASED" && !saw_resumed_run {
                 return Err("no decoded resumed forward-running nonjump PlayerInput".into());
             }
-            accept_phase_line(app, selected, remote, &mut phase, line.trim())?;
+            accept_phase_line(
+                app,
+                selected,
+                remote,
+                &mut phase,
+                line.trim(),
+                screen == StartupScreen::Overlay,
+            )?;
             if phase == Phase::JumpLanded {
                 jump_landed_at.get_or_insert_with(Instant::now);
             }
@@ -760,6 +793,7 @@ fn run_fixture(
         match phase {
             Phase::AwaitLoading
             | Phase::AwaitWorld
+            | Phase::OverlayDone
             | Phase::AwaitRemoved
             | Phase::AwaitRestored
             | Phase::AwaitRemoteRemoved
@@ -857,6 +891,12 @@ fn run_fixture(
             }
         }
         if let Some(status) = status {
+            if screen == StartupScreen::Overlay && status.success() && phase == Phase::OverlayDone {
+                println!(
+                    "PASS: authored WMO shader 7 overlay-only CPU/GPU diagnostic; no PlayerInput"
+                );
+                return Ok(());
+            }
             if !status.success() || phase != Phase::Stopped {
                 return Err(format!("Godot exited {status} at phase {phase:?}"));
             }

@@ -8,6 +8,14 @@ Created [[godot-texture-vram]]. The Godot client built a new RGBA8 `ImageTexture
 
 Created [[stormwind-vram]]. The ~6.8 GB Stormwind login came from bevy_hanabi's 65536-particle minimum per EffectAsset slab. With one asset per emitter, 614 slabs held 2.46 GB at t=45 s and kept rising. Identical emitters now share an asset, which leaves 1282 distinct assets. Uncomposited M2/WMO textures upload as BC (599 → 275 MiB). With a scratch `MIN_CAPACITY` 4096 hanabi, the full login settles at 2.13 GB for the client.
 
+## [2026-09-28] system | Shader 7 CPU resampling is verified; exact GPU probe remains open
+
+User-approved `85efccc1` diverges from Bevy's skip for differing-size shader-7 overlays: `imageops::resize` with Triangle filtering resizes the overlay to its base before the unchanged shared composite. `/tmp/claude/wmo-shader7-resize-final-targeted.log` is 12/12 CPU GREEN; `/tmp/claude/verify-overlay-current.md` records native fmt/check PASS. `/tmp/claude/wmo-overlay-movement-runtime-85efccc1.log` exits 0 through movement, idle turns, and jumps, but does not invoke the exact GPU texel probe.
+
+The isolated `d3604958` diagnostic initially watched `Wmo373730`, while the intended material belongs to WMO FDID 108238. `ceb0ce84` corrects that identity, but the probe has not passed: streaming timed out at 755 descendants, after the earlier 12,613-descendant diagnostic. Historical held-input/time-out hangs remain limits. Another Godot session mutates the shared asset/import cache; coordination is pending and this is not a proven root cause. Exact GPU texel proof, shader 5 and other WMO materials, portals, water, doodads, collision, visual parity, and full conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Idle right-drag reaches authored turns before later WMO blocker
 
 `93f38c13` adds actual idle right-drag coverage. Its runtime RED observes yaw delta `-0.12`, expects authored turn 12, and receives Stand 0 (`/tmp/claude/idle-turn-runtime-red-93f38c13.log`). `167ef65b` selects idle turns from normalized consecutive local-facing samples; `8ee6c5ea` makes the 0.02-radian thresholds inclusive. Six targeted tests are reported GREEN.
