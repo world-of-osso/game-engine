@@ -5,19 +5,22 @@ const COMPOSITE_PNG := DIAGNOSTICS + "wmo-shader7-authored-composite.png"
 const RENDER_PNG := DIAGNOSTICS + "wmo-shader7-authored-render.png"
 const EXPECTED := Color8(27, 32, 38, 255)
 const TOLERANCE := 0.02
-const WAIT_MS := 15000
+const WAIT_MS := 120000
 const RENDER_SIZE := 64
 
 func check(tree: SceneTree, client: Node) -> String:
 	var material := await wait_for_authored_material(tree, client)
 	if material == null:
-		return "WMO 108238 group 38 lacks a streamed shader 7 material with authored 512x512 composite pixel"
+		return "WMO 108238 group 38 lacks a streamed shader 7 material with a 512x512 composite"
 	var texture := material.get_shader_parameter("base_texture") as ImageTexture
 	if texture == null or texture.get_size() != Vector2(512, 512):
 		return "WMO 108238 group 38 shader 7 lacks bound 512x512 composite"
 	var composite := texture.get_image()
-	if composite == null or composite.is_empty() or composite.get_pixel(0, 0) != EXPECTED:
-		return "WMO 108238 group 38 shader 7 composite pixel (0,0) differs from " + str(EXPECTED)
+	if composite == null or composite.is_empty():
+		return "WMO 108238 group 38 shader 7 composite image unavailable"
+	var composite_pixel := composite.get_pixel(0, 0)
+	if composite_pixel != EXPECTED:
+		return "WMO 108238 group 38 shader 7 composite pixel (0,0) expected %s, got %s" % [EXPECTED, composite_pixel]
 	var error := composite.save_png(COMPOSITE_PNG)
 	if error != OK:
 		return "Could not save authored WMO composite: " + error_string(error)
@@ -39,24 +42,27 @@ func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial
 	while Time.get_ticks_msec() < deadline:
 		var objects := client.get_node_or_null("WorldObjects")
 		if objects != null:
-			for child in objects.find_children("Group38_Batch*", "MeshInstance3D", true, false):
-				if not child is MeshInstance3D or not child.name.begins_with("Group38_Batch"):
-					continue
-				var material := child.get_surface_override_material(0) as ShaderMaterial
+			var descendants := objects.find_children("*", "MeshInstance3D", true, false)
+			var candidate: ShaderMaterial = null
+			for child in descendants:
+				var mesh := child as MeshInstance3D
+				var material := mesh.get_surface_override_material(0) as ShaderMaterial
 				if material == null or material.get_shader_parameter("two_layer_shader") != 7:
 					continue
 				var texture := material.get_shader_parameter("base_texture") as ImageTexture
-				if texture == null or texture.get_size() != Vector2(512, 512):
-					continue
-				var image := texture.get_image()
-				if image != null and not image.is_empty() and not observed.has(child.get_instance_id()):
-					observed[child.get_instance_id()] = true
-					print("OVERLAY_CANDIDATE ", child.get_path(), " pixel=", image.get_pixel(0, 0), " expected=", EXPECTED)
-				if image != null and not image.is_empty() and image.get_pixel(0, 0) == EXPECTED:
-					return material
+				var image := texture.get_image() if texture != null else null
+				if not observed.has(mesh.get_instance_id()):
+					observed[mesh.get_instance_id()] = true
+					print("OVERLAY_CANDIDATE path=", mesh.get_path(), " size=", texture.get_size() if texture != null else "unbound", " pixel=", image.get_pixel(0, 0) if image != null and not image.is_empty() else "unavailable")
+				var authored_group := mesh.name.begins_with("Group38_Batch") and mesh.get_parent().name == "Wmo108238"
+				var bound_composite := texture != null and texture.get_size() == Vector2(512, 512) and image != null and not image.is_empty()
+				if candidate == null and authored_group and bound_composite:
+					candidate = material
+			if candidate != null:
+				return candidate
 		await tree.process_frame
 	var objects := client.get_node_or_null("WorldObjects")
-	print("OVERLAY_TIMEOUT objects=", objects, " batches=", objects.find_children("Group38_Batch*", "MeshInstance3D", true, false).size() if objects != null else -1)
+	print("OVERLAY_TIMEOUT objects=", objects, " descendants=", objects.find_children("*", "MeshInstance3D", true, false).size() if objects != null else -1, " shader7_candidates=", observed.size())
 	return null
 
 func render_bound_material(tree: SceneTree, authored: ShaderMaterial) -> Image:

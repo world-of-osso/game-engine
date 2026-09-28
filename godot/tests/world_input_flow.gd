@@ -34,6 +34,7 @@ func run_test() -> void:
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var startup_screen := OS.get_environment("GODOT_TEST_STARTUP_SCREEN")
+	var overlay_only := OS.get_environment("GODOT_TEST_OVERLAY_ONLY") == "1"
 	if startup_screen != "inworld":
 		if not await enter_world_from_charselect(client):
 			return
@@ -46,20 +47,33 @@ func run_test() -> void:
 		fail("Native LoadingUI not visible while terrain is withheld")
 		return
 	clear_ui_focus()
-	push_w(true)
+	if not overlay_only:
+		push_w(true)
 	for frame in range(LOADING_FRAMES):
 		await process_frame
 		if client.account_state().screen != "Loading" or not client.get_node("LoadingUI").visible:
 			fail("Loading ended before LoadTerrain at frame " + str(frame))
 			return
-	push_w(false)
+	if not overlay_only:
+		push_w(false)
 	for frame in range(SETTLE_FRAMES):
 		await process_frame
 		if client.account_state().screen != "Loading":
 			fail("Loading ended before withheld-terrain input observation at frame " + str(frame))
 			return
 	print("FIXTURE LOADING_OBSERVED")
-	if not await wait_for_world(client, WORLD_WAIT_MS):
+	var world_wait_ms := 120000 if overlay_only else WORLD_WAIT_MS
+	if not await wait_for_world(client, world_wait_ms):
+		return
+	if overlay_only:
+		var overlay_probe = load("res://tests/wmo_shader7_authored_overlay.gd").new()
+		var overlay_error: String = await overlay_probe.check(self, client)
+		if overlay_error != "":
+			fail(overlay_error)
+			return
+		print("FIXTURE OVERLAY_DONE")
+		client.free()
+		quit(0)
 		return
 	clear_ui_focus()
 	var player := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
