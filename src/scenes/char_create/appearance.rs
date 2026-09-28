@@ -1,9 +1,24 @@
+//! Appearance selection rules: every choice comes from the catalog's offered list and the
+//! combined selection satisfies each choice's ChrCustomizationReqChoice groups. Picks are
+//! stored by choice ID through `set_choice`, which maps core selectors to their stored index.
+
 use std::collections::HashSet;
 
-use super::deps::{CustomizationDb, OptionType};
+use super::deps::{
+    CustomizationChoice, CustomizationDb, OptionType, RequiredChoices, appearance_options,
+};
 use shared::components::CharacterAppearance;
 
-use super::{CharCreateState, clamp_appearance_field, mix_seed, pick_random_choice};
+use super::{CharCreateState, clamp_appearance_field, mix_seed};
+
+const CORE_SELECTORS: [OptionType; 6] = [
+    OptionType::SkinColor,
+    OptionType::Face,
+    OptionType::EyeColor,
+    OptionType::HairStyle,
+    OptionType::HairColor,
+    OptionType::FacialHair,
+];
 
 pub fn randomize_appearance_with_seed(
     state: &mut CharCreateState,
@@ -16,46 +31,22 @@ pub fn randomize_appearance_with_seed(
         state.selected_class,
     );
     let mut seed = seed ^ ((race as u64) << 40) ^ ((sex as u64) << 32) ^ ((class as u64) << 24);
-    let skin_color = random_skin_index(db, race, sex, class, &mut seed);
-    let face = random_face_index(db, race, sex, class, skin_color, &mut seed);
-
     state.appearance = CharacterAppearance {
         sex,
-        skin_color,
-        face,
-        eye_color: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::EyeColor),
-        ),
-        hair_style: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::HairStyle),
-        ),
-        hair_color: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::HairColor),
-        ),
-        facial_style: pick_random_choice(
-            &mut seed,
-            db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
-        ),
-        customization_choices: Vec::new(),
+        ..CharacterAppearance::default()
     };
-    randomize_additional_choices(state, db, &mut seed);
+    for option in db.options_for(race, sex).into_iter().flatten() {
+        let choices = selectable_choices(state, db, option.id);
+        if choices.is_empty() {
+            continue;
+        }
+        seed = mix_seed(seed);
+        let choice = choices[(seed % choices.len() as u64) as usize];
+        apply_choice(state, db, option.id, choice.id);
+    }
+    repair_required_choices(state, db, None);
     state.open_dropdown = None;
     state.selected_category = 0;
-}
-
-fn random_skin_index(db: &CustomizationDb, race: u8, sex: u8, class: u8, seed: &mut u64) -> u8 {
-    let compatible = compatible_skin_indices(db, race, sex, class);
-    if compatible.is_empty() {
-        return pick_random_choice(
-            seed,
-            db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
-        );
-    }
-    *seed = mix_seed(*seed);
-    compatible[(*seed % compatible.len() as u64) as usize]
 }
 
 pub fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
@@ -64,35 +55,37 @@ pub fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
         state.selected_sex,
         state.selected_class,
     );
+    for option_type in CORE_SELECTORS {
+        let count = db.choice_count_for_class(race, sex, class, option_type);
+        clamp_appearance_field(core_field(&mut state.appearance, option_type), count);
+    }
+    appearance_options::normalize_additional_choices(db, race, sex, class, &mut state.appearance);
+    replace_unoffered_choices(state, db);
+    repair_required_choices(state, db, None);
+}
 
-    clamp_appearance_field(
-        &mut state.appearance.skin_color,
-        db.choice_count_for_class(race, sex, class, OptionType::SkinColor),
-    );
-    normalize_face_choice(state, db);
-    clamp_appearance_field(
-        &mut state.appearance.eye_color,
-        db.choice_count_for_class(race, sex, class, OptionType::EyeColor),
-    );
-    clamp_appearance_field(
-        &mut state.appearance.hair_style,
-        db.choice_count_for_class(race, sex, class, OptionType::HairStyle),
-    );
-    clamp_appearance_field(
-        &mut state.appearance.hair_color,
-        db.choice_count_for_class(race, sex, class, OptionType::HairColor),
-    );
-    clamp_appearance_field(
-        &mut state.appearance.facial_style,
-        db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
-    );
-    super::deps::appearance_options::normalize_additional_choices(
-        db,
-        race,
-        sex,
-        class,
-        &mut state.appearance,
-    );
+/// Selections outside the offered list (NPC, other-class or locked) become the first
+/// offered choice. Only what is selected changes; stored indices keep their meaning.
+fn replace_unoffered_choices(state: &mut CharCreateState, db: &CustomizationDb) {
+    for (option_id, choice) in selected_option_choices(state, db) {
+        let offered = selectable_choices(state, db, option_id);
+        if let Some(first) = offered.first()
+            && !offered.iter().any(|candidate| candidate.id == choice.id)
+        {
+            apply_choice(state, db, option_id, first.id);
+        }
+    }
+}
+
+fn core_field(appearance: &mut CharacterAppearance, option_type: OptionType) -> &mut u8 {
+    match option_type {
+        OptionType::SkinColor => &mut appearance.skin_color,
+        OptionType::Face => &mut appearance.face,
+        OptionType::EyeColor => &mut appearance.eye_color,
+        OptionType::HairStyle => &mut appearance.hair_style,
+        OptionType::HairColor => &mut appearance.hair_color,
+        _ => &mut appearance.facial_style,
+    }
 }
 
 pub fn adjust_appearance(
@@ -104,32 +97,11 @@ pub fn adjust_appearance(
     let Some(option) = db.option_by_id(state.selected_race, state.selected_sex, option_id) else {
         return;
     };
-    if option.option_type == OptionType::Face
-        && super::deps::appearance_options::is_core_option(
-            db,
-            state.selected_race,
-            state.selected_sex,
-            option,
-        )
-    {
-        cycle_face_choice(state, db, delta);
-        state.open_dropdown = None;
-        return;
-    }
-    let choices: Vec<_> = db
-        .choices_for_option(
-            state.selected_race,
-            state.selected_sex,
-            state.selected_class,
-            option_id,
-        )
-        .into_iter()
-        .filter(|choice| super::deps::appearance_options::choice_can_render(choice))
-        .collect();
+    let choices = selectable_choices(state, db, option_id);
     if choices.is_empty() {
         return;
     }
-    let selected = super::deps::appearance_options::selected_choice(
+    let selected = appearance_options::selected_choice(
         db,
         state.selected_race,
         state.selected_sex,
@@ -144,43 +116,24 @@ pub fn adjust_appearance(
     select_choice(state, option_id, choices[next].id, db);
 }
 
+/// Select `choice_id`, then change other options as its required choices demand
+/// (for example the face after a skin color, or a skin color after a face).
 pub fn select_choice(
     state: &mut CharCreateState,
     option_id: u32,
     choice_id: u32,
     db: &CustomizationDb,
 ) {
-    if let Some(option) = db.option_by_id(state.selected_race, state.selected_sex, option_id)
-        && option.option_type == OptionType::Face
-        && super::deps::appearance_options::is_core_option(
-            db,
-            state.selected_race,
-            state.selected_sex,
-            option,
-        )
+    if !selectable_choices(state, db, option_id)
+        .iter()
+        .any(|choice| choice.id == choice_id)
     {
-        let choices = db.choices_for_option(
-            state.selected_race,
-            state.selected_sex,
-            state.selected_class,
-            option_id,
-        );
-        let compatible = compatible_face_indices(
-            db,
-            state.selected_race,
-            state.selected_sex,
-            state.selected_class,
-            state.appearance.skin_color,
-        );
-        if !choices.iter().enumerate().any(|(index, choice)| {
-            choice.id == choice_id && compatible.iter().any(|&valid| usize::from(valid) == index)
-        }) {
-            state.error_text =
-                Some("That face is unavailable for the selected skin color".to_owned());
-            return;
-        }
+        state.error_text = Some(format!(
+            "Choice {choice_id} is not available for this character"
+        ));
+        return;
     }
-    let result = super::deps::appearance_options::set_choice(
+    let result = appearance_options::set_choice(
         db,
         state.selected_race,
         state.selected_sex,
@@ -191,7 +144,7 @@ pub fn select_choice(
     );
     match result {
         Ok(()) => {
-            normalize_face_choice(state, db);
+            repair_required_choices(state, db, Some(option_id));
             state.error_text = None;
             state.open_dropdown = None;
         }
@@ -199,192 +152,152 @@ pub fn select_choice(
     }
 }
 
-fn randomize_additional_choices(state: &mut CharCreateState, db: &CustomizationDb, seed: &mut u64) {
-    for option in db
-        .options_for(state.selected_race, state.selected_sex)
+fn selectable_choices<'a>(
+    state: &CharCreateState,
+    db: &'a CustomizationDb,
+    option_id: u32,
+) -> Vec<&'a CustomizationChoice> {
+    db.offered_choices(
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+        option_id,
+    )
+    .into_iter()
+    .filter(|choice| appearance_options::choice_can_render(choice))
+    .collect()
+}
+
+fn apply_choice(state: &mut CharCreateState, db: &CustomizationDb, option_id: u32, choice_id: u32) {
+    appearance_options::set_choice(
+        db,
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+        &mut state.appearance,
+        option_id,
+        choice_id,
+    )
+    .expect("selectable choices are available and renderable");
+}
+
+/// (option ID, selected choice) for every option with a selection.
+pub fn selected_option_choices<'a>(
+    state: &CharCreateState,
+    db: &'a CustomizationDb,
+) -> Vec<(u32, &'a CustomizationChoice)> {
+    db.options_for(state.selected_race, state.selected_sex)
         .into_iter()
         .flatten()
-    {
-        if super::deps::appearance_options::is_core_option(
-            db,
-            state.selected_race,
-            state.selected_sex,
-            option,
-        ) {
-            continue;
-        }
-        let choices: Vec<_> = db
-            .choices_for_option(
+        .filter_map(|option| {
+            appearance_options::selected_choice(
+                db,
                 state.selected_race,
                 state.selected_sex,
                 state.selected_class,
-                option.id,
+                &state.appearance,
+                option,
             )
-            .into_iter()
-            .filter(|choice| super::deps::appearance_options::choice_can_render(choice))
-            .collect();
-        if choices.is_empty() {
-            continue;
-        }
-        *seed = mix_seed(*seed);
-        let choice = choices[(*seed % choices.len() as u64) as usize];
-        state.appearance.customization_choices.push(
-            shared::components::CustomizationChoiceSelection {
-                option_id: option.id,
-                choice_id: choice.id,
-            },
-        );
-    }
-    state
-        .appearance
-        .customization_choices
-        .sort_by_key(|selection| selection.option_id);
+            .map(|choice| (option.id, choice))
+        })
+        .collect()
 }
 
-fn random_face_index(
+/// Repair unmet ChrCustomizationReqChoice groups without changing `kept_option`.
+fn repair_required_choices(
+    state: &mut CharCreateState,
     db: &CustomizationDb,
-    race: u8,
-    sex: u8,
-    class: u8,
-    skin_color: u8,
-    seed: &mut u64,
-) -> u8 {
-    let compatible = compatible_face_indices(db, race, sex, class, skin_color);
-    if compatible.is_empty() {
-        return 0;
-    }
-    *seed = mix_seed(*seed);
-    compatible[(*seed % compatible.len() as u64) as usize]
-}
-
-fn normalize_face_choice(state: &mut CharCreateState, db: &CustomizationDb) {
-    let compatible = compatible_face_indices(
-        db,
-        state.selected_race,
-        state.selected_sex,
-        state.selected_class,
-        state.appearance.skin_color,
-    );
-    if compatible.is_empty() {
-        state.appearance.face = 0;
-        return;
-    }
-    if !compatible.contains(&state.appearance.face) {
-        state.appearance.face = compatible[0];
+    kept_option: Option<u32>,
+) {
+    let option_count = db
+        .options_for(state.selected_race, state.selected_sex)
+        .map_or(0, <[_]>::len);
+    for _ in 0..option_count * 2 {
+        let Some((option_id, choice_id)) = next_required_choice_fix(state, db, kept_option) else {
+            return;
+        };
+        apply_choice(state, db, option_id, choice_id);
     }
 }
 
-fn cycle_face_choice(state: &mut CharCreateState, db: &CustomizationDb, delta: i8) {
-    let compatible = compatible_face_indices(
-        db,
-        state.selected_race,
-        state.selected_sex,
-        state.selected_class,
-        state.appearance.skin_color,
-    );
-    if compatible.is_empty() {
-        state.appearance.face = 0;
-        return;
-    }
-    let current = compatible
-        .iter()
-        .position(|&index| index == state.appearance.face)
-        .unwrap_or(0);
-    let next = next_index(current, compatible.len(), delta);
-    state.appearance.face = compatible[next];
-}
-
-pub fn compatible_face_indices(
+fn next_required_choice_fix(
+    state: &CharCreateState,
     db: &CustomizationDb,
-    race: u8,
-    sex: u8,
-    class: u8,
-    skin_color: u8,
-) -> Vec<u8> {
-    let Some(selected_skin_id) = db
-        .get_choice_for_class(race, sex, class, OptionType::SkinColor, skin_color)
+    kept_option: Option<u32>,
+) -> Option<(u32, u32)> {
+    let selected = selected_option_choices(state, db);
+    let selected_ids: HashSet<u32> = selected.iter().map(|(_, choice)| choice.id).collect();
+    selected.iter().find_map(|&(dependent_option, choice)| {
+        db.required_choices(choice)
+            .iter()
+            .filter(|group| !group.choice_ids.iter().any(|id| selected_ids.contains(id)))
+            .find_map(|group| {
+                let unmet = UnmetGroup {
+                    dependent_option,
+                    group,
+                    selected_ids: &selected_ids,
+                };
+                unmet.fix(state, db, kept_option)
+            })
+    })
+}
+
+struct UnmetGroup<'a> {
+    dependent_option: u32,
+    group: &'a RequiredChoices,
+    selected_ids: &'a HashSet<u32>,
+}
+
+impl UnmetGroup<'_> {
+    /// Prefer changing the required option to a listed choice; otherwise change the
+    /// dependent option to a choice whose own groups the selection already meets.
+    fn fix(
+        &self,
+        state: &CharCreateState,
+        db: &CustomizationDb,
+        kept_option: Option<u32>,
+    ) -> Option<(u32, u32)> {
+        let required_option = self.group.option_id;
+        let required_fix = (kept_option != Some(required_option))
+            .then(|| {
+                first_selectable(state, db, required_option, |candidate| {
+                    self.group.choice_ids.contains(&candidate.id)
+                })
+            })
+            .flatten()
+            .map(|id| (required_option, id));
+        required_fix.or_else(|| {
+            (kept_option != Some(self.dependent_option))
+                .then(|| {
+                    first_selectable(state, db, self.dependent_option, |candidate| {
+                        requirements_met(db, candidate, self.selected_ids)
+                    })
+                })
+                .flatten()
+                .map(|id| (self.dependent_option, id))
+        })
+    }
+}
+
+fn first_selectable(
+    state: &CharCreateState,
+    db: &CustomizationDb,
+    option_id: u32,
+    accepts: impl Fn(&CustomizationChoice) -> bool,
+) -> Option<u32> {
+    selectable_choices(state, db, option_id)
+        .into_iter()
+        .find(|choice| accepts(choice))
         .map(|choice| choice.id)
-    else {
-        return Vec::new();
-    };
-    let skin_choice_ids = skin_choice_ids(db, race, sex, class);
-    let face_count = db.choice_count_for_class(race, sex, class, OptionType::Face);
-
-    (0..face_count)
-        .filter(|&index| {
-            face_matches_skin(
-                db,
-                race,
-                sex,
-                class,
-                index,
-                selected_skin_id,
-                &skin_choice_ids,
-            )
-        })
-        .collect()
 }
 
-fn compatible_skin_indices(db: &CustomizationDb, race: u8, sex: u8, class: u8) -> Vec<u8> {
-    let skin_count = db.choice_count_for_class(race, sex, class, OptionType::SkinColor);
-    if db.choice_count_for_class(race, sex, class, OptionType::Face) == 0 {
-        return (0..skin_count).collect();
-    }
-    (0..skin_count)
-        .filter(|&skin_color| !compatible_face_indices(db, race, sex, class, skin_color).is_empty())
-        .collect()
-}
-
-fn face_matches_skin(
+/// Whether `selected_ids` contains one listed choice for each of `choice`'s groups.
+pub fn requirements_met(
     db: &CustomizationDb,
-    race: u8,
-    sex: u8,
-    class: u8,
-    face: u8,
-    selected_skin_id: u32,
-    skin_choice_ids: &HashSet<u32>,
+    choice: &CustomizationChoice,
+    selected_ids: &HashSet<u32>,
 ) -> bool {
-    let Some(choice) = db.get_choice_for_class(race, sex, class, OptionType::Face, face) else {
-        return false;
-    };
-    let related_skin_ids = related_skin_ids(choice, skin_choice_ids);
-    related_skin_ids.is_empty() || related_skin_ids.contains(&selected_skin_id)
-}
-
-fn related_skin_ids(
-    choice: &super::deps::CustomizationChoice,
-    skin_choice_ids: &HashSet<u32>,
-) -> HashSet<u32> {
-    choice
-        .related_materials
+    db.required_choices(choice)
         .iter()
-        .map(|material| material.related_choice_id)
-        .chain(
-            choice
-                .related_geosets
-                .iter()
-                .map(|geoset| geoset.related_choice_id),
-        )
-        .filter(|choice_id| skin_choice_ids.contains(choice_id))
-        .collect()
-}
-
-fn skin_choice_ids(db: &CustomizationDb, race: u8, sex: u8, class: u8) -> HashSet<u32> {
-    let count = db.choice_count_for_class(race, sex, class, OptionType::SkinColor);
-    (0..count)
-        .filter_map(|index| {
-            db.get_choice_for_class(race, sex, class, OptionType::SkinColor, index)
-                .map(|choice| choice.id)
-        })
-        .collect()
-}
-
-fn next_index(current: usize, len: usize, delta: i8) -> usize {
-    if delta > 0 {
-        (current + 1) % len
-    } else if current == 0 {
-        len - 1
-    } else {
-        current - 1
-    }
+        .all(|group| group.choice_ids.iter().any(|id| selected_ids.contains(id)))
 }

@@ -30,7 +30,7 @@ mod deps {
     pub(crate) use game_engine::char_create_data;
     pub(crate) use game_engine::customization_data::{
         CustomizationCatalog as CustomizationDb, CustomizationChoice, CustomizationOption,
-        ModelPresentation, OptionType,
+        ModelPresentation, OptionType, RequiredChoices,
     };
     pub(crate) use game_engine::ui::screens::char_create_component;
 }

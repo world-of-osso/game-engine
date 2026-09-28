@@ -29,6 +29,10 @@ At `0d9301a1`, independent verification passes root/native fmt and checks, porta
 
 Readability reports no changed-line violation. The lone unused `super::*` import warning is baseline in unchanged `tests/unit/asset/m2_retail_light_tests.rs`. This proves the portable compositor and root adapter behavior only. Native Godot character rendering and full conversion remain open.
 
+## Layer blending
+
+Only TextureType 1 layers compose the body atlas. BlendMode 4/6/7 tint by source alpha and 9 blends by source alpha. See [invalid customization combos](charcreate-invalid-customization-combos.md) for the reported teal-body case.
+
 ## Sources
 
 - [character-texture-debugging-2026-03-27.md](../../character-texture-debugging-2026-03-27.md) — duplication finding and cleanup summary
