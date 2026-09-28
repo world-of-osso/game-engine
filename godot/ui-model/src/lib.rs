@@ -172,6 +172,7 @@ use char_select_component::{
     CharDisplayEntry, CharSelectState, DeleteConfirmUiState, apply_char_select_postsetup,
     char_select_screen,
 };
+use game_menu_component::{GameMenuViewModel, game_menu_screen};
 use game_menu_main::{GAME_MENU_ROOT, main_menu_view};
 use loading_component::{LoadingScreenState, LoadingViewportHeight, loading_screen};
 use login::{
@@ -340,6 +341,32 @@ impl GameMenuModel {
         registry.register_panel_style("default", panel_style_data::default_panel_style());
         Self {
             screen: Screen::new(main_menu_screen),
+            shared,
+            registry,
+        }
+    }
+
+    /// Full original GameMenu screen, with the authored Options panels and reactive view state.
+    pub fn from_view(screen_width: f32, screen_height: f32, view: GameMenuViewModel) -> Self {
+        let mut shared = SharedContext::new();
+        shared.insert(view);
+        let mut registry = FrameRegistry::new(screen_width, screen_height);
+        registry.register_panel_style("default", panel_style_data::default_panel_style());
+        registry.register_panel_style(
+            "inner_plain",
+            ui_toolkit::frame::NineSlice {
+                edge_size: 8.0,
+                uv_edge_size: Some(8.0),
+                bg_color: [1.0; 4],
+                border_color: [1.0; 4],
+                texture: Some(ui_toolkit::widgets::texture::TextureSource::File(
+                    "data/textures/ui/panel_slate_gold_plain_128.ktx2".into(),
+                )),
+                ..Default::default()
+            },
+        );
+        Self {
+            screen: Screen::new(game_menu_screen),
             shared,
             registry,
         }

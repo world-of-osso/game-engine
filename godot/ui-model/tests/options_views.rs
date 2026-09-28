@@ -1,3 +1,4 @@
+use game_engine_ui_model::GameMenuModel;
 use game_engine_ui_model::game_menu_component::{
     GameMenuView, GameMenuViewModel, game_menu_screen,
 };
@@ -140,6 +141,31 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
     assert_eq!(label(&registry, "MenuBtnOptions"), "Options");
     let addons = registry.get_by_name("MenuBtnAddons").unwrap();
     assert_eq!(registry.click_frame(addons).as_deref(), Some("menu_addons"));
+}
+
+#[test]
+fn native_game_menu_model_projects_authored_options_and_reactive_slider_values() {
+    let mut view = model();
+    let mut native = GameMenuModel::from_view(1280.0, 720.0, view.clone());
+    native.sync();
+    let slider = native.registry.get_by_name("Slidermaster_volume").unwrap();
+    assert!(matches!(
+        native.registry.get(slider).unwrap().widget_data,
+        Some(WidgetData::Slider(_))
+    ));
+    assert_eq!(label(&native.registry, "SliderValuemaster_volume"), "0.80");
+    assert!(
+        native
+            .registry
+            .get(native.registry.get_by_name("OptionsTabPanel").unwrap())
+            .unwrap()
+            .nine_slice
+            .is_some()
+    );
+    view.options.sound.master_volume = 0.25;
+    native.shared.insert(view);
+    native.sync();
+    assert_eq!(label(&native.registry, "SliderValuemaster_volume"), "0.25");
 }
 
 #[test]
