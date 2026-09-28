@@ -2,13 +2,27 @@
 
 use std::path::{Path, PathBuf};
 
-use game_engine_core::loading_readiness::GlobalWmoState;
+use game_engine_core::{
+    asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
+    loading_readiness::GlobalWmoState,
+};
+use glam::{Affine3A, Vec3};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
 use crate::{
-    lighting::TerrainLight, terrain::streaming::StreamedTerrain, world_models::bind_visual_light,
+    lighting::TerrainLight,
+    terrain::streaming::StreamedTerrain,
+    wmo::{assets::wmo_fog_volume, portals::WmoPortals},
+    world_models::bind_visual_light,
 };
+
+/// The spawned global WMO's interior groups and MFOG fog.
+struct GlobalWmoFog {
+    portals: WmoPortals,
+    fog: WmoFogVolume,
+    world_from_local: Affine3A,
+}
 
 pub(crate) struct GlobalWmoScene {
     root: Option<Gd<Node3D>>,
@@ -16,6 +30,7 @@ pub(crate) struct GlobalWmoScene {
     data_root: PathBuf,
     state: GlobalWmoState,
     light: Option<TerrainLight>,
+    fog: Option<GlobalWmoFog>,
 }
 
 impl GlobalWmoScene {
@@ -26,6 +41,7 @@ impl GlobalWmoScene {
             data_root,
             state: GlobalWmoState::None,
             light: None,
+            fog: None,
         }
     }
 
@@ -71,6 +87,11 @@ impl GlobalWmoScene {
                 root.add_child(&node);
                 parent.add_child(&root);
                 self.root = Some(root);
+                self.fog = Some(GlobalWmoFog {
+                    portals: WmoPortals::new(&placed.asset),
+                    fog: wmo_fog_volume(&placed.asset),
+                    world_from_local: placed.world_from_local,
+                });
                 GlobalWmoState::Spawned
             }
             Err(error) => {
@@ -88,11 +109,22 @@ impl GlobalWmoScene {
         self.light = Some(light.clone());
     }
 
+    /// The MFOG fog when world `camera` stands in one of the global WMO's interior groups.
+    pub fn camera_fog(&self, camera: Vector3) -> Option<WmoFogBlend> {
+        let wmo = self.fog.as_ref()?;
+        wmo.portals.camera_fog(
+            &wmo.fog,
+            wmo.world_from_local,
+            Vec3::new(camera.x, camera.y, camera.z),
+        )
+    }
+
     pub fn reset(&mut self) {
         if let Some(root) = self.root.take() {
             root.free();
         }
         self.state = GlobalWmoState::None;
         self.light = None;
+        self.fog = None;
     }
 }

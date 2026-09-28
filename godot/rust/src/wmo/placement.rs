@@ -40,12 +40,16 @@ pub(crate) fn adt_wmo_collision(
     tile: (u32, u32),
     groups: Vec<Arc<WmoGroupCollision>>,
 ) -> WmoCollision {
-    let world_from_local = Affine3A::from_scale_rotation_translation(
+    WmoCollision::new(adt_world_from_local(placement, tile), groups)
+}
+
+/// WMO-local engine axes to world of an ADT `_obj` MODF placement on `tile`.
+pub(crate) fn adt_world_from_local(placement: &WmoPlacement, tile: (u32, u32)) -> Affine3A {
+    Affine3A::from_scale_rotation_translation(
         Vec3::splat(placement.scale),
         placement_rotation(placement.rotation),
         placement_position(placement.position, tile.0, tile.1),
-    );
-    WmoCollision::new(world_from_local, groups)
+    )
 }
 
 fn placed_collision(world_from_local: Affine3A, asset: &NativeWmoAsset) -> WmoCollision {
