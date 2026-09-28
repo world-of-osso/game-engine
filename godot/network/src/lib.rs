@@ -29,9 +29,10 @@ use shared::{
         UnitFlags, UnitLevel, UnitTarget,
     },
     protocol::{
-        CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
-        ForcedDisconnect, LoadTerrain, LoginResponse, NewWorld, QuestLogSnapshot, QuestLogUpdate,
-        RegisterResponse, TransferAborted,
+        CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
+        DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InstanceInfo, LoadTerrain,
+        LoginResponse, NewWorld, QuestLogSnapshot, QuestLogUpdate, RegisterResponse,
+        TransferAborted,
     },
 };
 
@@ -170,6 +171,9 @@ impl NetworkBridge {
             // Quest log for the world map's quest areas.
             .receive::<QuestLogSnapshot>()
             .receive::<QuestLogUpdate>()
+            // Dungeon difficulty and saved instances for the entrance difficulty bar.
+            .receive::<DungeonDifficultySet>()
+            .receive::<InstanceInfo>()
             .connect(server_addr, client_id)
     }
 

@@ -8,6 +8,9 @@ use std::collections::VecDeque;
 
 use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
+use game_engine_ui_model::entrance_difficulty_component::{
+    EntranceBarState, apply_entrance_bar_postsetup, entrance_difficulty_screen,
+};
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, inworld_unit_frames_screen,
 };
@@ -59,6 +62,7 @@ enum ScreenPostsetup {
     CharacterCreate,
     Loading,
     WorldMap,
+    EntranceBar,
 }
 
 impl RegistryModel {
@@ -73,6 +77,11 @@ impl RegistryModel {
             ScreenPostsetup::WorldMap => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
+                }
+            }
+            ScreenPostsetup::EntranceBar => {
+                if let Some(state) = self.shared.get::<EntranceBarState>() {
+                    apply_entrance_bar_postsetup(state, &mut self.registry);
                 }
             }
             ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
@@ -284,6 +293,29 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_model(model, width, height)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the dungeon-entrance difficulty bar.
+    pub fn show_entrance_bar(&mut self, state: EntranceBarState) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut model = RegistryModel {
+            screen: Screen::new(entrance_difficulty_screen),
+            shared,
+            registry: FrameRegistry::new(size.x, size.y),
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::EntranceBar,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
     }
 
     /// Initialize a dedicated RegistryUi instance for the in-world unit frames.
@@ -820,3 +852,6 @@ fn apply_login_art(registry: &mut FrameRegistry) -> Result<(), String> {
 #[cfg(test)]
 #[path = "button_style_tests.rs"]
 mod button_style_tests;
+#[cfg(test)]
+#[path = "entrance_bar_tests.rs"]
+mod entrance_bar_tests;

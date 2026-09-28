@@ -12,9 +12,11 @@ use game_engine_session::{
 };
 use shared::protocol::{
     AuthChannel, CharacterListUpdate, CombatChannel, CreateCharacter, CreateCharacterResponse,
-    DeleteCharacter, DeleteCharacterResponse, EnterWorldResponse, ForcedDisconnect, InputChannel,
-    LoadTerrain, LoginResponse, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot,
-    QuestLogUpdate, RegisterResponse, SetTarget, TransferAborted, TransferChannel, WorldPortAck,
+    DeleteCharacter, DeleteCharacterResponse, DungeonDifficultySet, EnterWorldResponse,
+    ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo, LoadTerrain,
+    LoginResponse, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate,
+    RegisterResponse, RequestRaidInfo, SetDungeonDifficulty, SetTarget, TransferAborted,
+    TransferChannel, WorldPortAck,
 };
 
 #[derive(Default)]
@@ -34,6 +36,10 @@ pub struct Account {
     hostname: String,
     /// Server quest log in log order, for the world map's quest areas.
     pub quest_log: Vec<QuestEntrySnapshot>,
+    /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
+    pub dungeon_difficulty: Option<u32>,
+    /// Saved instances of the last `InstanceInfo`.
+    pub instance_locks: Vec<InstanceLockInfo>,
 }
 
 pub enum AccountEvent {
@@ -63,6 +69,8 @@ impl Account {
             data_root,
             hostname: String::new(),
             quest_log: Vec::new(),
+            dungeon_difficulty: None,
+            instance_locks: Vec::new(),
         }
     }
 
@@ -99,6 +107,8 @@ impl Account {
         self.stop()?;
         self.reply_received = false;
         self.hostname = hostname.to_owned();
+        self.dungeon_difficulty = None;
+        self.instance_locks.clear();
         self.session.token = self.read_token()?;
         Ok(())
     }
@@ -158,6 +168,18 @@ impl Account {
             .send::<_, CombatChannel>(SetTarget {
                 target_entity: target,
             })
+    }
+
+    /// `SetDungeonDifficultyID`; the server validates it and answers `DungeonDifficultySet`.
+    pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), String> {
+        self.connected_bridge()?
+            .send::<_, InstanceChannel>(SetDungeonDifficulty { difficulty_id })
+    }
+
+    /// `RequestRaidInfo()`; the server answers `InstanceInfo`.
+    pub fn send_request_raid_info(&self) -> Result<(), String> {
+        self.connected_bridge()?
+            .send::<_, InstanceChannel>(RequestRaidInfo)
     }
 
     /// Called by the host only after the destination is ready for world entry.
@@ -223,6 +245,16 @@ impl Account {
         }
         if message.is::<QuestLogUpdate>() {
             apply_quest_log_update(&mut self.quest_log, decode(message)?);
+            return Ok(());
+        }
+        if message.is::<DungeonDifficultySet>() {
+            let set: DungeonDifficultySet = decode(message)?;
+            self.dungeon_difficulty = Some(set.difficulty_id);
+            return Ok(());
+        }
+        if message.is::<InstanceInfo>() {
+            let info: InstanceInfo = decode(message)?;
+            self.instance_locks = info.locks;
             return Ok(());
         }
         if message.is::<LoadTerrain>() {

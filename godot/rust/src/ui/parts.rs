@@ -5,7 +5,7 @@
 
 use ui_toolkit::frame::{Frame, NineSlice, ThreeSlice, WidgetData};
 use ui_toolkit::widgets::button::{ButtonData, ButtonState};
-use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV};
+use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
 use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
 
 const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
@@ -46,6 +46,7 @@ pub struct TextPart {
     pub color: [f32; 4],
     pub justify_h: JustifyH,
     pub justify_v: JustifyV,
+    pub outline: Outline,
 }
 
 pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> {
@@ -97,6 +98,7 @@ pub fn project_button_text(frame: &Frame) -> Option<TextPart> {
         color: [r, g, b, 1.0],
         justify_h: JustifyH::Center,
         justify_v: JustifyV::Middle,
+        outline: Outline::None,
     })
 }
 
