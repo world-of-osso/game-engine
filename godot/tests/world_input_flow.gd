@@ -177,6 +177,11 @@ func run_test() -> void:
 	if not await check_running_jump(client, player, locomotion):
 		return
 	print("FIXTURE STOPPED")
+	var overlay_probe = load("res://tests/wmo_shader7_authored_overlay.gd").new()
+	var overlay_error: String = await overlay_probe.check(self, client)
+	if overlay_error != "":
+		fail(overlay_error)
+		return
 	client.free()
 	print("SHUTDOWN: client freed")
 	quit(0)
