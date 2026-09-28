@@ -5,6 +5,7 @@ pub mod achievement;
 pub mod achievements;
 #[path = "game/action_bar_data.rs"]
 pub mod action_bar_data;
+pub mod area_zone_data;
 pub mod asset;
 pub mod auction_house;
 #[path = "game/auction_house_data.rs"]

@@ -147,26 +147,8 @@ fn insert_zone_row(
 /// AreaTable `ID` → `ParentAreaID` for every area with a parent.
 pub(super) fn load_area_parents() -> Result<HashMap<u32, u32>, String> {
     let csv_path = super::area_table_csv_path();
-    let mut reader = super::open_reader(&csv_path)?;
-    let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|err| format!("read {} header: {err}", csv_path.display()))?;
-    let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
-    let id_col = super::header_index(&headers, "ID", &csv_path)?;
-    let parent_col = super::header_index(&headers, "ParentAreaID", &csv_path)?;
-    let mut parents = HashMap::new();
-    for line in reader.lines() {
-        let line = line.map_err(|err| format!("read {} row: {err}", csv_path.display()))?;
-        let fields = parse_csv_line(&line);
-        let field = |col: usize| fields.get(col).and_then(|value| value.parse::<u32>().ok());
-        if let (Some(id), Some(parent)) = (field(id_col), field(parent_col))
-            && parent != 0
-        {
-            parents.insert(id, parent);
-        }
-    }
-    Ok(parents)
+    let reader = super::open_reader(&csv_path)?;
+    crate::area_zone_data::load_area_parents(reader, &csv_path)
 }
 
 fn query_zone_name(cache_path: &Path, id: u32) -> Result<Option<String>, rusqlite::Error> {
