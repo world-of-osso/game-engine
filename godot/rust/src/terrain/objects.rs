@@ -17,10 +17,12 @@ use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
 use crate::{
+    animation::{WowAnimationPlayer, lod::DeferredClock},
     assets::{
         build_model,
         creature::{cache_model_files, cache_model_textures, local_resolver},
         read_model,
+        uv_animation::WowMaterialAnimation,
     },
     lighting::TerrainLight,
     terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
@@ -66,11 +68,72 @@ struct ParsedModel {
     model: m2::Model,
 }
 
-/// A spawned doodad and the retail distance it is drawn to.
+/// A spawned doodad, the retail distance it is drawn to, and its animation. Once the
+/// in-world cull drives it, the animation advances only on the frames its animation
+/// LOD samples; other scenes leave it processing every frame.
 struct CulledDoodad {
     node: Gd<Node3D>,
     scenery: SceneryDistance,
     shown: bool,
+    unique_id: u32,
+    bones: Option<Gd<WowAnimationPlayer>>,
+    materials: Option<Gd<WowMaterialAnimation>>,
+    clock: DeferredClock,
+    driven: bool,
+}
+
+impl CulledDoodad {
+    fn new(node: Gd<Node3D>, scenery: SceneryDistance, unique_id: u32) -> Self {
+        Self {
+            bones: node.try_get_node_as("M2Animation"),
+            materials: node.try_get_node_as("M2MaterialAnimation"),
+            node,
+            scenery,
+            shown: true,
+            unique_id,
+            clock: DeferredClock::default(),
+            driven: false,
+        }
+    }
+
+    /// Stops the animation nodes' own processing. Godot enables processing of a node
+    /// that implements `_process` when it becomes ready, so this runs after spawn.
+    fn take_over_processing(&mut self) {
+        self.driven = true;
+        if let Some(bones) = &mut self.bones {
+            bones.set_process(false);
+        }
+        if let Some(materials) = &mut self.materials {
+            materials.set_process(false);
+        }
+    }
+
+    fn animate(&mut self, camera: Vec3, frustum: &[HalfSpace], delta_ms: f64, frame: u64) {
+        if self.bones.is_none() && self.materials.is_none() {
+            return;
+        }
+        if !self.driven {
+            self.take_over_processing();
+        }
+        let sampled = self
+            .scenery
+            .animation_lod(camera, frustum)
+            .samples_frame(frame, u64::from(self.unique_id));
+        let Some(owed) = self.clock.tick(delta_ms, sampled) else {
+            return;
+        };
+        if let Some(bones) = &mut self.bones {
+            let mut bones = bones.bind_mut();
+            for step_ms in owed {
+                bones.advance_time_ms(step_ms);
+            }
+        }
+        // Material animation reads the shared material clock, so a late sample is
+        // already at the current time.
+        if let Some(materials) = &mut self.materials {
+            materials.bind_mut().sample_materials();
+        }
+    }
 }
 
 /// A spawned WMO's portal graph and the batch meshes of each drawable group.
@@ -208,11 +271,8 @@ impl TerrainObjects {
                 }
                 let (model, scenery) = self.load_placed_doodad(doodad, tile, terrain)?;
                 self.spawned_doodads.insert(doodad.unique_id);
-                self.doodads.push(CulledDoodad {
-                    node: model.clone(),
-                    scenery,
-                    shown: true,
-                });
+                self.doodads
+                    .push(CulledDoodad::new(model.clone(), scenery, doodad.unique_id));
                 model
             }
             Pending::Wmo(_, index) => {
@@ -358,20 +418,24 @@ impl TerrainObjects {
         }
     }
 
-    /// Draws each doodad only within its retail scenery distance of `camera`; a
-    /// hidden doodad also stops animating.
-    pub fn cull_doodads(&mut self, camera: Vector3) {
+    /// Draws each doodad only within its retail scenery distance of `camera`, and
+    /// advances its animation `delta_ms` at its animation LOD rate through `frustum`
+    /// (world space); an undrawn doodad does not animate.
+    pub fn cull_doodads(
+        &mut self,
+        camera: Vector3,
+        frustum: &[HalfSpace],
+        delta_ms: f64,
+        frame: u64,
+    ) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         for doodad in &mut self.doodads {
             let shown = doodad.scenery.visible_from(camera);
-            if shown == doodad.shown {
-                continue;
+            if shown != doodad.shown {
+                doodad.shown = shown;
+                doodad.node.set_visible(shown);
             }
-            doodad.shown = shown;
-            doodad.node.set_visible(shown);
-            if let Some(mut animation) = doodad.node.get_node_or_null("M2Animation") {
-                animation.set_process(shown);
-            }
+            doodad.animate(camera, frustum, delta_ms, frame);
         }
     }
 

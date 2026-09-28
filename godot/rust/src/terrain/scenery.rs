@@ -5,8 +5,15 @@
 //! (`SceneryDistance::new`/`opacity`), with `environmentDetail` at its default 1.
 //! The retail fade band before the far radius is not reproduced: a doodad is drawn
 //! opaque up to the radius where retail opacity reaches zero.
+//!
+//! A drawn doodad also samples its animation at the shared [`AnimationLod`] rate
+//! from its box center distance and whether its box is in the view frustum; an
+//! undrawn one does not animate (solarityclient `terrain_frame/m2.rs` culls static
+//! placements from their bounds before advancing their playback).
 
 use glam::{Affine3A, Vec3};
+
+use crate::{animation::lod::AnimationLod, wmo::portals::HalfSpace};
 
 /// Inclusive upper size limits of classes 0..=3; anything larger is class 4.
 const SIZE_LIMITS: [f32; 4] = [1.0, 4.0, 15.0, 100.0];
@@ -17,6 +24,8 @@ const FAR_RADII: [f32; 5] = [30.0, 100.0, 200.0, 750.0, 1250.0];
 pub(crate) struct SceneryDistance {
     center: Vec3,
     far: f32,
+    world_min: Vec3,
+    world_max: Vec3,
 }
 
 impl SceneryDistance {
@@ -44,11 +53,35 @@ impl SceneryDistance {
         Self {
             center: world_from_model.transform_point3((min + max) * 0.5),
             far: FAR_RADII[class],
+            world_min,
+            world_max,
         }
     }
 
     pub fn visible_from(&self, camera: Vec3) -> bool {
         self.center.distance_squared(camera) <= self.far * self.far
+    }
+
+    /// Animation rate of the placement seen from `camera` through `frustum` (inside
+    /// half spaces): frozen when not drawn or when its world box is out of view.
+    pub fn animation_lod(&self, camera: Vec3, frustum: &[HalfSpace]) -> AnimationLod {
+        if !self.visible_from(camera) {
+            return AnimationLod::Frozen;
+        }
+        AnimationLod::new(self.center.distance(camera), self.box_in_frustum(frustum))
+    }
+
+    /// Whether any part of the world box can be inside every half space: the corner
+    /// farthest along each plane normal must not be behind it.
+    fn box_in_frustum(&self, frustum: &[HalfSpace]) -> bool {
+        frustum.iter().all(|plane| {
+            let corner = Vec3::select(
+                plane.normal.cmpge(Vec3::ZERO),
+                self.world_max,
+                self.world_min,
+            );
+            plane.normal.dot(corner) + plane.d >= 0.0
+        })
     }
 }
 
@@ -93,6 +126,51 @@ mod tests {
         // A 0.9 yd cube turned 45 degrees spans 1.27 yd on X and Z.
         let turned = Affine3A::from_quat(Quat::from_rotation_y(std::f32::consts::FRAC_PI_4));
         assert_eq!(far_radius(0.9, turned), 100.0);
+    }
+
+    /// Looking down -Z from the origin with a 90 degree horizontal field of view.
+    fn view() -> Vec<HalfSpace> {
+        [
+            Vec3::new(1.0, 0.0, -1.0),
+            Vec3::new(-1.0, 0.0, -1.0),
+            Vec3::new(0.0, 1.0, -1.0),
+            Vec3::new(0.0, -1.0, -1.0),
+            Vec3::NEG_Z,
+        ]
+        .into_iter()
+        .map(|normal| HalfSpace {
+            normal: normal.normalize(),
+            d: 0.0,
+        })
+        .collect()
+    }
+
+    /// A 10 yd tree (class 2, drawn to 200 yd) whose box center is at `center`.
+    fn tree_at(center: Vec3) -> SceneryDistance {
+        let (min, max) = cube(10.0);
+        SceneryDistance::new(min, max, Affine3A::from_translation(center))
+    }
+
+    #[test]
+    fn drawn_doodads_animate_at_the_shared_lod_rate() {
+        use crate::animation::lod::AnimationLod::{Frozen, Full, Half};
+        let lod = |center: Vec3| tree_at(center).animation_lod(Vec3::ZERO, &view());
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -30.0)), Full);
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -30.5)), Half);
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -60.0)), Half);
+        assert_eq!(lod(Vec3::new(0.0, 0.0, -60.5)), Frozen);
+        // Behind the camera, and beside it outside the field of view: off screen.
+        assert_eq!(lod(Vec3::new(0.0, 0.0, 10.0)), Frozen);
+        assert_eq!(lod(Vec3::new(25.0, 0.0, -10.0)), Frozen);
+        // The box center is outside the view but its near half reaches into it.
+        assert_eq!(lod(Vec3::new(14.0, 0.0, -10.0)), Full);
+        // Beyond its 200 yd scenery radius it is not drawn, so it does not animate.
+        let small = {
+            let (min, max) = cube(0.5);
+            SceneryDistance::new(min, max, Affine3A::from_translation(Vec3::NEG_Z * 31.0))
+        };
+        assert!(!small.visible_from(Vec3::ZERO));
+        assert_eq!(small.animation_lod(Vec3::ZERO, &view()), Frozen);
     }
 
     #[test]

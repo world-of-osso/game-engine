@@ -1,4 +1,4 @@
-//! Distance and visibility based sampling rate for replicated NPC animation.
+//! Distance and visibility based sampling rate for replicated NPC and doodad animation.
 //!
 //! The `M2AnimPlayer` clock always advances; this only decides on which frames Bevy samples the
 //! clips and writes bone transforms. Skipped frames leave joints at their last pose.
@@ -12,17 +12,18 @@ use bevy::prelude::*;
 use super::M2AnimPlayer;
 use crate::networking_npc::NpcVisualRoot;
 use crate::rendering::camera::WowCamera;
+use game_engine::culling::Doodad;
 
-/// NPCs closer than this to the camera sample every frame.
+/// Models closer than this to the camera sample every frame.
 pub(crate) const FULL_RATE_MAX_YARDS: f32 = 30.0;
-/// NPCs farther than this from the camera stop sampling even when on screen.
+/// Models farther than this from the camera stop sampling even when on screen.
 pub(crate) const FROZEN_MIN_YARDS: f32 = 60.0;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AnimationLod {
     /// Sample every frame.
     Full,
-    /// Sample every other frame, staggered by entity so half the NPCs sample each frame.
+    /// Sample every other frame, staggered by entity so half the models sample each frame.
     Half,
     /// Do not sample; joints keep their last pose.
     Frozen,
@@ -54,9 +55,10 @@ type NpcModelQuery<'w, 's> = Query<
     's,
     (
         Entity,
-        &'static ChildOf,
+        Option<&'static ChildOf>,
         &'static GlobalTransform,
         Option<&'static mut AnimationLod>,
+        Has<Doodad>,
     ),
     With<M2AnimPlayer>,
 >;
@@ -74,8 +76,9 @@ pub(crate) fn assign_npc_animation_lod(
         return;
     };
     let camera_position = camera.translation();
-    for (model, child_of, transform, lod) in &mut models {
-        if !npc_roots.contains(child_of.parent()) {
+    for (model, child_of, transform, lod, doodad) in &mut models {
+        let npc = child_of.is_some_and(|child_of| npc_roots.contains(child_of.parent()));
+        if !npc && !doodad {
             continue;
         }
         let visible = hierarchy
