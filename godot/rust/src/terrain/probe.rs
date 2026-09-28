@@ -54,6 +54,7 @@ pub struct WowWmoPlacementProbe {
     base: Base<Node3D>,
     loaded: Option<Loaded>,
     error: String,
+    frame: u64,
 }
 
 #[godot_api]
@@ -63,6 +64,7 @@ impl INode3D for WowWmoPlacementProbe {
             base,
             loaded: None,
             error: String::new(),
+            frame: 0,
         }
     }
 
@@ -117,15 +119,20 @@ impl WowWmoPlacementProbe {
         GString::new()
     }
 
-    /// The in-world per-frame portal and scenery-distance cull from `camera`.
+    /// One in-world cull frame from `camera`, `delta_ms` after the previous one: portal
+    /// culling, then doodad fade and animation, as `GameClient::cull_world_objects`.
     #[func]
-    fn cull_from(&mut self, camera: Gd<Camera3D>) {
-        if let Some(loaded) = self.loaded.as_mut() {
-            loaded.objects.cull(
-                camera.get_global_position(),
-                &crate::camera::frustum(&camera),
-            );
-        }
+    fn cull_from(&mut self, camera: Gd<Camera3D>, delta_ms: f64) {
+        let Some(loaded) = self.loaded.as_mut() else {
+            return;
+        };
+        let position = camera.get_global_position();
+        let frustum = crate::camera::frustum(&camera);
+        loaded.objects.cull_wmos(position, &frustum);
+        loaded
+            .objects
+            .cull_doodads(position, &frustum, delta_ms, self.frame);
+        self.frame += 1;
     }
 
     #[func]
@@ -137,6 +144,14 @@ impl WowWmoPlacementProbe {
             state.set("spawned", loaded.objects.spawned_count() as i64);
             state.set("pending", loaded.objects.pending_count() as i64);
             state.set("failures", loaded.objects.failure_count() as i64);
+            let terrain = loaded.terrain.state();
+            let tile_errors: Vec<String> = terrain
+                .failures
+                .iter()
+                .map(|failure| format!("{:?}: {}", failure.tile, failure.error))
+                .collect();
+            state.set("terrain_errors", tile_errors.join("; ").as_str());
+            state.set("map_error", terrain.map_error.unwrap_or_default().as_str());
         }
         state
     }

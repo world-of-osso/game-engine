@@ -18,6 +18,7 @@ mod lighting;
 mod loading;
 mod scene;
 mod startup;
+mod targeting;
 mod terrain;
 mod ui;
 mod wmo;
@@ -34,7 +35,7 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     char_create_component::{CREATE_NAME_INPUT, CharCreateAction, CharCreateMode},
     char_select_component::{
-        CampsiteEntry, CampsiteState, CharSelectAction, DELETE_CONFIRM_INPUT,
+        CampsiteEntry, CampsitePreview, CampsiteState, CharSelectAction, DELETE_CONFIRM_INPUT,
         DeleteCharacterTarget, DeleteConfirmation, step_selection,
     },
     char_select_state_from_roster,
@@ -86,6 +87,7 @@ pub struct GameClient {
     terrain_materials: terrain::material::TerrainMaterials,
     world_objects: terrain::objects::TerrainObjects,
     global_wmo: wmo::global::GlobalWmoScene,
+    wmo_collision: wmo::collision::WmoCollisionBodies,
     world_lighting: lighting::WorldLighting,
     /// `Map.db2` ID of the map whose terrain is loaded; lighting selects its Light rows.
     world_map_id: Option<u32>,
@@ -96,6 +98,7 @@ pub struct GameClient {
     world_minutes: f32,
     server_hostname: String,
     startup_customize: bool,
+    targeting: targeting::Targeting,
 }
 
 #[godot_api]
@@ -141,6 +144,7 @@ impl INode3D for GameClient {
                 cache_root.clone(),
             ),
             global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone(), &cache_root),
+            wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_map_id: None,
             world_camera: camera::WorldCamera::default(),
@@ -150,6 +154,7 @@ impl INode3D for GameClient {
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             startup_customize: false,
+            targeting: targeting::Targeting::new(data_root.clone()),
             units: HashMap::new(),
             world: world::WorldUnits::new(data_root, cache_root),
             server_hostname: if cfg!(debug_assertions) {
@@ -189,6 +194,12 @@ impl INode3D for GameClient {
             }
             return;
         }
+        if key.get_keycode() == godot::global::Key::ESCAPE && self.clear_target_on_escape() {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         match self.handle_game_menu_key(key.get_keycode()) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -217,6 +228,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_character_preview())
             .and_then(|()| self.update_creation_scene(delta as f32))
             .and_then(|()| self.update_player_input(delta as f32))
+            .and_then(|()| self.update_targeting())
             .and_then(|()| self.update_world_map())
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.update_player_animation())
@@ -361,6 +373,12 @@ impl GameClient {
             session.selected_character_name.as_deref().unwrap_or(""),
         );
         state
+    }
+
+    /// The selected unit, its name, what the server echoes back, and the ring's owner.
+    #[func]
+    fn target_state(&self) -> VarDictionary {
+        self.targeting_snapshot()
     }
 
     /// Authored terrain surface at world X/Z, or nil when no loaded grid covers the point.
@@ -822,6 +840,7 @@ impl GameClient {
             self.terrain_materials.reset();
             self.world_objects.reset();
             self.global_wmo.reset();
+            self.wmo_collision.reset();
             self.account.session.screen = SessionScreen::Loading;
             self.show_account_screen(SessionScreen::Loading)?;
         }
@@ -834,6 +853,7 @@ impl GameClient {
         self.terrain_materials.reset();
         self.world_objects.reset();
         self.global_wmo.reset();
+        self.wmo_collision.reset();
         self.world_lighting.reset();
         self.world.update_lighting(None);
         let [x, y, z] = destination.position;
@@ -858,12 +878,19 @@ impl GameClient {
             return Ok(());
         };
         let map_id = self.world_map_id.ok_or("Loaded terrain has no map ID")?;
+        // WebWowViewerCpp applies the MFOG fog of the WMO interior the camera is in.
+        let wmo_fog = self.world_camera.position().and_then(|camera| {
+            self.world_objects
+                .camera_fog(camera)
+                .or_else(|| self.global_wmo.camera_fog(camera))
+        });
         if let Some(light) = self.world_lighting.sync(
             &mut parent,
             &wdt.lighting,
             map_id,
             player.origin,
             self.world_minutes,
+            wmo_fog.as_ref(),
         )? {
             self.world.update_lighting(Some(light.clone()));
             self.world_objects.update_lighting(&light);
@@ -877,13 +904,25 @@ impl GameClient {
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.world_objects
             .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
+        if let Some(player) = self.world.local_player_transform() {
+            let origin = player.origin;
+            self.wmo_collision.sync(
+                &mut parent,
+                &self.terrain,
+                glam::Vec3::new(origin.x, origin.y, origin.z),
+            );
+        }
     }
 
     fn cull_world_objects(&mut self) {
         if let Some(camera) = self.world_camera.position() {
-            self.world_objects
-                .cull(camera, &self.world_camera.frustum());
+            let frustum = self.world_camera.frustum();
             let frame = godot::classes::Engine::singleton().get_process_frames();
+            let delta_ms = self.base().get_process_delta_time() * 1000.0;
+            // Portal culling first: it decides which WMO doodads are drawn this frame.
+            self.world_objects.cull_wmos(camera, &frustum);
+            self.world_objects
+                .cull_doodads(camera, &frustum, delta_ms, frame);
             self.world.apply_animation_lod(camera, frame);
         }
     }
@@ -963,6 +1002,7 @@ impl GameClient {
         self.terrain_materials.reset();
         self.world_objects.reset();
         self.global_wmo.reset();
+        self.wmo_collision.reset();
         self.world.reset();
         self.units.clear();
         self.terrain.reset()
@@ -1245,7 +1285,14 @@ fn authored_campsites(
     data_root: &std::path::Path,
     selected: Option<u32>,
 ) -> Result<CampsiteState, String> {
-    let catalog = game_engine_core::warband_scene_data::read_authored_catalog(data_root)?;
+    use game_engine_core::warband_scene_data::{read_authored_catalog, read_texture_kit_art};
+    let catalog = read_authored_catalog(data_root)?;
+    let kits: Vec<u32> = catalog
+        .scenes
+        .iter()
+        .map(|scene| scene.texture_kit)
+        .collect();
+    let art = read_texture_kit_art(data_root, &kits)?;
     Ok(CampsiteState {
         selected_id: selected.or_else(|| catalog.scenes.first().map(|scene| scene.id)),
         scenes: catalog
@@ -1254,7 +1301,10 @@ fn authored_campsites(
             .map(|scene| CampsiteEntry {
                 id: scene.id,
                 name: scene.name.clone(),
-                preview_image: scene.preview_image_path().map(str::to_string),
+                preview_image: art.get(&scene.texture_kit).map(|art| CampsitePreview {
+                    fdid: art.fdid,
+                    tex_coords: art.tex_coords,
+                }),
             })
             .collect(),
         panel_visible: false,

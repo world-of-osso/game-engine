@@ -8,6 +8,9 @@ use std::collections::VecDeque;
 
 use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
+use game_engine_ui_model::inworld_unit_frames_component::{
+    InWorldUnitFramesState, inworld_unit_frames_screen,
+};
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
@@ -281,6 +284,29 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_model(model, width, height)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the in-world unit frames.
+    pub fn show_unit_frames(&mut self, state: InWorldUnitFramesState) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut model = RegistryModel {
+            screen: Screen::new(inworld_unit_frames_screen),
+            shared,
+            registry: FrameRegistry::new(size.x, size.y),
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
     }
 
     /// Initialize a dedicated RegistryUi instance for the authored error overlay.

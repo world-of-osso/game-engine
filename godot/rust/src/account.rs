@@ -11,10 +11,10 @@ use game_engine_session::{
     normalize_auth_token, token_path,
 };
 use shared::protocol::{
-    AuthChannel, CharacterListUpdate, CreateCharacter, CreateCharacterResponse, DeleteCharacter,
-    DeleteCharacterResponse, EnterWorldResponse, ForcedDisconnect, InputChannel, LoadTerrain,
-    LoginResponse, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate,
-    RegisterResponse, TransferAborted, TransferChannel, WorldPortAck,
+    AuthChannel, CharacterListUpdate, CombatChannel, CreateCharacter, CreateCharacterResponse,
+    DeleteCharacter, DeleteCharacterResponse, EnterWorldResponse, ForcedDisconnect, InputChannel,
+    LoadTerrain, LoginResponse, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot,
+    QuestLogUpdate, RegisterResponse, SetTarget, TransferAborted, TransferChannel, WorldPortAck,
 };
 
 #[derive(Default)]
@@ -150,6 +150,14 @@ impl Account {
             return Ok(());
         }
         self.connected_bridge()?.send::<_, InputChannel>(input)
+    }
+
+    /// Bevy `send_target_to_server`: the selected unit's server entity bits, or None.
+    pub fn send_set_target(&self, target: Option<u64>) -> Result<(), String> {
+        self.connected_bridge()?
+            .send::<_, CombatChannel>(SetTarget {
+                target_entity: target,
+            })
     }
 
     /// Called by the host only after the destination is ready for world entry.

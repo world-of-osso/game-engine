@@ -220,6 +220,15 @@ pub fn fraction(current: f32, max: f32) -> f32 {
     (current / max).clamp(0.0, 1.0)
 }
 
+/// Retail hides the level of units 10 or more levels above the player behind "??".
+pub fn target_level_text(level: Option<u8>, player_level: Option<u8>) -> String {
+    match (level, player_level) {
+        (Some(level), Some(player)) if u16::from(level) >= u16::from(player) + 10 => "??".into(),
+        (Some(level), _) => level.to_string(),
+        (None, _) => String::new(),
+    }
+}
+
 pub fn format_value_text(current: f32, max: f32) -> String {
     format!("{current:.0} / {max:.0}")
 }
@@ -718,6 +727,6 @@ fn difficulty_row(index: usize, entry: &DifficultyMenuEntry) -> Element {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "../../../tests/unit/inworld_unit_frames_component_tests.rs"]
 mod tests;

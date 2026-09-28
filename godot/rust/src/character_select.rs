@@ -41,8 +41,10 @@ struct Preview {
 impl Preview {
     fn sync(&mut self, minutes: f32, drag: glam::Vec2) -> Result<(), String> {
         let model = self.shown.as_ref().map(|shown| shown.model.clone());
+        // The camera from the previous frame: this frame's shot needs the terrain height.
+        let camera = self.camera.get_position();
         self.background
-            .sync(&mut self.root, model.as_ref(), minutes)?;
+            .sync(&mut self.root, model.as_ref(), minutes, camera)?;
         let authored = wow_position(self.background.placement.position);
         let Some(shown) = self.shown.as_mut() else {
             return Ok(());

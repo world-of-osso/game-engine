@@ -1,9 +1,13 @@
 //! Bevy-free authored Warband scene records and CSV parsing.
 
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::asset::adt::CHUNK_SIZE;
-use crate::csv_util::parse_csv_line as parse_csv_fields;
+use crate::csv_util::{header_index, parse_csv_line as parse_csv_fields};
+
+/// Build whose UI atlas and texture kit tables live under `data/db2/`.
+const UI_DB2_DIR: &str = "db2/12.1.0.69933";
 
 /// A single warband scene entry (parsed from WarbandScene.csv).
 #[derive(Debug, Clone)]
@@ -65,6 +69,126 @@ pub fn read_authored_catalog(data_root: &Path) -> Result<WarbandSceneCatalog, St
     })
 }
 
+/// A texture FileDataID and the normalized `[left, right, top, bottom]` crop of one atlas member.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AtlasArt {
+    pub fdid: u32,
+    pub tex_coords: [f32; 4],
+}
+
+/// Campsite card art per `UiTextureKit` ID in `kits`, as retail draws it: the kit's `KitPrefix`
+/// (`WarbandSceneInfo.textureKit`) is passed to `SetAtlas`, naming a `UiTextureAtlasElement`
+/// (case-insensitive) whose base member (same committed name, not the `-2x` variant) crops its
+/// `UiTextureAtlas`. Kits without a prefix or atlas element are absent from the result.
+pub fn read_texture_kit_art(
+    data_root: &Path,
+    kits: &[u32],
+) -> Result<HashMap<u32, AtlasArt>, String> {
+    let dir = data_root.join(UI_DB2_DIR);
+    let prefixes: HashMap<u32, String> =
+        read_columns(&dir.join("UiTextureKit.csv"), &["ID", "KitPrefix"])?
+            .into_iter()
+            .filter_map(|row| Some((row[0].parse().ok()?, row[1].to_ascii_lowercase())))
+            .filter(|(id, _)| kits.contains(id))
+            .collect();
+    let wanted: HashSet<&str> = prefixes.values().map(String::as_str).collect();
+    let elements: HashMap<String, u32> =
+        read_columns(&dir.join("UiTextureAtlasElement.csv"), &["Name", "ID"])?
+            .into_iter()
+            .map(|row| (row[0].to_ascii_lowercase(), row))
+            .filter(|(name, _)| wanted.contains(name.as_str()))
+            .filter_map(|(name, row)| Some((name, row[1].parse().ok()?)))
+            .collect();
+    let members = read_base_members(&dir, &elements)?;
+    Ok(prefixes
+        .into_iter()
+        .filter_map(|(kit, prefix)| Some((kit, *members.get(elements.get(&prefix)?)?)))
+        .collect())
+}
+
+/// Base-member art keyed by atlas element ID for the named `elements`.
+fn read_base_members(
+    dir: &Path,
+    elements: &HashMap<String, u32>,
+) -> Result<HashMap<u32, AtlasArt>, String> {
+    let atlases: HashMap<u32, [u32; 3]> = read_columns(
+        &dir.join("UiTextureAtlas.csv"),
+        &["ID", "FileDataID", "AtlasWidth", "AtlasHeight"],
+    )?
+    .into_iter()
+    .filter_map(|row| {
+        Some((
+            row[0].parse().ok()?,
+            [
+                row[1].parse().ok()?,
+                row[2].parse().ok()?,
+                row[3].parse().ok()?,
+            ],
+        ))
+    })
+    .collect();
+    let columns = [
+        "CommittedName",
+        "UiTextureAtlasElementID",
+        "UiTextureAtlasID",
+        "CommittedLeft",
+        "CommittedRight",
+        "CommittedTop",
+        "CommittedBottom",
+    ];
+    let mut members = HashMap::new();
+    for row in read_columns(&dir.join("UiTextureAtlasMember.csv"), &columns)? {
+        let Some(&element) = elements.get(&row[0].to_ascii_lowercase()) else {
+            continue;
+        };
+        let parsed: Option<Vec<u32>> = row[1..].iter().map(|field| field.parse().ok()).collect();
+        let Some([member_element, atlas, left, right, top, bottom]) =
+            parsed.and_then(|values| <[u32; 6]>::try_from(values).ok())
+        else {
+            return Err(format!("malformed UiTextureAtlasMember row {row:?}"));
+        };
+        if member_element != element {
+            continue;
+        }
+        let [fdid, width, height] = *atlases.get(&atlas).ok_or_else(|| {
+            format!(
+                "UiTextureAtlasMember {} names missing atlas {atlas}",
+                row[0]
+            )
+        })?;
+        let (width, height) = (width as f32, height as f32);
+        let tex_coords = [
+            left as f32 / width,
+            right as f32 / width,
+            top as f32 / height,
+            bottom as f32 / height,
+        ];
+        members.insert(element, AtlasArt { fdid, tex_coords });
+    }
+    Ok(members)
+}
+
+/// The named `columns` of every data row of CSV `path`, in the given order.
+fn read_columns(path: &Path, columns: &[&str]) -> Result<Vec<Vec<String>>, String> {
+    let contents =
+        std::fs::read_to_string(path).map_err(|err| format!("read {}: {err}", path.display()))?;
+    let mut lines = contents.lines();
+    let headers = parse_csv_fields(lines.next().unwrap_or_default());
+    let indices = columns
+        .iter()
+        .map(|column| header_index(&headers, column, path))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(lines
+        .map(parse_csv_fields)
+        .map(|fields| {
+            indices
+                .iter()
+                .map(|&index| fields.get(index).cloned().unwrap_or_default())
+                .collect()
+        })
+        .collect())
+}
+
 fn read_rows<T>(path: &Path, parse: fn(&str) -> Option<T>) -> Result<Vec<T>, String> {
     let contents =
         std::fs::read_to_string(path).map_err(|err| format!("read {}: {err}", path.display()))?;
@@ -86,19 +210,6 @@ impl WarbandSceneEntry {
     /// Map name for listfile lookup (warband maps use numeric names).
     pub fn map_name(&self) -> String {
         self.map_id.to_string()
-    }
-
-    /// Campsite selector preview art for this scene's texture kit.
-    pub fn preview_image_path(&self) -> Option<&'static str> {
-        match self.texture_kit {
-            5671 => Some("data/ui/campsites/adventurers-rest.ktx2"),
-            5672 => Some("data/ui/campsites/ohnahran-overlook.ktx2"),
-            5673 => Some("data/ui/campsites/cultists-quay.ktx2"),
-            5674 => Some("data/ui/campsites/freywold-spring.ktx2"),
-            5675 => Some("data/ui/campsites/randomize-from-favorites.ktx2"),
-            5676 => Some("data/ui/campsites/gallagio-grand-gallery.ktx2"),
-            _ => None,
-        }
     }
 }
 

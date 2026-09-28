@@ -168,6 +168,57 @@ fn mid_range_npc_samples_every_other_frame() {
     );
 }
 
+fn spawn_doodad(app: &mut App, distance: f32, view: ViewVisibility) -> (Entity, Entity) {
+    let parent = app
+        .world_mut()
+        .spawn(Transform::from_translation(Vec3::new(0.0, 0.0, distance)))
+        .id();
+    let (model, joint) = spawn_model(app, parent, view);
+    app.world_mut()
+        .entity_mut(model)
+        .insert(game_engine::culling::Doodad);
+    (model, joint)
+}
+
+#[test]
+fn doodads_follow_the_npc_distance_and_visibility_rates() {
+    let mut app = inworld_app();
+    spawn_camera(&mut app);
+    let (_, near) = spawn_doodad(&mut app, 10.0, ViewVisibility::VISIBLE);
+    let (mid_model, mid) = spawn_doodad(&mut app, 45.0, ViewVisibility::VISIBLE);
+    let (far_model, far) = spawn_doodad(&mut app, 80.0, ViewVisibility::VISIBLE);
+    let (_, hidden) = spawn_doodad(&mut app, 10.0, ViewVisibility::HIDDEN);
+    app.update();
+    app.update();
+    for joint in [near, mid, far, hidden] {
+        reset_joint(&mut app, joint);
+    }
+
+    let mut mid_written = Vec::new();
+    for _ in 0..4 {
+        app.update();
+        assert!(joint_written(&app, near));
+        assert!(!joint_written(&app, far));
+        assert!(!joint_written(&app, hidden));
+        mid_written.push(joint_written(&app, mid));
+        for joint in [near, mid] {
+            reset_joint(&mut app, joint);
+        }
+    }
+    assert_eq!(
+        app.world().get::<AnimationLod>(mid_model),
+        Some(&AnimationLod::Half)
+    );
+    assert_eq!(
+        app.world().get::<AnimationLod>(far_model),
+        Some(&AnimationLod::Frozen)
+    );
+    assert!(
+        mid_written == [true, false, true, false] || mid_written == [false, true, false, true],
+        "unexpected sampling pattern {mid_written:?}"
+    );
+}
+
 #[test]
 fn model_outside_npc_root_keeps_full_rate() {
     let mut app = inworld_app();

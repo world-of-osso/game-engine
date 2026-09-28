@@ -1,5 +1,5 @@
 use game_engine_core::{
-    light_lookup_data::{LightParamsSlot, light_params_blend},
+    light_lookup_data::{LightParamsSlot, light_params_blend, parse_zone_lights},
     lighting_assets::{parse_light_csv, parse_light_data_csv},
     sky_lightdata_data::{RetailFog, retail_fog, sample_light_blend},
 };
@@ -99,7 +99,7 @@ fn campsite_light_params_with_zero_fog_end_use_retail_exponential_fog() {
             },
         ),
     ] {
-        let blend = light_params_blend(&lights, map_id, position, LightParamsSlot::Clear);
+        let blend = light_params_blend(&lights, &[], map_id, position, LightParamsSlot::Clear);
         let weights: Vec<_> = blend
             .iter()
             .map(|light| (light.light_params_id, light.weight))
@@ -142,4 +142,58 @@ fn malformed_authoring_is_reported_instead_of_zero_or_empty_defaults() {
             .unwrap_err()
             .contains("DirectColor")
     );
+}
+
+fn clear_weights(map_id: u32, position: [f32; 3]) -> Vec<(u32, f32)> {
+    let lights = parse_light_csv(&fixture("Light.csv")).expect("authored Light.csv");
+    let zone_lights = parse_zone_lights(&fixture("ZoneLight.csv"), &fixture("ZoneLightPoint.csv"))
+        .expect("local-CASC ZoneLight.csv and ZoneLightPoint.csv");
+    light_params_blend(
+        &lights,
+        &zone_lights,
+        map_id,
+        position,
+        LightParamsSlot::Clear,
+    )
+    .iter()
+    .map(|light| {
+        (
+            light.light_params_id,
+            (light.weight * 10_000.0).round() / 10_000.0,
+        )
+    })
+    .collect()
+}
+
+// LightParamCalculate.h:66-194 (WebWowViewerCpp 1a8cccb): the map default Light, then every
+// ZoneLight whose polygon (and Zmin/Zmax) is within 50 yd, then the local Light spheres.
+// Stormwind's Trade District lies 518 yd inside ZoneLight 1859 "Stormwind" (Light 9651 ->
+// LightParams 6080), so the zone light fully covers Light 1's LightParams 12, and the two
+// local Lights 51/52 overlay it strongest first.
+#[test]
+fn stormwind_trade_district_blends_its_zone_light_over_the_azeroth_default() {
+    assert_eq!(
+        clear_weights(0, [-8405.36, 548.28, 80.92]),
+        [(12, 1.0), (6080, 1.0), (62, 0.6053), (62, 0.5044)]
+    );
+}
+
+// Maps 2703 (scenes 1/99), 2837 (scene 5), 2847 (scene 7) and 2851 (scene 25) have no
+// ZoneLight rows in 12.1.0.69933. Map 2837 has no Light row either, so the reference falls
+// back to the continent-0 default (Light 1, LightParams 12) exactly like before
+// (LightParamCalculate.h:72-93, CSqliteDB.cpp:77-96).
+#[test]
+fn campsite_maps_keep_their_map_default_light_params() {
+    for (map_id, position, light_params_id) in [
+        (2703, [-2982.99, 468.057, 455.523], 12),
+        (2837, [181.91145, 2500.3923, 94.236427], 12),
+        (2847, [-2808.0034, 395.20139, 81.541237], 5615),
+        (2851, [431.86978, -802.94617, 27.449316], 6412),
+    ] {
+        assert_eq!(
+            clear_weights(map_id, position),
+            [(light_params_id, 1.0)],
+            "map {map_id}"
+        );
+    }
 }

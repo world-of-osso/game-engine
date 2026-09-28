@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use game_engine_core::warband_scene_data::read_authored_catalog;
+use game_engine_core::warband_scene_data::{AtlasArt, read_authored_catalog, read_texture_kit_art};
 
 #[test]
 fn authored_adventurers_rest_records_preserve_camera_focus_and_primary_tile() {
@@ -41,4 +41,74 @@ fn missing_authored_catalog_is_an_error_not_an_empty_selection() {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/nonexistent-warband-fixture");
     let error = read_authored_catalog(&absent).expect_err("missing CSV must fail");
     assert!(error.contains("WarbandScene.csv"), "{error}");
+}
+
+/// Retail `CampSiteTemplate` calls `Icon:SetAtlas(warbandSceneInfo.textureKit)`: the scene's
+/// `UiTextureKit.KitPrefix` is the atlas element drawn on its campsite card.
+#[test]
+fn every_listed_campsite_resolves_its_texture_kit_atlas_art() {
+    let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let catalog = read_authored_catalog(&data_root).expect("read authored Warband CSVs");
+    let kits: Vec<u32> = catalog
+        .scenes
+        .iter()
+        .map(|scene| scene.texture_kit)
+        .collect();
+    let art = read_texture_kit_art(&data_root, &kits).expect("read texture kit atlas tables");
+
+    for scene in &catalog.scenes {
+        let art = art
+            .get(&scene.texture_kit)
+            .unwrap_or_else(|| panic!("scene {} ({}) has no kit art", scene.id, scene.name));
+        let texture = data_root.join(format!("textures/{}.blp", art.fdid));
+        assert!(
+            texture.is_file(),
+            "{} missing for {}",
+            texture.display(),
+            scene.name
+        );
+        let [left, right, top, bottom] = art.tex_coords;
+        assert!(
+            (0.0..right).contains(&left) && right <= 1.0,
+            "{}: {art:?}",
+            scene.name
+        );
+        assert!(
+            (0.0..bottom).contains(&top) && bottom <= 1.0,
+            "{}: {art:?}",
+            scene.name
+        );
+    }
+
+    // campcollection-bg-image5..8 members on UiTextureAtlas 3086 (FDID 6375814, 1024x1024).
+    for (scene_id, name, [left, right, top, bottom]) in [
+        (25, "Gallagio Grand Gallery", [1.0, 215.0, 176.0, 349.0]),
+        (
+            119,
+            "The Fate of the Devoured",
+            [217.0, 431.0, 176.0, 349.0],
+        ),
+        (145, "Razorwind Shores", [433.0, 647.0, 176.0, 349.0]),
+        (146, "Founders Point", [649.0, 863.0, 176.0, 349.0]),
+    ] {
+        let scene = catalog
+            .scenes
+            .iter()
+            .find(|scene| scene.id == scene_id)
+            .unwrap_or_else(|| panic!("listed campsite {name}"));
+        assert_eq!(scene.name, name);
+        let expected = AtlasArt {
+            fdid: 6_375_814,
+            tex_coords: [left / 1024.0, right / 1024.0, top / 1024.0, bottom / 1024.0],
+        };
+        assert_eq!(art.get(&scene.texture_kit), Some(&expected), "{name}");
+    }
+}
+
+#[test]
+fn missing_texture_kit_table_is_an_error() {
+    let absent =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/nonexistent-warband-fixture");
+    let error = read_texture_kit_art(&absent, &[5743]).expect_err("missing CSV must fail");
+    assert!(error.contains("UiTextureKit.csv"), "{error}");
 }

@@ -4,7 +4,7 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::campsite_popup_component::{
     CAMPSITE_POPUP_ROOT, campsite_popup_screen,
 };
-use game_engine::ui::screens::char_select_component::{CampsiteEntry, CampsiteState};
+use game_engine::ui::screens::char_select_component::CampsiteState;
 use game_engine::ui_resource;
 use ui_toolkit::screen::Screen;
 
@@ -56,15 +56,7 @@ fn build_campsite_popup_state() -> CampsiteState {
     let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let selected_id = warband.scenes.first().map(|scene| scene.id);
     CampsiteState {
-        scenes: warband
-            .scenes
-            .iter()
-            .map(|scene| CampsiteEntry {
-                id: scene.id,
-                name: scene.name.clone(),
-                preview_image: scene.preview_image_path().map(str::to_string),
-            })
-            .collect(),
+        scenes: warband.campsite_entries(),
         panel_visible: true,
         selected_id,
         page: 0,
@@ -89,16 +81,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn popup_state_loads_preview_images_for_current_scenes() {
+    fn popup_state_loads_preview_images_for_every_listed_scene() {
         let state = build_campsite_popup_state();
         assert!(!state.scenes.is_empty());
-        let preview_count = state
-            .scenes
-            .iter()
-            .filter(|scene| scene.preview_image.is_some())
-            .count();
-        assert!(preview_count > 0);
-        assert!(preview_count < state.scenes.len());
+        for scene in &state.scenes {
+            assert!(
+                scene.preview_image.is_some(),
+                "{} has no card art",
+                scene.name
+            );
+        }
         assert!(state.panel_visible);
         assert_eq!(
             state.selected_id,
