@@ -28,6 +28,8 @@ use shared::{
     },
 };
 
+#[path = "native_input_fixture/logout.rs"]
+mod logout;
 #[path = "native_input_fixture/menu.rs"]
 mod menu;
 #[path = "native_input_fixture/swimming.rs"]
@@ -55,6 +57,7 @@ enum StartupScreen {
     Overlay,
     Swimming,
     Menu,
+    Logout,
 }
 
 impl StartupScreen {
@@ -66,9 +69,10 @@ impl StartupScreen {
             Some("overlay") => Self::Overlay,
             Some("swimming") => Self::Swimming,
             Some("menu") => Self::Menu,
+            Some("logout") => Self::Logout,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming or menu"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu or logout"
                 )
             }
         };
@@ -82,7 +86,7 @@ impl StartupScreen {
     fn as_str(self) -> &'static str {
         match self {
             Self::CharSelect | Self::Menu => "charselect",
-            Self::InWorld | Self::Overlay | Self::Swimming => "inworld",
+            Self::InWorld | Self::Overlay | Self::Swimming | Self::Logout => "inworld",
         }
     }
 }
@@ -209,7 +213,9 @@ fn launch_godot(
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
-            if screen == StartupScreen::Menu {
+            if screen == StartupScreen::Logout {
+                "res://tests/world_logout_flow.gd"
+            } else if screen == StartupScreen::Menu {
                 "res://tests/world_menu_flow.gd"
             } else {
                 "res://tests/world_input_flow.gd"
@@ -1017,6 +1023,8 @@ fn main() {
         swimming::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Menu {
         menu::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::Logout {
+        logout::run(&mut app, &mut child, lines, reader)
     } else {
         run_fixture(&mut app, &mut child, lines, reader, screen)
     };
