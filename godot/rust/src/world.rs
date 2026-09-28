@@ -3,7 +3,7 @@
 use std::{collections::HashMap, f32::consts::PI, path::PathBuf};
 
 use crate::{
-    animation::WowAnimationPlayer,
+    animation::{WowAnimationPlayer, lod::AnimationLod},
     lighting::TerrainLight,
     world_models::{UnitAppearance, WorldModels, bind_visual_light},
 };
@@ -15,7 +15,7 @@ use game_engine_core::unit_motion_data::{
 use game_engine_network::UnitSnapshot;
 use godot::{
     builtin::{Transform3D, Vector3},
-    classes::Node3D,
+    classes::{Node3D, VisibleOnScreenNotifier3D},
     prelude::*,
 };
 use shared::components::MovementControl;
@@ -380,6 +380,34 @@ impl WorldUnits {
     pub fn advance(&mut self, delta: f32) {
         for (id, unit) in &mut self.units {
             advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
+        }
+    }
+
+    /// NPC animation LOD: each NPC model samples its pose at the rate its camera
+    /// distance and last frame's on-screen state allow; players always sample.
+    pub fn apply_animation_lod(&mut self, camera: Vector3, frame: u64) {
+        for (id, unit) in &self.units {
+            if unit.is_player {
+                continue;
+            }
+            let Some(model) = unit
+                .visual
+                .as_ref()
+                .and_then(|visual| visual.try_get_node_as::<Node3D>("NpcModel"))
+            else {
+                continue;
+            };
+            let (Some(mut animation), Some(on_screen)) = (
+                model.try_get_node_as::<WowAnimationPlayer>("M2Animation"),
+                model.try_get_node_as::<VisibleOnScreenNotifier3D>("OnScreen"),
+            ) else {
+                continue;
+            };
+            let distance = model.get_global_position().distance_to(camera);
+            let lod = AnimationLod::new(distance, on_screen.is_on_screen());
+            animation
+                .bind_mut()
+                .set_sampling(lod.samples_frame(frame, *id));
         }
     }
 

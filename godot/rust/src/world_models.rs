@@ -3,7 +3,7 @@ use std::{f32::consts::FRAC_PI_2, path::PathBuf};
 
 use game_engine_core::creature_display_data::{CreatureDisplay, query_display};
 use godot::{
-    classes::{MeshInstance3D, Node3D, ShaderMaterial},
+    classes::{MeshInstance3D, Node3D, ShaderMaterial, VisibleOnScreenNotifier3D},
     prelude::*,
 };
 use rusqlite::{Connection, OpenFlags};
@@ -35,6 +35,17 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
             None => TerrainLight::clear_model(&mut material),
         }
     }
+}
+
+/// Union of the model's batch mesh bounds, in model space.
+fn mesh_bounds(model: &Gd<Node3D>) -> Aabb {
+    model
+        .get_children()
+        .iter_shared()
+        .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
+        .map(|mesh| mesh.get_aabb())
+        .reduce(|bounds, next| bounds.merge(next))
+        .unwrap_or_default()
 }
 
 #[derive(PartialEq)]
@@ -155,6 +166,11 @@ impl WorldModels {
             godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
         }
         model.set_name("NpcModel");
+        // Last frame's on-screen state for the NPC animation LOD.
+        let mut on_screen = VisibleOnScreenNotifier3D::new_alloc();
+        on_screen.set_name("OnScreen");
+        on_screen.set_aabb(mesh_bounds(&model));
+        model.add_child(&on_screen);
         let scale = if display.scale_milli == 0 {
             1.0
         } else {

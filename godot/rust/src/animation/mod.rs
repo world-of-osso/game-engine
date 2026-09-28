@@ -10,6 +10,8 @@ use godot::{
 #[cfg(test)]
 use godot::builtin::{Basis, Transform3D};
 
+pub(crate) mod lod;
+
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
 
 fn wow_vec3(value: [f32; 3]) -> Vector3 {
@@ -454,6 +456,10 @@ pub struct WowAnimationPlayer {
     animation: Option<AnimationState>,
     skeleton: Option<Gd<Skeleton3D>>,
     paused: bool,
+    /// Whether advancing writes the sampled pose (NPC animation LOD).
+    sampling: bool,
+    /// A pose change was skipped while not sampling.
+    stale: bool,
 }
 
 #[godot_api]
@@ -464,6 +470,8 @@ impl INode for WowAnimationPlayer {
             animation: None,
             skeleton: None,
             paused: false,
+            sampling: true,
+            stale: false,
         }
     }
 
@@ -487,6 +495,8 @@ impl WowAnimationPlayer {
             animation: Some(animation),
             skeleton: Some(skeleton),
             paused: false,
+            sampling: true,
+            stale: false,
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
@@ -553,6 +563,12 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
+    /// When off, advancing keeps the clock, sequence and crossfade running but writes
+    /// no bone pose; the next sampled advance writes any change it skipped.
+    pub(crate) fn set_sampling(&mut self, sampling: bool) {
+        self.sampling = sampling;
+    }
+
     fn write_poses(&mut self) {
         let (Some(animation), Some(skeleton)) = (&self.animation, &mut self.skeleton) else {
             return;
@@ -610,8 +626,11 @@ impl WowAnimationPlayer {
                 Ok(varied || animation.pose_varies())
             });
         match result {
-            Ok(true) => self.write_poses(),
-            Ok(false) => {}
+            Ok(changed) => {
+                if pose_write_due(changed, self.sampling, &mut self.stale) {
+                    self.write_poses();
+                }
+            }
             Err(error) => {
                 godot_error!("{error}");
                 return false;
@@ -626,8 +645,33 @@ impl WowAnimationPlayer {
     }
 }
 
+/// Whether an advance whose pose `changed` writes it; a change skipped while not
+/// `sampling` stays due until the next sampled advance.
+fn pose_write_due(changed: bool, sampling: bool, stale: &mut bool) -> bool {
+    let due = changed || *stale;
+    *stale = due && !sampling;
+    due && sampling
+}
+
 #[cfg(test)]
 mod jump_tests;
+
+#[cfg(test)]
+mod sampling_tests {
+    use super::pose_write_due;
+
+    #[test]
+    fn skipped_changes_are_written_on_the_next_sampled_advance() {
+        let mut stale = false;
+        assert!(pose_write_due(true, true, &mut stale));
+        // Frozen: the pose moves, nothing is written.
+        assert!(!pose_write_due(true, false, &mut stale));
+        // The sequence settled while frozen; the missed final pose is still written.
+        assert!(!pose_write_due(false, false, &mut stale));
+        assert!(pose_write_due(false, true, &mut stale));
+        assert!(!pose_write_due(false, true, &mut stale));
+    }
+}
 
 #[cfg(test)]
 mod tests {
