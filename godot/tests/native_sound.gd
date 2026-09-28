@@ -74,6 +74,9 @@ func run_test() -> void:
 	if not sound.sync_options(7, 1.0, 1.0, 1.0, true, false) or music.is_playing():
 		fail("Unsupported track retried each frame")
 		return
+	if not sound.sync_options(8, 1.0, 1.0, 1.0, true, false) or not expect_playing(music, "629322", 1.0) or not (music.stream is AudioStreamMP3):
+		fail("ID3-less MPEG frame stream did not play")
+		return
 	if not sound.sync_options(5, 1.0, 1.0, 1.0, true, false) or not expect_playing(music, "629319", 1.0):
 		return
 	sound.queue_free()
