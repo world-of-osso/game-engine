@@ -8,15 +8,17 @@ use game_engine_core::{
         sync_movement_toggles,
     },
     player_physics_data::{
-        GroundState, SWIM_DEPTH, VerticalState, apply_gravity_and_ground_snap, at_swim_surface,
-        build_proposed_ground_movement, swim_height, update_grounded,
+        GroundState, VerticalState, apply_gravity_and_ground_snap, build_proposed_ground_movement,
+        update_grounded,
     },
 };
 use glam::Vec3;
 use shared::{
-    movement::{RUN_SPEED, SWIM_SPEED, WALK_SPEED},
+    movement::{RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
     protocol::PlayerInput,
 };
+
+use crate::swim::{at_swim_surface, swim_height};
 
 pub(crate) struct PlayerMovement {
     pub running: bool,
@@ -218,7 +220,7 @@ impl PlayerMovement {
             return feet;
         };
         let feet = if wading {
-            feet.with_y(feet.y.max(surface - SWIM_DEPTH))
+            feet.with_y(feet.y.max(swim_top(surface)))
         } else {
             feet
         };
@@ -273,7 +275,10 @@ impl PlayerMovement {
             build_proposed_ground_movement(current, frame.direction.into(), frame.speed, delta)
                 .unwrap_or(current);
         let moved = ground.validate_swim_move(current, proposed.with_y(current.y));
-        let rise = proposed.y - current.y + frame.vertical * delta;
+        // The server grants a swimmer `SWIM_SPEED` × the aura modifier of vertical travel
+        // (pitched movement and ascend/descend together), and cuts a faster report short.
+        let limit = SWIM_SPEED * self.speed_modifier * delta;
+        let rise = (proposed.y - current.y + frame.vertical * delta).clamp(-limit, limit);
         let Some(surface) = ground.water_surface(moved) else {
             return moved;
         };
@@ -546,7 +551,7 @@ mod tests {
     };
     use game_engine_core::movement_input_data::MoveDirection;
     use glam::Vec3;
-    use shared::movement::SWIM_SPEED;
+    use shared::movement::{SWIM_SPEED, swim_top};
 
     use crate::ground::TerrainGround;
     use crate::terrain::streaming::StreamedTerrain;
@@ -890,7 +895,7 @@ mod tests {
             walls: &|_, _, _| None,
         };
         let bed = seabed(&terrain);
-        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let top = swim_top(WATER);
         let mut movement = PlayerMovement::default();
         let mut input = PhysicalInput::default();
         let idle = hold(&mut movement, &ground, &input, bed, (INTO_WATER, 0.0), 30);
@@ -1054,7 +1059,7 @@ mod tests {
             terrain: &terrain,
             walls: &|_, _, _| None,
         };
-        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let top = swim_top(WATER);
         let mut movement = PlayerMovement::default();
         let mut input = PhysicalInput::default();
         input.set_key(BindingKey::KeyW, true);
@@ -1114,7 +1119,7 @@ mod tests {
             terrain: &terrain,
             walls: &|_, _, _| None,
         };
-        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let top = swim_top(WATER);
         let mut movement = PlayerMovement::default();
         let mut input = PhysicalInput::default();
         input.set_key(BindingKey::KeyW, true);
@@ -1161,7 +1166,7 @@ mod tests {
             terrain: &terrain,
             walls: &|_, _, _| None,
         };
-        let top = WATER - game_engine_core::player_physics_data::SWIM_DEPTH;
+        let top = swim_top(WATER);
         let start = Vec3::new(SHORE.x, top - 1.0, DEEP_Z);
         let pitch = -0.5_f32;
         let mut movement = PlayerMovement::default();
@@ -1214,5 +1219,57 @@ mod tests {
             (strafed.y - dove.y).abs() < 1e-4,
             "strafe pitched: {strafed}"
         );
+    }
+
+    /// The server grants a swimmer `SWIM_SPEED` × its aura modifier of vertical travel
+    /// (game-server `move_toward_reported`), so a mouse-steered climb or dive with Space or
+    /// X held changes height no faster than that; the forward part is unchanged.
+    #[test]
+    fn pitched_swim_with_ascend_or_descend_changes_height_at_most_at_swim_speed() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let bed = seabed(&terrain);
+        let pitch = 0.5_f32;
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        let start = hold(&mut movement, &ground, &input, bed, (INTO_WATER, pitch), 1);
+        assert!(movement.swimming);
+        input.set_key(BindingKey::KeyW, true);
+        input.set_mouse(BindingMouseButton::Right, true);
+        input.set_key(BindingKey::Space, true);
+        let climbed = hold(
+            &mut movement,
+            &ground,
+            &input,
+            start,
+            (INTO_WATER, pitch),
+            24,
+        );
+        let seconds = 24.0 * DT;
+        let rate = (climbed.y - start.y) / seconds;
+        assert!((rate - SWIM_SPEED).abs() < 0.01, "climb rate {rate}");
+        let run = (start.z - climbed.z) / seconds;
+        assert!(
+            (run - SWIM_SPEED * pitch.cos()).abs() < 0.01,
+            "climb run {run}"
+        );
+        let report = movement.network_input(INTO_WATER, climbed, 4).unwrap();
+        assert_eq!(report.position, climbed.to_array());
+
+        input.set_key(BindingKey::Space, false);
+        input.set_key(BindingKey::KeyX, true);
+        let dove = hold(
+            &mut movement,
+            &ground,
+            &input,
+            climbed,
+            (INTO_WATER, -pitch),
+            12,
+        );
+        let rate = (climbed.y - dove.y) / (12.0 * DT);
+        assert!((rate - SWIM_SPEED).abs() < 0.01, "dive rate {rate}");
     }
 }
