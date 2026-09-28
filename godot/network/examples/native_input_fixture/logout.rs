@@ -114,7 +114,7 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
             && request.token.as_deref() == Some("fixture-only-token");
         if progress.stage == Stage::Loading && credentials {
             // Initial startup still uses the original fixture credentials.
-        } else if progress.stage == Stage::Relogin && token {
+        } else if matches!(progress.stage, Stage::LoginQuiet | Stage::Relogin) && token {
             progress.saw_token_login = true;
         } else {
             return Err(format!(
