@@ -57,6 +57,11 @@ func check(flow, client: Node, player: Node3D) -> String:
 	if DisplayServer.get_name() == "headless":
 		flow.push_key(KEY_W, false)
 		return "Swimming screenshot requires rendered Godot display"
+	var water_pixels = load("res://tests/adt_water_pixels.gd").new()
+	var water_error: String = await water_pixels.check(flow, client)
+	if water_error != "":
+		flow.push_key(KEY_W, false)
+		return water_error
 	await RenderingServer.frame_post_draw
 	var screenshot: Image = flow.root.get_texture().get_image()
 	if screenshot == null or screenshot.is_empty() or screenshot.save_png("res://../data/diagnostics/godot-conversion/swimming.png") != OK:
@@ -123,6 +128,10 @@ func check(flow, client: Node, player: Node3D) -> String:
 	error = check_ground(client, player, false)
 	if error != "":
 		return error
+	await RenderingServer.frame_post_draw
+	var shoreline: Image = flow.root.get_texture().get_image()
+	if shoreline == null or shoreline.is_empty() or shoreline.save_png("res://../data/diagnostics/godot-conversion/swimming-shoreline.png") != OK:
+		return "Could not capture authored shoreline frame"
 	print("FIXTURE SWIM_BACKWARD_RELEASED")
 	for frame in range(STILL_FRAMES * 2):
 		await flow.process_frame
