@@ -206,6 +206,7 @@ pub(crate) struct ParticlePool {
     multimesh: Gd<MultiMesh>,
     /// Sum of the placements' emitter capacities, capped at [`POOL_CAPACITY_CAP`].
     reserved: usize,
+    /// MultiMesh instances; grows toward `reserved` as more are drawn.
     allocated: usize,
     buffer: Vec<f32>,
     count: usize,
@@ -273,9 +274,11 @@ impl ParticlePool {
         if self.count == 0 && self.uploaded == 0 {
             return;
         }
-        if self.allocated != self.reserved {
-            self.multimesh.set_instance_count(self.reserved as i32);
-            self.allocated = self.reserved;
+        // Grow by powers of two up to the reservation: the buffer uploaded each frame
+        // scales with the particles drawn, not with every placement's capacity.
+        if self.count > self.allocated {
+            self.allocated = self.count.next_power_of_two().min(self.reserved);
+            self.multimesh.set_instance_count(self.allocated as i32);
         }
         self.buffer
             .resize(self.allocated * FLOATS_PER_INSTANCE, 0.0);
