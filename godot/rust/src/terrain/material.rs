@@ -1,6 +1,6 @@
 //! Native GPU resources from retained split-ADT data; no world-readiness decisions.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use game_engine_core::{adt, blp};
 use godot::{
@@ -22,6 +22,8 @@ type Tile = (u32, u32);
 pub(crate) struct TerrainMaterials {
     root: Option<Gd<Node3D>>,
     attached: BTreeSet<Tile>,
+    /// Tiles whose GPU resources could not be built; never retried until reset.
+    failures: BTreeMap<Tile, String>,
     textures: HashMap<u32, Gd<ImageTexture>>,
     placeholder: Option<Gd<ImageTexture>>,
     shader: Option<Gd<Shader>>,
@@ -35,18 +37,30 @@ impl TerrainMaterials {
         &self.attached
     }
 
+    pub fn failures(&self) -> &BTreeMap<(u32, u32), String> {
+        &self.failures
+    }
+
     pub fn sync(
         &mut self,
         parent: &mut Gd<Node3D>,
         terrain: &StreamedTerrain,
     ) -> Result<(), String> {
         for (&tile, parsed) in &terrain.parsed_tiles {
-            if self.attached.contains(&tile) {
+            if self.attached.contains(&tile) || self.failures.contains_key(&tile) {
                 continue;
             }
-            let node = self
-                .build_tile(tile, parsed)
-                .map_err(|error| format!("Terrain ({}, {}): {error}", tile.0, tile.1))?;
+            let node = match self.build_tile(tile, parsed) {
+                Ok(node) => node,
+                Err(error) => {
+                    // Like a tile that fails to parse, one unbuildable tile is reported and
+                    // left out; readiness decides whether the player's tile blocks entry.
+                    let error = format!("Terrain ({}, {}): {error}", tile.0, tile.1);
+                    godot_error!("{error}");
+                    self.failures.insert(tile, error);
+                    continue;
+                }
+            };
             let root = self.root.get_or_insert_with(|| {
                 let mut root = Node3D::new_alloc();
                 root.set_name("WorldTerrain");
@@ -64,6 +78,7 @@ impl TerrainMaterials {
             root.free();
         }
         self.attached.clear();
+        self.failures.clear();
         self.textures.clear();
         self.placeholder = None;
         self.materials.clear();
