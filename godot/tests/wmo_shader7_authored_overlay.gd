@@ -37,9 +37,8 @@ func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial
 	var deadline := Time.get_ticks_msec() + WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		var objects := client.get_node_or_null("WorldObjects")
-		var wmo := objects.get_node_or_null("Wmo108238") if objects != null else null
-		if wmo != null:
-			for child in wmo.get_children():
+		if objects != null:
+			for child in objects.find_children("Group38_Batch*", "MeshInstance3D", true, false):
 				if not child is MeshInstance3D or not child.name.begins_with("Group38_Batch"):
 					continue
 				var material := child.get_surface_override_material(0) as ShaderMaterial
