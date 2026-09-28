@@ -3,7 +3,8 @@ extends SceneTree
 # Real-server character-select top navigation through viewport mouse input:
 # hover boxes a tab, MODE/SHOP stay inert, MENU overlays character select, CAMPSITES opens the
 # campsite panel, whose pages keep every card inside 720px, and a card switches the campsite,
-# REALMS returns to login. GODOT_CAMPSITE_CAPTURE optionally saves the open panel.
+# REALMS returns to login. GODOT_CAMPSITE_CAPTURE optionally saves each open panel page
+# as <path without .png>-page<N>.png.
 
 const TABS := [
 	["CharSelectModeTab", "MODE"],
@@ -66,6 +67,15 @@ func page_cards(ui: Node, viewport: Rect2) -> Array:
 		ids.append(int(card.name.trim_prefix("CampsiteScene_")))
 	return ids
 
+func capture_page(page: int) -> void:
+	var capture_path = OS.get_environment("GODOT_CAMPSITE_CAPTURE")
+	if capture_path.is_empty():
+		return
+	for frame in range(3):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("%s-page%d.png" % [capture_path.get_basename(), page])
+
 # Pages through the campsite panel like retail's paging controls; every card must be
 # reachable inside the 1280x720 window. Returns "" or a failure.
 func check_campsite_pages(ui: Node) -> String:
@@ -81,6 +91,7 @@ func check_campsite_pages(ui: Node) -> String:
 		if ids.size() > 0 and ids[0] == -1:
 			return "Campsite card %s escapes the window or overlaps paging on page %d" % [ids[1], page + 1]
 		seen.append_array(ids)
+		await capture_page(page + 1)
 		if page + 1 < pages:
 			await click(ui.find_child("CampsiteNextPage", true, false))
 			if ui.frame_text("CampsitePageText") != "Page %d/%d" % [page + 2, pages]:
@@ -180,12 +191,6 @@ func run() -> void:
 	if paging_problem != "":
 		fail(paging_problem, client)
 		return
-	var capture_path = OS.get_environment("GODOT_CAMPSITE_CAPTURE")
-	if not capture_path.is_empty():
-		for frame in range(3):
-			await process_frame
-			await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png(capture_path)
 	var card = ui.find_child("CampsiteScene_4", true, false)
 	if card == null:
 		fail("Campsite panel must list authored scene 4", client)
