@@ -126,6 +126,8 @@ pub(crate) struct M2Chunks<'a> {
     pub md20: &'a [u8],
     pub ska1: Option<&'a [u8]>,
     pub txid: Option<&'a [u8]>,
+    /// Extended particle data, one record per emitter.
+    pub exp2: Option<&'a [u8]>,
     pub skid: Option<u32>,
     pub sfid: Vec<u32>,
     /// (animation ID, variation, `.anim` FDID) of the model's external sequences.
@@ -186,6 +188,7 @@ pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
     let mut md20 = None;
     let mut ska1 = None;
     let mut txid = None;
+    let mut exp2 = None;
     let mut skid = None;
     let mut sfid = Vec::new();
     let mut afid = Vec::new();
@@ -202,6 +205,7 @@ pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
             b"MD21" => md20 = Some(&data[off + CHUNK_HEADER_SIZE..end]),
             b"SKA1" => ska1 = Some(&data[off + CHUNK_HEADER_SIZE..end]),
             b"TXID" => txid = Some(&data[off + CHUNK_HEADER_SIZE..end]),
+            b"EXP2" => exp2 = Some(&data[off + CHUNK_HEADER_SIZE..end]),
             b"SKID" if size >= 4 => skid = Some(read_u32(data, off + CHUNK_HEADER_SIZE)?),
             b"SFID" => sfid = parse_sfid(&data[off + CHUNK_HEADER_SIZE..end]),
             b"AFID" => afid = parse_afid(&data[off + CHUNK_HEADER_SIZE..end]),
@@ -213,6 +217,7 @@ pub(crate) fn parse_chunks(data: &[u8]) -> Result<M2Chunks<'_>, String> {
         md20: md20.ok_or("No MD21 chunk found")?,
         ska1,
         txid,
+        exp2,
         skid,
         sfid,
         afid,

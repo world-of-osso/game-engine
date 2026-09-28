@@ -1,0 +1,60 @@
+# M2 particle emitters (Godot client)
+
+M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The shared parsing and simulation live in `godot/core` (`m2_particles`, the M2 parser in `src/asset/m2_format/m2_particle.rs`). Godot drawing lives in `godot/rust/src/particles.rs` and `godot/shaders/particle.gdshader`. Behaviour follows WebWowViewerCpp `managers/particles/particleEmitter.cpp` and its generators; pool sizing follows solarityclient `particle_system2`. See [godot-conversion](../wiki/systems/godot-conversion.md#native-m2-particles).
+
+## What it must do
+
+### Parsing
+- [x] Parse every 0x1EC-stride emitter with its authored flags, bone, position, blend, emitter type, atlas, motion tracks (first value), lifetime ramps (colour, opacity, scale, head/tail cells) and multitexture layers. `instanceportal.m2` (197007) yields its six emitters with their authored values.
+- [x] With an EXP2 chunk, take zSource, colorMult, alphaMult and the alpha-cutoff ramp from the emitter's EXP2 record; the portal's MD20 zSource 255 reads 0.
+
+### Simulation
+- [x] Spawn per WWV `CPlaneGenerator` (type 1) and `CSphereGenerator` (type 2), in the WWV random-stream order; other types are not simulated.
+- [x] Accumulate emission at (rate + variation) × particle density, capped by the pool; `particleDensity` scales the rate except for flag 0x02000000.
+- [x] Advance ballistically with drag, gravity and wind (while age < windTime). Model-space emitters (0x10) simulate in the emitter frame; others in world axes, with WoW gravity converted.
+- [x] Replay long gaps in 0.1 s steps, at most one lifespan of them.
+- [x] Retire a particle after its seed-varied lifespan; sample the lifetime ramps at age / maximum lifespan; apply seed-based size variation, random atlas cell (0x10000), twinkle, spin and inherited scale (0x20).
+- [x] Size each emitter's pool to ceil((rate + variation) × (lifespan + variation) × 1.15), capped at 500.
+- [x] Build head quads only (0x20000): camera-facing, emitter-plane (0x1000) or velocity-streak (0x4).
+
+### Rendering
+- [x] Map particle blend types 0-7 to the M2 GL factors (Opaque, AlphaKey, Alpha, NoAlphaAdd, Add, Mod, Mod2x, BlendAdd); only 0/1 write depth; alpha test -1 / 0.502 / 1/255.
+- [x] Multiply colour into the texel in authored space; combine multitexture layers (Particle_Mod, 2Color_3Alpha, 3Color_3Alpha).
+- [x] Draw one pooled `MultiMeshInstance3D` per (model FDID, emitter index), shared by every placement; pool capacity = sum of placement capacities capped at 4096.
+- [x] Update and draw only the emitters of doodads that are drawn (scenery distance, WMO group portal cull) and whose box is in the view frustum; fade their particles with the doodad's scenery fade.
+- [ ] `particleEffectsEnabled = false` spawns no particle pools or emitters (code path only; no test).
+- [ ] The in-world portal matches retail framing (small white sparkles inside the blue sheet). Captured only, not compared by pixels.
+
+## How it works
+
+- [godot-conversion](../wiki/systems/godot-conversion.md#native-m2-particles)
+- [Particle system](../particle-system.md)
+- [stockade-entrance](../wiki/investigations/stockade-entrance.md)
+
+## Implementation inventory
+
+- `src/asset/m2_format/m2_particle.rs` — emitter, EXP2 and cell-key parsing (shared with the Bevy client).
+- `src/asset/m2_particle_defaults.rs` — emitter defaults.
+- `godot/core/src/m2.rs` — `Model::particle_emitters`.
+- `godot/core/src/m2_particles.rs` — random stream, spawn, update, lifetime appearance, quads, pool sizing, blend depth/alpha-test rules.
+- `godot/rust/src/particles.rs` — pools, materials, emitter frames from bones, `WowParticleProbe`.
+- `godot/shaders/particle.gdshader` — particle fragment combiners and blend/fade output.
+- `godot/rust/src/terrain/objects.rs` — per-doodad emitters and `update_particles`.
+- `godot/rust/src/lib.rs` — graphics settings and the per-frame update.
+
+## Tests asserting this spec
+
+- `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test.
+- `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint and fade.
+- `godot/tests/wmo_doodads_flow.gd` — portal pools empty while Jail01 is culled, all six drawing at the trigger.
+
+## Known gaps (current cycle)
+
+- [ ] Animated emitter tracks: only the first key of each M2Track is used, and the `enabledIn` track is ignored.
+- [ ] Tail quads (0x40000), spline emitters (type 3), model particles, follow-position (0x4000), burst/inherit velocity (0x40), randomized atlas mask (0x8000), TXAC shader variants, alpha-cutoff discard, lit particles (no 0x1 flag) and fog.
+- [ ] Particles within a pool are not depth-sorted; a shared pool sorts as one transparent object.
+
+## Out of scope
+
+- The Bevy client's Hanabi particle path (abandoned client).
+- Ribbon emitters (separate feature).
