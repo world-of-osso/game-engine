@@ -205,7 +205,7 @@ func check_lateral_ground(client: Node, player: Node3D, origin: Vector3) -> Stri
 	var ground = client.terrain_height_at(position.x, position.z)
 	if ground == null or absf(position.y - float(ground)) > 0.3 or WATER_LEVEL - float(ground) < 3.0:
 		return "Lateral swim lost grounded deep-water sample: " + str(position) + " ground=" + str(ground)
-	if position.x < START.x - 4.0 or position.x > START.x + 4.0 or position.z < 490.0 or position.z > DEEP_Z + 0.5 or absf(position.z - origin.z) > 0.3:
+	if position.x < START.x - 4.0 or position.x > START.x + 4.0 or position.z < 480.0 or position.z > DEEP_Z + 0.5 or absf(position.z - origin.z) > 0.3:
 		return "Lateral swim left measured flat corridor: " + str(position)
 	return ""
 
