@@ -81,13 +81,17 @@ fn m2_external_skeleton_preserves_authored_bones_and_tracks() {
             .expect("needs skeleton")
             .contains("SKID")
     );
-    let parsed =
-        m2::parse_model_with_skeleton(&model, &skin, Some(&fixture("models/humanmale_hd.skel")))
-            .expect("HD skeleton");
+    let parsed = m2::parse_model_with_skeleton(
+        &model,
+        &skin,
+        Some(&fixture("models/humanmale_hd.skel")),
+        |_| None,
+    )
+    .expect("HD skeleton");
     assert!(parsed.bones.len() > 100);
     assert_eq!(parsed.bone_tracks.len(), parsed.bones.len());
     assert!(!parsed.sequences.is_empty());
-    assert!(m2::parse_model_with_skeleton(&model, &skin, Some(b"bad")).is_err());
+    assert!(m2::parse_model_with_skeleton(&model, &skin, Some(b"bad"), |_| None).is_err());
 }
 
 #[test]

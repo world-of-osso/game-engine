@@ -94,3 +94,7 @@ pub fn ensure_primary_skin_path(m2_path: &Path) -> Option<PathBuf> {
     let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
     skin_path.exists().then_some(skin_path)
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/asset/m2_file_loader_tests.rs"]
+mod tests;

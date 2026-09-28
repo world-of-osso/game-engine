@@ -39,6 +39,7 @@ fn hd_model_retains_external_skin_and_skeleton_references() {
         &fixture("humanmale_hd.m2"),
         &fixture("humanmale_hd00.skin"),
         Some(&fixture("humanmale_hd.skel")),
+        |_| None,
     )
     .unwrap();
     assert_eq!(&model.skin_fdids[..3], &[1012983, 1048729, 1048728]);

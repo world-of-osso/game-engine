@@ -643,6 +643,7 @@ mod tests {
             &read("humanmale_hd.m2"),
             &read("humanmale_hd00.skin"),
             Some(&read("humanmale_hd.skel")),
+            |_| None,
         )
         .expect("HD model with authored tracks")
     }
