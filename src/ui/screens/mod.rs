@@ -76,4 +76,5 @@ pub mod trash_button_component;
 mod trash_button_layout_tests;
 pub mod ui_errors_frame_component;
 pub mod world_builder_component;
+pub mod world_map_frame_art;
 pub mod world_map_frame_component;

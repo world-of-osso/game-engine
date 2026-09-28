@@ -6,7 +6,7 @@
 use ui_toolkit::frame::{Frame, NineSlice, ThreeSlice, WidgetData};
 use ui_toolkit::widgets::button::{ButtonData, ButtonState};
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV};
-use ui_toolkit::widgets::texture::TextureSource;
+use ui_toolkit::widgets::texture::{BlendMode, TextureSource};
 
 const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
@@ -32,6 +32,10 @@ pub struct ImagePart {
     pub color: [f32; 4],
     /// Draw above every other registry node (original highlight z = 500).
     pub overlay: bool,
+    /// Counter-clockwise screen rotation about the part's center (`TextureData.rotation`).
+    pub rotation: f32,
+    /// `BlendMode::Additive` textures add to what is beneath them.
+    pub additive: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -146,7 +150,10 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             } else {
                 texture.vertex_color
             };
-            Some(textured(rect, texture.source.clone(), crop, color))
+            let mut part = textured(rect, texture.source.clone(), crop, color);
+            part.rotation = texture.rotation;
+            part.additive = texture.blend_mode == BlendMode::Additive;
+            Some(part)
         }
         Some(WidgetData::StatusBar(_)) => None,
         _ => frame
@@ -369,6 +376,8 @@ fn solid(rect: [f32; 4], color: [f32; 4]) -> ImagePart {
         crop: Crop::Full,
         color,
         overlay: false,
+        rotation: 0.0,
+        additive: false,
     }
 }
 
@@ -379,6 +388,8 @@ fn textured(rect: [f32; 4], source: TextureSource, crop: Crop, color: [f32; 4]) 
         crop,
         color,
         overlay: false,
+        rotation: 0.0,
+        additive: false,
     }
 }
 

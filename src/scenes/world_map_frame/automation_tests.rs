@@ -10,6 +10,7 @@ use game_engine::ui::js_automation::run_js_to_actions;
 use game_engine::ui::layout::LayoutRect;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
+use game_engine::ui::screens::world_map_frame_component::WorldMapFrameState;
 use game_engine::world_map_data::WorldMapState;
 
 use super::WorldMapFramePlugin;
@@ -100,10 +101,10 @@ fn js_m_opens_world_map_and_click_close_button_closes_it() {
     run_until_queue_drained(&mut app);
     assert_no_automation_error(&app);
     assert!(map_open(&app));
-    assert!(frame_visible(&app, "WorldMapCloseBtn"));
-    simulate_layout_readback(&mut app, "WorldMapCloseBtn");
+    assert!(frame_visible(&app, "WorldMapCloseButton"));
+    simulate_layout_readback(&mut app, "WorldMapCloseButton");
 
-    queue_script(&mut app, r#"ui.click("WorldMapCloseBtn");"#);
+    queue_script(&mut app, r#"ui.click("WorldMapCloseButton");"#);
     run_until_queue_drained(&mut app);
     assert_no_automation_error(&app);
     assert!(!map_open(&app));
@@ -122,8 +123,8 @@ fn js_m_with_focused_editbox_does_not_open_world_map() {
 #[test]
 fn js_click_on_hidden_inworld_frame_reports_error_and_advances() {
     let mut app = inworld_app();
-    simulate_layout_readback(&mut app, "WorldMapCloseBtn");
-    queue_script(&mut app, r#"ui.click("WorldMapCloseBtn"); ui.key("M");"#);
+    simulate_layout_readback(&mut app, "WorldMapCloseButton");
+    queue_script(&mut app, r#"ui.click("WorldMapCloseButton"); ui.key("M");"#);
     run_until_queue_drained(&mut app);
     let error = app
         .world()
@@ -131,36 +132,54 @@ fn js_click_on_hidden_inworld_frame_reports_error_and_advances() {
         .last_error
         .clone()
         .expect("hidden frame click must fail");
-    assert!(error.contains("WorldMapCloseBtn"), "{error}");
+    assert!(error.contains("WorldMapCloseButton"), "{error}");
     assert!(map_open(&app), "queue must continue after the failed click");
 }
 
-#[test]
-fn settled_map_state_still_follows_player_movement_after_idle_frames() {
-    let mut app = inworld_app();
-    for _ in 0..3 {
-        app.update();
-    }
-    let idle = app
-        .world()
-        .resource::<super::WorldMapFrameModel>()
-        .0
-        .clone();
+/// Goldshire flight master (TaxiNodes 582) in engine axes.
+const GOLDSHIRE: Vec3 = Vec3::new(-9433.99, 57.0, -85.149);
 
-    app.world_mut().resource_mut::<WorldMapState>().player.x = 0.75;
-    app.update();
-    let moved = &app.world().resource::<super::WorldMapFrameModel>().0;
-    assert_eq!(moved.player_x, 0.75);
-    assert_ne!(moved.player_x, idle.player_x);
-
+fn spawn_player_at_goldshire(app: &mut App) -> Entity {
+    let mut terrain = crate::terrain::AdtManager::default();
+    terrain.map_name = "azeroth".into();
+    app.insert_resource(terrain);
     app.world_mut()
-        .resource_mut::<WindowManager>()
-        .open(WindowId::WorldMap);
+        .spawn((
+            Transform::from_translation(GOLDSHIRE),
+            crate::camera::CharacterFacing { yaw: 0.0 },
+            crate::camera::Player,
+            crate::networking::LocalPlayer,
+        ))
+        .id()
+}
+
+fn model(app: &App) -> &WorldMapFrameState {
+    &app.world().resource::<super::WorldMapFrameModel>().0
+}
+
+#[test]
+fn m_opens_the_players_zone_and_the_arrow_follows_movement() {
+    let mut app = inworld_app();
+    if !std::path::Path::new(super::DB2_DIR).exists() {
+        return;
+    }
+    let player = spawn_player_at_goldshire(&mut app);
+    queue_script(&mut app, r#"ui.key("M");"#);
+    run_until_queue_drained(&mut app);
+    let opened = model(&app).clone();
+    assert!(opened.visible);
+    assert_eq!(opened.map_name, "Elwynn Forest");
+    let arrow = opened.player.clone().expect("player arrow on its zone");
+    assert!((arrow.x - 0.4178).abs() < 0.002, "{arrow:?}");
+
+    // Engine +Z is world -Y: east on the map.
+    app.world_mut()
+        .get_mut::<Transform>(player)
+        .unwrap()
+        .translation
+        .z += 100.0;
     app.update();
-    assert!(
-        app.world()
-            .resource::<super::WorldMapFrameModel>()
-            .0
-            .visible
-    );
+    let moved = model(&app).player.clone().unwrap();
+    assert!(moved.x > arrow.x, "moving east: {moved:?}");
+    assert!((moved.y - arrow.y).abs() < 0.0001);
 }

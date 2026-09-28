@@ -29,7 +29,8 @@ use shared::{
     },
     protocol::{
         CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
-        ForcedDisconnect, LoadTerrain, LoginResponse, NewWorld, RegisterResponse, TransferAborted,
+        ForcedDisconnect, LoadTerrain, LoginResponse, NewWorld, QuestLogSnapshot, QuestLogUpdate,
+        RegisterResponse, TransferAborted,
     },
 };
 
@@ -145,6 +146,9 @@ impl NetworkBridge {
             .receive::<LoadTerrain>()
             .receive::<NewWorld>()
             .receive::<TransferAborted>()
+            // Quest log for the world map's quest areas.
+            .receive::<QuestLogSnapshot>()
+            .receive::<QuestLogUpdate>()
             .connect(server_addr, client_id)
     }
 

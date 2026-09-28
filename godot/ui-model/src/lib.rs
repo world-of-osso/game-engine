@@ -11,7 +11,10 @@ pub mod ui {
 
     pub mod screens {
         pub(crate) use crate::screen_title;
-        pub use crate::{default_button_atlas, trash_button_component};
+        pub use crate::{
+            default_button_atlas, trash_button_component, world_map_frame_art,
+            world_map_frame_component,
+        };
     }
 
     pub use crate::ui_errors_data;
@@ -34,6 +37,17 @@ pub mod char_select_top_nav_component;
 pub mod default_button_atlas;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
 pub mod trash_button_component;
+
+#[path = "../../../src/csv_util.rs"]
+pub mod csv_util;
+#[path = "../../../src/ui_map_data.rs"]
+pub mod ui_map_data;
+#[path = "../../../src/ui/screens/world_map_frame_art.rs"]
+pub mod world_map_frame_art;
+#[path = "../../../src/ui/screens/world_map_frame_component.rs"]
+pub mod world_map_frame_component;
+#[path = "../../../src/world_map_view_data.rs"]
+pub mod world_map_view_data;
 
 #[path = "../../../src/ui/ui_errors_data.rs"]
 pub mod ui_errors_data;

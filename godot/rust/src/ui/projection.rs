@@ -311,6 +311,16 @@ impl UiProjection {
             control.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
             control.set_position(Vector2::new(part.rect[0], part.rect[1]));
             control.set_size(Vector2::new(part.rect[2], part.rect[3]));
+            if part.rotation != 0.0 {
+                // Registry rotation is counter-clockwise; Godot controls turn clockwise.
+                control.set_pivot_offset(Vector2::new(part.rect[2], part.rect[3]) / 2.0);
+                control.set_rotation(-part.rotation);
+            }
+            if part.additive {
+                let mut material = godot::classes::CanvasItemMaterial::new_gd();
+                material.set_blend_mode(godot::classes::canvas_item_material::BlendMode::ADD);
+                control.set_material(&material);
+            }
             if part.overlay {
                 control.set_z_as_relative(false);
                 control.set_z_index(OVERLAY_Z);

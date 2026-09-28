@@ -8,6 +8,9 @@ use std::collections::VecDeque;
 
 use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
+use game_engine_ui_model::world_map_frame_component::{
+    WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
+};
 use game_engine_ui_model::{
     CharacterCreateModel, CharacterSelectModel, GameMenuModel, LoadingModel, LoginModel,
     UiErrorsModel, apply_character_create_postsetup,
@@ -52,6 +55,7 @@ enum ScreenPostsetup {
     CharacterSelect,
     CharacterCreate,
     Loading,
+    WorldMap,
 }
 
 impl RegistryModel {
@@ -63,6 +67,11 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading => {}
+            ScreenPostsetup::WorldMap => {
+                if let Some(state) = self.shared.get::<WorldMapFrameState>() {
+                    apply_world_map_postsetup(state, &mut self.registry);
+                }
+            }
             ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
             ScreenPostsetup::CharacterSelect => apply_char_select_postsetup(&mut self.registry),
             ScreenPostsetup::CharacterCreate => {
@@ -253,6 +262,25 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_model(model, size.x, size.y)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the shared world map frame.
+    pub fn show_world_map(&mut self, state: WorldMapFrameState) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let [width, height] = state.viewport;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut model = RegistryModel {
+            screen: Screen::new(world_map_frame_screen),
+            shared,
+            registry: FrameRegistry::new(width, height),
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::WorldMap,
+        };
+        model.sync();
+        self.initialize_model(model, width, height)
     }
 
     /// Initialize a dedicated RegistryUi instance for the authored error overlay.

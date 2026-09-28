@@ -1,119 +1,86 @@
-use std::fmt;
+//! Retail windowed `WorldMapFrame` (docs/specs/world-map.md): metal portrait
+//! frame titled "World Map", a breadcrumb nav bar (World > continent > zone), and the
+//! map canvas with the map's layer-0 art tiles, hovered child-map highlight, pins and
+//! the player arrow. The host owns navigation and supplies map data in
+//! [`WorldMapFrameState`]; positions on the canvas are normalized map UVs.
 
+use ui_toolkit::frame::WidgetData;
+use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::texture::{BlendMode, TextureData};
 
-use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
+use crate::ui::anchor::FrameName;
+use crate::ui::screens::world_map_frame_art::{self as art, MapArt};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
 
-impl fmt::Display for DynName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-// --- Layout constants ---
-
-/// Full-screen dimensions (1920×1080 reference).
-pub const FRAME_W: f32 = 1920.0;
-pub const FRAME_H: f32 = 1080.0;
-
-const HEADER_H: f32 = 36.0;
-const HEADER_INSET: f32 = 12.0;
-const ZONE_NAME_W: f32 = 400.0;
-const COORD_W: f32 = 140.0;
-const COORD_H: f32 = 20.0;
-
-const CANVAS_TOP: f32 = HEADER_H + 4.0;
-const CANVAS_INSET: f32 = 8.0;
-const CANVAS_W: f32 = FRAME_W - 2.0 * CANVAS_INSET;
-const CANVAS_H: f32 = FRAME_H - CANVAS_TOP - CANVAS_INSET;
-
-const CLOSE_BTN_SIZE: f32 = 24.0;
-const CLOSE_BTN_INSET: f32 = 8.0;
-
-const DROPDOWN_W: f32 = 180.0;
-const DROPDOWN_H: f32 = 24.0;
-const DROPDOWN_GAP: f32 = 8.0;
-/// Continent dropdown starts after zone name.
-const DROPDOWN_X: f32 = HEADER_INSET + ZONE_NAME_W + 16.0;
-
-const ZONE_OVERLAY_MAX: usize = 8;
-
-const PIN_SIZE: f32 = 16.0;
-const MAX_PINS: usize = 20;
-
-const LEGEND_W: f32 = 140.0;
-const LEGEND_ROW_H: f32 = 18.0;
-const LEGEND_ICON_SIZE: f32 = 12.0;
-const LEGEND_INSET: f32 = 6.0;
-const LEGEND_HEADER_H: f32 = 16.0;
-
-const FP_LINE_H: f32 = 2.0;
-const FP_DOT_SIZE: f32 = 6.0;
-const MAX_FP_SEGMENTS: usize = 16;
-
-const TOOLTIP_W: f32 = 180.0;
-const TOOLTIP_LINE_H: f32 = 16.0;
-const TOOLTIP_INSET: f32 = 6.0;
-
+pub const WORLD_MAP_ROOT: FrameName = FrameName("WorldMapFrame");
+pub const WORLD_MAP_CANVAS: FrameName = FrameName("WorldMapCanvas");
+pub const WORLD_MAP_PLAYER_ARROW: &str = "WorldMapPlayerArrow";
+pub const WORLD_MAP_HIGHLIGHT: &str = "WorldMapHighlight";
+pub const WORLD_MAP_HIGHLIGHT_NAME: &str = "WorldMapAreaLabel";
 pub const ACTION_WORLD_MAP_CLOSE: &str = "world_map_close";
+/// Breadcrumb click: `world_map_nav:<UiMapID>`.
+pub const ACTION_WORLD_MAP_NAV_PREFIX: &str = "world_map_nav:";
 
-// --- Colors ---
+/// Retail map canvas size at scale 1 (`UiMapArtStyleLayer` 1 is 1002×668).
+pub const CANVAS_W: f32 = 1002.0;
+pub const CANVAS_H: f32 = 668.0;
+const SIDE_INSET: f32 = 3.0;
+const TITLE_H: f32 = 22.0;
+const NAV_H: f32 = 34.0;
+const NAV_LEFT: f32 = 62.0;
+const CANVAS_TOP: f32 = TITLE_H + NAV_H + 4.0;
+const BOTTOM_INSET: f32 = 3.0;
+const FRAME_W: f32 = CANVAS_W + 2.0 * SIDE_INSET;
+const FRAME_H: f32 = CANVAS_TOP + CANVAS_H + BOTTOM_INSET;
+/// Metal art overhang past the frame rect (PortraitFrameTemplate nine-slice offsets).
+const OVERHANG_LEFT: f32 = 13.0;
+const OVERHANG_TOP: f32 = 16.0;
+const SCREEN_MARGIN: f32 = 24.0;
 
-const FRAME_BG: &str = "0.04,0.03,0.02,0.95";
-const HEADER_BG: &str = "0.08,0.06,0.04,0.95";
-const ZONE_NAME_COLOR: &str = "1.0,0.82,0.0,1.0";
-const COORD_COLOR: &str = "0.8,0.8,0.8,1.0";
-const CANVAS_BG: &str = "0.02,0.02,0.02,0.9";
-const CLOSE_BTN_BG: &str = "0.3,0.08,0.08,0.9";
-const CLOSE_BTN_TEXT: &str = "1.0,0.3,0.3,1.0";
-const DROPDOWN_BG: &str = "0.1,0.08,0.06,0.95";
-const DROPDOWN_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
-const DROPDOWN_ARROW_COLOR: &str = "0.8,0.8,0.8,1.0";
-const ZONE_OVERLAY_BG: &str = "0.3,0.25,0.1,0.25";
-const ZONE_OVERLAY_TEXT: &str = "1.0,0.82,0.0,0.8";
-const FOG_OVERLAY_BG: &str = "0.0,0.0,0.0,0.72";
-const FOG_OVERLAY_TEXT: &str = "0.85,0.85,0.85,0.92";
-const PIN_QUEST_BG: &str = "1.0,0.82,0.0,0.9";
-const PIN_FP_BG: &str = "0.3,0.8,0.3,0.9";
-const PIN_POI_BG: &str = "0.6,0.6,0.6,0.9";
-const LEGEND_BG: &str = "0.06,0.05,0.04,0.9";
-const LEGEND_HEADER_COLOR: &str = "1.0,0.82,0.0,1.0";
-const LEGEND_TEXT_COLOR: &str = "0.85,0.85,0.85,1.0";
-const FP_LINE_COLOR: &str = "0.3,0.8,0.3,0.6";
-const FP_DOT_COLOR: &str = "0.3,0.8,0.3,0.9";
-const TOOLTIP_BG: &str = "0.08,0.06,0.04,0.95";
-const TOOLTIP_TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
-const TOOLTIP_TEXT_COLOR: &str = "0.85,0.85,0.85,1.0";
+const CRUMB_H: f32 = 26.0;
+const CRUMB_GAP: f32 = 4.0;
+const CRUMB_PAD: f32 = 14.0;
+const CRUMB_FONT: f32 = 12.0;
+const CLOSE_SIZE: f32 = 24.0;
+const PIN_SIZE: f32 = 20.0;
+const QUEST_PIN_SIZE: f32 = 24.0;
+const ARROW_SIZE: f32 = 32.0;
 
-// --- Data types ---
+const GOLD: &str = "1.0,0.82,0.0,1.0";
+const WHITE: &str = "1.0,1.0,1.0,1.0";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+/// Kinds of pin the canvas draws; each has its Retail atlas icon.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MapPinType {
-    #[default]
-    Quest,
-    FlightPath,
-    PointOfInterest,
+    /// Active quest objective area, numbered by quest log order.
+    QuestObjective,
+    /// Completed quest, turn-in location.
+    QuestTurnIn,
+    FlightAlliance,
+    FlightHorde,
+    FlightNeutral,
 }
 
 impl MapPinType {
-    pub fn color(self) -> &'static str {
+    fn art(self) -> MapArt {
         match self {
-            Self::Quest => PIN_QUEST_BG,
-            Self::FlightPath => PIN_FP_BG,
-            Self::PointOfInterest => PIN_POI_BG,
+            Self::QuestObjective => art::QUEST_NUMBER,
+            Self::QuestTurnIn => art::QUEST_TURN_IN,
+            Self::FlightAlliance => art::TAXI_ALLIANCE,
+            Self::FlightHorde => art::TAXI_HORDE,
+            Self::FlightNeutral => art::TAXI_NEUTRAL,
         }
     }
 
-    pub fn symbol(self) -> &'static str {
+    fn size(self) -> f32 {
         match self {
-            Self::Quest => "!",
-            Self::FlightPath => "⚑",
-            Self::PointOfInterest => "●",
+            Self::QuestObjective | Self::QuestTurnIn => QUEST_PIN_SIZE,
+            _ => PIN_SIZE,
         }
     }
 }
@@ -122,533 +89,522 @@ impl MapPinType {
 pub struct MapPin {
     pub pin_type: MapPinType,
     pub label: String,
-    /// Position on canvas as fraction (0.0–1.0).
+    /// Text drawn over the icon (quest number).
+    pub badge: String,
+    /// Map UV (0..1).
     pub x: f32,
     pub y: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ZoneOverlay {
+pub struct MapBreadcrumb {
+    pub map_id: u32,
     pub name: String,
-    /// Bounding box on canvas as fractions (0.0–1.0).
-    pub x: f32,
-    pub y: f32,
-    pub w: f32,
-    pub h: f32,
 }
 
-/// A flight path line segment between two points on the canvas (fractions 0.0–1.0).
+/// One layer-0 art tile: normalized canvas `rect` `[x, y, w, h]`, texture crop
+/// `[left, right, top, bottom]`.
 #[derive(Clone, Debug, PartialEq)]
-pub struct FlightPathSegment {
-    pub x1: f32,
-    pub y1: f32,
-    pub x2: f32,
-    pub y2: f32,
+pub struct MapTile {
+    pub fdid: u32,
+    pub rect: [f32; 4],
+    pub tex_coords: [f32; 4],
+}
+
+/// The child map under the cursor: its `UiMapArt` highlight over its rect.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MapHighlight {
+    pub map_id: u32,
+    pub name: String,
+    pub fdid: u32,
+    pub rect: [f32; 4],
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct MapPlayerMarker {
+    /// Map UV (0..1).
+    pub x: f32,
+    pub y: f32,
+    /// Counter-clockwise screen rotation of the north-pointing arrow, radians.
+    pub rotation: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct WorldMapFrameState {
     pub visible: bool,
-    pub zone_name: String,
-    pub player_x: f32,
-    pub player_y: f32,
-    pub continent_name: String,
-    pub map_texture_fdid: u32,
-    pub zone_overlays: Vec<ZoneOverlay>,
-    pub fog_overlays: Vec<ZoneOverlay>,
+    pub viewport: [f32; 2],
+    pub map_id: u32,
+    pub map_name: String,
+    /// Root (World) to the displayed map.
+    pub breadcrumbs: Vec<MapBreadcrumb>,
+    pub tiles: Vec<MapTile>,
+    pub highlight: Option<MapHighlight>,
     pub pins: Vec<MapPin>,
-    pub flight_paths: Vec<FlightPathSegment>,
-    /// Index of hovered pin for tooltip display.
-    pub hovered_pin: Option<usize>,
+    pub player: Option<MapPlayerMarker>,
 }
 
-impl WorldMapFrameState {
-    pub fn coord_text(&self) -> String {
-        format!("{:.1}, {:.1}", self.player_x * 100.0, self.player_y * 100.0)
+/// Screen layout of the frame for a viewport: scale and frame origin.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WorldMapLayout {
+    pub scale: f32,
+    pub origin: [f32; 2],
+}
+
+impl WorldMapLayout {
+    pub fn for_viewport([width, height]: [f32; 2]) -> Self {
+        let fit_w = (width - 2.0 * SCREEN_MARGIN) / (FRAME_W + 2.0 * OVERHANG_LEFT);
+        let fit_h = (height - 2.0 * SCREEN_MARGIN) / (FRAME_H + 2.0 * OVERHANG_TOP);
+        let scale = fit_w.min(fit_h).clamp(0.1, 1.0);
+        let origin = [
+            ((width - FRAME_W * scale) / 2.0).round(),
+            ((height - FRAME_H * scale) / 2.0 + OVERHANG_TOP * scale / 2.0).round(),
+        ];
+        Self { scale, origin }
+    }
+
+    /// Screen rect `[x, y, w, h]` of the frame (its metal art overhangs this).
+    pub fn frame_rect(&self) -> [f32; 4] {
+        let s = self.scale;
+        [self.origin[0], self.origin[1], FRAME_W * s, FRAME_H * s]
+    }
+
+    /// Screen rect `[x, y, w, h]` of the map canvas.
+    pub fn canvas_rect(&self) -> [f32; 4] {
+        let s = self.scale;
+        [
+            self.origin[0] + SIDE_INSET * s,
+            self.origin[1] + CANVAS_TOP * s,
+            CANVAS_W * s,
+            CANVAS_H * s,
+        ]
     }
 }
-
-// --- Screen entry ---
 
 pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<WorldMapFrameState>()
         .expect("WorldMapFrameState must be in SharedContext");
+    let layout = WorldMapLayout::for_viewport(state.viewport);
     let hide = !state.visible;
-    let coords = state.coord_text();
+    let s = layout.scale;
+    let [x, y] = layout.origin;
     rsx! {
         r#frame {
-            name: "WorldMapFrame",
-            width: {FRAME_W},
-            height: {FRAME_H},
-            strata: FrameStrata::Fullscreen,
+            name: WORLD_MAP_ROOT,
+            stretch: true,
+            strata: FrameStrata::High,
             hidden: hide,
-            background_color: FRAME_BG,
-            pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
-            {header_bar(&state.zone_name, &coords)}
-            {dropdown_nav(&state.continent_name, &state.zone_name)}
-            {map_canvas(state.map_texture_fdid)}
-            {flight_path_lines(&state.flight_paths)}
-            {zone_overlays(&state.zone_overlays)}
-            {map_pins(&state.pins)}
-            {fog_overlays(&state.fog_overlays)}
-            {map_legend()}
-            {pin_tooltip(&state.pins, state.hovered_pin)}
-            {close_button()}
+            r#frame {
+                name: "WorldMapBorderFrame",
+                width: {FRAME_W * s},
+                height: {FRAME_H * s},
+                mouse_enabled: true,
+                pos_type: "absolute",
+                left: x,
+                top: y,
+                {background(s)}
+                {canvas(state, s)}
+                {nav_bar(&state.breadcrumbs, s)}
+                {border(s)}
+                {title(s)}
+                {close_button(s)}
+            }
         }
     }
 }
 
-// --- Header bar ---
-
-fn header_zone_label(text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: "WorldMapZoneName",
-            width: {ZONE_NAME_W},
-            height: {HEADER_H},
-            text: text,
-            font_size: 16.0,
-            font_color: ZONE_NAME_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {HEADER_INSET},
-            top: -0.0,
-        }
-    }
+fn image(name: String, art: MapArt, rect: [f32; 4]) -> Element {
+    textured(name, art.fdid, art.tex_coords(), rect)
 }
 
-fn header_coord_label(text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: "WorldMapCoords",
-            width: {COORD_W},
-            height: {COORD_H},
-            text: text,
-            font_size: 11.0,
-            font_color: COORD_COLOR,
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            right: {-(-(CLOSE_BTN_SIZE + CLOSE_BTN_INSET + 8.0))},
-            top: {-(-(HEADER_H - COORD_H) / 2.0)},
-        }
-    }
-}
-
-fn header_bar(zone_name: &str, coord_text: &str) -> Element {
-    rsx! {
-        r#frame {
-            name: "WorldMapHeader",
-            width: {FRAME_W},
-            height: {HEADER_H},
-            background_color: HEADER_BG,
-            pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
-            {header_zone_label(zone_name)}
-            {header_coord_label(coord_text)}
-        }
-    }
-}
-
-// --- Map canvas ---
-
-fn map_canvas_texture(texture_fdid: u32) -> Element {
-    if texture_fdid == 0 {
-        return Vec::new();
-    }
+fn textured(name: String, fdid: u32, tex_coords: [f32; 4], rect: [f32; 4]) -> Element {
+    let [x, y, width, height] = rect;
+    let coords = tex_coords_text(tex_coords);
     rsx! {
         texture {
-            name: "WorldMapCanvasTexture",
-            width: {CANVAS_W},
-            height: {CANVAS_H},
-            texture_fdid: {texture_fdid},
+            name: {DynName(name)},
+            width,
+            height,
+            texture_fdid: {fdid},
+            tex_coords: {coords.as_str()},
             pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
+            left: x,
+            top: y,
         }
     }
 }
 
-fn map_canvas(texture_fdid: u32) -> Element {
+fn tex_coords_text([left, right, top, bottom]: [f32; 4]) -> String {
+    format!("{left},{right},{top},{bottom}")
+}
+
+fn solid(name: &str, color: &str, rect: [f32; 4]) -> Element {
+    let [x, y, width, height] = rect;
     rsx! {
         r#frame {
-            name: "WorldMapCanvas",
-            width: {CANVAS_W},
-            height: {CANVAS_H},
-            background_color: CANVAS_BG,
+            name: {DynName(name.to_owned())},
+            width,
+            height,
+            background_color: color,
             pos_type: "absolute",
-            left: {CANVAS_INSET},
-            top: {-(-CANVAS_TOP)},
-            {map_canvas_texture(texture_fdid)}
+            left: x,
+            top: y,
         }
     }
 }
 
-// --- Dropdown navigation ---
-
-fn nav_dropdown(
-    frame_name: &str,
-    label_name: &str,
-    arrow_name: &str,
-    text: &str,
-    x: f32,
-    y: f32,
-) -> Element {
-    dropdown_button(DropdownButton {
-        frame_name,
-        label_name,
-        arrow_name,
-        text,
-        width: DROPDOWN_W,
-        height: DROPDOWN_H,
-        x,
-        y,
-        background_color: DROPDOWN_BG,
-        text_color: DROPDOWN_TEXT_COLOR,
-        arrow_color: DROPDOWN_ARROW_COLOR,
-        onclick: None,
-    })
-}
-
-fn dropdown_nav(continent: &str, zone: &str) -> Element {
-    let y = -((HEADER_H - DROPDOWN_H) / 2.0);
-    rsx! {
-        {nav_dropdown("WorldMapContinentDropdown", "WorldMapContinentLabel", "WorldMapContinentArrow", continent, DROPDOWN_X, y)}
-        {nav_dropdown("WorldMapZoneDropdown", "WorldMapZoneDropLabel", "WorldMapZoneDropArrow", zone, DROPDOWN_X + DROPDOWN_W + DROPDOWN_GAP, y)}
-    }
-}
-
-// --- Zone overlay buttons ---
-
-fn zone_overlay_frame(i: usize, ov: &ZoneOverlay) -> Element {
-    let id = DynName(format!("WorldMapZoneOv{i}"));
-    let label_id = DynName(format!("WorldMapZoneOv{i}Label"));
-    let x = CANVAS_INSET + ov.x * CANVAS_W;
-    let y = CANVAS_TOP + ov.y * CANVAS_H;
-    let w = ov.w * CANVAS_W;
-    let h = ov.h * CANVAS_H;
-    rsx! {
-        r#frame {
-            name: id,
-            width: {w},
-            height: {h},
-            background_color: ZONE_OVERLAY_BG,
-            pos_type: "absolute",
-            left: {x},
-            top: {-(-y)},
-            fontstring {
-                name: label_id,
-                width: {w},
-                height: {h},
-                text: {ov.name.as_str()},
-                font_size: 10.0,
-                font_color: ZONE_OVERLAY_TEXT,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn zone_overlays(overlays: &[ZoneOverlay]) -> Element {
-    overlays
-        .iter()
-        .enumerate()
-        .take(ZONE_OVERLAY_MAX)
-        .flat_map(|(i, ov)| zone_overlay_frame(i, ov))
-        .collect()
-}
-
-fn fog_overlay_frame(i: usize, ov: &ZoneOverlay) -> Element {
-    let id = DynName(format!("WorldMapFogOv{i}"));
-    let label_id = DynName(format!("WorldMapFogOv{i}Label"));
-    let x = CANVAS_INSET + ov.x * CANVAS_W;
-    let y = CANVAS_TOP + ov.y * CANVAS_H;
-    let w = ov.w * CANVAS_W;
-    let h = ov.h * CANVAS_H;
-    rsx! {
-        r#frame {
-            name: id,
-            width: {w},
-            height: {h},
-            background_color: FOG_OVERLAY_BG,
-            pos_type: "absolute",
-            left: {x},
-            top: {-(-y)},
-            fontstring {
-                name: label_id,
-                width: {w},
-                height: {h},
-                text: {ov.name.as_str()},
-                font_size: 12.0,
-                font_color: FOG_OVERLAY_TEXT,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn fog_overlays(overlays: &[ZoneOverlay]) -> Element {
-    overlays
-        .iter()
-        .enumerate()
-        .take(ZONE_OVERLAY_MAX)
-        .flat_map(|(i, ov)| fog_overlay_frame(i, ov))
-        .collect()
-}
-
-// --- Map pins ---
-
-fn map_pin_frame(i: usize, pin: &MapPin) -> Element {
-    let id = DynName(format!("WorldMapPin{i}"));
-    let label_id = DynName(format!("WorldMapPin{i}Symbol"));
-    let x = CANVAS_INSET + pin.x * CANVAS_W - PIN_SIZE / 2.0;
-    let y = CANVAS_TOP + pin.y * CANVAS_H - PIN_SIZE / 2.0;
-    let background_color = pin.pin_type.color();
-    let content = map_pin_symbol(label_id, pin);
-    rsx! { r#frame {
-        name: id, width: {PIN_SIZE}, height: {PIN_SIZE}, background_color,
-        pos_type: "absolute",
-        left: {x},
-        top: {-(-y)},
-        {content}
-    } }
-}
-
-fn map_pin_symbol(label_id: DynName, pin: &MapPin) -> Element {
+fn label(name: String, text: &str, rect: [f32; 4], size: f32, color: &str) -> Element {
+    let [x, y, width, height] = rect;
     rsx! {
         fontstring {
-            name: label_id,
-            width: {PIN_SIZE},
-            height: {PIN_SIZE},
-            text: {pin.pin_type.symbol()},
-            font_size: 10.0,
-            font_color: "1.0,1.0,1.0,1.0",
+            name: {DynName(name)},
+            width,
+            height,
+            text,
+            font_size: size,
+            font_color: color,
             justify_h: "CENTER",
             pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
+            left: x,
+            top: y,
         }
     }
 }
 
-fn map_pins(pins: &[MapPin]) -> Element {
-    pins.iter()
-        .enumerate()
-        .take(MAX_PINS)
-        .flat_map(|(i, pin)| map_pin_frame(i, pin))
-        .collect()
+fn background(s: f32) -> Element {
+    image(
+        "WorldMapBackground".into(),
+        art::BACKGROUND,
+        [0.0, 0.0, FRAME_W * s, FRAME_H * s],
+    )
 }
 
-// --- Flight path lines (dot at each endpoint) ---
+/// PortraitFrameTemplate nine-slice at 1x (the `-2x` crops at half size).
+fn border(s: f32) -> Element {
+    let half = |art: MapArt| {
+        let (w, h) = art.size();
+        (w * 0.5 * s, h * 0.5 * s)
+    };
+    let (w, h) = (FRAME_W * s, FRAME_H * s);
+    let (tl_w, tl_h) = half(art::PORTRAIT_CORNER_TOP_LEFT);
+    let (tr_w, tr_h) = half(art::CORNER_TOP_RIGHT);
+    let (bl_w, bl_h) = half(art::CORNER_BOTTOM_LEFT);
+    let (br_w, br_h) = half(art::CORNER_BOTTOM_RIGHT);
+    let (left_x, top_y, right_x, bottom_y) = (
+        -OVERHANG_LEFT * s,
+        -OVERHANG_TOP * s,
+        w + 4.0 * s,
+        h + 3.0 * s,
+    );
+    let top_h = half(art::EDGE_TOP).1;
+    let bottom_h = half(art::EDGE_BOTTOM).1;
+    let left_w = half(art::EDGE_LEFT).0;
+    let right_w = half(art::EDGE_RIGHT).0;
+    let mut pieces = image(
+        "WorldMapPortrait".into(),
+        art::PORTRAIT,
+        [-5.0 * s, -7.0 * s, 60.0 * s, 60.0 * s],
+    );
+    let parts = [
+        (
+            "WorldMapBorderTop",
+            art::EDGE_TOP,
+            [left_x + tl_w, top_y, right_x - tr_w - left_x - tl_w, top_h],
+        ),
+        (
+            "WorldMapBorderBottom",
+            art::EDGE_BOTTOM,
+            [
+                left_x + bl_w,
+                bottom_y - bottom_h,
+                right_x - br_w - left_x - bl_w,
+                bottom_h,
+            ],
+        ),
+        (
+            "WorldMapBorderLeft",
+            art::EDGE_LEFT,
+            [left_x, top_y + tl_h, left_w, bottom_y - bl_h - top_y - tl_h],
+        ),
+        (
+            "WorldMapBorderRight",
+            art::EDGE_RIGHT,
+            [
+                right_x - right_w,
+                top_y + tr_h,
+                right_w,
+                bottom_y - br_h - top_y - tr_h,
+            ],
+        ),
+        (
+            "WorldMapBorderTopLeft",
+            art::PORTRAIT_CORNER_TOP_LEFT,
+            [left_x, top_y, tl_w, tl_h],
+        ),
+        (
+            "WorldMapBorderTopRight",
+            art::CORNER_TOP_RIGHT,
+            [right_x - tr_w, top_y, tr_w, tr_h],
+        ),
+        (
+            "WorldMapBorderBottomLeft",
+            art::CORNER_BOTTOM_LEFT,
+            [left_x, bottom_y - bl_h, bl_w, bl_h],
+        ),
+        (
+            "WorldMapBorderBottomRight",
+            art::CORNER_BOTTOM_RIGHT,
+            [right_x - br_w, bottom_y - br_h, br_w, br_h],
+        ),
+    ];
+    for (name, art, rect) in parts {
+        pieces.extend(image(name.into(), art, rect));
+    }
+    pieces
+}
 
-fn fp_dot(id: DynName, cx: f32, cy: f32) -> Element {
+fn title(s: f32) -> Element {
+    label(
+        "WorldMapTitle".into(),
+        "World Map",
+        [
+            NAV_LEFT * s,
+            0.0,
+            (FRAME_W - 2.0 * NAV_LEFT) * s,
+            TITLE_H * s,
+        ],
+        13.0 * s,
+        GOLD,
+    )
+}
+
+fn close_button(s: f32) -> Element {
+    let size = CLOSE_SIZE * s;
+    let x = FRAME_W * s - size + 2.0 * s;
+    let icon = image(
+        "WorldMapCloseButtonIcon".into(),
+        art::CLOSE_BUTTON,
+        [0.0, 0.0, size, size],
+    );
     rsx! {
         r#frame {
-            name: id,
-            width: {FP_DOT_SIZE},
-            height: {FP_DOT_SIZE},
-            background_color: FP_DOT_COLOR,
+            name: "WorldMapCloseButton",
+            width: size,
+            height: size,
+            onclick: ACTION_WORLD_MAP_CLOSE,
             pos_type: "absolute",
-            left: {cx - FP_DOT_SIZE / 2.0},
-            top: {-(-(cy - FP_DOT_SIZE / 2.0))},
+            left: x,
+            top: {-1.0 * s},
+            {icon}
         }
     }
 }
 
-fn fp_segment(i: usize, seg: &FlightPathSegment) -> Element {
-    let x1 = CANVAS_INSET + seg.x1 * CANVAS_W;
-    let y1 = CANVAS_TOP + seg.y1 * CANVAS_H;
-    let x2 = CANVAS_INSET + seg.x2 * CANVAS_W;
-    let y2 = CANVAS_TOP + seg.y2 * CANVAS_H;
-    let line_x = x1.min(x2);
-    let line_y = y1.min(y2);
-    let line_w = (x2 - x1).abs().max(FP_LINE_H);
-    let line_h = (y2 - y1).abs().max(FP_LINE_H);
+/// Retail `NavBar`: one button per map from World to the displayed map.
+fn nav_bar(crumbs: &[MapBreadcrumb], s: f32) -> Element {
+    let width = (FRAME_W - NAV_LEFT - SIDE_INSET) * s;
+    let top = (TITLE_H + 1.0) * s;
+    let mut bar = solid(
+        "WorldMapNavBar",
+        "0.14,0.11,0.07,1.0",
+        [NAV_LEFT * s, top, width, NAV_H * s],
+    );
+    bar.extend(solid(
+        "WorldMapNavBarEdge",
+        "0.45,0.36,0.2,1.0",
+        [NAV_LEFT * s, top + NAV_H * s - 1.0, width, 1.0],
+    ));
+    let mut x = (NAV_LEFT + 6.0) * s;
+    let y = top + (NAV_H - CRUMB_H) / 2.0 * s;
+    for (index, crumb) in crumbs.iter().enumerate() {
+        let current = index + 1 == crumbs.len();
+        let crumb_w = (text_width(&crumb.name) + 2.0 * CRUMB_PAD) * s;
+        bar.extend(breadcrumb(
+            index,
+            crumb,
+            current,
+            [x, y, crumb_w, CRUMB_H * s],
+            s,
+        ));
+        x += crumb_w + CRUMB_GAP * s;
+    }
+    bar
+}
+
+/// FRIZQT at `CRUMB_FONT` averages about 0.62 em per glyph.
+fn text_width(text: &str) -> f32 {
+    text.chars().count() as f32 * CRUMB_FONT * 0.62
+}
+
+fn breadcrumb(
+    index: usize,
+    crumb: &MapBreadcrumb,
+    current: bool,
+    rect: [f32; 4],
+    s: f32,
+) -> Element {
+    let [x, y, width, height] = rect;
+    let name = DynName(format!("WorldMapNav{index}"));
+    let action = format!("{ACTION_WORLD_MAP_NAV_PREFIX}{}", crumb.map_id);
+    let (fill, color) = if current {
+        ("0.32,0.25,0.15,1.0", WHITE)
+    } else {
+        ("0.22,0.17,0.1,1.0", GOLD)
+    };
+    let text = label(
+        format!("WorldMapNav{index}Text"),
+        &crumb.name,
+        [0.0, 0.0, width, height],
+        CRUMB_FONT * s,
+        color,
+    );
+    let rim = solid(
+        &format!("WorldMapNav{index}Rim"),
+        "0.55,0.43,0.24,1.0",
+        [0.0, height - 1.0, width, 1.0],
+    );
     rsx! {
         r#frame {
-            name: DynName(format!("WorldMapFP{i}Line")),
-            width: {line_w},
-            height: {line_h},
-            background_color: FP_LINE_COLOR,
+            name: {name},
+            width,
+            height,
+            background_color: fill,
+            onclick: {action.as_str()},
             pos_type: "absolute",
-            left: {line_x},
-            top: {-(-line_y)},
+            left: x,
+            top: y,
+            {rim}
+            {text}
         }
-        {fp_dot(DynName(format!("WorldMapFP{i}Dot1")), x1, y1)}
-        {fp_dot(DynName(format!("WorldMapFP{i}Dot2")), x2, y2)}
     }
 }
 
-fn flight_path_lines(segments: &[FlightPathSegment]) -> Element {
-    segments
+fn canvas(state: &WorldMapFrameState, s: f32) -> Element {
+    let (w, h) = (CANVAS_W * s, CANVAS_H * s);
+    let place = |[x, y, rw, rh]: [f32; 4]| [x * w, y * h, rw * w, rh * h];
+    let mut children: Element = state
+        .tiles
         .iter()
         .enumerate()
-        .take(MAX_FP_SEGMENTS)
-        .flat_map(|(i, seg)| fp_segment(i, seg))
-        .collect()
-}
-
-// --- Map legend (bottom-left corner of canvas) ---
-
-fn legend_title() -> Element {
-    rsx! {
-        fontstring {
-            name: "WorldMapLegendTitle",
-            width: {LEGEND_W - 2.0 * LEGEND_INSET},
-            height: {LEGEND_HEADER_H},
-            text: "Legend",
-            font_size: 10.0,
-            font_color: LEGEND_HEADER_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {LEGEND_INSET},
-            top: {-(-LEGEND_INSET)},
+        .flat_map(|(index, tile)| {
+            let name = format!("WorldMapTile{index}");
+            textured(name, tile.fdid, tile.tex_coords, place(tile.rect))
+        })
+        .collect();
+    if let Some(highlight) = &state.highlight {
+        if highlight.fdid != 0 {
+            children.extend(highlight_texture(highlight, place(highlight.rect)));
         }
+        children.extend(label(
+            WORLD_MAP_HIGHLIGHT_NAME.into(),
+            &highlight.name,
+            [0.0, 12.0 * s, w, 32.0 * s],
+            24.0 * s,
+            GOLD,
+        ));
     }
-}
-
-fn build_legend_rows() -> Element {
-    [
-        (MapPinType::Quest, "Quests"),
-        (MapPinType::FlightPath, "Flight Paths"),
-        (MapPinType::PointOfInterest, "Points of Interest"),
-    ]
-    .iter()
-    .enumerate()
-    .flat_map(|(i, (pt, label))| legend_row(i, *pt, label))
-    .collect()
-}
-
-fn map_legend() -> Element {
-    let legend_h = LEGEND_HEADER_H + 3.0 * LEGEND_ROW_H + 2.0 * LEGEND_INSET;
-    let legend_x = CANVAS_INSET + 8.0;
-    let legend_y = CANVAS_TOP + CANVAS_H - legend_h - 8.0;
-    let rows = build_legend_rows();
+    for (index, pin) in state.pins.iter().enumerate() {
+        children.extend(map_pin(index, pin, [w, h], s));
+    }
+    if let Some(player) = &state.player {
+        let size = ARROW_SIZE * s;
+        children.extend(image(
+            WORLD_MAP_PLAYER_ARROW.into(),
+            art::PLAYER_ARROW,
+            [
+                player.x * w - size / 2.0,
+                player.y * h - size / 2.0,
+                size,
+                size,
+            ],
+        ));
+    }
+    let top = CANVAS_TOP * s;
+    let left = SIDE_INSET * s;
     rsx! {
         r#frame {
-            name: "WorldMapLegend",
-            width: {LEGEND_W},
-            height: {legend_h},
-            background_color: LEGEND_BG,
+            name: WORLD_MAP_CANVAS,
+            width: w,
+            height: h,
+            background_color: "0.0,0.0,0.0,1.0",
             pos_type: "absolute",
-            left: {legend_x},
-            top: {-(-legend_y)},
-            {legend_title()}
-            {rows}
+            left,
+            top,
+            {children}
         }
     }
 }
 
-fn legend_row(idx: usize, pin_type: MapPinType, label: &str) -> Element {
-    let icon_id = DynName(format!("WorldMapLegendIcon{idx}"));
-    let text_id = DynName(format!("WorldMapLegendText{idx}"));
-    let y = LEGEND_INSET + LEGEND_HEADER_H + idx as f32 * LEGEND_ROW_H;
+fn highlight_texture(highlight: &MapHighlight, rect: [f32; 4]) -> Element {
+    let [x, y, width, height] = rect;
     rsx! {
-        r#frame {
-            name: icon_id,
-            width: {LEGEND_ICON_SIZE},
-            height: {LEGEND_ICON_SIZE},
-            background_color: {pin_type.color()},
+        texture {
+            name: {DynName(WORLD_MAP_HIGHLIGHT.into())},
+            width,
+            height,
+            texture_fdid: {highlight.fdid},
             pos_type: "absolute",
-            left: {LEGEND_INSET},
-            top: {-(-y)},
-        }
-        fontstring {
-            name: text_id,
-            width: {LEGEND_W - LEGEND_ICON_SIZE - 3.0 * LEGEND_INSET},
-            height: {LEGEND_ROW_H},
-            text: label,
-            font_size: 9.0,
-            font_color: LEGEND_TEXT_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {LEGEND_INSET + LEGEND_ICON_SIZE + LEGEND_INSET},
-            top: {-(-y)},
+            left: x,
+            top: y,
         }
     }
 }
 
-// --- Pin tooltip ---
-
-fn pin_tooltip_line(name: &str, text: &str, font_size: f32, color: &str, y: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: DynName(name.into()),
-            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
-            height: {TOOLTIP_LINE_H},
-            text: text,
-            font_size: font_size,
-            font_color: color,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {TOOLTIP_INSET},
-            top: {-(y)},
-        }
+fn map_pin(index: usize, pin: &MapPin, [w, h]: [f32; 2], s: f32) -> Element {
+    let size = pin.pin_type.size() * s;
+    let rect = [pin.x * w - size / 2.0, pin.y * h - size / 2.0, size, size];
+    let mut pin_frames = image(format!("WorldMapPin{index}"), pin.pin_type.art(), rect);
+    if !pin.badge.is_empty() {
+        pin_frames.extend(label(
+            format!("WorldMapPin{index}Badge"),
+            &pin.badge,
+            rect,
+            11.0 * s,
+            WHITE,
+        ));
     }
+    pin_frames
 }
 
-fn pin_tooltip(pins: &[MapPin], hovered: Option<usize>) -> Element {
-    let hide = hovered.is_none();
-    let (title, subtitle) = match hovered {
-        Some(idx) if idx < pins.len() => {
-            let pin = &pins[idx];
-            (pin.label.as_str(), pin.pin_type.symbol())
-        }
-        _ => ("", ""),
+/// Registry fields `rsx!` has no attribute for: the player arrow's facing and the
+/// additive blend of the hovered map's highlight (`HighlightFileDataID` art is
+/// black where it adds nothing).
+pub fn apply_world_map_postsetup(state: &WorldMapFrameState, registry: &mut FrameRegistry) {
+    if let Some(player) = &state.player {
+        edit_texture(registry, WORLD_MAP_PLAYER_ARROW, |texture| {
+            texture.rotation = player.rotation;
+        });
+    }
+    edit_texture(registry, WORLD_MAP_HIGHLIGHT, |texture| {
+        texture.blend_mode = BlendMode::Additive;
+    });
+}
+
+fn edit_texture(registry: &mut FrameRegistry, name: &str, edit: impl FnOnce(&mut TextureData)) {
+    let Some(id) = registry.get_by_name(name) else {
+        return;
     };
-    let tooltip_h = 2.0 * TOOLTIP_INSET + TOOLTIP_LINE_H * 2.0;
-    rsx! {
-        r#frame {
-            name: "WorldMapPinTooltip",
-            width: {TOOLTIP_W},
-            height: {tooltip_h},
-            hidden: hide,
-            background_color: TOOLTIP_BG,
-            pos_type: "absolute",
-            right: {-(-CANVAS_INSET - 8.0)},
-            bottom: {CANVAS_INSET + 8.0},
-            {pin_tooltip_line("WorldMapPinTooltipTitle", title, 11.0, TOOLTIP_TITLE_COLOR, -TOOLTIP_INSET)}
-            {pin_tooltip_line("WorldMapPinTooltipType", subtitle, 9.0, TOOLTIP_TEXT_COLOR, -(TOOLTIP_INSET + TOOLTIP_LINE_H))}
-        }
+    if let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
+    {
+        edit(texture);
     }
 }
 
-// --- Close button ---
-
-fn close_button() -> Element {
-    rsx! {
-        r#frame {
-            name: "WorldMapCloseBtn",
-            width: {CLOSE_BTN_SIZE},
-            height: {CLOSE_BTN_SIZE},
-            onclick: ACTION_WORLD_MAP_CLOSE,
-            background_color: CLOSE_BTN_BG,
-            pos_type: "absolute",
-            right: {-(-CLOSE_BTN_INSET)},
-            top: {-(-(HEADER_H - CLOSE_BTN_SIZE) / 2.0)},
-            fontstring {
-                name: "WorldMapCloseBtnText",
-                width: {CLOSE_BTN_SIZE},
-                height: {CLOSE_BTN_SIZE},
-                text: "X",
-                font_size: 12.0,
-                font_color: CLOSE_BTN_TEXT,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-        }
-    }
+/// Textures a state draws, for hosts that cache textures on demand.
+pub fn world_map_texture_fdids(state: &WorldMapFrameState) -> Vec<u32> {
+    let mut fdids = art::CHROME_FDIDS.to_vec();
+    fdids.extend(state.tiles.iter().map(|tile| tile.fdid));
+    fdids.extend(
+        state
+            .highlight
+            .as_ref()
+            .map(|highlight| highlight.fdid)
+            .filter(|fdid| *fdid != 0),
+    );
+    fdids.sort_unstable();
+    fdids.dedup();
+    fdids
 }
 
 #[cfg(test)]
