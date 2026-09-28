@@ -51,7 +51,7 @@ pub struct M2ParticleEmitter {
     pub texture_fdid: Option<u32>,
     pub multi_texture: Option<M2ParticleMultiTexture>,
     pub blend_type: u8,
-    /// 0 = plane, 1 = sphere, 2 = spline.
+    /// 1 = plane, 2 = sphere, 3 = spline (WebWowViewerCpp `particleEmitter.cpp:128-136`).
     pub emitter_type: u8,
     /// 0 = normal billboard, 1 = origin->position trail quad, others rare/legacy.
     pub particle_type: u8,
@@ -130,6 +130,16 @@ pub struct M2ParticleEmitter {
     pub head_cell_track: [u16; 3],
     /// Simple flipbook cell track used by some emitters for tail particles.
     pub tail_cell_track: [u16; 3],
+    /// Head flipbook cell keys as (normalized time, cell); empty when unauthored.
+    pub head_cell_keys: Vec<(f32, u16)>,
+    /// Tail flipbook cell keys as (normalized time, cell); empty when unauthored.
+    pub tail_cell_keys: Vec<(f32, u16)>,
+    /// EXP2 colour multiplier (1 without an EXP2 record).
+    pub color_mult: f32,
+    /// EXP2 opacity multiplier (1 without an EXP2 record).
+    pub alpha_mult: f32,
+    /// EXP2 alpha cutoff keys as (normalized time, cutoff 0-1).
+    pub alpha_cutoff_keys: Vec<(f32, f32)>,
     /// Additional size multiplier baked into the emitter definition.
     pub burst_multiplier: f32,
     /// Midpoint (0–1) between start→mid vs mid→end interpolation.
@@ -431,6 +441,12 @@ fn read_fake_animblock_keys<T>(
     keys
 }
 
+fn read_cell_keys(md20: &[u8], emitter: &[u8], off: usize) -> Vec<(f32, u16)> {
+    read_fake_animblock_keys(md20, emitter, off, 2, |md20, value_offset| {
+        read_u16(md20, value_offset).unwrap_or(0)
+    })
+}
+
 /// Read midpoint from color FakeAnimBlock timestamps (normalized 0–32767 → 0–1).
 fn read_midpoint(md20: &[u8], emitter: &[u8], off: usize) -> f32 {
     let count = read_u32(emitter, off).unwrap_or(0);
@@ -550,6 +566,8 @@ fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     em.twinkle_scale_max = read_f32(data, EMITTER_TWINKLE_SCALE_MAX_OFFSET).unwrap_or(1.0);
     em.head_cell_track = read_u16_values(md20, data, EMITTER_HEAD_CELL_TRACK_OFFSET);
     em.tail_cell_track = read_u16_values(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
+    em.head_cell_keys = read_cell_keys(md20, data, EMITTER_HEAD_CELL_TRACK_OFFSET);
+    em.tail_cell_keys = read_cell_keys(md20, data, EMITTER_TAIL_CELL_TRACK_OFFSET);
     em.burst_multiplier = match read_f32(data, EMITTER_BURST_MULTIPLIER_OFFSET).unwrap_or(0.0) {
         value if value > 0.0 => value,
         _ => 1.0,
@@ -644,6 +662,38 @@ pub fn parse_particle_emitters(md20: &[u8]) -> Vec<M2ParticleEmitter> {
         }
     }
     emitters
+}
+
+/// EXP2 `Exp2Record`: zSource, colorMult, alphaMult, then an alphaCutoff
+/// `M2PartTrack<fixed16>` (two M2Arrays).
+const EXP2_RECORD_STRIDE: usize = 28;
+
+/// With an EXP2 chunk the client takes each emitter's zSource from its EXP2
+/// record, not the MD20 track (WebWowViewerCpp `animationManager.cpp`,
+/// `M2Object::initParticleEmitters`), and multiplies colour and opacity by the
+/// record's colorMult/alphaMult (`particleEmitter.cpp:317-318`, fragment
+/// `m2ParticleShader.frag.slang:94`). Array offsets are relative to the chunk.
+pub fn apply_exp2_z_sources(emitters: &mut [M2ParticleEmitter], exp2: &[u8]) {
+    let Ok((count, offset)) = read_m2_array_header(exp2, 0) else {
+        return;
+    };
+    for (i, emitter) in emitters.iter_mut().enumerate().take(count) {
+        let record = offset + i * EXP2_RECORD_STRIDE;
+        let (Ok(z_source), Ok(color_mult), Ok(alpha_mult)) = (
+            read_f32(exp2, record),
+            read_f32(exp2, record + 4),
+            read_f32(exp2, record + 8),
+        ) else {
+            continue;
+        };
+        emitter.z_source = z_source;
+        emitter.color_mult = color_mult;
+        emitter.alpha_mult = alpha_mult;
+        emitter.alpha_cutoff_keys =
+            read_fake_animblock_keys(exp2, exp2, record + 12, 2, |exp2, at| {
+                read_i16(exp2, at).map(fixed16_to_f32).unwrap_or(0.0)
+            });
+    }
 }
 
 fn emitter_stride(version: u32) -> usize {

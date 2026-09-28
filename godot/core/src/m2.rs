@@ -1,10 +1,11 @@
 //! Authored M2 model and primary skin, with coordinates left in WoW model space.
 use crate::asset::m2_batch_data::{self, BatchInputs, ResolvedBatch};
-use crate::asset::m2_format::{self as format, m2_anim, m2_attach};
+use crate::asset::m2_format::{self as format, m2_anim, m2_attach, m2_particle};
 use format::parser::TextureTables;
 
 pub use format::m2_collision::M2CollisionMesh;
 pub use format::m2_variation::VariationFamily;
+pub use m2_particle::M2ParticleEmitter as ParticleEmitter;
 
 #[derive(Debug)]
 pub struct Vertex {
@@ -61,6 +62,8 @@ pub struct Model {
     pub bounding_box_min: [f32; 3],
     pub bounding_box_max: [f32; 3],
     pub collision: Option<M2CollisionMesh>,
+    /// MD20 particle emitters with their TXID texture FDIDs resolved.
+    pub particle_emitters: Vec<ParticleEmitter>,
 }
 
 /// Resolve authored skin batches in the same draw order and opacity policy as the Bevy renderer.
@@ -297,6 +300,12 @@ pub fn parse_model_with_skeleton(
         parse_attachments(chunks.md20, skeleton_ska1.or(chunks.ska1))?;
     let (bounding_box_min, bounding_box_max) = format::parse_bounding_box(chunks.md20);
     let collision = format::m2_collision::parse_collision_mesh(chunks.md20)?;
+    let texture_fdids = chunks.txid.map(format::parse_txid).unwrap_or_default();
+    let mut particle_emitters = m2_particle::parse_particle_emitters(chunks.md20);
+    m2_particle::resolve_texture_fdids(&mut particle_emitters, &texture_fdids);
+    if let Some(exp2) = chunks.exp2 {
+        m2_particle::apply_exp2_z_sources(&mut particle_emitters, exp2);
+    }
     Ok(Model {
         vertices: vertices
             .into_iter()
@@ -334,7 +343,7 @@ pub fn parse_model_with_skeleton(
         bone_tracks,
         global_sequences,
         texture_types: format::parse_texture_types(chunks.md20)?,
-        texture_fdids: chunks.txid.map(format::parse_txid).unwrap_or_default(),
+        texture_fdids,
         texture_lookup: format::parse_texture_lookup(chunks.md20)?,
         texture_unit_lookup: format::parse_texture_unit_lookup(chunks.md20)?,
         transparency_lookup: format::parse_transparency_lookup(chunks.md20)?,
@@ -350,5 +359,6 @@ pub fn parse_model_with_skeleton(
         bounding_box_min,
         bounding_box_max,
         collision,
+        particle_emitters,
     })
 }
