@@ -227,6 +227,18 @@ The portal visual is recorded in [stockade-entrance](../investigations/stockade-
 
 Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x40000), spline and model particles, follow/inherit velocity, TXAC variants, alpha-cutoff discard, lit particles, fog, per-particle depth sorting.
 
+## Frame failure policy
+
+`GameClient::process` runs its per-frame steps from one table; each step runs even when an earlier one failed. Errors are typed in `godot/rust/src/frame_error.rs`:
+
+- `SessionError` is returned only by `Account`'s transport API (`connect`, `poll`, `send_*`, `finish_world_port`, `stop`). The compiler rejects `?` from it into a `String`, so every caller that sends to the server returns `FrameError`.
+- `FrameError::Session` stops the account, shows the error on the login status and ends the frame. `FrameError::Client` (any other failure, converted from `String`) is logged once through `report_once` and the session continues.
+- `poll_account` applies each drained `AccountEvent` on its own, so one failing event no longer drops the rest of the batch.
+
+Assets are handled where they load and cached as absent, like the Bevy client (`wow_cursor.rs` `load_cursor_image` warns and leaves the handle `None`): cursor art falls back to the system cursor, the target ring is not drawn, UI projection textures leave an empty part, UI fonts keep Godot's default, and spell chrome missing from CASC draws absent instead of closing the spell UI every frame. Terrain map and tile load failures are logged once; per-tile materials (`7430b9a4`), WMO batches and ADT objects already skip per item. The Godot client plays no sounds yet, so there is no sound load path.
+
+Before this, one missing cursor BLP (FDID 4675621) stopped the account and every later frame logged "No active account connection". Test hook `GameClient.override_texture_fdid("cursor"|"target_ring", fdid)` drives `godot/tests/missing_asset_session.gd`.
+
 ## Sources
 
 - [Godot conversion specification](../../specs/godot-conversion.md) — acceptance target and current capability/proof matrix.
