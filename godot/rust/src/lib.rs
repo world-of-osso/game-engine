@@ -649,6 +649,9 @@ impl GameClient {
             state.set("visual", visual);
             state.set("animation", animation.map_or(-1, i64::from));
         }
+        if let Some(rate) = self.world.unit_animation_rate(id as u64) {
+            state.set("animation_rate", rate);
+        }
         state
     }
 

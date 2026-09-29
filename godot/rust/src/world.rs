@@ -721,6 +721,17 @@ impl WorldUnits {
         Some((display_id, unit.visual.is_some(), unit.animation))
     }
 
+    /// The playback rate of an NPC's current clip (movement clips follow its speed).
+    pub fn unit_animation_rate(&self, id: u64) -> Option<f32> {
+        self.units
+            .get(&id)?
+            .visual
+            .as_ref()?
+            .try_get_node_as::<WowAnimationPlayer>("NpcModel/M2Animation")?
+            .bind()
+            .playback_rate()
+    }
+
     pub fn unit_node(&self, id: u64) -> Option<Gd<Node3D>> {
         Some(self.units.get(&id)?.node.clone())
     }

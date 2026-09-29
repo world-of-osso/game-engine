@@ -341,12 +341,17 @@ impl AnimationState {
         self.locomotion_speed = speed;
     }
 
-    pub fn advance(&mut self, delta_ms: f64) -> Result<(), String> {
-        let mut state = self.random_state;
-        let rate = locomotion_playback_rate(
+    /// The current sequence's playback rate: 1 unless a paced movement clip.
+    pub fn playback_rate(&self) -> f32 {
+        locomotion_playback_rate(
             self.sequences[self.current].movespeed,
             self.locomotion_speed,
-        );
+        )
+    }
+
+    pub fn advance(&mut self, delta_ms: f64) -> Result<(), String> {
+        let mut state = self.random_state;
+        let rate = self.playback_rate();
         let result = self.advance_with_roll(delta_ms * f64::from(rate), |upper| {
             sample_roll(&mut state, upper)
         });
@@ -542,6 +547,10 @@ impl WowAnimationPlayer {
             self.write_poses();
         }
         Ok(())
+    }
+
+    pub(crate) fn playback_rate(&self) -> Option<f32> {
+        self.animation.as_ref().map(AnimationState::playback_rate)
     }
 
     pub(crate) fn set_locomotion_speed(&mut self, speed: Option<f32>) {
