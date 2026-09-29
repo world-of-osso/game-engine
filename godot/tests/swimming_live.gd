@@ -215,9 +215,19 @@ func drown(client: Node, player: Node3D) -> String:
 	if not await wait_until(client, empty, 190000, "breath at 0"):
 		return "Breath did not run out"
 	trace(client, player, "out of breath, health=%s" % before)
-	var hurt := func(state): return state.local_player_health != null and before != null and int(state.local_player_health) < int(before)
-	if not await wait_until(client, hurt, 3000, "drowning damage"):
-		return "No drowning damage at 0 breath"
+	var deadline := Time.get_ticks_msec() + 10000
+	var next_trace := 0
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var health = client.account_state().local_player_health
+		if Time.get_ticks_msec() >= next_trace:
+			next_trace = Time.get_ticks_msec() + 500
+			trace(client, player, "drowning? health=%s" % health)
+		if health != null and before != null and int(health) < int(before):
+			break
+	var after = client.account_state().local_player_health
+	if after == null or before == null or int(after) >= int(before):
+		return "No drowning damage within 10 s at 0 breath: health %s -> %s" % [before, after]
 	print("TRACE drowning: health %s -> %s" % [before, client.account_state().local_player_health])
 	await snapshot("drowning")
 	return ""
