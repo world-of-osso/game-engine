@@ -378,7 +378,50 @@ func cast_frostbolt() -> bool:
 	await capture("12-frostbolt-impact.png")
 	var visuals: Dictionary = client.spell_visuals_state()
 	print("FIXTURE FROSTBOLT ", visuals)
-	return check_frostbolt_flight(visuals.flights)
+	return check_frostbolt_flight(visuals.flights) and check_frostbolt_sounds(visuals)
+
+## Frostbolt's SoundKits (SpellVisualKitEffect type 5): the precast kit 81575 starts
+## 85501 (precast_start) and loops 85500 (precast_loop) with the cast bar, the cast kit
+## 81337 plays 85502 (cast) at SpellGo and the impact kit 80718 plays 85503 (impact)
+## as the missile lands; the loop is gone once the cast resolves.
+func check_frostbolt_sounds(visuals: Dictionary) -> bool:
+	const FRAME_S := 1.0 / 15.0
+	var flight: Dictionary = visuals.flights.filter(func(f): return f.spell == FROSTBOLT and f.caster == local_id)[-1]
+	var go: float = flight.released_at - flight.release_delay
+	var landed: float = flight.released_at + flight.flight_time
+	var expected := {
+		85501: [1631391, 1631394, local_id, false],
+		85500: [1631387, 1631390, local_id, true],
+		85502: [1631379, 1631382, local_id, false],
+		85503: [1631383, 1631386, target_id, false],
+	}
+	var at := {}
+	for sound in visuals.sounds:
+		if sound.spell != FROSTBOLT:
+			continue
+		print("FIXTURE FROSTBOLT_SOUND kit=%d sound_kit=%d fdid=%d unit=%d looping=%s at=%.3f (SpellGo %+.3f)" % [sound.kit, sound.sound_kit, sound.fdid, sound.unit, sound.looping, sound.at, sound.at - go])
+		var want: Array = expected.get(sound.sound_kit, [])
+		if want.is_empty() or sound.fdid < want[0] or sound.fdid > want[1] or sound.unit != want[2] or sound.looping != want[3]:
+			fail("Unexpected Frostbolt sound: " + str(sound))
+			return false
+		at[sound.sound_kit] = sound.at
+	if at.size() != expected.size():
+		fail("Frostbolt sound kits played: %s, expected %s" % [at.keys(), expected.keys()])
+		return false
+	if at[85500] > go - 1.0 or absf(at[85501] - at[85500]) > 0.001:
+		fail("Precast sounds did not start with the cast bar: %s, SpellGo %.3f" % [at, go])
+		return false
+	if absf(at[85502] - go) > FRAME_S:
+		fail("Cast sound %.3f is not at SpellGo %.3f" % [at[85502], go])
+		return false
+	if absf(at[85503] - landed) > FRAME_S:
+		fail("Impact sound %.3f is not at the landing %.3f" % [at[85503], landed])
+		return false
+	var loops := client.find_children("SpellSound*", "", true, false).filter(func(node): return int(str(node.name).trim_prefix("SpellSound")) in range(1631387, 1631391))
+	if not loops.is_empty():
+		fail("Precast loop still playing after the cast: " + str(loops))
+		return false
+	return true
 
 ## The missile leaves at SpellCastDirected's `$CSL` release event (200 ms into the clip
 ## the SpellGo starts) and flies distance / 35 yd/s (`SpellMisc.Speed`). Tolerance:
