@@ -64,10 +64,13 @@ func click_option(client: Node, name: String) -> void:
 	await click(control)
 
 func set_slider_end(client: Node, maximum: bool) -> void:
-	var slider := option_control(client, "Sliderframe_rate_limit")
+	await set_option_slider_end(client, "Sliderframe_rate_limit", maximum)
+
+func set_option_slider_end(client: Node, name: String, maximum: bool) -> bool:
+	var slider := option_control(client, name)
 	if slider == null or not slider.is_visible_in_tree():
-		fail("Authored frame rate slider missing")
-		return
+		fail("Authored Graphics slider missing: " + name)
+		return false
 	var rect := slider.get_global_rect()
 	var start := rect.get_center()
 	var end := Vector2(rect.end.x + 10.0 if maximum else rect.position.x - 10.0, start.y)
@@ -89,7 +92,38 @@ func set_slider_end(client: Node, maximum: bool) -> void:
 	press.global_position = end
 	press.pressed = false
 	root.push_input(press, true)
-	await process_frame
+	for frame in range(3):
+		await process_frame
+	return true
+
+func saved_option_value(path: String, key: String) -> String:
+	var pattern := RegEx.new()
+	pattern.compile("(?m)^\\s*" + key + ":\\s*([^,\\n]+)\\s*,")
+	var found := pattern.search(FileAccess.get_file_as_string(path))
+	return found.get_string(1).strip_edges() if found != null else ""
+
+func capture_options_pixels(client: Node, directory: String, filename: String) -> Image:
+	if not directory.contains("/data/diagnostics/"):
+		fail("Options captures require owned data/diagnostics directory")
+		return null
+	var menu := client.get_node_or_null("GameMenuUI") as CanvasLayer
+	if menu == null:
+		fail("Options capture requires real GameMenuUI")
+		return null
+	var was_visible := menu.visible
+	menu.hide()
+	for frame in range(3):
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	menu.visible = was_visible
+	var error := DirAccess.make_dir_recursive_absolute(directory)
+	if error == OK:
+		error = image.save_png(directory.path_join(filename))
+	if error != OK:
+		fail("Save Options capture " + filename + ": " + error_string(error))
+		return null
+	return image
 
 func expect_display(vsync: DisplayServer.VSyncMode, fps: int, stage: String) -> bool:
 	var actual_vsync := DisplayServer.window_get_vsync_mode()
