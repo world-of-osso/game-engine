@@ -1783,7 +1783,6 @@ The Godot client interacts with NPCs: right-click targets and sends `InteractNpc
 ## [2026-09-29] feature | Godot remote player locomotion
 
 Other players in the Godot client walk, run, backpedal, strafe, swim and jump: the server replicates `PlayerMotion` (Retail `MovementFlags`) and `WorldUnits` drives each remote model every frame through the local player's selector and jump sequence. Live proof with two headless clients on a private server. See [animation](systems/animation.md#native-godot-remote-player-locomotion).
-||||||| 749bcc87
 
 ## [2026-09-28] feature | Godot TargetFrame at the Retail preset, UIParent HUD scale
 
