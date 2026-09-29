@@ -241,20 +241,14 @@ func _dispose_on_render_thread() -> void:
 	if _disposed:
 		return
 	_disposed = true
-	_release(_rd, _owned_rids())
+	var owned: Array[RID] = []
+	owned.assign(_textures + _pipelines + _shaders)
+	owned.append(_sampler)
+	_release(_rd, owned)
 	_textures.clear()
 	_shaders.clear()
 	_pipelines.clear()
 	_sampler = RID()
-
-
-func _owned_rids() -> Array[RID]:
-	var owned: Array[RID] = []
-	owned.append_array(_textures)
-	owned.append_array(_pipelines)
-	owned.append_array(_shaders)
-	owned.append(_sampler)
-	return owned
 
 
 static func _release(rd: RenderingDevice, rids: Array[RID]) -> void:
@@ -267,5 +261,9 @@ static func _release(rd: RenderingDevice, rids: Array[RID]) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE and _rd != null and not _disposed:
-		# Capture only device and handles, not a callable on the dying resource.
-		RenderingServer.call_on_render_thread(_release.bind(_rd, _owned_rids()))
+		# PREDELETE cannot call instance methods: the script's base instance is
+		# already null. Capture handles directly and bind only the static release.
+		var owned: Array[RID] = []
+		owned.assign(_textures + _pipelines + _shaders)
+		owned.append(_sampler)
+		RenderingServer.call_on_render_thread(_release.bind(_rd, owned))
