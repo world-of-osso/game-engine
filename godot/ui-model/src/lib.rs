@@ -21,9 +21,9 @@ pub mod ui {
         pub use crate::{
             bag_frame_component, default_button_atlas, game_menu_component,
             inworld_unit_frames_component, menu_primitives, merchant_frame_component,
-            options_menu_active_sections, options_menu_component, options_menu_sections, quest_art,
-            stack_split_frame_component, trash_button_component, world_map_frame_art,
-            world_map_frame_component,
+            objective_tracker_component, options_menu_active_sections, options_menu_component,
+            options_menu_sections, quest_art, stack_split_frame_component, trash_button_component,
+            world_map_frame_art, world_map_frame_component,
         };
 
         #[cfg(test)]
@@ -126,6 +126,11 @@ pub mod bag_frame_component;
 pub mod merchant_frame_component;
 #[path = "../../../src/ui/screens/quest_art.rs"]
 pub mod quest_art;
+
+// Minimap cluster and objective tracker (docs/specs/minimap.md, quest-ui.md).
+pub mod minimap;
+#[path = "../../../src/ui/screens/objective_tracker_component.rs"]
+pub mod objective_tracker_component;
 #[path = "../../../src/ui/screens/stack_split_frame_component.rs"]
 pub mod stack_split_frame_component;
 
