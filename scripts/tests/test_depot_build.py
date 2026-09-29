@@ -184,6 +184,9 @@ class DepotBuildTests(unittest.TestCase):
                            DEPOT_TEST_LOG="3 passed")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("test result: 3 passed", result.stdout)
+        saved = self.root / "target/depot-test.log"
+        self.assertIn(f"Full log: {saved}", result.stdout)
+        self.assertEqual(saved.read_text(), "test result: 3 passed\n")
         build, staged = self.records()
         args = build["args"]
         self.assertEqual(args[args.index("--target") + 1], "test-result")
@@ -214,6 +217,20 @@ class DepotBuildTests(unittest.TestCase):
         staged = [record for record in self.records() if "assets" in record]
         self.assertEqual(staged[0]["asset_dir"], staged[1]["asset_dir"])
         self.assertEqual(staged[1]["assets"], {"models/boar.m2": "boar model v2"})
+
+    def test_restaging_a_replaced_asset_never_writes_through_to_the_old_file(self):
+        first = self.run_test_mode()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        source = self.root / "data/models/boar.m2"
+        kept = self.base / "kept-old-boar.m2"
+        os.link(source, kept)
+        source.unlink()
+        source.write_text("replacement boar")
+        os.utime(source, ns=(1_900_000_000_000_000_000,) * 2)
+        second = self.run_test_mode()
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual(kept.read_text(), "boar model")
+        self.assertEqual(self.records()[-1]["assets"]["models/boar.m2"], "replacement boar")
 
     def test_test_mode_rejects_missing_or_escaping_assets_before_depot(self):
         for listed, message in (("models/absent.m2", "data/models/absent.m2"), ("../.env", "inside data/")):
