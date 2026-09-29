@@ -39,3 +39,35 @@ pub fn direction_to_anim_id(dir: MoveDirection, running: bool, swimming: bool) -
         MoveDirection::Right => ANIM_SHUFFLE_RIGHT,
     }
 }
+
+/// Playback rate of a movement clip authored for `movespeed` yd/s (M2 sequence
+/// `movespeed`) on a unit moving at `speed` yd/s, so its feet keep pace with the ground:
+/// a Run authored at 7 yd/s plays at 3/7 on a unit slowed to 3 yd/s. A clip without a
+/// movespeed (Stand, emotes) or a unit with no known speed plays at 1.
+pub fn locomotion_playback_rate(movespeed: f32, speed: Option<f32>) -> f32 {
+    match speed {
+        Some(speed) if movespeed > 0.0 && speed > 0.0 => speed / movespeed,
+        _ => 1.0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn movement_clips_play_at_the_units_speed_over_their_authored_speed() {
+        // Orc male HD (949470.skel) Run: movespeed 7.0; Blackrock Spy chilled 3, free 6.
+        assert_eq!(locomotion_playback_rate(7.0, Some(3.0)), 3.0 / 7.0);
+        assert_eq!(locomotion_playback_rate(7.0, Some(6.0)), 6.0 / 7.0);
+        // Sheep (1377131.m2) Walk: movespeed 1.1111; wandering at 2.5 yd/s.
+        assert!((locomotion_playback_rate(1.111_111_2, Some(2.5)) - 2.25).abs() < 1e-5);
+    }
+
+    #[test]
+    fn clips_without_a_movespeed_or_units_without_a_speed_play_at_one() {
+        assert_eq!(locomotion_playback_rate(0.0, Some(6.0)), 1.0);
+        assert_eq!(locomotion_playback_rate(7.0, None), 1.0);
+        assert_eq!(locomotion_playback_rate(7.0, Some(0.0)), 1.0);
+    }
+}
