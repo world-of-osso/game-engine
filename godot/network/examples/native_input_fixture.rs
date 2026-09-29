@@ -20,12 +20,15 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Player, Position,
+        EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Gold, ModelDisplay, Npc,
+        Player, Position,
     },
     protocol::{
-        ActionBarSnapshot, ActionRef, AuthChannel, CharacterListEntry, EnterWorldResponse,
-        KnownSpellsSnapshot, LoadTerrain, LoginRequest, LoginResponse, PlayerInput,
-        SelectCharacter, TalentChannel, TerrainChannel,
+        ActionBarSnapshot, ActionRef, AuthChannel, BagContents, CharacterListEntry,
+        CloseInteraction, EnterWorldResponse, InteractNpc, InteractionChannel, InteractionKind,
+        InteractionOpened, InventoryChannel, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
+        LoginRequest, LoginResponse, MerchantChannel, NpcFlags, NpcRole, PlayerInput,
+        SelectCharacter, TalentChannel, TerrainChannel, VendorInventory, VendorItem,
     },
 };
 
@@ -35,6 +38,8 @@ mod footsteps;
 mod logout;
 #[path = "native_input_fixture/menu.rs"]
 mod menu;
+#[path = "native_input_fixture/merchant_click.rs"]
+mod merchant_click;
 #[path = "native_input_fixture/reset_windows.rs"]
 mod reset_windows;
 #[path = "native_input_fixture/sound.rs"]
@@ -69,6 +74,7 @@ enum StartupScreen {
     Logout,
     Sound,
     SoundClick,
+    MerchantClick,
     Footsteps,
     ResetWindows,
 }
@@ -85,11 +91,12 @@ impl StartupScreen {
             Some("logout") => Self::Logout,
             Some("sound") => Self::Sound,
             Some("sound-click") => Self::SoundClick,
+            Some("merchant-click") => Self::MerchantClick,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, footsteps or reset-windows"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, footsteps or reset-windows"
                 )
             }
         };
@@ -109,6 +116,7 @@ impl StartupScreen {
             | Self::Logout
             | Self::Sound
             | Self::SoundClick
+            | Self::MerchantClick
             | Self::Footsteps
             | Self::ResetWindows => "inworld",
         }
@@ -121,6 +129,9 @@ struct Incoming {
     connection: Option<Entity>,
     selections: Vec<SelectCharacter>,
     inputs: Vec<PlayerInput>,
+    interactions: Vec<InteractNpc>,
+    closes: Vec<CloseInteraction>,
+    vendor: Option<Entity>,
     /// A moving or jumping input arrived whose release no stop input has reported yet.
     unreported_release: bool,
     stops: u32,
@@ -130,6 +141,8 @@ fn receive_requests(
     mut logins: Query<(Entity, &mut MessageReceiver<LoginRequest>)>,
     mut selections: Query<&mut MessageReceiver<SelectCharacter>>,
     mut inputs: Query<&mut MessageReceiver<PlayerInput>>,
+    mut interactions: Query<&mut MessageReceiver<InteractNpc>>,
+    mut closes: Query<&mut MessageReceiver<CloseInteraction>>,
     mut incoming: ResMut<Incoming>,
 ) {
     for (entity, mut receiver) in &mut logins {
@@ -142,6 +155,12 @@ fn receive_requests(
     }
     for mut receiver in &mut inputs {
         incoming.inputs.extend(receiver.receive());
+    }
+    for mut receiver in &mut interactions {
+        incoming.interactions.extend(receiver.receive());
+    }
+    for mut receiver in &mut closes {
+        incoming.closes.extend(receiver.receive());
     }
 }
 
@@ -223,7 +242,10 @@ impl FixtureConfig {
         }
         if matches!(
             screen,
-            StartupScreen::Sound | StartupScreen::SoundClick | StartupScreen::Footsteps
+            StartupScreen::Sound
+                | StartupScreen::SoundClick
+                | StartupScreen::MerchantClick
+                | StartupScreen::Footsteps
         ) {
             fs::write(
                 config.home.join("world-of-osso/options_settings.ron"),
@@ -250,6 +272,19 @@ impl Drop for FixtureConfig {
     }
 }
 
+fn fixture_script(screen: StartupScreen) -> &'static str {
+    match screen {
+        StartupScreen::ResetWindows => "res://tests/options_reset_windows.gd",
+        StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
+        StartupScreen::SoundClick => "res://tests/world_spell_click_flow.gd",
+        StartupScreen::Sound => "res://tests/world_sound_flow.gd",
+        StartupScreen::Footsteps => "res://tests/world_footsteps_flow.gd",
+        StartupScreen::Logout => "res://tests/world_logout_flow.gd",
+        StartupScreen::Menu => "res://tests/world_menu_flow.gd",
+        _ => "res://tests/world_input_flow.gd",
+    }
+}
+
 fn launch_godot(
     root: &Path,
     project: &Path,
@@ -262,6 +297,7 @@ fn launch_godot(
         screen,
         StartupScreen::Sound
             | StartupScreen::SoundClick
+            | StartupScreen::MerchantClick
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
     ) {
@@ -286,27 +322,14 @@ fn launch_godot(
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
-            if screen == StartupScreen::ResetWindows {
-                "res://tests/options_reset_windows.gd"
-            } else if screen == StartupScreen::SoundClick {
-                "res://tests/world_spell_click_flow.gd"
-            } else if screen == StartupScreen::Sound {
-                "res://tests/world_sound_flow.gd"
-            } else if screen == StartupScreen::Footsteps {
-                "res://tests/world_footsteps_flow.gd"
-            } else if screen == StartupScreen::Logout {
-                "res://tests/world_logout_flow.gd"
-            } else if screen == StartupScreen::Menu {
-                "res://tests/world_menu_flow.gd"
-            } else {
-                "res://tests/world_input_flow.gd"
-            },
+            fixture_script(screen),
         ])
         .args(
             if matches!(
                 screen,
                 StartupScreen::Sound
                     | StartupScreen::SoundClick
+                    | StartupScreen::MerchantClick
                     | StartupScreen::Footsteps
                     | StartupScreen::ResetWindows
             ) {
@@ -509,6 +532,27 @@ fn respond_to_selection(
                 Replicate::to_clients(NetworkTarget::All),
             ))
             .id();
+        if screen == StartupScreen::MerchantClick {
+            app.world_mut().entity_mut(player).insert(Gold(1250));
+            let vendor = app
+                .world_mut()
+                .spawn((
+                    Npc {
+                        template_id: 1213,
+                        name: "Fixture Vendor".into(),
+                    },
+                    NpcFlags(NpcFlags::VENDOR),
+                    ModelDisplay { display_id: 26 },
+                    Position {
+                        x: FIRST[0] - 2.0,
+                        y: FIRST[1] + 0.1,
+                        z: FIRST[2] + 3.0,
+                    },
+                    Replicate::to_clients(NetworkTarget::All),
+                ))
+                .id();
+            app.world_mut().resource_mut::<Incoming>().vendor = Some(vendor);
+        }
         if screen == StartupScreen::SoundClick {
             app.world_mut()
                 .entity_mut(player)
@@ -1137,6 +1181,7 @@ fn main() {
         screen,
         StartupScreen::Sound
             | StartupScreen::SoundClick
+            | StartupScreen::MerchantClick
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
     ) {
@@ -1148,11 +1193,17 @@ fn main() {
     }
     let reset_project = matches!(
         screen,
-        StartupScreen::ResetWindows | StartupScreen::SoundClick
+        StartupScreen::ResetWindows | StartupScreen::SoundClick | StartupScreen::MerchantClick
     )
     .then(|| {
-        reset_windows::FixtureProject::create(root, screen == StartupScreen::SoundClick)
-            .expect("stage isolated reset data and Godot project")
+        reset_windows::FixtureProject::create(
+            root,
+            matches!(
+                screen,
+                StartupScreen::SoundClick | StartupScreen::MerchantClick
+            ),
+        )
+        .expect("stage isolated reset data and Godot project")
     });
     let project = reset_project
         .as_ref()
@@ -1174,6 +1225,8 @@ fn main() {
         logout::run(&mut app, &mut child, lines, reader, root, address)
     } else if screen == StartupScreen::SoundClick {
         sound_click::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::MerchantClick {
+        merchant_click::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Sound {
         sound::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Footsteps {
