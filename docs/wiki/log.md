@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] evidence | Native bloom in progress
+
+Updated [[godot-conversion#native-bloom--bounded-in-progress-evidence]] and index only. Saved `06da11eb` native RED exits 1 after controls/persistence and disabled bright-source validation: no startup halo. Initial black unshaded-emission fixture was a corrected precondition, not a runtime bug. Public `POST_TRANSPARENT` compute probe exits 0 for linear tint, scale/resize, exact UI edges and disposal; Vulkan packed storage/sampling support is true. Both are feasibility evidence, not bloom. Test-only CPU reference `7b0d911e`/`6082282d` excludes packed rounding; reported 8604 assertions lack verified saved proof, so no pass credited. Integrated controller `72030edd`/Rust `90fc989b` remain pending effect/build acceptance. Recorded legacy HDR retention, RCAS `With<Camera>` query and filter semantics; no direct Godot Glow equivalent or full parity claim.
+
 ## [2026-09-29] verification | Bounded native RCAS rendered GREEN
 
 Recorded production `543ca754`, integrated `27727fa0`, and actual native fixture `94e7e02a` proof in [[godot-conversion#bounded-rcas-compatibility-investigation]]. Depot `9n5kpbsc6l` built in 62.1 seconds, exit 0; interrupted `zp1dlvr07r` supplies no compilation proof. Native Vulkan run exits 0 for startup 0.75/live 0.5 RCAS oracle, live 1.0 bypass, unchanged discriminating UI edge pixels, and finite opaque black patch. Main inspected the capture. Independent final evidence remains pending; full legacy scene parity and other outstanding Options remain open. Updated both conversion specs and index; recipes remain wiki-only.
