@@ -8,7 +8,9 @@ extends SceneTree
 ##   SPELL_SCENARIO=mage         a level-10 mage casts Frostbolt instead: the precast
 ##                               ReadySpellDirected loop (51) with hand models 1598571,
 ##                               the SpellCastDirected release (53), the missile 1598570
-##                               and the impact model 1599028 with the dummy's wound (9)
+##                               leaving at the clip's $CSL event (200 ms) and flying
+##                               distance / 35 yd/s, and the impact model 1599028 with
+##                               the dummy's wound (9)
 ## Tab targets the nearest dummy. Selecting it never attacks (TrinityCore
 ## HandleSetSelectionOpcode only sets the selection): for SELECTION_SECS neither unit
 ## plays a melee clip. The warrior right-clicks the dummy in melee range (`AttackSwing`;
@@ -374,7 +376,29 @@ func cast_frostbolt() -> bool:
 		return false
 	await wait_frames(4)
 	await capture("12-frostbolt-impact.png")
-	print("FIXTURE FROSTBOLT ", client.spell_visuals_state())
+	var visuals: Dictionary = client.spell_visuals_state()
+	print("FIXTURE FROSTBOLT ", visuals)
+	return check_frostbolt_flight(visuals.flights)
+
+## The missile leaves at SpellCastDirected's `$CSL` release event (200 ms into the clip
+## the SpellGo starts) and flies distance / 35 yd/s (`SpellMisc.Speed`). Tolerance:
+## one frame of the slowest recording rate (15 fps).
+func check_frostbolt_flight(flights: Array) -> bool:
+	const RELEASE_EVENT_S := 0.2
+	const FRAME_S := 1.0 / 15.0
+	var mine := flights.filter(func(f): return f.spell == FROSTBOLT and f.caster == local_id and f.flight_time >= 0.0)
+	if mine.is_empty():
+		fail("No finished Frostbolt flight: " + str(flights))
+		return false
+	var flight: Dictionary = mine[-1]
+	var expected: float = flight.distance / flight.speed
+	print("FIXTURE FROSTBOLT_FLIGHT release_delay=%.3f distance=%.2f speed=%.1f flight=%.3f expected=%.3f" % [flight.release_delay, flight.distance, flight.speed, flight.flight_time, expected])
+	if flight.release_delay < RELEASE_EVENT_S - 0.001 or flight.release_delay > RELEASE_EVENT_S + FRAME_S:
+		fail("Frostbolt left %.3f s after SpellGo, not at the 200 ms release event" % flight.release_delay)
+		return false
+	if flight.flight_time < expected - 0.001 or flight.flight_time > expected + FRAME_S:
+		fail("Frostbolt flew %.3f s over %.2f yd, not distance / speed" % [flight.flight_time, flight.distance])
+		return false
 	return true
 
 ## Battle Shout from its action button (the server's bar holds it at "-").

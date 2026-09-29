@@ -7,6 +7,11 @@
 //! unit swinging or casting on the move keeps its legs on the run cycle (Retail
 //! `AnimKitConfig` upper-body segments). Replacing an action mid-play crossfades from
 //! the pose it had reached and keeps the layer weight, so neither pops.
+//!
+//! A cast clip releases the caster's pending spell missiles at its first `$CSL`, `$CSR`
+//! or `$CST` M2 event (wowdev.wiki/M2 Events: "release_missiles_on_next_update if
+//! has_pending_missiles"); SpellCastDirected (53) of HumanMale/HumanFemale HD fires
+//! `$CSL` at 200 ms, as the arm thrusts.
 
 use std::collections::HashMap;
 
@@ -20,6 +25,9 @@ const UPPER_BODY_KEY_BONE: i32 = 4;
 /// Locomotion clips that leave the legs free for an action: Stand, the Ready stances
 /// (Unarmed/1H/2H/2HL) and SwimIdle.
 const STATIONARY_ANIMS: [u16; 6] = [0, 25, 26, 27, 28, 41];
+
+/// M2 events that release pending spell missiles (left hand, right hand, generic).
+const MISSILE_RELEASE_EVENTS: [&[u8; 4]; 3] = [b"$CSL", b"$CSR", b"$CST"];
 
 /// Which actions may replace a playing one: a spell's kit animation is not cut short
 /// by a melee swing or hit reaction arriving mid-cast; equal or higher priority
@@ -43,6 +51,22 @@ pub(super) struct ActionLayer {
     pub(super) upper: f32,
     pub(super) lower: f32,
     releasing: bool,
+    /// The clip's missile release event has yet to fire.
+    awaits_release: bool,
+}
+
+/// Per sequence: when its first missile release event fires (ms), if it has one.
+pub(super) fn missile_release_times(model: &m2::Model) -> Vec<Option<u32>> {
+    (0..model.sequences.len())
+        .map(|sequence| {
+            model
+                .events
+                .iter()
+                .filter(|event| MISSILE_RELEASE_EVENTS.contains(&&event.identifier))
+                .filter_map(|event| event.timestamps.get(sequence)?.iter().min().copied())
+                .min()
+        })
+        .collect()
 }
 
 /// Per bone: in the subtree of key bone SpineLow (all `false` when the model has none).
@@ -139,6 +163,7 @@ impl AnimationState {
             upper,
             lower,
             releasing: false,
+            awaits_release: self.release_ms[index].is_some(),
         });
         Ok(true)
     }
@@ -150,6 +175,13 @@ impl AnimationState {
         {
             action.releasing = true;
         }
+    }
+
+    /// The playing action clip has a missile release event that has not fired yet.
+    pub fn awaits_missile_release(&self) -> bool {
+        self.action
+            .as_ref()
+            .is_some_and(|action| action.awaits_release && !action.releasing)
     }
 
     /// The action clip playing or fading, if any.
@@ -169,6 +201,10 @@ impl AnimationState {
         };
         let duration = f64::from(self.sequences[action.index].duration);
         action.time_ms += delta_ms;
+        if self.release_ms[action.index].is_some_and(|release| action.time_ms >= f64::from(release))
+        {
+            action.awaits_release = false;
+        }
         if action.time_ms >= duration {
             if action.looping && duration > 0.0 {
                 action.time_ms %= duration;
