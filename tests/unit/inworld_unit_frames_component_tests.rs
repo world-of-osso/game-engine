@@ -13,10 +13,9 @@ use ui_toolkit::screen::Screen;
 const SECOND_ACTION_ROW_TOP: f32 = 1080.0 - 52.0 - 45.0 - 47.0;
 
 #[test]
-fn cluster_flanks_docked_cast_bar_above_action_bars_at_1080p() {
+fn player_frame_and_docked_cast_bar_sit_above_action_bars_at_1080p() {
     let reg = cluster_registry();
     let player = rect_by_name(&reg, "PlayerFrame");
-    let target = rect_by_name(&reg, "TargetFrame");
     let cast = rect_by_name(&reg, "PlayerCastingBarFrame");
 
     assert_eq!(
@@ -28,24 +27,26 @@ fn cluster_flanks_docked_cast_bar_above_action_bars_at_1080p() {
             height: 51.0,
         }
     );
+    assert_eq!(cast.x, player.x + player.width + CAST_DOCK_GAP);
+    assert_eq!(cast.x + cast.width / 2.0, 960.0, "cast dock is centred");
+    assert_eq!(cast.y + cast.height, player.y + player.height);
+    assert!(player.y + player.height < SECOND_ACTION_ROW_TOP);
+}
+
+/// Retail Modern preset TargetFrame BOTTOMLEFT at BOTTOM (300, 250); the portrait-off art
+/// sits 19 right and 35 up so its health slot matches the 232×100 frame's health bar.
+#[test]
+fn target_frame_sits_at_the_modern_preset() {
+    let reg = cluster_registry();
     assert_eq!(
-        target,
+        rect_by_name(&reg, "TargetFrame"),
         LayoutRect {
-            x: 1108.0,
-            y: 877.0,
+            x: 960.0 + 319.0,
+            y: 1080.0 - 285.0 - 51.0,
             width: 133.0,
             height: 51.0,
         }
     );
-    assert_eq!(cast.x, player.x + player.width + CAST_DOCK_GAP);
-    assert_eq!(cast.x + cast.width, target.x - CAST_DOCK_GAP);
-    assert_eq!(cast.y + cast.height, player.y + player.height);
-    assert_eq!(
-        player.x + player.width / 2.0 + target.x + target.width / 2.0,
-        1920.0,
-        "cluster is centred"
-    );
-    assert!(player.y + player.height < SECOND_ACTION_ROW_TOP);
 }
 
 #[test]
