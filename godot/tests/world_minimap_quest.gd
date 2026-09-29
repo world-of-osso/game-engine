@@ -54,7 +54,6 @@ func run_test() -> void:
 	# McBride accepts only within 10 yd, so accept before walking.
 	if not await check_tracker():
 		return
-	await capture("02-tracker-quest.png")
 	if not await check_arrow():
 		return
 	if not await check_zoom():
@@ -253,11 +252,64 @@ func check_tracker() -> bool:
 	if quest.lines.size() != 1 or not String(quest.lines[0]).begins_with("0/6 "):
 		fail("Tracker objective lines %s, expected one 0/6 line" % [quest.lines])
 		return false
+	await capture("02-tracker-quest.png")
+	if not await check_text_visible("QuestBlock%dHeaderText" % QUEST, Color(0.75, 0.61, 0.0)):
+		return false
+	if not await check_text_visible("QuestBlock%dLine0Text" % QUEST, Color(0.8, 0.8, 0.8)):
+		return false
 	var rect: Rect2 = state.rect
 	if not state.visible or abs(rect.end.x - (state.screen_width - 110.0)) > 0.5 or abs(rect.position.y - 275.0) > 0.5:
 		fail("Tracker at %s, expected TOPRIGHT (-110, -275) of %s" % [rect, state.screen_width])
 		return false
 	return true
+
+## A tracker label is drawn legibly: visible in the tree, opaque, its authored colour
+## (`OBJECTIVE_TRACKER_COLOR`), a shadow at (1, 1), a non-zero rect, and on screen at
+## least 20 more text-coloured and 15 more shadow pixels than the grass strip below.
+func check_text_visible(name: String, want: Color) -> bool:
+	var label = client.get_node("ObjectiveTrackerUI").find_child(name, true, false)
+	if not label is Label:
+		fail("Tracker label %s missing" % name)
+		return false
+	var color: Color = label.get_theme_color("font_color")
+	var shadow: Color = label.get_theme_color("font_shadow_color")
+	var rect: Rect2 = label.get_global_rect()
+	var alpha: float = label.modulate.a * label.self_modulate.a
+	if not label.is_visible_in_tree() or alpha < 0.99 or color.a < 0.99 or rect.size.x < 1.0 or rect.size.y < 1.0:
+		fail("%s hidden or empty: visible %s alpha %f colour %s rect %s" % [name, label.is_visible_in_tree(), alpha, color, rect])
+		return false
+	if abs(color.r - want.r) > 0.01 or abs(color.g - want.g) > 0.01 or abs(color.b - want.b) > 0.01:
+		fail("%s colour %s, expected %s" % [name, color, want])
+		return false
+	if shadow.a < 0.99 or label.get_theme_constant("shadow_offset_x") != 1 or label.get_theme_constant("shadow_offset_y") != 1:
+		fail("%s has no (1, 1) black shadow: %s" % [name, shadow])
+		return false
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	# The same-sized strip two text heights lower (grass under the tracker) is the
+	# background reference: glyph and shadow counts must exceed it.
+	var text := count_text_pixels(image, rect, want)
+	var background := count_text_pixels(image, Rect2(rect.position + Vector2(0, rect.size.y * 2.0), rect.size), want)
+	var glyph: int = text.x - background.x
+	var dark: int = text.y - background.y
+	print("FIXTURE TEXT ", name, " '", label.text, "' rect ", rect, " glyph px ", text.x, " (background ", background.x, ") shadow px ", text.y, " (background ", background.y, ")")
+	if glyph < 20 or dark < 15:
+		fail("%s not legible on screen: %d glyph and %d shadow pixels over the background" % [name, glyph, dark])
+		return false
+	return true
+
+## Pixels within 0.2 of `want` (8 px glyphs antialias) and dark
+## shadow pixels (r+g+b < 0.45) in `rect`.
+func count_text_pixels(image: Image, rect: Rect2, want: Color) -> Vector2i:
+	var counts := Vector2i.ZERO
+	for y in range(int(rect.position.y), int(rect.end.y) + 2):
+		for x in range(int(rect.position.x), int(rect.end.x) + 2):
+			var pixel := image.get_pixel(clampi(x, 0, image.get_width() - 1), clampi(y, 0, image.get_height() - 1))
+			if abs(pixel.r - want.r) < 0.2 and abs(pixel.g - want.g) < 0.2 and abs(pixel.b - want.b) < 0.2:
+				counts.x += 1
+			elif pixel.r + pixel.g + pixel.b < 0.45:
+				counts.y += 1
+	return counts
 
 func check_collapse() -> bool:
 	var ui: Node = client.get_node("ObjectiveTrackerUI")
