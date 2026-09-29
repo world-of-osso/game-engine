@@ -76,14 +76,7 @@ impl SpellSounds {
         let held = sound.looping && request.kit_held;
         let stream = self.stream(file.fdid, held, request.resolver, request.data_root)?;
         let volume = sound.volume * file.volume;
-        let mut player = AudioStreamPlayer3D::new_alloc();
-        player.set_name(&format!("SpellSound{}", file.fdid));
-        player.set_stream(&stream);
-        player.set_volume_linear(volume * self.gain);
-        // Full volume up to MinDistance (Godot's inverse attenuation is 1 at unit_size),
-        // silent past DistanceCutoff.
-        player.set_unit_size(sound.min_distance.max(0.1));
-        player.set_max_distance(sound.distance_cutoff);
+        let mut player = emitter(&stream, sound, file.fdid, volume * self.gain);
         request.parent.clone().add_child(&player);
         player.play();
         self.active.push(ActiveSound {
@@ -155,6 +148,23 @@ impl SpellSounds {
             }
         }
     }
+}
+
+/// A 3D player of `stream` at `gain`: full volume up to the kit's MinDistance (Godot's
+/// inverse attenuation is 1 at `unit_size`), silent past its DistanceCutoff.
+fn emitter(
+    stream: &Gd<AudioStream>,
+    sound: &KitSound,
+    fdid: u32,
+    gain: f32,
+) -> Gd<AudioStreamPlayer3D> {
+    let mut player = AudioStreamPlayer3D::new_alloc();
+    player.set_name(&format!("SpellSound{fdid}"));
+    player.set_stream(stream);
+    player.set_volume_linear(gain);
+    player.set_unit_size(sound.min_distance.max(0.1));
+    player.set_max_distance(sound.distance_cutoff);
+    player
 }
 
 /// The file `roll` picks, each file weighted by its `Frequency` (0: never).
