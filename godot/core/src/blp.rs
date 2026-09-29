@@ -31,7 +31,15 @@ pub fn decode_rgba(bytes: &[u8]) -> Result<RgbaImage, String> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BlockFormat {
+pub enum GpuFormat {
+    Dxt1,
+    Dxt3,
+    Dxt5,
+    Rgba8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BlockFormat {
     Dxt1,
     Dxt3,
     Dxt5,
@@ -44,26 +52,33 @@ impl BlockFormat {
             Self::Dxt3 | Self::Dxt5 => 16,
         }
     }
+
+    fn gpu_format(self) -> GpuFormat {
+        match self {
+            Self::Dxt1 => GpuFormat::Dxt1,
+            Self::Dxt3 => GpuFormat::Dxt3,
+            Self::Dxt5 => GpuFormat::Dxt5,
+        }
+    }
 }
 
-/// Block-compressed BLP data ready for upload: mip 0, followed by every smaller level
-/// down to 1x1 when `mipmaps` is set.
-pub struct CompressedImage {
-    pub format: BlockFormat,
+/// Texture data ready for upload: mip 0, followed by every smaller level down to 1x1
+/// when `mipmaps` is set.
+pub struct GpuImage {
+    pub format: GpuFormat,
     pub width: u32,
     pub height: u32,
     pub mipmaps: bool,
     pub data: Vec<u8>,
 }
 
-pub enum GpuImage {
-    Compressed(CompressedImage),
-    /// JPEG and palettized BLPs have no block data to upload.
-    Rgba(RgbaImage),
-}
-
 /// Keep DXT BLPs compressed as authored (4-8x smaller than RGBA8); other encodings decode
 /// to RGBA8. Alpha matches `decode_rgba`: DXT3/DXT5 alpha that is zero everywhere is opaque.
+///
+/// DXT1 with alpha bits decodes every authored level to RGBA8. WebWowViewerCpp uploads it
+/// as BC1 RGBA (`BlpTexture.cpp` `getTextureType`, `GBlpTextureVLK.cpp`), but Godot has no
+/// such image format: it uploads `FORMAT_DXT1` as `DATA_FORMAT_BC1_RGB_UNORM_BLOCK`
+/// (4.7.2 `texture_storage.cpp`), where punch-through texels are opaque black.
 pub fn decode_gpu(bytes: &[u8]) -> Result<GpuImage, String> {
     let blp = load_blp_from_buf(bytes).map_err(|e| format!("Failed to load BLP: {e}"))?;
     let (width, height) = (blp.header.width, blp.header.height);
@@ -71,9 +86,22 @@ pub fn decode_gpu(bytes: &[u8]) -> Result<GpuImage, String> {
         BlpContent::Dxt1(dxtn) => (BlockFormat::Dxt1, dxtn),
         BlpContent::Dxt3(dxtn) => (BlockFormat::Dxt3, dxtn),
         BlpContent::Dxt5(dxtn) => (BlockFormat::Dxt5, dxtn),
-        _ => return decode_rgba(bytes).map(GpuImage::Rgba),
+        _ => {
+            let rgba = decode_rgba(bytes)?;
+            return Ok(GpuImage {
+                format: GpuFormat::Rgba8,
+                width: rgba.width,
+                height: rgba.height,
+                mipmaps: false,
+                data: rgba.pixels,
+            });
+        }
     };
-    compressed_image(format, dxtn, width, height).map(GpuImage::Compressed)
+    let image = compressed_image(format, dxtn, width, height)?;
+    if format == BlockFormat::Dxt1 && blp.header.alpha_bits() > 0 {
+        return Ok(decompress_bc1(image));
+    }
+    Ok(image)
 }
 
 fn compressed_image(
@@ -81,7 +109,7 @@ fn compressed_image(
     dxtn: &BlpDxtn,
     width: u32,
     height: u32,
-) -> Result<CompressedImage, String> {
+) -> Result<GpuImage, String> {
     let first = dxtn.images.first().ok_or("BLP DXT has no mipmap level 0")?;
     let (width, height) = level_zero_size(width, height, first.content.len(), format);
     let levels = mip_level_sizes(width, height, format);
@@ -99,8 +127,8 @@ fn compressed_image(
     } else {
         first.content[..levels[0]].to_vec()
     };
-    let mut image = CompressedImage {
-        format,
+    let mut image = GpuImage {
+        format: format.gpu_format(),
         width,
         height,
         mipmaps: complete,
@@ -108,6 +136,33 @@ fn compressed_image(
     };
     make_zero_alpha_opaque(&mut image);
     Ok(image)
+}
+
+/// BC1 blocks of every level, decoded to RGBA8 with punch-through texels transparent.
+fn decompress_bc1(image: GpuImage) -> GpuImage {
+    let mut levels = mip_dimensions(image.width, image.height);
+    if !image.mipmaps {
+        levels.truncate(1);
+    }
+    let mut blocks = image.data.as_slice();
+    let mut data = Vec::new();
+    for (width, height) in levels {
+        let (level, rest) = blocks.split_at(level_bytes(width, height, BlockFormat::Dxt1));
+        let start = data.len();
+        data.resize(start + (width * height * 4) as usize, 0);
+        texpresso::Format::Bc1.decompress(
+            level,
+            width as usize,
+            height as usize,
+            &mut data[start..],
+        );
+        blocks = rest;
+    }
+    GpuImage {
+        format: GpuFormat::Rgba8,
+        data,
+        ..image
+    }
 }
 
 /// Some BLPs have truncated mip 0: the header says 128x128 but the data only fits a
@@ -126,33 +181,41 @@ fn level_bytes(width: u32, height: u32, format: BlockFormat) -> usize {
     blocks(width) * blocks(height) * format.block_bytes()
 }
 
-/// Byte size of every mip level from `width`x`height` down to 1x1.
-fn mip_level_sizes(width: u32, height: u32, format: BlockFormat) -> Vec<usize> {
+/// Size of every mip level from `width`x`height` down to 1x1.
+fn mip_dimensions(width: u32, height: u32) -> Vec<(u32, u32)> {
     let (mut w, mut h) = (width, height);
-    let mut sizes = vec![level_bytes(w, h, format)];
+    let mut levels = vec![(w, h)];
     while w > 1 || h > 1 {
         w = (w / 2).max(1);
         h = (h / 2).max(1);
-        sizes.push(level_bytes(w, h, format));
+        levels.push((w, h));
     }
-    sizes
+    levels
+}
+
+/// Byte size of every mip level from `width`x`height` down to 1x1.
+fn mip_level_sizes(width: u32, height: u32, format: BlockFormat) -> Vec<usize> {
+    mip_dimensions(width, height)
+        .into_iter()
+        .map(|(w, h)| level_bytes(w, h, format))
+        .collect()
 }
 
 /// `decode_rgba` turns alpha that is zero everywhere into opaque (`fix_1bit_alpha`);
 /// uploaded blocks must decode the same. Only DXT3/DXT5 carry an alpha block.
-fn make_zero_alpha_opaque(image: &mut CompressedImage) {
+fn make_zero_alpha_opaque(image: &mut GpuImage) {
     let mut blocks = image.data.chunks_exact(16);
     let zero = match image.format {
-        BlockFormat::Dxt1 => return,
-        BlockFormat::Dxt3 => blocks.all(|block| block[..8].iter().all(|&a| a == 0)),
-        BlockFormat::Dxt5 => blocks.all(bc3_alpha_is_zero),
+        GpuFormat::Dxt1 | GpuFormat::Rgba8 => return,
+        GpuFormat::Dxt3 => blocks.all(|block| block[..8].iter().all(|&a| a == 0)),
+        GpuFormat::Dxt5 => blocks.all(bc3_alpha_is_zero),
     };
     if !zero {
         return;
     }
     // DXT3: explicit 4-bit alpha 0xF. DXT5: endpoints 255/255, every index 0 -> 255.
     let opaque: [u8; 8] = match image.format {
-        BlockFormat::Dxt3 => [0xFF; 8],
+        GpuFormat::Dxt3 => [0xFF; 8],
         _ => [255, 255, 0, 0, 0, 0, 0, 0],
     };
     for block in image.data.chunks_exact_mut(16) {
