@@ -792,6 +792,39 @@ mod tests {
         assert_eq!(motion.adopted_epoch, Some(8));
     }
 
+    /// Another player swimming at the Northshire lake (seabed 140.07, surface 143.99): its
+    /// node follows the server's replicated height, floating or mid-water, never the seabed.
+    #[test]
+    fn remote_swimmer_follows_replicated_height_not_the_seabed() {
+        use game_engine_core::unit_motion_data::MotionPose;
+
+        let seabed = [-8558.0, 140.07, 500.0];
+        let floating = [-8558.0, shared::movement::swim_top(143.99), 500.0];
+        let mut motion = UnitMotion::new(seabed, 0.0);
+        motion.set_target(floating, None, None);
+        let mut pose = MotionPose {
+            position: seabed.into(),
+            rotation: Default::default(),
+        };
+        for _ in 0..60 {
+            pose = motion.advance(pose, false, 1.0 / 30.0);
+        }
+        assert!(
+            (pose.position.y - floating[1]).abs() < 0.001,
+            "remote swimmer at {}",
+            pose.position
+        );
+        motion.set_target([-8558.0, 141.5, 500.0], None, None);
+        for _ in 0..60 {
+            pose = motion.advance(pose, false, 1.0 / 30.0);
+        }
+        assert!(
+            (pose.position.y - 141.5).abs() < 0.001,
+            "mid-water {}",
+            pose.position
+        );
+    }
+
     #[test]
     fn unit_motion_remote_target_survives_missing_yaw_and_local_control_absence() {
         use game_engine_core::unit_motion_data::MotionPose;
