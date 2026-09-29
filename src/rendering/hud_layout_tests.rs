@@ -11,14 +11,14 @@ use game_engine::ui::screens::casting_bar_frame_component::{
 use game_engine::ui::screens::chat_frame_component::{ChatFrameView, chat_frame_screen};
 use game_engine::ui::screens::inworld_hud_component::minimap_screen;
 use game_engine::ui::screens::inworld_unit_frames_component::{
-    InWorldUnitFramesState, SmallUnitFrameState, UnitFrameMenuState, UnitFrameState,
-    inworld_unit_frames_screen,
+    InWorldUnitFramesState, PLAYER_FRAME_BOTTOM, SmallUnitFrameState, UnitFrameMenuState,
+    UnitFrameState, inworld_unit_frames_screen,
 };
 use game_engine::ui::screens::status_tracking_bar_component::{
     StatusTrackingBarState, status_tracking_bar_screen,
 };
 use game_engine::ui::screens::ui_errors_frame_component::ui_errors_frame_screen;
-use game_engine::ui::ui_errors::UiErrors;
+use game_engine::ui::ui_errors_data::UiErrorsData;
 use shared::protocol::PlayerXpUpdate;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -78,7 +78,7 @@ fn mount_hud(width: f32, height: f32) -> FrameRegistry {
     });
     shared.insert(BuffFrameState::default());
     shared.insert(ChatFrameView::default());
-    shared.insert(UiErrors::default());
+    shared.insert(UiErrorsData::default());
     let experience = ExperienceState(Some(PlayerXpUpdate {
         xp: 100,
         next_level_xp: 400,
@@ -190,10 +190,10 @@ fn hud_regions_follow_the_accepted_composition() {
             status.y >= bottom(&bar),
             "status bar below the main bar {size}"
         );
-        assert!(bottom(&player) <= bar.y, "cluster above the bar {size}");
+        // Retail Modern preset PlayerFrame (EditModePresetLayouts.lua:231-243).
         assert!(
-            bar.y - bottom(&player) < 80.0,
-            "cluster next to the bar {size}"
+            (height - bottom(&player) - PLAYER_FRAME_BOTTOM).abs() < 0.5,
+            "player frame at the preset {size}"
         );
         assert!(
             minimap.y < 20.0 && width - (minimap.x + minimap.width) < 20.0,
