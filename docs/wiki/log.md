@@ -2042,3 +2042,7 @@ Final gate PASS (`/tmp/claude/verify-ui-scale-all-owners-final.md`): inspected o
 ## [2026-09-29] investigation | DXT1 punch-through alpha
 
 Elwynn bush 189700's leaf texture 189937 (DXT1, alpha depth 1) drew black squares in the Godot client: Godot uploads `FORMAT_DXT1` as BC1 RGB, so punch-through texels were opaque black. `fe422318` decodes DXT1 with alpha bits to RGBA8 with every mip level. See [[godot-dxt1-punch-through]].
+
+## [2026-09-29] investigation | DXT1 punch-through alpha on master
+
+On master `56a134a6`, Northshire captures show no remaining black foliage cards. The trees and plants use DXT5 leaf textures. No local DXT1 BLP without alpha bits has punch-through texels. Black cards reported after `fe422318` come from pre-fix builds. See [[godot-dxt1-punch-through]].
