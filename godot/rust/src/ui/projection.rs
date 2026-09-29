@@ -506,7 +506,9 @@ impl UiProjection {
             justify_v: data.justify_v,
             outline: data.outline,
         };
-        self.style_label(&mut node, &text)
+        self.style_label(&mut node, &text)?;
+        node.set_autowrap_mode(godot::classes::text_server::AutowrapMode::WORD);
+        Ok(())
     }
 }
 
