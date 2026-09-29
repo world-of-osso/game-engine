@@ -236,6 +236,9 @@ func find_vendor(client: Node) -> Dictionary:
 func open_vendor(client: Node, vendor: Dictionary) -> bool:
 	pointer_at(vendor.point, MOUSE_BUTTON_RIGHT, true)
 	await process_frame
+	if client.target_state().target != vendor.id or client.target_state().auto_attack != null:
+		fail("Vendor right-click targeted an attack instead of interaction: " + str(client.target_state()))
+		return false
 	pointer_at(vendor.point, MOUSE_BUTTON_RIGHT, false)
 	var deadline := Time.get_ticks_msec() + 5000
 	while Time.get_ticks_msec() < deadline:
