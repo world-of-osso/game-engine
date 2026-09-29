@@ -2,7 +2,7 @@
 
 ## [2026-09-29] fix | Native FontString width-bound word wrapping
 
-The authored merchant Options descriptions exceeded the row at 0.75/1.25 because Godot Labels with wrapping off grew their minimum width beyond the authored 370 px. Legacy text bounds width and uses word-boundary layout. Native FontString projection now requests word wrapping; a merchant fixture checks full descriptions, multiline long labels, short-label width, right edges, and non-overlap at both scales. The retained `b63c64ec` artifact produced a targeted RED at 0.75; rebuilt native GREEN and rendered PNG inspection are pending. See [[ui-system]].
+The authored merchant Options descriptions exceeded the row at 0.75/1.25 because Godot Labels with wrapping off grew their minimum width beyond the authored 370 logical px. Legacy text bounds width and uses word-boundary layout. `9c12ce9e` requests word wrapping in native FontString projection. Depot `jcmsl5lx24` built revision `9c12ce9e` with `native_input_fixture` (exit 0; existing `NativeWmoGroup::fdid` warning); the owned merchant-click runtime exits 0 and confirms full text, two-line long descriptions, 370-logical-px label width, row/content/root containment, and non-overlap at both scales (`data/diagnostics/options-fontstring-wrap-{depot-build.log,green/merchant-click-runtime-short.log}`). Main inspected `merchant-options-125.png`. This is a bounded single-owner rendered check, not pixel equality, all-UI-owner coverage, or conversion parity. See [[ui-system]].
 
 ## [2026-09-29] implementation | Godot RegistryUi scale ownership
 
