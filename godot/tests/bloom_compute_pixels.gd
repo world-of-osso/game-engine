@@ -1,46 +1,80 @@
 extends SceneTree
-## Standalone numeric shader harness; no native extension or Options/controller.
-## Run with Vulkan: Godot --path godot/tests --script bloom_compute_pixels.gd
-## Creates a local RD, never reads display/tonemapped pixels. Tests the production
-## shaders against bloom_reference.gd after every down/up pass, including alpha.
-## CPU expected images quantize R/G to unsigned 5e6m and B to unsigned 5e5m
-## after every packed store using truncation, gated by an exact-bit calibration
-## that storage and raster attachments both truncate on the tested device.
-## Other rounding fails explicitly, not an auto-selected oracle. One packed ULP
-## tolerates arithmetic boundary crossings; final RGBA16F permits one half ULP.
-## Bounded 32-height spatial fixtures; full 512-height constant fixture exercises
-## all 8 configured levels. This is NOT compositor lifecycle/rendered-UI proof.
+## Standalone differential harness; main owns Vulkan runs. No native extension.
+## Godot --path godot/tests --script bloom_compute_pixels.gd
+## Production compute vs independently translated Bevy 0.19.0 raster, each
+## sampling its own identically initialized packed pyramid. Every down/up/final
+## output and alpha checked. CPU ideal bilinear is not a spatial GPU oracle:
+## actual hardware filtering differs even when raster/compute taps agree.
+## CPU reference self-tests and constant-field golden math remain independent.
+## Existing one packed/half ULP limits unchanged; no driver rounding gate.
+## This is NOT compositor lifecycle, rendered-UI, or production-fix proof.
 
 const Reference = preload("bloom_reference.gd")
 const ABS_TOLERANCE := 0.00008
 const REL_TOLERANCE := 0.00003
+const LEGACY_VERTEX := """#version 450
+// Bevy fullscreen.wgsl top-left UV convention, adapted to Vulkan clip Y.
+layout(location=0) out vec2 output_uv;
+void main() {
+    vec2 uv = vec2(float(gl_VertexIndex >> 1), float(gl_VertexIndex & 1)) * 2.0;
+    gl_Position = vec4(uv * 2.0 - 1.0, 0.0, 1.0);
+    output_uv = uv;
+}
+"""
+
+
+class ErrorObserver:
+	extends Logger
+	var mutex := Mutex.new()
+	var errors := 0
+
+	func _log_error(
+		_function: String,
+		_file: String,
+		_line: int,
+		_code: String,
+		_rationale: String,
+		_editor_notify: bool,
+		error_type: int,
+		_script_backtraces: Array[ScriptBacktrace]
+	) -> void:
+		if error_type != ERROR_TYPE_WARNING:
+			mutex.lock()
+			errors += 1
+			mutex.unlock()
+
+	func count() -> int:
+		mutex.lock()
+		var result := errors
+		mutex.unlock()
+		return result
+
+
+var observer := ErrorObserver.new()
 var rd: RenderingDevice
 var sampler := RID()
 var shaders: Array[RID] = []
 var pipelines: Array[RID] = []
+var raster_shaders: Array[RID] = []
 var textures: Array[RID] = []
 var failures := 0
 var comparisons := 0
+var finished := false
 
 
 func _initialize() -> void:
+	OS.add_logger(observer)
 	call_deferred("run_test")
 
 
 func run_test() -> void:
+	if RenderingServer.get_current_rendering_driver_name().to_lower() != "vulkan":
+		push_error("Bloom differential requires Vulkan, not dummy/headless rendering")
+		finish()
+		return
 	rd = RenderingServer.create_local_rendering_device()
 	if rd == null:
-		push_error("Bloom compute requires Vulkan RenderingDevice, not headless dummy rendering")
-		quit(1)
-		return
-	var usage := (
-		RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT
-	)
-	if not rd.texture_is_format_supported_for_usage(
-		RenderingDevice.DATA_FORMAT_B10G11R11_UFLOAT_PACK32, usage
-	):
-		failures += 1
-		push_error("Original Bevy R11G11B10 storage/sampling unsupported")
+		push_error("Bloom differential requires a local RenderingDevice")
 		finish()
 		return
 	var state := RDSamplerState.new()
@@ -49,24 +83,20 @@ func run_test() -> void:
 	state.repeat_u = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
 	state.repeat_v = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
 	sampler = rd.sampler_create(state)
-	# The CPU oracle models only measured same-format storage/raster truncation.
-	# Check it on this device before any numeric bloom comparisons. Diagnostic
-	# -- --calibrate-packed stops after printing and verifying the exact bits.
-	if not calibrate_packed_stores():
+	if not sampler.is_valid():
+		push_error("Bloom LINEAR CLAMP_TO_EDGE sampler creation failed")
 		finish()
 		return
-	release_fixture_resources()
-	if OS.get_cmdline_user_args().has("--calibrate-packed"):
-		finish()
-		return
-	var directory: String = get_script().resource_path.get_base_dir().path_join("../shaders")
-	if not compile_shader(directory.path_join("bloom_downsample.glsl"), ""):
-		finish()
-		return
-	if not compile_shader(directory.path_join("bloom_upsample.glsl"), ""):
-		finish()
-		return
-	if not compile_shader(directory.path_join("bloom_upsample.glsl"), "#define FINAL_COMPOSITE\n"):
+	var directory: String = get_script().resource_path.get_base_dir()
+	var production := directory.path_join("../shaders")
+	if (
+		not compile_compute(production.path_join("bloom_downsample.glsl"), "")
+		or not compile_compute(production.path_join("bloom_upsample.glsl"), "")
+		or not compile_compute(
+			production.path_join("bloom_upsample.glsl"), "#define FINAL_COMPOSITE\n"
+		)
+		or not compile_raster(directory.path_join("bloom_legacy_raster.glsl"))
+	):
 		finish()
 		return
 	var spatial := Image.create(17, 11, false, Image.FORMAT_RGBAH)
@@ -74,254 +104,72 @@ func run_test() -> void:
 	spatial.set_pixel(0, 0, Color(16, 4, 1, 0.25))
 	spatial.set_pixel(8, 5, Color(8, 2, 4, 0.5))
 	spatial.set_pixel(16, 10, Color(1, 6, 2, 0.75))
-	test_fixture(spatial, 32, 0.08, "edge/impulse-colour")
-	test_fixture(spatial, 32, 1.0, "intensity-one")
 	var black := Image.create(9, 13, false, Image.FORMAT_RGBAH)
 	black.fill(Color(0, 0, 0, 0.625))
-	test_fixture(black, 32, 0.08, "finite-black")
+	# Both bounded original corpus and actual OLD_SCHOOL 512-height/8-level corpus.
+	for height in [32, 512]:
+		test_fixture(spatial, height, 0.08, "edge/impulse-colour-%d" % height)
+		test_fixture(spatial, height, 1.0, "intensity-one-%d" % height)
+		test_fixture(black, height, 0.08, "finite-black-%d" % height)
+		if observer.count() != 0:
+			finish()
+			return
 	var constant := Image.create(19, 11, false, Image.FORMAT_RGBAH)
 	constant.fill(Color(2, 1, 0.75, 0.375))
 	test_fixture(constant, 512, 0.08, "configured-eight-levels", true)
 	finish()
 
 
-func calibrate_packed_stores() -> bool:
-	var compute_source := RDShaderSource.new()
-	compute_source.source_compute = """#version 450
-layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
-layout(r11f_g11f_b10f,set=0,binding=0) uniform writeonly image2D target;
-layout(push_constant,std430) uniform Parameters { vec4 value; } p;
-void main() { imageStore(target,ivec2(0),p.value); }
-"""
-	var compute_shader := compile_calibration_shader(compute_source)
-	if not compute_shader.is_valid():
-		return false
-	var compute_pipeline := rd.compute_pipeline_create(compute_shader)
-	pipelines.append(compute_pipeline)
-	var raster_source := RDShaderSource.new()
-	raster_source.source_vertex = """#version 450
-void main() {
-    const vec2 vertices[3]=vec2[3](vec2(-1,-1),vec2(3,-1),vec2(-1,3));
-    gl_Position=vec4(vertices[gl_VertexIndex],0,1);
-}
-"""
-	raster_source.source_fragment = """#version 450
-layout(location=0) out vec4 color;
-layout(push_constant,std430) uniform Parameters { vec4 value; } p;
-void main() { color=p.value; }
-"""
-	var raster_shader := compile_calibration_shader(raster_source)
-	if not raster_shader.is_valid():
-		return false
-	var format := RDTextureFormat.new()
-	format.width = 1
-	format.height = 1
-	format.format = RenderingDevice.DATA_FORMAT_B10G11R11_UFLOAT_PACK32
-	format.usage_bits = (
-		RenderingDevice.TEXTURE_USAGE_STORAGE_BIT
-		| RenderingDevice.TEXTURE_USAGE_COLOR_ATTACHMENT_BIT
-		| RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
-	)
-	if not rd.texture_is_format_supported_for_usage(format.format, format.usage_bits):
-		failures += 1
-		push_error("Calibration packed storage/color-attachment/readback unsupported")
-		return false
-	var storage := rd.texture_create(format, RDTextureView.new())
-	var attachment := rd.texture_create(format, RDTextureView.new())
-	textures.append(storage)
-	textures.append(attachment)
-	if not storage.is_valid() or not attachment.is_valid():
-		failures += 1
-		push_error("Calibration texture allocation failed")
-		return false
-	var attachments: Array[RID] = [attachment]
-	var framebuffer := rd.framebuffer_create(attachments)
-	if not framebuffer.is_valid():
-		failures += 1
-		push_error("Calibration framebuffer allocation failed")
-		return false
-	var blend := RDPipelineColorBlendState.new()
-	var blend_attachments: Array[RDPipelineColorBlendStateAttachment] = [
-		RDPipelineColorBlendStateAttachment.new()
-	]
-	blend.attachments = blend_attachments
-	var raster_pipeline := rd.render_pipeline_create(
-		raster_shader,
-		rd.framebuffer_get_format(framebuffer),
-		-1,
-		RenderingDevice.RENDER_PRIMITIVE_TRIANGLES,
-		RDPipelineRasterizationState.new(),
-		RDPipelineMultisampleState.new(),
-		RDPipelineDepthStencilState.new(),
-		blend
-	)
-	pipelines.append(raster_pipeline)
-	var output := RDUniform.new()
-	output.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	output.binding = 0
-	output.add_id(storage)
-	var uniforms: Array[RDUniform] = [output]
-	var binding := rd.uniform_set_create(uniforms, compute_shader, 0)
-	if not compute_pipeline.is_valid() or not raster_pipeline.is_valid() or not binding.is_valid():
-		failures += 1
-		push_error("Calibration pipeline/uniform creation failed")
-		if binding.is_valid():
-			rd.free_rid(binding)
-		rd.free_rid(framebuffer)
-		return false
-	# Powers of two make all inputs exactly representable in f32. Cases above
-	# and below half-ULP distinguish truncation from nearest and ties-to-even;
-	# the odd tie, binade crossing and subnormal cover different conversion rules.
-	var cases := [
-		["quarter", PackedFloat32Array([1.0 + 0.25 / 64, 2.0 + 0.25 / 32, 1.0 + 0.25 / 32, 1])],
-		["tie-even", PackedFloat32Array([1.0 + 0.5 / 64, 2.0 + 0.5 / 32, 1.0 + 0.5 / 32, 1])],
-		["tie-odd", PackedFloat32Array([1.0 + 1.5 / 64, 2.0 + 1.5 / 32, 1.0 + 1.5 / 32, 1])],
-		[
-			"three-quarter",
-			PackedFloat32Array([1.0 + 0.75 / 64, 2.0 + 0.75 / 32, 1.0 + 0.75 / 32, 1])
-		],
-		["binade", PackedFloat32Array([2.0 - 0.25 / 64, 4.0 - 0.25 / 32, 2.0 - 0.25 / 32, 1])],
-		[
-			"subnormal",
-			PackedFloat32Array(
-				[3.75 * pow(2.0, -20), 3.75 * pow(2.0, -20), 3.75 * pow(2.0, -19), 1]
-			)
-		],
-	]
-	var matches_truncation := true
-	for entry in cases:
-		var values: PackedFloat32Array = entry[1]
-		var parameters := values.to_byte_array()
-		var commands := rd.compute_list_begin()
-		rd.compute_list_bind_compute_pipeline(commands, compute_pipeline)
-		rd.compute_list_bind_uniform_set(commands, binding, 0)
-		rd.compute_list_set_push_constant(commands, parameters, parameters.size())
-		rd.compute_list_dispatch(commands, 1, 1, 1)
-		rd.compute_list_end()
-		var draw := rd.draw_list_begin(framebuffer)
-		rd.draw_list_bind_render_pipeline(draw, raster_pipeline)
-		rd.draw_list_set_push_constant(draw, parameters, parameters.size())
-		rd.draw_list_draw(draw, false, 1, 3)
-		rd.draw_list_end()
-		rd.submit()
-		rd.sync()
-		var stored := rd.texture_get_data(storage, 0).decode_u32(0)
-		var rendered := rd.texture_get_data(attachment, 0).decode_u32(0)
-		var nearest := expected_packed_bits(values, true)
-		var truncated := expected_packed_bits(values, false)
-		if stored != truncated or rendered != truncated:
-			matches_truncation = false
-			failures += 1
-			push_error(
-				(
-					"Packed oracle precondition failed for %s: storage=0x%08x raster=0x%08x required truncation=0x%08x; this device's rounding is outside the calibrated test scope"
-					% [entry[0], stored, rendered, truncated]
-				)
-			)
-		print(
-			(
-				"BLOOM_STORE_CALIBRATION %s f32=%s storage=0x%08x raster=0x%08x nearest=0x%08x trunc=0x%08x storage_nearest=%s storage_trunc=%s raster_nearest=%s raster_trunc=%s"
-				% [
-					entry[0],
-					values,
-					stored,
-					rendered,
-					nearest,
-					truncated,
-					stored == nearest,
-					stored == truncated,
-					rendered == nearest,
-					rendered == truncated
-				]
-			)
-		)
-		for channel in range(3):
-			var bits := 5 if channel == 2 else 6
-			var shift := 22 if channel == 2 else channel * 11
-			var mask := (1 << (bits + 5)) - 1
-			print(
-				(
-					"BLOOM_STORE_CHANNEL %s channel%d input=%.12f storage=%.12f raster=%.12f nearest=%.12f trunc=%.12f"
-					% [
-						entry[0],
-						channel,
-						values[channel],
-						decode_unsigned_float((stored >> shift) & mask, bits),
-						decode_unsigned_float((rendered >> shift) & mask, bits),
-						decode_unsigned_float((nearest >> shift) & mask, bits),
-						decode_unsigned_float((truncated >> shift) & mask, bits)
-					]
-				)
-			)
-	rd.free_rid(binding)
-	rd.free_rid(framebuffer)
-	return matches_truncation
-
-
-func compile_calibration_shader(source: RDShaderSource) -> RID:
-	var spirv := rd.shader_compile_spirv_from_source(source)
-	for stage in [
-		RenderingDevice.SHADER_STAGE_VERTEX,
-		RenderingDevice.SHADER_STAGE_FRAGMENT,
-		RenderingDevice.SHADER_STAGE_COMPUTE
-	]:
+func compile_source(source: RDShaderSource, stages: Array[int]) -> RID:
+	var spirv := rd.shader_compile_spirv_from_source(source, false)
+	if spirv == null:
+		push_error("Bloom SPIR-V compilation returned null")
+		return RID()
+	for stage in stages:
 		var error := spirv.get_stage_compile_error(stage)
 		if not error.is_empty():
-			failures += 1
-			push_error("Calibration shader compile: " + error)
+			push_error("Bloom stage%d: %s" % [stage, error])
 			return RID()
 	var shader := rd.shader_create_from_spirv(spirv)
-	shaders.append(shader)
 	if not shader.is_valid():
-		failures += 1
-		push_error("Calibration shader creation failed")
+		push_error("Bloom shader creation failed")
 	return shader
 
 
-func expected_packed_bits(values: PackedFloat32Array, nearest: bool) -> int:
-	var packed := 0
-	for channel in range(3):
-		var mantissa := 5 if channel == 2 else 6
-		var value := float(values[channel])
-		var step := packed_ulp(value, mantissa)
-		var rounded := (
-			quantize_nearest_even(value, mantissa) if nearest else floorf(value / step) * step
-		)
-		var encoded := 0
-		if rounded > 0.0 and rounded < pow(2.0, -14):
-			encoded = roundi(rounded / pow(2.0, -14 - mantissa))
-		elif rounded > 0.0:
-			var float_bits := PackedFloat32Array([rounded]).to_byte_array().decode_u32(0)
-			var exponent := ((float_bits >> 23) & 0xff) - 127
-			var fraction := roundi((rounded / pow(2.0, exponent) - 1.0) * (1 << mantissa))
-			encoded = ((exponent + 15) << mantissa) | fraction
-		packed |= encoded << (22 if channel == 2 else channel * 11)
-	return packed
-
-
-func compile_shader(path: String, defines: String) -> bool:
+func compile_compute(path: String, defines: String) -> bool:
 	var code := FileAccess.get_file_as_string(path).replace("#[compute]\n", "")
 	if code.is_empty():
-		failures += 1
 		push_error("Missing production shader: " + path)
 		return false
-	code = code.replace("#version 450\n", "#version 450\n" + defines)
 	var source := RDShaderSource.new()
-	source.source_compute = code
-	var spirv := rd.shader_compile_spirv_from_source(source)
-	var error := spirv.get_stage_compile_error(RenderingDevice.SHADER_STAGE_COMPUTE)
-	if not error.is_empty():
-		failures += 1
-		push_error(error)
-		return false
-	var shader := rd.shader_create_from_spirv(spirv)
+	source.source_compute = code.replace("#version 450\n", "#version 450\n" + defines)
+	var shader := compile_source(source, [RenderingDevice.SHADER_STAGE_COMPUTE])
 	shaders.append(shader)
+	if not shader.is_valid():
+		return false
 	var pipeline := rd.compute_pipeline_create(shader)
 	pipelines.append(pipeline)
-	if not shader.is_valid() or not pipeline.is_valid():
-		failures += 1
-		push_error("Bloom shader/pipeline creation failed")
+	if not pipeline.is_valid() or not rd.compute_pipeline_is_valid(pipeline):
+		push_error("Bloom compute pipeline creation failed")
 		return false
+	return true
+
+
+func compile_raster(path: String) -> bool:
+	var code := FileAccess.get_file_as_string(path)
+	if code.is_empty():
+		push_error("Missing independent Bevy raster shader: " + path)
+		return false
+	for defines in ["#define FIRST_DOWNSAMPLE\n", "", "#define UPSAMPLE\n"]:
+		var source := RDShaderSource.new()
+		source.source_vertex = LEGACY_VERTEX
+		source.source_fragment = code.replace("#version 450\n", "#version 450\n" + defines)
+		var shader := compile_source(
+			source, [RenderingDevice.SHADER_STAGE_VERTEX, RenderingDevice.SHADER_STAGE_FRAGMENT]
+		)
+		raster_shaders.append(shader)
+		if not shader.is_valid():
+			return false
 	return true
 
 
@@ -337,36 +185,52 @@ func create_texture(image: Image) -> RID:
 	format.usage_bits = (
 		RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT
 		| RenderingDevice.TEXTURE_USAGE_STORAGE_BIT
+		| RenderingDevice.TEXTURE_USAGE_COLOR_ATTACHMENT_BIT
 		| RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
 	)
-	var initial: Array[PackedByteArray] = []
-	if image.get_format() == Image.FORMAT_RGBAH:
-		initial.append(image.get_data())
+	if not rd.texture_is_format_supported_for_usage(format.format, format.usage_bits):
+		push_error(
+			"Bloom format%d storage/sampling/attachment/readback unsupported" % format.format
+		)
+		return RID()
+	# Both paths receive exactly the same bytes, including every packed level.
+	var bytes := image.get_data()
+	if image.get_format() != Image.FORMAT_RGBAH:
+		bytes = PackedByteArray()
+		bytes.resize(format.width * format.height * 4)
+		bytes.fill(0)
+	var initial: Array[PackedByteArray] = [bytes]
 	var texture := rd.texture_create(format, RDTextureView.new(), initial)
 	textures.append(texture)
 	if not texture.is_valid():
-		failures += 1
-		push_error("Bloom compute texture creation failed at %s" % image.get_size())
+		push_error("Bloom texture creation failed at %s" % image.get_size())
 	return texture
 
 
-func dispatch(index: int, input: RID, target: RID, size: Vector2i, value: float) -> bool:
+func sampled_uniform(input: RID) -> RDUniform:
 	var sampled := RDUniform.new()
 	sampled.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 	sampled.binding = 0
 	sampled.add_id(sampler)
 	sampled.add_id(input)
+	return sampled
+
+
+func dispatch(index: int, input: RID, target: RID, size: Vector2i, value: float) -> bool:
 	var output := RDUniform.new()
 	output.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
 	output.binding = 1
 	output.add_id(target)
-	var uniforms: Array[RDUniform] = [sampled, output]
+	var uniforms: Array[RDUniform] = [sampled_uniform(input), output]
 	var binding := rd.uniform_set_create(uniforms, shaders[index], 0)
 	if not binding.is_valid():
-		failures += 1
 		push_error("Bloom compute uniform set creation failed")
 		return false
 	var commands := rd.compute_list_begin()
+	if commands == RenderingDevice.INVALID_ID:
+		rd.free_rid(binding)
+		push_error("Bloom compute list begin failed")
+		return false
 	rd.compute_list_bind_compute_pipeline(commands, pipelines[index])
 	rd.compute_list_bind_uniform_set(commands, binding, 0)
 	var parameters := PackedFloat32Array([value, 0, 0, 0]).to_byte_array()
@@ -376,11 +240,189 @@ func dispatch(index: int, input: RID, target: RID, size: Vector2i, value: float)
 	rd.submit()
 	rd.sync()
 	rd.free_rid(binding)
-	return true
+	return observer.count() == 0
+
+
+func raster_pipeline(shader: RID, framebuffer: RID, additive: bool) -> RID:
+	var attachment := RDPipelineColorBlendStateAttachment.new()
+	if additive:
+		attachment.enable_blend = true
+		attachment.src_color_blend_factor = RenderingDevice.BLEND_FACTOR_CONSTANT_COLOR
+		attachment.dst_color_blend_factor = RenderingDevice.BLEND_FACTOR_ONE
+		attachment.color_blend_op = RenderingDevice.BLEND_OP_ADD
+		attachment.src_alpha_blend_factor = RenderingDevice.BLEND_FACTOR_ZERO
+		attachment.dst_alpha_blend_factor = RenderingDevice.BLEND_FACTOR_ONE
+		attachment.alpha_blend_op = RenderingDevice.BLEND_OP_ADD
+	var blend := RDPipelineColorBlendState.new()
+	var attachments: Array[RDPipelineColorBlendStateAttachment] = [attachment]
+	blend.attachments = attachments
+	return rd.render_pipeline_create(
+		shader,
+		rd.framebuffer_get_format(framebuffer),
+		-1,
+		RenderingDevice.RENDER_PRIMITIVE_TRIANGLES,
+		RDPipelineRasterizationState.new(),
+		RDPipelineMultisampleState.new(),
+		RDPipelineDepthStencilState.new(),
+		blend,
+		RenderingDevice.DYNAMIC_STATE_BLEND_CONSTANTS if additive else 0
+	)
+
+
+func draw_raster(index: int, input: RID, target: RID, value: float) -> bool:
+	var attachments: Array[RID] = [target]
+	var framebuffer := rd.framebuffer_create(attachments)
+	if not framebuffer.is_valid():
+		push_error("Bloom raster framebuffer creation failed")
+		return false
+	var pipeline := raster_pipeline(raster_shaders[index], framebuffer, index == 2)
+	var uniforms: Array[RDUniform] = [sampled_uniform(input)]
+	var binding := rd.uniform_set_create(uniforms, raster_shaders[index], 0)
+	var valid := pipeline.is_valid() and binding.is_valid()
+	if valid:
+		valid = rd.render_pipeline_is_valid(pipeline)
+	if valid:
+		valid = record_raster(framebuffer, pipeline, binding, index == 2, value)
+	else:
+		push_error("Bloom raster pipeline/uniform creation failed")
+	# Dependents before dependencies; all paths (including invalid draw) tear down.
+	if binding.is_valid():
+		rd.free_rid(binding)
+	if pipeline.is_valid():
+		rd.free_rid(pipeline)
+	rd.free_rid(framebuffer)
+	return valid and observer.count() == 0
+
+
+func record_raster(
+	framebuffer: RID, pipeline: RID, binding: RID, additive: bool, value: float
+) -> bool:
+	# LOAD existing destination for additive recursion/final; never clear it.
+	var draw := rd.draw_list_begin(framebuffer, RenderingDevice.DRAW_DEFAULT_ALL)
+	if draw == RenderingDevice.INVALID_ID:
+		push_error("Bloom raster draw list begin failed")
+		return false
+	rd.draw_list_bind_render_pipeline(draw, pipeline)
+	rd.draw_list_bind_uniform_set(draw, binding, 0)
+	# BloomUniforms from downsampling_pipeline.rs, full viewport, scale=(1,1).
+	var knee := Reference.THRESHOLD * Reference.SOFTNESS
+	var parameters := (
+		PackedFloat32Array(
+			[
+				Reference.THRESHOLD,
+				Reference.THRESHOLD - knee,
+				2.0 * knee,
+				0.25 / (knee + 0.00001),
+				0,
+				0,
+				1,
+				1,
+				1,
+				1,
+				1,
+				0
+			]
+		)
+		. to_byte_array()
+	)
+	rd.draw_list_set_push_constant(draw, parameters, parameters.size())
+	if additive:
+		rd.draw_list_set_blend_constants(draw, Color(value, value, value, value))
+	rd.draw_list_draw(draw, false, 1, 3)
+	rd.draw_list_end()
+	rd.submit()
+	rd.sync()
+	return observer.count() == 0
+
+
+func test_fixture(
+	original: Image, max_height: int, intensity: float, label: String, constant := false
+) -> void:
+	run_fixture(original, max_height, intensity, label, constant)
+	release_textures()
+
+
+func run_fixture(
+	original: Image, max_height: int, intensity: float, label: String, constant: bool
+) -> void:
+	var sizes: Array[Vector2i] = Reference.mip_sizes(original.get_size(), max_height)
+	var scene := create_texture(original)
+	var raster_scene := create_texture(original)
+	if not scene.is_valid() or not raster_scene.is_valid():
+		return
+	var pyramid: Array[RID] = []
+	var raster_pyramid: Array[RID] = []
+	var golden_levels: Array[Image] = []
+	var cpu: Image
+	if constant:
+		cpu = Image.create(1, 1, false, Image.FORMAT_RGBAF)
+		cpu.fill(original.get_pixel(0, 0))
+	for level in range(sizes.size()):
+		var blank := Image.create(sizes[level].x, sizes[level].y, false, Image.FORMAT_RGBAF)
+		var target := create_texture(blank)
+		var raster_target := create_texture(blank)
+		if not target.is_valid() or not raster_target.is_valid():
+			return
+		var source := scene if level == 0 else pyramid[level - 1]
+		var raster_source := raster_scene if level == 0 else raster_pyramid[level - 1]
+		if (
+			not dispatch(0, source, target, sizes[level], 1.0 if level == 0 else 0.0)
+			or not draw_raster(0 if level == 0 else 1, raster_source, raster_target, 0.0)
+		):
+			return
+		var actual := read_texture(target, sizes[level])
+		compare(actual, read_texture(raster_target, sizes[level]), "%s down%d" % [label, level])
+		if constant:
+			cpu = quantize_packed(Reference.downsample(cpu, Vector2i.ONE, level == 0))
+			golden_levels.append(cpu)
+			compare(actual, cpu, "%s golden down%d" % [label, level], true)
+		pyramid.append(target)
+		raster_pyramid.append(raster_target)
+	var last := sizes.size() - 1
+	for level in range(last, 0, -1):
+		var blend: float = Reference.blend_factor(level, last, intensity)
+		if (
+			not dispatch(1, pyramid[level], pyramid[level - 1], sizes[level - 1], blend)
+			or not draw_raster(2, raster_pyramid[level], raster_pyramid[level - 1], blend)
+		):
+			return
+		var actual := read_texture(pyramid[level - 1], sizes[level - 1])
+		compare(
+			actual,
+			read_texture(raster_pyramid[level - 1], sizes[level - 1]),
+			"%s up%d" % [label, level]
+		)
+		if constant:
+			cpu = quantize_packed(Reference.upsample_add(cpu, golden_levels[level - 1], blend))
+			compare(actual, cpu, "%s golden up%d" % [label, level], true)
+	if (
+		not dispatch(2, pyramid[0], scene, original.get_size(), intensity)
+		or not draw_raster(2, raster_pyramid[0], raster_scene, intensity)
+	):
+		return
+	var actual := read_texture(scene, original.get_size(), true)
+	compare(actual, read_texture(raster_scene, original.get_size(), true), label + " final")
+	# Independent alpha expectation, not merely agreement between two paths.
+	for y in range(original.get_height()):
+		for x in range(original.get_width()):
+			comparisons += 1
+			if actual == null or actual.get_pixel(x, y).a != original.get_pixel(x, y).a:
+				failures += 1
+				push_error("%s final alpha changed at (%d,%d)" % [label, x, y])
+				return
+	if constant:
+		var destination := Image.create(1, 1, false, Image.FORMAT_RGBAF)
+		destination.fill(original.get_pixel(0, 0))
+		cpu = Reference.upsample_add(cpu, destination, intensity)
+		cpu.convert(Image.FORMAT_RGBAH)
+		compare(actual, cpu, label + " golden final", true)
 
 
 func read_texture(texture: RID, size: Vector2i, half := false) -> Image:
 	var bytes := rd.texture_get_data(texture, 0)
+	if bytes.size() != size.x * size.y * (8 if half else 4):
+		push_error("Bloom readback byte count mismatch at %s" % size)
+		return null
 	if half:
 		return Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBAH, bytes)
 	var image := Image.create(size.x, size.y, false, Image.FORMAT_RGBAF)
@@ -418,102 +460,23 @@ func packed_ulp(value: float, mantissa_bits: int) -> float:
 	return pow(2.0, exponent - mantissa_bits)
 
 
-func quantize_unsigned_float(value: float, mantissa_bits: int) -> float:
-	# Calibration rejects devices not sharing the observed raster/storage rule.
-	var step := packed_ulp(value, mantissa_bits)
-	return floorf(maxf(value, 0.0) / step) * step
-
-
-func quantize_nearest_even(value: float, mantissa_bits: int) -> float:
-	var step := packed_ulp(value, mantissa_bits)
-	var scaled := maxf(value, 0.0) / step
-	var integer := floori(scaled)
-	var fraction := scaled - integer
-	# Diagnostic contrast only, not the numeric fixture's packed-store oracle.
-	if fraction > 0.5 or (fraction == 0.5 and (integer & 1) != 0):
-		integer += 1
-	var rounded := integer * step
-	return INF if rounded >= 65536.0 else rounded
-
-
 func quantize_packed(image: Image) -> Image:
+	# Constant-field golden only: preserve measured packed-store math, without
+	# claiming to emulate hardware's spatial interpolation or selecting a driver.
 	for y in range(image.get_height()):
 		for x in range(image.get_width()):
 			var color := image.get_pixel(x, y)
-			image.set_pixel(
-				x,
-				y,
-				Color(
-					quantize_unsigned_float(color.r, 6),
-					quantize_unsigned_float(color.g, 6),
-					quantize_unsigned_float(color.b, 5),
-					1.0
-				)
-			)
+			for channel in range(3):
+				var step := packed_ulp(color[channel], 5 if channel == 2 else 6)
+				color[channel] = floorf(maxf(color[channel], 0.0) / step) * step
+			color.a = 1.0
+			image.set_pixel(x, y, color)
 	return image
 
 
-func test_fixture(
-	original: Image, max_height: int, intensity: float, label: String, constant := false
-) -> void:
-	var sizes: Array[Vector2i] = Reference.mip_sizes(original.get_size(), max_height)
-	var scene := create_texture(original)
-	if not scene.is_valid():
+func compare(actual: Image, expected: Image, label: String, constant := false) -> void:
+	if actual == null or expected == null:
 		return
-	var pyramid: Array[RID] = []
-	var expected: Array[Image] = []
-	var source := scene
-	var cpu := original
-	# For a constant field, a 1x1 oracle evaluates exactly the same filtering
-	# and clamp-to-edge operations without 512-height CPU neighbourhood loops.
-	if constant:
-		cpu = Image.create(1, 1, false, Image.FORMAT_RGBAF)
-		cpu.fill(original.get_pixel(0, 0))
-	for level in range(sizes.size()):
-		var target := create_texture(
-			Image.create(sizes[level].x, sizes[level].y, false, Image.FORMAT_RGBAF)
-		)
-		if (
-			not target.is_valid()
-			or not dispatch(0, source, target, sizes[level], 1.0 if level == 0 else 0.0)
-		):
-			return
-		cpu = quantize_packed(
-			Reference.downsample(cpu, Vector2i.ONE if constant else sizes[level], level == 0)
-		)
-		expected.append(cpu)
-		compare(read_texture(target, sizes[level]), cpu, "%s down%d" % [label, level], constant)
-		pyramid.append(target)
-		source = target
-	var last := sizes.size() - 1
-	for level in range(last, 0, -1):
-		var blend: float = Reference.blend_factor(level, last, intensity)
-		if not dispatch(1, pyramid[level], pyramid[level - 1], sizes[level - 1], blend):
-			return
-		cpu = quantize_packed(Reference.upsample_add(cpu, expected[level - 1], blend))
-		compare(
-			read_texture(pyramid[level - 1], sizes[level - 1]),
-			cpu,
-			"%s up%d" % [label, level],
-			constant
-		)
-	if not dispatch(2, pyramid[0], scene, original.get_size(), intensity):
-		return
-	var destination := original
-	if constant:
-		destination = Image.create(1, 1, false, Image.FORMAT_RGBAF)
-		destination.fill(original.get_pixel(0, 0))
-	cpu = Reference.upsample_add(cpu, destination, intensity)
-	# Match final half-framebuffer rounding after packed quantization at each level.
-	cpu.convert(Image.FORMAT_RGBAH)
-	compare(read_texture(scene, original.get_size(), true), cpu, label + " final", constant)
-	for texture in textures:
-		if texture.is_valid():
-			rd.free_rid(texture)
-	textures.clear()
-
-
-func compare(actual: Image, expected: Image, label: String, constant: bool) -> void:
 	var max_error := 0.0
 	for y in range(actual.get_height()):
 		for x in range(actual.get_width()):
@@ -534,7 +497,11 @@ func compare(actual: Image, expected: Image, label: String, constant: bool) -> v
 					tolerance = maxf(tolerance, absf(wanted[channel]) / 1024.0)
 				if channel == 3:
 					tolerance = 0.0
-				if not is_finite(observed[channel]) or error > tolerance:
+				if (
+					not is_finite(observed[channel])
+					or not is_finite(wanted[channel])
+					or error > tolerance
+				):
 					failures += 1
 					push_error(
 						(
@@ -546,26 +513,38 @@ func compare(actual: Image, expected: Image, label: String, constant: bool) -> v
 	print("BLOOM_COMPUTE ", label, " extent=", actual.get_size(), " max_error=", max_error)
 
 
-func release_fixture_resources() -> void:
+func release_textures() -> void:
 	for texture in textures:
 		if texture.is_valid():
 			rd.free_rid(texture)
 	textures.clear()
-	for pipeline in pipelines:
-		if pipeline.is_valid():
-			rd.free_rid(pipeline)
-	pipelines.clear()
-	for shader in shaders:
-		if shader.is_valid():
-			rd.free_rid(shader)
-	shaders.clear()
 
 
 func finish() -> void:
-	release_fixture_resources()
-	if sampler.is_valid():
-		rd.free_rid(sampler)
+	if finished:
+		return
+	finished = true
 	if rd != null:
+		release_textures()
+		for pipeline in pipelines:
+			if pipeline.is_valid():
+				rd.free_rid(pipeline)
+		pipelines.clear()
+		for shader in shaders + raster_shaders:
+			if shader.is_valid():
+				rd.free_rid(shader)
+		shaders.clear()
+		raster_shaders.clear()
+		if sampler.is_valid():
+			rd.free_rid(sampler)
 		rd.free()
-	print("Bloom compute: %d comparisons, %d failures" % [comparisons, failures])
-	quit(0 if failures == 0 else 1)
+		rd = null
+	var engine_errors := observer.count()
+	OS.remove_logger(observer)
+	print(
+		(
+			"Bloom compute: %d comparisons, %d failures, %d engine errors"
+			% [comparisons, failures, engine_errors]
+		)
+	)
+	quit(0 if failures == 0 and engine_errors == 0 else 1)
