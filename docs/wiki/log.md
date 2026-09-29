@@ -1,5 +1,20 @@
 # Wiki Log
 
+## [2026-09-29] port | Godot combat animations and spell visuals
+
+The Godot client now plays combat and spell animations and spell effects.
+
+- **Melee.** Swings (Attack 16-19 by main-hand class), victim reactions and the Ready stance are driven by `CombatEvent`.
+- **Spell visuals.** Kits come from the local-CASC SpellXSpellVisual → SpellVisualEvent → SpellVisualKit chain, with the visual chosen by caster `PlayerCondition`. They cover:
+  - kit clips through SpellVisualAnim/AnimKit
+  - kit M2 models on attachments
+  - Frostbolt's missile
+  - impact kits on hit or primary units
+- **Protocol.** New `SpellGo` message, broadcast by the server to every client replicating the caster.
+- **Particles.** Keyframed `emissionRate`/`enabledIn` tracks made Battle Shout's burst visible.
+
+The Bevy combat anim constants (51/46/...) were wrong for Retail. Warrior (Slam, Battle Shout) and mage (Frostbolt) videos are in `data/diagnostics/spellcast-anim-2026-09-29/`. Added [[spell-visuals]]; updated [[animation]].
+
 ## [2026-09-28] investigation | Godot missing assets no longer end the session
 
 One missing cursor BLP disconnected the Godot client: every frame-step error stopped the account. Only `Account` transport failures (`SessionError`) stop it now; asset failures are logged once and stay absent. See [godot-conversion](systems/godot-conversion.md#frame-failure-policy).
