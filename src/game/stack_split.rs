@@ -2,6 +2,7 @@
 //! bag stack or a vendor item opens. The split moves in steps of `min_split` (a
 //! vendor's purchase size) up to `max`; digits type an amount.
 
+#[cfg(not(godot_host))]
 use bevy::prelude::*;
 use shared::protocol::ItemLocation;
 
@@ -14,7 +15,8 @@ pub enum StackSplitOwner {
     Merchant(usize),
 }
 
-#[derive(Resource, Clone, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StackSplit(pub Option<StackSplitState>);
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -208,6 +208,8 @@ pub mod world_map;
 #[path = "game/world_map_data.rs"]
 pub mod world_map_data;
 pub mod world_map_view_data;
+#[path = "rendering/ui/wow_cursor_data.rs"]
+pub mod wow_cursor_data;
 
 #[path = "rendering/character/appearance_options.rs"]
 pub mod appearance_options;
