@@ -274,6 +274,57 @@ fn native_bridge_receives_creature_motion_changes() {
     bridge.stop().expect("join fixture worker");
 }
 
+/// Another player's replicated `PlayerMotion` (Retail `MovementFlags`) reaches the host
+/// with its unit, including the stop that clears it without moving the player.
+#[test]
+fn native_bridge_receives_remote_player_motion_changes() {
+    use shared::components::{Player, PlayerMotion};
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8195).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    let strafing_jump = PlayerMotion(PlayerMotion::STRAFE_LEFT | PlayerMotion::FALLING);
+    let entity = server
+        .world_mut()
+        .spawn((
+            Player {
+                name: "Fbfps".into(),
+                race: 1,
+                class: 1,
+                appearance: Default::default(),
+            },
+            Position {
+                x: -8913.0,
+                y: 82.0,
+                z: -140.0,
+            },
+            strafing_jump,
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let server_id = entity.to_bits();
+    let mut await_motion = |server: &mut App, motion: PlayerMotion| {
+        await_bridge_event(server, &mut bridge, "replicated player motion", |event| {
+            matches!(event, Event::UnitUpdated(unit)
+                if unit.server_id == server_id && unit.player_motion == Some(motion))
+        })
+    };
+    let Event::UnitUpdated(moving) = await_motion(&mut server, strafing_jump) else {
+        unreachable!()
+    };
+    assert_eq!(moving.player.as_ref().unwrap().name, "Fbfps");
+    server
+        .world_mut()
+        .entity_mut(entity)
+        .insert(PlayerMotion::default());
+    let Event::UnitUpdated(stopped) = await_motion(&mut server, PlayerMotion::default()) else {
+        unreachable!()
+    };
+    assert_eq!(stopped.position.unwrap().x, -8913.0);
+    bridge.stop().expect("join fixture worker");
+}
+
 /// The nameplate rule inputs reach the host with the unit: FactionTemplate, UnitFlags
 /// and the combat flag, including a combat drop that changes nothing else.
 #[test]
