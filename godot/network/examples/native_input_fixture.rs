@@ -1295,7 +1295,9 @@ fn main() {
             root,
             matches!(
                 screen,
-                StartupScreen::SoundClick | StartupScreen::MerchantClick
+                StartupScreen::SoundClick
+                    | StartupScreen::MerchantClick
+                    | StartupScreen::PortalDensity
             ),
         )
         .expect("stage isolated reset data and Godot project")
