@@ -192,7 +192,8 @@ fn spell_clips_are_not_cut_short_by_melee_swings() {
 }
 
 /// SpellCastDirected fires HumanMale HD's `$CSL` at 200 ms: a cast started at frame 0
-/// holds its missile through frame 11 (183 ms) and releases it on frame 12 (200 ms).
+/// holds its missile through frame 11 (183 ms) and has released it by frame 13 (217 ms);
+/// frame 12 lands on 200 ms up to float rounding.
 /// The precast loop has no release event, so nothing waits on it.
 #[test]
 fn cast_clip_releases_missiles_at_its_release_event() {
@@ -210,7 +211,7 @@ fn cast_clip_releases_missiles_at_its_release_event() {
     assert!(player.awaits_missile_release());
     advance(&mut player, 11);
     assert!(player.awaits_missile_release());
-    advance(&mut player, 1);
+    advance(&mut player, 2);
     assert!(!player.awaits_missile_release());
     assert_eq!(player.action_id(), Some(SPELL_CAST_DIRECTED));
 }
