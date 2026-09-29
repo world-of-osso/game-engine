@@ -176,11 +176,16 @@ Left-click targeting and right-click interaction use the 3D camera, not an unfil
 
 ## Unit Frames
 
-The combat cluster replaces the portrait artwork frames (accepted design: thin metal borders, dark backing, no portraits). Geometry lives in `ui/screens/inworld_unit_frames_layout.rs`; at 1920×1080:
+Player, target, target-of-target and focus frames draw the Retail portrait-off art (`UI-HUD-UnitFrame-Player-PortraitOff`, 133×51). Geometry lives in `ui/screens/inworld_unit_frames_layout.rs`, in UIParent units (verified: 2026-09-29):
 
-- `PlayerFrame` `(580,868,232×60)` and `TargetFrame` `(1108,868,232×60)` flank a 264-wide cast dock where `PlayerCastingBarFrame` sits, bottom-aligned 152 px above the screen bottom (clears two action bar rows). Roots anchor `left: 50%` plus an offset, so the cluster stays centred.
-- `TargetOfTargetFrame` (120×32) and `FocusFrame` (150×32) sit right of the target, top-aligned. `PartyFrame` sits 12 px left of the player frame, bottom 232 px (above chat).
-- Each frame: name + level row, health bar, primary power bar; the player frame adds a pip row and combat (`⚔`) / resting (`zzz`) icons.
+- **Modern preset anchors.** Retail's Modern Edit Mode preset puts PlayerFrame BOTTOMRIGHT at UIParent BOTTOM (-300, 250) and TargetFrame BOTTOMLEFT at BOTTOM (300, 250) (`Blizzard_EditMode/Mainline/EditModePresetLayouts.lua:231-257`). Both frames are 232×100 (`PlayerFrame.xml:15`, `TargetFrame.xml:144`). The portrait-off art is placed so that its 124×20 health slot lands where Retail draws the health bar:
+  - Player health bar TOPLEFT (85, -41), set by `PlayerFrame_ToPlayerArt` (`PlayerFrame.lua:697`). Our art sits 450 left of centre, bottom 272.
+  - Target health bar BOTTOMRIGHT at the frame's LEFT + (149, -10) for normal and elite units, set by `CheckClassification` (`TargetFrame.lua:417-419`). This overrides the XML default (148, 2) (`TargetFrame.xml:218-220`), which is 12 px higher. Our art sits 320 right of centre, bottom 273.
+  - The two health bars mirror about the screen centre, and the target's sits 1 px higher, as in Retail. Minus-mob targets (`TargetFrame.lua:390`) are not modelled.
+- `PlayerCastingBarFrame` is centred, bottom 152 (clears two action bar rows). Target-of-target and focus sit right of the target, top-aligned. `PartyFrame` sits 12 px left of the player frame, level with its bottom.
+- **Class bar.** `PlayerSecondaryResourceRow` follows `PlayerFrameBottomManagedFramesContainer`: its top is 4 px below the mana bar and its centre 61 px right of the bar's left edge (`PlayerFrame.lua:716,758`). Each bar is centred, with its `topPadding`/`leftPadding` (e.g. Arcane Charges `topPadding` 7, `MageArcaneChargesBar.xml:134`). A bar with a `spec` KeyValue shows only for that spec: Arcane Charges need Arcane 62 and Chi needs Windwalker 269 (`ClassPowerBar.lua:82-83`).
+- **Arcane Charges** draw `ArcaneChargeTemplate` (`MageArcaneChargesBar.xml:5-111`, atlas 2378, FDID 5045210): bgshadow, bg, icon (active only), orb, plus the `activateAnim`/`deactivateAnim` fx textures keyed from the XML. `PipAnimations` restarts a charge on each state change. The other class bars still use two-layer art without animation.
+- Each frame: name and level row, health bar, primary power bar. The player frame adds the class bar and the combat/resting icons.
 
 Data: health from `Health`; powers from replicated `UnitPowers` only (the first bar-type entry is the power bar, the first pip-type entry the pips). `UnitPowers` values are raw DB2 units; display divides by `PowerType.csv` `DisplayModifier` (`status::power_display_modifier`): Rage, Runic Power, Soul Shards, Lunar Power, Pain ÷10, Insanity ÷100. Pip resources: Holy Power, Combo Points, Chi, Soul Shards (whole shards), Arcane Charges, Runes, Essence. Bar colours are Retail `PowerBarColor`. `CharacterStatsSnapshot.secondary_resource` uses the same `SecondaryResourceEntry::from_unit_powers`.
 
