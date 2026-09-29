@@ -26,6 +26,7 @@ pub mod npc_gear_data;
 mod particles;
 mod scene;
 mod startup;
+mod swim;
 mod targeting;
 mod terrain;
 mod ui;
@@ -431,36 +432,6 @@ impl GameClient {
     #[func]
     fn target_state(&self) -> VarDictionary {
         self.targeting_snapshot()
-    }
-
-    /// Start (or restart) retail mirror timer `timer` (0 fatigue, 1 breath, 2 feign death):
-    /// `value` of `max_value` ms changing by `scale` ms per ms. Returns an error or "".
-    #[func]
-    fn start_mirror_timer(
-        &mut self,
-        timer: i64,
-        value: i64,
-        max_value: i64,
-        scale: f32,
-        paused: bool,
-    ) -> GString {
-        let started = mirror_timers::mirror_timer_kind(timer).and_then(|kind| {
-            self.start_mirror(game_engine_ui_model::mirror_timer_data::MirrorTimerStart {
-                kind,
-                value: value as i32,
-                max_value: max_value as i32,
-                scale,
-                paused,
-            })
-        });
-        GString::from(started.err().unwrap_or_default().as_str())
-    }
-
-    #[func]
-    fn stop_mirror_timer(&mut self, timer: i64) -> GString {
-        let stopped =
-            mirror_timers::mirror_timer_kind(timer).and_then(|kind| self.stop_mirror(kind));
-        GString::from(stopped.err().unwrap_or_default().as_str())
     }
 
     /// The shown fill of mirror timer `timer`'s bar, or nil while it is not running.
@@ -909,6 +880,7 @@ impl GameClient {
                 AccountEvent::CharacterCreated { success, error } => {
                     self.receive_creation_result(success, error)?
                 }
+                AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
                 AccountEvent::UnitRemoved(id) => {
                     self.world.remove(id);
                     self.units.remove(&id);

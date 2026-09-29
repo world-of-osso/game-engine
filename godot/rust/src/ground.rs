@@ -1,12 +1,12 @@
 //! Ground queries for the terrain currently loaded by the native host.
 
 use game_engine_core::player_physics_data::{
-    GroundSample, GroundState, clamp_movement_to_walls, is_swimming, validate_movement_slope,
+    GroundSample, GroundState, clamp_movement_to_walls, validate_movement_slope,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 use glam::Vec3;
 use shared::ground::{Ground, STEP_UP_HEIGHT, Surface};
-use shared::movement::MAX_SLOPE_ANGLE;
+use shared::movement::{MAX_SLOPE_ANGLE, is_swimming};
 
 use crate::terrain::streaming::StreamedTerrain;
 

@@ -1759,3 +1759,7 @@ Near a dungeon entrance the Godot client shows Plumber's difficulty bar: `Journa
 ## [2026-09-28] feature | Godot NPC poses and gear
 
 Godot replicated creatures hold their `UnitPose` (Sit 97, Sleep 100, Emotes.AnimID such as Ready1H 26 / ReadyRifle 48) while still and play Walk/Run while moving, crossfaded; virtual items attach drawn in hand or at their `Item.SheatheType` sheath and move on a sheath change; the display's `NPCModelItemSlotDisplayInfo` armor switches body geosets and attaches its item models. The pose/gear data (`npc_gear_data.rs`) is now engine-free and shared with Bevy. See [npc-stance-gear](investigations/npc-stance-gear.md).
+
+## [2026-09-28] feature | Godot server-driven breath bar
+
+The Godot client shows the server's `MirrorTimerStart`/`Pause`/`Stop` (fatigue, breath, feign death) instead of a GDScript-started bar, caps swim vertical rate at `SWIM_SPEED` × aura as the server's movement bank does, and takes `SWIM_DEPTH`/`is_swimming`/`swim_top` from shared-protocol. Live on the dev server: breath bar under water at the server's drain rate, gone after surfacing; server height follows the swimmer. See [[swimming]].
