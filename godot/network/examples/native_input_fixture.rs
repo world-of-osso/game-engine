@@ -1325,35 +1325,25 @@ fn main() {
         .map_or(root, |fixture| fixture.root_path());
     let config = FixtureConfig::create(config_root, screen);
     let (mut child, lines, reader) = launch_godot(root, &project, &config, address, screen, false);
-    let result = if screen == StartupScreen::Swimming {
-        swimming::run(&mut app, &mut child, lines, reader)
-    } else if screen == StartupScreen::Menu {
-        menu::run(&mut app, &mut child, lines, reader)
-    } else if screen == StartupScreen::ResetWindows {
-        reset_windows::run(
+    let result = match screen {
+        StartupScreen::Swimming => swimming::run(&mut app, &mut child, lines, reader),
+        StartupScreen::Menu => menu::run(&mut app, &mut child, lines, reader),
+        StartupScreen::ResetWindows => reset_windows::run(
             &mut app, &mut child, lines, reader, root, &config, &project, address,
-        )
-    } else if screen == StartupScreen::Logout {
-        logout::run(&mut app, &mut child, lines, reader, root, address)
-    } else if screen == StartupScreen::SoundClick {
-        sound_click::run(&mut app, &mut child, lines, reader)
-    } else if screen == StartupScreen::SoundOutcome {
-        sound_outcome::run(&mut app, &mut child, lines, reader)
-    } else if screen == StartupScreen::MerchantClick {
-        merchant_click::run(&mut app, &mut child, lines, reader)
-    } else if screen == StartupScreen::Sound {
-        sound::run(&mut app, &mut child, lines, reader)
-    } else if screen == StartupScreen::Footsteps {
-        footsteps::run(&mut app, &mut child, lines, reader)
-    } else if screen == StartupScreen::PortalDensity {
-        portal_density::run(&mut app, &mut child, lines, reader)
-    } else if matches!(
-        screen,
-        StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled
-    ) {
-        portal_particles::run(&mut app, &mut child, lines, reader, screen)
-    } else {
-        run_fixture(&mut app, &mut child, lines, reader, screen)
+        ),
+        StartupScreen::Logout => logout::run(&mut app, &mut child, lines, reader, root, address),
+        StartupScreen::SoundClick => sound_click::run(&mut app, &mut child, lines, reader),
+        StartupScreen::SoundOutcome => sound_outcome::run(&mut app, &mut child, lines, reader),
+        StartupScreen::MerchantClick => merchant_click::run(&mut app, &mut child, lines, reader),
+        StartupScreen::Sound => sound::run(&mut app, &mut child, lines, reader),
+        StartupScreen::Footsteps => footsteps::run(&mut app, &mut child, lines, reader),
+        StartupScreen::PortalDensity => portal_density::run(&mut app, &mut child, lines, reader),
+        StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
+            portal_particles::run(&mut app, &mut child, lines, reader, screen)
+        }
+        StartupScreen::CharSelect | StartupScreen::InWorld | StartupScreen::Overlay => {
+            run_fixture(&mut app, &mut child, lines, reader, screen)
+        }
     };
     if result.is_err()
         && child
