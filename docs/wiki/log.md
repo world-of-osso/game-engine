@@ -2,7 +2,7 @@
 
 ## [2026-09-29] fix | Native particle-density placement snapshot
 
-`godot/rust/src/particles.rs` captures pool density when placing doodad emitters; `TerrainObjects` updates only the default after Options saves. Existing placements keep their rate, and `NO_GLOBAL_SCALE` ignores density. Controlled portal RED at `cf84a712` recorded existing 484→484.22 and new 462.67 after Options 100→10 (`data/diagnostics/portal-density-red-cf84a712.log`, exit 101). Depot GREEN is pending. See [[godot-conversion]] and [M2 particle spec](../specs/m2-particles.md).
+`79d792b0` captures density per doodad-emitter placement; `TerrainObjects` updates only the default after Options saves. Existing placements retain their captured rate, future registrations use the new default, and original `NO_GLOBAL_SCALE` emitters ignore global density. The controlled disposable 197007 portal copy clears only its six `NO_GLOBAL_SCALE` bits and preserves the original asset hash. In the actual `GameClient`, real Options 100→10 keeps known-pool quads at 485.67→488.0; owned same-map `NewWorld` creates a fresh placement at 46.67. Depot `kdhjvgmnt3` and runtime GREEN both exit 0 (`data/diagnostics/portal-density-depot-green-build-retry1.log`, `data/diagnostics/portal-density-green-79d792b0.log`). This is state/rate proof, not retail pixels, audible output, or full parity. See [[godot-conversion]] and [M2 particle spec](../specs/m2-particles.md).
 
 ## [2026-09-29] verification | Native persisted M2-particle startup gate
 
