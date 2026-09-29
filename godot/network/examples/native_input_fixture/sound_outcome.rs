@@ -52,15 +52,7 @@ fn observe_line(
     let marker = line.trim();
     match (*stage, marker) {
         (0, "FIXTURE OUTCOME_LOADING") if selected.is_some() => {
-            send::<_, TerrainChannel>(
-                app,
-                LoadTerrain {
-                    map_name: "azeroth".into(),
-                    initial_tile_y: 32,
-                    initial_tile_x: 48,
-                },
-            );
-            *loading = true;
+            begin_outcome_loading(app, loading);
         }
         (0, "FIXTURE OUTCOME_READY") if *loading => {
             send_batch(app, selected, remote)?;
@@ -81,13 +73,7 @@ fn observe_line(
             *stage = 4;
         }
         (4, "FIXTURE OUTCOME_RESET") => {
-            send::<_, AuthChannel>(
-                app,
-                shared::protocol::ForcedDisconnect {
-                    message: "fixture completed".into(),
-                    reconnect_allowed: false,
-                },
-            );
+            request_outcome_reset(app);
             *stage = 5;
         }
         (5, "FIXTURE OUTCOME_DONE") => *stage = 6,
@@ -99,6 +85,28 @@ fn observe_line(
         _ => {}
     }
     Ok(())
+}
+
+fn begin_outcome_loading(app: &mut App, loading: &mut bool) {
+    send::<_, TerrainChannel>(
+        app,
+        LoadTerrain {
+            map_name: "azeroth".into(),
+            initial_tile_y: 32,
+            initial_tile_x: 48,
+        },
+    );
+    *loading = true;
+}
+
+fn request_outcome_reset(app: &mut App) {
+    send::<_, AuthChannel>(
+        app,
+        shared::protocol::ForcedDisconnect {
+            message: "fixture completed".into(),
+            reconnect_allowed: false,
+        },
+    );
 }
 
 fn send_outcome(
@@ -132,6 +140,12 @@ fn send_batch(
     let target = remote
         .ok_or("no remote player for outcome fixture")?
         .to_bits();
+    send_original_outcomes(app, attacker, target);
+    send_ignored_outcomes(app, attacker, target);
+    Ok(())
+}
+
+fn send_original_outcomes(app: &mut App, attacker: u64, target: u64) {
     let kinds = [
         CombatEventType::SpellDamage,
         CombatEventType::SpellHeal,
@@ -150,6 +164,9 @@ fn send_batch(
             },
         );
     }
+}
+
+fn send_ignored_outcomes(app: &mut App, attacker: u64, target: u64) {
     for (kind, spell_id, emitter) in [
         (CombatEventType::Death, 133, target),
         (CombatEventType::SpellDamage, 0, target),
@@ -166,5 +183,4 @@ fn send_batch(
             },
         );
     }
-    Ok(())
 }
