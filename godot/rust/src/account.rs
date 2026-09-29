@@ -12,14 +12,15 @@ use game_engine_session::{
     normalize_auth_token, token_path,
 };
 use shared::protocol::{
-    ActionBarSnapshot, AuthChannel, CastFailed, CharacterListUpdate, CombatChannel, CombatLogEvent,
-    CreateCharacter, CreateCharacterResponse, DeleteCharacter, DeleteCharacterResponse,
-    DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel,
-    InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse,
-    MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot,
-    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate,
-    SetDungeonDifficulty, SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate,
-    SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
+    ActionBarSnapshot, AuthChannel, CastFailed, CharacterListUpdate, CombatChannel, CombatEvent,
+    CombatLogEvent, CreateCharacter, CreateCharacterResponse, DeleteCharacter,
+    DeleteCharacterResponse, DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect,
+    InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot,
+    LoadTerrain, LoginResponse, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld,
+    PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate, RegisterResponse,
+    RequestRaidInfo, RestStateUpdate, SetDungeonDifficulty, SetTarget, SpecializationChanged,
+    SpellCastIntent, SpellCooldownUpdate, SpellsLearned, SpellsUnlearned, TransferAborted,
+    TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
@@ -84,6 +85,8 @@ pub enum AccountEvent {
     },
     /// The server rejected a cast request.
     CastFailed(CastFailed),
+    /// Original reliable ordered combat stream; never buffered in the combat-log deque.
+    Combat(CombatEvent),
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
 }
@@ -384,6 +387,10 @@ impl Account {
             output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Stop(decode(
                 message,
             )?)));
+            return Ok(());
+        }
+        if message.is::<CombatEvent>() {
+            output.push(AccountEvent::Combat(decode(message)?));
             return Ok(());
         }
         if self.receive_spell_message(&message) {

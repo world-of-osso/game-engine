@@ -1,6 +1,9 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
+#[path = "../../../src/sound/spell_event_data.rs"]
+pub mod spell_event_data;
+
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
@@ -30,8 +33,8 @@ use shared::{
         UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
     },
     protocol::{
-        ActionBarSnapshot, BuybackList, CastFailed, CharacterListUpdate, CombatLogEvent,
-        CreateCharacterResponse, DeleteCharacterResponse, DungeonDifficultySet,
+        ActionBarSnapshot, BuybackList, CastFailed, CharacterListUpdate, CombatEvent,
+        CombatLogEvent, CreateCharacterResponse, DeleteCharacterResponse, DungeonDifficultySet,
         DurabilityStateUpdate, EnterWorldResponse, ForcedDisconnect, InstanceInfo,
         InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta, InventoryError,
         InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed,
@@ -215,6 +218,7 @@ impl NetworkBridge {
             .receive::<ActionBarSnapshot>()
             .receive::<SpellCooldownUpdate>()
             .receive::<CastFailed>()
+            .receive::<CombatEvent>()
             .receive::<CombatLogEvent>()
             // NPC interaction, the merchant frame and the bags it sells from.
             .receive::<InteractionOpened>()

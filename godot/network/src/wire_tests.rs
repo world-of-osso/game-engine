@@ -6,7 +6,10 @@ use shared::{
     components::{
         CombatStatus, CreatureMotion, MovementControl, SheathState, StandState, UnitPose,
     },
-    protocol::{InputChannel, PlayerInput, RestChannel, RestSnapshot, RestStateUpdate},
+    protocol::{
+        CombatChannel, CombatEvent, CombatEventType, InputChannel, PlayerInput, RestChannel,
+        RestSnapshot, RestStateUpdate,
+    },
 };
 use std::net::UdpSocket;
 
@@ -185,6 +188,62 @@ fn await_rest(server: &mut App, bridge: &mut NetworkBridge, expected: RestStateU
         unreachable!()
     };
     assert_eq!(message.downcast::<RestStateUpdate>().ok(), Some(expected));
+}
+
+#[test]
+fn native_bridge_delivers_all_original_combat_events_once_over_udp() {
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8194).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+
+    let kinds = [
+        CombatEventType::SpellDamage,
+        CombatEventType::PeriodicDamage,
+        CombatEventType::CriticalHit,
+        CombatEventType::SpellHeal,
+        CombatEventType::PeriodicHeal,
+        CombatEventType::Miss,
+        CombatEventType::Interrupt,
+        CombatEventType::MeleeDamage,
+    ];
+    let expected: Vec<_> = (0..65)
+        .map(|index| CombatEvent {
+            attacker: 101,
+            target: 202,
+            amount: index as f32,
+            spell_id: if index == 63 { 0 } else { 133 },
+            event_type: kinds[index % kinds.len()].clone(),
+        })
+        .collect();
+    for event in &expected {
+        send_combat(&mut server, event.clone());
+    }
+    let received = await_messages(&mut server, &mut bridge, expected.len());
+    for (message, event) in received.into_iter().zip(&expected) {
+        let actual = message
+            .downcast::<CombatEvent>()
+            .ok()
+            .expect("original CombatEvent");
+        assert_eq!(actual.event_type, event.event_type);
+        assert_eq!(actual.amount, event.amount);
+        assert_eq!(actual.spell_id, event.spell_id);
+    }
+    for _ in 0..3 {
+        server.update();
+        assert!(bridge.drain_events().expect("second frame").is_empty());
+    }
+    bridge.stop().expect("join fixture worker");
+}
+
+fn send_combat(server: &mut App, event: CombatEvent) {
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<CombatEvent>>()
+        .single_mut(world)
+        .expect("connected fixture combat sender")
+        .send::<CombatChannel>(event);
 }
 
 #[test]

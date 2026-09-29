@@ -25,11 +25,11 @@ use shared::{
     },
     protocol::{
         ActionBarSnapshot, ActionRef, AuthChannel, BagContents, CharacterListEntry,
-        CloseInteraction, EnterWorldResponse, InteractNpc, InteractionChannel, InteractionKind,
-        InteractionOpened, InventoryChannel, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
-        LoginRequest, LoginResponse, MerchantChannel, NpcFlags, NpcRole, PlayerInput,
-        SelectCharacter, SpellCastIntent, TalentChannel, TerrainChannel, VendorInventory,
-        VendorItem,
+        CloseInteraction, CombatChannel, CombatEvent, CombatEventType, EnterWorldResponse,
+        InteractNpc, InteractionChannel, InteractionKind, InteractionOpened, InventoryChannel,
+        InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginRequest, LoginResponse,
+        MerchantChannel, NpcFlags, NpcRole, PlayerInput, SelectCharacter, SpellCastIntent,
+        TalentChannel, TerrainChannel, VendorInventory, VendorItem,
     },
 };
 
@@ -47,6 +47,8 @@ mod reset_windows;
 mod sound;
 #[path = "native_input_fixture/sound_click.rs"]
 mod sound_click;
+#[path = "native_input_fixture/sound_outcome.rs"]
+mod sound_outcome;
 #[path = "native_input_fixture/swimming.rs"]
 mod swimming;
 
@@ -75,6 +77,7 @@ enum StartupScreen {
     Logout,
     Sound,
     SoundClick,
+    SoundOutcome,
     MerchantClick,
     Footsteps,
     ResetWindows,
@@ -92,6 +95,7 @@ impl StartupScreen {
             Some("logout") => Self::Logout,
             Some("sound") => Self::Sound,
             Some("sound-click") => Self::SoundClick,
+            Some("sound-outcome") => Self::SoundOutcome,
             Some("merchant-click") => Self::MerchantClick,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
@@ -117,6 +121,7 @@ impl StartupScreen {
             | Self::Logout
             | Self::Sound
             | Self::SoundClick
+            | Self::SoundOutcome
             | Self::MerchantClick
             | Self::Footsteps
             | Self::ResetWindows => "inworld",
@@ -250,6 +255,7 @@ impl FixtureConfig {
             screen,
             StartupScreen::Sound
                 | StartupScreen::SoundClick
+                | StartupScreen::SoundOutcome
                 | StartupScreen::MerchantClick
                 | StartupScreen::Footsteps
         ) {
@@ -257,6 +263,8 @@ impl FixtureConfig {
                 config.home.join("world-of-osso/options_settings.ron"),
                 if screen == StartupScreen::Footsteps {
                     "(graphics:(particleEffectsEnabled:false),sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))"
+                } else if screen == StartupScreen::SoundOutcome {
+                    "(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:false,muted:false))"
                 } else {
                     "(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))"
                 },
@@ -283,6 +291,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::ResetWindows => "res://tests/options_reset_windows.gd",
         StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
         StartupScreen::SoundClick => "res://tests/world_spell_click_flow.gd",
+        StartupScreen::SoundOutcome => "res://tests/world_sound_outcome_flow.gd",
         StartupScreen::Sound => "res://tests/world_sound_flow.gd",
         StartupScreen::Footsteps => "res://tests/world_footsteps_flow.gd",
         StartupScreen::Logout => "res://tests/world_logout_flow.gd",
@@ -303,6 +312,7 @@ fn launch_godot(
         screen,
         StartupScreen::Sound
             | StartupScreen::SoundClick
+            | StartupScreen::SoundOutcome
             | StartupScreen::MerchantClick
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
@@ -335,6 +345,7 @@ fn launch_godot(
                 screen,
                 StartupScreen::Sound
                     | StartupScreen::SoundClick
+                    | StartupScreen::SoundOutcome
                     | StartupScreen::MerchantClick
                     | StartupScreen::Footsteps
                     | StartupScreen::ResetWindows
@@ -1187,6 +1198,7 @@ fn main() {
         screen,
         StartupScreen::Sound
             | StartupScreen::SoundClick
+            | StartupScreen::SoundOutcome
             | StartupScreen::MerchantClick
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
@@ -1231,6 +1243,8 @@ fn main() {
         logout::run(&mut app, &mut child, lines, reader, root, address)
     } else if screen == StartupScreen::SoundClick {
         sound_click::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::SoundOutcome {
+        sound_outcome::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::MerchantClick {
         merchant_click::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Sound {
