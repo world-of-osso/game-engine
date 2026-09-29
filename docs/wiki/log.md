@@ -2,7 +2,7 @@
 
 ## [2026-09-29] system | Owned UDP spell-button click audio
 
-The isolated `native_input_fixture sound-click` mode supplies a replicated local player and actual spell snapshots on the server protocol. Its pinned Godot run confirms authored action-bar and spellbook left presses reach owned Effects before release; right/release/keyboard and reopened spellbook remain quiet. Targeted build/runtime logs reside in `data/diagnostics/native-spell-click-*`. Audible output, merchant clicks, and mutable Options gain/mute in this fixture remain unproven. Updated [[sound]].
+The isolated `native_input_fixture sound-click` mode supplies a replicated local player and actual spell snapshots on the server protocol. Its pinned Godot run confirms authored action-bar and spellbook left presses reach owned Effects before release; right/release/keyboard and reopened spellbook remain quiet. After a fresh-cache SQLite contention failure, sound-click mode stages the canonical listfile cache by read-only backup; the final runtime has no listfile lock. Targeted build/runtime logs reside in `data/diagnostics/native-spell-click-*`. Audible output, merchant clicks, and mutable Options gain/mute in this fixture remain unproven. Updated [[sound]].
 
 ## [2026-09-28] investigation | Godot WMO doodad cost, global WMO culling, MWDS, doodad light
 
