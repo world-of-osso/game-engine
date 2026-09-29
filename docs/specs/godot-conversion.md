@@ -4,9 +4,9 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 ## What it must do
 
-### Graphics render scale (pending RED runtime proof)
+### Graphics render scale (pending GREEN runtime proof)
 
-- [ ] Saved Render Scale 0.5–1.0 sets the native startup and live 3D internal render buffer to that fraction of the target after Options input and viewport resize; the 2D UI stays at full target resolution with unchanged pixel position at UI Scale 1.0. `godot/tests/render_scale_buffers.gd` probes the actual 3D compositor buffers and 2D framebuffer; it has not been run yet. This does **not** establish legacy paired CAS/sharpening equivalence below 0.999 or full rendering parity.
+- [ ] Saved Render Scale 0.5–1.0 sets the native startup and live 3D internal render buffer to that fraction of the target after Options input and viewport resize; the 2D UI stays at full target resolution with unchanged pixel position at UI Scale 1.0. `godot/tests/render_scale_buffers.gd` probes the actual 3D compositor buffers and 2D framebuffer. Owned Vulkan RED at `e3a5c92b` (`data/diagnostics/render-scale-red/red-e3a5c92b.log`, exit 1) observed 1280×720 instead of 960×540 at startup 0.75; the viewport scaling fix awaits Depot/GREEN proof. This does **not** establish legacy paired CAS/sharpening equivalence below 0.999 or full rendering parity.
 
 Owned Vulkan cage recipe (run from repo root, never against user configuration):
 
