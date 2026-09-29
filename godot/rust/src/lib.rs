@@ -11,6 +11,7 @@ mod char_create;
 mod character_select;
 mod chat;
 mod combat_visuals;
+mod damage_meter;
 mod display_options;
 mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
@@ -117,6 +118,7 @@ pub struct GameClient {
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
     entrance_bar: entrance_bar::EntranceBar,
+    damage_meter: damage_meter::DamageMeterHud,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     game_menu_drag: Option<game_menu::drag::OptionsDrag>,
     logout: game_engine_session::logout::LogoutState,
@@ -201,6 +203,7 @@ impl INode3D for GameClient {
             minimap: minimap::Minimap::default(),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
+            damage_meter: damage_meter::DamageMeterHud::default(),
             game_menu_options: None,
             game_menu_drag: None,
             logout: Default::default(),
@@ -390,6 +393,7 @@ impl INode3D for GameClient {
             ("Minimap", |c, _| c.update_minimap()),
             ("Objective tracker", |c, _| c.update_objective_tracker()),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
+            ("Damage meter", |c, _| c.update_damage_meter()),
             ("World units", |c, d| {
                 c.world.advance(d);
                 Ok(())
@@ -813,6 +817,7 @@ impl GameClient {
         self.minimap.visit_uis(&mut visit)?;
         self.objective_tracker.visit_uis(&mut visit)?;
         self.auras.visit_uis(&mut visit)?;
+        self.damage_meter.visit_uis(&mut visit)?;
         self.entrance_bar.visit_uis(&mut visit)
     }
 

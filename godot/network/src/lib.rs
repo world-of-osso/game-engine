@@ -35,12 +35,12 @@ use shared::{
     protocol::{
         ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
         CharacterListUpdate, ChatMessage, CombatEvent, CombatLogEvent, CreateCharacterResponse,
-        DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate, EnterWorldResponse,
-        ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed, InteractionOpened,
-        InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
-        LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop,
-        NewWorld, NpcFlags, QuestFailed, QuestGiverStatusMultiple, QuestLogSnapshot,
-        QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
+        DamageMeterSnapshot, DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate,
+        EnterWorldResponse, ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed,
+        InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot,
+        LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart,
+        MirrorTimerStop, NewWorld, NpcFlags, QuestFailed, QuestGiverStatusMultiple,
+        QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
         SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
         VendorInventory,
     },
@@ -227,6 +227,8 @@ impl NetworkBridge {
             .receive::<SpellCooldownUpdate>()
             .receive::<CastFailed>()
             .receive::<CombatLogEvent>()
+            // Server-computed damage meter sessions.
+            .receive::<DamageMeterSnapshot>()
             // Melee swing outcomes and resolved casts of every replicated unit, for
             // combat animations and spell visuals.
             .receive::<CombatEvent>()
