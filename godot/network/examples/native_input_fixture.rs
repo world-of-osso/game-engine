@@ -21,7 +21,7 @@ use lightyear::prelude::{
 use shared::{
     components::{
         EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Gold, ModelDisplay, Npc,
-        Player, Position,
+        Player, Position, UnitFactionTemplate,
     },
     protocol::{
         ActionBarSnapshot, ActionRef, AuthChannel, BagContents, CharacterListEntry,
@@ -561,7 +561,9 @@ fn respond_to_selection(
             ))
             .id();
         if screen == StartupScreen::MerchantClick {
-            app.world_mut().entity_mut(player).insert(Gold(1250));
+            app.world_mut()
+                .entity_mut(player)
+                .insert((Gold(1250), UnitFactionTemplate(1)));
             let vendor = app
                 .world_mut()
                 .spawn((
@@ -570,6 +572,7 @@ fn respond_to_selection(
                         name: "Fixture Vendor".into(),
                     },
                     NpcFlags(NpcFlags::VENDOR),
+                    UnitFactionTemplate(35),
                     ModelDisplay { display_id: 26 },
                     Position {
                         x: FIRST[0] - 2.0,
