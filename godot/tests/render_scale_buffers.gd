@@ -3,7 +3,7 @@ extends "res://tests/display_options.gd"
 const SIZE := Vector2i(1280, 720)
 const RESIZED := Vector2i(1600, 900)
 const PIXEL := Vector2i(12, 12)
-const PROBE_COLOR := Color(0.8, 0.1, 0.2, 1.0)
+const PROBE_COLOR := Color(1.0, 0.0, 0.0, 1.0)
 
 func run_test() -> void:
 	root.size = SIZE
