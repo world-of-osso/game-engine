@@ -14,6 +14,9 @@ Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The l
 cargo run -- --screen charselect
 # Build/download only, without launching:
 python3 scripts/depot-build.py --root "$PWD"
+# Build the extension and one owned UDP fixture executable:
+python3 scripts/depot-build.py --root "$PWD" --fixture native_input_fixture
+# Alternatively: --fixture native_npc_visual_fixture
 ```
 
 Each worktree needs the matching sibling repositories beside it: `asset-resolver`, `ui-toolkit-godot-conversion`, `ui-toolkit-macros`, `shared-protocol`, and `bevy-patches`. The worktree itself can have any directory name. Source-file symlinks and symlinked `target`/`target/debug` directories fail explicitly; the helper never deletes existing targets. Use a checkout-local artifact directory rather than a shared target symlink.
@@ -22,7 +25,7 @@ Each worktree needs the matching sibling repositories beside it: `asset-resolver
 
 The helper uploads a source-only snapshot: tracked inputs, nonignored untracked compile inputs, and matching sibling repositories. It excludes `data/`, secrets, targets, and Git metadata.
 
-Remote registry, Git, and Cargo target caches are shared; the target cache uses `sharing=locked`. Source snapshots retain original file timestamps (`copy2`); after acquiring the remote target lock, the build refreshes staged compile-input timestamps before Cargo runs. This prevents an older snapshot from another worktree being treated as unchanged against a newer target. The reproduced failure was a build from worktree A, then older worktree B, then A again: A's correctly snapshotted source hit stale shared dependency artifacts and failed with `E0425`. Lock-held refresh made the same A/B/A sequence recompile dependencies and pass. It does not touch mounted targets or dependency caches. Worktrees never receive a target cache. Each worktree gets only `target/debug/libgame_engine_godot.so`, installed atomically after a lossless gzip download.
+Remote registry, Git, and Cargo target caches are shared; the target cache uses `sharing=locked`. Source snapshots retain original file timestamps (`copy2`); after acquiring the remote target lock, the build refreshes staged compile-input timestamps before Cargo runs. This prevents an older snapshot from another worktree being treated as unchanged against a newer target. The reproduced failure was a build from worktree A, then older worktree B, then A again: A's correctly snapshotted source hit stale shared dependency artifacts and failed with `E0425`. Lock-held refresh made the same A/B/A sequence recompile dependencies and pass. It does not touch mounted targets or dependency caches. Worktrees never receive a target cache. By default, each worktree gets only `target/debug/libgame_engine_godot.so`, installed atomically after a lossless gzip download. `--fixture` also builds exactly one allowlisted `game-engine-network` example after the lock-held source refresh and installs its decompressed executable at `target/debug/examples/<name>`; no target cache is downloaded. Run that executable from the same checkout. `native_input_fixture sound-click` and `native_input_fixture reset-windows` launch pinned Godot directly (or `GODOT_BIN`); other input modes retain their root-launcher requirement, which needs a separate lightweight root launcher build if absent. The NPC visual fixture launches Godot directly.
 
 Remote build or download failures fail explicitly. There is no local Cargo fallback for the extension. Godot import and launch stay local and unchanged.
 

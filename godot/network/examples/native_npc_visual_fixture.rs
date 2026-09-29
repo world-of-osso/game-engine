@@ -1,6 +1,6 @@
 //! Owned UDP replication and isolated Godot assets for native ordinary creature visuals.
-//! Run from godot/ after its GDExtension is built:
-//! GODOT_BIN=/path/to/godot cargo run -p game-engine-network --example native_npc_visual_fixture
+//! With the native extension and this example built, run the installed executable
+//! at target/debug/examples/native_npc_visual_fixture.
 
 use std::{
     fs,
@@ -28,6 +28,9 @@ use shared::{
         LoginResponse, SelectCharacter, TerrainChannel,
     },
 };
+
+#[path = "fixture_support/mod.rs"]
+mod fixture_support;
 
 const TICK: Duration = Duration::from_millis(5);
 const NAME: &str = "Fixture Player";
@@ -112,10 +115,9 @@ struct FixtureProject {
 
 impl FixtureProject {
     fn create(nameplates: bool) -> Result<Self, String> {
-        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .ok_or("Missing Godot project directory")?;
-        let repo = source.parent().ok_or("Missing repository directory")?;
+        let checkout = fixture_support::checkout_root_from_executable("native_npc_visual_fixture")?;
+        let repo = checkout.as_path();
+        let source = repo.join("godot");
         // This subtree is untracked and disposable; res://../data is only this fixture's data.
         let root = repo
             .join("data")

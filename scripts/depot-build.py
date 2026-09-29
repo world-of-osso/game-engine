@@ -19,6 +19,7 @@ SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros"
 SOURCE_SUFFIXES = {".rs", ".c", ".h", ".cpp", ".hpp", ".wgsl"}
 EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
 ARTIFACT = "libgame_engine_godot.so"
+FIXTURES = ("native_input_fixture", "native_npc_visual_fixture")
 
 
 def phase(message, start):
@@ -89,30 +90,33 @@ def validate_sources(context):
         raise FileNotFoundError("missing build dependency: game-engine-godot-conversion/src/*.rs")
 
 
-def install_artifact(compressed, destination):
+def install_artifact(compressed, destination, executable=False):
     if not compressed.is_file():
         raise FileNotFoundError(f"Depot did not produce {compressed.name}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=".libgame_engine_godot-", delete=False) as output:
+        with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=f".{destination.name}-", delete=False) as output:
             temporary = Path(output.name)
             with gzip.open(compressed, "rb") as source:
                 shutil.copyfileobj(source, output)
+            if executable:
+                temporary.chmod(0o755)
         os.replace(temporary, destination)
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
 
 
-def build(root):
+def build(root, fixture=None):
     cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "game-engine" / "depot-build"
     cache.mkdir(parents=True, exist_ok=True)
     lock_name = hashlib.sha256(os.fsencode(root)).hexdigest()[:20] + ".lock"
     with (cache / lock_name).open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         target = root / "target"
-        if target.is_symlink() or (target / "debug").is_symlink():
+        if (target.is_symlink() or (target / "debug").is_symlink()
+                or (fixture and (target / "debug" / "examples").is_symlink())):
             raise ValueError(f"target symlink cannot guarantee checkout-local artifact: {target}")
         start = time.monotonic()
         with tempfile.TemporaryDirectory(prefix="build-", dir=cache) as work:
@@ -130,24 +134,33 @@ def build(root):
             phase("Snapshot", start)
             output = Path(work) / "output"
             output.mkdir()
-            subprocess.run([
+            command = [
                 "depot", "build", "--project", os.environ.get("DEPOT_PROJECT_ID", "003c4ttwqh"),
                 "--platform", "linux/amd64", "--file", str(context / "Dockerfile"), "--target", "artifact",
-                "--output", f"type=local,dest={output}", str(context),
-            ], check=True)
+                "--output", f"type=local,dest={output}",
+            ]
+            if fixture:
+                command.extend(["--build-arg", f"FIXTURE={fixture}"])
+            subprocess.run([*command, str(context)], check=True)
             phase("Remote build", start)
             destination = root / "target" / "debug" / ARTIFACT
+            if fixture:
+                fixture_destination = root / "target" / "debug" / "examples" / fixture
+                install_artifact(output / (fixture + ".gz"), fixture_destination, executable=True)
             install_artifact(output / (ARTIFACT + ".gz"), destination)
             phase("Installed", start)
             print(destination)
+            if fixture:
+                print(fixture_destination)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True, help="originating checkout")
+    parser.add_argument("--fixture", choices=FIXTURES, help="also export one network fixture executable")
     args = parser.parse_args()
     try:
-        build(args.root.resolve())
+        build(args.root.resolve(), args.fixture)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Remote build failed: {error}", file=sys.stderr)
         return 1
