@@ -22,13 +22,13 @@ Each worktree needs the matching sibling repositories beside it: `asset-resolver
 
 The helper uploads a source-only snapshot: tracked inputs, nonignored untracked compile inputs, and matching sibling repositories. It excludes `data/`, secrets, targets, and Git metadata.
 
-Remote registry, Git, and Cargo target caches are shared; the target cache uses `sharing=locked`. Worktrees never receive a target cache. Each worktree gets only `target/debug/libgame_engine_godot.so`, installed atomically after a lossless gzip download.
+Remote registry and Git caches are shared. The Cargo target cache is per checkout (`godot-target-<sha256(checkout path)[:20]>`, `sharing=locked`): Cargo decides freshness by mtime, so one target shared by diverging checkouts treated a checkout's older sources as already built from another's newer ones and failed to compile (September 29, 2026). Stable Cargo cannot use `-Zchecksum-freshness`. Worktrees never receive a target cache. Each worktree gets only `target/debug/libgame_engine_godot.so`, installed atomically after a lossless gzip download.
 
 Remote build or download failures fail explicitly. There is no local Cargo fallback for the extension. Godot import and launch stay local and unchanged.
 
 ## Cost and performance
 
-Verified September 29, 2026: `local-builds` uses the user-selected **200 GB per-architecture cache cleanup target** (214,748,364,800 bytes) and **14-day stale retention**. Cache is shared across worktrees, not allocated per worktree. Depot evicts old cache above its target; this is not a hard storage or spending cap. Organization billing controls and the existing `default` project remain unchanged.
+Verified September 29, 2026: `local-builds` uses the user-selected **200 GB per-architecture cache cleanup target** (214,748,364,800 bytes) and **14-day stale retention**. The cleanup target covers every checkout's target cache (about 6 GB each, measured September 29, 2026); a checkout's first build is cold (2 min 22 s remote compile). Depot evicts old cache above its target; this is not a hard storage or spending cap. Organization billing controls and the existing `default` project remain unchanged.
 
 The willingness to spend up to $100/month is conditional, not an automatic billing cap. This project uses the existing company account; the earlier $20 personal-plan estimate does not describe that account. Monitor attributable project usage and organization billing. The helper itself never changes account settings or cache limits.
 
