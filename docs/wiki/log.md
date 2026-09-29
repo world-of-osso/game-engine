@@ -4,6 +4,10 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
+## [2026-09-28] system | Native terrain surface query
+
+The native tile reader caches local GroundEffectTexture/TerrainTypeSounds DB2s once and stores shared-policy classifications for each parsed `_tex0`/height-grid chunk. Streamed terrain exposes an exact half-open surface query, cleared on reset; no WMO classification or playback. Updated [[terrain]] and [[sound]].
+
 ## [2026-09-28] investigation | Invalid character-creation customization combos
 
 `27d02d52` evaluates ChrCustomizationReq/ReqChoice. A Human warrior is now offered 16 skins instead of 24, and a picked choice repairs the options it depends on. `e18ebee4` composites BlendMode 4/6/7/9 and keeps non-body texture types out of the body atlas, so tan skin 4978 with face 27 renders tan instead of teal. Created [[charcreate-invalid-customization-combos]]; updated [[character-creation]] and [[character-texture-compositing]].
