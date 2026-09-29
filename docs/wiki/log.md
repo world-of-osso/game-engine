@@ -2054,3 +2054,7 @@ Elwynn bush 189700's leaf texture 189937 (DXT1, alpha depth 1) drew black square
 ## [2026-09-29] investigation | DXT1 punch-through alpha on master
 
 On master `56a134a6`, Northshire captures show no remaining black foliage cards. The trees and plants use DXT5 leaf textures. No local DXT1 BLP without alpha bits has punch-through texels. Black cards reported after `fe422318` come from pre-fix builds. See [[godot-dxt1-punch-through]].
+
+## [2026-09-29] feature | Unit frames at the Modern preset, retail class bar
+
+Player and target frames now sit at Retail's Modern Edit Mode preset. The target health bar uses the `CheckClassification` anchor (`TargetFrame.lua:419`), not the XML default, which had placed the target 12 px high. The class bar is anchored like `PlayerFrameBottomManagedFramesContainer`, and bars are gated by the Retail `spec` KeyValue. Arcane Charges draw the full `ArcaneChargeTemplate` art and animations. Live proof: `godot/tests/player_class_bar.gd`, with captures in `data/diagnostics/resourceorbs-2026-09-29/`. See [ui-system](systems/ui-system.md#unit-frames).
