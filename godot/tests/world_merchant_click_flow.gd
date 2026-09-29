@@ -114,6 +114,8 @@ func check_live_options_scale(client: Node, vendor: Dictionary) -> bool:
 	var options := menu.find_child("OptionsRoot", true, false) as Control
 	if options == null or not await capture_scaled_ui("merchant-options-075", options):
 		return false
+	if not check_options_description_bounds(menu, 0.75):
+		return false
 	if not OS.get_environment("GODOT_TEST_CAPTURE_DIR").is_empty():
 		print_options_label_geometry(menu, "merchant-options-075")
 	await click(menu.find_child("OptionsTabaccessibility", true, false) as Control)
@@ -122,8 +124,44 @@ func check_live_options_scale(client: Node, vendor: Dictionary) -> bool:
 		return false
 	if not await capture_scaled_ui("merchant-options-125", options):
 		return false
+	if not check_options_description_bounds(menu, 1.25):
+		return false
 	if not OS.get_environment("GODOT_TEST_CAPTURE_DIR").is_empty():
 		print_options_label_geometry(menu, "merchant-options-125")
+	return true
+
+func check_options_description_bounds(menu: CanvasLayer, scale: float) -> bool:
+	var content := menu.find_child("OptionsContentPanel", true, false) as Control
+	var options := menu.find_child("OptionsRoot", true, false) as Control
+	if content == null or options == null:
+		fail("Authored Options content/root missing at scale %s" % scale)
+		return false
+	var descriptions := {
+		"access_text": "Scales the full HUD, menus, and overlays without changing 3D render resolution",
+		"access_colorblind": "Swaps red/green status cues to higher-contrast colors for nameplates and debuff borders",
+		"access_motion": "Animation dampening hooks reserved",
+		"access_subtitles": "Dialog subtitle pipeline not landed yet",
+	}
+	var previous_bottom := -INF
+	for key in descriptions:
+		var label := menu.find_child("InfoDetail" + key, true, false) as Label
+		if label == null or not label.is_visible_in_tree() or label.text != descriptions[key]:
+			fail("Authored Options description missing/changed: %s at scale %s" % [key, scale])
+			return false
+		var row := label.get_parent() as Control
+		var rect := label.get_global_rect()
+		var right_limit := minf(row.get_global_rect().end.x, minf(content.get_global_rect().end.x, options.get_global_rect().end.x))
+		if rect.size.x > 370.5 * scale or rect.end.x > right_limit + 1 or rect.position.y < previous_bottom - 1:
+			fail("Options description exceeds authored row/content or overlaps previous row: %s scale=%s rect=%s limit=%s previous_bottom=%s" % [key, scale, rect, right_limit, previous_bottom])
+			return false
+		var long_text: bool = key == "access_text" or key == "access_colorblind"
+		if long_text and (label.get_line_count() < 2 or label.get_visible_line_count() < 2):
+			fail("Options description did not display full multiline text: %s scale=%s lines=%s visible=%s" % [key, scale, label.get_line_count(), label.get_visible_line_count()])
+			return false
+		if not long_text and (label.get_line_count() != 1 or absf(label.size.x - 370.0) > 0.5):
+			fail("Short Options description changed layout: %s scale=%s size=%s lines=%s" % [key, scale, label.size, label.get_line_count()])
+			return false
+		previous_bottom = rect.end.y
 	return true
 
 func print_options_label_geometry(menu: CanvasLayer, capture: String) -> void:
