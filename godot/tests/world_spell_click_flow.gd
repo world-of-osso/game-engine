@@ -9,6 +9,8 @@ func run_test() -> void:
 	if not endpoint.begins_with("127.0.0.1:") or endpoint.ends_with(":0") or not config.contains("/data/native-reset-fixture-"):
 		fail("Spell-click fixture requires owned UDP endpoint and isolated options")
 		return
+	if not seed_scaled_sound_options(config):
+		return
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await wait_screen(client, "Loading", 15000):
@@ -27,7 +29,11 @@ func run_test() -> void:
 		return
 	var bar := client.get_node_or_null("MainActionBarUI")
 	var action := bar.find_child("ActionButton1", true, false) as Control if bar != null else null
-	if action == null or not await assert_click(client, effects, completed, action, "action bar"):
+	if action == null or not await check_scaled_spell_tooltip(client, action):
+		return
+	if not await check_right_edge_tooltip(client, bar):
+		return
+	if not await assert_click(client, effects, completed, action, "action bar"):
 		return
 	push_key(KEY_P, true)
 	await process_frame
@@ -69,6 +75,88 @@ func run_test() -> void:
 	print("FIXTURE SPELL_CLICK_DONE")
 	client.free()
 	quit(0)
+
+func seed_scaled_sound_options(config: String) -> bool:
+	var path := config.path_join("world-of-osso/options_settings.ron")
+	var settings := FileAccess.get_file_as_string(path)
+	if not settings.begins_with("(sound:"):
+		fail("Sound-click fixture has no isolated options to scale")
+		return false
+	var options := FileAccess.open(path, FileAccess.WRITE)
+	if options == null:
+		fail("Cannot seed owned sound-click UI scale")
+		return false
+	options.store_string(settings.replace("(sound:", "(graphics:(uiScale:1.25),sound:"))
+	options.close()
+	return true
+
+func check_scaled_spell_tooltip(client: Node, action: Control) -> bool:
+	var physical := action.get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = physical
+	motion.global_position = physical
+	root.push_input(motion, true)
+	await wait_frames(4)
+	var host := client.get_node_or_null("SpellTooltipUI")
+	var tooltip := host.find_child("SpellTooltip", true, false) as Control if host != null else null
+	if tooltip == null or not tooltip.is_visible_in_tree():
+		fail("Known Slam action did not reveal authored spell tooltip")
+		return false
+	var scale := 5.0 / 6.0
+	var rect := tooltip.get_global_rect()
+	var expected := Vector2(action.get_global_rect().position.x, action.get_global_rect().position.y - rect.size.y - 4.0 * scale)
+	if absf(tooltip.get_global_transform().get_scale().x - scale) > 0.01 or rect.position.distance_to(expected) > 2.0:
+		fail("Scaled spell tooltip %s not above live Slam action at %s" % [rect, expected])
+		return false
+	return await capture_scaled_ui("sound-tooltip", tooltip)
+
+func check_right_edge_tooltip(client: Node, bar: Node) -> bool:
+	root.size = Vector2i(800, 720)
+	await wait_frames(4)
+	var action := bar.find_child("ActionButton12", true, false) as Control
+	if action == null or client.spells_state().bar[11] != SLAM:
+		fail("Owned action snapshot has no known spell in rightmost button")
+		return false
+	var point := action.get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	await wait_frames(4)
+	var host := client.get_node_or_null("SpellTooltipUI")
+	var tooltip := host.find_child("SpellTooltip", true, false) as Control if host != null else null
+	if tooltip == null or not tooltip.is_visible_in_tree() or not client.spells_state().tooltip.has("Slam"):
+		fail("Rightmost authored Slam button did not reveal its tooltip")
+		return false
+	var rect := tooltip.get_global_rect()
+	if absf(rect.end.x - root.size.x) > 2.0:
+		fail("Scaled tooltip did not clamp at physical viewport edge: %s vs %s" % [rect, root.size])
+		return false
+	if not await capture_scaled_ui("sound-tooltip-800-edge", tooltip):
+		return false
+	root.size = Vector2i(1280, 720)
+	await wait_frames(4)
+	return true
+
+func capture_scaled_ui(name: String, control: Control) -> bool:
+	var directory := OS.get_environment("GODOT_TEST_CAPTURE_DIR")
+	if directory.is_empty():
+		return true
+	if not directory.is_absolute_path() or not DirAccess.dir_exists_absolute(directory):
+		fail("Capture directory must exist and be absolute: " + directory)
+		return false
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image == null or image.is_empty():
+		fail("Rendered UI capture returned an empty image: " + name)
+		return false
+	var path := directory.path_join(name + ".png")
+	var error := image.save_png(path)
+	if error != OK:
+		fail("Cannot save rendered UI capture %s: %s" % [path, error_string(error)])
+		return false
+	print("FIXTURE UI_CAPTURE path=%s viewport=%s image=%s scale=%s rect=%s" % [path, root.size, image.get_size(), control.get_global_transform().get_scale(), control.get_global_rect()])
+	return true
 
 func check_action_bar_visibility(client: Node, bar: Node, action: Control, effects: AudioStreamPlayer, completed: Array) -> bool:
 	if not action.is_visible_in_tree() or client.spells_state().bar[0] != SLAM:

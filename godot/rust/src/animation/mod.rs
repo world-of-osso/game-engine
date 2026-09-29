@@ -120,6 +120,8 @@ pub struct AnimationState {
     action: Option<action::ActionLayer>,
     /// Per bone: in the upper-body set an action always drives.
     upper_body: Vec<bool>,
+    /// Per sequence: its first missile release event (ms).
+    release_ms: Vec<Option<u32>>,
     /// Locomotion is standing still, so an action also drives the legs.
     legs_free: bool,
 }
@@ -167,6 +169,7 @@ impl AnimationState {
             sequence_animated,
             action: None,
             upper_body: action::upper_body_bones(model),
+            release_ms: action::missile_release_times(model),
             legs_free: true,
         })
     }
@@ -574,6 +577,13 @@ impl WowAnimationPlayer {
         fallbacks: &std::collections::HashMap<u16, u16>,
     ) -> Option<u16> {
         self.animation.as_ref()?.resolve_clip(id, fallbacks)
+    }
+
+    /// The playing action clip has yet to fire its missile release event.
+    pub(crate) fn awaits_missile_release(&self) -> bool {
+        self.animation
+            .as_ref()
+            .is_some_and(AnimationState::awaits_missile_release)
     }
 
     /// Fade out held action clip `id`.

@@ -94,7 +94,7 @@ func check_scaled_hosts(client: Node, scale: float) -> bool:
 			continue
 		var canvas := host.find_child("RegistryCanvas", true, false) as Control if host != null else null
 		if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
-			fail("Merchant world %s canvas not scaled to %s" % [host_name, scale])
+			fail("Merchant world %s canvas not scaled to %s; actual=%s" % [host_name, scale, canvas.scale if canvas != null else null])
 			return false
 	return true
 
@@ -111,8 +111,14 @@ func check_live_options_scale(client: Node, vendor: Dictionary) -> bool:
 	await set_scale_slider(slider, 0.0)
 	if not check_scaled_hosts(client, 0.75):
 		return false
+	var options := menu.find_child("OptionsRoot", true, false) as Control
+	if options == null or not await capture_scaled_ui("merchant-options-075", options):
+		return false
+	await click(menu.find_child("OptionsTabaccessibility", true, false) as Control)
 	await set_scale_slider(slider, 0.6666667)
-	return check_scaled_hosts(client, 1.25)
+	if not check_scaled_hosts(client, 1.25):
+		return false
+	return await capture_scaled_ui("merchant-options-125", options)
 
 func set_scale_slider(slider: Control, percent: float) -> void:
 	var rect := slider.get_global_rect()
@@ -298,6 +304,7 @@ func pointer_at(point: Vector2, button: MouseButton, down: bool) -> void:
 	root.push_input(motion, true)
 	var event := InputEventMouseButton.new()
 	event.position = point
+	event.global_position = point
 	event.button_index = button
 	event.pressed = down
 	root.push_input(event, true)

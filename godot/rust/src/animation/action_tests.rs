@@ -9,6 +9,7 @@ const RUN: u16 = 5;
 const ATTACK_1H: u16 = 17;
 const ATTACK_2H: u16 = 18;
 const READY_SPELL_DIRECTED: u16 = 51;
+const SPELL_CAST_DIRECTED: u16 = 53;
 const FRAME_MS: f64 = 1000.0 / 60.0;
 
 fn advance(player: &mut AnimationState, frames: usize) {
@@ -188,4 +189,42 @@ fn spell_clips_are_not_cut_short_by_melee_swings() {
             .unwrap()
     );
     assert_eq!(player.action_id(), Some(READY_SPELL_DIRECTED));
+}
+
+/// SpellCastDirected fires HumanMale HD's `$CSL` at 200 ms: a cast started at frame 0
+/// holds its missile through frame 11 (183 ms) and has released it by frame 13 (217 ms);
+/// frame 12 lands on 200 ms up to float rounding.
+/// The precast loop has no release event, so nothing waits on it.
+#[test]
+fn cast_clip_releases_missiles_at_its_release_event() {
+    let mut player = human_male_hd();
+    player.update_locomotion(STAND, false, false).unwrap();
+    assert!(!player.awaits_missile_release());
+    player
+        .play_action(READY_SPELL_DIRECTED, true, ActionPriority::Spell)
+        .unwrap();
+    assert!(!player.awaits_missile_release());
+    advance(&mut player, 30);
+    player
+        .play_action(SPELL_CAST_DIRECTED, false, ActionPriority::Spell)
+        .unwrap();
+    assert!(player.awaits_missile_release());
+    advance(&mut player, 11);
+    assert!(player.awaits_missile_release());
+    advance(&mut player, 2);
+    assert!(!player.awaits_missile_release());
+    assert_eq!(player.action_id(), Some(SPELL_CAST_DIRECTED));
+}
+
+/// A cast clip stopped before its event no longer holds a missile back.
+#[test]
+fn stopping_the_cast_clip_before_its_event_stops_awaiting_the_release() {
+    let mut player = human_male_hd();
+    player.update_locomotion(STAND, false, false).unwrap();
+    player
+        .play_action(SPELL_CAST_DIRECTED, false, ActionPriority::Spell)
+        .unwrap();
+    advance(&mut player, 3);
+    player.stop_action(SPELL_CAST_DIRECTED);
+    assert!(!player.awaits_missile_release());
 }
