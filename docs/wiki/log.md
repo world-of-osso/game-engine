@@ -1771,3 +1771,7 @@ The Godot client shows the server's `MirrorTimerStart`/`Pause`/`Stop` (fatigue, 
 ## [2026-09-28] feature | Godot spellbook, action bar and casting
 
 The Godot client shows the Retail 12.x spellbook (known spells plus later-level spells greyed "Level N"), the main action bar with keys 1..=, sends `SpellCastIntent` at the target, and shows cooldown/GCD sweeps, `CastFailed` errors, the casting bar and floating combat text. The spell catalog is now engine-free and shared. game-server `spellsbylevel` gates spec spells by SpellLevel and pushes learned spells to the bar. See [[spellbook-action-bar]].
+
+## [2026-09-28] feature | Godot merchant frame
+
+The Godot client interacts with NPCs: right-click targets and sends `InteractNpc` in range, the hover cursor follows `NpcFlags` (Buy on vendors). The server's vendor list opens the shared MerchantFrame, backpack and StackSplitFrame; buy, sell, buyback, Repair All and vendor split work live at Brother Danil; Escape, the close button and walking away close it. Shared data files drop their Bevy derives under `cfg(godot_host)`. See [[merchant-frame]], [[godot-conversion]].

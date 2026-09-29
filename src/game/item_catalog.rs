@@ -74,7 +74,10 @@ fn catalog() -> &'static ItemCatalog {
     CATALOG.get_or_init(|| {
         let dir = crate::paths::resolve_data_path(db2_dir(Path::new("")));
         load_item_catalog(&dir).unwrap_or_else(|err| {
+            #[cfg(not(godot_host))]
             bevy::log::error!("item catalog unavailable: {err}");
+            #[cfg(godot_host)]
+            eprintln!("item catalog unavailable: {err}");
             ItemCatalog::default()
         })
     })

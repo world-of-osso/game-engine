@@ -271,6 +271,11 @@ impl GameClient {
         self.targeting.target
     }
 
+    /// Select `target`; `SetTarget` follows on the next update.
+    pub(super) fn set_target(&mut self, target: Option<u64>) {
+        self.targeting.target = target;
+    }
+
     /// Per frame, before input edges clear: selection input, then its presentation.
     pub(super) fn update_targeting(&mut self) -> Result<(), String> {
         if self.account.session.screen != SessionScreen::InWorld {

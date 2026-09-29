@@ -19,6 +19,7 @@ mod input;
 mod input_keys;
 mod lighting;
 mod loading;
+mod merchant;
 mod mirror_timers;
 mod nameplates;
 #[path = "../../../src/game/creatures/npc_gear_data.rs"]
@@ -116,6 +117,7 @@ pub struct GameClient {
     targeting: targeting::Targeting,
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
+    merchant: merchant::Merchant,
 }
 
 #[godot_api]
@@ -127,6 +129,12 @@ impl INode3D for GameClient {
             PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
         let client_options =
             load_options_file_with_legacy(&data_root.join("ui/options_settings.ron")).clamped();
+        // Bag items resolve names, quality and icons from the shared item tables; the
+        // ~175k-row ItemSparse parse runs off the main thread.
+        if let Err(error) = game_engine_ui_model::paths::set_data_root(data_root.clone()) {
+            godot_error!("{error}");
+        }
+        game_engine_ui_model::item_catalog::warm_item_catalog();
         let mut world_objects = terrain::objects::TerrainObjects::new(
             "WorldObjects",
             WORLD_OBJECT_BUDGET,
@@ -181,6 +189,7 @@ impl INode3D for GameClient {
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
+            merchant: merchant::Merchant::default(),
             units: HashMap::new(),
             world: world::WorldUnits::new(data_root, cache_root),
             server_hostname: if cfg!(debug_assertions) {
@@ -227,6 +236,19 @@ impl INode3D for GameClient {
             }
             return;
         }
+        match self.merchant_key(key.get_keycode()) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Err(error) => {
+                godot_error!("Merchant key failed: {error}");
+                return;
+            }
+            Ok(false) => {}
+        }
         if key.get_keycode() == godot::global::Key::ESCAPE && self.clear_target_on_escape() {
             if let Some(mut viewport) = self.base().get_viewport() {
                 viewport.set_input_as_handled();
@@ -263,6 +285,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_player_input(delta as f32))
             .and_then(|()| self.update_targeting())
             .and_then(|()| self.update_spells(delta as f32))
+            .and_then(|()| self.update_merchant())
             .and_then(|()| self.update_world_map())
             .and_then(|()| self.update_entrance_bar(delta as f32))
             .map(|()| self.world.advance(delta as f32))
@@ -445,6 +468,12 @@ impl GameClient {
     #[func]
     fn target_state(&self) -> VarDictionary {
         self.targeting_snapshot()
+    }
+
+    /// The vendor session: open vendor, its items, buyback, bag items, money, cursor.
+    #[func]
+    fn merchant_state(&self) -> VarDictionary {
+        self.merchant_snapshot()
     }
 
     /// Known spells, bar, cooldowns, sent casts, errors and spellbook entries.
@@ -901,6 +930,7 @@ impl GameClient {
                     self.receive_creation_result(success, error)?
                 }
                 AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
+                AccountEvent::Npc(message) => self.receive_npc_message(message)?,
                 AccountEvent::UnitRemoved(id) => {
                     self.world.remove(id);
                     self.units.remove(&id);

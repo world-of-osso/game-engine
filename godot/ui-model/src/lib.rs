@@ -5,6 +5,13 @@ pub mod ui {
 
     pub use ui_toolkit::{frame, layout, registry};
 
+    pub mod panel_styles {
+        pub use crate::panel_style_data::{
+            METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
+            METAL_FRAME_OUTSET, METAL_FRAME_PANEL_STYLE,
+        };
+    }
+
     pub mod widgets {
         pub use ui_toolkit::widgets::{font_string, texture};
     }
@@ -12,7 +19,8 @@ pub mod ui {
     pub mod screens {
         pub(crate) use crate::screen_title;
         pub use crate::{
-            default_button_atlas, inworld_unit_frames_component, menu_primitives,
+            bag_frame_component, default_button_atlas, inworld_unit_frames_component,
+            menu_primitives, merchant_frame_component, quest_art, stack_split_frame_component,
             trash_button_component, world_map_frame_art, world_map_frame_component,
         };
 
@@ -90,7 +98,40 @@ pub mod ui_errors_frame_component;
 #[path = "../../../src/ui/screens/game_menu_main.rs"]
 pub mod game_menu_main;
 #[path = "../../../src/ui/panel_style_data.rs"]
-mod panel_style_data;
+pub mod panel_style_data;
+
+// Merchant frame, backpack and stack split (docs/specs/merchant-frame.md, cursor-item.md).
+#[path = "../../../src/ui/screens/bag_frame_component.rs"]
+pub mod bag_frame_component;
+#[path = "../../../src/ui/screens/merchant_frame_component.rs"]
+pub mod merchant_frame_component;
+#[path = "../../../src/ui/screens/quest_art.rs"]
+pub mod quest_art;
+#[path = "../../../src/ui/screens/stack_split_frame_component.rs"]
+pub mod stack_split_frame_component;
+
+#[path = "../../../src/game/bag_data.rs"]
+pub mod bag_data;
+#[path = "../../../src/game/spell_catalog/csv_records.rs"]
+pub(crate) mod csv_records;
+#[path = "../../../src/game/item_catalog.rs"]
+pub mod item_catalog;
+#[path = "../../../src/game/item_icons.rs"]
+pub mod item_icons;
+pub mod merchant;
+#[path = "../../../src/game/merchant_data.rs"]
+pub mod merchant_data;
+pub mod paths;
+#[path = "../../../src/game/stack_split.rs"]
+pub mod stack_split;
+#[path = "../../../src/rendering/ui/wow_cursor_data.rs"]
+pub mod wow_cursor_data;
+
+/// The DB2 export build of the item tables (root `spell_catalog::SPELL_DB2_BUILD`).
+mod spell_catalog {
+    pub(crate) use crate::csv_records;
+    pub const SPELL_DB2_BUILD: &str = "12.1.0.69933";
+}
 
 #[path = "../../../src/ui/screens/loading_component.rs"]
 pub mod loading_component;

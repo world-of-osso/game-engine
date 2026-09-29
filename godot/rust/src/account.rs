@@ -21,6 +21,14 @@ use shared::protocol::{
     SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellsLearned,
     SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
+use shared::protocol::{
+    BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
+    InteractionChannel, InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta,
+    InventoryError, InventorySnapshot, MerchantChannel, MerchantFailed, RepairItem,
+    SellAllJunkItems, SellItem, VendorInventory,
+};
+
+use game_engine_ui_model::merchant_data::MerchantRequest;
 
 use crate::player_spells::PlayerSpells;
 
@@ -75,6 +83,23 @@ pub enum AccountEvent {
     },
     /// The server rejected a cast request.
     CastFailed(CastFailed),
+    /// NPC interaction, vendor, bag and durability traffic.
+    Npc(NpcMessage),
+}
+
+/// Server messages for the NPC interaction and merchant host.
+pub enum NpcMessage {
+    Opened(InteractionOpened),
+    /// `InteractionClosed`: the server ended the interaction with this NPC.
+    Closed(u64),
+    Vendor(VendorInventory),
+    Buyback(BuybackList),
+    Inventory(InventorySnapshot),
+    InventoryChanged(InventoryDelta),
+    /// `DurabilityStateUpdate.total_repair_cost` (`GetRepairAllCost`).
+    RepairCost(u32),
+    /// Retail `UIErrorsFrame` text of a refused interaction, vendor or bag request.
+    Error(String),
 }
 
 impl Account {
@@ -220,6 +245,53 @@ impl Account {
             .send::<_, InstanceChannel>(RequestRaidInfo)
     }
 
+    /// Right-click on an NPC (`CMSG_GOSSIP_HELLO` and the role hellos).
+    pub fn send_interact(&self, npc: u64) -> Result<(), String> {
+        self.connected_bridge()?
+            .send::<_, InteractionChannel>(InteractNpc { npc })
+    }
+
+    /// The player closed the NPC's frame (`CMSG_CLOSE_INTERACTION`).
+    pub fn send_close_interaction(&self, npc: u64) -> Result<(), String> {
+        self.connected_bridge()?
+            .send::<_, InteractionChannel>(CloseInteraction { npc })
+    }
+
+    /// A MerchantFrame request to the open vendor `npc` (Bevy `send_merchant_requests`).
+    pub fn send_merchant_request(&self, npc: u64, request: &MerchantRequest) -> Result<(), String> {
+        let bridge = self.connected_bridge()?;
+        match *request {
+            MerchantRequest::Buy {
+                slot,
+                item_id,
+                count,
+                destination,
+            } => bridge.send::<_, MerchantChannel>(BuyItem {
+                npc,
+                slot,
+                item_id,
+                count,
+                destination,
+            }),
+            MerchantRequest::SellAllJunk => {
+                bridge.send::<_, MerchantChannel>(SellAllJunkItems { npc })
+            }
+            MerchantRequest::Sell { item_guid, count } => {
+                bridge.send::<_, MerchantChannel>(SellItem {
+                    npc,
+                    item_guid,
+                    count,
+                })
+            }
+            MerchantRequest::Buyback { slot } => {
+                bridge.send::<_, MerchantChannel>(BuybackItemRequest { npc, slot })
+            }
+            MerchantRequest::Repair { item_guid } => {
+                bridge.send::<_, MerchantChannel>(RepairItem { npc, item_guid })
+            }
+        }
+    }
+
     /// Called by the host only after the destination is ready for world entry.
     pub fn finish_world_port(&mut self) -> Result<(), String> {
         self.session.finish_world_port();
@@ -355,6 +427,13 @@ impl Account {
             });
             return Ok(());
         }
+        let message = match npc_message(message)? {
+            Ok(npc) => {
+                output.push(AccountEvent::Npc(npc));
+                return Ok(());
+            }
+            Err(message) => message,
+        };
         let effects = self.receive_message(message)?;
         self.apply_effects(effects, output)
     }
@@ -480,6 +559,42 @@ impl Account {
         }
         Ok(())
     }
+}
+
+/// The NPC interaction, vendor, bag or durability message, or the message back.
+fn npc_message(message: ProtocolMessage) -> Result<Result<NpcMessage, ProtocolMessage>, String> {
+    let npc = if message.is::<InteractionOpened>() {
+        NpcMessage::Opened(decode(message)?)
+    } else if message.is::<InteractionClosed>() {
+        NpcMessage::Closed(decode::<InteractionClosed>(message)?.npc)
+    } else if message.is::<InteractionFailed>() {
+        NpcMessage::Error(decode::<InteractionFailed>(message)?.error.message().into())
+    } else if message.is::<VendorInventory>() {
+        NpcMessage::Vendor(decode(message)?)
+    } else if message.is::<BuybackList>() {
+        NpcMessage::Buyback(decode(message)?)
+    } else if message.is::<MerchantFailed>() {
+        NpcMessage::Error(decode::<MerchantFailed>(message)?.error.message().into())
+    } else if message.is::<InventorySnapshot>() {
+        NpcMessage::Inventory(decode(message)?)
+    } else if message.is::<InventoryDelta>() {
+        NpcMessage::InventoryChanged(decode(message)?)
+    } else if message.is::<InventoryError>() {
+        NpcMessage::Error(decode::<InventoryError>(message)?.reason.message())
+    } else if message.is::<DurabilityStateUpdate>() {
+        let update: DurabilityStateUpdate = decode(message)?;
+        match update.snapshot {
+            Some(snapshot) => NpcMessage::RepairCost(snapshot.total_repair_cost),
+            None => NpcMessage::Error(
+                update
+                    .error
+                    .unwrap_or_else(|| "Durability update without a snapshot".into()),
+            ),
+        }
+    } else {
+        return Ok(Err(message));
+    };
+    Ok(Ok(npc))
 }
 
 fn validate_startup_name(response: &LoginResponse, name: Option<&str>) -> Result<(), String> {

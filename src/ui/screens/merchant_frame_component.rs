@@ -875,6 +875,6 @@ pub(crate) fn tab(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "merchant_frame_component_tests.rs"]
 mod tests;

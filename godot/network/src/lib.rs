@@ -25,17 +25,19 @@ use lightyear::prelude::{
 use shared::{
     casting::CastState,
     components::{
-        CombatStatus, CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay,
+        CombatStatus, CreatureMotion, EquipmentAppearance, Gold, Health, Mana, ModelDisplay,
         MovementControl, MovementSpeed, Npc, Player, Position, Rotation, UnitAuras,
         UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
     },
     protocol::{
-        ActionBarSnapshot, CastFailed, CharacterListUpdate, CombatLogEvent,
-        CreateCharacterResponse, DeleteCharacterResponse, DungeonDifficultySet, EnterWorldResponse,
-        ForcedDisconnect, InstanceInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse,
-        MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, QuestLogSnapshot,
+        ActionBarSnapshot, BuybackList, CastFailed, CharacterListUpdate, CombatLogEvent,
+        CreateCharacterResponse, DeleteCharacterResponse, DungeonDifficultySet,
+        DurabilityStateUpdate, EnterWorldResponse, ForcedDisconnect, InstanceInfo,
+        InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta, InventoryError,
+        InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed,
+        MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, NpcFlags, QuestLogSnapshot,
         QuestLogUpdate, RegisterResponse, SpecializationChanged, SpellCooldownUpdate,
-        SpellsLearned, SpellsUnlearned, TransferAborted,
+        SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
     },
 };
 
@@ -99,6 +101,10 @@ pub struct UnitSnapshot {
     /// Raw DB2 power values, primary power first.
     pub powers: Option<UnitPowers>,
     pub auras: Option<UnitAuras>,
+    /// Retail `NPCFlags` / `NPCFlags2` bits of an NPC (vendor, repair, gossip, ...).
+    pub npc_flags: Option<u64>,
+    /// The local player's money in copper; other units carry none.
+    pub gold: Option<u64>,
 }
 
 impl UnitSnapshot {
@@ -127,6 +133,8 @@ impl UnitSnapshot {
             cast: entity.get::<CastState>().cloned(),
             powers: entity.get::<UnitPowers>().cloned(),
             auras: entity.get::<UnitAuras>().cloned(),
+            npc_flags: entity.get::<NpcFlags>().map(|flags| flags.0),
+            gold: entity.get::<Gold>().map(|gold| gold.0),
         }
     }
 }
@@ -206,6 +214,17 @@ impl NetworkBridge {
             .receive::<SpellCooldownUpdate>()
             .receive::<CastFailed>()
             .receive::<CombatLogEvent>()
+            // NPC interaction, the merchant frame and the bags it sells from.
+            .receive::<InteractionOpened>()
+            .receive::<InteractionFailed>()
+            .receive::<InteractionClosed>()
+            .receive::<VendorInventory>()
+            .receive::<BuybackList>()
+            .receive::<MerchantFailed>()
+            .receive::<InventorySnapshot>()
+            .receive::<InventoryDelta>()
+            .receive::<InventoryError>()
+            .receive::<DurabilityStateUpdate>()
             .connect(server_addr, client_id)
     }
 

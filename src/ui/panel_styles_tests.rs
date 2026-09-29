@@ -1,4 +1,5 @@
 use super::*;
+use data::{METAL_CORNERS, METAL_SIDE_EDGES, METAL_TOP_BOTTOM_EDGES, metal_frame_uv_rects};
 
 const TAGS: [(u32, u8); 3] = [
     (METAL_CORNERS, 1),
