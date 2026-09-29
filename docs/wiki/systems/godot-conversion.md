@@ -198,7 +198,13 @@ Proof: `godot/core/tests/wmo_doodads.rs` 6/6 (real `sw_magicdistrict` Jail01 MOD
 
 Branch `wmodoodads-anim` (`adce94b9`, merged with master at `d4df58c8`): master's cull already stops bone and material animation on undrawn doodads, so the branch keeps only the static-track rule. A player whose bone tracks, or a material animation whose UV/colour/transparency tracks, are all constant (`godot/core` `m2::track_is_constant`, `m2::bones_are_static`) samples once: `CulledDoodad` keeps no handle to it, and outside the in-world cull it stops its own processing in `ready()`. Fixture: the culled Jail01 lamp 199823 keeps its material while the clock advances and animates when drawn; the static-boned lamp and cobweb 199565 never change pose or process, and a cobweb loaded outside the cull processes nothing. Before the merge (own cull, base `a880a509`), processing `M2Animation` fell 1,729 -> 172 and `M2MaterialAnimation` 631 -> 135 at the Stormwind spot. `m2_uv_pixels.gd` "Automatic clock did not move the rendered effect texture" fails on both revisions.
 
-Not handled: MODD colour and interior doodad lighting (WWV `applyLightingParamsToDoodad`: MOLT/MDDI) and MODF flag `0x80` MWDS doodad sets. M2 particles: see [Native M2 particles](#native-m2-particles).
+Branch `wmodoodadcost`:
+
+- **Global WMO portal culling** (`5b508767`). `GlobalWmoScene` hands its `CulledWmo` to `TerrainObjects::adopt_wmo`, so the Stockade's groups and doodads are portal-culled with the ADT WMOs, and its MFOG lookup moves with it. Collision stays in `wmo::collision`, built from the map data, independent of render visibility. Proof: `wmo_doodads_flow.gd` from the Stockade fixture spawn (engine (103, -32.5, -76)) hides 18 of 27 groups looking +X and 26 looking -X; 210 doodads drawn looking +X are hidden looking -X (the scenery distance does not depend on the view); RED before: 0 groups hidden. The owned `native_transfer_fixture --global-wmo` still grounds the player.
+- **MWDS doodad sets** (`5b508767`): MODF flag `0x80` per [[wmo-format]]. Proof: core `wmo_doodads` 8/8 (RED 6/8); `godot/tests/wmo_mwds_doodads.gd` spawns 253 doodads (MODD 1..=253) for `azeroth_31_48` uniqueId 5478984 (RED: 1, MODD 0).
+- **MODD colour and interior light** (`af9031e4`): [[wmo-retail-lighting]], Godot: WMO doodad light.
+
+M2 particles: see [Native M2 particles](#native-m2-particles).
 
 ## Native M2 particles
 

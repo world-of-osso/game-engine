@@ -34,6 +34,17 @@ uniform float fog_opacity;
 // 0 off, 1 retail legacy fog.
 uniform int fog_mode = 0;
 
+// WMO doodad interior light (WebWowViewerCpp M2 intLight, m2Object.cpp:1405-1432):
+// calcLight mixes interior and exterior light by exterior_blend; 1 is exterior only.
+uniform float exterior_blend = 1.0;
+uniform vec3 interior_ambient;
+uniform vec3 interior_horizon_ambient;
+uniform vec3 interior_ground_ambient;
+uniform vec3 interior_direct;
+// The direction interior light travels: the scene default (-0.30822, -0.30822, -0.9)
+// in WoW axes, or the doodad's personal direction from its MOLT light or group.
+uniform vec3 interior_sun_direction = vec3(-0.30822, -0.9, 0.30822);
+
 varying vec3 world_position;
 varying vec3 world_normal;
 varying vec3 camera_position;
@@ -71,13 +82,14 @@ vec4 combine_textures(vec4 texture1, vec4 texture2, int id) {
 	return texture1;
 }
 
-vec3 retail_ambient(vec3 normal, float n_dot_l) {
+// commonLightFunctions.slang applyAndMixAmbients, without precomputed light.
+vec3 retail_ambient(vec3 sky, vec3 horizon, vec3 ground, vec3 normal, float n_dot_l) {
 	float n_dot_up = dot(normal, vec3(0.0, 1.0, 0.0));
 	vec3 hemisphere;
 	if (n_dot_up >= 0.0) {
-		hemisphere = mix(horizon_ambient, ambient, n_dot_up);
+		hemisphere = mix(horizon, sky, n_dot_up);
 	} else {
-		hemisphere = mix(horizon_ambient, ground_ambient, -n_dot_up);
+		hemisphere = mix(horizon, ground, -n_dot_up);
 	}
 	return mix(hemisphere * 0.7, hemisphere * 1.1, 0.5 + 0.5 * n_dot_l);
 }
@@ -152,7 +164,13 @@ void light() {
 		vec3 rgb = authored_color;
 		vec3 normal = normalize(world_normal);
 		float n_dot_l = clamp(dot(normal, -normalize(sun_direction)), 0.0, 1.0);
-		rgb *= retail_ambient(normal, n_dot_l) + direct * n_dot_l * ATTENUATION;
+		vec3 light_color = retail_ambient(ambient, horizon_ambient, ground_ambient, normal, n_dot_l) + direct * n_dot_l * ATTENUATION;
+		if (exterior_blend < 1.0) {
+			float interior_dot = clamp(dot(normal, -normalize(interior_sun_direction)), 0.0, 1.0);
+			vec3 interior = retail_ambient(interior_ambient, interior_horizon_ambient, interior_ground_ambient, normal, interior_dot) + interior_direct * interior_dot;
+			light_color = mix(interior, light_color, exterior_blend);
+		}
+		rgb *= light_color;
 		if ((render_flags & 2) == 0) {
 			rgb = apply_retail_fog(rgb);
 		}

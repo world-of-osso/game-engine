@@ -952,11 +952,10 @@ impl GameClient {
         };
         let map_id = self.world_map_id.ok_or("Loaded terrain has no map ID")?;
         // WebWowViewerCpp applies the MFOG fog of the WMO interior the camera is in.
-        let wmo_fog = self.world_camera.position().and_then(|camera| {
-            self.world_objects
-                .camera_fog(camera)
-                .or_else(|| self.global_wmo.camera_fog(camera))
-        });
+        let wmo_fog = self
+            .world_camera
+            .position()
+            .and_then(|camera| self.world_objects.camera_fog(camera));
         if let Some(light) = self.world_lighting.sync(
             &mut parent,
             &wdt.lighting,
@@ -1026,9 +1025,9 @@ impl GameClient {
         }
         let mut parent = self.to_gd().upcast::<Node3D>();
         let global_wmo = self.global_wmo.sync(&mut parent, &self.terrain);
-        if let Some((wmo, node, doodads)) = self.global_wmo.take_doodads() {
+        if let Some(wmo) = self.global_wmo.take_spawned() {
             self.world_objects
-                .queue_wmo_doodads(wmo, &node, doodads, None);
+                .adopt_wmo(wmo.unique_id, &wmo.node, wmo.doodads, wmo.culled);
         }
         let state = self.terrain.state();
         let readiness = loading::evaluate_native_loading(

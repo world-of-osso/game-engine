@@ -2,7 +2,7 @@
 //! spawned in selection order within a per-frame time budget.
 
 use std::{
-    collections::{BTreeSet, HashMap, HashSet, VecDeque},
+    collections::{BTreeSet, HashMap, VecDeque},
     path::PathBuf,
     time::{Duration, Instant},
 };
@@ -12,7 +12,7 @@ use game_engine_core::{
     asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
     campsite_object_data::{campsite_doodad_placement, doodad_position, placement_position},
     m2,
-    wmo::{self, WmoDoodadModel},
+    wmo::WmoDoodadModel,
 };
 use glam::{Affine3A, Vec3};
 use godot::{classes::Node3D, prelude::*};
@@ -30,7 +30,8 @@ use crate::{
     particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
     terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
     wmo::{
-        assets::wmo_fog_volume,
+        assets::{LitDoodad, NativeWmoAsset, wmo_fog_volume},
+        doodad_light::bind_doodad_light,
         portals::{HalfSpace, WmoPortals},
     },
     world_models::bind_visual_light,
@@ -87,9 +88,9 @@ struct BuiltDoodad {
 /// A spawned WMO node and the doodads it still places as children.
 struct WmoDoodads {
     node: Gd<Node3D>,
-    doodads: Vec<wmo::WmoDoodad>,
-    /// Index of the WMO in `TerrainObjects::wmos`, when it is portal-culled.
-    culled: Option<usize>,
+    doodads: Vec<LitDoodad>,
+    /// Index of the WMO in `TerrainObjects::wmos`.
+    culled: usize,
 }
 
 /// A spawned doodad, the retail distance it is drawn to, and its animation. Once the
@@ -154,12 +155,9 @@ impl CulledDoodad {
     /// Whether a group referencing this WMO doodad was drawn by the last portal cull;
     /// always for ADT doodads and WMOs without portal culling.
     fn group_drawn(&self, wmos: &[CulledWmo]) -> bool {
-        self.wmo_groups.as_ref().is_none_or(|(wmo, groups)| {
-            wmos[*wmo]
-                .visible
-                .as_ref()
-                .is_none_or(|visible| groups.iter().any(|group| visible.contains(group)))
-        })
+        self.wmo_groups
+            .as_ref()
+            .is_none_or(|(wmo, groups)| wmos[*wmo].draws_any(groups))
     }
 
     /// Retail distance fade: hidden at opacity 0, blended while fading. A WMO
@@ -220,13 +218,39 @@ impl CulledDoodad {
 }
 
 /// A spawned WMO's portal graph, MFOG fog and the batch meshes of each drawable group.
-struct CulledWmo {
+pub(crate) struct CulledWmo {
     portals: WmoPortals,
     fog: WmoFogVolume,
     world_from_local: Affine3A,
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
-    /// Groups drawn after the last cull; `None` before the first.
-    visible: Option<HashSet<u16>>,
+    /// Per group index, whether the last cull drew it; `None` before the first.
+    drawn: Option<Vec<bool>>,
+}
+
+impl CulledWmo {
+    /// The culling state of WMO `node`, built from `asset` and placed by `world_from_local`.
+    pub(crate) fn new(
+        asset: &NativeWmoAsset,
+        world_from_local: Affine3A,
+        node: &Gd<Node3D>,
+    ) -> Self {
+        Self {
+            portals: WmoPortals::new(asset),
+            fog: wmo_fog_volume(asset),
+            world_from_local,
+            groups: group_batches(node),
+            drawn: None,
+        }
+    }
+
+    /// Whether the last cull drew one of `groups`; always before the first cull.
+    fn draws_any(&self, groups: &[u16]) -> bool {
+        self.drawn.as_ref().is_none_or(|drawn| {
+            groups
+                .iter()
+                .any(|&group| drawn.get(group as usize).copied().unwrap_or(false))
+        })
+    }
 }
 
 pub(crate) struct TerrainObjects {
@@ -379,16 +403,15 @@ impl TerrainObjects {
                 if self.spawned_wmos.contains(&wmo.unique_id) {
                     return Ok(());
                 }
-                let (wmo_node, culled, doodads) = self.load_placed_wmo(wmo, tile)?;
+                let doodad_sets = tile_objects(tile).wmo_active_doodad_sets(wmo);
+                let (wmo_node, culled, doodads) = self.load_placed_wmo(wmo, tile, &doodad_sets)?;
                 self.spawned_wmos.insert(wmo.unique_id);
-                self.wmos.push(culled);
                 // Batches that cannot be drawn are failures; the rest of the WMO stays.
                 for error in wmo_node.batch_errors {
                     self.failures += 1;
                     godot_error!("{}: {error}", self.name);
                 }
-                let culled = Some(self.wmos.len() - 1);
-                self.queue_wmo_doodads(wmo.unique_id, &wmo_node.node, doodads, culled);
+                self.adopt_wmo(wmo.unique_id, &wmo_node.node, doodads, culled);
                 wmo_node.node
             }
         };
@@ -498,13 +521,26 @@ impl TerrainObjects {
         })
     }
 
-    /// Doodads spawn later, one per pending entry, so the object budget covers them.
-    pub(crate) fn queue_wmo_doodads(
+    /// Portal-culls a WMO spawned elsewhere (a WDT global WMO) with the ADT WMOs, and
+    /// spawns its doodads within the object budget.
+    pub(crate) fn adopt_wmo(
         &mut self,
         wmo: u32,
         node: &Gd<Node3D>,
-        doodads: Vec<wmo::WmoDoodad>,
-        culled: Option<usize>,
+        doodads: Vec<LitDoodad>,
+        culled: CulledWmo,
+    ) {
+        self.wmos.push(culled);
+        self.queue_wmo_doodads(wmo, node, doodads, self.wmos.len() - 1);
+    }
+
+    /// Doodads spawn later, one per pending entry, so the object budget covers them.
+    fn queue_wmo_doodads(
+        &mut self,
+        wmo: u32,
+        node: &Gd<Node3D>,
+        doodads: Vec<LitDoodad>,
+        culled: usize,
     ) {
         if doodads.is_empty() {
             return;
@@ -525,9 +561,9 @@ impl TerrainObjects {
     /// A MODD doodad as a child of its WMO node, which carries the MODF transform.
     fn spawn_wmo_doodad(&mut self, wmo: u32, index: usize) -> Result<(), String> {
         let placed = &self.wmo_doodads[&wmo];
-        let doodad = placed.doodads[index].clone();
+        let (doodad, light) = placed.doodads[index].clone();
         let mut parent = placed.node.clone();
-        let wmo_groups = placed.culled.map(|culled| (culled, doodad.groups.clone()));
+        let wmo_groups = Some((placed.culled, doodad.groups.clone()));
         if index + 1 == placed.doodads.len() {
             self.wmo_doodads.remove(&wmo);
         }
@@ -552,12 +588,15 @@ impl TerrainObjects {
         parent.add_child(&*model);
         // Retail 12340 gates WMO-attached doodads by the same scenery distance as ADT
         // doodads (solarityclient `terrain_frame/m2/doodad_scene.rs`, 799B70 admission).
-        let world_from_model = affine(parent.get_global_transform())
+        let world_from_wmo = affine(parent.get_global_transform());
+        let world_from_model = world_from_wmo
             * Affine3A::from_scale_rotation_translation(
                 Vec3::splat(doodad.scale),
                 doodad.rotation,
                 doodad.translation,
             );
+        let center = world_from_model.transform_point3((render_box.0 + render_box.1) * 0.5);
+        bind_doodad_light(&model, &light, world_from_wmo, center);
         // WMO doodads have no ADT unique ID; this only staggers half-rate animation.
         let stagger = wmo.wrapping_mul(8191).wrapping_add(u32::from(doodad.index));
         let scenery = SceneryDistance::new(render_box.0, render_box.1, world_from_model);
@@ -569,14 +608,15 @@ impl TerrainObjects {
         &self,
         placement: &WmoPlacement,
         tile: Tile,
-    ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<wmo::WmoDoodad>), String> {
+        doodad_sets: &[u16],
+    ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<LitDoodad>), String> {
         let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
-        let doodads = asset.doodads(placement.doodad_set);
+        let doodads = asset.doodads(doodad_sets);
         let mut wmo_node = crate::wmo::scene::build_wmo_node(
             &asset,
             &self.resolver,
             &self.data_root,
-            placement.doodad_set,
+            doodad_sets,
             self.light.as_ref(),
         )?;
         let model = &mut wmo_node.node;
@@ -588,17 +628,12 @@ impl TerrainObjects {
             rotation.x, rotation.y, rotation.z, rotation.w,
         ));
         model.set_scale(Vector3::ONE * placement.scale);
-        let culled = CulledWmo {
-            portals: WmoPortals::new(&asset),
-            fog: wmo_fog_volume(&asset),
-            world_from_local: Affine3A::from_scale_rotation_translation(
-                Vec3::splat(placement.scale),
-                rotation,
-                position,
-            ),
-            groups: group_batches(model),
-            visible: None,
-        };
+        let world_from_local = Affine3A::from_scale_rotation_translation(
+            Vec3::splat(placement.scale),
+            rotation,
+            position,
+        );
+        let culled = CulledWmo::new(&asset, world_from_local, model);
         Ok((wmo_node, culled, doodads))
     }
 
@@ -617,18 +652,23 @@ impl TerrainObjects {
     pub fn cull_wmos(&mut self, camera: Vector3, frustum: &[HalfSpace]) {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
         for wmo in &mut self.wmos {
-            let visible = wmo
+            let drawn = wmo
                 .portals
                 .visible_groups(wmo.world_from_local, frustum, camera);
-            for (group, batches) in &mut wmo.groups {
-                let shown = visible.contains(group);
-                for batch in batches {
-                    if batch.is_visible() != shown {
+            // Only groups whose state changed touch their batch nodes.
+            let previous = wmo.drawn.take();
+            for (&group, batches) in &mut wmo.groups {
+                let shown = drawn.get(group as usize).copied().unwrap_or(false);
+                let was = previous
+                    .as_ref()
+                    .map(|previous| previous.get(group as usize).copied().unwrap_or(false));
+                if was != Some(shown) {
+                    for batch in batches {
                         batch.set_visible(shown);
                     }
                 }
             }
-            wmo.visible = Some(visible);
+            wmo.drawn = Some(drawn);
         }
     }
 

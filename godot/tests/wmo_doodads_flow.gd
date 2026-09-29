@@ -10,6 +10,8 @@ extends SceneTree
 const MAGIC_DISTRICT := 321999
 const TRIGGER := Vector3(-8761.85, 87.81, -848.56)
 const PORTAL_SCALE := 1.3597486
+# Along the Stockade cell block from the fixture spawn.
+const STOCKADE_LOOK := Vector3(1.0, 0.0, 0.0)
 
 func fail(message: String) -> void:
 	push_error(message)
@@ -121,7 +123,59 @@ func run_global() -> void:
 		fail("Expected all 748 Stockade doodads without failures; got %d, %d failures" % [doodads.size(), state.failures])
 		return
 	print("PASS: the Stockade global WMO places its 748 default-set doodads")
+	if not assert_global_portal_cull(probe, wmo, doodads):
+		return
+	if not assert_interior_doodad_light(wmo):
+		return
 	quit(0)
+
+# Stockade MODD 100 (flags 0x2, colour (77, 78, 86), interior groups): every batch
+# is lit as interior with the MODD colour as direct light and the MOHD ambient
+# (25, 25, 25), as `wmo::doodad_light` derives from WebWowViewerCpp.
+func assert_interior_doodad_light(wmo: Node3D) -> bool:
+	var doodad := wmo.get_node("WmoDoodad100") as Node3D
+	var direct := Vector3(77.0, 78.0, 86.0) / 255.0
+	var ambient := Vector3(25.0, 25.0, 25.0) / 255.0
+	var batches := doodad.find_children("*", "MeshInstance3D", true, false)
+	for mesh in batches:
+		var material := (mesh as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		var blend = material.get_shader_parameter("exterior_blend")
+		var lit = material.get_shader_parameter("interior_direct")
+		var amb = material.get_shader_parameter("interior_ambient")
+		if blend != 0.0 or lit == null or not lit.is_equal_approx(direct) or amb == null or not amb.is_equal_approx(ambient):
+			fail("MODD 100 %s: exterior_blend %s, interior_direct %s, interior_ambient %s" % [mesh.name, blend, lit, amb])
+			return false
+	print("PASS: Stockade MODD 100's %d batches take its interior light" % batches.size())
+	return true
+
+# The global WMO is portal-culled like ADT WMOs: from the owned fixture's Stockade
+# spawn (engine (103, -34.5, -76), 2 yd up) only the groups its portals reach through
+# the view are drawn. The scenery distance does not depend on the view direction, so
+# doodads drawn looking one way and hidden looking the other way from the same eye
+# are hidden by their groups' portal culling.
+func assert_global_portal_cull(probe: Node, wmo: Node3D, doodads: Array) -> bool:
+	var eye := Vector3(103.0, -32.5, -76.0)
+	var views := []
+	for look in [STOCKADE_LOOK, -STOCKADE_LOOK]:
+		cull_from(probe, eye, eye + look)
+		var hidden := {}
+		for batch in wmo.find_children("Group*_Batch*", "", false, false):
+			hidden[String(batch.name).get_slice("_", 0)] = hidden.get(String(batch.name).get_slice("_", 0), true) and not batch.visible
+		var shown := {}
+		for doodad in doodads:
+			if doodad.visible:
+				shown[doodad.name] = true
+		views.append([hidden.keys().filter(func(group): return hidden[group]), shown])
+	var turned_away := 0
+	for name in views[0][1]:
+		if not views[1][1].has(name):
+			turned_away += 1
+	print("stockade cull: hidden groups %d / %d, doodads shown %d / %d, %d drawn looking +X are hidden looking -X" % [views[0][0].size(), views[1][0].size(), views[0][1].size(), views[1][1].size(), turned_away])
+	if views[0][0].is_empty() or views[1][0].is_empty() or turned_away == 0:
+		fail("Stockade portal cull: hidden groups %s / %s, %d doodads hidden by turning" % [views[0][0], views[1][0], turned_away])
+		return false
+	print("PASS: the Stockade global WMO is portal-culled with its doodads")
+	return true
 
 # Retail gates WMO doodads by the ADT doodad scenery distance and by their groups'
 # portal visibility: from a camera at the trigger (looking +X down the tunnel) the

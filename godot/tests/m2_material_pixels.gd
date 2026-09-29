@@ -320,4 +320,21 @@ func run_cases() -> void:
 		fail("real caster must attenuate direct, retain ambient: %s (clear %s, ambient %s)" % [shadow_pixel, unshadowed, ambient_only])
 		return
 	print("PASS: real caster attenuates direct, retains ambient ", shadow_pixel)
+	# WMO doodad interior light (commonLightFunctions.slang calcLight): at blend 0 the
+	# interior ambient and direct light along the personal sun replace the exterior
+	# light, ignoring the sun's shadow; at 0.5 the two mix.
+	material.set_shader_parameter("exterior_blend", 0.0)
+	material.set_shader_parameter("interior_ambient", Vector3(0.2, 0.2, 0.2))
+	material.set_shader_parameter("interior_horizon_ambient", Vector3(0.2, 0.2, 0.2))
+	material.set_shader_parameter("interior_ground_ambient", Vector3(0.2, 0.2, 0.2))
+	material.set_shader_parameter("interior_direct", Vector3(0.5, 0.5, 0.5))
+	material.set_shader_parameter("interior_sun_direction", Vector3.DOWN)
+	var interior := 0.4 * (0.2 * 1.1 + 0.5)
+	if not await assert_pixel("interior doodad light under the caster", Color(interior, interior, interior)):
+		return
+	block.free()
+	material.set_shader_parameter("exterior_blend", 0.5)
+	var mixed := 0.5 * interior + 0.5 * unshadowed
+	if not await assert_pixel("half interior, half exterior", Color(mixed, mixed, mixed)):
+		return
 	quit(0)
