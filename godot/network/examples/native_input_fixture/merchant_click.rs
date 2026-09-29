@@ -79,41 +79,9 @@ fn respond_to_vendor_interaction(
             ));
         }
         *opens += 1;
-        send::<_, InteractionChannel>(
-            app,
-            InteractionOpened {
-                npc: request.npc,
-                kind: InteractionKind::Role(NpcRole::Vendor),
-            },
-        );
-        send::<_, InventoryChannel>(
-            app,
-            InventorySnapshot {
-                bags: vec![BagContents {
-                    bag: 0,
-                    size: 16,
-                    items: vec![],
-                }],
-            },
-        );
-        send::<_, MerchantChannel>(
-            app,
-            VendorInventory {
-                npc: request.npc,
-                can_repair: false,
-                items: vec![VendorItem {
-                    slot: 0,
-                    item_id: 4540,
-                    name: "Fixture Bread".into(),
-                    quality: 1,
-                    price: 25,
-                    stack_count: 5,
-                    max_stack: 20,
-                    num_available: None,
-                    usable: true,
-                }],
-            },
-        );
+        send_vendor_opened(app, request.npc);
+        send_vendor_bag_snapshot(app);
+        send_vendor_inventory(app, request.npc);
     }
     for request in closed {
         if Some(request.npc) != vendor || *closes >= *opens {
@@ -124,6 +92,50 @@ fn respond_to_vendor_interaction(
         *closes += 1;
     }
     Ok(())
+}
+
+fn send_vendor_opened(app: &mut App, npc: u64) {
+    send::<_, InteractionChannel>(
+        app,
+        InteractionOpened {
+            npc,
+            kind: InteractionKind::Role(NpcRole::Vendor),
+        },
+    );
+}
+
+fn send_vendor_bag_snapshot(app: &mut App) {
+    send::<_, InventoryChannel>(
+        app,
+        InventorySnapshot {
+            bags: vec![BagContents {
+                bag: 0,
+                size: 16,
+                items: vec![],
+            }],
+        },
+    );
+}
+
+fn send_vendor_inventory(app: &mut App, npc: u64) {
+    send::<_, MerchantChannel>(
+        app,
+        VendorInventory {
+            npc,
+            can_repair: false,
+            items: vec![VendorItem {
+                slot: 0,
+                item_id: 4540,
+                name: "Fixture Bread".into(),
+                quality: 1,
+                price: 25,
+                stack_count: 5,
+                max_stack: 20,
+                num_available: None,
+                usable: true,
+            }],
+        },
+    );
 }
 
 fn observe_line(
