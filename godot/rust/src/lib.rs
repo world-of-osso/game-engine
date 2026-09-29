@@ -4,6 +4,7 @@ mod animation;
 pub mod appearance_options;
 pub use game_engine_core::{customization_data, outfit_data};
 mod assets;
+mod auras;
 mod auto_attack;
 mod camera;
 mod char_create;
@@ -146,6 +147,7 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
     auto_attack: auto_attack::AutoAttack,
+    auras: auras::Auras,
 }
 
 #[godot_api]
@@ -228,6 +230,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
             auto_attack: auto_attack::AutoAttack::default(),
+            auras: auras::Auras::default(),
             units: HashMap::new(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone(), cache_root.clone()),
             world: world::WorldUnits::new(data_root, cache_root),
@@ -379,6 +382,7 @@ impl INode3D for GameClient {
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
+            ("Auras", |c, _| c.update_auras()),
             ("Cast sound", |c, _| Ok(c.update_cast_sound()?)),
             ("Merchant", |c, _| c.update_merchant()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -655,6 +659,12 @@ impl GameClient {
         self.targeting_snapshot()
     }
 
+    /// BuffFrame/DebuffFrame buttons and TargetFrame aura icons: spell, texture, rect.
+    #[func]
+    fn aura_state(&self) -> VarDictionary {
+        self.auras_snapshot()
+    }
+
     /// The vendor session: open vendor, its items, buyback, bag items, money, cursor.
     #[func]
     fn merchant_state(&self) -> VarDictionary {
@@ -802,6 +812,7 @@ impl GameClient {
         self.targeting.visit_uis(&mut visit)?;
         self.minimap.visit_uis(&mut visit)?;
         self.objective_tracker.visit_uis(&mut visit)?;
+        self.auras.visit_uis(&mut visit)?;
         self.entrance_bar.visit_uis(&mut visit)
     }
 
@@ -1243,6 +1254,13 @@ impl GameClient {
             AccountEvent::UnitUpdated(unit) => {
                 let mut parent = self.to_gd().upcast::<Node3D>();
                 self.world.upsert(&mut parent, &unit);
+                let previous = self
+                    .units
+                    .get(&unit.server_id)
+                    .and_then(|old| old.auras.as_ref());
+                if previous != unit.auras.as_ref() {
+                    self.auras.aura_set_changed(unit.server_id, true);
+                }
                 self.units.insert(unit.server_id, unit);
             }
             AccountEvent::RosterChanged => self.sync_character_select_state()?,
@@ -1255,6 +1273,7 @@ impl GameClient {
             AccountEvent::UnitRemoved(id) => {
                 self.world.remove(id);
                 self.units.remove(&id);
+                self.auras.aura_set_changed(id, false);
             }
         }
         Ok(())
@@ -1465,6 +1484,7 @@ impl GameClient {
         self.spell_effects.reset();
         self.world.reset();
         self.units.clear();
+        self.auras.reset();
         self.terrain.reset()
     }
 

@@ -15,6 +15,7 @@ fn aura(spell_id: u32, is_debuff: bool, remaining: f32) -> AuraInstance {
         icon_fdid: 135987,
         source: String::new(),
         from_local_player: true,
+        from_player: true,
         duration: 600.0,
         remaining,
         stacks: 1,

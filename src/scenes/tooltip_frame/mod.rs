@@ -16,6 +16,7 @@ use game_engine::ui::screens::character_frame_component::parse_equipment_slot_ac
 use game_engine::ui::screens::chat_frame_component::chat_spell_link_at;
 use game_engine::ui::screens::inworld_hud_component::MINIMAP_MAIL_FRAME;
 use game_engine::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+use game_engine::ui::screens::inworld_unit_frames_component::{TargetAuraView, target_frame_auras};
 use game_engine::ui::screens::merchant_frame_component::{MoneyAlign, money};
 use game_engine::ui::screens::talent_frame_view::{TalentTooltip, TalentTooltips};
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
@@ -1177,15 +1178,17 @@ fn resolve_hovered_aura<'a>(
             .map(|state| state.auras.as_slice())
             .unwrap_or(&[])
     };
+    // TargetFrame's sort; other players' debuffs on a hostile NPC, which the frame hides,
+    // are not told apart here.
+    let view = TargetAuraView {
+        player_is_target: local,
+        friendly: local,
+        hostile_npc: false,
+    };
+    let (buffs, debuffs) = target_frame_auras(auras, view);
     match hovered.kind {
-        HoveredAuraKind::Buff => auras
-            .iter()
-            .filter(|aura| !aura.is_debuff)
-            .nth(hovered.index),
-        HoveredAuraKind::Debuff => auras
-            .iter()
-            .filter(|aura| aura.is_debuff)
-            .nth(hovered.index),
+        HoveredAuraKind::Buff => buffs.get(hovered.index).copied(),
+        HoveredAuraKind::Debuff => debuffs.get(hovered.index).copied(),
     }
 }
 
@@ -1594,6 +1597,7 @@ mod tests {
             icon_fdid: 1,
             source: "Uther".into(),
             from_local_player: false,
+            from_player: false,
             duration: 1800.0,
             remaining: 125.0,
             stacks: 2,
@@ -1820,7 +1824,7 @@ mod tests {
         };
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
-        shared.insert(BuffFrameState::from_auras(&auras, false));
+        shared.insert(BuffFrameState::from_auras(&auras.auras, false));
         Screen::new(buff_frame_screen).sync(&shared, &mut registry);
         let icon = registry.get_by_name("BuffButton0Icon").unwrap();
         let tooltip =

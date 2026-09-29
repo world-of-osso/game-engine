@@ -2070,3 +2070,7 @@ On master `56a134a6`, Northshire captures show no remaining black foliage cards.
 ## [2026-09-29] feature | Unit frames at the Modern preset, retail class bar
 
 Player and target frames now sit at Retail's Modern Edit Mode preset. The target health bar uses the `CheckClassification` anchor (`TargetFrame.lua:419`), not the XML default, which had placed the target 12 px high. The class bar is anchored like `PlayerFrameBottomManagedFramesContainer`, and bars are gated by the Retail `spec` KeyValue. Arcane Charges draw the full `ArcaneChargeTemplate` art and animations. Live proof: `godot/tests/player_class_bar.gd`, with captures in `data/diagnostics/resourceorbs-2026-09-29/`. See [ui-system](systems/ui-system.md#unit-frames).
+
+## [2026-09-29] feature | Auras on the Godot HUD
+
+The Godot client shows the player BuffFrame/DebuffFrame and the Retail TargetFrame aura container ([buff frame spec](../specs/buff-frame.md)). The player's own auras are large (21 px). On a hostile NPC, other players' debuffs are hidden. Timed icons get the reverse cooldown swipe with its edge. Countdowns run on wall time. The Retail PlayerFrame draws no aura icons. The shared `aura_display_data` keeps the replicated slot order that BuffFrame uses. Before this, the Godot client drew no auras at all, and the server marked Polymorph on the neutral Blackrock Spy as a buff (game-server `70551a9`, effect positivity). Live proof: `godot/tests/auras_live.gd`, with captures in `data/diagnostics/auras-2026-09-29/`.

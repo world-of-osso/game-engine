@@ -8,6 +8,7 @@ pub(crate) mod ui_parent;
 use std::collections::VecDeque;
 
 use game_engine_ui_model::bag_frame_component::BagFrameState;
+use game_engine_ui_model::buff_frame_component::{BuffFrameState, buff_frame_screen};
 use game_engine_ui_model::casting_bar_frame_component::{
     CastingBarState, casting_bar_frame_screen,
 };
@@ -46,7 +47,7 @@ use game_engine_ui_model::{
     login,
     ui_errors_data::UiErrorsData,
 };
-use godot::classes::{CanvasLayer, ICanvasLayer};
+use godot::classes::{CanvasLayer, Control, ICanvasLayer};
 use godot::prelude::*;
 use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
@@ -592,6 +593,37 @@ impl RegistryUi {
     /// The registry as last laid out, for anchoring frames to other frames.
     pub fn registry(&self) -> Option<&FrameRegistry> {
         self.model.as_ref().map(|model| &model.registry)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the player BuffFrame and DebuffFrame.
+    pub fn show_buff_frame(&mut self, state: BuffFrameState) -> Result<(), String> {
+        self.show_viewport_screen(state, buff_frame_screen, ScreenPostsetup::None)
+    }
+
+    /// The projected control of frame `name`.
+    pub fn frame_control(&self, name: &str) -> Option<Gd<Control>> {
+        let id = self.model.as_ref()?.registry.get_by_name(name)?;
+        self.projection.as_ref()?.node(id)
+    }
+
+    /// Screen rect `[x, y, w, h]` of frame `name` as last laid out (UIParent units times
+    /// the UI scale), and its texture FileDataID (0 for other widgets).
+    pub fn frame_rect(&self, name: &str) -> Option<([f32; 4], u32)> {
+        let model = self.model.as_ref()?;
+        let frame = model.registry.get(model.registry.get_by_name(name)?)?;
+        let rect = frame.layout_rect.as_ref()?;
+        let scale = model.registry.ui_scale;
+        let fdid = match frame.widget_data.as_ref() {
+            Some(WidgetData::Texture(texture)) => match texture.source {
+                TextureSource::FileDataId(id) => id,
+                _ => 0,
+            },
+            _ => 0,
+        };
+        Some((
+            [rect.x, rect.y, rect.width, rect.height].map(|value| value * scale),
+            fdid,
+        ))
     }
 
     /// Initialize a dedicated RegistryUi instance for the in-world unit frames.

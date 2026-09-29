@@ -97,6 +97,11 @@ impl Targeting {
         }
     }
 
+    /// The unit frames UI, once shown.
+    pub(crate) fn frame_ui(&self) -> Option<&Gd<RegistryUi>> {
+        self.frame_ui.as_ref()
+    }
+
     fn free_circle(&mut self) {
         if let Some(circle) = self.circle.take()
             && circle.decal.is_instance_valid()
@@ -456,11 +461,14 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.units.get(&id)?.level)
             .map(|level| level.0);
-        let target = self
-            .targeting
-            .target
+        let target_id = self.targeting.target;
+        let mut target = target_id
             .and_then(|id| self.units.get(&id))
             .map(|unit| target_frame_state(unit, viewer_level));
+        if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
+            self.fill_target_auras(state, id);
+        }
+        let target_state = target.clone();
         let player = self
             .world
             .local_player_id()
@@ -476,18 +484,19 @@ impl GameClient {
             });
         let state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
-            return ui.bind_mut().set_state(state);
+            ui.bind_mut().set_state(state)?;
+        } else {
+            let mut ui = RegistryUi::new_alloc();
+            ui.set_name("UnitFramesUI");
+            self.base_mut().add_child(&ui);
+            let shown = ui.bind_mut().show_unit_frames(state);
+            if let Err(error) = shown {
+                ui.free();
+                return Err(error);
+            }
+            self.targeting.frame_ui = Some(ui);
         }
-        let mut ui = RegistryUi::new_alloc();
-        ui.set_name("UnitFramesUI");
-        self.base_mut().add_child(&ui);
-        let shown = ui.bind_mut().show_unit_frames(state);
-        if let Err(error) = shown {
-            ui.free();
-            return Err(error);
-        }
-        self.targeting.frame_ui = Some(ui);
-        Ok(())
+        self.sync_target_aura_swipes(target_state.as_ref())
     }
 
     /// Bevy `handle_inworld_escape`: with no window open, Escape clears the target
