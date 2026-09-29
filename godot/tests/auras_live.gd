@@ -95,7 +95,7 @@ func run_test() -> void:
 		return
 	await wait_frames(20)
 	var chilled: Dictionary = button(auras().target_debuffs, CHILLED)
-	print("FIXTURE CHILLED ", chilled)
+	print("FIXTURE CHILLED t=%d " % Time.get_ticks_msec(), chilled)
 	if not check_icon(chilled, "TargetDebuff") or not chilled.large:
 		fail("Chilled is not the mage's large debuff: " + str(chilled))
 		return
@@ -108,7 +108,7 @@ func run_test() -> void:
 	await wait_frames(20)
 	var state := auras()
 	var polymorph: Dictionary = button(state.target_debuffs, POLYMORPH)
-	print("FIXTURE POLYMORPH ", state)
+	print("FIXTURE POLYMORPH t=%d " % Time.get_ticks_msec(), state)
 	if not check_icon(polymorph, "TargetDebuff") or not polymorph.large:
 		fail("Polymorph is not the mage's large debuff: " + str(polymorph))
 		return
@@ -121,8 +121,9 @@ func run_test() -> void:
 	await wait_real(6.0)
 	polymorph = button(auras().target_debuffs, POLYMORPH)
 	print("FIXTURE SWIPE %.3f -> %.3f" % [swipe_before, polymorph.swipe])
-	if polymorph == null or not (polymorph.swipe > swipe_before + 0.05):
-		fail("Polymorph's swipe did not grow: %s -> %s" % [swipe_before, polymorph])
+	# 6 s of Polymorph's 60 s is 0.1 of the swipe, in wall time whatever the frame rate.
+	if polymorph == null or absf(polymorph.swipe - swipe_before - 0.1) > 0.03:
+		fail("Polymorph's swipe did not grow by 6 s of 60: %s -> %s" % [swipe_before, polymorph])
 		return
 	await capture("05-polymorph-swipe-later.png")
 	print("FIXTURE AURAS_LIVE_DONE")
