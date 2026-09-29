@@ -30,6 +30,8 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   SpellVisualKitModelAttach    FDID 897953
   SpellVisualMissile           FDID 897954
   SpellXSpellVisual            FDID 1101657
+  SoundKit                     FDID 1237434
+  SoundKitEntry                FDID 1237435
 """
 
 import csv
@@ -202,6 +204,7 @@ TABLES = {
             ("ImpactOffset_1", ("float", 1, 1)),
             ("ImpactOffset_2", ("float", 1, 2)),
             ("SpellVisualEffectNameID", ("u16", 3)),
+            ("SoundEntriesID", 4),
             ("Attachment", ("i8", 5)),
             ("DestinationAttachment", ("i8", 6)),
             ("Flags", ("int", 12, 0)),
@@ -259,6 +262,28 @@ TABLES = {
         [("ID", "id"), ("BoneDataID", ("int", 1, 0)), ("ParentAnimKitBoneSetID", ("i8", 2)), ("AltAnimKitBoneSetID", ("i8", 3)), ("AltBoneDataID", ("int", 4, 0))],
     ),
     "AnimKitPriority": (0xCCF889D8, [("ID", "id"), ("Priority", ("u8", 0))]),
+    "SoundKit": (
+        0xA7FB0451,
+        [
+            ("ID", "id"),
+            ("SoundType", ("int", 0, 0)),
+            ("VolumeFloat", ("float", 1, 0)),
+            ("Flags", ("int", 2, 0)),
+            ("MinDistance", ("float", 3, 0)),
+            ("DistanceCutoff", ("float", 4, 0)),
+        ],
+    ),
+    "SoundKitEntry": (
+        0x8F82FF7D,
+        [
+            ("ID", "id"),
+            ("SoundKitID", 0),
+            ("FileDataID", ("int", 1, 0)),
+            ("Frequency", ("u8", 2)),
+            ("Volume", ("float", 3, 0)),
+            ("PlayerConditionID", ("int", 4, 0)),
+        ],
+    ),
 }
 
 # Narrow DBD types: pallet entries are 32-bit and carry unrelated high bits.

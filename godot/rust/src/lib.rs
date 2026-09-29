@@ -38,6 +38,7 @@ mod sound_client;
 mod sound_footsteps;
 mod sound_outcome;
 mod spell_effects;
+mod spell_sounds;
 mod spell_tooltip;
 mod spells;
 mod startup;

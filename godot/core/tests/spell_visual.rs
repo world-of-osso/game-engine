@@ -143,3 +143,47 @@ fn frostbolt_holds_a_directed_ready_loop_with_hand_effects_then_launches_a_missi
         (Some(56), Some(34))
     );
 }
+
+/// (SoundKit, looping, file FDIDs) of the kits `visual` starts at `event`.
+fn sounds(visual: u32, event: VisualEvent) -> Vec<(u32, bool, Vec<u32>)> {
+    catalog()
+        .kits(visual, event)
+        .iter()
+        .flat_map(|kit| &kit.sounds)
+        .map(|sound| {
+            let files = sound.files.iter().map(|file| file.fdid).collect();
+            (sound.sound_kit_id, sound.looping, files)
+        })
+        .collect()
+}
+
+/// Frostbolt's kits play `spell_ma_revamp_frostbolt_*`: the precast kit 81575 starts
+/// SoundKit 85501 (precast_start_01-04) and loops 85500 (precast_loop_01-04, Flags
+/// 0x200); the cast kit 81337 plays 85502 (cast_01-04) and the impact kit 80718 plays
+/// 85503 (impact_01-04), audible out to 55 yards.
+#[test]
+fn frostbolt_kits_play_the_frostbolt_precast_cast_and_impact_sound_kits() {
+    let mage = CasterContext {
+        class: 8,
+        ..warrior(None)
+    };
+    let visual = catalog().visual_for_spell(FROSTBOLT, &mage).unwrap();
+    assert_eq!(
+        sounds(visual, VisualEvent::PrecastStart),
+        vec![
+            (85500, true, vec![1631387, 1631388, 1631389, 1631390]),
+            (85501, false, vec![1631391, 1631392, 1631393, 1631394]),
+        ]
+    );
+    assert_eq!(
+        sounds(visual, VisualEvent::Cast),
+        vec![(85502, false, vec![1631379, 1631380, 1631381, 1631382])]
+    );
+    assert_eq!(
+        sounds(visual, VisualEvent::Impact),
+        vec![(85503, false, vec![1631383, 1631384, 1631385, 1631386])]
+    );
+    let impact = &catalog().kits(visual, VisualEvent::Impact)[0].sounds[0];
+    assert!((impact.volume - 0.8).abs() < 1e-6);
+    assert_eq!((impact.min_distance, impact.distance_cutoff), (25.0, 55.0));
+}

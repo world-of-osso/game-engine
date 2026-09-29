@@ -22,7 +22,8 @@ use std::rc::Rc;
 
 use game_engine_core::m2;
 use game_engine_core::spell_visual::{
-    CasterContext, KitModel, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit, VisualMissile,
+    CasterContext, KitModel, KitSound, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit,
+    VisualMissile,
 };
 use game_engine_network::UnitSnapshot;
 use godot::builtin::{Basis, EulerOrder, Transform3D, Vector3};
@@ -36,6 +37,7 @@ use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
 use crate::assets::{build_model, read_model};
 use crate::particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis};
+use crate::spell_sounds::{SoundRequest, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
 const DB2_DIR: &str = "db2/12.1.0.69933";
@@ -198,7 +200,8 @@ pub struct MissileFlight {
     pub speed: f32,
     /// Release to arrival, once arrived.
     pub flight_time: Option<f32>,
-    released_at: f32,
+    /// Effects clock at release.
+    pub released_at: f32,
     id: u64,
 }
 
@@ -247,6 +250,7 @@ pub struct SpellEffects {
     flights: Vec<MissileFlight>,
     /// Seconds advanced since creation.
     clock: f32,
+    sounds: SpellSounds,
     next_flight: u64,
     held: HashMap<u64, HeldCast>,
     pools: ParticlePools,
@@ -272,6 +276,7 @@ impl SpellEffects {
             ready: Vec::new(),
             flights: Vec::new(),
             clock: 0.0,
+            sounds: SpellSounds::default(),
             next_flight: 0,
             held: HashMap::new(),
             pools: ParticlePools::new(1.0),
@@ -321,7 +326,18 @@ impl SpellEffects {
         &self.flights
     }
 
+    /// Kit sound starts since the world loaded, oldest first.
+    pub fn sound_starts(&self) -> &[SoundStart] {
+        self.sounds.started()
+    }
+
+    /// Effects clock (seconds), the time base of flights and sound starts.
+    pub fn clock(&self) -> f32 {
+        self.clock
+    }
+
     pub fn reset(&mut self) {
+        self.sounds.reset();
         for effect in self.active.drain(..) {
             effect.node.free();
         }
@@ -404,6 +420,7 @@ impl SpellEffects {
         }
         self.pending
             .retain(|pending| !(pending.unit == id && pending.lifetime == Lifetime::UntilCastEnds));
+        self.sounds.end_held(id, held.spell_id);
         for effect in &mut self.active {
             if effect.owner == id
                 && effect.spell_id == held.spell_id
@@ -552,6 +569,13 @@ impl SpellEffects {
                 } else {
                     Lifetime::OneShot
                 };
+                for sound in &kit.sounds {
+                    if let Err(error) =
+                        self.play_sound(sound, unit, spell_id, kit.kit_id, held, world)
+                    {
+                        errors.push(error);
+                    }
+                }
                 for model in &kit.models {
                     self.pending.push(PendingModel {
                         delay: model.start_delay,
@@ -577,6 +601,36 @@ impl SpellEffects {
             errors.push(error);
         }
         join_errors(errors).map(|()| looping)
+    }
+
+    fn play_sound(
+        &mut self,
+        sound: &KitSound,
+        unit: u64,
+        spell_id: u32,
+        kit_id: u32,
+        kit_held: bool,
+        world: &WorldUnits,
+    ) -> Result<(), String> {
+        let Some(parent) = world.unit_node(unit) else {
+            return Ok(());
+        };
+        let resolver = self
+            .resolver
+            .get_or_insert_with(|| local_resolver(&self.data_root, &self.cache_root));
+        self.sounds.play(
+            sound,
+            SoundRequest {
+                parent,
+                unit,
+                spell_id,
+                kit_id,
+                kit_held,
+                at: self.clock,
+                resolver,
+                data_root: &self.data_root,
+            },
+        )
     }
 
     fn record(&mut self, start: KitStart) {
@@ -811,15 +865,18 @@ impl SpellEffects {
         Ok(())
     }
 
-    /// Advance delays, lifetimes and missiles; draw kit particles.
+    /// Advance delays, lifetimes, missiles and kit sounds; draw kit particles.
+    /// `sound_gain`: master × effects volume, 0 when muted.
     pub fn advance(
         &mut self,
         delta: f32,
         camera: Option<Transform3D>,
+        sound_gain: f32,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let mut errors = Vec::new();
         self.clock += delta;
+        self.sounds.advance(sound_gain);
         if let Err(error) = self.spawn_due(delta, world) {
             errors.push(error);
         }

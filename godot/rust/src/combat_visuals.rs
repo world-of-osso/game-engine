@@ -35,7 +35,15 @@ impl GameClient {
     pub(super) fn update_spell_visuals(&mut self, delta: f32) -> Result<(), String> {
         let held = self.spell_effects.sync_casts(&self.units, &mut self.world);
         let camera = self.world_camera.transform();
-        let advanced = self.spell_effects.advance(delta, camera, &mut self.world);
+        let sound = &self.client_options.sound;
+        let gain = if sound.muted {
+            0.0
+        } else {
+            sound.master_volume * sound.effects_volume
+        };
+        let advanced = self
+            .spell_effects
+            .advance(delta, camera, gain, &mut self.world);
         held.and(advanced)
     }
 
@@ -74,12 +82,27 @@ impl GameClient {
             entry.set("caster", flight.caster as i64);
             entry.set("target", flight.target as i64);
             entry.set("release_delay", flight.release_delay);
+            entry.set("released_at", flight.released_at);
             entry.set("distance", flight.distance);
             entry.set("speed", flight.speed);
             entry.set("flight_time", flight.flight_time.map_or(-1.0, f64::from));
             flights.push(&entry.to_variant());
         }
         state.set("flights", &flights);
+        let mut sounds = VarArray::new();
+        for start in self.spell_effects.sound_starts() {
+            let mut entry = VarDictionary::new();
+            entry.set("spell", i64::from(start.spell_id));
+            entry.set("kit", i64::from(start.kit_id));
+            entry.set("unit", start.unit as i64);
+            entry.set("sound_kit", i64::from(start.sound_kit_id));
+            entry.set("fdid", i64::from(start.fdid));
+            entry.set("looping", start.looping);
+            entry.set("at", start.at);
+            sounds.push(&entry.to_variant());
+        }
+        state.set("sounds", &sounds);
+        state.set("clock", self.spell_effects.clock());
         state
     }
 }
