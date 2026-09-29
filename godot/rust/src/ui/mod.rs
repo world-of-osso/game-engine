@@ -6,6 +6,9 @@ mod projection;
 
 use std::collections::VecDeque;
 
+use game_engine_ui_model::casting_bar_frame_component::{
+    CastingBarState, casting_bar_frame_screen,
+};
 use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
 use game_engine_ui_model::entrance_difficulty_component::{
@@ -14,8 +17,12 @@ use game_engine_ui_model::entrance_difficulty_component::{
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, inworld_unit_frames_screen,
 };
+use game_engine_ui_model::main_action_bar_component::{MainActionBarState, main_action_bar_screen};
 use game_engine_ui_model::mirror_timer_component::{MIRROR_TIMER_CONTAINER, mirror_timer_screen};
 use game_engine_ui_model::mirror_timer_data::MirrorTimersData;
+use game_engine_ui_model::spellbook_frame_component::{
+    SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
+};
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
@@ -65,6 +72,7 @@ enum ScreenPostsetup {
     Loading,
     WorldMap,
     EntranceBar,
+    Spellbook,
 }
 
 impl RegistryModel {
@@ -79,6 +87,11 @@ impl RegistryModel {
             ScreenPostsetup::WorldMap => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
+                }
+            }
+            ScreenPostsetup::Spellbook => {
+                if let Some(state) = self.shared.get::<SpellbookFrameState>() {
+                    apply_spellbook_postsetup(state, &mut self.registry);
                 }
             }
             ScreenPostsetup::EntranceBar => {
@@ -315,6 +328,48 @@ impl RegistryUi {
             registry: FrameRegistry::new(size.x, size.y),
             icon_masks: Default::default(),
             postsetup: ScreenPostsetup::EntranceBar,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the Retail main action bar.
+    pub fn show_main_action_bar(&mut self, state: MainActionBarState) -> Result<(), String> {
+        self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the player casting bar.
+    pub fn show_casting_bar(&mut self, state: CastingBarState) -> Result<(), String> {
+        self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the Retail spellbook.
+    pub fn show_spellbook(&mut self, state: SpellbookFrameState) -> Result<(), String> {
+        self.show_viewport_screen(state, spellbook_frame_screen, ScreenPostsetup::Spellbook)
+    }
+
+    fn show_viewport_screen<T: 'static>(
+        &mut self,
+        state: T,
+        build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+        postsetup: ScreenPostsetup,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut model = RegistryModel {
+            screen: Screen::new(build),
+            shared,
+            registry: FrameRegistry::new(size.x, size.y),
+            icon_masks: Default::default(),
+            postsetup,
         };
         model.sync();
         self.initialize_model(model, size.x, size.y)

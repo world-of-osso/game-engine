@@ -1,0 +1,103 @@
+use game_engine_ui_model::main_action_bar_component::{
+    ActionButtonView, MAIN_ACTION_BAR, MainActionBarState, main_action_bar_screen,
+    parse_action_button,
+};
+use ui_toolkit::frame::{Dimension, WidgetData};
+use ui_toolkit::layout_values::Val;
+use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widgets::texture::TextureSource;
+
+const SLAM_ICON: u32 = 132340;
+
+fn build(state: MainActionBarState) -> FrameRegistry {
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    Screen::new(main_action_bar_screen).sync(&shared, &mut registry);
+    registry
+}
+
+fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a ui_toolkit::frame::Frame {
+    registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap()
+}
+
+fn text(registry: &FrameRegistry, name: &str) -> String {
+    match frame(registry, name).widget_data.as_ref() {
+        Some(WidgetData::FontString(fs)) => fs.text.clone(),
+        other => panic!("{name} is not a FontString: {other:?}"),
+    }
+}
+
+fn source(registry: &FrameRegistry, name: &str) -> TextureSource {
+    match frame(registry, name).widget_data.as_ref() {
+        Some(WidgetData::Texture(texture)) => texture.source.clone(),
+        other => panic!("{name} is not a Texture: {other:?}"),
+    }
+}
+
+/// Modern preset: 12 × 45 px buttons 2 px apart, BOTTOM y 45, keys 1..=.
+#[test]
+fn main_bar_uses_retail_geometry_and_default_keys() {
+    let registry = build(MainActionBarState::default());
+    let bar = frame(&registry, MAIN_ACTION_BAR.0);
+    assert_eq!(bar.width, Dimension::Fixed(562.0));
+    assert_eq!(bar.height, Dimension::Fixed(45.0));
+    assert_eq!(bar.position.bottom, Val::Px(45.0));
+    assert_eq!(bar.position.left, Val::Percent(50.0));
+    assert_eq!(
+        frame(&registry, "ActionButton1").position.left,
+        Val::Px(0.0)
+    );
+    assert_eq!(
+        frame(&registry, "ActionButton12").position.left,
+        Val::Px(517.0)
+    );
+    assert_eq!(text(&registry, "ActionButton1HotKey"), "1");
+    assert_eq!(text(&registry, "ActionButton10HotKey"), "0");
+    assert_eq!(text(&registry, "ActionButton11HotKey"), "-");
+    assert_eq!(text(&registry, "ActionButton12HotKey"), "=");
+    assert_eq!(
+        source(&registry, "ActionButton1NormalTexture"),
+        TextureSource::FileDataId(4_613_342)
+    );
+    assert!(frame(&registry, "ActionButton1Icon").hidden, "empty slot");
+    assert!(frame(&registry, "ActionButton1PushedTexture").hidden);
+}
+
+#[test]
+fn spell_button_shows_icon_cooldown_swipe_and_countdown() {
+    let mut state = MainActionBarState::default();
+    state.buttons[0] = ActionButtonView {
+        icon_fdid: SLAM_ICON,
+        cooldown_fraction: 0.5,
+        cooldown_text: "3".into(),
+        pushed: true,
+        hovered: false,
+    };
+    let registry = build(state);
+    assert!(!frame(&registry, "ActionButton1Icon").hidden);
+    assert_eq!(
+        source(&registry, "ActionButton1Icon"),
+        TextureSource::FileDataId(SLAM_ICON)
+    );
+    // The swipe covers half of the 39 px cooldown square, from the bottom.
+    let swipe = frame(&registry, "ActionButton1Cooldown");
+    assert!(!swipe.hidden);
+    assert_eq!(swipe.height, Dimension::Fixed(20.0));
+    assert_eq!(swipe.position.top, Val::Px(22.0));
+    assert_eq!(text(&registry, "ActionButton1CooldownText"), "3");
+    assert!(!frame(&registry, "ActionButton1PushedTexture").hidden);
+    assert!(frame(&registry, "ActionButton1NormalTexture").hidden);
+    assert!(frame(&registry, "ActionButton2Cooldown").hidden);
+}
+
+#[test]
+fn clicks_name_their_button() {
+    assert_eq!(parse_action_button("action_button:0"), Some(0));
+    assert_eq!(parse_action_button("action_button:11"), Some(11));
+    assert_eq!(parse_action_button("action_button:12"), None);
+    assert_eq!(parse_action_button("spellbook_tab:1"), None);
+}

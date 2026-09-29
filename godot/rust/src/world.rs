@@ -700,6 +700,9 @@ mod tests {
             faction_template: None,
             unit_flags: None,
             in_combat: false,
+            cast: None,
+            powers: None,
+            auras: None,
         }
     }
 

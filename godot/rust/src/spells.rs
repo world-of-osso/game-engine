@@ -1,0 +1,812 @@
+//! Spellbook, main action bar and casting (docs/specs/spellbook-action-bar.md).
+//!
+//! The server owns known spells, the action bar and every cast: keys 1..= or a click on
+//! a main bar button (or a known spell in the spellbook) send `SpellCastIntent` with
+//! the current target; `CastFailed` shows in UIErrorsFrame, `SpellCooldownUpdate`
+//! sweeps the buttons, the local player's replicated `CastState` fills the cast bar,
+//! and the caster's `CombatLogEvent` damage floats over the target.
+
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::mpsc::{self, Receiver, TryRecvError};
+
+use game_engine_core::input_bindings_data::InputAction;
+use game_engine_core::spell_catalog::{
+    SPELL_DB2_BUILD, SpellCatalogData, SpellCatalogPaths, load_spell_catalog,
+};
+use game_engine_core::spellbook_data::{
+    SpellbookPlayer, SpellbookSpell, SpellbookTab, build_spellbook_tabs,
+};
+use game_engine_session::SessionScreen;
+use game_engine_ui_model::cast_failed_text::cast_failed_text;
+use game_engine_ui_model::casting_bar_frame_component::CastingBarState;
+use game_engine_ui_model::main_action_bar_component::{
+    MAIN_BAR_BUTTONS, MainActionBarState, parse_action_button,
+};
+use game_engine_ui_model::spellbook_frame_component::{
+    ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, ACTION_SPELLBOOK_NEXT_PAGE,
+    ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SpellbookCategory, SpellbookFrameState,
+    SpellbookGroup, SpellbookItemView,
+};
+use godot::classes::{Label3D, ProjectSettings, base_material_3d::BillboardMode};
+use godot::prelude::*;
+use shared::components::PowerType;
+use shared::protocol::{ActionRef, CastFailed, CombatLogKind};
+
+use crate::{GameClient, ui::RegistryUi};
+
+/// Retail action bar keys, button 1..12.
+const ACTION_SLOT_KEYS: [InputAction; MAIN_BAR_BUTTONS] = [
+    InputAction::ActionSlot1,
+    InputAction::ActionSlot2,
+    InputAction::ActionSlot3,
+    InputAction::ActionSlot4,
+    InputAction::ActionSlot5,
+    InputAction::ActionSlot6,
+    InputAction::ActionSlot7,
+    InputAction::ActionSlot8,
+    InputAction::ActionSlot9,
+    InputAction::ActionSlot10,
+    InputAction::ActionSlot11,
+    InputAction::ActionSlot12,
+];
+/// `CooldownFrameTemplate` numbers show for cooldowns of at least this long (the GCD
+/// sweeps without numbers).
+const COUNTDOWN_MIN_SECS: f32 = 2.0;
+/// `PushedTexture` stays for this long after a key press.
+const PUSH_SECS: f32 = 0.15;
+/// Floating combat text rises this far over its lifetime.
+const FLOAT_TEXT_RISE: f32 = 1.5;
+const FLOAT_TEXT_SECS: f32 = 1.5;
+/// Height above the unit origin where combat text starts.
+const FLOAT_TEXT_HEIGHT: f32 = 2.2;
+
+enum CatalogLoad {
+    Idle,
+    Loading(Receiver<Result<SpellCatalogData, String>>),
+    Ready(Box<SpellCatalogData>),
+    Failed,
+}
+
+/// The local cast bar, advanced locally between replicated `CastState` updates.
+#[derive(Clone, Copy, PartialEq)]
+struct LocalCast {
+    spell_id: u32,
+    duration: f32,
+    elapsed: f32,
+    /// Last replicated `elapsed`, to spot server resyncs.
+    server_elapsed: f32,
+    channel: bool,
+}
+
+struct FloatingText {
+    node: Gd<Label3D>,
+    age: f32,
+    origin: Vector3,
+}
+
+pub(crate) struct SpellsHud {
+    catalog: CatalogLoad,
+    bar_ui: Option<Gd<RegistryUi>>,
+    cast_ui: Option<Gd<RegistryUi>>,
+    book_ui: Option<Gd<RegistryUi>>,
+    book: SpellbookFrameState,
+    /// FDID → whether `data/textures/{fdid}.blp` exists or was copied from local CASC.
+    textures: HashMap<u32, bool>,
+    cast: Option<LocalCast>,
+    pushed: [f32; MAIN_BAR_BUTTONS],
+    combat_seen: u64,
+    floating: Vec<FloatingText>,
+    /// Spell ids sent, oldest first, for automation.
+    sent: Vec<u32>,
+    /// Error lines shown for `CastFailed`, oldest first, for automation.
+    errors: Vec<String>,
+}
+
+impl Default for SpellsHud {
+    fn default() -> Self {
+        Self {
+            catalog: CatalogLoad::Idle,
+            bar_ui: None,
+            cast_ui: None,
+            book_ui: None,
+            book: SpellbookFrameState::default(),
+            textures: HashMap::new(),
+            cast: None,
+            pushed: [0.0; MAIN_BAR_BUTTONS],
+            combat_seen: 0,
+            floating: Vec::new(),
+            sent: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+}
+
+impl SpellsHud {
+    fn catalog(&self) -> Option<&SpellCatalogData> {
+        match &self.catalog {
+            CatalogLoad::Ready(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    fn close(&mut self) {
+        for ui in [self.bar_ui.take(), self.cast_ui.take(), self.book_ui.take()]
+            .into_iter()
+            .flatten()
+        {
+            ui.free();
+        }
+        for text in self.floating.drain(..) {
+            if text.node.is_instance_valid() {
+                text.node.free();
+            }
+        }
+        self.cast = None;
+        self.book = SpellbookFrameState::default();
+    }
+
+    /// Start the catalog build on a worker thread; poll it each frame.
+    fn poll_catalog(&mut self, data_root: &std::path::Path) {
+        match &self.catalog {
+            CatalogLoad::Idle => {
+                let mut paths = SpellCatalogPaths::for_data_dir(data_root);
+                paths.cache_path = PathBuf::from(
+                    ProjectSettings::singleton()
+                        .globalize_path(&format!("user://spell_catalog-{SPELL_DB2_BUILD}.bin"))
+                        .to_string(),
+                );
+                let (send, receive) = mpsc::channel();
+                std::thread::spawn(move || {
+                    let _ = send.send(load_spell_catalog(&paths));
+                });
+                self.catalog = CatalogLoad::Loading(receive);
+            }
+            CatalogLoad::Loading(receive) => match receive.try_recv() {
+                Ok(Ok(data)) => self.catalog = CatalogLoad::Ready(Box::new(data)),
+                Ok(Err(error)) => {
+                    godot_error!("Spell catalog failed: {error}");
+                    self.catalog = CatalogLoad::Failed;
+                }
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => {
+                    godot_error!("Spell catalog loader stopped");
+                    self.catalog = CatalogLoad::Failed;
+                }
+            },
+            CatalogLoad::Ready(_) | CatalogLoad::Failed => {}
+        }
+    }
+}
+
+/// Retail 12.x categories: the class tab holds the class line and the spec line as
+/// two headed groups; General follows.
+fn spellbook_categories(
+    tabs: Vec<SpellbookTab>,
+    class_name: Option<&str>,
+) -> Vec<SpellbookCategory> {
+    let mut class = SpellbookCategory {
+        name: class_name.unwrap_or("Class").to_owned(),
+        groups: Vec::new(),
+    };
+    let mut general = None;
+    for tab in tabs {
+        let group = SpellbookGroup {
+            name: tab.name.clone(),
+            items: tab.spells.iter().map(item_view).collect(),
+        };
+        if tab.name == "General" {
+            general = Some(SpellbookCategory {
+                name: tab.name,
+                groups: vec![group],
+            });
+        } else {
+            if class_name.is_none() && class.groups.is_empty() {
+                class.name = tab.name.clone();
+            }
+            class.groups.push(group);
+        }
+    }
+    [(!class.groups.is_empty()).then_some(class), general]
+        .into_iter()
+        .flatten()
+        .collect()
+}
+
+fn item_view(spell: &SpellbookSpell) -> SpellbookItemView {
+    SpellbookItemView {
+        spell_id: spell.id,
+        name: spell.name.clone(),
+        subtext: if spell.passive && spell.available_at.is_none() {
+            "Passive".into()
+        } else {
+            spell.subtext.clone()
+        },
+        icon_fdid: spell.icon_file_data_id,
+        passive: spell.passive,
+        available_at: spell.available_at,
+    }
+}
+
+fn cooldown_text(remaining: f32) -> String {
+    if remaining >= 60.0 {
+        format!("{}m", (remaining / 60.0).ceil())
+    } else {
+        format!("{}", remaining.ceil())
+    }
+}
+
+impl GameClient {
+    /// Per frame, before input edges clear.
+    pub(super) fn update_spells(&mut self, delta: f32) -> Result<(), String> {
+        if self.account.session.screen != SessionScreen::InWorld {
+            self.spells.close();
+            return Ok(());
+        }
+        self.spells.poll_catalog(&self.data_root);
+        self.account.spells.tick(delta);
+        if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
+            self.apply_spell_keys()?;
+        }
+        self.poll_action_bar_clicks()?;
+        self.poll_spellbook_actions()?;
+        for pushed in &mut self.spells.pushed {
+            *pushed = (*pushed - delta).max(0.0);
+        }
+        self.sync_action_bar()?;
+        self.sync_cast_bar(delta)?;
+        self.sync_spellbook()?;
+        self.float_combat_text(delta);
+        Ok(())
+    }
+
+    fn keyboard_free(&self) -> bool {
+        self.base().get_viewport().is_some_and(|viewport| {
+            !viewport
+                .gui_get_focus_owner()
+                .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"))
+        })
+    }
+
+    fn apply_spell_keys(&mut self) -> Result<(), String> {
+        let input = self.physical_input.gameplay_state(self.keyboard_free());
+        let bindings = &self.client_options.bindings;
+        let toggle = bindings.is_just_pressed(InputAction::ToggleSpellbook, &input);
+        let pressed: Vec<usize> = ACTION_SLOT_KEYS
+            .iter()
+            .enumerate()
+            .filter(|(_, action)| bindings.is_just_pressed(**action, &input))
+            .map(|(index, _)| index)
+            .collect();
+        if toggle {
+            self.toggle_spellbook();
+        }
+        for index in pressed {
+            self.use_action_button(index)?;
+        }
+        Ok(())
+    }
+
+    /// `UseAction`: a spell button casts at the current target.
+    fn use_action_button(&mut self, index: usize) -> Result<(), String> {
+        self.spells.pushed[index] = PUSH_SECS;
+        match self.account.spells.slot(index) {
+            Some(ActionRef::Spell(spell_id)) => self.cast_spell(spell_id),
+            _ => Ok(()),
+        }
+    }
+
+    fn cast_spell(&mut self, spell_id: u32) -> Result<(), String> {
+        let name = self
+            .spells
+            .catalog()
+            .and_then(|data| data.get(spell_id))
+            .map(|spell| spell.name.to_string())
+            .unwrap_or_default();
+        let target = self.targeting_target();
+        self.account.send_cast(spell_id, &name, target)?;
+        self.spells.sent.push(spell_id);
+        Ok(())
+    }
+
+    /// `CastFailed`: Retail GlobalStrings text in UIErrorsFrame.
+    pub(super) fn show_cast_failed(&mut self, failed: CastFailed) -> Result<(), String> {
+        let power = self
+            .spells
+            .catalog()
+            .and_then(|data| data.get(failed.spell_id))
+            .and_then(|spell| spell.powers.first())
+            .and_then(|cost| PowerType::from_db(i32::from(cost.power_type)));
+        let text = cast_failed_text(failed.reason, failed.detail.as_deref(), power);
+        self.spells.errors.push(text.clone());
+        self.add_world_error(&text)
+    }
+
+    fn poll_action_bar_clicks(&mut self) -> Result<(), String> {
+        let Some(ui) = self.spells.bar_ui.as_mut() else {
+            return Ok(());
+        };
+        let action = ui.bind_mut().pop_action().to_string();
+        match parse_action_button(&action) {
+            Some(index) => self.use_action_button(index),
+            None if action.is_empty() => Ok(()),
+            None => Err(format!("Unknown action bar action: {action}")),
+        }
+    }
+
+    /// Icons whose BLP is on disk (copied from local CASC on first use); others show empty.
+    fn drawable_fdid(&mut self, fdid: u32) -> u32 {
+        if fdid == 0 {
+            return 0;
+        }
+        if let Some(found) = self.spells.textures.get(&fdid) {
+            return if *found { fdid } else { 0 };
+        }
+        let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
+        let cache_root = PathBuf::from(
+            ProjectSettings::singleton()
+                .globalize_path("user://asset-resolver")
+                .to_string(),
+        );
+        let found = path.exists()
+            || crate::assets::creature::local_resolver(&self.data_root, &cache_root)
+                .ensure_cached(fdid, &path)
+                .is_some();
+        if !found {
+            godot_warn!("Spell texture FDID {fdid} is not in local CASC");
+        }
+        self.spells.textures.insert(fdid, found);
+        if found { fdid } else { 0 }
+    }
+
+    fn spell_triggers_gcd(&self, spell_id: u32) -> bool {
+        self.spells
+            .catalog()
+            .and_then(|data| data.get(spell_id))
+            .is_none_or(|spell| spell.cooldown.gcd_ms > 0)
+    }
+
+    fn action_bar_state(&mut self) -> MainActionBarState {
+        let mut state = MainActionBarState::default();
+        for index in 0..MAIN_BAR_BUTTONS {
+            let Some(ActionRef::Spell(spell_id)) = self.account.spells.slot(index) else {
+                continue;
+            };
+            let icon = self
+                .spells
+                .catalog()
+                .and_then(|data| data.get(spell_id))
+                .map_or(0, |spell| spell.icon_fdid);
+            let on_gcd = self.spell_triggers_gcd(spell_id);
+            let cooldown = self.account.spells.button_cooldown(spell_id, on_gcd);
+            let button = &mut state.buttons[index];
+            button.icon_fdid = self.drawable_fdid(icon);
+            if let Some(timer) = cooldown.filter(|timer| timer.duration > 0.0) {
+                button.cooldown_fraction = timer.remaining / timer.duration;
+                if timer.duration >= COUNTDOWN_MIN_SECS {
+                    button.cooldown_text = cooldown_text(timer.remaining);
+                }
+            }
+        }
+        for (index, button) in state.buttons.iter_mut().enumerate() {
+            button.pushed = self.spells.pushed[index] > 0.0;
+        }
+        state
+    }
+
+    fn sync_action_bar(&mut self) -> Result<(), String> {
+        let state = self.action_bar_state();
+        if let Some(ui) = self.spells.bar_ui.as_mut() {
+            return ui.bind_mut().set_state(state);
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("MainActionBarUI");
+        ui.set_layer(2);
+        self.base_mut().add_child(&ui);
+        let shown = ui.bind_mut().show_main_action_bar(state);
+        if let Err(error) = shown {
+            ui.free();
+            return Err(error);
+        }
+        self.spells.bar_ui = Some(ui);
+        Ok(())
+    }
+
+    fn local_cast_state(&mut self, delta: f32) -> Option<LocalCast> {
+        let player = self.world.local_player_id()?;
+        let replicated = self.units.get(&player)?.cast.as_ref()?;
+        let channel = replicated.cast_type == shared::casting::CastType::Channel;
+        let cast = match self.spells.cast {
+            Some(local)
+                if local.spell_id == replicated.spell_id
+                    && local.server_elapsed == replicated.elapsed =>
+            {
+                LocalCast {
+                    elapsed: (local.elapsed + delta).min(local.duration),
+                    ..local
+                }
+            }
+            _ => LocalCast {
+                spell_id: replicated.spell_id,
+                duration: replicated.duration,
+                elapsed: replicated.elapsed,
+                server_elapsed: replicated.elapsed,
+                channel,
+            },
+        };
+        Some(cast)
+    }
+
+    fn sync_cast_bar(&mut self, delta: f32) -> Result<(), String> {
+        self.spells.cast = self.local_cast_state(delta);
+        let state = match self.spells.cast {
+            Some(cast) => {
+                let name = self
+                    .spells
+                    .catalog()
+                    .and_then(|data| data.get(cast.spell_id))
+                    .map(|spell| spell.name.to_string())
+                    .unwrap_or_default();
+                let fraction = if cast.duration > 0.0 {
+                    cast.elapsed / cast.duration
+                } else {
+                    1.0
+                };
+                CastingBarState {
+                    visible: true,
+                    spell_name: name,
+                    timer_text: format!("{:.1}", (cast.duration - cast.elapsed).max(0.0)),
+                    progress: if cast.channel {
+                        1.0 - fraction
+                    } else {
+                        fraction
+                    },
+                    is_channel: cast.channel,
+                    ..CastingBarState::default()
+                }
+            }
+            None => CastingBarState::default(),
+        };
+        if let Some(ui) = self.spells.cast_ui.as_mut() {
+            return ui.bind_mut().set_state(state);
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("CastingBarUI");
+        ui.set_layer(2);
+        self.base_mut().add_child(&ui);
+        let shown = ui.bind_mut().show_casting_bar(state);
+        if let Err(error) = shown {
+            ui.free();
+            return Err(error);
+        }
+        self.spells.cast_ui = Some(ui);
+        Ok(())
+    }
+
+    pub(super) fn spellbook_open(&self) -> bool {
+        self.spells.book_ui.is_some()
+    }
+
+    pub(super) fn close_spellbook(&mut self) {
+        if let Some(ui) = self.spells.book_ui.take() {
+            ui.free();
+        }
+    }
+
+    fn toggle_spellbook(&mut self) {
+        if self.spellbook_open() {
+            self.close_spellbook();
+        } else {
+            self.spells.book.page = 0;
+            self.spells.book.selected = 0;
+            // Created by `sync_spellbook` on this frame.
+            let mut ui = RegistryUi::new_alloc();
+            ui.set_name("SpellBookUI");
+            ui.set_layer(5);
+            self.base_mut().add_child(&ui);
+            self.spells.book_ui = Some(ui);
+        }
+    }
+
+    fn spellbook_player(&self) -> Option<SpellbookPlayer> {
+        let unit = self.units.get(&self.world.local_player_id()?)?;
+        let player = unit.player.as_ref()?;
+        Some(SpellbookPlayer {
+            class_id: u32::from(player.class),
+            race_id: u32::from(player.race),
+            level: u32::from(unit.level?.0),
+        })
+    }
+
+    fn spellbook_state(&mut self) -> SpellbookFrameState {
+        let spells = &self.account.spells;
+        let player = self.spellbook_player();
+        let catalog = self.spells.catalog();
+        let tabs = build_spellbook_tabs(spells.known(), spells.spec(), catalog, player);
+        let class_name = catalog
+            .zip(player)
+            .and_then(|(data, player)| data.tabs.class_names.get(&player.class_id).cloned());
+        let mut categories = spellbook_categories(tabs, class_name.as_deref());
+        for item in categories
+            .iter_mut()
+            .flat_map(|category| category.groups.iter_mut())
+            .flat_map(|group| group.items.iter_mut())
+        {
+            item.icon_fdid = self.drawable_fdid(item.icon_fdid);
+        }
+        let size = self
+            .base()
+            .get_viewport()
+            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
+                viewport.get_visible_rect().size
+            });
+        let mut state = SpellbookFrameState {
+            viewport: [size.x, size.y],
+            categories,
+            selected: self.spells.book.selected,
+            page: self.spells.book.page,
+        };
+        state.selected = state.selected.min(state.categories.len().saturating_sub(1));
+        state.page = state.page.min(state.page_count() - 1);
+        state
+    }
+
+    fn sync_spellbook(&mut self) -> Result<(), String> {
+        if self.spells.book_ui.is_none() {
+            return Ok(());
+        }
+        let state = self.spellbook_state();
+        self.spells.book = state.clone();
+        let ui = self.spells.book_ui.as_mut().expect("spellbook open");
+        if ui.bind().has_frame("SpellBookFrame") {
+            return ui.bind_mut().set_state(state);
+        }
+        ui.bind_mut().show_spellbook(state)
+    }
+
+    fn poll_spellbook_actions(&mut self) -> Result<(), String> {
+        let Some(ui) = self.spells.book_ui.as_mut() else {
+            return Ok(());
+        };
+        let action = ui.bind_mut().pop_action().to_string();
+        let book = &mut self.spells.book;
+        if action.is_empty() {
+        } else if action == ACTION_SPELLBOOK_CLOSE {
+            self.close_spellbook();
+        } else if action == ACTION_SPELLBOOK_PREV_PAGE {
+            book.page = book.page.saturating_sub(1);
+        } else if action == ACTION_SPELLBOOK_NEXT_PAGE {
+            book.page += 1;
+        } else if let Some(index) = action.strip_prefix(ACTION_SPELLBOOK_TAB) {
+            book.selected = index
+                .parse()
+                .map_err(|_| format!("Bad spellbook tab {action}"))?;
+            book.page = 0;
+        } else if let Some(spell) = action.strip_prefix(ACTION_SPELLBOOK_CAST) {
+            let spell_id = spell
+                .parse()
+                .map_err(|_| format!("Bad spellbook spell {action}"))?;
+            self.cast_spell(spell_id)?;
+        } else {
+            return Err(format!("Unknown spellbook action: {action}"));
+        }
+        Ok(())
+    }
+
+    /// Retail floating combat text over the target for the player's own damage.
+    fn float_combat_text(&mut self, delta: f32) {
+        let player = self.world.local_player_id();
+        let seq = self.account.combat_log_seq;
+        let fresh = (seq - self.spells.combat_seen).min(self.account.combat_log.len() as u64);
+        self.spells.combat_seen = seq;
+        let events: Vec<_> = self
+            .account
+            .combat_log
+            .iter()
+            .skip(self.account.combat_log.len() - fresh as usize)
+            .filter(|event| event.source.is_some() && event.source == player)
+            .filter(|event| matches!(event.kind, CombatLogKind::Damage | CombatLogKind::Miss(_)))
+            .cloned()
+            .collect();
+        for event in events {
+            let Some(mut unit) = event.target.and_then(|id| self.world.unit_node(id)) else {
+                continue;
+            };
+            let text = match event.kind {
+                CombatLogKind::Miss(kind) => format!("{kind:?}"),
+                _ if event.crit => format!("{}!", event.amount),
+                _ => event.amount.to_string(),
+            };
+            let mut label = Label3D::new_alloc();
+            label.set_name("CombatText");
+            label.set_text(&text);
+            label.set_billboard_mode(BillboardMode::ENABLED);
+            label.set_draw_flag(
+                godot::classes::label_3d::DrawFlags::DISABLE_DEPTH_TEST,
+                true,
+            );
+            label.set_font_size(if event.crit { 96 } else { 64 });
+            label.set_outline_size(12);
+            label.set_pixel_size(0.01);
+            // Retail white for physical damage, yellow for spell schools.
+            let color = if event.school_mask == 1 {
+                Color::from_rgb(1.0, 1.0, 1.0)
+            } else {
+                Color::from_rgb(1.0, 1.0, 0.0)
+            };
+            label.set_modulate(color);
+            let origin = Vector3::new(0.0, FLOAT_TEXT_HEIGHT, 0.0);
+            label.set_position(origin);
+            unit.add_child(&label);
+            self.spells.floating.push(FloatingText {
+                node: label,
+                age: 0.0,
+                origin,
+            });
+        }
+        self.spells.floating.retain_mut(|text| {
+            text.age += delta;
+            if !text.node.is_instance_valid() {
+                return false;
+            }
+            if text.age >= FLOAT_TEXT_SECS {
+                text.node.clone().queue_free();
+                return false;
+            }
+            let t = text.age / FLOAT_TEXT_SECS;
+            text.node
+                .set_position(text.origin + Vector3::new(0.0, FLOAT_TEXT_RISE * t, 0.0));
+            let mut color = text.node.get_modulate();
+            color.a = 1.0 - t * t;
+            text.node.set_modulate(color);
+            true
+        });
+    }
+
+    /// Spell state for automation.
+    pub(super) fn spells_snapshot(&self) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        let spells = &self.account.spells;
+        let ids = |values: &[u32]| {
+            values
+                .iter()
+                .map(|&id| i64::from(id))
+                .collect::<godot::builtin::PackedInt64Array>()
+        };
+        state.set("catalog_ready", self.spells.catalog().is_some());
+        state.set("known", &ids(spells.known()));
+        state.set("spec", i64::from(spells.spec().unwrap_or(0)));
+        let bar: Vec<u32> = (0..MAIN_BAR_BUTTONS)
+            .map(|slot| match spells.slot(slot) {
+                Some(ActionRef::Spell(id)) => id,
+                _ => 0,
+            })
+            .collect();
+        state.set("bar", &ids(&bar));
+        let cooldowns: Vec<u32> = bar
+            .iter()
+            .map(|&id| {
+                let timer = (id != 0)
+                    .then(|| spells.button_cooldown(id, self.spell_triggers_gcd(id)))
+                    .flatten();
+                timer.map_or(0, |timer| (timer.remaining * 1000.0) as u32)
+            })
+            .collect();
+        state.set("cooldown_ms", &ids(&cooldowns));
+        state.set(
+            "gcd_ms",
+            spells
+                .gcd()
+                .map_or(0, |timer| (timer.remaining * 1000.0) as i64),
+        );
+        state.set("sent", &ids(&self.spells.sent));
+        let errors: PackedStringArray = self
+            .spells
+            .errors
+            .iter()
+            .map(|error| GString::from(error.as_str()))
+            .collect();
+        state.set("errors", &errors);
+        state.set(
+            "casting",
+            self.spells.cast.map_or(0, |cast| i64::from(cast.spell_id)),
+        );
+        let damage: Vec<u32> = self
+            .account
+            .combat_log
+            .iter()
+            .filter(|event| {
+                event.kind == CombatLogKind::Damage && event.source == self.world.local_player_id()
+            })
+            .map(|event| event.amount.max(0) as u32)
+            .collect();
+        state.set("damage_dealt", &ids(&damage));
+        state.set("spellbook_open", self.spellbook_open());
+        let player = self.world.local_player_id().and_then(|id| self.units.get(&id));
+        let power = player
+            .and_then(|unit| unit.powers.as_ref()?.entries.first().cloned())
+            .map_or(-1, |entry| i64::from(entry.current));
+        state.set("power", power);
+        state.set(
+            "level",
+            player.and_then(|unit| unit.level).map_or(0, |level| i64::from(level.0)),
+        );
+        let target_health = self
+            .targeting_target()
+            .and_then(|id| self.units.get(&id)?.health)
+            .map_or(-1.0, |health| f64::from(health.current));
+        state.set("target_health", target_health);
+        let book: Vec<VarDictionary> = self
+            .spells
+            .book
+            .categories
+            .iter()
+            .flat_map(|category| &category.groups)
+            .flat_map(|group| &group.items)
+            .map(|item| {
+                let mut entry = VarDictionary::new();
+                entry.set("id", i64::from(item.spell_id));
+                entry.set("name", item.name.as_str());
+                entry.set("available_at", i64::from(item.available_at.unwrap_or(0)));
+                entry
+            })
+            .collect();
+        let mut book_array = VarArray::new();
+        for entry in book {
+            book_array.push(&entry.to_variant());
+        }
+        state.set("spellbook", &book_array);
+        state
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spell(id: u32, available_at: Option<u32>) -> SpellbookSpell {
+        SpellbookSpell {
+            id,
+            name: format!("Spell {id}"),
+            subtext: String::new(),
+            passive: false,
+            icon_file_data_id: 1,
+            available_at,
+        }
+    }
+
+    #[test]
+    fn class_and_spec_lines_share_the_class_category_and_general_follows() {
+        let tabs = vec![
+            SpellbookTab {
+                name: "General".into(),
+                spells: vec![spell(6603, None)],
+            },
+            SpellbookTab {
+                name: "Warrior".into(),
+                spells: vec![spell(1464, None), spell(100, Some(2))],
+            },
+            SpellbookTab {
+                name: "Arms".into(),
+                spells: vec![spell(12294, None)],
+            },
+        ];
+        let categories = spellbook_categories(tabs, Some("Warrior"));
+        let names: Vec<_> = categories.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["Warrior", "General"]);
+        let groups: Vec<_> = categories[0]
+            .groups
+            .iter()
+            .map(|g| g.name.as_str())
+            .collect();
+        assert_eq!(groups, ["Warrior", "Arms"]);
+        assert_eq!(categories[0].groups[0].items[1].available_at, Some(2));
+    }
+
+    #[test]
+    fn cooldown_numbers_round_up_and_switch_to_minutes() {
+        assert_eq!(cooldown_text(19.2), "20");
+        assert_eq!(cooldown_text(0.4), "1");
+        assert_eq!(cooldown_text(95.0), "2m");
+    }
+}
