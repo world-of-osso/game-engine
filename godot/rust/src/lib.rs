@@ -290,6 +290,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_entrance_bar(delta as f32))
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.update_player_animation())
+            .map(|()| self.world.update_remote_locomotion())
             .and_then(|()| self.send_player_input())
             .and_then(|()| self.terrain.poll())
             .and_then(|()| self.update_world_lighting())

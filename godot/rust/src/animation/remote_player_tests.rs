@@ -1,0 +1,161 @@
+//! Another player's replicated `PlayerMotion` (Retail `MovementFlags`) driving its model
+//! through the local player's selector and jump sequence, on HumanMale HD.
+use super::npc_pose_tests::{human_male_hd, pose_distance};
+use super::{AnimationState, MIN_MOVEMENT_BLEND_MS};
+use crate::world::{Locomotion, player_motion_locomotion, remote_player_locomotion};
+use shared::components::PlayerMotion;
+
+const FORWARD: u32 = PlayerMotion::FORWARD;
+const BACKWARD: u32 = PlayerMotion::BACKWARD;
+const LEFT: u32 = PlayerMotion::STRAFE_LEFT;
+const RIGHT: u32 = PlayerMotion::STRAFE_RIGHT;
+const WALK: u32 = PlayerMotion::WALKING;
+const FALLING: u32 = PlayerMotion::FALLING;
+const SWIM: u32 = PlayerMotion::SWIMMING;
+
+/// One 60 fps client frame.
+const FRAME_MS: f64 = 1000.0 / 60.0;
+
+fn locomotion(animation_id: u16, jumping: bool, running_forward: bool) -> Locomotion {
+    Locomotion {
+        animation_id,
+        jumping,
+        running_forward,
+    }
+}
+
+fn current_id(player: &AnimationState) -> u16 {
+    player.sequences[player.current].id
+}
+
+/// Drive the model from the newest flags, as `WorldUnits` does after each clock advance.
+fn drive(player: &mut AnimationState, flags: u32) -> bool {
+    let Locomotion {
+        animation_id,
+        jumping,
+        running_forward,
+    } = player_motion_locomotion(PlayerMotion(flags));
+    player
+        .update_locomotion(animation_id, jumping, running_forward)
+        .unwrap()
+}
+
+/// One client frame: advance the clock, then drive the model.
+fn frame(player: &mut AnimationState, flags: u32) -> bool {
+    player.advance(FRAME_MS).unwrap();
+    drive(player, flags)
+}
+
+#[test]
+fn flags_select_the_local_players_animation_ids() {
+    for (flags, expected) in [
+        (0, locomotion(0, false, false)),
+        (WALK, locomotion(0, false, false)),
+        (FORWARD, locomotion(5, false, true)),
+        (FORWARD | WALK, locomotion(4, false, false)),
+        (BACKWARD, locomotion(13, false, false)),
+        (LEFT, locomotion(11, false, false)),
+        (RIGHT, locomotion(12, false, false)),
+        // Forward outranks a strafe, as the local `compute_movement_input` does.
+        (FORWARD | LEFT, locomotion(5, false, true)),
+        (SWIM, locomotion(41, false, false)),
+        (SWIM | FORWARD, locomotion(42, false, false)),
+        (SWIM | LEFT, locomotion(43, false, false)),
+        (SWIM | RIGHT, locomotion(44, false, false)),
+        (SWIM | BACKWARD, locomotion(45, false, false)),
+        (FALLING, locomotion(0, true, false)),
+        (FORWARD | FALLING, locomotion(5, true, true)),
+        (FORWARD | WALK | FALLING, locomotion(4, true, false)),
+    ] {
+        assert_eq!(
+            player_motion_locomotion(PlayerMotion(flags)),
+            expected,
+            "flags {flags:#x}"
+        );
+    }
+}
+
+/// Only other players follow their replicated flags; the local player keeps its own
+/// predicted movement, and creatures carry no `PlayerMotion`.
+#[test]
+fn only_remote_players_follow_replicated_motion() {
+    let running = Some(PlayerMotion(FORWARD));
+    assert_eq!(
+        remote_player_locomotion(true, false, running),
+        Some(locomotion(5, false, true))
+    );
+    assert_eq!(remote_player_locomotion(true, true, running), None);
+    assert_eq!(remote_player_locomotion(false, false, running), None);
+    assert_eq!(remote_player_locomotion(true, false, None), None);
+}
+
+#[test]
+fn remote_player_walks_runs_strafes_backpedals_and_stands_with_continuous_crossfades() {
+    let mut player = human_male_hd();
+    assert!(!frame(&mut player, 0));
+    assert_eq!(current_id(&player), 0);
+    for (flags, id) in [
+        (FORWARD | WALK, 4),
+        (FORWARD, 5),
+        (LEFT, 11),
+        (RIGHT, 12),
+        (BACKWARD, 13),
+        (0, 0),
+    ] {
+        player.advance(FRAME_MS).unwrap();
+        let before = player.poses();
+        assert!(drive(&mut player, flags), "{flags:#x}");
+        assert_eq!(current_id(&player), id);
+        let blend = player.transition.as_ref().unwrap().duration_ms;
+        assert!(blend >= MIN_MOVEMENT_BLEND_MS, "{flags:#x} blend {blend}");
+        assert!(
+            pose_distance(&before, &player.poses()) < 1e-4,
+            "{flags:#x} crossfade starts from the outgoing pose"
+        );
+        // The same flags on every later frame neither restart the clip nor its fade.
+        for step in 1..=5 {
+            assert!(!frame(&mut player, flags), "{flags:#x} frame {step}");
+            assert_eq!(current_id(&player), id);
+            assert!((player.time_ms - FRAME_MS * f64::from(step)).abs() < 1e-6);
+            let elapsed = player.transition.as_ref().unwrap().elapsed_ms;
+            assert!((f64::from(elapsed) - FRAME_MS * f64::from(step)).abs() < 1e-3);
+        }
+        player.advance(f64::from(blend)).unwrap();
+        assert!(
+            player.transition.is_none(),
+            "{flags:#x} crossfade completes"
+        );
+    }
+}
+
+/// A running jump: JumpStart 37 plays out, Jump 38 loops while `FALLING` stays set, the
+/// landing (running JumpLandRun 187 when authored, else JumpEnd 39) follows its clear,
+/// then Run 5 resumes and Stand 0 follows the stop, every switch crossfaded.
+#[test]
+fn remote_jump_starts_loops_and_lands_from_the_falling_flag() {
+    let mut player = human_male_hd();
+    frame(&mut player, FORWARD);
+    player.advance(400.0).unwrap();
+    let mut seen = vec![current_id(&player)];
+    let mut record = |player: &mut AnimationState, flags: u32, frames: usize| {
+        for _ in 0..frames {
+            player.advance(FRAME_MS).unwrap();
+            let before = player.poses();
+            if drive(player, flags) {
+                seen.push(current_id(player));
+                assert!(pose_distance(&before, &player.poses()) < 1e-4, "{seen:?}");
+                let blend = player.transition.as_ref().unwrap().duration_ms;
+                assert!(blend >= MIN_MOVEMENT_BLEND_MS, "{seen:?} blend {blend}");
+            }
+        }
+    };
+    record(&mut player, FORWARD | FALLING, 120);
+    record(&mut player, FORWARD, 120);
+    record(&mut player, 0, 30);
+    let landing = if player.sequences.iter().any(|s| s.id == 187) {
+        187
+    } else {
+        39
+    };
+    assert_eq!(seen, vec![5, 37, 38, landing, 5, 0]);
+}
