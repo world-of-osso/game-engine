@@ -6,6 +6,12 @@ extends SceneTree
 ##   POLY_ACCOUNT / POLY_CHARACTER   account (password fbtest) and level-10 mage,
 ##                                   placed with the spy straight ahead
 ##   POLY_SHOTS                      screenshot directory
+##   POLY_GRAB                       optional directory for a real-time recording: a JPEG
+##                                   every 100 ms of wall-clock time from the idle framing on,
+##                                   with `frames.txt` (ffmpeg concat durations). Movie Maker
+##                                   (`--write-movie`) steps 1/30 s of game time per frame while
+##                                   the server runs on wall-clock time, so its server events
+##                                   come early whenever rendering is slower than 30 fps.
 ## Tab targets the spy. Frostbolt pulls it: it runs in and swings at the mage (the
 ## mage's CombatWound 9). Polymorph from the bar shows its precast and cast bar, then
 ## the server's TRANSFORM swaps the spy's display for the Polymorphed Sheep (856 or
@@ -36,6 +42,10 @@ var seen_actions := {}
 var seen_models := {}
 ## Locomotion clips seen on the target per display id.
 var seen_animations := {}
+var grab_dir := ""
+var grab_last_ms := -1
+var grab_index := 0
+var grab_list := ""
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -61,7 +71,30 @@ func _process(_delta: float) -> bool:
 	var visuals: Dictionary = client.spell_visuals_state()
 	for model in visuals.active:
 		seen_models[[model.unit, model.model]] = true
+	grab_frame()
 	return false
+
+## One JPEG per 100 ms of wall-clock time; each listed with the time until the next.
+func grab_frame() -> void:
+	if grab_dir == "" or grab_last_ms < 0:
+		return
+	var now := Time.get_ticks_msec()
+	if grab_index > 0 and now - grab_last_ms < 100:
+		return
+	if grab_index > 0:
+		grab_list += "duration %.3f\n" % ((now - grab_last_ms) / 1000.0)
+	var file := "grab-%05d.jpg" % grab_index
+	root.get_texture().get_image().save_jpg(grab_dir + file, 0.9)
+	grab_list += "file '%s'\n" % file
+	grab_index += 1
+	grab_last_ms = now
+
+func finish_grab() -> void:
+	if grab_dir == "" or grab_index == 0:
+		return
+	var list := FileAccess.open(grab_dir + "frames.txt", FileAccess.WRITE)
+	list.store_string(grab_list + "duration 0.1\n")
+	list.close()
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
@@ -97,6 +130,10 @@ func run_test() -> void:
 	if not await orbit_camera():
 		return
 	await capture("00-idle.png")
+	grab_dir = OS.get_environment("POLY_GRAB")
+	if grab_dir != "":
+		DirAccess.make_dir_recursive_absolute(grab_dir)
+		grab_last_ms = Time.get_ticks_msec()
 	for attempt in range(10):
 		push_key(KEY_TAB, true)
 		await wait_frames(2)
@@ -171,7 +208,8 @@ func run_test() -> void:
 		return
 	await capture("07-spy-attacks-again.png")
 	print("FIXTURE SEEN actions=", seen_actions, " animations=", seen_animations, " models=", seen_models.keys())
-	await wait_frames(60)
+	await wait_real(2.0)
+	finish_grab()
 	print("FIXTURE POLYMORPH_MOB_DONE")
 	client.free()
 	quit(0)
