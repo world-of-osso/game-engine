@@ -2,6 +2,10 @@
 
 The Godot replacement remains incomplete. `cad33614` shares terrain material inputs with Godot core and has five pure tests, which do not prove native shader/material parity. `27944c68`/`1261766c`/`79267767` prove generation-isolated asynchronous `LoadTerrain` asset loading: a real local CASC/cache fixture parses nine tiles, reconnect clears the asset state, and the host stays `Loading`. `dae1f6e5`/`191dee01` wire the original readiness predicate and fixture acceptance; at `c48d2510`, the built DLL and real `world_terrain_flow.gd` against `127.0.0.1:5000` exit 0 with authored terrain materials, `InWorld`, hidden `LoadingUI`, and reconnect map/world reset (`/tmp/claude/native-readiness-name-{build,green}.log`). `db824fca` assigns a stable screen sibling name after the old node is freed during repeated replacement, while `c48d2510` makes loss of that name an explicit fixture failure instead of a coroutine abort. Independent verification remains pending. `0953ef72` decodes referenced terrain BLPs from local CASC; `9f6000f6` adds native material attachment. `e65dbb59` corrects authored neutral MCCV encoding from byte 127 to byte 255 before `ArrayMesh` construction, with inverse shader conversion.
 
+## Remote native extension build
+
+The root launcher compiles locally, but uses `scripts/depot-build.py` to build the Linux x86_64 GDExtension remotely. The helper's source-snapshot boundary, shared remote cache policy, atomic worktree-local library install, prerequisites, and explicit no-fallback failure policy are defined in [Remote Godot builds](../../remote-builds.md). Depot budget and service-limit claims remain deliberately separate: the $100 monthly ceiling is conditional planning, not a configured billing cap; main must verify provider limits and cache GC. This build path does not establish gameplay, renderer, or conversion parity.
+
 ## Launcher startup CLI boundary
 
 `b10eab7d` keeps native Godot arguments intact while moving launcher-owned `--screen`, `--state`, `--server`, and `--char` after Godot's `--` separator; launcher process evidence remains 11/11 GREEN. `ae091255` shares pure `ScreenArg`/`StartupArgs` parsing between root and `godot/core`; current parser evidence is 6/6 GREEN (`/tmp/claude/game-core-startup-green.log`), superseding verifier624's guessed-path unavailable note. `e89f4243` gives startup token use priority, consumes session options once, and rejects an unavailable requested character; account evidence remains 5/5 GREEN. `37262089` reads only Godot user arguments in `GameClient::ready()`.
@@ -238,6 +242,7 @@ Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x
 
 - [Godot conversion specification](../../specs/godot-conversion.md) — acceptance target and current capability/proof matrix.
 - [shared AreaTable data](../../../src/area_zone_data.rs) — parent parsing and bounded root traversal.
+- [Remote Godot builds](../../remote-builds.md) — Depot extension-build boundary and operator requirements.
 - `/tmp/claude/verify-root-tests-580d7300.md` — bounded root format/test proof and test-only-delta scope.
 - `/tmp/claude/verify-stockade-camera-580d7300.log` — Stockade camera-collision selector 4/4.
 - `/tmp/claude/native-global-wmo-assets-{red,green}.log` — missing-field RED and cached global-WMO placement GREEN.
@@ -348,3 +353,4 @@ Independent verification at `6d2f7cd6` fresh-runs the private-loopback authored 
 - [[asset-pipeline]] — reusable local-CASC asset boundary.
 - [[ui-system]] — existing UI behavior to preserve.
 - [[rendering-pipeline]] — existing client rendering behavior to replace.
+- [Remote Godot builds](../../remote-builds.md) — Depot-native-extension build path.
