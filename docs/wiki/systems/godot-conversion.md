@@ -333,6 +333,10 @@ Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x
 - [M2-assets script](../../godot/tests/m2_assets.gd) — agent39-reported GREEN on the `ac02b9a0` native library after `97d97af1`/`5297d394`.
 - [Sibling UI core registry](../../../../ui-toolkit-godot-conversion/core/src/registry.rs) — extracted frame/model registry boundary.
 
+## Native nameplate Options boundary
+
+Independent verification at `6d2f7cd6` fresh-runs the private-loopback authored Options fixture against a replicated NPC: HUD health-bars hides fill/frame while retaining its label, the camera-to-health-body fade remains independent of viewer-to-unit CVar eligibility, and colorblind NPC-label restoration leaves the reaction-based fill unchanged (`/tmp/claude/verify-native-nameplate-options.md`). `6073af82` independently passes root `cargo fmt --check` and locked root binary compilation (`/tmp/claude/verify-nameplate-root-adapter.md`). A pure native test asserts both exact player cyan and NPC yellow label colors, but it is not live player-label proof. Test-only remote-player attempts are RED without source changes: player-vs-player attacks are rejected, friendly-player plates default off, and no authored control enables them (`/tmp/claude/nameplate-player-*.log`). Full nameplate and conversion parity remain open.
+
 ## See Also
 
 - [[asset-pipeline]] — reusable local-CASC asset boundary.

@@ -4,9 +4,9 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
-## [2026-09-28] ui | Native nameplate Options consumers
+## [2026-09-29] ui | Native nameplate Options independently verified
 
-`6d2f7cd6` makes native nameplates hide only frame/fill for the HUD health-bars switch, fade from the camera-to-health-body distance independently of the viewer-to-unit CVar limit, and tint only player/NPC labels for Accessibility colorblind mode. The owned loopback NPC fixture passes through live NPC health visibility with a retained name, alpha, CVar eligibility, NPC label restoration, and unchanged fill tint (`data/diagnostics/nameplate-options-recovery-targeted-final.log`). It does not render a live player label, so player cyan runtime proof and verifier874 remain pending. See [[nameplate-design]] and [nameplate spec](../specs/nameplate-style.md).
+Independent verification of `6d2f7cd6` fresh-runs the private-loopback authored Options fixture against a replicated NPC: HUD health-bars hides frame/fill while retaining the label; camera-to-health-body fade remains separate from viewer-to-unit CVar eligibility; colorblind NPC label restoration leaves health fill unchanged (`/tmp/claude/verify-native-nameplate-options.md`). `6073af82` independently passes root `cargo fmt --check` and locked root binary compilation (`/tmp/claude/verify-nameplate-root-adapter.md`). The pure color test asserts exact player cyan and NPC yellow labels, but no live player plate is reachable: player-vs-player attacks are rejected, friendly-player plates default off, and no authored control changes that. Test-only player attempts remain RED (`/tmp/claude/nameplate-player-*.log`) and changed no source. Full nameplate parity remains open. See [[nameplate-design]] and [nameplate spec](../specs/nameplate-style.md).
 
 ## [2026-09-29] system | Native local-player footstep playback
 
