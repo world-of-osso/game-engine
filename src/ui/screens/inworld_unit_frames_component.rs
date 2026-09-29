@@ -22,7 +22,11 @@ use inworld_unit_frames_art::{
     AtlasArt, COMBAT_ICON, HEALTH_BAR, HolyPowerArt, PipArt, REACTION_STRIP, REST_ICON, pip_art,
     power_bar_art,
 };
-use inworld_unit_frames_aura::target_aura_row;
+use inworld_unit_frames_aura::target_auras;
+pub use inworld_unit_frames_aura::{
+    MAX_TARGET_BUFFS, MAX_TARGET_DEBUFFS, TargetAuraView, set_target_auras, target_aura_icon,
+    target_frame_auras,
+};
 pub use inworld_unit_frames_layout::*;
 use inworld_unit_frames_parts::{
     BarSpec, Rect, art_root, art_texture, status_bar, tinted_art_texture, unit_label,
@@ -107,6 +111,8 @@ pub struct UnitFrameState {
     pub show_resting_icon: bool,
     pub target_buffs: Vec<TargetAuraIconState>,
     pub target_debuffs: Vec<TargetAuraIconState>,
+    /// Friendly target: buffs lead the aura container, else debuffs do.
+    pub target_buffs_first: bool,
 }
 
 impl UnitFrameState {
@@ -124,6 +130,7 @@ impl UnitFrameState {
             show_resting_icon: false,
             target_buffs: Vec::new(),
             target_debuffs: Vec::new(),
+            target_buffs_first: false,
         }
     }
 }
@@ -192,12 +199,16 @@ pub struct UnitMenuItem {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TargetAuraIconState {
+    pub spell_id: u32,
     pub icon_fdid: u32,
-    pub timer_text: String,
     pub stacks: u32,
-    pub border_color: String,
-    /// Cast by the local player; drawn larger.
-    pub mine: bool,
+    /// Debuffs: the `DispelBorder` tint (`AuraUtil.SetAuraBorderColor`); buffs have none.
+    pub dispel_color: Option<String>,
+    /// Cast by the local player: `LargeAuraSize`.
+    pub large: bool,
+    /// Elapsed fraction of a timed aura, for the reverse cooldown swipe; `None` when
+    /// permanent.
+    pub elapsed: Option<f32>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -293,8 +304,7 @@ fn target_frame_contents(state: &UnitFrameState) -> Element {
     rsx! {
         {reaction_strip("Target", state.reaction, 1.0)}
         {unit_frame_contents("Target", state)}
-        {target_aura_row("TargetBuff", &state.target_buffs, TARGET_BUFF_Y)}
-        {target_aura_row("TargetDebuff", &state.target_debuffs, TARGET_DEBUFF_Y)}
+        {target_auras(state, (TARGET_AURAS_LEFT, TARGET_AURAS_TOP))}
     }
 }
 

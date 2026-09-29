@@ -59,7 +59,7 @@ impl Plugin for BuffFramePlugin {
 fn frame_state(auras: Option<&AuraState>, graphics: Option<&GraphicsOptions>) -> BuffFrameState {
     let colorblind = graphics.is_some_and(|graphics| graphics.colorblind_mode);
     auras.map_or_else(BuffFrameState::default, |auras| {
-        BuffFrameState::from_auras(auras, colorblind)
+        BuffFrameState::from_auras(&auras.auras, colorblind)
     })
 }
 

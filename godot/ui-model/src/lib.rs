@@ -19,7 +19,7 @@ pub mod ui {
     pub mod screens {
         pub(crate) use crate::screen_title;
         pub use crate::{
-            bag_frame_component, default_button_atlas, game_menu_component,
+            bag_frame_component, buff_frame_component, default_button_atlas, game_menu_component,
             inworld_unit_frames_component, menu_primitives, merchant_frame_component,
             options_menu_active_sections, options_menu_component, options_menu_sections, quest_art,
             stack_split_frame_component, trash_button_component, world_map_frame_art,
@@ -146,11 +146,19 @@ pub mod stack_split;
 #[path = "../../../src/rendering/ui/wow_cursor_data.rs"]
 pub mod wow_cursor_data;
 
-/// The DB2 export build of the item tables (root `spell_catalog::SPELL_DB2_BUILD`).
+/// The DB2 export build of the item tables (root `spell_catalog::SPELL_DB2_BUILD`), and
+/// the core spell catalog the aura model reads.
 mod spell_catalog {
     pub(crate) use crate::csv_records;
     pub const SPELL_DB2_BUILD: &str = "12.1.0.69933";
+    pub(crate) use game_engine_core::spell_catalog::{SpellCatalogData, SpellTextContext};
 }
+
+// Player BuffFrame/DebuffFrame and TargetFrame auras (docs/specs/buff-frame.md).
+#[path = "../../../src/game/aura_display_data.rs"]
+pub mod aura_display_data;
+#[path = "../../../src/ui/screens/buff_frame_component.rs"]
+pub mod buff_frame_component;
 
 #[path = "../../../src/ui/screens/loading_component.rs"]
 pub mod loading_component;
