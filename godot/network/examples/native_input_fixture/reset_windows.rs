@@ -61,6 +61,13 @@ impl FixtureProject {
             "music_zone_links.csv",
             "music_manifest.csv",
             "community-listfile.csv",
+            "CharStartOutfit.csv",
+            "ItemModifiedAppearance.csv",
+            "ItemAppearance.csv",
+            "ItemDisplayInfo.csv",
+            "TextureFileData.csv",
+            "ItemDisplayInfoMaterialRes.csv",
+            "ModelFileData.csv",
         ] {
             link_required(&repo.join("data").join(name), &data.join(name))?;
         }
