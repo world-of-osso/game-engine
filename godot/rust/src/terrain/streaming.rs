@@ -152,6 +152,24 @@ impl StreamedTerrain {
             .filter(|&area_id| area_id != 0)
     }
 
+    pub fn surface_at(
+        &self,
+        x: f32,
+        z: f32,
+    ) -> Option<game_engine_core::footstep_data::FootstepSurface> {
+        use game_engine_core::asset::adt_format::adt::CHUNK_SIZE;
+        use game_engine_core::terrain_height_data::bevy_to_tile_coords;
+
+        let tile = self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?;
+        let grid = tile.root.height_grids.iter().find(|grid| {
+            (0.0..CHUNK_SIZE).contains(&(grid.origin_x - x))
+                && (0.0..CHUNK_SIZE).contains(&(z - grid.origin_z))
+        })?;
+        tile.chunk_surfaces
+            .get(&(grid.index_x, grid.index_y))
+            .copied()
+    }
+
     pub fn water_surface_at(&self, x: f32, z: f32) -> Option<f32> {
         use game_engine_core::terrain_height_data::{
             WaterLayerSurface, bevy_to_tile_coords, layer_has_water, sample_water_layer_height,
@@ -544,6 +562,7 @@ mod tests {
             tex: None,
             obj: None,
             textures: BTreeMap::new(),
+            chunk_surfaces: BTreeMap::new(),
             wmo_floors: Vec::new(),
         }
     }
@@ -577,6 +596,65 @@ mod tests {
         let mut tile = water_tile(Vec::new());
         tile.root = root;
         tile
+    }
+
+    #[test]
+    fn surface_query_matches_adjacent_authored_chunks_and_reset() {
+        use game_engine_core::asset::adt_format::adt::CHUNK_SIZE;
+        use game_engine_core::footstep_data::FootstepSurface;
+
+        let mut stream = StreamedTerrain::with_reader(cached_assets());
+        let mut tile = area_fixture();
+        let first = tile
+            .root
+            .height_grids
+            .iter()
+            .find(|grid| (grid.index_x, grid.index_y) == (0, 0))
+            .unwrap();
+        let (x, z) = (first.origin_x, first.origin_z);
+        tile.chunk_surfaces.insert((0, 0), FootstepSurface::Grass);
+        tile.chunk_surfaces.insert((0, 1), FootstepSurface::Stone);
+        assert_eq!(stream.surface_at(x - 1.0, z + 1.0), None);
+        stream.parsed_tiles.insert((32, 48), tile);
+        assert_eq!(stream.surface_at(x, z + 1.0), Some(FootstepSurface::Grass));
+        let adjacent = tile_chunk_origin_x(&stream.parsed_tiles[&(32, 48)], 0, 1) - 1.0;
+        assert_eq!(
+            stream.surface_at(adjacent, z + 1.0),
+            Some(FootstepSurface::Stone)
+        );
+        assert_eq!(stream.surface_at(x - 2.0 * CHUNK_SIZE - 1.0, z + 1.0), None);
+        assert_eq!(stream.surface_at(x + 1.0, z + 1.0), None);
+        assert_eq!(stream.surface_at(f32::NAN, z), None);
+        stream.reset().unwrap();
+        assert_eq!(stream.surface_at(x - 1.0, z + 1.0), None);
+        let mut reloaded = area_fixture();
+        reloaded
+            .chunk_surfaces
+            .insert((0, 0), FootstepSurface::Wood);
+        stream.parsed_tiles.insert((32, 48), reloaded);
+        assert_eq!(
+            stream.surface_at(x - 1.0, z + 1.0),
+            Some(FootstepSurface::Wood)
+        );
+    }
+
+    fn tile_chunk_origin_x(tile: &NativeTerrainTile, index_x: u32, index_y: u32) -> f32 {
+        tile.root
+            .height_grids
+            .iter()
+            .find(|grid| (grid.index_x, grid.index_y) == (index_x, index_y))
+            .unwrap()
+            .origin_x
+    }
+
+    #[test]
+    fn surface_query_missing_tex_has_no_classification() {
+        let mut stream = StreamedTerrain::with_reader(cached_assets());
+        let tile = area_fixture();
+        let grid = &tile.root.height_grids[0];
+        let (x, z) = (grid.origin_x - 1.0, grid.origin_z + 1.0);
+        stream.parsed_tiles.insert((32, 48), tile);
+        assert_eq!(stream.surface_at(x, z), None);
     }
 
     #[test]

@@ -10,7 +10,7 @@ Official tile requests resolve their listfile FDID and call the existing `AssetR
 
 ## Shared terrain surface selection
 
-`70e047ff` makes `src/rendering/terrain/terrain_surface_data.rs` the Bevy-free source of dominant effect ID, dominant texture FDID, and footstep surface selection for the root client and `godot/core`. The first layer weighs 1,000,000; subsequent layers use summed alpha bytes; equal weights favor the later layer. Zero effect IDs are skipped, while an invalid texture index ends FDID selection. Resolved effect surfaces precede texture-path classification; unresolved paths remain Dirt. Bevy retains its existing GroundEffect loading/cache and FDID-path lookup in the heightmap adapter; loaders are unchanged. This is a pure selection prerequisite: Godot has no native terrain-surface runtime consumer or footstep playback, and verifier839 is pending.
+`70e047ff` makes `src/rendering/terrain/terrain_surface_data.rs` the Bevy-free source of dominant effect ID, dominant texture FDID, and footstep surface selection for the root client and `godot/core`. The first layer weighs 1,000,000; subsequent layers use summed alpha bytes; equal weights favor the later layer. Zero effect IDs are skipped, while an invalid texture index ends FDID selection. Resolved effect surfaces precede texture-path classification; unresolved paths remain Dirt. Bevy retains its existing GroundEffect loading/cache and FDID-path lookup in the heightmap adapter; loaders are unchanged. Native tile ingestion now computes and stores one surface per loaded height-grid chunk with `_tex0` layers. `StreamedTerrain::surface_at(x,z)` uses the same tile/half-open chunk coverage as `area_id_at`; absent tiles, texture companions, or chunk coverage return `None`, and unclassified present chunks use the shared Dirt policy. Native footstep playback remains unwired; verifier839 is a separate pending claim.
 
 ## ADT Split Files
 
@@ -20,6 +20,10 @@ Each tile is three files:
 - `_obj0.adt` — MDDF doodad placements and MODF WMO placements
 
 The engine loads all three. Finding companion files uses the community listfile (path-based sibling lookup).
+
+## Native MCNK Surface Lookup
+
+`NativeTerrainAssets` reads GroundEffectTexture (FDID 1308499) and TerrainTypeSounds (FDID 1284822) once per reader through the local CASC/cache resolver. Shared parsers map dominant effect → terrain sound name → footstep surface before falling through to dominant texture FDID's listfile path. Invalid/unavailable DB2s report contextual errors once and leave terrain rendering available; texture classification still applies. Chunk alpha weights are calculated at tile ingestion, not per-frame lookup. Metadata lives with each parsed tile and clears on stream reset. No WMO surface or audio trigger is implemented.
 
 ## Native MCNK Area Lookup
 

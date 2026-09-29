@@ -5,10 +5,12 @@ use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap},
     fs,
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
-use game_engine_core::{adt, wdt};
+use game_engine_core::{
+    adt, footstep_data::FootstepSurface, ground_effect_data, terrain_surface_data, wdt,
+};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 use shared::ground::{WmoCollision, WmoGroupCollision};
 
@@ -22,6 +24,7 @@ pub(crate) struct NativeTerrainAssets {
     data_root: PathBuf,
     textures: RefCell<TerrainTextureCache>,
     lighting: RefCell<Option<Arc<LightingCatalog>>>,
+    surface_catalog: OnceLock<Result<SurfaceCatalog, String>>,
     /// Group floors of each WMO root placed so far, by root FDID.
     wmo_groups: RefCell<HashMap<u32, Vec<Arc<WmoGroupCollision>>>>,
 }
@@ -41,6 +44,7 @@ pub(crate) struct NativeTerrainTile {
     pub tex: Option<adt::AdtTexData>,
     pub obj: Option<adt::AdtObjData>,
     pub textures: BTreeMap<u32, TerrainLayerTextures>,
+    pub chunk_surfaces: BTreeMap<(u32, u32), FootstepSurface>,
     /// Collision of the tile's `_obj0` MODF WMOs by MODF unique id, placed as they render.
     /// Their floors are the player's ground and their faces physics walls from the moment the
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
@@ -59,6 +63,7 @@ impl NativeTerrainAssets {
             data_root,
             textures: RefCell::new(TerrainTextureCache::default()),
             lighting: RefCell::new(None),
+            surface_catalog: OnceLock::new(),
             wmo_groups: RefCell::new(HashMap::new()),
         }
     }
@@ -127,6 +132,7 @@ impl NativeTerrainAssets {
                 adt::parse_obj(bytes).map_err(|error| format!("{}: {error}", path.display()))
             })
             .transpose()?;
+        let chunk_surfaces = self.classify_tile_surfaces(&root, tex.as_ref());
         let textures = match &tex {
             Some(tex) => {
                 self.textures
@@ -147,8 +153,83 @@ impl NativeTerrainAssets {
             tex,
             obj,
             textures,
+            chunk_surfaces,
             wmo_floors,
         })
+    }
+
+    fn classify_tile_surfaces(
+        &self,
+        root: &adt::Root,
+        tex: Option<&adt::AdtTexData>,
+    ) -> BTreeMap<(u32, u32), FootstepSurface> {
+        let Some(tex) = tex else {
+            return BTreeMap::new();
+        };
+        let catalog = self.read_surface_catalog().ok();
+        let paths: Vec<_> = tex
+            .texture_fdids
+            .iter()
+            .map(|&fdid| self.resolver.resolve_path(fdid))
+            .collect();
+        root.height_grids
+            .iter()
+            .map(|grid| {
+                let index = (grid.index_y * 16 + grid.index_x) as usize;
+                let surface = tex
+                    .chunk_layers
+                    .get(index)
+                    .map_or(FootstepSurface::Dirt, |layers| {
+                        terrain_surface_data::dominant_surface_for_chunk_with_resolver(
+                            tex,
+                            layers,
+                            |effect_id| {
+                                catalog.and_then(|catalog| catalog.effect_surface(effect_id))
+                            },
+                            |fdid| {
+                                tex.texture_fdids
+                                    .iter()
+                                    .position(|&id| id == fdid)
+                                    .and_then(|index| paths[index].as_deref())
+                            },
+                        )
+                    });
+                ((grid.index_x, grid.index_y), surface)
+            })
+            .collect()
+    }
+
+    fn read_surface_catalog(&self) -> Result<&SurfaceCatalog, String> {
+        self.surface_catalog
+            .get_or_init(|| {
+                let result = self.load_surface_catalog();
+                if let Err(error) = &result {
+                    eprintln!("Native terrain footstep metadata unavailable: {error}");
+                }
+                result
+            })
+            .as_ref()
+            .map_err(Clone::clone)
+    }
+
+    fn load_surface_catalog(&self) -> Result<SurfaceCatalog, String> {
+        let ground = self.read_local_db2(1_308_499)?;
+        let sounds = self.read_local_db2(1_284_822)?;
+        SurfaceCatalog::parse(&ground, &sounds)
+    }
+
+    fn read_local_db2(&self, fdid: u32) -> Result<Vec<u8>, String> {
+        let cache = self
+            .data_root
+            .join("dbfilesclient")
+            .join(format!("{fdid}.db2"));
+        let path = self.resolver.ensure_cached(fdid, &cache).ok_or_else(|| {
+            format!(
+                "Local CASC DB2 FDID {fdid} unavailable at {}",
+                cache.display()
+            )
+        })?;
+        read_bytes(&path).map_err(|error| format!("DB2 FDID {fdid}: {error}"))
     }
 
     /// A WMO whose files cannot be read has no floor, as on the server (`GroundMap`).
@@ -231,6 +312,32 @@ impl NativeTerrainAssets {
     }
 }
 
+struct SurfaceCatalog {
+    effects: HashMap<u32, ground_effect_data::GroundEffectEntry>,
+    sounds: HashMap<u8, FootstepSurface>,
+}
+
+impl SurfaceCatalog {
+    fn parse(ground: &[u8], sounds: &[u8]) -> Result<Self, String> {
+        let effects = ground_effect_data::parse_ground_effect_entries(ground)
+            .map_err(|error| format!("GroundEffectTexture DB2 FDID 1308499: {error}"))?;
+        let sounds = ground_effect_data::parse_terrain_type_sounds(sounds)
+            .map_err(|error| format!("TerrainTypeSounds DB2 FDID 1284822: {error}"))?
+            .into_iter()
+            .filter_map(|(id, name)| {
+                ground_effect_data::classify_surface_from_terrain_sound_name(&name)
+                    .map(|surface| (id, surface))
+            })
+            .collect();
+        Ok(Self { effects, sounds })
+    }
+
+    fn effect_surface(&self, effect_id: u32) -> Option<FootstepSurface> {
+        let sound_id = self.effects.get(&effect_id)?.terrain_sound_id;
+        self.sounds.get(&sound_id).copied()
+    }
+}
+
 fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
     fs::read(path).map_err(|error| format!("{}: {error}", path.display()))
 }
@@ -298,6 +405,125 @@ mod tests {
                 .is_some_and(|tex| !tex.chunk_layers.is_empty())
         );
         assert!(tile.obj.is_some());
+    }
+
+    #[test]
+    fn local_ground_effect_rows_resolve_authored_surfaces() {
+        use game_engine_core::footstep_data::FootstepSurface;
+
+        let assets = cached_assets();
+        let catalog = assets.read_surface_catalog().expect("local DB2 catalog");
+        assert_eq!(
+            catalog.effect_surface(141_671),
+            Some(FootstepSurface::Metal)
+        );
+        assert_eq!(
+            catalog.effect_surface(163_441),
+            Some(FootstepSurface::Grass)
+        );
+        assert_eq!(catalog.effect_surface(999_999_999), None);
+    }
+
+    #[test]
+    fn chunk_classification_prefers_effect_then_texture_and_retains_dirt() {
+        use game_engine_core::asset::adt_format::adt_tex::{
+            ChunkTexLayers, MclyFlags, TextureLayer,
+        };
+
+        let assets = cached_assets();
+        let root_path = test_data_root().join("terrain/azeroth_32_48.adt");
+        let root = adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
+        let layer = |effect_id| TextureLayer {
+            texture_index: 0,
+            flags: MclyFlags::default(),
+            effect_id,
+            material_id: 0,
+            alpha_map: None,
+        };
+        let tex = adt::AdtTexData {
+            map_flags: wdt::MphdFlags::default(),
+            texture_amplifier: None,
+            texture_fdids: vec![126_746], // listfile: dm_grass.blp
+            height_texture_fdids: vec![],
+            texture_flags: vec![],
+            texture_params: vec![],
+            chunk_layers: (0..33)
+                .map(|index| ChunkTexLayers {
+                    layers: vec![layer(match index {
+                        0 => 141_671,
+                        32 => 999_999_999,
+                        _ => 0,
+                    })],
+                })
+                .collect(),
+        };
+        let surfaces = assets.classify_tile_surfaces(&root, Some(&tex));
+        assert_eq!(surfaces.get(&(0, 0)), Some(&FootstepSurface::Metal));
+        assert_eq!(surfaces.get(&(0, 1)), Some(&FootstepSurface::Grass));
+        assert_eq!(surfaces.get(&(0, 2)), Some(&FootstepSurface::Grass));
+        assert_eq!(surfaces.get(&(0, 3)), Some(&FootstepSurface::Dirt));
+        assert!(assets.classify_tile_surfaces(&root, None).is_empty());
+
+        let mut missing = tex;
+        missing.texture_fdids = vec![999_999_999];
+        assert_eq!(
+            assets
+                .classify_tile_surfaces(&root, Some(&missing))
+                .get(&(0, 1)),
+            Some(&FootstepSurface::Dirt)
+        );
+    }
+
+    #[test]
+    fn failed_optional_catalog_keeps_texture_classification() {
+        use game_engine_core::asset::adt_format::adt_tex::{
+            ChunkTexLayers, MclyFlags, TextureLayer,
+        };
+
+        let assets = cached_assets();
+        assets
+            .surface_catalog
+            .set(Err("bad local DB2".into()))
+            .ok()
+            .unwrap();
+        let root_path = test_data_root().join("terrain/azeroth_32_48.adt");
+        let root = adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
+        let tex = adt::AdtTexData {
+            map_flags: wdt::MphdFlags::default(),
+            texture_amplifier: None,
+            texture_fdids: vec![126_746],
+            height_texture_fdids: vec![],
+            texture_flags: vec![],
+            texture_params: vec![],
+            chunk_layers: vec![ChunkTexLayers {
+                layers: vec![TextureLayer {
+                    texture_index: 0,
+                    flags: MclyFlags::default(),
+                    effect_id: 141_671,
+                    material_id: 0,
+                    alpha_map: None,
+                }],
+            }],
+        };
+        assert_eq!(
+            assets
+                .classify_tile_surfaces(&root, Some(&tex))
+                .get(&(0, 0)),
+            Some(&FootstepSurface::Grass)
+        );
+        assert_eq!(
+            assets.read_surface_catalog().err().as_deref(),
+            Some("bad local DB2")
+        );
+    }
+
+    #[test]
+    fn invalid_local_db2_reports_fdid_and_parse_error() {
+        let error = SurfaceCatalog::parse(b"invalid", b"invalid")
+            .err()
+            .expect("invalid DB2 must fail");
+        assert!(error.contains("1308499"), "{error}");
+        assert!(error.contains("WDC5"), "{error}");
     }
 
     #[test]
