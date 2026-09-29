@@ -182,6 +182,15 @@ struct HeldCast {
     anims: Vec<u16>,
 }
 
+/// The units a cast's kits play on: the caster, its explicit target and the units its
+/// effects hit.
+#[derive(Clone, Copy)]
+struct CastUnits<'a> {
+    caster: u64,
+    target: Option<u64>,
+    hits: &'a [u64],
+}
+
 /// One kit start, for automation and logs.
 #[derive(Clone, Debug, PartialEq)]
 pub struct KitStart {
@@ -316,14 +325,18 @@ impl SpellEffects {
             };
             let target = (cast.target != 0).then_some(cast.target);
             let hits: Vec<u64> = target.into_iter().collect();
-            let anims =
-                match self.start_event(cast.spell_id, id, event, target, &hits, units, world) {
-                    Ok(anims) => anims,
-                    Err(error) => {
-                        errors.push(error);
-                        Vec::new()
-                    }
-                };
+            let cast_units = CastUnits {
+                caster: id,
+                target,
+                hits: &hits,
+            };
+            let anims = match self.start_event(cast.spell_id, event, cast_units, units, world) {
+                Ok(anims) => anims,
+                Err(error) => {
+                    errors.push(error);
+                    Vec::new()
+                }
+            };
             self.held.insert(
                 id,
                 HeldCast {
@@ -372,29 +385,22 @@ impl SpellEffects {
         {
             self.end_held(go.caster, world);
         }
-        if let Err(error) = self.start_event(
-            go.spell_id,
-            go.caster,
-            VisualEvent::Cast,
-            go.target,
-            &go.hit_targets,
-            units,
-            world,
-        ) {
+        let cast_units = CastUnits {
+            caster: go.caster,
+            target: go.target,
+            hits: &go.hit_targets,
+        };
+        if let Err(error) =
+            self.start_event(go.spell_id, VisualEvent::Cast, cast_units, units, world)
+        {
             errors.push(error);
         }
         match self.launch_missile(go, units, world) {
             Ok(true) => {}
             Ok(false) => {
-                if let Err(error) = self.start_event(
-                    go.spell_id,
-                    go.caster,
-                    VisualEvent::Impact,
-                    go.target,
-                    &go.hit_targets,
-                    units,
-                    world,
-                ) {
+                if let Err(error) =
+                    self.start_event(go.spell_id, VisualEvent::Impact, cast_units, units, world)
+                {
                     errors.push(error);
                 }
             }
@@ -435,42 +441,37 @@ impl SpellEffects {
     }
 
     /// Start `spell_id`'s kits for `event`; returns the looping clips started.
-    #[allow(clippy::too_many_arguments)]
     fn start_event(
         &mut self,
         spell_id: u32,
-        caster: u64,
         event: VisualEvent,
-        target: Option<u64>,
-        hits: &[u64],
+        cast_units: CastUnits,
         units: &HashMap<u64, UnitSnapshot>,
         world: &mut WorldUnits,
     ) -> Result<Vec<u16>, String> {
-        let Some(visual) = self.visual(spell_id, caster, units, world)? else {
+        let Some(visual) = self.visual(spell_id, cast_units.caster, units, world)? else {
             return Ok(Vec::new());
         };
         let kits = self.catalog()?.kits(visual, event);
-        self.start_kits(spell_id, caster, event, target, hits, kits, world)
+        self.start_kits(spell_id, event, cast_units, kits, world)
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn start_kits(
         &mut self,
         spell_id: u32,
-        caster: u64,
         event: VisualEvent,
-        target: Option<u64>,
-        hits: &[u64],
+        cast_units: CastUnits,
         kits: Vec<VisualKit>,
         world: &mut WorldUnits,
     ) -> Result<Vec<u16>, String> {
+        let caster = cast_units.caster;
         let mut looping = Vec::new();
         let mut errors = Vec::new();
         for kit in kits {
             let units: Vec<u64> = match kit.target {
                 KitTarget::Caster => vec![caster],
-                KitTarget::HitUnits => hits.to_vec(),
-                KitTarget::PrimaryTarget => target.into_iter().collect(),
+                KitTarget::HitUnits => cast_units.hits.to_vec(),
+                KitTarget::PrimaryTarget => cast_units.target.into_iter().collect(),
                 KitTarget::Other(_) => Vec::new(),
             };
             let held = kit.end != VisualEvent::OneShot;
@@ -771,15 +772,14 @@ impl SpellEffects {
                     continue;
                 }
             };
-            if let Err(error) = self.start_kits(
-                spell_id,
+            let cast_units = CastUnits {
                 caster,
-                VisualEvent::Impact,
-                primary,
-                &hits,
-                kits,
-                world,
-            ) {
+                target: primary,
+                hits: &hits,
+            };
+            if let Err(error) =
+                self.start_kits(spell_id, VisualEvent::Impact, cast_units, kits, world)
+            {
                 errors.push(error);
             }
         }
