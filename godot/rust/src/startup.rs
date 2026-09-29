@@ -84,11 +84,13 @@ impl GameClient {
             username: "admin".into(),
             password: "admin".into(),
         });
-        self.account.connect_startup(
-            &self.server_hostname,
-            &credentials.username,
-            &credentials.password,
-        )?;
+        self.account
+            .connect_startup(
+                &self.server_hostname,
+                &credentials.username,
+                &credentials.password,
+            )
+            .map_err(|error| error.to_string())?;
         self.reset_world()?;
         self.update_login_status("Connecting...", true)
     }
