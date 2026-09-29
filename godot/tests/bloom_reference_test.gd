@@ -147,6 +147,16 @@ func test_first_pass() -> void:
 		Color(1.797385523099405, 1.797385523099405, 1.797385523099405, 1),
 		"hand-derived firstpass"
 	)
+	# Constant RGB=(1,.5,.25) has Rec.709 luma=.58825. Weighted Karis
+	# red = 4*.125/(1+.125*.58825/4)+.5/(1+.5*.58825/4).
+	# Threshold subtracts .65 from red while preserving channel ratios.
+	var colored := field(Vector2i(3, 3), Color(1, 0.5, 0.25, 1))
+	var colored_first: Image = reference.downsample(colored, Vector2i.ONE, true)
+	expect_field(
+		colored_first,
+		Color(0.30672713481889624, 0.15336356740944812, 0.07668178370472406, 1),
+		"colored firstpass Rec.709 Karis weighting"
+	)
 	var plain: Image = reference.downsample(image, Vector2i.ONE)
 	expect_field(plain, Color(3, 3, 3, 1), "ordinary normalized 13-tap, no Karis or threshold")
 	var black := field(Vector2i(3, 3), Color(0, 0, 0, 0.4))
@@ -180,6 +190,17 @@ func test_constant_pyramid() -> void:
 		pyramid[0],
 		Color(0.2792929292929293, 0.2792929292929293, 0.2792929292929293, 1),
 		"filtered pyramid unchanged"
+	)
+	# Exercise actual OLD_SCHOOL 512 sizing and all eight blend stages without
+	# a large CPU frame: a 1x1024 input produces widths of one throughout.
+	# f above, b_i=.08+.7*(1-(1-i/7)^20), i=1..7;
+	# result=1+.08*f*(1+b_1*(1+b_2*(...*(1+b_7)))).
+	var full_depth := field(Vector2i(1, 1024), Color(1, 1, 1, 0.37))
+	var default_output: Image = reference.render(full_depth)
+	expect_field(
+		default_output,
+		Color(1.0849110584191668, 1.0849110584191668, 1.0849110584191668, 0.37),
+		"default 512 eight-level recursive composite"
 	)
 	var bypass: Image = reference.render(source, 0.0, 16)
 	expect_field(bypass, Color(1, 1, 1, 0.37), "intensity zero skips low-frequency boost too")
