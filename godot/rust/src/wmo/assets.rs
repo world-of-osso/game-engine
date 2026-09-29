@@ -10,6 +10,11 @@ use game_engine_core::{adt, asset::wmo_format::fog::WmoFogVolume, wmo};
 use osso_asset_resolver::CascListfileResolver;
 use shared::ground::WmoGroupCollision;
 
+use super::doodad_light::{DoodadLight, doodad_light};
+
+/// A MODD doodad a WMO placement draws, and its light.
+pub(crate) type LitDoodad = (wmo::WmoDoodad, DoodadLight);
+
 pub(crate) struct NativeWmoAsset {
     pub root_fdid: u32,
     pub root: wmo::WmoRootData,
@@ -17,8 +22,8 @@ pub(crate) struct NativeWmoAsset {
 }
 
 impl NativeWmoAsset {
-    /// The MODD doodads a placement with MODF `doodad_set` draws.
-    pub fn doodads(&self, doodad_set: u16) -> Vec<wmo::WmoDoodad> {
+    /// The MODD doodads a placement with active `doodad_sets` draws, with their light.
+    pub fn doodads(&self, doodad_sets: &[u16]) -> Vec<LitDoodad> {
         wmo::placed_doodads(
             &self.root,
             self.groups.iter().map(|group| {
@@ -27,8 +32,14 @@ impl NativeWmoAsset {
                     group.group.geometry.doodad_refs.as_slice(),
                 )
             }),
-            doodad_set,
+            doodad_sets,
         )
+        .into_iter()
+        .map(|doodad| {
+            let light = doodad_light(self, &doodad, doodad_sets);
+            (doodad, light)
+        })
+        .collect()
     }
 }
 

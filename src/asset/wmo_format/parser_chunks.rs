@@ -14,6 +14,7 @@ const ROOT_CHUNK_HANDLERS: &[(&[u8; 4], RootChunkHandler)] = &[
     (b"NDOM", apply_modn_chunk),
     (b"IDOM", apply_modi_chunk),
     (b"DDOM", apply_modd_chunk),
+    (b"IDDM", apply_mddi_chunk),
     (b"GFOM", apply_mfog_chunk),
     (b"GOFM", apply_mfog_chunk),
     (b"DIFG", apply_gfid_chunk),
@@ -67,6 +68,7 @@ pub(super) struct WmoRootAccum {
     doodad_names: Vec<WmoDoodadName>,
     doodad_file_ids: Vec<u32>,
     doodad_defs: Vec<WmoDoodadDef>,
+    doodad_intensities: Vec<f32>,
     fogs: Vec<WmoFog>,
     visible_block_vertices: Vec<[f32; 3]>,
     visible_blocks: Vec<WmoVisibleBlock>,
@@ -108,6 +110,7 @@ fn finalize_wmo_root_data(mut accum: WmoRootAccum) -> WmoRootData {
         doodad_names: accum.doodad_names,
         doodad_file_ids: accum.doodad_file_ids,
         doodad_defs: accum.doodad_defs,
+        doodad_intensities: accum.doodad_intensities,
         fogs: accum.fogs,
         visible_block_vertices: accum.visible_block_vertices,
         visible_blocks: accum.visible_blocks,
@@ -190,6 +193,14 @@ fn apply_modi_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), Stri
 
 fn apply_modd_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
     accum.doodad_defs = parse_modd(payload)?;
+    Ok(())
+}
+
+fn apply_mddi_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.doodad_intensities = payload
+        .chunks_exact(4)
+        .map(|value| f32::from_le_bytes([value[0], value[1], value[2], value[3]]))
+        .collect();
     Ok(())
 }
 

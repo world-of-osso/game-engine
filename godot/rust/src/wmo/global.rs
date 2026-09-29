@@ -2,28 +2,15 @@
 
 use std::path::{Path, PathBuf};
 
-use game_engine_core::{
-    asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
-    loading_readiness::GlobalWmoState,
-    wmo::WmoDoodad,
-};
-use glam::{Affine3A, Vec3};
+use game_engine_core::loading_readiness::GlobalWmoState;
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
 use crate::{
     lighting::TerrainLight,
-    terrain::streaming::StreamedTerrain,
-    wmo::{assets::wmo_fog_volume, portals::WmoPortals},
+    terrain::{objects::CulledWmo, streaming::StreamedTerrain},
     world_models::bind_visual_light,
 };
-
-/// The spawned global WMO's interior groups and MFOG fog.
-struct GlobalWmoFog {
-    portals: WmoPortals,
-    fog: WmoFogVolume,
-    world_from_local: Affine3A,
-}
 
 pub(crate) struct GlobalWmoScene {
     root: Option<Gd<Node3D>>,
@@ -31,12 +18,16 @@ pub(crate) struct GlobalWmoScene {
     data_root: PathBuf,
     state: GlobalWmoState,
     light: Option<TerrainLight>,
-    doodads: Option<SpawnedDoodads>,
-    fog: Option<GlobalWmoFog>,
+    spawned: Option<SpawnedGlobalWmo>,
 }
 
-/// The spawned global WMO's unique ID and node, and the doodads it places.
-pub(crate) type SpawnedDoodads = (u32, Gd<Node3D>, Vec<WmoDoodad>);
+/// A just-spawned global WMO for `TerrainObjects` to portal-cull and place doodads in.
+pub(crate) struct SpawnedGlobalWmo {
+    pub unique_id: u32,
+    pub node: Gd<Node3D>,
+    pub doodads: Vec<crate::wmo::assets::LitDoodad>,
+    pub culled: CulledWmo,
+}
 
 impl GlobalWmoScene {
     pub fn new(data_root: PathBuf, cache_root: &Path) -> Self {
@@ -46,8 +37,7 @@ impl GlobalWmoScene {
             data_root,
             state: GlobalWmoState::None,
             light: None,
-            doodads: None,
-            fog: None,
+            spawned: None,
         }
     }
 
@@ -68,11 +58,13 @@ impl GlobalWmoScene {
             };
             return self.state;
         };
+        // A WDT MODF has no MWDS: `$DefaultGlobal` and its doodad set.
+        let doodad_sets = [0, placed.placement.doodad_set];
         self.state = match crate::wmo::scene::build_wmo_node(
             &placed.asset,
             &self.resolver,
             &self.data_root,
-            placed.placement.doodad_set,
+            &doodad_sets,
             self.light.as_ref(),
         ) {
             Ok(wmo) => {
@@ -92,14 +84,13 @@ impl GlobalWmoScene {
                 root.set_name("WorldWmos");
                 root.add_child(&node);
                 parent.add_child(&root);
-                let doodads = placed.asset.doodads(placed.placement.doodad_set);
-                self.doodads = Some((placed.placement.unique_id, node, doodads));
-                self.root = Some(root);
-                self.fog = Some(GlobalWmoFog {
-                    portals: WmoPortals::new(&placed.asset),
-                    fog: wmo_fog_volume(&placed.asset),
-                    world_from_local: placed.world_from_local,
+                self.spawned = Some(SpawnedGlobalWmo {
+                    unique_id: placed.placement.unique_id,
+                    culled: CulledWmo::new(&placed.asset, placed.world_from_local, &node),
+                    doodads: placed.asset.doodads(&doodad_sets),
+                    node,
                 });
+                self.root = Some(root);
                 GlobalWmoState::Spawned
             }
             Err(error) => {
@@ -110,9 +101,9 @@ impl GlobalWmoScene {
         self.state
     }
 
-    /// The doodads of a just-spawned global WMO, for `TerrainObjects` to spawn in budget.
-    pub fn take_doodads(&mut self) -> Option<SpawnedDoodads> {
-        self.doodads.take()
+    /// The just-spawned global WMO, once, for `TerrainObjects::adopt_wmo`.
+    pub fn take_spawned(&mut self) -> Option<SpawnedGlobalWmo> {
+        self.spawned.take()
     }
 
     pub fn update_lighting(&mut self, light: &TerrainLight) {
@@ -122,23 +113,12 @@ impl GlobalWmoScene {
         self.light = Some(light.clone());
     }
 
-    /// The MFOG fog when world `camera` stands in one of the global WMO's interior groups.
-    pub fn camera_fog(&self, camera: Vector3) -> Option<WmoFogBlend> {
-        let wmo = self.fog.as_ref()?;
-        wmo.portals.camera_fog(
-            &wmo.fog,
-            wmo.world_from_local,
-            Vec3::new(camera.x, camera.y, camera.z),
-        )
-    }
-
     pub fn reset(&mut self) {
         if let Some(root) = self.root.take() {
             root.free();
         }
         self.state = GlobalWmoState::None;
         self.light = None;
-        self.doodads = None;
-        self.fog = None;
+        self.spawned = None;
     }
 }

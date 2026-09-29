@@ -39,6 +39,7 @@ fn empty_root(flags: WmoRootFlags) -> WmoRootData {
         doodad_names: Vec::new(),
         doodad_file_ids: Vec::new(),
         doodad_defs: Vec::new(),
+        doodad_intensities: Vec::new(),
         fogs: Vec::new(),
         visible_block_vertices: Vec::new(),
         visible_blocks: Vec::new(),

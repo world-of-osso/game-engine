@@ -6,7 +6,7 @@ use glam::{Mat3, Quat, Vec3};
 
 pub use crate::asset::wmo_format::mesh_data::{WmoBatchType, WmoMeshBatch};
 pub use parser::{
-    RawGroupData, WmoDoodadDef, WmoDoodadName, WmoDoodadSet, WmoGroupHeader, WmoRootData,
+    RawGroupData, WmoDoodadDef, WmoDoodadName, WmoDoodadSet, WmoGroupHeader, WmoLight, WmoRootData,
 };
 
 pub fn parse_root(bytes: &[u8]) -> Result<WmoRootData, String> {
@@ -56,18 +56,20 @@ pub struct WmoDoodad {
     pub translation: Vec3,
     pub rotation: Quat,
     pub scale: f32,
-    /// MODD colour as RGBA.
+    /// MODD colour as RGBA; alpha * 255 is a MOLT index, or 255 for none.
     pub color: [f32; 4],
+    /// MODD flags (the top byte of `name_offset`).
+    pub flags: u8,
 }
 
 /// The MODD doodads a WMO placement draws, each once in MODD order: those the groups
-/// (group index, MODR) reference that lie in doodad set 0 (`$DefaultGlobal`, always active) or
-/// the placement's MODF `doodad_set` (WebWowViewerCpp `wmoObject.cpp` `getDoodad`,
-/// `setLoadingParam`). A root without MODS places every referenced doodad.
+/// (group index, MODR) reference that lie in one of the placement's active `doodad_sets`
+/// (WebWowViewerCpp `wmoObject.cpp` `getDoodad`; `adt::AdtObjData::wmo_active_doodad_sets`).
+/// A root without MODS places every referenced doodad.
 pub fn placed_doodads<'a>(
     root: &WmoRootData,
     group_refs: impl IntoIterator<Item = (u16, &'a [u16])>,
-    doodad_set: u16,
+    doodad_sets: &[u16],
 ) -> Vec<WmoDoodad> {
     let mut referenced: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
     for (group, refs) in group_refs {
@@ -80,7 +82,7 @@ pub fn placed_doodads<'a>(
     }
     referenced
         .into_iter()
-        .filter(|&(index, _)| in_active_set(root, doodad_set, index))
+        .filter(|&(index, _)| in_active_set(root, doodad_sets, index))
         .filter_map(|(index, groups)| {
             let def = root.doodad_defs.get(index as usize)?;
             Some(WmoDoodad {
@@ -95,22 +97,22 @@ pub fn placed_doodads<'a>(
                 rotation: wmo_local_rotation(def.rotation),
                 scale: def.scale,
                 color: def.color,
+                flags: def.flags,
             })
         })
         .collect()
 }
 
-fn in_active_set(root: &WmoRootData, doodad_set: u16, index: u16) -> bool {
+fn in_active_set(root: &WmoRootData, doodad_sets: &[u16], index: u16) -> bool {
     if root.doodad_sets.is_empty() {
         return true;
     }
-    let contains = |set: Option<&WmoDoodadSet>| {
-        set.is_some_and(|set| {
+    doodad_sets.iter().any(|&set| {
+        root.doodad_sets.get(set as usize).is_some_and(|set| {
             (set.start_doodad..set.start_doodad.saturating_add(set.n_doodads))
                 .contains(&u32::from(index))
         })
-    };
-    contains(root.doodad_sets.first()) || contains(root.doodad_sets.get(doodad_set as usize))
+    })
 }
 
 /// With MODI, MODD `name_offset` indexes it (WebWowViewerCpp

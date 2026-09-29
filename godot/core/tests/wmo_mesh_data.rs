@@ -39,6 +39,7 @@ mod mesh_data_tests {
             doodad_names: vec![],
             doodad_file_ids: vec![],
             doodad_defs: vec![],
+            doodad_intensities: vec![],
             fogs: vec![],
             visible_block_vertices: vec![],
             visible_blocks: vec![],

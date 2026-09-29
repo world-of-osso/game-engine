@@ -76,6 +76,7 @@ fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
                 color: [1.0; 4],
             },
         ],
+        doodad_intensities: vec![],
         ..minimal_root()
     };
 
