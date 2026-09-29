@@ -98,7 +98,7 @@ func check_merchant_placement(client: Node, bag: Control, config: String) -> boo
 		fail("Merchant title move shifted backpack or did not move root: " + str(moved))
 		return false
 	var layout := FileAccess.get_file_as_string(config.path_join("world-of-osso/ui_layout.ron"))
-	if not layout.contains("MerchantFrame") or not layout.contains('"17"') or not layout.contains('"18"') or not layout.contains("75.0") or not layout.contains("80.0"):
+	if not layout.contains("MerchantFrame") or not layout.contains('"17"') or not other_character_unchanged(layout):
 		fail("Merchant position not saved for selected character or another character changed: " + layout)
 		return false
 	if not await check_merchant_clamp(frame, bag, bag_rect):
@@ -135,7 +135,7 @@ func drag_title(start: Vector2, target: Vector2) -> void:
 	await process_frame
 
 func check_merchant_reset(client: Node, vendor: Dictionary, config: String) -> bool:
-	if not await reset_merchant_options(client, config):
+	if not await reset_merchant_options(client, vendor, config):
 		return false
 	if not await open_vendor(client, vendor):
 		return false
@@ -152,11 +152,8 @@ func check_merchant_reset(client: Node, vendor: Dictionary, config: String) -> b
 		return false
 	return true
 
-func reset_merchant_options(client: Node, config: String) -> bool:
-	push_key(KEY_ESCAPE, true)
-	await process_frame
-	push_key(KEY_ESCAPE, false)
-	if not await wait_menu(client):
+func reset_merchant_options(client: Node, vendor: Dictionary, config: String) -> bool:
+	if not await open_menu_after_vendor(client, vendor):
 		return false
 	await click_menu_action(client, "MenuBtnOptions")
 	var menu := client.get_node_or_null("GameMenuUI")
@@ -164,13 +161,36 @@ func reset_merchant_options(client: Node, config: String) -> bool:
 	await click(menu.find_child("ActionButtonreset_window_positions", true, false) as Control)
 	var layout := FileAccess.get_file_as_string(config.path_join("world-of-osso/ui_layout.ron"))
 	var options := FileAccess.get_file_as_string(config.path_join("world-of-osso/options_settings.ron"))
-	if layout.contains('"17"') or not layout.contains('"18"') or not layout.contains("75.0") or not layout.contains("80.0") or not options.contains("modal_offset:Some((80.0,-32.0))"):
+	if layout.contains('"17"') or not other_character_unchanged(layout) or not options.contains("modal_offset:Some((80.0,-32.0))"):
 		fail("Merchant reset changed other character or Options modal: " + layout + " / " + options)
 		return false
 	await click(menu.find_child("OptionsDoneButton", true, false) as Control)
 	if client.get_node_or_null("GameMenuUI") != null:
 		await click_menu_action(client, "MenuBtnResume")
 	return true
+
+func open_menu_after_vendor(client: Node, vendor: Dictionary) -> bool:
+	if client.merchant_state().open or client.target_state().target != vendor.id:
+		fail("Merchant must close before clearing selected vendor: " + str(client.target_state()))
+		return false
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	await process_frame
+	if client.target_state().target != null or client.get_node_or_null("GameMenuUI") != null:
+		fail("First Escape did not clear selected vendor before menu")
+		return false
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	return await wait_menu(client)
+
+func other_character_unchanged(layout: String) -> bool:
+	var keyed := RegEx.new()
+	var expression := '"18"\\s*:\\s*\\{[^}]*"CharacterFrame"\\s*:\\s*\\(\\s*75\\.0\\s*,\\s*80\\.0\\s*\\)'
+	if keyed.compile(expression) != OK:
+		return false
+	return keyed.search(layout) != null
 
 func wait_world(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
