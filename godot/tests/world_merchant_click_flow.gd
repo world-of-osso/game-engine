@@ -40,6 +40,10 @@ func run_test() -> void:
 	var saved := merchant_root(client).get_global_rect().position
 	if tab == null or not await assert_click(client, effects, completed, tab, "merchant tab"):
 		return
+	var title := ui.find_child("MerchantFrameTitleText", true, false) as Label
+	if title == null or title.text != "Merchant Buyback":
+		fail("Authored merchant body tab did not select Buyback")
+		return
 	if merchant_root(client).get_global_rect().position.distance_to(saved) > 2:
 		fail("Merchant tab captured title drag")
 		return
