@@ -2019,9 +2019,9 @@ The Godot TargetFrame sits where Retail's Modern Edit Mode preset puts it (BOTTO
 
 Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. Final bounded verification at `0e0726a3` passes (`/tmp/claude/verify-native-caststart-final.md`); its fixture-only readability refactor preserves the nine-marker runtime sequence. See [[sound]].
 
-## [2026-09-29] test | Optional rendered UI-scale captures
+## [2026-09-29] test | Rendered UI-scale gate
 
-Owned sound-click and merchant-click fixtures now write PNGs only with an existing absolute `GODOT_TEST_CAPTURE_DIR`; actual pixel proof awaits isolated-display runs and inspection. See [ui-system](systems/ui-system.md#godot-native-ui-scale-bounded).
+Final gate PASS (`/tmp/claude/verify-ui-scale-all-owners-final.md`): inspected owned-UDP Wayland/Vulkan root-viewport captures prove tooltip 1280/800 edge bounds and Merchant Options 0.75/1.25 physical-pointer input. PNGs are valid, non-empty sRGB with distinct pixels. Retained `b63c64ec` native/fixture is bounded by a range diff showing only later M2/combat Rust through `fcff316a`; no current-whole-engine artifact claim. Login/reset-headless proof remains; entrance stays source-only. See [ui-system](systems/ui-system.md#godot-native-ui-scale-bounded).
 
 ## [2026-09-29] investigation | DXT1 punch-through alpha
 
