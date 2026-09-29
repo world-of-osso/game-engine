@@ -438,6 +438,12 @@ fn anim_id(value: i64) -> Option<u16> {
 }
 
 impl SpellVisualCatalog {
+    /// The cache file name, per layout: checkouts sharing one data directory can run
+    /// different layouts without rebuilding over each other's cache.
+    pub fn cache_file_name() -> String {
+        format!("spell_visuals-{DB2_BUILD}-v{CACHE_FORMAT}.bin")
+    }
+
     /// The catalog of `db2_dir`'s CSVs, cached (bincode) at `cache_path`.
     pub fn load(db2_dir: &Path, cache_path: &Path) -> Result<Self, String> {
         let sources = SOURCE_TABLES

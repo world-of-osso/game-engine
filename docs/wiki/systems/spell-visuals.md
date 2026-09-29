@@ -51,7 +51,7 @@ Gotcha (2026-09-29): half the CASC index buckets were only in Syncthing `.idx.tm
 4. **Missiles.** The missile is the visual's first `SpellVisualMissile`, travelling at `SpellMisc.Speed` in yards per second (TrinityCore `Spell.cpp:2515` `hitDelay += std::max(dist / m_spellInfo->Speed, m_spellInfo->MinDuration)`). For Frostbolt 116 that is model 1598570 at 35 yd/s, from attachment 56 to 34. `SPELL_ATTR9_MISSILE_SPEED_IS_DELAY_IN_SEC` (0x10) is unset for it. Frostbolt's `SpellVisualEvent` rows have no TravelStart kits and all start/end offsets are 0.
 5. **Fallbacks.** `read_animation_fallbacks` loads `AnimationData.Fallback`. `WorldUnits` owns the table and resolves every combat, spell and stance clip a model lacks through it (e.g. 818 → 57 Special1H).
 
-The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933.bin` (`db2_cache`).
+The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CACHE_FORMAT}.bin` (`db2_cache`). The format is in the name because checkouts share `data/`: with one file name, a branch at another format rebuilt over it on every run. `SpellEffects` loads the catalog on a worker thread when the client starts. The first cast waits only if the worker has not finished. A rebuild parses 1.3M `SoundKitEntry` rows. When that ran on the main thread at the first cast, it froze the client through the cast (see Proof, cast timing).
 
 ## Runtime (`godot/rust/src/spell_effects.rs`)
 

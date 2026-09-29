@@ -41,7 +41,6 @@ use crate::spell_sounds::{SoundRequest, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
 const DB2_DIR: &str = "db2/12.1.0.69933";
-const CACHE_FILE: &str = "cache/spell_visuals-12.1.0.69933.bin";
 /// Kit model clips when `SpellVisualKitModelAttach` leaves them unset: Stand plays as
 /// the start, Hold (158) loops while a held kit lasts and Decay (159) plays at its end,
 /// as spell effect models author their emission (e.g. Battle Shout 6194303).
@@ -251,10 +250,50 @@ pub struct CastSeen {
     pub duration: f32,
 }
 
+/// The spell visual catalog, loaded on a worker thread from client start: building it
+/// from the CSVs takes seconds (1.3M `SoundKitEntry` rows), which on the main thread at the
+/// first cast froze the client through the whole cast (26-30 s on a loaded machine).
+struct Catalog {
+    worker: Option<std::thread::JoinHandle<Result<SpellVisualCatalog, String>>>,
+    loaded: Option<Result<SpellVisualCatalog, String>>,
+}
+
+impl Catalog {
+    fn load(data_root: &std::path::Path) -> Self {
+        let db2 = data_root.join(DB2_DIR);
+        let cache = data_root
+            .join("cache")
+            .join(SpellVisualCatalog::cache_file_name());
+        let worker = std::thread::spawn(move || {
+            SpellVisualCatalog::load(&db2, &cache)
+                .map_err(|error| format!("Spell visuals: {error}"))
+        });
+        Self {
+            worker: Some(worker),
+            loaded: None,
+        }
+    }
+
+    /// The catalog, waiting for the worker when a cast needs it before it is done.
+    fn get(&mut self) -> Result<&SpellVisualCatalog, String> {
+        if let Some(worker) = self.worker.take() {
+            let loaded = worker
+                .join()
+                .unwrap_or_else(|_| Err("Spell visuals: the catalog worker panicked".into()));
+            self.loaded = Some(loaded);
+        }
+        self.loaded
+            .as_ref()
+            .expect("the worker's result replaces it")
+            .as_ref()
+            .map_err(Clone::clone)
+    }
+}
+
 pub struct SpellEffects {
     data_root: PathBuf,
     cache_root: PathBuf,
-    catalog: Option<Result<SpellVisualCatalog, String>>,
+    catalog: Catalog,
     resolver: Option<CascListfileResolver>,
     models: HashMap<u32, Result<Rc<EffectModel>, String>>,
     active: Vec<ActiveEffect>,
@@ -282,10 +321,11 @@ const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
     pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+        let catalog = Catalog::load(&data_root);
         Self {
             data_root,
             cache_root,
-            catalog: None,
+            catalog,
             resolver: None,
             models: HashMap::new(),
             active: Vec::new(),
@@ -306,14 +346,7 @@ impl SpellEffects {
     }
 
     fn catalog(&mut self) -> Result<&SpellVisualCatalog, String> {
-        let data_root = &self.data_root;
-        self.catalog
-            .get_or_insert_with(|| {
-                SpellVisualCatalog::load(&data_root.join(DB2_DIR), &data_root.join(CACHE_FILE))
-                    .map_err(|error| format!("Spell visuals: {error}"))
-            })
-            .as_ref()
-            .map_err(Clone::clone)
+        self.catalog.get()
     }
 
     /// Kit starts since the world loaded, oldest first.
