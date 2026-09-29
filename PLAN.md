@@ -83,3 +83,12 @@
 - [ ] Refactor `src/ui/screens/spell_tooltip_component.rs`: spell_tooltip_screen (line 76): 50 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/spell_tooltip.rs`: strip_color_escapes (line 140): nesting depth 5 (max 4) — extract into helper functions
 - [ ] Refactor `godot/rust/src/spell_tooltip.rs`: spell_tooltip_state (line 170): 46 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/core/src/spell_visual.rs`: read_kits (line 457): 60 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/core/src/spell_visual.rs`: read_conditions (line 579): 75 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/core/src/spell_visual.rs`: File is 756 lines (max 750). Consider splitting it. — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: sync_casts (line 201): 37 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: spell_go (line 275): 31 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: start_kits (line 372): 41 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: start_kits (line 372): nesting depth 6 (max 4) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: advance_missiles (line 655): 39 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: File is 774 lines (max 750). Consider splitting it. — extract into helper functions
