@@ -704,6 +704,17 @@ impl WorldUnits {
         self.root.clone()
     }
 
+    /// Unit `id`'s creature display (`None` for players and units without one), whether
+    /// a visual for it is loaded, and the locomotion clip last chosen on it.
+    pub fn unit_display(&self, id: u64) -> Option<(Option<u32>, bool, Option<u16>)> {
+        let unit = self.units.get(&id)?;
+        let display_id = match unit.appearance {
+            Some(UnitAppearance::Creature { display_id, .. }) => Some(display_id),
+            _ => None,
+        };
+        Some((display_id, unit.visual.is_some(), unit.animation))
+    }
+
     pub fn unit_node(&self, id: u64) -> Option<Gd<Node3D>> {
         Some(self.units.get(&id)?.node.clone())
     }

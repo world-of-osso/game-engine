@@ -3,10 +3,15 @@
 use game_engine_core::client_options_data::{
     GraphicsOptionsFile, MAX_FRAME_RATE_LIMIT, MIN_FRAME_RATE_LIMIT,
 };
-use godot::classes::{DisplayServer, Engine, display_server::VSyncMode};
+use godot::classes::{DisplayServer, Engine, Viewport, display_server::VSyncMode};
 use godot::prelude::*;
 
-pub(crate) fn apply_graphics_display_options(graphics: &GraphicsOptionsFile) {
+pub(crate) fn apply_graphics_display_options(
+    graphics: &GraphicsOptionsFile,
+    viewport: &mut Gd<Viewport>,
+) {
+    viewport.set_scaling_3d_scale(graphics.clone().clamped().render_scale);
+
     let vsync_mode = if graphics.vsync_enabled {
         VSyncMode::MAILBOX
     } else {

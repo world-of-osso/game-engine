@@ -11,11 +11,11 @@ use crate::ui::layout::compute_layout_with_intrinsics;
 
 /// Retail Modern preset TargetFrame: BOTTOMLEFT to UIParent BOTTOM at (300, 250)
 /// (Blizzard_EditMode/Mainline/EditModePresetLayouts.lua:245-257), 232×100
-/// (Blizzard_UnitFrame/Mainline/TargetFrame.xml:144). Its 126×20 health bar has its
-/// BOTTOMRIGHT at the frame's LEFT + (148, 2) (TargetFrame.xml:218-220).
+/// (Blizzard_UnitFrame/Mainline/TargetFrame.xml:144). `CheckClassification` puts its 126×20
+/// health bar's BOTTOMRIGHT at the frame's LEFT + (149, -10) (TargetFrame.lua:417-419).
 const RETAIL_TARGET: (f32, f32) = (300.0, 250.0);
-const RETAIL_HEALTH_LEFT: f32 = 148.0 - 126.0;
-const RETAIL_HEALTH_BOTTOM: f32 = 100.0 / 2.0 + 2.0;
+const RETAIL_HEALTH_LEFT: f32 = 149.0 - 126.0;
+const RETAIL_HEALTH_BOTTOM: f32 = 100.0 / 2.0 - 10.0;
 
 fn pixels(parent: &UiParent, rect: &LayoutRect) -> LayoutRect {
     LayoutRect {
@@ -82,10 +82,10 @@ fn ui_parent_is_768_units_tall_at_any_resolution() {
 #[test]
 fn target_frame_sits_at_the_modern_preset_at_720p() {
     let (frame, health) = target_rects((1280.0, 720.0));
-    // UI units: x = 1365.33/2 + 319, y = 768 - 285 - 51; 133×51 portrait-off art.
+    // UI units: x = 1365.33/2 + 320, y = 768 - 273 - 51; 133×51 portrait-off art.
     assert_rect(
         &frame,
-        [939.0625, 405.0, 124.6875, 47.8125],
+        [940.0, 416.25, 124.6875, 47.8125],
         "720p TargetFrame",
     );
     let (left, bottom) = retail_health_corner((1280.0, 720.0));
@@ -98,7 +98,7 @@ fn target_frame_sits_at_the_modern_preset_at_1080p() {
     let (frame, health) = target_rects((1920.0, 1080.0));
     assert_rect(
         &frame,
-        [1408.59375, 607.5, 187.03125, 71.71875],
+        [1410.0, 624.375, 187.03125, 71.71875],
         "1080p TargetFrame",
     );
     let (left, bottom) = retail_health_corner((1920.0, 1080.0));

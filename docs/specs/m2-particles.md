@@ -10,7 +10,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 
 ### Simulation
 - [x] Spawn per WWV `CPlaneGenerator` (type 1) and `CSphereGenerator` (type 2), in the WWV random-stream order; other types are not simulated.
-- [x] Accumulate emission at (rate + variation) × particle density, capped by the pool; `particleDensity` scales the rate except for flag 0x02000000.
+- [x] Accumulate emission at (rate + variation) × particle density, capped by the pool; `particleDensity` scales the rate except for flag 0x02000000. Each placement captures the current density at registration. An Options density change updates only the default: existing placements retain their captured rate and future registrations use the new default, without recreating pools.
 - [x] Advance ballistically with drag, gravity and wind (while age < windTime). Model-space emitters (0x10) simulate in the emitter frame; others in world axes, with WoW gravity converted.
 - [x] Replay long gaps in 0.1 s steps, at most one lifespan of them.
 - [x] Retire a particle after its seed-varied lifespan; sample the lifetime ramps at age / maximum lifespan; apply seed-based size variation, random atlas cell (0x10000), twinkle, spin and inherited scale (0x20).
@@ -22,7 +22,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 - [x] Multiply colour into the texel in authored space; combine multitexture layers (Particle_Mod, 2Color_3Alpha, 3Color_3Alpha).
 - [x] Draw one pooled `MultiMeshInstance3D` per (model FDID, emitter index), shared by every placement; pool capacity = sum of placement capacities capped at 4096.
 - [x] Update and draw only the emitters of doodads that are drawn (scenery distance, WMO group portal cull) and whose box is in the view frustum; fade their particles with the doodad's scenery fade.
-- [ ] `particleEffectsEnabled = false` spawns no particle pools or emitters (code path only; no test).
+- [x] Persisted startup `particleEffectsEnabled = false` spawns no particle pools or emitters. An authenticated actual-Azeroth portal fixture proves this state boundary; it does not prove pixels, audibility, live toggling, or density.
 - [ ] The in-world portal matches retail framing (small white sparkles inside the blue sheet). Captured only, not compared by pixels.
 
 ## How it works
@@ -47,7 +47,8 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 - `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test.
 - `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint and fade.
 - `godot/tests/wmo_doodads_flow.gd` — portal pools empty while Jail01 is culled, all six drawing at the trigger.
-- `godot/tests/world_portal_particles_flow.gd` via `native_input_fixture portal-particles-{disabled,enabled}` — owned persisted startup setting, authenticated Azeroth 30_48 GameClient, placed `sw_magicdistrict` MODD 1112 meshes in both modes, absent particle root/state when disabled and six simulated/drawn emitter pools when enabled. Runtime proof pending; keep the checkbox unchecked until both modes pass.
+- `godot/tests/world_portal_particles_flow.gd` via `native_input_fixture portal-particles-{disabled,enabled}` — persisted startup setting in an authenticated Azeroth 30_48 GameClient, with actual placed `sw_magicdistrict` MODD 1112 portal meshes in both modes. At `d23012b4` + `e5671528`, disabled has no particle pools/emitter state; enabled has all six pools with visible-instance counts 42, 21, 21, 21, 21, and 2 (143 total; scene totals 711 pools/emitters). Depot fixture/build and both runtime logs exit 0 at `data/diagnostics/portal-particles-{depot-build,disabled,enabled}-e5671528.log`. This headless state proof excludes pixels, audibility, live toggling, and density.
+- `godot/tests/world_portal_density_flow.gd` via `native_input_fixture portal-density` — controlled disposable copy of portal 197007 with only the six `NO_GLOBAL_SCALE` bits cleared; the original asset hash remains unchanged. It samples known pool visible quads before/after real `GameClient` Options slider 100→10 and after owned same-map `NewWorld`. RED at `cf84a712` (`data/diagnostics/portal-density-red-cf84a712.log`, exit 101): existing placement 484→484.22, fresh placement 462.67 instead of below 30% of baseline. At `79d792b0`, Depot `kdhjvgmnt3` builds the fixture (exit 0; `data/diagnostics/portal-density-depot-green-build-retry1.log`) and runtime GREEN exits 0 (`data/diagnostics/portal-density-green-79d792b0.log`): existing 485.67→488.0 while the fresh placement is 46.67. This proves controlled density-sensitive state behavior, not retail pixels, audible output, or full parity.
 
 ## Known gaps (current cycle)
 

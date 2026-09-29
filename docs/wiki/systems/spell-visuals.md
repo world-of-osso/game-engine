@@ -154,6 +154,23 @@ Each time is checked within two of the longest frames since the press.
   - Frames up to 0.15 s occur during the cast.
 - **Tests:** `godot/core/tests/spell_visual.rs::frostbolt_kits_play_the_frostbolt_precast_cast_and_impact_sound_kits` and `spell_sounds_tests.rs` (frequency choice) are written but not run (no Cargo in `godot/`).
 
+## Polymorph (2026-09-29)
+
+The server (game-server branch `polymorph`, see its auras wiki "Crowd control") turns a Polymorph 118 target into the Polymorphed Sheep by changing its replicated `ModelDisplay` (TRANSFORM 56 → template 16372, display 856 or 857) and restores it when the aura ends. The client needs no Polymorph-specific code:
+
+- `world.rs` `sync_unit_visual` rebuilds only the visual under the same unit node, so position, facing, selection and nameplate stay; the sheep plays Stand 0 and Walk 4 from the replicated `CreatureMotion` (the server walks a confused creature within 2 yd).
+- The target circle is resized when the target's pick box changes (`targeting.rs` `TargetCircle.shape`), so it fits the sheep and then the humanoid again.
+- A creature model holds only the virtual items whose slot attachment it has (`assets/creature.rs` `held_items`): the sheep holds none of the spy's weapons (inferred from the retail client, which shows none), instead of logging missing-attachment errors.
+- The poof is Polymorph's own impact kit: model 166650 on the target (and 166524, 1709417 on the caster), played from `SpellGo` like any kit. There is no separate transform effect in the data.
+- Fixture API: `unit_display(id)` → `display_id`, `visual`, `animation`.
+
+**Live fixture:** `godot/tests/polymorph_mob.gd` (env `GODOT_TEST_SERVER`, `POLY_ACCOUNT`, `POLY_CHARACTER`, `POLY_SHOTS`, optional `POLY_GRAB`). Private server UDP 5081 (game-server `7742201`), a fresh level-10 Human mage at `-8966.63 -194.0 80.0`, 12 yd south of Blackrock Spy 20279977 (humanoid, level 1-30 scaled). Sequence, all asserted: Tab to the spy; Frostbolt pulls it and it swings (Attack1H 17, the mage's CombatWound 9); Polymorph shows its cast bar, then display 856/857 appears within 2.5 yd of the spy, still selected with its ring; for 10 s the sheep plays only Stand/Walk and never swings; a second Frostbolt breaks it: display 36654 returns and it swings again. Exit 0 at game-engine `8f9a2730`.
+
+Recordings in `data/diagnostics/polymorph-2026-09-29/`:
+- `polymorph-1x.mp4`, `polymorph-halfspeed.mp4`, `contact-sheet.png`, `stills-movie/`: Movie Maker (`--write-movie --fixed-fps 30`). The client renders about 8 fps here, and Movie Maker steps 1/30 s of game time per frame while the server runs on wall-clock time, so server events come about 3.6x early in the video: the 10 s sheep phase lasts about 3.7 s and the 1.7 s cast bar only partly fills.
+- `polymorph-realtime-1x.mp4`, `polymorph-realtime-halfspeed.mp4`, `contact-sheet-realtime.png`, `stills-realtime-grab/`: the same fixture with `POLY_GRAB`, one JPEG per 100 ms of wall-clock time; timing is true, motion is choppy (about 8 fps).
+- `stills-realtime/`: an earlier run with the camera behind trees, which shows the full Polymorph cast bar.
+
 ## Gaps
 
 - The action layer is full-body when standing and upper-body when moving (SpineLow subtree). `AnimKitSegment` conditions, per-segment bone sets and priorities, and `AnimKit` blend times are not applied.

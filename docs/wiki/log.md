@@ -14,6 +14,18 @@ Frostbolt's cast sound was the synthetic 140 ms CastStart sweep (`sound_cast.rs`
 
 Details in [[spell-visuals]].
 
+## [2026-09-29] verification | Native Render Scale bounded buffer/UI GREEN
+
+The actual GPU RED at `e3a5c92b` measured 1280×720 instead of 960×540 for saved startup 0.75. Exact `ca2f75c0` built through Depot `40n2xh4n2l` (exit 0; `data/diagnostics/render-scale-depot-green-build.log`). Offscreen Vulkan GREEN then measured startup 0.75 = 960×540 with a 1280×720 target; live 0.5 = 640×360; live 1.0 = 1280×720; resized 1.0 = 1600×900; and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). The same 2D geometry/red-pixel probe and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof, not all 3D scenes, visual equality, bloom, or full parity. Legacy paired CAS/sharpening below 0.999 remains a full-conversion obligation. See [[godot-conversion]] and the [parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-29] fix | Native particle-density placement snapshot
+
+`79d792b0` captures density per doodad-emitter placement; `TerrainObjects` updates only the default after Options saves. Existing placements retain their captured rate, future registrations use the new default, and original `NO_GLOBAL_SCALE` emitters ignore global density. The controlled disposable 197007 portal copy clears only its six `NO_GLOBAL_SCALE` bits and preserves the original asset hash. In the actual `GameClient`, real Options 100→10 keeps known-pool quads at 485.67→488.0; owned same-map `NewWorld` creates a fresh placement at 46.67. Depot `kdhjvgmnt3` and runtime GREEN both exit 0 (`data/diagnostics/portal-density-depot-green-build-retry1.log`, `data/diagnostics/portal-density-green-79d792b0.log`). This is state/rate proof, not retail pixels, audible output, or full parity. See [[godot-conversion]] and [M2 particle spec](../specs/m2-particles.md).
+
+## [2026-09-29] verification | Native persisted M2-particle startup gate
+
+Merged `d23012b4` + `e5671528` prove the persisted `particleEffectsEnabled` startup boundary through the downloaded Depot `d1q5w3x6v3` fixture and authenticated Azeroth `GameClient`. Both runs exit 0: actual placed `sw_magicdistrict` MODD 1112 portal meshes have no particle pools/emitter state when disabled; enabled has six positive MultiMesh visible-instance counts (42, 21, 21, 21, 21, 2; 143 total; scene totals 711 pools/emitters). Evidence: `data/diagnostics/portal-particles-depot-build-e5671528.log` and `data/diagnostics/portal-particles-{disabled,enabled}-e5671528.log`. This is headless runtime state proof only—not pixels, audibility, live-toggle behavior, density, or full Godot parity. Updated [M2 particles](../specs/m2-particles.md) and the [parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-29] fix | Native FontString width-bound word wrapping
 
 The authored merchant Options descriptions exceeded the row at 0.75/1.25 because Godot Labels with wrapping off grew their minimum width beyond the authored 370 logical px. Legacy text bounds width and uses word-boundary layout. `9c12ce9e` requests word wrapping in native FontString projection. Depot `jcmsl5lx24` built revision `9c12ce9e` with `native_input_fixture` (exit 0; existing `NativeWmoGroup::fdid` warning); the owned merchant-click runtime exits 0 and confirms full text, two-line long descriptions, 370-logical-px label width, row/content/root containment, and non-overlap at both scales (`data/diagnostics/options-fontstring-wrap-{depot-build.log,green/merchant-click-runtime-short.log}`). Main inspected `merchant-options-125.png`. This is a bounded single-owner rendered check, not pixel equality, all-UI-owner coverage, or conversion parity. See [[ui-system]].
@@ -40,6 +52,10 @@ Details in [[spell-visuals]].
 ## [2026-09-29] verification | Options integration correction
 
 `253f8238` merged verified Options `e8599fb0`; `818d7c53` reconciled `ensure_art` without losing concurrent `67e6e430`. At `4c0acc91`, `958e612a` fixed merchant-fixture hostility with real friendly `UnitFactionTemplate`s: vendor `NpcFlags` alone does not prevent auto-attack. Existing Depot `fg7w9m1g7w` and four owned modes pass (three retained, merchant fresh). Original `CombatEvent` still reaches outcome audio and visuals once; `SpellGo` and later frame steps survive `FrameError::Client`. Pure Rust tests were not run under Depot-only constraints. Updated [[godot-conversion]] and [parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-29] systems | Polymorph
+
+Added a Polymorph section to [[spell-visuals]]. Polymorph 118 works end to end against the game-server `polymorph` branch: the spy's display swaps in place to the sheep and back, the target ring resizes with the swap, and a sheep no longer tries to hold the spy's weapons. Finding: Movie Maker compresses server time about 3.6x at this scene's 8 fps, so the fixture can also grab wall-clock frames (`POLY_GRAB`).
 
 ## [2026-09-29] investigation | Selecting a target no longer starts auto-attack
 
@@ -2044,3 +2060,7 @@ Final gate PASS (`/tmp/claude/verify-ui-scale-all-owners-final.md`): inspected o
 ## [2026-09-29] investigation | DXT1 punch-through alpha
 
 Elwynn bush 189700's leaf texture 189937 (DXT1, alpha depth 1) drew black squares in the Godot client: Godot uploads `FORMAT_DXT1` as BC1 RGB, so punch-through texels were opaque black. `fe422318` decodes DXT1 with alpha bits to RGBA8 with every mip level. See [[godot-dxt1-punch-through]].
+
+## [2026-09-29] investigation | DXT1 punch-through alpha on master
+
+On master `56a134a6`, Northshire captures show no remaining black foliage cards. The trees and plants use DXT5 leaf textures. No local DXT1 BLP without alpha bits has punch-through texels. Black cards reported after `fe422318` come from pre-fix builds. See [[godot-dxt1-punch-through]].

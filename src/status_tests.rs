@@ -631,3 +631,23 @@ fn secondary_resource_reads_first_pip_power_in_display_units() {
     };
     assert_eq!(SecondaryResourceEntry::from_unit_powers(&warrior), None);
 }
+
+#[test]
+fn arcane_charges_and_chi_show_only_for_their_retail_spec() {
+    let bar = |kind| SecondaryResourceEntry {
+        kind,
+        current: 0,
+        max: 4,
+    };
+    let arcane = bar(SecondaryResourceKindEntry::ArcaneCharges);
+    assert!(arcane.shown_for_spec(Some(62)), "Arcane");
+    assert!(!arcane.shown_for_spec(Some(64)), "Frost");
+    assert!(!arcane.shown_for_spec(Some(1449)), "mage Initial spec");
+    assert!(!arcane.shown_for_spec(None), "no spec received yet");
+    let chi = bar(SecondaryResourceKindEntry::Chi);
+    assert!(chi.shown_for_spec(Some(269)), "Windwalker");
+    assert!(!chi.shown_for_spec(Some(268)), "Brewmaster");
+    let holy_power = bar(SecondaryResourceKindEntry::HolyPower);
+    assert!(holy_power.shown_for_spec(Some(65)), "Holy");
+    assert!(holy_power.shown_for_spec(None), "class-wide bar");
+}
