@@ -38,8 +38,12 @@ use crate::world::WorldUnits;
 
 const DB2_DIR: &str = "db2/12.1.0.69933";
 const CACHE_FILE: &str = "cache/spell_visuals-12.1.0.69933.bin";
-/// Kit animation and model sequence when a kit names none: Stand.
+/// Kit model clips when `SpellVisualKitModelAttach` leaves them unset: Stand plays as
+/// the start, Hold (158) loops while a held kit lasts and Decay (159) plays at its end,
+/// as spell effect models author their emission (e.g. Battle Shout 6194303).
 const STAND: u16 = 0;
+const HOLD: u16 = 158;
+const DECAY: u16 = 159;
 
 /// A parsed kit model, reused by every kit that attaches it.
 struct EffectModel {
@@ -51,10 +55,29 @@ struct EffectModel {
 /// How long a spawned kit model lives.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Lifetime {
-    /// Seconds left of its one-shot kit.
-    Seconds(f32),
+    /// Its kit plays out once.
+    OneShot,
     /// Until unit `owner`'s cast of `spell_id` reaches its end event.
     UntilCastEnds,
+}
+
+/// A kit model's clips (present on the model) and how long its particles outlive
+/// emission.
+#[derive(Clone, Copy, Debug)]
+struct EffectClips {
+    start: (u16, f32),
+    hold: Option<u16>,
+    end: Option<(u16, f32)>,
+    particle_tail: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Phase {
+    Start(f32),
+    Hold,
+    End(f32),
+    /// Emission is over; the last particles finish.
+    Tail(f32),
 }
 
 struct ActiveEffect {
@@ -65,6 +88,66 @@ struct ActiveEffect {
     kit_id: u32,
     model_fdid: u32,
     lifetime: Lifetime,
+    clips: EffectClips,
+    phase: Phase,
+}
+
+impl ActiveEffect {
+    fn play(&self, clip: u16, looping: bool) {
+        if let Some(mut player) = self
+            .node
+            .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+            && let Err(error) = player.bind_mut().play_clip(clip, looping)
+        {
+            godot_error!("Spell effect model {}: {error}", self.model_fdid);
+        }
+    }
+
+    /// The kit ended: its end clip, else the particle tail.
+    fn finish(&mut self) {
+        self.phase = match self.clips.end {
+            Some((clip, seconds)) => {
+                self.play(clip, false);
+                Phase::End(seconds)
+            }
+            None => Phase::Tail(self.clips.particle_tail),
+        };
+    }
+
+    /// Advance the phase; `false` once the model is done.
+    fn tick(&mut self, delta: f32) -> bool {
+        match &mut self.phase {
+            Phase::Start(left) => {
+                *left -= delta;
+                if *left <= 0.0 {
+                    match (self.lifetime, self.clips.hold) {
+                        (Lifetime::UntilCastEnds, Some(hold)) => {
+                            self.play(hold, true);
+                            self.phase = Phase::Hold;
+                        }
+                        (Lifetime::UntilCastEnds, None) => {
+                            self.play(self.clips.start.0, true);
+                            self.phase = Phase::Hold;
+                        }
+                        (Lifetime::OneShot, _) => self.finish(),
+                    }
+                }
+                true
+            }
+            Phase::Hold => true,
+            Phase::End(left) => {
+                *left -= delta;
+                if *left <= 0.0 {
+                    self.phase = Phase::Tail(self.clips.particle_tail);
+                }
+                true
+            }
+            Phase::Tail(left) => {
+                *left -= delta;
+                *left > 0.0
+            }
+        }
+    }
 }
 
 /// A kit model waiting for its `StartDelay`.
@@ -158,17 +241,6 @@ impl SpellEffects {
             })
             .as_ref()
             .map_err(Clone::clone)
-    }
-
-    /// `AnimationData.Fallback` pairs, empty when the catalog failed to load.
-    pub fn anim_fallbacks(&mut self) -> HashMap<u16, u16> {
-        self.fallbacks()
-    }
-
-    fn fallbacks(&mut self) -> HashMap<u16, u16> {
-        self.catalog()
-            .map(|catalog| catalog.anim_fallbacks().clone())
-            .unwrap_or_default()
     }
 
     /// Kit starts since the world loaded, oldest first.
@@ -273,15 +345,15 @@ impl SpellEffects {
         }
         self.pending
             .retain(|pending| !(pending.unit == id && pending.lifetime == Lifetime::UntilCastEnds));
-        self.active.retain(|effect| {
-            let ends = effect.owner == id
+        for effect in &mut self.active {
+            if effect.owner == id
                 && effect.spell_id == held.spell_id
-                && effect.lifetime == Lifetime::UntilCastEnds;
-            if ends {
-                effect.node.clone().free();
+                && effect.lifetime == Lifetime::UntilCastEnds
+                && matches!(effect.phase, Phase::Start(_) | Phase::Hold)
+            {
+                effect.finish();
             }
-            !ends
-        });
+        }
     }
 
     /// `SpellGo`: the caster's Cast kits, then its missile or Impact kits.
@@ -392,7 +464,6 @@ impl SpellEffects {
         kits: Vec<VisualKit>,
         world: &mut WorldUnits,
     ) -> Result<Vec<u16>, String> {
-        let fallbacks = self.fallbacks();
         let mut looping = Vec::new();
         let mut errors = Vec::new();
         for kit in kits {
@@ -406,12 +477,7 @@ impl SpellEffects {
             for unit in units {
                 let mut played = None;
                 if let Some(animation) = kit.animation {
-                    match world.play_unit_action(
-                        unit,
-                        animation.anim_id,
-                        animation.looping,
-                        &fallbacks,
-                    ) {
+                    match world.play_unit_action(unit, animation.anim_id, animation.looping) {
                         Ok(clip) => {
                             played = clip;
                             if animation.looping && unit == caster {
@@ -424,7 +490,7 @@ impl SpellEffects {
                 let lifetime = if held {
                     Lifetime::UntilCastEnds
                 } else {
-                    Lifetime::Seconds(0.0)
+                    Lifetime::OneShot
                 };
                 for model in &kit.models {
                     self.pending.push(PendingModel {
@@ -600,26 +666,20 @@ impl SpellEffects {
         let model = &pending.model;
         node.set_transform(kit_model_transform(model));
         let effect = self.effect_model(model.model_fdid)?;
-        let anim = model.anim_id.unwrap_or(STAND);
-        if let Some(mut player) = node.try_get_node_as::<WowAnimationPlayer>("M2Animation")
-            && anim != STAND
-        {
-            let fallbacks = self.fallbacks();
-            player.bind_mut().play_action(anim, true, &fallbacks)?;
-        }
-        let lifetime = match pending.lifetime {
-            Lifetime::Seconds(_) => Lifetime::Seconds(one_shot_seconds(&effect.model, anim)),
-            held => held,
-        };
-        self.active.push(ActiveEffect {
+        let clips = effect_clips(&effect.model, model);
+        let active = ActiveEffect {
             node,
             particles,
             owner: pending.unit,
             spell_id: pending.spell_id,
             kit_id: pending.kit_id,
             model_fdid: model.model_fdid,
-            lifetime,
-        });
+            lifetime: pending.lifetime,
+            clips,
+            phase: Phase::Start(clips.start.1),
+        };
+        active.play(clips.start.0, false);
+        self.active.push(active);
         Ok(())
     }
 
@@ -635,14 +695,7 @@ impl SpellEffects {
             errors.push(error);
         }
         self.active.retain_mut(|effect| {
-            let alive = effect.node.is_instance_valid()
-                && match &mut effect.lifetime {
-                    Lifetime::Seconds(left) => {
-                        *left -= delta;
-                        *left > 0.0
-                    }
-                    Lifetime::UntilCastEnds => true,
-                };
+            let alive = effect.node.is_instance_valid() && effect.tick(delta);
             if !alive && effect.node.is_instance_valid() {
                 effect.node.clone().free();
             }
@@ -764,21 +817,30 @@ fn kit_model_transform(model: &KitModel) -> Transform3D {
     )
 }
 
-/// Seconds a one-shot kit model lives: its played clip, extended so the particles it
-/// emitted last can finish.
-fn one_shot_seconds(model: &m2::Model, anim: u16) -> f32 {
-    let clip = model
-        .sequences
-        .iter()
-        .find(|sequence| sequence.id == anim && sequence.variation_id == 0)
-        .map_or(0, |sequence| sequence.duration) as f32
-        / 1000.0;
-    let particles = model
+/// The model's start, hold and end clips (the kit's, else Stand/Hold/Decay) that it
+/// has, with the seconds they last, and the longest particle life.
+fn effect_clips(model: &m2::Model, kit: &KitModel) -> EffectClips {
+    let clip = |id: u16| {
+        model
+            .sequences
+            .iter()
+            .find(|sequence| sequence.id == id && sequence.variation_id == 0)
+            .map(|sequence| (id, sequence.duration as f32 / 1000.0))
+    };
+    let start = clip(kit.start_anim_id.unwrap_or(STAND))
+        .or_else(|| clip(STAND))
+        .unwrap_or((STAND, 0.0));
+    let particle_tail = model
         .particle_emitters
         .iter()
         .map(|emitter| emitter.lifespan + emitter.lifespan_variation)
         .fold(0.0, f32::max);
-    clip + particles
+    EffectClips {
+        start,
+        hold: clip(kit.anim_id.unwrap_or(HOLD)).map(|(id, _)| id),
+        end: clip(kit.end_anim_id.unwrap_or(DECAY)),
+        particle_tail,
+    }
 }
 
 fn join_errors(errors: Vec<String>) -> Result<(), String> {

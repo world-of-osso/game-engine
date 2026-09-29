@@ -458,6 +458,25 @@ impl GameClient {
                 .map(|position| position.to_variant())
                 .unwrap_or_default(),
         );
+        state.set(
+            "local_player_id",
+            &self
+                .world
+                .local_player_id()
+                .map(|id| (id as i64).to_variant())
+                .unwrap_or_default(),
+        );
+        state.set(
+            "local_player_facing",
+            &self
+                .world
+                .local_player_facing()
+                .map(|yaw| yaw.to_variant())
+                .unwrap_or_default(),
+        );
+        state.set("camera_yaw", self.world_camera.yaw());
+        state.set("camera_pitch", self.world_camera.pitch());
+        state.set("camera_distance", self.world_camera.distance());
         state.set("local_player_swimming", self.player_movement.swimming);
         state.set(
             "local_server_speed",
@@ -525,6 +544,15 @@ impl GameClient {
     #[func]
     fn spell_visuals_state(&self) -> VarDictionary {
         self.spell_visuals_snapshot()
+    }
+
+    /// Unit `id`'s node transform (world space), or nil.
+    #[func]
+    fn unit_transform(&self, id: i64) -> Variant {
+        self.world
+            .unit_node(id as u64)
+            .map(|node| node.get_global_transform().to_variant())
+            .unwrap_or_default()
     }
 
     /// The combat/spell clip layered over unit `id`'s locomotion, or -1.

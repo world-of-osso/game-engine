@@ -5,8 +5,8 @@
 //! the kit's `SpellVisualKitEffect` rows are model attachments
 //! (`SpellVisualKitModelAttach` → `SpellVisualEffectName` model) and a unit animation
 //! (`SpellVisualAnim`, directly or through `AnimKit` → `AnimKitSegment`). Missiles come
-//! from the visual's `SpellVisualMissile` set. `AnimationData.Fallback` substitutes a
-//! clip a model lacks.
+//! from the visual's `SpellVisualMissile` set. `AnimationData.Fallback`
+//! ([`read_animation_fallbacks`]) substitutes a clip a model lacks.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -18,9 +18,9 @@ use crate::db2_cache::{CacheKey, load_or_build};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 3;
+const CACHE_FORMAT: u32 = 4;
 
-const SOURCE_TABLES: [&str; 12] = [
+const SOURCE_TABLES: [&str; 11] = [
     "SpellXSpellVisual",
     "SpellVisual",
     "SpellVisualEvent",
@@ -30,7 +30,6 @@ const SOURCE_TABLES: [&str; 12] = [
     "SpellVisualAnim",
     "SpellVisualMissile",
     "AnimKitSegment",
-    "AnimationData",
     "PlayerCondition",
     "SpellMisc",
 ];
@@ -204,8 +203,11 @@ pub struct KitModel {
     pub scale: f32,
     /// Seconds after the kit starts before the model appears.
     pub start_delay: f32,
-    /// Model sequence to play; `None` plays its Stand (0) clip.
+    /// `StartAnimID`, `AnimID` and `EndAnimID`: the model's clip when the kit starts,
+    /// while it is held and when it ends; `None` is unset (-1).
+    pub start_anim_id: Option<u16>,
     pub anim_id: Option<u16>,
+    pub end_anim_id: Option<u16>,
 }
 
 /// The unit animation a kit requests.
@@ -273,7 +275,6 @@ pub struct SpellVisualCatalog {
     missiles: HashMap<u32, Vec<MissileRow>>,
     effect_names: HashMap<u32, EffectName>,
     conditions: HashMap<u32, PlayerCondition>,
-    anim_fallbacks: HashMap<u16, u16>,
     /// `SpellMisc.Speed` (yd/s) of spells with a travel speed.
     speeds: HashMap<u32, f32>,
 }
@@ -370,6 +371,17 @@ impl Table {
             })
             .collect()
     }
+}
+
+/// `AnimationData.Fallback` pairs (clip → substitute) of `dir`'s export.
+pub fn read_animation_fallbacks(dir: &Path) -> Result<HashMap<u16, u16>, String> {
+    let data = Table::read(dir, "AnimationData")?;
+    Ok(data
+        .ints(["ID", "Fallback"])?
+        .into_iter()
+        .filter(|[id, fallback]| id != fallback)
+        .map(|[id, fallback]| (id as u16, fallback as u16))
+        .collect())
 }
 
 fn parse_number(cell: &str) -> Option<i64> {
@@ -487,8 +499,14 @@ impl SpellVisualCatalog {
             );
         }
         let attaches = Table::read(dir, "SpellVisualKitModelAttach")?;
-        let attach_ints =
-            attaches.ints(["ID", "SpellVisualEffectNameID", "AttachmentID", "AnimID"])?;
+        let attach_ints = attaches.ints([
+            "ID",
+            "SpellVisualEffectNameID",
+            "AttachmentID",
+            "StartAnimID",
+            "AnimID",
+            "EndAnimID",
+        ])?;
         let attach_floats = attaches.floats([
             "Offset_0",
             "Offset_1",
@@ -500,7 +518,7 @@ impl SpellVisualCatalog {
             "StartDelay",
         ])?;
         let mut models = HashMap::new();
-        for ([id, name, attach, anim], [x, y, z, yaw, pitch, roll, scale, delay]) in
+        for ([id, name, attach, start, anim, end], [x, y, z, yaw, pitch, roll, scale, delay]) in
             attach_ints.into_iter().zip(attach_floats)
         {
             let Some(effect) = self.effect_names.get(&(name as u32)) else {
@@ -520,7 +538,9 @@ impl SpellVisualCatalog {
                     roll,
                     scale: scale * effect.scale,
                     start_delay: delay,
+                    start_anim_id: anim_id(start),
                     anim_id: anim_id(anim),
+                    end_anim_id: anim_id(end),
                 },
             );
         }
@@ -568,12 +588,6 @@ impl SpellVisualCatalog {
         }
         for segments in self.anim_kits.values_mut() {
             segments.sort_by_key(|segment| segment.order);
-        }
-        let data = Table::read(dir, "AnimationData")?;
-        for [id, fallback] in data.ints(["ID", "Fallback"])? {
-            if id != fallback {
-                self.anim_fallbacks.insert(id as u16, fallback as u16);
-            }
         }
         Ok(())
     }
@@ -789,15 +803,5 @@ impl SpellVisualCatalog {
     /// `SpellMisc.Speed` of `spell_id` in yards per second; `None` resolves on arrival.
     pub fn missile_speed(&self, spell_id: u32) -> Option<f32> {
         self.speeds.get(&spell_id).copied()
-    }
-
-    /// `AnimationData.Fallback` of `anim_id`, when it has one.
-    pub fn anim_fallback(&self, anim_id: u16) -> Option<u16> {
-        self.anim_fallbacks.get(&anim_id).copied()
-    }
-
-    /// `AnimationData.Fallback` pairs (clip → substitute).
-    pub fn anim_fallbacks(&self) -> &HashMap<u16, u16> {
-        &self.anim_fallbacks
     }
 }

@@ -533,6 +533,34 @@ impl WowAnimationPlayer {
         Ok(Some(clip))
     }
 
+    /// The playing sequence index and its time (ms), for keyframed particle emission.
+    pub(crate) fn playback(&self) -> Option<(usize, u32)> {
+        let animation = self.animation.as_ref()?;
+        Some((animation.current, animation.time_ms as u32))
+    }
+
+    /// Select model clip `id` (base variation) as its own sequence, crossfading.
+    pub(crate) fn play_clip(&mut self, id: u16, looping: bool) -> Result<(), String> {
+        let changed = self
+            .animation
+            .as_mut()
+            .ok_or_else(|| "M2 animation has no bound model".to_string())?
+            .select_animation_id(id, looping)?;
+        if changed {
+            self.write_poses();
+        }
+        Ok(())
+    }
+
+    /// `id`, or the first clip of its `AnimationData.Fallback` chain the model has.
+    pub(crate) fn resolve_clip(
+        &self,
+        id: u16,
+        fallbacks: &std::collections::HashMap<u16, u16>,
+    ) -> Option<u16> {
+        self.animation.as_ref()?.resolve_clip(id, fallbacks)
+    }
+
     /// Fade out held action clip `id`.
     pub(crate) fn stop_action(&mut self, id: u16) {
         if let Some(animation) = self.animation.as_mut() {
