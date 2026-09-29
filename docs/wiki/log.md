@@ -6,7 +6,7 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] ui | First native managed WorldMap window
 
-`WorldMapFrame` now uses character-scoped canonical `ui_layout.ron` for saved logical top-left, scaled title dragging and Wide-slot reset. The owned-loopback Options fixture covers scaled drag, canvas/button exclusion, resize clamp, then a second authenticated Godot process renders the saved placement before reset; the reset returns the map to its slot and a third process reads the reset file (`/tmp/claude/world-map-fresh-green-attempt.log`). Simultaneously open map + Options reset remains untested through the user interface. Updated [[world-map]].
+`WorldMapFrame` now uses character-scoped canonical `ui_layout.ron` for saved logical top-left, scaled title dragging and Wide-slot reset. The owned-loopback Options fixture covers effective 5/6-scale drag, canvas right-click navigation/button exclusion, resize clamp, then a second authenticated Godot process renders the saved placement before reset; the reset returns the map to its slot and a third process reads the reset file (`/tmp/claude/world-map-fresh-green-attempt.log`). Simultaneously open map + Options reset remains untested through the user interface. Updated [[world-map]].
 
 ## [2026-09-28] ui | Reset fixture authored-input preflight
 
