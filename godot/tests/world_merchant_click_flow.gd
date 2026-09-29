@@ -142,6 +142,10 @@ func check_merchant_reset(client: Node, vendor: Dictionary, config: String) -> b
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
+	await wait_frames(8)
+	if client.merchant_state().open:
+		fail("Reset merchant Escape did not close vendor")
+		return false
 	return true
 
 func reset_merchant_options(client: Node, config: String) -> bool:
