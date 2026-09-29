@@ -365,6 +365,7 @@ impl GameClient {
             let character_id = self.account.session.selected_character_id;
             game_engine_core::ui_layout_data::reset_window_positions(&path, character_id)?;
             self.reset_open_world_map_position();
+            self.reset_open_spellbook_position()?;
             if self.world_map.is_open() {
                 self.sync_world_map()?;
             }

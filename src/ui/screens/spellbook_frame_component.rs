@@ -17,7 +17,7 @@ use crate::ui::screens::world_map_frame_art::CLOSE_BUTTON;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
 
-pub const SPELLBOOK_FRAME: FrameName = FrameName("SpellBookFrame");
+pub const SPELLBOOK_FRAME: FrameName = FrameName("SpellBookRoot");
 /// `"{ACTION_SPELLBOOK_TAB}{index}"` selects a category tab.
 pub const ACTION_SPELLBOOK_TAB: &str = "spellbook_tab:";
 /// `"{ACTION_SPELLBOOK_CAST}{spell_id}"`: a known active spell's icon was clicked.

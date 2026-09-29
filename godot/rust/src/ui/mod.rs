@@ -677,23 +677,20 @@ impl RegistryUi {
         Ok(())
     }
 
-    /// Place the native map's actual border frame, leaving its canvas children intact.
-    pub fn set_world_map_position(&mut self, [x, y]: [f32; 2]) -> Result<(), String> {
-        let model = self
-            .model
-            .as_mut()
-            .ok_or("World map model not initialized")?;
+    /// Move the authored root of a native managed window without changing its children.
+    pub fn set_window_position(&mut self, root: &str, [x, y]: [f32; 2]) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Window model not initialized")?;
         let id = model
             .registry
-            .get_by_name("WorldMapBorderFrame")
-            .ok_or("World map border frame missing")?;
+            .get_by_name(root)
+            .ok_or_else(|| format!("Window root {root} missing"))?;
         model
             .registry
             .set_pos(id, x, y)
-            .map_err(|error| format!("World map position: {error:?}"))?;
+            .map_err(|error| format!("Window {root} position: {error:?}"))?;
         self.projection
             .as_mut()
-            .ok_or("World map projection missing")?
+            .ok_or("Window projection missing")?
             .sync(&mut model.registry)
     }
 
@@ -755,11 +752,9 @@ impl RegistryUi {
 
     /// Apply the effective camera-equivalent scale to both layout and projected pixels.
     pub fn set_ui_scale(&mut self, scale: f32) -> Result<(), String> {
-        if self.ui_scale != scale {
-            self.ui_scale = scale;
-            if self.model.is_some() {
-                self.sync_viewport()?;
-            }
+        self.ui_scale = scale;
+        if self.model.is_some() {
+            self.sync_viewport()?;
         }
         Ok(())
     }
