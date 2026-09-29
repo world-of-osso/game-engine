@@ -46,12 +46,16 @@ func run_test() -> void:
 		return
 	if not await expect_target_frame(client, id, true):
 		return
+	if not await expect_player_frame(client, true, "10 / 40"):
+		return
 	var fill_color: Color = client.nameplate_state()[id].color
 	await open_options(client, "hud")
 	await click_option(client, "ToggleSwitchshow_health_barsLeftHit")
 	await click_option(client, "OptionsDoneButton")
 	await tap(KEY_TAB)
 	if not await expect_target_frame(client, id, false):
+		return
+	if not await expect_player_frame(client, false, "10 / 40"):
 		return
 	if not await expect_plate(client, id, false, Color.WHITE):
 		return
@@ -75,6 +79,8 @@ func run_test() -> void:
 	await click_option(client, "OptionsDoneButton")
 	await tap(KEY_TAB)
 	if not await expect_target_frame(client, id, true):
+		return
+	if not await expect_player_frame(client, true, "10 / 40"):
 		return
 	if not await expect_plate(client, id, true, Color.WHITE):
 		return
@@ -106,6 +112,19 @@ func run_test() -> void:
 	await process_frame
 	if client.nameplate_state().has(id) or not client.nameplate_rules(id).shown:
 		fail("Camera fade boundary changed CVar eligibility or retained plate")
+		return
+	print("FIXTURE PLAYER_HEALTH_UPDATE")
+	if not await wait_player_health(client, "27 / 40"):
+		return
+	print("FIXTURE PLAYER_REMOVE")
+	if not await wait_player_hidden(client):
+		return
+	var reconnect_error: String = client.connect_account(server, "fixture", "fixture", false)
+	if reconnect_error != "":
+		fail("World reset failed: " + reconnect_error)
+		return
+	if client.account_state().unit_count != 0 or client.account_state().local_player_position != null:
+		fail("World reset retained local player data: " + str(client.account_state()))
 		return
 	print("FIXTURE NAMEPLATE_OPTIONS_DONE")
 	client.free()
@@ -161,6 +180,50 @@ func expect_plate(client: Node, id: int, bars: bool, expected_color: Color) -> b
 		fail("Name label color %s, expected %s" % [name.get_theme_color("font_color"), expected_color])
 		return false
 	return true
+
+func expect_player_frame(client: Node, shown: bool, expected_health: String) -> bool:
+	await process_frame
+	var ui := client.get_node_or_null("UnitFramesUI")
+	var frame := ui.find_child("PlayerFrame", true, false) as Control if ui != null else null
+	var name := ui.find_child("PlayerName", true, false) as Label if ui != null else null
+	var level := ui.find_child("PlayerLevelText", true, false) as Label if ui != null else null
+	var health := ui.find_child("PlayerHealthBar", true, false) as Control if ui != null else null
+	var text := ui.find_child("PlayerHealthBarText", true, false) as Label if ui != null else null
+	if frame == null or name == null or level == null or health == null or text == null:
+		fail("Player frame cluster missing")
+		return false
+	var power := ui.find_child("PlayerManaBarText", true, false) as Label
+	var power_text := power.text if power != null else "missing"
+	if [name.text, level.text, text.text, power_text] != ["Fixture Player", "12", expected_health, "19 / 60"]:
+		fail("Player authored values: %s %s %s power=%s" % [name.text, level.text, text.text, power_text])
+		return false
+	if frame.is_visible_in_tree() != shown or name.is_visible_in_tree() != shown or health.is_visible_in_tree() != shown:
+		fail("Player cluster did not follow HUD visibility %s" % shown)
+		return false
+	return true
+
+func wait_player_health(client: Node, expected: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var ui := client.get_node_or_null("UnitFramesUI")
+		var text := ui.find_child("PlayerHealthBarText", true, false) as Label if ui != null else null
+		if text != null and text.text == expected:
+			return await expect_player_frame(client, true, expected)
+	fail("Replicated player health did not update to " + expected)
+	return false
+
+func wait_player_hidden(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var ui := client.get_node_or_null("UnitFramesUI")
+		var frame := ui.find_child("PlayerFrame", true, false) as Control if ui != null else null
+		var name := ui.find_child("PlayerName", true, false) as Label if ui != null else null
+		if frame != null and not frame.is_visible_in_tree() and name != null and name.text == "":
+			return true
+	fail("Removed local player left stale frame")
+	return false
 
 func expect_target_frame(client: Node, id: int, shown: bool) -> bool:
 	await process_frame

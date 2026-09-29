@@ -866,6 +866,18 @@ fn run_nameplate_fixture(
         if !ready && let (Some(player), Some(npc)) = (player, npc) {
             app.world_mut().entity_mut(player).insert((
                 UnitFactionTemplate(35),
+                shared::components::UnitLevel(12),
+                Health {
+                    current: 10.0,
+                    max: 40.0,
+                },
+                shared::components::UnitPowers {
+                    entries: vec![shared::components::PowerEntry {
+                        power: shared::components::PowerType::Mana,
+                        current: 19,
+                        max: 60,
+                    }],
+                },
                 Position {
                     x: -8949.0,
                     y: 112.88,
@@ -906,6 +918,18 @@ fn run_nameplate_fixture(
                             y: 112.88,
                             z: 0.0,
                         });
+                }
+                "FIXTURE PLAYER_HEALTH_UPDATE" => {
+                    app.world_mut()
+                        .entity_mut(player.ok_or("Player missing")?)
+                        .insert(Health {
+                            current: 27.0,
+                            max: 40.0,
+                        });
+                }
+                "FIXTURE PLAYER_REMOVE" => {
+                    app.world_mut()
+                        .despawn(player.take().ok_or("Player missing")?);
                 }
                 "FIXTURE NAMEPLATE_OPTIONS_DONE" => {
                     println!(
