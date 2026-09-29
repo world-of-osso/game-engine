@@ -136,8 +136,8 @@ func exercise_book_placement(client: Node, path: String, config: String) -> bool
 	var book := book_root(client)
 	var original := book.get_global_rect().position
 	var scale := book.get_global_transform().get_scale().x
-	if absf(scale - 5.0 / 6.0) > 0.01:
-		fail("Expected nonunit UI scale 5/6, got " + str(scale))
+	if absf(scale - 1.25) > 0.01:
+		fail("Expected effective nonunit UI scale 5/4, got " + str(scale))
 		return false
 	var close := client.get_node("SpellBookUI").find_child("SpellBookCloseButton", true, false) as Control
 	if close == null:
@@ -150,8 +150,8 @@ func exercise_book_placement(client: Node, path: String, config: String) -> bool
 	await tap_book()
 	book = book_root(client)
 	original = book.get_global_rect().position
-	await drag_map(original + Vector2(100, 12), original + Vector2(240, 92))
-	var moved := original + Vector2(140, 80)
+	await drag_map(original + Vector2(100, 12), original + Vector2(112, -8))
+	var moved := original + Vector2(12, -20)
 	if book.get_global_rect().position.distance_to(moved) > 2.0:
 		fail("Spellbook title drag failed: " + str(book.get_global_rect()))
 		return false
