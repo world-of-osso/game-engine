@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] verification | Native persisted M2-particle startup gate
+
+Merged `d23012b4` + `e5671528` prove the persisted `particleEffectsEnabled` startup boundary through the downloaded Depot `d1q5w3x6v3` fixture and authenticated Azeroth `GameClient`. Both runs exit 0: actual placed `sw_magicdistrict` MODD 1112 portal meshes have no particle pools/emitter state when disabled; enabled has six positive MultiMesh visible-instance counts (42, 21, 21, 21, 21, 2; 143 total; scene totals 711 pools/emitters). Evidence: `data/diagnostics/portal-particles-depot-build-e5671528.log` and `data/diagnostics/portal-particles-{disabled,enabled}-e5671528.log`. This is headless runtime state proof only—not pixels, audibility, live-toggle behavior, density, or full Godot parity. Updated [M2 particles](../specs/m2-particles.md) and the [parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-29] fix | Native FontString width-bound word wrapping
 
 The authored merchant Options descriptions exceeded the row at 0.75/1.25 because Godot Labels with wrapping off grew their minimum width beyond the authored 370 logical px. Legacy text bounds width and uses word-boundary layout. `9c12ce9e` requests word wrapping in native FontString projection. Depot `jcmsl5lx24` built revision `9c12ce9e` with `native_input_fixture` (exit 0; existing `NativeWmoGroup::fdid` warning); the owned merchant-click runtime exits 0 and confirms full text, two-line long descriptions, 370-logical-px label width, row/content/root containment, and non-overlap at both scales (`data/diagnostics/options-fontstring-wrap-{depot-build.log,green/merchant-click-runtime-short.log}`). Main inspected `merchant-options-125.png`. This is a bounded single-owner rendered check, not pixel equality, all-UI-owner coverage, or conversion parity. See [[ui-system]].
