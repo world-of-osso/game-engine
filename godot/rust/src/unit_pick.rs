@@ -5,7 +5,9 @@
 //! swallow a nearer unit. Like the Bevy client's `MeshRayCast`, triangles are skinned
 //! on the CPU with the skeleton's current bone palette, the pose that is rendered.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
+use std::rc::Rc;
 use std::time::Instant;
 
 use godot::{
@@ -100,8 +102,10 @@ fn unit_visual(area: &Gd<CollisionObject3D>) -> Option<Gd<Node3D>> {
     Gd::<Node3D>::try_from_instance_id(InstanceId::from_i64(id)).ok()
 }
 
-/// Distance along the ray to the nearest visible triangle of `visual`'s meshes.
+/// Distance along the ray to the nearest visible triangle of `visual`'s meshes. Batches
+/// of one model share a skin, so its palette is built once per pick.
 fn nearest_triangle(visual: &Gd<Node3D>, ray: &Ray) -> Option<f32> {
+    let mut palettes = HashMap::new();
     visual
         .find_children_ex("*")
         .type_("MeshInstance3D")
@@ -110,7 +114,7 @@ fn nearest_triangle(visual: &Gd<Node3D>, ray: &Ray) -> Option<f32> {
         .iter_shared()
         .map(|node| node.cast::<MeshInstance3D>())
         .filter(drawn)
-        .filter_map(|instance| mesh_hit(&instance, ray))
+        .filter_map(|instance| mesh_hit(&instance, ray, &mut palettes))
         .min_by(f32::total_cmp)
 }
 
@@ -125,71 +129,120 @@ fn drawn(instance: &Gd<MeshInstance3D>) -> bool {
             .is_none_or(|value| value.to::<f32>() > 0.0)
 }
 
-fn mesh_hit(instance: &Gd<MeshInstance3D>, ray: &Ray) -> Option<f32> {
+type Palettes = HashMap<(InstanceId, InstanceId), Rc<Vec<Transform3D>>>;
+
+fn mesh_hit(instance: &Gd<MeshInstance3D>, ray: &Ray, palettes: &mut Palettes) -> Option<f32> {
     let mesh = instance.get_mesh()?;
     let to_world = instance.get_global_transform();
-    let palette = bone_palette(instance);
+    let palette = bone_palette(instance, palettes);
     (0..mesh.get_surface_count())
-        .filter_map(|surface| surface_hit(&mesh, surface, to_world, palette.as_deref(), ray))
+        .filter_map(|surface| {
+            let data = surface_data(&mesh, surface)?;
+            surface_hit(&data, to_world, palette.as_deref().map(Vec::as_slice), ray)
+        })
         .min_by(f32::total_cmp)
 }
 
 /// Skin bind transforms in the skeleton's current pose (`pose_global * bind_pose`,
 /// what Godot uploads for skinning); `None` for an unskinned mesh.
-fn bone_palette(instance: &Gd<MeshInstance3D>) -> Option<Vec<Transform3D>> {
+fn bone_palette(
+    instance: &Gd<MeshInstance3D>,
+    palettes: &mut Palettes,
+) -> Option<Rc<Vec<Transform3D>>> {
     let skin = instance.get_skin()?;
     let skeleton = instance
         .get_node_or_null(&instance.get_skeleton_path())?
         .try_cast::<Skeleton3D>()
         .ok()?;
-    Some(
-        (0..skin.get_bind_count())
-            .map(|bind| {
-                skeleton.get_bone_global_pose(skin.get_bind_bone(bind)) * skin.get_bind_pose(bind)
-            })
-            .collect(),
-    )
+    let key = (skeleton.instance_id(), skin.instance_id());
+    let palette = palettes.entry(key).or_insert_with(|| {
+        Rc::new(
+            (0..skin.get_bind_count())
+                .map(|bind| {
+                    skeleton.get_bone_global_pose(skin.get_bind_bone(bind))
+                        * skin.get_bind_pose(bind)
+                })
+                .collect(),
+        )
+    });
+    Some(palette.clone())
 }
 
-fn surface_hit(
-    mesh: &Gd<Mesh>,
-    surface: i32,
-    to_world: Transform3D,
-    palette: Option<&[Transform3D]>,
-    ray: &Ray,
-) -> Option<f32> {
+/// A mesh surface's rest vertices, skin weights and triangles.
+struct SurfaceData {
+    vertices: Vec<Vector3>,
+    bones: Vec<i32>,
+    weights: Vec<f32>,
+    indices: Vec<i32>,
+}
+
+/// Meshes kept before freed ones are pruned from the surface cache.
+const SURFACE_CACHE_PRUNE: usize = 4096;
+
+thread_local! {
+    /// Surface arrays by mesh and surface: loaded meshes never change, and copying
+    /// them out of Godot dominated the pick.
+    static SURFACES: RefCell<HashMap<(InstanceId, i32), Rc<SurfaceData>>> =
+        RefCell::new(HashMap::new());
+}
+
+fn surface_data(mesh: &Gd<Mesh>, surface: i32) -> Option<Rc<SurfaceData>> {
+    let key = (mesh.instance_id(), surface);
+    if let Some(data) = SURFACES.with(|cache| cache.borrow().get(&key).cloned()) {
+        return Some(data);
+    }
+    let data = Rc::new(read_surface(mesh, surface)?);
+    SURFACES.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() >= SURFACE_CACHE_PRUNE {
+            cache.retain(|(id, _), _| Gd::<Mesh>::try_from_instance_id(*id).is_ok());
+        }
+        cache.insert(key, data.clone());
+    });
+    Some(data)
+}
+
+fn read_surface(mesh: &Gd<Mesh>, surface: i32) -> Option<SurfaceData> {
     let arrays = mesh.surface_get_arrays(surface);
     let array = |kind: mesh::ArrayType| arrays.get(kind.ord() as usize);
     let vertices = array(mesh::ArrayType::VERTEX)?
         .try_to::<PackedVector3Array>()
-        .ok()?;
-    let skinned = palette.and_then(|palette| {
-        let bones = array(mesh::ArrayType::BONES)?
-            .try_to::<PackedInt32Array>()
-            .ok()?;
-        let weights = array(mesh::ArrayType::WEIGHTS)?
-            .try_to::<PackedFloat32Array>()
-            .ok()?;
-        Some(skin_vertices(
-            vertices.as_slice(),
-            bones.as_slice(),
-            weights.as_slice(),
-            palette,
-        ))
-    });
+        .ok()?
+        .to_vec();
+    let packed = |kind| array(kind).and_then(|value| value.try_to::<PackedInt32Array>().ok());
+    let bones = packed(mesh::ArrayType::BONES).map_or_else(Vec::new, |bones| bones.to_vec());
+    let weights = array(mesh::ArrayType::WEIGHTS)
+        .and_then(|value| value.try_to::<PackedFloat32Array>().ok())
+        .map_or_else(Vec::new, |weights| weights.to_vec());
+    let indices = packed(mesh::ArrayType::INDEX)
+        .filter(|indices| !indices.is_empty())
+        .map_or_else(
+            || (0..vertices.len() as i32).collect(),
+            |indices| indices.to_vec(),
+        );
+    Some(SurfaceData {
+        vertices,
+        bones,
+        weights,
+        indices,
+    })
+}
+
+fn surface_hit(
+    data: &SurfaceData,
+    to_world: Transform3D,
+    palette: Option<&[Transform3D]>,
+    ray: &Ray,
+) -> Option<f32> {
+    let skinned = palette
+        .filter(|_| !data.bones.is_empty())
+        .map(|palette| skin_vertices(&data.vertices, &data.bones, &data.weights, palette));
     let world: Vec<Vector3> = skinned
-        .unwrap_or_else(|| vertices.as_slice().to_vec())
+        .unwrap_or_else(|| data.vertices.clone())
         .into_iter()
         .map(|vertex| to_world * vertex)
         .collect();
-    let indices = array(mesh::ArrayType::INDEX)
-        .and_then(|value| value.try_to::<PackedInt32Array>().ok())
-        .filter(|indices| !indices.is_empty())
-        .map_or_else(
-            || (0..world.len() as i32).collect(),
-            |indices| indices.to_vec(),
-        );
-    indices
+    data.indices
         .chunks_exact(3)
         .filter_map(|triangle| {
             let corner = |i: usize| world.get(triangle[i] as usize).copied();
