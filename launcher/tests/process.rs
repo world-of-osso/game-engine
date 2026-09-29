@@ -35,6 +35,8 @@ impl Fixture {
             fs::write(binary, FAKE_PROCESS).unwrap();
             fs::set_permissions(binary, fs::Permissions::from_mode(0o755)).unwrap();
         }
+        fs::create_dir(directory.join("scripts")).unwrap();
+        fs::write(directory.join("scripts/depot-build.py"), FAKE_PROCESS).unwrap();
         Self {
             directory,
             cargo,
@@ -127,21 +129,11 @@ fn successful_build_then_launch_forwards_arguments_and_environment() {
     let cargo = records[0].split('\t').collect::<Vec<_>>();
     let godot = records[1].split('\t').collect::<Vec<_>>();
     let root = &fixture.directory;
-    assert_eq!(cargo[0], "cargo");
+    assert_eq!(cargo[0], "depot-build.py");
     assert_eq!(cargo[1], hex(root));
-    assert_eq!(cargo[2], hex(root.join("target")));
     assert_eq!(
         cargo[4],
-        [
-            "build",
-            "--manifest-path",
-            root.join("godot/Cargo.toml").to_str().unwrap(),
-            "-p",
-            "game-engine-godot",
-            "--lib",
-        ]
-        .map(hex)
-        .join(",")
+        ["--root", root.to_str().unwrap()].map(hex).join(",")
     );
     assert_eq!(godot[0], "godot");
     assert_eq!(godot[1], hex(&fixture.directory));
@@ -294,12 +286,12 @@ fn build_failure_preserves_status_and_prevents_godot() {
         .env("GODOT_BIN", &fixture.godot)
         .env("FAKE_LOG", fixture.directory.join("log"))
         .env("GAME_ENGINE_ROOT", &fixture.directory)
-        .env("FAKE_CARGO_STATUS", "37")
+        .env("FAKE_DEPOT-BUILD.PY_STATUS", "37")
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(37));
     assert_eq!(fixture.log().lines().count(), 1);
-    assert!(fixture.log().starts_with("cargo\t"));
+    assert!(fixture.log().starts_with("depot-build.py\t"));
 }
 
 #[test]
@@ -368,7 +360,7 @@ fn non_executable_godot_fails_before_build() {
 }
 
 #[test]
-fn missing_cargo_context_fails_before_godot() {
+fn launches_without_local_cargo_context() {
     let fixture = Fixture::new();
     let output = Command::new(env!("CARGO_BIN_EXE_game-engine-launcher"))
         .env_remove("CARGO")
@@ -377,9 +369,9 @@ fn missing_cargo_context_fails_before_godot() {
         .env("GAME_ENGINE_ROOT", &fixture.directory)
         .output()
         .unwrap();
-    assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("CARGO"));
-    assert!(fixture.log().is_empty());
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(fixture.log().lines().count(), 2);
+    assert!(fixture.log().starts_with("depot-build.py\t"));
 }
 
 const FAKE_CURL: &str = r#"#!/usr/bin/env python3
@@ -430,7 +422,10 @@ fn cached_godot_launches_without_download() {
         .map(|line| line.split('\t').next().unwrap().to_owned())
         .collect();
     // The cached copy keeps the fake's basename-derived role.
-    assert_eq!(roles, ["cargo", "Godot_v4.7.2-stable_linux.x86_64"]);
+    assert_eq!(
+        roles,
+        ["depot-build.py", "Godot_v4.7.2-stable_linux.x86_64"]
+    );
 }
 
 #[test]
@@ -463,7 +458,7 @@ fn fresh_checkout_imports_once_after_build_before_launch() {
         .map(|line| line.split('\t').map(str::to_owned).collect())
         .collect();
     let roles: Vec<_> = records.iter().map(|record| record[0].as_str()).collect();
-    assert_eq!(roles, ["cargo", "godot", "godot"]);
+    assert_eq!(roles, ["depot-build.py", "godot", "godot"]);
     let project = fixture.directory.join("godot");
     assert_eq!(
         records[1][4],
