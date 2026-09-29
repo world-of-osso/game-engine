@@ -38,6 +38,8 @@ pub mod csv_util;
 pub mod customization_data;
 #[path = "../../../src/rendering/character/customization_query_data.rs"]
 mod customization_query_data;
+#[path = "../../../src/game/db2_cache.rs"]
+pub mod db2_cache;
 #[path = "../../../src/geoset_visibility_data.rs"]
 pub mod geoset_visibility_data;
 #[path = "../../../src/input_bindings_data.rs"]
@@ -109,6 +111,9 @@ pub mod screen_arg_data;
 pub mod sky_cubemap_data;
 #[path = "../../../src/rendering/skybox/sky_lightdata_data.rs"]
 pub mod sky_lightdata_data;
+pub mod spell_catalog;
+#[path = "../../../src/ui/spellbook_data.rs"]
+pub mod spellbook_data;
 #[path = "../../../src/sqlite_util.rs"]
 mod sqlite_util;
 #[path = "../../../src/startup_args_data.rs"]

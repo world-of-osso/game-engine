@@ -1767,3 +1767,7 @@ Godot replicated creatures hold their `UnitPose` (Sit 97, Sleep 100, Emotes.Anim
 ## [2026-09-28] feature | Godot server-driven breath bar
 
 The Godot client shows the server's `MirrorTimerStart`/`Pause`/`Stop` (fatigue, breath, feign death) instead of a GDScript-started bar, caps swim vertical rate at `SWIM_SPEED` × aura as the server's movement bank does, and takes `SWIM_DEPTH`/`is_swimming`/`swim_top` from shared-protocol. Live on the dev server: breath bar under water at the server's drain rate, gone after surfacing; server height follows the swimmer. See [[swimming]].
+
+## [2026-09-28] feature | Godot spellbook, action bar and casting
+
+The Godot client shows the Retail 12.x spellbook (known spells plus later-level spells greyed "Level N"), the main action bar with keys 1..=, sends `SpellCastIntent` at the target, and shows cooldown/GCD sweeps, `CastFailed` errors, the casting bar and floating combat text. The spell catalog is now engine-free and shared. game-server `spellsbylevel` gates spec spells by SpellLevel and pushes learned spells to the bar. See [[spellbook-action-bar]].

@@ -23,16 +23,19 @@ use lightyear::prelude::{
     self as network, MessageReceiver, MessageSender, client as client_network,
 };
 use shared::{
+    casting::CastState,
     components::{
         CombatStatus, CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay,
-        MovementControl, MovementSpeed, Npc, Player, Position, Rotation, UnitFactionTemplate,
-        UnitFlags, UnitLevel, UnitPose, UnitTarget,
+        MovementControl, MovementSpeed, Npc, Player, Position, Rotation, UnitAuras,
+        UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
     },
     protocol::{
-        CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
-        DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InstanceInfo, LoadTerrain,
-        LoginResponse, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld,
-        QuestLogSnapshot, QuestLogUpdate, RegisterResponse, TransferAborted,
+        ActionBarSnapshot, CastFailed, CharacterListUpdate, CombatLogEvent,
+        CreateCharacterResponse, DeleteCharacterResponse, DungeonDifficultySet, EnterWorldResponse,
+        ForcedDisconnect, InstanceInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse,
+        MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, QuestLogSnapshot,
+        QuestLogUpdate, RegisterResponse, SpecializationChanged, SpellCooldownUpdate,
+        SpellsLearned, SpellsUnlearned, TransferAborted,
     },
 };
 
@@ -91,6 +94,11 @@ pub struct UnitSnapshot {
     pub unit_flags: Option<u32>,
     /// Replicated `CombatStatus`.
     pub in_combat: bool,
+    /// The cast or channel in progress; the server removes it on completion or interrupt.
+    pub cast: Option<CastState>,
+    /// Raw DB2 power values, primary power first.
+    pub powers: Option<UnitPowers>,
+    pub auras: Option<UnitAuras>,
 }
 
 impl UnitSnapshot {
@@ -116,6 +124,9 @@ impl UnitSnapshot {
                 .map(|template| template.0),
             unit_flags: entity.get::<UnitFlags>().map(|flags| flags.0),
             in_combat: entity.get::<CombatStatus>().is_some_and(|status| status.0),
+            cast: entity.get::<CastState>().cloned(),
+            powers: entity.get::<UnitPowers>().cloned(),
+            auras: entity.get::<UnitAuras>().cloned(),
         }
     }
 }
@@ -186,6 +197,15 @@ impl NetworkBridge {
             .receive::<InstanceInfo>()
             // Server-driven breath, fatigue and feign-death bars.
             .receive_mirror_timers()
+            // Spellbook, action bar and casting.
+            .receive::<KnownSpellsSnapshot>()
+            .receive::<SpellsLearned>()
+            .receive::<SpellsUnlearned>()
+            .receive::<SpecializationChanged>()
+            .receive::<ActionBarSnapshot>()
+            .receive::<SpellCooldownUpdate>()
+            .receive::<CastFailed>()
+            .receive::<CombatLogEvent>()
             .connect(server_addr, client_id)
     }
 

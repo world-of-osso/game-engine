@@ -12,13 +12,20 @@ use game_engine_session::{
     normalize_auth_token, token_path,
 };
 use shared::protocol::{
-    AuthChannel, CharacterListUpdate, CombatChannel, CreateCharacter, CreateCharacterResponse,
-    DeleteCharacter, DeleteCharacterResponse, DungeonDifficultySet, EnterWorldResponse,
-    ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo, LoadTerrain,
-    LoginResponse, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput,
-    QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
-    SetDungeonDifficulty, SetTarget, TransferAborted, TransferChannel, WorldPortAck,
+    ActionBarSnapshot, AuthChannel, CastFailed, CharacterListUpdate, CombatChannel, CombatLogEvent,
+    CreateCharacter, CreateCharacterResponse, DeleteCharacter, DeleteCharacterResponse,
+    DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel,
+    InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse,
+    MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot,
+    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, SetDungeonDifficulty,
+    SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellsLearned,
+    SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
+
+use crate::player_spells::PlayerSpells;
+
+/// Combat log lines kept for automation and the cast result readout.
+const COMBAT_LOG_KEEP: usize = 64;
 
 #[derive(Default)]
 pub(crate) struct StartupLoginOptions {
@@ -41,6 +48,12 @@ pub struct Account {
     pub dungeon_difficulty: Option<u32>,
     /// Saved instances of the last `InstanceInfo`.
     pub instance_locks: Vec<InstanceLockInfo>,
+    /// Known spells, action bar and cooldowns from the server.
+    pub spells: PlayerSpells,
+    /// Newest `CombatLogEvent`s, oldest first.
+    pub combat_log: std::collections::VecDeque<CombatLogEvent>,
+    /// Count of `CombatLogEvent`s received this connection.
+    pub combat_log_seq: u64,
 }
 
 pub enum AccountEvent {
@@ -60,6 +73,8 @@ pub enum AccountEvent {
         success: bool,
         error: Option<String>,
     },
+    /// The server rejected a cast request.
+    CastFailed(CastFailed),
 }
 
 impl Account {
@@ -74,6 +89,9 @@ impl Account {
             quest_log: Vec::new(),
             dungeon_difficulty: None,
             instance_locks: Vec::new(),
+            spells: PlayerSpells::default(),
+            combat_log: std::collections::VecDeque::new(),
+            combat_log_seq: 0,
         }
     }
 
@@ -112,6 +130,8 @@ impl Account {
         self.hostname = hostname.to_owned();
         self.dungeon_difficulty = None;
         self.instance_locks.clear();
+        self.spells.clear();
+        self.combat_log.clear();
         self.session.token = self.read_token()?;
         Ok(())
     }
@@ -169,6 +189,21 @@ impl Account {
     pub fn send_set_target(&self, target: Option<u64>) -> Result<(), String> {
         self.connected_bridge()?
             .send::<_, CombatChannel>(SetTarget {
+                target_entity: target,
+            })
+    }
+
+    /// `CastSpellByID`: the server validates the cast against `target` (server entity
+    /// bits; `None` lets it use the replicated target) and answers with `CastState`,
+    /// cooldowns and combat log, or `CastFailed`.
+    pub fn send_cast(&self, spell_id: u32, name: &str, target: Option<u64>) -> Result<(), String> {
+        if self.session.screen != SessionScreen::InWorld || !self.session.gameplay_input_allowed() {
+            return Ok(());
+        }
+        self.connected_bridge()?
+            .send::<_, CombatChannel>(SpellCastIntent {
+                spell_id: Some(spell_id),
+                spell: name.to_owned(),
                 target_entity: target,
             })
     }
@@ -278,6 +313,9 @@ impl Account {
             )?)));
             return Ok(());
         }
+        if self.receive_spell_message(&message) {
+            return self.dispatch_spell_message(message, output);
+        }
         if message.is::<LoadTerrain>() {
             let request = decode(message)?;
             self.session.receive_terrain_refresh();
@@ -319,6 +357,48 @@ impl Account {
         }
         let effects = self.receive_message(message)?;
         self.apply_effects(effects, output)
+    }
+
+    fn receive_spell_message(&self, message: &ProtocolMessage) -> bool {
+        message.is::<KnownSpellsSnapshot>()
+            || message.is::<SpellsLearned>()
+            || message.is::<SpellsUnlearned>()
+            || message.is::<SpecializationChanged>()
+            || message.is::<ActionBarSnapshot>()
+            || message.is::<SpellCooldownUpdate>()
+            || message.is::<CastFailed>()
+            || message.is::<CombatLogEvent>()
+    }
+
+    /// Spell state lives on the account (like the quest log); rejections reach the host.
+    fn dispatch_spell_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
+        let spells = &mut self.spells;
+        if message.is::<KnownSpellsSnapshot>() {
+            spells.set_known(decode::<KnownSpellsSnapshot>(message)?.spells);
+        } else if message.is::<SpellsLearned>() {
+            spells.learn(&decode::<SpellsLearned>(message)?.spells);
+        } else if message.is::<SpellsUnlearned>() {
+            spells.unlearn(&decode::<SpellsUnlearned>(message)?.spells);
+        } else if message.is::<SpecializationChanged>() {
+            spells.set_spec(decode::<SpecializationChanged>(message)?.spec_id);
+        } else if message.is::<ActionBarSnapshot>() {
+            spells.set_bar(&decode::<ActionBarSnapshot>(message)?.slots);
+        } else if message.is::<SpellCooldownUpdate>() {
+            spells.apply_cooldown(&decode(message)?);
+        } else if message.is::<CastFailed>() {
+            output.push(AccountEvent::CastFailed(decode(message)?));
+        } else {
+            if self.combat_log.len() == COMBAT_LOG_KEEP {
+                self.combat_log.pop_front();
+            }
+            self.combat_log.push_back(decode(message)?);
+            self.combat_log_seq += 1;
+        }
+        Ok(())
     }
 
     fn receive_message(&mut self, message: ProtocolMessage) -> Result<Vec<SessionEffect>, String> {

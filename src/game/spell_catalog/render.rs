@@ -16,7 +16,7 @@
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 
-use bevy::log::warn;
+use log::warn;
 
 use super::render_eval::{Expr, eval_condition, parse_expr};
 use super::{CatalogSpell, SpellCatalogData, SpellTextContext};

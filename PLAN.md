@@ -69,3 +69,17 @@
 - [ ] Refactor `src/asset/m2_format/m2_variation.rs`: read (line 24): 32 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/targeting.rs`: target_state (line 395): 34 body lines (max 30) — extract into helper functions
 - [ ] Refactor `src/rendering/skybox/sky_lightdata_data.rs`: lerp_color_sets (line 197): 36 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/spellbook_frame_component.rs`: paginate (line 204): 40 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/spellbook_frame_component.rs`: category_tab (line 387): 49 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/spellbook_frame_component.rs`: header (line 453): 35 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/spellbook_frame_component.rs`: item_texts (line 510): 31 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/spellbook_frame_component.rs`: item (line 547): 60 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/spellbook_frame_component.rs`: paging (line 651): 54 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/spellbook_frame_component.rs`: File is 783 lines (max 750). Consider splitting it. — extract into helper functions
+- [ ] Refactor `godot/rust/src/spells.rs`: sync_cast_bar (line 438): 33 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spells.rs`: float_combat_text (line 587): 54 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spells.rs`: spells_snapshot (line 654): 67 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spells.rs`: File is 776 lines (max 750). Consider splitting it. — extract into helper functions
+- [ ] Refactor `src/ui/screens/spell_tooltip_component.rs`: spell_tooltip_screen (line 76): 50 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_tooltip.rs`: strip_color_escapes (line 140): nesting depth 5 (max 4) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_tooltip.rs`: spell_tooltip_state (line 170): 46 body lines (max 30) — extract into helper functions
