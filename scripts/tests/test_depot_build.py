@@ -35,7 +35,7 @@ if '--build-arg' in args:
     fixture = args[args.index('--build-arg') + 1].split('=', 1)[1]
     if not os.environ.get('DEPOT_MISSING_FIXTURE'):
         (output / (fixture + '.gz')).write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT_FIXTURE') else gzip.compress(os.environ.get('DEPOT_FIXTURE', 'fixture binary').encode()))
-''' 
+'''
 
 
 class DepotBuildTests(unittest.TestCase):
