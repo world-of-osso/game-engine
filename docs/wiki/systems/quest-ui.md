@@ -22,3 +22,12 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 - InWorld automation clicks must set the cursor at UI position × `ui_scale` (fixed in `automation_inworld.rs`); `--screen inworld` with `--run-js-ui-script` keeps the auto-login.
 - `game-server-admin set-position` only moves an online character server-side; the client keeps its own position, so move characters while logged out.
 - The quest log's description and rewards come from a session cache of detail pages (`QuestLogData.details`): the log snapshot has neither.
+
+## Godot client
+
+The native client ports only the objective tracker so far.
+- `godot/rust/src/objective_tracker.rs` feeds the shared `objective_tracker_component` through `ObjectiveTrackerState::from_watched`. The input is the `Account.quest_log` entries in `Account.quest_watched` order. `from_runtime` is the Bevy-only wrapper, under `cfg(not(godot_host))`.
+- The two minimize buttons toggle `collapsed` and `quests_collapsed` locally.
+- Clicking a title or POI button (`quest_tracker:open:<id>`) does nothing, because the native QuestLogFrame does not exist.
+- There is no native QuestFrame yet. The fixture accepts a quest through `GameClient.accept_quest_from(npc_name, quest_id)`, which sends `QuestGiverAcceptQuest` directly.
+- The tracker sits under the minimap at the same Edit Mode anchor as Bevy; see [[minimap]].

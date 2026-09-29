@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] implementation | Godot minimap and objective tracker
+
+Branch `minimapquest`: native `MinimapCluster` (TOPRIGHT) and `ObjectiveTrackerFrame` (TOPRIGHT −110, −275). Pure tile/composite/blip/zone/clock logic in `godot/core/src/minimap_data.rs`; the tracker reuses the shared Bevy component through `from_watched`. Two projection fixes were needed: onclick on textures/font strings now clicks, and dynamic-texture pixel updates redraw. Live `godot/tests/world_minimap_quest.gd` exits 0 on a private server (tile `azeroth/map32_48`, rendered pixels = composite, arrow along W movement, quest blips, zoom; tracker "Beating Them Back!" 0/6 and collapse). Core tests are written but not run (Depot-only builds). See [[minimap]], [[quest-ui]] and the [minimap spec](../specs/minimap.md).
+
 ## [2026-09-29] implementation | Native Render Scale pending GREEN
 
 Actual GPU RED at `e3a5c92b` measured full-size 1280×720 internal buffers for saved 0.75 instead of 960×540. `GameClient` now applies saved/committed scale on its owning viewport; Depot/GREEN is pending. CAS below 0.999 and full parity remain open. See [[godot-conversion]].
