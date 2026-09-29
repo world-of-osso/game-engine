@@ -15,7 +15,7 @@ use super::{
     equipment::{attach_each_equipment, place_equipment},
     read_model,
 };
-use crate::equipment_appearance_data::RuntimeModelAppearance;
+use crate::equipment_appearance_data::{RuntimeModelAppearance, model_attachment_id};
 
 /// What a creature model holds: its display's armor item models and its virtual items.
 #[derive(Default)]
@@ -40,10 +40,11 @@ pub(crate) fn load_creature_model(
     let parsed = read_model(&path)?;
     cache_model_textures(&resolver, data_root, &display.skin_fdids, &parsed)?;
     let (mut model, missing) = build_model(&parsed, &path, &display.skin_fdids, appearance)?;
+    let items = held_items(&model, &resolver, &gear.items);
     let models: Vec<_> = gear
         .armor_models
         .iter()
-        .chain(gear.items.iter().map(|(item, _)| item))
+        .chain(items.iter().map(|(item, _)| item))
         .cloned()
         .collect();
     let report = |item: &RuntimeModelAppearance, error: String| {
@@ -60,12 +61,34 @@ pub(crate) fn load_creature_model(
         model.free();
         return Err(error);
     }
-    for (item, attachment) in &gear.items {
+    for (item, attachment) in items {
         if let Err(error) = place_equipment(&model, item.slot, *attachment) {
             godot_error!("Creature model {}: {error}", display.model_fdid);
         }
     }
     Ok((model, missing))
+}
+
+/// The virtual items `model` can hold: it has the attachment of the item's slot
+/// (`model_attachment_id`). A transformed unit keeps its virtual items while it shows a
+/// creature model without hands (Polymorph's sheep), which then holds none (inferred
+/// from the retail client, where a sheep shows no weapons).
+fn held_items<'a>(
+    model: &Gd<Node3D>,
+    resolver: &CascListfileResolver,
+    items: &'a [(RuntimeModelAppearance, Option<u32>)],
+) -> Vec<&'a (RuntimeModelAppearance, Option<u32>)> {
+    items
+        .iter()
+        .filter(|(item, _)| {
+            let Some(authored) = resolver.resolve_path(item.fdid) else {
+                // Attaching reports the unresolved path.
+                return true;
+            };
+            let id = model_attachment_id(item.slot, Path::new(&authored));
+            model.has_node(&format!("Skeleton3D/AttachmentBone{id}/Attachment{id}"))
+        })
+        .collect()
 }
 
 pub(crate) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {

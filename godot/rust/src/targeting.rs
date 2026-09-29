@@ -50,13 +50,22 @@ pub(crate) struct Targeting {
     target: Option<u64>,
     /// The target last sent in `SetTarget`.
     sent: Option<u64>,
-    circle: Option<(u64, Gd<Decal>)>,
+    /// The ring on the target, sized for the pick box (visual) it was spawned for.
+    circle: Option<TargetCircle>,
     /// The loaded ring art; `Some(None)` caches art that failed to load.
     ring: Option<Option<Gd<ImageTexture>>>,
     /// `RING_FDID` unless a test points the ring at other art.
     ring_fdid: u32,
     frame_ui: Option<Gd<RegistryUi>>,
     data_root: PathBuf,
+}
+
+struct TargetCircle {
+    unit: u64,
+    /// `unit_pick_shape` of the visual the ring was sized for: a swapped model
+    /// (a Polymorph display change) resizes it.
+    shape: Option<InstanceId>,
+    decal: Gd<Decal>,
 }
 
 impl Targeting {
@@ -83,10 +92,10 @@ impl Targeting {
     }
 
     fn free_circle(&mut self) {
-        if let Some((_, circle)) = self.circle.take()
-            && circle.is_instance_valid()
+        if let Some(circle) = self.circle.take()
+            && circle.decal.is_instance_valid()
         {
-            circle.free();
+            circle.decal.free();
         }
     }
 
@@ -396,25 +405,37 @@ impl GameClient {
 
     fn sync_target_circle(&mut self) -> Result<(), String> {
         let target = self.targeting.target;
-        let current = self.targeting.circle.as_ref().map(|(id, _)| *id);
-        if current == target
+        let unit = target.and_then(|id| Some((id, self.world.unit_node(id)?)));
+        let shape = unit
+            .as_ref()
+            .and_then(|(_, node)| unit_pick_shape(node))
+            .map(|shape| shape.instance_id());
+        let current = self
+            .targeting
+            .circle
+            .as_ref()
+            .map(|circle| (circle.unit, circle.shape));
+        if current == target.map(|id| (id, shape))
             && self
                 .targeting
                 .circle
                 .as_ref()
-                .is_none_or(|(_, circle)| circle.is_instance_valid())
+                .is_none_or(|circle| circle.decal.is_instance_valid())
         {
             return Ok(());
         }
         self.targeting.free_circle();
-        let Some((id, mut unit)) = target.and_then(|id| Some((id, self.world.unit_node(id)?)))
-        else {
+        let Some((id, mut unit)) = unit else {
             return Ok(());
         };
         let Some(ring) = self.targeting.ring_texture() else {
             return Ok(());
         };
-        self.targeting.circle = Some((id, spawn_circle(&mut unit, &ring)));
+        self.targeting.circle = Some(TargetCircle {
+            unit: id,
+            shape,
+            decal: spawn_circle(&mut unit, &ring),
+        });
         Ok(())
     }
 
@@ -482,7 +503,14 @@ impl GameClient {
         state.set("auto_attack", &optional_id(self.auto_attack_victim()));
         state.set(
             "circle_on",
-            &optional_id(self.targeting.circle.as_ref().map(|(id, _)| *id)),
+            &optional_id(self.targeting.circle.as_ref().map(|circle| circle.unit)),
+        );
+        state.set(
+            "circle_diameter",
+            self.targeting
+                .circle
+                .as_ref()
+                .map_or(0.0, |circle| circle.decal.get_size().x),
         );
         // The server's echo: the local player's replicated `UnitTarget`.
         state.set(
