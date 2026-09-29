@@ -122,9 +122,17 @@ func expect_scale(reference: SubViewport, scale: float, stage: String) -> bool:
 	return true
 
 func capture_pair(reference: SubViewport) -> Dictionary:
+	var menu := root.find_child("GameMenuUI", true, false) as CanvasLayer
+	if menu == null:
+		fail("RCAS capture requires the real GameMenuUI layer")
+		return {}
+	var was_visible := menu.visible
+	menu.hide()
 	await process_frame
 	await RenderingServer.frame_post_draw
-	return {"root_image": root.get_texture().get_image(), "reference_image": reference.get_texture().get_image()}
+	var images := {"root_image": root.get_texture().get_image(), "reference_image": reference.get_texture().get_image()}
+	menu.visible = was_visible
+	return images
 
 func expect_images(images: Dictionary, stage: String) -> bool:
 	var actual: Image = images.root_image
