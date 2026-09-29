@@ -2,7 +2,7 @@
 
 ## [2026-09-29] implementation | Godot RegistryUi scale ownership
 
-Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). Scaled known-spell tooltip anchoring passes against the prior native artifact; the coordinate corrections still require a new Depot artifact. See [[ui-system]].
+Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). The owned sound-click fixture at `b63c64ec` adds known Slam to the rightmost slot: controlled old `34b12ea5` library + new fixture RED placed the tooltip's right edge at 711 px in an 800 px viewport (`data/diagnostics/ui-scale-edge-old34-native-b63-fixture-red.log`); Depot `c22n43vc57` built the corrected library and fixture, then sound-click GREEN preserved existing casting/visibility/click assertions (`data/diagnostics/ui-scale-b63c64ec-sound-click-edge-green.log`). Entrance-bar coordinate conversion has source-space proof only because the owned fixtures do not show an entrance. See [[ui-system]].
 
 ## [2026-09-29] investigation | Spell missiles leave at the cast clip's release event
 
