@@ -6,11 +6,11 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] ui | Native local-player unit frame
 
-Selected local replicated name, level, health, combat, and powers now feed the shared `PlayerFrame`; rest uses the existing rest-area update. Authored HUD Options hide and restore the whole cluster. Owned-UDP RED/GREEN checks authored values, a live health change, local despawn, and synchronous world-reset data clearing (`/tmp/claude/player-frame-{red,green-final-dev}.log`). Combat/rest icon rendering and post-reconnect teardown are not independently proved. Updated [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+Selected local replicated name, level, health, combat, and powers now feed the shared `PlayerFrame`; rest uses the existing rest-area update. Authored HUD Options hide and restore the whole cluster. The post-commit owned-UDP fixture proves authored values, a live health change, off/on visibility, and local-despawn clearing (`/tmp/claude/player-frame-postcommit-udp.log`). Combat/rest icon rendering and post-reconnect teardown remain unproven; verifier885 is pending. Updated [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
 
 ## [2026-09-28] ui | Native target-frame HUD visibility
 
-The native target-frame cluster now consumes `hud.show_health_bars` through the shared unit-frame state. The existing owned-UDP NPC Options fixture proves whole-cluster off/on hide/restoration with the same reselected NPC and separately retained nameplate label (RED/GREEN: `/tmp/claude/target-frame-{red,green}-6073af82.log`). Escape clears selection before opening Options; the fixture does not claim otherwise. Native player-frame and managed-window reset remain absent; verifier881 is pending, so no independent claim is made. See [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+The native target-frame cluster now consumes `hud.show_health_bars` through the shared unit-frame state. The existing owned-UDP NPC Options fixture proves whole-cluster off/on hide/restoration with the same reselected NPC and separately retained nameplate label (RED/GREEN: `/tmp/claude/target-frame-{red,green}-6073af82.log`). Escape clears selection before opening Options; the fixture does not claim otherwise. The later local-player frame is documented above; managed-window reset remains unverified. See [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
 
 ## [2026-09-29] ui | Native nameplate Options independently verified
 
