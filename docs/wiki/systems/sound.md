@@ -47,6 +47,8 @@ The test-only `native_input_fixture sound-click` mode sends real `KnownSpellsSna
 
 The Godot client no longer plays the legacy synthetic CastStart sweep. `CastSpells` and `update_cast_sound` are removed, along with the sweep-based cast stages of `native_input_fixture sound-click` and `world_spell_click_flow.gd`; the sweep was never retail audio. The Bevy client still uses `src/sound/spell_cast_data.rs`.
 
+The retired-stage `native_input_fixture sound-click` still passes: pointer effects, quiet controls and five Slam `SpellCastIntent`s, checked at `SPELL_CLICK_DONE` (`data/diagnostics/spellcast-anim-2026-09-29c/sound-click/sound-click.log`, exit 0).
+
 Spell sounds now come from each spell's visual kits: `SpellVisualKitEffect` type 5 → `SoundKit` → `SoundKitEntry` files from local CASC. They play on the kit's unit, at the kit's event (precast start and loop, cast at `SpellGo`, impact on missile arrival). See [[spell-visuals]], "Kit sounds", for the resolution, playback rules and Frostbolt proof.
 
 ## Native original CombatEvent outcomes
