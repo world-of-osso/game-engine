@@ -15,13 +15,13 @@ use game_engine_session::{
 use shared::protocol::{
     ActionBarSnapshot, AttackStart, AttackStop, AttackStopped, AttackSwing, AuthChannel,
     CastFailed, CharacterListUpdate, CombatChannel, CombatEvent, CombatLogEvent, CreateCharacter,
-    CreateCharacterResponse, DeleteCharacter, DeleteCharacterResponse, DungeonDifficultySet,
-    EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo,
-    InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MirrorTimerPause,
-    MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot,
-    QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate, SetDungeonDifficulty,
-    SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned,
-    SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
+    CreateCharacterResponse, DamageMeterSnapshot, DeleteCharacter, DeleteCharacterResponse,
+    DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel,
+    InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse,
+    MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot,
+    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate,
+    SetDungeonDifficulty, SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate,
+    SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
@@ -64,6 +64,8 @@ pub struct Account {
     pub combat_log: std::collections::VecDeque<CombatLogEvent>,
     /// Count of `CombatLogEvent`s received this connection.
     pub combat_log_seq: u64,
+    /// The server's newest damage meter sessions.
+    pub damage_meter: Option<DamageMeterSnapshot>,
 }
 
 pub enum AccountEvent {
@@ -134,6 +136,7 @@ impl Account {
             spells: PlayerSpells::default(),
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
+            damage_meter: None,
         }
     }
 
@@ -176,6 +179,7 @@ impl Account {
         self.instance_locks.clear();
         self.spells.clear();
         self.combat_log.clear();
+        self.damage_meter = None;
         self.session.token = self.read_token()?;
         Ok(())
     }
@@ -436,6 +440,7 @@ impl Account {
             || message.is::<QuestLogUpdate>()
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
+            || message.is::<DamageMeterSnapshot>()
     }
 
     fn dispatch_account_state_message(&mut self, message: ProtocolMessage) -> Result<(), String> {
@@ -446,6 +451,10 @@ impl Account {
         }
         if message.is::<QuestLogUpdate>() {
             apply_quest_log_update(&mut self.quest_log, decode(message)?);
+            return Ok(());
+        }
+        if message.is::<DamageMeterSnapshot>() {
+            self.damage_meter = Some(decode(message)?);
             return Ok(());
         }
         if message.is::<DungeonDifficultySet>() {

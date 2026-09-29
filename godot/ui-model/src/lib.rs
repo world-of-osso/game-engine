@@ -77,6 +77,11 @@ pub mod menu_primitives;
 #[path = "../../../src/status_unit_resource_data.rs"]
 pub mod status;
 
+#[path = "../../../src/ui/screens/damage_meter_component.rs"]
+pub mod damage_meter_component;
+#[path = "../../../src/damage_meter_data.rs"]
+pub mod damage_meter_data;
+
 #[path = "../../../src/ui/screens/mirror_timer_component.rs"]
 pub mod mirror_timer_component;
 #[path = "../../../src/mirror_timer_data.rs"]
