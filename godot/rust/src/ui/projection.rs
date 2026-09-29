@@ -26,6 +26,12 @@ const PARTS_NODE: &str = "Parts";
 #[derive(Clone)]
 pub enum UiInput {
     Click(u64),
+    /// A right-click, or a Shift-left-click, on a frame with an `onclick` action.
+    AltClick {
+        id: u64,
+        right: bool,
+        shift: bool,
+    },
     Focus(u64),
     Blur(u64),
     Text(u64, String),
@@ -492,15 +498,22 @@ fn emit(pending: &PendingInputs, input: UiInput) -> Callable {
 fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
     let pending = pending.clone();
     let callback = Callable::from_fn("registry-frame-gui-input", move |args| {
-        let left_press = args
+        let Some(event) = args
             .first()
             .and_then(|event| event.try_to::<Gd<InputEventMouseButton>>().ok())
-            .is_some_and(|event| {
-                event.is_pressed() && event.get_button_index() == godot::global::MouseButton::LEFT
-            });
-        if left_press {
-            pending.borrow_mut().push_back(UiInput::Click(id));
-        }
+            .filter(|event| event.is_pressed())
+        else {
+            return;
+        };
+        let right = event.get_button_index() == godot::global::MouseButton::RIGHT;
+        let left = event.get_button_index() == godot::global::MouseButton::LEFT;
+        let shift = event.is_shift_pressed();
+        let input = match (left, right) {
+            (true, _) if !shift => UiInput::Click(id),
+            (true, _) | (_, true) => UiInput::AltClick { id, right, shift },
+            _ => return,
+        };
+        pending.borrow_mut().push_back(input);
     });
     node.connect("gui_input", &callback);
 }

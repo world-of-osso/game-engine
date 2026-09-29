@@ -355,3 +355,92 @@ fn native_bridge_receives_unit_pose_changes() {
     assert_eq!(standing.position.unwrap().x, 100.0);
     bridge.stop().expect("join fixture worker");
 }
+
+/// A vendor's replicated `NpcFlags` and the player's `Gold` reach the host with their
+/// units, and the server's `VendorInventory` arrives as its protocol message.
+#[test]
+fn native_bridge_receives_vendor_flags_gold_and_inventory() {
+    use shared::components::Gold;
+    use shared::protocol::{MerchantChannel, NpcFlags, VendorInventory, VendorItem};
+
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8195).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    let vendor = server
+        .world_mut()
+        .spawn((
+            Npc {
+                template_id: 1213,
+                name: "Godric Rothgar".into(),
+            },
+            NpcFlags(NpcFlags::VENDOR | NpcFlags::REPAIR),
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let player = server
+        .world_mut()
+        .spawn((
+            Player {
+                name: "Fbworldmap".into(),
+                race: 1,
+                class: 1,
+                appearance: Default::default(),
+            },
+            Gold(12_345),
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    // Both units replicate in one batch; keep whichever arrives first.
+    let (mut npc_flags, mut npc_gold, mut player_gold) = (None, None, None);
+    await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "vendor flags and player gold",
+        |event| {
+            if let Event::UnitUpdated(unit) = event {
+                if unit.server_id == vendor.to_bits() {
+                    (npc_flags, npc_gold) = (unit.npc_flags, unit.gold);
+                } else if unit.server_id == player.to_bits() {
+                    player_gold = unit.gold;
+                }
+            }
+            npc_flags.is_some() && player_gold.is_some()
+        },
+    );
+    assert_eq!(npc_flags, Some(NpcFlags::VENDOR | NpcFlags::REPAIR));
+    assert_eq!(npc_gold, None);
+    assert_eq!(player_gold, Some(12_345));
+    let inventory = VendorInventory {
+        npc: vendor.to_bits(),
+        can_repair: true,
+        items: vec![VendorItem {
+            slot: 0,
+            item_id: 2488,
+            name: "Gladius".into(),
+            quality: 1,
+            price: 57,
+            stack_count: 1,
+            max_stack: 1,
+            num_available: None,
+            usable: true,
+        }],
+    };
+    let mut senders = server
+        .world_mut()
+        .query::<&mut MessageSender<VendorInventory>>();
+    for mut sender in senders.iter_mut(server.world_mut()) {
+        sender.send::<MerchantChannel>(inventory.clone());
+    }
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "vendor inventory",
+        |event| matches!(event, Event::Message(message) if message.is::<VendorInventory>()),
+    ) else {
+        unreachable!()
+    };
+    assert_eq!(message.downcast::<VendorInventory>().ok(), Some(inventory));
+    bridge.stop().expect("join fixture worker");
+}

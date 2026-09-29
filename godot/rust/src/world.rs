@@ -700,6 +700,8 @@ mod tests {
             faction_template: None,
             unit_flags: None,
             in_combat: false,
+            npc_flags: None,
+            gold: None,
         }
     }
 

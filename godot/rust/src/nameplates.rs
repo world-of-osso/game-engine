@@ -224,7 +224,7 @@ impl Nameplates {
         }
     }
 
-    fn templates(
+    pub(crate) fn templates(
         &mut self,
         data_root: &Path,
     ) -> Result<&HashMap<u32, FactionTemplateEntry>, String> {
