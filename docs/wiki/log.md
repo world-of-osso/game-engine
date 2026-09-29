@@ -4,13 +4,17 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
+## [2026-09-28] ui | Native Reset Window Positions
+
+`16ba155d` routes the authored Options action to canonical `ui_layout.ron` for the authenticated selected server character. Its fixture removes ID 17's `window_positions` only, retains ID 18 and account-wide edit-mode data, preserves the Options modal setting, reloads, then verifies the reset layout from a fresh process. No native managed-window movement reader/writer exists; Verifier894 is pending. Updated [[godot-conversion]], [[ui-system]], and the [window-manager spec](../specs/window-manager.md).
+
 ## [2026-09-28] ui | Native local-player unit frame
 
 Selected local replicated name, level, health, combat, and powers feed the shared `PlayerFrame`; rest uses the existing rest-area update. `421eca38` final bounded verification retains authored values, a live health change, off/on visibility, and local-despawn clearing, then fresh-runs the owned UDP fixture to authenticated post-disconnect `CharacterSelect` without a retained local-player position (`/tmp/claude/verify-native-player-frame-final.md`). Visible teardown is only asserted before reconnect: despawn hides `PlayerFrame` and clears its name. No PlayerFrame is inspected after reconnect. Child exit, reader joins, and disposable fixture-root removal are harness lifecycle proof, not UI teardown. Combat/rest icon rendering and post-reconnect PlayerFrame teardown remain unproven. The default fixture's pre-auth `FogDensity` staging failure is separate and out of scope. Updated [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
 
 ## [2026-09-28] ui | Native target-frame HUD visibility
 
-The native target-frame cluster now consumes `hud.show_health_bars` through the shared unit-frame state. The existing owned-UDP NPC Options fixture proves whole-cluster off/on hide/restoration with the same reselected NPC and separately retained nameplate label (RED/GREEN: `/tmp/claude/target-frame-{red,green}-6073af82.log`). Escape clears selection before opening Options; the fixture does not claim otherwise. The later local-player frame is documented above; managed-window reset remains unverified. See [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+The native target-frame cluster now consumes `hud.show_health_bars` through the shared unit-frame state. The existing owned-UDP NPC Options fixture proves whole-cluster off/on hide/restoration with the same reselected NPC and separately retained nameplate label (RED/GREEN: `/tmp/claude/target-frame-{red,green}-6073af82.log`). Escape clears selection before opening Options; the fixture does not claim otherwise. The later local-player frame is documented above; native Reset Window Positions is documented separately. See [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
 
 ## [2026-09-29] ui | Native nameplate Options independently verified
 
