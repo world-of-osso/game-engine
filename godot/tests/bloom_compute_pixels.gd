@@ -47,6 +47,13 @@ func run_test() -> void:
 	state.repeat_u = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
 	state.repeat_v = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
 	sampler = rd.sampler_create(state)
+	# Diagnostic-only mode isolates format conversion from all bloom filtering.
+	# -- --calibrate-packed prints identical f32 inputs through storage and a
+	# raster color attachment, alongside exact nearest-even/truncation bits.
+	if OS.get_cmdline_user_args().has("--calibrate-packed"):
+		calibrate_packed_stores()
+		finish()
+		return
 	var directory: String = get_script().resource_path.get_base_dir().path_join("../shaders")
 	if not compile_shader(directory.path_join("bloom_downsample.glsl"), ""):
 		finish()
@@ -71,6 +78,209 @@ func run_test() -> void:
 	constant.fill(Color(2, 1, 0.75, 0.375))
 	test_fixture(constant, 512, 0.08, "configured-eight-levels", true)
 	finish()
+
+
+func calibrate_packed_stores() -> void:
+	var compute_source := RDShaderSource.new()
+	compute_source.source_compute = """#version 450
+layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
+layout(r11f_g11f_b10f,set=0,binding=0) uniform writeonly image2D target;
+layout(push_constant,std430) uniform Parameters { vec4 value; } p;
+void main() { imageStore(target,ivec2(0),p.value); }
+"""
+	var compute_shader := compile_calibration_shader(compute_source)
+	if not compute_shader.is_valid():
+		return
+	var compute_pipeline := rd.compute_pipeline_create(compute_shader)
+	pipelines.append(compute_pipeline)
+	var raster_source := RDShaderSource.new()
+	raster_source.source_vertex = """#version 450
+void main() {
+    const vec2 vertices[3]=vec2[3](vec2(-1,-1),vec2(3,-1),vec2(-1,3));
+    gl_Position=vec4(vertices[gl_VertexIndex],0,1);
+}
+"""
+	raster_source.source_fragment = """#version 450
+layout(location=0) out vec4 color;
+layout(push_constant,std430) uniform Parameters { vec4 value; } p;
+void main() { color=p.value; }
+"""
+	var raster_shader := compile_calibration_shader(raster_source)
+	if not raster_shader.is_valid():
+		return
+	var format := RDTextureFormat.new()
+	format.width = 1
+	format.height = 1
+	format.format = RenderingDevice.DATA_FORMAT_B10G11R11_UFLOAT_PACK32
+	format.usage_bits = (
+		RenderingDevice.TEXTURE_USAGE_STORAGE_BIT
+		| RenderingDevice.TEXTURE_USAGE_COLOR_ATTACHMENT_BIT
+		| RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
+	)
+	if not rd.texture_is_format_supported_for_usage(format.format, format.usage_bits):
+		failures += 1
+		push_error("Calibration packed storage/color-attachment/readback unsupported")
+		return
+	var storage := rd.texture_create(format, RDTextureView.new())
+	var attachment := rd.texture_create(format, RDTextureView.new())
+	textures.append(storage)
+	textures.append(attachment)
+	if not storage.is_valid() or not attachment.is_valid():
+		failures += 1
+		push_error("Calibration texture allocation failed")
+		return
+	var attachments: Array[RID] = [attachment]
+	var framebuffer := rd.framebuffer_create(attachments)
+	if not framebuffer.is_valid():
+		failures += 1
+		push_error("Calibration framebuffer allocation failed")
+		return
+	var blend := RDPipelineColorBlendState.new()
+	var blend_attachments: Array[RDPipelineColorBlendStateAttachment] = [
+		RDPipelineColorBlendStateAttachment.new()
+	]
+	blend.attachments = blend_attachments
+	var raster_pipeline := rd.render_pipeline_create(
+		raster_shader,
+		rd.framebuffer_get_format(framebuffer),
+		-1,
+		RenderingDevice.RENDER_PRIMITIVE_TRIANGLES,
+		RDPipelineRasterizationState.new(),
+		RDPipelineMultisampleState.new(),
+		RDPipelineDepthStencilState.new(),
+		blend
+	)
+	pipelines.append(raster_pipeline)
+	var output := RDUniform.new()
+	output.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	output.binding = 0
+	output.add_id(storage)
+	var uniforms: Array[RDUniform] = [output]
+	var binding := rd.uniform_set_create(uniforms, compute_shader, 0)
+	if not compute_pipeline.is_valid() or not raster_pipeline.is_valid() or not binding.is_valid():
+		failures += 1
+		push_error("Calibration pipeline/uniform creation failed")
+		if binding.is_valid():
+			rd.free_rid(binding)
+		rd.free_rid(framebuffer)
+		return
+	# Powers of two make all inputs exactly representable in f32. Cases above
+	# and below half-ULP distinguish truncation from nearest and ties-to-even;
+	# the odd tie, binade crossing and subnormal cover different conversion rules.
+	var cases := [
+		["quarter", PackedFloat32Array([1.0 + 0.25 / 64, 2.0 + 0.25 / 32, 1.0 + 0.25 / 32, 1])],
+		["tie-even", PackedFloat32Array([1.0 + 0.5 / 64, 2.0 + 0.5 / 32, 1.0 + 0.5 / 32, 1])],
+		["tie-odd", PackedFloat32Array([1.0 + 1.5 / 64, 2.0 + 1.5 / 32, 1.0 + 1.5 / 32, 1])],
+		[
+			"three-quarter",
+			PackedFloat32Array([1.0 + 0.75 / 64, 2.0 + 0.75 / 32, 1.0 + 0.75 / 32, 1])
+		],
+		["binade", PackedFloat32Array([2.0 - 0.25 / 64, 4.0 - 0.25 / 32, 2.0 - 0.25 / 32, 1])],
+		[
+			"subnormal",
+			PackedFloat32Array(
+				[3.75 * pow(2.0, -20), 3.75 * pow(2.0, -20), 3.75 * pow(2.0, -19), 1]
+			)
+		],
+	]
+	for entry in cases:
+		var values: PackedFloat32Array = entry[1]
+		var parameters := values.to_byte_array()
+		var commands := rd.compute_list_begin()
+		rd.compute_list_bind_compute_pipeline(commands, compute_pipeline)
+		rd.compute_list_bind_uniform_set(commands, binding, 0)
+		rd.compute_list_set_push_constant(commands, parameters, parameters.size())
+		rd.compute_list_dispatch(commands, 1, 1, 1)
+		rd.compute_list_end()
+		var draw := rd.draw_list_begin(framebuffer)
+		rd.draw_list_bind_render_pipeline(draw, raster_pipeline)
+		rd.draw_list_set_push_constant(draw, parameters, parameters.size())
+		rd.draw_list_draw(draw, false, 1, 3)
+		rd.draw_list_end()
+		rd.submit()
+		rd.sync()
+		var stored := rd.texture_get_data(storage, 0).decode_u32(0)
+		var rendered := rd.texture_get_data(attachment, 0).decode_u32(0)
+		var nearest := expected_packed_bits(values, true)
+		var truncated := expected_packed_bits(values, false)
+		print(
+			(
+				"BLOOM_STORE_CALIBRATION %s f32=%s storage=0x%08x raster=0x%08x nearest=0x%08x trunc=0x%08x storage_nearest=%s storage_trunc=%s raster_nearest=%s raster_trunc=%s"
+				% [
+					entry[0],
+					values,
+					stored,
+					rendered,
+					nearest,
+					truncated,
+					stored == nearest,
+					stored == truncated,
+					rendered == nearest,
+					rendered == truncated
+				]
+			)
+		)
+		for channel in range(3):
+			var bits := 5 if channel == 2 else 6
+			var shift := 22 if channel == 2 else channel * 11
+			var mask := (1 << (bits + 5)) - 1
+			print(
+				(
+					"BLOOM_STORE_CHANNEL %s channel%d input=%.12f storage=%.12f raster=%.12f nearest=%.12f trunc=%.12f"
+					% [
+						entry[0],
+						channel,
+						values[channel],
+						decode_unsigned_float((stored >> shift) & mask, bits),
+						decode_unsigned_float((rendered >> shift) & mask, bits),
+						decode_unsigned_float((nearest >> shift) & mask, bits),
+						decode_unsigned_float((truncated >> shift) & mask, bits)
+					]
+				)
+			)
+	rd.free_rid(binding)
+	rd.free_rid(framebuffer)
+
+
+func compile_calibration_shader(source: RDShaderSource) -> RID:
+	var spirv := rd.shader_compile_spirv_from_source(source)
+	for stage in [
+		RenderingDevice.SHADER_STAGE_VERTEX,
+		RenderingDevice.SHADER_STAGE_FRAGMENT,
+		RenderingDevice.SHADER_STAGE_COMPUTE
+	]:
+		var error := spirv.get_stage_compile_error(stage)
+		if not error.is_empty():
+			failures += 1
+			push_error("Calibration shader compile: " + error)
+			return RID()
+	var shader := rd.shader_create_from_spirv(spirv)
+	shaders.append(shader)
+	if not shader.is_valid():
+		failures += 1
+		push_error("Calibration shader creation failed")
+	return shader
+
+
+func expected_packed_bits(values: PackedFloat32Array, nearest: bool) -> int:
+	var packed := 0
+	for channel in range(3):
+		var mantissa := 5 if channel == 2 else 6
+		var value := float(values[channel])
+		var step := packed_ulp(value, mantissa)
+		var rounded := (
+			quantize_unsigned_float(value, mantissa) if nearest else floorf(value / step) * step
+		)
+		var encoded := 0
+		if rounded > 0.0 and rounded < pow(2.0, -14):
+			encoded = roundi(rounded / pow(2.0, -14 - mantissa))
+		elif rounded > 0.0:
+			var float_bits := PackedFloat32Array([rounded]).to_byte_array().decode_u32(0)
+			var exponent := ((float_bits >> 23) & 0xff) - 127
+			var fraction := roundi((rounded / pow(2.0, exponent) - 1.0) * (1 << mantissa))
+			encoded = ((exponent + 15) << mantissa) | fraction
+		packed |= encoded << (22 if channel == 2 else channel * 11)
+	return packed
 
 
 func compile_shader(path: String, defines: String) -> bool:
