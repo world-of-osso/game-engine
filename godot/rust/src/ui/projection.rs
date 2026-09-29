@@ -461,6 +461,12 @@ impl UiProjection {
         };
         label.add_theme_constant_override("outline_size", outline);
         label.add_theme_color_override("font_outline_color", Color::from_rgba(0.0, 0.0, 0.0, 1.0));
+        // FontString `Shadow` (e.g. `ObjectiveTrackerLineFont` black at 1, −1): WoW's
+        // offset y is up, Godot's is down.
+        let (shadow_color, [x, y]) = text.shadow.unwrap_or(([0.0; 4], [0.0, 0.0]));
+        label.add_theme_color_override("font_shadow_color", color(shadow_color));
+        label.add_theme_constant_override("shadow_offset_x", x.round() as i32);
+        label.add_theme_constant_override("shadow_offset_y", (-y).round() as i32);
         Ok(())
     }
 
@@ -512,6 +518,7 @@ impl UiProjection {
             justify_h: data.justify_h,
             justify_v: data.justify_v,
             outline: data.outline,
+            shadow: data.shadow_color.map(|color| (color, data.shadow_offset)),
         };
         self.style_label(&mut node, &text)?;
         node.set_autowrap_mode(godot::classes::text_server::AutowrapMode::WORD);
