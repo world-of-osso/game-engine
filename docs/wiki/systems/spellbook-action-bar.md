@@ -17,6 +17,10 @@ Contract: [spec](../../specs/spellbook-action-bar.md). Code: `godot/rust/src/spe
 - Training dummies (`npc_training_dummy`, e.g. 44548 at Northshire -8970,-150) take hits but never lose health, so the target frame stays full; damage shows in the combat log/text. Auto-attack builds rage (Slam costs 200 tenths).
 - Warrior spells up to level 10 are all instant: the casting bar has no live proof yet.
 
+## Native managed placement
+
+`SpellBookRoot` (formerly authored `SpellBookFrame`) is the Panel root and canonical `ui_layout.ron` key. The native client reads the selected server character's saved logical top-left on open, otherwise places it at (16, 104), clamps to its logical viewport, moves from the top 24 logical units excluding `SpellBookCloseButton`, and writes on left release. A reopened or newly launched client reads the same file; Options Reset Window Positions clears the open book's cache alongside the map. Body/tab/paging clicks are not title drag input. The owned reset-windows fixture extends these assertions but its GREEN run requires a Depot-built extension/fixture. Native merchant coexistence and two-panel slot stacking are not implemented. Source: `godot/rust/src/spells.rs`, `godot/core/src/ui_layout_data.rs`, `godot/tests/options_reset_windows.gd`; contract: [window manager](../../specs/window-manager.md). See also [[world-map]].
+
 ## Fixture
 
 `godot/tests/spellbook_cast.gd`, env `SPELL_ACCOUNT`, `SPELL_CHARACTER`, `SPELL_EXPECT_LEVEL`, `SPELL_CAST=1`, `SPELL_SHOTS`. Place the character at the dummies while offline: `game-server-admin set-position Fbworldmap -8967.3 -146.5 81.7`. A Movie Maker run (`--write-movie cast.avi --fixed-fps 30`) records the cast sequence.

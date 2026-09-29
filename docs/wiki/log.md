@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] ui | Native SpellBookRoot managed placement implementation
+
+`SpellBookRoot` now uses canonical selected-character window positions and the first Panel slot (16, 104), with title-only drag, logical clamp, save/reopen and reset alongside `WorldMapFrame`. The extended authenticated three-process fixture RED on the old downloaded binary at `a4b86a5e` (missing `SpellBookRoot`). The new production code and fixture need a Depot build and GREEN run; no pass is claimed. Merchant coexistence and left/right panel stacking remain unsupported. Updated [[spellbook-action-bar]], [[world-map]], and [window manager spec](../specs/window-manager.md).
+
 ## [2026-09-29] investigation | Optional Depot fixture export
 
 At `be6aeedb`, `scripts/depot-build.py --root <checkout> --fixture native_input_fixture` completed on Depot project `003c4ttwqh`, build `5nqxfxrzpt`, in 206.042 s. It exported the default library and installed `target/debug/examples/native_input_fixture` beneath the originating checkout. The directly launched downloaded fixture then passed local owned-UDP `sound-click` in 30.787 s. Default builds remain library-only; allowlisted `native_npc_visual_fixture` was not remotely built or run. Verifier 963 is pending. This is bounded build/export and fixture proof, not a performance or parity claim. Evidence: `/home/osso/.worktrees/.game-engine-options-depot-20260929/{fixture-build,exported-fixture-runtime}.log`.

@@ -28,12 +28,21 @@ use game_engine_ui_model::spellbook_frame_component::{
     ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SPELLBOOK_ART_FDIDS, SpellbookCategory,
     SpellbookFrameState, SpellbookGroup, SpellbookItemView,
 };
-use godot::classes::{Label3D, ProjectSettings, base_material_3d::BillboardMode};
+use godot::classes::{
+    InputEvent, InputEventMouseButton, InputEventMouseMotion, Label3D, ProjectSettings,
+    base_material_3d::BillboardMode,
+};
 use godot::prelude::*;
 use shared::components::PowerType;
 use shared::protocol::{ActionRef, CastFailed, CombatLogKind};
 
-use crate::{GameClient, ui::RegistryUi};
+use crate::{
+    GameClient,
+    ui::RegistryUi,
+    world_map::{WindowDrag, title_hit},
+};
+use game_engine_ui_model::spellbook_frame_component::{FRAME_H, FRAME_W, frame_layout};
+use godot::global::MouseButton;
 
 /// Retail action bar keys, button 1..12.
 const ACTION_SLOT_KEYS: [InputAction; MAIN_BAR_BUTTONS] = [
@@ -90,6 +99,8 @@ pub(crate) struct SpellsHud {
     bar_ui: Option<Gd<RegistryUi>>,
     cast_ui: Option<Gd<RegistryUi>>,
     book_ui: Option<Gd<RegistryUi>>,
+    book_position: Option<[f32; 2]>,
+    book_drag: Option<WindowDrag>,
     pub(crate) tooltip_ui: Option<Gd<RegistryUi>>,
     book: SpellbookFrameState,
     /// FDID → whether `data/textures/{fdid}.blp` exists or was copied from local CASC.
@@ -111,6 +122,8 @@ impl Default for SpellsHud {
             bar_ui: None,
             cast_ui: None,
             book_ui: None,
+            book_position: None,
+            book_drag: None,
             tooltip_ui: None,
             book: SpellbookFrameState::default(),
             textures: HashMap::new(),
@@ -165,6 +178,8 @@ impl SpellsHud {
             }
         }
         self.cast = None;
+        self.book_position = None;
+        self.book_drag = None;
         self.book = SpellbookFrameState::default();
     }
 
@@ -258,6 +273,48 @@ fn cooldown_text(remaining: f32) -> String {
     }
 }
 
+/// Root position and physical-independent size in logical UI units.
+fn placed_book_rect(viewport: [f32; 2], saved: Option<[f32; 2]>) -> [f32; 4] {
+    let (fit, _) = frame_layout(viewport);
+    let size = [FRAME_W * fit, FRAME_H * fit];
+    let [x, y] = saved.unwrap_or([16.0, 104.0]);
+    [
+        x.clamp(0.0, (viewport[0] - size[0]).max(0.0)),
+        y.clamp(0.0, (viewport[1] - size[1]).max(0.0)),
+        size[0],
+        size[1],
+    ]
+}
+
+#[cfg(test)]
+mod placement_tests {
+    use super::*;
+
+    #[test]
+    fn spellbook_uses_panel_slot_and_clamps_saved_position_at_scaled_viewports() {
+        let viewport = [2304.0, 1296.0];
+        let rect = placed_book_rect(viewport, None);
+        assert_eq!([rect[0], rect[1]], [16.0, 104.0]);
+        let scale = 5.0 / 6.0;
+        let title = Vector2::new(rect[0] + 100.0, rect[1] + 12.0);
+        let close = [rect[0] + 90.0, rect[1] + 3.0, 40.0, 20.0];
+        assert!(!title_hit(rect, title * scale, scale, &[close]));
+        assert!(title_hit(rect, title * scale, scale, &[]));
+        assert!(!title_hit(
+            rect,
+            Vector2::new(rect[0] + 100.0, rect[1] + 100.0) * scale,
+            scale,
+            &[]
+        ));
+        let drag = WindowDrag::begin(title, [rect[0], rect[1]]);
+        let moved = drag.position(Vector2::new(4000.0, 4000.0), viewport, [rect[2], rect[3]]);
+        assert_eq!(moved, [viewport[0] - rect[2], viewport[1] - rect[3]]);
+        let smaller = placed_book_rect([1080.0, 720.0], Some(moved));
+        assert_eq!(smaller[0], 1080.0 - smaller[2]);
+        assert_eq!(smaller[1], 720.0 - smaller[3]);
+    }
+}
+
 impl GameClient {
     /// Per frame, before input edges clear. A failure is reported and closes the spell
     /// UI; it does not end the session.
@@ -311,7 +368,7 @@ impl GameClient {
             .map(|(index, _)| index)
             .collect();
         if toggle {
-            self.toggle_spellbook();
+            self.toggle_spellbook()?;
         }
         for index in pressed {
             self.use_action_button(index)?;
@@ -581,12 +638,23 @@ impl GameClient {
         if let Some(ui) = self.spells.book_ui.take() {
             ui.free();
         }
+        self.spells.book_position = None;
+        self.spells.book_drag = None;
     }
 
-    fn toggle_spellbook(&mut self) {
+    fn toggle_spellbook(&mut self) -> Result<(), String> {
         if self.spellbook_open() {
             self.close_spellbook();
         } else {
+            let id = self
+                .account
+                .session
+                .selected_character_id
+                .ok_or("Spellbook requires selected server character ID")?;
+            let path = game_engine_core::client_options_data::options_path()
+                .with_file_name("ui_layout.ron");
+            self.spells.book_position =
+                game_engine_core::ui_layout_data::window_position(&path, id, "SpellBookRoot")?;
             self.spells.book.page = 0;
             self.spells.book.selected = 0;
             // Created by `sync_spellbook` on this frame.
@@ -596,6 +664,7 @@ impl GameClient {
             self.base_mut().add_child(&ui);
             self.spells.book_ui = Some(ui);
         }
+        Ok(())
     }
 
     fn spellbook_player(&self) -> Option<SpellbookPlayer> {
@@ -630,8 +699,9 @@ impl GameClient {
             .map_or(Vector2::new(1280.0, 720.0), |viewport| {
                 viewport.get_visible_rect().size
             });
+        let scale = self.effective_ui_scale();
         let mut state = SpellbookFrameState {
-            viewport: [size.x, size.y],
+            viewport: [size.x / scale, size.y / scale],
             categories,
             selected: self.spells.book.selected,
             page: self.spells.book.page,
@@ -651,19 +721,145 @@ impl GameClient {
             .spells
             .book_ui
             .as_ref()
-            .is_some_and(|ui| ui.bind().has_frame("SpellBookFrame"))
+            .is_some_and(|ui| ui.bind().has_frame("SpellBookRoot"))
         {
+            let scale = self.effective_ui_scale();
             let ui = self.spells.book_ui.as_mut().expect("spellbook open");
-            return ui.bind_mut().set_state(state);
+            ui.bind_mut().set_ui_scale(scale)?;
+            ui.bind_mut().set_state(state)?;
+            return self.place_spellbook();
         }
-        let shown = self.ensure_art(&SPELLBOOK_ART_FDIDS).and_then(|()| {
-            let ui = self.spells.book_ui.as_mut().expect("spellbook open");
-            ui.bind_mut().show_spellbook(state)
-        });
+        let scale = self.effective_ui_scale();
+        let shown = self
+            .ensure_art(&SPELLBOOK_ART_FDIDS)
+            .and_then(|()| {
+                let ui = self.spells.book_ui.as_mut().expect("spellbook open");
+                ui.bind_mut().set_ui_scale(scale)?;
+                ui.bind_mut().show_spellbook(state)
+            })
+            .and_then(|()| self.place_spellbook());
         if shown.is_err() {
             self.close_spellbook();
         }
         shown
+    }
+
+    fn place_spellbook(&mut self) -> Result<(), String> {
+        let rect = placed_book_rect(self.spells.book.viewport, self.spells.book_position);
+        self.spells
+            .book_ui
+            .as_mut()
+            .ok_or("Spellbook UI vanished")?
+            .bind_mut()
+            .set_window_position("SpellBookRoot", [rect[0], rect[1]])
+    }
+
+    pub(super) fn reset_open_spellbook_position(&mut self) -> Result<(), String> {
+        self.spells.book_position = None;
+        self.spells.book_drag = None;
+        if self.spellbook_open() {
+            self.place_spellbook()?;
+        }
+        Ok(())
+    }
+
+    /// Capture only title motion; leave authored buttons and body clicks to Godot.
+    pub(super) fn spellbook_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        if !self.spellbook_open() || self.game_menu_ui.is_some() {
+            return false;
+        }
+        let rect = placed_book_rect(self.spells.book.viewport, self.spells.book_position);
+        let scale = self.effective_ui_scale();
+        if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            return self.move_spellbook(&motion, rect, scale);
+        }
+        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return false;
+        };
+        self.press_spellbook_title(&button, rect, scale)
+    }
+
+    fn move_spellbook(
+        &mut self,
+        motion: &Gd<InputEventMouseMotion>,
+        rect: [f32; 4],
+        scale: f32,
+    ) -> bool {
+        let Some(drag) = &self.spells.book_drag else {
+            return false;
+        };
+        self.spells.book_position = Some(drag.position(
+            motion.get_position() / scale,
+            self.spells.book.viewport,
+            [rect[2], rect[3]],
+        ));
+        if let Err(error) = self.place_spellbook() {
+            godot_error!("Spellbook drag: {error}");
+        }
+        true
+    }
+
+    fn spellbook_close_rect(&self, scale: f32) -> Option<[f32; 4]> {
+        let ui = self.spells.book_ui.as_ref()?;
+        let node = ui
+            .find_child_ex("SpellBookCloseButton")
+            .owned(false)
+            .done()?;
+        let control = node.try_cast::<godot::classes::Control>().ok()?;
+        let rect = control.get_global_rect();
+        Some([
+            rect.position.x / scale,
+            rect.position.y / scale,
+            rect.size.x / scale,
+            rect.size.y / scale,
+        ])
+    }
+
+    fn press_spellbook_title(
+        &mut self,
+        button: &Gd<InputEventMouseButton>,
+        rect: [f32; 4],
+        scale: f32,
+    ) -> bool {
+        if button.get_button_index() != MouseButton::LEFT {
+            return false;
+        }
+        if !button.is_pressed() && self.spells.book_drag.take().is_some() {
+            self.persist_spellbook_position();
+            return true;
+        }
+        if !button.is_pressed() {
+            return false;
+        }
+        let close = self.spellbook_close_rect(scale);
+        let buttons = close.as_ref().map(std::slice::from_ref).unwrap_or(&[]);
+        if title_hit(rect, button.get_position(), scale, buttons) {
+            self.spells.book_drag = Some(WindowDrag::begin(
+                button.get_position() / scale,
+                [rect[0], rect[1]],
+            ));
+            return true;
+        }
+        false
+    }
+
+    fn persist_spellbook_position(&self) {
+        let (Some(id), Some(position)) = (
+            self.account.session.selected_character_id,
+            self.spells.book_position,
+        ) else {
+            return;
+        };
+        let path =
+            game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
+        if let Err(error) = game_engine_core::ui_layout_data::save_window_position(
+            &path,
+            id,
+            "SpellBookRoot",
+            position,
+        ) {
+            godot_error!("Spellbook placement: {error}");
+        }
     }
 
     fn poll_spellbook_actions(&mut self) -> Result<(), String> {
@@ -671,7 +867,7 @@ impl GameClient {
             .spells
             .book_ui
             .as_mut()
-            .filter(|ui| ui.bind().has_frame("SpellBookFrame"))
+            .filter(|ui| ui.bind().has_frame("SpellBookRoot"))
         else {
             return Ok(());
         };

@@ -43,8 +43,6 @@ enum HudAnchor {
     BottomRight,
 }
 
-const WORLD_MAP_KEY: &str = "WorldMapFrame";
-
 fn read_layout(path: &Path) -> Result<LayoutFile, String> {
     let raw = match fs::read_to_string(path) {
         Ok(raw) => raw,
@@ -76,23 +74,28 @@ fn write_layout(path: &Path, file: &LayoutFile) -> Result<(), String> {
         .map_err(|error| format!("failed to write UI layout {}: {error}", path.display()))
 }
 
-pub fn world_map_position(path: &Path, character_id: u64) -> Result<Option<[f32; 2]>, String> {
+pub fn window_position(
+    path: &Path,
+    character_id: u64,
+    root: &str,
+) -> Result<Option<[f32; 2]>, String> {
     Ok(read_layout(path)?
         .window_positions
         .get(&character_id.to_string())
-        .and_then(|windows| windows.get(WORLD_MAP_KEY).copied()))
+        .and_then(|windows| windows.get(root).copied()))
 }
 
-pub fn save_world_map_position(
+pub fn save_window_position(
     path: &Path,
     character_id: u64,
+    root: &str,
     position: [f32; 2],
 ) -> Result<(), String> {
     let mut file = read_layout(path)?;
     file.window_positions
         .entry(character_id.to_string())
         .or_default()
-        .insert(WORLD_MAP_KEY.to_string(), position);
+        .insert(root.to_string(), position);
     write_layout(path, &file)
 }
 
@@ -139,18 +142,34 @@ mod tests {
             std::process::id(),
             std::thread::current().name().unwrap_or("worker")
         ));
-        assert_eq!(world_map_position(&path, 17).unwrap(), None);
-        save_world_map_position(&path, 17, [210.0, 104.0]).unwrap();
-        save_world_map_position(&path, 18, [75.0, 80.0]).unwrap();
-        assert_eq!(world_map_position(&path, 17).unwrap(), Some([210.0, 104.0]));
-        assert_eq!(world_map_position(&path, 18).unwrap(), Some([75.0, 80.0]));
+        assert_eq!(window_position(&path, 17, "SpellBookRoot").unwrap(), None);
+        save_window_position(&path, 17, "WorldMapFrame", [210.0, 104.0]).unwrap();
+        save_window_position(&path, 17, "SpellBookRoot", [40.0, 120.0]).unwrap();
+        save_window_position(&path, 18, "WorldMapFrame", [75.0, 80.0]).unwrap();
+        save_window_position(&path, 18, "SpellBookRoot", [70.0, 90.0]).unwrap();
+        assert_eq!(
+            window_position(&path, 17, "WorldMapFrame").unwrap(),
+            Some([210.0, 104.0])
+        );
+        assert_eq!(
+            window_position(&path, 17, "SpellBookRoot").unwrap(),
+            Some([40.0, 120.0])
+        );
         reset_window_positions(&path, Some(17)).unwrap();
-        assert_eq!(world_map_position(&path, 17).unwrap(), None);
-        assert_eq!(world_map_position(&path, 18).unwrap(), Some([75.0, 80.0]));
+        assert_eq!(window_position(&path, 17, "WorldMapFrame").unwrap(), None);
+        assert_eq!(window_position(&path, 17, "SpellBookRoot").unwrap(), None);
+        assert_eq!(
+            window_position(&path, 18, "WorldMapFrame").unwrap(),
+            Some([75.0, 80.0])
+        );
+        assert_eq!(
+            window_position(&path, 18, "SpellBookRoot").unwrap(),
+            Some([70.0, 90.0])
+        );
         let raw = fs::read_to_string(&path).unwrap();
         fs::write(&path, "(window_positions: invalid)").unwrap();
-        assert!(world_map_position(&path, 18).is_err());
-        assert!(save_world_map_position(&path, 17, [1.0, 2.0]).is_err());
+        assert!(window_position(&path, 18, "SpellBookRoot").is_err());
+        assert!(save_window_position(&path, 17, "SpellBookRoot", [1.0, 2.0]).is_err());
         assert_eq!(
             fs::read_to_string(&path).unwrap(),
             "(window_positions: invalid)"
