@@ -8,7 +8,10 @@ use std::path::Path;
 use std::str::FromStr;
 
 use super::csv_records::CsvTable;
-use super::{CatalogEffect, CatalogSpell, SpellCharges, SpellCooldown, SpellPowerCost, SpellRange};
+use super::{
+    CatalogEffect, CatalogSpell, SpellAutoAttack, SpellCharges, SpellCooldown, SpellPowerCost,
+    SpellRange,
+};
 
 /// Source CSVs, also the cache key inputs.
 pub(super) const SOURCE_TABLES: &[&str] = &[
@@ -41,6 +44,10 @@ const SPELL_ATTR0_PASSIVE: i64 = 0x40;
 /// `SpellMisc.Attributes_0` SPELL_ATTR0_DO_NOT_DISPLAY: hidden in the spellbook,
 /// aura icons and combat log.
 const SPELL_ATTR0_DO_NOT_DISPLAY: i64 = 0x80;
+/// `SpellMisc.Attributes_1` SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK.
+const SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK: i64 = 0x200;
+/// `SpellMisc.Attributes_2` SPELL_ATTR2_INITIATE_COMBAT_POST_CAST_ENABLES_AUTO_ATTACK.
+const SPELL_ATTR2_INITIATE_COMBAT_POST_CAST_ENABLES_AUTO_ATTACK: i64 = 0x0010_0000;
 
 pub(super) fn build_spells(dir: &Path) -> Result<Vec<CatalogSpell>, String> {
     let mut spells = load_names(dir)?;
@@ -181,6 +188,8 @@ fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         "SpellIconFileDataID",
         "ActiveIconFileDataID",
         "Attributes_0",
+        "Attributes_1",
+        "Attributes_2",
     ];
     for_each_row(dir, "SpellMisc", &columns, |row| {
         if !row.is_base_difficulty(1)? {
@@ -199,8 +208,19 @@ fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         let attributes = row.get::<i64>(8)?;
         spell.passive = attributes & SPELL_ATTR0_PASSIVE != 0;
         spell.hidden = attributes & SPELL_ATTR0_DO_NOT_DISPLAY != 0;
+        spell.auto_attack = auto_attack(row.get(9)?, row.get(10)?);
         Ok(())
     })
+}
+
+fn auto_attack(attributes_1: i64, attributes_2: i64) -> SpellAutoAttack {
+    if attributes_1 & SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK != 0 {
+        SpellAutoAttack::OnCast
+    } else if attributes_2 & SPELL_ATTR2_INITIATE_COMBAT_POST_CAST_ENABLES_AUTO_ATTACK != 0 {
+        SpellAutoAttack::PostCast
+    } else {
+        SpellAutoAttack::None
+    }
 }
 
 fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {

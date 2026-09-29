@@ -317,6 +317,7 @@ impl GameClient {
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.apply_targeting_input();
         }
+        self.follow_selection_with_auto_attack()?;
         self.send_target()?;
         self.sync_target_circle()?;
         Ok(self.sync_target_frame()?)
@@ -459,6 +460,7 @@ impl GameClient {
                 .as_str(),
         );
         state.set("sent", &optional_id(self.targeting.sent));
+        state.set("auto_attack", &optional_id(self.auto_attack_victim()));
         state.set(
             "circle_on",
             &optional_id(self.targeting.circle.as_ref().map(|(id, _)| *id)),

@@ -151,7 +151,10 @@ impl GameClient {
                 None => return Ok(()),
             },
         };
-        if self.unit_right_click(unit) == RightClick::Interact {
+        // Right-clicking an attackable unit attacks it (`CMSG_ATTACK_SWING`).
+        if self.can_auto_attack(unit) {
+            self.start_auto_attack(unit)?;
+        } else if self.unit_right_click(unit) == RightClick::Interact {
             self.account.send_interact(unit)?;
         }
         Ok(())

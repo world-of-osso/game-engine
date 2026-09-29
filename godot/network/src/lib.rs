@@ -30,14 +30,15 @@ use shared::{
         UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
     },
     protocol::{
-        ActionBarSnapshot, BuybackList, CastFailed, CharacterListUpdate, CombatEvent,
-        CombatLogEvent, CreateCharacterResponse, DeleteCharacterResponse, DungeonDifficultySet,
-        DurabilityStateUpdate, EnterWorldResponse, ForcedDisconnect, InstanceInfo,
-        InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta, InventoryError,
-        InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed,
-        MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, NpcFlags, QuestLogSnapshot,
-        QuestLogUpdate, RegisterResponse, SpecializationChanged, SpellCooldownUpdate, SpellGo,
-        SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
+        ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
+        CharacterListUpdate, CombatEvent, CombatLogEvent, CreateCharacterResponse,
+        DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate, EnterWorldResponse,
+        ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed, InteractionOpened,
+        InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
+        LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop,
+        NewWorld, NpcFlags, QuestLogSnapshot, QuestLogUpdate, RegisterResponse,
+        SpecializationChanged, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned,
+        TransferAborted, VendorInventory,
     },
 };
 
@@ -221,6 +222,9 @@ impl NetworkBridge {
             // combat animations and spell visuals.
             .receive::<CombatEvent>()
             .receive::<SpellGo>()
+            // Auto-attack starts and stops of every replicated unit.
+            .receive::<AttackStart>()
+            .receive::<AttackStopped>()
             // NPC interaction, the merchant frame and the bags it sells from.
             .receive::<InteractionOpened>()
             .receive::<InteractionFailed>()

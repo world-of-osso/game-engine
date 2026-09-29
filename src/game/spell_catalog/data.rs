@@ -58,6 +58,20 @@ pub struct CatalogEffect {
     pub caster_scaled: bool,
 }
 
+/// Whether casting the spell starts the caster's auto-attack on its target, a client
+/// rule: the client sends the attack request (TrinityCore SharedDefines.h:482
+/// `SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK` "(client only) Caster will begin
+/// auto-attacking the target on cast", :530 `SPELL_ATTR2_INITIATE_COMBAT_POST_CAST_ENABLES_AUTO_ATTACK`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SpellAutoAttack {
+    #[default]
+    None,
+    /// `SpellMisc.Attributes_1 & 0x200`: on cast (melee abilities such as Slam).
+    OnCast,
+    /// `SpellMisc.Attributes_2 & 0x100000` alone: once the cast completes (Smite).
+    PostCast,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CatalogSpell {
     pub id: u32,
@@ -74,6 +88,7 @@ pub struct CatalogSpell {
     pub passive: bool,
     /// `SpellMisc.Attributes_0 & 0x80` (SPELL_ATTR0_DO_NOT_DISPLAY).
     pub hidden: bool,
+    pub auto_attack: SpellAutoAttack,
     pub cast_time_ms: i32,
     pub range: SpellRange,
     /// `SpellDuration.Duration`; 0 = no duration, negative = until cancelled.
