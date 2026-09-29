@@ -1257,6 +1257,39 @@ fn run_fixture(
     ))
 }
 
+fn stage_isolated_project(
+    root: &Path,
+    screen: StartupScreen,
+) -> Option<reset_windows::FixtureProject> {
+    let project = matches!(
+        screen,
+        StartupScreen::ResetWindows
+            | StartupScreen::SoundClick
+            | StartupScreen::MerchantClick
+            | StartupScreen::PortalDensity
+    )
+    .then(|| {
+        reset_windows::FixtureProject::create(
+            root,
+            matches!(
+                screen,
+                StartupScreen::SoundClick
+                    | StartupScreen::MerchantClick
+                    | StartupScreen::PortalDensity
+            ),
+        )
+        .expect("stage isolated reset data and Godot project")
+    });
+    if screen == StartupScreen::PortalDensity {
+        project
+            .as_ref()
+            .expect("density fixture project")
+            .stage_density_sensitive_portal(root)
+            .expect("stage controlled density-sensitive portal without changing original");
+    }
+    project
+}
+
 fn main() {
     let screen = StartupScreen::from_example_args();
     let (mut app, address) = start_server();
@@ -1283,32 +1316,7 @@ fn main() {
             launcher.display()
         );
     }
-    let reset_project = matches!(
-        screen,
-        StartupScreen::ResetWindows
-            | StartupScreen::SoundClick
-            | StartupScreen::MerchantClick
-            | StartupScreen::PortalDensity
-    )
-    .then(|| {
-        reset_windows::FixtureProject::create(
-            root,
-            matches!(
-                screen,
-                StartupScreen::SoundClick
-                    | StartupScreen::MerchantClick
-                    | StartupScreen::PortalDensity
-            ),
-        )
-        .expect("stage isolated reset data and Godot project")
-    });
-    if screen == StartupScreen::PortalDensity {
-        reset_project
-            .as_ref()
-            .expect("density fixture project")
-            .stage_density_sensitive_portal(root)
-            .expect("stage controlled density-sensitive portal without changing original");
-    }
+    let reset_project = stage_isolated_project(root, screen);
     let project = reset_project
         .as_ref()
         .map_or_else(|| root.join("godot"), |fixture| fixture.project.clone());
