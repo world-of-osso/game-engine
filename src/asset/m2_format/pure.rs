@@ -13,6 +13,8 @@ pub mod m2_bone_names;
 pub mod m2_camera;
 #[path = "m2_collision.rs"]
 pub mod m2_collision;
+#[path = "m2_event.rs"]
+pub mod m2_event;
 #[path = "m2_light.rs"]
 pub mod m2_light;
 #[path = "m2_particle.rs"]

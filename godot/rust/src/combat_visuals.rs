@@ -39,7 +39,7 @@ impl GameClient {
         held.and(advanced)
     }
 
-    /// Recent kit starts and the kit models, missiles and unit actions shown now.
+    /// Recent kit starts and missile flights, and the kit models and missiles shown now.
     pub(super) fn spell_visuals_snapshot(&self) -> VarDictionary {
         let mut state = VarDictionary::new();
         let mut started = VarArray::new();
@@ -67,6 +67,19 @@ impl GameClient {
         }
         state.set("active", &active);
         state.set("missiles", self.spell_effects.missile_count() as i64);
+        let mut flights = VarArray::new();
+        for flight in self.spell_effects.flights() {
+            let mut entry = VarDictionary::new();
+            entry.set("spell", i64::from(flight.spell_id));
+            entry.set("caster", flight.caster as i64);
+            entry.set("target", flight.target as i64);
+            entry.set("release_delay", flight.release_delay);
+            entry.set("distance", flight.distance);
+            entry.set("speed", flight.speed);
+            entry.set("flight_time", flight.flight_time.map_or(-1.0, f64::from));
+            flights.push(&entry.to_variant());
+        }
+        state.set("flights", &flights);
         state
     }
 }

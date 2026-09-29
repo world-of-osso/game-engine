@@ -4,6 +4,21 @@
 
 Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). Scaled known-spell tooltip anchoring passes against the prior native artifact; the coordinate corrections still require a new Depot artifact. See [[ui-system]].
 
+## [2026-09-29] investigation | Spell missiles leave at the cast clip's release event
+
+**Symptom.** Frostbolt's missile launched the instant `SpellGo` arrived. The hands were still at the chest in ReadySpellDirected 51, and the missile hit before SpellCastDirected 53 thrust the arm.
+
+**Retail rule.** A pending missile is released by the caster's cast clip firing the M2 event `$CSL`, `$CSR` or `$CST` (wowdev.wiki/M2 Events). HumanMale and HumanFemale HD fire `$CSL` at 200 ms of clip 53. `SpellMisc.Speed` is in yd/s (TrinityCore `Spell.cpp:2515`). The 7.7 yd Frostbolt flight at 35 yd/s really does last 0.22 s.
+
+**Changes.**
+- M2 event parser (`m2_event.rs`; `.skel` models read AFM2 timestamps from `.anim`, each file loaded once).
+- The action layer reports a pending release event.
+- `SpellEffects` holds the missile until the event fires, then launches it facing the target.
+
+**Server gap, not fixed.** game-server applies the damage and combat log in the same tick as `SpellGo`, so the number shows about 0.4 s before the impact. TrinityCore delays each hit by `max(dist, 5) / Speed`.
+
+Details in [[spell-visuals]].
+
 ## [2026-09-29] verification | Options integration correction
 
 `253f8238` merged verified Options `e8599fb0`; `818d7c53` reconciled `ensure_art` without losing concurrent `67e6e430`. At `4c0acc91`, `958e612a` fixed merchant-fixture hostility with real friendly `UnitFactionTemplate`s: vendor `NpcFlags` alone does not prevent auto-attack. Existing Depot `fg7w9m1g7w` and four owned modes pass (three retained, merchant fresh). Original `CombatEvent` still reaches outcome audio and visuals once; `SpellGo` and later frame steps survive `FrameError::Client`. Pure Rust tests were not run under Depot-only constraints. Updated [[godot-conversion]] and [parity matrix](../specs/godot-parity-matrix.md).
