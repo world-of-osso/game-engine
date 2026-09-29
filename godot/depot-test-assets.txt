@@ -103,6 +103,8 @@ db2/12.1.0.69933/SpellVisualMissile.csv
 db2/12.1.0.69933/AnimKitSegment.csv
 db2/12.1.0.69933/PlayerCondition.csv
 db2/12.1.0.69933/AnimationData.csv
+db2/12.1.0.69933/SoundKit.csv
+db2/12.1.0.69933/SoundKitEntry.csv
 
 # game-engine-core --lib
 textures/464811.blp

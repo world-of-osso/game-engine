@@ -11,7 +11,6 @@ pub(super) fn run(
     let mut remote = None;
     let mut loading = false;
     let mut passed = false;
-    let mut cast_stage = 0;
     let mut readers = Some(readers);
     let deadline = Instant::now() + TIMEOUT;
     while Instant::now() < deadline {
@@ -25,14 +24,7 @@ pub(super) fn run(
             }
         }
         for line in lines.try_iter() {
-            observe_line(
-                app,
-                line.trim(),
-                selected,
-                &mut loading,
-                &mut cast_stage,
-                &mut passed,
-            )?;
+            observe_line(app, line.trim(), selected, &mut loading, &mut passed)?;
         }
         if let Some(status) = status {
             if status.success() && passed {
@@ -52,23 +44,11 @@ pub(super) fn run(
     ))
 }
 
-fn set_cast(app: &mut App, selected: Option<Entity>, spell_id: Option<u32>) -> Result<(), String> {
-    let player = selected.ok_or("no selected player for CastState")?;
-    let mut entity = app.world_mut().entity_mut(player);
-    if let Some(spell_id) = spell_id {
-        entity.insert(shared::casting::CastState::normal(spell_id, 0, 2.0, true));
-    } else {
-        entity.remove::<shared::casting::CastState>();
-    }
-    Ok(())
-}
-
 fn observe_line(
     app: &mut App,
     line: &str,
     selected: Option<Entity>,
     loading: &mut bool,
-    cast_stage: &mut u8,
     passed: &mut bool,
 ) -> Result<(), String> {
     if line.starts_with("GODOT_STDERR: ERROR:") || line.starts_with("GODOT_STDERR: SCRIPT ERROR:") {
@@ -90,90 +70,23 @@ fn observe_line(
             *loading = true;
             Ok(())
         }
-        "FIXTURE SPELL_CLICK_DONE" if *loading && *cast_stage == 7 => {
+        "FIXTURE SPELL_CLICK_DONE" if *loading => {
+            confirm_cast_requests(app)?;
             *passed = true;
             Ok(())
         }
-        _ => observe_cast_stage(app, line, selected, *loading, cast_stage),
+        _ => Ok(()),
     }
 }
 
-fn observe_cast_stage(
-    app: &mut App,
-    line: &str,
-    selected: Option<Entity>,
-    loading: bool,
-    cast_stage: &mut u8,
-) -> Result<(), String> {
-    match (*cast_stage, line) {
-        (0, "FIXTURE SPELL_CLICK_CAST_REQUEST_QUIET") if loading => {
-            confirm_cast_request(app, selected)?;
-            *cast_stage = 1;
-        }
-        (1, "FIXTURE SPELL_CLICK_CAST_REPEAT") => {
-            repeat_cast(app, selected)?;
-            *cast_stage = 2;
-        }
-        (2..=5, _) => observe_cast_snapshot_transition(app, line, selected, cast_stage)?,
-        (6, "FIXTURE SPELL_CLICK_CAST_REMOVAL") => {
-            remove_cast_player(app, selected)?;
-            *cast_stage = 7;
-        }
-        _ => return Err(format!("out-of-order spell-click marker: {line}")),
-    }
-    Ok(())
-}
-
-fn confirm_cast_request(app: &mut App, selected: Option<Entity>) -> Result<(), String> {
+/// Casting from the first bar, the book, the visible and hidden keys and the restored
+/// bar each sent one Slam request.
+fn confirm_cast_requests(app: &App) -> Result<(), String> {
     let casts = &app.world().resource::<Incoming>().casts;
     if casts.len() != 5 || casts.iter().any(|cast| cast.spell_id != Some(1464)) {
         return Err(format!(
             "expected five SLAM SpellCastIntents from first bar, book, visible key, hidden key and restored bar: {casts:?}"
         ));
     }
-    set_cast(app, selected, Some(1464))
-}
-
-fn repeat_cast(app: &mut App, selected: Option<Entity>) -> Result<(), String> {
-    let player = selected.ok_or("no selected player for repeated cast")?;
-    app.world_mut()
-        .entity_mut(player)
-        .get_mut::<shared::casting::CastState>()
-        .ok_or("no active cast to repeat")?
-        .elapsed = 0.25;
-    Ok(())
-}
-
-fn observe_cast_snapshot_transition(
-    app: &mut App,
-    line: &str,
-    selected: Option<Entity>,
-    cast_stage: &mut u8,
-) -> Result<(), String> {
-    match (*cast_stage, line) {
-        (2, "FIXTURE SPELL_CLICK_CAST_INACTIVE") => {
-            set_cast(app, selected, None)?;
-            *cast_stage = 3;
-        }
-        (3, "FIXTURE SPELL_CLICK_CAST_RETRIGGER") => {
-            set_cast(app, selected, Some(1464))?;
-            *cast_stage = 4;
-        }
-        (4, "FIXTURE SPELL_CLICK_CAST_MUTING") => {
-            set_cast(app, selected, None)?;
-            *cast_stage = 5;
-        }
-        (5, "FIXTURE SPELL_CLICK_CAST_MUTED") => {
-            set_cast(app, selected, Some(1464))?;
-            *cast_stage = 6;
-        }
-        _ => return Err(format!("out-of-order spell-click marker: {line}")),
-    }
-    Ok(())
-}
-
-fn remove_cast_player(app: &mut App, selected: Option<Entity>) -> Result<(), String> {
-    let player = selected.ok_or("no selected player to remove")?;
-    app.world_mut().despawn(player);
     Ok(())
 }

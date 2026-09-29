@@ -22,7 +22,8 @@ use std::rc::Rc;
 
 use game_engine_core::m2;
 use game_engine_core::spell_visual::{
-    CasterContext, KitModel, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit, VisualMissile,
+    CasterContext, KitModel, KitSound, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit,
+    VisualMissile,
 };
 use game_engine_network::UnitSnapshot;
 use godot::builtin::{Basis, EulerOrder, Transform3D, Vector3};
@@ -36,10 +37,10 @@ use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
 use crate::assets::{build_model, read_model};
 use crate::particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis};
+use crate::spell_sounds::{SoundRequest, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
 const DB2_DIR: &str = "db2/12.1.0.69933";
-const CACHE_FILE: &str = "cache/spell_visuals-12.1.0.69933.bin";
 /// Kit model clips when `SpellVisualKitModelAttach` leaves them unset: Stand plays as
 /// the start, Hold (158) loops while a held kit lasts and Decay (159) plays at its end,
 /// as spell effect models author their emission (e.g. Battle Shout 6194303).
@@ -198,7 +199,8 @@ pub struct MissileFlight {
     pub speed: f32,
     /// Release to arrival, once arrived.
     pub flight_time: Option<f32>,
-    released_at: f32,
+    /// Effects clock at release.
+    pub released_at: f32,
     id: u64,
 }
 
@@ -232,10 +234,66 @@ pub struct KitStart {
     pub models: Vec<u32>,
 }
 
+/// When the client saw a unit's cast start (`CastState` replicated) or resolve
+/// (`SpellGo`), for automation and logs.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CastSeen {
+    pub spell_id: u32,
+    pub unit: u64,
+    /// `true` for `SpellGo`, `false` for the first replicated `CastState`.
+    pub go: bool,
+    /// Effects clock and wall time (Unix ms).
+    pub at: f32,
+    pub wall_ms: u64,
+    /// The replicated cast's elapsed and total seconds (`CastState` only).
+    pub elapsed: f32,
+    pub duration: f32,
+}
+
+/// The spell visual catalog, loaded on a worker thread from client start: building it
+/// from the CSVs takes seconds (1.3M `SoundKitEntry` rows), which on the main thread at the
+/// first cast froze the client through the whole cast (26-30 s on a loaded machine).
+struct Catalog {
+    worker: Option<std::thread::JoinHandle<Result<SpellVisualCatalog, String>>>,
+    loaded: Option<Result<SpellVisualCatalog, String>>,
+}
+
+impl Catalog {
+    fn load(data_root: &std::path::Path) -> Self {
+        let db2 = data_root.join(DB2_DIR);
+        let cache = data_root
+            .join("cache")
+            .join(SpellVisualCatalog::cache_file_name());
+        let worker = std::thread::spawn(move || {
+            SpellVisualCatalog::load(&db2, &cache)
+                .map_err(|error| format!("Spell visuals: {error}"))
+        });
+        Self {
+            worker: Some(worker),
+            loaded: None,
+        }
+    }
+
+    /// The catalog, waiting for the worker when a cast needs it before it is done.
+    fn get(&mut self) -> Result<&SpellVisualCatalog, String> {
+        if let Some(worker) = self.worker.take() {
+            let loaded = worker
+                .join()
+                .unwrap_or_else(|_| Err("Spell visuals: the catalog worker panicked".into()));
+            self.loaded = Some(loaded);
+        }
+        self.loaded
+            .as_ref()
+            .expect("the worker's result replaces it")
+            .as_ref()
+            .map_err(Clone::clone)
+    }
+}
+
 pub struct SpellEffects {
     data_root: PathBuf,
     cache_root: PathBuf,
-    catalog: Option<Result<SpellVisualCatalog, String>>,
+    catalog: Catalog,
     resolver: Option<CascListfileResolver>,
     models: HashMap<u32, Result<Rc<EffectModel>, String>>,
     active: Vec<ActiveEffect>,
@@ -247,6 +305,9 @@ pub struct SpellEffects {
     flights: Vec<MissileFlight>,
     /// Seconds advanced since creation.
     clock: f32,
+    /// Newest cast starts and resolutions seen, oldest first, bounded.
+    casts_seen: Vec<CastSeen>,
+    sounds: SpellSounds,
     next_flight: u64,
     held: HashMap<u64, HeldCast>,
     pools: ParticlePools,
@@ -260,10 +321,11 @@ const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
     pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+        let catalog = Catalog::load(&data_root);
         Self {
             data_root,
             cache_root,
-            catalog: None,
+            catalog,
             resolver: None,
             models: HashMap::new(),
             active: Vec::new(),
@@ -272,6 +334,8 @@ impl SpellEffects {
             ready: Vec::new(),
             flights: Vec::new(),
             clock: 0.0,
+            casts_seen: Vec::new(),
+            sounds: SpellSounds::default(),
             next_flight: 0,
             held: HashMap::new(),
             pools: ParticlePools::new(1.0),
@@ -282,14 +346,7 @@ impl SpellEffects {
     }
 
     fn catalog(&mut self) -> Result<&SpellVisualCatalog, String> {
-        let data_root = &self.data_root;
-        self.catalog
-            .get_or_insert_with(|| {
-                SpellVisualCatalog::load(&data_root.join(DB2_DIR), &data_root.join(CACHE_FILE))
-                    .map_err(|error| format!("Spell visuals: {error}"))
-            })
-            .as_ref()
-            .map_err(Clone::clone)
+        self.catalog.get()
     }
 
     /// Kit starts since the world loaded, oldest first.
@@ -321,7 +378,41 @@ impl SpellEffects {
         &self.flights
     }
 
+    /// Kit sound starts since the world loaded, oldest first.
+    pub fn sound_starts(&self) -> &[SoundStart] {
+        self.sounds.started()
+    }
+
+    /// Recent cast starts and resolutions seen, oldest first.
+    pub fn casts_seen(&self) -> &[CastSeen] {
+        &self.casts_seen
+    }
+
+    fn see_cast(&mut self, spell_id: u32, unit: u64, go: bool, elapsed: f32, duration: f32) {
+        if self.casts_seen.len() == STARTED_KEEP {
+            self.casts_seen.remove(0);
+        }
+        let wall_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |since| since.as_millis() as u64);
+        self.casts_seen.push(CastSeen {
+            spell_id,
+            unit,
+            go,
+            at: self.clock,
+            wall_ms,
+            elapsed,
+            duration,
+        });
+    }
+
+    /// Effects clock (seconds), the time base of flights and sound starts.
+    pub fn clock(&self) -> f32 {
+        self.clock
+    }
+
     pub fn reset(&mut self) {
+        self.sounds.reset();
         for effect in self.active.drain(..) {
             effect.node.free();
         }
@@ -365,6 +456,7 @@ impl SpellEffects {
             if self.held.contains_key(&id) {
                 continue;
             }
+            self.see_cast(cast.spell_id, id, false, cast.elapsed, cast.duration);
             let event = match cast.cast_type {
                 CastType::Normal => VisualEvent::PrecastStart,
                 CastType::Channel => VisualEvent::ChannelStart,
@@ -404,6 +496,7 @@ impl SpellEffects {
         }
         self.pending
             .retain(|pending| !(pending.unit == id && pending.lifetime == Lifetime::UntilCastEnds));
+        self.sounds.end_held(id, held.spell_id, self.clock);
         for effect in &mut self.active {
             if effect.owner == id
                 && effect.spell_id == held.spell_id
@@ -423,6 +516,7 @@ impl SpellEffects {
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let mut errors = Vec::new();
+        self.see_cast(go.spell_id, go.caster, true, 0.0, 0.0);
         // The cast resolved: its precast loop and hand effects end.
         if self
             .held
@@ -552,6 +646,13 @@ impl SpellEffects {
                 } else {
                     Lifetime::OneShot
                 };
+                for sound in &kit.sounds {
+                    if let Err(error) =
+                        self.play_sound(sound, unit, spell_id, kit.kit_id, held, world)
+                    {
+                        errors.push(error);
+                    }
+                }
                 for model in &kit.models {
                     self.pending.push(PendingModel {
                         delay: model.start_delay,
@@ -577,6 +678,36 @@ impl SpellEffects {
             errors.push(error);
         }
         join_errors(errors).map(|()| looping)
+    }
+
+    fn play_sound(
+        &mut self,
+        sound: &KitSound,
+        unit: u64,
+        spell_id: u32,
+        kit_id: u32,
+        kit_held: bool,
+        world: &WorldUnits,
+    ) -> Result<(), String> {
+        let Some(parent) = world.unit_node(unit) else {
+            return Ok(());
+        };
+        let resolver = self
+            .resolver
+            .get_or_insert_with(|| local_resolver(&self.data_root, &self.cache_root));
+        self.sounds.play(
+            sound,
+            SoundRequest {
+                parent,
+                unit,
+                spell_id,
+                kit_id,
+                kit_held,
+                at: self.clock,
+                resolver,
+                data_root: &self.data_root,
+            },
+        )
     }
 
     fn record(&mut self, start: KitStart) {
@@ -811,15 +942,18 @@ impl SpellEffects {
         Ok(())
     }
 
-    /// Advance delays, lifetimes and missiles; draw kit particles.
+    /// Advance delays, lifetimes, missiles and kit sounds; draw kit particles.
+    /// `sound_gain`: master × effects volume, 0 when muted.
     pub fn advance(
         &mut self,
         delta: f32,
         camera: Option<Transform3D>,
+        sound_gain: f32,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let mut errors = Vec::new();
         self.clock += delta;
+        self.sounds.advance(sound_gain);
         if let Err(error) = self.spawn_due(delta, world) {
             errors.push(error);
         }

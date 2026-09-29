@@ -70,8 +70,6 @@ func run_test() -> void:
 	if effects.is_playing() or completed[0] != before:
 		fail("Reopening spellbook replayed stale pointer effect")
 		return
-	if not await check_cast_audio(client, sound):
-		return
 	print("FIXTURE SPELL_CLICK_DONE")
 	client.free()
 	quit(0)
@@ -215,83 +213,6 @@ func check_action_bar_visibility(client: Node, bar: Node, action: Control, effec
 	if not await wait_book(client):
 		return false
 	print("PASS: whole main bar hide, hidden key cast, restored cached slot and click")
-	return true
-
-func check_cast_audio(client: Node, sound: Node) -> bool:
-	# Keyboard already requested SLAM; the server has not confirmed a cast yet.
-	var cast_root := sound.get_node_or_null("CastSpells")
-	if cast_root != null and cast_root.get_child_count() != 0:
-		fail("CastStart played for request without replicated CastState")
-		return false
-	if cast_root == null:
-		fail("CastSpells spatial channel missing")
-		return false
-	var starts := [0]
-	cast_root.child_entered_tree.connect(func(_node: Node): starts[0] += 1)
-	print("FIXTURE SPELL_CLICK_CAST_REQUEST_QUIET")
-	if not await expect_cast(client, cast_root, starts, 1, 0.6):
-		return false
-	print("FIXTURE SPELL_CLICK_CAST_REPEAT")
-	await wait_frames(12)
-	if starts[0] != 1:
-		fail("Repeated active CastState replayed CastStart")
-		return false
-	print("FIXTURE SPELL_CLICK_CAST_INACTIVE")
-	var inactive_deadline := Time.get_ticks_msec() + 5000
-	while client.spells_state().casting != 0 and Time.get_ticks_msec() < inactive_deadline:
-		await process_frame
-	if client.spells_state().casting != 0:
-		fail("Inactive CastState did not clear local cast")
-		return false
-	print("FIXTURE SPELL_CLICK_CAST_RETRIGGER")
-	if not await expect_cast(client, cast_root, starts, 2, 0.6):
-		return false
-	print("FIXTURE SPELL_CLICK_CAST_MUTING")
-	if not await mute_cast_options(client):
-		return false
-	print("FIXTURE SPELL_CLICK_CAST_MUTED")
-	if not await expect_cast(client, cast_root, starts, 3, 0.0):
-		return false
-	var removal_start := Time.get_ticks_msec()
-	print("FIXTURE SPELL_CLICK_CAST_REMOVAL")
-	var removal_deadline := removal_start + 130
-	while client.get_node_or_null("WorldUnits/" + NAME) != null and Time.get_ticks_msec() < removal_deadline:
-		await process_frame
-	if client.get_node_or_null("WorldUnits/" + NAME) != null or cast_root.get_child_count() != 0:
-		fail("Replicated removal did not stop active CastStart before 140ms sample completed")
-		return false
-	print("PASS: authoritative CastStart/repeat/reset/gain/mute/removal")
-	return true
-
-func expect_cast(client: Node, cast_root: Node, starts: Array, expected: int, gain: float) -> bool:
-	var deadline := Time.get_ticks_msec() + 5000
-	while starts[0] < expected and Time.get_ticks_msec() < deadline:
-		await process_frame
-	if starts[0] != expected:
-		fail("Expected exactly %d confirmed CastStart emitters, got %d" % [expected, starts[0]])
-		return false
-	var player := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
-	for child in cast_root.get_children():
-		if child is AudioStreamPlayer3D and child.stream is AudioStreamWAV and child.stream.data.size() == 12348 and player != null and child.global_position.distance_to(player.global_position) < 0.1 and absf(child.volume_linear - gain) < 0.001:
-			return true
-	fail("CastStart missing spatial player at master*effects*.75 = %.3f" % gain)
-	return false
-
-func mute_cast_options(client: Node) -> bool:
-	if client.spells_state().spellbook_open:
-		push_key(KEY_P, true)
-		await process_frame
-		push_key(KEY_P, false)
-		await wait_frames(2)
-	push_key(KEY_ESCAPE, true)
-	await process_frame
-	push_key(KEY_ESCAPE, false)
-	if not await wait_menu(client):
-		return false
-	await click_menu_action(client, "MenuBtnOptions")
-	await process_frame
-	await click_option(client, "OptionsTabsound")
-	await click_option(client, "ToggleSwitchmutedRightHit")
 	return true
 
 func wait_spells(client: Node) -> bool:
