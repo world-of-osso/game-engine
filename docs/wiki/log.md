@@ -1759,3 +1759,7 @@ Near a dungeon entrance the Godot client shows Plumber's difficulty bar: `Journa
 ## [2026-09-28] feature | Godot NPC poses and gear
 
 Godot replicated creatures hold their `UnitPose` (Sit 97, Sleep 100, Emotes.AnimID such as Ready1H 26 / ReadyRifle 48) while still and play Walk/Run while moving, crossfaded; virtual items attach drawn in hand or at their `Item.SheatheType` sheath and move on a sheath change; the display's `NPCModelItemSlotDisplayInfo` armor switches body geosets and attaches its item models. The pose/gear data (`npc_gear_data.rs`) is now engine-free and shared with Bevy. See [npc-stance-gear](investigations/npc-stance-gear.md).
+
+## [2026-09-28] feature | Godot merchant frame
+
+The Godot client interacts with NPCs: right-click targets and sends `InteractNpc` in range, the hover cursor follows `NpcFlags` (Buy on vendors). The server's vendor list opens the shared MerchantFrame, backpack and StackSplitFrame; buy, sell, buyback, Repair All and vendor split work live at Brother Danil; Escape, the close button and walking away close it. Shared data files drop their Bevy derives under `cfg(godot_host)`. See [[merchant-frame]], [[godot-conversion]].

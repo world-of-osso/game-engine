@@ -20,7 +20,7 @@ Engine subsystems and how they work.
 - [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
 - [loot-and-flight](systems/loot-and-flight.md) — corpses, Retail LootFrame, auto-loot and cursor, Retail FlightMapFrame on UiMap art, server-driven flights and `MovementControl` repositioning
 - [cursor-item](systems/cursor-item.md) — cursor pickup/drop/swap/equip/destroy through server requests, StackSplitFrame, merchant drag buy/sell, item catalog (ItemSparse) names and tooltips
-- [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All
+- [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All; Godot port with right-click interact, NPC cursors and vendor split
 - [professions-ui](systems/professions-ui.md) — Retail trainer frame, ProfessionsBook (K) and ProfessionsFrame: DB2 recipe catalog, ProfessionSnapshot, CraftRecipe through the spell pipeline
 - [quest-ui](systems/quest-ui.md) — client quest runtime, objective tracker, quest log (L), quest giver frame and talktome markers on the server quest/interaction protocol
 - [spell-catalog](systems/spell-catalog.md) — background-loaded 12.1.0.69933 spell DB2 catalog, bincode cache under `data/cache/`, static description token rendering and its limits

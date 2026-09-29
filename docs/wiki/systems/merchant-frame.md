@@ -24,6 +24,16 @@ This page covers the client vendor. The spec is [merchant-frame](../../specs/mer
 - `scenes/tooltip_frame::hovered_merchant_tooltip`: name in quality colour, stack count and stock for `MerchantItem<n>`.
 - The frame root carries `onclick: merchant_frame` so a cursor item dropped on its background is sold (MF.xml `OnMouseUp` → `PickupMerchantItem(0)`).
 
+## Godot
+
+- `godot/rust/src/merchant.rs`: right-click interact (targets, then `InteractNpc` within 5 yd), the hover cursor (`wow_cursor_data::npc_cursor`, `Input.set_custom_mouse_cursor` with the `Interface/CURSOR` BLPs), the `MerchantUI` RegistryUi, Escape before the target/game menu.
+- `godot/ui-model/src/merchant.rs` (`MerchantSession`): the Bevy scene logic without ECS — frame/bag/split states, `click_frame` / `click_bag` / `split_key` → `MerchantEffect` (a request or `CloseInteraction`).
+- The shared data files (`merchant_data`, `bag_data`, `stack_split`, `item_catalog`, `item_icons`, `wow_cursor_data`) compile in `godot/ui-model` with `--cfg godot_host` (its `build.rs`), which drops their Bevy `Resource`/`Message` derives; item tables read from `ui-model::paths::set_data_root`.
+- `metal_frame` is composed by `panel_style_data::compose_metal_sheet` into a registry dynamic texture.
+- The projection reports right-clicks and Shift-left-clicks on `onclick` frames as `UiInput::AltClick` (`RegistryUi::pop_alt_click`).
+- `NpcFlags` and `Gold` ride on `UnitSnapshot`; interaction/vendor/bag/durability messages arrive as `AccountEvent::Npc`.
+- Fixture: `godot/tests/world_merchant_flow.gd` turns with TurnRight (ArrowRight); D strafes and walks the character away.
+
 ## Gotchas
 
 - `find_frame_at` needs `mouse_enabled`: item cells, bag slots and buttons set it, otherwise clicks fall through to the world.
