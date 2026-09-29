@@ -268,15 +268,19 @@ fn stage_fixture_csv(data: &Path) -> Result<(), String> {
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    mut lines: Receiver<String>,
     readers: Vec<thread::JoinHandle<()>>,
-    config: &Path,
+    repo: &Path,
+    config: &FixtureConfig,
     project: &Path,
+    address: SocketAddr,
 ) -> Result<(), String> {
     let mut selected = None;
     let mut remote = None;
     let mut readers = Some(readers);
     let mut loading = false;
+    let mut saved = false;
+    let mut reopened = false;
     let mut passed = false;
     let deadline = Instant::now() + TIMEOUT;
     while Instant::now() < deadline {
@@ -290,19 +294,51 @@ pub(super) fn run(
             }
         }
         for line in lines.try_iter() {
+            if line.trim() == "FIXTURE MAP_SAVED" {
+                saved = true;
+            }
+            if line.trim() == "FIXTURE MAP_REOPENED" {
+                reopened = true;
+            }
             observe_reset_line(app, &line, selected.is_some(), &mut loading, &mut passed)?;
         }
         if let Some(status) = status {
-            if !status.success() || !passed {
+            if !status.success() {
                 return Err(format!(
-                    "Godot reset fixture exited {status}; pass={passed}"
+                    "Godot reset fixture exited {status}; saved={saved}, reopened={reopened}, pass={passed}"
                 ));
             }
-            if !loading || selected.is_none() {
-                return Err("Reset fixture did not authenticate and load world".into());
+            if saved && !reopened {
+                if !loading || selected.is_none() {
+                    return Err("Map-save process did not authenticate and load world".into());
+                }
+                app.world_mut()
+                    .despawn(selected.take().expect("saved map player"));
+                if let Some(entity) = remote.take() {
+                    app.world_mut().despawn(entity);
+                }
+                loading = false;
+                saved = false;
+                let (next, receiver, output_readers) = launch_godot(
+                    repo,
+                    project,
+                    config,
+                    address,
+                    StartupScreen::ResetWindows,
+                    true,
+                );
+                *child = next;
+                lines = receiver;
+                readers = Some(output_readers);
+                continue;
             }
-            verify_saved_layout(config)?;
-            return verify_fresh_process(config, project);
+            if !passed || !reopened || !loading || selected.is_none() {
+                return Err(format!(
+                    "Reset verification incomplete: reopened={reopened}, pass={passed}, loading={loading}"
+                ));
+            }
+            verify_saved_layout(&config.home)?;
+            return verify_fresh_process(&config.home, project);
         }
         thread::sleep(TICK);
     }
