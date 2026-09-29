@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://rendering/bloom_controller.gd" id="1_controller"]
+
+[node name="NativeBloom" type="Node"]
+script = ExtResource("1_controller")
