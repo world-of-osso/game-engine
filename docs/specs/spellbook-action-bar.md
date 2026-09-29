@@ -13,6 +13,7 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 ## What it must do
 
 - [x] Known spells, spec, action bar and cooldowns follow the server messages; leaving the world clears them.
+- [x] The bar, casting bar, spellbook and tooltip are authored in UI units on the 768-unit UIParent canvas and scaled by viewport height / 768 (PixelUtil.lua:3-6), like every in-world HUD layer.
 - [x] Spellbook (P toggles, Escape closes, close button): 1612×856 evergreen book scaled to fit the viewport (SBF.xml), category tabs at TOPLEFT 70,-19 (TST.xml art, tab on top). Categories: the class (its class line and active spec line as headed groups) then General; an empty category is not shown.
 - [x] Pages: two 680×650 views (View1 TOPLEFT 85,-65, View2 TOPRIGHT -50,-65), headers take a row, items fill 3 columns column-first with the fewest rows (PCG.lua), `xPadding` 15, `yPadding` 10, `spacerSize` 20; a group that runs out of height continues in the next view; "Page %d/%d" (`PAGE_NUMBER_WITH_MAX`) with previous/next buttons.
 - [x] Items (SBI.xml, 60 high): 36 px icon in a square (active) or circle (passive) border, name in `SystemFont_Large` and `SPELLBOOK_FONT_COLOR`, "Passive" subtext for passives. Spells flagged `SPELL_ATTR0_DO_NOT_DISPLAY` (SpellMisc Attributes_0 0x80) are not listed.

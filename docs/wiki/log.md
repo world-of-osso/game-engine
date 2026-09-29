@@ -1775,3 +1775,7 @@ The Godot client shows the Retail 12.x spellbook (known spells plus later-level 
 ## [2026-09-28] feature | Godot merchant frame
 
 The Godot client interacts with NPCs: right-click targets and sends `InteractNpc` in range, the hover cursor follows `NpcFlags` (Buy on vendors). The server's vendor list opens the shared MerchantFrame, backpack and StackSplitFrame; buy, sell, buyback, Repair All and vendor split work live at Brother Danil; Escape, the close button and walking away close it. Shared data files drop their Bevy derives under `cfg(godot_host)`. See [[merchant-frame]], [[godot-conversion]].
+
+## [2026-09-28] feature | Godot TargetFrame at the Retail preset, UIParent HUD scale
+
+The Godot TargetFrame sits where Retail's Modern Edit Mode preset puts it (BOTTOMLEFT at UIParent BOTTOM 300, 250), and the in-world HUD layers lay out on the 768-unit UIParent canvas scaled by viewport height / 768, so frame and text sizes match Retail at 1280×720 and 1920×1080. World map, entrance bar, nameplates and glue screens are not converted yet. See [[godot-conversion]].
