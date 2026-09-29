@@ -105,16 +105,13 @@ fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsStr
 }
 
 fn build_native_extension(root: &Path) -> Result<ExitStatus, String> {
-    let cargo = env::var_os("CARGO").ok_or("CARGO is unset; launch through cargo run")?;
-    Command::new(cargo)
+    Command::new("python3")
         .current_dir(root)
-        .env("CARGO_TARGET_DIR", root.join("target"))
-        .arg("build")
-        .arg("--manifest-path")
-        .arg(root.join("godot/Cargo.toml"))
-        .args(["-p", "game-engine-godot", "--lib"])
+        .arg(root.join("scripts/depot-build.py"))
+        .arg("--root")
+        .arg(root)
         .status()
-        .map_err(|error| format!("cannot run Cargo native build: {error}"))
+        .map_err(|error| format!("cannot run Depot native build: {error}"))
 }
 
 fn exec_godot(root: &Path, godot: &Path, args: Vec<OsString>) -> Result<i32, String> {

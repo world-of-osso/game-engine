@@ -15,6 +15,12 @@ The Godot client now plays combat and spell animations and spell effects.
 
 The Bevy combat anim constants (51/46/...) were wrong for Retail. Warrior (Slam, Battle Shout) and mage (Frostbolt) videos are in `data/diagnostics/spellcast-anim-2026-09-29/`. Added [[spell-visuals]]; updated [[animation]].
 
+## [2026-09-29] system | Depot-native Godot extension build documented
+
+Root `cargo run`/`rd` retains a local std-only launcher and normal local Godot import/launch while `scripts/depot-build.py --root <checkout>` builds the Linux x86_64 GDExtension remotely. The documented boundary includes source-only snapshots, shared remote caches with locked target sharing, atomic worktree-local library install, explicit no-local-Cargo failure behavior, and prerequisite tools. The $100 monthly figure is conditional budget planning, not a configured billing cap; provider limits and cache GC require main verification. No gameplay, renderer, or conversion-parity claim follows.
+
+Added [Remote Godot builds](../remote-builds.md); updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md).
+
 ## [2026-09-28] investigation | Godot missing assets no longer end the session
 
 One missing cursor BLP disconnected the Godot client: every frame-step error stopped the account. Only `Account` transport failures (`SessionError`) stop it now; asset failures are logged once and stay absent. See [godot-conversion](systems/godot-conversion.md#frame-failure-policy).

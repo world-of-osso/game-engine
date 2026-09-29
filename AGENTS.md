@@ -59,7 +59,7 @@ src/
 
 ## Dev
 
-- Plain root `cargo run`/`rd` builds the debug `game-engine-launcher`, then launches Godot; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else pinned Godot 4.7.2 at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2/`, downloading the official release zip and checking its SHA-512 on first use; runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; builds `godot/`'s native library, and forwards user startup flags after Godot's `--` separator. It neither starts the server nor falls back to Bevy.
+- Plain root `cargo run`/`rd` builds the debug std-only `game-engine-launcher`, then uses `python3 scripts/depot-build.py --root <checkout>` to build the Godot native extension remotely before normal local Godot import/launch; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else pinned Godot 4.7.2 at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2/`, downloading the official release zip and checking its SHA-512 on first use; runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; forwards user startup flags after Godot's `--` separator. It neither starts the server nor falls back to Bevy. See `docs/remote-builds.md`.
 - `cargo run -- --screen charselect` — Authenticate with configured credentials or a saved token and open character select.
 - `cargo run -- --server dev --screen inworld --char Name` — Resolve `dev`/`prod` server aliases, authenticate, select the named roster character, and enter the world. Omit `--char` to select the default character.
 - `cargo run -- --screen charcreate` — Open standalone character creation. Add `--server <host>` to authenticate before entering it; `charcreate-customize` opens its Customize mode.
@@ -92,6 +92,7 @@ src/
 
 - `data/` is effectively a different repo/cache tree for this project. Do not stage or commit files under `data/` from this repo unless the user explicitly asks for that exact path.
 - After `cargo fmt`, immediately check `git status --short`.
+- Agents build the Godot extension only through the Depot launcher/helper. Do not invoke local extension Cargo or recreate bulk target caches unless explicitly asked; lightweight launcher tests are allowed. See `docs/remote-builds.md`.
 - Formatter changes count as your changes.
 
 ## UI Screens (rsx! + Screen pattern)
