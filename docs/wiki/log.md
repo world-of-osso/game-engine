@@ -15,6 +15,10 @@
 
 Details in [[spell-visuals]].
 
+## [2026-09-29] verification | Options integration correction
+
+`253f8238` merged verified Options `e8599fb0`; `818d7c53` reconciled `ensure_art` without losing concurrent `67e6e430`. At `4c0acc91`, `958e612a` fixed merchant-fixture hostility with real friendly `UnitFactionTemplate`s: vendor `NpcFlags` alone does not prevent auto-attack. Existing Depot `fg7w9m1g7w` and four owned modes pass (three retained, merchant fresh). Original `CombatEvent` still reaches outcome audio and visuals once; `SpellGo` and later frame steps survive `FrameError::Client`. Pure Rust tests were not run under Depot-only constraints. Updated [[godot-conversion]] and [parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-29] investigation | Selecting a target no longer starts auto-attack
 
 **Bug.** The server started auto-attack, and combat, on every `SetTarget` to an attackable unit. A Tab-cycling mage swung unarmed at each dummy it selected, and 0/1 damage numbers appeared before its Frostbolt.
