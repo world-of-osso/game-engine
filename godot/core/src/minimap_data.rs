@@ -97,7 +97,7 @@ impl MinimapView {
     }
 
     /// Engine position under composite pixel `(px, py)` of a `size`² image.
-    fn pixel_position(&self, px: u32, py: u32, size: u32) -> [f32; 2] {
+    pub fn pixel_position(&self, px: u32, py: u32, size: u32) -> [f32; 2] {
         let yards = self.diameter / size as f32;
         let half = size as f32 / 2.0;
         [
