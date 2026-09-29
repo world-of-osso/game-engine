@@ -114,11 +114,34 @@ func check_live_options_scale(client: Node, vendor: Dictionary) -> bool:
 	var options := menu.find_child("OptionsRoot", true, false) as Control
 	if options == null or not await capture_scaled_ui("merchant-options-075", options):
 		return false
+	if not OS.get_environment("GODOT_TEST_CAPTURE_DIR").is_empty():
+		print_options_label_geometry(menu, "merchant-options-075")
 	await click(menu.find_child("OptionsTabaccessibility", true, false) as Control)
 	await set_scale_slider(slider, 0.6666667)
 	if not check_scaled_hosts(client, 1.25):
 		return false
-	return await capture_scaled_ui("merchant-options-125", options)
+	if not await capture_scaled_ui("merchant-options-125", options):
+		return false
+	if not OS.get_environment("GODOT_TEST_CAPTURE_DIR").is_empty():
+		print_options_label_geometry(menu, "merchant-options-125")
+	return true
+
+func print_options_label_geometry(menu: CanvasLayer, capture: String) -> void:
+	var options := menu.find_child("OptionsRoot", true, false) as Control
+	var content := menu.find_child("OptionsContentPanel", true, false) as Control
+	var host := menu.find_child("RegistryCanvas", true, false) as Control
+	var options_rect := options.get_global_rect()
+	var content_rect := content.get_global_rect() if content != null else Rect2()
+	print("OPTIONS_LABEL_BOUNDS capture=%s root=%s content=%s content_present=%s" % [capture, options_rect, content_rect, content != null])
+	# Projection can place labels beside, not below, their authored frame controls.
+	for node in host.find_children("*", "Label", true, false):
+		var label := node as Label
+		var parent := label.get_parent() as Control
+		var frame := parent.get_parent() as Control if parent != null else null
+		if frame == null or not label.is_visible_in_tree() or not (str(frame.name).begins_with("InfoDetail") or str(frame.name).begins_with("GhostDetail")):
+			continue
+		var rect := label.get_global_rect()
+		print("OPTIONS_LABEL capture=%s name=%s path=%s text=%s size=%s minimum=%s rect=%s parent=%s parent_rect=%s frame_rect=%s align=%s grow=%s clip=%s autowrap=%s beyond_content=%s beyond_root=%s" % [capture, frame.name, label.get_path(), label.text, label.size, label.get_combined_minimum_size(), rect, parent.get_path(), parent.get_global_rect(), frame.get_global_rect(), label.horizontal_alignment, label.grow_horizontal, label.clip_text, label.autowrap_mode, rect.end.x > content_rect.end.x, rect.end.x > options_rect.end.x])
 
 func set_scale_slider(slider: Control, percent: float) -> void:
 	var rect := slider.get_global_rect()
