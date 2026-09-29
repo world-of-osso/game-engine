@@ -2,7 +2,7 @@
 
 ## [2026-09-29] system | Original CombatEvent native outcome audio
 
-Direct shared `CombatEvent` UDP subscription/account dispatch drives Impact/Heal/Miss/Interrupt spatial playback with shared literal root PCM and category policy. The owned fixture proves 65 ordered events exactly once, ignored/zero/unresolved suppression, master/effects/mute/music independence, removal and forced-disconnect reset. Current-server spell results send only `CombatLogEvent`; the original producer remains dormant for those results. Evidence: `/tmp/claude/native-outcome-final-targeted.log`. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
+Direct shared `CombatEvent` UDP subscription/account dispatch drives Impact/Heal/Miss/Interrupt spatial playback with shared literal root PCM and category policy. The owned fixture proves 65 ordered events exactly once, ignored/zero/unresolved suppression, master/effects/mute/music independence, removal and forced-disconnect reset. Verifier930 is pending, so this has no independent PASS. Current-server spell results send only `CombatLogEvent`; the original producer remains dormant for those results, with no server change, log-event mapping, or fallback. Evidence: `/tmp/claude/native-outcome-final-targeted.log`. Updated [[sound]], [conversion spec](../specs/godot-conversion.md), and [Godot parity matrix](../specs/godot-parity-matrix.md).
 
 ## [2026-09-29] system | Owned UDP merchant click audio
 
@@ -1919,4 +1919,4 @@ The Godot client interacts with NPCs: right-click targets and sends `InteractNpc
 
 ## [2026-09-29] feature | Confirmed native CastStart
 
-Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. See [[sound]].
+Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. Final bounded verification at `0e0726a3` passes (`/tmp/claude/verify-native-caststart-final.md`); its fixture-only readability refactor preserves the nine-marker runtime sequence. See [[sound]].
