@@ -83,6 +83,10 @@ pub mod realm_preset_data;
 pub mod ui_click_data;
 #[path = "../../../src/water_material_data.rs"]
 pub mod water_material_data;
+#[path = "../../../src/sound/wmo_surface_data.rs"]
+pub mod wmo_surface_data;
+#[cfg(test)]
+mod wmo_surface_data_tests;
 pub use asset::m2_batch_data;
 #[path = "../../../src/cache_source_mtime.rs"]
 mod cache_source_mtime;

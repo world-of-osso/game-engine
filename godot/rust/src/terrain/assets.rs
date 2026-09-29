@@ -9,7 +9,10 @@ use std::{
 };
 
 use game_engine_core::{
-    adt, footstep_data::FootstepSurface, ground_effect_data, terrain_surface_data, wdt,
+    adt,
+    footstep_data::FootstepSurface,
+    ground_effect_data, terrain_surface_data, wdt,
+    wmo_surface_data::{WmoSurfaceBounds, select_wmo_material_surface},
 };
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 use shared::ground::{WmoCollision, WmoGroupCollision};
@@ -25,8 +28,8 @@ pub(crate) struct NativeTerrainAssets {
     textures: RefCell<TerrainTextureCache>,
     lighting: RefCell<Option<Arc<LightingCatalog>>>,
     surface_catalog: OnceLock<Result<SurfaceCatalog, String>>,
-    /// Group floors of each WMO root placed so far, by root FDID.
-    wmo_groups: RefCell<HashMap<u32, Vec<Arc<WmoGroupCollision>>>>,
+    /// Parsed group floors and root-wide material surface, keyed by root FDID.
+    wmo_groups: RefCell<HashMap<u32, (Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>)>>,
 }
 
 pub(crate) struct NativeMapWdt {
@@ -49,6 +52,7 @@ pub(crate) struct NativeTerrainTile {
     /// Their floors are the player's ground and their faces physics walls from the moment the
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
     pub wmo_floors: Vec<(u32, WmoCollision)>,
+    pub wmo_surfaces: Vec<(WmoSurfaceBounds, FootstepSurface)>,
 }
 
 impl NativeTerrainAssets {
@@ -81,7 +85,8 @@ impl NativeTerrainAssets {
                     &self.data_root,
                     &placement,
                 )?;
-                Ok::<_, String>(PlacedWmo::new(placement, asset))
+                let surface = classify_wmo_surface(&asset.root, &self.resolver);
+                Ok::<_, String>(PlacedWmo::new(placement, asset, surface))
             })
             .transpose()?;
         Ok(NativeMapWdt {
@@ -141,7 +146,7 @@ impl NativeTerrainAssets {
             }
             None => BTreeMap::new(),
         };
-        let wmo_floors = obj
+        let (wmo_floors, wmo_surfaces) = obj
             .as_ref()
             .map(|obj| self.read_wmo_floors(&obj.wmos, (tile_y, tile_x)))
             .unwrap_or_default();
@@ -155,6 +160,7 @@ impl NativeTerrainAssets {
             textures,
             chunk_surfaces,
             wmo_floors,
+            wmo_surfaces,
         })
     }
 
@@ -232,34 +238,41 @@ impl NativeTerrainAssets {
         read_bytes(&path).map_err(|error| format!("DB2 FDID {fdid}: {error}"))
     }
 
-    /// A WMO whose files cannot be read has no floor, as on the server (`GroundMap`).
+    /// Unreadable WMO roots have neither floors nor surface metadata.
     fn read_wmo_floors(
         &self,
         placements: &[adt::WmoPlacement],
         tile: (u32, u32),
-    ) -> Vec<(u32, WmoCollision)> {
-        placements
-            .iter()
-            .filter_map(|placement| match self.read_wmo_groups(placement) {
-                Ok(groups) => Some((
-                    placement.unique_id,
-                    crate::wmo::placement::adt_wmo_collision(placement, tile, groups),
-                )),
-                Err(error) => {
-                    eprintln!(
-                        "WMO {} on tile {tile:?} has no floor: {error}",
-                        placement.unique_id
-                    );
-                    None
+    ) -> (
+        Vec<(u32, WmoCollision)>,
+        Vec<(WmoSurfaceBounds, FootstepSurface)>,
+    ) {
+        let mut floors = Vec::new();
+        let mut surfaces = Vec::new();
+        for placement in placements {
+            match self.read_wmo_groups(placement) {
+                Ok((groups, surface)) => {
+                    floors.push((
+                        placement.unique_id,
+                        crate::wmo::placement::adt_wmo_collision(placement, tile, groups),
+                    ));
+                    if let Some(surface) = surface {
+                        surfaces.push((wmo_surface_bounds(placement, false), surface));
+                    }
                 }
-            })
-            .collect()
+                Err(error) => eprintln!(
+                    "WMO {} on tile {tile:?} has no floor or footstep surface: {error}",
+                    placement.unique_id
+                ),
+            }
+        }
+        (floors, surfaces)
     }
 
     fn read_wmo_groups(
         &self,
         placement: &adt::WmoPlacement,
-    ) -> Result<Vec<Arc<WmoGroupCollision>>, String> {
+    ) -> Result<(Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>), String> {
         if let Some(groups) = placement
             .fdid
             .and_then(|fdid| self.wmo_groups.borrow().get(&fdid).cloned())
@@ -272,10 +285,11 @@ impl NativeTerrainAssets {
             .iter()
             .map(|group| Arc::clone(&group.collision))
             .collect();
+        let result = (groups, classify_wmo_surface(&asset.root, &self.resolver));
         self.wmo_groups
             .borrow_mut()
-            .insert(asset.root_fdid, groups.clone());
-        Ok(groups)
+            .insert(asset.root_fdid, result.clone());
+        Ok(result)
     }
 
     fn read_optional_companion(
@@ -358,6 +372,39 @@ pub(crate) fn test_data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
 }
 
+fn classify_wmo_surface(
+    root: &game_engine_core::wmo::WmoRootData,
+    resolver: &CascListfileResolver,
+) -> Option<FootstepSurface> {
+    let paths: Vec<_> = root
+        .materials
+        .iter()
+        .map(|mat| resolver.resolve_path(mat.texture_fdid))
+        .collect();
+    select_wmo_material_surface(root.materials.iter().zip(&paths).map(|(mat, path)| {
+        (
+            mat.ground_type != 0,
+            mat.diff_color[3] > 0.0,
+            mat.texture_fdid,
+            path.as_deref(),
+        )
+    }))
+}
+
+pub(crate) fn wmo_surface_bounds(placement: &adt::WmoPlacement, global: bool) -> WmoSurfaceBounds {
+    let convert: fn([f32; 3]) -> glam::Vec3 = if global {
+        shared::ground::global_wmo_placement_position
+    } else {
+        shared::ground::placement_position
+    };
+    let first = convert(placement.extents_min);
+    let second = convert(placement.extents_max);
+    WmoSurfaceBounds {
+        world_min: first.min(second).to_array(),
+        world_max: first.max(second).to_array(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -382,6 +429,25 @@ mod tests {
         assert_eq!(asset.root.n_groups, 27);
         assert_eq!(asset.groups.len(), 27);
         assert!(asset.groups.iter().any(|group| !group.batches.is_empty()));
+    }
+
+    #[test]
+    fn authored_global_and_streamed_modf_extents_use_their_world_coordinate_conventions() {
+        let data = test_data_root().join("terrain");
+        let wdt_bytes = fs::read(data.join("791060.wdt")).unwrap();
+        let global = wdt::parse_wdt_global_wmo(&wdt_bytes).unwrap().unwrap();
+        let bounds = wmo_surface_bounds(&global, true);
+        // Stockade WDT extents are near the global origin, not ADT map center.
+        assert!((bounds.world_min[0] + 8.136_324).abs() < 0.01);
+        assert!((bounds.world_max[2] - 150.329_83).abs() < 0.01);
+
+        let obj_bytes = fs::read(data.join("azeroth_32_48_obj0.adt")).unwrap();
+        let obj = adt::parse_obj(&obj_bytes).unwrap();
+        let placement = obj.wmos.first().expect("authored MODF");
+        let bounds = wmo_surface_bounds(placement, false);
+        // Azeroth 32_48 MODF extents use absolute map coordinates.
+        assert!((bounds.world_min[0] + 8879.101).abs() < 0.01);
+        assert!((bounds.world_max[2] - 230.155_6).abs() < 0.01);
     }
 
     #[test]

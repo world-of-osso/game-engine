@@ -170,6 +170,33 @@ impl StreamedTerrain {
             .copied()
     }
 
+    /// Root-wide WMO override at actual world XYZ; Dirt is the legacy missing-terrain policy.
+    pub fn surface_at_position(
+        &self,
+        position: [f32; 3],
+    ) -> game_engine_core::footstep_data::FootstepSurface {
+        use super::assets::wmo_surface_bounds;
+        use game_engine_core::wmo_surface_data::select_footstep_surface;
+
+        let global = self
+            .map_wdt
+            .iter()
+            .filter_map(|map| map.global_wmo.as_ref())
+            .filter_map(|wmo| {
+                wmo.surface
+                    .map(|surface| (wmo_surface_bounds(&wmo.placement, true), surface))
+            });
+        let streamed = self
+            .parsed_tiles
+            .values()
+            .flat_map(|tile| tile.wmo_surfaces.iter().copied());
+        select_footstep_surface(
+            position,
+            self.surface_at(position[0], position[2]),
+            global.chain(streamed),
+        )
+    }
+
     pub fn water_surface_at(&self, x: f32, z: f32) -> Option<f32> {
         use game_engine_core::terrain_height_data::{
             WaterLayerSurface, bevy_to_tile_coords, layer_has_water, sample_water_layer_height,
@@ -564,6 +591,7 @@ mod tests {
             textures: BTreeMap::new(),
             chunk_surfaces: BTreeMap::new(),
             wmo_floors: Vec::new(),
+            wmo_surfaces: Vec::new(),
         }
     }
 
@@ -655,6 +683,34 @@ mod tests {
         let (x, z) = (grid.origin_x - 1.0, grid.origin_z + 1.0);
         stream.parsed_tiles.insert((32, 48), tile);
         assert_eq!(stream.surface_at(x, z), None);
+    }
+
+    #[test]
+    fn positioned_surface_uses_wmo_before_terrain_even_without_physics_nodes() {
+        use game_engine_core::{
+            footstep_data::FootstepSurface, wmo_surface_data::WmoSurfaceBounds,
+        };
+        let mut stream = StreamedTerrain::with_reader(cached_assets());
+        let mut tile = area_fixture();
+        let grid = &tile.root.height_grids[0];
+        let position = [grid.origin_x - 1.0, 5.0, grid.origin_z + 1.0];
+        tile.chunk_surfaces
+            .insert((grid.index_x, grid.index_y), FootstepSurface::Grass);
+        tile.wmo_surfaces.push((
+            WmoSurfaceBounds {
+                world_min: [position[0] - 5.0, 0.0, position[2] - 5.0],
+                world_max: [position[0] + 5.0, 10.0, position[2] + 5.0],
+            },
+            FootstepSurface::Wood,
+        ));
+        stream.parsed_tiles.insert((32, 48), tile);
+        assert_eq!(stream.surface_at_position(position), FootstepSurface::Wood);
+        assert_eq!(
+            stream.surface_at_position([position[0], 11.0, position[2]]),
+            FootstepSurface::Grass
+        );
+        stream.reset().unwrap();
+        assert_eq!(stream.surface_at_position(position), FootstepSurface::Dirt);
     }
 
     #[test]

@@ -4,6 +4,10 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
+## [2026-09-28] system | Native WMO footstep surface override
+
+Shared the legacy root-wide material priority and inclusive smallest-volume placement selection with the native terrain reader. Global WDT and streamed MODF surfaces are queryable before node/physics completion; no playback. Updated [[sound]] and [[terrain]].
+
 ## [2026-09-28] system | Native terrain surface query
 
 The native tile reader caches local GroundEffectTexture/TerrainTypeSounds DB2s once and stores shared-policy classifications for each parsed `_tex0`/height-grid chunk. Streamed terrain exposes an exact half-open surface query, cleared on reset; no WMO classification or playback. Updated [[terrain]] and [[sound]].

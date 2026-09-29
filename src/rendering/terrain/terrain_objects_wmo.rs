@@ -18,8 +18,9 @@ use crate::collision::WmoCollisionMesh;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use crate::rendering::sky::GameTime;
-use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
+use crate::sound_footsteps::FootstepSurface;
 use crate::water_material::{self, WaterMaterial, WaterSettings};
+use game_engine::wmo_surface_data::select_wmo_material_surface;
 
 use super::{
     SpawnedWmoRoot, WmoLocalSkybox, placement_to_bevy_absolute,
@@ -506,31 +507,15 @@ fn build_chunk_refs_component(
 }
 
 fn build_wmo_footstep_surface(root: &wmo::WmoRootData) -> Option<WmoFootstepSurface> {
-    root.materials
-        .iter()
-        .filter_map(material_footstep_surface)
-        .max_by_key(|candidate| candidate.priority)
-        .map(|candidate| WmoFootstepSurface {
-            surface: candidate.surface,
-        })
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct WmoFootstepSurfaceCandidate {
-    priority: (bool, bool, u32),
-    surface: FootstepSurface,
-}
-
-fn material_footstep_surface(mat_def: &wmo::WmoMaterialDef) -> Option<WmoFootstepSurfaceCandidate> {
-    let path = game_engine::listfile::lookup_fdid(mat_def.texture_fdid)?;
-    Some(WmoFootstepSurfaceCandidate {
-        priority: (
-            mat_def.ground_type != 0,
-            mat_def.diff_color[3] > 0.0,
-            mat_def.texture_fdid,
-        ),
-        surface: classify_surface_from_texture_path(path),
-    })
+    select_wmo_material_surface(root.materials.iter().map(|mat| {
+        (
+            mat.ground_type != 0,
+            mat.diff_color[3] > 0.0,
+            mat.texture_fdid,
+            game_engine::listfile::lookup_fdid(mat.texture_fdid),
+        )
+    }))
+    .map(|surface| WmoFootstepSurface { surface })
 }
 
 fn build_wmo_adt_metadata(placement: &adt_obj::WmoPlacement) -> WmoAdtMetadata {
