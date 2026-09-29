@@ -10,12 +10,18 @@ The failure sequence was worktree A, then older worktree B, then A again. The fi
 
 The earlier 13.321 s warm constant-change result predates the refresh and does not establish cross-worktree correctness or post-refresh performance. Cleanup reported 98.28 GB allocated cache removed; a concurrent/shared-extent measurement showed 0.754 GB less immediately free space, so it does not establish physical-space reclamation.
 
+## Optional fixture export proof
+
+At `be6aeedb`, Depot project `003c4ttwqh` build `5nqxfxrzpt` ran `scripts/depot-build.py --root <checkout> --fixture native_input_fixture` successfully in 206.042 s. It installed the default library plus `target/debug/examples/native_input_fixture` in the originating checkout; no target cache was installed. The directly launched installed fixture passed local owned-UDP `sound-click` in 30.787 s. This is one optional export and fixture-path result only. Default builds remain library-only; `native_npc_visual_fixture` is allowlisted but was not built or run. Verifier 963 remains pending.
+
 ## Sources
 
 - [Remote Godot builds](../../remote-builds.md) — current helper boundary and recorded result.
 - `data/diagnostics/depot-freshness/` — A/B/A reproduction results and logs.
 - `/home/osso/.worktrees/.game-engine-options-depot-20260929/fixed-build.log` — successful refreshed build output.
 - `/tmp/claude/verify-depot-options-migration.md` — verifier 954 installed-artifact and isolated Godot smoke proof.
+- `/home/osso/.worktrees/.game-engine-options-depot-20260929/fixture-build.log` — build `5nqxfxrzpt`, exported artifacts, and timing.
+- `/home/osso/.worktrees/.game-engine-options-depot-20260929/exported-fixture-runtime.log` — direct installed-fixture owned-UDP `sound-click` result.
 
 ## See Also
 
