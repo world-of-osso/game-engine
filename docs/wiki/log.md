@@ -1999,3 +1999,7 @@ The Godot TargetFrame sits where Retail's Modern Edit Mode preset puts it (BOTTO
 ## [2026-09-29] feature | Confirmed native CastStart
 
 Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. Final bounded verification at `0e0726a3` passes (`/tmp/claude/verify-native-caststart-final.md`); its fixture-only readability refactor preserves the nine-marker runtime sequence. See [[sound]].
+
+## [2026-09-29] investigation | DXT1 punch-through alpha
+
+Elwynn bush 189700's leaf texture 189937 (DXT1, alpha depth 1) drew black squares in the Godot client: Godot uploads `FORMAT_DXT1` as BC1 RGB, so punch-through texels were opaque black. `fe422318` decodes DXT1 with alpha bits to RGBA8 with every mip level. See [[godot-dxt1-punch-through]].
