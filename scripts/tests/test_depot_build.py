@@ -29,6 +29,16 @@ if os.environ.get('DEPOT_DELAY'):
 if os.environ.get('DEPOT_FAIL'):
     sys.exit(7)
 output.mkdir(parents=True, exist_ok=True)
+if args[args.index('--target') + 1] == 'test-result':
+    contexts = dict(args[i + 1].split('=', 1) for i, a in enumerate(args) if a == '--build-context')
+    assets = pathlib.Path(contexts['assets'])
+    staged = {str(p.relative_to(assets)): p.read_text() for p in assets.rglob('*') if p.is_file()}
+    with open(os.environ['DEPOT_RECORD'], 'a') as record:
+        record.write(json.dumps({'assets': staged, 'asset_dir': str(assets)}) + '\\n')
+    if not os.environ.get('DEPOT_NO_LOG'):
+        (output / 'test.log').write_text('test result: ' + os.environ.get('DEPOT_TEST_LOG', 'ok') + '\\n')
+        (output / 'status').write_text(os.environ.get('DEPOT_TEST_STATUS', '0') + '\\n')
+    sys.exit(0)
 artifact = output / 'libgame_engine_godot.so.gz'
 artifact.write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT') else gzip.compress(os.environ.get('DEPOT_ARTIFACT', 'new binary').encode()))
 build_args = [args[index + 1] for index, arg in enumerate(args) if arg == '--build-arg']
@@ -57,6 +67,9 @@ class DepotBuildTests(unittest.TestCase):
         self._put(self.root, "src/asset/mod.rs", "asset")
         self._put(self.root, "src/rendering/ui/nameplate_skins/health-fill.png", "png")
         self._put(self.root, "data/private.rs", "private")
+        self._put(self.root, "data/models/boar.m2", "boar model")
+        self._put(self.root, "data/Light.csv", "light rows")
+        self._put(self.root, "godot/depot-test-assets.txt", "# core\nmodels/boar.m2\n\nLight.csv  # lighting\n")
         self._put(self.root, "godot/.godot/imported.rs", "private")
         self._put(self.root, "target/debug/hidden.rs", "private")
         self._put(self.root, ".env", "token")
@@ -110,6 +123,10 @@ class DepotBuildTests(unittest.TestCase):
             command.extend(["--fixture", fixture])
         return subprocess.run(command, env={**self.env, **env}, text=True, capture_output=True)
 
+    def run_test_mode(self, *cargo_args, **env):
+        command = ["python3", str(SCRIPT), "--root", str(self.root), "--test", *cargo_args]
+        return subprocess.run(command, env={**self.env, **env}, text=True, capture_output=True)
+
     def records(self):
         return [json.loads(line) for line in self.record.read_text().splitlines()] if self.record.exists() else []
 
@@ -161,6 +178,56 @@ class DepotBuildTests(unittest.TestCase):
         result = self.build()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("FIXTURE", self.build_args(self.records()[-1]))
+
+    def test_test_mode_forwards_cargo_args_stages_listed_assets_and_prints_log(self):
+        result = self.run_test_mode("-p", "game-engine-core", "--test", "m2_events", "--", "--exact", "a b",
+                           DEPOT_TEST_LOG="3 passed")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("test result: 3 passed", result.stdout)
+        build, staged = self.records()
+        args = build["args"]
+        self.assertEqual(args[args.index("--target") + 1], "test-result")
+        self.assertEqual(self.build_args(build)["TEST_ARGS"], "-p game-engine-core --test m2_events -- --exact 'a b'")
+        self.assertTrue(self.build_args(build)["TARGET_CACHE"].startswith("godot-target-"))
+        self.assertEqual(staged["assets"], {"models/boar.m2": "boar model", "Light.csv": "light rows"})
+        self.assertFalse(any(name.startswith("game-engine-godot-conversion/data/") for name in build["files"]))
+        self.assertFalse((self.root / "target/debug/libgame_engine_godot.so").exists())
+
+    def test_test_mode_exits_with_cargo_status(self):
+        result = self.run_test_mode("-p", "game-engine-core", DEPOT_TEST_STATUS="101", DEPOT_TEST_LOG="1 failed")
+        self.assertEqual(result.returncode, 101)
+        self.assertIn("test result: 1 failed", result.stdout)
+        result = self.run_test_mode(DEPOT_NO_LOG="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("test.log", result.stderr)
+        result = self.run_test_mode(DEPOT_FAIL="1")
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_test_mode_restages_changed_and_removed_assets(self):
+        first = self.run_test_mode()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self._put(self.root, "data/models/boar.m2", "boar model v2")
+        os.utime(self.root / "data/models/boar.m2", ns=(1_800_000_000_000_000_000,) * 2)
+        self._put(self.root, "godot/depot-test-assets.txt", "models/boar.m2\n")
+        second = self.run_test_mode()
+        self.assertEqual(second.returncode, 0, second.stderr)
+        staged = [record for record in self.records() if "assets" in record]
+        self.assertEqual(staged[0]["asset_dir"], staged[1]["asset_dir"])
+        self.assertEqual(staged[1]["assets"], {"models/boar.m2": "boar model v2"})
+
+    def test_test_mode_rejects_missing_or_escaping_assets_before_depot(self):
+        for listed, message in (("models/absent.m2", "data/models/absent.m2"), ("../.env", "inside data/")):
+            self._put(self.root, "godot/depot-test-assets.txt", listed + "\n")
+            result = self.run_test_mode("-p", "game-engine-core")
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(message, result.stderr)
+        self.assertEqual(self.records(), [])
+
+    def test_test_and_fixture_modes_are_exclusive(self):
+        command = ["python3", str(SCRIPT), "--root", str(self.root), "--fixture", "native_input_fixture", "--test"]
+        result = subprocess.run(command, env=self.env, text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not allowed", result.stderr)
 
     def test_bad_fixture_choice_fails_before_depot(self):
         result = self.build(fixture="../../other")
