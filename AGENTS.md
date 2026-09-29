@@ -77,6 +77,7 @@ src/
   - Socket auto-discovered via `/tmp/game-engine-*.sock` glob
 - `cargo run --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
 - `./run-tests.sh` — root and launcher workspace tests, clippy, and format check; run Godot workspace tests separately from `godot/`.
+- `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-core [cargo test args...]` — run `godot/` workspace `cargo test --locked` on Depot (CPU only, no Godot engine) with the data files listed in `godot/depot-test-assets.txt`; exits with cargo's status. Agents use this instead of local Cargo in `godot/`.
 - Parallel-agent tooling in `scripts/agent/`:
   - `link-worktree-data.py <canonical> <worktree>` links untracked `data/` into a worktree.
   - `seed-target.sh <repo> <dir>` reflink-clones a warm `CARGO_TARGET_DIR`; never start an agent on an empty one.
