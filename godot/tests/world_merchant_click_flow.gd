@@ -111,9 +111,14 @@ func check_live_options_scale(client: Node, vendor: Dictionary) -> bool:
 	await set_scale_slider(slider, 0.0)
 	if not check_scaled_hosts(client, 0.75):
 		return false
+	var options := menu.find_child("OptionsRoot", true, false) as Control
+	if options == null or not await capture_scaled_ui("merchant-options-075", options):
+		return false
 	await click(menu.find_child("OptionsTabaccessibility", true, false) as Control)
 	await set_scale_slider(slider, 0.6666667)
-	return check_scaled_hosts(client, 1.25)
+	if not check_scaled_hosts(client, 1.25):
+		return false
+	return await capture_scaled_ui("merchant-options-125", options)
 
 func set_scale_slider(slider: Control, percent: float) -> void:
 	var rect := slider.get_global_rect()
