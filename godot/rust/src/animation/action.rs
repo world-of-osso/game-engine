@@ -1,0 +1,207 @@
+//! Combat and spell clips layered over locomotion: melee swings, hit reactions, cast
+//! releases (played once) and precast/channel loops (held until stopped).
+//!
+//! The layer crossfades in and out with the clip's M2 `blend_time` (150 ms minimum,
+//! AGENTS.md). Upper-body bones (M2 key bone SpineLow's subtree, `AnimKitBoneSet` 1)
+//! always take the action; lower-body bones take it only while the unit stands, so a
+//! unit swinging or casting on the move keeps its legs on the run cycle (Retail
+//! `AnimKitConfig` upper-body segments). Replacing an action mid-play crossfades from
+//! the pose it had reached and keeps the layer weight, so neither pops.
+
+use std::collections::HashMap;
+
+use game_engine_core::m2;
+
+use super::{AnimationState, BonePose, MIN_MOVEMENT_BLEND_MS};
+
+/// M2 key bone id of SpineLow, the root of `AnimKitBoneSet` 1 (upper body).
+const UPPER_BODY_KEY_BONE: i32 = 4;
+
+/// Locomotion clips that leave the legs free for an action: Stand, the Ready stances
+/// (Unarmed/1H/2H/2HL) and SwimIdle.
+const STATIONARY_ANIMS: [u16; 6] = [0, 25, 26, 27, 28, 41];
+
+pub(super) struct ActionLayer {
+    index: usize,
+    time_ms: f64,
+    looping: bool,
+    /// Pose of the action this one replaced, faded out over `fade_ms`.
+    outgoing: Option<(Vec<BonePose>, f32)>,
+    fade_ms: f32,
+    pub(super) upper: f32,
+    pub(super) lower: f32,
+    releasing: bool,
+}
+
+/// Bones in the subtree of key bone SpineLow; empty when the model has none.
+pub(super) fn upper_body_bones(model: &m2::Model) -> Vec<bool> {
+    let Some(root) = model
+        .bones
+        .iter()
+        .position(|bone| bone.key_bone_id == UPPER_BODY_KEY_BONE)
+    else {
+        return vec![false; model.bones.len()];
+    };
+    let mut upper = vec![false; model.bones.len()];
+    for index in 0..model.bones.len() {
+        let mut bone = index as i32;
+        while bone >= 0 {
+            if bone as usize == root {
+                upper[index] = true;
+                break;
+            }
+            bone = i32::from(model.bones[bone as usize].parent_bone_id);
+        }
+    }
+    upper
+}
+
+fn approach(value: f32, target: f32, step: f32) -> f32 {
+    if value < target {
+        (value + step).min(target)
+    } else {
+        (value - step).max(target)
+    }
+}
+
+impl AnimationState {
+    /// `id`, or its `AnimationData.Fallback` chain's first clip the model has.
+    pub fn resolve_clip(&self, id: u16, fallbacks: &HashMap<u16, u16>) -> Option<u16> {
+        let mut clip = id;
+        for _ in 0..16 {
+            if self.base_sequence(clip).is_some() {
+                return Some(clip);
+            }
+            clip = *fallbacks.get(&clip)?;
+            // A chain ending in Stand has no action to show.
+            if clip == 0 {
+                return None;
+            }
+        }
+        None
+    }
+
+    fn base_sequence(&self, id: u16) -> Option<usize> {
+        self.sequences
+            .iter()
+            .position(|sequence| sequence.id == id && sequence.variation_id == 0)
+    }
+
+    /// Play clip `id` over locomotion: once, or held while `looping` until
+    /// [`Self::stop_action`]. Requesting the held loop again keeps it and its blend.
+    pub fn play_action(&mut self, id: u16, looping: bool) -> Result<(), String> {
+        let index = self
+            .base_sequence(id)
+            .ok_or_else(|| format!("M2 animation ID {id} has no base variation"))?;
+        let fade_ms = (self.sequences[index].blend_time as f32).max(MIN_MOVEMENT_BLEND_MS);
+        if let Some(action) = &mut self.action
+            && action.index == index
+            && action.looping
+            && looping
+        {
+            action.releasing = false;
+            return Ok(());
+        }
+        let (outgoing, upper, lower) = match self.action.take() {
+            Some(previous) => {
+                let pose = self.sample_action(&previous);
+                (Some((pose, 0.0)), previous.upper, previous.lower)
+            }
+            None => (None, 0.0, 0.0),
+        };
+        self.action = Some(ActionLayer {
+            index,
+            time_ms: 0.0,
+            looping,
+            outgoing,
+            fade_ms,
+            upper,
+            lower,
+            releasing: false,
+        });
+        Ok(())
+    }
+
+    /// Fade out the held action `id`; another clip or no action is left alone.
+    pub fn stop_action(&mut self, id: u16) {
+        if let Some(action) = &mut self.action
+            && self.sequences[action.index].id == id
+        {
+            action.releasing = true;
+        }
+    }
+
+    /// The action clip playing or fading, if any.
+    pub fn action_id(&self) -> Option<u16> {
+        let action = self.action.as_ref()?;
+        (!action.releasing).then(|| self.sequences[action.index].id)
+    }
+
+    pub(super) fn set_locomotion_stationary(&mut self, movement_id: u16, jumping: bool) {
+        self.legs_free = !jumping && STATIONARY_ANIMS.contains(&movement_id);
+    }
+
+    pub(super) fn tick_action(&mut self, delta_ms: f64) {
+        let legs_free = self.legs_free;
+        let Some(action) = &mut self.action else {
+            return;
+        };
+        let duration = f64::from(self.sequences[action.index].duration);
+        action.time_ms += delta_ms;
+        if action.time_ms >= duration {
+            if action.looping && duration > 0.0 {
+                action.time_ms %= duration;
+            } else {
+                action.time_ms = duration;
+                action.releasing = true;
+            }
+        }
+        let step = delta_ms as f32 / action.fade_ms;
+        if let Some((_, elapsed)) = &mut action.outgoing {
+            *elapsed += delta_ms as f32;
+            if *elapsed >= action.fade_ms {
+                action.outgoing = None;
+            }
+        }
+        let upper_target = if action.releasing { 0.0 } else { 1.0 };
+        let lower_target = if action.releasing || !legs_free {
+            0.0
+        } else {
+            1.0
+        };
+        action.upper = approach(action.upper, upper_target, step);
+        action.lower = approach(action.lower, lower_target, step);
+        if action.releasing && action.upper == 0.0 && action.lower == 0.0 {
+            self.action = None;
+        }
+    }
+
+    fn sample_action(&self, action: &ActionLayer) -> Vec<BonePose> {
+        let current = self.sample_sequence(action.index, action.time_ms);
+        let Some((outgoing, elapsed)) = &action.outgoing else {
+            return current;
+        };
+        let weight = (elapsed / action.fade_ms).clamp(0.0, 1.0);
+        outgoing
+            .iter()
+            .zip(current)
+            .map(|(from, to)| from.blend(to, weight))
+            .collect()
+    }
+
+    /// `base` with the action layer blended per bone.
+    pub(super) fn apply_action(&self, base: Vec<BonePose>) -> Vec<BonePose> {
+        let Some(action) = &self.action else {
+            return base;
+        };
+        let poses = self.sample_action(action);
+        base.into_iter()
+            .zip(poses)
+            .zip(&self.upper_body)
+            .map(|((base, pose), &upper)| {
+                let weight = if upper { action.upper } else { action.lower };
+                base.blend(pose, weight)
+            })
+            .collect()
+    }
+}

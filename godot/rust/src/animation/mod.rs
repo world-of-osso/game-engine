@@ -10,6 +10,7 @@ use godot::{
 #[cfg(test)]
 use godot::builtin::{Basis, Transform3D};
 
+mod action;
 pub(crate) mod lod;
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
@@ -114,6 +115,12 @@ pub struct AnimationState {
     random_state: u64,
     /// Per sequence: whether any bone track has more than one keyframe.
     sequence_animated: Vec<bool>,
+    /// Combat/spell clip layered over the selected sequence.
+    action: Option<action::ActionLayer>,
+    /// Per bone: in the upper-body set an action always drives.
+    upper_body: Vec<bool>,
+    /// Locomotion is standing still, so an action also drives the legs.
+    legs_free: bool,
 }
 
 impl AnimationState {
@@ -157,13 +164,16 @@ impl AnimationState {
             transition: None,
             random_state: 0,
             sequence_animated,
+            action: None,
+            upper_body: action::upper_body_bones(model),
+            legs_free: true,
         })
     }
 
     /// Whether the sampled pose can change as time advances: a crossfade, or a
     /// current sequence with keyframed motion. Static props hold one pose.
     pub fn pose_varies(&self) -> bool {
-        self.transition.is_some() || self.sequence_animated[self.current]
+        self.transition.is_some() || self.action.is_some() || self.sequence_animated[self.current]
     }
 
     fn sample_sequence(&self, index: usize, time_ms: f64) -> Vec<BonePose> {
@@ -191,6 +201,10 @@ impl AnimationState {
     }
 
     fn sampled_poses(&self) -> Vec<BonePose> {
+        self.apply_action(self.sampled_base_poses())
+    }
+
+    fn sampled_base_poses(&self) -> Vec<BonePose> {
         let current = self.sample_sequence(self.current, self.time_ms);
         let Some(transition) = &self.transition else {
             return current;
@@ -249,6 +263,7 @@ impl AnimationState {
         jumping: bool,
         running_forward: bool,
     ) -> Result<bool, String> {
+        self.set_locomotion_stationary(movement_id, jumping);
         let current_id = self.sequences[self.current].id;
         let finished = self.time_ms >= f64::from(self.sequences[self.current].duration);
         match current_id {
@@ -276,6 +291,7 @@ impl AnimationState {
     }
 
     fn play_death(&mut self) {
+        self.action = None;
         if let Some(index) = self.sequences.iter().position(|sequence| sequence.id == 1) {
             self.start_transition(index, false);
         }
@@ -283,7 +299,7 @@ impl AnimationState {
 
     fn start_transition(&mut self, index: usize, looping: bool) {
         let outgoing = if self.transition.is_some() {
-            Outgoing::Snapshot(self.sampled_poses())
+            Outgoing::Snapshot(self.sampled_base_poses())
         } else {
             Outgoing::Sequence {
                 index: self.current,
@@ -304,7 +320,9 @@ impl AnimationState {
         let mut state = self.random_state;
         let result = self.advance_with_roll(delta_ms, |upper| sample_roll(&mut state, upper));
         self.random_state = state;
-        result
+        result?;
+        self.tick_action(delta_ms);
+        Ok(())
     }
 
     fn advance_with_roll(
@@ -495,6 +513,33 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
+    /// Play combat/spell clip `id` (or its `AnimationData` fallback) over locomotion,
+    /// once or held while `looping`. `Ok(None)`: the model has no such clip.
+    pub(crate) fn play_action(
+        &mut self,
+        id: u16,
+        looping: bool,
+        fallbacks: &std::collections::HashMap<u16, u16>,
+    ) -> Result<Option<u16>, String> {
+        let animation = self
+            .animation
+            .as_mut()
+            .ok_or_else(|| "M2 animation has no bound model".to_string())?;
+        let Some(clip) = animation.resolve_clip(id, fallbacks) else {
+            return Ok(None);
+        };
+        animation.play_action(clip, looping)?;
+        self.write_poses();
+        Ok(Some(clip))
+    }
+
+    /// Fade out held action clip `id`.
+    pub(crate) fn stop_action(&mut self, id: u16) {
+        if let Some(animation) = self.animation.as_mut() {
+            animation.stop_action(id);
+        }
+    }
+
     pub(crate) fn play_death(&mut self) -> Result<(), String> {
         self.animation
             .as_mut()
@@ -529,6 +574,16 @@ impl WowAnimationPlayer {
         self.animation
             .as_ref()
             .map(|animation| i32::from(animation.sequences[animation.current].id))
+            .unwrap_or(-1)
+    }
+
+    /// The combat/spell clip layered over locomotion, or -1.
+    #[func]
+    fn current_action_id(&self) -> i32 {
+        self.animation
+            .as_ref()
+            .and_then(AnimationState::action_id)
+            .map(i32::from)
             .unwrap_or(-1)
     }
 
@@ -593,6 +648,9 @@ fn pose_write_due(changed: bool, sampling: bool, stale: &mut bool) -> bool {
     *stale = due && !sampling;
     due && sampling
 }
+
+#[cfg(test)]
+mod action_tests;
 
 #[cfg(test)]
 mod jump_tests;

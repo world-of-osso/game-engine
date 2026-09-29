@@ -61,7 +61,7 @@ fn slam_swings_the_weapon_class_combat_ability_and_bloodies_the_target_chest() {
 
     let impact = catalog.kits(one_hand, VisualEvent::Impact);
     assert_eq!(impact.len(), 1);
-    assert_eq!(impact[0].target, KitTarget::Target);
+    assert_eq!(impact[0].target, KitTarget::PrimaryTarget);
     let model = &impact[0].models[0];
     assert_eq!((model.model_fdid, model.attachment), (1283017, Some(15)));
     // Models lacking CombatAbility1H01 fall back to Special1H.
@@ -85,7 +85,7 @@ fn battle_shout_roars_once_with_a_base_effect_and_buffs_each_hit_unit() {
     assert_eq!(cast[0].models[0].model_fdid, 1138011);
     assert_eq!(cast[0].models[0].attachment, None);
     let impact = catalog.kits(visual, VisualEvent::Impact);
-    assert_eq!(impact[0].target, KitTarget::Target);
+    assert_eq!(impact[0].target, KitTarget::HitUnits);
     assert_eq!(impact[0].models[0].model_fdid, 6194303);
 }
 

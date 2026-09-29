@@ -18,7 +18,7 @@ use crate::db2_cache::{CacheKey, load_or_build};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 1;
+const CACHE_FORMAT: u32 = 2;
 
 const SOURCE_TABLES: [&str; 11] = [
     "SpellXSpellVisual",
@@ -78,13 +78,15 @@ impl VisualEvent {
     }
 }
 
-/// Unit a kit plays on (`SpellVisualEvent.TargetType`): 1 is the caster; 2 and 4 are
-/// hit units (4 dominates melee impacts). 3 (area/destination) and 5 (missile) are
-/// not unit kits.
+/// Unit a kit plays on (`SpellVisualEvent.TargetType`): 1 the caster, 2 every unit
+/// the spell hit (`SpellGo` hit targets: Battle Shout's buffed units), 4 the explicit
+/// target only (melee impacts, whose spells also hit the caster). 3 (area/destination)
+/// and 5 (missile) are not unit kits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum KitTarget {
     Caster,
-    Target,
+    HitUnits,
+    PrimaryTarget,
     Other(u32),
 }
 
@@ -92,7 +94,8 @@ impl KitTarget {
     fn from_db2(value: u32) -> Self {
         match value {
             1 => Self::Caster,
-            2 | 4 => Self::Target,
+            2 => Self::HitUnits,
+            4 => Self::PrimaryTarget,
             other => Self::Other(other),
         }
     }
