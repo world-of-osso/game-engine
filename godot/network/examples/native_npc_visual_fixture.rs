@@ -849,6 +849,85 @@ fn run_fixture(
     Err(format!("Timed out at NPC fixture phase {phase}"))
 }
 
+fn populate_nameplate_units(app: &mut App, player: Entity, npc: Entity) {
+    app.world_mut().entity_mut(player).insert((
+        UnitFactionTemplate(35),
+        shared::components::UnitLevel(12),
+        Health {
+            current: 10.0,
+            max: 40.0,
+        },
+        shared::components::UnitPowers {
+            entries: vec![shared::components::PowerEntry {
+                power: shared::components::PowerType::Mana,
+                current: 19,
+                max: 60,
+            }],
+        },
+        Position {
+            x: -8949.0,
+            y: 112.88,
+            z: 0.0,
+        },
+    ));
+    app.world_mut().entity_mut(npc).insert((
+        Position {
+            x: -8945.0,
+            y: 112.88,
+            z: 0.0,
+        },
+        UnitFactionTemplate(14),
+        UnitFlags(0),
+        Health {
+            current: 10.0,
+            max: 10.0,
+        },
+    ));
+}
+
+fn read_nameplate_fixture_output(
+    app: &mut App,
+    lines: &Receiver<String>,
+    player: &mut Option<Entity>,
+    npc: Option<Entity>,
+) -> Result<(), String> {
+    for line in lines.try_iter() {
+        if line.contains("SCRIPT ERROR") || line.contains("Account update failed") {
+            return Err(format!("Native nameplate fixture setup: {line}"));
+        }
+        match line.trim() {
+            "FIXTURE NAMEPLATE_MOVE" => {
+                app.world_mut()
+                    .entity_mut(npc.ok_or("NPC missing")?)
+                    .insert(Position {
+                        x: -8919.0,
+                        y: 112.88,
+                        z: 0.0,
+                    });
+            }
+            "FIXTURE PLAYER_HEALTH_UPDATE" => {
+                app.world_mut()
+                    .entity_mut(player.ok_or("Player missing")?)
+                    .insert(Health {
+                        current: 27.0,
+                        max: 40.0,
+                    });
+            }
+            "FIXTURE PLAYER_REMOVE" => {
+                app.world_mut()
+                    .despawn(player.take().ok_or("Player missing")?);
+            }
+            "FIXTURE NAMEPLATE_OPTIONS_DONE" => {
+                println!(
+                    "PASS: replicated nameplate authored HUD/Accessibility controls and live nodes"
+                );
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 fn run_nameplate_fixture(
     app: &mut App,
     child: &mut Child,
@@ -864,39 +943,7 @@ fn run_nameplate_fixture(
         respond_to_login(app)?;
         respond_to_selection(app, &mut player, &mut npc)?;
         if !ready && let (Some(player), Some(npc)) = (player, npc) {
-            app.world_mut().entity_mut(player).insert((
-                UnitFactionTemplate(35),
-                shared::components::UnitLevel(12),
-                Health {
-                    current: 10.0,
-                    max: 40.0,
-                },
-                shared::components::UnitPowers {
-                    entries: vec![shared::components::PowerEntry {
-                        power: shared::components::PowerType::Mana,
-                        current: 19,
-                        max: 60,
-                    }],
-                },
-                Position {
-                    x: -8949.0,
-                    y: 112.88,
-                    z: 0.0,
-                },
-            ));
-            app.world_mut().entity_mut(npc).insert((
-                Position {
-                    x: -8945.0,
-                    y: 112.88,
-                    z: 0.0,
-                },
-                UnitFactionTemplate(14),
-                UnitFlags(0),
-                Health {
-                    current: 10.0,
-                    max: 10.0,
-                },
-            ));
+            populate_nameplate_units(app, player, npc);
             ready = true;
         }
         let status = child.try_wait().map_err(|error| error.to_string())?;
@@ -905,40 +952,7 @@ fn run_nameplate_fixture(
                 reader.join().map_err(|_| "Godot reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
-            if line.contains("SCRIPT ERROR") || line.contains("Account update failed") {
-                return Err(format!("Native nameplate fixture setup: {line}"));
-            }
-            match line.trim() {
-                "FIXTURE NAMEPLATE_MOVE" => {
-                    app.world_mut()
-                        .entity_mut(npc.ok_or("NPC missing")?)
-                        .insert(Position {
-                            x: -8919.0,
-                            y: 112.88,
-                            z: 0.0,
-                        });
-                }
-                "FIXTURE PLAYER_HEALTH_UPDATE" => {
-                    app.world_mut()
-                        .entity_mut(player.ok_or("Player missing")?)
-                        .insert(Health {
-                            current: 27.0,
-                            max: 40.0,
-                        });
-                }
-                "FIXTURE PLAYER_REMOVE" => {
-                    app.world_mut()
-                        .despawn(player.take().ok_or("Player missing")?);
-                }
-                "FIXTURE NAMEPLATE_OPTIONS_DONE" => {
-                    println!(
-                        "PASS: replicated nameplate authored HUD/Accessibility controls and live nodes"
-                    );
-                }
-                _ => {}
-            }
-        }
+        read_nameplate_fixture_output(app, &lines, &mut player, npc)?;
         if let Some(status) = status {
             return if status.success() {
                 Ok(())
