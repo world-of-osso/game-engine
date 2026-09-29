@@ -1151,7 +1151,7 @@ fn main() {
         StartupScreen::ResetWindows | StartupScreen::SoundClick
     )
     .then(|| {
-        reset_windows::FixtureProject::create(root)
+        reset_windows::FixtureProject::create(root, screen == StartupScreen::SoundClick)
             .expect("stage isolated reset data and Godot project")
     });
     let project = reset_project
