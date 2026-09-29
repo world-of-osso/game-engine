@@ -91,9 +91,10 @@ func check_merchant_placement(client: Node, bag: Control, config: String) -> boo
 		return false
 	var bag_rect := bag.get_global_rect()
 	var start := frame.get_global_rect().position + Vector2(105, 12)
-	await drag_title(start, start + Vector2(85, 35))
+	var moved_target := Vector2(1020, 480)
+	await drag_title(start, start + moved_target - frame.get_global_rect().position)
 	var moved := frame.get_global_rect().position
-	if moved.distance_to(Vector2(16, 104) * scale + Vector2(85, 35)) > 2 or bag.get_global_rect() != bag_rect:
+	if moved.distance_to(moved_target) > 2 or bag.get_global_rect() != bag_rect:
 		fail("Merchant title move shifted backpack or did not move root: " + str(moved))
 		return false
 	var layout := FileAccess.get_file_as_string(config.path_join("world-of-osso/ui_layout.ron"))
@@ -109,12 +110,15 @@ func check_merchant_clamp(frame: Control, bag: Control, original_bag: Rect2) -> 
 	await wait_frames(5)
 	var rect := frame.get_global_rect()
 	var limit := Vector2(root.size) - rect.size
-	if rect.position.distance_to(Vector2(minf(105.0, limit.x), minf(165.0, limit.y))) > 2:
+	var scale := frame.get_global_transform().get_scale().x
+	var saved := Vector2(1020, 480) / 1.25 * scale
+	var expected := Vector2(minf(saved.x, limit.x), minf(saved.y, limit.y))
+	if saved.x <= limit.x or saved.y <= limit.y or rect.position.distance_to(expected) > 2:
 		fail("Merchant saved position did not clamp at scaled viewport: " + str(rect))
 		return false
 	root.size = Vector2i(1920, 1080)
 	await wait_frames(5)
-	if frame.get_global_rect().position.distance_to(Vector2(105, 165)) > 2 or bag.get_global_rect() != original_bag:
+	if frame.get_global_rect().position.distance_to(Vector2(1020, 480)) > 2 or bag.get_global_rect() != original_bag:
 		fail("Merchant restored placement or backpack changed after resize")
 		return false
 	return true
