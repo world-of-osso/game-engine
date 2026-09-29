@@ -6,7 +6,7 @@ Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The l
 
 - Linux x86_64 host.
 - Authenticated `depot` CLI, Python 3, and Git.
-- Depot project `jnnl97r4s7`, overridden only with `DEPOT_PROJECT_ID`.
+- Depot project `local-builds` (`003c4ttwqh`) in the existing Globalcomix organization, overridden only with `DEPOT_PROJECT_ID`.
 
 ## Usage
 
@@ -28,7 +28,9 @@ Remote build or download failures fail explicitly. There is no local Cargo fallb
 
 ## Cost and performance
 
-The $100 monthly ceiling is a conditional budget, not an automatic billing cap. No account settings or cache limits are changed by the helper. Check the project's Cache Storage Policy and organization usage in Depot before sustained use; the actual account limit was not verified because dashboard authentication was unavailable. Sharing a target cache avoids duplication per worktree but does not enforce a storage ceiling.
+Verified September 29, 2026: `local-builds` uses the user-selected **200 GB per-architecture cache cleanup target** (214,748,364,800 bytes) and **14-day stale retention**. Cache is shared across worktrees, not allocated per worktree. Depot evicts old cache above its target; this is not a hard storage or spending cap. Organization billing controls and the existing `default` project remain unchanged.
+
+The willingness to spend up to $100/month is conditional, not an automatic billing cap. This project uses the existing company account; the earlier $20 personal-plan estimate does not describe that account. Monitor attributable project usage and organization billing. The helper itself never changes account settings or cache limits.
 
 On September 29, 2026, one warm constant-change benchmark measured 13.321 s. The first integrated build took 45.7 s, including machine startup and recompiling several project crates. Its shared Cargo target cache measured 6.44 GB (6.00 GiB); this excludes registry/Git caches and Docker layers. These are observations, not latency or cost guarantees. Build output prints the target cache's current byte size.
 

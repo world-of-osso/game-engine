@@ -104,6 +104,12 @@ class DepotBuildTests(unittest.TestCase):
     def records(self):
         return [json.loads(line) for line in self.record.read_text().splitlines()] if self.record.exists() else []
 
+    def test_default_project_is_local_builds(self):
+        self.env.pop("DEPOT_PROJECT_ID", None)
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.records()[0]["project"], "003c4ttwqh")
+
     def test_source_snapshot_and_originating_install(self):
         result = self.build(DEPOT_PROJECT_ID="custom-id")
         self.assertEqual(result.returncode, 0, result.stderr)
