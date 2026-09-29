@@ -235,6 +235,22 @@ pub struct KitStart {
     pub models: Vec<u32>,
 }
 
+/// When the client saw a unit's cast start (`CastState` replicated) or resolve
+/// (`SpellGo`), for automation and logs.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CastSeen {
+    pub spell_id: u32,
+    pub unit: u64,
+    /// `true` for `SpellGo`, `false` for the first replicated `CastState`.
+    pub go: bool,
+    /// Effects clock and wall time (Unix ms).
+    pub at: f32,
+    pub wall_ms: u64,
+    /// The replicated cast's elapsed and total seconds (`CastState` only).
+    pub elapsed: f32,
+    pub duration: f32,
+}
+
 pub struct SpellEffects {
     data_root: PathBuf,
     cache_root: PathBuf,
@@ -250,6 +266,8 @@ pub struct SpellEffects {
     flights: Vec<MissileFlight>,
     /// Seconds advanced since creation.
     clock: f32,
+    /// Newest cast starts and resolutions seen, oldest first, bounded.
+    casts_seen: Vec<CastSeen>,
     sounds: SpellSounds,
     next_flight: u64,
     held: HashMap<u64, HeldCast>,
@@ -276,6 +294,7 @@ impl SpellEffects {
             ready: Vec::new(),
             flights: Vec::new(),
             clock: 0.0,
+            casts_seen: Vec::new(),
             sounds: SpellSounds::default(),
             next_flight: 0,
             held: HashMap::new(),
@@ -331,6 +350,29 @@ impl SpellEffects {
         self.sounds.started()
     }
 
+    /// Recent cast starts and resolutions seen, oldest first.
+    pub fn casts_seen(&self) -> &[CastSeen] {
+        &self.casts_seen
+    }
+
+    fn see_cast(&mut self, spell_id: u32, unit: u64, go: bool, elapsed: f32, duration: f32) {
+        if self.casts_seen.len() == STARTED_KEEP {
+            self.casts_seen.remove(0);
+        }
+        let wall_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |since| since.as_millis() as u64);
+        self.casts_seen.push(CastSeen {
+            spell_id,
+            unit,
+            go,
+            at: self.clock,
+            wall_ms,
+            elapsed,
+            duration,
+        });
+    }
+
     /// Effects clock (seconds), the time base of flights and sound starts.
     pub fn clock(&self) -> f32 {
         self.clock
@@ -381,6 +423,7 @@ impl SpellEffects {
             if self.held.contains_key(&id) {
                 continue;
             }
+            self.see_cast(cast.spell_id, id, false, cast.elapsed, cast.duration);
             let event = match cast.cast_type {
                 CastType::Normal => VisualEvent::PrecastStart,
                 CastType::Channel => VisualEvent::ChannelStart,
@@ -420,7 +463,7 @@ impl SpellEffects {
         }
         self.pending
             .retain(|pending| !(pending.unit == id && pending.lifetime == Lifetime::UntilCastEnds));
-        self.sounds.end_held(id, held.spell_id);
+        self.sounds.end_held(id, held.spell_id, self.clock);
         for effect in &mut self.active {
             if effect.owner == id
                 && effect.spell_id == held.spell_id
@@ -440,6 +483,7 @@ impl SpellEffects {
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let mut errors = Vec::new();
+        self.see_cast(go.spell_id, go.caster, true, 0.0, 0.0);
         // The cast resolved: its precast loop and hand effects end.
         if self
             .held

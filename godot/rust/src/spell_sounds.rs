@@ -24,6 +24,8 @@ pub struct SoundStart {
     pub looping: bool,
     /// `SpellEffects` clock (seconds) at the start.
     pub at: f32,
+    /// When a held loop stopped with its kit.
+    pub stopped_at: Option<f32>,
 }
 
 struct ActiveSound {
@@ -97,6 +99,7 @@ impl SpellSounds {
             fdid: file.fdid,
             looping: held,
             at: request.at,
+            stopped_at: None,
         });
         Ok(())
     }
@@ -114,8 +117,8 @@ impl SpellSounds {
             .clone()
     }
 
-    /// Unit `unit`'s held cast of `spell_id` ended: its looping kit sounds stop.
-    pub fn end_held(&mut self, unit: u64, spell_id: u32) {
+    /// Unit `unit`'s held cast of `spell_id` ended at `at`: its looping kit sounds stop.
+    pub fn end_held(&mut self, unit: u64, spell_id: u32, at: f32) {
         self.active.retain(|sound| {
             let ended = sound.held && sound.unit == unit && sound.spell_id == spell_id;
             if ended && sound.player.is_instance_valid() {
@@ -123,6 +126,11 @@ impl SpellSounds {
             }
             !ended
         });
+        for start in &mut self.started {
+            if start.looping && start.unit == unit && start.spell_id == spell_id {
+                start.stopped_at.get_or_insert(at);
+            }
+        }
     }
 
     /// Apply `gain` and drop finished players (or those freed with their unit).
