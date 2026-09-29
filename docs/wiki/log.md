@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-29] investigation | Optional Depot fixture export
+
+At `be6aeedb`, `scripts/depot-build.py --root <checkout> --fixture native_input_fixture` completed on Depot project `003c4ttwqh`, build `5nqxfxrzpt`, in 206.042 s. It exported the default library and installed `target/debug/examples/native_input_fixture` beneath the originating checkout. The directly launched downloaded fixture then passed local owned-UDP `sound-click` in 30.787 s. Default builds remain library-only; allowlisted `native_npc_visual_fixture` was not remotely built or run. Verifier 963 is pending. This is bounded build/export and fixture proof, not a performance or parity claim. Evidence: `/home/osso/.worktrees/.game-engine-options-depot-20260929/{fixture-build,exported-fixture-runtime}.log`.
+
+Updated [Remote Godot builds](../remote-builds.md), [[godot-conversion]], and [[depot-cross-worktree-freshness]].
+
 ## [2026-09-29] investigation | Depot cross-worktree Cargo freshness
 
 A build from worktree A, then older B, then A failed with `E0425` although A's exact source was snapshotted. The stale state was the shared Cargo target cache. `e4b213a8` refreshes staged compile-input timestamps only after obtaining the shared target lock; the repeated A/B/A sequence rebuilt dependencies and passed. The first full refreshed Options build passed in 49.274 s (`003c4ttwqh` / `cpw7crx3ww`) and installed the 272,736,240-byte extension. Verifier 954 then isolated pinned Godot 4.7.2 and proved `GameClient` registration, `Node3D` instantiation, and scene-tree attachment; this is bounded class-load proof only. Cleanup's 98.28 GB allocated-cache result is not treated as physical-space reclamation.
