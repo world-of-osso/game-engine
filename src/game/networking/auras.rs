@@ -76,7 +76,7 @@ fn sync_unit_auras(
         if !auras.is_changed() && !local_added && !catalog.is_changed() && !player.is_changed() {
             continue;
         }
-        let instances = aura_instances(&auras.auras, &catalog, &casters, &text_ctx);
+        let instances = aura_instances(&auras.auras, catalog.data(), &casters, &text_ctx);
         if local_marker.is_some() {
             aura_state.auras = instances;
             if has_unit_state {

@@ -212,13 +212,23 @@ fn arcane_charges_draw_the_retail_shadow_background_icon_and_orb() {
 }
 
 #[test]
-fn target_auras_hang_below_the_frame() {
+fn hostile_target_auras_hang_off_the_retail_frame_texture_debuffs_first() {
     let reg = unit_frames_registry();
     let frame = rect_by_name(&reg, "TargetFrame");
-    let buffs = rect_by_name(&reg, "TargetBuffRow");
-    let debuffs = rect_by_name(&reg, "TargetDebuffRow");
-    assert!(buffs.y >= frame.y + frame.height);
-    assert!(debuffs.y >= buffs.y + buffs.height);
+    let container = rect_by_name(&reg, "TargetFrameAuras");
+    // FrameTexture BOTTOMLEFT + (5, 9): 5 px in, 48.5 px down the portrait-off art (the
+    // layout snaps to whole pixels).
+    assert_eq!(container.x - frame.x, 5.0);
+    assert!(
+        (container.y - frame.y - 48.5).abs() <= 0.5,
+        "{}",
+        container.y - frame.y
+    );
+    let debuff = rect_by_name(&reg, "TargetDebuffIcon0");
+    let buff = rect_by_name(&reg, "TargetBuffIcon0");
+    assert_eq!((debuff.x, debuff.y), (container.x, container.y));
+    // The buff group starts a new line: 17 px debuff line + 3 px line spacing.
+    assert_eq!((buff.x, buff.y), (container.x, container.y + 20.0));
 }
 
 #[test]
@@ -263,63 +273,44 @@ fn player_combat_and_resting_icons_follow_state() {
 }
 
 #[test]
-fn target_aura_icons_render_with_timer_and_stacks() {
+fn target_aura_buttons_show_icon_count_dispel_border_and_swipe_frame() {
     let reg = unit_frames_registry();
-
-    let buff = reg
-        .get(
-            reg.get_by_name("TargetBuffIcon0Texture")
-                .expect("target buff texture"),
-        )
-        .expect("target buff texture frame");
-    let debuff = reg
-        .get(
-            reg.get_by_name("TargetDebuffIcon0Texture")
-                .expect("target debuff texture"),
-        )
-        .expect("target debuff texture frame");
-    let buff_timer = reg
-        .get(
-            reg.get_by_name("TargetBuffIcon0Timer")
-                .expect("target buff timer"),
-        )
-        .expect("target buff timer");
-    let debuff_stack = reg
-        .get(
-            reg.get_by_name("TargetDebuffIcon0Stack")
-                .expect("target debuff stack"),
-        )
-        .expect("target debuff stack");
-
-    let Some(ui_toolkit::frame::WidgetData::Texture(buff_texture)) = buff.widget_data.as_ref()
-    else {
-        panic!("expected TargetBuffIcon0Texture texture");
+    let texture = |name: &str| match reg
+        .get(reg.get_by_name(name).expect(name))
+        .and_then(|frame| frame.widget_data.as_ref())
+    {
+        Some(ui_toolkit::frame::WidgetData::Texture(texture)) => texture.clone(),
+        _ => panic!("{name} is not a texture"),
     };
-    let Some(ui_toolkit::frame::WidgetData::Texture(debuff_texture)) = debuff.widget_data.as_ref()
-    else {
-        panic!("expected TargetDebuffIcon0Texture texture");
+    let text = |name: &str| match reg
+        .get(reg.get_by_name(name).expect(name))
+        .and_then(|frame| frame.widget_data.as_ref())
+    {
+        Some(ui_toolkit::frame::WidgetData::FontString(text)) => text.text.clone(),
+        _ => panic!("{name} is not a fontstring"),
     };
-    let Some(ui_toolkit::frame::WidgetData::FontString(buff_timer_text)) =
-        buff_timer.widget_data.as_ref()
-    else {
-        panic!("expected TargetBuffIcon0Timer fontstring");
-    };
-    let Some(ui_toolkit::frame::WidgetData::FontString(debuff_stack_text)) =
-        debuff_stack.widget_data.as_ref()
-    else {
-        panic!("expected TargetDebuffIcon0Stack fontstring");
-    };
-
-    assert!(matches!(
-        buff_texture.source,
-        crate::ui::widgets::texture::TextureSource::FileDataId(136078)
-    ));
-    assert!(matches!(
-        debuff_texture.source,
-        crate::ui::widgets::texture::TextureSource::FileDataId(136207)
-    ));
-    assert_eq!(buff_timer_text.text, "5m");
-    assert_eq!(debuff_stack_text.text, "3");
+    assert_eq!(
+        texture("TargetBuffIcon0Texture").source,
+        TextureSource::FileDataId(136078)
+    );
+    assert_eq!(
+        texture("TargetDebuffIcon0Texture").source,
+        TextureSource::FileDataId(136207)
+    );
+    assert_eq!(text("TargetDebuffIcon0Count"), "3");
+    assert_eq!(text("TargetBuffIcon0Count"), "");
+    let border = texture("TargetDebuffIcon0Border");
+    assert_eq!(border.source, TextureSource::FileDataId(130759));
+    assert_eq!(border.vertex_color, [0.2, 0.6, 1.0, 1.0]);
+    assert!(reg.get_by_name("TargetBuffIcon0Border").is_none());
+    let icon = rect_by_name(&reg, "TargetDebuffIcon0");
+    let border = rect_by_name(&reg, "TargetDebuffIcon0Border");
+    assert_eq!(
+        (border.x, border.y, border.width),
+        (icon.x - 1.0, icon.y - 1.0, 19.0)
+    );
+    let swipe = rect_by_name(&reg, "TargetDebuffIcon0Cooldown");
+    assert_eq!((swipe.x, swipe.y), (icon.x, icon.y + 1.0));
 }
 
 fn sample_player_frame_state() -> UnitFrameState {
@@ -336,18 +327,20 @@ fn sample_target_frame_state() -> UnitFrameState {
         level_text: "7".into(),
         reaction: Some(crate::faction_reaction::Reaction::Hostile),
         target_buffs: vec![TargetAuraIconState {
+            spell_id: 1126,
             icon_fdid: 136078,
-            timer_text: "5m".to_string(),
             stacks: 1,
-            border_color: "0.85,0.75,0.35,1.0".to_string(),
-            mine: false,
+            dispel_color: None,
+            large: false,
+            elapsed: Some(0.25),
         }],
         target_debuffs: vec![TargetAuraIconState {
+            spell_id: 589,
             icon_fdid: 136207,
-            timer_text: "12s".to_string(),
             stacks: 3,
-            border_color: "0.2,0.6,1.0,1.0".to_string(),
-            mine: false,
+            dispel_color: Some("0.2,0.6,1.0,1.0".to_string()),
+            large: false,
+            elapsed: Some(0.5),
         }],
         ..UnitFrameState::named("Timber Wolf")
     }

@@ -138,7 +138,7 @@ fn timers_count_down_between_server_updates() {
 }
 
 #[test]
-fn other_units_get_unit_aura_state_marking_the_local_players_debuffs() {
+fn other_units_get_unit_aura_state_in_slot_order_marking_the_local_players_debuffs() {
     let Fixture { mut app, wolf, .. } = fixture();
     app.world_mut().entity_mut(wolf).insert(UnitAuras {
         auras: vec![
@@ -153,7 +153,8 @@ fn other_units_get_unit_aura_state_marking_the_local_players_debuffs() {
         .iter()
         .map(|aura| (aura.instance_id, aura.from_local_player))
         .collect();
-    assert_eq!(order, [(8, true), (7, false)]);
+    // Replicated slot order; TargetFrame sorts the player's first itself.
+    assert_eq!(order, [(7, false), (8, true)]);
     assert!(app.world().resource::<AuraState>().auras.is_empty());
 
     app.world_mut().entity_mut(wolf).remove::<UnitAuras>();
