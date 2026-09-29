@@ -2,11 +2,12 @@
 //! formatting, the client slash-command parser, combat log lines, timestamps, tab flashing,
 //! scrolling and word wrapping. Chattynator references are to its Lua source.
 
+#[cfg(not(godot_host))]
 use bevy::prelude::*;
 use chrono::TimeZone;
 use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind, EmoteKind, MissKind};
 
-use crate::chat_data::{ChatChannelType, ChatMessage};
+use crate::chat_data::{ChatChannelType, ChatMessage, ChatState, now_timestamp};
 use crate::group_state::GroupCommand;
 
 pub const MAX_COMBAT_LINES: usize = 200;
@@ -154,7 +155,8 @@ pub struct ChatEntry {
 
 /// Combat log tab lines. Names are resolved when the event arrives because the
 /// entities may be gone by the time the line is shown.
-#[derive(Resource, Clone, Debug, Default, PartialEq)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct CombatLogChat {
     pub lines: Vec<ChatEntry>,
     /// Lines ever pushed, so newly arrived lines are known after old ones are dropped.
@@ -173,7 +175,8 @@ impl CombatLogChat {
 }
 
 /// Selected tab, flashing tabs, scroll position, edit box visibility and sent-line history.
-#[derive(Resource, Clone, Debug, Default, PartialEq)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ChatFrameState {
     pub tab: ChatTab,
     /// Unselected tabs with unseen messages.
@@ -329,6 +332,72 @@ where
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// A tab's lines, oldest first: the combat log's own, else the chat messages it lists.
+pub fn tab_entries(tab: ChatTab, chat: &ChatState, combat: &CombatLogChat) -> Vec<ChatEntry> {
+    match tab {
+        ChatTab::CombatLog => combat.lines.clone(),
+        tab => chat
+            .messages
+            .iter()
+            .filter(|msg| tab.shows(msg))
+            .map(|msg| ChatEntry {
+                timestamp: msg.timestamp,
+                line: chat_message_line(msg),
+            })
+            .collect(),
+    }
+}
+
+pub fn tab_len(tab: ChatTab, chat: &ChatState, combat: &CombatLogChat) -> usize {
+    match tab {
+        ChatTab::CombatLog => combat.lines.len(),
+        tab => chat.messages.iter().filter(|msg| tab.shows(msg)).count(),
+    }
+}
+
+/// Messages added since `ChatState::received` was `seen`.
+pub fn new_chat_messages(chat: &ChatState, seen: u64) -> &[ChatMessage] {
+    let new = (chat.received - seen).min(chat.messages.len() as u64) as usize;
+    &chat.messages[chat.messages.len() - new..]
+}
+
+/// While scrolled up, new lines in the shown tab do not move the view.
+pub fn hold_scroll_position(
+    state: &mut ChatFrameState,
+    new_chat: &[ChatMessage],
+    new_combat: usize,
+    chat: &ChatState,
+    combat: &CombatLogChat,
+) {
+    if state.scroll == 0 {
+        return;
+    }
+    let tab = state.tab;
+    let arrived = match tab {
+        ChatTab::CombatLog => new_combat,
+        tab => new_chat.iter().filter(|msg| tab.shows(msg)).count(),
+    };
+    if arrived > 0 {
+        state.scroll_by(arrived as isize, tab_len(tab, chat, combat));
+    }
+}
+
+/// A local system line, shown only to this client.
+pub fn add_system_line(chat: &mut ChatState, text: &str) {
+    chat.add_message(ChatMessage {
+        channel_type: ChatChannelType::System,
+        channel_name: String::new(),
+        sender: String::new(),
+        text: text.to_string(),
+        timestamp: now_timestamp(),
+    });
+}
+
+/// [`copy_chat_text`] with local timestamps, as [`local_timestamp`] shows them.
+pub fn local_copy_chat_text(entries: &[ChatEntry], spell_name: impl Fn(u32) -> String) -> String {
+    copy_chat_text(entries, spell_name, &chrono::Local)
 }
 
 /// Retail chat line for a received message.

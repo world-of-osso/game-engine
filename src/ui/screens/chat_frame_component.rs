@@ -8,8 +8,12 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 
+use crate::chat_data::ChatState;
 use crate::ui::anchor::FrameName;
-use crate::ui::chat_frame::{ChatRow, ChatRun, ChatTab};
+use crate::ui::chat_frame::{
+    ChatFrameState, ChatRow, ChatRun, ChatTab, CombatLogChat, local_timestamp, messages_that_fit,
+    tab_entries, wrap_chat_line,
+};
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 pub const CHAT_FRAME: FrameName = FrameName("ChatFrame1");
@@ -155,6 +159,42 @@ fn timestamp_inset() -> f32 {
 
 fn text_width(value: &str, font: GameFont, size: f32) -> f32 {
     measure_text(value, font, size).map_or(0.0, |(width, _)| width)
+}
+
+/// The messages that fit, counting up from the newest past the scrolled-over ones.
+pub fn chat_frame_view(
+    state: &ChatFrameState,
+    chat: &ChatState,
+    combat: &CombatLogChat,
+    spell_name: impl Fn(u32) -> String,
+) -> ChatFrameView {
+    let area = chat_text_area(state.tab);
+    let entries = tab_entries(state.tab, chat, combat);
+    let mut messages = Vec::new();
+    let mut heights = Vec::new();
+    for entry in entries.iter().rev().skip(state.scroll) {
+        let rows = wrap_chat_line(&entry.line, &spell_name, area.width, measure_chat_text);
+        heights.push(rows.len() as f32 * CHAT_LINE_H);
+        if messages_that_fit(&heights, CHAT_MESSAGES_AVAILABLE_H, area.spacing) < heights.len() {
+            break;
+        }
+        messages.push(ChatMessageView {
+            timestamp: (!state.tab.is_combat_log()).then(|| local_timestamp(entry.timestamp)),
+            rows,
+        });
+    }
+    messages.reverse();
+    ChatFrameView {
+        tab: state.tab,
+        messages,
+        input_open: state.input_open,
+        flashing: state.flashing.clone(),
+        scrolled_up: state.scroll > 0,
+    }
+}
+
+pub fn measure_chat_text(value: &str) -> f32 {
+    text_width(value, CHAT_FONT, CHAT_FONT_SIZE)
 }
 
 pub fn tab_name(index: usize) -> String {

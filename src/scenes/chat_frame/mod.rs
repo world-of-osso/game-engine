@@ -9,15 +9,13 @@ use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use game_engine::chat_data::{
-    ChatChannelType, ChatMessage as RuntimeChatMessage, ChatState, WhisperState, now_timestamp,
-};
+use game_engine::chat_data::{ChatState, WhisperState};
 use game_engine::group_state::GroupCommand;
 use game_engine::spell_catalog::SpellCatalog;
 use game_engine::ui::chat_frame::{
-    ChatCommand, ChatEntry, ChatFrameState, ChatTab, CombatLogChat, chat_message_line,
-    copy_chat_text, flash_alpha, local_timestamp, messages_that_fit, parse_chat_input,
-    tabs_to_flash, wrap_chat_line,
+    ChatCommand, ChatFrameState, ChatTab, CombatLogChat, add_system_line, copy_chat_text,
+    flash_alpha, hold_scroll_position, new_chat_messages, parse_chat_input, tab_entries, tab_len,
+    tabs_to_flash,
 };
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
@@ -25,14 +23,12 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::popup::PopupStack;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::chat_frame_component::{
-    CHAT_EDITBOX, CHAT_FONT, CHAT_FONT_SIZE, CHAT_LINE_H, CHAT_MESSAGES, CHAT_MESSAGES_AVAILABLE_H,
-    COPY_CHAT_ACTION, ChatFrameView, ChatMessageView, SCROLL_TO_BOTTOM_ACTION, chat_frame_screen,
-    chat_text_area, tab_flash_name,
+    CHAT_EDITBOX, CHAT_LINE_H, CHAT_MESSAGES, COPY_CHAT_ACTION, ChatFrameView,
+    SCROLL_TO_BOTTOM_ACTION, chat_frame_screen, chat_frame_view, tab_flash_name,
 };
 use game_engine::who::{WhoRuntimeState, queue_query};
 use shared::protocol::{ChatMessage, EmoteIntent};
 use ui_toolkit::screen::{Screen, SharedContext};
-use ui_toolkit::text_measure::measure_text;
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
@@ -106,7 +102,7 @@ fn build_chat_frame_ui(
     let mut res = ChatFrameRes {
         screen: Screen::new(chat_frame_screen),
         shared: SharedContext::new(),
-        view: chat_view(&state, &chat, &combat, catalog.as_deref()),
+        view: chat_frame_view(&state, &chat, &combat, spell_namer(catalog.as_deref())),
         seen_chat: chat.received,
         seen_combat: combat.received,
     };
@@ -285,16 +281,6 @@ fn dispatch(command: ChatCommand, out: &mut ChatOutputs) {
         }
         ChatCommand::None => {}
     }
-}
-
-fn add_system_line(chat: &mut ChatState, text: &str) {
-    chat.add_message(RuntimeChatMessage {
-        channel_type: ChatChannelType::System,
-        channel_name: String::new(),
-        sender: String::new(),
-        text: text.to_string(),
-        timestamp: now_timestamp(),
-    });
 }
 
 fn editbox_text(registry: &FrameRegistry, editbox: u64) -> String {
@@ -489,36 +475,10 @@ fn sync_chat_frame_ui(
         state.start_flashing(flash);
     }
     hold_scroll_position(&mut state, new_chat, new_combat, &chat, &combat);
-    let view = chat_view(&state, &chat, &combat, catalog.as_deref());
+    let view = chat_frame_view(&state, &chat, &combat, spell_namer(catalog.as_deref()));
     if view != res.view {
         res.view = view;
         sync_screen(res, &mut ui.registry);
-    }
-}
-
-fn new_chat_messages(chat: &ChatState, seen: u64) -> &[RuntimeChatMessage] {
-    let new = (chat.received - seen).min(chat.messages.len() as u64) as usize;
-    &chat.messages[chat.messages.len() - new..]
-}
-
-/// While scrolled up, new lines in the shown tab do not move the view.
-fn hold_scroll_position(
-    state: &mut ChatFrameState,
-    new_chat: &[RuntimeChatMessage],
-    new_combat: usize,
-    chat: &ChatState,
-    combat: &CombatLogChat,
-) {
-    if state.scroll == 0 {
-        return;
-    }
-    let tab = state.tab;
-    let arrived = match tab {
-        ChatTab::CombatLog => new_combat,
-        tab => new_chat.iter().filter(|msg| tab.shows(msg)).count(),
-    };
-    if arrived > 0 {
-        state.scroll_by(arrived as isize, tab_len(tab, chat, combat));
     }
 }
 
@@ -540,70 +500,11 @@ fn sync_screen(res: &mut ChatFrameRes, registry: &mut FrameRegistry) {
     res.screen.sync(&res.shared, registry);
 }
 
-fn tab_entries(tab: ChatTab, chat: &ChatState, combat: &CombatLogChat) -> Vec<ChatEntry> {
-    match tab {
-        ChatTab::CombatLog => combat.lines.clone(),
-        tab => chat
-            .messages
-            .iter()
-            .filter(|msg| tab.shows(msg))
-            .map(|msg| ChatEntry {
-                timestamp: msg.timestamp,
-                line: chat_message_line(msg),
-            })
-            .collect(),
-    }
-}
-
-fn tab_len(tab: ChatTab, chat: &ChatState, combat: &CombatLogChat) -> usize {
-    match tab {
-        ChatTab::CombatLog => combat.lines.len(),
-        tab => chat.messages.iter().filter(|msg| tab.shows(msg)).count(),
-    }
-}
-
-/// The messages that fit, counting up from the newest past the scrolled-over ones.
-fn chat_view(
-    state: &ChatFrameState,
-    chat: &ChatState,
-    combat: &CombatLogChat,
-    catalog: Option<&SpellCatalog>,
-) -> ChatFrameView {
-    let area = chat_text_area(state.tab);
-    let spell_name = spell_namer(catalog);
-    let entries = tab_entries(state.tab, chat, combat);
-    let mut messages = Vec::new();
-    let mut heights = Vec::new();
-    for entry in entries.iter().rev().skip(state.scroll) {
-        let rows = wrap_chat_line(&entry.line, &spell_name, area.width, measure_chat_text);
-        heights.push(rows.len() as f32 * CHAT_LINE_H);
-        if messages_that_fit(&heights, CHAT_MESSAGES_AVAILABLE_H, area.spacing) < heights.len() {
-            break;
-        }
-        messages.push(ChatMessageView {
-            timestamp: (!state.tab.is_combat_log()).then(|| local_timestamp(entry.timestamp)),
-            rows,
-        });
-    }
-    messages.reverse();
-    ChatFrameView {
-        tab: state.tab,
-        messages,
-        input_open: state.input_open,
-        flashing: state.flashing.clone(),
-        scrolled_up: state.scroll > 0,
-    }
-}
-
 fn spell_namer(catalog: Option<&SpellCatalog>) -> impl Fn(u32) -> String + '_ {
     move |id| match catalog.and_then(|catalog| catalog.get(id)) {
         Some(spell) => spell.name.to_string(),
         None => format!("Spell #{id}"),
     }
-}
-
-fn measure_chat_text(value: &str) -> f32 {
-    measure_text(value, CHAT_FONT, CHAT_FONT_SIZE).map_or(0.0, |(width, _)| width)
 }
 
 #[cfg(test)]
