@@ -18,6 +18,7 @@ use shared::protocol::{InteractionKind, NpcFlags, NpcRole};
 use crate::GameClient;
 use crate::account::NpcMessage;
 use crate::faction_reaction::{Reaction, reaction};
+use crate::frame_error::{FrameError, SessionError, report_once};
 use crate::targeting::pick_unit;
 use crate::ui::{MerchantStates, RegistryUi};
 
@@ -30,10 +31,19 @@ pub(crate) struct Merchant {
     session: MerchantSession,
     ui: Option<Gd<RegistryUi>>,
     cursor: Option<ActiveWowCursor>,
-    cursor_textures: Vec<(ActiveWowCursor, Gd<ImageTexture>)>,
+    /// Loaded cursor art; `None` caches a kind whose art failed to load.
+    cursor_textures: Vec<(ActiveWowCursor, Option<Gd<ImageTexture>>)>,
+    /// Test hook: every cursor kind reads this FDID instead of its Retail art.
+    cursor_fdid_override: Option<u32>,
 }
 
 impl Merchant {
+    pub(crate) fn override_cursor_fdid(&mut self, fdid: u32) {
+        self.cursor_fdid_override = Some(fdid);
+        self.cursor_textures.clear();
+        self.cursor = None;
+    }
+
     fn free_ui(&mut self) {
         if let Some(ui) = self.ui.take() {
             ui.free();
@@ -88,12 +98,12 @@ impl GameClient {
 
     /// Per frame, after targeting: right-click interaction, the hover cursor, frame input,
     /// then the frame's presentation.
-    pub(super) fn update_merchant(&mut self) -> Result<(), String> {
+    pub(super) fn update_merchant(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.merchant.session.merchant.close();
             self.merchant.session.split = None;
             self.merchant.free_ui();
-            self.set_world_cursor(None)?;
+            self.set_world_cursor(None);
             return Ok(());
         }
         let money = self
@@ -109,12 +119,12 @@ impl GameClient {
             self.poll_merchant_input()?;
         }
         let cursor = interactive.then(|| self.hover_cursor()).flatten();
-        self.set_world_cursor(cursor)?;
-        self.sync_merchant_ui()
+        self.set_world_cursor(cursor);
+        Ok(self.sync_merchant_ui()?)
     }
 
     /// Bevy `right_click_interact`: the unit under the pointer, else the current target.
-    fn right_click_interact(&mut self) -> Result<(), String> {
+    fn right_click_interact(&mut self) -> Result<(), FrameError> {
         if !self
             .physical_input
             .mouse_just_pressed(BindingMouseButton::Right)
@@ -196,34 +206,47 @@ impl GameClient {
         }))
     }
 
-    /// The Retail cursor art in world; the system cursor elsewhere.
-    fn set_world_cursor(&mut self, cursor: Option<ActiveWowCursor>) -> Result<(), String> {
+    /// The Retail cursor art in world; the system cursor elsewhere, or when the art
+    /// fails to load (Bevy `load_cursor_image`: logged, the cursor asset stays absent).
+    fn set_world_cursor(&mut self, cursor: Option<ActiveWowCursor>) {
         if self.merchant.cursor == cursor {
-            return Ok(());
+            return;
         }
         self.merchant.cursor = cursor;
+        let texture = cursor.and_then(|cursor| self.cursor_texture(cursor));
         let mut input = Input::singleton();
-        let Some(cursor) = cursor else {
-            input.set_custom_mouse_cursor(Gd::<godot::classes::Resource>::null_arg());
-            return Ok(());
-        };
-        let texture = self.cursor_texture(cursor)?;
-        input.set_custom_mouse_cursor(&texture);
-        Ok(())
+        match texture {
+            Some(texture) => input.set_custom_mouse_cursor(&texture),
+            None => input.set_custom_mouse_cursor(Gd::<godot::classes::Resource>::null_arg()),
+        }
     }
 
-    fn cursor_texture(&mut self, cursor: ActiveWowCursor) -> Result<Gd<ImageTexture>, String> {
+    /// The cached cursor art; a load failure is reported once and cached as absent.
+    fn cursor_texture(&mut self, cursor: ActiveWowCursor) -> Option<Gd<ImageTexture>> {
         if let Some((_, texture)) = self
             .merchant
             .cursor_textures
             .iter()
             .find(|(kind, _)| *kind == cursor)
         {
-            return Ok(texture.clone());
+            return texture.clone();
         }
-        let path = self
-            .data_root
-            .join(format!("textures/{}.blp", cursor.texture_fdid()));
+        let texture = self
+            .load_cursor_texture(cursor)
+            .inspect_err(|error| report_once(error))
+            .ok();
+        self.merchant
+            .cursor_textures
+            .push((cursor, texture.clone()));
+        texture
+    }
+
+    fn load_cursor_texture(&self, cursor: ActiveWowCursor) -> Result<Gd<ImageTexture>, String> {
+        let fdid = self
+            .merchant
+            .cursor_fdid_override
+            .unwrap_or(cursor.texture_fdid());
+        let path = self.data_root.join(format!("textures/{fdid}.blp"));
         let bytes = std::fs::read(&path)
             .map_err(|error| format!("Read cursor {}: {error}", path.display()))?;
         let image = game_engine_core::blp::decode_rgba(&bytes)
@@ -235,16 +258,12 @@ impl GameClient {
             godot::classes::image::Format::RGBA8,
             &PackedByteArray::from(image.pixels.as_slice()),
         )
-        .ok_or("Godot rejected a cursor image")?;
-        let texture =
-            ImageTexture::create_from_image(&image).ok_or("Godot rejected a cursor texture")?;
-        self.merchant
-            .cursor_textures
-            .push((cursor, texture.clone()));
-        Ok(texture)
+        .ok_or_else(|| format!("Godot rejected cursor image {}", path.display()))?;
+        ImageTexture::create_from_image(&image)
+            .ok_or_else(|| format!("Godot rejected cursor texture {}", path.display()))
     }
 
-    fn poll_merchant_input(&mut self) -> Result<(), String> {
+    fn poll_merchant_input(&mut self) -> Result<(), FrameError> {
         let Some(mut ui) = self.merchant.ui.clone() else {
             return Ok(());
         };
@@ -261,17 +280,20 @@ impl GameClient {
         Ok(())
     }
 
-    fn merchant_click(&mut self, action: &str, click: Click) -> Result<(), String> {
+    fn merchant_click(&mut self, action: &str, click: Click) -> Result<(), FrameError> {
         let session = &mut self.merchant.session;
         let effect = if action.starts_with("bag_slot:") {
             session.click_bag(action, click)
         } else {
             session.click_frame(action, click)
         };
-        self.apply_merchant_effect(effect)
+        Ok(self.apply_merchant_effect(effect)?)
     }
 
-    fn apply_merchant_effect(&mut self, effect: Option<MerchantEffect>) -> Result<(), String> {
+    fn apply_merchant_effect(
+        &mut self,
+        effect: Option<MerchantEffect>,
+    ) -> Result<(), SessionError> {
         match effect {
             None => Ok(()),
             Some(MerchantEffect::Request { npc, request }) => {
@@ -285,7 +307,7 @@ impl GameClient {
 
     /// Keys the open frames own: the StackSplitFrame takes digits, arrows, Backspace,
     /// Enter and Escape; Escape then closes the MerchantFrame (`CloseAllWindows`).
-    pub(super) fn merchant_key(&mut self, key: Key) -> Result<bool, String> {
+    pub(super) fn merchant_key(&mut self, key: Key) -> Result<bool, SessionError> {
         if let Some(key) = split_key(key)
             && let Some(effect) = self.merchant.session.split_key(key)
         {
