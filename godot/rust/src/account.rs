@@ -5,6 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::frame_error::SessionError;
 use crate::mirror_timers::MirrorTimerMessage;
 use game_engine_network::{Event, NetworkBridge, ProtocolMessage, UnitSnapshot};
 use game_engine_session::{
@@ -126,13 +127,14 @@ impl Account {
         username: &str,
         password: &str,
         register: bool,
-    ) -> Result<(), String> {
-        self.prepare_connection(hostname)?;
+    ) -> Result<(), SessionError> {
+        self.prepare_connection(hostname).map_err(SessionError)?;
         let reconnect = !register && username.trim().is_empty() && password.trim().is_empty();
         if reconnect && self.session.token.is_none() {
-            return Err("No saved session to reconnect".into());
+            return Err(SessionError("No saved session to reconnect".into()));
         }
         self.start_transport(username, password, register)
+            .map_err(SessionError)
     }
 
     pub fn connect_startup(
@@ -140,17 +142,18 @@ impl Account {
         hostname: &str,
         username: &str,
         password: &str,
-    ) -> Result<(), String> {
-        self.prepare_connection(hostname)?;
+    ) -> Result<(), SessionError> {
+        self.prepare_connection(hostname).map_err(SessionError)?;
         if self.session.token.is_some() {
             self.start_transport("", "", false)
         } else {
             self.start_transport(username, password, false)
         }
+        .map_err(SessionError)
     }
 
     fn prepare_connection(&mut self, hostname: &str) -> Result<(), String> {
-        self.stop()?;
+        self.stop_bridge()?;
         self.reply_received = false;
         self.hostname = hostname.to_owned();
         self.dungeon_difficulty = None;
@@ -187,79 +190,101 @@ impl Account {
         Ok(())
     }
 
-    pub fn send_enter_world(&self) -> Result<(), String> {
+    pub fn send_enter_world(&self) -> Result<(), SessionError> {
         let Some(request) = self.session.select_character() else {
             return Ok(());
         };
-        self.connected_bridge()?.send::<_, AuthChannel>(request)
+        self.bridge()?
+            .send::<_, AuthChannel>(request)
+            .map_err(SessionError)
     }
 
-    pub fn send_create_character(&self, request: CreateCharacter) -> Result<(), String> {
-        self.connected_bridge()?.send::<_, AuthChannel>(request)
+    pub fn send_create_character(&self, request: CreateCharacter) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, AuthChannel>(request)
+            .map_err(SessionError)
     }
 
-    pub fn send_delete_character(&self, character_id: u64) -> Result<(), String> {
-        self.connected_bridge()?
+    pub fn send_delete_character(&self, character_id: u64) -> Result<(), SessionError> {
+        self.bridge()?
             .send::<_, AuthChannel>(DeleteCharacter { character_id })
+            .map_err(SessionError)
     }
 
-    pub fn send_player_input(&self, input: PlayerInput) -> Result<(), String> {
+    pub fn send_player_input(&self, input: PlayerInput) -> Result<(), SessionError> {
         if self.session.screen != SessionScreen::InWorld || !self.session.gameplay_input_allowed() {
             return Ok(());
         }
-        self.connected_bridge()?.send::<_, InputChannel>(input)
+        self.bridge()?
+            .send::<_, InputChannel>(input)
+            .map_err(SessionError)
     }
 
     /// Bevy `send_target_to_server`: the selected unit's server entity bits, or None.
-    pub fn send_set_target(&self, target: Option<u64>) -> Result<(), String> {
-        self.connected_bridge()?
+    pub fn send_set_target(&self, target: Option<u64>) -> Result<(), SessionError> {
+        self.bridge()?
             .send::<_, CombatChannel>(SetTarget {
                 target_entity: target,
             })
+            .map_err(SessionError)
     }
 
     /// `CastSpellByID`: the server validates the cast against `target` (server entity
     /// bits; `None` lets it use the replicated target) and answers with `CastState`,
     /// cooldowns and combat log, or `CastFailed`.
-    pub fn send_cast(&self, spell_id: u32, name: &str, target: Option<u64>) -> Result<(), String> {
+    pub fn send_cast(
+        &self,
+        spell_id: u32,
+        name: &str,
+        target: Option<u64>,
+    ) -> Result<(), SessionError> {
         if self.session.screen != SessionScreen::InWorld || !self.session.gameplay_input_allowed() {
             return Ok(());
         }
-        self.connected_bridge()?
+        self.bridge()?
             .send::<_, CombatChannel>(SpellCastIntent {
                 spell_id: Some(spell_id),
                 spell: name.to_owned(),
                 target_entity: target,
             })
+            .map_err(SessionError)
     }
 
     /// `SetDungeonDifficultyID`; the server validates it and answers `DungeonDifficultySet`.
-    pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), String> {
-        self.connected_bridge()?
+    pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), SessionError> {
+        self.bridge()?
             .send::<_, InstanceChannel>(SetDungeonDifficulty { difficulty_id })
+            .map_err(SessionError)
     }
 
     /// `RequestRaidInfo()`; the server answers `InstanceInfo`.
-    pub fn send_request_raid_info(&self) -> Result<(), String> {
-        self.connected_bridge()?
+    pub fn send_request_raid_info(&self) -> Result<(), SessionError> {
+        self.bridge()?
             .send::<_, InstanceChannel>(RequestRaidInfo)
+            .map_err(SessionError)
     }
 
     /// Right-click on an NPC (`CMSG_GOSSIP_HELLO` and the role hellos).
-    pub fn send_interact(&self, npc: u64) -> Result<(), String> {
-        self.connected_bridge()?
+    pub fn send_interact(&self, npc: u64) -> Result<(), SessionError> {
+        self.bridge()?
             .send::<_, InteractionChannel>(InteractNpc { npc })
+            .map_err(SessionError)
     }
 
     /// The player closed the NPC's frame (`CMSG_CLOSE_INTERACTION`).
-    pub fn send_close_interaction(&self, npc: u64) -> Result<(), String> {
-        self.connected_bridge()?
+    pub fn send_close_interaction(&self, npc: u64) -> Result<(), SessionError> {
+        self.bridge()?
             .send::<_, InteractionChannel>(CloseInteraction { npc })
+            .map_err(SessionError)
     }
 
     /// A MerchantFrame request to the open vendor `npc` (Bevy `send_merchant_requests`).
-    pub fn send_merchant_request(&self, npc: u64, request: &MerchantRequest) -> Result<(), String> {
-        let bridge = self.connected_bridge()?;
+    pub fn send_merchant_request(
+        &self,
+        npc: u64,
+        request: &MerchantRequest,
+    ) -> Result<(), SessionError> {
+        let bridge = self.bridge()?;
         match *request {
             MerchantRequest::Buy {
                 slot,
@@ -290,14 +315,16 @@ impl Account {
                 bridge.send::<_, MerchantChannel>(RepairItem { npc, item_guid })
             }
         }
+        .map_err(SessionError)
     }
 
     /// Called by the host only after the destination is ready for world entry.
-    pub fn finish_world_port(&mut self) -> Result<(), String> {
+    pub fn finish_world_port(&mut self) -> Result<(), SessionError> {
         self.session.finish_world_port();
         if self.session.loaded_world_port().is_some() {
-            self.connected_bridge()?
-                .send::<_, TransferChannel>(WorldPortAck)?;
+            self.bridge()?
+                .send::<_, TransferChannel>(WorldPortAck)
+                .map_err(SessionError)?;
             self.session.take_world_port_ack();
         }
         Ok(())
@@ -312,7 +339,13 @@ impl Account {
         }
     }
 
-    pub fn poll(&mut self) -> Result<Vec<AccountEvent>, String> {
+    /// Drain transport events into account events. Every failure here (transport,
+    /// protocol decode, auth, token persistence) is a session failure.
+    pub fn poll(&mut self) -> Result<Vec<AccountEvent>, SessionError> {
+        self.poll_events().map_err(SessionError)
+    }
+
+    fn poll_events(&mut self) -> Result<Vec<AccountEvent>, String> {
         let events = match self.bridge.as_mut() {
             Some(bridge) => bridge.drain_events()?,
             None => return Ok(Vec::new()),
@@ -525,7 +558,7 @@ impl Account {
                 }
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
                 SessionEffect::ResetNetworkWorld => {
-                    self.stop()?;
+                    self.stop_bridge()?;
                     output.push(AccountEvent::WorldReset);
                 }
                 SessionEffect::Transition(screen) => output.push(AccountEvent::Screen(screen)),
@@ -546,13 +579,25 @@ impl Account {
         Ok(self.session.receive_transfer_aborted(aborted, &map_name))
     }
 
+    pub fn is_connected(&self) -> bool {
+        self.bridge.is_some()
+    }
+
+    fn bridge(&self) -> Result<&NetworkBridge, SessionError> {
+        self.connected_bridge().map_err(SessionError)
+    }
+
     fn connected_bridge(&self) -> Result<&NetworkBridge, String> {
         self.bridge
             .as_ref()
             .ok_or_else(|| "No active account connection".into())
     }
 
-    pub fn stop(&mut self) -> Result<(), String> {
+    pub fn stop(&mut self) -> Result<(), SessionError> {
+        self.stop_bridge().map_err(SessionError)
+    }
+
+    fn stop_bridge(&mut self) -> Result<(), String> {
         self.session.reset_world_port();
         if let Some(mut bridge) = self.bridge.take() {
             bridge.stop()?;

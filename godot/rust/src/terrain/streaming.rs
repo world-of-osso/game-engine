@@ -263,6 +263,15 @@ impl StreamedTerrain {
         Ok(())
     }
 
+    /// Tiles whose files failed to read or parse, keyed `(tile_y, tile_x)`.
+    pub fn failures(&self) -> impl Iterator<Item = (&(u32, u32), &String)> {
+        self.failures.iter()
+    }
+
+    pub fn map_error(&self) -> Option<&str> {
+        self.map_error.as_deref()
+    }
+
     pub fn state(&self) -> TerrainStreamState {
         TerrainStreamState {
             map: self.map.clone(),
