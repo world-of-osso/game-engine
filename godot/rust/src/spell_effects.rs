@@ -626,10 +626,12 @@ impl SpellEffects {
             return self.start_impact(&launch, world);
         };
         let (mut node, particles) = self.build_effect(launch.missile.model_fdid, world)?;
-        node.set_scale(Vector3::ONE * launch.missile.scale);
         node.set_global_position(start);
-        let distance = attachment_position(world, launch.target, launch.missile.impact_attachment)
-            .map_or(0.0, |goal| start.distance_to(goal));
+        let goal = attachment_position(world, launch.target, launch.missile.impact_attachment);
+        // It points at the target from its first frame.
+        let direction = goal.map_or(Vector3::FORWARD, |goal| goal - start);
+        node.set_global_basis(missile_basis(direction, launch.missile.scale));
+        let distance = goal.map_or(0.0, |goal| start.distance_to(goal));
         if self.flights.len() == STARTED_KEEP {
             self.flights.remove(0);
         }
@@ -875,12 +877,9 @@ impl SpellEffects {
             };
             let direction = (goal - position).normalized();
             missile.node.set_global_position(next);
-            // An M2 faces WoW +X (Godot +X): turn looking_at's -Z front a quarter
-            // turn about Y so +X points along the flight.
-            let facing = Basis::looking_at(direction)
-                * Basis::from_euler(EulerOrder::YXZ, Vector3::new(0.0, FRAC_PI_2, 0.0));
-            let scale = missile.node.get_scale();
-            missile.node.set_global_basis(facing.scaled(scale));
+            missile
+                .node
+                .set_global_basis(missile_basis(direction, launch.missile.scale));
             self.missiles.push(missile);
         }
         // Arrival is the end of this step: the flight took the time up to it.
@@ -938,6 +937,14 @@ fn attachment_position(world: &WorldUnits, id: u64, attachment: Option<u8>) -> O
     let origin = world.unit_node(id)?.get_global_position();
     godot_error!("Unit {id} has no attachment {attachment:?}; the spell missile uses its origin");
     Some(origin)
+}
+
+/// A missile model's basis flying along `direction`: an M2 faces WoW +X (Godot +X), so
+/// looking_at's -Z front turns a quarter turn about Y.
+fn missile_basis(direction: Vector3, scale: f32) -> Basis {
+    let facing = Basis::looking_at(direction.normalized())
+        * Basis::from_euler(EulerOrder::YXZ, Vector3::new(0.0, FRAC_PI_2, 0.0));
+    facing.scaled(Vector3::ONE * scale)
 }
 
 /// A missile at `position` moving `step` yards straight at `goal`: its next position,
