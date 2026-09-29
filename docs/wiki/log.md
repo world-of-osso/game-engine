@@ -4,6 +4,10 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
+## [2026-09-28] ui | Reset fixture authored-input preflight
+
+The isolated Reset Window Positions fixture now sources staged inputs from the canonical Git checkout, reports all absent data inputs before Godot starts, and links real customization requirement/race/equipment data rather than fabricated requirement headers. The equipped-player scenario and authored reset assertions remain unchanged; runtime proof is pending. Updated [[godot-conversion]].
+
 ## [2026-09-28] ui | Native Reset Window Positions
 
 `16ba155d` routes the authored Options action to canonical `ui_layout.ron` for the authenticated selected server character. Its fixture removes ID 17's `window_positions` only, retains ID 18 and account-wide edit-mode data, preserves the Options modal setting, reloads, then verifies the reset layout from a fresh process. No native managed-window movement reader/writer exists; Verifier894 is pending. Updated [[godot-conversion]], [[ui-system]], and the [window-manager spec](../specs/window-manager.md).
