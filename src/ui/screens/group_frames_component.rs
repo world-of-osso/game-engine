@@ -8,7 +8,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::compact_unit_frame_component::{CompactUnitView, compact_unit_frame};
-use crate::ui::screens::inworld_unit_frames_component::{CLUSTER_BOTTOM, PLAYER_FRAME_LEFT};
+use crate::ui::screens::inworld_unit_frames_component::{PLAYER_FRAME_BOTTOM, PLAYER_FRAME_LEFT};
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
@@ -34,9 +34,9 @@ const TITLE_H: f32 = 14.0;
 /// Party column right edge this far left of the player frame.
 pub const PARTY_GAP: f32 = 12.0;
 pub const PARTY_LEFT: f32 = PLAYER_FRAME_LEFT - PARTY_GAP - PARTY_MEMBER_W;
-pub const PARTY_BOTTOM: f32 = CLUSTER_BOTTOM;
+pub const PARTY_BOTTOM: f32 = PLAYER_FRAME_BOTTOM;
 /// Party column height for `members` frames; the column is bottom-anchored, so it grows
-/// upward as members join and its last frame always sits level with the cluster.
+/// upward as members join and its last frame always sits level with the player frame.
 pub fn party_height(members: usize) -> f32 {
     TITLE_H + members.min(MAX_PARTY_MEMBERS) as f32 * PARTY_MEMBER_H
 }

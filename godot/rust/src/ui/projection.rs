@@ -102,6 +102,14 @@ impl UiProjection {
         }
     }
 
+    pub fn release_focus(&self, id: u64) {
+        if let Some(node) = self.nodes.get(&id)
+            && node.has_focus()
+        {
+            node.clone().release_focus();
+        }
+    }
+
     pub fn drain_input(&mut self) -> Vec<UiInput> {
         self.pending.borrow_mut().drain(..).collect()
     }

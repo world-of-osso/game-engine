@@ -28,6 +28,18 @@ impl SecondaryResourceKindEntry {
             _ => return None,
         })
     }
+
+    /// `ChrSpecialization` id a Retail bar's `spec` KeyValue requires: Arcane 62
+    /// (`SPEC_MAGE_ARCANE`, MageArcaneChargesBar.xml:127) and Windwalker 269
+    /// (`SPEC_MONK_WINDWALKER`, MonkHarmonyBar.xml:116). The other bars show for the
+    /// whole class.
+    fn required_spec(&self) -> Option<u32> {
+        match self {
+            Self::ArcaneCharges => Some(62),
+            Self::Chi => Some(269),
+            _ => None,
+        }
+    }
 }
 
 /// Raw `UnitPowers` units per displayed unit: Retail `PowerType.csv` `DisplayModifier`
@@ -65,5 +77,13 @@ impl SecondaryResourceEntry {
                 max: whole(entry.max),
             })
         })
+    }
+
+    /// Retail `ClassPowerBar:Setup` (ClassPowerBar.lua:82-83): shown when the bar has no
+    /// spec requirement or `spec` is the required one.
+    pub fn shown_for_spec(&self, spec: Option<u32>) -> bool {
+        self.kind
+            .required_spec()
+            .is_none_or(|required| spec == Some(required))
     }
 }

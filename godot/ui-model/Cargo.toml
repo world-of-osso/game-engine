@@ -9,6 +9,8 @@ rust-version = "1.95"
 dev = []
 
 [dependencies]
+# Shared chat timestamps: local `HH:MM:SS`, as the root client's chat frame formats them.
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # Original Options views use the core's persisted input-binding and nameplate-style types.
 game-engine-core = { path = "../core" }
 # Shared unit-resource snapshots derive serialization for native unit-frame state.

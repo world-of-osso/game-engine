@@ -30,8 +30,19 @@ pub mod ui {
         pub(crate) use crate::screen_test_helpers;
     }
 
+    pub use crate::chat_frame;
     pub use crate::ui_errors_data;
 }
+
+// In-world chat frame (docs/specs/chat-frame.md).
+#[path = "../../../src/game/chat_data.rs"]
+pub mod chat_data;
+#[path = "../../../src/ui/chat_frame.rs"]
+pub mod chat_frame;
+#[path = "../../../src/ui/screens/chat_frame_component.rs"]
+pub mod chat_frame_component;
+#[path = "../../../src/game/group_state.rs"]
+pub mod group_state;
 
 #[path = "../../../src/ui/screens/char_create_component/mod.rs"]
 pub mod char_create_component;
