@@ -99,10 +99,24 @@ impl GameClient {
             entry.set("fdid", i64::from(start.fdid));
             entry.set("looping", start.looping);
             entry.set("at", start.at);
+            entry.set("stopped_at", start.stopped_at.map_or(-1.0, f64::from));
             sounds.push(&entry.to_variant());
         }
         state.set("sounds", &sounds);
         state.set("clock", self.spell_effects.clock());
+        let mut casts = VarArray::new();
+        for seen in self.spell_effects.casts_seen() {
+            let mut entry = VarDictionary::new();
+            entry.set("spell", i64::from(seen.spell_id));
+            entry.set("unit", seen.unit as i64);
+            entry.set("go", seen.go);
+            entry.set("at", seen.at);
+            entry.set("wall_ms", seen.wall_ms as i64);
+            entry.set("elapsed", seen.elapsed);
+            entry.set("duration", seen.duration);
+            casts.push(&entry.to_variant());
+        }
+        state.set("casts", &casts);
         state
     }
 }
