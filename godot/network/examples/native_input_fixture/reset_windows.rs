@@ -1,6 +1,118 @@
 //! Authenticated authored Options reset and canonical config persistence boundary.
 use super::*;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preflight_reports_all_missing_authored_inputs_without_staging() {
+        let missing = missing_fixture_inputs(Path::new("/nonexistent/reset-fixture-data"));
+        for name in [
+            "cache/customization.sqlite",
+            "cache/char_texture.sqlite",
+            "ChrRaces.csv",
+            "equipment_transforms.ron",
+            "ChrCustomizationReq.csv",
+            "ChrCustomizationReqChoice.csv",
+            "CharStartOutfit.csv",
+            "ModelFileData.csv",
+            "community-listfile.csv",
+            "models",
+            "textures",
+        ] {
+            assert!(
+                missing.iter().any(|path| path.ends_with(name)),
+                "missing {name}"
+            );
+        }
+        assert!(
+            missing.len() > 11,
+            "preflight must report the complete manifest"
+        );
+    }
+}
+
+const ASSET_TREES: &[&str] = &["models", "terrain", "textures"];
+const CACHE_FILES: &[&str] = &[
+    "customization.sqlite",
+    "char_texture.sqlite",
+    "creature_display.sqlite",
+    "npc_appearance.sqlite",
+];
+const DATA_DIRS: &[&str] = &["glues", "fonts", "ui", "db2", "dbfilesclient"];
+const DATA_FILES: &[&str] = &[
+    "AreaTable.csv",
+    "Light.csv",
+    "LightData.csv",
+    "WarbandScene.csv",
+    "WarbandScenePlacement.csv",
+    "WarbandScenePlacementOption.csv",
+    "music_zone_links.csv",
+    "music_manifest.csv",
+    "community-listfile.csv",
+    "CharStartOutfit.csv",
+    "ItemModifiedAppearance.csv",
+    "ItemAppearance.csv",
+    "ItemDisplayInfo.csv",
+    "TextureFileData.csv",
+    "ItemDisplayInfoMaterialRes.csv",
+    "ModelFileData.csv",
+    "ChrRaces.csv",
+    "equipment_transforms.ron",
+    "ChrCustomizationReq.csv",
+    "ChrCustomizationReqChoice.csv",
+];
+const FOOTSTEP_IDS: &[u32] = &[540120, 540121, 540127, 540202];
+
+fn canonical_data(repo: &Path) -> Result<PathBuf, String> {
+    let output = Command::new("git")
+        .args([
+            "-C",
+            repo.to_str().ok_or("Non-UTF-8 checkout path")?,
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-common-dir",
+        ])
+        .output()
+        .map_err(|error| format!("Locate canonical Git directory: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "Locate canonical Git directory: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let path = String::from_utf8(output.stdout)
+        .map_err(|error| format!("Decode canonical Git directory: {error}"))?;
+    let common_dir = Path::new(path.trim());
+    let checkout = common_dir.parent().ok_or_else(|| {
+        format!(
+            "Git common directory has no checkout: {}",
+            common_dir.display()
+        )
+    })?;
+    Ok(checkout.join("data"))
+}
+
+fn missing_fixture_inputs(source: &Path) -> Vec<PathBuf> {
+    let paths = ASSET_TREES
+        .iter()
+        .chain(DATA_DIRS)
+        .chain(DATA_FILES)
+        .map(|name| source.join(name))
+        .chain(
+            CACHE_FILES
+                .iter()
+                .map(|name| source.join("cache").join(name)),
+        )
+        .chain(
+            FOOTSTEP_IDS
+                .iter()
+                .map(|id| source.join("sounds/footsteps").join(format!("{id}.ogg"))),
+        );
+    paths.filter(|path| !path.exists()).collect()
+}
+
 pub(super) struct FixtureProject {
     root: PathBuf,
     pub(super) project: PathBuf,
@@ -9,6 +121,18 @@ pub(super) struct FixtureProject {
 impl FixtureProject {
     pub(super) fn create(repo: &Path) -> Result<Self, String> {
         let source = repo.join("godot");
+        let authored_data = canonical_data(repo)?;
+        let missing = missing_fixture_inputs(&authored_data);
+        if !missing.is_empty() {
+            return Err(format!(
+                "Missing reset fixture inputs:\n{}",
+                missing
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
+        }
         let root = repo
             .join("data")
             .join(format!("native-reset-fixture-{}", std::process::id()));
@@ -26,50 +150,25 @@ impl FixtureProject {
             fs::create_dir_all(folder)
                 .map_err(|error| format!("Create {}: {error}", folder.display()))?;
         }
-        for name in ["models", "terrain", "textures"] {
-            stage_asset_tree(&repo.join("data").join(name), &data.join(name))?;
+        for name in ASSET_TREES {
+            stage_asset_tree(&authored_data.join(name), &data.join(name))?;
         }
         let footsteps = data.join("sounds/footsteps");
         fs::create_dir_all(&footsteps)
             .map_err(|error| format!("Create {}: {error}", footsteps.display()))?;
-        for id in [540120, 540121, 540127, 540202] {
+        for id in FOOTSTEP_IDS {
             let name = format!("{id}.ogg");
-            let original = repo.join("data/sounds/footsteps").join(&name);
+            let original = authored_data.join("sounds/footsteps").join(&name);
             fs::copy(&original, footsteps.join(name))
                 .map_err(|error| format!("Stage {}: {error}", original.display()))?;
         }
-        for name in [
-            "customization.sqlite",
-            "char_texture.sqlite",
-            "creature_display.sqlite",
-            "npc_appearance.sqlite",
-        ] {
-            let original = repo.join("data/cache").join(name);
+        for name in CACHE_FILES {
+            let original = authored_data.join("cache").join(name);
             fs::copy(&original, data.join("cache").join(name))
                 .map_err(|error| format!("Stage {}: {error}", original.display()))?;
         }
-        for name in ["glues", "fonts", "ui", "db2", "dbfilesclient"] {
-            link_required(&repo.join("data").join(name), &data.join(name))?;
-        }
-        for name in [
-            "AreaTable.csv",
-            "Light.csv",
-            "LightData.csv",
-            "WarbandScene.csv",
-            "WarbandScenePlacement.csv",
-            "WarbandScenePlacementOption.csv",
-            "music_zone_links.csv",
-            "music_manifest.csv",
-            "community-listfile.csv",
-            "CharStartOutfit.csv",
-            "ItemModifiedAppearance.csv",
-            "ItemAppearance.csv",
-            "ItemDisplayInfo.csv",
-            "TextureFileData.csv",
-            "ItemDisplayInfoMaterialRes.csv",
-            "ModelFileData.csv",
-        ] {
-            link_required(&repo.join("data").join(name), &data.join(name))?;
+        for name in DATA_DIRS.iter().chain(DATA_FILES) {
+            link_required(&authored_data.join(name), &data.join(name))?;
         }
         for name in ["project.godot", "scenes", "shaders", "tests", "ui"] {
             link_required(&source.join(name), &project.join(name))?;
@@ -139,14 +238,6 @@ fn stage_fixture_csv(data: &Path) -> Result<(), String> {
             "ID,MapID,LightID,TransitionType,Zmin,Zmax\n1,99999,1,0,-100,100\n",
         ),
         ("ZoneLightPoint.csv", "ZoneLightID,PointOrder,Pos_0,Pos_1\n"),
-        (
-            "ChrCustomizationReq.csv",
-            "ID,ReqType,ClassMask,ReqAchievementID,ReqQuestID,ReqItemModifiedAppearanceID,RaceMasks_0,RaceMasks_1\n",
-        ),
-        (
-            "ChrCustomizationReqChoice.csv",
-            "ID,ChrCustomizationChoiceID,ChrCustomizationReqID\n",
-        ),
     ] {
         fs::write(data.join(name), contents)
             .map_err(|error| format!("Stage reset fixture {name}: {error}"))?;
