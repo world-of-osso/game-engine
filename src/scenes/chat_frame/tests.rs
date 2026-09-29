@@ -1,9 +1,10 @@
 use bevy::ecs::system::RunSystemOnce;
 use bevy::input::keyboard::NativeKeyCode;
+use game_engine::chat_data::{ChatChannelType, ChatMessage as RuntimeChatMessage};
 use game_engine::network_runtime::messages::Inbox;
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::status::IgnoreListStatusSnapshot;
-use game_engine::ui::chat_frame::SPELL_LINK_COLOR;
+use game_engine::ui::chat_frame::{SPELL_LINK_COLOR, local_timestamp};
 use game_engine::ui::popup::{PopupOutcome, PopupResult, PopupSpec};
 use shared::components::{CharacterAppearance, Npc, Player as NetPlayer};
 use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind};

@@ -14,6 +14,7 @@ use game_engine_ui_model::casting_bar_frame_component::{
 };
 use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
+use game_engine_ui_model::chat_frame_component::{ChatFrameView, chat_frame_screen};
 use game_engine_ui_model::entrance_difficulty_component::{
     EntranceBarState, apply_entrance_bar_postsetup, entrance_difficulty_screen,
 };
@@ -591,6 +592,55 @@ impl RegistryUi {
         self.initialize_hud_model(model, parent)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the chat frame `ChatFrame1`.
+    pub fn show_chat_frame(&mut self, view: ChatFrameView) -> Result<(), String> {
+        self.show_viewport_screen(view, chat_frame_screen, ScreenPostsetup::None)
+    }
+
+    /// Replace an edit box's text with the caret at its end.
+    pub fn set_editbox_text(&mut self, name: &str, text: &str) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Registry model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name(name)
+            .ok_or_else(|| format!("Missing frame {name}"))?;
+        model.edit_text(id, text.to_owned());
+        self.projection
+            .as_mut()
+            .ok_or("Native projection not initialized")?
+            .sync(&mut model.registry)
+    }
+
+    /// Set a frame's alpha without rebuilding the screen (animated art).
+    pub fn set_frame_alpha(&mut self, name: &str, alpha: f32) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Registry model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name(name)
+            .ok_or_else(|| format!("Missing frame {name}"))?;
+        model.registry.set_alpha(id, alpha);
+        self.projection
+            .as_mut()
+            .ok_or("Native projection not initialized")?
+            .sync(&mut model.registry)
+    }
+
+    /// A frame's last laid-out rect `[x, y, w, h]` in viewport pixels.
+    pub fn frame_viewport_rect(&self, name: &str) -> Option<[f32; 4]> {
+        let registry = &self.model.as_ref()?.registry;
+        let rect = registry
+            .get(registry.get_by_name(name)?)?
+            .layout_rect
+            .as_ref()?;
+        Some([rect.x, rect.y, rect.width, rect.height].map(|value| value * registry.ui_scale))
+    }
+
     /// Initialize a dedicated RegistryUi instance for the retail mirror timer bars.
     pub fn show_mirror_timers(&mut self) -> Result<(), String> {
         if self.model.is_some() {
@@ -794,6 +844,20 @@ impl RegistryUi {
             .ok_or("Native projection not initialized")?
             .grab_focus(id);
         Ok(())
+    }
+
+    /// Take keyboard focus away from a frame's native control, if it has it.
+    pub fn release_focus_named(&mut self, name: &str) {
+        let Some(id) = self
+            .model
+            .as_ref()
+            .and_then(|model| model.registry.get_by_name(name))
+        else {
+            return;
+        };
+        if let Some(projection) = self.projection.as_ref() {
+            projection.release_focus(id);
+        }
     }
 
     /// Apply the effective camera-equivalent scale to both layout and projected pixels.

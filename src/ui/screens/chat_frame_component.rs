@@ -8,8 +8,12 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 
+use crate::chat_data::ChatState;
 use crate::ui::anchor::FrameName;
-use crate::ui::chat_frame::{ChatRow, ChatRun, ChatTab};
+use crate::ui::chat_frame::{
+    ChatFrameState, ChatRow, ChatRun, ChatTab, CombatLogChat, local_timestamp, messages_that_fit,
+    tab_entries, wrap_chat_line,
+};
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 pub const CHAT_FRAME: FrameName = FrameName("ChatFrame1");
@@ -84,6 +88,13 @@ const SCROLL_BUTTON_TOP: f32 = MESSAGES_TOP + MESSAGES_H - 5.0 - BUTTON_H;
 /// 0.1 grey fill at alpha 0.8 (Display/Main.lua:203-207, Skins/Dark.lua:185-194).
 const INPUT_H: f32 = 32.0;
 const INPUT_BACKGROUND: &str = "0.1,0.1,0.1,0.8";
+/// Retail edit box: ChatFontNormal text in the chat type's colour after a `Say: ` header
+/// (`CHAT_SAY_SEND`) at LEFT (15, 0), text inset 15 + header width on the left and 13 on
+/// the right (ChatFrameEditBox.xml:48-53, 111; ChatFrameEditBox.lua:674-692).
+const INPUT_HEADER: &str = "Say: ";
+const INPUT_HEADER_LEFT: f32 = 15.0;
+const INPUT_RIGHT_INSET: f32 = 13.0;
+const CHAT_EDITBOX_HEADER: FrameName = FrameName("ChatFrame1EditBoxHeader");
 /// Messages use ChatFontNormal (Core/Fonts.lua:7) at `message_font_size` 14
 /// (Core/Config.lua:102) with `line_spacing` 0 (Config.lua:95).
 pub const CHAT_FONT: GameFont = GameFont::ArialNarrow;
@@ -97,6 +108,8 @@ const MESSAGES_BOTTOM_PAD: f32 = 2.0;
 pub const CHAT_MESSAGES_AVAILABLE_H: f32 = MESSAGES_H - MESSAGES_BOTTOM_PAD;
 /// Timestamps are grey (Display/ScrollingMessages.lua:247).
 const TIMESTAMP_COLOR: FontColor = FontColor::new(0.6, 0.6, 0.6, 1.0);
+/// ChatTypeInfo SAY, the edit box's default chat type.
+const SAY_COLOR: FontColor = FontColor::new(1.0, 1.0, 1.0, 1.0);
 /// Blizzard ChatFrame2 stops 15 short of the combat log holder's right (API/CustomTab.lua:30).
 const COMBAT_LOG_RIGHT_INSET: f32 = 15.0;
 const LINK_PREFIX: &str = "ChatFrame1Link";
@@ -157,6 +170,42 @@ fn text_width(value: &str, font: GameFont, size: f32) -> f32 {
     measure_text(value, font, size).map_or(0.0, |(width, _)| width)
 }
 
+/// The messages that fit, counting up from the newest past the scrolled-over ones.
+pub fn chat_frame_view(
+    state: &ChatFrameState,
+    chat: &ChatState,
+    combat: &CombatLogChat,
+    spell_name: impl Fn(u32) -> String,
+) -> ChatFrameView {
+    let area = chat_text_area(state.tab);
+    let entries = tab_entries(state.tab, chat, combat);
+    let mut messages = Vec::new();
+    let mut heights = Vec::new();
+    for entry in entries.iter().rev().skip(state.scroll) {
+        let rows = wrap_chat_line(&entry.line, &spell_name, area.width, measure_chat_text);
+        heights.push(rows.len() as f32 * CHAT_LINE_H);
+        if messages_that_fit(&heights, CHAT_MESSAGES_AVAILABLE_H, area.spacing) < heights.len() {
+            break;
+        }
+        messages.push(ChatMessageView {
+            timestamp: (!state.tab.is_combat_log()).then(|| local_timestamp(entry.timestamp)),
+            rows,
+        });
+    }
+    messages.reverse();
+    ChatFrameView {
+        tab: state.tab,
+        messages,
+        input_open: state.input_open,
+        flashing: state.flashing.clone(),
+        scrolled_up: state.scroll > 0,
+    }
+}
+
+pub fn measure_chat_text(value: &str) -> f32 {
+    text_width(value, CHAT_FONT, CHAT_FONT_SIZE)
+}
+
 pub fn tab_name(index: usize) -> String {
     format!("{CHAT_TABS}Tab{index}")
 }
@@ -179,6 +228,11 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
     let hide_input = !view.input_open;
     let hide_scroll_button = !view.scrolled_up;
     let [r, g, b] = view.tab.background();
+    let input_header_w = text_width(INPUT_HEADER, CHAT_FONT, CHAT_FONT_SIZE).ceil();
+    let input_insets = format!(
+        "{},{INPUT_RIGHT_INSET},0,0",
+        INPUT_HEADER_LEFT + input_header_w
+    );
     rsx! {
         r#frame {
             name: CHAT_FRAME,
@@ -226,11 +280,28 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 left: 0.0,
                 top: {FRAME_H - INPUT_H},
             }
+            fontstring {
+                name: CHAT_EDITBOX_HEADER,
+                width: {input_header_w},
+                height: CHAT_LINE_H,
+                text: INPUT_HEADER,
+                font: CHAT_FONT,
+                font_size: CHAT_FONT_SIZE,
+                font_color: SAY_COLOR,
+                justify_h: "LEFT",
+                hidden: hide_input,
+                pos_type: "absolute",
+                left: INPUT_HEADER_LEFT,
+                top: {FRAME_H - (INPUT_H + CHAT_LINE_H) / 2.0},
+            }
             editbox {
                 name: CHAT_EDITBOX,
                 width: FRAME_W,
                 height: INPUT_H,
+                font: CHAT_FONT,
                 font_size: CHAT_FONT_SIZE,
+                font_color: SAY_COLOR,
+                text_insets: {input_insets.as_str()},
                 hidden: hide_input,
                 pos_type: "absolute",
                 left: 0.0,
