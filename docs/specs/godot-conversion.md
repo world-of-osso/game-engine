@@ -4,19 +4,10 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 ## What it must do
 
-### Graphics render scale (pending RED runtime proof)
+### Graphics render scale (bounded native buffer/UI proof)
 
-- [ ] Saved Render Scale 0.5–1.0 sets the native startup and live 3D internal render buffer to that fraction of the target after Options input and viewport resize; the 2D UI stays at full target resolution with unchanged pixel position at UI Scale 1.0. `godot/tests/render_scale_buffers.gd` probes the actual 3D compositor buffers and 2D framebuffer; it has not been run yet. This does **not** establish legacy paired CAS/sharpening equivalence below 0.999 or full rendering parity.
+- [x] Saved Render Scale 0.5–1.0 sets the native startup and live 3D internal render buffer to that fraction of the target after Options input and viewport resize; the 2D UI stays at full target resolution with unchanged pixel position at UI Scale 1.0. `godot/tests/render_scale_buffers.gd` probes the actual 3D compositor buffers and 2D framebuffer. The prior Vulkan RED at `e3a5c92b` measured 1280×720 instead of 960×540 at startup 0.75 (`data/diagnostics/render-scale-red/red-e3a5c92b.log`, exit 1). Depot `40n2xh4n2l` built `ca2f75c0` (exit 0; `data/diagnostics/render-scale-depot-green-build.log`); the offscreen Vulkan GREEN reports startup 0.75 = 960×540/1280×720 target, live 0.5 = 640×360, live 1.0 = 1280×720, resized 1.0 = 1600×900, and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). Its same 2D probe geometry/red pixel and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof only: it does **not** prove all 3D scenes, visual equality, bloom, or full parity. Legacy paired CAS/sharpening below 0.999 remains an explicit full-conversion obligation.
 
-Owned Vulkan cage recipe (run from repo root, never against user configuration):
-
-```sh
-mkdir -p data/diagnostics/render-scale-red/config/world-of-osso data/diagnostics/render-scale-red/xdg-data
-printf '(graphics:(renderScale: 0.75, uiScale: 1.0))\n' > data/diagnostics/render-scale-red/config/world-of-osso/options_settings.ron
-XDG_CONFIG_HOME="$PWD/data/diagnostics/render-scale-red/config" XDG_DATA_HOME="$PWD/data/diagnostics/render-scale-red/xdg-data" GODOT_TEST_CAPTURE_DIR="$PWD/data/diagnostics/render-scale-red/captures" "${GODOT_BIN:-$HOME/.cache/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64}" --path godot --display-driver wayland --rendering-driver vulkan --audio-driver Dummy --script res://tests/render_scale_buffers.gd -- --screen gamemenu
-```
-
-Run last command only inside the main-owned offscreen Wayland Vulkan cage; no headless or desktop-display substitution. The fixture writes only its owned config and optional captures.
 
 ### Client engine and assets
 

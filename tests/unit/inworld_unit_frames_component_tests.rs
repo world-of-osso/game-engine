@@ -12,40 +12,57 @@ use ui_toolkit::screen::Screen;
 /// Action bar row 2 top edge at 1080p: row 1 top (1080 - 52 - 45) minus one 47px slot step.
 const SECOND_ACTION_ROW_TOP: f32 = 1080.0 - 52.0 - 45.0 - 47.0;
 
+/// Retail Modern preset PlayerFrame BOTTOMRIGHT at BOTTOM (-300, 250), health bar TOPLEFT
+/// (85, -41) in the 232×100 frame: the portrait-off art sits 450 left of centre and 272 up.
 #[test]
-fn player_frame_and_docked_cast_bar_sit_above_action_bars_at_1080p() {
+fn player_frame_sits_at_the_modern_preset() {
     let reg = cluster_registry();
-    let player = rect_by_name(&reg, "PlayerFrame");
-    let cast = rect_by_name(&reg, "PlayerCastingBarFrame");
-
     assert_eq!(
-        player,
+        rect_by_name(&reg, "PlayerFrame"),
         LayoutRect {
-            x: 679.0,
-            y: 877.0,
+            x: 960.0 - 450.0,
+            y: 1080.0 - 272.0 - 51.0,
             width: 133.0,
             height: 51.0,
         }
     );
-    assert_eq!(cast.x, player.x + player.width + CAST_DOCK_GAP);
-    assert_eq!(cast.x + cast.width / 2.0, 960.0, "cast dock is centred");
-    assert_eq!(cast.y + cast.height, player.y + player.height);
-    assert!(player.y + player.height < SECOND_ACTION_ROW_TOP);
+    let cast = rect_by_name(&reg, "PlayerCastingBarFrame");
+    assert_eq!(cast.x + cast.width / 2.0, 960.0, "cast bar is centred");
+    assert!(
+        cast.y + cast.height < SECOND_ACTION_ROW_TOP,
+        "cast bar clears two bar rows"
+    );
 }
 
-/// Retail Modern preset TargetFrame BOTTOMLEFT at BOTTOM (300, 250); the portrait-off art
-/// sits 19 right and 35 up so its health slot matches the 232×100 frame's health bar.
+/// Retail Modern preset TargetFrame BOTTOMLEFT at BOTTOM (300, 250); for a normal unit its
+/// health bar's BOTTOMRIGHT is at LEFT + (149, -10) (TargetFrame.lua:419), so the
+/// portrait-off art sits 320 right of centre and 273 up.
 #[test]
 fn target_frame_sits_at_the_modern_preset() {
     let reg = cluster_registry();
     assert_eq!(
         rect_by_name(&reg, "TargetFrame"),
         LayoutRect {
-            x: 960.0 + 319.0,
-            y: 1080.0 - 285.0 - 51.0,
+            x: 960.0 + 320.0,
+            y: 1080.0 - 273.0 - 51.0,
             width: 133.0,
             height: 51.0,
         }
+    );
+}
+
+/// Retail draws the player health bar 41..61 below its frame top and a normal target's
+/// 40..60 below: the health bars line up within the 1 px Retail itself leaves.
+#[test]
+fn player_and_target_health_bars_line_up() {
+    let reg = cluster_registry();
+    let player = rect_by_name(&reg, "PlayerHealthBar");
+    let target = rect_by_name(&reg, "TargetHealthBar");
+    assert_eq!(target.y + target.height, player.y + player.height - 1.0);
+    assert_eq!(
+        target.x + target.width / 2.0 - 960.0,
+        960.0 - (player.x + player.width / 2.0),
+        "mirrored about the screen centre"
     );
 }
 
@@ -109,6 +126,35 @@ fn frames_draw_portrait_off_art_with_bars_in_its_slots() {
         reg.get_by_name("TargetFrameBacking").is_none(),
         "no flat backing behind the art"
     );
+}
+
+/// Retail Arcane Charges: container top 4 px below the mana bar plus `topPadding` 7, centred
+/// 1 px left of the bar (PlayerFrame.lua:716,758; MageArcaneChargesBar.xml:134), four 21 px
+/// charges 10 px apart (MageArcaneChargesBar.xml:6,125).
+#[test]
+fn arcane_charges_hang_below_the_mana_bar_clear_of_its_text() {
+    let mut context = sample_unit_frames_context();
+    let mut state = context.get::<InWorldUnitFramesState>().unwrap().clone();
+    state.player.power = Some(PowerBarState {
+        power: shared::components::PowerType::Mana,
+        current: 1000,
+        max: 1000,
+    });
+    state.player.secondary_resource = Some(crate::status::SecondaryResourceEntry {
+        kind: crate::status::SecondaryResourceKindEntry::ArcaneCharges,
+        current: 0,
+        max: 4,
+    });
+    context.insert(state);
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(inworld_unit_frames_screen).sync(&context, &mut reg);
+    compute_layout(&mut reg);
+
+    let mana = rect_by_name(&reg, "PlayerManaBar");
+    let row = rect_by_name(&reg, "PlayerSecondaryResourceRow");
+    assert_eq!(row.y, mana.y + mana.height + 11.0);
+    assert_eq!(row.x + row.width / 2.0, mana.x + mana.width / 2.0 - 1.0);
+    assert_eq!((row.width, row.height), (4.0 * 21.0 + 3.0 * 10.0, 21.0));
 }
 
 #[test]
