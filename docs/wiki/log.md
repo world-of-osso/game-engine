@@ -1,5 +1,19 @@
 # Wiki Log
 
+## [2026-09-29] port | Spell visual kit sounds
+
+Frostbolt's cast sound was the synthetic 140 ms CastStart sweep (`sound_cast.rs`). No DB2 sound was played.
+
+**Changes.**
+- SoundKit and SoundKitEntry are exported from local CASC 12.1.0.69933, and `SpellVisualMissile.SoundEntriesID` is now exported.
+- The catalog resolves `SpellVisualKitEffect` type 5.
+- `spell_sounds.rs` plays one weighted entry per SoundKit on the kit's unit, looping (0x200) while a held kit lasts.
+- Frostbolt now plays precast_start + precast_loop (85501/85500), cast (85502) at `SpellGo` and impact (85503) on arrival.
+
+**Open.** The synthetic CastStart sweep still plays alongside the retail sounds; retiring it waits on a decision about its owned fixture. `$SCD` (CreatureSoundData) is not played.
+
+Details in [[spell-visuals]].
+
 ## [2026-09-29] implementation | Godot RegistryUi scale ownership
 
 Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). Scaled known-spell tooltip anchoring passes against the prior native artifact; the coordinate corrections still require a new Depot artifact. See [[ui-system]].
