@@ -1,6 +1,6 @@
 //! Real Godot UI/input → native movement → owned loopback UDP PlayerInput proof.
-//! After building the root launcher and Godot GDExtension, run:
-//! GODOT_BIN=<godot executable> cargo run -p game-engine-network --example native_input_fixture
+//! With the native extension and this example built, run the installed executable
+//! at target/debug/examples/native_input_fixture; most modes also need the root launcher.
 
 use std::{
     fs,
@@ -33,6 +33,8 @@ use shared::{
     },
 };
 
+#[path = "fixture_support/mod.rs"]
+mod fixture_support;
 #[path = "native_input_fixture/footsteps.rs"]
 mod footsteps;
 #[path = "native_input_fixture/logout.rs"]
@@ -1189,10 +1191,9 @@ fn main() {
     let screen = StartupScreen::from_example_args();
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(Path::parent)
-        .expect("checkout root above Godot network workspace");
+    let checkout = fixture_support::checkout_root_from_executable("native_input_fixture")
+        .expect("locate originating fixture checkout");
+    let root = checkout.as_path();
     let launcher = root.join("target/debug/game-engine-launcher");
     if !matches!(
         screen,
