@@ -34,6 +34,7 @@ from TGA to PNG; `ChatButton`, `Copy`, `ScrollToBottom` and `Fade` PNGs as shipp
 ### Input
 
 - [x] Enter opens and focuses the edit box (`ChatFrame1EditBox`, 32 high across the frame bottom on a 0.1 grey fill at alpha 0.8; Display/Main.lua:194-220, Skins/Dark.lua:177-195), putting input in Text mode, so movement and keybinds stop.
+- [x] The open edit box shows Blizzard's `Say: ` header (`CHAT_SAY_SEND`) in ChatFontNormal at LEFT (15, 0), with text in the SAY colour inset 15 + header width on the left and 13 on the right (Blizzard_ChatFrameBase ChatFrameEditBox.xml:48-53, 111; ChatFrameEditBox.lua:674-692).
 - [x] Enter sends and closes; Escape (in-world Escape chain) or any focus loss closes without sending.
 - [x] `/` opens prefilled with `/`; R opens `/w <last whisperer> ` when someone has whispered.
 - [x] Up/Down cycle the last 32 sent lines.
@@ -53,6 +54,8 @@ from TGA to PNG; `ChatButton`, `Copy`, `ScrollToBottom` and `Fade` PNGs as shipp
 
 ## Not yet
 
+- The edit box header following the chat type as you type (`/y ` switching to `Yell:`) and sticky chat types; the header always reads `Say: `.
+- Godot: `/who` and group commands (no native who/group networking; they print a local line), spell link tooltips on hover, and live proof of tab flashing, Copy Chat and incoming-whisper R reply.
 - Links typed in chat, shift-click link insertion, sticky chat type, `/who` result lines, group invite feedback lines, custom channels.
 - Chattynator parts not taken: the Copy Chat dialog (the text goes straight to the clipboard instead), message fading after 25 s, button and tab hover tints and tooltips, the social/channel/voice/menu/search/settings buttons, the new-tab and tab-overflow buttons, tab drag, rename and colour menus, the resize grip, moving the window, the Combat Log filter bar, and message storage across sessions.
 
@@ -64,6 +67,9 @@ from TGA to PNG; `ChatButton`, `Copy`, `ScrollToBottom` and `Fade` PNGs as shipp
 - `src/game/networking/messages_combat.rs` — combat log lines with resolved names.
 - `src/scenes/static_popup/mod.rs` — popup Enter consumes the press.
 - `src/scenes/tooltip_frame/mod.rs` — chat links feed the shared spell tooltip.
+- `godot/ui-model/src/lib.rs` — compiles `chat_data`, `chat_frame`, `chat_frame_component` and `group_state` for the Godot host.
+- `godot/rust/src/chat.rs` — Godot host: `ChatModel` (receive, submit, click, scroll, flash, leave world), `ChatFrameUI` RegistryUi, keyboard focus, wheel, Copy Chat, combat log names.
+- `godot/rust/src/account.rs`, `godot/network/src/lib.rs` — `ChatMessage` in, `ChatMessage`/`EmoteIntent` out.
 
 ## Tests asserting this spec
 
@@ -71,3 +77,6 @@ from TGA to PNG; `ChatButton`, `Copy`, `ScrollToBottom` and `Fade` PNGs as shipp
 - `src/ui/chat_frame_tests.rs` — parser, wording, combat lines, wrapping, history, timestamp format, flash rule, flash pulse, scroll bounds, message fit, Copy Chat text.
 - `src/rendering/hud_layout_tests.rs` — chat frame on screen, clear of the HUD, tabs 10 apart.
 - `src/ui/screens/chat_frame_component.rs` — link frame lookup.
+- `src/game/chat_data.rs` — server channel mapping and whisper reply target.
+- `godot/rust/src/chat_tests.rs` — Godot model: wording/colours/tabs, say/yell/whisper/emote requests, history, local command lines, R reply, flash, scroll hold, combat log tab.
+- `godot/tests/world_chat_flow.gd` — live Godot client on a private server: geometry, MOTD, edit box header, W types without moving, server echoes of `/say` `/y` `/e`, offline-whisper error, `/join` and `/help` lines, wheel scroll and Scroll to bottom, `/` prefill, Up history, Escape without the game menu, Combat Log tab.
