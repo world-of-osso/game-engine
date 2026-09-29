@@ -209,7 +209,7 @@ impl FixtureConfig {
         if screen == StartupScreen::ResetWindows {
             fs::write(
                 config.home.join("world-of-osso/options_settings.ron"),
-                "(modal_offset:Some((80.0,-32.0)))",
+                "(graphics:(uiScale:1.25),modal_offset:Some((80.0,-32.0)))",
             )
             .expect("seed nondefault Options modal offset");
             fs::write(config.home.join("world-of-osso/ui_layout.ron"), "(window_positions:{\"17\":{\"CharacterFrame\":(25.0,30.0)},\"18\":{\"CharacterFrame\":(75.0,80.0)}},edit_mode:(layouts:{\"Layout 1\":(elements:{\"PlayerFrame\":(anchor:TopLeft,offset:(12.0,24.0))})},active_layout:{\"18\":\"Layout 1\"}))")

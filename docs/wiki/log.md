@@ -4,6 +4,10 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
+## [2026-09-28] ui | First native managed WorldMap window
+
+`WorldMapFrame` now uses character-scoped canonical `ui_layout.ron` for saved logical top-left, scaled title dragging and Wide-slot reset. The owned-loopback Options fixture covers live drag, canvas/button exclusion, resize clamp, reopen, reset, and fresh-process reset-file read (`/tmp/claude/world-map-owned-fixture.log`). Fresh-process rendered placement before reset remains untested. Updated [[world-map]].
+
 ## [2026-09-28] ui | Reset fixture authored-input preflight
 
 The isolated Reset Window Positions fixture sources staged inputs from the canonical Git checkout and links real customization requirement/race/equipment data rather than fabricated requirement headers. The `07586b86` run exposed an omitted race-model CSV before reset. A loader-list audit then added all 12 customization/cache source CSVs to the upfront manifest; its targeted missing-input test passes. The equipped-player scenario and reset assertions remain unchanged. At `ba535fcd`, the owned-loopback fixture exits 0 after the authored reset, same-process reload and fresh-process persistence checks (`/tmp/claude/reset-windows-ba535fcd-runtime.log`). Updated [[godot-conversion]].
