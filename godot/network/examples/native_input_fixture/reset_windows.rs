@@ -29,6 +29,15 @@ impl FixtureProject {
         for name in ["models", "terrain", "textures"] {
             stage_asset_tree(&repo.join("data").join(name), &data.join(name))?;
         }
+        let footsteps = data.join("sounds/footsteps");
+        fs::create_dir_all(&footsteps)
+            .map_err(|error| format!("Create {}: {error}", footsteps.display()))?;
+        for id in [540120, 540121, 540127, 540202] {
+            let name = format!("{id}.ogg");
+            let original = repo.join("data/sounds/footsteps").join(&name);
+            fs::copy(&original, footsteps.join(name))
+                .map_err(|error| format!("Stage {}: {error}", original.display()))?;
+        }
         for name in [
             "customization.sqlite",
             "char_texture.sqlite",
