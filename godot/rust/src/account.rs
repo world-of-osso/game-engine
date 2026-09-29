@@ -17,9 +17,9 @@ use shared::protocol::{
     DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel,
     InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse,
     MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot,
-    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, RequestRaidInfo, SetDungeonDifficulty,
-    SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellsLearned,
-    SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
+    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate,
+    SetDungeonDifficulty, SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate,
+    SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,

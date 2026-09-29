@@ -36,8 +36,8 @@ use shared::{
         InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta, InventoryError,
         InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed,
         MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, NpcFlags, QuestLogSnapshot,
-        QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged, SpellCooldownUpdate,
-        SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
+        QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
+        SpellCooldownUpdate, SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
     },
 };
 

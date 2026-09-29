@@ -19,10 +19,11 @@ pub mod ui {
     pub mod screens {
         pub(crate) use crate::screen_title;
         pub use crate::{
-            bag_frame_component, default_button_atlas, game_menu_component, inworld_unit_frames_component,
-            menu_primitives, merchant_frame_component, quest_art, stack_split_frame_component,
-            options_menu_active_sections, options_menu_component, options_menu_sections,
-            trash_button_component, world_map_frame_art, world_map_frame_component,
+            bag_frame_component, default_button_atlas, game_menu_component,
+            inworld_unit_frames_component, menu_primitives, merchant_frame_component,
+            options_menu_active_sections, options_menu_component, options_menu_sections, quest_art,
+            stack_split_frame_component, trash_button_component, world_map_frame_art,
+            world_map_frame_component,
         };
 
         #[cfg(test)]
