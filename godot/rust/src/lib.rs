@@ -25,10 +25,12 @@ mod lighting;
 mod loading;
 mod logout;
 mod merchant;
+mod minimap;
 mod mirror_timers;
 mod nameplates;
 #[path = "../../../src/game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
+mod objective_tracker;
 mod particles;
 mod player_spells;
 mod scene;
@@ -109,6 +111,8 @@ pub struct GameClient {
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
+    minimap: minimap::Minimap,
+    objective_tracker: objective_tracker::ObjectiveTracker,
     entrance_bar: entrance_bar::EntranceBar,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     game_menu_drag: Option<game_menu::drag::OptionsDrag>,
@@ -189,6 +193,8 @@ impl INode3D for GameClient {
             mirror_timer_ui: None,
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
+            minimap: minimap::Minimap::default(),
+            objective_tracker: objective_tracker::ObjectiveTracker::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
             game_menu_options: None,
             game_menu_drag: None,
@@ -252,6 +258,7 @@ impl INode3D for GameClient {
             }
         }
         if self.world_map_pointer(&event)
+            || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
         {
@@ -349,6 +356,8 @@ impl INode3D for GameClient {
             ("Cast sound", |c, _| Ok(c.update_cast_sound()?)),
             ("Merchant", |c, _| c.update_merchant()),
             ("World map", |c, _| Ok(c.update_world_map()?)),
+            ("Minimap", |c, _| c.update_minimap()),
+            ("Objective tracker", |c, _| c.update_objective_tracker()),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
             ("World units", |c, d| {
                 c.world.advance(d);
@@ -763,6 +772,8 @@ impl GameClient {
         self.merchant.visit_uis(&mut visit)?;
         self.spells.visit_uis(&mut visit)?;
         self.targeting.visit_uis(&mut visit)?;
+        self.minimap.visit_uis(&mut visit)?;
+        self.objective_tracker.visit_uis(&mut visit)?;
         self.entrance_bar.visit_uis(&mut visit)
     }
 

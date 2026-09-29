@@ -325,6 +325,16 @@ impl GameClient {
         Ok(())
     }
 
+    /// `ToggleWorldMap`: the M binding and the minimap zone text button.
+    pub(super) fn toggle_world_map(&mut self) -> Result<(), String> {
+        if self.world_map.is_open() {
+            self.close_world_map();
+            Ok(())
+        } else {
+            self.open_world_map()
+        }
+    }
+
     pub(super) fn close_world_map(&mut self) {
         if let Some(ui) = self.world_map.ui.take() {
             ui.free();
@@ -367,11 +377,7 @@ impl GameClient {
             return Ok(());
         }
         if self.world_map_toggle_pressed() {
-            if self.world_map.is_open() {
-                self.close_world_map();
-            } else {
-                self.open_world_map()?;
-            }
+            self.toggle_world_map()?;
         }
         self.poll_world_map_actions()?;
         self.sync_world_map()
