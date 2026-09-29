@@ -469,7 +469,7 @@ fn indicator_facing(camera: Vec3, marker: Vec3, parent: Quat) -> Option<Quat> {
     Some(parent.inverse() * world)
 }
 
-pub use crate::nameplate_visibility_data::nameplate_alpha;
+pub use game_engine::nameplate_visibility_data::nameplate_alpha;
 
 fn nameplate_text_color(kind: NameplateKind, colorblind_mode: bool) -> Color {
     if !colorblind_mode {
