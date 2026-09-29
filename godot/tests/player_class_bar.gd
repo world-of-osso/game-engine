@@ -11,12 +11,17 @@ extends SceneTree
 ##                              normal target 40..60 below the frame top: PlayerFrame.lua:697,
 ##                              TargetFrame.lua:419, both frames at y 250 in
 ##                              EditModePresetLayouts.lua:231-257)
+##   BAR_CHARGES                optional directory: Tab to a unit named BAR_ENEMY, cast Arcane
+##                              Blast (energizes 1 Arcane Charge) twice and capture the charges
+##                              mid-activateAnim and settled; asserts the lit icons follow
 ## Retail shows Arcane Charges only for the Arcane spec (MageArcaneChargesBar.xml:126-127,
 ## ClassPowerBar.lua:82-83). When shown, the row sits 11 px below the mana bar, centred 1 px
 ## left of it (PlayerFrame.lua:716,758; MageArcaneChargesBar.xml:134), clear of its text.
 
 const PASSWORD := "fbtest"
 const SPEC_MAGE_ARCANE := 62
+const ARCANE_BLAST := 30451
+const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 
 var client: Node
 var character := ""
@@ -76,6 +81,9 @@ func run_test() -> void:
 	var both := OS.get_environment("BAR_TARGET")
 	if both != "" and not await check_target_alignment(ui, mana, both):
 		return
+	var charges_dir := OS.get_environment("BAR_CHARGES")
+	if charges_dir != "" and not await build_charges(ui, row, charges_dir):
+		return
 	print("PASS: class bar ", expect, " for spec ", spec)
 	quit(0)
 
@@ -106,6 +114,58 @@ func check_target_alignment(ui: Node, mana: Control, path: String) -> bool:
 		fail("Health bars not mirrored about x %.1f" % centre)
 		return false
 	return true
+
+func build_charges(ui: Node, row: Control, dir: String) -> bool:
+	var enemy := OS.get_environment("BAR_ENEMY")
+	for attempt in range(30):
+		if str(client.target_state().target_name).contains(enemy):
+			break
+		await press(KEY_TAB)
+		await wait_frames(10)
+	if not str(client.target_state().target_name).contains(enemy):
+		fail("Could not target %s: %s" % [enemy, client.target_state()])
+		return false
+	var region := row.get_global_rect().grow(12)
+	await capture(dir + "/charges-0.png", region)
+	for charge in [1, 2]:
+		var slot: int = client.spells_state().bar.find(ARCANE_BLAST)
+		if slot < 0:
+			fail("Arcane Blast not on the bar: %s known=%s" % [client.spells_state().bar, client.spells_state().known.has(ARCANE_BLAST)])
+			return false
+		var deadline := Time.get_ticks_msec() + 5000
+		while Time.get_ticks_msec() < deadline and int(client.spells_state().gcd_ms) > 0:
+			await process_frame
+		await press(BAR_KEYS[slot])
+		var lit := ui.find_child("PlayerSecondaryResourcePip%dLit" % (charge - 1), true, false) as Control
+		deadline = Time.get_ticks_msec() + 8000
+		while Time.get_ticks_msec() < deadline and not (lit != null and lit.is_visible_in_tree()):
+			await process_frame
+			lit = ui.find_child("PlayerSecondaryResourcePip%dLit" % (charge - 1), true, false) as Control
+		if lit == null or not lit.is_visible_in_tree():
+			fail("Arcane Blast %d gave no charge: %s" % [charge, client.target_state()])
+			return false
+		await wait_real(0.3)
+		await capture(dir + "/charges-%d-activating.png" % charge, region)
+		await wait_real(1.2)
+		await capture(dir + "/charges-%d.png" % charge, region)
+		for index in range(4):
+			var icon := ui.find_child("PlayerSecondaryResourcePip%dLit" % index, true, false) as Control
+			if icon.is_visible_in_tree() != (index < charge):
+				fail("Charge %d icon shown=%s with %d charges" % [index, icon.is_visible_in_tree(), charge])
+				return false
+	print("FIXTURE charges built")
+	return true
+
+func press(code: Key) -> void:
+	push_key(code, true)
+	await wait_frames(2)
+	push_key(code, false)
+	await wait_frames(2)
+
+func wait_real(seconds: float) -> void:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000)
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
 
 func push_key(code: Key, pressed: bool) -> void:
 	var event := InputEventKey.new()
