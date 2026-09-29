@@ -33,6 +33,7 @@ mod sound;
 mod sound_client;
 mod spell_tooltip;
 mod spells;
+mod sound_footsteps;
 mod startup;
 mod swim;
 mod targeting;
@@ -329,6 +330,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_entrance_bar(delta as f32))
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.update_player_animation())
+            .and_then(|()| self.update_footsteps())
             .and_then(|()| self.send_player_input())
             .and_then(|()| self.terrain.poll())
             .and_then(|()| self.update_world_lighting())
@@ -366,6 +368,8 @@ impl INode3D for GameClient {
     }
 
     fn ready(&mut self) {
+        // Model animation nodes tick at priority 0 before this observer reads their selected clock.
+        self.base_mut().set_process_priority(1);
         display_options::apply_graphics_display_options(&self.client_options.graphics);
         if let Err(error) = self
             .connect_focus_reset()

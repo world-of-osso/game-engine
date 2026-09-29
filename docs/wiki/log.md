@@ -4,6 +4,10 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
+## [2026-09-28] system | Native local-player footstep playback
+
+Authored local Ogg footstep catalog and owned 3D emitter now observe selected local player clip/race/world position after animation tick, with shared phase/selection and streamed terrain/WMO surface. Component and authenticated owned-UDP fixtures pass decoded sample/position/gain/idle/stop checks; audible and full parity remain unproven. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] system | Native WMO footstep surface override
 
 Shared the legacy root-wide material priority and inclusive smallest-volume placement selection with the native terrain reader. Global WDT and streamed MODF surfaces are queryable before node/physics completion; native footstep audio trigger/playback remains absent. Verifier853 is pending without an independent PASS. Updated [[sound]] and [[terrain]].

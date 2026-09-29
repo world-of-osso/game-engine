@@ -23,6 +23,9 @@ impl GameClient {
             sound.queue_free();
             return Err(error);
         }
+        if let Err(error) = sound.bind_mut().load_footsteps(&self.data_root) {
+            godot_error!("Native footsteps unavailable: {error}");
+        }
         self.sound = Some(sound);
         Ok(())
     }
@@ -62,6 +65,42 @@ impl GameClient {
         let position = self.world.local_player_transform()?.origin;
         let area = self.terrain.area_id_at(position.x, position.z)?;
         Some(root_area(&self.area_parents, area))
+    }
+
+    pub(super) fn update_footsteps(&mut self) -> Result<(), String> {
+        let Some(sound) = &mut self.sound else {
+            return Ok(());
+        };
+        let sample = if self.account.session.screen == SessionScreen::InWorld {
+            self.world.local_footstep_phase()
+        } else {
+            None
+        };
+        let Some((id, position, phase)) = sample else {
+            sound.bind_mut().stop_footsteps();
+            return Ok(());
+        };
+        let Some(race) = self
+            .units
+            .get(&id)
+            .and_then(|unit| unit.player.as_ref())
+            .map(|player| player.race)
+        else {
+            sound.bind_mut().stop_footsteps();
+            return Ok(());
+        };
+        let surface = self
+            .terrain
+            .surface_at_position([position.x, position.y, position.z]);
+        sound.bind_mut().observe_footstep(
+            id,
+            race,
+            phase,
+            position,
+            surface,
+            &self.client_options.sound,
+        );
+        Ok(())
     }
 
     pub(super) fn update_sound(&mut self) -> Result<(), String> {
