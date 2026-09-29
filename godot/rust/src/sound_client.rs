@@ -34,24 +34,10 @@ impl GameClient {
 
     pub(super) fn play_ui_clicks(&mut self) -> Result<(), String> {
         let mut clicks = 0;
-        for ui in [
-            &mut self.login_ui,
-            &mut self.character_ui,
-            &mut self.create_ui,
-            &mut self.loading_ui,
-            &mut self.errors_ui,
-            &mut self.mirror_timer_ui,
-            &mut self.game_menu_ui,
-            &mut self.world_map.ui,
-        ] {
-            if let Some(ui) = ui {
-                clicks += ui.bind_mut().sync_pointer_clicks()?;
-            }
-        }
-        clicks += self.merchant.drain_pointer_clicks()?;
-        clicks += self.spells.drain_pointer_clicks()?;
-        clicks += self.targeting.drain_pointer_clicks()?;
-        clicks += self.entrance_bar.drain_pointer_clicks()?;
+        self.for_each_registry_ui(|ui| {
+            clicks += ui.bind_mut().sync_pointer_clicks()?;
+            Ok(())
+        })?;
         if let Some(sound) = &mut self.sound {
             let settings = &self.client_options.sound;
             for _ in 0..clicks {

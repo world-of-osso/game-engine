@@ -50,10 +50,14 @@ pub(crate) struct EntranceBar {
 }
 
 impl EntranceBar {
-    pub(crate) fn drain_pointer_clicks(&mut self) -> Result<u32, String> {
-        self.ui
-            .as_mut()
-            .map_or(Ok(0), |ui| ui.bind_mut().sync_pointer_clicks())
+    pub(crate) fn visit_uis(
+        &mut self,
+        visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
+    ) -> Result<(), String> {
+        if let Some(ui) = &mut self.ui {
+            visit(ui)?;
+        }
+        Ok(())
     }
 
     fn catalog(&self) -> Option<&EntranceCatalog> {

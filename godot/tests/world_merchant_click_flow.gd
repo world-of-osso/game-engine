@@ -35,6 +35,8 @@ func run_test() -> void:
 		return
 	if not await check_merchant_placement(client, bag, config):
 		return
+	if not check_scaled_hosts(client, 1.25):
+		return
 	print("FIXTURE MERCHANT_CLICK_PLACED")
 	var tab := ui.find_child("MerchantFrameTab2", true, false) as Control
 	var saved := merchant_root(client).get_global_rect().position
@@ -79,9 +81,46 @@ func run_test() -> void:
 		return
 	if not await check_merchant_reset(client, vendor, config):
 		return
+	if not await check_live_options_scale(client, vendor):
+		return
 	print("FIXTURE MERCHANT_CLICK_DONE")
 	client.free()
 	quit(0)
+
+func check_scaled_hosts(client: Node, scale: float) -> bool:
+	for host_name in ["MerchantUI", "MainActionBarUI", "CastingBarUI", "UnitFramesUI", "GameMenuUI"]:
+		var host := client.get_node_or_null(host_name)
+		if host == null and host_name in ["MerchantUI", "GameMenuUI"]:
+			continue
+		var canvas := host.find_child("RegistryCanvas", true, false) as Control if host != null else null
+		if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
+			fail("Merchant world %s canvas not scaled to %s" % [host_name, scale])
+			return false
+	return true
+
+func check_live_options_scale(client: Node, vendor: Dictionary) -> bool:
+	if not await open_menu_after_vendor(client, vendor):
+		return false
+	await click_menu_action(client, "MenuBtnOptions")
+	var menu := client.get_node_or_null("GameMenuUI")
+	await click(menu.find_child("OptionsTabaccessibility", true, false) as Control)
+	var slider := menu.find_child("Sliderui_scale", true, false) as Control
+	if slider == null:
+		fail("Authored Options UI scale slider missing")
+		return false
+	await set_scale_slider(slider, 0.0)
+	if not check_scaled_hosts(client, 0.75):
+		return false
+	await set_scale_slider(slider, 0.6666667)
+	return check_scaled_hosts(client, 1.25)
+
+func set_scale_slider(slider: Control, percent: float) -> void:
+	var rect := slider.get_global_rect()
+	var position := Vector2(lerpf(rect.position.x, rect.end.x, percent), rect.get_center().y)
+	pointer_at(position, MOUSE_BUTTON_LEFT, true)
+	await process_frame
+	pointer_at(position, MOUSE_BUTTON_LEFT, false)
+	await wait_frames(4)
 
 func merchant_root(client: Node) -> Control:
 	var ui := client.get_node_or_null("MerchantUI")
@@ -105,13 +144,15 @@ func check_merchant_placement(client: Node, bag: Control, config: String) -> boo
 	if not layout.contains("MerchantFrame") or not layout.contains('"17"') or not other_character_unchanged(layout):
 		fail("Merchant position not saved for selected character or another character changed: " + layout)
 		return false
-	if not await check_merchant_clamp(frame, bag, bag_rect):
+	if not await check_merchant_clamp(client, frame, bag, bag_rect):
 		return false
 	return true
 
-func check_merchant_clamp(frame: Control, bag: Control, original_bag: Rect2) -> bool:
+func check_merchant_clamp(client: Node, frame: Control, bag: Control, original_bag: Rect2) -> bool:
 	root.size = Vector2i(900, 600)
 	await wait_frames(5)
+	if not check_scaled_hosts(client, 5.0 / 6.0):
+		return false
 	var rect := frame.get_global_rect()
 	var limit := Vector2(root.size) - rect.size
 	var scale := frame.get_global_transform().get_scale().x

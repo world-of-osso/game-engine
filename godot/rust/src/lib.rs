@@ -384,6 +384,9 @@ impl INode3D for GameClient {
                 c.cull_world_objects();
                 Ok(())
             }),
+            ("UI scale after updates", |c, _| {
+                Ok(c.sync_registry_ui_scale()?)
+            }),
         ];
         for (step, run) in steps {
             if let Err(error) = run(self, delta as f32)
@@ -413,6 +416,7 @@ impl INode3D for GameClient {
             .connect_focus_reset()
             .and_then(|()| self.initialize_sound())
             .and_then(|()| self.initialize_startup())
+            .and_then(|()| self.sync_registry_ui_scale())
         {
             godot_error!("Cannot initialize client: {error}");
             self.base().get_tree().quit_ex().exit_code(1).done();
@@ -718,21 +722,33 @@ impl GameClient {
         )
     }
 
-    fn sync_registry_ui_scale(&mut self) -> Result<(), String> {
-        let scale = self.effective_ui_scale();
+    fn for_each_registry_ui(
+        &mut self,
+        mut visit: impl FnMut(&mut Gd<ui::RegistryUi>) -> Result<(), String>,
+    ) -> Result<(), String> {
         for ui in [
             &mut self.login_ui,
             &mut self.character_ui,
             &mut self.create_ui,
             &mut self.loading_ui,
             &mut self.errors_ui,
+            &mut self.mirror_timer_ui,
             &mut self.game_menu_ui,
+            &mut self.world_map.ui,
         ] {
             if let Some(ui) = ui {
-                ui.bind_mut().set_ui_scale(scale)?;
+                visit(ui)?;
             }
         }
-        Ok(())
+        self.merchant.visit_uis(&mut visit)?;
+        self.spells.visit_uis(&mut visit)?;
+        self.targeting.visit_uis(&mut visit)?;
+        self.entrance_bar.visit_uis(&mut visit)
+    }
+
+    fn sync_registry_ui_scale(&mut self) -> Result<(), String> {
+        let scale = self.effective_ui_scale();
+        self.for_each_registry_ui(|ui| ui.bind_mut().set_ui_scale(scale))
     }
 
     fn connect_focus_reset(&mut self) -> Result<(), String> {

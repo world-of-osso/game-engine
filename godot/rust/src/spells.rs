@@ -139,8 +139,10 @@ impl Default for SpellsHud {
 }
 
 impl SpellsHud {
-    pub(crate) fn drain_pointer_clicks(&mut self) -> Result<u32, String> {
-        let mut clicks = 0;
+    pub(crate) fn visit_uis(
+        &mut self,
+        visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
+    ) -> Result<(), String> {
         for ui in [
             &mut self.bar_ui,
             &mut self.cast_ui,
@@ -148,10 +150,10 @@ impl SpellsHud {
             &mut self.tooltip_ui,
         ] {
             if let Some(ui) = ui {
-                clicks += ui.bind_mut().sync_pointer_clicks()?;
+                visit(ui)?;
             }
         }
-        Ok(clicks)
+        Ok(())
     }
 
     pub(crate) fn catalog(&self) -> Option<&SpellCatalogData> {
