@@ -306,6 +306,13 @@ impl TerrainObjects {
         self.particles = Some(ParticlePools::new(density));
     }
 
+    /// Changes the density default without replacing pools or placed emitters.
+    pub fn set_particle_density(&mut self, density: f32) {
+        if let Some(pools) = &mut self.particles {
+            pools.set_density(density);
+        }
+    }
+
     /// Objects spawned so far, excluding failures.
     pub fn spawned_count(&self) -> usize {
         self.spawned_doodads.len() + self.spawned_wmos.len()

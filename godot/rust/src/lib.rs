@@ -410,7 +410,14 @@ impl INode3D for GameClient {
     fn ready(&mut self) {
         // Model animation nodes tick at priority 0 before this observer reads their selected clock.
         self.base_mut().set_process_priority(1);
-        display_options::apply_graphics_display_options(&self.client_options.graphics);
+        let mut viewport = self
+            .base()
+            .get_viewport()
+            .expect("GameClient has no viewport");
+        display_options::apply_graphics_display_options(
+            &self.client_options.graphics,
+            &mut viewport,
+        );
         if let Err(error) = self
             .connect_focus_reset()
             .and_then(|()| self.initialize_sound())
@@ -636,6 +643,19 @@ impl GameClient {
     #[func]
     fn unit_action_id(&self, id: i64) -> i64 {
         self.world.unit_action_id(id as u64).map_or(-1, i64::from)
+    }
+
+    /// Unit `id`'s creature `display_id` (-1 without one), whether its `visual` is loaded,
+    /// and its locomotion `animation` (-1 before one); empty for an unknown unit.
+    #[func]
+    fn unit_display(&self, id: i64) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        if let Some((display_id, visual, animation)) = self.world.unit_display(id as u64) {
+            state.set("display_id", display_id.map_or(-1, i64::from));
+            state.set("visual", visual);
+            state.set("animation", animation.map_or(-1, i64::from));
+        }
+        state
     }
 
     /// Known spells, bar, cooldowns, sent casts, errors and spellbook entries.

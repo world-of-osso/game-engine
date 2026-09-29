@@ -171,6 +171,122 @@ impl FixtureProject {
     pub(super) fn root_path(&self) -> &Path {
         &self.root
     }
+
+    pub(super) fn stage_density_sensitive_portal(&self, repo: &Path) -> Result<(), String> {
+        let authored_data = locate_canonical_data_from_git(repo)?;
+        link_required(
+            &authored_data.join("reference"),
+            &self.root.join("data/reference"),
+        )?;
+        let original = authored_data.join("models/197007.m2");
+        let staged = self.root.join("data/models/197007.m2");
+        let source =
+            fs::read(&original).map_err(|error| format!("Read {}: {error}", original.display()))?;
+        let mut modified = source.clone();
+        let changed_bytes = clear_portal_global_scale_flags(&mut modified)?;
+        let differences: Vec<_> = source
+            .iter()
+            .zip(&modified)
+            .enumerate()
+            .filter_map(|(index, (original, copy))| (original != copy).then_some(index))
+            .collect();
+        if differences != changed_bytes {
+            return Err(format!(
+                "Controlled portal changed non-flag bytes: {differences:?}"
+            ));
+        }
+        let temporary = staged.with_extension("m2.density-fixture-tmp");
+        fs::write(&temporary, &modified)
+            .map_err(|error| format!("Write {}: {error}", temporary.display()))?;
+        // Rename over the staged per-file symlink; never open that symlink for writing.
+        fs::rename(&temporary, &staged)
+            .map_err(|error| format!("Replace staged portal {}: {error}", staged.display()))?;
+        if fs::read(&original).map_err(|error| format!("Re-read original portal: {error}"))?
+            != source
+            || fs::read(&staged).map_err(|error| format!("Read staged portal: {error}"))?
+                != modified
+            || fs::symlink_metadata(&staged)
+                .map_err(|error| format!("Inspect staged portal: {error}"))?
+                .file_type()
+                .is_symlink()
+        {
+            return Err("Controlled portal copy or original bytes changed unexpectedly".into());
+        }
+        Ok(())
+    }
+}
+
+fn find_md21_portal_chunk(bytes: &[u8]) -> Result<(usize, usize), String> {
+    let mut chunk = 0;
+    let mut md21 = None;
+    while chunk + 8 <= bytes.len() {
+        let size = u32::from_le_bytes(bytes[chunk + 4..chunk + 8].try_into().unwrap()) as usize;
+        let end = chunk
+            .checked_add(8)
+            .and_then(|at| at.checked_add(size))
+            .ok_or("Portal chunk size overflow")?;
+        if end > bytes.len() {
+            return Err("Truncated portal chunk".into());
+        }
+        if &bytes[chunk..chunk + 4] == b"MD21" {
+            if md21.replace((chunk + 8, end)).is_some() {
+                return Err("Duplicate MD21 portal chunk".into());
+            }
+        }
+        chunk = end;
+    }
+    if chunk != bytes.len() {
+        return Err("Trailing portal chunk bytes".into());
+    }
+    md21.ok_or("No MD21 portal chunk".into())
+}
+
+fn validate_portal_emitter_range(
+    md20: &[u8],
+    expected_count: usize,
+    stride: usize,
+) -> Result<std::ops::Range<usize>, String> {
+    if md20.len() < 0x130 {
+        return Err("Truncated MD20 portal header".into());
+    }
+    let version = u32::from_le_bytes(md20[0x04..0x08].try_into().unwrap());
+    let count = u32::from_le_bytes(md20[0x128..0x12C].try_into().unwrap()) as usize;
+    let offset = u32::from_le_bytes(md20[0x12C..0x130].try_into().unwrap()) as usize;
+    let end = offset.checked_add(count * stride);
+    if version < 272 || count != expected_count || end.is_none_or(|end| end > md20.len()) {
+        return Err(format!(
+            "Unexpected portal emitter layout: version={version} count={count} offset={offset:#x} MD20={}",
+            md20.len()
+        ));
+    }
+    Ok(offset..end.expect("validated emitter range"))
+}
+
+fn clear_portal_global_scale_flags(bytes: &mut [u8]) -> Result<Vec<usize>, String> {
+    const FLAGS: [u32; 6] = [
+        0x7682_0030,
+        0x6683_0231,
+        0x6683_0230,
+        0x7683_0230,
+        0x7683_0230,
+        0x6292_1230,
+    ];
+    const NO_GLOBAL_SCALE: u32 = 0x0200_0000;
+    const STRIDE: usize = 0x1EC;
+    let (start, end) = find_md21_portal_chunk(bytes)?;
+    let md20 = &mut bytes[start..end];
+    let emitters = validate_portal_emitter_range(md20, FLAGS.len(), STRIDE)?;
+    let mut changed_bytes = Vec::with_capacity(FLAGS.len());
+    for (index, expected) in FLAGS.into_iter().enumerate() {
+        let at = emitters.start + index * STRIDE + 4; // Parser's emitter flags at record + 0x04.
+        let flags = u32::from_le_bytes(md20[at..at + 4].try_into().unwrap());
+        if flags != expected || flags & NO_GLOBAL_SCALE == 0 {
+            return Err(format!("Portal emitter {index} flags mismatch: {flags:#x}"));
+        }
+        md20[at..at + 4].copy_from_slice(&(expected & !NO_GLOBAL_SCALE).to_le_bytes());
+        changed_bytes.push(start + at + 3);
+    }
+    Ok(changed_bytes)
 }
 
 fn create_fixture_directories(root: &Path, project: &Path, data: &Path) -> Result<(), String> {
