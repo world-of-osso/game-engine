@@ -23,6 +23,9 @@ EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
 ARTIFACT = "libgame_engine_godot.so"
 FIXTURES = ("native_input_fixture", "native_npc_visual_fixture")
 TEST_ASSETS = Path("godot/depot-test-assets.txt")
+TEST_LOG = Path("target/depot-test.log")
+FICLONE = 0x40049409
+SUMMARY_PREFIXES = ("     Running ", "   Doc-tests ", "test result:", "error")
 
 
 def phase(message, start):
@@ -141,8 +144,28 @@ def stage_assets(root, staging):
         if target.is_file() and (target.stat().st_size, target.stat().st_mtime_ns) == (source.st_size, source.st_mtime_ns):
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(root / "data" / relative, target)
+        link_or_copy((root / "data" / relative).resolve(), target)
     return len(wanted)
+
+
+def link_or_copy(source, target):
+    """Reflink, else hardlink, else copy, via a temporary name so an old hardlink is never written through."""
+    temporary = target.with_name(f".{target.name}.staging")
+    temporary.unlink(missing_ok=True)
+    try:
+        try:
+            with source.open("rb") as src, temporary.open("wb") as dst:
+                fcntl.ioctl(dst.fileno(), FICLONE, src.fileno())
+            shutil.copystat(source, temporary)
+        except OSError:
+            temporary.unlink(missing_ok=True)
+            try:
+                os.link(source, temporary)
+            except OSError:
+                shutil.copy2(source, temporary)
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def snapshot(root, context):
@@ -229,10 +252,21 @@ def run_tests(root, cargo_args):
             log, status = output / "test.log", output / "status"
             if not log.is_file() or not status.is_file():
                 raise FileNotFoundError("Depot did not produce test.log and status")
-            sys.stdout.write(log.read_text(errors="replace"))
             code = int(status.read_text())
+            saved = root / TEST_LOG
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(log, saved)
+            print_test_summary(log.read_text(errors="replace").splitlines())
+            print(f"Full log: {saved}")
             print(f"cargo test {shlex.join(cargo_args)}: exit {code}", flush=True)
             return code
+
+
+def print_test_summary(lines):
+    print("--- log tail ---", *lines[-20:], "--- test summary ---", sep="\n")
+    for line in lines:
+        if line.startswith(SUMMARY_PREFIXES) or (line.startswith("test ") and line.endswith("FAILED")):
+            print(line)
 
 
 def main():
