@@ -135,7 +135,12 @@ pub struct NpcGearData {
     items_by_extra: HashMap<u32, Vec<(u8, u32)>>,
     /// `Item.ID` → `SheatheType`.
     sheathe_types: HashMap<u32, u8>,
+    /// `Item.ID` → `SubclassID` of weapons (`ClassID` 2).
+    weapon_subclasses: HashMap<u32, u8>,
 }
+
+/// `Item.ClassID` of weapons (`ITEM_CLASS_WEAPON`).
+const ITEM_CLASS_WEAPON: i64 = 2;
 
 impl NpcGearData {
     /// `Emotes`, `CreatureDisplayInfo`, `NPCModelItemSlotDisplayInfo` and `Item` from one
@@ -172,9 +177,12 @@ impl NpcGearData {
         )?;
         read_rows(
             &db2_dir.join("Item.csv"),
-            ["ID", "SheatheType"],
-            |[id, sheathe]| {
+            ["ID", "SheatheType", "ClassID", "SubclassID"],
+            |[id, sheathe, class, subclass]| {
                 data.sheathe_types.insert(id as u32, sheathe as u8);
+                if class == ITEM_CLASS_WEAPON {
+                    data.weapon_subclasses.insert(id as u32, subclass as u8);
+                }
             },
         )?;
         Ok(data)
@@ -189,6 +197,11 @@ impl NpcGearData {
     /// [`unit_pose_anim_id`]).
     pub fn pose_anim_id(&self, pose: &UnitPose) -> Result<Option<u16>, String> {
         unit_pose_anim_id(pose, |emote| self.emote_anim_id(emote))
+    }
+
+    /// `Item.SubclassID` of weapon `item_id` (`ItemSubclassWeapon`), `None` for others.
+    pub fn weapon_subclass(&self, item_id: u32) -> Option<u8> {
+        self.weapon_subclasses.get(&item_id).copied()
     }
 
     /// `Item.SheatheType` of `item_id`, or `None` when Item.db2 has no such item.

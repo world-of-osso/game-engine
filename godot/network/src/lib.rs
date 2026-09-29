@@ -30,13 +30,13 @@ use shared::{
         UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
     },
     protocol::{
-        ActionBarSnapshot, BuybackList, CastFailed, CharacterListUpdate, CombatLogEvent,
-        CreateCharacterResponse, DeleteCharacterResponse, DungeonDifficultySet,
+        ActionBarSnapshot, BuybackList, CastFailed, CharacterListUpdate, CombatEvent,
+        CombatLogEvent, CreateCharacterResponse, DeleteCharacterResponse, DungeonDifficultySet,
         DurabilityStateUpdate, EnterWorldResponse, ForcedDisconnect, InstanceInfo,
         InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta, InventoryError,
         InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed,
         MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, NpcFlags, QuestLogSnapshot,
-        QuestLogUpdate, RegisterResponse, SpecializationChanged, SpellCooldownUpdate,
+        QuestLogUpdate, RegisterResponse, SpecializationChanged, SpellCooldownUpdate, SpellGo,
         SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
     },
 };
@@ -217,6 +217,10 @@ impl NetworkBridge {
             .receive::<SpellCooldownUpdate>()
             .receive::<CastFailed>()
             .receive::<CombatLogEvent>()
+            // Melee swing outcomes and resolved casts of every replicated unit, for
+            // combat animations and spell visuals.
+            .receive::<CombatEvent>()
+            .receive::<SpellGo>()
             // NPC interaction, the merchant frame and the bags it sells from.
             .receive::<InteractionOpened>()
             .receive::<InteractionFailed>()

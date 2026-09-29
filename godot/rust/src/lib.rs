@@ -7,6 +7,7 @@ mod assets;
 mod camera;
 mod char_create;
 mod character_select;
+mod combat_visuals;
 mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
@@ -28,6 +29,7 @@ pub mod npc_gear_data;
 mod particles;
 mod player_spells;
 mod scene;
+mod spell_effects;
 mod spell_tooltip;
 mod spells;
 mod startup;
@@ -101,6 +103,7 @@ pub struct GameClient {
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
+    spell_effects: spell_effects::SpellEffects,
     terrain: terrain::streaming::StreamedTerrain,
     terrain_materials: terrain::material::TerrainMaterials,
     world_objects: terrain::objects::TerrainObjects,
@@ -193,6 +196,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
             units: HashMap::new(),
+            spell_effects: spell_effects::SpellEffects::new(data_root.clone(), cache_root.clone()),
             world: world::WorldUnits::new(data_root, cache_root),
             server_hostname: if cfg!(debug_assertions) {
                 "127.0.0.1:5000"
@@ -282,7 +286,7 @@ impl INode3D for GameClient {
         type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
         // Each step runs even when an earlier one failed; only a session failure ends
         // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
-        let steps: [(&str, Step); 26] = [
+        let steps: [(&str, Step); 27] = [
             ("UI actions", |c, _| c.poll_ui_actions()),
             ("Account", |c, _| c.poll_account()),
             (
@@ -304,6 +308,7 @@ impl INode3D for GameClient {
             ("Remote player animation", |c, _| {
                 Ok(c.world.update_remote_locomotion()?)
             }),
+            ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
             ("Player movement", |c, _| c.send_player_input()),
             ("Terrain", |c, _| Ok(c.poll_terrain()?)),
             ("World lighting", |c, _| Ok(c.update_world_lighting()?)),
@@ -514,6 +519,18 @@ impl GameClient {
     #[func]
     fn merchant_state(&self) -> VarDictionary {
         self.merchant_snapshot()
+    }
+
+    /// Spell visual kits started, kit models and missiles shown.
+    #[func]
+    fn spell_visuals_state(&self) -> VarDictionary {
+        self.spell_visuals_snapshot()
+    }
+
+    /// The combat/spell clip layered over unit `id`'s locomotion, or -1.
+    #[func]
+    fn unit_action_id(&self, id: i64) -> i64 {
+        self.world.unit_action_id(id as u64).map_or(-1, i64::from)
     }
 
     /// Known spells, bar, cooldowns, sent casts, errors and spellbook entries.
@@ -1007,6 +1024,7 @@ impl GameClient {
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
+            AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::UnitUpdated(unit) => {
                 let mut parent = self.to_gd().upcast::<Node3D>();
                 self.world.upsert(&mut parent, &unit);
@@ -1225,6 +1243,7 @@ impl GameClient {
         self.world_objects.reset();
         self.global_wmo.reset();
         self.wmo_collision.reset();
+        self.spell_effects.reset();
         self.world.reset();
         self.units.clear();
         self.terrain.reset()

@@ -18,9 +18,9 @@ use crate::db2_cache::{CacheKey, load_or_build};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 2;
+const CACHE_FORMAT: u32 = 3;
 
-const SOURCE_TABLES: [&str; 11] = [
+const SOURCE_TABLES: [&str; 12] = [
     "SpellXSpellVisual",
     "SpellVisual",
     "SpellVisualEvent",
@@ -32,6 +32,7 @@ const SOURCE_TABLES: [&str; 11] = [
     "AnimKitSegment",
     "AnimationData",
     "PlayerCondition",
+    "SpellMisc",
 ];
 
 /// `SpellVisualKitEffect.EffectType` of a model attachment and a unit animation.
@@ -244,8 +245,6 @@ pub struct VisualKit {
 #[derive(Clone, Debug, PartialEq)]
 pub struct VisualMissile {
     pub model_fdid: u32,
-    /// Yards per second (`SpellVisualEffectName.BaseMissileSpeed`).
-    pub speed: f32,
     pub scale: f32,
     /// Caster attachment it leaves from and target attachment it flies to (`None`: origin).
     pub cast_attachment: Option<u8>,
@@ -263,7 +262,6 @@ struct MissileRow {
 struct EffectName {
     model_fdid: u32,
     scale: f32,
-    missile_speed: f32,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -276,6 +274,8 @@ pub struct SpellVisualCatalog {
     effect_names: HashMap<u32, EffectName>,
     conditions: HashMap<u32, PlayerCondition>,
     anim_fallbacks: HashMap<u16, u16>,
+    /// `SpellMisc.Speed` (yd/s) of spells with a travel speed.
+    speeds: HashMap<u32, f32>,
 }
 
 /// Rows of one exported CSV with named column access.
@@ -407,6 +407,7 @@ impl SpellVisualCatalog {
         catalog.read_anims(dir)?;
         catalog.read_missiles(dir)?;
         catalog.read_conditions(dir)?;
+        catalog.read_speeds(dir)?;
         Ok(catalog)
     }
 
@@ -475,14 +476,13 @@ impl SpellVisualCatalog {
     fn read_kits(&mut self, dir: &Path) -> Result<(), String> {
         let names = Table::read(dir, "SpellVisualEffectName")?;
         let name_ints = names.ints(["ID", "ModelFileDataID"])?;
-        let name_floats = names.floats(["Scale", "BaseMissileSpeed"])?;
-        for ([id, model], [scale, missile_speed]) in name_ints.into_iter().zip(name_floats) {
+        let name_floats = names.floats(["Scale"])?;
+        for ([id, model], [scale]) in name_ints.into_iter().zip(name_floats) {
             self.effect_names.insert(
                 id as u32,
                 EffectName {
                     model_fdid: model as u32,
                     scale,
-                    missile_speed,
                 },
             );
         }
@@ -597,6 +597,18 @@ impl SpellVisualCatalog {
                     attachment: attachment as i32,
                     destination: destination as i32,
                 });
+        }
+        Ok(())
+    }
+
+    fn read_speeds(&mut self, dir: &Path) -> Result<(), String> {
+        let misc = Table::read(dir, "SpellMisc")?;
+        let ids = misc.ints(["SpellID", "DifficultyID"])?;
+        let speeds = misc.floats(["Speed"])?;
+        for ([spell, difficulty], [speed]) in ids.into_iter().zip(speeds) {
+            if difficulty == 0 && speed > 0.0 && self.spells.contains_key(&(spell as u32)) {
+                self.speeds.insert(spell as u32, speed);
+            }
         }
         Ok(())
     }
@@ -768,11 +780,15 @@ impl SpellVisualCatalog {
         let name = self.effect_names.get(&row.effect_name)?;
         (name.model_fdid != 0).then(|| VisualMissile {
             model_fdid: name.model_fdid,
-            speed: name.missile_speed,
             scale: name.scale,
             cast_attachment: attachment(i64::from(row.attachment)),
             impact_attachment: attachment(i64::from(row.destination)),
         })
+    }
+
+    /// `SpellMisc.Speed` of `spell_id` in yards per second; `None` resolves on arrival.
+    pub fn missile_speed(&self, spell_id: u32) -> Option<f32> {
+        self.speeds.get(&spell_id).copied()
     }
 
     /// `AnimationData.Fallback` of `anim_id`, when it has one.
