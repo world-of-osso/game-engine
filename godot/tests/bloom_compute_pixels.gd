@@ -118,10 +118,13 @@ func create_texture(image: Image) -> RID:
 		initial.append(image.get_data())
 	var texture := rd.texture_create(format, RDTextureView.new(), initial)
 	textures.append(texture)
+	if not texture.is_valid():
+		failures += 1
+		push_error("Bloom compute texture creation failed at %s" % image.get_size())
 	return texture
 
 
-func dispatch(index: int, input: RID, target: RID, size: Vector2i, value: float) -> void:
+func dispatch(index: int, input: RID, target: RID, size: Vector2i, value: float) -> bool:
 	var sampled := RDUniform.new()
 	sampled.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 	sampled.binding = 0
@@ -133,6 +136,10 @@ func dispatch(index: int, input: RID, target: RID, size: Vector2i, value: float)
 	output.add_id(target)
 	var uniforms: Array[RDUniform] = [sampled, output]
 	var binding := rd.uniform_set_create(uniforms, shaders[index], 0)
+	if not binding.is_valid():
+		failures += 1
+		push_error("Bloom compute uniform set creation failed")
+		return false
 	var commands := rd.compute_list_begin()
 	rd.compute_list_bind_compute_pipeline(commands, pipelines[index])
 	rd.compute_list_bind_uniform_set(commands, binding, 0)
@@ -143,6 +150,7 @@ func dispatch(index: int, input: RID, target: RID, size: Vector2i, value: float)
 	rd.submit()
 	rd.sync()
 	rd.free_rid(binding)
+	return true
 
 
 func read_texture(texture: RID, size: Vector2i, half := false) -> Image:
@@ -219,6 +227,8 @@ func test_fixture(
 ) -> void:
 	var sizes: Array[Vector2i] = Reference.mip_sizes(original.get_size(), max_height)
 	var scene := create_texture(original)
+	if not scene.is_valid():
+		return
 	var pyramid: Array[RID] = []
 	var expected: Array[Image] = []
 	var source := scene
@@ -232,7 +242,11 @@ func test_fixture(
 		var target := create_texture(
 			Image.create(sizes[level].x, sizes[level].y, false, Image.FORMAT_RGBAF)
 		)
-		dispatch(0, source, target, sizes[level], 1.0 if level == 0 else 0.0)
+		if (
+			not target.is_valid()
+			or not dispatch(0, source, target, sizes[level], 1.0 if level == 0 else 0.0)
+		):
+			return
 		cpu = quantize_packed(
 			Reference.downsample(cpu, Vector2i.ONE if constant else sizes[level], level == 0)
 		)
@@ -243,7 +257,8 @@ func test_fixture(
 	var last := sizes.size() - 1
 	for level in range(last, 0, -1):
 		var blend: float = Reference.blend_factor(level, last, intensity)
-		dispatch(1, pyramid[level], pyramid[level - 1], sizes[level - 1], blend)
+		if not dispatch(1, pyramid[level], pyramid[level - 1], sizes[level - 1], blend):
+			return
 		cpu = quantize_packed(Reference.upsample_add(cpu, expected[level - 1], blend))
 		compare(
 			read_texture(pyramid[level - 1], sizes[level - 1]),
@@ -251,7 +266,8 @@ func test_fixture(
 			"%s up%d" % [label, level],
 			constant
 		)
-	dispatch(2, pyramid[0], scene, original.get_size(), intensity)
+	if not dispatch(2, pyramid[0], scene, original.get_size(), intensity):
+		return
 	var destination := original
 	if constant:
 		destination = Image.create(1, 1, false, Image.FORMAT_RGBAF)
@@ -300,6 +316,9 @@ func compare(actual: Image, expected: Image, label: String, constant: bool) -> v
 
 
 func finish() -> void:
+	for texture in textures:
+		if texture.is_valid():
+			rd.free_rid(texture)
 	for pipeline in pipelines:
 		if pipeline.is_valid():
 			rd.free_rid(pipeline)

@@ -125,10 +125,15 @@ func _compile_pipeline(index: int) -> bool:
 
 
 func _allocate_pyramid(size: Vector2i) -> bool:
+	var width := maxi(1, roundi(float(size.x) * MIP_HEIGHT / size.y))
+	# Uniform render-scale changes often leave all OLD_SCHOOL mip dimensions
+	# unchanged. Reuse them even when the scene's internal extent changes.
+	if _textures.size() == LEVEL_COUNT and _sizes[0].x == width:
+		_internal_size = size
+		return true
 	_release(_rd, _textures)
 	_textures.clear()
 	_sizes.clear()
-	var width := maxi(1, roundi(float(size.x) * MIP_HEIGHT / size.y))
 	for level in range(LEVEL_COUNT):
 		var extent := Vector2i(maxi(1, width >> level), maxi(1, MIP_HEIGHT >> level))
 		var format := RDTextureFormat.new()
