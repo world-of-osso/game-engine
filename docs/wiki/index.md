@@ -21,7 +21,7 @@ Engine subsystems and how they work.
 - [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
 - [loot-and-flight](systems/loot-and-flight.md) — corpses, Retail LootFrame, auto-loot and cursor, Retail FlightMapFrame on UiMap art, server-driven flights and `MovementControl` repositioning
 - [cursor-item](systems/cursor-item.md) — cursor pickup/drop/swap/equip/destroy through server requests, StackSplitFrame, merchant drag buy/sell, item catalog (ItemSparse) names and tooltips
-- [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All; Godot port with right-click interact, NPC cursors and vendor split
+- [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All; Godot port with right-click interact, NPC cursors, vendor split and owned UDP merchant-click proof
 - [professions-ui](systems/professions-ui.md) — Retail trainer frame, ProfessionsBook (K) and ProfessionsFrame: DB2 recipe catalog, ProfessionSnapshot, CraftRecipe through the spell pipeline
 - [quest-ui](systems/quest-ui.md) — client quest runtime, objective tracker, quest log (L), quest giver frame and talktome markers on the server quest/interaction protocol
 - [spell-catalog](systems/spell-catalog.md) — background-loaded 12.1.0.69933 spell DB2 catalog, bincode cache under `data/cache/`, static description token rendering and its limits
@@ -37,7 +37,7 @@ Engine subsystems and how they work.
 - [character-creation](systems/character-creation.md) — local-Retail reference contract, catalog-driven core/additional selections, persistence boundary, FileDataID UI/backdrop artwork, authored framing/scale/camera-distance application, scoped lighting/material evidence, and explicit current limits
 - [skybox](systems/skybox.md) — explicit procedural-vs-authored InWorld sky selection, authored lookup chain, and environmental sun/camera-IBL ownership boundary
 - [retail-lighting](systems/retail-lighting.md) — one RetailSceneLight from the LightParams blend (map default, ZoneLight polygons, local lights, per WebWowViewerCpp); terrain, M2 and M2 effect shaders use WebWowViewerCpp calcLight and fog in authored space; native creature producer wiring covers nine common light/fog uniforms, not terrain's cube map; no tonemapping, no Bevy IBL; SkySun only casts shadows
-- [sound](systems/sound.md) — Footsteps, shared selection/phase policy, native terrain/WMO surfaces and bounded local-player 3D Ogg playback, music catalog, zone music, native UI click PCM/trigger with owned UDP spell-button playback proof, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
+- [sound](systems/sound.md) — Footsteps, shared selection/phase policy, native terrain/WMO surfaces and bounded local-player 3D Ogg playback, music catalog, zone music, native UI click PCM/trigger with owned UDP spell-button and merchant playback proofs, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
 - [lore-knowledge-graph](systems/lore-knowledge-graph.md) — Graph schema for NPC AI, quest generation, faction relations
 
 ## Formats
