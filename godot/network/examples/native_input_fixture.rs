@@ -629,7 +629,7 @@ fn respond_to_selection(
             send::<_, TalentChannel>(
                 app,
                 ActionBarSnapshot {
-                    slots: vec![(0, ActionRef::Spell(1464))],
+                    slots: vec![(0, ActionRef::Spell(1464)), (11, ActionRef::Spell(1464))],
                 },
             );
         }
