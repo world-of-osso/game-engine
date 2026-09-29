@@ -27,7 +27,7 @@ Retail decides plate visibility in the engine from CVars; the default UI only ex
 - [x] `nameplateMaxDistance = 60` (cvars.yaml:977): no plate beyond 60 yd from the local player. Separately, `HudOptions.nameplate_distance` fades the projected plate from half its configured camera-to-health-body distance to zero at the configured distance. `HudOptions.show_nameplates` still turns every plate off.
 - [x] The local player, dead units and `UNIT_FLAG_NOT_SELECTABLE` units never have a plate.
 - [x] `nameplateOccludedAlphaMult = 0.4` (cvars.yaml:984): a plate whose unit is hidden from the camera multiplies its distance-fade alpha by 0.4, else by 1. The test is a ray from the camera to the centre of the unit's pick box against terrain (physics layer 1) and WMO collision (layer 2). M2 doodads have no collision and do not occlude.
-- [x] Native HUD `show_health_bars = false` hides the health frame and fill but retains and centers the name. Accessibility `colorblind_mode` changes only the label: player cyan `(0.45, 0.9, 1.0)`, NPC yellow `(1.0, 0.92, 0.35)`; off restores white. Reaction-based health fill remains unchanged.
+- [x] Native HUD `show_health_bars = false` hides the health frame and fill but retains and centers the name. Accessibility `colorblind_mode` changes only the label: player cyan `(0.45, 0.9, 1.0)`, NPC yellow `(1.0, 0.92, 0.35)`; off restores white. Reaction-based health fill remains unchanged. `6d2f7cd6`'s owned loopback NPC fixture proves the live NPC node, health visibility, NPC label restoration, unchanged fill tint, and camera-body fade separately from CVar eligibility (`data/diagnostics/nameplate-options-recovery-targeted-final.log`). It does not render a live player label; player-color runtime proof and verifier874 remain pending.
 - [x] Godot look and layout come from the Bevy client: reference skins, the Thick/Thin frame chosen by the nearest preset, the fill desaturated then tinted by reaction, a normally white 13px Friz name with a black shadow 2px above the plate when bars show, and the body centred 2.5 yd above the unit origin (Bevy `BAR_Y_OFFSET`). 1 UI unit is 1 viewport pixel.
 
 ## How it works
@@ -75,12 +75,14 @@ Retail decides plate visibility in the engine from CVars; the default UI only ex
 - `godot/rust/src/nameplates.rs` tests — plate layout around the anchor (Thick, borderless Thin, health fill).
 - `godot/tests/nameplate_occlusion.gd` — the occlusion ray on real Godot physics.
 - `godot/tests/world_nameplate_flow.gd` — in world on the dev server.
+- `godot/tests/world_nameplate_options_flow.gd` — owned loopback NPC fixture for authored HUD/Accessibility controls, label/fill visibility, label color/restoration, and camera fade versus CVar eligibility; no live player-label rendering.
 - `not_selectable_unit_flags_hide_every_plate_part_until_cleared`, `clicking_a_not_selectable_npc_model_selects_nothing`, `tab_target_skips_not_selectable_npcs`, `unit_frame_snapshot_preserves_powers_auras_level_faction_flags_target_and_removal`.
 
 ## Known gaps (current cycle)
 
 - [ ] Godot: combat-driven plates are proven by unit and replication tests only. The client cannot attack or cast, and the creatures near Fbworldmap are neutral, so no in-world fixture starts combat.
-- [ ] Godot: no cast bar, class colours, plate click-to-target, distance-based alpha (`nameplateMinAlpha` 0.6 over `nameplate{Min,Max}AlphaDistance`), selected/min scale, overlap stacking, or Options UI for the CVars (they are fixed defaults).
+- [ ] Godot: no cast bar, class colours, plate click-to-target, distance-based alpha (`nameplateMinAlpha` 0.6 over `nameplate{Min,Max}AlphaDistance`), selected/min scale, or overlap stacking. The authored HUD health-visibility, Accessibility label-color, and legacy camera-fade controls are covered separately; CVar Options remain fixed defaults.
+- [ ] The owned fixture does not render a live player label, so player cyan label runtime proof is pending; verifier874 is pending.
 
 - [ ] Reaction is template-only: reputation (forced ranks, at-war, Faction reputation bases) is not consulted, on client or server. Diseased Timber/Young Wolves (FactionTemplate 32) therefore read neutral although Retail shows them hostile.
 - [ ] Fills are the reference crops desaturated to their HSV value and tinted, so the default hostile body is (195, 0, 0) where the reference shows (195, 43, 41), and the cast fill loses its white highlights. The pixel-match item above is unaffected in status (still open).

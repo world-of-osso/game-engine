@@ -6,7 +6,7 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] ui | Native nameplate Options consumers
 
-Native nameplates now hide only frame/fill for the HUD health-bars switch, fade from the camera-to-health-body distance independently of the viewer-to-unit CVar limit, and tint only player/NPC labels for Accessibility colorblind mode. The owned loopback NPC fixture drives the authored Options controls and checks live plate nodes, alpha, CVar eligibility, label color, and unchanged fill tint. See [[nameplate-design]] and [nameplate spec](../specs/nameplate-style.md).
+`6d2f7cd6` makes native nameplates hide only frame/fill for the HUD health-bars switch, fade from the camera-to-health-body distance independently of the viewer-to-unit CVar limit, and tint only player/NPC labels for Accessibility colorblind mode. The owned loopback NPC fixture passes through live NPC health visibility with a retained name, alpha, CVar eligibility, NPC label restoration, and unchanged fill tint (`data/diagnostics/nameplate-options-recovery-targeted-final.log`). It does not render a live player label, so player cyan runtime proof and verifier874 remain pending. See [[nameplate-design]] and [nameplate spec](../specs/nameplate-style.md).
 
 ## [2026-09-29] system | Native local-player footstep playback
 
