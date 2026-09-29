@@ -414,48 +414,80 @@ impl GameClient {
         let layout = placed_map_layout(viewport, self.world_map.position);
         let scale = self.effective_ui_scale();
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
-            if let Some(drag) = &self.world_map.drag {
-                let [_, _, width, height] = layout.frame_rect();
-                self.world_map.position =
-                    Some(drag.position(motion.get_position() / scale, viewport, [width, height]));
-                if let Err(error) = self.sync_world_map() {
-                    godot_error!("World map drag: {error}");
-                }
-                return true;
-            }
-            let (inside_frame, uv) = map_pointer(&layout, motion.get_position(), scale);
-            self.world_map.hovered = uv;
-            return inside_frame;
+            return self.world_map_motion(&motion, &layout, viewport, scale);
         }
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
         };
+        self.world_map_button(&button, &layout, scale)
+    }
+
+    fn world_map_motion(
+        &mut self,
+        motion: &Gd<InputEventMouseMotion>,
+        layout: &WorldMapLayout,
+        viewport: [f32; 2],
+        scale: f32,
+    ) -> bool {
+        if let Some(drag) = &self.world_map.drag {
+            let [_, _, width, height] = layout.frame_rect();
+            self.world_map.position =
+                Some(drag.position(motion.get_position() / scale, viewport, [width, height]));
+            if let Err(error) = self.sync_world_map() {
+                godot_error!("World map drag: {error}");
+            }
+            return true;
+        }
+        let (inside_frame, uv) = map_pointer(layout, motion.get_position(), scale);
+        self.world_map.hovered = uv;
+        inside_frame
+    }
+
+    fn world_map_button(
+        &mut self,
+        button: &Gd<InputEventMouseButton>,
+        layout: &WorldMapLayout,
+        scale: f32,
+    ) -> bool {
         if button.get_button_index() == MouseButton::LEFT {
             if !button.is_pressed() && self.world_map.drag.take().is_some() {
-                if let (Some(id), Some(position)) = (
-                    self.account.session.selected_character_id,
-                    self.world_map.position,
-                ) {
-                    let path = game_engine_core::client_options_data::options_path()
-                        .with_file_name("ui_layout.ron");
-                    if let Err(error) = game_engine_core::ui_layout_data::save_world_map_position(
-                        &path, id, position,
-                    ) {
-                        godot_error!("World map placement: {error}");
-                    }
-                }
+                self.persist_world_map_position();
                 return true;
             }
             if button.is_pressed() {
                 let buttons = self.world_map_title_buttons(scale);
-                if title_hit(&layout, button.get_position(), scale, &buttons) {
+                if title_hit(layout, button.get_position(), scale, &buttons) {
                     self.world_map.drag =
-                        Some(MapDrag::begin(button.get_position() / scale, &layout));
+                        Some(MapDrag::begin(button.get_position() / scale, layout));
                     return true;
                 }
             }
         }
-        let (inside_frame, uv) = map_pointer(&layout, button.get_position(), scale);
+        self.world_map_canvas_button(button, layout, scale)
+    }
+
+    fn persist_world_map_position(&self) {
+        if let (Some(id), Some(position)) = (
+            self.account.session.selected_character_id,
+            self.world_map.position,
+        ) {
+            let path = game_engine_core::client_options_data::options_path()
+                .with_file_name("ui_layout.ron");
+            if let Err(error) =
+                game_engine_core::ui_layout_data::save_world_map_position(&path, id, position)
+            {
+                godot_error!("World map placement: {error}");
+            }
+        }
+    }
+
+    fn world_map_canvas_button(
+        &mut self,
+        button: &Gd<InputEventMouseButton>,
+        layout: &WorldMapLayout,
+        scale: f32,
+    ) -> bool {
+        let (inside_frame, uv) = map_pointer(layout, button.get_position(), scale);
         // Releases always reach gameplay input so a drag begun outside cannot stick.
         if !button.is_pressed() || !inside_frame {
             return false;

@@ -158,54 +158,9 @@ impl FixtureProject {
             .join(format!("native-reset-fixture-{}", std::process::id()));
         let project = root.join("godot");
         let data = root.join("data");
-        for folder in [
-            project.as_path(),
-            data.as_path(),
-            &data.join("cache"),
-            &data.join("models"),
-            &data.join("terrain"),
-            &data.join("textures"),
-            &root.join("user-data"),
-        ] {
-            fs::create_dir_all(folder)
-                .map_err(|error| format!("Create {}: {error}", folder.display()))?;
-        }
-        for name in ASSET_TREES {
-            stage_asset_tree(&authored_data.join(name), &data.join(name))?;
-        }
-        let footsteps = data.join("sounds/footsteps");
-        fs::create_dir_all(&footsteps)
-            .map_err(|error| format!("Create {}: {error}", footsteps.display()))?;
-        for id in FOOTSTEP_IDS {
-            let name = format!("{id}.ogg");
-            let original = authored_data.join("sounds/footsteps").join(&name);
-            fs::copy(&original, footsteps.join(name))
-                .map_err(|error| format!("Stage {}: {error}", original.display()))?;
-        }
-        for name in CACHE_FILES {
-            let original = authored_data.join("cache").join(name);
-            fs::copy(&original, data.join("cache").join(name))
-                .map_err(|error| format!("Stage {}: {error}", original.display()))?;
-        }
-        for name in DATA_DIRS.iter().chain(DATA_FILES) {
-            link_required(&authored_data.join(name), &data.join(name))?;
-        }
-        for name in ["project.godot", "scenes", "shaders", "tests", "ui"] {
-            link_required(&source.join(name), &project.join(name))?;
-        }
-        fs::copy(
-            source.join("game_engine.gdextension"),
-            project.join("game_engine.gdextension"),
-        )
-        .map_err(|error| format!("Stage Godot extension manifest: {error}"))?;
-        fs::create_dir_all(project.join(".godot"))
-            .map_err(|error| format!("Create Godot extension cache: {error}"))?;
-        fs::write(
-            project.join(".godot/extension_list.cfg"),
-            "res://game_engine.gdextension\n",
-        )
-        .map_err(|error| format!("Register extension manifest: {error}"))?;
-        link_required(&repo.join("target"), &root.join("target"))?;
+        create_fixture_directories(&root, &project, &data)?;
+        stage_fixture_data(&authored_data, &data)?;
+        stage_fixture_project(repo, &source, &root, &project)?;
         stage_fixture_csv(&data)?;
         Ok(Self { root, project })
     }
@@ -213,6 +168,71 @@ impl FixtureProject {
     pub(super) fn root_path(&self) -> &Path {
         &self.root
     }
+}
+
+fn create_fixture_directories(root: &Path, project: &Path, data: &Path) -> Result<(), String> {
+    for folder in [
+        project.as_path(),
+        data.as_path(),
+        &data.join("cache"),
+        &data.join("models"),
+        &data.join("terrain"),
+        &data.join("textures"),
+        &root.join("user-data"),
+    ] {
+        fs::create_dir_all(folder)
+            .map_err(|error| format!("Create {}: {error}", folder.display()))?;
+    }
+    Ok(())
+}
+
+fn stage_fixture_data(authored_data: &Path, data: &Path) -> Result<(), String> {
+    for name in ASSET_TREES {
+        stage_asset_tree(&authored_data.join(name), &data.join(name))?;
+    }
+    let footsteps = data.join("sounds/footsteps");
+    fs::create_dir_all(&footsteps)
+        .map_err(|error| format!("Create {}: {error}", footsteps.display()))?;
+    for id in FOOTSTEP_IDS {
+        let name = format!("{id}.ogg");
+        let original = authored_data.join("sounds/footsteps").join(&name);
+        fs::copy(&original, footsteps.join(name))
+            .map_err(|error| format!("Stage {}: {error}", original.display()))?;
+    }
+    for name in CACHE_FILES {
+        let original = authored_data.join("cache").join(name);
+        fs::copy(&original, data.join("cache").join(name))
+            .map_err(|error| format!("Stage {}: {error}", original.display()))?;
+    }
+    for name in DATA_DIRS.iter().chain(DATA_FILES) {
+        link_required(&authored_data.join(name), &data.join(name))?;
+    }
+    Ok(())
+}
+
+fn stage_fixture_project(
+    repo: &Path,
+    source: &Path,
+    root: &Path,
+    project: &Path,
+) -> Result<(), String> {
+    for name in ["project.godot", "scenes", "shaders", "tests", "ui"] {
+        link_required(&source.join(name), &project.join(name))?;
+    }
+    fs::copy(
+        source.join("game_engine.gdextension"),
+        project.join("game_engine.gdextension"),
+    )
+    .map_err(|error| format!("Stage Godot extension manifest: {error}"))?;
+    fs::create_dir_all(project.join(".godot"))
+        .map_err(|error| format!("Create Godot extension cache: {error}"))?;
+    fs::write(
+        project.join(".godot/extension_list.cfg"),
+        "res://game_engine.gdextension\n",
+    )
+    .map_err(|error| format!("Register extension manifest: {error}"))?;
+    link_required(&repo.join("target"), &root.join("target"))?;
+    Ok(())
 }
 
 impl Drop for FixtureProject {
@@ -294,12 +314,8 @@ pub(super) fn run(
             }
         }
         for line in lines.try_iter() {
-            if line.trim() == "FIXTURE MAP_SAVED" {
-                saved = true;
-            }
-            if line.trim() == "FIXTURE MAP_REOPENED" {
-                reopened = true;
-            }
+            saved |= line.trim() == "FIXTURE MAP_SAVED";
+            reopened |= line.trim() == "FIXTURE MAP_REOPENED";
             observe_reset_line(app, &line, selected.is_some(), &mut loading, &mut passed)?;
         }
         if let Some(status) = status {
@@ -309,14 +325,7 @@ pub(super) fn run(
                 ));
             }
             if saved && !reopened {
-                if !loading || selected.is_none() {
-                    return Err("Map-save process did not authenticate and load world".into());
-                }
-                app.world_mut()
-                    .despawn(selected.take().expect("saved map player"));
-                if let Some(entity) = remote.take() {
-                    app.world_mut().despawn(entity);
-                }
+                discard_map_save_players(app, &mut selected, &mut remote, loading)?;
                 loading = false;
                 saved = false;
                 let (next, receiver, output_readers) = launch_godot(
@@ -332,17 +341,52 @@ pub(super) fn run(
                 readers = Some(output_readers);
                 continue;
             }
-            if !passed || !reopened || !loading || selected.is_none() {
-                return Err(format!(
-                    "Reset verification incomplete: reopened={reopened}, pass={passed}, loading={loading}"
-                ));
-            }
-            verify_saved_layout(&config.home)?;
-            return verify_fresh_process(&config.home, project);
+            return verify_completed_reset(
+                &config.home,
+                project,
+                passed,
+                reopened,
+                loading,
+                selected.is_some(),
+            );
         }
         thread::sleep(TICK);
     }
     Err("timed out waiting for authenticated Reset Window Positions".into())
+}
+
+fn discard_map_save_players(
+    app: &mut App,
+    selected: &mut Option<Entity>,
+    remote: &mut Option<Entity>,
+    loading: bool,
+) -> Result<(), String> {
+    if !loading || selected.is_none() {
+        return Err("Map-save process did not authenticate and load world".into());
+    }
+    app.world_mut()
+        .despawn(selected.take().expect("saved map player"));
+    if let Some(entity) = remote.take() {
+        app.world_mut().despawn(entity);
+    }
+    Ok(())
+}
+
+fn verify_completed_reset(
+    config: &Path,
+    project: &Path,
+    passed: bool,
+    reopened: bool,
+    loading: bool,
+    selected: bool,
+) -> Result<(), String> {
+    if !passed || !reopened || !loading || !selected {
+        return Err(format!(
+            "Reset verification incomplete: reopened={reopened}, pass={passed}, loading={loading}"
+        ));
+    }
+    verify_saved_layout(config)?;
+    verify_fresh_process(config, project)
 }
 
 fn observe_reset_line(
