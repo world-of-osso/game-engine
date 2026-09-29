@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] system | Native main action bar HUD visibility
+
+Committed `hud.show_action_bars` now hides the cached native main bar without clearing its slots or bound-key casts; restoring it reuses the bar and restores pointer casts. Owned `sound-click` loopback fixture passes hidden-key, restored-click and subsequent quiet-input checks (`/tmp/claude/actionbar-consumer-targeted-green.log`, base `539f1b86` plus scoped diff). Updated [[spellbook-action-bar]] and [spellbook/action-bar spec](../specs/spellbook-action-bar.md).
+
 ## [2026-09-29] system | Original CombatEvent native outcome audio
 
 Final gate `bf0dfde4` PASS rebuilds `target/debug/libgame_engine_godot.so` and then proves 65 reliable ordered original `CombatEvent` UDP messages reach 65 spatial outcome players exactly once, including beyond the 64-entry `CombatLogEvent` deque. The shared Impact/Heal/Miss/Interrupt PCM and gain policy, ignored/zero/unresolved suppression, master/effects/mute/music behavior, remote removal, and forced-disconnect reset remain covered. Account dispatch preserves direct `CombatEvent` routing before spell-state/log handling; changed routing functions are readability-clean, with only pre-existing whole-file/helper findings. Current-server spell results still send only `CombatLogEvent`; the original producer remains dormant for those results, with no server change, log-event mapping, or fallback. No audible/hardware or full-parity claim. Evidence: `/tmp/claude/verify-native-outcomes-complete.md`. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
