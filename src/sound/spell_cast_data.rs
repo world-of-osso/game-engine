@@ -133,6 +133,9 @@ mod tests {
 
     #[test]
     fn cast_samples_match_legacy_normalized_sweep() {
+        const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+        const FNV_PRIME: u64 = 0x100000001b3;
+
         let samples = generate_spell_cast_samples();
         assert_eq!(samples.len(), 6174);
         assert_eq!(samples[0], 0);
@@ -141,8 +144,8 @@ mod tests {
         let checksum = samples
             .iter()
             .flat_map(|sample| sample.to_le_bytes())
-            .fold(0xcbf29ce484222325_u64, |hash, byte| {
-                (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3)
+            .fold(FNV_OFFSET_BASIS, |hash, byte| {
+                (hash ^ u64::from(byte)).wrapping_mul(FNV_PRIME)
             });
         assert_eq!(checksum, 1_932_001_403_226_046_311);
         assert_eq!(CAST_VOLUME_SCALE, 0.75);

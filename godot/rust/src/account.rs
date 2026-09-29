@@ -400,6 +400,14 @@ impl Account {
             output.push(AccountEvent::RestState(decode(message)?));
             return Ok(());
         }
+        self.dispatch_world_message(message, output)
+    }
+
+    fn dispatch_world_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
         if message.is::<LoadTerrain>() {
             let request = decode(message)?;
             self.session.receive_terrain_refresh();
