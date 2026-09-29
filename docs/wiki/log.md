@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] implementation | Godot RegistryUi scale ownership
+
+Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). Scaled known-spell tooltip anchoring passes against the prior native artifact; the coordinate corrections still require a new Depot artifact. See [[ui-system]].
+
 ## [2026-09-29] verification | Options integration correction
 
 `253f8238` merged verified Options `e8599fb0`; `818d7c53` reconciled `ensure_art` without losing concurrent `67e6e430`. At `4c0acc91`, `958e612a` fixed merchant-fixture hostility with real friendly `UnitFactionTemplate`s: vendor `NpcFlags` alone does not prevent auto-attack. Existing Depot `fg7w9m1g7w` and four owned modes pass (three retained, merchant fresh). Original `CombatEvent` still reaches outcome audio and visuals once; `SpellGo` and later frame steps survive `FrameError::Client`. Pure Rust tests were not run under Depot-only constraints. Updated [[godot-conversion]] and [parity matrix](../specs/godot-parity-matrix.md).
