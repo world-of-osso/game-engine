@@ -60,8 +60,9 @@ func run_test() -> void:
 	print("FIXTURE BUFF ", buff)
 	if not check_icon(buff, "BuffButton"):
 		return
-	# BuffFrame: TOPRIGHT -255,-10 of the 768-unit UIParent; the first icon 15 px further left.
-	var scale := root.size.y / 768.0
+	# BuffFrame: TOPRIGHT -255,-10 of the HUD canvas; the first icon 15 px further left. The
+	# in-world HUD scale is max(min(w / 1920, h / 1080), 2/3) at UI Scale 1.
+	var scale := maxf(minf(root.size.x / 1920.0, root.size.y / 1080.0), 2.0 / 3.0)
 	var right := root.size.x - (255.0 + 15.0) * scale
 	if absf(buff.rect[0] + buff.rect[2] - right) > 1.5 or absf(buff.rect[1] - 10.0 * scale) > 1.5 or absf(buff.rect[2] - 30.0 * scale) > 1.0:
 		fail("BuffButton0 icon rect %s, expected right %.1f top %.1f size %.1f" % [buff.rect, right, 10.0 * scale, 30.0 * scale])
