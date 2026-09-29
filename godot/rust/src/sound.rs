@@ -17,6 +17,8 @@ use godot::classes::{
 };
 use godot::prelude::*;
 
+use crate::sound_footsteps::Footsteps;
+
 struct Channel {
     player: Gd<AudioStreamPlayer>,
     by_zone: HashMap<u32, Vec<usize>>,
@@ -216,6 +218,7 @@ pub struct NativeSound {
     music: Channel,
     ambient: Channel,
     effects: Gd<AudioStreamPlayer>,
+    footsteps: Footsteps,
 }
 
 #[godot_api]
@@ -228,6 +231,7 @@ impl INode for NativeSound {
             music: Channel::new("Music"),
             ambient: Channel::new("Ambient"),
             effects: AudioStreamPlayer::new_alloc(),
+            footsteps: Footsteps::new(),
         }
     }
 
@@ -240,6 +244,8 @@ impl INode for NativeSound {
         effects.set_name("Effects");
         self.base_mut().add_child(&effects);
         self.effects.set_stream(&click_stream());
+        let footsteps = self.footsteps.root.clone();
+        self.base_mut().add_child(&footsteps);
     }
 
     fn exit_tree(&mut self) {
@@ -259,6 +265,17 @@ impl NativeSound {
     #[func]
     fn configure(&mut self, data_root: GString) -> bool {
         match self.load_catalog(Path::new(&data_root.to_string())) {
+            Ok(()) => true,
+            Err(error) => {
+                godot_error!("{error}");
+                false
+            }
+        }
+    }
+
+    #[func]
+    fn configure_footsteps(&mut self, data_root: GString) -> bool {
+        match self.load_footsteps(Path::new(&data_root.to_string())) {
             Ok(()) => true,
             Err(error) => {
                 godot_error!("{error}");
@@ -310,6 +327,27 @@ impl NativeSound {
 }
 
 impl NativeSound {
+    pub fn load_footsteps(&mut self, data_root: &Path) -> Result<(), String> {
+        self.footsteps.load(data_root)
+    }
+
+    pub fn observe_footstep(
+        &mut self,
+        player_id: u64,
+        race: u8,
+        phase: (usize, u16, f32, f32),
+        position: Vector3,
+        surface: game_engine_core::footstep_data::FootstepSurface,
+        settings: &SoundOptionsFile,
+    ) {
+        self.footsteps
+            .observe(player_id, race, phase, position, surface, settings);
+    }
+
+    pub fn stop_footsteps(&mut self) {
+        self.footsteps.stop();
+    }
+
     pub fn load_catalog(&mut self, data_root: &Path) -> Result<(), String> {
         let (tracks, indices) = discover_tracks(data_root)?;
         let mut music =
@@ -361,5 +399,6 @@ impl NativeSound {
     pub fn stop(&mut self) {
         self.music.stop();
         self.ambient.stop();
+        self.stop_footsteps();
     }
 }

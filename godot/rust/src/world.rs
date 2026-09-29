@@ -589,6 +589,20 @@ impl WorldUnits {
         Some(self.units.get(&self.local_player_id?)?.node.clone())
     }
 
+    pub fn local_footstep_phase(&self) -> Option<(u64, Vector3, (usize, u16, f32, f32))> {
+        let id = self.local_player_id?;
+        let unit = self.units.get(&id)?;
+        let animation = unit
+            .visual
+            .as_ref()?
+            .try_get_node_as::<WowAnimationPlayer>("M2Animation")?;
+        Some((
+            id,
+            unit.node.get_global_position(),
+            animation.bind().footstep_phase()?,
+        ))
+    }
+
     pub fn update_local_locomotion(
         &mut self,
         animation_id: u16,
