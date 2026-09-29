@@ -126,9 +126,9 @@ fn observe_cast_stage(
 
 fn confirm_cast_request(app: &mut App, selected: Option<Entity>) -> Result<(), String> {
     let casts = &app.world().resource::<Incoming>().casts;
-    if !casts.iter().any(|cast| cast.spell_id == Some(1464)) {
+    if casts.len() != 5 || casts.iter().any(|cast| cast.spell_id != Some(1464)) {
         return Err(format!(
-            "no actual SLAM SpellCastIntent before confirmation: {casts:?}"
+            "expected five SLAM SpellCastIntents from first bar, book, visible key, hidden key and restored bar: {casts:?}"
         ));
     }
     set_cast(app, selected, Some(1464))

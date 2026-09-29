@@ -450,6 +450,7 @@ impl GameClient {
     fn sync_action_bar(&mut self) -> Result<(), String> {
         let state = self.action_bar_state();
         if let Some(ui) = self.spells.bar_ui.as_mut() {
+            ui.set_visible(self.client_options.hud.show_action_bars);
             return ui.bind_mut().set_state(state);
         }
         self.ensure_art(&ACTION_BAR_ART_FDIDS)?;
@@ -462,6 +463,7 @@ impl GameClient {
             ui.free();
             return Err(error);
         }
+        ui.set_visible(self.client_options.hud.show_action_bars);
         self.spells.bar_ui = Some(ui);
         Ok(())
     }
@@ -539,7 +541,11 @@ impl GameClient {
 
     /// The main bar button under the pointer and its spell, if any.
     pub(crate) fn hovered_bar_spell(&self) -> Option<(u32, [f32; 4])> {
-        let (name, rect) = self.spells.bar_ui.as_ref()?.bind().hovered_button()?;
+        let ui = self.spells.bar_ui.as_ref()?;
+        if !ui.is_visible() {
+            return None;
+        }
+        let (name, rect) = ui.bind().hovered_button()?;
         let index: usize = name.strip_prefix("ActionButton")?.parse().ok()?;
         match self.account.spells.slot(index.checked_sub(1)?) {
             Some(ActionRef::Spell(spell_id)) => Some((spell_id, rect)),

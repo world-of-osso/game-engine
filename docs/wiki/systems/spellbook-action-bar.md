@@ -5,7 +5,7 @@ Contract: [spec](../../specs/spellbook-action-bar.md). Code: `godot/rust/src/spe
 ## Flow
 
 - `godot/network` subscribes to the spell messages and snapshots `CastState`, `UnitPowers`, `UnitAuras` into `UnitSnapshot`. `Account` keeps `PlayerSpells` (known spells, spec, 120 slots, cooldowns + GCD) and the last 64 `CombatLogEvent`s with a sequence counter; `CastFailed` becomes `AccountEvent::CastFailed`.
-- `GameClient::update_spells` runs after targeting each frame: keys `ActionSlot1..12` and bar clicks send `SpellCastIntent { spell_id, spell: name, target_entity: targeting.target }` on `CombatChannel`; P toggles the book; then the bar, cast bar and book re-sync. Errors close the spell UI; they do not end the session.
+- `GameClient::update_spells` runs after targeting each frame: keys `ActionSlot1..12` and bar clicks send `SpellCastIntent { spell_id, spell: name, target_entity: targeting.target }` on `CombatChannel`; P toggles the book; then the bar, cast bar and book re-sync. Errors close the spell UI; they do not end the session. Committed `hud.show_action_bars` sets visibility on the cached `MainActionBarUI` during sync, leaving slot snapshots and key casts intact. Hidden bar hover is ignored; restoring visibility reuses the same UI and makes pointer casts available again.
 - Cooldown shown on a button = max(spell cooldown, GCD if the spell's `StartRecoveryTime` > 0).
 - Icons and chrome are copied from local CASC into `data/textures/{fdid}.blp` on first use; missing chrome is an error, a missing icon an empty slot.
 - Combat text is a fixed-size `Label3D` under the client root (unit nodes carry model scale), in three lanes so auto-attack and ability numbers do not stack.
@@ -20,3 +20,5 @@ Contract: [spec](../../specs/spellbook-action-bar.md). Code: `godot/rust/src/spe
 ## Fixture
 
 `godot/tests/spellbook_cast.gd`, env `SPELL_ACCOUNT`, `SPELL_CHARACTER`, `SPELL_EXPECT_LEVEL`, `SPELL_CAST=1`, `SPELL_SHOTS`. Place the character at the dummies while offline: `game-server-admin set-position Fbworldmap -8967.3 -146.5 81.7`. A Movie Maker run (`--write-movie cast.avi --fixed-fps 30`) records the cast sequence.
+
+Owned `native_input_fixture sound-click` uses loopback UDP to prove bar hide, retained hidden key cast, restored cached bar click and later quiet input. Scoped pass: `/tmp/claude/actionbar-consumer-targeted-green.log` (2026-09-29).

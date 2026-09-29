@@ -48,6 +48,9 @@ func run_test() -> void:
 	if effects.is_playing() or completed[0] != before:
 		fail("Keyboard cast played pointer-only effect")
 		return
+	if not await check_action_bar_visibility(client, bar, action, effects, completed):
+		return
+	before = completed[0]
 	push_key(KEY_P, true)
 	await process_frame
 	push_key(KEY_P, false)
@@ -66,6 +69,65 @@ func run_test() -> void:
 	print("FIXTURE SPELL_CLICK_DONE")
 	client.free()
 	quit(0)
+
+func check_action_bar_visibility(client: Node, bar: Node, action: Control, effects: AudioStreamPlayer, completed: Array) -> bool:
+	if not action.is_visible_in_tree() or client.spells_state().bar[0] != SLAM:
+		fail("Replicated main bar not visible with Slam in slot 1")
+		return false
+	var original_id := bar.get_instance_id()
+	push_key(KEY_P, true)
+	await process_frame
+	push_key(KEY_P, false)
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	if not await wait_menu(client):
+		return false
+	await click_menu_action(client, "MenuBtnOptions")
+	await process_frame
+	await click_option(client, "OptionsTabhud")
+	await click_option(client, "ToggleSwitchshow_action_barsLeftHit")
+	await process_frame
+	if action.is_visible_in_tree() or bar.get_instance_id() != original_id:
+		fail("Committed HUD toggle did not hide cached whole main bar immediately")
+		return false
+	await click_option(client, "OptionsDoneButton")
+	if client.get_node_or_null("GameMenuUI") != null:
+		await click_menu_action(client, "MenuBtnResume")
+	var sent_before: int = client.spells_state().sent.size()
+	push_key(KEY_1, true)
+	await process_frame
+	push_key(KEY_1, false)
+	await wait_frames(2)
+	var state: Dictionary = client.spells_state()
+	if action.is_visible_in_tree() or state.bar[0] != SLAM or state.sent.size() != sent_before + 1 or state.sent[-1] != SLAM:
+		fail("Hidden bar changed slot or blocked keyboard SpellCastIntent: " + str(state))
+		return false
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	if not await wait_menu(client):
+		return false
+	await click_menu_action(client, "MenuBtnOptions")
+	await process_frame
+	await click_option(client, "OptionsTabhud")
+	await click_option(client, "ToggleSwitchshow_action_barsRightHit")
+	await process_frame
+	if not action.is_visible_in_tree() or bar.get_instance_id() != original_id or client.spells_state().bar[0] != SLAM:
+		fail("Restoring HUD toggle did not restore cached main bar and slot")
+		return false
+	await click_option(client, "OptionsDoneButton")
+	if client.get_node_or_null("GameMenuUI") != null:
+		await click_menu_action(client, "MenuBtnResume")
+	if not await assert_click(client, effects, completed, action, "restored action bar"):
+		return false
+	push_key(KEY_P, true)
+	await process_frame
+	push_key(KEY_P, false)
+	if not await wait_book(client):
+		return false
+	print("PASS: whole main bar hide, hidden key cast, restored cached slot and click")
+	return true
 
 func check_cast_audio(client: Node, sound: Node) -> bool:
 	# Keyboard already requested SLAM; the server has not confirmed a cast yet.
