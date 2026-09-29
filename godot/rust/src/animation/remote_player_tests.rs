@@ -59,7 +59,8 @@ fn flags_select_the_local_players_animation_ids() {
         // Forward outranks a strafe, as the local `compute_movement_input` does.
         (FORWARD | LEFT, locomotion(5, false, true)),
         (SWIM, locomotion(41, false, false)),
-        (SWIM | FORWARD, locomotion(42, false, false)),
+        // Running forward, as the local `update_player_animation` passes it while swimming.
+        (SWIM | FORWARD, locomotion(42, false, true)),
         (SWIM | LEFT, locomotion(43, false, false)),
         (SWIM | RIGHT, locomotion(44, false, false)),
         (SWIM | BACKWARD, locomotion(45, false, false)),
