@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM rust:1.98.1-bookworm AS build
+FROM rust:1.98.1-bookworm AS source
 RUN apt-get update && apt-get install -y --no-install-recommends clang libclang-dev mold cmake pkg-config python3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /src/game-engine-godot-conversion
 ARG TARGET_CACHE
@@ -7,6 +7,8 @@ ENV CARGO_TARGET_DIR=/src/game-engine-godot-conversion/target \
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
     RUSTFLAGS="-C link-arg=-fuse-ld=mold -C link-arg=-Wl,--thread-count=4"
 COPY . /src/
+
+FROM source AS build
 ARG FIXTURE=""
 RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
@@ -23,3 +25,18 @@ RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry 
     esac && du -sb target
 FROM scratch AS artifact
 COPY --from=build /out/ /
+
+# Test failures must still export the log, so the step records cargo's status instead of failing.
+FROM source AS test
+ARG TEST_ARGS
+ARG TEST_RUN
+RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
+    --mount=type=bind,from=assets,target=/src/game-engine-godot-conversion/data,rw \
+    python3 /src/refresh-source-mtimes.py /src && \
+    ln -sfn ../../data godot/core/data && mkdir -p /out && echo "test run $TEST_RUN" && \
+    eval "set -- $TEST_ARGS" && \
+    { cargo test --locked --manifest-path godot/Cargo.toml -j 16 "$@" 2>&1; echo $? > /out/status; } | tee /out/test.log
+FROM scratch AS test-result
+COPY --from=test /out/ /
