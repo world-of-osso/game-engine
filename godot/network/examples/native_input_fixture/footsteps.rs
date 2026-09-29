@@ -25,6 +25,13 @@ pub(super) fn run(
         }
         for line in lines.try_iter() {
             let line = line.trim();
+            // This headless footstep fixture has no need for optional scenery textures.
+            // Preserve the original diagnostic in the captured Godot log.
+            if line.starts_with("GODOT_STDERR: ERROR: WorldObjects:")
+                && line.contains("missing textures")
+            {
+                continue;
+            }
             if line.starts_with("GODOT_STDERR: ERROR:")
                 || line.starts_with("GODOT_STDERR: SCRIPT ERROR:")
             {
@@ -45,13 +52,18 @@ pub(super) fn run(
                     );
                     stage = 1;
                 }
-                "FIXTURE FOOTSTEPS_DONE" if stage == 1 => {
-                    saw_forward |= assert_forward_input(take_inputs(app))?;
-                    if !saw_forward {
-                        return Err("no decoded forward-run PlayerInput on InputChannel".into());
-                    }
+                "FIXTURE FOOTSTEPS_OPTIONS" if stage == 1 && saw_forward => {
+                    ensure_release_reported(app, stage)?;
                     stage = 2;
                 }
+                "FIXTURE FOOTSTEPS_REMOVE" if stage == 2 => {
+                    saw_forward |= assert_forward_input(take_inputs(app))?;
+                    app.world_mut()
+                        .entity_mut(selected.expect("selected player for removal"))
+                        .despawn();
+                    stage = 3;
+                }
+                "FIXTURE FOOTSTEPS_DONE" if stage == 3 => stage = 4,
                 line if line.starts_with("FIXTURE FOOTSTEPS_") => {
                     return Err(format!(
                         "out-of-order footsteps marker at stage {stage}: {line}"
@@ -63,14 +75,15 @@ pub(super) fn run(
         if stage == 0 && !take_inputs(app).is_empty() {
             return Err("PlayerInput arrived before Loading marker".into());
         }
-        if stage == 1 {
+        if stage == 1 || stage == 2 {
             saw_forward |= assert_forward_input(take_inputs(app))?;
+        } else if stage >= 3 {
+            take_inputs(app);
         }
         if let Some(status) = status {
-            if status.success() && stage == 2 && selected.is_some() {
-                ensure_release_reported(app, stage)?;
+            if status.success() && stage == 4 && selected.is_some() {
                 println!(
-                    "PASS: authenticated GameClient movement decoded by owned UDP server; selected Run phase, real Ogg catalog, surface and 3D player observed in Godot; quiet after stop"
+                    "PASS: owned UDP GameClient Run/idle/stop, repeated local Ogg 3D events, music-independent mute/volume and player-removal stop"
                 );
                 return Ok(());
             }

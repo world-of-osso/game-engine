@@ -506,7 +506,7 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
-    /// Read-only clip phase for a future native footstep observer.
+    /// Selected clip phase for the native local-player footstep observer.
     pub fn footstep_phase(&self) -> Option<(usize, u16, f32, f32)> {
         self.animation.as_ref().map(AnimationState::footstep_phase)
     }
