@@ -31,6 +31,10 @@ func run_test() -> void:
 	if roster.selected_character_id != 17:
 		fail("Expected selected server character ID 17: " + str(roster))
 		return
+	for frame in range(3):
+		await process_frame
+	if not check_world_host_scales(client, 5.0 / 6.0):
+		return
 	if OS.get_environment("GODOT_TEST_MAP_VERIFY") == "1":
 		if not await expect_book_restored(client, config):
 			return
@@ -100,6 +104,23 @@ func run_test() -> void:
 	print("PASS: authenticated authored reset cleared only ID 17, retained ID 18/edit layout/modal on reload")
 	quit(0)
 
+func check_world_host_scales(client: Node, scale: float) -> bool:
+	for host_name in ["MainActionBarUI", "CastingBarUI", "UnitFramesUI"]:
+		var host := client.get_node_or_null(host_name)
+		var canvas := host.find_child("RegistryCanvas", true, false) as Control if host != null else null
+		if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
+			fail("World %s canvas did not fit viewport at scale %s" % [host_name, scale])
+			return false
+	for host_name in ["SpellTooltipUI", "EntranceBarUI", "MirrorTimers", "WorldMapUI", "SpellBookUI", "MerchantUI"]:
+		var host := client.get_node_or_null(host_name)
+		if host == null:
+			continue
+		var canvas := host.find_child("RegistryCanvas", true, false) as Control
+		if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
+			fail("Visible %s canvas did not fit viewport at scale %s" % [host_name, scale])
+			return false
+	return true
+
 func tap_book() -> void:
 	push_key(KEY_P, true)
 	await process_frame
@@ -130,6 +151,8 @@ func exercise_book_placement(client: Node, path: String, config: String) -> bool
 	root.size = Vector2i(1920, 1080)
 	for frame in range(5):
 		await process_frame
+	if not check_world_host_scales(client, 1.25):
+		return false
 	if not await expect_book_default(client):
 		return false
 	await tap_book()

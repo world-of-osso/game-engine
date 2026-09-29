@@ -21,12 +21,14 @@ func check_owned_click(fps: int, label: String) -> void:
 	var original_fps := Engine.max_fps
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	await process_frame
 	var client_ui := client.get_node_or_null("LoginUI")
 	var client_sound := client.get_node_or_null("NativeSound")
 	if client_ui == null or client_sound == null:
 		require(false, "%s GameClient did not own login UI and NativeSound" % label)
 	else:
+		var canvas := client_ui.find_child("RegistryCanvas", true, false) as Control
+		require(canvas != null and canvas.scale.is_equal_approx(Vector2.ONE * 1.25) and canvas.size.is_equal_approx(Vector2(root.size) / 1.25), "%s first visible login canvas must use saved nonworld scale" % label)
+		await process_frame
 		var login_button := client_ui.find_child("ConnectButton", true, false) as Button
 		var live_effects := client_sound.get_node_or_null("Effects") as AudioStreamPlayer
 		if login_button == null or live_effects == null:
@@ -143,7 +145,7 @@ func run_test() -> void:
 		require(false, "Cannot write isolated UI click options")
 		quit(1)
 		return
-	options.store_string("(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))")
+	options.store_string("(graphics:(uiScale:1.25),sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))")
 	options.close()
 	OS.set_environment("XDG_CONFIG_HOME", config_dir)
 	await check_owned_click(0, "default FPS")
