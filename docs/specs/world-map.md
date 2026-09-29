@@ -19,6 +19,7 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 - [x] The frame is a metal portrait window titled "World Map" with a breadcrumb bar from the root map to the displayed map and a close button; it fits the viewport keeping the 1002×668 canvas aspect.
 - [x] Breadcrumbs navigate to their map; the close button closes the frame.
 - [x] Pressing the toggle binding in world opens the frame on the player's map (Godot: Stormwind City for a character standing in Stormwind); pressing it again, or Escape, closes it. Escape closing the map does not open the game menu.
+- [x] Godot: dragging the title's top 24 logical units, excluding the close button, moves and clamps `WorldMapFrame`; release saves its top-left for the selected server character in canonical `ui_layout.ron`. Reopen and a fresh process restore that position; Reset Window Positions restores the Wide slot for that character only.
 - [x] Right-click (or wheel down) on the canvas zooms out one level; left-click (or wheel up) zooms into the child map under the cursor; hovering a child map highlights it with its `UiMapArt` highlight texture (additive) and names it.
 - [x] Keyboard movement continues while the frame is open; mouse input over the frame does not drive the camera.
 - [x] Art tiles missing from the local CASC install are left undrawn and reported (warning per FDID); a missing texture never ends the session.
@@ -47,12 +48,14 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 - `src/world_map_view_data_tests.rs`
 - `src/ui/screens/world_map_frame_component_tests.rs`
 - `godot/tests/world_map_flow.gd` (dev server `127.0.0.1:5000`, run under the shared dev-server lock)
+- `godot/rust/src/world_map.rs` pointer and open-reset state tests; `/tmp/claude/world-map-owned-fixture-ac44cc2e.log` proves scaled drag/release, character-scoped save/reset retention, reopen at the Wide slot, and a second-process read without a live server.
 - `godot/rust/src/ui/parts_tests.rs` (rotation and additive parts), `godot/rust/src/account.rs` (quest log merge)
 - `src/scenes/world_map_frame/automation_tests.rs` (Bevy host)
 
 ## Known gaps (current cycle)
 - [ ] Local CASC lacks many world-map tiles (e.g. all Elwynn Forest, 11 of 12 Stormwind City, parts of Eastern Kingdoms and Azeroth); those areas draw black.
 - [ ] Bevy host: no hover highlight, quest pins or faction (it passes none).
+- [ ] `WorldMapFrame` is the only native managed window. The open-map reset is a state test; simultaneous Options-plus-map UI is not keyboard-reachable because Escape closes the map. Other native windows and generic window-manager parity remain unconverted.
 
 ## Out of scope
 - World quests, bounties/emissaries: the server sends no world-quest message and its runtime quest table has no `QuestType=3` rows; `TaskInfo`/`QuestPOIBlob`/`QuestPOIPoint` DB2 are not exported.

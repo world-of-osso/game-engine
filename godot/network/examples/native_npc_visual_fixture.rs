@@ -1,6 +1,6 @@
 //! Owned UDP replication and isolated Godot assets for native ordinary creature visuals.
-//! Run from godot/ after its GDExtension is built:
-//! GODOT_BIN=/path/to/godot cargo run -p game-engine-network --example native_npc_visual_fixture
+//! With the native extension and this example built, run the installed executable
+//! at target/debug/examples/native_npc_visual_fixture.
 
 use std::{
     fs,
@@ -19,12 +19,18 @@ use lightyear::prelude::{
     ReplicationSender, server,
 };
 use shared::{
-    components::{Health, ModelDisplay, MovementControl, Npc, Player, Position},
+    components::{
+        Health, ModelDisplay, MovementControl, Npc, Player, Position, UnitFactionTemplate,
+        UnitFlags,
+    },
     protocol::{
         AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
         LoginResponse, SelectCharacter, TerrainChannel,
     },
 };
+
+#[path = "fixture_support/mod.rs"]
+mod fixture_support;
 
 const TICK: Duration = Duration::from_millis(5);
 const NAME: &str = "Fixture Player";
@@ -37,30 +43,39 @@ const TYPE19_EFFECT_NPC: &str = "Fixture Type19 Effect";
 
 #[derive(Resource, Default)]
 struct Incoming {
-    logins: Vec<LoginRequest>,
-    selections: Vec<SelectCharacter>,
+    logins: Vec<(Entity, LoginRequest)>,
+    selections: Vec<(Entity, SelectCharacter)>,
+    selected_link: Option<Entity>,
 }
 
 fn receive_requests(
-    mut logins: Query<&mut MessageReceiver<LoginRequest>>,
-    mut selections: Query<&mut MessageReceiver<SelectCharacter>>,
+    mut logins: Query<(Entity, &mut MessageReceiver<LoginRequest>)>,
+    mut selections: Query<(Entity, &mut MessageReceiver<SelectCharacter>)>,
     mut incoming: ResMut<Incoming>,
 ) {
-    for mut receiver in &mut logins {
-        incoming.logins.extend(receiver.receive());
+    for (link, mut receiver) in &mut logins {
+        incoming
+            .logins
+            .extend(receiver.receive().map(|request| (link, request)));
     }
-    for mut receiver in &mut selections {
-        incoming.selections.extend(receiver.receive());
+    for (link, mut receiver) in &mut selections {
+        incoming
+            .selections
+            .extend(receiver.receive().map(|request| (link, request)));
     }
 }
 
-fn send<M: network::Message, C: network::Channel>(app: &mut App, message: M) {
-    let world = app.world_mut();
-    let mut sender = world
-        .query::<&mut MessageSender<M>>()
-        .single_mut(world)
-        .expect("one connected fixture sender");
+fn send<M: network::Message, C: network::Channel>(
+    app: &mut App,
+    link: Entity,
+    message: M,
+) -> Result<(), String> {
+    let mut sender = app
+        .world_mut()
+        .get_mut::<MessageSender<M>>(link)
+        .ok_or_else(|| format!("Missing fixture sender on link {link:?}"))?;
     sender.send::<C>(message);
+    Ok(())
 }
 
 fn start_server() -> (App, SocketAddr) {
@@ -99,11 +114,10 @@ struct FixtureProject {
 }
 
 impl FixtureProject {
-    fn create() -> Result<Self, String> {
-        let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .parent()
-            .ok_or("Missing Godot project directory")?;
-        let repo = source.parent().ok_or("Missing repository directory")?;
+    fn create(nameplates: bool) -> Result<Self, String> {
+        let checkout = fixture_support::checkout_root_from_executable("native_npc_visual_fixture")?;
+        let repo = checkout.as_path();
+        let source = repo.join("godot");
         // This subtree is untracked and disposable; res://../data is only this fixture's data.
         let root = repo
             .join("data")
@@ -117,6 +131,8 @@ impl FixtureProject {
             &data.join("models"),
             &data.join("textures"),
             &data.join("terrain"),
+            &root.join("config"),
+            &root.join("user-data"),
         ] {
             fs::create_dir_all(folder)
                 .map_err(|error| format!("Create {}: {error}", folder.display()))?;
@@ -146,11 +162,14 @@ impl FixtureProject {
             std::os::unix::fs::symlink(entry.path(), data.join("textures").join(name))
                 .map_err(|error| format!("Link authored UI texture: {error}"))?;
         }
-        for folder in ["glues", "fonts", "ui"] {
+        for folder in ["glues", "fonts", "ui", "db2"] {
             std::os::unix::fs::symlink(repo.join("data").join(folder), data.join(folder))
                 .map_err(|error| format!("Link authored {folder} assets: {error}"))?;
         }
         for name in [
+            "AreaTable.csv",
+            "music_zone_links.csv",
+            "music_manifest.csv",
             "WarbandScene.csv",
             "WarbandScenePlacement.csv",
             "WarbandScenePlacementOption.csv",
@@ -195,6 +214,22 @@ impl FixtureProject {
         }
         stage_preview_assets(repo, &data)?;
         stage_lighting(repo, &data)?;
+        if nameplates {
+            // The visual-only fixture's sampled lighting rows predate the native
+            // FogDensity reader; use the real catalog in this isolated Options run.
+            fs::copy(repo.join("data/LightData.csv"), data.join("LightData.csv"))
+                .map_err(|error| format!("Stage authored LightData.csv: {error}"))?;
+            fs::write(
+                data.join("ZoneLight.csv"),
+                "ID,MapID,LightID,TransitionType,Zmin,Zmax\n1,99999,1,0,-100,100\n",
+            )
+            .map_err(|error| format!("Stage fixture ZoneLight.csv: {error}"))?;
+            fs::write(
+                data.join("ZoneLightPoint.csv"),
+                "ZoneLightID,PointOrder,Pos_0,Pos_1\n",
+            )
+            .map_err(|error| format!("Stage fixture ZoneLightPoint.csv: {error}"))?;
+        }
         stage_npc_appearance(&data)?;
         Ok(Self { root, project })
     }
@@ -295,6 +330,24 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
 fn stage_preview_assets(repo: &Path, data: &Path) -> Result<(), String> {
     for folder in ["models", "terrain"] {
         stage_cached_asset_tree(&repo.join("data").join(folder), &data.join(folder))?;
+    }
+    for (folder, ids, extension) in [
+        ("dbfilesclient", &[1308499, 1284822][..], "db2"),
+        (
+            "sounds/footsteps",
+            &[540120, 540121, 540127, 540202][..],
+            "ogg",
+        ),
+    ] {
+        let target = data.join(folder);
+        fs::create_dir_all(&target)
+            .map_err(|error| format!("Create {}: {error}", target.display()))?;
+        for id in ids {
+            let name = format!("{id}.{extension}");
+            let source = repo.join("data").join(folder).join(&name);
+            fs::copy(&source, target.join(&name))
+                .map_err(|error| format!("Stage {}: {error}", source.display()))?;
+        }
     }
     std::os::unix::fs::symlink(repo.join("data/Map.csv"), data.join("Map.csv"))
         .map_err(|error| format!("Link authored map catalog: {error}"))
@@ -404,13 +457,29 @@ impl Drop for FixtureProject {
 fn launch_godot(
     project: &Path,
     address: SocketAddr,
+    nameplates: bool,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let mut child = Command::new(binary)
         .args(["--headless", "--path"])
         .arg(project)
-        .args(["--script", "res://tests/world_npc_visual_flow.gd"])
+        .args([
+            "--script",
+            if nameplates {
+                "res://tests/world_nameplate_options_flow.gd"
+            } else {
+                "res://tests/world_npc_visual_flow.gd"
+            },
+        ])
         .env("GODOT_TEST_SERVER", address.to_string())
+        .env(
+            "XDG_CONFIG_HOME",
+            project.parent().expect("isolated root").join("config"),
+        )
+        .env(
+            "XDG_DATA_HOME",
+            project.parent().expect("isolated root").join("user-data"),
+        )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -442,13 +511,14 @@ fn read_godot_output(
 
 fn respond_to_login(app: &mut App) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().logins);
-    for request in requests {
+    for (link, request) in requests {
         if request.username != "fixture" || request.password != "fixture" || request.token.is_some()
         {
             return Err(format!("Unexpected login: {request:?}"));
         }
         send::<_, AuthChannel>(
             app,
+            link,
             LoginResponse {
                 success: true,
                 token: "fixture-only-token".into(),
@@ -463,7 +533,7 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
                 }],
                 error: None,
             },
-        );
+        )?;
     }
     Ok(())
 }
@@ -474,7 +544,7 @@ fn respond_to_selection(
     npc: &mut Option<Entity>,
 ) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().selections);
-    for request in requests {
+    for (link, request) in requests {
         if request.character_id != 17 || player.is_some() {
             return Err(format!("Unexpected selection: {request:?}"));
         }
@@ -497,22 +567,25 @@ fn respond_to_selection(
             .id();
         *player = Some(spawned);
         *npc = Some(spawn_npc(app, 910010));
+        app.world_mut().resource_mut::<Incoming>().selected_link = Some(link);
         send::<_, TerrainChannel>(
             app,
+            link,
             LoadTerrain {
                 map_name: "azeroth".into(),
                 initial_tile_y: 32,
                 initial_tile_x: 48,
             },
-        );
+        )?;
         send::<_, AuthChannel>(
             app,
+            link,
             EnterWorldResponse {
                 success: true,
                 player_entity: Some(spawned.to_bits()),
                 error: None,
             },
-        );
+        )?;
     }
     Ok(())
 }
@@ -630,14 +703,20 @@ fn run_fixture(
                     phase = 8;
                 }
                 (8, "FIXTURE NPC_RESTORED") => {
+                    let link = app
+                        .world()
+                        .resource::<Incoming>()
+                        .selected_link
+                        .ok_or("No selected fixture link for map change")?;
                     send::<_, TerrainChannel>(
                         app,
+                        link,
                         LoadTerrain {
                             map_name: "kalimdor".into(),
                             initial_tile_y: 32,
                             initial_tile_x: 48,
                         },
-                    );
+                    )?;
                     phase = 9;
                 }
                 (9, "FIXTURE MAP_READY") => {
@@ -809,12 +888,143 @@ fn run_fixture(
     Err(format!("Timed out at NPC fixture phase {phase}"))
 }
 
+fn populate_nameplate_units(app: &mut App, player: Entity, npc: Entity) {
+    app.world_mut().entity_mut(player).insert((
+        UnitFactionTemplate(35),
+        shared::components::UnitLevel(12),
+        Health {
+            current: 10.0,
+            max: 40.0,
+        },
+        shared::components::UnitPowers {
+            entries: vec![shared::components::PowerEntry {
+                power: shared::components::PowerType::Mana,
+                current: 19,
+                max: 60,
+            }],
+        },
+        Position {
+            x: -8949.0,
+            y: 112.88,
+            z: 0.0,
+        },
+    ));
+    app.world_mut().entity_mut(npc).insert((
+        Position {
+            x: -8945.0,
+            y: 112.88,
+            z: 0.0,
+        },
+        UnitFactionTemplate(14),
+        UnitFlags(0),
+        Health {
+            current: 10.0,
+            max: 10.0,
+        },
+    ));
+}
+
+fn read_nameplate_fixture_output(
+    app: &mut App,
+    lines: &Receiver<String>,
+    player: &mut Option<Entity>,
+    npc: Option<Entity>,
+    completed: &mut bool,
+) -> Result<(), String> {
+    for line in lines.try_iter() {
+        if line.contains("SCRIPT ERROR") || line.contains("Account update failed") {
+            return Err(format!("Native nameplate fixture setup: {line}"));
+        }
+        match line.trim() {
+            "FIXTURE NAMEPLATE_MOVE" => {
+                app.world_mut()
+                    .entity_mut(npc.ok_or("NPC missing")?)
+                    .insert(Position {
+                        x: -8919.0,
+                        y: 112.88,
+                        z: 0.0,
+                    });
+            }
+            "FIXTURE PLAYER_HEALTH_UPDATE" => {
+                app.world_mut()
+                    .entity_mut(player.ok_or("Player missing")?)
+                    .insert(Health {
+                        current: 27.0,
+                        max: 40.0,
+                    });
+            }
+            "FIXTURE PLAYER_REMOVE" => {
+                app.world_mut()
+                    .despawn(player.take().ok_or("Player missing")?);
+            }
+            "FIXTURE NAMEPLATE_OPTIONS_DONE" => {
+                *completed = true;
+                println!(
+                    "PASS: replicated nameplate authored HUD/Accessibility controls and live nodes"
+                );
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn run_nameplate_fixture(
+    app: &mut App,
+    child: &mut Child,
+    lines: Receiver<String>,
+    readers: Vec<thread::JoinHandle<()>>,
+) -> Result<(), String> {
+    let (mut player, mut npc) = (None, None);
+    let mut ready = false;
+    let mut completed = false;
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let mut readers = Some(readers);
+    while Instant::now() < deadline {
+        app.update();
+        respond_to_login(app)?;
+        respond_to_selection(app, &mut player, &mut npc)?;
+        if !ready && let (Some(player), Some(npc)) = (player, npc) {
+            populate_nameplate_units(app, player, npc);
+            ready = true;
+        }
+        let status = child.try_wait().map_err(|error| error.to_string())?;
+        if status.is_some() {
+            for reader in readers.take().expect("fixture readers") {
+                reader.join().map_err(|_| "Godot reader panicked")?;
+            }
+        }
+        read_nameplate_fixture_output(app, &lines, &mut player, npc, &mut completed)?;
+        if let Some(status) = status {
+            return if status.success() && completed {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Nameplate fixture exited {status}; completed: {completed}"
+                ))
+            };
+        }
+        thread::sleep(TICK);
+    }
+    Err("Timed out waiting for native nameplate fixture".into())
+}
+
 fn main() {
-    let project = FixtureProject::create().expect("stage isolated fixture data and Godot project");
+    let nameplates = match std::env::args().nth(1).as_deref() {
+        None => false,
+        Some("nameplates") => true,
+        Some(other) => panic!("Unknown fixture mode: {other}"),
+    };
+    let project =
+        FixtureProject::create(nameplates).expect("stage isolated fixture data and Godot project");
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
-    let (mut child, lines, reader) = launch_godot(&project.project, address);
-    let result = run_fixture(&mut app, &mut child, lines, reader);
+    let (mut child, lines, reader) = launch_godot(&project.project, address, nameplates);
+    let result = if nameplates {
+        run_nameplate_fixture(&mut app, &mut child, lines, reader)
+    } else {
+        run_fixture(&mut app, &mut child, lines, reader)
+    };
     if result.is_err() && child.try_wait().expect("inspect Godot status").is_none() {
         child.kill().expect("terminate failed Godot fixture");
         child.wait().expect("reap failed Godot fixture");

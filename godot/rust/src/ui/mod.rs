@@ -16,6 +16,7 @@ use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_s
 use game_engine_ui_model::entrance_difficulty_component::{
     EntranceBarState, apply_entrance_bar_postsetup, entrance_difficulty_screen,
 };
+use game_engine_ui_model::game_menu_component::GameMenuViewModel;
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, inworld_unit_frames_screen,
 };
@@ -72,10 +73,20 @@ pub struct RegistryUi {
     actions: VecDeque<String>,
     /// Right-clicks and Shift-left-clicks: `(action, right, shift)`.
     alt_clicks: VecDeque<(String, bool, bool)>,
+    pointer_clicks: u32,
+    slider_events: VecDeque<SliderInput>,
     login_fade: Option<f32>,
     loading_displayed_percent: f32,
-    /// In-world HUD: laid out on the UIParent canvas and scaled to the viewport.
+    /// HUDs use UIParent scaling until an explicit options scale is set.
     ui_parent: bool,
+    ui_scale: Option<f32>,
+}
+
+/// Raw authored-slider input; the host applies its own policy and passes back a view.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SliderInput {
+    pub action: String,
+    pub value: f32,
 }
 
 struct RegistryModel {
@@ -156,6 +167,38 @@ impl RegistryModel {
             _ => self.apply_postsetup(),
         }
         self.registry.mark_all_rects_dirty();
+    }
+
+    fn slider_input(&self, id: u64, percent: f32) -> Option<SliderInput> {
+        let frame = self.registry.get(id)?;
+        let WidgetData::Slider(data) = frame.widget_data.as_ref()? else {
+            return None;
+        };
+        Some(SliderInput {
+            action: frame.onclick.clone()?,
+            value: (data.min + (data.max - data.min) * f64::from(percent)) as f32,
+        })
+    }
+
+    fn pointer_click_eligible(&self, mut id: u64) -> bool {
+        loop {
+            let Some(frame) = self.registry.get(id) else {
+                return false;
+            };
+            if frame.widget_data.as_ref().is_some_and(|data| {
+                matches!(data, WidgetData::Button(button)
+                    if !button.enabled || button.state == ButtonState::Disabled)
+            }) {
+                return false;
+            }
+            if frame.onclick.is_some() {
+                return true;
+            }
+            let Some(parent) = frame.parent_id else {
+                return false;
+            };
+            id = parent;
+        }
     }
 
     fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
@@ -253,6 +296,12 @@ impl RegistryModel {
 
 #[godot_api]
 impl ICanvasLayer for RegistryUi {
+    fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        if let Some(projection) = self.projection.as_mut() {
+            projection.handle_pointer(&event);
+        }
+    }
+
     fn init(base: Base<CanvasLayer>) -> Self {
         Self {
             base,
@@ -260,9 +309,12 @@ impl ICanvasLayer for RegistryUi {
             projection: None,
             actions: VecDeque::new(),
             alt_clicks: VecDeque::new(),
+            pointer_clicks: 0,
+            slider_events: VecDeque::new(),
             login_fade: None,
             loading_displayed_percent: 0.0,
             ui_parent: false,
+            ui_scale: None,
         }
     }
 }
@@ -299,13 +351,17 @@ impl RegistryUi {
         self.initialize_model(model, width, height)
     }
 
-    pub fn show_game_menu(&mut self, logged_in: bool) -> Result<(), String> {
+    /// Project the full authored game-menu view on the in-world HUD canvas.
+    pub fn show_game_menu_view(&mut self, view: GameMenuViewModel) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
         let parent = self.hud_parent()?;
         let GameMenuModel {
             screen,
             shared,
             mut registry,
-        } = GameMenuModel::new(parent.width, parent.height, logged_in);
+        } = GameMenuModel::from_view(parent.width, parent.height, view);
         registry.ui_scale = parent.scale;
         let mut model = RegistryModel {
             screen,
@@ -316,6 +372,24 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_hud_model(model, parent)
+    }
+
+    /// Reproject changed category/value/style in place without replacing the CanvasLayer.
+    pub fn set_game_menu_view(&mut self, view: GameMenuViewModel) -> Result<(), String> {
+        if self
+            .model
+            .as_ref()
+            .and_then(|model| model.shared.get::<GameMenuViewModel>())
+            .is_none()
+        {
+            return Err("Full game menu view not initialized".into());
+        }
+        self.set_state(view)
+    }
+
+    /// Drain input after processing Godot events with `sync_input`.
+    pub fn drain_slider_events(&mut self) -> Vec<SliderInput> {
+        self.slider_events.drain(..).collect()
     }
 
     /// Initialize a dedicated RegistryUi instance for the shared world map frame.
@@ -334,7 +408,12 @@ impl RegistryUi {
             postsetup: ScreenPostsetup::WorldMap,
         };
         model.sync();
-        self.initialize_model(model, width, height)
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("World map has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        self.initialize_model(model, size.x, size.y)
     }
 
     /// Initialize a dedicated RegistryUi instance for the dungeon-entrance difficulty bar.
@@ -592,11 +671,11 @@ impl RegistryUi {
         parent: UiParent,
     ) -> Result<(), String> {
         self.ui_parent = true;
-        self.initialize_model(model, parent.width, parent.height)?;
-        if let Some(projection) = self.projection.as_mut() {
-            projection.root.set_scale(Vector2::splat(parent.scale));
-        }
-        Ok(())
+        self.initialize_model(
+            model,
+            parent.width * parent.scale,
+            parent.height * parent.scale,
+        )
     }
 
     fn initialize_model(
@@ -605,13 +684,39 @@ impl RegistryUi {
         width: f32,
         height: f32,
     ) -> Result<(), String> {
+        let scale = self.ui_scale.unwrap_or(if self.ui_parent {
+            UiParent::for_viewport(width, height).scale
+        } else {
+            1.0
+        });
         let mut projection = UiProjection::new();
-        projection.root.set_size(Vector2::new(width, height));
+        projection.root.set_scale(Vector2::splat(scale));
+        projection
+            .root
+            .set_size(Vector2::new(width, height) / scale);
+        model.resize(width / scale, height / scale, scale);
         self.base_mut().add_child(&projection.root);
         projection.sync(&mut model.registry)?;
         self.projection = Some(projection);
         self.model = Some(model);
         Ok(())
+    }
+
+    /// Move the authored root of a native managed window without changing its children.
+    pub fn set_window_position(&mut self, root: &str, [x, y]: [f32; 2]) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Window model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name(root)
+            .ok_or_else(|| format!("Window root {root} missing"))?;
+        model
+            .registry
+            .set_pos(id, x, y)
+            .map_err(|error| format!("Window {root} position: {error:?}"))?;
+        self.projection
+            .as_mut()
+            .ok_or("Window projection missing")?
+            .sync(&mut model.registry)
     }
 
     /// Replace one reactive screen state; unchanged values do not resync. A resized
@@ -672,38 +777,42 @@ impl RegistryUi {
         Ok(())
     }
 
+    /// Apply the effective camera-equivalent scale to both layout and projected pixels.
+    pub fn set_ui_scale(&mut self, scale: f32) -> Result<(), String> {
+        self.ui_scale = Some(scale);
+        if self.model.is_some() {
+            self.sync_viewport()?;
+        }
+        Ok(())
+    }
+
     fn sync_viewport(&mut self) -> Result<(), String> {
         let viewport = self
             .base()
             .get_viewport()
             .ok_or("RegistryUi has no viewport")?;
         let size = viewport.get_visible_rect().size;
-        let parent = if self.ui_parent {
-            UiParent::for_viewport(size.x, size.y)
+        let scale = self.ui_scale.unwrap_or(if self.ui_parent {
+            UiParent::for_viewport(size.x, size.y).scale
         } else {
-            UiParent {
-                width: size.x,
-                height: size.y,
-                scale: 1.0,
-            }
-        };
+            1.0
+        });
+        let logical = size / scale;
         let Some(model) = self.model.as_mut() else {
-            return Err("Login model not initialized".into());
+            return Err("Registry model not initialized".into());
         };
-        if model.registry.screen_width == parent.width
-            && model.registry.screen_height == parent.height
-            && model.registry.ui_scale == parent.scale
+        if model.registry.screen_width == logical.x
+            && model.registry.screen_height == logical.y
+            && model.registry.ui_scale == scale
         {
             return Ok(());
         }
-        model.resize(parent.width, parent.height, parent.scale);
+        model.resize(logical.x, logical.y, scale);
         let Some(projection) = self.projection.as_mut() else {
             return Err("Native projection not initialized".into());
         };
-        projection
-            .root
-            .set_size(Vector2::new(parent.width, parent.height));
-        projection.root.set_scale(Vector2::splat(parent.scale));
+        projection.root.set_scale(Vector2::splat(scale));
+        projection.root.set_size(logical);
         projection.sync(&mut model.registry)
     }
 
@@ -852,6 +961,11 @@ impl RegistryUi {
                         self.alt_clicks.push_back((action, right, shift));
                     }
                 }
+                UiInput::PointerDown(id) => {
+                    if model.pointer_click_eligible(id) {
+                        self.pointer_clicks += 1;
+                    }
+                }
                 UiInput::Focus(id) => model.focus_frame(id),
                 UiInput::Blur(id) => model.blur_frame(id),
                 UiInput::Text(id, text) => model.edit_text(id, text),
@@ -861,9 +975,35 @@ impl RegistryUi {
                 }
                 UiInput::Press(id) => model.press_button(id, true),
                 UiInput::Release(id) => model.press_button(id, false),
+                UiInput::Slider(id, percent) => {
+                    if let Some(input) = model.slider_input(id, percent) {
+                        self.slider_events.push_back(input);
+                    }
+                }
             }
         }
         GString::from(self.sync_model().err().unwrap_or_default().as_str())
+    }
+
+    pub fn sync_pointer_clicks(&mut self) -> Result<u32, String> {
+        if self
+            .projection
+            .as_ref()
+            .is_some_and(UiProjection::has_pointer_down)
+        {
+            let error = self.sync_input();
+            if !error.is_empty() {
+                return Err(error.to_string());
+            }
+        }
+        Ok(self.pop_ui_clicks())
+    }
+
+    #[func]
+    pub fn pop_ui_clicks(&mut self) -> u32 {
+        let clicks = self.pointer_clicks;
+        self.pointer_clicks = 0;
+        clicks
     }
 
     #[func]

@@ -110,24 +110,47 @@ pub(crate) fn read_model(path: &GString) -> Result<m2::Model, String> {
     } else {
         None
     };
-    let model_dir = Path::new(&global_path(path))
-        .parent()
-        .map(Path::to_path_buf);
+    let model_path = global_path(path);
+    let model_path = Path::new(&model_path);
+    let resolver = model_asset_resolver(model_path)?;
     m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), |fdid| {
-        read_anim_file(model_dir.as_deref()?, fdid, &base)
+        read_animation_asset(model_path, fdid, &resolver)
     })
 }
 
-/// An external sequence's `.anim` file, cached beside its model by `cache_model_files`;
-/// without it that sequence has no keyframes.
-fn read_anim_file(model_dir: &Path, fdid: u32, model: &str) -> Option<Vec<u8>> {
-    let path = model_dir.join(format!("{fdid}.anim"));
-    std::fs::read(&path)
+fn model_asset_resolver(model_path: &Path) -> Result<CascListfileResolver, String> {
+    let data_root = model_path
+        .parent()
+        .and_then(Path::parent)
+        .ok_or("Model path has no asset root")?;
+    Ok(CascListfileResolver::new(
+        AssetResolverConfig::new()
+            .with_data_root(data_root)
+            .with_shared_data_root(data_root)
+            .with_cache_root(data_root.join("cache")),
+    ))
+}
+
+fn read_animation_asset(
+    model_path: &Path,
+    fdid: u32,
+    resolver: &CascListfileResolver,
+) -> Option<Vec<u8>> {
+    let path = model_path.with_file_name(format!("{fdid}.anim"));
+    let cached = if path.is_file() {
+        Some(path.clone())
+    } else {
+        resolver.ensure_cached(fdid, &path)
+    };
+    let loaded = cached
+        .ok_or_else(|| format!("Cannot extract animation to {}", path.display()))
+        .and_then(|path| fs::read(path).map_err(|error| error.to_string()));
+    loaded
         .map_err(|error| {
-            godot_error!(
-                "M2 {model}: .anim FDID {fdid} at {}: {error}",
-                path.display()
-            )
+            godot_warn!(
+                "M2 {}: .anim FDID {fdid}: {error}; its sequence has no keyframes",
+                model_path.display()
+            );
         })
         .ok()
 }
@@ -242,16 +265,7 @@ pub(super) fn build_model_filtered(
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
-    let data_root = Path::new(&model_path)
-        .parent()
-        .and_then(Path::parent)
-        .ok_or("Model path has no asset root")?;
-    let resolver = CascListfileResolver::new(
-        AssetResolverConfig::new()
-            .with_data_root(data_root)
-            .with_shared_data_root(data_root)
-            .with_cache_root(data_root.join("cache")),
-    );
+    let resolver = model_asset_resolver(Path::new(&model_path))?;
     let resolved: Vec<_> = m2::resolve_render_batches(model, skin_texture_fdids, false, |fdid| {
         resolver.resolve_path(fdid)
     })?

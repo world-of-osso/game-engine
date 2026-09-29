@@ -11,6 +11,7 @@ import unittest
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "depot-build.py"
+REFRESH = SCRIPT.parent / "depot" / "refresh-source-mtimes.py"
 SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol")
 FAKE_DEPOT = '''#!/usr/bin/env python3
 import gzip, json, os, pathlib, sys, time
@@ -30,6 +31,12 @@ if os.environ.get('DEPOT_FAIL'):
 output.mkdir(parents=True, exist_ok=True)
 artifact = output / 'libgame_engine_godot.so.gz'
 artifact.write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT') else gzip.compress(os.environ.get('DEPOT_ARTIFACT', 'new binary').encode()))
+build_args = [args[index + 1] for index, arg in enumerate(args) if arg == '--build-arg']
+options = dict(option.split('=', 1) for option in build_args)
+assert len(options) == len(build_args), build_args
+fixture = options.get('FIXTURE')
+if fixture and not os.environ.get('DEPOT_MISSING_FIXTURE'):
+    (output / (fixture + '.gz')).write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT_FIXTURE') else gzip.compress(os.environ.get('DEPOT_FIXTURE', 'fixture binary').encode()))
 '''
 
 
@@ -97,12 +104,18 @@ class DepotBuildTests(unittest.TestCase):
     def _git(self, root, *args):
         subprocess.run(["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", *args], check=True, capture_output=True)
 
-    def build(self, **env):
-        return subprocess.run(["python3", str(SCRIPT), "--root", str(self.root)],
-                              env={**self.env, **env}, text=True, capture_output=True)
+    def build(self, *, fixture=None, **env):
+        command = ["python3", str(SCRIPT), "--root", str(self.root)]
+        if fixture is not None:
+            command.extend(["--fixture", fixture])
+        return subprocess.run(command, env={**self.env, **env}, text=True, capture_output=True)
 
     def records(self):
         return [json.loads(line) for line in self.record.read_text().splitlines()] if self.record.exists() else []
+
+    def build_args(self, record):
+        args = record["args"]
+        return dict(args[index + 1].split("=", 1) for index, arg in enumerate(args) if arg == "--build-arg")
 
     def test_default_project_is_local_builds(self):
         self.env.pop("DEPOT_PROJECT_ID", None)
@@ -134,6 +147,49 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn(str(artifact), result.stdout)
         self.assertFalse(Path(snapshot["context"]).exists())
 
+    def test_requested_fixture_installs_only_named_executable_and_extension(self):
+        for name in ("native_input_fixture", "native_npc_visual_fixture"):
+            result = self.build(fixture=name, DEPOT_FIXTURE=name)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            executable = self.root / "target/debug/examples" / name
+            self.assertEqual(executable.read_bytes(), name.encode())
+            self.assertTrue(os.access(executable, os.X_OK))
+            self.assertEqual((self.root / "target/debug/libgame_engine_godot.so").read_bytes(), b"new binary")
+            self.assertNotIn("target/", "".join(self.records()[-1]["files"]))
+        other = self.root / "target/debug/examples/not_requested"
+        self.assertFalse(other.exists())
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("FIXTURE", self.build_args(self.records()[-1]))
+
+    def test_bad_fixture_choice_fails_before_depot(self):
+        result = self.build(fixture="../../other")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.records(), [])
+
+    def test_failed_fixture_download_preserves_existing_executable(self):
+        executable = self.root / "target/debug/examples/native_input_fixture"
+        executable.parent.mkdir(parents=True, exist_ok=True)
+        executable.write_bytes(b"old fixture")
+        executable.chmod(0o755)
+        for failure in ({"DEPOT_MISSING_FIXTURE": "1"}, {"DEPOT_CORRUPT_FIXTURE": "1"}):
+            result = self.build(fixture="native_input_fixture", **failure)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(executable.read_bytes(), b"old fixture")
+            self.assertTrue(os.access(executable, os.X_OK))
+
+    def test_fixture_install_is_checkout_local(self):
+        other = self.base / "game-engine-alt-worktree"
+        self._git(self.base, "clone", "-q", str(self.root), str(other))
+        first = self.build(fixture="native_input_fixture", DEPOT_FIXTURE="first")
+        self.assertEqual(first.returncode, 0, first.stderr)
+        second = subprocess.run(["python3", str(SCRIPT), "--root", str(other), "--fixture", "native_npc_visual_fixture"],
+                                env={**self.env, "DEPOT_FIXTURE": "second"}, capture_output=True, text=True)
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertEqual((self.root / "target/debug/examples/native_input_fixture").read_bytes(), b"first")
+        self.assertEqual((other / "target/debug/examples/native_npc_visual_fixture").read_bytes(), b"second")
+        self.assertFalse((other / "target/debug/examples/native_input_fixture").exists())
+
     def test_source_mtimes_survive_snapshots_with_working_tree_edits(self):
         prefix = "game-engine-godot-conversion/"
         unchanged = self.root / "src/asset/mod.rs"
@@ -156,6 +212,41 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(snapshots[0]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1])
         self.assertEqual(snapshots[1]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1] + 1_000_000_000)
         self.assertEqual(snapshots[1]["files"][prefix + "godot/rust/src/lib.rs"], "edited after first snapshot")
+
+    def test_remote_refresh_is_shipped_and_makes_old_inputs_newer_without_touching_cache(self):
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("refresh-source-mtimes.py", self.records()[0]["files"])
+
+        context = self.base / "remote-context"
+        source = context / "game-engine-godot-conversion/src/asset/mod.rs"
+        manifest = context / "game-engine-godot-conversion/godot/Cargo.toml"
+        included = context / "bevy-patches/taffy/README.md"
+        texture = context / "game-engine-godot-conversion/src/rendering/ui/nameplate_skins/health-fill.png"
+        cache = context / "game-engine-godot-conversion/target/debug/libcore.rlib"
+        top_cache = context / "target/debug/libcore.rlib"
+        registry = context / "game-engine-godot-conversion/godot/.cache/generated.rs"
+        for path in (source, manifest, included, texture, cache, top_cache, registry):
+            self._put(context, str(path.relative_to(context)), "fixture")
+        old = 1_600_000_000_000_000_000
+        for path in (source, manifest, included, texture, cache, top_cache, registry):
+            os.utime(path, ns=(old, old))
+        outside = self.base / "outside.rs"
+        outside.write_text("outside")
+        os.utime(outside, ns=(old, old))
+        (source.parent / "link.rs").symlink_to(outside)
+        failed = subprocess.run(["python3", str(REFRESH), str(context)], capture_output=True, text=True)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("symlink", failed.stderr.lower())
+        self.assertEqual(outside.stat().st_mtime_ns, old)
+        (source.parent / "link.rs").unlink()
+        refreshed = subprocess.run(["python3", str(REFRESH), str(context)], capture_output=True, text=True)
+        self.assertEqual(refreshed.returncode, 0, refreshed.stderr)
+        for path in (source, manifest, included, texture):
+            self.assertGreater(path.stat().st_mtime_ns, old)
+            self.assertEqual(path.read_text(), "fixture")
+        for path in (cache, top_cache, registry, outside):
+            self.assertEqual(path.stat().st_mtime_ns, old)
 
     def test_failed_build_and_corrupt_gzip_preserve_existing_artifact(self):
         artifact = self.root / "target/debug/libgame_engine_godot.so"
@@ -200,16 +291,24 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual((other / "target/debug/libgame_engine_godot.so").read_bytes(), b"second")
         self.assertEqual(self.records()[1]["files"]["game-engine-godot-conversion/godot/rust/src/lib.rs"], "original")
 
-    def test_target_cache_is_per_checkout_and_stable(self):
+    def test_target_cache_is_per_checkout_and_stable_with_optional_fixture(self):
         other = self.base / "game-engine-alt-worktree"
         self._git(self.base, "clone", "-q", str(self.root), str(other))
-        for root in (self.root, self.root, other):
-            result = subprocess.run(["python3", str(SCRIPT), "--root", str(root)], env=self.env, capture_output=True, text=True)
+        first = self.build()
+        second = self.build(fixture="native_input_fixture")
+        third = subprocess.run(["python3", str(SCRIPT), "--root", str(other), "--fixture", "native_npc_visual_fixture"],
+                               env=self.env, capture_output=True, text=True)
+        for result in (first, second, third):
             self.assertEqual(result.returncode, 0, result.stderr)
-        caches = [record["args"][record["args"].index("--build-arg") + 1] for record in self.records()]
-        self.assertTrue(caches[0].startswith("TARGET_CACHE=godot-target-"), caches)
-        self.assertEqual(caches[0], caches[1])
-        self.assertNotEqual(caches[0], caches[2])
+        defaults, fixture, alternate = [self.build_args(record) for record in self.records()]
+        self.assertTrue(defaults["TARGET_CACHE"].startswith("godot-target-"), defaults)
+        self.assertEqual(defaults["TARGET_CACHE"], fixture["TARGET_CACHE"])
+        self.assertNotEqual(defaults["TARGET_CACHE"], alternate["TARGET_CACHE"])
+        self.assertNotIn("FIXTURE", defaults)
+        self.assertEqual(fixture["FIXTURE"], "native_input_fixture")
+        self.assertEqual(alternate["FIXTURE"], "native_npc_visual_fixture")
+        self.assertEqual((self.root / "target/debug/examples/native_input_fixture").read_bytes(), b"fixture binary")
+        self.assertEqual((other / "target/debug/examples/native_npc_visual_fixture").read_bytes(), b"fixture binary")
 
     def test_target_directory_symlink_fails_without_remote_build(self):
         outside = self.base / "other-target"
@@ -219,6 +318,17 @@ class DepotBuildTests(unittest.TestCase):
         result = self.build()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("target symlink", result.stderr.lower())
+        self.assertEqual(self.records(), [])
+
+    def test_examples_directory_symlink_cannot_install_outside_checkout(self):
+        outside = self.base / "other-examples"
+        outside.mkdir()
+        examples = self.root / "target/debug/examples"
+        examples.parent.mkdir(parents=True, exist_ok=True)
+        examples.symlink_to(outside, target_is_directory=True)
+        result = self.build(fixture="native_input_fixture")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((outside / "native_input_fixture").exists())
         self.assertEqual(self.records(), [])
 
     def test_same_checkout_builds_serialize_install(self):

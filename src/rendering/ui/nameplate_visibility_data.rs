@@ -77,6 +77,20 @@ pub fn in_combat_with_player<T: PartialEq>(in_combat: bool, target: Option<T>, p
     in_combat && target == Some(player)
 }
 
+/// Legacy camera-to-health-body fade, independent of the viewer-to-unit CVar limit.
+/// Full opacity up to half the configured distance; zero at the distance itself.
+pub fn nameplate_alpha(distance: f32, fade_far: f32) -> f32 {
+    let fade_far = fade_far.max(1.0);
+    let fade_near = (fade_far * 0.5).max(1.0);
+    if distance <= fade_near {
+        1.0
+    } else if distance >= fade_far {
+        0.0
+    } else {
+        1.0 - (distance - fade_near) / (fade_far - fade_near)
+    }
+}
+
 /// Plate alpha: `nameplateOccludedAlphaMult` behind world geometry, else opaque.
 pub fn plate_alpha(cvars: &NameplateCvars, occluded: bool) -> f32 {
     if occluded {

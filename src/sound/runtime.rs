@@ -9,6 +9,10 @@ use crate::sound_footsteps::{
     classify_player_creature, movement_from_anim,
 };
 use game_engine::input_bindings::InputAction;
+use game_engine::spell_cast_data::observe_active_spell as observe_spell_id;
+use game_engine::wmo_surface_data::{
+    WmoSurfaceBounds, select_footstep_surface as select_shared_footstep_surface,
+};
 
 mod runtime_ambient;
 mod runtime_assets;
@@ -168,12 +172,9 @@ struct SpellCastSoundState {
     last_active_spell_id: Option<u32>,
 }
 
-/// Tracks the last footstep trigger point to avoid double-plays.
+/// Bevy component carrying the shared half-cycle observer.
 #[derive(Component, Default)]
-pub struct FootstepTracker {
-    last_half: u8,
-    last_seq_idx: usize,
-}
+pub struct FootstepTracker(game_engine::footstep_data::FootstepPhaseTracker);
 
 fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<AudioSource>>) {
     commands.insert_resource(build_sound_assets(&mut audio_assets));
@@ -288,29 +289,15 @@ fn footstep_trigger(
     };
 
     for (entity, anim_player, anim_data, transform, mut tracker) in &mut player_q {
-        let seq = &anim_data.sequences[anim_player.current_seq_idx];
-        let Some(movement) = movement_from_anim(seq.id) else {
-            tracker.last_seq_idx = anim_player.current_seq_idx;
+        let seq_idx = anim_player.current_seq_idx;
+        let seq = &anim_data.sequences[seq_idx];
+        let Some((movement, seed)) =
+            tracker
+                .0
+                .observe(seq_idx, seq.id, seq.duration as f32, anim_player.time_ms)
+        else {
             continue;
         };
-
-        if anim_player.current_seq_idx != tracker.last_seq_idx {
-            tracker.last_half = 0;
-            tracker.last_seq_idx = anim_player.current_seq_idx;
-        }
-
-        let duration = seq.duration as f32;
-        if duration <= 0.0 {
-            continue;
-        }
-
-        let progress = (anim_player.time_ms % duration) / duration;
-        let current_half = if progress < 0.5 { 0 } else { 1 };
-        if current_half == tracker.last_half {
-            continue;
-        }
-
-        tracker.last_half = current_half;
         let creature = stats
             .as_ref()
             .and_then(|stats| stats.race)
@@ -330,7 +317,7 @@ fn footstep_trigger(
             creature,
             surface,
             movement,
-            seed: (anim_player.current_seq_idx as u64) << 8 | u64::from(current_half),
+            seed,
         };
         play_footstep(&mut commands, request, &sound_assets, &settings, entity);
     }
@@ -353,22 +340,13 @@ fn observe_active_spell(
     last_spell_id: &mut Option<u32>,
     queue: &mut SpellSoundQueue,
 ) {
-    let active_spell_id = casting.active.as_ref().and_then(|cast| {
-        if cast.spell_id == 0 {
-            None
-        } else {
-            Some(cast.spell_id)
-        }
-    });
-    if active_spell_id != *last_spell_id {
-        if let Some(spell_id) = active_spell_id {
-            queue.requests.push(SpellSoundRequest {
-                spell_id,
-                kind: SpellSoundKind::CastStart,
-                emitter_entity: None,
-            });
-        }
-        *last_spell_id = active_spell_id;
+    let active_spell_id = casting.active.as_ref().map(|cast| cast.spell_id);
+    if let Some(spell_id) = observe_spell_id(last_spell_id, active_spell_id) {
+        queue.requests.push(SpellSoundRequest {
+            spell_id,
+            kind: SpellSoundKind::CastStart,
+            emitter_entity: None,
+        });
     }
 }
 
@@ -431,29 +409,19 @@ fn select_footstep_surface(
     terrain_surface: Option<FootstepSurface>,
     wmo_surfaces: impl Iterator<Item = (game_engine::culling::WmoRootBounds, FootstepSurface)>,
 ) -> FootstepSurface {
-    wmo_surfaces
-        .filter(|(bounds, _)| point_inside_aabb(position, bounds.world_min, bounds.world_max))
-        .min_by(|(left_bounds, _), (right_bounds, _)| {
-            aabb_volume(left_bounds.world_min, left_bounds.world_max)
-                .total_cmp(&aabb_volume(right_bounds.world_min, right_bounds.world_max))
-        })
-        .map(|(_, surface)| surface)
-        .or(terrain_surface)
-        .unwrap_or(FootstepSurface::Dirt)
-}
-
-fn point_inside_aabb(point: Vec3, min: Vec3, max: Vec3) -> bool {
-    point.x >= min.x
-        && point.x <= max.x
-        && point.y >= min.y
-        && point.y <= max.y
-        && point.z >= min.z
-        && point.z <= max.z
-}
-
-fn aabb_volume(min: Vec3, max: Vec3) -> f32 {
-    let size = max - min;
-    size.x.abs() * size.y.abs() * size.z.abs()
+    select_shared_footstep_surface(
+        position.to_array(),
+        terrain_surface,
+        wmo_surfaces.map(|(bounds, surface)| {
+            (
+                WmoSurfaceBounds {
+                    world_min: bounds.world_min.to_array(),
+                    world_max: bounds.world_max.to_array(),
+                },
+                surface,
+            )
+        }),
+    )
 }
 
 fn play_footstep(

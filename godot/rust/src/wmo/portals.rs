@@ -484,7 +484,7 @@ mod tests {
         let asset = crate::wmo::assets::read_placement(&resolver, &data_root, &placement).unwrap();
         let fog = crate::wmo::assets::wmo_fog_volume(&asset);
         let portals = WmoPortals::new(&asset);
-        let placed = crate::wmo::placement::PlacedWmo::new(placement, asset);
+        let placed = crate::wmo::placement::PlacedWmo::new(placement, asset, None);
         // The owned global-WMO fixture's spawn (native_transfer_fixture STOCKADE), 2 yd up.
         let camera = Vec3::new(103.0, -32.5, -76.0);
         let blend = portals

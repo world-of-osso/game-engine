@@ -8,10 +8,13 @@
 use game_engine_core::input_bindings_data::{BindingMouseButton, InputState};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::merchant::{Click, MerchantEffect, MerchantSession, SplitKey};
-use game_engine_ui_model::merchant_frame_component::FRAME_NAME;
+use game_engine_ui_model::merchant_frame_component::{FRAME_H, FRAME_NAME, FRAME_W};
 use game_engine_ui_model::wow_cursor_data::{ActiveWowCursor, NpcCursorView, npc_cursor};
-use godot::classes::{ImageTexture, Input};
+use godot::classes::{
+    ImageTexture, Input, InputEvent, InputEventMouseButton, InputEventMouseMotion,
+};
 use godot::global::Key;
+use godot::global::MouseButton;
 use godot::prelude::*;
 use shared::protocol::{InteractionKind, NpcFlags, NpcRole};
 
@@ -21,15 +24,20 @@ use crate::faction_reaction::{Reaction, reaction};
 use crate::frame_error::{FrameError, SessionError, report_once};
 use crate::targeting::pick_unit;
 use crate::ui::{MerchantStates, RegistryUi};
+use crate::world_map::{WindowDrag, title_hit};
 
 /// Bevy `INTERACT_RANGE`: the farthest a right-click interacts, in yards.
 const INTERACT_RANGE: f32 = 5.0;
 const MERCHANT_UI: &str = "MerchantUI";
+const DEFAULT_POSITION: [f32; 2] = [16.0, 104.0];
 
 #[derive(Default)]
 pub(crate) struct Merchant {
     session: MerchantSession,
     ui: Option<Gd<RegistryUi>>,
+    position: Option<[f32; 2]>,
+    position_character: Option<u64>,
+    drag: Option<WindowDrag>,
     cursor: Option<ActiveWowCursor>,
     /// Loaded cursor art; `None` caches a kind whose art failed to load.
     cursor_textures: Vec<(ActiveWowCursor, Option<Gd<ImageTexture>>)>,
@@ -44,10 +52,19 @@ impl Merchant {
         self.cursor = None;
     }
 
+    pub(crate) fn drain_pointer_clicks(&mut self) -> Result<u32, String> {
+        self.ui
+            .as_mut()
+            .map_or(Ok(0), |ui| ui.bind_mut().sync_pointer_clicks())
+    }
+
     fn free_ui(&mut self) {
         if let Some(ui) = self.ui.take() {
             ui.free();
         }
+        self.position = None;
+        self.position_character = None;
+        self.drag = None;
     }
 }
 
@@ -323,36 +340,214 @@ impl GameClient {
     }
 
     fn sync_merchant_ui(&mut self) -> Result<(), String> {
-        let session = &self.merchant.session;
-        let split = match self.merchant.ui.as_ref() {
-            Some(ui) => ui
-                .bind()
-                .registry()
-                .map(|registry| session.split_state(registry))
-                .unwrap_or_default(),
-            None => Default::default(),
-        };
-        let states = MerchantStates {
-            frame: session.frame_state(),
-            bags: session.bag_state(),
-            split,
-        };
+        self.load_merchant_position()?;
+        let states = self.merchant_states();
+        let scale = self.effective_ui_scale();
         if let Some(ui) = self.merchant.ui.as_mut() {
-            return ui.bind_mut().set_merchant_states(states);
+            ui.bind_mut().set_ui_scale(scale)?;
+            ui.bind_mut().set_merchant_states(states)?;
+            return self.place_merchant();
         }
-        if !session.is_open() {
+        if !self.merchant.session.is_open() {
             return Ok(());
         }
         let mut ui = RegistryUi::new_alloc();
         ui.set_name(MERCHANT_UI);
         self.base_mut().add_child(&ui);
+        ui.bind_mut().set_ui_scale(scale)?;
         let shown = ui.bind_mut().show_merchant(states);
         if let Err(error) = shown {
             ui.free();
             return Err(error);
         }
         self.merchant.ui = Some(ui);
+        self.place_merchant()
+    }
+
+    fn merchant_states(&self) -> MerchantStates {
+        let session = &self.merchant.session;
+        let split = self
+            .merchant
+            .ui
+            .as_ref()
+            .and_then(|ui| {
+                ui.bind()
+                    .registry()
+                    .map(|registry| session.split_state(registry))
+            })
+            .unwrap_or_default();
+        MerchantStates {
+            frame: session.frame_state(),
+            bags: session.bag_state(),
+            split,
+        }
+    }
+
+    fn load_merchant_position(&mut self) -> Result<(), String> {
+        if !self.merchant.session.is_open() {
+            self.merchant.position = None;
+            self.merchant.position_character = None;
+            self.merchant.drag = None;
+            return Ok(());
+        }
+        let id = self
+            .account
+            .session
+            .selected_character_id
+            .ok_or("Merchant requires selected server character ID")?;
+        if self.merchant.position_character == Some(id) {
+            return Ok(());
+        }
+        let path =
+            game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
+        self.merchant.position =
+            game_engine_core::ui_layout_data::window_position(&path, id, FRAME_NAME)?;
+        self.merchant.position_character = Some(id);
+        self.merchant.drag = None;
         Ok(())
+    }
+
+    fn merchant_rect(&self) -> [f32; 4] {
+        let size = self
+            .base()
+            .get_viewport()
+            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
+                viewport.get_visible_rect().size
+            });
+        let scale = self.effective_ui_scale();
+        let viewport = size / scale;
+        let [x, y] = self.merchant.position.unwrap_or(DEFAULT_POSITION);
+        [
+            x.clamp(0.0, (viewport.x - FRAME_W).max(0.0)),
+            y.clamp(0.0, (viewport.y - FRAME_H).max(0.0)),
+            FRAME_W,
+            FRAME_H,
+        ]
+    }
+
+    fn place_merchant(&mut self) -> Result<(), String> {
+        if !self.merchant.session.is_open() {
+            return Ok(());
+        }
+        let [x, y, _, _] = self.merchant_rect();
+        self.merchant
+            .ui
+            .as_mut()
+            .ok_or("Merchant UI vanished")?
+            .bind_mut()
+            .set_window_position(FRAME_NAME, [x, y])
+    }
+
+    pub(super) fn reset_open_merchant_position(&mut self) -> Result<(), String> {
+        self.merchant.position = None;
+        self.merchant.drag = None;
+        self.place_merchant()
+    }
+
+    pub(super) fn merchant_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        if !self.merchant.session.is_open() || self.game_menu_ui.is_some() {
+            return false;
+        }
+        let rect = self.merchant_rect();
+        let scale = self.effective_ui_scale();
+        if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            return self.move_merchant(&motion, rect, scale);
+        }
+        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return false;
+        };
+        self.press_merchant_title(&button, rect, scale)
+    }
+
+    fn move_merchant(
+        &mut self,
+        motion: &Gd<InputEventMouseMotion>,
+        rect: [f32; 4],
+        scale: f32,
+    ) -> bool {
+        let Some(drag) = &self.merchant.drag else {
+            return false;
+        };
+        let size = self
+            .base()
+            .get_viewport()
+            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
+                viewport.get_visible_rect().size
+            })
+            / scale;
+        self.merchant.position = Some(drag.position(
+            motion.get_position() / scale,
+            [size.x, size.y],
+            [rect[2], rect[3]],
+        ));
+        if let Err(error) = self.place_merchant() {
+            godot_error!("Merchant drag: {error}");
+        }
+        true
+    }
+
+    fn press_merchant_title(
+        &mut self,
+        button: &Gd<InputEventMouseButton>,
+        rect: [f32; 4],
+        scale: f32,
+    ) -> bool {
+        if button.get_button_index() != MouseButton::LEFT {
+            return false;
+        }
+        if !button.is_pressed() && self.merchant.drag.take().is_some() {
+            self.persist_merchant_position();
+            return true;
+        }
+        if !button.is_pressed() {
+            return false;
+        }
+        let buttons = self.merchant_close_rect(scale);
+        if title_hit(rect, button.get_position(), scale, buttons.as_slice()) {
+            self.merchant.drag = Some(WindowDrag::begin(
+                button.get_position() / scale,
+                [rect[0], rect[1]],
+            ));
+            return true;
+        }
+        false
+    }
+
+    fn merchant_close_rect(&self, scale: f32) -> Vec<[f32; 4]> {
+        let Some(ui) = self.merchant.ui.as_ref() else {
+            return Vec::new();
+        };
+        let Some(node) = ui
+            .find_child_ex("MerchantFrameCloseButton")
+            .owned(false)
+            .done()
+        else {
+            return Vec::new();
+        };
+        let Ok(control) = node.try_cast::<godot::classes::Control>() else {
+            return Vec::new();
+        };
+        let rect = control.get_global_rect();
+        vec![[
+            rect.position.x / scale,
+            rect.position.y / scale,
+            rect.size.x / scale,
+            rect.size.y / scale,
+        ]]
+    }
+
+    fn persist_merchant_position(&self) {
+        let (Some(id), Some(position)) = (self.merchant.position_character, self.merchant.position)
+        else {
+            return;
+        };
+        let path =
+            game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
+        if let Err(error) =
+            game_engine_core::ui_layout_data::save_window_position(&path, id, FRAME_NAME, position)
+        {
+            godot_error!("Merchant placement: {error}");
+        }
     }
 
     /// Automation view of the vendor session: open vendor, cells, buyback, bags, money.

@@ -19,9 +19,9 @@ use shared::protocol::{
     InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot,
     LoadTerrain, LoginResponse, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld,
     PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate, RegisterResponse,
-    RequestRaidInfo, SetDungeonDifficulty, SetTarget, SpecializationChanged, SpellCastIntent,
-    SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel,
-    WorldPortAck,
+    RequestRaidInfo, RestStateUpdate, SetDungeonDifficulty, SetTarget, SpecializationChanged,
+    SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
+    TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
@@ -69,6 +69,7 @@ pub struct Account {
 pub enum AccountEvent {
     Screen(SessionScreen),
     WorldReset,
+    RestState(RestStateUpdate),
     LoadTerrain(LoadTerrain),
     NewWorld(NewWorld),
     TransferError(String),
@@ -392,6 +393,34 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if Self::is_account_state_message(&message) {
+            return self.dispatch_account_state_message(message);
+        }
+        if Self::is_mirror_timer_message(&message) {
+            return Self::dispatch_mirror_timer_message(message, output);
+        }
+        if message.is::<CombatEvent>() {
+            output.push(AccountEvent::Combat(CombatMessage::Event(decode(message)?)));
+            return Ok(());
+        }
+        if self.receive_spell_message(&message) {
+            return self.dispatch_spell_message(message, output);
+        }
+        if message.is::<RestStateUpdate>() {
+            output.push(AccountEvent::RestState(decode(message)?));
+            return Ok(());
+        }
+        self.dispatch_world_message(message, output)
+    }
+
+    fn is_account_state_message(message: &ProtocolMessage) -> bool {
+        message.is::<QuestLogSnapshot>()
+            || message.is::<QuestLogUpdate>()
+            || message.is::<DungeonDifficultySet>()
+            || message.is::<InstanceInfo>()
+    }
+
+    fn dispatch_account_state_message(&mut self, message: ProtocolMessage) -> Result<(), String> {
         if message.is::<QuestLogSnapshot>() {
             let snapshot: QuestLogSnapshot = decode(message)?;
             self.quest_log = snapshot.entries;
@@ -406,11 +435,21 @@ impl Account {
             self.dungeon_difficulty = Some(set.difficulty_id);
             return Ok(());
         }
-        if message.is::<InstanceInfo>() {
-            let info: InstanceInfo = decode(message)?;
-            self.instance_locks = info.locks;
-            return Ok(());
-        }
+        let info: InstanceInfo = decode(message)?;
+        self.instance_locks = info.locks;
+        Ok(())
+    }
+
+    fn is_mirror_timer_message(message: &ProtocolMessage) -> bool {
+        message.is::<MirrorTimerStart>()
+            || message.is::<MirrorTimerPause>()
+            || message.is::<MirrorTimerStop>()
+    }
+
+    fn dispatch_mirror_timer_message(
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
         if message.is::<MirrorTimerStart>() {
             output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Start(
                 decode(message)?,
@@ -423,15 +462,43 @@ impl Account {
             )));
             return Ok(());
         }
-        if message.is::<MirrorTimerStop>() {
-            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Stop(decode(
-                message,
-            )?)));
-            return Ok(());
+        output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Stop(decode(
+            message,
+        )?)));
+        Ok(())
+    }
+
+    fn dispatch_world_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
+        if Self::is_world_transition_message(&message) {
+            return self.dispatch_world_transition_message(message, output);
         }
-        if self.receive_spell_message(&message) {
-            return self.dispatch_spell_message(message, output);
+        if Self::is_roster_message(&message) {
+            return self.dispatch_roster_message(message, output);
         }
+        let message = match npc_message(message)? {
+            Ok(npc) => {
+                output.push(AccountEvent::Npc(npc));
+                return Ok(());
+            }
+            Err(message) => message,
+        };
+        let effects = self.receive_message(message)?;
+        self.apply_effects(effects, output)
+    }
+
+    fn is_world_transition_message(message: &ProtocolMessage) -> bool {
+        message.is::<LoadTerrain>() || message.is::<NewWorld>() || message.is::<TransferAborted>()
+    }
+
+    fn dispatch_world_transition_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
         if message.is::<LoadTerrain>() {
             let request = decode(message)?;
             self.session.receive_terrain_refresh();
@@ -445,13 +512,24 @@ impl Account {
             output.push(AccountEvent::Screen(SessionScreen::Loading));
             return Ok(());
         }
-        if message.is::<TransferAborted>() {
-            let aborted: TransferAborted = decode(message)?;
-            output.push(AccountEvent::TransferError(
-                self.format_transfer_error(aborted)?,
-            ));
-            return Ok(());
-        }
+        let aborted: TransferAborted = decode(message)?;
+        output.push(AccountEvent::TransferError(
+            self.format_transfer_error(aborted)?,
+        ));
+        Ok(())
+    }
+
+    fn is_roster_message(message: &ProtocolMessage) -> bool {
+        message.is::<CharacterListUpdate>()
+            || message.is::<DeleteCharacterResponse>()
+            || message.is::<CreateCharacterResponse>()
+    }
+
+    fn dispatch_roster_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
         if message.is::<CharacterListUpdate>() {
             self.session.receive_character_update(decode(message)?);
             output.push(AccountEvent::RosterChanged);
@@ -462,24 +540,13 @@ impl Account {
             output.push(AccountEvent::RosterChanged);
             return Ok(());
         }
-        if message.is::<CreateCharacterResponse>() {
-            let result = self.session.receive_character_created(decode(message)?);
-            output.push(AccountEvent::RosterChanged);
-            output.push(AccountEvent::CharacterCreated {
-                success: result.success,
-                error: result.error,
-            });
-            return Ok(());
-        }
-        let message = match npc_message(message)? {
-            Ok(npc) => {
-                output.push(AccountEvent::Npc(npc));
-                return Ok(());
-            }
-            Err(message) => message,
-        };
-        let effects = self.receive_message(message)?;
-        self.apply_effects(effects, output)
+        let result = self.session.receive_character_created(decode(message)?);
+        output.push(AccountEvent::RosterChanged);
+        output.push(AccountEvent::CharacterCreated {
+            success: result.success,
+            error: result.error,
+        });
+        Ok(())
     }
 
     fn receive_spell_message(&self, message: &ProtocolMessage) -> bool {
@@ -491,7 +558,6 @@ impl Account {
             || message.is::<SpellCooldownUpdate>()
             || message.is::<CastFailed>()
             || message.is::<CombatLogEvent>()
-            || message.is::<CombatEvent>()
             || message.is::<SpellGo>()
     }
 
@@ -516,8 +582,6 @@ impl Account {
             spells.apply_cooldown(&decode(message)?);
         } else if message.is::<CastFailed>() {
             output.push(AccountEvent::CastFailed(decode(message)?));
-        } else if message.is::<CombatEvent>() {
-            output.push(AccountEvent::Combat(CombatMessage::Event(decode(message)?)));
         } else if message.is::<SpellGo>() {
             output.push(AccountEvent::Combat(CombatMessage::SpellGo(decode(
                 message,

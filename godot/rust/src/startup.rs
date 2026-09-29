@@ -65,6 +65,11 @@ impl GameClient {
                 self.account.session.screen = SessionScreen::Loading;
                 self.show_account_screen(SessionScreen::Loading)
             }
+            ScreenArg::GameMenu => {
+                self.account.session.screen = SessionScreen::GameMenu;
+                self.show_account_screen(SessionScreen::GameMenu)?;
+                self.open_game_menu()
+            }
             _ => Err(format!(
                 "--screen {} is not yet implemented in Godot",
                 screen.as_cli_str()

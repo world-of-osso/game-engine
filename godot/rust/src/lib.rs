@@ -8,6 +8,7 @@ mod camera;
 mod char_create;
 mod character_select;
 mod combat_visuals;
+mod display_options;
 mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
@@ -21,6 +22,7 @@ mod input;
 mod input_keys;
 mod lighting;
 mod loading;
+mod logout;
 mod merchant;
 mod mirror_timers;
 mod nameplates;
@@ -29,6 +31,11 @@ pub mod npc_gear_data;
 mod particles;
 mod player_spells;
 mod scene;
+mod sound;
+mod sound_cast;
+mod sound_client;
+mod sound_footsteps;
+mod sound_outcome;
 mod spell_effects;
 mod spell_tooltip;
 mod spells;
@@ -37,6 +44,7 @@ mod swim;
 mod targeting;
 mod terrain;
 mod ui;
+mod ui_scale;
 mod wmo;
 mod world;
 mod world_map;
@@ -100,7 +108,13 @@ pub struct GameClient {
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     entrance_bar: entrance_bar::EntranceBar,
+    game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
+    game_menu_drag: Option<game_menu::drag::OptionsDrag>,
+    logout: game_engine_session::logout::LogoutState,
+    in_rest_area: bool,
     account: Account,
+    sound: Option<Gd<sound::NativeSound>>,
+    area_parents: HashMap<u32, u32>,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
     spell_effects: spell_effects::SpellEffects,
@@ -173,7 +187,13 @@ impl INode3D for GameClient {
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
+            game_menu_options: None,
+            game_menu_drag: None,
+            logout: Default::default(),
+            in_rest_area: false,
             account: Account::new(data_root.clone()),
+            sound: None,
+            area_parents: HashMap::new(),
             terrain: terrain::streaming::StreamedTerrain::new(
                 data_root.clone(),
                 cache_root.clone(),
@@ -208,7 +228,29 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
-        if self.world_map_pointer(&event) {
+        if self.capture_game_menu_binding(&event) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
+        match self.handle_game_menu_pointer(&event) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                godot_error!("Game menu drag failed: {error}");
+                return;
+            }
+        }
+        if self.world_map_pointer(&event)
+            || self.spellbook_pointer(&event)
+            || self.merchant_pointer(&event)
+        {
             return;
         }
         if self.game_menu_ui.is_none() {
@@ -286,9 +328,12 @@ impl INode3D for GameClient {
         type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
         // Each step runs even when an earlier one failed; only a session failure ends
         // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
-        let steps: [(&str, Step); 27] = [
+        let steps: &[(&str, Step)] = &[
+            ("UI scale", |c, _| Ok(c.sync_registry_ui_scale()?)),
+            ("UI click sounds", |c, _| Ok(c.play_ui_clicks()?)),
             ("UI actions", |c, _| c.poll_ui_actions()),
             ("Account", |c, _| c.poll_account()),
+            ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
             (
                 "Character preview",
                 |c, _| Ok(c.update_character_preview()?),
@@ -297,6 +342,7 @@ impl INode3D for GameClient {
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
+            ("Cast sound", |c, _| Ok(c.update_cast_sound()?)),
             ("Merchant", |c, _| c.update_merchant()),
             ("World map", |c, _| Ok(c.update_world_map()?)),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
@@ -305,6 +351,7 @@ impl INode3D for GameClient {
                 Ok(())
             }),
             ("Player animation", |c, _| Ok(c.update_player_animation()?)),
+            ("Footsteps", |c, _| Ok(c.update_footsteps()?)),
             ("Remote player animation", |c, _| {
                 Ok(c.world.update_remote_locomotion()?)
             }),
@@ -342,17 +389,25 @@ impl INode3D for GameClient {
             }
         }
         self.physical_input.finish_frame();
+        if let Err(error) = self.update_sound() {
+            frame_error::report_once(&format!("Sound update failed: {error}"));
+        }
     }
 
     fn exit_tree(&mut self) {
+        self.stop_sound();
         if let Err(error) = self.account.stop() {
             godot_error!("Account shutdown failed: {error}");
         }
     }
 
     fn ready(&mut self) {
+        // Model animation nodes tick at priority 0 before this observer reads their selected clock.
+        self.base_mut().set_process_priority(1);
+        display_options::apply_graphics_display_options(&self.client_options.graphics);
         if let Err(error) = self
             .connect_focus_reset()
+            .and_then(|()| self.initialize_sound())
             .and_then(|()| self.initialize_startup())
         {
             godot_error!("Cannot initialize client: {error}");
@@ -435,7 +490,22 @@ impl GameClient {
         state.set("character_count", session.characters.len() as i64);
         state.set("unit_count", self.units.len() as i64);
         state.set("world_attached", self.world.root().is_some());
+        state.set(
+            "zone_id",
+            &self
+                .current_zone_id()
+                .map(|id| id.to_variant())
+                .unwrap_or_default(),
+        );
         state.set("terrain", &terrain::state::terrain_state(&self.terrain));
+        let area_id = local_transform.and_then(|transform| {
+            self.terrain
+                .area_id_at(transform.origin.x, transform.origin.z)
+        });
+        state.set(
+            "area_id",
+            &area_id.map(|id| id.to_variant()).unwrap_or_default(),
+        );
         let mut objects = VarDictionary::new();
         objects.set("spawned", self.world_objects.spawned_count() as i64);
         objects.set("pending", self.world_objects.pending_count() as i64);
@@ -629,6 +699,36 @@ impl GameClient {
             godot_error!("Account shutdown failed: {stop_error}");
         }
         true
+    }
+
+    fn effective_ui_scale(&self) -> f32 {
+        let viewport = self
+            .base()
+            .get_viewport()
+            .map(|viewport| viewport.get_visible_rect().size)
+            .unwrap_or_default();
+        ui_scale::effective_ui_scale(
+            [viewport.x, viewport.y],
+            self.client_options.graphics.ui_scale,
+            self.account.session.screen == SessionScreen::InWorld,
+        )
+    }
+
+    fn sync_registry_ui_scale(&mut self) -> Result<(), String> {
+        let scale = self.effective_ui_scale();
+        for ui in [
+            &mut self.login_ui,
+            &mut self.character_ui,
+            &mut self.create_ui,
+            &mut self.loading_ui,
+            &mut self.errors_ui,
+            &mut self.game_menu_ui,
+        ] {
+            if let Some(ui) = ui {
+                ui.bind_mut().set_ui_scale(scale)?;
+            }
+        }
+        Ok(())
     }
 
     fn connect_focus_reset(&mut self) -> Result<(), String> {
@@ -1048,11 +1148,19 @@ impl GameClient {
                 self.update_login_status(&status, false)?;
             }
             AccountEvent::WorldReset => self.reset_world()?,
+            AccountEvent::RestState(update) => {
+                self.in_rest_area = update.snapshot.is_some_and(|rest| rest.in_rest_area);
+            }
             AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
-            AccountEvent::Combat(message) => self.receive_combat_message(message)?,
+            AccountEvent::Combat(message) => {
+                if let account::CombatMessage::Event(event) = &message {
+                    self.play_combat_outcome(event);
+                }
+                self.receive_combat_message(message)?;
+            }
             AccountEvent::UnitUpdated(unit) => {
                 let mut parent = self.to_gd().upcast::<Node3D>();
                 self.world.upsert(&mut parent, &unit);
@@ -1255,6 +1363,9 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.stop_sound();
+        self.logout.clear();
+        self.in_rest_area = false;
         self.character_preview.reset();
         self.creation_scene.reset();
         self.physical_input.clear();
@@ -1336,6 +1447,10 @@ impl GameClient {
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {
         self.close_game_menu();
+        if screen != SessionScreen::InWorld {
+            self.logout.clear();
+            self.sync_logout_overlay()?;
+        }
         if screen != SessionScreen::CharacterSelect {
             self.character_preview.reset();
         }
@@ -1350,6 +1465,7 @@ impl GameClient {
             SessionScreen::CharacterCreate => self.attach_create_ui()?,
             SessionScreen::Loading => self.attach_loading_ui()?,
             SessionScreen::InWorld => self.attach_errors_ui()?,
+            SessionScreen::GameMenu => {}
             SessionScreen::Login => {
                 if let Some(ui) = self.character_ui.take() {
                     ui.free();

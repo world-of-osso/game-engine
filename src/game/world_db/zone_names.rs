@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 /// Retail GetZoneText: the top-level AreaTable ancestor of the area under the player
 /// (Northshire Valley 9 → Northshire 6170 → Elwynn Forest 12).
 pub fn zone_of_area(area_id: u32) -> u32 {
-    root_area(area_parents(), area_id)
+    game_engine::area_zone_data::root_area(area_parents(), area_id)
 }
 
 fn area_parents() -> &'static HashMap<u32, u32> {
@@ -15,18 +15,6 @@ fn area_parents() -> &'static HashMap<u32, u32> {
             HashMap::new()
         })
     })
-}
-
-/// Follows parents to the root; AreaTable has no cycles, the bound only stops bad data.
-fn root_area(parents: &HashMap<u32, u32>, area_id: u32) -> u32 {
-    let mut id = area_id;
-    for _ in 0..16 {
-        match parents.get(&id) {
-            Some(&parent) => id = parent,
-            None => break,
-        }
-    }
-    id
 }
 
 pub fn zone_id_to_name(id: u32) -> String {

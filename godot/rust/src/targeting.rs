@@ -13,9 +13,10 @@ use game_engine_core::{
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, UnitFrameMenuState, UnitFrameState, format_value_text, fraction,
-    target_level_text,
+    InWorldUnitFramesState, PowerBarState, UnitFrameMenuState, UnitFrameState, format_value_text,
+    fraction, target_level_text,
 };
+use game_engine_ui_model::status::SecondaryResourceEntry;
 use godot::{
     classes::{
         Area3D, BoxShape3D, Camera3D, CollisionObject3D, CollisionShape3D, Decal, Image,
@@ -59,6 +60,12 @@ pub(crate) struct Targeting {
 }
 
 impl Targeting {
+    pub(crate) fn drain_pointer_clicks(&mut self) -> Result<u32, String> {
+        self.frame_ui
+            .as_mut()
+            .map_or(Ok(0), |ui| ui.bind_mut().sync_pointer_clicks())
+    }
+
     pub fn new(data_root: PathBuf) -> Self {
         Self {
             target: None,
@@ -275,11 +282,39 @@ fn target_frame_state(unit: &UnitSnapshot, viewer_level: Option<u8>) -> UnitFram
     state
 }
 
-fn unit_frames_state(target: Option<UnitFrameState>) -> InWorldUnitFramesState {
+fn player_frame_state(unit: &UnitSnapshot, in_rest_area: bool) -> UnitFrameState {
+    let mut state = UnitFrameState::named(
+        unit.player
+            .as_ref()
+            .map_or("", |player| player.name.as_str()),
+    );
+    state.level_text = unit
+        .level
+        .map(|level| level.0.to_string())
+        .unwrap_or_default();
+    state.show_combat_icon = unit.in_combat;
+    state.show_resting_icon = in_rest_area;
+    if let Some(health) = unit.health {
+        state.health_text = format_value_text(health.current, health.max);
+        state.health_fraction = fraction(health.current, health.max);
+    }
+    state.power = unit.powers.as_ref().and_then(PowerBarState::primary);
+    state.secondary_resource = unit
+        .powers
+        .as_ref()
+        .and_then(SecondaryResourceEntry::from_unit_powers);
+    state
+}
+
+fn unit_frames_state(
+    player: Option<UnitFrameState>,
+    target: Option<UnitFrameState>,
+    show_health_bars: bool,
+) -> InWorldUnitFramesState {
     InWorldUnitFramesState {
-        show_player_frame: false,
-        show_target_frame: true,
-        player: UnitFrameState::named(""),
+        show_player_frame: show_health_bars && player.is_some(),
+        show_target_frame: show_health_bars,
+        player: player.unwrap_or_else(|| UnitFrameState::named("")),
         target,
         target_of_target: None,
         focus: None,
@@ -319,7 +354,7 @@ impl GameClient {
         }
         self.send_target()?;
         self.sync_target_circle()?;
-        Ok(self.sync_target_frame()?)
+        Ok(self.sync_unit_frames()?)
     }
 
     fn apply_targeting_input(&mut self) {
@@ -406,7 +441,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn sync_target_frame(&mut self) -> Result<(), String> {
+    fn sync_unit_frames(&mut self) -> Result<(), String> {
         let viewer_level = self
             .world
             .local_player_id()
@@ -417,7 +452,12 @@ impl GameClient {
             .target
             .and_then(|id| self.units.get(&id))
             .map(|unit| target_frame_state(unit, viewer_level));
-        let state = unit_frames_state(target);
+        let player = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.units.get(&id))
+            .map(|unit| player_frame_state(unit, self.in_rest_area));
+        let state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             return ui.bind_mut().set_state(state);
         }
