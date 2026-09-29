@@ -81,7 +81,7 @@ src/
 - Parallel-agent tooling in `scripts/agent/`:
   - `link-worktree-data.py <canonical> <worktree>` links untracked `data/` into a worktree.
   - `seed-target.sh <repo> <dir>` reflink-clones a warm `CARGO_TARGET_DIR`; never start an agent on an empty one.
-  - `headless-client.sh start|stop <target> <xdg> [args]` runs a client in a headless cage, off the user's display.
+  - `headless-client.sh start|stop <target> <xdg> [args]` runs a client in a headless cage, off the user's display; `start-godot <checkout> <xdg> [godot args]` runs the Godot client (stop with `<checkout>/target`).
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
 - Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`
 - Dev profile: `[profile.dev] debug = 1, split-debuginfo = "unpacked"`; `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)

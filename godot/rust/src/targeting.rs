@@ -5,6 +5,7 @@
 //! each change through `SetTarget`; the TargetFrame and the selection ring show it.
 
 use std::path::PathBuf;
+use std::time::Instant;
 
 use game_engine_core::{
     input_bindings_data::{BindingMouseButton, InputAction, InputState},
@@ -13,8 +14,8 @@ use game_engine_core::{
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, PowerBarState, UnitFrameMenuState, UnitFrameState, format_value_text,
-    fraction, target_level_text,
+    InWorldUnitFramesState, PipAnimations, PowerBarState, UnitFrameMenuState, UnitFrameState,
+    format_value_text, fraction, target_level_text,
 };
 use game_engine_ui_model::status::SecondaryResourceEntry;
 use godot::{
@@ -57,6 +58,9 @@ pub(crate) struct Targeting {
     /// `RING_FDID` unless a test points the ring at other art.
     ring_fdid: u32,
     frame_ui: Option<Gd<RegistryUi>>,
+    /// Class resource pip animations, timed from `started`.
+    pip_animations: PipAnimations,
+    started: Instant,
     data_root: PathBuf,
 }
 
@@ -87,6 +91,8 @@ impl Targeting {
             ring: None,
             ring_fdid: RING_FDID,
             frame_ui: None,
+            pip_animations: PipAnimations::default(),
+            started: Instant::now(),
             data_root,
         }
     }
@@ -267,7 +273,11 @@ fn target_frame_state(unit: &UnitSnapshot, viewer_level: Option<u8>) -> UnitFram
     state
 }
 
-fn player_frame_state(unit: &UnitSnapshot, in_rest_area: bool, spec: Option<u32>) -> UnitFrameState {
+fn player_frame_state(
+    unit: &UnitSnapshot,
+    in_rest_area: bool,
+    spec: Option<u32>,
+) -> UnitFrameState {
     let mut state = UnitFrameState::named(
         unit.player
             .as_ref()
@@ -455,7 +465,15 @@ impl GameClient {
             .world
             .local_player_id()
             .and_then(|id| self.units.get(&id))
-            .map(|unit| player_frame_state(unit, self.in_rest_area, self.account.spells.spec()));
+            .map(|unit| player_frame_state(unit, self.in_rest_area, self.account.spells.spec()))
+            .map(|mut state| {
+                let now = self.targeting.started.elapsed().as_secs_f64();
+                state.secondary_fx = self
+                    .targeting
+                    .pip_animations
+                    .update(state.secondary_resource.as_ref(), now);
+                state
+            });
         let state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             return ui.bind_mut().set_state(state);
