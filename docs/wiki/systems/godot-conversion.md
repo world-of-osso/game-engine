@@ -24,9 +24,21 @@ Both authenticated CLI fixtures now validate local locomotion `0 → 5 → 0` an
 
 Final bounded checks: native `cargo check` and launcher formatting passed. The historical native-format failure recorded with `bd8282c7` was limited to then-uncommitted parallel `godot/rust/src/terrain/objects.rs`; after terrain commit `f015f651`, `/tmp/claude/startup-native-fmt-after-terrain-commit.log` records native `cargo fmt --check` exit 0. This retains bounded `gamemenu` runtime proof, not all `--screen` values, authenticated `charcreate` runtime proof, visual parity, or full conversion.
 
-## Native Render Scale (pending GREEN)
+## Native Render Scale
 
-`GameClient` applies persisted startup and committed Graphics Render Scale to its owning viewport's 3D scaling property; 2D UI and output size are not intentionally changed. The actual GPU RED at `e3a5c92b` saw full-size 1280×720 internal buffers instead of 960×540 for saved 0.75 (`data/diagnostics/render-scale-red/red-e3a5c92b.log`). Depot build and `godot/tests/render_scale_buffers.gd` GREEN remain pending. Legacy paired CAS below 0.999 and full rendering parity remain open. Source: [Godot conversion spec](../../specs/godot-conversion.md), `godot/rust/src/{display_options,lib,game_menu}.rs`.
+`ca2f75c0` applies persisted startup and committed Graphics Render Scale to its owning viewport's 3D scaling property; 2D UI and output size are unchanged. The prior actual GPU RED at `e3a5c92b` saw full-size 1280×720 internal buffers instead of 960×540 for saved 0.75 (`data/diagnostics/render-scale-red/red-e3a5c92b.log`). Depot `40n2xh4n2l` built the exact revision (exit 0; `data/diagnostics/render-scale-depot-green-build.log`), then offscreen Vulkan GREEN measured startup 0.75 = 960×540 with a 1280×720 target; live 0.5 = 640×360; live 1.0 = 1280×720; resized 1.0 = 1600×900; and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). The same 2D geometry/red-pixel probe and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof, not all 3D scenes, visual equality, bloom, or full rendering parity. Legacy paired CAS/sharpening below 0.999 remains a full-conversion obligation.
+
+### Owned Vulkan cage recipe
+
+Run from the repository root only in the main-owned offscreen Wayland Vulkan cage; do not substitute a desktop display or headless Godot. The fixture writes only its owned configuration and optional captures.
+
+```sh
+mkdir -p data/diagnostics/render-scale-red/config/world-of-osso data/diagnostics/render-scale-red/xdg-data
+printf '(graphics:(renderScale: 0.75, uiScale: 1.0))\n' > data/diagnostics/render-scale-red/config/world-of-osso/options_settings.ron
+XDG_CONFIG_HOME="$PWD/data/diagnostics/render-scale-red/config" XDG_DATA_HOME="$PWD/data/diagnostics/render-scale-red/xdg-data" GODOT_TEST_CAPTURE_DIR="$PWD/data/diagnostics/render-scale-red/captures" "${GODOT_BIN:-$HOME/.cache/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64}" --path godot --display-driver wayland --rendering-driver vulkan --audio-driver Dummy --script res://tests/render_scale_buffers.gd -- --screen gamemenu
+```
+
+Source: [Godot conversion spec](../../specs/godot-conversion.md), `godot/rust/src/{display_options,lib,game_menu}.rs`.
 
 ## Native camera options boundary
 
