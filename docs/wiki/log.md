@@ -2,7 +2,7 @@
 
 ## [2026-09-29] ui | Native SpellBookRoot managed placement implementation
 
-`SpellBookRoot` now uses canonical selected-character window positions and the first Panel slot (16, 104), with title-only drag, logical clamp, save/reopen and reset alongside `WorldMapFrame`. The extended authenticated three-process fixture RED on the old downloaded binary at `a4b86a5e` (missing `SpellBookRoot`). The new production code and fixture need a Depot build and GREEN run; no pass is claimed. Merchant coexistence and left/right panel stacking remain unsupported. Updated [[spellbook-action-bar]], [[world-map]], and [window manager spec](../specs/window-manager.md).
+`SpellBookRoot` now uses canonical selected-character window positions and the first Panel slot (16, 104), with title-only drag, logical clamp, save/reopen and reset alongside `WorldMapFrame`. The extended authenticated three-process fixture RED on the old downloaded binary at `a4b86a5e` (missing `SpellBookRoot`). Main-owned Depot build `c66bdfef` passed; the downloaded fixture with corrected script `e0d02e78` exits 0, including MAP_SAVED, MAP_REOPENED, authored reset, and fresh-process checks (full log `data/diagnostics/spellbook-placement-fixture-e0d02e78.log`; no runtime errors, 17 missing-CASC warnings). Merchant coexistence and left/right panel stacking remain unsupported. Updated [[spellbook-action-bar]], [[world-map]], and [window manager spec](../specs/window-manager.md).
 
 ## [2026-09-29] investigation | Optional Depot fixture export
 
