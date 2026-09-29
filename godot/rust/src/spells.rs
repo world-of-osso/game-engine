@@ -737,14 +737,14 @@ impl GameClient {
             return self.place_spellbook();
         }
         let scale = self.effective_ui_scale();
-        let shown = self
-            .ensure_art(&SPELLBOOK_ART_FDIDS)
-            .and_then(|()| {
-                let ui = self.spells.book_ui.as_mut().expect("spellbook open");
-                ui.bind_mut().set_ui_scale(scale)?;
-                ui.bind_mut().show_spellbook(state)
-            })
-            .and_then(|()| self.place_spellbook());
+        self.extract_art(&SPELLBOOK_ART_FDIDS);
+        let ui = self.spells.book_ui.as_mut().expect("spellbook open");
+        let mut book = ui.bind_mut();
+        let shown = book
+            .set_ui_scale(scale)
+            .and_then(|()| book.show_spellbook(state));
+        drop(book);
+        let shown = shown.and_then(|()| self.place_spellbook());
         if shown.is_err() {
             self.close_spellbook();
         }
