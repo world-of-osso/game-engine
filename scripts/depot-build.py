@@ -130,42 +130,27 @@ def read_asset_manifest(root):
 
 
 def stage_assets(root, staging):
-    """Mirror listed data/ files into a stable directory so repeat uploads send only changes."""
-    wanted = set(read_asset_manifest(root))
-    staging.mkdir(parents=True, exist_ok=True)
-    for path in sorted(staging.rglob("*"), reverse=True):
-        relative = path.relative_to(staging)
-        if path.is_symlink() or (path.is_file() and relative not in wanted):
-            path.unlink()
-        elif path.is_dir() and not any(path.iterdir()):
-            path.rmdir()
+    """Place listed data/ files in the build context, which Depot syncs incrementally by path and metadata."""
+    wanted = read_asset_manifest(root)
     for relative in wanted:
-        source, target = (root / "data" / relative).stat(), staging / relative
-        if target.is_file() and (target.stat().st_size, target.stat().st_mtime_ns) == (source.st_size, source.st_mtime_ns):
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        link_or_copy((root / "data" / relative).resolve(), target)
+        (staging / relative).parent.mkdir(parents=True, exist_ok=True)
+        link_or_copy((root / "data" / relative).resolve(), staging / relative)
     return len(wanted)
 
 
 def link_or_copy(source, target):
-    """Reflink, else hardlink, else copy, via a temporary name so an old hardlink is never written through."""
-    temporary = target.with_name(f".{target.name}.staging")
-    temporary.unlink(missing_ok=True)
+    """Reflink, else hardlink (data/ may be another filesystem), else copy; all keep the source mtime."""
     try:
-        try:
-            with source.open("rb") as src, temporary.open("wb") as dst:
-                fcntl.ioctl(dst.fileno(), FICLONE, src.fileno())
-            shutil.copystat(source, temporary)
-        except OSError:
-            temporary.unlink(missing_ok=True)
-            try:
-                os.link(source, temporary)
-            except OSError:
-                shutil.copy2(source, temporary)
-        os.replace(temporary, target)
-    finally:
-        temporary.unlink(missing_ok=True)
+        with source.open("rb") as src, target.open("wb") as dst:
+            fcntl.ioctl(dst.fileno(), FICLONE, src.fileno())
+        shutil.copystat(source, target)
+        return
+    except OSError:
+        target.unlink(missing_ok=True)
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
 
 
 def snapshot(root, context):
@@ -234,18 +219,16 @@ def run_tests(root, cargo_args):
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         start = time.monotonic()
-        assets = cache / f"assets-{checkout_key}"
-        count = stage_assets(root, assets)
         with tempfile.TemporaryDirectory(prefix="test-", dir=cache) as work:
             context = Path(work) / "context"
             context.mkdir()
             snapshot(root, context)
+            count = stage_assets(root, context / "test-assets")
             phase(f"Snapshot ({count} test assets)", start)
             output = Path(work) / "output"
             output.mkdir()
             command = depot_command(context, output, checkout_key, "test-result")
-            command.extend(["--build-context", f"assets={assets}",
-                            "--build-arg", f"TEST_ARGS={shlex.join(cargo_args)}",
+            command.extend(["--build-arg", f"TEST_ARGS={shlex.join(cargo_args)}",
                             "--build-arg", f"TEST_RUN={time.time_ns()}"])
             subprocess.run([*command, str(context)], check=True)
             phase("Remote test", start)

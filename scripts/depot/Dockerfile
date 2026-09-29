@@ -6,7 +6,7 @@ ARG TARGET_CACHE
 ENV CARGO_TARGET_DIR=/src/game-engine-godot-conversion/target \
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
     RUSTFLAGS="-C link-arg=-fuse-ld=mold -C link-arg=-Wl,--thread-count=4"
-COPY . /src/
+COPY --exclude=test-assets . /src/
 
 FROM source AS build
 ARG FIXTURE=""
@@ -33,7 +33,7 @@ ARG TEST_RUN
 RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
-    --mount=type=bind,from=assets,target=/src/game-engine-godot-conversion/data,rw \
+    --mount=type=bind,source=test-assets,target=/src/game-engine-godot-conversion/data,rw \
     python3 /src/refresh-source-mtimes.py /src && \
     ln -sfn ../../data godot/core/data && mkdir -p /out && echo "test run $TEST_RUN" && \
     eval "set -- $TEST_ARGS" && \

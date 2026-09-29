@@ -30,8 +30,7 @@ if os.environ.get('DEPOT_FAIL'):
     sys.exit(7)
 output.mkdir(parents=True, exist_ok=True)
 if args[args.index('--target') + 1] == 'test-result':
-    contexts = dict(args[i + 1].split('=', 1) for i, a in enumerate(args) if a == '--build-context')
-    assets = pathlib.Path(contexts['assets'])
+    assets = context / 'test-assets'
     staged = {str(p.relative_to(assets)): p.read_text() for p in assets.rglob('*') if p.is_file()}
     with open(os.environ['DEPOT_RECORD'], 'a') as record:
         record.write(json.dumps({'assets': staged, 'asset_dir': str(assets)}) + '\\n')
@@ -194,6 +193,7 @@ class DepotBuildTests(unittest.TestCase):
         self.assertTrue(self.build_args(build)["TARGET_CACHE"].startswith("godot-target-"))
         self.assertEqual(staged["assets"], {"models/boar.m2": "boar model", "Light.csv": "light rows"})
         self.assertFalse(any(name.startswith("game-engine-godot-conversion/data/") for name in build["files"]))
+        self.assertFalse(Path(staged["asset_dir"]).exists())
         self.assertFalse((self.root / "target/debug/libgame_engine_godot.so").exists())
 
     def test_test_mode_exits_with_cargo_status(self):
@@ -215,7 +215,6 @@ class DepotBuildTests(unittest.TestCase):
         second = self.run_test_mode()
         self.assertEqual(second.returncode, 0, second.stderr)
         staged = [record for record in self.records() if "assets" in record]
-        self.assertEqual(staged[0]["asset_dir"], staged[1]["asset_dir"])
         self.assertEqual(staged[1]["assets"], {"models/boar.m2": "boar model v2"})
 
     def test_restaging_a_replaced_asset_never_writes_through_to_the_old_file(self):

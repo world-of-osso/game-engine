@@ -31,15 +31,15 @@ On September 29, 2026, `--fixture native_input_fixture` passed remotely in proje
 
 ## Remote tests
 
-`python3 scripts/depot-build.py --root "$PWD" --test <cargo test args...>` runs `cargo test --locked` in the `godot/` workspace on Depot with every argument after `--test` (including `--`), prints the full log, and exits with cargo's status; it installs nothing. It uses the same snapshot, checkout lock and target cache as builds. Depot has no GPU and no Godot engine.
+`python3 scripts/depot-build.py --root "$PWD" --test <cargo test args...>` runs `cargo test --locked` in the `godot/` workspace on Depot with every argument after `--test` (including `--`), prints the log tail and every `Running`/`test result`/`error`/`FAILED` line, saves the full log to `target/depot-test.log`, and exits with cargo's status; it installs nothing else. It uses the same snapshot, checkout lock and target cache as builds. Depot has no GPU and no Godot engine.
 
-Test data comes only from `godot/depot-test-assets.txt`: data/-relative file paths, validated locally (missing or escaping entries fail before upload), mirrored into `~/.cache/game-engine/depot-build/assets-<key>/`, and bind-mounted writable at the remote `data/` (plus the `godot/core/data` symlink); writes are discarded. A test needing an unlisted file fails remotely with its own missing-path error. Add files to the manifest rather than uploading `data/`. Measured September 29, 2026: the manifest is about 630 MB and Depot re-uploads it in full every run (about 24 s; the stable staging directory did not make the transfer incremental).
+Test data comes only from `godot/depot-test-assets.txt`: data/-relative file paths, validated locally (missing or escaping entries fail before upload), reflinked (else hardlinked, else copied) into the snapshot's `test-assets/`, excluded from the image `COPY`, and bind-mounted writable at the remote `data/` (plus the `godot/core/data` symlink). Remote writes, such as the outfit tests' `data/cache/outfit_links.sqlite`, stay in the build container; local `data/` was byte-identical before and after two runs. A test needing an unlisted file fails remotely with its own missing-path error. Add files to the manifest rather than uploading `data/`. Measured September 29, 2026: staging 131 files (605 MiB) takes 0.3 s by reflink, and Depot re-uploads them in full every run (645 MB context, 21.5–23.2 s on consecutive runs, both as a stable named context and inside the main context).
 
 Results on September 29, 2026 (branch `depottest`):
 
 | Crate | Result | Not runnable remotely |
 |---|---|---|
-| `game-engine-core` (lib + 37 `tests/`) | 565 passed, 0 failed | none |
+| `game-engine-core` (lib + 37 `tests/`) | 569 passed, 0 failed | none |
 | `game-engine-ui-model` | 114 passed, 1 failed | `authored_customize_mode_keeps_dropdown_choices_name_and_postsetup`: ui-toolkit loads FrizQuadrata from the absolute host path `/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF` |
 | `game-engine-session` | 28 passed | none |
 | `game-engine-network` | 14 passed (loopback UDP only) | none |
