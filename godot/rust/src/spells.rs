@@ -603,14 +603,9 @@ impl GameClient {
         {
             item.icon_fdid = self.drawable_fdid(item.icon_fdid);
         }
-        let size = self
-            .base()
-            .get_viewport()
-            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
-                viewport.get_visible_rect().size
-            });
+        let parent = self.ui_parent();
         let mut state = SpellbookFrameState {
-            viewport: [size.x, size.y],
+            viewport: [parent.width, parent.height],
             categories,
             selected: self.spells.book.selected,
             page: self.spells.book.page,

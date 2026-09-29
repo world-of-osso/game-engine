@@ -3,6 +3,7 @@ mod icon_masks;
 mod layout;
 mod parts;
 mod projection;
+pub(crate) mod ui_parent;
 
 use std::collections::VecDeque;
 
@@ -46,6 +47,20 @@ use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::texture::TextureSource;
 
 use projection::{UiInput, UiProjection};
+use ui_parent::UiParent;
+
+impl crate::GameClient {
+    /// The UIParent canvas of the client viewport, shared by every HUD layer.
+    pub(crate) fn ui_parent(&self) -> UiParent {
+        let size = self
+            .base()
+            .get_viewport()
+            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
+                viewport.get_visible_rect().size
+            });
+        UiParent::for_viewport(size.x, size.y)
+    }
+}
 
 /// Registry-authoritative UI host; the canvas is a projection, not a second model.
 #[derive(GodotClass)]
@@ -59,6 +74,8 @@ pub struct RegistryUi {
     alt_clicks: VecDeque<(String, bool, bool)>,
     login_fade: Option<f32>,
     loading_displayed_percent: f32,
+    /// In-world HUD: laid out on the UIParent canvas and scaled to the viewport.
+    ui_parent: bool,
 }
 
 struct RegistryModel {
@@ -118,9 +135,10 @@ impl RegistryModel {
         }
     }
 
-    fn resize(&mut self, width: f32, height: f32) {
+    fn resize(&mut self, width: f32, height: f32, scale: f32) {
         self.registry.screen_width = width;
         self.registry.screen_height = height;
+        self.registry.ui_scale = scale;
         match self.postsetup {
             ScreenPostsetup::CharacterCreate => {
                 if let Some(state) = self.shared.get::<CharCreateUiState>() {
@@ -244,6 +262,7 @@ impl ICanvasLayer for RegistryUi {
             alt_clicks: VecDeque::new(),
             login_fade: None,
             loading_displayed_percent: 0.0,
+            ui_parent: false,
         }
     }
 }
@@ -281,16 +300,13 @@ impl RegistryUi {
     }
 
     pub fn show_game_menu(&mut self, logged_in: bool) -> Result<(), String> {
-        let viewport = self
-            .base()
-            .get_viewport()
-            .ok_or("Game menu has no viewport")?;
-        let size = viewport.get_visible_rect().size;
+        let parent = self.hud_parent()?;
         let GameMenuModel {
             screen,
             shared,
-            registry,
-        } = GameMenuModel::new(size.x, size.y, logged_in);
+            mut registry,
+        } = GameMenuModel::new(parent.width, parent.height, logged_in);
+        registry.ui_scale = parent.scale;
         let mut model = RegistryModel {
             screen,
             shared,
@@ -299,7 +315,7 @@ impl RegistryUi {
             postsetup: ScreenPostsetup::None,
         };
         model.sync();
-        self.initialize_model(model, size.x, size.y)
+        self.initialize_hud_model(model, parent)
     }
 
     /// Initialize a dedicated RegistryUi instance for the shared world map frame.
@@ -373,22 +389,18 @@ impl RegistryUi {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
-        let viewport = self
-            .base()
-            .get_viewport()
-            .ok_or("RegistryUi has no viewport")?;
-        let size = viewport.get_visible_rect().size;
+        let parent = self.hud_parent()?;
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
             screen: Screen::new(build),
             shared,
-            registry: FrameRegistry::new(size.x, size.y),
+            registry: parent.registry(),
             icon_masks: Default::default(),
             postsetup,
         };
         model.sync();
-        self.initialize_model(model, size.x, size.y)
+        self.initialize_hud_model(model, parent)
     }
 
     /// Initialize a dedicated RegistryUi instance for the MerchantFrame, backpack and
@@ -397,12 +409,8 @@ impl RegistryUi {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
-        let viewport = self
-            .base()
-            .get_viewport()
-            .ok_or("RegistryUi has no viewport")?;
-        let size = viewport.get_visible_rect().size;
-        let mut registry = FrameRegistry::new(size.x, size.y);
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
         register_metal_frame_style(&mut registry)?;
         let mut shared = SharedContext::new();
         shared.insert(states.frame);
@@ -416,7 +424,7 @@ impl RegistryUi {
             postsetup: ScreenPostsetup::Merchant,
         };
         model.sync();
-        self.initialize_model(model, size.x, size.y)
+        self.initialize_hud_model(model, parent)
     }
 
     /// Replace the merchant screen states; unchanged states do not resync.
@@ -447,22 +455,18 @@ impl RegistryUi {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
-        let viewport = self
-            .base()
-            .get_viewport()
-            .ok_or("RegistryUi has no viewport")?;
-        let size = viewport.get_visible_rect().size;
+        let parent = self.hud_parent()?;
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
             screen: Screen::new(inworld_unit_frames_screen),
             shared,
-            registry: FrameRegistry::new(size.x, size.y),
+            registry: parent.registry(),
             icon_masks: Default::default(),
             postsetup: ScreenPostsetup::None,
         };
         model.sync();
-        self.initialize_model(model, size.x, size.y)
+        self.initialize_hud_model(model, parent)
     }
 
     /// Initialize a dedicated RegistryUi instance for the authored error overlay.
@@ -470,17 +474,14 @@ impl RegistryUi {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
-        let viewport = self
-            .base()
-            .get_viewport()
-            .ok_or("RegistryUi has no viewport")?;
-        let size = viewport.get_visible_rect().size;
+        let parent = self.hud_parent()?;
         let UiErrorsModel {
             screen,
             shared,
-            registry,
+            mut registry,
             ..
-        } = UiErrorsModel::new(size.x, size.y);
+        } = UiErrorsModel::new(parent.width, parent.height);
+        registry.ui_scale = parent.scale;
         let mut model = RegistryModel {
             screen,
             shared,
@@ -489,7 +490,7 @@ impl RegistryUi {
             postsetup: ScreenPostsetup::None,
         };
         model.sync();
-        self.initialize_model(model, size.x, size.y)
+        self.initialize_hud_model(model, parent)
     }
 
     /// Initialize a dedicated RegistryUi instance for the retail mirror timer bars.
@@ -497,22 +498,18 @@ impl RegistryUi {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
-        let viewport = self
-            .base()
-            .get_viewport()
-            .ok_or("RegistryUi has no viewport")?;
-        let size = viewport.get_visible_rect().size;
+        let parent = self.hud_parent()?;
         let mut shared = SharedContext::new();
         shared.insert(MirrorTimersData::default());
         let mut model = RegistryModel {
             screen: Screen::new(mirror_timer_screen),
             shared,
-            registry: FrameRegistry::new(size.x, size.y),
+            registry: parent.registry(),
             icon_masks: Default::default(),
             postsetup: ScreenPostsetup::None,
         };
         model.sync();
-        self.initialize_model(model, size.x, size.y)
+        self.initialize_hud_model(model, parent)
     }
 
     /// Apply `update` to the mirror timers; unchanged timers do not resync.
@@ -578,6 +575,30 @@ impl RegistryUi {
         self.update_errors(|errors| *errors = UiErrorsData::default())
     }
 
+    /// The UIParent canvas of this layer's viewport.
+    fn hud_parent(&self) -> Result<UiParent, String> {
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        Ok(UiParent::for_viewport(size.x, size.y))
+    }
+
+    /// Host an in-world HUD model on the UIParent canvas, scaled to the viewport.
+    fn initialize_hud_model(
+        &mut self,
+        model: RegistryModel,
+        parent: UiParent,
+    ) -> Result<(), String> {
+        self.ui_parent = true;
+        self.initialize_model(model, parent.width, parent.height)?;
+        if let Some(projection) = self.projection.as_mut() {
+            projection.root.set_scale(Vector2::splat(parent.scale));
+        }
+        Ok(())
+    }
+
     fn initialize_model(
         &mut self,
         mut model: RegistryModel,
@@ -593,8 +614,10 @@ impl RegistryUi {
         Ok(())
     }
 
-    /// Replace one reactive screen state; unchanged values do not resync.
+    /// Replace one reactive screen state; unchanged values do not resync. A resized
+    /// viewport relays the screen out first.
     pub fn set_state<T: PartialEq + 'static>(&mut self, state: T) -> Result<(), String> {
+        self.sync_viewport()?;
         let model = self
             .model
             .as_mut()
@@ -655,17 +678,32 @@ impl RegistryUi {
             .get_viewport()
             .ok_or("RegistryUi has no viewport")?;
         let size = viewport.get_visible_rect().size;
+        let parent = if self.ui_parent {
+            UiParent::for_viewport(size.x, size.y)
+        } else {
+            UiParent {
+                width: size.x,
+                height: size.y,
+                scale: 1.0,
+            }
+        };
         let Some(model) = self.model.as_mut() else {
             return Err("Login model not initialized".into());
         };
-        if model.registry.screen_width == size.x && model.registry.screen_height == size.y {
+        if model.registry.screen_width == parent.width
+            && model.registry.screen_height == parent.height
+            && model.registry.ui_scale == parent.scale
+        {
             return Ok(());
         }
-        model.resize(size.x, size.y);
+        model.resize(parent.width, parent.height, parent.scale);
         let Some(projection) = self.projection.as_mut() else {
             return Err("Native projection not initialized".into());
         };
-        projection.root.set_size(size);
+        projection
+            .root
+            .set_size(Vector2::new(parent.width, parent.height));
+        projection.root.set_scale(Vector2::splat(parent.scale));
         projection.sync(&mut model.registry)
     }
 

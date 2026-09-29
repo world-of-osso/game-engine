@@ -71,6 +71,13 @@ func run_test() -> void:
 		fail("Tab selected no NPC: " + str(tabbed))
 		return
 	print("FIXTURE TAB ", tabbed.target_name, " id ", tabbed.target)
+	tabbed = await tab_to_dummy(tabbed)
+	if not await expect_target(tabbed.target, tabbed.target_name, "Tab"):
+		return
+	for size in [Vector2i(1280, 720), Vector2i(1920, 1080)]:
+		if not await expect_target_frame_at_preset(size):
+			return
+		await capture("target-tab-%dx%d.png" % [size.x, size.y])
 	print("FIXTURE WORLD_TARGET_DONE")
 	client.free()
 	quit(0)
@@ -177,6 +184,41 @@ func target_frame_name() -> String:
 	if not label is Label or not label.is_visible_in_tree():
 		return ""
 	return label.text
+
+# Tab cycles NPCs nearest first; keep cycling to a training dummy when one is replicated.
+func tab_to_dummy(state: Dictionary) -> Dictionary:
+	var seen := {}
+	while not "Dummy" in str(state.target_name) and not seen.has(state.target):
+		seen[state.target] = state.target_name
+		await tap(KEY_TAB)
+		state = client.target_state()
+	if not "Dummy" in str(state.target_name):
+		print("FIXTURE NO_DUMMY among ", seen.values())
+	print("FIXTURE TAB_TARGET ", state.target_name, " id ", state.target)
+	return state
+
+# Retail Modern preset: TargetFrame BOTTOMLEFT at UIParent BOTTOM (300, 250), in UI units of
+# a 768-unit-tall screen; the 133x51 portrait-off art sits 19 right and 35 up of that point
+# so its health slot is where the 232x100 Retail frame draws its health bar.
+func expect_target_frame_at_preset(size: Vector2i) -> bool:
+	# The headless output is 1280x720; larger viewports render at their content size.
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT
+	root.content_scale_size = size
+	for frame in range(5):
+		await process_frame
+	var ui = client.get_node_or_null("UnitFramesUI")
+	var frame = ui.find_child("TargetFrame", true, false) if ui != null else null
+	if not frame is Control or not frame.is_visible_in_tree():
+		fail("No visible TargetFrame at %s" % size)
+		return false
+	var scale := size.y / 768.0
+	var expected := Rect2(size.x / 2.0 + 319.0 * scale, size.y - (285.0 + 51.0) * scale, 133.0 * scale, 51.0 * scale)
+	var actual: Rect2 = frame.get_global_rect()
+	if actual.position.distance_to(expected.position) > 0.5 or actual.size.distance_to(expected.size) > 0.5:
+		fail("TargetFrame at %s is %s, expected %s" % [size, actual, expected])
+		return false
+	print("FIXTURE TARGET_FRAME ", size, " ", actual)
+	return true
 
 func expect_target(id, name: String, action: String) -> bool:
 	var state: Dictionary = client.target_state()
