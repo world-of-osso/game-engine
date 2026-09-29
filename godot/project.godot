@@ -16,14 +16,6 @@ window/size/window_width_override=1280
 window/size/window_height_override=720
 window/vsync/vsync_mode=0
 
-[physics]
-; Godot subtracts the time past max_physics_steps_per_frame physics ticks from the process
-; delta (main.cpp: process_step -= (physics_steps - max_physics_steps) * physics_step). At the
-; default 8 that drops everything past 133 ms per frame, so animation, spell and missile
-; clocks fell behind the server on slow frames. 100 (the setting's maximum) credits up to
-; 1.67 s; the physics space holds only static collision bodies.
-common/max_physics_steps_per_frame=100
-
 [rendering]
 renderer/rendering_method="forward_plus"
 textures/default_filters/use_nearest_mipmap_filter=false
