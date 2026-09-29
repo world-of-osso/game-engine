@@ -6,7 +6,7 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] system | Native local-player footstep playback
 
-Authored local Ogg footstep catalog and owned 3D emitter now observe selected local player clip/race/world position after animation tick, with shared phase/selection and streamed terrain/WMO surface. Component and authenticated owned-UDP fixtures pass decoded sample/position/gain/idle/stop checks; audible and full parity remain unproven. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
+Authored local Ogg footstep catalog and owned 3D emitter now observe selected local player clip/race/world position after animation tick, with shared phase/selection and streamed terrain/WMO surface. Component and authenticated owned-UDP fixtures pass decoded sample/position/gain/idle/stop checks, music-off/mute/master-option changes, and replicated-player removal; audible and full parity remain unproven. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
 
 ## [2026-09-28] system | Native WMO footstep surface override
 
