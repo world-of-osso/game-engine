@@ -20,8 +20,9 @@ project = args[args.index('--project') + 1]
 output = pathlib.Path(args[args.index('--output') + 1].split('dest=', 1)[1])
 context = pathlib.Path(args[-1])
 files = {str(p.relative_to(context)): p.read_bytes().decode('latin1') for p in context.rglob('*') if p.is_file()}
+mtimes = {str(p.relative_to(context)): p.stat().st_mtime_ns for p in context.rglob('*') if p.is_file()}
 with open(os.environ['DEPOT_RECORD'], 'a') as record:
-    record.write(json.dumps({'project': project, 'files': files, 'context': str(context), 'args': args}) + '\\n')
+    record.write(json.dumps({'project': project, 'files': files, 'mtimes': mtimes, 'context': str(context), 'args': args}) + '\\n')
 if os.environ.get('DEPOT_DELAY'):
     time.sleep(float(os.environ['DEPOT_DELAY']))
 if os.environ.get('DEPOT_FAIL'):
@@ -126,6 +127,29 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(artifact.read_bytes(), b"new binary")
         self.assertIn(str(artifact), result.stdout)
         self.assertFalse(Path(snapshot["context"]).exists())
+
+    def test_source_mtimes_survive_snapshots_with_working_tree_edits(self):
+        prefix = "game-engine-godot-conversion/"
+        unchanged = self.root / "src/asset/mod.rs"
+        edited = self.root / "godot/rust/src/lib.rs"
+        untracked = self.root / "src/new.rs"
+        timestamps = (1_700_000_000_123_456_789, 1_700_000_001_123_456_789,
+                      1_700_000_002_123_456_789)
+        for source, timestamp in zip((unchanged, edited, untracked), timestamps):
+            os.utime(source, ns=(timestamp, timestamp))
+        first = self.build()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        edited.write_text("edited after first snapshot")
+        os.utime(edited, ns=(timestamps[1] + 1_000_000_000, timestamps[1] + 1_000_000_000))
+        second = self.build()
+        self.assertEqual(second.returncode, 0, second.stderr)
+        snapshots = self.records()
+        for index in (0, 1):
+            self.assertEqual(snapshots[index]["mtimes"][prefix + "src/asset/mod.rs"], timestamps[0])
+            self.assertEqual(snapshots[index]["mtimes"][prefix + "src/new.rs"], timestamps[2])
+        self.assertEqual(snapshots[0]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1])
+        self.assertEqual(snapshots[1]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1] + 1_000_000_000)
+        self.assertEqual(snapshots[1]["files"][prefix + "godot/rust/src/lib.rs"], "edited after first snapshot")
 
     def test_failed_build_and_corrupt_gzip_preserve_existing_artifact(self):
         artifact = self.root / "target/debug/libgame_engine_godot.so"
