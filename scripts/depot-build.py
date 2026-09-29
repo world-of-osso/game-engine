@@ -129,7 +129,7 @@ def build(root):
             output = Path(work) / "output"
             output.mkdir()
             subprocess.run([
-                "depot", "build", "--project", os.environ.get("DEPOT_PROJECT_ID", "jnnl97r4s7"),
+                "depot", "build", "--project", os.environ.get("DEPOT_PROJECT_ID", "003c4ttwqh"),
                 "--platform", "linux/amd64", "--file", str(context / "Dockerfile"), "--target", "artifact",
                 "--output", f"type=local,dest={output}", str(context),
             ], check=True)
