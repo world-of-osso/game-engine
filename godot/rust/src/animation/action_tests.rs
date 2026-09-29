@@ -1,6 +1,6 @@
 //! Combat/spell action clips layered over locomotion on the HumanMale HD model.
-use super::AnimationState;
 use super::npc_pose_tests::{human_male_hd, pose_distance};
+use super::{ActionPriority, AnimationState};
 use godot::builtin::Transform3D;
 use std::{collections::HashMap, fs, path::PathBuf};
 
@@ -60,7 +60,9 @@ fn swing_crossfades_in_plays_once_and_returns_to_the_locomotion_pose() {
     let mut still = human_male_hd();
     swinging.update_locomotion(STAND, false, false).unwrap();
     still.update_locomotion(STAND, false, false).unwrap();
-    swinging.play_action(ATTACK_1H, false).unwrap();
+    swinging
+        .play_action(ATTACK_1H, false, ActionPriority::Combat)
+        .unwrap();
     assert!(pose_distance(&swinging.poses(), &still.poses()) < 1e-4);
     assert_eq!(swinging.action_id(), Some(ATTACK_1H));
 
@@ -91,7 +93,9 @@ fn swing_while_running_keeps_the_legs_on_the_run_cycle() {
         player.update_locomotion(RUN, false, true).unwrap();
         advance(player, 12);
     }
-    swinging.play_action(ATTACK_1H, false).unwrap();
+    swinging
+        .play_action(ATTACK_1H, false, ActionPriority::Combat)
+        .unwrap();
     for _ in 0..18 {
         for player in [&mut swinging, &mut running] {
             player.advance(FRAME_MS).unwrap();
@@ -107,12 +111,16 @@ fn swing_while_running_keeps_the_legs_on_the_run_cycle() {
 #[test]
 fn replacing_a_swing_mid_play_continues_from_the_reached_pose() {
     let mut player = human_male_hd();
-    player.play_action(ATTACK_1H, false).unwrap();
+    player
+        .play_action(ATTACK_1H, false, ActionPriority::Combat)
+        .unwrap();
     advance(&mut player, 6);
     let reached = player.poses();
     let blend = weights(&player);
     assert!(blend.0 > 0.5 && blend.0 < 1.0, "{blend:?}");
-    player.play_action(ATTACK_2H, false).unwrap();
+    player
+        .play_action(ATTACK_2H, false, ActionPriority::Combat)
+        .unwrap();
     // Same pose, same layer weight: the fade-in carries on instead of restarting.
     assert!(pose_distance(&reached, &player.poses()) < 1e-4);
     assert_eq!(weights(&player), blend);
@@ -124,12 +132,16 @@ fn replacing_a_swing_mid_play_continues_from_the_reached_pose() {
 #[test]
 fn held_precast_loop_persists_until_stopped() {
     let mut player = human_male_hd();
-    player.play_action(READY_SPELL_DIRECTED, true).unwrap();
+    player
+        .play_action(READY_SPELL_DIRECTED, true, ActionPriority::Spell)
+        .unwrap();
     // ReadySpellDirected lasts 533 ms.
     advance(&mut player, 70);
     assert_eq!(player.action_id(), Some(READY_SPELL_DIRECTED));
     let before = player.poses();
-    player.play_action(READY_SPELL_DIRECTED, true).unwrap();
+    player
+        .play_action(READY_SPELL_DIRECTED, true, ActionPriority::Spell)
+        .unwrap();
     assert!(pose_distance(&before, &player.poses()) < 1e-4);
     player.stop_action(READY_SPELL_DIRECTED);
     assert_eq!(player.action_id(), None);
@@ -148,4 +160,32 @@ fn missing_clips_follow_animation_data_fallbacks() {
     assert_eq!(player.resolve_clip(ATTACK_1H, &fallbacks), Some(ATTACK_1H));
     // FireBow (47) falls back to Stand.
     assert_eq!(player.resolve_clip(47, &fallbacks), None);
+}
+
+/// A melee swing arriving mid-cast leaves the spell's clip playing; a spell clip
+/// replaces a swing.
+#[test]
+fn spell_clips_are_not_cut_short_by_melee_swings() {
+    let mut player = human_male_hd();
+    player
+        .play_action(READY_SPELL_DIRECTED, true, ActionPriority::Spell)
+        .unwrap();
+    assert!(
+        !player
+            .play_action(ATTACK_1H, false, ActionPriority::Combat)
+            .unwrap()
+    );
+    assert_eq!(player.action_id(), Some(READY_SPELL_DIRECTED));
+    player.stop_action(READY_SPELL_DIRECTED);
+    assert!(
+        player
+            .play_action(ATTACK_1H, false, ActionPriority::Combat)
+            .unwrap()
+    );
+    assert!(
+        player
+            .play_action(READY_SPELL_DIRECTED, true, ActionPriority::Spell)
+            .unwrap()
+    );
+    assert_eq!(player.action_id(), Some(READY_SPELL_DIRECTED));
 }

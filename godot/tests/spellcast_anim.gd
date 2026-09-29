@@ -5,10 +5,14 @@ extends SceneTree
 ##   GODOT_TEST_SERVER           server address (a private test server)
 ##   SPELL_ACCOUNT / SPELL_CHARACTER   account (password fbtest) and level-10 warrior
 ##   SPELL_SHOTS                 screenshot directory
+##   SPELL_SCENARIO=mage         a level-10 mage casts Frostbolt instead: the precast
+##                               ReadySpellDirected loop (51) with hand models 1598571,
+##                               the SpellCastDirected release (53), the missile 1598570
+##                               and the impact model 1599028 with the dummy's wound (9)
 ## Tab targets the nearest dummy; auto-attack must play the warrior's Attack1H swing
 ## (17, Worn Shortsword) and the dummy's CombatWound (9). Slam (key 1) must play the
 ## one-hand visual's CombatAbility1H01 (818) and put its impact model 1283017 on the
-## dummy; Battle Shout (spellbook) must play BattleRoar (55) with its base model
+## dummy; Battle Shout (its bar key) must play BattleRoar (55) with its base model
 ## 1138011 and the buff model 6194303 on the warrior.
 
 const PASSWORD := "fbtest"
@@ -23,6 +27,13 @@ const SHOUT_BASE := 1138011
 const SHOUT_BUFF := 6194303
 ## `SpellPower` rage cost of Slam, in tenths.
 const SLAM_RAGE := 200
+const FROSTBOLT := 116
+const READY_SPELL_DIRECTED := 51
+const SPELL_CAST_DIRECTED := 53
+const FROSTBOLT_HANDS := 1598571
+const FROSTBOLT_IMPACT := 1599028
+
+const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 
 var client: Node
 var shots := "/tmp/claude/spellcast-anim/"
@@ -32,6 +43,7 @@ var target_id := 0
 ## Action clips seen per unit id, and kit models seen shown.
 var seen_actions := {}
 var seen_models := {}
+var seen_missile := false
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -48,8 +60,11 @@ func _process(_delta: float) -> bool:
 			if not seen_actions.has(id):
 				seen_actions[id] = {}
 			seen_actions[id][action] = true
-	for model in client.spell_visuals_state().active:
+	var visuals: Dictionary = client.spell_visuals_state()
+	for model in visuals.active:
 		seen_models[[model.unit, model.model]] = true
+	if visuals.missiles > 0:
+		seen_missile = true
 	return false
 
 func run_test() -> void:
@@ -71,28 +86,51 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	if not await wait_for(func(s): return s.catalog_ready and s.known.has(BATTLE_SHOUT), 60000, "level-10 warrior spells"):
+	var mage := OS.get_environment("SPELL_SCENARIO") == "mage"
+	var signature := FROSTBOLT if mage else BATTLE_SHOUT
+	if not await wait_for(func(s): return s.catalog_ready and s.known.has(signature) and s.level == 10, 60000, "level-10 spells"):
 		return
 	local_id = client.account_state().local_player_id
+	# Frame the scene once its doodads have streamed in.
+	if not await wait_until(func(): return client.account_state().world_objects.pending == 0, 300000, "world objects spawned"):
+		return
+	await wait_frames(60)
 	await frame_camera()
 	# Orbit before targeting: a left-drag press on the world may select or clear a unit.
 	if not await orbit_camera():
 		return
 	await capture("00-idle.png")
-	push_key(KEY_TAB, true)
-	await wait_frames(2)
-	push_key(KEY_TAB, false)
-	if not await wait_until(func(): return str(client.target_state().target_name).contains("Training Dummy"), 5000, "Tab targets the training dummy"):
+	# Tab cycles nearest-first; take the dummy straight ahead (critters and other
+	# dummies may be nearer).
+	for attempt in range(8):
+		push_key(KEY_TAB, true)
+		await wait_frames(2)
+		push_key(KEY_TAB, false)
+		await wait_frames(6)
+		if str(client.target_state().target_name).contains("Training Dummy"):
+			target_id = client.target_state().target
+			if absf(angle_to_target()) < 0.3:
+				break
+	if not await wait_until(func(): return str(client.target_state().target_name).contains("Training Dummy"), 3000, "Tab targets a training dummy"):
 		return
 	target_id = client.target_state().target
 	print("FIXTURE TARGET ", client.target_state())
 	if not await face_target():
 		return
+	if mage:
+		if await cast_frostbolt():
+			print("FIXTURE SEEN actions=", seen_actions, " models=", seen_models.keys(), " missile=", seen_missile)
+			await wait_frames(90)
+			print("FIXTURE SPELLCAST_ANIM_DONE")
+			client.free()
+			quit(0)
+		return
 	# Auto-attack: swings and the dummy's wound reaction.
 	if not await wait_until(func(): return saw(local_id, ATTACK_1H) and saw(target_id, COMBAT_WOUND), 15000, "auto-attack Attack1H swing and CombatWound"):
 		return
 	await capture("01-auto-attack.png")
-	await wait_frames(20)
+	# A few more swings on camera before the first ability.
+	await wait_frames(int(OS.get_environment("SPELL_SWING_FRAMES")) if OS.get_environment("SPELL_SWING_FRAMES") != "" else 20)
 	await capture("02-auto-attack-late.png")
 	if not await wait_for(func(s): return s.power >= SLAM_RAGE, 30000, "rage for Slam"):
 		return
@@ -103,6 +141,7 @@ func run_test() -> void:
 	await capture("03-slam.png")
 	await wait_frames(12)
 	await capture("04-slam-late.png")
+	await wait_frames(30)
 	print("FIXTURE SLAM ", client.spell_visuals_state())
 	if not await wait_for(func(s): return s.gcd_ms == 0, 5000, "GCD over"):
 		return
@@ -145,12 +184,13 @@ func frame_camera() -> void:
 	var center := Vector2(640, 360)
 	var goal := float(OS.get_environment("SPELL_CAMERA_DISTANCE")) if OS.get_environment("SPELL_CAMERA_DISTANCE") != "" else 5.0
 	for step in range(40):
-		if client.account_state().camera_distance <= goal:
+		var distance: float = client.account_state().camera_distance
+		if absf(distance - goal) < 0.6:
 			break
 		var wheel := InputEventMouseButton.new()
 		wheel.position = center
 		wheel.global_position = center
-		wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP if distance > goal else MOUSE_BUTTON_WHEEL_DOWN
 		wheel.factor = 1.0
 		wheel.pressed = true
 		root.push_input(wheel, true)
@@ -159,7 +199,8 @@ func frame_camera() -> void:
 	await wait_frames(30)
 
 func orbit_camera() -> bool:
-	var center := Vector2(640, 360)
+	# Drag from the sky strip: a press over a unit would select it.
+	var center := Vector2(640, 60)
 	var offset := float(OS.get_environment("SPELL_ORBIT")) if OS.get_environment("SPELL_ORBIT") != "" else 1.7
 	for attempt in range(60):
 		var state: Dictionary = client.account_state()
@@ -201,18 +242,35 @@ func drag(from: Vector2, to: Vector2, button: MouseButton) -> void:
 	root.push_input(up, true)
 	await wait_frames(2)
 
-## Battle Shout from the spellbook: a click on its icon casts it.
+## Frostbolt from its action button: the precast loop and hand models hold while the
+## cast bar fills, then the release, the missile and the impact on the dummy.
+func cast_frostbolt() -> bool:
+	var slot: int = spells().bar.find(FROSTBOLT)
+	if slot < 0:
+		fail("Frostbolt is not on the main bar: " + str(spells().bar))
+		return false
+	await press(BAR_KEYS[slot])
+	if not await wait_until(func(): return saw(local_id, READY_SPELL_DIRECTED) and seen_models.has([local_id, FROSTBOLT_HANDS]), 3000, "Frostbolt precast loop and hand models"):
+		return false
+	await wait_frames(20)
+	await capture("10-frostbolt-precast.png")
+	if not await wait_until(func(): return saw(local_id, SPELL_CAST_DIRECTED) and seen_missile, 5000, "Frostbolt release and missile"):
+		return false
+	await capture("11-frostbolt-missile.png")
+	if not await wait_until(func(): return seen_models.has([target_id, FROSTBOLT_IMPACT]) and saw(target_id, COMBAT_WOUND), 5000, "Frostbolt impact on the dummy"):
+		return false
+	await wait_frames(4)
+	await capture("12-frostbolt-impact.png")
+	print("FIXTURE FROSTBOLT ", client.spell_visuals_state())
+	return true
+
+## Battle Shout from its action button (the server's bar holds it at "-").
 func cast_battle_shout() -> bool:
-	await press(KEY_P)
-	if not await wait_for(func(s): return s.spellbook_open, 3000, "spellbook opened"):
+	var slot: int = spells().bar.find(BATTLE_SHOUT)
+	if slot < 0:
+		fail("Battle Shout is not on the main bar: " + str(spells().bar))
 		return false
-	await wait_frames(10)
-	var icon := client.get_node("SpellBookUI").find_child("SpellBookItem%dButton" % BATTLE_SHOUT, true, false) as Control
-	if icon == null:
-		fail("No Battle Shout button")
-		return false
-	await click(icon)
-	await press(KEY_ESCAPE)
+	await press(BAR_KEYS[slot])
 	if not await wait_until(func(): return saw(local_id, BATTLE_ROAR) and seen_models.has([local_id, SHOUT_BASE]) and seen_models.has([local_id, SHOUT_BUFF]), 5000, "Battle Shout BattleRoar, base and buff models"):
 		return false
 	await wait_frames(6)
@@ -306,6 +364,8 @@ func click(control: Control) -> void:
 	await wait_frames(3)
 
 func capture(file: String) -> void:
+	# Movie frame of the still, for cutting a recording (`--write-movie`, fixed fps).
+	print("FIXTURE MARK %s frame=%d" % [file, Engine.get_frames_drawn()])
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	var error := image.save_png(shots + file)
