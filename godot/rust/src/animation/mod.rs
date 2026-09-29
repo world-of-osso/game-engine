@@ -1,5 +1,6 @@
 //! Sequence-local M2 bone playback on Godot's native Skeleton3D palette.
 //! Poses use local pivots matching the skeleton's rest and absolute inverse binds.
+use game_engine_core::movement_animation_data::locomotion_playback_rate;
 use game_engine_core::{asset::m2_format::m2_anim, m2};
 use godot::{
     builtin::{Quaternion, Vector3},
@@ -124,6 +125,8 @@ pub struct AnimationState {
     release_ms: Vec<Option<u32>>,
     /// Locomotion is standing still, so an action also drives the legs.
     legs_free: bool,
+    /// The unit's current ground speed for its movement clip, yd/s.
+    locomotion_speed: Option<f32>,
 }
 
 impl AnimationState {
@@ -171,6 +174,7 @@ impl AnimationState {
             upper_body: action::upper_body_bones(model),
             release_ms: action::missile_release_times(model),
             legs_free: true,
+            locomotion_speed: None,
         })
     }
 
@@ -331,9 +335,21 @@ impl AnimationState {
         self.looping = looping;
     }
 
+    /// The speed the unit moves at, which scales its movement clip's playback
+    /// (`locomotion_playback_rate`); `None` plays clips at their authored rate.
+    pub fn set_locomotion_speed(&mut self, speed: Option<f32>) {
+        self.locomotion_speed = speed;
+    }
+
     pub fn advance(&mut self, delta_ms: f64) -> Result<(), String> {
         let mut state = self.random_state;
-        let result = self.advance_with_roll(delta_ms, |upper| sample_roll(&mut state, upper));
+        let rate = locomotion_playback_rate(
+            self.sequences[self.current].movespeed,
+            self.locomotion_speed,
+        );
+        let result = self.advance_with_roll(delta_ms * f64::from(rate), |upper| {
+            sample_roll(&mut state, upper)
+        });
         self.random_state = state;
         result?;
         self.tick_action(delta_ms);
@@ -526,6 +542,12 @@ impl WowAnimationPlayer {
             self.write_poses();
         }
         Ok(())
+    }
+
+    pub(crate) fn set_locomotion_speed(&mut self, speed: Option<f32>) {
+        if let Some(animation) = self.animation.as_mut() {
+            animation.set_locomotion_speed(speed);
+        }
     }
 
     /// Play combat/spell clip `id` (or its `AnimationData` fallback) over locomotion,

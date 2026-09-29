@@ -493,6 +493,12 @@ fn sync_unit_animation(
         .in_combat
         .then(|| combat::stance_clip(&animation.bind(), 0, true, unit.weapon, fallbacks));
     let pose_anim = ready.or(unit.pose_anim);
+    // The replicated speed of its gait paces the walk and run clips (0: not yet moved).
+    let speed = snapshot
+        .movement_speed
+        .map(|speed| speed.0)
+        .filter(|speed| *speed > 0.0);
+    animation.bind_mut().set_locomotion_speed(speed);
     let Some(id) = creature_animation_change(unit.animation, snapshot.creature_motion, pose_anim)
     else {
         return;
