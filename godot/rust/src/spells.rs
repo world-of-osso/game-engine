@@ -90,6 +90,7 @@ pub(crate) struct SpellsHud {
     bar_ui: Option<Gd<RegistryUi>>,
     cast_ui: Option<Gd<RegistryUi>>,
     book_ui: Option<Gd<RegistryUi>>,
+    pub(crate) tooltip_ui: Option<Gd<RegistryUi>>,
     book: SpellbookFrameState,
     /// FDID → whether `data/textures/{fdid}.blp` exists or was copied from local CASC.
     textures: HashMap<u32, bool>,
@@ -110,6 +111,7 @@ impl Default for SpellsHud {
             bar_ui: None,
             cast_ui: None,
             book_ui: None,
+            tooltip_ui: None,
             book: SpellbookFrameState::default(),
             textures: HashMap::new(),
             cast: None,
@@ -123,7 +125,7 @@ impl Default for SpellsHud {
 }
 
 impl SpellsHud {
-    fn catalog(&self) -> Option<&SpellCatalogData> {
+    pub(crate) fn catalog(&self) -> Option<&SpellCatalogData> {
         match &self.catalog {
             CatalogLoad::Ready(data) => Some(data),
             _ => None,
@@ -131,9 +133,14 @@ impl SpellsHud {
     }
 
     fn close(&mut self) {
-        for ui in [self.bar_ui.take(), self.cast_ui.take(), self.book_ui.take()]
-            .into_iter()
-            .flatten()
+        for ui in [
+            self.bar_ui.take(),
+            self.cast_ui.take(),
+            self.book_ui.take(),
+            self.tooltip_ui.take(),
+        ]
+        .into_iter()
+        .flatten()
         {
             ui.free();
         }
@@ -265,6 +272,7 @@ impl GameClient {
         self.sync_action_bar()?;
         self.sync_cast_bar(delta)?;
         self.sync_spellbook()?;
+        self.sync_spell_tooltip()?;
         self.float_combat_text(delta);
         Ok(())
     }
@@ -408,6 +416,19 @@ impl GameClient {
         for (index, button) in state.buttons.iter_mut().enumerate() {
             button.pushed = self.spells.pushed[index] > 0.0;
         }
+        if let Some((name, _)) = self
+            .spells
+            .bar_ui
+            .as_ref()
+            .and_then(|ui| ui.bind().hovered_button())
+            && let Some(index) = name
+                .strip_prefix("ActionButton")
+                .and_then(|index| index.parse::<usize>().ok())
+                .and_then(|index| index.checked_sub(1))
+            && let Some(button) = state.buttons.get_mut(index)
+        {
+            button.hovered = true;
+        }
         state
     }
 
@@ -499,6 +520,36 @@ impl GameClient {
         }
         self.spells.cast_ui = Some(ui);
         Ok(())
+    }
+
+    /// The main bar button under the pointer and its spell, if any.
+    pub(crate) fn hovered_bar_spell(&self) -> Option<(u32, [f32; 4])> {
+        let (name, rect) = self.spells.bar_ui.as_ref()?.bind().hovered_button()?;
+        let index: usize = name.strip_prefix("ActionButton")?.parse().ok()?;
+        match self.account.spells.slot(index.checked_sub(1)?) {
+            Some(ActionRef::Spell(spell_id)) => Some((spell_id, rect)),
+            _ => None,
+        }
+    }
+
+    /// The spellbook item under the pointer and its level when not learned yet.
+    pub(crate) fn hovered_book_spell(&self) -> Option<(u32, Option<u32>, [f32; 4])> {
+        let (name, rect) = self.spells.book_ui.as_ref()?.bind().hovered_button()?;
+        let spell_id: u32 = name
+            .strip_prefix("SpellBookItem")?
+            .strip_suffix("Button")?
+            .parse()
+            .ok()?;
+        let available_at = self
+            .spells
+            .book
+            .categories
+            .iter()
+            .flat_map(|category| &category.groups)
+            .flat_map(|group| &group.items)
+            .find(|item| item.spell_id == spell_id)
+            .and_then(|item| item.available_at);
+        Some((spell_id, available_at, rect))
     }
 
     pub(super) fn spellbook_open(&self) -> bool {
@@ -762,6 +813,12 @@ impl GameClient {
             .collect();
         state.set("damage_dealt", &ids(&damage));
         state.set("spellbook_open", self.spellbook_open());
+        let tooltip: PackedStringArray = self
+            .spell_tooltip_lines()
+            .iter()
+            .map(|line| GString::from(line.as_str()))
+            .collect();
+        state.set("tooltip", &tooltip);
         state.set("combat_text", self.spells.floating.len() as i64);
         let player = self
             .world
