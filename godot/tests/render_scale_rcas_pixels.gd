@@ -51,7 +51,7 @@ func run_test() -> void:
 
 	if not await expect_scale(reference, 0.75, "startup"):
 		return
-	var startup := await capture_pair(reference)
+	var startup := await capture_pair(reference, "startup")
 	if not expect_images(startup, "startup"):
 		return
 	if not expect_ui_pixel(startup.root_image, marker, "startup"):
@@ -66,7 +66,7 @@ func run_test() -> void:
 	await drag_scale(slider, true)
 	if not expect_saved(path, "1.0") or not await expect_scale(reference, 1.0, "live 1.0"):
 		return
-	var full_scale := await capture_pair(reference)
+	var full_scale := await capture_pair(reference, "live 1.0")
 	if not expect_images(full_scale, "live 1.0"):
 		return
 	if not expect_unfiltered(full_scale.root_image, full_scale.reference_image):
@@ -76,7 +76,7 @@ func run_test() -> void:
 	await drag_scale(slider, false)
 	if not expect_saved(path, "0.5") or not await expect_scale(reference, 0.5, "live 0.5"):
 		return
-	var half_scale := await capture_pair(reference)
+	var half_scale := await capture_pair(reference, "live 0.5")
 	if not expect_images(half_scale, "live 0.5"):
 		return
 	if not expect_ui_pixel(half_scale.root_image, marker, "live 0.5"):
@@ -121,7 +121,7 @@ func expect_scale(reference: SubViewport, scale: float, stage: String) -> bool:
 	reference.scaling_3d_scale = scale
 	return true
 
-func capture_pair(reference: SubViewport) -> Dictionary:
+func capture_pair(reference: SubViewport, stage: String) -> Dictionary:
 	var menu := root.find_child("GameMenuUI", true, false) as CanvasLayer
 	if menu == null:
 		fail("RCAS capture requires the real GameMenuUI layer")
@@ -132,7 +132,29 @@ func capture_pair(reference: SubViewport) -> Dictionary:
 	await RenderingServer.frame_post_draw
 	var images := {"root_image": root.get_texture().get_image(), "reference_image": reference.get_texture().get_image()}
 	menu.visible = was_visible
+	if not save_capture_pair(images, stage):
+		return {}
 	return images
+
+func save_capture_pair(images: Dictionary, stage: String) -> bool:
+	var directory := OS.get_environment("GODOT_TEST_CAPTURE_DIR")
+	if directory.is_empty():
+		return true
+	if not directory.contains("/data/diagnostics/"):
+		fail("RCAS captures must stay under owned data/diagnostics")
+		return false
+	var error := DirAccess.make_dir_recursive_absolute(directory)
+	if error != OK:
+		fail("Create RCAS capture directory: " + error_string(error))
+		return false
+	for kind in ["root", "reference"]:
+		var image: Image = images[kind + "_image"]
+		var filename := "rcas-" + stage.replace(" ", "-") + "-" + kind + ".png"
+		error = image.save_png(directory.path_join(filename))
+		if error != OK:
+			fail("Save RCAS " + filename + ": " + error_string(error))
+			return false
+	return true
 
 func expect_images(images: Dictionary, stage: String) -> bool:
 	var actual: Image = images.root_image
@@ -149,6 +171,7 @@ func expect_ui_pixel(image: Image, marker: ColorRect, stage: String) -> bool:
 	return true
 
 func expect_unfiltered(actual: Image, reference: Image) -> bool:
+	print_reference_signal(reference, "live 1.0")
 	var edges := 0
 	for x in range(FIRST_X, LAST_X):
 		var position := Vector2i(x, SAMPLE_Y)
@@ -164,6 +187,7 @@ func expect_unfiltered(actual: Image, reference: Image) -> bool:
 	return true
 
 func expect_rcas(actual: Image, reference: Image, stage: String) -> bool:
+	print_reference_signal(reference, stage)
 	var edges := 0
 	for x in range(FIRST_X, LAST_X):
 		var position := Vector2i(x, SAMPLE_Y)
@@ -180,6 +204,30 @@ func expect_rcas(actual: Image, reference: Image, stage: String) -> bool:
 		fail("%s: fewer than four sharpenable reference pixels; input pattern missing" % stage)
 		return false
 	return true
+
+func print_reference_signal(image: Image, stage: String) -> void:
+	var darkest := 1.0
+	var brightest := 0.0
+	var max_delta := 0.0
+	var max_neighbor_delta := 0.0
+	var sharpenable := 0
+	var invalid := 0
+	for x in range(FIRST_X, LAST_X):
+		var position := Vector2i(x, SAMPLE_Y)
+		var input := image.get_pixelv(position)
+		darkest = minf(darkest, input.r)
+		brightest = maxf(brightest, input.r)
+		if x > FIRST_X:
+			max_neighbor_delta = maxf(max_neighbor_delta, channel_error(input, image.get_pixel(x - 1, SAMPLE_Y)))
+		var delta := channel_error(rcas(image, position), input)
+		if is_nan(delta) or is_inf(delta):
+			invalid += 1
+			continue
+		max_delta = maxf(max_delta, delta)
+		if delta > MIN_SHARPENING:
+			sharpenable += 1
+	var samples := [image.get_pixel(FIRST_X, SAMPLE_Y), image.get_pixel(floori((FIRST_X + LAST_X) / 2.0), SAMPLE_Y), image.get_pixel(LAST_X - 1, SAMPLE_Y)]
+	print("RCAS_REFERENCE ", stage, " y=", SAMPLE_Y, " red_range=", Vector2(darkest, brightest), " max_neighbor_delta=", max_neighbor_delta, " max_oracle_delta=", max_delta, " sharpenable=", sharpenable, " invalid=", invalid, " samples=", samples)
 
 func rcas(image: Image, position: Vector2i) -> Color:
 	var center := image.get_pixelv(position).srgb_to_linear()
