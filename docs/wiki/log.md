@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-29] system | Depot-native Godot extension build documented
+
+Root `cargo run`/`rd` retains a local std-only launcher and normal local Godot import/launch while `scripts/depot-build.py --root <checkout>` builds the Linux x86_64 GDExtension remotely. The documented boundary includes source-only snapshots, shared remote caches with locked target sharing, atomic worktree-local library install, explicit no-local-Cargo failure behavior, and prerequisite tools. The $100 monthly figure is conditional budget planning, not a configured billing cap; provider limits and cache GC require main verification. No gameplay, renderer, or conversion-parity claim follows.
+
+Added [Remote Godot builds](../remote-builds.md); updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md).
+
 ## [2026-09-29] system | Native main action bar HUD visibility
 
 Committed `hud.show_action_bars` now hides the entire cached native main bar without clearing its slots or bound-key casts; restoring it reuses the same node and slot, then restores pointer casting. Owned-UDP `sound-click` passes the hidden-key `SpellCastIntent`, intentional restored click, and subsequent right/release/keyboard/reopen no-replay checks, plus CastStart request/repeat/inactive/reset/mute/removal stages (`/tmp/claude/actionbar-consumer-targeted-green.log`, commit `67e6e430`, base `539f1b86` plus scoped diff). Verifier941 is pending; no independent-pass claim. Updated [[spellbook-action-bar]], [spellbook/action-bar spec](../specs/spellbook-action-bar.md), and the [Godot parity matrix](../specs/godot-parity-matrix.md).
