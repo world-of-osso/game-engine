@@ -506,7 +506,7 @@ impl crate::GameClient {
             && self.account.session.gameplay_input_allowed()
     }
 
-    pub(super) fn send_player_input(&mut self) -> Result<(), String> {
+    pub(super) fn send_player_input(&mut self) -> Result<(), crate::frame_error::FrameError> {
         if !self.gameplay_input_allowed() || self.world.local_player_controlled() {
             return Ok(());
         }
@@ -525,7 +525,7 @@ impl crate::GameClient {
             self.player_movement.network_input(yaw, position, epoch)
         };
         match input {
-            Some(input) => self.account.send_player_input(input),
+            Some(input) => Ok(self.account.send_player_input(input)?),
             None => Ok(()),
         }
     }
