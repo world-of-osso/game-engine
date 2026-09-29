@@ -22,7 +22,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 - [x] Multiply colour into the texel in authored space; combine multitexture layers (Particle_Mod, 2Color_3Alpha, 3Color_3Alpha).
 - [x] Draw one pooled `MultiMeshInstance3D` per (model FDID, emitter index), shared by every placement; pool capacity = sum of placement capacities capped at 4096.
 - [x] Update and draw only the emitters of doodads that are drawn (scenery distance, WMO group portal cull) and whose box is in the view frustum; fade their particles with the doodad's scenery fade.
-- [ ] `particleEffectsEnabled = false` spawns no particle pools or emitters (code path only; no test).
+- [x] Persisted startup `particleEffectsEnabled = false` spawns no particle pools or emitters. An authenticated actual-Azeroth portal fixture proves this state boundary; it does not prove pixels, audibility, live toggling, or density.
 - [ ] The in-world portal matches retail framing (small white sparkles inside the blue sheet). Captured only, not compared by pixels.
 
 ## How it works
@@ -47,7 +47,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 - `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test.
 - `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint and fade.
 - `godot/tests/wmo_doodads_flow.gd` — portal pools empty while Jail01 is culled, all six drawing at the trigger.
-- `godot/tests/world_portal_particles_flow.gd` via `native_input_fixture portal-particles-{disabled,enabled}` — owned persisted startup setting, authenticated Azeroth 30_48 GameClient, placed `sw_magicdistrict` MODD 1112 meshes in both modes, absent particle root/state when disabled and six simulated/drawn emitter pools when enabled. Runtime proof pending; keep the checkbox unchecked until both modes pass.
+- `godot/tests/world_portal_particles_flow.gd` via `native_input_fixture portal-particles-{disabled,enabled}` — persisted startup setting in an authenticated Azeroth 30_48 GameClient, with actual placed `sw_magicdistrict` MODD 1112 portal meshes in both modes. At `d23012b4` + `e5671528`, disabled has no particle pools/emitter state; enabled has all six pools with visible-instance counts 42, 21, 21, 21, 21, and 2 (143 total; scene totals 711 pools/emitters). Depot fixture/build and both runtime logs exit 0 at `data/diagnostics/portal-particles-{depot-build,disabled,enabled}-e5671528.log`. This headless state proof excludes pixels, audibility, live toggling, and density.
 
 ## Known gaps (current cycle)
 
