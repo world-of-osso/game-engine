@@ -7,6 +7,11 @@ Contract: [spec](../../specs/spellbook-action-bar.md). Code: `godot/rust/src/spe
 - `godot/network` subscribes to the spell messages and snapshots `CastState`, `UnitPowers`, `UnitAuras` into `UnitSnapshot`. `Account` keeps `PlayerSpells` (known spells, spec, 120 slots, cooldowns + GCD) and the last 64 `CombatLogEvent`s with a sequence counter; `CastFailed` becomes `AccountEvent::CastFailed`.
 - `GameClient::update_spells` runs after targeting each frame: keys `ActionSlot1..12` and bar clicks send `SpellCastIntent { spell_id, spell: name, target_entity: targeting.target }` on `CombatChannel`; P toggles the book; then the bar, cast bar and book re-sync. Errors close the spell UI; they do not end the session.
 - Cooldown shown on a button = max(spell cooldown, GCD if the spell's `StartRecoveryTime` > 0).
+- **Auto-attack** (`godot/rust/src/auto_attack.rs`). Selecting a unit never attacks it. The client sends `AttackSwing` (`CMSG_ATTACK_SWING`) in three cases:
+  - a right-click on an attackable unit. Attackable is the server's rule: alive, selectable, `shared::faction_reaction::can_attack`.
+  - Auto Attack 6603. It is never sent as a cast; its `SPELL_EFFECT_ATTACK` is unused server-side (TrinityCore SpellEffects.cpp:170).
+  - a cast of an auto-attack spell, per the catalog's `SpellAutoAttack` ([[spell-catalog]]). `OnCast` is `SpellMisc.Attributes_1 & 0x200` (SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK, "client only", TrinityCore SharedDefines.h:482); it covers Slam, Mortal Strike and the Attack action 88163. `PostCast` is `Attributes_2 & 0x100000` alone (SharedDefines.h:530, e.g. Smite); it attacks on the local player's `SpellGo`. Frostbolt has neither.
+- While attacking, a new attackable selection becomes the victim, and a friendly or empty selection sends `AttackStop`. The server's `AttackStart`/`AttackStopped` echoes keep the victim in step with server-side stops (death, evade, refusals). `target_state().auto_attack` exposes the victim.
 - Icons and chrome are copied from local CASC into `data/textures/{fdid}.blp` on first use; missing chrome is an error, a missing icon an empty slot.
 - Combat text is a fixed-size `Label3D` under the client root (unit nodes carry model scale), in three lanes so auto-attack and ability numbers do not stack.
 
