@@ -131,6 +131,8 @@ An M2 placed by a WMO is lit as WebWowViewerCpp lights it (reference commit `1a8
 
 Proof: `cargo test -p game-engine-godot --lib doodad_light` 4/4 (the three examples, hand-derived from the file bytes, plus an exterior-group doodad at blend 1). `godot/tests/m2_material_pixels.gd` on Vulkan: at blend 0 under a real shadow caster the pixel is `0.4 * (0.2 * 1.1 + 0.5)` = 0.286 (expected 0.288), at blend 0.5 the half mix; the old shader gives the shadowed exterior 0.235. `godot/tests/wmo_doodads_flow.gd`: the spawned Stockade MODD 100 batches carry blend 0 and those colours.
 
+Live (Fbfps at the indoor Stormwind spot, WoW (-8785.9, 820.7, 97.65); `data/diagnostics/wmodoodadcost-20260928/`): `master-15b3715c.png` vs `after-6cb884ec.png` differ in 20,234 pixels, all on WMO doodads (banners, lamps, crates and sacks, the weapon rack; `lighting-diff-mask.png`); WMO walls, floor, terrain and the player are unchanged. The props near the lamps turn warmer and the weapon rack darker (`lighting-compare.png`, left master, right branch). No Retail capture of this spot exists to compare against.
+
 Not ported: the reference's per-group MOCV sampling for doodads (`wmoGroupObject.cpp` `assignInteriorParams`, commented out there), M2 fog's interior sun mix, and MNLD/MOLT point lights.
 
 ## WMO fog
