@@ -375,7 +375,7 @@ impl INode3D for GameClient {
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
-            ("Auras", |c, d| c.update_auras(d)),
+            ("Auras", |c, _| c.update_auras()),
             ("Cast sound", |c, _| Ok(c.update_cast_sound()?)),
             ("Merchant", |c, _| c.update_merchant()),
             ("Chat", |c, d| c.update_chat(d)),

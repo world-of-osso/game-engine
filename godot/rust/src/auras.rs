@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::f32::consts::TAU;
+use std::time::Instant;
 
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::aura_display_data::{AuraCasterLookup, AuraInstance, aura_instances};
@@ -39,9 +40,11 @@ const EDGE_NODE: &str = "Edge";
 
 #[derive(Default)]
 pub(crate) struct Auras {
-    /// Seconds on `clock` when each unit's replicated aura set last changed.
-    received: HashMap<u64, f64>,
-    clock: f64,
+    /// When each unit's replicated aura set last changed. Wall time: the server counts
+    /// aura time in real seconds, whatever the frame rate.
+    received: HashMap<u64, Instant>,
+    /// Start of the flash clock.
+    epoch: Option<Instant>,
     buff_ui: Option<Gd<RegistryUi>>,
     swipe: Option<Gd<ImageTexture>>,
     /// The loaded edge art; `Some(None)` caches art that failed to load.
@@ -64,7 +67,7 @@ impl Auras {
     /// A unit's replicated aura set arrived changed (or the unit left, with `None`).
     pub(crate) fn aura_set_changed(&mut self, unit: u64, present: bool) {
         if present {
-            self.received.insert(unit, self.clock);
+            self.received.insert(unit, Instant::now());
         } else {
             self.received.remove(&unit);
         }
@@ -147,13 +150,12 @@ impl GameClient {
             &casters,
             &Default::default(),
         );
-        let arrived = self
+        let elapsed = self
             .auras
             .received
             .get(&unit)
-            .copied()
-            .unwrap_or(self.auras.clock);
-        counted_down(auras, (self.auras.clock - arrived) as f32)
+            .map_or(0.0, |arrived| arrived.elapsed().as_secs_f32());
+        counted_down(auras, elapsed)
     }
 
     fn reaction_to(&mut self, unit: u64) -> Reaction {
@@ -219,8 +221,13 @@ impl GameClient {
     }
 
     /// The local player's BuffFrame and DebuffFrame, flashing auras under 31 s.
-    pub(super) fn update_auras(&mut self, delta: f32) -> Result<(), FrameError> {
-        self.auras.clock += f64::from(delta);
+    pub(super) fn update_auras(&mut self) -> Result<(), FrameError> {
+        let clock = self
+            .auras
+            .epoch
+            .get_or_insert_with(Instant::now)
+            .elapsed()
+            .as_secs_f32();
         let local = self
             .world
             .local_player_id()
@@ -252,7 +259,7 @@ impl GameClient {
                 ui
             }
         };
-        flash_expiring(&ui.bind(), &auras, self.auras.clock as f32);
+        flash_expiring(&ui.bind(), &auras, clock);
         Ok(())
     }
 
