@@ -43,6 +43,13 @@ The Retail PlayerFrame has no aura icons: `Mainline/PlayerFrame.lua` only update
 
 ## Live proof
 
+`godot/tests/auras_live.gd` (2026-09-29, Godot client, private UDP 5088, game-server `e827f09`, level-10 Human mage `Fbauras` 12 yd from a Blackrock Spy) exits 0; screenshots in `data/diagnostics/auras-2026-09-29/`:
+- `01`: Arcane Intellect 1459 (icon 135932) at BuffButton0, "60 m", right edge 270 UI units from the screen's right, 10 down. The server logs the mage's Intellect 38 → 39.14.
+- `02`: F1 self-target: the same buff as a large (21 px) TargetFrame buff.
+- `03`: Frostbolt's Chilled 205708 (icon 135846) as a large debuff with its Magic border and swipe.
+- `04`: Chilled, then Polymorph 118 (icon 136071), both large debuffs in instance order.
+- `05`: Chilled has expired; Polymorph's swipe grew by 6 s of 60.
+
 `data/diagnostics/buffs-20260924/` (2026-09-24, level-10 Warrior InviteTarget): Battle Shout (6673) shows "60 m" under its icon at BuffButton0 x=1620 y=10, the hover tooltip shows it, and `ui.rightClick("BuffButton0")` removes it (`buff-proof.js`).
 
 ## Implementation inventory
