@@ -269,6 +269,19 @@ fn heap_bytes(data: &SpellCatalogData) -> usize {
             .sum::<usize>()
 }
 
+/// SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK and
+/// SPELL_ATTR2_INITIATE_COMBAT_POST_CAST_ENABLES_AUTO_ATTACK.
+#[test]
+fn melee_abilities_start_auto_attack_and_frostbolt_does_not() {
+    let Some(data) = catalog() else { return };
+    let auto_attack = |id| data.get(id).unwrap().auto_attack;
+    assert_eq!(auto_attack(1464), SpellAutoAttack::OnCast, "Slam");
+    assert_eq!(auto_attack(12294), SpellAutoAttack::OnCast, "Mortal Strike");
+    assert_eq!(auto_attack(585), SpellAutoAttack::PostCast, "Smite");
+    assert_eq!(auto_attack(116), SpellAutoAttack::None, "Frostbolt");
+    assert_eq!(auto_attack(6673), SpellAutoAttack::None, "Battle Shout");
+}
+
 #[test]
 fn passive_flag_and_spellbook_tabs() {
     let Some(data) = catalog() else { return };
