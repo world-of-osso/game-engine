@@ -62,7 +62,7 @@ def snapshot_repo(repo, destination, paths, name):
             raise ValueError(f"unsupported source file: {source}")
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
+        shutil.copy2(source, target)
     # Tracked root PNGs and the taffy README are never accepted from untracked files.
     for relative in git_files(repo, paths, False):
         if relative in tracked or not allowed(name, relative, False):
@@ -73,7 +73,7 @@ def snapshot_repo(repo, destination, paths, name):
         if source.is_file():
             target = destination / relative
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
+            shutil.copy2(source, target)
 
 
 def validate_sources(context):
