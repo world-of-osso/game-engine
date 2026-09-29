@@ -47,7 +47,7 @@ func run_test() -> void:
 	state.repeat_u = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
 	state.repeat_v = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
 	sampler = rd.sampler_create(state)
-	var directory := get_script().resource_path.get_base_dir().path_join("../shaders")
+	var directory: String = get_script().resource_path.get_base_dir().path_join("../shaders")
 	if not compile_shader(directory.path_join("bloom_downsample.glsl"), ""):
 		finish()
 		return
