@@ -19,8 +19,10 @@ References:
 - [x] `PlayerInput` while swimming: `swimming` true, `jumping` false, `position` the predicted feet; a vertical-only swim step that changed height counts as motion in `report()` and sends an input with zero direction; when it stops (key released, surface or seabed reached) exactly one stop is sent.
 - [x] `MirrorTimersData` applies start (value, max, scale, paused), pause and stop per timer (fatigue, breath, feign death) and counts running bars by `scale` ms per ms, clamped to `0..max`; a restart reuses the timer's frame, a new timer takes the first free of three.
 - [x] `MirrorTimerContainer` at TOP y -100; shown timers stack 206×32 in frame order; a 195×13 bar at TOP y -2 filled with `MirrorTimerAtlas[timer]` (breath `ui-castingbar-filling-applyingcrafting`) revealing `value/max` of the crop over `ui-castingbar-background`, under `ui-castingbar-frame`, over `ui-castingbar-textbox`, label in white 10 pt under the bar. No timer hides the container.
-- [ ] The server sends no mirror timer and deals no drowning damage. Proposed contract (not in shared-protocol): owner-only `MirrorTimerStart { timer: u8 (0 fatigue, 1 breath, 2 feign death), value_ms: i32, max_value_ms: i32, scale: f32, paused: bool, spell_id: i32 }`, `MirrorTimerPause { timer: u8, paused: bool }`, `MirrorTimerStop { timer: u8 }`; the server starts breath when the head goes under, refills it upward on surfacing, stops it when full, and deals drowning damage every 2 s at 0. Until then only `start_mirror_timer`/`stop_mirror_timer` (GDScript) drive the bar.
-- [ ] The server ignores the reported height: it keeps gravity and the ground clamp, so a floating swimmer stays on the seabed for the server and every other client.
+- [x] The server's `MirrorTimerStart { timer, value_ms, max_value_ms, scale, paused, spell_id }`, `MirrorTimerPause { timer, paused }` and `MirrorTimerStop { timer }` (shared-protocol `MirrorTimerChannel`; timer 0 fatigue, 1 breath, 2 feign death) drive `MirrorTimersData` in send order; an unknown timer fails explicitly. Breath starts when the surface is more than 2.03128 yd over the feet, lasts 180 s and drowns every 1 s at 0 (game-server `docs/specs/breath-and-drowning.md`). No GDScript call starts or stops a bar.
+- [x] The server adopts the reported swim height within `[ground, swim_top]` (game-server `docs/specs/player-height.md`); other clients draw the replicated height.
+- [x] A swimmer's height changes no faster than `SWIM_SPEED` × the speed modifier, pitched movement and Ascend/Descend combined, the vertical rate the server grants.
+- [x] The swim threshold and floating height are shared-protocol `SWIM_DEPTH`, `is_swimming` and `swim_top`, as on the server.
 - [ ] Not built: underwater camera/fog, swim-surface bobbing animation, jumping out of the water at a ledge, mount dismount on the client, Undead/Water Breathing breath duration.
 
 ## Tests
@@ -28,10 +30,11 @@ References:
 - `godot/rust/src/gameplay.rs`: `space_ascends_to_the_surface_and_x_descends_to_the_seabed`, `walking_into_deep_water_floats_at_the_surface_at_swim_speed`, `slow_frames_wade_in_to_the_floating_height`, `mouse_steered_forward_swim_follows_camera_pitch` on cached `azeroth_32_48`.
 - `godot/core/tests/input_bindings_data.rs`: `SitOrStand` default X, label, section.
 - `godot/ui-model/tests/mirror_timer.rs`: countdown/pause/stop/refill, retail layout, atlas crop, label, stacking.
-- `godot/tests/swimming_live.gd`: dev server 127.0.0.1:5000, real Space/X key events, breath bar drawn under water.
+- `godot/rust/src/gameplay.rs` `pitched_swim_with_ascend_or_descend_changes_height_at_most_at_swim_speed`; `godot/rust/src/mirror_timers.rs` server message tests; `godot/rust/src/world.rs` `remote_swimmer_follows_replicated_height_not_the_seabed`.
+- `godot/network/src/wire_tests.rs` `native_bridge_receives_mirror_timer_messages_in_order` (loopback Lightyear server).
+- `godot/tests/swimming_live.gd`: dev server 127.0.0.1:5000, real Space/X key events, feet below the 2.03 yd head-under line: server breath bar shown, draining at 1/180 per s, hidden after surfacing; server height follows the swimmer. `SWIM_DROWN=1` also waits for breath 0 and a drowning hit; on 2026-09-28 it fails twice: breath reaches 0 about 184 s after diving and the local player's replicated health stays 292 for 10 s (not yet known whether the server deals no damage or its health does not replicate).
 - `godot/tests/swimming_input_probe.gd` (loopback `native_input_fixture swimming`): shore crossing floats at the surface.
 
 ## Assumptions
 
 - The mouse-steered pitch rule follows Retail play (the character pitches with mouselook); no Blizzard source for it is in the extracted UI.
-- Head under water, for the live fixture's breath start, is 1 yd below the floating height.
