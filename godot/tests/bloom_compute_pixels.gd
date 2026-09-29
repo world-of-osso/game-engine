@@ -4,8 +4,10 @@ extends SceneTree
 ## Creates a local RD, never reads display/tonemapped pixels. Tests the production
 ## shaders against bloom_reference.gd after every down/up pass, including alpha.
 ## CPU expected images quantize R/G to unsigned 5e6m and B to unsigned 5e5m
-## after every packed store. One packed ULP tolerates GPU conversion rounding
-## and boundary crossings; final RGBA16F permits one half ULP. Not bit-exact.
+## after every packed store using truncation, gated by an exact-bit calibration
+## that storage and raster attachments both truncate on the tested device.
+## Other rounding fails explicitly, not an auto-selected oracle. One packed ULP
+## tolerates arithmetic boundary crossings; final RGBA16F permits one half ULP.
 ## Bounded 32-height spatial fixtures; full 512-height constant fixture exercises
 ## all 8 configured levels. This is NOT compositor lifecycle/rendered-UI proof.
 
@@ -47,11 +49,14 @@ func run_test() -> void:
 	state.repeat_u = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
 	state.repeat_v = RenderingDevice.SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE
 	sampler = rd.sampler_create(state)
-	# Diagnostic-only mode isolates format conversion from all bloom filtering.
-	# -- --calibrate-packed prints identical f32 inputs through storage and a
-	# raster color attachment, alongside exact nearest-even/truncation bits.
+	# The CPU oracle models only measured same-format storage/raster truncation.
+	# Check it on this device before any numeric bloom comparisons. Diagnostic
+	# -- --calibrate-packed stops after printing and verifying the exact bits.
+	if not calibrate_packed_stores():
+		finish()
+		return
+	release_fixture_resources()
 	if OS.get_cmdline_user_args().has("--calibrate-packed"):
-		calibrate_packed_stores()
 		finish()
 		return
 	var directory: String = get_script().resource_path.get_base_dir().path_join("../shaders")
@@ -80,7 +85,7 @@ func run_test() -> void:
 	finish()
 
 
-func calibrate_packed_stores() -> void:
+func calibrate_packed_stores() -> bool:
 	var compute_source := RDShaderSource.new()
 	compute_source.source_compute = """#version 450
 layout(local_size_x=1,local_size_y=1,local_size_z=1) in;
@@ -90,7 +95,7 @@ void main() { imageStore(target,ivec2(0),p.value); }
 """
 	var compute_shader := compile_calibration_shader(compute_source)
 	if not compute_shader.is_valid():
-		return
+		return false
 	var compute_pipeline := rd.compute_pipeline_create(compute_shader)
 	pipelines.append(compute_pipeline)
 	var raster_source := RDShaderSource.new()
@@ -107,7 +112,7 @@ void main() { color=p.value; }
 """
 	var raster_shader := compile_calibration_shader(raster_source)
 	if not raster_shader.is_valid():
-		return
+		return false
 	var format := RDTextureFormat.new()
 	format.width = 1
 	format.height = 1
@@ -120,7 +125,7 @@ void main() { color=p.value; }
 	if not rd.texture_is_format_supported_for_usage(format.format, format.usage_bits):
 		failures += 1
 		push_error("Calibration packed storage/color-attachment/readback unsupported")
-		return
+		return false
 	var storage := rd.texture_create(format, RDTextureView.new())
 	var attachment := rd.texture_create(format, RDTextureView.new())
 	textures.append(storage)
@@ -128,13 +133,13 @@ void main() { color=p.value; }
 	if not storage.is_valid() or not attachment.is_valid():
 		failures += 1
 		push_error("Calibration texture allocation failed")
-		return
+		return false
 	var attachments: Array[RID] = [attachment]
 	var framebuffer := rd.framebuffer_create(attachments)
 	if not framebuffer.is_valid():
 		failures += 1
 		push_error("Calibration framebuffer allocation failed")
-		return
+		return false
 	var blend := RDPipelineColorBlendState.new()
 	var blend_attachments: Array[RDPipelineColorBlendStateAttachment] = [
 		RDPipelineColorBlendStateAttachment.new()
@@ -163,7 +168,7 @@ void main() { color=p.value; }
 		if binding.is_valid():
 			rd.free_rid(binding)
 		rd.free_rid(framebuffer)
-		return
+		return false
 	# Powers of two make all inputs exactly representable in f32. Cases above
 	# and below half-ULP distinguish truncation from nearest and ties-to-even;
 	# the odd tie, binade crossing and subnormal cover different conversion rules.
@@ -183,6 +188,7 @@ void main() { color=p.value; }
 			)
 		],
 	]
+	var matches_truncation := true
 	for entry in cases:
 		var values: PackedFloat32Array = entry[1]
 		var parameters := values.to_byte_array()
@@ -203,6 +209,15 @@ void main() { color=p.value; }
 		var rendered := rd.texture_get_data(attachment, 0).decode_u32(0)
 		var nearest := expected_packed_bits(values, true)
 		var truncated := expected_packed_bits(values, false)
+		if stored != truncated or rendered != truncated:
+			matches_truncation = false
+			failures += 1
+			push_error(
+				(
+					"Packed oracle precondition failed for %s: storage=0x%08x raster=0x%08x required truncation=0x%08x; this device's rounding is outside the calibrated test scope"
+					% [entry[0], stored, rendered, truncated]
+				)
+			)
 		print(
 			(
 				"BLOOM_STORE_CALIBRATION %s f32=%s storage=0x%08x raster=0x%08x nearest=0x%08x trunc=0x%08x storage_nearest=%s storage_trunc=%s raster_nearest=%s raster_trunc=%s"
@@ -240,6 +255,7 @@ void main() { color=p.value; }
 			)
 	rd.free_rid(binding)
 	rd.free_rid(framebuffer)
+	return matches_truncation
 
 
 func compile_calibration_shader(source: RDShaderSource) -> RID:
@@ -269,7 +285,7 @@ func expected_packed_bits(values: PackedFloat32Array, nearest: bool) -> int:
 		var value := float(values[channel])
 		var step := packed_ulp(value, mantissa)
 		var rounded := (
-			quantize_unsigned_float(value, mantissa) if nearest else floorf(value / step) * step
+			quantize_nearest_even(value, mantissa) if nearest else floorf(value / step) * step
 		)
 		var encoded := 0
 		if rounded > 0.0 and rounded < pow(2.0, -14):
@@ -403,12 +419,17 @@ func packed_ulp(value: float, mantissa_bits: int) -> float:
 
 
 func quantize_unsigned_float(value: float, mantissa_bits: int) -> float:
+	# Calibration rejects devices not sharing the observed raster/storage rule.
+	var step := packed_ulp(value, mantissa_bits)
+	return floorf(maxf(value, 0.0) / step) * step
+
+
+func quantize_nearest_even(value: float, mantissa_bits: int) -> float:
 	var step := packed_ulp(value, mantissa_bits)
 	var scaled := maxf(value, 0.0) / step
 	var integer := floori(scaled)
 	var fraction := scaled - integer
-	# Round-to-nearest ties-to-even. GPUs may select a neighbouring packed value;
-	# compare() explicitly permits one ULP, but the recurrence remains independent.
+	# Diagnostic contrast only, not the numeric fixture's packed-store oracle.
 	if fraction > 0.5 or (fraction == 0.5 and (integer & 1) != 0):
 		integer += 1
 	var rounded := integer * step
@@ -525,16 +546,23 @@ func compare(actual: Image, expected: Image, label: String, constant: bool) -> v
 	print("BLOOM_COMPUTE ", label, " extent=", actual.get_size(), " max_error=", max_error)
 
 
-func finish() -> void:
+func release_fixture_resources() -> void:
 	for texture in textures:
 		if texture.is_valid():
 			rd.free_rid(texture)
+	textures.clear()
 	for pipeline in pipelines:
 		if pipeline.is_valid():
 			rd.free_rid(pipeline)
+	pipelines.clear()
 	for shader in shaders:
 		if shader.is_valid():
 			rd.free_rid(shader)
+	shaders.clear()
+
+
+func finish() -> void:
+	release_fixture_resources()
 	if sampler.is_valid():
 		rd.free_rid(sampler)
 	if rd != null:
