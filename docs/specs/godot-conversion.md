@@ -4,6 +4,10 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 ## What it must do
 
+### Graphics bloom (native work in progress)
+
+- [ ] Persisted Bloom Enable (default off) and Bloom Intensity (default 0.08, range 0–1) must control startup and live native 3D bloom without changing authored material emission or 2D UI. Preserve the configured Bevy threshold/soft knee, Karis first downsample, 13-tap pyramid, tent upsample and additive mip weighting; stock Godot glow is not an equivalent filter. `06da11eb` establishes a native rendered RED: real authored toggle/persistence and disabled emissive scene pass, but saved enabled bloom adds no halo (`data/diagnostics/bloom-native-red/run-emission.log`, exit 1). Test-only CPU reference exists; production integration and numeric GPU/visual acceptance remain pending.
+
 ### Graphics render scale (bounded native buffer/UI proof)
 
 - [x] Saved Render Scale 0.5–1.0 sets the native startup and live 3D internal render buffer to that fraction of the target after Options input and viewport resize; the 2D UI stays at full target resolution with unchanged pixel position at UI Scale 1.0. `godot/tests/render_scale_buffers.gd` probes the actual 3D compositor buffers and 2D framebuffer. The prior Vulkan RED at `e3a5c92b` measured 1280×720 instead of 960×540 at startup 0.75 (`data/diagnostics/render-scale-red/red-e3a5c92b.log`, exit 1). Depot `40n2xh4n2l` built `ca2f75c0` (exit 0; `data/diagnostics/render-scale-depot-green-build.log`); the offscreen Vulkan GREEN reports startup 0.75 = 960×540/1280×720 target, live 0.5 = 640×360, live 1.0 = 1280×720, resized 1.0 = 1600×900, and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). Its same 2D probe geometry/red pixel and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof only: it does **not** prove all 3D scenes, visual equality, bloom, or full parity. Legacy paired CAS/sharpening below 0.999 remains an explicit full-conversion obligation.
