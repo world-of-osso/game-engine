@@ -267,7 +267,7 @@ fn target_frame_state(unit: &UnitSnapshot, viewer_level: Option<u8>) -> UnitFram
     state
 }
 
-fn player_frame_state(unit: &UnitSnapshot, in_rest_area: bool) -> UnitFrameState {
+fn player_frame_state(unit: &UnitSnapshot, in_rest_area: bool, spec: Option<u32>) -> UnitFrameState {
     let mut state = UnitFrameState::named(
         unit.player
             .as_ref()
@@ -287,7 +287,8 @@ fn player_frame_state(unit: &UnitSnapshot, in_rest_area: bool) -> UnitFrameState
     state.secondary_resource = unit
         .powers
         .as_ref()
-        .and_then(SecondaryResourceEntry::from_unit_powers);
+        .and_then(SecondaryResourceEntry::from_unit_powers)
+        .filter(|resource| resource.shown_for_spec(spec));
     state
 }
 
@@ -454,7 +455,7 @@ impl GameClient {
             .world
             .local_player_id()
             .and_then(|id| self.units.get(&id))
-            .map(|unit| player_frame_state(unit, self.in_rest_area));
+            .map(|unit| player_frame_state(unit, self.in_rest_area, self.account.spells.spec()));
         let state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             return ui.bind_mut().set_state(state);
