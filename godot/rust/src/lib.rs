@@ -24,7 +24,9 @@ mod nameplates;
 #[path = "../../../src/game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
 mod particles;
+mod player_spells;
 mod scene;
+mod spells;
 mod startup;
 mod targeting;
 mod terrain;
@@ -111,6 +113,7 @@ pub struct GameClient {
     startup_customize: bool,
     targeting: targeting::Targeting,
     nameplates: nameplates::Nameplates,
+    spells: spells::SpellsHud,
 }
 
 #[godot_api]
@@ -175,6 +178,7 @@ impl INode3D for GameClient {
             startup_customize: false,
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
+            spells: spells::SpellsHud::default(),
             units: HashMap::new(),
             world: world::WorldUnits::new(data_root, cache_root),
             server_hostname: if cfg!(debug_assertions) {
@@ -206,7 +210,14 @@ impl INode3D for GameClient {
         if key.is_echo() && key.get_keycode() == godot::global::Key::ESCAPE {
             return;
         }
-        // Retail Escape closes the open world map before the game menu.
+        // Retail Escape closes the spellbook, then the world map, before the game menu.
+        if key.get_keycode() == godot::global::Key::ESCAPE && self.spellbook_open() {
+            self.close_spellbook();
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         if key.get_keycode() == godot::global::Key::ESCAPE && self.world_map.is_open() {
             self.close_world_map();
             if let Some(mut viewport) = self.base().get_viewport() {
@@ -249,6 +260,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_creation_scene(delta as f32))
             .and_then(|()| self.update_player_input(delta as f32))
             .and_then(|()| self.update_targeting())
+            .and_then(|()| self.update_spells(delta as f32))
             .and_then(|()| self.update_world_map())
             .and_then(|()| self.update_entrance_bar(delta as f32))
             .map(|()| self.world.advance(delta as f32))
@@ -435,6 +447,12 @@ impl GameClient {
 
     /// Start (or restart) retail mirror timer `timer` (0 fatigue, 1 breath, 2 feign death):
     /// `value` of `max_value` ms changing by `scale` ms per ms. Returns an error or "".
+    /// Known spells, bar, cooldowns, sent casts, errors and spellbook entries.
+    #[func]
+    fn spells_state(&self) -> VarDictionary {
+        self.spells_snapshot()
+    }
+
     #[func]
     fn start_mirror_timer(
         &mut self,
@@ -900,6 +918,7 @@ impl GameClient {
                 AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
                 AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
                 AccountEvent::TransferError(error) => self.add_world_error(&error)?,
+                AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
                 AccountEvent::UnitUpdated(unit) => {
                     let mut parent = self.to_gd().upcast::<Node3D>();
                     self.world.upsert(&mut parent, &unit);

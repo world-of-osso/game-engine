@@ -38,6 +38,9 @@ const DAMAGE_OR_HEAL_AURAS: [u16; 2] = [3, 8];
 
 /// `SpellMisc.Attributes_0` bit of passive spells.
 const SPELL_ATTR0_PASSIVE: i64 = 0x40;
+/// `SpellMisc.Attributes_0` SPELL_ATTR0_DO_NOT_DISPLAY: hidden in the spellbook,
+/// aura icons and combat log.
+const SPELL_ATTR0_DO_NOT_DISPLAY: i64 = 0x80;
 
 pub(super) fn build_spells(dir: &Path) -> Result<Vec<CatalogSpell>, String> {
     let mut spells = load_names(dir)?;
@@ -193,7 +196,9 @@ fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         spell.school_mask = row.get(5)?;
         spell.icon_fdid = row.get(6)?;
         spell.active_icon_fdid = row.get(7)?;
-        spell.passive = row.get::<i64>(8)? & SPELL_ATTR0_PASSIVE != 0;
+        let attributes = row.get::<i64>(8)?;
+        spell.passive = attributes & SPELL_ATTR0_PASSIVE != 0;
+        spell.hidden = attributes & SPELL_ATTR0_DO_NOT_DISPLAY != 0;
         Ok(())
     })
 }

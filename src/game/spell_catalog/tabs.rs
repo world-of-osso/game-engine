@@ -4,6 +4,10 @@
 //! Rule: a spell of the active non-Initial spec (its `SpecializationSpells` rows or
 //! mastery) goes on the spec tab; else a spell of any class skill line (`SkillLine`
 //! category 7 named like a `ChrClasses` row) goes on the class tab; else General.
+//!
+//! Future spells: the class line's auto-learned `SkillLineAbility` rows
+//! (AcquireMethod 1, 2, 4, as the server grants them) and the active spec's
+//! `SpecializationSpells`, each with its `SpellLevels.SpellLevel` (DifficultyID 0).
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -14,6 +18,19 @@ use super::csv_records::CsvTable;
 const SKILL_CATEGORY_CLASS: u32 = 7;
 /// `ChrSpecialization.OrderIndex` of the pre-level-10 "Initial" spec.
 const INITIAL_SPEC_ORDER: u32 = 4;
+/// SkillLineAbilityAcquireMethod AutomaticSkillRank, AutomaticCharLevel and
+/// LearnedOrAutomaticCharLevel (TrinityCore `DBCEnums.h`).
+const AUTO_LEARN_METHODS: [u32; 3] = [1, 2, 4];
+
+/// An auto-learned class spell and the level it is learned at.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LeveledSpell {
+    pub spell_id: u32,
+    /// `SpellLevels.SpellLevel`; 0 without a row.
+    pub level: u32,
+    /// `SkillLineAbility.RaceMasks_0/1`; all zero allows every race.
+    pub race_masks: [u32; 2],
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SpellbookTabKind {
@@ -38,6 +55,12 @@ pub struct SpellbookTabIndex {
     pub specs: HashMap<u32, SpecTabInfo>,
     /// Spell id → class id of the class skill line teaching it.
     pub class_spells: HashMap<u32, u32>,
+    /// Class id → its auto-learned class-line spells, by level then spell id.
+    pub class_progression: HashMap<u32, Vec<LeveledSpell>>,
+    /// `SpellLevels.SpellLevel` of spec spells.
+    pub spell_levels: HashMap<u32, u32>,
+    /// `ChrRaces.PlayableRaceBit` by race id.
+    pub race_bits: HashMap<u32, u32>,
 }
 
 impl SpellbookTabIndex {
@@ -69,6 +92,42 @@ impl SpellbookTabIndex {
         self.class_names.get(&class_id).map(String::as_str)
     }
 
+    /// Spells the player learns later: the class's auto-learned spells and the spec's
+    /// spells above `level` that the race may learn, by level.
+    pub fn future_spells(
+        &self,
+        class_id: u32,
+        race_id: u32,
+        spec_id: Option<u32>,
+        level: u32,
+    ) -> Vec<LeveledSpell> {
+        let race_allows = |masks: [u32; 2]| {
+            masks == [0, 0]
+                || self.race_bits.get(&race_id).is_some_and(|&bit| {
+                    let mask = u64::from(masks[0]) | (u64::from(masks[1]) << 32);
+                    bit < 64 && mask & (1 << bit) != 0
+                })
+        };
+        let class = self.class_progression.get(&class_id).into_iter().flatten();
+        let spec = spec_id
+            .and_then(|id| self.specs.get(&id))
+            .into_iter()
+            .flat_map(|spec| &spec.spells)
+            .map(|&spell_id| LeveledSpell {
+                spell_id,
+                level: self.spell_levels.get(&spell_id).copied().unwrap_or(0),
+                race_masks: [0, 0],
+            });
+        let mut future: Vec<LeveledSpell> = class
+            .copied()
+            .chain(spec)
+            .filter(|spell| spell.level > level && race_allows(spell.race_masks))
+            .collect();
+        future.sort_by_key(|spell| (spell.level, spell.spell_id));
+        future.dedup_by_key(|spell| spell.spell_id);
+        future
+    }
+
     /// Spec tab title; `None` for the Initial spec, which has no tab.
     pub fn spec_name(&self, spec_id: Option<u32>) -> Option<&str> {
         let spec = self.specs.get(&spec_id?)?;
@@ -80,12 +139,71 @@ pub(super) fn load_tab_index(dir: &Path) -> Result<SpellbookTabIndex, String> {
     let class_names = load_class_names(dir)?;
     let mut specs = load_specs(dir)?;
     add_spec_spells(dir, &mut specs)?;
-    let class_spells = load_class_spells(dir, &class_names)?;
+    let (class_spells, class_abilities) = load_class_spells(dir, &class_names)?;
+    let spell_levels = load_spell_levels(dir)?;
+    let level_of = |spell_id: &u32| spell_levels.get(spell_id).copied().unwrap_or(0);
+    let mut class_progression: HashMap<u32, Vec<LeveledSpell>> = HashMap::new();
+    for ability in class_abilities {
+        class_progression
+            .entry(ability.class_id)
+            .or_default()
+            .push(LeveledSpell {
+                spell_id: ability.spell_id,
+                level: level_of(&ability.spell_id),
+                race_masks: ability.race_masks,
+            });
+    }
+    for spells in class_progression.values_mut() {
+        spells.sort_by_key(|spell| (spell.level, spell.spell_id));
+        spells.dedup_by_key(|spell| spell.spell_id);
+    }
+    let spec_levels = specs
+        .values()
+        .flat_map(|spec| &spec.spells)
+        .map(|spell_id| (*spell_id, level_of(spell_id)))
+        .collect();
     Ok(SpellbookTabIndex {
         class_names,
         specs,
         class_spells,
+        class_progression,
+        spell_levels: spec_levels,
+        race_bits: load_race_bits(dir)?,
     })
+}
+
+/// An auto-learned `SkillLineAbility` row of a class line.
+struct ClassAbility {
+    class_id: u32,
+    spell_id: u32,
+    race_masks: [u32; 2],
+}
+
+fn load_spell_levels(dir: &Path) -> Result<HashMap<u32, u32>, String> {
+    let mut levels = HashMap::new();
+    let columns = ["SpellID", "DifficultyID", "SpellLevel"];
+    for_each_record(dir, "SpellLevels", &columns, |row| {
+        let table = "SpellLevels";
+        if parse_u32(table, row[1])? == 0 {
+            levels.insert(parse_u32(table, row[0])?, parse_u32(table, row[2])?);
+        }
+        Ok(())
+    })?;
+    Ok(levels)
+}
+
+fn load_race_bits(dir: &Path) -> Result<HashMap<u32, u32>, String> {
+    let mut bits = HashMap::new();
+    for_each_record(dir, "ChrRaces", &["ID", "PlayableRaceBit"], |row| {
+        let bit: i64 = row[1]
+            .parse()
+            .map_err(|_| format!("ChrRaces: bad integer {:?}", row[1]))?;
+        if bit >= 0 {
+            bits.insert(parse_u32("ChrRaces", row[0])?, bit as u32);
+        }
+        Ok(())
+    })?;
+    Ok(bits)
 }
 
 fn for_each_record(
@@ -161,10 +279,11 @@ fn add_spec_spells(dir: &Path, specs: &mut HashMap<u32, SpecTabInfo>) -> Result<
     })
 }
 
+/// Spell → class of every class-line spell, and the class lines' auto-learned rows.
 fn load_class_spells(
     dir: &Path,
     class_names: &HashMap<u32, String>,
-) -> Result<HashMap<u32, u32>, String> {
+) -> Result<(HashMap<u32, u32>, Vec<ClassAbility>), String> {
     let class_by_name: HashMap<&str, u32> = class_names
         .iter()
         .map(|(&id, name)| (name.as_str(), id))
@@ -180,12 +299,41 @@ fn load_class_spells(
         Ok(())
     })?;
     let mut class_spells = HashMap::new();
-    for_each_record(dir, "SkillLineAbility", &["SkillLine", "Spell"], |row| {
+    let mut abilities = Vec::new();
+    let columns = [
+        "SkillLine",
+        "Spell",
+        "AcquireMethod",
+        "ClassMask",
+        "RaceMasks_0",
+        "RaceMasks_1",
+    ];
+    for_each_record(dir, "SkillLineAbility", &columns, |row| {
         let table = "SkillLineAbility";
-        if let Some(&class_id) = class_lines.get(&parse_u32(table, row[0])?) {
-            class_spells.insert(parse_u32(table, row[1])?, class_id);
+        let Some(&class_id) = class_lines.get(&parse_u32(table, row[0])?) else {
+            return Ok(());
+        };
+        let spell_id = parse_u32(table, row[1])?;
+        class_spells.insert(spell_id, class_id);
+        let class_mask = parse_mask(table, row[3])?;
+        let class_bit = 1u32.checked_shl(class_id.saturating_sub(1)).unwrap_or(0);
+        if AUTO_LEARN_METHODS.contains(&parse_u32(table, row[2])?)
+            && (class_mask == 0 || class_mask & class_bit != 0)
+        {
+            abilities.push(ClassAbility {
+                class_id,
+                spell_id,
+                race_masks: [parse_mask(table, row[4])?, parse_mask(table, row[5])?],
+            });
         }
         Ok(())
     })?;
-    Ok(class_spells)
+    Ok((class_spells, abilities))
+}
+
+/// A signed 32-bit DB2 mask column as its bits.
+fn parse_mask(table: &str, raw: &str) -> Result<u32, String> {
+    raw.parse::<i64>()
+        .map(|value| value as u32)
+        .map_err(|_| format!("{table}: bad mask {raw:?}"))
 }

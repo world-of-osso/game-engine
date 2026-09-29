@@ -6,7 +6,7 @@
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use bevy::log::warn;
+use log::warn;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 

@@ -557,6 +557,7 @@ pub(crate) mod test_support {
             subtext: String::new(),
             passive,
             icon_file_data_id: id + 1,
+            available_at: None,
         }
     }
 

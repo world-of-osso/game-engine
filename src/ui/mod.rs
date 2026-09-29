@@ -129,6 +129,7 @@ pub mod addon_watcher;
 pub mod automation;
 mod automation_inworld;
 pub mod automation_script;
+pub mod cast_failed_text;
 pub mod character_creation_icons;
 pub mod chat_frame;
 pub mod game_plugin;
