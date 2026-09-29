@@ -578,6 +578,11 @@ impl WowAnimationPlayer {
     }
 
     /// The combat/spell clip layered over locomotion, or -1.
+    pub(crate) fn action_id(&self) -> i32 {
+        self.current_action_id()
+    }
+
+    /// The combat/spell clip layered over locomotion, or -1.
     #[func]
     fn current_action_id(&self) -> i32 {
         self.animation

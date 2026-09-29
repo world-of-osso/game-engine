@@ -14,7 +14,7 @@ ktx2-rw = { path = "../../bevy-patches/ktx2-rw" }
 taffy = { path = "../../bevy-patches/taffy" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
-shared = { path = "../../shared-protocol" }
+shared = { path = "../../shared-protocol-spellanim" }
 
 [profile.dev]
 debug = 1

@@ -13,14 +13,15 @@ use game_engine_session::{
     normalize_auth_token, token_path,
 };
 use shared::protocol::{
-    ActionBarSnapshot, AuthChannel, CastFailed, CharacterListUpdate, CombatChannel, CombatLogEvent,
-    CreateCharacter, CreateCharacterResponse, DeleteCharacter, DeleteCharacterResponse,
-    DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel,
-    InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse,
-    MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot,
-    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, SetDungeonDifficulty,
-    SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellsLearned,
-    SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
+    ActionBarSnapshot, AuthChannel, CastFailed, CharacterListUpdate, CombatChannel, CombatEvent,
+    CombatLogEvent, CreateCharacter, CreateCharacterResponse, DeleteCharacter,
+    DeleteCharacterResponse, DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect,
+    InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot,
+    LoadTerrain, LoginResponse, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld,
+    PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate, RegisterResponse,
+    RequestRaidInfo, SetDungeonDifficulty, SetTarget, SpecializationChanged, SpellCastIntent,
+    SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel,
+    WorldPortAck,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
@@ -84,8 +85,18 @@ pub enum AccountEvent {
     },
     /// The server rejected a cast request.
     CastFailed(CastFailed),
+    /// A melee swing outcome or resolved cast of a replicated unit.
+    Combat(CombatMessage),
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
+}
+
+/// Combat traffic that animates units and spawns spell visuals.
+pub enum CombatMessage {
+    /// `CombatEvent`: melee swing results (attacker swing, victim reaction), deaths.
+    Event(CombatEvent),
+    /// `SpellGo`: a cast resolved.
+    SpellGo(SpellGo),
 }
 
 /// Server messages for the NPC interaction and merchant host.
@@ -480,6 +491,8 @@ impl Account {
             || message.is::<SpellCooldownUpdate>()
             || message.is::<CastFailed>()
             || message.is::<CombatLogEvent>()
+            || message.is::<CombatEvent>()
+            || message.is::<SpellGo>()
     }
 
     /// Spell state lives on the account (like the quest log); rejections reach the host.
@@ -503,6 +516,12 @@ impl Account {
             spells.apply_cooldown(&decode(message)?);
         } else if message.is::<CastFailed>() {
             output.push(AccountEvent::CastFailed(decode(message)?));
+        } else if message.is::<CombatEvent>() {
+            output.push(AccountEvent::Combat(CombatMessage::Event(decode(message)?)));
+        } else if message.is::<SpellGo>() {
+            output.push(AccountEvent::Combat(CombatMessage::SpellGo(decode(
+                message,
+            )?)));
         } else {
             if self.combat_log.len() == COMBAT_LOG_KEEP {
                 self.combat_log.pop_front();

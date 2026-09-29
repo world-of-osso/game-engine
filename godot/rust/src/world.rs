@@ -22,6 +22,10 @@ use godot::{
 };
 use shared::components::{CreatureMotion, MovementControl, PlayerMotion, SheathState, UnitPose};
 
+#[path = "world_combat.rs"]
+pub(crate) mod combat;
+use combat::{MeleeWeapon, combat_stance};
+
 /// Unit node metadata: the replicated name (Godot renames duplicate siblings `@Node3D@N`).
 const UNIT_NAME_META: &str = "unit_name";
 
@@ -43,6 +47,12 @@ struct UnitNode {
     pose_anim: Option<u16>,
     /// The sheath state `visual`'s virtual items are placed for.
     sheath: Option<SheathState>,
+    /// Replicated `CombatStatus`: a standing unit holds its Ready stance.
+    in_combat: bool,
+    /// Main-hand weapon class of `appearance`, for combat clips.
+    weapon: MeleeWeapon,
+    /// `Item.SubclassID` of the main-hand weapon, for spell visual conditions.
+    main_hand_subclass: Option<u8>,
 }
 
 struct UnitMotion {
@@ -197,6 +207,9 @@ fn spawn_unit(
         pose: None,
         pose_anim: None,
         sheath: None,
+        in_combat: false,
+        weapon: MeleeWeapon::Unarmed,
+        main_hand_subclass: None,
     }
 }
 
@@ -463,8 +476,13 @@ fn sync_unit_animation(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
     if unit.death_applied {
         return;
     }
-    let Some(id) =
-        creature_animation_change(unit.animation, snapshot.creature_motion, unit.pose_anim)
+    // In combat a creature stands in its Ready stance instead of its held pose.
+    let pose_anim = if unit.in_combat {
+        Some(unit.weapon.ready_anim())
+    } else {
+        unit.pose_anim
+    };
+    let Some(id) = creature_animation_change(unit.animation, snapshot.creature_motion, pose_anim)
     else {
         return;
     };
@@ -536,7 +554,9 @@ impl WorldUnits {
         }
         unit.is_player = snapshot.player.is_some();
         unit.player_motion = snapshot.player_motion;
+        unit.in_combat = snapshot.in_combat;
         sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
+        (unit.weapon, unit.main_hand_subclass) = combat::unit_weapon_class(unit, &mut self.models);
         sync_unit_sheath(unit, snapshot, &mut self.models);
         sync_unit_pose(unit, snapshot, &mut self.models);
         sync_unit_death(unit, snapshot);
@@ -600,8 +620,9 @@ impl WorldUnits {
             else {
                 continue;
             };
+            let movement = combat_stance(locomotion.animation_id, unit.in_combat, unit.weapon);
             if let Err(error) = animation.bind_mut().update_locomotion(
-                locomotion.animation_id,
+                movement,
                 locomotion.jumping,
                 locomotion.running_forward,
             ) {
@@ -690,9 +711,10 @@ impl WorldUnits {
         let mut animation = visual
             .try_get_node_as::<WowAnimationPlayer>("M2Animation")
             .ok_or_else(|| format!("Local player {} has no bone animation", unit.name))?;
+        let movement = combat_stance(animation_id, unit.in_combat, unit.weapon);
         animation
             .bind_mut()
-            .update_locomotion(animation_id, jumping, running_forward)
+            .update_locomotion(movement, jumping, running_forward)
             .map_err(|error| format!("Local player {} animation: {error}", unit.name))
     }
 
