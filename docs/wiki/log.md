@@ -6,11 +6,11 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] system | Native WMO footstep surface override
 
-Shared the legacy root-wide material priority and inclusive smallest-volume placement selection with the native terrain reader. Global WDT and streamed MODF surfaces are queryable before node/physics completion; no playback. Updated [[sound]] and [[terrain]].
+Shared the legacy root-wide material priority and inclusive smallest-volume placement selection with the native terrain reader. Global WDT and streamed MODF surfaces are queryable before node/physics completion; native footstep audio trigger/playback remains absent. Verifier853 is pending without an independent PASS. Updated [[sound]] and [[terrain]].
 
 ## [2026-09-28] system | Native terrain surface query
 
-The native tile reader caches local GroundEffectTexture/TerrainTypeSounds DB2s once and stores shared-policy classifications for each parsed `_tex0`/height-grid chunk. Streamed terrain exposes an exact half-open surface query, cleared on reset; no WMO classification or playback. Updated [[terrain]] and [[sound]].
+The native tile reader caches local GroundEffectTexture/TerrainTypeSounds DB2s once and stores shared-policy classifications for each parsed `_tex0`/height-grid chunk. Streamed terrain exposes an exact half-open surface query, cleared on reset. `2209dce4` subsequently adds native WMO material/bounds lookup; native footstep audio trigger/playback remains absent. Updated [[terrain]] and [[sound]].
 
 ## [2026-09-28] investigation | Invalid character-creation customization combos
 
@@ -50,7 +50,7 @@ Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`
 
 ## [2026-09-28] system | Shared terrain surface selection prerequisite
 
-`70e047ff` extracts dominant ADT effect, texture, and footstep-surface selection into `terrain_surface_data`, shared by root and `godot/core`. Core concrete layer tests and existing root dominant-selector tests pass; root terrain/footstep loaders, Bevy GroundEffect cache/loading, and unresolved-Dirt behavior remain unchanged. This shared prerequisite did not itself add a native runtime consumer or footstep playback; verifier839 is pending. `3d6df314` separately adds native per-chunk DB2/listfile surface metadata and `StreamedTerrain::surface_at`; no WMO surface or audio playback follows, and verifier849 is pending without an independent PASS. Updated [[terrain]], [[sound]], and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+`70e047ff` extracts dominant ADT effect, texture, and footstep-surface selection into `terrain_surface_data`, shared by root and `godot/core`. Core concrete layer tests and existing root dominant-selector tests pass; root terrain/footstep loaders, Bevy GroundEffect cache/loading, and unresolved-Dirt behavior remain unchanged. This shared prerequisite did not itself add a native runtime consumer or footstep playback; verifier839 is pending. `3d6df314` separately adds native per-chunk DB2/listfile surface metadata and `StreamedTerrain::surface_at`; `2209dce4` adds native WMO material/bounds lookup through `surface_at_position`. Native footstep audio trigger/playback remains absent; verifier849 and verifier853 are pending without independent PASS claims. Updated [[terrain]], [[sound]], and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
 ## [2026-09-28] system | Shared footstep phase remains a prerequisite
 
