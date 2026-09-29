@@ -427,16 +427,11 @@ pub(crate) fn shared_texture(
 }
 
 pub(crate) fn texture_from_gpu_image(image: blp::GpuImage) -> Result<Gd<ImageTexture>, String> {
-    let image = match image {
-        blp::GpuImage::Compressed(image) => image,
-        blp::GpuImage::Rgba(rgba) => {
-            return texture_from_rgba(&rgba.pixels, rgba.width, rgba.height);
-        }
-    };
     let format = match image.format {
-        blp::BlockFormat::Dxt1 => image::Format::DXT1,
-        blp::BlockFormat::Dxt3 => image::Format::DXT3,
-        blp::BlockFormat::Dxt5 => image::Format::DXT5,
+        blp::GpuFormat::Dxt1 => image::Format::DXT1,
+        blp::GpuFormat::Dxt3 => image::Format::DXT3,
+        blp::GpuFormat::Dxt5 => image::Format::DXT5,
+        blp::GpuFormat::Rgba8 => image::Format::RGBA8,
     };
     let (width, height) = (image.width, image.height);
     let godot_image = Image::create_from_data(
@@ -448,7 +443,7 @@ pub(crate) fn texture_from_gpu_image(image: blp::GpuImage) -> Result<Gd<ImageTex
     )
     .ok_or_else(|| format!("Godot rejected {width}x{height} {format:?} image"))?;
     ImageTexture::create_from_image(&godot_image)
-        .ok_or_else(|| format!("Godot rejected {width}x{height} compressed texture"))
+        .ok_or_else(|| format!("Godot rejected {width}x{height} {format:?} texture"))
 }
 
 fn compose_texture(
