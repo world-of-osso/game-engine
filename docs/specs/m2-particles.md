@@ -47,6 +47,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 - `godot/core/tests/m2_particles.rs` — parsing of 197007, pool capacity, ramps, appearance, twinkle, lifespan, integration, steady state, long updates, world-space gravity, quad axes, blend depth/alpha test.
 - `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint and fade.
 - `godot/tests/wmo_doodads_flow.gd` — portal pools empty while Jail01 is culled, all six drawing at the trigger.
+- `godot/tests/world_portal_particles_flow.gd` via `native_input_fixture portal-particles-{disabled,enabled}` — owned persisted startup setting, authenticated Azeroth 30_48 GameClient, placed `sw_magicdistrict` MODD 1112 meshes in both modes, absent particle root/state when disabled and six simulated/drawn emitter pools when enabled. Runtime proof pending; keep the checkbox unchecked until both modes pass.
 
 ## Known gaps (current cycle)
 
