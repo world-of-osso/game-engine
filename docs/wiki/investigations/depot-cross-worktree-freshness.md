@@ -6,7 +6,7 @@ A shared locked Cargo target cache could reuse dependency artifacts from a newer
 
 The failure sequence was worktree A, then older worktree B, then A again. The final A build failed with `E0425` despite its exact source being present in the uploaded snapshot. The shared target cache's artifact freshness, not snapshot collection, was stale.
 
-`e4b213a8` refreshes staged compile-input timestamps under the shared target lock. Repeating A/B/A then recompiled dependencies for every build and passed. The first full refreshed Options build passed in 49.274 s on Depot project `003c4ttwqh`, build `cpw7crx3ww`, installing `target/debug/libgame_engine_godot.so` (272,736,240 bytes; SHA-256 prefix `a7ca…`). Local extension-load verification is pending.
+`e4b213a8` refreshes staged compile-input timestamps under the shared target lock. Repeating A/B/A then recompiled dependencies for every build and passed. The first full refreshed Options build passed in 49.274 s on Depot project `003c4ttwqh`, build `cpw7crx3ww`, installing `target/debug/libgame_engine_godot.so` (272,736,240 bytes; SHA-256 `a7ca8a89798d8024a66be9cc9044f200cedb077329047a1af7d1fc3cdbcd0b0b`). Verifier 954 then headlessly loaded pinned Godot 4.7.2 with isolated XDG paths, registered and instantiated `GameClient` as `Node3D`, and attached it to a scene tree. This proves class load and attachment only.
 
 The earlier 13.321 s warm constant-change result predates the refresh and does not establish cross-worktree correctness or post-refresh performance. Cleanup reported 98.28 GB allocated cache removed; a concurrent/shared-extent measurement showed 0.754 GB less immediately free space, so it does not establish physical-space reclamation.
 
@@ -15,6 +15,7 @@ The earlier 13.321 s warm constant-change result predates the refresh and does n
 - [Remote Godot builds](../../remote-builds.md) — current helper boundary and recorded result.
 - `data/diagnostics/depot-freshness/` — A/B/A reproduction results and logs.
 - `/home/osso/.worktrees/.game-engine-options-depot-20260929/fixed-build.log` — successful refreshed build output.
+- `/tmp/claude/verify-depot-options-migration.md` — verifier 954 installed-artifact and isolated Godot smoke proof.
 
 ## See Also
 
