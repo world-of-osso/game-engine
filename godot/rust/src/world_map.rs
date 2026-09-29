@@ -51,6 +51,11 @@ impl WorldMap {
     fn data(&self) -> Option<&WorldMapData> {
         self.data.as_ref()?.as_ref().ok()
     }
+
+    fn reset_position(&mut self) {
+        self.position = None;
+        self.drag = None;
+    }
 }
 
 fn placed_map_layout(viewport: [f32; 2], saved: Option<[f32; 2]>) -> WorldMapLayout {
@@ -144,6 +149,22 @@ mod pointer_tests {
         let smaller = placed_map_layout([900.0, 600.0], Some(moved));
         let [sx, sy, sw, sh] = smaller.frame_rect();
         assert_eq!([sx, sy], [(900.0 - sw).max(0.0), (600.0 - sh).max(0.0)]);
+    }
+
+    #[test]
+    fn reset_repositions_an_already_open_map_to_wide_slot() {
+        let mut map = WorldMap::default();
+        map.position = Some([15.0, 20.0]);
+        let viewport = [1280.0, 720.0];
+        assert_ne!(
+            placed_map_layout(viewport, map.position).origin,
+            placed_map_layout(viewport, None).origin
+        );
+        map.reset_position();
+        assert_eq!(
+            placed_map_layout(viewport, map.position).origin,
+            placed_map_layout(viewport, None).origin
+        );
     }
 
     #[test]
@@ -377,8 +398,7 @@ impl GameClient {
     }
 
     pub(super) fn reset_open_world_map_position(&mut self) {
-        self.world_map.position = None;
-        self.world_map.drag = None;
+        self.world_map.reset_position();
     }
 
     /// Mouse over the open frame drives the map instead of the camera. Returns whether
