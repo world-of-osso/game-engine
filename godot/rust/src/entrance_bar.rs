@@ -283,12 +283,13 @@ impl GameClient {
             .base()
             .get_viewport()
             .ok_or("Entrance bar has no viewport")?;
-        let screen = viewport.get_visible_rect().size;
+        let scale = self.effective_ui_scale();
+        let screen = viewport.get_visible_rect().size / scale;
         let layout = EntranceBarLayout::new(&choices, screen.x);
         let bar = &mut self.entrance_bar;
         bar.advance(
             &layout,
-            viewport.get_mouse_position(),
+            viewport.get_mouse_position() / scale,
             selector,
             &choices,
             delta,
