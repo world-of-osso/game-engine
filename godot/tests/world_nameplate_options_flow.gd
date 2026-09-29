@@ -44,11 +44,15 @@ func run_test() -> void:
 		return
 	if not await expect_plate(client, id, true, Color.WHITE):
 		return
+	if not await expect_target_frame(client, id, true):
+		return
 	var fill_color: Color = client.nameplate_state()[id].color
 	await open_options(client, "hud")
 	await click_option(client, "ToggleSwitchshow_health_barsLeftHit")
 	await click_option(client, "OptionsDoneButton")
 	await tap(KEY_TAB)
+	if not await expect_target_frame(client, id, false):
+		return
 	if not await expect_plate(client, id, false, Color.WHITE):
 		return
 	await open_options(client, "accessibility")
@@ -65,6 +69,14 @@ func run_test() -> void:
 	await click_option(client, "OptionsDoneButton")
 	await tap(KEY_TAB)
 	if not await expect_plate(client, id, false, Color.WHITE):
+		return
+	await open_options(client, "hud")
+	await click_option(client, "ToggleSwitchshow_health_barsRightHit")
+	await click_option(client, "OptionsDoneButton")
+	await tap(KEY_TAB)
+	if not await expect_target_frame(client, id, true):
+		return
+	if not await expect_plate(client, id, true, Color.WHITE):
 		return
 	print("FIXTURE NAMEPLATE_MOVE")
 	var deadline := Time.get_ticks_msec() + 10000
@@ -147,6 +159,24 @@ func expect_plate(client: Node, id: int, bars: bool, expected_color: Color) -> b
 		return false
 	if not name.get_theme_color("font_color").is_equal_approx(expected_color):
 		fail("Name label color %s, expected %s" % [name.get_theme_color("font_color"), expected_color])
+		return false
+	return true
+
+func expect_target_frame(client: Node, id: int, shown: bool) -> bool:
+	await process_frame
+	var target: Dictionary = client.target_state()
+	if target.target != id or target.target_name != "Fixture Creature" or target.sent != id:
+		fail("HUD toggle changed selected replicated target: " + str(target))
+		return false
+	var ui := client.get_node_or_null("UnitFramesUI")
+	var frame := ui.find_child("TargetFrame", true, false) as Control if ui != null else null
+	var name := ui.find_child("TargetName", true, false) as Label if ui != null else null
+	var health := ui.find_child("TargetHealthBar", true, false) as Control if ui != null else null
+	if frame == null or name == null or health == null or name.text != "Fixture Creature":
+		fail("Selected target frame cluster missing its name/health content")
+		return false
+	if frame.is_visible_in_tree() != shown or name.is_visible_in_tree() != shown or health.is_visible_in_tree() != shown:
+		fail("Selected target frame cluster visibility did not follow authored HUD switch")
 		return false
 	return true
 

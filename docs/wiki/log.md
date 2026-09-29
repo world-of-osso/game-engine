@@ -4,6 +4,10 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
+## [2026-09-28] ui | Native target-frame HUD visibility
+
+The native target-frame cluster now consumes `hud.show_health_bars` through the shared unit-frame state. The existing owned-UDP NPC Options fixture proves whole-cluster hide/restoration with the same reselected NPC and separately retained nameplate label (RED/GREEN: `/tmp/claude/target-frame-{red,green}-6073af82.log`). Escape clears selection before opening Options; the fixture does not claim otherwise. Native player-frame and managed-window reset remain open. See [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+
 ## [2026-09-29] ui | Native nameplate Options independently verified
 
 Independent verification of `6d2f7cd6` fresh-runs the private-loopback authored Options fixture against a replicated NPC: HUD health-bars hides frame/fill while retaining the label; camera-to-health-body fade remains separate from viewer-to-unit CVar eligibility; colorblind NPC label restoration leaves health fill unchanged (`/tmp/claude/verify-native-nameplate-options.md`). `6073af82` independently passes root `cargo fmt --check` and locked root binary compilation (`/tmp/claude/verify-nameplate-root-adapter.md`). The pure color test asserts exact player cyan and NPC yellow labels, but no live player plate is reachable: player-vs-player attacks are rejected, friendly-player plates default off, and no authored control changes that. Test-only player attempts remain RED (`/tmp/claude/nameplate-player-*.log`) and changed no source. Full nameplate parity remains open. See [[nameplate-design]] and [nameplate spec](../specs/nameplate-style.md).
