@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] fix | Native FontString shadows
+
+The Godot projection ignored FontString `shadow_color`/`shadow_offset`, so the tracker's dark-gold quest title and grey objective line had no shadow and were nearly invisible on grass. Labels now get `font_shadow_color` and `shadow_offset_x/y` (WoW y-up flipped). RED on the previous build: "QuestBlock28766HeaderText has no (1, 1) black shadow"; GREEN `world_minimap_quest.gd` exit 0 with background-relative glyph/shadow pixel counts (title 85/26 vs grass 40/0, line 50/43 vs 0/0). Applies to every native FontString with a shadow. See [[quest-ui]].
+
 ## [2026-09-29] implementation | Godot minimap and objective tracker
 
 Branch `minimapquest`: native `MinimapCluster` (TOPRIGHT) and `ObjectiveTrackerFrame` (TOPRIGHT −110, −275). Pure tile/composite/blip/zone/clock logic in `godot/core/src/minimap_data.rs`; the tracker reuses the shared Bevy component through `from_watched`. Two projection fixes were needed: onclick on textures/font strings now clicks, and dynamic-texture pixel updates redraw. Live `godot/tests/world_minimap_quest.gd` exits 0 on a private server (tile `azeroth/map32_48`, rendered pixels = composite, arrow along W movement, quest blips, zoom; tracker "Beating Them Back!" 0/6 and collapse). Core `minimap_data` 8/8 on Depot `--test`. See [[minimap]], [[quest-ui]] and the [minimap spec](../specs/minimap.md).
