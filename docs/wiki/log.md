@@ -1912,3 +1912,7 @@ The Godot client shows the Retail 12.x spellbook (known spells plus later-level 
 ## [2026-09-28] feature | Godot merchant frame
 
 The Godot client interacts with NPCs: right-click targets and sends `InteractNpc` in range, the hover cursor follows `NpcFlags` (Buy on vendors). The server's vendor list opens the shared MerchantFrame, backpack and StackSplitFrame; buy, sell, buyback, Repair All and vendor split work live at Brother Danil; Escape, the close button and walking away close it. Shared data files drop their Bevy derives under `cfg(godot_host)`. See [[merchant-frame]], [[godot-conversion]].
+
+## [2026-09-29] feature | Confirmed native CastStart
+
+Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. See [[sound]].

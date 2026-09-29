@@ -30,6 +30,7 @@ mod particles;
 mod player_spells;
 mod scene;
 mod sound;
+mod sound_cast;
 mod sound_client;
 mod sound_footsteps;
 mod spell_tooltip;
@@ -325,6 +326,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_player_input(delta as f32))
             .and_then(|()| self.update_targeting())
             .and_then(|()| self.update_spells(delta as f32))
+            .and_then(|()| self.update_cast_sound())
             .and_then(|()| self.update_merchant())
             .and_then(|()| self.update_world_map())
             .and_then(|()| self.update_entrance_bar(delta as f32))

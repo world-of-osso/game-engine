@@ -17,7 +17,7 @@ use godot::classes::{
 };
 use godot::prelude::*;
 
-use crate::sound_footsteps::Footsteps;
+use crate::{sound_cast::CastSpells, sound_footsteps::Footsteps};
 
 struct Channel {
     player: Gd<AudioStreamPlayer>,
@@ -129,7 +129,10 @@ fn load_stream(
 }
 
 fn click_stream() -> Gd<AudioStreamWav> {
-    let samples = generate_button_click_samples();
+    pcm_stream(&generate_button_click_samples(), CLICK_SAMPLE_RATE as u32)
+}
+
+pub(super) fn pcm_stream(samples: &[i16], sample_rate: u32) -> Gd<AudioStreamWav> {
     let data_size = (samples.len() * 2) as u32;
     let mut wav = Vec::with_capacity(44 + data_size as usize);
     wav.extend_from_slice(b"RIFF");
@@ -138,8 +141,8 @@ fn click_stream() -> Gd<AudioStreamWav> {
     wav.extend_from_slice(&16_u32.to_le_bytes());
     wav.extend_from_slice(&1_u16.to_le_bytes());
     wav.extend_from_slice(&1_u16.to_le_bytes());
-    wav.extend_from_slice(&(CLICK_SAMPLE_RATE as u32).to_le_bytes());
-    wav.extend_from_slice(&(CLICK_SAMPLE_RATE as u32 * 2).to_le_bytes());
+    wav.extend_from_slice(&sample_rate.to_le_bytes());
+    wav.extend_from_slice(&(sample_rate * 2).to_le_bytes());
     wav.extend_from_slice(&2_u16.to_le_bytes());
     wav.extend_from_slice(&16_u16.to_le_bytes());
     wav.extend_from_slice(b"data");
@@ -148,7 +151,7 @@ fn click_stream() -> Gd<AudioStreamWav> {
         wav.extend_from_slice(&sample.to_le_bytes());
     }
     AudioStreamWav::load_from_buffer(&PackedByteArray::from(wav.as_slice()))
-        .expect("generated click is valid mono PCM WAV")
+        .expect("generated samples are valid mono PCM WAV")
 }
 
 fn is_mp3_frame(bytes: &[u8]) -> bool {
@@ -219,6 +222,7 @@ pub struct NativeSound {
     ambient: Channel,
     effects: Gd<AudioStreamPlayer>,
     footsteps: Footsteps,
+    casts: CastSpells,
 }
 
 #[godot_api]
@@ -232,6 +236,7 @@ impl INode for NativeSound {
             ambient: Channel::new("Ambient"),
             effects: AudioStreamPlayer::new_alloc(),
             footsteps: Footsteps::new(),
+            casts: CastSpells::new(),
         }
     }
 
@@ -246,6 +251,8 @@ impl INode for NativeSound {
         self.effects.set_stream(&click_stream());
         let footsteps = self.footsteps.root.clone();
         self.base_mut().add_child(&footsteps);
+        let casts = self.casts.root.clone();
+        self.base_mut().add_child(&casts);
     }
 
     fn exit_tree(&mut self) {
@@ -348,6 +355,20 @@ impl NativeSound {
         self.footsteps.stop();
     }
 
+    pub fn observe_cast(
+        &mut self,
+        player_id: u64,
+        spell_id: Option<u32>,
+        position: Vector3,
+        settings: &SoundOptionsFile,
+    ) {
+        self.casts.observe(player_id, spell_id, position, settings);
+    }
+
+    pub fn stop_casts(&mut self) {
+        self.casts.stop();
+    }
+
     pub fn load_catalog(&mut self, data_root: &Path) -> Result<(), String> {
         let (tracks, indices) = discover_tracks(data_root)?;
         let mut music =
@@ -400,5 +421,6 @@ impl NativeSound {
         self.music.stop();
         self.ambient.stop();
         self.stop_footsteps();
+        self.stop_casts();
     }
 }
