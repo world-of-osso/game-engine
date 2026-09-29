@@ -426,6 +426,19 @@ impl GameClient {
         self.describe_minimap_frames(&mut result);
         result
     }
+
+    /// RGBA of the current composite at map UV `(u, v)` (0..1), for rendered-pixel checks.
+    #[func]
+    fn minimap_composite_pixel(&self, u: f32, v: f32) -> PackedInt32Array {
+        let Some((_, _, pixels)) = &self.minimap.drawn else {
+            return PackedInt32Array::new();
+        };
+        let last = COMPOSITE_PX - 1;
+        let x = ((u * COMPOSITE_PX as f32) as u32).min(last);
+        let y = ((v * COMPOSITE_PX as f32) as u32).min(last);
+        let offset = ((y * COMPOSITE_PX + x) * 4) as usize;
+        rgba_array(&pixels[offset..offset + 4])
+    }
 }
 
 impl GameClient {
@@ -454,7 +467,14 @@ impl GameClient {
         result.set("tile_uv", Vector2::new(uv[0], uv[1]));
         if let Some(tile) = self.minimap.tile(map, key) {
             result.set("tile_fdid", i64::from(tile.fdid));
-            result.set("tile_texel", &rgba_array(&sample(&tile.image, uv)));
+        }
+        // The tile texel under the centre composite pixel, sampled directly.
+        let half = COMPOSITE_PX / 2;
+        let texel = view
+            .tile_uv(view.pixel_position(half, half, COMPOSITE_PX))
+            .and_then(|(key, uv)| Some(sample(&self.minimap.tile(map, key)?.image, uv)));
+        if let Some(texel) = texel {
+            result.set("tile_texel", &rgba_array(&texel));
         }
     }
 

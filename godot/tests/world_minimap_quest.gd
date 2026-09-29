@@ -48,16 +48,17 @@ func run_test() -> void:
 		return
 	if not await check_minimap_tile():
 		return
-	if not await check_arrow():
-		return
 	if not await check_quest_blip():
 		return
 	await capture("01-minimap-northshire.png")
-	if not await check_zoom():
-		return
+	# McBride accepts only within 10 yd, so accept before walking.
 	if not await check_tracker():
 		return
 	await capture("02-tracker-quest.png")
+	if not await check_arrow():
+		return
+	if not await check_zoom():
+		return
 	if not await check_collapse():
 		return
 	print("FIXTURE MINIMAP_QUEST_DONE")
@@ -108,15 +109,35 @@ func check_minimap_tile() -> bool:
 		fail("Minimap tile %s is not the player's %s" % [state.tile_path, path])
 		return false
 	for channel in 4:
-		if abs(int(state.center_pixel[channel]) - int(state.tile_texel[channel])) > 12:
+		if abs(int(state.center_pixel[channel]) - int(state.tile_texel[channel])) > 1:
 			fail("Composite centre %s is not the tile texel %s" % [state.center_pixel, state.tile_texel])
 			return false
 	if state.center_pixel[3] != 255:
 		fail("Composite centre is masked out: " + str(state.center_pixel))
 		return false
+	if not await check_rendered_map():
+		return false
 	if not String(state.zone_text).begins_with("Northshire"):
 		fail("Zone text '%s' is not a Northshire subzone" % state.zone_text)
 		return false
+	return true
+
+## The drawn MinimapDisplay shows the composite: screen pixels at four points between
+## the arrow and the rim match the composite there.
+func check_rendered_map() -> bool:
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	var display := client.get_node("MinimapUI").find_child("MinimapDisplay", true, false) as Control
+	var rect := display.get_global_rect()
+	for uv in [Vector2(0.3, 0.5), Vector2(0.7, 0.5), Vector2(0.5, 0.3), Vector2(0.5, 0.72)]:
+		var point: Vector2 = rect.position + rect.size * uv
+		var drawn := image.get_pixelv(Vector2i(point))
+		var composite: PackedInt32Array = client.minimap_composite_pixel(uv.x, uv.y)
+		var want := Color8(composite[0], composite[1], composite[2])
+		print("FIXTURE RENDERED uv ", uv, " screen ", drawn, " composite ", want)
+		if abs(drawn.r - want.r) > 0.12 or abs(drawn.g - want.g) > 0.12 or abs(drawn.b - want.b) > 0.12:
+			fail("Minimap at %s draws %s, composite %s" % [uv, drawn, want])
+			return false
 	return true
 
 func arrow_part() -> Control:
