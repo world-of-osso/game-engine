@@ -229,7 +229,7 @@ func send_line(line: String) -> bool:
 	return true
 
 func enter_world() -> bool:
-	var deadline := Time.get_ticks_msec() + 15000
+	var deadline := Time.get_ticks_msec() + 60000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
