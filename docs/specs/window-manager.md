@@ -48,8 +48,9 @@ Implements the framework items "Window classes" and interaction rule 15 of the
 
 ## Native Godot boundary
 
-- Options → Interface → Reset Window Positions removes only the authenticated, selected server character ID's `window_positions` entry from canonical `ui_layout.ron`. Other characters' positions and account-wide edit-mode layouts remain; Options' own `modal_offset`/`modal_position` in `options_settings.ron` are independent. Final bounded review PASS (`/tmp/claude/verify-native-window-reset-final.md`) confirms equipped ID 17 removal, ID 18/edit-layout/modal retention, and a fresh-process read. Canonical authored customization inputs remain in use; parse-only fixture lighting controls are not lighting proof.
-- No native managed-window movement reader/writer exists yet. This action alone does not complete native window-manager parity.
+- `WorldMapFrame` is the only native managed window. Its title region supports drag, logical-viewport clamping, selected-server-character persistence in canonical `ui_layout.ron`, reopen, and fresh-process restoration. Canvas navigation/zoom remains map input, not window dragging.
+- Options → Interface → Reset Window Positions removes only the authenticated, selected server character ID's `window_positions` entry. Other characters' positions and account-wide edit-mode layouts remain; Options' own `modal_offset`/`modal_position` in `options_settings.ron` are independent. The owned fixture at `ac44cc2e` (`/tmp/claude/world-map-owned-fixture-ac44cc2e.log`) proves ID 17 removal, ID 18/edit-layout/modal retention, map reopen at the default slot, and a second-process read.
+- The direct open-map reset behavior has a state test. Simultaneous Options-plus-map UI is not keyboard-reachable because Escape closes the map. Other native windows remain unconverted; no generic native window-manager parity is claimed.
 
 ## Known gaps
 

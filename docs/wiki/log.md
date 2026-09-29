@@ -1837,6 +1837,9 @@ After the native build, the launcher runs `godot --headless --import --path godo
 
 Shared `UiMap` catalog and view model drive a Retail-style world map in Godot and Bevy: `M` opens the player's zone, right-click zooms to continent and world, arrow follows the player. Local CASC lacks many map tiles. See [[world-map]].
 
+## [2026-09-29] update | Native WorldMap placement boundary
+
+At `ac44cc2e`, `WorldMapFrame` is the only native managed window: title drag clamps and persists per selected server character in canonical `ui_layout.ron`; reopen and a second authenticated process restore it. `/tmp/claude/world-map-owned-fixture-ac44cc2e.log` proves selected-character reset retention, default-slot reopen, and fresh-process read. The direct open-map reset has state-test coverage only: simultaneous Options-plus-map UI is keyboard-unreachable because Escape closes the map. Other windows and generic native window-manager parity remain unconverted. See [[world-map]] and [window-manager spec](../specs/window-manager.md).
 
 ## [2026-09-28] fix | Godot M2 blend modes and batch colour
 
