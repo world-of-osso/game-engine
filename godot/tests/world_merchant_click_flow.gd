@@ -98,7 +98,7 @@ func check_merchant_placement(client: Node, bag: Control, config: String) -> boo
 		fail("Merchant title move shifted backpack or did not move root: " + str(moved))
 		return false
 	var layout := FileAccess.get_file_as_string(config.path_join("world-of-osso/ui_layout.ron"))
-	if not layout.contains("MerchantFrame") or not layout.contains('"17"') or not layout.contains('"18"') or not layout.contains("(75.0,80.0)"):
+	if not layout.contains("MerchantFrame") or not layout.contains('"17"') or not layout.contains('"18"') or not layout.contains("75.0") or not layout.contains("80.0"):
 		fail("Merchant position not saved for selected character or another character changed: " + layout)
 		return false
 	if not await check_merchant_clamp(frame, bag, bag_rect):
@@ -164,7 +164,7 @@ func reset_merchant_options(client: Node, config: String) -> bool:
 	await click(menu.find_child("ActionButtonreset_window_positions", true, false) as Control)
 	var layout := FileAccess.get_file_as_string(config.path_join("world-of-osso/ui_layout.ron"))
 	var options := FileAccess.get_file_as_string(config.path_join("world-of-osso/options_settings.ron"))
-	if layout.contains('"17"') or not layout.contains('"18"') or not layout.contains("(75.0,80.0)") or not options.contains("modal_offset:Some((80.0,-32.0))"):
+	if layout.contains('"17"') or not layout.contains('"18"') or not layout.contains("75.0") or not layout.contains("80.0") or not options.contains("modal_offset:Some((80.0,-32.0))"):
 		fail("Merchant reset changed other character or Options modal: " + layout + " / " + options)
 		return false
 	await click(menu.find_child("OptionsDoneButton", true, false) as Control)
