@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] investigation | Godot WMO doodad cost, global WMO culling, MWDS, doodad light
+
+WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
+
 ## [2026-09-28] system | Godot nameplates with Retail visibility
 
 Godot draws nameplates only for the target and units fighting the player (`nameplateShowAll` 0), enemies only, within 60 yd, and dims plates behind terrain or WMO collision to 0.4. See [[nameplate-design]].

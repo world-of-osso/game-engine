@@ -70,6 +70,17 @@ The Godot client ran Stormwind at about 13–20 FPS (debug build, 1280x720, head
 - **Draws:** about 4,300–5,000 remain. Of these, doodads are about 1,500, WMO batches about 1,300–1,600, terrain about 950, and units about 450–900.
   - Merging each WMO group's batches into one multi-surface mesh would cut instance count, not draw calls: Godot draws each surface separately.
 
+## WMO doodads (branch `wmodoodadcost`)
+
+WMO doodads (merged `17e44dfa`, `7e839a73`) add 8,694 `WmoDoodad` nodes at the indoor spot, about 49k nodes in all (each has a `Skeleton3D`, its internal `PhysicalBoneSimulator3D`, a `WowAnimationPlayer`, batch meshes, and sometimes attachments); 319 are drawn. The node count goes from about 67.5k (WMO doodads detached) to about 117k.
+
+- **Profile.** `eu-stack -1` sampling of the main thread (150 samples at the hold) and timers around the three cull calls (instrumented build, 120-frame means). None of the WMO doodad nodes processes (`is_processing`/`is_processing_internal` all false); the WMO doodad cost was the Rust cull itself: `cull_doodads` walks all 16.7k doodads each frame, and for WMO doodads hashed each group into the WMO's `HashSet` of visible groups; `cull_wmos` rebuilt `HashSet`s in the portal traversal and read every batch's `is_visible` through the FFI each frame. Godot's render thread (`RenderingServer` draw loop) is the other large bucket, with or without WMO doodads.
+- **Change** (`6cb884ec`). The traversal returns per-group flags (`Vec<bool>`); a WMO doodad's group test is an index; `cull_wmos` writes a group's batch visibility only when its drawn state changes. The drawn set is unchanged (`wmo_doodads_flow.gd` passes with the same counts).
+- **Result.** The host's load moved between 2 and 16 during the runs, so the NPC LOD pass in the same frames (unchanged code) serves as the load reference. Before (`eac376b6`), two runs: `cull_wmos` 7.6-8.0 ms and `cull_doodads` 11.1-11.5 ms with NPC LOD at 1.1 ms; 3.6 ms and 5.3-5.6 ms with NPC LOD at 0.6 ms. After, three runs: 3.2-3.4 ms and 5.5-5.8 ms at NPC LOD 1.1; 2.9-3.2 ms and 6.5-7.2 ms at 1.2-1.4; 1.4-2.6 ms and 3.8-6.4 ms at 0.7-1.2. Relative to the NPC LOD pass, `cull_wmos` fell from 6.0-6.9x to 2.1-3.0x and `cull_doodads` from 9-10x to 4.9-5.7x, about 6-8 ms less per frame at the higher load. Whole-frame times (45-165 ms) moved with the load by more than that, so no FPS gain is claimed; detaching all WMO doodads changed frame time by -5 to +50 ms between samples in the same run.
+- **Tried and dropped.** Skipping hidden doodads until the camera could reach their far radius cut nothing measurable (`cull_doodads` 5.4-6.1 ms either way) and was reverted.
+- **Screenshots.** Same spot, `eac376b6` vs `6cb884ec`: 565 of 921,600 pixels differ, all around the animated props next to the player and the FPS counter.
+- **Remaining.** About 5 ms of `cull_doodads` (all doodads, fade and animation LOD per doodad each frame) and 2-3 ms of `cull_wmos` (the camera-interior test over each WMO's interior floor triangles) in debug builds. The node count itself costs nothing per frame that the samples show.
+
 ## Sources
 
 - `src/rendering/camera/culling.rs`: the original doodad, WMO and portal culling. Its 200/2,000/400 yd distances cite no source (commit `f475000f`), so they were not used.
