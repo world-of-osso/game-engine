@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-29] verification | Native Render Scale bounded buffer/UI GREEN
+
+The actual GPU RED at `e3a5c92b` measured 1280×720 instead of 960×540 for saved startup 0.75. Exact `ca2f75c0` built through Depot `40n2xh4n2l` (exit 0; `data/diagnostics/render-scale-depot-green-build.log`). Offscreen Vulkan GREEN then measured startup 0.75 = 960×540 with a 1280×720 target; live 0.5 = 640×360; live 1.0 = 1280×720; resized 1.0 = 1600×900; and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). The same 2D geometry/red-pixel probe and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof, not all 3D scenes, visual equality, bloom, or full parity. Legacy paired CAS/sharpening below 0.999 remains a full-conversion obligation. See [[godot-conversion]] and the [parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-29] fix | Native particle-density placement snapshot
 
-`godot/rust/src/particles.rs` captures pool density when placing doodad emitters; `TerrainObjects` updates only the default after Options saves. Existing placements keep their rate, and `NO_GLOBAL_SCALE` ignores density. Controlled portal RED at `cf84a712` recorded existing 484→484.22 and new 462.67 after Options 100→10 (`data/diagnostics/portal-density-red-cf84a712.log`, exit 101). Depot GREEN is pending. See [[godot-conversion]] and [M2 particle spec](../specs/m2-particles.md).
+`79d792b0` captures density per doodad-emitter placement; `TerrainObjects` updates only the default after Options saves. Existing placements retain their captured rate, future registrations use the new default, and original `NO_GLOBAL_SCALE` emitters ignore global density. The controlled disposable 197007 portal copy clears only its six `NO_GLOBAL_SCALE` bits and preserves the original asset hash. In the actual `GameClient`, real Options 100→10 keeps known-pool quads at 485.67→488.0; owned same-map `NewWorld` creates a fresh placement at 46.67. Depot `kdhjvgmnt3` and runtime GREEN both exit 0 (`data/diagnostics/portal-density-depot-green-build-retry1.log`, `data/diagnostics/portal-density-green-79d792b0.log`). This is state/rate proof, not retail pixels, audible output, or full parity. See [[godot-conversion]] and [M2 particle spec](../specs/m2-particles.md).
 
 ## [2026-09-29] verification | Native persisted M2-particle startup gate
 
@@ -2042,3 +2046,7 @@ Final gate PASS (`/tmp/claude/verify-ui-scale-all-owners-final.md`): inspected o
 ## [2026-09-29] investigation | DXT1 punch-through alpha
 
 Elwynn bush 189700's leaf texture 189937 (DXT1, alpha depth 1) drew black squares in the Godot client: Godot uploads `FORMAT_DXT1` as BC1 RGB, so punch-through texels were opaque black. `fe422318` decodes DXT1 with alpha bits to RGBA8 with every mip level. See [[godot-dxt1-punch-through]].
+
+## [2026-09-29] investigation | DXT1 punch-through alpha on master
+
+On master `56a134a6`, Northshire captures show no remaining black foliage cards. The trees and plants use DXT5 leaf textures. No local DXT1 BLP without alpha bits has punch-through texels. Black cards reported after `fe422318` come from pre-fix builds. See [[godot-dxt1-punch-through]].

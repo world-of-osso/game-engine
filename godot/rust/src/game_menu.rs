@@ -357,7 +357,14 @@ impl GameClient {
         self.client_options = file;
         self.world_objects
             .set_particle_density(f32::from(self.client_options.graphics.particle_density) / 100.0);
-        crate::display_options::apply_graphics_display_options(&self.client_options.graphics);
+        let mut viewport = self
+            .base()
+            .get_viewport()
+            .expect("GameClient has no viewport");
+        crate::display_options::apply_graphics_display_options(
+            &self.client_options.graphics,
+            &mut viewport,
+        );
         Ok(())
     }
 

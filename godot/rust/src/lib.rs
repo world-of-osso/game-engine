@@ -411,7 +411,14 @@ impl INode3D for GameClient {
     fn ready(&mut self) {
         // Model animation nodes tick at priority 0 before this observer reads their selected clock.
         self.base_mut().set_process_priority(1);
-        display_options::apply_graphics_display_options(&self.client_options.graphics);
+        let mut viewport = self
+            .base()
+            .get_viewport()
+            .expect("GameClient has no viewport");
+        display_options::apply_graphics_display_options(
+            &self.client_options.graphics,
+            &mut viewport,
+        );
         if let Err(error) = self
             .connect_focus_reset()
             .and_then(|()| self.initialize_sound())
