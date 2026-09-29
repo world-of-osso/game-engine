@@ -8,7 +8,7 @@ BLP files support several internal encodings:
 
 | Type | Description |
 |------|-------------|
-| DXT1 | BC1 block compression, no alpha or 1-bit alpha. Used for opaque textures (terrain base layers, many model skins). |
+| DXT1 | BC1 block compression, no alpha or 1-bit alpha. Used for opaque textures (terrain base layers, many model skins). A header alpha depth above 0 means the three-colour blocks' index 3 is transparent (BC1 RGBA); Godot can only upload BC1 RGB, see [[godot-dxt1-punch-through]]. |
 | DXT5 | BC3 block compression, full alpha channel. Used for textures with transparency (UI elements, hair, eye overlays). |
 | Uncompressed | Raw BGRA or palettized. Less common in modern assets. |
 
@@ -48,4 +48,5 @@ UI textures are referenced by virtual path (e.g. `Interface/Buttons/...`) and re
 
 - [[casc-format]] — BLP files extracted by FDID from CASC archives
 - [[m2-format]] — BLP textures referenced by M2 TXID chunk and texture type system
+- [[godot-dxt1-punch-through]] — 1-bit-alpha DXT1 drew opaque black in the Godot client
 - [[db2-format]] — DB2 chains that resolve character customization BLP FDIDs
