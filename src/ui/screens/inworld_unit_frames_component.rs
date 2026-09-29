@@ -3,7 +3,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::faction_reaction::Reaction;
-use crate::status::SecondaryResourceEntry;
+use crate::status::{SecondaryResourceEntry, SecondaryResourceKindEntry};
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
@@ -419,6 +419,21 @@ fn secondary_resource_row(resource: Option<&SecondaryResourceEntry>) -> Element 
     }
 }
 
+/// `(topPadding, leftPadding)` KeyValues of each Retail class bar inside the container:
+/// RogueComboPointBar.xml:245-246, PaladinPowerBar.xml:235-236, MonkHarmonyBar.xml:124,
+/// EssenceFramePlayer.xml:298, ShardBar.xml:162-163, MageArcaneChargesBar.xml:134,
+/// RuneFrame.xml:237-238.
+fn class_bar_padding(kind: &SecondaryResourceKindEntry) -> (f32, f32) {
+    match kind {
+        SecondaryResourceKindEntry::ComboPoints => (10.0, 0.0),
+        SecondaryResourceKindEntry::HolyPower => (-3.0, 5.0),
+        SecondaryResourceKindEntry::Chi | SecondaryResourceKindEntry::ArcaneCharges => (7.0, 0.0),
+        SecondaryResourceKindEntry::Essence => (5.0, 0.0),
+        SecondaryResourceKindEntry::SoulShards => (-2.0, 5.0),
+        SecondaryResourceKindEntry::Runes => (6.0, -5.0),
+    }
+}
+
 /// Pips laid out left to right and centred under the player frame, like Retail's
 /// `ClassResourceBarTemplate` horizontal layout.
 fn class_pip_row(resource: &SecondaryResourceEntry, art: &PipArt) -> Element {
@@ -431,7 +446,7 @@ fn class_pip_row(resource: &SecondaryResourceEntry, art: &PipArt) -> Element {
             class_pip(index, index < resource.current, art, x)
         })
         .collect();
-    class_bar_frame(row_w, cell_h, pips)
+    class_bar_frame(&resource.kind, (row_w, cell_h), pips)
 }
 
 fn class_pip(index: u8, lit: bool, art: &PipArt, x: f32) -> Element {
@@ -500,18 +515,25 @@ fn holy_power_row(resource: &SecondaryResourceEntry) -> Element {
         {art_texture(dyn_name("PlayerSecondaryResourceHolder".into()), &holder, (0.0, 0.0, holder_w, holder_h), false)}
         {runes}
     };
-    class_bar_frame(holder_w, holder_h, content)
+    class_bar_frame(&resource.kind, (holder_w, holder_h), content)
 }
 
-fn class_bar_frame(width: f32, height: f32, content: Element) -> Element {
+/// Retail `VerticalLayoutMixin` places a centred child at the container top plus its
+/// `topPadding`, shifted right by half its `leftPadding` (LayoutFrame.lua:340,346-348).
+fn class_bar_frame(
+    kind: &SecondaryResourceKindEntry,
+    (width, height): (f32, f32),
+    content: Element,
+) -> Element {
+    let (top_padding, left_padding) = class_bar_padding(kind);
     rsx! {
         r#frame {
             name: "PlayerSecondaryResourceRow",
             width,
             height,
             pos_type: "absolute",
-            pos_x: {(FRAME_W - width) / 2.0},
-            pos_y: CLASS_BAR_Y,
+            pos_x: {CLASS_BAR_CENTRE_X + left_padding / 2.0 - width / 2.0},
+            pos_y: {CLASS_BAR_TOP + top_padding},
             {content}
         }
     }
