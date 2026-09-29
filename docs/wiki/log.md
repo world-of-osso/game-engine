@@ -46,7 +46,7 @@ Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`
 
 ## [2026-09-28] system | Shared terrain surface selection prerequisite
 
-`70e047ff` extracts dominant ADT effect, texture, and footstep-surface selection into `terrain_surface_data`, shared by root and `godot/core`. Core concrete layer tests and existing root dominant-selector tests pass; root terrain/footstep loaders, Bevy GroundEffect cache/loading, and unresolved-Dirt behavior remain unchanged. Godot has no terrain-surface runtime consumer or native footstep playback; verifier839 is pending. Updated [[terrain]], [[sound]], and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+`70e047ff` extracts dominant ADT effect, texture, and footstep-surface selection into `terrain_surface_data`, shared by root and `godot/core`. Core concrete layer tests and existing root dominant-selector tests pass; root terrain/footstep loaders, Bevy GroundEffect cache/loading, and unresolved-Dirt behavior remain unchanged. This shared prerequisite did not itself add a native runtime consumer or footstep playback; verifier839 is pending. `3d6df314` separately adds native per-chunk DB2/listfile surface metadata and `StreamedTerrain::surface_at`; no WMO surface or audio playback follows, and verifier849 is pending without an independent PASS. Updated [[terrain]], [[sound]], and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
 ## [2026-09-28] system | Shared footstep phase remains a prerequisite
 

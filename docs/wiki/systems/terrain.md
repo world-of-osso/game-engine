@@ -23,7 +23,7 @@ The engine loads all three. Finding companion files uses the community listfile 
 
 ## Native MCNK Surface Lookup
 
-`NativeTerrainAssets` reads GroundEffectTexture (FDID 1308499) and TerrainTypeSounds (FDID 1284822) once per reader through the local CASC/cache resolver. Shared parsers map dominant effect → terrain sound name → footstep surface before falling through to dominant texture FDID's listfile path. Invalid/unavailable DB2s report contextual errors once and leave terrain rendering available; texture classification still applies. Chunk alpha weights are calculated at tile ingestion, not per-frame lookup. Metadata lives with each parsed tile and clears on stream reset. No WMO surface or audio trigger is implemented.
+`NativeTerrainAssets` reads GroundEffectTexture (FDID 1308499) and TerrainTypeSounds (FDID 1284822) once per reader through the local CASC/cache resolver. Shared parsers map dominant effect → terrain sound name → footstep surface before falling through to dominant texture FDID's listfile path. Invalid/unavailable DB2s report contextual errors once and leave terrain rendering available; texture classification still applies. Chunk alpha weights are calculated at tile ingestion, not per-frame lookup. Metadata lives with each parsed tile and clears on stream reset. This is an actual native `surface_at` metadata lookup, separate from `70e047ff`'s shared prerequisite; verifier849 is pending without an independent PASS. No WMO surface or audio trigger is implemented.
 
 ## Native MCNK Area Lookup
 
