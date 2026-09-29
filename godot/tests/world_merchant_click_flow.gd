@@ -94,7 +94,7 @@ func check_scaled_hosts(client: Node, scale: float) -> bool:
 			continue
 		var canvas := host.find_child("RegistryCanvas", true, false) as Control if host != null else null
 		if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
-			fail("Merchant world %s canvas not scaled to %s" % [host_name, scale])
+			fail("Merchant world %s canvas not scaled to %s; actual=%s" % [host_name, scale, canvas.scale if canvas != null else null])
 			return false
 	return true
 
@@ -111,6 +111,8 @@ func check_live_options_scale(client: Node, vendor: Dictionary) -> bool:
 	await set_scale_slider(slider, 0.0)
 	if not check_scaled_hosts(client, 0.75):
 		return false
+	await click(menu.find_child("OptionsTabaccessibility", true, false) as Control)
+	slider = menu.find_child("Sliderui_scale", true, false) as Control
 	await set_scale_slider(slider, 0.6666667)
 	return check_scaled_hosts(client, 1.25)
 
