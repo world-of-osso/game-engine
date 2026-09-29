@@ -18,6 +18,7 @@ use ui_toolkit::widgets::texture::TextureSource;
 use super::assets;
 use super::layout;
 use super::parts::{self, ImagePart, TextPart};
+use crate::frame_error::report_once;
 
 /// Original highlight overlays render above every registry frame (sprite z 500).
 const OVERLAY_Z: i32 = 4000;
@@ -53,8 +54,10 @@ pub struct UiProjection {
     nodes: HashMap<u64, Gd<Control>>,
     visuals: HashMap<u64, FrameVisual>,
     pending: PendingInputs,
-    fonts: HashMap<GameFont, Gd<godot::classes::FontFile>>,
-    textures: HashMap<String, (Gd<Texture2D>, [f32; 4])>,
+    /// Loaded fonts; `None` caches a font file that failed to load.
+    fonts: HashMap<GameFont, Option<Gd<godot::classes::FontFile>>>,
+    /// Loaded art and atlas regions; `None` caches art that failed to load.
+    textures: HashMap<String, Option<(Gd<Texture2D>, [f32; 4])>>,
 }
 
 impl UiProjection {
@@ -134,7 +137,9 @@ impl UiProjection {
             }
             let size = match &frame.widget_data {
                 Some(WidgetData::FontString(data)) => {
-                    let font = self.font(data.font)?;
+                    let Some(font) = self.font(data.font) else {
+                        continue;
+                    };
                     let measured = font
                         .get_string_size_ex(&data.text)
                         .font_size(data.font_size as i32)
@@ -142,7 +147,9 @@ impl UiProjection {
                     (measured.x, measured.y)
                 }
                 Some(WidgetData::Texture(data)) => {
-                    let texture = self.texture(&data.source, registry)?;
+                    let Some(texture) = self.texture(&data.source, registry) else {
+                        continue;
+                    };
                     (texture.get_width() as f32, texture.get_height() as f32)
                 }
                 _ => continue,
@@ -216,40 +223,47 @@ impl UiProjection {
         }
     }
 
-    fn font(&mut self, font: GameFont) -> Result<Gd<godot::classes::FontFile>, String> {
-        if let Some(loaded) = self.fonts.get(&font) {
-            return Ok(loaded.clone());
-        }
-        let loaded = assets::load_font(font)?;
-        self.fonts.insert(font, loaded.clone());
-        Ok(loaded)
+    /// The cached font; a font that fails to load is reported once and text keeps
+    /// Godot's default font.
+    fn font(&mut self, font: GameFont) -> Option<Gd<godot::classes::FontFile>> {
+        self.fonts
+            .entry(font)
+            .or_insert_with(|| {
+                assets::load_font(font)
+                    .inspect_err(|error| report_once(error))
+                    .ok()
+            })
+            .clone()
     }
 
     /// Cached decoded source and atlas region; dynamic textures are re-read every time.
+    /// Art that fails to load is reported once and draws absent, as in the Bevy client.
     fn source(
         &mut self,
         source: &TextureSource,
         registry: &FrameRegistry,
-    ) -> Result<(Gd<Texture2D>, [f32; 4]), String> {
+    ) -> Option<(Gd<Texture2D>, [f32; 4])> {
+        let load = || {
+            assets::load_source(source, registry)
+                .inspect_err(|error| report_once(&format!("UI texture {source:?}: {error}")))
+                .ok()
+        };
         if matches!(source, TextureSource::Dynamic(_)) {
-            return assets::load_source(source, registry);
+            return load();
         }
-        let key = format!("{source:?}");
-        if let Some(loaded) = self.textures.get(&key) {
-            return Ok(loaded.clone());
-        }
-        let loaded = assets::load_source(source, registry)?;
-        self.textures.insert(key, loaded.clone());
-        Ok(loaded)
+        self.textures
+            .entry(format!("{source:?}"))
+            .or_insert_with(load)
+            .clone()
     }
 
     fn texture(
         &mut self,
         source: &TextureSource,
         registry: &FrameRegistry,
-    ) -> Result<Gd<Texture2D>, String> {
+    ) -> Option<Gd<Texture2D>> {
         let (image, region) = self.source(source, registry)?;
-        Ok(assets::sub_texture(&image, region))
+        Some(assets::sub_texture(&image, region))
     }
 
     fn update_node(
@@ -355,15 +369,17 @@ impl UiProjection {
             rect.set_color(color(part.color));
             return Ok(rect.upcast());
         };
-        let (image, region) = self.source(source, registry)?;
-        let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, region);
         let mut rect = TextureRect::new_alloc();
         rect.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
         rect.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
-        rect.set_texture(&assets::sub_texture(&image, crop));
-        rect.set_flip_h(flip_x);
-        rect.set_flip_v(flip_y);
         rect.set_self_modulate(color(part.color));
+        // Missing art leaves the part empty.
+        if let Some((image, region)) = self.source(source, registry) {
+            let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, region);
+            rect.set_texture(&assets::sub_texture(&image, crop));
+            rect.set_flip_h(flip_x);
+            rect.set_flip_v(flip_y);
+        }
         Ok(rect.upcast())
     }
 
@@ -371,8 +387,9 @@ impl UiProjection {
         label.set_text(&text.content);
         label.set_horizontal_alignment(horizontal(text.justify_h));
         label.set_vertical_alignment(vertical(text.justify_v));
-        let font = self.font(text.font)?;
-        label.add_theme_font_override("font", &font);
+        if let Some(font) = self.font(text.font) {
+            label.add_theme_font_override("font", &font);
+        }
         label.add_theme_font_size_override("font_size", text.font_size as i32);
         label.add_theme_color_override("font_color", color(text.color));
         // `OUTLINE` / `THICKOUTLINE` font flags: a black outline around each glyph.
@@ -399,8 +416,9 @@ impl UiProjection {
         if let Some(max) = data.max_letters {
             node.set_max_length(max as i32);
         }
-        let font = self.font(data.font)?;
-        node.add_theme_font_override("font", &font);
+        if let Some(font) = self.font(data.font) {
+            node.add_theme_font_override("font", &font);
+        }
         node.add_theme_font_size_override("font_size", data.font_size as i32);
         node.add_theme_color_override("font_color", color(data.text_color));
         // Original caret: 2px, drawn in the edit text color.

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-28] investigation | Godot missing assets no longer end the session
+
+One missing cursor BLP disconnected the Godot client: every frame-step error stopped the account. Only `Account` transport failures (`SessionError`) stop it now; asset failures are logged once and stay absent. See [godot-conversion](systems/godot-conversion.md#frame-failure-policy).
+
 ## [2026-09-28] investigation | Godot WMO doodad cost, global WMO culling, MWDS, doodad light
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].

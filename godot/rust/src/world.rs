@@ -33,8 +33,7 @@ struct UnitNode {
     appearance: Option<UnitAppearance>,
     visual: Option<Gd<Node3D>>,
     death_applied: bool,
-    /// Animation ID last selected on `visual`: a creature's from its `CreatureMotion` and
-    /// `UnitPose`, another player's from its `PlayerMotion`.
+    /// Animation ID last selected on `visual` from its `CreatureMotion` and `UnitPose`.
     animation: Option<u16>,
     /// Another player's newest replicated movement flags.
     player_motion: Option<PlayerMotion>,
@@ -584,8 +583,10 @@ impl WorldUnits {
     /// Drive every other player's model from its newest replicated flags. Called each
     /// frame after animation time advances, so the jump start, loop and landing play out
     /// as the local player's do; unchanged flags neither restart a clip nor its crossfade.
-    pub fn update_remote_locomotion(&mut self) {
+    /// A model missing a clip is a client failure; the other players still animate.
+    pub fn update_remote_locomotion(&mut self) -> Result<(), String> {
         let local = self.local_player_id;
+        let mut errors = Vec::new();
         for (id, unit) in &mut self.units {
             let Some(locomotion) =
                 remote_player_locomotion(unit.is_player, local == Some(*id), unit.player_motion)
@@ -599,19 +600,18 @@ impl WorldUnits {
             else {
                 continue;
             };
-            let result = animation.bind_mut().update_locomotion(
+            if let Err(error) = animation.bind_mut().update_locomotion(
                 locomotion.animation_id,
                 locomotion.jumping,
                 locomotion.running_forward,
-            );
-            let requested = Some(locomotion.animation_id);
-            // Report a model's missing clip once per request, not every frame.
-            if let Err(error) = result
-                && unit.animation != requested
-            {
-                godot_error!("Player {} {locomotion:?}: {error}", unit.name);
+            ) {
+                errors.push(format!("Player {} {locomotion:?}: {error}", unit.name));
             }
-            unit.animation = requested;
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
         }
     }
 

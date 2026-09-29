@@ -12,6 +12,7 @@ mod entrance_bar;
 pub mod equipment_appearance_data;
 #[path = "../../../src/game/faction_reaction.rs"]
 mod faction_reaction;
+mod frame_error;
 mod game_menu;
 mod gameplay;
 mod ground;
@@ -42,6 +43,7 @@ mod world_models;
 use std::{collections::HashMap, path::PathBuf};
 
 use account::{Account, AccountEvent};
+use frame_error::FrameError;
 use game_engine_core::client_options_data::{ClientOptionsFile, load_options_file_with_legacy};
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
@@ -244,7 +246,7 @@ impl INode3D for GameClient {
                 return;
             }
             Err(error) => {
-                godot_error!("Merchant key failed: {error}");
+                self.handle_frame_error("Merchant key", error.into());
                 return;
             }
             Ok(false) => {}
@@ -272,49 +274,69 @@ impl INode3D for GameClient {
             return;
         }
         if let Err(error) = self.handle_character_select_key(key.get_keycode()) {
-            godot_error!("Character select key failed: {error}");
+            self.handle_frame_error("Character select key", error);
         }
     }
 
     fn process(&mut self, delta: f64) {
-        let update = self
-            .poll_ui_actions()
-            .and_then(|()| self.poll_account())
-            .and_then(|()| self.update_character_preview())
-            .and_then(|()| self.update_creation_scene(delta as f32))
-            .and_then(|()| self.update_player_input(delta as f32))
-            .and_then(|()| self.update_targeting())
-            .and_then(|()| self.update_spells(delta as f32))
-            .and_then(|()| self.update_merchant())
-            .and_then(|()| self.update_world_map())
-            .and_then(|()| self.update_entrance_bar(delta as f32))
-            .map(|()| self.world.advance(delta as f32))
-            .and_then(|()| self.update_player_animation())
-            .map(|()| self.world.update_remote_locomotion())
-            .and_then(|()| self.send_player_input())
-            .and_then(|()| self.terrain.poll())
-            .and_then(|()| self.update_world_lighting())
-            .and_then(|()| self.attach_terrain_materials())
-            .map(|()| self.attach_world_objects())
-            .and_then(|()| self.update_loading_readiness(delta as f32))
-            .and_then(|()| self.update_world_errors(delta as f32))
-            .and_then(|()| self.update_mirror_timers(delta as f32))
-            .and_then(|()| self.tick_delete_confirmation(delta as f32))
-            .and_then(|()| self.advance_login_fade(delta as f32))
-            .and_then(|()| self.update_world_camera(delta as f32))
-            .and_then(|()| self.update_nameplates())
-            .map(|()| self.cull_world_objects());
-        self.physical_input.finish_frame();
-        if let Err(error) = update {
-            self.account.session.feedback = Some(error.clone());
-            godot_error!("Account update failed: {error}");
-            if let Err(ui_error) = self.update_login_status(&error, false) {
-                godot_error!("Login feedback failed: {ui_error}");
-            }
-            if let Err(stop_error) = self.account.stop() {
-                godot_error!("Account shutdown failed: {stop_error}");
+        type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
+        // Each step runs even when an earlier one failed; only a session failure ends
+        // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
+        let steps: [(&str, Step); 26] = [
+            ("UI actions", |c, _| c.poll_ui_actions()),
+            ("Account", |c, _| c.poll_account()),
+            (
+                "Character preview",
+                |c, _| Ok(c.update_character_preview()?),
+            ),
+            ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
+            ("Player input", |c, d| Ok(c.update_player_input(d)?)),
+            ("Targeting", |c, _| c.update_targeting()),
+            ("Spells", |c, d| c.update_spells(d)),
+            ("Merchant", |c, _| c.update_merchant()),
+            ("World map", |c, _| Ok(c.update_world_map()?)),
+            ("Entrance bar", |c, d| c.update_entrance_bar(d)),
+            ("World units", |c, d| {
+                c.world.advance(d);
+                Ok(())
+            }),
+            ("Player animation", |c, _| Ok(c.update_player_animation()?)),
+            ("Remote player animation", |c, _| {
+                Ok(c.world.update_remote_locomotion()?)
+            }),
+            ("Player movement", |c, _| c.send_player_input()),
+            ("Terrain", |c, _| Ok(c.poll_terrain()?)),
+            ("World lighting", |c, _| Ok(c.update_world_lighting()?)),
+            (
+                "Terrain materials",
+                |c, _| Ok(c.attach_terrain_materials()?),
+            ),
+            ("World objects", |c, _| {
+                c.attach_world_objects();
+                Ok(())
+            }),
+            ("Loading", |c, d| c.update_loading_readiness(d)),
+            ("World errors", |c, d| Ok(c.update_world_errors(d)?)),
+            ("Mirror timers", |c, d| Ok(c.update_mirror_timers(d)?)),
+            ("Delete confirmation", |c, d| {
+                Ok(c.tick_delete_confirmation(d)?)
+            }),
+            ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
+            ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
+            ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
+            ("Culling", |c, _| {
+                c.cull_world_objects();
+                Ok(())
+            }),
+        ];
+        for (step, run) in steps {
+            if let Err(error) = run(self, delta as f32)
+                && self.handle_frame_error(step, error)
+            {
+                break;
             }
         }
+        self.physical_input.finish_frame();
     }
 
     fn exit_tree(&mut self) {
@@ -349,6 +371,21 @@ impl GameClient {
         self.physical_input.clear();
     }
 
+    /// Test hook for missing-asset handling: point `asset` ("cursor" or "target_ring")
+    /// at texture `fdid`. The next frame loads it again.
+    #[func]
+    fn override_texture_fdid(&mut self, asset: GString, fdid: i64) -> GString {
+        let Ok(fdid) = u32::try_from(fdid) else {
+            return GString::from(format!("Texture FDID {fdid} out of range").as_str());
+        };
+        match asset.to_string().as_str() {
+            "cursor" => self.merchant.override_cursor_fdid(fdid),
+            "target_ring" => self.targeting.override_ring_fdid(fdid),
+            other => return GString::from(format!("No texture override for {other}").as_str()),
+        }
+        GString::new()
+    }
+
     #[func]
     fn set_server(&mut self, server: GString) {
         self.server_hostname = server.to_string();
@@ -370,10 +407,11 @@ impl GameClient {
                 &password.to_string(),
                 register,
             )
-            .and_then(|()| self.reset_world());
+            .map_err(FrameError::from)
+            .and_then(|()| Ok(self.reset_world()?));
         match connection {
             Ok(()) => GString::new(),
-            Err(error) => GString::from(error.as_str()),
+            Err(error) => GString::from(error.to_string().as_str()),
         }
     }
 
@@ -435,6 +473,7 @@ impl GameClient {
                 .unwrap_or_default(),
         );
         state.set("reply_received", self.account.reply_received);
+        state.set("connected", self.account.is_connected());
         state.set(
             "selected_character_id",
             &session
@@ -526,6 +565,27 @@ impl GameClient {
 }
 
 impl GameClient {
+    /// Report a failed frame step. A session failure stops the account and returns true;
+    /// a client failure is reported once and the session continues.
+    fn handle_frame_error(&mut self, step: &str, error: FrameError) -> bool {
+        let error = match error {
+            FrameError::Client(error) => {
+                frame_error::report_once(&format!("{step}: {error}"));
+                return false;
+            }
+            FrameError::Session(error) => error.0,
+        };
+        self.account.session.feedback = Some(error.clone());
+        godot_error!("Account session failed in {step}: {error}");
+        if let Err(ui_error) = self.update_login_status(&error, false) {
+            godot_error!("Login feedback failed: {ui_error}");
+        }
+        if let Err(stop_error) = self.account.stop() {
+            godot_error!("Account shutdown failed: {stop_error}");
+        }
+        true
+    }
+
     fn connect_focus_reset(&mut self) -> Result<(), String> {
         let mut window = self.base().get_window().ok_or("Client has no window")?;
         let callback = self.to_gd().callable("clear_physical_input");
@@ -542,9 +602,9 @@ impl GameClient {
         Ok(())
     }
 
-    fn poll_ui_actions(&mut self) -> Result<(), String> {
+    fn poll_ui_actions(&mut self) -> Result<(), FrameError> {
         if self.game_menu_ui.is_some() {
-            return self.poll_game_menu_actions();
+            return Ok(self.poll_game_menu_actions()?);
         }
         match self.account.session.screen {
             SessionScreen::Login => self.poll_login_actions(),
@@ -554,63 +614,67 @@ impl GameClient {
         }
     }
 
-    fn poll_character_actions(&mut self) -> Result<(), String> {
+    fn poll_character_actions(&mut self) -> Result<(), FrameError> {
         let Some(ui) = self.character_ui.as_mut() else {
             return Ok(());
         };
         let error = ui.bind_mut().sync_input();
         if !error.is_empty() {
-            return Err(error.to_string());
+            return Err(error.to_string().into());
         }
         let typed = ui.bind_mut().frame_text(DELETE_CONFIRM_INPUT.0.into());
         let action = ui.bind_mut().pop_action().to_string();
         self.update_delete_typed_text(&typed.to_string())?;
-        match CharSelectAction::parse(&action) {
-            Some(CharSelectAction::SelectChar(index)) => self.select_character(Some(index)),
-            Some(CharSelectAction::EnterWorld) => self.account.send_enter_world(),
-            Some(CharSelectAction::CreateToggle) => {
+        let Some(parsed) = CharSelectAction::parse(&action) else {
+            if action.is_empty() {
+                return Ok(());
+            }
+            return Err(format!("Character action not yet converted: {action}").into());
+        };
+        match parsed {
+            CharSelectAction::SelectChar(index) => Ok(self.select_character(Some(index))?),
+            CharSelectAction::EnterWorld => Ok(self.account.send_enter_world()?),
+            CharSelectAction::CreateToggle => {
                 self.account.session.screen = SessionScreen::CharacterCreate;
-                self.show_account_screen(SessionScreen::CharacterCreate)
+                Ok(self.show_account_screen(SessionScreen::CharacterCreate)?)
             }
-            Some(CharSelectAction::DeleteChar) => self.open_delete_confirmation(),
-            Some(CharSelectAction::ConfirmDeleteChar) => self.confirm_delete_character(),
-            Some(CharSelectAction::CancelDeleteChar) => {
+            CharSelectAction::DeleteChar => Ok(self.open_delete_confirmation()?),
+            CharSelectAction::ConfirmDeleteChar => self.confirm_delete_character(),
+            CharSelectAction::CancelDeleteChar => {
                 self.delete_confirmation.clear();
-                self.sync_delete_confirmation()
+                Ok(self.sync_delete_confirmation()?)
             }
-            Some(CharSelectAction::Back) => {
+            CharSelectAction::Back => {
                 self.account.session.screen = SessionScreen::Login;
-                self.show_account_screen(SessionScreen::Login)
+                Ok(self.show_account_screen(SessionScreen::Login)?)
             }
-            Some(CharSelectAction::Menu) => self.open_game_menu(),
-            Some(CharSelectAction::CampsiteToggle) => {
+            CharSelectAction::Menu => Ok(self.open_game_menu()?),
+            CharSelectAction::CampsiteToggle => {
                 self.campsite.panel_visible = !self.campsite.panel_visible;
-                self.sync_campsite_state()
+                Ok(self.sync_campsite_state()?)
             }
-            Some(CharSelectAction::CampsitePage(page)) => {
+            CharSelectAction::CampsitePage(page) => {
                 self.campsite.page = page;
-                self.sync_campsite_state()
+                Ok(self.sync_campsite_state()?)
             }
-            Some(CharSelectAction::SelectCampsite(id)) => {
+            CharSelectAction::SelectCampsite(id) => {
                 self.character_preview.select_scene(id);
                 self.campsite.selected_id = Some(id);
                 self.campsite.panel_visible = false;
-                self.sync_campsite_state()
+                Ok(self.sync_campsite_state()?)
             }
-            None if action.is_empty() => Ok(()),
-            _ => Err(format!("Character action not yet converted: {action}")),
         }
     }
 
     /// Original character-select keys: Up/Down navigate, Enter enters or confirms deletion,
     /// Escape cancels a pending deletion.
-    fn handle_character_select_key(&mut self, key: godot::global::Key) -> Result<(), String> {
+    fn handle_character_select_key(&mut self, key: godot::global::Key) -> Result<(), FrameError> {
         use godot::global::Key;
         let deleting = self.delete_confirmation.target.is_some();
         match key {
             Key::ESCAPE if deleting => {
                 self.delete_confirmation.clear();
-                self.sync_delete_confirmation()
+                Ok(self.sync_delete_confirmation()?)
             }
             Key::ENTER | Key::KP_ENTER if deleting => self.confirm_delete_character(),
             _ if deleting => Ok(()),
@@ -621,10 +685,10 @@ impl GameClient {
                     session.characters.len(),
                     key == Key::DOWN,
                 );
-                self.select_character(next)
+                Ok(self.select_character(next)?)
             }
             Key::ENTER | Key::KP_ENTER if self.account.session.selected_index.is_some() => {
-                self.account.send_enter_world()
+                Ok(self.account.send_enter_world()?)
             }
             _ => Ok(()),
         }
@@ -672,7 +736,7 @@ impl GameClient {
         }
     }
 
-    fn confirm_delete_character(&mut self) -> Result<(), String> {
+    fn confirm_delete_character(&mut self) -> Result<(), FrameError> {
         if !self.delete_confirmation.ready() {
             return Ok(());
         }
@@ -681,7 +745,7 @@ impl GameClient {
         };
         self.account.send_delete_character(target.character_id)?;
         self.delete_confirmation.clear();
-        self.sync_delete_confirmation()
+        Ok(self.sync_delete_confirmation()?)
     }
 
     /// Original confirmation input is upper-cased as it is typed.
@@ -711,13 +775,13 @@ impl GameClient {
         }
     }
 
-    fn poll_create_actions(&mut self) -> Result<(), String> {
+    fn poll_create_actions(&mut self) -> Result<(), FrameError> {
         let Some(ui) = self.create_ui.as_mut() else {
             return Ok(());
         };
         let error = ui.bind_mut().sync_input();
         if !error.is_empty() {
-            return Err(error.to_string());
+            return Err(error.to_string().into());
         }
         let name = ui
             .bind_mut()
@@ -733,7 +797,7 @@ impl GameClient {
             state.name = name;
         }
         let Some(action) = CharCreateAction::parse(&action) else {
-            return self.sync_creation_ui();
+            return Ok(self.sync_creation_ui()?);
         };
         let names = self
             .name_catalog
@@ -753,19 +817,19 @@ impl GameClient {
         for effect in effects {
             self.apply_creation_effect(effect)?;
         }
-        self.sync_creation_ui()
+        Ok(self.sync_creation_ui()?)
     }
 
     fn apply_creation_effect(
         &mut self,
         effect: char_create::CharCreateEffect,
-    ) -> Result<(), String> {
+    ) -> Result<(), FrameError> {
         use char_create::CharCreateEffect;
         match effect {
             CharCreateEffect::ExitToCharSelect => {
                 self.creation = None;
                 self.account.session.screen = SessionScreen::CharacterSelect;
-                self.show_account_screen(SessionScreen::CharacterSelect)
+                Ok(self.show_account_screen(SessionScreen::CharacterSelect)?)
             }
             // The edit box shows `CharCreateState::name` through the next UI state.
             CharCreateEffect::SetNameText(name) => {
@@ -774,10 +838,12 @@ impl GameClient {
                 }
                 Ok(())
             }
-            CharCreateEffect::SendCreate(request) => self.account.send_create_character(request),
+            CharCreateEffect::SendCreate(request) => {
+                Ok(self.account.send_create_character(request)?)
+            }
             CharCreateEffect::FocusNameInput => match self.create_ui.as_mut() {
                 Some(ui) if ui.bind().has_frame(CREATE_NAME_INPUT.0) => {
-                    ui.bind_mut().focus_frame_named(CREATE_NAME_INPUT.0)
+                    Ok(ui.bind_mut().focus_frame_named(CREATE_NAME_INPUT.0)?)
                 }
                 _ => Ok(()),
             },
@@ -836,17 +902,17 @@ impl GameClient {
         &mut self,
         success: bool,
         error: Option<String>,
-    ) -> Result<(), String> {
+    ) -> Result<(), FrameError> {
         let Some(state) = self.creation.as_mut() else {
             return Ok(());
         };
         match char_create::receive_create_result(state, success, error) {
             Some(effect) => self.apply_creation_effect(effect),
-            None => self.sync_creation_ui(),
+            None => Ok(self.sync_creation_ui()?),
         }
     }
 
-    fn poll_login_actions(&mut self) -> Result<(), String> {
+    fn poll_login_actions(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::Login {
             return Ok(());
         }
@@ -855,7 +921,7 @@ impl GameClient {
         };
         let error = login.bind_mut().sync_input();
         if !error.is_empty() {
-            return Err(error.to_string());
+            return Err(error.to_string().into());
         }
         let action = login.bind_mut().pop_action().to_string();
         match action.as_str() {
@@ -865,23 +931,23 @@ impl GameClient {
                 let username = credential_field(&credentials, "username")?;
                 let password = credential_field(&credentials, "password")?;
                 if username.trim().is_empty() || password.trim().is_empty() {
-                    return self.update_login_status("Please fill in all fields", false);
+                    return Ok(self.update_login_status("Please fill in all fields", false)?);
                 }
                 self.account
                     .connect(&self.server_hostname, &username, &password, false)?;
                 self.reset_world()?;
-                self.update_login_status("Connecting...", true)
+                Ok(self.update_login_status("Connecting...", true)?)
             }
             "reconnect" => {
                 self.account.connect(&self.server_hostname, "", "", false)?;
                 self.reset_world()?;
-                self.update_login_status("Connecting...", true)
+                Ok(self.update_login_status("Connecting...", true)?)
             }
             "exit" => {
                 self.base().get_tree().quit();
                 Ok(())
             }
-            other => Err(format!("Login action not yet converted: {other}")),
+            other => Err(format!("Login action not yet converted: {other}").into()),
         }
     }
 
@@ -908,34 +974,15 @@ impl GameClient {
         Ok(())
     }
 
-    fn poll_account(&mut self) -> Result<(), String> {
+    /// A failure handling one event is reported and the next event still applies;
+    /// only a transport or protocol failure ends the poll.
+    fn poll_account(&mut self) -> Result<(), FrameError> {
         for event in self.account.poll()? {
-            match event {
-                AccountEvent::Screen(screen) => {
-                    self.show_account_screen(screen)?;
-                    let status = self.account.session.feedback.clone().unwrap_or_default();
-                    self.update_login_status(&status, false)?;
+            match self.apply_account_event(event) {
+                Err(FrameError::Client(error)) => {
+                    frame_error::report_once(&format!("Account event: {error}"))
                 }
-                AccountEvent::WorldReset => self.reset_world()?,
-                AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
-                AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
-                AccountEvent::TransferError(error) => self.add_world_error(&error)?,
-                AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
-                AccountEvent::UnitUpdated(unit) => {
-                    let mut parent = self.to_gd().upcast::<Node3D>();
-                    self.world.upsert(&mut parent, &unit);
-                    self.units.insert(unit.server_id, unit);
-                }
-                AccountEvent::RosterChanged => self.sync_character_select_state()?,
-                AccountEvent::CharacterCreated { success, error } => {
-                    self.receive_creation_result(success, error)?
-                }
-                AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
-                AccountEvent::Npc(message) => self.receive_npc_message(message)?,
-                AccountEvent::UnitRemoved(id) => {
-                    self.world.remove(id);
-                    self.units.remove(&id);
-                }
+                result => result?,
             }
         }
         self.world
@@ -945,6 +992,37 @@ impl GameClient {
         self.account
             .session
             .finish_reconnect(self.world.local_player_node().is_some());
+        Ok(())
+    }
+
+    fn apply_account_event(&mut self, event: AccountEvent) -> Result<(), FrameError> {
+        match event {
+            AccountEvent::Screen(screen) => {
+                self.show_account_screen(screen)?;
+                let status = self.account.session.feedback.clone().unwrap_or_default();
+                self.update_login_status(&status, false)?;
+            }
+            AccountEvent::WorldReset => self.reset_world()?,
+            AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
+            AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
+            AccountEvent::TransferError(error) => self.add_world_error(&error)?,
+            AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
+            AccountEvent::UnitUpdated(unit) => {
+                let mut parent = self.to_gd().upcast::<Node3D>();
+                self.world.upsert(&mut parent, &unit);
+                self.units.insert(unit.server_id, unit);
+            }
+            AccountEvent::RosterChanged => self.sync_character_select_state()?,
+            AccountEvent::CharacterCreated { success, error } => {
+                self.receive_creation_result(success, error)?
+            }
+            AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
+            AccountEvent::Npc(message) => self.receive_npc_message(message)?,
+            AccountEvent::UnitRemoved(id) => {
+                self.world.remove(id);
+                self.units.remove(&id);
+            }
+        }
         Ok(())
     }
 
@@ -989,6 +1067,19 @@ impl GameClient {
             player.set_rotation(Vector3::new(0.0, destination.facing, 0.0));
             self.world
                 .set_local_player_facing(destination.facing + std::f32::consts::FRAC_PI_2);
+        }
+        Ok(())
+    }
+
+    /// Stream terrain results. A tile or map that fails to load is reported once and
+    /// stays absent; the rest of the map still loads.
+    fn poll_terrain(&mut self) -> Result<(), String> {
+        self.terrain.poll()?;
+        if let Some(error) = self.terrain.map_error() {
+            frame_error::report_once(&format!("Terrain map: {error}"));
+        }
+        for ((y, x), error) in self.terrain.failures() {
+            frame_error::report_once(&format!("Terrain tile ({y}, {x}): {error}"));
         }
         Ok(())
     }
@@ -1062,7 +1153,7 @@ impl GameClient {
         self.terrain_materials.sync(&mut parent, &self.terrain)
     }
 
-    fn update_loading_readiness(&mut self, delta: f32) -> Result<(), String> {
+    fn update_loading_readiness(&mut self, delta: f32) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::Loading {
             return Ok(());
         }
