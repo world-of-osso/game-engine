@@ -32,7 +32,7 @@ This page covers the client vendor. The spec is [merchant-frame](../../specs/mer
 - `metal_frame` is composed by `panel_style_data::compose_metal_sheet` into a registry dynamic texture.
 - The projection reports right-clicks and Shift-left-clicks on `onclick` frames as `UiInput::AltClick` (`RegistryUi::pop_alt_click`).
 - `NpcFlags` and `Gold` ride on `UnitSnapshot`; interaction/vendor/bag/durability messages arrive as `AccountEvent::Npc`.
-- Live-server fixture: `godot/tests/world_merchant_flow.gd` turns with TurnRight (ArrowRight); D strafes and walks the character away. The separate owned `native_input_fixture merchant-click` test replicates a nearby vendor with `NpcFlags::VENDOR`, receives actual `InteractNpc` from a ray-picked right-click, then sends `InteractionOpened`, `InventorySnapshot`, and `VendorInventory`. Authored tab and close-button left-down reach the owned Effects player; right/release/Escape/reopen stay quiet. See [[sound]] for the bounded log and limits.
+- Live-server fixture: `godot/tests/world_merchant_flow.gd` turns with TurnRight (ArrowRight); D strafes and walks the character away. The separate owned `native_input_fixture merchant-click` test replicates a nearby vendor with `NpcFlags::VENDOR`, receives actual `InteractNpc` from a ray-picked right-click, then sends `InteractionOpened`, `InventorySnapshot`, and `VendorInventory`. Authored buyback-tab and close-button left-down reach the owned Effects player; right press, release, Escape, and reopen stay quiet. Its final exit-0 log is `/tmp/claude/merchant-click-f1609b4e-final.log`; verifier918 independent review remains pending. See [[sound]] for limits.
 
 ## Gotchas
 

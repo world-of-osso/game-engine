@@ -2,7 +2,7 @@
 
 ## [2026-09-29] system | Owned UDP merchant click audio
 
-The isolated `native_input_fixture merchant-click` mode replicates a ray-pickable vendor and sends real vendor/bag messages only after `InteractNpc`. The authenticated client's authored tab and close controls reach its owned Effects player at gain `0.44`; right/release/Escape/reopen stay quiet. The owned server observes two opens and two closes. RED `/tmp/claude/merchant-click-red3.log` lacks the vendor and fails the ray-pick assertion; targeted GREEN `/tmp/claude/merchant-click-green-final.log` passes with an unoccluded vendor. Optional missing scenery textures remain logged. This does not prove audible output, purchase/sale, mutable sound settings or independent verification. Updated [[sound]] and [[merchant-frame]].
+The owned `native_input_fixture merchant-click` mode ray-picks a replicated vendor and sends `InteractNpc`; only then does its owned UDP server send `InteractionOpened`, `InventorySnapshot`, and `VendorInventory`. The authenticated client's authored buyback-tab and close-button left-down reach its Effects player; right press, release, Escape, and reopen stay quiet. The server observes two opens and two closes. Final exit-0 output: `/tmp/claude/merchant-click-f1609b4e-final.log`. Optional scenery missing-texture diagnostics remain within the explicit fixture exception. Verifier918 independent review is pending. This does not prove all-owner coverage, audible/hardware output, purchase/sale, mutable sound settings, or full parity. Updated [[sound]] and [[merchant-frame]].
 
 ## [2026-09-29] system | Owned UDP spell-button click audio
 
