@@ -149,7 +149,7 @@ func save_capture_pair(images: Dictionary, stage: String) -> bool:
 		return false
 	for kind in ["root", "reference"]:
 		var image: Image = images[kind + "_image"]
-		var filename := "rcas-" + stage.replace(" ", "-") + "-" + kind + ".png"
+		var filename: String = "rcas-" + stage.replace(" ", "-") + "-" + kind + ".png"
 		error = image.save_png(directory.path_join(filename))
 		if error != OK:
 			fail("Save RCAS " + filename + ": " + error_string(error))
