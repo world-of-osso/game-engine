@@ -1,6 +1,7 @@
-//! Combat cluster geometry at the 1920×1080 reference: player frame, cast dock and target frame
-//! centred above the action bars; target-of-target and focus to the target's right. Party and
-//! raid frames (`group_frames_component`) sit left of and above the cluster.
+//! Unit frame geometry in UI units. The player frame and cast dock form the central cluster
+//! above the action bars; the target frame sits at the Retail Modern Edit Mode preset, with
+//! target-of-target and focus to its right. Party and raid frames (`group_frames_component`)
+//! sit left of and above the player frame.
 
 /// Width of the shared resource/cast area between the player and target frames.
 pub const CAST_DOCK_W: f32 = 264.0;
@@ -13,7 +14,19 @@ pub const CLUSTER_BOTTOM: f32 = 152.0;
 pub const FRAME_W: f32 = 133.0;
 pub const FRAME_H: f32 = 51.0;
 pub const PLAYER_FRAME_LEFT: f32 = -(CAST_DOCK_W / 2.0 + CAST_DOCK_GAP + FRAME_W);
-pub const TARGET_FRAME_LEFT: f32 = CAST_DOCK_W / 2.0 + CAST_DOCK_GAP;
+
+/// Retail Modern preset TargetFrame: BOTTOMLEFT to UIParent BOTTOM at (300, 250)
+/// (Blizzard_EditMode/Mainline/EditModePresetLayouts.lua:245-257).
+const RETAIL_TARGET_LEFT: f32 = 300.0;
+const RETAIL_TARGET_BOTTOM: f32 = 250.0;
+/// The Retail frame is 232×100 around a portrait (TargetFrame.xml:144); its 126×20 health
+/// bar has its BOTTOMRIGHT at the frame's LEFT + (148, 2) (TargetFrame.xml:218-220).
+const RETAIL_HEALTH_LEFT: f32 = 148.0 - 126.0;
+const RETAIL_HEALTH_BOTTOM: f32 = 100.0 / 2.0 + 2.0;
+/// The portrait-off frame is placed so its health slot is where Retail draws the health bar.
+pub const TARGET_FRAME_LEFT: f32 = RETAIL_TARGET_LEFT + RETAIL_HEALTH_LEFT - BAR_X;
+pub const TARGET_FRAME_BOTTOM: f32 =
+    RETAIL_TARGET_BOTTOM + RETAIL_HEALTH_BOTTOM - (FRAME_H - HEALTH_Y - HEALTH_H);
 
 pub const SMALL_FRAME_GAP: f32 = 8.0;
 /// Target-of-target and focus draw the same art at 3/4 scale.
@@ -25,7 +38,7 @@ pub const FOCUS_W: f32 = TOT_W;
 pub const FOCUS_H: f32 = TOT_H;
 pub const FOCUS_LEFT: f32 = TOT_LEFT + TOT_W + SMALL_FRAME_GAP;
 /// Small frames align with the target frame's top edge.
-pub const SMALL_FRAME_BOTTOM: f32 = CLUSTER_BOTTOM + FRAME_H - TOT_H;
+pub const SMALL_FRAME_BOTTOM: f32 = TARGET_FRAME_BOTTOM + FRAME_H - TOT_H;
 
 /// Slots inside the portrait-off art (pixels of the 133×51 crop): name tab on rows 0..12,
 /// health slot inside the top border and divider, power slot below the divider.

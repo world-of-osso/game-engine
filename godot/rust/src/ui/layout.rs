@@ -173,6 +173,10 @@ pub fn compute_layout_with_intrinsics(
     intrinsics: &HashMap<u64, (f32, f32)>,
 ) -> Result<HashMap<u64, LayoutRect>, String> {
     let mut tree = TaffyTree::new();
+    if registry.ui_scale != 1.0 {
+        // Whole UI units are not whole pixels on a scaled canvas; the host scales exact rects.
+        tree.disable_rounding();
+    }
     let mut nodes = HashMap::new();
     let roots = registry
         .frames_iter()

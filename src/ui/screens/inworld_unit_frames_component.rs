@@ -283,7 +283,7 @@ fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
     art_root(
         dyn_name("TargetFrame".into()),
         (FRAME_W, FRAME_H),
-        (TARGET_FRAME_LEFT, CLUSTER_BOTTOM),
+        (TARGET_FRAME_LEFT, TARGET_FRAME_BOTTOM),
         target.is_none() || !visible,
         content,
     )

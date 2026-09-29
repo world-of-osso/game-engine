@@ -214,12 +214,8 @@ impl GameClient {
             description: wrap_text(&description, TOOLTIP_W - 2.0 * PADDING, measure),
             requirement: available_at.map(|level| format!("Level {level}")),
         };
-        let screen = self
-            .base()
-            .get_viewport()
-            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
-                viewport.get_visible_rect().size
-            });
+        // Button rects and the tooltip share the UIParent canvas.
+        let screen = self.ui_parent();
         let height = state.height();
         // Spellbook items: to the right of the icon; action buttons: above the bar.
         let (left, top) = if on_bar {
@@ -228,8 +224,8 @@ impl GameClient {
             (x + w + ANCHOR_GAP, y)
         };
         state.origin = [
-            left.clamp(0.0, (screen.x - TOOLTIP_W).max(0.0)),
-            top.clamp(0.0, (screen.y - height).max(0.0)),
+            left.clamp(0.0, (screen.width - TOOLTIP_W).max(0.0)),
+            top.clamp(0.0, (screen.height - height).max(0.0)),
         ];
         Ok(state)
     }
