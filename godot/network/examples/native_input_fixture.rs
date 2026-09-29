@@ -28,7 +28,8 @@ use shared::{
         CloseInteraction, EnterWorldResponse, InteractNpc, InteractionChannel, InteractionKind,
         InteractionOpened, InventoryChannel, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
         LoginRequest, LoginResponse, MerchantChannel, NpcFlags, NpcRole, PlayerInput,
-        SelectCharacter, TalentChannel, TerrainChannel, VendorInventory, VendorItem,
+        SelectCharacter, SpellCastIntent, TalentChannel, TerrainChannel, VendorInventory,
+        VendorItem,
     },
 };
 
@@ -131,6 +132,7 @@ struct Incoming {
     inputs: Vec<PlayerInput>,
     interactions: Vec<InteractNpc>,
     closes: Vec<CloseInteraction>,
+    casts: Vec<SpellCastIntent>,
     vendor: Option<Entity>,
     /// A moving or jumping input arrived whose release no stop input has reported yet.
     unreported_release: bool,
@@ -143,6 +145,7 @@ fn receive_requests(
     mut inputs: Query<&mut MessageReceiver<PlayerInput>>,
     mut interactions: Query<&mut MessageReceiver<InteractNpc>>,
     mut closes: Query<&mut MessageReceiver<CloseInteraction>>,
+    mut casts: Query<&mut MessageReceiver<SpellCastIntent>>,
     mut incoming: ResMut<Incoming>,
 ) {
     for (entity, mut receiver) in &mut logins {
@@ -161,6 +164,9 @@ fn receive_requests(
     }
     for mut receiver in &mut closes {
         incoming.closes.extend(receiver.receive());
+    }
+    for mut receiver in &mut casts {
+        incoming.casts.extend(receiver.receive());
     }
 }
 

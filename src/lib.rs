@@ -189,6 +189,8 @@ pub mod screen_arg_data;
 pub mod screenshot;
 #[path = "sound/music_zone_cache.rs"]
 pub mod sound_music_zone_cache;
+#[path = "sound/spell_cast_data.rs"]
+pub mod spell_cast_data;
 #[path = "game/spell_catalog/mod.rs"]
 pub mod spell_catalog;
 #[path = "game/spell_visual_data.rs"]

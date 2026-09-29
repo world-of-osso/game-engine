@@ -9,6 +9,7 @@ use crate::sound_footsteps::{
     classify_player_creature, movement_from_anim,
 };
 use game_engine::input_bindings::InputAction;
+use game_engine::spell_cast_data::observe_active_spell as observe_spell_id;
 use game_engine::wmo_surface_data::{
     WmoSurfaceBounds, select_footstep_surface as select_shared_footstep_surface,
 };
@@ -339,22 +340,13 @@ fn observe_active_spell(
     last_spell_id: &mut Option<u32>,
     queue: &mut SpellSoundQueue,
 ) {
-    let active_spell_id = casting.active.as_ref().and_then(|cast| {
-        if cast.spell_id == 0 {
-            None
-        } else {
-            Some(cast.spell_id)
-        }
-    });
-    if active_spell_id != *last_spell_id {
-        if let Some(spell_id) = active_spell_id {
-            queue.requests.push(SpellSoundRequest {
-                spell_id,
-                kind: SpellSoundKind::CastStart,
-                emitter_entity: None,
-            });
-        }
-        *last_spell_id = active_spell_id;
+    let active_spell_id = casting.active.as_ref().map(|cast| cast.spell_id);
+    if let Some(spell_id) = observe_spell_id(last_spell_id, active_spell_id) {
+        queue.requests.push(SpellSoundRequest {
+            spell_id,
+            kind: SpellSoundKind::CastStart,
+            emitter_entity: None,
+        });
     }
 }
 

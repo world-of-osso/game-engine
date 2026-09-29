@@ -4,6 +4,9 @@ use bevy::audio::AudioSource;
 use bevy::prelude::{Assets, Handle};
 
 use super::{SpellSoundKind, generate_wav};
+use game_engine::spell_cast_data::{
+    CAST_VOLUME_SCALE, generate_spell_cast_samples, generate_spell_sweep_samples,
+};
 
 pub(super) struct LoadedSpellAudioAssets {
     pub spell_cast: Handle<AudioSource>,
@@ -30,7 +33,7 @@ pub(super) fn load_spell_audio_assets(
 
 pub(super) fn spell_sound_volume_scale(kind: SpellSoundKind) -> f32 {
     match kind {
-        SpellSoundKind::CastStart => 0.75,
+        SpellSoundKind::CastStart => CAST_VOLUME_SCALE,
         SpellSoundKind::Impact => 1.0,
         SpellSoundKind::Heal => 0.85,
         SpellSoundKind::Miss => 0.55,
@@ -45,10 +48,6 @@ fn load_generated_spell_sound(
     audio_assets.add(AudioSource {
         bytes: generate_wav(samples).into(),
     })
-}
-
-fn generate_spell_cast_samples() -> Vec<i16> {
-    generate_spell_sweep_samples(140.0, 380.0, 140, 0.22)
 }
 
 fn generate_spell_heal_samples() -> Vec<i16> {
@@ -97,25 +96,6 @@ fn generate_spell_impact_samples() -> Vec<i16> {
         let tone = (t * TAU * 110.0).sin() * 0.45;
         let sample = ((tone + noise * 0.55) * envelope * 18_000.0).clamp(-32_767.0, 32_767.0);
         samples.push(sample as i16);
-    }
-    samples
-}
-
-fn generate_spell_sweep_samples(
-    start_hz: f32,
-    end_hz: f32,
-    duration_ms: u32,
-    amplitude: f32,
-) -> Vec<i16> {
-    let sample_rate = 44_100.0_f32;
-    let sample_count = (sample_rate * duration_ms as f32 / 1000.0) as usize;
-    let mut samples = Vec::with_capacity(sample_count);
-    for i in 0..sample_count {
-        let t = i as f32 / sample_count as f32;
-        let hz = start_hz + (end_hz - start_hz) * t;
-        let envelope = (1.0 - t).powf(2.0);
-        let wave = ((t * hz * TAU).sin() + (t * hz * TAU * 0.5).sin() * 0.35) * envelope;
-        samples.push((wave * amplitude * 32_000.0).clamp(-32_767.0, 32_767.0) as i16);
     }
     samples
 }
