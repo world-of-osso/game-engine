@@ -15,6 +15,21 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   UiTextureKit                 FDID 939159
   ZoneLight                    FDID 1310253
   ZoneLightPoint               FDID 1310256
+  AnimationData                FDID 1375431
+  AnimKitBoneSet               FDID 1375433
+  AnimKitConfig                FDID 1300872
+  AnimKitConfigBoneSet         FDID 1300873
+  AnimKitPriority              FDID 1266540
+  AnimKitSegment               FDID 1304324
+  SpellVisual                  FDID 897952
+  SpellVisualAnim              FDID 1140479
+  SpellVisualEffectName        FDID 897948
+  SpellVisualEvent             FDID 1685317
+  SpellVisualKit               FDID 897949
+  SpellVisualKitEffect         FDID 1140480
+  SpellVisualKitModelAttach    FDID 897953
+  SpellVisualMissile           FDID 897954
+  SpellXSpellVisual            FDID 1101657
 """
 
 import csv
@@ -94,17 +109,186 @@ TABLES = {
             ("ZoneLightID", "parent"),
         ],
     ),
+    # Spell visuals (WoWDBDefs layouts of build 12.1.0.69933). Floats are exported as
+    # ("float", field, element); `<8>` fields are signed, so AttachmentID -1 stays -1.
+    "AnimationData": (0xBBF66A3C, [("ID", "id"), ("Fallback", ("u16", 0)), ("BehaviorTier", ("i8", 1)), ("BehaviorID", ("i16", 2)), ("Flags_0", ("int", 3, 0))]),
+    "SpellVisual": (
+        0x4B85C90F,
+        [
+            ("ID", "id"),
+            ("MissileCastOffset_0", ("float", 0, 0)),
+            ("MissileCastOffset_1", ("float", 0, 1)),
+            ("MissileCastOffset_2", ("float", 0, 2)),
+            ("MissileImpactOffset_0", ("float", 1, 0)),
+            ("MissileImpactOffset_1", ("float", 1, 1)),
+            ("MissileImpactOffset_2", ("float", 1, 2)),
+            ("Flags", ("int", 4, 0)),
+            ("MissileAttachment", ("i8", 5)),
+            ("MissileDestinationAttachment", ("i8", 6)),
+            ("SpellVisualMissileSetID", ("u16", 12)),
+        ],
+    ),
+    "SpellVisualAnim": (0xF233613A, [("ID", "id"), ("InitialAnimID", ("i16", 0)), ("LoopAnimID", ("i16", 1)), ("AnimKitID", ("u16", 2))]),
+    "SpellVisualEffectName": (
+        0x2245CEE6,
+        [
+            ("ID", "id"),
+            ("ModelFileDataID", ("int", 0, 0)),
+            ("BaseMissileSpeed", ("float", 1, 0)),
+            ("Scale", ("float", 2, 0)),
+            ("MinAllowedScale", ("float", 3, 0)),
+            ("MaxAllowedScale", ("float", 4, 0)),
+            ("Alpha", ("float", 5, 0)),
+            ("Flags", ("int", 6, 0)),
+            ("TextureFileDataID", ("int", 7, 0)),
+            ("Type", ("int", 9, 0)),
+            ("GenericID", ("int", 10, 0)),
+        ],
+    ),
+    "SpellVisualEvent": (
+        0x865F512E,
+        [
+            ("ID", "id"),
+            ("StartEvent", ("int", 0, 0)),
+            ("EndEvent", ("int", 1, 0)),
+            ("StartMinOffsetMs", ("int", 2, 0)),
+            ("StartMaxOffsetMs", ("int", 3, 0)),
+            ("EndMinOffsetMs", ("int", 4, 0)),
+            ("EndMaxOffsetMs", ("int", 5, 0)),
+            ("TargetType", ("int", 6, 0)),
+            ("SpellVisualKitID", ("int", 7, 0)),
+            ("SpellVisualID", "parent"),
+        ],
+    ),
+    "SpellVisualKit": (
+        0xC069D9C4,
+        [("ID", "id"), ("FallbackSpellVisualKitID", ("int", 1, 0)), ("DelayMin", ("u16", 2)), ("DelayMax", ("u16", 3)), ("Flags_0", ("int", 8, 0))],
+    ),
+    "SpellVisualKitEffect": (
+        0xE3206CA2,
+        [("ID", "id"), ("EffectType", ("int", 0, 0)), ("Effect", ("int", 1, 0)), ("ParentSpellVisualKitID", "parent")],
+    ),
+    "SpellVisualKitModelAttach": (
+        0x02CF8554,
+        [
+            ("ID", "id"),
+            ("Offset_0", ("float", 0, 0)),
+            ("Offset_1", ("float", 0, 1)),
+            ("Offset_2", ("float", 0, 2)),
+            ("SpellVisualEffectNameID", ("int", 2, 0)),
+            ("AttachmentID", ("i8", 3)),
+            ("PositionerID", ("int", 4, 0)),
+            ("Yaw", ("float", 5, 0)),
+            ("Pitch", ("float", 6, 0)),
+            ("Roll", ("float", 7, 0)),
+            ("Scale", ("float", 11, 0)),
+            ("StartAnimID", ("i16", 13)),
+            ("AnimID", ("i16", 14)),
+            ("EndAnimID", ("i16", 15)),
+            ("AnimKitID", ("int", 16, 0)),
+            ("Flags", ("int", 17, 0)),
+            ("StartDelay", ("float", 19, 0)),
+            ("ParentSpellVisualKitID", "parent"),
+        ],
+    ),
+    "SpellVisualMissile": (
+        0xAE389078,
+        [
+            ("ID", "id"),
+            ("CastOffset_0", ("float", 0, 0)),
+            ("CastOffset_1", ("float", 0, 1)),
+            ("CastOffset_2", ("float", 0, 2)),
+            ("ImpactOffset_0", ("float", 1, 0)),
+            ("ImpactOffset_1", ("float", 1, 1)),
+            ("ImpactOffset_2", ("float", 1, 2)),
+            ("SpellVisualEffectNameID", ("u16", 3)),
+            ("Attachment", ("i8", 5)),
+            ("DestinationAttachment", ("i8", 6)),
+            ("Flags", ("int", 12, 0)),
+            ("SpellMissileMotionID", ("u16", 13)),
+            ("DecayTimeAfterImpact", ("int", 16, 0)),
+            ("SpellVisualMissileSetID", "parent"),
+        ],
+    ),
+    "SpellXSpellVisual": (
+        0x7994A890,
+        [
+            ("ID", "id"),
+            ("DifficultyID", ("i16", 1)),
+            ("SpellVisualID", 2),
+            ("Probability", ("float", 3, 0)),
+            ("Priority", ("int", 5, 0)),
+            ("ViewerUnitConditionID", ("u16", 8)),
+            ("ViewerPlayerConditionID", 9),
+            ("CasterUnitConditionID", ("u16", 10)),
+            ("CasterPlayerConditionID", 11),
+            ("SpellID", "parent"),
+        ],
+    ),
+    "AnimKitSegment": (
+        0xA6C970CA,
+        [
+            ("ID", "id"),
+            ("ParentAnimKitID", ("u16", 0)),
+            ("OrderIndex", ("u8", 1)),
+            ("AnimID", ("i16", 2)),
+            ("AnimStartTime", 3),
+            ("AnimKitConfigID", ("u16", 4)),
+            ("StartCondition", ("u8", 5)),
+            ("StartConditionParam", ("u8", 6)),
+            ("StartConditionDelay", 7),
+            ("EndCondition", ("u8", 8)),
+            ("EndConditionParam", 9),
+            ("EndConditionDelay", 10),
+            ("Speed", ("float", 11, 0)),
+            ("SegmentFlags", ("int", 12, 0)),
+            ("ForcedVariation", ("u8", 13)),
+            ("OverrideConfigFlags", ("int", 14, 0)),
+            ("LoopToSegmentIndex", ("i8", 15)),
+            ("BlendInTimeMs", ("u16", 16)),
+            ("BlendOutTimeMs", ("u16", 17)),
+        ],
+    ),
+    "AnimKitConfig": (0x140718EF, [("ID", "id"), ("ConfigFlags", ("int", 0, 0))]),
+    "AnimKitConfigBoneSet": (
+        0x482E3ED3,
+        [("ID", "id"), ("AnimKitBoneSetID", ("u8", 0)), ("AnimKitPriorityID", ("u16", 1)), ("ParentAnimKitConfigID", "parent")],
+    ),
+    "AnimKitBoneSet": (
+        0x43E7736F,
+        [("ID", "id"), ("BoneDataID", ("int", 1, 0)), ("ParentAnimKitBoneSetID", ("i8", 2)), ("AltAnimKitBoneSetID", ("i8", 3)), ("AltBoneDataID", ("int", 4, 0))],
+    ),
+    "AnimKitPriority": (0xCCF889D8, [("ID", "id"), ("Priority", ("u8", 0))]),
 }
+
+# Narrow DBD types: pallet entries are 32-bit and carry unrelated high bits.
+NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 16)}
+
+# Tables whose inline ID is not their first field.
+INLINE_ID_FIELD = {"SpellVisualMissile": 2}
 
 
 def read_fields(data, field_count, sections):
     start = 204 + sections * 40 + field_count * 4
     fields = [struct.unpack_from("<HH5I", data, start + i * 24) for i in range(field_count)]
+    # Pallet (3, 4) and common (2) fields each index their own block, in field order.
     palette_offsets, offset = [], 0
     for field in fields:
         palette_offsets.append(offset)
-        offset += field[2]
+        offset += field[2] if field[3] in (3, 4) else 0
     return fields, palette_offsets, start + field_count * 24
+
+
+def read_common(data, fields, common_start):
+    """Per field, the {record id: value} of a common-data (storage 2) field; other fields None."""
+    common, offset = [], common_start
+    for field in fields:
+        if field[3] != 2:
+            common.append(None)
+            continue
+        common.append(dict(struct.iter_unpack("<II", data[offset : offset + field[2]])))
+        offset += field[2]
+    return common
 
 
 def decode_field(raw, field, palette, palette_offset):
@@ -116,6 +300,8 @@ def decode_field(raw, field, palette, palette_offset):
         return struct.unpack_from(f"<{array_count}I", palette, palette_offset + value * 4 * array_count)
     if storage == 5 and width and value & (1 << (width - 1)):
         return value - (1 << width)
+    if storage == 2:
+        return None  # resolved per record id from the common block
     if storage not in (0, 1, 5):
         raise ValueError(f"unsupported field storage {storage}")
     return value
@@ -128,17 +314,20 @@ def read_relations(data, offset, size):
     return {index: parent for parent, index in struct.iter_unpack("<II", data[offset + 12 : offset + 12 + entries * 8])}
 
 
-def read_wdc5(data, layout):
+def read_wdc5(data, layout, id_field=0):
     if data[:4] != b"WDC5":
         raise ValueError("not a WDC5 file")
     _, field_count, record_size, _, _, actual_layout = struct.unpack_from("<6I", data, 136)
-    flags, _, _, _, _, _, _, palette_size, sections = struct.unpack_from("<HH7I", data, 172)
+    flags, _, _, _, _, _, common_size, palette_size, sections = struct.unpack_from("<HH7I", data, 172)
     if actual_layout != layout:
         raise ValueError(f"layout {actual_layout:08X}, expected {layout:08X}")
     if flags & ~0x4:
         raise ValueError(f"unsupported WDC5 flags {flags:#x}")
     fields, palette_offsets, palette_start = read_fields(data, field_count, sections)
     palette = data[palette_start : palette_start + palette_size]
+    common = read_common(data, fields, palette_start + palette_size)
+    if sum(f[2] for f in fields if f[3] == 2) != common_size:
+        raise ValueError("common data size mismatch")
     rows, dropped = {}, 0
     for section in range(sections):
         key, start, count, string_size, _, id_size, relation_size, _, copies = struct.unpack_from(
@@ -154,7 +343,10 @@ def read_wdc5(data, layout):
         for i in range(count):
             raw = int.from_bytes(payload[i * record_size : (i + 1) * record_size], "little")
             values = [decode_field(raw, f, palette, o) for f, o in zip(fields, palette_offsets)]
-            row_id = struct.unpack_from("<I", data, id_start + i * 4)[0] if id_size else values[0]
+            row_id = struct.unpack_from("<I", data, id_start + i * 4)[0] if id_size else values[id_field]
+            for index, defaults in enumerate(common):
+                if defaults is not None:
+                    values[index] = defaults.get(row_id, fields[index][4])
             rows[row_id] = (values, relations.get(i), start + i * record_size)
         for new_id, source in struct.iter_unpack("<II", data[copy_start : copy_start + copies * 8]):
             rows[new_id] = rows[source]
@@ -171,7 +363,7 @@ def main():
     table, db2_path, out_path = sys.argv[1:4]
     layout, columns = TABLES[table]
     data = open(db2_path, "rb").read()
-    rows, dropped, fields, sections = read_wdc5(data, layout)
+    rows, dropped, fields, sections = read_wdc5(data, layout, INLINE_ID_FIELD.get(table, 0))
     if sections != 1 and any(isinstance(s, tuple) and s[0] == "string" for _, s in columns):
         raise ValueError(f"string columns need a single-section table, got {sections} sections")
     with open(out_path, "w", newline="") as handle:
@@ -181,6 +373,10 @@ def main():
             values, parent, record_offset = rows[row_id]
 
             def column(s):
+                if isinstance(s, tuple) and s[0] in NARROW:
+                    signed, width = NARROW[s[0]]
+                    value = values[s[1]] & ((1 << width) - 1)
+                    return value - (1 << width) if signed and value >> (width - 1) else value
                 if isinstance(s, tuple) and s[0] in ("float", "int"):
                     value = values[s[1]]
                     bits = value[s[2]] if isinstance(value, tuple) else (value >> (32 * s[2])) & 0xFFFFFFFF

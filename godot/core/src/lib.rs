@@ -67,6 +67,7 @@ pub mod nameplate_visibility_data;
 mod nameplate_visibility_data_tests;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
+pub mod spell_visual;
 #[path = "../../../src/water_material_data.rs"]
 pub mod water_material_data;
 pub use asset::m2_batch_data;
