@@ -639,6 +639,19 @@ impl GameClient {
         self.world.unit_action_id(id as u64).map_or(-1, i64::from)
     }
 
+    /// Unit `id`'s creature `display_id` (-1 without one), whether its `visual` is loaded,
+    /// and its locomotion `animation` (-1 before one); empty for an unknown unit.
+    #[func]
+    fn unit_display(&self, id: i64) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        if let Some((display_id, visual, animation)) = self.world.unit_display(id as u64) {
+            state.set("display_id", display_id.map_or(-1, i64::from));
+            state.set("visual", visual);
+            state.set("animation", animation.map_or(-1, i64::from));
+        }
+        state
+    }
+
     /// Known spells, bar, cooldowns, sent casts, errors and spellbook entries.
     #[func]
     fn spells_state(&self) -> VarDictionary {
