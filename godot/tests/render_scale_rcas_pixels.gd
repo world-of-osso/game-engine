@@ -2,6 +2,15 @@ extends "res://tests/render_scale_buffers.gd"
 
 const UI_PIXEL := Vector2i(12, 12)
 const UI_COLOR := Color(1.0, 0.0, 0.0, 1.0)
+const UI_EDGE_ORIGIN := Vector2i(48, 8)
+const UI_EDGE_SIZE := Vector2i(48, 24)
+const UI_EDGE_DARK := Color8(128, 136, 144, 255)
+const UI_EDGE_LIGHT := Color8(192, 184, 176, 255)
+const UI_DARK_INTERIOR := Vector2i(12, 12)
+const UI_LIGHT_INTERIOR := Vector2i(36, 12)
+const UI_DARK_EDGE := Vector2i(23, 12)
+const UI_LIGHT_EDGE := Vector2i(24, 12)
+const BLACK_PIXEL := Vector2i(1200, 360)
 const SAMPLE_Y := 112
 const FIRST_X := 80
 const LAST_X := 350
@@ -47,6 +56,7 @@ func run_test() -> void:
 	marker.size = Vector2(24, 24)
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_layer.add_child(marker)
+	add_ui_edge(ui_layer)
 	root.add_child(ui_layer)
 
 	if not await expect_scale(reference, 0.75, "startup"):
@@ -87,6 +97,15 @@ func run_test() -> void:
 		return
 	print("PASS: real viewport RCAS at startup/live scales, full-scale bypass, untouched UI")
 	quit(0)
+
+func add_ui_edge(layer: CanvasLayer) -> void:
+	for side in range(2):
+		var rect := ColorRect.new()
+		rect.color = UI_EDGE_DARK if side == 0 else UI_EDGE_LIGHT
+		rect.position = Vector2(UI_EDGE_ORIGIN + Vector2i(side * 24, 0))
+		rect.size = Vector2(24, 24)
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.add_child(rect)
 
 func add_pattern_camera(viewport: Viewport) -> void:
 	var environment := Environment.new()
@@ -162,12 +181,39 @@ func expect_images(images: Dictionary, stage: String) -> bool:
 	if actual == null or reference == null or actual.get_size() != SIZE or reference.get_size() != SIZE:
 		fail("%s: root/reference must both be full-resolution images" % stage)
 		return false
+	return expect_black(actual, stage + " root") and expect_black(reference, stage + " reference")
+
+func expect_black(image: Image, stage: String) -> bool:
+	# Keep the zero-neighborhood case out of the intentionally unchanged stripe oracle.
+	for offset in [Vector2i.ZERO, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		var position: Vector2i = BLACK_PIXEL + offset
+		var output := image.get_pixelv(position)
+		if not is_finite(output.r) or not is_finite(output.g) or not is_finite(output.b) or not is_finite(output.a):
+			fail("%s: nonfinite black output at %s: %s" % [stage, position, output])
+			return false
+		if output != Color.BLACK:
+			fail("%s: black neighborhood changed at %s: %s" % [stage, position, output])
+			return false
 	return true
 
 func expect_ui_pixel(image: Image, marker: ColorRect, stage: String) -> bool:
 	if marker.get_global_rect() != Rect2(8, 8, 24, 24) or image.get_pixelv(UI_PIXEL) != UI_COLOR:
 		fail("%s: higher-layer red UI geometry/pixel changed" % stage)
 		return false
+	var expected := Image.create(UI_EDGE_SIZE.x, UI_EDGE_SIZE.y, false, Image.FORMAT_RGBA8)
+	expected.fill(UI_EDGE_DARK)
+	expected.fill_rect(Rect2i(24, 0, 24, 24), UI_EDGE_LIGHT)
+	for local_pixel in [UI_DARK_INTERIOR, UI_LIGHT_INTERIOR, UI_DARK_EDGE, UI_LIGHT_EDGE]:
+		var position: Vector2i = UI_EDGE_ORIGIN + local_pixel
+		var color := expected.get_pixelv(local_pixel)
+		if image.get_pixelv(position) != color:
+			fail("%s: higher-layer UI interior/edge changed at %s: output=%s expected=%s" % [stage, position, image.get_pixelv(position), color])
+			return false
+	for local_pixel in [UI_DARK_EDGE, UI_LIGHT_EDGE]:
+		var delta := channel_error(rcas(expected, local_pixel), expected.get_pixelv(local_pixel))
+		if not is_finite(delta) or delta <= OUTPUT_TOLERANCE:
+			fail("%s: UI edge at %s cannot discriminate wrong RCAS ordering: delta=%f" % [stage, UI_EDGE_ORIGIN + local_pixel, delta])
+			return false
 	return true
 
 func expect_unfiltered(actual: Image, reference: Image) -> bool:
