@@ -60,12 +60,16 @@ var target_id := 0
 var seen_actions := {}
 var seen_models := {}
 var seen_missile := false
+## Longest frame since the Frostbolt press: timings land on frame boundaries, so each
+## may trail its event by up to two frames (the crossing frame and update order).
+var longest_frame := 0.0
 
 func _initialize() -> void:
 	Engine.max_fps = 60
 	call_deferred("run_test")
 
-func _process(_delta: float) -> bool:
+func _process(delta: float) -> bool:
+	longest_frame = maxf(longest_frame, delta)
 	if client == null or not is_instance_valid(client) or local_id == 0:
 		return false
 	for id in [local_id, target_id]:
@@ -361,6 +365,8 @@ func cast_frostbolt() -> bool:
 	if slot < 0:
 		fail("Frostbolt is not on the main bar: " + str(spells().bar))
 		return false
+	longest_frame = 0.0
+	print("FIXTURE FROSTBOLT_PRESS clock=%.3f" % client.spell_visuals_state().clock)
 	await press(BAR_KEYS[slot])
 	if not await wait_until(func(): return saw(local_id, READY_SPELL_DIRECTED) and seen_models.has([local_id, FROSTBOLT_HANDS]), 3000, "Frostbolt precast loop and hand models"):
 		return false
@@ -370,6 +376,7 @@ func cast_frostbolt() -> bool:
 		return false
 	# Frostbolt starts no auto-attack (no SPELL_ATTR1/ATTR2 auto-attack attribute).
 	if not no_melee_yet("before the Frostbolt impact"):
+		print("FIXTURE VISUALS_AT_FAILURE ", client.spell_visuals_state())
 		return false
 	await capture("11-frostbolt-missile.png")
 	if not await wait_until(func(): return seen_models.has([target_id, FROSTBOLT_IMPACT]) and saw(target_id, COMBAT_WOUND), 5000, "Frostbolt impact on the dummy"):
@@ -385,7 +392,7 @@ func cast_frostbolt() -> bool:
 ## 81337 plays 85502 (cast) at SpellGo and the impact kit 80718 plays 85503 (impact)
 ## as the missile lands; the loop is gone once the cast resolves.
 func check_frostbolt_sounds(visuals: Dictionary) -> bool:
-	const FRAME_S := 1.0 / 15.0
+	var frame_s := 2.0 * longest_frame
 	var flight: Dictionary = visuals.flights.filter(func(f): return f.spell == FROSTBOLT and f.caster == local_id)[-1]
 	var go: float = flight.released_at - flight.release_delay
 	var landed: float = flight.released_at + flight.flight_time
@@ -411,10 +418,10 @@ func check_frostbolt_sounds(visuals: Dictionary) -> bool:
 	if at[85500] > go - 1.0 or absf(at[85501] - at[85500]) > 0.001:
 		fail("Precast sounds did not start with the cast bar: %s, SpellGo %.3f" % [at, go])
 		return false
-	if absf(at[85502] - go) > FRAME_S:
+	if absf(at[85502] - go) > frame_s:
 		fail("Cast sound %.3f is not at SpellGo %.3f" % [at[85502], go])
 		return false
-	if absf(at[85503] - landed) > FRAME_S:
+	if absf(at[85503] - landed) > frame_s:
 		fail("Impact sound %.3f is not at the landing %.3f" % [at[85503], landed])
 		return false
 	var loops := client.find_children("SpellSound*", "", true, false).filter(func(node): return int(str(node.name).trim_prefix("SpellSound")) in range(1631387, 1631391))
@@ -424,22 +431,22 @@ func check_frostbolt_sounds(visuals: Dictionary) -> bool:
 	return true
 
 ## The missile leaves at SpellCastDirected's `$CSL` release event (200 ms into the clip
-## the SpellGo starts) and flies distance / 35 yd/s (`SpellMisc.Speed`). Tolerance:
-## one frame of the slowest recording rate (15 fps).
+## the SpellGo starts) and flies distance / 35 yd/s (`SpellMisc.Speed`), each within
+## two of the longest frames since the press.
 func check_frostbolt_flight(flights: Array) -> bool:
 	const RELEASE_EVENT_S := 0.2
-	const FRAME_S := 1.0 / 15.0
+	var frame_s := 2.0 * longest_frame
 	var mine := flights.filter(func(f): return f.spell == FROSTBOLT and f.caster == local_id and f.flight_time >= 0.0)
 	if mine.is_empty():
 		fail("No finished Frostbolt flight: " + str(flights))
 		return false
 	var flight: Dictionary = mine[-1]
 	var expected: float = flight.distance / flight.speed
-	print("FIXTURE FROSTBOLT_FLIGHT release_delay=%.3f distance=%.2f speed=%.1f flight=%.3f expected=%.3f" % [flight.release_delay, flight.distance, flight.speed, flight.flight_time, expected])
-	if flight.release_delay < RELEASE_EVENT_S - 0.001 or flight.release_delay > RELEASE_EVENT_S + FRAME_S:
+	print("FIXTURE FROSTBOLT_FLIGHT release_delay=%.3f distance=%.2f speed=%.1f flight=%.3f expected=%.3f longest_frame=%.3f" % [flight.release_delay, flight.distance, flight.speed, flight.flight_time, expected, longest_frame])
+	if flight.release_delay < RELEASE_EVENT_S - 0.001 or flight.release_delay > RELEASE_EVENT_S + frame_s:
 		fail("Frostbolt left %.3f s after SpellGo, not at the 200 ms release event" % flight.release_delay)
 		return false
-	if flight.flight_time < expected - 0.001 or flight.flight_time > expected + FRAME_S:
+	if flight.flight_time < expected - 0.001 or flight.flight_time > expected + frame_s:
 		fail("Frostbolt flew %.3f s over %.2f yd, not distance / speed" % [flight.flight_time, flight.distance])
 		return false
 	return true
