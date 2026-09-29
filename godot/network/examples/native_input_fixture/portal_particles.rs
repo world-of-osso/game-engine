@@ -1,0 +1,82 @@
+//! Persisted startup particle option against the actual placed Azeroth portal.
+use super::*;
+
+pub(super) fn run(
+    app: &mut App,
+    child: &mut Child,
+    lines: Receiver<String>,
+    readers: Vec<thread::JoinHandle<()>>,
+    screen: StartupScreen,
+) -> Result<(), String> {
+    let mut selected = None;
+    let mut remote = None;
+    let mut stage = 0;
+    let mut readers = Some(readers);
+    let deadline = Instant::now() + Duration::from_secs(480);
+    while Instant::now() < deadline {
+        app.update();
+        respond_to_login(app, screen)?;
+        respond_to_selection(app, screen, &mut selected, &mut remote)?;
+        let status = child.try_wait().map_err(|error| error.to_string())?;
+        if status.is_some() {
+            for reader in readers.take().expect("join output once") {
+                reader.join().map_err(|_| "Godot output reader panicked")?;
+            }
+        }
+        for line in lines.try_iter() {
+            let line = line.trim();
+            // The full Godot log retains optional missing-scenery errors. Portal
+            // texture failures are caught by the mesh/pool assertions below.
+            let missing_scenery = line.starts_with("GODOT_STDERR: ERROR: WorldObjects:")
+                && (line.contains("missing textures")
+                    || line.contains("particle textures missing"));
+            if !missing_scenery
+                && (line.starts_with("GODOT_STDERR: ERROR:")
+                    || line.starts_with("GODOT_STDERR: SCRIPT ERROR:"))
+            {
+                return Err(format!("Godot portal fixture error: {line}"));
+            }
+            match line {
+                "FIXTURE PORTAL_LOADING" if stage == 0 && selected.is_some() => {
+                    send::<_, TerrainChannel>(
+                        app,
+                        LoadTerrain {
+                            map_name: "azeroth".into(),
+                            initial_tile_y: 30,
+                            initial_tile_x: 48,
+                        },
+                    );
+                    stage = 1;
+                }
+                line if line.starts_with("FIXTURE PORTAL_DONE ") && stage == 1 => {
+                    let expected = if screen == StartupScreen::PortalParticlesEnabled {
+                        "FIXTURE PORTAL_DONE enabled meshes=present pools="
+                    } else {
+                        "FIXTURE PORTAL_DONE disabled meshes=present pools=absent emitters=absent"
+                    };
+                    if !line.starts_with(expected) {
+                        return Err(format!("unexpected portal mode proof: {line}"));
+                    }
+                    stage = 2;
+                }
+                line if line.starts_with("FIXTURE PORTAL_") => {
+                    return Err(format!(
+                        "out-of-order portal marker at stage {stage}: {line}"
+                    ));
+                }
+                _ => {}
+            }
+        }
+        if let Some(status) = status {
+            if status.success() && stage == 2 && selected.is_some() {
+                println!("PASS: authenticated GameClient portal particle startup mode");
+                return Ok(());
+            }
+            return Err(format!("portal fixture exited {status} at stage {stage}"));
+        }
+        thread::sleep(TICK);
+    }
+    Err(format!(
+        "timed out waiting for portal particle fixture at stage {stage}"
+    ))
+}
