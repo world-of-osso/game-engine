@@ -181,6 +181,16 @@ func expect_frame_geometry() -> bool:
 		fail("ChatFrame1 is %s, expected %s" % [actual, expected])
 		return false
 	print("FIXTURE CHAT_FRAME ", actual)
+	# The Modern-preset PlayerFrame (BOTTOMRIGHT at BOTTOM (-300, 250)) sits right of the chat.
+	var units = client.get_node_or_null("UnitFramesUI")
+	var player = units.find_child("PlayerFrame", true, false) as Control if units != null else null
+	if player == null or not player.is_visible_in_tree():
+		fail("No visible PlayerFrame to check against the chat")
+		return false
+	print("FIXTURE PLAYER_FRAME ", player.get_global_rect())
+	if player.get_global_rect().intersects(actual):
+		fail("PlayerFrame %s overlaps ChatFrame1 %s" % [player.get_global_rect(), actual])
+		return false
 	return true
 
 # Shown message rows, top to bottom: {text, color} with the row's runs joined.
