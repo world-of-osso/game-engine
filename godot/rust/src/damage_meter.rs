@@ -92,7 +92,8 @@ impl GameClient {
             .is_some_and(|unit| unit.in_combat);
         let hud = &mut self.damage_meter;
         let timer_text = hud.window.timer_text(in_combat);
-        let view = hud.window.view(in_combat, hud.timer_width(&timer_text)?);
+        let timer_width = hud.timer_width(&timer_text)?;
+        let view = hud.window.view(in_combat, timer_width);
         if let Some(ui) = hud.ui.as_mut() {
             return Ok(ui.bind_mut().set_state(view)?);
         }
