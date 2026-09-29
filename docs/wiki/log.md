@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] fix | Native FontString width-bound word wrapping
+
+The authored merchant Options descriptions exceeded the row at 0.75/1.25 because Godot Labels with wrapping off grew their minimum width beyond the authored 370 px. Legacy text bounds width and uses word-boundary layout. Native FontString projection now requests word wrapping; a merchant fixture checks full descriptions, multiline long labels, short-label width, right edges, and non-overlap at both scales. The retained `b63c64ec` artifact produced a targeted RED at 0.75; rebuilt native GREEN and rendered PNG inspection are pending. See [[ui-system]].
+
 ## [2026-09-29] implementation | Godot RegistryUi scale ownership
 
 Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). The owned sound-click fixture at `b63c64ec` adds known Slam to the rightmost slot: controlled old `34b12ea5` library + new fixture RED placed the tooltip's right edge at 711 px in an 800 px viewport (`data/diagnostics/ui-scale-edge-old34-native-b63-fixture-red.log`); Depot `c22n43vc57` built the corrected library and fixture, then sound-click GREEN preserved existing casting/visibility/click assertions (`data/diagnostics/ui-scale-b63c64ec-sound-click-edge-green.log`). Entrance-bar coordinate conversion has source-space proof only because the owned fixtures do not show an entrance. See [[ui-system]].
