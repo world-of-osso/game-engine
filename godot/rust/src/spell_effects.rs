@@ -5,10 +5,12 @@
 //! - A timed cast (`CastState` Normal) starts its PrecastStart kits on the caster and
 //!   holds them (and their looping animation) until the cast ends (PrecastEnd); a
 //!   channel does the same with ChannelStart/ChannelEnd.
-//! - `SpellGo` starts the Cast kits on the caster, then either launches the visual's
-//!   missile toward the target (`SpellMisc.Speed` yd/s, attachment to attachment) or
-//!   starts the Impact kits right away: TargetType 2 on every hit unit, 4 on the
-//!   explicit target.
+//! - `SpellGo` starts the Cast kits on the caster, then either readies the visual's
+//!   missile or starts the Impact kits right away: TargetType 2 on every hit unit, 4 on
+//!   the explicit target. A ready missile leaves when the caster's cast clip fires its
+//!   `$CSL`/`$CSR`/`$CST` release event (wowdev.wiki/M2 Events), at once when the clip
+//!   has none, and flies attachment to attachment at `SpellMisc.Speed` yd/s (TrinityCore
+//!   `Spell.cpp`: `dist / m_spellInfo->Speed`).
 //! - A kit model sits on its M2 attachment (`None`: the unit's origin), offset and
 //!   scaled as authored, after its `StartDelay`. One-shot kits last their model clip;
 //!   held kits last until their end event.
@@ -20,7 +22,7 @@ use std::rc::Rc;
 
 use game_engine_core::m2;
 use game_engine_core::spell_visual::{
-    CasterContext, KitModel, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit,
+    CasterContext, KitModel, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit, VisualMissile,
 };
 use game_engine_network::UnitSnapshot;
 use godot::builtin::{Basis, EulerOrder, Transform3D, Vector3};
@@ -160,17 +162,44 @@ struct PendingModel {
     lifetime: Lifetime,
 }
 
-struct Missile {
-    node: Gd<Node3D>,
+/// A `SpellGo`'s missile, from its release on.
+struct MissileLaunch {
     caster: u64,
-    particles: Option<PlacedParticles>,
-    speed: f32,
     target: u64,
-    impact_attachment: Option<u8>,
+    missile: VisualMissile,
+    /// Yards per second.
+    speed: f32,
     spell_id: u32,
     visual_id: u32,
     hit_targets: Vec<u64>,
     primary: Option<u64>,
+    /// `SpellEffects::clock` at the `SpellGo`.
+    go_at: f32,
+}
+
+struct Missile {
+    node: Gd<Node3D>,
+    particles: Option<PlacedParticles>,
+    launch: MissileLaunch,
+    /// Its `MissileFlight::id`.
+    flight: u64,
+}
+
+/// One missile's timing, for automation and logs (seconds on the effects clock).
+#[derive(Clone, Debug, PartialEq)]
+pub struct MissileFlight {
+    pub spell_id: u32,
+    pub caster: u64,
+    pub target: u64,
+    /// `SpellGo` to release.
+    pub release_delay: f32,
+    /// Launch point to the target's impact attachment, at release (yards).
+    pub distance: f32,
+    pub speed: f32,
+    /// Release to arrival, once arrived.
+    pub flight_time: Option<f32>,
+    released_at: f32,
+    id: u64,
 }
 
 /// The cast or channel a unit's held kits and loop belong to.
@@ -212,6 +241,13 @@ pub struct SpellEffects {
     active: Vec<ActiveEffect>,
     pending: Vec<PendingModel>,
     missiles: Vec<Missile>,
+    /// Missiles waiting for their caster's release event.
+    ready: Vec<MissileLaunch>,
+    /// Newest missile flights, oldest first, bounded.
+    flights: Vec<MissileFlight>,
+    /// Seconds advanced since creation.
+    clock: f32,
+    next_flight: u64,
     held: HashMap<u64, HeldCast>,
     pools: ParticlePools,
     root: Option<Gd<Node3D>>,
@@ -233,6 +269,10 @@ impl SpellEffects {
             active: Vec::new(),
             pending: Vec::new(),
             missiles: Vec::new(),
+            ready: Vec::new(),
+            flights: Vec::new(),
+            clock: 0.0,
+            next_flight: 0,
             held: HashMap::new(),
             pools: ParticlePools::new(1.0),
             root: None,
@@ -276,6 +316,11 @@ impl SpellEffects {
         self.missiles.len()
     }
 
+    /// Recent missile flights, oldest first.
+    pub fn flights(&self) -> &[MissileFlight] {
+        &self.flights
+    }
+
     pub fn reset(&mut self) {
         for effect in self.active.drain(..) {
             effect.node.free();
@@ -284,6 +329,7 @@ impl SpellEffects {
             missile.node.free();
         }
         self.pending.clear();
+        self.ready.clear();
         self.held.clear();
         self.pools.reset();
         if let Some(root) = self.root.take() {
@@ -395,9 +441,17 @@ impl SpellEffects {
         {
             errors.push(error);
         }
-        match self.launch_missile(go, units, world) {
-            Ok(true) => {}
-            Ok(false) => {
+        match self.ready_missile(go, units, world) {
+            // The cast clip the Cast kits just started releases it at its event.
+            Ok(Some(launch)) if world.unit_awaits_missile_release(go.caster) => {
+                self.ready.push(launch)
+            }
+            Ok(Some(launch)) => {
+                if let Err(error) = self.launch(launch, world) {
+                    errors.push(error);
+                }
+            }
+            Ok(None) => {
                 if let Err(error) =
                     self.start_event(go.spell_id, VisualEvent::Impact, cast_units, units, world)
                 {
@@ -532,43 +586,111 @@ impl SpellEffects {
         self.started.push(start);
     }
 
-    fn launch_missile(
+    /// The missile `go` launches, if its visual has one and the spell a travel speed.
+    fn ready_missile(
         &mut self,
         go: &SpellGo,
         units: &HashMap<u64, UnitSnapshot>,
-        world: &mut WorldUnits,
-    ) -> Result<bool, String> {
+        world: &WorldUnits,
+    ) -> Result<Option<MissileLaunch>, String> {
         let Some(target) = go.target.filter(|&target| target != go.caster) else {
-            return Ok(false);
+            return Ok(None);
         };
         let Some(visual) = self.visual(go.spell_id, go.caster, units, world)? else {
-            return Ok(false);
+            return Ok(None);
         };
         let catalog = self.catalog()?;
         let (Some(missile), Some(speed)) =
             (catalog.missile(visual), catalog.missile_speed(go.spell_id))
         else {
-            return Ok(false);
+            return Ok(None);
         };
-        let Some(start) = attachment_position(world, go.caster, missile.cast_attachment) else {
-            return Ok(false);
-        };
-        let (mut node, particles) = self.build_effect(missile.model_fdid, world)?;
-        node.set_scale(Vector3::ONE * missile.scale);
-        node.set_global_position(start);
-        self.missiles.push(Missile {
-            node,
+        Ok(Some(MissileLaunch {
             caster: go.caster,
-            particles,
-            speed,
             target,
-            impact_attachment: missile.impact_attachment,
+            missile,
+            speed,
             spell_id: go.spell_id,
             visual_id: visual,
             hit_targets: go.hit_targets.clone(),
             primary: go.target,
+            go_at: self.clock,
+        }))
+    }
+
+    /// Release `launch` from its caster's attachment; a caster that left the world
+    /// has nothing to throw, so its impact kits start at once.
+    fn launch(&mut self, launch: MissileLaunch, world: &mut WorldUnits) -> Result<(), String> {
+        let Some(start) = attachment_position(world, launch.caster, launch.missile.cast_attachment)
+        else {
+            return self.start_impact(&launch, world);
+        };
+        let (mut node, particles) = self.build_effect(launch.missile.model_fdid, world)?;
+        node.set_global_position(start);
+        let goal = attachment_position(world, launch.target, launch.missile.impact_attachment);
+        // It points at the target from its first frame.
+        let direction = goal.map_or(Vector3::FORWARD, |goal| goal - start);
+        node.set_global_basis(missile_basis(direction, launch.missile.scale));
+        let distance = goal.map_or(0.0, |goal| start.distance_to(goal));
+        if self.flights.len() == STARTED_KEEP {
+            self.flights.remove(0);
+        }
+        self.flights.push(MissileFlight {
+            spell_id: launch.spell_id,
+            caster: launch.caster,
+            target: launch.target,
+            release_delay: self.clock - launch.go_at,
+            distance,
+            speed: launch.speed,
+            flight_time: None,
+            released_at: self.clock,
+            id: self.next_flight,
         });
-        Ok(true)
+        self.missiles.push(Missile {
+            node,
+            particles,
+            launch,
+            flight: self.next_flight,
+        });
+        self.next_flight += 1;
+        Ok(())
+    }
+
+    fn start_impact(
+        &mut self,
+        launch: &MissileLaunch,
+        world: &mut WorldUnits,
+    ) -> Result<(), String> {
+        let kits = self.catalog()?.kits(launch.visual_id, VisualEvent::Impact);
+        let cast_units = CastUnits {
+            caster: launch.caster,
+            target: launch.primary,
+            hits: &launch.hit_targets,
+        };
+        self.start_kits(
+            launch.spell_id,
+            VisualEvent::Impact,
+            cast_units,
+            kits,
+            world,
+        )
+        .map(drop)
+    }
+
+    /// Launch the ready missiles whose caster's cast clip fired its release event (or
+    /// stopped awaiting one).
+    fn release_ready(&mut self, world: &mut WorldUnits) -> Result<(), String> {
+        let (released, waiting) = std::mem::take(&mut self.ready)
+            .into_iter()
+            .partition(|launch| !world.unit_awaits_missile_release(launch.caster));
+        self.ready = waiting;
+        let mut errors = Vec::new();
+        for launch in released {
+            if let Err(error) = self.launch(launch, world) {
+                errors.push(error);
+            }
+        }
+        join_errors(errors)
     }
 
     fn effect_model(&mut self, fdid: u32) -> Result<Rc<EffectModel>, String> {
@@ -697,6 +819,7 @@ impl SpellEffects {
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let mut errors = Vec::new();
+        self.clock += delta;
         if let Err(error) = self.spawn_due(delta, world) {
             errors.push(error);
         }
@@ -708,6 +831,10 @@ impl SpellEffects {
             alive
         });
         if let Err(error) = self.advance_missiles(delta, world) {
+            errors.push(error);
+        }
+        // Released missiles start at the hand this frame and fly from the next.
+        if let Err(error) = self.release_ready(world) {
             errors.push(error);
         }
         if let Some(camera) = camera {
@@ -730,56 +857,41 @@ impl SpellEffects {
 
     fn advance_missiles(&mut self, delta: f32, world: &mut WorldUnits) -> Result<(), String> {
         let mut arrived = Vec::new();
-        self.missiles.retain_mut(|missile| {
-            let Some(goal) = attachment_position(world, missile.target, missile.impact_attachment)
+        let mut flown = Vec::new();
+        let missiles = std::mem::take(&mut self.missiles);
+        for mut missile in missiles {
+            let launch = &missile.launch;
+            let Some(goal) =
+                attachment_position(world, launch.target, launch.missile.impact_attachment)
             else {
                 // The target left the world: the missile has nowhere to land.
-                missile.node.clone().free();
-                return false;
+                missile.node.free();
+                continue;
             };
             let position = missile.node.get_global_position();
-            let to_goal = goal - position;
-            let step = missile.speed * delta;
-            if to_goal.length() <= step {
-                arrived.push((
-                    missile.caster,
-                    missile.spell_id,
-                    missile.visual_id,
-                    missile.primary,
-                    missile.hit_targets.clone(),
-                ));
-                missile.node.clone().free();
-                return false;
-            }
-            let direction = to_goal.normalized();
+            let Some(next) = missile_step(position, goal, launch.speed * delta) else {
+                flown.push(missile.flight);
+                missile.node.free();
+                arrived.push(missile.launch);
+                continue;
+            };
+            let direction = (goal - position).normalized();
+            missile.node.set_global_position(next);
             missile
                 .node
-                .set_global_position(position + direction * step);
-            // An M2 faces WoW +X (Godot +X): turn looking_at's -Z front a quarter
-            // turn about Y so +X points along the flight.
-            let facing = Basis::looking_at(direction)
-                * Basis::from_euler(EulerOrder::YXZ, Vector3::new(0.0, FRAC_PI_2, 0.0));
-            let scale = missile.node.get_scale();
-            missile.node.set_global_basis(facing.scaled(scale));
-            true
-        });
+                .set_global_basis(missile_basis(direction, launch.missile.scale));
+            self.missiles.push(missile);
+        }
+        // Arrival is the end of this step: the flight took the time up to it.
+        let now = self.clock;
+        for id in flown {
+            if let Some(flight) = self.flights.iter_mut().find(|flight| flight.id == id) {
+                flight.flight_time = Some(now - flight.released_at);
+            }
+        }
         let mut errors = Vec::new();
-        for (caster, spell_id, visual, primary, hits) in arrived {
-            let kits = match self.catalog() {
-                Ok(catalog) => catalog.kits(visual, VisualEvent::Impact),
-                Err(error) => {
-                    errors.push(error);
-                    continue;
-                }
-            };
-            let cast_units = CastUnits {
-                caster,
-                target: primary,
-                hits: &hits,
-            };
-            if let Err(error) =
-                self.start_kits(spell_id, VisualEvent::Impact, cast_units, kits, world)
-            {
+        for launch in arrived {
+            if let Err(error) = self.start_impact(&launch, world) {
                 errors.push(error);
             }
         }
@@ -825,6 +937,21 @@ fn attachment_position(world: &WorldUnits, id: u64, attachment: Option<u8>) -> O
     let origin = world.unit_node(id)?.get_global_position();
     godot_error!("Unit {id} has no attachment {attachment:?}; the spell missile uses its origin");
     Some(origin)
+}
+
+/// A missile model's basis flying along `direction`: an M2 faces WoW +X (Godot +X), so
+/// looking_at's -Z front turns a quarter turn about Y.
+fn missile_basis(direction: Vector3, scale: f32) -> Basis {
+    let facing = Basis::looking_at(direction.normalized())
+        * Basis::from_euler(EulerOrder::YXZ, Vector3::new(0.0, FRAC_PI_2, 0.0));
+    facing.scaled(Vector3::ONE * scale)
+}
+
+/// A missile at `position` moving `step` yards straight at `goal`: its next position,
+/// or `None` when it arrives within this step.
+fn missile_step(position: Vector3, goal: Vector3, step: f32) -> Option<Vector3> {
+    let to_goal = goal - position;
+    (to_goal.length() > step).then(|| position + to_goal.normalized() * step)
 }
 
 fn wow_vec3([x, y, z]: [f32; 3]) -> Vector3 {
@@ -876,3 +1003,7 @@ fn join_errors(errors: Vec<String>) -> Result<(), String> {
         Err(errors.join("; "))
     }
 }
+
+#[cfg(test)]
+#[path = "spell_effects_tests.rs"]
+mod tests;

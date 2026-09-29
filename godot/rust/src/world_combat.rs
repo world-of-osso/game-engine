@@ -293,6 +293,14 @@ impl WorldUnits {
         u16::try_from(animation.bind().action_id()).ok()
     }
 
+    /// Unit `id`'s cast clip has a missile release event yet to fire.
+    pub(crate) fn unit_awaits_missile_release(&self, id: u64) -> bool {
+        self.units
+            .get(&id)
+            .and_then(UnitNode::animation_player)
+            .is_some_and(|animation| animation.bind().awaits_missile_release())
+    }
+
     /// `Item.SubclassID` of unit `id`'s main-hand weapon.
     pub(crate) fn unit_main_hand_subclass(&self, id: u64) -> Option<u8> {
         self.units.get(&id)?.main_hand_subclass

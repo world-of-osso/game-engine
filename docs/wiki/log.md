@@ -1,5 +1,24 @@
 # Wiki Log
 
+## [2026-09-29] implementation | Godot RegistryUi scale ownership
+
+Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). The owned sound-click fixture at `b63c64ec` adds known Slam to the rightmost slot: controlled old `34b12ea5` library + new fixture RED placed the tooltip's right edge at 711 px in an 800 px viewport (`data/diagnostics/ui-scale-edge-old34-native-b63-fixture-red.log`); Depot `c22n43vc57` built the corrected library and fixture, then sound-click GREEN preserved existing casting/visibility/click assertions (`data/diagnostics/ui-scale-b63c64ec-sound-click-edge-green.log`). Entrance-bar coordinate conversion has source-space proof only because the owned fixtures do not show an entrance. See [[ui-system]].
+
+## [2026-09-29] investigation | Spell missiles leave at the cast clip's release event
+
+**Symptom.** Frostbolt's missile launched the instant `SpellGo` arrived. The hands were still at the chest in ReadySpellDirected 51, and the missile hit before SpellCastDirected 53 thrust the arm.
+
+**Retail rule.** A pending missile is released by the caster's cast clip firing the M2 event `$CSL`, `$CSR` or `$CST` (wowdev.wiki/M2 Events). HumanMale and HumanFemale HD fire `$CSL` at 200 ms of clip 53. `SpellMisc.Speed` is in yd/s (TrinityCore `Spell.cpp:2515`). The 7.7 yd Frostbolt flight at 35 yd/s really does last 0.22 s.
+
+**Changes.**
+- M2 event parser (`m2_event.rs`; `.skel` models read AFM2 timestamps from `.anim`, each file loaded once).
+- The action layer reports a pending release event.
+- `SpellEffects` holds the missile until the event fires, then launches it facing the target.
+
+**Server gap, not fixed.** game-server applies the damage and combat log in the same tick as `SpellGo`, so the number shows about 0.4 s before the impact. TrinityCore delays each hit by `max(dist, 5) / Speed`.
+
+Details in [[spell-visuals]].
+
 ## [2026-09-29] verification | Options integration correction
 
 `253f8238` merged verified Options `e8599fb0`; `818d7c53` reconciled `ensure_art` without losing concurrent `67e6e430`. At `4c0acc91`, `958e612a` fixed merchant-fixture hostility with real friendly `UnitFactionTemplate`s: vendor `NpcFlags` alone does not prevent auto-attack. Existing Depot `fg7w9m1g7w` and four owned modes pass (three retained, merchant fresh). Original `CombatEvent` still reaches outcome audio and visuals once; `SpellGo` and later frame steps survive `FrameError::Client`. Pure Rust tests were not run under Depot-only constraints. Updated [[godot-conversion]] and [parity matrix](../specs/godot-parity-matrix.md).
@@ -1999,6 +2018,10 @@ The Godot TargetFrame sits where Retail's Modern Edit Mode preset puts it (BOTTO
 ## [2026-09-29] feature | Confirmed native CastStart
 
 Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. Final bounded verification at `0e0726a3` passes (`/tmp/claude/verify-native-caststart-final.md`); its fixture-only readability refactor preserves the nine-marker runtime sequence. See [[sound]].
+
+## [2026-09-29] test | Optional rendered UI-scale captures
+
+Owned sound-click and merchant-click fixtures now write PNGs only with an existing absolute `GODOT_TEST_CAPTURE_DIR`; actual pixel proof awaits isolated-display runs and inspection. See [ui-system](systems/ui-system.md#godot-native-ui-scale-bounded).
 
 ## [2026-09-29] investigation | DXT1 punch-through alpha
 

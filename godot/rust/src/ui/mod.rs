@@ -50,19 +50,6 @@ use ui_toolkit::widgets::texture::TextureSource;
 use projection::{UiInput, UiProjection};
 use ui_parent::UiParent;
 
-impl crate::GameClient {
-    /// The UIParent canvas of the client viewport, shared by every HUD layer.
-    pub(crate) fn ui_parent(&self) -> UiParent {
-        let size = self
-            .base()
-            .get_viewport()
-            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
-                viewport.get_visible_rect().size
-            });
-        UiParent::for_viewport(size.x, size.y)
-    }
-}
-
 /// Registry-authoritative UI host; the canvas is a projection, not a second model.
 #[derive(GodotClass)]
 #[class(base = CanvasLayer)]

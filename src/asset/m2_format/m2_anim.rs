@@ -311,7 +311,7 @@ fn parse_anim_track<T: Copy>(
     })
 }
 
-fn read_inner_u32_array(
+pub(crate) fn read_inner_u32_array(
     md20: &[u8],
     elements: &[u8],
     inner_off: usize,

@@ -1,10 +1,11 @@
 //! Authored M2 model and primary skin, with coordinates left in WoW model space.
 use crate::asset::m2_batch_data::{self, BatchInputs, ResolvedBatch};
-use crate::asset::m2_format::{self as format, m2_anim, m2_attach, m2_particle};
+use crate::asset::m2_format::{self as format, m2_anim, m2_attach, m2_event, m2_particle};
 use format::parser::TextureTables;
 
 pub use format::m2_collision::M2CollisionMesh;
 pub use format::m2_variation::VariationFamily;
+pub use m2_event::M2Event as Event;
 pub use m2_particle::M2ParticleEmitter as ParticleEmitter;
 
 #[derive(Debug)]
@@ -64,6 +65,8 @@ pub struct Model {
     pub collision: Option<M2CollisionMesh>,
     /// MD20 particle emitters with their TXID texture FDIDs resolved.
     pub particle_emitters: Vec<ParticleEmitter>,
+    /// MD20 animation events, their timestamps indexed like `sequences`.
+    pub events: Vec<Event>,
 }
 
 /// Resolve authored skin batches in the same draw order and opacity policy as the Bevy renderer.
@@ -264,34 +267,47 @@ pub fn parse_model_with_skeleton(
         return Err("M2 SKID requires external skeleton bytes".into());
     }
     let skin = format::parser::parse_skin_full(skin)?;
-    let (bones, sequences, bone_tracks, global_sequences) = if let Some(skeleton) = skeleton {
-        let parsed = format::parser::parse_skel_data_with_anims(skeleton, &mut load_anim)?;
-        if parsed.bones.is_empty() {
-            return Err("SKB1 skeleton chunk missing or empty".into());
-        }
-        (
-            parsed.bones,
-            parsed.sequences,
-            parsed.bone_tracks,
-            parsed.global_sequences,
-        )
-    } else {
-        let sequences = m2_anim::parse_sequences(chunks.md20)?;
-        let anim_files = format::parser::load_anim_track_chunks(
-            &sequences,
-            &chunks.afid,
-            b"AFM2",
-            &mut load_anim,
-        );
-        let sources = m2_anim::sequence_data_sources(&sequences, &anim_files);
-        let bone_tracks = m2_anim::parse_md20_bone_animations(chunks.md20, &sources)?;
-        (
-            m2_anim::parse_bones(chunks.md20)?,
-            sequences,
-            bone_tracks,
-            m2_anim::parse_global_sequences(chunks.md20)?,
-        )
+    // A skeleton's `.anim` files hold both its bone (AFSB) and the model's (AFM2) tracks.
+    let mut anim_files = std::collections::HashMap::new();
+    let mut load_anim = |fdid: u32| -> Option<Vec<u8>> {
+        anim_files
+            .entry(fdid)
+            .or_insert_with(|| load_anim(fdid))
+            .clone()
     };
+    let (bones, sequences, skeleton_tracks, global_sequences, afid) =
+        if let Some(skeleton) = skeleton {
+            let parsed = format::parser::parse_skel_data_with_anims(skeleton, &mut load_anim)?;
+            if parsed.bones.is_empty() {
+                return Err("SKB1 skeleton chunk missing or empty".into());
+            }
+            (
+                parsed.bones,
+                parsed.sequences,
+                Some(parsed.bone_tracks),
+                parsed.global_sequences,
+                format::parser::skeleton_afid(skeleton)?,
+            )
+        } else {
+            let sequences = m2_anim::parse_sequences(chunks.md20)?;
+            (
+                m2_anim::parse_bones(chunks.md20)?,
+                sequences,
+                None,
+                m2_anim::parse_global_sequences(chunks.md20)?,
+                chunks.afid.clone(),
+            )
+        };
+    // Model tracks (bones of an unskeletoned model, events) of external sequences are
+    // in their `.anim` files' AFM2 chunks.
+    let model_anim_files =
+        format::parser::load_anim_track_chunks(&sequences, &afid, b"AFM2", &mut load_anim);
+    let model_sources = m2_anim::sequence_data_sources(&sequences, &model_anim_files);
+    let bone_tracks = match skeleton_tracks {
+        Some(tracks) => tracks,
+        None => m2_anim::parse_md20_bone_animations(chunks.md20, &model_sources)?,
+    };
+    let events = m2_event::parse_events(chunks.md20, &model_sources)?;
     m2_anim::validate_bone_hierarchy(&bones)?;
     let vertices = format::parse_vertices(chunks.md20)?;
     let materials = format::parse_materials(chunks.md20)?;
@@ -360,5 +376,6 @@ pub fn parse_model_with_skeleton(
         bounding_box_max,
         collision,
         particle_emitters,
+        events,
     })
 }
