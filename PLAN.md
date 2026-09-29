@@ -55,3 +55,17 @@
 - [ ] Keep uncached FDID2368173 extraction, broader slots/races and authored animation-sequence coverage explicit in matrix.
 - [ ] Continue remaining feature, visual/input, gameplay, performance and automation parity scopes from the matrix.
 - [ ] Refactor `godot/rust/src/char_create/scene.rs`: load_backdrop (line 189): 35 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/terrain/material.rs`: build_tile (line 91): 31 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/terrain/assets.rs`: read_tile (line 86): 37 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui_map_data.rs`: read_arts (line 374): 33 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/world_map_frame_component.rs`: border (line 270): 78 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/world_map_frame_component.rs`: breadcrumb (line 415): 31 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/world_map_frame_component.rs`: canvas (line 458): 48 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/world_map_frame_component_tests.rs`: sample_state (line 8): 34 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/wmo/global.rs`: sync (line 31): 41 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/world_map.rs`: world_map_state (line 282): 43 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/wmo/portals.rs`: new (line 49): 55 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/wmo/portals.rs`: new (line 49): nesting depth 5 (max 4) — extract into helper functions
+- [ ] Refactor `src/asset/m2_format/m2_variation.rs`: read (line 24): 32 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/targeting.rs`: target_state (line 395): 34 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/rendering/skybox/sky_lightdata_data.rs`: lerp_color_sets (line 197): 36 body lines (max 30) — extract into helper functions
