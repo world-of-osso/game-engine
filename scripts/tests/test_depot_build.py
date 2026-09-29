@@ -11,6 +11,7 @@ import unittest
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "depot-build.py"
+REFRESH = SCRIPT.parent / "depot" / "refresh-source-mtimes.py"
 SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol")
 FAKE_DEPOT = '''#!/usr/bin/env python3
 import gzip, json, os, pathlib, sys, time
@@ -156,6 +157,41 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(snapshots[0]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1])
         self.assertEqual(snapshots[1]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1] + 1_000_000_000)
         self.assertEqual(snapshots[1]["files"][prefix + "godot/rust/src/lib.rs"], "edited after first snapshot")
+
+    def test_remote_refresh_is_shipped_and_makes_old_inputs_newer_without_touching_cache(self):
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("refresh-source-mtimes.py", self.records()[0]["files"])
+
+        context = self.base / "remote-context"
+        source = context / "game-engine-godot-conversion/src/asset/mod.rs"
+        manifest = context / "game-engine-godot-conversion/godot/Cargo.toml"
+        included = context / "bevy-patches/taffy/README.md"
+        texture = context / "game-engine-godot-conversion/src/rendering/ui/nameplate_skins/health-fill.png"
+        cache = context / "game-engine-godot-conversion/target/debug/libcore.rlib"
+        top_cache = context / "target/debug/libcore.rlib"
+        registry = context / "game-engine-godot-conversion/godot/.cache/generated.rs"
+        for path in (source, manifest, included, texture, cache, top_cache, registry):
+            self._put(context, str(path.relative_to(context)), "fixture")
+        old = 1_600_000_000_000_000_000
+        for path in (source, manifest, included, texture, cache, top_cache, registry):
+            os.utime(path, ns=(old, old))
+        outside = self.base / "outside.rs"
+        outside.write_text("outside")
+        os.utime(outside, ns=(old, old))
+        (source.parent / "link.rs").symlink_to(outside)
+        failed = subprocess.run(["python3", str(REFRESH), str(context)], capture_output=True, text=True)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertIn("symlink", failed.stderr.lower())
+        self.assertEqual(outside.stat().st_mtime_ns, old)
+        (source.parent / "link.rs").unlink()
+        refreshed = subprocess.run(["python3", str(REFRESH), str(context)], capture_output=True, text=True)
+        self.assertEqual(refreshed.returncode, 0, refreshed.stderr)
+        for path in (source, manifest, included, texture):
+            self.assertGreater(path.stat().st_mtime_ns, old)
+            self.assertEqual(path.read_text(), "fixture")
+        for path in (cache, top_cache, registry, outside):
+            self.assertEqual(path.stat().st_mtime_ns, old)
 
     def test_failed_build_and_corrupt_gzip_preserve_existing_artifact(self):
         artifact = self.root / "target/debug/libgame_engine_godot.so"

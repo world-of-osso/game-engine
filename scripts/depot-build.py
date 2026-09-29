@@ -124,7 +124,9 @@ def build(root):
                     raise FileNotFoundError(f"missing build dependency: {repo}")
                 snapshot_repo(repo, context / name, ("godot", "src") if name == ROOT_NAME else (".",), name)
             validate_sources(context)
-            shutil.copyfile(Path(__file__).resolve().parent / "depot" / "Dockerfile", context / "Dockerfile")
+            depot_scripts = Path(__file__).resolve().parent / "depot"
+            shutil.copyfile(depot_scripts / "Dockerfile", context / "Dockerfile")
+            shutil.copyfile(depot_scripts / "refresh-source-mtimes.py", context / "refresh-source-mtimes.py")
             phase("Snapshot", start)
             output = Path(work) / "output"
             output.mkdir()
