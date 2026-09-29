@@ -11,8 +11,9 @@ extends SceneTree
 ##                               and the impact model 1599028 with the dummy's wound (9)
 ## Tab targets the nearest dummy. Selecting it never attacks (TrinityCore
 ## HandleSetSelectionOpcode only sets the selection): for SELECTION_SECS neither unit
-## plays a melee clip. The warrior then right-clicks the dummy (`AttackSwing`), and
-## auto-attack must play its Attack1H swing (17, Worn Shortsword) and the dummy's
+## plays a melee clip. The warrior then uses its Attack action (88163, whose
+## SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK makes the client send `AttackSwing`),
+## and auto-attack must play its Attack1H swing (17, Worn Shortsword) and the dummy's
 ## CombatWound (9). The mage must show no swing (16-19) and the dummy no wound or
 ## crit reaction until its Frostbolt lands. Slam (key 1) must play the
 ## one-hand visual's CombatAbility1H01 (818) and put its impact model 1283017 on the
@@ -21,6 +22,7 @@ extends SceneTree
 
 const PASSWORD := "fbtest"
 const SLAM := 1464
+const ATTACK := 88163
 const BATTLE_SHOUT := 6673
 const ATTACK_1H := 17
 const COMBAT_WOUND := 9
@@ -139,9 +141,13 @@ func run_test() -> void:
 			client.free()
 			quit(0)
 		return
-	# Right-click the dummy: auto-attack, its swings and the dummy's wound reaction.
-	await right_click_unit(target_id)
-	if not await wait_until(func(): return client.target_state().auto_attack == target_id, 2000, "right-click auto-attack request"):
+	# The Attack action: auto-attack, its swings and the dummy's wound reaction.
+	var attack_slot: int = spells().bar.find(ATTACK)
+	if attack_slot < 0:
+		fail("Attack is not on the main bar: " + str(spells().bar))
+		return
+	await press(BAR_KEYS[attack_slot])
+	if not await wait_until(func(): return client.target_state().auto_attack == target_id, 2000, "Attack action auto-attack request"):
 		return
 	if not await wait_until(func(): return saw(local_id, ATTACK_1H) and saw(target_id, COMBAT_WOUND), 15000, "auto-attack Attack1H swing and CombatWound"):
 		return
@@ -207,25 +213,6 @@ func no_melee_yet(when: String) -> bool:
 		return false
 	print("FIXTURE NO_MELEE ", when, " actions=", seen_actions)
 	return true
-
-## Right-click the unit's body on screen: press and release in place.
-func right_click_unit(id: int) -> void:
-	var camera := root.get_viewport().get_camera_3d()
-	var body: Vector3 = client.unit_transform(id).origin + Vector3.UP
-	var point := camera.unproject_position(body)
-	if camera.is_position_behind(body) or not Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point):
-		fail("Unit %d is off screen at %s" % [id, point])
-		return
-	await move_mouse(point)
-	for pressed in [true, false]:
-		var event := InputEventMouseButton.new()
-		event.position = point
-		event.global_position = point
-		event.button_index = MOUSE_BUTTON_RIGHT
-		event.pressed = pressed
-		root.push_input(event, true)
-		await wait_frames(2)
-	print("FIXTURE RIGHT_CLICK ", point, " ", client.target_state())
 
 func saw(id: int, action: int) -> bool:
 	return seen_actions.has(id) and seen_actions[id].has(action)
