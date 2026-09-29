@@ -81,6 +81,7 @@ mod nameplate_visibility_data_tests;
 pub mod realm_preset_data;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
+pub mod ui_layout_data;
 #[path = "../../../src/water_material_data.rs"]
 pub mod water_material_data;
 #[path = "../../../src/sound/wmo_surface_data.rs"]

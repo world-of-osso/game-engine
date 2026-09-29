@@ -34,6 +34,8 @@ mod footsteps;
 mod logout;
 #[path = "native_input_fixture/menu.rs"]
 mod menu;
+#[path = "native_input_fixture/reset_windows.rs"]
+mod reset_windows;
 #[path = "native_input_fixture/sound.rs"]
 mod sound;
 #[path = "native_input_fixture/swimming.rs"]
@@ -64,6 +66,7 @@ enum StartupScreen {
     Logout,
     Sound,
     Footsteps,
+    ResetWindows,
 }
 
 impl StartupScreen {
@@ -78,9 +81,10 @@ impl StartupScreen {
             Some("logout") => Self::Logout,
             Some("sound") => Self::Sound,
             Some("footsteps") => Self::Footsteps,
+            Some("reset-windows") => Self::ResetWindows,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound or footsteps"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, footsteps or reset-windows"
                 )
             }
         };
@@ -99,7 +103,8 @@ impl StartupScreen {
             | Self::Swimming
             | Self::Logout
             | Self::Sound
-            | Self::Footsteps => "inworld",
+            | Self::Footsteps
+            | Self::ResetWindows => "inworld",
         }
     }
 }
@@ -201,6 +206,15 @@ impl FixtureConfig {
             .expect("create fixture credentials directory");
         fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
             .expect("write fixture-only credentials");
+        if screen == StartupScreen::ResetWindows {
+            fs::write(
+                config.home.join("world-of-osso/options_settings.ron"),
+                "(modal_offset:Some((80.0,-32.0)))",
+            )
+            .expect("seed nondefault Options modal offset");
+            fs::write(config.home.join("world-of-osso/ui_layout.ron"), "(window_positions:{\"17\":{\"CharacterFrame\":(25.0,30.0)},\"18\":{\"CharacterFrame\":(75.0,80.0)}},edit_mode:(layouts:{\"Layout 1\":(elements:{\"PlayerFrame\":(anchor:TopLeft,offset:(12.0,24.0))})},active_layout:{\"18\":\"Layout 1\"}))")
+                .expect("seed two characters and edit mode layout");
+        }
         if matches!(screen, StartupScreen::Sound | StartupScreen::Footsteps) {
             fs::write(
                 config.home.join("world-of-osso/options_settings.ron"),
@@ -256,7 +270,9 @@ fn launch_godot(
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
-            if screen == StartupScreen::Sound {
+            if screen == StartupScreen::ResetWindows {
+                "res://tests/options_reset_windows.gd"
+            } else if screen == StartupScreen::Sound {
                 "res://tests/world_sound_flow.gd"
             } else if screen == StartupScreen::Footsteps {
                 "res://tests/world_footsteps_flow.gd"
@@ -1079,6 +1095,8 @@ fn main() {
         swimming::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Menu {
         menu::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::ResetWindows {
+        reset_windows::run(&mut app, &mut child, lines, reader, &config.home)
     } else if screen == StartupScreen::Logout {
         logout::run(&mut app, &mut child, lines, reader, root, address)
     } else if screen == StartupScreen::Sound {
