@@ -131,7 +131,7 @@ Videos (1x and half speed), stills and 2 fps contact sheets are in `data/diagnos
 - The damage number showing 13 frames before the impact is the server's same-tick damage (see Server timing).
 - Evidence is in `data/diagnostics/spellcast-anim-2026-09-29c/`: `mage-frostbolt-1x.mp4` (release at about 61.5 s), `mage-frostbolt-halfspeed.mp4` (about 123 s), `mage-fixture.log` and `stills-mage/`.
 - Root `cargo test -p game-engine --lib m2_` passes 92/92, including `m2_event::tests::human_male_hd_cast_clips_fire_their_release_events` (`tests/unit/asset/m2_event_tests.rs`: 53 fires `$CSL` bone 209 and `$SCD` bone 215 at 200 ms, 54 fires `$CST` at 200 ms, 51 fires nothing). Log: `root-m2-tests.log`.
-- The Godot-workspace tests (`godot/core/tests/m2_events.rs`, the `action_tests.rs` release tests, `spell_effects_tests.rs`) are written but not run, because Cargo may not run in `godot/`.
+- The Godot-workspace tests later ran on Depot (see Frostbolt kit sounds).
 - After merging master (`81a7ce02`), a real-time run (no movie, Depot build) passed with `release_delay=0.219 distance=7.71 flight=0.221 expected=0.220` (`final-merge/`).
 
 **Frostbolt kit sounds (2026-09-29).** The mage fixture now requires Frostbolt's four SoundKits, with the right FDID range, unit and looping flag, at their events:
@@ -149,10 +149,22 @@ Each time is checked within two of the longest frames since the press.
   - 85503 (1631386) on the dummy at +0.540, which is release 0.291 + flight 0.250.
 - **`--fixed-fps 30` run** (`sounds-fixed30/mage-fixture.log`): cast sound exactly at `SpellGo` (108.224), impact exactly at release + flight (108.690).
   - That run failed the fixture's own "no dummy reaction before the impact" check. In movie mode the real-time server resolved the 1.75 s cast one movie frame after the precast, so the missile landed during the fixture's 20-frame precast wait.
-- Real-time runs failed that same check 3 times out of 6. In those runs the client clock showed 0.03-0.14 s from the precast kit to `SpellGo`. The cause is not identified.
+- Real-time runs failed that same check 3 times out of 6. In those runs the client clock showed 0.03-0.14 s from the precast kit to `SpellGo`, against a 1.75 s cast. **Cause: a main-thread catalog build at the first cast** (2026-09-29, `data/diagnostics/spellcast-anim-2026-09-29c/`).
+  - **Server timing is right.** The client logs the wall time at which it first sees `CastState` and `SpellGo`. When the catalog cache was fresh, `CastState` → `SpellGo` took 1.771 s wall (`elapsed` 0.000 at first sight).
+  - **When the catalog cache was stale,** the same gap was 25.3, 26.3 and 29.8 s wall, but only 0.07-0.10 s on the client clock.
+  - **eu-stack of the main thread** during that gap, sampled every ~4 s for 30 s, is in `SpellEffects::catalog` → `SpellVisualCatalog::load` → `build` (`Table::read`/`parse_csv_line`, `read_speeds`, `read_sound_kits`). The first `CastState` asked for the catalog, and the cache missed, so the client rebuilt it from the CSVs inside one frame while the whole cast resolved.
+  - **The cache missed every run** because checkouts share `data/cache/spell_visuals-12.1.0.69933.bin`. This branch writes format 5 and master clients write format 4, so each rebuilt over the other: the file held format 4 (first byte `04`) right after a master client ran.
+  - **The client clock shows ~0.1 s for a ~26 s frame** because Godot 4.7.2 drops time from the process delta past `max_physics_steps_per_frame` physics ticks (`main/main.cpp:4955-4958`: `process_step -= (advance.physics_steps - max_physics_steps) * physics_step`; the default of 8 gives 133 ms). That is why `longest_frame` read 0.13-0.15 s.
+  - **Fix** (client):
+    - The catalog loads on a worker thread from client start.
+    - Its cache file is named per format (`spell_visuals-12.1.0.69933-v5.bin`), so branches no longer rebuild over each other.
+  - A real player would also hit a multi-second hitch at their first cast after any CSV update (a cold cache), since the build ran on the main thread.
   - Sound playback costs 1-1.5 ms per start (instrumented run), so it is not the cause.
-  - Frames up to 0.15 s occur during the cast.
-- **Tests:** `godot/core/tests/spell_visual.rs::frostbolt_kits_play_the_frostbolt_precast_cast_and_impact_sound_kits` and `spell_sounds_tests.rs` (frequency choice) are written but not run (no Cargo in `godot/`).
+  - The fixture checks now use the effects clock, not frame counts:
+    - Dummy reactions must come after the landing.
+    - The precast sounds must start with the replicated `CastState`.
+    - Every tolerance is two of the longest frames since the press.
+- **Tests (Depot `--test -p game-engine-godot --lib`, `depot-godot-lib-tests.log`):** `action_tests.rs` (8, with the two release tests), `spell_effects_tests.rs` (2) and `spell_sounds_tests.rs` (2) pass. The library run has 64 other failures, all reading `data/` files the Depot snapshot does not stage (e.g. `Emotes.csv`, `NameGen.csv`). `--test -p game-engine-core --test spell_visual --test m2_events` passes 5/5 + 1/1 (`depot-core-tests.log`), including `frostbolt_kits_play_the_frostbolt_precast_cast_and_impact_sound_kits`, once SoundKit/SoundKitEntry are staged in `godot/depot-test-assets.txt`.
 
 ## Polymorph (2026-09-29)
 
