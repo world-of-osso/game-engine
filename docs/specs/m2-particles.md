@@ -48,6 +48,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 - `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint and fade.
 - `godot/tests/wmo_doodads_flow.gd` — portal pools empty while Jail01 is culled, all six drawing at the trigger.
 - `godot/tests/world_portal_particles_flow.gd` via `native_input_fixture portal-particles-{disabled,enabled}` — persisted startup setting in an authenticated Azeroth 30_48 GameClient, with actual placed `sw_magicdistrict` MODD 1112 portal meshes in both modes. At `d23012b4` + `e5671528`, disabled has no particle pools/emitter state; enabled has all six pools with visible-instance counts 42, 21, 21, 21, 21, and 2 (143 total; scene totals 711 pools/emitters). Depot fixture/build and both runtime logs exit 0 at `data/diagnostics/portal-particles-{depot-build,disabled,enabled}-e5671528.log`. This headless state proof excludes pixels, audibility, live toggling, and density.
+- `godot/tests/world_portal_density_flow.gd` via `native_input_fixture portal-density` — pending RED: controlled disposable copy of portal 197007 with only `NO_GLOBAL_SCALE` cleared; sampled visible quads before/after real Options 100→10 and after owned same-map `NewWorld`. This is density-sensitive fixture proof, not retail asset parity. No runtime result yet.
 
 ## Known gaps (current cycle)
 

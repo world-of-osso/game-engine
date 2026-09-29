@@ -57,7 +57,7 @@ fn read_fixture_output(
     Ok(())
 }
 
-fn reject_fixture_error(line: &str) -> Result<(), String> {
+pub(super) fn reject_fixture_error(line: &str) -> Result<(), String> {
     // The full Godot log retains optional missing-scenery errors. Portal
     // texture failures are caught by the mesh/pool assertions below.
     let missing_scenery = line.starts_with("GODOT_STDERR: ERROR: WorldObjects:")
