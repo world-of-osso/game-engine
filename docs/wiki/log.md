@@ -16,7 +16,7 @@
 
 **Proof.** Re-recorded in [[spell-visuals]].
 
-**Open gap.** The player's M2-header pick box (about 11 yd for HD human male) swallows right-click rays in melee range, so right-click attack has no live proof.
+**Picking.** The player's M2 header box (about 11 x 5.5 x 4 yd for HD human male, the animation extents) swallowed every click on a unit in melee range in front of it. The pick now raycasts each broad-phase unit's drawn triangles, CPU-skinned in the current pose, like the Bevy client's `MeshRayCast`; the box only rejects units the ray misses. Right-click then attacked the dummy live ([[spell-visuals]]).
 
 ## [2026-09-29] port | Godot combat animations and spell visuals
 
