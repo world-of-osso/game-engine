@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, fog_disabled, cull_disabled;
+render_mode fog_disabled, cull_disabled;
 
 void fragment() {
 	// Fixed authored emission. Options must change postprocessing, not this source.
