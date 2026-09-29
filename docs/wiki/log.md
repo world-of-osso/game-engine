@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-29] implementation | Native Render Scale pending GREEN
+## [2026-09-29] verification | Native Render Scale bounded buffer/UI GREEN
 
-Actual GPU RED at `e3a5c92b` measured full-size 1280×720 internal buffers for saved 0.75 instead of 960×540. `GameClient` now applies saved/committed scale on its owning viewport; Depot/GREEN is pending. CAS below 0.999 and full parity remain open. See [[godot-conversion]].
+The actual GPU RED at `e3a5c92b` measured 1280×720 instead of 960×540 for saved startup 0.75. Exact `ca2f75c0` built through Depot `40n2xh4n2l` (exit 0; `data/diagnostics/render-scale-depot-green-build.log`). Offscreen Vulkan GREEN then measured startup 0.75 = 960×540 with a 1280×720 target; live 0.5 = 640×360; live 1.0 = 1280×720; resized 1.0 = 1600×900; and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). The same 2D geometry/red-pixel probe and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof, not all 3D scenes, visual equality, bloom, or full parity. Legacy paired CAS/sharpening below 0.999 remains a full-conversion obligation. See [[godot-conversion]] and the [parity matrix](../specs/godot-parity-matrix.md).
 
 ## [2026-09-29] fix | Native particle-density placement snapshot
 
