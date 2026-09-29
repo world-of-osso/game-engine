@@ -13,30 +13,6 @@ pub fn next_target<T: Copy + PartialEq>(sorted: &[T], current: Option<T>) -> Opt
     }
 }
 
-/// One surface the pick ray through the cursor crosses, nearest first.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PickHit<T> {
-    /// A unit's pick shape; `visible` is false for a hidden unit.
-    Unit { id: T, visible: bool },
-    /// World geometry (terrain, WMO); `visible` is false for culled geometry.
-    World { visible: bool },
-}
-
-/// The unit a click selects: the nearest visible surface on the ray, when it is a
-/// unit. Visible world geometry in front occludes every unit behind it; hidden
-/// units and culled geometry let the ray through. Hits after the first visible
-/// one are not consumed.
-pub fn first_picked_unit<T>(hits: impl IntoIterator<Item = PickHit<T>>) -> Option<T> {
-    for hit in hits {
-        match hit {
-            PickHit::Unit { id, visible: true } => return Some(id),
-            PickHit::World { visible: true } => return None,
-            PickHit::Unit { visible: false, .. } | PickHit::World { visible: false } => {}
-        }
-    }
-    None
-}
-
 /// Selection-ring textures without authored alpha draw their intensity as alpha,
 /// so the ring's black background is transparent. RGBA8 pixels.
 pub fn opaque_to_alpha_mask(rgba: &mut [u8]) {

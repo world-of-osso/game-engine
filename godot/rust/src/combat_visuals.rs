@@ -6,14 +6,28 @@ use godot::prelude::*;
 
 use crate::GameClient;
 use crate::account::CombatMessage;
+use crate::frame_error::FrameError;
 
 impl GameClient {
-    pub(super) fn receive_combat_message(&mut self, message: CombatMessage) -> Result<(), String> {
+    pub(super) fn receive_combat_message(
+        &mut self,
+        message: CombatMessage,
+    ) -> Result<(), FrameError> {
         match message {
-            CombatMessage::Event(event) => self.world.apply_combat_event(&event),
+            CombatMessage::Event(event) => Ok(self.world.apply_combat_event(&event)?),
             CombatMessage::SpellGo(go) => {
-                self.spell_effects
-                    .spell_go(&go, &self.units, &mut self.world)
+                self.auto_attack_post_cast(&go)?;
+                Ok(self
+                    .spell_effects
+                    .spell_go(&go, &self.units, &mut self.world)?)
+            }
+            CombatMessage::AttackStart(start) => {
+                self.receive_attack_start(&start);
+                Ok(())
+            }
+            CombatMessage::AttackStopped(stopped) => {
+                self.receive_attack_stopped(&stopped);
+                Ok(())
             }
         }
     }

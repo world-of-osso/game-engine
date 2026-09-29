@@ -13,15 +13,15 @@ use game_engine_session::{
     normalize_auth_token, token_path,
 };
 use shared::protocol::{
-    ActionBarSnapshot, AuthChannel, CastFailed, CharacterListUpdate, CombatChannel, CombatEvent,
-    CombatLogEvent, CreateCharacter, CreateCharacterResponse, DeleteCharacter,
-    DeleteCharacterResponse, DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect,
-    InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo, KnownSpellsSnapshot,
-    LoadTerrain, LoginResponse, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop, NewWorld,
-    PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate, RegisterResponse,
-    RequestRaidInfo, RestStateUpdate, SetDungeonDifficulty, SetTarget, SpecializationChanged,
-    SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
-    TransferChannel, WorldPortAck,
+    ActionBarSnapshot, AttackStart, AttackStop, AttackStopped, AttackSwing, AuthChannel,
+    CastFailed, CharacterListUpdate, CombatChannel, CombatEvent, CombatLogEvent, CreateCharacter,
+    CreateCharacterResponse, DeleteCharacter, DeleteCharacterResponse, DungeonDifficultySet,
+    EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo,
+    InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MirrorTimerPause,
+    MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot,
+    QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate, SetDungeonDifficulty,
+    SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned,
+    SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
@@ -98,6 +98,10 @@ pub enum CombatMessage {
     Event(CombatEvent),
     /// `SpellGo`: a cast resolved.
     SpellGo(SpellGo),
+    /// `AttackStart` (`SMSG_ATTACK_START`): a unit started auto-attacking.
+    AttackStart(AttackStart),
+    /// `AttackStopped` (`SMSG_ATTACK_STOP`): a unit stopped auto-attacking.
+    AttackStopped(AttackStopped),
 }
 
 /// Server messages for the NPC interaction and merchant host.
@@ -238,6 +242,20 @@ impl Account {
             .send::<_, CombatChannel>(SetTarget {
                 target_entity: target,
             })
+            .map_err(SessionError)
+    }
+
+    /// `CMSG_ATTACK_SWING`: start auto-attacking `target` (server entity bits).
+    pub fn send_attack_swing(&self, target: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(AttackSwing { target })
+            .map_err(SessionError)
+    }
+
+    /// `CMSG_ATTACK_STOP`.
+    pub fn send_attack_stop(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(AttackStop)
             .map_err(SessionError)
     }
 
@@ -559,6 +577,8 @@ impl Account {
             || message.is::<CastFailed>()
             || message.is::<CombatLogEvent>()
             || message.is::<SpellGo>()
+            || message.is::<AttackStart>()
+            || message.is::<AttackStopped>()
     }
 
     /// Spell state lives on the account (like the quest log); rejections reach the host.
@@ -584,6 +604,14 @@ impl Account {
             output.push(AccountEvent::CastFailed(decode(message)?));
         } else if message.is::<SpellGo>() {
             output.push(AccountEvent::Combat(CombatMessage::SpellGo(decode(
+                message,
+            )?)));
+        } else if message.is::<AttackStart>() {
+            output.push(AccountEvent::Combat(CombatMessage::AttackStart(decode(
+                message,
+            )?)));
+        } else if message.is::<AttackStopped>() {
+            output.push(AccountEvent::Combat(CombatMessage::AttackStopped(decode(
                 message,
             )?)));
         } else {

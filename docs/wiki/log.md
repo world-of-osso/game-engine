@@ -1,5 +1,23 @@
 # Wiki Log
 
+## [2026-09-29] investigation | Selecting a target no longer starts auto-attack
+
+**Bug.** The server started auto-attack, and combat, on every `SetTarget` to an attackable unit. A Tab-cycling mage swung unarmed at each dummy it selected, and 0/1 damage numbers appeared before its Frostbolt.
+
+**Retail rule.** Selecting only sets the selection. Auto-attack starts from `CMSG_ATTACK_SWING`, which the client sends on:
+- a right-click on an attackable unit
+- Auto Attack
+- casts of SPELL_ATTR1/ATTR2 auto-attack spells, such as the warrior's Attack 88163 and Slam
+
+**Changes.**
+- New `AttackSwing`/`AttackStop` messages and `AttackStart`/`AttackStopped` echoes (shared-protocol `06534c1`).
+- The server attacks only on request (game-server `9db412f`, `2572257`).
+- The Godot client sends the requests ([[spellbook-action-bar]]).
+
+**Proof.** Re-recorded in [[spell-visuals]].
+
+**Open gap.** The player's M2-header pick box (about 11 yd for HD human male) swallows right-click rays in melee range, so right-click attack has no live proof.
+
 ## [2026-09-29] port | Godot combat animations and spell visuals
 
 The Godot client now plays combat and spell animations and spell effects.
