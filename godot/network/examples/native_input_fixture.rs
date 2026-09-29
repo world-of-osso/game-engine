@@ -247,6 +247,7 @@ fn launch_godot(
     config: &FixtureConfig,
     address: SocketAddr,
     screen: StartupScreen,
+    map_verify: bool,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = if matches!(
         screen,
@@ -307,6 +308,7 @@ fn launch_godot(
         )
         .arg(address.to_string())
         .env("GODOT_TEST_STARTUP_SCREEN", screen.as_str())
+        .env("GODOT_TEST_MAP_VERIFY", if map_verify { "1" } else { "0" })
         .env(
             "GODOT_TEST_SWIMMING",
             if screen == StartupScreen::Swimming {
@@ -1116,13 +1118,15 @@ fn main() {
         .as_ref()
         .map_or(root, |fixture| fixture.root_path());
     let config = FixtureConfig::create(config_root, screen);
-    let (mut child, lines, reader) = launch_godot(root, &project, &config, address, screen);
+    let (mut child, lines, reader) = launch_godot(root, &project, &config, address, screen, false);
     let result = if screen == StartupScreen::Swimming {
         swimming::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Menu {
         menu::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::ResetWindows {
-        reset_windows::run(&mut app, &mut child, lines, reader, &config.home, &project)
+        reset_windows::run(
+            &mut app, &mut child, lines, reader, root, &config, &project, address,
+        )
     } else if screen == StartupScreen::Logout {
         logout::run(&mut app, &mut child, lines, reader, root, address)
     } else if screen == StartupScreen::Sound {

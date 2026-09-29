@@ -31,7 +31,26 @@ func run_test() -> void:
 	if roster.selected_character_id != 17:
 		fail("Expected selected server character ID 17: " + str(roster))
 		return
-	if not await exercise_map_placement(client, path):
+	if OS.get_environment("GODOT_TEST_MAP_VERIFY") == "1":
+		await tap_map()
+		var border := map_border(client)
+		var expected_file := config.path_join("map-expected-position")
+		var coords := FileAccess.get_file_as_string(expected_file).split(",")
+		if border == null or coords.size() != 2:
+			fail("Fresh process missing persisted map or expected position")
+			return
+		var expected := Vector2(float(coords[0]), float(coords[1]))
+		if border.get_global_rect().position.distance_to(expected) > 2.0:
+			fail("Fresh process map position %s expected %s" % [border.get_global_rect().position, expected])
+			return
+		print("FIXTURE MAP_REOPENED")
+		await tap_map()
+	else:
+		if not await exercise_map_placement(client, path):
+			return
+		print("FIXTURE MAP_SAVED")
+		client.free()
+		quit(0)
 		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
@@ -115,6 +134,13 @@ func exercise_map_placement(client: Node, path: String) -> bool:
 	if not FileAccess.get_file_as_string(path).contains("WorldMapFrame"):
 		fail("Release did not persist WorldMapFrame")
 		return false
+	var config := OS.get_environment("XDG_CONFIG_HOME")
+	var expected_file := FileAccess.open(config.path_join("map-expected-position"), FileAccess.WRITE)
+	if expected_file == null:
+		fail("Cannot save expected map position")
+		return false
+	expected_file.store_string("%f,%f" % [moved.x, moved.y])
+	expected_file.close()
 	await tap_map()
 	await tap_map()
 	border = map_border(client)
