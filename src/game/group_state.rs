@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 
+#[cfg(not(godot_host))]
 use bevy::prelude::*;
 use shared::protocol::{
     GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot, GroupRosterSnapshot,
@@ -17,7 +18,8 @@ pub const READY_CHECK_DECAY_SECS: f32 = 11.0;
 /// Retail `MAX_PARTY_MEMBERS + 1`: a raid of up to this size may convert to a party.
 pub const MAX_PARTY_SIZE: usize = 5;
 
-#[derive(Resource, Default, Debug, Clone, PartialEq)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct GroupState {
     pub is_raid: bool,
     /// Roster order from the server; empty when not in a group.
@@ -136,7 +138,8 @@ impl GroupState {
 }
 
 /// A group request from UI, chat or IPC; networking sends it on `GroupChannel`.
-#[derive(Message, Clone, Debug, PartialEq)]
+#[cfg_attr(not(godot_host), derive(Message))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum GroupCommand {
     Invite(String),
     Uninvite(String),

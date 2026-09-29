@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] implementation | Native chat frame
+
+The Godot client had no chat. It now hosts the shared `ChatFrame1` screen on a `ChatFrameUI` RegistryUi. The Bevy channel mapping, whisper recording, tab entries, scroll hold and view builder moved into shared files, so both clients format and route chat the same way. The edit box gained the retail `Say: ` header and ChatFontNormal. `godot/tests/world_chat_flow.gd` passes against a private server: geometry, MOTD, W typing without moving, server echoes of say/yell/emote, the offline-whisper error, local command lines, wheel scroll, history, and Escape without opening the game menu. See [[chat-frame]].
+
 ## [2026-09-29] verification | Native Render Scale bounded buffer/UI GREEN
 
 The actual GPU RED at `e3a5c92b` measured 1280×720 instead of 960×540 for saved startup 0.75. Exact `ca2f75c0` built through Depot `40n2xh4n2l` (exit 0; `data/diagnostics/render-scale-depot-green-build.log`). Offscreen Vulkan GREEN then measured startup 0.75 = 960×540 with a 1280×720 target; live 0.5 = 640×360; live 1.0 = 1280×720; resized 1.0 = 1600×900; and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). The same 2D geometry/red-pixel probe and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof, not all 3D scenes, visual equality, bloom, or full parity. Legacy paired CAS/sharpening below 0.999 remains a full-conversion obligation. See [[godot-conversion]] and the [parity matrix](../specs/godot-parity-matrix.md).
