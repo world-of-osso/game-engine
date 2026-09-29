@@ -19,7 +19,10 @@ use lightyear::prelude::{
     ReplicationSender, server,
 };
 use shared::{
-    components::{Health, ModelDisplay, MovementControl, Npc, Player, Position},
+    components::{
+        Health, ModelDisplay, MovementControl, Npc, Player, Position, UnitFactionTemplate,
+        UnitFlags,
+    },
     protocol::{
         AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
         LoginResponse, SelectCharacter, TerrainChannel,
@@ -99,7 +102,7 @@ struct FixtureProject {
 }
 
 impl FixtureProject {
-    fn create() -> Result<Self, String> {
+    fn create(nameplates: bool) -> Result<Self, String> {
         let source = Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .ok_or("Missing Godot project directory")?;
@@ -117,6 +120,8 @@ impl FixtureProject {
             &data.join("models"),
             &data.join("textures"),
             &data.join("terrain"),
+            &root.join("config"),
+            &root.join("user-data"),
         ] {
             fs::create_dir_all(folder)
                 .map_err(|error| format!("Create {}: {error}", folder.display()))?;
@@ -146,11 +151,14 @@ impl FixtureProject {
             std::os::unix::fs::symlink(entry.path(), data.join("textures").join(name))
                 .map_err(|error| format!("Link authored UI texture: {error}"))?;
         }
-        for folder in ["glues", "fonts", "ui"] {
+        for folder in ["glues", "fonts", "ui", "db2"] {
             std::os::unix::fs::symlink(repo.join("data").join(folder), data.join(folder))
                 .map_err(|error| format!("Link authored {folder} assets: {error}"))?;
         }
         for name in [
+            "AreaTable.csv",
+            "music_zone_links.csv",
+            "music_manifest.csv",
             "WarbandScene.csv",
             "WarbandScenePlacement.csv",
             "WarbandScenePlacementOption.csv",
@@ -195,6 +203,22 @@ impl FixtureProject {
         }
         stage_preview_assets(repo, &data)?;
         stage_lighting(repo, &data)?;
+        if nameplates {
+            // The visual-only fixture's sampled lighting rows predate the native
+            // FogDensity reader; use the real catalog in this isolated Options run.
+            fs::copy(repo.join("data/LightData.csv"), data.join("LightData.csv"))
+                .map_err(|error| format!("Stage authored LightData.csv: {error}"))?;
+            fs::write(
+                data.join("ZoneLight.csv"),
+                "ID,MapID,LightID,TransitionType,Zmin,Zmax\n1,99999,1,0,-100,100\n",
+            )
+            .map_err(|error| format!("Stage fixture ZoneLight.csv: {error}"))?;
+            fs::write(
+                data.join("ZoneLightPoint.csv"),
+                "ZoneLightID,PointOrder,Pos_0,Pos_1\n",
+            )
+            .map_err(|error| format!("Stage fixture ZoneLightPoint.csv: {error}"))?;
+        }
         stage_npc_appearance(&data)?;
         Ok(Self { root, project })
     }
@@ -404,13 +428,29 @@ impl Drop for FixtureProject {
 fn launch_godot(
     project: &Path,
     address: SocketAddr,
+    nameplates: bool,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let mut child = Command::new(binary)
         .args(["--headless", "--path"])
         .arg(project)
-        .args(["--script", "res://tests/world_npc_visual_flow.gd"])
+        .args([
+            "--script",
+            if nameplates {
+                "res://tests/world_nameplate_options_flow.gd"
+            } else {
+                "res://tests/world_npc_visual_flow.gd"
+            },
+        ])
         .env("GODOT_TEST_SERVER", address.to_string())
+        .env(
+            "XDG_CONFIG_HOME",
+            project.parent().expect("isolated root").join("config"),
+        )
+        .env(
+            "XDG_DATA_HOME",
+            project.parent().expect("isolated root").join("user-data"),
+        )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -809,12 +849,100 @@ fn run_fixture(
     Err(format!("Timed out at NPC fixture phase {phase}"))
 }
 
+fn run_nameplate_fixture(
+    app: &mut App,
+    child: &mut Child,
+    lines: Receiver<String>,
+    readers: Vec<thread::JoinHandle<()>>,
+) -> Result<(), String> {
+    let (mut player, mut npc) = (None, None);
+    let mut ready = false;
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let mut readers = Some(readers);
+    while Instant::now() < deadline {
+        app.update();
+        respond_to_login(app)?;
+        respond_to_selection(app, &mut player, &mut npc)?;
+        if !ready && let (Some(player), Some(npc)) = (player, npc) {
+            app.world_mut().entity_mut(player).insert((
+                UnitFactionTemplate(35),
+                Position {
+                    x: -8949.0,
+                    y: 112.88,
+                    z: 0.0,
+                },
+            ));
+            app.world_mut().entity_mut(npc).insert((
+                Position {
+                    x: -8945.0,
+                    y: 112.88,
+                    z: 0.0,
+                },
+                UnitFactionTemplate(14),
+                UnitFlags(0),
+                Health {
+                    current: 10.0,
+                    max: 10.0,
+                },
+            ));
+            ready = true;
+        }
+        let status = child.try_wait().map_err(|error| error.to_string())?;
+        if status.is_some() {
+            for reader in readers.take().expect("fixture readers") {
+                reader.join().map_err(|_| "Godot reader panicked")?;
+            }
+        }
+        for line in lines.try_iter() {
+            if line.contains("SCRIPT ERROR") || line.contains("Account update failed") {
+                return Err(format!("Native nameplate fixture setup: {line}"));
+            }
+            match line.trim() {
+                "FIXTURE NAMEPLATE_MOVE" => {
+                    app.world_mut()
+                        .entity_mut(npc.ok_or("NPC missing")?)
+                        .insert(Position {
+                            x: -8919.0,
+                            y: 112.88,
+                            z: 0.0,
+                        });
+                }
+                "FIXTURE NAMEPLATE_OPTIONS_DONE" => {
+                    println!(
+                        "PASS: replicated nameplate authored HUD/Accessibility controls and live nodes"
+                    );
+                }
+                _ => {}
+            }
+        }
+        if let Some(status) = status {
+            return if status.success() {
+                Ok(())
+            } else {
+                Err(format!("Nameplate fixture exited {status}"))
+            };
+        }
+        thread::sleep(TICK);
+    }
+    Err("Timed out waiting for native nameplate fixture".into())
+}
+
 fn main() {
-    let project = FixtureProject::create().expect("stage isolated fixture data and Godot project");
+    let nameplates = match std::env::args().nth(1).as_deref() {
+        None => false,
+        Some("nameplates") => true,
+        Some(other) => panic!("Unknown fixture mode: {other}"),
+    };
+    let project =
+        FixtureProject::create(nameplates).expect("stage isolated fixture data and Godot project");
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
-    let (mut child, lines, reader) = launch_godot(&project.project, address);
-    let result = run_fixture(&mut app, &mut child, lines, reader);
+    let (mut child, lines, reader) = launch_godot(&project.project, address, nameplates);
+    let result = if nameplates {
+        run_nameplate_fixture(&mut app, &mut child, lines, reader)
+    } else {
+        run_fixture(&mut app, &mut child, lines, reader)
+    };
     if result.is_err() && child.try_wait().expect("inspect Godot status").is_none() {
         child.kill().expect("terminate failed Godot fixture");
         child.wait().expect("reap failed Godot fixture");

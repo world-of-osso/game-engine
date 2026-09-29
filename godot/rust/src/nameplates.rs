@@ -13,7 +13,7 @@ use game_engine_core::nameplate_style_data::{
     NameplateStyle, THICK_HEALTH_HEIGHT, THIN_HEALTH_HEIGHT,
 };
 use game_engine_core::nameplate_visibility_data::{
-    NameplateCvars, PlateUnit, in_combat_with_player, plate_alpha, plate_shown,
+    NameplateCvars, PlateUnit, in_combat_with_player, nameplate_alpha, plate_alpha, plate_shown,
 };
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
@@ -111,6 +111,19 @@ fn plate_layout(style: &NameplateStyle, fraction: f32) -> PlateLayout {
     }
 }
 
+fn nameplate_text_color(is_player: bool, colorblind_mode: bool) -> Color {
+    if !colorblind_mode {
+        return Color::WHITE;
+    }
+    // Legacy `nameplate_text_color`: Player = Friendly, NPC = Neutral.
+    // These are UnitReaction::name_color_for_mode(true); health tint is separate.
+    if is_player {
+        Color::from_rgb(0.45, 0.9, 1.0)
+    } else {
+        Color::from_rgb(1.0, 0.92, 0.35)
+    }
+}
+
 fn reaction_color(style: &NameplateStyle, reaction: Reaction) -> Color {
     let [r, g, b] = match reaction {
         Reaction::Hostile => style.health_colors.hostile,
@@ -194,6 +207,7 @@ struct PlateView {
     anchor: Vector2,
     fraction: f32,
     color: Color,
+    name_color: Color,
 }
 
 pub(crate) struct Nameplates {
@@ -244,6 +258,7 @@ impl Nameplates {
         parent: &mut Gd<Node3D>,
         views: HashMap<u64, PlateView>,
         style: &NameplateStyle,
+        show_health_bars: bool,
     ) -> Result<(), String> {
         if self.art.is_none() {
             self.art = Some(PlateArt::load()?);
@@ -270,7 +285,7 @@ impl Nameplates {
                 .plates
                 .entry(*id)
                 .or_insert_with(|| spawn_plate(layer, art));
-            apply_plate(plate, view, style, thick, art);
+            apply_plate(plate, view, style, thick, art, show_health_bars);
         }
         self.views = views;
         Ok(())
@@ -319,13 +334,16 @@ fn apply_plate(
     style: &NameplateStyle,
     thick: bool,
     art: &PlateArt,
+    show_health_bars: bool,
 ) {
     let layout = plate_layout(style, view.fraction);
     plate.root.set_position(view.anchor);
     plate
         .root
         .set_modulate(Color::from_rgba(1.0, 1.0, 1.0, view.alpha));
-    plate.frame.set_visible(style.show_border);
+    plate
+        .frame
+        .set_visible(show_health_bars && style.show_border);
     plate.frame.set_texture(if thick {
         &art.thick_frame
     } else {
@@ -333,7 +351,9 @@ fn apply_plate(
     });
     plate.frame.set_position(layout.frame.position);
     plate.frame.set_size(layout.frame.size);
-    plate.fill.set_visible(view.fraction > 0.0);
+    plate
+        .fill
+        .set_visible(show_health_bars && view.fraction > 0.0);
     plate.fill.set_texture(if thick {
         &art.thick_fill
     } else {
@@ -347,13 +367,18 @@ fn apply_plate(
     }
     plate
         .name
+        .add_theme_color_override("font_color", view.name_color);
+    plate
+        .name
         .add_theme_font_size_override("font_size", style.name_font_size.round() as i32);
     plate.name.reset_size();
     let size = plate.name.get_minimum_size();
     plate.name.set_size(size);
-    plate
-        .name
-        .set_position(layout.name_bottom - Vector2::new(size.x / 2.0, size.y));
+    plate.name.set_position(if show_health_bars {
+        layout.name_bottom - Vector2::new(size.x / 2.0, size.y)
+    } else {
+        -size / 2.0
+    });
 }
 
 fn unit_name(unit: &UnitSnapshot) -> String {
@@ -461,19 +486,26 @@ fn project_plate(
     unit: &UnitSnapshot,
     node: &Gd<Node3D>,
     color: Color,
+    name_color: Color,
+    fade_far: f32,
 ) -> Option<PlateView> {
     let (top, center) = unit_points(node)?;
     if !camera.is_position_in_frustum(top) {
         return None;
     }
+    let fade = nameplate_alpha(camera.get_global_position().distance_to(top), fade_far);
+    if fade <= 0.0 {
+        return None;
+    }
     let is_occluded = occluded(camera, center);
     Some(PlateView {
         name: unit_name(unit),
-        alpha: plate_alpha(cvars, is_occluded),
+        alpha: fade * plate_alpha(cvars, is_occluded),
         occluded: is_occluded,
         anchor: camera.unproject_position(top),
         fraction: health_fraction(unit),
         color,
+        name_color,
     })
 }
 
@@ -492,8 +524,10 @@ impl GameClient {
         };
         let views = self.nameplate_views(&camera)?;
         let style = self.client_options.hud.nameplate_style;
+        let show_health_bars = self.client_options.hud.show_health_bars;
         let mut parent = self.to_gd().upcast::<Node3D>();
-        self.nameplates.sync_nodes(&mut parent, views, &style)
+        self.nameplates
+            .sync_nodes(&mut parent, views, &style, show_health_bars)
     }
 
     fn nameplate_views(
@@ -503,6 +537,8 @@ impl GameClient {
         let target = self.targeting_target();
         let cvars = self.nameplates.cvars;
         let style = self.client_options.hud.nameplate_style;
+        let fade_far = self.client_options.hud.nameplate_distance;
+        let colorblind_mode = self.client_options.graphics.colorblind_mode;
         let templates = self.nameplates.templates(&self.data_root)?;
         let Some(viewer) = build_viewer(&self.world, &self.units, target, templates) else {
             return Ok(HashMap::new());
@@ -518,7 +554,8 @@ impl GameClient {
                     return None;
                 }
                 let color = reaction_color(&style, reaction(template, viewer.template));
-                let view = project_plate(camera, &cvars, unit, &node, color)?;
+                let name_color = nameplate_text_color(unit.player.is_some(), colorblind_mode);
+                let view = project_plate(camera, &cvars, unit, &node, color, name_color, fade_far)?;
                 Some((unit.server_id, view))
             })
             .collect();
@@ -604,6 +641,23 @@ impl NameplateProbe {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn colorblind_mode_changes_player_and_npc_labels_but_not_health_fill() {
+        let style = NameplateStyle::default();
+        let fill = reaction_color(&style, Reaction::Hostile);
+        assert_eq!(nameplate_text_color(true, false), Color::WHITE);
+        assert_eq!(nameplate_text_color(false, false), Color::WHITE);
+        assert_eq!(
+            nameplate_text_color(true, true),
+            Color::from_rgb(0.45, 0.9, 1.0)
+        );
+        assert_eq!(
+            nameplate_text_color(false, true),
+            Color::from_rgb(1.0, 0.92, 0.35)
+        );
+        assert_eq!(reaction_color(&style, Reaction::Hostile), fill);
+    }
 
     #[test]
     fn thick_plate_centres_its_body_on_the_anchor_with_the_name_two_pixels_above_the_frame() {

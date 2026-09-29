@@ -141,6 +141,8 @@ pub mod nameplate_data;
 pub mod nameplate_style;
 #[path = "game/nameplate_style_data.rs"]
 pub mod nameplate_style_data;
+#[path = "rendering/ui/nameplate_visibility_data.rs"]
+pub mod nameplate_visibility_data;
 pub mod network_events;
 pub mod network_runtime;
 pub mod network_tick;
