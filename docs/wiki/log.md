@@ -6,7 +6,7 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] ui | Native target-frame HUD visibility
 
-The native target-frame cluster now consumes `hud.show_health_bars` through the shared unit-frame state. The existing owned-UDP NPC Options fixture proves whole-cluster hide/restoration with the same reselected NPC and separately retained nameplate label (RED/GREEN: `/tmp/claude/target-frame-{red,green}-6073af82.log`). Escape clears selection before opening Options; the fixture does not claim otherwise. Native player-frame and managed-window reset remain open. See [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+The native target-frame cluster now consumes `hud.show_health_bars` through the shared unit-frame state. The existing owned-UDP NPC Options fixture proves whole-cluster off/on hide/restoration with the same reselected NPC and separately retained nameplate label (RED/GREEN: `/tmp/claude/target-frame-{red,green}-6073af82.log`). Escape clears selection before opening Options; the fixture does not claim otherwise. Native player-frame and managed-window reset remain absent; verifier881 is pending, so no independent claim is made. See [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
 
 ## [2026-09-29] ui | Native nameplate Options independently verified
 
