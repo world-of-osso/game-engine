@@ -422,7 +422,7 @@ func print_cast_timeline(visuals: Dictionary) -> void:
 			print("FIXTURE FROSTBOLT_CAST %s at=%.3f wall_ms=%d elapsed=%.3f duration=%.3f" % ["SpellGo" if seen.go else "CastState", seen.at, seen.wall_ms, seen.elapsed, seen.duration])
 
 ## Frostbolt's SoundKits (SpellVisualKitEffect type 5): the precast kit 81575 starts
-## 85501 (precast_start) and loops 85500 (precast_loop) with the cast bar, the cast kit
+## 85501 (precast_start) and loops 85500 (precast_loop) when the cast replicates, the cast kit
 ## 81337 plays 85502 (cast) at SpellGo and the impact kit 80718 plays 85503 (impact)
 ## as the missile lands; the loop stops at SpellGo (PrecastEnd).
 func check_frostbolt_sounds(visuals: Dictionary) -> bool:
@@ -451,8 +451,13 @@ func check_frostbolt_sounds(visuals: Dictionary) -> bool:
 	if at.size() != expected.size() + 1:
 		fail("Frostbolt sound kits played: %s, expected %s" % [at.keys(), expected.keys()])
 		return false
-	if at[85500] > go - 1.0 or absf(at[85501] - at[85500]) > 0.001:
-		fail("Precast sounds did not start with the cast bar: %s, SpellGo %.3f" % [at, go])
+	var cast_seen: Array = visuals.casts.filter(func(c): return c.spell == FROSTBOLT and c.unit == local_id and not c.go)
+	if cast_seen.is_empty():
+		fail("The client never saw Frostbolt's CastState: " + str(visuals.casts))
+		return false
+	var precast: float = cast_seen[-1].at
+	if absf(at[85500] - precast) > 0.001 or absf(at[85501] - precast) > 0.001:
+		fail("Precast sounds %.3f/%.3f did not start with the replicated cast at %.3f" % [at[85500], at[85501], precast])
 		return false
 	if at.loop_stop < 0.0 or absf(at.loop_stop - go) > frame_s:
 		fail("Precast loop stopped at %.3f, not with the cast at SpellGo %.3f" % [at.loop_stop, go])
@@ -593,10 +598,12 @@ func capture(file: String) -> void:
 	# Movie frame of the still, for cutting a recording (`--write-movie`, fixed fps).
 	print("FIXTURE MARK %s frame=%d" % [file, Engine.get_frames_drawn()])
 	await RenderingServer.frame_post_draw
+	var started := Time.get_ticks_msec()
 	var image := root.get_texture().get_image()
 	var error := image.save_png(shots + file)
 	if error != OK:
 		fail("Could not save " + file + ": " + str(error))
+	print("FIXTURE CAPTURED %s in %d ms" % [file, Time.get_ticks_msec() - started])
 
 func wait_frames(count: int) -> void:
 	for frame in range(count):
