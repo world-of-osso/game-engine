@@ -28,6 +28,16 @@ Final bounded checks: native `cargo check` and launcher formatting passed. The h
 
 `ca2f75c0` applies persisted startup and committed Graphics Render Scale to its owning viewport's 3D scaling property; 2D UI and output size are unchanged. The prior actual GPU RED at `e3a5c92b` saw full-size 1280×720 internal buffers instead of 960×540 for saved 0.75 (`data/diagnostics/render-scale-red/red-e3a5c92b.log`). Depot `40n2xh4n2l` built the exact revision (exit 0; `data/diagnostics/render-scale-depot-green-build.log`), then offscreen Vulkan GREEN measured startup 0.75 = 960×540 with a 1280×720 target; live 0.5 = 640×360; live 1.0 = 1280×720; resized 1.0 = 1600×900; and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). The same 2D geometry/red-pixel probe and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof, not all 3D scenes, visual equality, bloom, or full rendering parity. Legacy paired CAS/sharpening below 0.999 remains a full-conversion obligation.
 
+### Bounded RCAS compatibility investigation
+
+Legacy source configures CAS at strength 0.6 with denoise disabled when Render Scale is below 0.999. The world camera uses `Tonemapping::None`, whose post-process path early-outs. The patched `bevy_render` camera allocation at `camera.rs:614` selects the sRGB output view when neither `Hdr` nor `CompositingSpace` is present, so ordinary texture samples decode sRGB; the main-pass-resolution override adjusts the viewport but leaves textures target-sized. That supports the usual sRGB-window sampling domain, not runtime image equivalence and explains why `ca2f75c0` proves scaled viewport buffers, not runtime legacy RCAS equivalence.
+
+Godot source investigation found the `Camera3D`/`WorldEnvironment` compositor path usable, but not a `Viewport`; a pre-tonemap compositor is unsuitable for this contract. A test-owned `CanvasLayer` at layer -100 with a screen-reading shader was therefore used only as a diagnostic. Its explicit sRGB decode → RCAS → encode path passed startup 0.75, live 0.5, and full-scale 1.0, while preserving a higher-layer UI red pixel (`data/diagnostics/rcas-canvas-probe/srgb/run-valid-shader.log`, exit 0). Copy mode fails at live 0.5; the unconverted encoded-domain filter fails at startup 0.75 (`data/diagnostics/rcas-canvas-probe/{copy,raw-linear}/run.log`, exit 1).
+
+Fixture `063363f4` first exposed a full-scale capture mismatch. `fb3cc96a` hides only `GameMenuUI` during capture; `75096a95` strengthens the weak bilinear edge signal without loosening tolerances. Separately, native `ca2f75c0` remains unfiltered at live 0.5: red 0.349 versus expected 0.3277 (`data/diagnostics/render-scale-rcas-red-063363f4/run-contrast.log`). That process exited 124 only after the assertion, so it is evidence of the mismatch, not a clean RED process result.
+
+`543ca754` adds the native viewport-owned canvas pass; native compilation and rendered acceptance remain pending. Diagnostic GREEN is not production or full-parity proof.
+
 ### Owned Vulkan cage recipe
 
 Run from the repository root only in the main-owned offscreen Wayland Vulkan cage; do not substitute a desktop display or headless Godot. The fixture writes only its owned configuration and optional captures.
@@ -257,6 +267,10 @@ Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x
 ## Sources
 
 - [Godot conversion specification](../../specs/godot-conversion.md) — acceptance target and current capability/proof matrix.
+- [Legacy camera post-process](../../../src/rendering/camera/camera_post_process.rs) — CAS policy, 0.999 threshold, and `Tonemapping::None` world-camera selection.
+- Patched sibling `bevy-patches/bevy_render/src/camera.rs` — target-format selection and main-pass resolution override behavior.
+- `data/diagnostics/rcas-canvas-probe/{srgb/run-valid-shader.log,copy/run.log,raw-linear/run.log}` — diagnostic shader pass and controlled failures.
+- `data/diagnostics/render-scale-rcas-red-063363f4/run-contrast.log` — native unfiltered live-0.5 mismatch; timeout followed the assertion.
 - [shared AreaTable data](../../../src/area_zone_data.rs) — parent parsing and bounded root traversal.
 - [Remote Godot builds](../../remote-builds.md) — Depot extension-build boundary and operator requirements.
 - `/tmp/claude/verify-root-tests-580d7300.md` — bounded root format/test proof and test-only-delta scope.
