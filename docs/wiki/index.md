@@ -1,14 +1,14 @@
 # Wiki Index
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-09-28.
+Last updated: 2026-09-29.
 
 ## Systems
 
 Engine subsystems and how they work.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
-- [godot-conversion](systems/godot-conversion.md) — Godot 4.7.2/Rust GDExtension experiment: six launcher startup names have bounded CLI proof (`login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, `inworld`), while visual/client parity and other canonical destinations remain open. Local authored-ID locomotion is validated through both authenticated CLI fixtures; remote entities remain Stand without a new protocol. M2 material/render parity and all feature parity remain open; see the [detailed parity matrix](../specs/godot-parity-matrix.md).
+- [godot-conversion](systems/godot-conversion.md) — Godot 4.7.2/Rust GDExtension experiment: root launcher builds locally while Depot builds the Linux x86_64 extension remotely; see [Remote Godot builds](../remote-builds.md). six launcher startup names have bounded CLI proof (`login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, `inworld`), while visual/client parity and other canonical destinations remain open. Local authored-ID locomotion is validated through both authenticated CLI fixtures; remote entities remain Stand without a new protocol. M2 material/render parity and all feature parity remain open; see the [detailed parity matrix](../specs/godot-parity-matrix.md).
 - [animation](systems/animation.md) — Bevy-backed M2 bone playback, raw-TRS pivot semantics, crossfade rules, landing completion, HD skeleton loading, replicated NPC authored-idle orientation and distance/visibility sampling LOD
 - [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [spell-visuals](systems/spell-visuals.md) — Godot spell visual kits from local-CASC SpellXSpellVisual → SpellVisualEvent → kit models/animations, PlayerCondition choice, `SpellGo`, missiles, keyframed particle emission, combat action layer
