@@ -137,6 +137,8 @@ fn choose_safe_spawn_position_avoids_nearby_wmo_chunk() {
             fdid: None,
             path: None,
         }],
+        wmo_doodad_set_ranges: Vec::new(),
+        wmo_doodad_sets: Vec::new(),
         chunk_refs: Vec::new(),
     };
 
