@@ -12,6 +12,7 @@ use game_engine::casting_data::CastingState;
 use game_engine::floating_combat_text::{
     CombatTextKind, FloatingCombatText, FloatingCombatTextStack,
 };
+use game_engine::spell_event_data::{OutcomeSound, spell_outcome};
 use game_engine::status::{CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot};
 use game_engine::ui::chat_frame::{CombatLogChat, UNKNOWN_NAME, combat_log_line};
 use shared::components::{Npc, Player as NetPlayer};
@@ -227,41 +228,18 @@ fn spell_sound_from_combat_event(
     msg: &CombatEvent,
     mirror: &ReplicationMirrorMap,
 ) -> Option<SpellSoundRequest> {
-    if msg.spell_id == 0 {
-        return None;
-    }
-    let kind = match msg.event_type {
-        CombatEventType::SpellDamage
-        | CombatEventType::PeriodicDamage
-        | CombatEventType::CriticalHit => SpellSoundKind::Impact,
-        CombatEventType::SpellHeal | CombatEventType::PeriodicHeal => SpellSoundKind::Heal,
-        CombatEventType::Miss => SpellSoundKind::Miss,
-        CombatEventType::Interrupt => SpellSoundKind::Interrupt,
-        CombatEventType::MeleeDamage
-        | CombatEventType::Absorb
-        | CombatEventType::Dodge
-        | CombatEventType::Parry
-        | CombatEventType::Block
-        | CombatEventType::Death
-        | CombatEventType::Respawn => return None,
+    let (outcome, emitter) = spell_outcome(msg)?;
+    let kind = match outcome {
+        OutcomeSound::Impact => SpellSoundKind::Impact,
+        OutcomeSound::Heal => SpellSoundKind::Heal,
+        OutcomeSound::Miss => SpellSoundKind::Miss,
+        OutcomeSound::Interrupt => SpellSoundKind::Interrupt,
     };
     Some(SpellSoundRequest {
         spell_id: msg.spell_id,
         kind,
-        emitter_entity: Some(spell_sound_emitter_entity(msg, kind, mirror)?),
+        emitter_entity: Some(super::resolve_server_entity(emitter, mirror)?),
     })
-}
-
-fn spell_sound_emitter_entity(
-    msg: &CombatEvent,
-    kind: SpellSoundKind,
-    mirror: &ReplicationMirrorMap,
-) -> Option<Entity> {
-    let bits = match kind {
-        SpellSoundKind::Impact | SpellSoundKind::Heal | SpellSoundKind::Miss => msg.target,
-        SpellSoundKind::Interrupt | SpellSoundKind::CastStart => msg.attacker,
-    };
-    super::resolve_server_entity(bits, mirror)
 }
 
 fn push_floating_text(
@@ -471,32 +449,15 @@ mod tests {
     }
 
     #[test]
-    fn spell_sound_from_combat_event_maps_spell_categories() {
-        let mirror = mirror_fixture();
-        let cases = [
-            (
-                CombatEventType::SpellDamage,
-                133,
-                SpellSoundKind::Impact,
-                202,
-            ),
-            (CombatEventType::SpellHeal, 2061, SpellSoundKind::Heal, 202),
-            (CombatEventType::Miss, 17, SpellSoundKind::Miss, 202),
-            (
-                CombatEventType::Interrupt,
-                2139,
-                SpellSoundKind::Interrupt,
-                101,
-            ),
-        ];
-        for (event, spell_id, kind, main_bits) in cases {
-            let sound =
-                spell_sound_from_combat_event(&combat_event(event, 40.0, spell_id), &mirror)
-                    .unwrap();
-            assert_eq!(sound.kind, kind);
-            assert_eq!(sound.spell_id, spell_id);
-            assert_eq!(sound.emitter_entity, Some(Entity::from_bits(main_bits)));
-        }
+    fn spell_sound_adapter_resolves_original_server_emitter() {
+        let sound = spell_sound_from_combat_event(
+            &combat_event(CombatEventType::Interrupt, 40.0, 2139),
+            &mirror_fixture(),
+        )
+        .unwrap();
+        assert_eq!(sound.kind, SpellSoundKind::Interrupt);
+        assert_eq!(sound.spell_id, 2139);
+        assert_eq!(sound.emitter_entity, Some(Entity::from_bits(101)));
     }
 
     #[test]

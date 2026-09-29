@@ -193,6 +193,8 @@ pub mod sound_music_zone_cache;
 pub mod spell_cast_data;
 #[path = "game/spell_catalog/mod.rs"]
 pub mod spell_catalog;
+#[path = "sound/spell_event_data.rs"]
+pub mod spell_event_data;
 #[path = "game/spell_visual_data.rs"]
 pub mod spell_visual_data;
 pub mod sqlite_util;

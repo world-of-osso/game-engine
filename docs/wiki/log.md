@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] system | Original CombatEvent native outcome audio
+
+Direct shared `CombatEvent` UDP subscription/account dispatch drives Impact/Heal/Miss/Interrupt spatial playback with shared literal root PCM and category policy. The owned fixture proves 65 ordered events exactly once, ignored/zero/unresolved suppression, master/effects/mute/music independence, removal and forced-disconnect reset. Current-server spell results send only `CombatLogEvent`; the original producer remains dormant for those results. Evidence: `/tmp/claude/native-outcome-final-targeted.log`. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-29] system | Owned UDP merchant click audio
 
 The owned `native_input_fixture merchant-click` mode ray-picks a replicated vendor and sends `InteractNpc`; only then does its owned UDP server send `InteractionOpened`, `InventorySnapshot`, and `VendorInventory`. The authenticated client's authored buyback-tab and close-button left-down reach its Effects player; right press, release, Escape, and reopen stay quiet. The server observes two opens and two closes. Final exit-0 output: `/tmp/claude/merchant-click-f1609b4e-final.log`. Optional scenery missing-texture diagnostics remain within the explicit fixture exception. Verifier918 independent review is pending. This does not prove all-owner coverage, audible/hardware output, purchase/sale, mutable sound settings, or full parity. Updated [[sound]] and [[merchant-frame]].

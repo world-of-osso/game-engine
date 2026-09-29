@@ -17,7 +17,7 @@ use godot::classes::{
 };
 use godot::prelude::*;
 
-use crate::{sound_cast::CastSpells, sound_footsteps::Footsteps};
+use crate::{sound_cast::CastSpells, sound_footsteps::Footsteps, sound_outcome::OutcomeSpells};
 
 struct Channel {
     player: Gd<AudioStreamPlayer>,
@@ -223,6 +223,7 @@ pub struct NativeSound {
     effects: Gd<AudioStreamPlayer>,
     footsteps: Footsteps,
     casts: CastSpells,
+    outcomes: OutcomeSpells,
 }
 
 #[godot_api]
@@ -237,6 +238,7 @@ impl INode for NativeSound {
             effects: AudioStreamPlayer::new_alloc(),
             footsteps: Footsteps::new(),
             casts: CastSpells::new(),
+            outcomes: OutcomeSpells::new(),
         }
     }
 
@@ -253,6 +255,8 @@ impl INode for NativeSound {
         self.base_mut().add_child(&footsteps);
         let casts = self.casts.root.clone();
         self.base_mut().add_child(&casts);
+        let outcomes = self.outcomes.root.clone();
+        self.base_mut().add_child(&outcomes);
     }
 
     fn exit_tree(&mut self) {
@@ -369,6 +373,28 @@ impl NativeSound {
         self.casts.stop();
     }
 
+    pub fn play_outcome(
+        &mut self,
+        kind: game_engine_network::spell_event_data::OutcomeSound,
+        emitter: u64,
+        position: Vector3,
+        settings: &SoundOptionsFile,
+    ) {
+        self.outcomes.play(kind, emitter, position, settings);
+    }
+
+    pub fn sync_outcomes(
+        &mut self,
+        position: impl FnMut(u64) -> Option<Vector3>,
+        settings: &SoundOptionsFile,
+    ) {
+        self.outcomes.sync(position, settings);
+    }
+
+    pub fn stop_outcomes(&mut self) {
+        self.outcomes.stop();
+    }
+
     pub fn load_catalog(&mut self, data_root: &Path) -> Result<(), String> {
         let (tracks, indices) = discover_tracks(data_root)?;
         let mut music =
@@ -422,5 +448,6 @@ impl NativeSound {
         self.ambient.stop();
         self.stop_footsteps();
         self.stop_casts();
+        self.stop_outcomes();
     }
 }
