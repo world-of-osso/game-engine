@@ -32,7 +32,7 @@ Commit `364a29ac` applies `clamp(user_scale, 0.75, 1.5)` outside `InWorld`; `InW
 
 ## Native FontString bounds
 
-Legacy `render_text.rs` bounds text to `frame.resolved_width()` and uses `LineBreak::WordBoundary` for horizontal justification; `word_wrap` only affects its height bound (`false` leaves height unbounded). Native `ui/projection.rs` sets Godot FontString Labels to word wrap at their authored width, retaining full text and horizontal/vertical justification without clipping or widening rows. The owned merchant Options fixture checks actual descriptions, line counts, row/content edges, and non-overlap at 0.75/1.25; its old `b63c64ec` native artifact failed at the 0.75 right edge. New artifact GREEN and rendered pixel parity remain separate gates.
+Legacy `render_text.rs` bounds text to `frame.resolved_width()` and uses `LineBreak::WordBoundary` for horizontal justification; `word_wrap` only affects its height bound (`false` leaves height unbounded). `9c12ce9e` sets Godot FontString Labels to word wrap at their authored 370 logical px width, retaining full text and horizontal/vertical justification without clipping or widening rows. Depot `jcmsl5lx24` builds `9c12ce9e` with `native_input_fixture` (exit 0; existing `NativeWmoGroup::fdid` warning). The owned merchant Options runtime exits 0 and verifies actual descriptions, two visible lines for long text, 370-logical-px label width, row/content/root right edges, and non-overlap at 0.75/1.25 (`data/diagnostics/options-fontstring-wrap-green/merchant-click-runtime-short.log`); main inspected `merchant-options-125.png`. This is bounded rendered evidence for Merchant Options only, not pixel equality, all RegistryUi owners, or UI/conversion parity.
 
 ## Registry-native migration status
 
