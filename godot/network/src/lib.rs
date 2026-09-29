@@ -24,15 +24,17 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        CombatStatus, CreatureMotion, EquipmentAppearance, Health, Mana, ModelDisplay,
+        CombatStatus, CreatureMotion, EquipmentAppearance, Gold, Health, Mana, ModelDisplay,
         MovementControl, MovementSpeed, Npc, Player, Position, Rotation, UnitFactionTemplate,
         UnitFlags, UnitLevel, UnitPose, UnitTarget,
     },
     protocol::{
-        CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
-        DungeonDifficultySet, EnterWorldResponse, ForcedDisconnect, InstanceInfo, LoadTerrain,
-        LoginResponse, NewWorld, QuestLogSnapshot, QuestLogUpdate, RegisterResponse,
-        TransferAborted,
+        BuybackList, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
+        DungeonDifficultySet, DurabilityStateUpdate, EnterWorldResponse, ForcedDisconnect,
+        InstanceInfo, InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta,
+        InventoryError, InventorySnapshot, LoadTerrain, LoginResponse, MerchantFailed, NewWorld,
+        NpcFlags, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, TransferAborted,
+        VendorInventory,
     },
 };
 
@@ -91,6 +93,10 @@ pub struct UnitSnapshot {
     pub unit_flags: Option<u32>,
     /// Replicated `CombatStatus`.
     pub in_combat: bool,
+    /// Retail `NPCFlags` / `NPCFlags2` bits of an NPC (vendor, repair, gossip, ...).
+    pub npc_flags: Option<u64>,
+    /// The local player's money in copper; other units carry none.
+    pub gold: Option<u64>,
 }
 
 impl UnitSnapshot {
@@ -116,6 +122,8 @@ impl UnitSnapshot {
                 .map(|template| template.0),
             unit_flags: entity.get::<UnitFlags>().map(|flags| flags.0),
             in_combat: entity.get::<CombatStatus>().is_some_and(|status| status.0),
+            npc_flags: entity.get::<NpcFlags>().map(|flags| flags.0),
+            gold: entity.get::<Gold>().map(|gold| gold.0),
         }
     }
 }
@@ -177,6 +185,17 @@ impl NetworkBridge {
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
+            // NPC interaction, the merchant frame and the bags it sells from.
+            .receive::<InteractionOpened>()
+            .receive::<InteractionFailed>()
+            .receive::<InteractionClosed>()
+            .receive::<VendorInventory>()
+            .receive::<BuybackList>()
+            .receive::<MerchantFailed>()
+            .receive::<InventorySnapshot>()
+            .receive::<InventoryDelta>()
+            .receive::<InventoryError>()
+            .receive::<DurabilityStateUpdate>()
             .connect(server_addr, client_id)
     }
 
