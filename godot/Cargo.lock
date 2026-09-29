@@ -1781,7 +1781,7 @@ dependencies = [
 [[package]]
 name = "cascette-client-storage"
 version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48#758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48"
+source = "git+https://github.com/Osso/cascette-rs?rev=027a1ac34c81b4ec23a0bfa36ea298f6642abe19#027a1ac34c81b4ec23a0bfa36ea298f6642abe19"
 dependencies = [
  "binrw",
  "cascette-crypto",
@@ -1806,7 +1806,7 @@ dependencies = [
 [[package]]
 name = "cascette-crypto"
 version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48#758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48"
+source = "git+https://github.com/Osso/cascette-rs?rev=027a1ac34c81b4ec23a0bfa36ea298f6642abe19#027a1ac34c81b4ec23a0bfa36ea298f6642abe19"
 dependencies = [
  "binrw",
  "cipher",
@@ -1819,7 +1819,7 @@ dependencies = [
 [[package]]
 name = "cascette-formats"
 version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48#758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48"
+source = "git+https://github.com/Osso/cascette-rs?rev=027a1ac34c81b4ec23a0bfa36ea298f6642abe19#027a1ac34c81b4ec23a0bfa36ea298f6642abe19"
 dependencies = [
  "binrw",
  "cascette-crypto",
