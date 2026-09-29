@@ -9,6 +9,7 @@ mod camera;
 mod char_create;
 mod character_select;
 mod combat_visuals;
+mod damage_meter;
 mod display_options;
 mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
@@ -110,6 +111,7 @@ pub struct GameClient {
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     entrance_bar: entrance_bar::EntranceBar,
+    damage_meter: damage_meter::DamageMeterHud,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     game_menu_drag: Option<game_menu::drag::OptionsDrag>,
     logout: game_engine_session::logout::LogoutState,
@@ -190,6 +192,7 @@ impl INode3D for GameClient {
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
+            damage_meter: damage_meter::DamageMeterHud::default(),
             game_menu_options: None,
             game_menu_drag: None,
             logout: Default::default(),
@@ -350,6 +353,7 @@ impl INode3D for GameClient {
             ("Merchant", |c, _| c.update_merchant()),
             ("World map", |c, _| Ok(c.update_world_map()?)),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
+            ("Damage meter", |c, _| c.update_damage_meter()),
             ("World units", |c, d| {
                 c.world.advance(d);
                 Ok(())
@@ -763,6 +767,7 @@ impl GameClient {
         self.merchant.visit_uis(&mut visit)?;
         self.spells.visit_uis(&mut visit)?;
         self.targeting.visit_uis(&mut visit)?;
+        self.damage_meter.visit_uis(&mut visit)?;
         self.entrance_bar.visit_uis(&mut visit)
     }
 
