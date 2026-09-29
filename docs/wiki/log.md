@@ -4,6 +4,10 @@
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
 
+## [2026-09-28] ui | Native nameplate Options consumers
+
+Native nameplates now hide only frame/fill for the HUD health-bars switch, fade from the camera-to-health-body distance independently of the viewer-to-unit CVar limit, and tint only player/NPC labels for Accessibility colorblind mode. The owned loopback NPC fixture drives the authored Options controls and checks live plate nodes, alpha, CVar eligibility, label color, and unchanged fill tint. See [[nameplate-design]] and [nameplate spec](../specs/nameplate-style.md).
+
 ## [2026-09-29] system | Native local-player footstep playback
 
 `d3882c9a`/`ece3da3c` add authored local Ogg footstep catalog selection and owned 3D emitters for the selected local player after animation tick, with shared phase/selection and streamed terrain/WMO surfaces. `b773ecfd` final independent verification reuses valid production fmt/check proof, confirms the existing worktree GDExtension library, and fresh-runs the refactored fixture to PASS in 18.65 seconds through movement playback, idle/stop, Options gain/mute/music behavior, and player-removal release. All four temporary fixture CSV links were removed. The retained final log has 668 optional-scenery `WorldObjects` missing-texture errors, but zero script/non-WorldObjects errors, timeouts, or fixture-exit failures; it is not a whole-runtime-clean claim. Fixture readability now passes (cognitive 3, cyclomatic 9). Audible/hardware and full parity remain unproven. Updated [[sound]], [[terrain]], and [Godot parity matrix](../specs/godot-parity-matrix.md).

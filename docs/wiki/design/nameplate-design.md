@@ -26,7 +26,7 @@ The Godot client implements Retail's CVar-driven visibility, not the target-firs
 - "In combat with the player" = replicated `CombatStatus` plus `UnitTarget` == local player. There is no replicated threat list.
 - Occlusion: a camera ray to the pick-box centre against terrain (layer 1) and WMO collision (layer 2) sets alpha 0.4. Doodads have no collision and never occlude.
 - Anchor: body centre 2.5 yd above the unit origin in unit space (Bevy `BAR_Y_OFFSET`). The M2 header box was tried first; it reached 3.5 yd on a goblin and 4.4 yd on a lying soldier, so plates floated.
-- The fill uses the Bevy skins, desaturated at load and tinted by `FactionTemplate` reaction. Class colours are not applied yet.
+- The fill uses the Bevy skins, desaturated at load and tinted by `FactionTemplate` reaction. Class colours are not applied yet. The native HUD health-bars switch hides frame/fill while retaining a centered label; Accessibility colorblind mode changes player labels to cyan and NPC labels to yellow without changing fill tint. The HUD nameplate-distance slider controls a separate camera-to-health-body fade from half its value to zero at its value; CVar eligibility still uses viewer-to-unit distance (60 yd default). The isolated `native_npc_visual_fixture nameplates` mode exercises the authored HUD/Accessibility controls and replicated enemy NPC without a live server.
 - Automation: `nameplate_state()` lists shown plates (alpha, occluded, anchor, rects); `nameplate_rules(id)` returns the rule inputs for any unit.
 
 ## Intended display states
