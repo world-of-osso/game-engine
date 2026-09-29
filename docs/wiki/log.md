@@ -6,7 +6,7 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] ui | Native local-player unit frame
 
-Selected local replicated name, level, health, combat, and powers now feed the shared `PlayerFrame`; rest uses the existing rest-area update. Authored HUD Options hide and restore the whole cluster. The post-commit owned-UDP fixture proves authored values, a live health change, off/on visibility, and local-despawn clearing (`/tmp/claude/player-frame-postcommit-udp.log`). Combat/rest icon rendering and post-reconnect teardown remain unproven; verifier885 is pending. Updated [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+Selected local replicated name, level, health, combat, and powers now feed the shared `PlayerFrame`; rest uses the existing rest-area update. Authored HUD Options hide and restore the whole cluster. The post-commit owned-UDP fixture proves authored values, a live health change, off/on visibility, and local-despawn clearing (`/tmp/claude/player-frame-postcommit-udp.log`). Combat/rest icon rendering and post-reconnect teardown remain unproven; Verifier885 is pending. Updated [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
 
 ## [2026-09-28] ui | Native target-frame HUD visibility
 
