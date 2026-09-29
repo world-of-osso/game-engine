@@ -27,6 +27,12 @@ The crate itself is unoptimized in dev builds, so cold times there are pessimist
 - `SpellCatalogData.tabs` (`tabs.rs`) is rebuilt from ChrClasses, ChrSpecialization, SpecializationSpells, SkillLine and SkillLineAbility on every load; it is not cached.
 - Rule: a spell in the active non-Initial spec's `SpecializationSpells` or mastery goes on the spec tab. A spell of a class skill line (`SkillLine` category 7 whose name equals a `ChrClasses` name, e.g. 800 Paladin) goes on the class tab. Everything else is General. Initial-spec (OrderIndex 4) spells go on the class tab.
 - Tab titles: class from the spec's `ClassID`, else from the first known class spell; spec from `ChrSpecialization.Name_lang`.
+- `CatalogSpell.hidden` = `Attributes_0 & 0x80` (SPELL_ATTR0_DO_NOT_DISPLAY, cache format 4): not listed in the spellbook (Warrior 137047, Block 123829, Initial Warrior 325446, Plate Specialization 86101).
+- Future spells (`SpellbookTabIndex::future_spells`): the class line's auto-learned rows (AcquireMethod 1, 2, 4, class and race masks) and the active spec's spells with `SpellLevels.SpellLevel` above the player level, by level. `build_spellbook_tabs(.., Some(SpellbookPlayer))` appends them with `available_at`.
+
+## Godot
+
+The catalog data, build, render and tabs files are engine-free (`data.rs`; the Bevy `SpellCatalogPlugin` stays in `mod.rs`) and compiled into `godot/core` as `spell_catalog` with `spellbook_data`. The Godot client loads it on a worker thread when it enters the world, caching at `user://spell_catalog-12.1.0.69933.bin`. The spellbook, action bar and casting that use it: [[spellbook-action-bar]].
 
 ## Description tokens
 
