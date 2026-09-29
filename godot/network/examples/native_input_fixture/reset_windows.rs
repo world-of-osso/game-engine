@@ -15,6 +15,18 @@ mod tests {
             "equipment_transforms.ron",
             "ChrCustomizationReq.csv",
             "ChrCustomizationReqChoice.csv",
+            "ChrRaceXChrModel.csv",
+            "ChrModel.csv",
+            "ChrCustomizationOption.csv",
+            "ChrCustomizationChoice.csv",
+            "ChrCustomizationElement.csv",
+            "ChrCustomizationMaterial.csv",
+            "ChrCustomizationGeoset.csv",
+            "CharHairGeosets.csv",
+            "ChrCustomizationCategory.csv",
+            "ChrModelTextureLayer.csv",
+            "CharComponentTextureSections.csv",
+            "CharComponentTextureLayouts.csv",
             "CharStartOutfit.csv",
             "ModelFileData.csv",
             "community-listfile.csv",
@@ -26,10 +38,6 @@ mod tests {
                 "missing {name}"
             );
         }
-        assert!(
-            missing.len() > 11,
-            "preflight must report the complete manifest"
-        );
     }
 }
 
@@ -62,10 +70,22 @@ const DATA_FILES: &[&str] = &[
     "equipment_transforms.ron",
     "ChrCustomizationReq.csv",
     "ChrCustomizationReqChoice.csv",
+    "ChrRaceXChrModel.csv",
+    "ChrModel.csv",
+    "ChrCustomizationOption.csv",
+    "ChrCustomizationChoice.csv",
+    "ChrCustomizationElement.csv",
+    "ChrCustomizationMaterial.csv",
+    "ChrCustomizationGeoset.csv",
+    "CharHairGeosets.csv",
+    "ChrCustomizationCategory.csv",
+    "ChrModelTextureLayer.csv",
+    "CharComponentTextureSections.csv",
+    "CharComponentTextureLayouts.csv",
 ];
 const FOOTSTEP_IDS: &[u32] = &[540120, 540121, 540127, 540202];
 
-fn canonical_data(repo: &Path) -> Result<PathBuf, String> {
+fn locate_canonical_data_from_git(repo: &Path) -> Result<PathBuf, String> {
     let output = Command::new("git")
         .args([
             "-C",
@@ -121,7 +141,7 @@ pub(super) struct FixtureProject {
 impl FixtureProject {
     pub(super) fn create(repo: &Path) -> Result<Self, String> {
         let source = repo.join("godot");
-        let authored_data = canonical_data(repo)?;
+        let authored_data = locate_canonical_data_from_git(repo)?;
         let missing = missing_fixture_inputs(&authored_data);
         if !missing.is_empty() {
             return Err(format!(
