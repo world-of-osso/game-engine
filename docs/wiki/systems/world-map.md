@@ -18,6 +18,10 @@ Engine forward is `(sin yaw, 0, cos yaw)` → world `(sin yaw, -cos yaw)` → ma
 
 At `364a29ac`, the native map layout uses the effective UI-scale logical viewport and maps physical mouse coordinates by dividing them by that scale before frame containment, canvas UV, hover, or navigation handling. The pure helper is 1/1 GREEN for a scaled center hit and outside miss (`/tmp/claude/cargo-ui-scale-map.out`). An authenticated live map click remains untested; this is not input or visual parity.
 
+## Native managed placement
+
+`WorldMapFrame` is the first native managed window. Its projected `WorldMapBorderFrame` uses a Wide slot (centered x, logical y=104) or the selected server character ID's saved `WorldMapFrame` top-left from canonical `ui_layout.ron`. The existing scaled map size is clamped to the logical viewport on open and resize. Left-down in the top 24 logical units (except the close button), motion, and release move and save it; canvas zoom/navigation remains separate. Options Reset Window Positions removes that character's saved positions and immediately restores an open map to its Wide slot; Options' modal offset remains in `options_settings.ron`. A character switch or world exit closes the map and discards its transient drag/position. The owned `native_input_fixture -- reset-windows` exercises scaled drag, release persistence, reopen, canvas/button, resize, reset, and fresh-process reset-file read without a live dev server. Fresh-process rendered placement before reset is not yet covered.
+
 ## Local CASC gaps
 
 The synced WoW install is incomplete: many `interface/worldmap/*` tiles report "Archive location not found" (all Elwynn Forest tiles, 11/12 Stormwind City, parts of Eastern Kingdoms/Azeroth; Kalimdor and Durotar extract). The Godot host asks the resolver for every texture, keeps a per-FDID availability map, and drops unavailable tiles from the state so the projection never loads a missing file.

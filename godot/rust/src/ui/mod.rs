@@ -677,6 +677,26 @@ impl RegistryUi {
         Ok(())
     }
 
+    /// Place the native map's actual border frame, leaving its canvas children intact.
+    pub fn set_world_map_position(&mut self, [x, y]: [f32; 2]) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("World map model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name("WorldMapBorderFrame")
+            .ok_or("World map border frame missing")?;
+        model
+            .registry
+            .set_pos(id, x, y)
+            .map_err(|error| format!("World map position: {error:?}"))?;
+        self.projection
+            .as_mut()
+            .ok_or("World map projection missing")?
+            .sync(&mut model.registry)
+    }
+
     /// Replace one reactive screen state; unchanged values do not resync.
     pub fn set_state<T: PartialEq + 'static>(&mut self, state: T) -> Result<(), String> {
         let model = self

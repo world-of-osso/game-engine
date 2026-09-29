@@ -364,6 +364,10 @@ impl GameClient {
             let path = options_path().with_file_name("ui_layout.ron");
             let character_id = self.account.session.selected_character_id;
             game_engine_core::ui_layout_data::reset_window_positions(&path, character_id)?;
+            self.reset_open_world_map_position();
+            if self.world_map.is_open() {
+                self.sync_world_map()?;
+            }
             return Ok(true);
         }
         let model = self

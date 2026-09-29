@@ -38,6 +38,9 @@ pub(crate) struct WorldMap {
     available: HashMap<u32, bool>,
     /// Art tiles of the displayed map missing from local CASC.
     missing_tiles: usize,
+    /// Saved top-left in logical UI units; None uses Wide slot.
+    position: Option<[f32; 2]>,
+    drag: Option<MapDrag>,
 }
 
 impl WorldMap {
@@ -47,6 +50,48 @@ impl WorldMap {
 
     fn data(&self) -> Option<&WorldMapData> {
         self.data.as_ref()?.as_ref().ok()
+    }
+}
+
+fn placed_map_layout(viewport: [f32; 2], saved: Option<[f32; 2]>) -> WorldMapLayout {
+    let mut layout = WorldMapLayout::for_viewport(viewport);
+    let [_, _, width, height] = layout.frame_rect();
+    let slot = [(viewport[0] - width) * 0.5, 104.0];
+    let [x, y] = saved.unwrap_or(slot);
+    layout.origin = [
+        x.clamp(0.0, (viewport[0] - width).max(0.0)),
+        y.clamp(0.0, (viewport[1] - height).max(0.0)),
+    ];
+    layout
+}
+
+fn title_hit(layout: &WorldMapLayout, physical: Vector2, scale: f32, buttons: &[[f32; 4]]) -> bool {
+    let point = physical / scale;
+    let [x, y, width, _] = layout.frame_rect();
+    point.x >= x
+        && point.x <= x + width
+        && point.y >= y
+        && point.y <= y + 24.0
+        && !buttons.iter().any(|rect| inside(*rect, point))
+}
+
+struct MapDrag {
+    grab: Vector2,
+}
+
+impl MapDrag {
+    fn begin(point: Vector2, layout: &WorldMapLayout) -> Self {
+        Self {
+            grab: point - Vector2::new(layout.origin[0], layout.origin[1]),
+        }
+    }
+
+    fn position(&self, point: Vector2, viewport: [f32; 2], size: [f32; 2]) -> [f32; 2] {
+        let target = point - self.grab;
+        [
+            target.x.clamp(0.0, (viewport[0] - size[0]).max(0.0)),
+            target.y.clamp(0.0, (viewport[1] - size[1]).max(0.0)),
+        ]
     }
 }
 
@@ -73,6 +118,33 @@ fn map_pointer(layout: &WorldMapLayout, physical: Vector2, scale: f32) -> (bool,
 #[cfg(test)]
 mod pointer_tests {
     use super::*;
+
+    #[test]
+    fn map_title_drag_clamps_at_effective_scale_without_grabbing_buttons_or_canvas() {
+        let viewport = [1280.0, 720.0];
+        let layout = placed_map_layout(viewport, None);
+        let [x, y, width, height] = layout.frame_rect();
+        assert_eq!(x, (viewport[0] - width) * 0.5);
+        assert_eq!(y, 104.0_f32.min(viewport[1] - height));
+        let scale = 1.25;
+        let title = Vector2::new(x + 100.0, y + 12.0);
+        let button = [x + 90.0, y + 3.0, 40.0, 20.0];
+        assert!(!title_hit(&layout, title * scale, scale, &[button]));
+        assert!(title_hit(&layout, title * scale, scale, &[]));
+        let canvas = layout.canvas_rect();
+        assert!(!title_hit(
+            &layout,
+            Vector2::new(canvas[0] + 10.0, canvas[1] + 10.0) * scale,
+            scale,
+            &[]
+        ));
+        let drag = MapDrag::begin(title, &layout);
+        let moved = drag.position(Vector2::new(4000.0, 4000.0), viewport, [width, height]);
+        assert_eq!(moved, [viewport[0] - width, viewport[1] - height]);
+        let smaller = placed_map_layout([900.0, 600.0], Some(moved));
+        let [sx, sy, sw, sh] = smaller.frame_rect();
+        assert_eq!([sx, sy], [(900.0 - sw).max(0.0), (600.0 - sh).max(0.0)]);
+    }
 
     #[test]
     fn scaled_physical_map_pointer_hits_logical_canvas_and_frame() {
@@ -197,6 +269,14 @@ impl GameClient {
         let opened = player.as_ref().and_then(|player| player_map(data, player));
         self.world_map.map_id = opened.ok_or("World map: no map under the player")?;
         self.world_map.hovered = None;
+        let id = self
+            .account
+            .session
+            .selected_character_id
+            .ok_or("World map requires selected server character ID")?;
+        let path =
+            game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
+        self.world_map.position = game_engine_core::ui_layout_data::world_map_position(&path, id)?;
         let state = self.drawable_world_map()?;
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("WorldMapUI");
@@ -209,6 +289,7 @@ impl GameClient {
             return Err(error);
         }
         self.world_map.ui = Some(ui);
+        self.sync_world_map()?;
         Ok(())
     }
 
@@ -217,6 +298,8 @@ impl GameClient {
             ui.free();
         }
         self.world_map.hovered = None;
+        self.world_map.position = None;
+        self.world_map.drag = None;
     }
 
     fn world_map_toggle_pressed(&self) -> bool {
@@ -243,10 +326,12 @@ impl GameClient {
     }
 
     fn drive_world_map(&mut self) -> Result<(), String> {
-        let in_world =
-            self.account.session.screen == SessionScreen::InWorld && self.game_menu_ui.is_none();
+        let in_world = self.account.session.screen == SessionScreen::InWorld;
         if !in_world {
             self.close_world_map();
+            return Ok(());
+        }
+        if self.game_menu_ui.is_some() {
             return Ok(());
         }
         if self.world_map_toggle_pressed() {
@@ -278,15 +363,22 @@ impl GameClient {
         Ok(())
     }
 
-    fn sync_world_map(&mut self) -> Result<(), String> {
+    pub(super) fn sync_world_map(&mut self) -> Result<(), String> {
         if !self.world_map.is_open() {
             return Ok(());
         }
         let state = self.drawable_world_map()?;
         let scale = self.effective_ui_scale();
+        let layout = placed_map_layout(self.world_map_viewport(), self.world_map.position);
         let ui = self.world_map.ui.as_mut().ok_or("World map UI vanished")?;
         ui.bind_mut().set_ui_scale(scale)?;
-        ui.bind_mut().set_state(state)
+        ui.bind_mut().set_state(state)?;
+        ui.bind_mut().set_world_map_position(layout.origin)
+    }
+
+    pub(super) fn reset_open_world_map_position(&mut self) {
+        self.world_map.position = None;
+        self.world_map.drag = None;
     }
 
     /// Mouse over the open frame drives the map instead of the camera. Returns whether
@@ -295,9 +387,22 @@ impl GameClient {
         if !self.world_map.is_open() {
             return false;
         }
-        let layout = WorldMapLayout::for_viewport(self.world_map_viewport());
+        if self.game_menu_ui.is_some() {
+            return false;
+        }
+        let viewport = self.world_map_viewport();
+        let layout = placed_map_layout(viewport, self.world_map.position);
         let scale = self.effective_ui_scale();
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            if let Some(drag) = &self.world_map.drag {
+                let [_, _, width, height] = layout.frame_rect();
+                self.world_map.position =
+                    Some(drag.position(motion.get_position() / scale, viewport, [width, height]));
+                if let Err(error) = self.sync_world_map() {
+                    godot_error!("World map drag: {error}");
+                }
+                return true;
+            }
             let (inside_frame, uv) = map_pointer(&layout, motion.get_position(), scale);
             self.world_map.hovered = uv;
             return inside_frame;
@@ -305,6 +410,31 @@ impl GameClient {
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
         };
+        if button.get_button_index() == MouseButton::LEFT {
+            if !button.is_pressed() && self.world_map.drag.take().is_some() {
+                if let (Some(id), Some(position)) = (
+                    self.account.session.selected_character_id,
+                    self.world_map.position,
+                ) {
+                    let path = game_engine_core::client_options_data::options_path()
+                        .with_file_name("ui_layout.ron");
+                    if let Err(error) = game_engine_core::ui_layout_data::save_world_map_position(
+                        &path, id, position,
+                    ) {
+                        godot_error!("World map placement: {error}");
+                    }
+                }
+                return true;
+            }
+            if button.is_pressed() {
+                let buttons = self.world_map_title_buttons(scale);
+                if title_hit(&layout, button.get_position(), scale, &buttons) {
+                    self.world_map.drag =
+                        Some(MapDrag::begin(button.get_position() / scale, &layout));
+                    return true;
+                }
+            }
+        }
         let (inside_frame, uv) = map_pointer(&layout, button.get_position(), scale);
         // Releases always reach gameplay input so a drag begun outside cannot stick.
         if !button.is_pressed() || !inside_frame {
@@ -314,6 +444,27 @@ impl GameClient {
             self.navigate_world_map(button.get_button_index(), uv);
         }
         true
+    }
+
+    fn world_map_title_buttons(&self, scale: f32) -> Vec<[f32; 4]> {
+        let Some(ui) = &self.world_map.ui else {
+            return Vec::new();
+        };
+        let mut buttons = Vec::new();
+        for name in ["WorldMapCloseButton", "WorldMapClose"] {
+            if let Some(node) = ui.find_child_ex(name).owned(false).done()
+                && let Ok(control) = node.try_cast::<godot::classes::Control>()
+            {
+                let rect = control.get_global_rect();
+                buttons.push([
+                    rect.position.x / scale,
+                    rect.position.y / scale,
+                    rect.size.x / scale,
+                    rect.size.y / scale,
+                ]);
+            }
+        }
+        buttons
     }
 
     fn navigate_world_map(&mut self, button: MouseButton, uv: [f32; 2]) {

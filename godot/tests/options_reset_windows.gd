@@ -31,6 +31,8 @@ func run_test() -> void:
 	if roster.selected_character_id != 17:
 		fail("Expected selected server character ID 17: " + str(roster))
 		return
+	if not await exercise_map_placement(client, path):
+		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
@@ -55,6 +57,15 @@ func run_test() -> void:
 		return
 	if not check_persistence(path, options, initial_options):
 		return
+	await click(menu.find_child("OptionsDoneButton", true, false) as Control)
+	await process_frame
+	if client.get_node_or_null("GameMenuUI") != null:
+		await click_menu_action(client, "MenuBtnResume")
+		await process_frame
+	await tap_map()
+	if not await expect_map_position(client):
+		return
+	await tap_map()
 	client.free()
 	var reloaded: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(reloaded)
@@ -63,6 +74,102 @@ func run_test() -> void:
 		return
 	print("PASS: authenticated authored reset cleared only ID 17, retained ID 18/edit layout/modal on reload")
 	quit(0)
+
+func tap_map() -> void:
+	push_key(KEY_M, true)
+	await process_frame
+	push_key(KEY_M, false)
+	for frame in range(4):
+		await process_frame
+
+func map_border(client: Node) -> Control:
+	var ui := client.get_node_or_null("WorldMapUI")
+	return ui.find_child("WorldMapBorderFrame", true, false) as Control if ui != null else null
+
+func expect_map_position(client: Node) -> bool:
+	var border := map_border(client)
+	if border == null:
+		fail("WorldMapBorderFrame missing")
+		return false
+	var rect := border.get_global_rect()
+	var scale := border.get_global_transform().get_scale().x
+	var expected := Vector2((root.size.x - rect.size.x) * 0.5, minf(104.0 * scale, root.size.y - rect.size.y))
+	if rect.position.distance_to(expected) > 2.0:
+		fail("Map position %s, expected %s" % [rect.position, expected])
+		return false
+	return true
+
+func exercise_map_placement(client: Node, path: String) -> bool:
+	await tap_map()
+	var border := map_border(client)
+	if border == null or not await expect_map_position(client):
+		return false
+	var start := border.get_global_rect().position
+	var from := start + Vector2(80, 12)
+	var to := from + Vector2(64, -32)
+	await drag_map(from, to)
+	var moved := start + Vector2(64, -32)
+	if border.get_global_rect().position.distance_to(moved) > 2.0:
+		fail("Title drag failed: " + str(border.get_global_rect()))
+		return false
+	if not FileAccess.get_file_as_string(path).contains("WorldMapFrame"):
+		fail("Release did not persist WorldMapFrame")
+		return false
+	await tap_map()
+	await tap_map()
+	border = map_border(client)
+	if border == null or border.get_global_rect().position.distance_to(moved) > 2.0:
+		fail("Map reopen did not restore saved placement")
+		return false
+	var canvas := client.get_node("WorldMapUI").find_child("WorldMapCanvas", true, false) as Control
+	if canvas == null:
+		fail("Map canvas missing")
+		return false
+	await click(canvas)
+	if border.get_global_rect().position.distance_to(moved) > 2.0:
+		fail("Canvas click dragged map")
+		return false
+	var close := client.get_node("WorldMapUI").find_child("WorldMapCloseButton", true, false) as Control
+	if close == null:
+		fail("Map close button missing")
+		return false
+	await click(close)
+	if client.get_node_or_null("WorldMapUI") != null:
+		fail("Map close button was captured as a drag")
+		return false
+	await tap_map()
+	root.size = Vector2i(900, 600)
+	for frame in range(5):
+		await process_frame
+	border = map_border(client)
+	var rect := border.get_global_rect()
+	if rect.position.x < -2 or rect.position.y < -2 or rect.end.x > root.size.x + 2 or rect.end.y > root.size.y + 2:
+		fail("Resized map escaped screen: " + str(rect))
+		return false
+	root.size = Vector2i(1280, 720)
+	await tap_map()
+	return true
+
+func drag_map(from: Vector2, to: Vector2) -> void:
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_LEFT
+	down.position = from
+	down.global_position = from
+	down.pressed = true
+	root.push_input(down, true)
+	await process_frame
+	var motion := InputEventMouseMotion.new()
+	motion.position = to
+	motion.global_position = to
+	motion.relative = to - from
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	root.push_input(motion, true)
+	await process_frame
+	down.position = to
+	down.global_position = to
+	down.pressed = false
+	root.push_input(down, true)
+	await process_frame
 
 func check_persistence(path: String, options: String, initial_options: PackedByteArray) -> bool:
 	var layout := FileAccess.get_file_as_string(path)
