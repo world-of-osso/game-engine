@@ -23,8 +23,9 @@ use shared::{
         EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Player, Position,
     },
     protocol::{
-        AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
-        LoginResponse, PlayerInput, SelectCharacter, TerrainChannel,
+        ActionBarSnapshot, ActionRef, AuthChannel, CharacterListEntry, EnterWorldResponse,
+        KnownSpellsSnapshot, LoadTerrain, LoginRequest, LoginResponse, PlayerInput,
+        SelectCharacter, TalentChannel, TerrainChannel,
     },
 };
 
@@ -38,6 +39,8 @@ mod menu;
 mod reset_windows;
 #[path = "native_input_fixture/sound.rs"]
 mod sound;
+#[path = "native_input_fixture/sound_click.rs"]
+mod sound_click;
 #[path = "native_input_fixture/swimming.rs"]
 mod swimming;
 
@@ -65,6 +68,7 @@ enum StartupScreen {
     Menu,
     Logout,
     Sound,
+    SoundClick,
     Footsteps,
     ResetWindows,
 }
@@ -80,11 +84,12 @@ impl StartupScreen {
             Some("menu") => Self::Menu,
             Some("logout") => Self::Logout,
             Some("sound") => Self::Sound,
+            Some("sound-click") => Self::SoundClick,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, footsteps or reset-windows"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, footsteps or reset-windows"
                 )
             }
         };
@@ -103,6 +108,7 @@ impl StartupScreen {
             | Self::Swimming
             | Self::Logout
             | Self::Sound
+            | Self::SoundClick
             | Self::Footsteps
             | Self::ResetWindows => "inworld",
         }
@@ -215,7 +221,10 @@ impl FixtureConfig {
             fs::write(config.home.join("world-of-osso/ui_layout.ron"), "(window_positions:{\"17\":{\"CharacterFrame\":(25.0,30.0)},\"18\":{\"CharacterFrame\":(75.0,80.0)}},edit_mode:(layouts:{\"Layout 1\":(elements:{\"PlayerFrame\":(anchor:TopLeft,offset:(12.0,24.0))})},active_layout:{\"18\":\"Layout 1\"}))")
                 .expect("seed two characters and edit mode layout");
         }
-        if matches!(screen, StartupScreen::Sound | StartupScreen::Footsteps) {
+        if matches!(
+            screen,
+            StartupScreen::Sound | StartupScreen::SoundClick | StartupScreen::Footsteps
+        ) {
             fs::write(
                 config.home.join("world-of-osso/options_settings.ron"),
                 if screen == StartupScreen::Footsteps {
@@ -251,7 +260,10 @@ fn launch_godot(
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = if matches!(
         screen,
-        StartupScreen::Sound | StartupScreen::Footsteps | StartupScreen::ResetWindows
+        StartupScreen::Sound
+            | StartupScreen::SoundClick
+            | StartupScreen::Footsteps
+            | StartupScreen::ResetWindows
     ) {
         std::env::var_os("GODOT_BIN")
             .map(PathBuf::from)
@@ -276,6 +288,8 @@ fn launch_godot(
             "--script",
             if screen == StartupScreen::ResetWindows {
                 "res://tests/options_reset_windows.gd"
+            } else if screen == StartupScreen::SoundClick {
+                "res://tests/world_spell_click_flow.gd"
             } else if screen == StartupScreen::Sound {
                 "res://tests/world_sound_flow.gd"
             } else if screen == StartupScreen::Footsteps {
@@ -291,7 +305,10 @@ fn launch_godot(
         .args(
             if matches!(
                 screen,
-                StartupScreen::Sound | StartupScreen::Footsteps | StartupScreen::ResetWindows
+                StartupScreen::Sound
+                    | StartupScreen::SoundClick
+                    | StartupScreen::Footsteps
+                    | StartupScreen::ResetWindows
             ) {
                 &["--"][..]
             } else {
@@ -492,6 +509,11 @@ fn respond_to_selection(
                 Replicate::to_clients(NetworkTarget::All),
             ))
             .id();
+        if screen == StartupScreen::SoundClick {
+            app.world_mut()
+                .entity_mut(player)
+                .insert(shared::components::UnitLevel(10));
+        }
         *selected = Some(player);
         let mut remote_player = Player {
             name: REMOTE_NAME.into(),
@@ -522,6 +544,20 @@ fn respond_to_selection(
                 error: None,
             },
         );
+        if screen == StartupScreen::SoundClick {
+            send::<_, TalentChannel>(
+                app,
+                KnownSpellsSnapshot {
+                    spells: vec![1464, 88163],
+                },
+            );
+            send::<_, TalentChannel>(
+                app,
+                ActionBarSnapshot {
+                    slots: vec![(0, ActionRef::Spell(1464))],
+                },
+            );
+        }
         // Intentionally withhold LoadTerrain until Loading input has been observed.
     }
     Ok(())
@@ -1099,7 +1135,10 @@ fn main() {
     let launcher = root.join("target/debug/game-engine-launcher");
     if !matches!(
         screen,
-        StartupScreen::Sound | StartupScreen::Footsteps | StartupScreen::ResetWindows
+        StartupScreen::Sound
+            | StartupScreen::SoundClick
+            | StartupScreen::Footsteps
+            | StartupScreen::ResetWindows
     ) {
         assert!(
             launcher.is_file(),
@@ -1107,7 +1146,11 @@ fn main() {
             launcher.display()
         );
     }
-    let reset_project = (screen == StartupScreen::ResetWindows).then(|| {
+    let reset_project = matches!(
+        screen,
+        StartupScreen::ResetWindows | StartupScreen::SoundClick
+    )
+    .then(|| {
         reset_windows::FixtureProject::create(root)
             .expect("stage isolated reset data and Godot project")
     });
@@ -1129,6 +1172,8 @@ fn main() {
         )
     } else if screen == StartupScreen::Logout {
         logout::run(&mut app, &mut child, lines, reader, root, address)
+    } else if screen == StartupScreen::SoundClick {
+        sound_click::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Sound {
         sound::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Footsteps {
