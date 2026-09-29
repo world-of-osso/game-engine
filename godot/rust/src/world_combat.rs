@@ -17,7 +17,7 @@ use shared::components::{EquipmentAppearance, EquipmentVisualSlot};
 use shared::protocol::{CombatEvent, CombatEventType};
 
 use super::{UnitNode, WorldUnits};
-use crate::animation::WowAnimationPlayer;
+use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::world_models::{UnitAppearance, WorldModels};
 
 /// `ItemSubclassWeapon` swung with the two-handed "loose" clips: polearm and staff.
@@ -228,6 +228,7 @@ impl WorldUnits {
         id: u64,
         anim: u16,
         looping: bool,
+        priority: ActionPriority,
     ) -> Result<Option<u16>, String> {
         let fallbacks = load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         let Some(unit) = self.units.get(&id) else {
@@ -241,7 +242,7 @@ impl WorldUnits {
         };
         animation
             .bind_mut()
-            .play_action(anim, looping, fallbacks)
+            .play_action(anim, looping, priority, fallbacks)
             .map_err(|error| format!("{} action {anim}: {error}", unit.name))
     }
 
@@ -259,12 +260,15 @@ impl WorldUnits {
         }
         let mut errors = Vec::new();
         let swing = self.unit_weapon(event.attacker).attack_anim();
-        if let Err(error) = self.play_unit_action(event.attacker, swing, false) {
+        if let Err(error) =
+            self.play_unit_action(event.attacker, swing, false, ActionPriority::Combat)
+        {
             errors.push(error);
         }
         let victim_weapon = self.unit_weapon(event.target);
         if let Some(reaction) = melee_reaction(&event.event_type, victim_weapon)
-            && let Err(error) = self.play_unit_action(event.target, reaction, false)
+            && let Err(error) =
+                self.play_unit_action(event.target, reaction, false, ActionPriority::Combat)
         {
             errors.push(error);
         }

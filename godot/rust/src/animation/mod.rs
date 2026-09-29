@@ -11,6 +11,7 @@ use godot::{
 use godot::builtin::{Basis, Transform3D};
 
 mod action;
+pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
@@ -519,6 +520,7 @@ impl WowAnimationPlayer {
         &mut self,
         id: u16,
         looping: bool,
+        priority: ActionPriority,
         fallbacks: &std::collections::HashMap<u16, u16>,
     ) -> Result<Option<u16>, String> {
         let animation = self
@@ -528,7 +530,9 @@ impl WowAnimationPlayer {
         let Some(clip) = animation.resolve_clip(id, fallbacks) else {
             return Ok(None);
         };
-        animation.play_action(clip, looping)?;
+        if !animation.play_action(clip, looping, priority)? {
+            return Ok(None);
+        }
         self.write_poses();
         Ok(Some(clip))
     }

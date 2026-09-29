@@ -30,7 +30,7 @@ use osso_asset_resolver::CascListfileResolver;
 use shared::casting::CastType;
 use shared::protocol::SpellGo;
 
-use crate::animation::WowAnimationPlayer;
+use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
 use crate::assets::{build_model, read_model};
 use crate::particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis};
@@ -477,7 +477,12 @@ impl SpellEffects {
             for unit in units {
                 let mut played = None;
                 if let Some(animation) = kit.animation {
-                    match world.play_unit_action(unit, animation.anim_id, animation.looping) {
+                    match world.play_unit_action(
+                        unit,
+                        animation.anim_id,
+                        animation.looping,
+                        ActionPriority::Spell,
+                    ) {
                         Ok(clip) => {
                             played = clip;
                             if animation.looping && unit == caster {
@@ -795,10 +800,31 @@ fn attachment_node(world: &WorldUnits, id: u64, attachment: Option<u8>) -> Optio
     }
 }
 
+/// M2 attachment 56 (VirtualSpellDirected) is not authored in character models; it is
+/// taken as the midpoint of the SpellLeftHand (21) and SpellRightHand (22) points
+/// (inferred: the retail rule for virtual attachments is not documented).
+const VIRTUAL_SPELL_DIRECTED: u8 = 56;
+const SPELL_HANDS: [u8; 2] = [21, 22];
+
+/// World position of unit `id`'s `attachment` (`None`: the unit's origin). A missing
+/// authored attachment is reported and resolves to the unit's origin.
 fn attachment_position(world: &WorldUnits, id: u64, attachment: Option<u8>) -> Option<Vector3> {
-    attachment_node(world, id, attachment)
-        .or_else(|| world.unit_node(id))
-        .map(|node| node.get_global_position())
+    if let Some(node) = attachment_node(world, id, attachment) {
+        return Some(node.get_global_position());
+    }
+    if attachment == Some(VIRTUAL_SPELL_DIRECTED) {
+        let hands: Vec<Vector3> = SPELL_HANDS
+            .iter()
+            .filter_map(|&hand| attachment_node(world, id, Some(hand)))
+            .map(|node| node.get_global_position())
+            .collect();
+        if hands.len() == SPELL_HANDS.len() {
+            return Some((hands[0] + hands[1]) * 0.5);
+        }
+    }
+    let origin = world.unit_node(id)?.get_global_position();
+    godot_error!("Unit {id} has no attachment {attachment:?}; the spell missile uses its origin");
+    Some(origin)
 }
 
 fn wow_vec3([x, y, z]: [f32; 3]) -> Vector3 {

@@ -21,8 +21,20 @@ const UPPER_BODY_KEY_BONE: i32 = 4;
 /// (Unarmed/1H/2H/2HL) and SwimIdle.
 const STATIONARY_ANIMS: [u16; 6] = [0, 25, 26, 27, 28, 41];
 
+/// Which actions may replace a playing one: a spell's kit animation is not cut short
+/// by a melee swing or hit reaction arriving mid-cast; equal or higher priority
+/// replaces.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum ActionPriority {
+    /// Melee swings and hit reactions.
+    Combat,
+    /// Spell visual kit animations (cast releases, precast and channel loops).
+    Spell,
+}
+
 pub(super) struct ActionLayer {
     index: usize,
+    priority: ActionPriority,
     time_ms: f64,
     looping: bool,
     /// Pose of the action this one replaced, faded out over `fade_ms`.
@@ -89,18 +101,26 @@ impl AnimationState {
 
     /// Play clip `id` over locomotion: once, or held while `looping` until
     /// [`Self::stop_action`]. Requesting the held loop again keeps it and its blend.
-    pub fn play_action(&mut self, id: u16, looping: bool) -> Result<(), String> {
+    /// `false`: a higher-priority action is playing and keeps playing.
+    pub fn play_action(
+        &mut self,
+        id: u16,
+        looping: bool,
+        priority: ActionPriority,
+    ) -> Result<bool, String> {
         let index = self
             .base_sequence(id)
             .ok_or_else(|| format!("M2 animation ID {id} has no base variation"))?;
         let fade_ms = (self.sequences[index].blend_time as f32).max(MIN_MOVEMENT_BLEND_MS);
         if let Some(action) = &mut self.action
-            && action.index == index
-            && action.looping
-            && looping
+            && !action.releasing
         {
-            action.releasing = false;
-            return Ok(());
+            if action.priority > priority {
+                return Ok(false);
+            }
+            if action.index == index && action.looping && looping {
+                return Ok(true);
+            }
         }
         let (outgoing, upper, lower) = match self.action.take() {
             Some(previous) => {
@@ -111,6 +131,7 @@ impl AnimationState {
         };
         self.action = Some(ActionLayer {
             index,
+            priority,
             time_ms: 0.0,
             looping,
             outgoing,
@@ -119,7 +140,7 @@ impl AnimationState {
             lower,
             releasing: false,
         });
-        Ok(())
+        Ok(true)
     }
 
     /// Fade out the held action `id`; another clip or no action is left alone.
