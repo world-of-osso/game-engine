@@ -6,7 +6,7 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] ui | Native local-player unit frame
 
-Selected local replicated name, level, health, combat, and powers now feed the shared `PlayerFrame`; rest uses the existing rest-area update. Authored HUD Options hide and restore the whole cluster. The post-commit owned-UDP fixture proves authored values, a live health change, off/on visibility, and local-despawn clearing (`/tmp/claude/player-frame-postcommit-udp.log`). Combat/rest icon rendering and post-reconnect teardown remain unproven; Verifier885 is pending. Updated [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+Selected local replicated name, level, health, combat, and powers feed the shared `PlayerFrame`; rest uses the existing rest-area update. `421eca38` final bounded verification retains authored values, a live health change, off/on visibility, and local-despawn clearing, then fresh-runs the owned UDP fixture to authenticated post-disconnect `CharacterSelect` without a retained local-player position (`/tmp/claude/verify-native-player-frame-final.md`). Visible teardown is only asserted before reconnect: despawn hides `PlayerFrame` and clears its name. No PlayerFrame is inspected after reconnect. Child exit, reader joins, and disposable fixture-root removal are harness lifecycle proof, not UI teardown. Combat/rest icon rendering and post-reconnect PlayerFrame teardown remain unproven. The default fixture's pre-auth `FogDensity` staging failure is separate and out of scope. Updated [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
 
 ## [2026-09-28] ui | Native target-frame HUD visibility
 
