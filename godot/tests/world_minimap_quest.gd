@@ -65,15 +65,19 @@ func run_test() -> void:
 	quit(0)
 
 func enter_world() -> bool:
-	var deadline := Time.get_ticks_msec() + 15000
-	while Time.get_ticks_msec() < deadline:
+	# Character select can take a minute under a loaded machine.
+	var deadline := Time.get_ticks_msec() + 60000
+	var replied := false
+	while Time.get_ticks_msec() < deadline and not replied:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.reply_received:
-			if state.screen != "CharacterSelect" or state.character_count < 1:
-				fail("Fixture needs an authenticated character: " + str(state))
-				return false
-			break
+		replied = state.reply_received
+		if replied and (state.screen != "CharacterSelect" or state.character_count < 1):
+			fail("Fixture needs an authenticated character: " + str(state))
+			return false
+	if not replied:
+		fail("Timed out waiting for the login reply: " + str(client.account_state()))
+		return false
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	var enter = ui.find_child("EnterWorld", true, false) if ui != null else null
 	if not enter is Button:
