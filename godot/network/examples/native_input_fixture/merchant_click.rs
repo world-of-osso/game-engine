@@ -41,9 +41,9 @@ pub(super) fn run(
             )?;
         }
         if let Some(status) = status {
-            if status.success() && passed && opens == 2 && closes == 2 {
+            if status.success() && passed && opens == 3 && closes == 3 {
                 println!(
-                    "PASS: owned vendor interaction, authored merchant pointer effects and quiet reopen"
+                    "PASS: owned vendor interaction, merchant placement/reset, pointer effects and quiet reopen"
                 );
                 return Ok(());
             }
@@ -73,7 +73,7 @@ fn respond_to_vendor_interaction(
     };
     let vendor = vendor.map(Entity::to_bits);
     for request in interactions {
-        if Some(request.npc) != vendor || *opens != *closes || *opens >= 2 {
+        if Some(request.npc) != vendor || *opens != *closes || *opens >= 3 {
             return Err(format!(
                 "unexpected vendor interaction: {request:?}; vendor={vendor:?}, opens={opens}, closes={closes}"
             ));
@@ -165,6 +165,7 @@ fn observe_line(
             );
             *loading = true;
         }
+        "FIXTURE MERCHANT_CLICK_PLACED" if *loading && selected => {}
         "FIXTURE MERCHANT_CLICK_DONE" if *loading && selected => *passed = true,
         line if line.starts_with("FIXTURE MERCHANT_CLICK_") => {
             return Err(format!("out-of-order merchant-click marker: {line}"));

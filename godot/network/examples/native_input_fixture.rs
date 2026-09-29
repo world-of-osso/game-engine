@@ -253,6 +253,13 @@ impl FixtureConfig {
             fs::write(config.home.join("world-of-osso/ui_layout.ron"), "(window_positions:{\"17\":{\"CharacterFrame\":(25.0,30.0)},\"18\":{\"CharacterFrame\":(75.0,80.0),\"SpellBookRoot\":(70.0,90.0)}},edit_mode:(layouts:{\"Layout 1\":(elements:{\"PlayerFrame\":(anchor:TopLeft,offset:(12.0,24.0))})},active_layout:{\"18\":\"Layout 1\"}))")
                 .expect("seed two characters and edit mode layout");
         }
+        if screen == StartupScreen::MerchantClick {
+            fs::write(
+                config.home.join("world-of-osso/ui_layout.ron"),
+                "(window_positions:{\"18\":{\"CharacterFrame\":(75.0,80.0)}})",
+            )
+            .expect("seed other character placement");
+        }
         if matches!(
             screen,
             StartupScreen::Sound
@@ -267,6 +274,8 @@ impl FixtureConfig {
                     "(graphics:(particleEffectsEnabled:false),sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))"
                 } else if screen == StartupScreen::SoundOutcome {
                     "(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:false,muted:false))"
+                } else if screen == StartupScreen::MerchantClick {
+                    "(graphics:(uiScale:1.25),modal_offset:Some((80.0,-32.0)),sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))"
                 } else {
                     "(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))"
                 },
