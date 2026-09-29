@@ -320,6 +320,24 @@ fn stage_preview_assets(repo: &Path, data: &Path) -> Result<(), String> {
     for folder in ["models", "terrain"] {
         stage_cached_asset_tree(&repo.join("data").join(folder), &data.join(folder))?;
     }
+    for (folder, ids, extension) in [
+        ("dbfilesclient", &[1308499, 1284822][..], "db2"),
+        (
+            "sounds/footsteps",
+            &[540120, 540121, 540127, 540202][..],
+            "ogg",
+        ),
+    ] {
+        let target = data.join(folder);
+        fs::create_dir_all(&target)
+            .map_err(|error| format!("Create {}: {error}", target.display()))?;
+        for id in ids {
+            let name = format!("{id}.{extension}");
+            let source = repo.join("data").join(folder).join(&name);
+            fs::copy(&source, target.join(&name))
+                .map_err(|error| format!("Stage {}: {error}", source.display()))?;
+        }
+    }
     std::os::unix::fs::symlink(repo.join("data/Map.csv"), data.join("Map.csv"))
         .map_err(|error| format!("Link authored map catalog: {error}"))
 }
