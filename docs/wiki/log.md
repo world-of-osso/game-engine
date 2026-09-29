@@ -2018,3 +2018,7 @@ The Godot TargetFrame sits where Retail's Modern Edit Mode preset puts it (BOTTO
 ## [2026-09-29] feature | Confirmed native CastStart
 
 Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. Final bounded verification at `0e0726a3` passes (`/tmp/claude/verify-native-caststart-final.md`); its fixture-only readability refactor preserves the nine-marker runtime sequence. See [[sound]].
+
+## [2026-09-29] test | Optional rendered UI-scale captures
+
+Owned sound-click and merchant-click fixtures now write PNGs only with an existing absolute `GODOT_TEST_CAPTURE_DIR`; actual pixel proof awaits isolated-display runs and inspection. See [ui-system](systems/ui-system.md#godot-native-ui-scale-bounded).
