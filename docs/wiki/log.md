@@ -8,9 +8,9 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 The isolated Reset Window Positions fixture sources staged inputs from the canonical Git checkout and links real customization requirement/race/equipment data rather than fabricated requirement headers. The `07586b86` run exposed an omitted race-model CSV before reset. A loader-list audit then added all 12 customization/cache source CSVs to the upfront manifest; its targeted missing-input test passes. The equipped-player scenario and reset assertions remain unchanged. At `ba535fcd`, the owned-loopback fixture exits 0 after the authored reset, same-process reload and fresh-process persistence checks (`/tmp/claude/reset-windows-ba535fcd-runtime.log`). Updated [[godot-conversion]].
 
-## [2026-09-28] ui | Native Reset Window Positions
+## [2026-09-29] ui | Native Reset Window Positions
 
-`16ba155d` routes the authored Options action to canonical `ui_layout.ron` for the authenticated selected server character. Its fixture removes ID 17's `window_positions` only, retains ID 18 and account-wide edit-mode data, preserves the Options modal setting, reloads, then verifies the reset layout from a fresh process. No native managed-window movement reader/writer exists; Verifier894 is pending. Updated [[godot-conversion]], [[ui-system]], and the [window-manager spec](../specs/window-manager.md).
+Final bounded review PASS (`/tmp/claude/verify-native-window-reset-final.md`): the authenticated equipped character still loads from canonical authored customization inputs; Reset removes only ID 17's `window_positions`, retains ID 18, account-wide edit layout, and Options modal data, then a fresh process reads the persisted result. Fixture `ZoneLight` rows only provide parseable startup controls (map 99999, no polygon); they do not prove lighting behavior. Native managed-window movement remains absent. Updated [[godot-conversion]], [[ui-system]], and the [window-manager spec](../specs/window-manager.md).
 
 ## [2026-09-28] ui | Native local-player unit frame
 
