@@ -8,7 +8,7 @@ use crate::ui::screens::inworld_unit_frames_component::{CAST_DOCK_W, CLUSTER_BOT
 #[path = "menu_character_layout_test_support.rs"]
 mod layout_test_support;
 
-/// The bar fills the combat cluster's cast dock between the player and target frames.
+/// The bar fills the cast area centred above the action bars.
 pub const BAR_W: f32 = CAST_DOCK_W - 8.0;
 pub const BAR_H: f32 = 20.0;
 const BORDER_W: f32 = BAR_W + 8.0;
