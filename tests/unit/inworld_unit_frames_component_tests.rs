@@ -111,6 +111,35 @@ fn frames_draw_portrait_off_art_with_bars_in_its_slots() {
     );
 }
 
+/// Retail Arcane Charges: container top 4 px below the mana bar plus `topPadding` 7, centred
+/// 1 px left of the bar (PlayerFrame.lua:716,758; MageArcaneChargesBar.xml:134), four 21 px
+/// charges 10 px apart (MageArcaneChargesBar.xml:6,125).
+#[test]
+fn arcane_charges_hang_below_the_mana_bar_clear_of_its_text() {
+    let mut context = sample_unit_frames_context();
+    let mut state = context.get::<InWorldUnitFramesState>().unwrap().clone();
+    state.player.power = Some(PowerBarState {
+        power: shared::components::PowerType::Mana,
+        current: 1000,
+        max: 1000,
+    });
+    state.player.secondary_resource = Some(crate::status::SecondaryResourceEntry {
+        kind: crate::status::SecondaryResourceKindEntry::ArcaneCharges,
+        current: 0,
+        max: 4,
+    });
+    context.insert(state);
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(inworld_unit_frames_screen).sync(&context, &mut reg);
+    compute_layout(&mut reg);
+
+    let mana = rect_by_name(&reg, "PlayerManaBar");
+    let row = rect_by_name(&reg, "PlayerSecondaryResourceRow");
+    assert_eq!(row.y, mana.y + mana.height + 11.0);
+    assert_eq!(row.x + row.width / 2.0, mana.x + mana.width / 2.0 - 1.0);
+    assert_eq!((row.width, row.height), (4.0 * 21.0 + 3.0 * 10.0, 21.0));
+}
+
 #[test]
 fn target_auras_hang_below_the_frame() {
     let reg = unit_frames_registry();
