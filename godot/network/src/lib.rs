@@ -39,9 +39,10 @@ use shared::{
         ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed, InteractionOpened,
         InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
         LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop,
-        NewWorld, NpcFlags, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate,
-        SpecializationChanged, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned,
-        TransferAborted, VendorInventory,
+        NewWorld, NpcFlags, QuestFailed, QuestGiverStatusMultiple, QuestLogSnapshot,
+        QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
+        SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
+        VendorInventory,
     },
 };
 
@@ -206,9 +207,12 @@ impl NetworkBridge {
             .receive::<LoadTerrain>()
             .receive::<NewWorld>()
             .receive::<TransferAborted>()
-            // Quest log for the world map's quest areas.
+            // Quest log for the world map's quest areas and the objective tracker; quest
+            // giver markers for the minimap.
             .receive::<QuestLogSnapshot>()
             .receive::<QuestLogUpdate>()
+            .receive::<QuestGiverStatusMultiple>()
+            .receive::<QuestFailed>()
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
