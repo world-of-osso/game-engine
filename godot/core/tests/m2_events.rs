@@ -45,12 +45,18 @@ fn spell_cast_directed_fires_its_missile_release_at_200_ms() {
     let male = parse_hd("humanmale_hd");
     assert_eq!(
         fired(&male, 53),
-        [("$CSL".into(), vec![200]), ("$SCD".into(), vec![200])]
+        [
+            ("$CSL".to_string(), vec![200u32]),
+            ("$SCD".to_string(), vec![200u32])
+        ]
     );
-    assert_eq!(fired(&male, 51), []);
+    assert!(fired(&male, 51).is_empty());
     let female = parse_hd("humanfemale_hd");
     assert_eq!(
         fired(&female, 53),
-        [("$CSL".into(), vec![200]), ("$SCD".into(), vec![133])]
+        [
+            ("$CSL".to_string(), vec![200u32]),
+            ("$SCD".to_string(), vec![133u32])
+        ]
     );
 }
