@@ -112,6 +112,9 @@ func expect_map_position(client: Node) -> bool:
 		return false
 	var rect := border.get_global_rect()
 	var scale := border.get_global_transform().get_scale().x
+	if absf(scale - 5.0 / 6.0) > 0.01:
+		fail("Expected effective nonunit UI scale 5/6, got " + str(scale))
+		return false
 	var expected := Vector2((root.size.x - rect.size.x) * 0.5, minf(104.0 * scale, root.size.y - rect.size.y))
 	if rect.position.distance_to(expected) > 2.0:
 		fail("Map position %s, expected %s" % [rect.position, expected])
@@ -151,7 +154,11 @@ func exercise_map_placement(client: Node, path: String) -> bool:
 	if canvas == null:
 		fail("Map canvas missing")
 		return false
-	await click(canvas)
+	var previous_map: int = client.world_map_state().map_id
+	await click_map_canvas(canvas, MOUSE_BUTTON_RIGHT)
+	if client.world_map_state().map_id == previous_map:
+		fail("Canvas right-click did not navigate out")
+		return false
 	if border.get_global_rect().position.distance_to(moved) > 2.0:
 		fail("Canvas click dragged map")
 		return false
@@ -175,6 +182,17 @@ func exercise_map_placement(client: Node, path: String) -> bool:
 	root.size = Vector2i(1280, 720)
 	await tap_map()
 	return true
+
+func click_map_canvas(canvas: Control, button_index: MouseButton) -> void:
+	var point := canvas.get_global_rect().get_center()
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = button_index
+		event.position = point
+		event.global_position = point
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
 
 func drag_map(from: Vector2, to: Vector2) -> void:
 	var down := InputEventMouseButton.new()
