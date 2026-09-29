@@ -139,7 +139,7 @@ pub(super) struct FixtureProject {
 }
 
 impl FixtureProject {
-    pub(super) fn create(repo: &Path) -> Result<Self, String> {
+    pub(super) fn create(repo: &Path, stage_listfile_cache: bool) -> Result<Self, String> {
         let source = repo.join("godot");
         let authored_data = locate_canonical_data_from_git(repo)?;
         let missing = missing_fixture_inputs(&authored_data);
@@ -160,6 +160,9 @@ impl FixtureProject {
         let data = root.join("data");
         create_fixture_directories(&root, &project, &data)?;
         stage_fixture_data(&authored_data, &data)?;
+        if stage_listfile_cache {
+            stage_listfile_cache_backup(&authored_data, &data)?;
+        }
         stage_fixture_project(repo, &source, &root, &project)?;
         stage_fixture_csv(&data)?;
         Ok(Self { root, project })
@@ -206,6 +209,32 @@ fn stage_fixture_data(authored_data: &Path, data: &Path) -> Result<(), String> {
     }
     for name in DATA_DIRS.iter().chain(DATA_FILES) {
         link_required(&authored_data.join(name), &data.join(name))?;
+    }
+    Ok(())
+}
+
+fn stage_listfile_cache_backup(authored_data: &Path, data: &Path) -> Result<(), String> {
+    let source = authored_data.join("local-listfile-cache.sqlite");
+    if !source.is_file() {
+        return Err(format!(
+            "Required canonical listfile cache missing: {}",
+            source.display()
+        ));
+    }
+    let target = data.join("local-listfile-cache.sqlite");
+    let command = format!(".backup '{}'", target.display());
+    let output = Command::new("sqlite3")
+        .args(["-readonly", "-cmd", ".timeout 5000"])
+        .arg(&source)
+        .arg(command)
+        .output()
+        .map_err(|error| format!("Backup {}: {error}", source.display()))?;
+    if !output.status.success() {
+        return Err(format!(
+            "Backup {}: {}",
+            source.display(),
+            String::from_utf8_lossy(&output.stderr)
+        ));
     }
     Ok(())
 }
