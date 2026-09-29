@@ -445,6 +445,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the damage meter window.
+    pub fn show_damage_meter(
+        &mut self,
+        view: game_engine_ui_model::damage_meter_data::DamageMeterView,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            view,
+            game_engine_ui_model::damage_meter_component::damage_meter_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the player casting bar.
     pub fn show_casting_bar(&mut self, state: CastingBarState) -> Result<(), String> {
         self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
