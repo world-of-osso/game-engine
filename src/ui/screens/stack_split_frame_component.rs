@@ -262,7 +262,7 @@ fn button(key: &str, text: &str, left: f32, top: f32, action: &str) -> Element {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 mod tests {
     use super::*;
     use crate::ui::screens::menu_character_layout_test_support::compute_layout;

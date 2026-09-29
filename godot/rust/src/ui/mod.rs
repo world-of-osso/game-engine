@@ -6,6 +6,7 @@ mod projection;
 
 use std::collections::VecDeque;
 
+use game_engine_ui_model::bag_frame_component::BagFrameState;
 use game_engine_ui_model::casting_bar_frame_component::{
     CastingBarState, casting_bar_frame_screen,
 };
@@ -18,12 +19,14 @@ use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, inworld_unit_frames_screen,
 };
 use game_engine_ui_model::main_action_bar_component::{MainActionBarState, main_action_bar_screen};
+use game_engine_ui_model::merchant_frame_component::MerchantFrameState;
 use game_engine_ui_model::mirror_timer_component::{MIRROR_TIMER_CONTAINER, mirror_timer_screen};
 use game_engine_ui_model::mirror_timer_data::MirrorTimersData;
 use game_engine_ui_model::spell_tooltip_component::{SpellTooltipState, spell_tooltip_screen};
 use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
+use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
@@ -52,6 +55,8 @@ pub struct RegistryUi {
     model: Option<RegistryModel>,
     projection: Option<UiProjection>,
     actions: VecDeque<String>,
+    /// Right-clicks and Shift-left-clicks: `(action, right, shift)`.
+    alt_clicks: VecDeque<(String, bool, bool)>,
     login_fade: Option<f32>,
     loading_displayed_percent: f32,
 }
@@ -73,6 +78,7 @@ enum ScreenPostsetup {
     Loading,
     WorldMap,
     EntranceBar,
+    Merchant,
     Spellbook,
 }
 
@@ -99,6 +105,9 @@ impl RegistryModel {
                 if let Some(state) = self.shared.get::<EntranceBarState>() {
                     apply_entrance_bar_postsetup(state, &mut self.registry);
                 }
+            }
+            ScreenPostsetup::Merchant => {
+                game_engine_ui_model::merchant::place_merchant_windows(&mut self.registry)
             }
             ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
             ScreenPostsetup::CharacterSelect => apply_char_select_postsetup(&mut self.registry),
@@ -232,6 +241,7 @@ impl ICanvasLayer for RegistryUi {
             model: None,
             projection: None,
             actions: VecDeque::new(),
+            alt_clicks: VecDeque::new(),
             login_fade: None,
             loading_displayed_percent: 0.0,
         }
@@ -379,6 +389,57 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_model(model, size.x, size.y)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the MerchantFrame, backpack and
+    /// StackSplitFrame, with the `metal_frame` window border composed from its atlases.
+    pub fn show_merchant(&mut self, states: MerchantStates) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let mut registry = FrameRegistry::new(size.x, size.y);
+        register_metal_frame_style(&mut registry)?;
+        let mut shared = SharedContext::new();
+        shared.insert(states.frame);
+        shared.insert(states.bags);
+        shared.insert(states.split);
+        let mut model = RegistryModel {
+            screen: Screen::new(game_engine_ui_model::merchant::merchant_screen),
+            shared,
+            registry,
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::Merchant,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
+    }
+
+    /// Replace the merchant screen states; unchanged states do not resync.
+    pub fn set_merchant_states(&mut self, states: MerchantStates) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Merchant UI is not initialized")?;
+        let changed = model.shared.get::<MerchantFrameState>() != Some(&states.frame)
+            || model.shared.get::<BagFrameState>() != Some(&states.bags)
+            || model.shared.get::<StackSplitFrameState>() != Some(&states.split);
+        if !changed {
+            return Ok(());
+        }
+        model.shared.insert(states.frame);
+        model.shared.insert(states.bags);
+        model.shared.insert(states.split);
+        self.sync_model()
+    }
+
+    /// The registry as last laid out, for anchoring frames to other frames.
+    pub fn registry(&self) -> Option<&FrameRegistry> {
+        self.model.as_ref().map(|model| &model.registry)
     }
 
     /// Initialize a dedicated RegistryUi instance for the in-world unit frames.
@@ -748,6 +809,11 @@ impl RegistryUi {
         for event in inputs {
             match event {
                 UiInput::Click(id) => model.queue_click_action(&mut self.actions, id),
+                UiInput::AltClick { id, right, shift } => {
+                    if let Some(action) = model.registry.click_frame(id) {
+                        self.alt_clicks.push_back((action, right, shift));
+                    }
+                }
                 UiInput::Focus(id) => model.focus_frame(id),
                 UiInput::Blur(id) => model.blur_frame(id),
                 UiInput::Text(id, text) => model.edit_text(id, text),
@@ -769,6 +835,15 @@ impl RegistryUi {
             godot_error!("Native UI input sync: {error}");
         }
         GString::from(self.actions.pop_front().unwrap_or_default().as_str())
+    }
+
+    /// The next right-click or Shift-left-click action: `(action, right, shift)`.
+    pub fn pop_alt_click(&mut self) -> Option<(String, bool, bool)> {
+        let error = self.sync_input();
+        if !error.is_empty() {
+            godot_error!("Native UI input sync: {error}");
+        }
+        self.alt_clicks.pop_front()
     }
 
     #[func]
@@ -923,6 +998,33 @@ impl RegistryUi {
                 .as_str(),
         )
     }
+}
+
+/// The three screen states of the merchant overlay.
+pub struct MerchantStates {
+    pub frame: MerchantFrameState,
+    pub bags: BagFrameState,
+    pub split: StackSplitFrameState,
+}
+
+/// Register `metal_frame` (`PortraitFrameTemplate` border) from the composed atlas sheet.
+fn register_metal_frame_style(registry: &mut FrameRegistry) -> Result<(), String> {
+    use game_engine_ui_model::panel_style_data::{
+        METAL_FRAME_PANEL_STYLE, METAL_SHEET, MetalTopLeft, compose_metal_sheet, metal_frame_style,
+    };
+    let pixels = compose_metal_sheet(MetalTopLeft::Portrait, |fdid| {
+        let image = assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
+        Ok((image.pixels, image.width))
+    })?;
+    let (width, height) = METAL_SHEET;
+    let sheet = registry
+        .create_dynamic_texture(width, height, pixels)
+        .map_err(|error| format!("Metal frame sheet: {error}"))?;
+    registry.register_panel_style(
+        METAL_FRAME_PANEL_STYLE,
+        metal_frame_style(TextureSource::Dynamic(sheet)),
+    );
+    Ok(())
 }
 
 /// Original `sync_editbox_focus_visual`: focused login fields brighten their border and fill.

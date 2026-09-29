@@ -703,6 +703,8 @@ mod tests {
             cast: None,
             powers: None,
             auras: None,
+            npc_flags: None,
+            gold: None,
         }
     }
 

@@ -50,6 +50,13 @@ References:
 - [ ] The per-item repair cursor (`MerchantRepairItemButton`), guild-bank repair, the Sell All Junk hover tooltip, and the stats/armor/damage lines of item tooltips.
 - [ ] NPC portrait in the portrait ring, the filter dropdown, alternate currencies (`ExtendedCost` items are not sold), and the refund confirmation popup.
 
+## Godot client
+
+- [x] Right-click on a unit targets it; a living NPC within 5 yd gets `InteractNpc`. Hovering an NPC shows its Retail cursor (Buy for a vendor, from replicated `NpcFlags` and the reaction).
+- [x] The frame, backpack and StackSplitFrame are the shared components above, driven by the same server messages; right-click buy and sell, buyback (tab and last-sale slot), Repair All, paging, tabs, and vendor Shift-click split with its keys.
+- [x] Escape, the close button and `InteractionClosed` close the frame; the first two send `CloseInteraction`.
+- [ ] Cursor item (pickup, drag-buy, drop-sell, bag split), tooltips, the Sell All Junk popup, the gossip frame, Retail ContainerFrame art.
+
 ## Tests asserting this spec
 
 - `src/ui/screens/merchant_frame_component_tests.rs`: frame size, title, grid offsets, coins, gray price, red tint, stock, paging, repair position/enable, money anchor, buyback tab layout, last-sale slot.
@@ -62,4 +69,5 @@ References:
 - `src/ui/screens/merchant_frame_component_tests.rs`: Sell All Junk placement with and without repair, disabled icon, hidden on buyback, the frame's drop action; `src/scenes/merchant_frame/tests.rs`: junk detection (Ruined Pelt vs Linen Cloth), the popup sends `SellAllJunk` only on Yes.
 - `src/scenes/tooltip_frame/mod.rs` tests: merchant cell tooltip.
 - `src/ui/js_automation.rs` test: `ui.rightClick`.
+- Godot: `godot/ui-model/tests/merchant.rs` (session over world.db vendors), `godot/network/src/wire_tests.rs` (`NpcFlags`, `Gold`, `VendorInventory` over UDP), `godot/rust/src/merchant.rs` tests (interact range, split keys), live `godot/tests/world_merchant_flow.gd` (`data/diagnostics/merchant-godot-20260928/`).
 - Live evidence: `data/diagnostics/merchant-20260924/`; drag buy, split, drop-sell, Sell All Junk and bundle buys: `data/diagnostics/cursoritems-20260926/run1/` (tree/shot 03-28).
