@@ -4,6 +4,20 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 ## What it must do
 
+### Graphics render scale (pending RED runtime proof)
+
+- [ ] Saved Render Scale 0.5–1.0 sets the native startup and live 3D internal render buffer to that fraction of the target after Options input and viewport resize; the 2D UI stays at full target resolution with unchanged pixel position at UI Scale 1.0. `godot/tests/render_scale_buffers.gd` probes the actual 3D compositor buffers and 2D framebuffer; it has not been run yet. This does **not** establish legacy paired CAS/sharpening equivalence below 0.999 or full rendering parity.
+
+Owned Vulkan cage recipe (run from repo root, never against user configuration):
+
+```sh
+mkdir -p data/diagnostics/render-scale-red/config/world-of-osso data/diagnostics/render-scale-red/xdg-data
+printf '(graphics:(renderScale: 0.75, uiScale: 1.0))\n' > data/diagnostics/render-scale-red/config/world-of-osso/options_settings.ron
+XDG_CONFIG_HOME="$PWD/data/diagnostics/render-scale-red/config" XDG_DATA_HOME="$PWD/data/diagnostics/render-scale-red/xdg-data" GODOT_TEST_CAPTURE_DIR="$PWD/data/diagnostics/render-scale-red/captures" "${GODOT_BIN:-$HOME/.cache/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64}" --path godot --display-driver wayland --rendering-driver vulkan --audio-driver Dummy --script res://tests/render_scale_buffers.gd -- --screen gamemenu
+```
+
+Run last command only inside the main-owned offscreen Wayland Vulkan cage; no headless or desktop-display substitution. The fixture writes only its owned config and optional captures.
+
 ### Client engine and assets
 
 - [ ] `77a9b4cc` implements standalone `--screen gamemenu` / `--state gamemenu`: `GameState::GameMenu.is_logged_in` is true, `OnEnter` opens the logged-in menu without authentication or a Login underlay, and Return/Escape only dismisses the overlay while state remains `GameMenu`; Exit quits. Root-launcher Vulkan fixtures at `6e8c14b7` exit 0 for Escape, resume, and Exit (`/tmp/claude/startup-menu-{escape,resume,exit}-6e8c14b7.log`). Main inspected `data/diagnostics/godot-conversion/startup-game-menu.png`: six slate/gold buttons on a blank background, with no Login underlay; this is bounded inspection, not pixel equality. Standalone Log Out must close the menu without a visible countdown because original timer/overlay systems run only InWorld: `f7280c8d` RED finds the visible countdown, and `27637f64` limits sync visibility to `InWorld`; `/tmp/claude/startup-menu-logout-green-27637f64.log` exits 0. Options/AddOns and full parent-menu parity remain open.
