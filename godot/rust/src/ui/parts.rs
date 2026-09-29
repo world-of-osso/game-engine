@@ -47,6 +47,8 @@ pub struct TextPart {
     pub justify_h: JustifyH,
     pub justify_v: JustifyV,
     pub outline: Outline,
+    /// FontString `Shadow`: colour and WoW offset (x right, y up).
+    pub shadow: Option<([f32; 4], [f32; 2])>,
 }
 
 pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> {
@@ -99,6 +101,7 @@ pub fn project_button_text(frame: &Frame) -> Option<TextPart> {
         justify_h: JustifyH::Center,
         justify_v: JustifyV::Middle,
         outline: Outline::None,
+        shadow: None,
     })
 }
 

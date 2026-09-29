@@ -4,6 +4,14 @@
 
 Recorded production `543ca754`, integrated `27727fa0`, and actual native fixture `94e7e02a` proof in [[godot-conversion#bounded-rcas-compatibility-investigation]]. Depot `9n5kpbsc6l` built in 62.1 seconds, exit 0; interrupted `zp1dlvr07r` supplies no compilation proof. Native Vulkan run exits 0 for startup 0.75/live 0.5 RCAS oracle, live 1.0 bypass, unchanged discriminating UI edge pixels, and finite opaque black patch. Main inspected the capture. Independent final evidence remains pending; full legacy scene parity and other outstanding Options remain open. Updated both conversion specs and index; recipes remain wiki-only.
 
+## [2026-09-29] fix | Native FontString shadows
+
+The Godot projection ignored FontString `shadow_color`/`shadow_offset`, so the tracker's dark-gold quest title and grey objective line had no shadow and were nearly invisible on grass. Labels now get `font_shadow_color` and `shadow_offset_x/y` (WoW y-up flipped). RED on the previous build: "QuestBlock28766HeaderText has no (1, 1) black shadow"; GREEN `world_minimap_quest.gd` exit 0 with background-relative glyph/shadow pixel counts (title 85/26 vs grass 40/0, line 50/43 vs 0/0). Applies to every native FontString with a shadow. See [[quest-ui]].
+
+## [2026-09-29] implementation | Godot minimap and objective tracker
+
+Branch `minimapquest`: native `MinimapCluster` (TOPRIGHT) and `ObjectiveTrackerFrame` (TOPRIGHT −110, −275). Pure tile/composite/blip/zone/clock logic in `godot/core/src/minimap_data.rs`; the tracker reuses the shared Bevy component through `from_watched`. Two projection fixes were needed: onclick on textures/font strings now clicks, and dynamic-texture pixel updates redraw. Live `godot/tests/world_minimap_quest.gd` exits 0 on a private server (tile `azeroth/map32_48`, rendered pixels = composite, arrow along W movement, quest blips, zoom; tracker "Beating Them Back!" 0/6 and collapse). Core `minimap_data` 8/8 on Depot `--test`. See [[minimap]], [[quest-ui]] and the [minimap spec](../specs/minimap.md).
+
 ## [2026-09-29] implementation | Native chat frame
 
 The Godot client had no chat. It now hosts the shared `ChatFrame1` screen on a `ChatFrameUI` RegistryUi. The Bevy channel mapping, whisper recording, tab entries, scroll hold and view builder moved into shared files, so both clients format and route chat the same way. The edit box gained the retail `Say: ` header and ChatFontNormal. `godot/tests/world_chat_flow.gd` passes against a private server: geometry, MOTD, W typing without moving, server echoes of say/yell/emote, the offline-whisper error, local command lines, wheel scroll, history, and Escape without opening the game menu. See [[chat-frame]].

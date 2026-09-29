@@ -8,6 +8,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+#[cfg(not(godot_host))]
 use crate::quest_runtime::QuestRuntime;
 use crate::ui::screens::quest_art::{
     DynName, POI_IN_PROGRESS, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL,
@@ -88,15 +89,21 @@ pub struct ObjectiveTrackerState {
 }
 
 impl ObjectiveTrackerState {
+    #[cfg(not(godot_host))]
     pub fn from_runtime(runtime: &QuestRuntime, collapsed: bool, quests_collapsed: bool) -> Self {
+        Self::from_watched(runtime.watched_entries(), collapsed, quests_collapsed)
+    }
+
+    /// Blocks for `watched` entries in watch order.
+    pub fn from_watched<'a>(
+        watched: impl IntoIterator<Item = &'a QuestEntrySnapshot>,
+        collapsed: bool,
+        quests_collapsed: bool,
+    ) -> Self {
         Self {
             collapsed,
             quests_collapsed,
-            quests: runtime
-                .watched_entries()
-                .into_iter()
-                .map(tracked_quest)
-                .collect(),
+            quests: watched.into_iter().map(tracked_quest).collect(),
         }
     }
 }
@@ -412,6 +419,7 @@ fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
     elements
 }
 
-#[cfg(test)]
+// Bevy layout support; the Godot UI model builds without it.
+#[cfg(all(test, feature = "dev"))]
 #[path = "objective_tracker_component_tests.rs"]
 mod tests;
