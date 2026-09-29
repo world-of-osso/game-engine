@@ -4,7 +4,7 @@ The Godot replacement remains incomplete. `cad33614` shares terrain material inp
 
 ## Remote native extension build
 
-The root launcher compiles locally, but uses `scripts/depot-build.py` to build the Linux x86_64 GDExtension remotely. The helper's source-snapshot boundary, shared remote cache policy, atomic worktree-local library install, prerequisites, and explicit no-fallback failure policy are defined in [Remote Godot builds](../../remote-builds.md). Depot budget and service-limit claims remain deliberately separate: the $100 monthly ceiling is conditional planning, not a configured billing cap; main must verify provider limits and cache GC. This build path does not establish gameplay, renderer, or conversion parity.
+The root launcher compiles locally, but uses `scripts/depot-build.py` to build the Linux x86_64 GDExtension remotely. The helper's source-snapshot boundary, shared remote cache policy, atomic worktree-local library install, prerequisites, and explicit no-fallback failure policy are defined in [Remote Godot builds](../../remote-builds.md). A stale cross-worktree Cargo target diagnosis and its lock-held timestamp-refresh proof are recorded in [[depot-cross-worktree-freshness]]. Depot budget and service-limit claims remain deliberately separate: the $100 monthly ceiling is conditional planning, not a configured billing cap; main must verify provider limits and cache GC. This build path does not establish gameplay, renderer, or conversion parity.
 
 ## Launcher startup CLI boundary
 

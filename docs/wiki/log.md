@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-29] investigation | Depot cross-worktree Cargo freshness
+
+A build from worktree A, then older B, then A failed with `E0425` although A's exact source was snapshotted. The stale state was the shared Cargo target cache. `e4b213a8` refreshes staged compile-input timestamps only after obtaining the shared target lock; the repeated A/B/A sequence rebuilt dependencies and passed. The first full refreshed Options build passed in 49.274 s (`003c4ttwqh` / `cpw7crx3ww`) and installed the 272,736,240-byte extension. Local extension-load verification is pending. Cleanup's 98.28 GB allocated-cache result is not treated as physical-space reclamation.
+
+Added [[depot-cross-worktree-freshness]]; updated [Remote Godot builds](../remote-builds.md) and [[godot-conversion]].
+
 ## [2026-09-29] system | Depot-native Godot extension build documented
 
 Root `cargo run`/`rd` retains a local std-only launcher and normal local Godot import/launch while `scripts/depot-build.py --root <checkout>` builds the Linux x86_64 GDExtension remotely. The documented boundary includes source-only snapshots, shared remote caches with locked target sharing, atomic worktree-local library install, explicit no-local-Cargo failure behavior, and prerequisite tools. The $100 monthly figure is conditional budget planning, not a configured billing cap; provider limits and cache GC require main verification. No gameplay, renderer, or conversion-parity claim follows.
