@@ -56,6 +56,12 @@ pub(crate) struct Targeting {
 }
 
 impl Targeting {
+    pub(crate) fn drain_pointer_clicks(&mut self) -> Result<u32, String> {
+        self.frame_ui
+            .as_mut()
+            .map_or(Ok(0), |ui| ui.bind_mut().sync_pointer_clicks())
+    }
+
     pub fn new(data_root: PathBuf) -> Self {
         Self {
             target: None,

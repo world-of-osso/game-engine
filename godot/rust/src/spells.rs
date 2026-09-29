@@ -125,6 +125,21 @@ impl Default for SpellsHud {
 }
 
 impl SpellsHud {
+    pub(crate) fn drain_pointer_clicks(&mut self) -> Result<u32, String> {
+        let mut clicks = 0;
+        for ui in [
+            &mut self.bar_ui,
+            &mut self.cast_ui,
+            &mut self.book_ui,
+            &mut self.tooltip_ui,
+        ] {
+            if let Some(ui) = ui {
+                clicks += ui.bind_mut().sync_pointer_clicks()?;
+            }
+        }
+        Ok(clicks)
+    }
+
     pub(crate) fn catalog(&self) -> Option<&SpellCatalogData> {
         match &self.catalog {
             CatalogLoad::Ready(data) => Some(data),

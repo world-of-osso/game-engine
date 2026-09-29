@@ -38,6 +38,7 @@ impl GameClient {
             &mut self.create_ui,
             &mut self.loading_ui,
             &mut self.errors_ui,
+            &mut self.mirror_timer_ui,
             &mut self.game_menu_ui,
             &mut self.world_map.ui,
         ] {
@@ -45,6 +46,10 @@ impl GameClient {
                 clicks += ui.bind_mut().sync_pointer_clicks()?;
             }
         }
+        clicks += self.merchant.drain_pointer_clicks()?;
+        clicks += self.spells.drain_pointer_clicks()?;
+        clicks += self.targeting.drain_pointer_clicks()?;
+        clicks += self.entrance_bar.drain_pointer_clicks()?;
         if let Some(sound) = &mut self.sound {
             let settings = &self.client_options.sound;
             for _ in 0..clicks {
