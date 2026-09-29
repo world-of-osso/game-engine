@@ -1,3 +1,4 @@
+#[cfg(not(godot_host))]
 use bevy::prelude::*;
 use std::collections::BTreeMap;
 
@@ -147,7 +148,8 @@ pub struct BagInfo {
 }
 
 /// A bag or equipment request for the server (`InventoryChannel`).
-#[derive(Message, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(not(godot_host), derive(Message))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InventoryRequest {
     Swap(SwapItem),
     Equip(EquipItem),
@@ -156,7 +158,8 @@ pub enum InventoryRequest {
 }
 
 /// Runtime inventory state for all bags and the equipped items.
-#[derive(Resource, Clone, Debug, PartialEq)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct InventoryState {
     pub bags: Vec<BagInfo>,
     /// Slots indexed by `[bag_index][slot_index]`.

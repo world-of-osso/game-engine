@@ -15,7 +15,10 @@ pub fn item_icon_fdid(item_id: u32) -> Option<u32> {
     ICONS
         .get_or_init(|| {
             load_item_icons().unwrap_or_else(|err| {
+                #[cfg(not(godot_host))]
                 bevy::log::error!("item icons unavailable: {err}");
+                #[cfg(godot_host)]
+                eprintln!("item icons unavailable: {err}");
                 HashMap::new()
             })
         })

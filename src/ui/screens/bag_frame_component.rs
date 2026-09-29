@@ -204,7 +204,7 @@ fn slot_contents(prefix: &str, slot: &BagSlotState) -> Element {
     children
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 mod tests {
     use super::*;
     use crate::ui::screens::menu_character_layout_test_support::compute_layout;
