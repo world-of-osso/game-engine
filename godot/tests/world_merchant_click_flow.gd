@@ -112,7 +112,6 @@ func check_live_options_scale(client: Node, vendor: Dictionary) -> bool:
 	if not check_scaled_hosts(client, 0.75):
 		return false
 	await click(menu.find_child("OptionsTabaccessibility", true, false) as Control)
-	slider = menu.find_child("Sliderui_scale", true, false) as Control
 	await set_scale_slider(slider, 0.6666667)
 	return check_scaled_hosts(client, 1.25)
 
@@ -300,6 +299,7 @@ func pointer_at(point: Vector2, button: MouseButton, down: bool) -> void:
 	root.push_input(motion, true)
 	var event := InputEventMouseButton.new()
 	event.position = point
+	event.global_position = point
 	event.button_index = button
 	event.pressed = down
 	root.push_input(event, true)
