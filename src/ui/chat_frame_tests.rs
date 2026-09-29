@@ -318,7 +318,7 @@ fn selecting_a_tab_clears_every_flash_and_returns_to_the_newest_message() {
         tab: ChatTab::Whispers,
         flashing: vec![ChatTab::General, ChatTab::CombatLog],
         scroll: 4,
-        ..default()
+        ..Default::default()
     };
     state.select_tab(ChatTab::General);
     assert_eq!(state.tab, ChatTab::General);

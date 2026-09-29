@@ -8,6 +8,7 @@ mod auto_attack;
 mod camera;
 mod char_create;
 mod character_select;
+mod chat;
 mod combat_visuals;
 mod display_options;
 mod entrance_bar;
@@ -109,6 +110,7 @@ pub struct GameClient {
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
+    chat: chat::Chat,
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     minimap: minimap::Minimap,
@@ -191,6 +193,7 @@ impl INode3D for GameClient {
             loading_ui: None,
             errors_ui: None,
             mirror_timer_ui: None,
+            chat: Default::default(),
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             minimap: minimap::Minimap::default(),
@@ -238,6 +241,16 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        let chat_used = self.chat_edit_key(&event).unwrap_or_else(|error| {
+            self.handle_frame_error("Chat key", error.into());
+            true
+        }) || self.chat_wheel(&event);
+        if chat_used {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         if self.capture_game_menu_binding(&event) {
             if let Some(mut viewport) = self.base().get_viewport() {
                 viewport.set_input_as_handled();
@@ -308,6 +321,19 @@ impl INode3D for GameClient {
             }
             Ok(false) => {}
         }
+        match self.open_chat_from_key(&key) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Err(error) => {
+                self.handle_frame_error("Chat open", error.into());
+                return;
+            }
+            Ok(false) => {}
+        }
         if key.get_keycode() == godot::global::Key::ESCAPE && self.clear_target_on_escape() {
             if let Some(mut viewport) = self.base().get_viewport() {
                 viewport.set_input_as_handled();
@@ -355,6 +381,7 @@ impl INode3D for GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Cast sound", |c, _| Ok(c.update_cast_sound()?)),
             ("Merchant", |c, _| c.update_merchant()),
+            ("Chat", |c, d| c.update_chat(d)),
             ("World map", |c, _| Ok(c.update_world_map()?)),
             ("Minimap", |c, _| c.update_minimap()),
             ("Objective tracker", |c, _| c.update_objective_tracker()),
@@ -762,6 +789,7 @@ impl GameClient {
             &mut self.loading_ui,
             &mut self.errors_ui,
             &mut self.mirror_timer_ui,
+            &mut self.chat.ui,
             &mut self.game_menu_ui,
             &mut self.world_map.ui,
         ] {
@@ -1223,6 +1251,7 @@ impl GameClient {
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
             AccountEvent::Npc(message) => self.receive_npc_message(message)?,
+            AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::UnitRemoved(id) => {
                 self.world.remove(id);
                 self.units.remove(&id);

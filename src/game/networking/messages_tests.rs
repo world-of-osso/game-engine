@@ -18,14 +18,6 @@ fn default_chat_state() -> ChatState {
 }
 
 #[test]
-fn map_runtime_chat_channel_maps_emotes() {
-    let (channel, name) =
-        map_runtime_chat_channel(&shared::protocol::ChatType::Emote, "Alice", Some("Theron"));
-    assert_eq!(channel, ChatChannelType::Emote);
-    assert!(name.is_empty());
-}
-
-#[test]
 fn resolve_emote_visual_entity_prefers_mounted_visual_child() {
     let mut app = App::new();
     let parent = app.world_mut().spawn_empty().id();

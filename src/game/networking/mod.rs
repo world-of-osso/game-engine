@@ -63,7 +63,7 @@ pub(crate) struct ResolvedModelAssetInfo {
 }
 
 /// Maximum number of messages stored in the chat log.
-pub(crate) const MAX_CHAT_LOG: usize = 100;
+pub(crate) const MAX_CHAT_LOG: usize = game_engine::chat_data::MAX_CHAT_MESSAGES;
 
 /// Zone (Retail GetZoneText) and area (GetMinimapZoneText) under the local player, from the
 /// terrain chunk it stands on; see `track_player_zone`.
@@ -190,7 +190,7 @@ fn register_zone_and_chat_resources(app: &mut App) {
         ..Default::default()
     });
     app.insert_resource(game_engine::chat_data::WhisperState {
-        max_recent: 10,
+        max_recent: game_engine::chat_data::MAX_RECENT_WHISPER_TARGETS,
         ..Default::default()
     });
     app.init_resource::<ReconnectState>();
