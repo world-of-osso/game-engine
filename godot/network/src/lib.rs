@@ -34,7 +34,7 @@ use shared::{
     },
     protocol::{
         ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
-        CharacterListUpdate, CombatEvent, CombatLogEvent, CreateCharacterResponse,
+        CharacterListUpdate, ChatMessage, CombatEvent, CombatLogEvent, CreateCharacterResponse,
         DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate, EnterWorldResponse,
         ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed, InteractionOpened,
         InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
@@ -242,6 +242,8 @@ impl NetworkBridge {
             .receive::<InventoryError>()
             .receive::<DurabilityStateUpdate>()
             .receive::<RestStateUpdate>()
+            // Chat lines for the chat frame.
+            .receive::<ChatMessage>()
             .connect(server_addr, client_id)
     }
 
