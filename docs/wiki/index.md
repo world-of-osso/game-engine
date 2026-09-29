@@ -31,13 +31,13 @@ Engine subsystems and how they work.
 - [unit-tooltip](systems/unit-tooltip.md) — Retail unit GameTooltip (hover by unit frame/nameplate/ray, default anchor), NPC drops/vendor sections with appearance-collection check/cross marks from server CreatureTooltip data
 - [swimming](systems/swimming.md) — Godot swim path: Space/X ascend/descend, float at `SWIM_DEPTH` under the surface, pitch steering, server-adopted swim height, climb capped at `SWIM_SPEED`; server-driven MirrorTimer breath/fatigue/feign-death bars
 - [player-ground](systems/player-ground.md) — shared terrain + WMO floor rule (MOPY/BSP, 1.6 yd step reach) on client and server, lazy server tile loading, and fall tracking on repositions
-- [terrain](systems/terrain.md) — ADT loading, split files, authored MCVT axes, native per-chunk surface query, tile ordering, object placement rotation, doodad collision, map switches and WMO-only maps (WDT global WMO)
+- [terrain](systems/terrain.md) — ADT loading, split files, authored MCVT axes, native per-chunk terrain and WMO placement surface queries, tile ordering, object placement rotation, doodad collision, map switches and WMO-only maps (WDT global WMO)
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution for runtime/UI consumers, TACT keys
 - [character-rendering](systems/character-rendering.md) — HD skeletons, shared Godot/Bevy outfit catalog with serialized cache imports, player model-completion appearance boundary, authored NPC compositing, geosets, helmet hiding, target circles
 - [character-creation](systems/character-creation.md) — local-Retail reference contract, catalog-driven core/additional selections, persistence boundary, FileDataID UI/backdrop artwork, authored framing/scale/camera-distance application, scoped lighting/material evidence, and explicit current limits
 - [skybox](systems/skybox.md) — explicit procedural-vs-authored InWorld sky selection, authored lookup chain, and environmental sun/camera-IBL ownership boundary
 - [retail-lighting](systems/retail-lighting.md) — one RetailSceneLight from the LightParams blend (map default, ZoneLight polygons, local lights, per WebWowViewerCpp); terrain, M2 and M2 effect shaders use WebWowViewerCpp calcLight and fog in authored space; native creature producer wiring covers nine common light/fog uniforms, not terrain's cube map; no tonemapping, no Bevy IBL; SkySun only casts shadows
-- [sound](systems/sound.md) — Footsteps, shared selection/phase policy, native terrain-surface prerequisite (not playback), music catalog, zone music, native UI click PCM/trigger, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
+- [sound](systems/sound.md) — Footsteps, shared selection/phase policy, native terrain/WMO surface queries (not playback), music catalog, zone music, native UI click PCM/trigger, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
 - [lore-knowledge-graph](systems/lore-knowledge-graph.md) — Graph schema for NPC AI, quest generation, faction relations
 
 ## Formats

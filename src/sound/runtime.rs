@@ -9,6 +9,9 @@ use crate::sound_footsteps::{
     classify_player_creature, movement_from_anim,
 };
 use game_engine::input_bindings::InputAction;
+use game_engine::wmo_surface_data::{
+    WmoSurfaceBounds, select_footstep_surface as select_shared_footstep_surface,
+};
 
 mod runtime_ambient;
 mod runtime_assets;
@@ -414,29 +417,19 @@ fn select_footstep_surface(
     terrain_surface: Option<FootstepSurface>,
     wmo_surfaces: impl Iterator<Item = (game_engine::culling::WmoRootBounds, FootstepSurface)>,
 ) -> FootstepSurface {
-    wmo_surfaces
-        .filter(|(bounds, _)| point_inside_aabb(position, bounds.world_min, bounds.world_max))
-        .min_by(|(left_bounds, _), (right_bounds, _)| {
-            aabb_volume(left_bounds.world_min, left_bounds.world_max)
-                .total_cmp(&aabb_volume(right_bounds.world_min, right_bounds.world_max))
-        })
-        .map(|(_, surface)| surface)
-        .or(terrain_surface)
-        .unwrap_or(FootstepSurface::Dirt)
-}
-
-fn point_inside_aabb(point: Vec3, min: Vec3, max: Vec3) -> bool {
-    point.x >= min.x
-        && point.x <= max.x
-        && point.y >= min.y
-        && point.y <= max.y
-        && point.z >= min.z
-        && point.z <= max.z
-}
-
-fn aabb_volume(min: Vec3, max: Vec3) -> f32 {
-    let size = max - min;
-    size.x.abs() * size.y.abs() * size.z.abs()
+    select_shared_footstep_surface(
+        position.to_array(),
+        terrain_surface,
+        wmo_surfaces.map(|(bounds, surface)| {
+            (
+                WmoSurfaceBounds {
+                    world_min: bounds.world_min.to_array(),
+                    world_max: bounds.world_max.to_array(),
+                },
+                surface,
+            )
+        }),
+    )
 }
 
 fn play_footstep(

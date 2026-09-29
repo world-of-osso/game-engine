@@ -1,6 +1,8 @@
 //! One WDT global WMO payload and its matching placed collision geometry.
 
-use game_engine_core::{adt::WmoPlacement, campsite_object_data::placement_position};
+use game_engine_core::{
+    adt::WmoPlacement, campsite_object_data::placement_position, footstep_data::FootstepSurface,
+};
 use std::sync::Arc;
 
 use glam::{Affine3A, Vec3};
@@ -15,10 +17,15 @@ pub(crate) struct PlacedWmo {
     pub asset: NativeWmoAsset,
     pub world_from_local: Affine3A,
     pub collision: WmoCollision,
+    pub surface: Option<FootstepSurface>,
 }
 
 impl PlacedWmo {
-    pub fn new(placement: WmoPlacement, asset: NativeWmoAsset) -> Self {
+    pub fn new(
+        placement: WmoPlacement,
+        asset: NativeWmoAsset,
+        surface: Option<FootstepSurface>,
+    ) -> Self {
         let world_from_local = Affine3A::from_scale_rotation_translation(
             Vec3::splat(placement.scale),
             placement_rotation(placement.rotation),
@@ -30,6 +37,7 @@ impl PlacedWmo {
             asset,
             world_from_local,
             collision,
+            surface,
         }
     }
 }

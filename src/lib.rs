@@ -211,6 +211,8 @@ pub mod ui_click_data;
 pub mod ui_map_data;
 pub mod unit_motion_data;
 pub mod who;
+#[path = "sound/wmo_surface_data.rs"]
+pub mod wmo_surface_data;
 #[path = "game/world_db/mod.rs"]
 pub mod world_db;
 pub mod world_map;

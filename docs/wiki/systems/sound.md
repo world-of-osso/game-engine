@@ -16,6 +16,8 @@ The sound system coexists with the rest of the engine as a Bevy plugin registere
 
 `FootstepPhaseTracker` in the same shared file now owns the legacy half-cycle observer: it emits only when the observed movement clip changes half (seed = sequence index shifted 8 bits OR half), resets the half on movement sequence changes, retains it through nonmovement clips, and skips zero-duration clips. It never replays missed steps. Bevy carries it in `FootstepTracker`; native `WowAnimationPlayer::footstep_phase` read-only exposes the selected—not outgoing crossfade—clip index/ID, duration, and clock. `70e047ff` separately shares the ADT dominant-effect/texture surface decision through `terrain_surface_data`; existing root terrain and footstep loaders remain unchanged. The native terrain stream now consumes the shared surface policy per tile; native footstep playback remains unwired. The original extraction's verifier839 remains a separate pending claim.
 
+`src/sound/wmo_surface_data.rs` now shares the literal root-wide WMO material ranking (resolvable texture path only, then nonzero ground type, positive diffuse alpha, highest FDID) and inclusive placement-AABB/smallest-volume override. The Bevy adapter retains its existing root/runtime tests; the native asset reader retains eligible global WDT and streamed MODF placement surfaces and exposes `StreamedTerrain::surface_at_position([x, y, z])`. No per-group hit classification or native footstep playback is added.
+
 `src/sound/ground_effect_data.rs` shares the fixed-layout WDC5 GroundEffectTexture and TerrainTypeSounds row readers and ordered terrain-name surface classification with root and `godot/core`. The root `ground_effects` adapter still owns local DB2 loading/cache and clutter, and reexports the same `GroundEffectEntry` type. Core byte fixtures cover the two ground-effect and three terrain-sound layouts, rows, strings, errors, and keyword precedence. Native terrain now reads these two DB2s once per asset reader from local CASC/cache, resolves effect → sound → surface, and stores chunk classifications at tile ingestion. This native metadata lookup is separate from the shared-policy prerequisite; footstep playback remains unwired, and verifier849 is pending without an independent PASS.
 
 ## Shared catalog boundary
@@ -50,6 +52,7 @@ Post-fix PID `2468254` remained focused, `InWorld`, and connected with one link/
 - [app setup](../../../src/app_setup.rs) — stage and audio-plugin registration
 - [area_zone_data](../../../src/area_zone_data.rs) — shared AreaTable parent parsing and bounded ancestor traversal
 - [footstep_data](../../../src/sound/footstep_data.rs) — shared footstep classification and catalog selection
+- [wmo_surface_data](../../../src/sound/wmo_surface_data.rs) — root-wide WMO selection and position override
 - [ground_effect_data](../../../src/sound/ground_effect_data.rs) — shared WDC5 row parsing and terrain-name surface classification
 - [ui_click_data](../../../src/sound/ui_click_data.rs) — legacy click PCM and gain
 - [real-client fixture log](../../../data/diagnostics/native-sound-client-final.log) — authenticated area/zone/music and Options-state observations at `ce2a8c92`
