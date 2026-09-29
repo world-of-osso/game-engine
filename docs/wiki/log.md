@@ -1779,3 +1779,7 @@ The Godot client shows the Retail 12.x spellbook (known spells plus later-level 
 ## [2026-09-28] feature | Godot merchant frame
 
 The Godot client interacts with NPCs: right-click targets and sends `InteractNpc` in range, the hover cursor follows `NpcFlags` (Buy on vendors). The server's vendor list opens the shared MerchantFrame, backpack and StackSplitFrame; buy, sell, buyback, Repair All and vendor split work live at Brother Danil; Escape, the close button and walking away close it. Shared data files drop their Bevy derives under `cfg(godot_host)`. See [[merchant-frame]], [[godot-conversion]].
+
+## [2026-09-29] feature | Godot remote player locomotion
+
+Other players in the Godot client walk, run, backpedal, strafe, swim and jump: the server replicates `PlayerMotion` (Retail `MovementFlags`) and `WorldUnits` drives each remote model every frame through the local player's selector and jump sequence. Live proof with two headless clients on a private server. See [animation](systems/animation.md#native-godot-remote-player-locomotion).

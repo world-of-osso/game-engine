@@ -81,7 +81,16 @@ Proof:
 - A test on Riverpaw 3886641 checks Stand → Walk → Run → Stand: crossfades are at least 150 ms, the pose is continuous, and time is not reset on repeated snapshots.
 - The live fixture is `godot/tests/npc_locomotion.gd` on the dev server (`NPC_WALK_ACCOUNT`/`NPC_WALK_PASSWORD`/`NPC_WALK_CHARACTER`). It turns the character toward a wandering creature, asserts Walk 4 while it moves and changed bones over 12 frames, then Stand 0 once it stops. The run is `/tmp/claude/npcwalk-live-6.log`, exit 0.
 
-Interpolated feet trail the server. After a stop, one 250 ms sample can still cover up to 1.2 yd while Stand plays, so the fixture tolerates one such sample. Wanderers only walk, so Run 5 has no live coverage yet. Remote players carry no `CreatureMotion`, since the server inserts it only on creatures. As in Bevy, they stay in Stand.
+Interpolated feet trail the server. After a stop, one 250 ms sample can still cover up to 1.2 yd while Stand plays, so the fixture tolerates one such sample. Wanderers only walk, so Run 5 has no live coverage yet. Players carry no `CreatureMotion`; other players animate from `PlayerMotion` (next section).
+
+## Native Godot remote player locomotion
+
+The server replicates each player's `PlayerMotion`, Retail `MovementFlags` bit values (TrinityCore `MovementInfo.h`: FORWARD, BACKWARD, STRAFE_LEFT/RIGHT, WALKING, FALLING, SWIMMING), set from its newest applied `PlayerInput` and written only on change (game-server spec `docs/specs/player-motion.md`). Retail clients animate remote units from the same flags (wow_client `unit.c` `update_animation`). `UnitSnapshot.player_motion` carries it. `world.rs` `player_motion_locomotion` turns it into the local player's `update_locomotion` arguments: the direction in the local `compute_movement_input` priority (forward, backward, left, right) through the shared `direction_to_anim_id` (run unless WALKING, swim clips 41-45 while SWIMMING), `jumping` = FALLING, running-forward for the landing choice. `WorldUnits::update_remote_locomotion` runs as its own frame step after the local player's animation and drives every other player's `M2Animation` each frame, so JumpStart 37 → Jump 38 → JumpEnd 39 / JumpLandRun 187 play out; unchanged flags neither restart a clip nor its crossfade (≥150 ms). The local player is skipped (`remote_player_locomotion`): it keeps its predicted movement. A model missing a clip is a `FrameError::Client`. Idle turn clips 11/12 are local only; the flags carry no turn state.
+
+Proof:
+- `godot/network` wire test: a strafing jump then its stop reach the host over UDP.
+- `animation/remote_player_tests.rs` on HumanMale HD 1011653: flags → IDs for every direction, walk, swim and jump; only remote players follow flags; Walk 4 → Run 5 → 11 → 12 → 13 → Stand 0 with continuous ≥150 ms crossfades and no restart on repeated flags per frame; a running jump 5 → 37 → 38 → 187 → 5 → 0.
+- Live, two headless clients on a private server (`godot/tests/remote_player_motion.gd`, roles mover/observer): the mover (Fbfps) runs, backpedals, strafes, walks and jumps with real keys; the observer (Fbworldmap) records Fbfps's model: `run [0, 5]`, `backpedal [0, 13]`, `strafe_left [0, 11]`, `strafe_right [0, 12]`, `walk [0, 4]` with changed bones over 12 frames each, `jump [0, 37, 38, 39]`, `run_jump [0, 5, 37, 38, 187]`, and Stand 0 after every stop (`/tmp/claude/remote-motion-observer.log`, frames `/tmp/claude/remote-motion-*.png`).
 
 ## Generated Character Animation
 
