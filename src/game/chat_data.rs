@@ -1,4 +1,11 @@
+#[cfg(not(godot_host))]
 use bevy::prelude::*;
+use shared::protocol::ChatType;
+
+/// Chat messages the client keeps.
+pub const MAX_CHAT_MESSAGES: usize = 100;
+/// Recent whisper partners the client keeps.
+pub const MAX_RECENT_WHISPER_TARGETS: usize = 10;
 
 /// Built-in chat channel type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -122,7 +129,8 @@ pub fn monster_emote_text(text: &str, sender: &str) -> String {
 }
 
 /// Runtime chat state.
-#[derive(Resource, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct ChatState {
     pub joined_channels: Vec<JoinedChannel>,
     pub messages: Vec<ChatMessage>,
@@ -193,10 +201,42 @@ impl ChatState {
     }
 }
 
+/// Runtime channel of a server chat message. An outgoing whisper (one `local_name` sent)
+/// keeps its recipient as the channel name, for `To [Bob]:`.
+pub fn runtime_chat_channel(
+    channel: &ChatType,
+    sender: &str,
+    local_name: Option<&str>,
+) -> (ChatChannelType, String) {
+    let channel_type = match channel {
+        ChatType::Say => ChatChannelType::Say,
+        ChatType::Yell => ChatChannelType::Yell,
+        ChatType::Party => ChatChannelType::Party,
+        ChatType::Guild => ChatChannelType::Guild,
+        ChatType::Emote => ChatChannelType::Emote,
+        ChatType::System | ChatType::ServerBroadcast => ChatChannelType::System,
+        ChatType::MonsterSay(_) => ChatChannelType::MonsterSay,
+        ChatType::MonsterYell(_) => ChatChannelType::MonsterYell,
+        ChatType::MonsterEmote(_) => ChatChannelType::MonsterEmote,
+        ChatType::RaidBossEmote(_) => ChatChannelType::RaidBossEmote,
+        ChatType::Whisper(target) => {
+            let outgoing = local_name.is_some_and(|name| sender.eq_ignore_ascii_case(name));
+            let partner = if outgoing {
+                target.clone()
+            } else {
+                String::new()
+            };
+            return (ChatChannelType::Whisper, partner);
+        }
+    };
+    (channel_type, String::new())
+}
+
 // --- Whisper state ---
 
 /// Whisper conversation tracking and reply target.
-#[derive(Resource, Clone, Debug, PartialEq, Default)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct WhisperState {
     /// The last player who whispered us (reply target for `/r`).
     pub reply_target: Option<String>,
@@ -216,6 +256,22 @@ impl WhisperState {
     /// Record an outgoing whisper, updating recent list.
     pub fn send_whisper(&mut self, recipient: &str) {
         self.add_recent_target(recipient);
+    }
+
+    /// Record a server whisper: an incoming one sets the reply target.
+    pub fn record_message(
+        &mut self,
+        msg: &shared::protocol::ChatMessage,
+        local_name: Option<&str>,
+    ) {
+        let ChatType::Whisper(target) = &msg.channel else {
+            return;
+        };
+        if local_name.is_some_and(|name| msg.sender.eq_ignore_ascii_case(name)) {
+            self.send_whisper(target);
+        } else {
+            self.receive_whisper(&msg.sender);
+        }
     }
 
     /// Whether there is a reply target available.
@@ -253,7 +309,8 @@ pub enum ChatIntent {
 }
 
 /// Queue of chat intents waiting to be sent to the server.
-#[derive(Resource, Default)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Default)]
 pub struct ChatIntentQueue {
     pub pending: Vec<ChatIntent>,
 }
@@ -642,5 +699,58 @@ mod tests {
             timestamp: 1.0,
         });
         assert_eq!(state.whispers_with("alice").len(), 1);
+    }
+
+    fn server(sender: &str, channel: ChatType) -> shared::protocol::ChatMessage {
+        shared::protocol::ChatMessage {
+            sender: sender.into(),
+            content: "hi".into(),
+            channel,
+        }
+    }
+
+    #[test]
+    fn server_channels_map_to_runtime_channels() {
+        let mapped = |channel: ChatType| runtime_chat_channel(&channel, "Alice", Some("Bob"));
+        assert_eq!(
+            mapped(ChatType::Emote),
+            (ChatChannelType::Emote, String::new())
+        );
+        assert_eq!(
+            mapped(ChatType::ServerBroadcast),
+            (ChatChannelType::System, String::new())
+        );
+        assert_eq!(
+            mapped(ChatType::MonsterSay(7)),
+            (ChatChannelType::MonsterSay, String::new())
+        );
+        // Alice whispering Bob (us) is incoming; our own echo keeps the recipient.
+        assert_eq!(
+            mapped(ChatType::Whisper("Bob".into())),
+            (ChatChannelType::Whisper, String::new())
+        );
+        assert_eq!(
+            runtime_chat_channel(&ChatType::Whisper("Carol".into()), "bob", Some("Bob")),
+            (ChatChannelType::Whisper, "Carol".into())
+        );
+    }
+
+    #[test]
+    fn only_incoming_whispers_set_the_reply_target() {
+        let mut whispers = WhisperState::default();
+        whispers.record_message(
+            &server("Bob", ChatType::Whisper("Carol".into())),
+            Some("Bob"),
+        );
+        assert_eq!(whispers.reply_target, None);
+        assert_eq!(whispers.recent_targets, ["Carol"]);
+        whispers.record_message(&server("Alice", ChatType::Say), Some("Bob"));
+        assert_eq!(whispers.reply_target, None);
+        whispers.record_message(
+            &server("Alice", ChatType::Whisper("Bob".into())),
+            Some("Bob"),
+        );
+        assert_eq!(whispers.reply_target.as_deref(), Some("Alice"));
+        assert_eq!(whispers.recent_targets, ["Alice", "Carol"]);
     }
 }

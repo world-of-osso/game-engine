@@ -192,10 +192,8 @@ fn apply_incoming_chat_message(
 
     let timestamp = game_engine::chat_data::now_timestamp();
     let (channel_type, channel_name) =
-        map_runtime_chat_channel(&msg.channel, &msg.sender, local_name);
-    if channel_type == ChatChannelType::Whisper {
-        update_whisper_state(whisper_state, msg, local_name);
-    }
+        game_engine::chat_data::runtime_chat_channel(&msg.channel, &msg.sender, local_name);
+    whisper_state.record_message(msg, local_name);
     chat_state.add_message(RuntimeChatMessage {
         channel_type,
         channel_name,
@@ -214,56 +212,6 @@ fn should_hide_message(
         return false;
     }
     is_ignored_sender(ignore_list, &msg.sender)
-}
-
-fn map_runtime_chat_channel(
-    channel: &shared::protocol::ChatType,
-    sender: &str,
-    local_name: Option<&str>,
-) -> (ChatChannelType, String) {
-    match channel {
-        shared::protocol::ChatType::Say => (ChatChannelType::Say, String::new()),
-        shared::protocol::ChatType::Yell => (ChatChannelType::Yell, String::new()),
-        shared::protocol::ChatType::Party => (ChatChannelType::Party, String::new()),
-        shared::protocol::ChatType::Guild => (ChatChannelType::Guild, String::new()),
-        shared::protocol::ChatType::Emote => (ChatChannelType::Emote, String::new()),
-        shared::protocol::ChatType::System | shared::protocol::ChatType::ServerBroadcast => {
-            (ChatChannelType::System, String::new())
-        }
-        shared::protocol::ChatType::MonsterSay(_) => (ChatChannelType::MonsterSay, String::new()),
-        shared::protocol::ChatType::MonsterYell(_) => (ChatChannelType::MonsterYell, String::new()),
-        shared::protocol::ChatType::MonsterEmote(_) => {
-            (ChatChannelType::MonsterEmote, String::new())
-        }
-        shared::protocol::ChatType::RaidBossEmote(_) => {
-            (ChatChannelType::RaidBossEmote, String::new())
-        }
-        shared::protocol::ChatType::Whisper(target) => {
-            let is_outgoing = local_name.is_some_and(|name| sender.eq_ignore_ascii_case(name));
-            let channel_name = if is_outgoing {
-                target.clone()
-            } else {
-                String::new()
-            };
-            (ChatChannelType::Whisper, channel_name)
-        }
-    }
-}
-
-fn update_whisper_state(
-    whisper_state: &mut WhisperState,
-    msg: &ChatMessage,
-    local_name: Option<&str>,
-) {
-    let shared::protocol::ChatType::Whisper(target) = &msg.channel else {
-        return;
-    };
-    let is_outgoing = local_name.is_some_and(|name| msg.sender.eq_ignore_ascii_case(name));
-    if is_outgoing {
-        whisper_state.send_whisper(target);
-    } else {
-        whisper_state.receive_whisper(&msg.sender);
-    }
 }
 
 pub(crate) fn apply_rest_state_update(
