@@ -172,8 +172,8 @@ impl FixtureProject {
 
 fn create_fixture_directories(root: &Path, project: &Path, data: &Path) -> Result<(), String> {
     for folder in [
-        project.as_path(),
-        data.as_path(),
+        project,
+        data,
         &data.join("cache"),
         &data.join("models"),
         &data.join("terrain"),
