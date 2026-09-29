@@ -26,6 +26,7 @@ pub mod npc_gear_data;
 mod particles;
 mod player_spells;
 mod scene;
+mod spell_tooltip;
 mod spells;
 mod startup;
 mod targeting;

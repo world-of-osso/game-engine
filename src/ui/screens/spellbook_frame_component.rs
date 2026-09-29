@@ -653,19 +653,31 @@ fn item(item: &SpellbookItemView, rect: [f32; 2], s: f32) -> Element {
     .flatten()
     .collect();
     let button_name = format!("{name}Button");
+    let button_y = (ITEM_H - BUTTON_SIZE) / 2.0 * s;
     let button = match onclick {
         Some(onclick) => rsx! {
-            r#frame {
+            button {
                 name: {DynName(button_name)},
                 width: {BUTTON_SIZE * s},
                 height: {BUTTON_SIZE * s},
                 onclick,
+                button_default_skin: false,
                 pos_type: "absolute",
                 pos_x: 0.0,
-                pos_y: {(ITEM_H - BUTTON_SIZE) / 2.0 * s},
+                pos_y: button_y,
             }
         },
-        None => Vec::new(),
+        None => rsx! {
+            button {
+                name: {DynName(button_name)},
+                width: {BUTTON_SIZE * s},
+                height: {BUTTON_SIZE * s},
+                button_default_skin: false,
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: button_y,
+            }
+        },
     };
     rsx! {
         r#frame {

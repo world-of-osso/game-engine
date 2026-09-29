@@ -112,6 +112,18 @@ func check_spellbook(level: int) -> bool:
 			fail("Battle Shout does not show Level 10")
 			return false
 	await capture("spellbook-level-%d.png" % level)
+	# Hovering Slam's icon shows its GameTooltip: cost/range, cast time, rendered text.
+	var slam_icon := book.find_child("SpellBookItem%dButton" % SLAM, true, false) as Control
+	await move_mouse(slam_icon.get_global_rect().get_center())
+	if not await wait_for(func(s): return s.tooltip.size() >= 3, 3000, "Slam tooltip"):
+		return false
+	var tooltip: PackedStringArray = spells().tooltip
+	print("FIXTURE TOOLTIP ", tooltip)
+	if tooltip[0] != "Slam" or tooltip[1] != "20 Rage|Melee Range" or tooltip[2] != "Instant|" or not tooltip[3].begins_with("Slams an opponent, causing"):
+		fail("Slam tooltip: " + str(tooltip))
+		return false
+	await capture("spellbook-tooltip-level-%d.png" % level)
+	await move_mouse(Vector2(640, 20))
 	push_key(KEY_ESCAPE, true)
 	await wait_frames(2)
 	push_key(KEY_ESCAPE, false)

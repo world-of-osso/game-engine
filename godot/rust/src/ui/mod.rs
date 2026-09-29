@@ -20,6 +20,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 use game_engine_ui_model::main_action_bar_component::{MainActionBarState, main_action_bar_screen};
 use game_engine_ui_model::mirror_timer_component::{MIRROR_TIMER_CONTAINER, mirror_timer_screen};
 use game_engine_ui_model::mirror_timer_data::MirrorTimersData;
+use game_engine_ui_model::spell_tooltip_component::{SpellTooltipState, spell_tooltip_screen};
 use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
@@ -343,6 +344,11 @@ impl RegistryUi {
         self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the spell tooltip.
+    pub fn show_spell_tooltip(&mut self, state: SpellTooltipState) -> Result<(), String> {
+        self.show_viewport_screen(state, spell_tooltip_screen, ScreenPostsetup::None)
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail spellbook.
     pub fn show_spellbook(&mut self, state: SpellbookFrameState) -> Result<(), String> {
         self.show_viewport_screen(state, spellbook_frame_screen, ScreenPostsetup::Spellbook)
@@ -537,6 +543,20 @@ impl RegistryUi {
         }
         model.shared.insert(state);
         self.sync_model()
+    }
+
+    /// Name and screen rect `[x, y, w, h]` of the button under the pointer.
+    pub fn hovered_button(&self) -> Option<(String, [f32; 4])> {
+        let model = self.model.as_ref()?;
+        model.registry.frames_iter().find_map(|frame| {
+            let WidgetData::Button(button) = frame.widget_data.as_ref()? else {
+                return None;
+            };
+            let rect = frame.layout_rect.as_ref()?;
+            let name = frame.name.clone()?;
+            (button.hovered && frame.visible)
+                .then_some((name, [rect.x, rect.y, rect.width, rect.height]))
+        })
     }
 
     pub fn has_frame(&self, name: &str) -> bool {
