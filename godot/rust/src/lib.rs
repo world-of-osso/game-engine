@@ -241,7 +241,10 @@ impl INode3D for GameClient {
                 return;
             }
         }
-        if self.world_map_pointer(&event) || self.spellbook_pointer(&event) {
+        if self.world_map_pointer(&event)
+            || self.spellbook_pointer(&event)
+            || self.merchant_pointer(&event)
+        {
             return;
         }
         if self.game_menu_ui.is_none() {

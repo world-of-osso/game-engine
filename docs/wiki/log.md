@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] ui | Native MerchantFrame placement slice
+
+`MerchantFrame` alone uses selected-character `ui_layout.ron` placement, shared 24-unit title dragging, UI-scale clamp, reopen and Options reset. `ContainerFrame0` and `StackSplitFrame` do not move with it; native Panel L/R ordering and raise parity remain open. Extended owned merchant-click fixture covers vendor ray interaction, saved placement, backpack independence and click-audio behavior. Baseline installed binary at `80d2cbc6` RED on unscaled merchant root; main-owned Depot GREEN pending. Updated [[merchant-frame]] and [window manager spec](../specs/window-manager.md).
+
 ## [2026-09-29] ui | Native SpellBookRoot managed placement implementation
 
 `SpellBookRoot` now uses canonical selected-character window positions and the first Panel slot (16, 104), with title-only drag, logical clamp, save/reopen and reset alongside `WorldMapFrame`. The extended authenticated three-process fixture RED on the old downloaded binary at `a4b86a5e` (missing `SpellBookRoot`). Main-owned Depot build `c66bdfef` passed; the downloaded fixture with corrected script `e0d02e78` exits 0, including MAP_SAVED, MAP_REOPENED, authored reset, and fresh-process checks (full log `data/diagnostics/spellbook-placement-fixture-e0d02e78.log`; it also records listfile-lock and missing-local-CASC diagnostics). Merchant coexistence and left/right panel stacking remain unsupported. Updated [[spellbook-action-bar]], [[world-map]], and [window manager spec](../specs/window-manager.md).

@@ -3,7 +3,7 @@ extends "res://tests/world_spell_click_flow.gd"
 const VENDOR := "Fixture Vendor"
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
 	var endpoint := OS.get_environment("GODOT_TEST_SERVER")
 	var config := OS.get_environment("XDG_CONFIG_HOME")
 	if not endpoint.begins_with("127.0.0.1:") or endpoint.ends_with(":0") or not config.contains("/data/native-reset-fixture-"):
@@ -33,8 +33,15 @@ func run_test() -> void:
 	if bag == null or not bag.is_visible_in_tree():
 		fail("Owned InventorySnapshot did not open the merchant backpack")
 		return
+	if not await check_merchant_placement(client, bag, config):
+		return
+	print("FIXTURE MERCHANT_CLICK_PLACED")
 	var tab := ui.find_child("MerchantFrameTab2", true, false) as Control
+	var saved := merchant_root(client).get_global_rect().position
 	if tab == null or not await assert_click(client, effects, completed, tab, "merchant tab"):
+		return
+	if merchant_root(client).get_global_rect().position.distance_to(saved) > 2:
+		fail("Merchant tab captured title drag")
 		return
 	var close := ui.find_child("MerchantFrameCloseButton", true, false) as Control
 	if close == null or not await assert_click(client, effects, completed, close, "merchant close"):
@@ -42,10 +49,14 @@ func run_test() -> void:
 	if client.merchant_state().open:
 		fail("Merchant close action did not close vendor")
 		return
+	var clicks_after_close: int = completed[0]
 	if not await open_vendor(client, vendor):
 		return
 	await wait_frames(8)
-	if effects.is_playing() or completed[0] != 2:
+	if merchant_root(client).get_global_rect().position.distance_to(saved) > 2:
+		fail("Merchant close/reopen lost saved root position")
+		return
+	if effects.is_playing() or completed[0] != clicks_after_close:
 		fail("Reopening merchant replayed stale pointer effect")
 		return
 	ui = client.get_node_or_null("MerchantUI")
@@ -62,9 +73,96 @@ func run_test() -> void:
 	if effects.is_playing() or completed[0] != before:
 		fail("Release or keyboard close played pointer-only effect")
 		return
+	if not await check_merchant_reset(client, vendor, config):
+		return
 	print("FIXTURE MERCHANT_CLICK_DONE")
 	client.free()
 	quit(0)
+
+func merchant_root(client: Node) -> Control:
+	var ui := client.get_node_or_null("MerchantUI")
+	return ui.find_child("MerchantFrame", true, false) as Control if ui != null else null
+
+func check_merchant_placement(client: Node, bag: Control, config: String) -> bool:
+	var frame := merchant_root(client)
+	var scale := frame.get_global_transform().get_scale().x
+	if absf(scale - 1.25) > 0.01 or frame.get_global_rect().position.distance_to(Vector2(16, 104) * scale) > 2:
+		fail("Merchant default placement or effective UI scale incorrect: " + str(frame.get_global_rect()))
+		return false
+	var bag_rect := bag.get_global_rect()
+	var start := frame.get_global_rect().position + Vector2(105, 12)
+	await drag_title(start, start + Vector2(85, 35))
+	var moved := frame.get_global_rect().position
+	if moved.distance_to(Vector2(16, 104) * scale + Vector2(85, 35)) > 2 or bag.get_global_rect() != bag_rect:
+		fail("Merchant title move shifted backpack or did not move root: " + str(moved))
+		return false
+	var layout := FileAccess.get_file_as_string(config.path_join("world-of-osso/ui_layout.ron"))
+	if not layout.contains("MerchantFrame") or not layout.contains('"17"') or not layout.contains('"18"') or not layout.contains("(75.0,80.0)"):
+		fail("Merchant position not saved for selected character or another character changed: " + layout)
+		return false
+	if not await check_merchant_clamp(frame, bag, bag_rect):
+		return false
+	return true
+
+func check_merchant_clamp(frame: Control, bag: Control, original_bag: Rect2) -> bool:
+	root.size = Vector2i(900, 600)
+	await wait_frames(5)
+	var rect := frame.get_global_rect()
+	var limit := Vector2(root.size) - rect.size
+	if rect.position.distance_to(Vector2(minf(105.0, limit.x), minf(165.0, limit.y))) > 2:
+		fail("Merchant saved position did not clamp at scaled viewport: " + str(rect))
+		return false
+	root.size = Vector2i(1920, 1080)
+	await wait_frames(5)
+	if frame.get_global_rect().position.distance_to(Vector2(105, 165)) > 2 or bag.get_global_rect() != original_bag:
+		fail("Merchant restored placement or backpack changed after resize")
+		return false
+	return true
+
+func drag_title(start: Vector2, target: Vector2) -> void:
+	pointer_at(start, MOUSE_BUTTON_LEFT, true)
+	await process_frame
+	var motion := InputEventMouseMotion.new()
+	motion.position = target
+	motion.relative = target - start
+	root.push_input(motion, true)
+	await process_frame
+	pointer_at(target, MOUSE_BUTTON_LEFT, false)
+	await process_frame
+
+func check_merchant_reset(client: Node, vendor: Dictionary, config: String) -> bool:
+	if not await reset_merchant_options(client, config):
+		return false
+	if not await open_vendor(client, vendor):
+		return false
+	var frame := merchant_root(client)
+	if frame.get_global_rect().position.distance_to(Vector2(16, 104) * frame.get_global_transform().get_scale().x) > 2:
+		fail("Reset merchant reopened at saved instead of default position")
+		return false
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	return true
+
+func reset_merchant_options(client: Node, config: String) -> bool:
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	if not await wait_menu(client):
+		return false
+	await click_menu_action(client, "MenuBtnOptions")
+	var menu := client.get_node_or_null("GameMenuUI")
+	await click(menu.find_child("OptionsTabinterface", true, false) as Control)
+	await click(menu.find_child("ActionButtonreset_window_positions", true, false) as Control)
+	var layout := FileAccess.get_file_as_string(config.path_join("world-of-osso/ui_layout.ron"))
+	var options := FileAccess.get_file_as_string(config.path_join("world-of-osso/options_settings.ron"))
+	if layout.contains('"17"') or not layout.contains('"18"') or not layout.contains("(75.0,80.0)") or not options.contains("modal_offset:Some((80.0,-32.0))"):
+		fail("Merchant reset changed other character or Options modal: " + layout + " / " + options)
+		return false
+	await click(menu.find_child("OptionsDoneButton", true, false) as Control)
+	if client.get_node_or_null("GameMenuUI") != null:
+		await click_menu_action(client, "MenuBtnResume")
+	return true
 
 func wait_world(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
