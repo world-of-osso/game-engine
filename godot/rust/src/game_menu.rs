@@ -13,7 +13,8 @@ use game_engine_ui_model::{
         ACTION_ADDONS, ACTION_EXIT, ACTION_LOGOUT, ACTION_OPTIONS, ACTION_RESUME, ACTION_SUPPORT,
     },
     options_menu_component::{
-        ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, OPTIONS_DRAG_HANDLE, OptionsCategory,
+        ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, ACTION_RESET_WINDOW_POSITIONS,
+        OPTIONS_DRAG_HANDLE, OptionsCategory,
     },
     options_menu_data::{self as policy, BindingCapture, OptionsModel},
 };
@@ -359,6 +360,12 @@ impl GameClient {
     }
 
     fn dispatch_options_action(&mut self, action: &str) -> Result<bool, String> {
+        if action == ACTION_RESET_WINDOW_POSITIONS {
+            let path = options_path().with_file_name("ui_layout.ron");
+            let character_id = self.account.session.selected_character_id;
+            game_engine_core::ui_layout_data::reset_window_positions(&path, character_id)?;
+            return Ok(true);
+        }
         let model = self
             .game_menu_options
             .as_mut()

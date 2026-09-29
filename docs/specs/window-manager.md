@@ -46,6 +46,11 @@ Implements the framework items "Window classes" and interaction rule 15 of the
 - `tests/unit/window_manager_tests.rs` — class rules, slot/wide/bag placement, raise stacking, sessions, world exit, drag/save/reload per character, clamp at UI scale 4/3, reset.
 - `tests/unit/game_menu_screen_tests.rs` — Escape order and one-press close-all.
 
+## Native Godot boundary
+
+- Options → Interface → Reset Window Positions removes only the authenticated, selected server character ID's `window_positions` entry from canonical `ui_layout.ron`. Other characters' positions and account-wide edit-mode layouts remain; Options' own `modal_offset`/`modal_position` in `options_settings.ron` are independent.
+- No native managed-window movement reader/writer exists yet. This action alone does not complete native window-manager parity.
+
 ## Known gaps
 
 - The world map component is authored 1920×1080, larger than the 1000×680 Wide maximum; placement clamps it to (0, 0) instead of resizing it.
