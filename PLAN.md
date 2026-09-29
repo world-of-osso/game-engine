@@ -66,3 +66,6 @@
 - [ ] Refactor `godot/rust/src/spells.rs`: float_combat_text (line 587): 54 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/spells.rs`: spells_snapshot (line 654): 67 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/spells.rs`: File is 776 lines (max 750). Consider splitting it. — extract into helper functions
+- [ ] Refactor `src/ui/screens/spell_tooltip_component.rs`: spell_tooltip_screen (line 76): 50 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_tooltip.rs`: strip_color_escapes (line 140): nesting depth 5 (max 4) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_tooltip.rs`: spell_tooltip_state (line 170): 46 body lines (max 30) — extract into helper functions
