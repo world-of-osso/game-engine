@@ -1,12 +1,15 @@
 extends SceneTree
 
-# Native unit picking through real Godot physics: a click ray selects the unit whose
-# M2-bounds pick shape it crosses, visible world geometry in front occludes it, hidden
-# geometry and hidden units let the ray through, and the default body-only ray used by
-# the camera and ground never hits a pick shape.
+# Native unit picking through real Godot physics: the M2-bounds pick shape is only the
+# broad phase; a click selects the unit whose visible triangle the ray reaches first.
+# A unit inside another unit's oversized box still wins at its own screen point, empty
+# space inside a box selects nothing, hidden batches do not count, visible world
+# geometry in front occludes, hidden geometry and hidden units let the ray through, and
+# the default body-only ray used by the camera and ground never hits a pick shape.
 
 const UNIT := 4242
 const OTHER := 7
+const PLAYER := 99
 
 var failed := false
 
@@ -52,6 +55,22 @@ func run_test() -> void:
 	await physics_frames(2)
 	expect_pick(camera, center, UNIT, "unit in front of a wall")
 
+	# A player beside the ray whose header box (like HD human male's) encloses the
+	# unit behind it and the camera: only its drawn body picks it.
+	var player := model_with_bounds(Vector3(1.2, 0, 4), Vector3(0.6, 2, 0.6), AABB(Vector3(-3, 0, -6), Vector3(6, 3, 12)))
+	world.add_child(player)
+	UnitPicker.attach(player, PLAYER)
+	await physics_frames(2)
+	expect_pick(camera, center, UNIT, "unit inside the player's box")
+	expect_pick(camera, camera.unproject_position(Vector3(0.6, 1, 4)), null, "empty space inside the player's box")
+	var body := camera.unproject_position(Vector3(1.2, 1, 4))
+	expect_pick(camera, body, PLAYER, "the player's own body")
+	player.get_node("Body").visible = false
+	await physics_frames(2)
+	expect_pick(camera, body, null, "the player's hidden batch")
+	player.queue_free()
+	await physics_frames(2)
+
 	var front := model_with_bounds(Vector3(0, 0, 3))
 	world.add_child(front)
 	UnitPicker.attach(front, OTHER)
@@ -72,12 +91,20 @@ func run_test() -> void:
 	print("FIXTURE TARGET_PICK_OCCLUSION_DONE")
 	quit(0)
 
-# Stand-in for an M2 model root: the loader stores its header box in model axes.
-func model_with_bounds(position: Vector3) -> Node3D:
+# Stand-in for an M2 model root: the loader stores its header box in model axes; a
+# box mesh of `size` standing on the origin is its drawn geometry.
+func model_with_bounds(position: Vector3, size := Vector3(1, 2, 1), bounds := AABB(Vector3(-0.5, 0, -0.5), Vector3(1, 2, 1))) -> Node3D:
 	var model := Node3D.new()
 	model.name = "NpcModel"
 	model.position = position
-	model.set_meta("m2_bounds", AABB(Vector3(-0.5, 0, -0.5), Vector3(1, 2, 1)))
+	model.set_meta("m2_bounds", bounds)
+	var body := MeshInstance3D.new()
+	body.name = "Body"
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	body.mesh = mesh
+	body.position = Vector3(0, size.y / 2, 0)
+	model.add_child(body)
 	return model
 
 func wall_at(position: Vector3) -> StaticBody3D:

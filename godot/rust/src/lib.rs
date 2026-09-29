@@ -38,6 +38,7 @@ mod swim;
 mod targeting;
 mod terrain;
 mod ui;
+mod unit_pick;
 mod wmo;
 mod world;
 mod world_map;
