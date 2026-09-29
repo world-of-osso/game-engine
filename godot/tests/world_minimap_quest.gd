@@ -129,6 +129,12 @@ func check_rendered_map() -> bool:
 	var image := root.get_texture().get_image()
 	var display := client.get_node("MinimapUI").find_child("MinimapDisplay", true, false) as Control
 	var rect := display.get_global_rect()
+	# Minimap 198×198 in MinimapCluster TOPRIGHT (0, 0): container TOP (+10, −30), map centred.
+	var scale := float(root.size.x) / float(client.objective_tracker_state().screen_width)
+	var expected := Rect2(Vector2(root.size.x - 217.0 * scale, 44.0 * scale), Vector2(198.0, 198.0) * scale)
+	if rect.position.distance_to(expected.position) > 1.0 or rect.size.distance_to(expected.size) > 1.0:
+		fail("Minimap drawn at %s, expected %s" % [rect, expected])
+		return false
 	for uv in [Vector2(0.3, 0.5), Vector2(0.7, 0.5), Vector2(0.5, 0.3), Vector2(0.5, 0.72)]:
 		var point: Vector2 = rect.position + rect.size * uv
 		var drawn := image.get_pixelv(Vector2i(point))
