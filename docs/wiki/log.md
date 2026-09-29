@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] fix | Native particle-density placement snapshot
+
+`godot/rust/src/particles.rs` captures pool density when placing doodad emitters; `TerrainObjects` updates only the default after Options saves. Existing placements keep their rate, and `NO_GLOBAL_SCALE` ignores density. Controlled portal RED at `cf84a712` recorded existing 484→484.22 and new 462.67 after Options 100→10 (`data/diagnostics/portal-density-red-cf84a712.log`, exit 101). Depot GREEN is pending. See [[godot-conversion]] and [M2 particle spec](../specs/m2-particles.md).
+
 ## [2026-09-29] verification | Native persisted M2-particle startup gate
 
 Merged `d23012b4` + `e5671528` prove the persisted `particleEffectsEnabled` startup boundary through the downloaded Depot `d1q5w3x6v3` fixture and authenticated Azeroth `GameClient`. Both runs exit 0: actual placed `sw_magicdistrict` MODD 1112 portal meshes have no particle pools/emitter state when disabled; enabled has six positive MultiMesh visible-instance counts (42, 21, 21, 21, 21, 2; 143 total; scene totals 711 pools/emitters). Evidence: `data/diagnostics/portal-particles-depot-build-e5671528.log` and `data/diagnostics/portal-particles-{disabled,enabled}-e5671528.log`. This is headless runtime state proof only—not pixels, audibility, live-toggle behavior, density, or full Godot parity. Updated [M2 particles](../specs/m2-particles.md) and the [parity matrix](../specs/godot-parity-matrix.md).

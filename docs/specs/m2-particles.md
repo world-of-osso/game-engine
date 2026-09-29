@@ -10,7 +10,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 
 ### Simulation
 - [x] Spawn per WWV `CPlaneGenerator` (type 1) and `CSphereGenerator` (type 2), in the WWV random-stream order; other types are not simulated.
-- [x] Accumulate emission at (rate + variation) × particle density, capped by the pool; `particleDensity` scales the rate except for flag 0x02000000.
+- [x] Accumulate emission at (rate + variation) × particle density, capped by the pool; `particleDensity` scales the rate except for flag 0x02000000. An Options density change sets the default for subsequent placements; existing placements keep their registered rate, without recreating pools.
 - [x] Advance ballistically with drag, gravity and wind (while age < windTime). Model-space emitters (0x10) simulate in the emitter frame; others in world axes, with WoW gravity converted.
 - [x] Replay long gaps in 0.1 s steps, at most one lifespan of them.
 - [x] Retire a particle after its seed-varied lifespan; sample the lifetime ramps at age / maximum lifespan; apply seed-based size variation, random atlas cell (0x10000), twinkle, spin and inherited scale (0x20).
@@ -48,7 +48,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD). The sha
 - `godot/tests/particle_blend_pixels.gd` — GPU pixels for blend 0-7, colour tint and fade.
 - `godot/tests/wmo_doodads_flow.gd` — portal pools empty while Jail01 is culled, all six drawing at the trigger.
 - `godot/tests/world_portal_particles_flow.gd` via `native_input_fixture portal-particles-{disabled,enabled}` — persisted startup setting in an authenticated Azeroth 30_48 GameClient, with actual placed `sw_magicdistrict` MODD 1112 portal meshes in both modes. At `d23012b4` + `e5671528`, disabled has no particle pools/emitter state; enabled has all six pools with visible-instance counts 42, 21, 21, 21, 21, and 2 (143 total; scene totals 711 pools/emitters). Depot fixture/build and both runtime logs exit 0 at `data/diagnostics/portal-particles-{depot-build,disabled,enabled}-e5671528.log`. This headless state proof excludes pixels, audibility, live toggling, and density.
-- `godot/tests/world_portal_density_flow.gd` via `native_input_fixture portal-density` — pending RED: controlled disposable copy of portal 197007 with only `NO_GLOBAL_SCALE` cleared; sampled visible quads before/after real Options 100→10 and after owned same-map `NewWorld`. This is density-sensitive fixture proof, not retail asset parity. No runtime result yet.
+- `godot/tests/world_portal_density_flow.gd` via `native_input_fixture portal-density` — controlled disposable copy of portal 197007 with only `NO_GLOBAL_SCALE` cleared; samples visible quads before/after real Options 100→10 and after owned same-map `NewWorld`. RED at `cf84a712` (`data/diagnostics/portal-density-red-cf84a712.log`, exit 101): existing placement 484→484.22, fresh placement 462.67 instead of below 30% of baseline. GREEN for the production fix remains pending Depot build and fixture run; this is density-sensitive fixture proof, not retail asset parity.
 
 ## Known gaps (current cycle)
 

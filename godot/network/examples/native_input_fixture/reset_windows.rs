@@ -173,7 +173,12 @@ impl FixtureProject {
     }
 
     pub(super) fn stage_density_sensitive_portal(&self, repo: &Path) -> Result<(), String> {
-        let original = locate_canonical_data_from_git(repo)?.join("models/197007.m2");
+        let authored_data = locate_canonical_data_from_git(repo)?;
+        link_required(
+            &authored_data.join("reference"),
+            &self.root.join("data/reference"),
+        )?;
+        let original = authored_data.join("models/197007.m2");
         let staged = self.root.join("data/models/197007.m2");
         let source =
             fs::read(&original).map_err(|error| format!("Read {}: {error}", original.display()))?;
