@@ -151,21 +151,51 @@ func target_dummy() -> bool:
 		return false
 	return await face_target()
 
-## Turn with A/D until the target is ahead.
+## Right-drag (mouse look turns the player) until the target is ahead; the radians per
+## pixel are measured from the first drag.
 func face_target() -> bool:
-	for step in range(200):
+	var center := Vector2(640, 300)
+	var gain := 0.0
+	for step in range(40):
 		var angle := angle_to_target()
-		if absf(angle) < 0.25:
+		if absf(angle) < 0.2:
 			await wait_frames(10)
 			print("FIXTURE FACING %.3f target=%s" % [angle_to_target(), client.target_state()])
 			return true
-		var key := KEY_A if angle > 0 else KEY_D
-		push_key(key, true)
-		await wait_frames(2)
-		push_key(key, false)
-		await wait_frames(2)
+		var pixels := 40.0 if gain == 0.0 else clampf(-angle / gain, -300.0, 300.0)
+		await drag(center, center + Vector2(pixels, 0), MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MASK_RIGHT)
+		await wait_frames(10)
+		var turned := wrapf(angle_to_target() - angle, -PI, PI)
+		if gain == 0.0 and absf(turned) > 0.001:
+			gain = turned / pixels
 	fail("Could not face the target: %.3f" % angle_to_target())
 	return false
+
+func drag(from: Vector2, to: Vector2, button: MouseButton, mask: int) -> void:
+	await move_mouse(from)
+	var down := InputEventMouseButton.new()
+	down.position = from
+	down.global_position = from
+	down.button_index = button
+	down.pressed = true
+	root.push_input(down, true)
+	await wait_frames(2)
+	for step in range(1, 5):
+		var point := from.lerp(to, float(step) / 4)
+		var motion := InputEventMouseMotion.new()
+		motion.position = point
+		motion.global_position = point
+		motion.relative = (to - from) / 4
+		motion.button_mask = mask
+		root.push_input(motion, true)
+		await wait_frames(1)
+	var up := InputEventMouseButton.new()
+	up.position = to
+	up.global_position = to
+	up.button_index = button
+	up.pressed = false
+	root.push_input(up, true)
+	await wait_frames(2)
 
 ## DPS_BOLTS Frostbolts; each must land (its damage line arrives) before the next.
 func fight(what: String) -> bool:
@@ -176,6 +206,8 @@ func fight(what: String) -> bool:
 			return false
 		if not await wait_until(func(): return logged[combat_index] > before, 8000, "%s Frostbolt %d lands" % [what, bolt + 1]):
 			return false
+		var state: Dictionary = client.damage_meter_state()
+		print("FIXTURE BOLT %s %d at %d ms logged=%d current=%s" % [what, bolt + 1, Time.get_ticks_msec(), logged[combat_index], state.get("current", {}).get("session_id", 0)])
 	# The last line's snapshot follows within the server's 1 s interval.
 	await wait_real(1.5)
 	return true
