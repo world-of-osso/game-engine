@@ -267,12 +267,12 @@ impl UiProjection {
     fn connect_input(&self, frame: &Frame, node: &mut Gd<Control>) {
         let pending = &self.pending;
         match frame.widget_type {
-            WidgetType::Frame if frame.onclick.is_some() => {
-                connect_frame_click(pending, frame.id, node)
-            }
             WidgetType::Button => connect_button(pending, frame.id, node),
             WidgetType::EditBox => connect_edit_box(pending, frame.id, node),
             WidgetType::Slider => connect_slider(pending, &self.slider_capture, frame.id, node),
+            // Frames, textures and font strings with an `onclick` click as in the Bevy
+            // toolkit (tracker minimize buttons, minimap zone text and zoom buttons).
+            _ if frame.onclick.is_some() => connect_frame_click(pending, frame.id, node),
             _ => {}
         }
     }
@@ -344,7 +344,14 @@ impl UiProjection {
             images: parts::project_images(frame, rect.width, rect.height),
             text: parts::project_button_text(frame),
         };
-        if self.visuals.get(&frame.id) != Some(&visual) {
+        // A dynamic texture keeps its source when its pixels change; the registry marks
+        // the frames that draw it dirty, so re-read those.
+        let dynamic_redraw = registry.render_dirty.contains(&frame.id)
+            && visual
+                .images
+                .iter()
+                .any(|part| matches!(part.source, Some(TextureSource::Dynamic(_))));
+        if dynamic_redraw || self.visuals.get(&frame.id) != Some(&visual) {
             self.sync_parts(&node, &visual, registry)?;
             self.visuals.insert(frame.id, visual);
         }
