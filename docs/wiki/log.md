@@ -2,7 +2,7 @@
 
 ## [2026-09-29] investigation | Depot cross-worktree Cargo freshness
 
-A build from worktree A, then older B, then A failed with `E0425` although A's exact source was snapshotted. The stale state was the shared Cargo target cache. `e4b213a8` refreshes staged compile-input timestamps only after obtaining the shared target lock; the repeated A/B/A sequence rebuilt dependencies and passed. The first full refreshed Options build passed in 49.274 s (`003c4ttwqh` / `cpw7crx3ww`) and installed the 272,736,240-byte extension. Local extension-load verification is pending. Cleanup's 98.28 GB allocated-cache result is not treated as physical-space reclamation.
+A build from worktree A, then older B, then A failed with `E0425` although A's exact source was snapshotted. The stale state was the shared Cargo target cache. `e4b213a8` refreshes staged compile-input timestamps only after obtaining the shared target lock; the repeated A/B/A sequence rebuilt dependencies and passed. The first full refreshed Options build passed in 49.274 s (`003c4ttwqh` / `cpw7crx3ww`) and installed the 272,736,240-byte extension. Verifier 954 then isolated pinned Godot 4.7.2 and proved `GameClient` registration, `Node3D` instantiation, and scene-tree attachment; this is bounded class-load proof only. Cleanup's 98.28 GB allocated-cache result is not treated as physical-space reclamation.
 
 Added [[depot-cross-worktree-freshness]]; updated [Remote Godot builds](../remote-builds.md) and [[godot-conversion]].
 
