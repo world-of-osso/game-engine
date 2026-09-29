@@ -1,12 +1,150 @@
 //! Authenticated authored Options reset and canonical config persistence boundary.
 use super::*;
 
+pub(super) struct FixtureProject {
+    root: PathBuf,
+    pub(super) project: PathBuf,
+}
+
+impl FixtureProject {
+    pub(super) fn create(repo: &Path) -> Result<Self, String> {
+        let source = repo.join("godot");
+        let root = repo
+            .join("data")
+            .join(format!("native-reset-fixture-{}", std::process::id()));
+        let project = root.join("godot");
+        let data = root.join("data");
+        for folder in [
+            project.as_path(),
+            data.as_path(),
+            &data.join("cache"),
+            &data.join("models"),
+            &data.join("terrain"),
+            &data.join("textures"),
+            &root.join("user-data"),
+        ] {
+            fs::create_dir_all(folder)
+                .map_err(|error| format!("Create {}: {error}", folder.display()))?;
+        }
+        for name in ["models", "terrain", "textures"] {
+            stage_asset_tree(&repo.join("data").join(name), &data.join(name))?;
+        }
+        for name in [
+            "customization.sqlite",
+            "char_texture.sqlite",
+            "creature_display.sqlite",
+            "npc_appearance.sqlite",
+        ] {
+            let original = repo.join("data/cache").join(name);
+            fs::copy(&original, data.join("cache").join(name))
+                .map_err(|error| format!("Stage {}: {error}", original.display()))?;
+        }
+        for name in ["glues", "fonts", "ui", "db2", "dbfilesclient"] {
+            link_required(&repo.join("data").join(name), &data.join(name))?;
+        }
+        for name in [
+            "AreaTable.csv",
+            "Light.csv",
+            "LightData.csv",
+            "WarbandScene.csv",
+            "WarbandScenePlacement.csv",
+            "WarbandScenePlacementOption.csv",
+            "music_zone_links.csv",
+            "music_manifest.csv",
+            "community-listfile.csv",
+        ] {
+            link_required(&repo.join("data").join(name), &data.join(name))?;
+        }
+        for name in ["project.godot", "scenes", "shaders", "tests", "ui"] {
+            link_required(&source.join(name), &project.join(name))?;
+        }
+        fs::copy(
+            source.join("game_engine.gdextension"),
+            project.join("game_engine.gdextension"),
+        )
+        .map_err(|error| format!("Stage Godot extension manifest: {error}"))?;
+        fs::create_dir_all(project.join(".godot"))
+            .map_err(|error| format!("Create Godot extension cache: {error}"))?;
+        fs::write(
+            project.join(".godot/extension_list.cfg"),
+            "res://game_engine.gdextension\n",
+        )
+        .map_err(|error| format!("Register extension manifest: {error}"))?;
+        link_required(&repo.join("target"), &root.join("target"))?;
+        stage_fixture_csv(&data)?;
+        Ok(Self { root, project })
+    }
+
+    pub(super) fn root_path(&self) -> &Path {
+        &self.root
+    }
+}
+
+impl Drop for FixtureProject {
+    fn drop(&mut self) {
+        if let Err(error) = fs::remove_dir_all(&self.root) {
+            eprintln!("Remove reset fixture {}: {error}", self.root.display());
+        }
+    }
+}
+
+fn link_required(source: &Path, target: &Path) -> Result<(), String> {
+    if !source.exists() {
+        return Err(format!(
+            "Required reset fixture asset missing: {}",
+            source.display()
+        ));
+    }
+    std::os::unix::fs::symlink(source, target)
+        .map_err(|error| format!("Link {}: {error}", source.display()))
+}
+
+fn stage_asset_tree(source: &Path, target: &Path) -> Result<(), String> {
+    for entry in
+        fs::read_dir(source).map_err(|error| format!("Read {}: {error}", source.display()))?
+    {
+        let entry = entry.map_err(|error| format!("Read {} entry: {error}", source.display()))?;
+        let destination = target.join(entry.file_name());
+        if entry.path().is_dir() {
+            fs::create_dir(&destination)
+                .map_err(|error| format!("Create {}: {error}", destination.display()))?;
+            stage_asset_tree(&entry.path(), &destination)?;
+        } else if entry.path().is_file() {
+            link_required(&entry.path(), &destination)?;
+        }
+    }
+    Ok(())
+}
+
+fn stage_fixture_csv(data: &Path) -> Result<(), String> {
+    for (name, contents) in [
+        (
+            "ZoneLight.csv",
+            "ID,MapID,LightID,TransitionType,Zmin,Zmax\n1,99999,1,0,-100,100\n",
+        ),
+        ("ZoneLightPoint.csv", "ZoneLightID,PointOrder,Pos_0,Pos_1\n"),
+        (
+            "ChrCustomizationReq.csv",
+            "ID,ReqType,ClassMask,ReqAchievementID,ReqQuestID,ReqItemModifiedAppearanceID,RaceMasks_0,RaceMasks_1\n",
+        ),
+        (
+            "ChrCustomizationReqChoice.csv",
+            "ID,ChrCustomizationChoiceID,ChrCustomizationReqID\n",
+        ),
+    ] {
+        fs::write(data.join(name), contents)
+            .map_err(|error| format!("Stage reset fixture {name}: {error}"))?;
+    }
+    Ok(())
+}
+
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
     lines: Receiver<String>,
     readers: Vec<thread::JoinHandle<()>>,
     config: &Path,
+    project: &Path,
 ) -> Result<(), String> {
     let mut selected = None;
     let mut remote = None;
@@ -37,7 +175,7 @@ pub(super) fn run(
                 return Err("Reset fixture did not authenticate and load world".into());
             }
             verify_saved_layout(config)?;
-            return verify_fresh_process(config);
+            return verify_fresh_process(config, project);
         }
         thread::sleep(TICK);
     }
@@ -87,11 +225,7 @@ fn verify_saved_layout(config: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn verify_fresh_process(config: &Path) -> Result<(), String> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(Path::parent)
-        .expect("fixture checkout root");
+fn verify_fresh_process(config: &Path, project: &Path) -> Result<(), String> {
     let binary = std::env::var_os("GODOT_BIN")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
@@ -100,9 +234,16 @@ fn verify_fresh_process(config: &Path) -> Result<(), String> {
         });
     let output = Command::new(binary)
         .args(["--headless", "--path"])
-        .arg(root.join("godot"))
+        .arg(project)
         .args(["--script", "res://tests/options_reset_windows.gd"])
         .env("XDG_CONFIG_HOME", config)
+        .env(
+            "XDG_DATA_HOME",
+            project
+                .parent()
+                .expect("isolated project root")
+                .join("user-data"),
+        )
         .env("GODOT_TEST_RESET_VERIFY", "1")
         .output()
         .map_err(|error| format!("relaunch Reset verification: {error}"))?;

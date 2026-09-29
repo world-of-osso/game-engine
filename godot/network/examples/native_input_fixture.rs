@@ -243,11 +243,15 @@ impl Drop for FixtureConfig {
 
 fn launch_godot(
     root: &Path,
+    project: &Path,
     config: &FixtureConfig,
     address: SocketAddr,
     screen: StartupScreen,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
-    let binary = if matches!(screen, StartupScreen::Sound | StartupScreen::Footsteps) {
+    let binary = if matches!(
+        screen,
+        StartupScreen::Sound | StartupScreen::Footsteps | StartupScreen::ResetWindows
+    ) {
         std::env::var_os("GODOT_BIN")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
@@ -257,7 +261,6 @@ fn launch_godot(
     } else {
         root.join("target/debug/game-engine-launcher")
     };
-    let project = root.join("godot");
     let display_args: &[&str] = if std::env::var("GODOT_TEST_VISUAL").as_deref() == Ok("1") {
         &["--display-driver", "wayland", "--audio-driver", "Dummy"]
     } else {
@@ -285,7 +288,10 @@ fn launch_godot(
             },
         ])
         .args(
-            if matches!(screen, StartupScreen::Sound | StartupScreen::Footsteps) {
+            if matches!(
+                screen,
+                StartupScreen::Sound | StartupScreen::Footsteps | StartupScreen::ResetWindows
+            ) {
                 &["--"][..]
             } else {
                 &[][..]
@@ -319,6 +325,13 @@ fn launch_godot(
         )
         .env("CARGO", env!("CARGO"))
         .env("XDG_CONFIG_HOME", &config.home)
+        .env(
+            "XDG_DATA_HOME",
+            project
+                .parent()
+                .expect("Godot project root")
+                .join("user-data"),
+        )
         .env("GODOT_TEST_SERVER", address.to_string())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1082,21 +1095,34 @@ fn main() {
         .and_then(Path::parent)
         .expect("checkout root above Godot network workspace");
     let launcher = root.join("target/debug/game-engine-launcher");
-    if !matches!(screen, StartupScreen::Sound | StartupScreen::Footsteps) {
+    if !matches!(
+        screen,
+        StartupScreen::Sound | StartupScreen::Footsteps | StartupScreen::ResetWindows
+    ) {
         assert!(
             launcher.is_file(),
             "build root launcher first: missing {}",
             launcher.display()
         );
     }
-    let config = FixtureConfig::create(root, screen);
-    let (mut child, lines, reader) = launch_godot(root, &config, address, screen);
+    let reset_project = (screen == StartupScreen::ResetWindows).then(|| {
+        reset_windows::FixtureProject::create(root)
+            .expect("stage isolated reset data and Godot project")
+    });
+    let project = reset_project
+        .as_ref()
+        .map_or_else(|| root.join("godot"), |fixture| fixture.project.clone());
+    let config_root = reset_project
+        .as_ref()
+        .map_or(root, |fixture| fixture.root_path());
+    let config = FixtureConfig::create(config_root, screen);
+    let (mut child, lines, reader) = launch_godot(root, &project, &config, address, screen);
     let result = if screen == StartupScreen::Swimming {
         swimming::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Menu {
         menu::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::ResetWindows {
-        reset_windows::run(&mut app, &mut child, lines, reader, &config.home)
+        reset_windows::run(&mut app, &mut child, lines, reader, &config.home, &project)
     } else if screen == StartupScreen::Logout {
         logout::run(&mut app, &mut child, lines, reader, root, address)
     } else if screen == StartupScreen::Sound {
