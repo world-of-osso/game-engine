@@ -11,9 +11,12 @@ extends SceneTree
 ##                               and the impact model 1599028 with the dummy's wound (9)
 ## Tab targets the nearest dummy. Selecting it never attacks (TrinityCore
 ## HandleSetSelectionOpcode only sets the selection): for SELECTION_SECS neither unit
-## plays a melee clip. The warrior then uses its Attack action (88163, whose
-## SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK makes the client send `AttackSwing`),
-## and auto-attack must play its Attack1H swing (17, Worn Shortsword) and the dummy's
+## plays a melee clip. The warrior right-clicks the dummy in melee range (`AttackSwing`;
+## the pick raycasts drawn triangles, so the warrior's own box cannot swallow it, and
+## its own body still picks it), Escape clears the target and stops the swings
+## (`AttackStop`), a left-click selects the dummy again without attacking, and the
+## Attack action (88163, SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK) restarts
+## auto-attack. Auto-attack must play the warrior's Attack1H swing (17, Worn Shortsword) and the dummy's
 ## CombatWound (9). The mage must show no swing (16-19) and the dummy no wound or
 ## crit reaction until its Frostbolt lands. Slam (key 1) must play the
 ## one-hand visual's CombatAbility1H01 (818) and put its impact model 1283017 on the
@@ -141,13 +144,10 @@ func run_test() -> void:
 			client.free()
 			quit(0)
 		return
-	# The Attack action: auto-attack, its swings and the dummy's wound reaction.
-	var attack_slot: int = spells().bar.find(ATTACK)
-	if attack_slot < 0:
-		fail("Attack is not on the main bar: " + str(spells().bar))
+	# Right-click the dummy: auto-attack, its swings and the dummy's wound reaction.
+	if not await right_click_unit(target_id):
 		return
-	await press(BAR_KEYS[attack_slot])
-	if not await wait_until(func(): return client.target_state().auto_attack == target_id, 2000, "Attack action auto-attack request"):
+	if not await wait_until(func(): return client.target_state().auto_attack == target_id, 2000, "right-click auto-attack request"):
 		return
 	if not await wait_until(func(): return saw(local_id, ATTACK_1H) and saw(target_id, COMBAT_WOUND), 15000, "auto-attack Attack1H swing and CombatWound"):
 		return
@@ -155,6 +155,8 @@ func run_test() -> void:
 	# A few more swings on camera before the first ability.
 	await wait_frames(int(OS.get_environment("SPELL_SWING_FRAMES")) if OS.get_environment("SPELL_SWING_FRAMES") != "" else 20)
 	await capture("02-auto-attack-late.png")
+	if not await stop_and_restart_with_attack_action():
+		return
 	if not await wait_for(func(s): return s.power >= SLAM_RAGE, 30000, "rage for Slam"):
 		return
 	await press(KEY_1)
@@ -212,6 +214,74 @@ func no_melee_yet(when: String) -> bool:
 		fail("Auto-attack %s: %s" % [when, client.target_state()])
 		return false
 	print("FIXTURE NO_MELEE ", when, " actions=", seen_actions)
+	return true
+
+## Right-click the unit's body in place. The pick must choose it, and the player's own
+## body must still pick the player.
+func right_click_unit(id: int) -> bool:
+	var camera := root.get_viewport().get_camera_3d()
+	var point := camera.unproject_position(client.unit_transform(id).origin + Vector3.UP)
+	var own := camera.unproject_position(client.unit_transform(local_id).origin + Vector3.UP)
+	var screen := Rect2(Vector2.ZERO, Vector2(root.size))
+	if not screen.has_point(point) or not screen.has_point(own):
+		fail("Off screen: unit at %s, player at %s" % [point, own])
+		return false
+	if UnitPicker.pick(camera, own) != local_id:
+		fail("The player's own body at %s picks %s" % [own, UnitPicker.pick(camera, own)])
+		return false
+	var picked = UnitPicker.pick(camera, point)
+	print("FIXTURE PICK own=", own, " unit=", point, " picked=", picked, " ", client.target_state())
+	if picked != id:
+		fail("The unit at %s picks %s, not %d" % [point, picked, id])
+		return false
+	await move_mouse(point)
+	await mouse_click(point, MOUSE_BUTTON_RIGHT)
+	print("FIXTURE RIGHT_CLICK ", client.target_state())
+	return true
+
+func mouse_click(point: Vector2, button: MouseButton) -> void:
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = button
+		event.pressed = pressed
+		root.push_input(event, true)
+		await wait_frames(2)
+
+## Escape clears the target and stops auto-attack; a left-click reselects the dummy
+## without attacking; the Attack action restarts auto-attack.
+func stop_and_restart_with_attack_action() -> bool:
+	await press(KEY_ESCAPE)
+	if not await wait_until(func(): return client.target_state().target == null and client.target_state().auto_attack == null, 2000, "Escape clears the target and stops auto-attack"):
+		return false
+	# Let the last swing clip finish, then watch two swing intervals.
+	await wait_frames(60)
+	seen_actions.erase(local_id)
+	await wait_frames(int(SELECTION_SECS * 60))
+	if saw(local_id, ATTACK_1H):
+		fail("Swings after the stop: " + str(seen_actions))
+		return false
+	await capture("02b-stopped.png")
+	var camera := root.get_viewport().get_camera_3d()
+	var point := camera.unproject_position(client.unit_transform(target_id).origin + Vector3.UP)
+	await move_mouse(point)
+	await mouse_click(point, MOUSE_BUTTON_LEFT)
+	if not await wait_until(func(): return client.target_state().target == target_id, 2000, "left-click reselects the dummy"):
+		return false
+	await wait_frames(60)
+	if client.target_state().auto_attack != null or saw(local_id, ATTACK_1H):
+		fail("Left-click selection attacked: " + str(client.target_state()))
+		return false
+	var attack_slot: int = spells().bar.find(ATTACK)
+	if attack_slot < 0:
+		fail("Attack is not on the main bar: " + str(spells().bar))
+		return false
+	await press(BAR_KEYS[attack_slot])
+	if not await wait_until(func(): return client.target_state().auto_attack == target_id and saw(local_id, ATTACK_1H), 5000, "Attack action restarts auto-attack"):
+		return false
+	print("FIXTURE STOP_AND_ATTACK_ACTION ", client.target_state())
+	await capture("02c-attack-action.png")
 	return true
 
 func saw(id: int, action: int) -> bool:
