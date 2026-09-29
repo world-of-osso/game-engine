@@ -227,6 +227,17 @@ The portal visual is recorded in [stockade-entrance](../investigations/stockade-
 
 Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x40000), spline and model particles, follow/inherit velocity, TXAC variants, alpha-cutoff discard, lit particles, fog, per-particle depth sorting.
 
+## Native HUD UIParent scale
+
+In-world HUD `RegistryUi` layers are laid out on the Retail UIParent canvas: 768 UI units tall and `width * 768 / height` wide, with the projection root scaled by `height / 768` (`PixelUtil.GetPixelToUIUnitFactor`, Blizzard_SharedXML/PixelUtil.lua:3-6; default uiScale 1). One rule, `godot/rust/src/ui/ui_parent.rs` (`UiParent::for_viewport`, `GameClient::ui_parent`), covers the unit frames, main action bar, casting bar, spellbook, spell tooltip, merchant/backpack/stack split, UIErrors, mirror timers and the game menu. The registry carries the scale in `ui_scale`; layout skips Taffy's whole-unit rounding on a scaled canvas, and `set_state` relays a layer out when the viewport size or scale changes. States that size themselves to the screen (spellbook fit, tooltip clamp) use the UIParent canvas, so hovered-button rects and tooltips share one coordinate space.
+
+Not on UIParent yet (still viewport pixels at scale 1): the world map (fit-to-viewport layout and pixel pointer hit tests in `world_map.rs`), the dungeon-entrance bar (pixel mouse position), nameplates and floating combat text (world-space `Label3D`), and the glue screens (login, character select/create, loading).
+
+TargetFrame placement follows the Retail Modern preset: BOTTOMLEFT to UIParent BOTTOM at (300, 250) (Blizzard_EditMode/Mainline/EditModePresetLayouts.lua:245-257). The shared frame is the 133×51 portrait-off art, not Retail's 232×100 portrait frame (TargetFrame.xml:144), so it is offset (+19, +35) to put its health slot where Retail's 126×20 health bar sits (BOTTOMRIGHT at frame LEFT + (148, 2), TargetFrame.xml:218-220): `TARGET_FRAME_LEFT` 319, `TARGET_FRAME_BOTTOM` 285 in `src/ui/screens/inworld_unit_frames_layout.rs`. The Godot client shows no PlayerFrame, target-of-target or focus frame; the shared PlayerFrame stays in the Bevy central cluster, not at the preset's BOTTOMRIGHT (-300, 250).
+
+Proof: `ui::ui_parent` tests (TargetFrame 939.06,405 124.69×47.81 px at 1280×720; 1408.59,607.5 187.03×71.72 px at 1920×1080; health-bar corner equals Retail's). Live `world_target_flow.gd` on `127.0.0.1:5000` (fb_worldmap, exit 0, `/tmp/claude/world-target.log`) Tab-targets a Training Dummy and asserts the TargetFrame global rect at both sizes (1920×1080 rendered through the window content scale on the 1280×720 headless output); captures `/tmp/claude/target-tab-{1280x720,1920x1080}.png` and `/tmp/claude/dummy-target-*.png` show the frame at the lower middle-right above the scaled action bar. `spellbook_cast.gd` (fb_worldmap, level 1) passes the spellbook, tooltip and action-bar checks on the scaled canvas; its cast step needs the dummy to be the nearest NPC.
+
+
 ## Frame failure policy
 
 `GameClient::process` runs its per-frame steps from one table; each step runs even when an earlier one failed. Errors are typed in `godot/rust/src/frame_error.rs`:
