@@ -40,30 +40,39 @@ const TYPE19_EFFECT_NPC: &str = "Fixture Type19 Effect";
 
 #[derive(Resource, Default)]
 struct Incoming {
-    logins: Vec<LoginRequest>,
-    selections: Vec<SelectCharacter>,
+    logins: Vec<(Entity, LoginRequest)>,
+    selections: Vec<(Entity, SelectCharacter)>,
+    selected_link: Option<Entity>,
 }
 
 fn receive_requests(
-    mut logins: Query<&mut MessageReceiver<LoginRequest>>,
-    mut selections: Query<&mut MessageReceiver<SelectCharacter>>,
+    mut logins: Query<(Entity, &mut MessageReceiver<LoginRequest>)>,
+    mut selections: Query<(Entity, &mut MessageReceiver<SelectCharacter>)>,
     mut incoming: ResMut<Incoming>,
 ) {
-    for mut receiver in &mut logins {
-        incoming.logins.extend(receiver.receive());
+    for (link, mut receiver) in &mut logins {
+        incoming
+            .logins
+            .extend(receiver.receive().map(|request| (link, request)));
     }
-    for mut receiver in &mut selections {
-        incoming.selections.extend(receiver.receive());
+    for (link, mut receiver) in &mut selections {
+        incoming
+            .selections
+            .extend(receiver.receive().map(|request| (link, request)));
     }
 }
 
-fn send<M: network::Message, C: network::Channel>(app: &mut App, message: M) {
-    let world = app.world_mut();
-    let mut sender = world
-        .query::<&mut MessageSender<M>>()
-        .single_mut(world)
-        .expect("one connected fixture sender");
+fn send<M: network::Message, C: network::Channel>(
+    app: &mut App,
+    link: Entity,
+    message: M,
+) -> Result<(), String> {
+    let mut sender = app
+        .world_mut()
+        .get_mut::<MessageSender<M>>(link)
+        .ok_or_else(|| format!("Missing fixture sender on link {link:?}"))?;
     sender.send::<C>(message);
+    Ok(())
 }
 
 fn start_server() -> (App, SocketAddr) {
@@ -500,13 +509,14 @@ fn read_godot_output(
 
 fn respond_to_login(app: &mut App) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().logins);
-    for request in requests {
+    for (link, request) in requests {
         if request.username != "fixture" || request.password != "fixture" || request.token.is_some()
         {
             return Err(format!("Unexpected login: {request:?}"));
         }
         send::<_, AuthChannel>(
             app,
+            link,
             LoginResponse {
                 success: true,
                 token: "fixture-only-token".into(),
@@ -521,7 +531,7 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
                 }],
                 error: None,
             },
-        );
+        )?;
     }
     Ok(())
 }
@@ -532,7 +542,7 @@ fn respond_to_selection(
     npc: &mut Option<Entity>,
 ) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().selections);
-    for request in requests {
+    for (link, request) in requests {
         if request.character_id != 17 || player.is_some() {
             return Err(format!("Unexpected selection: {request:?}"));
         }
@@ -555,22 +565,25 @@ fn respond_to_selection(
             .id();
         *player = Some(spawned);
         *npc = Some(spawn_npc(app, 910010));
+        app.world_mut().resource_mut::<Incoming>().selected_link = Some(link);
         send::<_, TerrainChannel>(
             app,
+            link,
             LoadTerrain {
                 map_name: "azeroth".into(),
                 initial_tile_y: 32,
                 initial_tile_x: 48,
             },
-        );
+        )?;
         send::<_, AuthChannel>(
             app,
+            link,
             EnterWorldResponse {
                 success: true,
                 player_entity: Some(spawned.to_bits()),
                 error: None,
             },
-        );
+        )?;
     }
     Ok(())
 }
@@ -688,14 +701,20 @@ fn run_fixture(
                     phase = 8;
                 }
                 (8, "FIXTURE NPC_RESTORED") => {
+                    let link = app
+                        .world()
+                        .resource::<Incoming>()
+                        .selected_link
+                        .ok_or("No selected fixture link for map change")?;
                     send::<_, TerrainChannel>(
                         app,
+                        link,
                         LoadTerrain {
                             map_name: "kalimdor".into(),
                             initial_tile_y: 32,
                             initial_tile_x: 48,
                         },
-                    );
+                    )?;
                     phase = 9;
                 }
                 (9, "FIXTURE MAP_READY") => {
@@ -908,6 +927,7 @@ fn read_nameplate_fixture_output(
     lines: &Receiver<String>,
     player: &mut Option<Entity>,
     npc: Option<Entity>,
+    completed: &mut bool,
 ) -> Result<(), String> {
     for line in lines.try_iter() {
         if line.contains("SCRIPT ERROR") || line.contains("Account update failed") {
@@ -936,6 +956,7 @@ fn read_nameplate_fixture_output(
                     .despawn(player.take().ok_or("Player missing")?);
             }
             "FIXTURE NAMEPLATE_OPTIONS_DONE" => {
+                *completed = true;
                 println!(
                     "PASS: replicated nameplate authored HUD/Accessibility controls and live nodes"
                 );
@@ -954,6 +975,7 @@ fn run_nameplate_fixture(
 ) -> Result<(), String> {
     let (mut player, mut npc) = (None, None);
     let mut ready = false;
+    let mut completed = false;
     let deadline = Instant::now() + Duration::from_secs(60);
     let mut readers = Some(readers);
     while Instant::now() < deadline {
@@ -970,12 +992,14 @@ fn run_nameplate_fixture(
                 reader.join().map_err(|_| "Godot reader panicked")?;
             }
         }
-        read_nameplate_fixture_output(app, &lines, &mut player, npc)?;
+        read_nameplate_fixture_output(app, &lines, &mut player, npc, &mut completed)?;
         if let Some(status) = status {
-            return if status.success() {
+            return if status.success() && completed {
                 Ok(())
             } else {
-                Err(format!("Nameplate fixture exited {status}"))
+                Err(format!(
+                    "Nameplate fixture exited {status}; completed: {completed}"
+                ))
             };
         }
         thread::sleep(TICK);
