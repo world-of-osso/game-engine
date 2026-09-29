@@ -1,6 +1,14 @@
 use crate::nameplate_visibility_data::{
-    NameplateCvars, PlateUnit, in_combat_with_player, plate_alpha, plate_shown,
+    NameplateCvars, PlateUnit, in_combat_with_player, nameplate_alpha, plate_alpha, plate_shown,
 };
+
+#[test]
+fn camera_body_distance_fades_from_half_limit_and_vanishes_at_limit() {
+    assert_eq!(nameplate_alpha(20.0, 40.0), 1.0);
+    assert_eq!(nameplate_alpha(30.0, 40.0), 0.5);
+    assert_eq!(nameplate_alpha(40.0, 40.0), 0.0);
+    assert_eq!(nameplate_alpha(45.0, 60.0), 0.5);
+}
 
 const LOCAL: u64 = 1;
 const OTHER_PLAYER: u64 = 2;

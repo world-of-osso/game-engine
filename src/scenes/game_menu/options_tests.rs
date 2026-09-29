@@ -1,22 +1,19 @@
 use super::*;
 use bevy::prelude::Vec2;
+use game_engine::input_bindings::{BindingSection, InputAction, InputBindingsData};
 use game_engine::ui::screens::game_menu_component::GameMenuView;
+use game_engine::ui::screens::options_menu_component::OptionsCategory;
 
-fn default_model() -> OverlayModel {
+fn default_model() -> OptionsModel {
     let g = graphics_draft(&GraphicsOptions::default());
     let s = sound_draft(None);
     let c = camera_draft(&CameraOptions::default());
     let h = hud_draft(&HudOptions::default());
-    OverlayModel {
+    OptionsModel {
         logged_in: true,
         view: GameMenuView::Options,
         category: OptionsCategory::Graphics,
         modal_position: [500.0, 180.0],
-        drag_capture: DragCapture::None,
-        drag_origin: Vec2::ZERO,
-        drag_offset: Vec2::ZERO,
-        pressed_action: None,
-        pressed_origin: Vec2::ZERO,
         draft_graphics: g.clone(),
         draft_sound: s.clone(),
         draft_camera: c.clone(),
@@ -25,8 +22,8 @@ fn default_model() -> OverlayModel {
         committed_sound: s,
         committed_camera: c,
         committed_hud: h,
-        draft_bindings: InputBindings::default(),
-        committed_bindings: InputBindings::default(),
+        draft_bindings: InputBindingsData::default(),
+        committed_bindings: InputBindingsData::default(),
         binding_section: BindingSection::Movement,
         binding_capture: BindingCapture::None,
     }
@@ -77,7 +74,7 @@ fn nameplate_thickness_selectors_are_independent_and_apply() {
     apply_hud_snapshot(&mut hud, &snapshot.hud);
     assert_eq!(presets(&hud.nameplate_style), (Thin, Thick));
     assert_eq!(hud.nameplate_style.cast_height, 10.0);
-    let view = hud_to_view(&model.draft_hud);
+    let view = build_view_model(&model).options.hud;
     assert_eq!(presets(&view.nameplate_style), (Thin, Thick));
     model.category = OptionsCategory::Nameplates;
     reset_category_defaults(&mut model);
@@ -321,16 +318,21 @@ fn draft_bindings_assign_updates_mapping() {
 
 #[test]
 fn escape_from_options_returns_to_main_menu() {
-    let mut model = default_model();
-    model.view = GameMenuView::Options;
-    model.drag_capture = DragCapture::Slider(SliderField::MasterVolume);
-    model.pressed_action = Some("leftover".to_string());
+    let mut model = OverlayModel {
+        options: default_model(),
+        drag_capture: DragCapture::Slider(SliderField::MasterVolume),
+        drag_origin: Vec2::ZERO,
+        drag_offset: Vec2::ZERO,
+        pressed_action: Some("leftover".to_string()),
+        pressed_origin: Vec2::ZERO,
+    };
+    model.options.view = GameMenuView::Options;
 
     model.drag_capture = DragCapture::None;
     model.pressed_action = None;
-    model.view = GameMenuView::MainMenu;
+    model.options.view = GameMenuView::MainMenu;
 
-    assert_eq!(model.view, GameMenuView::MainMenu);
+    assert_eq!(model.options.view, GameMenuView::MainMenu);
     assert_eq!(model.drag_capture, DragCapture::None);
     assert!(model.pressed_action.is_none());
 }
@@ -343,7 +345,6 @@ fn escape_during_binding_capture_cancels_without_changing_view() {
 
     if current_capture_action(model.binding_capture).is_some() {
         model.binding_capture = BindingCapture::None;
-        model.pressed_action = None;
     }
 
     assert_eq!(

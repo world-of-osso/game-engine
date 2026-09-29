@@ -469,24 +469,7 @@ fn indicator_facing(camera: Vec3, marker: Vec3, parent: Quat) -> Option<Quat> {
     Some(parent.inverse() * world)
 }
 
-fn nameplate_fade_near(fade_far: f32) -> f32 {
-    (fade_far * 0.5).max(1.0)
-}
-
-/// Compute nameplate alpha based on distance to camera.
-/// Full opacity within half the configured max distance, linear fade to 0
-/// at the configured max distance.
-pub fn nameplate_alpha(distance: f32, fade_far: f32) -> f32 {
-    let fade_far = fade_far.max(1.0);
-    let fade_near = nameplate_fade_near(fade_far);
-    if distance <= fade_near {
-        1.0
-    } else if distance >= fade_far {
-        0.0
-    } else {
-        1.0 - (distance - fade_near) / (fade_far - fade_near)
-    }
-}
+pub use game_engine::nameplate_visibility_data::nameplate_alpha;
 
 fn nameplate_text_color(kind: NameplateKind, colorblind_mode: bool) -> Color {
     if !colorblind_mode {

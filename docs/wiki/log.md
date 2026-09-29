@@ -25,9 +25,81 @@ Added [Remote Godot builds](../remote-builds.md); updated [[godot-conversion]] a
 
 One missing cursor BLP disconnected the Godot client: every frame-step error stopped the account. Only `Account` transport failures (`SessionError`) stop it now; asset failures are logged once and stay absent. See [godot-conversion](systems/godot-conversion.md#frame-failure-policy).
 
+## [2026-09-29] ui | Native MerchantFrame placement slice
+
+`MerchantFrame` alone uses selected-character `ui_layout.ron` placement, shared 24-unit title dragging, UI-scale clamp, reopen and Options reset. `ContainerFrame0` and `StackSplitFrame` do not move with it; native Panel L/R ordering and raise parity remain open. Extended owned merchant-click fixture covers vendor ray interaction, saved placement, backpack independence and click-audio behavior. Baseline installed binary at `80d2cbc6` RED on unscaled merchant root. Main-owned Depot build `70561683` passed with aligned `godot/Cargo.lock` after an initial `--locked` failure; the downloaded binary plus script `9f64af5f` passed the owned UDP fixture (`data/diagnostics/merchant-placement-green-9f64af5f.log`). Updated [[merchant-frame]] and [window manager spec](../specs/window-manager.md).
+
+## [2026-09-29] ui | Native SpellBookRoot managed placement implementation
+
+`SpellBookRoot` now uses canonical selected-character window positions and the first Panel slot (16, 104), with title-only drag, logical clamp, save/reopen and reset alongside `WorldMapFrame`. The extended authenticated three-process fixture RED on the old downloaded binary at `a4b86a5e` (missing `SpellBookRoot`). Main-owned Depot build `c66bdfef` passed; the downloaded fixture with corrected script `e0d02e78` exits 0, including MAP_SAVED, MAP_REOPENED, authored reset, and fresh-process checks (full log `data/diagnostics/spellbook-placement-fixture-e0d02e78.log`; it also records listfile-lock and missing-local-CASC diagnostics). Merchant coexistence and left/right panel stacking remain unsupported. Updated [[spellbook-action-bar]], [[world-map]], and [window manager spec](../specs/window-manager.md).
+
+## [2026-09-29] investigation | Optional Depot fixture export
+
+At `be6aeedb`, `scripts/depot-build.py --root <checkout> --fixture native_input_fixture` completed on Depot project `003c4ttwqh`, build `5nqxfxrzpt`, in 206.042 s. It exported the default library and installed `target/debug/examples/native_input_fixture` beneath the originating checkout. The directly launched downloaded fixture then passed local owned-UDP `sound-click` in 30.787 s. Default builds remain library-only; allowlisted `native_npc_visual_fixture` was not remotely built or run. Verifier 963 is pending. This is bounded build/export and fixture proof, not a performance or parity claim. Evidence: `/home/osso/.worktrees/.game-engine-options-depot-20260929/{fixture-build,exported-fixture-runtime}.log`.
+
+Updated [Remote Godot builds](../remote-builds.md), [[godot-conversion]], and [[depot-cross-worktree-freshness]].
+
+## [2026-09-29] investigation | Depot cross-worktree Cargo freshness
+
+A build from worktree A, then older B, then A failed with `E0425` although A's exact source was snapshotted. The stale state was the shared Cargo target cache. `e4b213a8` refreshes staged compile-input timestamps only after obtaining the shared target lock; the repeated A/B/A sequence rebuilt dependencies and passed. The first full refreshed Options build passed in 49.274 s (`003c4ttwqh` / `cpw7crx3ww`) and installed the 272,736,240-byte extension. Verifier 954 then isolated pinned Godot 4.7.2 and proved `GameClient` registration, `Node3D` instantiation, and scene-tree attachment; this is bounded class-load proof only. Cleanup's 98.28 GB allocated-cache result is not treated as physical-space reclamation.
+
+Added [[depot-cross-worktree-freshness]]; updated [Remote Godot builds](../remote-builds.md) and [[godot-conversion]].
+
+## [2026-09-29] system | Native main action bar HUD visibility
+
+Committed `hud.show_action_bars` now hides the entire cached native main bar without clearing its slots or bound-key casts; restoring it reuses the same node and slot, then restores pointer casting. Owned-UDP `sound-click` passes the hidden-key `SpellCastIntent`, intentional restored click, and subsequent right/release/keyboard/reopen no-replay checks, plus CastStart request/repeat/inactive/reset/mute/removal stages (`/tmp/claude/actionbar-consumer-targeted-green.log`, commit `67e6e430`, base `539f1b86` plus scoped diff). Verifier941 is pending; no independent-pass claim. Updated [[spellbook-action-bar]], [spellbook/action-bar spec](../specs/spellbook-action-bar.md), and the [Godot parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-29] system | Original CombatEvent native outcome audio
+
+Final gate `bf0dfde4` PASS rebuilds `target/debug/libgame_engine_godot.so` and then proves 65 reliable ordered original `CombatEvent` UDP messages reach 65 spatial outcome players exactly once, including beyond the 64-entry `CombatLogEvent` deque. The shared Impact/Heal/Miss/Interrupt PCM and gain policy, ignored/zero/unresolved suppression, master/effects/mute/music behavior, remote removal, and forced-disconnect reset remain covered. Account dispatch preserves direct `CombatEvent` routing before spell-state/log handling; changed routing functions are readability-clean, with only pre-existing whole-file/helper findings. Current-server spell results still send only `CombatLogEvent`; the original producer remains dormant for those results, with no server change, log-event mapping, or fallback. No audible/hardware or full-parity claim. Evidence: `/tmp/claude/verify-native-outcomes-complete.md`. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-29] system | Owned UDP merchant click audio
+
+The owned `native_input_fixture merchant-click` mode ray-picks a replicated vendor and sends `InteractNpc`; only then does its owned UDP server send `InteractionOpened`, `InventorySnapshot`, and `VendorInventory`. The authenticated client's authored buyback-tab and close-button left-down reach its Effects player; right press, release, Escape, and reopen stay quiet. The server observes two opens and two closes. Final exit-0 output: `/tmp/claude/merchant-click-f1609b4e-final.log`. Optional scenery missing-texture diagnostics remain within the explicit fixture exception. Verifier918 independent review is pending. This does not prove all-owner coverage, audible/hardware output, purchase/sale, mutable sound settings, or full parity. Updated [[sound]] and [[merchant-frame]].
+
+## [2026-09-29] system | Owned UDP spell-button click audio
+
+`e8a90de4` drains active spellbook/action-bar and merchant owners into native UI-click playback. The isolated `native_input_fixture sound-click` mode then supplies a replicated local player plus actual `KnownSpellsSnapshot` and `ActionBarSnapshot` over owned UDP. Its final pinned-Godot log records action-bar **finished** and spellbook **active** before release (the assertion accepts either state within 40 ms), both at owned Effects gain `0.44`; right/release/keyboard/reopen remain quiet. Merchant is wired but has no owned real-runtime proof: rejected live attempts and production tests without a sound-observation API do not count. After fresh-cache SQLite contention, `795ec1f3` stages a read-only canonical-cache backup; final runtime has no listfile lock, though optional spell icons remain unavailable in local CASC. `78cf942c` adds the proof; `4580bebb` records it. Evidence: `data/diagnostics/native-spell-click-{build,extension-build,final}.log`. Verifier915 is pending; no independent-pass claim. Audible output, mutable Options gain/mute in this fixture, merchant clicks, and full parity remain unproven. Updated [[sound]] and [[spellbook-action-bar]].
+
 ## [2026-09-28] investigation | Godot WMO doodad cost, global WMO culling, MWDS, doodad light
 
 WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), not node processing; `6cb884ec` halves it. The Stockade global WMO is portal-culled; MODF 0x80 MWDS sets and WWV's WMO doodad light are ported. Updated [[godot-stormwind-fps]], [[wmo-format]], [[wmo-retail-lighting]], [[godot-conversion]].
+
+## [2026-09-28] ui | First native managed WorldMap window
+
+`WorldMapFrame` now uses character-scoped canonical `ui_layout.ron` for saved logical top-left, scaled title dragging and Wide-slot reset. The owned-loopback Options fixture covers effective 5/6-scale drag, canvas right-click navigation/button exclusion, resize clamp, then a second authenticated Godot process renders the saved placement before reset; the reset returns the map to its slot and a third process reads the reset file (`/tmp/claude/world-map-fresh-green-attempt.log`). Simultaneously open map + Options reset remains untested through the user interface. Updated [[world-map]].
+
+## [2026-09-28] ui | Reset fixture authored-input preflight
+
+The isolated Reset Window Positions fixture sources staged inputs from the canonical Git checkout and links real customization requirement/race/equipment data rather than fabricated requirement headers. The `07586b86` run exposed an omitted race-model CSV before reset. A loader-list audit then added all 12 customization/cache source CSVs to the upfront manifest; its targeted missing-input test passes. The equipped-player scenario and reset assertions remain unchanged. At `ba535fcd`, the owned-loopback fixture exits 0 after the authored reset, same-process reload and fresh-process persistence checks (`/tmp/claude/reset-windows-ba535fcd-runtime.log`). Updated [[godot-conversion]].
+
+## [2026-09-29] ui | Native Reset Window Positions
+
+Final bounded review PASS (`/tmp/claude/verify-native-window-reset-final.md`): the authenticated equipped character still loads from canonical authored customization inputs; Reset removes only ID 17's `window_positions`, retains ID 18, account-wide edit layout, and Options modal data, then a fresh process reads the persisted result. Fixture `ZoneLight` rows only provide parseable startup controls (map 99999, no polygon); they do not prove lighting behavior. Native managed-window movement remains absent. Updated [[godot-conversion]], [[ui-system]], and the [window-manager spec](../specs/window-manager.md).
+
+## [2026-09-28] ui | Native local-player unit frame
+
+Selected local replicated name, level, health, combat, and powers feed the shared `PlayerFrame`; rest uses the existing rest-area update. `421eca38` final bounded verification retains authored values, a live health change, off/on visibility, and local-despawn clearing, then fresh-runs the owned UDP fixture to authenticated post-disconnect `CharacterSelect` without a retained local-player position (`/tmp/claude/verify-native-player-frame-final.md`). Visible teardown is only asserted before reconnect: despawn hides `PlayerFrame` and clears its name. No PlayerFrame is inspected after reconnect. Child exit, reader joins, and disposable fixture-root removal are harness lifecycle proof, not UI teardown. Combat/rest icon rendering and post-reconnect PlayerFrame teardown remain unproven. The default fixture's pre-auth `FogDensity` staging failure is separate and out of scope. Updated [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+
+## [2026-09-28] ui | Native target-frame HUD visibility
+
+The native target-frame cluster now consumes `hud.show_health_bars` through the shared unit-frame state. The existing owned-UDP NPC Options fixture proves whole-cluster off/on hide/restoration with the same reselected NPC and separately retained nameplate label (RED/GREEN: `/tmp/claude/target-frame-{red,green}-6073af82.log`). Escape clears selection before opening Options; the fixture does not claim otherwise. The later local-player frame is documented above; native Reset Window Positions is documented separately. See [[godot-conversion]] and [conversion spec](../specs/godot-conversion.md).
+
+## [2026-09-29] ui | Native nameplate Options independently verified
+
+Independent verification of `6d2f7cd6` fresh-runs the private-loopback authored Options fixture against a replicated NPC: HUD health-bars hides frame/fill while retaining the label; camera-to-health-body fade remains separate from viewer-to-unit CVar eligibility; colorblind NPC label restoration leaves health fill unchanged (`/tmp/claude/verify-native-nameplate-options.md`). `6073af82` independently passes root `cargo fmt --check` and locked root binary compilation (`/tmp/claude/verify-nameplate-root-adapter.md`). The pure color test asserts exact player cyan and NPC yellow labels, but no live player plate is reachable: player-vs-player attacks are rejected, friendly-player plates default off, and no authored control changes that. Test-only player attempts remain RED (`/tmp/claude/nameplate-player-*.log`) and changed no source. Full nameplate parity remains open. See [[nameplate-design]] and [nameplate spec](../specs/nameplate-style.md).
+
+## [2026-09-29] system | Native local-player footstep playback
+
+`d3882c9a`/`ece3da3c` add authored local Ogg footstep catalog selection and owned 3D emitters for the selected local player after animation tick, with shared phase/selection and streamed terrain/WMO surfaces. `b773ecfd` final independent verification reuses valid production fmt/check proof, confirms the existing worktree GDExtension library, and fresh-runs the refactored fixture to PASS in 18.65 seconds through movement playback, idle/stop, Options gain/mute/music behavior, and player-removal release. All four temporary fixture CSV links were removed. The retained final log has 668 optional-scenery `WorldObjects` missing-texture errors, but zero script/non-WorldObjects errors, timeouts, or fixture-exit failures; it is not a whole-runtime-clean claim. Fixture readability now passes (cognitive 3, cyclomatic 9). Audible/hardware and full parity remain unproven. Updated [[sound]], [[terrain]], and [Godot parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Native WMO footstep surface override
+
+Shared the legacy root-wide material priority and inclusive smallest-volume placement selection with the native terrain reader. Global WDT and streamed MODF surfaces are queryable before node/physics completion; native footstep audio trigger/playback remains absent. Verifier853 is pending without an independent PASS. Updated [[sound]] and [[terrain]].
+
+## [2026-09-28] system | Native terrain surface query
+
+The native tile reader caches local GroundEffectTexture/TerrainTypeSounds DB2s once and stores shared-policy classifications for each parsed `_tex0`/height-grid chunk. Streamed terrain exposes an exact half-open surface query, cleared on reset. `2209dce4` subsequently adds native WMO material/bounds lookup; native footstep audio trigger/playback remains absent. Updated [[terrain]] and [[sound]].
 
 ## [2026-09-28] investigation | Invalid character-creation customization combos
 
@@ -65,13 +137,103 @@ The Godot camera ray had only terrain bodies to hit, so WMO walls did not bound 
 
 Retail scenery distance for doodads (landed in `8fdc22d0`), NPC animation LOD (`0be4373f`) and WMO portal culling (`1723b9cf`) take Stormwind from 13–20 to ~20–25 FPS and ~6.4–7.4k to ~4.3–5k draws. Created [[godot-stormwind-fps]].
 
+## [2026-09-28] system | Shared terrain surface selection prerequisite
+
+`70e047ff` extracts dominant ADT effect, texture, and footstep-surface selection into `terrain_surface_data`, shared by root and `godot/core`. Core concrete layer tests and existing root dominant-selector tests pass; root terrain/footstep loaders, Bevy GroundEffect cache/loading, and unresolved-Dirt behavior remain unchanged. This shared prerequisite did not itself add a native runtime consumer or footstep playback; verifier839 is pending. `3d6df314` separately adds native per-chunk DB2/listfile surface metadata and `StreamedTerrain::surface_at`; `2209dce4` adds native WMO material/bounds lookup through `surface_at_position`. Native footstep audio trigger/playback remains absent; verifier849 and verifier853 are pending without independent PASS claims. Updated [[terrain]], [[sound]], and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Shared footstep phase remains a prerequisite
+
+`2f8a7bfb` moves the Bevy half-cycle observer into shared `FootstepPhaseTracker`; Bevy carries it as `FootstepTracker`. Native `WowAnimationPlayer::footstep_phase` read-only exposes the selected clip's index/ID, duration, and clock for a future observer. `c5b83b15` restores the root adapter's movement-policy import. No native footstep playback or fallback behavior changed; verifier835 and tests remain separate pending work. Updated [[sound]] and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Shared ground-effect DB2 parsing prerequisite
+
+Moved pure GroundEffectTexture/TerrainTypeSounds WDC5 parsing and ordered name-to-surface classification into `src/sound/ground_effect_data.rs`, exposed to root and `godot/core`. Root retains filesystem/cache/CASC and clutter; core byte fixtures cover accepted layouts and error handling. No native terrain runtime integration. Updated [[sound]].
+
+## [2026-09-28] system | Shared footstep selection prerequisite
+
+Moved pure footstep classification and catalog selection into `src/sound/footstep_data.rs`, available to root and `godot/core`; Bevy retains existing loading and handles. Moved five existing policy tests to core and added tied-seed/no-eligible cases. No native playback or adapter fallback behavior change; verifier831 is pending. Updated [[sound]] and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | UI-click and Sound Defaults independently verified
+
+`5274d0c0` independently passes the authenticated world fixture: master changes to 0.25, Music/Ambient/Effects become 0.1125/0.075/0.025, then Defaults restores Music/Ambient to 0.45/0.3. This proves Defaults after material state mutation.
+
+`618d153c` independently passes a fresh owned `GameClient/LoginUI/ConnectButton` left-down click at default FPS (Effects active) and 5 FPS (Effects finished). The earlier failure was fixture timing: the 40 ms click ended before a frame could observe playback. The correction changes only GDScript test sequencing; root/native checks and the protected lock proof at `9145a605` remain applicable because no native source changed. Audible/hardware output, full PCM/audio parity, and conversion parity remain unproven; the matrix remains 0 handled. Updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Native UI click parity slice
+
+Shared the legacy normalized-phase click generator and 0.55 gain through `ui_click_data`. Projected left pointer-down on an actionable frame or ancestor reaches `GameClient`'s owned `NativeSound` Effects player; disabled buttons and non-pointer actions do not trigger it. Targeted PCM and headless Godot fixture cover behavior and player volume/mute. This is not audible-output or full-parity proof. Updated [[sound]].
+
+## [2026-09-28] system | Real-client native sound fixture is bounded
+
+`ce2a8c92` authenticates an owned loopback `GameClient`, loads MCNK area 9 → root zone 12, observes Music `53492`, and observes no zone-12 ambient track. It then drives authored Options Sound controls and observes native player volume/mute/music-enable state. The retained [fixture log](../../data/diagnostics/native-sound-client-final.log) records those markers and exit-0 result.
+
+This is player-state/volume evidence, not audible-output or full-parity proof. Fixture marker discovery is a harness sentinel rather than a production RED; mutation assertions are harness sensitivity only. Independent verifier817 remains pending. Updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] investigation | Native audio shutdown leak timing is bounded
+
+`741344ca` adds `NativeSound`: owned Music/Ambient Godot players consume the shared catalogs, decode local MP3/Ogg/WAV bytes, reject FLAC, sequence tracks by zone, cache streams, and apply live sound options. Its targeted headless fixture exits 0 for playback state, natural completion, zone changes, and lifecycle; missing-catalog and FLAC errors are expected. Verbose exit reports 16 leaked audio stream/playback/Ogg-packet objects and no native sound/player nodes.
+
+A pure-GDScript control with the same two player classes, playback/state steps, stop/stream-clear/free sequence, one frame, and a real 0.5-second timer exits 0 with zero leaked classes. The otherwise-identical immediate variant exits 0 but leaks six audio objects. Timing therefore rules out Rust-specific node ownership as necessary, but does not prove all sixteen native objects share one owner. The native timed copy has no retained result log, so it is not independent proof. The Godot 4.7.2 snapshot supports deferred mix-path cleanup and a Dummy-driver shutdown join without a forced final mix. No production delay or audible-output claim follows. Source formatting/readability remediation `809` and root-adapter compilation remain open.
+
+Created [[native-audio-shutdown-leaks]]; updated [[sound]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Native Options corrections and standalone startup regressions are bounded
+
+`a15b441e` routes and projects the bounded Options controller, but wrote edits to legacy `data_root/ui/options_settings.ron`; its reported flow therefore did not prove canonical persistence. `7b1d60ff` writes the loaded canonical XDG file and corrects capture handling. Actual REDs record outside-slider release persistence failure (`data/diagnostics/options-capture-avcdvc_6/red.log`) and Ctrl+Shift+R capture failure (`data/diagnostics/options-modifier-5vspamlj/red.log`). Committed `options_menu_flow.gd` GREEN (`data/diagnostics/options-proof-pa459243/green.log`) proves isolated-XDG canonical save and new-client reload at 240, unchanged legacy bytes, external EULA/realm preservation, graphics Defaults, Ctrl precedence, Shift capture, ignored modifier-only keys, and mouse capture. `verifier767` independently verifies that `7b1d60ff` canonical-persistence/capture boundary: Godot `cargo fmt --check` and `cargo check -p game-engine-godot` exit 0 with the one existing `NativeWmoGroup::fdid` warning. This verifier predates the startup commits.
+
+`6d318ee2` restores Logout for explicitly logged-in standalone `gamemenu` by keeping `logged_in` true, matching prior `show_game_menu(true)` behavior. `/tmp/claude/options-startup-logout-red.log` exits 1 with hidden `MenuBtnLogout`. The intermediate `/tmp/claude/options-startup-logout-green.log` exits 0 but contains a Godot Rust panic (`menu has UI`), so is invalid proof. `80ee3350` breaks action draining after `request_logout()` frees the overlay, avoiding that expectation panic. Final Vulkan AMD cage evidence (`/tmp/claude/options-startup-logout-final.log`) exits 0 with no Godot errors and retains standalone `gamemenu` without Login or a countdown. Both native builds exit 0 with the one existing `NativeWmoGroup::fdid` warning (`/tmp/claude/options-startup-fix-build.log`, `/tmp/claude/options-logout-lifetime-build.log`). Independent follow-up remains pending. Modal drag/reset-window-positions remains incomplete (agent774 is in progress); HUD/audio consumers, visual parity, full conversion, and matrix result remain 0 handled. `7fcfd8d8` display application proof remains bounded to VSync/FPS cap behavior, not visual parity.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Native UI scale is bounded
+
+`364a29ac` mirrors the legacy effective-scale policy: `InWorld` is `max(min(width / 1920, height / 1080), 2/3) × clamp(user_scale, 0.75, 1.5)`; other screens use the clamped user scale alone. Registry canvases use physical viewport divided by that scale as their logical layout size and scale the projection root back to physical pixels. Map pointer conversion likewise divides physical input by scale before layout/UV handling. The FPS and logout overlays remain intentionally unscaled separate CanvasLayers. Development evidence is `ui_scale.gd` exit 0 for 0.75/1.25 persistence, recentering, category/Done, and physical-pixel input (`/tmp/claude/godot-ui-scale-green.out`), scale helper 1/1 (`/tmp/claude/cargo-ui-scale.out`), map helper 1/1 (`/tmp/claude/cargo-ui-scale-map.out`), and native build exit 0 with existing `NativeWmoGroup::fdid` warning (`/tmp/claude/cargo-ui-scale-build.out`). No independent gate, authenticated live-map click, visual parity, or full conversion claim. Native source has no playback consumer corresponding to Bevy `runtime_music`, `runtime_ambient`, or `runtime_assets`; Options audio remains settings-only.
+
+Updated [[ui-system]], [[world-map]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Authored Options projection remains unwired
+
+`d620c812` adds full authored `GameMenuViewModel` projection through `GameMenuModel::from_view` and `RegistryUi` full-view show/update APIs, plus Slider projection and viewport-level captured drag events. Agent-reported targeted `options_views` 3/3 and native slider 1/1 pass. This does not route the real game menu or integrate its controller: a real headless Options click at `d620c812` correctly reports `menu_options not converted` and creates no Options panel. Native Options and full conversion remain incomplete; matrix result stays 0 handled.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Options policy is shared; native parity remains absent
+
+`0c68d89e` centralizes Options drafts, view construction, action/reset policy, and apply snapshots in shared `options_menu_data`; `80b3c664` migrates the original Bevy runtime adapters to that policy while retaining immediate root apply and host-owned persistence. Independent verifier754 records root Options 26/26 and game-menu 12/12; native `ui-model` policy 3/3, views 2/2, and menu 2/2; root formatting plus `cargo check --bin game-engine` and native `ui-model` check exit 0 (`/tmp/claude/options-policy-*.log`). The root `skeleton_afid` dead-code warning is existing. Native Options routing, live consumers, and persistence remain missing. Source sharing is not native parity or a final gate; the detailed matrix remains 0 handled.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] investigation | Camera collision recovery lag
 
 `fe9faa73` recovers camera collision from the stored pulled-in distance instead of the lagging camera pose, so the camera keeps following a running player after a pull-in. Created [[camera-collision-recovery-lag]].
 
+## [2026-09-28] system | M2 test boundary verified; native AFID poses are bounded GREEN
+
+Historical `261ed778` filtered `game-engine-core --lib nameplate_style_data` evidence fails before requested tests because two cache-backed original-root tests reference unavailable `asset_cache` and `load_anim_data` (`/tmp/claude/core-m2-harness-red-261ed778.log`). `c8972a67` moves the unchanged bodies from pure `m2_anim` to `tests/unit/asset/m2_file_loader_tests.rs`, registered by `file_loader.rs` under `#[cfg(test)]`. Final targeted proof passes: root authentic-loader tests 2/2, pure native parser tests 13/13, and root/native `cargo fmt --all --check` (`/tmp/claude/core-m2-test-{root-loader,native-parser,fmt}.log`). The moved tests remain active and their assertions are preserved.
+
+`008f8856` adds the required external-animation callback through SKID/MD20 parsing; callbacks provide SKID/MD20 bytes, with no root-SKID fallback. `f8c8eafa` adopts fixed-master `ac0ef0ba`'s equivalent callback/prefetch implementation rather than duplicate host code; `cecd15f0` is the integrated production state. `aa4c9d52`'s build failure is a concurrent protocol removal of `PlayerInput.elapsed_secs`, fixed by importing master without branch wire changes. The genuine pre-implementation native RED sees SitGround 97 at zero posed bones (`/tmp/claude/native-afid-runtime-red.log`). The framed Vulkan GREEN at `7b1863ae` records SitGround 97/index 78 at 125 posed bones and Sleep 100/index 137 at 87 (`/tmp/claude/native-afid-runtime-framed.log`). Main visually read the 1280×720 PNGs in `data/diagnostics/godot-conversion/external-animation-{97,100}.png`; valid headers/signatures and the ledger support saved captures, not independent visual pixel parity. They show an uncustomized all-geoset HumanMale, not character appearance, material, or full-parity proof.
+
+`7b1863ae` consolidates duplicate core cases while retaining five cases and FDID-metadata assertions. Bounded final AFID proof passes native fmt/check (one existing `NativeWmoGroup::fdid` warning), core 15/15 (5 AFID + 3 metadata + 7 asset parsing), native animation 12/12, and UI-model 4/4 (`/tmp/claude/verify-native-afid-final.md`). Parent root fmt/check also exit 0 with the imported root `skeleton_afid` dead-code warning. Current-protocol Vulkan/UDP logout integration exits 0 with live-connection, token-relogin, and rest-area-immediate-Login markers (`/tmp/claude/logout-runtime-afid-integration.log`).
+
+Canonical master is dirty and advanced beyond imported `ac0ef0ba`, so no merge-back or current-master validation is claimed. No handled-matrix result, general animation parity, full appearance/material/animation parity, or full conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Original Options authored view is integrated into the native UI model
+
+`261ed778` integrates original `game_menu_component`, `options_menu_component`, `options_menu_active_sections`, and `options_menu_sections` through `godot/ui-model`. `95ede457`'s pure nameplate presets/editor/`NameplateBarThickness` live in `nameplate_style_data`; `nameplate_style` preserves the original UI enum path by reexport. Input/nameplate aliases preserve source compatibility and persisted type/method identity without a new nameplate system. Root/native reuse one portable behavioral-test source; native proof is GREEN 2/2 (`/tmp/claude/options-view-green-integrated.log`) for all 13 body labels/actions, section replacement, and decimal volume updates. Direct `serde` is removed from `ui-model`; local `game-engine-core` remains justified. Root fmt/check pass at `261ed778` (`/tmp/claude/options-root-{fmt,check}-261ed778.log`) and the protected root lock hunk is restored. Historical `261ed778` filtered core `--lib` evidence fails with two unavailable `asset_cache` and two unavailable `load_anim_data` references (`/tmp/claude/core-m2-harness-red-261ed778.log`); `c8972a67` repairs that test boundary pending final targeted proof. This is source exposure only: `GameMenuModel` still builds the main-menu tree, `ACTION_OPTIONS` and `ACTION_ADDONS` still warn, and no native Options routing, apply/persistence, audio/HUD behavior, AddOns runtime, final gate, or handled-matrix claim exists.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-28] system | Standalone GameMenu startup reaches bounded GREEN
+
+`77a9b4cc` adds `SessionScreen::GameMenu` and startup routing for `--screen gamemenu`/`--state gamemenu`, matching original `GameState::GameMenu`: logged-in menu on entry, no authentication or Login underlay, and Return/Escape dismisses only the overlay while state remains `GameMenu`. Historical missing-support CLI RED is `/tmp/claude/startup-menu-red-f39581b4.log` (exit 1); build is `/tmp/claude/startup-menu-build-77a9b4cc.log` (exit 0 with existing afid and two WMO warnings). Root-launcher Vulkan fixtures at `6e8c14b7` exit 0 for Escape, resume, and Exit (`/tmp/claude/startup-menu-{escape,resume,exit}-6e8c14b7.log`). Main inspected `startup-game-menu.png`: six slate/gold buttons on a dark blank background, no Login underlay; this is bounded rendering inspection, not pixel equality. `f7280c8d` standalone Logout RED exposed a visible InWorld-only countdown; `27637f64` confines sync visibility to `InWorld`, and its standalone GREEN exits 0 (`/tmp/claude/startup-menu-logout-green-27637f64.log`). The required full InWorld UDP Vulkan rerun after that visibility change exits 0 (`/tmp/claude/logout-runtime-27637f64.log`) through combat/rest/countdown/W-cancel/repeated-request/expiry/Login quiet/live connection/relogin/rest-instant markers. Independent733 at `27637f64` passes `cargo fmt --all --check` and `cargo check -p game-engine-godot --lib`; the check retains three existing warnings, and changed-Rust readability finds no violations (`/tmp/claude/verify-startup-menu-final.md`). Options/AddOns and full parent-menu parity remain open; matrix result stays 0 handled.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-28] system | Native main-menu overlay reaches bounded runtime GREEN
 
-`c3e5a59c` shares the original logged-in main-menu tree; `17d9ea46` resolves its default-panel skin. `e0c744e1` enables Panel through the existing nine-slice renderer and opens the overlay from character-select `MENU` and in-world Escape. Final bounded proof at `6f37e119`: root/native `fmt --check` and targeted checks pass; root shared-menu proof remains 25 tests because only an unused adapter changed; native model proof is current at 2/2. The real Vulkan fixture exits 0 (`/tmp/claude/game-menu-runtime-6f37e119.log`): repeated roster-key preservation → charselect overlay/block/dismiss → world modal block → decoded UDP → Return restoration → release quietness → Exit. Main inspected `data/diagnostics/godot-conversion/game-menu.png`. The unused root adapter warning is resolved; three native pre-existing dead-code warnings and the fixture's intentional flat 42-line marker length debt remain. This is bounded behavior/render inspection, not pixel equality or full parity. Options, AddOns, and logout remain unported; Support is a placeholder; `--screen gamemenu` remains unimplemented. The full matrix remains 0 handled.
+`c3e5a59c` shares the original logged-in main-menu tree; `17d9ea46` resolves its default-panel skin. `e0c744e1` enables Panel through the existing nine-slice renderer and opens the overlay from character-select `MENU` and in-world Escape. Final bounded proof at `6f37e119`: root/native `fmt --check` and targeted checks pass; root shared-menu proof remains 25 tests because only an unused adapter changed; native model proof is current at 2/2. The real Vulkan fixture exits 0 (`/tmp/claude/game-menu-runtime-6f37e119.log`): repeated roster-key preservation → charselect overlay/block/dismiss → world modal block → decoded UDP → Return restoration → release quietness → Exit. Main inspected `data/diagnostics/godot-conversion/game-menu.png`. The unused root adapter warning is resolved; three native pre-existing dead-code warnings and the fixture's intentional flat 42-line marker length debt remain. This is bounded behavior/render inspection, not pixel equality or full parity. Options, AddOns, and standalone `--screen gamemenu` remain open; Support is a placeholder. Final bounded native logout proof is `d59712cd`: the owned UDP Vulkan fixture exits 0 (`/tmp/claude/logout-runtime-d59712cd.log`) through replicated combat blocking; cleared combat; rest `Some` then `None`; original countdown; real W cancellation with decoded UDP; repeated request without reset; expiry to Login; retained world/camera identity; hidden overlay; quiet post-Login input; retained endpoint-keyed token bytes; then an owned-server remote position update reaches the same retained Godot node while screen remains Login before token relogin to selected character 17 and rest-area immediate Login. This closes the live-connection proof gap without production transport/world/token changes. Main inspected `data/diagnostics/godot-conversion/logout-countdown.png`. Fresh fixture `fmt --check` and focused fixture check pass at `d59712cd`; unchanged production library proof remains `1106b064`. Only W has runtime cancellation proof; the other seven configured cancellation keys and custom bindings remain source-only. Existing fixture marker-table dispatcher readability debt and three native pre-existing dead-code warnings remain. The full matrix remains 0 handled.
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
@@ -1736,6 +1898,9 @@ After the native build, the launcher runs `godot --headless --import --path godo
 
 Shared `UiMap` catalog and view model drive a Retail-style world map in Godot and Bevy: `M` opens the player's zone, right-click zooms to continent and world, arrow follows the player. Local CASC lacks many map tiles. See [[world-map]].
 
+## [2026-09-29] update | Native WorldMap placement boundary
+
+At `ac44cc2e`, `WorldMapFrame` is the only native managed window: title drag clamps and persists per selected server character in canonical `ui_layout.ron`; reopen and a second authenticated process restore it. `/tmp/claude/world-map-owned-fixture-ac44cc2e.log` proves selected-character reset retention, default-slot reopen, and fresh-process read. The direct open-map reset has state-test coverage only: simultaneous Options-plus-map UI is keyboard-unreachable because Escape closes the map. Other windows and generic native window-manager parity remain unconverted. See [[world-map]] and [window-manager spec](../specs/window-manager.md).
 
 ## [2026-09-28] fix | Godot M2 blend modes and batch colour
 
@@ -1808,3 +1973,7 @@ Other players in the Godot client walk, run, backpedal, strafe, swim and jump: t
 ## [2026-09-28] feature | Godot TargetFrame at the Retail preset, UIParent HUD scale
 
 The Godot TargetFrame sits where Retail's Modern Edit Mode preset puts it (BOTTOMLEFT at UIParent BOTTOM 300, 250), and the in-world HUD layers lay out on the 768-unit UIParent canvas scaled by viewport height / 768, so frame and text sizes match Retail at 1280×720 and 1920×1080. World map, entrance bar, nameplates and glue screens are not converted yet. See [[godot-conversion]].
+
+## [2026-09-29] feature | Confirmed native CastStart
+
+Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. Final bounded verification at `0e0726a3` passes (`/tmp/claude/verify-native-caststart-final.md`); its fixture-only readability refactor preserves the nine-marker runtime sequence. See [[sound]].

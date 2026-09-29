@@ -1,6 +1,6 @@
 //! Real Godot UI/input → native movement → owned loopback UDP PlayerInput proof.
-//! After building the root launcher and Godot GDExtension, run:
-//! GODOT_BIN=<godot executable> cargo run -p game-engine-network --example native_input_fixture
+//! With the native extension and this example built, run the installed executable
+//! at target/debug/examples/native_input_fixture; most modes also need the root launcher.
 
 use std::{
     fs,
@@ -20,16 +20,37 @@ use lightyear::prelude::{
 };
 use shared::{
     components::{
-        EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Player, Position,
+        EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Gold, ModelDisplay, Npc,
+        Player, Position,
     },
     protocol::{
-        AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
-        LoginResponse, PlayerInput, SelectCharacter, TerrainChannel,
+        ActionBarSnapshot, ActionRef, AuthChannel, BagContents, CharacterListEntry,
+        CloseInteraction, CombatChannel, CombatEvent, CombatEventType, EnterWorldResponse,
+        InteractNpc, InteractionChannel, InteractionKind, InteractionOpened, InventoryChannel,
+        InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginRequest, LoginResponse,
+        MerchantChannel, NpcFlags, NpcRole, PlayerInput, SelectCharacter, SpellCastIntent,
+        TalentChannel, TerrainChannel, VendorInventory, VendorItem,
     },
 };
 
+#[path = "fixture_support/mod.rs"]
+mod fixture_support;
+#[path = "native_input_fixture/footsteps.rs"]
+mod footsteps;
+#[path = "native_input_fixture/logout.rs"]
+mod logout;
 #[path = "native_input_fixture/menu.rs"]
 mod menu;
+#[path = "native_input_fixture/merchant_click.rs"]
+mod merchant_click;
+#[path = "native_input_fixture/reset_windows.rs"]
+mod reset_windows;
+#[path = "native_input_fixture/sound.rs"]
+mod sound;
+#[path = "native_input_fixture/sound_click.rs"]
+mod sound_click;
+#[path = "native_input_fixture/sound_outcome.rs"]
+mod sound_outcome;
 #[path = "native_input_fixture/swimming.rs"]
 mod swimming;
 
@@ -55,6 +76,13 @@ enum StartupScreen {
     Overlay,
     Swimming,
     Menu,
+    Logout,
+    Sound,
+    SoundClick,
+    SoundOutcome,
+    MerchantClick,
+    Footsteps,
+    ResetWindows,
 }
 
 impl StartupScreen {
@@ -66,9 +94,16 @@ impl StartupScreen {
             Some("overlay") => Self::Overlay,
             Some("swimming") => Self::Swimming,
             Some("menu") => Self::Menu,
+            Some("logout") => Self::Logout,
+            Some("sound") => Self::Sound,
+            Some("sound-click") => Self::SoundClick,
+            Some("sound-outcome") => Self::SoundOutcome,
+            Some("merchant-click") => Self::MerchantClick,
+            Some("footsteps") => Self::Footsteps,
+            Some("reset-windows") => Self::ResetWindows,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming or menu"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, footsteps or reset-windows"
                 )
             }
         };
@@ -82,29 +117,48 @@ impl StartupScreen {
     fn as_str(self) -> &'static str {
         match self {
             Self::CharSelect | Self::Menu => "charselect",
-            Self::InWorld | Self::Overlay | Self::Swimming => "inworld",
+            Self::InWorld
+            | Self::Overlay
+            | Self::Swimming
+            | Self::Logout
+            | Self::Sound
+            | Self::SoundClick
+            | Self::SoundOutcome
+            | Self::MerchantClick
+            | Self::Footsteps
+            | Self::ResetWindows => "inworld",
         }
     }
 }
 
 #[derive(Resource, Default)]
 struct Incoming {
-    logins: Vec<LoginRequest>,
+    logins: Vec<(Entity, LoginRequest)>,
+    connection: Option<Entity>,
     selections: Vec<SelectCharacter>,
     inputs: Vec<PlayerInput>,
+    interactions: Vec<InteractNpc>,
+    closes: Vec<CloseInteraction>,
+    casts: Vec<SpellCastIntent>,
+    vendor: Option<Entity>,
     /// A moving or jumping input arrived whose release no stop input has reported yet.
     unreported_release: bool,
     stops: u32,
 }
 
 fn receive_requests(
-    mut logins: Query<&mut MessageReceiver<LoginRequest>>,
+    mut logins: Query<(Entity, &mut MessageReceiver<LoginRequest>)>,
     mut selections: Query<&mut MessageReceiver<SelectCharacter>>,
     mut inputs: Query<&mut MessageReceiver<PlayerInput>>,
+    mut interactions: Query<&mut MessageReceiver<InteractNpc>>,
+    mut closes: Query<&mut MessageReceiver<CloseInteraction>>,
+    mut casts: Query<&mut MessageReceiver<SpellCastIntent>>,
     mut incoming: ResMut<Incoming>,
 ) {
-    for mut receiver in &mut logins {
-        incoming.logins.extend(receiver.receive());
+    for (entity, mut receiver) in &mut logins {
+        incoming
+            .logins
+            .extend(receiver.receive().map(|request| (entity, request)));
     }
     for mut receiver in &mut selections {
         incoming.selections.extend(receiver.receive());
@@ -112,14 +166,26 @@ fn receive_requests(
     for mut receiver in &mut inputs {
         incoming.inputs.extend(receiver.receive());
     }
+    for mut receiver in &mut interactions {
+        incoming.interactions.extend(receiver.receive());
+    }
+    for mut receiver in &mut closes {
+        incoming.closes.extend(receiver.receive());
+    }
+    for mut receiver in &mut casts {
+        incoming.casts.extend(receiver.receive());
+    }
 }
 
 fn send<M: network::Message, C: network::Channel>(app: &mut App, message: M) {
     let world = app.world_mut();
+    let connection = world
+        .resource::<Incoming>()
+        .connection
+        .expect("fixture response requires an authenticated requester");
     let mut sender = world
-        .query::<&mut MessageSender<M>>()
-        .single_mut(world)
-        .expect("one connected fixture sender");
+        .get_mut::<MessageSender<M>>(connection)
+        .expect("requesting fixture connection has no message sender");
     sender.send::<C>(message);
 }
 
@@ -159,8 +225,12 @@ struct FixtureConfig {
 }
 
 impl FixtureConfig {
-    fn create(root: &Path) -> Self {
-        let diagnostics = root.join("data/diagnostics");
+    fn create(root: &Path, screen: StartupScreen) -> Self {
+        let diagnostics = if screen == StartupScreen::Logout {
+            std::env::temp_dir().join("game-engine-logout-config")
+        } else {
+            root.join("data/diagnostics")
+        };
         fs::create_dir_all(&diagnostics).expect("create fixture diagnostics directory");
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -174,6 +244,44 @@ impl FixtureConfig {
             .expect("create fixture credentials directory");
         fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
             .expect("write fixture-only credentials");
+        if screen == StartupScreen::ResetWindows {
+            fs::write(
+                config.home.join("world-of-osso/options_settings.ron"),
+                "(graphics:(uiScale:1.25),modal_offset:Some((80.0,-32.0)))",
+            )
+            .expect("seed nondefault Options modal offset");
+            fs::write(config.home.join("world-of-osso/ui_layout.ron"), "(window_positions:{\"17\":{\"CharacterFrame\":(25.0,30.0)},\"18\":{\"CharacterFrame\":(75.0,80.0),\"SpellBookRoot\":(70.0,90.0)}},edit_mode:(layouts:{\"Layout 1\":(elements:{\"PlayerFrame\":(anchor:TopLeft,offset:(12.0,24.0))})},active_layout:{\"18\":\"Layout 1\"}))")
+                .expect("seed two characters and edit mode layout");
+        }
+        if screen == StartupScreen::MerchantClick {
+            fs::write(
+                config.home.join("world-of-osso/ui_layout.ron"),
+                "(window_positions:{\"18\":{\"CharacterFrame\":(75.0,80.0)}})",
+            )
+            .expect("seed other character placement");
+        }
+        if matches!(
+            screen,
+            StartupScreen::Sound
+                | StartupScreen::SoundClick
+                | StartupScreen::SoundOutcome
+                | StartupScreen::MerchantClick
+                | StartupScreen::Footsteps
+        ) {
+            fs::write(
+                config.home.join("world-of-osso/options_settings.ron"),
+                if screen == StartupScreen::Footsteps {
+                    "(graphics:(particleEffectsEnabled:false),sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))"
+                } else if screen == StartupScreen::SoundOutcome {
+                    "(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:false,muted:false))"
+                } else if screen == StartupScreen::MerchantClick {
+                    "(graphics:(uiScale:1.25),modal_offset:Some((80.0,-32.0)),sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))"
+                } else {
+                    "(sound:(master_volume:1.0,ambient_volume:0.3,effects_volume:0.8,music_volume:0.45,music_enabled:true,muted:false))"
+                },
+            )
+            .expect("write isolated deterministic sound options");
+        }
         config
     }
 }
@@ -189,14 +297,46 @@ impl Drop for FixtureConfig {
     }
 }
 
+fn fixture_script(screen: StartupScreen) -> &'static str {
+    match screen {
+        StartupScreen::ResetWindows => "res://tests/options_reset_windows.gd",
+        StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
+        StartupScreen::SoundClick => "res://tests/world_spell_click_flow.gd",
+        StartupScreen::SoundOutcome => "res://tests/world_sound_outcome_flow.gd",
+        StartupScreen::Sound => "res://tests/world_sound_flow.gd",
+        StartupScreen::Footsteps => "res://tests/world_footsteps_flow.gd",
+        StartupScreen::Logout => "res://tests/world_logout_flow.gd",
+        StartupScreen::Menu => "res://tests/world_menu_flow.gd",
+        _ => "res://tests/world_input_flow.gd",
+    }
+}
+
 fn launch_godot(
     root: &Path,
+    project: &Path,
     config: &FixtureConfig,
     address: SocketAddr,
     screen: StartupScreen,
+    map_verify: bool,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
-    let binary = root.join("target/debug/game-engine-launcher");
-    let project = root.join("godot");
+    let binary = if matches!(
+        screen,
+        StartupScreen::Sound
+            | StartupScreen::SoundClick
+            | StartupScreen::SoundOutcome
+            | StartupScreen::MerchantClick
+            | StartupScreen::Footsteps
+            | StartupScreen::ResetWindows
+    ) {
+        std::env::var_os("GODOT_BIN")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                PathBuf::from(std::env::var_os("HOME").expect("HOME for pinned Godot"))
+                    .join(".cache/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64")
+            })
+    } else {
+        root.join("target/debug/game-engine-launcher")
+    };
     let display_args: &[&str] = if std::env::var("GODOT_TEST_VISUAL").as_deref() == Ok("1") {
         &["--display-driver", "wayland", "--audio-driver", "Dummy"]
     } else {
@@ -209,14 +349,24 @@ fn launch_godot(
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
-            if screen == StartupScreen::Menu {
-                "res://tests/world_menu_flow.gd"
-            } else {
-                "res://tests/world_input_flow.gd"
-            },
-            "--screen",
-            screen.as_str(),
+            fixture_script(screen),
         ])
+        .args(
+            if matches!(
+                screen,
+                StartupScreen::Sound
+                    | StartupScreen::SoundClick
+                    | StartupScreen::SoundOutcome
+                    | StartupScreen::MerchantClick
+                    | StartupScreen::Footsteps
+                    | StartupScreen::ResetWindows
+            ) {
+                &["--"][..]
+            } else {
+                &[][..]
+            },
+        )
+        .args(["--screen", screen.as_str()])
         .args(
             if !matches!(screen, StartupScreen::CharSelect | StartupScreen::Menu) {
                 &["--char", "iNpUt fIxTuRe", "--server"][..]
@@ -226,6 +376,7 @@ fn launch_godot(
         )
         .arg(address.to_string())
         .env("GODOT_TEST_STARTUP_SCREEN", screen.as_str())
+        .env("GODOT_TEST_MAP_VERIFY", if map_verify { "1" } else { "0" })
         .env(
             "GODOT_TEST_SWIMMING",
             if screen == StartupScreen::Swimming {
@@ -244,6 +395,13 @@ fn launch_godot(
         )
         .env("CARGO", env!("CARGO"))
         .env("XDG_CONFIG_HOME", &config.home)
+        .env(
+            "XDG_DATA_HOME",
+            project
+                .parent()
+                .expect("Godot project root")
+                .join("user-data"),
+        )
         .env("GODOT_TEST_SERVER", address.to_string())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -309,7 +467,8 @@ fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> 
     if requests.len() != 1 {
         return Err(format!("expected one LoginRequest, got {}", requests.len()));
     }
-    let request = &requests[0];
+    let (connection, request) = &requests[0];
+    app.world_mut().resource_mut::<Incoming>().connection = Some(*connection);
     let fixture_credentials =
         request.username == "fixture" && request.password == "fixture" && request.token.is_none();
     let fixture_token = request.username.is_empty()
@@ -401,6 +560,32 @@ fn respond_to_selection(
                 Replicate::to_clients(NetworkTarget::All),
             ))
             .id();
+        if screen == StartupScreen::MerchantClick {
+            app.world_mut().entity_mut(player).insert(Gold(1250));
+            let vendor = app
+                .world_mut()
+                .spawn((
+                    Npc {
+                        template_id: 1213,
+                        name: "Fixture Vendor".into(),
+                    },
+                    NpcFlags(NpcFlags::VENDOR),
+                    ModelDisplay { display_id: 26 },
+                    Position {
+                        x: FIRST[0] - 2.0,
+                        y: FIRST[1] + 0.1,
+                        z: FIRST[2] + 3.0,
+                    },
+                    Replicate::to_clients(NetworkTarget::All),
+                ))
+                .id();
+            app.world_mut().resource_mut::<Incoming>().vendor = Some(vendor);
+        }
+        if screen == StartupScreen::SoundClick {
+            app.world_mut()
+                .entity_mut(player)
+                .insert(shared::components::UnitLevel(10));
+        }
         *selected = Some(player);
         let mut remote_player = Player {
             name: REMOTE_NAME.into(),
@@ -431,6 +616,20 @@ fn respond_to_selection(
                 error: None,
             },
         );
+        if screen == StartupScreen::SoundClick {
+            send::<_, TalentChannel>(
+                app,
+                KnownSpellsSnapshot {
+                    spells: vec![1464, 88163],
+                },
+            );
+            send::<_, TalentChannel>(
+                app,
+                ActionBarSnapshot {
+                    slots: vec![(0, ActionRef::Spell(1464))],
+                },
+            );
+        }
         // Intentionally withhold LoadTerrain until Loading input has been observed.
     }
     Ok(())
@@ -1001,22 +1200,67 @@ fn main() {
     let screen = StartupScreen::from_example_args();
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(Path::parent)
-        .expect("checkout root above Godot network workspace");
+    let checkout = fixture_support::checkout_root_from_executable("native_input_fixture")
+        .expect("locate originating fixture checkout");
+    let root = checkout.as_path();
     let launcher = root.join("target/debug/game-engine-launcher");
-    assert!(
-        launcher.is_file(),
-        "build root launcher first: missing {}",
-        launcher.display()
-    );
-    let config = FixtureConfig::create(root);
-    let (mut child, lines, reader) = launch_godot(root, &config, address, screen);
+    if !matches!(
+        screen,
+        StartupScreen::Sound
+            | StartupScreen::SoundClick
+            | StartupScreen::SoundOutcome
+            | StartupScreen::MerchantClick
+            | StartupScreen::Footsteps
+            | StartupScreen::ResetWindows
+    ) {
+        assert!(
+            launcher.is_file(),
+            "build root launcher first: missing {}",
+            launcher.display()
+        );
+    }
+    let reset_project = matches!(
+        screen,
+        StartupScreen::ResetWindows | StartupScreen::SoundClick | StartupScreen::MerchantClick
+    )
+    .then(|| {
+        reset_windows::FixtureProject::create(
+            root,
+            matches!(
+                screen,
+                StartupScreen::SoundClick | StartupScreen::MerchantClick
+            ),
+        )
+        .expect("stage isolated reset data and Godot project")
+    });
+    let project = reset_project
+        .as_ref()
+        .map_or_else(|| root.join("godot"), |fixture| fixture.project.clone());
+    let config_root = reset_project
+        .as_ref()
+        .map_or(root, |fixture| fixture.root_path());
+    let config = FixtureConfig::create(config_root, screen);
+    let (mut child, lines, reader) = launch_godot(root, &project, &config, address, screen, false);
     let result = if screen == StartupScreen::Swimming {
         swimming::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Menu {
         menu::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::ResetWindows {
+        reset_windows::run(
+            &mut app, &mut child, lines, reader, root, &config, &project, address,
+        )
+    } else if screen == StartupScreen::Logout {
+        logout::run(&mut app, &mut child, lines, reader, root, address)
+    } else if screen == StartupScreen::SoundClick {
+        sound_click::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::SoundOutcome {
+        sound_outcome::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::MerchantClick {
+        merchant_click::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::Sound {
+        sound::run(&mut app, &mut child, lines, reader)
+    } else if screen == StartupScreen::Footsteps {
+        footsteps::run(&mut app, &mut child, lines, reader)
     } else {
         run_fixture(&mut app, &mut child, lines, reader, screen)
     };

@@ -1,6 +1,8 @@
 //! Headless account and character-session decisions. The host owns transport, token I/O,
 //! screen projection, network resets, and world/reconnect completion.
 
+pub mod logout;
+
 use shared::protocol::{
     CharacterListEntry, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
     EnterWorldResponse, ForcedDisconnect, LoginRequest, LoginResponse, RegisterRequest,
@@ -56,6 +58,8 @@ pub enum SessionScreen {
     CharacterCreate,
     Loading,
     InWorld,
+    /// Standalone menu preview; closing the overlay does not select an account screen.
+    GameMenu,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -391,7 +395,7 @@ impl Session {
                 self.screen = SessionScreen::Login;
                 vec![SessionEffect::Transition(self.screen)]
             }
-            SessionScreen::Login => {
+            SessionScreen::Login | SessionScreen::GameMenu => {
                 self.clear_reconnect();
                 self.feedback = Some("Connection lost.".into());
                 Vec::new()

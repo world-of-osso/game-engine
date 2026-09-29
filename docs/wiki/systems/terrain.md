@@ -8,6 +8,10 @@ Official tile requests resolve their listfile FDID and call the existing `AssetR
 
 `terrain_tile::resolver_tests` uses temporary filesystem caches to prove root/companion extraction, byte-preserving reuse, named-sidecar behavior, and lookup/extraction errors. Bounded native cold-edge capture extracted two roots and their declared companions from local CASC; one tile fully spawned before the 30-second cap. A third tile was not observed before the cap, not classified as an extraction failure. See [[npc-motion-validation]].
 
+## Shared terrain surface selection
+
+`70e047ff` makes `src/rendering/terrain/terrain_surface_data.rs` the Bevy-free source of dominant effect ID, dominant texture FDID, and footstep surface selection for the root client and `godot/core`. The first layer weighs 1,000,000; subsequent layers use summed alpha bytes; equal weights favor the later layer. Zero effect IDs are skipped, while an invalid texture index ends FDID selection. Resolved effect surfaces precede texture-path classification; unresolved paths remain Dirt. Bevy retains its existing GroundEffect loading/cache and FDID-path lookup in the heightmap adapter; loaders are unchanged. Native tile ingestion now computes and stores one surface per loaded height-grid chunk with `_tex0` layers. `StreamedTerrain::surface_at(x,z)` uses the same tile/half-open chunk coverage as `area_id_at`; absent tiles, texture companions, or chunk coverage return `None`, and unclassified present chunks use the shared Dirt policy. This shared prerequisite is consumed by the later bounded native local-player footstep path; it does not independently prove that path. Verifier839 remains a separate pending claim.
+
 ## ADT Split Files
 
 Each tile is three files:
@@ -16,6 +20,16 @@ Each tile is three files:
 - `_obj0.adt` — MDDF doodad placements and MODF WMO placements
 
 The engine loads all three. Finding companion files uses the community listfile (path-based sibling lookup).
+
+## Native MCNK Surface Lookup
+
+`NativeTerrainAssets` reads GroundEffectTexture (FDID 1308499) and TerrainTypeSounds (FDID 1284822) once per reader through the local CASC/cache resolver. Shared parsers map dominant effect → terrain sound name → footstep surface before falling through to dominant texture FDID's listfile path. Invalid/unavailable DB2s report contextual errors once and leave terrain rendering available; texture classification still applies. Chunk alpha weights are calculated at tile ingestion, not per-frame lookup. Metadata lives with each parsed tile and clears on stream reset. This is an actual native `surface_at` metadata lookup, separate from `70e047ff`'s shared prerequisite. `b773ecfd` final bounded footstep verification proves its integrated local-player use, not an isolated terrain-query verifier. WMO material surfaces are now ranked once per root through shared `wmo_surface_data`. The tile reader stores eligible `_obj0` MODF bounds/surfaces beside parsed collision floors, before node/physics spawning; the WDT payload retains its global placement surface. `StreamedTerrain::surface_at_position([x, y, z])` selects the smallest-volume inclusive-containing WMO bounds (global extents use the WDT origin, MODF extents use absolute ADT conversion), then terrain surface, then Dirt. Missing material paths are excluded as in the original renderer. This query alone does not prove trigger/playback; `b773ecfd` final bounded footstep verification proves its integrated local-player use, not an isolated WMO-query verifier.
+
+## Native MCNK Area Lookup
+
+`959112e9` exposes the nonzero `area_id` of the loaded MCNK under the local player as `account_state.area_id`. The native query matches the current player position to the loaded tile and height-grid chunk; unloaded tiles, zero area IDs, invalid coordinates, and cleared terrain generations yield no area.
+
+Targeted `area_query` tests are 2/2, covering chunk/tile bounds and reset/reload clearing. Independent verification remains pending. This is only the terrain-area prerequisite: it does not resolve an `AreaTable` parent/zone, select zone music, start audio playback, or establish native runtime behavior. See [[sound]] for the existing Bevy-only zone-music system.
 
 ## ADT MH2O Water
 
@@ -73,6 +87,9 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 - **Terrain normals and campsite floor**: `510b44a5` corrects MCNR decoding from `[b2, b1, -b0]` to `[b0, b2, -b1]`. The verified `2703_31_37.adt` geometric alignment is `0.997198` for the corrected mapping versus `0.089730` before it. Parser RED/GREEN is recorded. `a20f6b84` removes the separate character-select `StandardMaterial` grass overlay; its regression confirms ADT terrain and a height at the campsite focus remain while no character-select `StandardMaterial` floor exists. Cross-map and rendered regression proof remains pending. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
 
 ## Sources
+
+- [terrain surface selection](../../../src/rendering/terrain/terrain_surface_data.rs) — shared effect, texture, and surface decisions
+- [terrain heightmap](../../../src/rendering/terrain/terrain_heightmap.rs) — Bevy GroundEffect adapter and FDID path lookup
 
 - [adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md) — tile ordering bug, mountain silhouette issues
 - [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md) — verified MCNR normal-axis failure and bright workaround plane

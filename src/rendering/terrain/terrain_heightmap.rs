@@ -13,7 +13,12 @@ use crate::rendering::terrain_height_data::{
     WaterLayerSurface as BorrowedWaterLayerSurface, layer_has_water,
     sample_water_layer_height as sample_shared_water_layer_height,
 };
-use crate::sound_footsteps::{FootstepSurface, classify_surface_from_texture_path};
+#[cfg(test)]
+use crate::rendering::terrain_surface_data::dominant_texture_fdid;
+use crate::rendering::terrain_surface_data::{
+    dominant_effect_id, dominant_surface_for_chunk_with_resolver,
+};
+use crate::sound_footsteps::FootstepSurface;
 use crate::terrain_tile::bevy_to_tile_coords;
 
 #[cfg(test)]
@@ -245,7 +250,12 @@ fn dominant_surface_for_chunk(
     {
         return surface;
     }
-    dominant_surface_for_chunk_with_resolver(tex_data, chunk, |_| None)
+    dominant_surface_for_chunk_with_resolver(
+        tex_data,
+        chunk,
+        |_| None,
+        game_engine::listfile::lookup_fdid,
+    )
 }
 
 fn dominant_ground_effect_for_chunk(chunk: &adt::ChunkTexLayers) -> Option<GroundEffectEntry> {
@@ -257,74 +267,6 @@ fn dominant_ground_effect_for_chunk_with_resolver(
     resolve_ground_effect: impl Fn(u32) -> Option<GroundEffectEntry>,
 ) -> Option<GroundEffectEntry> {
     dominant_effect_id(chunk).and_then(resolve_ground_effect)
-}
-
-fn dominant_surface_for_chunk_with_resolver(
-    tex_data: &adt::AdtTexData,
-    chunk: &adt::ChunkTexLayers,
-    resolve_effect_surface: impl Fn(u32) -> Option<FootstepSurface>,
-) -> FootstepSurface {
-    if let Some(effect_id) = dominant_effect_id(chunk)
-        && let Some(surface) = resolve_effect_surface(effect_id)
-    {
-        return surface;
-    }
-    let Some(fdid) = dominant_texture_fdid(tex_data, chunk) else {
-        return FootstepSurface::Dirt;
-    };
-    let Some(path) = game_engine::listfile::lookup_fdid(fdid) else {
-        return FootstepSurface::Dirt;
-    };
-    classify_surface_from_texture_path(path)
-}
-
-fn dominant_effect_id(chunk: &adt::ChunkTexLayers) -> Option<u32> {
-    let mut best = None;
-    let mut best_weight = 0u64;
-    for (layer_idx, layer) in chunk.layers.iter().enumerate() {
-        if layer.effect_id == 0 {
-            continue;
-        }
-        let weight = if layer_idx == 0 {
-            1_000_000
-        } else {
-            layer
-                .alpha_map
-                .as_ref()
-                .map(|alpha| alpha.iter().map(|v| u64::from(*v)).sum())
-                .unwrap_or_default()
-        };
-        if weight >= best_weight {
-            best = Some(layer.effect_id);
-            best_weight = weight;
-        }
-    }
-    best
-}
-
-fn dominant_texture_fdid(tex_data: &adt::AdtTexData, chunk: &adt::ChunkTexLayers) -> Option<u32> {
-    let mut best = None;
-    let mut best_weight = 0u64;
-    for (layer_idx, layer) in chunk.layers.iter().enumerate() {
-        let fdid = tex_data
-            .texture_fdids
-            .get(layer.texture_index as usize)
-            .copied()?;
-        let weight = if layer_idx == 0 {
-            1_000_000
-        } else {
-            layer
-                .alpha_map
-                .as_ref()
-                .map(|alpha| alpha.iter().map(|v| u64::from(*v)).sum())
-                .unwrap_or_default()
-        };
-        if weight >= best_weight {
-            best = Some(fdid);
-            best_weight = weight;
-        }
-    }
-    best
 }
 
 #[cfg(test)]
@@ -494,10 +436,12 @@ mod tests {
             }],
         };
 
-        let surface =
-            dominant_surface_for_chunk_with_resolver(&tex, &tex.chunk_layers[0], |effect_id| {
-                (effect_id == 42).then_some(FootstepSurface::Stone)
-            });
+        let surface = dominant_surface_for_chunk_with_resolver(
+            &tex,
+            &tex.chunk_layers[0],
+            |effect_id| (effect_id == 42).then_some(FootstepSurface::Stone),
+            |_| None,
+        );
 
         assert_eq!(surface, FootstepSurface::Stone);
     }

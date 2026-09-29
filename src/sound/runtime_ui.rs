@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use crate::ui_input::walk_up_for_onclick;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::UiState;
+use game_engine::ui_click_data::{CLICK_VOLUME_SCALE, generate_button_click_samples};
 
 use super::{SoundAssets, SoundSettings, compute_effects_volume, load_generated_audio};
 
@@ -112,25 +113,10 @@ fn play_ui_sound(
 
 fn ui_sound_volume_scale(kind: UiSoundKind) -> f32 {
     match kind {
-        UiSoundKind::ButtonClick => 0.55,
+        UiSoundKind::ButtonClick => CLICK_VOLUME_SCALE,
         UiSoundKind::BagOpen => 0.75,
         UiSoundKind::BagClose => 0.65,
     }
-}
-
-fn generate_button_click_samples() -> Vec<i16> {
-    let sample_rate = 44_100.0_f32;
-    let duration_ms = 40;
-    let sample_count = (sample_rate * duration_ms as f32 / 1000.0) as usize;
-    let mut samples = Vec::with_capacity(sample_count);
-    for i in 0..sample_count {
-        let t = i as f32 / sample_count as f32;
-        let envelope = (1.0 - t).powf(4.0);
-        let tone = (t * 2.0 * std::f32::consts::PI * 1_300.0).sin() * 0.6;
-        let tick = (t * 2.0 * std::f32::consts::PI * 2_600.0).sin() * 0.2;
-        samples.push(((tone + tick) * envelope * 10_500.0) as i16);
-    }
-    samples
 }
 
 fn generate_bag_open_samples() -> Vec<i16> {
