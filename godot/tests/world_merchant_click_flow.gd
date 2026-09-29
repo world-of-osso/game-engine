@@ -137,8 +137,8 @@ func print_options_label_geometry(menu: CanvasLayer, capture: String) -> void:
 	for node in host.find_children("*", "Label", true, false):
 		var label := node as Label
 		var parent := label.get_parent() as Control
-		var frame := parent.get_parent() as Control if parent != null else null
-		if frame == null or not label.is_visible_in_tree() or not (str(frame.name).begins_with("InfoDetail") or str(frame.name).begins_with("GhostDetail")):
+		var frame: Control = label
+		if parent == null or not label.is_visible_in_tree() or not (str(label.name).begins_with("InfoDetail") or str(label.name).begins_with("GhostDetail")):
 			continue
 		var rect := label.get_global_rect()
 		print("OPTIONS_LABEL capture=%s name=%s path=%s text=%s size=%s minimum=%s rect=%s parent=%s parent_rect=%s frame_rect=%s align=%s grow=%s clip=%s autowrap=%s beyond_content=%s beyond_root=%s" % [capture, frame.name, label.get_path(), label.text, label.size, label.get_combined_minimum_size(), rect, parent.get_path(), parent.get_global_rect(), frame.get_global_rect(), label.horizontal_alignment, label.grow_horizontal, label.clip_text, label.autowrap_mode, rect.end.x > content_rect.end.x, rect.end.x > options_rect.end.x])
