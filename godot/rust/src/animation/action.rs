@@ -45,7 +45,7 @@ pub(super) struct ActionLayer {
     releasing: bool,
 }
 
-/// Bones in the subtree of key bone SpineLow; empty when the model has none.
+/// Per bone: in the subtree of key bone SpineLow (all `false` when the model has none).
 pub(super) fn upper_body_bones(model: &m2::Model) -> Vec<bool> {
     let Some(root) = model
         .bones
@@ -54,18 +54,18 @@ pub(super) fn upper_body_bones(model: &m2::Model) -> Vec<bool> {
     else {
         return vec![false; model.bones.len()];
     };
-    let mut upper = vec![false; model.bones.len()];
-    for index in 0..model.bones.len() {
-        let mut bone = index as i32;
-        while bone >= 0 {
-            if bone as usize == root {
-                upper[index] = true;
-                break;
+    (0..model.bones.len())
+        .map(|index| {
+            let mut bone = index as i32;
+            while bone >= 0 {
+                if bone as usize == root {
+                    return true;
+                }
+                bone = i32::from(model.bones[bone as usize].parent_bone_id);
             }
-            bone = i32::from(model.bones[bone as usize].parent_bone_id);
-        }
-    }
-    upper
+            false
+        })
+        .collect()
 }
 
 fn approach(value: f32, target: f32, step: f32) -> f32 {
