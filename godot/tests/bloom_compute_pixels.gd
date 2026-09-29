@@ -307,7 +307,7 @@ func compare(actual: Image, expected: Image, label: String, constant: bool) -> v
 					failures += 1
 					push_error(
 						(
-							"%s (%d,%d) channel%d: %g expected %g tolerance %g"
+							"%s (%d,%d) channel%d: %.9f expected %.9f tolerance %.9f"
 							% [label, x, y, channel, observed[channel], wanted[channel], tolerance]
 						)
 					)
