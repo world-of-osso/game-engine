@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] verification | Bounded native RCAS rendered GREEN
+
+Recorded production `543ca754`, integrated `27727fa0`, and actual native fixture `94e7e02a` proof in [[godot-conversion#bounded-rcas-compatibility-investigation]]. Depot `9n5kpbsc6l` built in 62.1 seconds, exit 0; interrupted `zp1dlvr07r` supplies no compilation proof. Native Vulkan run exits 0 for startup 0.75/live 0.5 RCAS oracle, live 1.0 bypass, unchanged discriminating UI edge pixels, and finite opaque black patch. Main inspected the capture. Independent final evidence remains pending; full legacy scene parity and other outstanding Options remain open. Updated both conversion specs and index; recipes remain wiki-only.
+
 ## [2026-09-29] implementation | Native chat frame
 
 The Godot client had no chat. It now hosts the shared `ChatFrame1` screen on a `ChatFrameUI` RegistryUi. The Bevy channel mapping, whisper recording, tab entries, scroll hold and view builder moved into shared files, so both clients format and route chat the same way. The edit box gained the retail `Say: ` header and ChatFontNormal. `godot/tests/world_chat_flow.gd` passes against a private server: geometry, MOTD, W typing without moving, server echoes of say/yell/emote, the offline-whisper error, local command lines, wheel scroll, history, and Escape without opening the game menu. See [[chat-frame]].
