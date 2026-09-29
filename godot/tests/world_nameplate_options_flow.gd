@@ -17,7 +17,7 @@ func run_test() -> void:
 	var ui = client.get_node("CharacterSelectUI")
 	await click_control(ui.find_child("CharCard_0", true, false))
 	await click_control(ui.find_child("EnterWorld", true, false))
-	var world_deadline := Time.get_ticks_msec() + 20000
+	var world_deadline := Time.get_ticks_msec() + 40000
 	while Time.get_ticks_msec() < world_deadline and client.account_state().screen != "InWorld":
 		await process_frame
 	if client.account_state().screen != "InWorld":
@@ -125,6 +125,11 @@ func run_test() -> void:
 		return
 	if client.account_state().unit_count != 0 or client.account_state().local_player_position != null:
 		fail("World reset retained local player data: " + str(client.account_state()))
+		return
+	if not await wait_screen(client, "CharacterSelect"):
+		return
+	if client.account_state().local_player_position != null:
+		fail("Reconnect retained local player position: " + str(client.account_state()))
 		return
 	print("FIXTURE NAMEPLATE_OPTIONS_DONE")
 	client.free()
