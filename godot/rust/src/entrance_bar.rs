@@ -16,7 +16,7 @@ use godot::classes::FontFile;
 use godot::prelude::*;
 use ui_toolkit::widgets::font_string::GameFont;
 
-use crate::{GameClient, ui::RegistryUi};
+use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
 const DB2_DIR: &str = "db2/12.1.0.69933";
 const FONT_SIZE: i32 = 14;
@@ -149,7 +149,7 @@ fn approach(value: f32, target: f32, rate: f32, delta: f32) -> f32 {
 impl GameClient {
     /// Per frame: proximity, clicks, fades and the frame. A data failure is reported once
     /// and disables the bar; it does not end the session.
-    pub(super) fn update_entrance_bar(&mut self, delta: f32) -> Result<(), String> {
+    pub(super) fn update_entrance_bar(&mut self, delta: f32) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.entrance_bar.close();
             return Ok(());
@@ -202,7 +202,7 @@ impl GameClient {
 
     /// Plumber `TrySelectDiffulty`: a click on another difficulty asks the server for it and
     /// spins until the answer. Outside instances the change is allowed (no group rule yet).
-    fn poll_entrance_bar_actions(&mut self) -> Result<(), String> {
+    fn poll_entrance_bar_actions(&mut self) -> Result<(), FrameError> {
         let Some(ui) = self.entrance_bar.ui.as_mut() else {
             return Ok(());
         };
@@ -224,7 +224,7 @@ impl GameClient {
 
     /// Plumber `ShowInstance`: a new instance with difficulties rebuilds the bar; the
     /// first show also refreshes the saved instances.
-    fn show_target_instance(&mut self) -> Result<(), String> {
+    fn show_target_instance(&mut self) -> Result<(), FrameError> {
         let Some((id, _)) = self.entrance_bar.target else {
             return Ok(());
         };
@@ -239,7 +239,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn animate_entrance_bar(&mut self, delta: f32) -> Result<(), String> {
+    fn animate_entrance_bar(&mut self, delta: f32) -> Result<(), FrameError> {
         self.show_target_instance()?;
         let visible = self.entrance_bar.target.map(|(id, _)| id) == self.entrance_bar.shown
             && self.entrance_bar.shown.is_some();
@@ -260,7 +260,7 @@ impl GameClient {
             return Ok(());
         };
         let state = self.build_entrance_bar_state(&selector, delta)?;
-        self.sync_entrance_bar_ui(state)
+        Ok(self.sync_entrance_bar_ui(state)?)
     }
 
     fn build_entrance_bar_state(
@@ -371,7 +371,11 @@ impl GameClient {
     fn set_dungeon_difficulty(&mut self, difficulty_id: i64) -> GString {
         let sent = u32::try_from(difficulty_id)
             .map_err(|_| format!("Bad difficulty {difficulty_id}"))
-            .and_then(|id| self.account.send_set_dungeon_difficulty(id));
+            .and_then(|id| {
+                self.account
+                    .send_set_dungeon_difficulty(id)
+                    .map_err(|error| error.to_string())
+            });
         GString::from(sent.err().unwrap_or_default().as_str())
     }
 }

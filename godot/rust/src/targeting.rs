@@ -25,6 +25,7 @@ use godot::{
     prelude::*,
 };
 
+use crate::frame_error::{FrameError, SessionError, report_once};
 use crate::{GameClient, assets::M2_BOUNDS_META, ui::RegistryUi};
 
 /// Physics layer 3 holds only unit pick shapes; terrain and WMO bodies use layers 1-2.
@@ -49,7 +50,10 @@ pub(crate) struct Targeting {
     /// The target last sent in `SetTarget`.
     sent: Option<u64>,
     circle: Option<(u64, Gd<Decal>)>,
-    ring: Option<Gd<ImageTexture>>,
+    /// The loaded ring art; `Some(None)` caches art that failed to load.
+    ring: Option<Option<Gd<ImageTexture>>>,
+    /// `RING_FDID` unless a test points the ring at other art.
+    ring_fdid: u32,
     frame_ui: Option<Gd<RegistryUi>>,
     data_root: PathBuf,
 }
@@ -61,6 +65,7 @@ impl Targeting {
             sent: None,
             circle: None,
             ring: None,
+            ring_fdid: RING_FDID,
             frame_ui: None,
             data_root,
         }
@@ -80,11 +85,30 @@ impl Targeting {
         }
     }
 
-    fn ring_texture(&mut self) -> Result<Gd<ImageTexture>, String> {
+    /// Test hook: read the ring from `fdid`; the next frame respawns it.
+    pub(crate) fn override_ring_fdid(&mut self, fdid: u32) {
+        self.ring_fdid = fdid;
+        self.ring = None;
+        self.free_circle();
+    }
+
+    /// The ring art; a load failure is reported once and the ring stays absent.
+    fn ring_texture(&mut self) -> Option<Gd<ImageTexture>> {
         if let Some(ring) = &self.ring {
-            return Ok(ring.clone());
+            return ring.clone();
         }
-        let path = self.data_root.join(format!("textures/{RING_FDID}.blp"));
+        let ring = self
+            .load_ring()
+            .inspect_err(|error| report_once(error))
+            .ok();
+        self.ring = Some(ring.clone());
+        ring
+    }
+
+    fn load_ring(&self) -> Result<Gd<ImageTexture>, String> {
+        let path = self
+            .data_root
+            .join(format!("textures/{}.blp", self.ring_fdid));
         let bytes = std::fs::read(&path)
             .map_err(|error| format!("Read target ring {}: {error}", path.display()))?;
         let mut decoded = game_engine_core::blp::decode_rgba(&bytes)
@@ -98,11 +122,9 @@ impl Targeting {
             image::Format::RGBA8,
             &pixels,
         )
-        .ok_or("Godot rejected the target ring image")?;
-        let ring = ImageTexture::create_from_image(&image)
-            .ok_or("Godot rejected the target ring texture")?;
-        self.ring = Some(ring.clone());
-        Ok(ring)
+        .ok_or_else(|| format!("Godot rejected target ring image {}", path.display()))?;
+        ImageTexture::create_from_image(&image)
+            .ok_or_else(|| format!("Godot rejected target ring texture {}", path.display()))
     }
 }
 
@@ -277,7 +299,7 @@ impl GameClient {
     }
 
     /// Per frame, before input edges clear: selection input, then its presentation.
-    pub(super) fn update_targeting(&mut self) -> Result<(), String> {
+    pub(super) fn update_targeting(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.targeting.target = None;
             self.targeting.sent = None;
@@ -297,7 +319,7 @@ impl GameClient {
         }
         self.send_target()?;
         self.sync_target_circle()?;
-        self.sync_target_frame()
+        Ok(self.sync_target_frame()?)
     }
 
     fn apply_targeting_input(&mut self) {
@@ -350,7 +372,7 @@ impl GameClient {
         npcs.into_iter().map(|(id, _)| id).collect()
     }
 
-    fn send_target(&mut self) -> Result<(), String> {
+    fn send_target(&mut self) -> Result<(), SessionError> {
         let target = self.targeting.target;
         if target == self.targeting.sent || !self.account.session.gameplay_input_allowed() {
             return Ok(());
@@ -377,7 +399,9 @@ impl GameClient {
         else {
             return Ok(());
         };
-        let ring = self.targeting.ring_texture()?;
+        let Some(ring) = self.targeting.ring_texture() else {
+            return Ok(());
+        };
         self.targeting.circle = Some((id, spawn_circle(&mut unit, &ring)));
         Ok(())
     }

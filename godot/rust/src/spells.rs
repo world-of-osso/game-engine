@@ -33,6 +33,7 @@ use godot::prelude::*;
 use shared::components::PowerType;
 use shared::protocol::{ActionRef, CastFailed, CombatLogKind};
 
+use crate::frame_error::{FrameError, SessionError, report_once};
 use crate::{GameClient, ui::RegistryUi};
 
 /// Retail action bar keys, button 1..12.
@@ -244,17 +245,20 @@ fn cooldown_text(remaining: f32) -> String {
 }
 
 impl GameClient {
-    /// Per frame, before input edges clear. A failure is reported and closes the spell
-    /// UI; it does not end the session.
-    pub(super) fn update_spells(&mut self, delta: f32) -> Result<(), String> {
-        if let Err(error) = self.drive_spells(delta) {
-            godot_error!("Spell UI: {error}");
-            self.spells.close();
+    /// Per frame, before input edges clear. A client failure is reported once and closes
+    /// the spell UI; only a failed cast send ends the session.
+    pub(super) fn update_spells(&mut self, delta: f32) -> Result<(), FrameError> {
+        match self.drive_spells(delta) {
+            Err(FrameError::Client(error)) => {
+                report_once(&format!("Spell UI: {error}"));
+                self.spells.close();
+                Ok(())
+            }
+            result => result,
         }
-        Ok(())
     }
 
-    fn drive_spells(&mut self, delta: f32) -> Result<(), String> {
+    fn drive_spells(&mut self, delta: f32) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.spells.close();
             return Ok(());
@@ -285,7 +289,7 @@ impl GameClient {
         })
     }
 
-    fn apply_spell_keys(&mut self) -> Result<(), String> {
+    fn apply_spell_keys(&mut self) -> Result<(), FrameError> {
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         let bindings = &self.client_options.bindings;
         let toggle = bindings.is_just_pressed(InputAction::ToggleSpellbook, &input);
@@ -305,7 +309,7 @@ impl GameClient {
     }
 
     /// `UseAction`: a spell button casts at the current target.
-    fn use_action_button(&mut self, index: usize) -> Result<(), String> {
+    fn use_action_button(&mut self, index: usize) -> Result<(), SessionError> {
         self.spells.pushed[index] = PUSH_SECS;
         match self.account.spells.slot(index) {
             Some(ActionRef::Spell(spell_id)) => self.cast_spell(spell_id),
@@ -313,7 +317,7 @@ impl GameClient {
         }
     }
 
-    fn cast_spell(&mut self, spell_id: u32) -> Result<(), String> {
+    fn cast_spell(&mut self, spell_id: u32) -> Result<(), SessionError> {
         let name = self
             .spells
             .catalog()
@@ -339,15 +343,15 @@ impl GameClient {
         self.add_world_error(&text)
     }
 
-    fn poll_action_bar_clicks(&mut self) -> Result<(), String> {
+    fn poll_action_bar_clicks(&mut self) -> Result<(), FrameError> {
         let Some(ui) = self.spells.bar_ui.as_mut() else {
             return Ok(());
         };
         let action = ui.bind_mut().pop_action().to_string();
         match parse_action_button(&action) {
-            Some(index) => self.use_action_button(index),
+            Some(index) => Ok(self.use_action_button(index)?),
             None if action.is_empty() => Ok(()),
-            None => Err(format!("Unknown action bar action: {action}")),
+            None => Err(format!("Unknown action bar action: {action}").into()),
         }
     }
 
@@ -376,11 +380,11 @@ impl GameClient {
         if found { fdid } else { 0 }
     }
 
-    /// Chrome art must be on disk: a missing file is an error, not a blank frame.
-    fn ensure_art(&mut self, fdids: &[u32]) -> Result<(), String> {
-        match fdids.iter().find(|&&fdid| self.drawable_fdid(fdid) == 0) {
-            Some(fdid) => Err(format!("UI art FDID {fdid} is not in local CASC")),
-            None => Ok(()),
+    /// Extract the frame chrome from local CASC before the frame first draws. Art that is
+    /// not there is reported by `drawable_fdid` and draws absent.
+    fn extract_art(&mut self, fdids: &[u32]) {
+        for &fdid in fdids {
+            self.drawable_fdid(fdid);
         }
     }
 
@@ -437,7 +441,7 @@ impl GameClient {
         if let Some(ui) = self.spells.bar_ui.as_mut() {
             return ui.bind_mut().set_state(state);
         }
-        self.ensure_art(&ACTION_BAR_ART_FDIDS)?;
+        self.extract_art(&ACTION_BAR_ART_FDIDS);
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("MainActionBarUI");
         ui.set_layer(2);
@@ -630,17 +634,16 @@ impl GameClient {
             let ui = self.spells.book_ui.as_mut().expect("spellbook open");
             return ui.bind_mut().set_state(state);
         }
-        let shown = self.ensure_art(&SPELLBOOK_ART_FDIDS).and_then(|()| {
-            let ui = self.spells.book_ui.as_mut().expect("spellbook open");
-            ui.bind_mut().show_spellbook(state)
-        });
+        self.extract_art(&SPELLBOOK_ART_FDIDS);
+        let ui = self.spells.book_ui.as_mut().expect("spellbook open");
+        let shown = ui.bind_mut().show_spellbook(state);
         if shown.is_err() {
             self.close_spellbook();
         }
         shown
     }
 
-    fn poll_spellbook_actions(&mut self) -> Result<(), String> {
+    fn poll_spellbook_actions(&mut self) -> Result<(), FrameError> {
         let Some(ui) = self
             .spells
             .book_ui
@@ -669,7 +672,7 @@ impl GameClient {
                 .map_err(|_| format!("Bad spellbook spell {action}"))?;
             self.cast_spell(spell_id)?;
         } else {
-            return Err(format!("Unknown spellbook action: {action}"));
+            return Err(format!("Unknown spellbook action: {action}").into());
         }
         Ok(())
     }
