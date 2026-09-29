@@ -63,6 +63,7 @@ ChrCustomizationReqChoice.csv
 WarbandScene.csv
 WarbandScenePlacement.csv
 WarbandScenePlacementOption.csv
+textures/6375814.blp
 db2/12.1.0.69933/UiTextureKit.csv
 db2/12.1.0.69933/UiTextureAtlasElement.csv
 db2/12.1.0.69933/UiTextureAtlas.csv
@@ -138,3 +139,9 @@ models/2904370.m2
 db2/12.1.0.69933/Item.csv
 db2/12.1.0.69933/ItemSparse.csv
 db2/12.1.0.69933/ItemSubClass.csv
+db2/12.1.0.69933/JournalInstanceEntrance.csv
+db2/12.1.0.69933/JournalInstance.csv
+db2/12.1.0.69933/Map.csv
+db2/12.1.0.69933/MapDifficulty.csv
+db2/12.1.0.69933/DungeonEncounter.csv
+db2/12.1.0.69933/Difficulty.csv
