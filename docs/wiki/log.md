@@ -2,7 +2,7 @@
 
 ## [2026-09-29] ui | Native MerchantFrame placement slice
 
-`MerchantFrame` alone uses selected-character `ui_layout.ron` placement, shared 24-unit title dragging, UI-scale clamp, reopen and Options reset. `ContainerFrame0` and `StackSplitFrame` do not move with it; native Panel L/R ordering and raise parity remain open. Extended owned merchant-click fixture covers vendor ray interaction, saved placement, backpack independence and click-audio behavior. Baseline installed binary at `80d2cbc6` RED on unscaled merchant root. Main-owned Depot build `70561683` passed with aligned `godot/Cargo.lock` after an initial `--locked` failure; the downloaded binary plus script `3e1fd121` passed the owned UDP fixture (`data/diagnostics/merchant-placement-green-3e1fd121.log`). Updated [[merchant-frame]] and [window manager spec](../specs/window-manager.md).
+`MerchantFrame` alone uses selected-character `ui_layout.ron` placement, shared 24-unit title dragging, UI-scale clamp, reopen and Options reset. `ContainerFrame0` and `StackSplitFrame` do not move with it; native Panel L/R ordering and raise parity remain open. Extended owned merchant-click fixture covers vendor ray interaction, saved placement, backpack independence and click-audio behavior. Baseline installed binary at `80d2cbc6` RED on unscaled merchant root. Main-owned Depot build `70561683` passed with aligned `godot/Cargo.lock` after an initial `--locked` failure; the downloaded binary plus script `9f64af5f` passed the owned UDP fixture (`data/diagnostics/merchant-placement-green-9f64af5f.log`). Updated [[merchant-frame]] and [window manager spec](../specs/window-manager.md).
 
 ## [2026-09-29] ui | Native SpellBookRoot managed placement implementation
 
