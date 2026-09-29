@@ -6,7 +6,7 @@ WMO doodads' per-frame cost was the Rust cull (hash sets, per-batch FFI reads), 
 
 ## [2026-09-28] system | Native local-player footstep playback
 
-Authored local Ogg footstep catalog and owned 3D emitter now observe selected local player clip/race/world position after animation tick, with shared phase/selection and streamed terrain/WMO surface. Component and authenticated owned-UDP fixtures pass decoded sample/position/gain/idle/stop checks, music-off/mute/master-option changes, and replicated-player removal; audible and full parity remain unproven. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
+`d3882c9a`/`ece3da3c` add authored local Ogg footstep catalog selection and owned 3D emitters for the selected local player after animation tick, with shared phase/selection and streamed terrain/WMO surfaces. Component and authenticated owned-UDP fixtures pass decoded sample/position/gain/idle/stop checks, music-off/mute/master-option changes, and replicated-player removal. Four worktree CSVs were temporarily linked from canonical local data and removed afterward; the runtime filter excludes only `GODOT_STDERR: ERROR: WorldObjects:` diagnostics containing `missing textures` from optional scenery, while other Godot errors remain fatal. Audible/hardware and full parity remain unproven; verifier864 is pending without an independent pass. Updated [[sound]] and [Godot parity matrix](../specs/godot-parity-matrix.md).
 
 ## [2026-09-28] system | Native WMO footstep surface override
 
