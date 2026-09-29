@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] implementation | Native Render Scale pending GREEN
+
+Actual GPU RED at `e3a5c92b` measured full-size 1280×720 internal buffers for saved 0.75 instead of 960×540. `GameClient` now applies saved/committed scale on its owning viewport; Depot/GREEN is pending. CAS below 0.999 and full parity remain open. See [[godot-conversion]].
+
 ## [2026-09-29] fix | Native particle-density placement snapshot
 
 `79d792b0` captures density per doodad-emitter placement; `TerrainObjects` updates only the default after Options saves. Existing placements retain their captured rate, future registrations use the new default, and original `NO_GLOBAL_SCALE` emitters ignore global density. The controlled disposable 197007 portal copy clears only its six `NO_GLOBAL_SCALE` bits and preserves the original asset hash. In the actual `GameClient`, real Options 100→10 keeps known-pool quads at 485.67→488.0; owned same-map `NewWorld` creates a fresh placement at 46.67. Depot `kdhjvgmnt3` and runtime GREEN both exit 0 (`data/diagnostics/portal-density-depot-green-build-retry1.log`, `data/diagnostics/portal-density-green-79d792b0.log`). This is state/rate proof, not retail pixels, audible output, or full parity. See [[godot-conversion]] and [M2 particle spec](../specs/m2-particles.md).
