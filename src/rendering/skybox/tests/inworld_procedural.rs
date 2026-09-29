@@ -205,7 +205,11 @@ fn inworld_light_blend_follows_the_local_player_into_overlapping_lights() {
             .collect()
     };
     // Elwynn's ZoneLight 2471 (Light 12786, LightParams 6080) covers the global light.
-    assert_eq!(ids(&app), [12, 6080], "Elwynn spot is lit by its zone light");
+    assert_eq!(
+        ids(&app),
+        [12, 6080],
+        "Elwynn spot is lit by its zone light"
+    );
     let global_noon = app
         .world()
         .resource::<crate::sky::LightKeyframes>()

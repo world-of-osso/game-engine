@@ -63,6 +63,7 @@ pub fn sync_spellbook_model(
         known,
         spec_id,
         catalog.as_deref().and_then(SpellCatalog::data),
+        None,
     );
     runtime
         .bypass_change_detection()

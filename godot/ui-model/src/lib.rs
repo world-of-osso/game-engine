@@ -72,6 +72,16 @@ pub mod mirror_timer_component;
 #[path = "../../../src/mirror_timer_data.rs"]
 pub mod mirror_timer_data;
 
+#[path = "../../../src/ui/cast_failed_text.rs"]
+pub mod cast_failed_text;
+#[path = "../../../src/ui/screens/casting_bar_frame_component.rs"]
+pub mod casting_bar_frame_component;
+#[path = "../../../src/ui/screens/main_action_bar_component.rs"]
+pub mod main_action_bar_component;
+#[path = "../../../src/ui/screens/spell_tooltip_component.rs"]
+pub mod spell_tooltip_component;
+#[path = "../../../src/ui/screens/spellbook_frame_component.rs"]
+pub mod spellbook_frame_component;
 #[path = "../../../src/ui/ui_errors_data.rs"]
 pub mod ui_errors_data;
 #[path = "../../../src/ui/screens/ui_errors_frame_component.rs"]

@@ -4,7 +4,7 @@ use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::inworld_unit_frames_component::{CAST_DOCK_W, CLUSTER_BOTTOM};
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "menu_character_layout_test_support.rs"]
 mod layout_test_support;
 
@@ -191,7 +191,7 @@ fn timer_text(timer: &str) -> Element {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 mod tests {
     use super::layout_test_support::compute_layout;
     use super::*;

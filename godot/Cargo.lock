@@ -3063,12 +3063,14 @@ dependencies = [
 name = "game-engine-core"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "binrw",
  "directories",
  "glam",
  "half",
  "image 0.25.10",
  "image-blp",
+ "log",
  "ron 0.8.1",
  "rusqlite",
  "serde",
