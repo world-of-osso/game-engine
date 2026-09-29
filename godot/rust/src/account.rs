@@ -352,42 +352,11 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
-        if message.is::<QuestLogSnapshot>() {
-            let snapshot: QuestLogSnapshot = decode(message)?;
-            self.quest_log = snapshot.entries;
-            return Ok(());
+        if Self::is_account_state_message(&message) {
+            return self.dispatch_account_state_message(message);
         }
-        if message.is::<QuestLogUpdate>() {
-            apply_quest_log_update(&mut self.quest_log, decode(message)?);
-            return Ok(());
-        }
-        if message.is::<DungeonDifficultySet>() {
-            let set: DungeonDifficultySet = decode(message)?;
-            self.dungeon_difficulty = Some(set.difficulty_id);
-            return Ok(());
-        }
-        if message.is::<InstanceInfo>() {
-            let info: InstanceInfo = decode(message)?;
-            self.instance_locks = info.locks;
-            return Ok(());
-        }
-        if message.is::<MirrorTimerStart>() {
-            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Start(
-                decode(message)?,
-            )));
-            return Ok(());
-        }
-        if message.is::<MirrorTimerPause>() {
-            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Pause(
-                decode(message)?,
-            )));
-            return Ok(());
-        }
-        if message.is::<MirrorTimerStop>() {
-            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Stop(decode(
-                message,
-            )?)));
-            return Ok(());
+        if Self::is_mirror_timer_message(&message) {
+            return Self::dispatch_mirror_timer_message(message, output);
         }
         if message.is::<CombatEvent>() {
             output.push(AccountEvent::Combat(decode(message)?));
@@ -403,7 +372,88 @@ impl Account {
         self.dispatch_world_message(message, output)
     }
 
+    fn is_account_state_message(message: &ProtocolMessage) -> bool {
+        message.is::<QuestLogSnapshot>()
+            || message.is::<QuestLogUpdate>()
+            || message.is::<DungeonDifficultySet>()
+            || message.is::<InstanceInfo>()
+    }
+
+    fn dispatch_account_state_message(&mut self, message: ProtocolMessage) -> Result<(), String> {
+        if message.is::<QuestLogSnapshot>() {
+            let snapshot: QuestLogSnapshot = decode(message)?;
+            self.quest_log = snapshot.entries;
+            return Ok(());
+        }
+        if message.is::<QuestLogUpdate>() {
+            apply_quest_log_update(&mut self.quest_log, decode(message)?);
+            return Ok(());
+        }
+        if message.is::<DungeonDifficultySet>() {
+            let set: DungeonDifficultySet = decode(message)?;
+            self.dungeon_difficulty = Some(set.difficulty_id);
+            return Ok(());
+        }
+        let info: InstanceInfo = decode(message)?;
+        self.instance_locks = info.locks;
+        Ok(())
+    }
+
+    fn is_mirror_timer_message(message: &ProtocolMessage) -> bool {
+        message.is::<MirrorTimerStart>()
+            || message.is::<MirrorTimerPause>()
+            || message.is::<MirrorTimerStop>()
+    }
+
+    fn dispatch_mirror_timer_message(
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
+        if message.is::<MirrorTimerStart>() {
+            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Start(
+                decode(message)?,
+            )));
+            return Ok(());
+        }
+        if message.is::<MirrorTimerPause>() {
+            output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Pause(
+                decode(message)?,
+            )));
+            return Ok(());
+        }
+        output.push(AccountEvent::MirrorTimer(MirrorTimerMessage::Stop(decode(
+            message,
+        )?)));
+        Ok(())
+    }
+
     fn dispatch_world_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
+        if Self::is_world_transition_message(&message) {
+            return self.dispatch_world_transition_message(message, output);
+        }
+        if Self::is_roster_message(&message) {
+            return self.dispatch_roster_message(message, output);
+        }
+        let message = match npc_message(message)? {
+            Ok(npc) => {
+                output.push(AccountEvent::Npc(npc));
+                return Ok(());
+            }
+            Err(message) => message,
+        };
+        let effects = self.receive_message(message)?;
+        self.apply_effects(effects, output)
+    }
+
+    fn is_world_transition_message(message: &ProtocolMessage) -> bool {
+        message.is::<LoadTerrain>() || message.is::<NewWorld>() || message.is::<TransferAborted>()
+    }
+
+    fn dispatch_world_transition_message(
         &mut self,
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
@@ -421,13 +471,24 @@ impl Account {
             output.push(AccountEvent::Screen(SessionScreen::Loading));
             return Ok(());
         }
-        if message.is::<TransferAborted>() {
-            let aborted: TransferAborted = decode(message)?;
-            output.push(AccountEvent::TransferError(
-                self.format_transfer_error(aborted)?,
-            ));
-            return Ok(());
-        }
+        let aborted: TransferAborted = decode(message)?;
+        output.push(AccountEvent::TransferError(
+            self.format_transfer_error(aborted)?,
+        ));
+        Ok(())
+    }
+
+    fn is_roster_message(message: &ProtocolMessage) -> bool {
+        message.is::<CharacterListUpdate>()
+            || message.is::<DeleteCharacterResponse>()
+            || message.is::<CreateCharacterResponse>()
+    }
+
+    fn dispatch_roster_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
         if message.is::<CharacterListUpdate>() {
             self.session.receive_character_update(decode(message)?);
             output.push(AccountEvent::RosterChanged);
@@ -438,24 +499,13 @@ impl Account {
             output.push(AccountEvent::RosterChanged);
             return Ok(());
         }
-        if message.is::<CreateCharacterResponse>() {
-            let result = self.session.receive_character_created(decode(message)?);
-            output.push(AccountEvent::RosterChanged);
-            output.push(AccountEvent::CharacterCreated {
-                success: result.success,
-                error: result.error,
-            });
-            return Ok(());
-        }
-        let message = match npc_message(message)? {
-            Ok(npc) => {
-                output.push(AccountEvent::Npc(npc));
-                return Ok(());
-            }
-            Err(message) => message,
-        };
-        let effects = self.receive_message(message)?;
-        self.apply_effects(effects, output)
+        let result = self.session.receive_character_created(decode(message)?);
+        output.push(AccountEvent::RosterChanged);
+        output.push(AccountEvent::CharacterCreated {
+            success: result.success,
+            error: result.error,
+        });
+        Ok(())
     }
 
     fn receive_spell_message(&self, message: &ProtocolMessage) -> bool {
