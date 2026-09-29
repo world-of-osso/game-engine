@@ -29,6 +29,24 @@ Remote registry and Git caches are shared. The Cargo target cache is per checkou
 
 On September 29, 2026, `--fixture native_input_fixture` passed remotely in project `003c4ttwqh`, build `5nqxfxrzpt`: 206.04 s total (204.6 s remote; 205.9 s installed). It installed `target/debug/libgame_engine_godot.so` and `target/debug/examples/native_input_fixture` under the originating checkout. That installed fixture then passed local owned-UDP `sound-click` in 30.787 s (`/home/osso/.worktrees/.game-engine-options-depot-20260929/{fixture-build,exported-fixture-runtime}.log`). This is bounded build/export and fixture behavior proof, not a performance guarantee or conversion parity. Default invocation remains library-only. `native_npc_visual_fixture` is allowlisted but was not remotely built or run in this record.
 
+## Remote tests
+
+`python3 scripts/depot-build.py --root "$PWD" --test <cargo test args...>` runs `cargo test --locked` in the `godot/` workspace on Depot with every argument after `--test` (including `--`), prints the log tail and every `Running`/`test result`/`error`/`FAILED` line, saves the full log to `target/depot-test.log`, and exits with cargo's status; it installs nothing else. It uses the same snapshot, checkout lock and target cache as builds. Depot has no GPU and no Godot engine.
+
+Test data comes only from `godot/depot-test-assets.txt`: data/-relative file paths, validated locally (missing or escaping entries fail before upload), reflinked (else hardlinked, else copied) into the snapshot's `test-assets/`, excluded from the image `COPY`, and bind-mounted writable at the remote `data/` (plus the `godot/core/data` symlink). Remote writes, such as the outfit tests' `data/cache/outfit_links.sqlite`, stay in the build container; local `data/` was byte-identical before and after two runs. A test needing an unlisted file fails remotely with its own missing-path error. Add files to the manifest rather than uploading `data/`. Measured September 29, 2026: staging 131 files (605 MiB) takes 0.3 s by reflink, and Depot re-uploads them in full every run (645 MB context, 21.5–23.2 s on consecutive runs, both as a stable named context and inside the main context).
+
+Results on September 29, 2026 (branch `depottest`):
+
+| Crate | Result | Not runnable remotely |
+|---|---|---|
+| `game-engine-core` (lib + 37 `tests/`) | 569 passed, 0 failed | none |
+| `game-engine-ui-model` | 114 passed, 1 failed | `authored_customize_mode_keeps_dropdown_choices_name_and_postsetup`: ui-toolkit loads FrizQuadrata from the absolute host path `/home/osso/Projects/wow/wow-ui-sim/fonts/FRIZQT__.TTF` |
+| `game-engine-session` | 28 passed | none |
+| `game-engine-network` | 14 passed (loopback UDP only) | none |
+| `game-engine-godot --lib` | 203 passed, 64 failed | the 64 need the asset resolver (local CASC extraction from a WoW install), `community-listfile.csv` resolution, or streamed terrain/WMO data; not listed in the manifest |
+
+`game-engine-godot --lib` compiles and runs without the engine: no test hit godot-rust's "engine not available" panic. GDScript tests under `godot/tests/` need Godot and are not covered.
+
 Remote build or download failures fail explicitly. There is no local Cargo fallback for the extension. Godot import and launch stay local and unchanged.
 
 ## Cost and performance

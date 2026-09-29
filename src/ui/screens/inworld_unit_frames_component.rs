@@ -3,7 +3,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::faction_reaction::Reaction;
-use crate::status::SecondaryResourceEntry;
+use crate::status::{SecondaryResourceEntry, SecondaryResourceKindEntry};
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
@@ -19,8 +19,8 @@ mod inworld_unit_frames_parts;
 #[path = "inworld_unit_frames_power.rs"]
 mod inworld_unit_frames_power;
 use inworld_unit_frames_art::{
-    AtlasArt, COMBAT_ICON, HEALTH_BAR, HolyPowerArt, PipArt, REACTION_STRIP, REST_ICON, pip_art,
-    power_bar_art,
+    AlphaKey, AtlasArt, COMBAT_ICON, FxLayer, HEALTH_BAR, HolyPowerArt, PipArt, REACTION_STRIP,
+    REST_ICON, key_alpha, pip_art, power_bar_art,
 };
 use inworld_unit_frames_aura::target_aura_row;
 pub use inworld_unit_frames_layout::*;
@@ -103,6 +103,8 @@ pub struct UnitFrameState {
     pub reaction: Option<Reaction>,
     pub power: Option<PowerBarState>,
     pub secondary_resource: Option<SecondaryResourceEntry>,
+    /// Seconds into each pip's activate/deactivate animation; `None` or missing once done.
+    pub secondary_fx: Vec<Option<f32>>,
     pub show_combat_icon: bool,
     pub show_resting_icon: bool,
     pub target_buffs: Vec<TargetAuraIconState>,
@@ -120,6 +122,7 @@ impl UnitFrameState {
             reaction: None,
             power: None,
             secondary_resource: None,
+            secondary_fx: Vec::new(),
             show_combat_icon: false,
             show_resting_icon: false,
             target_buffs: Vec::new(),
@@ -266,13 +269,13 @@ fn visible_target_of(state: &InWorldUnitFramesState) -> Option<&SmallUnitFrameSt
 fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
     let content = rsx! {
         {unit_frame_contents("Player", state)}
-        {secondary_resource_row(state.secondary_resource.as_ref())}
+        {secondary_resource_row(state.secondary_resource.as_ref(), &state.secondary_fx)}
         {status_icons(state)}
     };
     art_root(
         dyn_name("PlayerFrame".into()),
         (FRAME_W, FRAME_H),
-        (PLAYER_FRAME_LEFT, CLUSTER_BOTTOM),
+        (PLAYER_FRAME_LEFT, PLAYER_FRAME_BOTTOM),
         !visible,
         content,
     )
@@ -409,38 +412,111 @@ fn unit_frame_contents(prefix: &str, state: &UnitFrameState) -> Element {
     }
 }
 
-fn secondary_resource_row(resource: Option<&SecondaryResourceEntry>) -> Element {
+fn secondary_resource_row(
+    resource: Option<&SecondaryResourceEntry>,
+    fx_elapsed: &[Option<f32>],
+) -> Element {
     let Some(resource) = resource.filter(|resource| resource.max > 0) else {
         return Element::default();
     };
     match pip_art(&resource.kind) {
-        Some(art) => class_pip_row(resource, &art),
+        Some(art) => class_pip_row(resource, &art, fx_elapsed),
         None => holy_power_row(resource),
+    }
+}
+
+/// When each pip last changed state, for its activate/deactivate animation.
+#[derive(Debug, Default)]
+pub struct PipAnimations {
+    bar: Option<(SecondaryResourceKindEntry, u8)>,
+    /// `(active, changed_at)` per pip.
+    pips: Vec<(bool, f64)>,
+}
+
+impl PipAnimations {
+    /// Seconds into each pip's running animation at `now` (seconds), `None` once done.
+    /// Retail re-acquires every point when the bar appears or its max changes
+    /// (`ClassResourceBarMixin:UpdateMaxPower`, ClassResourceBarTemplate.lua:118-150), so
+    /// each point animates into its state, and `SetActive` restarts a point's animation
+    /// whenever it changes (MageArcaneChargesBar.lua:24-38).
+    pub fn update(
+        &mut self,
+        resource: Option<&SecondaryResourceEntry>,
+        now: f64,
+    ) -> Vec<Option<f32>> {
+        let Some(resource) = resource else {
+            *self = Self::default();
+            return Vec::new();
+        };
+        let Some(fx) = pip_art(&resource.kind).and_then(|art| art.fx) else {
+            return Vec::new();
+        };
+        let bar = (resource.kind.clone(), resource.max);
+        if self.bar.as_ref() != Some(&bar) {
+            self.bar = Some(bar);
+            self.pips = (0..resource.max)
+                .map(|index| (index < resource.current, now))
+                .collect();
+        }
+        (0u8..)
+            .zip(&mut self.pips)
+            .map(|(index, (active, changed_at))| {
+                let lit = index < resource.current;
+                if *active != lit {
+                    (*active, *changed_at) = (lit, now);
+                }
+                let elapsed = (now - *changed_at) as f32;
+                (elapsed < fx.duration(lit)).then_some(elapsed)
+            })
+            .collect()
+    }
+}
+
+/// `(topPadding, leftPadding)` KeyValues of each Retail class bar inside the container:
+/// RogueComboPointBar.xml:245-246, PaladinPowerBar.xml:235-236, MonkHarmonyBar.xml:124,
+/// EssenceFramePlayer.xml:298, ShardBar.xml:162-163, MageArcaneChargesBar.xml:134,
+/// RuneFrame.xml:237-238.
+fn class_bar_padding(kind: &SecondaryResourceKindEntry) -> (f32, f32) {
+    match kind {
+        SecondaryResourceKindEntry::ComboPoints => (10.0, 0.0),
+        SecondaryResourceKindEntry::HolyPower => (-3.0, 5.0),
+        SecondaryResourceKindEntry::Chi | SecondaryResourceKindEntry::ArcaneCharges => (7.0, 0.0),
+        SecondaryResourceKindEntry::Essence => (5.0, 0.0),
+        SecondaryResourceKindEntry::SoulShards => (-2.0, 5.0),
+        SecondaryResourceKindEntry::Runes => (6.0, -5.0),
     }
 }
 
 /// Pips laid out left to right and centred under the player frame, like Retail's
 /// `ClassResourceBarTemplate` horizontal layout.
-fn class_pip_row(resource: &SecondaryResourceEntry, art: &PipArt) -> Element {
+fn class_pip_row(
+    resource: &SecondaryResourceEntry,
+    art: &PipArt,
+    fx_elapsed: &[Option<f32>],
+) -> Element {
     let (cell_w, cell_h) = art.cell;
     let count = f32::from(resource.max);
     let row_w = count * cell_w + (count - 1.0) * art.spacing;
     let pips: Element = (0..resource.max)
         .flat_map(|index| {
             let x = f32::from(index) * (cell_w + art.spacing);
-            class_pip(index, index < resource.current, art, x)
+            let elapsed = fx_elapsed.get(usize::from(index)).copied().flatten();
+            class_pip(index, (index < resource.current, elapsed), art, x)
         })
         .collect();
-    class_bar_frame(row_w, cell_h, pips)
+    class_bar_frame(&resource.kind, (row_w, cell_h), pips)
 }
 
-fn class_pip(index: u8, lit: bool, art: &PipArt, x: f32) -> Element {
+/// A pip `(lit, elapsed)`: `elapsed` seconds into its activate or deactivate animation,
+/// `None` once that has finished.
+fn class_pip(index: u8, (lit, elapsed): (bool, Option<f32>), art: &PipArt, x: f32) -> Element {
     let (cell_w, cell_h) = art.cell;
     let background = if lit {
         art.background
     } else {
         art.unlit.unwrap_or(art.background)
     };
+    let fx = art.fx;
     rsx! {
         r#frame {
             name: {dyn_name(format!("PlayerSecondaryResourcePip{index}"))},
@@ -449,10 +525,91 @@ fn class_pip(index: u8, lit: bool, art: &PipArt, x: f32) -> Element {
             pos_type: "absolute",
             pos_x: x,
             pos_y: 0.0,
+            {pip_shadow(index, art)}
             {centred_art(format!("PlayerSecondaryResourcePip{index}Background"), &background, art.cell, false)}
-            {centred_art(format!("PlayerSecondaryResourcePip{index}Lit"), &art.lit, art.cell, !lit)}
+            {fx_layers(index, art, fx.map_or(&[], |fx| fx.under), (lit, elapsed))}
+            {pip_lit(index, art, (lit, elapsed))}
+            {art.cover.map(|cover| centred_art(format!("PlayerSecondaryResourcePip{index}Cover"), &cover, art.cell, false)).unwrap_or_default()}
+            {fx_layers(index, art, fx.map_or(&[], |fx| fx.over), (lit, elapsed))}
         }
     }
+}
+
+/// Alpha of an animated texture: the group `lit` selects, at `elapsed` or at its end.
+fn fx_alpha(
+    (activate, deactivate): (&[AlphaKey], &[AlphaKey]),
+    (lit, elapsed): (bool, Option<f32>),
+) -> f32 {
+    let keys = if lit { activate } else { deactivate };
+    key_alpha(keys, elapsed.unwrap_or(f32::INFINITY))
+}
+
+/// The lit art: animated by the pip's fx, else simply shown while lit.
+fn pip_lit(index: u8, art: &PipArt, state: (bool, Option<f32>)) -> Element {
+    let alpha = art.fx.map_or(if state.0 { 1.0 } else { 0.0 }, |fx| {
+        fx_alpha(fx.lit, state)
+    });
+    let (width, height) = art.lit.size();
+    let (cell_w, cell_h) = art.cell;
+    tinted_art_texture(
+        dyn_name(format!("PlayerSecondaryResourcePip{index}Lit")),
+        &art.lit,
+        (
+            (cell_w - width) / 2.0,
+            (cell_h - height) / 2.0,
+            width,
+            height,
+        ),
+        &format!("1.0,1.0,1.0,{alpha}"),
+        alpha <= 0.0,
+    )
+}
+
+fn fx_layers(index: u8, art: &PipArt, layers: &[FxLayer], state: (bool, Option<f32>)) -> Element {
+    let (cell_w, cell_h) = art.cell;
+    layers
+        .iter()
+        .flat_map(|layer| {
+            let alpha = fx_alpha((layer.activate, layer.deactivate), state);
+            let frame = match layer.flipbook {
+                Some(book) => book.frame_art(&layer.art, state.1.unwrap_or(f32::INFINITY)),
+                None => layer.art,
+            };
+            let (width, height) = layer.size;
+            let rect = (
+                (cell_w - width) / 2.0 + layer.offset.0,
+                (cell_h - height) / 2.0 + layer.offset.1,
+                width,
+                height,
+            );
+            tinted_art_texture(
+                dyn_name(format!("PlayerSecondaryResourcePip{index}{}", layer.part)),
+                &frame,
+                rect,
+                &format!("1.0,1.0,1.0,{alpha}"),
+                alpha <= 0.0,
+            )
+        })
+        .collect()
+}
+
+fn pip_shadow(index: u8, art: &PipArt) -> Element {
+    let Some((shadow, drop)) = art.shadow else {
+        return Element::default();
+    };
+    let (width, height) = shadow.size();
+    let (cell_w, cell_h) = art.cell;
+    art_texture(
+        dyn_name(format!("PlayerSecondaryResourcePip{index}Shadow")),
+        &shadow,
+        (
+            (cell_w - width) / 2.0,
+            (cell_h - height) / 2.0 + drop,
+            width,
+            height,
+        ),
+        false,
+    )
 }
 
 /// An atlas crop at its authored size, centred in a `cell`.
@@ -500,18 +657,25 @@ fn holy_power_row(resource: &SecondaryResourceEntry) -> Element {
         {art_texture(dyn_name("PlayerSecondaryResourceHolder".into()), &holder, (0.0, 0.0, holder_w, holder_h), false)}
         {runes}
     };
-    class_bar_frame(holder_w, holder_h, content)
+    class_bar_frame(&resource.kind, (holder_w, holder_h), content)
 }
 
-fn class_bar_frame(width: f32, height: f32, content: Element) -> Element {
+/// Retail `VerticalLayoutMixin` places a centred child at the container top plus its
+/// `topPadding`, shifted right by half its `leftPadding` (LayoutFrame.lua:340,346-348).
+fn class_bar_frame(
+    kind: &SecondaryResourceKindEntry,
+    (width, height): (f32, f32),
+    content: Element,
+) -> Element {
+    let (top_padding, left_padding) = class_bar_padding(kind);
     rsx! {
         r#frame {
             name: "PlayerSecondaryResourceRow",
             width,
             height,
             pos_type: "absolute",
-            pos_x: {(FRAME_W - width) / 2.0},
-            pos_y: CLASS_BAR_Y,
+            pos_x: {CLASS_BAR_CENTRE_X + left_padding / 2.0 - width / 2.0},
+            pos_y: {CLASS_BAR_TOP + top_padding},
             {content}
         }
     }

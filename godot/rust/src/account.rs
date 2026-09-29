@@ -14,13 +14,14 @@ use game_engine_session::{
 };
 use shared::protocol::{
     ActionBarSnapshot, AttackStart, AttackStop, AttackStopped, AttackSwing, AuthChannel,
-    CastFailed, CharacterListUpdate, CombatChannel, CombatEvent, CombatLogEvent, CreateCharacter,
-    CreateCharacterResponse, DeleteCharacter, DeleteCharacterResponse, DungeonDifficultySet,
-    EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo,
-    InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MirrorTimerPause,
-    MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot,
-    QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate, SetDungeonDifficulty,
-    SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned,
+    CastFailed, CharacterListUpdate, ChatChannel, ChatMessage, CombatChannel, CombatEvent,
+    CombatLogEvent, CreateCharacter, CreateCharacterResponse, DeleteCharacter,
+    DeleteCharacterResponse, DungeonDifficultySet, EmoteIntent, EnterWorldResponse,
+    ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo,
+    KnownSpellsSnapshot, LoadTerrain, LoginResponse, MirrorTimerPause, MirrorTimerStart,
+    MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot, QuestLogUpdate,
+    RegisterResponse, RequestRaidInfo, RestStateUpdate, SetDungeonDifficulty, SetTarget,
+    SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned,
     SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
@@ -90,6 +91,8 @@ pub enum AccountEvent {
     Combat(CombatMessage),
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
+    /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
+    Chat(ChatMessage),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -348,6 +351,20 @@ impl Account {
         .map_err(SessionError)
     }
 
+    /// A chat edit box line (Bevy `send_chat_message`); the server echoes it to its hearers.
+    pub fn send_chat(&self, message: ChatMessage) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, ChatChannel>(message)
+            .map_err(SessionError)
+    }
+
+    /// `/dance`, `/wave`, ...: the server plays the emote and sends its chat line.
+    pub fn send_emote(&self, intent: EmoteIntent) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, ChatChannel>(intent)
+            .map_err(SessionError)
+    }
+
     /// Called by the host only after the destination is ready for world entry.
     pub fn finish_world_port(&mut self) -> Result<(), SessionError> {
         self.session.finish_world_port();
@@ -426,6 +443,10 @@ impl Account {
         }
         if message.is::<RestStateUpdate>() {
             output.push(AccountEvent::RestState(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<ChatMessage>() {
+            output.push(AccountEvent::Chat(decode(message)?));
             return Ok(());
         }
         self.dispatch_world_message(message, output)
