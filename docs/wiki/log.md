@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] systems | Polymorph
+
+Added a Polymorph section to [[spell-visuals]]. Polymorph 118 works end to end against the game-server `polymorph` branch: the spy's display swaps in place to the sheep and back, the target ring resizes with the swap, and a sheep no longer tries to hold the spy's weapons. Finding: Movie Maker compresses server time about 3.6x at this scene's 8 fps, so the fixture can also grab wall-clock frames (`POLY_GRAB`).
+
 ## [2026-09-29] investigation | Selecting a target no longer starts auto-attack
 
 **Bug.** The server started auto-attack, and combat, on every `SetTarget` to an attackable unit. A Tab-cycling mage swung unarmed at each dummy it selected, and 0/1 damage numbers appeared before its Frostbolt.
