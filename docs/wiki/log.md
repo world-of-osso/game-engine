@@ -1,5 +1,20 @@
 # Wiki Log
 
+## [2026-09-29] investigation | Spell missiles leave at the cast clip's release event
+
+**Symptom.** Frostbolt's missile launched the instant `SpellGo` arrived. The hands were still at the chest in ReadySpellDirected 51, and the missile hit before SpellCastDirected 53 thrust the arm.
+
+**Retail rule.** A pending missile is released by the caster's cast clip firing the M2 event `$CSL`, `$CSR` or `$CST` (wowdev.wiki/M2 Events). HumanMale and HumanFemale HD fire `$CSL` at 200 ms of clip 53. `SpellMisc.Speed` is in yd/s (TrinityCore `Spell.cpp:2515`). The 7.7 yd Frostbolt flight at 35 yd/s really does last 0.22 s.
+
+**Changes.**
+- M2 event parser (`m2_event.rs`; `.skel` models read AFM2 timestamps from `.anim`, each file loaded once).
+- The action layer reports a pending release event.
+- `SpellEffects` holds the missile until the event fires, then launches it facing the target.
+
+**Server gap, not fixed.** game-server applies the damage and combat log in the same tick as `SpellGo`, so the number shows about 0.4 s before the impact. TrinityCore delays each hit by `max(dist, 5) / Speed`.
+
+Details in [[spell-visuals]].
+
 ## [2026-09-29] investigation | Selecting a target no longer starts auto-attack
 
 **Bug.** The server started auto-attack, and combat, on every `SetTarget` to an attackable unit. A Tab-cycling mage swung unarmed at each dummy it selected, and 0/1 damage numbers appeared before its Frostbolt.
