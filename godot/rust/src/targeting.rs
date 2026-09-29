@@ -1,6 +1,6 @@
 //! Unit selection, ported from the Bevy client's `rendering/ui/target.rs`: left-click
-//! on a unit selects it through a camera ray against per-unit pick shapes that world
-//! geometry occludes, Tab cycles selectable NPCs nearest first, F1 targets the local
+//! on a unit selects it through a camera ray against the unit's drawn triangles that
+//! world geometry occludes (`unit_pick`), Tab cycles selectable NPCs nearest first, F1 targets the local
 //! player, Escape clears the target before the game menu opens. The server learns
 //! each change through `SetTarget`; the TargetFrame and the selection ring show it.
 
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use game_engine_core::{
     input_bindings_data::{BindingMouseButton, InputAction, InputState},
-    target_selection_data::{PickHit, first_picked_unit, next_target, opaque_to_alpha_mask},
+    target_selection_data::{next_target, opaque_to_alpha_mask},
 };
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
@@ -19,19 +19,19 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 use game_engine_ui_model::status::SecondaryResourceEntry;
 use godot::{
     classes::{
-        Area3D, BoxShape3D, Camera3D, CollisionObject3D, CollisionShape3D, Decal, Image,
-        ImageTexture, MeshInstance3D, Node3D, PhysicsRayQueryParameters3D, decal::DecalTexture,
-        image,
+        Area3D, BoxShape3D, Camera3D, CollisionShape3D, Decal, Image, ImageTexture, MeshInstance3D,
+        Node3D, decal::DecalTexture, image,
     },
     prelude::*,
 };
 
 use crate::frame_error::{FrameError, SessionError, report_once};
+pub(crate) use crate::unit_pick::pick_unit;
+use crate::unit_pick::{UNIT_ID_META, UNIT_VISUAL_META};
 use crate::{GameClient, assets::M2_BOUNDS_META, ui::RegistryUi};
 
 /// Physics layer 3 holds only unit pick shapes; terrain and WMO bodies use layers 1-2.
 pub(crate) const UNIT_PICK_LAYER: u32 = 1 << 2;
-const UNIT_ID_META: &str = "unit_server_id";
 const PICK_AREA: &str = "UnitPick";
 const TARGET_CIRCLE: &str = "TargetCircle";
 
@@ -135,9 +135,10 @@ impl Targeting {
     }
 }
 
-/// Give a unit visual its pick shape: a box of the M2 header bounding box on
-/// `UNIT_PICK_LAYER`, identified by the unit's server id. Areas are ignored by
-/// the default body-only rays (camera, ground), so units never block them.
+/// Give a unit visual its broad-phase pick shape: a box of the M2 header bounding box
+/// on `UNIT_PICK_LAYER`, identified by the unit's server id, naming the visual whose
+/// triangles decide the hit (`unit_pick`). Areas are ignored by the default body-only
+/// rays (camera, ground), so units never block them.
 pub(crate) fn attach_pick_area(visual: &Gd<Node3D>, server_id: u64) -> Result<(), String> {
     let mut model = std::iter::once(visual.clone())
         .chain(
@@ -155,6 +156,10 @@ pub(crate) fn attach_pick_area(visual: &Gd<Node3D>, server_id: u64) -> Result<()
     area.set_collision_mask(0);
     area.set_monitoring(false);
     area.set_meta(UNIT_ID_META, &(server_id as i64).to_variant());
+    area.set_meta(
+        UNIT_VISUAL_META,
+        &visual.instance_id().to_i64().to_variant(),
+    );
     let mut shape = BoxShape3D::new_gd();
     shape.set_size(bounds.size.abs());
     let mut node = CollisionShape3D::new_alloc();
@@ -173,39 +178,6 @@ pub(crate) fn unit_pick_shape(unit: &Gd<Node3D>) -> Option<Gd<CollisionShape3D>>
         .get_child(0)?
         .try_cast::<CollisionShape3D>()
         .ok()
-}
-
-/// The unit under `screen_point`: the ray from the camera through it stops at the
-/// first visible surface, and selects that surface's unit, if any.
-pub(crate) fn pick_unit(camera: &Gd<Camera3D>, screen_point: Vector2) -> Option<u64> {
-    let mut space = camera.get_world_3d()?.get_direct_space_state()?;
-    let origin = camera.project_ray_origin(screen_point);
-    let end = origin + camera.project_ray_normal(screen_point) * camera.get_far();
-    let mut query = PhysicsRayQueryParameters3D::create(origin, end)
-        .expect("Godot could not allocate the pick ray parameters");
-    query.set_collide_with_areas(true);
-    let mut excluded = Array::new();
-    let hits = std::iter::from_fn(|| {
-        let hit = space.intersect_ray(&query);
-        let collider = hit.get("collider")?.to::<Gd<CollisionObject3D>>();
-        excluded.push(collider.get_rid());
-        query.set_exclude(&excluded);
-        Some(classify_hit(&collider))
-    });
-    first_picked_unit(hits)
-}
-
-fn classify_hit(collider: &Gd<CollisionObject3D>) -> PickHit<u64> {
-    let visible = collider.is_visible_in_tree();
-    if collider.has_meta(UNIT_ID_META) {
-        let id = collider.get_meta(UNIT_ID_META).to::<i64>() as u64;
-        return PickHit::Unit { id, visible };
-    }
-    if collider.is_class("Area3D") {
-        // Other trigger volumes are not surfaces.
-        return PickHit::World { visible: false };
-    }
-    PickHit::World { visible }
 }
 
 /// Bevy `target_circle_size`: the widest horizontal extent of the unit's meshes from
@@ -352,6 +324,7 @@ impl GameClient {
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.apply_targeting_input();
         }
+        self.follow_selection_with_auto_attack()?;
         self.send_target()?;
         self.sync_target_circle()?;
         Ok(self.sync_unit_frames()?)
@@ -499,6 +472,10 @@ impl GameClient {
                 .as_str(),
         );
         state.set("sent", &optional_id(self.targeting.sent));
+        let (pick_us, pick_candidates) = crate::unit_pick::last_pick_stats();
+        state.set("last_pick_us", pick_us as i64);
+        state.set("last_pick_candidates", i64::from(pick_candidates));
+        state.set("auto_attack", &optional_id(self.auto_attack_victim()));
         state.set(
             "circle_on",
             &optional_id(self.targeting.circle.as_ref().map(|(id, _)| *id)),

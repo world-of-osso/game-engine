@@ -76,6 +76,21 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933.bin` 
 | Warrior | Attack1H 17 swings, dummy CombatWound 9, Slam 818 with impact 1283017 on the dummy, Battle Shout BattleRoar 55 with 1138011 and 6194303 on the warrior |
 | Mage | ReadySpellDirected 51 with hand models 1598571, SpellCastDirected 53, missile 1598570, impact 1599028 with the dummy's wound 9 |
 
+**Auto-attack re-recording (2026-09-29b).** Before the fix, the server started auto-attack on every target change. Tab-cycling the mage swung unarmed (16) at each dummy it selected, which wounded them (9). With `AttackSwing`-only auto-attack, the fixture now:
+
+- waits 4.5 s after Tab-targeting and requires no melee swing (16-19) by the player, no wound or crit (9/10) on any dummy it selected, and no auto-attack victim;
+- starts the warrior's auto-attack with its Attack action (88163);
+- requires the mage to show no swing and no dummy reaction until Frostbolt's impact.
+
+Private server UDP 5079, game-server `2572257`, game-engine `f64ea296`; both scenarios exit 0.
+
+| Scenario | Observed |
+|---|---|
+| Warrior | Nothing during selection; then Attack1H 17, CombatWound 9, Slam 818 with impact 1283017, Battle Shout 55 |
+| Mage | Actions seen: player {51, 53}, dummy {9} only after the impact |
+
+Videos (1x and half speed), stills and 2 fps contact sheets are in `data/diagnostics/spellcast-anim-2026-09-29b/`.
+
 ## Gaps
 
 - The action layer is full-body when standing and upper-body when moving (SpineLow subtree). `AnimKitSegment` conditions, per-segment bone sets and priorities, and `AnimKit` blend times are not applied.

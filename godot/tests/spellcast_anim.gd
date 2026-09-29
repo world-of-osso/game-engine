@@ -9,14 +9,20 @@ extends SceneTree
 ##                               ReadySpellDirected loop (51) with hand models 1598571,
 ##                               the SpellCastDirected release (53), the missile 1598570
 ##                               and the impact model 1599028 with the dummy's wound (9)
-## Tab targets the nearest dummy; auto-attack must play the warrior's Attack1H swing
-## (17, Worn Shortsword) and the dummy's CombatWound (9). Slam (key 1) must play the
+## Tab targets the nearest dummy. Selecting it never attacks (TrinityCore
+## HandleSetSelectionOpcode only sets the selection): for SELECTION_SECS neither unit
+## plays a melee clip. The warrior then uses its Attack action (88163, whose
+## SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK makes the client send `AttackSwing`),
+## and auto-attack must play its Attack1H swing (17, Worn Shortsword) and the dummy's
+## CombatWound (9). The mage must show no swing (16-19) and the dummy no wound or
+## crit reaction until its Frostbolt lands. Slam (key 1) must play the
 ## one-hand visual's CombatAbility1H01 (818) and put its impact model 1283017 on the
 ## dummy; Battle Shout (its bar key) must play BattleRoar (55) with its base model
 ## 1138011 and the buff model 6194303 on the warrior.
 
 const PASSWORD := "fbtest"
 const SLAM := 1464
+const ATTACK := 88163
 const BATTLE_SHOUT := 6673
 const ATTACK_1H := 17
 const COMBAT_WOUND := 9
@@ -32,6 +38,11 @@ const READY_SPELL_DIRECTED := 51
 const SPELL_CAST_DIRECTED := 53
 const FROSTBOLT_HANDS := 1598571
 const FROSTBOLT_IMPACT := 1599028
+## AttackUnarmed, Attack1H, Attack2H, Attack2HL.
+const MELEE_SWINGS := [16, 17, 18, 19]
+const COMBAT_CRITICAL := 10
+## Two unarmed swing intervals: a selection-started auto-attack would swing in this time.
+const SELECTION_SECS := 4.5
 
 const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 
@@ -117,6 +128,11 @@ func run_test() -> void:
 	print("FIXTURE TARGET ", client.target_state())
 	if not await face_target():
 		return
+	# The selection alone: no swing, no wound, no auto-attack.
+	await wait_frames(int(SELECTION_SECS * 60))
+	if not no_melee_yet("after selecting the dummy"):
+		return
+	await capture("00-selected.png")
 	if mage:
 		if await cast_frostbolt():
 			print("FIXTURE SEEN actions=", seen_actions, " models=", seen_models.keys(), " missile=", seen_missile)
@@ -125,7 +141,14 @@ func run_test() -> void:
 			client.free()
 			quit(0)
 		return
-	# Auto-attack: swings and the dummy's wound reaction.
+	# The Attack action: auto-attack, its swings and the dummy's wound reaction.
+	var attack_slot: int = spells().bar.find(ATTACK)
+	if attack_slot < 0:
+		fail("Attack is not on the main bar: " + str(spells().bar))
+		return
+	await press(BAR_KEYS[attack_slot])
+	if not await wait_until(func(): return client.target_state().auto_attack == target_id, 2000, "Attack action auto-attack request"):
+		return
 	if not await wait_until(func(): return saw(local_id, ATTACK_1H) and saw(target_id, COMBAT_WOUND), 15000, "auto-attack Attack1H swing and CombatWound"):
 		return
 	await capture("01-auto-attack.png")
@@ -172,6 +195,23 @@ func face_target() -> bool:
 	if absf(angle) > 0.3:
 		fail("The warrior does not face the dummy: %.3f rad" % angle)
 		return false
+	return true
+
+## No melee swing by the player, no wound or crit reaction on the dummy, and no
+## auto-attack request so far.
+func no_melee_yet(when: String) -> bool:
+	for swing in MELEE_SWINGS:
+		if saw(local_id, swing):
+			fail("Melee swing %d %s: %s" % [swing, when, seen_actions])
+			return false
+	for reaction in [COMBAT_WOUND, COMBAT_CRITICAL]:
+		if saw(target_id, reaction):
+			fail("Dummy reaction %d %s: %s" % [reaction, when, seen_actions])
+			return false
+	if client.target_state().auto_attack != null:
+		fail("Auto-attack %s: %s" % [when, client.target_state()])
+		return false
+	print("FIXTURE NO_MELEE ", when, " actions=", seen_actions)
 	return true
 
 func saw(id: int, action: int) -> bool:
@@ -255,6 +295,9 @@ func cast_frostbolt() -> bool:
 	await wait_frames(20)
 	await capture("10-frostbolt-precast.png")
 	if not await wait_until(func(): return saw(local_id, SPELL_CAST_DIRECTED) and seen_missile, 5000, "Frostbolt release and missile"):
+		return false
+	# Frostbolt starts no auto-attack (no SPELL_ATTR1/ATTR2 auto-attack attribute).
+	if not no_melee_yet("before the Frostbolt impact"):
 		return false
 	await capture("11-frostbolt-missile.png")
 	if not await wait_until(func(): return seen_models.has([target_id, FROSTBOLT_IMPACT]) and saw(target_id, COMBAT_WOUND), 5000, "Frostbolt impact on the dummy"):

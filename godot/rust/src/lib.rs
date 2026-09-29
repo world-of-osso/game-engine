@@ -4,6 +4,7 @@ mod animation;
 pub mod appearance_options;
 pub use game_engine_core::{customization_data, outfit_data};
 mod assets;
+mod auto_attack;
 mod camera;
 mod char_create;
 mod character_select;
@@ -45,6 +46,7 @@ mod targeting;
 mod terrain;
 mod ui;
 mod ui_scale;
+mod unit_pick;
 mod wmo;
 mod world;
 mod world_map;
@@ -137,6 +139,7 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
+    auto_attack: auto_attack::AutoAttack,
 }
 
 #[godot_api]
@@ -215,6 +218,7 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
+            auto_attack: auto_attack::AutoAttack::default(),
             units: HashMap::new(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone(), cache_root.clone()),
             world: world::WorldUnits::new(data_root, cache_root),

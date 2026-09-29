@@ -397,6 +397,9 @@ impl GameClient {
             .map(|spell| spell.name.to_string())
             .unwrap_or_default();
         let target = self.targeting_target();
+        if self.auto_attack_on_cast(spell_id, target)? {
+            return Ok(());
+        }
         self.account.send_cast(spell_id, &name, target)?;
         self.spells.sent.push(spell_id);
         Ok(())
