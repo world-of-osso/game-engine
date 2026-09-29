@@ -23,6 +23,7 @@ use game_engine::instance_state::{
     dungeon_difficulty_enabled,
 };
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
+use game_engine::player_spells::ActiveSpecialization;
 use game_engine::status::{CharacterStatsSnapshot, SecondaryResourceEntry};
 use game_engine::targeting::{CurrentTarget, FocusTarget, SetFocus, apply_set_focus};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
@@ -221,6 +222,7 @@ struct UnitFrameSources<'w, 's> {
     player_query: Query<'w, 's, UnitComponents<'static>, With<LocalPlayer>>,
     entity_query: Query<'w, 's, UnitComponents<'static>>,
     character_stats: Option<Res<'w, CharacterStatsSnapshot>>,
+    spec: Option<Res<'w, ActiveSpecialization>>,
     aura_state: Option<Res<'w, AuraState>>,
     menu: Res<'w, UnitFrameMenu>,
     hud_visibility: Option<Res<'w, HudVisibilityToggles>>,
@@ -298,12 +300,13 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
         .as_deref()
         .is_some_and(|graphics| graphics.colorblind_mode);
     let stats = sources.character_stats.as_deref();
+    let spec = sources.spec.as_deref().and_then(|spec| spec.0);
     let units = sources.units.frame_units();
     let player = sources
         .player_query
         .iter()
         .next()
-        .map(|unit| build_player_state(stats, unit))
+        .map(|unit| build_player_state(stats, spec, unit))
         .unwrap_or_else(|| UnitFrameState::named("Player"));
     let local = sources.player_query.iter().next();
     let viewer = Viewer {
@@ -357,13 +360,16 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
 
 fn build_player_state(
     character_stats: Option<&CharacterStatsSnapshot>,
+    spec: Option<u32>,
     (player, health, powers, _npc, name, _auras, level, _faction, _scaling): UnitComponents,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(resolve_player_name(player, character_stats, name));
     state.level_text = level.map(|level| level.0.to_string()).unwrap_or_default();
     state.show_combat_icon = character_stats.is_some_and(|stats| stats.in_combat);
     state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
-    state.secondary_resource = powers.and_then(SecondaryResourceEntry::from_unit_powers);
+    state.secondary_resource = powers
+        .and_then(SecondaryResourceEntry::from_unit_powers)
+        .filter(|resource| resource.shown_for_spec(spec));
     populate_resources(&mut state, health, powers);
     state
 }

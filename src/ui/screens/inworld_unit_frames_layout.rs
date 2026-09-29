@@ -53,9 +53,12 @@ pub(super) const HEALTH_Y: f32 = 14.0;
 pub(super) const HEALTH_H: f32 = 20.0;
 pub(super) const POWER_Y: f32 = 35.0;
 pub(super) const POWER_H: f32 = 10.0;
-/// Class resource bar hangs under the player frame, overlapping its bottom shadow like
-/// Retail's `PlayerFrameBottomManagedFramesContainer`.
-pub(super) const CLASS_BAR_Y: f32 = FRAME_H - 4.0;
+/// Retail `PlayerFrameBottomManagedFramesContainer` hangs from the 232×100 player frame's
+/// BOTTOM at (30, 25) (PlayerFrame.lua:758), whose mana bar is TOPLEFT (85, -61), 124×10
+/// (PlayerFrame.lua:716): its top is 4 px below the mana bar and its centre 61 px right of
+/// the bar's left edge. Its class bars are `align="center"` (PlayerFrameTemplates.xml:7).
+pub(super) const CLASS_BAR_TOP: f32 = POWER_Y + POWER_H + 4.0;
+pub(super) const CLASS_BAR_CENTRE_X: f32 = BAR_X + 61.0;
 /// Target auras start below the frame (Retail `TargetFrame` buffs/debuffs).
 pub(super) const TARGET_BUFF_Y: f32 = FRAME_H + 2.0;
 pub(super) const TARGET_DEBUFF_Y: f32 = TARGET_BUFF_Y + 24.0;
