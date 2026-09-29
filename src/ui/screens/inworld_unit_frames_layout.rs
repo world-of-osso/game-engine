@@ -1,32 +1,44 @@
-//! Unit frame geometry in UI units. The player frame and cast dock form the central cluster
-//! above the action bars; the target frame sits at the Retail Modern Edit Mode preset, with
-//! target-of-target and focus to its right. Party and raid frames (`group_frames_component`)
-//! sit left of and above the player frame.
+//! Unit frame geometry in UI units. The player and target frames sit at the Retail Modern
+//! Edit Mode preset, target-of-target and focus to the target's right; the cast bar is
+//! centred above the action bars. Party frames (`group_frames_component`) sit left of the
+//! player frame, the raid grid above the action bars.
 
-/// Width of the shared resource/cast area between the player and target frames.
+/// Width of the cast bar area centred above the action bars.
 pub const CAST_DOCK_W: f32 = 264.0;
-pub const CAST_DOCK_GAP: f32 = 16.0;
-/// Cluster bottom edge above the bottom of the screen; clears two action bar rows.
+/// Cast bar bottom edge above the bottom of the screen; clears two action bar rows.
 pub const CLUSTER_BOTTOM: f32 = 152.0;
 
 /// Player and target frames are the Retail portrait-off art at its authored 133×51 size
-/// (`UI-HUD-UnitFrame-Player-PortraitOff`).
+/// (`UI-HUD-UnitFrame-Player-PortraitOff`), placed so its health slot is where Retail's
+/// 232×100 portrait frames draw their health bars.
 pub const FRAME_W: f32 = 133.0;
 pub const FRAME_H: f32 = 51.0;
-pub const PLAYER_FRAME_LEFT: f32 = -(CAST_DOCK_W / 2.0 + CAST_DOCK_GAP + FRAME_W);
+/// Height of the art below the health slot.
+const BELOW_HEALTH: f32 = FRAME_H - HEALTH_Y - HEALTH_H;
+
+/// Retail Modern preset PlayerFrame: BOTTOMRIGHT to UIParent BOTTOM at (-300, 250)
+/// (Blizzard_EditMode/Mainline/EditModePresetLayouts.lua:231-243), 232×100
+/// (Blizzard_UnitFrame/Mainline/PlayerFrame.xml:15). `PlayerFrame_ToPlayerArt` puts its
+/// 124×20 health bar TOPLEFT at (85, -41) (PlayerFrame.lua:697).
+const RETAIL_PLAYER_RIGHT: f32 = -300.0;
+const RETAIL_PLAYER_BOTTOM: f32 = 250.0;
+const RETAIL_PLAYER_HEALTH_LEFT: f32 = 85.0 - 232.0;
+const RETAIL_PLAYER_HEALTH_BOTTOM: f32 = 100.0 - 41.0 - 20.0;
+pub const PLAYER_FRAME_LEFT: f32 = RETAIL_PLAYER_RIGHT + RETAIL_PLAYER_HEALTH_LEFT - BAR_X;
+pub const PLAYER_FRAME_BOTTOM: f32 =
+    RETAIL_PLAYER_BOTTOM + RETAIL_PLAYER_HEALTH_BOTTOM - BELOW_HEALTH;
 
 /// Retail Modern preset TargetFrame: BOTTOMLEFT to UIParent BOTTOM at (300, 250)
-/// (Blizzard_EditMode/Mainline/EditModePresetLayouts.lua:245-257).
+/// (EditModePresetLayouts.lua:245-257), 232×100 (TargetFrame.xml:144). For a normal or
+/// elite unit `CheckClassification` moves its 126×20 health bar's BOTTOMRIGHT to the
+/// frame's LEFT + (149, -10) (TargetFrame.lua:417-419), overriding the XML's (148, 2).
 const RETAIL_TARGET_LEFT: f32 = 300.0;
 const RETAIL_TARGET_BOTTOM: f32 = 250.0;
-/// The Retail frame is 232×100 around a portrait (TargetFrame.xml:144); its 126×20 health
-/// bar has its BOTTOMRIGHT at the frame's LEFT + (148, 2) (TargetFrame.xml:218-220).
-const RETAIL_HEALTH_LEFT: f32 = 148.0 - 126.0;
-const RETAIL_HEALTH_BOTTOM: f32 = 100.0 / 2.0 + 2.0;
-/// The portrait-off frame is placed so its health slot is where Retail draws the health bar.
-pub const TARGET_FRAME_LEFT: f32 = RETAIL_TARGET_LEFT + RETAIL_HEALTH_LEFT - BAR_X;
+const RETAIL_TARGET_HEALTH_LEFT: f32 = 149.0 - 126.0;
+const RETAIL_TARGET_HEALTH_BOTTOM: f32 = 100.0 / 2.0 - 10.0;
+pub const TARGET_FRAME_LEFT: f32 = RETAIL_TARGET_LEFT + RETAIL_TARGET_HEALTH_LEFT - BAR_X;
 pub const TARGET_FRAME_BOTTOM: f32 =
-    RETAIL_TARGET_BOTTOM + RETAIL_HEALTH_BOTTOM - (FRAME_H - HEALTH_Y - HEALTH_H);
+    RETAIL_TARGET_BOTTOM + RETAIL_TARGET_HEALTH_BOTTOM - BELOW_HEALTH;
 
 pub const SMALL_FRAME_GAP: f32 = 8.0;
 /// Target-of-target and focus draw the same art at 3/4 scale.

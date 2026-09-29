@@ -12,40 +12,57 @@ use ui_toolkit::screen::Screen;
 /// Action bar row 2 top edge at 1080p: row 1 top (1080 - 52 - 45) minus one 47px slot step.
 const SECOND_ACTION_ROW_TOP: f32 = 1080.0 - 52.0 - 45.0 - 47.0;
 
+/// Retail Modern preset PlayerFrame BOTTOMRIGHT at BOTTOM (-300, 250), health bar TOPLEFT
+/// (85, -41) in the 232×100 frame: the portrait-off art sits 450 left of centre and 272 up.
 #[test]
-fn player_frame_and_docked_cast_bar_sit_above_action_bars_at_1080p() {
+fn player_frame_sits_at_the_modern_preset() {
     let reg = cluster_registry();
-    let player = rect_by_name(&reg, "PlayerFrame");
-    let cast = rect_by_name(&reg, "PlayerCastingBarFrame");
-
     assert_eq!(
-        player,
+        rect_by_name(&reg, "PlayerFrame"),
         LayoutRect {
-            x: 679.0,
-            y: 877.0,
+            x: 960.0 - 450.0,
+            y: 1080.0 - 272.0 - 51.0,
             width: 133.0,
             height: 51.0,
         }
     );
-    assert_eq!(cast.x, player.x + player.width + CAST_DOCK_GAP);
-    assert_eq!(cast.x + cast.width / 2.0, 960.0, "cast dock is centred");
-    assert_eq!(cast.y + cast.height, player.y + player.height);
-    assert!(player.y + player.height < SECOND_ACTION_ROW_TOP);
+    let cast = rect_by_name(&reg, "PlayerCastingBarFrame");
+    assert_eq!(cast.x + cast.width / 2.0, 960.0, "cast bar is centred");
+    assert!(
+        cast.y + cast.height < SECOND_ACTION_ROW_TOP,
+        "cast bar clears two bar rows"
+    );
 }
 
-/// Retail Modern preset TargetFrame BOTTOMLEFT at BOTTOM (300, 250); the portrait-off art
-/// sits 19 right and 35 up so its health slot matches the 232×100 frame's health bar.
+/// Retail Modern preset TargetFrame BOTTOMLEFT at BOTTOM (300, 250); for a normal unit its
+/// health bar's BOTTOMRIGHT is at LEFT + (149, -10) (TargetFrame.lua:419), so the
+/// portrait-off art sits 320 right of centre and 273 up.
 #[test]
 fn target_frame_sits_at_the_modern_preset() {
     let reg = cluster_registry();
     assert_eq!(
         rect_by_name(&reg, "TargetFrame"),
         LayoutRect {
-            x: 960.0 + 319.0,
-            y: 1080.0 - 285.0 - 51.0,
+            x: 960.0 + 320.0,
+            y: 1080.0 - 273.0 - 51.0,
             width: 133.0,
             height: 51.0,
         }
+    );
+}
+
+/// Retail draws the player health bar 41..61 below its frame top and a normal target's
+/// 40..60 below: the health bars line up within the 1 px Retail itself leaves.
+#[test]
+fn player_and_target_health_bars_line_up() {
+    let reg = cluster_registry();
+    let player = rect_by_name(&reg, "PlayerHealthBar");
+    let target = rect_by_name(&reg, "TargetHealthBar");
+    assert_eq!(target.y + target.height, player.y + player.height - 1.0);
+    assert_eq!(
+        target.x + target.width / 2.0 - 960.0,
+        960.0 - (player.x + player.width / 2.0),
+        "mirrored about the screen centre"
     );
 }
 

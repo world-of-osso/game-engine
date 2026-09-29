@@ -272,7 +272,7 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
     art_root(
         dyn_name("PlayerFrame".into()),
         (FRAME_W, FRAME_H),
-        (PLAYER_FRAME_LEFT, CLUSTER_BOTTOM),
+        (PLAYER_FRAME_LEFT, PLAYER_FRAME_BOTTOM),
         !visible,
         content,
     )

@@ -6,6 +6,11 @@ extends SceneTree
 ##   BAR_ACCOUNT / BAR_CHARACTER  account (password fbtest) and its only character, a mage
 ##   BAR_EXPECT                 "shown" (Arcane spec 62) or "hidden" (any other spec)
 ##   BAR_SHOT                   PNG path for a crop of the player frame and the area below it
+##   BAR_TARGET                 optional PNG path: Tab-target a unit, capture both frames and
+##                              assert the health bars line up as in Retail (player 41..61,
+##                              normal target 40..60 below the frame top: PlayerFrame.lua:697,
+##                              TargetFrame.lua:419, both frames at y 250 in
+##                              EditModePresetLayouts.lua:231-257)
 ## Retail shows Arcane Charges only for the Arcane spec (MageArcaneChargesBar.xml:126-127,
 ## ClassPowerBar.lua:82-83). When shown, the row sits 11 px below the mana bar, centred 1 px
 ## left of it (PlayerFrame.lua:716,758; MageArcaneChargesBar.xml:134), clear of its text.
@@ -68,8 +73,46 @@ func run_test() -> void:
 		if absf(charges.position.y - bar.end.y - 11.0 * scale) > 0.5 or absf(charges.get_center().x - bar.get_center().x + scale) > 0.5:
 			fail("Arcane Charges at %s, mana bar at %s" % [charges, bar])
 			return
+	var both := OS.get_environment("BAR_TARGET")
+	if both != "" and not await check_target_alignment(ui, mana, both):
+		return
 	print("PASS: class bar ", expect, " for spec ", spec)
 	quit(0)
+
+func check_target_alignment(ui: Node, mana: Control, path: String) -> bool:
+	for attempt in range(20):
+		if str(client.target_state().target_name) != "":
+			break
+		push_key(KEY_TAB, true)
+		await wait_frames(2)
+		push_key(KEY_TAB, false)
+		await wait_frames(20)
+	var target := ui.find_child("TargetFrame", true, false) as Control
+	if target == null or not target.is_visible_in_tree():
+		fail("No target frame: " + str(client.target_state()))
+		return false
+	await wait_frames(10)
+	var player_health := (ui.find_child("PlayerHealthBar", true, false) as Control).get_global_rect()
+	var target_health := (ui.find_child("TargetHealthBar", true, false) as Control).get_global_rect()
+	var scale := mana.get_global_rect().size.x / 124.0
+	print("FIXTURE target=%s player_health=%s target_health=%s" % [client.target_state().target_name, player_health, target_health])
+	var centre := float(root.size.x) / 2.0
+	var player_frame := (ui.find_child("PlayerFrame", true, false) as Control).get_global_rect()
+	await capture(path, player_frame.merge(target.get_global_rect()).grow_individual(20, 20, 20, 50))
+	if absf(target_health.end.y - (player_health.end.y - scale)) > 0.5:
+		fail("Health bar bottoms: player %.2f, target %.2f" % [player_health.end.y, target_health.end.y])
+		return false
+	if absf((target_health.get_center().x - centre) - (centre - player_health.get_center().x)) > 0.5:
+		fail("Health bars not mirrored about x %.1f" % centre)
+		return false
+	return true
+
+func push_key(code: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.physical_keycode = code
+	event.pressed = pressed
+	root.push_input(event, true)
 
 func enter_world() -> bool:
 	var deadline := Time.get_ticks_msec() + 20000
