@@ -36,7 +36,9 @@ Godot source investigation found the `Camera3D`/`WorldEnvironment` compositor pa
 
 Fixture `063363f4` first exposed a full-scale capture mismatch. `fb3cc96a` hides only `GameMenuUI` during capture; `75096a95` strengthens the weak bilinear edge signal without loosening tolerances. Separately, native `ca2f75c0` remains unfiltered at live 0.5: red 0.349 versus expected 0.3277 (`data/diagnostics/render-scale-rcas-red-063363f4/run-contrast.log`). That process exited 124 only after the assertion, so it is evidence of the mismatch, not a clean RED process result.
 
-`543ca754` adds the native viewport-owned canvas pass; native compilation and rendered acceptance remain pending. Diagnostic GREEN is not production or full-parity proof.
+Production `543ca754` adds the native viewport-owned canvas pass. Integrated `27727fa0` built through Depot `9n5kpbsc6l` in 62.1 seconds, exit 0 (`data/diagnostics/rcas-canvas-probe/native-build-retry.log`). First build `zp1dlvr07r` stalled for more than 20 minutes and was interrupted (`data/diagnostics/rcas-canvas-probe/native-build.log`): the recorded network timeout and canceled compilation provide no compilation proof.
+
+Actual native Vulkan fixture `94e7e02a` exits 0 (`data/diagnostics/rcas-native-green/run-94e7e02a.log`): startup 0.75 and live 0.5 match the linear-RGB RCAS oracle; live 1.0 bypasses filtering; discriminating higher-layer UI edge pixels remain unchanged; the black patch remains finite and opaque. Main inspected the capture. This supersedes pending native compilation/rendered acceptance, not full legacy scene parity. `/tmp/claude/verify-native-rcas-final.md` remains pending independent evidence and is not credited as a completed gate. HDR, bloom, all-scene visual equality, other outstanding Options, and full conversion parity remain open.
 
 ### Owned Vulkan cage recipe
 
@@ -271,6 +273,8 @@ Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x
 - Patched sibling `bevy-patches/bevy_render/src/camera.rs` — target-format selection and main-pass resolution override behavior.
 - `data/diagnostics/rcas-canvas-probe/{srgb/run-valid-shader.log,copy/run.log,raw-linear/run.log}` — diagnostic shader pass and controlled failures.
 - `data/diagnostics/render-scale-rcas-red-063363f4/run-contrast.log` — native unfiltered live-0.5 mismatch; timeout followed the assertion.
+- `data/diagnostics/rcas-canvas-probe/native-build{,-retry}.log` — interrupted first build (no proof) and integrated `27727fa0` Depot build exit 0.
+- `data/diagnostics/rcas-native-green/run-94e7e02a.log` — actual native Vulkan RCAS oracle, bypass, UI-edge and finite opaque black-patch proof, exit 0; capture inspection reported by main.
 - [shared AreaTable data](../../../src/area_zone_data.rs) — parent parsing and bounded root traversal.
 - [Remote Godot builds](../../remote-builds.md) — Depot extension-build boundary and operator requirements.
 - `/tmp/claude/verify-root-tests-580d7300.md` — bounded root format/test proof and test-only-delta scope.
