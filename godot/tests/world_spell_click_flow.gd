@@ -108,7 +108,7 @@ func check_scaled_spell_tooltip(client: Node, action: Control) -> bool:
 	if absf(tooltip.get_global_transform().get_scale().x - scale) > 0.01 or rect.position.distance_to(expected) > 2.0:
 		fail("Scaled spell tooltip %s not above live Slam action at %s" % [rect, expected])
 		return false
-	return true
+	return await capture_scaled_ui("sound-tooltip", tooltip)
 
 func check_right_edge_tooltip(client: Node, bar: Node) -> bool:
 	root.size = Vector2i(800, 720)
@@ -132,8 +132,30 @@ func check_right_edge_tooltip(client: Node, bar: Node) -> bool:
 	if absf(rect.end.x - root.size.x) > 2.0:
 		fail("Scaled tooltip did not clamp at physical viewport edge: %s vs %s" % [rect, root.size])
 		return false
+	if not await capture_scaled_ui("sound-tooltip-800-edge", tooltip):
+		return false
 	root.size = Vector2i(1280, 720)
 	await wait_frames(4)
+	return true
+
+func capture_scaled_ui(name: String, control: Control) -> bool:
+	var directory := OS.get_environment("GODOT_TEST_CAPTURE_DIR")
+	if directory.is_empty():
+		return true
+	if not directory.is_absolute_path() or not DirAccess.dir_exists_absolute(directory):
+		fail("Capture directory must exist and be absolute: " + directory)
+		return false
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image == null or image.is_empty():
+		fail("Rendered UI capture returned an empty image: " + name)
+		return false
+	var path := directory.path_join(name + ".png")
+	var error := image.save_png(path)
+	if error != OK:
+		fail("Cannot save rendered UI capture %s: %s" % [path, error_string(error)])
+		return false
+	print("FIXTURE UI_CAPTURE path=%s viewport=%s image=%s scale=%s rect=%s" % [path, root.size, image.get_size(), control.get_global_transform().get_scale(), control.get_global_rect()])
 	return true
 
 func check_action_bar_visibility(client: Node, bar: Node, action: Control, effects: AudioStreamPlayer, completed: Array) -> bool:

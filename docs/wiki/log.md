@@ -14,9 +14,13 @@ Frostbolt's cast sound was the synthetic 140 ms CastStart sweep (`sound_cast.rs`
 
 Details in [[spell-visuals]].
 
+## [2026-09-29] fix | Native FontString width-bound word wrapping
+
+The authored merchant Options descriptions exceeded the row at 0.75/1.25 because Godot Labels with wrapping off grew their minimum width beyond the authored 370 logical px. Legacy text bounds width and uses word-boundary layout. `9c12ce9e` requests word wrapping in native FontString projection. Depot `jcmsl5lx24` built revision `9c12ce9e` with `native_input_fixture` (exit 0; existing `NativeWmoGroup::fdid` warning); the owned merchant-click runtime exits 0 and confirms full text, two-line long descriptions, 370-logical-px label width, row/content/root containment, and non-overlap at both scales (`data/diagnostics/options-fontstring-wrap-{depot-build.log,green/merchant-click-runtime-short.log}`). Main inspected `merchant-options-125.png`. This is a bounded single-owner rendered check, not pixel equality, all-UI-owner coverage, or conversion parity. See [[ui-system]].
+
 ## [2026-09-29] implementation | Godot RegistryUi scale ownership
 
-Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). Scaled known-spell tooltip anchoring passes against the prior native artifact; the coordinate corrections still require a new Depot artifact. See [[ui-system]].
+Shared live-owner traversal now drives native UI scale and click draining, with startup and frame-end sync. Tooltip and entrance-bar coordinate producers use the logical viewport of the scaled canvas. The first-visible login assertion was RED on `e8599fb0` and GREEN on `34b12ea5`; owned reset-windows and merchant-click fixtures also pass against `34b12ea5` (merchant script `dd11bdd2`). The owned sound-click fixture at `b63c64ec` adds known Slam to the rightmost slot: controlled old `34b12ea5` library + new fixture RED placed the tooltip's right edge at 711 px in an 800 px viewport (`data/diagnostics/ui-scale-edge-old34-native-b63-fixture-red.log`); Depot `c22n43vc57` built the corrected library and fixture, then sound-click GREEN preserved existing casting/visibility/click assertions (`data/diagnostics/ui-scale-b63c64ec-sound-click-edge-green.log`). Entrance-bar coordinate conversion has source-space proof only because the owned fixtures do not show an entrance. See [[ui-system]].
 
 ## [2026-09-29] investigation | Spell missiles leave at the cast clip's release event
 
@@ -2032,3 +2036,11 @@ The Godot TargetFrame sits where Retail's Modern Edit Mode preset puts it (BOTTO
 ## [2026-09-29] feature | Confirmed native CastStart
 
 Shared normalized-phase legacy PCM and cast-ID observation drive an owned Godot spatial emitter only on the local player's replicated `CastState` transition; the owned spell-click UDP fixture proves request quiet, active/repeated/inactive/retriggered/muted/removal boundaries. Final bounded verification at `0e0726a3` passes (`/tmp/claude/verify-native-caststart-final.md`); its fixture-only readability refactor preserves the nine-marker runtime sequence. See [[sound]].
+
+## [2026-09-29] test | Rendered UI-scale gate
+
+Final gate PASS (`/tmp/claude/verify-ui-scale-all-owners-final.md`): inspected owned-UDP Wayland/Vulkan root-viewport captures prove tooltip 1280/800 edge bounds and Merchant Options 0.75/1.25 physical-pointer input. PNGs are valid, non-empty sRGB with distinct pixels. Retained `b63c64ec` native/fixture is bounded by a range diff showing only later M2/combat Rust through `fcff316a`; no current-whole-engine artifact claim. Login/reset-headless proof remains; entrance stays source-only. See [ui-system](systems/ui-system.md#godot-native-ui-scale-bounded).
+
+## [2026-09-29] investigation | DXT1 punch-through alpha
+
+Elwynn bush 189700's leaf texture 189937 (DXT1, alpha depth 1) drew black squares in the Godot client: Godot uploads `FORMAT_DXT1` as BC1 RGB, so punch-through texels were opaque black. `fe422318` decodes DXT1 with alpha bits to RGBA8 with every mip level. See [[godot-dxt1-punch-through]].

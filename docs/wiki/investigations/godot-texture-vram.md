@@ -15,7 +15,7 @@ The Godot client's video memory grew without bound during an in-world login: eve
 
 ## Fix (`224eb4f8`, `0f36a6cb`)
 
-- `core::blp::decode_gpu` returns DXT1/3/5 BLPs as authored block data with the full mip chain (mip 0 alone when the chain is incomplete; truncated mip 0 takes the largest level the data holds). DXT3/5 alpha that is zero everywhere is made opaque, matching `decode_rgba`'s `fix_1bit_alpha`. JPEG and palettized BLPs decode to RGBA8.
+- `core::blp::decode_gpu` returns DXT1/3/5 BLPs as authored block data (except DXT1 with alpha bits, since `fe422318`: [[godot-dxt1-punch-through]]) with the full mip chain (mip 0 alone when the chain is incomplete; truncated mip 0 takes the largest level the data holds). DXT3/5 alpha that is zero everywhere is made opaque, matching `decode_rgba`'s `fix_1bit_alpha`. JPEG and palettized BLPs decode to RGBA8.
 - `material::shared_texture` keeps one `ImageTexture` per (texture dir, FDID) in a thread-local cache, cleared with the shared shaders at `InitStage::MainLoop` deinit. M2 batches, WMO materials and the character-select sky use it.
 - Batch textures composited on the CPU (second texture unless it is an environment map, overlays) are cached per composite key; a composite that was missing a layer is not cached, so every model that uses it still reports the missing FDID.
 - WMO shader-7 composites are still cached per WMO build; terrain layer textures are cached per FDID but still RGBA8.
@@ -37,4 +37,5 @@ The Godot client's video memory grew without bound during an in-world login: eve
 
 ## See Also
 
+- [[godot-dxt1-punch-through]] — the DXT1 upload drew 1-bit alpha opaque black
 - [[bevy-godot-shadow-comparison]] — other Bevy/Godot resource comparisons

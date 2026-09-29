@@ -43,6 +43,8 @@ mod logout;
 mod menu;
 #[path = "native_input_fixture/merchant_click.rs"]
 mod merchant_click;
+#[path = "native_input_fixture/portal_particles.rs"]
+mod portal_particles;
 #[path = "native_input_fixture/reset_windows.rs"]
 mod reset_windows;
 #[path = "native_input_fixture/sound.rs"]
@@ -83,6 +85,8 @@ enum StartupScreen {
     MerchantClick,
     Footsteps,
     ResetWindows,
+    PortalParticlesEnabled,
+    PortalParticlesDisabled,
 }
 
 impl StartupScreen {
@@ -101,9 +105,11 @@ impl StartupScreen {
             Some("merchant-click") => Self::MerchantClick,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
+            Some("portal-particles-enabled") => Self::PortalParticlesEnabled,
+            Some("portal-particles-disabled") => Self::PortalParticlesDisabled,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, footsteps or reset-windows"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, sound-outcome, merchant-click, footsteps, reset-windows, portal-particles-enabled or portal-particles-disabled"
                 )
             }
         };
@@ -126,7 +132,9 @@ impl StartupScreen {
             | Self::SoundOutcome
             | Self::MerchantClick
             | Self::Footsteps
-            | Self::ResetWindows => "inworld",
+            | Self::ResetWindows
+            | Self::PortalParticlesEnabled
+            | Self::PortalParticlesDisabled => "inworld",
         }
     }
 }
@@ -244,6 +252,20 @@ impl FixtureConfig {
             .expect("create fixture credentials directory");
         fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
             .expect("write fixture-only credentials");
+        if matches!(
+            screen,
+            StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled
+        ) {
+            fs::write(
+                config.home.join("world-of-osso/options_settings.ron"),
+                if screen == StartupScreen::PortalParticlesEnabled {
+                    "(graphics:(particleEffectsEnabled:true))"
+                } else {
+                    "(graphics:(particleEffectsEnabled:false))"
+                },
+            )
+            .expect("write isolated persisted portal particle setting");
+        }
         if screen == StartupScreen::ResetWindows {
             fs::write(
                 config.home.join("world-of-osso/options_settings.ron"),
@@ -301,6 +323,9 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
     match screen {
         StartupScreen::ResetWindows => "res://tests/options_reset_windows.gd",
         StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
+        StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
+            "res://tests/world_portal_particles_flow.gd"
+        }
         StartupScreen::SoundClick => "res://tests/world_spell_click_flow.gd",
         StartupScreen::SoundOutcome => "res://tests/world_sound_outcome_flow.gd",
         StartupScreen::Sound => "res://tests/world_sound_flow.gd",
@@ -327,6 +352,8 @@ fn launch_godot(
             | StartupScreen::MerchantClick
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
+            | StartupScreen::PortalParticlesEnabled
+            | StartupScreen::PortalParticlesDisabled
     ) {
         std::env::var_os("GODOT_BIN")
             .map(PathBuf::from)
@@ -360,6 +387,8 @@ fn launch_godot(
                     | StartupScreen::MerchantClick
                     | StartupScreen::Footsteps
                     | StartupScreen::ResetWindows
+                    | StartupScreen::PortalParticlesEnabled
+                    | StartupScreen::PortalParticlesDisabled
             ) {
                 &["--"][..]
             } else {
@@ -403,6 +432,14 @@ fn launch_godot(
                 .join("user-data"),
         )
         .env("GODOT_TEST_SERVER", address.to_string())
+        .env(
+            "GODOT_TEST_PARTICLES",
+            match screen {
+                StartupScreen::PortalParticlesEnabled => "enabled",
+                StartupScreen::PortalParticlesDisabled => "disabled",
+                _ => "",
+            },
+        )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -539,6 +576,12 @@ fn respond_to_selection(
         }
         let spawn = if screen == StartupScreen::Swimming {
             SWIM_START
+        } else if matches!(
+            screen,
+            StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled
+        ) {
+            // Azeroth 30_48, just outside MODD 1112; the native camera faces -Z.
+            [-8766.11, 88.5, -845.5]
         } else {
             FIRST
         };
@@ -1215,6 +1258,8 @@ fn main() {
             | StartupScreen::MerchantClick
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
+            | StartupScreen::PortalParticlesEnabled
+            | StartupScreen::PortalParticlesDisabled
     ) {
         assert!(
             launcher.is_file(),
@@ -1264,6 +1309,11 @@ fn main() {
         sound::run(&mut app, &mut child, lines, reader)
     } else if screen == StartupScreen::Footsteps {
         footsteps::run(&mut app, &mut child, lines, reader)
+    } else if matches!(
+        screen,
+        StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled
+    ) {
+        portal_particles::run(&mut app, &mut child, lines, reader, screen)
     } else {
         run_fixture(&mut app, &mut child, lines, reader, screen)
     };

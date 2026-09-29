@@ -9,11 +9,10 @@ fn texture(fdid: u32) -> Vec<u8> {
     std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
-fn compressed(fdid: u32) -> CompressedImage {
-    match decode_gpu(&texture(fdid)).unwrap() {
-        GpuImage::Compressed(image) => image,
-        GpuImage::Rgba(_) => panic!("{fdid} decoded to RGBA8"),
-    }
+fn compressed(fdid: u32) -> GpuImage {
+    let image = decode_gpu(&texture(fdid)).unwrap();
+    assert_ne!(image.format, GpuFormat::Rgba8, "{fdid} decoded to RGBA8");
+    image
 }
 
 /// Stormwind crenellation 464811: a 256x256 DXT1 BLP with its full mip chain.
@@ -21,7 +20,7 @@ fn compressed(fdid: u32) -> CompressedImage {
 fn a_dxt1_blp_stays_block_compressed_with_every_mip_level() {
     let image = compressed(464811);
 
-    assert_eq!(image.format, BlockFormat::Dxt1);
+    assert_eq!(image.format, GpuFormat::Dxt1);
     assert_eq!((image.width, image.height), (256, 256));
     assert!(image.mipmaps);
     // 256..4: 64x64..1x1 blocks of 8 bytes, then 2x2 and 1x1 still take one block each.
@@ -48,7 +47,7 @@ fn a_zero_alpha_dxt5_blp_uploads_opaque_like_the_rgba_decode() {
 
     let image = compressed(464043);
 
-    assert_eq!(image.format, BlockFormat::Dxt5);
+    assert_eq!(image.format, GpuFormat::Dxt5);
     assert!(
         image
             .data
@@ -68,7 +67,7 @@ fn authored_dxt5_alpha_is_kept() {
 
     let image = compressed(198077);
 
-    assert_eq!(image.format, BlockFormat::Dxt5);
+    assert_eq!(image.format, GpuFormat::Dxt5);
     assert_eq!(
         &image.data[..dxtn.images[0].content.len()],
         &dxtn.images[0].content[..]
@@ -78,12 +77,28 @@ fn authored_dxt5_alpha_is_kept() {
 /// 1022933 is palettized: there are no blocks to upload, so it decodes to RGBA8.
 #[test]
 fn a_palettized_blp_decodes_to_rgba() {
-    let GpuImage::Rgba(image) = decode_gpu(&texture(1022933)).unwrap() else {
-        panic!("1022933 is palettized");
-    };
+    let image = decode_gpu(&texture(1022933)).unwrap();
 
-    assert_eq!(
-        image.pixels.len(),
-        (image.width * image.height * 4) as usize
-    );
+    assert_eq!(image.format, GpuFormat::Rgba8);
+    assert_eq!(image.data.len(), (image.width * image.height * 4) as usize);
+}
+
+/// Elwynn bush 189700's leaf cards, 189937: a 128x128 DXT1 BLP with 1-bit alpha and its
+/// full chain. Godot uploads `FORMAT_DXT1` as BC1 RGB, where the punch-through texels are
+/// opaque black, so it decodes every level to RGBA8 and keeps them transparent.
+#[test]
+fn a_one_bit_alpha_dxt1_blp_decodes_every_level_with_its_transparent_texels() {
+    let image = decode_gpu(&texture(189937)).unwrap();
+
+    assert_eq!(image.format, GpuFormat::Rgba8);
+    assert_eq!((image.width, image.height), (128, 128));
+    assert!(image.mipmaps);
+    let levels: usize = (0..8)
+        .map(|level| (128 >> level) * (128 >> level) * 4)
+        .sum();
+    assert_eq!(image.data.len(), levels);
+    let rgba = decode_rgba(&texture(189937)).unwrap();
+    assert_eq!(&image.data[..rgba.pixels.len()], &rgba.pixels[..]);
+    let transparent = rgba.pixels.iter().skip(3).step_by(4).filter(|&&a| a == 0);
+    assert!(transparent.count() > 128 * 128 / 4);
 }
