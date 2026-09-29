@@ -39,7 +39,10 @@ fn human_male_hd_cast_clips_fire_their_release_events() {
     };
     assert_eq!(
         fired(index(53)),
-        [(b"$CSL", 209u32, vec![200u32]), (b"$SCD", 215u32, vec![200u32])]
+        [
+            (b"$CSL", 209u32, vec![200u32]),
+            (b"$SCD", 215u32, vec![200u32])
+        ]
     );
     assert_eq!(fired(index(54)), [(b"$CST", 160u32, vec![200u32])]);
     assert!(fired(index(51)).is_empty());
