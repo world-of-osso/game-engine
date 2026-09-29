@@ -145,6 +145,19 @@ const PREV_PAGE_DISABLED: u32 = 130_867;
 const NEXT_PAGE_UP: u32 = 130_866;
 const NEXT_PAGE_DISABLED: u32 = 130_864;
 
+/// Every chrome texture the frame draws, for hosts that copy art out of local CASC.
+pub const SPELLBOOK_ART_FDIDS: [u32; 9] = [
+    5_834_697,
+    5_506_565,
+    4_707_839,
+    4_556_093,
+    PREV_PAGE_UP,
+    PREV_PAGE_DISABLED,
+    NEXT_PAGE_UP,
+    NEXT_PAGE_DISABLED,
+    CLOSE_BUTTON.fdid,
+];
+
 /// One spell entry of a category.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpellbookItemView {

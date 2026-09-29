@@ -21,12 +21,12 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::cast_failed_text::cast_failed_text;
 use game_engine_ui_model::casting_bar_frame_component::CastingBarState;
 use game_engine_ui_model::main_action_bar_component::{
-    MAIN_BAR_BUTTONS, MainActionBarState, parse_action_button,
+    ACTION_BAR_ART_FDIDS, MAIN_BAR_BUTTONS, MainActionBarState, parse_action_button,
 };
 use game_engine_ui_model::spellbook_frame_component::{
     ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, ACTION_SPELLBOOK_NEXT_PAGE,
-    ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SpellbookCategory, SpellbookFrameState,
-    SpellbookGroup, SpellbookItemView,
+    ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SPELLBOOK_ART_FDIDS, SpellbookCategory,
+    SpellbookFrameState, SpellbookGroup, SpellbookItemView,
 };
 use godot::classes::{Label3D, ProjectSettings, base_material_3d::BillboardMode};
 use godot::prelude::*;
@@ -59,7 +59,7 @@ const PUSH_SECS: f32 = 0.15;
 const FLOAT_TEXT_RISE: f32 = 1.5;
 const FLOAT_TEXT_SECS: f32 = 1.5;
 /// Height above the unit origin where combat text starts.
-const FLOAT_TEXT_HEIGHT: f32 = 2.2;
+const FLOAT_TEXT_HEIGHT: f32 = 3.6;
 
 enum CatalogLoad {
     Idle,
@@ -237,8 +237,17 @@ fn cooldown_text(remaining: f32) -> String {
 }
 
 impl GameClient {
-    /// Per frame, before input edges clear.
+    /// Per frame, before input edges clear. A failure is reported and closes the spell
+    /// UI; it does not end the session.
     pub(super) fn update_spells(&mut self, delta: f32) -> Result<(), String> {
+        if let Err(error) = self.drive_spells(delta) {
+            godot_error!("Spell UI: {error}");
+            self.spells.close();
+        }
+        Ok(())
+    }
+
+    fn drive_spells(&mut self, delta: f32) -> Result<(), String> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.spells.close();
             return Ok(());
@@ -359,6 +368,14 @@ impl GameClient {
         if found { fdid } else { 0 }
     }
 
+    /// Chrome art must be on disk: a missing file is an error, not a blank frame.
+    fn ensure_art(&mut self, fdids: &[u32]) -> Result<(), String> {
+        match fdids.iter().find(|&&fdid| self.drawable_fdid(fdid) == 0) {
+            Some(fdid) => Err(format!("UI art FDID {fdid} is not in local CASC")),
+            None => Ok(()),
+        }
+    }
+
     fn spell_triggers_gcd(&self, spell_id: u32) -> bool {
         self.spells
             .catalog()
@@ -399,6 +416,7 @@ impl GameClient {
         if let Some(ui) = self.spells.bar_ui.as_mut() {
             return ui.bind_mut().set_state(state);
         }
+        self.ensure_art(&ACTION_BAR_ART_FDIDS)?;
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("MainActionBarUI");
         ui.set_layer(2);
@@ -557,15 +575,32 @@ impl GameClient {
         }
         let state = self.spellbook_state();
         self.spells.book = state.clone();
-        let ui = self.spells.book_ui.as_mut().expect("spellbook open");
-        if ui.bind().has_frame("SpellBookFrame") {
+        if self
+            .spells
+            .book_ui
+            .as_ref()
+            .is_some_and(|ui| ui.bind().has_frame("SpellBookFrame"))
+        {
+            let ui = self.spells.book_ui.as_mut().expect("spellbook open");
             return ui.bind_mut().set_state(state);
         }
-        ui.bind_mut().show_spellbook(state)
+        let shown = self.ensure_art(&SPELLBOOK_ART_FDIDS).and_then(|()| {
+            let ui = self.spells.book_ui.as_mut().expect("spellbook open");
+            ui.bind_mut().show_spellbook(state)
+        });
+        if shown.is_err() {
+            self.close_spellbook();
+        }
+        shown
     }
 
     fn poll_spellbook_actions(&mut self) -> Result<(), String> {
-        let Some(ui) = self.spells.book_ui.as_mut() else {
+        let Some(ui) = self
+            .spells
+            .book_ui
+            .as_mut()
+            .filter(|ui| ui.bind().has_frame("SpellBookFrame"))
+        else {
             return Ok(());
         };
         let action = ui.bind_mut().pop_action().to_string();
@@ -609,7 +644,7 @@ impl GameClient {
             .cloned()
             .collect();
         for event in events {
-            let Some(mut unit) = event.target.and_then(|id| self.world.unit_node(id)) else {
+            let Some(unit) = event.target.and_then(|id| self.world.unit_node(id)) else {
                 continue;
             };
             let text = match event.kind {
@@ -626,8 +661,10 @@ impl GameClient {
                 true,
             );
             label.set_font_size(if event.crit { 96 } else { 64 });
-            label.set_outline_size(12);
-            label.set_pixel_size(0.01);
+            label.set_outline_size(8);
+            // Constant on-screen size, as Retail combat text.
+            label.set_draw_flag(godot::classes::label_3d::DrawFlags::FIXED_SIZE, true);
+            label.set_pixel_size(0.0016);
             // Retail white for physical damage, yellow for spell schools.
             let color = if event.school_mask == 1 {
                 Color::from_rgb(1.0, 1.0, 1.0)
@@ -635,9 +672,12 @@ impl GameClient {
                 Color::from_rgb(1.0, 1.0, 0.0)
             };
             label.set_modulate(color);
-            let origin = Vector3::new(0.0, FLOAT_TEXT_HEIGHT, 0.0);
+            // Under the client root: unit nodes carry model scale.
+            // Successive numbers fan out sideways instead of stacking.
+            let lane = [0.0, -0.8, 0.8][(self.spells.floating.len()) % 3];
+            let origin = unit.get_global_position() + Vector3::new(lane, FLOAT_TEXT_HEIGHT, 0.0);
             label.set_position(origin);
-            unit.add_child(&label);
+            self.base_mut().add_child(&label);
             self.spells.floating.push(FloatingText {
                 node: label,
                 age: 0.0,
@@ -722,14 +762,20 @@ impl GameClient {
             .collect();
         state.set("damage_dealt", &ids(&damage));
         state.set("spellbook_open", self.spellbook_open());
-        let player = self.world.local_player_id().and_then(|id| self.units.get(&id));
+        state.set("combat_text", self.spells.floating.len() as i64);
+        let player = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.units.get(&id));
         let power = player
             .and_then(|unit| unit.powers.as_ref()?.entries.first().cloned())
             .map_or(-1, |entry| i64::from(entry.current));
         state.set("power", power);
         state.set(
             "level",
-            player.and_then(|unit| unit.level).map_or(0, |level| i64::from(level.0)),
+            player
+                .and_then(|unit| unit.level)
+                .map_or(0, |level| i64::from(level.0)),
         );
         let target_health = self
             .targeting_target()

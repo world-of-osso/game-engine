@@ -51,6 +51,9 @@ const fn action_bar(rect: (f32, f32, f32, f32)) -> AtlasArt {
     }
 }
 
+/// Every chrome texture the bar draws, for hosts that copy art out of local CASC.
+pub const ACTION_BAR_ART_FDIDS: [u32; 1] = [4_613_342];
+
 /// `UI-HUD-ActionBar-IconFrame-Background`.
 const SLOT_BACKGROUND: AtlasArt = action_bar((181.0, 227.0, 411.0, 456.0));
 /// `ui-hud-actionbar-iconframe-slot`.

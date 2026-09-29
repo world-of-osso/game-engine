@@ -152,7 +152,9 @@ func cast_on_dummy(level: int) -> bool:
 	if not await wait_for(func(s): return s.gcd_ms > 0 and s.damage_dealt.size() > damage_before, 5000, "Slam accepted: damage and GCD"):
 		return false
 	print("FIXTURE SLAM ", spells())
-	await wait_frames(6)
+	if spells().combat_text == 0:
+		fail("No floating combat text for the Slam damage")
+		return false
 	await capture("slam-hit-gcd.png")
 	# Pressed again inside the GCD: rejected.
 	var errors_before: int = spells().errors.size()
