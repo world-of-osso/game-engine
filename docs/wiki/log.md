@@ -10,7 +10,11 @@ Frostbolt's cast sound was the synthetic 140 ms CastStart sweep (`sound_cast.rs`
 - `spell_sounds.rs` plays one weighted entry per SoundKit on the kit's unit, looping (0x200) while a held kit lasts.
 - Frostbolt now plays precast_start + precast_loop (85501/85500), cast (85502) at `SpellGo` and impact (85503) on arrival.
 
-**Open.** The synthetic CastStart sweep still plays alongside the retail sounds; retiring it waits on a decision about its owned fixture. `$SCD` (CreatureSoundData) is not played.
+**Sweep removed.** The synthetic CastStart sweep (`CastSpells`) and its sound-click cast stages are removed.
+
+**First-cast freeze.** The fixture's 0.03-0.14 s cast was a 25-30 s main-thread stall: the catalog was rebuilt from the CSVs at the first cast, because checkouts at different formats overwrote each other's cache file. Godot's 8-step delta cap hid the stall's length from the client clock. The catalog now loads on a worker thread from client start, into a per-format cache file.
+
+**Still not played.** `$SCD` (CreatureSoundData).
 
 Details in [[spell-visuals]].
 
