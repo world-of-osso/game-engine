@@ -33,7 +33,6 @@ mod particles;
 mod player_spells;
 mod scene;
 mod sound;
-mod sound_cast;
 mod sound_client;
 mod sound_footsteps;
 mod sound_outcome;
@@ -347,7 +346,6 @@ impl INode3D for GameClient {
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
-            ("Cast sound", |c, _| Ok(c.update_cast_sound()?)),
             ("Merchant", |c, _| c.update_merchant()),
             ("World map", |c, _| Ok(c.update_world_map()?)),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
