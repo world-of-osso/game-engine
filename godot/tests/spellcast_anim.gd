@@ -9,8 +9,12 @@ extends SceneTree
 ##                               ReadySpellDirected loop (51) with hand models 1598571,
 ##                               the SpellCastDirected release (53), the missile 1598570
 ##                               and the impact model 1599028 with the dummy's wound (9)
-## Tab targets the nearest dummy; auto-attack must play the warrior's Attack1H swing
-## (17, Worn Shortsword) and the dummy's CombatWound (9). Slam (key 1) must play the
+## Tab targets the nearest dummy. Selecting it never attacks (TrinityCore
+## HandleSetSelectionOpcode only sets the selection): for SELECTION_SECS neither unit
+## plays a melee clip. The warrior then right-clicks the dummy (`AttackSwing`), and
+## auto-attack must play its Attack1H swing (17, Worn Shortsword) and the dummy's
+## CombatWound (9). The mage must show no swing (16-19) and the dummy no wound or
+## crit reaction until its Frostbolt lands. Slam (key 1) must play the
 ## one-hand visual's CombatAbility1H01 (818) and put its impact model 1283017 on the
 ## dummy; Battle Shout (its bar key) must play BattleRoar (55) with its base model
 ## 1138011 and the buff model 6194303 on the warrior.
@@ -32,6 +36,11 @@ const READY_SPELL_DIRECTED := 51
 const SPELL_CAST_DIRECTED := 53
 const FROSTBOLT_HANDS := 1598571
 const FROSTBOLT_IMPACT := 1599028
+## AttackUnarmed, Attack1H, Attack2H, Attack2HL.
+const MELEE_SWINGS := [16, 17, 18, 19]
+const COMBAT_CRITICAL := 10
+## Two unarmed swing intervals: a selection-started auto-attack would swing in this time.
+const SELECTION_SECS := 4.5
 
 const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 
@@ -117,6 +126,11 @@ func run_test() -> void:
 	print("FIXTURE TARGET ", client.target_state())
 	if not await face_target():
 		return
+	# The selection alone: no swing, no wound, no auto-attack.
+	await wait_frames(int(SELECTION_SECS * 60))
+	if not no_melee_yet("after selecting the dummy"):
+		return
+	await capture("00-selected.png")
 	if mage:
 		if await cast_frostbolt():
 			print("FIXTURE SEEN actions=", seen_actions, " models=", seen_models.keys(), " missile=", seen_missile)
@@ -125,7 +139,10 @@ func run_test() -> void:
 			client.free()
 			quit(0)
 		return
-	# Auto-attack: swings and the dummy's wound reaction.
+	# Right-click the dummy: auto-attack, its swings and the dummy's wound reaction.
+	await right_click_unit(target_id)
+	if not await wait_until(func(): return client.target_state().auto_attack == target_id, 2000, "right-click auto-attack request"):
+		return
 	if not await wait_until(func(): return saw(local_id, ATTACK_1H) and saw(target_id, COMBAT_WOUND), 15000, "auto-attack Attack1H swing and CombatWound"):
 		return
 	await capture("01-auto-attack.png")
@@ -173,6 +190,42 @@ func face_target() -> bool:
 		fail("The warrior does not face the dummy: %.3f rad" % angle)
 		return false
 	return true
+
+## No melee swing by the player, no wound or crit reaction on the dummy, and no
+## auto-attack request so far.
+func no_melee_yet(when: String) -> bool:
+	for swing in MELEE_SWINGS:
+		if saw(local_id, swing):
+			fail("Melee swing %d %s: %s" % [swing, when, seen_actions])
+			return false
+	for reaction in [COMBAT_WOUND, COMBAT_CRITICAL]:
+		if saw(target_id, reaction):
+			fail("Dummy reaction %d %s: %s" % [reaction, when, seen_actions])
+			return false
+	if client.target_state().auto_attack != null:
+		fail("Auto-attack %s: %s" % [when, client.target_state()])
+		return false
+	print("FIXTURE NO_MELEE ", when, " actions=", seen_actions)
+	return true
+
+## Right-click the unit's body on screen: press and release in place.
+func right_click_unit(id: int) -> void:
+	var camera := root.get_viewport().get_camera_3d()
+	var body: Vector3 = client.unit_transform(id).origin + Vector3.UP
+	var point := camera.unproject_position(body)
+	if camera.is_position_behind(body) or not Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point):
+		fail("Unit %d is off screen at %s" % [id, point])
+		return
+	await move_mouse(point)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = MOUSE_BUTTON_RIGHT
+		event.pressed = pressed
+		root.push_input(event, true)
+		await wait_frames(2)
+	print("FIXTURE RIGHT_CLICK ", point, " ", client.target_state())
 
 func saw(id: int, action: int) -> bool:
 	return seen_actions.has(id) and seen_actions[id].has(action)
@@ -255,6 +308,9 @@ func cast_frostbolt() -> bool:
 	await wait_frames(20)
 	await capture("10-frostbolt-precast.png")
 	if not await wait_until(func(): return saw(local_id, SPELL_CAST_DIRECTED) and seen_missile, 5000, "Frostbolt release and missile"):
+		return false
+	# Frostbolt starts no auto-attack (no SPELL_ATTR1/ATTR2 auto-attack attribute).
+	if not no_melee_yet("before the Frostbolt impact"):
 		return false
 	await capture("11-frostbolt-missile.png")
 	if not await wait_until(func(): return seen_models.has([target_id, FROSTBOLT_IMPACT]) and saw(target_id, COMBAT_WOUND), 5000, "Frostbolt impact on the dummy"):
