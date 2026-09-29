@@ -200,6 +200,17 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual((other / "target/debug/libgame_engine_godot.so").read_bytes(), b"second")
         self.assertEqual(self.records()[1]["files"]["game-engine-godot-conversion/godot/rust/src/lib.rs"], "original")
 
+    def test_target_cache_is_per_checkout_and_stable(self):
+        other = self.base / "game-engine-alt-worktree"
+        self._git(self.base, "clone", "-q", str(self.root), str(other))
+        for root in (self.root, self.root, other):
+            result = subprocess.run(["python3", str(SCRIPT), "--root", str(root)], env=self.env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        caches = [record["args"][record["args"].index("--build-arg") + 1] for record in self.records()]
+        self.assertTrue(caches[0].startswith("TARGET_CACHE=godot-target-"), caches)
+        self.assertEqual(caches[0], caches[1])
+        self.assertNotEqual(caches[0], caches[2])
+
     def test_target_directory_symlink_fails_without_remote_build(self):
         outside = self.base / "other-target"
         outside.mkdir()

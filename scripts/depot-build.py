@@ -108,8 +108,8 @@ def install_artifact(compressed, destination):
 def build(root):
     cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "game-engine" / "depot-build"
     cache.mkdir(parents=True, exist_ok=True)
-    lock_name = hashlib.sha256(os.fsencode(root)).hexdigest()[:20] + ".lock"
-    with (cache / lock_name).open("w") as lock:
+    checkout_key = hashlib.sha256(os.fsencode(root)).hexdigest()[:20]
+    with (cache / (checkout_key + ".lock")).open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         target = root / "target"
         if target.is_symlink() or (target / "debug").is_symlink():
@@ -131,6 +131,9 @@ def build(root):
             subprocess.run([
                 "depot", "build", "--project", os.environ.get("DEPOT_PROJECT_ID", "003c4ttwqh"),
                 "--platform", "linux/amd64", "--file", str(context / "Dockerfile"), "--target", "artifact",
+                # Cargo freshness compares mtimes, so a target cache shared by diverging checkouts
+                # treats one checkout's older sources as built from another's newer ones.
+                "--build-arg", f"TARGET_CACHE=godot-target-{checkout_key}",
                 "--output", f"type=local,dest={output}", str(context),
             ], check=True)
             phase("Remote build", start)
