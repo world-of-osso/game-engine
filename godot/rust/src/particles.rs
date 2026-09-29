@@ -18,6 +18,7 @@ use godot::{
     prelude::*,
 };
 
+use crate::animation::WowAnimationPlayer;
 use crate::assets::material::{shared_shader, shared_texture};
 
 const SHADER_PATH: &str = "res://shaders/particle.gdshader";
@@ -381,6 +382,8 @@ struct PlacedEmitter {
 pub(crate) struct PlacedParticles {
     model: Rc<ModelParticles>,
     skeleton: Option<Gd<Skeleton3D>>,
+    /// The model's bone animation, whose sequence time drives keyframed emission.
+    player: Option<Gd<WowAnimationPlayer>>,
     animated: bool,
     emitters: Vec<PlacedEmitter>,
     owed_seconds: f32,
@@ -400,6 +403,11 @@ impl PlacedParticles {
         let dt = self.owed_seconds + delta;
         self.owed_seconds = 0.0;
         let world_from_model = root.get_global_transform();
+        let playback = self
+            .player
+            .as_ref()
+            .filter(|player| player.is_instance_valid())
+            .and_then(|player| player.bind().playback());
         for placed in &mut self.emitters {
             let emitter = &self.model.emitters[placed.emitter].1;
             let bone = self
@@ -424,6 +432,9 @@ impl PlacedParticles {
             } else {
                 pools.density
             };
+            if let Some((sequence, time_ms)) = playback {
+                placed.sim.set_animation(emitter, sequence, time_ms);
+            }
             placed
                 .sim
                 .update(emitter, dt, mat4(emitter_to_world), wow_to_godot(), density);
@@ -508,10 +519,12 @@ impl ParticlePools {
             }
         }
         let skeleton = node.try_get_node_as::<Skeleton3D>("Skeleton3D");
-        let animated = node.has_node("M2Animation");
+        let player = node.try_get_node_as::<WowAnimationPlayer>("M2Animation");
+        let animated = player.is_some();
         let placed = PlacedParticles {
             model: model.clone(),
             skeleton,
+            player,
             animated,
             emitters,
             owed_seconds: 0.0,

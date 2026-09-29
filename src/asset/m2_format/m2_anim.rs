@@ -186,7 +186,7 @@ pub fn parse_global_sequences(md20: &[u8]) -> Result<Vec<u32>, String> {
 
 /// A single animation track: keyframes for one transform component of one bone.
 /// `sequences[i]` holds the keyframe data for animation sequence `i`.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AnimTrack<T> {
     pub interpolation_type: u16,
     pub global_sequence: i16,
@@ -228,6 +228,22 @@ pub enum SequenceData<'a> {
     InFile,
     External(&'a [u8]),
     Missing,
+}
+
+/// An in-file `M2Track<float>` at `block_offset` of the MD20 blob.
+pub fn parse_f32_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<f32>, String> {
+    parse_anim_track(md20, block_offset, 4, &[], |data, offset| {
+        read_f32(data, offset)
+    })
+}
+
+/// An in-file `M2Track<uint8>` at `block_offset` of the MD20 blob.
+pub fn parse_u8_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<u8>, String> {
+    parse_anim_track(md20, block_offset, 1, &[], |data, offset| {
+        data.get(offset)
+            .copied()
+            .ok_or_else(|| format!("u8 key out of bounds at {offset:#x}"))
+    })
 }
 
 /// Parse an AnimBlock's nested M2Array structure.

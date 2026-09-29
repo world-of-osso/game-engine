@@ -24,7 +24,7 @@ use shared::components::{CreatureMotion, MovementControl, PlayerMotion, SheathSt
 
 #[path = "world_combat.rs"]
 pub(crate) mod combat;
-use combat::{MeleeWeapon, combat_stance};
+use combat::MeleeWeapon;
 
 /// Unit node metadata: the replicated name (Godot renames duplicate siblings `@Node3D@N`).
 const UNIT_NAME_META: &str = "unit_name";
@@ -472,24 +472,28 @@ fn sync_unit_sheath(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut W
     }
 }
 
-fn sync_unit_animation(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
+fn sync_unit_animation(
+    unit: &mut UnitNode,
+    snapshot: &UnitSnapshot,
+    fallbacks: &HashMap<u16, u16>,
+) {
     if unit.death_applied {
         return;
     }
-    // In combat a creature stands in its Ready stance instead of its held pose.
-    let pose_anim = if unit.in_combat {
-        Some(unit.weapon.ready_anim())
-    } else {
-        unit.pose_anim
-    };
-    let Some(id) = creature_animation_change(unit.animation, snapshot.creature_motion, pose_anim)
-    else {
-        return;
-    };
     let Some(mut animation) = unit
         .visual
         .as_ref()
         .and_then(|visual| visual.try_get_node_as::<WowAnimationPlayer>("NpcModel/M2Animation"))
+    else {
+        return;
+    };
+    // In combat a creature stands in its Ready stance (or the fallback it has) instead
+    // of its held pose.
+    let ready = unit
+        .in_combat
+        .then(|| combat::stance_clip(&animation.bind(), 0, true, unit.weapon, fallbacks));
+    let pose_anim = ready.or(unit.pose_anim);
+    let Some(id) = creature_animation_change(unit.animation, snapshot.creature_motion, pose_anim)
     else {
         return;
     };
@@ -504,6 +508,9 @@ fn sync_unit_animation(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
 
 pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
+    /// `AnimationData.Fallback`, loaded on first use.
+    anim_fallbacks: Option<HashMap<u16, u16>>,
+    data_root: PathBuf,
     units: HashMap<u64, UnitNode>,
     selected_name: Option<String>,
     local_player_id: Option<u64>,
@@ -515,6 +522,8 @@ impl WorldUnits {
     pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
         Self {
             root: None,
+            anim_fallbacks: None,
+            data_root: data_root.clone(),
             units: HashMap::new(),
             selected_name: None,
             local_player_id: None,
@@ -560,7 +569,8 @@ impl WorldUnits {
         sync_unit_sheath(unit, snapshot, &mut self.models);
         sync_unit_pose(unit, snapshot, &mut self.models);
         sync_unit_death(unit, snapshot);
-        sync_unit_animation(unit, snapshot);
+        let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
+        sync_unit_animation(unit, snapshot, fallbacks);
         unit.motion.set_target(
             [position.x, position.y, position.z],
             snapshot.rotation.map(|rotation| rotation.y),
@@ -607,6 +617,7 @@ impl WorldUnits {
     pub fn update_remote_locomotion(&mut self) -> Result<(), String> {
         let local = self.local_player_id;
         let mut errors = Vec::new();
+        let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         for (id, unit) in &mut self.units {
             let Some(locomotion) =
                 remote_player_locomotion(unit.is_player, local == Some(*id), unit.player_motion)
@@ -620,7 +631,13 @@ impl WorldUnits {
             else {
                 continue;
             };
-            let movement = combat_stance(locomotion.animation_id, unit.in_combat, unit.weapon);
+            let movement = combat::stance_clip(
+                &animation.bind(),
+                locomotion.animation_id,
+                unit.in_combat,
+                unit.weapon,
+                fallbacks,
+            );
             if let Err(error) = animation.bind_mut().update_locomotion(
                 movement,
                 locomotion.jumping,
@@ -711,7 +728,14 @@ impl WorldUnits {
         let mut animation = visual
             .try_get_node_as::<WowAnimationPlayer>("M2Animation")
             .ok_or_else(|| format!("Local player {} has no bone animation", unit.name))?;
-        let movement = combat_stance(animation_id, unit.in_combat, unit.weapon);
+        let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
+        let movement = combat::stance_clip(
+            &animation.bind(),
+            animation_id,
+            unit.in_combat,
+            unit.weapon,
+            fallbacks,
+        );
         animation
             .bind_mut()
             .update_locomotion(movement, jumping, running_forward)

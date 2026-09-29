@@ -64,6 +64,7 @@ macro_rules! zeroed_emitter {
             alpha_cutoff_keys: Vec::new(),
             burst_multiplier: 0.0,
             mid_point: 0.0,
+            tracks: Default::default(),
         }
     };
 }

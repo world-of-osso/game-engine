@@ -9,7 +9,9 @@
 //! Clips a model lacks follow `AnimationData.Fallback`.
 
 use std::collections::HashMap;
+use std::path::Path;
 
+use game_engine_core::spell_visual::read_animation_fallbacks;
 use godot::prelude::*;
 use shared::components::{EquipmentAppearance, EquipmentVisualSlot};
 use shared::protocol::{CombatEvent, CombatEventType};
@@ -185,6 +187,39 @@ pub(super) fn unit_weapon_class(
     }
 }
 
+/// The locomotion clip a unit plays: in combat, standing becomes the weapon class
+/// Ready stance, or the `AnimationData.Fallback` the model has (Ready1H → ReadyUnarmed
+/// → Stand).
+pub(super) fn stance_clip(
+    animation: &WowAnimationPlayer,
+    movement_id: u16,
+    in_combat: bool,
+    weapon: MeleeWeapon,
+    fallbacks: &HashMap<u16, u16>,
+) -> u16 {
+    let stance = combat_stance(movement_id, in_combat, weapon);
+    if stance == movement_id {
+        return movement_id;
+    }
+    animation
+        .resolve_clip(stance, fallbacks)
+        .unwrap_or(movement_id)
+}
+
+/// `AnimationData.Fallback` of `data_root`'s export, read into `slot` once; empty
+/// (every clip must exist) when the export cannot be read, which is reported.
+pub(super) fn load_fallbacks<'a>(
+    slot: &'a mut Option<HashMap<u16, u16>>,
+    data_root: &Path,
+) -> &'a HashMap<u16, u16> {
+    slot.get_or_insert_with(|| {
+        read_animation_fallbacks(&data_root.join("db2/12.1.0.69933")).unwrap_or_else(|error| {
+            godot_error!("Animation fallbacks: {error}");
+            HashMap::new()
+        })
+    })
+}
+
 impl WorldUnits {
     /// Play clip `anim` on unit `id` over its locomotion (once, or held while
     /// `looping`); a clip the model lacks plays its fallback or nothing.
@@ -193,8 +228,8 @@ impl WorldUnits {
         id: u64,
         anim: u16,
         looping: bool,
-        fallbacks: &HashMap<u16, u16>,
     ) -> Result<Option<u16>, String> {
+        let fallbacks = load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         let Some(unit) = self.units.get(&id) else {
             return Ok(None);
         };
@@ -218,22 +253,18 @@ impl WorldUnits {
     }
 
     /// The attacker's swing and the victim's reaction to one melee outcome.
-    pub fn apply_combat_event(
-        &mut self,
-        event: &CombatEvent,
-        fallbacks: &HashMap<u16, u16>,
-    ) -> Result<(), String> {
+    pub fn apply_combat_event(&mut self, event: &CombatEvent) -> Result<(), String> {
         if !is_melee_swing(&event.event_type) {
             return Ok(());
         }
         let mut errors = Vec::new();
         let swing = self.unit_weapon(event.attacker).attack_anim();
-        if let Err(error) = self.play_unit_action(event.attacker, swing, false, fallbacks) {
+        if let Err(error) = self.play_unit_action(event.attacker, swing, false) {
             errors.push(error);
         }
         let victim_weapon = self.unit_weapon(event.target);
         if let Some(reaction) = melee_reaction(&event.event_type, victim_weapon)
-            && let Err(error) = self.play_unit_action(event.target, reaction, false, fallbacks)
+            && let Err(error) = self.play_unit_action(event.target, reaction, false)
         {
             errors.push(error);
         }

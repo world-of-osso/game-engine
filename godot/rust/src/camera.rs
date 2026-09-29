@@ -63,6 +63,16 @@ impl WorldCamera {
             .expect("camera input preserves a present player facing")
     }
 
+    /// Orbit yaw around the player (radians); behind the player at facing - PI.
+    pub fn yaw(&self) -> f32 {
+        self.state.yaw
+    }
+
+    /// Current follow distance in yards.
+    pub fn distance(&self) -> f32 {
+        self.state.distance
+    }
+
     /// Camera pitch; negative looks down.
     pub fn pitch(&self) -> f32 {
         self.state.pitch

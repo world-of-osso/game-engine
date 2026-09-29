@@ -383,3 +383,31 @@ fn blend_modes_write_depth_and_alpha_test_as_authored() {
         assert_eq!((depth, test), (false, 0.003_921_569));
     }
 }
+
+/// Battle Shout's buff model (6194303) authors its bursts as keyframed tracks: in its
+/// Stand (birth) sequence emitter 0 is disabled until 133 ms and emits 8/s from 33 to
+/// 433 ms, nothing from 500 ms; its Hold sequence (158) emits a steady 8/s.
+#[test]
+fn keyframed_emission_follows_the_playing_sequence_time() {
+    let emitter = &model(6194303).particle_emitters[0];
+    assert_eq!(emitter.emission_rate, 0.0, "the static first key");
+    let emitted = |sequence: usize, time_ms: u32| {
+        let mut sim = EmitterSim::new(emitter, 3);
+        sim.set_animation(emitter, sequence, time_ms);
+        for _ in 0..30 {
+            sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+        }
+        sim.particles().len()
+    };
+    // Disabled at 100 ms, emitting at 300 ms, silent at 700 ms of the birth.
+    assert_eq!(emitted(0, 100), 0);
+    assert!(emitted(0, 300) >= 2, "{}", emitted(0, 300));
+    assert_eq!(emitted(0, 700), 0);
+    assert!(emitted(1, 0) >= 2);
+    // Without an animation time the static value (0/s) applies.
+    let mut sim = EmitterSim::new(emitter, 3);
+    for _ in 0..30 {
+        sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+    }
+    assert_eq!(sim.particles().len(), 0);
+}

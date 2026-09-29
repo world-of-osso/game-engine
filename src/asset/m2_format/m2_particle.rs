@@ -20,6 +20,7 @@
 #[path = "../m2_particle_defaults.rs"]
 mod defaults;
 
+use super::m2_anim::{AnimTrack, parse_f32_track, parse_u8_track};
 use super::{
     MD20_PARTICLE_EMITTERS_COUNT_OFFSET, MD20_VERSION_OFFSET, fixed16_to_f32, unorm16_to_f32,
 };
@@ -101,6 +102,8 @@ pub struct M2ParticleEmitter {
     pub follow_speed2: f32,
     /// Follow-scale paired with `follow_speed2`.
     pub follow_scale2: f32,
+    /// Keyframed emission tracks, evaluated at the model's playing sequence time.
+    pub tracks: EmitterTracks,
     /// Scale applied when inheriting parent particle velocity.
     ///
     /// Local runtime references default this to 1.0, but the local M2 file
@@ -574,6 +577,38 @@ fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     };
 }
 
+/// `emissionRate`, `emissionSpeed` and `enabledIn` M2Tracks that change within a
+/// sequence (spell effect bursts); `None` when every sequence holds one key, which the
+/// static field already carries.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct EmitterTracks {
+    pub emission_rate: Option<AnimTrack<f32>>,
+    pub emission_speed: Option<AnimTrack<f32>>,
+    pub enabled: Option<AnimTrack<u8>>,
+}
+
+/// `M2Particle.enabledIn` (after `splinePoints` at 0x1C0).
+const EMITTER_ENABLED_OFFSET: usize = 0x1C8;
+
+fn keyframed<T>(track: AnimTrack<T>) -> Option<AnimTrack<T>> {
+    track
+        .sequences
+        .iter()
+        .any(|(times, _)| times.len() > 1)
+        .then_some(track)
+}
+
+fn parse_emitter_tracks(md20: &[u8], offset: usize, stride: usize) -> EmitterTracks {
+    let f32_track = |field| keyframed(parse_f32_track(md20, offset + field).ok()?);
+    EmitterTracks {
+        emission_rate: f32_track(EMITTER_EMISSION_RATE_OFFSET),
+        emission_speed: f32_track(EMITTER_EMISSION_SPEED_OFFSET),
+        enabled: (stride > EMITTER_ENABLED_OFFSET)
+            .then(|| keyframed(parse_u8_track(md20, offset + EMITTER_ENABLED_OFFSET).ok()?))
+            .flatten(),
+    }
+}
+
 /// Parse a single particle emitter from the MD20 blob.
 fn parse_emitter(md20: &[u8], offset: usize) -> Result<M2ParticleEmitter, String> {
     let data = md20
@@ -657,7 +692,10 @@ pub fn parse_particle_emitters(md20: &[u8]) -> Vec<M2ParticleEmitter> {
     let mut emitters = Vec::with_capacity(count);
     for i in 0..count {
         match parse_emitter(md20, offset + i * stride) {
-            Ok(em) => emitters.push(em),
+            Ok(mut em) => {
+                em.tracks = parse_emitter_tracks(md20, offset + i * stride, stride);
+                emitters.push(em)
+            }
             Err(e) => eprintln!("Failed to parse particle emitter {i}: {e}"),
         }
     }

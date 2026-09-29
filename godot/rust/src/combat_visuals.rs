@@ -10,10 +10,7 @@ use crate::account::CombatMessage;
 impl GameClient {
     pub(super) fn receive_combat_message(&mut self, message: CombatMessage) -> Result<(), String> {
         match message {
-            CombatMessage::Event(event) => {
-                let fallbacks = self.spell_effects.anim_fallbacks();
-                self.world.apply_combat_event(&event, &fallbacks)
-            }
+            CombatMessage::Event(event) => self.world.apply_combat_event(&event),
             CombatMessage::SpellGo(go) => {
                 self.spell_effects
                     .spell_go(&go, &self.units, &mut self.world)

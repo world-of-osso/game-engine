@@ -8,6 +8,7 @@
 //! the caller's world axes, into which the caller converts WoW gravity and wind.
 use glam::{Mat3, Mat4, Vec2, Vec3, Vec4};
 
+use crate::asset::m2_format::m2_anim;
 use crate::m2::ParticleEmitter;
 
 const FLAG_VELOCITY_ORIENTED: u32 = 0x4;
@@ -179,7 +180,14 @@ pub fn multitexture_uv_scale(emitter: &ParticleEmitter, layer: usize) -> f32 {
 /// Particle slots for one emitter: authored maximum rate x maximum lifetime x 1.15,
 /// capped at [`EMITTER_CAPACITY_CAP`].
 pub fn pool_capacity(emitter: &ParticleEmitter) -> usize {
-    let rate = f64::from(emitter.emission_rate) + f64::from(emitter.emission_rate_variation);
+    // A keyframed rate sizes the pool for its highest key.
+    let peak = emitter
+        .tracks
+        .emission_rate
+        .iter()
+        .flat_map(|track| track.sequences.iter().flat_map(|(_, values)| values))
+        .fold(emitter.emission_rate, |peak, &rate| peak.max(rate));
+    let rate = f64::from(peak) + f64::from(emitter.emission_rate_variation);
     let life = f64::from(emitter.lifespan) + f64::from(emitter.lifespan_variation);
     let estimate = (rate * life * CAPACITY_HEADROOM).ceil();
     if estimate.is_finite() && estimate > 0.0 {
@@ -374,6 +382,27 @@ pub struct EmitterSim {
     particles: Vec<Particle>,
     capacity: usize,
     emitter_to_world: Mat4,
+    /// Keyframed emission values at the model's playing sequence time.
+    animated: AnimatedEmission,
+}
+
+/// `emissionRate`, `emissionSpeed` and `enabledIn` evaluated from keyframed tracks;
+/// `None` keeps the emitter's static value.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct AnimatedEmission {
+    rate: Option<f32>,
+    speed: Option<f32>,
+    enabled: bool,
+}
+
+impl Default for AnimatedEmission {
+    fn default() -> Self {
+        Self {
+            rate: None,
+            speed: None,
+            enabled: true,
+        }
+    }
 }
 
 impl EmitterSim {
@@ -385,7 +414,34 @@ impl EmitterSim {
             particles: Vec::with_capacity(capacity),
             capacity,
             emitter_to_world: Mat4::IDENTITY,
+            animated: AnimatedEmission::default(),
         }
+    }
+
+    /// Evaluate the emitter's keyframed emission tracks at `time_ms` of model
+    /// sequence `sequence` (`CParticleEmitter2::SetAnimTime`); used by the next updates.
+    /// Global-sequence tracks keep their static value.
+    pub fn set_animation(&mut self, emitter: &ParticleEmitter, sequence: usize, time_ms: u32) {
+        let tracks = &emitter.tracks;
+        let local = |track: &&m2_anim::AnimTrack<f32>| track.global_sequence < 0;
+        self.animated = AnimatedEmission {
+            rate: tracks
+                .emission_rate
+                .as_ref()
+                .filter(local)
+                .and_then(|track| m2_anim::evaluate_f32_track(track, sequence, time_ms)),
+            speed: tracks
+                .emission_speed
+                .as_ref()
+                .filter(local)
+                .and_then(|track| m2_anim::evaluate_f32_track(track, sequence, time_ms)),
+            enabled: tracks
+                .enabled
+                .as_ref()
+                .filter(|track| track.global_sequence < 0)
+                .and_then(|track| m2_anim::evaluate_u8_track(track, sequence, time_ms))
+                .is_none_or(|enabled| enabled != 0),
+        };
     }
 
     pub fn capacity(&self) -> usize {
@@ -482,8 +538,11 @@ impl EmitterSim {
     /// `EmitNewParticles`: rate (+ variation) x density accumulates; each whole
     /// particle spawns while the pool has room.
     fn emit(&mut self, emitter: &ParticleEmitter, dt: f32, density: f32) {
-        let rate = (emitter.emission_rate + self.rng.uniform() * emitter.emission_rate_variation)
-            * density;
+        if !self.animated.enabled {
+            return;
+        }
+        let base = self.animated.rate.unwrap_or(emitter.emission_rate);
+        let rate = (base + self.rng.uniform() * emitter.emission_rate_variation) * density;
         self.emission += dt * rate;
         while self.emission > 1.0 {
             if self.particles.len() < self.capacity {
@@ -502,9 +561,10 @@ impl EmitterSim {
         let lifespan = particle_lifespan(emitter, state as u16).max(MIN_LIFESPAN);
         let age = dvary % lifespan;
         let seed = rng.next_u32() as u16;
+        let speed = self.animated.speed.unwrap_or(emitter.emission_speed);
         let (position, velocity) = match shape(emitter) {
-            Some(ParticleShape::Plane) => spawn_plane(emitter, rng),
-            _ => spawn_sphere(emitter, rng),
+            Some(ParticleShape::Plane) => spawn_plane(emitter, speed, rng),
+            _ => spawn_sphere(emitter, speed, rng),
         };
         let (position, velocity) = if emitter.flags & FLAG_MODEL_SPACE == 0 {
             (
@@ -593,13 +653,13 @@ fn spawn_texture_motion(emitter: &ParticleEmitter, rng: &mut Rng) -> ([Vec2; 2],
 }
 
 /// `CPlaneGenerator::CreateParticle` in the generator frame.
-fn spawn_plane(emitter: &ParticleEmitter, rng: &mut Rng) -> (Vec3, Vec3) {
+fn spawn_plane(emitter: &ParticleEmitter, emission_speed: f32, rng: &mut Rng) -> (Vec3, Vec3) {
     let position = Vec3::new(
         rng.uniform() * emitter.area_length * 0.5,
         rng.uniform() * emitter.area_width * 0.5,
         0.0,
     );
-    let speed = emitter.emission_speed * (1.0 + emitter.speed_variation * rng.uniform());
+    let speed = emission_speed * (1.0 + emitter.speed_variation * rng.uniform());
     let velocity = if emitter.z_source < 0.001 {
         let polar = emitter.vertical_range * rng.uniform();
         let azimuth = emitter.horizontal_range * rng.uniform();
@@ -616,7 +676,7 @@ fn spawn_plane(emitter: &ParticleEmitter, rng: &mut Rng) -> (Vec3, Vec3) {
 
 /// `CSphereGenerator::CreateParticle`: a shell between the authored length and width
 /// radii, launched outward (or up with flag 0x100, or from the z source).
-fn spawn_sphere(emitter: &ParticleEmitter, rng: &mut Rng) -> (Vec3, Vec3) {
+fn spawn_sphere(emitter: &ParticleEmitter, emission_speed: f32, rng: &mut Rng) -> (Vec3, Vec3) {
     let radius =
         emitter.area_length + (emitter.area_width - emitter.area_length) * rng.uniform_pos();
     let polar = emitter.vertical_range * rng.uniform();
@@ -627,7 +687,7 @@ fn spawn_sphere(emitter: &ParticleEmitter, rng: &mut Rng) -> (Vec3, Vec3) {
         polar.sin(),
     );
     let position = direction * radius;
-    let speed = emitter.emission_speed * (1.0 + emitter.speed_variation * rng.uniform());
+    let speed = emission_speed * (1.0 + emitter.speed_variation * rng.uniform());
     let aim = if emitter.z_source == 0.0 {
         if emitter.flags & FLAG_SPHERE_UP != 0 {
             Vec3::Z

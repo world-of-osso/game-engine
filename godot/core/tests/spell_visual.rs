@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 
 use game_engine_core::spell_visual::{
     CasterContext, KitAnimation, KitTarget, SpellVisualCatalog, VisualEvent,
+    read_animation_fallbacks,
 };
 
 const SLAM: u32 = 1464;
@@ -15,12 +16,13 @@ const FROSTBOLT: u32 = 116;
 const SWORD_1H: u8 = 7;
 const SWORD_2H: u8 = 8;
 
+fn db2_dir() -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("data/db2/12.1.0.69933")
+}
+
 fn catalog() -> &'static SpellVisualCatalog {
     static CATALOG: OnceLock<SpellVisualCatalog> = OnceLock::new();
-    CATALOG.get_or_init(|| {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/db2/12.1.0.69933");
-        SpellVisualCatalog::build(&dir).expect("spell visual CSVs load")
-    })
+    CATALOG.get_or_init(|| SpellVisualCatalog::build(&db2_dir()).expect("spell visual CSVs load"))
 }
 
 fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
@@ -65,7 +67,8 @@ fn slam_swings_the_weapon_class_combat_ability_and_bloodies_the_target_chest() {
     let model = &impact[0].models[0];
     assert_eq!((model.model_fdid, model.attachment), (1283017, Some(15)));
     // Models lacking CombatAbility1H01 fall back to Special1H.
-    assert_eq!(catalog.anim_fallback(818), Some(57));
+    let fallbacks = read_animation_fallbacks(&db2_dir()).unwrap();
+    assert_eq!(fallbacks.get(&818), Some(&57));
 }
 
 #[test]
