@@ -16,6 +16,7 @@ fn aura(spell_id: u32, is_debuff: bool, remaining: f32) -> AuraInstance {
         icon_fdid: 135987,
         source: String::new(),
         from_local_player: true,
+        from_player: true,
         duration: 3600.0,
         remaining,
         stacks: 1,
@@ -63,7 +64,7 @@ fn tex_coords(reg: &FrameRegistry, name: &str) -> [f32; 4] {
 }
 
 fn auras(list: Vec<AuraInstance>) -> BuffFrameState {
-    BuffFrameState::from_auras(&AuraState { auras: list }, false)
+    BuffFrameState::from_auras(&list, false)
 }
 
 fn state_with(buffs: usize, debuffs: usize) -> BuffFrameState {
@@ -187,7 +188,7 @@ fn count_shows_above_one_stack_and_colorblind_mode_adds_the_dispel_symbol() {
     assert_eq!(fontstring_text(&reg, "BuffButton0Count"), "");
     assert_eq!(fontstring_text(&reg, "DebuffButton0Count"), "3");
     assert_eq!(fontstring_text(&reg, "DebuffButton0Symbol"), "");
-    let colorblind = registry(BuffFrameState::from_auras(&AuraState { auras: list }, true));
+    let colorblind = registry(BuffFrameState::from_auras(&list, true));
     assert_eq!(fontstring_text(&colorblind, "DebuffButton0Symbol"), "Po");
     assert_eq!(fontstring_text(&colorblind, "BuffButton0Symbol"), "");
 }

@@ -91,6 +91,11 @@ impl UiProjection {
         }
     }
 
+    /// The control projecting frame `id`.
+    pub fn node(&self, id: u64) -> Option<Gd<Control>> {
+        self.nodes.get(&id).cloned()
+    }
+
     pub fn grab_focus(&self, id: u64) {
         if let Some(node) = self.nodes.get(&id) {
             node.clone().grab_focus();

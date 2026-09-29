@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use crate::buff_data::{AuraInstance, AuraState, DebuffType};
+use crate::aura_display_data::{AuraInstance, DebuffType};
 use crate::ui::anchor::FrameName;
 use crate::ui::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -98,8 +98,9 @@ pub struct BuffFrameState {
 }
 
 impl BuffFrameState {
-    /// Icons in `AuraState` order, so button index `i` is `buffs().nth(i)`.
-    pub fn from_auras(auras: &AuraState, colorblind_mode: bool) -> Self {
+    /// Icons in replicated order, so button index `i` is the `i`th buff (or debuff) of
+    /// `auras`.
+    pub fn from_auras(auras: &[AuraInstance], colorblind_mode: bool) -> Self {
         let icon = |aura: &AuraInstance| BuffIconState {
             icon_fdid: aura.icon_fdid,
             timer_text: aura.timer_text(),
@@ -113,8 +114,18 @@ impl BuffFrameState {
             },
         };
         Self {
-            buffs: auras.buffs().take(MAX_BUFFS).map(icon).collect(),
-            debuffs: auras.debuffs().take(MAX_DEBUFFS).map(icon).collect(),
+            buffs: auras
+                .iter()
+                .filter(|aura| !aura.is_debuff)
+                .take(MAX_BUFFS)
+                .map(icon)
+                .collect(),
+            debuffs: auras
+                .iter()
+                .filter(|aura| aura.is_debuff)
+                .take(MAX_DEBUFFS)
+                .map(icon)
+                .collect(),
         }
     }
 }
@@ -388,6 +399,6 @@ fn debuff_border(button: &str, dispel: DebuffType) -> Element {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "buff_frame_component_tests.rs"]
 mod tests;

@@ -8,7 +8,7 @@ use shared::components::{
 };
 use shared::level_scaling::{LevelDifficulty, LevelScaling, level_for_viewer};
 
-use crate::client_options::{GraphicsOptions, HudVisibilityToggles};
+use crate::client_options::HudVisibilityToggles;
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
@@ -32,10 +32,10 @@ use game_engine::ui::screens::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_DUNGEON_DIFFICULTY, ACTION_UNIT_MENU_INSPECT,
     ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX, ACTION_UNIT_MENU_SET_FOCUS,
     ACTION_UNIT_MENU_TRADE, DIFFICULTY_MENU_W, DifficultyMenuEntry, DifficultyMenuState,
-    InWorldUnitFramesState, MAX_BOSS_FRAMES, PowerBarState, SmallUnitFrameState,
-    TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState, UnitFrameState, UnitMenuItem,
-    boss_frame_name, difficulty_menu_height, format_value_text, fraction,
-    inworld_unit_frames_screen, target_level_text, unit_menu_height,
+    InWorldUnitFramesState, MAX_BOSS_FRAMES, PowerBarState, SmallUnitFrameState, TargetAuraView,
+    UNIT_MENU_W, UnitFrameMenuState, UnitFrameState, UnitMenuItem, boss_frame_name,
+    difficulty_menu_height, format_value_text, fraction, inworld_unit_frames_screen,
+    set_target_auras, target_level_text, unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -224,7 +224,6 @@ struct UnitFrameSources<'w, 's> {
     aura_state: Option<Res<'w, AuraState>>,
     menu: Res<'w, UnitFrameMenu>,
     hud_visibility: Option<Res<'w, HudVisibilityToggles>>,
-    graphics_options: Option<Res<'w, GraphicsOptions>>,
     faction_templates: Res<'w, FactionTemplates>,
 }
 
@@ -293,10 +292,6 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
         .as_deref()
         .cloned()
         .unwrap_or_default();
-    let colorblind_mode = sources
-        .graphics_options
-        .as_deref()
-        .is_some_and(|graphics| graphics.colorblind_mode);
     let stats = sources.character_stats.as_deref();
     let units = sources.units.frame_units();
     let player = sources
@@ -332,7 +327,6 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
             units.player,
             unit_auras,
             sources.aura_state.as_deref(),
-            colorblind_mode,
         );
     }
     InWorldUnitFramesState {
@@ -751,38 +745,17 @@ fn populate_target_auras(
     local_player_entity: Option<Entity>,
     unit_auras: Option<&UnitAuraState>,
     local_auras: Option<&AuraState>,
-    colorblind_mode: bool,
 ) {
     let auras = resolve_target_auras(target_entity, local_player_entity, unit_auras, local_auras);
-    state.target_buffs = auras
-        .iter()
-        .filter(|aura| !aura.is_debuff)
-        .take(6)
-        .map(|aura| target_aura_icon(aura, colorblind_mode))
-        .collect();
-    state.target_debuffs = auras
-        .iter()
-        .filter(|aura| aura.is_debuff)
-        .take(6)
-        .map(|aura| target_aura_icon(aura, colorblind_mode))
-        .collect();
-}
-
-fn target_aura_icon(aura: &AuraInstance, colorblind_mode: bool) -> TargetAuraIconState {
-    let border_color = if aura.is_debuff {
-        aura.debuff_type
-            .border_color_for_mode(colorblind_mode)
-            .to_string()
-    } else {
-        "0.85,0.75,0.35,1.0".to_string()
+    let player_is_target = target_entity.is_some() && target_entity == local_player_entity;
+    // Replicated units carry no player/NPC split here: a hostile reaction stands for a
+    // hostile NPC.
+    let view = TargetAuraView {
+        player_is_target,
+        friendly: player_is_target || state.reaction == Some(Reaction::Friendly),
+        hostile_npc: !player_is_target && state.reaction == Some(Reaction::Hostile),
     };
-    TargetAuraIconState {
-        icon_fdid: aura.icon_fdid,
-        timer_text: aura.timer_text(),
-        stacks: aura.stacks,
-        border_color,
-        mine: aura.from_local_player,
-    }
+    set_target_auras(state, auras, view);
 }
 
 #[cfg(test)]
@@ -884,6 +857,14 @@ mod tests {
         registry
             .get(registry.get_by_name(name).expect(name))
             .expect(name)
+    }
+
+    fn app_frame_missing(app: &App, name: &str) -> bool {
+        app.world()
+            .resource::<UiState>()
+            .registry
+            .get_by_name(name)
+            .is_none()
     }
 
     fn text(app: &App, name: &str) -> String {
@@ -1502,12 +1483,8 @@ mod tests {
     }
 
     #[test]
-    fn target_icons_use_unit_aura_component_with_colorblind_borders() {
+    fn target_icons_use_unit_aura_component_with_dispel_borders() {
         let mut app = unit_frames_app();
-        app.insert_resource(GraphicsOptions {
-            colorblind_mode: true,
-            ..default()
-        });
         spawn_local_player(&mut app, Vec::new());
         let wolf = spawn_npc(&mut app, "Timber Wolf", 7);
         app.world_mut().entity_mut(wolf).insert(UnitAuraState {
@@ -1519,6 +1496,7 @@ mod tests {
                 icon_fdid: 136067,
                 source: "Rogue".into(),
                 from_local_player: false,
+                from_player: false,
                 duration: 12.0,
                 remaining: 6.2,
                 stacks: 3,
@@ -1530,12 +1508,9 @@ mod tests {
         app.world_mut().resource_mut::<CurrentTarget>().0 = Some(wolf);
         app.update();
 
-        assert!(!frame(&app, "TargetDebuffRow").hidden);
-        assert!(frame(&app, "TargetBuffRow").hidden);
-        assert_eq!(text(&app, "TargetDebuffIcon0Stack"), "3");
-        assert_eq!(
-            frame(&app, "TargetDebuffIcon0").background_color,
-            Some(rgba(DebuffType::Poison.border_color_for_mode(true)))
-        );
+        assert!(!frame(&app, "TargetDebuffIcon0").hidden);
+        assert!(app_frame_missing(&app, "TargetBuffIcon0"));
+        assert_eq!(text(&app, "TargetDebuffIcon0Count"), "3");
+        assert!(!app_frame_missing(&app, "TargetDebuffIcon0Border"));
     }
 }

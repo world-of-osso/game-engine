@@ -56,9 +56,18 @@ pub(super) const POWER_H: f32 = 10.0;
 /// Class resource bar hangs under the player frame, overlapping its bottom shadow like
 /// Retail's `PlayerFrameBottomManagedFramesContainer`.
 pub(super) const CLASS_BAR_Y: f32 = FRAME_H - 4.0;
-/// Target auras start below the frame (Retail `TargetFrame` buffs/debuffs).
-pub(super) const TARGET_BUFF_Y: f32 = FRAME_H + 2.0;
-pub(super) const TARGET_DEBUFF_Y: f32 = TARGET_BUFF_Y + 24.0;
+/// Retail TargetFrame aura container: TOPLEFT at the 192×67 `FrameTexture`'s BOTTOMLEFT
+/// + (5, 9) (TargetFrame.lua:4-6,547-553), the texture centred in the 232×100 frame
+/// (TargetFrame.xml:54,79-83; UiTextureAtlasMember 16118). Placed from the health slot the
+/// two frames share: Retail's frame left is `RETAIL_HEALTH_LEFT` left of it and its bottom
+/// `RETAIL_HEALTH_BOTTOM` below the health bar's bottom.
+const RETAIL_FRAME_TEXTURE: (f32, f32) = (192.0, 67.0);
+const AURA_START: (f32, f32) = (5.0, 9.0);
+pub(super) const TARGET_AURAS_LEFT: f32 =
+    BAR_X - RETAIL_HEALTH_LEFT + (232.0 - RETAIL_FRAME_TEXTURE.0) / 2.0 + AURA_START.0;
+pub(super) const TARGET_AURAS_TOP: f32 = HEALTH_Y + HEALTH_H + RETAIL_HEALTH_BOTTOM
+    - (100.0 - RETAIL_FRAME_TEXTURE.1) / 2.0
+    - AURA_START.1;
 
 pub(super) const GOLD_TEXT: &str = "1.0,0.82,0.0,1.0";
 pub(super) const VALUE_TEXT: &str = "1.0,1.0,1.0,1.0";
