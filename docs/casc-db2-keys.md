@@ -91,3 +91,11 @@ After decryption was unblocked, the next issue was not key-related. The remainin
 - resolving the authored `SkyboxFileDataID`
 
 So the current blocker is DB2 parsing and row mapping, not missing TACT keys.
+
+## Key Sources Loaded, Stale Lists, Unreleased Keys
+
+Verified 2026-09-29. asset-resolver loads `data/tactkeys/WoW.txt` (a `wowdev/TACTKeys` clone) plus the installed build's KeyRing config (`.build.info` KeyRing column → `Data/config/xx/yy/<hash>`; key IDs are little-endian key-name bytes, so `key-4eb4869f95f23b53` is TACT key `533BF2959F86B44E`).
+
+- **Stale list:** the clone is not auto-updated. SpellVisualKit.db2 failed on `0x1DACCE2B44C78902` until `git -C data/tactkeys pull` (March 31 → `71b7536`). Pull it when a "missing TACT keys" warning names a key.
+- **Unreleased keys:** some encrypted DB2 sections use keys no public source or the local client (`DBCache.bin`) has, e.g. `583C5B29BF208655` in SpellVisualKit (897949) and SpellXSpellVisual (1101657). Extraction zero-fills those chunks at their declared size and reports them (`CASC warning: FDID n has encrypted chunks with unknown TACT keys, zero-filled: ...`), like CascLib's `CASC_OVERCOME_ENCRYPTED`; DB2 readers skip zeroed encrypted sections (DBCD `WDC5Reader`). Corrupt chunks (MD5 mismatch) still fail. Spec: asset-resolver `docs/specs/encrypted-content.md`.
+- **Cached gap:** files cached with zero-filled ranges stay zero-filled after a key becomes available; delete the cached file to re-extract.
