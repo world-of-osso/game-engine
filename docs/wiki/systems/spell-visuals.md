@@ -113,7 +113,9 @@ Videos (1x and half speed), stills and 2 fps contact sheets are in `data/diagnos
   - 1858: impact 1599028 on the dummy.
 - The damage number showing 13 frames before the impact is the server's same-tick damage (see Server timing).
 - Evidence is in `data/diagnostics/spellcast-anim-2026-09-29c/`: `mage-frostbolt-1x.mp4` (release at about 61.5 s), `mage-frostbolt-halfspeed.mp4` (about 123 s), `mage-fixture.log` and `stills-mage/`.
-- Rust unit tests (`godot/core/tests/m2_events.rs`, `action_tests.rs` release tests, `spell_effects_tests.rs`) were built on Depot but not executed: the checkout's rules forbid local Cargo in `godot/`, and Depot builds only the library.
+- Root `cargo test -p game-engine --lib m2_` passes 92/92, including `m2_event::tests::human_male_hd_cast_clips_fire_their_release_events` (`tests/unit/asset/m2_event_tests.rs`: 53 fires `$CSL` bone 209 and `$SCD` bone 215 at 200 ms, 54 fires `$CST` at 200 ms, 51 fires nothing). Log: `root-m2-tests.log`.
+- The Godot-workspace tests (`godot/core/tests/m2_events.rs`, the `action_tests.rs` release tests, `spell_effects_tests.rs`) are written but not run, because Cargo may not run in `godot/`.
+- After merging master (`81a7ce02`), a real-time run (no movie, Depot build) passed with `release_delay=0.219 distance=7.71 flight=0.221 expected=0.220` (`final-merge/`).
 
 ## Gaps
 

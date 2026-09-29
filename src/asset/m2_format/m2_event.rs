@@ -74,3 +74,7 @@ pub fn parse_events(md20: &[u8], sources: &[SequenceData<'_>]) -> Result<Vec<M2E
         })
         .collect()
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/asset/m2_event_tests.rs"]
+mod tests;
