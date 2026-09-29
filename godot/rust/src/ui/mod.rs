@@ -23,8 +23,14 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 };
 use game_engine_ui_model::main_action_bar_component::{MainActionBarState, main_action_bar_screen};
 use game_engine_ui_model::merchant_frame_component::MerchantFrameState;
+use game_engine_ui_model::minimap::{
+    MinimapClusterState, apply_minimap_postsetup, minimap_cluster_screen,
+};
 use game_engine_ui_model::mirror_timer_component::{MIRROR_TIMER_CONTAINER, mirror_timer_screen};
 use game_engine_ui_model::mirror_timer_data::MirrorTimersData;
+use game_engine_ui_model::objective_tracker_component::{
+    ObjectiveTrackerState, objective_tracker_screen,
+};
 use game_engine_ui_model::spell_tooltip_component::{SpellTooltipState, spell_tooltip_screen};
 use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
@@ -96,6 +102,7 @@ enum ScreenPostsetup {
     EntranceBar,
     Merchant,
     Spellbook,
+    Minimap,
 }
 
 impl RegistryModel {
@@ -110,6 +117,11 @@ impl RegistryModel {
             ScreenPostsetup::WorldMap => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
+                }
+            }
+            ScreenPostsetup::Minimap => {
+                if let Some(state) = self.shared.get::<MinimapClusterState>() {
+                    apply_minimap_postsetup(state, &mut self.registry);
                 }
             }
             ScreenPostsetup::Spellbook => {
@@ -447,6 +459,56 @@ impl RegistryUi {
         self.show_viewport_screen(state, spellbook_frame_screen, ScreenPostsetup::Spellbook)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the MinimapCluster, with an empty
+    /// composite registered for `MinimapDisplay`.
+    pub fn show_minimap(&mut self, mut state: MinimapClusterState) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        state.map_texture = Some(registry.create_dynamic_texture(1, 1, vec![0; 4])?);
+        self.show_viewport_screen_in(
+            state,
+            minimap_cluster_screen,
+            ScreenPostsetup::Minimap,
+            registry,
+            parent,
+        )
+    }
+
+    /// Replace the minimap state and, when given, the `size`² RGBA8 map composite.
+    pub fn set_minimap(
+        &mut self,
+        mut state: MinimapClusterState,
+        composite: Option<(u32, Vec<u8>)>,
+    ) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Minimap UI is not initialized")?;
+        let texture = model
+            .shared
+            .get::<MinimapClusterState>()
+            .and_then(|current| current.map_texture)
+            .ok_or("Minimap composite texture missing")?;
+        state.map_texture = Some(texture);
+        let redraw = composite.is_some();
+        if let Some((size, rgba)) = composite {
+            model
+                .registry
+                .update_dynamic_texture(texture, size, size, rgba)?;
+        }
+        self.set_state(state)?;
+        if redraw {
+            let model = self.model.as_mut().ok_or("Minimap UI is not initialized")?;
+            self.projection
+                .as_mut()
+                .ok_or("Native projection not initialized")?
+                .sync(&mut model.registry)?;
+        }
+        Ok(())
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the objective tracker.
+    pub fn show_objective_tracker(&mut self, state: ObjectiveTrackerState) -> Result<(), String> {
+        self.show_viewport_screen(state, objective_tracker_screen, ScreenPostsetup::None)
+    }
+
     fn show_viewport_screen<T: 'static>(
         &mut self,
         state: T,
@@ -457,12 +519,27 @@ impl RegistryUi {
             return Err("RegistryUi already has a screen".into());
         }
         let parent = self.hud_parent()?;
+        let registry = parent.registry();
+        self.show_viewport_screen_in(state, build, postsetup, registry, parent)
+    }
+
+    fn show_viewport_screen_in<T: 'static>(
+        &mut self,
+        state: T,
+        build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+        postsetup: ScreenPostsetup,
+        registry: FrameRegistry,
+        parent: UiParent,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
             screen: Screen::new(build),
             shared,
-            registry: parent.registry(),
+            registry,
             icon_masks: Default::default(),
             postsetup,
         };
