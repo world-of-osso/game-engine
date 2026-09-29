@@ -109,7 +109,7 @@ impl StartupScreen {
             Some("portal-particles-disabled") => Self::PortalParticlesDisabled,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, sound-outcome, merchant-click, footsteps, reset-windows or portal-particles-{enabled,disabled}"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, sound-outcome, merchant-click, footsteps, reset-windows, portal-particles-enabled or portal-particles-disabled"
                 )
             }
         };
