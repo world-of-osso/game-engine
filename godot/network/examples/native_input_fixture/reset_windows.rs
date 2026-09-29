@@ -319,11 +319,7 @@ pub(super) fn run(
             observe_reset_line(app, &line, selected.is_some(), &mut loading, &mut passed)?;
         }
         if let Some(status) = status {
-            if !status.success() {
-                return Err(format!(
-                    "Godot reset fixture exited {status}; saved={saved}, reopened={reopened}, pass={passed}"
-                ));
-            }
+            verify_reset_process_exit(status, saved, reopened, passed)?;
             if saved && !reopened {
                 discard_map_save_players(app, &mut selected, &mut remote, loading)?;
                 loading = false;
@@ -353,6 +349,20 @@ pub(super) fn run(
         thread::sleep(TICK);
     }
     Err("timed out waiting for authenticated Reset Window Positions".into())
+}
+
+fn verify_reset_process_exit(
+    status: std::process::ExitStatus,
+    saved: bool,
+    reopened: bool,
+    passed: bool,
+) -> Result<(), String> {
+    if !status.success() {
+        return Err(format!(
+            "Godot reset fixture exited {status}; saved={saved}, reopened={reopened}, pass={passed}"
+        ));
+    }
+    Ok(())
 }
 
 fn discard_map_save_players(
