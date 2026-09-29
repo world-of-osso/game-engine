@@ -62,6 +62,48 @@ Running landings (`JumpLandRun`, ID187) remain in the jump state machine until t
 - Movement IDs cover Walk, Run, ShuffleLeft, ShuffleRight, WalkBackwards
 - Jump IDs: JumpStart, Jump (loop), JumpEnd
 
+Combat and spell IDs come from `AnimationData` (WMVx `animation-names.csv`):
+
+| Group | IDs |
+|---|---|
+| Attack | 16 Unarmed, 17 1H, 18 2H, 19 2HL, 87 AttackOff |
+| Parry | 20 Unarmed, 21 1H, 22 2H, 23 2HL |
+| Other melee | 24 ShieldBlock, 30 Dodge |
+| Wound | 9 CombatWound, 10 CombatCritical |
+| Ready | 25 Unarmed, 26 1H, 27 2H, 28 2HL |
+| Spells | 51/52 ReadySpellDirected/Omni, 53/54 SpellCastDirected/Omni, 55 BattleRoar, 124/125 ChannelCastDirected/Omni |
+
+The Bevy constants for these clips (`ANIM_SPELL_CAST_DIRECTED` 51, `ANIM_ATTACK_1H` 46, and so on) do not match that table and were not used.
+
+## Native Godot combat and spell actions
+
+`godot/rust/src/animation/action.rs` layers one action clip over locomotion.
+
+- **Blending.** The clip fades in and out over its M2 `blend_time` (at least 150 ms). Replacing it mid-play crossfades from the pose it reached and keeps the layer weight, so there is no pop.
+- **Bones.** Upper-body bones (the subtree of key bone 4 SpineLow, `AnimKitBoneSet` 1) always take the action. Lower-body bones take it only while locomotion is Stand, Ready or SwimIdle, so a swing on the run keeps the run legs.
+- **Priority.** Spell kit clips outrank melee swings and hit reactions, so an auto-attack swing arriving mid-cast does not cut Battle Shout's roar.
+- **Loops.** Held loops (precast, channel) persist until `stop_action`.
+- **Missing clips.** A clip the model lacks follows `AnimationData.Fallback`; a chain that reaches Stand plays nothing.
+
+`world_combat.rs` drives the layer from the server's `CombatEvent`:
+
+- **Swing.** The attacker plays its main-hand weapon class swing. Inventory type 17 is 2H, and 2HL for polearm (6) and staff (10) subclasses; 13/21 is 1H; no weapon is unarmed (the same inventory-type rule as WoWee `resolveMeleeAnimId`).
+- **Victim.** The victim reacts with Wound 9, Crit 10, Dodge 30, Parry by its weapon class, or Block 24. A miss plays nothing.
+- **Stance.** While `CombatStatus` is set, a standing unit's Stand becomes its Ready stance, or that stance's fallback: training dummies lack 25, which falls back to Stand. Players and creatures both get this.
+
+Spell kit clips come from [[spell-visuals]].
+
+Proof:
+- `animation/action_tests.rs` on HumanMale HD:
+  - the fade-in and one-shot return to the exact locomotion pose
+  - upper-only on the run: legs identical to Run
+  - mid-play replacement continuity
+  - held precast loop
+  - fallbacks (117 → 87, 47 → none)
+  - spell-over-swing priority
+- `world_combat.rs` tests: weapon class to clip ids, stance, reactions.
+- Live `godot/tests/spellcast_anim.gd` (see [[spell-visuals]]): warrior Attack1H swings and the dummy's CombatWound on a private server, recorded to `data/diagnostics/spellcast-anim-2026-09-29/`.
+
 ## Native Godot locomotion boundary
 
 `d3593762` shares the original direction selector through `godot/core`; its two tests are RED for the missing export (`/tmp/claude/movement-animation-red-4e896a2.out`) then GREEN 2/2 (`/tmp/claude/movement-animation-green-4e896a2.out`). Land maps None/Forward/Backward/Left/Right to Stand (0), Walk (4) or Run (5) only for running Forward, WalkBackwards (13), ShuffleLeft (11), and ShuffleRight (12). Swimming ignores `running` and maps the same directions to SwimIdle (41), Swim (42), SwimBackwards (45), SwimLeft (43), and SwimRight (44). `5b0bec54` corrects the root library import and constant visibility; its root selector is not yet checked.
@@ -134,3 +176,4 @@ Sequence-local constant TRS tracks fold to the existing fixed raw-pose curve whe
 - [[rendering-pipeline]] — M2 mesh assembly that animation drives
 - [[networking]] — separate transport clock versus windowed animation stage
 - [[npc-motion-validation]] — bounded native idle, landing, and terrain evidence
+- [[spell-visuals]] — spell kit animations, models and missiles over this action layer
