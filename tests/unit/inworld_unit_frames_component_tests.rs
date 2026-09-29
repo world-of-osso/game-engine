@@ -216,11 +216,11 @@ fn hostile_target_auras_hang_off_the_retail_frame_texture_debuffs_first() {
     let reg = unit_frames_registry();
     let frame = rect_by_name(&reg, "TargetFrame");
     let container = rect_by_name(&reg, "TargetFrameAuras");
-    // FrameTexture BOTTOMLEFT + (5, 9): 6 px in, 60.5 px down the portrait-off art (the
+    // FrameTexture BOTTOMLEFT + (5, 9): 5 px in, 48.5 px down the portrait-off art (the
     // layout snaps to whole pixels).
-    assert_eq!(container.x - frame.x, 6.0);
+    assert_eq!(container.x - frame.x, 5.0);
     assert!(
-        (container.y - frame.y - 60.5).abs() <= 0.5,
+        (container.y - frame.y - 48.5).abs() <= 0.5,
         "{}",
         container.y - frame.y
     );
