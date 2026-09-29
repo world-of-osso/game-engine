@@ -1106,3 +1106,6 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod remote_player_tests;

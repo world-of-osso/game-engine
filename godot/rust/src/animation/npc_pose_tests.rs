@@ -8,7 +8,7 @@ use std::{fs, path::PathBuf, sync::OnceLock};
 
 /// HumanMale HD 1011653 (Stockade Guard display 2989, Petty Criminal display 35069) with
 /// its external `.anim` sequences (Sit 97, Sleep 100).
-fn human_male_hd() -> AnimationState {
+pub(super) fn human_male_hd() -> AnimationState {
     static MODEL: OnceLock<m2::Model> = OnceLock::new();
     let model = MODEL.get_or_init(|| {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
@@ -43,7 +43,10 @@ fn receive(
 }
 
 /// Largest bone origin distance between two sampled poses.
-fn pose_distance(a: &[godot::builtin::Transform3D], b: &[godot::builtin::Transform3D]) -> f32 {
+pub(super) fn pose_distance(
+    a: &[godot::builtin::Transform3D],
+    b: &[godot::builtin::Transform3D],
+) -> f32 {
     a.iter()
         .zip(b)
         .map(|(a, b)| a.origin.distance_to(b.origin) + (a.basis.col_a() - b.basis.col_a()).length())

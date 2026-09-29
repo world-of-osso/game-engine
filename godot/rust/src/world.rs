@@ -20,7 +20,7 @@ use godot::{
     classes::{Node3D, VisibleOnScreenNotifier3D},
     prelude::*,
 };
-use shared::components::{CreatureMotion, MovementControl, SheathState, UnitPose};
+use shared::components::{CreatureMotion, MovementControl, PlayerMotion, SheathState, UnitPose};
 
 /// Unit node metadata: the replicated name (Godot renames duplicate siblings `@Node3D@N`).
 const UNIT_NAME_META: &str = "unit_name";
@@ -33,8 +33,11 @@ struct UnitNode {
     appearance: Option<UnitAppearance>,
     visual: Option<Gd<Node3D>>,
     death_applied: bool,
-    /// Animation ID last selected on `visual` from its `CreatureMotion` and `UnitPose`.
+    /// Animation ID last selected on `visual`: a creature's from its `CreatureMotion` and
+    /// `UnitPose`, another player's from its `PlayerMotion`.
     animation: Option<u16>,
+    /// Another player's newest replicated movement flags.
+    player_motion: Option<PlayerMotion>,
     /// The replicated pose `pose_anim` was resolved from.
     pose: Option<UnitPose>,
     /// The looping animation `pose` holds while the creature stands still.
@@ -191,6 +194,7 @@ fn spawn_unit(
         visual: None,
         death_applied: false,
         animation: None,
+        player_motion: None,
         pose: None,
         pose_anim: None,
         sheath: None,
@@ -367,6 +371,52 @@ pub(crate) fn creature_animation_change(
     (applied != Some(id)).then_some(id)
 }
 
+/// `WowAnimationPlayer::update_locomotion`'s arguments for a player model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Locomotion {
+    pub animation_id: u16,
+    pub jumping: bool,
+    pub running_forward: bool,
+}
+
+/// The locomotion another player's replicated Retail `MovementFlags` select, as the local
+/// player's own movement selects it (`update_player_animation`): the direction in the
+/// local `compute_movement_input` priority (forward, backward, left, right) through the
+/// shared direction selector, run unless WALKING, swim clips while SWIMMING, and the jump
+/// sequence while FALLING (wow_client `update_animation` animates remote units the same
+/// way from their movement flags).
+pub(crate) fn player_motion_locomotion(motion: PlayerMotion) -> Locomotion {
+    let direction = [
+        (PlayerMotion::FORWARD, MoveDirection::Forward),
+        (PlayerMotion::BACKWARD, MoveDirection::Backward),
+        (PlayerMotion::STRAFE_LEFT, MoveDirection::Left),
+        (PlayerMotion::STRAFE_RIGHT, MoveDirection::Right),
+    ]
+    .into_iter()
+    .find_map(|(flag, direction)| motion.contains(flag).then_some(direction))
+    .unwrap_or(MoveDirection::None);
+    let running = !motion.contains(PlayerMotion::WALKING);
+    let swimming = motion.contains(PlayerMotion::SWIMMING);
+    Locomotion {
+        animation_id: direction_to_anim_id(direction, running, swimming),
+        jumping: motion.contains(PlayerMotion::FALLING),
+        running_forward: running && direction == MoveDirection::Forward,
+    }
+}
+
+/// The locomotion a unit follows from its replicated `PlayerMotion`: only another
+/// player's. The local player animates from its own predicted movement.
+pub(crate) fn remote_player_locomotion(
+    is_player: bool,
+    is_local: bool,
+    motion: Option<PlayerMotion>,
+) -> Option<Locomotion> {
+    if !is_player || is_local {
+        return None;
+    }
+    motion.map(player_motion_locomotion)
+}
+
 /// Resolve the held animation of a changed replicated pose; an unmapped pose holds none.
 fn sync_unit_pose(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut WorldModels) {
     if unit.is_player || unit.pose == snapshot.unit_pose {
@@ -486,6 +536,7 @@ impl WorldUnits {
             unit.name = name.to_owned();
         }
         unit.is_player = snapshot.player.is_some();
+        unit.player_motion = snapshot.player_motion;
         sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
         sync_unit_sheath(unit, snapshot, &mut self.models);
         sync_unit_pose(unit, snapshot, &mut self.models);
@@ -527,6 +578,40 @@ impl WorldUnits {
     pub fn advance(&mut self, delta: f32) {
         for (id, unit) in &mut self.units {
             advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
+        }
+    }
+
+    /// Drive every other player's model from its newest replicated flags. Called each
+    /// frame after animation time advances, so the jump start, loop and landing play out
+    /// as the local player's do; unchanged flags neither restart a clip nor its crossfade.
+    pub fn update_remote_locomotion(&mut self) {
+        let local = self.local_player_id;
+        for (id, unit) in &mut self.units {
+            let Some(locomotion) =
+                remote_player_locomotion(unit.is_player, local == Some(*id), unit.player_motion)
+            else {
+                continue;
+            };
+            let Some(mut animation) = unit
+                .visual
+                .as_ref()
+                .and_then(|visual| visual.try_get_node_as::<WowAnimationPlayer>("M2Animation"))
+            else {
+                continue;
+            };
+            let result = animation.bind_mut().update_locomotion(
+                locomotion.animation_id,
+                locomotion.jumping,
+                locomotion.running_forward,
+            );
+            let requested = Some(locomotion.animation_id);
+            // Report a model's missing clip once per request, not every frame.
+            if let Err(error) = result
+                && unit.animation != requested
+            {
+                godot_error!("Player {} {locomotion:?}: {error}", unit.name);
+            }
+            unit.animation = requested;
         }
     }
 
