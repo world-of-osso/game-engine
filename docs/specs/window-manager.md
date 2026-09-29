@@ -48,7 +48,7 @@ Implements the framework items "Window classes" and interaction rule 15 of the
 
 ## Native Godot boundary
 
-- Options → Interface → Reset Window Positions removes only the authenticated, selected server character ID's `window_positions` entry from canonical `ui_layout.ron`. Other characters' positions and account-wide edit-mode layouts remain; Options' own `modal_offset`/`modal_position` in `options_settings.ron` are independent. `16ba155d`'s authenticated fixture asserts the removal and retention on reload, then a fresh process reads the same reset layout. Verifier894 is pending.
+- Options → Interface → Reset Window Positions removes only the authenticated, selected server character ID's `window_positions` entry from canonical `ui_layout.ron`. Other characters' positions and account-wide edit-mode layouts remain; Options' own `modal_offset`/`modal_position` in `options_settings.ron` are independent. Final bounded review PASS (`/tmp/claude/verify-native-window-reset-final.md`) confirms equipped ID 17 removal, ID 18/edit-layout/modal retention, and a fresh-process read. Canonical authored customization inputs remain in use; parse-only fixture lighting controls are not lighting proof.
 - No native managed-window movement reader/writer exists yet. This action alone does not complete native window-manager parity.
 
 ## Known gaps
