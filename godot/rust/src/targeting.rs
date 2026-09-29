@@ -253,10 +253,13 @@ fn target_frame_state(unit: &UnitSnapshot, viewer_level: Option<u8>) -> UnitFram
     state
 }
 
-fn unit_frames_state(target: Option<UnitFrameState>) -> InWorldUnitFramesState {
+fn unit_frames_state(
+    target: Option<UnitFrameState>,
+    show_target_frame: bool,
+) -> InWorldUnitFramesState {
     InWorldUnitFramesState {
         show_player_frame: false,
-        show_target_frame: true,
+        show_target_frame,
         player: UnitFrameState::named(""),
         target,
         target_of_target: None,
@@ -393,7 +396,7 @@ impl GameClient {
             .target
             .and_then(|id| self.units.get(&id))
             .map(|unit| target_frame_state(unit, viewer_level));
-        let state = unit_frames_state(target);
+        let state = unit_frames_state(target, self.client_options.hud.show_health_bars);
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             return ui.bind_mut().set_state(state);
         }
