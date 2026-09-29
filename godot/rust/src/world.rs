@@ -695,6 +695,7 @@ mod tests {
             movement_control: None,
             movement_speed: None,
             creature_motion: None,
+            player_motion: None,
             unit_pose: None,
             unit_target: None,
             faction_template: None,
