@@ -2,9 +2,11 @@ extends SceneTree
 
 ## Live swim on the dev server with real key events: from the seabed of the deep water at
 ## `azeroth(32,48)` X=-8558 Z=500 (the swimming fixture's measured spot), held Space rises
-## to the surface and bobs there, held X sinks back to the seabed. While the head is under
-## water the fixture starts the retail breath mirror timer (the server sends none yet) and
-## checks the bar is drawn and counts down. Logs client and server-replicated height.
+## to the surface and bobs there, held X sinks back to the seabed. With the head under water
+## the server's breath mirror timer (`MirrorTimerStart`, 180 s draining at 1 ms per ms) must
+## show its bar counting down at that scale, and surfacing must refill and hide it. The
+## server-replicated height (what other clients draw) must follow the swimmer at the
+## surface and on the seabed. SWIM_DROWN=1 also stays down 180 s for one drowning hit.
 ## Account and character (card 0) come from SWIM_ACCOUNT, SWIM_PASSWORD, SWIM_CHARACTER;
 ## place the character offline with
 ## `game-server-admin teleport <name> 0 -8558 -500 140.3` (WoW coordinates).
@@ -15,9 +17,11 @@ const DEEP := Vector2(-8558.0, 500.0)
 const SWIM_DEPTH := 1.25
 ## `SWIM_SPEED` yards/second, the ascend and descend rate.
 const SWIM_SPEED := 4.7222
-## Human standing height; the head is under water once the feet are this far below the
-## floating height.
-const HEAD_UNDER := 1.0
+## The server's head-under-water rule: the surface more than `DEFAULT_COLLISION_HEIGHT`
+## (TrinityCore Object.h) over the feet.
+const HEAD_UNDER := 2.03128
+## Breath lasts 180 000 ms, draining 1 ms per ms: this bar fraction per second.
+const BREATH_DRAIN := 1.0 / 180.0
 const PHASE_TIMEOUT_MS := 8000
 const SHOT_DIR := "/tmp/claude"
 const BREATH := 1
@@ -88,23 +92,35 @@ func run_test() -> void:
 		return
 	trace(client, player, "floating")
 
-	error = await sink_with_breath(client, player, top, float(seabed))
+	error = await server_follows(client, player, "floating")
 	if error != "":
 		fail(error)
 		return
+	if client.mirror_timer_fraction(BREATH) != null:
+		fail("Breath bar shown while floating with the head out: %s" % client.mirror_timer_fraction(BREATH))
+		return
+
+	error = await sink_with_breath(client, player, float(surface), float(seabed))
+	if error != "":
+		fail(error)
+		return
+	if OS.get_environment("SWIM_DROWN") == "1":
+		error = await drown(client, player)
+		if error != "":
+			fail(error)
+			return
 
 	error = await rise_to_surface(client, player, top)
 	if error != "":
 		fail(error)
 		return
-	client.stop_mirror_timer(BREATH)
-	await process_frame
-	await process_frame
-	if client.mirror_timer_fraction(BREATH) != null or breath_bar(client).is_visible_in_tree():
-		fail("Stopped breath timer is still shown")
+	# Head out: the server refills breath at 10 ms per ms, then stops the timer.
+	var hidden := func(_state): return client.mirror_timer_fraction(BREATH) == null and not breath_bar(client).is_visible_in_tree()
+	if not await wait_until(client, hidden, 30000, "breath bar hidden after surfacing"):
 		return
+	trace(client, player, "surfaced, breath stopped")
 	await snapshot("surfaced-no-breath")
-	print("PASS: Space rose to the surface, X sank to the seabed, breath bar shown under water")
+	print("PASS: Space rose to the surface, X sank to the seabed, server breath bar shown under water and hidden after surfacing")
 	quit(0)
 
 ## Hold Space from below the surface: rise at swim speed to `top` and no higher.
@@ -119,6 +135,9 @@ func rise_to_surface(client: Node, player: Node3D, top: float) -> String:
 	print("TRACE rose %.3f yd in %.2f s (%.2f yd/s)" % [player.position.y - start, seconds, rate])
 	if rate < SWIM_SPEED * 0.7 or rate > SWIM_SPEED * 1.2:
 		return "Ascend rate %.2f yd/s is not the swim speed" % rate
+	error = await server_follows(client, player, "surfacing")
+	if error != "":
+		return error
 	# Keep holding at the surface: bob there, never above it.
 	push_key(KEY_SPACE, true)
 	for _frame in 60:
@@ -130,13 +149,16 @@ func rise_to_surface(client: Node, player: Node3D, top: float) -> String:
 	trace(client, player, "at surface")
 	return ""
 
-## Hold X to the seabed; once the head is under water start the breath timer and check
-## its bar is drawn and counting down.
-func sink_with_breath(client: Node, player: Node3D, top: float, seabed: float) -> String:
+## Hold X to the seabed: the head goes under water on the way down (feet more than
+## `HEAD_UNDER` below the surface). The server must start the breath bar, full and counting
+## down at 1/180 of the bar per second.
+func sink_with_breath(client: Node, player: Node3D, surface: float, seabed: float) -> String:
+	if seabed > surface - HEAD_UNDER - 0.1:
+		return "Seabed %.3f is too shallow to put the head under %.3f" % [seabed, surface]
 	push_key(KEY_X, true)
 	var deadline := Time.get_ticks_msec() + PHASE_TIMEOUT_MS
-	var breathing := false
 	var last_y := player.position.y
+	var under_at := -1
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var y := player.position.y
@@ -144,33 +166,84 @@ func sink_with_breath(client: Node, player: Node3D, top: float, seabed: float) -
 			push_key(KEY_X, false)
 			return "Held X rose: %.3f -> %.3f" % [last_y, y]
 		last_y = y
-		if not breathing and y < top - HEAD_UNDER:
-			var started: String = client.start_mirror_timer(BREATH, 180000, 180000, -1.0, false)
-			if started != "":
-				push_key(KEY_X, false)
-				return "Breath timer: " + started
-			breathing = true
-			trace(client, player, "head under water, breath started")
+		if under_at < 0 and y < surface - HEAD_UNDER:
+			under_at = Time.get_ticks_msec()
+			trace(client, player, "head under water")
 		if y <= seabed + 0.02:
 			break
 	push_key(KEY_X, false)
 	if player.position.y > seabed + 0.02:
 		return "Held X did not reach the seabed: %s seabed=%.3f" % [player.position, seabed]
 	trace(client, player, "on seabed")
-	for _frame in 60:
+	var error: String = await server_follows(client, player, "seabed")
+	if error != "":
+		return error
+	var shown := func(_state): return client.mirror_timer_fraction(BREATH) != null
+	if not await wait_until(client, shown, 3000, "server breath timer after the head went under"):
+		return "Server sent no breath timer"
+	print("TRACE breath shown %d ms after the head went under" % (Time.get_ticks_msec() - under_at))
+	var first_ms := Time.get_ticks_msec()
+	var first := float(client.mirror_timer_fraction(BREATH))
+	if first < 0.97:
+		return "Breath timer did not start full: %.4f" % first
+	for _frame in 120:
 		await process_frame
-	var fraction = client.mirror_timer_fraction(BREATH)
-	if fraction == null or float(fraction) >= 1.0 or float(fraction) < 0.95:
-		return "Breath timer did not count down one second: %s" % fraction
+	var seconds := (Time.get_ticks_msec() - first_ms) / 1000.0
+	var fraction := float(client.mirror_timer_fraction(BREATH))
+	var drain := (first - fraction) / seconds
+	print("TRACE breath %.4f -> %.4f in %.2f s: %.5f/s (server scale %.5f/s)" % [first, fraction, seconds, drain, BREATH_DRAIN])
+	if absf(drain - BREATH_DRAIN) > BREATH_DRAIN * 0.1:
+		return "Breath bar drains %.5f/s, not the server's %.5f/s" % [drain, BREATH_DRAIN]
 	var bar := breath_bar(client)
 	if not bar.is_visible_in_tree():
 		return "Breath bar is not drawn"
 	var width := bar.get_global_rect().size.x
-	if absf(width - 195.0 * float(fraction)) > 1.5:
-		return "Breath bar fill %.1f px does not match %.3f" % [width, float(fraction)]
-	print("TRACE breath fraction=%.4f fill=%.1f px at %s" % [float(fraction), width, bar.get_global_rect()])
+	if absf(width - 195.0 * fraction) > 1.5:
+		return "Breath bar fill %.1f px does not match %.4f" % [width, fraction]
+	var label = client.get_node("MirrorTimers").find_child("MirrorTimer1Text", true, false)
+	if label == null or label.text != "Breath":
+		return "Breath bar label: %s" % (label.text if label != null else "missing")
+	print("TRACE breath fraction=%.4f fill=%.1f px at %s" % [fraction, width, bar.get_global_rect()])
 	await snapshot("seabed-breath")
 	return ""
+
+## Stay on the seabed until breath runs out: the server deals `DAMAGE_DROWNING` (20% of
+## maximum health) every second at 0.
+func drown(client: Node, player: Node3D) -> String:
+	var before = client.account_state().local_player_health
+	var empty := func(_state): return client.mirror_timer_fraction(BREATH) != null and float(client.mirror_timer_fraction(BREATH)) <= 0.0
+	if not await wait_until(client, empty, 190000, "breath at 0"):
+		return "Breath did not run out"
+	trace(client, player, "out of breath, health=%s" % before)
+	var deadline := Time.get_ticks_msec() + 10000
+	var next_trace := 0
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var health = client.account_state().local_player_health
+		if Time.get_ticks_msec() >= next_trace:
+			next_trace = Time.get_ticks_msec() + 500
+			trace(client, player, "drowning? health=%s" % health)
+		if health != null and before != null and int(health) < int(before):
+			break
+	var after = client.account_state().local_player_health
+	if after == null or before == null or int(after) >= int(before):
+		return "No drowning damage within 10 s at 0 breath: health %s -> %s" % [before, after]
+	print("TRACE drowning: health %s -> %s" % [before, client.account_state().local_player_health])
+	await snapshot("drowning")
+	return ""
+
+## The server adopts the swimmer's height: its replicated position (what other clients draw)
+## reaches the client's within two seconds.
+func server_follows(client: Node, player: Node3D, what: String) -> String:
+	var started := Time.get_ticks_msec()
+	var deadline := started + 2000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var server = client.account_state().local_server_position
+		if server != null and absf(float(server.y) - player.position.y) < 0.02:
+			print("TRACE server height %.3f follows client %.3f (%s) after %d ms" % [float(server.y), player.position.y, what, Time.get_ticks_msec() - started])
+			return ""
+	return "Server height %s does not follow the client %.3f (%s)" % [client.account_state().local_server_position, player.position.y, what]
 
 func breath_bar(client: Node) -> Control:
 	return client.get_node("MirrorTimers").find_child("MirrorTimer1StatusBar", true, false) as Control
@@ -183,7 +256,7 @@ func hold_until(client: Node, player: Node3D, key: Key, reached: Callable, what:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if Time.get_ticks_msec() >= next_trace:
-			next_trace = Time.get_ticks_msec() + 250
+			next_trace = Time.get_ticks_msec() + 50
 			trace(client, player, what)
 		if reached.call(player.position.y):
 			push_key(key, false)
