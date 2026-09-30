@@ -3,12 +3,14 @@
 //! caster (the unit itself when unknown) as the caster. Held ones (ending at AuraEnd)
 //! last until the aura instance leaves the unit; its AuraEnd kits then start.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use game_engine_core::spell_visual::VisualEvent;
-use game_engine_network::UnitSnapshot;
+use game_engine_network::replica::Replica;
+use shared::components::UnitAuras;
 
 use super::{CastUnits, KitHold, Lifetime, Phase, SpellEffects, join_errors};
+use crate::replicated::is_unit;
 use crate::spell_sounds::SoundHold;
 use crate::world::WorldUnits;
 
@@ -39,15 +41,16 @@ impl SpellEffects {
     /// Start the kits of auras that appeared and end those of auras that left.
     pub(super) fn sync_auras(
         &mut self,
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let present: Vec<AuraRef> = units
-            .iter()
-            .flat_map(|(&unit, snapshot)| {
+            .units()
+            .flat_map(|snapshot| {
+                let unit = snapshot.server_id;
                 snapshot
-                    .auras
-                    .iter()
+                    .get::<UnitAuras>()
+                    .into_iter()
                     .flat_map(|auras| &auras.auras)
                     .map(move |aura| AuraRef {
                         spell_id: aura.spell_id,
@@ -80,7 +83,7 @@ impl SpellEffects {
     fn begin_aura(
         &mut self,
         aura: AuraRef,
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let started = self.start_aura_event(aura, VisualEvent::AuraStart, units, world);
@@ -101,7 +104,7 @@ impl SpellEffects {
         &mut self,
         aura: AuraRef,
         event: VisualEvent,
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &mut WorldUnits,
     ) -> Result<Vec<u16>, String> {
         let Some(visual) = self.visual(aura.spell_id, aura.caster, units, world)? else {
@@ -130,7 +133,7 @@ impl SpellEffects {
     fn end_aura(
         &mut self,
         key: (u64, u32),
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let Some(aura) = self.auras.remove(&key) else {
@@ -150,7 +153,7 @@ impl SpellEffects {
                 effect.finish();
             }
         }
-        if !units.contains_key(&unit) {
+        if units.unit(unit).is_none_or(|unit| !is_unit(unit)) {
             return Ok(());
         }
         let key = AuraRef {

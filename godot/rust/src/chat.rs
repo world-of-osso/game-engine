@@ -24,6 +24,7 @@ use godot::prelude::*;
 use shared::protocol::{ChatMessage, ChatType, CombatLogEvent, EmoteIntent, EmoteKind};
 
 use crate::frame_error::FrameError;
+use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
 
 /// Group commands have no native group networking yet.
@@ -317,13 +318,8 @@ impl crate::GameClient {
 
     /// Replicated NPC name, then player name, else `Unknown`.
     fn unit_display_name(&self, id: Option<u64>) -> String {
-        id.and_then(|id| self.units.get(&id))
-            .and_then(|unit| {
-                unit.npc
-                    .as_ref()
-                    .map(|npc| npc.name.clone())
-                    .or_else(|| unit.player.as_ref().map(|player| player.name.clone()))
-            })
+        id.and_then(|id| self.replica.unit(id))
+            .and_then(|unit| Some(unit.name()?.to_owned()))
             .unwrap_or_else(|| UNKNOWN_NAME.to_string())
     }
 
