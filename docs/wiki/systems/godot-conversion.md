@@ -115,6 +115,17 @@ Main read saved `data/diagnostics/taa-controller-observer/{run1.log,gpu-run1.log
 | HDR boundary | `configure(true,true)` models acquired HDR metadata; no actual Bloom executes. Not HDR + Bloom proof. |
 | Remaining coverage | Controller-owned SubViewport only, not GameClient, saved Options, authored scene, LDR, full-scene, actual Bloom or render-scale proof. No general temporal, skinned/transparent, resize, multivendor or export acceptance. Prior three-frame CPU 3806 failures and native oracle timeout 124 remain unresolved; this run fixes neither. Full conversion remains open; no Handled claim. |
 
+### Scale production-controller observer — bounded main-observed evidence
+
+Saved main-observed `data/diagnostics/taa-controller-scale-observer/run4.log` exits 0 (`run-2355548-639`): actual controller scale 1 → 0.5 → 1, native internal extents 64×48 → 32×24 → 64×48 over nine HDR frames, no Bloom. Isolated original-shader `gpu-run1.log` exits 0 (`gpu-oracle-2356067-1155`). No runtime execution for this docs update.
+
+| Capability | Saved evidence / boundary |
+| --- | --- |
+| Independent original GPU history / RESET | Oracle owns original GPU history; independently checked raw extents determine RESET at frames 0, 3, 6. Predictions frozen before actual-output comparison; no production-history feedback. Fixed one expected HALF ULP + 2e-5, no calibration. |
+| Numeric / confidence / jitter | `result.json` confirms 304128 channel comparisons, 0 failures, max error 0.00006103515625: not bit-exact. Separate 6912 confidence and 54 jitter comparisons each have 0 failures. |
+| Failed attempts / shutdown | Preserve run1 compile failure (exit 1); run2/run3 exit 124 after bounded PASS. Run3 instrumentation records disposal/free complete and quit(0) at 1014 ms, yet pthread join blocked. Root cause and join target unknown; clean run4 does not fix intermittent shutdown. |
+| Verification / exclusions | Newly active verifier report `/tmp/claude/verify-taa-controller-scale-observer.md` pending, not accepted. Native internal-resolution fixture only, NOT Bevy scaled physical-history equivalence. No application/Bloom/full-scene/general parity acceptance. Prior CPU 3806 failures/native oracle timeout 124 unresolved. Full conversion open; no Handled claim. |
+
 ### LDR production-controller observer — bounded main-observed evidence
 
 Main executed saved `data/diagnostics/taa-controller-ldr-observer/run1.log` (exit 0), capture `run-2329200-1277`: actual controller `configure(true,false)`, nine consecutive 64×48 frames, phases 0..7,0, restored projection and RGBA8_SRGB allocations. Isolated original-shader `gpu-run1.log` (exit 0), oracle `gpu-oracle-2329568-1119`, records the following bounded results; no new runtime execution for this docs update.
