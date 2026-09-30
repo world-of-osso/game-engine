@@ -11,8 +11,24 @@ fn native_bridge_receives_loot_messages_in_channel_order() {
     await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
         matches!(event, Event::Connected)
     });
-    // Queue every type before the next server update. Repeat response/removal/close so
-    // per-type relays cannot accidentally satisfy the FIFO assertions.
+    // Hold the worker before receiving so different types reach its relay together.
+    // The host also leaves its event FIFO unpolled until all eight sends are flushed.
+    let (held, hold_confirmed) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    bridge
+        .enqueue(move |_| {
+            held.send(()).expect("confirm fixture worker hold");
+            resumed
+                .recv_timeout(Duration::from_secs(10))
+                .expect("release fixture worker hold");
+        })
+        .expect("hold fixture worker");
+    hold_confirmed
+        .recv_timeout(Duration::from_secs(10))
+        .expect("fixture worker entered hold");
+    // MessageSender queues per type, not in cross-type caller order. A full update
+    // after each send flushes it into LootChannel before the next type is queued.
+    // Repeat response/removal/close to expose a relay that groups messages by type.
     let corpse = 123;
     let opened = LootResponse {
         corpse,
@@ -32,24 +48,32 @@ fn native_bridge_receives_loot_messages_in_channel_order() {
         corpse,
         lootable: true,
     };
-    let world = server.world_mut();
-    macro_rules! send {
-        ($ty:ty, $value:expr) => {
+    macro_rules! send_and_flush {
+        ($ty:ty, $value:expr) => {{
+            let world = server.world_mut();
             world
                 .query::<&mut MessageSender<$ty>>()
                 .single_mut(world)
                 .expect("one connected loot sender")
                 .send::<LootChannel>($value.clone());
-        };
+            server.update();
+        }};
     }
-    send!(CorpseLootable, lootable);
-    send!(LootResponse, opened);
-    send!(LootSlotRemoved, removed);
-    send!(LootClosed, closed);
-    send!(LootFailed, failed);
-    send!(LootResponse, opened);
-    send!(LootSlotRemoved, removed);
-    send!(LootClosed, closed);
+    send_and_flush!(CorpseLootable, lootable);
+    send_and_flush!(LootResponse, opened);
+    send_and_flush!(LootSlotRemoved, removed);
+    send_and_flush!(LootClosed, closed);
+    send_and_flush!(LootFailed, failed);
+    send_and_flush!(LootResponse, opened);
+    send_and_flush!(LootSlotRemoved, removed);
+    send_and_flush!(LootClosed, closed);
+    // Allow throttled UDP sends to leave the server while the worker stays held.
+    let send_deadline = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < send_deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    resume.send(()).expect("resume fixture worker");
     let mut received = await_messages(&mut server, &mut bridge, 8).into_iter();
     macro_rules! assert_next {
         ($ty:ty, $expected:expr) => {
