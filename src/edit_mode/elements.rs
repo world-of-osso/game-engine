@@ -108,7 +108,7 @@ pub const EDIT_MODE_ELEMENTS: &[EditModeElement] = &[
         "party_frames",
         "Party Frames",
         "CompactPartyFrame",
-        HudAnchor::Bottom,
+        HudAnchor::TopLeft,
     ),
     element(
         "raid_frames",

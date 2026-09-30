@@ -39,6 +39,7 @@ pub mod npc_gear_data;
 mod objective_tracker;
 mod particle_debug;
 mod particles;
+mod party_frames;
 mod player_spells;
 mod scene;
 mod sound;
@@ -125,6 +126,7 @@ pub struct GameClient {
     objective_tracker: objective_tracker::ObjectiveTracker,
     entrance_bar: entrance_bar::EntranceBar,
     damage_meter: damage_meter::DamageMeterHud,
+    group_frames: party_frames::GroupFramesHud,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     game_menu_drag: Option<game_menu::drag::OptionsDrag>,
     logout: game_engine_session::logout::LogoutState,
@@ -216,6 +218,7 @@ impl INode3D for GameClient {
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
             damage_meter: damage_meter::DamageMeterHud::default(),
+            group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,
             game_menu_drag: None,
             logout: Default::default(),
@@ -428,6 +431,7 @@ impl INode3D for GameClient {
             ("Objective tracker", |c, _| c.update_objective_tracker()),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
             ("Damage meter", |c, _| c.update_damage_meter()),
+            ("Group frames", |c, d| c.update_group_frames(d)),
             ("World units", |c, d| {
                 c.world.advance(d);
                 Ok(())
@@ -866,6 +870,7 @@ impl GameClient {
         self.objective_tracker.visit_uis(&mut visit)?;
         self.auras.visit_uis(&mut visit)?;
         self.damage_meter.visit_uis(&mut visit)?;
+        self.group_frames.visit_uis(&mut visit)?;
         self.entrance_bar.visit_uis(&mut visit)
     }
 
@@ -1324,6 +1329,7 @@ impl GameClient {
             AccountEvent::Npc(message) => self.receive_npc_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
+            AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
             AccountEvent::UnitRemoved(id) => {
                 self.world.remove(id);
                 self.units.remove(&id);

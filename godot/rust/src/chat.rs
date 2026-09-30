@@ -25,17 +25,21 @@ use shared::protocol::{ChatMessage, ChatType, CombatLogEvent, EmoteIntent, Emote
 
 use crate::frame_error::FrameError;
 use crate::ui::RegistryUi;
+use game_engine_ui_model::group_state::GroupCommand;
 
-/// Group commands have no native group networking yet.
-const GROUP_UNAVAILABLE_TEXT: &str = "Group commands are unavailable.";
 /// The root client's line when `/who` has no who state.
 const WHO_UNAVAILABLE_TEXT: &str = "Who is unavailable.";
 
 /// A submitted line's network request.
 #[derive(Debug, PartialEq)]
 pub(crate) enum ChatRequest {
-    Send { channel: ChatType, content: String },
+    Send {
+        channel: ChatType,
+        content: String,
+    },
     Emote(EmoteKind),
+    /// `/invite`, `/uninvite`, `/promote`, `/leave`, `/readycheck`.
+    Group(GroupCommand),
 }
 
 /// Chat log, whisper partners and frame state. The log outlives the world, as the
@@ -131,7 +135,7 @@ impl ChatModel {
             }
             ChatCommand::Emote(emote) => Some(ChatRequest::Emote(emote)),
             ChatCommand::Who(_) => self.system(WHO_UNAVAILABLE_TEXT),
-            ChatCommand::Group(_) => self.system(GROUP_UNAVAILABLE_TEXT),
+            ChatCommand::Group(command) => Some(ChatRequest::Group(command)),
             ChatCommand::System(lines) => {
                 for line in lines {
                     add_system_line(&mut self.log, &line);
@@ -260,6 +264,11 @@ impl crate::GameClient {
         }
         self.chat.ui = Some(ui);
         Ok(())
+    }
+
+    /// A group result or notice from the server, as a system line.
+    pub(crate) fn receive_group_notice(&mut self, text: &str) {
+        add_system_line(&mut self.chat.model.log, text);
     }
 
     /// A server chat line.
@@ -458,6 +467,7 @@ impl crate::GameClient {
                 channel,
             }),
             ChatRequest::Emote(emote) => self.account.send_emote(EmoteIntent { emote }),
+            ChatRequest::Group(command) => self.account.send_group(command),
         }
         .map_err(|error| error.0)
     }
