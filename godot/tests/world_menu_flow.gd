@@ -97,6 +97,9 @@ func run_test() -> void:
 	var marker_options = load("res://tests/target_marker_options_probe.gd").new()
 	if not await marker_options.run(self, client, player):
 		return
+	var camera_options = load("res://tests/camera_options_probe.gd").new()
+	if not await camera_options.run(self, client):
+		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
