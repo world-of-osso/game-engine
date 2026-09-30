@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-30] evidence | Shared cache standalone PASS; native gate pending
+## [2026-09-30] evidence | Shared cache standalone and bounded native gates accepted
 
-Updated [asset pipeline](systems/asset-pipeline.md#local-extraction) and index with main-accepted standalone `25debb1` proof: persisted-marker fresh-process recovery of exact valid local-CASC bytes, positive-cache preservation, explicit failure context, format/check/readability. Main Depot `s1q4qhb120` build2 and actual full Options/Menu/UDP/Exit runtime exit 0; independent native integration gate pending, not cold-marker/full-conversion/deploy proof. Contract remains in sibling [asset-cache spec](../../../asset-resolver/docs/specs/asset-cache.md). Isolated engine docs only; asset repo untouched, user-dirty files preserved. Source unfrozen; shutdown paused.
+Updated [asset pipeline](systems/asset-pipeline.md#local-extraction) and index with main-accepted standalone `25debb1` proof: persisted-marker fresh-process recovery of exact valid local-CASC bytes, positive-cache preservation, explicit failure context, format/check/readability. Main accepts `/tmp/claude/verify-negative-cache-native-integration.md` bounded saved-artifact PASS: Depot `s1q4qhb120` build2 exit 0 compiles native consumer/fixture; extension load and eight Options helper PASS markers plus Menu/owned UDP/Exit runtime exit 0. Native cold-marker recovery remains unverified; standalone fresh-process regression supplies that separate proof. No independent binary-identity attestation, native cold-marker/full-conversion/deploy/current unfrozen whole-tree acceptance; native compiler/runtime warnings retained in report. Contract remains in sibling [asset-cache spec](../../../asset-resolver/docs/specs/asset-cache.md). Isolated engine docs only; asset repo untouched, user-dirty files preserved. Source unfrozen; shutdown paused.
 
 ## [2026-09-30] evidence | Bounded TargetSelf Options rebind; gate accepted
 
