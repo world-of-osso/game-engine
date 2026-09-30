@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] implementation | Bounded native auction client
+
+Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, portable trading validation, exact-item/category queries, all fetched-row/server-page navigation and corrected duration labels. Targeted model 7/7 and owned UDP 1/1 passed; later fixture/input observer changes await compile. Main owns game-cli-first integration and native smoke; no runtime/full-AH acceptance claim.
+
 ## [2026-09-30] update | Server missile timing
 
 [[spell-visuals]] Server timing: game-server `fa5e689` delays missile hits by TrinityCore's `max(dist, 5) / Speed + LaunchDelay` (`Spell::HandleDelayed`). Frostbolt's damage number no longer arrives with `SpellGo`. About 200 ms early remains: the server clock starts at the cast, while the client releases at the M2 event. Not re-captured on the client.
