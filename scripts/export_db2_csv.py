@@ -323,12 +323,15 @@ TABLES = {
             ("OceanDeepAlpha", ("float", 9, 0)),
         ],
     ),
-    # WoWDBDefs layout D1ECEEC9. WebWowViewerCpp reads Float[0..17] and Coefficient[0..3].
+    # WoWDBDefs layout D1ECEEC9. WebWowViewerCpp reads Color[0..1], Float[0..17], Int[0..3] and
+    # Coefficient[0..3].
     "LiquidType": (
         0xD1ECEEC9,
         [("ID", "id"), ("Name", ("string", 0)), ("Flags", ("int", 2, 0)), ("MaterialID", ("u8", 14))]
         + [(f"FrameCountTexture_{i}", ("u8", 16, i)) for i in range(6)]
+        + [(f"Color_{i}", ("int", 17, i)) for i in range(3)]
         + [(f"Float_{i}", ("float", 18, i)) for i in range(18)]
+        + [(f"Int_{i}", ("int", 19, i)) for i in range(4)]
         + [(f"Coefficient_{i}", ("float", 20, i)) for i in range(4)],
     ),
     "LiquidMaterial": (0x98E5D7AA, [("ID", "id"), ("Flags", ("int", 0, 0)), ("LVF", ("u8", 1))]),
