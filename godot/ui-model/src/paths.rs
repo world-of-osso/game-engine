@@ -1,5 +1,5 @@
-//! Data directory the shared item tables (`item_catalog`, `item_icons`) read from. The
-//! host sets it once, before the first item lookup.
+//! Data directory the shared item tables (`item_catalog`, `item_icons`) and ui-toolkit's
+//! text measurement (`fonts/`) read from. The host sets it once, before the first lookup.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -8,6 +8,7 @@ static DATA_ROOT: OnceLock<PathBuf> = OnceLock::new();
 
 /// Set the data directory; a second call must name the same directory.
 pub fn set_data_root(root: PathBuf) -> Result<(), String> {
+    ui_toolkit::widgets::font_string::set_font_directory(root.join("fonts"))?;
     let current = DATA_ROOT.get_or_init(|| root.clone());
     if *current == root {
         Ok(())

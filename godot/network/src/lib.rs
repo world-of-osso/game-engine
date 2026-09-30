@@ -100,6 +100,18 @@ impl BridgeConfig {
         self
     }
 
+    /// All five loot messages in their reliable ordered `LootChannel` send order.
+    pub fn receive_loot(mut self) -> Self {
+        self.relays.push(install_loot_relay);
+        self
+    }
+
+    /// Receiving mailbox traffic in its reliable ordered channel order.
+    pub fn receive_mail(mut self) -> Self {
+        self.relays.push(install_mail_relay);
+        self
+    }
+
     pub fn connect(self, server_addr: SocketAddr, client_id: u64) -> Result<NetworkBridge, String> {
         NetworkBridge::start(server_addr, client_id, self.relays)
     }
@@ -137,6 +149,8 @@ impl NetworkBridge {
             .receive::<InstanceInfo>()
             // Server-driven breath, fatigue and feign-death bars.
             .receive_mirror_timers()
+            .receive_loot()
+            .receive_mail()
             // Spellbook, action bar and casting.
             .receive::<KnownSpellsSnapshot>()
             .receive::<SpellsLearned>()
@@ -442,6 +456,73 @@ fn install_mirror_timer_relay(app: &mut App, events: Sender<Event>) {
                     }),
                 );
             }
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+/// A single relay preserves order across message types sharing `LootChannel`.
+fn install_loot_relay(app: &mut App, events: Sender<Event>) {
+    use protocol::{CorpseLootable, LootClosed, LootFailed, LootResponse, LootSlotRemoved};
+    app.add_systems(
+        Update,
+        (move |mut lootable: Query<&mut MessageReceiver<CorpseLootable>>,
+               mut opened: Query<&mut MessageReceiver<LootResponse>>,
+               mut removed: Query<&mut MessageReceiver<LootSlotRemoved>>,
+               mut closed: Query<&mut MessageReceiver<LootClosed>>,
+               mut failed: Query<&mut MessageReceiver<LootFailed>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(lootable);
+            drain!(opened);
+            drain!(removed);
+            drain!(closed);
+            drain!(failed);
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+fn install_mail_relay(app: &mut App, events: Sender<Event>) {
+    use protocol::{MailFailed, MailboxContents, PendingMail};
+    app.add_systems(
+        Update,
+        (move |mut contents: Query<&mut MessageReceiver<MailboxContents>>,
+               mut failed: Query<&mut MessageReceiver<MailFailed>>,
+               mut pending: Query<&mut MessageReceiver<PendingMail>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(contents);
+            drain!(failed);
+            drain!(pending);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events

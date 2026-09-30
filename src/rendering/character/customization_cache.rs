@@ -12,13 +12,13 @@ use crate::customization_data::{RaceModels, RawData};
 mod customization_query_data;
 use crate::sqlite_util::is_missing_table_error;
 
-const CACHE_SCHEMA_VERSION: u32 = 2;
+use customization_query_data::{CACHE_SCHEMA_VERSION, customization_cache_file};
 
 fn cache_path() -> PathBuf {
-    crate::paths::shared_data_path("cache/customization.sqlite")
+    crate::paths::shared_data_path(format!("cache/{}", customization_cache_file()))
 }
 
-fn required_csv_paths(data_dir: &Path) -> [PathBuf; 8] {
+fn required_csv_paths(data_dir: &Path) -> [PathBuf; 9] {
     [
         data_dir.join("ChrModel.csv"),
         data_dir.join("ChrCustomizationOption.csv"),
@@ -28,6 +28,7 @@ fn required_csv_paths(data_dir: &Path) -> [PathBuf; 8] {
         data_dir.join("ChrCustomizationGeoset.csv"),
         data_dir.join("CharHairGeosets.csv"),
         data_dir.join("ChrCustomizationCategory.csv"),
+        data_dir.join("ChrCustomizationSkinnedModel.csv"),
     ]
 }
 
@@ -101,13 +102,14 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
     populate_geosets(&conn, &csv_paths[5])?;
     populate_hair_geosets(&conn, &csv_paths[6], &RaceModels::load(data_dir)?)?;
     populate_categories(&conn, &csv_paths[7])?;
+    populate_skinned_models(&conn, &csv_paths[8])?;
     populate_texture_fdids(&conn, &texture_file_data)?;
     conn.execute_batch("COMMIT;")
         .map_err(|err| format!("commit customization cache: {err}"))?;
     Ok(())
 }
 
-fn rebuild_source_paths(csv_paths: &[PathBuf; 8], texture_file_data: &Path) -> Vec<PathBuf> {
+fn rebuild_source_paths(csv_paths: &[PathBuf; 9], texture_file_data: &Path) -> Vec<PathBuf> {
     let mut all_sources = csv_paths.to_vec();
     all_sources.push(texture_file_data.to_path_buf());
     all_sources
@@ -154,6 +156,7 @@ fn customization_cache_drop_tables_sql() -> &'static str {
      DROP TABLE IF EXISTS elements;
      DROP TABLE IF EXISTS materials;
      DROP TABLE IF EXISTS geosets;
+     DROP TABLE IF EXISTS skinned_models;
      DROP TABLE IF EXISTS hair_geosets;
      DROP TABLE IF EXISTS texture_fdids;"
 }
@@ -200,6 +203,7 @@ fn customization_cache_relation_tables_sql() -> &'static str {
          related_choice_id INTEGER NOT NULL,
          geoset_id INTEGER NOT NULL,
          material_id INTEGER NOT NULL,
+         skinned_model_id INTEGER NOT NULL,
          has_unsupported_effects INTEGER NOT NULL
      );
      CREATE TABLE materials (
@@ -209,6 +213,12 @@ fn customization_cache_relation_tables_sql() -> &'static str {
      );
      CREATE TABLE geosets (
          id INTEGER PRIMARY KEY,
+         geoset_type INTEGER NOT NULL,
+         geoset_id INTEGER NOT NULL
+     );
+     CREATE TABLE skinned_models (
+         id INTEGER PRIMARY KEY,
+         collection_fdid INTEGER NOT NULL,
          geoset_type INTEGER NOT NULL,
          geoset_id INTEGER NOT NULL
      );"
@@ -411,18 +421,20 @@ fn populate_choices(conn: &Connection, path: &Path) -> Result<(), String> {
 fn populate_elements(conn: &Connection, path: &Path) -> Result<(), String> {
     insert_simple_rows(
         conn,
-        "INSERT INTO elements (choice_id, related_choice_id, geoset_id, material_id, has_unsupported_effects) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO elements (choice_id, related_choice_id, geoset_id, material_id, skinned_model_id, has_unsupported_effects) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         path,
         |headers, fields, path| {
             let choice_id = header_index(headers, "ChrCustomizationChoiceID", path)?;
             let related_choice_id = header_index(headers, "RelatedChrCustomizationChoiceID", path)?;
             let geoset_id = header_index(headers, "ChrCustomizationGeosetID", path)?;
             let material_id = header_index(headers, "ChrCustomizationMaterialID", path)?;
+            let skinned_model_id = header_index(headers, "ChrCustomizationSkinnedModelID", path)?;
             Ok(Some((
                 parse_u32(fields, choice_id),
                 parse_u32(fields, related_choice_id),
                 parse_u32(fields, geoset_id),
                 parse_u32(fields, material_id),
+                parse_u32(fields, skinned_model_id),
                 has_unsupported_effects(headers, fields),
             )))
         },
@@ -430,8 +442,7 @@ fn populate_elements(conn: &Connection, path: &Path) -> Result<(), String> {
 }
 
 fn has_unsupported_effects(headers: &[String], fields: &[String]) -> bool {
-    const UNSUPPORTED_COLUMNS: [&str; 9] = [
-        "ChrCustomizationSkinnedModelID",
+    const UNSUPPORTED_COLUMNS: [&str; 8] = [
         "ChrCustomizationBoneSetID",
         "ChrCustomizationCondModelID",
         "ChrCustomizationDisplayInfoID",
@@ -444,6 +455,26 @@ fn has_unsupported_effects(headers: &[String], fields: &[String]) -> bool {
     headers.iter().enumerate().any(|(index, name)| {
         UNSUPPORTED_COLUMNS.contains(&name.as_str()) && parse_u32(fields, index) != 0
     })
+}
+
+fn populate_skinned_models(conn: &Connection, path: &Path) -> Result<(), String> {
+    insert_simple_rows(
+        conn,
+        "INSERT INTO skinned_models (id, collection_fdid, geoset_type, geoset_id) VALUES (?1, ?2, ?3, ?4)",
+        path,
+        |headers, fields, path| {
+            let id = header_index(headers, "ID", path)?;
+            let collection = header_index(headers, "CollectionsFileDataID", path)?;
+            let geoset_type = header_index(headers, "GeosetType", path)?;
+            let geoset_id = header_index(headers, "GeosetID", path)?;
+            Ok(Some((
+                parse_u32(fields, id),
+                parse_u32(fields, collection),
+                parse_u32(fields, geoset_type),
+                parse_u32(fields, geoset_id),
+            )))
+        },
+    )
 }
 
 fn populate_materials(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -519,7 +550,14 @@ fn populate_texture_fdids(conn: &Connection, path: &Path) -> Result<(), String> 
         path,
         |headers, fields, path| {
             let file_data_id = header_index(headers, "FileDataID", path)?;
+            let usage_type = header_index(headers, "UsageType", path)?;
             let material_resources_id = header_index(headers, "MaterialResourcesID", path)?;
+            // A material's texture is its UsageType 0 row; others (such as the
+            // Demon Hunter tattoos' opaque UsageType 2 companions) are not the
+            // diffuse layer (wow.export `DBCharacterCustomization._initialize`).
+            if parse_u32(fields, usage_type) != 0 {
+                return Ok(None);
+            }
             Ok(Some((
                 parse_u32(fields, material_resources_id),
                 parse_u32(fields, file_data_id),
@@ -576,7 +614,8 @@ mod tests {
              INSERT INTO options VALUES (8, 'Hair', 9, 4, 2, 3, 7), (2, 'Face', 3, 1, 0, 1, 0);
              INSERT INTO categories VALUES (4, 'Appearance', 1, 12, 13);
              INSERT INTO choices VALUES (6, 8, 'Long', 2, 1, 3, -7, 99), (1, 2, 'Plain', 0, 0, 0, 0, 0);
-             INSERT INTO elements VALUES (6, 1, 15, 16, 1);
+             INSERT INTO elements VALUES (6, 1, 15, 16, 21, 1);
+             INSERT INTO skinned_models VALUES (21, 7760205, 25, 1);
              INSERT INTO materials VALUES (16, 4, 77);
              INSERT INTO geosets VALUES (15, 3, 8);
              INSERT INTO hair_geosets VALUES (9, 3, 8, 1);
@@ -604,6 +643,15 @@ mod tests {
         assert_eq!(raw.categories[&4].selected_icon, 13);
         assert_eq!(raw.choices[1].swatch_colors, [-7, 99]);
         assert!(raw.elements[0].has_unsupported_effects);
+        assert_eq!(raw.elements[0].skinned_model_id, 21);
+        assert_eq!(raw.skinned_models[&21].collection_fdid, 7760205);
+        assert_eq!(
+            (
+                raw.skinned_models[&21].geoset_type,
+                raw.skinned_models[&21].geoset_id
+            ),
+            (25, 1)
+        );
         assert_eq!(raw.materials[&16].material_resources_id, 77);
         assert_eq!(raw.geosets[&15].geoset_id, 8);
         assert_eq!(raw.hair_geosets[&(9, 3, 8)], true);

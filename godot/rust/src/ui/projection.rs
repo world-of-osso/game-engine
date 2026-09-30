@@ -376,7 +376,9 @@ impl UiProjection {
             Some(WidgetData::EditBox(edit)) => {
                 self.update_editbox(node.cast::<LineEdit>(), edit)?
             }
-            Some(WidgetData::FontString(text)) => self.update_label(node.cast::<Label>(), text)?,
+            Some(WidgetData::FontString(text)) => {
+                self.update_label(node.cast::<Label>(), text, frame, rect)?
+            }
             None | Some(WidgetData::Texture(_)) | Some(WidgetData::Slider(_)) => {}
             Some(other) => {
                 return Err(format!(
@@ -522,7 +524,23 @@ impl UiProjection {
         &mut self,
         mut node: Gd<Label>,
         data: &ui_toolkit::widgets::font_string::FontStringData,
+        frame: &Frame,
+        rect: &LayoutRect,
     ) -> Result<(), String> {
+        // Godot 4.7 autowrap shapes against the maximum width, not set_size alone.
+        let maximum_width = if frame.width == Dimension::Auto {
+            -1.0
+        } else {
+            rect.width
+        };
+        let fixed_rectangle = frame.width != Dimension::Auto && frame.height != Dimension::Auto;
+        let fit_multiline = fixed_rectangle && data.text.contains('\n');
+        // A height cap hides single-line captions whose font metrics exceed their
+        // authored height; only cap lines whose spacing we fit into that height.
+        let maximum_height = if fit_multiline { rect.height } else { -1.0 };
+        node.set_custom_maximum_size(Vector2::new(maximum_width, maximum_height));
+        // Clear our previous fit before reading the original themed spacing.
+        node.remove_theme_constant_override("line_spacing");
         let text = TextPart {
             content: data.text.clone(),
             font: data.font,
@@ -535,9 +553,70 @@ impl UiProjection {
         };
         self.style_label(&mut node, &text)?;
         node.set_autowrap_mode(godot::classes::text_server::AutowrapMode::WORD);
+        if fit_multiline {
+            fit_multiline_label_spacing(&mut node, data, rect.height)?;
+        }
+        // Styling can raise Control's minimum size before tighter spacing lowers it.
+        // Restore layout bounds, never the already-clamped native Control size.
+        node.set_size(Vector2::new(rect.width, rect.height));
         Ok(())
     }
 }
+
+fn fit_multiline_label_spacing(
+    node: &mut Gd<Label>,
+    data: &ui_toolkit::widgets::font_string::FontStringData,
+    height: f32,
+) -> Result<(), String> {
+    let font = node
+        .get_theme_font("font")
+        .ok_or_else(|| "Cannot fit multiline FontString: native font is missing".to_owned())?;
+    let font_size = node.get_theme_font_size("font_size");
+    let font_height = font.get_height_ex().font_size(font_size).done() as f32;
+    let shadow_y = if data.shadow_color.is_some() {
+        (-data.shadow_offset[1]).round()
+    } else {
+        0.0
+    };
+    let available_height = height - shadow_reserved_height(data.justify_v, shadow_y);
+    let themed_spacing = node.get_theme_constant("line_spacing");
+    let spacing = multiline_line_spacing(
+        available_height,
+        font_height,
+        node.get_line_count(),
+        themed_spacing,
+    );
+    node.add_theme_constant_override("line_spacing", spacing);
+    Ok(())
+}
+
+fn shadow_reserved_height(justify: JustifyV, native_shadow_y: f32) -> f32 {
+    // Centering splits spare height equally above/below the text; reserve both halves.
+    // Spacing alone cannot move a top-aligned upward or bottom-aligned downward shadow.
+    match justify {
+        JustifyV::Top => native_shadow_y.max(0.0),
+        JustifyV::Middle => 2.0 * native_shadow_y.abs(),
+        JustifyV::Bottom => (-native_shadow_y).max(0.0),
+    }
+}
+
+fn multiline_line_spacing(
+    available_height: f32,
+    font_height: f32,
+    line_count: i32,
+    themed_spacing: i32,
+) -> i32 {
+    if line_count <= 1 {
+        return themed_spacing;
+    }
+    let gaps = (line_count - 1) as f32;
+    let fitting_spacing = ((available_height - line_count as f32 * font_height) / gaps).floor();
+    themed_spacing.min(fitting_spacing as i32)
+}
+
+#[cfg(test)]
+#[path = "projection_spacing_tests.rs"]
+mod spacing_tests;
 
 /// Input-only native button: registry parts draw every visual state.
 fn flat_button() -> Gd<Button> {

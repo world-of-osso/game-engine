@@ -480,6 +480,26 @@ impl RegistryUi {
         self.show_viewport_screen(state, spell_tooltip_screen, ScreenPostsetup::None)
     }
 
+    /// Mount the shared authored Retail corpse-loot frame.
+    pub fn show_loot_frame(
+        &mut self,
+        state: game_engine_ui_model::loot_frame_component::LootFrameState,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::loot_frame_component::loot_frame_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail spellbook.
     pub fn show_spellbook(&mut self, state: SpellbookFrameState) -> Result<(), String> {
         self.show_viewport_screen(state, spellbook_frame_screen, ScreenPostsetup::Spellbook)
@@ -581,7 +601,10 @@ impl RegistryUi {
         }
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
-        register_metal_frame_style(&mut registry)?;
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
         let mut shared = SharedContext::new();
         shared.insert(states.frame);
         shared.insert(states.bags);
@@ -597,6 +620,28 @@ impl RegistryUi {
         self.initialize_hud_model(model, parent)
     }
 
+    pub fn show_mail(
+        &mut self,
+        state: game_engine_ui_model::mail::NativeMailView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::mail::native_mail_screen,
+            ScreenPostsetup::Merchant,
+            registry,
+            parent,
+        )
+    }
+
     pub fn show_auction_gossip(
         &mut self,
         state: game_engine_ui_model::auction::AuctionGossipView,
@@ -606,7 +651,10 @@ impl RegistryUi {
         }
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
-        register_metal_frame_style(&mut registry)?;
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
@@ -628,7 +676,10 @@ impl RegistryUi {
         }
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
-        register_metal_frame_style(&mut registry)?;
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
         register_auction_popup_style(&mut registry);
         let mut shared = SharedContext::new();
         shared.insert(state);
@@ -1445,11 +1496,14 @@ pub struct MerchantStates {
 }
 
 /// Register `metal_frame` (`PortraitFrameTemplate` border) from the composed atlas sheet.
-fn register_metal_frame_style(registry: &mut FrameRegistry) -> Result<(), String> {
+fn register_metal_frame_style(
+    registry: &mut FrameRegistry,
+    top_left: game_engine_ui_model::panel_style_data::MetalTopLeft,
+) -> Result<(), String> {
     use game_engine_ui_model::panel_style_data::{
-        METAL_FRAME_PANEL_STYLE, METAL_SHEET, MetalTopLeft, compose_metal_sheet, metal_frame_style,
+        METAL_SHEET, compose_metal_sheet, metal_frame_style,
     };
-    let pixels = compose_metal_sheet(MetalTopLeft::Portrait, |fdid| {
+    let pixels = compose_metal_sheet(top_left, |fdid| {
         let image = assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
         Ok((image.pixels, image.width))
     })?;
@@ -1458,7 +1512,7 @@ fn register_metal_frame_style(registry: &mut FrameRegistry) -> Result<(), String
         .create_dynamic_texture(width, height, pixels)
         .map_err(|error| format!("Metal frame sheet: {error}"))?;
     registry.register_panel_style(
-        METAL_FRAME_PANEL_STYLE,
+        top_left.style_name(),
         metal_frame_style(TextureSource::Dynamic(sheet)),
     );
     Ok(())
