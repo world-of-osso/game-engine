@@ -120,7 +120,8 @@ Root cause analyses and debug findings.
 - [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`)
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
 
-- [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Shared original state/cards/placement/actions, ordered channel relay and server-owned Auto Loot XOR Shift; actual native RED, main build and portable export pending.
+- [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Shared exports/tests 8 + 1, relay wire test 1 and root compile passed; runtime all four cases/inventory/error/cursor reaches LOOT_DONE, post-DONE RenderingServer-null exit 101 unresolved/deferred. Independent final pending.
+- [Native Options and loot money overflow](systems/godot-conversion.md#native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering) — Rendered RED: last HUD row 12 px outside panel; native money lines 51 px versus authored 38 px. Content-driven Options height and fixed multiline line-gap fixes implemented; main rendering pending, no GREEN claim.
 
 ## Reference
 
