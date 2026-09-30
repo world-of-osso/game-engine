@@ -4,7 +4,8 @@
 //! swings its main-hand weapon class clip (Attack Unarmed/1H/2H/2HL, 16-19; WoWee
 //! `resolveMeleeAnimId` picks by the equipped weapon's inventory type the same way) and
 //! the victim reacts: CombatWound (9) on a hit, CombatCritical (10) on a crit, Dodge
-//! (30), Parry by weapon class (20-23) or ShieldBlock (24); a miss plays nothing.
+//! (30), Parry by weapon class (20-23) or ShieldBlock (24); a miss plays nothing. A
+//! reaction does not cut the victim's own swing short (`ActionPriority::Reaction`).
 //! While in combat a standing unit holds its weapon class Ready stance (25-28).
 //! Clips a model lacks follow `AnimationData.Fallback`.
 
@@ -268,7 +269,7 @@ impl WorldUnits {
         let victim_weapon = self.unit_weapon(event.target);
         if let Some(reaction) = melee_reaction(&event.event_type, victim_weapon)
             && let Err(error) =
-                self.play_unit_action(event.target, reaction, false, ActionPriority::Combat)
+                self.play_unit_action(event.target, reaction, false, ActionPriority::Reaction)
         {
             errors.push(error);
         }

@@ -1,19 +1,21 @@
 extends SceneTree
 
-## Retail melee sounds of a Human warrior auto-attacking a Northshire Kobold Vermin
-## against a private server (docs/wiki/systems/spell-visuals.md#melee-sounds).
+## Retail melee sounds of a Human warrior auto-attacking a Northshire Blackrock Worg
+## (creature 49871, display 40147, bare-handed) against a private server (docs/wiki/systems/spell-visuals.md#melee-sounds).
 ## Environment:
 ##   GODOT_TEST_SERVER               server address (a private test server)
 ##   MELEE_ACCOUNT / MELEE_CHARACTER account (password fbtest) and a Human warrior with
-##                                   the Worn Shortsword, placed next to a Kobold Vermin
+##                                   the Worn Shortsword, placed next to a Blackrock Worg
 ##   MELEE_SECS                      seconds of auto-attack to wait for every sound (90)
-## The Attack action starts auto-attack on the Tab-targeted kobold. Every sound start is
+##   MELEE_WORLD_TIMEOUT_S           seconds to wait for the world's terrain (300)
+## The Attack action starts auto-attack on the Tab-targeted worg. Every sound start is
 ## logged with its source, unit, SoundKit, FDID and effects-clock time, and every melee
 ## CombatEvent with its result. Required, 12.1.0.69933:
 ## - the warrior's swings swoosh 235 (WeaponSwingSounds2 Medium) and land 53248
-##   (WeaponImpactSounds row 8, flesh) with the kobold's wound 53725;
-## - the kobold's staff swoosh 237 (Heavy) and land 61562 (row 10, flesh) with the
-##   warrior's wound 2942;
+##   (WeaponImpactSounds row 8, flesh) with the worg's wound 11908 (CreatureSoundData
+##   2482);
+## - the worg's bare-handed (Fist Weapon) swings swoosh 235 and land 1014 (row 13,
+##   flesh) with the warrior's wound 2942;
 ## - a missed or dodged swing swooshes with no impact;
 ## - each impact follows its swoosh within the clip's $CSS → $CAH gap.
 
@@ -25,14 +27,15 @@ const WARRIOR_SWING_CRIT := 236
 const WARRIOR_IMPACT := 53248
 const WARRIOR_IMPACT_CRIT := 53249
 const WARRIOR_PARRIED := 53263
-const KOBOLD_WOUND := [53725, 53726]
-const KOBOLD_SWING := [237, 238]
-const KOBOLD_IMPACT := [61562, 61563]
-const KOBOLD_PARRIED := 61557
+const MOB := "Blackrock Worg"
+const MOB_WOUND := [11908, 11909]
+const MOB_SWING := [235, 236]
+const MOB_IMPACT := [1014]
+const MOB_PARRIED := 1019
 const WARRIOR_WOUND := 2942
-const KOBOLD_DEATH := 53727
-## The widest $CSS → $CAH gap of the two units' attack clips (HumanMale HD Attack2H 133 ms)
-## plus two 60 fps frames.
+const MOB_DEATH := 11910
+## The widest $CSS → $CAH gap of the attack clips (HumanMale HD Attack2H 133 ms) plus two
+## 60 fps frames.
 const LAND_GAP := 0.17
 
 var client: Node
@@ -67,7 +70,7 @@ func who(id: int) -> String:
 	if id == local_id:
 		return "warrior"
 	if id == target_id:
-		return "kobold"
+		return "worg"
 	return str(id)
 
 func run_test() -> void:
@@ -91,16 +94,20 @@ func run_test() -> void:
 		print("FIXTURE SPELLS ", client.spells_state())
 		return
 	local_id = client.account_state().local_player_id
-	for attempt in range(10):
+	# Tab cycles the visible units nearest first; take the worg in melee range.
+	var distance := INF
+	for attempt in range(40):
 		await press(KEY_TAB)
 		await wait_frames(6)
-		if str(client.target_state().target_name).contains("Kobold Vermin"):
-			break
-	if not str(client.target_state().target_name).contains("Kobold Vermin"):
-		fail("Tab did not reach a Kobold Vermin: " + str(client.target_state()))
+		var state: Dictionary = client.target_state()
+		if state.target != null and str(state.target_name).contains(MOB):
+			distance = client.unit_transform(local_id).origin.distance_to(client.unit_transform(state.target).origin)
+			if distance < 5.0:
+				break
+	if distance >= 5.0:
+		fail("Tab did not reach a worg in melee range: " + str(client.target_state()))
 		return
 	target_id = client.target_state().target
-	var distance: float = client.unit_transform(local_id).origin.distance_to(client.unit_transform(target_id).origin)
 	print("FIXTURE TARGET ", client.target_state(), " distance=%.2f" % distance)
 	await press(BAR_KEYS[client.spells_state().bar.find(ATTACK)])
 	if not await wait_until(func(): return client.target_state().auto_attack == target_id, 3000, "Attack starts auto-attack"):
@@ -130,9 +137,9 @@ func avoided_swings() -> Array:
 func complete() -> bool:
 	return not starts("swing", local_id, [WARRIOR_SWING, WARRIOR_SWING_CRIT]).is_empty() \
 		and not starts("impact", target_id, [WARRIOR_IMPACT]).is_empty() \
-		and not starts("voice", target_id, KOBOLD_WOUND).is_empty() \
-		and not starts("swing", target_id, KOBOLD_SWING).is_empty() \
-		and not starts("impact", local_id, [KOBOLD_IMPACT[0]]).is_empty() \
+		and not starts("voice", target_id, MOB_WOUND).is_empty() \
+		and not starts("swing", target_id, MOB_SWING).is_empty() \
+		and not starts("impact", local_id, [MOB_IMPACT[0]]).is_empty() \
 		and not starts("voice", local_id, [WARRIOR_WOUND]).is_empty() \
 		and not avoided_swings().is_empty()
 
@@ -140,11 +147,11 @@ func summary() -> Dictionary:
 	return {
 		"warrior_swings": starts("swing", local_id, [WARRIOR_SWING, WARRIOR_SWING_CRIT]).size(),
 		"warrior_impacts": starts("impact", target_id, [WARRIOR_IMPACT, WARRIOR_IMPACT_CRIT, WARRIOR_PARRIED]).size(),
-		"kobold_wounds": starts("voice", target_id, KOBOLD_WOUND).size(),
-		"kobold_swings": starts("swing", target_id, KOBOLD_SWING).size(),
-		"kobold_impacts": starts("impact", local_id, KOBOLD_IMPACT + [KOBOLD_PARRIED]).size(),
+		"worg_wounds": starts("voice", target_id, MOB_WOUND).size(),
+		"worg_swings": starts("swing", target_id, MOB_SWING).size(),
+		"worg_impacts": starts("impact", local_id, MOB_IMPACT + [MOB_PARRIED]).size(),
 		"warrior_wounds": starts("voice", local_id, [WARRIOR_WOUND]).size(),
-		"kobold_deaths": starts("voice", target_id, [KOBOLD_DEATH]).size(),
+		"worg_deaths": starts("voice", target_id, [MOB_DEATH]).size(),
 		"melee": melee.size(),
 		"avoided": avoided_swings().size(),
 	}
@@ -168,7 +175,7 @@ func check_landing() -> bool:
 				break
 		var swooshes: Array = sounds.values().filter(func(s): return s.source == "swing" and s.unit == attacker and s.at >= event.at and s.at < next_at)
 		if swooshes.is_empty():
-			# The final swing may still be in its clip when the kobold dies.
+			# The final swing may still be in its clip when the worg dies.
 			if next_at == INF:
 				continue
 			fail("No swoosh for %s's %s at %.3f" % [who(attacker), event.result, event.at])
@@ -210,7 +217,8 @@ func enter_world() -> bool:
 		fail("Card 0 is %s, not %s" % [selected.text, character])
 		return false
 	await click(ui.find_child("EnterWorld", true, false))
-	deadline = Time.get_ticks_msec() + 120000
+	var world_timeout := int(OS.get_environment("MELEE_WORLD_TIMEOUT_S")) if OS.get_environment("MELEE_WORLD_TIMEOUT_S") != "" else 300
+	deadline = Time.get_ticks_msec() + world_timeout * 1000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()

@@ -189,3 +189,32 @@ fn pummel_interrupts_with_its_impact_kit_sound() {
         .collect();
     assert_eq!(impact, vec![(59620, vec![53711])]);
 }
+
+/// The live Northshire's Blackrock Worg (creature 49871, display 40147 → CreatureSoundData
+/// 2482, no item): its bare hands swoosh 235 and land 1014 (row 13) on the warrior, the
+/// warrior's sword lands 53248 on it, and it wounds 11908 and dies 11910; a parry by the
+/// warrior's metal sword plays 1019 (`unarmedparrymetala`).
+#[test]
+fn blackrock_worg_fights_bare_handed() {
+    let catalog = catalog();
+    let worg = MeleeHand {
+        item_id: None,
+        display_info_id: None,
+        unit: VoiceSource::Creature { display_id: 40147 },
+    };
+    assert_eq!(kit_id(catalog.swing_sound(worg, false)), Some(235));
+    assert_eq!(kit_id(catalog.impact_sound(worg, WARRIOR, HIT)), Some(1014));
+    assert_eq!(
+        kit_id(catalog.impact_sound(worg, WARRIOR, SwingResult::Parry)),
+        Some(1019)
+    );
+    assert_eq!(
+        kit_id(catalog.impact_sound(WARRIOR, worg, HIT)),
+        Some(53248)
+    );
+    assert_eq!(kit_id(catalog.wound_sound(worg.unit, false)), Some(11908));
+    assert_eq!(
+        kit_id(catalog.unit_sound(worg.unit, UnitSound::Death)),
+        Some(11910)
+    );
+}
