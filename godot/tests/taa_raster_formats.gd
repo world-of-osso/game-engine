@@ -148,8 +148,18 @@ func encode_image(input: Image, format: int) -> Image:
 	return encoded
 
 
-func store_colour(value: Color, format: int) -> Color:
+func source_colour(value: Color, format: int) -> Color:
 	return encode_image(image(Vector2i.ONE, value), format).get_pixel(0, 0)
+
+
+func store_colour(value: Color, format: int) -> Color:
+	if format == HALF:
+		return image(Vector2i.ONE, value).get_pixel(0, 0)
+	# Attachment goldens use nearest UNORM code, independently of upload conversion.
+	var encoded := value.linear_to_srgb()
+	for channel in range(4):
+		encoded[channel] = float(roundi(clampf(encoded[channel], 0.0, 1.0) * 255.0)) / 255.0
+	return encoded
 
 
 func sample_colour(stored: Color, format: int) -> Color:
@@ -210,15 +220,19 @@ func compare_formatted(actual: Image, expected: Image, format: int, label: Strin
 
 
 func check_stored(actual: Color, linear_value: Color, format: int, label: String) -> void:
-	var observed := image(Vector2i.ONE, actual)
-	var wanted := image(Vector2i.ONE, store_colour(linear_value, format))
+	var wanted := store_colour(linear_value, format)
 	if format == HALF:
-		compare(observed, wanted, label)
+		compare(image(Vector2i.ONE, actual), image(Vector2i.ONE, wanted), label)
 	else:
-		# Compare already encoded values, not a second sRGB conversion.
-		observed.convert(Image.FORMAT_RGBA8)
-		wanted.convert(Image.FORMAT_RGBA8)
-		compare_formatted(observed, wanted, format, label)
+		# Recover encoded codes directly; no HALF intermediate or second sRGB encode.
+		compare_formatted(encoded_pixel(actual), encoded_pixel(wanted), format, label)
+
+
+func encoded_pixel(stored: Color) -> Image:
+	var bytes := PackedByteArray()
+	for channel in range(4):
+		bytes.append(roundi(clampf(stored[channel], 0.0, 1.0) * 255.0))
+	return Image.create_from_data(1, 1, false, Image.FORMAT_RGBA8, bytes)
 
 
 func mixed_current(opaque := false) -> Image:
@@ -397,11 +411,11 @@ func test_formats(
 		)
 		if not reset and kind in ["mixed-low", "mixed-high", "opaque"]:
 			var history_colour := sample_colour(
-				store_colour(Color(0.25, 0.25, 0.25, initial_confidence), history_format),
+				source_colour(Color(0.25, 0.25, 0.25, initial_confidence), history_format),
 				history_format
 			)
 			var center := sample_colour(
-				store_colour(current.get_pixel(1, 1), output_format), output_format
+				source_colour(current.get_pixel(1, 1), output_format), output_format
 			)
 			if tonemap:
 				center = map_colour(center)
@@ -496,7 +510,7 @@ func test_feedback(tonemap: bool, output_format: int, history_format: int) -> vo
 		):
 			break
 		var center := sample_colour(
-			store_colour(current.get_pixel(1, 1), output_format), output_format
+			source_colour(current.get_pixel(1, 1), output_format), output_format
 		)
 		if tonemap:
 			center = map_colour(center)
