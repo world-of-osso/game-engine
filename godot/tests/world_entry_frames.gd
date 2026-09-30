@@ -121,9 +121,14 @@ func run_test() -> void:
 
 ## VmRSS and VmHWM of this process (/proc/self/status).
 func resident_memory() -> String:
-	var status := FileAccess.get_file_as_string("/proc/self/status")
-	var lines := Array(status.split("\n")).filter(func(line): return line.begins_with("VmRSS") or line.begins_with("VmHWM"))
-	return " ".join(lines.map(func(line): return line.replace("\t", "").replace("  ", " ")))
+	# /proc files report size 0: read them line by line.
+	var file := FileAccess.open("/proc/self/status", FileAccess.READ)
+	var found: Array[String] = []
+	while file != null and not file.eof_reached():
+		var line := file.get_line()
+		if line.begins_with("VmRSS") or line.begins_with("VmHWM"):
+			found.append(line.replace("\t", " ").strip_edges())
+	return " ".join(found)
 
 func max_of(values: Array[float]) -> float:
 	var longest := 0.0
