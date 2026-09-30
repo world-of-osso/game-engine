@@ -231,18 +231,23 @@ pub struct PointTemplate {
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Playing {
     group: usize,
-    /// When local time 0 was, in seconds of the caller's clock.
+    /// Start in the caller's monotonic clock, and local animation time at that start.
     origin: f64,
+    offset: f32,
     speed: f32,
 }
 
 impl Playing {
     fn elapsed(&self, now: f64) -> f32 {
-        ((now - self.origin) as f32 * self.speed).max(0.0)
+        (self.offset + (now - self.origin) as f32 * self.speed).max(0.0)
     }
 
     fn end_time(&self, duration: f32) -> f64 {
-        self.origin + f64::from(duration / self.speed)
+        if self.speed == 0.0 {
+            f64::INFINITY
+        } else {
+            self.origin + f64::from((duration - self.offset) / self.speed)
+        }
     }
 }
 
@@ -310,7 +315,8 @@ impl PointVisual {
         self.stop(group, now);
         self.playing.push(Playing {
             group,
-            origin: now - f64::from(offset / speed),
+            origin: now,
+            offset,
             speed,
         });
     }
