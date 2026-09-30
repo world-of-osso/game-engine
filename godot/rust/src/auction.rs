@@ -92,6 +92,12 @@ impl GameClient {
             self.auction.reset();
             return Ok(());
         }
+        if let Some(ui) = &mut self.auction.ui {
+            let error = ui.bind_mut().sync_input();
+            if !error.is_empty() {
+                return Err(error.to_string().into());
+            }
+        }
         self.auction.read_inputs();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.poll_auction_input()?;
