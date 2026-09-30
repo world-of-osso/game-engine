@@ -103,6 +103,10 @@ impl GameObjects {
             node.set_meta("game_object_server_id", &(id as i64).to_variant());
             node.set_meta("game_object_name", &snapshot.info.name.to_variant());
             node.set_meta(
+                "game_object_entry",
+                &(snapshot.info.entry as i64).to_variant(),
+            );
+            node.set_meta(
                 "game_object_display_id",
                 &(snapshot.info.display_id as i64).to_variant(),
             );
