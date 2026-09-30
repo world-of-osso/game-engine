@@ -307,13 +307,6 @@ impl Session {
                 // Unrelated corpse messages must not alter this open window.
                 send::<_, LootChannel>(
                     app,
-                    LootFailed {
-                        corpse: request.corpse.wrapping_add(1),
-                        error: LootError::InventoryFull,
-                    },
-                );
-                send::<_, LootChannel>(
-                    app,
                     CorpseLootable {
                         corpse: request.corpse.wrapping_add(1),
                         lootable: false,
