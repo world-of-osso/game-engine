@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] update | Server missile timing
+
+[[spell-visuals]] Server timing: game-server `fa5e689` delays missile hits by TrinityCore's `max(dist, 5) / Speed + LaunchDelay` (`Spell::HandleDelayed`). Frostbolt's damage number no longer arrives with `SpellGo`. About 200 ms early remains: the server clock starts at the cast, while the client releases at the M2 event. Not re-captured on the client.
+
 ## [2026-09-30] feature | Retail melee sounds; synthetic miss/interrupt PCM removed
 
 [Melee sounds](systems/spell-visuals.md#melee-sounds): WeaponSwingSounds2 swoosh at `$CSS`, WeaponImpactSounds impact and CreatureSoundData injury at `$CAH`, SoundDeathID on NPC death clips. Hit reactions no longer cut a unit's own swing. [[sound]] outcome section rewritten; `OutcomeSpells` and `sound-outcome` fixture removed.
