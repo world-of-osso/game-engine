@@ -28,18 +28,6 @@ impl SecondaryResourceKindEntry {
             _ => return None,
         })
     }
-
-    /// `ChrSpecialization` id a Retail bar's `spec` KeyValue requires: Arcane 62
-    /// (`SPEC_MAGE_ARCANE`, MageArcaneChargesBar.xml:127) and Windwalker 269
-    /// (`SPEC_MONK_WINDWALKER`, MonkHarmonyBar.xml:116). The other bars show for the
-    /// whole class.
-    fn required_spec(&self) -> Option<u32> {
-        match self {
-            Self::ArcaneCharges => Some(62),
-            Self::Chi => Some(269),
-            _ => None,
-        }
-    }
 }
 
 /// Raw `UnitPowers` units per displayed unit: Retail `PowerType.csv` `DisplayModifier`
@@ -78,12 +66,139 @@ impl SecondaryResourceEntry {
             })
         })
     }
+}
 
-    /// Retail `ClassPowerBar:Setup` (ClassPowerBar.lua:82-83): shown when the bar has no
-    /// spec requirement or `spec` is the required one.
-    pub fn shown_for_spec(&self, spec: Option<u32>) -> bool {
-        self.kind
+/// The Retail player class resource bar a class has (`class` KeyValue of each bar).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ClassBar {
+    /// `RogueComboPointBarFrame` (RogueComboPointBar.xml:228-249).
+    RogueComboPoints,
+    /// `DruidComboPointBarFrame` (DruidComboPointBar.xml:91-113).
+    DruidComboPoints,
+    /// `MonkHarmonyBarFrame` (MonkHarmonyBar.xml:104-129).
+    Chi,
+    /// `WarlockPowerFrame` (ShardBar.xml:150-173).
+    SoulShards,
+    /// `EssencePlayerFrame` (EssenceFramePlayer.xml:280-304).
+    Essence,
+    /// `RuneFrame` (RuneFrame.xml:186-243).
+    Runes,
+    /// `PaladinPowerBarFrame` (PaladinPowerBar.xml:98-241).
+    HolyPower,
+    /// `MageArcaneChargesFrame` (MageArcaneChargesBar.xml:115-136).
+    ArcaneCharges,
+}
+
+/// `ChrClasses` ids.
+const CLASS_PALADIN: u8 = 2;
+const CLASS_ROGUE: u8 = 4;
+const CLASS_DEATH_KNIGHT: u8 = 6;
+const CLASS_MAGE: u8 = 8;
+const CLASS_WARLOCK: u8 = 9;
+const CLASS_MONK: u8 = 10;
+const CLASS_DRUID: u8 = 11;
+const CLASS_EVOKER: u8 = 13;
+
+impl ClassBar {
+    pub fn for_class(class: u8) -> Option<Self> {
+        Some(match class {
+            CLASS_ROGUE => Self::RogueComboPoints,
+            CLASS_DRUID => Self::DruidComboPoints,
+            CLASS_MONK => Self::Chi,
+            CLASS_WARLOCK => Self::SoulShards,
+            CLASS_EVOKER => Self::Essence,
+            CLASS_DEATH_KNIGHT => Self::Runes,
+            CLASS_PALADIN => Self::HolyPower,
+            CLASS_MAGE => Self::ArcaneCharges,
+            _ => return None,
+        })
+    }
+
+    /// The bar's `powerType` KeyValue.
+    pub fn power(self) -> PowerType {
+        match self {
+            Self::RogueComboPoints | Self::DruidComboPoints => PowerType::ComboPoints,
+            Self::Chi => PowerType::Chi,
+            Self::SoulShards => PowerType::SoulShards,
+            Self::Essence => PowerType::Essence,
+            Self::Runes => PowerType::Runes,
+            Self::HolyPower => PowerType::HolyPower,
+            Self::ArcaneCharges => PowerType::ArcaneCharges,
+        }
+    }
+
+    /// `spec` KeyValue: Windwalker 269 (MonkHarmonyBar.xml:116), Arcane 62
+    /// (MageArcaneChargesBar.xml:127).
+    fn required_spec(self) -> Option<u32> {
+        match self {
+            Self::Chi => Some(269),
+            Self::ArcaneCharges => Some(62),
+            _ => None,
+        }
+    }
+
+    /// `requiredShownLevel` KeyValue: soul shards from 10 (ShardBar.xml:161).
+    fn required_level(self) -> u8 {
+        match self {
+            Self::SoulShards => 10,
+            _ => 0,
+        }
+    }
+
+    /// Retail `ClassPowerBar:Setup` spec gate (ClassPowerBar.lua:82-83), the druid
+    /// `shouldShowBarFunc` cat-form gate (DruidComboPointBar.lua:3-12: display power
+    /// Energy) and `requiredShownLevel` (ClassResourceBarTemplate.lua:101-105).
+    fn shown(self, player: &ClassBarPlayer, primary: Option<PowerType>) -> bool {
+        let spec = self
             .required_spec()
-            .is_none_or(|required| spec == Some(required))
+            .is_none_or(|required| player.spec == Some(required));
+        let form = self != Self::DruidComboPoints || primary == Some(PowerType::Energy);
+        spec && form && player.level >= self.required_level()
+    }
+}
+
+/// What gates the player's class bar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ClassBarPlayer {
+    pub class: u8,
+    pub spec: Option<u32>,
+    pub level: u8,
+    pub in_combat: bool,
+}
+
+/// The player's shown class bar and its power.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ClassBarResource {
+    pub bar: ClassBar,
+    pub current: u8,
+    pub max: u8,
+    /// Power in tenths of a displayed unit (soul shard fragments).
+    pub tenths: u16,
+    pub spec: Option<u32>,
+    pub in_combat: bool,
+}
+
+impl ClassBarResource {
+    /// The class's bar when Retail shows it, with its power from `powers`.
+    pub fn for_player(powers: &UnitPowers, player: &ClassBarPlayer) -> Option<Self> {
+        let bar = ClassBar::for_class(player.class)?;
+        let primary = powers.entries.first().map(|entry| entry.power);
+        if !bar.shown(player, primary) {
+            return None;
+        }
+        let entry = powers
+            .entries
+            .iter()
+            .find(|entry| entry.power == bar.power())?;
+        let modifier = power_display_modifier(entry.power);
+        let whole = |raw: i32| (raw / modifier).clamp(0, u8::MAX as i32) as u8;
+        Some(Self {
+            bar,
+            current: whole(entry.current),
+            max: whole(entry.max),
+            tenths: (entry.current * 10 / modifier).clamp(0, u16::MAX as i32) as u16,
+            spec: player.spec,
+            in_combat: player.in_combat,
+        })
     }
 }
