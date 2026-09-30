@@ -43,6 +43,8 @@ Engine subsystems and how they work.
 - [sound](systems/sound.md) — Footsteps, shared selection/phase policy, native terrain/WMO surfaces and bounded local-player 3D Ogg playback, music catalog, zone music, native UI click, confirmed local-player CastStart and original CombatEvent outcome generated PCM/spatial playback with owned UDP proofs (current server spell-result producer remains CombatLogEvent-only), and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
 - [lore-knowledge-graph](systems/lore-knowledge-graph.md) — Graph schema for NPC AI, quest generation, faction relations
 
+Bounded [character-select MouseSensitivity evidence](systems/godot-conversion.md#native-camera-options-boundary): test-only `576a374a`/`c46515ec` saved `run1.log` exit 0; authored 0.003/0.006 numeric saves, +4-pixel left-drag rendered-basis yaw assertions against original math (expected −0.012/−0.024, not raw observed deltas), opposite-drag restoration and retained gameplay/marker/Menu UDP/Exit proof. Independent gate active/pending; no all-camera/all-account-scenes/startup/fresh-reload/full-conversion acceptance. Source unfrozen; shutdown paused.
+
 ## Formats
 
 WoW file format specifications as used by the engine.
