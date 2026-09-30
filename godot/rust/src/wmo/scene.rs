@@ -4,7 +4,7 @@
 //! (`wowViewerLib/src/engine/objects/iWmoApi.h` `wmoMaterialShader`), whose math
 //! `shaders/wmo.gdshader` ports from `commonWMOMaterial.slang`.
 
-use std::{ops::RangeInclusive, path::Path};
+use std::{collections::BTreeSet, ops::RangeInclusive, path::Path};
 
 use game_engine_core::{asset::wmo_format::parser::WmoMaterialDef, wmo};
 use godot::{
@@ -170,7 +170,18 @@ pub(crate) fn build_wmo_node(
     let black = black_pixel_texture()?;
     let mut root = Node3D::new_alloc();
     root.set_name(&format!("Wmo{}", asset.root_fdid));
+    let (material_ms, mesh_ms) = (std::cell::Cell::new(0.0), std::cell::Cell::new(0.0));
+    let _span = crate::profile::span(|| {
+        format!(
+            "wmo {} {} batches material_ms={:.1} mesh_ms={:.1}",
+            asset.root_fdid,
+            batches.len(),
+            material_ms.get(),
+            mesh_ms.get()
+        )
+    });
     for (index, batch) in batches.iter().enumerate() {
+        let started = std::time::Instant::now();
         let context = format!(
             "WMO {} group {} batch {index}",
             asset.root_fdid, batch.group_index
@@ -183,9 +194,12 @@ pub(crate) fn build_wmo_node(
                     continue;
                 }
             };
+        material_ms.set(material_ms.get() + started.elapsed().as_secs_f64() * 1000.0);
+        let started = std::time::Instant::now();
         let mut instance = MeshInstance3D::new_alloc();
         instance.set_name(&format!("Group{}_Batch{index}", batch.group_index));
         instance.set_mesh(&build_batch_mesh(batch));
+        mesh_ms.set(mesh_ms.get() + started.elapsed().as_secs_f64() * 1000.0);
         instance.set_surface_override_material(0, &material);
         root.add_child(&instance);
     }
@@ -193,6 +207,31 @@ pub(crate) fn build_wmo_node(
         node: root,
         batch_errors,
     })
+}
+
+/// Every texture FDID the WMO's batch materials sample (`build_batch_material`).
+pub(crate) fn texture_fdids(asset: &NativeWmoAsset) -> BTreeSet<u32> {
+    let mut fdids = BTreeSet::new();
+    let groups = asset
+        .groups
+        .iter()
+        .filter(|group| !group.group.header.group_flags.antiportal);
+    for batch in groups.flat_map(|group| &group.batches) {
+        let Some(material) = asset.root.materials.get(batch.material_index as usize) else {
+            continue;
+        };
+        let Ok(shader) = retail_wmo_shader(material.shader) else {
+            continue;
+        };
+        let slots = pixel_shader_texture_slots(shader.pixel);
+        let used = material
+            .retail_texture_fdids(shader.pixel)
+            .into_iter()
+            .enumerate()
+            .filter(|&(slot, fdid)| fdid != 0 && slots & (1 << slot) != 0);
+        fdids.extend(used.map(|(_, fdid)| fdid));
+    }
+    fdids
 }
 
 /// Renderable batches plus one error per batch that cannot be drawn; one bad
@@ -413,9 +452,8 @@ fn build_batch_material(
     light: Option<&TerrainLight>,
 ) -> Result<Gd<ShaderMaterial>, String> {
     let authored = batch.material;
-    let shader_code = shader_variant(source, authored)?;
     let mut material = ShaderMaterial::new_gd();
-    material.set_shader(&crate::assets::material::shared_shader(&shader_code));
+    material.set_shader(&material_shader(source, authored)?);
     let slots = pixel_shader_texture_slots(batch.shader.pixel);
     let fdids = authored.retail_texture_fdids(batch.shader.pixel);
     for (slot, (name, fdid)) in TEXTURE_UNIFORMS.into_iter().zip(fdids).enumerate() {
@@ -460,6 +498,33 @@ fn build_batch_material(
         light.bind_model(&mut material);
     }
     Ok(material)
+}
+
+thread_local! {
+    /// WMO shaders by (two-sided, blended, clamp S, clamp T): the only material inputs
+    /// `shader_variant` reads.
+    static SHADERS: std::cell::RefCell<std::collections::HashMap<(bool, bool, bool, bool), Gd<Shader>>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+fn material_shader(source: &str, material: &WmoMaterialDef) -> Result<Gd<Shader>, String> {
+    let flags = &material.material_flags;
+    let key = (
+        flags.unculled,
+        matches!(material.blend_mode, 2 | 3),
+        flags.clamp_s,
+        flags.clamp_t,
+    );
+    if let Some(shader) = SHADERS.with_borrow(|shaders| shaders.get(&key).cloned()) {
+        return Ok(shader);
+    }
+    let shader = crate::assets::material::shared_shader(&shader_variant(source, material)?);
+    SHADERS.with_borrow_mut(|shaders| shaders.insert(key, shader.clone()));
+    Ok(shader)
+}
+
+pub(crate) fn clear_shaders() {
+    SHADERS.with_borrow_mut(std::collections::HashMap::clear);
 }
 
 fn shader_variant(source: &str, material: &WmoMaterialDef) -> Result<String, String> {

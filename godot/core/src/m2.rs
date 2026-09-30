@@ -46,7 +46,8 @@ pub struct Model {
     pub materials: Vec<Material>,
     pub bones: Vec<Bone>,
     pub sequences: Vec<Sequence>,
-    pub bone_tracks: Vec<BoneAnimTracks>,
+    /// Shared: every animated instance of the model reads the same tracks.
+    pub bone_tracks: std::sync::Arc<Vec<BoneAnimTracks>>,
     pub global_sequences: Vec<u32>,
     pub texture_types: Vec<u32>,
     pub texture_fdids: Vec<u32>,
@@ -362,7 +363,7 @@ pub fn parse_model_with_skeleton(
             .collect(),
         bones,
         sequences,
-        bone_tracks,
+        bone_tracks: std::sync::Arc::new(bone_tracks),
         global_sequences,
         texture_types: format::parse_texture_types(chunks.md20)?,
         texture_fdids,

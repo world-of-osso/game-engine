@@ -1,6 +1,10 @@
 //! Native equipment resources and authored character attachments.
 
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use game_engine_core::m2;
 use godot::{
@@ -11,8 +15,7 @@ use osso_asset_resolver::CascListfileResolver;
 
 use super::{
     build_model_filtered,
-    creature::{cache_model_files, cache_model_textures},
-    read_model,
+    creature::{cache_model_textures, load_model_files},
 };
 use crate::equipment_appearance_data::{
     EquipmentSlot, RuntimeModelAppearance, model_attachment_id, runtime_mesh_part_allowed,
@@ -29,7 +32,7 @@ struct EquipmentContext<'a> {
     character_model: &'a m2::Model,
     resolver: &'a CascListfileResolver,
     data_root: &'a Path,
-    transforms: transforms::EquipmentTransformConfig,
+    transforms: Arc<transforms::EquipmentTransformConfig>,
 }
 
 pub(super) fn attach_equipment(
@@ -109,19 +112,32 @@ impl<'a> EquipmentContext<'a> {
         resolver: &'a CascListfileResolver,
         data_root: &'a Path,
     ) -> Result<Self, String> {
-        let path = data_root.join("equipment_transforms.ron");
-        let content = std::fs::read_to_string(&path)
-            .map_err(|error| format!("{}: {error}", path.display()))?;
-        let transforms = transforms::EquipmentTransformConfig::parse(&content)
-            .map_err(|error| format!("{}: {error}", path.display()))?;
         Ok(Self {
             character,
             character_model,
             resolver,
             data_root,
-            transforms,
+            transforms: load_transforms(data_root)?,
         })
     }
+}
+
+/// `equipment_transforms.ron`, read once per process; an error is not kept.
+fn load_transforms(data_root: &Path) -> Result<Arc<transforms::EquipmentTransformConfig>, String> {
+    static TRANSFORMS: Mutex<Option<Arc<transforms::EquipmentTransformConfig>>> = Mutex::new(None);
+    let mut loaded = TRANSFORMS.lock().expect("equipment transforms");
+    if let Some(transforms) = loaded.as_ref() {
+        return Ok(Arc::clone(transforms));
+    }
+    let path = data_root.join("equipment_transforms.ron");
+    let content =
+        std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let transforms = Arc::new(
+        transforms::EquipmentTransformConfig::parse(&content)
+            .map_err(|error| format!("{}: {error}", path.display()))?,
+    );
+    *loaded = Some(Arc::clone(&transforms));
+    Ok(transforms)
 }
 
 impl EquipmentContext<'_> {
@@ -135,22 +151,22 @@ impl EquipmentContext<'_> {
         let authored_path = Path::new(&authored);
         let bound = slot_uses_bound_joints(definition.slot, authored_path);
         let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
-        let path = cache_model_files(self.resolver, self.data_root, definition.fdid)?;
-        let path = GString::from(path.to_string_lossy().as_ref());
-        let parsed = read_model(&path)?;
+        let cached = load_model_files(self.resolver, self.data_root, definition.fdid)?;
+        let path = GString::from(cached.path.to_string_lossy().as_ref());
+        let parsed = &cached.model;
         cache_model_textures(
             self.resolver,
             self.data_root,
             &definition.skin_fdids,
-            &parsed,
+            parsed,
         )?;
         let skin = if bound {
-            Some(self.bound_skin(&parsed)?)
+            Some(self.bound_skin(parsed)?)
         } else {
             None
         };
         let (mut item, missing) =
-            build_model_filtered(&parsed, &path, &definition.skin_fdids, None, |part| {
+            build_model_filtered(parsed, &path, &definition.skin_fdids, None, |part| {
                 runtime_mesh_part_allowed(definition.slot, part)
             })?;
         if !missing.is_empty() {

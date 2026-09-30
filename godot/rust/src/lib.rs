@@ -92,6 +92,7 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
         if stage == godot::init::InitStage::MainLoop {
             assets::material::clear_shared_shaders();
             assets::clear_shared_meshes();
+            wmo::scene::clear_shaders();
             particles::clear_quad_mesh();
         }
     }
@@ -396,6 +397,10 @@ impl INode3D for GameClient {
             ("UI click sounds", |c, _| Ok(c.play_ui_clicks()?)),
             ("UI actions", |c, _| c.poll_ui_actions()),
             ("Account", |c, _| c.poll_account()),
+            ("Unit visuals", |c, _| {
+                c.world.attach_loaded_visuals(&c.units);
+                Ok(())
+            }),
             ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
             (
                 "Character preview",
@@ -596,6 +601,10 @@ impl GameClient {
             objects.set("particles", &particles);
         }
         state.set("world_objects", &objects);
+        state.set(
+            "unit_visuals_pending",
+            &(self.world.visuals_pending() as i64).to_variant(),
+        );
         state.set(
             "local_player_position",
             &local_transform
@@ -1476,6 +1485,7 @@ impl GameClient {
         let state = self.terrain.state();
         let readiness = loading::evaluate_native_loading(
             position,
+            self.world.local_visual_settled(),
             &state,
             self.terrain_materials.attached_tiles(),
             self.terrain_materials.failures(),

@@ -109,7 +109,7 @@ fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
 /// The caller owns explicit clip selection, time advancement and pause policy.
 pub struct AnimationState {
     sequences: Vec<m2::Sequence>,
-    tracks: Vec<m2::BoneAnimTracks>,
+    tracks: std::sync::Arc<Vec<m2::BoneAnimTracks>>,
     local_pivots: Vec<Vector3>,
     current: usize,
     time_ms: f64,
@@ -1195,7 +1195,7 @@ mod tests {
             authored.sequence_animated[walk],
             "authored Walk moves bones"
         );
-        for track in &mut model.bone_tracks {
+        for track in std::sync::Arc::make_mut(&mut model.bone_tracks) {
             if let Some((times, values)) = track.rotation.sequences.get_mut(walk) {
                 times.truncate(1);
                 values.truncate(1);
