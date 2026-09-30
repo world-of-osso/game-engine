@@ -1,7 +1,7 @@
 extends SceneTree
 ## Standalone differential harness; main owns Vulkan runs. No native extension.
 ## Godot --path godot/tests --script bloom_compute_pixels.gd
-## Production compute vs independently translated Bevy 0.19.0 raster, each
+## Production compute downsample/raster upsample vs independent Bevy raster, each
 ## sampling its own identically initialized packed pyramid. Every down/up/final
 ## output and alpha checked. CPU ideal bilinear is not a spatial GPU oracle:
 ## actual hardware filtering differs even when raster/compute taps agree.
@@ -56,6 +56,7 @@ var sampler := RID()
 var shaders: Array[RID] = []
 var pipelines: Array[RID] = []
 var raster_shaders: Array[RID] = []
+var production_upsample_shader := RID()
 var textures: Array[RID] = []
 var failures := 0
 var comparisons := 0
@@ -91,10 +92,7 @@ func run_test() -> void:
 	var production := directory.path_join("../shaders")
 	if (
 		not compile_compute(production.path_join("bloom_downsample.glsl"), "")
-		or not compile_compute(production.path_join("bloom_upsample.glsl"), "")
-		or not compile_compute(
-			production.path_join("bloom_upsample.glsl"), "#define FINAL_COMPOSITE\n"
-		)
+		or not compile_production_raster(production)
 		or not compile_raster(directory.path_join("bloom_legacy_raster.glsl"))
 	):
 		finish()
@@ -153,6 +151,23 @@ func compile_compute(path: String, defines: String) -> bool:
 		push_error("Bloom compute pipeline creation failed")
 		return false
 	return true
+
+
+func compile_production_raster(directory: String) -> bool:
+	var vertex_path := directory.path_join("bloom_fullscreen.glsl")
+	var fragment_path := directory.path_join("bloom_upsample.glsl")
+	var vertex := FileAccess.get_file_as_string(vertex_path).replace("#[vertex]\n", "")
+	var fragment := FileAccess.get_file_as_string(fragment_path).replace("#[fragment]\n", "")
+	if vertex.is_empty() or fragment.is_empty():
+		push_error("Missing production bloom raster shader: %s / %s" % [vertex_path, fragment_path])
+		return false
+	var source := RDShaderSource.new()
+	source.source_vertex = vertex
+	source.source_fragment = fragment
+	production_upsample_shader = compile_source(
+		source, [RenderingDevice.SHADER_STAGE_VERTEX, RenderingDevice.SHADER_STAGE_FRAGMENT]
+	)
+	return production_upsample_shader.is_valid()
 
 
 func compile_raster(path: String) -> bool:
@@ -269,20 +284,22 @@ func raster_pipeline(shader: RID, framebuffer: RID, additive: bool) -> RID:
 	)
 
 
-func draw_raster(index: int, input: RID, target: RID, value: float) -> bool:
+func draw_raster(
+	shader: RID, input: RID, target: RID, additive: bool, value: float, legacy_uniforms := true
+) -> bool:
 	var attachments: Array[RID] = [target]
 	var framebuffer := rd.framebuffer_create(attachments)
 	if not framebuffer.is_valid():
 		push_error("Bloom raster framebuffer creation failed")
 		return false
-	var pipeline := raster_pipeline(raster_shaders[index], framebuffer, index == 2)
+	var pipeline := raster_pipeline(shader, framebuffer, additive)
 	var uniforms: Array[RDUniform] = [sampled_uniform(input)]
-	var binding := rd.uniform_set_create(uniforms, raster_shaders[index], 0)
+	var binding := rd.uniform_set_create(uniforms, shader, 0)
 	var valid := pipeline.is_valid() and binding.is_valid()
 	if valid:
 		valid = rd.render_pipeline_is_valid(pipeline)
 	if valid:
-		valid = record_raster(framebuffer, pipeline, binding, index == 2, value)
+		valid = record_raster(framebuffer, pipeline, binding, additive, value, legacy_uniforms)
 	else:
 		push_error("Bloom raster pipeline/uniform creation failed")
 	# Dependents before dependencies; all paths (including invalid draw) tear down.
@@ -295,7 +312,12 @@ func draw_raster(index: int, input: RID, target: RID, value: float) -> bool:
 
 
 func record_raster(
-	framebuffer: RID, pipeline: RID, binding: RID, additive: bool, value: float
+	framebuffer: RID,
+	pipeline: RID,
+	binding: RID,
+	additive: bool,
+	value: float,
+	legacy_uniforms: bool
 ) -> bool:
 	# LOAD existing destination for additive recursion/final; never clear it.
 	var draw := rd.draw_list_begin(framebuffer, RenderingDevice.DRAW_DEFAULT_ALL)
@@ -325,7 +347,8 @@ func record_raster(
 		)
 		. to_byte_array()
 	)
-	rd.draw_list_set_push_constant(draw, parameters, parameters.size())
+	if legacy_uniforms:
+		rd.draw_list_set_push_constant(draw, parameters, parameters.size())
 	if additive:
 		rd.draw_list_set_blend_constants(draw, Color(value, value, value, value))
 	rd.draw_list_draw(draw, false, 1, 3)
@@ -367,7 +390,9 @@ func run_fixture(
 		var raster_source := raster_scene if level == 0 else raster_pyramid[level - 1]
 		if (
 			not dispatch(0, source, target, sizes[level], 1.0 if level == 0 else 0.0)
-			or not draw_raster(0 if level == 0 else 1, raster_source, raster_target, 0.0)
+			or not draw_raster(
+				raster_shaders[0 if level == 0 else 1], raster_source, raster_target, false, 0.0
+			)
 		):
 			return
 		var actual := read_texture(target, sizes[level])
@@ -382,8 +407,12 @@ func run_fixture(
 	for level in range(last, 0, -1):
 		var blend: float = Reference.blend_factor(level, last, intensity)
 		if (
-			not dispatch(1, pyramid[level], pyramid[level - 1], sizes[level - 1], blend)
-			or not draw_raster(2, raster_pyramid[level], raster_pyramid[level - 1], blend)
+			not draw_raster(
+				production_upsample_shader, pyramid[level], pyramid[level - 1], true, blend, false
+			)
+			or not draw_raster(
+				raster_shaders[2], raster_pyramid[level], raster_pyramid[level - 1], true, blend
+			)
 		):
 			return
 		var actual := read_texture(pyramid[level - 1], sizes[level - 1])
@@ -396,8 +425,8 @@ func run_fixture(
 			cpu = quantize_packed(Reference.upsample_add(cpu, golden_levels[level - 1], blend))
 			compare(actual, cpu, "%s golden up%d" % [label, level], true)
 	if (
-		not dispatch(2, pyramid[0], scene, original.get_size(), intensity)
-		or not draw_raster(2, raster_pyramid[0], raster_scene, intensity)
+		not draw_raster(production_upsample_shader, pyramid[0], scene, true, intensity, false)
+		or not draw_raster(raster_shaders[2], raster_pyramid[0], raster_scene, true, intensity)
 	):
 		return
 	var actual := read_texture(scene, original.get_size(), true)
@@ -530,7 +559,7 @@ func finish() -> void:
 			if pipeline.is_valid():
 				rd.free_rid(pipeline)
 		pipelines.clear()
-		for shader in shaders + raster_shaders:
+		for shader in shaders + raster_shaders + [production_upsample_shader]:
 			if shader.is_valid():
 				rd.free_rid(shader)
 		shaders.clear()
