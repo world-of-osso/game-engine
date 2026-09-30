@@ -650,6 +650,25 @@ fn essence_starts_from_received_fraction_at_received_rate() {
 }
 
 #[test]
+fn essence_rate_change_retimes_the_existing_partial_point() {
+    let mut essence = resource(ClassBar::Essence, 3, 5);
+    essence.dynamics.partial = 500;
+    essence.dynamics.regen_per_sec = 0.4;
+    essence.dynamics.received_at = 100.0;
+    let mut animator = ClassBarAnimator::default();
+    animator.update(Some(&essence), 100.0);
+    essence.dynamics.partial = 900;
+    essence.dynamics.regen_per_sec = 0.1;
+    essence.dynamics.received_at = 101.0;
+    let view = run(&mut animator, &[(&essence, 101.0), (&essence, 101.5)]);
+    assert!(close(
+        texture(&view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
+        -342.0
+    ));
+    assert!(!texture(&view, "PlayerSecondaryResourcePip3FillDoneEssenceIcon").shown);
+}
+
+#[test]
 fn essence_with_zero_regen_holds_received_fraction_without_nonfinite_layers() {
     let mut essence = resource(ClassBar::Essence, 3, 5);
     essence.dynamics.partial = 500;
