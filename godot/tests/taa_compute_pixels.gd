@@ -78,6 +78,9 @@ func run_test() -> void:
 		finish()
 		return
 	test_sampling()
+	if failures != 0 or observer.count() != 0:
+		finish()
+		return
 	for tonemap in [false, true]:
 		for reset in [false, true]:
 			for kind in [
@@ -498,7 +501,9 @@ func compare(actual: Image, expected: Image, label: String) -> void:
 
 
 func test_sampling() -> void:
-	var size := Vector2i(7, 5)
+	# Dyadic UVs avoid nearest-boundary ties and nonrepresentable filter weights
+	# in this CPU sampler oracle. Temporal differential fixtures stay 17x9.
+	var size := Vector2i(8, 8)
 	var source := image(Vector2i(3, 2), Color())
 	for y in range(2):
 		for x in range(3):
