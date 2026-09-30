@@ -1,6 +1,9 @@
 //! Native GPU resources from retained split-ADT data; no world-readiness decisions.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    time::{Duration, Instant},
+};
 
 use game_engine_core::{adt, blp};
 use godot::{
@@ -18,10 +21,30 @@ use crate::lighting::TerrainLight;
 
 type Tile = (u32, u32);
 
+/// Main-thread time per frame for building terrain chunk resources; at least one chunk
+/// is built each frame.
+const TERRAIN_BUDGET: Duration = Duration::from_millis(8);
+
+type BuiltChunk = (
+    String,
+    Gd<ArrayMesh>,
+    Gd<ShaderMaterial>,
+    Gd<ConcavePolygonShape3D>,
+);
+
+/// A tile whose chunks are being built over several frames.
+struct TileBuild {
+    tile: Tile,
+    chunks: Vec<BuiltChunk>,
+    /// Next root chunk to build.
+    next: usize,
+}
+
 #[derive(Default)]
 pub(crate) struct TerrainMaterials {
     root: Option<Gd<Node3D>>,
     attached: BTreeSet<Tile>,
+    building: Option<TileBuild>,
     /// Tiles whose GPU resources could not be built; never retried until reset.
     failures: BTreeMap<Tile, String>,
     textures: HashMap<u32, Gd<ImageTexture>>,
@@ -41,20 +64,26 @@ impl TerrainMaterials {
         &self.failures
     }
 
+    /// Build the GPU resources of parsed tiles within `TERRAIN_BUDGET` per frame, the
+    /// tiles the map request started from first; a tile attaches once all its chunks
+    /// are built.
     pub fn sync(
         &mut self,
         parent: &mut Gd<Node3D>,
         terrain: &StreamedTerrain,
     ) -> Result<(), String> {
-        for (&tile, parsed) in &terrain.parsed_tiles {
-            if self.attached.contains(&tile) || self.failures.contains_key(&tile) {
-                continue;
-            }
-            let node = match self.build_tile(tile, parsed) {
-                Ok(node) => node,
+        let started = Instant::now();
+        while started.elapsed() < TERRAIN_BUDGET {
+            let Some(tile) = self.next_tile(terrain) else {
+                break;
+            };
+            let node = match self.build_tile(tile, &terrain.parsed_tiles[&tile], started) {
+                Ok(Some(node)) => node,
+                Ok(None) => break,
                 Err(error) => {
                     // Like a tile that fails to parse, one unbuildable tile is reported and
                     // left out; readiness decides whether the player's tile blocks entry.
+                    self.building = None;
                     let error = format!("Terrain ({}, {}): {error}", tile.0, tile.1);
                     godot_error!("{error}");
                     self.failures.insert(tile, error);
@@ -73,11 +102,39 @@ impl TerrainMaterials {
         self.water.sample_clock(parent)
     }
 
+    /// The tile being built while it is still parsed, else the next unbuilt one.
+    fn next_tile(&mut self, terrain: &StreamedTerrain) -> Option<Tile> {
+        let unbuilt = |tile: &Tile| {
+            terrain.parsed_tiles.contains_key(tile)
+                && !self.attached.contains(tile)
+                && !self.failures.contains_key(tile)
+        };
+        if let Some(build) = &self.building {
+            if unbuilt(&build.tile) {
+                return Some(build.tile);
+            }
+            self.building = None;
+        }
+        let initial = terrain
+            .initial_tiles()
+            .iter()
+            .copied()
+            .find(|tile| unbuilt(tile));
+        initial.or_else(|| {
+            terrain
+                .parsed_tiles
+                .keys()
+                .copied()
+                .find(|tile| unbuilt(tile))
+        })
+    }
+
     pub fn reset(&mut self) {
         if let Some(root) = self.root.take() {
             root.free();
         }
         self.attached.clear();
+        self.building = None;
         self.failures.clear();
         self.textures.clear();
         self.placeholder = None;
@@ -108,7 +165,14 @@ impl TerrainMaterials {
         Ok(shader)
     }
 
-    fn build_tile(&mut self, tile: Tile, parsed: &NativeTerrainTile) -> Result<Gd<Node3D>, String> {
+    /// Build more of `tile`'s chunks until the frame's budget, counted from `started`, is
+    /// spent; the tile node once every chunk is built.
+    fn build_tile(
+        &mut self,
+        tile: Tile,
+        parsed: &NativeTerrainTile,
+        started: Instant,
+    ) -> Result<Option<Gd<Node3D>>, String> {
         let tex = parsed.tex.as_ref().ok_or("Missing texture companion")?;
         if tex.chunk_layers.len() != parsed.root.chunks.len() {
             return Err(format!(
@@ -118,9 +182,19 @@ impl TerrainMaterials {
             ));
         }
         let shader = self.shader()?;
-        let mut chunks = Vec::new();
+        let mut build = self.building.take().unwrap_or(TileBuild {
+            tile,
+            chunks: Vec::new(),
+            next: 0,
+        });
         // Texture chunks are stored by encounter order, not by root chunk coordinates.
-        for (chunk, layers) in parsed.root.chunks.iter().zip(&tex.chunk_layers) {
+        let chunks = parsed.root.chunks.iter().zip(&tex.chunk_layers);
+        for (chunk, layers) in chunks.skip(build.next) {
+            if started.elapsed() >= TERRAIN_BUDGET {
+                self.building = Some(build);
+                return Ok(None);
+            }
+            build.next += 1;
             let geometry = adt::chunk_geometry(chunk, Some(tile));
             if geometry.indices.is_empty() {
                 continue;
@@ -128,7 +202,7 @@ impl TerrainMaterials {
             let material = self.build_material(parsed, &layers.layers, &shader)?;
             let collision = collision_from_geometry(&geometry);
             let mesh = super::build_mesh(geometry, &chunk.vertex_colors);
-            chunks.push((
+            build.chunks.push((
                 format!("Chunk{}_{}", chunk.index_x, chunk.index_y),
                 mesh,
                 material,
@@ -142,11 +216,11 @@ impl TerrainMaterials {
         if let Some(water) = water {
             root.add_child(&water);
         }
-        for (name, mesh, material, collision) in chunks {
+        for (name, mesh, material, collision) in build.chunks {
             root.add_child(&spawn_chunk(&name, &mesh, &material, &collision));
             self.materials.push(material);
         }
-        Ok(root)
+        Ok(Some(root))
     }
 
     fn build_material(
@@ -281,15 +355,14 @@ impl<'a> ChunkMaterialInputs<'a> {
 }
 
 fn collision_from_geometry(geometry: &adt::Geometry) -> Gd<ConcavePolygonShape3D> {
-    let mut faces = PackedVector3Array::new();
-    for triangle in geometry.indices.chunks_exact(3) {
-        for index in [triangle[0], triangle[2], triangle[1]] {
-            let position = geometry.positions[index as usize];
-            faces.push(Vector3::new(position[0], position[1], position[2]));
-        }
-    }
+    let faces: Vec<Vector3> = geometry
+        .indices
+        .chunks_exact(3)
+        .flat_map(|triangle| [triangle[0], triangle[2], triangle[1]])
+        .map(|index| Vector3::from_array(geometry.positions[index as usize]))
+        .collect();
     let mut shape = ConcavePolygonShape3D::new_gd();
-    shape.set_faces(&faces);
+    shape.set_faces(&PackedVector3Array::from(faces.as_slice()));
     shape
 }
 

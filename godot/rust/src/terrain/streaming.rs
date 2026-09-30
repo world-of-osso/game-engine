@@ -96,6 +96,11 @@ pub(crate) struct StreamedTerrain {
 }
 
 impl StreamedTerrain {
+    /// The tiles the current map request started from: the player's tile first needs them.
+    pub fn initial_tiles(&self) -> &BTreeSet<(u32, u32)> {
+        &self.initial_tiles
+    }
+
     pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
         Self::with_reader(NativeTerrainAssets::new(data_root, cache_root))
     }
