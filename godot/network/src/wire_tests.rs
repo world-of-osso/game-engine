@@ -901,13 +901,11 @@ fn native_bridge_auction_operations_and_query_rejections() {
         install::<BuyoutAuction>(app);
         install::<CancelAuction>(app);
     }
-    fn received<M: network::Message>(server: &mut App, bridge: &mut NetworkBridge) -> M {
+    fn received<M: network::Message>(server: &mut App, host: &mut Host) -> M {
         let deadline = Instant::now() + Duration::from_secs(10);
         while Instant::now() < deadline {
             server.update();
-            for event in bridge.drain_events().expect("auction worker") {
-                assert!(!matches!(event, Event::Disconnected(_)));
-            }
+            host.poll();
             if let Some(message) = server.world_mut().resource_mut::<Requests<M>>().0.pop() {
                 return message;
             }
@@ -920,7 +918,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     }
     fn reply<M: network::Message + Clone + std::fmt::Debug + PartialEq>(
         server: &mut App,
-        bridge: &mut NetworkBridge,
+        host: &mut Host,
         expected: M,
     ) {
         let mut senders = server.world_mut().query::<&mut MessageSender<M>>();
@@ -929,7 +927,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
         }
         let Event::Message(message) = await_bridge_event(
             server,
-            bridge,
+            host,
             "auction relay",
             |e| matches!(e,Event::Message(m) if m.is::<M>()),
         ) else {
@@ -938,15 +936,15 @@ fn native_bridge_auction_operations_and_query_rejections() {
         assert_eq!(message.downcast::<M>().ok(), Some(expected));
     }
     let (mut server, address) = start_fixture_server_with(install_auction);
-    let mut bridge = NetworkBridge::connect(address, 9088).expect("auction connect");
-    await_bridge_event(&mut server, &mut bridge, "auction connected", |e| {
-        matches!(e, Event::Connected)
-    });
+    let mut host = Host::connect(address, 9088);
+    await_connected(&mut server, &mut host);
     macro_rules! request {
         ($value:expr,$kind:ty) => {{
             let value = $value;
-            bridge.send::<_, AuctionChannel>(value.clone()).unwrap();
-            assert_eq!(received::<$kind>(&mut server, &mut bridge), value);
+            host.bridge
+                .send::<_, AuctionChannel>(value.clone())
+                .unwrap();
+            assert_eq!(received::<$kind>(&mut server, &mut host), value);
         }};
     }
     request!(OpenAuctionHouse, OpenAuctionHouse);
@@ -994,7 +992,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     request!(CancelAuction { auction_id: 13 }, CancelAuction);
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         AuctionHouseOpened {
             success: true,
             error: None,
@@ -1002,7 +1000,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         AuctionSearchResults {
             query,
             total_results: 103,
@@ -1011,7 +1009,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         AuctionInventorySnapshot {
             gold: 1000,
             items: vec![],
@@ -1019,21 +1017,21 @@ fn native_bridge_auction_operations_and_query_rejections() {
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         OwnedAuctionListResponse { listings: vec![] },
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         BidAuctionListResponse { listings: vec![] },
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         AuctionOperationResponse {
             success: false,
             message: "not interacting with an auctioneer".into(),
         },
     );
-    bridge.stop().expect("auction stop");
+    host.stop();
 }
