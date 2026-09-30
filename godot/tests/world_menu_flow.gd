@@ -26,6 +26,9 @@ func run_test() -> void:
 	if scene == null or not card is Control or not tab is Control:
 		fail("Native character-select scene, card or MENU tab missing")
 		return
+	var charselect_camera_options = load("res://tests/charselect_camera_options_probe.gd").new()
+	if not await charselect_camera_options.run(self, client):
+		return
 	await click(tab)
 	if not await wait_menu(client):
 		return
