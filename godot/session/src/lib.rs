@@ -104,6 +104,9 @@ pub enum ReconnectPhase {
     AwaitingWorld,
 }
 
+/// Login feedback after the connection dropped.
+const CONNECTION_LOST: &str = "Connection lost.";
+
 #[derive(Default)]
 pub struct Session {
     pub token: Option<String>,
@@ -352,6 +355,17 @@ impl Session {
     }
 
     pub fn receive_disconnected_with_reason(&mut self, reason: Option<&str>) -> Vec<SessionEffect> {
+        self.lose_connection(reason, CONNECTION_LOST)
+    }
+
+    /// The transport gave up connecting for `reason`. Handled as any loss, except that a
+    /// return to the login screen shows `reason` instead of "Connection lost.".
+    pub fn receive_connect_failed(&mut self, reason: &str) -> Vec<SessionEffect> {
+        self.lose_connection(Some(reason), reason)
+    }
+
+    /// `lost` is the login feedback of a loss that ends on the login screen.
+    fn lose_connection(&mut self, reason: Option<&str>, lost: &str) -> Vec<SessionEffect> {
         if reason.is_none()
             && self.pending_forced_disconnect.is_none()
             && self.reconnect_phase == ReconnectPhase::PendingConnect
@@ -402,7 +416,7 @@ impl Session {
             }
             SessionScreen::InWorld | SessionScreen::Loading | SessionScreen::CharacterCreate => {
                 self.clear_reconnect();
-                self.feedback = Some("Connection lost.".into());
+                self.feedback = Some(lost.to_owned());
                 self.screen = SessionScreen::Login;
                 vec![
                     SessionEffect::Transition(self.screen),
@@ -411,7 +425,7 @@ impl Session {
             }
             SessionScreen::Login | SessionScreen::GameMenu => {
                 self.clear_reconnect();
-                self.feedback = Some("Connection lost.".into());
+                self.feedback = Some(lost.to_owned());
                 vec![SessionEffect::ShowFeedback]
             }
         }

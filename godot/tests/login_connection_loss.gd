@@ -4,6 +4,8 @@ extends SceneTree
 # process (SIGSTOP) before this script runs so the connect stays pending; this script kills it.
 # Env: GODOT_TEST_SERVER (host:port), GODOT_TEST_SERVER_PID (the stopped server process).
 
+const EXPECTED_REASON = "Failed to connect: the server did not answer within 5 seconds."
+
 func _initialize() -> void:
 	call_deferred("_run")
 
@@ -21,7 +23,14 @@ func _run() -> void:
 	var client = ClassDB.instantiate("GameClient")
 	root.add_child(client)
 	client.set_server(server)
+	# Asset startup attaches the login UI asynchronously.
+	var ui_deadline = Time.get_ticks_msec() + 60000
+	while client.find_child("UsernameInput", true, false) == null and Time.get_ticks_msec() < ui_deadline:
+		await process_frame
 	var username: LineEdit = client.find_child("UsernameInput", true, false)
+	if username == null:
+		_fail("The login UI did not appear within 60 s")
+		return
 	var password: LineEdit = client.find_child("PasswordInput", true, false)
 	username.text = "fb_loss"
 	username.text_changed.emit(username.text)
@@ -30,15 +39,16 @@ func _run() -> void:
 	var button: Button = client.find_child("ConnectButton", true, false)
 	var status: Label = client.find_child("LoginStatus", true, false)
 	button.pressed.emit()
+	var pressed_at = Time.get_ticks_msec()
 	await process_frame
 	await process_frame
 	if status.text != "Connecting..." or not button.disabled:
 		_fail("Pressing connect must show Connecting... (status %s)" % status.text)
 		return
 	OS.kill(server_pid)
-	# The dead server never answers; the transport reports the loss at the 60 s netcode
-	# timeout (network/src/lib.rs `client_timeout_secs`).
-	var deadline = Time.get_ticks_msec() + 75000
+	# The dead server never answers; the transport gives up at the 5 s handshake timeout
+	# (network/src/lib.rs `HANDSHAKE_TIMEOUT`) and the status names the reason.
+	var deadline = pressed_at + 15000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if status.text == "Connecting...":
@@ -50,9 +60,13 @@ func _run() -> void:
 		if button.disabled:
 			_fail("Connect must be enabled again after the loss")
 			return
+		var waited = (Time.get_ticks_msec() - pressed_at) / 1000.0
+		if status.text != EXPECTED_REASON or waited < 4.5 or waited > 7.0:
+			_fail("Expected '%s' about 5 s after Connect, got '%s' after %.1f s" % [EXPECTED_REASON, status.text, waited])
+			return
 		client.queue_free()
-		print("PASS: server loss while connecting replaces Connecting... with: %s" % status.text)
+		print("PASS: server loss while connecting replaced Connecting... after %.1f s with: %s" % [waited, status.text])
 		quit(0)
 		return
 	var final_state: Dictionary = client.account_state()
-	_fail("Login status still shows Connecting... 75 s after the server died (session status %s)" % final_state.status)
+	_fail("Login status still shows Connecting... 15 s after Connect (session status %s)" % final_state.status)
