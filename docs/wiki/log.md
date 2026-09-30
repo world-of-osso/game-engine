@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] verification | Native Options and loot overflow
+
+Recorded the [bounded functional gate](systems/godot-conversion.md#native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering); reconciled LootFrame spec/matrix proof, leaving deferred termination and full-conversion acceptance open.
+
 ## [2026-09-30] implementation | Server-global native auction browse
 
 Updated [[auction-house-ui]] and spec after `5b9cb76c`: native browse now consumes server-global distinct-item pages, authoritative unit price and `u64` stock; drilldown/sell remain flat with real auction IDs. Snapshot adds `groups` and active endpoint flag; fixture reads groups. Targeted Depot native model 8/8, owned UDP 1/1 and shared frame 1/1 passed. Model RED missing-API compilation and wire RED missing-reply timeout recorded separately. Host/runtime proof remains with main after game-cli; no integration/ops run.
