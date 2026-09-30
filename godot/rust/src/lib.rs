@@ -472,16 +472,9 @@ impl INode3D for GameClient {
     fn ready(&mut self) {
         // Model animation nodes tick at priority 0 before this observer reads their selected clock.
         self.base_mut().set_process_priority(1);
-        let mut viewport = self
-            .base()
-            .get_viewport()
-            .expect("GameClient has no viewport");
-        display_options::apply_graphics_display_options(
-            &self.client_options.graphics,
-            &mut viewport,
-        );
-        // Window/focus setup is independent of CASC. Asset-using initialization
-        // resumes from process only after the worker has finished, without a join wait.
+        // The root viewport is still attaching children during ready.
+        self.base_mut().call_deferred("apply_display_options", &[]);
+        // Asset-backed initialization resumes from process after the worker completes.
         if let Err(error) = self.connect_focus_reset() {
             godot_error!("Cannot initialize client: {error}");
             self.base().get_tree().quit_ex().exit_code(1).done();
@@ -493,6 +486,19 @@ impl INode3D for GameClient {
 impl GameClient {
     #[signal]
     fn screen_requested(screen: GString);
+
+    /// Applies the graphics options to the root viewport.
+    #[func]
+    fn apply_display_options(&mut self) {
+        let mut viewport = self
+            .base()
+            .get_viewport()
+            .expect("GameClient has no viewport");
+        display_options::apply_graphics_display_options(
+            &self.client_options.graphics,
+            &mut viewport,
+        );
+    }
 
     #[func]
     fn fps_overlay_enabled(&self) -> bool {

@@ -3,7 +3,8 @@ extends SceneTree
 # `--screen particledebug` through the real startup path: the original torch, then (Tab)
 # the portal and Frostbolt missile. For each, emitters spawn and draw, number keys switch
 # emitters and their pools and pixels off, 0 restores them; the orbit camera follows
-# drag and wheel.
+# drag and wheel. The torch's flame particles follow its authored colour and flipbook
+# ramps, its point light lights the ground, and its billboarded halo faces the camera.
 # Run: godot --path godot -s res://tests/particle_debug_screen.gd -- --screen particledebug
 const TORCH := 145304
 const PORTAL := 197007
@@ -12,6 +13,17 @@ const WAIT_MS := 60000
 # Pixels whose largest channel changes by more than this count as particle pixels.
 const PIXEL_DELTA := 0.08
 const MIN_PARTICLE_PIXELS := 150
+const MIN_LIT_PIXELS := 3000
+const MIN_HANDLE_PIXELS := 200
+const MIN_HALO_PIXELS := 400
+# club_1h_torch_a_01 light 0: bone 9 pivot in Godot axes above the model origin
+# (0, 0.5, 0), diffuse (119, 74, 34) / 255 x 1.1, retail attenuation end 5.2667 yd.
+const TORCH_LIGHT_POSITION := Vector3(0.57652, 0.50347, -0.00012)
+const TORCH_LIGHT_COLOR := Color(0.51333, 0.31922, 0.14667)
+const TORCH_LIGHT_RANGE := 5.26666
+# Flame emitter keys: green 72 -> 138 -> 234 over life, cells 0 -> 7 | 8 -> 16 of 4x4.
+const FLAME_GREEN := Vector2(72.0 / 255.0, 234.0 / 255.0)
+const FLOATS_PER_PARTICLE := 20
 
 var client: Node
 var scene: Node
@@ -41,6 +53,12 @@ func run_test() -> void:
 		return
 	if not await check_torch_overlay():
 		return
+	if not await check_flame_ramps():
+		return
+	if not await check_torch_light():
+		return
+	if not await check_halo_billboard():
+		return
 	if not await check_emitters(TORCH):
 		return
 	if not await check_orbit():
@@ -59,10 +77,141 @@ func check_torch_overlay() -> bool:
 	if not state.missing_textures.is_empty():
 		fail("Torch textures missing: " + str(state.missing_textures))
 		return false
-	if not state.overlay.contains("Model: club_1h_torch_a_01 (145304)") or not state.overlay.contains("Emitter #0 [on]\nblend=4 type=1"):
+	if not state.overlay.contains("Model: club_1h_torch_a_01 (145304)") or not state.overlay.contains("Emitter #0 [on]\nblend=4 type=1") or not state.overlay.contains("Light #0 point bone=9 color=(0.513, 0.319, 0.147) attenuation=1.667-5.267"):
 		fail("Overlay lacks the torch emitter info: " + state.overlay)
 		return false
 	return true
+
+# Every live flame particle's colour and atlas cell come from one point on the authored
+# ramps, so a later cell never has a less yellow colour.
+func check_flame_ramps() -> bool:
+	await settle(1500)
+	var pool := scene.find_child("Particles%d_0" % TORCH, true, false) as MultiMeshInstance3D
+	var multimesh := pool.multimesh
+	var buffer := multimesh.buffer
+	var samples: Array[Vector2] = []
+	for index in multimesh.visible_instance_count:
+		var at := index * FLOATS_PER_PARTICLE
+		var green := buffer[at + 13]
+		if buffer[at + 15] < 0.01:
+			continue
+		var cell := roundi(buffer[at + 16] * 4.0) + 4 * roundi(buffer[at + 17] * 4.0)
+		if green < FLAME_GREEN.x - 0.001 or green > FLAME_GREEN.y + 0.001 or absf(buffer[at + 12] - 1.0) > 0.13:
+			fail("Flame particle colour off its ramp: %s" % [buffer.slice(at + 12, at + 16)])
+			return false
+		samples.append(Vector2(cell, green))
+	var cells := {}
+	for sample in samples:
+		cells[sample.x] = true
+		for other in samples:
+			if sample.x < other.x and sample.y > other.y + 0.0001:
+				fail("Flame cell %d is yellower than older cell %d" % [sample.x, other.x])
+				return false
+	if cells.size() < 4:
+		fail("Flame flipbook shows only cells %s" % [cells.keys()])
+		return false
+	print("FIXTURE FLAME_RAMPS particles=%d cells=%s" % [samples.size(), cells.keys()])
+	return true
+
+func torch_node() -> Node3D:
+	return scene.get_node("ParticleDebugModel%d" % TORCH) as Node3D
+
+func check_torch_light() -> bool:
+	var light := torch_node().get_node_or_null("M2Lights/M2Light0") as OmniLight3D
+	if light == null:
+		fail("Torch has no M2 point light")
+		return false
+	var color := light.light_color
+	if light.global_position.distance_to(TORCH_LIGHT_POSITION) > 0.001 or absf(light.omni_range - TORCH_LIGHT_RANGE) > 0.001 or Vector3(color.r, color.g, color.b).distance_to(Vector3(TORCH_LIGHT_COLOR.r, TORCH_LIGHT_COLOR.g, TORCH_LIGHT_COLOR.b)) > 0.001:
+		fail("Torch light at %s range %.4f colour %s" % [light.global_position, light.omni_range, color])
+		return false
+	# Without flame particles and the pulsing halo, only the light differs between the
+	# shots; the screen's near-black ground is lightened so the light's reach shows.
+	push_key(KEY_1)
+	await settle(300)
+	scene.get_node("Overlay").visible = false
+	var halo := torch_node().get_node("Batch1") as MeshInstance3D
+	halo.visible = false
+	var ground := (scene.get_node("Ground") as MeshInstance3D).mesh.material as StandardMaterial3D
+	var albedo := ground.albedo_color
+	ground.albedo_color = Color(0.3, 0.3, 0.3)
+	var warmed := await warmed_pixels(light, "%d-light" % TORCH)
+	ground.albedo_color = albedo
+	print("FIXTURE TORCH_LIGHT_PIXELS ", warmed)
+	if warmed < MIN_LIT_PIXELS:
+		fail("Torch light warmed only %d ground pixels" % warmed)
+		return false
+	# M2 surfaces take point lights too: a white light over the torch handle.
+	var probe := OmniLight3D.new()
+	# 0.23 yd over the handle, out of reach of the ground 0.75 yd below.
+	probe.position = Vector3(0.3, 0.75, 0.0)
+	probe.omni_range = 0.45
+	scene.add_child(probe)
+	var handle := await warmed_pixels(probe, "%d-handle-light" % TORCH)
+	probe.free()
+	halo.visible = true
+	scene.get_node("Overlay").visible = true
+	print("FIXTURE TORCH_HANDLE_LIT_PIXELS ", handle)
+	if handle < MIN_HANDLE_PIXELS:
+		fail("A point light lit only %d torch handle pixels" % handle)
+		return false
+	push_key(KEY_0)
+	return await wait_drawn(TORCH)
+
+# Pixels `light` brightens, red at least as much as blue, between shots with it on and
+# off (energy 0: the M2 light node rewrites its visibility every frame).
+func warmed_pixels(light: Light3D, name: String) -> int:
+	var lit := await save_shot(name + "-on.png")
+	light.light_energy = 0.0
+	var unlit := await save_shot(name + "-off.png")
+	light.light_energy = 1.0
+	var warmed := 0
+	for y in lit.get_height():
+		for x in lit.get_width():
+			var p := lit.get_pixel(x, y)
+			var q := unlit.get_pixel(x, y)
+			if p.r - q.r > 0.02 and p.r - q.r >= p.b - q.b:
+				warmed += 1
+	return warmed
+
+# The halo quad (batch 1, bone 1) and the flame's parent bone 2 face the camera from
+# any orbit yaw; without billboarding the quad is edge-on to the starting view.
+func check_halo_billboard() -> bool:
+	var camera := scene.get_node("Camera") as Camera3D
+	var skeleton := torch_node().get_node("Skeleton3D") as Skeleton3D
+	var halo := torch_node().get_node("Batch1") as MeshInstance3D
+	push_key(KEY_1)
+	for turn in 2:
+		await settle(300)
+		for bone in [1, 2]:
+			var facing := (skeleton.global_transform.basis * skeleton.get_bone_global_pose(bone).basis).x.normalized()
+			if facing.dot(camera.global_basis.z) < 0.999:
+				fail("Torch bone %d faces %s, not the camera's %s" % [bone, facing, camera.global_basis.z])
+				return false
+		scene.get_node("Overlay").visible = false
+		var shown := await save_shot("%d-halo-%d.png" % [TORCH, turn])
+		halo.visible = false
+		var hidden := await save_shot("%d-halo-%d-hidden.png" % [TORCH, turn])
+		halo.visible = true
+		scene.get_node("Overlay").visible = true
+		var halo_pixels := changed_pixels(shown, hidden)
+		print("FIXTURE TORCH_HALO_PIXELS ", turn, " ", halo_pixels)
+		if halo_pixels < MIN_HALO_PIXELS:
+			fail("Torch halo changed only %d pixels at turn %d" % [halo_pixels, turn])
+			return false
+		drag_orbit(Vector2(200, 40) * (1 - 2 * turn))
+	await process_frame
+	push_key(KEY_0)
+	return await wait_drawn(TORCH)
+
+func drag_orbit(total: Vector2) -> void:
+	mouse_button(MOUSE_BUTTON_LEFT, true)
+	var motion := InputEventMouseMotion.new()
+	motion.position = Vector2(640, 360)
+	motion.relative = total
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	root.push_input(motion, true)
+	mouse_button(MOUSE_BUTTON_LEFT, false)
 
 func check_emitters(model: int) -> bool:
 	if not await wait_drawn(model):
