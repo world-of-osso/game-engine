@@ -26,7 +26,9 @@
 use std::collections::{HashMap, HashSet};
 use std::f32::consts::FRAC_PI_2;
 use std::path::PathBuf;
+use std::time::Duration;
 
+use game_engine_core::asset_loader::Priority;
 use game_engine_core::m2;
 use game_engine_core::spell_visual::{
     CasterContext, KitModel, KitSound, KitTarget, SpellVisualCatalog, UnitSound, VisualEvent,
@@ -42,7 +44,7 @@ use shared::protocol::SpellGo;
 use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::build_model;
 use crate::particles::{ParticlePools, PlacedParticles, view_basis};
-use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets};
+use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
 use crate::spell_sounds::{SoundHold, SoundRequest, SoundSource, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
@@ -432,6 +434,9 @@ pub struct SpellEffects {
     /// Newest kit starts, oldest first, bounded.
     started: Vec<KitStart>,
     seed: u32,
+    /// Main-thread time spent on spell visuals this frame so far, and in the last frame.
+    busy: Duration,
+    frame_ms: f32,
 }
 
 const STARTED_KEEP: usize = 64;
@@ -460,6 +465,8 @@ impl SpellEffects {
             root: None,
             started: Vec::new(),
             seed: 0,
+            busy: Duration::ZERO,
+            frame_ms: 0.0,
         }
     }
 
@@ -522,6 +529,22 @@ impl SpellEffects {
             elapsed,
             duration,
         });
+    }
+
+    /// Count `spent` main-thread time toward this frame's spell visuals.
+    pub fn add_busy(&mut self, spent: Duration) {
+        self.busy += spent;
+    }
+
+    /// The frame ends after `spent` more: its spell-visual time becomes `frame_ms`.
+    pub fn end_frame(&mut self, spent: Duration) {
+        self.frame_ms = (self.busy + spent).as_secs_f32() * 1000.0;
+        self.busy = Duration::ZERO;
+    }
+
+    /// Main-thread milliseconds the last frame spent on spell visuals.
+    pub fn frame_ms(&self) -> f32 {
+        self.frame_ms
     }
 
     /// Effects clock (seconds), the time base of flights and sound starts.
@@ -822,7 +845,8 @@ impl SpellEffects {
         errors.extend(self.play_voices(kit, cue, world).err());
         let lifetime = start.hold.map_or(Lifetime::OneShot, KitHold::lifetime);
         for model in &kit.models {
-            self.assets.request(SpellAsset::Model(model.model_fdid));
+            self.assets
+                .request(SpellAsset::Model(model.model_fdid), Priority::Now);
             self.pending.push(PendingModel {
                 due_at: self.clock + model.start_delay,
                 unit,
@@ -980,7 +1004,7 @@ impl SpellEffects {
             return self.start_impact(&launch, world);
         };
         let fdid = launch.missile.model_fdid;
-        self.assets.request(SpellAsset::Model(fdid));
+        self.assets.request(SpellAsset::Model(fdid), Priority::Now);
         let mut node = Node3D::new_alloc();
         node.set_name(&format!("SpellMissile{fdid}"));
         self.effects_root(world)?.add_child(&node);
@@ -1214,9 +1238,9 @@ impl SpellEffects {
         units: &HashMap<u64, UnitSnapshot>,
         world: &WorldUnits,
     ) -> Result<(), String> {
-        if !units.contains_key(&caster)
-            || spells.iter().all(|spell| self.prefetched.contains(spell))
-        {
+        // Its race, class and weapon pick the visuals (`caster_context`).
+        let replicated = units.get(&caster).is_some_and(|unit| unit.player.is_some());
+        if !replicated || spells.iter().all(|spell| self.prefetched.contains(spell)) {
             return Ok(());
         }
         let context = Self::caster_context(units, world, caster);
@@ -1232,7 +1256,7 @@ impl SpellEffects {
                 continue;
             };
             for asset in kit_assets(catalog, visual) {
-                self.assets.request(asset);
+                self.assets.request(asset, Priority::Later);
             }
         }
         Ok(())
@@ -1341,46 +1365,6 @@ impl SpellEffects {
         }
         join_errors(errors)
     }
-}
-
-/// The events whose kits play (`SpellEffects`, `auras`).
-const PLAYED_EVENTS: [VisualEvent; 6] = [
-    VisualEvent::PrecastStart,
-    VisualEvent::ChannelStart,
-    VisualEvent::Cast,
-    VisualEvent::Impact,
-    VisualEvent::AuraStart,
-    VisualEvent::AuraEnd,
-];
-
-/// Every model and sound file visual `visual`'s played kits and missile use.
-fn kit_assets(catalog: &SpellVisualCatalog, visual: u32) -> Vec<SpellAsset> {
-    let kits = PLAYED_EVENTS
-        .iter()
-        .flat_map(|&event| catalog.kits(visual, event));
-    let mut assets = Vec::new();
-    for kit in kits {
-        assets.extend(
-            kit.models
-                .iter()
-                .map(|model| SpellAsset::Model(model.model_fdid)),
-        );
-        assets.extend(kit.sounds.iter().flat_map(sound_assets));
-    }
-    if let Some(missile) = catalog.missile(visual) {
-        assets.push(SpellAsset::Model(missile.model_fdid));
-        assets.extend(missile.sound.iter().flat_map(sound_assets));
-    }
-    assets
-}
-
-/// The files `sound` can pick (frequency above 0).
-fn sound_assets(sound: &KitSound) -> impl Iterator<Item = SpellAsset> + '_ {
-    sound
-        .files
-        .iter()
-        .filter(|file| file.frequency > 0)
-        .map(|file| SpellAsset::Sound(file.fdid))
 }
 
 /// Whose voice unit `unit` speaks in: a player's race and sex, or a creature's display.
