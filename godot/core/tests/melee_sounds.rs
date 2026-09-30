@@ -82,7 +82,12 @@ fn misses_and_dodges_swing_the_miss_whoosh_by_handedness() {
     for result in [SwingResult::Miss, SwingResult::Dodge] {
         let one_hand = catalog.swing_sound(WARRIOR, result).unwrap();
         assert_eq!(one_hand.sound_kit_id, 7080);
-        assert!(one_hand.files.iter().all(|file| (1455928..=1455936).contains(&file.fdid)));
+        assert!(
+            one_hand
+                .files
+                .iter()
+                .all(|file| (1455928..=1455936).contains(&file.fdid))
+        );
         assert_eq!(kit_id(catalog.swing_sound(KOBOLD, result)), Some(7081));
     }
 }
@@ -100,7 +105,10 @@ fn daggers_swoosh_only_when_they_miss_and_bare_hands_swing_light() {
     };
     assert!(catalog.swing_sound(dagger, HIT).is_none());
     assert!(catalog.swing_sound(dagger, CRIT).is_none());
-    assert_eq!(kit_id(catalog.swing_sound(dagger, SwingResult::Miss)), Some(7080));
+    assert_eq!(
+        kit_id(catalog.swing_sound(dagger, SwingResult::Miss)),
+        Some(7080)
+    );
     let bare = MeleeHand {
         item_id: None,
         display_info_id: None,
@@ -111,8 +119,8 @@ fn daggers_swoosh_only_when_they_miss_and_bare_hands_swing_light() {
         Some((
             233,
             vec![
-                1302929, 1302928, 1302927, 1302926, 1302925, 1302924, 1302923, 1302932,
-                1302931, 1302930
+                1302929, 1302928, 1302927, 1302926, 1302925, 1302924, 1302923, 1302932, 1302931,
+                1302930
             ]
         ))
     );
@@ -290,12 +298,18 @@ fn leather_weapons_strike_as_wood() {
         display_info_id: None,
         ..KOBOLD
     };
-    assert_eq!(kit_id(catalog.impact_sound(leather, WARRIOR, HIT)), Some(1151));
+    assert_eq!(
+        kit_id(catalog.impact_sound(leather, WARRIOR, HIT)),
+        Some(1151)
+    );
     let metal = MeleeHand {
         item_id: Some(2092),
         ..leather
     };
-    assert_eq!(kit_id(catalog.impact_sound(metal, WARRIOR, HIT)), Some(63987));
+    assert_eq!(
+        kit_id(catalog.impact_sound(metal, WARRIOR, HIT)),
+        Some(63987)
+    );
 }
 
 /// A player victim presents its chest's `Material.Flags` (benilla `0x62fb70`): plate
@@ -308,8 +322,14 @@ fn player_victims_present_their_chest_armour() {
         chest_item_id: Some(chest),
         ..WARRIOR
     };
-    assert_eq!(kit_id(catalog.impact_sound(KOBOLD, wearing(3242), HIT)), Some(61561));
-    assert_eq!(kit_id(catalog.impact_sound(KOBOLD, wearing(285), HIT)), Some(61567));
+    assert_eq!(
+        kit_id(catalog.impact_sound(KOBOLD, wearing(3242), HIT)),
+        Some(61561)
+    );
+    assert_eq!(
+        kit_id(catalog.impact_sound(KOBOLD, wearing(285), HIT)),
+        Some(61567)
+    );
     for cloth_or_leather in [60, 56] {
         assert_eq!(
             kit_id(catalog.impact_sound(KOBOLD, wearing(cloth_or_leather), HIT)),
@@ -338,7 +358,10 @@ fn undocumented_creature_impact_types_land_on_flesh() {
         chest_item_id: None,
         unit: VoiceSource::Creature { display_id: 19162 },
     };
-    assert_eq!(kit_id(catalog.impact_sound(WARRIOR, construct, HIT)), Some(53248));
+    assert_eq!(
+        kit_id(catalog.impact_sound(WARRIOR, construct, HIT)),
+        Some(53248)
+    );
 }
 
 /// Exertion (benilla `0x62476a`, `kit.rs:164-166`): the kobold (row 5042) voices 53723
@@ -351,15 +374,35 @@ fn attackers_exert_by_chance_unless_they_miss() {
     // MulHi32(101, roll): the first roll of 71 and of 36.
     let roll_of = |value: u64| ((value << 32) / 101 + 1) as u32;
     for result in [HIT, SwingResult::Parry, SwingResult::Dodge] {
-        assert_eq!(kit_id(catalog.exertion_sound(kobold, result, ROLL_LOW)), Some(53723));
-        assert_eq!(kit_id(catalog.exertion_sound(kobold, result, roll_of(71) - 1)), Some(53723));
-        assert!(catalog.exertion_sound(kobold, result, roll_of(71)).is_none());
-        assert_eq!(kit_id(catalog.exertion_sound(human, result, roll_of(36) - 1)), Some(2941));
+        assert_eq!(
+            kit_id(catalog.exertion_sound(kobold, result, ROLL_LOW)),
+            Some(53723)
+        );
+        assert_eq!(
+            kit_id(catalog.exertion_sound(kobold, result, roll_of(71) - 1)),
+            Some(53723)
+        );
+        assert!(
+            catalog
+                .exertion_sound(kobold, result, roll_of(71))
+                .is_none()
+        );
+        assert_eq!(
+            kit_id(catalog.exertion_sound(human, result, roll_of(36) - 1)),
+            Some(2941)
+        );
         assert!(catalog.exertion_sound(human, result, roll_of(36)).is_none());
     }
-    assert_eq!(kit_id(catalog.exertion_sound(kobold, CRIT, ROLL_HIGH)), Some(53724));
+    assert_eq!(
+        kit_id(catalog.exertion_sound(kobold, CRIT, ROLL_HIGH)),
+        Some(53724)
+    );
     assert!(catalog.exertion_sound(human, CRIT, ROLL_HIGH).is_none());
-    assert!(catalog.exertion_sound(kobold, SwingResult::Miss, ROLL_LOW).is_none());
+    assert!(
+        catalog
+            .exertion_sound(kobold, SwingResult::Miss, ROLL_LOW)
+            .is_none()
+    );
 }
 
 /// Injury (benilla `combat.rs:586-620`, `kit.rs:168-174`): a hit wounds a creature within
@@ -369,12 +412,24 @@ fn victims_voice_injuries_by_chance_on_hits() {
     let catalog = catalog();
     let (kobold, human) = (KOBOLD.unit, WARRIOR.unit);
     let roll_of = |value: u64| ((value << 32) / 101 + 1) as u32;
-    assert_eq!(kit_id(catalog.injury_sound(kobold, HIT, roll_of(61) - 1)), Some(53725));
+    assert_eq!(
+        kit_id(catalog.injury_sound(kobold, HIT, roll_of(61) - 1)),
+        Some(53725)
+    );
     assert!(catalog.injury_sound(kobold, HIT, roll_of(61)).is_none());
-    assert_eq!(kit_id(catalog.injury_sound(human, HIT, roll_of(31) - 1)), Some(2942));
+    assert_eq!(
+        kit_id(catalog.injury_sound(human, HIT, roll_of(31) - 1)),
+        Some(2942)
+    );
     assert!(catalog.injury_sound(human, HIT, roll_of(31)).is_none());
-    assert_eq!(kit_id(catalog.injury_sound(kobold, CRIT, ROLL_HIGH)), Some(53726));
-    assert_eq!(kit_id(catalog.injury_sound(human, CRIT, ROLL_HIGH)), Some(2942));
+    assert_eq!(
+        kit_id(catalog.injury_sound(kobold, CRIT, ROLL_HIGH)),
+        Some(53726)
+    );
+    assert_eq!(
+        kit_id(catalog.injury_sound(human, CRIT, ROLL_HIGH)),
+        Some(2942)
+    );
     for result in [SwingResult::Parry, SwingResult::Dodge, SwingResult::Miss] {
         assert!(catalog.injury_sound(kobold, result, ROLL_LOW).is_none());
     }

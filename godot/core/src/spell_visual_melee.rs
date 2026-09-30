@@ -223,7 +223,9 @@ impl SpellVisualCatalog {
             SwingResult::Hit { .. } | SwingResult::Parry => {
                 match hand.display_info_id.and_then(|id| melee.swooshes.get(&id)) {
                     Some(&kit) => kit,
-                    None => *melee.swings.get(&(self.swing_type(hand)?, result.critical()))?,
+                    None => *melee
+                        .swings
+                        .get(&(self.swing_type(hand)?, result.critical()))?,
                 }
             }
         };
@@ -276,7 +278,8 @@ impl SpellVisualCatalog {
         result: SwingResult,
         roll: u32,
     ) -> Option<&KitSound> {
-        if result == SwingResult::Miss || !vocal_passes(MeleeVocal::Exertion, attacker, result, roll)
+        if result == SwingResult::Miss
+            || !vocal_passes(MeleeVocal::Exertion, attacker, result, roll)
         {
             return None;
         }
@@ -404,30 +407,41 @@ fn read_items(
     for [id, class, subclass, material, sound_subclass] in rows {
         let flags = flags.get(&material).copied().unwrap_or(0);
         if class == WEAPON_CLASS {
-            let subclass = if sound_subclass >= 0 {
-                sound_subclass
-            } else {
-                subclass
-            };
-            let material = if flags & MATERIAL_METAL != 0 {
-                ParryMaterial::Metal
-            } else {
-                ParryMaterial::Wood
-            };
-            let weapon = WeaponItem {
-                subclass: subclass as u8,
-                material,
-            };
-            weapons.insert(id as u32, weapon);
+            weapons.insert(id as u32, weapon_item(subclass, sound_subclass, flags));
         } else if class == ARMOR_CLASS {
-            if flags & MATERIAL_PLATE != 0 {
-                armour.insert(id as u32, SLOT_PLATE);
-            } else if flags & MATERIAL_CHAIN != 0 {
-                armour.insert(id as u32, SLOT_CHAIN);
-            }
+            armour.extend(armour_slot(flags).map(|slot| (id as u32, slot)));
         }
     }
     Ok((weapons, armour))
+}
+
+/// A weapon's sound subclass (`Sound_override_subclassID` when set) and parry material.
+fn weapon_item(subclass: i64, sound_subclass: i64, material_flags: i64) -> WeaponItem {
+    let subclass = if sound_subclass >= 0 {
+        sound_subclass
+    } else {
+        subclass
+    };
+    let material = if material_flags & MATERIAL_METAL != 0 {
+        ParryMaterial::Metal
+    } else {
+        ParryMaterial::Wood
+    };
+    WeaponItem {
+        subclass: subclass as u8,
+        material,
+    }
+}
+
+/// The plate or chain impact slot armour of `material_flags` presents, if any.
+fn armour_slot(material_flags: i64) -> Option<usize> {
+    if material_flags & MATERIAL_PLATE != 0 {
+        Some(SLOT_PLATE)
+    } else if material_flags & MATERIAL_CHAIN != 0 {
+        Some(SLOT_CHAIN)
+    } else {
+        None
+    }
 }
 
 /// `column` of `table`'s rows whose value is at least `min`, by ID.
