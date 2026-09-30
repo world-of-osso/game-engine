@@ -46,6 +46,9 @@ func run_test() -> void:
 	await create_timer(0.5).timeout
 	if not await wait_inventory(client, INITIAL_COUNT, INITIAL_MONEY):
 		return
+	var reach_probe = load("res://tests/loot_reach_probe.gd").new()
+	if not await reach_probe.run(self, client):
+		return
 	var expected_count := INITIAL_COUNT
 	var expected_money := INITIAL_MONEY
 	for case in range(4):
@@ -243,11 +246,11 @@ func wait_world(client: Node) -> bool:
 	fail("Owned corpse world not ready: " + str(client.account_state()))
 	return false
 
-func find_corpse(client: Node) -> Dictionary:
+func find_corpse(client: Node, unit_name: String = CORPSE) -> Dictionary:
 	var deadline := Time.get_ticks_msec() + 15000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		var unit := client.get_node_or_null("WorldUnits/" + CORPSE) as Node3D
+		var unit := client.get_node_or_null("WorldUnits/" + unit_name) as Node3D
 		var model := unit.get_node_or_null("NpcVisualRoot/NpcModel") if unit != null else null
 		var camera := root.get_camera_3d()
 		var area := unit.find_child("UnitPick", true, false) as Area3D if unit != null else null
@@ -269,7 +272,7 @@ func find_corpse(client: Node) -> Dictionary:
 					var point := camera.unproject_position(center)
 					if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
 						return {"id": id, "point": point}
-	fail("Cached corpse model not visible and UnitPicker-pickable at actual mesh")
+	fail("Cached unit model not visible and UnitPicker-pickable at actual mesh: " + unit_name)
 	return {}
 
 func corpse_bone_palette(mesh: MeshInstance3D) -> Array[Transform3D]:
