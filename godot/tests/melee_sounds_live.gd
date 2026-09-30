@@ -42,6 +42,8 @@ var client: Node
 var character := ""
 var local_id := 0
 var target_id := 0
+## Every worg engaged.
+var mobs: Array = []
 ## Every sound start and melee event seen, keyed so the bounded snapshot lists merge.
 var sounds := {}
 var melee := {}
@@ -69,8 +71,8 @@ func _process(_delta: float) -> bool:
 func who(id: int) -> String:
 	if id == local_id:
 		return "warrior"
-	if id == target_id:
-		return "worg"
+	if mobs.has(id):
+		return "worg%d" % mobs.find(id)
 	return str(id)
 
 func run_test() -> void:
@@ -94,27 +96,18 @@ func run_test() -> void:
 		print("FIXTURE SPELLS ", client.spells_state())
 		return
 	local_id = client.account_state().local_player_id
-	# Tab cycles the visible units nearest first; take the worg in melee range.
-	var distance := INF
-	for attempt in range(40):
-		await press(KEY_TAB)
-		await wait_frames(6)
-		var state: Dictionary = client.target_state()
-		if state.target != null and str(state.target_name).contains(MOB):
-			distance = client.unit_transform(local_id).origin.distance_to(client.unit_transform(state.target).origin)
-			if distance < 5.0:
-				break
-	if distance >= 5.0:
-		fail("Tab did not reach a worg in melee range: " + str(client.target_state()))
-		return
-	target_id = client.target_state().target
-	print("FIXTURE TARGET ", client.target_state(), " distance=%.2f" % distance)
-	await press(BAR_KEYS[client.spells_state().bar.find(ATTACK)])
-	if not await wait_until(func(): return client.target_state().auto_attack == target_id, 3000, "Attack starts auto-attack"):
-		return
 	var deadline := Time.get_ticks_msec() + secs * 1000
 	while Time.get_ticks_msec() < deadline and not complete():
-		await wait_frames(30)
+		if not await engage_worg():
+			return
+		# Fight while swings keep coming; a worg that wandered off (10 yd) is replaced.
+		var last := melee.size()
+		var quiet_since := Time.get_ticks_msec()
+		while Time.get_ticks_msec() < deadline and not complete() and Time.get_ticks_msec() - quiet_since < 8000:
+			await wait_frames(30)
+			if melee.size() != last:
+				last = melee.size()
+				quiet_since = Time.get_ticks_msec()
 	# Let the last swing's sounds land.
 	await wait_frames(60)
 	print("FIXTURE SUMMARY ", summary())
@@ -127,31 +120,54 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-## Sound starts of `source` on `unit` with a SoundKit in `kits`.
-func starts(source: String, unit: int, kits: Array) -> Array:
-	return sounds.values().filter(func(s): return s.source == source and s.unit == unit and kits.has(s.sound_kit))
+## Tab to a living Blackrock Worg within 3.5 yd (the server swings within 5) and start
+## auto-attack on it with the Attack action. Tab cycles the visible units nearest
+## first; worgs wander, so cycling continues until one is in range.
+func engage_worg() -> bool:
+	var distance := INF
+	for attempt in range(400):
+		await press(KEY_TAB)
+		await wait_frames(6)
+		var state: Dictionary = client.target_state()
+		if state.target != null and str(state.target_name).contains(MOB) and not str(state.health_text).begins_with("0 "):
+			distance = client.unit_transform(local_id).origin.distance_to(client.unit_transform(state.target).origin)
+			if distance < 3.5:
+				break
+	if distance >= 3.5:
+		fail("Tab did not reach a worg in melee range: " + str(client.target_state()))
+		return false
+	target_id = client.target_state().target
+	if not mobs.has(target_id):
+		mobs.append(target_id)
+	print("FIXTURE TARGET ", client.target_state(), " distance=%.2f" % distance)
+	await press(BAR_KEYS[client.spells_state().bar.find(ATTACK)])
+	return await wait_until(func(): return client.target_state().auto_attack == target_id, 3000, "Attack starts auto-attack")
+
+## Sound starts of `source` on one of `units` with a SoundKit in `kits`.
+func starts(source: String, units: Array, kits: Array) -> Array:
+	return sounds.values().filter(func(s): return s.source == source and units.has(s.unit) and kits.has(s.sound_kit))
 
 func avoided_swings() -> Array:
-	return melee.values().filter(func(m): return m.result == "Avoided")
+	return melee.values().filter(func(m): return m.result == "Avoided" and (m.attacker == local_id or mobs.has(m.attacker)))
 
 func complete() -> bool:
-	return not starts("swing", local_id, [WARRIOR_SWING, WARRIOR_SWING_CRIT]).is_empty() \
-		and not starts("impact", target_id, [WARRIOR_IMPACT]).is_empty() \
-		and not starts("voice", target_id, MOB_WOUND).is_empty() \
-		and not starts("swing", target_id, MOB_SWING).is_empty() \
-		and not starts("impact", local_id, [MOB_IMPACT[0]]).is_empty() \
-		and not starts("voice", local_id, [WARRIOR_WOUND]).is_empty() \
+	return not starts("swing", [local_id], [WARRIOR_SWING, WARRIOR_SWING_CRIT]).is_empty() \
+		and not starts("impact", mobs, [WARRIOR_IMPACT]).is_empty() \
+		and not starts("voice", mobs, MOB_WOUND).is_empty() \
+		and not starts("swing", mobs, MOB_SWING).is_empty() \
+		and not starts("impact", [local_id], [MOB_IMPACT[0]]).is_empty() \
+		and not starts("voice", [local_id], [WARRIOR_WOUND]).is_empty() \
 		and not avoided_swings().is_empty()
 
 func summary() -> Dictionary:
 	return {
-		"warrior_swings": starts("swing", local_id, [WARRIOR_SWING, WARRIOR_SWING_CRIT]).size(),
-		"warrior_impacts": starts("impact", target_id, [WARRIOR_IMPACT, WARRIOR_IMPACT_CRIT, WARRIOR_PARRIED]).size(),
-		"worg_wounds": starts("voice", target_id, MOB_WOUND).size(),
-		"worg_swings": starts("swing", target_id, MOB_SWING).size(),
-		"worg_impacts": starts("impact", local_id, MOB_IMPACT + [MOB_PARRIED]).size(),
-		"warrior_wounds": starts("voice", local_id, [WARRIOR_WOUND]).size(),
-		"worg_deaths": starts("voice", target_id, [MOB_DEATH]).size(),
+		"warrior_swings": starts("swing", [local_id], [WARRIOR_SWING, WARRIOR_SWING_CRIT]).size(),
+		"warrior_impacts": starts("impact", mobs, [WARRIOR_IMPACT, WARRIOR_IMPACT_CRIT, WARRIOR_PARRIED]).size(),
+		"worg_wounds": starts("voice", mobs, MOB_WOUND).size(),
+		"worg_swings": starts("swing", mobs, MOB_SWING).size(),
+		"worg_impacts": starts("impact", [local_id], MOB_IMPACT + [MOB_PARRIED]).size(),
+		"warrior_wounds": starts("voice", [local_id], [WARRIOR_WOUND]).size(),
+		"worg_deaths": starts("voice", mobs, [MOB_DEATH]).size(),
 		"melee": melee.size(),
 		"avoided": avoided_swings().size(),
 	}
@@ -166,7 +182,7 @@ func check_landing() -> bool:
 		var event: Dictionary = events[index]
 		var attacker: int = event.attacker
 		var victim: int = event.target
-		if not [local_id, target_id].has(attacker):
+		if attacker != local_id and not mobs.has(attacker):
 			continue
 		var next_at := INF
 		for later in events.slice(index + 1):
