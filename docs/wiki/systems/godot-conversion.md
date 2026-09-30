@@ -78,6 +78,18 @@ Use the existing owned offscreen Wayland Vulkan cage, pinned Godot 4.7.2, Dummy 
 
 Sources: saved diagnostic logs above and `/tmp/claude/bloom-proof-ledger.md`; legacy bloom/RCAS source investigation; `godot/tests/{bloom_reference_test,bloom_compute_pixels,bloom_options_pixels,bloom_lifecycle_pixels}.gd`; production `8c704b87`, controller `72030edd`, Rust `90fc989b`. Acceptance remains in the [conversion spec](../../specs/godot-conversion.md#graphics-bloom-bounded-native-proof) and [conversion matrix](../../specs/godot-parity-matrix.md).
 
+## AA/HDR texture sampling — bounded source audit
+
+Source-only audit (2026-09-29); no rendered equivalence established. Full AA/conversion parity remains open.
+
+| Finding | Checked source / boundary |
+| --- | --- |
+| Constructor-derived default HDR bug not established | Legacy `src/rendering/camera/camera.rs::spawn_wow_camera` does not insert Bloom/Hdr. `camera_post_process.rs::additive_particle_glow_bloom` returns None when Bloom is false; enabled Bloom requires Hdr, retained after disabling. Constructors do not force Bloom/Hdr when false; retained post-enable Hdr is a separate lifecycle state. |
+| Scoped legacy TAA bias | Bevy 0.19 `bevy_anti_alias/src/taa/mod.rs` requires `MipBias`; patched `bevy_render/src/camera.rs::MipBias::default` is −1. `src/rendering/camera/camera_post_process.rs::sync_wow_camera_prepasses` removes it when WowCamera leaves TAA. `bevy_pbr/src/render/pbr_fragment.wgsl` reads `view.mip_bias`: project `assets/shaders/retail_m2.wgsl` and `wmo_lighting.wgsl` use that PBR base-texture path. WMO second layer, `m2_effect.wgsl`, `terrain.wgsl`, `m2_skybox.wgsl` and `sky.wgsl` sample directly without that bias. |
+| Legacy BLP limit | `src/asset/blp.rs::load_blp` strips mips; `gpu_image_from_dxtn` uploads only the first level through `Image::new`. RGBA loading also strips mips. These one-level legacy BLP uploads provide no lower mip for TAA bias to select: no proven missing TAA mip detail for this path. |
+| Native texture difference | `godot/core/src/blp.rs::decode_gpu` / `compressed_image` retain complete DXT chains through 1×1 when available (`mipmaps=true`); incomplete chains use level zero. This is a distinct texture-sampling parity concern, not justification for adding global TAA −1. |
+| Godot sampler scope | Local pinned Godot 4.7.2 public sources in `data/diagnostics/taa-mip-bias-source/`: `scene_shader_forward_clustered.cpp` defaults spatial filtering to `FILTER_LINEAR_MIPMAP`; `render_scene_buffers_rd.cpp::update_samplers` passes viewport bias to sampler allocation (stock TAA adds −0.5). `material_storage.cpp::samplers_rd_allocate` sets mipmapped sampler `lod_bias`; `render_forward_clustered.cpp` uses those samplers for spatial filtering. The reused `CANVAS_ITEM_TEXTURE_FILTER_*` enum does not restrict this to canvas: ordinary spatial `texture()` sampling receives sampler bias. Not a rendered equivalence proof or a custom-TAA global-bias recommendation. |
+
 ## Native antiAlias — bounded missing-consumer evidence
 
 Existing persisted `antiAlias` is `None`/`Msaa4x`/`Taa`, default `Msaa4x`. Integration `20dde8b5` consumes it at startup and authored unrelated Graphics commits. Field remains hidden; no new UI/CLI/policy requirements. Raster/effect implementation through `f80467db` has bounded proof, not full temporal parity.
