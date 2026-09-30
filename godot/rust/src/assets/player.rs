@@ -440,6 +440,27 @@ mod tests {
         assert_ne!(chosen.choice_ids, female.choice_ids);
     }
 
+    /// Night Elf male Demon Hunter Blindfold (option 48) "Fel" 790: ChrCustomizationElement
+    /// 2006 → ChrCustomizationSkinnedModel 7 → submesh 2501 of collection 7760205.
+    #[test]
+    fn demon_hunter_blindfold_selects_its_collection_submesh() {
+        let db = load_customization_db(&data_root()).unwrap();
+        let mut appearance = CharacterAppearance::default();
+        appearance
+            .customization_choices
+            .push(shared::components::CustomizationChoiceSelection {
+                option_id: 48,
+                choice_id: 790,
+            });
+        let chosen = select_player_choices(&db, 4, 0, 12, &appearance).unwrap();
+        let parts: Vec<_> = chosen
+            .skinned_models
+            .iter()
+            .map(|model| (model.collection_fdid, model.mesh_part_id()))
+            .collect();
+        assert!(parts.contains(&(7_760_205, 2501)), "{parts:?}");
+    }
+
     #[test]
     fn additional_option_retains_direct_and_related_choice_effects() {
         let db = load_customization_db(&data_root()).unwrap();
