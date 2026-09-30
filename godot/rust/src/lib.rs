@@ -787,6 +787,18 @@ impl GameClient {
             .unwrap_or_default()
     }
 
+    /// Automation: orbit the world camera at `yaw`/`pitch` (radians) and `distance` yards.
+    #[func]
+    fn set_camera_orbit(&mut self, yaw: f32, pitch: f32, distance: f32) {
+        self.world_camera.set_orbit(yaw, pitch, distance);
+    }
+
+    /// Automation: the time of day (0..2880 half-minutes) the world light samples.
+    #[func]
+    fn set_world_minutes(&mut self, minutes: f32) {
+        self.world_minutes = minutes.rem_euclid(2880.0);
+    }
+
     #[func]
     fn load_model_scene(&mut self, path: GString) -> VarDictionary {
         let mut result = VarDictionary::new();
