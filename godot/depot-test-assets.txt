@@ -105,6 +105,11 @@ db2/12.1.0.69933/PlayerCondition.csv
 db2/12.1.0.69933/AnimationData.csv
 db2/12.1.0.69933/SoundKit.csv
 db2/12.1.0.69933/SoundKitEntry.csv
+db2/12.1.0.69933/CreatureSoundData.csv
+db2/12.1.0.69933/CreatureDisplayInfo.csv
+db2/12.1.0.69933/CreatureModelData.csv
+db2/12.1.0.69933/ChrModel.csv
+db2/12.1.0.69933/ChrRaceXChrModel.csv
 
 # game-engine-core --lib
 textures/464811.blp

@@ -71,7 +71,23 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CAC
   - A SoundKit with Flags 0x200 (looping, WoWDBDefs `SoundKit.dbd`) in a held kit loops until the kit's end event.
   - Files come from local CASC, cached at `data/sounds/spells/{fdid}.ogg`.
   - No spell kit's `SoundKitEntry` has a `PlayerConditionID` in 12.1.0.69933 (429,342 entries across 88,635 referenced kits).
-  - `SpellVisualMissile.SoundEntriesID` is now exported. Frostbolt's is 0, so its missile has no travel sound, and travel sounds are not played.
+  - **Missile travel sound.** `SpellVisualMissile.SoundEntriesID` is a SoundKit the missile plays under its own node while it flies (Fireball 349558, looping). The sound is freed with the node on landing. Frostbolt's is 0.
+  - **Aura kits.** `SpellEffects::sync_auras` (`spell_auras.rs`) starts a spell's AuraStart kits when a replicated `UnitAuras` instance appears. The aura's unit is the hit unit, and its caster (the unit when unknown) is the caster. Held kits (end AuraEnd) last until that instance leaves, which stops their loops, models and clips; the spell's AuraEnd-start kits then play. Example, Frost Nova 122: kit 266131 loops 350097 and plays 350098 while rooted, and AuraEnd kit 85719 plays 85938.
+  - **Unit voice** (`spell_visual_voice.rs`).
+    - A kit effect of type 10 (WoWDBDefs enum `UnitSoundType`) plays the kit's unit's own `CreatureSoundData` sound.
+    - The value → field mapping is undocumented. 34-40 are inferred from the 12.x field order: Windup, WindupCritical, Charge, ChargeCritical, BattleShout, BattleShoutCritical, Taunt. The evidence is Charge's kit 44000 using 36 and Battle Shout's 43995 using 38. Other values are not played.
+    - A unit's row is `CreatureDisplayInfo.SoundID`, else its model's `CreatureModelData.SoundID`. A player's display comes from `ChrRaceXChrModel` → `ChrModel.DisplayID`. For example, Human male → display 57899 → model 7661 → CreatureSoundData 49 → BattleShout 58088 (7 files); female → 50 → 58100.
+    - The cast clip's `$SCD` M2 event (the action layer reports it) plays `SpellCastDirectedSoundID`. Only 3 rows set it in 12.1.0.69933, and Human 49/50 are 0.
+  - **Synthetic outcomes.** The Godot client plays no synthetic CastStart sweep (removed) and no synthetic Impact/Heal outcome; impact kits carry those sounds. Miss and Interrupt outcomes stay synthetic ([[sound]]).
+  - **SoundKits by spell (12.1.0.69933):**
+
+    | Spell | Kit sounds |
+    |---|---|
+    | Slam 1H | cast 128672 → 57845, impact 62452 → 60935 |
+    | Battle Shout | cast 43995 → 114049 plus the caster's BattleShout voice |
+    | Fireball | precast 349555, cast 349556, missile 349558 (looping), impact 349557 |
+    | Frost Nova | cast 350096; aura 350097 (looping) and 350098; aura end 85938 |
+    | Flash of Light | precast 349350 (looping), cast 349352 and 349351, impact 349357 and 349355 |
   - Frostbolt (visual 64829) resolves to these SoundKits:
 
     | Kit | Event | SoundKit | Files |
@@ -183,16 +199,26 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 - `polymorph-realtime-1x.mp4`, `polymorph-realtime-halfspeed.mp4`, `contact-sheet-realtime.png`, `stills-realtime-grab/`: the same fixture with `POLY_GRAB`, one JPEG per 100 ms of wall-clock time; timing is true, motion is choppy (about 8 fps).
 - `stills-realtime/`: an earlier run with the camera behind trees, which shows the full Polymorph cast bar.
 
+**Sounds for every spell (2026-09-29, `data/diagnostics/spellcast-anim-2026-09-29c/sounds-all/`).** The fixture logs each spell's SoundKit, file, unit, source and times. Both runs below exit 0 (game-server c542b6d, UDP 5083).
+
+- **Paladin Flash of Light on self** (`paladin/`, assets cached):
+  - The precast 349350 loop (1713681) runs from 40.862 to its stop at `SpellGo` 42.406, 1.544 s for the 1.5 s cast.
+  - Cast 349352 (1377114) and 349351 (2066679) play at 42.406.
+  - Impact 349357 (1965756) and 349355 (1936459) also play at 42.406 (no missile).
+- **Warrior Battle Shout** (`shout/`): kit 114049 (2118810) and the warrior's own voice 58088 (1343328, source `voice`), both at 41.504.
+- **First-use run** (`paladin-first-use/`): the precast lasted only 0.44 s on the client clock. The first cast extracted its models and sounds from local CASC on the main thread ("CASC resolver initialized", 7 asset-cache misses) and froze the client for that frame.
+- **Not proven live:** Fireball's missile sound, Frost Nova's aura and aura-end sounds, and the Slam and Frostbolt sound runs. From about 19:05 the private server's training dummies stopped reaching the client (`unit_count` 1-8 against "Granted immediate visibility for 81 nearby entities"). That happened with the previously passing client build and with a fresh server DB too. The level-10 mage also knows no Fireball. Catalog tests (`spell_visual.rs`) cover those resolutions.
+
 ## Gaps
 
 - The action layer is full-body when standing and upper-body when moving (SpineLow subtree). `AnimKitSegment` conditions, per-segment bone sets and priorities, and `AnimKit` blend times are not applied.
-- The M2 `$SCD` event ("PlaySoundKit (spellCastDirectedSound)", wowdev.wiki/M2 Events) is not played. It would resolve through the unit's `CreatureSoundData.SpellCastDirectedSoundID`.
 - Other effect types are not played: camera shakes, procedural effects, shadowy/outline/dissolve effects.
 - Aura (7/8) kits, area and destination kits, and positioner offsets for attachment -1 are not played.
 - `ChrSpecializationIndex` is always treated as no spec, and remote players' spec is unknown.
 - Missiles fly straight: `SpellMissileMotion` is not applied. `SpellVisualMissile` `CastOffset`/`ImpactOffset`/`Flags` and `SpellVisual.Flags` are not applied (Frostbolt's offsets are 0).
 - The missile starts at the missile attachment, not at the release event's bone and position. wowdev notes `$CSL/R/T are also used in CGUnit_C::ComputeDefaultMissileFirePos`, which is undocumented.
-- Other events (`$SCD` cast sound, `$SHK` camera shake, `$FSD` footfall) are parsed but not played.
+- Other events (`$SHK` camera shake, `$FSD` footfall, `$AH*`/`$BRT`/`$FD*` voice events) are parsed but not played. Type-10 unit sound values outside 34-40 are not played (mapping unknown).
+- The first use of a spell extracts its models and sounds from CASC on the main thread, a one-time hitch per asset.
 - Timed casts show no precast kits for observers until `CastState` replicates. Creature casts get kits only through `SpellGo`/`CastState`, like players.
 
 ## Sources

@@ -4,14 +4,16 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use game_engine_core::spell_visual::{
-    CasterContext, KitAnimation, KitTarget, SpellVisualCatalog, VisualEvent,
-    read_animation_fallbacks,
+    CasterContext, KitAnimation, KitTarget, SpellVisualCatalog, UnitSound, VisualEvent,
+    VoiceSource, read_animation_fallbacks,
 };
 
 const SLAM: u32 = 1464;
 const BATTLE_SHOUT: u32 = 6673;
 const VICTORY_RUSH: u32 = 34428;
 const FROSTBOLT: u32 = 116;
+const FIREBALL: u32 = 133;
+const FROST_NOVA: u32 = 122;
 /// `Item.SubclassID` of a one- and a two-handed sword.
 const SWORD_1H: u8 = 7;
 const SWORD_2H: u8 = 8;
@@ -186,4 +188,93 @@ fn frostbolt_kits_play_the_frostbolt_precast_cast_and_impact_sound_kits() {
     let impact = &catalog().kits(visual, VisualEvent::Impact)[0].sounds[0];
     assert!((impact.volume - 0.8).abs() < 1e-6);
     assert_eq!((impact.min_distance, impact.distance_cutoff), (25.0, 55.0));
+}
+
+fn mage() -> CasterContext {
+    CasterContext {
+        class: 8,
+        ..warrior(None)
+    }
+}
+
+/// Battle Shout's cast kit 43995 plays SoundKit 114049 and the warrior's own battle shout
+/// (unit sound 38): Human male CreatureSoundData 49 → 58088, female 50 → 58100.
+#[test]
+fn battle_shout_plays_its_kit_sound_and_the_caster_voice() {
+    let catalog = catalog();
+    let visual = catalog
+        .visual_for_spell(BATTLE_SHOUT, &warrior(None))
+        .unwrap();
+    let cast = &catalog.kits(visual, VisualEvent::Cast)[0];
+    let kit_sounds: Vec<u32> = cast.sounds.iter().map(|sound| sound.sound_kit_id).collect();
+    assert_eq!(kit_sounds, vec![114049]);
+    assert_eq!(cast.unit_sounds, vec![UnitSound::BattleShout]);
+    let voice = |sex| {
+        let source = VoiceSource::Player { race: 1, sex };
+        catalog
+            .unit_sound(source, UnitSound::BattleShout)
+            .map(|sound| (sound.sound_kit_id, sound.files.len()))
+    };
+    assert_eq!(voice(0), Some((58088, 7)));
+    assert_eq!(voice(1), Some((58100, 8)));
+    // Human voices have no spell-cast-directed sound in 12.1.0.69933.
+    let source = VoiceSource::Player { race: 1, sex: 0 };
+    assert!(
+        catalog
+            .unit_sound(source, UnitSound::SpellCastDirected)
+            .is_none()
+    );
+}
+
+/// Fireball's missile plays its looping travel sound 349558 (SoundEntriesID).
+#[test]
+fn fireball_missile_plays_its_travel_sound() {
+    let catalog = catalog();
+    let visual = catalog.visual_for_spell(FIREBALL, &mage()).unwrap();
+    let sound = catalog.missile(visual).unwrap().sound.unwrap();
+    let files: Vec<u32> = sound.files.iter().map(|file| file.fdid).collect();
+    assert_eq!((sound.sound_kit_id, sound.looping), (349558, true));
+    assert_eq!(files, vec![2066594, 2066595]);
+    let frostbolt = catalog.visual_for_spell(FROSTBOLT, &mage()).unwrap();
+    assert_eq!(catalog.missile(frostbolt).unwrap().sound, None);
+}
+
+/// Frost Nova's aura kit 266131 loops 350097 and plays 350098 on each rooted unit while
+/// the aura lasts; its AuraEnd kit 85719 plays 85938 when it breaks.
+#[test]
+fn frost_nova_aura_kits_sound_while_rooted_and_when_it_ends() {
+    let catalog = catalog();
+    let visual = catalog.visual_for_spell(FROST_NOVA, &mage()).unwrap();
+    let kit_sounds = |event| {
+        catalog
+            .kits(visual, event)
+            .into_iter()
+            .map(|kit| {
+                let sounds: Vec<_> = kit
+                    .sounds
+                    .iter()
+                    .map(|sound| (sound.sound_kit_id, sound.looping))
+                    .collect();
+                (kit.kit_id, kit.target, kit.end, sounds)
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        kit_sounds(VisualEvent::AuraStart),
+        vec![(
+            266131,
+            KitTarget::HitUnits,
+            VisualEvent::AuraEnd,
+            vec![(350097, true), (350098, false)]
+        )]
+    );
+    assert_eq!(
+        kit_sounds(VisualEvent::AuraEnd),
+        vec![(
+            85719,
+            KitTarget::HitUnits,
+            VisualEvent::OneShot,
+            vec![(85938, false)]
+        )]
+    );
 }

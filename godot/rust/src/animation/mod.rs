@@ -122,6 +122,10 @@ pub struct AnimationState {
     upper_body: Vec<bool>,
     /// Per sequence: its first missile release event (ms).
     release_ms: Vec<Option<u32>>,
+    /// Per sequence: its reported events (ms, identifier), in time order.
+    action_events: Vec<Vec<(u32, [u8; 4])>>,
+    /// Reported events action clips passed, not yet taken.
+    fired_events: Vec<[u8; 4]>,
     /// Locomotion is standing still, so an action also drives the legs.
     legs_free: bool,
 }
@@ -170,6 +174,8 @@ impl AnimationState {
             action: None,
             upper_body: action::upper_body_bones(model),
             release_ms: action::missile_release_times(model),
+            action_events: action::reported_events(model),
+            fired_events: Vec::new(),
             legs_free: true,
         })
     }
@@ -584,6 +590,14 @@ impl WowAnimationPlayer {
         self.animation
             .as_ref()
             .is_some_and(AnimationState::awaits_missile_release)
+    }
+
+    /// Reported M2 events (`$SCD`) its action clips passed since the last call.
+    pub(crate) fn take_fired_events(&mut self) -> Vec<[u8; 4]> {
+        self.animation
+            .as_mut()
+            .map(AnimationState::take_fired_events)
+            .unwrap_or_default()
     }
 
     /// Fade out held action clip `id`.
