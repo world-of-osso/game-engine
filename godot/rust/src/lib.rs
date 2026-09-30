@@ -34,6 +34,7 @@ mod nameplates;
 #[path = "../../../src/game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
 mod objective_tracker;
+mod particle_debug;
 mod particles;
 mod player_spells;
 mod scene;
