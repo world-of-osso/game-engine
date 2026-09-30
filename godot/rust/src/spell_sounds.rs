@@ -13,6 +13,8 @@ use game_engine_core::spell_visual::{KitSound, SoundFile};
 use godot::classes::{AudioStream, AudioStreamOggVorbis, AudioStreamPlayer3D, Node3D};
 use godot::prelude::*;
 
+use game_engine_core::asset_loader::Priority;
+
 use crate::spell_assets::{SpellAsset, SpellAssets};
 
 const STARTED_KEEP: usize = 64;
@@ -133,7 +135,7 @@ impl SpellSounds {
         };
         request.hold = request.hold.filter(|_| sound.looping);
         let now = request.at;
-        assets.request(SpellAsset::Sound(file.fdid));
+        assets.request(SpellAsset::Sound(file.fdid), Priority::Now);
         self.pending.push(PendingSound {
             sound: sound.clone(),
             file,

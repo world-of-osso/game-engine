@@ -9,7 +9,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use game_engine_core::asset_loader::AssetLoader;
+use game_engine_core::asset_loader::{AssetLoader, Priority};
+use game_engine_core::spell_visual::{KitSound, SpellVisualCatalog, VisualEvent};
 use game_engine_core::{blp, m2};
 use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
@@ -87,9 +88,10 @@ impl SpellAssets {
         }
     }
 
-    /// Start loading `asset` unless it was requested before.
-    pub fn request(&mut self, asset: SpellAsset) {
-        self.loader.request(asset);
+    /// Start loading `asset` unless it was requested before; a prefetch still queued
+    /// moves ahead when it is needed `Now`.
+    pub fn request(&mut self, asset: SpellAsset, priority: Priority) {
+        self.loader.request(asset, priority);
     }
 
     /// Kit model `fdid`: `None` while it loads, else loaded or its error.
@@ -155,6 +157,46 @@ impl SpellAssets {
             particles,
         }))
     }
+}
+
+/// The events whose kits play (`SpellEffects`, `auras`).
+const PLAYED_EVENTS: [VisualEvent; 6] = [
+    VisualEvent::PrecastStart,
+    VisualEvent::ChannelStart,
+    VisualEvent::Cast,
+    VisualEvent::Impact,
+    VisualEvent::AuraStart,
+    VisualEvent::AuraEnd,
+];
+
+/// Every model and sound file visual `visual`'s played kits and missile use.
+pub(crate) fn kit_assets(catalog: &SpellVisualCatalog, visual: u32) -> Vec<SpellAsset> {
+    let kits = PLAYED_EVENTS
+        .iter()
+        .flat_map(|&event| catalog.kits(visual, event));
+    let mut assets = Vec::new();
+    for kit in kits {
+        assets.extend(
+            kit.models
+                .iter()
+                .map(|model| SpellAsset::Model(model.model_fdid)),
+        );
+        assets.extend(kit.sounds.iter().flat_map(sound_assets));
+    }
+    if let Some(missile) = catalog.missile(visual) {
+        assets.push(SpellAsset::Model(missile.model_fdid));
+        assets.extend(missile.sound.iter().flat_map(sound_assets));
+    }
+    assets
+}
+
+/// The files `sound` can pick (frequency above 0).
+fn sound_assets(sound: &KitSound) -> impl Iterator<Item = SpellAsset> + '_ {
+    sound
+        .files
+        .iter()
+        .filter(|file| file.frequency > 0)
+        .map(|file| SpellAsset::Sound(file.fdid))
 }
 
 /// Worker: extract model `fdid` and its companions and textures, parse it and decode
