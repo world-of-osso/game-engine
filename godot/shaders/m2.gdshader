@@ -1,6 +1,7 @@
 shader_type spatial;
 // The binder creates source variants for the authored blend and cull state.
 render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;
+#include "res://shaders/m2_point_light.gdshaderinc"
 
 uniform int effect_mode = 0; // 0: StandardMaterial-style single, 1: two-texture combiner.
 uniform sampler2D base_texture : source_color, repeat_enable;
@@ -179,6 +180,6 @@ void light() {
 		// M2 point lights reach opaque surfaces only: WebWowViewerCpp applies them in
 		// its deferred pass (pointLight.frag.slang:43-58). LIGHT_COLOR carries Godot's PI.
 		float n_dot_l = max(dot(NORMAL, LIGHT), 0.0);
-		DIFFUSE_LIGHT += gamma_to_linear(authored_color) * LIGHT_COLOR / PI * ATTENUATION * n_dot_l;
+		DIFFUSE_LIGHT += gamma_to_linear(authored_color) * LIGHT_COLOR / PI * m2_point_light_attenuation(ATTENUATION, SPECULAR_AMOUNT) * n_dot_l;
 	}
 }

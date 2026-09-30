@@ -287,3 +287,20 @@ fn torch_halo_and_flame_bones_are_billboards() {
         );
     }
 }
+
+#[test]
+fn start_fraction_places_the_linear_ramp_within_the_reach() {
+    let point = |attenuation_start, attenuation_end| PointLight {
+        color: [1.0; 3],
+        attenuation_start,
+        attenuation_end,
+        visible: true,
+    };
+    // Retail's forced torch reach: flat to 1.6666 of 5.2667 yd.
+    assert!((point(1.6666, 5.266_660_2).start_fraction() - 0.316_445).abs() < 1e-5);
+    // Unauthored tracks (1, 1) light fully up to the end.
+    assert_eq!(point(1.0, 1.0).start_fraction(), 1.0);
+    // A zero-reach light and a negative start carry no NaN or negative ramp.
+    assert_eq!(point(0.0, 0.0).start_fraction(), 0.0);
+    assert_eq!(point(-1.0, 4.0).start_fraction(), 0.0);
+}
