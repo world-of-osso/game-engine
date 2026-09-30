@@ -66,6 +66,11 @@ func run_test() -> void:
 			print("PASS: player form models and class-bar visibility for ", character)
 			quit(0)
 		return
+	# A player without a form keeps its native humanoid visual (display_id -1).
+	var own: Dictionary = client.unit_display(int(client.account_state().local_player_id))
+	if int(own.get("display_id", -2)) != -1 or not bool(own.get("visual", false)):
+		fail("Native player visual not loaded: " + str(own))
+		return
 	var row := ui.find_child("PlayerSecondaryResourceRow", true, false) as Control
 	var shown := row != null and row.is_visible_in_tree()
 	print("FIXTURE %s spec=%d row=%s" % [character, int(client.spells_state().spec), row.get_global_rect() if shown else "none"])
