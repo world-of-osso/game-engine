@@ -1,10 +1,11 @@
-//! Original CombatEvent outcome sounds on spatial emitters with unit-bound lifetimes.
+//! Original CombatEvent miss and interrupt sounds on spatial emitters with unit-bound
+//! lifetimes. Spell impacts and heals sound through their spell's impact kits
+//! (`spell_sounds`), so the synthetic Impact/Heal outcomes are not played.
 
 use game_engine_core::{
     client_options_data::SoundOptionsFile,
     spell_cast_data::{
-        CAST_SAMPLE_RATE, HEAL_VOLUME_SCALE, IMPACT_VOLUME_SCALE, INTERRUPT_VOLUME_SCALE,
-        MISS_VOLUME_SCALE, generate_spell_heal_samples, generate_spell_impact_samples,
+        CAST_SAMPLE_RATE, INTERRUPT_VOLUME_SCALE, MISS_VOLUME_SCALE,
         generate_spell_interrupt_samples, generate_spell_miss_samples,
     },
 };
@@ -18,14 +19,13 @@ use crate::sound::pcm_stream;
 
 struct ActiveOutcome {
     emitter: u64,
-    kind: OutcomeSound,
+    /// Its outcome's volume scale.
+    scale: f32,
     player: Gd<AudioStreamPlayer3D>,
 }
 
 pub(super) struct OutcomeSpells {
     pub root: Gd<Node3D>,
-    impact: Gd<AudioStreamWav>,
-    heal: Gd<AudioStreamWav>,
     miss: Gd<AudioStreamWav>,
     interrupt: Gd<AudioStreamWav>,
     active: Vec<ActiveOutcome>,
@@ -37,8 +37,6 @@ impl OutcomeSpells {
         root.set_name("OutcomeSpells");
         Self {
             root,
-            impact: pcm_stream(&generate_spell_impact_samples(), CAST_SAMPLE_RATE),
-            heal: pcm_stream(&generate_spell_heal_samples(), CAST_SAMPLE_RATE),
             miss: pcm_stream(&generate_spell_miss_samples(), CAST_SAMPLE_RATE),
             interrupt: pcm_stream(&generate_spell_interrupt_samples(), CAST_SAMPLE_RATE),
             active: Vec::new(),
@@ -52,21 +50,20 @@ impl OutcomeSpells {
         position: Vector3,
         settings: &SoundOptionsFile,
     ) {
-        let stream = match kind {
-            OutcomeSound::Impact => &self.impact,
-            OutcomeSound::Heal => &self.heal,
-            OutcomeSound::Miss => &self.miss,
-            OutcomeSound::Interrupt => &self.interrupt,
+        let (stream, scale) = match kind {
+            OutcomeSound::Impact | OutcomeSound::Heal => return,
+            OutcomeSound::Miss => (&self.miss, MISS_VOLUME_SCALE),
+            OutcomeSound::Interrupt => (&self.interrupt, INTERRUPT_VOLUME_SCALE),
         };
         let mut player = AudioStreamPlayer3D::new_alloc();
         player.set_stream(stream);
-        player.set_volume_linear(outcome_volume(kind, settings));
+        player.set_volume_linear(outcome_volume(scale, settings));
         self.root.add_child(&player);
         player.set_global_position(position);
         player.play();
         self.active.push(ActiveOutcome {
             emitter,
-            kind,
+            scale,
             player,
         });
     }
@@ -82,7 +79,7 @@ impl OutcomeSpells {
                 active.player.set_global_position(location);
                 active
                     .player
-                    .set_volume_linear(outcome_volume(active.kind, settings));
+                    .set_volume_linear(outcome_volume(active.scale, settings));
                 true
             } else {
                 active.player.clone().free();
@@ -98,13 +95,7 @@ impl OutcomeSpells {
     }
 }
 
-fn outcome_volume(kind: OutcomeSound, settings: &SoundOptionsFile) -> f32 {
-    let scale = match kind {
-        OutcomeSound::Impact => IMPACT_VOLUME_SCALE,
-        OutcomeSound::Heal => HEAL_VOLUME_SCALE,
-        OutcomeSound::Miss => MISS_VOLUME_SCALE,
-        OutcomeSound::Interrupt => INTERRUPT_VOLUME_SCALE,
-    };
+fn outcome_volume(scale: f32, settings: &SoundOptionsFile) -> f32 {
     if settings.muted {
         0.0
     } else {

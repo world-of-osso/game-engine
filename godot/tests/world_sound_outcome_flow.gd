@@ -26,12 +26,15 @@ func run_test() -> void:
 	outcomes.child_entered_tree.connect(func(node: Node): observed.append(node))
 	print("FIXTURE OUTCOME_READY")
 	var deadline := Time.get_ticks_msec() + 10000
-	while observed.size() < 65 and Time.get_ticks_msec() < deadline:
+	# The batch cycles damage, heal, miss, interrupt over 65 events: damage and heal are
+	# silent (their spells' impact kits carry the retail sound), leaving 16 misses and 16
+	# interrupts, alternating.
+	while observed.size() < 32 and Time.get_ticks_msec() < deadline:
 		await process_frame
-	if observed.size() != 65:
-		fail("Expected 65 original outcome players, got %d" % observed.size())
+	if observed.size() != 32:
+		fail("Expected 32 original miss/interrupt players, got %d" % observed.size())
 		return
-	var sizes := [10584, 15876, 9702, 13230]
+	var sizes := [9702, 13230]
 	var local := client.get_node_or_null("WorldUnits/" + NAME) as Node3D
 	var remote := client.get_node_or_null("WorldUnits/Remote Fixture") as Node3D
 	if local == null or remote == null:
@@ -39,14 +42,14 @@ func run_test() -> void:
 		return
 	for index in range(observed.size()):
 		var player := observed[index] as AudioStreamPlayer3D
-		var expected := local if index % 4 == 3 else remote
-		var gain: float = [0.8, 0.68, 0.44, 0.76][index % 4]
-		if player == null or player.stream == null or not player.stream is AudioStreamWAV or player.stream.data.size() != sizes[index % 4] or player.global_position.distance_to(expected.global_position) > 0.1 or absf(player.volume_linear - gain) > 0.001:
+		var expected := local if index % 2 == 1 else remote
+		var gain: float = [0.44, 0.76][index % 2]
+		if player == null or player.stream == null or not player.stream is AudioStreamWAV or player.stream.data.size() != sizes[index % 2] or player.global_position.distance_to(expected.global_position) > 0.1 or absf(player.volume_linear - gain) > 0.001:
 			fail("Outcome %d has wrong PCM, source or gain" % index)
 			return
 	for frame in range(3):
 		await process_frame
-	if observed.size() != 65:
+	if observed.size() != 32:
 		fail("Outcome batch replayed on second frame: %d" % observed.size())
 		return
 	push_key(KEY_ESCAPE, true)
@@ -59,18 +62,18 @@ func run_test() -> void:
 	await click_option(client, "OptionsTabsound")
 	await click_slider(client, "Slidermaster_volume", 0.25)
 	print("FIXTURE OUTCOME_BATCH")
-	if not await wait_outcomes(observed, 66):
+	if not await wait_outcomes(observed, 33):
 		return
-	var scaled := observed[65] as AudioStreamPlayer3D
-	if scaled == null or absf(scaled.volume_linear - 0.17) > 0.001:
-		fail("Changed master did not scale heal to 0.25 * 0.8 * 0.85")
+	var scaled := observed[32] as AudioStreamPlayer3D
+	if scaled == null or absf(scaled.volume_linear - 0.11) > 0.001:
+		fail("Changed master did not scale miss to 0.25 * 0.8 * 0.55")
 		return
 	await click_option(client, "ToggleSwitchmutedRightHit")
 	print("FIXTURE OUTCOME_MUTED")
-	if not await wait_outcomes(observed, 68):
+	if not await wait_outcomes(observed, 35):
 		return
-	var removed_player: WeakRef = weakref(observed[66])
-	for index in [66, 67]:
+	var removed_player: WeakRef = weakref(observed[33])
+	for index in [33, 34]:
 		var muted_player := observed[index] as AudioStreamPlayer3D
 		if muted_player == null or muted_player.volume_linear != 0.0:
 			fail("Muting did not silence original outcome %d" % index)
@@ -82,7 +85,7 @@ func run_test() -> void:
 	if client.get_node_or_null("WorldUnits/Remote Fixture") != null or removed_player.get_ref() != null:
 		fail("Replicated remote removal left active emitter")
 		return
-	var local_active := observed[67] as AudioStreamPlayer3D
+	var local_active := observed[34] as AudioStreamPlayer3D
 	if not is_instance_valid(local_active) or not local_active.is_playing():
 		fail("Reset fixture has no active local emitter to release")
 		return

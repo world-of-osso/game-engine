@@ -27,7 +27,7 @@ pub(super) fn run(
         if let Some(status) = status {
             if status.success() && stage == 6 {
                 println!(
-                    "PASS: original CombatEvent outcomes, 65 UDP events once, ignored/unresolved, spatial cleanup"
+                    "PASS: original CombatEvent miss/interrupt outcomes, 65 UDP events once, damage/heal and ignored/unresolved silent, spatial cleanup"
                 );
                 return Ok(());
             }
@@ -59,11 +59,11 @@ fn observe_line(
             *stage = 1;
         }
         (1, "FIXTURE OUTCOME_BATCH") => {
-            send_outcome(app, selected, remote, CombatEventType::SpellHeal, 66.0)?;
+            send_outcome(app, selected, remote, CombatEventType::Miss, 66.0)?;
             *stage = 2;
         }
         (2, "FIXTURE OUTCOME_MUTED") => {
-            send_outcome(app, selected, remote, CombatEventType::SpellHeal, 67.0)?;
+            send_outcome(app, selected, remote, CombatEventType::Miss, 67.0)?;
             send_outcome(app, selected, remote, CombatEventType::Interrupt, 68.0)?;
             *stage = 3;
         }

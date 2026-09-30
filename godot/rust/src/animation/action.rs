@@ -29,6 +29,10 @@ const STATIONARY_ANIMS: [u16; 6] = [0, 25, 26, 27, 28, 41];
 /// M2 events that release pending spell missiles (left hand, right hand, generic).
 const MISSILE_RELEASE_EVENTS: [&[u8; 4]; 3] = [b"$CSL", b"$CSR", b"$CST"];
 
+/// M2 events an action clip reports as it passes them: `$SCD` plays the unit's
+/// spell-cast-directed voice (wowdev.wiki/M2 Events).
+const REPORTED_EVENTS: [&[u8; 4]; 1] = [b"$SCD"];
+
 /// Which actions may replace a playing one: a spell's kit animation is not cut short
 /// by a melee swing or hit reaction arriving mid-cast; equal or higher priority
 /// replaces.
@@ -53,6 +57,31 @@ pub(super) struct ActionLayer {
     releasing: bool,
     /// The clip's missile release event has yet to fire.
     awaits_release: bool,
+    /// Index of its next reported event.
+    next_event: usize,
+}
+
+/// Per sequence: its reported events (time ms, identifier), in time order.
+pub(super) fn reported_events(model: &m2::Model) -> Vec<Vec<(u32, [u8; 4])>> {
+    (0..model.sequences.len())
+        .map(|sequence| {
+            let mut events: Vec<(u32, [u8; 4])> = model
+                .events
+                .iter()
+                .filter(|event| REPORTED_EVENTS.contains(&&event.identifier))
+                .flat_map(|event| {
+                    event
+                        .timestamps
+                        .get(sequence)
+                        .into_iter()
+                        .flatten()
+                        .map(|&time| (time, event.identifier))
+                })
+                .collect();
+            events.sort();
+            events
+        })
+        .collect()
 }
 
 /// Per sequence: when its first missile release event fires (ms), if it has one.
@@ -164,6 +193,7 @@ impl AnimationState {
             lower,
             releasing: false,
             awaits_release: self.release_ms[index].is_some(),
+            next_event: 0,
         });
         Ok(true)
     }
@@ -182,6 +212,11 @@ impl AnimationState {
         self.action
             .as_ref()
             .is_some_and(|action| action.awaits_release && !action.releasing)
+    }
+
+    /// Reported M2 events (`$SCD`) the action clips passed since the last call.
+    pub fn take_fired_events(&mut self) -> Vec<[u8; 4]> {
+        std::mem::take(&mut self.fired_events)
     }
 
     /// The action clip playing or fading, if any.
@@ -205,9 +240,18 @@ impl AnimationState {
         {
             action.awaits_release = false;
         }
+        let events = &self.action_events[action.index];
+        while let Some(&(time, identifier)) = events.get(action.next_event) {
+            if f64::from(time) > action.time_ms {
+                break;
+            }
+            self.fired_events.push(identifier);
+            action.next_event += 1;
+        }
         if action.time_ms >= duration {
             if action.looping && duration > 0.0 {
                 action.time_ms %= duration;
+                action.next_event = 0;
             } else {
                 action.time_ms = duration;
                 action.releasing = true;

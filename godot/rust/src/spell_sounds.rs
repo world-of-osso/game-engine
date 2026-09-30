@@ -1,7 +1,9 @@
-//! Spell visual kit sounds (`SpellVisualKitEffect` type 5 → `SoundKit` →
-//! `SoundKitEntry`): each sound kit of a started kit plays one of its files, picked by
-//! `Frequency`, on a 3D emitter under the kit's unit. A looping kit sound (Flags 0x200) of
-//! a held kit (precast, channel) lasts until the kit ends; the others play once.
+//! Spell sounds: a started kit's sound kits (`SpellVisualKitEffect` type 5) and its unit's
+//! voice (type 10, `CreatureSoundData`), a flying missile's travel sound
+//! (`SpellVisualMissile.SoundEntriesID`) and a cast clip's `$SCD` voice. Each plays one
+//! `SoundKitEntry` file, picked by `Frequency`, on a 3D emitter under its unit or missile.
+//! A looping sound (SoundKit Flags 0x200) of a held kit (precast, channel, aura) lasts
+//! until the kit ends and a missile's until it lands; the others play once.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -22,20 +24,53 @@ pub struct SoundStart {
     pub sound_kit_id: u32,
     pub fdid: u32,
     pub looping: bool,
+    pub source: SoundSource,
     /// `SpellEffects` clock (seconds) at the start.
     pub at: f32,
-    /// When a held loop stopped with its kit.
+    /// When a looping sound stopped with its kit or missile.
     pub stopped_at: Option<f32>,
+}
+
+/// What played a sound.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SoundSource {
+    /// A kit's own sound kit.
+    Kit,
+    /// The kit unit's voice (`CreatureSoundData`).
+    Voice,
+    /// A missile in flight.
+    Missile,
+}
+
+impl SoundSource {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Kit => "kit",
+            Self::Voice => "voice",
+            Self::Missile => "missile",
+        }
+    }
+}
+
+/// What a looping sound lasts for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SoundHold {
+    /// Unit `unit`'s cast or channel of `spell_id`.
+    Cast { unit: u64, spell_id: u32 },
+    /// Aura `instance` on unit `unit`.
+    Aura { unit: u64, instance: u32 },
+    /// Its parent (a missile) is freed on landing.
+    Parent,
 }
 
 struct ActiveSound {
     player: Gd<AudioStreamPlayer3D>,
-    unit: u64,
-    spell_id: u32,
-    /// Loops until its kit ends.
-    held: bool,
+    /// Loops until this ends.
+    hold: Option<SoundHold>,
     /// `SoundKit.VolumeFloat` × `SoundKitEntry.Volume`.
     volume: f32,
+    /// Its `started` entry.
+    start: u64,
 }
 
 /// What one kit sound start needs besides the sound itself.
@@ -44,8 +79,9 @@ pub(crate) struct SoundRequest<'a> {
     pub unit: u64,
     pub spell_id: u32,
     pub kit_id: u32,
-    /// Its kit lasts until an end event.
-    pub kit_held: bool,
+    /// What a looping sound lasts for (`None`: it plays once).
+    pub hold: Option<SoundHold>,
+    pub source: SoundSource,
     pub at: f32,
     pub resolver: &'a CascListfileResolver,
     pub data_root: &'a Path,
@@ -56,15 +92,16 @@ pub(crate) struct SpellSounds {
     /// Streams by (FDID, looping).
     streams: HashMap<(u32, bool), Result<Gd<AudioStream>, String>>,
     active: Vec<ActiveSound>,
-    started: Vec<SoundStart>,
+    started: Vec<(u64, SoundStart)>,
+    next_start: u64,
     /// Master × effects volume (0 when muted).
     gain: f32,
     seed: u32,
 }
 
 impl SpellSounds {
-    pub fn started(&self) -> &[SoundStart] {
-        &self.started
+    pub fn started(&self) -> impl Iterator<Item = &SoundStart> {
+        self.started.iter().map(|(_, start)| start)
     }
 
     pub fn play(&mut self, sound: &KitSound, request: SoundRequest) -> Result<(), String> {
@@ -75,32 +112,40 @@ impl SpellSounds {
         let Some(file) = pick_file(&sound.files, self.seed >> 8) else {
             return Ok(());
         };
-        let held = sound.looping && request.kit_held;
-        let stream = self.stream(file.fdid, held, request.resolver, request.data_root)?;
+        let hold = request.hold.filter(|_| sound.looping);
+        let stream = self.stream(
+            file.fdid,
+            hold.is_some(),
+            request.resolver,
+            request.data_root,
+        )?;
         let volume = sound.volume * file.volume;
         let mut player = emitter(&stream, sound, file.fdid, volume * self.gain);
         request.parent.clone().add_child(&player);
         player.play();
+        let start = self.next_start;
+        self.next_start += 1;
         self.active.push(ActiveSound {
             player,
-            unit: request.unit,
-            spell_id: request.spell_id,
-            held,
+            hold,
             volume,
+            start,
         });
         if self.started.len() == STARTED_KEEP {
             self.started.remove(0);
         }
-        self.started.push(SoundStart {
+        let record = SoundStart {
             spell_id: request.spell_id,
             kit_id: request.kit_id,
             unit: request.unit,
             sound_kit_id: sound.sound_kit_id,
             fdid: file.fdid,
-            looping: held,
+            looping: hold.is_some(),
+            source: request.source,
             at: request.at,
             stopped_at: None,
-        });
+        };
+        self.started.push((start, record));
         Ok(())
     }
 
@@ -117,27 +162,38 @@ impl SpellSounds {
             .clone()
     }
 
-    /// Unit `unit`'s held cast of `spell_id` ended at `at`: its looping kit sounds stop.
-    pub fn end_held(&mut self, unit: u64, spell_id: u32, at: f32) {
+    /// `hold` ended at `at`: its looping sounds stop.
+    pub fn end(&mut self, hold: SoundHold, at: f32) {
+        let mut ended = Vec::new();
         self.active.retain(|sound| {
-            let ended = sound.held && sound.unit == unit && sound.spell_id == spell_id;
-            if ended && sound.player.is_instance_valid() {
+            if sound.hold != Some(hold) {
+                return true;
+            }
+            if sound.player.is_instance_valid() {
                 sound.player.clone().free();
             }
-            !ended
+            ended.push(sound.start);
+            false
         });
-        for start in &mut self.started {
-            if start.looping && start.unit == unit && start.spell_id == spell_id {
+        self.mark_stopped(&ended, at);
+    }
+
+    fn mark_stopped(&mut self, ended: &[u64], at: f32) {
+        for (id, start) in &mut self.started {
+            if ended.contains(id) {
                 start.stopped_at.get_or_insert(at);
             }
         }
     }
 
-    /// Apply `gain` and drop finished players (or those freed with their unit).
-    pub fn advance(&mut self, gain: f32) {
+    /// Apply `gain` and drop finished players, and those freed with their unit or
+    /// missile (a looping one stops at `at`).
+    pub fn advance(&mut self, gain: f32, at: f32) {
         self.gain = gain;
+        let mut ended = Vec::new();
         self.active.retain_mut(|sound| {
             if !sound.player.is_instance_valid() {
+                ended.push(sound.start);
                 return false;
             }
             if !sound.player.is_playing() {
@@ -147,6 +203,7 @@ impl SpellSounds {
             sound.player.set_volume_linear(sound.volume * gain);
             true
         });
+        self.mark_stopped(&ended, at);
     }
 
     pub fn reset(&mut self) {
