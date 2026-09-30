@@ -165,12 +165,12 @@ impl WowM2Lights {
             else {
                 continue;
             };
-            let bone = light
-                .bone
-                .zip(skeleton)
-                .map_or(Transform3D::IDENTITY, |((index, pivot), skeleton)| {
+            let bone = light.bone.zip(skeleton).map_or(
+                Transform3D::IDENTITY,
+                |((index, pivot), skeleton)| {
                     skeleton.get_bone_global_pose(index) * Transform3D::IDENTITY.translated(-pivot)
-                });
+                },
+            );
             light.apply(point, bone, model_scale);
         }
     }

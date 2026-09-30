@@ -63,5 +63,8 @@ fn z_locked_bone_keeps_its_axis_and_turns_about_it_toward_the_camera() {
 
 #[test]
 fn non_billboard_bone_is_unchanged() {
-    assert_eq!(billboard_bone(0x200, tilted_bone(), Mat3::IDENTITY), tilted_bone());
+    assert_eq!(
+        billboard_bone(0x200, tilted_bone(), Mat3::IDENTITY),
+        tilted_bone()
+    );
 }

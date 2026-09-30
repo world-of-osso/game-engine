@@ -457,8 +457,7 @@ impl INode3D for GameClient {
         self.base_mut().set_process_priority(1);
         // As the main scene, the client becomes ready while the root viewport is still
         // setting up its children, so the root's display controllers attach afterwards.
-        self.base_mut()
-            .call_deferred("apply_display_options", &[]);
+        self.base_mut().call_deferred("apply_display_options", &[]);
         if let Err(error) = self
             .connect_focus_reset()
             .and_then(|()| self.initialize_sound())

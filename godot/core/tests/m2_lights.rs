@@ -65,6 +65,9 @@ fn torch_halo_and_flame_bones_are_billboards() {
     assert_eq!(model.particle_emitters[0].bone_index, 10);
     for (index, bone) in model.bones.iter().enumerate() {
         let expected = matches!(index, 1 | 2);
-        assert_eq!(game_engine_core::m2_billboard::is_billboard(bone.flags), expected);
+        assert_eq!(
+            game_engine_core::m2_billboard::is_billboard(bone.flags),
+            expected
+        );
     }
 }

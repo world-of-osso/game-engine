@@ -84,8 +84,8 @@ fn billboard_axes(flags: u32, [x, y, z]: [Vec3; 3], local: Mat3) -> Option<[Vec3
 
 /// The bone's animated WoW axes, remapped as the view basis (x, y, z) -> (y, z, -x).
 fn animated_spherical_axes(local: Mat3) -> [Vec3; 3] {
-    let wow_local =
-        [local.x_axis, -local.z_axis, local.y_axis].map(|godot| Vec3::new(godot.x, -godot.z, godot.y));
+    let wow_local = [local.x_axis, -local.z_axis, local.y_axis]
+        .map(|godot| Vec3::new(godot.x, -godot.z, godot.y));
     let fallback = [Vec3::NEG_Z, Vec3::X, Vec3::Y];
     std::array::from_fn(|axis| {
         let a = wow_local[axis];
