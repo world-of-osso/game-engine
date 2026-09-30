@@ -324,6 +324,29 @@ impl ModelParticles {
         }))
     }
 
+    /// Authored indices of the emitters the simulation draws.
+    pub fn authored_indices(&self) -> impl Iterator<Item = usize> + '_ {
+        self.emitters.iter().map(|(index, _)| *index)
+    }
+
+    /// These emitters limited to the authored indices `keep` accepts; `None` when
+    /// it accepts none.
+    pub fn filtered(&self, keep: impl Fn(usize) -> bool) -> Option<Rc<Self>> {
+        let emitters: Vec<_> = self
+            .emitters
+            .iter()
+            .filter(|(index, _)| keep(*index))
+            .cloned()
+            .collect();
+        (!emitters.is_empty()).then(|| {
+            Rc::new(Self {
+                fdid: self.fdid,
+                emitters,
+                pivots: self.pivots.clone(),
+            })
+        })
+    }
+
     /// Particle texture FDIDs to extract with the model.
     pub fn texture_fdids(model: &m2::Model) -> impl Iterator<Item = u32> + '_ {
         model.particle_emitters.iter().flat_map(|emitter| {

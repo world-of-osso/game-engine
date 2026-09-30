@@ -191,10 +191,7 @@ fn no_global_scale_flag_skips_particle_density_multiplier() {
 
 #[test]
 fn torch_emitter_translation_matches_particle_position() {
-    let path = std::path::Path::new("data/models/club_1h_torch_a_01.m2");
-    if !path.exists() {
-        return;
-    }
+    let path = require_asset(std::path::Path::new("data/models/club_1h_torch_a_01.m2"));
 
     let skin_fdids = [0_u32; 3];
     let model = crate::asset::m2::load_m2_uncached(path, &skin_fdids).unwrap();
