@@ -71,10 +71,29 @@ pub fn plate_shown(cvars: &NameplateCvars, unit: &PlateUnit) -> bool {
     kind_enabled && (cvars.show_all || unit.targeted || unit.in_combat_with_player)
 }
 
-/// A unit fights the player while it is in combat with the player as its target.
-/// The client sees only the replicated combat flag and target, not a threat list.
-pub fn in_combat_with_player<T: PartialEq>(in_combat: bool, target: Option<T>, player: T) -> bool {
-    in_combat && target == Some(player)
+/// A unit fights the player while the player is on its threat list
+/// (`CompactUnitFrame_IsOnThreatListWithPlayer`: `UnitDetailedThreatSituation` is non-nil,
+/// CompactUnitFrame.lua:563-566), or, for a unit without one (another player), while it
+/// is in combat with the player as its target.
+pub fn in_combat_with_player<T: PartialEq>(
+    in_combat: bool,
+    target: Option<T>,
+    threat_list: &[T],
+    player: T,
+) -> bool {
+    threat_list.contains(&player) || (in_combat && target == Some(player))
+}
+
+/// Whether a plate's health bar takes the hostile colour (1, 0, 0) instead of the unit's
+/// selection colour: `considerSelectionInCombatAsHostile` (on for Retail nameplates,
+/// Blizzard_NamePlateFrameOptions.lua:30, :53) with the player on the unit's threat list
+/// and the unit not friendly (CompactUnitFrame.lua:674-675).
+pub fn selection_in_combat_is_hostile<T: PartialEq>(
+    threat_list: &[T],
+    player: T,
+    friendly: bool,
+) -> bool {
+    !friendly && threat_list.contains(&player)
 }
 
 /// Legacy camera-to-health-body fade, independent of the viewer-to-unit CVar limit.
@@ -97,5 +116,32 @@ pub fn plate_alpha(cvars: &NameplateCvars, occluded: bool) -> f32 {
         cvars.occluded_alpha_mult
     } else {
         1.0
+    }
+}
+
+#[cfg(test)]
+mod threat_tests {
+    use super::*;
+
+    const LOCAL: u64 = 7;
+    const PARTY: u64 = 9;
+
+    #[test]
+    fn a_creature_fights_the_player_while_the_player_is_on_its_threat_list() {
+        // A polymorphed creature has no target but keeps its threat list.
+        assert!(in_combat_with_player(true, None, &[PARTY, LOCAL], LOCAL));
+        assert!(!in_combat_with_player(true, Some(PARTY), &[PARTY], LOCAL));
+        // Another player has no threat list: combat and target decide.
+        assert!(in_combat_with_player(true, Some(LOCAL), &[], LOCAL));
+        assert!(!in_combat_with_player(false, Some(LOCAL), &[], LOCAL));
+    }
+
+    #[test]
+    fn a_neutral_creature_that_has_the_player_on_its_threat_list_shows_hostile() {
+        assert!(selection_in_combat_is_hostile(&[LOCAL], LOCAL, false));
+        assert!(!selection_in_combat_is_hostile(&[PARTY], LOCAL, false));
+        assert!(!selection_in_combat_is_hostile::<u64>(&[], LOCAL, false));
+        // UnitIsFriend: a friendly unit keeps its selection colour.
+        assert!(!selection_in_combat_is_hostile(&[LOCAL], LOCAL, true));
     }
 }

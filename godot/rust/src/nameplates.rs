@@ -14,6 +14,7 @@ use game_engine_core::nameplate_style_data::{
 };
 use game_engine_core::nameplate_visibility_data::{
     NameplateCvars, PlateUnit, in_combat_with_player, nameplate_alpha, plate_alpha, plate_shown,
+    selection_in_combat_is_hostile,
 };
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
@@ -474,7 +475,12 @@ fn plate_rule_input(
         is_player,
         enemy: flags.is_attackable() && can_attack(attacker, defender),
         targeted: viewer.target == Some(unit.server_id),
-        in_combat_with_player: in_combat_with_player(unit.in_combat, unit.unit_target, viewer.id),
+        in_combat_with_player: in_combat_with_player(
+            unit.in_combat,
+            unit.unit_target,
+            &unit.threat_list,
+            viewer.id,
+        ),
         distance: node.get_global_position().distance_to(viewer.position),
     }
 }
@@ -553,7 +559,15 @@ impl GameClient {
                 if !node.is_visible_in_tree() || !plate_shown(&cvars, &rules) {
                     return None;
                 }
-                let color = reaction_color(&style, reaction(template, viewer.template));
+                let reaction = reaction(template, viewer.template);
+                let friendly = reaction == Reaction::Friendly;
+                let color =
+                    if selection_in_combat_is_hostile(&unit.threat_list, viewer.id, friendly) {
+                        // CompactUnitFrame_UpdateHealthColor: `r, g, b = 1.0, 0.0, 0.0`.
+                        Color::from_rgb(1.0, 0.0, 0.0)
+                    } else {
+                        reaction_color(&style, reaction)
+                    };
                 let name_color = nameplate_text_color(unit.player.is_some(), colorblind_mode);
                 let view = project_plate(camera, &cvars, unit, &node, color, name_color, fade_far)?;
                 Some((unit.server_id, view))
