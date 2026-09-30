@@ -46,10 +46,10 @@ func run_follow_up(client: Node, path: String, directory: String) -> bool:
 		if not rewrite_saved_aa(path, mode):
 			return false
 		aa_mode = mode
-		var cap_enabled := mode == "Taa"
+		var cap_enabled: bool = mode == "Taa"
 		var segment := "RightHit" if cap_enabled else "LeftHit"
 		await click_option(client, "ToggleSwitchframe_rate_limit_enabled" + segment)
-		var stage := "live-" + mode
+		var stage: String = "live-" + mode
 		if extent_failed:
 			return false
 		if Engine.max_fps != (DEFAULT_FPS if cap_enabled else 0):
