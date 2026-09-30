@@ -101,7 +101,7 @@ func set_camera_sliders(client: Node, look: float, fov: float) -> bool:
 		return false
 	if not await click_slider(client, "Sliderfov_degrees", (fov - FOV_MIN) / (FOV_MAX - FOV_MIN)):
 		return false
-	if not expect_saved_number("look_sensitivity", look, 0.0000001) or not expect_saved_number("fov_degrees", fov, FOV_TOLERANCE):
+	if not expect_saved_number("look_sensitivity", look, 0.0000001) or not expect_saved_number("fovDegrees", fov, FOV_TOLERANCE):
 		return false
 	return await close_camera_options(client)
 
