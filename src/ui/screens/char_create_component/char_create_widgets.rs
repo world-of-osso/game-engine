@@ -70,17 +70,19 @@ fn icon(name: &str, fdid: u32, size: f32, disabled: bool) -> Element {
     }
 }
 
+/// `size` is the label box and `font_size` its text; the text word-wraps in the box.
 fn tile_label(
     frame_name: &str,
     label: &str,
-    width: f32,
+    size: [f32; 2],
+    font_size: f32,
     y: f32,
     color: FontColor,
     hidden: bool,
 ) -> Element {
     rsx! {
-        fontstring { name: DynName(format!("{frame_name}_Label")), width, height: 40.0,
-            text: label, hidden, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color,
+        fontstring { name: DynName(format!("{frame_name}_Label")), width: size[0], height: size[1],
+            text: label, hidden, font: GameFont::FrizQuadrata, font_size, font_color: color,
             pos_type: "absolute", left: "50%", top: y, translate_x: "-50%",
         }
     }
@@ -103,7 +105,7 @@ fn race_button(race: &RaceInfo, selected: bool, position: [f32; 2]) -> Element {
             {icon(&frame_name, race.icon_fdid, 79.0, false)}
             {ring(&frame_name, ring_atlas, [139.0, 140.0])}
             {selection_ring(&frame_name, 118.0, selected)}
-            {tile_label(&frame_name, race.name, 112.0, 72.0, COLOR_GOLD, !selected)}
+            {tile_label(&frame_name, race.name, [112.0, 40.0], 12.0, 72.0, COLOR_GOLD, !selected)}
         }
     }
 }
@@ -210,6 +212,9 @@ pub(super) fn class_button(
     } else {
         COLOR_WHITE
     };
+    // Retail `ClassName`: GameFontNormalMed2 (Friz Quadrata 13) in an 85x50 box, TOP
+    // 3 px above the icon's BOTTOM (Blizzard_CharacterCreate.xml:72-77); `SetScale`
+    // scales the whole button (Blizzard_CharacterCreate.lua UpdateClassButtons).
     let scale = bounds[2] / 67.0;
     let onclick = CharCreateAction::SelectClass(id).when_enabled(available);
     let (highlight_atlas, highlight_size) = hover_ring_art(
@@ -227,7 +232,7 @@ pub(super) fn class_button(
             {icon(&frame_name, fdid, bounds[2], disabled)}
             {ring(&frame_name, ring_atlas, [116.0 * scale, 117.0 * scale])}
             {selection_ring(&frame_name, 99.0 * scale, selected && available)}
-            {tile_label(&frame_name, name, 85.0 * scale, bounds[2] - 3.0, color, false)}
+            {tile_label(&frame_name, name, [85.0 * scale, 50.0 * scale], 13.0 * scale, bounds[2] - 3.0 * scale, color, false)}
         }
     }
 }
