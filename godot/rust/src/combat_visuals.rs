@@ -1,6 +1,6 @@
 //! Host wiring of combat animations and spell visuals: server combat traffic to
-//! `WorldUnits` clips (`world_combat`) and `SpellEffects` kits, per-frame cast holds,
-//! kit lifetimes, missiles and particles, and automation state.
+//! `WorldUnits` clips (`world_combat`), `SpellEffects` kits and melee sounds, per-frame
+//! cast holds, kit lifetimes, missiles and particles, and automation state.
 
 use std::time::Instant;
 
@@ -16,7 +16,10 @@ impl GameClient {
         message: CombatMessage,
     ) -> Result<(), FrameError> {
         match message {
-            CombatMessage::Event(event) => Ok(self.world.apply_combat_event(&event)?),
+            CombatMessage::Event(event) => {
+                self.spell_effects.observe_melee(&event);
+                Ok(self.world.apply_combat_event(&event)?)
+            }
             CombatMessage::SpellGo(go) => {
                 self.auto_attack_post_cast(&go)?;
                 let started = Instant::now();
@@ -121,6 +124,16 @@ impl GameClient {
             sounds.push(&entry.to_variant());
         }
         state.set("sounds", &sounds);
+        let mut melee = VarArray::new();
+        for seen in self.spell_effects.melee_seen() {
+            let mut entry = VarDictionary::new();
+            entry.set("attacker", seen.attacker as i64);
+            entry.set("target", seen.target as i64);
+            entry.set("result", format!("{:?}", seen.result));
+            entry.set("at", seen.at);
+            melee.push(&entry.to_variant());
+        }
+        state.set("melee", &melee);
         state.set("clock", self.spell_effects.clock());
         state.set("assets_pending", self.spell_effects.assets_pending() as i64);
         state.set("frame_ms", self.spell_effects.frame_ms());

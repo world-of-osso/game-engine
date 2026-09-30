@@ -8,11 +8,41 @@ use game_engine_core::{
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::char_create_component::CharCreateMode;
-use godot::{classes::Os, obj::Singleton};
+use godot::{
+    classes::Os,
+    obj::{Singleton, WithBaseField},
+};
 
 use crate::GameClient;
 
 impl GameClient {
+    pub(super) fn poll_asset_startup(&mut self) -> bool {
+        match self.resume_asset_startup() {
+            Ok(ready) => ready,
+            Err(error) => {
+                godot::prelude::godot_error!("Cannot initialize client: {error}");
+                self.base().get_tree().quit_ex().exit_code(1).done();
+                false
+            }
+        }
+    }
+
+    fn resume_asset_startup(&mut self) -> Result<bool, String> {
+        let Some(startup) = self.asset_startup.as_mut() else {
+            return Ok(true);
+        };
+        let startup = startup.as_mut().map_err(|error| error.clone())?;
+        let Some(result) = startup.poll() else {
+            return Ok(false);
+        };
+        result?;
+        self.asset_startup = None;
+        self.initialize_sound()?;
+        self.initialize_startup()?;
+        self.sync_registry_ui_scale()?;
+        Ok(true)
+    }
+
     pub(super) fn initialize_startup(&mut self) -> Result<(), String> {
         let arguments = Os::singleton()
             .get_cmdline_user_args()

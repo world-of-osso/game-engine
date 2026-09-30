@@ -3,7 +3,9 @@ mod animation;
 #[path = "../../../src/rendering/character/appearance_options.rs"]
 pub mod appearance_options;
 pub use game_engine_core::{customization_data, outfit_data};
+mod asset_startup;
 mod assets;
+mod auction;
 mod auras;
 mod auto_attack;
 mod camera;
@@ -42,7 +44,6 @@ mod scene;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
-mod sound_outcome;
 mod spell_assets;
 mod spell_effects;
 mod spell_sounds;
@@ -112,6 +113,8 @@ pub struct GameClient {
     creation_catalog: Option<game_engine_core::customization_data::CustomizationDb>,
     name_catalog: Option<Result<char_create::NameCatalog, String>>,
     data_root: PathBuf,
+    /// Pending CASC startup worker, or its spawn error; None after startup completes.
+    asset_startup: Option<Result<asset_startup::AssetStartup, String>>,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
@@ -152,6 +155,7 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
+    auction: auction::Auction,
     auto_attack: auto_attack::AutoAttack,
     auras: auras::Auras,
 }
@@ -163,6 +167,10 @@ impl INode3D for GameClient {
         let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
         let cache_root =
             PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
+        let asset_startup = Some(asset_startup::AssetStartup::start(
+            data_root.clone(),
+            cache_root.clone(),
+        ));
         let client_options =
             load_options_file_with_legacy(&data_root.join("ui/options_settings.ron")).clamped();
         // Bag items resolve names, quality and icons from the shared item tables; the
@@ -192,6 +200,7 @@ impl INode3D for GameClient {
             creation_catalog: None,
             name_catalog: None,
             data_root: data_root.clone(),
+            asset_startup,
             character_preview: character_select::CharacterPreview::new(
                 data_root.clone(),
                 cache_root.clone(),
@@ -236,6 +245,7 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
+            auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
             replica: Replica::default(),
@@ -251,6 +261,10 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        // Asset-using screens/actions must not race the startup worker's CASC locks.
+        if self.asset_startup.is_some() {
+            return;
+        }
         let chat_used = self.chat_edit_key(&event).unwrap_or_else(|error| {
             self.handle_frame_error("Chat key", error.into());
             true
@@ -318,6 +332,19 @@ impl INode3D for GameClient {
             }
             return;
         }
+        match self.auction_key(key.get_keycode()) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Err(error) => {
+                self.handle_frame_error("Auction key", error.into());
+                return;
+            }
+            Ok(false) => {}
+        }
         match self.merchant_key(key.get_keycode()) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -372,6 +399,10 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, delta: f64) {
+        if !self.poll_asset_startup() {
+            self.physical_input.finish_frame();
+            return;
+        }
         type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
         // Each step runs even when an earlier one failed; only a session failure ends
         // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
@@ -391,6 +422,7 @@ impl INode3D for GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
             ("Merchant", |c, _| c.update_merchant()),
+            ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
             ("World map", |c, _| Ok(c.update_world_map()?)),
             ("Minimap", |c, _| c.update_minimap()),
@@ -458,20 +490,10 @@ impl INode3D for GameClient {
     fn ready(&mut self) {
         // Model animation nodes tick at priority 0 before this observer reads their selected clock.
         self.base_mut().set_process_priority(1);
-        let mut viewport = self
-            .base()
-            .get_viewport()
-            .expect("GameClient has no viewport");
-        display_options::apply_graphics_display_options(
-            &self.client_options.graphics,
-            &mut viewport,
-        );
-        if let Err(error) = self
-            .connect_focus_reset()
-            .and_then(|()| self.initialize_sound())
-            .and_then(|()| self.initialize_startup())
-            .and_then(|()| self.sync_registry_ui_scale())
-        {
+        // The root viewport is still attaching children during ready.
+        self.base_mut().call_deferred("apply_display_options", &[]);
+        // Asset-backed initialization resumes from process after the worker completes.
+        if let Err(error) = self.connect_focus_reset() {
             godot_error!("Cannot initialize client: {error}");
             self.base().get_tree().quit_ex().exit_code(1).done();
         }
@@ -482,6 +504,19 @@ impl INode3D for GameClient {
 impl GameClient {
     #[signal]
     fn screen_requested(screen: GString);
+
+    /// Applies the graphics options to the root viewport.
+    #[func]
+    fn apply_display_options(&mut self) {
+        let mut viewport = self
+            .base()
+            .get_viewport()
+            .expect("GameClient has no viewport");
+        display_options::apply_graphics_display_options(
+            &self.client_options.graphics,
+            &mut viewport,
+        );
+    }
 
     #[func]
     fn fps_overlay_enabled(&self) -> bool {
@@ -688,6 +723,11 @@ impl GameClient {
         self.merchant_snapshot()
     }
 
+    #[func]
+    fn auction_state(&self) -> VarDictionary {
+        self.auction_snapshot()
+    }
+
     /// Spell visual kits started, kit models and missiles shown.
     #[func]
     fn spell_visuals_state(&self) -> VarDictionary {
@@ -828,6 +868,9 @@ impl GameClient {
             }
         }
         self.merchant.visit_uis(&mut visit)?;
+        if let Some(ui) = &mut self.auction.ui {
+            visit(ui)?;
+        }
         self.spells.visit_uis(&mut visit)?;
         self.targeting.visit_uis(&mut visit)?;
         self.minimap.visit_uis(&mut visit)?;
@@ -1271,12 +1314,7 @@ impl GameClient {
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
-            AccountEvent::Combat(message) => {
-                if let account::CombatMessage::Event(event) = &message {
-                    self.play_combat_outcome(event);
-                }
-                self.receive_combat_message(message)?;
-            }
+            AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema),
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
             AccountEvent::ReplicationEnded => {
@@ -1289,6 +1327,7 @@ impl GameClient {
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
             AccountEvent::Npc(message) => self.receive_npc_message(message)?,
+            AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
         }
         Ok(())

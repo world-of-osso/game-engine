@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] feature | Retail melee sounds; synthetic miss/interrupt PCM removed
+
+[Melee sounds](systems/spell-visuals.md#melee-sounds): WeaponSwingSounds2 swoosh at `$CSS`, WeaponImpactSounds impact and CreatureSoundData injury at `$CAH`, SoundDeathID on NPC death clips. Hit reactions no longer cut a unit's own swing. [[sound]] outcome section rewritten; `OutcomeSpells` and `sound-outcome` fixture removed.
+
 ## [2026-09-30] evidence | Bounded TargetSelf Options rebind; gate accepted
 
 Updated existing Options parity row, [native main-menu boundary](systems/godot-conversion.md#native-main-menu-boundary) and index. Test-only `685cbe83`, `data/diagnostics/target-binding-options/run1.log` exit 0: real Keybindings/Targeting capture F1 → T → F1, exact labels/unique canonical ownership, old keys inactive, same-player ring/TargetFrame; selection cleared/Menu closed/input released. T avoids fixed F10 Edit Mode. Previous character-select/camera/Min-Max/Zoom/marker/full Menu UDP/Exit assertions pass; unchanged compiled `mb61bqgcj2`, no production change/new Depot. `/tmp/claude/verify-native-target-binding-options.md` accepted bounded saved-runtime/source PASS (eight PASS messages, not eight framework cases); no all-bindings/conflict/server-ack/movement-rebind/fresh-process acceptance. Docs only; Cargo.lock, PLAN.md, user-data/data preserved; no tests/GPU/build/network/delegation. Source unfrozen/shutdown paused; canonical window released for main to merge, not agents.
@@ -2181,6 +2185,15 @@ Player and target frames now sit at Retail's Modern Edit Mode preset. The target
 
 The Godot client shows the player BuffFrame/DebuffFrame and the Retail TargetFrame aura container ([buff frame spec](../specs/buff-frame.md)). The player's own auras are large (21 px). On a hostile NPC, other players' debuffs are hidden. Timed icons get the reverse cooldown swipe with its edge. Countdowns run on wall time. The Retail PlayerFrame draws no aura icons. The shared `aura_display_data` keeps the replicated slot order that BuffFrame uses. Before this, the Godot client drew no auras at all, and the server marked Polymorph on the neutral Blackrock Spy as a buff (game-server `70551a9`, effect positivity). Live proof: `godot/tests/auras_live.gd`, with captures in `data/diagnostics/auras-2026-09-29/`.
 
+## [2026-09-30] investigation | Torch billboards and M2 point lights
+
+The particledebug torch's golden halo is a quad on spherical billboard bone 1 and its flame emitter sits under billboard bone 2; the Godot client had no bone billboarding, so the halo was edge-on. M2 point lights were never rendered. Both now follow WebWowViewerCpp/solarityclient; retail forces torch attenuation to 1.667-5.267 yd. Startup also stopped failing `add_child` on the root viewport (NativeTaa/bloom/RCAS never attached on normal launches). See [[godot-torch-rendering]].
+
+
 ## [2026-09-30] feature | Spell assets load off the main thread
 
 A spell's first use no longer extracts, parses or decodes its kit models, textures and sounds on the main thread. Before, a first Flash of Light spent 117-283 ms per frame on spell visuals, and the CASC resolver init (1.5-1.7 s) could land on the first cast. Now a worker loader with prefetch priorities does this work. A late asset joins its kit's timeline at arrival, and the local player's known spells are prefetched. A first-use Flash of Light played every sound on time, with at most 30.4 ms of spell-visual time per frame and a 1.493-1.573 s precast for a 1.5 s cast. See [spell-visuals](systems/spell-visuals.md#asset-loading-godotrustsrcspell_assetsrs-godotcoresrcasset_loaderrs).
+
+## [2026-09-30] fix | Retail ADT water
+
+Northshire streams used the procedural placeholder water shader and lost MH2O LVF 0 depths. Godot water now ports WebWowViewerCpp `liquidWaterMat` with LiquidType/LiquidObject/LiquidTypeXTexture DB2 inputs and LightData/LightParams colours. See [northshire-pale-water](investigations/northshire-pale-water.md).

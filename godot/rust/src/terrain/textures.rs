@@ -73,7 +73,7 @@ impl TerrainTextureCache {
         Ok(layers)
     }
 
-    fn load_image(
+    pub fn load_image(
         &mut self,
         resolver: &CascListfileResolver,
         data_root: &Path,
