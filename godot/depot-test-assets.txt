@@ -175,3 +175,5 @@ db2/12.1.0.69933/UiMapArt.csv
 db2/12.1.0.69933/UiMapArtStyleLayer.csv
 db2/12.1.0.69933/UiMapArtTile.csv
 db2/12.1.0.69933/TaxiNodes.csv
+db2/12.1.0.69933/Emotes.csv
+db2/12.1.0.69933/NPCModelItemSlotDisplayInfo.csv

@@ -8,13 +8,16 @@
 //! simultaneous numbers do not stack; `WorldTextRampDuration_v2 = 1.0` with
 //! `WorldTextRampPow_v2 = 1.9` / `WorldTextRampPowCrit_v2 = 8.0` (:1618-1620) shape the size
 //! ramp, a crit popping larger and settling faster. No source has the engine formula;
-//! the mapping of each CVar here is read from its name.
+//! the mapping of each CVar here is read from its name. Retail text is a world object
+//! that shrinks with distance; this text keeps a fixed screen size, so the start spread
+//! is measured in `unit`s that scale with it (the caller passes 1.5 text heights at the
+//! target's depth), or distant numbers would still land on each other.
 
 use godot::prelude::*;
 
-/// `WorldTextStartPosRandomness_v2`: yards of sideways start spread either side.
+/// `WorldTextStartPosRandomness_v2`: sideways start spread either side, in units.
 const START_POS_RANDOMNESS: f32 = 1.0;
-/// `WorldTextRandomZMin_v2` / `WorldTextRandomZMax_v2`, yards.
+/// `WorldTextRandomZMin_v2` / `WorldTextRandomZMax_v2`, in units.
 const RANDOM_Z_MIN: f32 = 0.8;
 const RANDOM_Z_MAX: f32 = 1.5;
 /// `WorldTextRampDuration_v2`, seconds.
@@ -30,11 +33,11 @@ const RAMP_POP: f32 = 0.5;
 const R2: [f32; 2] = [0.754_877_7, 0.569_840_3];
 
 /// Where the `index`th number starts relative to the anchor over the target's head:
-/// sideways along the camera's right, and up by the random Z range.
-pub(crate) fn start_offset(index: u32, camera_right: Vector3) -> Vector3 {
+/// sideways along the camera's right, and up by the random Z range, `unit` long each.
+pub(crate) fn start_offset(index: u32, camera_right: Vector3, unit: f32) -> Vector3 {
     let [u, v] = R2.map(|alpha| (0.5 + alpha * index as f32).fract());
     let side = camera_right.normalized() * (START_POS_RANDOMNESS * (2.0 * u - 1.0));
-    side + Vector3::UP * ((RANDOM_Z_MAX - RANDOM_Z_MIN) * v)
+    (side + Vector3::UP * ((RANDOM_Z_MAX - RANDOM_Z_MIN) * v)) * unit
 }
 
 /// Size multiplier `age` seconds after spawn: pops larger, then ramps down to 1.
@@ -51,15 +54,16 @@ mod tests {
     #[test]
     fn numbers_spawned_together_start_apart() {
         // Showcase: a Frostbolt hit and a crit landed on the same frame, drawn on top of
-        // each other. Any four numbers in a row start at least half a yard apart.
+        // each other. Any four numbers in a row start at least half a unit apart.
         let right = Vector3::new(0.6, 0.0, -0.8);
+        let unit = 2.0;
         for first in 0..1000 {
             let starts: Vec<_> = (first..first + 4)
-                .map(|index| start_offset(index, right))
+                .map(|index| start_offset(index, right, unit))
                 .collect();
             for (i, a) in starts.iter().enumerate() {
                 for b in &starts[i + 1..] {
-                    assert!(a.distance_to(*b) >= 0.5, "{first}: {a} vs {b}");
+                    assert!(a.distance_to(*b) >= 0.5 * unit, "{first}: {a} vs {b}");
                 }
             }
         }
@@ -69,7 +73,7 @@ mod tests {
     fn starts_stay_in_the_camera_plane_within_the_random_ranges() {
         let right = Vector3::new(0.0, 0.0, 2.0);
         for index in 0..200 {
-            let offset = start_offset(index, right);
+            let offset = start_offset(index, right, 1.0);
             assert_eq!(offset.x, 0.0);
             assert!(offset.z.abs() <= START_POS_RANDOMNESS);
             assert!((0.0..=RANDOM_Z_MAX - RANDOM_Z_MIN).contains(&offset.y));

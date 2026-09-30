@@ -73,6 +73,10 @@ const FLOAT_TEXT_SECS: f32 = 1.5;
 const FLOAT_TEXT_HEIGHT: f32 = 3.6;
 /// Combat text `pixel_size` at its settled size.
 const FLOAT_TEXT_PIXEL: f32 = 0.0016;
+/// Font size of a hit; a crit is 1.5 times it.
+const FLOAT_TEXT_FONT_SIZE: i32 = 64;
+/// Normal text heights in one unit of the combat text start spread.
+const FLOAT_TEXT_SPREAD_HEIGHTS: f32 = 1.5;
 
 enum CatalogLoad {
     Idle,
@@ -927,16 +931,15 @@ impl GameClient {
             .filter(|event| matches!(event.kind, CombatLogKind::Damage | CombatLogKind::Miss(_)))
             .cloned()
             .collect();
-        let camera_right = self
+        let camera = self
             .base()
             .get_viewport()
             .and_then(|viewport| viewport.get_camera_3d())
-            .map(|camera| camera.get_global_transform().basis.col_a());
+            .map(|camera| camera.get_global_transform());
         for event in events {
-            let (Some(unit), Some(right)) = (
-                event.target.and_then(|id| self.world.unit_node(id)),
-                camera_right,
-            ) else {
+            let (Some(unit), Some(camera)) =
+                (event.target.and_then(|id| self.world.unit_node(id)), camera)
+            else {
                 continue;
             };
             let text = match event.kind {
@@ -952,7 +955,11 @@ impl GameClient {
                 godot::classes::label_3d::DrawFlags::DISABLE_DEPTH_TEST,
                 true,
             );
-            label.set_font_size(if event.crit { 96 } else { 64 });
+            label.set_font_size(if event.crit {
+                FLOAT_TEXT_FONT_SIZE * 3 / 2
+            } else {
+                FLOAT_TEXT_FONT_SIZE
+            });
             label.set_outline_size(8);
             // Constant on-screen size, as Retail combat text.
             label.set_draw_flag(godot::classes::label_3d::DrawFlags::FIXED_SIZE, true);
@@ -965,9 +972,19 @@ impl GameClient {
             label.set_modulate(color);
             // Under the client root: unit nodes carry model scale. Each number starts at
             // its own offset in the camera plane so simultaneous ones do not stack.
-            let origin = unit.get_global_position()
-                + Vector3::new(0.0, FLOAT_TEXT_HEIGHT, 0.0)
-                + combat_text::start_offset(self.spells.floats_spawned, right);
+            let anchor = unit.get_global_position() + Vector3::new(0.0, FLOAT_TEXT_HEIGHT, 0.0);
+            // A fixed-size label is `font_size * pixel_size` world units tall per unit of
+            // camera distance; the spread unit is 1.5 normal text heights at its depth.
+            let spread = FLOAT_TEXT_SPREAD_HEIGHTS
+                * FLOAT_TEXT_FONT_SIZE as f32
+                * FLOAT_TEXT_PIXEL
+                * camera.origin.distance_to(anchor);
+            let origin = anchor
+                + combat_text::start_offset(
+                    self.spells.floats_spawned,
+                    camera.basis.col_a(),
+                    spread,
+                );
             self.spells.floats_spawned = self.spells.floats_spawned.wrapping_add(1);
             label.set_position(origin);
             label.set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(0.0, event.crit));
