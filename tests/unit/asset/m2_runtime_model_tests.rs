@@ -2,6 +2,10 @@ use super::*;
 use crate::asset::asset_cache;
 use std::path::Path;
 
+#[path = "../required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
+
 fn extract_md21_chunk(data: &[u8]) -> Option<&[u8]> {
     let mut off = 0;
     while off + 8 <= data.len() {
@@ -67,21 +71,8 @@ fn debug_single_model(path: &str, label: &str) {
     println!("File: {} ({})", path, label);
     println!("============================================================");
 
-    let data = match std::fs::read(path) {
-        Ok(d) => d,
-        Err(e) => {
-            println!("SKIPPED: Failed to read: {}", e);
-            return;
-        }
-    };
-
-    let md20 = match extract_md21_chunk(&data) {
-        Some(m) => m,
-        None => {
-            println!("SKIPPED: MD21 chunk not found");
-            return;
-        }
-    };
+    let data = std::fs::read(require_asset(path)).unwrap();
+    let md20 = extract_md21_chunk(&data).expect("MD21 chunk not found");
 
     println!(
         "\nTotal MD20 length: {} bytes (0x{:x})",
@@ -157,52 +148,18 @@ fn debug_hd_skel_info() {
     println!("SKB1 Bone Count from humanmale_hd.skel");
     println!("============================================================");
 
-    let skel_data = match std::fs::read(skel_path) {
-        Ok(d) => d,
-        Err(e) => {
-            println!("FAILED to read {}: {}", skel_path, e);
-            return;
-        }
-    };
-
-    let skel_bone_count = match extract_skb1_bone_count(&skel_data) {
-        Some(count) => {
-            println!("SKB1 chunk bone count: {}", count);
-            count
-        }
-        None => {
-            println!("ERROR: Could not find SKB1 chunk or read bone count");
-            return;
-        }
-    };
+    let skel_data = std::fs::read(require_asset(skel_path)).unwrap();
+    let skel_bone_count =
+        extract_skb1_bone_count(&skel_data).expect("Could not find SKB1 chunk or read bone count");
+    println!("SKB1 chunk bone count: {}", skel_bone_count);
 
     println!("\n============================================================");
     println!("Max Bone Index from humanmale_hd.m2 vertices");
     println!("============================================================");
 
-    let m2_data = match std::fs::read(m2_path) {
-        Ok(d) => d,
-        Err(e) => {
-            println!("FAILED to read {}: {}", m2_path, e);
-            return;
-        }
-    };
-
-    let md20 = match extract_md21_chunk(&m2_data) {
-        Some(m) => m,
-        None => {
-            println!("ERROR: Could not find MD21 chunk");
-            return;
-        }
-    };
-
-    let verts = match parse_vertices(md20) {
-        Ok(v) => v,
-        Err(e) => {
-            println!("ERROR parsing vertices: {}", e);
-            return;
-        }
-    };
+    let m2_data = std::fs::read(require_asset(m2_path)).unwrap();
+    let md20 = extract_md21_chunk(&m2_data).expect("Could not find MD21 chunk");
+    let verts = parse_vertices(md20).expect("failed to parse vertices");
 
     let max_bone_index = find_max_bone_index(&verts);
     println!("Total vertices: {}", verts.len());
@@ -231,11 +188,7 @@ fn count_bones_with_stand_keyframes(model: &super::M2Model) -> usize {
 
 #[test]
 fn load_m2_hd_has_skel_animation_data() {
-    let m2_path = Path::new("data/models/humanmale_hd.m2");
-    if !m2_path.exists() {
-        println!("Skipping: humanmale_hd.m2 not found");
-        return;
-    }
+    let m2_path = require_asset(Path::new("data/models/humanmale_hd.m2"));
     let model = load_m2(m2_path, &[0, 0, 0]).expect("Failed to load humanmale_hd.m2");
 
     assert!(
@@ -277,10 +230,7 @@ fn load_m2_hd_has_skel_animation_data() {
 
 #[test]
 fn load_m2_skips_zero_opacity_color_passes() {
-    let m2_path = Path::new("data/models/3718225.m2");
-    if !m2_path.exists() {
-        return;
-    }
+    let m2_path = require_asset(Path::new("data/models/3718225.m2"));
 
     let model = load_m2(m2_path, &[0, 0, 0]).expect("Failed to load domination boots M2");
     let remaining_textures: Vec<u32> = model
@@ -310,16 +260,14 @@ fn load_m2_skips_zero_opacity_color_passes() {
 #[test]
 fn human_male_helm_runtime_model_resolves_display_material_texture() {
     let outfit = crate::outfit_data::OutfitData::load(Path::new("data"));
-    let Some((model_fdid, skin_fdids)) = outfit.resolve_runtime_model(1128, 1, 0) else {
-        return;
-    };
-    let Some(wow_path) = game_engine::listfile::lookup_fdid(model_fdid) else {
-        return;
-    };
+    let (model_fdid, skin_fdids) = outfit
+        .resolve_runtime_model(1128, 1, 0)
+        .expect("display 1128 should resolve a human male runtime model");
+    let wow_path = game_engine::listfile::lookup_fdid(model_fdid)
+        .unwrap_or_else(|| panic!("listfile has no path for FDID {model_fdid}"));
     let model_path = Path::new("data/item-models").join(wow_path);
-    let Some(model_path) = asset_cache::file_at_path(model_fdid, &model_path) else {
-        return;
-    };
+    let model_path = asset_cache::file_at_path(model_fdid, &model_path)
+        .unwrap_or_else(|| require_asset(model_path));
 
     let model = load_m2(&model_path, &skin_fdids).expect("failed to load human male helm model");
 
@@ -339,10 +287,7 @@ fn human_male_helm_runtime_model_resolves_display_material_texture() {
 
 #[test]
 fn load_m2_marks_reflection_overlay_batches() {
-    let m2_path = Path::new("data/models/4198218.m2");
-    if !m2_path.exists() {
-        return;
-    }
+    let m2_path = require_asset(Path::new("data/models/4198218.m2"));
 
     let model = load_m2(m2_path, &[0, 0, 0]).expect("Failed to load water bucket M2");
     let bucket_batch = model

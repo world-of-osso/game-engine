@@ -13,27 +13,19 @@ const GOLDSHIRE: [f32; 3] = [-9433.99, 85.149, 57.0];
 /// Inside Northshire Abbey's grounds.
 const NORTHSHIRE_ABBEY: [f32; 3] = [-8914.0, -133.0, 81.0];
 
-fn catalog() -> Option<&'static UiMapCatalog> {
-    static CATALOG: OnceLock<Option<UiMapCatalog>> = OnceLock::new();
-    CATALOG
-        .get_or_init(|| {
-            let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("data/db2/12.1.0.69933")
-                .canonicalize()
-                .ok()
-                .or_else(|| {
-                    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../../data/db2/12.1.0.69933")
-                        .canonicalize()
-                        .ok()
-                })?;
-            if !dir.join("UiMapArtTile.csv").exists() {
-                eprintln!("skipping: {} has no UiMap CSVs", dir.display());
-                return None;
-            }
-            Some(UiMapCatalog::load(&dir).unwrap())
-        })
-        .as_ref()
+fn catalog() -> &'static UiMapCatalog {
+    static CATALOG: OnceLock<UiMapCatalog> = OnceLock::new();
+    CATALOG.get_or_init(|| {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let dir = [
+            root.join("data/db2/12.1.0.69933"),
+            root.join("../../data/db2/12.1.0.69933"),
+        ]
+        .into_iter()
+        .find(|dir| dir.join("UiMapArtTile.csv").exists())
+        .expect("UiMapArtTile.csv export (scripts/export_db2_csv.py)");
+        UiMapCatalog::load(&dir).unwrap()
+    })
 }
 
 fn close(actual: [f32; 2], expected: [f32; 2]) -> bool {
@@ -42,7 +34,7 @@ fn close(actual: [f32; 2], expected: [f32; 2]) -> bool {
 
 #[test]
 fn best_map_is_the_smallest_zone_under_the_player() {
-    let Some(catalog) = catalog() else { return };
+    let catalog = catalog();
     assert_eq!(
         catalog.best_map_for_position(EASTERN_KINGDOMS_MAP, GOLDSHIRE),
         Some(ELWYNN)
@@ -61,7 +53,7 @@ fn best_map_is_the_smallest_zone_under_the_player() {
 
 #[test]
 fn zone_zooms_out_to_continent_then_world() {
-    let Some(catalog) = catalog() else { return };
+    let catalog = catalog();
     let lineage = catalog.lineage(ELWYNN);
     assert_eq!(&lineage[..3], &[ELWYNN, EASTERN_KINGDOMS, AZEROTH]);
     assert_eq!(catalog.map(ELWYNN).unwrap().name, "Elwynn Forest");
@@ -70,7 +62,7 @@ fn zone_zooms_out_to_continent_then_world() {
 
 #[test]
 fn map_position_matches_retail_coordinates() {
-    let Some(catalog) = catalog() else { return };
+    let catalog = catalog();
     // Retail shows the Goldshire flight master at 41.8, 64.6 on Elwynn Forest.
     let zone = catalog
         .map_position(ELWYNN, EASTERN_KINGDOMS_MAP, GOLDSHIRE)
@@ -92,7 +84,7 @@ fn map_position_matches_retail_coordinates() {
 
 #[test]
 fn child_at_finds_the_zone_and_continent_under_the_cursor() {
-    let Some(catalog) = catalog() else { return };
+    let catalog = catalog();
     let on_continent = catalog
         .map_position(EASTERN_KINGDOMS, EASTERN_KINGDOMS_MAP, GOLDSHIRE)
         .unwrap();
@@ -115,7 +107,7 @@ fn child_at_finds_the_zone_and_continent_under_the_cursor() {
 
 #[test]
 fn zone_art_tiles_are_trimmed_to_the_layer() {
-    let Some(catalog) = catalog() else { return };
+    let catalog = catalog();
     let art = catalog.art(ELWYNN).unwrap();
     assert_eq!(art.size, [1002.0, 668.0]);
     assert_ne!(art.highlight_fdid, 0);

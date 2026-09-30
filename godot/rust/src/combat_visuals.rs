@@ -2,6 +2,8 @@
 //! `WorldUnits` clips (`world_combat`), `SpellEffects` kits and melee sounds, per-frame
 //! cast holds, kit lifetimes, missiles and particles, and automation state.
 
+use std::time::Instant;
+
 use godot::prelude::*;
 
 use crate::GameClient;
@@ -20,9 +22,12 @@ impl GameClient {
             }
             CombatMessage::SpellGo(go) => {
                 self.auto_attack_post_cast(&go)?;
-                Ok(self
+                let started = Instant::now();
+                let shown = self
                     .spell_effects
-                    .spell_go(&go, &self.units, &mut self.world)?)
+                    .spell_go(&go, &self.units, &mut self.world);
+                self.spell_effects.add_busy(started.elapsed());
+                Ok(shown?)
             }
             CombatMessage::AttackStart(start) => {
                 self.receive_attack_start(&start);
@@ -36,6 +41,16 @@ impl GameClient {
     }
 
     pub(super) fn update_spell_visuals(&mut self, delta: f32) -> Result<(), String> {
+        let started = Instant::now();
+        let prefetched = match self.world.local_player_id() {
+            Some(local) => self.spell_effects.prefetch(
+                local,
+                self.account.spells.known(),
+                &self.units,
+                &self.world,
+            ),
+            None => Ok(()),
+        };
         let held = self.spell_effects.sync_casts(&self.units, &mut self.world);
         let camera = self.world_camera.transform();
         let sound = &self.client_options.sound;
@@ -47,7 +62,8 @@ impl GameClient {
         let advanced = self
             .spell_effects
             .advance(delta, camera, gain, &mut self.world);
-        held.and(advanced)
+        self.spell_effects.end_frame(started.elapsed());
+        prefetched.and(held).and(advanced)
     }
 
     /// Recent kit starts and missile flights, and the kit models and missiles shown now.
@@ -103,6 +119,7 @@ impl GameClient {
             entry.set("looping", start.looping);
             entry.set("source", start.source.name());
             entry.set("at", start.at);
+            entry.set("late", start.late);
             entry.set("stopped_at", start.stopped_at.map_or(-1.0, f64::from));
             sounds.push(&entry.to_variant());
         }
@@ -118,6 +135,8 @@ impl GameClient {
         }
         state.set("melee", &melee);
         state.set("clock", self.spell_effects.clock());
+        state.set("assets_pending", self.spell_effects.assets_pending() as i64);
+        state.set("frame_ms", self.spell_effects.frame_ms());
         let mut casts = VarArray::new();
         for seen in self.spell_effects.casts_seen() {
             let mut entry = VarDictionary::new();
