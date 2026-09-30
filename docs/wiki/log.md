@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] verification | Bounded native loot reach
+
+Reconciled LootFrame spec/matrix with [saved reach proof](systems/godot-conversion.md#native-loot-reach--bounded-runtime-proof): inclusive corpse reach and friendly dispatch accepted; original four cases/42 UI checks retained. Hostile/role-response gaps remain; post-DONE exit 101 RenderingServer-null is FAIL/deferred. Settings-reload commits remain test preparation, not proof. Docs only; no clean full-conversion or source-pinning claim.
+
 ## [2026-09-30] implementation | Bounded native receiving mail
 
 Updated [[trade-and-mail]] and the MailFrame spec to distinguish preserved Bevy full mail from the native AH receiving dependency. `9ed690bf` Depot focused source proof: metadata 1/1, owned UDP 3/3, model/registry/interaction 4/4. Real mailbox M2/picking, matching role/contents gate, authoritative claims and receiving-only authored UI are implemented. Committed GDScript fixture remains unrun until main's CLI proof; no extension install, native live run, backend/shared change or full-AH acceptance. Two pre-existing terrain test unused-mut warnings remain outside this slice.
