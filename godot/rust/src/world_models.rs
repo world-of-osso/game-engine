@@ -269,6 +269,7 @@ impl VisualCatalogs {
 /// parsing, texture composition and decoding) and the main thread makes its nodes.
 pub(crate) struct WorldModels {
     catalogs: Arc<VisualCatalogs>,
+    player_displays: Option<Result<HashMap<(u8, u8), u32>, String>>,
     loader: AssetLoader<u64, VisualParts>,
     /// Requests the workers have not taken yet, by request ID.
     requests: Arc<Mutex<HashMap<u64, VisualRequest>>>,
@@ -310,10 +311,30 @@ impl WorldModels {
         );
         Self {
             catalogs,
+            player_displays: None,
             loader,
             requests,
             next_request: 0,
         }
+    }
+
+    /// Native player display from the same build-pinned ChrModel rows as unit voices.
+    pub fn player_native_display(&mut self, player: &Player) -> Result<u32, String> {
+        let dir = self.catalogs.data_root.join("db2/12.1.0.69933");
+        let displays = self
+            .player_displays
+            .get_or_insert_with(|| game_engine_core::spell_visual::player_displays(&dir))
+            .as_ref()
+            .map_err(Clone::clone)?;
+        displays
+            .get(&(player.race, player.appearance.sex))
+            .copied()
+            .ok_or_else(|| {
+                format!(
+                    "Missing ChrModel display for race {} sex {}",
+                    player.race, player.appearance.sex
+                )
+            })
     }
 
     /// The build-pinned DB2 pose and gear rows (`NpcGearData`).
@@ -485,6 +506,28 @@ pub(crate) fn place_virtual_items(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn player_model_display_native_identity_uses_authored_chrmodel_rows() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut player = Player {
+            name: "Alice".into(),
+            race: 1,
+            class: 11,
+            appearance: Default::default(),
+        };
+        assert_eq!(models.player_native_display(&player).unwrap(), 57899);
+        player.appearance.sex = 1;
+        assert_eq!(models.player_native_display(&player).unwrap(), 56658);
+        player.race = 0;
+        assert!(
+            models
+                .player_native_display(&player)
+                .unwrap_err()
+                .contains("race 0 sex 1")
+        );
+    }
 
     /// Stockade Guard display 2989 → CreatureDisplayInfoExtra 1274: its gloves, boots and
     /// tabard switch body geoset groups 4, 5/20 and 12 to their item variants; the shirt,

@@ -267,8 +267,18 @@ fn resolve_selected_player(
     chosen
 }
 
-fn unit_appearance(snapshot: &UnitSnapshot) -> Option<UnitAppearance> {
+fn unit_appearance(snapshot: &UnitSnapshot, native_display: Option<u32>) -> Option<UnitAppearance> {
     if let Some(player) = &snapshot.player {
+        if let Some(model) = snapshot
+            .model
+            .filter(|model| model.display_id != 0 && Some(model.display_id) != native_display)
+        {
+            return Some(UnitAppearance::Creature {
+                display_id: model.display_id,
+                // Player armor and weapons belong to the native humanoid, not its form.
+                items: Default::default(),
+            });
+        }
         return Some(UnitAppearance::Player(
             player.clone(),
             snapshot.equipment.clone().unwrap_or_default(),
@@ -291,7 +301,21 @@ fn unit_sheath(snapshot: &UnitSnapshot) -> SheathState {
 
 /// Request the visual of a changed appearance; a unit without one loses its visual.
 fn request_unit_visual(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut WorldModels) {
-    let appearance = unit_appearance(snapshot);
+    let native_display = match snapshot
+        .player
+        .as_ref()
+        .filter(|_| snapshot.model.is_some_and(|model| model.display_id != 0))
+    {
+        Some(player) => match models.player_native_display(player) {
+            Ok(display) => Some(display),
+            Err(error) => {
+                godot_error!("Player {} native display: {error}", snapshot.server_id);
+                return;
+            }
+        },
+        None => None,
+    };
+    let appearance = unit_appearance(snapshot, native_display);
     if unit.appearance == appearance {
         return;
     }
@@ -517,7 +541,7 @@ fn sync_unit_animation(
     snapshot: &UnitSnapshot,
     fallbacks: &HashMap<u16, u16>,
 ) {
-    if unit.death_applied {
+    if unit.is_player || unit.death_applied {
         return;
     }
     let Some(mut animation) = unit
@@ -653,7 +677,9 @@ impl WorldUnits {
             attach_unit_visual(unit, id, loaded, sheath, &self.models, self.light.as_ref());
             if let Some(snapshot) = snapshots.get(&id) {
                 sync_unit_sheath(unit, snapshot, &mut self.models);
-                sync_unit_death(unit, snapshot);
+                if sync_unit_death(unit, snapshot) {
+                    self.deaths.push(id);
+                }
                 let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
                 sync_unit_animation(unit, snapshot, fallbacks);
             }
@@ -805,7 +831,7 @@ impl WorldUnits {
         self.root.clone()
     }
 
-    /// Unit `id`'s creature display (`None` for players and units without one), whether
+    /// Unit `id`'s creature display (`None` for native players and units without one), whether
     /// a visual for it is loaded, and the locomotion clip last chosen on it.
     pub fn unit_display(&self, id: u64) -> Option<(Option<u32>, bool, Option<u16>)> {
         let unit = self.units.get(&id)?;
@@ -973,10 +999,33 @@ mod tests {
             in_combat: false,
             cast: None,
             powers: None,
+            runes: None,
             auras: None,
             npc_flags: None,
             gold: None,
             combat_status: None,
+        }
+    }
+
+    #[test]
+    fn player_model_display_consumes_cat_bear_and_native_restoration() {
+        // Human male ChrModel 1; Cat/Bear SpellShapeshiftForm 1/5 in build 69933.
+        let native = 57899;
+        let mut snapshot = player_snapshot();
+        for expected in [native, 115603, 115602, native] {
+            snapshot.model = Some(shared::components::ModelDisplay {
+                display_id: expected,
+            });
+            let actual = match unit_appearance(&snapshot, Some(native)).expect("player appearance")
+            {
+                UnitAppearance::Creature { display_id, .. } => display_id,
+                UnitAppearance::Player(_, _) => native,
+            };
+            assert_eq!(actual, expected);
+            assert!(
+                snapshot.player.is_some(),
+                "form must not change replicated player identity"
+            );
         }
     }
 
