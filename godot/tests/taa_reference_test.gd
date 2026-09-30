@@ -106,6 +106,10 @@ func test_confidence_motion_offscreen() -> void:
 	var result := resolve(current, history, Vector2.ZERO)
 	expect(result.history.w, 20, "static confidence")
 	expect(result.resolved.x, .2625, "static blend 1/20")
+	# A sub-.01 CURRENT-pixel shift crosses history texels at the larger extent.
+	# Original UV hits confidence 10; reprojected UV hits confidence 200.
+	history = field(Vector2i(512, 1), Vector4(.25, .25, .25, 200))
+	history.pixels[256].w = 10
 	result = resolve(current, history, Vector2(.009 / 3.0, 0))
 	expect(result.history.w, 20, "confidence samples unreprojected nearest UV")
 	result = resolve(current, history, Vector2(.01 / 3.0, 0))
@@ -136,6 +140,10 @@ func test_depth_ties() -> void:
 	depth.pixels[24].x = .2
 	selected = reference.closest_motion(depth, motion, Vector2(.5, .5), Vector2(7, 7))
 	expect(selected.x, .2, "equal corner maxima retain TL")
+	for i in range(1, 4):
+		depth.pixels[indices[i]].x = .2
+		selected = reference.closest_motion(depth, motion, Vector2(.5, .5), Vector2(7, 7))
+		expect(selected.x, (i + 2) * .1, "next tied maximum preserves corner order")
 	for i in range(1, 5):
 		depth.pixels[indices[i]].x = .8 + i * .02
 	selected = reference.closest_motion(depth, motion, Vector2(.5, .5), Vector2(7, 7))
