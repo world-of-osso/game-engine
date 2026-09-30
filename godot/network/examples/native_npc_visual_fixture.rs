@@ -162,7 +162,7 @@ impl FixtureProject {
             std::os::unix::fs::symlink(entry.path(), data.join("textures").join(name))
                 .map_err(|error| format!("Link authored UI texture: {error}"))?;
         }
-        for folder in ["glues", "fonts", "ui", "db2"] {
+        for folder in ["casc", "glues", "fonts", "ui", "db2"] {
             std::os::unix::fs::symlink(repo.join("data").join(folder), data.join(folder))
                 .map_err(|error| format!("Link authored {folder} assets: {error}"))?;
         }
@@ -177,9 +177,23 @@ impl FixtureProject {
             std::os::unix::fs::symlink(repo.join("data").join(name), data.join(name))
                 .map_err(|error| format!("Link authored {name}: {error}"))?;
         }
-        for name in ["project.godot", "scenes", "shaders", "tests", "ui"] {
-            std::os::unix::fs::symlink(source.join(name), project.join(name))
-                .map_err(|error| format!("Link {name}: {error}"))?;
+        // Every Godot project entry; the extension manifest is copied, and the Rust
+        // workspace and Godot's import cache stay out of the isolated project.
+        for entry in fs::read_dir(&source)
+            .map_err(|error| format!("List Godot project {}: {error}", source.display()))?
+        {
+            let entry = entry.map_err(|error| format!("Read Godot project entry: {error}"))?;
+            let name = entry.file_name();
+            let text = name.to_string_lossy();
+            if text.starts_with('.')
+                || text.starts_with("Cargo.")
+                || text.starts_with("game_engine.gdextension")
+                || entry.path().join("Cargo.toml").is_file()
+            {
+                continue;
+            }
+            std::os::unix::fs::symlink(entry.path(), project.join(&name))
+                .map_err(|error| format!("Link {text}: {error}"))?;
         }
         fs::copy(
             source.join("game_engine.gdextension"),
@@ -214,21 +228,21 @@ impl FixtureProject {
         }
         stage_preview_assets(repo, &data)?;
         stage_lighting(repo, &data)?;
+        // No zone light covers the fixture maps; Light.csv alone lights them.
+        fs::write(
+            data.join("ZoneLight.csv"),
+            "ID,MapID,LightID,TransitionType,Zmin,Zmax\n1,99999,1,0,-100,100\n",
+        )
+        .map_err(|error| format!("Stage fixture ZoneLight.csv: {error}"))?;
+        fs::write(
+            data.join("ZoneLightPoint.csv"),
+            "ZoneLightID,PointOrder,Pos_0,Pos_1\n",
+        )
+        .map_err(|error| format!("Stage fixture ZoneLightPoint.csv: {error}"))?;
         if nameplates {
-            // The visual-only fixture's sampled lighting rows predate the native
-            // FogDensity reader; use the real catalog in this isolated Options run.
+            // The Options run uses the real keyframe catalog instead of the sampled rows.
             fs::copy(repo.join("data/LightData.csv"), data.join("LightData.csv"))
                 .map_err(|error| format!("Stage authored LightData.csv: {error}"))?;
-            fs::write(
-                data.join("ZoneLight.csv"),
-                "ID,MapID,LightID,TransitionType,Zmin,Zmax\n1,99999,1,0,-100,100\n",
-            )
-            .map_err(|error| format!("Stage fixture ZoneLight.csv: {error}"))?;
-            fs::write(
-                data.join("ZoneLightPoint.csv"),
-                "ZoneLightID,PointOrder,Pos_0,Pos_1\n",
-            )
-            .map_err(|error| format!("Stage fixture ZoneLightPoint.csv: {error}"))?;
         }
         stage_npc_appearance(&data)?;
         Ok(Self { root, project })
@@ -431,16 +445,33 @@ fn stage_lighting(repo: &Path, data: &Path) -> Result<(), String> {
 3,0,0,0,0,0,1,3,0,0,0,0,0,0,0\n";
     fs::write(data.join("Light.csv"), lights)
         .map_err(|error| format!("Write fixture Light.csv: {error}"))?;
-    let header = "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,HorizonAmbientColor,GroundAmbientColor,FogEnd,FogScaler,SunFogStrength,CloudDensity,Field_10_0_0_44649_042,Field_12_0_0_63854_043\n";
-    let mut keyframes = header.to_owned();
+    // Sampled keyframes in the authored catalog's current columns; unnamed columns are 0.
+    let authored = fs::read_to_string(repo.join("data/LightData.csv"))
+        .map_err(|error| format!("Read authored LightData.csv header: {error}"))?;
+    let header = authored
+        .lines()
+        .next()
+        .ok_or("Empty authored LightData.csv")?;
+    let mut keyframes = format!("{header}\n");
     for (id, ambient, direct) in [
         (1, 0x336699, 0x775533),
         (2, 0x995533, 0x337799),
         (3, 0x226688, 0x994433),
     ] {
-        keyframes.push_str(&format!(
-            "{id},{id},0,{direct},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},1000,0.2,0.5,0.2,0,0\n"
-        ));
+        let row: Vec<String> = header
+            .split(',')
+            .map(|column| match column {
+                "ID" | "LightParamID" => id.to_string(),
+                "DirectColor" => direct.to_string(),
+                "FogEnd" => "1000".into(),
+                "FogScaler" | "CloudDensity" => "0.2".into(),
+                "SunFogStrength" => "0.5".into(),
+                color if color.ends_with("Color") => ambient.to_string(),
+                _ => "0".into(),
+            })
+            .collect();
+        keyframes.push_str(&row.join(","));
+        keyframes.push('\n');
     }
     fs::write(data.join("LightData.csv"), keyframes)
         .map_err(|error| format!("Write fixture LightData.csv: {error}"))
@@ -621,7 +652,8 @@ fn run_fixture(
     let mut player = None;
     let mut npc = None;
     let mut phase = 0;
-    let deadline = Instant::now() + Duration::from_secs(110);
+    // Includes the flow's cold-CASC login allowance (STARTUP_WAIT_MS).
+    let deadline = Instant::now() + Duration::from_secs(290);
     let mut readers = Some(readers);
     let mut saw_missing_type6_error = false;
     while Instant::now() < deadline {
@@ -981,7 +1013,8 @@ fn run_nameplate_fixture(
     let (mut player, mut npc) = (None, None);
     let mut ready = false;
     let mut completed = false;
-    let deadline = Instant::now() + Duration::from_secs(60);
+    // Includes the flow's cold-CASC login allowance (STARTUP_WAIT_MS).
+    let deadline = Instant::now() + Duration::from_secs(240);
     let mut readers = Some(readers);
     while Instant::now() < deadline {
         app.update();
