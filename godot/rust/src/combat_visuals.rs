@@ -33,6 +33,15 @@ impl GameClient {
     }
 
     pub(super) fn update_spell_visuals(&mut self, delta: f32) -> Result<(), String> {
+        let prefetched = match self.world.local_player_id() {
+            Some(local) => self.spell_effects.prefetch(
+                local,
+                self.account.spells.known(),
+                &self.units,
+                &self.world,
+            ),
+            None => Ok(()),
+        };
         let held = self.spell_effects.sync_casts(&self.units, &mut self.world);
         let camera = self.world_camera.transform();
         let sound = &self.client_options.sound;
@@ -44,7 +53,7 @@ impl GameClient {
         let advanced = self
             .spell_effects
             .advance(delta, camera, gain, &mut self.world);
-        held.and(advanced)
+        prefetched.and(held).and(advanced)
     }
 
     /// Recent kit starts and missile flights, and the kit models and missiles shown now.
@@ -100,11 +109,13 @@ impl GameClient {
             entry.set("looping", start.looping);
             entry.set("source", start.source.name());
             entry.set("at", start.at);
+            entry.set("late", start.late);
             entry.set("stopped_at", start.stopped_at.map_or(-1.0, f64::from));
             sounds.push(&entry.to_variant());
         }
         state.set("sounds", &sounds);
         state.set("clock", self.spell_effects.clock());
+        state.set("assets_pending", self.spell_effects.assets_pending() as i64);
         let mut casts = VarArray::new();
         for seen in self.spell_effects.casts_seen() {
             let mut entry = VarDictionary::new();

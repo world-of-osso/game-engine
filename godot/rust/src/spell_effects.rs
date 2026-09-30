@@ -14,11 +14,18 @@
 //! - A kit model sits on its M2 attachment (`None`: the unit's origin), offset and
 //!   scaled as authored, after its `StartDelay`. One-shot kits last their model clip;
 //!   held kits last until their end event.
+//! - Kit models and sounds load off the main thread (`SpellAssets`). One still loading
+//!   when its kit starts appears on arrival at the point of its timeline the kit has
+//!   reached, as if it had started on time (a one-shot already over is not shown, and
+//!   logged); a missile flies on schedule and shows its model once loaded. Retail's own
+//!   rule is undocumented; the wow_client reimplementation keeps a late model's
+//!   sequence start at request time (`src/gx/m2.c`: `sequence_started = global_time`).
+//! - The local player's known spells are prefetched, so a first cast is usually ready
+//!   (a choice of this client: no retail source for spell-asset prefetching was found).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::f32::consts::FRAC_PI_2;
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use game_engine_core::m2;
 use game_engine_core::spell_visual::{
@@ -29,14 +36,13 @@ use game_engine_network::UnitSnapshot;
 use godot::builtin::{Basis, EulerOrder, Transform3D, Vector3};
 use godot::classes::Node3D;
 use godot::prelude::*;
-use osso_asset_resolver::CascListfileResolver;
 use shared::casting::CastType;
 use shared::protocol::SpellGo;
 
 use crate::animation::{ActionPriority, WowAnimationPlayer};
-use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
-use crate::assets::{build_model, read_model};
-use crate::particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis};
+use crate::assets::build_model;
+use crate::particles::{ParticlePools, PlacedParticles, view_basis};
+use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets};
 use crate::spell_sounds::{SoundHold, SoundRequest, SoundSource, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
@@ -47,13 +53,6 @@ const DB2_DIR: &str = "db2/12.1.0.69933";
 const STAND: u16 = 0;
 const HOLD: u16 = 158;
 const DECAY: u16 = 159;
-
-/// A parsed kit model, reused by every kit that attaches it.
-struct EffectModel {
-    path: GString,
-    model: m2::Model,
-    particles: Option<Rc<ModelParticles>>,
-}
 
 /// How long a spawned kit model lives.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -136,6 +135,19 @@ impl ActiveEffect {
         }
     }
 
+    /// Jump `seconds` into the clip just played (a late model catching up).
+    fn seek(&self, seconds: f32) {
+        if seconds > 0.0
+            && let Some(mut player) = self
+                .node
+                .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+        {
+            player
+                .bind_mut()
+                .advance_time_ms(f64::from(seconds) * 1000.0);
+        }
+    }
+
     /// The kit ended: its end clip, else the particle tail.
     fn finish(&mut self) {
         self.phase = match self.clips.end {
@@ -179,9 +191,41 @@ impl ActiveEffect {
     }
 }
 
-/// A kit model waiting for its `StartDelay`.
+/// Where a kit model's timeline stands `seconds` after it started: its phase and the
+/// clip it plays (id, looping, seconds into the clip), or `None` once a one-shot is
+/// over. One-shots play Start, then End, then the particle tail; held kits loop their
+/// Hold (else Start) clip after Start until their end event.
+fn phase_at(
+    clips: &EffectClips,
+    held: bool,
+    seconds: f32,
+) -> Option<(Phase, Option<(u16, bool, f32)>)> {
+    let (start, start_secs) = clips.start;
+    if seconds < start_secs {
+        return Some((
+            Phase::Start(start_secs - seconds),
+            Some((start, false, seconds)),
+        ));
+    }
+    let seconds = seconds - start_secs;
+    if held {
+        let clip = clips.hold.unwrap_or(start);
+        return Some((Phase::Hold, Some((clip, true, seconds))));
+    }
+    let seconds = match clips.end {
+        Some((end, end_secs)) if seconds < end_secs => {
+            return Some((Phase::End(end_secs - seconds), Some((end, false, seconds))));
+        }
+        Some((_, end_secs)) => seconds - end_secs,
+        None => seconds,
+    };
+    (seconds < clips.particle_tail).then(|| (Phase::Tail(clips.particle_tail - seconds), None))
+}
+
+/// A kit model waiting for its `StartDelay` or its model.
 struct PendingModel {
-    delay: f32,
+    /// Effects clock at which it is due.
+    due_at: f32,
     unit: u64,
     spell_id: u32,
     kit_id: u32,
@@ -204,9 +248,18 @@ struct MissileLaunch {
     go_at: f32,
 }
 
+/// A missile's model, shown once loaded.
+enum MissileModel {
+    Loading,
+    Shown(Gd<Node3D>, Option<PlacedParticles>),
+    /// Its load failed (reported): it flies unseen, and lands on time.
+    Failed,
+}
+
 struct Missile {
+    /// Moves along the flight; carries the model once it is loaded.
     node: Gd<Node3D>,
-    particles: Option<PlacedParticles>,
+    model: MissileModel,
     launch: MissileLaunch,
     /// Its `MissileFlight::id`.
     flight: u64,
@@ -322,6 +375,18 @@ impl Catalog {
         }
     }
 
+    /// The catalog once the worker is done, without waiting for it.
+    fn try_get(&mut self) -> Option<Result<&SpellVisualCatalog, String>> {
+        if self
+            .worker
+            .as_ref()
+            .is_some_and(|worker| !worker.is_finished())
+        {
+            return None;
+        }
+        Some(self.get())
+    }
+
     /// The catalog, waiting for the worker when a cast needs it before it is done.
     fn get(&mut self) -> Result<&SpellVisualCatalog, String> {
         if let Some(worker) = self.worker.take() {
@@ -340,10 +405,10 @@ impl Catalog {
 
 pub struct SpellEffects {
     data_root: PathBuf,
-    cache_root: PathBuf,
     catalog: Catalog,
-    resolver: Option<CascListfileResolver>,
-    models: HashMap<u32, Result<Rc<EffectModel>, String>>,
+    assets: SpellAssets,
+    /// Spells whose kit assets were prefetched.
+    prefetched: HashSet<u32>,
     active: Vec<ActiveEffect>,
     pending: Vec<PendingModel>,
     missiles: Vec<Missile>,
@@ -375,11 +440,10 @@ impl SpellEffects {
     pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
         let catalog = Catalog::load(&data_root);
         Self {
+            assets: SpellAssets::new(data_root.clone(), &cache_root),
             data_root,
-            cache_root,
             catalog,
-            resolver: None,
-            models: HashMap::new(),
+            prefetched: HashSet::new(),
             active: Vec::new(),
             pending: Vec::new(),
             missiles: Vec::new(),
@@ -477,6 +541,7 @@ impl SpellEffects {
         self.pending.clear();
         self.ready.clear();
         self.held.clear();
+        self.prefetched.clear();
         self.pools.reset();
         if let Some(root) = self.root.take() {
             root.free();
@@ -710,8 +775,8 @@ impl SpellEffects {
                 }
             }
         }
-        // Models without a start delay appear this frame.
-        if let Err(error) = self.spawn_due(0.0, world) {
+        // Loaded models without a start delay appear this frame.
+        if let Err(error) = self.spawn_due(world) {
             errors.push(error);
         }
         join_errors(errors).map(|()| looping)
@@ -757,8 +822,9 @@ impl SpellEffects {
         errors.extend(self.play_voices(kit, cue, world).err());
         let lifetime = start.hold.map_or(Lifetime::OneShot, KitHold::lifetime);
         for model in &kit.models {
+            self.assets.request(SpellAsset::Model(model.model_fdid));
             self.pending.push(PendingModel {
-                delay: model.start_delay,
+                due_at: self.clock + model.start_delay,
                 unit,
                 spell_id,
                 kit_id: kit.kit_id,
@@ -825,23 +891,16 @@ impl SpellEffects {
         parent: Gd<Node3D>,
         cue: SoundCue,
     ) -> Result<(), String> {
-        let resolver = self
-            .resolver
-            .get_or_insert_with(|| local_resolver(&self.data_root, &self.cache_root));
-        self.sounds.play(
-            sound,
-            SoundRequest {
-                parent,
-                unit: cue.unit,
-                spell_id: cue.spell_id,
-                kit_id: cue.kit_id,
-                hold: cue.hold,
-                source: cue.source,
-                at: self.clock,
-                resolver,
-                data_root: &self.data_root,
-            },
-        )
+        let request = SoundRequest {
+            parent,
+            unit: cue.unit,
+            spell_id: cue.spell_id,
+            kit_id: cue.kit_id,
+            hold: cue.hold,
+            source: cue.source,
+            at: self.clock,
+        };
+        self.sounds.start(sound, request, &mut self.assets)
     }
 
     /// Each cast clip's `$SCD` M2 event plays its unit's `SpellCastDirectedSoundID`
@@ -920,7 +979,11 @@ impl SpellEffects {
         else {
             return self.start_impact(&launch, world);
         };
-        let (mut node, particles) = self.build_effect(launch.missile.model_fdid, world)?;
+        let fdid = launch.missile.model_fdid;
+        self.assets.request(SpellAsset::Model(fdid));
+        let mut node = Node3D::new_alloc();
+        node.set_name(&format!("SpellMissile{fdid}"));
+        self.effects_root(world)?.add_child(&node);
         node.set_global_position(start);
         let goal = attachment_position(world, launch.target, launch.missile.impact_attachment);
         // It points at the target from its first frame.
@@ -952,14 +1015,41 @@ impl SpellEffects {
             released_at: self.clock,
             id: self.next_flight,
         });
-        self.missiles.push(Missile {
+        let mut missile = Missile {
             node,
-            particles,
+            model: MissileModel::Loading,
             launch,
             flight: self.next_flight,
-        });
+        };
         self.next_flight += 1;
-        Ok(())
+        let shown = self.show_missile_model(&mut missile);
+        self.missiles.push(missile);
+        shown
+    }
+
+    /// Put the missile's model on it once loaded.
+    fn show_missile_model(&mut self, missile: &mut Missile) -> Result<(), String> {
+        if !matches!(missile.model, MissileModel::Loading) {
+            return Ok(());
+        }
+        let fdid = missile.launch.missile.model_fdid;
+        match self.assets.model(fdid) {
+            None => Ok(()),
+            Some(Err(error)) => {
+                missile.model = MissileModel::Failed;
+                Err(format!(
+                    "Spell {} missile: {error}",
+                    missile.launch.spell_id
+                ))
+            }
+            Some(Ok(effect)) => {
+                let built = self.build_effect(&effect, fdid, &missile.node);
+                let (model, particles) =
+                    built.inspect_err(|_| missile.model = MissileModel::Failed)?;
+                missile.model = MissileModel::Shown(model, particles);
+                Ok(())
+            }
+        }
     }
 
     fn start_impact(
@@ -1000,43 +1090,20 @@ impl SpellEffects {
         join_errors(errors)
     }
 
-    fn effect_model(&mut self, fdid: u32) -> Result<Rc<EffectModel>, String> {
-        if !self.models.contains_key(&fdid) {
-            let resolver = self
-                .resolver
-                .get_or_insert_with(|| local_resolver(&self.data_root, &self.cache_root));
-            let loaded = (|| {
-                let path = cache_model_files(resolver, &self.data_root, fdid)?;
-                let path = GString::from(path.to_string_lossy().as_ref());
-                let model = read_model(&path)?;
-                cache_model_textures(resolver, &self.data_root, &[0; 3], &model)?;
-                let particles = ModelParticles::from_model(fdid, &model);
-                Ok(Rc::new(EffectModel {
-                    path,
-                    model,
-                    particles,
-                }))
-            })()
-            .map_err(|error: String| format!("Spell effect model {fdid}: {error}"));
-            self.models.insert(fdid, loaded);
-        }
-        self.models[&fdid].clone()
-    }
-
-    /// A node of kit model `fdid` under the effects root, with its particles placed.
+    /// A node of kit model `effect` (FDID `fdid`) under `parent`, with its particles
+    /// placed.
     fn build_effect(
         &mut self,
+        effect: &EffectModel,
         fdid: u32,
-        world: &WorldUnits,
+        parent: &Gd<Node3D>,
     ) -> Result<(Gd<Node3D>, Option<PlacedParticles>), String> {
-        let effect = self.effect_model(fdid)?;
         let (mut node, missing) = build_model(&effect.model, &effect.path, &[0; 3], None)?;
         if !missing.is_empty() {
             godot_error!("Spell effect model {fdid}: missing textures {missing:?}");
         }
         node.set_name(&format!("SpellEffect{fdid}"));
-        let root = self.effects_root(world)?;
-        root.clone().add_child(&node);
+        parent.clone().add_child(&node);
         let particles = effect.particles.as_ref().map(|particles| {
             self.seed = self.seed.wrapping_add(1);
             let texture_dir = self.data_root.join("textures");
@@ -1066,42 +1133,59 @@ impl SpellEffects {
         Ok(root)
     }
 
-    /// Spawn pending models whose delay elapsed after `delta` seconds.
-    fn spawn_due(&mut self, delta: f32, world: &WorldUnits) -> Result<(), String> {
-        let mut due = Vec::new();
-        self.pending.retain_mut(|pending| {
-            pending.delay -= delta;
-            let ready = pending.delay <= 0.0;
-            if ready {
-                due.push(PendingModel {
-                    model: pending.model.clone(),
-                    ..*pending
-                });
-            }
-            !ready
-        });
+    /// Spawn the pending models that are due and loaded.
+    fn spawn_due(&mut self, world: &WorldUnits) -> Result<(), String> {
         let mut errors = Vec::new();
-        for pending in due {
-            if let Err(error) = self.spawn_kit_model(pending, world) {
-                errors.push(error);
+        for pending in std::mem::take(&mut self.pending) {
+            if pending.due_at > self.clock {
+                self.pending.push(pending);
+                continue;
+            }
+            match self.assets.model(pending.model.model_fdid) {
+                None => self.pending.push(pending),
+                Some(Err(error)) => errors.push(format!(
+                    "Spell {} kit {}: {error}",
+                    pending.spell_id, pending.kit_id
+                )),
+                Some(Ok(effect)) => {
+                    if let Err(error) = self.spawn_kit_model(pending, &effect, world) {
+                        errors.push(error);
+                    }
+                }
             }
         }
         join_errors(errors)
     }
 
-    fn spawn_kit_model(&mut self, pending: PendingModel, world: &WorldUnits) -> Result<(), String> {
-        let Some(parent) = attachment_node(world, pending.unit, pending.model.attachment) else {
+    /// Spawn `pending` at the point of its timeline it has reached since it was due.
+    fn spawn_kit_model(
+        &mut self,
+        pending: PendingModel,
+        effect: &EffectModel,
+        world: &WorldUnits,
+    ) -> Result<(), String> {
+        let model = &pending.model;
+        let clips = effect_clips(&effect.model, model);
+        let late = self.clock - pending.due_at;
+        let held = pending.lifetime != Lifetime::OneShot;
+        let Some((phase, clip)) = phase_at(&clips, held, late) else {
+            godot_print!(
+                "Spell {} kit {}: model {} loaded {late:.3} s late, after its kit ended; not shown",
+                pending.spell_id,
+                pending.kit_id,
+                model.model_fdid
+            );
+            return Ok(());
+        };
+        let Some(parent) = attachment_node(world, pending.unit, model.attachment) else {
             return Err(format!(
                 "Spell {} kit {}: unit {} has no attachment {:?}",
-                pending.spell_id, pending.kit_id, pending.unit, pending.model.attachment
+                pending.spell_id, pending.kit_id, pending.unit, model.attachment
             ));
         };
-        let (mut node, particles) = self.build_effect(pending.model.model_fdid, world)?;
-        node.reparent(&parent);
-        let model = &pending.model;
+        self.effects_root(world)?;
+        let (mut node, particles) = self.build_effect(effect, model.model_fdid, &parent)?;
         node.set_transform(kit_model_transform(model));
-        let effect = self.effect_model(model.model_fdid)?;
-        let clips = effect_clips(&effect.model, model);
         let active = ActiveEffect {
             node,
             particles,
@@ -1111,11 +1195,52 @@ impl SpellEffects {
             model_fdid: model.model_fdid,
             lifetime: pending.lifetime,
             clips,
-            phase: Phase::Start(clips.start.1),
+            phase,
         };
-        active.play(clips.start.0, false);
+        if let Some((clip, looping, seconds)) = clip {
+            active.play(clip, looping);
+            active.seek(seconds);
+        }
         self.active.push(active);
         Ok(())
+    }
+
+    /// Start loading, in the background, the kit models and sound files of `caster`'s
+    /// `spells` not prefetched yet, once the catalog and the caster are there.
+    pub fn prefetch(
+        &mut self,
+        caster: u64,
+        spells: &[u32],
+        units: &HashMap<u64, UnitSnapshot>,
+        world: &WorldUnits,
+    ) -> Result<(), String> {
+        if !units.contains_key(&caster)
+            || spells.iter().all(|spell| self.prefetched.contains(spell))
+        {
+            return Ok(());
+        }
+        let context = Self::caster_context(units, world, caster);
+        let Some(catalog) = self.catalog.try_get() else {
+            return Ok(());
+        };
+        let catalog = catalog?;
+        for &spell in spells {
+            if !self.prefetched.insert(spell) {
+                continue;
+            }
+            let Some(visual) = catalog.visual_for_spell(spell, &context) else {
+                continue;
+            };
+            for asset in kit_assets(catalog, visual) {
+                self.assets.request(asset);
+            }
+        }
+        Ok(())
+    }
+
+    /// Kit models and sound files still loading.
+    pub fn assets_pending(&self) -> usize {
+        self.assets.pending()
     }
 
     /// Advance delays, lifetimes, missiles and kit sounds; draw kit particles.
@@ -1129,11 +1254,16 @@ impl SpellEffects {
     ) -> Result<(), String> {
         let mut errors = Vec::new();
         self.clock += delta;
-        self.sounds.advance(sound_gain, self.clock);
+        self.assets.update();
+        errors.extend(
+            self.sounds
+                .advance(sound_gain, self.clock, &self.assets)
+                .err(),
+        );
         if let Err(error) = self.play_cast_voices(world) {
             errors.push(error);
         }
-        if let Err(error) = self.spawn_due(delta, world) {
+        if let Err(error) = self.spawn_due(world) {
             errors.push(error);
         }
         self.active.retain_mut(|effect| {
@@ -1159,8 +1289,8 @@ impl SpellEffects {
                 }
             }
             for missile in &mut self.missiles {
-                if let Some(particles) = &mut missile.particles {
-                    particles.update_and_draw(&missile.node, delta, 1.0, &view, &mut self.pools);
+                if let MissileModel::Shown(model, Some(particles)) = &mut missile.model {
+                    particles.update_and_draw(model, delta, 1.0, &view, &mut self.pools);
                 }
             }
             self.pools.end_frame();
@@ -1169,6 +1299,7 @@ impl SpellEffects {
     }
 
     fn advance_missiles(&mut self, delta: f32, world: &mut WorldUnits) -> Result<(), String> {
+        let mut errors = Vec::new();
         let mut arrived = Vec::new();
         let mut flown = Vec::new();
         let missiles = std::mem::take(&mut self.missiles);
@@ -1193,6 +1324,7 @@ impl SpellEffects {
             missile
                 .node
                 .set_global_basis(missile_basis(direction, launch.missile.scale));
+            errors.extend(self.show_missile_model(&mut missile).err());
             self.missiles.push(missile);
         }
         // Arrival is the end of this step: the flight took the time up to it.
@@ -1202,7 +1334,6 @@ impl SpellEffects {
                 flight.flight_time = Some(now - flight.released_at);
             }
         }
-        let mut errors = Vec::new();
         for launch in arrived {
             if let Err(error) = self.start_impact(&launch, world) {
                 errors.push(error);
@@ -1210,6 +1341,46 @@ impl SpellEffects {
         }
         join_errors(errors)
     }
+}
+
+/// The events whose kits play (`SpellEffects`, `auras`).
+const PLAYED_EVENTS: [VisualEvent; 6] = [
+    VisualEvent::PrecastStart,
+    VisualEvent::ChannelStart,
+    VisualEvent::Cast,
+    VisualEvent::Impact,
+    VisualEvent::AuraStart,
+    VisualEvent::AuraEnd,
+];
+
+/// Every model and sound file visual `visual`'s played kits and missile use.
+fn kit_assets(catalog: &SpellVisualCatalog, visual: u32) -> Vec<SpellAsset> {
+    let kits = PLAYED_EVENTS
+        .iter()
+        .flat_map(|&event| catalog.kits(visual, event));
+    let mut assets = Vec::new();
+    for kit in kits {
+        assets.extend(
+            kit.models
+                .iter()
+                .map(|model| SpellAsset::Model(model.model_fdid)),
+        );
+        assets.extend(kit.sounds.iter().flat_map(sound_assets));
+    }
+    if let Some(missile) = catalog.missile(visual) {
+        assets.push(SpellAsset::Model(missile.model_fdid));
+        assets.extend(missile.sound.iter().flat_map(sound_assets));
+    }
+    assets
+}
+
+/// The files `sound` can pick (frequency above 0).
+fn sound_assets(sound: &KitSound) -> impl Iterator<Item = SpellAsset> + '_ {
+    sound
+        .files
+        .iter()
+        .filter(|file| file.frequency > 0)
+        .map(|file| SpellAsset::Sound(file.fdid))
 }
 
 /// Whose voice unit `unit` speaks in: a player's race and sex, or a creature's display.

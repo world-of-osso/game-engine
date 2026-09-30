@@ -4,14 +4,16 @@
 //! `SoundKitEntry` file, picked by `Frequency`, on a 3D emitter under its unit or missile.
 //! A looping sound (SoundKit Flags 0x200) of a held kit (precast, channel, aura) lasts
 //! until the kit ends and a missile's until it lands; the others play once.
+//! A file still loading (`SpellAssets`) plays on arrival from the point its kit has
+//! reached: a one-shot that would already have ended is not played (and logged).
 
 use std::collections::HashMap;
-use std::path::Path;
 
 use game_engine_core::spell_visual::{KitSound, SoundFile};
 use godot::classes::{AudioStream, AudioStreamOggVorbis, AudioStreamPlayer3D, Node3D};
 use godot::prelude::*;
-use osso_asset_resolver::CascListfileResolver;
+
+use crate::spell_assets::{SpellAsset, SpellAssets};
 
 const STARTED_KEEP: usize = 64;
 
@@ -27,6 +29,8 @@ pub struct SoundStart {
     pub source: SoundSource,
     /// `SpellEffects` clock (seconds) at the start.
     pub at: f32,
+    /// Seconds after its kit asked for it: the file was still loading.
+    pub late: f32,
     /// When a looping sound stopped with its kit or missile.
     pub stopped_at: Option<f32>,
 }
@@ -74,7 +78,8 @@ struct ActiveSound {
 }
 
 /// What one kit sound start needs besides the sound itself.
-pub(crate) struct SoundRequest<'a> {
+#[derive(Clone)]
+pub(crate) struct SoundRequest {
     pub parent: Gd<Node3D>,
     pub unit: u64,
     pub spell_id: u32,
@@ -82,15 +87,22 @@ pub(crate) struct SoundRequest<'a> {
     /// What a looping sound lasts for (`None`: it plays once).
     pub hold: Option<SoundHold>,
     pub source: SoundSource,
+    /// When the kit asked for it.
     pub at: f32,
-    pub resolver: &'a CascListfileResolver,
-    pub data_root: &'a Path,
+}
+
+/// A sound whose file is still loading.
+struct PendingSound {
+    sound: KitSound,
+    file: SoundFile,
+    request: SoundRequest,
 }
 
 #[derive(Default)]
 pub(crate) struct SpellSounds {
     /// Streams by (FDID, looping).
     streams: HashMap<(u32, bool), Result<Gd<AudioStream>, String>>,
+    pending: Vec<PendingSound>,
     active: Vec<ActiveSound>,
     started: Vec<(u64, SoundStart)>,
     next_start: u64,
@@ -104,25 +116,82 @@ impl SpellSounds {
         self.started.iter().map(|(_, start)| start)
     }
 
-    pub fn play(&mut self, sound: &KitSound, request: SoundRequest) -> Result<(), String> {
+    /// Start `sound` for `request`: at once when its picked file is loaded, else when
+    /// it arrives.
+    pub fn start(
+        &mut self,
+        sound: &KitSound,
+        mut request: SoundRequest,
+        assets: &mut SpellAssets,
+    ) -> Result<(), String> {
         self.seed = self
             .seed
             .wrapping_mul(1_664_525)
             .wrapping_add(1_013_904_223);
-        let Some(file) = pick_file(&sound.files, self.seed >> 8) else {
+        let Some(file) = pick_file(&sound.files, self.seed >> 8).cloned() else {
             return Ok(());
         };
-        let hold = request.hold.filter(|_| sound.looping);
-        let stream = self.stream(
-            file.fdid,
-            hold.is_some(),
-            request.resolver,
-            request.data_root,
-        )?;
+        request.hold = request.hold.filter(|_| sound.looping);
+        let now = request.at;
+        assets.request(SpellAsset::Sound(file.fdid));
+        self.pending.push(PendingSound {
+            sound: sound.clone(),
+            file,
+            request,
+        });
+        self.play_arrived(assets, now)
+    }
+
+    /// Play, at `now`, the pending sounds whose file arrived.
+    fn play_arrived(&mut self, assets: &SpellAssets, now: f32) -> Result<(), String> {
+        let mut errors = Vec::new();
+        for pending in std::mem::take(&mut self.pending) {
+            // Its unit or missile left before the file arrived.
+            if !pending.request.parent.is_instance_valid() {
+                continue;
+            }
+            let fdid = pending.file.fdid;
+            match assets.sound(fdid) {
+                None => self.pending.push(pending),
+                Some(Err(error)) => errors.push(format!(
+                    "Spell {} kit {}: {error}",
+                    pending.request.spell_id, pending.request.kit_id
+                )),
+                Some(Ok(bytes)) => {
+                    if let Err(error) = self.play(&pending, &bytes, now) {
+                        errors.push(error);
+                    }
+                }
+            }
+        }
+        match errors.is_empty() {
+            true => Ok(()),
+            false => Err(errors.join("; ")),
+        }
+    }
+
+    fn play(&mut self, pending: &PendingSound, bytes: &[u8], at: f32) -> Result<(), String> {
+        let PendingSound {
+            sound,
+            file,
+            request,
+        } = pending;
+        let hold = request.hold;
+        let stream = self.stream(file.fdid, hold.is_some(), bytes)?;
+        let late = at - request.at;
+        let Some(offset) = late_offset(late, stream.get_length() as f32, hold.is_some()) else {
+            godot_print!(
+                "Spell {} kit {}: sound {} arrived {late:.3} s late, after it would have ended; not played",
+                request.spell_id,
+                request.kit_id,
+                file.fdid
+            );
+            return Ok(());
+        };
         let volume = sound.volume * file.volume;
         let mut player = emitter(&stream, sound, file.fdid, volume * self.gain);
         request.parent.clone().add_child(&player);
-        player.play();
+        player.play_ex().from_position(offset).done();
         let start = self.next_start;
         self.next_start += 1;
         self.active.push(ActiveSound {
@@ -142,7 +211,8 @@ impl SpellSounds {
             fdid: file.fdid,
             looping: hold.is_some(),
             source: request.source,
-            at: request.at,
+            at,
+            late,
             stopped_at: None,
         };
         self.started.push((start, record));
@@ -153,17 +223,18 @@ impl SpellSounds {
         &mut self,
         fdid: u32,
         looping: bool,
-        resolver: &CascListfileResolver,
-        data_root: &Path,
+        bytes: &[u8],
     ) -> Result<Gd<AudioStream>, String> {
         self.streams
             .entry((fdid, looping))
-            .or_insert_with(|| load_sound(fdid, looping, resolver, data_root))
+            .or_insert_with(|| ogg_stream(fdid, looping, bytes))
             .clone()
     }
 
     /// `hold` ended at `at`: its looping sounds stop.
     pub fn end(&mut self, hold: SoundHold, at: f32) {
+        self.pending
+            .retain(|pending| pending.request.hold != Some(hold));
         let mut ended = Vec::new();
         self.active.retain(|sound| {
             if sound.hold != Some(hold) {
@@ -186,10 +257,11 @@ impl SpellSounds {
         }
     }
 
-    /// Apply `gain` and drop finished players, and those freed with their unit or
-    /// missile (a looping one stops at `at`).
-    pub fn advance(&mut self, gain: f32, at: f32) {
+    /// Play sounds whose file arrived, apply `gain` and drop finished players, and
+    /// those freed with their unit or missile (a looping one stops at `at`).
+    pub fn advance(&mut self, gain: f32, at: f32, assets: &SpellAssets) -> Result<(), String> {
         self.gain = gain;
+        let arrived = self.play_arrived(assets, at);
         let mut ended = Vec::new();
         self.active.retain_mut(|sound| {
             if !sound.player.is_instance_valid() {
@@ -204,9 +276,11 @@ impl SpellSounds {
             true
         });
         self.mark_stopped(&ended, at);
+        arrived
     }
 
     pub fn reset(&mut self) {
+        self.pending.clear();
         for sound in self.active.drain(..) {
             if sound.player.is_instance_valid() {
                 sound.player.free();
@@ -248,30 +322,21 @@ pub(crate) fn pick_file(files: &[SoundFile], roll: u32) -> Option<&SoundFile> {
     })
 }
 
-/// Local-CASC Ogg `fdid`, cached at `data/sounds/spells/{fdid}.ogg`.
-fn load_sound(
-    fdid: u32,
-    looping: bool,
-    resolver: &CascListfileResolver,
-    data_root: &Path,
-) -> Result<Gd<AudioStream>, String> {
-    let destination = data_root.join("sounds/spells").join(format!("{fdid}.ogg"));
-    let path = resolver
-        .ensure_cached(fdid, &destination)
-        .ok_or_else(|| format!("Spell sound {fdid}: not in local CASC"))?;
-    let bytes =
-        std::fs::read(&path).map_err(|error| format!("Spell sound {}: {error}", path.display()))?;
-    if !bytes.starts_with(b"OggS") {
-        return Err(format!("Spell sound {}: not Ogg data", path.display()));
+/// Where a sound that starts `late` seconds after its kit asked for it begins: that far
+/// in (a loop wraps), or `None` for a one-shot of `length` seconds already over.
+pub(crate) fn late_offset(late: f32, length: f32, looping: bool) -> Option<f32> {
+    let late = late.max(0.0);
+    match looping {
+        true if length > 0.0 => Some(late % length),
+        true => Some(0.0),
+        false => (late < length).then_some(late),
     }
-    let mut stream =
-        AudioStreamOggVorbis::load_from_buffer(&PackedByteArray::from(bytes.as_slice()))
-            .ok_or_else(|| {
-                format!(
-                    "Spell sound {}: Godot rejected the Ogg stream",
-                    path.display()
-                )
-            })?;
+}
+
+/// Godot's stream of Ogg file `fdid`.
+fn ogg_stream(fdid: u32, looping: bool, bytes: &[u8]) -> Result<Gd<AudioStream>, String> {
+    let mut stream = AudioStreamOggVorbis::load_from_buffer(&PackedByteArray::from(bytes))
+        .ok_or_else(|| format!("Spell sound {fdid}: Godot rejected the Ogg stream"))?;
     stream.set_loop(looping);
     stream.set_name(&fdid.to_string());
     Ok(stream.upcast())
