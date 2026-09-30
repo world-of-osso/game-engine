@@ -551,6 +551,8 @@ fn a_successful_operation_refreshes_money_auctions_bids_and_the_last_search() {
     f.click("auction_search", &texts(&[(SEARCH_BOX, "linen")]));
     f.deliver(vec![shared::protocol::AuctionSearchResults {
         query: shared::protocol::AuctionSearchQuery {
+            item_id: None,
+            class_id: None,
             text: "linen".into(),
             page: 0,
             page_size: 50,

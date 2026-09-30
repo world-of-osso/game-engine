@@ -117,6 +117,16 @@ fn listing(id: u64) -> AuctionListingSummary {
         time_left: AuctionTimeLeft::Long,
     }
 }
+fn browse_item(id: u32) -> AuctionBrowseItem {
+    AuctionBrowseItem {
+        item_id: id,
+        name: format!("item{id}"),
+        quality: 2,
+        required_level: 10,
+        lowest_unit_price: 17,
+        total_quantity: 5_000_000_001,
+    }
+}
 fn open_session() -> AuctionSession {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -167,7 +177,7 @@ fn native_auction_sell_prices_quantity_duration_deposit() {
             texts.insert(name, value);
         }
         assert!(
-            matches!(&s.net.requests[0],AuctionRequest::Browse(q) if q.item_id==Some(2589) && q.text.is_empty())
+            matches!(&s.net.requests[0],AuctionRequest::Listings(q) if q.item_id==Some(2589) && q.text.is_empty())
         );
         s.net.requests.clear();
         texts.insert(QUANTITY_BOX, "5".into());
@@ -220,11 +230,17 @@ fn native_auction_server_categories_item_search_and_second_page() {
         _ => panic!(),
     };
     assert_eq!(query.class_id, Some(2));
-    s.search_results(AuctionSearchResults {
+    s.browse_results(AuctionBrowseResults {
         query: query.clone(),
         total_results: 103,
-        results: (1..=50).map(listing).collect(),
+        items: (1..=50).map(browse_item).collect(),
     });
+    // Flat data must never replace authoritative global price/stock.
+    s.net.search_results = vec![listing(1)];
+    let row = &s.state(&texts).browse[0];
+    assert_eq!(row.item_id, 1);
+    assert_eq!(row.price, 17);
+    assert_eq!(row.available, 5_000_000_001);
     s.click("auction_page_next", &texts);
     let q2 = match s.net.requests.pop().unwrap() {
         AuctionRequest::Browse(q) => q,
@@ -232,20 +248,22 @@ fn native_auction_server_categories_item_search_and_second_page() {
     };
     assert_eq!(q2.page, 1);
     assert_eq!(q2.class_id, Some(2));
-    s.search_results(AuctionSearchResults {
+    s.browse_results(AuctionBrowseResults {
         query: query.clone(),
         total_results: 103,
-        results: vec![],
+        items: vec![],
     });
-    assert_eq!(s.net.search_results.len(), 50);
-    s.search_results(AuctionSearchResults {
+    assert_eq!(s.net.browse_results.len(), 50);
+    s.browse_results(AuctionBrowseResults {
         query: q2,
         total_results: 103,
-        results: (51..=100).map(listing).collect(),
+        items: (51..=100).map(browse_item).collect(),
     });
+    assert_eq!(s.state(&texts).browse[0].item_id, 51);
+    assert_eq!(s.native_view(&texts).search_pages, 3);
     s.click("auction_browse_item:2589", &texts);
     let exact = match s.net.requests.pop().unwrap() {
-        AuctionRequest::Browse(q) => q,
+        AuctionRequest::Listings(q) => q,
         _ => panic!(),
     };
     assert_eq!(exact.item_id, Some(2589));
@@ -268,6 +286,16 @@ fn native_auction_server_categories_item_search_and_second_page() {
         s.click("auction_rows_next", &texts);
     }
     assert_eq!(observed, (1..=50).collect::<Vec<_>>());
+    s.click("auction_select:37", &texts);
+    let selected = s.state(&texts).item_buy.unwrap();
+    assert!(selected.can_buyout);
+    s.click("auction_buyout", &texts);
+    assert_eq!(s.state(&texts).dialog.unwrap().price, 1000);
+    s.click("auction_dialog_buy", &texts);
+    assert_eq!(
+        s.net.requests.pop(),
+        Some(AuctionRequest::Buyout(BuyoutAuction { auction_id: 37 }))
+    );
     s.click("auction_back", &texts);
     assert!(
         matches!(s.net.requests.last(),Some(AuctionRequest::Browse(q)) if q.page==1 && q.class_id==Some(2) && q.item_id.is_none())
@@ -323,4 +351,45 @@ fn native_auction_bid_buyout_owned_cancel_and_refresh() {
         s.net.requests,
         vec![AuctionRequest::Cancel(CancelAuction { auction_id: 6 })]
     );
+}
+
+#[test]
+fn native_auction_browse_owned_and_bids_visit_every_fetched_listing() {
+    for mode in ["buy", "owned", "bids"] {
+        let mut s = open_session();
+        let texts = InputTexts::new();
+        let rows: Vec<_> = (1..=50)
+            .map(|id| {
+                let mut row = listing(id);
+                row.item.item_id = id as u32;
+                row
+            })
+            .collect();
+        match mode {
+            "buy" => s.net.browse_results = (1..=50).map(browse_item).collect(),
+            "owned" => {
+                s.net.owned_results = rows;
+                s.click("auction_tab:auctions", &texts);
+            }
+            "bids" => {
+                s.net.bid_results = rows;
+                s.click("auction_tab:auctions", &texts);
+                s.click("auction_auctions_tab:bids", &texts);
+            }
+            _ => unreachable!(),
+        }
+        let mut seen = Vec::new();
+        for _ in 0..3 {
+            let state = s.state(&texts);
+            if mode == "buy" {
+                seen.extend(state.browse.iter().map(|row| u64::from(row.item_id)));
+            } else {
+                seen.extend(state.auctions.rows.iter().map(|row| row.auction_id));
+            }
+            s.click("auction_rows_next", &texts);
+        }
+        assert_eq!(seen, (1..=50).collect::<Vec<_>>(), "mode {mode}");
+        s.click("auction_rows_prev", &texts);
+        assert_eq!(s.ui.row_page, 1);
+    }
 }
