@@ -8,6 +8,10 @@ Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, port
 
 [[spell-visuals]] Server timing: game-server `fa5e689` delays missile hits by TrinityCore's `max(dist, 5) / Speed + LaunchDelay` (`Spell::HandleDelayed`). Frostbolt's damage number no longer arrives with `SpellGo`. About 200 ms early remains: the server clock starts at the cast, while the client releases at the M2 event. Not re-captured on the client.
 
+## [2026-09-30] feature | Retail class resource bars
+
+Every player class bar now ports its Retail template and mixin: art, animation groups and visibility gates. Rogue and druid combo points, chi, soul shards (with Destruction fragments), essence, death knight runes, holy power and Arcane Charges are covered. `ui/screens/class_bars/` holds a small `AnimationGroup` player plus one module per bar. Live proof against a private server: rogue, paladin, warlock, mage and a caster-form druid (bar hidden). Monk and Evoker cannot be created on the server. Runes wait on per-rune cooldowns from the powers protocol. See [ui-system](systems/ui-system.md#unit-frames).
+
 ## [2026-09-30] feature | Retail melee sounds; synthetic miss/interrupt PCM removed
 
 [Melee sounds](systems/spell-visuals.md#melee-sounds): WeaponSwingSounds2 swoosh at `$CSS`, WeaponImpactSounds impact and CreatureSoundData injury at `$CAH`, SoundDeathID on NPC death clips. Hit reactions no longer cut a unit's own swing. [[sound]] outcome section rewritten; `OutcomeSpells` and `sound-outcome` fixture removed.

@@ -37,6 +37,8 @@ fn live(name: &str, health: u32) -> GroupMemberState {
             power: PowerType::Mana,
             current: 50,
             max: 100,
+            partial: 0,
+            regen_per_sec: 0.0,
         }),
         death: DeathState::Alive,
         position: Position {
