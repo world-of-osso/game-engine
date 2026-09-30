@@ -12,7 +12,7 @@ FDID (integer)
   → .data.XXX:    seek, read BLTE blob, decompress
 ```
 
-Cached tables live under `~/.cache/asset-resolver/casc/<product>/<build-key>/` (~250MB total). They are generated cache data and can be rebuilt with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` when they drift from the local WoW install.
+Cached tables live under `~/.cache/asset-resolver/casc/<product>/<build-key>/` (~250MB total). The Godot client uses that default too: its resolvers set no cache root (`assets::creature::local_resolver`), so every run shares one resolution cache whatever its `XDG_DATA_HOME`. Measured 2026-09-30 (`godot/tests/startup_login.gd`, load about 20): two runs with different `XDG_DATA_HOME` each loaded the 1,931,507-entry cache in 4.1 and 6.5 s, with no rebuild. With `ASSET_RESOLVER_CACHE_DIR` pointed at an empty directory, the rebuild took 48.1 s. The login reply was handled at 1.2 s, while the build was still running; character select showed at 63.1 s. While CASC starts, the client keeps polling its session and holds back the screen and unit events until startup finishes. They are generated cache data and can be rebuilt with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` when they drift from the local WoW install.
 
 ## Local Extraction
 

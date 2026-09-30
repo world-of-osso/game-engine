@@ -441,13 +441,8 @@ impl GameClient {
             return if *found { fdid } else { 0 };
         }
         let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
-        let cache_root = PathBuf::from(
-            ProjectSettings::singleton()
-                .globalize_path("user://asset-resolver")
-                .to_string(),
-        );
         let found = path.exists()
-            || crate::assets::creature::local_resolver(&self.data_root, &cache_root)
+            || crate::assets::creature::local_resolver(&self.data_root)
                 .ensure_cached(fdid, &path)
                 .is_some();
         if !found {
