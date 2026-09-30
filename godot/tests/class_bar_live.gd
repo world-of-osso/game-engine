@@ -131,7 +131,7 @@ func check_form_sequence(ui: Node, frame: Control, dir: String) -> bool:
 			var model: Dictionary = client.unit_display(player_id)
 			var row := ui.find_child("PlayerSecondaryResourceRow", true, false) as Control
 			var shown := row != null and row.is_visible_in_tree()
-			if int(model.get("display_id", -2)) == display and bool(model.get("visual", false)) and int(model.get("animation", -1)) >= 0 and shown == (expected[step] == "shown"):
+			if int(model.get("display_id", -2)) == display and bool(model.get("visual", false)) and (display == -1 or int(model.get("animation", -1)) >= 0) and shown == (expected[step] == "shown"):
 				matched = true
 				break
 			await process_frame
@@ -155,14 +155,23 @@ func cast_and_check(ui: Node, spell: int, part: String, region: Rect2, dir: Stri
 	var enemy := OS.get_environment("BAR_ENEMY")
 	var reach := float(OS.get_environment("BAR_REACH")) if OS.get_environment("BAR_REACH") != "" else 5.0
 	var seen := {}
+	var nearest_distance := INF
+	var nearest := Vector3.ZERO
 	for attempt in range(30):
 		var name := str(client.target_state().target_name)
 		seen[name] = true
-		if name.contains(enemy) and target_distance() <= reach:
-			break
+		if name.contains(enemy):
+			if target_distance() <= reach:
+				break
+			if target_distance() < nearest_distance:
+				nearest_distance = target_distance()
+				nearest = (client.unit_transform(int(client.target_state().target)) as Transform3D).origin
 		await press(KEY_TAB)
 		await wait_frames(10)
 	if not str(client.target_state().target_name).contains(enemy) or target_distance() > reach:
+		if nearest_distance < INF:
+			# World coordinates (x, -z, y) of the nearest match, for the caller to move beside it.
+			print("FIXTURE NEAREST %.2f %.2f %.2f" % [nearest.x, -nearest.z, nearest.y])
 		fail("Could not target %s within %.1f yd among %s" % [enemy, reach, seen.keys()])
 		return false
 	var slot: int = client.spells_state().bar.find(spell)
