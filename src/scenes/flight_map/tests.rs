@@ -3,14 +3,14 @@ use std::path::Path;
 use shared::protocol::TaxiMap;
 
 use super::*;
+#[path = "../../../tests/unit/required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
 
-fn eastern_kingdoms() -> Option<FlightMapArt> {
+fn eastern_kingdoms() -> FlightMapArt {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join(DB2_DIR);
-    if !dir.join("UiMapArtTile.csv").exists() {
-        eprintln!("skipping: no UiMap CSVs");
-        return None;
-    }
-    Some(FlightMapArt::load(&dir, 0).unwrap())
+    require_asset(dir.join("UiMapArtTile.csv"));
+    FlightMapArt::load(&dir, 0).unwrap()
 }
 
 fn node(
@@ -81,9 +81,7 @@ const SCREEN: Vec2 = Vec2::new(1920.0, 1080.0);
 
 #[test]
 fn the_map_fills_the_canvas_and_pins_sit_on_their_nodes() {
-    let Some(art) = eastern_kingdoms() else {
-        return;
-    };
+    let art = eastern_kingdoms();
     let state = build_state(&stormwind(), Some(&art), SCREEN);
     assert!(state.visible);
     assert_eq!((state.left, state.top), (458.0, 195.5));
@@ -115,9 +113,7 @@ fn the_map_fills_the_canvas_and_pins_sit_on_their_nodes() {
 
 #[test]
 fn unreachable_nodes_stay_hidden_and_background_lines_run_from_the_current_node() {
-    let Some(art) = eastern_kingdoms() else {
-        return;
-    };
+    let art = eastern_kingdoms();
     let state = build_state(&stormwind(), Some(&art), SCREEN);
     let shown: Vec<u32> = state.pins.iter().map(|pin| pin.node).collect();
     assert_eq!(shown, [2, 4, 583]);
@@ -129,9 +125,7 @@ fn unreachable_nodes_stay_hidden_and_background_lines_run_from_the_current_node(
 
 #[test]
 fn hovering_a_reachable_node_highlights_its_route_and_shows_its_cost() {
-    let Some(art) = eastern_kingdoms() else {
-        return;
-    };
+    let art = eastern_kingdoms();
     let mut taxi = stormwind();
     taxi.hovered = Some(583);
     let state = build_state(&taxi, Some(&art), SCREEN);

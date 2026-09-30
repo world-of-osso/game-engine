@@ -1,5 +1,5 @@
-//! Sound kit file choice by `SoundKitEntry.Frequency`.
-use super::pick_file;
+//! Sound kit file choice by `SoundKitEntry.Frequency`, and where a late file starts.
+use super::{late_offset, pick_file};
 use game_engine_core::spell_visual::SoundFile;
 
 fn file(fdid: u32, frequency: u32) -> SoundFile {
@@ -39,4 +39,23 @@ fn frequency_weights_the_choice() {
         .collect();
     assert_eq!(picked, [10, 10, 10, 20]);
     assert!(pick_file(&[file(30, 0)], 0).is_none());
+}
+
+/// A 1.2 s one-shot whose file arrives 0.3 s late plays from 0.3 s; arriving at or after
+/// 1.2 s it would already have ended and does not play. On time it plays from 0.
+#[test]
+fn a_late_one_shot_starts_where_it_would_be_or_not_at_all() {
+    assert_eq!(late_offset(0.0, 1.2, false), Some(0.0));
+    assert_eq!(late_offset(0.3, 1.2, false), Some(0.3));
+    assert_eq!(late_offset(1.2, 1.2, false), None);
+    assert_eq!(late_offset(4.0, 1.2, false), None);
+}
+
+/// A 2 s precast loop arriving 5 s late starts 1 s into the loop, like one that had
+/// looped since the kit started.
+#[test]
+fn a_late_loop_starts_at_its_wrapped_position() {
+    let offset = late_offset(5.0, 2.0, true).unwrap();
+    assert!((offset - 1.0).abs() < 1e-5);
+    assert_eq!(late_offset(0.0, 2.0, true), Some(0.0));
 }

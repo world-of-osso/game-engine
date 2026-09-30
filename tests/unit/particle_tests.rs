@@ -48,6 +48,10 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::terrain_heightmap::TerrainHeightmap;
 use bevy_hanabi::OrientMode;
 
+#[path = "required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
+
 #[path = "particle_tests/benchmark_tests.rs"]
 mod benchmark_tests;
 #[path = "particle_tests/builder_tests.rs"]
@@ -233,15 +237,7 @@ fn sample_cell_track_frame(
         .clamp(0.0, total_cells.saturating_sub(1) as f32) as u32
 }
 
-fn benchmark_particle_model() -> Option<crate::asset::m2::M2Model> {
-    let paths = [
-        Path::new("data/models/5152423.m2"),
-        Path::new("data/models/390126.m2"),
-    ];
-    for path in paths {
-        if path.exists() {
-            return crate::asset::m2::load_m2_uncached(path, &[0, 0, 0]).ok();
-        }
-    }
-    None
+fn benchmark_particle_model() -> crate::asset::m2::M2Model {
+    let path = require_asset(Path::new("data/models/5152423.m2"));
+    crate::asset::m2::load_m2_uncached(path, &[0, 0, 0]).unwrap()
 }
