@@ -105,6 +105,11 @@ fn authored_race_class_mode_retains_named_actions_and_navigation() {
 
 #[test]
 fn authored_customize_mode_keeps_dropdown_choices_name_and_postsetup() {
+    // Closed dropdown labels are measured with the client's FrizQuadrata.
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut model = CharacterCreateModel::new(1920.0, 1080.0);
     model.shared.insert(customize());
     model.sync();
