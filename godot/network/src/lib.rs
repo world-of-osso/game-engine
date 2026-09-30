@@ -254,6 +254,7 @@ impl NetworkBridge {
             .receive::<InteractionFailed>()
             .receive::<InteractionClosed>()
             .receive::<protocol::AuctionHouseOpened>()
+            .receive::<protocol::AuctionBrowseResults>()
             .receive::<protocol::AuctionSearchResults>()
             .receive::<protocol::AuctionInventorySnapshot>()
             .receive::<protocol::OwnedAuctionListResponse>()
