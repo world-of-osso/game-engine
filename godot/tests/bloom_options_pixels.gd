@@ -2,6 +2,7 @@ extends "res://tests/display_options.gd"
 
 # Run real GameClient with --screen gamemenu and an owned canonical options copy:
 # bloomEnabled: true, bloomIntensity: 0.08, renderScale: 1.0, uiScale: 1.0.
+# BLOOM_TEST_START_DISABLED=1 requires bloomEnabled: false in that owned copy.
 # GODOT_TEST_CAPTURE_DIR and XDG_CONFIG_HOME must be under data/diagnostics/.
 # Qualitative wiring proof only; no claim of exact Bevy bloom kernel fidelity.
 const SIZE := Vector2i(1280, 720)
@@ -14,6 +15,7 @@ const MIN_INCREASE := 1.0 / 255.0
 
 func run_test() -> void:
 	root.size = SIZE
+	var start_enabled := OS.get_environment("BLOOM_TEST_START_DISABLED") != "1"
 	var config := OS.get_environment("XDG_CONFIG_HOME")
 	var directory := OS.get_environment("GODOT_TEST_CAPTURE_DIR")
 	if not config.contains("/data/diagnostics/") or not directory.contains("/data/diagnostics/"):
@@ -23,7 +25,7 @@ func run_test() -> void:
 	if not FileAccess.file_exists(path):
 		fail("Bloom fixture requires canonical options copy in owned " + path)
 		return
-	if not expect_saved_bloom(path, true, 0.08, "startup input"):
+	if not expect_saved_bloom(path, start_enabled, 0.08, "startup input"):
 		return
 	if DisplayServer.get_name() == "headless" or RenderingServer.get_rendering_device() == null:
 		fail("Bloom pixels require Vulkan RenderingDevice and visible offscreen display")
@@ -39,15 +41,19 @@ func run_test() -> void:
 	add_contrasting_ui()
 	# Preserve startup pixels before any Options action. Validate halo only after
 	# proving the disabled baseline, scene signal, and actual persisted/UI state.
-	var startup := await capture_options_pixels(client, directory, "bloom-startup-enabled.png")
+	var startup := await capture_options_pixels(client, directory, "bloom-startup-enabled.png" if start_enabled else "bloom-startup-disabled.png")
 	if startup == null:
 		return
+	if not start_enabled:
+		if not expect_capture(startup, "saved disabled startup") or not expect_disabled_scene(startup):
+			return
 	await click_menu_action(client, "MenuBtnOptions")
 	if not await wait_for_graphics(client):
 		return
-	if not expect_saved_bloom(path, true, 0.08, "loaded startup") or not expect_bloom_controls(client, true, "0.08", "loaded startup"):
+	if not expect_saved_bloom(path, start_enabled, 0.08, "loaded startup") or not expect_bloom_controls(client, start_enabled, "0.08", "loaded startup"):
 		return
-	await click_option(client, "ToggleSwitchbloom_enabledLeftHit")
+	if start_enabled:
+		await click_option(client, "ToggleSwitchbloom_enabledLeftHit")
 	if not expect_saved_bloom(path, false, 0.08, "live disabled") or not expect_bloom_controls(client, false, "0.08", "live disabled"):
 		return
 	var disabled := await capture_options_pixels(client, directory, "bloom-live-disabled.png")
@@ -58,7 +64,7 @@ func run_test() -> void:
 	var baseline := halo_mean(disabled)
 	var startup_halo := halo_mean(startup)
 	print("BLOOM_BASELINE disabled=", baseline, " startup=", startup_halo)
-	if startup_halo - baseline < MIN_HALO:
+	if start_enabled and startup_halo - baseline < MIN_HALO:
 		fail("Saved bloomEnabled=true bloomIntensity=0.08 produced no startup halo outside fixed emissive quad: enabled=%f disabled=%f required delta>=%f; disabled scene, persisted state and authored controls established" % [startup_halo, baseline, MIN_HALO])
 		return
 	await click_option(client, "ToggleSwitchbloom_enabledRightHit")
@@ -90,7 +96,10 @@ func run_test() -> void:
 	var final_disabled := await capture_options_pixels(client, directory, "bloom-high-intensity-disabled.png")
 	if not expect_capture(final_disabled, "high intensity disabled") or not expect_disabled_scene(final_disabled) or not expect_emission_center(final_disabled, disabled, "high intensity disabled"):
 		return
-	print("PASS: saved startup bloom halo, authored live Off/On/intensity, preserved emission and exact higher-layer contrasting UI")
+	if start_enabled:
+		print("PASS: saved startup bloom halo, authored live Off/On/intensity, preserved emission and exact higher-layer contrasting UI")
+	else:
+		print("PASS: saved disabled startup emission without halo, authored first On after existing camera/intensity/Off, preserved emission and exact higher-layer contrasting UI")
 	quit(0)
 
 func add_bloom_scene() -> void:
