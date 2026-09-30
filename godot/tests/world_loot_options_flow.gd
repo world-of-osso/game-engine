@@ -12,6 +12,15 @@ const INVENTORY_FULL := "Inventory is full."
 # Spread candidates across each actual surface, bounding expensive exact picks.
 const TRIANGLE_SAMPLES := 128
 
+const OPTIONS_CATEGORIES := {
+	"graphics": "Graphics", "sound": "Sound", "camera": "Camera",
+	"interface": "Interface", "hud": "HUD", "nameplates": "Nameplates",
+	"controls": "Controls", "accessibility": "Accessibility",
+	"keybindings": "Keybindings", "macros": "Macros",
+	"socialaddons": "Social / AddOns", "advanced": "Advanced / Debug",
+	"support": "Support / About",
+}
+
 var overflow_probe = load("res://tests/ui_overflow_probe.gd").new()
 
 func run_test() -> void:
@@ -348,6 +357,9 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 		return false
 	await click_menu_action(client, "MenuBtnOptions")
 	var menu := client.get_node_or_null("GameMenuUI")
+	var first_options := not overflow_probe.options_recorded
+	if first_options:
+		await probe_options_scales(menu)
 	var tab := menu.find_child("OptionsTabhud", true, false) as Control
 	if tab == null:
 		fail("Authored HUD Options tab missing")
@@ -357,11 +369,8 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 	if toggle == null or not toggle.is_visible_in_tree():
 		fail("Authored Auto Loot control missing")
 		return false
-	if not overflow_probe.options_recorded:
-		await RenderingServer.frame_post_draw
-		overflow_probe.record_options(menu)
-		if not await capture_loot("options-hud-overflow.png"):
-			return false
+	if first_options and not await capture_loot("options-hud-overflow.png"):
+		return false
 	# Select both sides so initial defaults `()` also get an observable save.
 	for selection in [not enabled, enabled]:
 		var side := menu.find_child("ToggleSwitchauto_lootRightHit" if selection else "ToggleSwitchauto_lootLeftHit", true, false) as Control
@@ -389,6 +398,80 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 			return await wait_menu_closed(client, null)
 	fail("Authored Auto Loot selection did not save canonical boolean")
 	return false
+
+func probe_options_scales(menu: Node) -> void:
+	var canvas := menu.find_child("RegistryCanvas", true, false) as Control
+	if canvas == null:
+		overflow_probe.failures.append("Options RegistryCanvas missing")
+		return
+	var original_scale := canvas.scale.x
+	await probe_options_categories(menu)
+	for scale in [0.75, 1.25]:
+		await select_options_scale(menu, scale)
+		await probe_options_categories(menu)
+	# Restore original fixture scale before HUD Auto Loot and the four loot cases.
+	await select_options_scale(menu, original_scale)
+
+func probe_options_categories(menu: Node) -> void:
+	for category in OPTIONS_CATEGORIES:
+		if not await select_overflow_tab(menu, "OptionsTab" + category):
+			continue
+		var title := menu.find_child("OptionsSectionTitle", true, false) as Label
+		if title == null or not title.is_visible_in_tree() or title.text != OPTIONS_CATEGORIES[category]:
+			overflow_probe.failures.append("Options category click did not display " + category)
+		await RenderingServer.frame_post_draw
+		overflow_probe.record_options(menu, category, "default" if category == "keybindings" else "")
+		if category == "keybindings":
+			# BindingSection default Movement has 8 actions; Action Bar is largest
+			# with 12. Select its real authored button, not a synthetic setter.
+			if await select_overflow_tab(menu, "KeybindingSectionaction_barButton"):
+				var rows := menu.find_children("KeybindingRow*", "Control", true, false)
+				var visible_rows := 0
+				for row in rows:
+					if row.is_visible_in_tree():
+						visible_rows += 1
+				if visible_rows != 12:
+					overflow_probe.failures.append("Action Bar keybindings expected 12 visible rows, got " + str(visible_rows))
+				await RenderingServer.frame_post_draw
+				overflow_probe.record_options(menu, category, "action_bar")
+			# Keep subsequent category/scale passes on the default selected section.
+			await select_overflow_tab(menu, "KeybindingSectionmovementButton")
+
+func select_overflow_tab(menu: Node, name: String) -> bool:
+	var tab := menu.find_child(name, true, false) as Control
+	if tab == null or not tab.is_visible_in_tree():
+		overflow_probe.failures.append("Authored Options tab missing/hidden: " + name)
+		print("UI_OVERFLOW_OPTIONS missing_tab=%s" % name)
+		return false
+	await click(tab)
+	for frame in range(4):
+		await process_frame
+	return true
+
+func select_options_scale(menu: Node, scale: float) -> void:
+	if not await select_overflow_tab(menu, "OptionsTabaccessibility"):
+		return
+	var slider := menu.find_child("Sliderui_scale", true, false) as Control
+	if slider == null or not slider.is_visible_in_tree():
+		overflow_probe.failures.append("Authored UI scale slider missing/hidden")
+		return
+	# Existing authored range 0.75..1.5; same real pixel input as ui_scale.gd.
+	var rect := slider.get_global_rect()
+	var point := Vector2(lerpf(rect.position.x, rect.end.x, (scale - 0.75) / 0.75), rect.get_center().y)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.position = point
+		event.global_position = point
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	for frame in range(4):
+		await process_frame
+	var canvas := menu.find_child("RegistryCanvas", true, false) as Control
+	print("UI_OVERFLOW_SCALE wanted=%s actual=%s physical=%s" % [scale, canvas.scale if canvas != null else null, root.size])
+	if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
+		overflow_probe.failures.append("Options scale input did not produce logical canvas at " + str(scale))
 
 func loot_host(client: Node) -> Node:
 	# Find the authored external frame, without assuming a future host class/API.
