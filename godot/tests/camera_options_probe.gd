@@ -11,6 +11,21 @@ const FOV_MAX := 120.0
 const FOV_DEFAULT := 90.0
 const PITCH_TOLERANCE := 0.00001
 const FOV_TOLERANCE := 0.001
+# Independent CameraState::default (src/camera_control_data.rs): logical
+# distance/target 15, bounds 2..40, zoom_speed 8 (no rate assertion here).
+const DISTANCE_DEFAULT := 15.0
+const DISTANCE_MIN_DEFAULT := 2.0
+const DISTANCE_MAX_DEFAULT := 40.0
+# Original authored Camera slider ranges.
+const DISTANCE_MIN_RANGE := Vector2(1.0, 10.0)
+const DISTANCE_MAX_RANGE := Vector2(10.0, 60.0)
+const DISTANCE_MIN := 10.0
+const DISTANCE_MAX := 12.0
+const DISTANCE_NUMERIC_TOLERANCE := 0.00001
+const DISTANCE_ENDPOINT_TOLERANCE := 0.01
+const DISTANCE_SETTLE_FRAMES := 120
+# Shared apply_camera_input scroll factor, independent of native readback.
+const SCROLL_DISTANCE_STEP := 2.0
 
 var fixture
 
@@ -32,6 +47,8 @@ func run(flow: SceneTree, client: Node) -> bool:
 			return false
 		if not expect_physical_fov(client, requested.y):
 			return false
+	if not await expect_distance_bounds(client):
+		return false
 	if not await clear_mouse_selection(client):
 		return false
 	if client.get_node_or_null("GameMenuUI") != null or not client.account_state().gameplay_input_allowed:
@@ -105,14 +122,95 @@ func set_camera_sliders(client: Node, look: float, fov: float) -> bool:
 		return false
 	return await close_camera_options(client)
 
+func expect_distance_bounds(client: Node) -> bool:
+	if not expect_logical_distance(client, DISTANCE_DEFAULT, DISTANCE_NUMERIC_TOLERANCE):
+		return false
+	# Max first: configure clamps both logical distance and target from 15
+	# to 12 before Min changes. No physical/collision-adjusted pose oracle.
+	if not await set_distance_sliders(client, DISTANCE_MIN, DISTANCE_MAX, true):
+		return false
+	if not expect_logical_distance(client, DISTANCE_MAX, DISTANCE_NUMERIC_TOLERANCE):
+		return false
+	if not await expect_wheel_distance(client, MOUSE_BUTTON_WHEEL_UP, 3.0, DISTANCE_MIN, DISTANCE_MIN, DISTANCE_MAX):
+		return false
+	if not await expect_wheel_distance(client, MOUSE_BUTTON_WHEEL_DOWN, 3.0, DISTANCE_MAX, DISTANCE_MIN, DISTANCE_MAX):
+		return false
+	if not await set_distance_sliders(client, DISTANCE_MIN_DEFAULT, DISTANCE_MAX_DEFAULT):
+		return false
+	# Target remains exactly 12 after settling; continuous wheel factor 1.5
+	# adds 1.5 * shared step 2 = 3, restoring the independent default 15.
+	var restore_factor := (DISTANCE_DEFAULT - DISTANCE_MAX) / SCROLL_DISTANCE_STEP
+	if not await expect_wheel_distance(client, MOUSE_BUTTON_WHEEL_DOWN, restore_factor, DISTANCE_DEFAULT, DISTANCE_MIN_DEFAULT, DISTANCE_MAX_DEFAULT):
+		return false
+	print("PASS: authored Max/Min clamp logical distance; real wheel reaches both bounds; bounds 2/40 and logical default 15 restored (not physical pose or zoom/follow rate proof)")
+	return true
+
+func set_distance_sliders(client: Node, minimum: float, maximum: float, expect_max_clamp: bool = false) -> bool:
+	if not await open_camera_options(client):
+		return false
+	if not await click_slider(client, "Slidermax_distance", (maximum - DISTANCE_MAX_RANGE.x) / (DISTANCE_MAX_RANGE.y - DISTANCE_MAX_RANGE.x)):
+		return false
+	if not expect_saved_number("max_distance", maximum, DISTANCE_NUMERIC_TOLERANCE):
+		return false
+	if expect_max_clamp and not expect_logical_distance(client, DISTANCE_MAX, DISTANCE_NUMERIC_TOLERANCE):
+		return false
+	if not await click_slider(client, "Slidermin_distance", (minimum - DISTANCE_MIN_RANGE.x) / (DISTANCE_MIN_RANGE.y - DISTANCE_MIN_RANGE.x)):
+		return false
+	if not expect_saved_number("max_distance", maximum, DISTANCE_NUMERIC_TOLERANCE) or not expect_saved_number("min_distance", minimum, DISTANCE_NUMERIC_TOLERANCE):
+		return false
+	return await close_camera_options(client)
+
+func expect_logical_distance(client: Node, expected: float, tolerance: float) -> bool:
+	var observed := float(client.account_state().camera_distance)
+	if not is_finite(observed) or absf(observed - expected) > tolerance:
+		return reject("Logical camera distance expected=%s observed=%s tolerance=%s" % [expected, observed, tolerance])
+	print("CAMERA_DISTANCE_PROBE expected=", expected, " logical=", observed)
+	return true
+
+func expect_wheel_distance(client: Node, button: int, factor: float, expected: float, minimum: float, maximum: float) -> bool:
+	if client.get_node_or_null("GameMenuUI") != null or not client.account_state().gameplay_input_allowed:
+		return reject("Logical wheel probe requires menu-closed gameplay input")
+	var previous := float(client.account_state().camera_distance)
+	if not is_finite(previous) or previous < minimum - DISTANCE_NUMERIC_TOLERANCE or previous > maximum + DISTANCE_NUMERIC_TOLERANCE:
+		return reject("Logical wheel baseline outside finite bounds: " + str(previous))
+	var samples: Array[float] = [previous]
+	# Real input only: native PhysicalInput consumes signed factor on press.
+	# Release the wheel as well; never mutate camera/state or fake its pose.
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = button
+		event.factor = factor
+		event.position = LOOK_POINT
+		event.global_position = LOOK_POINT
+		event.pressed = pressed
+		fixture.root.push_input(event, true)
+	for frame in range(DISTANCE_SETTLE_FRAMES):
+		await fixture.process_frame
+		var observed := float(client.account_state().camera_distance)
+		if not is_finite(observed) or observed < minimum - DISTANCE_NUMERIC_TOLERANCE or observed > maximum + DISTANCE_NUMERIC_TOLERANCE:
+			return reject("Logical wheel sample outside finite bounds: frame=%s distance=%s bounds=%s..%s" % [frame, observed, minimum, maximum])
+		var wrong_direction := observed > previous + DISTANCE_NUMERIC_TOLERANCE if button == MOUSE_BUTTON_WHEEL_UP else observed < previous - DISTANCE_NUMERIC_TOLERANCE
+		if wrong_direction:
+			return reject("Logical wheel sample not monotonic: frame=%s previous=%s observed=%s" % [frame, previous, observed])
+		samples.append(observed)
+		previous = observed
+	if not expect_logical_distance(client, expected, DISTANCE_ENDPOINT_TOLERANCE):
+		return false
+	print("CAMERA_WHEEL_DISTANCE_PROBE button=", button, " factor=", factor, " expected=", expected, " bounds=", Vector2(minimum, maximum), " samples=", samples)
+	return true
+
 func click_slider(client: Node, name: String, fraction: float) -> bool:
 	var menu := client.get_node_or_null("GameMenuUI")
 	var slider := menu.find_child(name, true, false) as Control if menu != null else null
 	if slider == null or not slider.is_visible_in_tree():
 		return reject("Authored camera slider absent/hidden: " + name)
-	# Same physical click geometry as world_sound_flow; no readback calibration.
+	# Intermediate clicks retain world_sound_flow geometry; no readback calibration.
 	var rect := slider.get_global_rect()
 	var point := rect.position + Vector2(rect.size.x * fraction, rect.size.y * 0.5)
+	# The right edge is outside Control's hitbox. Capture inside, then drag
+	# past the edge so the authored slider_percent clamps to its exact maximum.
+	if fraction == 1.0:
+		point = rect.get_center()
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.button_index = MOUSE_BUTTON_LEFT
@@ -121,6 +219,16 @@ func click_slider(client: Node, name: String, fraction: float) -> bool:
 		event.pressed = pressed
 		fixture.root.push_input(event, true)
 		await fixture.process_frame
+		if fraction == 1.0 and pressed:
+			var end := Vector2(rect.end.x + 1.0, point.y)
+			var motion := InputEventMouseMotion.new()
+			motion.position = end
+			motion.global_position = end
+			motion.relative = end - point
+			motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+			fixture.root.push_input(motion, true)
+			await fixture.process_frame
+			point = end
 	return true
 
 func expect_saved_number(field: String, expected: float, tolerance: float) -> bool:
