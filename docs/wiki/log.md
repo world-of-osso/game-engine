@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-30] evidence | Bounded target-marker Options GREEN, gate pending
+## [2026-09-30] evidence | Bounded target-marker Options PASS; post-extraction gate pending
 
-Updated [target-marker evidence](systems/godot-conversion.md#native-nameplate-options-boundary), parity row and index from saved ledger/logs: main red5 exit 101 → green3 exit 0, Depot `cshqvl6qmg` native/fixture `1d24222c`. Authored saved Off/On/new F1 self-ring visibility and original menu movement/decoded UDP/Exit pass; green1/2 historical W failures retained. Independent `/tmp/claude/verify-native-target-marker-options.md` gate pending; no all-HUD/startup-false/fresh-process/existing-ring live-edit proof. Docs only; shutdown deferred/source pin removed.
+Updated [target-marker evidence](systems/godot-conversion.md#native-nameplate-options-boundary), parity row and index from saved ledger/logs: main red5 exit 101 → green3 exit 0, Depot `cshqvl6qmg` native/fixture `1d24222c`. Authored saved Off/On/new F1 self-ring visibility and original menu movement/decoded UDP/Exit pass; green1/2 historical W failures retained. Prior independent `/tmp/claude/verify-native-target-marker-options.md`: bounded behavior/compile PASS with readability findings. `4ef38394` extracts fixture defaults persistence to address introduced complexity; five-line production consumer unchanged. Main Depot `mb61bqgcj2` final-build/final-runtime exit 0 repeats bounded marker/menu proof; new `/tmp/claude/verify-native-target-marker-final.md` gate pending, not final readability clearance. Corrected fixture wording to canonical options file seeded with `()`, not a `canonical()` call. No all-HUD/full-conversion/startup-false/fresh-process/existing-ring live-edit proof. Docs only; shutdown deferred/source pin removed.
 
 ## [2026-09-30] evidence | Bounded TAA + Bloom gate accepted; termination unresolved
 
