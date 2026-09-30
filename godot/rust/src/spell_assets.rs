@@ -63,8 +63,8 @@ pub(crate) struct SpellAssets {
 }
 
 impl SpellAssets {
-    pub fn new(data_root: PathBuf, cache_root: &Path) -> Self {
-        let resolver = Arc::new(local_resolver(&data_root, cache_root));
+    pub fn new(data_root: PathBuf) -> Self {
+        let resolver = Arc::new(local_resolver(&data_root));
         let texture_dir = data_root.join("textures");
         let loader =
             AssetLoader::new(

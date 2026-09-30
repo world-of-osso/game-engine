@@ -274,17 +274,12 @@ pub(crate) struct TerrainObjects {
 }
 
 impl TerrainObjects {
-    pub fn new(
-        name: &'static str,
-        budget: Duration,
-        data_root: PathBuf,
-        cache_root: PathBuf,
-    ) -> Self {
+    pub fn new(name: &'static str, budget: Duration, data_root: PathBuf) -> Self {
         Self {
             name,
             budget,
             root: None,
-            resolver: local_resolver(&data_root, &cache_root),
+            resolver: local_resolver(&data_root),
             data_root,
             queued_tiles: BTreeSet::new(),
             pending: VecDeque::new(),

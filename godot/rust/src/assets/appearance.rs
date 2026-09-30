@@ -54,7 +54,6 @@ impl NpcAppearances {
     pub(crate) fn prepare(
         &mut self,
         data_root: &Path,
-        cache_root: &Path,
         display_id: u32,
         resolve_armor: impl FnOnce(u8, u8) -> Result<ResolvedEquipmentAppearance, String>,
     ) -> Result<Option<PreparedNpc>, String> {
@@ -75,8 +74,7 @@ impl NpcAppearances {
         let resolver = CascListfileResolver::new(
             AssetResolverConfig::new()
                 .with_data_root(data_root)
-                .with_shared_data_root(data_root)
-                .with_cache_root(cache_root),
+                .with_shared_data_root(data_root),
         );
         let textures = compose_replacement_textures(
             compositor,
