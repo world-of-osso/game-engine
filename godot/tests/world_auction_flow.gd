@@ -133,7 +133,7 @@ func browse_item() -> bool:
 	if not await click_action("auction_search") or not await wait_until(func(): return client.auction_state().search_revision > revision, "browse reply"):
 		return false
 	for _page in range(20):
-		if client.auction_state().search.any(func(row): return row.item_id == item_id):
+		if client.auction_state().groups.any(func(row): return row.item_id == item_id):
 			revision = client.auction_state().search_revision
 			if not await click_action("auction_browse_item:%s" % item_id):
 				return false

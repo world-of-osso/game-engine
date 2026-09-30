@@ -232,6 +232,19 @@ impl GameClient {
             }
             result
         }
+        let mut groups = VarArray::new();
+        for row in &session.net.browse_results {
+            let mut item = VarDictionary::new();
+            item.set("item_id", row.item_id);
+            item.set("name", row.name.as_str());
+            item.set("quality", row.quality);
+            item.set("required_level", row.required_level);
+            item.set("lowest_unit_price", row.lowest_unit_price as i64);
+            item.set("total_quantity", row.total_quantity as i64);
+            groups.push(&item.to_variant());
+        }
+        result.set("groups", &groups);
+        result.set("query_is_browse", session.net.query_is_browse);
         result.set("search", &listings(&session.net.search_results));
         result.set("owned", &listings(&session.net.owned_results));
         result.set("bids", &listings(&session.net.bid_results));
