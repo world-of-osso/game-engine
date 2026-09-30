@@ -2,6 +2,8 @@
 
 Tracking matrix for the required single-deliverable client replacement. Each source specification remains the contract source of truth; this file records only conversion status. **Handled** requires a Godot-owned implementation plus current behavioral/runtime proof. Parser/core data, a preview helper, portable UI models, and the headless Bevy transport worker do not establish feature parity.
 
+Bounded production TAA callback evidence: three 64×48 HDR zero-jitter moving-opaque frames, production capture exit 0; isolated original-shader oracle with independent GPU history exit 0, 135168 comparisons/0 failures at fixed one HALF ULP + 2e-5 plus 3072 constant-confidence comparisons/0 failures. Reset confidence 66.625 versus CPU ideal nearest-half 66.6875 is observed, not fitted. CPU oracle remains FAILED (3806/135168); native-project oracle reports numeric 0 failures but timeout 124. No CPU-gap/native-teardown fix; minimal logger correlation intermittent/unproven. Agent 1148 independent gate pending. Not root-controller/app AA, HDR + Bloom, full-scene, LDR, nonzero jitter or general temporal parity. [Exact saved evidence and pending report](../wiki/systems/godot-conversion.md#production-effect-observer--bounded-main-observed-evidence).
+
 **Current result: 0 handled.** All rows remain required. Bevy is authorized only as the headless networking transport worker; it is not a UI, scene, rendering, audio, input, gameplay, diagnostic, or CLI fallback.
 
 Status vocabulary: **Missing** — no Godot implementation and proof; **Blocked** — a specific known dependency prevents a Godot implementation/proof; **Handled** — implementation and current proof. `None` means no Godot parity proof, not that the Bevy behavior lacks proof.
