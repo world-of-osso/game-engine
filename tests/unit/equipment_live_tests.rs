@@ -8,11 +8,14 @@ use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::mesh::{Mesh, Mesh3d};
 
 use super::*;
+#[path = "required_asset.rs"]
+mod required_asset;
 use crate::animation::AnimationPlugin;
 use crate::creature_display::CreatureDisplayMap;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
+use required_asset::require_asset;
 
 #[path = "equipment_live_tests/skin_palette_census.rs"]
 mod skin_palette_census;
@@ -22,9 +25,7 @@ mod hand_attachments;
 
 #[test]
 fn live_human_male_helm_wraps_head_and_binds_texture() {
-    let Some((spawned, helm_path, mut app)) = setup_live_helm_test_app() else {
-        return;
-    };
+    let (spawned, helm_path, mut app) = setup_live_helm_test_app();
     equip_live_helm(&mut app, spawned.model_root, &helm_path);
     app.update();
     app.update();
@@ -46,12 +47,10 @@ fn live_human_male_helm_wraps_head_and_binds_texture() {
 
 #[test]
 fn live_human_male_back_cloak_spawns_runtime_attachment() {
-    let character_path = Path::new("data/models/humanmale_hd.m2");
-    let cloak_path =
-        Path::new("data/item-models/item/objectcomponents/cape/cape_special_keg_d_01.m2");
-    if !character_path.exists() || !cloak_path.exists() {
-        return;
-    }
+    let character_path = require_asset(Path::new("data/models/humanmale_hd.m2"));
+    let cloak_path = require_asset(Path::new(
+        "data/item-models/item/objectcomponents/cape/cape_special_keg_d_01.m2",
+    ));
 
     let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
     let spawned = spawn_live_character(&mut app, character_path);
@@ -87,9 +86,7 @@ fn live_human_male_back_cloak_spawns_runtime_attachment() {
 
 #[test]
 fn live_human_male_chest_runtime_attachment_uses_character_joints_without_local_animation() {
-    let Some((spawned, chest_path, mut app)) = setup_live_chest_test_app() else {
-        return;
-    };
+    let (spawned, chest_path, mut app) = setup_live_chest_test_app();
     equip_live_chest(&mut app, spawned.model_root, &chest_path);
     app.update();
     app.update();
@@ -120,9 +117,7 @@ fn live_human_male_chest_runtime_attachment_uses_character_joints_without_local_
 
 #[test]
 fn live_human_male_feet_runtime_attachment_uses_character_visual_root() {
-    let Some((spawned, feet_path, mut app)) = setup_live_feet_test_app() else {
-        return;
-    };
+    let (spawned, feet_path, mut app) = setup_live_feet_test_app();
     equip_live_feet(&mut app, spawned.model_root, &feet_path);
     app.update();
     app.update();
@@ -142,8 +137,7 @@ fn live_human_male_feet_runtime_attachment_uses_character_visual_root() {
 
 #[test]
 fn live_bevy_animation_helm_follows_character_bone() {
-    let (spawned, path, mut app) =
-        setup_live_helm_test_app().expect("required human and helm assets");
+    let (spawned, path, mut app) = setup_live_helm_test_app();
     equip_live_helm(&mut app, spawned.model_root, path);
     app.update();
     app.update();
@@ -170,8 +164,7 @@ fn live_bevy_animation_helm_follows_character_bone() {
 
 #[test]
 fn offline_charselect_animated_helm_survives_despawn_and_respawn() {
-    let (spawned, helm_path, mut app) =
-        setup_live_helm_test_app().expect("required human and helm assets for offline lifecycle");
+    let (spawned, helm_path, mut app) = setup_live_helm_test_app();
     let root = spawned.model_root;
     let helm = equip_and_assert_offline_helm_motion(&mut app, root, helm_path);
     let joints = app
@@ -248,8 +241,7 @@ fn equip_and_assert_offline_helm_motion(app: &mut App, root: Entity, path: &Path
 
 #[test]
 fn live_bevy_animation_chest_vertex_follows_character_skin() {
-    let (spawned, path, mut app) =
-        setup_live_chest_test_app().expect("required human and chest assets");
+    let (spawned, path, mut app) = setup_live_chest_test_app();
     equip_live_chest(&mut app, spawned.model_root, path);
     app.update();
     app.update();
@@ -417,41 +409,38 @@ fn spawned_visual_root(world: &World, spawned: &m2_scene::SpawnedAnimatedStaticM
         .parent()
 }
 
-fn setup_live_helm_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
+fn setup_live_helm_test_app() -> (m2_scene::SpawnedAnimatedStaticM2, &'static Path, App) {
     let character_path = Path::new("data/models/humanmale_hd.m2");
     let helm_path = Path::new("data/item-models/item/objectcomponents/head/helm_plate_d_02_hum.m2");
-    if !character_path.exists() || !helm_path.exists() {
-        return None;
-    }
+    require_asset(character_path);
+    require_asset(helm_path);
     let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
     let spawned = spawn_live_character(&mut app, character_path);
-    Some((spawned, helm_path, app))
+    (spawned, helm_path, app)
 }
 
-fn setup_live_chest_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
+fn setup_live_chest_test_app() -> (m2_scene::SpawnedAnimatedStaticM2, &'static Path, App) {
     let character_path = Path::new("data/models/humanmale_hd.m2");
     let chest_path = Path::new(
         "data/item-models/item/objectcomponents/collections/collections_mail_warfrontsnightelfmythic_d_01_hu_m.m2",
     );
-    if !character_path.exists() || !chest_path.exists() {
-        return None;
-    }
+    require_asset(character_path);
+    require_asset(chest_path);
     let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
     let spawned = spawn_live_character(&mut app, character_path);
-    Some((spawned, chest_path, app))
+    (spawned, chest_path, app)
 }
 
-fn setup_live_feet_test_app() -> Option<(m2_scene::SpawnedAnimatedStaticM2, &'static Path, App)> {
+fn setup_live_feet_test_app() -> (m2_scene::SpawnedAnimatedStaticM2, &'static Path, App) {
     let character_path = Path::new("data/models/humanmale_hd.m2");
     let feet_path = Path::new(
         "data/item-models/item/objectcomponents/collections/collections_leather_raidroguemythic_q_01_hu_m.m2",
     );
-    if !character_path.exists() || !feet_path.exists() {
-        return None;
-    }
+    require_asset(character_path);
+    require_asset(feet_path);
     let mut app = game_engine::test_harness::headless_app_with(configure_live_test_app);
     let spawned = spawn_live_character(&mut app, character_path);
-    Some((spawned, feet_path, app))
+    (spawned, feet_path, app)
 }
 
 fn configure_live_test_app(app: &mut App) {
@@ -487,10 +476,7 @@ fn bench_m2_spawn_pipeline_headless() {
         ),
     ];
     for (label, model_path, iterations, p99_budget_ms) in cases {
-        if !model_path.exists() {
-            println!("Skipping {label}: missing {}", model_path.display());
-            continue;
-        }
+        require_asset(model_path);
         let (samples, entities) = measure_headless_m2_spawn_pipeline(model_path, iterations);
         let elapsed: Duration = samples.iter().copied().sum();
         let average = elapsed.div_f64(iterations as f64);
