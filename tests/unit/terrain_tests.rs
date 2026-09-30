@@ -1,4 +1,7 @@
 use super::*;
+#[path = "required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -336,14 +339,7 @@ fn replace_streamed_map_clears_old_tiles_and_heightmap() {
 #[ignore = "benchmark-style integration test; run explicitly"]
 fn bench_terrain_spawn_headless() {
     const TERRAIN_SPAWN_P99_BUDGET_MS: f64 = 400.0;
-    let adt_path = Path::new("data/terrain/azeroth_32_48.adt");
-    if !adt_path.exists() {
-        println!(
-            "Skipping terrain spawn benchmark: missing {}",
-            adt_path.display()
-        );
-        return;
-    }
+    let adt_path = require_asset(Path::new("data/terrain/azeroth_32_48.adt"));
     let iterations = 5_usize;
     let (samples, chunk_entities, terrain_materials, images) =
         measure_headless_terrain_spawn(adt_path, iterations);
@@ -477,14 +473,7 @@ fn min_spawned_terrain_vertex_rgb(world: &World, root: Entity) -> Option<f32> {
 
 #[test]
 fn terrain_only_spawn_lifts_dark_vertex_colors_for_char_select_background() {
-    let adt_path = Path::new("data/terrain/2703_31_37.adt");
-    if !adt_path.exists() {
-        println!(
-            "Skipping terrain vertex-color regression: missing {}",
-            adt_path.display()
-        );
-        return;
-    }
+    let adt_path = require_asset(Path::new("data/terrain/2703_31_37.adt"));
 
     let mut app = game_engine::test_harness::headless_app_with(configure_terrain_benchmark_app);
     let root = spawn_headless_terrain_tile(&mut app, adt_path);

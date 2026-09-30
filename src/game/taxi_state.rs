@@ -255,25 +255,26 @@ fn art_tiles(dir: &Path, art_id: u32) -> Result<Vec<MapTile>, String> {
 }
 
 #[cfg(test)]
+#[path = "../../tests/unit/required_asset.rs"]
+mod required_asset;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
+    use super::required_asset::require_asset;
+
     const DB2: &str = "data/db2/12.1.0.69933";
 
-    fn eastern_kingdoms() -> Option<FlightMapArt> {
+    fn eastern_kingdoms() -> FlightMapArt {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join(DB2);
-        if !dir.join("UiMapArtTile.csv").exists() {
-            eprintln!("skipping: {} has no UiMap CSVs", dir.display());
-            return None;
-        }
-        Some(FlightMapArt::load(&dir, 0).unwrap())
+        require_asset(dir.join("UiMapArtTile.csv"));
+        FlightMapArt::load(&dir, 0).unwrap()
     }
 
     #[test]
     fn eastern_kingdoms_art_is_uimap_13_in_150_tiles() {
-        let Some(art) = eastern_kingdoms() else {
-            return;
-        };
+        let art = eastern_kingdoms();
         assert_eq!(art.ui_map, 13);
         assert_eq!(art.size, Vec2::new(3840.0, 2560.0));
         assert_eq!(art.tile, Vec2::new(256.0, 256.0));
@@ -298,9 +299,7 @@ mod tests {
 
     #[test]
     fn flight_points_land_where_the_retail_map_shows_them() {
-        let Some(art) = eastern_kingdoms() else {
-            return;
-        };
+        let art = eastern_kingdoms();
         // Stormwind (TaxiNodes 2) and Sentinel Hill (4): south-west, Westfall south of it.
         let stormwind = art.map_position(-8841.06, 489.66);
         let sentinel = art.map_position(-10551.9, 1034.39);

@@ -1,7 +1,10 @@
 use super::*;
+#[path = "../required_asset.rs"]
+mod required_asset;
 use crate::asset::m2_format::parser::M2TextureUnit;
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::Mesh;
+use required_asset::require_asset;
 use std::fs;
 use std::path::Path;
 
@@ -264,11 +267,8 @@ fn parse_skin_full_with_submeshes_and_batches() {
 
 #[test]
 fn torch_skin_batches_map_to_valid_materials() {
-    let m2_path = Path::new("data/models/club_1h_torch_a_01.m2");
-    let skin_path = Path::new("data/models/club_1h_torch_a_0100.skin");
-    if !m2_path.exists() || !skin_path.exists() {
-        return;
-    }
+    let m2_path = require_asset(Path::new("data/models/club_1h_torch_a_01.m2"));
+    let skin_path = require_asset(Path::new("data/models/club_1h_torch_a_0100.skin"));
 
     let data = std::fs::read(m2_path).expect("torch m2 should be readable");
     let chunks = parse_chunks(&data).expect("torch m2 should parse");
@@ -345,10 +345,7 @@ fn rewrite_first_sfid(data: &mut [u8], replacement: u32) {
 
 #[test]
 fn load_skin_data_extracts_external_sfid_skin_into_model_directory() {
-    let source_m2 = std::path::Path::new("data/models/126487.m2");
-    if !source_m2.exists() {
-        return;
-    }
+    let source_m2 = require_asset(std::path::Path::new("data/models/126487.m2"));
 
     let source_data = std::fs::read(source_m2).expect("wolf m2 should be readable");
     let chunks = parse_chunks(&source_data).expect("wolf m2 should parse");
@@ -393,11 +390,9 @@ fn load_skin_data_extracts_external_sfid_skin_into_model_directory() {
 
 #[test]
 fn load_skin_data_extracts_external_sfid_skin_for_helm_item_model() {
-    let source_m2 =
-        std::path::Path::new("data/item-models/item/objectcomponents/head/helm_plate_d_02_bef.m2");
-    if !source_m2.exists() {
-        return;
-    }
+    let source_m2 = require_asset(std::path::Path::new(
+        "data/item-models/item/objectcomponents/head/helm_plate_d_02_bef.m2",
+    ));
 
     let source_data = std::fs::read(source_m2).expect("helm m2 should be readable");
     let chunks = parse_chunks(&source_data).expect("helm m2 should parse");
@@ -415,10 +410,7 @@ fn load_skin_data_extracts_external_sfid_skin_for_helm_item_model() {
 
 #[test]
 fn load_m2_errors_when_external_sfid_skin_cannot_be_resolved() {
-    let source_m2 = std::path::Path::new("data/models/126487.m2");
-    if !source_m2.exists() {
-        return;
-    }
+    let source_m2 = require_asset(std::path::Path::new("data/models/126487.m2"));
 
     let mut source_data = std::fs::read(source_m2).expect("wolf m2 should be readable");
     rewrite_first_sfid(&mut source_data, u32::MAX);

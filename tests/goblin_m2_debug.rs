@@ -1,5 +1,9 @@
 use std::path::Path;
 
+#[path = "unit/required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
+
 use game_engine::asset::m2::load_m2;
 
 const MD20_PARTICLE_COUNT_OFFSET: usize = 0x128;
@@ -129,11 +133,7 @@ fn print_skin_counts(vertex_count: usize, skin: &[u8]) {
 
 #[test]
 fn print_goblinmale_memory_profile() {
-    let m2_path = Path::new("data/models/119376.m2");
-    if !m2_path.exists() {
-        println!("Skipping: data/models/119376.m2 not found");
-        return;
-    }
+    let m2_path = require_asset(Path::new("data/models/119376.m2"));
 
     let data = std::fs::read(m2_path).unwrap();
     let md20 = md21_chunk(&data);
@@ -149,11 +149,7 @@ fn print_goblinmale_memory_profile() {
 
 #[test]
 fn load_goblinmale_model_in_isolation() {
-    let m2_path = Path::new("data/models/119376.m2");
-    if !m2_path.exists() {
-        println!("Skipping: data/models/119376.m2 not found");
-        return;
-    }
+    let m2_path = require_asset(Path::new("data/models/119376.m2"));
 
     let model = load_m2(m2_path, &[0, 0, 0]).expect("load goblinmale.m2");
     println!("goblinmale batches={}", model.batches.len());

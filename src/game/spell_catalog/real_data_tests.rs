@@ -1,4 +1,4 @@
-//! Tests against the pinned 12.1.0.69933 CSVs; skipped when `data/db2` is absent.
+//! Tests against the pinned 12.1.0.69933 CSVs; fail when `data/db2` lacks them.
 
 use std::path::Path;
 use std::sync::OnceLock;
@@ -6,6 +6,9 @@ use std::time::Instant;
 
 use super::*;
 use crate::db2_cache;
+#[path = "../../../tests/unit/required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
 
 fn temp_paths(tag: &str) -> SpellCatalogPaths {
     let mut paths = SpellCatalogPaths::for_data_dir(Path::new("data"));
@@ -14,15 +17,8 @@ fn temp_paths(tag: &str) -> SpellCatalogPaths {
     paths
 }
 
-fn source_present() -> bool {
-    let present = temp_paths("probe")
-        .source_dir
-        .join("SpellName.csv")
-        .exists();
-    if !present {
-        eprintln!("skipping: spell DB2 CSVs not present");
-    }
-    present
+fn require_source() {
+    require_asset(temp_paths("probe").source_dir.join("SpellName.csv"));
 }
 
 /// Built once per test process: a cold load (CSV build + cache write) followed
@@ -32,25 +28,21 @@ struct Loaded {
     warm: SpellCatalogData,
 }
 
-fn loaded() -> Option<&'static Loaded> {
-    static LOADED: OnceLock<Option<Loaded>> = OnceLock::new();
-    LOADED
-        .get_or_init(|| {
-            if !source_present() {
-                return None;
-            }
-            let paths = temp_paths("shared");
-            let _ = std::fs::remove_file(&paths.cache_path);
-            let cold = load_spell_catalog(&paths).expect("cold spell catalog load");
-            let warm = load_spell_catalog(&paths).expect("warm spell catalog load");
-            std::fs::remove_file(&paths.cache_path).expect("remove test cache");
-            Some(Loaded { cold, warm })
-        })
-        .as_ref()
+fn loaded() -> &'static Loaded {
+    static LOADED: OnceLock<Loaded> = OnceLock::new();
+    LOADED.get_or_init(|| {
+        require_source();
+        let paths = temp_paths("shared");
+        let _ = std::fs::remove_file(&paths.cache_path);
+        let cold = load_spell_catalog(&paths).expect("cold spell catalog load");
+        let warm = load_spell_catalog(&paths).expect("warm spell catalog load");
+        std::fs::remove_file(&paths.cache_path).expect("remove test cache");
+        Loaded { cold, warm }
+    })
 }
 
-fn catalog() -> Option<&'static SpellCatalogData> {
-    loaded().map(|loaded| &loaded.cold)
+fn catalog() -> &'static SpellCatalogData {
+    &loaded().cold
 }
 
 fn description(id: u32) -> String {
@@ -58,20 +50,17 @@ fn description(id: u32) -> String {
 }
 
 fn description_for(id: u32, ctx: &SpellTextContext) -> String {
-    catalog().unwrap().render_description(id, ctx).unwrap()
+    catalog().render_description(id, ctx).unwrap()
 }
 
 fn aura_description(id: u32) -> String {
     let ctx = SpellTextContext::default();
-    catalog()
-        .unwrap()
-        .render_aura_description(id, &ctx)
-        .unwrap()
+    catalog().render_aura_description(id, &ctx).unwrap()
 }
 
 #[test]
 fn fireball_fields_and_description() {
-    let Some(data) = catalog() else { return };
+    let data = catalog();
     let fireball = data.get(133).unwrap();
     assert_eq!(&*fireball.name, "Fireball");
     assert_eq!(fireball.icon_fdid, 135812);
@@ -97,7 +86,7 @@ fn fireball_fields_and_description() {
 
 #[test]
 fn crusader_strike_charges_and_description() {
-    let Some(data) = catalog() else { return };
+    let data = catalog();
     let strike = data.get(35395).unwrap();
     assert_eq!(
         strike.charges,
@@ -117,7 +106,7 @@ fn crusader_strike_charges_and_description() {
 
 #[test]
 fn shadow_word_pain_description_and_aura() {
-    let Some(data) = catalog() else { return };
+    let data = catalog();
     assert_eq!(
         description(589),
         "A word of darkness that causes {?$s1} Shadow damage instantly, and an additional {?$o2} \
@@ -140,9 +129,6 @@ fn shadow_word_pain_description_and_aura() {
 
 #[test]
 fn buff_auras_drop_zero_valued_conditional_lines() {
-    if catalog().is_none() {
-        return;
-    }
     // Battle Shout: "Attack power increased by $w1%.$?$w3>0[..Stamina increased by $w3%.][]"
     // with effect 3 at 0 points.
     assert_eq!(aura_description(6673), "Attack power increased by 5%.");
@@ -152,9 +138,6 @@ fn buff_auras_drop_zero_valued_conditional_lines() {
 
 #[test]
 fn mortal_strike_resolves_the_healing_debuff_by_reference() {
-    if catalog().is_none() {
-        return;
-    }
     assert_eq!(
         description(12294),
         "A vicious strike that deals {?$s1} Physical damage and reduces the effectiveness of \
@@ -164,9 +147,6 @@ fn mortal_strike_resolves_the_healing_debuff_by_reference() {
 
 #[test]
 fn token_coverage_on_real_spells() {
-    if catalog().is_none() {
-        return;
-    }
     assert_eq!(
         description(606),
         "Drains 34.29 mana from the target over 30 sec."
@@ -200,14 +180,14 @@ fn token_coverage_on_real_spells() {
 
 #[test]
 fn warm_cache_load_matches_cold_build() {
-    let Some(loaded) = loaded() else { return };
+    let loaded = loaded();
     assert!(loaded.cold.len() > 400_000);
     assert_eq!(loaded.warm.spells, loaded.cold.spells);
 }
 
 #[test]
 fn changed_source_key_invalidates_cache() {
-    let Some(data) = catalog() else { return };
+    let data = catalog();
     let paths = temp_paths("stale");
     let key = cache::cache_key(&paths.source_dir).unwrap();
     db2_cache::write_cache(&paths.cache_path, &key, &data.spells[..1]).unwrap();
@@ -232,9 +212,7 @@ fn changed_source_key_invalidates_cache() {
 #[test]
 #[ignore]
 fn spell_catalog_load_probe() {
-    if !source_present() {
-        return;
-    }
+    require_source();
     let paths = temp_paths("probe");
     let _ = std::fs::remove_file(&paths.cache_path);
     let started = Instant::now();
@@ -273,7 +251,7 @@ fn heap_bytes(data: &SpellCatalogData) -> usize {
 /// SPELL_ATTR2_INITIATE_COMBAT_POST_CAST_ENABLES_AUTO_ATTACK.
 #[test]
 fn melee_abilities_start_auto_attack_and_frostbolt_does_not() {
-    let Some(data) = catalog() else { return };
+    let data = catalog();
     let auto_attack = |id| data.get(id).unwrap().auto_attack;
     assert_eq!(auto_attack(1464), SpellAutoAttack::OnCast, "Slam");
     assert_eq!(auto_attack(12294), SpellAutoAttack::OnCast, "Mortal Strike");
@@ -284,7 +262,7 @@ fn melee_abilities_start_auto_attack_and_frostbolt_does_not() {
 
 #[test]
 fn passive_flag_and_spellbook_tabs() {
-    let Some(data) = catalog() else { return };
+    let data = catalog();
     assert!(data.get(76671).unwrap().passive, "Mastery: Divine Bulwark");
     assert!(!data.get(35395).unwrap().passive, "Crusader Strike");
     let tabs = &data.tabs;

@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 pub use crate::aura_display_data::{AuraCasterLookup, AuraInstance, DebuffType, aura_instances};
+use bevy::prelude::*;
 
 /// Runtime aura state for the local player.
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
@@ -118,7 +118,12 @@ mod tests {
             local_player: Some(LOCAL),
             name_of: &lookup,
         };
-        aura_instances(views, Some(&catalog()), &casters, &SpellTextContext::default())
+        aura_instances(
+            views,
+            Some(&catalog()),
+            &casters,
+            &SpellTextContext::default(),
+        )
     }
 
     #[test]
