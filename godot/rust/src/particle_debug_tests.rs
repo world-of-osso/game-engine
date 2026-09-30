@@ -1,7 +1,7 @@
 use glam::{Vec2, Vec3};
 
-use super::{EmitterState, Orbit, format_overlay};
-use game_engine_core::m2::ParticleEmitter;
+use super::{EmitterState, Orbit, format_lights, format_overlay};
+use game_engine_core::{m2::ParticleEmitter, m2_lights::PointLight};
 
 #[test]
 fn overlay_lists_each_emitters_state_and_key_fields() {
@@ -35,7 +35,24 @@ fn overlay_lists_each_emitters_state_and_key_fields() {
     assert!(text.contains("Emitter #1 [off]\n"));
     assert!(text.contains("Emitter #2 [not simulated]\nblend=0 type=3"));
     assert!(text.contains("life=1.250 +/- 0.000 rate=12.000"));
-    assert!(text.contains("tex=Some(145513)"));
+    assert!(text.contains("tex=Some(145513) flags=0x0"));
+}
+
+#[test]
+fn light_lines_give_bone_colour_and_attenuation() {
+    let flame = PointLight {
+        color: [0.513_333, 0.319_216, 0.146_667],
+        attenuation_start: 1.6666,
+        attenuation_end: 5.266_66,
+        visible: true,
+    };
+    assert_eq!(
+        format_lights(&[(9, flame)]),
+        [
+            String::new(),
+            "Light #0 point bone=9 color=(0.513, 0.319, 0.147) attenuation=1.667-5.267".to_string()
+        ]
+    );
 }
 
 #[test]

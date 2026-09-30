@@ -35,7 +35,7 @@ impl INode for WowMaterialClock {
 #[godot_api]
 impl WowMaterialClock {
     #[func]
-    fn elapsed_time_ms(&self) -> f64 {
+    pub(crate) fn elapsed_time_ms(&self) -> f64 {
         self.elapsed_ms
     }
 

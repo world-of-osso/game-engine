@@ -90,6 +90,7 @@ impl TerrainMaterials {
         for material in &mut self.materials {
             light.bind(material);
         }
+        self.water.update_lighting(&light);
         self.light = Some(light);
     }
 
@@ -134,7 +135,7 @@ impl TerrainMaterials {
                 collision,
             ));
         }
-        let water = self.water.build(&parsed.root)?;
+        let water = self.water.build(&parsed.root, &parsed.liquid_materials)?;
         // Allocate manual-lifetime nodes only after all fallible resource construction.
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Tile{}_{}", tile.0, tile.1));

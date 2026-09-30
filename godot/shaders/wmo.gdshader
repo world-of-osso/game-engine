@@ -351,4 +351,12 @@ void light() {
 		vec3 base = gamma_to_linear(apply_retail_fog(ambient_authored));
 		DIFFUSE_LIGHT += lit - base;
 	}
+#ifndef WMO_BLENDED
+	if (!LIGHT_IS_DIRECTIONAL && !unlit) {
+		// M2 point lights reach opaque surfaces only (WebWowViewerCpp
+		// pointLight.frag.slang:43-58); LIGHT_COLOR carries Godot's PI.
+		float n_dot_l = max(dot(NORMAL, LIGHT), 0.0);
+		DIFFUSE_LIGHT += gamma_to_linear(diffuse_authored) * LIGHT_COLOR / PI * ATTENUATION * n_dot_l;
+	}
+#endif
 }
