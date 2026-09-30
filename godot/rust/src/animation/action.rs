@@ -29,9 +29,10 @@ const STATIONARY_ANIMS: [u16; 6] = [0, 25, 26, 27, 28, 41];
 /// M2 events that release pending spell missiles (left hand, right hand, generic).
 const MISSILE_RELEASE_EVENTS: [&[u8; 4]; 3] = [b"$CSL", b"$CSR", b"$CST"];
 
-/// M2 events an action clip reports as it passes them: `$SCD` plays the unit's
-/// spell-cast-directed voice (wowdev.wiki/M2 Events).
-const REPORTED_EVENTS: [&[u8; 4]; 1] = [b"$SCD"];
+/// M2 events an action clip reports as it passes them (wowdev.wiki/M2 Events): `$SCD`
+/// plays the unit's spell-cast-directed voice, `$CSS` its weapon swoosh and `$CAH`
+/// lands its melee swing.
+const REPORTED_EVENTS: [&[u8; 4]; 3] = [b"$SCD", b"$CSS", b"$CAH"];
 
 /// Which actions may replace a playing one: a spell's kit animation is not cut short
 /// by a melee swing or hit reaction arriving mid-cast; equal or higher priority
