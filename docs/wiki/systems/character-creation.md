@@ -23,6 +23,17 @@ Dropdown rows follow local Retail `MenuStyle2` content insets (left 3, top 6, ri
 
 Closed dropdown `SelectionDetails` uses the same Retail `ResizeLayoutFrame` contract: its 144-pixel XML size is initial, then content is centered at 42 pixels for one effective swatch or 54 for dual swatches; named text is capped at 126. Engine `fa162861` applies this without moving the 150-pixel trigger or its input area. Circular controls follow `RingedMaskedButtonMixin:UpdateHighlightTexture`: checked hover matches `CheckedTexture`; unchecked hover matches the authored `Ring`. Engine `c022b454` authors those sizes; toolkit support and final rendered verification remain pending. Atlas crop and native-layout proof are not full rendered parity, and native additive glow remains unsupported.
 
+## Customization data provenance
+
+`scripts/refresh_customization_data.py` (2026-09-30) builds the customization CSVs in `data/` for 12.1.0.69933:
+- ChrCustomizationElement, ChrCustomizationMaterial, ChrCustomizationSkinnedModel and ChrModelTextureLayer come from local CASC, via `scripts/export_db2_csv.py` and the WoWDBDefs layouts of that build.
+- TextureFileData is the `wago.tools/db2/TextureFileData/csv?build=12.1.0.69933` export. The local install has no TextureFileData.db2: its encoding key 83eb4cdc… is in no `Data/data/*.idx` bucket of the active build.
+- ChrCustomizationChoice, ChrCustomizationOption and the other customization CSVs remain the 2026-03-12 exports.
+- Pre-refresh files are in `data/pre-12x-customization-20260930/`.
+- `customization_cache_import` and `char_texture_cache_import` rebuild `data/cache/*.sqlite` from them (customization cache schema 3).
+
+Skinned models (`ChrCustomizationSkinnedModel`) attach a collection M2 bound to the character skeleton; see the [character-creation spec](../../specs/character-creation.md).
+
 ## Authored 3D preview backdrops
 
 `ChrRaces.CreateScreenFileDataID` supplies the backdrop model: Alliance `623712`, Horde `623714`, and neutral Pandaren `623716`. Race 25 reuses Alliance and race 26 reuses Horde; neutral race 24 is loader-supported without adding an actor or changing the selectable roster.
