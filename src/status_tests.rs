@@ -611,12 +611,15 @@ fn secondary_resource_reads_first_pip_power_in_display_units() {
         power,
         current,
         max,
+        partial: 0,
+        regen_per_sec: 0.0,
     };
     let warlock = UnitPowers {
         entries: vec![
             entry(PowerType::Mana, 5000, 10000),
             entry(PowerType::SoulShards, 35, 50),
         ],
+        charged_points: Vec::new(),
     };
     assert_eq!(
         SecondaryResourceEntry::from_unit_powers(&warlock),
@@ -628,6 +631,7 @@ fn secondary_resource_reads_first_pip_power_in_display_units() {
     );
     let warrior = UnitPowers {
         entries: vec![entry(PowerType::Rage, 350, 1000)],
+        charged_points: Vec::new(),
     };
     assert_eq!(SecondaryResourceEntry::from_unit_powers(&warrior), None);
 }
@@ -642,8 +646,11 @@ fn class_powers(
                 power,
                 current,
                 max,
+                partial: 0,
+                regen_per_sec: 0.0,
             })
             .collect(),
+        charged_points: Vec::new(),
     }
 }
 
@@ -659,7 +666,7 @@ fn class_bar(
         level,
         in_combat: false,
     };
-    crate::status::ClassBarResource::for_player(powers, &player)
+    crate::status::ClassBarResource::for_player(powers, None, &player)
 }
 
 /// `ClassPowerBar:Setup` spec gates (MonkHarmonyBar.xml:116, MageArcaneChargesBar.xml:127,
@@ -721,4 +728,46 @@ fn soul_shards_show_from_level_ten_with_fragments() {
     assert_eq!(class_bar(&warlock, 9, Some(265), 9), None, "level 9");
     let shards = class_bar(&warlock, 9, Some(265), 10).expect("level 10");
     assert_eq!((shards.current, shards.max, shards.tenths), (3, 5, 37));
+}
+
+/// Received class resource timing: `partial` stays in thousandths, the regen rate becomes
+/// displayed units per second (soul shards ÷10), charged points stay 1-based, and only the
+/// rune bar keeps `UnitRunes`.
+#[test]
+fn class_bar_dynamics_carry_received_partial_rate_charges_and_runes() {
+    use shared::components::PowerType::{ComboPoints, Energy, Mana, Runes, RunicPower, SoulShards};
+    use shared::components::UnitRunes;
+    let player = |class| crate::status::ClassBarPlayer {
+        class,
+        spec: Some(265),
+        level: 20,
+        in_combat: false,
+    };
+    let runes = UnitRunes {
+        duration_ms: 10_000,
+        ready_in_ms: vec![0, 0, 0, 0, 2_500, 12_500],
+    };
+    let mut warlock = class_powers(&[(Mana, 100, 100), (SoulShards, 34, 50)]);
+    warlock.entries[1].partial = 400;
+    warlock.entries[1].regen_per_sec = -5.0;
+    let shards = crate::status::ClassBarResource::for_player(&warlock, Some(&runes), &player(9))
+        .expect("warlock bar");
+    assert_eq!(shards.dynamics.partial, 400);
+    assert_eq!(shards.dynamics.regen_per_sec, -0.5);
+    assert_eq!(shards.dynamics.runes, None, "runes only feed the rune bar");
+
+    let mut rogue = class_powers(&[(Energy, 100, 100), (ComboPoints, 2, 7)]);
+    rogue.charged_points = vec![2, 5];
+    let points =
+        crate::status::ClassBarResource::for_player(&rogue, None, &player(4)).expect("rogue bar");
+    assert_eq!(points.dynamics.charged_points, vec![2, 5]);
+
+    let dk = class_powers(&[(RunicPower, 0, 1000), (Runes, 4, 6)]);
+    let bar = crate::status::ClassBarResource::for_player(&dk, Some(&runes), &player(6))
+        .expect("rune bar");
+    let received = bar.dynamics.runes.expect("rune timings");
+    assert_eq!(
+        (received.duration_ms, received.ready_in_ms),
+        (10_000, runes.ready_in_ms)
+    );
 }
