@@ -1,6 +1,10 @@
 # Wiki Log
 
-## [2026-09-30] evidence | Bounded target-marker Options PASS; post-extraction gate pending
+## [2026-09-30] evidence | Bounded CameraInvertY main proof; independent gate pending
+
+Recorded [CameraInvertY evidence](systems/godot-conversion.md#native-camera-options-boundary): test-only `9671006a`/`47cc143f`/`563968a2`, no production change; owned-UDP/Vulkan Menu `run4.log` exit 0. Authored canonical Off/On persistence, RMB-held +4-pixel pitch deltas −0.03999999165535/+0.03999999165535, released-motion no-change and Off restoration pass alongside marker/original menu assertions. Runs 1–3 fixture failures retained; unchanged Depot `mb61bqgcj2` reused without GDScript-only rebuilds. `/tmp/claude/verify-native-camera-invert-options.md` active/pending; no all-camera/startup/fresh-process/full-conversion acceptance. Shutdown paused; no source pins.
+
+## [2026-09-30] evidence | Bounded target-marker Options PASS; post-extraction gate PASS
 
 Updated [target-marker evidence](systems/godot-conversion.md#native-nameplate-options-boundary), parity row and index from saved ledger/logs: main red5 exit 101 → green3 exit 0, Depot `cshqvl6qmg` native/fixture `1d24222c`. Authored saved Off/On/new F1 self-ring visibility and original menu movement/decoded UDP/Exit pass; green1/2 historical W failures retained. Prior independent `/tmp/claude/verify-native-target-marker-options.md`: bounded behavior/compile PASS with readability findings. `4ef38394` extracts fixture defaults persistence to address introduced complexity; five-line production consumer unchanged. Main Depot `mb61bqgcj2` final-build/final-runtime exit 0 repeats bounded marker/menu proof; main accepts `/tmp/claude/verify-native-target-marker-final.md` bounded follow-up PASS: behavior-preserving extraction, create cognitive 16→15/helper 1 and focused fmt, reusing saved Depot build/runtime exit-0 proof. Existing long functions excluded; no whole-file readability clearance. Corrected fixture wording to canonical options file seeded with `()`, not a `canonical()` call. No all-HUD/full-conversion/startup-false/fresh-process/existing-ring live-edit proof. Docs only; shutdown deferred/source pin removed.
 
