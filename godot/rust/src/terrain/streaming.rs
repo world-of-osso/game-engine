@@ -601,6 +601,7 @@ mod tests {
             chunk_surfaces: BTreeMap::new(),
             wmo_floors: Vec::new(),
             wmo_surfaces: Vec::new(),
+            water_materials: BTreeMap::new(),
         }
     }
 
