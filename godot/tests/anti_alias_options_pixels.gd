@@ -241,7 +241,7 @@ func expect_aa_pixels(image: Image, stage: String) -> bool:
 			"%s: None produced %d intermediate opaque-edge pixels; expected zero" % [stage, partial]
 		)
 		return false
-	if aa_mode == "Msaa4x" and partial == 0:
-		fail(stage + ": Msaa4x produced no intermediate opaque-edge coverage")
+	if aa_mode in ["Msaa4x", "Taa"] and partial == 0:
+		fail(stage + ": " + aa_mode + " produced no intermediate opaque-edge coverage")
 		return false
 	return true
