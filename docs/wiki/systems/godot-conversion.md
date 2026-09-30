@@ -94,7 +94,7 @@ Source-only audit (2026-09-29); no rendered equivalence established. Full AA/con
 
 ### Production-effect observer — bounded main-observed evidence
 
-Saved artifacts under `data/diagnostics/taa-production-observer/` cover the production effect callback only, not the root controller or app AA routing. Independent verifier 1148 (`/tmp/claude/verify-taa-production-observer.md`) reports bounded PASS from saved artifacts: 135168 main channels and 3072 constant-confidence comparisons, zero failures; 32 complete finite binaries independently decoded, no runtime rerun. One frame-2 resolved green channel at (44,27) differs by one HALF ULP (0.0009765625) within fixed HALF ULP + 2e-5 tolerance: tolerance parity, **not bit-exact parity**. Controller nine-frame evidence is separate and excluded; agent 1150 remains pending.
+Saved artifacts under `data/diagnostics/taa-production-observer/` cover the production effect callback only, not the root controller or app AA routing. Independent verifier 1148 (`/tmp/claude/verify-taa-production-observer.md`) reports bounded PASS from saved artifacts: 135168 main channels and 3072 constant-confidence comparisons, zero failures; 32 complete finite binaries independently decoded, no runtime rerun. One frame-2 resolved green channel at (44,27) differs by one HALF ULP (0.0009765625) within fixed HALF ULP + 2e-5 tolerance: tolerance parity, **not bit-exact parity**. The separate controller nine-frame evidence below is excluded from verifier 1148's PASS.
 
 | Capability | Main-observed evidence / boundary |
 | --- | --- |
@@ -103,6 +103,17 @@ Saved artifacts under `data/diagnostics/taa-production-observer/` cover the prod
 | CPU numerical gap | `offline-run4.log` exits 1: 3806 failed comparisons out of 135168. Ideal bilinear/half numerical gap remains unresolved; GPU agreement does not fix or supersede this failed CPU result. |
 | Native teardown | Native-project `gpu-run4.log` reports 0 numeric failures, then times out with exit 124. Isolated oracle exit 0 does not prove native teardown fixed. Minimal logger correlation is intermittent and unproven. |
 | Remaining coverage | No root-controller/app AA, HDR + Bloom, full-scene, LDR, nonzero-jitter or general temporal-parity proof. This bounded reset/history evidence does not close general first-reset/per-frame history obligations. Full conversion remains open; no Handled claim. |
+
+### Production-controller observer — bounded main-observed evidence
+
+Main read saved `data/diagnostics/taa-controller-observer/{run1.log,gpu-run1.log}`; both exit 0. Independent gate agent 1153 (`/tmp/claude/verify-taa-controller-observer.md`) remains **pending**; the independent oracle is not a completed independent acceptance gate.
+
+| Capability | Main-observed evidence / boundary |
+| --- | --- |
+| Actual production controller | `run1.log`: nine consecutive 64×48 HDR frames in a controller-owned SubViewport, phases 0..7,0, restored projection after each draw, raw before/after readbacks. Production controller attaches before the first observer. Capture alone is not an oracle. |
+| Independent original GPU oracle | Isolated `gpu-run1.log`: 430080 channel comparisons, 0 failures, max error 0; separate 3072 confidence comparisons, 0 failures. Expected motion is `-raw_motion + independently computed HALTON delta`, using frozen legacy phases and engine frame, not recorded production jitter. Oracle owns expected history; production output never feeds expected history. Fixed one HALF ULP + 2e-5 tolerance retained; zero observed error in this corpus is not general bit-exact parity. |
+| HDR boundary | `configure(true,true)` models acquired HDR metadata; no actual Bloom executes. Not HDR + Bloom proof. |
+| Remaining coverage | Controller-owned SubViewport only, not GameClient, saved Options, authored scene, LDR, full-scene, actual Bloom or render-scale proof. No general temporal, skinned/transparent, resize, multivendor or export acceptance. Prior three-frame CPU 3806 failures and native oracle timeout 124 remain unresolved; this run fixes neither. Full conversion remains open; no Handled claim. |
 
 Existing persisted `antiAlias` is `None`/`Msaa4x`/`Taa`, default `Msaa4x`. Integration `20dde8b5` consumes it at startup and authored unrelated Graphics commits. Field remains hidden; no new UI/CLI/policy requirements. Raster/effect implementation through `f80467db` has bounded proof, not full temporal parity.
 
