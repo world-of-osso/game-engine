@@ -26,6 +26,9 @@ func run_test() -> void:
 	if scene == null or not card is Control or not tab is Control:
 		fail("Native character-select scene, card or MENU tab missing")
 		return
+	var charselect_camera_options = load("res://tests/charselect_camera_options_probe.gd").new()
+	if not await charselect_camera_options.run(self, client):
+		return
 	await click(tab)
 	if not await wait_menu(client):
 		return
@@ -96,6 +99,15 @@ func run_test() -> void:
 		return
 	var marker_options = load("res://tests/target_marker_options_probe.gd").new()
 	if not await marker_options.run(self, client, player):
+		return
+	var camera_options = load("res://tests/camera_options_probe.gd").new()
+	if not await camera_options.run(self, client):
+		return
+	var camera_zoom_options = load("res://tests/camera_zoom_options_probe.gd").new()
+	if not await camera_zoom_options.run(self, client, camera_options):
+		return
+	var target_binding_options = load("res://tests/target_binding_options_probe.gd").new()
+	if not await target_binding_options.run(self, client, player):
 		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
