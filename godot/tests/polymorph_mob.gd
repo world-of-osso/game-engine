@@ -152,6 +152,8 @@ func run_test() -> void:
 	await frame_camera()
 	if not await orbit_camera():
 		return
+	if not await full_health():
+		return
 	await capture("00-idle.png")
 	grab_dir = OS.get_environment("POLY_GRAB")
 	if grab_dir != "":
@@ -331,6 +333,19 @@ func plate() -> Dictionary:
 func plate_hostile() -> bool:
 	var view := plate()
 	return not view.is_empty() and view.color.is_equal_approx(HOSTILE)
+
+## Self-target (F1) and wait for the mage's TargetFrame health to read full: a
+## character raised with `set-level` keeps its old health until it regenerates.
+func full_health() -> bool:
+	await press(KEY_F1)
+	var full := func():
+		var parts: PackedStringArray = str(client.target_state().health_text).split(" / ")
+		# Whole points: the fraction below the max never shows as damage.
+		return client.target_state().target == local_id and parts.size() == 2 and int(parts[0]) >= int(parts[1]) - 1
+	if not await wait_until(full, 180000, "the mage at full health"):
+		return false
+	print("FIXTURE FULL_HEALTH ", client.target_state().health_text)
+	return true
 
 func SHEEP_SHOWN() -> bool:
 	var display: Dictionary = client.unit_display(target_id)
