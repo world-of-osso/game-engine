@@ -3,6 +3,7 @@ pub(crate) mod appearance;
 mod attachments;
 pub(crate) mod creature;
 pub(crate) mod equipment;
+pub(crate) mod m2_lights;
 pub(crate) mod material;
 pub(crate) mod player;
 pub(crate) mod uv_animation;
@@ -332,6 +333,9 @@ pub(super) fn build_model_filtered(
     if let Some(mut animation) = material_animation {
         animation.set_name("M2MaterialAnimation");
         root.add_child(&animation);
+    }
+    if let Some(lights) = m2_lights::WowM2Lights::from_model(model) {
+        root.add_child(&lights);
     }
     Ok((root, missing))
 }
