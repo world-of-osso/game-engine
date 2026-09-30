@@ -808,6 +808,31 @@ fn native_bridge_receives_vendor_flags_gold_and_inventory() {
 #[test]
 fn native_bridge_auction_operations_and_query_rejections() {
     use shared::protocol::*;
+    #[derive(Resource)]
+    struct Requests<M: network::Message>(Vec<M>);
+    fn capture<M: network::Message>(
+        mut receivers: Query<&mut MessageReceiver<M>>,
+        mut messages: ResMut<Requests<M>>,
+    ) {
+        for mut receiver in &mut receivers {
+            messages.0.extend(receiver.receive());
+        }
+    }
+    fn install<M: network::Message>(app: &mut App) {
+        app.insert_resource(Requests::<M>(Vec::new()));
+        app.add_systems(Update, capture::<M>);
+    }
+    fn install_auction(app: &mut App) {
+        install::<OpenAuctionHouse>(app);
+        install::<QueryAuctions>(app);
+        install::<QueryAuctionInventory>(app);
+        install::<QueryOwnedAuctions>(app);
+        install::<QueryBidAuctions>(app);
+        install::<CreateAuction>(app);
+        install::<PlaceBid>(app);
+        install::<BuyoutAuction>(app);
+        install::<CancelAuction>(app);
+    }
     fn received<M: network::Message>(server: &mut App, bridge: &mut NetworkBridge) -> M {
         let deadline = Instant::now() + Duration::from_secs(10);
         while Instant::now() < deadline {
@@ -815,15 +840,15 @@ fn native_bridge_auction_operations_and_query_rejections() {
             for event in bridge.drain_events().expect("auction worker") {
                 assert!(!matches!(event, Event::Disconnected(_)));
             }
-            let mut query = server.world_mut().query::<&mut MessageReceiver<M>>();
-            for mut receiver in query.iter_mut(server.world_mut()) {
-                if let Some(message) = receiver.receive().next() {
-                    return message;
-                }
+            if let Some(message) = server.world_mut().resource_mut::<Requests<M>>().0.pop() {
+                return message;
             }
             thread::sleep(Duration::from_millis(5));
         }
-        panic!("auction request not received");
+        panic!(
+            "auction request {} not received",
+            std::any::type_name::<M>()
+        );
     }
     fn reply<M: network::Message + Clone + std::fmt::Debug + PartialEq>(
         server: &mut App,
@@ -844,7 +869,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
         };
         assert_eq!(message.downcast::<M>().ok(), Some(expected));
     }
-    let (mut server, address) = start_fixture_server();
+    let (mut server, address) = start_fixture_server_with(install_auction);
     let mut bridge = NetworkBridge::connect(address, 9088).expect("auction connect");
     await_bridge_event(&mut server, &mut bridge, "auction connected", |e| {
         matches!(e, Event::Connected)
