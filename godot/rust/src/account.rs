@@ -426,6 +426,7 @@ impl Account {
         for event in events {
             match event {
                 Event::Connected => self.session.receive_connected(),
+                Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
                     let effects = self
                         .session
