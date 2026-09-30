@@ -2,11 +2,13 @@
 //! their action clips (wowdev.wiki/M2 Events) and resolved by
 //! `game_engine_core::spell_visual`:
 //!
-//! - A melee `CombatEvent` is held as its attacker's pending swing; the attacker's
-//!   attack clip then fires `$CSS`, which plays its weapon swoosh, and `$CAH`, where the
-//!   swing lands: a hit or crit plays the weapon's impact on the victim's material and
-//!   the victim's injury voice, a parry the impact on the parrying weapon, a miss or
-//!   dodge nothing more.
+//! - A melee `CombatEvent` is held as its attacker's pending swing, and the attacker
+//!   voices its exertion unless it missed; the attacker's attack clip then fires `$CSS`,
+//!   which plays its weapon swoosh (a miss whoosh when it missed or was dodged), and
+//!   `$CAH`, where the swing lands: a hit or crit plays the weapon's impact on the
+//!   victim's material and the victim's injury voice, a parry the impact on the parrying
+//!   weapon, a miss or dodge nothing more. Vocals roll their chance
+//!   (`game_engine_core::spell_visual` melee notes).
 //! - `$SCD` plays the unit's `SpellCastDirectedSoundID`.
 //! - An NPC whose death clip starts plays its `SoundDeathID`.
 
@@ -41,16 +43,18 @@ fn swing_result(kind: &CombatEventType) -> Option<SwingResult> {
         CombatEventType::MeleeDamage => Some(SwingResult::Hit { critical: false }),
         CombatEventType::CriticalHit => Some(SwingResult::Hit { critical: true }),
         CombatEventType::Parry => Some(SwingResult::Parry),
-        CombatEventType::Miss | CombatEventType::Dodge => Some(SwingResult::Avoided),
+        CombatEventType::Dodge => Some(SwingResult::Dodge),
+        CombatEventType::Miss => Some(SwingResult::Miss),
         _ => None,
     }
 }
 
 impl SpellEffects {
-    /// Hold a melee swing until its attacker's attack clip lands it.
-    pub fn observe_melee(&mut self, event: &CombatEvent) {
+    /// Hold a melee swing until its attacker's attack clip lands it, and voice the
+    /// attacker's exertion.
+    pub fn observe_melee(&mut self, event: &CombatEvent, world: &WorldUnits) -> Result<(), String> {
         let Some(result) = swing_result(&event.event_type) else {
-            return;
+            return Ok(());
         };
         let swing = PendingSwing {
             target: event.target,
@@ -66,6 +70,21 @@ impl SpellEffects {
             result,
             at: self.clock,
         });
+        let Some(&voice) = self.voices.get(&event.attacker) else {
+            return Ok(());
+        };
+        let roll = self.vocal_roll();
+        let sound = self.catalog()?.exertion_sound(voice, result, roll).cloned();
+        self.play_melee(sound, event.attacker, SoundSource::Voice, world)
+    }
+
+    /// The next vocal chance roll (a linear congruential step, as `SpellSounds` picks files).
+    fn vocal_roll(&mut self) -> u32 {
+        self.vocal_seed = self
+            .vocal_seed
+            .wrapping_mul(1_664_525)
+            .wrapping_add(1_013_904_223);
+        self.vocal_seed
     }
 
     /// Recent melee swings seen, oldest first.
@@ -105,12 +124,14 @@ impl SpellEffects {
     }
 
     fn play_swoosh(&mut self, unit: u64, world: &WorldUnits) -> Result<(), String> {
-        let critical = self.swings.get(&unit).map(|swing| swing.result)
-            == Some(SwingResult::Hit { critical: true });
+        let result = self
+            .swings
+            .get(&unit)
+            .map_or(SwingResult::Hit { critical: false }, |swing| swing.result);
         let Some(hand) = self.hand(unit, world) else {
             return Ok(());
         };
-        let sound = self.catalog()?.swing_sound(hand, critical).cloned();
+        let sound = self.catalog()?.swing_sound(hand, result).cloned();
         self.play_melee(sound, unit, SoundSource::Swing, world)
     }
 
@@ -124,14 +145,14 @@ impl SpellEffects {
         else {
             return Ok(());
         };
+        let roll = self.vocal_roll();
         let catalog = self.catalog()?;
         let impact = catalog
             .impact_sound(attacker, victim, swing.result)
             .cloned();
-        let wound = match swing.result {
-            SwingResult::Hit { critical } => catalog.wound_sound(victim.unit, critical).cloned(),
-            SwingResult::Parry | SwingResult::Avoided => None,
-        };
+        let wound = catalog
+            .injury_sound(victim.unit, swing.result, roll)
+            .cloned();
         let impacted = self.play_melee(impact, swing.target, SoundSource::Impact, world);
         let wounded = self.play_melee(wound, swing.target, SoundSource::Voice, world);
         impacted.and(wounded)
@@ -143,6 +164,7 @@ impl SpellEffects {
         Some(MeleeHand {
             item_id,
             display_info_id,
+            chest_item_id: world.unit_chest_item(id),
             unit: *self.voices.get(&id)?,
         })
     }
@@ -180,8 +202,8 @@ mod tests {
             (CombatEventType::MeleeDamage, Some(hit)),
             (CombatEventType::CriticalHit, Some(crit)),
             (CombatEventType::Parry, Some(SwingResult::Parry)),
-            (CombatEventType::Miss, Some(SwingResult::Avoided)),
-            (CombatEventType::Dodge, Some(SwingResult::Avoided)),
+            (CombatEventType::Miss, Some(SwingResult::Miss)),
+            (CombatEventType::Dodge, Some(SwingResult::Dodge)),
             (CombatEventType::Death, None),
             (CombatEventType::SpellDamage, None),
             (CombatEventType::Interrupt, None),

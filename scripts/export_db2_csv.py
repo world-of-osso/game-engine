@@ -35,6 +35,7 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   CreatureSoundData            FDID 1344466
   WeaponSwingSounds2           FDID 1267068
   WeaponImpactSounds           FDID 1267648
+  Material                     FDID 1294217
   ChrModel                     FDID 3384313
   ChrRaceXChrModel             FDID 3490304
   LightParams                  FDID 1334669
@@ -308,6 +309,8 @@ TABLES = {
         0x8CC18B68,
         [("ID", "id"), ("SwingType", ("u8", 0)), ("Crit", ("u8", 1)), ("SoundID", 2)],
     ),
+    # WoWDBDefs layout BE3E0E4C (non-inline ID): Flags 0x1 metal, 0x2 plate, 0x4 chain.
+    "Material": (0xBE3E0E4C, [("ID", "id"), ("Flags", 0)]),
     # WoWDBDefs layout A77CBD9D (non-inline ID); the four sound arrays have 11 elements.
     "WeaponImpactSounds": (
         0xA77CBD9D,

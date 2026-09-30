@@ -105,25 +105,33 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CAC
 
 ## Melee sounds
 
-Melee swings play their Retail swoosh, impact and wound sounds. `godot/core/src/spell_visual_melee.rs` resolves them and `godot/rust/src/spell_melee.rs` plays them through `SpellSounds` (sources `swing`, `impact`, `voice`).
+Melee swings play their Retail swoosh, impact, exertion and wound sounds. `godot/core/src/spell_visual_melee.rs` resolves them and `godot/rust/src/spell_melee.rs` plays them through `SpellSounds` (sources `swing`, `impact`, `voice`).
 
 **Timing.** The attacker's attack clip times the sounds with its M2 events. wowdev.wiki/M2 "Events" gives `$CSS` as "PlayWeaponSwooshSound ... sound played depends on CGUnit_C::GetWeaponSwingType" and `$CAH` as "CGUnit_C::HandleCombatAnimEvent".
-- A melee `CombatEvent` is held as its attacker's pending swing. `$CSS` plays the swoosh, and `$CAH` lands the swing on the victim.
-- A hit or crit plays the weapon's impact and the victim's injury voice. A parry plays the impact on the parrying weapon. A miss or dodge is the swoosh alone.
+- A melee `CombatEvent` is held as its attacker's pending swing, and voices the attacker's exertion. `$CSS` plays the swoosh, and `$CAH` lands the swing on the victim.
+- A hit or crit plays the weapon's impact and the victim's injury voice. A parry plays the impact on the parrying weapon. A miss or dodge is the miss whoosh alone.
 - The events: HumanMale HD Attack1H (17) `$CSS` 300 ms, `$CAH` 400 ms; kobold2 Attack1H 233/366 ms. Attack clips of both models carry them.
 - A hit reaction no longer cuts the victim's own swing short (`ActionPriority::Reaction` below swings). The server lands both sides' swings in the same tick, so before this the victim's wound replaced its own attack clip before `$CSS`.
 
+**Sources.** No retail source gives the rules beyond the table layouts. The 1.12.1 client's are reverse-engineered by benilla (github.com/samwhosung/benilla `4772489a`, `crates/benilla-app/src/sound/combat.rs`, cited by its disassembly addresses); the client applies them to the retail tables and marks where retail's tables outgrow 1.12.
+
 **Resolution.**
-- Swoosh: `ItemDisplayInfo.OverrideSwooshSoundKitID` of the main hand (10 displays set it), else `WeaponSwingSounds2` of (`ItemSubClass.WeaponSwingSize` as `SwingType`, crit). wowdev.wiki/DB/WeaponSwingSounds2: SwingType "match with ItemSubClassRec::m_WeaponSwingSize". Sizes 0-2 are Light, Medium and Heavy. Dagger and Fishing Pole have size 8, which is no `SwingType`, so they play no swoosh (gap).
-- Impact: the `WeaponImpactSounds` row of the attacker's (`WeaponSubClassID`, `ParrySoundType`, `ImpactSource`), its `ImpactSoundID` or `CritImpactSoundID` array at the victim's index.
-  - `ParrySoundType` is the weapon's PARRYMATERIAL (wowdev.wiki/DB/WeaponImpactSounds: WOOD 0, METAL 1). `Item.Material` 2 (Wood) is wood; every other material is taken as metal (inferred).
+- Swoosh (`0x624ca0`): a miss or dodge swings `(DONOTRENAME)Combat Miss 1H/2H`, SoundKit 7080/7081 by whether the weapon subclass is two-handed (Axe/Mace/Sword 2H, Polearm, Staff, Spear). Retail keeps both kits, now `fx_misswhoosh_revamp_*` (1455928-1455936). A connecting swing (hit, crit, parry) swooshes `ItemDisplayInfo.OverrideSwooshSoundKitID` of the main hand (10 displays set it), else `WeaponSwingSounds2` of (`ItemSubClass.WeaponSwingSize` as `SwingType`, crit). wowdev.wiki/DB/WeaponSwingSounds2: SwingType "match with ItemSubClassRec::m_WeaponSwingSize". Bare hands swing Light (`0x623892`); a held non-weapon nothing.
+  - **Dagger and Fishing Pole (size 8): unknown.** 1.12 plays nothing past its three types (`0x457f63`); retail's `SwingType` enum is 0-5 (Light, Medium, Heavy, Agile, Pierce, Large Monster: WoWDBDefs `WeaponSwingType`). Size 8 and types 3-5 both arrive in 7.3.5 (wago.tools history; 3.4.3 has Dagger 0). Nothing maps 8, so a dagger swooshes only when it misses. The Agile or Pierce kits would be a guess.
+- Impact (`0x6247d0`): the `WeaponImpactSounds` row of the attacker's (`WeaponSubClassID`, `ParrySoundType`, `ImpactSource`), its `ImpactSoundID` or `CritImpactSoundID` array at the victim's slot.
+  - Slots (benilla `weapon_impact.rs:15-25`, and the files of every row): 0 flesh, 1 chain, 2 plate, 3 metal shield, 4 wood shield, 5 metal parry, 6 wood parry, 7 wood, 8 stone, 9 ethereal. Slot 10 (7.3.0) holds `*_hit_leatherarmor_*` files; no known rule reaches it.
+  - `ParrySoundType` is the weapon's `Material.Flags & 1` (`0x457e80`; WoWDBDefs `MaterialFlags` 0x1 metal, 0x2 plate, 0x4 chain). Local `Material` (FDID 1294217, layout BE3E0E4C): 1 Metal 1, 2 Wood 0, 3 Liquid 0, 4 Jewelry 1, 5 Chain 5, 6 Plate 3, 7 Cloth 0, 8 Leather 0. Leather and cloth weapons are wood.
+  - A player victim presents its chest item's `Material.Flags` (`0x62fb70`): plate slot 2, else chain slot 1, else flesh (leather, cloth). 1.12 reads only its own player's inventory; retail replicates every player's visible items, so every player's chest counts here.
+  - A creature victim's `CreatureSoundData.CreatureImpactType` maps through `s_creatureIpactSounds` = {FLESH 0, STONE 8, WOOD 7, ETHEREAL 9} (wowdev.wiki/DB/CreatureSoundData). 1.12 refuses types from 4 (`0x6238f0`), which then land on flesh. **Retail types 4-6: unknown** (137 + 2 + 3 rows; 4 is mechanical models: mechagnomes, golems, Lightforged mech suits; 5 gnomecopter, clickable box; 6 a croc mount, a soulbinder). They land on flesh.
+  - A parry strikes the parrying weapon, not crit-tiered: slot 5 metal, 6 wood. Bare hands are not metal.
   - `ImpactSource` (inferred from the files): 1 rows hold the player sets, 0 rows the `*_npc_*` and pre-revamp sets. Players swing 1, creatures 0. A subclass without the exact row takes its closest row: same source first, then same parry material.
-  - Index materials (inferred from the files of every row, e.g. row 8): 0 flesh, 1 chain, 2 plate, 3 metal shield, 4 wood shield, 5 metal parry, 6 wood parry, 7 wood body, 8 stone body, 9 ethereal, 10 flesh or leather.
-  - A hit lands on `CreatureSoundData.CreatureImpactType` through the client's `s_creatureIpactSounds` = {FLESH 0, STONE 8, WOOD 7, ETHEREAL 9} (wowdev.wiki/DB/CreatureSoundData). Types 4-6 (142 rows) are undocumented and play no impact.
-  - A parry lands on the parrying weapon: index 5 metal, 6 wood.
-- Bare hands swing the display's `CreatureDisplayInfo.UnarmedWeaponType` subclass (11 Bear Claws, 12 Cat Claws). -1 (120,471 displays) is taken as Fist Weapon (13), whose rows hold the `unarmed*` files (inferred). Bare hands parry as wood.
+  - **`Pierce*` columns: unknown.** They arrive in 7.3.0 with `ImpactSource`; 12 of 45 rows set them, nearly all equal to the plain columns (rows 2, 3, 10, 213, 226 differ in a slot or two). Not played.
+- Bare hands strike with the display's `CreatureDisplayInfo.UnarmedWeaponType` subclass (11 Bear Claws, 12 Cat Claws). -1 (120,471 displays) is Fist Weapon (13), 1.12's unarmed row.
 - `Item.Sound_override_subclassID`, when set, replaces the weapon's subclass.
-- Voices (`spell_visual_voice.rs`): the victim's `SoundInjuryID`, on a crit `SoundInjuryCriticalID` (or `SoundInjuryID` when 0: Human 49's injury kit 2942 holds the `woundcrit` files); `SoundDeathID` when an NPC's death clip starts (wowdev `$DTH`: m_soundDeathID "is just always triggered as soon as the death animation plays").
+- Vocals roll a chance (`0x623520`: `MulHi32(101, rand)` in 0..=100 passes at most the class threshold, so P = (t + 1) / 101; benilla `kit.rs:150-174`):
+  - Exertion: the attacker's `SoundExertionID` when the swing arrives, unless it missed (`0x62476a`: victimState 0), 70 for a creature and 35 for a player. A crit always plays `SoundExertionCriticalID` (no fallback: Human 49 sets none).
+  - Injury: the victim's `SoundInjuryID` when a swing lands a hit, 60 for a creature and 30 for a player; a crit always, `SoundInjuryCriticalID` (or `SoundInjuryID` when 0: Human 49's injury kit 2942 holds the `woundcrit` files).
+  - `SoundDeathID` when an NPC's death clip starts (wowdev `$DTH`: m_soundDeathID "is just always triggered as soon as the death animation plays").
 
 **Worked example (12.1.0.69933, core test `godot/core/tests/melee_sounds.rs`).**
 
@@ -137,7 +145,13 @@ Melee swings play their Retail swoosh, impact and wound sounds. `godot/core/src/
 | Kobold parried by the sword | row 10 index 5 | 61557 | `staff_wood_parry_09` |
 | Kobold wound / crit / death | display 10913 → model 8379 → CreatureSoundData 5042 | 53725 / 53726 / 53727 | 1255506-1255513 `mon_kobold_v2_wound_01-08` |
 | Warrior wound / death | CreatureSoundData 49 | 2942 / 2944 | 16 files incl. `humanmalemainwoundcrita` 542371 |
-| Blackrock Worg (49871) swoosh, hit, parried | display 40147, no item → Fist (13), size 1; row 13 | 235; 1014; 1019 | `unarmedattacksmalla`, `unarmedparrymetala` |
+| Blackrock Worg (49871) swoosh, hit, parried | display 40147, no item → Light; Fist (13) row 13 | 233; 1014; 1019 | `fx_whoosh_small_revamp_*`; `unarmedattacksmalla`, `unarmedparrymetala` |
+| Miss or dodge | sword (1H) / staff (2H) | 7080 / 7081 | `fx_misswhoosh_revamp_*` |
+| Worn Dagger (`Item` 2092) connects / misses | Dagger (15) → size 8 | none / 7080 | |
+| Kobold hit on a plate / chain / leather chest | `Item` 3242 / 285 / 60 → row 10 slot 2 / 1 / 0 | 61561 / 61567 / 61562 | |
+| Leather dagger (`Item` 111415) by a creature | Material 8 → wood → row 22 | 1151 | |
+| Hit on display 19162 (CreatureSoundData 2431, impact type 4) | → flesh, row 8 slot 0 | 53248 | |
+| Kobold / Human exertion | CreatureSoundData 5042 / 49 | 53723 (53724 crit) / 2941 (none) | |
 | Worg wound / death | CreatureSoundData 2482 | 11908 / 11910 | |
 
 The live Northshire content has no Kobold Vermin (retail phase: Blackrock Worg, Invader, Spy, Goblin Assassin), so the live fixture fights a Blackrock Worg.
@@ -149,7 +163,7 @@ The live Northshire content has no Kobold Vermin (retail phase: Blackrock Worg, 
 - An earlier run on the same revision logged the worg's death 11910 (559527); that run had no avoided swing in 47 events.
 - A first-use sound starts when its file finishes loading (async asset loader), so its logged start can trail the event: one swoosh started 72 ms after its own impact.
 
-**Not modelled:** armour (a player's chain or plate impact index), blocks (the server sends a block as MeleeDamage), the `Pierce*` columns, the attacker's `SoundExertionID` voice (what triggers it on a plain swing is undocumented), crits (the server sends a crit as MeleeDamage, so `CriticalHit` is handled but never arrives).
+**Not modelled:** blocks (the server sends a block as MeleeDamage, so the shield slots are unreachable), crits (the server sends a crit as MeleeDamage, so `CriticalHit` is handled but never arrives), 1.12's natural-weapon `$AH0-3`/`CustomAttack` impacts, its bus caps, the half-volume swoosh under `HITINFO_MISS`, and its suppression of creature vocals under a server-pushed sound.
 
 ## Asset loading (`godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`)
 
