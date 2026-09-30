@@ -87,6 +87,7 @@ pub fn resolve_equipment_appearance_with_errors(
     mut report_error: impl FnMut(String),
 ) -> ResolvedEquipmentAppearance {
     let mut resolved = ResolvedEquipmentAppearance::default();
+    let mut body = BodyDisplays::default();
     for entry in &appearance.entries {
         resolved.explicit_slots.insert(entry.slot);
         if entry.hidden {
@@ -106,7 +107,7 @@ pub fn resolve_equipment_appearance_with_errors(
             },
             (None, None) => continue,
         };
-        if let Err(error) = apply_visible_entry(
+        match apply_visible_entry(
             &mut resolved,
             entry.slot,
             display_info_id,
@@ -114,13 +115,153 @@ pub fn resolve_equipment_appearance_with_errors(
             race,
             sex,
         ) {
-            report_error(format!(
+            Ok(textures) => body.record(entry.slot, display_info_id, textures),
+            Err(error) => report_error(format!(
                 "Equipment {:?} display {display_info_id}: {error}",
                 entry.slot
-            ));
+            )),
         }
     }
+    apply_body_geosets(&mut resolved, &body, outfit_data);
+    layer_item_textures(&mut resolved, &body, outfit_data);
     resolved
+}
+
+/// The displays of the slots whose items paint the body and pick its sleeve, robe and
+/// leg geosets.
+#[derive(Default)]
+struct BodyDisplays {
+    /// Texture-bearing `CCharacterComponent` slot rows (see [`ITEM_PRIORITIES`]) with
+    /// their displays and body textures, in equip order.
+    painted: Vec<(usize, u32, Vec<(u8, u32)>)>,
+    chest: Option<u32>,
+    legs: Option<u32>,
+    hands: Option<u32>,
+}
+
+impl BodyDisplays {
+    fn record(&mut self, slot: EquipmentVisualSlot, display_id: u32, textures: Vec<(u8, u32)>) {
+        match slot {
+            EquipmentVisualSlot::Chest => self.chest = Some(display_id),
+            EquipmentVisualSlot::Legs => self.legs = Some(display_id),
+            EquipmentVisualSlot::Hands => self.hands = Some(display_id),
+            _ => {}
+        }
+        if let Some(row) = component_slot_row(slot) {
+            self.painted.push((row, display_id, textures));
+        }
+    }
+}
+
+/// The robe and sleeves decided across slots, after every item's own overrides, in the
+/// order of build 12340's `CCharacterComponent` (solarityclient
+/// `character_component/geoset.rs` `apply_equipment_geosets`): gloves (GeosetGroup[0])
+/// take the arms, else the chest's GeosetGroup[0] picks sleeves 801+n; a chest robe
+/// (GeosetGroup[2], inventory type 20), else a legs one, hides boots 5xx, kneepads
+/// 902-999 and pants 11xx and shows skirt 1301+n in place of the pants' trousers.
+fn apply_body_geosets(
+    resolved: &mut ResolvedEquipmentAppearance,
+    body: &BodyDisplays,
+    data: &OutfitData,
+) {
+    let group = |display: Option<u32>, index| {
+        display.and_then(|display| data.display_geoset_variant(display, index))
+    };
+    let overrides = &mut resolved.outfit.geoset_overrides;
+    let mut set = |geoset: u16, variant: u16| {
+        overrides.retain(|(existing, _)| *existing != geoset);
+        overrides.push((geoset, variant));
+    };
+    if group(body.hands, 0).is_none()
+        && let Some(sleeves) = group(body.chest, 0)
+    {
+        set(8, sleeves);
+    }
+    let Some(robe) = group(body.chest, 2).or_else(|| group(body.legs, 2)) else {
+        return;
+    };
+    set(9, 1);
+    set(13, robe);
+    resolved
+        .outfit
+        .geoset_overrides
+        .retain(|(geoset, _)| !matches!(geoset, 5 | 11));
+    resolved
+        .hidden_character_geoset_ids
+        .extend((501..=599).chain(1100..=1199));
+}
+
+/// Build 12340 `CCharacterComponent` item texture paste priority: rows head, shoulder,
+/// shirt, chest, waist, legs, feet, wrist, hands, tabard; columns body sections ArmUpper,
+/// ArmLower, Hand, TorsoUpper, TorsoLower, LegUpper, LegLower, Foot; -1 never pastes
+/// (solarityclient `character_component/atlas.rs` `ITEM_PRIORITIES`).
+const ITEM_PRIORITIES: [[i8; 8]; 10] = [
+    [-1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1],
+    [0, 0, -1, 0, 0, -1, -1, -1],
+    [1, 1, -1, 1, 1, 1, 1, -1],
+    [-1, -1, -1, -1, 5, 2, -1, -1],
+    [-1, -1, -1, -1, -1, 0, 0, -1],
+    [-1, -1, -1, -1, -1, -1, 2, 0],
+    [-1, 2, -1, -1, -1, -1, -1, -1],
+    [-1, 3, 0, -1, -1, -1, -1, -1],
+    [-1, -1, -1, 4, 4, -1, -1, -1],
+];
+
+fn component_slot_row(slot: EquipmentVisualSlot) -> Option<usize> {
+    Some(match slot {
+        EquipmentVisualSlot::Head => 0,
+        EquipmentVisualSlot::Shoulder => 1,
+        EquipmentVisualSlot::Shirt => 2,
+        EquipmentVisualSlot::Chest => 3,
+        EquipmentVisualSlot::Waist => 4,
+        EquipmentVisualSlot::Legs => 5,
+        EquipmentVisualSlot::Feet => 6,
+        EquipmentVisualSlot::Wrist => 7,
+        EquipmentVisualSlot::Hands => 8,
+        EquipmentVisualSlot::Tabard => 9,
+        _ => return None,
+    })
+}
+
+/// Paste priority of slot `row`'s texture in body `section`, with the stock sleeve, robe
+/// and boot adjustments (atlas.rs `adjusted_item_priority`); none where it never pastes.
+fn item_texture_priority(
+    row: usize,
+    section: usize,
+    display: u32,
+    data: &OutfitData,
+) -> Option<i8> {
+    let base = *ITEM_PRIORITIES.get(row)?.get(section)?;
+    let has = |index| data.display_geoset_variant(display, index).is_some();
+    let priority = match (row, section) {
+        (3, 1) if has(0) => 5,
+        (8, 1) if has(0) => 6,
+        (3, 6) if has(2) => 4,
+        (6, 6) if has(0) => 3,
+        _ => base,
+    };
+    (priority >= 0).then_some(priority)
+}
+
+/// Order the body item textures by paste priority, whatever the equip order, so a robe
+/// paints over the shirt and the pants: the compositor pastes them in list order.
+fn layer_item_textures(
+    resolved: &mut ResolvedEquipmentAppearance,
+    body: &BodyDisplays,
+    data: &OutfitData,
+) {
+    let priority = |texture: &(u8, u32)| {
+        body.painted
+            .iter()
+            .rev()
+            .find(|(_, _, textures)| textures.contains(texture))
+            .and_then(|&(row, display, _)| {
+                item_texture_priority(row, usize::from(texture.0), display, data)
+            })
+            .unwrap_or(i8::MAX)
+    };
+    resolved.outfit.item_textures.sort_by_key(priority);
 }
 
 fn apply_visible_entry(
@@ -130,7 +271,7 @@ fn apply_visible_entry(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
-) -> Result<(), String> {
+) -> Result<Vec<(u8, u32)>, String> {
     let mut display = outfit_data
         .try_resolve_display_info(display_info_id)?
         .ok_or_else(|| format!("display {display_info_id} missing"))?;
@@ -156,7 +297,7 @@ fn apply_visible_entry(
                 skin_fdids,
             });
         }
-        return Ok(());
+        return Ok(display.item_textures);
     }
     if slot == EquipmentVisualSlot::Back {
         if let Some(fdid) = outfit_data.cape_texture_fdid(display_info_id) {
@@ -192,7 +333,7 @@ fn apply_visible_entry(
             });
         }
     }
-    Ok(())
+    Ok(display.item_textures)
 }
 
 fn merge_overlay_texture_sets(base: &mut OutfitResult, overlay: &OutfitResult) {
@@ -485,6 +626,55 @@ mod tests {
                 "{geoset:?} in {:?}",
                 armor.outfit.geoset_overrides
             );
+        }
+    }
+
+    /// The mage starter set (showcase gear.json), equipped in grant order: Apprentice's
+    /// Robe 56 (display 12647, GeosetGroup 1/0/1), Pants 1395, Shirt 6096, Boots 55. The
+    /// robe shows sleeves 802 and skirt 1302 over the pants' legs and hides boots and
+    /// kneepads, and its body textures paste over the shirt's and the pants'.
+    #[test]
+    fn apprentice_robe_covers_the_pants_and_shirt() {
+        let robe = entry(EquipmentVisualSlot::Chest, 56);
+        let others = [
+            entry(EquipmentVisualSlot::Legs, 1395),
+            entry(EquipmentVisualSlot::Shirt, 6096),
+            entry(EquipmentVisualSlot::Feet, 55),
+        ];
+        let robe_textures = resolve(vec![robe.clone()]).outfit.item_textures;
+        assert!(!robe_textures.is_empty());
+        let mut after_robe = vec![robe.clone()];
+        after_robe.extend(others.iter().cloned());
+        let mut before_robe = others.to_vec();
+        before_robe.push(robe);
+        for entries in [after_robe, before_robe] {
+            let set = resolve(entries);
+            let overrides = &set.outfit.geoset_overrides;
+            for geoset in [(8, 2), (13, 2), (9, 1)] {
+                assert!(overrides.contains(&geoset), "{geoset:?} in {overrides:?}");
+            }
+            assert!(
+                !overrides.iter().any(|(group, _)| matches!(group, 5 | 11)),
+                "{overrides:?}"
+            );
+            for id in [501, 502, 1101, 1102] {
+                assert!(set.hidden_character_geoset_ids.contains(&id), "{id}");
+            }
+            // The last paste of every section the robe paints is the robe's.
+            for &(section, fdid) in &robe_textures {
+                let last = set
+                    .outfit
+                    .item_textures
+                    .iter()
+                    .rev()
+                    .find(|(s, _)| *s == section);
+                assert_eq!(
+                    last,
+                    Some(&(section, fdid)),
+                    "{:?}",
+                    set.outfit.item_textures
+                );
+            }
         }
     }
 

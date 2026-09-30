@@ -204,11 +204,24 @@ fn a_unit_is_in_combat_with_the_player_only_while_fighting_and_targeting_them() 
 #[test]
 fn occluded_plates_take_the_occluded_alpha_multiplier() {
     let cvars = NameplateCvars::default();
-    assert_eq!(plate_alpha(&cvars, false), 1.0);
-    assert_eq!(plate_alpha(&cvars, true), 0.4);
+    assert_eq!(plate_alpha(&cvars, false, 1.0, false), 1.0);
+    assert_eq!(plate_alpha(&cvars, false, 1.0, true), 0.4);
     let custom = NameplateCvars {
         occluded_alpha_mult: 1.0,
         ..cvars
     };
-    assert_eq!(plate_alpha(&custom, true), 1.0);
+    assert_eq!(plate_alpha(&custom, false, 1.0, true), 1.0);
+}
+
+#[test]
+fn the_target_plate_is_opaque_at_any_camera_distance() {
+    let cvars = NameplateCvars::default();
+    // Showcase: the target 30 yd from the camera with the 40 yd fade got 0.5.
+    let fade = nameplate_alpha(30.0, 40.0);
+    assert_eq!(fade, 0.5);
+    assert_eq!(plate_alpha(&cvars, true, fade, false), 1.0);
+    assert_eq!(plate_alpha(&cvars, true, 0.0, false), 1.0);
+    assert_eq!(plate_alpha(&cvars, false, fade, false), 0.5);
+    // Line of sight still dims it.
+    assert_eq!(plate_alpha(&cvars, true, fade, true), 0.4);
 }
