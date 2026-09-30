@@ -1901,6 +1901,7 @@ fn account_event_kind(event: &AccountEvent) -> String {
         AccountEvent::CastFailed(_) => "CastFailed".into(),
         AccountEvent::Combat(_) => "Combat".into(),
         AccountEvent::Npc(_) => "Npc".into(),
+        AccountEvent::Auction(_) => "Auction".into(),
         AccountEvent::Chat(_) => "Chat".into(),
     }
 }
