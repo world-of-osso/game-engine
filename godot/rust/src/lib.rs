@@ -12,6 +12,7 @@ mod camera;
 mod char_create;
 mod character_select;
 mod chat;
+mod combat_text;
 mod combat_visuals;
 mod damage_meter;
 mod display_options;
