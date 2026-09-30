@@ -860,26 +860,29 @@ fn essence_rate_change_retimes_the_existing_partial_point() {
     assert!(!texture(&view, "PlayerSecondaryResourcePip3FillDoneEssenceIcon").shown);
 }
 
+/// `GetPowerRegenForPowerType` returning 0 reads as 0.2 essence per second
+/// (EssenceFramePlayer.lua:33-36): a half-filled point keeps filling, 3.5 s into the 5 s
+/// timer one second later (IN_OUT -360° at 0.7 is -295.2°).
 #[test]
-fn essence_with_zero_regen_holds_received_fraction_without_nonfinite_layers() {
+fn essence_with_zero_regen_fills_at_the_retail_default_rate() {
     let mut essence = resource(ClassBar::Essence, 3, 5);
     essence.dynamics.partial = 500;
     essence.dynamics.regen_per_sec = 0.0;
     essence.dynamics.received_at = 100.0;
     let mut animator = ClassBarAnimator::default();
     let initial = run(&mut animator, &[(&essence, 100.0)]);
-    let later = run(&mut animator, &[(&essence, 105.0)]);
-    for view in [&initial, &later] {
-        assert!(close(
-            texture(view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
-            -180.0
-        ));
-        assert!(
-            view.textures
-                .iter()
-                .all(|t| t.alpha.is_finite() && t.rotation.is_finite())
-        );
-    }
+    let later = run(&mut animator, &[(&essence, 101.0)]);
+    let spin = |view: &ClassBarView| {
+        texture(view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation
+    };
+    assert!(close(spin(&initial), -180.0), "{}", spin(&initial));
+    assert!(close(spin(&later), -295.2), "{}", spin(&later));
+    assert!(
+        later
+            .textures
+            .iter()
+            .all(|t| t.alpha.is_finite() && t.rotation.is_finite())
+    );
 }
 
 #[test]

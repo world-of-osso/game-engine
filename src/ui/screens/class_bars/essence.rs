@@ -397,7 +397,12 @@ impl BarLogic for Bar {
         }
         let (current, max) = (usize::from(resource.current), usize::from(resource.max));
         let elapsed = (now - resource.dynamics.received_at).max(0.0) as f32;
-        let rate = resource.dynamics.regen_per_sec;
+        // `GetPowerRegenForPowerType`: no or zero regen reads as 0.2 per second
+        // (EssenceFramePlayer.lua:33-36, 63-66).
+        let rate = match resource.dynamics.regen_per_sec {
+            rate if rate > 0.0 => rate,
+            _ => 0.2,
+        };
         let portion =
             (f32::from(resource.dynamics.partial) / 1000.0 + elapsed * rate).clamp(0.0, 1.0);
         for point in self.points.iter_mut().take(current.min(max)) {
