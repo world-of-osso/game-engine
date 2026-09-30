@@ -14,13 +14,16 @@ use game_engine_core::npc_visibility_data::{npc_should_be_visible, npc_visibilit
 use game_engine_core::unit_motion_data::{
     MotionPose, MotionTarget, follow_server_motion, interpolate_remote_motion,
 };
-use game_engine_network::UnitSnapshot;
+use game_engine_network::replica::{Replica, Unit};
 use godot::{
     builtin::{Transform3D, Vector3},
     classes::{Node3D, VisibleOnScreenNotifier3D},
     prelude::*,
 };
-use shared::components::{CreatureMotion, MovementControl, PlayerMotion, SheathState, UnitPose};
+use shared::components::{
+    CombatStatus, CreatureMotion, EquipmentAppearance, Health, ModelDisplay, MovementControl,
+    MovementSpeed, Npc, Player, PlayerMotion, Position, Rotation, SheathState, UnitPose,
+};
 
 #[path = "world_combat.rs"]
 pub(crate) mod combat;
@@ -145,16 +148,16 @@ fn advance_unit_transform(unit: &mut UnitNode, is_local: bool, delta: f32) {
     }
 }
 
-fn unit_position(snapshot: &UnitSnapshot) -> Option<Vector3> {
-    let position = snapshot.position?;
+fn unit_position(snapshot: Unit) -> Option<Vector3> {
+    let position = snapshot.get::<Position>()?;
     Some(Vector3::new(position.x, position.y, position.z))
 }
 
-fn unit_yaw(snapshot: &UnitSnapshot, is_new: bool) -> Option<f32> {
+fn unit_yaw(snapshot: Unit, is_new: bool) -> Option<f32> {
     snapshot
-        .rotation
+        .get::<Rotation>()
         .map(|rotation| rotation.y)
-        .or_else(|| is_new.then(|| if snapshot.player.is_some() { PI } else { 0.0 }))
+        .or_else(|| is_new.then(|| if snapshot.has::<Player>() { PI } else { 0.0 }))
 }
 
 fn newest_matching_player<'a>(
@@ -249,31 +252,34 @@ fn resolve_selected_player(
     chosen
 }
 
-fn unit_appearance(snapshot: &UnitSnapshot) -> Option<UnitAppearance> {
-    if let Some(player) = &snapshot.player {
-        return Some(UnitAppearance::Player(
-            player.clone(),
-            snapshot.equipment.clone().unwrap_or_default(),
-        ));
+fn unit_appearance(snapshot: Unit) -> Option<UnitAppearance> {
+    let equipment = || {
+        snapshot
+            .get::<EquipmentAppearance>()
+            .cloned()
+            .unwrap_or_default()
+    };
+    if let Some(player) = snapshot.get::<Player>() {
+        return Some(UnitAppearance::Player(player.clone(), equipment()));
     }
-    snapshot.npc.as_ref()?;
-    let display_id = snapshot.model.as_ref()?.display_id;
+    snapshot.get::<Npc>()?;
+    let display_id = snapshot.get::<ModelDisplay>()?.display_id;
     (display_id != 0).then(|| UnitAppearance::Creature {
         display_id,
-        items: snapshot.equipment.clone().unwrap_or_default(),
+        items: equipment(),
     })
 }
 
-fn unit_sheath(snapshot: &UnitSnapshot) -> SheathState {
+fn unit_sheath(snapshot: Unit) -> SheathState {
     snapshot
-        .unit_pose
+        .get::<UnitPose>()
         .map(|pose| pose.sheath_state)
         .unwrap_or_default()
 }
 
 fn sync_unit_visual(
     unit: &mut UnitNode,
-    snapshot: &UnitSnapshot,
+    snapshot: Unit,
     models: &mut WorldModels,
     light: Option<&TerrainLight>,
 ) {
@@ -321,15 +327,14 @@ fn sync_unit_visual(
     }
 }
 
-fn sync_unit_death(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
+fn sync_unit_death(unit: &mut UnitNode, snapshot: Unit) {
     let alive = snapshot
-        .health
-        .as_ref()
+        .get::<Health>()
         .is_none_or(|health| health.current > 0.0);
     if unit.death_applied || alive {
         return;
     }
-    if snapshot.npc.is_none() || unit.is_player {
+    if !snapshot.has::<Npc>() || unit.is_player {
         return;
     }
     let Some(animation) = unit
@@ -430,12 +435,13 @@ pub(crate) fn remote_player_locomotion(
 }
 
 /// Resolve the held animation of a changed replicated pose; an unmapped pose holds none.
-fn sync_unit_pose(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut WorldModels) {
-    if unit.is_player || unit.pose == snapshot.unit_pose {
+fn sync_unit_pose(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
+    let pose = snapshot.get::<UnitPose>().copied();
+    if unit.is_player || unit.pose == pose {
         return;
     }
-    unit.pose = snapshot.unit_pose;
-    let Some(pose) = snapshot.unit_pose else {
+    unit.pose = pose;
+    let Some(pose) = pose else {
         unit.pose_anim = None;
         return;
     };
@@ -453,7 +459,7 @@ fn sync_unit_pose(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut Wor
 }
 
 /// Move the virtual items of a creature whose sheath state changed.
-fn sync_unit_sheath(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut WorldModels) {
+fn sync_unit_sheath(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
     let sheath = unit_sheath(snapshot);
     let (Some(visual), Some(UnitAppearance::Creature { items, .. })) =
         (&unit.visual, &unit.appearance)
@@ -472,11 +478,7 @@ fn sync_unit_sheath(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut W
     }
 }
 
-fn sync_unit_animation(
-    unit: &mut UnitNode,
-    snapshot: &UnitSnapshot,
-    fallbacks: &HashMap<u16, u16>,
-) {
+fn sync_unit_animation(unit: &mut UnitNode, snapshot: Unit, fallbacks: &HashMap<u16, u16>) {
     if unit.death_applied {
         return;
     }
@@ -495,12 +497,12 @@ fn sync_unit_animation(
     let pose_anim = ready.or(unit.pose_anim);
     // The replicated speed of its gait paces the walk and run clips (0: not yet moved).
     let speed = snapshot
-        .movement_speed
+        .get::<MovementSpeed>()
         .map(|speed| speed.0)
         .filter(|speed| *speed > 0.0);
     animation.bind_mut().set_locomotion_speed(speed);
-    let Some(id) = creature_animation_change(unit.animation, snapshot.creature_motion, pose_anim)
-    else {
+    let motion = snapshot.get::<CreatureMotion>().copied();
+    let Some(id) = creature_animation_change(unit.animation, motion, pose_anim) else {
         return;
     };
     unit.animation = Some(id);
@@ -538,15 +540,14 @@ impl WorldUnits {
         }
     }
 
-    pub fn upsert(&mut self, parent: &mut Gd<Node3D>, snapshot: &UnitSnapshot) {
+    pub fn upsert(&mut self, parent: &mut Gd<Node3D>, snapshot: Unit) {
         let Some(position) = unit_position(snapshot) else {
             return;
         };
         let Some(name) = snapshot
-            .player
-            .as_ref()
+            .get::<Player>()
             .map(|player| player.name.as_str())
-            .or_else(|| snapshot.npc.as_ref().map(|npc| npc.name.as_str()))
+            .or_else(|| snapshot.get::<Npc>().map(|npc| npc.name.as_str()))
         else {
             return;
         };
@@ -557,7 +558,7 @@ impl WorldUnits {
                 &mut self.root,
                 parent,
                 name,
-                snapshot.player.is_some(),
+                snapshot.has::<Player>(),
                 position,
                 initial_yaw,
             )
@@ -567,9 +568,11 @@ impl WorldUnits {
             unit.node.set_meta(UNIT_NAME_META, &name.to_variant());
             unit.name = name.to_owned();
         }
-        unit.is_player = snapshot.player.is_some();
-        unit.player_motion = snapshot.player_motion;
-        unit.in_combat = snapshot.in_combat;
+        unit.is_player = snapshot.has::<Player>();
+        unit.player_motion = snapshot.get::<PlayerMotion>().copied();
+        unit.in_combat = snapshot
+            .get::<CombatStatus>()
+            .is_some_and(|status| status.0);
         sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
         (unit.weapon, unit.main_hand_subclass) = combat::unit_weapon_class(unit, &mut self.models);
         sync_unit_sheath(unit, snapshot, &mut self.models);
@@ -579,8 +582,8 @@ impl WorldUnits {
         sync_unit_animation(unit, snapshot, fallbacks);
         unit.motion.set_target(
             [position.x, position.y, position.z],
-            snapshot.rotation.map(|rotation| rotation.y),
-            snapshot.movement_control,
+            snapshot.get::<Rotation>().map(|rotation| rotation.y),
+            snapshot.get::<MovementControl>().copied(),
         );
     }
 
@@ -593,14 +596,14 @@ impl WorldUnits {
         self.light = light;
     }
 
-    pub fn update_visibility(&mut self, snapshots: &HashMap<u64, UnitSnapshot>, minutes: f32) {
+    pub fn update_visibility(&mut self, replica: &Replica, minutes: f32) {
         let local_alive = self
             .local_player_id
-            .and_then(|id| snapshots.get(&id))
-            .and_then(|snapshot| snapshot.health.as_ref())
+            .and_then(|id| replica.unit(id))
+            .and_then(|snapshot| snapshot.get::<Health>())
             .is_none_or(|health| health.current > 0.0);
         for (id, unit) in &mut self.units {
-            let npc = snapshots.get(id).and_then(|snapshot| snapshot.npc.as_ref());
+            let npc = replica.unit(*id).and_then(|snapshot| snapshot.get::<Npc>());
             let visible = npc.is_none_or(|npc| {
                 npc_should_be_visible(npc_visibility_policy(npc.template_id), local_alive, minutes)
             });
@@ -842,47 +845,29 @@ impl WorldUnits {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared::components::{Player, Position, Rotation};
 
-    fn player_snapshot() -> UnitSnapshot {
-        UnitSnapshot {
-            server_id: 42,
-            player: Some(Player {
+    const PLAYER_ID: u64 = 42;
+
+    fn player_replica() -> Replica {
+        let mut replica = Replica::for_tests();
+        replica.insert(
+            PLAYER_ID,
+            Player {
                 name: "Alice".into(),
                 race: 1,
                 class: 2,
                 appearance: Default::default(),
-            }),
-            npc: None,
-            position: Some(Position {
+            },
+        );
+        replica.insert(
+            PLAYER_ID,
+            Position {
                 x: 10.0,
                 y: 20.0,
                 z: -30.0,
-            }),
-            rotation: None,
-            health: None,
-            mana: None,
-            model: None,
-            level: None,
-            level_scaling: None,
-            equipment: None,
-            movement_control: None,
-            movement_speed: None,
-            creature_motion: None,
-            player_motion: None,
-            unit_pose: None,
-            unit_target: None,
-            threat_list: Vec::new(),
-            faction_template: None,
-            unit_flags: None,
-            in_combat: false,
-            cast: None,
-            powers: None,
-            auras: None,
-            npc_flags: None,
-            gold: None,
-            combat_status: None,
-        }
+            },
+        );
+        replica
     }
 
     #[test]
@@ -1056,13 +1041,13 @@ mod tests {
 
     #[test]
     fn replicated_position_uses_authoritative_axes_without_conversion() {
-        let mut snapshot = player_snapshot();
+        let mut replica = player_replica();
         assert_eq!(
-            unit_position(&snapshot),
+            unit_position(replica.unit(PLAYER_ID).unwrap()),
             Some(Vector3::new(10.0, 20.0, -30.0))
         );
-        snapshot.position = None;
-        assert_eq!(unit_position(&snapshot), None);
+        replica.remove::<Position>(PLAYER_ID);
+        assert_eq!(unit_position(replica.unit(PLAYER_ID).unwrap()), None);
     }
 
     #[test]
@@ -1089,17 +1074,21 @@ mod tests {
 
     #[test]
     fn yaw_uses_wire_y_and_original_spawn_defaults_without_resetting_updates() {
-        let mut snapshot = player_snapshot();
-        assert_eq!(unit_yaw(&snapshot, true), Some(PI));
-        assert_eq!(unit_yaw(&snapshot, false), None);
-        snapshot.player = None;
-        assert_eq!(unit_yaw(&snapshot, true), Some(0.0));
-        snapshot.rotation = Some(Rotation {
-            x: 0.5,
-            y: 1.25,
-            z: -0.75,
-        });
-        assert_eq!(unit_yaw(&snapshot, true), Some(1.25));
-        assert_eq!(unit_yaw(&snapshot, false), Some(1.25));
+        let mut replica = player_replica();
+        let yaw = |replica: &Replica, is_new| unit_yaw(replica.unit(PLAYER_ID).unwrap(), is_new);
+        assert_eq!(yaw(&replica, true), Some(PI));
+        assert_eq!(yaw(&replica, false), None);
+        replica.remove::<Player>(PLAYER_ID);
+        assert_eq!(yaw(&replica, true), Some(0.0));
+        replica.insert(
+            PLAYER_ID,
+            Rotation {
+                x: 0.5,
+                y: 1.25,
+                z: -0.75,
+            },
+        );
+        assert_eq!(yaw(&replica, true), Some(1.25));
+        assert_eq!(yaw(&replica, false), Some(1.25));
     }
 }

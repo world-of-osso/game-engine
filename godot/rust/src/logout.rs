@@ -9,15 +9,15 @@ use godot::{
 };
 
 use crate::GameClient;
+use crate::replicated::UnitFields;
 
 impl GameClient {
     pub(super) fn request_logout(&mut self) -> Result<(), String> {
         let in_combat = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id))
-            .and_then(|unit| unit.combat_status)
-            .is_some_and(|status| status.0);
+            .and_then(|id| self.replica.unit(id))
+            .is_some_and(UnitFields::in_combat);
         match self.logout.request(in_combat, self.in_rest_area) {
             LogoutRequestOutcome::BlockedInCombat => godot_warn!("Cannot logout while in combat"),
             LogoutRequestOutcome::Immediate => self.finish_logout()?,

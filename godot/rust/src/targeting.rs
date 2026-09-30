@@ -12,7 +12,7 @@ use game_engine_core::{
     input_bindings_data::{BindingMouseButton, InputAction, InputState},
     target_selection_data::{next_target, opaque_to_alpha_mask},
 };
-use game_engine_network::UnitSnapshot;
+use game_engine_network::replica::Unit;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, PipAnimations, PowerBarState, UnitFrameMenuState, UnitFrameState,
@@ -26,7 +26,10 @@ use godot::{
     },
     prelude::*,
 };
-use shared::level_scaling::level_for_viewer;
+use shared::components::{Health, Npc, Player, UnitLevel, UnitPowers};
+use shared::level_scaling::{LevelScaling, level_for_viewer};
+
+use crate::replicated::{UnitFields, is_unit};
 
 use crate::frame_error::{FrameError, SessionError, report_once};
 pub(crate) use crate::unit_pick::pick_unit;
@@ -280,12 +283,8 @@ fn optional_id(id: Option<u64>) -> Variant {
     id.map(|id| (id as i64).to_variant()).unwrap_or_default()
 }
 
-fn unit_name(unit: &UnitSnapshot) -> String {
-    unit.player
-        .as_ref()
-        .map(|player| player.name.clone())
-        .or_else(|| unit.npc.as_ref().map(|npc| npc.name.clone()))
-        .unwrap_or_else(|| "Unknown".into())
+fn unit_name(unit: Unit) -> String {
+    unit.name().unwrap_or("Unknown").to_owned()
 }
 
 /// Bevy `build_target_state` from the replicated values the native snapshot carries. A
@@ -293,20 +292,20 @@ fn unit_name(unit: &UnitSnapshot) -> String {
 /// TargetFrameMixin:CheckLevel, TargetFrame.lua:266-282) and its health pool times
 /// `health_multiplier` (`GetHealthMultiplierForTarget`).
 fn target_frame_state(
-    unit: &UnitSnapshot,
+    unit: Unit,
     viewer_level: Option<u8>,
     health_multiplier: f32,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(unit_name(unit));
-    let level = unit.level.map(|level| {
+    let level = unit.get::<UnitLevel>().map(|&level| {
         level_for_viewer(
             level,
-            unit.level_scaling.as_ref(),
+            unit.get::<LevelScaling>(),
             viewer_level.unwrap_or(level.0),
         )
     });
     state.level_text = target_level_text(level, viewer_level);
-    if let Some(health) = unit.health {
+    if let Some(health) = unit.get::<Health>() {
         let (current, max) = (
             (health.current * health_multiplier).round(),
             (health.max * health_multiplier).round(),
@@ -320,10 +319,10 @@ fn target_frame_state(
 /// The health multiplier a tuned `unit` has for a viewer of `viewer_level`; 1 untuned.
 fn target_health_multiplier(
     table: &CreatureHealthByLevel,
-    unit: &UnitSnapshot,
+    unit: Unit,
     viewer_level: Option<u8>,
 ) -> f32 {
-    match (unit.level_scaling, viewer_level) {
+    match (unit.get::<LevelScaling>(), viewer_level) {
         (Some(scaling), Some(viewer)) => {
             table.health_multiplier(scaling.native_level(), scaling.level_for_target(viewer))
         }
@@ -331,30 +330,24 @@ fn target_health_multiplier(
     }
 }
 
-fn player_frame_state(
-    unit: &UnitSnapshot,
-    in_rest_area: bool,
-    spec: Option<u32>,
-) -> UnitFrameState {
+fn player_frame_state(unit: Unit, in_rest_area: bool, spec: Option<u32>) -> UnitFrameState {
     let mut state = UnitFrameState::named(
-        unit.player
-            .as_ref()
+        unit.get::<Player>()
             .map_or("", |player| player.name.as_str()),
     );
     state.level_text = unit
-        .level
+        .get::<UnitLevel>()
         .map(|level| level.0.to_string())
         .unwrap_or_default();
-    state.show_combat_icon = unit.in_combat;
+    state.show_combat_icon = unit.in_combat();
     state.show_resting_icon = in_rest_area;
-    if let Some(health) = unit.health {
+    if let Some(health) = unit.get::<Health>() {
         state.health_text = format_value_text(health.current, health.max);
         state.health_fraction = fraction(health.current, health.max);
     }
-    state.power = unit.powers.as_ref().and_then(PowerBarState::primary);
+    state.power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
     state.secondary_resource = unit
-        .powers
-        .as_ref()
+        .get::<UnitPowers>()
         .and_then(SecondaryResourceEntry::from_unit_powers)
         .filter(|resource| resource.shown_for_spec(spec));
     state
@@ -399,7 +392,7 @@ impl GameClient {
         if self
             .targeting
             .target
-            .is_some_and(|id| !self.units.contains_key(&id))
+            .is_some_and(|id| !self.replica.unit(id).is_some_and(is_unit))
         {
             self.targeting.target = None;
         }
@@ -446,9 +439,9 @@ impl GameClient {
             return Vec::new();
         };
         let mut npcs: Vec<(u64, f32)> = self
-            .units
-            .values()
-            .filter(|unit| unit.npc.is_some())
+            .replica
+            .units()
+            .filter(|unit| unit.has::<Npc>())
             .filter_map(|unit| {
                 let node = self.world.unit_node(unit.server_id)?;
                 let distance = node
@@ -512,11 +505,13 @@ impl GameClient {
         let viewer_level = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id)?.level)
+            .and_then(|id| self.replica.unit(id)?.get::<UnitLevel>())
             .map(|level| level.0);
         let target_id = self.targeting.target;
-        let target_unit = target_id.and_then(|id| self.units.get(&id));
-        let multiplier = match target_unit.filter(|unit| unit.level_scaling.is_some()) {
+        let target_unit = target_id
+            .and_then(|id| self.replica.unit(id))
+            .filter(|unit| is_unit(*unit));
+        let multiplier = match target_unit.filter(|unit| unit.has::<LevelScaling>()) {
             Some(unit) => {
                 target_health_multiplier(self.targeting.health_by_level()?, unit, viewer_level)
             }
@@ -534,7 +529,7 @@ impl GameClient {
         let player = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id))
+            .and_then(|id| self.replica.unit(id))
             .map(|unit| player_frame_state(unit, self.in_rest_area, self.account.spells.spec()))
             .map(|mut state| {
                 let now = self.targeting.started.elapsed().as_secs_f64();
@@ -581,7 +576,7 @@ impl GameClient {
         state.set(
             "target_name",
             target
-                .and_then(|id| self.units.get(&id))
+                .and_then(|id| self.replica.unit(id))
                 .map(unit_name)
                 .unwrap_or_default()
                 .as_str(),
@@ -610,7 +605,7 @@ impl GameClient {
             &optional_id(
                 self.world
                     .local_player_id()
-                    .and_then(|id| self.units.get(&id)?.unit_target),
+                    .and_then(|id| self.replica.unit(id)?.unit_target()),
             ),
         );
         state

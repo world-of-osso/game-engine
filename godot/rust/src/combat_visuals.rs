@@ -19,7 +19,7 @@ impl GameClient {
                 self.auto_attack_post_cast(&go)?;
                 Ok(self
                     .spell_effects
-                    .spell_go(&go, &self.units, &mut self.world)?)
+                    .spell_go(&go, &self.replica, &mut self.world)?)
             }
             CombatMessage::AttackStart(start) => {
                 self.receive_attack_start(&start);
@@ -33,7 +33,9 @@ impl GameClient {
     }
 
     pub(super) fn update_spell_visuals(&mut self, delta: f32) -> Result<(), String> {
-        let held = self.spell_effects.sync_casts(&self.units, &mut self.world);
+        let held = self
+            .spell_effects
+            .sync_casts(&self.replica, &mut self.world);
         let camera = self.world_camera.transform();
         let sound = &self.client_options.sound;
         let gain = if sound.muted {
