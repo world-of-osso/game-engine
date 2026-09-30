@@ -2,6 +2,8 @@ extends "res://tests/taa_compute_pixels.gd"
 ## Preparation only. Main owns Vulkan execution; no renderer/controller wiring.
 ## Production raster vs independent legacy raster, every HALF/SRGB resolved/history
 ## pair, RESET x TONEMAP, five single-frame cases and four feedback frames.
+## Opt-in Godot motion ABI gets separate raw-motion + jitter differential cases;
+## these synthetic cases do not prove native motion/jitter producer semantics.
 ## SRGB compares stored encoded RGB and linear A bytes: <=1 code, fixed pre-run.
 ## HALF retains parent's one reference HALF ULP + 2e-5; nonfinite always fails.
 ## Run: Godot --path godot --rendering-method forward_plus --rendering-driver vulkan
@@ -11,10 +13,14 @@ const HALF := RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
 const SRGB := RenderingDevice.DATA_FORMAT_R8G8B8A8_SRGB
 const SIZE := Vector2i(3, 3)
 const CASES := ["mixed-low", "mixed-high", "opaque", "fractional", "offscreen"]
-const EXPECTED_FIXTURES := 112
+const EXPECTED_FIXTURES := 128
 
 var production_shader := RID()
+var motion_shader := RID()
+var motion_adapter := false
+var draw_jitter := Vector2.ZERO
 var production_draw := false
+var motion_draw := false
 var draw_reset := false
 var draw_tonemap := false
 var format_coverage: Dictionary = {}
@@ -46,6 +52,10 @@ func run_test() -> void:
 						if observer.count() != 0:
 							finish()
 							return
+					test_motion_adapter(reset, tonemap, output_format, history_format)
+					if observer.count() != 0:
+						finish()
+						return
 				test_feedback(tonemap, output_format, history_format)
 				if observer.count() != 0:
 					finish()
@@ -73,6 +83,12 @@ func compile_shaders() -> bool:
 	production_shader = compile_source(source, stages)
 	if not production_shader.is_valid():
 		return false
+	source.source_fragment = production.replace(
+		"#version 450\n", "#version 450\n#define TAA_RASTER\n#define TAA_GODOT_MOTION\n"
+	)
+	motion_shader = compile_source(source, stages)
+	if not motion_shader.is_valid():
+		return false
 	for defines in ["", "#define RESET\n", "#define TONEMAP\n", "#define RESET\n#define TONEMAP\n"]:
 		source = RDShaderSource.new()
 		source.source_vertex = vertex
@@ -85,7 +101,8 @@ func compile_shaders() -> bool:
 
 
 func draw(shader: RID, inputs: Array[RID], outputs: Array[RID]) -> bool:
-	production_draw = shader == production_shader
+	motion_draw = shader == motion_shader
+	production_draw = shader == production_shader or motion_draw
 	return super.draw(shader, inputs, outputs)
 
 
@@ -98,10 +115,13 @@ func record_draw(framebuffer: RID, pipeline: RID, binding: RID) -> bool:
 	rd.draw_list_bind_uniform_set(commands, binding, 0)
 	if production_draw:
 		var push := PackedByteArray()
-		push.resize(8)
+		push.resize(16 if motion_draw else 8)
 		push.encode_u32(0, int(draw_reset))
 		push.encode_u32(4, int(draw_tonemap))
-		rd.draw_list_set_push_constant(commands, push, 8)
+		if motion_draw:
+			push.encode_float(8, draw_jitter.x)
+			push.encode_float(12, draw_jitter.y)
+		rd.draw_list_set_push_constant(commands, push, push.size())
 	rd.draw_list_draw(commands, false, 1, 3)
 	rd.draw_list_end()
 	rd.submit()
@@ -246,7 +266,7 @@ func draw_pair(
 		return false
 	draw_reset = reset
 	draw_tonemap = tonemap
-	if not draw(production_shader, inputs, output):
+	if not draw(motion_shader if motion_adapter else production_shader, inputs, output):
 		return false
 	if not draw(raster_shaders[int(reset) + 2 * int(tonemap)], oracle_inputs, oracle):
 		return false
@@ -397,6 +417,55 @@ func test_formats(
 	release_textures()
 
 
+func test_motion_adapter(
+	reset: bool, tonemap: bool, output_format: int, history_format: int
+) -> void:
+	var label := (
+		"%s Godot-motion reset=%s tonemap=%s"
+		% [format_label(output_format, history_format), reset, tonemap]
+	)
+	var current := mixed_current()
+	var history := image(SIZE, Color())
+	for y in range(SIZE.y):
+		for x in range(SIZE.x):
+			history.set_pixel(
+				x, y, Color(float(x + 1) / 4.0, float(y + 1) / 4.0, float(x + y + 1) / 8.0, 1)
+			)
+	var past := create_formatted_texture(history, history_format)
+	# Dyadic values remain exact through HALF upload. Independent legacy receives
+	# already converted motion; production receives raw motion plus 16-byte ABI.
+	var raw := Vector2(0.0625, -0.125)
+	draw_jitter = Vector2(0.03125, 0.0625)
+	var inputs := format_inputs(current, past, output_format, raw)
+	var corrected := -raw + draw_jitter
+	var oracle_inputs: Array[RID] = [
+		inputs[0],
+		past,
+		past,
+		inputs[3],
+		create_formatted_texture(image(SIZE, Color(corrected.x, corrected.y, 0, 0)), HALF)
+	]
+	var output := format_outputs(output_format, history_format)
+	var oracle := format_outputs(output_format, history_format)
+	motion_adapter = true
+	if draw_pair(
+		inputs, oracle_inputs, output, oracle, reset, tonemap, output_format, history_format, label
+	):
+		check_stores(
+			output,
+			current,
+			reset,
+			tonemap,
+			1.0 / 0.015 if reset else 1.0,
+			output_format,
+			history_format,
+			label
+		)
+	motion_adapter = false
+	draw_jitter = Vector2.ZERO
+	release_textures()
+
+
 func test_feedback(tonemap: bool, output_format: int, history_format: int) -> void:
 	var past := create_formatted_texture(image(SIZE, Color(0.25, 0.25, 0.25, 1)), history_format)
 	var oracle_past := create_formatted_texture(
@@ -458,7 +527,7 @@ func finish() -> void:
 	finished = true
 	if rd != null:
 		release_textures()
-		for shader in raster_shaders + [production_shader]:
+		for shader in raster_shaders + [production_shader, motion_shader]:
 			if shader.is_valid():
 				rd.free_rid(shader)
 		for sampler in [nearest, linear]:
@@ -468,8 +537,8 @@ func finish() -> void:
 		rd = null
 	var coverage_ok := format_coverage.size() == 4
 	for key in format_coverage:
-		print("TAA_RASTER_COVERAGE ", key, " fixtures=", format_coverage[key], " expected=28")
-		coverage_ok = coverage_ok and format_coverage[key] == 28
+		print("TAA_RASTER_COVERAGE ", key, " fixtures=", format_coverage[key], " expected=32")
+		coverage_ok = coverage_ok and format_coverage[key] == 32
 	var errors := observer.count()
 	OS.remove_logger(observer)
 	print(

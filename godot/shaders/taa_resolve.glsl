@@ -45,6 +45,11 @@ layout(rgba16f, set = 0, binding = 6) uniform writeonly image2D history_output;
 layout(push_constant, std430) uniform Parameters {
     uint reset;
     uint tonemap;
+#ifdef TAA_GODOT_MOTION
+    // Opt-in native ABI: public lens delta / (internalWidth, -internalHeight).
+    // Synthetic differential is prepared; native producer proof is separate.
+    vec2 jitter_motion;
+#endif
 } parameters;
 
 const float DEFAULT_HISTORY_BLEND_RATE = 0.1;
@@ -101,7 +106,11 @@ vec2 closest_motion(vec2 uv, vec2 texel_size) {
     if (d_tr > closest_depth) { closest_uv = tr; closest_depth = d_tr; }
     if (d_bl > closest_depth) { closest_uv = bl; closest_depth = d_bl; }
     if (d_br > closest_depth) { closest_uv = br; }
+#ifdef TAA_GODOT_MOTION
+    return -textureLod(motion_input, closest_uv, 0.0).rg + parameters.jitter_motion;
+#else
     return textureLod(motion_input, closest_uv, 0.0).rg;
+#endif
 }
 
 vec3 sample_history(vec2 uv, vec2 texture_size) {
