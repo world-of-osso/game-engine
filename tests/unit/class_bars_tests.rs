@@ -19,7 +19,22 @@ fn resource(bar: ClassBar, current: u8, max: u8) -> ClassBarResource {
         max,
         tenths: u16::from(current) * 10,
         spec: None,
-        dynamics: crate::status::ClassBarDynamics::default(),
+        dynamics: crate::status::ClassBarDynamics {
+            regen_per_sec: if bar == ClassBar::Essence { 0.2 } else { 0.0 },
+            runes: (bar == ClassBar::Runes).then(|| crate::status::ClassBarRunes {
+                duration_ms: 10000,
+                ready_in_ms: (0..6)
+                    .map(|index| {
+                        if index < current {
+                            0
+                        } else {
+                            u32::from(index - current + 1) * 10000
+                        }
+                    })
+                    .collect(),
+            }),
+            ..Default::default()
+        },
         in_combat: false,
     }
 }
@@ -442,8 +457,10 @@ fn essence_fills_the_next_point_over_five_seconds() {
         );
     }
     let mut animator = ClassBarAnimator::default();
-    let three = resource(ClassBar::Essence, 3, 5);
-    let four = resource(ClassBar::Essence, 4, 5);
+    let mut three = resource(ClassBar::Essence, 3, 5);
+    three.dynamics.received_at = 100.0;
+    let mut four = resource(ClassBar::Essence, 4, 5);
+    four.dynamics.received_at = 105.2;
     let view = run(&mut animator, &[(&three, 100.0), (&three, 102.5)]);
     assert_alpha(
         &view,
@@ -471,7 +488,8 @@ fn essence_fills_the_next_point_over_five_seconds() {
 fn spent_essence_depletes() {
     let mut animator = ClassBarAnimator::default();
     let five = resource(ClassBar::Essence, 5, 5);
-    let two = resource(ClassBar::Essence, 2, 5);
+    let mut two = resource(ClassBar::Essence, 2, 5);
+    two.dynamics.received_at = 10.0;
     let view = run(
         &mut animator,
         &[(&five, 0.0), (&five, 10.0), (&two, 10.0), (&two, 10.4)],
@@ -526,6 +544,8 @@ fn runes_spend_recharge_and_sort_like_retail() {
 
     let mut four = blood.clone();
     four.current = 4;
+    four.dynamics.received_at = 100.0;
+    four.dynamics.runes.as_mut().unwrap().ready_in_ms = vec![0, 0, 0, 0, 10000, 20000];
     let mut animator = ClassBarAnimator::default();
     let spent = run(
         &mut animator,
@@ -574,6 +594,8 @@ fn runes_spend_recharge_and_sort_like_retail() {
     assert_alpha(&ending, "PlayerSecondaryResourcePip4Rune_Active", 1.0);
     let mut five = four.clone();
     five.current = 5;
+    five.dynamics.received_at = 110.3;
+    five.dynamics.runes.as_mut().unwrap().ready_in_ms = vec![0, 0, 0, 0, 0, 10000];
     let back = run(&mut animator, &[(&five, 110.3), (&five, 115.0)]);
     let swipe = texture(&back, "PlayerSecondaryResourcePip5Cooldown");
     assert!(close(swipe.swipe.unwrap(), 4.7 / 10.0), "{:?}", swipe.swipe);
@@ -625,6 +647,28 @@ fn essence_starts_from_received_fraction_at_received_rate() {
     ));
     let view = run(&mut animator, &[(&three, 101.375)]);
     assert_alpha(&view, "PlayerSecondaryResourcePip3FillDoneEssenceIcon", 0.5);
+}
+
+#[test]
+fn essence_with_zero_regen_holds_received_fraction_without_nonfinite_layers() {
+    let mut essence = resource(ClassBar::Essence, 3, 5);
+    essence.dynamics.partial = 500;
+    essence.dynamics.regen_per_sec = 0.0;
+    essence.dynamics.received_at = 100.0;
+    let mut animator = ClassBarAnimator::default();
+    let initial = run(&mut animator, &[(&essence, 100.0)]);
+    let later = run(&mut animator, &[(&essence, 105.0)]);
+    for view in [&initial, &later] {
+        assert!(close(
+            texture(view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
+            -180.0
+        ));
+        assert!(
+            view.textures
+                .iter()
+                .all(|t| t.alpha.is_finite() && t.rotation.is_finite())
+        );
+    }
 }
 
 #[test]

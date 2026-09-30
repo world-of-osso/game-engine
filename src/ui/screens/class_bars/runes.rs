@@ -254,8 +254,6 @@ fn art_set(spec: Option<u32>) -> usize {
 /// `cooldownFillAnimBasisSeconds`, `cooldownEndingOffsetSeconds` (RuneFrame.xml:136-138).
 const FILL_BASIS: f32 = 8.0;
 const ENDING_OFFSET: f64 = 0.67;
-/// Seconds per rune: 1 / the server's 0.1 runes per second.
-const RUNE_SECONDS: f64 = 10.0;
 
 /// `RuneButtonMixin.VisualState`, ordered as `CompareRuneButtons` sorts them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -331,6 +329,19 @@ impl RuneButton {
         self.state = Some(VisualState::Ready);
         self.cooldown_ending_start = None;
         self.cooldown = None;
+    }
+
+    /// `ShowAsEmpty`: no received cooldown start/duration is available.
+    fn show_as_empty(&mut self, now: f64) {
+        self.newly_depleted = false;
+        if self.state != Some(VisualState::Empty) {
+            self.visual.stop(FILL_ANIM, now);
+            self.visual.stop(ENDING_ANIM, now);
+            self.skip_to_end(EMPTY_ANIM, now);
+        }
+        self.state = Some(VisualState::Empty);
+        self.cooldown = None;
+        self.cooldown_ending_start = None;
     }
 
     /// `ShowAsOnCooldown` (RuneFrame.lua:245-301).
@@ -453,73 +464,17 @@ impl RuneButton {
     }
 }
 
-/// The server's rune pool as six runes: which are ready, and the recharge queue.
-#[derive(Debug, Default)]
-struct RunePool {
-    /// Per rune: `None` ready, else its cooldown start.
-    starts: [Option<f64>; 6],
-    count: Option<u8>,
-}
-
-impl RunePool {
-    /// Applies the replicated rune count at `now` and returns each rune's cooldown.
-    fn update(&mut self, count: u8, max: u8, now: f64) -> [RuneCooldown; 6] {
-        let count = count.min(6);
-        match self.count {
-            None => {
-                for (index, start) in self.starts.iter_mut().enumerate() {
-                    *start = (index >= usize::from(count))
-                        .then(|| now + (index - usize::from(count)) as f64 * RUNE_SECONDS);
-                }
-            }
-            Some(last) if count < last => self.spend(last - count, last == max, now),
-            Some(last) if count > last => self.regain(count - last, now),
-            _ => {}
-        }
-        self.count = Some(count);
-        self.starts.map(|start| RuneCooldown {
-            start: start.unwrap_or(0.0),
-            duration: RUNE_SECONDS,
-            ready: start.is_none(),
-        })
-    }
-
-    /// The highest ready runes go on cooldown, queued behind the recharging ones.
-    fn spend(&mut self, spent: u8, from_full: bool, now: f64) {
-        let mut queue_end = self
-            .starts
-            .iter()
-            .flatten()
-            .map(|start| start + RUNE_SECONDS)
-            .fold(now, f64::max);
-        if from_full {
-            queue_end = now;
-        }
-        for _ in 0..spent {
-            let Some(rune) = (0..6).rev().find(|&rune| self.starts[rune].is_none()) else {
-                return;
-            };
-            self.starts[rune] = Some(queue_end);
-            queue_end += RUNE_SECONDS;
-        }
-    }
-
-    /// The earliest queued runes come back; the next one starts recharging now.
-    fn regain(&mut self, gained: u8, now: f64) {
-        for _ in 0..gained {
-            let earliest = (0..6)
-                .filter(|&rune| self.starts[rune].is_some())
-                .min_by(|&a, &b| self.starts[a].partial_cmp(&self.starts[b]).unwrap());
-            if let Some(rune) = earliest {
-                self.starts[rune] = None;
-            }
-        }
-        let mut queued: Vec<usize> = (0..6).filter(|&rune| self.starts[rune].is_some()).collect();
-        queued.sort_by(|&a, &b| self.starts[a].partial_cmp(&self.starts[b]).unwrap());
-        for (position, rune) in queued.into_iter().enumerate() {
-            self.starts[rune] = Some(now + position as f64 * RUNE_SECONDS);
-        }
-    }
+/// `GetRuneCooldown`: the server supplies each rune's own remaining time. Never infer
+/// rune identity or cooldowns from the aggregate ready count.
+fn received_cooldown(resource: &ClassBarResource, index: usize) -> Option<RuneCooldown> {
+    let runes = resource.dynamics.runes.as_ref()?;
+    let ready_in_ms = *runes.ready_in_ms.get(index)?;
+    let duration = f64::from(runes.duration_ms) / 1000.0;
+    Some(RuneCooldown {
+        start: resource.dynamics.received_at + f64::from(ready_in_ms) / 1000.0 - duration,
+        duration,
+        ready: ready_in_ms == 0,
+    })
 }
 
 /// `RuneFrame`: 24×24 runes 1 px overlapped at scale 0.95, `topPadding` 6, `leftPadding`
@@ -536,7 +491,6 @@ pub struct Bar {
     runes: Vec<RuneButton>,
     /// `runeIndices` in layout order.
     order: Vec<usize>,
-    pool: RunePool,
     spec: Option<Option<u32>>,
 }
 
@@ -545,7 +499,6 @@ impl Default for Bar {
         Self {
             runes: (0..6).map(|index| RuneButton::new(index, None)).collect(),
             order: (0..6).collect(),
-            pool: RunePool::default(),
             spec: None,
         }
     }
@@ -561,10 +514,14 @@ impl BarLogic for Bar {
                 rune.visual.set_template(&TEMPLATES[art_set(resource.spec)]);
             }
         }
-        let cooldowns = self.pool.update(resource.current, resource.max, now);
         let mut depleted = 0;
-        for (rune, cooldown) in self.runes.iter_mut().zip(cooldowns) {
-            rune.update_state(cooldown, now);
+        for (index, rune) in self.runes.iter_mut().enumerate() {
+            match received_cooldown(resource, index) {
+                Some(cooldown) if cooldown.ready || cooldown.duration > 0.0 => {
+                    rune.update_state(cooldown, now);
+                }
+                _ => rune.show_as_empty(now),
+            }
             depleted += usize::from(rune.newly_depleted);
         }
         let runes = &self.runes;

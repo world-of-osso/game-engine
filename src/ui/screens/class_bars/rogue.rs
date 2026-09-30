@@ -325,8 +325,8 @@ pub struct Bar {
 }
 
 impl BarLogic for Bar {
-    /// `RogueComboPointBarMixin:UpdatePower`: `Update(i <= comboPoints, isCharged)`. The
-    /// server sends no charged points (`GetUnitChargedPowerPoints`), so none is charged.
+    /// `RogueComboPointBarMixin:UpdatePower`: `Update(i <= comboPoints, isCharged)`.
+    /// Replicated charged indices match `GetUnitChargedPowerPoints` (1-based).
     fn power(&mut self, resource: &ClassBarResource, now: f64) {
         if self.points.len() != usize::from(resource.max) {
             self.points = (0..resource.max)
@@ -338,7 +338,11 @@ impl BarLogic for Bar {
                 .collect();
         }
         for (index, (visual, state)) in self.points.iter_mut().enumerate() {
-            let next = (false, index < usize::from(resource.current));
+            let charged = resource
+                .dynamics
+                .charged_points
+                .contains(&((index + 1) as u8));
+            let next = (charged, index < usize::from(resource.current));
             if *state == Some(next) {
                 continue;
             }
