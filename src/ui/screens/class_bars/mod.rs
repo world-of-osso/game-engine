@@ -238,6 +238,7 @@ fn new_bar(bar: ClassBar) -> Box<dyn BarLogic> {
 /// The player's class bar across frames: the Retail bar object and its points' state.
 #[derive(Default)]
 pub struct ClassBarAnimator {
+    owner: Option<u64>,
     bar: Option<(ClassBarResource, Box<dyn BarLogic>)>,
 }
 
@@ -254,11 +255,24 @@ impl ClassBarAnimator {
     /// Feeds an observed client snapshot on the monotonic animator clock.
     pub fn update_received(
         &mut self,
-        _owner: u64,
+        owner: u64,
         resource: Option<&ClassBarResource>,
         now: f64,
     ) -> Option<ClassBarView> {
-        self.update(resource, now)
+        if self.owner != Some(owner) {
+            self.owner = Some(owner);
+            self.bar = None;
+        }
+        let Some(resource) = resource else {
+            return self.update(None, now);
+        };
+        let mut received = resource.clone();
+        received.dynamics.received_at = self
+            .bar
+            .as_ref()
+            .filter(|(last, _)| same_recharge_sample(last, resource))
+            .map_or(now, |(last, _)| last.dynamics.received_at);
+        self.update(Some(&received), now)
     }
 
     /// Feeds the bar's power at `now` (seconds, monotonic) and returns what it draws.
@@ -290,6 +304,16 @@ impl ClassBarAnimator {
         }
         Some(logic.view(resource, now))
     }
+}
+
+/// Combat/spec events redraw the bar but do not re-receive unchanged power timing.
+fn same_recharge_sample(last: &ClassBarResource, next: &ClassBarResource) -> bool {
+    let power = (last.bar, last.current, last.max, last.tenths)
+        == (next.bar, next.current, next.max, next.tenths);
+    let timing = last.dynamics.partial == next.dynamics.partial
+        && last.dynamics.regen_per_sec == next.dynamics.regen_per_sec
+        && last.dynamics.runes == next.dynamics.runes;
+    power && timing
 }
 
 /// The bar once every animation for `resource` has run its course.
