@@ -501,25 +501,28 @@ impl TerrainObjects {
         self.waiting_count += 1;
     }
 
-    /// Main thread: an arrived asset's textures and particles; its placements are ready.
-    fn finish_asset(&mut self, asset: ObjectAsset, loaded: Result<LoadedAsset, String>) {
-        let dir = self.data_root.join("textures");
-        let insert = |textures: Vec<(u32, blp::GpuImage)>| {
-            textures
-                .into_iter()
-                .try_for_each(|(fdid, image)| insert_shared_texture(fdid, &dir, image))
-        };
+    /// Main thread: upload one of an arrived asset's textures, which keeps it at the
+    /// front of `arrived`; once none is left, its particles, and its placements are ready.
+    fn finish_asset(&mut self, asset: ObjectAsset, mut loaded: Result<LoadedAsset, String>) {
+        if let Ok(LoadedAsset::Model(_, textures) | LoadedAsset::Wmo(_, textures)) = &mut loaded
+            && let Some((fdid, image)) = textures.pop()
+        {
+            let dir = self.data_root.join("textures");
+            let uploaded = insert_shared_texture(fdid, &dir, image);
+            self.arrived.push_front((asset, uploaded.and(loaded)));
+            return;
+        }
         match (asset, loaded) {
-            (ObjectAsset::Model(fdid), Ok(LoadedAsset::Model(cached, textures))) => {
-                let parsed = insert(textures).map(|()| ParsedModel {
+            (ObjectAsset::Model(fdid), Ok(LoadedAsset::Model(cached, _))) => {
+                let parsed = Ok(ParsedModel {
                     path: GString::from(cached.path.to_string_lossy().as_ref()),
                     particles: ModelParticles::from_model(fdid, &cached.model),
                     model: cached,
                 });
                 self.models.insert(fdid, parsed);
             }
-            (ObjectAsset::Wmo(fdid), Ok(LoadedAsset::Wmo(wmo, textures))) => {
-                self.wmo_assets.insert(fdid, insert(textures).map(|()| wmo));
+            (ObjectAsset::Wmo(fdid), Ok(LoadedAsset::Wmo(wmo, _))) => {
+                self.wmo_assets.insert(fdid, Ok(wmo));
             }
             (ObjectAsset::Model(fdid), Err(error)) => {
                 self.models.insert(fdid, Err(error));

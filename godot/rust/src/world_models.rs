@@ -346,17 +346,22 @@ impl WorldModels {
     }
 
     /// Start loading the visual of `appearance` (its virtual items placed for `sheath`);
-    /// `poll` hands it out under the returned request ID.
+    /// `poll` hands it out under the returned request ID. Players load ahead of
+    /// creatures: the loading screen waits for the local player's model.
     pub fn request(&mut self, appearance: &UnitAppearance, sheath: SheathState) -> u64 {
-        let request = match appearance {
-            UnitAppearance::Creature { display_id, items } => VisualRequest::Creature {
-                display_id: *display_id,
-                items: items.clone(),
-                sheath,
-            },
-            UnitAppearance::Player(player, equipment) => {
-                VisualRequest::Player(player.clone(), equipment.clone())
-            }
+        let (request, priority) = match appearance {
+            UnitAppearance::Creature { display_id, items } => (
+                VisualRequest::Creature {
+                    display_id: *display_id,
+                    items: items.clone(),
+                    sheath,
+                },
+                Priority::Later,
+            ),
+            UnitAppearance::Player(player, equipment) => (
+                VisualRequest::Player(player.clone(), equipment.clone()),
+                Priority::Now,
+            ),
         };
         let id = self.next_request;
         self.next_request += 1;
@@ -364,7 +369,7 @@ impl WorldModels {
             .lock()
             .expect("unit visual requests")
             .insert(id, request);
-        self.loader.request(id, Priority::Now);
+        self.loader.request(id, priority);
         id
     }
 
