@@ -19,6 +19,7 @@ fn layer() -> WaterLayer {
         vertex_heights: vec![10.0, 14.0, 18.0, 20.0, 24.0, 28.0, 30.0, 34.0, 38.0],
         vertex_uvs: Vec::new(),
         vertex_depths: Vec::new(),
+        object_vertex_bytes: Vec::new(),
     }
 }
 

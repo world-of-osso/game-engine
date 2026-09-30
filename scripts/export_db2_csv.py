@@ -35,6 +35,11 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   CreatureSoundData            FDID 1344466
   ChrModel                     FDID 3384313
   ChrRaceXChrModel             FDID 3490304
+  LightParams                  FDID 1334669
+  LiquidType                   FDID 1371380
+  LiquidMaterial               FDID 1132538
+  LiquidObject                 FDID 1308058
+  LiquidTypeXTexture           FDID 2261065
 """
 
 import csv
@@ -307,6 +312,49 @@ TABLES = {
             ("PlayerConditionID", ("int", 4, 0)),
         ],
     ),
+    # WoWDBDefs layout CAE394E7: water/ocean alphas are fields 6-9.
+    "LightParams": (
+        0xCAE394E7,
+        [
+            ("ID", "id"),
+            ("WaterShallowAlpha", ("float", 6, 0)),
+            ("WaterDeepAlpha", ("float", 7, 0)),
+            ("OceanShallowAlpha", ("float", 8, 0)),
+            ("OceanDeepAlpha", ("float", 9, 0)),
+        ],
+    ),
+    # WoWDBDefs layout D1ECEEC9. WebWowViewerCpp reads Color[0..1], Float[0..17], Int[0..3] and
+    # Coefficient[0..3].
+    "LiquidType": (
+        0xD1ECEEC9,
+        [("ID", "id"), ("Name", ("string", 0)), ("Flags", ("int", 2, 0)), ("MaterialID", ("u8", 14))]
+        + [(f"FrameCountTexture_{i}", ("u8", 16, i)) for i in range(6)]
+        + [(f"Color_{i}", ("int", 17, i)) for i in range(3)]
+        + [(f"Float_{i}", ("float", 18, i)) for i in range(18)]
+        + [(f"Int_{i}", ("int", 19, i)) for i in range(4)]
+        + [(f"Coefficient_{i}", ("float", 20, i)) for i in range(4)],
+    ),
+    "LiquidMaterial": (0x98E5D7AA, [("ID", "id"), ("Flags", ("int", 0, 0)), ("LVF", ("u8", 1))]),
+    "LiquidObject": (
+        0xCB0D39E8,
+        [
+            ("ID", "id"),
+            ("FlowDirection", ("float", 0, 0)),
+            ("FlowSpeed", ("float", 1, 0)),
+            ("LiquidTypeID", ("u16", 2)),
+        ],
+    ),
+    # Type: -1 file texture, 0/1/2 procedural ocean/river/WMO depth texture.
+    "LiquidTypeXTexture": (
+        0x7BEECC7F,
+        [
+            ("ID", "id"),
+            ("FileDataID", ("int", 0, 0)),
+            ("OrderIndex", ("int", 1, 0)),
+            ("Type", ("i8", 2)),
+            ("LiquidTypeID", "parent"),
+        ],
+    ),
 }
 
 # Narrow DBD types: pallet entries are 32-bit and carry unrelated high bits.
@@ -423,7 +471,8 @@ def main():
             def column(s):
                 if isinstance(s, tuple) and s[0] in NARROW:
                     signed, width = NARROW[s[0]]
-                    value = values[s[1]] & ((1 << width) - 1)
+                    value = values[s[1]][s[2]] if len(s) == 3 else values[s[1]]
+                    value &= (1 << width) - 1
                     return value - (1 << width) if signed and value >> (width - 1) else value
                 if isinstance(s, tuple) and s[0] in ("float", "int"):
                     value = values[s[1]]
