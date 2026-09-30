@@ -4,9 +4,11 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 ## What it must do
 
-### Graphics bloom (native work in progress)
+### Graphics bloom (bounded native proof)
 
-- [ ] Persisted Bloom Enable (default off) and Bloom Intensity (default 0.08, range 0–1) must control startup and live native 3D bloom without changing authored material emission or 2D UI. Preserve the configured Bevy threshold/soft knee, Karis first downsample, 13-tap pyramid, tent upsample and additive mip weighting; stock Godot glow is not an equivalent filter. `06da11eb` establishes a native rendered RED: real authored toggle/persistence and disabled emissive scene pass, but saved enabled bloom adds no halo (`data/diagnostics/bloom-native-red/run-emission.log`, exit 1). Test-only CPU reference exists; production integration and numeric GPU/visual acceptance remain pending.
+- [x] Persisted Bloom Enable (default off) and Bloom Intensity (default 0.08, range 0–1) control startup and live native 3D bloom without changing authored material emission or higher-layer 2D UI in the owned emitter fixture. Production `8c704b87` with Rust `90fc989b`/controller `72030edd` passes enabled startup, authored Off/On/intensity and persistence: disabled halo 0, low 0.21182088, high 1. Test `e60ec838` also passes disabled startup → first On after an existing camera, with exact UI/emission assertions. Both exit 0; the initial enabled run retains two unattributed ObjectDB instances warnings, absent in paired verbose and lazy runs, not proven fixed.
+- [x] Preserve configured Bevy bloom filtering and additive mip weighting within the unchanged numeric corpus/tolerances. Independent translated legacy raster oracle plus CPU constant goldens passes 20,268,551 comparisons, 0 failures, 0 engine errors at `8c704b87` (exit 0); CPU reference `6082282d` independently passes 8604 checks. This is bounded algorithm/pixel proof, not bit-exact equality for every intermediate pixel or full-scene/HDR parity. Stock Godot glow is not an equivalent filter.
+- [ ] Prove broad camera logout/transfer lifecycle, production resize/MSAA, bloom with RCAS, export and other GPU/vendor paths, and full-scene/HDR parity. Exact logs, pipeline settings, tests and owned recipes: [bloom evidence](../wiki/systems/godot-conversion.md#native-bloom--bounded-in-progress-evidence).
 
 ### Graphics render scale (bounded native buffer/UI proof)
 
