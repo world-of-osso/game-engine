@@ -360,13 +360,12 @@ impl Session {
         if let Some(notice) = self.pending_forced_disconnect.take() {
             self.clear_reconnect();
             self.feedback = Some(notice.message);
-            let transition = self.screen != SessionScreen::Login;
             self.screen = SessionScreen::Login;
-            let mut effects = vec![SessionEffect::ResetNetworkWorld];
-            if transition {
-                effects.push(SessionEffect::Transition(self.screen));
-            }
-            return effects;
+            // Also from Login itself: the host shows feedback on a screen transition.
+            return vec![
+                SessionEffect::ResetNetworkWorld,
+                SessionEffect::Transition(self.screen),
+            ];
         }
         match self.screen {
             SessionScreen::CharacterSelect

@@ -334,6 +334,22 @@ fn forced_notice_disconnects_first_then_surfaces_message_and_resets_world() {
 }
 
 #[test]
+fn protocol_rejection_while_connecting_from_login_shows_reason() {
+    let mut session = Session::default();
+    assert_eq!(session.screen, SessionScreen::Login);
+    let reason = "No protocol fingerprint from the peer within 10 s: client and server builds are incompatible.";
+    session.receive_protocol_rejected(reason.into());
+    let effects = session.receive_disconnected_with_reason(Some("Client trigger"));
+    assert_eq!(session.feedback.as_deref(), Some(reason));
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::Login))),
+        "the host refreshes the login status only on a transition"
+    );
+}
+
+#[test]
 fn protocol_rejection_during_world_reconnect_returns_to_login_with_reason() {
     let mut session = Session::default();
     session.screen = SessionScreen::InWorld;
