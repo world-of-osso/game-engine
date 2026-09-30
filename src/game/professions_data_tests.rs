@@ -1,29 +1,27 @@
-//! Tests against the pinned 12.1.0.69933 CSVs; skipped when `data/db2` is absent.
+//! Tests against the pinned 12.1.0.69933 CSVs; fail when `data/db2` lacks them.
 
 use std::sync::OnceLock;
 
 use super::*;
+#[path = "../../tests/unit/required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
 
 /// Built once per test process from the CSVs, cached in the temp dir.
-fn catalog() -> Option<&'static ProfessionCatalog> {
-    static CATALOG: OnceLock<Option<ProfessionCatalog>> = OnceLock::new();
-    CATALOG
-        .get_or_init(|| {
-            let source = db2_dir(Path::new("data"));
-            if !source.join("SpellReagents.csv").exists() {
-                eprintln!("skipping: {} has no SpellReagents.csv", source.display());
-                return None;
-            }
-            let cache =
-                std::env::temp_dir().join(format!("profession_catalog_{}.bin", std::process::id()));
-            Some(load_profession_catalog(&source, &cache).unwrap())
-        })
-        .as_ref()
+fn catalog() -> &'static ProfessionCatalog {
+    static CATALOG: OnceLock<ProfessionCatalog> = OnceLock::new();
+    CATALOG.get_or_init(|| {
+        let source = db2_dir(Path::new("data"));
+        require_asset(source.join("SpellReagents.csv"));
+        let cache =
+            std::env::temp_dir().join(format!("profession_catalog_{}.bin", std::process::id()));
+        load_profession_catalog(&source, &cache).unwrap()
+    })
 }
 
 #[test]
 fn bolt_of_linen_cloth_takes_two_linen_and_makes_one_bolt() {
-    let Some(catalog) = catalog() else { return };
+    let catalog = catalog();
     let bolt = catalog.recipe(2963).unwrap();
     assert_eq!(bolt.name, "Bolt of Linen Cloth");
     assert_eq!(
@@ -49,7 +47,7 @@ fn bolt_of_linen_cloth_takes_two_linen_and_makes_one_bolt() {
 
 #[test]
 fn bolt_of_linen_cloth_is_in_materials_under_tailoring() {
-    let Some(catalog) = catalog() else { return };
+    let catalog = catalog();
     let category = catalog
         .category(catalog.recipe(2963).unwrap().category)
         .unwrap();
@@ -59,7 +57,7 @@ fn bolt_of_linen_cloth_is_in_materials_under_tailoring() {
 
 #[test]
 fn tailoring_is_a_primary_profession_with_a_classic_tier() {
-    let Some(catalog) = catalog() else { return };
+    let catalog = catalog();
     assert!(catalog.is_primary(197));
     assert!(catalog.is_profession(185), "Cooking");
     assert!(!catalog.is_primary(185));
