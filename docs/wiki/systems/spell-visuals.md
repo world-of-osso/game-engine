@@ -142,6 +142,13 @@ Melee swings play their Retail swoosh, impact and wound sounds. `godot/core/src/
 
 The live Northshire content has no Kobold Vermin (retail phase: Blackrock Worg, Invader, Spy, Goblin Assassin), so the live fixture fights a Blackrock Worg.
 
+**Live proof (2026-09-30).** `godot/tests/melee_sounds_live.gd`, private game-server `c47217b` on UDP 5097 (fresh redb, shared-protocol `aa848af`), Human warrior `Fbmelee` with the Worn Shortsword (granted: a fresh character spawns with no equipment) next to a Blackrock Worg; exit 0, log `data/diagnostics/melee-sounds-2026-09-30/fixture.log`.
+- Warrior swings swoosh 235 (`fx_whoosh_medium_revamp_*`, FDIDs 1302597-1302605) and land 53248 (1247344, 1247347) with the worg's wound 11908 (559528-559532); gaps 89-92 ms against Attack1H's 100 ms.
+- Worg swings swoosh 235 and land 1014 (567919-567928) with the warrior's wound 2942 (951376-951390, 542369); gaps 54-154 ms (longest frame 0.48 s).
+- The warrior's Avoided swing at 18.643 swooshed (1302597 at 19.046) with no impact.
+- An earlier run on the same revision logged the worg's death 11910 (559527); that run had no avoided swing in 47 events.
+- A first-use sound starts when its file finishes loading (async asset loader), so its logged start can trail the event: one swoosh started 72 ms after its own impact.
+
 **Not modelled:** armour (a player's chain or plate impact index), blocks (the server sends a block as MeleeDamage), the `Pierce*` columns, the attacker's `SoundExertionID` voice (what triggers it on a plain swing is undocumented), crits (the server sends a crit as MeleeDamage, so `CriticalHit` is handled but never arrives).
 
 ## Asset loading (`godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`)
