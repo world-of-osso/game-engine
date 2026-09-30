@@ -6,8 +6,10 @@ extends SceneTree
 ##   SPELL_ACCOUNT / SPELL_CHARACTER   account (password fbtest) and level-10 warrior
 ##   SPELL_SHOTS                 screenshot directory
 ##   SPELL_WORLD_TIMEOUT_S       seconds to wait for world objects (default 300)
-##   SPELL_SCENARIO=paladin      a level-10 paladin casts Flash of Light and hears its
-##                               precast, cast and impact SoundKits
+##   SPELL_SCENARIO=paladin      a level-10 paladin casts Flash of Light on itself and
+##                               hears its precast, cast and impact SoundKits
+##   SPELL_SCENARIO=shout        a level-10 warrior casts Battle Shout: its kit SoundKit
+##                               and the warrior's own battle-shout voice
 ##   SPELL_SCENARIO=mage         a level-10 mage casts Frostbolt instead: the precast
 ##                               ReadySpellDirected loop (51) with hand models 1598571,
 ##                               the SpellCastDirected release (53), the missile 1598570
@@ -130,6 +132,8 @@ func run_test() -> void:
 	var scenario := OS.get_environment("SPELL_SCENARIO")
 	var mage := scenario == "mage"
 	var paladin := scenario == "paladin"
+	# Self-cast scenarios need no dummy: a paladin's Flash of Light, a warrior's Battle Shout.
+	var self_cast := paladin or scenario == "shout"
 	var signature := FROSTBOLT if mage else (FLASH_OF_LIGHT if paladin else BATTLE_SHOUT)
 	if not await wait_for(func(s): return s.catalog_ready and s.known.has(signature) and s.level == 10, 60000, "level-10 spells"):
 		return
@@ -148,6 +152,12 @@ func run_test() -> void:
 	if not await orbit_camera():
 		return
 	await capture("00-idle.png")
+	if self_cast:
+		if await cast_self_sounds(paladin):
+			print("FIXTURE SPELLCAST_ANIM_DONE")
+			client.free()
+			quit(0)
+		return
 	# Tab cycles nearest-first; take the dummy straight ahead (critters and other
 	# dummies may be nearer).
 	for attempt in range(8):
@@ -160,6 +170,7 @@ func run_test() -> void:
 			if absf(angle_to_target()) < 0.3:
 				break
 	if not await wait_until(func(): return str(client.target_state().target_name).contains("Training Dummy"), 3000, "Tab targets a training dummy"):
+		print("FIXTURE TAB_FAILED units=", client.account_state().unit_count, " target=", client.target_state())
 		return
 	target_id = client.target_state().target
 	print("FIXTURE TARGET ", client.target_state())
@@ -174,12 +185,6 @@ func run_test() -> void:
 		if await cast_frostbolt() and await cast_mage_sounds():
 			print("FIXTURE SEEN actions=", seen_actions, " models=", seen_models.keys(), " missile=", seen_missile)
 			await wait_frames(90)
-			print("FIXTURE SPELLCAST_ANIM_DONE")
-			client.free()
-			quit(0)
-		return
-	if paladin:
-		if await cast_and_hear(FLASH_OF_LIGHT, FLASH_OF_LIGHT_SOUNDS, 8000):
 			print("FIXTURE SPELLCAST_ANIM_DONE")
 			client.free()
 			quit(0)
@@ -444,6 +449,13 @@ func no_reaction_before_impact(flights: Array) -> bool:
 		return false
 	print("FIXTURE NO_MELEE before the Frostbolt impact actions=", seen_actions, " landed=%.3f" % landed)
 	return true
+
+## Without a target: Flash of Light heals the paladin (precast loop, cast, impact), Battle
+## Shout buffs the warrior (its cast kit's SoundKit and the warrior's own shout voice).
+func cast_self_sounds(paladin: bool) -> bool:
+	if paladin:
+		return await cast_and_hear(FLASH_OF_LIGHT, FLASH_OF_LIGHT_SOUNDS, 8000) and await loops_stopped(FLASH_OF_LIGHT, 3000)
+	return await cast_and_hear(BATTLE_SHOUT, BATTLE_SHOUT_SOUNDS, 5000) and await heard_voice(BATTLE_SHOUT, BATTLE_SHOUT_VOICES, 3000)
 
 ## After Frostbolt: Fireball (precast, cast, looping missile sound that stops on landing,
 ## impact) and Frost Nova (cast, aura sounds on the rooted dummy, aura-end sound).
