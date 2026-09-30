@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://ddm0jddauxp7m"
+path="res://.godot/imported/taa_resolve.glsl-3a9caedd14d767158c6b54f2ce3a328e.res"
+
+[deps]
+
+source_file="res://shaders/taa_resolve.glsl"
+dest_files=["res://.godot/imported/taa_resolve.glsl-3a9caedd14d767158c6b54f2ce3a328e.res"]
+
+[params]
+

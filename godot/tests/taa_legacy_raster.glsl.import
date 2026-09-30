@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://3ohl6l7cpvsd"
+path="res://.godot/imported/taa_legacy_raster.glsl-89e3b75a08522e43f24cab176f667c58.res"
+
+[deps]
+
+source_file="res://tests/taa_legacy_raster.glsl"
+dest_files=["res://.godot/imported/taa_legacy_raster.glsl-89e3b75a08522e43f24cab176f667c58.res"]
+
+[params]
+

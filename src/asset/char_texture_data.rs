@@ -51,6 +51,8 @@ pub struct CharTextureData {
     pub(crate) sections: HashMap<(u32, u32), TextureSection>,
     /// layout_id -> (width, height)
     pub(crate) layouts: HashMap<u32, TextureLayout>,
+    /// ChrModelMaterial: (layout_id, M2 texture type) -> canvas (width, height).
+    pub(crate) material_sizes: HashMap<(u32, u32), (u32, u32)>,
 }
 
 impl CharTextureData {
@@ -63,7 +65,90 @@ impl CharTextureData {
             layers,
             sections,
             layouts,
+            material_sizes: HashMap::new(),
         }
+    }
+
+    pub fn with_material_sizes(mut self, sizes: HashMap<(u32, u32), (u32, u32)>) -> Self {
+        self.material_sizes = sizes;
+        self
+    }
+
+    /// M2 texture types `layout_id` composes on their own canvas: every layer type
+    /// but the body atlas (1).
+    pub fn separate_texture_types(&self, layout_id: u32) -> Vec<u32> {
+        let mut types: Vec<u32> = self
+            .layers
+            .iter()
+            .filter(|layer| layer.layout_id == layout_id && layer.texture_type != 1)
+            .map(|layer| layer.texture_type)
+            .collect();
+        types.sort_unstable();
+        types.dedup();
+        types
+    }
+
+    /// Composite texture type `texture_type` of `layout_id` from the selected
+    /// materials on its ChrModelMaterial canvas: its layers in order, a -1 section
+    /// mask covering the whole canvas (wow.export `apply_customization_textures`).
+    /// `None` when no selected material targets one of its layers.
+    pub fn composite_texture_type(
+        &self,
+        materials: &[(u16, u32)],
+        layout_id: u32,
+        texture_type: u32,
+        mut load: impl FnMut(u32) -> Option<(Vec<u8>, u32, u32)>,
+    ) -> Option<(Vec<u8>, u32, u32)> {
+        let material_by_target: HashMap<u16, u32> = materials.iter().copied().collect();
+        let mut layers: Vec<_> = self
+            .layers
+            .iter()
+            .filter(|layer| {
+                layer.layout_id == layout_id
+                    && layer.texture_type == texture_type
+                    && material_by_target.contains_key(&layer.target_id)
+            })
+            .collect();
+        if layers.is_empty() {
+            return None;
+        }
+        layers.sort_by_key(|layer| layer.layer);
+        let &(width, height) = self.material_sizes.get(&(layout_id, texture_type))?;
+        let mut pixels = vec![0u8; (width * height * 4) as usize];
+        for layer in layers {
+            let Some((tex, tex_w, tex_h)) = load(material_by_target[&layer.target_id]) else {
+                continue;
+            };
+            if layer.section_bitmask == FULL_TEXTURE_SECTION_MASK {
+                blit_scaled(BlitScaledInput {
+                    pixels: &mut pixels,
+                    canvas_w: width,
+                    canvas_h: height,
+                    tex: &tex,
+                    tex_w,
+                    tex_h,
+                    dx: 0,
+                    dy: 0,
+                    target_w: width,
+                    target_h: height,
+                    layer,
+                });
+            } else {
+                blit_layer(
+                    self,
+                    BlitLayerInput {
+                        pixels: &mut pixels,
+                        canvas_w: width,
+                        tex: &tex,
+                        tex_w,
+                        tex_h,
+                        layer,
+                        layout_id,
+                    },
+                );
+            }
+        }
+        Some((pixels, width, height))
     }
 
     pub fn layout(&self, layout_id: u32) -> Option<TextureLayout> {
@@ -129,14 +214,6 @@ impl CharTextureData {
             && self.layers.iter().any(|layer| {
                 layer.layout_id == layout_id && layer.target_id == 10 && layer.texture_type == 6
             })
-    }
-
-    /// The M2 texture type `target_id` fills in `layout_id` (ChrModelTextureLayer.TextureType).
-    pub fn texture_type_for_target(&self, layout_id: u32, target_id: u16) -> Option<u32> {
-        self.layers
-            .iter()
-            .find(|layer| layer.layout_id == layout_id && layer.target_id == target_id)
-            .map(|layer| layer.texture_type)
     }
 
     pub fn replacement_texture_fdid(

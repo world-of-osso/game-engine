@@ -298,6 +298,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         CREATE TABLE layers (texture_type INTEGER NOT NULL, layer INTEGER NOT NULL, blend_mode INTEGER NOT NULL, section_bitmask INTEGER NOT NULL, target_id INTEGER NOT NULL, layout_id INTEGER NOT NULL);
         CREATE TABLE sections (layout_id INTEGER NOT NULL, section_type INTEGER NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY(layout_id,section_type));
         CREATE TABLE layouts (id INTEGER PRIMARY KEY, width INTEGER NOT NULL, height INTEGER NOT NULL);
+        CREATE TABLE model_materials (layout_id INTEGER NOT NULL, texture_type INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY (layout_id, texture_type));
         INSERT INTO layouts VALUES (910041,2,2),(910043,2048,1024);
         INSERT INTO layers VALUES (1,0,0,-1,1,910041),(1,1,0,-1,2,910041),
             (1,0,0,-1,1,910043),(1,1,0,-1,2,910043),

@@ -5,7 +5,7 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::{
     char_texture_data::CharTextureData,
-    char_texture_query_data::query_char_texture_data,
+    char_texture_query_data::{query_char_texture_data, query_model_material_sizes},
     customization_data::{CustomizationDb, RaceModels},
     customization_query_data::query_customization_raw_data,
 };
@@ -32,5 +32,6 @@ pub fn load_customization_db(data_root: &Path) -> Result<CustomizationDb, String
 pub fn load_compositor(data_root: &Path) -> Result<CharTextureData, String> {
     let connection = open_catalog(data_root, "char_texture.sqlite")?;
     let (layers, sections, layouts) = query_char_texture_data(&connection)?;
-    Ok(CharTextureData::from_parts(layers, sections, layouts))
+    Ok(CharTextureData::from_parts(layers, sections, layouts)
+        .with_material_sizes(query_model_material_sizes(&connection)?))
 }
