@@ -1,9 +1,6 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
-#[path = "../../../src/sound/spell_event_data.rs"]
-pub mod spell_event_data;
-
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
@@ -253,6 +250,12 @@ impl NetworkBridge {
             .receive::<InteractionOpened>()
             .receive::<InteractionFailed>()
             .receive::<InteractionClosed>()
+            .receive::<protocol::AuctionHouseOpened>()
+            .receive::<protocol::AuctionSearchResults>()
+            .receive::<protocol::AuctionInventorySnapshot>()
+            .receive::<protocol::OwnedAuctionListResponse>()
+            .receive::<protocol::BidAuctionListResponse>()
+            .receive::<protocol::AuctionOperationResponse>()
             .receive::<VendorInventory>()
             .receive::<BuybackList>()
             .receive::<MerchantFailed>()

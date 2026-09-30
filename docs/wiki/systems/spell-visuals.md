@@ -22,6 +22,9 @@ The Godot client plays each spell's Retail visual kits on replicated units. That
 | AnimationData | 1375431 | BBF66A3C |
 | SoundKit | 1237434 | A7FB0451 |
 | SoundKitEntry | 1237435 | 8F82FF7D |
+| CreatureSoundData | 1344466 | E5EE765B |
+| WeaponSwingSounds2 | 1267068 | 8CC18B68 |
+| WeaponImpactSounds | 1267648 | A77CBD9D |
 
 Two export pitfalls:
 
@@ -63,7 +66,7 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CAC
   - The action layer marks a cast clip with a release event as awaiting it until its clip time reaches the event (`AnimationState::awaits_missile_release`). `SpellGo` readies the missile while the Cast kit's clip awaits. The missile leaves the first frame the clip no longer awaits: at the event, or when the clip is stopped or replaced first. Missiles released that frame start at the attachment and fly from the next frame.
   - A cast whose caster plays no clip with a release event (no Cast kit animation, a missing clip, or a higher-priority action keeping the layer) launches at `SpellGo`. No reference documents retail's behavior for that case. This rule is inferred.
   - `SpellEffects::flights` records each missile's `SpellGo`-to-release delay, launch distance, speed and flight time for automation.
-- **Server timing.** game-server resolves Frostbolt's damage in the same tick as `SpellGo`: `execute_cast` calls `resolve_effects` right after `broadcast_spell_go`, and TRIGGER_MISSILE runs the damage spell 228597 immediately. `SpellMisc.Speed`/`LaunchDelay` are loaded but unused. The damage number therefore shows before the missile is thrown. TrinityCore delays each unit hit by `max(dist, 5) / Speed` (`Spell.cpp:2514-2515`, and `CalculateDelayMomentForDst` `:880-896` for destinations, plus `LaunchDelay`). That clock also starts at the cast and ignores the client's animation event, so even there the damage lands about 200 ms before the visual missile does. Reported, not changed.
+- **Server timing.** Since game-server `fa5e689`, missile spells land at TrinityCore's delay (`Spell::HandleDelayed`; game-server `crates/server/src/spell_cast/missiles.rs`). `SpellGo` goes out at launch. Damage, auras (Chilled), threat, procs and the combat log follow each unit's hit delay: `LaunchDelay + max(max(dist, 5) / Speed, MinDuration)` (`Spell.cpp:2486-2518`). A destination spell uses one missile over the caster's exact distance (`CalculateDelayMomentForDst`, `:880-896`). Frostbolt at 20 yd lands 0.57 s after `SpellGo`. Speed-0 spells still land in the launch tick, and the delay is fixed at launch, as in TC. **Residual (unfixed):** the server's clock starts at the cast, but the client releases the missile at the M2 cast event (`$CSL`/`$CST`, 200 ms into the HD cast clip). So the damage number still shows about 200 ms before the visual impact, as in TrinityCore. Before `fa5e689` it showed with `SpellGo`, about 0.4 s early.
   - The server broadcasts it from `execute_cast` to every connection in the caster's `NetworkVisibility`, or to every authenticated client for units without interest, so observers see other players' casts.
 - **Kit sounds (`godot/rust/src/spell_sounds.rs`).** A `SpellVisualKitEffect` of type 5 is a `SoundKitID` (WoWDBDefs `SpellVisualKitEffect.dbd`).
   - When its kit starts on a unit, the kit plays one of the SoundKit's `SoundKitEntry` files, weighted by `Frequency` (0 never plays), at `SoundKit.VolumeFloat` × entry `Volume` × master × effects.
@@ -78,7 +81,7 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CAC
     - The value → field mapping is undocumented. 34-40 are inferred from the 12.x field order: Windup, WindupCritical, Charge, ChargeCritical, BattleShout, BattleShoutCritical, Taunt. The evidence is Charge's kit 44000 using 36 and Battle Shout's 43995 using 38. Other values are not played.
     - A unit's row is `CreatureDisplayInfo.SoundID`, else its model's `CreatureModelData.SoundID`. A player's display comes from `ChrRaceXChrModel` → `ChrModel.DisplayID`. For example, Human male → display 57899 → model 7661 → CreatureSoundData 49 → BattleShout 58088 (7 files); female → 50 → 58100.
     - The cast clip's `$SCD` M2 event (the action layer reports it) plays `SpellCastDirectedSoundID`. Only 3 rows set it in 12.1.0.69933, and Human 49/50 are 0.
-  - **Synthetic outcomes.** The Godot client plays no synthetic CastStart sweep (removed) and no synthetic Impact/Heal outcome; impact kits carry those sounds. Miss and Interrupt outcomes stay synthetic ([[sound]]).
+  - **No synthetic outcomes.** The Godot client plays no synthetic PCM for casts, impacts, heals, misses or interrupts. Spell results sound through their kits. An interrupt sounds through the interrupting spell's kits: Pummel (6552) visual 47968's impact kit 59620 plays SoundKit 53711 on its target. Melee outcomes are below.
   - **SoundKits by spell (12.1.0.69933):**
 
     | Spell | Kit sounds |
@@ -99,6 +102,54 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CAC
 - **Kit model placement.** A model hangs from the unit model's `Skeleton3D/AttachmentBone{id}/Attachment{id}`; `-1` means the unit's origin. It plays its start clip once (the kit's, else Stand), Hold (158) while a held kit lasts, then Decay (159) at the end, and is freed after its particles' longest life. These defaults are inferred from how spell models author their emission. Battle Shout's buff 6194303 enables emitters at 133 ms of Stand, holds steady in Hold, and ramps down in Decay.
 - **Virtual attachment 56.** VirtualSpellDirected is absent from character models. It is taken as the midpoint of SpellLeftHand 21 and SpellRightHand 22 (inferred). Any other missing attachment is reported and uses the origin.
 - **Keyframed emission.** Spell effect emitters author their bursts as keyframed `emissionRate`/`emissionSpeed`/`enabledIn` tracks; the static first key is usually 0. `EmitterSim::set_animation` evaluates them at the placed model's playing sequence time, and pools are sized for the track's peak rate. Doodads get the same behavior.
+
+## Melee sounds
+
+Melee swings play their Retail swoosh, impact and wound sounds. `godot/core/src/spell_visual_melee.rs` resolves them and `godot/rust/src/spell_melee.rs` plays them through `SpellSounds` (sources `swing`, `impact`, `voice`).
+
+**Timing.** The attacker's attack clip times the sounds with its M2 events. wowdev.wiki/M2 "Events" gives `$CSS` as "PlayWeaponSwooshSound ... sound played depends on CGUnit_C::GetWeaponSwingType" and `$CAH` as "CGUnit_C::HandleCombatAnimEvent".
+- A melee `CombatEvent` is held as its attacker's pending swing. `$CSS` plays the swoosh, and `$CAH` lands the swing on the victim.
+- A hit or crit plays the weapon's impact and the victim's injury voice. A parry plays the impact on the parrying weapon. A miss or dodge is the swoosh alone.
+- The events: HumanMale HD Attack1H (17) `$CSS` 300 ms, `$CAH` 400 ms; kobold2 Attack1H 233/366 ms. Attack clips of both models carry them.
+- A hit reaction no longer cuts the victim's own swing short (`ActionPriority::Reaction` below swings). The server lands both sides' swings in the same tick, so before this the victim's wound replaced its own attack clip before `$CSS`.
+
+**Resolution.**
+- Swoosh: `ItemDisplayInfo.OverrideSwooshSoundKitID` of the main hand (10 displays set it), else `WeaponSwingSounds2` of (`ItemSubClass.WeaponSwingSize` as `SwingType`, crit). wowdev.wiki/DB/WeaponSwingSounds2: SwingType "match with ItemSubClassRec::m_WeaponSwingSize". Sizes 0-2 are Light, Medium and Heavy. Dagger and Fishing Pole have size 8, which is no `SwingType`, so they play no swoosh (gap).
+- Impact: the `WeaponImpactSounds` row of the attacker's (`WeaponSubClassID`, `ParrySoundType`, `ImpactSource`), its `ImpactSoundID` or `CritImpactSoundID` array at the victim's index.
+  - `ParrySoundType` is the weapon's PARRYMATERIAL (wowdev.wiki/DB/WeaponImpactSounds: WOOD 0, METAL 1). `Item.Material` 2 (Wood) is wood; every other material is taken as metal (inferred).
+  - `ImpactSource` (inferred from the files): 1 rows hold the player sets, 0 rows the `*_npc_*` and pre-revamp sets. Players swing 1, creatures 0. A subclass without the exact row takes its closest row: same source first, then same parry material.
+  - Index materials (inferred from the files of every row, e.g. row 8): 0 flesh, 1 chain, 2 plate, 3 metal shield, 4 wood shield, 5 metal parry, 6 wood parry, 7 wood body, 8 stone body, 9 ethereal, 10 flesh or leather.
+  - A hit lands on `CreatureSoundData.CreatureImpactType` through the client's `s_creatureIpactSounds` = {FLESH 0, STONE 8, WOOD 7, ETHEREAL 9} (wowdev.wiki/DB/CreatureSoundData). Types 4-6 (142 rows) are undocumented and play no impact.
+  - A parry lands on the parrying weapon: index 5 metal, 6 wood.
+- Bare hands swing the display's `CreatureDisplayInfo.UnarmedWeaponType` subclass (11 Bear Claws, 12 Cat Claws). -1 (120,471 displays) is taken as Fist Weapon (13), whose rows hold the `unarmed*` files (inferred). Bare hands parry as wood.
+- `Item.Sound_override_subclassID`, when set, replaces the weapon's subclass.
+- Voices (`spell_visual_voice.rs`): the victim's `SoundInjuryID`, on a crit `SoundInjuryCriticalID` (or `SoundInjuryID` when 0: Human 49's injury kit 2942 holds the `woundcrit` files); `SoundDeathID` when an NPC's death clip starts (wowdev `$DTH`: m_soundDeathID "is just always triggered as soon as the death animation plays").
+
+**Worked example (12.1.0.69933, core test `godot/core/tests/melee_sounds.rs`).**
+
+| Case | Chain | SoundKit | Files |
+|---|---|---|---|
+| Warrior swoosh | Worn Shortsword `Item` 25 → Sword (7) → WeaponSwingSize 1 → SwingType Medium | 235 (236 crit) | 1302596-1302605 `fx_whoosh_medium_revamp_01-10` |
+| Warrior hit on a Kobold Vermin | row 8 (sub 7, metal, player) × CreatureSoundData 5042 impact type 0 → index 0 | 53248 (53249 crit) | 1247339-1247348 `1h_sword_hit_flesh_01-10` |
+| Warrior parried by the kobold's staff | row 8 index 6 | 53263 | `1h_sword_hit_wood_parry_01` |
+| Kobold swoosh | `Item` 5276 → Staff (10) → size 2 → Heavy | 237 (238 crit) | 567936, 567943, 567941 `mwooshlarge1-3` |
+| Kobold hit on the warrior | row 10 (sub 10, wood, creature) × Human 49 impact 0 | 61562 (61563 crit) | 1394207-1394212 `staff_wood_npc_hit_flesh_01-06` |
+| Kobold parried by the sword | row 10 index 5 | 61557 | `staff_wood_parry_09` |
+| Kobold wound / crit / death | display 10913 → model 8379 → CreatureSoundData 5042 | 53725 / 53726 / 53727 | 1255506-1255513 `mon_kobold_v2_wound_01-08` |
+| Warrior wound / death | CreatureSoundData 49 | 2942 / 2944 | 16 files incl. `humanmalemainwoundcrita` 542371 |
+| Blackrock Worg (49871) swoosh, hit, parried | display 40147, no item → Fist (13), size 1; row 13 | 235; 1014; 1019 | `unarmedattacksmalla`, `unarmedparrymetala` |
+| Worg wound / death | CreatureSoundData 2482 | 11908 / 11910 | |
+
+The live Northshire content has no Kobold Vermin (retail phase: Blackrock Worg, Invader, Spy, Goblin Assassin), so the live fixture fights a Blackrock Worg.
+
+**Live proof (2026-09-30).** `godot/tests/melee_sounds_live.gd`, private game-server `c47217b` on UDP 5097 (fresh redb, shared-protocol `aa848af`), Human warrior `Fbmelee` with the Worn Shortsword (granted: a fresh character spawns with no equipment) next to a Blackrock Worg; exit 0, log `data/diagnostics/melee-sounds-2026-09-30/fixture.log`.
+- Warrior swings swoosh 235 (`fx_whoosh_medium_revamp_*`, FDIDs 1302597-1302605) and land 53248 (1247344, 1247347) with the worg's wound 11908 (559528-559532); gaps 89-92 ms against Attack1H's 100 ms.
+- Worg swings swoosh 235 and land 1014 (567919-567928) with the warrior's wound 2942 (951376-951390, 542369); gaps 54-154 ms (longest frame 0.48 s).
+- The warrior's Avoided swing at 18.643 swooshed (1302597 at 19.046) with no impact.
+- An earlier run on the same revision logged the worg's death 11910 (559527); that run had no avoided swing in 47 events.
+- A first-use sound starts when its file finishes loading (async asset loader), so its logged start can trail the event: one swoosh started 72 ms after its own impact.
+
+**Not modelled:** armour (a player's chain or plate impact index), blocks (the server sends a block as MeleeDamage), the `Pierce*` columns, the attacker's `SoundExertionID` voice (what triggers it on a plain swing is undocumented), crits (the server sends a crit as MeleeDamage, so `CriticalHit` is handled but never arrives).
 
 ## Asset loading (`godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`)
 
@@ -189,7 +240,7 @@ Videos (1x and half speed), stills and 2 fps contact sheets are in `data/diagnos
   - 1851: the missile leaves the hand, pointing at the dummy.
   - 1852-1857: flight.
   - 1858: impact 1599028 on the dummy.
-- The damage number showing 13 frames before the impact is the server's same-tick damage (see Server timing).
+- The damage number showing 13 frames before the impact was the server's same-tick damage at the time of this capture (fixed in game-server `fa5e689`; about 200 ms early remains, see Server timing). Not re-captured.
 - Evidence is in `data/diagnostics/spellcast-anim-2026-09-29c/`: `mage-frostbolt-1x.mp4` (release at about 61.5 s), `mage-frostbolt-halfspeed.mp4` (about 123 s), `mage-fixture.log` and `stills-mage/`.
 - Root `cargo test -p game-engine --lib m2_` passes 92/92, including `m2_event::tests::human_male_hd_cast_clips_fire_their_release_events` (`tests/unit/asset/m2_event_tests.rs`: 53 fires `$CSL` bone 209 and `$SCD` bone 215 at 200 ms, 54 fires `$CST` at 200 ms, 51 fires nothing). Log: `root-m2-tests.log`.
 - The Godot-workspace tests later ran on Depot (see Frostbolt kit sounds).
@@ -285,7 +336,8 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 ## Sources
 
 - `godot/rust/src/asset_startup.rs`, `godot/rust/src/lib.rs`, `godot/rust/src/startup.rs` — explicit CASC startup worker and readiness/failure gate (`c0165d28`, source audit only)
-- `godot/core/src/spell_visual.rs`, `godot/rust/src/spell_effects.rs`, `godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`, `godot/rust/src/world_combat.rs`, `godot/rust/src/animation/action.rs`
+- `godot/core/src/spell_visual.rs`, `spell_visual_melee.rs`, `godot/rust/src/spell_effects.rs`, `spell_melee.rs`, `godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`, `godot/rust/src/world_combat.rs`, `godot/rust/src/animation/action.rs`
+- wowdev.wiki DB/WeaponSwingSounds2, DB/WeaponImpactSounds, DB/CreatureSoundData (archived 2025) — swing type, parry material, `s_creatureIpactSounds`
 - WoWDBDefs (`~/Repos/wowless/vendor/dbdefs/definitions`) — layouts
 - TrinityCore `ConditionMgr.cpp` `IsPlayerMeetingCondition`, `DBCEnums.h` `PlayerConditionFlags`
 - WMVx `animation-names.csv` — animation ids

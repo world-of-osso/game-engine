@@ -33,6 +33,8 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   SoundKit                     FDID 1237434
   SoundKitEntry                FDID 1237435
   CreatureSoundData            FDID 1344466
+  WeaponSwingSounds2           FDID 1267068
+  WeaponImpactSounds           FDID 1267648
   ChrModel                     FDID 3384313
   ChrRaceXChrModel             FDID 3490304
   LightParams                  FDID 1334669
@@ -285,6 +287,11 @@ TABLES = {
         0xE5EE765B,
         [
             ("ID", "id"),
+            ("SoundExertionID", 1),
+            ("SoundExertionCriticalID", 2),
+            ("SoundInjuryID", 3),
+            ("SoundInjuryCriticalID", 4),
+            ("SoundDeathID", 6),
             ("SpellCastDirectedSoundID", 21),
             ("WindupSoundID", 24),
             ("WindupCriticalSoundID", 25),
@@ -293,6 +300,27 @@ TABLES = {
             ("BattleShoutSoundID", 28),
             ("BattleShoutCriticalSoundID", 29),
             ("TauntSoundID", 30),
+            ("CreatureImpactType", ("i8", 34)),
+        ],
+    ),
+    # WoWDBDefs layout 8CC18B68 (non-inline ID).
+    "WeaponSwingSounds2": (
+        0x8CC18B68,
+        [("ID", "id"), ("SwingType", ("u8", 0)), ("Crit", ("u8", 1)), ("SoundID", 2)],
+    ),
+    # WoWDBDefs layout A77CBD9D (non-inline ID); the four sound arrays have 11 elements.
+    "WeaponImpactSounds": (
+        0xA77CBD9D,
+        [("ID", "id"), ("WeaponSubClassID", ("u8", 0)), ("ParrySoundType", ("u8", 1)), ("ImpactSource", ("u8", 2))]
+        + [
+            (f"{name}_{element}", ("int", field, element))
+            for field, name in (
+                (3, "ImpactSoundID"),
+                (4, "CritImpactSoundID"),
+                (5, "PierceImpactSoundID"),
+                (6, "PierceCritImpactSoundID"),
+            )
+            for element in range(11)
         ],
     ),
     # WoWDBDefs layout 03FAB755: the inline ID is field 2.

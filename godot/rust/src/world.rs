@@ -350,28 +350,35 @@ fn attach_unit_visual(
     }
 }
 
-fn sync_unit_death(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
+/// Play a dead NPC's death clip once; whether it started now.
+fn sync_unit_death(unit: &mut UnitNode, snapshot: &UnitSnapshot) -> bool {
     let alive = snapshot
         .health
         .as_ref()
         .is_none_or(|health| health.current > 0.0);
     if unit.death_applied || alive {
-        return;
+        return false;
     }
     if snapshot.npc.is_none() || unit.is_player {
-        return;
+        return false;
     }
     let Some(animation) = unit
         .visual
         .as_ref()
         .and_then(|visual| visual.get_node_or_null("NpcModel/M2Animation"))
     else {
-        return;
+        return false;
     };
     let mut animation = animation.cast::<WowAnimationPlayer>();
     match animation.bind_mut().play_death() {
-        Ok(()) => unit.death_applied = true,
-        Err(error) => godot_error!("NPC {} death animation: {error}", snapshot.server_id),
+        Ok(()) => {
+            unit.death_applied = true;
+            true
+        }
+        Err(error) => {
+            godot_error!("NPC {} death animation: {error}", snapshot.server_id);
+            false
+        }
     }
 }
 
@@ -557,6 +564,8 @@ pub struct WorldUnits {
     /// Loaded visuals waiting for main-thread time, oldest first.
     arrived: VecDeque<(u64, Result<VisualParts, String>)>,
     light: Option<TerrainLight>,
+    /// Units whose death clip started since `take_deaths`.
+    deaths: Vec<u64>,
 }
 
 impl WorldUnits {
@@ -571,6 +580,7 @@ impl WorldUnits {
             models: WorldModels::new(data_root, cache_root),
             arrived: VecDeque::new(),
             light: None,
+            deaths: Vec::new(),
         }
     }
 
@@ -610,7 +620,9 @@ impl WorldUnits {
         (unit.weapon, unit.main_hand_subclass) = combat::unit_weapon_class(unit, &mut self.models);
         sync_unit_sheath(unit, snapshot, &mut self.models);
         sync_unit_pose(unit, snapshot, &mut self.models);
-        sync_unit_death(unit, snapshot);
+        if sync_unit_death(unit, snapshot) {
+            self.deaths.push(snapshot.server_id);
+        }
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         sync_unit_animation(unit, snapshot, fallbacks);
         unit.motion.set_target(
@@ -781,6 +793,7 @@ impl WorldUnits {
     pub fn reset(&mut self) {
         self.light = None;
         self.units.clear();
+        self.deaths.clear();
         self.local_player_id = None;
         self.selected_name = None;
         if let Some(root) = self.root.take() {

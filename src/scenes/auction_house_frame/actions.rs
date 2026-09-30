@@ -22,6 +22,8 @@ const SEARCH_PAGE_SIZE: u32 = 50;
 
 fn search_query(text: &str) -> AuctionSearchQuery {
     AuctionSearchQuery {
+        item_id: None,
+        class_id: None,
         text: text.trim().to_string(),
         page: 0,
         page_size: SEARCH_PAGE_SIZE,

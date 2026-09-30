@@ -5,6 +5,7 @@ pub mod appearance_options;
 pub use game_engine_core::{customization_data, outfit_data};
 mod asset_startup;
 mod assets;
+mod auction;
 mod auras;
 mod auto_attack;
 mod camera;
@@ -43,7 +44,6 @@ mod scene;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
-mod sound_outcome;
 mod spell_assets;
 mod spell_effects;
 mod spell_sounds;
@@ -156,6 +156,7 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
+    auction: auction::Auction,
     auto_attack: auto_attack::AutoAttack,
     auras: auras::Auras,
     last_process_ms: f64,
@@ -246,6 +247,7 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
+            auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
             last_process_ms: 0.0,
@@ -332,6 +334,19 @@ impl INode3D for GameClient {
                 viewport.set_input_as_handled();
             }
             return;
+        }
+        match self.auction_key(key.get_keycode()) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Err(error) => {
+                self.handle_frame_error("Auction key", error.into());
+                return;
+            }
+            Ok(false) => {}
         }
         match self.merchant_key(key.get_keycode()) {
             Ok(true) => {
@@ -635,6 +650,11 @@ impl GameClient {
         self.merchant_snapshot()
     }
 
+    #[func]
+    fn auction_state(&self) -> VarDictionary {
+        self.auction_snapshot()
+    }
+
     /// Spell visual kits started, kit models and missiles shown.
     #[func]
     fn spell_visuals_state(&self) -> VarDictionary {
@@ -775,6 +795,9 @@ impl GameClient {
             }
         }
         self.merchant.visit_uis(&mut visit)?;
+        if let Some(ui) = &mut self.auction.ui {
+            visit(ui)?;
+        }
         self.spells.visit_uis(&mut visit)?;
         self.targeting.visit_uis(&mut visit)?;
         self.minimap.visit_uis(&mut visit)?;
@@ -1213,6 +1236,7 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
             ("Merchant", |c, _| c.update_merchant()),
+            ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
             ("World map", |c, _| Ok(c.update_world_map()?)),
             ("Minimap", |c, _| c.update_minimap()),
@@ -1311,12 +1335,7 @@ impl GameClient {
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
-            AccountEvent::Combat(message) => {
-                if let account::CombatMessage::Event(event) = &message {
-                    self.play_combat_outcome(event);
-                }
-                self.receive_combat_message(message)?;
-            }
+            AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::UnitUpdated(unit) => {
                 let mut parent = self.to_gd().upcast::<Node3D>();
                 self.world.upsert(&mut parent, &unit);
@@ -1335,6 +1354,7 @@ impl GameClient {
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
             AccountEvent::Npc(message) => self.receive_npc_message(message)?,
+            AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::UnitRemoved(id) => {
                 self.world.remove(id);

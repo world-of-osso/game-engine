@@ -102,6 +102,7 @@ enum ScreenPostsetup {
     WorldMap,
     EntranceBar,
     Merchant,
+    Auction,
     Spellbook,
     Minimap,
 }
@@ -114,7 +115,7 @@ impl RegistryModel {
 
     fn apply_postsetup(&mut self) {
         match self.postsetup {
-            ScreenPostsetup::None | ScreenPostsetup::Loading => {}
+            ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Auction => {}
             ScreenPostsetup::WorldMap => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
@@ -252,6 +253,18 @@ impl RegistryModel {
         match self.postsetup {
             ScreenPostsetup::Login if !connecting => {
                 actions.push_back(login::LoginAction::Connect.to_string());
+            }
+            ScreenPostsetup::Auction
+                if self
+                    .registry
+                    .focused_frame
+                    .and_then(|id| self.registry.get(id))
+                    .is_some_and(|frame| {
+                        frame.name.as_deref()
+                            == Some(game_engine_ui_model::auction_house_frame_component::SEARCH_BOX)
+                    }) =>
+            {
+                actions.push_back("auction_search".into())
             }
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
@@ -582,6 +595,67 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_hud_model(model, parent)
+    }
+
+    pub fn show_auction_gossip(
+        &mut self,
+        state: game_engine_ui_model::auction::AuctionGossipView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(&mut registry)?;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut model = RegistryModel {
+            screen: Screen::new(game_engine_ui_model::auction::auction_gossip_screen),
+            shared,
+            registry,
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_hud_model(model, parent)
+    }
+    pub fn show_auction(
+        &mut self,
+        state: game_engine_ui_model::auction::NativeAuctionView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(&mut registry)?;
+        register_auction_popup_style(&mut registry);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut model = RegistryModel {
+            screen: Screen::new(game_engine_ui_model::auction::native_auction_screen),
+            shared,
+            registry,
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::Auction,
+        };
+        model.sync();
+        self.initialize_hud_model(model, parent)
+    }
+    pub fn set_auction(
+        &mut self,
+        state: game_engine_ui_model::auction::NativeAuctionView,
+    ) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Auction UI not initialized")?;
+        if model
+            .shared
+            .get::<game_engine_ui_model::auction::NativeAuctionView>()
+            == Some(&state)
+        {
+            return Ok(());
+        }
+        model.shared.insert(state);
+        self.sync_model()
     }
 
     /// Replace the merchant screen states; unchanged states do not resync.
@@ -1178,6 +1252,19 @@ impl RegistryUi {
         clicks
     }
 
+    /// Read-only action lookup for pointer fixtures; input still travels through Godot.
+    #[func]
+    fn control_for_action(&self, action: GString) -> Option<Gd<Control>> {
+        let model = self.model.as_ref()?;
+        let action = action.to_string();
+        model
+            .registry
+            .frames_iter()
+            .filter(|frame| frame.onclick.as_deref() == Some(action.as_str()))
+            .filter_map(|frame| self.projection.as_ref()?.node(frame.id))
+            .find(|node| node.is_visible_in_tree())
+    }
+
     #[func]
     pub fn pop_action(&mut self) -> GString {
         let error = self.sync_input();
@@ -1440,3 +1527,28 @@ mod button_style_tests;
 #[cfg(test)]
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;
+
+fn register_auction_popup_style(registry: &mut FrameRegistry) {
+    const COLUMNS: [f32; 4] = [1.0 / 128.0, 17.0 / 128.0, 55.0 / 128.0, 71.0 / 128.0];
+    let mut uv_rects = [[0.0; 4]; 9];
+    for (part, rect) in uv_rects.iter_mut().enumerate() {
+        let (col, row) = (part % 3, part / 3);
+        *rect = [
+            COLUMNS[col],
+            COLUMNS[col + 1],
+            COLUMNS[row],
+            COLUMNS[row + 1],
+        ];
+    }
+    registry.register_panel_style(
+        "static_popup",
+        NineSlice {
+            edge_size: 16.0,
+            bg_color: [1.0; 4],
+            border_color: [1.0; 4],
+            texture: Some(TextureSource::FileDataId(6_795_680)),
+            uv_rects: Some(uv_rects),
+            ..Default::default()
+        },
+    );
+}
