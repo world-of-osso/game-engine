@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] implementation | Server-global native auction browse
+
+Updated [[auction-house-ui]] and spec after `5b9cb76c`: native browse now consumes server-global distinct-item pages, authoritative unit price and `u64` stock; drilldown/sell remain flat with real auction IDs. Snapshot adds `groups` and active endpoint flag; fixture reads groups. Targeted Depot native model 8/8, owned UDP 1/1 and shared frame 1/1 passed. Model RED missing-API compilation and wire RED missing-reply timeout recorded separately. Host/runtime proof remains with main after game-cli; no integration/ops run.
+
 ## [2026-09-30] implementation | Bounded native auction client
 
 Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, portable trading validation, exact-item/category queries, all fetched-row/server-page navigation and corrected duration labels. Targeted current model 8/8, retained owned UDP 1/1 and current host compile/range test 1/1 passed; no Godot runtime executed. Main owns game-cli-first integration and native smoke; no runtime/full-AH acceptance claim.
@@ -7,6 +11,10 @@ Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, port
 ## [2026-09-30] update | Server missile timing
 
 [[spell-visuals]] Server timing: game-server `fa5e689` delays missile hits by TrinityCore's `max(dist, 5) / Speed + LaunchDelay` (`Spell::HandleDelayed`). Frostbolt's damage number no longer arrives with `SpellGo`. About 200 ms early remains: the server clock starts at the cast, while the client releases at the M2 event. Not re-captured on the client.
+
+## [2026-09-30] feature | Retail class resource bars
+
+Every player class bar now ports its Retail template and mixin: art, animation groups and visibility gates. Rogue and druid combo points, chi, soul shards (with Destruction fragments), essence, death knight runes, holy power and Arcane Charges are covered. `ui/screens/class_bars/` holds a small `AnimationGroup` player plus one module per bar. Live proof against a private server: rogue, paladin, warlock, mage and a caster-form druid (bar hidden). Monk and Evoker cannot be created on the server. Runes wait on per-rune cooldowns from the powers protocol. See [ui-system](systems/ui-system.md#unit-frames).
 
 ## [2026-09-30] feature | Retail melee sounds; synthetic miss/interrupt PCM removed
 
