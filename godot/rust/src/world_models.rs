@@ -487,7 +487,7 @@ mod tests {
     #[test]
     fn stockade_guard_display_armor_resolves_to_body_geosets() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let models = WorldModels::new(data_root.clone(), data_root.join("cache"));
         let armor = models.gear().unwrap().display_armor(2989).unwrap();
         let resolved = resolve_equipment_appearance(&armor, models.outfit(), 1, 0).unwrap();
         for geoset in [(4, 2), (5, 2), (20, 2), (12, 2)] {
