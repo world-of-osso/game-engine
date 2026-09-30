@@ -62,11 +62,14 @@ pub mod input_bindings_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
 pub mod light_lookup_data;
 pub mod lighting_assets;
+pub mod liquid_data;
 #[path = "../../../src/game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
+pub mod m2_billboard;
 #[path = "../../../src/asset/m2_effect_uv_data.rs"]
 pub mod m2_effect_uv_data;
+pub mod m2_lights;
 pub mod m2_particles;
 #[path = "../../../src/asset/m2_texture_composite_data.rs"]
 pub mod m2_texture_composite_data;
@@ -83,14 +86,10 @@ pub mod nameplate_visibility_data;
 mod nameplate_visibility_data_tests;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
-#[path = "../../../src/sound/spell_cast_data.rs"]
-pub mod spell_cast_data;
 pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
 pub mod ui_layout_data;
-#[path = "../../../src/water_material_data.rs"]
-pub mod water_material_data;
 #[path = "../../../src/sound/wmo_surface_data.rs"]
 pub mod wmo_surface_data;
 #[cfg(test)]

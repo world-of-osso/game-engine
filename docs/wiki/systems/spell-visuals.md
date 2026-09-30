@@ -22,6 +22,9 @@ The Godot client plays each spell's Retail visual kits on replicated units. That
 | AnimationData | 1375431 | BBF66A3C |
 | SoundKit | 1237434 | A7FB0451 |
 | SoundKitEntry | 1237435 | 8F82FF7D |
+| CreatureSoundData | 1344466 | E5EE765B |
+| WeaponSwingSounds2 | 1267068 | 8CC18B68 |
+| WeaponImpactSounds | 1267648 | A77CBD9D |
 
 Two export pitfalls:
 
@@ -78,7 +81,7 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CAC
     - The value → field mapping is undocumented. 34-40 are inferred from the 12.x field order: Windup, WindupCritical, Charge, ChargeCritical, BattleShout, BattleShoutCritical, Taunt. The evidence is Charge's kit 44000 using 36 and Battle Shout's 43995 using 38. Other values are not played.
     - A unit's row is `CreatureDisplayInfo.SoundID`, else its model's `CreatureModelData.SoundID`. A player's display comes from `ChrRaceXChrModel` → `ChrModel.DisplayID`. For example, Human male → display 57899 → model 7661 → CreatureSoundData 49 → BattleShout 58088 (7 files); female → 50 → 58100.
     - The cast clip's `$SCD` M2 event (the action layer reports it) plays `SpellCastDirectedSoundID`. Only 3 rows set it in 12.1.0.69933, and Human 49/50 are 0.
-  - **Synthetic outcomes.** The Godot client plays no synthetic CastStart sweep (removed) and no synthetic Impact/Heal outcome; impact kits carry those sounds. Miss and Interrupt outcomes stay synthetic ([[sound]]).
+  - **No synthetic outcomes.** The Godot client plays no synthetic PCM for casts, impacts, heals, misses or interrupts. Spell results sound through their kits. An interrupt sounds through the interrupting spell's kits: Pummel (6552) visual 47968's impact kit 59620 plays SoundKit 53711 on its target. Melee outcomes are below.
   - **SoundKits by spell (12.1.0.69933):**
 
     | Spell | Kit sounds |
@@ -100,6 +103,54 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CAC
 - **Virtual attachment 56.** VirtualSpellDirected is absent from character models. It is taken as the midpoint of SpellLeftHand 21 and SpellRightHand 22 (inferred). Any other missing attachment is reported and uses the origin.
 - **Keyframed emission.** Spell effect emitters author their bursts as keyframed `emissionRate`/`emissionSpeed`/`enabledIn` tracks; the static first key is usually 0. `EmitterSim::set_animation` evaluates them at the placed model's playing sequence time, and pools are sized for the track's peak rate. Doodads get the same behavior.
 
+## Melee sounds
+
+Melee swings play their Retail swoosh, impact and wound sounds. `godot/core/src/spell_visual_melee.rs` resolves them and `godot/rust/src/spell_melee.rs` plays them through `SpellSounds` (sources `swing`, `impact`, `voice`).
+
+**Timing.** The attacker's attack clip times the sounds with its M2 events. wowdev.wiki/M2 "Events" gives `$CSS` as "PlayWeaponSwooshSound ... sound played depends on CGUnit_C::GetWeaponSwingType" and `$CAH` as "CGUnit_C::HandleCombatAnimEvent".
+- A melee `CombatEvent` is held as its attacker's pending swing. `$CSS` plays the swoosh, and `$CAH` lands the swing on the victim.
+- A hit or crit plays the weapon's impact and the victim's injury voice. A parry plays the impact on the parrying weapon. A miss or dodge is the swoosh alone.
+- The events: HumanMale HD Attack1H (17) `$CSS` 300 ms, `$CAH` 400 ms; kobold2 Attack1H 233/366 ms. Attack clips of both models carry them.
+- A hit reaction no longer cuts the victim's own swing short (`ActionPriority::Reaction` below swings). The server lands both sides' swings in the same tick, so before this the victim's wound replaced its own attack clip before `$CSS`.
+
+**Resolution.**
+- Swoosh: `ItemDisplayInfo.OverrideSwooshSoundKitID` of the main hand (10 displays set it), else `WeaponSwingSounds2` of (`ItemSubClass.WeaponSwingSize` as `SwingType`, crit). wowdev.wiki/DB/WeaponSwingSounds2: SwingType "match with ItemSubClassRec::m_WeaponSwingSize". Sizes 0-2 are Light, Medium and Heavy. Dagger and Fishing Pole have size 8, which is no `SwingType`, so they play no swoosh (gap).
+- Impact: the `WeaponImpactSounds` row of the attacker's (`WeaponSubClassID`, `ParrySoundType`, `ImpactSource`), its `ImpactSoundID` or `CritImpactSoundID` array at the victim's index.
+  - `ParrySoundType` is the weapon's PARRYMATERIAL (wowdev.wiki/DB/WeaponImpactSounds: WOOD 0, METAL 1). `Item.Material` 2 (Wood) is wood; every other material is taken as metal (inferred).
+  - `ImpactSource` (inferred from the files): 1 rows hold the player sets, 0 rows the `*_npc_*` and pre-revamp sets. Players swing 1, creatures 0. A subclass without the exact row takes its closest row: same source first, then same parry material.
+  - Index materials (inferred from the files of every row, e.g. row 8): 0 flesh, 1 chain, 2 plate, 3 metal shield, 4 wood shield, 5 metal parry, 6 wood parry, 7 wood body, 8 stone body, 9 ethereal, 10 flesh or leather.
+  - A hit lands on `CreatureSoundData.CreatureImpactType` through the client's `s_creatureIpactSounds` = {FLESH 0, STONE 8, WOOD 7, ETHEREAL 9} (wowdev.wiki/DB/CreatureSoundData). Types 4-6 (142 rows) are undocumented and play no impact.
+  - A parry lands on the parrying weapon: index 5 metal, 6 wood.
+- Bare hands swing the display's `CreatureDisplayInfo.UnarmedWeaponType` subclass (11 Bear Claws, 12 Cat Claws). -1 (120,471 displays) is taken as Fist Weapon (13), whose rows hold the `unarmed*` files (inferred). Bare hands parry as wood.
+- `Item.Sound_override_subclassID`, when set, replaces the weapon's subclass.
+- Voices (`spell_visual_voice.rs`): the victim's `SoundInjuryID`, on a crit `SoundInjuryCriticalID` (or `SoundInjuryID` when 0: Human 49's injury kit 2942 holds the `woundcrit` files); `SoundDeathID` when an NPC's death clip starts (wowdev `$DTH`: m_soundDeathID "is just always triggered as soon as the death animation plays").
+
+**Worked example (12.1.0.69933, core test `godot/core/tests/melee_sounds.rs`).**
+
+| Case | Chain | SoundKit | Files |
+|---|---|---|---|
+| Warrior swoosh | Worn Shortsword `Item` 25 → Sword (7) → WeaponSwingSize 1 → SwingType Medium | 235 (236 crit) | 1302596-1302605 `fx_whoosh_medium_revamp_01-10` |
+| Warrior hit on a Kobold Vermin | row 8 (sub 7, metal, player) × CreatureSoundData 5042 impact type 0 → index 0 | 53248 (53249 crit) | 1247339-1247348 `1h_sword_hit_flesh_01-10` |
+| Warrior parried by the kobold's staff | row 8 index 6 | 53263 | `1h_sword_hit_wood_parry_01` |
+| Kobold swoosh | `Item` 5276 → Staff (10) → size 2 → Heavy | 237 (238 crit) | 567936, 567943, 567941 `mwooshlarge1-3` |
+| Kobold hit on the warrior | row 10 (sub 10, wood, creature) × Human 49 impact 0 | 61562 (61563 crit) | 1394207-1394212 `staff_wood_npc_hit_flesh_01-06` |
+| Kobold parried by the sword | row 10 index 5 | 61557 | `staff_wood_parry_09` |
+| Kobold wound / crit / death | display 10913 → model 8379 → CreatureSoundData 5042 | 53725 / 53726 / 53727 | 1255506-1255513 `mon_kobold_v2_wound_01-08` |
+| Warrior wound / death | CreatureSoundData 49 | 2942 / 2944 | 16 files incl. `humanmalemainwoundcrita` 542371 |
+| Blackrock Worg (49871) swoosh, hit, parried | display 40147, no item → Fist (13), size 1; row 13 | 235; 1014; 1019 | `unarmedattacksmalla`, `unarmedparrymetala` |
+| Worg wound / death | CreatureSoundData 2482 | 11908 / 11910 | |
+
+The live Northshire content has no Kobold Vermin (retail phase: Blackrock Worg, Invader, Spy, Goblin Assassin), so the live fixture fights a Blackrock Worg.
+
+**Live proof (2026-09-30).** `godot/tests/melee_sounds_live.gd`, private game-server `c47217b` on UDP 5097 (fresh redb, shared-protocol `aa848af`), Human warrior `Fbmelee` with the Worn Shortsword (granted: a fresh character spawns with no equipment) next to a Blackrock Worg; exit 0, log `data/diagnostics/melee-sounds-2026-09-30/fixture.log`.
+- Warrior swings swoosh 235 (`fx_whoosh_medium_revamp_*`, FDIDs 1302597-1302605) and land 53248 (1247344, 1247347) with the worg's wound 11908 (559528-559532); gaps 89-92 ms against Attack1H's 100 ms.
+- Worg swings swoosh 235 and land 1014 (567919-567928) with the warrior's wound 2942 (951376-951390, 542369); gaps 54-154 ms (longest frame 0.48 s).
+- The warrior's Avoided swing at 18.643 swooshed (1302597 at 19.046) with no impact.
+- An earlier run on the same revision logged the worg's death 11910 (559527); that run had no avoided swing in 47 events.
+- A first-use sound starts when its file finishes loading (async asset loader), so its logged start can trail the event: one swoosh started 72 ms after its own impact.
+
+**Not modelled:** armour (a player's chain or plate impact index), blocks (the server sends a block as MeleeDamage), the `Pierce*` columns, the attacker's `SoundExertionID` voice (what triggers it on a plain swing is undocumented), crits (the server sends a crit as MeleeDamage, so `CriticalHit` is handled but never arrives).
+
 ## Asset loading (`godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`)
 
 Kit models, missile models and kit sound files load on two `spell-assets` worker threads. Nothing on the main thread waits for them.
@@ -113,13 +164,30 @@ Kit models, missile models and kit sound files load on two `spell-assets` worker
 - **Prefetch:** once the catalog is loaded and the local player is replicated, every known spell's visual (for the player's race, class and weapon) has its PrecastStart, ChannelStart, Cast, Impact, AuraStart and AuraEnd kit models, sound files and missile queued as prefetches. No retail source for spell-asset prefetching was found; retail's `preloadPlayerModels` CVar covers racial models only (warcraft.wiki.gg Console_variables). A weapon that replicates after the prefetch can resolve another visual, which then loads when it is first cast.
 - **Automation:** `spell_visuals_state()` reports `assets_pending`, each sound's `late` (seconds after its kit asked for it), and `frame_ms`, the main-thread time spell visuals took in the last frame (`SpellGo` handling plus the per-frame update).
 
-**Measurements (2026-09-30, first use; debug build; machine load average 12-35 from other agents' clients and builds).**
+### CASC startup initialization (source audit, 2026-09-30)
+
+`c0165d28` moves process-wide resolver initialization ahead of asset-using client startup. `GameClient::init` starts a named `casc-startup` thread; `AssetStartup::start` calls the shared local resolver's public `initialize()` there. This initializes resolver state, not the spell catalog or every spell asset; their workers and prefetch remain separate.
+
+`ready` configures display/focus without waiting for CASC. Each `process` polls the worker: while pending, it finishes physical-input bookkeeping and returns before normal client steps. Input handlers also return while startup is pending. `AssetStartup::poll` checks `is_finished` before joining and delivers completion once; the main thread does not join a running initializer.
+
+Only successful completion clears the pending gate and resumes sound initialization, startup intent (including attaching the asset-backed login UI and opening the requested screen), then UI-scale synchronization. Worker-spawn errors, initialization errors and worker panics reach the startup error path, which logs `Cannot initialize client: …` and requests exit code 1. There is no alternate startup path on failure.
+
+**Evidence boundary:** this is a source audit of `asset_startup.rs`, `lib.rs` and `startup.rs`, not a live startup-latency measurement. Worker tests in `asset_startup.rs` describe pending/non-caller-thread execution, one-shot completion, error and panic behavior; this docs audit did not run them. The historical first-use measurements below predate this explicit startup gate and do not prove its latency, rendered readiness, or elimination of later terrain/creature/equipment extraction stalls.
+
+**Live A/B (2026-09-30, `data/diagnostics/firstload-2026-09-30/ab/`).** Back-to-back first-use paladin runs under the same machine load (load average 11-33) used game-server `c47217b`, shared-protocol `aa848af`, a fresh redb, UDP 5094 and `SPELL_WORLD_TIMEOUT_S=0`. B is the engine at `e0000dd3`. C is the same build with the startup worker doing nothing (`initialize()` not called). A is master `73042fbc`, which already had both.
+- **Where the CASC init lands.** In C (runs C1, C2) the first extraction, character-select texture 948080, initialized CASC inside the main-thread "Account" step at world entry. In A and B (A1, A2, B1-B4) it ran on the `casc-startup` worker before any client step. Startup frames kept a 0.6-3.8 ms median with a 7-89 ms maximum while it ran.
+- **First Flash of Light.** It passed in B1-B4, C1, C2 and A2. Spell visuals took at most 5.1-18.7 ms of any frame, and the precast lasted 1.497-1.620 s for 1.45-1.5 s. A1 failed: a 1018 ms "World objects" frame inside the precast cut it to 0.750 s on the client clock, and that frame spent 52.7 ms on spell visuals.
+- asset-resolver `833a70f`: a failure to warm key-aware archive access is logged, and `initialize()` still succeeds. Only encrypted fallback reads need that access, so the client's startup gate no longer exits over it.
+
+**Historical measurements (2026-09-30, first use; before the explicit startup gate; debug build; machine load average 12-35 from other agents' clients and builds).**
 - **Before** (base `bba70f53`, `data/diagnostics/firstload-2026-09-30/before-*.log`):
   - The first CASC extraction initializes the resolver on the main thread: TACT keys plus the 1,931,507-entry resolution cache took 1548 ms and 1654 ms. It hit at world entry (an NPC aura's sound 569423 through `sync_casts`). In the earlier `paladin-first-use/` run it hit at the first Flash of Light.
   - Per file, extraction on the main thread took 0.6-40 ms for sounds, 1.4-33 ms for model+skin and 2.5-34 ms per model's textures. Parsing took 0.7-1.6 ms per model (`read_model`). Godot creation took 0.6-17 ms (`build_model`, including BLP decode and listfile lookups), 1.6-18 ms for particle placement, and 0.5-0.8 ms per Ogg stream.
   - Whole calls: `SpellGo` 45-59 ms, per-frame advance 27-86 ms, HoJ `sync_casts` 36 ms. Under load the "Spell visuals" frame step took 117 ms and 283 ms during the first Flash of Light.
 - **After** (`data/diagnostics/firstload-2026-09-30/after-*.log`): the prefetch extracted 175 files on the workers after world entry. The first Flash of Light, Judgment and Hammer of Justice sounds all played with `late=0.000`. Across the loaded runs the largest spell-visual frame share during Flash of Light was 30.4 ms, and the precast lasted 1.493-1.573 s on the client clock for a 1.500 s cast. The final run after merging master (`after-final-merged.log`, load average about 20) showed a 45.0 ms pre-press median, a worst frame of 54.8 ms and at most 4.3 ms of spell visuals per frame. Its precast lasted 1.512 s for the 1.450 s left at first sight, and the fixture exited with `SPELLCAST_ANIM_DONE`. The CASC init ran on a worker (its first extraction was a prefetched kit model).
-- **Other stalls the fixture sees** (not spell visuals; reported, not changed): in the loaded runs the "World objects" step took 50-1074 ms per frame and "Account" took up to 1.5-14.6 s. With a load average around 30, base and this branch alike never reached `world_objects.pending == 0` within 600-900 s. A 74-104 s frame at world entry also shows up in both.
+- **Other main-thread stalls** (not spell visuals; reported, not changed). Timings are from the 8 A/B runs, as frame steps of 50 ms or more:
+  - **"World objects" step** (ADT doodad/WMO spawning, budget `WORLD_OBJECT_BUDGET` 8 ms): 8-17 frames per run over 50 ms, a median of 73-158 ms and a maximum of 281-1018 ms. Earlier runs at load average 30 had 50-1074 ms, and `world_objects.pending` never reached 0 within 600-900 s in base or branch.
+  - **"Account" step at world entry:** one frame of 17.3-86.6 s (A1 18.3 s, A2 30.1 s, B1 17.3 s, B2 24.3 s, C1 23.2 s, C2 86.6 s, B3 81.6 s, B4 27.7 s). This is the longest frame of every run. Other Account frames reached 0.1-1.5 s. It appears with and without the CASC gate.
 
 **First-use fixture.** `scripts/agent/first-use-data.py <worktree> isolate` replaces the worktree's `data/models`, `data/textures` and `data/sounds` links with local directories of per-file links to canonical data. `--models`/`--textures` FDIDs are left out, and `sounds/spells/` is empty. `reset` deletes what a run extracted. The Flash of Light kit assets are models 2467327, 2470733, 1237495-1237497 and textures 2062922, 2447763, 1114588, 942427, 1114590-1114592. `spellcast_anim.gd` with `SPELL_SCENARIO=paladin` then requires the following from the press through the loops stopping:
 - no frame spends more than `SPELL_FRAME_SLACK_MS` (50) on spell visuals;
@@ -261,13 +329,15 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 - Missiles fly straight: `SpellMissileMotion` is not applied. `SpellVisualMissile` `CastOffset`/`ImpactOffset`/`Flags` and `SpellVisual.Flags` are not applied (Frostbolt's offsets are 0).
 - The missile starts at the missile attachment, not at the release event's bone and position. wowdev notes `$CSL/R/T are also used in CGUnit_C::ComputeDefaultMissileFirePos`, which is undocumented.
 - Other events (`$SHK` camera shake, `$FSD` footfall, `$AH*`/`$BRT`/`$FD*` voice events) are parsed but not played. Type-10 unit sound values outside 34-40 are not played (mapping unknown).
-- The CASC resolver initializes (1.5-1.7 s) on whichever thread extracts first. It is a worker when the spell prefetch comes first, but the terrain, creature and equipment loaders still extract, and can initialize it, on the main thread. A startup warm-up needs a public initialize entry point in asset-resolver.
+- CASC initializes on the `casc-startup` worker before client steps run (see [CASC startup initialization](#casc-startup-initialization-source-audit-2026-09-30) and its live A/B). Terrain, creature and equipment extraction itself still runs on the main thread; the world-entry "Account" frame (17-87 s) and "World objects" frames (up to 1 s) are the remaining first-run stalls.
 - Composite textures (a second texture or overlays on a non-effect batch) are still read and composited on the main thread by `build_model`. Spell effect batches are plain or effect textures.
 - Timed casts show no precast kits for observers until `CastState` replicates. Creature casts get kits only through `SpellGo`/`CastState`, like players.
 
 ## Sources
 
-- `godot/core/src/spell_visual.rs`, `godot/rust/src/spell_effects.rs`, `godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`, `godot/rust/src/world_combat.rs`, `godot/rust/src/animation/action.rs`
+- `godot/rust/src/asset_startup.rs`, `godot/rust/src/lib.rs`, `godot/rust/src/startup.rs` — explicit CASC startup worker and readiness/failure gate (`c0165d28`, source audit only)
+- `godot/core/src/spell_visual.rs`, `spell_visual_melee.rs`, `godot/rust/src/spell_effects.rs`, `spell_melee.rs`, `godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`, `godot/rust/src/world_combat.rs`, `godot/rust/src/animation/action.rs`
+- wowdev.wiki DB/WeaponSwingSounds2, DB/WeaponImpactSounds, DB/CreatureSoundData (archived 2025) — swing type, parry material, `s_creatureIpactSounds`
 - WoWDBDefs (`~/Repos/wowless/vendor/dbdefs/definitions`) — layouts
 - TrinityCore `ConditionMgr.cpp` `IsPlayerMeetingCondition`, `DBCEnums.h` `PlayerConditionFlags`
 - WMVx `animation-names.csv` — animation ids
