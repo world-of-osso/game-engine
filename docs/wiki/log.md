@@ -2148,3 +2148,7 @@ Player and target frames now sit at Retail's Modern Edit Mode preset. The target
 ## [2026-09-29] feature | Auras on the Godot HUD
 
 The Godot client shows the player BuffFrame/DebuffFrame and the Retail TargetFrame aura container ([buff frame spec](../specs/buff-frame.md)). The player's own auras are large (21 px). On a hostile NPC, other players' debuffs are hidden. Timed icons get the reverse cooldown swipe with its edge. Countdowns run on wall time. The Retail PlayerFrame draws no aura icons. The shared `aura_display_data` keeps the replicated slot order that BuffFrame uses. Before this, the Godot client drew no auras at all, and the server marked Polymorph on the neutral Blackrock Spy as a buff (game-server `70551a9`, effect positivity). Live proof: `godot/tests/auras_live.gd`, with captures in `data/diagnostics/auras-2026-09-29/`.
+
+## [2026-09-30] investigation | Torch billboards and M2 point lights
+
+The particledebug torch's golden halo is a quad on spherical billboard bone 1 and its flame emitter sits under billboard bone 2; the Godot client had no bone billboarding, so the halo was edge-on. M2 point lights were never rendered. Both now follow WebWowViewerCpp/solarityclient; retail forces torch attenuation to 1.667-5.267 yd. Startup also stopped failing `add_child` on the root viewport (NativeTaa/bloom/RCAS never attached on normal launches). See [[godot-torch-rendering]].
