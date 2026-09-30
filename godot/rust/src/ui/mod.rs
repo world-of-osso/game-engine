@@ -1252,6 +1252,19 @@ impl RegistryUi {
         clicks
     }
 
+    /// Read-only action lookup for pointer fixtures; input still travels through Godot.
+    #[func]
+    fn control_for_action(&self, action: GString) -> Option<Gd<Control>> {
+        let model = self.model.as_ref()?;
+        let action = action.to_string();
+        model
+            .registry
+            .frames_iter()
+            .filter(|frame| frame.onclick.as_deref() == Some(action.as_str()))
+            .filter_map(|frame| self.projection.as_ref()?.node(frame.id))
+            .find(|node| node.is_visible_in_tree())
+    }
+
     #[func]
     pub fn pop_action(&mut self) -> GString {
         let error = self.sync_input();
