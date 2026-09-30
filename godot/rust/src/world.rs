@@ -281,6 +281,12 @@ fn sync_unit_visual(
     if unit.appearance == appearance {
         return;
     }
+    if unit.appearance.is_some() && std::env::var_os("GAME_PROFILE_MS").is_some() {
+        println!(
+            "PROFILE-APPEARANCE {} {:?} -> {:?}",
+            snapshot.server_id, unit.appearance, appearance
+        );
+    }
     let preserve_playback = unit
         .appearance
         .as_ref()
@@ -570,11 +576,25 @@ impl WorldUnits {
         unit.is_player = snapshot.player.is_some();
         unit.player_motion = snapshot.player_motion;
         unit.in_combat = snapshot.in_combat;
-        sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
-        (unit.weapon, unit.main_hand_subclass) = combat::unit_weapon_class(unit, &mut self.models);
-        sync_unit_sheath(unit, snapshot, &mut self.models);
-        sync_unit_pose(unit, snapshot, &mut self.models);
-        sync_unit_death(unit, snapshot);
+        let id = snapshot.server_id;
+        {
+            let _span = crate::profile::span(|| {
+                format!(
+                    "unit {id} visual {:?}",
+                    unit_appearance(snapshot).map(|a| a.describe_unit(id))
+                )
+            });
+            sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
+        }
+        {
+            let _span = crate::profile::span(|| format!("unit {id} weapon/sheath/pose"));
+            (unit.weapon, unit.main_hand_subclass) =
+                combat::unit_weapon_class(unit, &mut self.models);
+            sync_unit_sheath(unit, snapshot, &mut self.models);
+            sync_unit_pose(unit, snapshot, &mut self.models);
+            sync_unit_death(unit, snapshot);
+        }
+        let _span = crate::profile::span(|| format!("unit {id} animation"));
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         sync_unit_animation(unit, snapshot, fallbacks);
         unit.motion.set_target(

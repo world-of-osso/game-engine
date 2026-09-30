@@ -7,7 +7,7 @@ pub(crate) mod m2_lights;
 pub(crate) mod material;
 pub(crate) mod player;
 pub(crate) mod uv_animation;
-use std::{collections::HashMap, fs, path::Path};
+use std::{cell::RefCell, collections::HashMap, fs, path::Path};
 
 use crate::animation::WowAnimationPlayer;
 use game_engine_core::{blp, m2};
@@ -271,6 +271,7 @@ pub(super) fn build_model_filtered(
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
+    let span = crate::profile::span(|| "  build_model resolve".to_owned());
     let resolver = model_asset_resolver(Path::new(&model_path))?;
     let resolved: Vec<_> = m2::resolve_render_batches(model, skin_texture_fdids, false, |fdid| {
         resolver.resolve_path(fdid)
@@ -278,16 +279,28 @@ pub(super) fn build_model_filtered(
     .into_iter()
     .filter(|batch| allowed(batch.mesh_part_id))
     .collect();
+    drop(span);
+    let span = crate::profile::span(|| format!("  build_model {} batches", resolved.len()));
     let batches = resolved
         .iter()
         .map(|batch| load_batch(model, batch, path, &mut missing, appearance))
         .collect::<Result<Vec<_>, String>>()?;
+    drop(span);
+    let span =
+        crate::profile::span(|| format!("  build_model skeleton {} bones", model.bones.len()));
     let mesh_parts: Vec<u16> = resolved.iter().map(|batch| batch.mesh_part_id).collect();
     let (mut skeleton, skin) = build_skeleton(&model.bones);
     if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
         skeleton.free();
         return Err(error);
     }
+    drop(span);
+    let span = crate::profile::span(|| {
+        format!(
+            "  build_model animation {} sequences",
+            model.sequences.len()
+        )
+    });
     let player = if model.sequences.is_empty() {
         None
     } else {
@@ -302,6 +315,8 @@ pub(super) fn build_model_filtered(
             }
         }
     };
+    drop(span);
+    let _span = crate::profile::span(|| "  build_model nodes".to_owned());
     let material_animation = uv_animation::WowMaterialAnimation::from_batches(
         model,
         batches
@@ -349,13 +364,13 @@ fn load_batch(
     missing: &mut PackedInt32Array,
     appearance: Option<&appearance::PreparedAppearance>,
 ) -> Result<LoadedBatch, String> {
-    let sub = model.submeshes.get(batch.submesh_index).ok_or_else(|| {
+    model.submeshes.get(batch.submesh_index).ok_or_else(|| {
         format!(
             "Batch {} references absent submesh",
             batch.source_unit_index
         )
     })?;
-    let mesh = build_batch_mesh(model, sub)?;
+    let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
     let replacement = replacement_texture(batch, appearance)?;
     let material = material::load_material(
         batch,
@@ -400,56 +415,52 @@ fn replacement_texture<'a>(
     Ok(replacement)
 }
 
+thread_local! {
+    /// Batch meshes by model file and submesh: every placement and unit of a model draws
+    /// the same vertex streams, so one mesh serves them all.
+    static MESHES: RefCell<HashMap<(String, usize), Gd<ArrayMesh>>> =
+        RefCell::new(HashMap::new());
+}
+
+fn shared_batch_mesh(
+    model: &m2::Model,
+    submesh_index: usize,
+    path: &GString,
+) -> Result<Gd<ArrayMesh>, String> {
+    let key = (path.to_string(), submesh_index);
+    if let Some(mesh) = MESHES.with_borrow(|meshes| meshes.get(&key).cloned()) {
+        return Ok(mesh);
+    }
+    let sub = &model.submeshes[submesh_index];
+    let mesh = build_batch_mesh(model, sub)?;
+    MESHES.with_borrow_mut(|meshes| meshes.insert(key, mesh.clone()));
+    Ok(mesh)
+}
+
+pub(crate) fn clear_shared_meshes() {
+    MESHES.with_borrow_mut(HashMap::clear);
+}
+
 pub(crate) fn build_batch_mesh(
     model: &m2::Model,
     sub: &m2::Submesh,
 ) -> Result<Gd<ArrayMesh>, String> {
-    let start = sub.triangle_start as usize;
-    let end = start + sub.triangle_count as usize;
-    let indices = model
-        .indices
-        .get(start..end)
-        .ok_or("Submesh indices out of bounds")?;
-    if indices.is_empty() || indices.len() % 3 != 0 {
-        return Err("Submesh has no complete triangles".into());
-    }
-    let mut positions = PackedVector3Array::new();
-    let mut normals = PackedVector3Array::new();
-    let mut uv = PackedVector2Array::new();
-    let mut uv2 = PackedVector2Array::new();
-    let mut bones = PackedInt32Array::new();
-    let mut weights = PackedFloat32Array::new();
-    let mut local_indices = PackedInt32Array::new();
-    let mut remap = HashMap::<u16, i32>::new();
-    for &global in indices {
-        let local = if let Some(&local) = remap.get(&global) {
-            local
-        } else {
-            let vertex = model
-                .vertices
-                .get(global as usize)
-                .ok_or_else(|| format!("Vertex {global} out of bounds"))?;
-            let local = positions.len() as i32;
-            positions.push(wow_vec3(vertex.position));
-            normals.push(wow_vec3(vertex.normal));
-            uv.push(Vector2::new(vertex.tex_coords[0], vertex.tex_coords[1]));
-            uv2.push(Vector2::new(vertex.tex_coords_2[0], vertex.tex_coords_2[1]));
-            for (&bone, &weight) in vertex.bone_indices.iter().zip(vertex.bone_weights.iter()) {
-                if weight > 0 && bone as usize >= model.bones.len() {
-                    return Err(format!("Vertex {global} references absent bone {bone}"));
-                }
-                bones.push(bone as i32);
-                weights.push(weight as f32 / 255.0);
-            }
-            remap.insert(global, local);
-            local
-        };
-        local_indices.push(local);
-    }
-    // Godot culls counter-clockwise front faces; M2 outward triangles use that winding.
-    for triangle in local_indices.as_mut_slice().chunks_exact_mut(3) {
-        triangle.swap(1, 2);
-    }
+    let streams = m2::submesh_arrays(model, sub)?;
+    let vectors = |values: &[[f32; 3]]| {
+        let values: Vec<_> = values.iter().copied().map(Vector3::from_array).collect();
+        PackedVector3Array::from(values.as_slice())
+    };
+    let uvs = |values: &[[f32; 2]]| {
+        let values: Vec<_> = values.iter().map(|&[u, v]| Vector2::new(u, v)).collect();
+        PackedVector2Array::from(values.as_slice())
+    };
+    let positions = vectors(&streams.positions);
+    let normals = vectors(&streams.normals);
+    let uv = uvs(&streams.uv);
+    let uv2 = uvs(&streams.uv2);
+    let bones = PackedInt32Array::from(streams.bones.as_slice());
+    let weights = PackedFloat32Array::from(streams.weights.as_slice());
+    let local_indices = PackedInt32Array::from(streams.indices.as_slice());
     let mut arrays = VarArray::new();
     arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
     arrays.set(

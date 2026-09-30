@@ -34,12 +34,27 @@ pub(crate) fn load_creature_model(
     appearance: Option<&PreparedAppearance>,
     gear: &CreatureGear,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
-    let resolver = local_resolver(data_root, cache_root);
-    let path = cache_model_files(&resolver, data_root, display.model_fdid)?;
+    let resolver = crate::profile::time(
+        || "creature local_resolver".to_owned(),
+        || local_resolver(data_root, cache_root),
+    );
+    let path = crate::profile::time(
+        || format!("creature model {} cache_model_files", display.model_fdid),
+        || cache_model_files(&resolver, data_root, display.model_fdid),
+    )?;
     let path = GString::from(path.to_string_lossy().as_ref());
-    let parsed = read_model(&path)?;
-    cache_model_textures(&resolver, data_root, &display.skin_fdids, &parsed)?;
-    let (mut model, missing) = build_model(&parsed, &path, &display.skin_fdids, appearance)?;
+    let parsed = crate::profile::time(
+        || format!("creature model {} read_model", display.model_fdid),
+        || read_model(&path),
+    )?;
+    crate::profile::time(
+        || format!("creature model {} cache_model_textures", display.model_fdid),
+        || cache_model_textures(&resolver, data_root, &display.skin_fdids, &parsed),
+    )?;
+    let (mut model, missing) = crate::profile::time(
+        || format!("creature model {} build_model", display.model_fdid),
+        || build_model(&parsed, &path, &display.skin_fdids, appearance),
+    )?;
     let items = held_items(&model, &resolver, &gear.items);
     let models: Vec<_> = gear
         .armor_models
@@ -55,9 +70,16 @@ pub(crate) fn load_creature_model(
             item.fdid
         );
     };
-    if let Err(error) =
-        attach_each_equipment(&mut model, &parsed, &resolver, data_root, &models, report)
-    {
+    let attached = crate::profile::time(
+        || {
+            format!(
+                "creature model {} attach_each_equipment",
+                display.model_fdid
+            )
+        },
+        || attach_each_equipment(&mut model, &parsed, &resolver, data_root, &models, report),
+    );
+    if let Err(error) = attached {
         model.free();
         return Err(error);
     }
