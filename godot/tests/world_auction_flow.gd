@@ -54,6 +54,8 @@ func run_test() -> void:
 	quit(0)
 
 func seller_operations() -> bool:
+	if not await wait_until(func(): return client.auction_state().inventory.any(func(row): return row.item_id == item_id) and client.auction_state().money > 0, "sellable inventory and money"):
+		return false
 	var posted: Array[int] = []
 	for token in ["12", "24", "48"]:
 		if not await click_name("AuctionHouseFrameTab2"):
@@ -99,6 +101,8 @@ func seller_operations() -> bool:
 	return true
 
 func buyer_operations() -> bool:
+	if not await wait_until(func(): return client.auction_state().money > 0, "buyer money"):
+		return false
 	var bid_id := OS.get_environment("GODOT_AUCTION_BID_ID").to_int()
 	var buyout_id := OS.get_environment("GODOT_AUCTION_BUYOUT_ID").to_int()
 	if bid_id <= 0 or buyout_id <= 0 or bid_id == buyout_id:

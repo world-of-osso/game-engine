@@ -2,7 +2,7 @@
 
 ## [2026-09-30] implementation | Bounded native auction client
 
-Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, portable trading validation, exact-item/category queries, all fetched-row/server-page navigation and corrected duration labels. Targeted model 7/7 and owned UDP 1/1 passed; later fixture/input observer changes await compile. Main owns game-cli-first integration and native smoke; no runtime/full-AH acceptance claim.
+Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, portable trading validation, exact-item/category queries, all fetched-row/server-page navigation and corrected duration labels. Targeted current model 8/8, retained owned UDP 1/1 and current host compile/range test 1/1 passed; no Godot runtime executed. Main owns game-cli-first integration and native smoke; no runtime/full-AH acceptance claim.
 
 ## [2026-09-30] update | Server missile timing
 
