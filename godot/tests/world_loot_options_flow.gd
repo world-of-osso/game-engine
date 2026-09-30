@@ -357,7 +357,7 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 		return false
 	await click_menu_action(client, "MenuBtnOptions")
 	var menu := client.get_node_or_null("GameMenuUI")
-	var first_options := not overflow_probe.options_recorded
+	var first_options: bool = not overflow_probe.options_recorded
 	if first_options:
 		await probe_options_scales(menu)
 	var tab := menu.find_child("OptionsTabhud", true, false) as Control
