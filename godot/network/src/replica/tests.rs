@@ -449,3 +449,6 @@ fn replica_matches_stock_client_when_old_mutations_arrive_last() {
     let replica = replay_both(&reordered);
     assert_eq!(x_of(replica.unit(hero)), Some(11.0));
 }
+
+#[path = "coverage_tests.rs"]
+mod coverage;

@@ -183,8 +183,11 @@ impl Replica {
     /// Changes since the previous call, in order.
     pub fn drain_changes(&mut self) -> Vec<UnitChange> {
         for id in self.dirty.drain(..) {
-            // Despawned entities already produced their change.
-            if let Some(entry) = self.entities.get_mut(&id) {
+            // Visibility regain can queue the same server ID again before this drain.
+            // Consume its current incarnation once, including when an older queue entry exists.
+            if let Some(entry) = self.entities.get_mut(&id)
+                && entry.queued
+            {
                 entry.queued = false;
                 let components = std::mem::take(&mut entry.changed);
                 self.changes.push(UnitChange::Changed {
@@ -198,6 +201,9 @@ impl Replica {
 
     fn apply_update(&mut self, mut message: Bytes) -> Result<(), BevyError> {
         let flags: u8 = postcard_utils::from_buf(&mut message)?;
+        if flags == 0 || flags & !(MAPPINGS | DESPAWNS | REMOVALS | CHANGES) != 0 {
+            return Err(format!("invalid replication update flags {flags:#04x}").into());
+        }
         let tick: RepliconTick = postcard_utils::from_buf(&mut message)?;
         self.update_tick = tick;
         let last_flag = 1 << (u8::BITS - 1 - flags.leading_zeros());
