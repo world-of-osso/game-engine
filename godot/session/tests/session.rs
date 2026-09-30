@@ -334,6 +334,26 @@ fn forced_notice_disconnects_first_then_surfaces_message_and_resets_world() {
 }
 
 #[test]
+fn protocol_rejection_during_world_reconnect_returns_to_login_with_reason() {
+    let mut session = Session::default();
+    session.screen = SessionScreen::InWorld;
+    session.token = Some("real-token".into());
+    session.receive_disconnected_with_reason(Some("lost"));
+    assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
+    let reason = "Client and server protocols differ (component registry). Rebuild both from the same shared-protocol revision.";
+    session.receive_protocol_rejected(reason.into());
+    let effects = session.receive_disconnected_with_reason(Some("Client trigger"));
+    assert_eq!(session.feedback.as_deref(), Some(reason));
+    assert_eq!(session.screen, SessionScreen::Login);
+    assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::Login)))
+    );
+}
+
+#[test]
 fn charselect_disconnect_with_token_resets_and_reconnects_without_auto_entry() {
     let mut session = Session::default();
     session.screen = SessionScreen::CharacterSelect;

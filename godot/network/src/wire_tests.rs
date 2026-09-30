@@ -25,7 +25,7 @@ fn receive_inputs(
     }
 }
 
-fn create_fixture_server() -> App {
+fn create_fixture_server(register_extra: fn(&mut App)) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>());
     app.add_plugins(StatesPlugin);
@@ -33,6 +33,7 @@ fn create_fixture_server() -> App {
         tick_duration: SIMULATION_INTERVAL,
     });
     app.add_plugins(shared::ProtocolPlugin);
+    register_extra(&mut app);
     app.init_resource::<ReceivedInputs>();
     app.add_systems(Update, receive_inputs);
     app.add_observer(|link: On<Add, LinkOf>, mut commands: Commands| {
@@ -44,11 +45,15 @@ fn create_fixture_server() -> App {
 }
 
 fn start_fixture_server() -> (App, SocketAddr) {
+    start_fixture_server_with(|_| {})
+}
+
+fn start_fixture_server_with(register_extra: fn(&mut App)) -> (App, SocketAddr) {
     // ServerUdpIo binds its own socket and does not expose the assigned port for port zero.
     let reservation = UdpSocket::bind("127.0.0.1:0").expect("reserve fixture UDP port");
     let address = reservation.local_addr().expect("read fixture UDP address");
     drop(reservation);
-    let mut app = create_fixture_server();
+    let mut app = create_fixture_server(register_extra);
     let entity = app
         .world_mut()
         .spawn((
@@ -188,6 +193,41 @@ fn await_rest(server: &mut App, bridge: &mut NetworkBridge, expected: RestStateU
         unreachable!()
     };
     assert_eq!(message.downcast::<RestStateUpdate>().ok(), Some(expected));
+}
+
+#[test]
+fn native_bridge_reports_protocol_rejection_instead_of_connecting() {
+    use lightyear::prelude::AppComponentExt;
+    // The server replicates one component more than the client, like a component added to
+    // `shared` after the client was built.
+    let (mut server, address) = start_fixture_server_with(|app| {
+        app.component::<shared::components::VerticalVelocity>()
+            .replicate();
+    });
+    let mut bridge = NetworkBridge::connect(address, 8200).expect("start fixture bridge");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut events = Vec::new();
+    while Instant::now() < deadline && !matches!(events.last(), Some(Event::Disconnected(_))) {
+        server.update();
+        events.extend(bridge.drain_events().expect("poll fixture bridge"));
+        thread::sleep(Duration::from_millis(5));
+    }
+    let described: Vec<String> = events
+        .iter()
+        .map(|event| match event {
+            Event::Connected => "connected".into(),
+            Event::ProtocolRejected(reason) => format!("rejected: {reason}"),
+            Event::Disconnected(_) => "disconnected".into(),
+            Event::Message(_) | Event::UnitUpdated(_) | Event::UnitRemoved(_) => "data".into(),
+        })
+        .collect();
+    assert_eq!(
+        described,
+        [
+            "rejected: Client and server protocols differ (component registry). Rebuild both from the same shared-protocol revision.",
+            "disconnected",
+        ]
+    );
 }
 
 #[test]

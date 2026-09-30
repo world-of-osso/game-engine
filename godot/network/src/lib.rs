@@ -35,7 +35,7 @@ use shared::{
     },
     level_scaling::LevelScaling,
     protocol::{
-        ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
+        self, ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
         CharacterListUpdate, ChatMessage, CombatEvent, CombatLogEvent, CreateCharacterResponse,
         DamageMeterSnapshot, DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate,
         EnterWorldResponse, ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed,
@@ -160,7 +160,10 @@ impl UnitSnapshot {
 }
 
 pub enum Event {
+    /// The server's protocol fingerprint matched; the connection is usable.
     Connected,
+    /// Client and server protocols differ; `Disconnected` follows once the link drops.
+    ProtocolRejected(String),
     Disconnected(Option<String>),
     Message(ProtocolMessage),
     UnitUpdated(UnitSnapshot),
@@ -366,6 +369,7 @@ fn run_worker(
     relays: Vec<fn(&mut App, Sender<Event>)>,
 ) -> Result<(), String> {
     let mut app = App::new();
+    app.set_error_handler(protocol::defer_lightyear_protocol_check);
     app.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>());
     app.add_plugins(StatesPlugin);
     app.add_plugins(client_network::ClientPlugins {
@@ -435,14 +439,20 @@ fn install_lifecycle(app: &mut App, events: Sender<Event>) {
     );
     app.add_systems(
         PostUpdate,
-        move |connected: Query<(), Added<client_network::Connected>>,
+        move |verified: Query<(), Added<protocol::ProtocolVerified>>,
+              rejected: Query<&protocol::ProtocolRejected, Added<protocol::ProtocolRejected>>,
               disconnected: Query<
             &client_network::Disconnected,
             Added<client_network::Disconnected>,
         >| {
-            for () in &connected {
+            for () in &verified {
                 events
                     .send(Event::Connected)
+                    .expect("host event receiver closed");
+            }
+            for protocol::ProtocolRejected(reason) in &rejected {
+                events
+                    .send(Event::ProtocolRejected(reason.clone()))
                     .expect("host event receiver closed");
             }
             for state in &disconnected {
@@ -454,10 +464,16 @@ fn install_lifecycle(app: &mut App, events: Sender<Event>) {
     );
 }
 
+/// Nothing reaches the host from a connection whose protocol was rejected, during the
+/// grace before the link drops.
+fn protocol_not_rejected(rejected: Query<(), With<protocol::ProtocolRejected>>) -> bool {
+    rejected.is_empty()
+}
+
 fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
     app.add_systems(
         Update,
-        move |mut receivers: Query<&mut MessageReceiver<M>>| {
+        (move |mut receivers: Query<&mut MessageReceiver<M>>| {
             for mut receiver in &mut receivers {
                 for message in receiver.receive() {
                     events
@@ -465,7 +481,8 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
                         .expect("host event receiver closed");
                 }
             }
-        },
+        })
+        .run_if(protocol_not_rejected),
     );
 }
 
@@ -475,9 +492,9 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
 fn install_mirror_timer_relay(app: &mut App, events: Sender<Event>) {
     app.add_systems(
         Update,
-        move |mut starts: Query<&mut MessageReceiver<MirrorTimerStart>>,
-              mut pauses: Query<&mut MessageReceiver<MirrorTimerPause>>,
-              mut stops: Query<&mut MessageReceiver<MirrorTimerStop>>| {
+        (move |mut starts: Query<&mut MessageReceiver<MirrorTimerStart>>,
+               mut pauses: Query<&mut MessageReceiver<MirrorTimerPause>>,
+               mut stops: Query<&mut MessageReceiver<MirrorTimerStop>>| {
             let mut received = Vec::new();
             for mut receiver in &mut starts {
                 received.extend(
@@ -506,7 +523,8 @@ fn install_mirror_timer_relay(app: &mut App, events: Sender<Event>) {
                     .send(Event::Message(message))
                     .expect("host event receiver closed");
             }
-        },
+        })
+        .run_if(protocol_not_rejected),
     );
 }
 
@@ -517,11 +535,11 @@ fn install_replication(app: &mut App, events: Sender<Event>) {
     app.init_resource::<ReplicatedIds>();
     app.add_systems(
         Update,
-        move |mut changes: MessageReader<EntityReplicated>,
-              mut removed: RemovedComponents<client_network::Remote>,
-              entities: Query<EntityRef, (With<client_network::Remote>, Without<IsResource>)>,
-              server_ids: Res<ServerEntityMap>,
-              mut known: ResMut<ReplicatedIds>| {
+        (move |mut changes: MessageReader<EntityReplicated>,
+               mut removed: RemovedComponents<client_network::Remote>,
+               entities: Query<EntityRef, (With<client_network::Remote>, Without<IsResource>)>,
+               server_ids: Res<ServerEntityMap>,
+               mut known: ResMut<ReplicatedIds>| {
             for worker_entity in removed.read() {
                 if let Some(server_id) = known.0.remove(&worker_entity) {
                     events
@@ -554,7 +572,8 @@ fn install_replication(app: &mut App, events: Sender<Event>) {
                         .expect("host event receiver closed");
                 }
             }
-        },
+        })
+        .run_if(protocol_not_rejected),
     );
 }
 

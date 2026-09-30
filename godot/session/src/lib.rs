@@ -334,6 +334,15 @@ impl Session {
         vec![SessionEffect::Transition(self.screen)]
     }
 
+    /// Client and server protocols differ. The transport drops the link itself; the reason
+    /// becomes the login feedback when `Disconnected` arrives, with no reconnect.
+    pub fn receive_protocol_rejected(&mut self, reason: String) {
+        self.pending_forced_disconnect = Some(ForcedDisconnect {
+            message: reason,
+            reconnect_allowed: false,
+        });
+    }
+
     /// Preserve notice until the host reports actual disconnection, as the old lifecycle did.
     pub fn receive_forced_disconnect(&mut self, notice: ForcedDisconnect) -> Vec<SessionEffect> {
         self.pending_forced_disconnect = Some(notice);
