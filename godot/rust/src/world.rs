@@ -5,7 +5,9 @@ use std::{collections::HashMap, f32::consts::PI, path::PathBuf};
 use crate::{
     animation::{WowAnimationPlayer, lod::AnimationLod},
     lighting::TerrainLight,
-    world_models::{UnitAppearance, WorldModels, bind_visual_light, place_virtual_items},
+    world_models::{
+        UnitAppearance, WorldModels, bind_visual_light, place_items, place_virtual_items,
+    },
 };
 
 use game_engine_core::movement_animation_data::{ANIM_RUN, direction_to_anim_id};
@@ -264,11 +266,15 @@ fn unit_appearance(snapshot: &UnitSnapshot) -> Option<UnitAppearance> {
     })
 }
 
+/// A unit's replicated sheath state. A player has none replicated: its weapons are drawn
+/// in combat and otherwise sheathed (`SHEATH_STATE_UNARMED`, the `SheatheState` a
+/// TrinityCore unit starts with, UnitDefines.h:82).
 fn unit_sheath(snapshot: &UnitSnapshot) -> SheathState {
-    snapshot
-        .unit_pose
-        .map(|pose| pose.sheath_state)
-        .unwrap_or_default()
+    match snapshot.unit_pose {
+        Some(pose) => pose.sheath_state,
+        None if snapshot.player.is_some() && snapshot.in_combat => SheathState::Melee,
+        None => SheathState::Unarmed,
+    }
 }
 
 fn sync_unit_visual(
@@ -459,23 +465,26 @@ fn sync_unit_pose(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut Wor
         });
 }
 
-/// Move the virtual items of a creature whose sheath state changed.
+/// Move the weapons of a creature or player whose sheath state changed.
 fn sync_unit_sheath(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut WorldModels) {
     let sheath = unit_sheath(snapshot);
-    let (Some(visual), Some(UnitAppearance::Creature { items, .. })) =
-        (&unit.visual, &unit.appearance)
-    else {
+    let (Some(visual), Some(appearance)) = (&unit.visual, &unit.appearance) else {
         return;
     };
     if unit.sheath == Some(sheath) {
         return;
     }
     unit.sheath = Some(sheath);
-    let placed = models
-        .virtual_item_placements(items, sheath)
-        .and_then(|placements| place_virtual_items(visual, &placements));
+    let placed = match appearance {
+        UnitAppearance::Creature { items, .. } => models
+            .virtual_item_placements(items, sheath)
+            .and_then(|placements| place_virtual_items(visual, &placements)),
+        UnitAppearance::Player(_, equipment) => models
+            .player_weapon_placements(equipment, sheath)
+            .and_then(|placements| place_items(visual, &placements)),
+    };
     if let Err(error) = placed {
-        godot_error!("NPC {} {sheath:?}: {error}", snapshot.server_id);
+        godot_error!("Unit {} {sheath:?}: {error}", snapshot.server_id);
     }
 }
 
