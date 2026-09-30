@@ -16,6 +16,7 @@ fn resource(bar: ClassBar, current: u8, max: u8) -> ClassBarResource {
         max,
         tenths: u16::from(current) * 10,
         spec: None,
+        dynamics: crate::status::ClassBarDynamics::default(),
         in_combat: false,
     }
 }
@@ -309,6 +310,11 @@ fn chi_orbs_space_and_animate_like_retail() {
         texture(&turning, "PlayerSecondaryResourcePip0Chi_FX_2").rotation,
         -32.5
     ));
+    let reg = registry_with(turning.clone());
+    assert!(close(
+        registry_texture(&reg, "PlayerSecondaryResourcePip0Chi_FX_2").rotation,
+        -32.5,
+    ));
     assert_alpha(&turning, "PlayerSecondaryResourcePip0FB_Wind_FX", 1.0);
     let view = run(&mut animator, &[(&one, 10.6)]);
     assert_alpha(&view, "PlayerSecondaryResourcePip0Chi_Icon", 0.2 / 0.43);
@@ -565,6 +571,80 @@ fn runes_spend_recharge_and_sort_like_retail() {
     let back = run(&mut animator, &[(&five, 110.3), (&five, 115.0)]);
     let swipe = texture(&back, "PlayerSecondaryResourcePip5Cooldown");
     assert!(close(swipe.swipe.unwrap(), 4.7 / 10.0), "{:?}", swipe.swipe);
+}
+
+#[test]
+fn charged_combo_points_drive_full_and_empty_charged_layers() {
+    let mut charged = resource(ClassBar::RogueComboPoints, 2, 5);
+    charged.dynamics.charged_points = vec![2, 4];
+    let mut animator = ClassBarAnimator::default();
+    let view = run(&mut animator, &[(&charged, 100.0), (&charged, 102.0)]);
+    assert_alpha(&view, "PlayerSecondaryResourcePip1IconCharged", 1.0);
+    assert_alpha(&view, "PlayerSecondaryResourcePip1IconUncharged", 0.0);
+    assert_alpha(
+        &view,
+        "PlayerSecondaryResourcePip3ChargedFrameInactive",
+        1.0,
+    );
+    assert_alpha(&view, "PlayerSecondaryResourcePip0IconUncharged", 1.0);
+    let mut uncharged = charged.clone();
+    uncharged.dynamics.charged_points.clear();
+    let view = run(&mut animator, &[(&uncharged, 103.0), (&uncharged, 105.0)]);
+    assert_alpha(&view, "PlayerSecondaryResourcePip1IconCharged", 0.0);
+    assert_alpha(&view, "PlayerSecondaryResourcePip1IconUncharged", 1.0);
+    assert_alpha(
+        &view,
+        "PlayerSecondaryResourcePip3ChargedFrameInactive",
+        0.0,
+    );
+}
+
+#[test]
+fn essence_starts_from_received_fraction_at_received_rate() {
+    let mut three = resource(ClassBar::Essence, 3, 5);
+    three.dynamics.partial = 500;
+    three.dynamics.regen_per_sec = 0.4;
+    three.dynamics.received_at = 100.0;
+    let mut animator = ClassBarAnimator::default();
+    // Half filled at receipt, 60% at first presentation, not restarted from zero.
+    let view = run(&mut animator, &[(&three, 100.25)]);
+    assert!(close(
+        texture(&view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
+        -216.0
+    ));
+    let view = run(&mut animator, &[(&three, 100.75)]);
+    assert!(close(
+        texture(&view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
+        -288.0
+    ));
+    let view = run(&mut animator, &[(&three, 101.375)]);
+    assert_alpha(&view, "PlayerSecondaryResourcePip3FillDoneEssenceIcon", 0.5);
+}
+
+#[test]
+fn rune_swipes_use_independent_received_cooldowns_not_pool_count() {
+    let mut runes = resource(ClassBar::Runes, 4, 6);
+    runes.dynamics.received_at = 100.0;
+    runes.dynamics.runes = Some(crate::status::ClassBarRunes {
+        duration_ms: 8000,
+        ready_in_ms: vec![0, 0, 0, 0, 2000, 6000],
+    });
+    let mut animator = ClassBarAnimator::default();
+    let view = run(&mut animator, &[(&runes, 100.5)]);
+    let swipes: Vec<_> = view.textures.iter().filter_map(|t| t.swipe).collect();
+    assert_eq!(swipes, vec![0.8125, 0.3125]);
+    assert!(
+        view.textures
+            .iter()
+            .filter(|t| t.swipe.is_some())
+            .all(|t| t.shown)
+    );
+    // A fresh timing event with the same whole count corrects both timers.
+    runes.dynamics.received_at = 101.0;
+    runes.dynamics.runes.as_mut().unwrap().ready_in_ms = vec![0, 0, 0, 0, 1000, 5000];
+    let view = run(&mut animator, &[(&runes, 101.5)]);
+    let swipes: Vec<_> = view.textures.iter().filter_map(|t| t.swipe).collect();
+    assert_eq!(swipes, vec![0.9375, 0.4375]);
 }
 
 /// PaladinPowerBarFrame: the 150×43 holder with each rune centred on its LEFT anchor; lit
