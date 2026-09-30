@@ -214,7 +214,9 @@ func check_landing() -> bool:
 			fail("No swoosh for %s's %s at %.3f" % [who(attacker), event.result, event.at])
 			return false
 		var swoosh: Dictionary = swooshes[0]
-		var impacts: Array = sounds.values().filter(func(s): return s.source == "impact" and s.unit == victim and s.at >= swoosh.at and s.at < next_at)
+		# From the event, not the swoosh: a first-use swoosh file (e.g. the worg's first
+		# Light kit 233) starts when its async load ends, which can trail its own impact.
+		var impacts: Array = sounds.values().filter(func(s): return s.source == "impact" and s.unit == victim and s.at >= event.at and s.at < next_at)
 		if avoided(event):
 			if swoosh.sound_kit != MISS_WHOOSH:
 				fail("Avoided swing at %.3f swooshed %d, not the miss whoosh" % [event.at, swoosh.sound_kit])
@@ -230,7 +232,7 @@ func check_landing() -> bool:
 			fail("No impact for %s's %s at %.3f" % [who(attacker), event.result, event.at])
 			return false
 		var gap: float = impacts[0].at - swoosh.at
-		if gap < 0.0 or gap > LAND_GAP + 2.0 * longest_frame:
+		if absf(gap) > LAND_GAP + 2.0 * longest_frame:
 			fail("%s's impact %.3f s after its swoosh (longest frame %.3f s)" % [who(attacker), gap, longest_frame])
 			return false
 		print("FIXTURE LANDED %s %s swoosh=%d/%d at=%.3f impact=%d/%d gap=%.3f" % [who(attacker), event.result, swoosh.sound_kit, swoosh.fdid, swoosh.at, impacts[0].sound_kit, impacts[0].fdid, gap])
