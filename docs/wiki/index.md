@@ -124,3 +124,5 @@ External resources and asset lists.
 - [test-assets](reference/test-assets.md) — Available local test files with paths and use cases
 - [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries
 - [audio-libraries](reference/audio-libraries.md) — Audio engines and spatial audio tools (AudioNimbus, etc.)
+
+- [Target-marker Options evidence](systems/godot-conversion.md#native-nameplate-options-boundary): main RED exit 101 → bounded `green3` exit 0 (Depot `cshqvl6qmg`, fixture `1d24222c`); authored saved Off/On and newly selected self rings, original menu flow. Independent gate pending; existing-ring live edits/startup false/fresh-process persistence unproven.
