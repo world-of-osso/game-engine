@@ -308,6 +308,12 @@ impl ClassBarAnimator {
 
 /// Combat/spec events redraw the bar but do not re-receive unchanged power timing.
 fn same_recharge_sample(last: &ClassBarResource, next: &ClassBarResource) -> bool {
+    if last.bar != next.bar {
+        return false;
+    }
+    if next.bar == ClassBar::Runes {
+        return last.dynamics.runes == next.dynamics.runes;
+    }
     let power = (last.bar, last.current, last.max, last.tenths)
         == (next.bar, next.current, next.max, next.tenths);
     let timing = last.dynamics.partial == next.dynamics.partial
