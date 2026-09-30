@@ -1,6 +1,7 @@
-//! Spell sounds: a started kit's sound kits (`SpellVisualKitEffect` type 5) and its unit's
-//! voice (type 10, `CreatureSoundData`), a flying missile's travel sound
-//! (`SpellVisualMissile.SoundEntriesID`) and a cast clip's `$SCD` voice. Each plays one
+//! Spell and melee sounds: a started kit's sound kits (`SpellVisualKitEffect` type 5)
+//! and its unit's voice (type 10, `CreatureSoundData`), a flying missile's travel sound
+//! (`SpellVisualMissile.SoundEntriesID`), a cast clip's `$SCD` voice, and a melee swing's
+//! swoosh, impact and the victim's wound (`spell_melee`). Each plays one
 //! `SoundKitEntry` file, picked by `Frequency`, on a 3D emitter under its unit or missile.
 //! A looping sound (SoundKit Flags 0x200) of a held kit (precast, channel, aura) lasts
 //! until the kit ends and a missile's until it lands; the others play once.
@@ -46,6 +47,10 @@ pub enum SoundSource {
     Voice,
     /// A missile in flight.
     Missile,
+    /// A melee weapon swoosh (`$CSS`).
+    Swing,
+    /// A melee weapon striking its victim (`$CAH`).
+    Impact,
 }
 
 impl SoundSource {
@@ -54,6 +59,8 @@ impl SoundSource {
             Self::Kit => "kit",
             Self::Voice => "voice",
             Self::Missile => "missile",
+            Self::Swing => "swing",
+            Self::Impact => "impact",
         }
     }
 }

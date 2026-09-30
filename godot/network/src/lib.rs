@@ -1,9 +1,6 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
-#[path = "../../../src/sound/spell_event_data.rs"]
-pub mod spell_event_data;
-
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
@@ -30,7 +27,7 @@ use shared::{
     components::{
         CombatStatus, CreatureMotion, EquipmentAppearance, Gold, Health, Mana, ModelDisplay,
         MovementControl, MovementSpeed, Npc, Player, PlayerMotion, Position, Rotation, UnitAuras,
-        UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
+        UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitRunes, UnitTarget,
         UnitThreatList,
     },
     level_scaling::LevelScaling,
@@ -113,6 +110,8 @@ pub struct UnitSnapshot {
     pub cast: Option<CastState>,
     /// Raw DB2 power values, primary power first.
     pub powers: Option<UnitPowers>,
+    /// A death knight's per-rune recharge (`GetRuneCooldown`).
+    pub runes: Option<UnitRunes>,
     pub auras: Option<UnitAuras>,
     /// Retail `NPCFlags` / `NPCFlags2` bits of an NPC (vendor, repair, gossip, ...).
     pub npc_flags: Option<u64>,
@@ -151,6 +150,7 @@ impl UnitSnapshot {
             in_combat: entity.get::<CombatStatus>().is_some_and(|status| status.0),
             cast: entity.get::<CastState>().cloned(),
             powers: entity.get::<UnitPowers>().cloned(),
+            runes: entity.get::<UnitRunes>().cloned(),
             auras: entity.get::<UnitAuras>().cloned(),
             npc_flags: entity.get::<NpcFlags>().map(|flags| flags.0),
             gold: entity.get::<Gold>().map(|gold| gold.0),
@@ -254,6 +254,7 @@ impl NetworkBridge {
             .receive::<InteractionFailed>()
             .receive::<InteractionClosed>()
             .receive::<protocol::AuctionHouseOpened>()
+            .receive::<protocol::AuctionBrowseResults>()
             .receive::<protocol::AuctionSearchResults>()
             .receive::<protocol::AuctionInventorySnapshot>()
             .receive::<protocol::OwnedAuctionListResponse>()

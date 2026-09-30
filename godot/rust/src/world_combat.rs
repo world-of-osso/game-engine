@@ -4,7 +4,8 @@
 //! swings its main-hand weapon class clip (Attack Unarmed/1H/2H/2HL, 16-19; WoWee
 //! `resolveMeleeAnimId` picks by the equipped weapon's inventory type the same way) and
 //! the victim reacts: CombatWound (9) on a hit, CombatCritical (10) on a crit, Dodge
-//! (30), Parry by weapon class (20-23) or ShieldBlock (24); a miss plays nothing.
+//! (30), Parry by weapon class (20-23) or ShieldBlock (24); a miss plays nothing. A
+//! reaction does not cut the victim's own swing short (`ActionPriority::Reaction`).
 //! While in combat a standing unit holds its weapon class Ready stance (25-28).
 //! Clips a model lacks follow `AnimationData.Fallback`.
 
@@ -141,10 +142,9 @@ pub(crate) fn melee_reaction(kind: &CombatEventType, weapon: MeleeWeapon) -> Opt
 impl UnitNode {
     /// The unit's bone animation player.
     pub(super) fn animation_player(&self) -> Option<Gd<WowAnimationPlayer>> {
-        let path = if self.is_player {
-            "M2Animation"
-        } else {
-            "NpcModel/M2Animation"
+        let path = match self.appearance.as_ref()? {
+            UnitAppearance::Player(_, _) => "M2Animation",
+            UnitAppearance::Creature { .. } => "NpcModel/M2Animation",
         };
         self.visual
             .as_ref()?
@@ -154,10 +154,9 @@ impl UnitNode {
     /// The model node whose skeleton carries the unit's attachments.
     pub(super) fn model_node(&self) -> Option<Gd<Node3D>> {
         let visual = self.visual.as_ref()?;
-        if self.is_player {
-            Some(visual.clone())
-        } else {
-            visual.try_get_node_as::<Node3D>("NpcModel")
+        match self.appearance.as_ref()? {
+            UnitAppearance::Player(_, _) => Some(visual.clone()),
+            UnitAppearance::Creature { .. } => visual.try_get_node_as::<Node3D>("NpcModel"),
         }
     }
 
@@ -268,7 +267,7 @@ impl WorldUnits {
         let victim_weapon = self.unit_weapon(event.target);
         if let Some(reaction) = melee_reaction(&event.event_type, victim_weapon)
             && let Err(error) =
-                self.play_unit_action(event.target, reaction, false, ActionPriority::Combat)
+                self.play_unit_action(event.target, reaction, false, ActionPriority::Reaction)
         {
             errors.push(error);
         }
@@ -293,8 +292,8 @@ impl WorldUnits {
         u16::try_from(animation.bind().action_id()).ok()
     }
 
-    /// (unit, identifier) of the reported M2 events (`$SCD`) units' action clips passed
-    /// since the last call.
+    /// (unit, identifier) of the reported M2 events (`$SCD`, `$CSS`, `$CAH`) units'
+    /// action clips passed since the last call.
     pub(crate) fn take_animation_events(&mut self) -> Vec<(u64, [u8; 4])> {
         self.units
             .iter()
@@ -304,6 +303,25 @@ impl WorldUnits {
                 fired.into_iter().map(move |event| (id, event))
             })
             .collect()
+    }
+
+    /// Units whose death clip started since the last call.
+    pub(crate) fn take_deaths(&mut self) -> Vec<u64> {
+        std::mem::take(&mut self.deaths)
+    }
+
+    /// Unit `id`'s visible main-hand (`Item` ID, `ItemDisplayInfo` ID).
+    pub(crate) fn unit_main_hand(&self, id: u64) -> (Option<u32>, Option<u32>) {
+        self.units
+            .get(&id)
+            .and_then(UnitNode::equipment)
+            .and_then(|equipment| {
+                equipment
+                    .entries
+                    .iter()
+                    .find(|entry| entry.slot == EquipmentVisualSlot::MainHand && !entry.hidden)
+            })
+            .map_or((None, None), |entry| (entry.item_id, entry.display_info_id))
     }
 
     /// Unit `id`'s cast clip has a missile release event yet to fire.

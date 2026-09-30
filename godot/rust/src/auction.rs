@@ -92,6 +92,12 @@ impl GameClient {
             self.auction.reset();
             return Ok(());
         }
+        if let Some(ui) = &mut self.auction.ui {
+            let error = ui.bind_mut().sync_input();
+            if !error.is_empty() {
+                return Err(error.to_string().into());
+            }
+        }
         self.auction.read_inputs();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.poll_auction_input()?;
@@ -202,6 +208,7 @@ impl GameClient {
             session.net.inventory.as_ref().map_or(0, |inv| inv.gold) as i64,
         );
         result.set("search_total", session.net.search_total);
+        result.set("search_revision", session.net.search_revision as i64);
         result.set("row_page", session.ui.row_page as i64);
         result.set(
             "search_page",
@@ -225,6 +232,19 @@ impl GameClient {
             }
             result
         }
+        let mut groups = VarArray::new();
+        for row in &session.net.browse_results {
+            let mut item = VarDictionary::new();
+            item.set("item_id", row.item_id);
+            item.set("name", row.name.as_str());
+            item.set("quality", row.quality);
+            item.set("required_level", row.required_level);
+            item.set("lowest_unit_price", row.lowest_unit_price as i64);
+            item.set("total_quantity", row.total_quantity as i64);
+            groups.push(&item.to_variant());
+        }
+        result.set("groups", &groups);
+        result.set("query_is_browse", session.net.query_is_browse);
         result.set("search", &listings(&session.net.search_results));
         result.set("owned", &listings(&session.net.owned_results));
         result.set("bids", &listings(&session.net.bid_results));

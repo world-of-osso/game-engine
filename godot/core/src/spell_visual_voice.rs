@@ -8,6 +8,12 @@
 //! - A cast clip's `$SCD` M2 event plays `SpellCastDirectedSoundID` (wowdev.wiki/M2 Events:
 //!   "soundEffect ID is defined by CreatureSoundDataRec::m_spellCastDirectedSoundID").
 //!
+//! - Melee (`spell_visual_melee`): a wounded unit plays `SoundInjuryID`, on a crit
+//!   `SoundInjuryCriticalID` (or `SoundInjuryID` when a row leaves it 0, as Human 49/50
+//!   do, whose injury kit holds the `woundcrit` files); a dying one `SoundDeathID`
+//!   (wowdev.wiki/M2 Events `$DTH`: "CreatureSoundDataRec::m_soundDeathID ... is just
+//!   always triggered as soon as the death animation plays").
+//!
 //! A unit's row is its display's `CreatureDisplayInfo.SoundID` when set, else its model's
 //! `CreatureModelData.SoundID` (solarityclient's 3.3.5 client resolves the display override
 //! first, then the model row). A player's display is `ChrModel.DisplayID` of its race and
@@ -31,10 +37,13 @@ pub enum UnitSound {
     BattleShout,
     BattleShoutCritical,
     Taunt,
+    Injury,
+    InjuryCritical,
+    Death,
 }
 
 /// `CreatureSoundData` columns of each [`UnitSound`], in `VOICE_COLUMNS` order.
-const VOICE_COLUMNS: [&str; 8] = [
+const VOICE_COLUMNS: [&str; 11] = [
     "SpellCastDirectedSoundID",
     "WindupSoundID",
     "WindupCriticalSoundID",
@@ -43,6 +52,9 @@ const VOICE_COLUMNS: [&str; 8] = [
     "BattleShoutSoundID",
     "BattleShoutCriticalSoundID",
     "TauntSoundID",
+    "SoundInjuryID",
+    "SoundInjuryCriticalID",
+    "SoundDeathID",
 ];
 
 impl UnitSound {
@@ -70,6 +82,9 @@ impl UnitSound {
             Self::BattleShout => 5,
             Self::BattleShoutCritical => 6,
             Self::Taunt => 7,
+            Self::Injury => 8,
+            Self::InjuryCritical => 9,
+            Self::Death => 10,
         }
     }
 }
@@ -84,7 +99,9 @@ pub enum VoiceSource {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub(super) struct Voices {
     /// `CreatureSoundData` sound kits by row, in `VOICE_COLUMNS` order.
-    rows: HashMap<u32, [u32; 8]>,
+    rows: HashMap<u32, [u32; 11]>,
+    /// `CreatureSoundData.CreatureImpactType` of each row that sets it.
+    impact_types: HashMap<u32, u8>,
     /// `CreatureSoundData` row of each display that has one.
     displays: HashMap<u32, u32>,
     /// Display of each (race, sex) player model.
@@ -102,12 +119,17 @@ impl SpellVisualCatalog {
         let sounds = Table::read(dir, "CreatureSoundData")?;
         let mut columns = vec!["ID"];
         columns.extend(VOICE_COLUMNS);
-        let columns: [&str; 9] = columns.try_into().expect("ID and eight voice columns");
+        let columns: [&str; 12] = columns.try_into().expect("ID and eleven voice columns");
         for [id, kits @ ..] in sounds.ints(columns)? {
             if kits.iter().any(|&kit| kit != 0) {
                 self.voices
                     .rows
                     .insert(id as u32, kits.map(|kit| kit as u32));
+            }
+        }
+        for [id, impact] in sounds.ints(["ID", "CreatureImpactType"])? {
+            if impact != 0 {
+                self.voices.impact_types.insert(id as u32, impact as u8);
             }
         }
         self.voices.displays = display_voices(dir)?;
@@ -117,15 +139,38 @@ impl SpellVisualCatalog {
 
     /// The sound kit `source` plays for `sound`, if its voice has one.
     pub fn unit_sound(&self, source: VoiceSource, sound: UnitSound) -> Option<&KitSound> {
-        let display = match source {
-            VoiceSource::Player { race, sex } => *self.voices.players.get(&(race, sex))?,
-            VoiceSource::Creature { display_id } => display_id,
-        };
-        let row = self.voices.displays.get(&display)?;
-        let kit = self.voices.rows.get(row)?[sound.column()];
+        let row = self.voice_row(source)?;
+        let kit = self.voices.rows.get(&row)?[sound.column()];
         self.sound_kits
             .get(&kit)
             .filter(|kit| !kit.files.is_empty())
+    }
+
+    /// The injury `source` voices when a melee swing wounds it (see the module notes).
+    pub fn wound_sound(&self, source: VoiceSource, critical: bool) -> Option<&KitSound> {
+        critical
+            .then(|| self.unit_sound(source, UnitSound::InjuryCritical))
+            .flatten()
+            .or_else(|| self.unit_sound(source, UnitSound::Injury))
+    }
+
+    /// `source`'s `CreatureSoundData.CreatureImpactType` (0 when its row leaves it unset).
+    pub(super) fn impact_type(&self, source: VoiceSource) -> u8 {
+        self.voice_row(source)
+            .and_then(|row| self.voices.impact_types.get(&row).copied())
+            .unwrap_or(0)
+    }
+
+    /// The `CreatureDisplayInfo` of `source`.
+    pub(super) fn display_of(&self, source: VoiceSource) -> Option<u32> {
+        match source {
+            VoiceSource::Player { race, sex } => self.voices.players.get(&(race, sex)).copied(),
+            VoiceSource::Creature { display_id } => Some(display_id),
+        }
+    }
+
+    fn voice_row(&self, source: VoiceSource) -> Option<u32> {
+        self.voices.displays.get(&self.display_of(source)?).copied()
     }
 }
 
@@ -151,7 +196,7 @@ fn display_voices(dir: &Path) -> Result<HashMap<u32, u32>, String> {
 }
 
 /// The display of each (race, sex) player model (`ChrRaceXChrModel` → `ChrModel`).
-fn player_displays(dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
+pub fn player_displays(dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
     let chr_models: HashMap<i64, i64> = Table::read(dir, "ChrModel")?
         .ints(["ID", "DisplayID"])?
         .into_iter()
