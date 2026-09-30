@@ -195,7 +195,9 @@ func sample_uploaded_input(texture: RID) -> Image:
 	# Identity only: same fullscreen UV and nearest/clamp sampler as TAA current.
 	# RGBA32F retains decoded precision until CPU tone/blend math and final store.
 	var output := format_outputs(FLOAT, FLOAT)
-	if not all_valid([texture] + output) or not draw(input_shader, [texture], output):
+	var resources: Array[RID] = [texture]
+	resources.append_array(output)
+	if not all_valid(resources) or not draw(input_shader, [texture], output):
 		return null
 	return read_formatted(output[0], FLOAT)
 
