@@ -1,8 +1,16 @@
 # Wiki Log
 
+## [2026-09-30] evidence | Bounded target-marker Options PASS; post-extraction gate pending
+
+Updated [target-marker evidence](systems/godot-conversion.md#native-nameplate-options-boundary), parity row and index from saved ledger/logs: main red5 exit 101 → green3 exit 0, Depot `cshqvl6qmg` native/fixture `1d24222c`. Authored saved Off/On/new F1 self-ring visibility and original menu movement/decoded UDP/Exit pass; green1/2 historical W failures retained. Prior independent `/tmp/claude/verify-native-target-marker-options.md`: bounded behavior/compile PASS with readability findings. `4ef38394` extracts fixture defaults persistence to address introduced complexity; five-line production consumer unchanged. Main Depot `mb61bqgcj2` final-build/final-runtime exit 0 repeats bounded marker/menu proof; main accepts `/tmp/claude/verify-native-target-marker-final.md` bounded follow-up PASS: behavior-preserving extraction, create cognitive 16→15/helper 1 and focused fmt, reusing saved Depot build/runtime exit-0 proof. Existing long functions excluded; no whole-file readability clearance. Corrected fixture wording to canonical options file seeded with `()`, not a `canonical()` call. No all-HUD/full-conversion/startup-false/fresh-process/existing-ring live-edit proof. Docs only; shutdown deferred/source pin removed.
+
 ## [2026-09-30] evidence | Bounded TAA + Bloom gate accepted; termination unresolved
 
 Bounded main-observed [TAA + Bloom controller evidence](systems/godot-conversion.md#bloom-production-controller-observer--bounded-main-observed-evidence): `data/diagnostics/taa-controller-bloom-observer/run2.log` exit 0 (`run-2361912-575`), actual production TAA + Bloom controllers, nine HDR 64×48 frames. Isolated original GPU `gpu-run2.log` exit 0 (`gpu-oracle-2363313-828`): 540672 main channel comparisons including post-TAA scene, 0 failures/max error 0; 3072 confidence and 54 jitter comparisons confirm. Oracle owns independent original GPU history, freezes predictions before comparison, and uses fixed HALF ULP + 2e-5 without calibration. Positive Bloom RGB delta with preserved alpha is observation, NOT Bloom numeric parity. Main accepted independent gate `/tmp/claude/verify-taa-controller-bloom-observer.md`: **bounded saved-artifact numeric/callback/Bloom-observation PASS**. Independently recomputed 540672 main + 3072 confidence + 54 jitter comparisons, zero failures/max error 0; same-frame callback order/restoration checked; saved capture and binary integrity checks passed. Bloom remains observation only, not numeric parity. Capture run1 and isolated GPU run1 both exit 124 after bounded PASS/report with all cleanup markers complete; timeout now also occurs without native extension, so cannot be attributed only to native code/logging. Reliable termination remains **FAIL/unresolved**; clean run2 does not fix intermittency. Latest isolated diagnostic `gpu-run3.log` also exits 124. Saved `gpu-run3-gdb-stdout.txt` records main join-frame `r12=0x7f7a48ffa6c0`, the same pointer listed for the “Wayland Events” thread; analysis pending, not a root-cause finding. No full-application/general parity, scale or LDR acceptance. Prior CPU 3806 failures remain; full conversion open, no Handled claim.
+
+## [2026-09-30] fix | Login status shows every connection loss
+
+[Login feedback](systems/godot-conversion.md): `SessionEffect::ShowFeedback` projects disconnect feedback without a screen change; live fixture `godot/tests/login_connection_loss.gd` (server on UDP 5093 killed while connecting) RED before, GREEN at `5400ba7d`. Handshake loss still waits for the 60 s netcode timeout.
 
 ## [2026-09-29] evidence | Bounded native controller scale, verifier pending
 
@@ -2148,6 +2156,10 @@ Player and target frames now sit at Retail's Modern Edit Mode preset. The target
 ## [2026-09-29] feature | Auras on the Godot HUD
 
 The Godot client shows the player BuffFrame/DebuffFrame and the Retail TargetFrame aura container ([buff frame spec](../specs/buff-frame.md)). The player's own auras are large (21 px). On a hostile NPC, other players' debuffs are hidden. Timed icons get the reverse cooldown swipe with its edge. Countdowns run on wall time. The Retail PlayerFrame draws no aura icons. The shared `aura_display_data` keeps the replicated slot order that BuffFrame uses. Before this, the Godot client drew no auras at all, and the server marked Polymorph on the neutral Blackrock Spy as a buff (game-server `70551a9`, effect positivity). Live proof: `godot/tests/auras_live.gd`, with captures in `data/diagnostics/auras-2026-09-29/`.
+
+## [2026-09-30] feature | Spell assets load off the main thread
+
+A spell's first use no longer extracts, parses or decodes its kit models, textures and sounds on the main thread. Before, a first Flash of Light spent 117-283 ms per frame on spell visuals, and the CASC resolver init (1.5-1.7 s) could land on the first cast. Now a worker loader with prefetch priorities does this work. A late asset joins its kit's timeline at arrival, and the local player's known spells are prefetched. A first-use Flash of Light played every sound on time, with at most 30.4 ms of spell-visual time per frame and a 1.493-1.573 s precast for a 1.5 s cast. See [spell-visuals](systems/spell-visuals.md#asset-loading-godotrustsrcspell_assetsrs-godotcoresrcasset_loaderrs).
 
 ## [2026-09-30] fix | Retail ADT water
 

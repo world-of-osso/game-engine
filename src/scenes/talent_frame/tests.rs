@@ -1,9 +1,12 @@
 //! Talent window tests on the real Paladin tree 790 (12.1.0.69933 CSVs);
-//! each test skips when `data/db2` is absent. Node IDs match game-server
+//! each test fails when `data/db2` lacks them. Node IDs match game-server
 //! `trait_config_tests.rs`.
 
 use std::path::Path;
 use std::sync::{OnceLock, mpsc};
+#[path = "../../../tests/unit/required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
 
 use bevy::ecs::system::RunSystemOnce;
 use game_engine::network_events::{dispatch_incoming, dispatch_outgoing, register_message_handler};
@@ -37,27 +40,19 @@ const AVENGING_WRATH_NODE: u32 = 81544;
 /// Templar / Herald of the Sun hero selection, visible to Retribution only.
 const RET_HERO_SELECTION_NODE: u32 = 99837;
 
-fn trees() -> Option<&'static TalentTreeData> {
-    static TREES: OnceLock<Option<TalentTreeData>> = OnceLock::new();
-    TREES
-        .get_or_init(|| {
-            if !talent_source_dir(Path::new("data"))
-                .join("TraitNode.csv")
-                .exists()
-            {
-                eprintln!("skipping: trait DB2 CSVs not present");
-                return None;
-            }
-            let mut paths = TalentTreePaths::for_data_dir(Path::new("data"));
-            paths.cache_path = std::env::temp_dir().join(format!(
-                "talent_trees_frame_test_{}.bin",
-                std::process::id()
-            ));
-            let data = load_talent_trees(&paths).expect("load talent trees");
-            std::fs::remove_file(&paths.cache_path).expect("remove test cache");
-            Some(data)
-        })
-        .as_ref()
+fn trees() -> &'static TalentTreeData {
+    static TREES: OnceLock<TalentTreeData> = OnceLock::new();
+    TREES.get_or_init(|| {
+        require_asset(talent_source_dir(Path::new("data")).join("TraitNode.csv"));
+        let mut paths = TalentTreePaths::for_data_dir(Path::new("data"));
+        paths.cache_path = std::env::temp_dir().join(format!(
+            "talent_trees_frame_test_{}.bin",
+            std::process::id()
+        ));
+        let data = load_talent_trees(&paths).expect("load talent trees");
+        std::fs::remove_file(&paths.cache_path).expect("remove test cache");
+        data
+    })
 }
 
 /// What the server sends at level 80 for an empty config: granted entries
@@ -120,11 +115,11 @@ fn deliver<M: lightyear::prelude::Message>(app: &mut App, messages: Vec<M>) {
     app.update();
 }
 
-fn ret_app() -> Option<App> {
-    let data = trees()?;
+fn ret_app() -> App {
+    let data = trees();
     let mut app = talent_app(data);
     deliver(&mut app, vec![empty_snapshot(data, RETRIBUTION)]);
-    Some(app)
+    app
 }
 
 fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
@@ -188,7 +183,7 @@ fn queued_commit_count(app: &App) -> usize {
 
 #[test]
 fn loading_until_the_first_snapshot_arrives() {
-    let Some(data) = trees() else { return };
+    let data = trees();
     let app = talent_app(data);
     assert!(has_frame(&app, TALENT_STATE_PANEL));
     assert!(!has_frame(&app, &talent_node_name(HAMMER_OF_WRATH_NODE)));
@@ -196,7 +191,7 @@ fn loading_until_the_first_snapshot_arrives() {
 
 #[test]
 fn retribution_snapshot_renders_granted_node_rank_and_points() {
-    let Some(app) = ret_app() else { return };
+    let app = ret_app();
     assert!(!has_frame(&app, TALENT_STATE_PANEL));
     assert_eq!(rank_text(&app, HAMMER_OF_WRATH_NODE), "1/1");
     assert_eq!(rank_text(&app, BLADE_OF_JUSTICE.0), "0/1");
@@ -212,7 +207,7 @@ fn retribution_snapshot_renders_granted_node_rank_and_points() {
 
 #[test]
 fn clicking_an_available_node_buys_a_pending_rank() {
-    let Some(mut app) = ret_app() else { return };
+    let mut app = ret_app();
     click(
         &mut app,
         &talent_node_name(BLADE_OF_JUSTICE.0),
@@ -234,7 +229,7 @@ fn clicking_an_available_node_buys_a_pending_rank() {
 
 #[test]
 fn clicking_a_node_with_an_unmet_prerequisite_does_nothing() {
-    let Some(mut app) = ret_app() else { return };
+    let mut app = ret_app();
     click(
         &mut app,
         &talent_node_name(AVENGING_WRATH_NODE),
@@ -250,7 +245,7 @@ fn clicking_a_node_with_an_unmet_prerequisite_does_nothing() {
 
 #[test]
 fn apply_sends_commit_with_the_pending_entries_and_reset_discards() {
-    let Some(mut app) = ret_app() else { return };
+    let mut app = ret_app();
     click(
         &mut app,
         &talent_node_name(BLADE_OF_JUSTICE.0),
@@ -304,7 +299,7 @@ fn apply_sends_commit_with_the_pending_entries_and_reset_discards() {
 
 #[test]
 fn cancelling_the_apply_confirmation_sends_nothing_and_keeps_pending() {
-    let Some(mut app) = ret_app() else { return };
+    let mut app = ret_app();
     click(
         &mut app,
         &talent_node_name(BLADE_OF_JUSTICE.0),
@@ -319,7 +314,7 @@ fn cancelling_the_apply_confirmation_sends_nothing_and_keeps_pending() {
 
 #[test]
 fn rejected_commit_shows_the_server_reason_in_ui_errors() {
-    let Some(mut app) = ret_app() else { return };
+    let mut app = ret_app();
     let reason = "node 81544 requires one of nodes [92689] fully ranked";
     deliver(
         &mut app,
@@ -335,8 +330,8 @@ fn rejected_commit_shows_the_server_reason_in_ui_errors() {
 
 #[test]
 fn specialization_change_rebuilds_the_tree_for_the_new_spec() {
-    let Some(data) = trees() else { return };
-    let Some(mut app) = ret_app() else { return };
+    let data = trees();
+    let mut app = ret_app();
     assert!(has_frame(&app, &talent_node_name(RET_HERO_SELECTION_NODE)));
     assert!(has_frame(&app, &talent_node_name(BLADE_OF_JUSTICE.0)));
 
@@ -360,7 +355,7 @@ fn specialization_change_rebuilds_the_tree_for_the_new_spec() {
 
 #[test]
 fn spec_buttons_request_the_other_specs() {
-    let Some(mut app) = ret_app() else { return };
+    let mut app = ret_app();
     let names: Vec<String> = (0..3).map(talent_spec_button_name).collect();
     let prot = names
         .iter()

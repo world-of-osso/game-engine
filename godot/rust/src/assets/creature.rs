@@ -164,20 +164,21 @@ fn cache_required(
     })
 }
 
-/// Cache the local-CASC textures an already parsed model's batches reference.
+/// Cache the local-CASC textures an already parsed model's batches and particles
+/// reference; returns their FDIDs.
 pub(crate) fn cache_model_textures(
     resolver: &CascListfileResolver,
     data_root: &Path,
     skin_fdids: &[u32; 3],
     parsed: &m2::Model,
-) -> Result<(), String> {
+) -> Result<BTreeSet<u32>, String> {
     let textures = creature_texture_fdids(resolver, parsed, skin_fdids)?;
-    for fdid in textures {
+    for &fdid in &textures {
         let path = data_root.join("textures").join(format!("{fdid}.blp"));
         // Missing textures remain the native material loader's reported missing FDIDs.
         resolver.ensure_cached(fdid, &path);
     }
-    Ok(())
+    Ok(textures)
 }
 
 fn creature_texture_fdids(

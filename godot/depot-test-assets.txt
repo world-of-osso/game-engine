@@ -161,3 +161,10 @@ db2/12.1.0.69933/Map.csv
 db2/12.1.0.69933/MapDifficulty.csv
 db2/12.1.0.69933/DungeonEncounter.csv
 db2/12.1.0.69933/Difficulty.csv
+db2/12.1.0.69933/UiMap.csv
+db2/12.1.0.69933/UiMapAssignment.csv
+db2/12.1.0.69933/UiMapXMapArt.csv
+db2/12.1.0.69933/UiMapArt.csv
+db2/12.1.0.69933/UiMapArtStyleLayer.csv
+db2/12.1.0.69933/UiMapArtTile.csv
+db2/12.1.0.69933/TaxiNodes.csv

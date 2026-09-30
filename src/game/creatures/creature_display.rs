@@ -238,7 +238,12 @@ fn append_named_model_skin_cache_entry(name: &str, skin_fdids: [u32; 3]) -> Resu
 }
 
 #[cfg(test)]
+#[path = "../../../tests/unit/required_asset.rs"]
+mod required_asset;
+
+#[cfg(test)]
 mod tests {
+    use super::required_asset::require_asset;
     use super::*;
 
     #[test]
@@ -251,10 +256,13 @@ mod tests {
 
     #[test]
     fn resolve_skin_fdids_for_local_boar_model() {
-        let boar_model = Path::new("data/models/boar.m2");
-        if !boar_model.exists() || !cache::creature_display_cache_path().exists() {
-            return;
-        }
+        let boar_model = require_asset(Path::new("data/models/boar.m2"));
+        let cache_path = cache::creature_display_cache_path();
+        assert!(
+            cache_path.exists(),
+            "missing {}: build it with `cargo run --bin creature_display_cache_import`",
+            cache_path.display()
+        );
         let map = CreatureDisplayMap;
         let skin_fdids = map.resolve_skin_fdids_for_model_path(boar_model);
         assert!(
