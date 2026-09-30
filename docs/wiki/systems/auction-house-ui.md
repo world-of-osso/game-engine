@@ -36,7 +36,7 @@ The shared frame now labels Short/Medium/Long as 1 Day/1 Week/2 Weeks; deposit m
 
 ### Bounded evidence
 
-At `c14d87ec`, Depot targeted native model tests passed 7/7 (`target/native-auction-actions-green.log`); `97e96435` owned UDP passed 1/1 (`target/native-auction-wire-green.log`). Targeted host compile/right-click-range proof passed at `97e96435`; two unrelated existing `terrain/assets.rs` unused-mut warnings remain. Later input/fixture/reply-observer changes invalidate host compile scope until recompiled. Native GDScript fixture exists but has not run; main must first prove game-cli against its integrated disposable server. No rendered parity, full conversion or economic acceptance is claimed.
+At `5f855404`, targeted Depot native model tests passed 8/8 (`target/native-auction-model-green-final.log`, build `xstxljj1h2`) and host compile/right-click-range proof passed 1/1 (`target/native-auction-host-green-final.log`, build `wfkdvgnm8z`). This compiles the input-first read order and read-only fixture lookup; it does not execute Godot. `97e96435` owned UDP passed 1/1 (`target/native-auction-wire-green.log`, build `w7w7zc9rff`); its source remains unchanged. Two unrelated existing `terrain/assets.rs` unused-mut warnings remain. Native GDScript fixture exists but has not run or been parse-certified; main must first prove game-cli against its integrated disposable server. No rendered parity, full conversion or economic acceptance is claimed.
 
 ## Sources
 
