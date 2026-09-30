@@ -344,6 +344,18 @@ TABLES = {
             ("Flags", ("int", 4, 0)),
         ],
     ),
+    # WoWDBDefs layout 22469480: inline ID, then the layout relation as field 1.
+    "ChrModelMaterial": (
+        0x22469480,
+        [
+            ("ID", "id"),
+            ("CharComponentTextureLayoutsID", ("int", 1, 0)),
+            ("TextureType", ("int", 2, 0)),
+            ("Width", ("int", 3, 0)),
+            ("Height", ("int", 4, 0)),
+            ("Flags", ("int", 5, 0)),
+        ],
+    ),
     "ChrModelTextureLayer": (
         0xD0583FB4,
         [

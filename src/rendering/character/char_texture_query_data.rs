@@ -81,3 +81,21 @@ fn load_layouts(conn: &Connection) -> Result<HashMap<u32, TextureLayout>, String
         .map_err(|err| format!("read layouts row: {err}"))?;
     Ok(layouts)
 }
+
+/// ChrModelMaterial canvas sizes: (layout ID, M2 texture type) -> (width, height).
+pub fn query_model_material_sizes(
+    conn: &Connection,
+) -> Result<HashMap<(u32, u32), (u32, u32)>, String> {
+    let mut stmt = conn
+        .prepare("SELECT layout_id, texture_type, width, height FROM model_materials")
+        .map_err(|err| format!("prepare model_materials lookup: {err}"))?;
+    stmt.query_map([], |row| {
+        Ok((
+            (row.get::<_, u32>(0)?, row.get::<_, u32>(1)?),
+            (row.get::<_, u32>(2)?, row.get::<_, u32>(3)?),
+        ))
+    })
+    .map_err(|err| format!("query model_materials: {err}"))?
+    .collect::<Result<HashMap<_, _>, _>>()
+    .map_err(|err| format!("read model_materials row: {err}"))
+}

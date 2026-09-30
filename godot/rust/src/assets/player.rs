@@ -326,14 +326,15 @@ fn prepare_player_appearance(
             load_appearance_texture(resolver, data_root, fdid, "player cape")?,
         );
     }
+    compose_separate_texture_types(
+        &compositor,
+        &selected.materials,
+        layout_id,
+        &mut pixels,
+        |fdid| load_appearance_texture(resolver, data_root, fdid, "player"),
+    )?;
     let textures = to_textures(pixels)?;
-    let direct = direct_bind_pixels(&compositor, &selected.materials, layout_id, |fdid| {
-        load_appearance_texture(resolver, data_root, fdid, "player skinned model")
-    })?;
     let mut skinned_textures = textures.clone();
-    for (kind, texture) in to_textures(direct)? {
-        skinned_textures.entry(kind).or_insert(texture);
-    }
     // Skin extra falls back to the body skin (wow.export `apply_skinned_model_textures`).
     if let Some(skin) = skinned_textures.get(&1).cloned() {
         skinned_textures.entry(8).or_insert(skin);
@@ -375,26 +376,33 @@ fn to_textures(
         .collect()
 }
 
-/// Raw material textures of the M2 texture types the layout does not composite:
-/// every type but skin (1), skin extra (8), hair (6) and eyes (19), which the body
-/// pipeline composes. wow.export `resolve_replaceable_textures` binds these (the
-/// Demon Hunter blindfold's type 9) on skinned models; the last selected wins.
-fn direct_bind_pixels(
+/// Composite each texture type the layout keeps on its own canvas and the body
+/// pipeline has not produced (hair 6 and eyes 19 are): for example the Dracthyr
+/// scales (7), wing membranes (10) and horns (9), or the Demon Hunter blindfold's
+/// type 9. The character and its skinned models bind them by type.
+fn compose_separate_texture_types(
     compositor: &CharTextureData,
     materials: &[(u16, u32)],
     layout_id: u32,
+    pixels: &mut HashMap<u32, TexturePixels>,
     mut load: impl FnMut(u32) -> Result<TexturePixels, String>,
-) -> Result<HashMap<u32, TexturePixels>, String> {
-    let mut direct = HashMap::new();
-    for &(target, fdid) in materials {
-        let Some(kind) = compositor.texture_type_for_target(layout_id, target) else {
+) -> Result<(), String> {
+    for kind in compositor.separate_texture_types(layout_id) {
+        if pixels.contains_key(&kind) {
             continue;
-        };
-        if !matches!(kind, 1 | 6 | 8 | 19) {
-            direct.insert(kind, load(fdid)?);
+        }
+        let mut error = None;
+        let composed = compositor.composite_texture_type(materials, layout_id, kind, |fdid| {
+            load(fdid).map_err(|failed| error = Some(failed)).ok()
+        });
+        if let Some(error) = error {
+            return Err(error);
+        }
+        if let Some(composed) = composed {
+            pixels.insert(kind, composed);
         }
     }
-    Ok(direct)
+    Ok(())
 }
 
 #[cfg(test)]

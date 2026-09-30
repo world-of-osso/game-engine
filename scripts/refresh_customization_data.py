@@ -6,7 +6,7 @@
 1. Back up the current CSVs and customization caches to
    <data>/pre-12x-customization-20260930/ (once; an existing backup is kept).
 2. Export ChrCustomizationElement, ChrCustomizationMaterial,
-   ChrCustomizationSkinnedModel and ChrModelTextureLayer from the local CASC
+   ChrCustomizationSkinnedModel, ChrModelTextureLayer and ChrModelMaterial from the local CASC
    install (casc-local + scripts/export_db2_csv.py).
 3. Fetch TextureFileData for 12.1.0.69933 from wago.tools as a build-pinned CSV
    (the game-server scripts/db2.py precedent). The local install has no
@@ -40,6 +40,7 @@ LOCAL_TABLES = {
     "ChrCustomizationMaterial": 3459652,
     "ChrCustomizationSkinnedModel": 3460183,
     "ChrModelTextureLayer": 3548976,
+    "ChrModelMaterial": 3566562,
 }
 WAGO_TABLES = ["TextureFileData"]
 BACKED_UP = [f"{table}.csv" for table in [*LOCAL_TABLES, *WAGO_TABLES]] + [

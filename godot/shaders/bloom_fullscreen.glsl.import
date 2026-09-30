@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://707ohols1153"
+path="res://.godot/imported/bloom_fullscreen.glsl-7cb38579c63c493e8014043d6470abac.res"
+
+[deps]
+
+source_file="res://shaders/bloom_fullscreen.glsl"
+dest_files=["res://.godot/imported/bloom_fullscreen.glsl-7cb38579c63c493e8014043d6470abac.res"]
+
+[params]
+

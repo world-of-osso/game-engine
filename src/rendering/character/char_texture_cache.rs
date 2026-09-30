@@ -14,11 +14,12 @@ fn cache_path() -> PathBuf {
     crate::paths::shared_data_path("cache/char_texture.sqlite")
 }
 
-fn source_paths(data_dir: &Path) -> [PathBuf; 3] {
+fn source_paths(data_dir: &Path) -> [PathBuf; 4] {
     [
         data_dir.join("ChrModelTextureLayer.csv"),
         data_dir.join("CharComponentTextureSections.csv"),
         data_dir.join("CharComponentTextureLayouts.csv"),
+        data_dir.join("ChrModelMaterial.csv"),
     ]
 }
 
@@ -127,6 +128,7 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
     populate_layers(&conn, &csv_paths[0])?;
     populate_sections(&conn, &csv_paths[1])?;
     populate_layouts(&conn, &csv_paths[2])?;
+    populate_model_materials(&conn, &csv_paths[3])?;
     conn.execute_batch("COMMIT;")
         .map_err(|err| format!("commit char texture cache: {err}"))?;
     Ok(())
@@ -154,6 +156,7 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
          DROP TABLE IF EXISTS layers;
          DROP TABLE IF EXISTS sections;
          DROP TABLE IF EXISTS layouts;
+         DROP TABLE IF EXISTS model_materials;
          CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
          CREATE TABLE layers (
              texture_type INTEGER NOT NULL,
@@ -176,6 +179,13 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              id INTEGER PRIMARY KEY,
              width INTEGER NOT NULL,
              height INTEGER NOT NULL
+         );
+         CREATE TABLE model_materials (
+             layout_id INTEGER NOT NULL,
+             texture_type INTEGER NOT NULL,
+             width INTEGER NOT NULL,
+             height INTEGER NOT NULL,
+             PRIMARY KEY (layout_id, texture_type)
          );",
     )
     .map_err(|err| format!("init char texture cache: {err}"))
@@ -237,6 +247,26 @@ fn populate_layouts(conn: &Connection, path: &Path) -> Result<(), String> {
         |headers, fields, path| {
             Ok((
                 parse_u32(fields, header_index(headers, "ID", path)?),
+                parse_u32(fields, header_index(headers, "Width", path)?),
+                parse_u32(fields, header_index(headers, "Height", path)?),
+            ))
+        },
+    )
+}
+
+/// ChrModelMaterial: the canvas size of each (layout, M2 texture type).
+fn populate_model_materials(conn: &Connection, path: &Path) -> Result<(), String> {
+    insert_simple_rows(
+        conn,
+        "INSERT OR REPLACE INTO model_materials (layout_id, texture_type, width, height) VALUES (?1, ?2, ?3, ?4)",
+        path,
+        |headers, fields, path| {
+            Ok((
+                parse_u32(
+                    fields,
+                    header_index(headers, "CharComponentTextureLayoutsID", path)?,
+                ),
+                parse_u32(fields, header_index(headers, "TextureType", path)?),
                 parse_u32(fields, header_index(headers, "Width", path)?),
                 parse_u32(fields, header_index(headers, "Height", path)?),
             ))
