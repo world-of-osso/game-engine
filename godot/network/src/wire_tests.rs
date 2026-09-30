@@ -1,6 +1,127 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
 #[test]
+fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
+    use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8221).unwrap();
+    await_bridge_event(&mut server, &mut bridge, "mailbox connection", |e| {
+        matches!(e, Event::Connected)
+    });
+    let object = server
+        .world_mut()
+        .spawn((
+            GameObjectInfo {
+                entry: 140907,
+                go_type: GAMEOBJECT_TYPE_MAILBOX,
+                display_id: 1727,
+                name: "Stormwind Mailbox".into(),
+                scale: 1.0,
+            },
+            Position {
+                x: 2.0,
+                y: 3.0,
+                z: 4.0,
+            },
+            Rotation {
+                x: 0.0,
+                y: 0.7,
+                z: 0.0,
+            },
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let Event::GameObjectUpdated(snapshot) = await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "mailbox replication",
+        |e| matches!(e, Event::GameObjectUpdated(u) if u.server_id == object.to_bits()),
+    ) else {
+        unreachable!()
+    };
+    assert_eq!(
+        snapshot.position,
+        Some(Position {
+            x: 2.0,
+            y: 3.0,
+            z: 4.0
+        })
+    );
+    assert_eq!(snapshot.info.display_id, 1727);
+    assert_eq!(snapshot.info.entry, 140907);
+    assert_eq!(
+        snapshot.rotation,
+        Some(Rotation {
+            x: 0.0,
+            y: 0.7,
+            z: 0.0
+        })
+    );
+    server.world_mut().entity_mut(object).insert(Position {
+        x: 6.0,
+        y: 3.0,
+        z: 4.0,
+    });
+    await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "mailbox position update",
+        |e| matches!(e, Event::GameObjectUpdated(u) if u.server_id == object.to_bits() && u.position.is_some_and(|p| p.x == 6.0)),
+    );
+    server.world_mut().despawn(object);
+    await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "mailbox removal",
+        |e| matches!(e, Event::UnitRemoved(id) if *id == object.to_bits()),
+    );
+    bridge.stop().unwrap();
+}
+
+#[test]
+fn native_mailbox_replies_reach_default_bridge() {
+    use shared::protocol::{MailChannel, MailError, MailFailed, MailboxContents, PendingMail};
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8222).unwrap();
+    await_bridge_event(&mut server, &mut bridge, "mail connection", |e| {
+        matches!(e, Event::Connected)
+    });
+    macro_rules! reply {
+        ($ty:ty, $expected:expr) => {{
+            let expected = $expected;
+            let world = server.world_mut();
+            for mut sender in world.query::<&mut MessageSender<$ty>>().iter_mut(world) {
+                sender.send::<MailChannel>(expected.clone());
+            }
+            let Event::Message(message) = await_bridge_event(&mut server, &mut bridge, "mail reply", |e| matches!(e, Event::Message(m) if m.is::<$ty>())) else { unreachable!() };
+            assert_eq!(message.downcast::<$ty>().ok(), Some(expected));
+        }};
+    }
+    reply!(
+        MailboxContents,
+        MailboxContents {
+            object: 517,
+            mails: vec![],
+            now: 100
+        }
+    );
+    reply!(
+        MailFailed,
+        MailFailed {
+            object: 517,
+            error: MailError::InventoryFull
+        }
+    );
+    reply!(
+        PendingMail,
+        PendingMail {
+            senders: vec!["Auction House".into()]
+        }
+    );
+    bridge.stop().unwrap();
+}
+
+#[test]
 fn native_bridge_receives_loot_messages_in_channel_order() {
     use shared::protocol::{
         CorpseLootable, LootChannel, LootClosed, LootContent, LootError, LootFailed, LootResponse,
