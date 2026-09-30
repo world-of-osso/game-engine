@@ -94,6 +94,9 @@ func run_test() -> void:
 	if animation.animation.current_animation_id() != 0:
 		fail("World player did not start idle Stand 0")
 		return
+	var marker_options = load("res://tests/target_marker_options_probe.gd").new()
+	if not await marker_options.run(self, client, player):
+		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
