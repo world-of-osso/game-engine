@@ -114,37 +114,7 @@ pub fn parse_fog_keyframes(source: &str) -> Result<FogKeyframes, String> {
             continue;
         }
         let row = CsvRow::new(&columns, line, index + 2);
-        let coefficients = |name: &str| -> Result<[f32; 4], String> {
-            let mut values = [0.0; 4];
-            for (slot, value) in values.iter_mut().enumerate() {
-                *value = row.number(&format!("{name}_{slot}"))?;
-            }
-            Ok(values)
-        };
-        let keyframe = FogKeyframe {
-            time: row.number("Time")?,
-            fog_end: row.number("FogEnd")?,
-            fog_scaler: row.number("FogScaler")?,
-            fog_density: row.number("FogDensity")?,
-            fog_height: row.number("FogHeight")?,
-            fog_height_scaler: row.number("FogHeightScaler")?,
-            fog_height_density: row.number("FogHeightDensity")?,
-            fog_z_scalar: row.number("FogZScalar")?,
-            main_fog_start: row.number("MainFogStartDist")?,
-            main_fog_end: row.number("MainFogEndDist")?,
-            sun_fog_angle: row.number("SunFogAngle")?,
-            sun_fog_strength: row.number("SunFogStrength")?,
-            end_fog_color_distance: row.number("EndFogColorDistance")?,
-            fog_start_offset: row.number("FogStartOffset")?,
-            sky_fog_color: row.color("SkyFogColor")?,
-            end_fog_color: row.color("EndFogColor")?,
-            sun_fog_color: row.color("SunFogColor")?,
-            fog_height_color: row.color("FogHeightColor")?,
-            end_fog_height_color: row.color("EndFogHeightColor")?,
-            height_coefficients: coefficients("FogHeightCoefficients")?,
-            main_coefficients: coefficients("MainFogCoefficients")?,
-            height_density_coefficients: coefficients("HeightDensityFogCoeff")?,
-        };
+        let keyframe = read_fog_keyframe(&row)?;
         keyframes
             .entry(row.parse("LightParamID")?)
             .or_default()
@@ -156,9 +126,44 @@ pub fn parse_fog_keyframes(source: &str) -> Result<FogKeyframes, String> {
     Ok(keyframes)
 }
 
-/// `fixLightTimedData`: unset colours fall back, ranges clamp, a keyframe without density
-/// derives one from its FogEnd span.
-fn fix_keyframe(mut data: FogKeyframe) -> FogKeyframe {
+fn read_coefficients(row: &CsvRow<'_>, name: &str) -> Result<[f32; 4], String> {
+    let mut values = [0.0; 4];
+    for (slot, value) in values.iter_mut().enumerate() {
+        *value = row.number(&format!("{name}_{slot}"))?;
+    }
+    Ok(values)
+}
+
+fn read_fog_keyframe(row: &CsvRow<'_>) -> Result<FogKeyframe, String> {
+    let coefficients = |name| read_coefficients(row, name);
+    Ok(FogKeyframe {
+        time: row.number("Time")?,
+        fog_end: row.number("FogEnd")?,
+        fog_scaler: row.number("FogScaler")?,
+        fog_density: row.number("FogDensity")?,
+        fog_height: row.number("FogHeight")?,
+        fog_height_scaler: row.number("FogHeightScaler")?,
+        fog_height_density: row.number("FogHeightDensity")?,
+        fog_z_scalar: row.number("FogZScalar")?,
+        main_fog_start: row.number("MainFogStartDist")?,
+        main_fog_end: row.number("MainFogEndDist")?,
+        sun_fog_angle: row.number("SunFogAngle")?,
+        sun_fog_strength: row.number("SunFogStrength")?,
+        end_fog_color_distance: row.number("EndFogColorDistance")?,
+        fog_start_offset: row.number("FogStartOffset")?,
+        sky_fog_color: row.color("SkyFogColor")?,
+        end_fog_color: row.color("EndFogColor")?,
+        sun_fog_color: row.color("SunFogColor")?,
+        fog_height_color: row.color("FogHeightColor")?,
+        end_fog_height_color: row.color("EndFogHeightColor")?,
+        height_coefficients: coefficients("FogHeightCoefficients")?,
+        main_coefficients: coefficients("MainFogCoefficients")?,
+        height_density_coefficients: coefficients("HeightDensityFogCoeff")?,
+    })
+}
+
+/// `fixLightTimedData`'s colour fallbacks: an unset (0) end or height colour.
+fn fix_colors(mut data: FogKeyframe) -> FogKeyframe {
     if data.end_fog_color == [0.0; 3] {
         data.end_fog_color = data.sky_fog_color;
     }
@@ -168,6 +173,13 @@ fn fix_keyframe(mut data: FogKeyframe) -> FogKeyframe {
     if data.end_fog_height_color == [0.0; 3] {
         data.end_fog_height_color = data.end_fog_color;
     }
+    data
+}
+
+/// `fixLightTimedData`: unset colours fall back, ranges clamp, a keyframe without density
+/// derives one from its FogEnd span.
+fn fix_keyframe(data: FogKeyframe) -> FogKeyframe {
+    let mut data = fix_colors(data);
     data.fog_scaler = data.fog_scaler.clamp(-1.0, 1.0);
     data.fog_end = data.fog_end.max(10.0);
     data.fog_height = data.fog_height.max(-10_000.0);
@@ -215,7 +227,11 @@ fn bracket(rows: &[FogKeyframe], minutes: f32) -> Option<(&FogKeyframe, &FogKeyf
     }
     let (first, last) = (rows.first()?, rows.last()?);
     let wrapped = if m < last.time { m + DAY_MINUTES } else { m };
-    Some((last, first, ratio(last.time, first.time + DAY_MINUTES, wrapped)))
+    Some((
+        last,
+        first,
+        ratio(last.time, first.time + DAY_MINUTES, wrapped),
+    ))
 }
 
 fn mix(a: f32, b: f32, t: f32) -> f32 {
@@ -246,50 +262,82 @@ fn shader_order(coefficients: [f32; 4]) -> [f32; 4] {
 /// One LightParams' fog at `minutes` (`calcLightParamResult`), `flags` its LightParams flags.
 pub fn sample_fog(rows: &[FogKeyframe], minutes: f32, flags: u32) -> Option<FogResult> {
     let (raw_a, raw_b, t) = bracket(rows, minutes)?;
-    let scaler_floor = if raw_a.fog_density > 0.0 || raw_b.fog_density > 0.0 {
-        -0.2
-    } else {
-        0.0
-    };
+    let authored_density = raw_a.fog_density > 0.0 || raw_b.fog_density > 0.0;
     let (a, b) = (fix_keyframe(*raw_a), fix_keyframe(*raw_b));
     let (sun_angle, sun_strength, sun_blend) = sun_fog(&a, &b, t);
-    let height_coefficients = mix4(a.height_coefficients, b.height_coefficients, t);
-    let main_coefficients = mix4(a.main_coefficients, b.main_coefficients, t);
-    let height_density_coefficients =
-        mix4(a.height_density_coefficients, b.height_density_coefficients, t);
-    let legacy = is_empty(main_coefficients) && is_empty(height_density_coefficients);
-    Some(FogResult {
-        fog_scaler: mix(a.fog_scaler, b.fog_scaler, t).max(scaler_floor),
-        fog_density: mix(a.fog_density, b.fog_density, t).max(0.9),
+    let curves = fog_curves(&a, &b, t);
+    let mut fog = mix_keyframes(&a, &b, t);
+    fog.fog_scaler = fog
+        .fog_scaler
+        .max(if authored_density { -0.2 } else { 0.0 });
+    fog.fog_density = fog.fog_density.max(0.9);
+    fog.sun_fog_angle = if flags & LIGHT_PARAMS_NO_SUN_FOG != 0 {
+        1.1
+    } else {
+        sun_angle
+    };
+    fog.sun_fog_strength = sun_strength;
+    fog.sun_angle_blend = sun_blend;
+    fog.height_coefficients = curves.height;
+    fog.main_coefficients = curves.main;
+    fog.height_density_coefficients = curves.height_density;
+    fog.legacy_fog_scalar = curves.legacy;
+    Some(fog)
+}
+
+/// `mixMembers` of the plain fields; the sun fog and curves have their own rules.
+fn mix_keyframes(a: &FogKeyframe, b: &FogKeyframe, t: f32) -> FogResult {
+    FogResult {
+        fog_scaler: mix(a.fog_scaler, b.fog_scaler, t),
+        fog_density: mix(a.fog_density, b.fog_density, t),
         fog_height: mix(a.fog_height, b.fog_height, t),
         fog_height_scaler: mix(a.fog_height_scaler, b.fog_height_scaler, t),
         fog_height_density: mix(a.fog_height_density, b.fog_height_density, t),
-        sun_fog_angle: if flags & LIGHT_PARAMS_NO_SUN_FOG != 0 {
-            1.1
-        } else {
-            sun_angle
-        },
         fog_color: mix3(a.sky_fog_color, b.sky_fog_color, t),
         end_fog_color: mix3(a.end_fog_color, b.end_fog_color, t),
         end_fog_color_distance: mix(a.end_fog_color_distance, b.end_fog_color_distance, t),
         sun_fog_color: mix3(a.sun_fog_color, b.sun_fog_color, t),
-        sun_fog_strength: sun_strength,
         fog_height_color: mix3(a.fog_height_color, b.fog_height_color, t),
         height_end_fog_color: mix3(a.end_fog_height_color, b.end_fog_height_color, t),
-        height_coefficients: if is_empty(height_coefficients) {
-            [1.0, 0.0, 0.0, 0.0]
-        } else {
-            shader_order(height_coefficients)
-        },
-        main_coefficients: shader_order(main_coefficients),
-        height_density_coefficients: shader_order(height_density_coefficients),
         fog_z_scalar: mix(a.fog_z_scalar, b.fog_z_scalar, t),
-        legacy_fog_scalar: if legacy { 1.0 } else { 0.0 },
         main_fog_start: mix(a.main_fog_start, b.main_fog_start, t),
         main_fog_end: mix(a.main_fog_end, b.main_fog_end, t),
         fog_start_offset: mix(a.fog_start_offset, b.fog_start_offset, t),
-        sun_angle_blend: sun_blend,
-    })
+        ..FogResult::default()
+    }
+}
+
+/// The time-mixed fog polynomials in shader order (unset height curve: x³), and
+/// LegacyFogScalar: 1 unless a main or height-density curve is authored (:1008-1020).
+struct FogCurves {
+    height: [f32; 4],
+    main: [f32; 4],
+    height_density: [f32; 4],
+    legacy: f32,
+}
+
+fn fog_curves(a: &FogKeyframe, b: &FogKeyframe, t: f32) -> FogCurves {
+    let height = mix4(a.height_coefficients, b.height_coefficients, t);
+    let main = mix4(a.main_coefficients, b.main_coefficients, t);
+    let height_density = mix4(
+        a.height_density_coefficients,
+        b.height_density_coefficients,
+        t,
+    );
+    FogCurves {
+        height: if is_empty(height) {
+            [1.0, 0.0, 0.0, 0.0]
+        } else {
+            shader_order(height)
+        },
+        main: shader_order(main),
+        height_density: shader_order(height_density),
+        legacy: if is_empty(main) && is_empty(height_density) {
+            1.0
+        } else {
+            0.0
+        },
+    }
 }
 
 /// The custom sun blend (:955-980): an angle of 1 or more is no sun fog, so a keyframe
@@ -421,8 +469,11 @@ pub fn blend_wmo_fog(fog: &FogResult, wmo: &FogResult, weight: f32) -> FogResult
     // A WMO fog without its own height plane (-10000) keeps the exterior's.
     result.fog_height_density = mix(fog.fog_height_density, wmo.fog_density, weight);
     result.fog_z_scalar = fog.fog_z_scalar * (1.0 - weight);
-    result.end_fog_color_distance =
-        mix(fog.end_fog_color_distance, wmo.end_fog_color_distance, weight);
+    result.end_fog_color_distance = mix(
+        fog.end_fog_color_distance,
+        wmo.end_fog_color_distance,
+        weight,
+    );
     result.legacy_fog_scalar = mix(fog.legacy_fog_scalar, 1.0, weight);
     result.sun_fog_strength = fog.sun_fog_strength * (1.0 - weight);
     result
@@ -433,17 +484,6 @@ pub fn blend_wmo_fog(fog: &FogResult, wmo: &FogResult, weight: f32) -> FogResult
 /// `sun_direction` is the world direction toward the sun.
 pub fn fog_uniforms(fog: &FogResult, sun_direction: [f32; 3]) -> FogUniforms {
     const DENSITY_PER_YARD: f32 = 0.000_5;
-    let main_start = fog.main_fog_start.max(0.0);
-    let main_end = if fog.main_fog_start + 0.001 <= fog.main_fog_end {
-        fog.main_fog_end
-    } else {
-        fog.main_fog_start + 0.001
-    };
-    let end_color_distance = if fog.end_fog_color_distance > 0.0 {
-        fog.end_fog_color_distance
-    } else {
-        1000.0
-    };
     FogUniforms {
         color: fog.fog_color,
         end_color: fog.end_fog_color,
@@ -460,8 +500,8 @@ pub fn fog_uniforms(fog: &FogResult, sun_direction: [f32; 3]) -> FogUniforms {
         height_rate: fog.fog_height_scaler,
         z_scalar: fog.fog_z_scalar,
         legacy_scalar: fog.legacy_fog_scalar,
-        main_range: [main_start, main_end],
-        color_range: [fog.fog_start_offset, end_color_distance],
+        main_range: main_fog_range(fog),
+        color_range: fog_color_range(fog),
         height_coefficients: fog.height_coefficients,
         main_coefficients: fog.main_coefficients,
         height_density_coefficients: fog.height_density_coefficients,
@@ -469,6 +509,26 @@ pub fn fog_uniforms(fog: &FogResult, sun_direction: [f32; 3]) -> FogUniforms {
         sun_angle: fog.sun_fog_angle,
         sun_percentage: fog.sun_angle_blend * fog.sun_fog_strength,
     }
+}
+
+/// FogStartOffset, and EndFogColorDistance (1000 yd when unset).
+fn fog_color_range(fog: &FogResult) -> [f32; 2] {
+    let distance = if fog.end_fog_color_distance > 0.0 {
+        fog.end_fog_color_distance
+    } else {
+        1000.0
+    };
+    [fog.fog_start_offset, distance]
+}
+
+/// MainFogStartDist floored at 0, and an end at least 0.001 yd past the start.
+fn main_fog_range(fog: &FogResult) -> [f32; 2] {
+    let end = if fog.main_fog_start + 0.001 <= fog.main_fog_end {
+        fog.main_fog_end
+    } else {
+        fog.main_fog_start + 0.001
+    };
+    [fog.main_fog_start.max(0.0), end]
 }
 
 /// `sunPhiTable` and `sunThetaTable` (mathHelper.cpp:887-903): the sun disc's path.
@@ -479,7 +539,11 @@ const SUN_PHI: [[f32; 2]; 5] = [
     [0.503_472_2, 0.087_266_46],
     [0.791_666_7, 1.745_329_3],
 ];
-const SUN_THETA: [[f32; 2]; 3] = [[0.25, 0.785_398_2], [0.5, 0.785_398_2], [0.791_666_7, 0.785_398_2]];
+const SUN_THETA: [[f32; 2]; 3] = [
+    [0.25, 0.785_398_2],
+    [0.5, 0.785_398_2],
+    [0.791_666_7, 0.785_398_2],
+];
 
 /// World (y-up) direction toward the sun disc at `minutes` (`calcSunDirForFog`: the sun
 /// planet's `polarToCartesian(phi, theta)`), not the direct light's direction.

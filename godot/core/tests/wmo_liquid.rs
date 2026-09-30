@@ -2,8 +2,8 @@
 //! them (`wmoGroupObject.cpp:151-201`, `wmoGroupGeom.cpp:512-616`).
 use game_engine_core::{
     asset::wmo_format::parser::{
-        WmoGroupFlags, WmoGroupHeader, WmoLiquid, WmoLiquidHeader, WmoLiquidTile,
-        WmoLiquidVertex, WmoRootFlags,
+        WmoGroupFlags, WmoGroupHeader, WmoLiquid, WmoLiquidHeader, WmoLiquidTile, WmoLiquidVertex,
+        WmoRootFlags,
     },
     wmo::{parse_group, parse_root},
     wmo_liquid::{group_interior_lit, group_liquid_type, liquid_geometry},
@@ -90,14 +90,24 @@ fn abbey_gate_fountain_draws_ten_water_tiles() {
     let liquid = group.geometry.liquid.as_ref().unwrap();
     assert_eq!(group_liquid_type(root.flags, &group.header), Some(13));
     assert!(!group_interior_lit(group.header.flags));
-    assert_eq!(liquid.tiles[2].liquid_type, 0x0F, "0x3F keeps only its low nibble");
+    assert_eq!(
+        liquid.tiles[2].liquid_type, 0x0F,
+        "0x3F keeps only its low nibble"
+    );
     let geometry = liquid_geometry(liquid, 13);
     assert_eq!(geometry.positions.len(), 20);
     assert_eq!(geometry.indices.len(), 10 * 6);
     let [x, y, z] = geometry.positions[0];
-    assert!((x + 29.166_666).abs() < 1e-4 && (y - 1.463_379).abs() < 1e-4 && (z - 8.333_333).abs() < 1e-4);
+    assert!(
+        (x + 29.166_666).abs() < 1e-4
+            && (y - 1.463_379).abs() < 1e-4
+            && (z - 8.333_333).abs() < 1e-4
+    );
     let [u, v] = geometry.uvs[0];
-    assert!((u + 0.875).abs() < 1e-5 && (v + 0.25).abs() < 1e-5, "{u} {v}");
+    assert!(
+        (u + 0.875).abs() < 1e-5 && (v + 0.25).abs() < 1e-5,
+        "{u} {v}"
+    );
     // Tile 0: vertices 0, 1, 5, 4 in two triangles; the hidden tile 2 uses vertex 3.
     assert_eq!(&geometry.indices[..6], &[0, 1, 5, 0, 5, 4]);
     assert!(!geometry.indices.contains(&3));

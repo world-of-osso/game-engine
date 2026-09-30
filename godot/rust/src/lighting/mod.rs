@@ -284,7 +284,10 @@ fn bind_fog(material: &mut Gd<ShaderMaterial>, fog: &FogUniforms) {
     for (name, value) in [
         ("fog_height_coefficients", fog.height_coefficients),
         ("fog_main_coefficients", fog.main_coefficients),
-        ("fog_height_density_coefficients", fog.height_density_coefficients),
+        (
+            "fog_height_density_coefficients",
+            fog.height_density_coefficients,
+        ),
     ] {
         set(name, Vector4::from_array(value).to_variant());
     }

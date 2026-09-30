@@ -43,8 +43,7 @@ impl WmoLiquids {
             let Some(liquid) = &geometry.liquid else {
                 continue;
             };
-            let Some(liquid_type) = wmo_liquid::group_liquid_type(asset.root.flags, header)
-            else {
+            let Some(liquid_type) = wmo_liquid::group_liquid_type(asset.root.flags, header) else {
                 continue;
             };
             let surface = self
