@@ -712,6 +712,47 @@ fn charged_combo_points_drive_full_and_empty_charged_layers() {
 }
 
 #[test]
+fn charged_combo_points_play_blue_slash_and_charged_empty_keyframes() {
+    let empty = resource(ClassBar::RogueComboPoints, 0, 5);
+    let mut charged = resource(ClassBar::RogueComboPoints, 1, 5);
+    charged.dynamics.charged_points = vec![1, 4];
+    let mut animator = ClassBarAnimator::default();
+    let view = run(
+        &mut animator,
+        &[
+            (&empty, 0.0),
+            (&empty, 10.0),
+            (&charged, 10.0),
+            (&charged, 10.3),
+        ],
+    );
+    let slash = texture(&view, "PlayerSecondaryResourcePip0SlashFBCharged");
+    assert_eq!(slash.art.fdid, 4902605);
+    assert_eq!(slash.art.rect, (87.0, 130.0, 44.0, 87.0));
+    assert_alpha(
+        &view,
+        "PlayerSecondaryResourcePip0IconCharged",
+        0.5 + 0.5 * 0.03 / 0.27,
+    );
+    assert_alpha(
+        &view,
+        "PlayerSecondaryResourcePip0ChargedFrameActive",
+        0.1 / 0.17,
+    );
+    assert_alpha(
+        &view,
+        "PlayerSecondaryResourcePip3ChargedFrameInactive",
+        1.0,
+    );
+    assert_alpha(
+        &view,
+        "PlayerSecondaryResourcePip3ChargedFrameGlow",
+        1.0 - 0.13 / 0.33,
+    );
+    assert_alpha(&view, "PlayerSecondaryResourcePip3IconCharged", 0.0);
+}
+
+#[test]
 fn essence_starts_from_received_fraction_at_received_rate() {
     let mut three = resource(ClassBar::Essence, 3, 5);
     three.dynamics.partial = 500;
@@ -731,6 +772,26 @@ fn essence_starts_from_received_fraction_at_received_rate() {
     ));
     let view = run(&mut animator, &[(&three, 101.375)]);
     assert_alpha(&view, "PlayerSecondaryResourcePip3FillDoneEssenceIcon", 0.5);
+}
+
+#[test]
+fn received_rune_clock_survives_pool_count_arriving_before_rune_component() {
+    let mut runes = resource(ClassBar::Runes, 4, 6);
+    runes.dynamics.runes = Some(crate::status::ClassBarRunes {
+        duration_ms: 8000,
+        ready_in_ms: vec![0, 0, 0, 0, 2000, 6000],
+    });
+    let mut animator = ClassBarAnimator::default();
+    animator.update_received(42, Some(&runes), 100.0);
+    // UnitPowers and UnitRunes are distinct components: count alone is not a timer receipt.
+    runes.current = 5;
+    let view = animator.update_received(42, Some(&runes), 101.0).unwrap();
+    let swipes: Vec<_> = view.textures.iter().filter_map(|t| t.swipe).collect();
+    assert_eq!(swipes, vec![0.875, 0.375]);
+    runes.dynamics.runes.as_mut().unwrap().ready_in_ms = vec![0, 0, 0, 0, 0, 5000];
+    let view = animator.update_received(42, Some(&runes), 101.5).unwrap();
+    let swipes: Vec<_> = view.textures.iter().filter_map(|t| t.swipe).collect();
+    assert_eq!(swipes, vec![0.375]);
 }
 
 #[test]
