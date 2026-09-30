@@ -6,9 +6,12 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::transform::TransformPlugin;
 
 use super::*;
+#[path = "required_asset.rs"]
+mod required_asset;
 use crate::animation::M2AnimData;
 use crate::asset::m2_attach::M2Attachment;
 use crate::m2_effect_material::M2EffectMaterial;
+use required_asset::require_asset;
 
 #[test]
 fn transform_def_defaults_to_identity() {
@@ -71,9 +74,7 @@ fn attachment_points_use_lookup_slots_when_present() {
 
 #[test]
 fn spawned_helm_mesh_wraps_character_head_height() {
-    let Some((character_path, helm_path)) = test_model_paths() else {
-        return;
-    };
+    let (character_path, helm_path) = test_model_paths();
     let model =
         crate::asset::m2::load_m2(character_path, &[0, 0, 0]).expect("failed to load humanmale_hd");
     let (attachment_joint_translation, head_offset, head_bone_height) =
@@ -105,9 +106,7 @@ fn spawned_helm_mesh_wraps_character_head_height() {
 
 #[test]
 fn spawned_helm_mesh_uses_textured_material_when_skin_fdid_present() {
-    let Some((_, helm_path)) = test_model_paths() else {
-        return;
-    };
+    let (_, helm_path) = test_model_paths();
 
     let mut app = App::new();
     configure_equipment_test_app(&mut app);
@@ -138,10 +137,12 @@ fn spawned_helm_mesh_uses_textured_material_when_skin_fdid_present() {
     );
 }
 
-fn test_model_paths() -> Option<(&'static Path, &'static Path)> {
-    let character_path = Path::new("data/models/humanmale_hd.m2");
-    let helm_path = Path::new("data/item-models/item/objectcomponents/head/helm_plate_d_02_hum.m2");
-    (character_path.exists() && helm_path.exists()).then_some((character_path, helm_path))
+fn test_model_paths() -> (&'static Path, &'static Path) {
+    let character_path = require_asset(Path::new("data/models/humanmale_hd.m2"));
+    let helm_path = require_asset(Path::new(
+        "data/item-models/item/objectcomponents/head/helm_plate_d_02_hum.m2",
+    ));
+    (character_path, helm_path)
 }
 
 fn head_slot_reference_data(model: &crate::asset::m2::M2Model) -> (Vec3, Vec3, f32) {

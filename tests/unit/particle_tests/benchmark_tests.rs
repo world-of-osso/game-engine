@@ -4,10 +4,7 @@ use super::*;
 #[ignore = "benchmark-style integration test; run explicitly"]
 fn bench_particle_heavy_scene_headless() {
     const PARTICLE_HEAVY_SCENE_P99_BUDGET_MS: f64 = 2.0;
-    let Some(model) = benchmark_particle_model() else {
-        println!("Skipping particle-heavy benchmark: no multi-emitter benchmark model found");
-        return;
-    };
+    let model = benchmark_particle_model();
     let emitters = model.particle_emitters;
     let bones = model.bones;
     assert!(
