@@ -68,6 +68,15 @@ impl WorldCamera {
         self.state.yaw
     }
 
+    /// Places the orbit, as mouse look and zoom would.
+    pub fn set_orbit(&mut self, yaw: f32, pitch: f32, distance: f32) {
+        self.state.yaw = yaw;
+        self.state.pitch = pitch;
+        let distance = distance.clamp(self.state.min_distance, self.state.max_distance);
+        self.state.distance = distance;
+        self.state.target_distance = distance;
+    }
+
     /// Current follow distance in yards.
     pub fn distance(&self) -> f32 {
         self.state.distance
