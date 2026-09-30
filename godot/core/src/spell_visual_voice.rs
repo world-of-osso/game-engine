@@ -110,37 +110,8 @@ impl SpellVisualCatalog {
                     .insert(id as u32, kits.map(|kit| kit as u32));
             }
         }
-        let models: HashMap<i64, i64> = Table::read(dir, "CreatureModelData")?
-            .ints(["ID", "SoundID"])?
-            .into_iter()
-            .map(|[id, sound]| (id, sound))
-            .collect();
-        for [display, model, sound] in
-            Table::read(dir, "CreatureDisplayInfo")?.ints(["ID", "ModelID", "SoundID"])?
-        {
-            let sound = if sound != 0 {
-                sound
-            } else {
-                models.get(&model).copied().unwrap_or(0)
-            };
-            if sound != 0 {
-                self.voices.displays.insert(display as u32, sound as u32);
-            }
-        }
-        let chr_models: HashMap<i64, i64> = Table::read(dir, "ChrModel")?
-            .ints(["ID", "DisplayID"])?
-            .into_iter()
-            .map(|[id, display]| (id, display))
-            .collect();
-        for [race, chr_model, sex] in
-            Table::read(dir, "ChrRaceXChrModel")?.ints(["ChrRacesID", "ChrModelID", "Sex"])?
-        {
-            if let Some(&display) = chr_models.get(&chr_model) {
-                self.voices
-                    .players
-                    .insert((race as u8, sex as u8), display as u32);
-            }
-        }
+        self.voices.displays = display_voices(dir)?;
+        self.voices.players = player_displays(dir)?;
         Ok(())
     }
 
@@ -156,4 +127,42 @@ impl SpellVisualCatalog {
             .get(&kit)
             .filter(|kit| !kit.files.is_empty())
     }
+}
+
+/// Each display's `CreatureSoundData` row: its own `SoundID`, else its model's.
+fn display_voices(dir: &Path) -> Result<HashMap<u32, u32>, String> {
+    let models: HashMap<i64, i64> = Table::read(dir, "CreatureModelData")?
+        .ints(["ID", "SoundID"])?
+        .into_iter()
+        .map(|[id, sound]| (id, sound))
+        .collect();
+    Ok(Table::read(dir, "CreatureDisplayInfo")?
+        .ints(["ID", "ModelID", "SoundID"])?
+        .into_iter()
+        .filter_map(|[display, model, sound]| {
+            let sound = if sound != 0 {
+                sound
+            } else {
+                models.get(&model).copied().unwrap_or(0)
+            };
+            (sound != 0).then_some((display as u32, sound as u32))
+        })
+        .collect())
+}
+
+/// The display of each (race, sex) player model (`ChrRaceXChrModel` → `ChrModel`).
+fn player_displays(dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
+    let chr_models: HashMap<i64, i64> = Table::read(dir, "ChrModel")?
+        .ints(["ID", "DisplayID"])?
+        .into_iter()
+        .map(|[id, display]| (id, display))
+        .collect();
+    Ok(Table::read(dir, "ChrRaceXChrModel")?
+        .ints(["ChrRacesID", "ChrModelID", "Sex"])?
+        .into_iter()
+        .filter_map(|[race, chr_model, sex]| {
+            let display = chr_models.get(&chr_model)?;
+            Some(((race as u8, sex as u8), *display as u32))
+        })
+        .collect())
 }

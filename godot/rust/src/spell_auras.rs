@@ -21,6 +21,12 @@ struct AuraRef {
     instance: u32,
 }
 
+impl AuraRef {
+    fn key(&self) -> (u64, u32) {
+        (self.unit, self.instance)
+    }
+}
+
 /// An aura whose kits play on its unit.
 pub(super) struct HeldAura {
     spell_id: u32,
@@ -36,54 +42,58 @@ impl SpellEffects {
         units: &HashMap<u64, UnitSnapshot>,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
-        let present: HashSet<(u64, u32)> = units
+        let present: Vec<AuraRef> = units
             .iter()
-            .flat_map(|(&id, unit)| {
-                unit.auras
+            .flat_map(|(&unit, snapshot)| {
+                snapshot
+                    .auras
                     .iter()
                     .flat_map(|auras| &auras.auras)
-                    .map(move |aura| (id, aura.instance_id))
+                    .map(move |aura| AuraRef {
+                        spell_id: aura.spell_id,
+                        caster: aura.caster.unwrap_or(unit),
+                        unit,
+                        instance: aura.instance_id,
+                    })
             })
             .collect();
+        let keys: HashSet<(u64, u32)> = present.iter().map(AuraRef::key).collect();
         let gone: Vec<(u64, u32)> = self
             .auras
             .keys()
-            .filter(|key| !present.contains(key))
+            .filter(|key| !keys.contains(key))
             .copied()
             .collect();
         let mut errors = Vec::new();
         for key in gone {
             errors.extend(self.end_aura(key, units, world).err());
         }
-        for (&unit, snapshot) in units {
-            for aura in snapshot.auras.iter().flat_map(|auras| &auras.auras) {
-                if self.auras.contains_key(&(unit, aura.instance_id)) {
-                    continue;
-                }
-                let caster = aura.caster.unwrap_or(unit);
-                let key = AuraRef {
-                    spell_id: aura.spell_id,
-                    caster,
-                    unit,
-                    instance: aura.instance_id,
-                };
-                let anims = self
-                    .start_aura_event(key, VisualEvent::AuraStart, units, world)
-                    .unwrap_or_else(|error| {
-                        errors.push(error);
-                        Vec::new()
-                    });
-                self.auras.insert(
-                    (unit, aura.instance_id),
-                    HeldAura {
-                        spell_id: aura.spell_id,
-                        caster,
-                        anims,
-                    },
-                );
+        for aura in present {
+            if !self.auras.contains_key(&aura.key()) {
+                errors.extend(self.begin_aura(aura, units, world).err());
             }
         }
         join_errors(errors)
+    }
+
+    /// Aura `aura` appeared: its AuraStart kits start and are held for it.
+    fn begin_aura(
+        &mut self,
+        aura: AuraRef,
+        units: &HashMap<u64, UnitSnapshot>,
+        world: &mut WorldUnits,
+    ) -> Result<(), String> {
+        let started = self.start_aura_event(aura, VisualEvent::AuraStart, units, world);
+        let anims = started.as_ref().cloned().unwrap_or_default();
+        self.auras.insert(
+            aura.key(),
+            HeldAura {
+                spell_id: aura.spell_id,
+                caster: aura.caster,
+                anims,
+            },
+        );
+        started.map(drop)
     }
 
     /// Start `aura`'s `event` kits; returns the looping clips they hold on its unit.
