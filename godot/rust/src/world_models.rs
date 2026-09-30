@@ -95,7 +95,6 @@ fn transfer_player_playback(previous: &Gd<Node3D>, replacement: &Gd<Node3D>) -> 
 
 pub(crate) struct WorldModels {
     data_root: PathBuf,
-    cache_root: PathBuf,
     catalog: Option<Connection>,
     player_displays: Option<Result<HashMap<(u8, u8), u32>, String>>,
     appearances: NpcAppearances,
@@ -105,10 +104,9 @@ pub(crate) struct WorldModels {
 }
 
 impl WorldModels {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         Self {
             data_root,
-            cache_root,
             catalog: None,
             player_displays: None,
             appearances: NpcAppearances::default(),
@@ -219,7 +217,7 @@ impl WorldModels {
         sheath: SheathState,
         previous_player: Option<&Gd<Node3D>>,
     ) -> Result<Gd<Node3D>, String> {
-        let mut model = load_player_model(&self.data_root, &self.cache_root, player, equipment)?;
+        let mut model = load_player_model(&self.data_root, player, equipment)?;
         model.set_name("PlayerModel");
         let placed = self
             .player_weapon_placements(equipment, sheath)
@@ -270,12 +268,11 @@ impl WorldModels {
         let outfit = self
             .outfit
             .get_or_insert_with(|| OutfitData::load(&self.data_root));
-        let prepared = self.appearances.prepare(
-            &self.data_root,
-            &self.cache_root,
-            display_id,
-            |race, sex| resolve_equipment_appearance(&armor, outfit, race, sex),
-        )?;
+        let prepared = self
+            .appearances
+            .prepare(&self.data_root, display_id, |race, sex| {
+                resolve_equipment_appearance(&armor, outfit, race, sex)
+            })?;
         let (race, sex) = prepared.as_ref().map_or((0, 0), |npc| (npc.race, npc.sex));
         let gear = CreatureGear {
             armor_models: prepared
@@ -285,7 +282,6 @@ impl WorldModels {
         };
         let (mut model, missing) = load_creature_model(
             &self.data_root,
-            &self.cache_root,
             &display,
             prepared.as_ref().map(|npc| &npc.appearance),
             &gear,
@@ -388,7 +384,7 @@ mod tests {
     #[test]
     fn player_model_display_native_identity_uses_authored_chrmodel_rows() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let mut player = Player {
             name: "Alice".into(),
             race: 1,
@@ -413,7 +409,7 @@ mod tests {
     #[test]
     fn stockade_guard_display_armor_resolves_to_body_geosets() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let armor = models.gear().unwrap().display_armor(2989).unwrap();
         let resolved = resolve_equipment_appearance(&armor, models.outfit(), 1, 0).unwrap();
         for geoset in [(4, 2), (5, 2), (20, 2), (12, 2)] {
@@ -467,7 +463,7 @@ mod tests {
     fn virtual_item_placements_follow_the_sheath_state() {
         use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
             slot,
             item_id: Some(item_id),

@@ -20,7 +20,6 @@ struct ObjectNode {
 }
 pub(crate) struct GameObjects {
     data_root: PathBuf,
-    cache_root: PathBuf,
     displays: Option<Result<HashMap<u32, u32>, String>>,
     objects: HashMap<u64, ObjectNode>,
     light: Option<TerrainLight>,
@@ -53,10 +52,9 @@ fn parse_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
 }
 
 impl GameObjects {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         Self {
             data_root,
-            cache_root,
             displays: None,
             objects: HashMap::new(),
             light: None,
@@ -159,7 +157,7 @@ impl GameObjects {
                     info.entry, info.display_id
                 )
             })?;
-        let resolver = local_resolver(&self.data_root, &self.cache_root);
+        let resolver = local_resolver(&self.data_root);
         let path = cache_model_files(&resolver, &self.data_root, fdid).map_err(|e| {
             format!(
                 "Mailbox entry {} display {} model {fdid}: {e}",
