@@ -257,6 +257,7 @@ impl FixtureConfig {
             .expect("create fixture credentials directory");
         fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
             .expect("write fixture-only credentials");
+        config.persist_menu_defaults(screen);
         if matches!(
             screen,
             StartupScreen::PortalParticlesEnabled
@@ -315,6 +316,14 @@ impl FixtureConfig {
         }
         config
     }
+
+    fn persist_menu_defaults(&self, screen: StartupScreen) {
+        if screen != StartupScreen::Menu {
+            return;
+        }
+        fs::write(self.home.join("world-of-osso/options_settings.ron"), "()")
+            .expect("seed menu defaults instead of migrating user legacy bindings");
+    }
 }
 
 impl Drop for FixtureConfig {
@@ -356,7 +365,8 @@ fn launch_godot(
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = if matches!(
         screen,
-        StartupScreen::Sound
+        StartupScreen::Menu
+            | StartupScreen::Sound
             | StartupScreen::SoundClick
             | StartupScreen::SoundOutcome
             | StartupScreen::MerchantClick
@@ -392,7 +402,8 @@ fn launch_godot(
         .args(
             if matches!(
                 screen,
-                StartupScreen::Sound
+                StartupScreen::Menu
+                    | StartupScreen::Sound
                     | StartupScreen::SoundClick
                     | StartupScreen::SoundOutcome
                     | StartupScreen::MerchantClick
