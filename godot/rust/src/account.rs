@@ -76,6 +76,8 @@ pub struct Account {
 
 pub enum AccountEvent {
     Screen(SessionScreen),
+    /// The session feedback changed without a screen change.
+    Feedback,
     WorldReset,
     RestState(RestStateUpdate),
     LoadTerrain(LoadTerrain),
@@ -746,6 +748,7 @@ impl Account {
                     output.push(AccountEvent::WorldReset);
                 }
                 SessionEffect::Transition(screen) => output.push(AccountEvent::Screen(screen)),
+                SessionEffect::ShowFeedback => output.push(AccountEvent::Feedback),
             }
         }
         Ok(())
