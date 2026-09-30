@@ -13,6 +13,23 @@ pub struct RaceInfo {
     pub available_classes: &'static [u8],
     /// FileDataID of the authored race icon BLP.
     pub icon_fdid: u32,
+    /// Normalized (left, right, top, bottom) crop of `icon_fdid`: `FULL_ICON`, or a
+    /// `raceicon128-*` member of atlas 897 (FDID 1662186, 2048×1024).
+    pub icon_crop: [f32; 4],
+}
+
+pub const FULL_ICON: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+/// Atlas 897 (`UiTextureAtlas`), the Retail character-creation race icons.
+const RACE_ICON_ATLAS: u32 = 1_662_186;
+
+/// UiTextureAtlasMember CommittedLeft/Right/Top/Bottom in atlas 897's 2048×1024 pixels.
+const fn race_atlas_crop(left: u32, right: u32, top: u32, bottom: u32) -> [f32; 4] {
+    [
+        left as f32 / 2048.0,
+        right as f32 / 2048.0,
+        top as f32 / 1024.0,
+        bottom as f32 / 1024.0,
+    ]
 }
 
 pub struct ClassInfo {
@@ -28,6 +45,11 @@ pub struct ClassInfo {
 // Evoker (13) follow Retail CharBaseInfo (FileDataID 1343386, 12.1.0.69933):
 // Monk on every race but Dracthyr, Demon Hunter on Night Elf, Blood Elf and
 // Void Elf, Evoker on Dracthyr only. The older classes keep their earlier lists.
+/// CharBaseInfo classes of Kul Tiran, Earthen and Haranir (Adventurer 14 is not playable).
+const KUL_TIRAN_CLASSES: &[u8] = &[1, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const EARTHEN_CLASSES: &[u8] = &[1, 2, 3, 4, 5, 7, 8, 9, 10];
+const HARANIR_CLASSES: &[u8] = &[1, 3, 4, 5, 7, 8, 9, 10, 11];
+
 /// CharBaseInfo classes of both Dracthyr races, default class first.
 const DRACTHYR_CLASSES: &[u8] = &[13, 1, 3, 4, 5, 8, 9];
 
@@ -40,6 +62,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 4, 5, 6, 8, 9, 10],
         icon_fdid: 236448,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 3,
@@ -48,6 +71,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 4, 5, 6, 10],
         icon_fdid: 236444,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 4,
@@ -56,6 +80,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 10, 11, 12],
         icon_fdid: 236450,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 7,
@@ -64,6 +89,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 4, 6, 8, 9, 10],
         icon_fdid: 236446,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 11,
@@ -72,6 +98,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 5, 6, 7, 8, 10],
         icon_fdid: 236442,
+        icon_crop: FULL_ICON,
     },
     // Alliance allied
     RaceInfo {
@@ -81,6 +108,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 8, 9, 10, 11],
         icon_fdid: 455993,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 29,
@@ -89,6 +117,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 8, 9, 10, 12],
         icon_fdid: 1786422,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 30,
@@ -97,6 +126,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 5, 6, 8, 10],
         icon_fdid: 1786420,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 34,
@@ -105,6 +135,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         icon_fdid: 1851464,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 37,
@@ -113,6 +144,34 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 8, 9, 10],
         icon_fdid: 3208032,
+        icon_crop: FULL_ICON,
+    },
+    RaceInfo {
+        id: 32,
+        name: "Kul Tiran",
+        short_name: "KT",
+        faction: Faction::Alliance,
+        available_classes: KUL_TIRAN_CLASSES,
+        icon_fdid: 2447785,
+        icon_crop: FULL_ICON,
+    },
+    RaceInfo {
+        id: 85,
+        name: "Earthen",
+        short_name: "Ea",
+        faction: Faction::Alliance,
+        available_classes: EARTHEN_CLASSES,
+        icon_fdid: RACE_ICON_ATLAS,
+        icon_crop: race_atlas_crop(391, 519, 651, 779),
+    },
+    RaceInfo {
+        id: 86,
+        name: "Haranir",
+        short_name: "Ha",
+        faction: Faction::Alliance,
+        available_classes: HARANIR_CLASSES,
+        icon_fdid: RACE_ICON_ATLAS,
+        icon_crop: race_atlas_crop(521, 649, 521, 649),
     },
     // Dracthyr: one race per faction (ChrRaces 52 Alliance, 70 Horde), shown in
     // both allied columns like Retail. Evoker leads the list because it is
@@ -124,6 +183,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: DRACTHYR_CLASSES,
         icon_fdid: 4696175,
+        icon_crop: FULL_ICON,
     },
     // Horde classics
     RaceInfo {
@@ -133,6 +193,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 6, 7, 8, 9, 10],
         icon_fdid: 236452,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 5,
@@ -141,6 +202,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 4, 5, 6, 8, 9, 10],
         icon_fdid: 236458,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 6,
@@ -149,6 +211,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 3, 6, 7, 10, 11],
         icon_fdid: 236454,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 8,
@@ -157,6 +220,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 7, 8, 10],
         icon_fdid: 236456,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 10,
@@ -165,6 +229,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[2, 3, 4, 5, 6, 8, 9, 10, 12],
         icon_fdid: 236440,
+        icon_crop: FULL_ICON,
     },
     // Horde allied
     RaceInfo {
@@ -174,6 +239,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 7, 8, 9, 10],
         icon_fdid: 463874,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 27,
@@ -182,6 +248,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 8, 9, 10],
         icon_fdid: 1786421,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 28,
@@ -190,6 +257,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 3, 5, 6, 7, 10, 11],
         icon_fdid: 1786419,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 31,
@@ -198,6 +266,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 2, 3, 4, 5, 6, 7, 8, 10, 11],
         icon_fdid: 1851465,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 35,
@@ -206,6 +275,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 7, 8, 9, 10],
         icon_fdid: 3208033,
+        icon_crop: FULL_ICON,
     },
     RaceInfo {
         id: 36,
@@ -214,6 +284,25 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 7, 8, 10],
         icon_fdid: 1989713,
+        icon_crop: FULL_ICON,
+    },
+    RaceInfo {
+        id: 84,
+        name: "Earthen",
+        short_name: "Ea",
+        faction: Faction::Horde,
+        available_classes: EARTHEN_CLASSES,
+        icon_fdid: RACE_ICON_ATLAS,
+        icon_crop: race_atlas_crop(391, 519, 651, 779),
+    },
+    RaceInfo {
+        id: 91,
+        name: "Haranir",
+        short_name: "Ha",
+        faction: Faction::Horde,
+        available_classes: HARANIR_CLASSES,
+        icon_fdid: RACE_ICON_ATLAS,
+        icon_crop: race_atlas_crop(521, 649, 521, 649),
     },
     RaceInfo {
         id: 70,
@@ -222,6 +311,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Horde,
         available_classes: DRACTHYR_CLASSES,
         icon_fdid: 4696175,
+        icon_crop: FULL_ICON,
     },
     // Neutral
     RaceInfo {
@@ -231,6 +321,7 @@ pub static RACES: &[RaceInfo] = &[
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 7, 8, 10],
         icon_fdid: 626190,
+        icon_crop: FULL_ICON,
     },
 ];
 
@@ -419,6 +510,33 @@ mod tests {
         );
         assert_eq!(first_available_class(52), 13);
         assert_eq!(first_available_class(70), 13);
+    }
+
+    /// CharBaseInfo classes of the Kul Tiran, Earthen and Haranir races, one
+    /// race per faction for Earthen (84 Horde, 85 Alliance) and Haranir (86, 91).
+    #[test]
+    fn kul_tiran_earthen_and_haranir_follow_char_base_info() {
+        for (id, faction, classes) in [
+            (32, Faction::Alliance, &[1, 3, 4, 5, 6, 7, 8, 9, 10, 11][..]),
+            (84, Faction::Horde, &[1, 2, 3, 4, 5, 7, 8, 9, 10][..]),
+            (85, Faction::Alliance, &[1, 2, 3, 4, 5, 7, 8, 9, 10][..]),
+            (86, Faction::Alliance, &[1, 3, 4, 5, 7, 8, 9, 10, 11][..]),
+            (91, Faction::Horde, &[1, 3, 4, 5, 7, 8, 9, 10, 11][..]),
+        ] {
+            let race = race_by_id(id).unwrap();
+            assert_eq!(race.faction, faction, "{}", race.name);
+            assert_eq!(race.available_classes, classes, "{}", race.name);
+        }
+        // raceicon128-earthen-male in atlas 897.
+        assert_eq!(
+            race_by_id(85).unwrap().icon_crop,
+            [
+                391.0 / 2048.0,
+                519.0 / 2048.0,
+                651.0 / 1024.0,
+                779.0 / 1024.0
+            ]
+        );
     }
 
     #[test]
