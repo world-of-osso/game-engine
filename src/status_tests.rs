@@ -452,6 +452,7 @@ fn barber_shop_status_round_trip() {
             hair_color: 1,
             facial_style: 2,
             customization_choices: Vec::new(),
+            visage: None,
         },
         pending_appearance: CharacterAppearance {
             sex: 1,
@@ -462,6 +463,7 @@ fn barber_shop_status_round_trip() {
             hair_color: 2,
             facial_style: 3,
             customization_choices: Vec::new(),
+            visage: None,
         },
         gold: 90_000,
         pending_cost: 20_000,

@@ -1,7 +1,9 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::char_create_data::{FULL_ICON, Faction, RACES, RaceInfo};
+use crate::char_create_data::{
+    FULL_ICON, Faction, RACE_ICON_ATLAS, RACES, RaceInfo, race_atlas_crop,
+};
 use crate::ui::screens::default_button_atlas::{
     DISABLED as BUTTON_ATLAS_DISABLED, HIGHLIGHT as BUTTON_ATLAS_HIGHLIGHT,
     PRESSED as BUTTON_ATLAS_PRESSED, UP as BUTTON_ATLAS_UP,
@@ -366,10 +368,69 @@ fn body_type_button(sex: u8, selected: bool, x: f32) -> Element {
     }
 }
 
+/// Retail `CharCustomizeFrame.AlteredForms`: TOPRIGHT -41,-37, 79 px masked buttons
+/// 18 px apart (Blizzard_CharacterCustomize.xml:19-31, 88-95).
+const ALTERED_FORM_SIZE: f32 = 79.0;
+const ALTERED_FORM_SPACING: f32 = 18.0;
+const ALTERED_FORMS_WIDTH: f32 = 2.0 * ALTERED_FORM_SIZE + ALTERED_FORM_SPACING;
+
+/// `raceicon128-dracthyr-*` and `raceicon128-dracthyrvisage-*` in atlas 897, per sex.
+fn altered_form_icon(visage: bool, sex: u8) -> [f32; 4] {
+    let top = match (visage, sex) {
+        (false, 0) => 521,
+        (false, _) => 391,
+        (true, 0) => 781,
+        (true, _) => 651,
+    };
+    race_atlas_crop(261, 389, top, top + 128)
+}
+
+pub(super) fn altered_form_buttons(state: &CharCreateUiState) -> Element {
+    let Some(visage_shown) = state
+        .altered_form
+        .filter(|_| state.mode == CharCreateMode::Customize)
+    else {
+        return Element::default();
+    };
+    let left = state.viewport_width as f32 - 41.0 - ALTERED_FORMS_WIDTH;
+    [false, true]
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, visage)| {
+            let frame_name = format!("Form_{}", u8::from(visage));
+            let selected = visage == visage_shown;
+            let (highlight_atlas, highlight_size) = hover_ring_art(
+                selected,
+                "charactercreate-ring-metallight",
+                [139.0, 140.0],
+                118.0,
+            );
+            let x = left + index as f32 * (ALTERED_FORM_SIZE + ALTERED_FORM_SPACING);
+            rsx! {
+                button { name: DynName(frame_name.clone()), width: ALTERED_FORM_SIZE, height: ALTERED_FORM_SIZE,
+                    button_default_skin: "false",
+                    onclick: CharCreateAction::SetForm(visage),
+                    button_atlas_highlight: highlight_atlas, button_highlight_size: highlight_size,
+                    pos_type: "absolute", left: x, top: 37.0,
+                    {icon(&frame_name, RACE_ICON_ATLAS, altered_form_icon(visage, state.selected_sex), ALTERED_FORM_SIZE, false)}
+                    {ring(&frame_name, "charactercreate-ring-metallight", [139.0, 140.0])}
+                    {selection_ring(&frame_name, 118.0, selected)}
+                }
+            }
+        })
+        .collect()
+}
+
 pub(super) fn body_type_buttons(state: &CharCreateUiState) -> Element {
+    // Beside the altered forms, the body types move left of them.
+    let forms = if state.altered_form.is_some() {
+        ALTERED_FORMS_WIDTH + ALTERED_FORM_SPACING
+    } else {
+        0.0
+    };
     let x = match state.mode {
         CharCreateMode::RaceClass => (state.viewport_width as f32 - 114.0) / 2.0,
-        CharCreateMode::Customize => state.viewport_width as f32 - 41.0 - 114.0,
+        CharCreateMode::Customize => state.viewport_width as f32 - 41.0 - 114.0 - forms,
     };
     let y = if state.mode == CharCreateMode::RaceClass {
         27.0
