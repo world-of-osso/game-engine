@@ -102,6 +102,7 @@ enum ScreenPostsetup {
     WorldMap,
     EntranceBar,
     Merchant,
+    Auction,
     Spellbook,
     Minimap,
 }
@@ -114,7 +115,7 @@ impl RegistryModel {
 
     fn apply_postsetup(&mut self) {
         match self.postsetup {
-            ScreenPostsetup::None | ScreenPostsetup::Loading => {}
+            ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Auction => {}
             ScreenPostsetup::WorldMap => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
@@ -253,6 +254,7 @@ impl RegistryModel {
             ScreenPostsetup::Login if !connecting => {
                 actions.push_back(login::LoginAction::Connect.to_string());
             }
+            ScreenPostsetup::Auction => actions.push_back("auction_search".into()),
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
                 actions.push_back(CharSelectAction::ConfirmDeleteChar.to_string());
@@ -582,6 +584,66 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_hud_model(model, parent)
+    }
+
+    pub fn show_auction_gossip(
+        &mut self,
+        state: game_engine_ui_model::auction::AuctionGossipView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(&mut registry)?;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut model = RegistryModel {
+            screen: Screen::new(game_engine_ui_model::auction::auction_gossip_screen),
+            shared,
+            registry,
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_hud_model(model, parent)
+    }
+    pub fn show_auction(
+        &mut self,
+        state: game_engine_ui_model::auction::NativeAuctionView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(&mut registry)?;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut model = RegistryModel {
+            screen: Screen::new(game_engine_ui_model::auction::native_auction_screen),
+            shared,
+            registry,
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::Auction,
+        };
+        model.sync();
+        self.initialize_hud_model(model, parent)
+    }
+    pub fn set_auction(
+        &mut self,
+        state: game_engine_ui_model::auction::NativeAuctionView,
+    ) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Auction UI not initialized")?;
+        if model
+            .shared
+            .get::<game_engine_ui_model::auction::NativeAuctionView>()
+            == Some(&state)
+        {
+            return Ok(());
+        }
+        model.shared.insert(state);
+        self.sync_model()
     }
 
     /// Replace the merchant screen states; unchanged states do not resync.

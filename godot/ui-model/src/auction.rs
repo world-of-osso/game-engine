@@ -219,7 +219,7 @@ impl AuctionSession {
             net: &self.net,
             ui: &self.ui,
             texts,
-            catalog: &|_| None,
+            catalog: &crate::item_catalog::item_catalog_entry,
             visible: self.net.is_open,
         })
     }
@@ -246,4 +246,118 @@ impl AuctionSession {
             AuctionHouseTab::Auctions => state.auctions.rows.len(),
         }
     }
+}
+
+pub enum AuctionReply {
+    Opened(AuctionHouseOpened),
+    Search(AuctionSearchResults),
+    Inventory(AuctionInventorySnapshot),
+    Owned(OwnedAuctionListResponse),
+    Bids(BidAuctionListResponse),
+    Operation(AuctionOperationResponse),
+}
+impl AuctionSession {
+    pub fn receive(&mut self, reply: AuctionReply) {
+        match reply {
+            AuctionReply::Opened(reply) => self.opened(reply),
+            AuctionReply::Search(reply) => self.search_results(reply),
+            AuctionReply::Operation(reply) => self.operation(reply),
+            AuctionReply::Inventory(reply) if self.net.is_open => self.net.inventory = Some(reply),
+            AuctionReply::Owned(reply) if self.net.is_open => {
+                self.net.owned_results = reply.listings
+            }
+            AuctionReply::Bids(reply) if self.net.is_open => self.net.bid_results = reply.listings,
+            _ => {}
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeAuctionView {
+    pub frame: crate::auction_house_frame_component::AuctionHouseFrameState,
+    pub row_page: usize,
+    pub row_pages: usize,
+    pub search_page: u32,
+    pub search_pages: u32,
+    pub search_paging: bool,
+}
+impl AuctionSession {
+    pub fn native_view(&self, texts: &view::InputTexts) -> NativeAuctionView {
+        let query = self.net.last_query.as_ref();
+        NativeAuctionView {
+            frame: self.state(texts),
+            row_page: self.ui.row_page,
+            row_pages: self.row_count(texts).div_ceil(self.row_capacity()).max(1),
+            search_page: query.map_or(0, |q| q.page),
+            search_pages: query.map_or(1, |q| {
+                self.net.search_total.div_ceil(q.page_size.max(1)).max(1)
+            }),
+            search_paging: self.ui.tab == AuctionHouseTab::Buy
+                || (self.ui.tab == AuctionHouseTab::Sell && self.ui.sell_item.is_some()),
+        }
+    }
+}
+pub fn native_auction_screen(
+    ctx: &ui_toolkit::screen::SharedContext,
+) -> ui_toolkit::widget_def::Element {
+    use ui_toolkit::rsx;
+    let state = ctx.get::<NativeAuctionView>().expect("NativeAuctionView");
+    let rows = format!("Rows {}/{}", state.row_page + 1, state.row_pages);
+    let pages = format!("Results {}/{}", state.search_page + 1, state.search_pages);
+    let hide = !state.frame.visible;
+    let sell = state.frame.tab == AuctionHouseTab::Sell;
+    let left = if sell { 372.0 } else { 176.0 };
+    let top = if sell { 460.0 } else { 482.0 };
+    let search_left = if sell { 0.0 } else { 240.0 };
+    let search_top = if sell { 24.0 } else { 0.0 };
+    let hide_search = !state.search_paging;
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(state.frame.clone());
+    let content = crate::auction_house_frame_component::auction_house_frame_screen(&shared);
+    rsx! {
+        r#frame { name:"NativeAuctionRoot", width:800.0,height:570.0,hidden:hide,strata:ui_toolkit::strata::FrameStrata::High,pos_type:"absolute",left:16.0,top:104.0,
+            {content}
+            r#frame { name:"AuctionPaging",width:610.0,height:26.0,pos_type:"absolute",left:left,top:top,
+                button {name:"AuctionRowsPrev",width:48.0,height:22.0,text:"Prev",onclick:"auction_rows_prev",enabled:{state.row_page>0},pos_type:"absolute",left:0.0,top:0.0,}
+                fontstring {name:"AuctionRowsLabel",width:120.0,height:22.0,text:{rows.as_str()},pos_type:"absolute",left:50.0,top:0.0,}
+                button {name:"AuctionRowsNext",width:48.0,height:22.0,text:"Next",onclick:"auction_rows_next",enabled:{state.row_page+1<state.row_pages},pos_type:"absolute",left:170.0,top:0.0,}
+                r#frame {name:"AuctionResultPaging",width:360.0,height:22.0,hidden:hide_search,pos_type:"absolute",left:search_left,top:search_top,
+                    button {name:"AuctionPagePrev",width:64.0,height:22.0,text:"Prev page",onclick:"auction_page_prev",enabled:{state.search_page>0},pos_type:"absolute",left:0.0,top:0.0,}
+                    fontstring {name:"AuctionPageLabel",width:140.0,height:22.0,text:{pages.as_str()},pos_type:"absolute",left:70.0,top:0.0,}
+                    button {name:"AuctionPageNext",width:64.0,height:22.0,text:"Next page",onclick:"auction_page_next",enabled:{state.search_page+1<state.search_pages},pos_type:"absolute",left:215.0,top:0.0,}
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuctionGossipView {
+    pub text: String,
+    pub options: Vec<GossipMenuOption>,
+}
+pub fn auction_gossip_screen(
+    ctx: &ui_toolkit::screen::SharedContext,
+) -> ui_toolkit::widget_def::Element {
+    use ui_toolkit::rsx;
+    struct DynName(String);
+    let view = ctx.get::<AuctionGossipView>().expect("AuctionGossipView");
+    let mut options = Vec::new();
+    for (index, option) in view.options.iter().enumerate() {
+        let name = format!("AuctionGossipOption{}", option.option_id);
+        let action = format!("auction_gossip:{}", option.option_id);
+        let top = 100.0 + index as f32 * 30.0;
+        options.extend(rsx!{button { name:{DynName(name)},width:280.0,height:26.0,text:{option.text.as_str()},onclick:{action.as_str()},pos_type:"absolute",left:20.0,top:top,}});
+    }
+    let height = 140.0 + view.options.len() as f32 * 30.0;
+    let chrome = crate::quest_art::window_chrome(
+        "AuctionGossip",
+        (320.0, height),
+        "Greeting",
+        "auction_gossip_close",
+    );
+    rsx! {r#frame {name:"AuctionGossip",width:320.0,height:height,strata:ui_toolkit::strata::FrameStrata::High,pos_type:"absolute",left:16.0,top:104.0,
+        {chrome}
+        fontstring {name:"AuctionGossipText",width:280.0,height:64.0,text:{view.text.as_str()},pos_type:"absolute",left:20.0,top:32.0,}
+        {options}
+    }}
 }
