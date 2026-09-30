@@ -211,3 +211,34 @@ fn non_body_texture_type_layers_do_not_paint_the_body_atlas() {
             .all(|pixel| pixel == [200, 150, 100, 255])
     );
 }
+
+/// A texture type on its own ChrModelMaterial canvas: its layers only, in layer
+/// order, a -1 mask covering the whole canvas (even hair target 10, which the body
+/// atlas puts in section 10), later opaque layers replacing earlier ones.
+#[test]
+fn separate_texture_type_composites_its_layers_on_its_material_canvas() {
+    let data = data(vec![
+        layer(1, 0, 0, -1, 1),
+        layer(10, 1, 1, -1, 9),
+        layer(12, 2, 1, -1, 9),
+        layer(13, 0, 1, -1, 7),
+    ])
+    .with_material_sizes(HashMap::from([((1, 9), (2, 2)), ((1, 7), (1, 1))]));
+    assert_eq!(data.separate_texture_types(1), [7, 9]);
+
+    let (pixels, width, height) = data
+        .composite_texture_type(&[(10, 1), (12, 3)], 1, 9, texture)
+        .unwrap();
+    assert_eq!((width, height), (2, 2));
+    assert_eq!(pixels, [40, 50, 60, 255].repeat(4), "target 12 is drawn last");
+
+    let (pixels, ..) = data
+        .composite_texture_type(&[(10, 1)], 1, 9, texture)
+        .unwrap();
+    assert_eq!(pixels, [1, 2, 3, 255].repeat(4));
+    assert!(
+        data.composite_texture_type(&[(1, 1)], 1, 9, texture)
+            .is_none(),
+        "no selected material targets a type 9 layer"
+    );
+}
