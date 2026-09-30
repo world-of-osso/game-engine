@@ -8,8 +8,8 @@ use super::*;
 /// Goldshire flight master (TaxiNodes 582), Retail axes.
 const GOLDSHIRE: [f32; 3] = [-9433.99, 85.149, 57.0];
 
-fn data() -> Option<&'static WorldMapData> {
-    static DATA: OnceLock<Option<WorldMapData>> = OnceLock::new();
+fn data() -> &'static WorldMapData {
+    static DATA: OnceLock<WorldMapData> = OnceLock::new();
     DATA.get_or_init(|| {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let dir = [
@@ -17,14 +17,10 @@ fn data() -> Option<&'static WorldMapData> {
             root.join("../../data/db2/12.1.0.69933"),
         ]
         .into_iter()
-        .find(|dir| dir.join("UiMapArtTile.csv").exists());
-        let Some(dir) = dir else {
-            eprintln!("skipping: no UiMap CSV exports");
-            return None;
-        };
-        Some(WorldMapData::load(&dir).unwrap())
+        .find(|dir| dir.join("UiMapArtTile.csv").exists())
+        .expect("UiMapArtTile.csv export (scripts/export_db2_csv.py)");
+        WorldMapData::load(&dir).unwrap()
     })
-    .as_ref()
 }
 
 fn player(yaw: f32) -> WorldMapPlayer {
@@ -108,7 +104,7 @@ fn poi(objective_index: i32, around: [f32; 2]) -> QuestPoiSnapshot {
 
 #[test]
 fn opens_on_the_players_zone_with_its_art_and_arrow() {
-    let Some(data) = data() else { return };
+    let data = data();
     let player = player(0.0);
     let zone = player_map(data, &player).unwrap();
     let view = state(data, zone, &player);
@@ -125,7 +121,7 @@ fn opens_on_the_players_zone_with_its_art_and_arrow() {
 
 #[test]
 fn zooming_out_reaches_continent_then_world_and_keeps_the_player() {
-    let Some(data) = data() else { return };
+    let data = data();
     let player = player(0.0);
     let zone = player_map(data, &player).unwrap();
     let continent = zoom_out(data, zone).unwrap();
@@ -146,7 +142,7 @@ fn zooming_out_reaches_continent_then_world_and_keeps_the_player() {
 
 #[test]
 fn arrow_points_where_forward_movement_goes_on_the_map() {
-    let Some(data) = data() else { return };
+    let data = data();
     for yaw in [0.0, 0.7, 2.0, std::f32::consts::PI, 4.4] {
         let start = player(yaw);
         // Engine forward is (sin yaw, 0, cos yaw).
@@ -177,7 +173,7 @@ fn arrow_points_where_forward_movement_goes_on_the_map() {
 
 #[test]
 fn flight_masters_follow_the_players_faction() {
-    let Some(data) = data() else { return };
+    let data = data();
     let alliance = state(data, 37, &player(0.0));
     let goldshire = alliance
         .pins
@@ -206,7 +202,7 @@ fn flight_masters_follow_the_players_faction() {
 
 #[test]
 fn quest_log_areas_pin_objectives_and_turn_ins() {
-    let Some(data) = data() else { return };
+    let data = data();
     let quests = [
         quest(
             "Active",
@@ -247,7 +243,7 @@ fn quest_log_areas_pin_objectives_and_turn_ins() {
 
 #[test]
 fn hovering_a_zone_on_the_continent_highlights_it() {
-    let Some(data) = data() else { return };
+    let data = data();
     let player = player(0.0);
     let on_continent = state(data, 13, &player).player.unwrap();
     let view = world_map_frame_state(

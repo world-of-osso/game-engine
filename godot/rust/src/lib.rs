@@ -34,6 +34,7 @@ mod nameplates;
 #[path = "../../../src/game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
 mod objective_tracker;
+mod particle_debug;
 mod particles;
 mod player_spells;
 mod replicated;
@@ -42,6 +43,7 @@ mod sound;
 mod sound_client;
 mod sound_footsteps;
 mod sound_outcome;
+mod spell_assets;
 mod spell_effects;
 mod spell_sounds;
 mod spell_tooltip;
@@ -1212,6 +1214,11 @@ impl GameClient {
         }
     }
 
+    fn show_session_feedback(&mut self) -> Result<(), String> {
+        let status = self.account.session.feedback.clone().unwrap_or_default();
+        self.update_login_status(&status, false)
+    }
+
     fn update_login_status(&mut self, status: &str, connecting: bool) -> Result<(), String> {
         let Some(login) = self.login_ui.as_mut() else {
             return Ok(());
@@ -1253,9 +1260,9 @@ impl GameClient {
         match event {
             AccountEvent::Screen(screen) => {
                 self.show_account_screen(screen)?;
-                let status = self.account.session.feedback.clone().unwrap_or_default();
-                self.update_login_status(&status, false)?;
+                self.show_session_feedback()?;
             }
+            AccountEvent::Feedback => self.show_session_feedback()?,
             AccountEvent::WorldReset => self.reset_world()?,
             AccountEvent::RestState(update) => {
                 self.in_rest_area = update.snapshot.is_some_and(|rest| rest.in_rest_area);

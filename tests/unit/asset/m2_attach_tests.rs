@@ -1,18 +1,19 @@
 use super::*;
 
+#[path = "../required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
+
 #[test]
 fn parse_humanmale_hd_attachments() {
     let path = std::path::Path::new("data/models/humanmale_hd.m2");
-    if !path.exists() {
-        return;
-    }
-    let data = std::fs::read(path).unwrap();
+    let data = std::fs::read(require_asset(path)).unwrap();
     // Find MD21 chunk
     let md20 = find_md20(&data).expect("no MD21 chunk");
     assert!(parse_attachments(md20).unwrap().is_empty());
     assert!(parse_attachment_lookup(md20).unwrap().is_empty());
 
-    let skel = std::fs::read("data/models/humanmale_hd.skel").unwrap();
+    let skel = std::fs::read(require_asset("data/models/humanmale_hd.skel")).unwrap();
     let ska1 = find_chunk(&skel, b"SKA1").expect("no SKA1 chunk in skeleton");
     let attachments = parse_ska1_attachments(ska1).unwrap();
     let lookup = parse_ska1_attachment_lookup(ska1).unwrap();
@@ -24,10 +25,7 @@ fn parse_humanmale_hd_attachments() {
 #[test]
 fn parse_torch_attachments() {
     let path = std::path::Path::new("data/models/club_1h_torch_a_01.m2");
-    if !path.exists() {
-        return;
-    }
-    let data = std::fs::read(path).unwrap();
+    let data = std::fs::read(require_asset(path)).unwrap();
     let md20 = find_md20(&data).expect("no MD21 chunk");
     let attachments = parse_attachments(md20).unwrap();
     assert_eq!(

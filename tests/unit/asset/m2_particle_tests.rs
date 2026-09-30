@@ -1,14 +1,15 @@
 use super::*;
 
+#[path = "../required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
+
 const RANDOM_TEXTURE_FLAG: u32 = 0x0010_0000;
 
 #[test]
 fn parse_torch_particle_emitter() {
     let path = std::path::Path::new("data/models/club_1h_torch_a_01.m2");
-    if !path.exists() {
-        return;
-    }
-    let data = std::fs::read(path).unwrap();
+    let data = std::fs::read(require_asset(path)).unwrap();
     let md20_size = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
     let md20 = &data[8..8 + md20_size];
 
@@ -52,10 +53,7 @@ fn parse_torch_particle_emitter() {
 #[test]
 fn parse_272_particle_emitters_use_full_stride() {
     let path = std::path::Path::new("data/models/390126.m2");
-    if !path.exists() {
-        return;
-    }
-    let data = std::fs::read(path).unwrap();
+    let data = std::fs::read(require_asset(path)).unwrap();
     let md20_size = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
     let md20 = &data[8..8 + md20_size];
 
@@ -71,10 +69,7 @@ fn parse_272_particle_emitters_use_full_stride() {
 #[test]
 fn parse_274_particle_emitters_use_full_stride() {
     let path = std::path::Path::new("data/models/5152423.m2");
-    if !path.exists() {
-        return;
-    }
-    let data = std::fs::read(path).unwrap();
+    let data = std::fs::read(require_asset(path)).unwrap();
     let md20_size = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
     let md20 = &data[8..8 + md20_size];
 
@@ -95,10 +90,7 @@ fn parse_274_particle_emitters_use_full_stride() {
 #[test]
 fn parse_274_particle_emitters_keep_legacy_header_offsets() {
     let path = std::path::Path::new("data/models/5152423.m2");
-    if !path.exists() {
-        return;
-    }
-    let data = std::fs::read(path).unwrap();
+    let data = std::fs::read(require_asset(path)).unwrap();
     let md20_size = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
     let md20 = &data[8..8 + md20_size];
     let emitters_offset = u32::from_le_bytes(md20[0x12C..0x130].try_into().unwrap()) as usize;
