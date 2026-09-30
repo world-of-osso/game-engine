@@ -461,6 +461,22 @@ mod tests {
         assert!(parts.contains(&(7_760_205, 2501)), "{parts:?}");
     }
 
+    /// Night Elf male Demon Hunter Tattoo Color 775 with tattoo 770: MaterialResourcesID
+    /// 237560, whose TextureFileData rows are FDID 1284994 (UsageType 0, the tattoo)
+    /// and 1305213 (UsageType 2, opaque near-black). The body must use the first.
+    #[test]
+    fn demon_hunter_tattoo_uses_the_usage_type_0_texture() {
+        let db = load_customization_db(&data_root()).unwrap();
+        let color = db.choice_by_id(4, 0, 775).unwrap();
+        let fdids: Vec<u32> = color
+            .related_materials
+            .iter()
+            .filter(|material| material.related_choice_id == 770)
+            .map(|material| material.fdid)
+            .collect();
+        assert_eq!(fdids, [1_284_994]);
+    }
+
     #[test]
     fn additional_option_retains_direct_and_related_choice_effects() {
         let db = load_customization_db(&data_root()).unwrap();
