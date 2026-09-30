@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] evidence | Independent public TAA-input audit
+
+[Scoped AA evidence](systems/godot-conversion.md#native-antialias--bounded-missing-consumer-evidence) now records `/tmp/claude/verify-taa-public-inputs.md`: 800 finite decoded floats, 180 fixed-oracle interior samples, integer-offset depth cross-section centroids, normal disposal and complete saved stderr audited. No rerun, fractional-jitter, temporal accumulation, executed-source hash attestation or production AA acceptance.
+
 ## [2026-09-29] evidence | Bounded persisted native antiAlias missing consumer
 
 Added adjacent antiAlias conversion-spec subsection, Missing matrix row and [scoped wiki evidence](systems/godot-conversion.md#native-antialias--bounded-missing-consumer-evidence) from the saved AA ledger. Recorded `cdd6bfeb` actual native Msaa4x assertion with timeout 124, not clean RED; ALBEDO correction `efc05be9`; distinct geometric fixture `d0cebe67` None startup/unrelated 144 FPS-cap commit control exit 0, exact UI/finite image, 0 intermediate/4318 edge samples and main-inspected PNG. Stock TAA differences remain source-only. Public projection/velocity 20-frame diagnostic exits 0, feasibility only; independent report absent/pending. All production AA modes and separate temporal oracle remain open. No new UI/CLI contract, code, runtime/build/test execution, or bloom-proof changes.
