@@ -102,3 +102,103 @@ fn a_one_bit_alpha_dxt1_blp_decodes_every_level_with_its_transparent_texels() {
     let transparent = rgba.pixels.iter().skip(3).step_by(4).filter(|&&a| a == 0);
     assert!(transparent.count() > 128 * 128 / 4);
 }
+
+fn bc5_blp(width: u32, height: u32, blocks: &[u8]) -> Vec<u8> {
+    let mut bytes = vec![0; 148];
+    bytes[..4].copy_from_slice(b"BLP2");
+    bytes[4..8].copy_from_slice(&1u32.to_le_bytes());
+    bytes[8] = 2;
+    bytes[10] = 11;
+    bytes[12..16].copy_from_slice(&width.to_le_bytes());
+    bytes[16..20].copy_from_slice(&height.to_le_bytes());
+    bytes[20..24].copy_from_slice(&148u32.to_le_bytes());
+    bytes[84..88].copy_from_slice(&(blocks.len() as u32).to_le_bytes());
+    bytes.extend_from_slice(blocks);
+    bytes
+}
+
+/// Two BC4 channels with indices 0..7 twice, independently known UNORM palettes.
+#[test]
+fn bc5_decodes_both_endpoint_orders_and_all_indices() {
+    // 48 little-endian index bits encode [0,1,2,3,4,5,6,7] twice.
+    let indices = [0x88, 0xc6, 0xfa, 0x88, 0xc6, 0xfa];
+    let mut block = vec![240, 30];
+    block.extend_from_slice(&indices);
+    block.extend_from_slice(&[20, 220]);
+    block.extend_from_slice(&indices);
+    let image = decode_rgba(&bc5_blp(4, 4, &block)).unwrap();
+    let red = [240, 30, 210, 180, 150, 120, 90, 60];
+    let green = [20, 220, 60, 100, 140, 180, 0, 255];
+    assert_eq!((image.width, image.height), (4, 4));
+    let expected: Vec<u8> = (0..16)
+        .flat_map(|i| [red[i % 8], green[i % 8], 0, 255])
+        .collect();
+    assert_eq!(image.pixels, expected);
+}
+
+#[test]
+fn bc5_clips_partial_blocks_and_uses_authored_mip_offset() {
+    let mut blocks = vec![0; 32];
+    blocks[0] = 64;
+    blocks[8] = 128;
+    blocks[16] = 192;
+    blocks[24] = 32;
+    let mut bytes = bc5_blp(5, 3, &blocks);
+    bytes.splice(148..148, [99; 12]);
+    bytes[20..24].copy_from_slice(&160u32.to_le_bytes());
+    let image = decode_rgba(&bytes).unwrap();
+    let expected: Vec<u8> = (0..3)
+        .flat_map(|_| {
+            (0..5).flat_map(|x| {
+                if x < 4 {
+                    [64, 128, 0, 255]
+                } else {
+                    [192, 32, 0, 255]
+                }
+            })
+        })
+        .collect();
+    assert_eq!((image.width, image.height), (5, 3));
+    assert_eq!(image.pixels, expected);
+}
+
+#[test]
+fn bc5_rejects_incomplete_header_or_mip_payload() {
+    let bytes = bc5_blp(4, 4, &[0; 16]);
+    assert!(decode_rgba(&bytes[..100]).is_err());
+    assert!(decode_rgba(&bytes[..163]).is_err());
+    assert!(decode_rgba(&bc5_blp(5, 4, &[0; 16])).is_err());
+    let mut overlap = bytes;
+    overlap[20..24].copy_from_slice(&20u32.to_le_bytes());
+    assert!(
+        decode_rgba(&overlap).is_err(),
+        "mip must not read header bytes"
+    );
+}
+
+#[test]
+fn bc5_rejects_zero_and_overflowing_dimensions() {
+    assert!(decode_rgba(&bc5_blp(0, 4, &[])).is_err());
+    assert!(decode_rgba(&bc5_blp(4, 0, &[])).is_err());
+    assert!(decode_rgba(&bc5_blp(u32::MAX, u32::MAX, &[])).is_err());
+}
+
+/// Azerite liquid normal map FDID 1886758 is BLP2 pixel format 11 (BC5).
+#[test]
+fn bc5_normal_map_decodes_red_green_channels() {
+    let image = decode_rgba(&texture(1_886_758)).unwrap();
+    assert_eq!((image.width, image.height), (1024, 1024));
+    let texels: Vec<_> = image.pixels.chunks_exact(4).collect();
+    assert!(texels.iter().all(|texel| texel[2] == 0 && texel[3] == 255));
+    let mean = |channel: usize| {
+        texels
+            .iter()
+            .map(|texel| f64::from(texel[channel]))
+            .sum::<f64>()
+            / texels.len() as f64
+    };
+    // Tangent-space normal XY centre near 0.5.
+    assert!((100.0..156.0).contains(&mean(0)), "red mean {}", mean(0));
+    assert!((100.0..156.0).contains(&mean(1)), "green mean {}", mean(1));
+    assert!(texels.iter().any(|texel| texel[0] != texels[0][0]));
+}

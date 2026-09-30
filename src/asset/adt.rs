@@ -388,6 +388,7 @@ mod tests {
             vertex_heights: vec![2.0, 2.0, 2.0, 2.0],
             vertex_uvs: Vec::new(),
             vertex_depths: vec![0, 64, 128, 255],
+            object_vertex_bytes: Vec::new(),
         };
 
         let mesh = build_water_mesh([0.0, 0.0, 0.0], &layer);

@@ -10,7 +10,9 @@ use binrw::BinRead;
 use super::adt::ChunkIter;
 #[path = "adt_tex_water.rs"]
 mod adt_tex_water;
-pub use adt_tex_water::{AdtWaterData, ChunkWater, WaterAttributes, WaterLayer, parse_mh2o};
+pub use adt_tex_water::{
+    AdtWaterData, ChunkWater, FIRST_LIQUID_OBJECT, WaterAttributes, WaterLayer, parse_mh2o,
+};
 #[cfg(test)]
 use adt_tex_water::{LiquidInstanceHeader, Mh2oAttributes, Mh2oChunkHeader};
 
