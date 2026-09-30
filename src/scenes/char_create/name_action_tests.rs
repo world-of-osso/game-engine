@@ -8,7 +8,7 @@ use ui_toolkit::screen::SharedContext;
 #[test]
 fn clicked_name_button_changes_draft_and_editbox_without_changing_customization() {
     let catalog =
-        name_catalog::NameCatalog::load(std::path::Path::new("data/NameGen.csv")).unwrap();
+        name_catalog::NameCatalog::load(std::path::Path::new(super::deps::NAME_GEN_CSV)).unwrap();
     let mut state = CharCreateState {
         mode: CharCreateMode::Customize,
         selected_race: 1,
@@ -96,7 +96,7 @@ fn automation_click_updates_live_editbox_without_sending_create_request() {
     world.insert_resource(cc);
     world.insert_resource(db);
     world.insert_resource(NameCatalogResource(NameCatalog::load(
-        std::path::Path::new("data/NameGen.csv"),
+        std::path::Path::new(super::deps::NAME_GEN_CSV),
     )));
     world.init_resource::<CharCreateFocus>();
     world.init_resource::<UiAutomationQueue>();
@@ -133,7 +133,7 @@ fn automation_click_updates_live_editbox_without_sending_create_request() {
 #[test]
 fn unsupported_race_does_not_replace_existing_name() {
     let catalog =
-        name_catalog::NameCatalog::load(std::path::Path::new("data/NameGen.csv")).unwrap();
+        name_catalog::NameCatalog::load(std::path::Path::new(super::deps::NAME_GEN_CSV)).unwrap();
     let mut state = CharCreateState {
         selected_race: 99,
         name: "Previous".to_owned(),

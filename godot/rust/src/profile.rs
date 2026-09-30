@@ -35,9 +35,3 @@ impl<F: FnOnce() -> String> Drop for Span<F> {
         }
     }
 }
-
-/// Runs `work` inside a span labelled `label`.
-pub(crate) fn time<T>(label: impl FnOnce() -> String, work: impl FnOnce() -> T) -> T {
-    let _span = span(label);
-    work()
-}

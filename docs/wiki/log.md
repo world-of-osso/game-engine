@@ -4,6 +4,10 @@
 
 Added [[world-entry-stalls]]. The "Account" step at world entry (17-48 s in base) built every replicated unit's visual synchronously. "World objects" overran its 8 ms budget with whole-model and whole-WMO units. Unit visuals and ADT objects now load on `AssetLoader` workers, and the main thread builds them within 8 ms budgets: WMOs a slice of batches at a time, terrain chunk by chunk. The loading screen also waits for the local player's model. Back-to-back A/B (`world_entry_frames.gd`, two rounds at load 14-44): longest loading frame 17.6-47.7 s → 0.22-0.91 s. Gaps: the first in-world HUD frame, the per-unit build cost of humanoid NPCs, and object throughput under heavy load.
 
+## [2026-09-30] implementation | Server-global native auction browse
+
+Updated [[auction-house-ui]] and spec after `5b9cb76c`: native browse now consumes server-global distinct-item pages, authoritative unit price and `u64` stock; drilldown/sell remain flat with real auction IDs. Snapshot adds `groups` and active endpoint flag; fixture reads groups. Targeted Depot native model 8/8, owned UDP 1/1 and shared frame 1/1 passed. Model RED missing-API compilation and wire RED missing-reply timeout recorded separately. Host/runtime proof remains with main after game-cli; no integration/ops run.
+
 ## [2026-09-30] implementation | Bounded native auction client
 
 Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, portable trading validation, exact-item/category queries, all fetched-row/server-page navigation and corrected duration labels. Targeted current model 8/8, retained owned UDP 1/1 and current host compile/range test 1/1 passed; no Godot runtime executed. Main owns game-cli-first integration and native smoke; no runtime/full-AH acceptance claim.
@@ -2217,3 +2221,11 @@ A spell's first use no longer extracts, parses or decodes its kit models, textur
 ## [2026-09-30] fix | Retail ADT water
 
 Northshire streams used the procedural placeholder water shader and lost MH2O LVF 0 depths. Godot water now ports WebWowViewerCpp `liquidWaterMat` with LiquidType/LiquidObject/LiquidTypeXTexture DB2 inputs and LightData/LightParams colours. See [northshire-pale-water](investigations/northshire-pale-water.md).
+
+## [2026-09-30] audit | Native loot integration, proof pending
+
+Recorded shared original loot state/cards/placement/actions, one ordered LootChannel relay, server-owned Auto Loot XOR Shift, actual authored LootFrame and per-looter sparkle/cursor; existing authenticated inventory/gold flow retained. Actual native fixture remains RED (no LootUnit after corpse right-click, case 1); main build and agent1299 portable export pending. Both matrix rows remain Missing; no completion checkbox changed. See [native loot boundary](systems/godot-conversion.md#native-loot--implemented-proof-pending).
+
+## [2026-09-30] documentation | Native Options and loot money overflow; final pending
+
+Updated existing [[godot-conversion]], [[loot-and-flight]], index and loot spec. Saved rendered RED: HUD last row 12 px past panel; money native 51 px versus authored 38 px (font size 12, glyph height 15, default gaps 3). Records content-driven Options height `b50a139f` and fixed multiline gap fitting `d6f39c45`, without smaller fonts/truncation/clipping; main rendering pending, no GREEN claim. Replaces stale export/build/agent-pending wording with shared exports/tests 8 + 1, relay wire test 1 at `c6ae14bf`, root compile and runtime `af03660f` all four cases/inventory/error/cursor through LOOT_DONE. Post-DONE RenderingServer-null exit 101 unresolved/deferred; independent final boxes pending, source unfrozen. Docs only; no builds/tests/delegation or source/server/protocol/data/PLAN changes. Existing log entries preserved.

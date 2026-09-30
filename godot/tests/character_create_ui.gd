@@ -34,6 +34,14 @@ func run():
     if not screen.size.is_equal_approx(Vector2(root.size)) or not race.size.is_equal_approx(Vector2(79, 79)) or not back.size.is_equal_approx(Vector2(250, 66)) or not next.size.is_equal_approx(Vector2(250, 66)):
         fail("Authored root/race/navigation dimensions changed", ui)
         return
+    # Retail ClassName: GameFontNormalMed2 (Friz Quadrata 13) in an 85x50 box that
+    # word-wraps (Blizzard_CharacterCreate.xml:72-77), so "Demon Hunter" takes two lines.
+    var dh_label = canvas.find_child("Class_12_Label", true, false)
+    var dh_class = canvas.find_child("Class_12", true, false)
+    print("FIXTURE DH_LABEL size=%s lines=%d font=%s rect=%s button=%s" % [dh_label.size, dh_label.get_line_count(), dh_label.get_theme_font_size("font_size"), dh_label.get_global_rect(), dh_class.get_global_rect()])
+    if dh_label.get_line_count() != 2 or dh_label.size.x > 85.5:
+        fail("Demon Hunter class label must wrap into two lines within 85 px: " + str(dh_label.size), ui)
+        return
     var viewport_rect := Rect2(Vector2.ZERO, Vector2(root.size))
     var action_rect: Rect2 = next.get_global_rect()
     if not viewport_rect.encloses(action_rect):

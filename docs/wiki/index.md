@@ -17,7 +17,7 @@ Engine subsystems and how they work.
 - [world-map](systems/world-map.md) — shared UiMap catalog/view model for the Retail windowed world map (zone → continent → world, player arrow, flight and quest pins), native `WorldMapFrame` title drag and character-scoped placement shared with spellbook, coordinate/rotation derivations, local-CASC tile gaps
 - [minimap](systems/minimap.md) — Godot Retail MinimapCluster: local-CASC `world/minimaps` tile composite (north-up, round), facing arrow, subzone/PvP zone text, clock and calendar, hover zoom, quest-giver blips; tile-key and composite coordinate derivations
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
-- [auction-house-ui](systems/auction-house-ui.md) — Retail AuctionHouseFrame plus native Godot auction session: NPC/gossip entry, Buy/Sell/Auctions, server exact-item/category searches, two-level paging and bounded model/UDP evidence; ordered runtime smoke pending
+- [auction-house-ui](systems/auction-house-ui.md) — Retail AuctionHouseFrame plus native Godot auction session: NPC/gossip entry, Buy/Sell/Auctions, server-global distinct-item browse, flat exact-item drilldown, two-level paging and bounded model/UDP evidence; ordered runtime smoke pending
 - [trade-and-mail](systems/trade-and-mail.md) — Retail TradeFrame (unit/group menu Trade, TRADE popup, 7 slots, accept highlights) and MailFrame/OpenMailFrame at Mailbox game objects (inbox pages, open mail, Send Mail with attachments/C.O.D., confirmations), minimap mail indicator
 - [banks](systems/banks.md) — Retail BankFrame (character + Warband bank) at bankers and GuildBankFrame at replicated Guild Vault objects; right-click deposit/withdraw, money entry, tab purchase, guild logs
 - [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
@@ -120,6 +120,9 @@ Root cause analyses and debug findings.
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
 - [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`)
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
+
+- [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Shared exports/tests 8 + 1, relay wire test 1 and root compile passed; runtime all four cases/inventory/error/cursor reaches LOOT_DONE, post-DONE RenderingServer-null exit 101 unresolved/deferred. Independent final pending.
+- [Native Options and loot money overflow](systems/godot-conversion.md#native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering) — Rendered RED: last HUD row 12 px outside panel; native money lines 51 px versus authored 38 px. Content-driven Options height and fixed multiline line-gap fixes implemented; main rendering pending, no GREEN claim.
 
 ## Reference
 

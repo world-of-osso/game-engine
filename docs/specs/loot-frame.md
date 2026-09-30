@@ -35,6 +35,8 @@ References:
 - [ ] Preserve loot cursor/sparkle and authoritative inventory/currency updates without new protocol messages.
 - [ ] Prove the native UI/network boundary with owned loopback fixtures and inspected rendering; Bevy proof above does not establish native parity.
 
+Native integration reuses the authored frame and shared loot-state, card, placement and click policies. `LootChannel` traffic is relayed in channel order; auto collection remains server-owned. `InventoryDelta` and replicated `Gold` remain the bag/currency authorities. Native completion boxes require runtime proof, not merely compiled handlers. Bounded evidence now includes shared exports/tests (8 + 1), ordered relay wire test (1 at `c6ae14bf`), root compilation and runtime `af03660f` reaching `LOOT_DONE` after all four Auto Loot/Shift cases plus inventory/error/cursor assertions. Post-DONE RenderingServer-null shutdown still exits 101, unresolved and explicitly deferred; independent final acceptance remains pending. Money text retains authored font size 12, all coin lines, the 38 px label and 46 px card: fixed multiline projection adjusts line gaps using native glyph/shadow metrics, not font reduction, truncation or clipping. Main rendered overflow proof remains pending. See [native evidence and root causes](../wiki/systems/godot-conversion.md#native-loot--implemented-proof-pending); commit IDs are provenance, not source-pinning gates.
+
 ## Tests asserting this spec
 
 - `src/game/loot_state.rs` tests: slots taken until close, Shift inversion, right-click choice, money lines and coin icon, loot chat lines.

@@ -621,19 +621,19 @@ mod tests {
 
     #[test]
     fn static_m2_scene_load_uses_model_cache() {
-        let (model_path, _skin_path) = copy_torch_model_to_temp();
-        let cache_entries_before = crate::asset::m2::model_cache_stats().entries;
+        let (model_path, skin_path) = copy_torch_model_to_temp();
+        let first = load_m2_model_with_skin_fdids(&model_path, &[0, 0, 0]).expect("first load");
+        // The model's unique temp path is its own cache key; concurrent tests cannot hit it,
+        // so only the cache can serve the second load once the files are gone.
+        std::fs::remove_dir_all(model_path.parent().expect("temp model dir"))
+            .expect("remove temp torch model");
+        assert!(!model_path.exists() && !skin_path.exists());
 
-        let first = load_m2_model_with_skin_fdids(&model_path, &[0, 0, 0]);
-        let cache_entries_after_first = crate::asset::m2::model_cache_stats().entries;
-
-        let second = load_m2_model_with_skin_fdids(&model_path, &[0, 0, 0]);
-        let cache_entries_after_second = crate::asset::m2::model_cache_stats().entries;
-
-        assert!(first.is_some());
-        assert!(second.is_some());
-        assert_eq!(cache_entries_after_first, cache_entries_before + 1);
-        assert_eq!(cache_entries_after_second, cache_entries_after_first);
+        let second = load_m2_model_with_skin_fdids(&model_path, &[0, 0, 0])
+            .expect("second load of the deleted model comes from the cache");
+        assert_eq!(second.batches.len(), first.batches.len());
+        assert!(!first.batches.is_empty());
+        assert!(load_m2_model_with_skin_fdids(&model_path, &[0, 0, 1]).is_none());
     }
 
     fn copy_torch_model_to_temp() -> (PathBuf, PathBuf) {

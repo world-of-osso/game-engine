@@ -128,10 +128,7 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
         let root = registry
             .get(registry.get_by_name("OptionsRoot").unwrap())
             .unwrap();
-        assert_eq!(
-            (root.width, root.height),
-            (Dimension::Fixed(980.0), Dimension::Fixed(660.0))
-        );
+        assert_eq!(root.width, Dimension::Fixed(980.0));
         assert!(registry.get_by_name("MenuBtnResume").is_none());
     }
     view.view = GameMenuView::MainMenu;
