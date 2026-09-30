@@ -44,7 +44,7 @@ fn create_fixture_server(register_extra: fn(&mut App)) -> App {
     app
 }
 
-fn start_fixture_server() -> (App, SocketAddr) {
+pub(crate) fn start_fixture_server() -> (App, SocketAddr) {
     start_fixture_server_with(|_| {})
 }
 
