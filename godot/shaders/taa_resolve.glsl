@@ -23,15 +23,25 @@
 // clamp-to-edge linear on history_linear. History samplers share one input.
 // Motion is already current-minus-previous UV. No convention conversion here.
 // Both outputs have current's extent and must not alias any input or each other.
-// RGBA16F outputs are provisional: NOT legacy history-format parity.
+// Compute uses RGBA16F storage. TAA_RASTER uses hardware attachment stores
+// (RGBA16F or RGBA8_SRGB), including format-specific history alpha clamping.
+#ifndef TAA_RASTER
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+#else
+// bloom_fullscreen.glsl location 0: UV = clipXY * 0.5 + 0.5, no Y flip.
+layout(location = 0) in vec2 output_uv;
+layout(location = 0) out vec4 resolved_raster;
+layout(location = 1) out vec4 history_raster;
+#endif
 layout(set = 0, binding = 0) uniform sampler2D current_input;
 layout(set = 0, binding = 1) uniform sampler2D history_linear;
 layout(set = 0, binding = 2) uniform sampler2D history_nearest;
 layout(set = 0, binding = 3) uniform sampler2D depth_input;
 layout(set = 0, binding = 4) uniform sampler2D motion_input;
+#ifndef TAA_RASTER
 layout(rgba16f, set = 0, binding = 5) uniform writeonly image2D resolved_output;
 layout(rgba16f, set = 0, binding = 6) uniform writeonly image2D history_output;
+#endif
 layout(push_constant, std430) uniform Parameters {
     uint reset;
     uint tonemap;
@@ -135,11 +145,16 @@ vec3 clip_history(vec3 history_color, vec3 current_color, vec2 uv, vec2 texel_si
 }
 
 void main() {
+#ifndef TAA_RASTER
     ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
     ivec2 extent = textureSize(current_input, 0);
     if (any(greaterThanEqual(pixel, extent))) { return; }
     vec2 texture_size = vec2(extent);
     vec2 uv = (vec2(pixel) + 0.5) / texture_size;
+#else
+    vec2 texture_size = vec2(textureSize(current_input, 0));
+    vec2 uv = output_uv;
+#endif
     vec4 original = textureLod(current_input, uv, 0.0);
     vec3 current_color = original.rgb;
     if (parameters.tonemap != 0u) { current_color = tonemap(current_color); }
@@ -163,7 +178,15 @@ void main() {
         }
         current_color = mix(history_color, current_color, current_factor);
     }
+#ifndef TAA_RASTER
     imageStore(history_output, pixel, vec4(current_color, confidence));
+#else
+    history_raster = vec4(current_color, confidence);
+#endif
     if (parameters.tonemap != 0u) { current_color = reverse_tonemap(current_color); }
+#ifndef TAA_RASTER
     imageStore(resolved_output, pixel, vec4(current_color, original.a));
+#else
+    resolved_raster = vec4(current_color, original.a);
+#endif
 }
