@@ -23,8 +23,8 @@ func _initialize() -> void:
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
-	if server != "127.0.0.1:5000":
-		fail("GODOT_TEST_SERVER must explicitly select 127.0.0.1:5000")
+	if server == "":
+		fail("GODOT_TEST_SERVER must select the server")
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
