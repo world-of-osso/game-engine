@@ -2245,3 +2245,7 @@ Updated loot spec, Partial matrix rows, [[godot-conversion]] and index for `292a
 ## [2026-09-30] fix | Showcase client bugs
 
 Floating combat text starts at per-number camera-plane offsets from the retail WorldText CVars; the target's nameplate takes `nameplateSelectedAlpha`; robes select skirt/sleeve geosets and paste over shirt and pants in `CCharacterComponent` priority; player weapons sheathe at `Item.SheatheType`; creature poses follow `AnimationData.Fallback` (Dead → Death held). `.anim` out-of-bounds reads trace to stale cached `.skel` files. See [showcase-client-bugs](investigations/showcase-client-bugs.md).
+
+## 2026-09-30 — SettingsReload reconciliation
+
+Linked [bounded two-process main proof](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) from fixture workflow, loot/conversion specs, matrix and index. Retained pending independent gate and unresolved normal-shutdown/full-conversion gaps.
