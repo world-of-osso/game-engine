@@ -368,12 +368,14 @@ pub fn native_auction_screen(
     let search_left = if sell { 0.0 } else { 240.0 };
     let search_top = if sell { 24.0 } else { 0.0 };
     let hide_search = !state.search_paging;
+    let hide_browse_scope = state.frame.tab != AuctionHouseTab::Buy;
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state.frame.clone());
     let content = crate::auction_house_frame_component::auction_house_frame_screen(&shared);
     rsx! {
         r#frame { name:"NativeAuctionRoot", width:800.0,height:570.0,hidden:hide,strata:ui_toolkit::strata::FrameStrata::High,pos_type:"absolute",left:16.0,top:104.0,
             {content}
+            fontstring {name:"AuctionBrowseScope",width:160.0,height:32.0,hidden:hide_browse_scope,text:"Prices/stock on this page",font_size:10.0,pos_type:"absolute",left:8.0,top:470.0,}
             r#frame { name:"AuctionPaging",width:610.0,height:26.0,pos_type:"absolute",left:left,top:top,
                 button {name:"AuctionRowsPrev",width:48.0,height:22.0,text:"Prev",onclick:"auction_rows_prev",enabled:{state.row_page>0},pos_type:"absolute",left:0.0,top:0.0,}
                 fontstring {name:"AuctionRowsLabel",width:120.0,height:22.0,text:{rows.as_str()},pos_type:"absolute",left:50.0,top:0.0,}

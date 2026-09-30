@@ -18,7 +18,33 @@ Requirements: [auction house UI spec](../../specs/auction-house-ui.md). Server s
 
 - Item icons and categories come from `data/db2/12.1.0.69933/Item.csv` (`item_catalog`); `item_icons` (ItemModifiedAppearance) has no rows for trade goods.
 - The bid inputs are shared by the item buy frame and the Bids tab: only the visible mode builds them, or two frames would share a name.
-- Category filtering is client-side over the fetched page (≤ 50 results).
+- Preserved Bevy category filtering is page-local; native Godot uses the server query fields described below.
 - JS automation `ui.dumpUiTree()` exits the app after dumping; live runs end without it and read the tree over IPC (`data/diagnostics/auction-ui-20260924/run.sh`).
 - Toolkit buttons draw a default skin unless `button_default_skin: false`; list rows, categories, tabs and the item display turn it off.
 - Children share their parent's frame level, so a child added on a later rebuild draws over earlier siblings: row selection and stripes are the row's siblings, drawn before it.
+
+
+## Native Godot
+
+`godot/ui-model/src/auction.rs` owns the native `AuctionSession`; its `net` field stores wire reply data and queued `AuctionRequest` enum values, and its `ui` field stores tab/item/auction selections. `auction/actions.rs` and `auction/view.rs` port the legacy decision logic without importing Bevy's renderer/plugin/IPC resources. The native host in `godot/rust/src/auction.rs` drains projected input before reading edit texts, applies actions, sends queued requests through `Account` and rebuilds only changed views. `RegistryUi::control_for_action` exposes a read-only projected control for pointer fixtures, not a synthetic trading path.
+
+Native NPC `InteractionOpened Role(AuctionHouse)` queues Open; gossip options send `SelectGossipOption`. An explicit close/Escape sends `CloseInteraction`; matching server closure resets the session without sending another close. Leaving InWorld frees the host. The bridge registers all six auction reply types; account dispatch preserves their concrete types via `AuctionReply`. Failed operations (including queries rejected through `AuctionOperationResponse`) enter UIErrors text; successful operations refresh inventory/money, owned/bids and the latest query.
+
+Two paging levels are independent: server result pages preserve exact-item/category filters, while 18-row local slices (11 for the item buy list) expose every fetched row. Local paging also works on unpaged inventory/owned/bids replies. Category filtering sends `class_id`; drilldown and sell-market searches send `item_id`. Responses for a different latest query are ignored. `search_revision` increments only on accepted replies so smoke waits observe a reply, not merely a changed requested page. Grouped browse quantities/prices are page-local and labelled accordingly; the listing protocol supplies no global item aggregates.
+
+The shared frame now labels Short/Medium/Long as 1 Day/1 Week/2 Weeks; deposit multipliers remain 1/2/4. Trading validation disables unaffordable/under-minimum bids, unavailable buyouts, cancel with bids and invalid sell quantity/prices/deposit; outstanding operations suppress duplicate frame submissions. Server remains authoritative for economy and interaction eligibility.
+
+### Bounded evidence
+
+At `c14d87ec`, Depot targeted native model tests passed 7/7 (`target/native-auction-actions-green.log`); `97e96435` owned UDP passed 1/1 (`target/native-auction-wire-green.log`). Targeted host compile/right-click-range proof passed at `97e96435`; two unrelated existing `terrain/assets.rs` unused-mut warnings remain. Later input/fixture/reply-observer changes invalidate host compile scope until recompiled. Native GDScript fixture exists but has not run; main must first prove game-cli against its integrated disposable server. No rendered parity, full conversion or economic acceptance is claimed.
+
+## Sources
+
+- [Auction requirements](../../specs/auction-house-ui.md) — native baseline and ordered smoke contract.
+- `godot/ui-model/src/auction.rs`, `auction/{actions,view}.rs` — portable decisions and paging.
+- `godot/rust/src/{auction,account,merchant}.rs`, `ui/mod.rs`, `godot/network/src/{lib,wire_tests}.rs` — native protocol/UI boundary.
+
+## See Also
+
+- [[merchant-frame]] — original native NPC/input/registry patterns.
+- [[networking]] — owned native Lightyear bridge.
