@@ -30,9 +30,9 @@ func run() -> void:
 		fail("Water material pixels require a display")
 		return
 	var loader = ClassDB.instantiate("WowTerrainLoader")
-	var result: Dictionary = loader.load_water_material(5, 427, 0, WOW_POSITION, NOON)
+	var result: Dictionary = loader.load_liquid_material(5, 427, 0, WOW_POSITION, NOON)
 	if result.has("error"):
-		fail("load_water_material: " + str(result.error))
+		fail("load_liquid_material: " + str(result.error))
 		return
 	material = result.material
 	make_viewport()

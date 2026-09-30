@@ -7,8 +7,8 @@ render_mode unshaded, cull_disabled, blend_mix, depth_draw_never, fog_disabled;
 // authored colour (sRGB bytes / 255, as the terrain shader); the result is converted to linear.
 
 // LiquidTypeXTexture slot 2 (normal/bump) and slot 3 (foam) of the LiquidType.
-uniform sampler2D bump_map : repeat_enable, filter_linear_mipmap;
-uniform sampler2D foam_map : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_2 : repeat_enable, filter_linear_mipmap;
+uniform sampler2D texture_3 : repeat_enable, filter_linear_mipmap;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
@@ -171,8 +171,8 @@ void fragment() {
 	float relative_thickness = thickness / max(water_depth, 0.0001);
 
 	// Two scrolled bump pairs blended by distance, then flattened by f6 and f14 (v95, v105).
-	vec2 near_bump = (texture(bump_map, v20.xy).xy + texture(bump_map, v20.zw).xy - 1.0) * 2.0;
-	vec2 far_bump = (texture(bump_map, v21.xy).xy + texture(bump_map, v21.zw).xy - 1.0) * 2.0;
+	vec2 near_bump = (texture(texture_2, v20.xy).xy + texture(texture_2, v20.zw).xy - 1.0) * 2.0;
+	vec2 far_bump = (texture(texture_2, v21.xy).xy + texture(texture_2, v21.zw).xy - 1.0) * 2.0;
 	float bump_blend = clamp(0.2 + distance_to_camera / 1000.0, 0.0, 1.0);
 	vec3 bump = vec3(0.7 * far_bump + (near_bump - 0.7 * far_bump) * bump_blend, 1.0);
 	bump.xy *= f6;
@@ -226,7 +226,7 @@ void fragment() {
 	float shore = 1.2 * clamp(fresnel * 0.5 + 0.2, 0.0, 1.0);
 	float alpha = smoothstep(0.0, shore, thickness);
 	float foam_fade = 1.0 - smoothstep(0.0, 2.5 * clamp(fresnel * 0.5 + 0.2, 0.0, 1.0), thickness * (1.0 - view_direction.z));
-	vec3 foam = texture(foam_map, v22.xy - normal.xy).rgb + texture(foam_map, v22.zw + 0.2 * normal.yx).rgb;
+	vec3 foam = texture(texture_3, v22.xy - normal.xy).rgb + texture(texture_3, v22.zw + 0.2 * normal.yx).rgb;
 	color += foam * (f7 * 0.35 * foam_fade * (1.1 - clamp(distance_to_camera / 150.0, 0.0, 1.0)) * normal.z);
 	alpha = (alpha + (1.0 - alpha) * clamp(-thickness, 0.0, 1.0)) * authored_depth;
 

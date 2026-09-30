@@ -601,7 +601,7 @@ mod tests {
             chunk_surfaces: BTreeMap::new(),
             wmo_floors: Vec::new(),
             wmo_surfaces: Vec::new(),
-            water_materials: BTreeMap::new(),
+            liquid_materials: BTreeMap::new(),
         }
     }
 
@@ -622,6 +622,7 @@ mod tests {
             vertex_heights: Vec::new(),
             vertex_uvs: Vec::new(),
             vertex_depths: Vec::new(),
+            object_vertex_bytes: Vec::new(),
         }
     }
 

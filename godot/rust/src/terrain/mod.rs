@@ -49,10 +49,10 @@ impl WowTerrainLoader {
         }
     }
 
-    /// Retail water material of MH2O `(liquid_type, liquid_object)` from the local DB2 exports
+    /// Retail liquid material of MH2O `(liquid_type, liquid_object)` from the local DB2 exports
     /// and CASC textures, lit by the authored light at WoW `wow_position` and `minutes`.
     #[func]
-    fn load_water_material(
+    fn load_liquid_material(
         &self,
         liquid_type: i32,
         liquid_object: i32,
@@ -66,7 +66,7 @@ impl WowTerrainLoader {
         let material = liquid
             .map_err(|_| "Liquid type and object must be in 0..65536".to_string())
             .and_then(|liquid| {
-                read_water_material(liquid, map_id as u32, wow_position.to_array(), minutes)
+                read_liquid_material(liquid, map_id as u32, wow_position.to_array(), minutes)
             });
         match material {
             Ok(material) => result.set("material", &material),
@@ -76,8 +76,8 @@ impl WowTerrainLoader {
     }
 }
 
-/// `load_water_material`: one MH2O water material from local DB2/CASC, lit at a map point.
-fn read_water_material(
+/// `load_liquid_material`: one MH2O liquid material from local DB2/CASC, lit at a map point.
+fn read_liquid_material(
     liquid: (u16, u16),
     map_id: u32,
     wow_position: [f32; 3],
@@ -88,7 +88,7 @@ fn read_water_material(
     let cache_root =
         std::path::PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
     let native = assets::NativeTerrainAssets::new(data_root.clone(), cache_root)
-        .read_water_material(liquid)?;
+        .read_liquid_material(liquid)?;
     let sample = crate::lighting::assets::LightingCatalog::read(&data_root)?.sample(
         map_id,
         wow_position,

@@ -1,19 +1,91 @@
-//! Retail water material inputs from the local-CASC DB2 exports (`scripts/export_db2_csv.py`):
+//! Retail liquid material inputs from the local-CASC DB2 exports (`scripts/export_db2_csv.py`):
 //! an MH2O layer's `LiquidObject` (or, below 42, its LiquidType) selects a `LiquidType`, whose
-//! `LiquidMaterial` gives the vertex format and whose `LiquidTypeXTexture` rows fill the
-//! material texture slots. Ports WebWowViewerCpp `LiquidMaterialManager.cpp`
-//! (`getLiquidMaterial`, `assignLiquidTextures`) and `LiquidWater.cpp` (`createWaterLiquidData`).
+//! `LiquidMaterial` gives the vertex format and shader and whose `LiquidTypeXTexture` rows fill
+//! the material texture slots. Ports WebWowViewerCpp `LiquidMaterialManager.cpp`
+//! (`getLiquidMaterial`, `createLiquidMaterial`, `assignLiquidTextures`) and the per-material
+//! `create*LiquidData` packing (`LiquidWater.cpp` wave periods).
 
 use std::collections::HashMap;
 use std::path::Path;
 
 use crate::csv_util::parse_csv_records;
 
-/// `liquid_object_or_lvf` below this is a vertex format, not a `LiquidObject` ID
-/// (LiquidInstance.cpp `createAdtVertexData`: `< 42` is an LVF override).
-pub const FIRST_LIQUID_OBJECT: u16 = 42;
+pub use crate::asset::adt_format::adt_tex::FIRST_LIQUID_OBJECT;
+
 /// Texture slots per LiquidType (`FrameCountTexture[6]`).
-const TEXTURE_SLOTS: usize = 6;
+pub const TEXTURE_SLOTS: usize = 6;
+
+/// The pixel shader of a LiquidMaterial (LiquidMaterialManager.cpp `createLiquidMaterial`;
+/// IDs without a case, such as 8, use water).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum LiquidShader {
+    Water,
+    Magma,
+    Mercury,
+    Fog,
+    LeyLine,
+    Fel,
+    Swamp,
+    Azerite,
+}
+
+impl LiquidShader {
+    pub fn for_material(material_id: u8) -> Self {
+        match material_id {
+            2 | 4 => Self::Magma,
+            5 => Self::Mercury,
+            10 => Self::Fog,
+            12 => Self::LeyLine,
+            13 => Self::Fel,
+            14 => Self::Swamp,
+            18 => Self::Azerite,
+            _ => Self::Water,
+        }
+    }
+
+    /// Slots the pixel shader samples (forwardLiquidShader_text.slang `calc*LiquidMat` calls).
+    pub fn texture_slots(self) -> &'static [usize] {
+        match self {
+            Self::Water => &[2, 3],
+            Self::Magma => &[1, 2, 3],
+            Self::Mercury => &[2],
+            Self::Fog => &[0],
+            Self::LeyLine => &[0, 1, 3, 4],
+            Self::Fel => &[0, 1, 2, 3, 4, 5],
+            Self::Swamp => &[0, 1, 2, 3, 4],
+            Self::Azerite => &[0, 1, 2, 4, 5],
+        }
+    }
+
+    /// The normal-map slot crossfaded over `Float[index]` seconds, with the next frame bound
+    /// as the reference's slot 7 (LiquidFel.cpp, LiquidSwamp.cpp, LiquidAzerithe.cpp
+    /// `resolveAnimatedTextures`). Other slots advance one frame per second.
+    pub fn crossfade(self) -> Option<(usize, usize)> {
+        match self {
+            Self::Fel | Self::Azerite => Some((5, 12)),
+            Self::Swamp => Some((4, 5)),
+            _ => None,
+        }
+    }
+
+    /// Engine-global files the material binds beside its LiquidType textures: shader
+    /// uniform name and FDID (LiquidMaterialManager.h magma noise volume 768431, a 128x128x16
+    /// RGBA blob; LiquidAzerithe.cpp environment 1797551 and shore foam 1844666 BLPs).
+    pub fn global_textures(self) -> &'static [(&'static str, u32)] {
+        match self {
+            Self::Magma => &[("noise_volume", MAGMA_NOISE_FDID)],
+            Self::Azerite => &[
+                ("environment_texture", 1_797_551),
+                ("shore_foam", 1_844_666),
+            ],
+            _ => &[],
+        }
+    }
+}
+
+/// `xtextures/fx/noise.blob`: 16 slices of 128x128 RGBA, bound as a 128x2048 atlas.
+pub const MAGMA_NOISE_FDID: u32 = 768_431;
+pub const MAGMA_NOISE_SIZE: (u32, u32) = (128, 128 * 16);
 
 /// Which LightData close/far colours and LightParams alphas a water surface uses: the
 /// procedural depth texture row of its LiquidTypeXTexture set (`Type` 0 ocean, 1 river,
@@ -26,21 +98,25 @@ pub enum WaterColorSource {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct WaterMaterial {
+pub struct LiquidMaterial {
     pub liquid_type: u32,
     pub material_id: u8,
+    pub shader: LiquidShader,
     /// Vertex format of the material (`LiquidMaterial.LVF`).
     pub lvf: u8,
     /// `LiquidType.Float[0..18]`, the shader's f0..f17.
     pub floats: [f32; 18],
     /// Cubic depth-to-colour polynomial `LiquidType.Coefficient[0..4]`.
     pub depth_coefficients: [f32; 4],
+    /// `LiquidType.Color[0..3]` as CSqliteDB.cpp `getFloatFromInt<0..2>`: bytes 0, 1, 2 / 255.
+    pub colors: [[f32; 3]; 3],
+    /// `LiquidType.Int[0..4]`.
+    pub ints: [i32; 4],
     pub flow_direction: f32,
     pub flow_speed: f32,
     pub color_source: WaterColorSource,
-    /// Frames of slot 2 (normal/bump) and slot 3 (foam), each cycled once per second.
-    pub bump_frames: Vec<u32>,
-    pub foam_frames: Vec<u32>,
+    /// Texture FDIDs of each slot in frame order; 0 is a procedural (black) texture.
+    pub texture_slots: [Vec<u32>; TEXTURE_SLOTS],
     /// `LiquidWater.cpp` CalculateWavePeriod of the two wave scales; zero without wave speed.
     pub wave_periods: [f32; 2],
 }
@@ -50,6 +126,8 @@ struct LiquidTypeRow {
     frame_counts: [u8; TEXTURE_SLOTS],
     floats: [f32; 18],
     coefficients: [f32; 4],
+    colors: [i64; 3],
+    ints: [i32; 4],
 }
 
 struct LiquidObjectRow {
@@ -80,6 +158,8 @@ impl LiquidCatalog {
                 frame_counts: row.array("FrameCountTexture")?,
                 floats: row.array("Float")?,
                 coefficients: row.array("Coefficient")?,
+                colors: row.array("Color")?,
+                ints: row.array("Int")?,
             })
         })?;
         let objects = read_table(db2_dir, "LiquidObject", |row| {
@@ -99,12 +179,12 @@ impl LiquidCatalog {
         })
     }
 
-    /// The water material of an MH2O instance (`liquid_type`, `liquid_object_or_lvf`).
-    pub fn water_material(
+    /// The liquid material of an MH2O instance (`liquid_type`, `liquid_object_or_lvf`).
+    pub fn liquid_material(
         &self,
         liquid_type: u16,
         liquid_object: u16,
-    ) -> Result<WaterMaterial, String> {
+    ) -> Result<LiquidMaterial, String> {
         let (type_id, flow_direction, flow_speed) = if liquid_object >= FIRST_LIQUID_OBJECT {
             let object = self
                 .objects
@@ -122,19 +202,22 @@ impl LiquidCatalog {
             .material_lvf
             .get(&u32::from(row.material_id))
             .ok_or_else(|| format!("LiquidMaterial {} has no DB2 row", row.material_id))?;
-        let (slots, color_source) = self.texture_slots(type_id, row)?;
-        let [_, _, bump_frames, foam_frames, ..] = slots;
-        Ok(WaterMaterial {
+        let (texture_slots, color_source) = self.texture_slots(type_id, row)?;
+        Ok(LiquidMaterial {
             liquid_type: type_id,
             material_id: row.material_id,
+            shader: LiquidShader::for_material(row.material_id),
             lvf,
             floats: row.floats,
             depth_coefficients: row.coefficients,
             flow_direction,
             flow_speed,
+            colors: row
+                .colors
+                .map(|color| [0, 8, 16].map(|shift| ((color >> shift) & 0xff) as f32 / 255.0)),
+            ints: row.ints,
             color_source,
-            bump_frames,
-            foam_frames,
+            texture_slots,
             wave_periods: wave_periods(&row.floats),
         })
     }

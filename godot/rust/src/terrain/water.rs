@@ -1,10 +1,13 @@
-//! Authored MH2O surfaces with the retail water material of their LiquidType.
+//! Authored MH2O surfaces with the retail liquid material of their LiquidType.
 use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
 
-use game_engine_core::{adt, blp, liquid_data::WaterColorSource};
+use game_engine_core::{
+    adt, blp,
+    liquid_data::{LiquidShader, TEXTURE_SLOTS, WaterColorSource},
+};
 use godot::{
     classes::{
         ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ResourceLoader, Shader,
@@ -13,35 +16,36 @@ use godot::{
     prelude::*,
 };
 
-use super::assets::NativeWaterMaterial;
+use super::assets::{LiquidFrame, NativeLiquidMaterial};
 use crate::lighting::TerrainLight;
 
 type LiquidKey = (u16, u16);
+type Materials = BTreeMap<LiquidKey, Result<Arc<NativeLiquidMaterial>, String>>;
 
 #[derive(Default)]
 pub(super) struct WaterMaterials {
-    shader: Option<Gd<Shader>>,
-    materials: HashMap<LiquidKey, WaterSurface>,
+    shaders: HashMap<LiquidShader, Gd<Shader>>,
+    materials: HashMap<LiquidKey, LiquidSurface>,
     textures: HashMap<u32, Gd<ImageTexture>>,
     black: Option<Gd<ImageTexture>>,
     light: Option<TerrainLight>,
 }
 
-/// One LiquidType's material and its texture frames, cycled once per second
-/// (LiquidMaterialManager.cpp `updateLiquidDataAnimatedTextures`).
-struct WaterSurface {
+/// One LiquidType's material and the frames of its texture slots.
+struct LiquidSurface {
     material: Gd<ShaderMaterial>,
-    bump: Vec<Gd<ImageTexture>>,
-    foam: Vec<Gd<ImageTexture>>,
+    slots: [Vec<Gd<ImageTexture>>; TEXTURE_SLOTS],
+    /// Crossfaded slot and its period in milliseconds (`Float[index] * 1000`).
+    crossfade: Option<(usize, f64)>,
 }
 
 impl WaterMaterials {
-    /// A layer whose water material is unavailable is reported and left out, as an
+    /// A layer whose liquid material is unavailable is reported and left out, as an
     /// unbuildable tile is.
     pub fn build(
         &mut self,
         root: &adt::Root,
-        materials: &BTreeMap<LiquidKey, Result<Arc<NativeWaterMaterial>, String>>,
+        materials: &Materials,
     ) -> Result<Option<Gd<Node3D>>, String> {
         let Some(water) = &root.water else {
             return Ok(None);
@@ -74,13 +78,13 @@ impl WaterMaterials {
         chunk: usize,
         position: [f32; 3],
         layer: &adt::WaterLayer,
-        materials: &BTreeMap<LiquidKey, Result<Arc<NativeWaterMaterial>, String>>,
+        materials: &Materials,
     ) -> Result<Option<(Gd<ArrayMesh>, Gd<ShaderMaterial>)>, String> {
         let key = (layer.liquid_type, layer.liquid_object);
         let native = match materials.get(&key) {
             Some(Ok(native)) => native,
             Some(Err(error)) => {
-                godot_error!("MH2O chunk {chunk} water layer {key:?}: {error}");
+                godot_error!("MH2O chunk {chunk} liquid layer {key:?}: {error}");
                 return Ok(None);
             }
             None => return Err(format!("MH2O layer {key:?} has no resolved material")),
@@ -99,11 +103,11 @@ impl WaterMaterials {
         }
         let mut clock = parent
             .get_node_or_null("/root/M2MaterialClock")
-            .ok_or("ADT water requires the shared material clock")?;
+            .ok_or("ADT liquids require the shared material clock")?;
         let milliseconds = clock
             .call("elapsed_time_ms", &[])
             .try_to::<f64>()
-            .map_err(|error| format!("Cannot read water material time: {error}"))?;
+            .map_err(|error| format!("Cannot read liquid material time: {error}"))?;
         for surface in self.materials.values_mut() {
             surface.set_time(milliseconds);
         }
@@ -117,10 +121,11 @@ impl WaterMaterials {
         self.light = Some(light.clone());
     }
 
-    /// One lit material outside any tile, for the water material fixture.
+    /// One lit material outside any tile, for the liquid material fixture. The fixture drives
+    /// `animation_time_ms`; texture frames stay at time 0.
     pub fn standalone(
         mut self,
-        native: &NativeWaterMaterial,
+        native: &NativeLiquidMaterial,
         light: &TerrainLight,
     ) -> Result<Gd<ShaderMaterial>, String> {
         self.light = Some(light.clone());
@@ -130,7 +135,7 @@ impl WaterMaterials {
     fn material(
         &mut self,
         key: LiquidKey,
-        native: &NativeWaterMaterial,
+        native: &NativeLiquidMaterial,
     ) -> Result<Gd<ShaderMaterial>, String> {
         if let Some(surface) = self.materials.get(&key) {
             return Ok(surface.material.clone());
@@ -141,30 +146,39 @@ impl WaterMaterials {
         Ok(material)
     }
 
-    fn create_surface(&mut self, native: &NativeWaterMaterial) -> Result<WaterSurface, String> {
-        let shader = self.shader()?;
+    fn create_surface(&mut self, native: &NativeLiquidMaterial) -> Result<LiquidSurface, String> {
+        let shader = self.shader(native.params.shader)?;
         let mut material = ShaderMaterial::new_gd();
         material.set_shader(&shader);
-        bind_water_material(&mut material, native);
+        bind_liquid_material(&mut material, native);
+        for (name, image) in &native.globals {
+            let texture = mipmapped_texture(image.width, image.height, &image.pixels)
+                .map_err(|error| format!("Liquid texture {name}: {error}"))?;
+            material.set_shader_parameter(*name, &texture.to_variant());
+        }
         if let Some(light) = &self.light {
             light.bind_water(&mut material);
         }
-        let bump = self.frames(&native.bump)?;
-        let foam = self.frames(&native.foam)?;
-        let mut surface = WaterSurface {
+        let mut slots: [Vec<Gd<ImageTexture>>; TEXTURE_SLOTS] = Default::default();
+        for &slot in native.params.shader.texture_slots() {
+            slots[slot] = self.frames(&native.slots[slot])?;
+        }
+        let crossfade = native
+            .params
+            .shader
+            .crossfade()
+            .map(|(slot, float)| (slot, f64::from(native.params.floats[float]) * 1000.0));
+        let mut surface = LiquidSurface {
             material,
-            bump,
-            foam,
+            slots,
+            crossfade,
         };
         surface.set_time(0.0);
         Ok(surface)
     }
 
     /// Frames of one texture slot; an empty slot is the reference's one black pixel.
-    fn frames(
-        &mut self,
-        frames: &[(u32, Option<Arc<blp::RgbaImage>>)],
-    ) -> Result<Vec<Gd<ImageTexture>>, String> {
+    fn frames(&mut self, frames: &[LiquidFrame]) -> Result<Vec<Gd<ImageTexture>>, String> {
         if frames.is_empty() {
             return Ok(vec![self.black()?]);
         }
@@ -182,7 +196,7 @@ impl WaterMaterials {
             return Ok(texture.clone());
         }
         let texture = mipmapped_texture(image.width, image.height, &image.pixels)
-            .map_err(|error| format!("Water texture FDID {fdid}: {error}"))?;
+            .map_err(|error| format!("Liquid texture FDID {fdid}: {error}"))?;
         self.textures.insert(fdid, texture.clone());
         Ok(texture)
     }
@@ -196,36 +210,81 @@ impl WaterMaterials {
         Ok(black)
     }
 
-    fn shader(&mut self) -> Result<Gd<Shader>, String> {
-        if let Some(shader) = &self.shader {
+    fn shader(&mut self, kind: LiquidShader) -> Result<Gd<Shader>, String> {
+        if let Some(shader) = self.shaders.get(&kind) {
             return Ok(shader.clone());
         }
+        let path = shader_path(kind);
         let shader = ResourceLoader::singleton()
-            .load("res://shaders/water.gdshader")
-            .ok_or("Cannot load ADT water shader")?
+            .load(path)
+            .ok_or_else(|| format!("Cannot load liquid shader {path}"))?
             .try_cast::<Shader>()
-            .map_err(|_| "ADT water shader resource has wrong type")?;
-        self.shader = Some(shader.clone());
+            .map_err(|_| format!("Liquid shader {path} has wrong type"))?;
+        self.shaders.insert(kind, shader.clone());
         Ok(shader)
     }
 }
 
-impl WaterSurface {
+fn shader_path(kind: LiquidShader) -> &'static str {
+    match kind {
+        LiquidShader::Water => "res://shaders/water.gdshader",
+        LiquidShader::Magma => "res://shaders/liquid_magma.gdshader",
+        LiquidShader::Mercury => "res://shaders/liquid_mercury.gdshader",
+        LiquidShader::Fog => "res://shaders/liquid_fog.gdshader",
+        LiquidShader::LeyLine => "res://shaders/liquid_ley_line.gdshader",
+        LiquidShader::Fel => "res://shaders/liquid_fel.gdshader",
+        LiquidShader::Swamp => "res://shaders/liquid_swamp.gdshader",
+        LiquidShader::Azerite => "res://shaders/liquid_azerite.gdshader",
+    }
+}
+
+const SLOT_UNIFORMS: [&str; TEXTURE_SLOTS] = [
+    "texture_0",
+    "texture_1",
+    "texture_2",
+    "texture_3",
+    "texture_4",
+    "texture_5",
+];
+
+impl LiquidSurface {
+    /// LiquidMaterialManager.cpp `updateLiquidDataAnimatedTextures` advances each slot one
+    /// frame per second; a crossfaded slot binds frame k and k+1 as `texture_next`
+    /// (`resolveAnimatedTextures`), the shader blending by the fractional frame position.
     fn set_time(&mut self, milliseconds: f64) {
         let wrapped = (milliseconds % 3_600_000.0) as f32;
         self.material
             .set_shader_parameter("animation_time_ms", &wrapped.to_variant());
         let second = (milliseconds * 0.001) as usize;
-        for (name, frames) in [("bump_map", &self.bump), ("foam_map", &self.foam)] {
-            let frame = &frames[second % frames.len()];
-            self.material
-                .set_shader_parameter(name, &frame.to_variant());
+        for (slot, frames) in self.slots.iter().enumerate() {
+            if frames.is_empty() {
+                continue;
+            }
+            let crossfade = self.crossfade.filter(|(fade_slot, _)| *fade_slot == slot);
+            let frame = match crossfade {
+                Some((_, interval)) if interval > 0.0 && frames.len() > 1 => {
+                    (frames.len() as f64 * ((milliseconds % interval) / interval)) as usize
+                }
+                Some(_) => 0,
+                None => second,
+            };
+            self.material.set_shader_parameter(
+                SLOT_UNIFORMS[slot],
+                &frames[frame % frames.len()].to_variant(),
+            );
+            if crossfade.is_some() {
+                let next = &frames[(frame + 1) % frames.len()];
+                self.material
+                    .set_shader_parameter("texture_next", &next.to_variant());
+            }
         }
     }
 }
 
-/// LiquidWater.cpp `createWaterLiquidData` packing of the LiquidType/LiquidObject inputs.
-fn bind_water_material(material: &mut Gd<ShaderMaterial>, native: &NativeWaterMaterial) {
+/// The LiquidType/LiquidObject inputs every liquid shader reads (the per-material
+/// `create*LiquidData` packings select from these): Float, Coefficient, Color and Int arrays,
+/// flow, the water colour source and wave periods, and slot frame counts.
+fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquidMaterial) {
     let params = &native.params;
     let f = &params.floats;
     for (name, start) in [
@@ -242,6 +301,14 @@ fn bind_water_material(material: &mut Gd<ShaderMaterial>, native: &NativeWaterMa
         "depth_coefficients",
         &Vector4::from_array(params.depth_coefficients).to_variant(),
     );
+    for (index, color) in params.colors.iter().enumerate() {
+        material.set_shader_parameter(
+            &format!("liquid_color_{index}"),
+            &Vector3::from_array(*color).to_variant(),
+        );
+    }
+    let [a, b, c, d] = params.ints;
+    material.set_shader_parameter("liquid_ints", &Vector4i::new(a, b, c, d).to_variant());
     material.set_shader_parameter(
         "wave_periods",
         &Vector2::from_array(params.wave_periods).to_variant(),
@@ -256,6 +323,15 @@ fn bind_water_material(material: &mut Gd<ShaderMaterial>, native: &NativeWaterMa
         WaterColorSource::Wmo => 2,
     };
     material.set_shader_parameter("color_source", &color_source.to_variant());
+    let frame_counts = native.slots.each_ref().map(|frames| frames.len().max(1) as f32);
+    material.set_shader_parameter(
+        "frame_counts_0",
+        &Vector3::new(frame_counts[0], frame_counts[1], frame_counts[2]).to_variant(),
+    );
+    material.set_shader_parameter(
+        "frame_counts_3",
+        &Vector3::new(frame_counts[3], frame_counts[4], frame_counts[5]).to_variant(),
+    );
 }
 
 fn mipmapped_texture(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageTexture>, String> {
