@@ -12,6 +12,8 @@ const INVENTORY_FULL := "Inventory is full."
 # Spread candidates across each actual surface, bounding expensive exact picks.
 const TRIANGLE_SAMPLES := 128
 
+var overflow_probe = load("res://tests/ui_overflow_probe.gd").new()
+
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
 	var endpoint := OS.get_environment("GODOT_TEST_SERVER")
@@ -74,6 +76,11 @@ func run_test() -> void:
 			if not await capture_loot("case-%s-manual-frame.png" % case):
 				return
 			if case == 0:
+				await RenderingServer.frame_post_draw
+				overflow_probe.record_money(host)
+				if not overflow_probe.failures.is_empty():
+					fail("Rendered UI overflow:\n" + "\n".join(overflow_probe.failures))
+					return
 				var bags_before: Array = client.merchant_state().bags.duplicate(true)
 				await click(host.find_child("LootFrameElement1", true, false) as Control)
 				if not await wait_inventory_full(client):
@@ -350,6 +357,11 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 	if toggle == null or not toggle.is_visible_in_tree():
 		fail("Authored Auto Loot control missing")
 		return false
+	if not overflow_probe.options_recorded:
+		await RenderingServer.frame_post_draw
+		overflow_probe.record_options(menu)
+		if not await capture_loot("options-hud-overflow.png"):
+			return false
 	# Select both sides so initial defaults `()` also get an observable save.
 	for selection in [not enabled, enabled]:
 		var side := menu.find_child("ToggleSwitchauto_lootRightHit" if selection else "ToggleSwitchauto_lootLeftHit", true, false) as Control
