@@ -1,207 +1,247 @@
+//! TargetFrame auras (`TargetFrameAuraContainerTemplate`): one flow-laid container under
+//! the frame art. Every number cites `retail/AddOns` in the Blizzard UI tree.
+
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::{BAR_W, BAR_X, DynName, TargetAuraIconState, UNIT_FONT, dyn_name};
+use super::{DynName, TargetAuraIconState, UnitFrameState, dyn_name};
+use crate::aura_display_data::AuraInstance;
 
-const TARGET_AURA_ICON_SIZE: f32 = 18.0;
-/// Retail draws the local player's auras larger (`LARGE_AURA_SIZE`).
-const TARGET_OWN_AURA_ICON_SIZE: f32 = 22.0;
-const TARGET_AURA_ICON_GAP: f32 = 2.0;
-const TARGET_AURA_TIMER_COLOR: &str = "1.0,1.0,1.0,0.95";
-const TARGET_AURA_STACK_COLOR: &str = "1.0,1.0,1.0,1.0";
-const TARGET_AURA_DEFAULT_BORDER: &str = "0.08,0.08,0.08,0.95";
-const TARGET_AURA_ROW_WIDTH: f32 = BAR_W;
+/// `MAX_TARGET_BUFFS` / `MAX_TARGET_DEBUFFS` (Shared/TargetFrameAuraShared.lua:3-4).
+pub const MAX_TARGET_BUFFS: usize = 32;
+pub const MAX_TARGET_DEBUFFS: usize = 16;
+/// `SmallAuraSize` 17, `LargeAuraSize` 21 (TargetFrameAuraShared.lua).
+const SMALL_AURA_SIZE: f32 = 17.0;
+const LARGE_AURA_SIZE: f32 = 21.0;
+/// `FlowLayoutElementSpacing` 3, `FlowLayoutLineSize` 122, `FlowLayoutLineSpacing` 3;
+/// the second group starts a new line `groupLineSpacing` 3 below
+/// (TargetFrameAuraShared.lua, TargetFrameAuraContainer.lua:290-329).
+const ELEMENT_SPACING: f32 = 3.0;
+const LINE_SIZE: f32 = 122.0;
+const LINE_SPACING: f32 = 3.0;
+/// `DispelBorder`: `Interface\Buttons\UI-Debuff-Overlays` (FDID 130759) at TexCoords
+/// 0.296875, 0.5703125, 0, 0.515625, one pixel outside the icon
+/// (TargetFrameAuraButton.xml:57-63).
+const DISPEL_BORDER_FDID: u32 = 130_759;
+const DISPEL_BORDER_COORDS: &str = "0.296875,0.5703125,0.0,0.515625";
+/// `Count`: `NumberFontNormalSmall` = ARIALN 12 outline, white (GameFontStyles.xml:18,
+/// GameFonts.xml:59-61), BOTTOMRIGHT x=1 (TargetFrameAuraButton.xml:14-18).
+const COUNT_FONT_SIZE: f32 = 12.0;
+const COUNT_COLOR: &str = "1.0,1.0,1.0,1.0";
 
-struct TargetAuraNames {
-    icon: DynName,
-    inset: DynName,
-    texture: DynName,
-    timer: DynName,
-    stack: DynName,
+/// Which of `auras` TargetFrame shows, sorted, from the viewer's side.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TargetAuraView {
+    /// `SetPlayerIsTarget`: the target is the local player.
+    pub player_is_target: bool,
+    /// `UnitIsFriend("player", unit)`: buffs come first.
+    pub friendly: bool,
+    /// A hostile non-player unit: other players' debuffs are hidden.
+    pub hostile_npc: bool,
 }
 
-pub(super) fn target_aura_row(prefix: &str, icons: &[TargetAuraIconState], y: f32) -> Element {
-    let hidden = icons.is_empty();
-    let mut x = 0.0;
-    let content: Element = icons
+/// `TargetFrameAuraContainerMixin` filters (TargetFrameAuraContainer.lua:358-411) and
+/// `AuraUtil.DefaultAuraCompare` (AuraUtil.lua:140-156): the player's auras first, then
+/// `auraInstanceID`. Buffs are every helpful aura; a debuff shows unless it is another
+/// player's on a hostile NPC.
+pub fn target_frame_auras<'a>(
+    auras: &'a [AuraInstance],
+    view: TargetAuraView,
+) -> (Vec<&'a AuraInstance>, Vec<&'a AuraInstance>) {
+    let sorted = |debuffs: bool, cap: usize| {
+        let mut shown: Vec<&AuraInstance> = auras
+            .iter()
+            .filter(|aura| aura.is_debuff == debuffs)
+            .filter(|aura| !debuffs || debuff_shown(aura, view))
+            .collect();
+        shown.sort_by_key(|aura| (!aura.from_local_player, aura.instance_id));
+        shown.truncate(cap);
+        shown
+    };
+    (
+        sorted(false, MAX_TARGET_BUFFS),
+        sorted(true, MAX_TARGET_DEBUFFS),
+    )
+}
+
+fn debuff_shown(aura: &AuraInstance, view: TargetAuraView) -> bool {
+    aura.from_local_player || view.player_is_target || !(view.hostile_npc && aura.from_player)
+}
+
+/// One icon's state at `now`-relative remaining time. Large when the local player cast it
+/// (`sourceUnit` "player"; TargetFrameAuraContainer.lua:3,413-425).
+pub fn target_aura_icon(aura: &AuraInstance) -> TargetAuraIconState {
+    TargetAuraIconState {
+        spell_id: aura.spell_id,
+        icon_fdid: aura.icon_fdid,
+        stacks: aura.stacks,
+        dispel_color: aura
+            .is_debuff
+            .then(|| aura.debuff_type.border_color().to_string()),
+        large: aura.from_local_player,
+        elapsed: (!aura.is_permanent())
+            .then(|| (1.0 - aura.remaining / aura.duration).clamp(0.0, 1.0)),
+    }
+}
+
+/// Fill `state`'s target aura rows from the target's displayable auras.
+pub fn set_target_auras(state: &mut UnitFrameState, auras: &[AuraInstance], view: TargetAuraView) {
+    let (buffs, debuffs) = target_frame_auras(auras, view);
+    state.target_buffs = buffs.into_iter().map(target_aura_icon).collect();
+    state.target_debuffs = debuffs.into_iter().map(target_aura_icon).collect();
+    state.target_buffs_first = view.friendly;
+}
+
+fn icon_size(icon: &TargetAuraIconState) -> f32 {
+    if icon.large {
+        LARGE_AURA_SIZE
+    } else {
+        SMALL_AURA_SIZE
+    }
+}
+
+/// `(x, y)` of every icon of both groups, the first group from the top: horizontal flow
+/// growing right then down, wrapping when the line plus the icon passes `LINE_SIZE`
+/// (AnchorUtil.lua:700-717); lines are as tall as their largest icon.
+fn flow_positions(groups: [&[TargetAuraIconState]; 2]) -> [Vec<(f32, f32)>; 2] {
+    let mut top = 0.0;
+    groups.map(|icons| {
+        let mut positions = Vec::with_capacity(icons.len());
+        let (mut x, mut line_height) = (0.0, 0.0_f32);
+        for icon in icons {
+            let size = icon_size(icon);
+            if x > 0.0 && x + size > LINE_SIZE {
+                top += line_height + LINE_SPACING;
+                (x, line_height) = (0.0, 0.0);
+            }
+            positions.push((x, top));
+            x += size + ELEMENT_SPACING;
+            line_height = line_height.max(size);
+        }
+        if !icons.is_empty() {
+            top += line_height + LINE_SPACING;
+        }
+        positions
+    })
+}
+
+/// The aura container with its TOPLEFT at `(left, top)` of the frame.
+pub(super) fn target_auras(state: &UnitFrameState, (left, top): (f32, f32)) -> Element {
+    let buffs = ("TargetBuff", state.target_buffs.as_slice());
+    let debuffs = ("TargetDebuff", state.target_debuffs.as_slice());
+    let groups = if state.target_buffs_first {
+        [buffs, debuffs]
+    } else {
+        [debuffs, buffs]
+    };
+    let positions = flow_positions([groups[0].1, groups[1].1]);
+    let content: Element = groups
         .iter()
-        .enumerate()
-        .flat_map(|(index, icon)| {
-            let element = target_aura_icon(prefix, index, icon, x);
-            x += target_aura_icon_size(icon) + TARGET_AURA_ICON_GAP;
-            element
+        .zip(positions)
+        .flat_map(|((prefix, icons), positions)| {
+            icons
+                .iter()
+                .zip(positions)
+                .enumerate()
+                .flat_map(|(index, (icon, at))| aura_button(prefix, index, icon, at))
+                .collect::<Vec<_>>()
         })
         .collect();
     rsx! {
         r#frame {
-            name: {dyn_name(format!("{prefix}Row"))},
-            width: {TARGET_AURA_ROW_WIDTH},
-            height: {TARGET_AURA_ICON_SIZE},
-            hidden: {hidden}
+            name: "TargetFrameAuras",
+            width: LINE_SIZE,
+            height: 1.0,
             pos_type: "absolute",
-            left: {BAR_X},
-            top: {-(-y)},
+            left,
+            top,
             {content}
         }
     }
 }
 
-fn target_aura_icon_size(icon: &TargetAuraIconState) -> f32 {
-    if icon.mine {
-        TARGET_OWN_AURA_ICON_SIZE
-    } else {
-        TARGET_AURA_ICON_SIZE
-    }
-}
-
-fn target_aura_icon(prefix: &str, index: usize, icon: &TargetAuraIconState, x: f32) -> Element {
-    let size = target_aura_icon_size(icon);
-    let stack_text = target_aura_stack_text(icon);
-    let names = target_aura_names(prefix, index);
-    rsx! {
-        r#frame {
-            name: {names.icon.clone()},
-            width: {size},
-            height: {size},
-            mouse_enabled: true,
-            background_color: {icon.border_color.as_str()},
-            pos_type: "absolute",
-            left: {x},
-            top: -0.0,
-            {target_aura_inset(&names, icon, size)}
-            {target_aura_timer(&names, icon, size)}
-            {target_aura_stack(&names, stack_text.as_str())}
-        }
-    }
-}
-
-fn target_aura_names(prefix: &str, index: usize) -> TargetAuraNames {
-    TargetAuraNames {
-        icon: dyn_name(format!("{prefix}Icon{index}")),
-        inset: dyn_name(format!("{prefix}Icon{index}Inset")),
-        texture: dyn_name(format!("{prefix}Icon{index}Texture")),
-        timer: dyn_name(format!("{prefix}Icon{index}Timer")),
-        stack: dyn_name(format!("{prefix}Icon{index}Stack")),
-    }
-}
-
-fn target_aura_stack_text(icon: &TargetAuraIconState) -> String {
-    if icon.stacks > 1 {
+/// `TargetFrameAuraButtonTemplate` (TargetFrameAuraButton.xml:5-31): the icon fills the
+/// button; `Cooldown` is centred 1 px down and swiped by the host; debuffs add the tinted
+/// `DispelBorder`.
+fn aura_button(
+    prefix: &str,
+    index: usize,
+    icon: &TargetAuraIconState,
+    (x, y): (f32, f32),
+) -> Element {
+    let size = icon_size(icon);
+    let name = format!("{prefix}Icon{index}");
+    let count = if icon.stacks > 1 {
         icon.stacks.to_string()
     } else {
         String::new()
-    }
-}
-
-fn target_aura_inset(names: &TargetAuraNames, icon: &TargetAuraIconState, size: f32) -> Element {
+    };
     rsx! {
         r#frame {
-            name: {names.inset.clone()},
-            width: {size - 2.0},
-            height: {size - 2.0},
-            background_color: {TARGET_AURA_DEFAULT_BORDER},
+            name: {dyn_name(name.clone())},
+            width: size,
+            height: size,
+            mouse_enabled: true,
             pos_type: "absolute",
-            left: 1.0,
-            top: 1.0,
+            left: x,
+            top: y,
             texture {
-                name: {names.texture.clone()},
-                width: {size - 2.0},
-                height: {size - 2.0},
+                name: {dyn_name(format!("{name}Texture"))},
+                width: size,
+                height: size,
                 texture_fdid: {icon.icon_fdid},
                 pos_type: "absolute",
                 left: 0.0,
-                top: -0.0,
+                top: 0.0,
+            }
+            r#frame {
+                name: {dyn_name(format!("{name}Cooldown"))},
+                width: size,
+                height: size,
+                hidden: {icon.elapsed.is_none()},
+                pos_type: "absolute",
+                left: 0.0,
+                top: 1.0,
+            }
+            {dispel_border(&name, icon, size)}
+            fontstring {
+                name: {dyn_name(format!("{name}Count"))},
+                width: {size + 1.0},
+                height: {COUNT_FONT_SIZE},
+                text: {count.as_str()},
+                font: "ArialNarrow",
+                font_size: COUNT_FONT_SIZE,
+                font_color: COUNT_COLOR,
+                outline: "OUTLINE",
+                justify_h: "RIGHT",
+                pos_type: "absolute",
+                right: -1.0,
+                bottom: 0.0,
             }
         }
     }
 }
 
-fn target_aura_timer(names: &TargetAuraNames, icon: &TargetAuraIconState, size: f32) -> Element {
+fn dispel_border(name: &str, icon: &TargetAuraIconState, size: f32) -> Element {
+    let Some(color) = icon.dispel_color.as_deref() else {
+        return Element::default();
+    };
+    let border: DynName = dyn_name(format!("{name}Border"));
     rsx! {
-        fontstring {
-            name: {names.timer.clone()},
-            width: {size + 4.0},
-            height: 10.0,
-            text: {icon.timer_text.as_str()},
-            font: UNIT_FONT,
-            font_size: 8.0,
-            font_color: TARGET_AURA_TIMER_COLOR,
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
-            justify_h: "CENTER",
+        texture {
+            name: border,
+            width: {size + 2.0},
+            height: {size + 2.0},
+            texture_fdid: DISPEL_BORDER_FDID,
+            tex_coords: DISPEL_BORDER_COORDS,
+            vertex_color: color,
             pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            bottom: 9.0,
-        }
-    }
-}
-
-fn target_aura_stack(names: &TargetAuraNames, stack_text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: {names.stack.clone()},
-            width: 12.0,
-            height: 10.0,
-            text: {stack_text},
-            font: UNIT_FONT,
-            font_size: 8.0,
-            font_color: TARGET_AURA_STACK_COLOR,
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            right: 1.0,
-            bottom: 1.0,
+            left: -1.0,
+            top: -1.0,
         }
     }
 }
 
 #[cfg(all(test, feature = "dev"))]
-mod tests {
-    use super::*;
-    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
-    use ui_toolkit::registry::FrameRegistry;
-    use ui_toolkit::screen::{Screen, SharedContext};
-
-    struct Debuffs(Vec<TargetAuraIconState>);
-
-    fn debuff_row(ctx: &SharedContext) -> Element {
-        target_aura_row("TargetDebuff", &ctx.get::<Debuffs>().unwrap().0, 40.0)
-    }
-
-    fn icon(icon_fdid: u32, mine: bool) -> TargetAuraIconState {
-        TargetAuraIconState {
-            icon_fdid,
-            timer_text: "12 s".into(),
-            stacks: 1,
-            border_color: "0.2,0.6,1.0,1.0".into(),
-            mine,
-        }
-    }
-
-    #[test]
-    fn own_debuffs_are_larger_and_push_the_rest_right() {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(Debuffs(vec![icon(136207, true), icon(136118, false)]));
-        Screen::new(debuff_row).sync(&shared, &mut reg);
-        compute_layout(&mut reg);
-        let rect = |name: &str| {
-            reg.get(reg.get_by_name(name).expect(name))
-                .and_then(|frame| frame.layout_rect.clone())
-                .expect(name)
-        };
-        let mine = rect("TargetDebuffIcon0");
-        let other = rect("TargetDebuffIcon1");
-        assert_eq!((mine.width, other.width), (22.0, 18.0));
-        assert_eq!(other.x - mine.x, 22.0 + TARGET_AURA_ICON_GAP);
-        let frame = reg
-            .get(reg.get_by_name("TargetDebuffIcon1").unwrap())
-            .unwrap();
-        assert!(
-            frame.mouse_enabled,
-            "target aura icons take hover for tooltips"
-        );
-    }
-}
+#[path = "inworld_unit_frames_aura_tests.rs"]
+mod tests;

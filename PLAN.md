@@ -93,3 +93,6 @@
 - [ ] Refactor `godot/rust/src/spell_effects.rs`: advance_missiles (line 655): 39 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/spell_effects.rs`: File is 774 lines (max 750). Consider splitting it. — extract into helper functions
 - [ ] Refactor `godot/rust/src/spells.rs`: action_bar_state (line 473): 31 body lines (max 30) — extract into helper functions
+- [ ] Refactor `src/ui/screens/inworld_unit_frames_aura.rs`: aura_button (line 166): 45 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/auras.rs`: auras_snapshot (line 239): 43 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/auras.rs`: sync_swipe (line 334): 36 body lines (max 30) — extract into helper functions

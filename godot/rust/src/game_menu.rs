@@ -355,7 +355,16 @@ impl GameClient {
         file.modal_offset = Some(snapshot.modal_position);
         save_options_file_to_path(&path, &file)?;
         self.client_options = file;
-        crate::display_options::apply_graphics_display_options(&self.client_options.graphics);
+        self.world_objects
+            .set_particle_density(f32::from(self.client_options.graphics.particle_density) / 100.0);
+        let mut viewport = self
+            .base()
+            .get_viewport()
+            .expect("GameClient has no viewport");
+        crate::display_options::apply_graphics_display_options(
+            &self.client_options.graphics,
+            &mut viewport,
+        );
         Ok(())
     }
 

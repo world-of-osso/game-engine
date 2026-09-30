@@ -293,6 +293,19 @@ impl WorldUnits {
         u16::try_from(animation.bind().action_id()).ok()
     }
 
+    /// (unit, identifier) of the reported M2 events (`$SCD`) units' action clips passed
+    /// since the last call.
+    pub(crate) fn take_animation_events(&mut self) -> Vec<(u64, [u8; 4])> {
+        self.units
+            .iter()
+            .filter_map(|(&id, unit)| Some((id, unit.animation_player()?)))
+            .flat_map(|(id, mut animation)| {
+                let fired = animation.bind_mut().take_fired_events();
+                fired.into_iter().map(move |event| (id, event))
+            })
+            .collect()
+    }
+
     /// Unit `id`'s cast clip has a missile release event yet to fire.
     pub(crate) fn unit_awaits_missile_release(&self, id: u64) -> bool {
         self.units

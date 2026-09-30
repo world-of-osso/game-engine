@@ -17,6 +17,7 @@ fn aura(icon_fdid: u32, is_debuff: bool, from_local_player: bool, remaining: f32
         icon_fdid,
         source: String::new(),
         from_local_player,
+        from_player: from_local_player,
         duration: 18.0,
         remaining,
         stacks: 1,

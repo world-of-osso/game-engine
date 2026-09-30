@@ -386,6 +386,7 @@ pub(crate) struct PlacedParticles {
     player: Option<Gd<WowAnimationPlayer>>,
     animated: bool,
     emitters: Vec<PlacedEmitter>,
+    density: f32,
     owed_seconds: f32,
 }
 
@@ -430,7 +431,7 @@ impl PlacedParticles {
             let density = if emitter.flags & m2_particles::FLAG_NO_GLOBAL_SCALE != 0 {
                 1.0
             } else {
-                pools.density
+                self.density
             };
             if let Some((sequence, time_ms)) = playback {
                 placed.sim.set_animation(emitter, sequence, time_ms);
@@ -482,6 +483,11 @@ impl ParticlePools {
         }
     }
 
+    /// Changes the default only for placements registered after this call.
+    pub fn set_density(&mut self, density: f32) {
+        self.density = density;
+    }
+
     /// Parents the pools under `parent` once.
     pub fn attach(&mut self, parent: &mut Gd<Node3D>) {
         if self.root.is_none() {
@@ -527,6 +533,7 @@ impl ParticlePools {
             player,
             animated,
             emitters,
+            density: self.density,
             owed_seconds: 0.0,
         };
         (placed, errors)

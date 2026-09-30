@@ -8,11 +8,13 @@ pub(crate) mod ui_parent;
 use std::collections::VecDeque;
 
 use game_engine_ui_model::bag_frame_component::BagFrameState;
+use game_engine_ui_model::buff_frame_component::{BuffFrameState, buff_frame_screen};
 use game_engine_ui_model::casting_bar_frame_component::{
     CastingBarState, casting_bar_frame_screen,
 };
 use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
+use game_engine_ui_model::chat_frame_component::{ChatFrameView, chat_frame_screen};
 use game_engine_ui_model::entrance_difficulty_component::{
     EntranceBarState, apply_entrance_bar_postsetup, entrance_difficulty_screen,
 };
@@ -22,8 +24,14 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 };
 use game_engine_ui_model::main_action_bar_component::{MainActionBarState, main_action_bar_screen};
 use game_engine_ui_model::merchant_frame_component::MerchantFrameState;
+use game_engine_ui_model::minimap::{
+    MinimapClusterState, apply_minimap_postsetup, minimap_cluster_screen,
+};
 use game_engine_ui_model::mirror_timer_component::{MIRROR_TIMER_CONTAINER, mirror_timer_screen};
 use game_engine_ui_model::mirror_timer_data::MirrorTimersData;
+use game_engine_ui_model::objective_tracker_component::{
+    ObjectiveTrackerState, objective_tracker_screen,
+};
 use game_engine_ui_model::spell_tooltip_component::{SpellTooltipState, spell_tooltip_screen};
 use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
@@ -39,7 +47,7 @@ use game_engine_ui_model::{
     login,
     ui_errors_data::UiErrorsData,
 };
-use godot::classes::{CanvasLayer, ICanvasLayer};
+use godot::classes::{CanvasLayer, Control, ICanvasLayer};
 use godot::prelude::*;
 use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
@@ -95,6 +103,7 @@ enum ScreenPostsetup {
     EntranceBar,
     Merchant,
     Spellbook,
+    Minimap,
 }
 
 impl RegistryModel {
@@ -109,6 +118,11 @@ impl RegistryModel {
             ScreenPostsetup::WorldMap => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
+                }
+            }
+            ScreenPostsetup::Minimap => {
+                if let Some(state) = self.shared.get::<MinimapClusterState>() {
+                    apply_minimap_postsetup(state, &mut self.registry);
                 }
             }
             ScreenPostsetup::Spellbook => {
@@ -431,6 +445,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the damage meter window.
+    pub fn show_damage_meter(
+        &mut self,
+        view: game_engine_ui_model::damage_meter_data::DamageMeterView,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            view,
+            game_engine_ui_model::damage_meter_component::damage_meter_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the player casting bar.
     pub fn show_casting_bar(&mut self, state: CastingBarState) -> Result<(), String> {
         self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
@@ -446,6 +472,56 @@ impl RegistryUi {
         self.show_viewport_screen(state, spellbook_frame_screen, ScreenPostsetup::Spellbook)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the MinimapCluster, with an empty
+    /// composite registered for `MinimapDisplay`.
+    pub fn show_minimap(&mut self, mut state: MinimapClusterState) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        state.map_texture = Some(registry.create_dynamic_texture(1, 1, vec![0; 4])?);
+        self.show_viewport_screen_in(
+            state,
+            minimap_cluster_screen,
+            ScreenPostsetup::Minimap,
+            registry,
+            parent,
+        )
+    }
+
+    /// Replace the minimap state and, when given, the `size`² RGBA8 map composite.
+    pub fn set_minimap(
+        &mut self,
+        mut state: MinimapClusterState,
+        composite: Option<(u32, Vec<u8>)>,
+    ) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Minimap UI is not initialized")?;
+        let texture = model
+            .shared
+            .get::<MinimapClusterState>()
+            .and_then(|current| current.map_texture)
+            .ok_or("Minimap composite texture missing")?;
+        state.map_texture = Some(texture);
+        let redraw = composite.is_some();
+        if let Some((size, rgba)) = composite {
+            model
+                .registry
+                .update_dynamic_texture(texture, size, size, rgba)?;
+        }
+        self.set_state(state)?;
+        if redraw {
+            let model = self.model.as_mut().ok_or("Minimap UI is not initialized")?;
+            self.projection
+                .as_mut()
+                .ok_or("Native projection not initialized")?
+                .sync(&mut model.registry)?;
+        }
+        Ok(())
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the objective tracker.
+    pub fn show_objective_tracker(&mut self, state: ObjectiveTrackerState) -> Result<(), String> {
+        self.show_viewport_screen(state, objective_tracker_screen, ScreenPostsetup::None)
+    }
+
     fn show_viewport_screen<T: 'static>(
         &mut self,
         state: T,
@@ -456,12 +532,27 @@ impl RegistryUi {
             return Err("RegistryUi already has a screen".into());
         }
         let parent = self.hud_parent()?;
+        let registry = parent.registry();
+        self.show_viewport_screen_in(state, build, postsetup, registry, parent)
+    }
+
+    fn show_viewport_screen_in<T: 'static>(
+        &mut self,
+        state: T,
+        build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+        postsetup: ScreenPostsetup,
+        registry: FrameRegistry,
+        parent: UiParent,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
             screen: Screen::new(build),
             shared,
-            registry: parent.registry(),
+            registry,
             icon_masks: Default::default(),
             postsetup,
         };
@@ -516,6 +607,37 @@ impl RegistryUi {
         self.model.as_ref().map(|model| &model.registry)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the player BuffFrame and DebuffFrame.
+    pub fn show_buff_frame(&mut self, state: BuffFrameState) -> Result<(), String> {
+        self.show_viewport_screen(state, buff_frame_screen, ScreenPostsetup::None)
+    }
+
+    /// The projected control of frame `name`.
+    pub fn frame_control(&self, name: &str) -> Option<Gd<Control>> {
+        let id = self.model.as_ref()?.registry.get_by_name(name)?;
+        self.projection.as_ref()?.node(id)
+    }
+
+    /// Screen rect `[x, y, w, h]` of frame `name` as last laid out (UIParent units times
+    /// the UI scale), and its texture FileDataID (0 for other widgets).
+    pub fn frame_rect(&self, name: &str) -> Option<([f32; 4], u32)> {
+        let model = self.model.as_ref()?;
+        let frame = model.registry.get(model.registry.get_by_name(name)?)?;
+        let rect = frame.layout_rect.as_ref()?;
+        let scale = model.registry.ui_scale;
+        let fdid = match frame.widget_data.as_ref() {
+            Some(WidgetData::Texture(texture)) => match texture.source {
+                TextureSource::FileDataId(id) => id,
+                _ => 0,
+            },
+            _ => 0,
+        };
+        Some((
+            [rect.x, rect.y, rect.width, rect.height].map(|value| value * scale),
+            fdid,
+        ))
+    }
+
     /// Initialize a dedicated RegistryUi instance for the in-world unit frames.
     pub fn show_unit_frames(&mut self, state: InWorldUnitFramesState) -> Result<(), String> {
         if self.model.is_some() {
@@ -557,6 +679,55 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_hud_model(model, parent)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the chat frame `ChatFrame1`.
+    pub fn show_chat_frame(&mut self, view: ChatFrameView) -> Result<(), String> {
+        self.show_viewport_screen(view, chat_frame_screen, ScreenPostsetup::None)
+    }
+
+    /// Replace an edit box's text with the caret at its end.
+    pub fn set_editbox_text(&mut self, name: &str, text: &str) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Registry model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name(name)
+            .ok_or_else(|| format!("Missing frame {name}"))?;
+        model.edit_text(id, text.to_owned());
+        self.projection
+            .as_mut()
+            .ok_or("Native projection not initialized")?
+            .sync(&mut model.registry)
+    }
+
+    /// Set a frame's alpha without rebuilding the screen (animated art).
+    pub fn set_frame_alpha(&mut self, name: &str, alpha: f32) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Registry model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name(name)
+            .ok_or_else(|| format!("Missing frame {name}"))?;
+        model.registry.set_alpha(id, alpha);
+        self.projection
+            .as_mut()
+            .ok_or("Native projection not initialized")?
+            .sync(&mut model.registry)
+    }
+
+    /// A frame's last laid-out rect `[x, y, w, h]` in viewport pixels.
+    pub fn frame_viewport_rect(&self, name: &str) -> Option<[f32; 4]> {
+        let registry = &self.model.as_ref()?.registry;
+        let rect = registry
+            .get(registry.get_by_name(name)?)?
+            .layout_rect
+            .as_ref()?;
+        Some([rect.x, rect.y, rect.width, rect.height].map(|value| value * registry.ui_scale))
     }
 
     /// Initialize a dedicated RegistryUi instance for the retail mirror timer bars.
@@ -762,6 +933,20 @@ impl RegistryUi {
             .ok_or("Native projection not initialized")?
             .grab_focus(id);
         Ok(())
+    }
+
+    /// Take keyboard focus away from a frame's native control, if it has it.
+    pub fn release_focus_named(&mut self, name: &str) {
+        let Some(id) = self
+            .model
+            .as_ref()
+            .and_then(|model| model.registry.get_by_name(name))
+        else {
+            return;
+        };
+        if let Some(projection) = self.projection.as_ref() {
+            projection.release_focus(id);
+        }
     }
 
     /// Apply the effective camera-equivalent scale to both layout and projected pixels.

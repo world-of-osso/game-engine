@@ -14,14 +14,16 @@ use game_engine_session::{
 };
 use shared::protocol::{
     ActionBarSnapshot, AttackStart, AttackStop, AttackStopped, AttackSwing, AuthChannel,
-    CastFailed, CharacterListUpdate, CombatChannel, CombatEvent, CombatLogEvent, CreateCharacter,
-    CreateCharacterResponse, DeleteCharacter, DeleteCharacterResponse, DungeonDifficultySet,
-    EnterWorldResponse, ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo,
-    InstanceLockInfo, KnownSpellsSnapshot, LoadTerrain, LoginResponse, MirrorTimerPause,
-    MirrorTimerStart, MirrorTimerStop, NewWorld, PlayerInput, QuestEntrySnapshot, QuestLogSnapshot,
-    QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate, SetDungeonDifficulty,
-    SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned,
-    SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
+    CastFailed, CharacterListUpdate, ChatChannel, ChatMessage, CombatChannel, CombatEvent,
+    CombatLogEvent, CreateCharacter, CreateCharacterResponse, DamageMeterSnapshot, DeleteCharacter,
+    DeleteCharacterResponse, DungeonDifficultySet, EmoteIntent, EnterWorldResponse,
+    ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo,
+    KnownSpellsSnapshot, LoadTerrain, LoginResponse, MirrorTimerPause, MirrorTimerStart,
+    MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestEntrySnapshot, QuestFailed,
+    QuestGiverAcceptQuest, QuestGiverStatus, QuestGiverStatusMultiple, QuestGiverStatusQuery,
+    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate,
+    SetDungeonDifficulty, SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate,
+    SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
@@ -54,6 +56,10 @@ pub struct Account {
     hostname: String,
     /// Server quest log in log order, for the world map's quest areas.
     pub quest_log: Vec<QuestEntrySnapshot>,
+    /// Watched quest ids in objective-tracker order (`watched_quest_ids`).
+    pub quest_watched: Vec<u32>,
+    /// Newest `QuestGiverStatusMultiple` entry per queried NPC.
+    pub quest_giver_status: std::collections::HashMap<u64, QuestGiverStatus>,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
     /// Saved instances of the last `InstanceInfo`.
@@ -64,6 +70,8 @@ pub struct Account {
     pub combat_log: std::collections::VecDeque<CombatLogEvent>,
     /// Count of `CombatLogEvent`s received this connection.
     pub combat_log_seq: u64,
+    /// The server's newest damage meter sessions.
+    pub damage_meter: Option<DamageMeterSnapshot>,
 }
 
 pub enum AccountEvent {
@@ -90,6 +98,8 @@ pub enum AccountEvent {
     Combat(CombatMessage),
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
+    /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
+    Chat(ChatMessage),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -129,11 +139,14 @@ impl Account {
             data_root,
             hostname: String::new(),
             quest_log: Vec::new(),
+            quest_watched: Vec::new(),
+            quest_giver_status: std::collections::HashMap::new(),
             dungeon_difficulty: None,
             instance_locks: Vec::new(),
             spells: PlayerSpells::default(),
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
+            damage_meter: None,
         }
     }
 
@@ -176,6 +189,7 @@ impl Account {
         self.instance_locks.clear();
         self.spells.clear();
         self.combat_log.clear();
+        self.damage_meter = None;
         self.session.token = self.read_token()?;
         Ok(())
     }
@@ -301,6 +315,20 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// Ask for the quest markers of NPCs the client sees (`CMSG_QUEST_GIVER_STATUS_MULTIPLE_QUERY`).
+    pub fn send_quest_giver_status_query(&self, npcs: Vec<u64>) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, QuestChannel>(QuestGiverStatusQuery { npcs })
+            .map_err(SessionError)
+    }
+
+    /// Accept `quest_id` from the giver `npc` (`CMSG_QUEST_GIVER_ACCEPT_QUEST`).
+    pub fn send_accept_quest(&self, npc: u64, quest_id: u32) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, QuestChannel>(QuestGiverAcceptQuest { npc, quest_id })
+            .map_err(SessionError)
+    }
+
     /// The player closed the NPC's frame (`CMSG_CLOSE_INTERACTION`).
     pub fn send_close_interaction(&self, npc: u64) -> Result<(), SessionError> {
         self.bridge()?
@@ -346,6 +374,20 @@ impl Account {
             }
         }
         .map_err(SessionError)
+    }
+
+    /// A chat edit box line (Bevy `send_chat_message`); the server echoes it to its hearers.
+    pub fn send_chat(&self, message: ChatMessage) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, ChatChannel>(message)
+            .map_err(SessionError)
+    }
+
+    /// `/dance`, `/wave`, ...: the server plays the emote and sends its chat line.
+    pub fn send_emote(&self, intent: EmoteIntent) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, ChatChannel>(intent)
+            .map_err(SessionError)
     }
 
     /// Called by the host only after the destination is ready for world entry.
@@ -428,24 +470,54 @@ impl Account {
             output.push(AccountEvent::RestState(decode(message)?));
             return Ok(());
         }
+        if message.is::<ChatMessage>() {
+            output.push(AccountEvent::Chat(decode(message)?));
+            return Ok(());
+        }
         self.dispatch_world_message(message, output)
     }
 
     fn is_account_state_message(message: &ProtocolMessage) -> bool {
         message.is::<QuestLogSnapshot>()
             || message.is::<QuestLogUpdate>()
+            || message.is::<QuestGiverStatusMultiple>()
+            || message.is::<QuestFailed>()
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
+            || message.is::<DamageMeterSnapshot>()
     }
 
     fn dispatch_account_state_message(&mut self, message: ProtocolMessage) -> Result<(), String> {
         if message.is::<QuestLogSnapshot>() {
             let snapshot: QuestLogSnapshot = decode(message)?;
             self.quest_log = snapshot.entries;
+            self.quest_watched = snapshot.watched_quest_ids;
             return Ok(());
         }
         if message.is::<QuestLogUpdate>() {
-            apply_quest_log_update(&mut self.quest_log, decode(message)?);
+            let update: QuestLogUpdate = decode(message)?;
+            self.quest_watched = update.watched_quest_ids.clone();
+            apply_quest_log_update(&mut self.quest_log, update);
+            return Ok(());
+        }
+        if message.is::<QuestGiverStatusMultiple>() {
+            let statuses: QuestGiverStatusMultiple = decode(message)?;
+            for entry in statuses.statuses {
+                self.quest_giver_status.insert(entry.npc, entry.status);
+            }
+            return Ok(());
+        }
+        if message.is::<QuestFailed>() {
+            let failed: QuestFailed = decode(message)?;
+            godot::prelude::godot_warn!(
+                "Quest {} request failed: {:?}",
+                failed.quest_id,
+                failed.reason
+            );
+            return Ok(());
+        }
+        if message.is::<DamageMeterSnapshot>() {
+            self.damage_meter = Some(decode(message)?);
             return Ok(());
         }
         if message.is::<DungeonDifficultySet>() {

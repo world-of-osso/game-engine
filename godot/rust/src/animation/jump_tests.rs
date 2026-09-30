@@ -44,6 +44,9 @@ fn player(with_running_landing: bool) -> AnimationState {
     );
     AnimationState {
         sequence_animated: vec![false; sequences.len()],
+        release_ms: vec![None; sequences.len()],
+        action_events: vec![Vec::new(); sequences.len()],
+        fired_events: Vec::new(),
         sequences,
         tracks: vec![m2::BoneAnimTracks {
             translation,

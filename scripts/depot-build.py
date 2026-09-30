@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Build the Godot native library on Depot from a source-only checkout snapshot."""
+"""Build the Godot native library, or run godot/ workspace tests, on Depot from a source-only checkout snapshot."""
 
 import argparse
 import fcntl
 import gzip
 import hashlib
 import os
+import shlex
 from pathlib import Path
 import shutil
 import subprocess
@@ -17,9 +18,14 @@ import time
 ROOT_NAME = "game-engine-godot-conversion"
 SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol", "bevy-patches")
 SOURCE_SUFFIXES = {".rs", ".c", ".h", ".cpp", ".hpp", ".wgsl"}
+ROOT_PATHS = ("godot", "src", "tests")  # tests/unit is compiled into crates through #[path]
 EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
 ARTIFACT = "libgame_engine_godot.so"
 FIXTURES = ("native_input_fixture", "native_npc_visual_fixture")
+TEST_ASSETS = Path("godot/depot-test-assets.txt")
+TEST_LOG = Path("target/depot-test.log")
+FICLONE = 0x40049409
+SUMMARY_PREFIXES = ("     Running ", "   Doc-tests ", "test result:", "error")
 
 
 def phase(message, start):
@@ -39,7 +45,7 @@ def allowed(repo_name, path, tracked):
     parts = path.parts
     if any(part in EXCLUDED_DIRS for part in parts) or any(part.startswith(".") for part in parts):
         return False
-    if repo_name == ROOT_NAME and parts[0] not in {"godot", "src"}:
+    if repo_name == ROOT_NAME and parts[0] not in ROOT_PATHS:
         return False
     if path.suffix in SOURCE_SUFFIXES or path.name in {"Cargo.toml", "Cargo.lock"}:
         return True
@@ -108,12 +114,78 @@ def install_artifact(compressed, destination, executable=False):
             temporary.unlink(missing_ok=True)
 
 
-def build(root, fixture=None):
+def read_asset_manifest(root):
+    entries = []
+    for line in (root / TEST_ASSETS).read_text().splitlines():
+        entry = line.split("#", 1)[0].strip()
+        if not entry:
+            continue
+        relative = Path(entry)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"{TEST_ASSETS}: asset path must stay inside data/: {entry}")
+        if not (root / "data" / relative).is_file():
+            raise FileNotFoundError(f"{TEST_ASSETS}: missing test asset data/{entry}")
+        entries.append(relative)
+    return sorted(set(entries))
+
+
+def stage_assets(root, staging):
+    """Place listed data/ files in the build context, which Depot syncs incrementally by path and metadata."""
+    wanted = read_asset_manifest(root)
+    for relative in wanted:
+        (staging / relative).parent.mkdir(parents=True, exist_ok=True)
+        link_or_copy((root / "data" / relative).resolve(), staging / relative)
+    return len(wanted)
+
+
+def link_or_copy(source, target):
+    """Reflink, else hardlink (data/ may be another filesystem), else copy; all keep the source mtime."""
+    try:
+        with source.open("rb") as src, target.open("wb") as dst:
+            fcntl.ioctl(dst.fileno(), FICLONE, src.fileno())
+        shutil.copystat(source, target)
+        return
+    except OSError:
+        target.unlink(missing_ok=True)
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
+
+
+def snapshot(root, context):
+    for name in (ROOT_NAME, *SIBLINGS):
+        repo = root if name == ROOT_NAME else root.parent / name
+        if not repo.is_dir():
+            raise FileNotFoundError(f"missing build dependency: {repo}")
+        snapshot_repo(repo, context / name, ROOT_PATHS if name == ROOT_NAME else (".",), name)
+    validate_sources(context)
+    depot_scripts = Path(__file__).resolve().parent / "depot"
+    shutil.copyfile(depot_scripts / "Dockerfile", context / "Dockerfile")
+    shutil.copyfile(depot_scripts / "refresh-source-mtimes.py", context / "refresh-source-mtimes.py")
+
+
+def depot_command(context, output, checkout_key, target):
+    return [
+        "depot", "build", "--project", os.environ.get("DEPOT_PROJECT_ID", "003c4ttwqh"),
+        "--platform", "linux/amd64", "--file", str(context / "Dockerfile"), "--target", target,
+        "--build-arg", f"TARGET_CACHE=godot-target-{checkout_key}",
+        "--output", f"type=local,dest={output}",
+    ]
+
+
+def locked_checkout(root):
     cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "game-engine" / "depot-build"
     cache.mkdir(parents=True, exist_ok=True)
     checkout_key = hashlib.sha256(os.fsencode(root)).hexdigest()[:20]
-    with (cache / (checkout_key + ".lock")).open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    lock = (cache / (checkout_key + ".lock")).open("w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    return lock, cache, checkout_key
+
+
+def build(root, fixture=None):
+    lock, cache, checkout_key = locked_checkout(root)
+    with lock:
         target = root / "target"
         if (target.is_symlink() or (target / "debug").is_symlink()
                 or (fixture and (target / "debug" / "examples").is_symlink())):
@@ -122,24 +194,11 @@ def build(root, fixture=None):
         with tempfile.TemporaryDirectory(prefix="build-", dir=cache) as work:
             context = Path(work) / "context"
             context.mkdir()
-            for name in (ROOT_NAME, *SIBLINGS):
-                repo = root if name == ROOT_NAME else root.parent / name
-                if not repo.is_dir():
-                    raise FileNotFoundError(f"missing build dependency: {repo}")
-                snapshot_repo(repo, context / name, ("godot", "src") if name == ROOT_NAME else (".",), name)
-            validate_sources(context)
-            depot_scripts = Path(__file__).resolve().parent / "depot"
-            shutil.copyfile(depot_scripts / "Dockerfile", context / "Dockerfile")
-            shutil.copyfile(depot_scripts / "refresh-source-mtimes.py", context / "refresh-source-mtimes.py")
+            snapshot(root, context)
             phase("Snapshot", start)
             output = Path(work) / "output"
             output.mkdir()
-            command = [
-                "depot", "build", "--project", os.environ.get("DEPOT_PROJECT_ID", "003c4ttwqh"),
-                "--platform", "linux/amd64", "--file", str(context / "Dockerfile"), "--target", "artifact",
-                "--build-arg", f"TARGET_CACHE=godot-target-{checkout_key}",
-                "--output", f"type=local,dest={output}",
-            ]
+            command = depot_command(context, output, checkout_key, "artifact")
             if fixture:
                 command.extend(["--build-arg", f"FIXTURE={fixture}"])
             subprocess.run([*command, str(context)], check=True)
@@ -155,12 +214,58 @@ def build(root, fixture=None):
                 print(fixture_destination)
 
 
+def run_tests(root, cargo_args):
+    """Run `cargo test` remotely and return cargo's exit status."""
+    lock, cache, checkout_key = locked_checkout(root)
+    with lock:
+        start = time.monotonic()
+        with tempfile.TemporaryDirectory(prefix="test-", dir=cache) as work:
+            context = Path(work) / "context"
+            context.mkdir()
+            snapshot(root, context)
+            count = stage_assets(root, context / "test-assets")
+            phase(f"Snapshot ({count} test assets)", start)
+            output = Path(work) / "output"
+            output.mkdir()
+            command = depot_command(context, output, checkout_key, "test-result")
+            command.extend(["--build-arg", f"TEST_ARGS={shlex.join(cargo_args)}",
+                            "--build-arg", f"TEST_RUN={time.time_ns()}"])
+            subprocess.run([*command, str(context)], check=True)
+            phase("Remote test", start)
+            log, status = output / "test.log", output / "status"
+            if not log.is_file() or not status.is_file():
+                raise FileNotFoundError("Depot did not produce test.log and status")
+            code = int(status.read_text())
+            saved = root / TEST_LOG
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(log, saved)
+            print_test_summary(log.read_text(errors="replace").splitlines())
+            print(f"Full log: {saved}")
+            print(f"cargo test {shlex.join(cargo_args)}: exit {code}", flush=True)
+            return code
+
+
+def print_test_summary(lines):
+    print("--- log tail ---", *lines[-20:], "--- test summary ---", sep="\n")
+    for line in lines:
+        if line.startswith(SUMMARY_PREFIXES) or (line.startswith("test ") and line.endswith("FAILED")):
+            print(line)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True, help="originating checkout")
-    parser.add_argument("--fixture", choices=FIXTURES, help="also export one network fixture executable")
-    args = parser.parse_args()
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--fixture", choices=FIXTURES, help="also export one network fixture executable")
+    mode.add_argument("--test", action="store_true",
+                      help="run `cargo test --locked` in godot/ with every following argument; must be last")
+    argv = sys.argv[1:]
+    # argparse drops `--`, which cargo needs to separate test-binary arguments.
+    split = argv.index("--test") + 1 if "--test" in argv else len(argv)
+    args = parser.parse_args(argv[:split])
     try:
+        if args.test:
+            return run_tests(args.root.resolve(), argv[split:])
         build(args.root.resolve(), args.fixture)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Remote build failed: {error}", file=sys.stderr)
