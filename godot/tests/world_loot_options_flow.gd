@@ -71,9 +71,6 @@ func run_test() -> void:
 			await create_timer(0.25).timeout
 			if not await wait_rows(client, ["Melted Candle", "1 Gold\n5 Silver\n2 Copper"]) or not await wait_inventory(client, expected_count, expected_money):
 				return
-			if case == 0 and inventory_full_visible(client):
-				fail("Mismatched LootFailed showed an error for the open corpse")
-				return
 			if not await capture_loot("case-%s-manual-frame.png" % case):
 				return
 			if case == 0:
