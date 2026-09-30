@@ -172,6 +172,15 @@ func run_test() -> void:
 	if SHEEP_DISPLAYS.has(native.display_id):
 		fail("The spy already shows a sheep: " + str(native))
 		return
+	# ContentTuning 73 (1-30) scales the level-30 spy to the level-10 mage: level 10
+	# (UnitEffectiveLevel, TargetFrame.lua:266-282) and ExpectedStat level-10 health 377
+	# (its 4379 pool × GetHealthMultiplierForTarget 377.34 / 4378.77).
+	await wait_frames(4)
+	var frame: Dictionary = client.target_state()
+	print("FIXTURE TARGET_FRAME level=%s health=%s" % [frame.level_text, frame.health_text])
+	if frame.level_text != "10" or frame.health_text != "377 / 377":
+		fail("The spy's TargetFrame is not scaled to level 10: level=%s health=%s" % [frame.level_text, frame.health_text])
+		return
 	var neutral := plate()
 	print("FIXTURE NEUTRAL_PLATE ", neutral)
 	if neutral.is_empty() or neutral.color.is_equal_approx(HOSTILE):

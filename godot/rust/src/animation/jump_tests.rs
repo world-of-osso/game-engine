@@ -68,6 +68,7 @@ fn player(with_running_landing: bool) -> AnimationState {
         action: None,
         upper_body: vec![false],
         legs_free: true,
+        locomotion_speed: None,
     }
 }
 

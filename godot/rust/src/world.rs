@@ -864,6 +864,7 @@ mod tests {
             mana: None,
             model: None,
             level: None,
+            level_scaling: None,
             equipment: None,
             movement_control: None,
             movement_speed: None,
