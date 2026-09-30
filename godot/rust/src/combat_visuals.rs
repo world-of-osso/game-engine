@@ -51,7 +51,9 @@ impl GameClient {
             ),
             None => Ok(()),
         };
-        let held = self.spell_effects.sync_casts(&self.replica, &mut self.world);
+        let held = self
+            .spell_effects
+            .sync_casts(&self.replica, &mut self.world);
         let camera = self.world_camera.transform();
         let sound = &self.client_options.sound;
         let gain = if sound.muted {

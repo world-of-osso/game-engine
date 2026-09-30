@@ -45,8 +45,8 @@ use shared::protocol::SpellGo;
 use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::build_model;
 use crate::particles::{ParticlePools, PlacedParticles, view_basis};
-use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
 use crate::replicated::is_unit;
+use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
 use crate::spell_sounds::{SoundHold, SoundRequest, SoundSource, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
