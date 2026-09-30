@@ -479,7 +479,7 @@ func loot_host(client: Node) -> Node:
 
 func check_label(host: Node, name: String, expected: String) -> bool:
 	var label := host.find_child(name, true, false) as Label if host != null else null
-	if label == null or not label.is_visible_in_tree() or label.text != expected:
+	if label == null or not label.is_visible_in_tree() or label.get_visible_line_count() < 1 or label.text != expected:
 		fail("Authored loot label %s expected %s" % [name, expected])
 		return false
 	return true
