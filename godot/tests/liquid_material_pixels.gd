@@ -2,10 +2,11 @@ extends SceneTree
 
 ## Non-water retail liquid materials (liquid_*.gdshader) GPU fixture. Each material is built
 ## from local DB2/CASC by WowTerrainLoader.load_liquid_material and lit at noon, then drawn
-## as a quad over an opaque backing plane 2 yd below:
+## as a quad over an opaque backing plane 2 yd below, seen from 5 yd up at a 27° grazing angle:
 ##   magma: Searing Gorge's LiquidObject 413 (LiquidType 7 "Slow Magma") is opaque (the
 ##     backing never shows through), lava-coloured, and animates with the material clock;
-##   every other LiquidMaterial shader renders over the backing and animates.
+##   every other LiquidMaterial shader renders over the backing and animates;
+##   Azerite additionally stays pixel-identical while its material clock is frozen.
 ## Env LIQUID_CASES limits the run to comma-separated case names; LIQUID_SHOTS saves each
 ## case's capture over the red backing there.
 
@@ -62,6 +63,11 @@ func check_case(name: String, liquid: Array) -> String:
 	var bare := await capture()
 	quad.visible = true
 	var red := await capture()
+	if name == "azerite":
+		var frozen := await capture()
+		var drift := changed_pixels(red, frozen, 0.004)
+		if drift != 0:
+			return "Frozen Azerite clock changed %d pixels" % drift
 	backing.albedo_color = Color(0.1, 0.1, 0.8)
 	var blue := await capture()
 	material.set_shader_parameter("animation_time_ms", 3000.0)
@@ -70,6 +76,9 @@ func check_case(name: String, liquid: Array) -> String:
 	if shots != "":
 		DirAccess.make_dir_recursive_absolute(shots)
 		red.save_png(shots + "/" + name + ".png")
+		if name == "azerite":
+			blue.save_png(shots + "/azerite-blue.png")
+			later.save_png(shots + "/azerite-later.png")
 	var covered := changed_pixels(bare, red, 0.05)
 	var moved := changed_pixels(blue, later, 0.004)
 	var response := color_distance(mean(red), mean(blue)) / color_distance(Color(0.8, 0.1, 0.1), Color(0.1, 0.1, 0.8))
@@ -105,7 +114,7 @@ func make_viewport() -> void:
 	var camera := Camera3D.new()
 	camera.fov = 40.0
 	viewport.add_child(camera)
-	camera.look_at_from_position(CENTRE + Vector3(0.0, 8.0, 3.0), CENTRE, Vector3.UP)
+	camera.look_at_from_position(CENTRE + Vector3(0.0, 5.0, 10.0), CENTRE, Vector3.UP)
 	camera.current = true
 	quad = MeshInstance3D.new()
 	quad.mesh = liquid_quad()
@@ -120,10 +129,10 @@ func make_viewport() -> void:
 	plane.material_override = backing
 	viewport.add_child(plane)
 
-## A 40 yd liquid quad with authored vertex depth 80/255.
+## A 200 yd liquid quad with authored vertex depth 80/255.
 func liquid_quad() -> ArrayMesh:
 	var vertices := PackedVector3Array()
-	for corner in [Vector2(-20, -20), Vector2(20, -20), Vector2(-20, 20), Vector2(20, 20)]:
+	for corner in [Vector2(-100, -100), Vector2(100, -100), Vector2(-100, 100), Vector2(100, 100)]:
 		vertices.append(CENTRE + Vector3(corner.x, 0.0, corner.y))
 	var colors := PackedColorArray()
 	colors.resize(4)

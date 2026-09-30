@@ -13,6 +13,9 @@ pub struct RgbaImage {
 }
 
 pub fn decode_rgba(bytes: &[u8]) -> Result<RgbaImage, String> {
+    if let Some(image) = decode_bc5(bytes)? {
+        return Ok(image);
+    }
     let mut bytes = bytes.to_vec();
     strip_mipmaps(&mut bytes);
     let blp = load_blp_from_buf(&bytes).map_err(|e| format!("Failed to load BLP: {e}"))?;
@@ -28,6 +31,41 @@ pub fn decode_rgba(bytes: &[u8]) -> Result<RgbaImage, String> {
         width,
         height,
     })
+}
+
+/// BLP2 pixel format 11, BC5 (WebWowViewerCpp `blpFileHeader.h` `PIXEL_BC5 = 11 //
+/// DXGI_FORMAT_BC5_UNORM`), which image-blp rejects: mip 0 decoded to (R, G, 0, 255), as a
+/// BC5 texture samples. Used by two-channel normal maps such as Fel and Azerite liquids.
+fn decode_bc5(bytes: &[u8]) -> Result<Option<RgbaImage>, String> {
+    const HEADER: usize = 148;
+    let is_bc5 =
+        bytes.starts_with(b"BLP2") && bytes.get(8) == Some(&2) && bytes.get(10) == Some(&11);
+    if !is_bc5 {
+        return Ok(None);
+    }
+    if bytes.len() < HEADER {
+        return Err(format!(
+            "BC5 BLP header needs {HEADER} bytes, has {}",
+            bytes.len()
+        ));
+    }
+    let word = |offset: usize| u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
+    let (width, height) = (word(12), word(16));
+    let (offset, size) = (word(20) as usize, word(84) as usize);
+    let needed = width.div_ceil(4) as usize * height.div_ceil(4) as usize * 16;
+    let blocks = bytes
+        .get(offset..offset + size)
+        .filter(|blocks| blocks.len() >= needed)
+        .ok_or_else(|| {
+            format!("BC5 BLP {width}x{height} mip 0 needs {needed} bytes at {offset}")
+        })?;
+    let mut pixels = vec![0; (width * height * 4) as usize];
+    texpresso::Format::Bc5.decompress(blocks, width as usize, height as usize, &mut pixels);
+    Ok(Some(RgbaImage {
+        pixels,
+        width,
+        height,
+    }))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
