@@ -650,6 +650,53 @@ fn essence_starts_from_received_fraction_at_received_rate() {
 }
 
 #[test]
+fn received_resource_clock_advances_across_repeated_frames_and_combat_events() {
+    let mut essence = resource(ClassBar::Essence, 3, 5);
+    essence.dynamics.partial = 500;
+    let mut animator = ClassBarAnimator::default();
+    let first = animator.update_received(42, Some(&essence), 100.0).unwrap();
+    assert!(close(
+        texture(&first, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
+        -180.0
+    ));
+    let next = animator.update_received(42, Some(&essence), 101.0).unwrap();
+    assert!(close(
+        texture(&next, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
+        -295.2
+    ));
+    essence.in_combat = true;
+    let fight = animator.update_received(42, Some(&essence), 101.5).unwrap();
+    assert!(close(
+        texture(&fight, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
+        -331.2
+    ));
+    essence.dynamics.partial = 100;
+    let correction = animator.update_received(42, Some(&essence), 102.0).unwrap();
+    assert!(close(
+        texture(
+            &correction,
+            "PlayerSecondaryResourcePip3FillingTimerSpinner"
+        )
+        .rotation,
+        -7.2
+    ));
+    let later = animator.update_received(42, Some(&essence), 103.0).unwrap();
+    assert!(close(
+        texture(&later, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
+        -64.8
+    ));
+    let other_player = animator.update_received(43, Some(&essence), 103.0).unwrap();
+    assert!(close(
+        texture(
+            &other_player,
+            "PlayerSecondaryResourcePip3FillingTimerSpinner"
+        )
+        .rotation,
+        -7.2
+    ));
+}
+
+#[test]
 fn essence_rate_change_retimes_the_existing_partial_point() {
     let mut essence = resource(ClassBar::Essence, 3, 5);
     essence.dynamics.partial = 500;
