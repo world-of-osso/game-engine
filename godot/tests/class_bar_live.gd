@@ -124,7 +124,7 @@ func check_form_sequence(ui: Node, frame: Control, dir: String) -> bool:
 			var model: Dictionary = client.unit_display(player_id)
 			var row := ui.find_child("PlayerSecondaryResourceRow", true, false) as Control
 			var shown := row != null and row.is_visible_in_tree()
-			if int(model.get("display_id", -2)) == display and bool(model.get("visual", false)) and shown == (expected[step] == "shown"):
+			if int(model.get("display_id", -2)) == display and bool(model.get("visual", false)) and int(model.get("animation", -1)) >= 0 and shown == (expected[step] == "shown"):
 				matched = true
 				break
 			await process_frame
