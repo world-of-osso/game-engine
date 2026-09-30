@@ -182,5 +182,10 @@ void light() {
 		authored += terrain_spec_blend * direct * highlight * ATTENUATION;
 		authored = apply_retail_fog(authored, terrain_world_position, terrain_camera_position);
 		DIFFUSE_LIGHT += gamma_to_linear(authored);
+	} else {
+		// M2 point lights (WebWowViewerCpp pointLight.frag.slang:43-58); LIGHT_COLOR
+		// carries Godot's PI.
+		float n_dot_l = max(dot(NORMAL, LIGHT), 0.0);
+		DIFFUSE_LIGHT += gamma_to_linear(terrain_diffuse) * LIGHT_COLOR / PI * ATTENUATION * n_dot_l;
 	}
 }

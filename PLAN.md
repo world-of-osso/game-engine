@@ -96,3 +96,14 @@
 - [ ] Refactor `src/ui/screens/inworld_unit_frames_aura.rs`: aura_button (line 166): 45 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/auras.rs`: auras_snapshot (line 239): 43 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/auras.rs`: sync_swipe (line 334): 36 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: init (line 158): 82 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: unhandled_key_input (line 293): 51 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: process (line 371): 68 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: account_state (line 534): 101 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: poll_character_actions (line 856): 38 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: poll_create_actions (line 1017): 34 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: apply_account_event (line 1237): 37 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: update_loading_readiness (line 1413): 32 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/lib.rs`: File is 1815 lines (max 750). Consider splitting it. — extract into helper functions
+- [ ] Refactor `godot/rust/src/game_menu.rs`: dispatch_options_action (line 364): 47 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/game_menu.rs`: poll_game_menu_actions (line 419): 49 body lines (max 30) — extract into helper functions

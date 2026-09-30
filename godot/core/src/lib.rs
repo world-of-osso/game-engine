@@ -64,6 +64,8 @@ pub mod lighting_assets;
 #[path = "../../../src/game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
+pub mod m2_billboard;
+pub mod m2_lights;
 #[path = "../../../src/asset/m2_effect_uv_data.rs"]
 pub mod m2_effect_uv_data;
 pub mod m2_particles;

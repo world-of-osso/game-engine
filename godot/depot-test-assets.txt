@@ -24,6 +24,8 @@ models/12627800.skin
 models/480328.anim
 models/197007.m2
 models/19700700.skin
+models/145304.m2
+models/14530400.skin
 models/6194303.m2
 models/619430300.skin
 models/199565.m2
