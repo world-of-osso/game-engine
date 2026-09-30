@@ -118,6 +118,18 @@ const ALLIED_RACE_MODEL_PATHS: &[SexedModelPath] = &[
         male: "character/mechagnome/male/mechagnomemale.m2",
         female: "character/mechagnome/female/mechagnomefemale.m2",
     },
+    // Dracthyr dragon form: both sexes use ChrModel 89 (ChrRaceXChrModel), whose
+    // display is this sexless model. The visage form (ChrRaces 75) is not modeled.
+    SexedModelPath {
+        race: 52,
+        male: "character/dracthyr/dracthyrdragon.m2",
+        female: "character/dracthyr/dracthyrdragon.m2",
+    },
+    SexedModelPath {
+        race: 70,
+        male: "character/dracthyr/dracthyrdragon.m2",
+        female: "character/dracthyr/dracthyrdragon.m2",
+    },
 ];
 
 fn base_race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {

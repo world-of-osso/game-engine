@@ -271,10 +271,11 @@ fn class_buttons_wrap_to_two_rows_without_overlapping_navigation() {
     let back = rect(&harness.reg, BACK_BUTTON.0);
     let next = rect(&harness.reg, NEXT_BUTTON.0);
     let first = rect(&harness.reg, "Class_1");
-    let last = rect(&harness.reg, "Class_11");
+    // Retail order ends with Evoker.
+    let last = rect(&harness.reg, "Class_13");
     assert!(
         last.y > first.y,
-        "ten classes should span two rows at this width"
+        "thirteen classes should span two rows at this width"
     );
     for class in crate::char_create_data::CLASSES {
         let r = rect(&harness.reg, &format!("Class_{}", class.id));
