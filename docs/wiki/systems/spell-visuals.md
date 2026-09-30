@@ -215,7 +215,10 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 - **Earlier "dummies missing" runs (19:05-19:45)** were a protocol split.
   - shared-protocol d252965 (18:47) registered a new replicated component, `UnitThreatList`. Clients built after it ran against a server built at 18:2x with 2cf99a1.
   - The connection passed lightyear's check, which reported only "message protocol" mismatches when it failed earlier. The server logged "Granted immediate visibility for 81 nearby entities", but the client kept 1-8 units.
-  - The same client passed against servers 9b4d1bd and c542b6d once both sides were rebuilt on d252965. The server ticked 20/s in the bad runs.
+  - The same client passed against servers 9b4d1bd and c542b6d once both sides were rebuilt on d252965.
+  - Rebuilding server c542b6d on 2cf99a1 reproduced the failure against a d252965 client: 2 units, no protocol error.
+  - The server ticked 20/s in the bad runs, so machine load was not the cause.
+  - An unmatched component registry is not caught at connect.
 
 ## Gaps
 
