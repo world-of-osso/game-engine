@@ -39,6 +39,8 @@ mod fixture_support;
 mod footsteps;
 #[path = "native_input_fixture/logout.rs"]
 mod logout;
+#[path = "native_input_fixture/loot.rs"]
+mod loot;
 #[path = "native_input_fixture/menu.rs"]
 mod menu;
 #[path = "native_input_fixture/merchant_click.rs"]
@@ -82,6 +84,7 @@ enum StartupScreen {
     Sound,
     SoundClick,
     MerchantClick,
+    Loot,
     Footsteps,
     ResetWindows,
     PortalParticlesEnabled,
@@ -102,6 +105,7 @@ impl StartupScreen {
             Some("sound") => Self::Sound,
             Some("sound-click") => Self::SoundClick,
             Some("merchant-click") => Self::MerchantClick,
+            Some("loot") => Self::Loot,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
             Some("portal-particles-enabled") => Self::PortalParticlesEnabled,
@@ -109,7 +113,7 @@ impl StartupScreen {
             Some("portal-density") => Self::PortalDensity,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, footsteps, reset-windows, portal-particles-enabled, portal-particles-disabled or portal-density"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, loot, footsteps, reset-windows, portal-particles-enabled, portal-particles-disabled or portal-density"
                 )
             }
         };
@@ -130,6 +134,7 @@ impl StartupScreen {
             | Self::Sound
             | Self::SoundClick
             | Self::MerchantClick
+            | Self::Loot
             | Self::Footsteps
             | Self::ResetWindows
             | Self::PortalParticlesEnabled
@@ -310,7 +315,7 @@ impl FixtureConfig {
     }
 
     fn persist_menu_defaults(&self, screen: StartupScreen) {
-        if screen != StartupScreen::Menu {
+        if !matches!(screen, StartupScreen::Menu | StartupScreen::Loot) {
             return;
         }
         fs::write(self.home.join("world-of-osso/options_settings.ron"), "()")
@@ -333,6 +338,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
     match screen {
         StartupScreen::ResetWindows => "res://tests/options_reset_windows.gd",
         StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
+        StartupScreen::Loot => "res://tests/world_loot_options_flow.gd",
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
             "res://tests/world_portal_particles_flow.gd"
         }
@@ -360,6 +366,7 @@ fn launch_godot(
             | StartupScreen::Sound
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
+            | StartupScreen::Loot
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
             | StartupScreen::PortalParticlesEnabled
@@ -396,6 +403,7 @@ fn launch_godot(
                     | StartupScreen::Sound
                     | StartupScreen::SoundClick
                     | StartupScreen::MerchantClick
+                    | StartupScreen::Loot
                     | StartupScreen::Footsteps
                     | StartupScreen::ResetWindows
                     | StartupScreen::PortalParticlesEnabled
@@ -1303,6 +1311,7 @@ fn main() {
         StartupScreen::Sound
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
+            | StartupScreen::Loot
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
             | StartupScreen::PortalParticlesEnabled
@@ -1333,6 +1342,7 @@ fn main() {
         StartupScreen::Logout => logout::run(&mut app, &mut child, lines, reader, root, address),
         StartupScreen::SoundClick => sound_click::run(&mut app, &mut child, lines, reader),
         StartupScreen::MerchantClick => merchant_click::run(&mut app, &mut child, lines, reader),
+        StartupScreen::Loot => loot::run(&mut app, &mut child, lines, reader),
         StartupScreen::Sound => sound::run(&mut app, &mut child, lines, reader),
         StartupScreen::Footsteps => footsteps::run(&mut app, &mut child, lines, reader),
         StartupScreen::PortalDensity => portal_density::run(&mut app, &mut child, lines, reader),
