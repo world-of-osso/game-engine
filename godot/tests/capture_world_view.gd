@@ -9,7 +9,8 @@ extends SceneTree
 ##                                   by ";": the time of day (0..2880), the camera orbit
 ##                                   (radians, yards) and seconds to let it settle
 ##   VIEW_HIDE_WMO_LIQUIDS           "1" hides WMO group liquids (Group*_Liquid)
-##   VIEW_WORLD_TIMEOUT_S            seconds to wait for the world's terrain (300)
+##   VIEW_WAIT_LIQUIDS               "1" starts once a WMO liquid spawned, not every object
+##   VIEW_WORLD_TIMEOUT_S            seconds to wait for the world's terrain and objects (300)
 
 const PASSWORD := "fbtest"
 
@@ -51,7 +52,7 @@ func run_test() -> void:
 		var hidden := hide_wmo_liquids() if OS.get_environment("VIEW_HIDE_WMO_LIQUIDS") == "1" else 0
 		await wait_frames(3)
 		var camera := client.get_node("WorldCamera") as Camera3D
-		print("FIXTURE SHOT %s camera=%s liquids_hidden=%d wmo_liquids=%d" % [fields[0], camera.global_transform, hidden, wmo_liquids().size()])
+		print("FIXTURE SHOT %s camera=%s liquids_hidden=%d wmo_liquids=%d nearest=%s" % [fields[0], camera.global_transform, hidden, wmo_liquids().size(), nearest_liquids(camera.global_position)])
 		await capture(fields[0] + ".png")
 	print("FIXTURE CAPTURE_WORLD_VIEW_DONE")
 	client.free()
@@ -59,6 +60,16 @@ func run_test() -> void:
 
 func wmo_liquids() -> Array:
 	return client.find_children("Group*_Liquid", "MeshInstance3D", true, false)
+
+## The three WMO liquids nearest `point`: name, surface centre and distance.
+func nearest_liquids(point: Vector3) -> Array:
+	var found := []
+	for liquid in wmo_liquids():
+		var box: AABB = liquid.global_transform * liquid.get_aabb()
+		var centre := box.get_center()
+		found.append([point.distance_to(centre), liquid.get_parent().name + "/" + liquid.name, centre])
+	found.sort_custom(func(a, b): return a[0] < b[0])
+	return found.slice(0, 3)
 
 func hide_wmo_liquids() -> int:
 	var liquids := wmo_liquids()
@@ -90,9 +101,20 @@ func enter_world() -> bool:
 		var state: Dictionary = client.account_state()
 		if state.screen == "InWorld" and state.local_player_position != null and state.terrain.pending_count == 0 and not state.terrain.parsed_tiles.is_empty():
 			print("FIXTURE IN_WORLD at ", state.local_player_position)
-			await wait_frames(120)
-			return true
+			return await wait_objects(deadline)
 	fail("Timed out entering the world: " + str(client.account_state()))
+	return false
+
+## Waits until the terrain objects (doodads, WMOs and their liquids) have spawned.
+func wait_objects(deadline: int) -> bool:
+	while Time.get_ticks_msec() < deadline:
+		await wait_frames(30)
+		var objects: Dictionary = client.account_state().world_objects
+		var liquids_ready := OS.get_environment("VIEW_WAIT_LIQUIDS") == "1" and not wmo_liquids().is_empty()
+		if liquids_ready or (objects.pending == 0 and objects.spawned > 0):
+			print("FIXTURE OBJECTS ", objects)
+			return true
+	fail("Timed out spawning world objects: " + str(client.account_state().world_objects))
 	return false
 
 func click(control: Control) -> void:
