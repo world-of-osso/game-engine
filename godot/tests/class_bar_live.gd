@@ -13,6 +13,12 @@ extends SceneTree
 ##   BAR_LIT_AFTER                points lit once that cast has landed
 ##   BAR_DIR                      capture directory: the frame on entering, mid-animation
 ##                                after the cast, and settled
+##   BAR_FORM_DISPLAYS           optional comma-separated model displays (e.g. 115603,115602,-1)
+##   BAR_FORM_EXPECT             matching shown/hidden class-bar states (Cat/Bear/native)
+##   BAR_FORM_SPELLS             matching self-form spells; 0 waits for a main-driven server change
+##                                (e.g. 768,5487,0; native restoration needs aura removal)
+## Form mode asserts actual loaded visuals and stable local-player identity at every step;
+## -1 means the customized native player visual, not a creature display.
 ## Points are PlayerSecondaryResourcePip<i><part>; the fixture counts the ones whose lit part
 ## is drawn. Draw order puts lit points first (Retail sorts ready runes left).
 
@@ -53,6 +59,11 @@ func run_test() -> void:
 	if frame == null or not frame.is_visible_in_tree():
 		fail("No player frame")
 		return
+	if OS.get_environment("BAR_FORM_DISPLAYS") != "":
+		if await check_form_sequence(ui, frame, dir):
+			print("PASS: player form models and class-bar visibility for ", character)
+			quit(0)
+		return
 	var row := ui.find_child("PlayerSecondaryResourceRow", true, false) as Control
 	var shown := row != null and row.is_visible_in_tree()
 	print("FIXTURE %s spec=%d row=%s" % [character, int(client.spells_state().spec), row.get_global_rect() if shown else "none"])
@@ -79,6 +90,50 @@ func run_test() -> void:
 		return
 	print("PASS: class bar for ", character)
 	quit(0)
+
+func check_form_sequence(ui: Node, frame: Control, dir: String) -> bool:
+	var displays := OS.get_environment("BAR_FORM_DISPLAYS").split(",")
+	var expected := OS.get_environment("BAR_FORM_EXPECT").split(",")
+	var spells := OS.get_environment("BAR_FORM_SPELLS").split(",")
+	if displays.size() != expected.size() or displays.size() != spells.size():
+		fail("BAR_FORM_DISPLAYS, BAR_FORM_EXPECT and BAR_FORM_SPELLS must have matching lengths")
+		return false
+	var player_id := int(client.account_state().local_player_id)
+	for step in range(displays.size()):
+		if not displays[step].is_valid_int() or not spells[step].is_valid_int() or not expected[step] in ["shown", "hidden"]:
+			fail("Invalid form step %d" % step)
+			return false
+		var display := int(displays[step])
+		var spell := int(spells[step])
+		print("FIXTURE form step %d awaiting display=%d bar=%s spell=%d" % [step, display, expected[step], spell])
+		if spell != 0:
+			var gcd_deadline := Time.get_ticks_msec() + 5000
+			while Time.get_ticks_msec() < gcd_deadline and int(client.spells_state().gcd_ms) > 0:
+				await process_frame
+			var slot: int = client.spells_state().bar.find(spell)
+			if slot < 0 or slot >= BAR_KEYS.size():
+				fail("Form spell %d must be on the first action-bar row" % spell)
+				return false
+			await press(BAR_KEYS[slot])
+		var deadline := Time.get_ticks_msec() + 60000
+		var matched := false
+		while Time.get_ticks_msec() < deadline:
+			if int(client.account_state().local_player_id) != player_id:
+				fail("Form changed local-player identity")
+				return false
+			var model: Dictionary = client.unit_display(player_id)
+			var row := ui.find_child("PlayerSecondaryResourceRow", true, false) as Control
+			var shown := row != null and row.is_visible_in_tree()
+			if int(model.get("display_id", -2)) == display and bool(model.get("visual", false)) and shown == (expected[step] == "shown"):
+				matched = true
+				break
+			await process_frame
+		if not matched:
+			fail("Form step %d timed out: model=%s powers=%s" % [step, client.unit_display(player_id), client.spells_state().power])
+			return false
+		await capture(dir + "/%s-form-%d.png" % [character, step], frame.get_global_rect().grow_individual(20, 10, 20, 60))
+		await capture(dir + "/%s-form-%d-world.png" % [character, step], Rect2(Vector2.ZERO, Vector2(root.size)))
+	return true
 
 ## Points whose `part` is drawn (visible, alpha above zero), counted from the left.
 func lit_points(ui: Node, part: String) -> int:
