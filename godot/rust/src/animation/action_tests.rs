@@ -228,3 +228,20 @@ fn stopping_the_cast_clip_before_its_event_stops_awaiting_the_release() {
     player.stop_action(SPELL_CAST_DIRECTED);
     assert!(!player.awaits_missile_release());
 }
+
+/// SpellCastDirected reports HumanMale HD's `$SCD` (the spell-cast-directed voice) once
+/// its clip time passes 200 ms, and only once.
+#[test]
+fn cast_clip_reports_its_cast_voice_event() {
+    let mut player = human_male_hd();
+    player.update_locomotion(STAND, false, false).unwrap();
+    player
+        .play_action(SPELL_CAST_DIRECTED, false, ActionPriority::Spell)
+        .unwrap();
+    advance(&mut player, 11);
+    assert!(player.take_fired_events().is_empty());
+    advance(&mut player, 2);
+    assert_eq!(player.take_fired_events(), vec![*b"$SCD"]);
+    advance(&mut player, 30);
+    assert!(player.take_fired_events().is_empty());
+}

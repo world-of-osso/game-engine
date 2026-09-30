@@ -98,6 +98,7 @@ impl GameClient {
             entry.set("sound_kit", i64::from(start.sound_kit_id));
             entry.set("fdid", i64::from(start.fdid));
             entry.set("looping", start.looping);
+            entry.set("source", start.source.name());
             entry.set("at", start.at);
             entry.set("stopped_at", start.stopped_at.map_or(-1.0, f64::from));
             sounds.push(&entry.to_variant());
