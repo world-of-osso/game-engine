@@ -257,6 +257,10 @@ impl FixtureConfig {
             .expect("create fixture credentials directory");
         fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
             .expect("write fixture-only credentials");
+        if screen == StartupScreen::Menu {
+            fs::write(config.home.join("world-of-osso/options_settings.ron"), "()")
+                .expect("seed menu defaults instead of migrating user legacy bindings");
+        }
         if matches!(
             screen,
             StartupScreen::PortalParticlesEnabled
