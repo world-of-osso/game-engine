@@ -886,6 +886,27 @@ mod tests {
     }
 
     #[test]
+    fn player_model_display_consumes_cat_bear_and_native_restoration() {
+        // Human male ChrModel 1; Cat/Bear SpellShapeshiftForm 1/5 in build 69933.
+        let native = 57899;
+        let mut snapshot = player_snapshot();
+        for expected in [native, 115603, 115602, native] {
+            snapshot.model = Some(shared::components::ModelDisplay {
+                display_id: expected,
+            });
+            let actual = match unit_appearance(&snapshot).expect("player appearance") {
+                UnitAppearance::Creature { display_id, .. } => display_id,
+                UnitAppearance::Player(_, _) => native,
+            };
+            assert_eq!(actual, expected);
+            assert!(
+                snapshot.player.is_some(),
+                "form must not change replicated player identity"
+            );
+        }
+    }
+
+    #[test]
     fn local_facing_starts_at_pi_and_changes_only_for_controlled_yaw() {
         let mut motion = UnitMotion::new([0.0; 3], 0.25);
         assert_eq!(motion.facing_yaw, PI);
