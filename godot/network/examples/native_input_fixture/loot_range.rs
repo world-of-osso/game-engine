@@ -246,7 +246,7 @@ impl ReachSession {
     }
 }
 
-fn parse_spawn(fields: &[&str]) -> Result<(&str, Position), String> {
+fn parse_spawn<'a>(fields: &[&'a str]) -> Result<(&'a str, Position), String> {
     let ["FIXTURE", "LOOT_REACH_SPAWN", stage, x, y, z] = fields else {
         return Err(format!(
             "LOOT REACH spawn requires stage and x y z: {fields:?}"
