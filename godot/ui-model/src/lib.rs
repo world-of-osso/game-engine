@@ -17,6 +17,9 @@ pub mod ui {
     }
 
     pub mod screens {
+        pub mod static_popup_component {
+            pub const STATIC_POPUP_PANEL_STYLE: &str = "static_popup";
+        }
         pub(crate) use crate::screen_title;
         pub use crate::{
             bag_frame_component, buff_frame_component, default_button_atlas, game_menu_component,
@@ -134,6 +137,10 @@ pub mod options_menu_data;
 pub mod options_menu_sections;
 #[path = "../../../src/ui/panel_style_data.rs"]
 pub mod panel_style_data;
+
+pub mod auction;
+#[path = "../../../src/ui/screens/auction_house_frame_component.rs"]
+pub mod auction_house_frame_component;
 
 // Merchant frame, backpack and stack split (docs/specs/merchant-frame.md, cursor-item.md).
 #[path = "../../../src/ui/screens/bag_frame_component.rs"]
