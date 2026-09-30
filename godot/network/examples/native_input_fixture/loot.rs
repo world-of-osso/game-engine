@@ -9,6 +9,9 @@ use shared::{
     },
 };
 
+#[path = "loot_range.rs"]
+mod loot_range;
+
 const CORPSE_NAME: &str = "Fixture Corpse";
 const REQUEST_WAIT: Duration = Duration::from_secs(6);
 const EMPTY_CLICK_WAIT: Duration = Duration::from_secs(2);
@@ -16,7 +19,7 @@ const INITIAL_COUNT: u32 = 3;
 const INITIAL_MONEY: u64 = 1_250;
 const LOOT_MONEY: u64 = 10_502;
 
-fn candle_stack(count: u32) -> ItemStack {
+pub(super) fn candle_stack(count: u32) -> ItemStack {
     ItemStack {
         item_guid: 755_001,
         item_id: 755,
@@ -50,7 +53,7 @@ fn receive(
     }
 }
 
-fn spawn_corpse(app: &mut App) -> u64 {
+pub(super) fn spawn_corpse(app: &mut App) -> u64 {
     app.world_mut()
         .spawn((
             Npc {
@@ -74,7 +77,7 @@ fn spawn_corpse(app: &mut App) -> u64 {
         .to_bits()
 }
 
-fn slots() -> Vec<LootSlot> {
+pub(super) fn slots() -> Vec<LootSlot> {
     vec![
         LootSlot {
             slot: 0,
@@ -94,6 +97,7 @@ fn slots() -> Vec<LootSlot> {
 
 #[derive(Default)]
 struct Session {
+    reach: loot_range::ReachSession,
     corpse: Option<u64>,
     player: Option<Entity>,
     collected_items: u32,
@@ -182,6 +186,12 @@ impl Session {
         {
             return Err(format!("Godot loot runtime error: {line}"));
         }
+        if line.starts_with("FIXTURE LOOT_REACH_") {
+            if !self.ready {
+                return Err(format!("reach marker before loot readiness: {line}"));
+            }
+            return self.reach.observe(app, line).map(|_| ());
+        }
         match line {
             "FIXTURE LOOT_LOADING" if self.corpse.is_some() && !self.loading => {
                 send::<_, TerrainChannel>(
@@ -199,14 +209,16 @@ impl Session {
                 self.send_inventory_snapshot(app);
                 self.mark_lootable(app)?;
             }
-            "FIXTURE LOOT_CLICKED" if self.ready && self.clicks < 4 => {
+            "FIXTURE LOOT_CLICKED" if self.reach.complete && self.ready && self.clicks < 4 => {
                 self.clicks += 1;
                 // UDP reception can precede stdout observation of the actual click.
                 if self.opens < self.clicks {
                     self.awaiting_request = Some(Instant::now() + REQUEST_WAIT);
                 }
             }
-            "FIXTURE LOOT_REARM" if self.ready && !self.active && self.opens < 4 => {
+            "FIXTURE LOOT_REARM"
+                if self.reach.complete && self.ready && !self.active && self.opens < 4 =>
+            {
                 self.mark_lootable(app)?
             }
             "FIXTURE LOOT_EMPTY" if self.opens == 4 && self.active && self.remaining.is_empty() => {
@@ -251,6 +263,20 @@ impl Session {
                 std::mem::take(&mut requests.releases),
             )
         };
+        let interactions = {
+            let mut incoming = app.world_mut().resource_mut::<Incoming>();
+            std::mem::take(&mut incoming.interactions)
+        };
+        if !self.reach.complete {
+            return self
+                .reach
+                .respond(app, units, taken, releases, interactions);
+        }
+        if !interactions.is_empty() {
+            return Err(format!(
+                "unexpected interaction after LOOT REACH DONE: {interactions:?}"
+            ));
+        }
         for request in units {
             let expected = [false, true, true, false].get(self.opens).copied();
             if !self.ready
@@ -418,7 +444,7 @@ pub(super) fn run(
         {
             app.world_mut()
                 .entity_mut(player)
-                .insert(Gold(INITIAL_MONEY));
+                .insert((Gold(INITIAL_MONEY), UnitFactionTemplate(1)));
             session.player = Some(player);
             session.corpse = Some(spawn_corpse(app));
         }

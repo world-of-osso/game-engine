@@ -20,6 +20,9 @@ pub struct NameplateCvars {
     /// `nameplateOccludedAlphaMult`: alpha factor of a plate whose unit is behind
     /// world geometry.
     pub occluded_alpha_mult: f32,
+    /// `nameplateSelectedAlpha`: alpha of the current target's plate, in place of the
+    /// distance fade.
+    pub selected_alpha: f32,
 }
 
 impl Default for NameplateCvars {
@@ -31,6 +34,7 @@ impl Default for NameplateCvars {
             show_friendly_npcs: false,
             max_distance: 60.0,
             occluded_alpha_mult: 0.4,
+            selected_alpha: 1.0,
         }
     }
 }
@@ -110,12 +114,24 @@ pub fn nameplate_alpha(distance: f32, fade_far: f32) -> f32 {
     }
 }
 
-/// Plate alpha: `nameplateOccludedAlphaMult` behind world geometry, else opaque.
-pub fn plate_alpha(cvars: &NameplateCvars, occluded: bool) -> f32 {
-    if occluded {
-        cvars.occluded_alpha_mult
+/// Plate alpha: the target's plate takes `nameplateSelectedAlpha` (default 1.0,
+/// cvars.yaml:990) instead of `distance_fade`, so it never fades with camera distance;
+/// behind world geometry either is scaled by `nameplateOccludedAlphaMult`.
+pub fn plate_alpha(
+    cvars: &NameplateCvars,
+    selected: bool,
+    distance_fade: f32,
+    occluded: bool,
+) -> f32 {
+    let alpha = if selected {
+        cvars.selected_alpha
     } else {
-        1.0
+        distance_fade
+    };
+    if occluded {
+        alpha * cvars.occluded_alpha_mult
+    } else {
+        alpha
     }
 }
 

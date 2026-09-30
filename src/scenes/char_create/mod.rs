@@ -33,6 +33,8 @@ mod deps {
         ModelPresentation, OptionType, RequiredChoices,
     };
     pub(crate) use game_engine::ui::screens::char_create_component;
+    #[cfg(test)]
+    pub(crate) const NAME_GEN_CSV: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/data/NameGen.csv");
 }
 mod camera_orbit;
 mod icon_masks;
