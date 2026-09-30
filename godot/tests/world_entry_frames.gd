@@ -39,7 +39,10 @@ func _process(_delta: float) -> bool:
 		elif phase == "world":
 			world_ms.append(ms)
 			if ms > frame_limit:
-				slow_world.append([(now - world_started_usec) / 1e6, ms])
+				# The client's last main-thread process time and the viewport's render CPU time.
+				var rid := root.get_viewport_rid()
+				slow_world.append([(now - world_started_usec) / 1e6, ms, client.process_ms(),
+					RenderingServer.viewport_get_measured_render_time_cpu(rid) + RenderingServer.get_frame_setup_time_cpu()])
 	last_usec = now
 	if client != null and is_instance_valid(client) and phase == "loading" and client.account_state().screen == "InWorld":
 		phase = "world"
@@ -59,6 +62,7 @@ func run_test() -> void:
 		fail("GODOT_TEST_SERVER, WORLD_ENTRY_ACCOUNT and WORLD_ENTRY_CHARACTER are required")
 		return
 	frame_limit = env_float("WORLD_ENTRY_FRAME_MS", 100.0)
+	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 	var loading_limit := env_float("WORLD_ENTRY_LOADING_FRAME_MS", 1000.0)
 	var settle_s := env_float("WORLD_ENTRY_SETTLE_S", 300.0)
 	client = load("res://scenes/client.tscn").instantiate()
@@ -98,7 +102,7 @@ func run_test() -> void:
 		loading_s, loading_ms.size(), max_of(loading_ms), world_ms.size(),
 		sorted[sorted.size() / 2], sorted[int(sorted.size() * 0.99)], max_of(world_ms),
 		int(frame_limit), slow_world.size(), settled, settled_s, objects])
-	print("FIXTURE SLOW_WORLD_FRAMES ", slow_world.map(func(f): return "%.1fs:%.0fms" % f))
+	print("FIXTURE SLOW_WORLD_FRAMES ", slow_world.map(func(f): return "%.1fs:%.0fms(client %.0f render %.0f)" % f))
 	var failures: Array[String] = []
 	if max_of(loading_ms) > loading_limit:
 		failures.append("a loading frame took %.1f ms (limit %.0f)" % [max_of(loading_ms), loading_limit])

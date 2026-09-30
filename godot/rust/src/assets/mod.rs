@@ -271,7 +271,6 @@ pub(super) fn build_model_filtered(
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
-    let span = crate::profile::span(|| "  build_model resolve".to_owned());
     let resolver = model_asset_resolver(Path::new(&model_path))?;
     let resolved: Vec<_> = m2::resolve_render_batches(model, skin_texture_fdids, false, |fdid| {
         resolver.resolve_path(fdid)
@@ -279,28 +278,16 @@ pub(super) fn build_model_filtered(
     .into_iter()
     .filter(|batch| allowed(batch.mesh_part_id))
     .collect();
-    drop(span);
-    let span = crate::profile::span(|| format!("  build_model {} batches", resolved.len()));
     let batches = resolved
         .iter()
         .map(|batch| load_batch(model, batch, path, &mut missing, appearance))
         .collect::<Result<Vec<_>, String>>()?;
-    drop(span);
-    let span =
-        crate::profile::span(|| format!("  build_model skeleton {} bones", model.bones.len()));
     let mesh_parts: Vec<u16> = resolved.iter().map(|batch| batch.mesh_part_id).collect();
     let (mut skeleton, skin) = build_skeleton(&model.bones);
     if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
         skeleton.free();
         return Err(error);
     }
-    drop(span);
-    let span = crate::profile::span(|| {
-        format!(
-            "  build_model animation {} sequences",
-            model.sequences.len()
-        )
-    });
     let player = if model.sequences.is_empty() {
         None
     } else {
@@ -315,8 +302,6 @@ pub(super) fn build_model_filtered(
             }
         }
     };
-    drop(span);
-    let _span = crate::profile::span(|| "  build_model nodes".to_owned());
     let material_animation = uv_animation::WowMaterialAnimation::from_batches(
         model,
         batches
