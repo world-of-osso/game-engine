@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-29] evidence | Bounded production TAA observer, independent gate pending
+## [2026-09-29] evidence | Bounded production TAA observer, independent gate PASS
 
-Updated existing AA spec/matrix and [system evidence](systems/godot-conversion.md#production-effect-observer--bounded-main-observed-evidence), linked from index. Main read saved production capture and isolated original-shader GPU oracle logs: exits 0, three HDR zero-jitter frames, 135168 numeric comparisons/0 failures plus 3072 constant-confidence comparisons/0 failures. Preserved failed CPU ideal-bilinear/half gap (3806/135168), observed-not-fitted reset confidence difference and native-project timeout 124 after numeric report; teardown/logger cause unproven. Agent 1148 verification pending. Callback-only scope; full conversion open. Docs only; no tests/builds/network/delegation/production edits.
+Updated existing AA spec/matrix and [system evidence](systems/godot-conversion.md#production-effect-observer--bounded-main-observed-evidence), linked from index. Main read saved production capture and isolated original-shader GPU oracle logs: exits 0, three HDR zero-jitter frames, 135168 numeric comparisons/0 failures plus 3072 constant-confidence comparisons/0 failures. Preserved failed CPU ideal-bilinear/half gap (3806/135168), observed-not-fitted reset confidence difference and native-project timeout 124 after numeric report; teardown/logger cause unproven. Independent verifier 1148 (`/tmp/claude/verify-taa-production-observer.md`) bounded PASS: 135168 main channels + 3072 confidence comparisons, zero failures. One frame-2 resolved channel differs by one HALF ULP within unchanged tolerance; not bit-exact parity. Saved-artifact audit only, no new runtime proof. Separate controller nine-frame evidence/agent 1150 pending excluded. Callback-only scope; full conversion open. Docs only; no tests/builds/network/delegation/production edits.
 
 ## [2026-09-29] source audit | AA/HDR texture sampling
 

@@ -94,7 +94,7 @@ Source-only audit (2026-09-29); no rendered equivalence established. Full AA/con
 
 ### Production-effect observer — bounded main-observed evidence
 
-Saved artifacts under `data/diagnostics/taa-production-observer/` cover the production effect callback only, not the root controller or app AA routing. Independent verification by agent 1148 is pending at `/tmp/claude/verify-taa-production-observer.md`; no PASS claim for that gate.
+Saved artifacts under `data/diagnostics/taa-production-observer/` cover the production effect callback only, not the root controller or app AA routing. Independent verifier 1148 (`/tmp/claude/verify-taa-production-observer.md`) reports bounded PASS from saved artifacts: 135168 main channels and 3072 constant-confidence comparisons, zero failures; 32 complete finite binaries independently decoded, no runtime rerun. One frame-2 resolved green channel at (44,27) differs by one HALF ULP (0.0009765625) within fixed HALF ULP + 2e-5 tolerance: tolerance parity, **not bit-exact parity**. Controller nine-frame evidence is separate and excluded; agent 1150 remains pending.
 
 | Capability | Main-observed evidence / boundary |
 | --- | --- |
