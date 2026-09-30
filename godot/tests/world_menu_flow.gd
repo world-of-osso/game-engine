@@ -103,6 +103,9 @@ func run_test() -> void:
 	var camera_options = load("res://tests/camera_options_probe.gd").new()
 	if not await camera_options.run(self, client):
 		return
+	var camera_zoom_options = load("res://tests/camera_zoom_options_probe.gd").new()
+	if not await camera_zoom_options.run(self, client, camera_options):
+		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
