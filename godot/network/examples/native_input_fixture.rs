@@ -257,10 +257,7 @@ impl FixtureConfig {
             .expect("create fixture credentials directory");
         fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
             .expect("write fixture-only credentials");
-        if screen == StartupScreen::Menu {
-            fs::write(config.home.join("world-of-osso/options_settings.ron"), "()")
-                .expect("seed menu defaults instead of migrating user legacy bindings");
-        }
+        config.persist_menu_defaults(screen);
         if matches!(
             screen,
             StartupScreen::PortalParticlesEnabled
@@ -318,6 +315,14 @@ impl FixtureConfig {
             .expect("write isolated deterministic sound options");
         }
         config
+    }
+
+    fn persist_menu_defaults(&self, screen: StartupScreen) {
+        if screen != StartupScreen::Menu {
+            return;
+        }
+        fs::write(self.home.join("world-of-osso/options_settings.ron"), "()")
+            .expect("seed menu defaults instead of migrating user legacy bindings");
     }
 }
 

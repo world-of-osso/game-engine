@@ -344,9 +344,24 @@ fn protocol_rejection_while_connecting_from_login_shows_reason() {
     assert!(
         effects
             .iter()
-            .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::Login))),
-        "the host refreshes the login status only on a transition"
+            .any(|effect| matches!(effect, SessionEffect::ShowFeedback))
     );
+    assert!(
+        !effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::Transition(_))),
+        "the login screen stays up"
+    );
+}
+
+#[test]
+fn every_connection_loss_on_login_shows_feedback_even_when_unchanged() {
+    let mut session = Session::default();
+    for _ in 0..2 {
+        let effects = session.receive_disconnected_with_reason(Some("timed out"));
+        assert_eq!(session.feedback.as_deref(), Some("Connection lost."));
+        assert!(matches!(effects.as_slice(), [SessionEffect::ShowFeedback]));
+    }
 }
 
 #[test]
@@ -490,11 +505,12 @@ fn world_reconnect_finishes_only_after_terrain_refresh_and_local_player() {
 fn no_token_and_failed_auth_or_entry_clear_reconnect() {
     let mut session = Session::default();
     session.screen = SessionScreen::CharacterSelect;
-    assert!(
+    assert!(matches!(
         session
             .receive_disconnected_with_reason(Some("lost"))
-            .is_empty()
-    );
+            .as_slice(),
+        [SessionEffect::ShowFeedback]
+    ));
     assert_eq!(
         session.feedback.as_deref(),
         Some("Connection lost. Char select is now offline.")

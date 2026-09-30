@@ -77,6 +77,8 @@ pub enum SessionEffect {
     ResetNetworkWorld,
     RequestDisconnect,
     Transition(SessionScreen),
+    /// `feedback` changed; the host shows it even when the screen stays the same.
+    ShowFeedback,
 }
 
 /// Successful creation emits a UI result even if the server omitted the character entry.
@@ -360,12 +362,13 @@ impl Session {
         if let Some(notice) = self.pending_forced_disconnect.take() {
             self.clear_reconnect();
             self.feedback = Some(notice.message);
-            self.screen = SessionScreen::Login;
-            // Also from Login itself: the host shows feedback on a screen transition.
-            return vec![
-                SessionEffect::ResetNetworkWorld,
-                SessionEffect::Transition(self.screen),
-            ];
+            let mut effects = vec![SessionEffect::ResetNetworkWorld];
+            if self.screen != SessionScreen::Login {
+                self.screen = SessionScreen::Login;
+                effects.push(SessionEffect::Transition(self.screen));
+            }
+            effects.push(SessionEffect::ShowFeedback);
+            return effects;
         }
         match self.screen {
             SessionScreen::CharacterSelect
@@ -381,7 +384,7 @@ impl Session {
             SessionScreen::CharacterSelect => {
                 self.clear_reconnect();
                 self.feedback = Some("Connection lost. Char select is now offline.".into());
-                Vec::new()
+                vec![SessionEffect::ShowFeedback]
             }
             SessionScreen::InWorld | SessionScreen::Loading
                 if self
@@ -401,12 +404,15 @@ impl Session {
                 self.clear_reconnect();
                 self.feedback = Some("Connection lost.".into());
                 self.screen = SessionScreen::Login;
-                vec![SessionEffect::Transition(self.screen)]
+                vec![
+                    SessionEffect::Transition(self.screen),
+                    SessionEffect::ShowFeedback,
+                ]
             }
             SessionScreen::Login | SessionScreen::GameMenu => {
                 self.clear_reconnect();
                 self.feedback = Some("Connection lost.".into());
-                Vec::new()
+                vec![SessionEffect::ShowFeedback]
             }
         }
     }
