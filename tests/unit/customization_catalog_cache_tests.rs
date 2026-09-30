@@ -34,13 +34,17 @@ impl CatalogFixture {
             ),
             (
                 "ChrCustomizationElement",
-                "ChrCustomizationChoiceID,RelatedChrCustomizationChoiceID,ChrCustomizationGeosetID,ChrCustomizationMaterialID,ChrCustomizationSkinnedModelID,ChrCustomizationBoneSetID,ChrCustomizationCondModelID,ChrCustomizationDisplayInfoID,ChrCustItemGeoModifyID,ChrCustomizationVoiceID,AnimKitID,ParticleColorID,ChrCustGeoComponentLinkID\n90001,0,1,0,0,0,0,0,0,0,0,0,0\n90002,0,0,0,0,0,0,0,0,0,0,0,0\n90003,0,0,1,7,0,0,0,0,0,0,0,0\n",
+                "ChrCustomizationChoiceID,RelatedChrCustomizationChoiceID,ChrCustomizationGeosetID,ChrCustomizationMaterialID,ChrCustomizationSkinnedModelID,ChrCustomizationBoneSetID,ChrCustomizationCondModelID,ChrCustomizationDisplayInfoID,ChrCustItemGeoModifyID,ChrCustomizationVoiceID,AnimKitID,ParticleColorID,ChrCustGeoComponentLinkID\n90001,0,1,0,0,0,0,0,0,0,0,0,0\n90001,0,0,0,7,0,0,0,0,0,0,0,0\n90002,0,0,0,0,0,0,0,0,0,0,0,0\n90003,0,0,1,0,7,0,0,0,0,0,0,0\n",
             ),
             (
                 "ChrCustomizationMaterial",
                 "ID,ChrModelTextureTargetID,MaterialResourcesID\n1,6,101\n",
             ),
             ("ChrCustomizationGeoset", "ID,GeosetType,GeosetID\n1,32,2\n"),
+            (
+                "ChrCustomizationSkinnedModel",
+                "ID,CollectionsFileDataID,GeosetType,GeosetID,Modifier,Flags\n7,7760205,25,1,-1,0\n",
+            ),
             (
                 "CharHairGeosets",
                 "RaceID,SexID,GeosetType,GeosetID,Showscalp\n1,0,0,7,1\n",
@@ -137,6 +141,18 @@ fn catalog_cache_roundtrip_retains_original_metadata_and_effect_support() {
             .find(|element| element.choice_id == 90003)
             .unwrap()
             .has_unsupported_effects
+    );
+    let skinned = raw
+        .elements
+        .iter()
+        .find(|element| element.skinned_model_id != 0)
+        .unwrap();
+    assert_eq!((skinned.choice_id, skinned.skinned_model_id), (90001, 7));
+    assert!(!skinned.has_unsupported_effects, "skinned models render");
+    let row = &raw.skinned_models[&7];
+    assert_eq!(
+        (row.collection_fdid, row.geoset_type, row.geoset_id),
+        (7760205, 25, 1)
     );
     let before = std::fs::metadata(&cache).unwrap().modified().unwrap();
     assert_eq!(
@@ -253,7 +269,6 @@ fn catalog_cache_rejects_invalid_authored_swatch_instead_of_inventing_color() {
 #[test]
 fn catalog_cache_marks_each_unimplemented_element_kind() {
     for column in [
-        "ChrCustomizationSkinnedModelID",
         "ChrCustomizationBoneSetID",
         "ChrCustomizationCondModelID",
         "ChrCustomizationDisplayInfoID",
@@ -275,8 +290,9 @@ fn catalog_cache_marks_each_unimplemented_element_kind() {
     assert!(!has_unsupported_effects(
         &[
             "ChrCustomizationGeosetID".into(),
-            "ChrCustomizationMaterialID".into()
+            "ChrCustomizationMaterialID".into(),
+            "ChrCustomizationSkinnedModelID".into()
         ],
-        &["41".into(), "42".into()]
+        &["41".into(), "42".into(), "43".into()]
     ));
 }

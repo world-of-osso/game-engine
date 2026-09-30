@@ -88,6 +88,7 @@ pub(super) fn single_root_bone() -> Vec<M2Bone> {
         flags: 0,
         parent_bone_id: -1,
         submesh_id: 0,
+        name_crc: 0,
         pivot: [0.0, 0.0, 0.0],
     }]
 }

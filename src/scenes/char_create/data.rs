@@ -386,21 +386,37 @@ mod tests {
     fn new_classes_follow_retail_char_base_info() {
         for race in RACES {
             let dracthyr = matches!(race.id, 52 | 70);
-            assert_eq!(race_can_be_class(race.id, 10), !dracthyr, "{} Monk", race.name);
+            assert_eq!(
+                race_can_be_class(race.id, 10),
+                !dracthyr,
+                "{} Monk",
+                race.name
+            );
             assert_eq!(
                 race_can_be_class(race.id, 12),
                 matches!(race.id, 4 | 10 | 29),
                 "{} Demon Hunter",
                 race.name
             );
-            assert_eq!(race_can_be_class(race.id, 13), dracthyr, "{} Evoker", race.name);
+            assert_eq!(
+                race_can_be_class(race.id, 13),
+                dracthyr,
+                "{} Evoker",
+                race.name
+            );
         }
     }
 
     #[test]
     fn dracthyr_are_allied_races_of_both_factions_defaulting_to_evoker() {
-        assert_eq!(race_by_id(52).map(|race| race.faction), Some(Faction::Alliance));
-        assert_eq!(race_by_id(70).map(|race| race.faction), Some(Faction::Horde));
+        assert_eq!(
+            race_by_id(52).map(|race| race.faction),
+            Some(Faction::Alliance)
+        );
+        assert_eq!(
+            race_by_id(70).map(|race| race.faction),
+            Some(Faction::Horde)
+        );
         assert_eq!(first_available_class(52), 13);
         assert_eq!(first_available_class(70), 13);
     }
