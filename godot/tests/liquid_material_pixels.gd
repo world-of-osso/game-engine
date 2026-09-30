@@ -11,6 +11,9 @@ extends SceneTree
 ## case's capture over the red backing there.
 
 const NOON := 1440.0
+## Second clock sample. 1333 ms after the first is not a whole number of the authored
+## periods (Fel's 2 s crossfade, one-second texture frames), so every material must move.
+const LATER_MS := 2333.0
 const SIZE := Vector2i(96, 96)
 const WATER_Y := 100.0
 const CENTRE := Vector3(-7700.0, WATER_Y, 1300.0)
@@ -70,7 +73,7 @@ func check_case(name: String, liquid: Array) -> String:
 			return "Frozen Azerite clock changed %d pixels" % drift
 	backing.albedo_color = Color(0.1, 0.1, 0.8)
 	var blue := await capture()
-	material.set_shader_parameter("animation_time_ms", 3000.0)
+	material.set_shader_parameter("animation_time_ms", LATER_MS)
 	var later := await capture()
 	var shots := OS.get_environment("LIQUID_SHOTS")
 	if shots != "":
