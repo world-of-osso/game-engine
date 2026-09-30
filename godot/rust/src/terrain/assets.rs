@@ -9,9 +9,11 @@ use std::{
 };
 
 use game_engine_core::{
-    adt,
+    adt, blp,
     footstep_data::FootstepSurface,
-    ground_effect_data, terrain_surface_data, wdt,
+    ground_effect_data,
+    liquid_data::{FIRST_LIQUID_OBJECT, LiquidCatalog, WaterMaterial},
+    terrain_surface_data, wdt,
     wmo_surface_data::{WmoSurfaceBounds, select_wmo_material_surface},
 };
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
@@ -28,6 +30,7 @@ pub(crate) struct NativeTerrainAssets {
     textures: RefCell<TerrainTextureCache>,
     lighting: RefCell<Option<Arc<LightingCatalog>>>,
     surface_catalog: OnceLock<Result<SurfaceCatalog, String>>,
+    liquids: OnceLock<Result<LiquidCatalog, String>>,
     /// Parsed group floors and root-wide material surface, keyed by root FDID.
     wmo_groups: RefCell<HashMap<u32, (Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>)>>,
 }
@@ -53,6 +56,16 @@ pub(crate) struct NativeTerrainTile {
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
     pub wmo_floors: Vec<(u32, WmoCollision)>,
     pub wmo_surfaces: Vec<(WmoSurfaceBounds, FootstepSurface)>,
+    /// Water material of each MH2O `(liquid_type, liquid_object)` on the tile.
+    pub water_materials: BTreeMap<(u16, u16), Result<Arc<NativeWaterMaterial>, String>>,
+}
+
+/// A water LiquidType's DB2 inputs with its decoded bump and foam frames; a zero-FDID frame
+/// (procedural depth texture) has no image and binds black.
+pub(crate) struct NativeWaterMaterial {
+    pub params: WaterMaterial,
+    pub bump: Vec<(u32, Option<Arc<blp::RgbaImage>>)>,
+    pub foam: Vec<(u32, Option<Arc<blp::RgbaImage>>)>,
 }
 
 impl NativeTerrainAssets {
@@ -68,6 +81,7 @@ impl NativeTerrainAssets {
             textures: RefCell::new(TerrainTextureCache::default()),
             lighting: RefCell::new(None),
             surface_catalog: OnceLock::new(),
+            liquids: OnceLock::new(),
             wmo_groups: RefCell::new(HashMap::new()),
         }
     }
@@ -146,6 +160,7 @@ impl NativeTerrainAssets {
             }
             None => BTreeMap::new(),
         };
+        let water_materials = self.read_water_materials(&root)?;
         let (wmo_floors, wmo_surfaces) = obj
             .as_ref()
             .map(|obj| self.read_wmo_floors(&obj.wmos, (tile_y, tile_x)))
@@ -161,7 +176,93 @@ impl NativeTerrainAssets {
             chunk_surfaces,
             wmo_floors,
             wmo_surfaces,
+            water_materials,
         })
+    }
+
+    fn read_water_materials(
+        &self,
+        root: &adt::Root,
+    ) -> Result<BTreeMap<(u16, u16), Result<Arc<NativeWaterMaterial>, String>>, String> {
+        let mut materials = BTreeMap::new();
+        let layers = root
+            .water
+            .iter()
+            .flat_map(|water| &water.chunks)
+            .flat_map(|chunk| &chunk.layers);
+        for layer in layers {
+            let key = (layer.liquid_type, layer.liquid_object);
+            if materials.contains_key(&key) {
+                continue;
+            }
+            let material = match self.resolve_water_material(key) {
+                Ok(params) => Ok(Arc::new(self.read_water_textures(params)?)),
+                Err(error) => Err(error),
+            };
+            materials.insert(key, material);
+        }
+        Ok(materials)
+    }
+
+    /// The water material of one MH2O `(liquid_type, liquid_object)`; texture read failures
+    /// are errors of the whole tile, material resolution failures only of its layers.
+    pub fn read_water_material(&self, key: (u16, u16)) -> Result<NativeWaterMaterial, String> {
+        self.read_water_textures(self.resolve_water_material(key)?)
+    }
+
+    fn read_water_textures(&self, params: WaterMaterial) -> Result<NativeWaterMaterial, String> {
+        Ok(NativeWaterMaterial {
+            bump: self.read_water_frames(&params.bump_frames)?,
+            foam: self.read_water_frames(&params.foam_frames)?,
+            params,
+        })
+    }
+
+    /// Only the water LiquidMaterials (1, 3 and the reference's default) are ported, and the
+    /// MH2O parser reads a LiquidObject's vertices as LVF 0.
+    fn resolve_water_material(
+        &self,
+        (liquid_type, liquid_object): (u16, u16),
+    ) -> Result<WaterMaterial, String> {
+        let catalog = self
+            .liquids
+            .get_or_init(|| LiquidCatalog::read(&self.data_root.join("db2/12.1.0.69933")))
+            .as_ref()
+            .map_err(Clone::clone)?;
+        let material = catalog.water_material(liquid_type, liquid_object)?;
+        // LiquidMaterialManager.cpp createLiquidMaterial: these IDs have their own shaders.
+        if matches!(material.material_id, 2 | 4 | 5 | 10 | 12 | 13 | 14 | 18) {
+            return Err(format!(
+                "LiquidType {} uses LiquidMaterial {}, whose shader is not ported",
+                material.liquid_type, material.material_id
+            ));
+        }
+        if liquid_object >= FIRST_LIQUID_OBJECT && material.lvf != 0 {
+            return Err(format!(
+                "LiquidObject {liquid_object} uses LVF {}, but MH2O parsing reads LiquidObjects as LVF 0",
+                material.lvf
+            ));
+        }
+        Ok(material)
+    }
+
+    fn read_water_frames(
+        &self,
+        fdids: &[u32],
+    ) -> Result<Vec<(u32, Option<Arc<blp::RgbaImage>>)>, String> {
+        fdids
+            .iter()
+            .map(|&fdid| {
+                let image = (fdid != 0)
+                    .then(|| {
+                        self.textures
+                            .borrow_mut()
+                            .load_image(&self.resolver, &self.data_root, fdid)
+                    })
+                    .transpose()?;
+                Ok((fdid, image))
+            })
+            .collect()
     }
 
     fn classify_tile_surfaces(

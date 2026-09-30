@@ -17,7 +17,7 @@ use godot::{
     prelude::*,
 };
 
-use assets::LightingCatalog;
+use assets::{LightingCatalog, LightingSample, WaterLight};
 
 type SkyStops = [[f32; 3]; 7];
 
@@ -27,9 +27,35 @@ pub(crate) struct TerrainLight {
     fog: RetailFog,
     fog_color: [f32; 3],
     cube: Gd<Cubemap>,
+    water: WaterLight,
 }
 
 impl TerrainLight {
+    /// The light of `sample` with its scene fog (the exterior or a WMO interior's).
+    pub fn new(
+        sample: LightingSample,
+        fog: RetailFog,
+        fog_color: [f32; 3],
+    ) -> Result<Self, String> {
+        let sky = &sample.sky;
+        let cube = create_cubemap([
+            sky.sky_top,
+            sky.sky_middle,
+            sky.sky_band1,
+            sky.sky_band2,
+            sky.sky_smog,
+            sky.fog_color,
+            sky.fog_color,
+        ])?;
+        Ok(Self {
+            retail: sample.retail,
+            fog,
+            fog_color,
+            cube,
+            water: sample.water,
+        })
+    }
+
     pub fn bind(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
         material.set_shader_parameter("environment_map", &self.cube.to_variant());
@@ -51,6 +77,34 @@ impl TerrainLight {
         material.set_shader_parameter("fog_density", &self.fog.density.to_variant());
         material.set_shader_parameter("fog_opacity", &1.0f32.to_variant());
         material.set_shader_parameter("fog_mode", &1i32.to_variant());
+    }
+
+    /// The model light plus the retail water scene inputs of `water.gdshader`.
+    pub fn bind_water(&self, material: &mut Gd<ShaderMaterial>) {
+        self.bind_model(material);
+        let water = &self.water;
+        for (name, value) in [
+            ("river_close", water.river_close),
+            ("river_far", water.river_far),
+            ("ocean_close", water.ocean_close),
+            ("ocean_far", water.ocean_far),
+        ] {
+            material.set_shader_parameter(name, &Vector4::from_array(value).to_variant());
+        }
+        for (name, value) in [
+            ("specular_color", water.specular),
+            ("underwater_fog_color", water.underwater_fog_color),
+            (
+                "underwater_fog",
+                [
+                    water.underwater_fog.start,
+                    water.underwater_fog.end,
+                    water.underwater_fog.density,
+                ],
+            ),
+        ] {
+            material.set_shader_parameter(name, &Vector3::from_array(value).to_variant());
+        }
     }
 
     pub fn clear_model(material: &mut Gd<ShaderMaterial>) {
@@ -75,7 +129,7 @@ impl TerrainLight {
 pub(crate) struct WorldLighting {
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
-    previous: Option<(RetailLightData, RetailFog, [f32; 3], SkyStops)>,
+    previous: Option<(RetailLightData, RetailFog, [f32; 3], SkyStops, WaterLight)>,
 }
 
 impl WorldLighting {
@@ -102,24 +156,25 @@ impl WorldLighting {
             sky.fog_color,
         ];
         let (fog, fog_color) = apply_wmo_fog(sample.fog, sky.fog_color, wmo_fog);
-        let values = (sample.retail.clone(), fog, fog_color, stops);
+        let values = (
+            sample.retail.clone(),
+            fog,
+            fog_color,
+            stops,
+            sample.water.clone(),
+        );
         if self.previous.as_ref() == Some(&values) {
             return Ok(None);
         }
-        let cube = create_cubemap(stops)?;
-        self.attach_nodes(parent);
         let direction = Vector3::from_array(sample.retail.sun_direction);
+        let light = TerrainLight::new(sample, fog, fog_color)?;
+        self.attach_nodes(parent);
         self.sun
             .as_mut()
             .expect("attached sun")
             .look_at_from_position(Vector3::ZERO, direction);
         self.previous = Some(values);
-        Ok(Some(TerrainLight {
-            retail: sample.retail,
-            fog,
-            fog_color,
-            cube,
-        }))
+        Ok(Some(light))
     }
 
     fn attach_nodes(&mut self, parent: &mut Gd<Node3D>) {

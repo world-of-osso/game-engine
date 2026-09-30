@@ -48,6 +48,55 @@ impl WowTerrainLoader {
             }
         }
     }
+
+    /// Retail water material of MH2O `(liquid_type, liquid_object)` from the local DB2 exports
+    /// and CASC textures, lit by the authored light at WoW `wow_position` and `minutes`.
+    #[func]
+    fn load_water_material(
+        &self,
+        liquid_type: i32,
+        liquid_object: i32,
+        map_id: i32,
+        wow_position: Vector3,
+        minutes: f32,
+    ) -> VarDictionary {
+        let mut result = VarDictionary::new();
+        let liquid =
+            u16::try_from(liquid_type).and_then(|t| Ok((t, u16::try_from(liquid_object)?)));
+        let material = liquid
+            .map_err(|_| "Liquid type and object must be in 0..65536".to_string())
+            .and_then(|liquid| {
+                read_water_material(liquid, map_id as u32, wow_position.to_array(), minutes)
+            });
+        match material {
+            Ok(material) => result.set("material", &material),
+            Err(error) => result.set("error", error),
+        }
+        result
+    }
+}
+
+/// `load_water_material`: one MH2O water material from local DB2/CASC, lit at a map point.
+fn read_water_material(
+    liquid: (u16, u16),
+    map_id: u32,
+    wow_position: [f32; 3],
+    minutes: f32,
+) -> Result<Gd<godot::classes::ShaderMaterial>, String> {
+    let settings = ProjectSettings::singleton();
+    let data_root = std::path::PathBuf::from(settings.globalize_path("res://../data").to_string());
+    let cache_root =
+        std::path::PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
+    let native = assets::NativeTerrainAssets::new(data_root.clone(), cache_root)
+        .read_water_material(liquid)?;
+    let sample = crate::lighting::assets::LightingCatalog::read(&data_root)?.sample(
+        map_id,
+        wow_position,
+        minutes,
+    )?;
+    let (fog, fog_color) = (sample.fog, sample.sky.fog_color);
+    let light = crate::lighting::TerrainLight::new(sample, fog, fog_color)?;
+    water::WaterMaterials::default().standalone(&native, &light)
 }
 
 fn tile_coordinates(row: i32, col: i32) -> Result<Option<(u32, u32)>, String> {
