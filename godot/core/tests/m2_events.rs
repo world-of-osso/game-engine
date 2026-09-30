@@ -60,3 +60,31 @@ fn spell_cast_directed_fires_its_missile_release_at_200_ms() {
         ]
     );
 }
+
+/// Attack clips swoosh at `$CSS` and land at `$CAH` (the melee impact): HumanMale HD
+/// Attack1H (17) at 300/400 ms, the Kobold Vermin's kobold2 model at 233/366 ms.
+#[test]
+fn attack_clips_fire_their_swoosh_then_their_hit() {
+    let swing = |model: &m2::Model, id: u16| {
+        fired(model, id)
+            .into_iter()
+            .filter(|(name, _)| name == "$CSS" || name == "$CAH")
+            .collect::<Vec<_>>()
+    };
+    let male = parse_hd("humanmale_hd");
+    assert_eq!(
+        swing(&male, 17),
+        [
+            ("$CSS".to_string(), vec![300u32]),
+            ("$CAH".to_string(), vec![400u32])
+        ]
+    );
+    let kobold = m2::parse_model(&fixture("1139464.m2"), &fixture("113946400.skin")).unwrap();
+    assert_eq!(
+        swing(&kobold, 17),
+        [
+            ("$CSS".to_string(), vec![233u32]),
+            ("$CAH".to_string(), vec![366u32])
+        ]
+    );
+}
