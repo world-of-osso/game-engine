@@ -213,11 +213,10 @@ fn insert_player_eye_pixels(
 
 pub(crate) fn load_player_model(
     data_root: &Path,
-    cache_root: &Path,
     player: &Player,
     equipment: &EquipmentAppearance,
 ) -> Result<Gd<Node3D>, String> {
-    let resolver = local_resolver(data_root, cache_root);
+    let resolver = local_resolver(data_root);
     let path = cache_player_model(&resolver, data_root, player)?;
     let equipment = resolve_equipment_appearance(
         equipment,
@@ -721,8 +720,7 @@ mod swatch_tests {
         let chosen = select_player_choices(db, race, sex, class, &state.appearance).unwrap();
         let compositor =
             game_engine_core::npc_appearance_assets::load_compositor(&data_root()).unwrap();
-        let resolver =
-            super::super::creature::local_resolver(&data_root(), &data_root().join("cache"));
+        let resolver = super::super::creature::local_resolver(&data_root());
         let layout = db.layout_id(race, sex).unwrap();
         let mut textures = compose_player_pixels(&compositor, &chosen, &[], layout, |fdid| {
             load_appearance_texture(&resolver, &data_root(), fdid, "swatch test")

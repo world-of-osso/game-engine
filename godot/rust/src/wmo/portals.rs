@@ -420,8 +420,7 @@ mod tests {
         let resolver = osso_asset_resolver::CascListfileResolver::new(
             osso_asset_resolver::AssetResolverConfig::new()
                 .with_data_root(&data_root)
-                .with_shared_data_root(&data_root)
-                .with_cache_root(data_root.join("cache")),
+                .with_shared_data_root(&data_root),
         );
         let bytes = std::fs::read(data_root.join("terrain/6252664.adt")).unwrap();
         let objects = game_engine_core::adt::parse_obj(&bytes).unwrap();
@@ -464,8 +463,7 @@ mod tests {
         let resolver = osso_asset_resolver::CascListfileResolver::new(
             osso_asset_resolver::AssetResolverConfig::new()
                 .with_data_root(&data_root)
-                .with_shared_data_root(&data_root)
-                .with_cache_root(data_root.join("cache")),
+                .with_shared_data_root(&data_root),
         );
         let placement = WmoPlacement {
             name_id: 0,

@@ -576,7 +576,7 @@ pub struct WorldUnits {
 }
 
 impl WorldUnits {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         Self {
             root: None,
             anim_fallbacks: None,
@@ -584,7 +584,7 @@ impl WorldUnits {
             units: HashMap::new(),
             selected_name: None,
             local_player_id: None,
-            models: WorldModels::new(data_root, cache_root),
+            models: WorldModels::new(data_root),
             light: None,
             deaths: Vec::new(),
         }
