@@ -54,6 +54,7 @@ Light.csv
 LightData.csv
 ZoneLight.csv
 ZoneLightPoint.csv
+db2/12.1.0.69933/LightParams.csv
 cache/customization.sqlite
 cache/char_texture.sqlite
 ChrRaceXChrModel.csv
@@ -90,6 +91,12 @@ db2/12.1.0.69933/ChrSpecialization.csv
 db2/12.1.0.69933/SpecializationSpells.csv
 db2/12.1.0.69933/SkillLine.csv
 db2/12.1.0.69933/SkillLineAbility.csv
+
+# game-engine-core tests/liquid_water.rs
+db2/12.1.0.69933/LiquidType.csv
+db2/12.1.0.69933/LiquidObject.csv
+db2/12.1.0.69933/LiquidMaterial.csv
+db2/12.1.0.69933/LiquidTypeXTexture.csv
 
 # game-engine-core tests/spell_visual.rs
 db2/12.1.0.69933/SpellXSpellVisual.csv

@@ -256,11 +256,24 @@ fn read_vertex_data(
         return read_height_uv_depth_vertices(payload, offset, width, height);
     }
 
-    Ok((
-        read_vertex_heights(payload, offset, width, height)?,
-        Vec::new(),
-        Vec::new(),
-    ))
+    read_height_depth_vertices(payload, offset, width, height)
+}
+
+/// LVF 0 (wowdev MH2O `LiquidVertexFormat` height_depth): every height, then every depth.
+fn read_height_depth_vertices(
+    payload: &[u8],
+    offset: usize,
+    width: u8,
+    height: u8,
+) -> Result<WaterVertexData, String> {
+    let heights = read_vertex_heights(payload, offset, width, height)?;
+    let depth_offset = if offset == 0 {
+        0
+    } else {
+        offset + heights.len() * 4
+    };
+    let depths = read_depth_only_vertices(payload, depth_offset, width, height)?;
+    Ok((heights, Vec::new(), depths))
 }
 
 fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, String> {

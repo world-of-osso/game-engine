@@ -61,6 +61,7 @@ pub mod input_bindings_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
 pub mod light_lookup_data;
 pub mod lighting_assets;
+pub mod liquid_data;
 #[path = "../../../src/game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
@@ -88,8 +89,6 @@ pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
 pub mod ui_layout_data;
-#[path = "../../../src/water_material_data.rs"]
-pub mod water_material_data;
 #[path = "../../../src/sound/wmo_surface_data.rs"]
 pub mod wmo_surface_data;
 #[cfg(test)]
