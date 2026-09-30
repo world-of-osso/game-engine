@@ -204,7 +204,7 @@ fn spawn_loot_sparkle() -> Gd<MeshInstance3D> {
     material.set_albedo(Color::from_rgba(1.0, 0.85, 0.0, 0.6));
     material.set_transparency(base_material_3d::Transparency::ALPHA);
     material.set_shading_mode(base_material_3d::ShadingMode::UNSHADED);
-    material.set_emission_enabled(true);
+    material.set_feature(base_material_3d::Feature::EMISSION, true);
     material.set_emission(Color::from_rgb(1.0, 0.85, 0.0));
     material.set_emission_energy_multiplier(SPARKLE_EMISSION);
     let mut sparkle = MeshInstance3D::new_alloc();
