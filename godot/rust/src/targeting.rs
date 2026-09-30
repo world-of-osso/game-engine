@@ -14,11 +14,12 @@ use game_engine_core::{
 };
 use game_engine_network::replica::Unit;
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarAnimator;
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, PipAnimations, PowerBarState, UnitFrameMenuState, UnitFrameState,
-    format_value_text, fraction, target_level_text,
+    InWorldUnitFramesState, PowerBarState, UnitFrameMenuState, UnitFrameState, format_value_text,
+    fraction, target_level_text,
 };
-use game_engine_ui_model::status::SecondaryResourceEntry;
+use game_engine_ui_model::status::{ClassBarPlayer, ClassBarResource};
 use godot::{
     classes::{
         Area3D, BoxShape3D, Camera3D, CollisionShape3D, Decal, Image, ImageTexture, MeshInstance3D,
@@ -26,7 +27,7 @@ use godot::{
     },
     prelude::*,
 };
-use shared::components::{Health, Npc, Player, UnitLevel, UnitPowers};
+use shared::components::{Health, Npc, Player, UnitLevel, UnitPowers, UnitRunes};
 use shared::level_scaling::{LevelScaling, level_for_viewer};
 
 use crate::replicated::{UnitFields, is_unit};
@@ -64,8 +65,8 @@ pub(crate) struct Targeting {
     /// `RING_FDID` unless a test points the ring at other art.
     ring_fdid: u32,
     frame_ui: Option<Gd<RegistryUi>>,
-    /// Class resource pip animations, timed from `started`.
-    pip_animations: PipAnimations,
+    /// The player's class resource bar, timed from `started`.
+    class_bar: ClassBarAnimator,
     started: Instant,
     data_root: PathBuf,
     /// ExpectedStat creature health, loaded with the first tuned target.
@@ -101,7 +102,7 @@ impl Targeting {
             ring: None,
             ring_fdid: RING_FDID,
             frame_ui: None,
-            pip_animations: PipAnimations::default(),
+            class_bar: ClassBarAnimator::default(),
             started: Instant::now(),
             data_root,
             health_by_level: None,
@@ -330,7 +331,7 @@ fn target_health_multiplier(
     }
 }
 
-fn player_frame_state(unit: Unit, in_rest_area: bool, spec: Option<u32>) -> UnitFrameState {
+fn player_frame_state(unit: Unit, in_rest_area: bool) -> UnitFrameState {
     let mut state = UnitFrameState::named(
         unit.get::<Player>()
             .map_or("", |player| player.name.as_str()),
@@ -346,11 +347,18 @@ fn player_frame_state(unit: Unit, in_rest_area: bool, spec: Option<u32>) -> Unit
         state.health_fraction = fraction(health.current, health.max);
     }
     state.power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
-    state.secondary_resource = unit
-        .get::<UnitPowers>()
-        .and_then(SecondaryResourceEntry::from_unit_powers)
-        .filter(|resource| resource.shown_for_spec(spec));
     state
+}
+
+/// The player's class bar power, when Retail shows the class's bar.
+fn player_class_resource(unit: Unit, spec: Option<u32>) -> Option<ClassBarResource> {
+    let player = ClassBarPlayer {
+        class: unit.get::<Player>()?.class,
+        spec,
+        level: unit.get::<UnitLevel>().map_or(0, |level| level.0),
+        in_combat: unit.in_combat(),
+    };
+    ClassBarResource::for_player(unit.get::<UnitPowers>()?, unit.get::<UnitRunes>(), &player)
 }
 
 fn unit_frames_state(
@@ -535,15 +543,19 @@ impl GameClient {
             .world
             .local_player_id()
             .and_then(|id| self.replica.unit(id))
-            .map(|unit| player_frame_state(unit, self.in_rest_area, self.account.spells.spec()))
-            .map(|mut state| {
+            .map(|unit| {
+                let spec = self.account.spells.spec();
+                let mut state = player_frame_state(unit, self.in_rest_area);
+                let resource = player_class_resource(unit, spec);
                 let now = self.targeting.started.elapsed().as_secs_f64();
-                state.secondary_fx = self
-                    .targeting
-                    .pip_animations
-                    .update(state.secondary_resource.as_ref(), now);
+                state.class_bar = self.targeting.class_bar.update_received(
+                    unit.server_id,
+                    resource.as_ref(),
+                    now,
+                );
                 state
             });
+        let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());
         let state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             ui.bind_mut().set_state(state)?;
@@ -558,7 +570,8 @@ impl GameClient {
             }
             self.targeting.frame_ui = Some(ui);
         }
-        self.sync_target_aura_swipes(target_state.as_ref())
+        self.sync_target_aura_swipes(target_state.as_ref())?;
+        self.sync_class_bar_swipes(class_bar.as_ref())
     }
 
     /// Bevy `handle_inworld_escape`: with no window open, Escape clears the target

@@ -170,7 +170,7 @@ pub struct BrowseRow {
     pub item_id: u32,
     pub item: ItemLine,
     pub price: u64,
-    pub available: u32,
+    pub available: u64,
 }
 
 /// One auction: item buy list, all auctions and bids lists.

@@ -893,6 +893,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     fn install_auction(app: &mut App) {
         install::<OpenAuctionHouse>(app);
         install::<QueryAuctions>(app);
+        install::<QueryAuctionBrowse>(app);
         install::<QueryAuctionInventory>(app);
         install::<QueryOwnedAuctions>(app);
         install::<QueryBidAuctions>(app);
@@ -967,6 +968,30 @@ fn native_bridge_auction_operations_and_query_rejections() {
             query: query.clone()
         },
         QueryAuctions
+    );
+    let mut browse_query = query.clone();
+    browse_query.item_id = None;
+    request!(
+        QueryAuctionBrowse {
+            query: browse_query.clone()
+        },
+        QueryAuctionBrowse
+    );
+    reply(
+        &mut server,
+        &mut host,
+        AuctionBrowseResults {
+            query: browse_query,
+            total_results: 103,
+            items: vec![AuctionBrowseItem {
+                item_id: 2589,
+                name: "Linen Cloth".into(),
+                quality: 1,
+                required_level: 1,
+                lowest_unit_price: 17,
+                total_quantity: 5_000_000_001,
+            }],
+        },
     );
     request!(QueryAuctionInventory, QueryAuctionInventory);
     request!(QueryOwnedAuctions, QueryOwnedAuctions);
