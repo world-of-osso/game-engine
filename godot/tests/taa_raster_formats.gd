@@ -11,12 +11,25 @@ extends "res://tests/taa_compute_pixels.gd"
 
 const HALF := RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT
 const SRGB := RenderingDevice.DATA_FORMAT_R8G8B8A8_SRGB
+const FLOAT := RenderingDevice.DATA_FORMAT_R32G32B32A32_SFLOAT
+const INPUT_SAMPLE := """#version 450
+layout(location = 0) in vec2 uv;
+layout(location = 0) out vec4 decoded;
+layout(location = 1) out vec4 duplicate_sample;
+layout(set = 0, binding = 0) uniform sampler2D uploaded_input;
+void main() {
+    decoded = texture(uploaded_input, uv);
+    duplicate_sample = decoded;
+}
+"""
 const SIZE := Vector2i(3, 3)
 const CASES := ["mixed-low", "mixed-high", "opaque", "fractional", "offscreen"]
 const EXPECTED_FIXTURES := 128
 
 var production_shader := RID()
 var motion_shader := RID()
+var input_shader := RID()
+var input_draw := false
 var motion_adapter := false
 var draw_jitter := Vector2.ZERO
 var production_draw := false
@@ -74,12 +87,16 @@ func compile_shaders() -> bool:
 	production = production.replace("#[compute]\n", "")
 	var source := RDShaderSource.new()
 	source.source_vertex = vertex
-	source.source_fragment = production.replace(
-		"#version 450\n", "#version 450\n#define TAA_RASTER\n"
-	)
 	var stages: Array[int] = [
 		RenderingDevice.SHADER_STAGE_VERTEX, RenderingDevice.SHADER_STAGE_FRAGMENT
 	]
+	source.source_fragment = INPUT_SAMPLE
+	input_shader = compile_source(source, stages)
+	if not input_shader.is_valid():
+		return false
+	source.source_fragment = production.replace(
+		"#version 450\n", "#version 450\n#define TAA_RASTER\n"
+	)
 	production_shader = compile_source(source, stages)
 	if not production_shader.is_valid():
 		return false
@@ -100,7 +117,19 @@ func compile_shaders() -> bool:
 	return true
 
 
+func uniforms(inputs: Array[RID]) -> Array[RDUniform]:
+	if not input_draw:
+		return super.uniforms(inputs)
+	var uniform := RDUniform.new()
+	uniform.binding = 0
+	uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+	uniform.add_id(nearest)
+	uniform.add_id(inputs[0])
+	return [uniform]
+
+
 func draw(shader: RID, inputs: Array[RID], outputs: Array[RID]) -> bool:
+	input_draw = shader == input_shader
 	motion_draw = shader == motion_shader
 	production_draw = shader == production_shader or motion_draw
 	return super.draw(shader, inputs, outputs)
@@ -134,22 +163,22 @@ func format_label(output_format: int, history_format: int) -> String:
 
 
 func format_name(value: int) -> String:
+	if value == FLOAT:
+		return "RGBA32F"
 	return "RGBA16F" if value == HALF else "RGBA8_SRGB"
 
 
 func encode_image(input: Image, format: int) -> Image:
-	if format == HALF:
-		return input.duplicate() as Image
+	if format == HALF or format == FLOAT:
+		var result := input.duplicate() as Image
+		result.convert(Image.FORMAT_RGBAH if format == HALF else Image.FORMAT_RGBAF)
+		return result
 	var encoded := Image.create(input.get_width(), input.get_height(), false, Image.FORMAT_RGBA8)
 	for y in range(input.get_height()):
 		for x in range(input.get_width()):
 			# Attachment/sample RGB is sRGB; alpha is always linear UNORM.
 			encoded.set_pixel(x, y, input.get_pixel(x, y).linear_to_srgb())
 	return encoded
-
-
-func source_colour(value: Color, format: int) -> Color:
-	return encode_image(image(Vector2i.ONE, value), format).get_pixel(0, 0)
 
 
 func store_colour(value: Color, format: int) -> Color:
@@ -162,11 +191,35 @@ func store_colour(value: Color, format: int) -> Color:
 	return encoded
 
 
-func sample_colour(stored: Color, format: int) -> Color:
-	return stored.srgb_to_linear() if format == SRGB else stored
+func sample_uploaded_input(texture: RID) -> Image:
+	# Identity only: same fullscreen UV and nearest/clamp sampler as TAA current.
+	# RGBA32F retains decoded precision until CPU tone/blend math and final store.
+	var output := format_outputs(FLOAT, FLOAT)
+	if not all_valid([texture] + output) or not draw(input_shader, [texture], output):
+		return null
+	return read_formatted(output[0], FLOAT)
+
+
+func sample_expected_history(value: Color, format: int) -> Image:
+	# Decode independently predicted attachment bytes, NEVER a TAA output RID.
+	# Fill the stored format directly: no HALF intermediate or upload re-encode.
+	var stored: Image
+	if format == HALF:
+		stored = image(SIZE, value)
+	else:
+		var pixel := encoded_pixel(store_colour(value, format)).get_data()
+		var bytes := PackedByteArray()
+		for index in range(SIZE.x * SIZE.y):
+			bytes.append_array(pixel)
+		stored = Image.create_from_data(SIZE.x, SIZE.y, false, Image.FORMAT_RGBA8, bytes)
+	return sample_uploaded_input(create_uploaded_texture(stored, format))
 
 
 func create_formatted_texture(input: Image, format: int) -> RID:
+	return create_uploaded_texture(encode_image(input, format), format)
+
+
+func create_uploaded_texture(input: Image, format: int) -> RID:
 	var description := RDTextureFormat.new()
 	description.width = input.get_width()
 	description.height = input.get_height()
@@ -179,7 +232,7 @@ func create_formatted_texture(input: Image, format: int) -> RID:
 	if not rd.texture_is_format_supported_for_usage(format, description.usage_bits):
 		push_error("TAA unsupported sampling/MRT/readback format " + format_name(format))
 		return RID()
-	var bytes: Array[PackedByteArray] = [encode_image(input, format).get_data()]
+	var bytes: Array[PackedByteArray] = [input.get_data()]
 	var texture := rd.texture_create(description, RDTextureView.new(), bytes)
 	textures.append(texture)
 	if not texture.is_valid():
@@ -189,13 +242,16 @@ func create_formatted_texture(input: Image, format: int) -> RID:
 
 func read_formatted(texture: RID, format: int) -> Image:
 	var bytes := rd.texture_get_data(texture, 0)
-	var stride := 8 if format == HALF else 4
+	var stride := 16 if format == FLOAT else (8 if format == HALF else 4)
 	if bytes.size() != SIZE.x * SIZE.y * stride:
 		push_error("TAA format readback size mismatch " + format_name(format))
 		return null
-	return Image.create_from_data(
-		SIZE.x, SIZE.y, false, Image.FORMAT_RGBAH if format == HALF else Image.FORMAT_RGBA8, bytes
+	var image_format := (
+		Image.FORMAT_RGBAF
+		if format == FLOAT
+		else (Image.FORMAT_RGBAH if format == HALF else Image.FORMAT_RGBA8)
 	)
+	return Image.create_from_data(SIZE.x, SIZE.y, false, image_format, bytes)
 
 
 func compare_formatted(actual: Image, expected: Image, format: int, label: String) -> void:
@@ -300,22 +356,38 @@ func draw_pair(
 
 func check_stores(
 	output: Array[RID],
-	current: Image,
+	current: RID,
 	reset: bool,
 	tonemap: bool,
 	confidence: float,
 	output_format: int,
 	history_format: int,
 	label: String
-) -> void:
+) -> Image:
 	var resolved := read_formatted(output[0], output_format)
 	var history := read_formatted(output[1], history_format)
-	if resolved == null or history == null:
-		return
-	var source := encode_image(current, output_format)
+	var source := read_formatted(current, output_format)
+	var decoded := sample_uploaded_input(current)
+	if resolved == null or history == null or source == null or decoded == null:
+		return null
+	if reset and output_format == SRGB:
+		var bytes := source.get_data()
+		var offset := (1 + SIZE.x) * 4
+		var measured := decoded.get_pixel(1, 1)
+		var ideal := source.get_pixel(1, 1).srgb_to_linear()
+		print(
+			"TAA_INPUT_BOUNDARY ",
+			label,
+			" pixel=(1,1) uploaded_rgb_bytes=",
+			[bytes[offset], bytes[offset + 1], bytes[offset + 2]],
+			(
+				" decoded_current_f32=(%.9f,%.9f,%.9f) CPU_ideal=(%.9f,%.9f,%.9f)"
+				% [measured.r, measured.g, measured.b, ideal.r, ideal.g, ideal.b]
+			)
+		)
 	for y in range(SIZE.y):
 		for x in range(SIZE.x):
-			var original := sample_colour(source.get_pixel(x, y), output_format)
+			var original := decoded.get_pixel(x, y)
 			check_value(
 				resolved.get_pixel(x, y).a,
 				source.get_pixel(x, y).a,
@@ -340,6 +412,7 @@ func check_stores(
 				check_stored(
 					history.get_pixel(x, y), wanted, history_format, label + " reset history"
 				)
+	return decoded
 
 
 func map_colour(value: Color) -> Color:
@@ -399,9 +472,9 @@ func test_formats(
 				else store_colour(Color(0, 0, 0, initial_confidence), history_format).a + 10.0
 			)
 		)
-		check_stores(
+		var decoded := check_stores(
 			output,
-			current,
+			inputs[0],
 			reset or kind == "offscreen",
 			tonemap,
 			confidence,
@@ -410,13 +483,12 @@ func test_formats(
 			label
 		)
 		if not reset and kind in ["mixed-low", "mixed-high", "opaque"]:
-			var history_colour := sample_colour(
-				source_colour(Color(0.25, 0.25, 0.25, initial_confidence), history_format),
-				history_format
-			)
-			var center := sample_colour(
-				source_colour(current.get_pixel(1, 1), output_format), output_format
-			)
+			var decoded_history := sample_uploaded_input(past)
+			if decoded == null or decoded_history == null:
+				release_textures()
+				return
+			var history_colour := decoded_history.get_pixel(1, 1)
+			var center := decoded.get_pixel(1, 1)
 			if tonemap:
 				center = map_colour(center)
 			var blend := clampf(1.0 / confidence, 0.015, 0.1)
@@ -467,7 +539,7 @@ func test_motion_adapter(
 	):
 		check_stores(
 			output,
-			current,
+			inputs[0],
 			reset,
 			tonemap,
 			1.0 / 0.015 if reset else 1.0,
@@ -509,27 +581,31 @@ func test_feedback(tonemap: bool, output_format: int, history_format: int) -> vo
 			label
 		):
 			break
-		var center := sample_colour(
-			source_colour(current.get_pixel(1, 1), output_format), output_format
+		var confidence := 1.0 / 0.015 if reset else expected_center.a + 10.0
+		var decoded := check_stores(
+			output, inputs[0], reset, tonemap, confidence, output_format, history_format, label
 		)
+		if decoded == null:
+			break
+		var center := decoded.get_pixel(1, 1)
 		if tonemap:
 			center = map_colour(center)
-		var confidence := 1.0 / 0.015 if reset else expected_center.a + 10.0
 		var next := (
 			center if reset else expected_center.lerp(center, clampf(1.0 / confidence, 0.015, 0.1))
 		)
 		next.a = confidence
-		check_stores(
-			output, current, reset, tonemap, confidence, output_format, history_format, label
-		)
 		check_stored(
 			read_formatted(output[1], history_format).get_pixel(1, 1),
 			next,
 			history_format,
 			label + " feedback center"
 		)
-		expected_center = sample_colour(store_colour(next, history_format), history_format)
-		# Independent GPU histories: no upload/readback between frames, same format.
+		if frame < 3:
+			var decoded_history := sample_expected_history(next, history_format)
+			if decoded_history == null:
+				break
+			expected_center = decoded_history.get_pixel(1, 1)
+		# Differential histories stay GPU-resident; CPU goldens decode only predicted bytes.
 		past = output[1]
 		oracle_past = oracle[1]
 	release_textures()
@@ -541,7 +617,7 @@ func finish() -> void:
 	finished = true
 	if rd != null:
 		release_textures()
-		for shader in raster_shaders + [production_shader, motion_shader]:
+		for shader in raster_shaders + [production_shader, motion_shader, input_shader]:
 			if shader.is_valid():
 				rd.free_rid(shader)
 		for sampler in [nearest, linear]:
