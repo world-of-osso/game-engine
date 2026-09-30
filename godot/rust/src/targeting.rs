@@ -543,7 +543,11 @@ impl GameClient {
                 let mut state = player_frame_state(unit, self.in_rest_area);
                 let resource = player_class_resource(unit, spec);
                 let now = self.targeting.started.elapsed().as_secs_f64();
-                state.class_bar = self.targeting.class_bar.update(resource.as_ref(), now);
+                state.class_bar = self.targeting.class_bar.update_received(
+                    unit.server_id,
+                    resource.as_ref(),
+                    now,
+                );
                 state
             });
         let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());

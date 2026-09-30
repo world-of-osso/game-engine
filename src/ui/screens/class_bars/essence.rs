@@ -289,6 +289,7 @@ const FILLING_TIME: f32 = 5.0;
 struct Point {
     visual: PointVisual,
     shown: [bool; 5],
+    fill_speed: f32,
 }
 
 const FRAMES: [Range<usize>; 5] = [FILLING, FILL_DONE, EMPTY, FULL, DEPLETING];
@@ -298,6 +299,7 @@ impl Point {
         Self {
             visual: PointVisual::new(&TEMPLATE),
             shown: [false; 5],
+            fill_speed: 0.0,
         }
     }
 
@@ -331,6 +333,7 @@ impl Point {
 
     /// `EssencePointButtonMixin:AnimIn(speed, elapsedPortion)`.
     fn anim_in(&mut self, speed: f32, portion: f32, now: f64) {
+        self.fill_speed = speed;
         self.set_frame(0, true, now);
         self.visual
             .play(FILLING_ANIM, now, portion * FILLING_TIME, speed);
@@ -409,8 +412,8 @@ impl BarLogic for Bar {
             let filling = point.is_filling() || point.shown[3];
             let outdated =
                 filling && (portion - point.visual.progress(FILLING_ANIM, now)).abs() > 0.1;
-            if !filling || outdated {
-                let speed = FILLING_TIME * rate;
+            let speed = FILLING_TIME * rate;
+            if !filling || outdated || point.fill_speed != speed {
                 if !filling {
                     point.visual.stop(FILLING_ANIM, now);
                     point.visual.stop(CIRCLE_ANIM, now);
