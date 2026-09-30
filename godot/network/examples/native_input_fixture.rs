@@ -25,11 +25,11 @@ use shared::{
     },
     protocol::{
         ActionBarSnapshot, ActionRef, AuthChannel, BagContents, CharacterListEntry,
-        CloseInteraction, CombatChannel, CombatEvent, CombatEventType, EnterWorldResponse,
-        InteractNpc, InteractionChannel, InteractionKind, InteractionOpened, InventoryChannel,
-        InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginRequest, LoginResponse,
-        MerchantChannel, NpcFlags, NpcRole, PlayerInput, SelectCharacter, SpellCastIntent,
-        TalentChannel, TerrainChannel, VendorInventory, VendorItem,
+        CloseInteraction, EnterWorldResponse, InteractNpc, InteractionChannel, InteractionKind,
+        InteractionOpened, InventoryChannel, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
+        LoginRequest, LoginResponse, MerchantChannel, NpcFlags, NpcRole, PlayerInput,
+        SelectCharacter, SpellCastIntent, TalentChannel, TerrainChannel, VendorInventory,
+        VendorItem,
     },
 };
 
