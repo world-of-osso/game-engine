@@ -204,9 +204,13 @@ func click_slider(client: Node, name: String, fraction: float) -> bool:
 	var slider := menu.find_child(name, true, false) as Control if menu != null else null
 	if slider == null or not slider.is_visible_in_tree():
 		return reject("Authored camera slider absent/hidden: " + name)
-	# Same physical click geometry as world_sound_flow; no readback calibration.
+	# Intermediate clicks retain world_sound_flow geometry; no readback calibration.
 	var rect := slider.get_global_rect()
 	var point := rect.position + Vector2(rect.size.x * fraction, rect.size.y * 0.5)
+	# The right edge is outside Control's hitbox. Capture inside, then drag
+	# past the edge so the authored slider_percent clamps to its exact maximum.
+	if fraction == 1.0:
+		point = rect.get_center()
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.button_index = MOUSE_BUTTON_LEFT
@@ -215,6 +219,16 @@ func click_slider(client: Node, name: String, fraction: float) -> bool:
 		event.pressed = pressed
 		fixture.root.push_input(event, true)
 		await fixture.process_frame
+		if fraction == 1.0 and pressed:
+			var end := Vector2(rect.end.x + 1.0, point.y)
+			var motion := InputEventMouseMotion.new()
+			motion.position = end
+			motion.global_position = end
+			motion.relative = end - point
+			motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+			fixture.root.push_input(motion, true)
+			await fixture.process_frame
+			point = end
 	return true
 
 func expect_saved_number(field: String, expected: float, tolerance: float) -> bool:
