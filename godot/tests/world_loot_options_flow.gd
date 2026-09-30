@@ -230,7 +230,7 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 		await process_frame
 		var saved := FileAccess.get_file_as_string(config + "/world-of-osso/options_settings.ron")
 		var expression := RegEx.new()
-		if expression.compile("auto_loot\\s*:\\s*" + ("true" if enabled else "false")) != OK:
+		if expression.compile("autoLoot\\s*:\\s*" + ("true" if enabled else "false")) != OK:
 			fail("Invalid canonical Auto Loot persistence oracle")
 			return false
 		if expression.search(saved) != null:
