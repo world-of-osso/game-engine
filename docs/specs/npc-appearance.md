@@ -26,7 +26,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 - `src/game/networking/npc_gear.rs` — `NpcGear`, `sync_npc_equipment` (model `Equipment` with `slot_attachments`), `sync_npc_pose_animation` (`IdleAnim`).
 - `godot/rust/src/world_models.rs` (Godot) — creature visual keyed by display and virtual items; resolves display armor through `NpcAppearances::prepare` (geosets, hidden groups, item models) and virtual items to models with their sheath attachment; `place_virtual_items` moves them on a sheath change.
 - `godot/rust/src/assets/creature.rs`, `assets/equipment.rs` (Godot) — attach armor and virtual item models (`attach_each_equipment`, a failed item is reported, others kept), `place_equipment` (reparent to the attachment, hidden for none).
-- `godot/rust/src/world.rs` (Godot) — `UnitSnapshot.unit_pose` → held animation; `creature_animation_id` precedence: death, Walk/Run while moving, else the pose's animation, else Stand; crossfaded via `update_locomotion`.
+- `godot/rust/src/world.rs` (Godot) — replicated `UnitPose` → held animation; `creature_animation_id` precedence: death, Walk/Run while moving, else the pose's animation, else Stand; crossfaded via `update_locomotion`.
 - `src/rendering/character/npc_appearance.rs` — request processing, full-ID selection, compositing and isolated per-mesh application.
 - `src/game/networking/npc.rs` — request creation after M2 spawning and update-system registration.
 - `src/rendering/character/character_customization.rs` — shared geoset visibility and override rules.

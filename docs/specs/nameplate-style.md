@@ -57,7 +57,7 @@ Retail decides plate visibility in the engine from CVars; the default UI only ex
 
 - `src/rendering/ui/nameplate_visibility_data.rs` — engine-free CVar defaults and the Retail visibility/alpha rules, shared by both clients.
 - `godot/rust/src/nameplates.rs` — Godot plates: rule inputs from snapshots, occlusion ray, CanvasLayer nodes, `nameplate_state()`/`nameplate_rules(id)` automation, `NameplateProbe`.
-- `godot/network/src/lib.rs` — `UnitSnapshot` carries `faction_template`, `unit_flags`, `in_combat`.
+- `godot/rust/src/replicated.rs` — `faction_template`, `unit_flags`, `in_combat` from the host `Replica`.
 
 ## Tests asserting this spec
 
