@@ -19,7 +19,7 @@ const INITIAL_COUNT: u32 = 3;
 const INITIAL_MONEY: u64 = 1_250;
 const LOOT_MONEY: u64 = 10_502;
 
-fn candle_stack(count: u32) -> ItemStack {
+pub(super) fn candle_stack(count: u32) -> ItemStack {
     ItemStack {
         item_guid: 755_001,
         item_id: 755,
@@ -53,7 +53,7 @@ fn receive(
     }
 }
 
-fn spawn_corpse(app: &mut App) -> u64 {
+pub(super) fn spawn_corpse(app: &mut App) -> u64 {
     app.world_mut()
         .spawn((
             Npc {
@@ -77,7 +77,7 @@ fn spawn_corpse(app: &mut App) -> u64 {
         .to_bits()
 }
 
-fn slots() -> Vec<LootSlot> {
+pub(super) fn slots() -> Vec<LootSlot> {
     vec![
         LootSlot {
             slot: 0,
