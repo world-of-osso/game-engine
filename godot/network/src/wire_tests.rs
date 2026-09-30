@@ -247,11 +247,11 @@ fn position_x(unit: Unit) -> Option<f32> {
 
 #[test]
 fn native_bridge_reports_protocol_rejection_instead_of_connecting() {
-    use lightyear::prelude::AppComponentExt;
+    use shared::protocol::ProtocolRegistrationExt;
     // The server replicates one component more than the client, like a component added to
     // `shared` after the client was built.
     let (mut server, address) = start_fixture_server_with(|app| {
-        app.component::<shared::components::VerticalVelocity>()
+        app.protocol_component::<shared::components::VerticalVelocity>()
             .replicate();
     });
     let mut bridge = NetworkBridge::connect(address, 8200).expect("start fixture bridge");
