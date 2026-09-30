@@ -99,20 +99,25 @@ fn read_asset(path: &GString) -> Result<Vec<u8>, String> {
 }
 
 pub(crate) fn read_model(path: &GString) -> Result<m2::Model, String> {
-    let model = read_asset(path)?;
-    let base = path.to_string();
+    read_model_file(Path::new(&global_path(path)))
+}
+
+/// Parse the M2 at `model_path` with its `{stem}00.skin`, optional `{stem}.skel` and
+/// external `.anim` files; no engine calls, so a worker thread can run it.
+pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
+    let read = |path: &Path| {
+        fs::read(path).map_err(|err| format!("Cannot read {}: {err}", path.display()))
+    };
+    let model = read(model_path)?;
+    let base = model_path.to_string_lossy();
     let stem = base.strip_suffix(".m2").ok_or("Expected .m2 path")?;
-    let skin_path = format!("{stem}00.skin");
-    let skin = read_asset(&GString::from(skin_path.as_str()))?;
-    let skel_path_string = format!("{stem}.skel");
-    let skel_path = GString::from(skel_path_string.as_str());
-    let skeleton = if Path::new(&global_path(&skel_path)).exists() {
-        Some(read_asset(&skel_path)?)
+    let skin = read(Path::new(&format!("{stem}00.skin")))?;
+    let skel_path = format!("{stem}.skel");
+    let skeleton = if Path::new(&skel_path).exists() {
+        Some(read(Path::new(&skel_path))?)
     } else {
         None
     };
-    let model_path = global_path(path);
-    let model_path = Path::new(&model_path);
     let resolver = model_asset_resolver(model_path)?;
     m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), |fdid| {
         read_animation_asset(model_path, fdid, &resolver)

@@ -3,6 +3,7 @@ pub mod adt;
 #[path = "../../../src/area_zone_data.rs"]
 pub mod area_zone_data;
 pub mod asset;
+pub mod asset_loader;
 pub mod blp;
 #[path = "../../../src/camera_control_data.rs"]
 pub mod camera_control_data;
