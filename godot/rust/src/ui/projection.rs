@@ -533,11 +533,11 @@ impl UiProjection {
         } else {
             rect.width
         };
-        let maximum_height = if frame.height == Dimension::Auto {
-            -1.0
-        } else {
-            rect.height
-        };
+        let fixed_rectangle = frame.width != Dimension::Auto && frame.height != Dimension::Auto;
+        let fit_multiline = fixed_rectangle && data.text.contains('\n');
+        // A height cap hides single-line captions whose font metrics exceed their
+        // authored height; only cap lines whose spacing we fit into that height.
+        let maximum_height = if fit_multiline { rect.height } else { -1.0 };
         node.set_custom_maximum_size(Vector2::new(maximum_width, maximum_height));
         // Clear our previous fit before reading the original themed spacing.
         node.remove_theme_constant_override("line_spacing");
@@ -553,8 +553,7 @@ impl UiProjection {
         };
         self.style_label(&mut node, &text)?;
         node.set_autowrap_mode(godot::classes::text_server::AutowrapMode::WORD);
-        let fixed_rectangle = frame.width != Dimension::Auto && frame.height != Dimension::Auto;
-        if fixed_rectangle && data.text.contains('\n') {
+        if fit_multiline {
             fit_multiline_label_spacing(&mut node, data, rect.height)?;
         }
         // Styling can raise Control's minimum size before tighter spacing lowers it.
