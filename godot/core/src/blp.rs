@@ -51,15 +51,30 @@ fn decode_bc5(bytes: &[u8]) -> Result<Option<RgbaImage>, String> {
     }
     let word = |offset: usize| u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
     let (width, height) = (word(12), word(16));
+    if width == 0 || height == 0 {
+        return Err(format!(
+            "BC5 BLP dimensions must be nonzero, got {width}x{height}"
+        ));
+    }
+    let pixel_bytes = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|texels| texels.checked_mul(4))
+        .filter(|&size| size <= isize::MAX as usize)
+        .ok_or_else(|| format!("BC5 BLP {width}x{height} RGBA size overflows"))?;
+    let needed = (width.div_ceil(4) as usize)
+        .checked_mul(height.div_ceil(4) as usize)
+        .and_then(|blocks| blocks.checked_mul(16))
+        .ok_or_else(|| format!("BC5 BLP {width}x{height} block size overflows"))?;
     let (offset, size) = (word(20) as usize, word(84) as usize);
-    let needed = width.div_ceil(4) as usize * height.div_ceil(4) as usize * 16;
-    let blocks = bytes
-        .get(offset..offset + size)
+    let blocks = offset
+        .checked_add(size)
+        .filter(|_| offset >= HEADER)
+        .and_then(|end| bytes.get(offset..end))
         .filter(|blocks| blocks.len() >= needed)
         .ok_or_else(|| {
             format!("BC5 BLP {width}x{height} mip 0 needs {needed} bytes at {offset}")
         })?;
-    let mut pixels = vec![0; (width * height * 4) as usize];
+    let mut pixels = vec![0; pixel_bytes];
     texpresso::Format::Bc5.decompress(blocks, width as usize, height as usize, &mut pixels);
     Ok(Some(RgbaImage {
         pixels,
