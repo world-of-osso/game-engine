@@ -20,10 +20,10 @@ pub struct RaceInfo {
 
 pub const FULL_ICON: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
 /// Atlas 897 (`UiTextureAtlas`), the Retail character-creation race icons.
-const RACE_ICON_ATLAS: u32 = 1_662_186;
+pub const RACE_ICON_ATLAS: u32 = 1_662_186;
 
 /// UiTextureAtlasMember CommittedLeft/Right/Top/Bottom in atlas 897's 2048×1024 pixels.
-const fn race_atlas_crop(left: u32, right: u32, top: u32, bottom: u32) -> [f32; 4] {
+pub const fn race_atlas_crop(left: u32, right: u32, top: u32, bottom: u32) -> [f32; 4] {
     [
         left as f32 / 2048.0,
         right as f32 / 2048.0,

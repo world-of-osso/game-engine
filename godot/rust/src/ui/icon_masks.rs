@@ -22,7 +22,7 @@ pub struct IconMasks {
 }
 
 impl IconMasks {
-    /// Swap every `Race_*_Icon` / `Class_*_Icon` FDID source for its masked image.
+    /// Swap every `Race_*_Icon` / `Class_*_Icon` / `Form_*_Icon` FDID source for its masked image.
     /// Failures never fall back to the unmasked square icon.
     pub fn apply(&mut self, registry: &mut FrameRegistry) {
         let pending: Vec<_> = registry
@@ -30,7 +30,9 @@ impl IconMasks {
             .filter_map(|frame| {
                 let name = frame.name.as_deref()?;
                 if !name.ends_with("_Icon")
-                    || !(name.starts_with("Race_") || name.starts_with("Class_"))
+                    || !(name.starts_with("Race_")
+                        || name.starts_with("Class_")
+                        || name.starts_with("Form_"))
                 {
                     return None;
                 }

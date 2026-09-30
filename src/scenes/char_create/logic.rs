@@ -5,7 +5,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use shared::components::CharacterAppearance;
+use shared::components::{CharacterAppearance, FormAppearance};
 use shared::protocol::CreateCharacter;
 
 use super::deps;
@@ -27,6 +27,14 @@ pub use name_catalog::NameCatalog;
 
 const MALE: u8 = 0;
 const FEMALE: u8 = 1;
+/// ChrRaces 75 "Visage": the Dracthyr altered form, customized with its own models
+/// (ChrModel 127/128) and options.
+pub const VISAGE_RACE: u8 = 75;
+
+/// Dracthyr (52 Alliance, 70 Horde) create a visage form beside the dragon form.
+pub fn has_visage_form(race: u8) -> bool {
+    matches!(race, 52 | 70)
+}
 
 pub struct CharCreateState {
     pub selected_race: u8,
@@ -39,6 +47,21 @@ pub struct CharCreateState {
     pub open_dropdown: Option<u32>,
     pub selected_category: u32,
     pub camera_action: Option<CameraControl>,
+    /// The visage form is shown and edited. `appearance` always holds the form being
+    /// edited and `appearance.visage` the other one; `create_request` restores the
+    /// dragon form to `appearance` (Retail `SetViewingAlteredForm`).
+    pub visage_active: bool,
+}
+
+impl CharCreateState {
+    /// The race whose models and options the edited form uses.
+    pub fn customization_race(&self) -> u8 {
+        if self.visage_active {
+            VISAGE_RACE
+        } else {
+            self.selected_race
+        }
+    }
 }
 
 impl Default for CharCreateState {
@@ -54,6 +77,7 @@ impl Default for CharCreateState {
             open_dropdown: None,
             selected_category: 0,
             camera_action: None,
+            visage_active: false,
         }
     }
 }
@@ -73,7 +97,9 @@ pub fn initial_state(mode: Option<CharCreateMode>, db: &CustomizationDb) -> Char
     if let Some(mode) = mode {
         state.mode = mode;
     }
-    randomize_appearance_with_seed(&mut state, db, fresh_random_seed());
+    let seed = fresh_random_seed();
+    randomize_appearance_with_seed(&mut state, db, seed);
+    ensure_visage_form(&mut state, db, seed);
     state
 }
 
@@ -97,6 +123,7 @@ pub fn reduce(
             }
         }
         CharCreateAction::Randomize => randomize_appearance_with_seed(state, db, seed),
+        CharCreateAction::SetForm(visage) => set_visage_active(state, visage),
         // Naming leaves the appearance untouched, so it skips normalization.
         CharCreateAction::RandomizeName => return randomize_name(state, names, name, seed),
         CharCreateAction::NextMode => state.mode = CharCreateMode::Customize,
@@ -158,12 +185,74 @@ fn create_request(state: &mut CharCreateState, name: &str) -> Option<CreateChara
         return None;
     }
     state.error_text = None;
+    let mut appearance = state.appearance.clone();
+    if state.visage_active {
+        swap_forms(&mut appearance);
+    }
     Some(CreateCharacter {
         name: name.to_string(),
         race: state.selected_race,
         class: state.selected_class,
-        appearance: state.appearance.clone(),
+        appearance,
     })
+}
+
+/// Show and edit the visage (`true`) or dragon form of a Dracthyr.
+fn set_visage_active(state: &mut CharCreateState, visage: bool) {
+    if !has_visage_form(state.selected_race) || state.visage_active == visage {
+        return;
+    }
+    swap_forms(&mut state.appearance);
+    state.visage_active = visage;
+    state.open_dropdown = None;
+    state.selected_category = 0;
+}
+
+/// Exchange the edited form's selections with the stored other form's.
+fn swap_forms(appearance: &mut CharacterAppearance) {
+    let other = appearance.visage.take().unwrap_or_default();
+    let current = FormAppearance {
+        skin_color: appearance.skin_color,
+        face: appearance.face,
+        eye_color: appearance.eye_color,
+        hair_style: appearance.hair_style,
+        hair_color: appearance.hair_color,
+        facial_style: appearance.facial_style,
+        customization_choices: std::mem::take(&mut appearance.customization_choices),
+    };
+    *appearance = CharacterAppearance {
+        sex: appearance.sex,
+        skin_color: other.skin_color,
+        face: other.face,
+        eye_color: other.eye_color,
+        hair_style: other.hair_style,
+        hair_color: other.hair_color,
+        facial_style: other.facial_style,
+        customization_choices: other.customization_choices,
+        visage: Some(current),
+    };
+}
+
+/// A Dracthyr gets a random other form when it has none; any other race has none.
+fn ensure_visage_form(state: &mut CharCreateState, db: &CustomizationDb, seed: u64) {
+    if !has_visage_form(state.selected_race) {
+        state.appearance.visage = None;
+        state.visage_active = false;
+        return;
+    }
+    if state.appearance.visage.is_some() {
+        return;
+    }
+    let mut other = CharCreateState {
+        selected_race: state.selected_race,
+        selected_class: state.selected_class,
+        selected_sex: state.selected_sex,
+        visage_active: !state.visage_active,
+        ..CharCreateState::default()
+    };
+    randomize_appearance_with_seed(&mut other, db, seed.rotate_left(17));
+    swap_forms(&mut other.appearance);
+    state.appearance.visage = other.appearance.visage;
 }
 
 /// Server creation result: success leaves creation; failure shows the server error.
@@ -186,10 +275,13 @@ pub fn apply_race_change_with_seed(
     seed: u64,
 ) {
     state.selected_race = race_id;
+    state.visage_active = false;
+    state.appearance.visage = None;
     if !race_can_be_class(race_id, state.selected_class) {
         state.selected_class = first_available_class(race_id);
     }
     randomize_appearance_with_seed(state, db, seed);
+    ensure_visage_form(state, db, seed);
 }
 
 pub fn apply_class_change_with_seed(
@@ -201,6 +293,7 @@ pub fn apply_class_change_with_seed(
     if race_can_be_class(state.selected_race, class_id) {
         state.selected_class = class_id;
         randomize_appearance_with_seed(state, db, seed);
+        ensure_visage_form(state, db, seed);
     }
 }
 
@@ -210,7 +303,9 @@ pub fn apply_sex_toggle_with_seed(state: &mut CharCreateState, db: &Customizatio
     } else {
         MALE
     };
+    state.appearance.visage = None;
     randomize_appearance_with_seed(state, db, seed);
+    ensure_visage_form(state, db, seed);
 }
 
 /// Pick an authored name different from `current`; returns it for the name input.
