@@ -3,6 +3,11 @@ extends "res://tests/bloom_options_pixels.gd"
 ## Functional combination proof, not exact HDR temporal or full-scene parity.
 
 
+func expected_render_scale() -> float:
+	# Unlike the older combined bloom fixture, never force fixture MSAA here.
+	return 0.5 if OS.get_environment("TAA_TEST_HALF_SCALE") == "1" else 1.0
+
+
 func add_bloom_scene() -> void:
 	super.add_bloom_scene()
 	var camera := root.get_node("BloomFixtureCamera") as Camera3D
