@@ -5,10 +5,18 @@ extends SceneTree
 ##   GODOT_TEST_SERVER           server address (a private test server)
 ##   SPELL_ACCOUNT / SPELL_CHARACTER   account (password fbtest) and level-10 warrior
 ##   SPELL_SHOTS                 screenshot directory
-##   SPELL_WORLD_TIMEOUT_S       seconds to wait for world objects (default 300)
+##   SPELL_WORLD_TIMEOUT_S       seconds to wait for world objects (default 300; 0: no wait)
+##   SPELL_FRAME_SLACK_MS        paladin: longest Flash of Light frame allowed over the
+##                               median frame before the press, and longest spell-visual
+##                               share of a frame (default 50). With SPELL_WORLD_TIMEOUT_S=0
+##                               doodads still stream, so only the spell share is required
 ##   SPELL_SCENARIO=paladin      a level-10 paladin heals itself with Flash of Light, then
 ##                               casts Judgment and Hammer of Justice on the dummy; each
-##                               spell's SoundKits (precast, cast, missile, impact, aura)
+##                               spell's SoundKits (precast, cast, missile, impact, aura).
+##                               Flash of Light is a first use when its kit assets are
+##                               not cached (scripts/agent/first-use-data.py): no frame
+##                               from the press to SpellGo may stall past the slack, and
+##                               the precast must last the cast on the client clock
 ##   SPELL_SCENARIO=shout        a level-10 warrior casts Battle Shout: its kit SoundKit
 ##                               and the warrior's own battle-shout voice
 ##   SPELL_SCENARIO=mage         a level-10 mage casts Frostbolt instead: the precast
@@ -88,6 +96,10 @@ var seen_missile := false
 ## Longest frame since the Frostbolt press: timings land on frame boundaries, so each
 ## may trail its event by up to two frames (the crossing frame and update order).
 var longest_frame := 0.0
+## Wall-clock frame times (ms), oldest first, and each frame's spell-visual share.
+var frame_ms: Array[float] = []
+var spell_frame_ms: Array[float] = []
+var last_frame_usec := 0
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -95,9 +107,19 @@ func _initialize() -> void:
 
 func _process(delta: float) -> bool:
 	longest_frame = maxf(longest_frame, delta)
+	# Godot drops process time past 8 physics steps, so the delta hides a stall.
+	var now := Time.get_ticks_usec()
+	if last_frame_usec > 0:
+		frame_ms.append((now - last_frame_usec) / 1000.0)
+		if frame_ms.size() % 600 == 0 and client != null and is_instance_valid(client):
+			var recent := frame_ms.slice(-600)
+			recent.sort()
+			print("FIXTURE FRAMES median_ms=%.1f max_ms=%.1f world_objects_pending=%s" % [recent[300], recent[-1], client.account_state().world_objects.get("pending", -1) if client.account_state().has("world_objects") else -1])
+	last_frame_usec = now
 	if client == null or not is_instance_valid(client) or local_id == 0:
 		return false
 	var visuals: Dictionary = client.spell_visuals_state()
+	spell_frame_ms.append(visuals.get("frame_ms", 0.0))
 	for id in [local_id, target_id]:
 		if id == 0:
 			continue
@@ -145,9 +167,9 @@ func run_test() -> void:
 	print("FIXTURE SPELLS known=", spells().known, " bar=", spells().bar)
 	# Frame the scene once its doodads have streamed in.
 	# A busy machine spawns objects slower (their per-frame time budget); SPELL_WORLD_TIMEOUT_S
-	# extends the wait.
+	# extends the wait, and SPELL_WORLD_TIMEOUT_S=0 skips it.
 	var world_timeout := int(OS.get_environment("SPELL_WORLD_TIMEOUT_S")) if OS.get_environment("SPELL_WORLD_TIMEOUT_S") != "" else 300
-	if not await wait_until(func(): return client.account_state().world_objects.pending == 0, world_timeout * 1000, "world objects spawned"):
+	if world_timeout > 0 and not await wait_until(func(): return client.account_state().world_objects.pending == 0, world_timeout * 1000, "world objects spawned"):
 		print("FIXTURE WORLD_OBJECTS ", client.account_state().world_objects)
 		return
 	await wait_frames(60)
@@ -157,7 +179,7 @@ func run_test() -> void:
 		return
 	await capture("00-idle.png")
 	# Flash of Light before any target: it heals the paladin itself.
-	if paladin and not (await cast_and_hear(FLASH_OF_LIGHT, FLASH_OF_LIGHT_SOUNDS, 8000) and await loops_stopped(FLASH_OF_LIGHT, 3000)):
+	if paladin and not await first_use_cast():
 		return
 	if self_cast:
 		if await cast_self_sounds():
@@ -492,6 +514,57 @@ func cast_mage_sounds() -> bool:
 	return await loops_stopped(FROST_NOVA, 3000)
 
 ## Press `spell`'s bar key, then require its kits' SoundKits.
+## Flash of Light: its sounds and loops as `cast_and_hear`; from the press on, no
+## frame spends more than the slack on spell visuals, and (world settled) none is
+## longer than the median of the 120 frames before the press plus the slack; the precast
+## (first CastState to SpellGo, effects clock) lasts the replicated cast time left at
+## first sight, within 0.1 s plus two median frames.
+func first_use_timing_ok(frames_before: int, spell_frames_before: int, world_settled: bool) -> bool:
+	var slack := float(OS.get_environment("SPELL_FRAME_SLACK_MS")) if OS.get_environment("SPELL_FRAME_SLACK_MS") != "" else 50.0
+	var visuals: Dictionary = client.spell_visuals_state()
+	var seen: Array = visuals.casts.filter(func(c): return c.spell == FLASH_OF_LIGHT and c.unit == local_id)
+	var start = seen.filter(func(c): return not c.go)
+	var go = seen.filter(func(c): return c.go)
+	if start.is_empty() or go.is_empty():
+		fail("Flash of Light cast not seen: %s" % [seen])
+		return false
+	var precast: float = go[-1].at - start[-1].at
+	var expected: float = start[-1].duration - start[-1].elapsed
+	var before := frame_ms.slice(maxi(0, frames_before - 120), frames_before)
+	before.sort()
+	var baseline: float = before[before.size() / 2] if not before.is_empty() else 0.0
+	var worst := 0.0
+	for ms in frame_ms.slice(frames_before):
+		worst = maxf(worst, ms)
+	var spell_worst := 0.0
+	for ms in spell_frame_ms.slice(spell_frames_before):
+		spell_worst = maxf(spell_worst, ms)
+	var loop: Array = visuals.sounds.filter(func(s): return s.spell == FLASH_OF_LIGHT and s.looping)
+	print("FIXTURE FIRST_USE baseline_ms=%.1f worst_ms=%.1f spell_worst_ms=%.1f slack_ms=%.0f world_settled=%s precast=%.3f expected=%.3f loop_late=%s assets_pending=%d" % [baseline, worst, spell_worst, slack, world_settled, precast, expected, loop.map(func(s): return "%.3f" % s.get("late", -1.0)), visuals.get("assets_pending", -1)])
+	if spell_worst > slack:
+		fail("A Flash of Light frame spent %.1f ms on spell visuals (slack %.0f ms)" % [spell_worst, slack])
+		return false
+	if world_settled and worst > baseline + slack:
+		fail("A Flash of Light frame took %.1f ms, %.1f ms over the %.1f ms median" % [worst, worst - baseline, baseline])
+		return false
+	# Cast start and SpellGo are each seen on a frame boundary after they arrive.
+	var tolerance := 0.1 + 2.0 * baseline / 1000.0
+	if absf(precast - expected) > tolerance:
+		fail("The precast lasted %.3f s on the client clock, the cast %.3f s (tolerance %.3f s)" % [precast, expected, tolerance])
+		return false
+	return true
+
+func first_use_cast() -> bool:
+	# A frame's time is recorded in the next frame: let the idle capture's frame land
+	# before the window opens.
+	await wait_frames(30)
+	var frames_before := frame_ms.size()
+	var spell_frames_before := spell_frame_ms.size()
+	var world_settled: bool = client.account_state().world_objects.pending == 0
+	if not (await cast_and_hear(FLASH_OF_LIGHT, FLASH_OF_LIGHT_SOUNDS, 8000) and await loops_stopped(FLASH_OF_LIGHT, 3000)):
+		return false
+	return first_use_timing_ok(frames_before, spell_frames_before, world_settled)
+
 func cast_and_hear(spell: int, sound_kits: Array, timeout_ms: int) -> bool:
 	var slot: int = spells().bar.find(spell)
 	if slot < 0:
@@ -534,7 +607,7 @@ func loops_stopped(spell: int, timeout_ms: int) -> bool:
 	return true
 
 func print_sound(sound: Dictionary) -> void:
-	print("FIXTURE SPELL_SOUND spell=%d kit=%d sound_kit=%d fdid=%d unit=%d source=%s looping=%s at=%.3f stopped_at=%.3f" % [sound.spell, sound.kit, sound.sound_kit, sound.fdid, sound.unit, sound.source, sound.looping, sound.at, sound.stopped_at])
+	print("FIXTURE SPELL_SOUND spell=%d kit=%d sound_kit=%d fdid=%d unit=%d source=%s looping=%s at=%.3f late=%.3f stopped_at=%.3f" % [sound.spell, sound.kit, sound.sound_kit, sound.fdid, sound.unit, sound.source, sound.looping, sound.at, sound.get("late", -1.0), sound.stopped_at])
 
 ## When the client saw the Frostbolt cast start (first replicated CastState, with the
 ## server's elapsed time) and resolve (SpellGo), on the effects clock and wall clock.
