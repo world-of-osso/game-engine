@@ -356,7 +356,8 @@ fn launch_godot(
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = if matches!(
         screen,
-        StartupScreen::Sound
+        StartupScreen::Menu
+            | StartupScreen::Sound
             | StartupScreen::SoundClick
             | StartupScreen::SoundOutcome
             | StartupScreen::MerchantClick
@@ -392,7 +393,8 @@ fn launch_godot(
         .args(
             if matches!(
                 screen,
-                StartupScreen::Sound
+                StartupScreen::Menu
+                    | StartupScreen::Sound
                     | StartupScreen::SoundClick
                     | StartupScreen::SoundOutcome
                     | StartupScreen::MerchantClick
