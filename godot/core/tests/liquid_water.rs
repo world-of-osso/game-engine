@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use game_engine_core::adt::parse_root;
 use game_engine_core::asset::adt_format::adt_tex::parse_mh2o;
-use game_engine_core::liquid_data::{LiquidCatalog, WaterColorSource};
+use game_engine_core::liquid_data::{LiquidCatalog, LiquidShader, WaterColorSource};
 
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
@@ -13,33 +13,76 @@ fn catalog() -> LiquidCatalog {
     LiquidCatalog::read(&data_root().join("db2/12.1.0.69933")).expect("liquid DB2 CSVs")
 }
 
-/// One chunk-0 SLiquidInstance of 1x1 cells: LiquidObject 427, 4 heights then 4 depths.
-fn lvf0_payload() -> Vec<u8> {
+/// One chunk-0 SLiquidInstance of 1x1 cells with `liquid_object_or_lvf` and vertex bytes.
+fn mh2o_payload(liquid_object: u16, vertex_data: &[u8]) -> Vec<u8> {
     let header_size = 256 * 12;
     let mut payload = vec![0u8; header_size];
     payload[0..4].copy_from_slice(&(header_size as u32).to_le_bytes());
     payload[4..8].copy_from_slice(&1u32.to_le_bytes());
     let vertex_offset = header_size as u32 + 24;
     payload.extend_from_slice(&5u16.to_le_bytes());
-    payload.extend_from_slice(&427u16.to_le_bytes());
+    payload.extend_from_slice(&liquid_object.to_le_bytes());
     payload.extend_from_slice(&10.0f32.to_le_bytes());
     payload.extend_from_slice(&11.0f32.to_le_bytes());
     payload.extend_from_slice(&[0, 0, 1, 1]);
     payload.extend_from_slice(&0u32.to_le_bytes());
     payload.extend_from_slice(&vertex_offset.to_le_bytes());
-    for height in [10.0f32, 10.25, 10.5, 11.0] {
-        payload.extend_from_slice(&height.to_le_bytes());
-    }
-    payload.extend_from_slice(&[0, 40, 128, 255]);
+    payload.extend_from_slice(vertex_data);
     payload
 }
 
+const HEIGHTS: [f32; 4] = [10.0, 10.25, 10.5, 11.0];
+
+fn heights() -> Vec<u8> {
+    HEIGHTS
+        .iter()
+        .flat_map(|height| height.to_le_bytes())
+        .collect()
+}
+
+/// wowdev MH2O uvmap entries (u16 u, u16 v) for the four vertices.
+fn uvs() -> Vec<u8> {
+    [(0u16, 255u16), (51, 102), (255, 0), (128, 64)]
+        .iter()
+        .flat_map(|(u, v)| [u.to_le_bytes(), v.to_le_bytes()].concat())
+        .collect()
+}
+
+const DEPTHS: [u8; 4] = [0, 40, 128, 255];
+
 #[test]
 fn lvf0_layer_keeps_authored_depths_after_heights() {
-    let water = parse_mh2o(&lvf0_payload()).expect("LVF 0 MH2O");
+    let water =
+        parse_mh2o(&mh2o_payload(427, &[heights(), DEPTHS.to_vec()].concat())).expect("LVF 0 MH2O");
     let layer = &water.chunks[0].layers[0];
-    assert_eq!(layer.vertex_heights, [10.0, 10.25, 10.5, 11.0]);
-    assert_eq!(layer.vertex_depths, [0, 40, 128, 255]);
+    assert_eq!(layer.vertex_heights, HEIGHTS);
+    assert_eq!(layer.vertex_depths, DEPTHS);
+}
+
+const PARSED_UVS: [[f32; 2]; 4] = [
+    [0.0, 1.0],
+    [0.2, 0.4],
+    [1.0, 0.0],
+    [128.0 / 255.0, 64.0 / 255.0],
+];
+
+#[test]
+fn lvf1_layer_reads_height_array_then_uv_array() {
+    let water = parse_mh2o(&mh2o_payload(1, &[heights(), uvs()].concat())).expect("LVF 1 MH2O");
+    let layer = &water.chunks[0].layers[0];
+    assert_eq!(layer.vertex_heights, HEIGHTS);
+    assert_eq!(layer.vertex_uvs, PARSED_UVS);
+    assert!(layer.vertex_depths.is_empty());
+}
+
+#[test]
+fn lvf3_layer_reads_height_uv_and_depth_arrays() {
+    let bytes = [heights(), uvs(), DEPTHS.to_vec()].concat();
+    let water = parse_mh2o(&mh2o_payload(3, &bytes)).expect("LVF 3 MH2O");
+    let layer = &water.chunks[0].layers[0];
+    assert_eq!(layer.vertex_heights, HEIGHTS);
+    assert_eq!(layer.vertex_uvs, PARSED_UVS);
+    assert_eq!(layer.vertex_depths, DEPTHS);
 }
 
 #[test]
@@ -74,12 +117,14 @@ fn northshire_stream_layers_carry_varying_vertex_depth() {
 
 #[test]
 fn liquid_object_427_is_slow_river_water_with_bump_and_foam_slots() {
-    let material = catalog().water_material(5, 427).expect("LiquidObject 427");
+    let material = catalog().liquid_material(5, 427).expect("LiquidObject 427");
     assert_eq!(material.liquid_type, 5);
     assert_eq!((material.material_id, material.lvf), (1, 0));
     assert_eq!(material.color_source, WaterColorSource::River);
-    assert_eq!(material.bump_frames, [463_849]);
-    assert_eq!(material.foam_frames, [317_230]);
+    assert_eq!(material.shader, LiquidShader::Water);
+    assert_eq!(material.texture_slots[1], [0]);
+    assert_eq!(material.texture_slots[2], [463_849]);
+    assert_eq!(material.texture_slots[3], [317_230]);
     assert_eq!((material.flow_direction, material.flow_speed), (0.0, 0.0));
     assert_eq!(
         material.floats[..16],
@@ -97,15 +142,32 @@ fn liquid_object_427_is_slow_river_water_with_bump_and_foam_slots() {
 #[test]
 fn liquid_type_below_object_range_resolves_directly_and_ocean_uses_ocean_colours() {
     let catalog = catalog();
-    let ocean = catalog.water_material(2, 2).expect("Ocean");
+    let ocean = catalog.liquid_material(2, 2).expect("Ocean");
     assert_eq!(ocean.liquid_type, 2);
     assert_eq!(ocean.color_source, WaterColorSource::Ocean);
-    let shallow = catalog.water_material(301, 0).expect("Shallow Water");
+    let shallow = catalog.liquid_material(301, 0).expect("Shallow Water");
     assert_eq!(shallow.wave_periods, [1.0, 0.4]);
 }
 
 #[test]
 fn unknown_liquid_object_is_an_error() {
-    let error = catalog().water_material(5, 65_000).unwrap_err();
+    let error = catalog().liquid_material(5, 65_000).unwrap_err();
     assert_eq!(error, "LiquidObject 65000 has no DB2 row");
+}
+
+#[test]
+fn magma_and_slime_use_the_magma_shader_with_lvf1_layers_and_int2_base_colour() {
+    let catalog = catalog();
+    let magma = catalog.liquid_material(3, 3).expect("Magma");
+    assert_eq!(magma.shader, LiquidShader::Magma);
+    assert_eq!((magma.material_id, magma.lvf), (2, 1));
+    assert_eq!(magma.texture_slots[0].len(), 30);
+    assert_eq!(
+        magma.texture_slots[1..4],
+        [vec![340_156], vec![340_157], vec![340_158]]
+    );
+    assert_eq!(magma.ints[2], 0x00ff_6600);
+    let slime = catalog.liquid_material(4, 4).expect("Slime");
+    assert_eq!(slime.shader, LiquidShader::Magma);
+    assert_eq!(slime.texture_slots[1], [374_986]);
 }
