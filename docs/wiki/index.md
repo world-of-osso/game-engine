@@ -120,8 +120,8 @@ Root cause analyses and debug findings.
 - [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`)
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
 
-- [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Shared exports/tests 8 + 1, relay wire test 1 and root compile passed; runtime all four cases/inventory/error/cursor reaches LOOT_DONE, post-DONE RenderingServer-null exit 101 unresolved/deferred. Independent final pending.
-- [Native Options and loot money overflow](systems/godot-conversion.md#native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering) — Rendered RED: last HUD row 12 px outside panel; native money lines 51 px versus authored 38 px. Content-driven Options height and fixed multiline line-gap fixes implemented; main rendering pending, no GREEN claim.
+- [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Final `292a2fb2`/Depot `tt4c247nl1`: four cases, rejection/retry, bags 11/money 32756 and LOOT_DONE observed. Full exit 101 after DONE is fixture timeout, not historical RenderingServer-null; shutdown deferred, verifier 1314 pending, clean acceptance open.
+- [Native Options and loot money overflow](systems/godot-conversion.md#native-options-and-loot-money-overflow--bounded-main-rendering-final-gate-pending) — 42 main Options records at scales 1/0.75/1.25 without overflow; 93×38/font-12 money Label has three visible lines and contained paint/shadow; original captions main-inspected. Caption-2 RED corrected at `292a2fb2`; independent final pending.
 
 ## Reference
 
