@@ -31,7 +31,7 @@ References:
 
 - [x] Receive per-looter `CorpseLootable` and existing loot-window messages through the native transport/account host (bounded owned fixture).
 - [x] Right-click the actual corpse with authored Auto Loot and Shift inversion in four cases; empty corpse remains target-only.
-- [ ] Prove exact range boundaries and living-NPC behavior in native runtime (source-only evidence).
+- [ ] Prove exact range boundaries and living-NPC behavior in native runtime (test-only probes prepared; first Depot build and GPU run pending).
 - [x] Mount the shared authored LootFrame, dispatch slot/close actions, and apply matching removals, chat/error text and closure (bounded owned fixture, duplicate chat once).
 - [x] Preserve loot cursor/sparkle and authoritative inventory/currency updates without new protocol messages (bounded fixture: bags 11, money 32756).
 - [ ] Prove the native UI/network boundary with owned loopback fixtures and inspected rendering; Bevy proof above does not establish native parity.
@@ -39,6 +39,14 @@ References:
 Native integration reuses the authored frame and shared loot-state, card, placement and click policies. `LootChannel` traffic is relayed in channel order; auto collection remains server-owned. `InventoryDelta` and replicated `Gold` remain the bag/currency authorities. Native completion boxes require runtime proof, not merely compiled handlers. Bounded evidence includes shared exports/tests (8 + 1), ordered relay wire test (1 at `c6ae14bf`) and final source `292a2fb2`, Depot `tt4c247nl1` (`/tmp/claude/native-ui-caption-build.log`). Main's latest `/tmp/claude/native-ui-caption-run.log` reaches `LOOT_DONE` after Auto Loot false/true/true/false, InventoryFull rejection/retry, matching removals/closure and authoritative bags 11/money 32756. Its full exit is 101 AFTER DONE: `loot fixture timed out; model_ready=true, opens=4`, not the prior `af03660f` RenderingServer-null failure (retained historical evidence). Shutdown is unresolved and explicitly deferred; clean acceptance stays open. Independent `/tmp/claude/verify-native-ui-overflow-final.md` accepts the bounded functional gate: 42 category/scale records, 6,792 descendant observations with zero enclosure violations, money geometry and four loot cases. Saved current root check and scoped format gates pass. Process termination remains FAIL/deferred; no independent glyph-pixel oracle or full-conversion acceptance.
 
 Main records 42 Options checks (13 categories plus largest ActionBar at scales 1/0.75/1.25), no overflow failures; money Label 93×38, font 12, three visible lines, minimum height 35, paint/shadow inside card 46. Main inspected Items/stack 2/Poor captions in `data/diagnostics/native-ui-overflow-final/captures/`. Initial all-height caps hid caption 2 (`/tmp/claude/native-ui-visible-label-red.log`); `292a2fb2` bounds maximum width on all fixed Label axes and maximum height ONLY on spacing-fitted explicit multilines. No glyph clipping/font-size shrink. These literal boundaries do not establish full native parity or clean process completion. See [native evidence and root causes](../wiki/systems/godot-conversion.md#native-loot--implemented-proof-pending); commit IDs are provenance, not source-pinning gates.
+
+### Prepared native reach probes (not runtime proof)
+
+Test-only commits `76e5bd5c` / `6b1468e2` add `godot/network/examples/native_input_fixture/loot_range.rs` and `godot/tests/loot_reach_probe.gd` to the existing loot flow; production receiver behavior is unchanged. The policy reference remains `src/rendering/ui/target.rs:432` (`INTERACT_RANGE = 5`) and `interact_with_clicked_npc` at line 518: the `> 5` guard makes five-yard reach inclusive.
+
+Fresh authoritative NPCs exercise actual posed-mesh right-clicks: corpse at 5.1 yards must send no `LootUnit`; corpses at 4.9 and 5.0 must each send one manual `LootUnit`, open the authored frame and send one real close-button `LootRelease`, without slot collection or awards; friendly living NPC at 5.0 must send exactly one `InteractNpc` and no `LootUnit`. Strict phase counts reject unexpected requests. Fresh spawns avoid interpolation failing to land on the exact boundary. Observed player pose only arranges inputs; it does not calibrate expected reach.
+
+The existing four Auto Loot/Shift cases, inventory/currency and Options checks remain retained. Their full four-case bounded proof report remains valid for its original fields, not these added probes. First Depot build and GPU execution of the reach extension remain pending; no runtime proof or completion checkbox advances. Commit IDs are provenance only; source-hash pinning is not an acceptance gate.
 
 ## Tests asserting this spec
 
