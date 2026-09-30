@@ -8,6 +8,7 @@ pub(crate) mod state;
 pub(crate) mod streaming;
 mod textures;
 mod water;
+mod wmo_liquid;
 
 use std::fs;
 

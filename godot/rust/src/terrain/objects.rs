@@ -28,7 +28,7 @@ use crate::{
     },
     lighting::TerrainLight,
     particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
-    terrain::{scenery::SceneryDistance, streaming::StreamedTerrain},
+    terrain::{scenery::SceneryDistance, streaming::StreamedTerrain, wmo_liquid::WmoLiquids},
     wmo::{
         assets::{LitDoodad, NativeWmoAsset, wmo_fog_volume},
         doodad_light::bind_doodad_light,
@@ -268,6 +268,7 @@ pub(crate) struct TerrainObjects {
     wmos: Vec<CulledWmo>,
     models: HashMap<u32, ParsedModel>,
     light: Option<TerrainLight>,
+    liquids: WmoLiquids,
     failures: usize,
     /// `None` while the particle-effects graphics setting is off.
     particles: Option<ParticlePools>,
@@ -295,6 +296,7 @@ impl TerrainObjects {
             wmos: Vec::new(),
             models: HashMap::new(),
             light: None,
+            liquids: WmoLiquids::default(),
             failures: 0,
             particles: None,
         }
@@ -346,6 +348,9 @@ impl TerrainObjects {
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
             }
+        }
+        if let Err(error) = self.liquids.sample_clock(parent) {
+            godot_error!("{}: {error}", self.name);
         }
     }
 
@@ -612,7 +617,7 @@ impl TerrainObjects {
     }
 
     fn load_placed_wmo(
-        &self,
+        &mut self,
         placement: &WmoPlacement,
         tile: Tile,
         doodad_sets: &[u16],
@@ -626,6 +631,10 @@ impl TerrainObjects {
             doodad_sets,
             self.light.as_ref(),
         )?;
+        let liquid_errors =
+            self.liquids
+                .add(&asset, &mut wmo_node.node, &self.resolver, &self.data_root);
+        wmo_node.batch_errors.extend(liquid_errors);
         let model = &mut wmo_node.node;
         let position = placement_position(placement.position, tile.0, tile.1);
         let rotation = shared::ground::placement_rotation(placement.rotation);
@@ -751,6 +760,7 @@ impl TerrainObjects {
         if let Some(root) = &self.root {
             bind_visual_light(root, Some(light));
         }
+        self.liquids.update_lighting(light);
         self.light = Some(light.clone());
     }
 
@@ -767,6 +777,7 @@ impl TerrainObjects {
         self.wmos.clear();
         self.models.clear();
         self.light = None;
+        self.liquids = WmoLiquids::default();
         self.failures = 0;
         if let Some(pools) = &mut self.particles {
             pools.reset();
@@ -774,14 +785,15 @@ impl TerrainObjects {
     }
 }
 
-/// Batch meshes by group index, from their `Group{g}_Batch{i}` names.
+/// Batch and liquid meshes by group index, from their `Group{g}_Batch{i}` and
+/// `Group{g}_Liquid` names.
 fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
     let mut groups: HashMap<u16, Vec<Gd<Node3D>>> = HashMap::new();
     for child in wmo.get_children().iter_shared() {
         let name = child.get_name().to_string();
         let group = name
             .strip_prefix("Group")
-            .and_then(|rest| rest.split_once("_Batch"))
+            .and_then(|rest| rest.split_once('_'))
             .and_then(|(group, _)| group.parse().ok());
         if let (Some(group), Ok(batch)) = (group, child.try_cast::<Node3D>()) {
             groups.entry(group).or_default().push(batch);

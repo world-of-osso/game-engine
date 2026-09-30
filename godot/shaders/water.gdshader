@@ -57,6 +57,8 @@ uniform int fog_mode = 0;
 const float SPECULAR_POWER = 1.0;
 const float DEGREES = 0.017453292;
 
+// WMO liquids carry their texture coordinates (wmoGroupGeom.cpp:566-575).
+uniform bool mesh_uv = false;
 varying vec3 wow_position;
 varying float vertex_depth;
 
@@ -147,7 +149,7 @@ void fragment() {
 		waves = vec2(wave_offset(time, wave_speed, wave_periods.x), wave_offset(time, wave_speed, wave_periods.y));
 	}
 	vec4 v25 = vec4(mod(time, 10000.0) * 0.00031415926, f3 * waves.x, f4 * waves.y, f8);
-	vec2 uv = wow_position.xy * 0.06;
+	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;
 	vec4 v20 = vec4(scale0 * (uv / 32.0), scale1 * (-(uv + 0.5) / 32.0));
 	vec4 phase = vec4(4.0, 2.0, -1.0, -1.0) * v25.x + wow_position.xyxy;
 	float wobble_s = sin(phase.x);

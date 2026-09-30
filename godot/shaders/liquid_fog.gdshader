@@ -27,6 +27,8 @@ uniform int fog_mode = 0;
 
 const float DEGREES = 0.017453292;
 
+// WMO liquids carry their texture coordinates (wmoGroupGeom.cpp:566-575).
+uniform bool mesh_uv = false;
 varying vec3 wow_position;
 varying float vertex_depth;
 
@@ -98,7 +100,7 @@ void fragment() {
 
 	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp
 	// generateTexCoordsFromPos); two rotated/scaled layers scrolled along u by f9/f10 (v27).
-	vec2 uv = wow_position.xy * 0.06;
+	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;
 	vec2 uv_0 = rotate_scale(uv, f5, f3) + vec2(scroll_component(time, f9), 0.0);
 	vec2 uv_1 = rotate_scale(uv + 0.5, f5, f4) + vec2(scroll_component(time, f10), 0.0);
 	vec4 layer_0 = texture(texture_0, uv_0);  // v28

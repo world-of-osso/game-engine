@@ -200,8 +200,9 @@ impl NativeTerrainAssets {
         for layer in layers {
             let key = (layer.liquid_type, layer.liquid_object);
             if !materials.contains_key(&key) {
-                let material = match self.resolve_liquid_material(key) {
-                    Ok(params) => Ok(Arc::new(self.read_liquid_textures(params)?)),
+                let source = self.liquid_source();
+                let material = match source.resolve(key) {
+                    Ok(params) => Ok(Arc::new(source.read_textures(params)?)),
                     Err(error) => Err(error),
                 };
                 materials.insert(key, material);
@@ -226,83 +227,16 @@ impl NativeTerrainAssets {
     /// The liquid material of one MH2O `(liquid_type, liquid_object)`; texture read failures
     /// are errors of the whole tile, material resolution failures only of its layers.
     pub fn read_liquid_material(&self, key: (u16, u16)) -> Result<NativeLiquidMaterial, String> {
-        self.read_liquid_textures(self.resolve_liquid_material(key)?)
+        self.liquid_source().read_material(key)
     }
 
-    fn read_liquid_textures(&self, params: LiquidMaterial) -> Result<NativeLiquidMaterial, String> {
-        let mut slots: [Vec<LiquidFrame>; TEXTURE_SLOTS] = Default::default();
-        for &slot in params.shader.texture_slots() {
-            slots[slot] = self.read_liquid_frames(&params.texture_slots[slot])?;
+    fn liquid_source(&self) -> LiquidSource<'_> {
+        LiquidSource {
+            resolver: &self.resolver,
+            data_root: &self.data_root,
+            textures: &self.textures,
+            catalog: &self.liquids,
         }
-        let globals = params
-            .shader
-            .global_textures()
-            .iter()
-            .map(|&(name, fdid)| Ok((name, self.read_global_liquid_texture(fdid)?)))
-            .collect::<Result<_, String>>()?;
-        Ok(NativeLiquidMaterial {
-            params,
-            slots,
-            globals,
-        })
-    }
-
-    fn resolve_liquid_material(
-        &self,
-        (liquid_type, liquid_object): (u16, u16),
-    ) -> Result<LiquidMaterial, String> {
-        let catalog = self
-            .liquids
-            .get_or_init(|| LiquidCatalog::read(&self.data_root.join("db2/12.1.0.69933")))
-            .as_ref()
-            .map_err(Clone::clone)?;
-        catalog.liquid_material(liquid_type, liquid_object)
-    }
-
-    fn read_liquid_frames(&self, fdids: &[u32]) -> Result<Vec<LiquidFrame>, String> {
-        fdids
-            .iter()
-            .map(|&fdid| {
-                let image = (fdid != 0)
-                    .then(|| {
-                        self.textures
-                            .borrow_mut()
-                            .load_image(&self.resolver, &self.data_root, fdid)
-                    })
-                    .transpose()?;
-                Ok((fdid, image))
-            })
-            .collect()
-    }
-
-    /// The magma noise volume is raw RGBA slices, every other global a BLP.
-    fn read_global_liquid_texture(&self, fdid: u32) -> Result<Arc<blp::RgbaImage>, String> {
-        if fdid != MAGMA_NOISE_FDID {
-            return self
-                .textures
-                .borrow_mut()
-                .load_image(&self.resolver, &self.data_root, fdid);
-        }
-        let cache = self.data_root.join("textures").join(format!("{fdid}.blob"));
-        let path = self.resolver.ensure_cached(fdid, &cache).ok_or_else(|| {
-            format!(
-                "Local CASC noise volume FDID {fdid} unavailable at {}",
-                cache.display()
-            )
-        })?;
-        let pixels = read_bytes(&path)?;
-        let (width, height) = MAGMA_NOISE_SIZE;
-        if pixels.len() != (width * height * 4) as usize {
-            return Err(format!(
-                "Noise volume FDID {fdid} has {} bytes, expected {width}x{height} RGBA",
-                pixels.len()
-            ));
-        }
-        Ok(Arc::new(blp::RgbaImage {
-            pixels,
-            width,
-            height,
-        }))
     }
 
     fn classify_tile_surfaces(
@@ -495,6 +429,94 @@ impl SurfaceCatalog {
 
 fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
     fs::read(path).map_err(|error| format!("{}: {error}", path.display()))
+}
+
+/// Liquid materials read through one resolver: the terrain reader's for MH2O layers,
+/// the object spawner's for WMO group liquids.
+pub(crate) struct LiquidSource<'a> {
+    pub resolver: &'a CascListfileResolver,
+    pub data_root: &'a Path,
+    pub textures: &'a RefCell<TerrainTextureCache>,
+    pub catalog: &'a OnceLock<Result<LiquidCatalog, String>>,
+}
+
+impl LiquidSource<'_> {
+    pub fn read_material(&self, key: (u16, u16)) -> Result<NativeLiquidMaterial, String> {
+        self.read_textures(self.resolve(key)?)
+    }
+
+    fn read_textures(&self, params: LiquidMaterial) -> Result<NativeLiquidMaterial, String> {
+        let mut slots: [Vec<LiquidFrame>; TEXTURE_SLOTS] = Default::default();
+        for &slot in params.shader.texture_slots() {
+            slots[slot] = self.read_frames(&params.texture_slots[slot])?;
+        }
+        let globals = params
+            .shader
+            .global_textures()
+            .iter()
+            .map(|&(name, fdid)| Ok((name, self.read_global_texture(fdid)?)))
+            .collect::<Result<_, String>>()?;
+        Ok(NativeLiquidMaterial {
+            params,
+            slots,
+            globals,
+        })
+    }
+
+    fn resolve(&self, (liquid_type, liquid_object): (u16, u16)) -> Result<LiquidMaterial, String> {
+        let catalog = self
+            .catalog
+            .get_or_init(|| LiquidCatalog::read(&self.data_root.join("db2/12.1.0.69933")))
+            .as_ref()
+            .map_err(Clone::clone)?;
+        catalog.liquid_material(liquid_type, liquid_object)
+    }
+
+    fn read_frames(&self, fdids: &[u32]) -> Result<Vec<LiquidFrame>, String> {
+        fdids
+            .iter()
+            .map(|&fdid| {
+                let image = (fdid != 0)
+                    .then(|| {
+                        self.textures
+                            .borrow_mut()
+                            .load_image(self.resolver, self.data_root, fdid)
+                    })
+                    .transpose()?;
+                Ok((fdid, image))
+            })
+            .collect()
+    }
+
+    /// The magma noise volume is raw RGBA slices, every other global a BLP.
+    fn read_global_texture(&self, fdid: u32) -> Result<Arc<blp::RgbaImage>, String> {
+        if fdid != MAGMA_NOISE_FDID {
+            return self
+                .textures
+                .borrow_mut()
+                .load_image(self.resolver, self.data_root, fdid);
+        }
+        let cache = self.data_root.join("textures").join(format!("{fdid}.blob"));
+        let path = self.resolver.ensure_cached(fdid, &cache).ok_or_else(|| {
+            format!(
+                "Local CASC noise volume FDID {fdid} unavailable at {}",
+                cache.display()
+            )
+        })?;
+        let pixels = read_bytes(&path)?;
+        let (width, height) = MAGMA_NOISE_SIZE;
+        if pixels.len() != (width * height * 4) as usize {
+            return Err(format!(
+                "Noise volume FDID {fdid} has {} bytes, expected {width}x{height} RGBA",
+                pixels.len()
+            ));
+        }
+        Ok(Arc::new(blp::RgbaImage {
+            pixels,
+            width,
+            height,
+        }))
+    }
 }
 
 /// Repository `data/` plus the user's local-CASC resolver cache.
