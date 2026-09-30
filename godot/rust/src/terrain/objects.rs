@@ -3,16 +3,18 @@
 
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
-    path::PathBuf,
+    path::{Path, PathBuf},
+    sync::Arc,
     time::{Duration, Instant},
 };
 
 use game_engine_core::{
     adt::{DoodadPlacement, WmoPlacement},
     asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
+    asset_loader::{AssetLoader, Priority},
+    blp,
     campsite_object_data::{campsite_doodad_placement, doodad_position, placement_position},
-    m2,
-    wmo::WmoDoodadModel,
+    wmo::{WmoDoodad, WmoDoodadModel},
 };
 use glam::{Affine3A, Vec3};
 use godot::{classes::Node3D, prelude::*};
@@ -22,8 +24,11 @@ use crate::{
     animation::{WowAnimationPlayer, lod::DeferredClock},
     assets::{
         build_model,
-        creature::{cache_model_files, cache_model_textures, local_resolver},
-        read_model,
+        creature::{
+            CachedModel, cache_model_textures, decode_new_textures, load_model_files,
+            local_resolver,
+        },
+        material::insert_shared_texture,
         uv_animation::WowMaterialAnimation,
     },
     lighting::TerrainLight,
@@ -64,7 +69,7 @@ impl ObjectSelection for AllObjects {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 enum Pending {
     Doodad(Tile, usize),
     Wmo(Tile, usize),
@@ -74,8 +79,51 @@ enum Pending {
 
 struct ParsedModel {
     path: GString,
-    model: m2::Model,
+    model: Arc<CachedModel>,
     particles: Option<std::rc::Rc<ModelParticles>>,
+}
+
+/// A file set a worker loads for placements: an M2 model or a WMO root and its groups.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum ObjectAsset {
+    Model(u32),
+    Wmo(u32),
+}
+
+/// A worker's result: parsed files and the textures it decoded.
+enum LoadedAsset {
+    Model(Arc<CachedModel>, Vec<(u32, blp::GpuImage)>),
+    Wmo(Arc<NativeWmoAsset>, Vec<(u32, blp::GpuImage)>),
+}
+
+/// Two workers: one cold extraction does not hold up the next model.
+const WORKERS: usize = 2;
+
+/// Worker: extract and parse `asset` and decode the textures it draws with.
+fn load_asset(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    asset: ObjectAsset,
+) -> Result<LoadedAsset, String> {
+    match asset {
+        ObjectAsset::Model(fdid) => {
+            let cached = load_model_files(resolver, data_root, fdid)?;
+            let fdids = cache_model_textures(resolver, data_root, &[0; 3], &cached.model)?;
+            let textures = decode_new_textures(data_root, &fdids)?;
+            Ok(LoadedAsset::Model(cached, textures))
+        }
+        ObjectAsset::Wmo(fdid) => {
+            let asset = crate::wmo::assets::read_wmo(resolver, data_root, fdid)?;
+            let fdids = crate::wmo::scene::texture_fdids(&asset);
+            for &texture in &fdids {
+                let path = data_root.join("textures").join(format!("{texture}.blp"));
+                // A missing texture is reported when its material is built.
+                resolver.ensure_cached(texture, &path);
+            }
+            let textures = decode_new_textures(data_root, &fdids)?;
+            Ok(LoadedAsset::Wmo(Arc::new(asset), textures))
+        }
+    }
 }
 
 /// A built doodad node, its M2 header render box in engine axes, and its emitters.
@@ -89,6 +137,9 @@ struct BuiltDoodad {
 struct WmoDoodads {
     node: Gd<Node3D>,
     doodads: Vec<LitDoodad>,
+    /// Doodads not yet spawned or failed; they may finish out of order as their
+    /// models load.
+    remaining: usize,
     /// Index of the WMO in `TerrainObjects::wmos`.
     culled: usize,
 }
@@ -257,16 +308,29 @@ pub(crate) struct TerrainObjects {
     name: &'static str,
     budget: Duration,
     root: Option<Gd<Node3D>>,
-    resolver: CascListfileResolver,
+    resolver: Arc<CascListfileResolver>,
     data_root: PathBuf,
+    loader: AssetLoader<ObjectAsset, LoadedAsset>,
     queued_tiles: BTreeSet<Tile>,
+    /// Queued placements in selection order, not yet looked at.
     pending: VecDeque<Pending>,
+    /// Placements whose files are loading, by the asset they wait for.
+    waiting: HashMap<ObjectAsset, Vec<Pending>>,
+    waiting_count: usize,
+    /// Loaded assets waiting for their main-thread textures.
+    arrived: VecDeque<(ObjectAsset, Result<LoadedAsset, String>)>,
+    /// Placements whose files have loaded, in arrival order.
+    ready: VecDeque<Pending>,
     spawned_doodads: BTreeSet<u32>,
     spawned_wmos: BTreeSet<u32>,
     wmo_doodads: HashMap<u32, WmoDoodads>,
     doodads: Vec<CulledDoodad>,
     wmos: Vec<CulledWmo>,
-    models: HashMap<u32, ParsedModel>,
+    /// Loaded doodad models, or why they cannot load, by FDID; kept across `reset` like
+    /// the loader's record of what it loaded.
+    models: HashMap<u32, Result<ParsedModel, String>>,
+    /// Loaded WMOs, or why they cannot load, by root FDID; kept across `reset`.
+    wmo_assets: HashMap<u32, Result<Arc<NativeWmoAsset>, String>>,
     light: Option<TerrainLight>,
     failures: usize,
     /// `None` while the particle-effects graphics setting is off.
@@ -280,20 +344,34 @@ impl TerrainObjects {
         data_root: PathBuf,
         cache_root: PathBuf,
     ) -> Self {
+        let resolver = Arc::new(local_resolver(&data_root, &cache_root));
+        let loader = {
+            let resolver = Arc::clone(&resolver);
+            let data_root = data_root.clone();
+            AssetLoader::new("world-objects", WORKERS, move |&asset: &ObjectAsset| {
+                load_asset(&resolver, &data_root, asset)
+            })
+        };
         Self {
             name,
             budget,
             root: None,
-            resolver: local_resolver(&data_root, &cache_root),
+            resolver,
             data_root,
+            loader,
             queued_tiles: BTreeSet::new(),
             pending: VecDeque::new(),
+            waiting: HashMap::new(),
+            waiting_count: 0,
+            arrived: VecDeque::new(),
+            ready: VecDeque::new(),
             spawned_doodads: BTreeSet::new(),
             spawned_wmos: BTreeSet::new(),
             wmo_doodads: HashMap::new(),
             doodads: Vec::new(),
             wmos: Vec::new(),
             models: HashMap::new(),
+            wmo_assets: HashMap::new(),
             light: None,
             failures: 0,
             particles: None,
@@ -318,8 +396,9 @@ impl TerrainObjects {
         self.spawned_doodads.len() + self.spawned_wmos.len()
     }
 
+    /// Placements not yet spawned or failed, loading or not.
     pub fn pending_count(&self) -> usize {
-        self.pending.len()
+        self.pending.len() + self.waiting_count + self.ready.len()
     }
 
     pub fn failure_count(&self) -> usize {
@@ -335,22 +414,104 @@ impl TerrainObjects {
         if let Some(pools) = &mut self.particles {
             pools.attach(parent);
         }
-        crate::profile::time(
-            || "objects.queue_tiles".to_owned(),
-            || self.queue_tiles(terrain, selection),
-        );
+        self.queue_tiles(terrain, selection);
+        self.arrived.extend(self.loader.poll());
+        // Placements whose files are loaded spawn within the budget; the others are
+        // handed to the workers and wait.
         let started = Instant::now();
         while started.elapsed() < self.budget {
-            let Some(pending) = self.pending.pop_front() else {
+            if let Some((asset, loaded)) = self.arrived.pop_front() {
+                self.finish_asset(asset, loaded);
+                continue;
+            }
+            let Some(pending) = self.ready.pop_front().or_else(|| self.pending.pop_front()) else {
                 break;
             };
-            let _span = crate::profile::span(|| format!("objects.spawn {pending:?}"));
-            if let Err(error) = self.spawn(parent, terrain, pending) {
+            let spawned = match self.asset_of(terrain, pending) {
+                Ok(asset) if !self.is_loaded(asset) => {
+                    self.wait_for(asset, pending);
+                    continue;
+                }
+                Ok(_) => self.spawn(parent, terrain, pending),
+                Err(error) => Err(error),
+            };
+            if let Err(error) = spawned {
                 // One broken authored object must not hide the rest of the scene.
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
             }
         }
+    }
+
+    /// The files `pending` spawns from.
+    fn asset_of(&self, terrain: &StreamedTerrain, pending: Pending) -> Result<ObjectAsset, String> {
+        let tile_objects = |tile: Tile| {
+            terrain.parsed_tiles[&tile]
+                .obj
+                .as_ref()
+                .expect("queued tiles have objects")
+        };
+        match pending {
+            Pending::Doodad(tile, index) => {
+                let doodad = &tile_objects(tile).doodads[index];
+                self.doodad_fdid(doodad).map(ObjectAsset::Model)
+            }
+            Pending::Wmo(tile, index) => {
+                let placement = &tile_objects(tile).wmos[index];
+                crate::wmo::assets::resolve_placement_fdid(&self.resolver, placement)
+                    .map(ObjectAsset::Wmo)
+            }
+            Pending::WmoDoodad(wmo, index) => {
+                let (doodad, _) = &self.wmo_doodads[&wmo].doodads[index];
+                self.wmo_doodad_fdid(wmo, doodad).map(ObjectAsset::Model)
+            }
+        }
+    }
+
+    fn is_loaded(&self, asset: ObjectAsset) -> bool {
+        match asset {
+            ObjectAsset::Model(fdid) => self.models.contains_key(&fdid),
+            ObjectAsset::Wmo(fdid) => self.wmo_assets.contains_key(&fdid),
+        }
+    }
+
+    fn wait_for(&mut self, asset: ObjectAsset, pending: Pending) {
+        self.loader.request(asset, Priority::Now);
+        self.waiting.entry(asset).or_default().push(pending);
+        self.waiting_count += 1;
+    }
+
+    /// Main thread: an arrived asset's textures and particles; its placements are ready.
+    fn finish_asset(&mut self, asset: ObjectAsset, loaded: Result<LoadedAsset, String>) {
+        let dir = self.data_root.join("textures");
+        let insert = |textures: Vec<(u32, blp::GpuImage)>| {
+            textures
+                .into_iter()
+                .try_for_each(|(fdid, image)| insert_shared_texture(fdid, &dir, image))
+        };
+        match (asset, loaded) {
+            (ObjectAsset::Model(fdid), Ok(LoadedAsset::Model(cached, textures))) => {
+                let parsed = insert(textures).map(|()| ParsedModel {
+                    path: GString::from(cached.path.to_string_lossy().as_ref()),
+                    particles: ModelParticles::from_model(fdid, &cached.model),
+                    model: cached,
+                });
+                self.models.insert(fdid, parsed);
+            }
+            (ObjectAsset::Wmo(fdid), Ok(LoadedAsset::Wmo(wmo, textures))) => {
+                self.wmo_assets.insert(fdid, insert(textures).map(|()| wmo));
+            }
+            (ObjectAsset::Model(fdid), Err(error)) => {
+                self.models.insert(fdid, Err(error));
+            }
+            (ObjectAsset::Wmo(fdid), Err(error)) => {
+                self.wmo_assets.insert(fdid, Err(error));
+            }
+            (asset, Ok(_)) => unreachable!("{asset:?} loaded as another asset kind"),
+        }
+        let placements = self.waiting.remove(&asset).unwrap_or_default();
+        self.waiting_count -= placements.len();
+        self.ready.extend(placements);
     }
 
     fn queue_tiles(&mut self, terrain: &StreamedTerrain, selection: &impl ObjectSelection) {
@@ -373,6 +534,26 @@ impl TerrainObjects {
                     self.pending.push_back(Pending::Wmo(tile, index));
                 }
             }
+        }
+    }
+
+    fn doodad_fdid(&self, doodad: &DoodadPlacement) -> Result<u32, String> {
+        doodad
+            .fdid
+            .or_else(|| {
+                self.doodad_model_path(doodad)
+                    .as_deref()
+                    .and_then(|path| self.resolver.lookup_path(path))
+            })
+            .ok_or_else(|| format!("doodad {} has no resolvable model", doodad.unique_id))
+    }
+
+    fn wmo_doodad_fdid(&self, wmo: u32, doodad: &WmoDoodad) -> Result<u32, String> {
+        match &doodad.model {
+            WmoDoodadModel::FileId(fdid) => Ok(*fdid),
+            WmoDoodadModel::Path(path) => self.resolver.lookup_path(path).ok_or_else(|| {
+                format!("WMO {wmo} doodad {}: {path} not in listfile", doodad.index)
+            }),
         }
     }
 
@@ -450,10 +631,7 @@ impl TerrainObjects {
         let mut doodad = CulledDoodad::new(built.node, scenery, unique_id, wmo_groups);
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
             let texture_dir = self.data_root.join("textures");
-            let (placed, errors) = crate::profile::time(
-                || format!("doodad {unique_id} particles.place"),
-                || pools.place(particles, &doodad.node, unique_id, &texture_dir),
-            );
+            let (placed, errors) = pools.place(particles, &doodad.node, unique_id, &texture_dir);
             for error in errors {
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
@@ -470,14 +648,7 @@ impl TerrainObjects {
         terrain: &StreamedTerrain,
     ) -> Result<(BuiltDoodad, SceneryDistance), String> {
         let model_path = self.doodad_model_path(doodad);
-        let fdid = doodad
-            .fdid
-            .or_else(|| {
-                model_path
-                    .as_deref()
-                    .and_then(|path| self.resolver.lookup_path(path))
-            })
-            .ok_or_else(|| format!("doodad {} has no resolvable model", doodad.unique_id))?;
+        let fdid = self.doodad_fdid(doodad)?;
         let mut built = self.build_doodad_model(fdid)?;
         let (model, render_box) = (&mut built.node, built.render_box);
         let position = doodad_position(doodad, tile.0, tile.1);
@@ -500,46 +671,20 @@ impl TerrainObjects {
         Ok((built, scenery))
     }
 
-    /// Parse and cache each model FDID once; build a node per placement.
+    /// A node of loaded model `fdid` for one placement.
     fn build_doodad_model(&mut self, fdid: u32) -> Result<BuiltDoodad, String> {
-        if !self.models.contains_key(&fdid) {
-            let path = crate::profile::time(
-                || format!("doodad {fdid} cache_model_files"),
-                || cache_model_files(&self.resolver, &self.data_root, fdid),
-            )?;
-            let path = GString::from(path.to_string_lossy().as_ref());
-            let model =
-                crate::profile::time(|| format!("doodad {fdid} read_model"), || read_model(&path))?;
-            crate::profile::time(
-                || format!("doodad {fdid} cache_model_textures"),
-                || cache_model_textures(&self.resolver, &self.data_root, &[0; 3], &model),
-            )?;
-            let particles = crate::profile::time(
-                || format!("doodad {fdid} particles"),
-                || ModelParticles::from_model(fdid, &model),
-            );
-            self.models.insert(
-                fdid,
-                ParsedModel {
-                    path,
-                    model,
-                    particles,
-                },
-            );
-        }
-        let parsed = &self.models[&fdid];
-        let (model, missing) = crate::profile::time(
-            || format!("doodad {fdid} build_model"),
-            || build_model(&parsed.model, &parsed.path, &[0; 3], None),
-        )?;
+        let parsed = self.models[&fdid]
+            .as_ref()
+            .map_err(|error| format!("model {fdid}: {error}"))?;
+        let (model, missing) = build_model(&parsed.model.model, &parsed.path, &[0; 3], None)?;
         if !missing.is_empty() {
             model.free();
             return Err(format!("model {fdid} missing textures {missing:?}"));
         }
         let engine_axes = |[x, y, z]: [f32; 3]| Vec3::new(x, z, -y);
         let render_box = (
-            engine_axes(parsed.model.bounding_box_min),
-            engine_axes(parsed.model.bounding_box_max),
+            engine_axes(parsed.model.model.bounding_box_min),
+            engine_axes(parsed.model.model.bounding_box_max),
         );
         Ok(BuiltDoodad {
             node: model,
@@ -579,6 +724,7 @@ impl TerrainObjects {
             wmo,
             WmoDoodads {
                 node,
+                remaining: doodads.len(),
                 doodads,
                 culled,
             },
@@ -587,19 +733,15 @@ impl TerrainObjects {
 
     /// A MODD doodad as a child of its WMO node, which carries the MODF transform.
     fn spawn_wmo_doodad(&mut self, wmo: u32, index: usize) -> Result<(), String> {
-        let placed = &self.wmo_doodads[&wmo];
+        let placed = self.wmo_doodads.get_mut(&wmo).expect("queued WMO doodads");
         let (doodad, light) = placed.doodads[index].clone();
         let mut parent = placed.node.clone();
         let wmo_groups = Some((placed.culled, doodad.groups.clone()));
-        if index + 1 == placed.doodads.len() {
+        placed.remaining -= 1;
+        if placed.remaining == 0 {
             self.wmo_doodads.remove(&wmo);
         }
-        let fdid = match &doodad.model {
-            WmoDoodadModel::FileId(fdid) => *fdid,
-            WmoDoodadModel::Path(path) => self.resolver.lookup_path(path).ok_or_else(|| {
-                format!("WMO {wmo} doodad {}: {path} not in listfile", doodad.index)
-            })?,
-        };
+        let fdid = self.wmo_doodad_fdid(wmo, &doodad)?;
         let mut built = self
             .build_doodad_model(fdid)
             .map_err(|error| format!("WMO {wmo} doodad {}: {error}", doodad.index))?;
@@ -637,22 +779,17 @@ impl TerrainObjects {
         tile: Tile,
         doodad_sets: &[u16],
     ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<LitDoodad>), String> {
-        let asset = crate::profile::time(
-            || format!("wmo {} read_placement", placement.unique_id),
-            || crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement),
-        )?;
+        let root_fdid = crate::wmo::assets::resolve_placement_fdid(&self.resolver, placement)?;
+        let asset = self.wmo_assets[&root_fdid]
+            .as_ref()
+            .map_err(|error| format!("WMO {root_fdid}: {error}"))?;
         let doodads = asset.doodads(doodad_sets);
-        let mut wmo_node = crate::profile::time(
-            || format!("wmo {} build_wmo_node", placement.unique_id),
-            || {
-                crate::wmo::scene::build_wmo_node(
-                    &asset,
-                    &self.resolver,
-                    &self.data_root,
-                    doodad_sets,
-                    self.light.as_ref(),
-                )
-            },
+        let mut wmo_node = crate::wmo::scene::build_wmo_node(
+            &asset,
+            &self.resolver,
+            &self.data_root,
+            doodad_sets,
+            self.light.as_ref(),
         )?;
         let model = &mut wmo_node.node;
         let position = placement_position(placement.position, tile.0, tile.1);
@@ -788,12 +925,14 @@ impl TerrainObjects {
         }
         self.queued_tiles.clear();
         self.pending.clear();
+        self.waiting.clear();
+        self.waiting_count = 0;
+        self.ready.clear();
         self.spawned_doodads.clear();
         self.spawned_wmos.clear();
         self.wmo_doodads.clear();
         self.doodads.clear();
         self.wmos.clear();
-        self.models.clear();
         self.light = None;
         self.failures = 0;
         if let Some(pools) = &mut self.particles {
