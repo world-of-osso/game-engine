@@ -31,6 +31,7 @@ use shared::{
         CombatStatus, CreatureMotion, EquipmentAppearance, Gold, Health, Mana, ModelDisplay,
         MovementControl, MovementSpeed, Npc, Player, PlayerMotion, Position, Rotation, UnitAuras,
         UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
+        UnitThreatList,
     },
     protocol::{
         ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
@@ -96,6 +97,8 @@ pub struct UnitSnapshot {
     pub unit_pose: Option<UnitPose>,
     /// Server entity bits of the unit's own target (`SetTarget` echo for players).
     pub unit_target: Option<u64>,
+    /// Server entity bits of the units on a creature's threat list; empty for players.
+    pub threat_list: Vec<u64>,
     /// Retail `FactionTemplate` id, for reaction to the local player.
     pub faction_template: Option<u32>,
     /// `UNIT_FIELD_FLAGS` bits.
@@ -133,6 +136,9 @@ impl UnitSnapshot {
             player_motion: entity.get::<PlayerMotion>().copied(),
             unit_pose: entity.get::<UnitPose>().copied(),
             unit_target: entity.get::<UnitTarget>().and_then(|target| target.0),
+            threat_list: entity
+                .get::<UnitThreatList>()
+                .map_or_else(Vec::new, |list| list.0.clone()),
             faction_template: entity
                 .get::<UnitFactionTemplate>()
                 .map(|template| template.0),

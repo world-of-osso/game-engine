@@ -871,6 +871,7 @@ mod tests {
             player_motion: None,
             unit_pose: None,
             unit_target: None,
+            threat_list: Vec::new(),
             faction_template: None,
             unit_flags: None,
             in_combat: false,

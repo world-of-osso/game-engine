@@ -18,6 +18,13 @@ extends SceneTree
 ## 857) in place: same unit node, still selected, still nameplated. The sheep stands
 ## (0) or walks (4) and never swings for SHEEP_SECS. A second Frostbolt breaks it: the
 ## spy's own display returns and it swings again.
+## Also asserted: the neutral (yellow) spy's plate turns hostile red once the player is on
+## its threat list (CompactUnitFrame.lua:674, :879); the pull's damage stays while it
+## fights unpolymorphed (Creature::Update regenerates only `!IsEngaged() ||
+## IsPolymorphed()`); Chilled from the Frostbolt halves its run speed (speed_run
+## 0.857143 × 7 = 6 yd/s → 3 yd/s) while it chases, and once Chilled's 8 s are over the
+## sheep wanders at its walk speed (speed_walk 1 × 2.5 yd/s, ConfusedMovementGenerator
+## SetWalk). Speeds are measured over wall-clock time, so only in real-time runs.
 
 const PASSWORD := "fbtest"
 const POLYMORPH := 118
@@ -30,6 +37,21 @@ const MELEE_SWINGS := [16, 17, 18, 19, 199, 200]
 const COMBAT_WOUND := 9
 ## Real seconds (the server's clock: Movie Maker frames are 1/30 s of game time each).
 const SHEEP_SECS := 5.0
+const ANIM_RUN := 5
+## Run speed under Chilled 205708 (-50%).
+const CHASE_SPEED := 3.0
+const WALK_SPEED := 2.5
+## Two creature regeneration intervals (CREATURE_REGEN_INTERVAL 2 s) and a tick.
+const ENGAGED_REGEN_SECS := 4.5
+const HOSTILE := Color(1, 0, 0, 1)
+## Measured target movement: distance and time over frames showing `speed_anims`.
+var speed_anims: Array = []
+var speed_distance := 0.0
+var speed_secs := 0.0
+var speed_last = null
+## Playback rates of the measured clip (`unit_display().animation_rate`).
+var speed_rates := {}
+var SPEED_TRACE := OS.get_environment("POLY_SPEED_TRACE") != ""
 
 const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 
@@ -51,9 +73,10 @@ func _initialize() -> void:
 	Engine.max_fps = 60
 	call_deferred("run_test")
 
-func _process(_delta: float) -> bool:
+func _process(delta: float) -> bool:
 	if client == null or not is_instance_valid(client) or local_id == 0:
 		return false
+	measure_speed(delta)
 	for id in [local_id, target_id]:
 		if id == 0:
 			continue
@@ -149,12 +172,32 @@ func run_test() -> void:
 	if SHEEP_DISPLAYS.has(native.display_id):
 		fail("The spy already shows a sheep: " + str(native))
 		return
+	var neutral := plate()
+	print("FIXTURE NEUTRAL_PLATE ", neutral)
+	if neutral.is_empty() or neutral.color.is_equal_approx(HOSTILE):
+		fail("The unpulled spy's plate is not neutral: " + str(neutral))
+		return
 	# Pull it: the spy runs in and swings at the mage.
+	start_speed([ANIM_RUN])
 	if not await cast(FROSTBOLT, "pull Frostbolt"):
 		return
 	if not await wait_until(func(): return saw_swing(target_id) and saw(local_id, COMBAT_WOUND), 20000, "the spy swings at the mage"):
 		return
+	if not check_speed("chase", CHASE_SPEED, 2.6):
+		return
+	# Run (949470.skel sequence 5, movespeed 7) paced to 3 yd/s: 3/7.
+	if not check_rates("chase Run", 0.35, 0.55):
+		return
+	if not await wait_until(func(): return plate_hostile(), 3000, "the pulled spy's plate turns hostile"):
+		return
 	await capture("01-spy-attacks.png")
+	# Engaged and not polymorphed: the pull's damage stays.
+	var wounded: float = plate().fraction
+	await wait_real(ENGAGED_REGEN_SECS)
+	print("FIXTURE ENGAGED_HEALTH %.4f -> %.4f" % [wounded, plate().fraction])
+	if wounded >= 1.0 or plate().fraction > wounded:
+		fail("The engaged spy healed: %.4f -> %.4f" % [wounded, plate().fraction])
+		return
 	# Polymorph: precast and cast bar, then the sheep.
 	await wait_for(func(s): return s.gcd_ms == 0, 5000, "GCD over")
 	seen_actions.erase(local_id)
@@ -182,7 +225,16 @@ func run_test() -> void:
 	seen_actions.erase(target_id)
 	await wait_real(SHEEP_SECS)
 	await capture("04-sheep-wanders.png")
+	start_speed([ANIM_WALK])
 	await wait_real(SHEEP_SECS)
+	if not check_speed("sheep walk", WALK_SPEED, 1.75):
+		return
+	# Walk (1377131.m2 sequence 4, movespeed 1.111) paced to 2.5 yd/s: 2.25.
+	if not check_rates("sheep Walk", 2.0, 2.5):
+		return
+	if not plate_hostile():
+		fail("The sheep's plate is not hostile: " + str(plate()))
+		return
 	if saw_swing(target_id):
 		fail("The sheep swung: " + str(seen_actions))
 		return
@@ -213,6 +265,63 @@ func run_test() -> void:
 	print("FIXTURE POLYMORPH_MOB_DONE")
 	client.free()
 	quit(0)
+
+## Ground distance the target covers per frame while it plays one of `speed_anims`, over
+## wall-clock time (the client runs at a few frames per second in the headless cage).
+func measure_speed(_delta: float) -> void:
+	if speed_anims.is_empty() or target_id == 0:
+		speed_last = null
+		return
+	var origin: Vector3 = client.unit_transform(target_id).origin
+	var now := Time.get_ticks_usec()
+	var display: Dictionary = client.unit_display(target_id)
+	var animation: int = display.animation
+	if speed_anims.has(animation) and display.has("animation_rate"):
+		speed_rates[snappedf(display.animation_rate, 0.01)] = true
+	if speed_last != null and speed_anims.has(animation):
+		var step := Vector2(origin.x - speed_last[1].x, origin.z - speed_last[1].z).length()
+		speed_distance += step
+		speed_secs += (now - speed_last[0]) / 1000000.0
+		if SPEED_TRACE:
+			print("FIXTURE STEP t=%.3f anim=%d step=%.3f" % [now / 1000000.0, animation, step])
+	speed_last = [now, origin]
+
+func start_speed(anims: Array) -> void:
+	speed_anims = anims
+	speed_distance = 0.0
+	speed_secs = 0.0
+	speed_last = null
+	speed_rates = {}
+
+## The measured speed (yd/s), or a failure when it is above `expected` by over 10% or
+## below `slowest` (starts and stops inside the window lower the average: the sheep's
+## legs are at most 4 yd, and its clip changes a replication tick apart from its moves).
+func check_speed(what: String, expected: float, slowest: float) -> bool:
+	speed_anims = []
+	var speed := speed_distance / speed_secs if speed_secs > 0.0 else 0.0
+	print("FIXTURE SPEED %s %.2f yd/s over %.2f s (%.2f yd), expected %.2f, clip rates %s" % [what, speed, speed_secs, speed_distance, expected, speed_rates.keys()])
+	if speed_secs < 0.5 or speed > expected * 1.1 or speed < slowest:
+		fail("%s speed %.2f yd/s over %.2f s, expected %.2f (at least %.2f)" % [what, speed, speed_secs, expected, slowest])
+		return false
+	return true
+
+## Every playback rate the measured clip showed lies in [low, high].
+func check_rates(what: String, low: float, high: float) -> bool:
+	if speed_rates.is_empty():
+		fail("%s: no clip rate seen" % what)
+		return false
+	for rate in speed_rates:
+		if rate < low or rate > high:
+			fail("%s clip rate %.2f outside [%.2f, %.2f]: %s" % [what, rate, low, high, speed_rates.keys()])
+			return false
+	return true
+
+func plate() -> Dictionary:
+	return client.nameplate_state().get(target_id, {})
+
+func plate_hostile() -> bool:
+	var view := plate()
+	return not view.is_empty() and view.color.is_equal_approx(HOSTILE)
 
 func SHEEP_SHOWN() -> bool:
 	var display: Dictionary = client.unit_display(target_id)

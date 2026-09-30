@@ -195,10 +195,10 @@ fn local_player_unselectable_dead_and_far_units_never_have_a_plate() {
 
 #[test]
 fn a_unit_is_in_combat_with_the_player_only_while_fighting_and_targeting_them() {
-    assert!(in_combat_with_player(true, Some(LOCAL), LOCAL));
-    assert!(!in_combat_with_player(false, Some(LOCAL), LOCAL));
-    assert!(!in_combat_with_player(true, Some(OTHER_PLAYER), LOCAL));
-    assert!(!in_combat_with_player(true, None, LOCAL));
+    assert!(in_combat_with_player(true, Some(LOCAL), &[], LOCAL));
+    assert!(!in_combat_with_player(false, Some(LOCAL), &[], LOCAL));
+    assert!(!in_combat_with_player(true, Some(OTHER_PLAYER), &[], LOCAL));
+    assert!(!in_combat_with_player(true, None, &[], LOCAL));
 }
 
 #[test]
