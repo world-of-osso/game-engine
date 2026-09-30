@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] evidence | Bounded standalone TAA kernel and jitter lifecycle
+
+Updated existing AA spec/matrix, [scoped wiki evidence](systems/godot-conversion.md#native-antialias--bounded-missing-consumer-evidence) and index from saved artifacts. Kernel `1757485b`, CPU corrections `32ee3be0`/`5de2722d`: 37 goldens pass. Independent harness `e9129cc1`/parse fix `1de24ddf`/physical-oracle correction `d3a8ebd4`: saved exit 0, 48 fixtures/135664 comparisons, 0 failures/engine errors; 8×8 dyadic physical probe replaces invalid 7×5 CPU oracle without changing 17×9 temporal cases or tolerances. Separate jitter lifecycle saved exit 0: 30 frames including 16 fractional frames, projection restoration and raw-vector assertions; source/argv/environment hash manifest saved, no fractional-centroid quality test. Independent kernel/jitter verification pending. Production consumer/controller, history quantization, MSAA and integrated temporal acceptance remain open; no stock-TAA equivalence or completion claim. No code/runtime/build reruns or source-policy change.
+
 ## [2026-09-29] evidence | Independent public TAA-input audit
 
 [Scoped AA evidence](systems/godot-conversion.md#native-antialias--bounded-missing-consumer-evidence) now records `/tmp/claude/verify-taa-public-inputs.md`: 800 finite decoded floats, 180 fixed-oracle interior samples, integer-offset depth cross-section centroids, normal disposal and complete saved stderr audited. No rerun, fractional-jitter, temporal accumulation, executed-source hash attestation or production AA acceptance.
