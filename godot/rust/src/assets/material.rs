@@ -426,6 +426,23 @@ pub(crate) fn shared_texture(
     Ok(Some(texture))
 }
 
+/// Make `image`, decoded off the main thread, the shared texture of file `fdid` in
+/// `dir`, so the first material or particle that uses it does no file work.
+pub(crate) fn insert_shared_texture(
+    fdid: u32,
+    dir: &Path,
+    image: blp::GpuImage,
+) -> Result<(), String> {
+    let key = TextureKey::plain(fdid, dir);
+    if TEXTURES.with_borrow(|textures| textures.contains_key(&key)) {
+        return Ok(());
+    }
+    let texture =
+        texture_from_gpu_image(image).map_err(|error| format!("Texture {fdid}: {error}"))?;
+    TEXTURES.with_borrow_mut(|textures| textures.insert(key, texture));
+    Ok(())
+}
+
 pub(crate) fn texture_from_gpu_image(image: blp::GpuImage) -> Result<Gd<ImageTexture>, String> {
     let format = match image.format {
         blp::GpuFormat::Dxt1 => image::Format::DXT1,
