@@ -21,7 +21,7 @@ SOURCE_SUFFIXES = {".rs", ".c", ".h", ".cpp", ".hpp", ".wgsl"}
 ROOT_PATHS = ("godot", "src", "tests")  # tests/unit is compiled into crates through #[path]
 EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
 ARTIFACT = "libgame_engine_godot.so"
-FIXTURES = ("native_input_fixture", "native_npc_visual_fixture")
+FIXTURE_DIR = Path("godot/network/examples")
 TEST_ASSETS = Path("godot/depot-test-assets.txt")
 TEST_LOG = Path("target/depot-test.log")
 FICLONE = 0x40049409
@@ -172,6 +172,27 @@ def snapshot(root, context):
     shutil.copyfile(depot_scripts / "refresh-source-mtimes.py", context / "refresh-source-mtimes.py")
 
 
+def fixture_names(root):
+    """Every top-level `game-engine-network` example; subdirectories hold their modules."""
+    return sorted(path.stem for path in (root / FIXTURE_DIR).glob("*.rs") if path.is_file())
+
+
+def depot_environment():
+    """Depot reads its login from $XDG_CONFIG_HOME/depot/depot.yaml. Fixtures isolate
+    XDG_CONFIG_HOME for Godot, so the login also resolves from the user's ~/.config."""
+    environment = dict(os.environ)
+    if environment.get("DEPOT_TOKEN"):
+        return environment
+    home_config = Path.home() / ".config"
+    configs = [Path(environment["XDG_CONFIG_HOME"])] if environment.get("XDG_CONFIG_HOME") else []
+    for config in (*configs, home_config):
+        if (config / "depot" / "depot.yaml").is_file():
+            environment["XDG_CONFIG_HOME"] = str(config)
+            return environment
+    searched = ", ".join(str(config / "depot" / "depot.yaml") for config in (*configs, home_config))
+    raise FileNotFoundError(f"Depot login not found in {searched}; run `depot login` or set DEPOT_TOKEN")
+
+
 def depot_command(context, output, checkout_key, target):
     return [
         "depot", "build", "--project", os.environ.get("DEPOT_PROJECT_ID", "003c4ttwqh"),
@@ -191,6 +212,9 @@ def locked_checkout(root):
 
 
 def build(root, fixture=None):
+    if fixture and fixture not in fixture_names(root):
+        raise ValueError(f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}")
+    environment = depot_environment()
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         target = root / "target"
@@ -208,7 +232,7 @@ def build(root, fixture=None):
             command = depot_command(context, output, checkout_key, "artifact")
             if fixture:
                 command.extend(["--build-arg", f"FIXTURE={fixture}"])
-            subprocess.run([*command, str(context)], check=True)
+            subprocess.run([*command, str(context)], check=True, env=environment)
             phase("Remote build", start)
             destination = root / "target" / "debug" / ARTIFACT
             if fixture:
@@ -223,6 +247,7 @@ def build(root, fixture=None):
 
 def run_tests(root, cargo_args):
     """Run `cargo test` remotely and return cargo's exit status."""
+    environment = depot_environment()
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         start = time.monotonic()
@@ -237,7 +262,7 @@ def run_tests(root, cargo_args):
             command = depot_command(context, output, checkout_key, "test-result")
             command.extend(["--build-arg", f"TEST_ARGS={shlex.join(cargo_args)}",
                             "--build-arg", f"TEST_RUN={time.time_ns()}"])
-            subprocess.run([*command, str(context)], check=True)
+            subprocess.run([*command, str(context)], check=True, env=environment)
             phase("Remote test", start)
             log, status = output / "test.log", output / "status"
             if not log.is_file() or not status.is_file():
@@ -263,7 +288,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True, help="originating checkout")
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--fixture", choices=FIXTURES, help="also export one network fixture executable")
+    mode.add_argument("--fixture", help=f"also export one {FIXTURE_DIR} executable, named by file stem")
     mode.add_argument("--test", action="store_true",
                       help="run `cargo test --locked` in godot/ with every following argument; must be last")
     argv = sys.argv[1:]

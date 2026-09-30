@@ -15,6 +15,10 @@ const HAIR := Color(245.0 / 255.0, 175.0 / 255.0, 25.0 / 255.0)
 const DISPLAY_A := 910010
 const DISPLAY_B := 910011
 const WAIT_MS := 15000
+# The isolated user data starts with an empty CASC index cache, so login waits for a cold
+# CASC initialization (16.8 s idle, over 60 s on a loaded host) before the client
+# processes frames.
+const STARTUP_WAIT_MS := 180000
 const GLOBAL_AMBIENT := Vector3(51.0, 102.0, 153.0) / 255.0
 const GLOBAL_DIRECT := Vector3(119.0, 85.0, 51.0) / 255.0
 const LOCAL_AMBIENT := Vector3(153.0, 85.0, 51.0) / 255.0
@@ -43,7 +47,7 @@ func run_test() -> void:
 	if error != "":
 		fail("Fixture connection: " + error)
 		return
-	if not await wait_screen(client, "CharacterSelect"):
+	if not await wait_screen(client, "CharacterSelect", STARTUP_WAIT_MS):
 		return
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	var card = ui.find_child("CharCard_0", true, false) if ui != null else null
@@ -645,13 +649,13 @@ func wait_no_npc(client: Node) -> bool:
 	fail("NPC despawn retained world node")
 	return false
 
-func wait_screen(client: Node, wanted: String) -> bool:
-	var deadline := Time.get_ticks_msec() + WAIT_MS
+func wait_screen(client: Node, wanted: String, timeout_ms := WAIT_MS) -> bool:
+	var deadline := Time.get_ticks_msec() + timeout_ms
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if client.account_state().screen == wanted:
 			return true
-	fail("Timed out waiting for " + wanted)
+	fail("Timed out waiting for " + wanted + ": " + str(client.account_state()))
 	return false
 
 func click_control(control: Control) -> void:
