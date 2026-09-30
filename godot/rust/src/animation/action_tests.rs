@@ -245,3 +245,60 @@ fn cast_clip_reports_its_cast_voice_event() {
     advance(&mut player, 30);
     assert!(player.take_fired_events().is_empty());
 }
+
+/// Attack1H reports HumanMale HD's `$CSS` (weapon swoosh) and, 100 ms later, `$CAH`
+/// (where the swing lands), each once.
+#[test]
+fn attack_clip_reports_its_swoosh_then_its_hit() {
+    let mut player = human_male_hd();
+    player.update_locomotion(STAND, false, false).unwrap();
+    player
+        .play_action(ATTACK_1H, false, ActionPriority::Combat)
+        .unwrap();
+    let mut fired = Vec::new();
+    for frame in 0..60 {
+        advance(&mut player, 1);
+        fired.extend(
+            player
+                .take_fired_events()
+                .into_iter()
+                .map(|event| (frame, event)),
+        );
+    }
+    let [(swoosh_frame, swoosh), (hit_frame, hit)] = fired[..] else {
+        panic!("expected $CSS then $CAH, got {fired:?}");
+    };
+    assert_eq!((&swoosh, &hit), (b"$CSS", b"$CAH"));
+    // 100 ms at 60 fps: the 6th or 7th frame after, by where the clip clock lands.
+    assert!((6..=7).contains(&(hit_frame - swoosh_frame)), "{fired:?}");
+}
+
+/// A hit reaction arriving mid-swing does not cut the swing short: its `$CSS` and
+/// `$CAH` still fire; a swing replaces a playing reaction.
+#[test]
+fn hit_reactions_do_not_cut_a_swing_short() {
+    const COMBAT_WOUND: u16 = 9;
+    let mut player = human_male_hd();
+    player.update_locomotion(STAND, false, false).unwrap();
+    player
+        .play_action(ATTACK_1H, false, ActionPriority::Combat)
+        .unwrap();
+    advance(&mut player, 2);
+    assert!(
+        !player
+            .play_action(COMBAT_WOUND, false, ActionPriority::Reaction)
+            .unwrap()
+    );
+    assert_eq!(player.action_id(), Some(ATTACK_1H));
+    advance(&mut player, 40);
+    assert_eq!(player.take_fired_events(), vec![*b"$CSS", *b"$CAH"]);
+    player
+        .play_action(COMBAT_WOUND, false, ActionPriority::Reaction)
+        .unwrap();
+    assert!(
+        player
+            .play_action(ATTACK_1H, false, ActionPriority::Combat)
+            .unwrap()
+    );
+    assert_eq!(player.action_id(), Some(ATTACK_1H));
+}

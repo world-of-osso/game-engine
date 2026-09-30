@@ -17,15 +17,18 @@ use serde::{Deserialize, Serialize};
 use crate::csv_util::{parse_csv_line, parse_csv_records};
 use crate::db2_cache::{CacheKey, load_or_build};
 
+#[path = "spell_visual_melee.rs"]
+mod melee;
 #[path = "spell_visual_voice.rs"]
 mod voice;
+pub use melee::{MeleeHand, SwingResult};
 pub use voice::{UnitSound, VoiceSource};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 6;
+const CACHE_FORMAT: u32 = 7;
 
-const SOURCE_TABLES: [&str; 18] = [
+const SOURCE_TABLES: [&str; 23] = [
     "SpellXSpellVisual",
     "SpellVisual",
     "SpellVisualEvent",
@@ -44,6 +47,11 @@ const SOURCE_TABLES: [&str; 18] = [
     "CreatureModelData",
     "ChrModel",
     "ChrRaceXChrModel",
+    "WeaponSwingSounds2",
+    "WeaponImpactSounds",
+    "ItemSubClass",
+    "Item",
+    "ItemDisplayInfo",
 ];
 
 /// `SpellVisualKitEffect.EffectType` of a model attachment, a sound kit and a unit
@@ -329,9 +337,10 @@ pub struct SpellVisualCatalog {
     conditions: HashMap<u32, PlayerCondition>,
     /// `SpellMisc.Speed` (yd/s) of spells with a travel speed.
     speeds: HashMap<u32, f32>,
-    /// The sound kits spell visual kits, missiles and unit voices play.
+    /// The sound kits spell visual kits, missiles, unit voices and melee play.
     sound_kits: HashMap<u32, KitSound>,
     voices: voice::Voices,
+    melee: melee::MeleeSounds,
 }
 
 /// Rows of one exported CSV with named column access.
@@ -482,6 +491,7 @@ impl SpellVisualCatalog {
         catalog.read_conditions(dir)?;
         catalog.read_speeds(dir)?;
         catalog.read_voices(dir)?;
+        catalog.read_melee(dir)?;
         catalog.read_sound_kits(dir)?;
         Ok(catalog)
     }
@@ -694,7 +704,7 @@ impl SpellVisualCatalog {
         Ok(())
     }
 
-    /// The `SoundKit`s kits, missiles and unit voices reference, with their
+    /// The `SoundKit`s kits, missiles, unit voices and melee reference, with their
     /// `SoundKitEntry` files.
     fn read_sound_kits(&mut self, dir: &Path) -> Result<(), String> {
         let referenced: std::collections::HashSet<u32> = self
@@ -703,6 +713,7 @@ impl SpellVisualCatalog {
             .flat_map(|kit| kit.sound_kits.iter().copied())
             .chain(self.missiles.values().flatten().map(|row| row.sound_kit))
             .chain(self.voices.sound_kits())
+            .chain(self.melee.sound_kits())
             .filter(|&id| id != 0)
             .collect();
         let kits = Table::read(dir, "SoundKit")?;
