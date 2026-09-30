@@ -115,6 +115,17 @@ Main read saved `data/diagnostics/taa-controller-observer/{run1.log,gpu-run1.log
 | HDR boundary | `configure(true,true)` models acquired HDR metadata; no actual Bloom executes. Not HDR + Bloom proof. |
 | Remaining coverage | Controller-owned SubViewport only, not GameClient, saved Options, authored scene, LDR, full-scene, actual Bloom or render-scale proof. No general temporal, skinned/transparent, resize, multivendor or export acceptance. Prior three-frame CPU 3806 failures and native oracle timeout 124 remain unresolved; this run fixes neither. Full conversion remains open; no Handled claim. |
 
+### LDR production-controller observer — bounded main-observed evidence
+
+Main executed saved `data/diagnostics/taa-controller-ldr-observer/run1.log` (exit 0), capture `run-2329200-1277`: actual controller `configure(true,false)`, nine consecutive 64×48 frames, phases 0..7,0, restored projection and RGBA8_SRGB allocations. Isolated original-shader `gpu-run1.log` (exit 0), oracle `gpu-oracle-2329568-1119`, records the following bounded results; no new runtime execution for this docs update.
+
+| Capability | Saved main-observed evidence / boundary |
+| --- | --- |
+| Original shader / independent history | RESET then original shader's own SRGB MRT history; predictions frozen before captured-output comparisons. Expected motion uses negated raw motion plus independently computed HALTON delta, never recorded production jitter or production history feedback. |
+| Numeric result | `result.json`: 430080 main comparisons, zero failures, max encoded-code error 0; separate 3072 confidence comparisons, zero failures/code error/decode-residual failures. 54 jitter comparisons, zero failures at 1e-7. Reset confidence clamps to alpha code 255; observation only, no calibration. |
+| Fixed precision boundary | RGB and linear UNORM alpha each use <=1 encoded code; recovered-code hardware-decoder residual remains <=one HALF ULP + 2e-5. Independent hardware decoder samples all 256 known codes, not production outputs or CPU ideal sRGB. No fitting or tolerance change; zero observed code error is not general bit-exact parity. |
+| Acceptance / exclusions | Independent verifier `/tmp/claude/verify-taa-controller-ldr-observer.md` newly active, **pending**, not an accepted gate; report absent when read. Controller-owned SubViewport only: no GameClient/saved Options/authored scene, actual Bloom, render-scale or general temporal/full-scene parity acceptance. Prior HDR evidence and accepted gate 1153 remain separate; CPU 3806 failures/native timeout 124 unresolved. Full conversion stays open; no Handled claim. |
+
 Existing persisted `antiAlias` is `None`/`Msaa4x`/`Taa`, default `Msaa4x`. Integration `20dde8b5` consumes it at startup and authored unrelated Graphics commits. Field remains hidden; no new UI/CLI/policy requirements. Raster/effect implementation through `f80467db` has bounded proof, not full temporal parity.
 
 | Capability | Evidence / boundary |
