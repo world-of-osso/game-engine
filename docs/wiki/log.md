@@ -2189,3 +2189,7 @@ The particledebug torch's golden halo is a quad on spherical billboard bone 1 an
 ## [2026-09-30] feature | Spell assets load off the main thread
 
 A spell's first use no longer extracts, parses or decodes its kit models, textures and sounds on the main thread. Before, a first Flash of Light spent 117-283 ms per frame on spell visuals, and the CASC resolver init (1.5-1.7 s) could land on the first cast. Now a worker loader with prefetch priorities does this work. A late asset joins its kit's timeline at arrival, and the local player's known spells are prefetched. A first-use Flash of Light played every sound on time, with at most 30.4 ms of spell-visual time per frame and a 1.493-1.573 s precast for a 1.5 s cast. See [spell-visuals](systems/spell-visuals.md#asset-loading-godotrustsrcspell_assetsrs-godotcoresrcasset_loaderrs).
+
+## [2026-09-30] fix | Retail ADT water
+
+Northshire streams used the procedural placeholder water shader and lost MH2O LVF 0 depths. Godot water now ports WebWowViewerCpp `liquidWaterMat` with LiquidType/LiquidObject/LiquidTypeXTexture DB2 inputs and LightData/LightParams colours. See [northshire-pale-water](investigations/northshire-pale-water.md).
