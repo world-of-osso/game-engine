@@ -43,7 +43,6 @@ mod scene;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
-mod sound_outcome;
 mod spell_assets;
 mod spell_effects;
 mod spell_sounds;
@@ -1303,12 +1302,7 @@ impl GameClient {
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
-            AccountEvent::Combat(message) => {
-                if let account::CombatMessage::Event(event) = &message {
-                    self.play_combat_outcome(event);
-                }
-                self.receive_combat_message(message)?;
-            }
+            AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::UnitUpdated(unit) => {
                 let mut parent = self.to_gd().upcast::<Node3D>();
                 self.world.upsert(&mut parent, &unit);

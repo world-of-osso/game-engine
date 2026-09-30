@@ -903,7 +903,10 @@ fn populate_nameplate_units(app: &mut App, player: Entity, npc: Entity) {
                 power: shared::components::PowerType::Mana,
                 current: 19,
                 max: 60,
+                partial: 0,
+                regen_per_sec: 0.0,
             }],
+            charged_points: Vec::new(),
         },
         Position {
             x: -8949.0,

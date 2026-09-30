@@ -803,3 +803,194 @@ fn native_bridge_receives_vendor_flags_gold_and_inventory() {
     assert_eq!(message.downcast::<VendorInventory>().ok(), Some(inventory));
     bridge.stop().expect("join fixture worker");
 }
+
+/// Auction requests cross real UDP; every default native relay delivers its original reply.
+#[test]
+fn native_bridge_auction_operations_and_query_rejections() {
+    use shared::protocol::*;
+    #[derive(Resource)]
+    struct Requests<M: network::Message>(Vec<M>);
+    fn capture<M: network::Message>(
+        mut receivers: Query<&mut MessageReceiver<M>>,
+        mut messages: ResMut<Requests<M>>,
+    ) {
+        for mut receiver in &mut receivers {
+            messages.0.extend(receiver.receive());
+        }
+    }
+    fn install<M: network::Message>(app: &mut App) {
+        app.insert_resource(Requests::<M>(Vec::new()));
+        app.add_systems(Update, capture::<M>);
+    }
+    fn install_auction(app: &mut App) {
+        install::<OpenAuctionHouse>(app);
+        install::<QueryAuctions>(app);
+        install::<QueryAuctionBrowse>(app);
+        install::<QueryAuctionInventory>(app);
+        install::<QueryOwnedAuctions>(app);
+        install::<QueryBidAuctions>(app);
+        install::<CreateAuction>(app);
+        install::<PlaceBid>(app);
+        install::<BuyoutAuction>(app);
+        install::<CancelAuction>(app);
+    }
+    fn received<M: network::Message>(server: &mut App, bridge: &mut NetworkBridge) -> M {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline {
+            server.update();
+            for event in bridge.drain_events().expect("auction worker") {
+                assert!(!matches!(event, Event::Disconnected(_)));
+            }
+            if let Some(message) = server.world_mut().resource_mut::<Requests<M>>().0.pop() {
+                return message;
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+        panic!(
+            "auction request {} not received",
+            std::any::type_name::<M>()
+        );
+    }
+    fn reply<M: network::Message + Clone + std::fmt::Debug + PartialEq>(
+        server: &mut App,
+        bridge: &mut NetworkBridge,
+        expected: M,
+    ) {
+        let mut senders = server.world_mut().query::<&mut MessageSender<M>>();
+        for mut sender in senders.iter_mut(server.world_mut()) {
+            sender.send::<AuctionChannel>(expected.clone());
+        }
+        let Event::Message(message) = await_bridge_event(
+            server,
+            bridge,
+            "auction relay",
+            |e| matches!(e,Event::Message(m) if m.is::<M>()),
+        ) else {
+            panic!()
+        };
+        assert_eq!(message.downcast::<M>().ok(), Some(expected));
+    }
+    let (mut server, address) = start_fixture_server_with(install_auction);
+    let mut bridge = NetworkBridge::connect(address, 9088).expect("auction connect");
+    await_bridge_event(&mut server, &mut bridge, "auction connected", |e| {
+        matches!(e, Event::Connected)
+    });
+    macro_rules! request {
+        ($value:expr,$kind:ty) => {{
+            let value = $value;
+            bridge.send::<_, AuctionChannel>(value.clone()).unwrap();
+            assert_eq!(received::<$kind>(&mut server, &mut bridge), value);
+        }};
+    }
+    request!(OpenAuctionHouse, OpenAuctionHouse);
+    let query = AuctionSearchQuery {
+        text: "linen".into(),
+        item_id: Some(2589),
+        class_id: Some(7),
+        page: 1,
+        page_size: 50,
+        min_level: None,
+        max_level: None,
+        quality: None,
+        usable_only: false,
+        sort_field: AuctionSortField::Name,
+        sort_dir: AuctionSortDir::Asc,
+        faction: 0,
+    };
+    request!(
+        QueryAuctions {
+            query: query.clone()
+        },
+        QueryAuctions
+    );
+    let mut browse_query = query.clone();
+    browse_query.item_id = None;
+    request!(
+        QueryAuctionBrowse {
+            query: browse_query.clone()
+        },
+        QueryAuctionBrowse
+    );
+    reply(
+        &mut server,
+        &mut bridge,
+        AuctionBrowseResults {
+            query: browse_query,
+            total_results: 103,
+            items: vec![AuctionBrowseItem {
+                item_id: 2589,
+                name: "Linen Cloth".into(),
+                quality: 1,
+                required_level: 1,
+                lowest_unit_price: 17,
+                total_quantity: 5_000_000_001,
+            }],
+        },
+    );
+    request!(QueryAuctionInventory, QueryAuctionInventory);
+    request!(QueryOwnedAuctions, QueryOwnedAuctions);
+    request!(QueryBidAuctions, QueryBidAuctions);
+    request!(
+        CreateAuction {
+            item_guid: 17,
+            stack_count: 5,
+            min_bid: 100,
+            buyout_price: Some(1000),
+            duration: AuctionDuration::Long
+        },
+        CreateAuction
+    );
+    request!(
+        PlaceBid {
+            auction_id: 12,
+            amount: 110
+        },
+        PlaceBid
+    );
+    request!(BuyoutAuction { auction_id: 12 }, BuyoutAuction);
+    request!(CancelAuction { auction_id: 13 }, CancelAuction);
+    reply(
+        &mut server,
+        &mut bridge,
+        AuctionHouseOpened {
+            success: true,
+            error: None,
+        },
+    );
+    reply(
+        &mut server,
+        &mut bridge,
+        AuctionSearchResults {
+            query,
+            total_results: 103,
+            results: vec![],
+        },
+    );
+    reply(
+        &mut server,
+        &mut bridge,
+        AuctionInventorySnapshot {
+            gold: 1000,
+            items: vec![],
+        },
+    );
+    reply(
+        &mut server,
+        &mut bridge,
+        OwnedAuctionListResponse { listings: vec![] },
+    );
+    reply(
+        &mut server,
+        &mut bridge,
+        BidAuctionListResponse { listings: vec![] },
+    );
+    reply(
+        &mut server,
+        &mut bridge,
+        AuctionOperationResponse {
+            success: false,
+            message: "not interacting with an auctioneer".into(),
+        },
+    );
+    bridge.stop().expect("auction stop");
+}

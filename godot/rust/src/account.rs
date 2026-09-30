@@ -37,9 +37,10 @@ use game_engine_ui_model::merchant_data::MerchantRequest;
 use crate::player_spells::PlayerSpells;
 use game_engine_ui_model::auction::{AuctionReply, AuctionRequest};
 use shared::protocol::{
-    AuctionChannel, AuctionHouseOpened, AuctionInventorySnapshot, AuctionOperationResponse,
-    AuctionSearchResults, BidAuctionListResponse, OpenAuctionHouse, OwnedAuctionListResponse,
-    QueryAuctionInventory, QueryAuctions, QueryBidAuctions, QueryOwnedAuctions, SelectGossipOption,
+    AuctionBrowseResults, AuctionChannel, AuctionHouseOpened, AuctionInventorySnapshot,
+    AuctionOperationResponse, AuctionSearchResults, BidAuctionListResponse, OpenAuctionHouse,
+    OwnedAuctionListResponse, QueryAuctionBrowse, QueryAuctionInventory, QueryAuctions,
+    QueryBidAuctions, QueryOwnedAuctions, SelectGossipOption,
 };
 
 /// Combat log lines kept for automation and the cast result readout.
@@ -355,6 +356,9 @@ impl Account {
         match request {
             AuctionRequest::Open => bridge.send::<_, AuctionChannel>(OpenAuctionHouse),
             AuctionRequest::Browse(query) => {
+                bridge.send::<_, AuctionChannel>(QueryAuctionBrowse { query })
+            }
+            AuctionRequest::Listings(query) => {
                 bridge.send::<_, AuctionChannel>(QueryAuctions { query })
             }
             AuctionRequest::Owned => bridge.send::<_, AuctionChannel>(QueryOwnedAuctions),
@@ -1101,6 +1105,8 @@ fn auction_message(
 ) -> Result<Result<AuctionReply, ProtocolMessage>, String> {
     let reply = if message.is::<AuctionHouseOpened>() {
         AuctionReply::Opened(decode(message)?)
+    } else if message.is::<AuctionBrowseResults>() {
+        AuctionReply::Browse(decode(message)?)
     } else if message.is::<AuctionSearchResults>() {
         AuctionReply::Search(decode(message)?)
     } else if message.is::<AuctionInventorySnapshot>() {

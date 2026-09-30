@@ -86,8 +86,6 @@ pub mod nameplate_visibility_data;
 mod nameplate_visibility_data_tests;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
-#[path = "../../../src/sound/spell_cast_data.rs"]
-pub mod spell_cast_data;
 pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
