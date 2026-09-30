@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] feature | Retail class resource bars
+
+Every player class bar now ports its Retail template and mixin: art, animation groups and visibility gates. Rogue and druid combo points, chi, soul shards (with Destruction fragments), essence, death knight runes, holy power and Arcane Charges are covered. `ui/screens/class_bars/` holds a small `AnimationGroup` player plus one module per bar. Live proof against a private server: rogue, paladin, warlock, mage and a caster-form druid (bar hidden). Monk and Evoker cannot be created on the server. Runes wait on per-rune cooldowns from the powers protocol. See [ui-system](systems/ui-system.md#unit-frames).
+
 ## [2026-09-30] evidence | Bounded TargetSelf Options rebind; gate accepted
 
 Updated existing Options parity row, [native main-menu boundary](systems/godot-conversion.md#native-main-menu-boundary) and index. Test-only `685cbe83`, `data/diagnostics/target-binding-options/run1.log` exit 0: real Keybindings/Targeting capture F1 → T → F1, exact labels/unique canonical ownership, old keys inactive, same-player ring/TargetFrame; selection cleared/Menu closed/input released. T avoids fixed F10 Edit Mode. Previous character-select/camera/Min-Max/Zoom/marker/full Menu UDP/Exit assertions pass; unchanged compiled `mb61bqgcj2`, no production change/new Depot. `/tmp/claude/verify-native-target-binding-options.md` accepted bounded saved-runtime/source PASS (eight PASS messages, not eight framework cases); no all-bindings/conflict/server-ack/movement-rebind/fresh-process acceptance. Docs only; Cargo.lock, PLAN.md, user-data/data preserved; no tests/GPU/build/network/delegation. Source unfrozen/shutdown paused; canonical window released for main to merge, not agents.

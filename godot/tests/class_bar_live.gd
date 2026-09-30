@@ -8,9 +8,11 @@ extends SceneTree
 ##   BAR_LIT_PART                 texture part a lit point shows (Retail parentKey, e.g.
 ##                                IconUncharged, ActiveTexture, Rune_Active, Shard_Icon)
 ##   BAR_LIT                      points lit on entering the world
-##   BAR_SPELL / BAR_ENEMY        optional: Tab to a unit whose name contains BAR_ENEMY and cast
+##   BAR_SPELL / BAR_ENEMY        optional: Tab to a unit whose name contains BAR_ENEMY within
+##                                BAR_REACH yards (default 5) and cast
 ##                                BAR_SPELL (on the action bar) once
-##   BAR_LIT_AFTER                points lit once that cast has landed
+##   BAR_LIT_AFTER                points lit once that cast has landed: at least this many when
+##                                it gains power, at most when it spends
 ##   BAR_DIR                      capture directory: the frame on entering, mid-animation
 ##                                after the cast, and settled
 ##   BAR_FORM_DISPLAYS           optional comma-separated model displays (e.g. 115603,115602,-1)
@@ -146,53 +148,57 @@ func lit_points(ui: Node, part: String) -> int:
 
 func cast_and_check(ui: Node, spell: int, part: String, region: Rect2, dir: String) -> bool:
 	var enemy := OS.get_environment("BAR_ENEMY")
+	var reach := float(OS.get_environment("BAR_REACH")) if OS.get_environment("BAR_REACH") != "" else 5.0
 	var seen := {}
 	for attempt in range(30):
 		var name := str(client.target_state().target_name)
 		seen[name] = true
-		if name.contains(enemy):
+		if name.contains(enemy) and target_distance() <= reach:
 			break
 		await press(KEY_TAB)
 		await wait_frames(10)
-	if not str(client.target_state().target_name).contains(enemy):
-		fail("Could not target %s among %s" % [enemy, seen.keys()])
+	if not str(client.target_state().target_name).contains(enemy) or target_distance() > reach:
+		fail("Could not target %s within %.1f yd among %s" % [enemy, reach, seen.keys()])
 		return false
 	var slot: int = client.spells_state().bar.find(spell)
 	if slot < 0 or slot >= BAR_KEYS.size():
 		fail("Spell %d not on the first bar row: %s" % [spell, client.spells_state().bar])
 		return false
 	var want := int(OS.get_environment("BAR_LIT_AFTER"))
+	var gaining := want >= int(OS.get_environment("BAR_LIT"))
+	var reached := func(lit: int) -> bool: return lit >= want if gaining else lit <= want
 	for attempt in range(6):
 		var deadline := Time.get_ticks_msec() + 5000
 		while Time.get_ticks_msec() < deadline and int(client.spells_state().gcd_ms) > 0:
 			await process_frame
 		await press(BAR_KEYS[slot])
 		deadline = Time.get_ticks_msec() + 4000
-		while Time.get_ticks_msec() < deadline and lit_points(ui, part) != want:
+		while Time.get_ticks_msec() < deadline and not reached.call(lit_points(ui, part)):
 			await process_frame
-		if lit_points(ui, part) == want:
+		if reached.call(lit_points(ui, part)):
 			break
-		# Out of range or a miss: walk toward the target and retry.
-		await walk_forward(0.15)
-	if lit_points(ui, part) != want:
+	if not reached.call(lit_points(ui, part)):
 		var spells: Dictionary = client.spells_state()
 		print("FIXTURE target at %s, player at %s" % [client.unit_transform(int(client.target_state().target)), client.account_state().local_player_position])
 		fail("%d %s lit after casting %d, expected %d: %s sent=%s errors=%s power=%s" % [lit_points(ui, part), part, spell, want, client.target_state(), spells.sent, spells.errors, spells.power])
 		return false
+	var settled := lit_points(ui, part)
 	await wait_real(0.25)
 	await capture(dir + "/%s-1-animating.png" % character, region)
 	await wait_real(1.5)
 	await capture(dir + "/%s-1.png" % character, region)
-	if lit_points(ui, part) != want:
-		fail("%d %s lit once settled, expected %d" % [lit_points(ui, part), part, want])
+	if lit_points(ui, part) != settled:
+		fail("%d %s lit once settled, %d when the cast landed" % [lit_points(ui, part), part, settled])
 		return false
 	return true
 
-func walk_forward(seconds: float) -> void:
-	push_key(KEY_W, true)
-	await wait_real(seconds)
-	push_key(KEY_W, false)
-	await wait_frames(5)
+## Yards from the player to the current target.
+func target_distance() -> float:
+	var target = client.unit_transform(int(client.target_state().target))
+	var player = client.account_state().local_player_position
+	if target == null or player == null:
+		return INF
+	return (target as Transform3D).origin.distance_to(player)
 
 func press(code: Key) -> void:
 	push_key(code, true)
