@@ -56,7 +56,7 @@ impl CatalogFixture {
             ("ChrRaces", "ID,UnalteredVisualRaceID\n1,0\n"),
             (
                 "TextureFileData",
-                "FileDataID,MaterialResourcesID\n1020001,101\n",
+                "FileDataID,UsageType,MaterialResourcesID\n1020001,0,101\n1020002,2,101\n",
             ),
         ] {
             std::fs::write(fixture.root.join(format!("{name}.csv")), contents).unwrap();
@@ -141,6 +141,10 @@ fn catalog_cache_roundtrip_retains_original_metadata_and_effect_support() {
             .find(|element| element.choice_id == 90003)
             .unwrap()
             .has_unsupported_effects
+    );
+    assert_eq!(
+        raw.texture_fdids[&101], 1020001,
+        "a material resource resolves to its UsageType 0 texture"
     );
     let skinned = raw
         .elements

@@ -30,7 +30,7 @@ Closed dropdown `SelectionDetails` uses the same Retail `ResizeLayoutFrame` cont
 - TextureFileData is the `wago.tools/db2/TextureFileData/csv?build=12.1.0.69933` export. The local install has no TextureFileData.db2: its encoding key 83eb4cdc… is in no `Data/data/*.idx` bucket of the active build.
 - ChrCustomizationChoice, ChrCustomizationOption and the other customization CSVs remain the 2026-03-12 exports.
 - Pre-refresh files are in `data/pre-12x-customization-20260930/`.
-- `customization_cache_import` and `char_texture_cache_import` rebuild `data/cache/*.sqlite` from them (customization cache schema 3).
+- `customization_cache_import` and `char_texture_cache_import` rebuild `data/cache/*.sqlite` from them (customization cache schema 4: TextureFileData UsageType 0 rows only).
 
 Skinned models (`ChrCustomizationSkinnedModel`) attach a collection M2 bound to the character skeleton; see the [character-creation spec](../../specs/character-creation.md).
 

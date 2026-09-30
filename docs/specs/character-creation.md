@@ -125,7 +125,7 @@ Gaps found in this run:
 
 ## Customization data refresh — 2026-09-30
 
-`scripts/export_db2_csv.py` re-exported ChrCustomizationElement, ChrCustomizationMaterial, ChrCustomizationSkinnedModel (new) and ChrModelTextureLayer from local CASC (build 12.1.0.69933 layouts). The previous CSVs were dated 2026-03-12 and lacked the 12.x Demon Hunter rows. The delta is +360/-35 elements, +68/-24 materials and +12 layers. The old files and caches are in `data/pre-12x-customization-20260930/`. `data/cache/customization.sqlite` is now schema 3, with `elements.skinned_model_id` and `skinned_models`. ChrCustomizationChoice and ChrCustomizationOption were not refreshed, so choices added in 12.x without a local Choice row (for example 62817) are not offered.
+`scripts/export_db2_csv.py` re-exported ChrCustomizationElement, ChrCustomizationMaterial, ChrCustomizationSkinnedModel (new) and ChrModelTextureLayer from local CASC (build 12.1.0.69933 layouts). The previous CSVs were dated 2026-03-12 and lacked the 12.x Demon Hunter rows. The delta is +360/-35 elements, +68/-24 materials and +12 layers. The old files and caches are in `data/pre-12x-customization-20260930/`. `data/cache/customization.sqlite` is now schema 4 (it maps only TextureFileData UsageType 0 rows), with `elements.skinned_model_id` and `skinned_models`. ChrCustomizationChoice and ChrCustomizationOption were not refreshed, so choices added in 12.x without a local Choice row (for example 62817) are not offered.
 
 ## Out of scope
 
