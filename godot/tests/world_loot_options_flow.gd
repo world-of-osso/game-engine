@@ -15,7 +15,7 @@ func run_test() -> void:
 		return
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	if not await wait_screen(client, "Loading", 15000):
+	if not await wait_screen(client, "Loading", WORLD_WAIT_MS):
 		return
 	print("FIXTURE LOOT_LOADING")
 	if not await wait_world(client):
