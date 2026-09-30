@@ -7,7 +7,9 @@ use std::{
 
 use crate::frame_error::SessionError;
 use crate::mirror_timers::MirrorTimerMessage;
-use game_engine_network::{Event, NetworkBridge, ProtocolMessage, UnitSnapshot};
+use game_engine_network::{
+    Event, HANDSHAKE_TIMEOUT_REASON, NetworkBridge, ProtocolMessage, UnitSnapshot,
+};
 use game_engine_session::{
     AuthRequest, ReconnectPhase, Session, SessionEffect, SessionOptions, SessionScreen,
     normalize_auth_token, token_path,
@@ -460,9 +462,12 @@ impl Account {
                 Event::Connected => self.session.receive_connected(),
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
-                    let effects = self
-                        .session
-                        .receive_disconnected_with_reason(reason.as_deref());
+                    let effects = match reason.as_deref() {
+                        Some(reason @ HANDSHAKE_TIMEOUT_REASON) => {
+                            self.session.receive_connect_failed(reason)
+                        }
+                        reason => self.session.receive_disconnected_with_reason(reason),
+                    };
                     self.apply_effects(effects, &mut output)?;
                 }
                 Event::Message(message) => self.dispatch_message(message, &mut output)?,

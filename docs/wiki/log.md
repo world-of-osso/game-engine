@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] systems | Login handshake timeout
+
+Updated [[godot-conversion]]: Netcode client timeout 60 s → 10 s and a 5 s handshake timeout whose reason the login screen shows (`login_connection_loss.gd` GREEN, 5.8 s).
+
 ## [2026-09-30] implementation | Bounded native auction client
 
 Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, portable trading validation, exact-item/category queries, all fetched-row/server-page navigation and corrected duration labels. Targeted current model 8/8, retained owned UDP 1/1 and current host compile/range test 1/1 passed; no Godot runtime executed. Main owns game-cli-first integration and native smoke; no runtime/full-AH acceptance claim.

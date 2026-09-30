@@ -546,3 +546,26 @@ fn no_token_and_failed_auth_or_entry_clear_reconnect() {
     });
     assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
 }
+
+#[test]
+fn a_connect_failure_on_login_shows_its_reason() {
+    let mut session = Session::default();
+    let reason = "Failed to connect: the server did not answer within 5 seconds.";
+    let effects = session.receive_connect_failed(reason);
+    assert_eq!(session.feedback.as_deref(), Some(reason));
+    assert!(matches!(effects.as_slice(), [SessionEffect::ShowFeedback]));
+}
+
+#[test]
+fn a_connect_failure_during_world_reconnect_keeps_reconnecting() {
+    let mut session = Session::default();
+    session.screen = SessionScreen::InWorld;
+    session.token = Some("real-token".into());
+    session.receive_disconnected_with_reason(Some("lost"));
+    assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
+    session
+        .receive_connect_failed("Failed to connect: the server did not answer within 5 seconds.");
+    assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
+    assert_eq!(session.screen, SessionScreen::InWorld);
+    assert_eq!(session.feedback, None);
+}
