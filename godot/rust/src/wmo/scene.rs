@@ -159,54 +159,121 @@ pub(crate) fn build_wmo_node(
     doodad_sets: &[u16],
     light: Option<&TerrainLight>,
 ) -> Result<WmoNode, String> {
-    let (batches, mut batch_errors) = prepare_wmo_batches(asset, doodad_sets);
-    let source = ResourceLoader::singleton()
-        .load(SHADER_PATH)
-        .ok_or_else(|| format!("Cannot load WMO shader {SHADER_PATH}"))?
-        .try_cast::<Shader>()
-        .map_err(|_| format!("WMO shader {SHADER_PATH} has wrong resource type"))?
-        .get_code()
-        .to_string();
-    let black = black_pixel_texture()?;
-    let mut root = Node3D::new_alloc();
-    root.set_name(&format!("Wmo{}", asset.root_fdid));
-    let (material_ms, mesh_ms) = (std::cell::Cell::new(0.0), std::cell::Cell::new(0.0));
-    let _span = crate::profile::span(|| {
-        format!(
-            "wmo {} {} batches material_ms={:.1} mesh_ms={:.1}",
-            asset.root_fdid,
-            batches.len(),
-            material_ms.get(),
-            mesh_ms.get()
-        )
-    });
-    for (index, batch) in batches.iter().enumerate() {
-        let started = std::time::Instant::now();
-        let context = format!(
-            "WMO {} group {} batch {index}",
-            asset.root_fdid, batch.group_index
-        );
-        let material =
-            match build_batch_material(batch, &source, resolver, data_root, &black, light) {
-                Ok(material) => material,
+    let mut build = WmoBuild::new(asset, doodad_sets)?;
+    build.step(asset, resolver, data_root, light, || false);
+    Ok(build.finish())
+}
+
+/// A WMO node built some batches at a time, so a large WMO can spread over frames.
+pub(crate) struct WmoBuild {
+    root: Gd<Node3D>,
+    /// Renderable (group, batch) indices into the asset, in draw order.
+    batches: Vec<(usize, usize)>,
+    next: usize,
+    /// Batches prepared so far: the `Group{g}_Batch{i}` index of the next one.
+    prepared: usize,
+    interior_ambient: [f32; 3],
+    source: String,
+    black: Gd<ImageTexture>,
+    batch_errors: Vec<String>,
+}
+
+impl WmoBuild {
+    pub(crate) fn new(asset: &NativeWmoAsset, doodad_sets: &[u16]) -> Result<Self, String> {
+        let source = ResourceLoader::singleton()
+            .load(SHADER_PATH)
+            .ok_or_else(|| format!("Cannot load WMO shader {SHADER_PATH}"))?
+            .try_cast::<Shader>()
+            .map_err(|_| format!("WMO shader {SHADER_PATH} has wrong resource type"))?
+            .get_code()
+            .to_string();
+        let black = black_pixel_texture()?;
+        let batches = renderable_batches(asset);
+        let mut root = Node3D::new_alloc();
+        root.set_name(&format!("Wmo{}", asset.root_fdid));
+        Ok(Self {
+            root,
+            batches,
+            next: 0,
+            prepared: 0,
+            interior_ambient: wmo_interior_ambient(&asset.root, doodad_sets),
+            source,
+            black,
+            batch_errors: Vec::new(),
+        })
+    }
+
+    /// Build batches until `stop` asks to (checked before each) or none are left;
+    /// `true` once every batch is built. One bad batch must not hide the rest.
+    pub(crate) fn step(
+        &mut self,
+        asset: &NativeWmoAsset,
+        resolver: &CascListfileResolver,
+        data_root: &Path,
+        light: Option<&TerrainLight>,
+        stop: impl Fn() -> bool,
+    ) -> bool {
+        while let Some(&(group_index, batch_index)) = self.batches.get(self.next) {
+            if stop() {
+                return false;
+            }
+            self.next += 1;
+            let group = &asset.groups[group_index];
+            let batch = &group.batches[batch_index];
+            let prepared = match prepare_group_batch(
+                asset,
+                group,
+                batch_index,
+                batch,
+                self.interior_ambient,
+            ) {
+                Ok(prepared) => prepared,
                 Err(error) => {
-                    batch_errors.push(format!("{context}: {error}"));
+                    self.batch_errors.push(error);
                     continue;
                 }
             };
-        material_ms.set(material_ms.get() + started.elapsed().as_secs_f64() * 1000.0);
-        let started = std::time::Instant::now();
-        let mut instance = MeshInstance3D::new_alloc();
-        instance.set_name(&format!("Group{}_Batch{index}", batch.group_index));
-        instance.set_mesh(&build_batch_mesh(batch));
-        mesh_ms.set(mesh_ms.get() + started.elapsed().as_secs_f64() * 1000.0);
-        instance.set_surface_override_material(0, &material);
-        root.add_child(&instance);
+            let index = self.prepared;
+            self.prepared += 1;
+            let material = build_batch_material(
+                &prepared,
+                &self.source,
+                resolver,
+                data_root,
+                &self.black,
+                light,
+            );
+            let material = match material {
+                Ok(material) => material,
+                Err(error) => {
+                    self.batch_errors.push(format!(
+                        "WMO {} group {} batch {index}: {error}",
+                        asset.root_fdid, prepared.group_index
+                    ));
+                    continue;
+                }
+            };
+            let mut instance = MeshInstance3D::new_alloc();
+            instance.set_name(&format!("Group{}_Batch{index}", prepared.group_index));
+            instance.set_mesh(&build_batch_mesh(&prepared));
+            instance.set_surface_override_material(0, &material);
+            self.root.add_child(&instance);
+        }
+        true
     }
-    Ok(WmoNode {
-        node: root,
-        batch_errors,
-    })
+
+    /// The built node, unplaced; the caller owns it from here.
+    pub(crate) fn finish(self) -> WmoNode {
+        WmoNode {
+            node: self.root,
+            batch_errors: self.batch_errors,
+        }
+    }
+
+    /// Free a build that will not finish.
+    pub(crate) fn abandon(self) {
+        self.root.free();
+    }
 }
 
 /// Every texture FDID the WMO's batch materials sample (`build_batch_material`).
@@ -234,8 +301,26 @@ pub(crate) fn texture_fdids(asset: &NativeWmoAsset) -> BTreeSet<u32> {
     fdids
 }
 
-/// Renderable batches plus one error per batch that cannot be drawn; one bad
-/// batch must not hide the rest of the WMO.
+/// (group, batch) indices of the batches with triangles, outside antiportal groups.
+fn renderable_batches(asset: &NativeWmoAsset) -> Vec<(usize, usize)> {
+    asset
+        .groups
+        .iter()
+        .enumerate()
+        .filter(|(_, group)| !group.group.header.group_flags.antiportal)
+        .flat_map(|(group_index, group)| {
+            group
+                .batches
+                .iter()
+                .enumerate()
+                .filter(|(_, batch)| !batch.indices.is_empty())
+                .map(move |(batch_index, _)| (group_index, batch_index))
+        })
+        .collect()
+}
+
+/// Renderable batches plus one error per batch that cannot be drawn.
+#[cfg(test)]
 fn prepare_wmo_batches<'a>(
     asset: &'a NativeWmoAsset,
     doodad_sets: &[u16],
@@ -243,18 +328,12 @@ fn prepare_wmo_batches<'a>(
     let interior_ambient = wmo_interior_ambient(&asset.root, doodad_sets);
     let mut prepared = Vec::new();
     let mut errors = Vec::new();
-    for group in &asset.groups {
-        if group.group.header.group_flags.antiportal {
-            continue;
-        }
-        for (index, batch) in group.batches.iter().enumerate() {
-            if batch.indices.is_empty() {
-                continue;
-            }
-            match prepare_group_batch(asset, group, index, batch, interior_ambient) {
-                Ok(batch) => prepared.push(batch),
-                Err(error) => errors.push(error),
-            }
+    for (group_index, batch_index) in renderable_batches(asset) {
+        let group = &asset.groups[group_index];
+        let batch = &group.batches[batch_index];
+        match prepare_group_batch(asset, group, batch_index, batch, interior_ambient) {
+            Ok(batch) => prepared.push(batch),
+            Err(error) => errors.push(error),
         }
     }
     (prepared, errors)

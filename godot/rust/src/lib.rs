@@ -158,6 +158,7 @@ pub struct GameClient {
     merchant: merchant::Merchant,
     auto_attack: auto_attack::AutoAttack,
     auras: auras::Auras,
+    last_process_ms: f64,
 }
 
 #[godot_api]
@@ -247,6 +248,7 @@ impl INode3D for GameClient {
             merchant: merchant::Merchant::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
+            last_process_ms: 0.0,
             units: HashMap::new(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone(), cache_root.clone()),
             world: world::WorldUnits::new(data_root, cache_root),
@@ -385,89 +387,9 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, delta: f64) {
-        if !self.poll_asset_startup() {
-            self.physical_input.finish_frame();
-            return;
-        }
-        type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
-        // Each step runs even when an earlier one failed; only a session failure ends
-        // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
-        let steps: &[(&str, Step)] = &[
-            ("UI scale", |c, _| Ok(c.sync_registry_ui_scale()?)),
-            ("UI click sounds", |c, _| Ok(c.play_ui_clicks()?)),
-            ("UI actions", |c, _| c.poll_ui_actions()),
-            ("Account", |c, _| c.poll_account()),
-            ("Unit visuals", |c, _| {
-                c.world.attach_loaded_visuals(&c.units);
-                Ok(())
-            }),
-            ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
-            (
-                "Character preview",
-                |c, _| Ok(c.update_character_preview()?),
-            ),
-            ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
-            ("Player input", |c, d| Ok(c.update_player_input(d)?)),
-            ("Targeting", |c, _| c.update_targeting()),
-            ("Spells", |c, d| c.update_spells(d)),
-            ("Auras", |c, _| c.update_auras()),
-            ("Merchant", |c, _| c.update_merchant()),
-            ("Chat", |c, d| c.update_chat(d)),
-            ("World map", |c, _| Ok(c.update_world_map()?)),
-            ("Minimap", |c, _| c.update_minimap()),
-            ("Objective tracker", |c, _| c.update_objective_tracker()),
-            ("Entrance bar", |c, d| c.update_entrance_bar(d)),
-            ("Damage meter", |c, _| c.update_damage_meter()),
-            ("World units", |c, d| {
-                c.world.advance(d);
-                Ok(())
-            }),
-            ("Player animation", |c, _| Ok(c.update_player_animation()?)),
-            ("Footsteps", |c, _| Ok(c.update_footsteps()?)),
-            ("Remote player animation", |c, _| {
-                Ok(c.world.update_remote_locomotion()?)
-            }),
-            ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
-            ("Player movement", |c, _| c.send_player_input()),
-            ("Terrain", |c, _| Ok(c.poll_terrain()?)),
-            ("World lighting", |c, _| Ok(c.update_world_lighting()?)),
-            (
-                "Terrain materials",
-                |c, _| Ok(c.attach_terrain_materials()?),
-            ),
-            ("World objects", |c, _| {
-                c.attach_world_objects();
-                Ok(())
-            }),
-            ("Loading", |c, d| c.update_loading_readiness(d)),
-            ("World errors", |c, d| Ok(c.update_world_errors(d)?)),
-            ("Mirror timers", |c, d| Ok(c.update_mirror_timers(d)?)),
-            ("Delete confirmation", |c, d| {
-                Ok(c.tick_delete_confirmation(d)?)
-            }),
-            ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
-            ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
-            ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
-            ("Culling", |c, _| {
-                c.cull_world_objects();
-                Ok(())
-            }),
-            ("UI scale after updates", |c, _| {
-                Ok(c.sync_registry_ui_scale()?)
-            }),
-        ];
-        for (step, run) in steps {
-            let _span = profile::span(|| format!("step={step}"));
-            if let Err(error) = run(self, delta as f32)
-                && self.handle_frame_error(step, error)
-            {
-                break;
-            }
-        }
-        self.physical_input.finish_frame();
-        if let Err(error) = self.update_sound() {
-            frame_error::report_once(&format!("Sound update failed: {error}"));
-        }
+        let started = std::time::Instant::now();
+        self.run_frame(delta);
+        self.last_process_ms = started.elapsed().as_secs_f64() * 1000.0;
     }
 
     fn exit_tree(&mut self) {
@@ -506,6 +428,12 @@ impl GameClient {
             &self.client_options.graphics,
             &mut viewport,
         );
+    }
+
+    /// Main-thread time of the last `process`, in milliseconds.
+    #[func]
+    fn process_ms(&self) -> f64 {
+        self.last_process_ms
     }
 
     #[func]
@@ -1256,6 +1184,93 @@ impl GameClient {
 
     /// A failure handling one event is reported and the next event still applies;
     /// only a transport or protocol failure ends the poll.
+    /// One frame of client steps (`process`, which times it).
+    fn run_frame(&mut self, delta: f64) {
+        if !self.poll_asset_startup() {
+            self.physical_input.finish_frame();
+            return;
+        }
+        type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
+        // Each step runs even when an earlier one failed; only a session failure ends
+        // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
+        let steps: &[(&str, Step)] = &[
+            ("UI scale", |c, _| Ok(c.sync_registry_ui_scale()?)),
+            ("UI click sounds", |c, _| Ok(c.play_ui_clicks()?)),
+            ("UI actions", |c, _| c.poll_ui_actions()),
+            ("Account", |c, _| c.poll_account()),
+            ("Unit visuals", |c, _| {
+                c.world.attach_loaded_visuals(&c.units);
+                Ok(())
+            }),
+            ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
+            (
+                "Character preview",
+                |c, _| Ok(c.update_character_preview()?),
+            ),
+            ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
+            ("Player input", |c, d| Ok(c.update_player_input(d)?)),
+            ("Targeting", |c, _| c.update_targeting()),
+            ("Spells", |c, d| c.update_spells(d)),
+            ("Auras", |c, _| c.update_auras()),
+            ("Merchant", |c, _| c.update_merchant()),
+            ("Chat", |c, d| c.update_chat(d)),
+            ("World map", |c, _| Ok(c.update_world_map()?)),
+            ("Minimap", |c, _| c.update_minimap()),
+            ("Objective tracker", |c, _| c.update_objective_tracker()),
+            ("Entrance bar", |c, d| c.update_entrance_bar(d)),
+            ("Damage meter", |c, _| c.update_damage_meter()),
+            ("World units", |c, d| {
+                c.world.advance(d);
+                Ok(())
+            }),
+            ("Player animation", |c, _| Ok(c.update_player_animation()?)),
+            ("Footsteps", |c, _| Ok(c.update_footsteps()?)),
+            ("Remote player animation", |c, _| {
+                Ok(c.world.update_remote_locomotion()?)
+            }),
+            ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
+            ("Player movement", |c, _| c.send_player_input()),
+            ("Terrain", |c, _| Ok(c.poll_terrain()?)),
+            ("World lighting", |c, _| Ok(c.update_world_lighting()?)),
+            (
+                "Terrain materials",
+                |c, _| Ok(c.attach_terrain_materials()?),
+            ),
+            ("World objects", |c, _| {
+                c.attach_world_objects();
+                Ok(())
+            }),
+            ("Loading", |c, d| c.update_loading_readiness(d)),
+            ("World errors", |c, d| Ok(c.update_world_errors(d)?)),
+            ("Mirror timers", |c, d| Ok(c.update_mirror_timers(d)?)),
+            ("Delete confirmation", |c, d| {
+                Ok(c.tick_delete_confirmation(d)?)
+            }),
+            ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
+            ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
+            ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
+            ("Culling", |c, _| {
+                c.cull_world_objects();
+                Ok(())
+            }),
+            ("UI scale after updates", |c, _| {
+                Ok(c.sync_registry_ui_scale()?)
+            }),
+        ];
+        for (step, run) in steps {
+            let _span = profile::span(|| format!("step={step}"));
+            if let Err(error) = run(self, delta as f32)
+                && self.handle_frame_error(step, error)
+            {
+                break;
+            }
+        }
+        self.physical_input.finish_frame();
+        if let Err(error) = self.update_sound() {
+            frame_error::report_once(&format!("Sound update failed: {error}"));
+        }
+    }
+
     fn poll_account(&mut self) -> Result<(), FrameError> {
         let events = {
             let _span = profile::span(|| "account.poll".to_owned());
@@ -1271,7 +1286,6 @@ impl GameClient {
                 result => result?,
             }
         }
-        let _span = profile::span(|| "account.after_events".to_owned());
         self.world
             .select_local_player(self.account.session.selected_character_name.as_deref());
         self.world
@@ -1421,15 +1435,9 @@ impl GameClient {
 
     fn attach_world_objects(&mut self) {
         let mut parent = self.to_gd().upcast::<Node3D>();
-        crate::profile::time(
-            || "objects.sync".to_owned(),
-            || {
-                self.world_objects
-                    .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects)
-            },
-        );
+        self.world_objects
+            .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
         if let Some(player) = self.world.local_player_transform() {
-            let _span = crate::profile::span(|| "wmo_collision.sync".to_owned());
             let origin = player.origin;
             self.wmo_collision.sync(
                 &mut parent,

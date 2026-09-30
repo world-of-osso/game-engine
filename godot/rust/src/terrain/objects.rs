@@ -38,6 +38,7 @@ use crate::{
         assets::{LitDoodad, NativeWmoAsset, wmo_fog_volume},
         doodad_light::bind_doodad_light,
         portals::{HalfSpace, WmoPortals},
+        scene::WmoBuild,
     },
     world_models::bind_visual_light,
 };
@@ -131,6 +132,16 @@ struct BuiltDoodad {
     node: Gd<Node3D>,
     render_box: (Vec3, Vec3),
     particles: Option<std::rc::Rc<ModelParticles>>,
+}
+
+/// A WMO placement whose node is being built over frames.
+struct WmoSpawn {
+    tile: Tile,
+    /// The placement's index in the tile's MODF.
+    index: usize,
+    asset: Arc<NativeWmoAsset>,
+    doodad_sets: Vec<u16>,
+    build: WmoBuild,
 }
 
 /// A spawned WMO node and the doodads it still places as children.
@@ -321,6 +332,8 @@ pub(crate) struct TerrainObjects {
     arrived: VecDeque<(ObjectAsset, Result<LoadedAsset, String>)>,
     /// Placements whose files have loaded, in arrival order.
     ready: VecDeque<Pending>,
+    /// The WMO placement being built; other placements wait for it.
+    building: Option<WmoSpawn>,
     spawned_doodads: BTreeSet<u32>,
     spawned_wmos: BTreeSet<u32>,
     wmo_doodads: HashMap<u32, WmoDoodads>,
@@ -365,6 +378,7 @@ impl TerrainObjects {
             waiting_count: 0,
             arrived: VecDeque::new(),
             ready: VecDeque::new(),
+            building: None,
             spawned_doodads: BTreeSet::new(),
             spawned_wmos: BTreeSet::new(),
             wmo_doodads: HashMap::new(),
@@ -398,7 +412,10 @@ impl TerrainObjects {
 
     /// Placements not yet spawned or failed, loading or not.
     pub fn pending_count(&self) -> usize {
-        self.pending.len() + self.waiting_count + self.ready.len()
+        self.pending.len()
+            + self.waiting_count
+            + self.ready.len()
+            + usize::from(self.building.is_some())
     }
 
     pub fn failure_count(&self) -> usize {
@@ -420,6 +437,9 @@ impl TerrainObjects {
         // handed to the workers and wait.
         let started = Instant::now();
         while started.elapsed() < self.budget {
+            if !self.continue_wmo(parent, terrain, started) {
+                break;
+            }
             if let Some((asset, loaded)) = self.arrived.pop_front() {
                 self.finish_asset(asset, loaded);
                 continue;
@@ -576,8 +596,8 @@ impl TerrainObjects {
                 .as_ref()
                 .expect("queued tiles have objects")
         };
-        let model = match pending {
-            Pending::WmoDoodad(wmo, index) => return self.spawn_wmo_doodad(wmo, index),
+        match pending {
+            Pending::WmoDoodad(wmo, index) => self.spawn_wmo_doodad(wmo, index),
             Pending::Doodad(tile, index) => {
                 let doodad = &tile_objects(tile).doodads[index];
                 if self.spawned_doodads.contains(&doodad.unique_id) {
@@ -587,27 +607,99 @@ impl TerrainObjects {
                 self.spawned_doodads.insert(doodad.unique_id);
                 let model = built.node.clone();
                 self.push_doodad(built, scenery, doodad.unique_id, None);
-                model
+                self.attach(parent, &model);
+                Ok(())
             }
             Pending::Wmo(tile, index) => {
-                let wmo = &tile_objects(tile).wmos[index];
+                let objects = tile_objects(tile);
+                let wmo = &objects.wmos[index];
                 // Adjacent tiles reference the same WMO; spawn it once.
                 if self.spawned_wmos.contains(&wmo.unique_id) {
                     return Ok(());
                 }
-                let doodad_sets = tile_objects(tile).wmo_active_doodad_sets(wmo);
-                let (wmo_node, culled, doodads) = self.load_placed_wmo(wmo, tile, &doodad_sets)?;
+                let root_fdid = crate::wmo::assets::resolve_placement_fdid(&self.resolver, wmo)?;
+                let asset = self.wmo_assets[&root_fdid]
+                    .as_ref()
+                    .map_err(|error| format!("WMO {root_fdid}: {error}"))?
+                    .clone();
+                let doodad_sets = objects.wmo_active_doodad_sets(wmo);
+                let build = WmoBuild::new(&asset, &doodad_sets)?;
                 self.spawned_wmos.insert(wmo.unique_id);
-                // Batches that cannot be drawn are failures; the rest of the WMO stays.
-                for error in wmo_node.batch_errors {
-                    self.failures += 1;
-                    godot_error!("{}: {error}", self.name);
-                }
-                self.adopt_wmo(wmo.unique_id, &wmo_node.node, doodads, culled);
-                wmo_node.node
+                self.building = Some(WmoSpawn {
+                    tile,
+                    index,
+                    asset,
+                    doodad_sets,
+                    build,
+                });
+                Ok(())
             }
+        }
+    }
+
+    /// Build more of the WMO being spawned within the frame's budget; `true` once it
+    /// is placed, or failed and was reported.
+    fn continue_wmo(
+        &mut self,
+        parent: &mut Gd<Node3D>,
+        terrain: &StreamedTerrain,
+        started: Instant,
+    ) -> bool {
+        let Some(mut spawn) = self.building.take() else {
+            return true;
         };
-        bind_visual_light(&model, self.light.as_ref());
+        let budget = self.budget;
+        let done = spawn.build.step(
+            &spawn.asset,
+            &self.resolver,
+            &self.data_root,
+            self.light.as_ref(),
+            || started.elapsed() >= budget,
+        );
+        if !done {
+            self.building = Some(spawn);
+            return false;
+        }
+        let Some(objects) = terrain
+            .parsed_tiles
+            .get(&spawn.tile)
+            .and_then(|tile| tile.obj.as_ref())
+        else {
+            spawn.build.abandon();
+            return true;
+        };
+        let placement = &objects.wmos[spawn.index];
+        let tile = spawn.tile;
+        let mut wmo_node = spawn.build.finish();
+        let model = &mut wmo_node.node;
+        let position = placement_position(placement.position, tile.0, tile.1);
+        let rotation = shared::ground::placement_rotation(placement.rotation);
+        model.set_name(&format!("Wmo{}", placement.unique_id));
+        model.set_position(Vector3::from_array(position.to_array()));
+        model.set_quaternion(Quaternion::new(
+            rotation.x, rotation.y, rotation.z, rotation.w,
+        ));
+        model.set_scale(Vector3::ONE * placement.scale);
+        let world_from_local = Affine3A::from_scale_rotation_translation(
+            Vec3::splat(placement.scale),
+            rotation,
+            position,
+        );
+        let culled = CulledWmo::new(&spawn.asset, world_from_local, model);
+        // Batches that cannot be drawn are failures; the rest of the WMO stays.
+        for error in wmo_node.batch_errors {
+            self.failures += 1;
+            godot_error!("{}: {error}", self.name);
+        }
+        let doodads = spawn.asset.doodads(&spawn.doodad_sets);
+        self.adopt_wmo(placement.unique_id, &wmo_node.node, doodads, culled);
+        self.attach(parent, &wmo_node.node);
+        true
+    }
+
+    /// Light `model` and add it under this scene's object root.
+    fn attach(&mut self, parent: &mut Gd<Node3D>, model: &Gd<Node3D>) {
+        bind_visual_light(model, self.light.as_ref());
         let name = self.name;
         self.root
             .get_or_insert_with(|| {
@@ -616,8 +708,7 @@ impl TerrainObjects {
                 parent.add_child(&root);
                 root
             })
-            .add_child(&model);
-        Ok(())
+            .add_child(model);
     }
 
     /// Tracks a spawned doodad for culling, with its particle emitters when enabled.
@@ -773,42 +864,6 @@ impl TerrainObjects {
         Ok(())
     }
 
-    fn load_placed_wmo(
-        &self,
-        placement: &WmoPlacement,
-        tile: Tile,
-        doodad_sets: &[u16],
-    ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<LitDoodad>), String> {
-        let root_fdid = crate::wmo::assets::resolve_placement_fdid(&self.resolver, placement)?;
-        let asset = self.wmo_assets[&root_fdid]
-            .as_ref()
-            .map_err(|error| format!("WMO {root_fdid}: {error}"))?;
-        let doodads = asset.doodads(doodad_sets);
-        let mut wmo_node = crate::wmo::scene::build_wmo_node(
-            &asset,
-            &self.resolver,
-            &self.data_root,
-            doodad_sets,
-            self.light.as_ref(),
-        )?;
-        let model = &mut wmo_node.node;
-        let position = placement_position(placement.position, tile.0, tile.1);
-        let rotation = shared::ground::placement_rotation(placement.rotation);
-        model.set_name(&format!("Wmo{}", placement.unique_id));
-        model.set_position(Vector3::from_array(position.to_array()));
-        model.set_quaternion(Quaternion::new(
-            rotation.x, rotation.y, rotation.z, rotation.w,
-        ));
-        model.set_scale(Vector3::ONE * placement.scale);
-        let world_from_local = Affine3A::from_scale_rotation_translation(
-            Vec3::splat(placement.scale),
-            rotation,
-            position,
-        );
-        let culled = CulledWmo::new(&asset, world_from_local, model);
-        Ok((wmo_node, culled, doodads))
-    }
-
     /// The MFOG fog of the first spawned WMO whose interior group holds world `camera`.
     pub fn camera_fog(&self, camera: Vector3) -> Option<WmoFogBlend> {
         let camera = Vec3::new(camera.x, camera.y, camera.z);
@@ -928,6 +983,9 @@ impl TerrainObjects {
         self.waiting.clear();
         self.waiting_count = 0;
         self.ready.clear();
+        if let Some(spawn) = self.building.take() {
+            spawn.build.abandon();
+        }
         self.spawned_doodads.clear();
         self.spawned_wmos.clear();
         self.wmo_doodads.clear();
