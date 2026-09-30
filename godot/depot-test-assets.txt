@@ -57,8 +57,8 @@ LightData.csv
 ZoneLight.csv
 ZoneLightPoint.csv
 db2/12.1.0.69933/LightParams.csv
-cache/customization.sqlite
-cache/char_texture.sqlite
+cache/customization-v4.sqlite
+cache/char_texture-v2.sqlite
 ChrRaceXChrModel.csv
 ChrRaces.csv
 ChrCustomizationReq.csv

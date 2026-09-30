@@ -27,6 +27,16 @@ References:
 - [ ] Not built: the scroll bar (more than five cards grow the frame past `panelMaxHeight` 290), card hover/pushed strokes, item tooltips, the show/hide and slide-out animations, quest item overlays, Escape to close, loot sounds, group loot roll frames (`GroupLootFrame`), `LOOT_BIND` confirmation.
 - [ ] Right-clicking a hostile living NPC still also sends an interaction the server refuses ("Target is hostile").
 
+## Native Godot conversion
+
+- [ ] Receive per-looter `CorpseLootable` and existing loot-window messages through the native transport/account host.
+- [ ] Right-click the actual corpse with authored Auto Loot and Shift inversion; retain targeting, range and living-NPC behavior.
+- [ ] Mount the shared authored LootFrame, dispatch slot/close actions, and apply matching removals, chat/error text and closure.
+- [ ] Preserve loot cursor/sparkle and authoritative inventory/currency updates without new protocol messages.
+- [ ] Prove the native UI/network boundary with owned loopback fixtures and inspected rendering; Bevy proof above does not establish native parity.
+
+Native integration reuses the authored frame and shared loot-state, card, placement and click policies. `LootChannel` traffic is relayed in channel order; auto collection remains server-owned. `InventoryDelta` and replicated `Gold` remain the bag/currency authorities. Native completion boxes require runtime proof, not merely compiled handlers.
+
 ## Tests asserting this spec
 
 - `src/game/loot_state.rs` tests: slots taken until close, Shift inversion, right-click choice, money lines and coin icon, loot chat lines.

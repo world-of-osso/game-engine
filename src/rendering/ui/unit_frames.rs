@@ -24,11 +24,12 @@ use game_engine::instance_state::{
 };
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::player_spells::ActiveSpecialization;
-use game_engine::status::{CharacterStatsSnapshot, SecondaryResourceEntry};
+use game_engine::status::{CharacterStatsSnapshot, ClassBarPlayer, ClassBarResource};
 use game_engine::targeting::{CurrentTarget, FocusTarget, SetFocus, apply_set_focus};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
+use game_engine::ui::screens::inworld_unit_frames_component::class_bars::settled_view;
 use game_engine::ui::screens::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_DUNGEON_DIFFICULTY, ACTION_UNIT_MENU_INSPECT,
     ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX, ACTION_UNIT_MENU_SET_FOCUS,
@@ -361,9 +362,17 @@ fn build_player_state(
     state.level_text = level.map(|level| level.0.to_string()).unwrap_or_default();
     state.show_combat_icon = character_stats.is_some_and(|stats| stats.in_combat);
     state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
-    state.secondary_resource = powers
-        .and_then(SecondaryResourceEntry::from_unit_powers)
-        .filter(|resource| resource.shown_for_spec(spec));
+    let class_bar_player = player.map(|player| ClassBarPlayer {
+        class: player.class,
+        spec,
+        level: level.map_or(0, |level| level.0),
+        in_combat: state.show_combat_icon,
+    });
+    state.class_bar = powers
+        .zip(class_bar_player)
+        .and_then(|(powers, player)| ClassBarResource::for_player(powers, None, &player))
+        .as_ref()
+        .and_then(settled_view);
     populate_resources(&mut state, health, powers);
     state
 }
@@ -827,7 +836,10 @@ mod tests {
                     current: 80.0,
                     max: 100.0,
                 },
-                UnitPowers { entries: powers },
+                UnitPowers {
+                    entries: powers,
+                    charged_points: Vec::new(),
+                },
                 UnitFactionTemplate(HUMAN_TEMPLATE),
             ))
             .id()
@@ -855,6 +867,8 @@ mod tests {
             power,
             current,
             max,
+            partial: 0,
+            regen_per_sec: 0.0,
         }
     }
 

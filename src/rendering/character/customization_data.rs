@@ -15,12 +15,12 @@ mod support;
 
 pub use catalog::CustomizationCatalog;
 pub use catalog::{
-    ChoiceGeoset, ChoiceMaterial, CustomizationChoice, CustomizationOption, ModelPresentation,
-    OptionType, RequiredChoices,
+    ChoiceGeoset, ChoiceMaterial, ChoiceSkinnedModel, CustomizationChoice, CustomizationOption,
+    ModelPresentation, OptionType, RequiredChoices,
 };
 pub(crate) use catalog::{
     RaceModels, RawCategory, RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial,
-    RawOption,
+    RawOption, RawSkinnedModel,
 };
 
 #[cfg(test)]

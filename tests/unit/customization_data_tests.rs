@@ -70,6 +70,7 @@ fn full_choice_lookup_fixture() -> RawData {
                 related_choice_id: 0,
                 geoset_id: 1,
                 material_id: 1,
+                skinned_model_id: 0,
                 has_unsupported_effects: false,
             },
             RawElement {
@@ -77,6 +78,7 @@ fn full_choice_lookup_fixture() -> RawData {
                 related_choice_id: 70_002,
                 geoset_id: 2,
                 material_id: 2,
+                skinned_model_id: 0,
                 has_unsupported_effects: false,
             },
             RawElement {
@@ -84,6 +86,7 @@ fn full_choice_lookup_fixture() -> RawData {
                 related_choice_id: 0,
                 geoset_id: 3,
                 material_id: 0,
+                skinned_model_id: 0,
                 has_unsupported_effects: false,
             },
         ],
@@ -103,6 +106,7 @@ fn full_choice_lookup_fixture() -> RawData {
                 },
             ),
         ]),
+        skinned_models: HashMap::new(),
         geosets: HashMap::from([
             (
                 1,
