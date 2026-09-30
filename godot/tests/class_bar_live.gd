@@ -92,7 +92,7 @@ func lit_points(ui: Node, part: String) -> int:
 func cast_and_check(ui: Node, spell: int, part: String, region: Rect2, dir: String) -> bool:
 	var enemy := OS.get_environment("BAR_ENEMY")
 	var seen := {}
-	for attempt in range(150):
+	for attempt in range(30):
 		var name := str(client.target_state().target_name)
 		seen[name] = true
 		if name.contains(enemy):
@@ -118,9 +118,11 @@ func cast_and_check(ui: Node, spell: int, part: String, region: Rect2, dir: Stri
 		if lit_points(ui, part) == want:
 			break
 		# Out of range or a miss: walk toward the target and retry.
-		await walk_forward(0.6)
+		await walk_forward(0.15)
 	if lit_points(ui, part) != want:
-		fail("%d %s lit after casting %d, expected %d: %s" % [lit_points(ui, part), part, spell, want, client.target_state()])
+		var spells: Dictionary = client.spells_state()
+		print("FIXTURE target at %s, player at %s" % [client.unit_transform(int(client.target_state().target)), client.account_state().local_player_position])
+		fail("%d %s lit after casting %d, expected %d: %s sent=%s errors=%s power=%s" % [lit_points(ui, part), part, spell, want, client.target_state(), spells.sent, spells.errors, spells.power])
 		return false
 	await wait_real(0.25)
 	await capture(dir + "/%s-1-animating.png" % character, region)
