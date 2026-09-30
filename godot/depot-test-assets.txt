@@ -36,6 +36,9 @@ models/321999.wmo
 models/456882.wmo
 models/3389421.wmo
 models/5356285.wmo
+models/5533972.wmo
+models/108104.wmo
+models/108105.wmo
 models/107074.wmo
 models/107075.wmo
 models/4907674.wmo

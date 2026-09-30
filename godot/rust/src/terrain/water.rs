@@ -132,6 +132,23 @@ impl WaterMaterials {
         Ok(self.create_surface(native)?.material)
     }
 
+    /// A WMO group's liquid surface (`game_engine_core::wmo_liquid`), in a set of materials
+    /// of WMO liquids only, keyed by (LiquidType, interior): the mesh carries its texture
+    /// coordinates, and an interior group's procedural WMO water is white
+    /// (`liquidWaterMat.slang:162-176`).
+    pub fn wmo_surface(
+        &mut self,
+        liquid_type: u16,
+        interior: bool,
+        native: &NativeLiquidMaterial,
+        geometry: adt::WaterGeometry,
+    ) -> Result<Gd<MeshInstance3D>, String> {
+        let mut material = self.material((liquid_type, u16::from(interior)), native)?;
+        material.set_shader_parameter("mesh_uv", &true.to_variant());
+        material.set_shader_parameter("interior", &interior.to_variant());
+        Ok(water_instance(&build_mesh(geometry), &material))
+    }
+
     fn material(
         &mut self,
         key: LiquidKey,

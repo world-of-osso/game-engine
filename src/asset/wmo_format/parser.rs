@@ -426,7 +426,7 @@ fn parse_mliq_tiles(data: &[u8]) -> Vec<WmoLiquidTile> {
     data.iter()
         .copied()
         .map(|tile| WmoLiquidTile {
-            liquid_type: tile & 0x3F,
+            liquid_type: tile & 0x0F,
             fishable: tile & 0x40 != 0,
             shared: tile & 0x80 != 0,
         })

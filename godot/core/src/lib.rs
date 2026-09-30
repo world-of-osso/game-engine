@@ -162,6 +162,7 @@ pub mod unit_motion_data;
 pub mod warband_scene_data;
 pub mod wdt;
 pub mod wmo;
+pub mod wmo_liquid;
 #[path = "../../../src/rendering/terrain/terrain_objects_wmo_material.rs"]
 pub mod wmo_material_data;
 

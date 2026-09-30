@@ -15,6 +15,18 @@ Every LiquidMaterial now has its shader, selected as in `LiquidMaterialManager.c
 
 LiquidObject vertices use their material's LVF: the parser keeps their bytes and `WaterLayer::decode_object_vertices` re-reads them. Magma objects are LVF 1. LVF 1 and 3 are separate height, UV and depth arrays (wowdev MH2O), no longer interleaved.
 
+## WMO liquids (MLIQ)
+
+WMO group liquids were parsed but never drawn. They now follow WebWowViewerCpp (`game_engine_core::wmo_liquid`, `godot/rust/src/terrain/wmo_liquid.rs`):
+
+- **LiquidType** (`WmoGroupObject::setLiquidType`, `wmoGroupObject.cpp:151-201`): with MOHD flag 0x4 a group liquid n below 21 is `to_wmo_liquid(n - 1)`, any other n a LiquidType ID; without it n below 20 is `to_wmo_liquid(n)`, Green Lava (15) none, the rest n + 1. `to_wmo_liquid` keeps the low two bits: WMO Water 13 (WMO Ocean 14 with MOGP 0x80000), Ocean 14, Magma 19, Slime 20. The material is `LiquidCatalog::liquid_material(type, 0)`, as for MH2O.
+- **Tiles.** A tile whose low nibble is 15 is not drawn (`SMOLTile.legacyLiquidType : 4`). The parser masked 0x3F, so tiles 0x1F/0x2F/0x3F/0x7F (e.g. 196 of Blackrock Depths group 043's 899) were drawn as slivers to unused zero-height vertices; it masks 0x0F now.
+- **Surface** (`WmoGroupGeom::getWaterVertexBindings`, `wmoGroupGeom.cpp:512-616`): vertex (i, j) at MLIQ corner + 4.1667 yd × (i, j) and its own height, depth 1; triangles (0, 1, 2), (0, 2, 3). Texture coordinates are WMO-local position / 33.33 yd, or for WMO Magma the magma vertex `s, t * 3 / 256`. The liquid shaders take them from the mesh (`mesh_uv`) instead of world position × 0.06.
+- **Interior colour.** `isInteriorLightingLit` (interior 0x2000 without exterior 0x8 or exterior-lit 0x40) sets the water shader's `interior`, which makes procedural WMO water (LiquidTypeXTexture Type 2, e.g. WMO Water 13) white (`liquidWaterMat.slang:162-176`).
+- The surface is a `Group{g}_Liquid` child of the WMO node, so the placement and portal culling apply. `TerrainObjects` owns one WMO liquid material set, advanced by the shared material clock and relit with the terrain light.
+
+Proof: `godot/core/tests/wmo_liquid.rs` (5 tests): the resolution table; interior lighting; Northshire Abbey's gate fountain (`abbeygate01` 108104/108105: MOHD 0x5, liquid 5 → 13, 10 of 12 tiles, tile 0x3F hidden); the Cultists' Quay delve cave (5356285/5533972) as interior WMO Water; magma vertex UVs.
+
 ## Proof
 
 - `godot/core/tests/liquid_water.rs` (5 tests): an LVF 0 payload keeps its depths; tile 32_48 depths range 0..>64; LiquidObject 427 resolves to type 5 with its textures, floats and coefficients; ocean colours; Shallow Water wave periods [1.0, 0.4]; an unknown object is an error.
@@ -27,7 +39,6 @@ LiquidObject vertices use their material's LVF: the parser keeps their bytes and
 
 - **Specular power: unknown for retail.** The shaders use `uExteriorSpecularColor.a = 1.0` from WebWowViewerCpp `MapSceneRenderer.cpp`. Retail's `dx_5_0` water pixel shaders (`procwaterabove.bls` FDID 2977223, `water.bls` 2977281) read the exponent from `cb1[5].w`, a CPU-set constant with no reflection names, so its value is not in the shader. The Wrath 3.3.5 client uses 6.0 (solarityclient `crates/rendering/src/liquid/shader_uniform.rs:159-160`, "Native 8A38B0 uses the constant at 9E8CF8"); that is not retail evidence. With power 1, distant water gets a pale sun-coloured haze.
 - Height/artistic `makeFog2`, sun attenuation (`uSunAttenuation`), classic underwater fog and wave animation for Float[16] ≠ 0 (ported, not GPU-tested).
-- WMO liquids (MLIQ): not rendered. The parser exists, but group liquid-type resolution, interior colours and vertex UVs are not wired.
 
 ## See Also
 
