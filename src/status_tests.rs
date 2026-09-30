@@ -632,22 +632,93 @@ fn secondary_resource_reads_first_pip_power_in_display_units() {
     assert_eq!(SecondaryResourceEntry::from_unit_powers(&warrior), None);
 }
 
+fn class_powers(
+    entries: &[(shared::components::PowerType, i32, i32)],
+) -> shared::components::UnitPowers {
+    shared::components::UnitPowers {
+        entries: entries
+            .iter()
+            .map(|&(power, current, max)| shared::components::PowerEntry {
+                power,
+                current,
+                max,
+            })
+            .collect(),
+    }
+}
+
+fn class_bar(
+    powers: &shared::components::UnitPowers,
+    class: u8,
+    spec: Option<u32>,
+    level: u8,
+) -> Option<crate::status::ClassBarResource> {
+    let player = crate::status::ClassBarPlayer {
+        class,
+        spec,
+        level,
+        in_combat: false,
+    };
+    crate::status::ClassBarResource::for_player(powers, &player)
+}
+
+/// `ClassPowerBar:Setup` spec gates (MonkHarmonyBar.xml:116, MageArcaneChargesBar.xml:127,
+/// ClassPowerBar.lua:82-83); the other bars show for the whole class.
 #[test]
 fn arcane_charges_and_chi_show_only_for_their_retail_spec() {
-    let bar = |kind| SecondaryResourceEntry {
-        kind,
-        current: 0,
-        max: 4,
-    };
-    let arcane = bar(SecondaryResourceKindEntry::ArcaneCharges);
-    assert!(arcane.shown_for_spec(Some(62)), "Arcane");
-    assert!(!arcane.shown_for_spec(Some(64)), "Frost");
-    assert!(!arcane.shown_for_spec(Some(1449)), "mage Initial spec");
-    assert!(!arcane.shown_for_spec(None), "no spec received yet");
-    let chi = bar(SecondaryResourceKindEntry::Chi);
-    assert!(chi.shown_for_spec(Some(269)), "Windwalker");
-    assert!(!chi.shown_for_spec(Some(268)), "Brewmaster");
-    let holy_power = bar(SecondaryResourceKindEntry::HolyPower);
-    assert!(holy_power.shown_for_spec(Some(65)), "Holy");
-    assert!(holy_power.shown_for_spec(None), "class-wide bar");
+    use crate::status::ClassBar;
+    use shared::components::PowerType::{ArcaneCharges, Chi, Energy, HolyPower, Mana};
+    let mage = class_powers(&[(Mana, 100, 100), (ArcaneCharges, 2, 4)]);
+    let bar = |spec| class_bar(&mage, 8, spec, 20).map(|resource| resource.bar);
+    assert_eq!(bar(Some(62)), Some(ClassBar::ArcaneCharges), "Arcane");
+    assert_eq!(bar(Some(64)), None, "Frost");
+    assert_eq!(bar(Some(1449)), None, "mage Initial spec");
+    assert_eq!(bar(None), None, "no spec received yet");
+    let monk = class_powers(&[(Energy, 100, 100), (Mana, 10, 10), (Chi, 1, 4)]);
+    assert_eq!(
+        class_bar(&monk, 10, Some(269), 20).map(|r| r.bar),
+        Some(ClassBar::Chi)
+    );
+    assert_eq!(class_bar(&monk, 10, Some(268), 20), None, "Brewmaster");
+    let paladin = class_powers(&[(Mana, 100, 100), (HolyPower, 2, 3)]);
+    let holy = class_bar(&paladin, 2, None, 1).expect("class-wide bar");
+    assert_eq!(
+        (holy.bar, holy.current, holy.max),
+        (ClassBar::HolyPower, 2, 3)
+    );
+}
+
+/// `DruidComboPointBarMixin:ShouldShowBar` (DruidComboPointBar.lua:3-12): combo points
+/// only while the display power is Energy (Cat Form); rogues always.
+#[test]
+fn druid_combo_points_show_only_in_cat_form() {
+    use crate::status::ClassBar;
+    use shared::components::PowerType::{ComboPoints, Energy, LunarPower, Mana, Rage};
+    let caster = class_powers(&[
+        (Mana, 100, 100),
+        (Rage, 0, 1000),
+        (Energy, 100, 100),
+        (ComboPoints, 2, 5),
+        (LunarPower, 0, 1000),
+    ]);
+    assert_eq!(class_bar(&caster, 11, Some(103), 20), None, "caster form");
+    let cat = class_powers(&[(Energy, 100, 100), (Mana, 100, 100), (ComboPoints, 2, 5)]);
+    let bar = class_bar(&cat, 11, Some(103), 20).expect("cat form");
+    assert_eq!((bar.bar, bar.current), (ClassBar::DruidComboPoints, 2));
+    let rogue = class_powers(&[(Energy, 100, 100), (ComboPoints, 3, 5)]);
+    assert_eq!(
+        class_bar(&rogue, 4, None, 1).map(|r| r.bar),
+        Some(ClassBar::RogueComboPoints)
+    );
+}
+
+/// Soul shards wait for `requiredShownLevel` 10 (ShardBar.xml:161) and keep their
+/// fragments in tenths (`UnitPower(unit, type, true)`, DisplayModifier 10).
+#[test]
+fn soul_shards_show_from_level_ten_with_fragments() {
+    use shared::components::PowerType::{Mana, SoulShards};
+    let warlock = class_powers(&[(Mana, 100, 100), (SoulShards, 37, 50)]);
+    assert_eq!(class_bar(&warlock, 9, Some(265), 9), None, "level 9");
+    let shards = class_bar(&warlock, 9, Some(265), 10).expect("level 10");
+    assert_eq!((shards.current, shards.max, shards.tenths), (3, 5, 37));
 }

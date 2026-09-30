@@ -186,6 +186,7 @@ pub enum PresenceStateEntry {
 #[path = "status_unit_resource_data.rs"]
 mod status_unit_resource_data;
 pub use status_unit_resource_data::{
+    ClassBar, ClassBarPlayer, ClassBarResource,
     SecondaryResourceEntry, SecondaryResourceKindEntry, power_display_modifier,
 };
 
