@@ -7,24 +7,15 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use game_engine::item_icons::item_icon_fdid;
-use game_engine::loot_state::{LootRequest, LootState, coin_icon_fdid, money_lines};
-use game_engine::merchant_data::quality_color;
+use game_engine::loot_state::{LootRequest, LootState};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
-use game_engine::ui::screens::loot_frame_component::{
-    ACTION_CLOSE, ACTION_SLOT_PREFIX, FRAME_W, LootFrameRow, LootFrameState, frame_height,
-    loot_frame_screen, quality_description,
-};
-use shared::protocol::{LootContent, LootSlot};
+use game_engine::ui::screens::loot_frame_component::{LootFrameState, loot_frame_screen};
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
-
-/// `INV_Misc_QuestionMark`, Retail's icon for an item without one.
-const UNKNOWN_ICON_FDID: u32 = 134_400;
 
 struct LootFrameRes {
     screen: Screen,
@@ -73,50 +64,16 @@ impl Plugin for LootFramePlugin {
     }
 }
 
-/// Retail `lootUnderMouse` (LootFrame.lua:180-190): TOPLEFT at the cursor x - 30 and
-/// 50 above it, never lower than 350 above the screen bottom; `clampedToScreen`.
 pub(crate) fn anchor_under_cursor(cursor: Vec2, screen: Vec2, rows: usize) -> Vec2 {
-    let height = frame_height(rows);
-    let left = (cursor.x - 30.0).clamp(0.0, (screen.x - FRAME_W).max(0.0));
-    let top = (cursor.y - 50.0)
-        .min(screen.y - 350.0)
-        .clamp(0.0, (screen.y - height).max(0.0));
-    Vec2::new(left, top)
-}
-
-fn row(slot: &LootSlot) -> LootFrameRow {
-    match &slot.content {
-        LootContent::Money { copper } => LootFrameRow {
-            slot: slot.slot,
-            icon_fdid: coin_icon_fdid(*copper),
-            name: money_lines(*copper),
-            color: quality_color(1),
-            quality_text: None,
-            count: 1,
-        },
-        LootContent::Item {
-            item_id,
-            name,
-            quality,
-            count,
-        } => LootFrameRow {
-            slot: slot.slot,
-            icon_fdid: item_icon_fdid(*item_id).unwrap_or(UNKNOWN_ICON_FDID),
-            name: name.clone(),
-            color: quality_color(*quality),
-            quality_text: Some(quality_description(*quality)),
-            count: *count,
-        },
-    }
+    Vec2::from_array(game_engine::loot_frame_data::anchor_under_cursor(
+        cursor.to_array(),
+        screen.to_array(),
+        rows,
+    ))
 }
 
 fn build_state(loot: &LootState, anchor: &LootFrameAnchor) -> LootFrameState {
-    LootFrameState {
-        visible: loot.is_open() && !loot.slots.is_empty(),
-        rows: loot.slots.iter().map(row).collect(),
-        left: anchor.at.x,
-        top: anchor.at.y,
-    }
+    game_engine::loot_frame_data::build_state(loot, anchor.at.to_array())
 }
 
 fn build_loot_frame_ui(
@@ -216,11 +173,12 @@ impl Pointer<'_, '_> {
 
 /// The request a frame click sends.
 pub(crate) fn request_for_action(action: &str) -> Option<LootRequest> {
-    if action == ACTION_CLOSE {
-        return Some(LootRequest::Release);
+    match game_engine::loot_frame_data::request_for_action(action)? {
+        game_engine::loot_frame_data::LootFrameAction::Take { slot } => {
+            Some(LootRequest::Take { slot })
+        }
+        game_engine::loot_frame_data::LootFrameAction::Release => Some(LootRequest::Release),
     }
-    let slot = action.strip_prefix(ACTION_SLOT_PREFIX)?.parse().ok()?;
-    Some(LootRequest::Take { slot })
 }
 
 fn handle_loot_frame_input(
@@ -234,74 +192,5 @@ fn handle_loot_frame_input(
     }
     if let Some(request) = pointer.click(&ui).as_deref().and_then(request_for_action) {
         requests.write(request);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_frame_opens_up_and_left_of_the_cursor_and_stays_on_screen() {
-        let screen = Vec2::new(1920.0, 1080.0);
-        assert_eq!(
-            anchor_under_cursor(Vec2::new(900.0, 500.0), screen, 2),
-            Vec2::new(870.0, 450.0)
-        );
-        // Low on the screen: kept at least 350 above the bottom.
-        assert_eq!(
-            anchor_under_cursor(Vec2::new(900.0, 1000.0), screen, 2),
-            Vec2::new(870.0, 730.0)
-        );
-        // Corners: clamped inside.
-        assert_eq!(
-            anchor_under_cursor(Vec2::new(10.0, 20.0), screen, 2),
-            Vec2::new(0.0, 0.0)
-        );
-        assert_eq!(
-            anchor_under_cursor(Vec2::new(1910.0, 500.0), screen, 2).x,
-            1700.0
-        );
-    }
-
-    #[test]
-    fn card_clicks_loot_their_slot_and_the_close_button_releases() {
-        assert_eq!(
-            request_for_action("loot_slot:3"),
-            Some(LootRequest::Take { slot: 3 })
-        );
-        assert_eq!(request_for_action("loot_close"), Some(LootRequest::Release));
-        assert_eq!(request_for_action("merchant_close"), None);
-    }
-
-    #[test]
-    fn money_and_items_become_retail_cards() {
-        let loot = LootState {
-            corpse: Some(7),
-            auto: false,
-            slots: vec![
-                LootSlot {
-                    slot: 0,
-                    content: LootContent::Money { copper: 3 },
-                },
-                LootSlot {
-                    slot: 1,
-                    content: LootContent::Item {
-                        item_id: 755,
-                        name: "Melted Candle".into(),
-                        quality: 0,
-                        count: 1,
-                    },
-                },
-            ],
-        };
-        let state = build_state(&loot, &LootFrameAnchor::default());
-        assert!(state.visible);
-        assert_eq!(state.rows[0].name, "3 Copper");
-        assert_eq!(state.rows[0].icon_fdid, 133_788);
-        assert_eq!(state.rows[0].quality_text, None);
-        assert_eq!(state.rows[1].quality_text, Some("Poor"));
-        assert_eq!(state.rows[1].color, quality_color(0));
-        assert!(!build_state(&LootState::default(), &LootFrameAnchor::default()).visible);
     }
 }
