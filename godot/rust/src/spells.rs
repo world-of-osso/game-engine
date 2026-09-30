@@ -36,6 +36,7 @@ use godot::prelude::*;
 use shared::components::PowerType;
 use shared::protocol::{ActionRef, CastFailed, CombatLogKind};
 
+use crate::combat_text;
 use crate::frame_error::{FrameError, SessionError, report_once};
 use crate::{
     GameClient,
@@ -70,6 +71,8 @@ const FLOAT_TEXT_RISE: f32 = 1.5;
 const FLOAT_TEXT_SECS: f32 = 1.5;
 /// Height above the unit origin where combat text starts.
 const FLOAT_TEXT_HEIGHT: f32 = 3.6;
+/// Combat text `pixel_size` at its settled size.
+const FLOAT_TEXT_PIXEL: f32 = 0.0016;
 
 enum CatalogLoad {
     Idle,
@@ -93,6 +96,7 @@ struct FloatingText {
     node: Gd<Label3D>,
     age: f32,
     origin: Vector3,
+    crit: bool,
 }
 
 pub(crate) struct SpellsHud {
@@ -110,6 +114,8 @@ pub(crate) struct SpellsHud {
     pushed: [f32; MAIN_BAR_BUTTONS],
     combat_seen: u64,
     floating: Vec<FloatingText>,
+    /// Numbers floated so far, indexing each one's start offset.
+    floats_spawned: u32,
     /// Spell ids sent, oldest first, for automation.
     sent: Vec<u32>,
     /// Error lines shown for `CastFailed`, oldest first, for automation.
@@ -132,6 +138,7 @@ impl Default for SpellsHud {
             pushed: [0.0; MAIN_BAR_BUTTONS],
             combat_seen: 0,
             floating: Vec::new(),
+            floats_spawned: 0,
             sent: Vec::new(),
             errors: Vec::new(),
         }
@@ -920,8 +927,16 @@ impl GameClient {
             .filter(|event| matches!(event.kind, CombatLogKind::Damage | CombatLogKind::Miss(_)))
             .cloned()
             .collect();
+        let camera_right = self
+            .base()
+            .get_viewport()
+            .and_then(|viewport| viewport.get_camera_3d())
+            .map(|camera| camera.get_global_transform().basis.col_a());
         for event in events {
-            let Some(unit) = event.target.and_then(|id| self.world.unit_node(id)) else {
+            let (Some(unit), Some(right)) = (
+                event.target.and_then(|id| self.world.unit_node(id)),
+                camera_right,
+            ) else {
                 continue;
             };
             let text = match event.kind {
@@ -941,7 +956,6 @@ impl GameClient {
             label.set_outline_size(8);
             // Constant on-screen size, as Retail combat text.
             label.set_draw_flag(godot::classes::label_3d::DrawFlags::FIXED_SIZE, true);
-            label.set_pixel_size(0.0016);
             // Retail white for physical damage, yellow for spell schools.
             let color = if event.school_mask == 1 {
                 Color::from_rgb(1.0, 1.0, 1.0)
@@ -949,16 +963,20 @@ impl GameClient {
                 Color::from_rgb(1.0, 1.0, 0.0)
             };
             label.set_modulate(color);
-            // Under the client root: unit nodes carry model scale.
-            // Successive numbers fan out sideways instead of stacking.
-            let lane = [0.0, -0.8, 0.8][(self.spells.floating.len()) % 3];
-            let origin = unit.get_global_position() + Vector3::new(lane, FLOAT_TEXT_HEIGHT, 0.0);
+            // Under the client root: unit nodes carry model scale. Each number starts at
+            // its own offset in the camera plane so simultaneous ones do not stack.
+            let origin = unit.get_global_position()
+                + Vector3::new(0.0, FLOAT_TEXT_HEIGHT, 0.0)
+                + combat_text::start_offset(self.spells.floats_spawned, right);
+            self.spells.floats_spawned = self.spells.floats_spawned.wrapping_add(1);
             label.set_position(origin);
+            label.set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(0.0, event.crit));
             self.base_mut().add_child(&label);
             self.spells.floating.push(FloatingText {
                 node: label,
                 age: 0.0,
                 origin,
+                crit: event.crit,
             });
         }
         self.spells.floating.retain_mut(|text| {
@@ -973,6 +991,8 @@ impl GameClient {
             let t = text.age / FLOAT_TEXT_SECS;
             text.node
                 .set_position(text.origin + Vector3::new(0.0, FLOAT_TEXT_RISE * t, 0.0));
+            text.node
+                .set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(text.age, text.crit));
             let mut color = text.node.get_modulate();
             color.a = 1.0 - t * t;
             text.node.set_modulate(color);
