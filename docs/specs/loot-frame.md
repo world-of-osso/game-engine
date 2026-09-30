@@ -35,6 +35,8 @@ References:
 - [ ] Preserve loot cursor/sparkle and authoritative inventory/currency updates without new protocol messages.
 - [ ] Prove the native UI/network boundary with owned loopback fixtures and inspected rendering; Bevy proof above does not establish native parity.
 
+Native integration reuses the authored frame and shared loot-state, card, placement and click policies. `LootChannel` traffic is relayed in channel order; auto collection remains server-owned. `InventoryDelta` and replicated `Gold` remain the bag/currency authorities. Native completion boxes require runtime proof, not merely compiled handlers.
+
 ## Tests asserting this spec
 
 - `src/game/loot_state.rs` tests: slots taken until close, Shift inversion, right-click choice, money lines and coin icon, loot chat lines.
