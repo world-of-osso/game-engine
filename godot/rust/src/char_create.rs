@@ -8,6 +8,8 @@ mod deps {
         RequiredChoices,
     };
     pub use game_engine_ui_model::{char_create_component, char_create_data};
+    #[cfg(test)]
+    pub const NAME_GEN_CSV: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../data/NameGen.csv");
 }
 
 #[path = "../../../src/scenes/char_create/camera_orbit.rs"]
