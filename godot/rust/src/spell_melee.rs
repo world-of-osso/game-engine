@@ -24,6 +24,16 @@ pub(super) struct PendingSwing {
     result: SwingResult,
 }
 
+/// A melee `CombatEvent` seen, for automation and logs.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MeleeSeen {
+    pub attacker: u64,
+    pub target: u64,
+    pub result: SwingResult,
+    /// `SpellEffects` clock (seconds) when it arrived.
+    pub at: f32,
+}
+
 /// The swing result of a melee `CombatEvent` (`None`: not a melee swing). The server
 /// sends a block as MeleeDamage.
 fn swing_result(kind: &CombatEventType) -> Option<SwingResult> {
@@ -39,13 +49,28 @@ fn swing_result(kind: &CombatEventType) -> Option<SwingResult> {
 impl SpellEffects {
     /// Hold a melee swing until its attacker's attack clip lands it.
     pub fn observe_melee(&mut self, event: &CombatEvent) {
-        if let Some(result) = swing_result(&event.event_type) {
-            let swing = PendingSwing {
-                target: event.target,
-                result,
-            };
-            self.swings.insert(event.attacker, swing);
+        let Some(result) = swing_result(&event.event_type) else {
+            return;
+        };
+        let swing = PendingSwing {
+            target: event.target,
+            result,
+        };
+        self.swings.insert(event.attacker, swing);
+        if self.melee_seen.len() == super::STARTED_KEEP {
+            self.melee_seen.remove(0);
         }
+        self.melee_seen.push(MeleeSeen {
+            attacker: event.attacker,
+            target: event.target,
+            result,
+            at: self.clock,
+        });
+    }
+
+    /// Recent melee swings seen, oldest first.
+    pub fn melee_seen(&self) -> &[MeleeSeen] {
+        &self.melee_seen
     }
 
     /// The sounds of the M2 events units' action clips passed and of units that died.

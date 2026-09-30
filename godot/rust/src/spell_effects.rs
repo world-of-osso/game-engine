@@ -357,6 +357,8 @@ pub struct SpellEffects {
     voices: HashMap<u64, VoiceSource>,
     /// Each attacker's latest melee swing, landing at its clip's `$CAH`.
     swings: HashMap<u64, melee::PendingSwing>,
+    /// Newest melee swings seen, oldest first, bounded.
+    melee_seen: Vec<melee::MeleeSeen>,
     /// Auras whose kits are held on their units, by (unit, instance).
     auras: HashMap<(u64, u32), auras::HeldAura>,
     /// Newest cast starts and resolutions seen, oldest first, bounded.
@@ -390,6 +392,7 @@ impl SpellEffects {
             clock: 0.0,
             voices: HashMap::new(),
             swings: HashMap::new(),
+            melee_seen: Vec::new(),
             auras: HashMap::new(),
             casts_seen: Vec::new(),
             sounds: SpellSounds::default(),

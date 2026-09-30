@@ -107,6 +107,16 @@ impl GameClient {
             sounds.push(&entry.to_variant());
         }
         state.set("sounds", &sounds);
+        let mut melee = VarArray::new();
+        for seen in self.spell_effects.melee_seen() {
+            let mut entry = VarDictionary::new();
+            entry.set("attacker", seen.attacker as i64);
+            entry.set("target", seen.target as i64);
+            entry.set("result", format!("{:?}", seen.result));
+            entry.set("at", seen.at);
+            melee.push(&entry.to_variant());
+        }
+        state.set("melee", &melee);
         state.set("clock", self.spell_effects.clock());
         let mut casts = VarArray::new();
         for seen in self.spell_effects.casts_seen() {
