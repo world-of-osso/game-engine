@@ -182,6 +182,9 @@ impl GameClient {
                 None => return Ok(()),
             },
         };
+        if self.send_corpse_loot(unit)? {
+            return Ok(());
+        }
         // Right-clicking an attackable unit attacks it (`CMSG_ATTACK_SWING`).
         if self.can_auto_attack(unit) {
             self.start_auto_attack(unit)?;
@@ -235,7 +238,7 @@ impl GameClient {
         Some(npc_cursor(NpcCursorView {
             flags: NpcFlags(unit.npc_flags.unwrap_or(0)),
             dead: unit.health.is_some_and(|health| health.current <= 0.0),
-            lootable: false,
+            lootable: self.loot.lootable.contains(&id),
             reaction,
         }))
     }

@@ -175,13 +175,13 @@ fn browse_rows(inputs: &ViewInputs) -> Vec<BrowseRow> {
         {
             Some(row) => {
                 row.price = row.price.min(price);
-                row.available += listing.stack_count;
+                row.available += u64::from(listing.stack_count);
             }
             None => rows.push(BrowseRow {
                 item_id: listing.item.item_id,
                 item: inputs.item_line(&listing.item),
                 price,
-                available: listing.stack_count,
+                available: u64::from(listing.stack_count),
             }),
         }
     }

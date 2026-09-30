@@ -480,6 +480,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, spell_tooltip_screen, ScreenPostsetup::None)
     }
 
+    /// Mount the shared authored Retail corpse-loot frame.
+    pub fn show_loot_frame(
+        &mut self,
+        state: game_engine_ui_model::loot_frame_component::LootFrameState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::loot_frame_component::loot_frame_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail spellbook.
     pub fn show_spellbook(&mut self, state: SpellbookFrameState) -> Result<(), String> {
         self.show_viewport_screen(state, spellbook_frame_screen, ScreenPostsetup::Spellbook)

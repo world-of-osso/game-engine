@@ -22,7 +22,7 @@ mod melee;
 #[path = "spell_visual_voice.rs"]
 mod voice;
 pub use melee::{MeleeHand, SwingResult};
-pub use voice::{UnitSound, VoiceSource};
+pub use voice::{UnitSound, VoiceSource, player_displays};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.

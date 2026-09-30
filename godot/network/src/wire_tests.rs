@@ -1,5 +1,75 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
+#[test]
+fn native_bridge_receives_loot_messages_in_channel_order() {
+    use shared::protocol::{
+        CorpseLootable, LootChannel, LootClosed, LootContent, LootError, LootFailed, LootResponse,
+        LootSlot, LootSlotRemoved,
+    };
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8210).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    // Queue every type before the next server update. Repeat response/removal/close so
+    // per-type relays cannot accidentally satisfy the FIFO assertions.
+    let corpse = 123;
+    let opened = LootResponse {
+        corpse,
+        auto: false,
+        slots: vec![LootSlot {
+            slot: 0,
+            content: LootContent::Money { copper: 12345 },
+        }],
+    };
+    let removed = LootSlotRemoved { corpse, slot: 0 };
+    let closed = LootClosed { corpse };
+    let failed = LootFailed {
+        corpse,
+        error: LootError::InventoryFull,
+    };
+    let lootable = CorpseLootable {
+        corpse,
+        lootable: true,
+    };
+    let world = server.world_mut();
+    macro_rules! send {
+        ($ty:ty, $value:expr) => {
+            world
+                .query::<&mut MessageSender<$ty>>()
+                .single_mut(world)
+                .expect("one connected loot sender")
+                .send::<LootChannel>($value.clone());
+        };
+    }
+    send!(CorpseLootable, lootable);
+    send!(LootResponse, opened);
+    send!(LootSlotRemoved, removed);
+    send!(LootClosed, closed);
+    send!(LootFailed, failed);
+    send!(LootResponse, opened);
+    send!(LootSlotRemoved, removed);
+    send!(LootClosed, closed);
+    let mut received = await_messages(&mut server, &mut bridge, 8).into_iter();
+    macro_rules! assert_next {
+        ($ty:ty, $expected:expr) => {
+            assert_eq!(
+                received.next().unwrap().downcast::<$ty>().ok(),
+                Some($expected)
+            );
+        };
+    }
+    assert_next!(CorpseLootable, lootable);
+    assert_next!(LootResponse, opened.clone());
+    assert_next!(LootSlotRemoved, removed);
+    assert_next!(LootClosed, closed);
+    assert_next!(LootFailed, failed);
+    assert_next!(LootResponse, opened);
+    assert_next!(LootSlotRemoved, removed);
+    assert_next!(LootClosed, closed);
+    bridge.stop().expect("join fixture worker");
+}
+
 use super::*;
 use lightyear::prelude::{LinkOf, NetworkTarget, Replicate, ReplicationSender, server};
 use shared::{
@@ -825,6 +895,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     fn install_auction(app: &mut App) {
         install::<OpenAuctionHouse>(app);
         install::<QueryAuctions>(app);
+        install::<QueryAuctionBrowse>(app);
         install::<QueryAuctionInventory>(app);
         install::<QueryOwnedAuctions>(app);
         install::<QueryBidAuctions>(app);
@@ -901,6 +972,30 @@ fn native_bridge_auction_operations_and_query_rejections() {
             query: query.clone()
         },
         QueryAuctions
+    );
+    let mut browse_query = query.clone();
+    browse_query.item_id = None;
+    request!(
+        QueryAuctionBrowse {
+            query: browse_query.clone()
+        },
+        QueryAuctionBrowse
+    );
+    reply(
+        &mut server,
+        &mut bridge,
+        AuctionBrowseResults {
+            query: browse_query,
+            total_results: 103,
+            items: vec![AuctionBrowseItem {
+                item_id: 2589,
+                name: "Linen Cloth".into(),
+                quality: 1,
+                required_level: 1,
+                lowest_unit_price: 17,
+                total_quantity: 5_000_000_001,
+            }],
+        },
     );
     request!(QueryAuctionInventory, QueryAuctionInventory);
     request!(QueryOwnedAuctions, QueryOwnedAuctions);

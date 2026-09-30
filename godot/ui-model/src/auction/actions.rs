@@ -89,7 +89,7 @@ pub fn dispatch(
         ui.selected_auction = None;
         let mut query = search_query("");
         query.item_id = Some(item_id as u32);
-        net.request(AuctionRequest::Browse(query));
+        net.request(AuctionRequest::Listings(query));
         return money_edits(BID_BOXES, None);
     }
     if let Some(auction_id) = parse(action, frame::ACTION_SELECT_AUCTION_PREFIX) {
@@ -229,7 +229,7 @@ fn select_sell_item(
     ui.sell_item = Some(guid);
     let mut query = search_query("");
     query.item_id = Some(item_id);
-    net.request(AuctionRequest::Browse(query));
+    net.request(AuctionRequest::Listings(query));
     let mut edits = vec![(QUANTITY_BOX, "1".to_string())];
     edits.extend(money_edits(SELL_BUYOUT_BOXES, None));
     edits.extend(money_edits(SELL_BID_BOXES, None));

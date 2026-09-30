@@ -203,7 +203,7 @@ fn display_voices(dir: &Path) -> Result<HashMap<u32, u32>, String> {
 }
 
 /// The display of each (race, sex) player model (`ChrRaceXChrModel` → `ChrModel`).
-fn player_displays(dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
+pub fn player_displays(dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
     let chr_models: HashMap<i64, i64> = Table::read(dir, "ChrModel")?
         .ints(["ID", "DisplayID"])?
         .into_iter()
