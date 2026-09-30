@@ -356,6 +356,11 @@ impl GameClient {
         self.follow_selection_with_auto_attack()?;
         self.send_target()?;
         self.sync_target_circle()?;
+        if let Some(circle) = self.targeting.circle.as_mut() {
+            circle
+                .decal
+                .set_visible(self.client_options.hud.show_target_marker);
+        }
         Ok(self.sync_unit_frames()?)
     }
 
