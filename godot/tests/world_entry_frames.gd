@@ -41,7 +41,8 @@ func _process(_delta: float) -> bool:
 			if ms > frame_limit:
 				# The client's last main-thread process time and the viewport's render CPU time.
 				var rid := root.get_viewport_rid()
-				slow_world.append([(now - world_started_usec) / 1e6, ms, client.process_ms(),
+				var client_ms: float = client.process_ms() if client.has_method("process_ms") else -1.0
+				slow_world.append([(now - world_started_usec) / 1e6, ms, client_ms,
 					RenderingServer.viewport_get_measured_render_time_cpu(rid) + RenderingServer.get_frame_setup_time_cpu()])
 	last_usec = now
 	if client != null and is_instance_valid(client) and phase == "loading" and client.account_state().screen == "InWorld":
