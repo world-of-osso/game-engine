@@ -12,10 +12,10 @@ use crate::customization_data::{RaceModels, RawData};
 mod customization_query_data;
 use crate::sqlite_util::is_missing_table_error;
 
-const CACHE_SCHEMA_VERSION: u32 = 4;
+use customization_query_data::{CACHE_SCHEMA_VERSION, customization_cache_file};
 
 fn cache_path() -> PathBuf {
-    crate::paths::shared_data_path("cache/customization.sqlite")
+    crate::paths::shared_data_path(format!("cache/{}", customization_cache_file()))
 }
 
 fn required_csv_paths(data_dir: &Path) -> [PathBuf; 9] {

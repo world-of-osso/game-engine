@@ -9,6 +9,14 @@ use crate::customization_data::{
 
 type HairGeosetKey = (u32, u16, u16);
 
+/// Cache schema; the version is in the file name because checkouts and the two
+/// clients share `data/cache`, and one name made each rebuild over the other's.
+pub(crate) const CACHE_SCHEMA_VERSION: u32 = 4;
+
+pub fn customization_cache_file() -> String {
+    format!("customization-v{CACHE_SCHEMA_VERSION}.sqlite")
+}
+
 pub(crate) fn query_customization_raw_data(
     conn: &Connection,
     race_models: RaceModels,

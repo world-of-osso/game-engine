@@ -2,6 +2,12 @@ use crate::asset::char_texture::{TextureLayer, TextureLayout, TextureSection};
 use rusqlite::Connection;
 use std::collections::HashMap;
 
+/// Cache layout version in the file name (see `customization_cache_file`); 2 adds
+/// `model_materials`.
+pub fn char_texture_cache_file() -> &'static str {
+    "char_texture-v2.sqlite"
+}
+
 pub type CharTextureCacheData = (
     Vec<TextureLayer>,
     HashMap<(u32, u32), TextureSection>,
