@@ -21,12 +21,7 @@ uniform ivec4 liquid_ints = ivec4(0);
 // LiquidObject FlowSpeed and FlowDirection (degrees).
 uniform vec2 flow = vec2(0.0);
 
-// Scene fog in linear RGB, as the terrain shader.
-uniform vec3 fog_color;
-uniform vec2 fog_range;
-uniform float fog_density;
-uniform float fog_opacity;
-uniform int fog_mode = 0;
+#include "res://shaders/retail_fog.gdshaderinc"
 
 const float DEGREES = 0.017453292;
 
@@ -84,15 +79,9 @@ vec3 base_color() {
 	return vec3(float((packed >> 16) & 0xFF), float((packed >> 8) & 0xFF), float(packed & 0xFF)) / 255.0;
 }
 
-vec3 apply_retail_fog(vec3 color, float distance_to_camera) {
-	float amount = 0.0;
-	if (fog_mode == 1) {
-		// commonFogFunctions.slang calculateLegacyFog, without height fog.
-		float exp_fog = exp(-max(0.0, distance_to_camera - fog_range.x) * fog_density);
-		float end_fade = clamp(1.42857146 * (1.0 - distance_to_camera / fog_range.y), 0.0, 1.0);
-		amount = 1.0 - min(exp_fog, end_fade);
-	}
-	return mix(color, linear_to_gamma(fog_color), amount * fog_opacity);
+// makeFog2 on the liquid's view-space fragment (liquid materials blend as mode 2).
+vec3 apply_retail_fog(vec3 color, vec3 view_position, mat4 inv_view) {
+	return retail_fog(color, (inv_view * vec4(view_position, 1.0)).xyz, inv_view[3].xyz, 2);
 }
 
 void vertex() {
@@ -129,6 +118,6 @@ void fragment() {
 	color = color + (layer_2.rgb - color) * (layer_2.a * blend.y);
 	color = color + (layer_3.rgb - color) * (layer_3.a * blend.z);
 
-	color = apply_retail_fog(color, length(wow_position - vec3(CAMERA_POSITION_WORLD.x, -CAMERA_POSITION_WORLD.z, CAMERA_POSITION_WORLD.y)));
+	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = gamma_to_linear(color);
 }

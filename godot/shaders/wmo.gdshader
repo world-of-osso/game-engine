@@ -37,13 +37,7 @@ uniform vec3 horizon_ambient = vec3(1.0);
 uniform vec3 ground_ambient = vec3(1.0);
 uniform vec3 direct;
 uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
-uniform vec3 fog_color;
-// Retail legacy exponential fog: (start, end) in yards and density per yard.
-uniform vec2 fog_range;
-uniform float fog_density;
-uniform float fog_opacity;
-// 0 off, 1 retail legacy fog.
-uniform int fog_mode = 0;
+#include "res://shaders/retail_fog.gdshaderinc"
 
 varying vec3 world_position;
 varying vec3 world_normal;
@@ -82,30 +76,11 @@ vec3 retail_ambient(vec3 up_ambient, vec3 horizon, vec3 ground, vec3 normal, flo
 	return mix(hemisphere * 0.7, hemisphere * 1.1, 0.5 + 0.5 * n_dot_l);
 }
 
-vec3 retail_fog_color() {
-	if (blend_mode == 3 || blend_mode == 10 || blend_mode == 13) {
-		return vec3(0.0);
-	} else if (blend_mode == 4) {
-		return vec3(1.0);
-	} else if (blend_mode == 5) {
-		return vec3(0.5);
-	}
-	return linear_to_gamma(fog_color);
-}
-
 vec3 apply_retail_fog(vec3 color) {
 	if (unfogged) {
 		return color;
 	}
-	float distance_to_camera = length(world_position - camera_position);
-	float amount = 0.0;
-	if (fog_mode == 1) {
-		// commonFogFunctions.slang calculateLegacyFog, without height fog.
-		float exp_fog = exp(-max(0.0, distance_to_camera - fog_range.x) * fog_density);
-		float end_fade = clamp(1.42857146 * (1.0 - distance_to_camera / fog_range.y), 0.0, 1.0);
-		amount = 1.0 - min(exp_fog, end_fade);
-	}
-	return mix(color, retail_fog_color(), amount * fog_opacity);
+	return retail_fog(color, world_position, camera_position, blend_mode);
 }
 
 vec4 gamma(vec4 color) {
