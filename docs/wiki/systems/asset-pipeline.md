@@ -24,6 +24,10 @@ cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid
 
 Files are named `{fdid}.{ext}` (extension derived from the community listfile). Always extract from local CASC; never use Blizzard CDN.
 
+The shared file cache previously treated an empty persisted `.missing` file as permanent absence, bypassing local extraction even when CASC held the asset. Asset-resolver `c24d035` removes that check and marker writes; existing markers remain untouched and are ignored. Positive-cache hits, local extraction, failure diagnostics and public initialization are unchanged. The contract lives in the sibling [asset-cache spec](../../../../asset-resolver/docs/specs/asset-cache.md).
+
+Regression `0cf7ec6` exercises fresh-process recovery after positive-cache and unavailable-asset cases. Saved RED `/tmp/claude/negative-cache-red2.log` exits 101: FDID `1244035` resolves as valid BLP2 bytes, but the old empty marker makes `ensure_cached` return `None`. GREEN and independent acceptance remain pending; this is not a passing-test claim.
+
 Extraction to disk is not the only access path. The project `AssetResolver` also exposes `resolve_bytes(fdid)`, which can read file contents directly from local CASC. Runtime DB2 loading can use direct bytes because the DB2 parsers accept `&[u8]`; path-based helpers such as `ensure_db2_path` are mainly useful for debug artifacts, cache inspection, and tools that require filesystem paths.
 
 `771c1f5f` uses the existing local `CascListfileResolver` cache path for a native creature-model helper: model FDID → `.m2`, primary M2 SFID → adjacent `00.skin`, optional SKID → adjacent `.skel`, then parsed render-batch/explicit creature-slot texture FDIDs → `.blp`. The helper is not yet attached to native world-unit spawning.
