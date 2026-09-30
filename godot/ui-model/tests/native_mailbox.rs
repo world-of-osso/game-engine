@@ -170,7 +170,7 @@ fn native_mailbox_authored_receiving_ui_disables_pending_claims_and_excludes_sen
         let mut shared = SharedContext::new();
         shared.insert(NativeMailView {
             inbox: session.view(77),
-            bags: BagFrameState::default(),
+            bags: BagFrameState { bags: vec![] },
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(native_mail_screen).sync(&shared, &mut registry);

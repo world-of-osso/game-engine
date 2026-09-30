@@ -132,7 +132,8 @@ impl GameClient {
             let mut ui = RegistryUi::new_alloc();
             ui.set_name("MailboxUI");
             self.base_mut().add_child(&ui);
-            if let Err(error) = ui.bind_mut().show_mail(view.clone()) {
+            let shown = ui.bind_mut().show_mail(view.clone());
+            if let Err(error) = shown {
                 ui.free();
                 return Err(error.into());
             }
@@ -175,7 +176,7 @@ impl GameClient {
         state.set("open", session.is_open());
         state.set(
             "object",
-            session
+            &session
                 .object
                 .map(|id| (id as i64).to_variant())
                 .unwrap_or_default(),
@@ -184,14 +185,15 @@ impl GameClient {
         state.set("page", session.page as i64);
         state.set(
             "selected",
-            session
+            &session
                 .selected
                 .map(|id| (id as i64).to_variant())
                 .unwrap_or_default(),
         );
         state.set(
             "money",
-            self.world
+            &self
+                .world
                 .local_player_id()
                 .and_then(|id| self.units.get(&id)?.gold)
                 .map(|v| (v as i64).to_variant())
