@@ -8,9 +8,9 @@
 mod codec;
 pub(crate) mod receive;
 
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
-use bevy::prelude::BevyError;
+use bevy::{platform::collections::HashMap, prelude::BevyError};
 use bevy_replicon::{bytes::Buf, bytes::Bytes, postcard_utils, prelude::RepliconTick};
 
 pub use codec::Schema;
