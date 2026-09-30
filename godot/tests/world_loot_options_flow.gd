@@ -354,9 +354,13 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 	for selection in [not enabled, enabled]:
 		var side := menu.find_child("ToggleSwitchauto_lootRightHit" if selection else "ToggleSwitchauto_lootLeftHit", true, false) as Control
 		if side == null:
-			fail("Authored Auto Loot segment missing")
-			return false
-		await click(side)
+			# Authored toggle renders a hit control only for the inactive side.
+			var other := menu.find_child("ToggleSwitchauto_lootLeftHit" if selection else "ToggleSwitchauto_lootRightHit", true, false) as Control
+			if other == null:
+				fail("Authored Auto Loot inactive segment missing")
+				return false
+		else:
+			await click(side)
 	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
