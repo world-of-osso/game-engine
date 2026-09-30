@@ -501,7 +501,7 @@ fn sync_unit_animation(
     snapshot: &UnitSnapshot,
     fallbacks: &HashMap<u16, u16>,
 ) {
-    if unit.death_applied {
+    if unit.is_player || unit.death_applied {
         return;
     }
     let Some(mut animation) = unit
@@ -734,7 +734,7 @@ impl WorldUnits {
         self.root.clone()
     }
 
-    /// Unit `id`'s creature display (`None` for players and units without one), whether
+    /// Unit `id`'s creature display (`None` for native players and units without one), whether
     /// a visual for it is loaded, and the locomotion clip last chosen on it.
     pub fn unit_display(&self, id: u64) -> Option<(Option<u32>, bool, Option<u16>)> {
         let unit = self.units.get(&id)?;

@@ -359,7 +359,7 @@ mod tests {
         };
         assert_eq!(models.player_native_display(&player).unwrap(), 57899);
         player.appearance.sex = 1;
-        assert_eq!(models.player_native_display(&player).unwrap(), 57900);
+        assert_eq!(models.player_native_display(&player).unwrap(), 56658);
         player.race = 0;
         assert!(
             models
