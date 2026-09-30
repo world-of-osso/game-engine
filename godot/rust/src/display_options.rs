@@ -1,13 +1,14 @@
 //! Native display settings shared by startup and live Options edits.
 
 use game_engine_core::client_options_data::{
-    GraphicsOptionsFile, MAX_FRAME_RATE_LIMIT, MIN_FRAME_RATE_LIMIT,
+    AntiAliasMode, GraphicsOptionsFile, MAX_FRAME_RATE_LIMIT, MIN_FRAME_RATE_LIMIT,
 };
 use godot::classes::{
     CanvasLayer, ColorRect, DisplayServer, Engine, Node, PackedScene, ResourceLoader, Shader,
     ShaderMaterial, Viewport,
     control::{LayoutPreset, MouseFilter},
     display_server::VSyncMode,
+    viewport::Msaa,
 };
 use godot::prelude::*;
 
@@ -19,6 +20,7 @@ pub(crate) fn apply_graphics_display_options(
     viewport.set_scaling_3d_scale(scale);
     update_rcas_layer(viewport, scale);
     update_bloom(viewport, graphics);
+    update_anti_alias(viewport, graphics);
 
     let vsync_mode = if graphics.vsync_enabled {
         VSyncMode::MAILBOX
@@ -41,6 +43,41 @@ pub(crate) fn apply_graphics_display_options(
 
 const RCAS_LAYER_NAME: &str = "NativeRcasLayer";
 const BLOOM_CONTROLLER_NAME: &str = "NativeBloom";
+const TAA_CONTROLLER_NAME: &str = "NativeTaa";
+
+fn update_anti_alias(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {
+    let sampling = match graphics.anti_alias {
+        AntiAliasMode::Msaa4x => Msaa::MSAA_4X,
+        AntiAliasMode::None | AntiAliasMode::Taa => Msaa::DISABLED,
+    };
+    viewport.set_msaa_3d(sampling);
+    viewport.set_msaa_2d(sampling);
+    viewport.set_use_taa(false);
+    let mut controller = viewport
+        .try_get_node_as::<Node>(TAA_CONTROLLER_NAME)
+        .unwrap_or_else(|| spawn_taa_controller(viewport));
+    controller.call(
+        "configure",
+        &[
+            (graphics.anti_alias == AntiAliasMode::Taa).to_variant(),
+            graphics.bloom_enabled.to_variant(),
+        ],
+    );
+}
+
+fn spawn_taa_controller(viewport: &mut Gd<Viewport>) -> Gd<Node> {
+    let scene = ResourceLoader::singleton()
+        .load("res://scenes/taa.tscn")
+        .expect("Cannot load native TAA controller scene")
+        .try_cast::<PackedScene>()
+        .expect("Native TAA controller is not a PackedScene");
+    let mut controller = scene
+        .instantiate()
+        .expect("Cannot instantiate native TAA controller");
+    controller.set_name(TAA_CONTROLLER_NAME);
+    viewport.add_child(&controller);
+    controller
+}
 
 fn update_bloom(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {
     let existing = viewport.try_get_node_as::<Node>(BLOOM_CONTROLLER_NAME);
