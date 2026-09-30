@@ -94,6 +94,9 @@ func run_test() -> void:
 	if animation.animation.current_animation_id() != 0:
 		fail("World player did not start idle Stand 0")
 		return
+	var marker_options = load("res://tests/target_marker_options_probe.gd").new()
+	if not await marker_options.run(self, client, player):
+		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
@@ -143,6 +146,9 @@ func run_test() -> void:
 	var advanced := false
 	for frame in range(60):
 		await process_frame
+		if frame == 0:
+			var input_state: Dictionary = client.account_state()
+			print("MENU_INPUT_PROBE focus=", root.gui_get_focus_owner(), " dragging=", root.gui_is_dragging(), " menu=", client.get_node_or_null("GameMenuUI"), " screen=", input_state.screen, " allowed=", input_state.gameplay_input_allowed, " windows=", root.get_embedded_subwindows())
 		advanced = advanced or player.position.distance_to(start) > 0.1
 	push_key(KEY_W, false)
 	print("FIXTURE MENU_W_RELEASED")
