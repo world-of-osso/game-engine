@@ -8,6 +8,26 @@ use shared::protocol::{
     MailboxContents,
 };
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct NativeMailView {
+    pub inbox: ReceivingMailState,
+    pub bags: crate::bag_frame_component::BagFrameState,
+}
+
+pub fn native_mail_screen(
+    ctx: &ui_toolkit::screen::SharedContext,
+) -> ui_toolkit::widget_def::Element {
+    let view = ctx
+        .get::<NativeMailView>()
+        .expect("NativeMailView must be in SharedContext");
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(view.inbox.clone());
+    shared.insert(view.bags.clone());
+    let mut elements = frame::receiving_mail_screen(&shared);
+    elements.extend(crate::bag_frame_component::bag_frame_screen(&shared));
+    elements
+}
+
 const PAGE_SIZE: usize = 7;
 
 pub fn can_use_mailbox(info: &GameObjectInfo, distance: f32) -> bool {
