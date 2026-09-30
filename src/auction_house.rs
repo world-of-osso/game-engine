@@ -526,6 +526,8 @@ mod tests {
         let (tx, _rx) = mpsc::channel();
         let mut state = AuctionHouseState::default();
         let query = AuctionSearchQuery {
+            item_id: None,
+            class_id: None,
             text: "linen".into(),
             page: 1,
             page_size: 20,
@@ -557,6 +559,8 @@ mod tests {
 
     fn query(text: &str) -> AuctionSearchQuery {
         AuctionSearchQuery {
+            item_id: None,
+            class_id: None,
             text: text.into(),
             page: 0,
             page_size: 50,
@@ -642,6 +646,8 @@ mod tests {
     fn format_search_results_includes_listing_data() {
         let state = AuctionHouseState {
             last_query: Some(AuctionSearchQuery {
+                item_id: None,
+                class_id: None,
                 text: "linen".into(),
                 page: 0,
                 page_size: 10,

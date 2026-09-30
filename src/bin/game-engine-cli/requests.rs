@@ -541,6 +541,8 @@ enum AuctionNonSimpleCommand {
 pub fn auction_browse_request(args: AuctionBrowseRequestArgs) -> Result<Request, String> {
     Ok(Request::AuctionBrowse {
         query: AuctionSearchQuery {
+            item_id: None,
+            class_id: None,
             text: args.text,
             page: args.page,
             page_size: args.page_size,
