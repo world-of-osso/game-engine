@@ -22,8 +22,8 @@ use std::rc::Rc;
 
 use game_engine_core::m2;
 use game_engine_core::spell_visual::{
-    CasterContext, KitModel, KitSound, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit,
-    VisualMissile,
+    CasterContext, KitModel, KitSound, KitTarget, SpellVisualCatalog, UnitSound, VisualEvent,
+    VisualKit, VisualMissile, VoiceSource,
 };
 use game_engine_network::UnitSnapshot;
 use godot::builtin::{Basis, EulerOrder, Transform3D, Vector3};
@@ -37,7 +37,7 @@ use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
 use crate::assets::{build_model, read_model};
 use crate::particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis};
-use crate::spell_sounds::{SoundRequest, SoundStart, SpellSounds};
+use crate::spell_sounds::{SoundHold, SoundRequest, SoundSource, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
 
 const DB2_DIR: &str = "db2/12.1.0.69933";
@@ -62,6 +62,36 @@ enum Lifetime {
     OneShot,
     /// Until unit `owner`'s cast of `spell_id` reaches its end event.
     UntilCastEnds,
+    /// Until aura `instance` leaves unit `unit` (AuraEnd).
+    UntilAuraEnds { unit: u64, instance: u32 },
+}
+
+/// What a held kit (one with an end event) lasts for.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum KitHold {
+    /// The caster's cast or channel.
+    Cast,
+    /// Aura `instance` on unit `unit`.
+    Aura { unit: u64, instance: u32 },
+}
+
+impl KitHold {
+    fn lifetime(self) -> Lifetime {
+        match self {
+            Self::Cast => Lifetime::UntilCastEnds,
+            Self::Aura { unit, instance } => Lifetime::UntilAuraEnds { unit, instance },
+        }
+    }
+
+    fn sound(self, caster: u64, spell_id: u32) -> SoundHold {
+        match self {
+            Self::Cast => SoundHold::Cast {
+                unit: caster,
+                spell_id,
+            },
+            Self::Aura { unit, instance } => SoundHold::Aura { unit, instance },
+        }
+    }
 }
 
 /// A kit model's clips (present on the model) and how long its particles outlive
@@ -123,16 +153,12 @@ impl ActiveEffect {
             Phase::Start(left) => {
                 *left -= delta;
                 if *left <= 0.0 {
-                    match (self.lifetime, self.clips.hold) {
-                        (Lifetime::UntilCastEnds, Some(hold)) => {
-                            self.play(hold, true);
-                            self.phase = Phase::Hold;
-                        }
-                        (Lifetime::UntilCastEnds, None) => {
-                            self.play(self.clips.start.0, true);
-                            self.phase = Phase::Hold;
-                        }
-                        (Lifetime::OneShot, _) => self.finish(),
+                    if self.lifetime == Lifetime::OneShot {
+                        self.finish();
+                    } else {
+                        // Held: Hold loops, else the start clip does.
+                        self.play(self.clips.hold.unwrap_or(self.clips.start.0), true);
+                        self.phase = Phase::Hold;
                     }
                 }
                 true
@@ -222,6 +248,28 @@ struct CastUnits<'a> {
     hits: &'a [u64],
 }
 
+/// One kit starting on one unit.
+#[derive(Clone, Copy)]
+struct KitOnUnit<'a> {
+    kit: &'a VisualKit,
+    unit: u64,
+    caster: u64,
+    spell_id: u32,
+    event: VisualEvent,
+    /// What it lasts for (`None`: it plays out once).
+    hold: Option<KitHold>,
+}
+
+/// Who and what one sound plays for.
+#[derive(Clone, Copy)]
+struct SoundCue {
+    unit: u64,
+    spell_id: u32,
+    kit_id: u32,
+    hold: Option<SoundHold>,
+    source: SoundSource,
+}
+
 /// One kit start, for automation and logs.
 #[derive(Clone, Debug, PartialEq)]
 pub struct KitStart {
@@ -305,6 +353,10 @@ pub struct SpellEffects {
     flights: Vec<MissileFlight>,
     /// Seconds advanced since creation.
     clock: f32,
+    /// Each replicated unit's voice (`CreatureSoundData` source).
+    voices: HashMap<u64, VoiceSource>,
+    /// Auras whose kits are held on their units, by (unit, instance).
+    auras: HashMap<(u64, u32), auras::HeldAura>,
     /// Newest cast starts and resolutions seen, oldest first, bounded.
     casts_seen: Vec<CastSeen>,
     sounds: SpellSounds,
@@ -334,6 +386,8 @@ impl SpellEffects {
             ready: Vec::new(),
             flights: Vec::new(),
             clock: 0.0,
+            voices: HashMap::new(),
+            auras: HashMap::new(),
             casts_seen: Vec::new(),
             sounds: SpellSounds::default(),
             next_flight: 0,
@@ -379,7 +433,7 @@ impl SpellEffects {
     }
 
     /// Kit sound starts since the world loaded, oldest first.
-    pub fn sound_starts(&self) -> &[SoundStart] {
+    pub fn sound_starts(&self) -> impl Iterator<Item = &SoundStart> {
         self.sounds.started()
     }
 
@@ -413,6 +467,7 @@ impl SpellEffects {
 
     pub fn reset(&mut self) {
         self.sounds.reset();
+        self.auras.clear();
         for effect in self.active.drain(..) {
             effect.node.free();
         }
@@ -435,6 +490,11 @@ impl SpellEffects {
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let mut errors = Vec::new();
+        self.voices = units
+            .iter()
+            .filter_map(|(&id, unit)| Some((id, voice_source(unit)?)))
+            .collect();
+        errors.extend(self.sync_auras(units, world).err());
         let ended: Vec<u64> = self
             .held
             .iter()
@@ -496,7 +556,13 @@ impl SpellEffects {
         }
         self.pending
             .retain(|pending| !(pending.unit == id && pending.lifetime == Lifetime::UntilCastEnds));
-        self.sounds.end_held(id, held.spell_id, self.clock);
+        self.sounds.end(
+            SoundHold::Cast {
+                unit: id,
+                spell_id: held.spell_id,
+            },
+            self.clock,
+        );
         for effect in &mut self.active {
             if effect.owner == id
                 && effect.spell_id == held.spell_id
@@ -588,7 +654,8 @@ impl SpellEffects {
         Ok(self.catalog()?.visual_for_spell(spell_id, &context))
     }
 
-    /// Start `spell_id`'s kits for `event`; returns the looping clips started.
+    /// Start `spell_id`'s kits for `event`; returns the looping clips started on the
+    /// caster.
     fn start_event(
         &mut self,
         spell_id: u32,
@@ -601,7 +668,12 @@ impl SpellEffects {
             return Ok(Vec::new());
         };
         let kits = self.catalog()?.kits(visual, event);
-        self.start_kits(spell_id, event, cast_units, kits, world)
+        let looping = self.start_kits(spell_id, event, cast_units, kits, KitHold::Cast, world)?;
+        Ok(looping
+            .into_iter()
+            .filter(|&(unit, _)| unit == cast_units.caster)
+            .map(|(_, clip)| clip)
+            .collect())
     }
 
     fn start_kits(
@@ -610,8 +682,9 @@ impl SpellEffects {
         event: VisualEvent,
         cast_units: CastUnits,
         kits: Vec<VisualKit>,
+        hold: KitHold,
         world: &mut WorldUnits,
-    ) -> Result<Vec<u16>, String> {
+    ) -> Result<Vec<(u64, u16)>, String> {
         let caster = cast_units.caster;
         let mut looping = Vec::new();
         let mut errors = Vec::new();
@@ -622,55 +695,19 @@ impl SpellEffects {
                 KitTarget::PrimaryTarget => cast_units.target.into_iter().collect(),
                 KitTarget::Other(_) => Vec::new(),
             };
-            let held = kit.end != VisualEvent::OneShot;
             for unit in units {
-                let mut played = None;
-                if let Some(animation) = kit.animation {
-                    match world.play_unit_action(
-                        unit,
-                        animation.anim_id,
-                        animation.looping,
-                        ActionPriority::Spell,
-                    ) {
-                        Ok(clip) => {
-                            played = clip;
-                            if animation.looping && unit == caster {
-                                looping.extend(clip);
-                            }
-                        }
-                        Err(error) => errors.push(error),
-                    }
-                }
-                let lifetime = if held {
-                    Lifetime::UntilCastEnds
-                } else {
-                    Lifetime::OneShot
-                };
-                for sound in &kit.sounds {
-                    if let Err(error) =
-                        self.play_sound(sound, unit, spell_id, kit.kit_id, held, world)
-                    {
-                        errors.push(error);
-                    }
-                }
-                for model in &kit.models {
-                    self.pending.push(PendingModel {
-                        delay: model.start_delay,
-                        unit,
-                        spell_id,
-                        kit_id: kit.kit_id,
-                        model: model.clone(),
-                        lifetime,
-                    });
-                }
-                self.record(KitStart {
-                    spell_id,
-                    kit_id: kit.kit_id,
+                let start = KitOnUnit {
+                    kit: &kit,
                     unit,
+                    caster,
+                    spell_id,
                     event,
-                    anim: played,
-                    models: kit.models.iter().map(|model| model.model_fdid).collect(),
-                });
+                    hold: (kit.end != VisualEvent::OneShot).then_some(hold),
+                };
+                match self.start_kit_on(start, world) {
+                    Ok(clip) => looping.extend(clip.map(|clip| (unit, clip))),
+                    Err(error) => errors.push(error),
+                }
             }
         }
         // Models without a start delay appear this frame.
@@ -680,18 +717,114 @@ impl SpellEffects {
         join_errors(errors).map(|()| looping)
     }
 
+    /// One kit on one unit: its animation, sounds, unit voice and models. Returns the
+    /// looping clip it holds, if any.
+    fn start_kit_on(
+        &mut self,
+        start: KitOnUnit,
+        world: &mut WorldUnits,
+    ) -> Result<Option<u16>, String> {
+        let KitOnUnit {
+            kit,
+            unit,
+            caster,
+            spell_id,
+            ..
+        } = start;
+        let mut errors = Vec::new();
+        let mut played = None;
+        if let Some(animation) = kit.animation {
+            match world.play_unit_action(
+                unit,
+                animation.anim_id,
+                animation.looping,
+                ActionPriority::Spell,
+            ) {
+                Ok(clip) => played = clip,
+                Err(error) => errors.push(error),
+            }
+        }
+        let cue = SoundCue {
+            unit,
+            spell_id,
+            kit_id: kit.kit_id,
+            hold: start.hold.map(|hold| hold.sound(caster, spell_id)),
+            source: SoundSource::Kit,
+        };
+        for sound in &kit.sounds {
+            errors.extend(self.play_on_unit(sound, cue, world).err());
+        }
+        errors.extend(self.play_voices(kit, cue, world).err());
+        let lifetime = start.hold.map_or(Lifetime::OneShot, KitHold::lifetime);
+        for model in &kit.models {
+            self.pending.push(PendingModel {
+                delay: model.start_delay,
+                unit,
+                spell_id,
+                kit_id: kit.kit_id,
+                model: model.clone(),
+                lifetime,
+            });
+        }
+        self.record(KitStart {
+            spell_id,
+            kit_id: kit.kit_id,
+            unit,
+            event: start.event,
+            anim: played,
+            models: kit.models.iter().map(|model| model.model_fdid).collect(),
+        });
+        let held_clip = played.filter(|_| kit.animation.is_some_and(|anim| anim.looping));
+        join_errors(errors).map(|()| held_clip)
+    }
+
+    /// The kit's unit-voice sounds (`CreatureSoundData`) in `cue.unit`'s own voice.
+    fn play_voices(
+        &mut self,
+        kit: &VisualKit,
+        cue: SoundCue,
+        world: &WorldUnits,
+    ) -> Result<(), String> {
+        let Some(&voice) = self.voices.get(&cue.unit) else {
+            return Ok(());
+        };
+        let sounds: Vec<KitSound> = {
+            let catalog = self.catalog()?;
+            kit.unit_sounds
+                .iter()
+                .filter_map(|&sound| catalog.unit_sound(voice, sound).cloned())
+                .collect()
+        };
+        let cue = SoundCue {
+            hold: None,
+            source: SoundSource::Voice,
+            ..cue
+        };
+        let mut errors = Vec::new();
+        for sound in &sounds {
+            errors.extend(self.play_on_unit(sound, cue, world).err());
+        }
+        join_errors(errors)
+    }
+
+    fn play_on_unit(
+        &mut self,
+        sound: &KitSound,
+        cue: SoundCue,
+        world: &WorldUnits,
+    ) -> Result<(), String> {
+        match world.unit_node(cue.unit) {
+            Some(parent) => self.play_sound(sound, parent, cue),
+            None => Ok(()),
+        }
+    }
+
     fn play_sound(
         &mut self,
         sound: &KitSound,
-        unit: u64,
-        spell_id: u32,
-        kit_id: u32,
-        kit_held: bool,
-        world: &WorldUnits,
+        parent: Gd<Node3D>,
+        cue: SoundCue,
     ) -> Result<(), String> {
-        let Some(parent) = world.unit_node(unit) else {
-            return Ok(());
-        };
         let resolver = self
             .resolver
             .get_or_insert_with(|| local_resolver(&self.data_root, &self.cache_root));
@@ -699,15 +832,46 @@ impl SpellEffects {
             sound,
             SoundRequest {
                 parent,
-                unit,
-                spell_id,
-                kit_id,
-                kit_held,
+                unit: cue.unit,
+                spell_id: cue.spell_id,
+                kit_id: cue.kit_id,
+                hold: cue.hold,
+                source: cue.source,
                 at: self.clock,
                 resolver,
                 data_root: &self.data_root,
             },
         )
+    }
+
+    /// Each cast clip's `$SCD` M2 event plays its unit's `SpellCastDirectedSoundID`
+    /// (wowdev.wiki/M2 Events).
+    fn play_cast_voices(&mut self, world: &mut WorldUnits) -> Result<(), String> {
+        let mut errors = Vec::new();
+        for (unit, event) in world.take_animation_events() {
+            if &event != b"$SCD" {
+                continue;
+            }
+            let Some(&voice) = self.voices.get(&unit) else {
+                continue;
+            };
+            let Some(sound) = self
+                .catalog()?
+                .unit_sound(voice, UnitSound::SpellCastDirected)
+                .cloned()
+            else {
+                continue;
+            };
+            let cue = SoundCue {
+                unit,
+                spell_id: 0,
+                kit_id: 0,
+                hold: None,
+                source: SoundSource::Voice,
+            };
+            errors.extend(self.play_on_unit(&sound, cue, world).err());
+        }
+        join_errors(errors)
     }
 
     fn record(&mut self, start: KitStart) {
@@ -763,6 +927,17 @@ impl SpellEffects {
         let direction = goal.map_or(Vector3::FORWARD, |goal| goal - start);
         node.set_global_basis(missile_basis(direction, launch.missile.scale));
         let distance = goal.map_or(0.0, |goal| start.distance_to(goal));
+        if let Some(sound) = launch.missile.sound.clone() {
+            let cue = SoundCue {
+                unit: launch.caster,
+                spell_id: launch.spell_id,
+                kit_id: 0,
+                hold: Some(SoundHold::Parent),
+                source: SoundSource::Missile,
+            };
+            // The node is freed on landing, and its travel sound with it.
+            self.play_sound(&sound, node.clone(), cue)?;
+        }
         if self.flights.len() == STARTED_KEEP {
             self.flights.remove(0);
         }
@@ -803,6 +978,7 @@ impl SpellEffects {
             VisualEvent::Impact,
             cast_units,
             kits,
+            KitHold::Cast,
             world,
         )
         .map(drop)
@@ -953,7 +1129,10 @@ impl SpellEffects {
     ) -> Result<(), String> {
         let mut errors = Vec::new();
         self.clock += delta;
-        self.sounds.advance(sound_gain);
+        self.sounds.advance(sound_gain, self.clock);
+        if let Err(error) = self.play_cast_voices(world) {
+            errors.push(error);
+        }
         if let Err(error) = self.spawn_due(delta, world) {
             errors.push(error);
         }
@@ -1031,6 +1210,18 @@ impl SpellEffects {
         }
         join_errors(errors)
     }
+}
+
+/// Whose voice unit `unit` speaks in: a player's race and sex, or a creature's display.
+fn voice_source(unit: &UnitSnapshot) -> Option<VoiceSource> {
+    if let Some(player) = &unit.player {
+        return Some(VoiceSource::Player {
+            race: player.race,
+            sex: player.appearance.sex,
+        });
+    }
+    let display_id = unit.model.as_ref()?.display_id;
+    (display_id != 0).then_some(VoiceSource::Creature { display_id })
 }
 
 /// The node a kit model on unit `id`'s `attachment` hangs from: the model's
@@ -1137,6 +1328,9 @@ fn join_errors(errors: Vec<String>) -> Result<(), String> {
         Err(errors.join("; "))
     }
 }
+
+#[path = "spell_auras.rs"]
+mod auras;
 
 #[cfg(test)]
 #[path = "spell_effects_tests.rs"]
