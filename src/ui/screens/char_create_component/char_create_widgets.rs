@@ -130,8 +130,16 @@ fn build_faction_race_buttons(faction: Faction, state: &CharCreateUiState) -> El
         .filter(|race| race.faction == faction)
         .collect();
     let base_count = races.iter().filter(|race| race.id < 27).count();
+    let allied_count = races.len() - base_count;
     let space = state.viewport_height as f32 - 106.0 - NAV_HEIGHT - NAV_BOTTOM - 20.0;
-    let step = 79.0 + fit_spacing(space, base_count, 79.0, 18.0);
+    // The allied column starts 68 px lower, so it fits in less space.
+    let gap = fit_spacing(space, base_count, 79.0, 18.0).min(fit_spacing(
+        space - 68.0,
+        allied_count,
+        79.0,
+        18.0,
+    ));
+    let step = 79.0 + gap;
     let mut counts = [0, 0];
     races
         .into_iter()

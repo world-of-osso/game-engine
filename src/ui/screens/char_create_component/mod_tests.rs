@@ -240,6 +240,23 @@ fn every_supported_race_and_class_remains_present_and_hittable() {
     }
 }
 
+/// Six Horde allied races (Dracthyr included) stay above the navigation buttons.
+#[test]
+fn race_columns_end_above_the_navigation_buttons() {
+    let harness = ScreenHarness::new(CharCreateUiState {
+        viewport_width: 1280,
+        viewport_height: 720,
+        ..Default::default()
+    });
+    let nav_top = rect(&harness.reg, BACK_BUTTON.0)
+        .y
+        .min(rect(&harness.reg, NEXT_BUTTON.0).y);
+    for race in crate::char_create_data::RACES {
+        let r = rect(&harness.reg, &format!("Race_{}", race.id));
+        assert!(r.y + r.height <= nav_top, "{} ends at {}", race.name, r.y + r.height);
+    }
+}
+
 #[test]
 fn unavailable_classes_are_disabled_and_selected_race_updates_in_place() {
     let mut harness = ScreenHarness::new(CharCreateUiState::default());

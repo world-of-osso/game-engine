@@ -3,7 +3,7 @@ extends SceneTree
 ## Monk, Demon Hunter and Evoker end to end against a private server
 ## (docs/specs/character-creation.md, new classes). Environment:
 ##   GODOT_TEST_SERVER   server address (a private test server)
-##   NEWCLASS_ACCOUNT    account, password fbtest; registered when it does not exist
+##   NEWCLASS_ACCOUNT    existing account, password fbtest
 ##   NEWCLASS_RACE       ChrRaces ID, NEWCLASS_CLASS ChrClasses ID, NEWCLASS_NAME new name
 ##   NEWCLASS_SPELL      spell to cast at the nearest enemy once teleported
 ##   NEWCLASS_SHOTS      screenshot directory
@@ -47,9 +47,7 @@ func run_test() -> void:
 	DirAccess.make_dir_recursive_absolute(shots)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	var error = client.connect_account(server, account, PASSWORD, true)
-	if error != "":
-		error = client.connect_account(server, account, PASSWORD, false)
+	var error = client.connect_account(server, account, PASSWORD, false)
 	if error != "":
 		fail("Connection: " + error)
 		return
