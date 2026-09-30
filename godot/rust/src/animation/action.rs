@@ -35,11 +35,13 @@ const MISSILE_RELEASE_EVENTS: [&[u8; 4]; 3] = [b"$CSL", b"$CSR", b"$CST"];
 const REPORTED_EVENTS: [&[u8; 4]; 3] = [b"$SCD", b"$CSS", b"$CAH"];
 
 /// Which actions may replace a playing one: a spell's kit animation is not cut short
-/// by a melee swing or hit reaction arriving mid-cast; equal or higher priority
-/// replaces.
+/// by a melee swing or hit reaction arriving mid-cast, nor a swing by a hit reaction
+/// (the swing must reach its `$CSS`/`$CAH` events); equal or higher priority replaces.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ActionPriority {
-    /// Melee swings and hit reactions.
+    /// Hit reactions: wound, crit, dodge, parry, block.
+    Reaction,
+    /// Melee swings.
     Combat,
     /// Spell visual kit animations (cast releases, precast and channel loops).
     Spell,
