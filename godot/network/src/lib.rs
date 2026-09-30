@@ -1,6 +1,7 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
+pub mod replica;
 #[path = "../../../src/sound/spell_event_data.rs"]
 pub mod spell_event_data;
 

@@ -3107,6 +3107,9 @@ dependencies = [
  "bevy",
  "bevy_replicon",
  "lightyear",
+ "lightyear_replication",
+ "lightyear_transport",
+ "serde",
  "shared",
 ]
 
