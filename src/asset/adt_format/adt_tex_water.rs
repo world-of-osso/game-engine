@@ -22,24 +22,6 @@ pub(super) struct LiquidInstanceHeader {
 
 #[derive(BinRead)]
 #[br(little)]
-struct HeightUvVertex {
-    height: f32,
-    u: u16,
-    v: u16,
-}
-
-#[derive(BinRead)]
-#[br(little)]
-#[repr(C, packed)]
-struct HeightUvDepthVertex {
-    height: f32,
-    u: u16,
-    v: u16,
-    depth: u8,
-}
-
-#[derive(BinRead)]
-#[br(little)]
 pub(super) struct Mh2oChunkHeader {
     instance_offset: u32,
     layer_count: u32,
@@ -66,6 +48,24 @@ pub struct WaterLayer {
     pub vertex_heights: Vec<f32>,
     pub vertex_uvs: Vec<[f32; 2]>,
     pub vertex_depths: Vec<u8>,
+    /// A LiquidObject instance's raw vertex bytes, whose format its LiquidMaterial names.
+    pub object_vertex_bytes: Vec<u8>,
+}
+
+/// `liquid_object_or_lvf` from this value on is a `LiquidObject` ID, below it a vertex
+/// format (WebWowViewerCpp LiquidInstance.cpp `createAdtVertexData`).
+pub const FIRST_LIQUID_OBJECT: u16 = 42;
+
+impl WaterLayer {
+    /// Re-reads a LiquidObject instance's vertices in its material's vertex format `lvf`.
+    pub fn decode_object_vertices(&mut self, lvf: u8) -> Result<(), String> {
+        if self.object_vertex_bytes.is_empty() {
+            return Ok(());
+        }
+        (self.vertex_heights, self.vertex_uvs, self.vertex_depths) =
+            decode_liquid_vertices(&self.object_vertex_bytes, self.width, self.height, lvf)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -95,7 +95,7 @@ pub struct AdtWaterData {
     pub chunks: Vec<ChunkWater>,
 }
 
-type WaterVertexData = (Vec<f32>, Vec<[f32; 2]>, Vec<u8>);
+pub type WaterVertexData = (Vec<f32>, Vec<[f32; 2]>, Vec<u8>);
 
 fn water_attribute_bit(mask: u64, x: usize, y: usize) -> bool {
     if x >= WaterAttributes::TILE_SIZE || y >= WaterAttributes::TILE_SIZE {
@@ -129,151 +129,91 @@ fn read_exists_bitmask(
     Ok(exists)
 }
 
-fn read_vertex_heights(
-    payload: &[u8],
-    offset: usize,
-    width: u8,
-    height: u8,
-) -> Result<Vec<f32>, String> {
-    if offset == 0 {
-        return Ok(Vec::new());
-    }
-    let count = (width as usize + 1) * (height as usize + 1);
-    let byte_len = count * 4;
-    if offset + byte_len > payload.len() {
-        return Err(format!(
-            "MH2O vertex data out of bounds: offset {offset:#x}, need {byte_len} bytes"
-        ));
-    }
-    let mut heights = Vec::with_capacity(count);
-    for i in 0..count {
-        heights.push(read_f32(payload, offset + i * 4)?);
-    }
-    Ok(heights)
+fn vertex_count(width: u8, height: u8) -> usize {
+    (width as usize + 1) * (height as usize + 1)
 }
 
-fn read_height_uv_vertices(
-    payload: &[u8],
-    offset: usize,
-    width: u8,
-    height: u8,
-) -> Result<(Vec<f32>, Vec<[f32; 2]>), String> {
-    if offset == 0 {
-        return Ok((Vec::new(), Vec::new()));
-    }
-    let count = (width as usize + 1) * (height as usize + 1);
-    let byte_len = count * size_of::<HeightUvVertex>();
-    if offset + byte_len > payload.len() {
-        return Err(format!(
-            "MH2O LVF1 vertex data out of bounds: offset {offset:#x}, need {byte_len} bytes"
-        ));
-    }
-
-    let mut heights = Vec::with_capacity(count);
-    let mut uvs = Vec::with_capacity(count);
-    for i in 0..count {
-        let vertex: HeightUvVertex = parse_binrw_value(
-            payload,
-            offset + i * size_of::<HeightUvVertex>(),
-            "MH2O LVF1 vertex",
-        )?;
-        heights.push(vertex.height);
-        uvs.push([f32::from(vertex.u) / 255.0, f32::from(vertex.v) / 255.0]);
-    }
-    Ok((heights, uvs))
+/// `count` little-endian heights at the start of `data`.
+fn read_heights(data: &[u8], count: usize) -> Result<Vec<f32>, String> {
+    let bytes = data.get(..count * 4).ok_or_else(|| {
+        format!(
+            "MH2O heightmap needs {} bytes, has {}",
+            count * 4,
+            data.len()
+        )
+    })?;
+    (0..count).map(|index| read_f32(bytes, index * 4)).collect()
 }
 
-fn read_depth_only_vertices(
-    payload: &[u8],
-    offset: usize,
-    width: u8,
-    height: u8,
-) -> Result<Vec<u8>, String> {
-    if offset == 0 {
-        return Ok(Vec::new());
-    }
-    let count = (width as usize + 1) * (height as usize + 1);
-    if offset + count > payload.len() {
-        return Err(format!(
-            "MH2O LVF2 vertex data out of bounds: offset {offset:#x}, need {count} bytes"
-        ));
-    }
-    Ok(payload[offset..offset + count].to_vec())
+fn read_uvs(data: &[u8], count: usize) -> Result<Vec<[f32; 2]>, String> {
+    let bytes = data
+        .get(..count * 4)
+        .ok_or_else(|| format!("MH2O UV map needs {} bytes, has {}", count * 4, data.len()))?;
+    Ok(bytes
+        .chunks_exact(4)
+        .map(|uv| {
+            let u = u16::from_le_bytes([uv[0], uv[1]]);
+            let v = u16::from_le_bytes([uv[2], uv[3]]);
+            [f32::from(u) / 255.0, f32::from(v) / 255.0]
+        })
+        .collect())
 }
 
-fn read_height_uv_depth_vertices(
-    payload: &[u8],
-    offset: usize,
+fn read_depths(data: &[u8], count: usize) -> Result<Vec<u8>, String> {
+    data.get(..count)
+        .map(<[u8]>::to_vec)
+        .ok_or_else(|| format!("MH2O depthmap needs {count} bytes, has {}", data.len()))
+}
+
+/// wowdev MH2O `LiquidVertexFormat` arrays, one after another: LVF 0 heights then depths,
+/// LVF 1 heights then UVs, LVF 2 depths, LVF 3 heights, UVs, then depths.
+pub fn decode_liquid_vertices(
+    data: &[u8],
     width: u8,
     height: u8,
+    lvf: u8,
 ) -> Result<WaterVertexData, String> {
-    if offset == 0 {
-        return Ok((Vec::new(), Vec::new(), Vec::new()));
-    }
-    let count = (width as usize + 1) * (height as usize + 1);
-    let byte_len = count * size_of::<HeightUvDepthVertex>();
-    if offset + byte_len > payload.len() {
-        return Err(format!(
-            "MH2O LVF3 vertex data out of bounds: offset {offset:#x}, need {byte_len} bytes"
-        ));
-    }
-
-    let mut heights = Vec::with_capacity(count);
-    let mut uvs = Vec::with_capacity(count);
-    let mut depths = Vec::with_capacity(count);
-    for i in 0..count {
-        let vertex: HeightUvDepthVertex = parse_binrw_value(
-            payload,
-            offset + i * size_of::<HeightUvDepthVertex>(),
-            "MH2O LVF3 vertex",
-        )?;
-        heights.push(vertex.height);
-        uvs.push([f32::from(vertex.u) / 255.0, f32::from(vertex.v) / 255.0]);
-        depths.push(vertex.depth);
-    }
+    let count = vertex_count(width, height);
+    let uses_heights = lvf != 2;
+    let heights = if uses_heights {
+        read_heights(data, count)?
+    } else {
+        Vec::new()
+    };
+    let after_heights = if uses_heights {
+        &data[count * 4..]
+    } else {
+        data
+    };
+    let uvs = if matches!(lvf, 1 | 3) {
+        read_uvs(after_heights, count)?
+    } else {
+        Vec::new()
+    };
+    let after_uvs = &after_heights[uvs.len() * 4..];
+    let depths = match lvf {
+        0 | 2 | 3 => read_depths(after_uvs, count)?,
+        1 => Vec::new(),
+        other => {
+            return Err(format!(
+                "MH2O liquid vertex format {other} is not supported"
+            ));
+        }
+    };
     Ok((heights, uvs, depths))
 }
 
-fn read_vertex_data(
-    payload: &[u8],
-    offset: usize,
-    width: u8,
-    height: u8,
-    liquid_object: u16,
-) -> Result<WaterVertexData, String> {
-    if liquid_object == 1 {
-        let (heights, uvs) = read_height_uv_vertices(payload, offset, width, height)?;
-        return Ok((heights, uvs, Vec::new()));
+/// The vertex bytes of an instance, up to the largest format's size (LVF 3: 9 bytes per
+/// vertex); `None` without vertex data.
+fn vertex_bytes<'a>(payload: &'a [u8], header: &LiquidInstanceHeader) -> Option<&'a [u8]> {
+    let offset = header.vertex_offset as usize;
+    if offset == 0 {
+        return None;
     }
-    if liquid_object == 2 {
-        return Ok((
-            Vec::new(),
-            Vec::new(),
-            read_depth_only_vertices(payload, offset, width, height)?,
-        ));
-    }
-    if liquid_object == 3 {
-        return read_height_uv_depth_vertices(payload, offset, width, height);
-    }
-
-    read_height_depth_vertices(payload, offset, width, height)
-}
-
-/// LVF 0 (wowdev MH2O `LiquidVertexFormat` height_depth): every height, then every depth.
-fn read_height_depth_vertices(
-    payload: &[u8],
-    offset: usize,
-    width: u8,
-    height: u8,
-) -> Result<WaterVertexData, String> {
-    let heights = read_vertex_heights(payload, offset, width, height)?;
-    let depth_offset = if offset == 0 {
-        0
-    } else {
-        offset + heights.len() * 4
-    };
-    let depths = read_depth_only_vertices(payload, depth_offset, width, height)?;
-    Ok((heights, Vec::new(), depths))
+    let end = payload
+        .len()
+        .min(offset + vertex_count(header.width, header.height) * 9);
+    Some(payload.get(offset..end).unwrap_or(&[]))
 }
 
 fn parse_liquid_instance(payload: &[u8], off: usize) -> Result<WaterLayer, String> {
@@ -296,17 +236,27 @@ fn read_liquid_instance_header(
     parse_binrw_value(payload, offset, "SLiquidInstance")
 }
 
+/// `liquid_object_or_lvf` below [`FIRST_LIQUID_OBJECT`] is the vertex format. A LiquidObject's
+/// format comes from its LiquidMaterial, unknown here: its bytes are kept for
+/// [`WaterLayer::decode_object_vertices`], and are provisionally read as LVF 0 (the original
+/// parser's reading) only when they fit that format.
 fn read_liquid_vertex_data(
     payload: &[u8],
     header: &LiquidInstanceHeader,
-) -> Result<WaterVertexData, String> {
-    read_vertex_data(
-        payload,
-        header.vertex_offset as usize,
-        header.width,
-        header.height,
-        header.liquid_object,
-    )
+) -> Result<(WaterVertexData, Vec<u8>), String> {
+    let Some(data) = vertex_bytes(payload, header) else {
+        return Ok(((Vec::new(), Vec::new(), Vec::new()), Vec::new()));
+    };
+    if header.liquid_object < FIRST_LIQUID_OBJECT {
+        let lvf = header.liquid_object as u8;
+        return Ok((
+            decode_liquid_vertices(data, header.width, header.height, lvf)?,
+            Vec::new(),
+        ));
+    }
+    let provisional =
+        decode_liquid_vertices(data, header.width, header.height, 0).unwrap_or_default();
+    Ok((provisional, data.to_vec()))
 }
 
 fn read_liquid_exists_bitmask(
@@ -324,7 +274,7 @@ fn read_liquid_exists_bitmask(
 fn build_water_layer(
     header: LiquidInstanceHeader,
     exists: [u8; 8],
-    vertex_data: WaterVertexData,
+    (vertex_data, object_vertex_bytes): (WaterVertexData, Vec<u8>),
 ) -> WaterLayer {
     let (vertex_heights, vertex_uvs, vertex_depths) = vertex_data;
     WaterLayer {
@@ -340,6 +290,7 @@ fn build_water_layer(
         vertex_heights,
         vertex_uvs,
         vertex_depths,
+        object_vertex_bytes,
     }
 }
 
