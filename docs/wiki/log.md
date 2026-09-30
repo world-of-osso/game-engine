@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] implementation | Bounded native receiving mail
+
+Updated [[trade-and-mail]] and the MailFrame spec to distinguish preserved Bevy full mail from the native AH receiving dependency. `9ed690bf` Depot focused source proof: metadata 1/1, owned UDP 3/3, model/registry/interaction 4/4. Real mailbox M2/picking, matching role/contents gate, authoritative claims and receiving-only authored UI are implemented. Committed GDScript fixture remains unrun until main's CLI proof; no extension install, native live run, backend/shared change or full-AH acceptance. Two pre-existing terrain test unused-mut warnings remain outside this slice.
+
 ## [2026-09-30] verification | Native Options and loot overflow
 
 Recorded the [bounded functional gate](systems/godot-conversion.md#native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering); reconciled LootFrame spec/matrix proof, leaving deferred termination and full-conversion acceptance open.
