@@ -3,6 +3,7 @@ mod animation;
 #[path = "../../../src/rendering/character/appearance_options.rs"]
 pub mod appearance_options;
 pub use game_engine_core::{customization_data, outfit_data};
+mod asset_startup;
 mod assets;
 mod auras;
 mod auto_attack;
@@ -111,6 +112,8 @@ pub struct GameClient {
     creation_catalog: Option<game_engine_core::customization_data::CustomizationDb>,
     name_catalog: Option<Result<char_create::NameCatalog, String>>,
     data_root: PathBuf,
+    /// Pending CASC startup worker, or its spawn error; None after startup completes.
+    asset_startup: Option<Result<asset_startup::AssetStartup, String>>,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
@@ -161,6 +164,10 @@ impl INode3D for GameClient {
         let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
         let cache_root =
             PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
+        let asset_startup = Some(asset_startup::AssetStartup::start(
+            data_root.clone(),
+            cache_root.clone(),
+        ));
         let client_options =
             load_options_file_with_legacy(&data_root.join("ui/options_settings.ron")).clamped();
         // Bag items resolve names, quality and icons from the shared item tables; the
@@ -190,6 +197,7 @@ impl INode3D for GameClient {
             creation_catalog: None,
             name_catalog: None,
             data_root: data_root.clone(),
+            asset_startup,
             character_preview: character_select::CharacterPreview::new(
                 data_root.clone(),
                 cache_root.clone(),
@@ -249,6 +257,10 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        // Asset-using screens/actions must not race the startup worker's CASC locks.
+        if self.asset_startup.is_some() {
+            return;
+        }
         let chat_used = self.chat_edit_key(&event).unwrap_or_else(|error| {
             self.handle_frame_error("Chat key", error.into());
             true
@@ -370,6 +382,10 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, delta: f64) {
+        if !self.poll_asset_startup() {
+            self.physical_input.finish_frame();
+            return;
+        }
         type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
         // Each step runs even when an earlier one failed; only a session failure ends
         // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
@@ -464,12 +480,9 @@ impl INode3D for GameClient {
             &self.client_options.graphics,
             &mut viewport,
         );
-        if let Err(error) = self
-            .connect_focus_reset()
-            .and_then(|()| self.initialize_sound())
-            .and_then(|()| self.initialize_startup())
-            .and_then(|()| self.sync_registry_ui_scale())
-        {
+        // Window/focus setup is independent of CASC. Asset-using initialization
+        // resumes from process only after the worker has finished, without a join wait.
+        if let Err(error) = self.connect_focus_reset() {
             godot_error!("Cannot initialize client: {error}");
             self.base().get_tree().quit_ex().exit_code(1).done();
         }
