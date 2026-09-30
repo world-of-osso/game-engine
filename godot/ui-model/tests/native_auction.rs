@@ -324,3 +324,44 @@ fn native_auction_bid_buyout_owned_cancel_and_refresh() {
         vec![AuctionRequest::Cancel(CancelAuction { auction_id: 6 })]
     );
 }
+
+#[test]
+fn native_auction_browse_owned_and_bids_visit_every_fetched_listing() {
+    for mode in ["buy", "owned", "bids"] {
+        let mut s = open_session();
+        let texts = InputTexts::new();
+        let rows: Vec<_> = (1..=50)
+            .map(|id| {
+                let mut row = listing(id);
+                row.item.item_id = id as u32;
+                row
+            })
+            .collect();
+        match mode {
+            "buy" => s.net.search_results = rows,
+            "owned" => {
+                s.net.owned_results = rows;
+                s.click("auction_tab:auctions", &texts);
+            }
+            "bids" => {
+                s.net.bid_results = rows;
+                s.click("auction_tab:auctions", &texts);
+                s.click("auction_auctions_tab:bids", &texts);
+            }
+            _ => unreachable!(),
+        }
+        let mut seen = Vec::new();
+        for _ in 0..3 {
+            let state = s.state(&texts);
+            if mode == "buy" {
+                seen.extend(state.browse.iter().map(|row| u64::from(row.item_id)));
+            } else {
+                seen.extend(state.auctions.rows.iter().map(|row| row.auction_id));
+            }
+            s.click("auction_rows_next", &texts);
+        }
+        assert_eq!(seen, (1..=50).collect::<Vec<_>>(), "mode {mode}");
+        s.click("auction_rows_prev", &texts);
+        assert_eq!(s.ui.row_page, 1);
+    }
+}

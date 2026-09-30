@@ -123,11 +123,26 @@ func buyer_operations() -> bool:
 	return true
 
 func browse_item() -> bool:
-	if not await click_name("AuctionHouseFrameTab1") or not set_text("AuctionHouseFrameSearchBox", "") or not await click_action("auction_search"):
+	if not await click_name("AuctionHouseFrameTab1") or not set_text("AuctionHouseFrameSearchBox", ""):
 		return false
-	if not await wait_until(func(): return client.auction_state().search.any(func(row): return row.item_id == item_id), "browse results"):
+	var revision: int = client.auction_state().search_revision
+	if not await click_action("auction_search") or not await wait_until(func(): return client.auction_state().search_revision > revision, "browse reply"):
 		return false
-	return await click_action("auction_browse_item:%s" % item_id)
+	for _page in range(20):
+		if client.auction_state().search.any(func(row): return row.item_id == item_id):
+			revision = client.auction_state().search_revision
+			if not await click_action("auction_browse_item:%s" % item_id):
+				return false
+			return await wait_until(func(): return client.auction_state().search_revision > revision, "exact item reply")
+		var next := ui().find_child("AuctionPageNext", true, false) as Button
+		if next == null or next.disabled:
+			break
+		revision = client.auction_state().search_revision
+		await pointer(next.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+		if not await wait_until(func(): return client.auction_state().search_revision > revision, "browse next page reply"):
+			return false
+	fail("Item absent from fetched browse pages")
+	return false
 
 func open_auction() -> bool:
 	var deadline := Time.get_ticks_msec() + WAIT_MS
@@ -148,6 +163,18 @@ func open_auction() -> bool:
 			if not camera.is_position_in_frustum(position) or UnitPicker.pick(camera, point) != area.get_meta("unit_server_id"):
 				continue
 			await pointer(point, MOUSE_BUTTON_RIGHT)
+			if not await wait_until(func(): return client.auction_state().open or (ui() != null and ui().find_child("AuctionGossip", true, false) != null), "auction interaction"):
+				return false
+			if not client.auction_state().open:
+				var selected := false
+				for option in ui().find_children("AuctionGossipOption*", "Button", true, false):
+					if "auction" in option.text.to_lower():
+						await pointer(option.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+						selected = true
+						break
+				if not selected:
+					fail("Gossip lacks explicit auction option")
+					return false
 			return await wait_until(func(): return client.auction_state().open, "native auction open")
 	fail("Auctioneer must be nearby, visible and unoccluded")
 	return false
@@ -179,11 +206,10 @@ func click_action(action: String) -> bool:
 		var page_next := ui().find_child("AuctionPageNext", true, false) as Button
 		if page_next == null or page_next.disabled or not page_next.is_visible_in_tree():
 			break
-		var old_page: int = client.auction_state().search_page
+		var old_revision: int = client.auction_state().search_revision
 		await pointer(page_next.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
-		if not await wait_until(func(): return client.auction_state().search_page != old_page, "next server page"):
+		if not await wait_until(func(): return client.auction_state().search_revision > old_revision, "next server page"):
 			return false
-		await frames(20)
 	fail("Missing enabled action " + action)
 	return false
 

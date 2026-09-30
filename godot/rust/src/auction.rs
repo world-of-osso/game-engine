@@ -208,6 +208,7 @@ impl GameClient {
             session.net.inventory.as_ref().map_or(0, |inv| inv.gold) as i64,
         );
         result.set("search_total", session.net.search_total);
+        result.set("search_revision", session.net.search_revision as i64);
         result.set("row_page", session.ui.row_page as i64);
         result.set(
             "search_page",
