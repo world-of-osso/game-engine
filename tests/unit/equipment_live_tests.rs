@@ -464,7 +464,7 @@ fn bench_m2_spawn_pipeline_headless() {
     let cases = [
         (
             "torch",
-            Path::new("data/models/145513.m2"),
+            Path::new("data/models/club_1h_torch_a_01.m2"),
             10_usize,
             TORCH_P99_BUDGET_MS,
         ),
