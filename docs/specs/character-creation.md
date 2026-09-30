@@ -117,7 +117,7 @@ Closed-value centering and authored circular hover sizes passed independent nati
 Each character was teleported next to a Northshire Training Dummy before casting. Captures are in `data/diagnostics/newclasses-2026-09-30/`.
 
 Gaps found in this run:
-- [ ] The Demon Hunter blindfold geometry renders untextured (white). Its type-9 textures are ChrCustomizationMaterial 104975/104978, MaterialResourcesID 1104904/1104903. The local CASC install has no TextureFileData.db2, and data/TextureFileData.csv has no rows for those IDs, so the texture FDIDs are unresolved.
+- [x] Demon Hunter blindfolds render with their type-9 texture (ChrCustomizationMaterial 104975/104978 → TextureFileData 7758295/7758292, wago 12.1.0.69933). Linen was checked in a zoomed capture: `fblinen-4-12-0-customize-zoom.png`.
 - [ ] Dracthyr visage form (ChrRaces 75, ChrModel 127/128) and the dragon/visage toggle are missing. The dragon-form wings render untextured (white).
 - [ ] The Demon Hunter preview body renders black above the waist. This is unexamined.
 - [ ] "Demon Hunter" overflows its class tile label.

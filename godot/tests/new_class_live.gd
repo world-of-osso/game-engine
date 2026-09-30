@@ -9,6 +9,7 @@ extends SceneTree
 ##   NEWCLASS_SHOTS      screenshot directory
 ##   NEWCLASS_PICK       optional "category:option:choice" picked in Customize; with
 ##                       NEWCLASS_SKINNED (a collection FDID) the preview must show it
+##   NEWCLASS_ZOOM       optional camera zoom-in clicks for an extra Customize capture
 ## Creates the character through the real creation screens (race, class, Customize,
 ## name, Create), enters the world at its start, prints FIXTURE AT_START and waits
 ## for the orchestrator to teleport it next to a Northshire Training Dummy. Then Tab
@@ -107,6 +108,12 @@ func create_character(race: int, klass: int, name: String) -> bool:
 	if pick != "" and not await pick_choice(ui, pick.split(":")):
 		return false
 	await capture("%s-0-customize.png" % tag)
+	var zoom := int(OS.get_environment("NEWCLASS_ZOOM"))
+	if zoom > 0:
+		for i in range(zoom):
+			await click(ui.find_child("Camera_zoom_in", true, false))
+		await wait_frames(90)
+		await capture("%s-0-customize-zoom.png" % tag)
 	input.text = name
 	input.text_changed.emit(name)
 	await wait_frames(2)
