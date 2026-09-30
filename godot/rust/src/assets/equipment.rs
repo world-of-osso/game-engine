@@ -9,7 +9,10 @@ use godot::{
 };
 use osso_asset_resolver::CascListfileResolver;
 
+use game_engine_core::customization_data::ChoiceSkinnedModel;
+
 use super::{
+    appearance::PreparedAppearance,
     build_model_filtered,
     creature::{cache_model_files, cache_model_textures},
     read_model,
@@ -67,6 +70,51 @@ pub(super) fn attach_each_equipment(
         if let Err(error) = context.attach(model) {
             report(model, error);
         }
+    }
+    Ok(())
+}
+
+/// Attach each skinned-model collection M2 (ChrCustomizationSkinnedModel) with only
+/// its selected submeshes, skinned to the character skeleton like bound equipment.
+/// wow.export `update_skinned_models` loads one renderer per collection file, remaps
+/// its bones and shows the selected `GeosetType * 100 + GeosetID` submeshes.
+pub(super) fn attach_skinned_models(
+    character: &mut Gd<Node3D>,
+    character_model: &m2::Model,
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    appearance: &PreparedAppearance,
+    models: &[ChoiceSkinnedModel],
+) -> Result<(), String> {
+    let mut parts_by_file: Vec<(u32, Vec<u16>)> = Vec::new();
+    for model in models {
+        match parts_by_file
+            .iter_mut()
+            .find(|(fdid, _)| *fdid == model.collection_fdid)
+        {
+            Some((_, parts)) => parts.push(model.mesh_part_id()),
+            None => parts_by_file.push((model.collection_fdid, vec![model.mesh_part_id()])),
+        }
+    }
+    for (fdid, parts) in parts_by_file {
+        let path = cache_model_files(resolver, data_root, fdid)?;
+        let path = GString::from(path.to_string_lossy().as_ref());
+        let parsed = read_model(&path)?;
+        cache_model_textures(resolver, data_root, &[0; 3], &parsed)?;
+        let skin = bound_skin(character, character_model, &parsed)?;
+        let (mut collection, missing) =
+            build_model_filtered(&parsed, &path, &[0; 3], Some(appearance), |part| {
+                parts.contains(&part)
+            })?;
+        if !missing.is_empty() {
+            collection.free();
+            return Err(format!(
+                "Skinned model FDID {fdid} missing textures: {missing:?}"
+            ));
+        }
+        collection.set_name(&format!("SkinnedModel{fdid}"));
+        bind_character_skin(&mut collection, &skin);
+        character.add_child(&collection);
     }
     Ok(())
 }
@@ -188,28 +236,45 @@ impl EquipmentContext<'_> {
     }
 
     fn bound_skin(&self, model: &m2::Model) -> Result<Gd<Skin>, String> {
-        let mapping = map_equipment_bones(&self.character_model.bones, &model.bones)?;
-        let skeleton = self
-            .character
-            .get_node_or_null("Skeleton3D")
-            .and_then(|node| node.try_cast::<Skeleton3D>().ok())
-            .ok_or("Character has no skeleton for bound equipment")?;
-        let mut skin = Skin::new_gd();
-        for index in mapping {
-            skin.add_bind(
-                index as i32,
-                skeleton.get_bone_global_rest(index as i32).affine_inverse(),
-            );
-        }
-        Ok(skin)
+        bound_skin(&*self.character, self.character_model, model)
     }
 }
 
-fn map_equipment_bones(
+/// A skin binding `model`'s bones to the matching character skeleton joints.
+fn bound_skin(
+    character: &Gd<Node3D>,
+    character_model: &m2::Model,
+    model: &m2::Model,
+) -> Result<Gd<Skin>, String> {
+    let mapping = map_equipment_bones(&character_model.bones, &model.bones)?;
+    let skeleton = character
+        .get_node_or_null("Skeleton3D")
+        .and_then(|node| node.try_cast::<Skeleton3D>().ok())
+        .ok_or("Character has no skeleton for bound equipment")?;
+    let mut skin = Skin::new_gd();
+    for index in mapping {
+        skin.add_bind(
+            index as i32,
+            skeleton.get_bone_global_rest(index as i32).affine_inverse(),
+        );
+    }
+    Ok(skin)
+}
+
+/// Character joint of each collection bone: the joint with the same nonzero
+/// `boneNameCRC` (wow.export `M2RendererGL.buildBoneRemapTable`), else the one
+/// with the same key-bone name.
+pub(super) fn map_equipment_bones(
     character: &[m2::Bone],
     equipment: &[m2::Bone],
 ) -> Result<Vec<usize>, String> {
-    let targets: HashMap<_, _> = character
+    let by_crc: HashMap<u32, usize> = character
+        .iter()
+        .enumerate()
+        .filter(|(_, bone)| bone.name_crc != 0)
+        .map(|(index, bone)| (bone.name_crc, index))
+        .collect();
+    let by_name: HashMap<_, _> = character
         .iter()
         .enumerate()
         .map(|(index, bone)| {
@@ -223,8 +288,14 @@ fn map_equipment_bones(
         .iter()
         .enumerate()
         .map(|(index, bone)| {
+            if let Some(&joint) = (bone.name_crc != 0)
+                .then(|| by_crc.get(&bone.name_crc))
+                .flatten()
+            {
+                return Ok(joint);
+            }
             let name = bone_names::bone_display_name(bone.key_bone_id, index);
-            targets
+            by_name
                 .get(&name)
                 .copied()
                 .ok_or_else(|| format!("Bound equipment bone {name} has no character joint"))
@@ -266,6 +337,7 @@ mod tests {
             flags: 0,
             parent_bone_id: -1,
             submesh_id: 0,
+            name_crc: 0,
             pivot: [0.0; 3],
         }
     }
@@ -283,6 +355,24 @@ mod tests {
                 .unwrap_err()
                 .contains("KeyBone999")
         );
+    }
+
+    #[test]
+    fn bound_item_bones_match_by_bone_name_crc_before_key_bone() {
+        let crc = |key_bone_id, name_crc| m2::Bone {
+            name_crc,
+            ..bone(key_bone_id)
+        };
+        // Non-key bones (-1) with the character's CRCs, in another order.
+        let character = [crc(-1, 11), crc(-1, 22), crc(6, 33)];
+        let item = [crc(-1, 22), crc(-1, 11), crc(6, 0)];
+        assert_eq!(
+            map_equipment_bones(&character, &item).unwrap(),
+            vec![1, 0, 2]
+        );
+        // An unknown CRC on a non-key bone past the character's bones has no joint.
+        let unknown = [crc(-1, 22), crc(-1, 11), crc(6, 0), crc(-1, 99)];
+        assert!(map_equipment_bones(&character, &unknown).is_err());
     }
 
     #[test]

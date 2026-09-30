@@ -444,6 +444,7 @@ impl GameClient {
         }
         let camera = viewport.get_camera_3d()?;
         pick_unit(&camera, Vector2::from_array(self.physical_input.pointer()))
+            .filter(|id| self.replica.unit(*id).is_some_and(is_unit))
     }
 
     /// Bevy `sorted_targets_by_distance`: visible NPCs by distance from the player.

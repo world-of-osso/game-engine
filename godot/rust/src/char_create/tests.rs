@@ -438,3 +438,31 @@ fn filtering_changes_offers_but_not_stored_skin_indices() {
         .unwrap();
     assert_eq!(night_elf_warrior_face.requirement_id, 142);
 }
+
+fn offered_choice_count(race: u8, class: u8, label: &str) -> usize {
+    offered_rows(&state(race, 0, class))
+        .iter()
+        .find(|row| row.label == label)
+        .map_or(0, |row| row.choices.len())
+}
+
+/// Night Elf male Horns 47, Blindfold 48 and Tattoo 376 choices carry
+/// ChrCustomizationReq ClassMask 2048 (Demon Hunter): six or more extra choices each.
+#[test]
+fn demon_hunter_offers_its_class_horns_blindfolds_and_tattoos() {
+    const NIGHT_ELF: u8 = 4;
+    const DEMON_HUNTER: u8 = 12;
+    for label in ["Horns", "Blindfold", "Tattoo"] {
+        let hunter = offered_choice_count(NIGHT_ELF, DEMON_HUNTER, label);
+        let warrior = offered_choice_count(NIGHT_ELF, WARRIOR, label);
+        assert!(hunter >= warrior + 6, "{label}: DH {hunter}, warrior {warrior}");
+    }
+}
+
+/// Dracthyr (52) customize the dragon form, ChrModel 89.
+#[test]
+fn dracthyr_evoker_offers_dragon_form_options() {
+    for label in ["Horns", "Tail", "Body Size", "Snout"] {
+        assert!(offered_choice_count(52, 13, label) > 1, "{label}");
+    }
+}

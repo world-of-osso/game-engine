@@ -3,13 +3,31 @@ use super::*;
 use shared::{
     components::Health,
     protocol::{
-        CorpseLootable, LootChannel, LootClosed, LootContent, LootRelease, LootResponse, LootSlot,
-        LootSlotRemoved, LootSlotRequest, LootUnit,
+        BagSlotItem, CorpseLootable, InventoryDelta, InventorySlotChange, ItemLocation, ItemStack,
+        LootChannel, LootClosed, LootContent, LootError, LootFailed, LootRelease, LootResponse,
+        LootSlot, LootSlotRemoved, LootSlotRequest, LootUnit,
     },
 };
 
+#[path = "loot_range.rs"]
+mod loot_range;
+
 const CORPSE_NAME: &str = "Fixture Corpse";
 const REQUEST_WAIT: Duration = Duration::from_secs(6);
+const EMPTY_CLICK_WAIT: Duration = Duration::from_secs(2);
+const INITIAL_COUNT: u32 = 3;
+const INITIAL_MONEY: u64 = 1_250;
+const LOOT_MONEY: u64 = 10_502;
+
+pub(super) fn candle_stack(count: u32) -> ItemStack {
+    ItemStack {
+        item_guid: 755_001,
+        item_id: 755,
+        count,
+        durability: None,
+        soulbound: false,
+    }
+}
 
 #[derive(Resource, Default)]
 struct Requests {
@@ -35,7 +53,7 @@ fn receive(
     }
 }
 
-fn spawn_corpse(app: &mut App) -> u64 {
+pub(super) fn spawn_corpse(app: &mut App) -> u64 {
     app.world_mut()
         .spawn((
             Npc {
@@ -59,7 +77,7 @@ fn spawn_corpse(app: &mut App) -> u64 {
         .to_bits()
 }
 
-fn slots() -> Vec<LootSlot> {
+pub(super) fn slots() -> Vec<LootSlot> {
     vec![
         LootSlot {
             slot: 0,
@@ -79,7 +97,13 @@ fn slots() -> Vec<LootSlot> {
 
 #[derive(Default)]
 struct Session {
+    reach: loot_range::ReachSession,
     corpse: Option<u64>,
+    player: Option<Entity>,
+    collected_items: u32,
+    collected_money: u64,
+    rejected: usize,
+    empty_click_deadline: Option<Instant>,
     opens: usize,
     clicks: usize,
     active: bool,
@@ -107,6 +131,51 @@ impl Session {
         Ok(())
     }
 
+    fn send_inventory_snapshot(&self, app: &mut App) {
+        send::<_, InventoryChannel>(
+            app,
+            InventorySnapshot {
+                bags: vec![BagContents {
+                    bag: 0,
+                    size: 16,
+                    items: vec![BagSlotItem {
+                        slot: 0,
+                        item: candle_stack(INITIAL_COUNT),
+                    }],
+                }],
+            },
+        );
+    }
+
+    fn remove_slot(&mut self, app: &mut App, slot: u8) -> Result<(), String> {
+        let corpse = self.corpse()?;
+        match slot {
+            0 => {
+                self.collected_items += 2;
+                send::<_, InventoryChannel>(
+                    app,
+                    InventoryDelta {
+                        changes: vec![InventorySlotChange {
+                            location: ItemLocation::Bag { bag: 0, slot: 0 },
+                            item: Some(candle_stack(INITIAL_COUNT + self.collected_items)),
+                        }],
+                    },
+                );
+            }
+            1 => {
+                let player = self.player.ok_or("loot money before selected player")?;
+                self.collected_money += LOOT_MONEY;
+                app.world_mut()
+                    .entity_mut(player)
+                    .insert(Gold(INITIAL_MONEY + self.collected_money));
+            }
+            _ => return Err(format!("unknown fixture loot slot: {slot}")),
+        }
+        self.remaining.retain(|remaining| *remaining != slot);
+        send::<_, LootChannel>(app, LootSlotRemoved { corpse, slot });
+        Ok(())
+    }
+
     fn observe(&mut self, app: &mut App, line: &str) -> Result<(), String> {
         // Same unrelated missing-scenery boundary as merchant-click; script errors fail.
         let missing_scenery = line.starts_with("GODOT_STDERR: ERROR: WorldObjects:")
@@ -116,6 +185,12 @@ impl Session {
                 || line.starts_with("GODOT_STDERR: SCRIPT ERROR:"))
         {
             return Err(format!("Godot loot runtime error: {line}"));
+        }
+        if line.starts_with("FIXTURE LOOT_REACH_") {
+            if !self.ready {
+                return Err(format!("reach marker before loot readiness: {line}"));
+            }
+            return self.reach.observe(app, line).map(|_| ());
         }
         match line {
             "FIXTURE LOOT_LOADING" if self.corpse.is_some() && !self.loading => {
@@ -131,16 +206,19 @@ impl Session {
             }
             "FIXTURE LOOT_READY" if self.loading && !self.ready => {
                 self.ready = true;
+                self.send_inventory_snapshot(app);
                 self.mark_lootable(app)?;
             }
-            "FIXTURE LOOT_CLICKED" if self.ready && self.clicks < 4 => {
+            "FIXTURE LOOT_CLICKED" if self.reach.complete && self.ready && self.clicks < 4 => {
                 self.clicks += 1;
                 // UDP reception can precede stdout observation of the actual click.
                 if self.opens < self.clicks {
                     self.awaiting_request = Some(Instant::now() + REQUEST_WAIT);
                 }
             }
-            "FIXTURE LOOT_REARM" if self.ready && !self.active && self.opens < 4 => {
+            "FIXTURE LOOT_REARM"
+                if self.reach.complete && self.ready && !self.active && self.opens < 4 =>
+            {
                 self.mark_lootable(app)?
             }
             "FIXTURE LOOT_EMPTY" if self.opens == 4 && self.active && self.remaining.is_empty() => {
@@ -152,7 +230,20 @@ impl Session {
                 );
                 self.active = false;
             }
-            "FIXTURE LOOT_DONE" if self.opens == 4 && self.clicks == 4 && !self.active => {
+            "FIXTURE LOOT_NOT_LOOTABLE_CLICKED"
+                if self.opens == 4 && self.clicks == 4 && !self.active =>
+            {
+                self.empty_click_deadline = Some(Instant::now() + EMPTY_CLICK_WAIT);
+            }
+            "FIXTURE LOOT_DONE"
+                if self.opens == 4
+                    && self.clicks == 4
+                    && !self.active
+                    && self.rejected == 1
+                    && self
+                        .empty_click_deadline
+                        .is_some_and(|end| Instant::now() >= end) =>
+            {
                 self.passed = true
             }
             other if other.starts_with("FIXTURE LOOT_") => {
@@ -172,6 +263,20 @@ impl Session {
                 std::mem::take(&mut requests.releases),
             )
         };
+        let interactions = {
+            let mut incoming = app.world_mut().resource_mut::<Incoming>();
+            std::mem::take(&mut incoming.interactions)
+        };
+        if !self.reach.complete {
+            return self
+                .reach
+                .respond(app, units, taken, releases, interactions);
+        }
+        if !interactions.is_empty() {
+            return Err(format!(
+                "unexpected interaction after LOOT REACH DONE: {interactions:?}"
+            ));
+        }
         for request in units {
             let expected = [false, true, true, false].get(self.opens).copied();
             if !self.ready
@@ -199,6 +304,8 @@ impl Session {
             );
             if request.auto {
                 for slot in [0, 1] {
+                    self.remove_slot(app, slot)?;
+                    // A duplicate removal cannot create inventory or chat twice.
                     send::<_, LootChannel>(
                         app,
                         LootSlotRemoved {
@@ -226,6 +333,13 @@ impl Session {
                 // Unrelated corpse messages must not alter this open window.
                 send::<_, LootChannel>(
                     app,
+                    CorpseLootable {
+                        corpse: request.corpse.wrapping_add(1),
+                        lootable: false,
+                    },
+                );
+                send::<_, LootChannel>(
+                    app,
                     LootSlotRemoved {
                         corpse: request.corpse.wrapping_add(1),
                         slot: 0,
@@ -249,14 +363,19 @@ impl Session {
                     self.remaining
                 ));
             }
-            self.remaining.retain(|slot| *slot != request.slot);
-            send::<_, LootChannel>(
-                app,
-                LootSlotRemoved {
-                    corpse: request.corpse,
-                    slot: request.slot,
-                },
-            );
+            if self.opens == 1 && request.slot == 0 && self.rejected == 0 {
+                self.rejected += 1;
+                send::<_, LootChannel>(
+                    app,
+                    LootFailed {
+                        corpse: request.corpse,
+                        error: LootError::InventoryFull,
+                    },
+                );
+                println!("LOOT REJECTED InventoryFull count={}", self.rejected);
+                continue;
+            }
+            self.remove_slot(app, request.slot)?;
             // Reliable duplicate delivery must not print the content twice.
             send::<_, LootChannel>(
                 app,
@@ -314,12 +433,19 @@ pub(super) fn run(
     let mut remote = None;
     let mut session = Session::default();
     let mut readers = Some(readers);
-    let deadline = Instant::now() + TIMEOUT;
+    // Include cold CASC bootstrap before the owned world/input sequence.
+    let deadline = Instant::now() + TIMEOUT + Duration::from_secs(180);
     while Instant::now() < deadline {
         app.update();
         respond_to_login(app, StartupScreen::Loot)?;
         respond_to_selection(app, StartupScreen::Loot, &mut selected, &mut remote)?;
-        if selected.is_some() && session.corpse.is_none() {
+        if let Some(player) = selected
+            && session.corpse.is_none()
+        {
+            app.world_mut()
+                .entity_mut(player)
+                .insert((Gold(INITIAL_MONEY), UnitFactionTemplate(1)));
+            session.player = Some(player);
             session.corpse = Some(spawn_corpse(app));
         }
         let status = child.try_wait().map_err(|error| error.to_string())?;
@@ -346,8 +472,8 @@ pub(super) fn run(
                 Ok(())
             } else {
                 Err(format!(
-                    "loot fixture exited {status}; opens={}, done={}",
-                    session.opens, session.passed
+                    "loot fixture exited {status}; opens={}, rejected={}, done={}",
+                    session.opens, session.rejected, session.passed
                 ))
             };
         }

@@ -35,7 +35,7 @@ const DEFAULT_POSITION: [f32; 2] = [16.0, 104.0];
 
 #[derive(Default)]
 pub(crate) struct Merchant {
-    session: MerchantSession,
+    pub(crate) session: MerchantSession,
     ui: Option<Gd<RegistryUi>>,
     position: Option<[f32; 2]>,
     position_character: Option<u64>,
@@ -95,6 +95,14 @@ impl GameClient {
     pub(super) fn receive_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
         if let NpcMessage::Closed(npc) = &message {
             self.auction_interaction_closed(*npc);
+            self.mailbox.close_for(*npc);
+        }
+        if let NpcMessage::Opened(opened) = &message {
+            if opened.kind == InteractionKind::Role(NpcRole::Mailbox) {
+                self.open_mailbox(opened.npc);
+                return Ok(());
+            }
+            self.mailbox.session.close();
         }
         let session = &mut self.merchant.session;
         match message {
@@ -124,6 +132,10 @@ impl GameClient {
             NpcMessage::Inventory(snapshot) => session.receive_inventory_snapshot(&snapshot),
             NpcMessage::InventoryChanged(delta) => session.receive_inventory_delta(&delta),
             NpcMessage::RepairCost(cost) => session.repair_cost = cost,
+            NpcMessage::InteractionError(failed) => {
+                self.mailbox.close_for(failed.npc);
+                self.add_world_error(failed.error.message())?;
+            }
             NpcMessage::Error(error) => self.add_world_error(&error)?,
         }
         Ok(())
@@ -175,6 +187,9 @@ impl GameClient {
         });
         let unit = match clicked {
             Some(unit) => {
+                if self.use_mailbox(unit)? {
+                    return Ok(());
+                }
                 // Right-click targets, as Retail does.
                 self.set_target(Some(unit));
                 unit
@@ -184,6 +199,9 @@ impl GameClient {
                 None => return Ok(()),
             },
         };
+        if self.send_corpse_loot(unit)? {
+            return Ok(());
+        }
         // Right-clicking an attackable unit attacks it (`CMSG_ATTACK_SWING`).
         if self.can_auto_attack(unit) {
             self.start_auto_attack(unit)?;
@@ -221,6 +239,9 @@ impl GameClient {
         else {
             return Some(ActiveWowCursor::Default);
         };
+        if self.game_objects.contains(id) {
+            return Some(ActiveWowCursor::Mail);
+        }
         let unit = self.replica.unit(id)?;
         if !unit.has::<Npc>() {
             return Some(ActiveWowCursor::Default);
@@ -241,7 +262,7 @@ impl GameClient {
             dead: unit
                 .get::<Health>()
                 .is_some_and(|health| health.current <= 0.0),
-            lootable: false,
+            lootable: self.loot.lootable.contains(&id),
             reaction,
         }))
     }

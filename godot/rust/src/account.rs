@@ -34,8 +34,16 @@ use shared::protocol::{
     InventoryError, InventorySnapshot, MerchantChannel, MerchantFailed, RepairItem,
     SellAllJunkItems, SellItem, VendorInventory,
 };
+use shared::protocol::{
+    MailChannel, MailFailed, MailRequest, MailboxContents, PendingMail, UseGameObject,
+};
 
 use game_engine_ui_model::merchant_data::MerchantRequest;
+
+use shared::protocol::{
+    CorpseLootable, LootChannel, LootClosed, LootFailed, LootRelease, LootResponse,
+    LootSlotRemoved, LootSlotRequest, LootUnit,
+};
 
 use crate::player_spells::PlayerSpells;
 use game_engine_ui_model::auction::{AuctionReply, AuctionRequest};
@@ -114,8 +122,26 @@ pub enum AccountEvent {
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
     Auction(AuctionReply),
+    Mail(MailMessage),
+    Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
+}
+
+pub(crate) enum MailMessage {
+    Contents(MailboxContents),
+    Failed(MailFailed),
+    Pending(PendingMail),
+}
+
+/// Authoritative loot traffic, retained in `LootChannel` send order.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum LootMessage {
+    Lootable(CorpseLootable),
+    Opened(LootResponse),
+    Removed(LootSlotRemoved),
+    Closed(LootClosed),
+    Failed(LootFailed),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -141,7 +167,8 @@ pub enum NpcMessage {
     InventoryChanged(InventoryDelta),
     /// `DurabilityStateUpdate.total_repair_cost` (`GetRepairAllCost`).
     RepairCost(u32),
-    /// Retail `UIErrorsFrame` text of a refused interaction, vendor or bag request.
+    InteractionError(InteractionFailed),
+    /// Retail `UIErrorsFrame` text of a refused vendor or bag request.
     Error(String),
 }
 
@@ -331,6 +358,36 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_use_game_object(&self, object: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InteractionChannel>(UseGameObject { object })
+            .map_err(SessionError)
+    }
+
+    pub fn send_mail_request(&self, request: MailRequest) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, MailChannel>(request)
+            .map_err(SessionError)
+    }
+
+    pub fn send_loot_unit(&self, corpse: u64, auto: bool) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(LootUnit { corpse, auto })
+            .map_err(SessionError)
+    }
+
+    pub fn send_loot_slot(&self, corpse: u64, slot: u8) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(LootSlotRequest { corpse, slot })
+            .map_err(SessionError)
+    }
+
+    pub fn send_loot_release(&self, corpse: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(LootRelease { corpse })
+            .map_err(SessionError)
+    }
+
     /// Ask for the quest markers of NPCs the client sees (`CMSG_QUEST_GIVER_STATUS_MULTIPLE_QUERY`).
     pub fn send_quest_giver_status_query(&self, npcs: Vec<u64>) -> Result<(), SessionError> {
         self.bridge()?
@@ -504,6 +561,22 @@ impl Account {
         }
         if Self::is_mirror_timer_message(&message) {
             return Self::dispatch_mirror_timer_message(message, output);
+        }
+        if message.is::<MailboxContents>() {
+            output.push(AccountEvent::Mail(MailMessage::Contents(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<MailFailed>() {
+            output.push(AccountEvent::Mail(MailMessage::Failed(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<PendingMail>() {
+            output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if is_loot_message(&message) {
+            output.push(AccountEvent::Loot(receive_loot_message(message)?));
+            return Ok(());
         }
         if message.is::<CombatEvent>() {
             output.push(AccountEvent::Combat(CombatMessage::Event(decode(message)?)));
@@ -850,7 +923,7 @@ fn npc_message(message: ProtocolMessage) -> Result<Result<NpcMessage, ProtocolMe
     } else if message.is::<InteractionClosed>() {
         NpcMessage::Closed(decode::<InteractionClosed>(message)?.npc)
     } else if message.is::<InteractionFailed>() {
-        NpcMessage::Error(decode::<InteractionFailed>(message)?.error.message().into())
+        NpcMessage::InteractionError(decode(message)?)
     } else if message.is::<VendorInventory>() {
         NpcMessage::Vendor(decode(message)?)
     } else if message.is::<BuybackList>() {
@@ -1098,6 +1171,30 @@ mod tests {
         assert_eq!(read_map_id(&data_root, "azeroth").unwrap(), 0);
         assert!(read_map_id(&data_root, "no_such_map").is_err());
     }
+}
+
+fn is_loot_message(message: &ProtocolMessage) -> bool {
+    message.is::<CorpseLootable>()
+        || message.is::<LootResponse>()
+        || message.is::<LootSlotRemoved>()
+        || message.is::<LootClosed>()
+        || message.is::<LootFailed>()
+}
+
+fn receive_loot_message(message: ProtocolMessage) -> Result<LootMessage, String> {
+    if message.is::<CorpseLootable>() {
+        return Ok(LootMessage::Lootable(decode(message)?));
+    }
+    if message.is::<LootResponse>() {
+        return Ok(LootMessage::Opened(decode(message)?));
+    }
+    if message.is::<LootSlotRemoved>() {
+        return Ok(LootMessage::Removed(decode(message)?));
+    }
+    if message.is::<LootClosed>() {
+        return Ok(LootMessage::Closed(decode(message)?));
+    }
+    Ok(LootMessage::Failed(decode(message)?))
 }
 
 fn decode<M: game_engine_network::WireMessage>(message: ProtocolMessage) -> Result<M, String> {

@@ -9,6 +9,9 @@ const SELECTION_WAIT_MS := 30000
 # Authored terrain height at this fixture's X/Z, not the transfer-only fixture's airborne Y.
 const FIRST := Vector3(-8949.0, 112.879913, 0.0)
 const WORLD_WAIT_MS := 60000
+# Login starts once asset startup has read the CASC tables: 8.5 s warm, past 15 s on a
+# loaded host or with the fixture's fresh user-data (empty CASC index cache).
+const STARTUP_WAIT_MS := 120000
 const LOADING_FRAMES := 24
 const HELD_FRAMES := 60
 const SETTLE_FRAMES := 20
@@ -39,7 +42,7 @@ func run_test() -> void:
 	if startup_screen != "inworld":
 		if not await enter_world_from_charselect(client):
 			return
-	if not await wait_for_screen(client, "Loading", 15000):
+	if not await wait_for_screen(client, "Loading", STARTUP_WAIT_MS):
 		return
 	if client.get_node_or_null("CharacterSelectScene") != null:
 		fail("Entering the world retained the character-selection preview")

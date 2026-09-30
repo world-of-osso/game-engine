@@ -19,7 +19,7 @@ Engine subsystems and how they work.
 - [minimap](systems/minimap.md) — Godot Retail MinimapCluster: local-CASC `world/minimaps` tile composite (north-up, round), facing arrow, subzone/PvP zone text, clock and calendar, hover zoom, quest-giver blips; tile-key and composite coordinate derivations
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
 - [auction-house-ui](systems/auction-house-ui.md) — Retail AuctionHouseFrame plus native Godot auction session: NPC/gossip entry, Buy/Sell/Auctions, server-global distinct-item browse, flat exact-item drilldown, two-level paging and bounded model/UDP evidence; ordered runtime smoke pending
-- [trade-and-mail](systems/trade-and-mail.md) — Retail TradeFrame (unit/group menu Trade, TRADE popup, 7 slots, accept highlights) and MailFrame/OpenMailFrame at Mailbox game objects (inbox pages, open mail, Send Mail with attachments/C.O.D., confirmations), minimap mail indicator
+- [trade-and-mail](systems/trade-and-mail.md) — preserved Bevy trade/full mail; bounded native receiving mail with actual replicated mailbox M2/picking, authored inbox/letter/backpack, server claims and 8 focused CPU tests; CLI-first rendered fixture remains with main
 - [banks](systems/banks.md) — Retail BankFrame (character + Warband bank) at bankers and GuildBankFrame at replicated Guild Vault objects; right-click deposit/withdraw, money entry, tab purchase, guild logs
 - [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
 - [loot-and-flight](systems/loot-and-flight.md) — corpses, Retail LootFrame, auto-loot and cursor, Retail FlightMapFrame on UiMap art, server-driven flights and `MovementControl` repositioning
@@ -120,6 +120,9 @@ Root cause analyses and debug findings.
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
 - [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`)
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
+
+- [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Final `292a2fb2`/Depot `tt4c247nl1`: four cases, rejection/retry, bags 11/money 32756 and LOOT_DONE observed. Full exit 101 after DONE is fixture timeout, not historical RenderingServer-null; shutdown deferred, verifier 1314 pending, clean acceptance open.
+- [Native Options and loot money overflow](systems/godot-conversion.md#native-options-and-loot-money-overflow--bounded-main-rendering-final-gate-pending) — 42 main Options records at scales 1/0.75/1.25 without overflow; 93×38/font-12 money Label has three visible lines and contained paint/shadow; original captions main-inspected. Caption-2 RED corrected at `292a2fb2`; independent final pending.
 
 ## Reference
 
