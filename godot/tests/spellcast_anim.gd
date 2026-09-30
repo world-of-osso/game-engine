@@ -6,8 +6,9 @@ extends SceneTree
 ##   SPELL_ACCOUNT / SPELL_CHARACTER   account (password fbtest) and level-10 warrior
 ##   SPELL_SHOTS                 screenshot directory
 ##   SPELL_WORLD_TIMEOUT_S       seconds to wait for world objects (default 300)
-##   SPELL_SCENARIO=paladin      a level-10 paladin casts Flash of Light on itself and
-##                               hears its precast, cast and impact SoundKits
+##   SPELL_SCENARIO=paladin      a level-10 paladin heals itself with Flash of Light, then
+##                               casts Judgment and Hammer of Justice on the dummy; each
+##                               spell's SoundKits (precast, cast, missile, impact, aura)
 ##   SPELL_SCENARIO=shout        a level-10 warrior casts Battle Shout: its kit SoundKit
 ##                               and the warrior's own battle-shout voice
 ##   SPELL_SCENARIO=mage         a level-10 mage casts Frostbolt instead: the precast
@@ -44,17 +45,20 @@ const SHOUT_BUFF := 6194303
 ## `SpellPower` rage cost of Slam, in tenths.
 const SLAM_RAGE := 200
 const FROSTBOLT := 116
-const FIREBALL := 133
+const JUDGMENT := 20271
+const HAMMER_OF_JUSTICE := 853
 const FROST_NOVA := 122
 const FLASH_OF_LIGHT := 19750
 ## Retail SoundKits each spell's kits play (SpellVisualKitEffect type 5, missile
 ## SoundEntriesID, 12.1.0.69933): Slam 1H cast 57845 and impact 60935; Battle Shout cast
-## 114049; Fireball precast 349555, cast 349556, missile 349558 (looping), impact 349557;
-## Frost Nova cast 350096, aura 350097 (looping) and 350098, aura end 85938; Flash of
-## Light precast 349350 (looping), cast 349352 and 349351, impact 349357 and 349355.
+## 114049; Frost Nova cast 350096, aura 350097 (looping) and 350098, aura end 85938;
+## Flash of Light precast 349350 (looping), cast 349352 and 349351, impact 349357 and
+## 349355; Judgment cast 218258 and 349488, missile 53649 (looping), impact 218257, 221597
+## and 224414; Hammer of Justice cast 53854, impact 221582, stun aura 349372 (looping).
 const SLAM_SOUNDS := [57845, 60935]
 const BATTLE_SHOUT_SOUNDS := [114049]
-const FIREBALL_SOUNDS := [349555, 349556, 349558, 349557]
+const JUDGMENT_SOUNDS := [218258, 349488, 53649, 218257, 221597, 224414]
+const HAMMER_OF_JUSTICE_SOUNDS := [53854, 221582, 349372]
 const FROST_NOVA_SOUNDS := [350096, 350097, 350098]
 const FROST_NOVA_END_SOUNDS := [85938]
 const FLASH_OF_LIGHT_SOUNDS := [349350, 349352, 349351, 349357, 349355]
@@ -132,8 +136,8 @@ func run_test() -> void:
 	var scenario := OS.get_environment("SPELL_SCENARIO")
 	var mage := scenario == "mage"
 	var paladin := scenario == "paladin"
-	# Self-cast scenarios need no dummy: a paladin's Flash of Light, a warrior's Battle Shout.
-	var self_cast := paladin or scenario == "shout"
+	# The warrior's shout scenario needs no dummy.
+	var self_cast := scenario == "shout"
 	var signature := FROSTBOLT if mage else (FLASH_OF_LIGHT if paladin else BATTLE_SHOUT)
 	if not await wait_for(func(s): return s.catalog_ready and s.known.has(signature) and s.level == 10, 60000, "level-10 spells"):
 		return
@@ -152,8 +156,11 @@ func run_test() -> void:
 	if not await orbit_camera():
 		return
 	await capture("00-idle.png")
+	# Flash of Light before any target: it heals the paladin itself.
+	if paladin and not (await cast_and_hear(FLASH_OF_LIGHT, FLASH_OF_LIGHT_SOUNDS, 8000) and await loops_stopped(FLASH_OF_LIGHT, 3000)):
+		return
 	if self_cast:
-		if await cast_self_sounds(paladin):
+		if await cast_self_sounds():
 			print("FIXTURE SPELLCAST_ANIM_DONE")
 			client.free()
 			quit(0)
@@ -181,6 +188,12 @@ func run_test() -> void:
 	if not no_melee_yet("after selecting the dummy"):
 		return
 	await capture("00-selected.png")
+	if paladin:
+		if await cast_paladin_sounds():
+			print("FIXTURE SPELLCAST_ANIM_DONE")
+			client.free()
+			quit(0)
+		return
 	if mage:
 		if await cast_frostbolt() and await cast_mage_sounds():
 			print("FIXTURE SEEN actions=", seen_actions, " models=", seen_models.keys(), " missile=", seen_missile)
@@ -450,24 +463,24 @@ func no_reaction_before_impact(flights: Array) -> bool:
 	print("FIXTURE NO_MELEE before the Frostbolt impact actions=", seen_actions, " landed=%.3f" % landed)
 	return true
 
-## Without a target: Flash of Light heals the paladin (precast loop, cast, impact), Battle
-## Shout buffs the warrior (its cast kit's SoundKit and the warrior's own shout voice).
-func cast_self_sounds(paladin: bool) -> bool:
-	if paladin:
-		return await cast_and_hear(FLASH_OF_LIGHT, FLASH_OF_LIGHT_SOUNDS, 8000) and await loops_stopped(FLASH_OF_LIGHT, 3000)
+## Without a target: Battle Shout buffs the warrior (its cast kit's SoundKit and the
+## warrior's own shout voice).
+func cast_self_sounds() -> bool:
 	return await cast_and_hear(BATTLE_SHOUT, BATTLE_SHOUT_SOUNDS, 5000) and await heard_voice(BATTLE_SHOUT, BATTLE_SHOUT_VOICES, 3000)
 
-## After Frostbolt: Fireball (precast, cast, looping missile sound that stops on landing,
-## impact) and Frost Nova (cast, aura sounds on the rooted dummy, aura-end sound).
-func cast_mage_sounds() -> bool:
-	if not await wait_for(func(s): return s.gcd_ms == 0 and s.casting == 0, 8000, "GCD over after Frostbolt"):
+## On the dummy: Judgment (cast, looping missile sound that stops on landing, impact) and
+## Hammer of Justice (cast, impact, the stun aura's looping sound until the stun ends).
+func cast_paladin_sounds() -> bool:
+	if not await cast_and_hear(JUDGMENT, JUDGMENT_SOUNDS, 8000) or not await loops_stopped(JUDGMENT, 3000):
+		return false
+	if not await wait_for(func(s): return s.gcd_ms == 0 and s.casting == 0, 8000, "GCD over after Judgment"):
 		return false
 	await wait_frames(30)
-	if not await cast_and_hear(FIREBALL, FIREBALL_SOUNDS, 8000):
-		return false
-	if not await loops_stopped(FIREBALL, 3000):
-		return false
-	if not await wait_for(func(s): return s.gcd_ms == 0 and s.casting == 0, 8000, "GCD over after Fireball"):
+	return await cast_and_hear(HAMMER_OF_JUSTICE, HAMMER_OF_JUSTICE_SOUNDS, 5000) and await loops_stopped(HAMMER_OF_JUSTICE, 15000)
+
+## After Frostbolt: Frost Nova (cast, aura sounds on the rooted dummy, aura-end sound).
+func cast_mage_sounds() -> bool:
+	if not await wait_for(func(s): return s.gcd_ms == 0 and s.casting == 0, 8000, "GCD over after Frostbolt"):
 		return false
 	await wait_frames(30)
 	if not await cast_and_hear(FROST_NOVA, FROST_NOVA_SOUNDS, 5000):
@@ -516,6 +529,8 @@ func loops_stopped(spell: int, timeout_ms: int) -> bool:
 	if not await wait_until(func(): return running.call().is_empty(), timeout_ms, "spell %d looping sounds to stop" % spell):
 		print("FIXTURE LOOPS_RUNNING ", running.call())
 		return false
+	for sound in client.spell_visuals_state().sounds.filter(func(s): return s.spell == spell and s.looping):
+		print("FIXTURE LOOP_STOPPED spell=%d sound_kit=%d fdid=%d source=%s at=%.3f stopped_at=%.3f" % [sound.spell, sound.sound_kit, sound.fdid, sound.source, sound.at, sound.stopped_at])
 	return true
 
 func print_sound(sound: Dictionary) -> void:
