@@ -25,9 +25,20 @@ func set_invert_y(client: Node, inverted: bool) -> bool:
 	await tap_escape()
 	if not await fixture.wait_menu(client) or not fixture.menu_authored(client):
 		return false
-	for name in ["MenuBtnOptions", "OptionsTabcamera", "ToggleSwitchinvert_yRightHit" if inverted else "ToggleSwitchinvert_yLeftHit"]:
+	for name in ["MenuBtnOptions", "OptionsTabcamera"]:
 		if not await click_option(client, name):
 			return false
+	var hit := "ToggleSwitchinvert_yRightHit" if inverted else "ToggleSwitchinvert_yLeftHit"
+	var menu := client.get_node("GameMenuUI")
+	# Authored toggle_widget emits a hitbox only for the inactive segment.
+	# If already selected (initial Off), round-trip through the opposite
+	# segment so this case still exercises an authored edit and persistence.
+	if menu.find_child(hit, true, false) == null:
+		var opposite := "ToggleSwitchinvert_yLeftHit" if inverted else "ToggleSwitchinvert_yRightHit"
+		if not await click_option(client, opposite):
+			return false
+	if not await click_option(client, hit):
+		return false
 	var config := OS.get_environment("XDG_CONFIG_HOME")
 	if config.is_empty():
 		return reject("Camera probe requires fixture-owned XDG_CONFIG_HOME")
