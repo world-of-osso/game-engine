@@ -1,7 +1,8 @@
 extends "res://tests/display_options.gd"
 
 # Run with --screen gamemenu, an owned options_settings.ron, and AA_TEST_MODE.
-# Taa checks flag wiring only. Its pixel metric is NOT algorithm-parity proof.
+# None/MSAA coverage only. Taa requires a separate temporal oracle; Godot's
+# stock use_taa flag cannot establish the legacy filter contract.
 const SIZE := Vector2i(1280, 720)
 const CENTER := Vector2(640, 360)
 const QUAD_PIXELS := Vector2(324, 216)
@@ -19,8 +20,8 @@ func run_test() -> void:
 	var selected := OS.get_environment("AA_TEST_MODE")
 	if not selected.is_empty():
 		aa_mode = selected
-	if aa_mode not in ["None", "Msaa4x", "Taa"]:
-		fail("AA_TEST_MODE must be None|Msaa4x|Taa (default Msaa4x)")
+	if aa_mode not in ["None", "Msaa4x"]:
+		fail("AA_TEST_MODE must be None|Msaa4x; Taa requires separate temporal acceptance")
 		return
 	var config := OS.get_environment("XDG_CONFIG_HOME")
 	var directory := OS.get_environment("GODOT_TEST_CAPTURE_DIR")
@@ -77,7 +78,7 @@ func run_test() -> void:
 	print(
 		"PASS: saved AA ",
 		aa_mode,
-		" startup and unrelated Graphics preservation; Taa flags only, not kernel parity"
+		" startup, geometric coverage and unrelated Graphics preservation"
 	)
 	quit(0)
 
@@ -106,14 +107,14 @@ func expect_saved_aa(path: String, cap_enabled: bool, stage: String) -> bool:
 
 func expect_renderer_aa(stage: String) -> bool:
 	var expected_msaa := Viewport.MSAA_4X if aa_mode == "Msaa4x" else Viewport.MSAA_DISABLED
-	var expected_taa := aa_mode == "Taa"
+	var expected_taa := false
 	print(
 		"AA_STATE ", stage, " saved=", aa_mode, " msaa_3d=", root.msaa_3d, " use_taa=", root.use_taa
 	)
 	if root.msaa_3d != expected_msaa or root.use_taa != expected_taa:
 		fail(
 			(
-				"%s: saved antiAlias=%s observed msaa_3d=%s use_taa=%s expected %s/%s (Taa flag wiring only)"
+				"%s: saved antiAlias=%s observed msaa_3d=%s use_taa=%s expected %s/%s"
 				% [stage, aa_mode, root.msaa_3d, root.use_taa, expected_msaa, expected_taa]
 			)
 		)
@@ -203,7 +204,7 @@ func expect_aa_pixels(image: Image, stage: String) -> bool:
 			if image.get_pixel(x, y) != expected:
 				fail("%s: higher-layer black/white UI changed at (%d,%d)" % [stage, x, y])
 				return false
-	# Saturated opaque emission avoids lighting/tonemap/dither noise in the interior.
+	# Saturated unshaded albedo avoids lighting/tonemap noise in the interior.
 	if (
 		image.get_pixel(640, 400).r < 1.0 - BYTE_TOLERANCE
 		or image.get_pixel(420, 180).r > BYTE_TOLERANCE
@@ -233,9 +234,7 @@ func expect_aa_pixels(image: Image, stage: String) -> bool:
 		" band_samples=",
 		samples,
 		" fraction=",
-		float(partial) / samples,
-		" Taa_report_only=",
-		aa_mode == "Taa"
+		float(partial) / samples
 	)
 	if aa_mode == "None" and partial != 0:
 		fail(
