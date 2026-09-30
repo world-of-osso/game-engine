@@ -31,8 +31,8 @@ use std::time::Duration;
 use game_engine_core::asset_loader::Priority;
 use game_engine_core::m2;
 use game_engine_core::spell_visual::{
-    CasterContext, KitModel, KitSound, KitTarget, SpellVisualCatalog, UnitSound, VisualEvent,
-    VisualKit, VisualMissile, VoiceSource,
+    CasterContext, KitModel, KitSound, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit,
+    VisualMissile, VoiceSource,
 };
 use game_engine_network::UnitSnapshot;
 use godot::builtin::{Basis, EulerOrder, Transform3D, Vector3};
@@ -422,6 +422,10 @@ pub struct SpellEffects {
     clock: f32,
     /// Each replicated unit's voice (`CreatureSoundData` source).
     voices: HashMap<u64, VoiceSource>,
+    /// Each attacker's latest melee swing, landing at its clip's `$CAH`.
+    swings: HashMap<u64, melee::PendingSwing>,
+    /// Newest melee swings seen, oldest first, bounded.
+    melee_seen: Vec<melee::MeleeSeen>,
     /// Auras whose kits are held on their units, by (unit, instance).
     auras: HashMap<(u64, u32), auras::HeldAura>,
     /// Newest cast starts and resolutions seen, oldest first, bounded.
@@ -456,6 +460,8 @@ impl SpellEffects {
             flights: Vec::new(),
             clock: 0.0,
             voices: HashMap::new(),
+            swings: HashMap::new(),
+            melee_seen: Vec::new(),
             auras: HashMap::new(),
             casts_seen: Vec::new(),
             sounds: SpellSounds::default(),
@@ -554,6 +560,7 @@ impl SpellEffects {
 
     pub fn reset(&mut self) {
         self.sounds.reset();
+        self.swings.clear();
         self.auras.clear();
         for effect in self.active.drain(..) {
             effect.node.free();
@@ -927,36 +934,6 @@ impl SpellEffects {
         self.sounds.start(sound, request, &mut self.assets)
     }
 
-    /// Each cast clip's `$SCD` M2 event plays its unit's `SpellCastDirectedSoundID`
-    /// (wowdev.wiki/M2 Events).
-    fn play_cast_voices(&mut self, world: &mut WorldUnits) -> Result<(), String> {
-        let mut errors = Vec::new();
-        for (unit, event) in world.take_animation_events() {
-            if &event != b"$SCD" {
-                continue;
-            }
-            let Some(&voice) = self.voices.get(&unit) else {
-                continue;
-            };
-            let Some(sound) = self
-                .catalog()?
-                .unit_sound(voice, UnitSound::SpellCastDirected)
-                .cloned()
-            else {
-                continue;
-            };
-            let cue = SoundCue {
-                unit,
-                spell_id: 0,
-                kit_id: 0,
-                hold: None,
-                source: SoundSource::Voice,
-            };
-            errors.extend(self.play_on_unit(&sound, cue, world).err());
-        }
-        join_errors(errors)
-    }
-
     fn record(&mut self, start: KitStart) {
         if self.started.len() == STARTED_KEEP {
             self.started.remove(0);
@@ -1284,7 +1261,7 @@ impl SpellEffects {
                 .advance(sound_gain, self.clock, &self.assets)
                 .err(),
         );
-        if let Err(error) = self.play_cast_voices(world) {
+        if let Err(error) = self.play_unit_events(world) {
             errors.push(error);
         }
         if let Err(error) = self.spawn_due(world) {
@@ -1486,6 +1463,8 @@ fn join_errors(errors: Vec<String>) -> Result<(), String> {
 
 #[path = "spell_auras.rs"]
 mod auras;
+#[path = "spell_melee.rs"]
+mod melee;
 
 #[cfg(test)]
 #[path = "spell_effects_tests.rs"]

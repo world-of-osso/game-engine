@@ -72,6 +72,9 @@ pub fn dispatch(
     }
     if let Some(index) = parse(action, frame::ACTION_CATEGORY_PREFIX) {
         let index = index as usize;
+        if index >= view::CATEGORIES.len() {
+            return Vec::new();
+        }
         ui.category = (ui.category != Some(index)).then_some(index);
         ui.browse_item = None;
         ui.row_page = 0;
