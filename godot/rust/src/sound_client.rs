@@ -3,11 +3,9 @@
 use std::{fs::File, io::BufReader};
 
 use game_engine_core::area_zone_data::{load_area_parents, root_area};
-use game_engine_network::spell_event_data::spell_outcome;
 use game_engine_session::SessionScreen;
 use godot::classes::INode;
 use godot::prelude::*;
-use shared::protocol::CombatEvent;
 
 use crate::{GameClient, sound::NativeSound};
 
@@ -96,44 +94,10 @@ impl GameClient {
         Ok(())
     }
 
-    pub(super) fn play_combat_outcome(&mut self, event: &CombatEvent) {
-        if self.account.session.screen != SessionScreen::InWorld {
-            return;
-        }
-        let Some((kind, emitter)) = spell_outcome(event) else {
-            return;
-        };
-        let Some(position) = self
-            .world
-            .unit_node(emitter)
-            .map(|node| node.get_global_position())
-        else {
-            return;
-        };
-        if let Some(sound) = &mut self.sound {
-            sound
-                .bind_mut()
-                .play_outcome(kind, emitter, position, &self.client_options.sound);
-        }
-    }
-
     pub(super) fn update_sound(&mut self) -> Result<(), String> {
         let zone = self.current_zone_id();
         if let Some(sound) = &mut self.sound {
-            let mut sound = sound.bind_mut();
-            sound.sync(zone, &self.client_options.sound)?;
-            if self.account.session.screen == SessionScreen::InWorld {
-                sound.sync_outcomes(
-                    |id| {
-                        self.world
-                            .unit_node(id)
-                            .map(|node| node.get_global_position())
-                    },
-                    &self.client_options.sound,
-                );
-            } else {
-                sound.stop_outcomes();
-            }
+            sound.bind_mut().sync(zone, &self.client_options.sound)?;
         }
         Ok(())
     }

@@ -1,8 +1,8 @@
 //! Frame click actions: selection changes on [`AuctionHouseUi`], server requests on
 //! [`AuctionHouseState`], and edit box texts to set.
 
-use game_engine::auction_house::{AuctionHouseState, AuctionRequest};
-use game_engine::ui::screens::auction_house_frame_component::{
+use super::{AuctionHouseState, AuctionRequest};
+use crate::auction_house_frame_component::{
     self as frame, AuctionHouseTab, AuctionsSubTab, BID_BOXES, MoneyBoxes, QUANTITY_BOX,
     SEARCH_BOX, SELL_BID_BOXES, SELL_BUYOUT_BOXES,
 };
@@ -72,13 +72,24 @@ pub fn dispatch(
     }
     if let Some(index) = parse(action, frame::ACTION_CATEGORY_PREFIX) {
         let index = index as usize;
+        if index >= view::CATEGORIES.len() {
+            return Vec::new();
+        }
         ui.category = (ui.category != Some(index)).then_some(index);
         ui.browse_item = None;
+        ui.row_page = 0;
+        let mut query = search_query(view::text(texts, SEARCH_BOX));
+        query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+        net.request(AuctionRequest::Browse(query));
         return Vec::new();
     }
     if let Some(item_id) = parse(action, frame::ACTION_BROWSE_ITEM_PREFIX) {
+        ui.browse_query = net.last_query.clone();
         ui.browse_item = Some(item_id as u32);
         ui.selected_auction = None;
+        let mut query = search_query("");
+        query.item_id = Some(item_id as u32);
+        net.request(AuctionRequest::Browse(query));
         return money_edits(BID_BOXES, None);
     }
     if let Some(auction_id) = parse(action, frame::ACTION_SELECT_AUCTION_PREFIX) {
@@ -109,11 +120,14 @@ fn dispatch_command(
         frame::ACTION_SEARCH => {
             ui.browse_item = None;
             ui.selected_auction = None;
-            net.request(AuctionRequest::Browse(search_query(view::text(
-                texts, SEARCH_BOX,
-            ))));
+            let mut query = search_query(view::text(texts, SEARCH_BOX));
+            query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+            net.request(AuctionRequest::Browse(query));
         }
         frame::ACTION_BACK => {
+            if let Some(query) = ui.browse_query.take() {
+                net.request(AuctionRequest::Browse(query));
+            }
             ui.browse_item = None;
             ui.selected_auction = None;
         }
@@ -211,9 +225,11 @@ fn select_sell_item(
     else {
         return Vec::new();
     };
-    let name = item.name.clone();
+    let item_id = item.item_id;
     ui.sell_item = Some(guid);
-    net.request(AuctionRequest::Browse(search_query(&name)));
+    let mut query = search_query("");
+    query.item_id = Some(item_id);
+    net.request(AuctionRequest::Browse(query));
     let mut edits = vec![(QUANTITY_BOX, "1".to_string())];
     edits.extend(money_edits(SELL_BUYOUT_BOXES, None));
     edits.extend(money_edits(SELL_BID_BOXES, None));

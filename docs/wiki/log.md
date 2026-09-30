@@ -1,5 +1,21 @@
 # Wiki Log
 
+## [2026-09-30] implementation | Bounded native auction client
+
+Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, portable trading validation, exact-item/category queries, all fetched-row/server-page navigation and corrected duration labels. Targeted current model 8/8, retained owned UDP 1/1 and current host compile/range test 1/1 passed; no Godot runtime executed. Main owns game-cli-first integration and native smoke; no runtime/full-AH acceptance claim.
+
+## [2026-09-30] update | Server missile timing
+
+[[spell-visuals]] Server timing: game-server `fa5e689` delays missile hits by TrinityCore's `max(dist, 5) / Speed + LaunchDelay` (`Spell::HandleDelayed`). Frostbolt's damage number no longer arrives with `SpellGo`. About 200 ms early remains: the server clock starts at the cast, while the client releases at the M2 event. Not re-captured on the client.
+
+## [2026-09-30] feature | Retail melee sounds; synthetic miss/interrupt PCM removed
+
+[Melee sounds](systems/spell-visuals.md#melee-sounds): WeaponSwingSounds2 swoosh at `$CSS`, WeaponImpactSounds impact and CreatureSoundData injury at `$CAH`, SoundDeathID on NPC death clips. Hit reactions no longer cut a unit's own swing. [[sound]] outcome section rewritten; `OutcomeSpells` and `sound-outcome` fixture removed.
+
+## [2026-09-30] evidence | Shared cache standalone and bounded native gates accepted
+
+Updated [asset pipeline](systems/asset-pipeline.md#local-extraction) and index with main-accepted standalone `25debb1` proof: persisted-marker fresh-process recovery of exact valid local-CASC bytes, positive-cache preservation, explicit failure context, format/check/readability. Main accepts `/tmp/claude/verify-negative-cache-native-integration.md` bounded saved-artifact PASS: Depot `s1q4qhb120` build2 exit 0 compiles native consumer/fixture; extension load and eight Options helper PASS markers plus Menu/owned UDP/Exit runtime exit 0. Native cold-marker recovery remains unverified; standalone fresh-process regression supplies that separate proof. No independent binary-identity attestation, native cold-marker/full-conversion/deploy/current unfrozen whole-tree acceptance; native compiler/runtime warnings retained in report. Contract remains in sibling [asset-cache spec](../../../asset-resolver/docs/specs/asset-cache.md). Isolated engine docs only; asset repo untouched, user-dirty files preserved. Source unfrozen; shutdown paused.
+
 ## [2026-09-30] evidence | Bounded TargetSelf Options rebind; gate accepted
 
 Updated existing Options parity row, [native main-menu boundary](systems/godot-conversion.md#native-main-menu-boundary) and index. Test-only `685cbe83`, `data/diagnostics/target-binding-options/run1.log` exit 0: real Keybindings/Targeting capture F1 → T → F1, exact labels/unique canonical ownership, old keys inactive, same-player ring/TargetFrame; selection cleared/Menu closed/input released. T avoids fixed F10 Edit Mode. Previous character-select/camera/Min-Max/Zoom/marker/full Menu UDP/Exit assertions pass; unchanged compiled `mb61bqgcj2`, no production change/new Depot. `/tmp/claude/verify-native-target-binding-options.md` accepted bounded saved-runtime/source PASS (eight PASS messages, not eight framework cases); no all-bindings/conflict/server-ack/movement-rebind/fresh-process acceptance. Docs only; Cargo.lock, PLAN.md, user-data/data preserved; no tests/GPU/build/network/delegation. Source unfrozen/shutdown paused; canonical window released for main to merge, not agents.
