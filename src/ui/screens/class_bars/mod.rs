@@ -251,6 +251,16 @@ impl std::fmt::Debug for ClassBarAnimator {
 }
 
 impl ClassBarAnimator {
+    /// Feeds an observed client snapshot on the monotonic animator clock.
+    pub fn update_received(
+        &mut self,
+        _owner: u64,
+        resource: Option<&ClassBarResource>,
+        now: f64,
+    ) -> Option<ClassBarView> {
+        self.update(resource, now)
+    }
+
     /// Feeds the bar's power at `now` (seconds, monotonic) and returns what it draws.
     /// The bar is created on first sight (`Setup`) and dropped when hidden; its
     /// `UpdatePower` runs only when the power (or combat state) changed.
