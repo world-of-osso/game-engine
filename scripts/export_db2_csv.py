@@ -352,6 +352,7 @@ TABLES = {
             ("WaterDeepAlpha", ("float", 7, 0)),
             ("OceanShallowAlpha", ("float", 8, 0)),
             ("OceanDeepAlpha", ("float", 9, 0)),
+            ("Flags", ("int", 10, 0)),
         ],
     ),
     # WoWDBDefs layout D1ECEEC9. WebWowViewerCpp reads Color[0..1], Float[0..17], Int[0..3] and

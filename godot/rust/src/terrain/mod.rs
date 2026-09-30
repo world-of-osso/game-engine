@@ -95,8 +95,8 @@ fn read_liquid_material(
         wow_position,
         minutes,
     )?;
-    let (fog, fog_color) = (sample.fog, sample.sky.fog_color);
-    let light = crate::lighting::TerrainLight::new(sample, fog, fog_color)?;
+    let fog = sample.fog;
+    let light = crate::lighting::TerrainLight::new(sample, fog)?;
     water::WaterMaterials::default().standalone(&native, &light)
 }
 

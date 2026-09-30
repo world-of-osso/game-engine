@@ -5,9 +5,9 @@ pub(crate) mod assets;
 use game_engine_core::{
     asset::wmo_format::fog::WmoFogBlend,
     lighting_assets::{authored_to_linear_rgb, linear_to_authored_rgb},
+    retail_fog::{FogResult, FogUniforms, blend_wmo_fog, fog_uniforms, wmo_fog},
     retail_light_data::RetailLightData,
     sky_cubemap_data,
-    sky_lightdata_data::{RetailFog, blend_wmo_fog, wmo_retail_fog},
 };
 use godot::{
     classes::{
@@ -24,19 +24,14 @@ type SkyStops = [[f32; 3]; 7];
 #[derive(Clone)]
 pub(crate) struct TerrainLight {
     retail: RetailLightData,
-    fog: RetailFog,
-    fog_color: [f32; 3],
+    fog: FogUniforms,
     cube: Gd<Cubemap>,
     water: WaterLight,
 }
 
 impl TerrainLight {
     /// The light of `sample` with its scene fog (the exterior or a WMO interior's).
-    pub fn new(
-        sample: LightingSample,
-        fog: RetailFog,
-        fog_color: [f32; 3],
-    ) -> Result<Self, String> {
+    pub fn new(sample: LightingSample, fog: FogResult) -> Result<Self, String> {
         let sky = &sample.sky;
         let cube = create_cubemap([
             sky.sky_top,
@@ -49,8 +44,7 @@ impl TerrainLight {
         ])?;
         Ok(Self {
             retail: sample.retail,
-            fog,
-            fog_color,
+            fog: fog_uniforms(&fog, sample.fog_sun_direction),
             cube,
             water: sample.water,
         })
@@ -68,15 +62,10 @@ impl TerrainLight {
             ("ground_ambient", self.retail.ground_ambient),
             ("direct", self.retail.direct),
             ("sun_direction", self.retail.sun_direction),
-            ("fog_color", self.fog_color),
         ] {
             material.set_shader_parameter(name, &Vector3::from_array(value).to_variant());
         }
-        let range = Vector2::new(self.fog.start, self.fog.end);
-        material.set_shader_parameter("fog_range", &range.to_variant());
-        material.set_shader_parameter("fog_density", &self.fog.density.to_variant());
-        material.set_shader_parameter("fog_opacity", &1.0f32.to_variant());
-        material.set_shader_parameter("fog_mode", &1i32.to_variant());
+        bind_fog(material, &self.fog);
     }
 
     /// The model light plus the retail water scene inputs of `water.gdshader`.
@@ -114,12 +103,10 @@ impl TerrainLight {
             "ground_ambient",
             "direct",
             "sun_direction",
-            "fog_color",
-            "fog_range",
-            "fog_density",
-            "fog_opacity",
-            "fog_mode",
-        ] {
+        ]
+        .into_iter()
+        .chain(FOG_UNIFORMS)
+        {
             material.set_shader_parameter(name, &Variant::nil());
         }
     }
@@ -129,7 +116,7 @@ impl TerrainLight {
 pub(crate) struct WorldLighting {
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
-    previous: Option<(RetailLightData, RetailFog, [f32; 3], SkyStops, WaterLight)>,
+    previous: Option<(RetailLightData, FogResult, SkyStops, WaterLight)>,
 }
 
 impl WorldLighting {
@@ -155,19 +142,13 @@ impl WorldLighting {
             sky.fog_color,
             sky.fog_color,
         ];
-        let (fog, fog_color) = apply_wmo_fog(sample.fog, sky.fog_color, wmo_fog);
-        let values = (
-            sample.retail.clone(),
-            fog,
-            fog_color,
-            stops,
-            sample.water.clone(),
-        );
+        let fog = apply_wmo_fog(&sample.fog, wmo_fog);
+        let values = (sample.retail.clone(), fog, stops, sample.water.clone());
         if self.previous.as_ref() == Some(&values) {
             return Ok(None);
         }
         let direction = Vector3::from_array(sample.retail.sun_direction);
-        let light = TerrainLight::new(sample, fog, fog_color)?;
+        let light = TerrainLight::new(sample, fog)?;
         self.attach_nodes(parent);
         self.sun
             .as_mut()
@@ -209,30 +190,104 @@ impl WorldLighting {
     }
 }
 
-/// DayNightLightHolder.cpp:491-497: inside a WMO interior group, the exterior fog
-/// (`fog_color` linear) mixes toward the WMO's MFOG fog by `WmoFogBlend::weight`. Colours
-/// mix in authored space, as the reference mixes its byte colours
-/// (`blendWmoFogIntoFogResult` :712-716). Underwater fog is not ported.
-pub(crate) fn apply_wmo_fog(
-    fog: RetailFog,
-    fog_color: [f32; 3],
-    wmo: Option<&WmoFogBlend>,
-) -> (RetailFog, [f32; 3]) {
+/// DayNightLightHolder.cpp:491-497: inside a WMO interior group, the exterior fog mixes
+/// toward the WMO's MFOG fog by `WmoFogBlend::weight` (`wmoFogDataToFogResult`,
+/// `blendWmoFogIntoFogResult`). Colours mix in authored space, as the reference mixes its
+/// byte colours. Underwater fog is not ported.
+pub(crate) fn apply_wmo_fog(fog: &FogResult, wmo: Option<&WmoFogBlend>) -> FogResult {
     let Some(wmo) = wmo else {
-        return (fog, fog_color);
+        return *fog;
     };
-    let weight = wmo.weight();
-    let fog = blend_wmo_fog(
-        fog,
-        wmo_retail_fog(wmo.fog.end, wmo.fog.start_scalar),
-        weight,
+    let color = wmo.fog.color.map(|channel| f32::from(channel) / 255.0);
+    let authored = |fog: &FogResult| FogResult {
+        fog_color: linear_to_authored_rgb(fog.fog_color),
+        end_fog_color: linear_to_authored_rgb(fog.end_fog_color),
+        sun_fog_color: linear_to_authored_rgb(fog.sun_fog_color),
+        fog_height_color: linear_to_authored_rgb(fog.fog_height_color),
+        ..*fog
+    };
+    let mut blended = blend_wmo_fog(
+        &authored(fog),
+        &wmo_fog(wmo.fog.end, wmo.fog.start_scalar, color),
+        wmo.weight(),
     );
-    let exterior = linear_to_authored_rgb(fog_color);
-    let authored = std::array::from_fn(|channel| {
-        let target = f32::from(wmo.fog.color[channel]) / 255.0;
-        exterior[channel] + (target - exterior[channel]) * weight
-    });
-    (fog, authored_to_linear_rgb(authored))
+    for color in [
+        &mut blended.fog_color,
+        &mut blended.end_fog_color,
+        &mut blended.sun_fog_color,
+        &mut blended.fog_height_color,
+    ] {
+        *color = authored_to_linear_rgb(*color);
+    }
+    blended
+}
+
+/// Every uniform of `shaders/retail_fog.gdshaderinc`.
+const FOG_UNIFORMS: [&str; 22] = [
+    "fog_mode",
+    "fog_opacity",
+    "fog_color",
+    "fog_end_color",
+    "fog_height_color",
+    "fog_height_end_color",
+    "fog_sun_color",
+    "fog_range",
+    "fog_density",
+    "fog_height_density",
+    "fog_height",
+    "fog_height_rate",
+    "fog_z_scalar",
+    "fog_legacy_scalar",
+    "fog_main_range",
+    "fog_color_range",
+    "fog_height_coefficients",
+    "fog_main_coefficients",
+    "fog_height_density_coefficients",
+    "fog_sun_direction",
+    "fog_sun_angle",
+    "fog_sun_percentage",
+];
+
+fn bind_fog(material: &mut Gd<ShaderMaterial>, fog: &FogUniforms) {
+    let mut set = |name: &str, value: Variant| material.set_shader_parameter(name, &value);
+    set("fog_mode", 1i32.to_variant());
+    set("fog_opacity", 1.0f32.to_variant());
+    for (name, value) in [
+        ("fog_color", fog.color),
+        ("fog_end_color", fog.end_color),
+        ("fog_height_color", fog.height_color),
+        ("fog_height_end_color", fog.height_end_color),
+        ("fog_sun_color", fog.sun_color),
+        ("fog_sun_direction", fog.sun_direction),
+    ] {
+        set(name, Vector3::from_array(value).to_variant());
+    }
+    for (name, value) in [
+        ("fog_range", fog.range),
+        ("fog_main_range", fog.main_range),
+        ("fog_color_range", fog.color_range),
+    ] {
+        set(name, Vector2::from_array(value).to_variant());
+    }
+    for (name, value) in [
+        ("fog_density", fog.density),
+        ("fog_height_density", fog.height_density),
+        ("fog_height", fog.height),
+        ("fog_height_rate", fog.height_rate),
+        ("fog_z_scalar", fog.z_scalar),
+        ("fog_legacy_scalar", fog.legacy_scalar),
+        ("fog_sun_angle", fog.sun_angle),
+        ("fog_sun_percentage", fog.sun_percentage),
+    ] {
+        set(name, value.to_variant());
+    }
+    for (name, value) in [
+        ("fog_height_coefficients", fog.height_coefficients),
+        ("fog_main_coefficients", fog.main_coefficients),
+        ("fog_height_density_coefficients", fog.height_density_coefficients),
+    ] {
+        set(name, Vector4::from_array(value).to_variant());
+    }
 }
 
 fn create_cubemap(stops: SkyStops) -> Result<Gd<Cubemap>, String> {
@@ -266,6 +321,8 @@ mod tests {
         lighting_assets::{authored_to_linear_rgb, linear_to_authored_rgb},
     };
 
+    use game_engine_core::retail_fog::fog_uniforms;
+
     use super::{apply_wmo_fog, assets::LightingCatalog};
 
     const CAVE: WmoFogData = WmoFogData {
@@ -283,7 +340,8 @@ mod tests {
     }
 
     /// Cultists' Quay at noon: LightParams 12 fog, replaced by the cave's MFOG record 0
-    /// deep inside, and half of each 12.5 yd from a portal.
+    /// deep inside (legacy fog from 74.6 yd at density 1.5, the cave colour everywhere, no
+    /// sun fog), and half of each 12.5 yd from a portal.
     #[test]
     fn cultists_quay_scene_fog_takes_the_cave_mfog() {
         let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -291,23 +349,28 @@ mod tests {
         let sample = catalog
             .sample(2837, [181.911_45, 2500.392_3, 94.236_43], 1440.0)
             .unwrap();
-        let exterior = (sample.fog, sample.sky.fog_color);
-        assert_eq!(apply_wmo_fog(exterior.0, exterior.1, None), exterior);
+        let exterior = sample.fog;
+        assert_eq!(apply_wmo_fog(&exterior, None), exterior);
 
-        let (fog, color) = apply_wmo_fog(exterior.0, exterior.1, Some(&cave_at(f32::MAX)));
-        assert!((fog.start - 74.562).abs() < 1e-3, "{fog:?}");
-        assert_eq!(fog.end, 1000.0);
-        assert!((fog.density - 0.000_75).abs() < 1e-9, "{fog:?}");
+        let deep = apply_wmo_fog(&exterior, Some(&cave_at(f32::MAX)));
+        let uniforms = fog_uniforms(&deep, [0.0, 1.0, 0.0]);
+        assert!((uniforms.range[0] - 74.562).abs() < 1e-3, "{uniforms:?}");
+        assert_eq!(uniforms.range[1], 1000.0);
+        assert!((uniforms.density - 0.000_75).abs() < 1e-9, "{uniforms:?}");
+        assert_eq!(deep.legacy_fog_scalar, 1.0);
+        assert_eq!((deep.sun_fog_angle, deep.sun_fog_strength), (0.0, 0.0));
         let expected = authored_to_linear_rgb([21.0, 80.0, 99.0].map(|byte| byte / 255.0));
-        for (channel, want) in color.iter().zip(expected) {
-            assert!((channel - want).abs() < 1e-6, "{color:?} vs {expected:?}");
+        for color in [deep.fog_color, deep.end_fog_color, deep.fog_height_color] {
+            for (channel, want) in color.iter().zip(expected) {
+                assert!((channel - want).abs() < 1e-6, "{color:?} vs {expected:?}");
+            }
         }
 
-        let (half, half_color) = apply_wmo_fog(exterior.0, exterior.1, Some(&cave_at(12.5)));
-        assert!((half.start - (exterior.0.start + 74.562) / 2.0).abs() < 1e-3);
-        assert!((half.density - (exterior.0.density + 0.000_75) / 2.0).abs() < 1e-9);
-        let authored = linear_to_authored_rgb(exterior.1);
-        let mixed = linear_to_authored_rgb(half_color);
+        let half = apply_wmo_fog(&exterior, Some(&cave_at(12.5)));
+        assert!((half.fog_scaler - (exterior.fog_scaler + 0.074_562) / 2.0).abs() < 1e-5);
+        assert!((half.fog_density - (exterior.fog_density + 1.5) / 2.0).abs() < 1e-5);
+        let authored = linear_to_authored_rgb(exterior.fog_color);
+        let mixed = linear_to_authored_rgb(half.fog_color);
         for channel in 0..3 {
             let want = (authored[channel] + [21.0, 80.0, 99.0][channel] / 255.0) / 2.0;
             assert!((mixed[channel] - want).abs() < 1e-5);
