@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-29] evidence | Bounded production TAA observer, independent gate pending
+
+Updated existing AA spec/matrix and [system evidence](systems/godot-conversion.md#production-effect-observer--bounded-main-observed-evidence), linked from index. Main read saved production capture and isolated original-shader GPU oracle logs: exits 0, three HDR zero-jitter frames, 135168 numeric comparisons/0 failures plus 3072 constant-confidence comparisons/0 failures. Preserved failed CPU ideal-bilinear/half gap (3806/135168), observed-not-fitted reset confidence difference and native-project timeout 124 after numeric report; teardown/logger cause unproven. Agent 1148 verification pending. Callback-only scope; full conversion open. Docs only; no tests/builds/network/delegation/production edits.
+
 ## [2026-09-29] source audit | AA/HDR texture sampling
 
 Recorded checked [source boundaries](systems/godot-conversion.md#aahdr-texture-sampling--bounded-source-audit) in the existing conversion page; index links there. No default HDR bug; scoped legacy TAA bias does not establish missing mip detail for one-level legacy BLP uploads. Native complete DXT chains remain a separate sampling-parity concern, not grounds for global −1. Local pinned Godot spatial sampler bias checked; rendered equivalence/full parity remain open. Docs only; no builds/tests/network/delegation/merge.
