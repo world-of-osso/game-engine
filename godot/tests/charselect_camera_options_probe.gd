@@ -24,7 +24,7 @@ func run(flow: SceneTree, client: Node) -> bool:
 	options.fixture = flow
 	scene = client.get_node_or_null("CharacterSelectScene")
 	ui = client.get_node_or_null("CharacterSelectUI")
-	var deadline := Time.get_ticks_msec() + fixture.WORLD_WAIT_MS
+	var deadline: int = Time.get_ticks_msec() + fixture.WORLD_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await fixture.process_frame
 		camera = client.get_node_or_null("CharacterSelectScene/Camera") as Camera3D
@@ -53,7 +53,7 @@ func run(flow: SceneTree, client: Node) -> bool:
 		# (sin(yaw), ..., cos(yaw)); look_at_from_position points basis.z
 		# away from focus, so atan2(z.x, z.z) has the same yaw sign.
 		# Fresh startup orbit and these small deltas stay inside +/-PI/8.
-		var expected := -DRAG_PIXELS * sensitivity
+		var expected: float = -DRAG_PIXELS * sensitivity
 		if not expect_yaw(baseline + expected, "Left-drag sensitivity=%s delta=%s" % [sensitivity, expected]):
 			return false
 		if not expect_preserved(client):
@@ -116,7 +116,7 @@ func left_drag(pixels: float) -> bool:
 	motion.position = DRAG_POINT
 	fixture.root.push_input(motion, true)
 	await fixture.process_frame
-	var hovered := fixture.root.gui_get_hovered_control()
+	var hovered: Control = fixture.root.gui_get_hovered_control()
 	if hovered != null:
 		return reject("Unknown unobstructed content-plane point: account_scene_camera point %s overlaps UI %s; no alternate guessed" % [DRAG_POINT, hovered.get_path()])
 	var button := InputEventMouseButton.new()
