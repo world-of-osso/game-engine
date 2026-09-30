@@ -370,7 +370,9 @@ mod tests {
             map_equipment_bones(&character, &item).unwrap(),
             vec![1, 0, 2]
         );
-        assert!(map_equipment_bones(&character, &[crc(-1, 99)]).is_err());
+        // An unknown CRC on a non-key bone past the character's bones has no joint.
+        let unknown = [crc(-1, 22), crc(-1, 11), crc(6, 0), crc(-1, 99)];
+        assert!(map_equipment_bones(&character, &unknown).is_err());
     }
 
     #[test]
