@@ -51,8 +51,8 @@ func _initialize() -> void:
 
 func run_test() -> void:
 	await run_lifecycle()
-	# Free actual client/controller, cameras, scene, UI and SubViewport before
-	# accepting success. Observe deferred render-thread cleanup errors as well.
+	# Free fixture client, cameras, scene, UI and SubViewport before acceptance.
+	# The viewport-owned bloom controller remains until SceneTree shutdown.
 	for node in owned_nodes:
 		if is_instance_valid(node):
 			node.queue_free()
