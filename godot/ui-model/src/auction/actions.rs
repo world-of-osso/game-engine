@@ -74,17 +74,18 @@ pub fn dispatch(
         let index = index as usize;
         ui.category = (ui.category != Some(index)).then_some(index);
         ui.browse_item = None;
-        ui.row_page=0;
-        let mut query=search_query(view::text(texts, SEARCH_BOX));
-        query.class_id=ui.category.map(|index| view::CATEGORIES[index].1);
+        ui.row_page = 0;
+        let mut query = search_query(view::text(texts, SEARCH_BOX));
+        query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
         net.request(AuctionRequest::Browse(query));
         return Vec::new();
     }
     if let Some(item_id) = parse(action, frame::ACTION_BROWSE_ITEM_PREFIX) {
-        ui.browse_query=net.last_query.clone();
+        ui.browse_query = net.last_query.clone();
         ui.browse_item = Some(item_id as u32);
         ui.selected_auction = None;
-        let mut query=search_query(""); query.item_id=Some(item_id as u32);
+        let mut query = search_query("");
+        query.item_id = Some(item_id as u32);
         net.request(AuctionRequest::Browse(query));
         return money_edits(BID_BOXES, None);
     }
@@ -116,12 +117,14 @@ fn dispatch_command(
         frame::ACTION_SEARCH => {
             ui.browse_item = None;
             ui.selected_auction = None;
-            let mut query=search_query(view::text(texts,SEARCH_BOX));
-            query.class_id=ui.category.map(|index|view::CATEGORIES[index].1);
+            let mut query = search_query(view::text(texts, SEARCH_BOX));
+            query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
             net.request(AuctionRequest::Browse(query));
         }
         frame::ACTION_BACK => {
-            if let Some(query)=ui.browse_query.take() { net.request(AuctionRequest::Browse(query)); }
+            if let Some(query) = ui.browse_query.take() {
+                net.request(AuctionRequest::Browse(query));
+            }
             ui.browse_item = None;
             ui.selected_auction = None;
         }
@@ -221,7 +224,8 @@ fn select_sell_item(
     };
     let item_id = item.item_id;
     ui.sell_item = Some(guid);
-    let mut query=search_query(""); query.item_id=Some(item_id);
+    let mut query = search_query("");
+    query.item_id = Some(item_id);
     net.request(AuctionRequest::Browse(query));
     let mut edits = vec![(QUANTITY_BOX, "1".to_string())];
     edits.extend(money_edits(SELL_BUYOUT_BOXES, None));

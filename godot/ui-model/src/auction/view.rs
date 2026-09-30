@@ -4,12 +4,12 @@
 use std::collections::HashMap;
 
 use super::AuctionHouseState;
-use crate::item_catalog::ItemCatalogEntry;
 use crate::auction_house_frame_component::{
     AuctionHouseFrameState, AuctionsSubTab, AuctionsView, BID_BOXES, BrowseRow, BuyDialogView,
     CategoryRow, ItemBuyView, ItemLine, ListingRow, MoneyBoxes, QUANTITY_BOX, SEARCH_BOX,
     SELL_BID_BOXES, SELL_BUYOUT_BOXES, SellInventoryRow, SellItemView, SellView,
 };
+use crate::item_catalog::ItemCatalogEntry;
 use shared::protocol::{
     AuctionDuration, AuctionInventoryItem, AuctionListingSummary, AuctionTimeLeft,
 };
@@ -53,7 +53,10 @@ pub fn text<'a>(texts: &'a InputTexts, name: &str) -> &'a str {
 /// Copper typed into a gold / silver / copper input; empty boxes count as zero.
 pub fn money_input(texts: &InputTexts, boxes: MoneyBoxes) -> u64 {
     let part = |name| text(texts, name).trim().parse::<u64>().unwrap_or(0);
-    part(boxes.gold).saturating_mul(10_000).saturating_add(part(boxes.silver).saturating_mul(100)).saturating_add(part(boxes.copper))
+    part(boxes.gold)
+        .saturating_mul(10_000)
+        .saturating_add(part(boxes.silver).saturating_mul(100))
+        .saturating_add(part(boxes.copper))
 }
 
 pub fn quantity_input(texts: &InputTexts) -> u32 {
