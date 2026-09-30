@@ -34,9 +34,9 @@ const MOB_IMPACT := [1014]
 const MOB_PARRIED := 1019
 const WARRIOR_WOUND := 2942
 const MOB_DEATH := 11910
-## The widest $CSS → $CAH gap of the attack clips (HumanMale HD Attack2H 133 ms) plus two
-## 60 fps frames.
-const LAND_GAP := 0.17
+## The widest $CSS → $CAH gap of the attack clips (HumanMale HD Attack2H 133 ms). Sounds
+## start on frame boundaries, so a measured gap may also span two of the longest frames.
+const LAND_GAP := 0.133
 
 var client: Node
 var character := ""
@@ -44,6 +44,8 @@ var local_id := 0
 var target_id := 0
 ## Every worg engaged.
 var mobs: Array = []
+## Longest frame seen: the timing slack of every measured sound gap.
+var longest_frame := 0.0
 ## Every sound start and melee event seen, keyed so the bounded snapshot lists merge.
 var sounds := {}
 var melee := {}
@@ -52,9 +54,11 @@ func _initialize() -> void:
 	Engine.max_fps = 60
 	call_deferred("run_test")
 
-func _process(_delta: float) -> bool:
+func _process(delta: float) -> bool:
 	if client == null or not is_instance_valid(client) or local_id == 0:
 		return false
+	if not mobs.is_empty():
+		longest_frame = maxf(longest_frame, delta)
 	var visuals: Dictionary = client.spell_visuals_state()
 	for start in visuals.sounds:
 		var key := "%.4f|%s|%d|%d|%d" % [start.at, start.source, start.unit, start.sound_kit, start.fdid]
@@ -98,9 +102,11 @@ func run_test() -> void:
 	local_id = client.account_state().local_player_id
 	var deadline := Time.get_ticks_msec() + secs * 1000
 	while Time.get_ticks_msec() < deadline and not complete():
+		# A killed worg respawns at its spawn point (spawntimesecs 120).
 		if not await engage_worg():
-			return
-		# Fight while swings keep coming; a worg that wandered off (10 yd) is replaced.
+			await wait_frames(300)
+			continue
+		# Fight while swings keep coming; a dead or wandered-off worg (10 yd) is replaced.
 		var last := melee.size()
 		var quiet_since := Time.get_ticks_msec()
 		while Time.get_ticks_msec() < deadline and not complete() and Time.get_ticks_msec() - quiet_since < 8000:
@@ -110,7 +116,7 @@ func run_test() -> void:
 				quiet_since = Time.get_ticks_msec()
 	# Let the last swing's sounds land.
 	await wait_frames(60)
-	print("FIXTURE SUMMARY ", summary())
+	print("FIXTURE SUMMARY ", summary(), " longest_frame=%.3f" % longest_frame)
 	if not complete():
 		fail("Missing melee sounds after %d s: %s" % [secs, summary()])
 		return
@@ -120,21 +126,21 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-## Tab to a living Blackrock Worg within 3.5 yd (the server swings within 5) and start
+## Tab to a Blackrock Worg within 3.5 yd (the server swings within 5) and start
 ## auto-attack on it with the Attack action. Tab cycles the visible units nearest
-## first; worgs wander, so cycling continues until one is in range.
+## first; worgs wander, so the caller retries until one is in range.
 func engage_worg() -> bool:
 	var distance := INF
-	for attempt in range(400):
+	for attempt in range(60):
 		await press(KEY_TAB)
 		await wait_frames(6)
 		var state: Dictionary = client.target_state()
-		if state.target != null and str(state.target_name).contains(MOB) and not str(state.health_text).begins_with("0 "):
+		if state.target != null and str(state.target_name).contains(MOB):
 			distance = client.unit_transform(local_id).origin.distance_to(client.unit_transform(state.target).origin)
 			if distance < 3.5:
 				break
 	if distance >= 3.5:
-		fail("Tab did not reach a worg in melee range: " + str(client.target_state()))
+		print("FIXTURE NO_WORG_IN_RANGE ", client.target_state())
 		return false
 	target_id = client.target_state().target
 	if not mobs.has(target_id):
@@ -210,8 +216,8 @@ func check_landing() -> bool:
 			fail("No impact for %s's %s at %.3f" % [who(attacker), event.result, event.at])
 			return false
 		var gap: float = impacts[0].at - swoosh.at
-		if gap < 0.0 or gap > LAND_GAP:
-			fail("%s's impact %.3f s after its swoosh" % [who(attacker), gap])
+		if gap < 0.0 or gap > LAND_GAP + 2.0 * longest_frame:
+			fail("%s's impact %.3f s after its swoosh (longest frame %.3f s)" % [who(attacker), gap, longest_frame])
 			return false
 		print("FIXTURE LANDED %s %s swoosh=%d/%d at=%.3f impact=%d/%d gap=%.3f" % [who(attacker), event.result, swoosh.sound_kit, swoosh.fdid, swoosh.at, impacts[0].sound_kit, impacts[0].fdid, gap])
 	return true
