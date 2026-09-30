@@ -1,11 +1,45 @@
 //! Bevy loot markers and requests; shared window state and policy live in loot_data.
 
+use bevy::ecs::{
+    component::{
+        ComponentCloneBehavior, ComponentId, Mutable, RequiredComponentsRegistrator, StorageType,
+    },
+    resource::IsResource,
+};
 use bevy::prelude::*;
 
 pub use crate::loot_data::{
     LootState, NpcRightClick, auto_loot, coin_icon_fdid, loot_chat_text, money_lines,
     npc_right_click,
 };
+
+// Manual Resource derive equivalent keeps Bevy out of the shared loot data.
+impl Component for LootState {
+    const STORAGE_TYPE: StorageType = StorageType::SparseSet;
+    type Mutability = Mutable;
+
+    fn register_required_components(
+        _component_id: ComponentId,
+        required_components: &mut RequiredComponentsRegistrator,
+    ) {
+        let resource_component_id = if let Some(id) = required_components
+            .components_registrator()
+            .component_id::<Self>()
+        {
+            id
+        } else {
+            required_components
+                .components_registrator()
+                .register_component::<Self>()
+        };
+        required_components
+            .register_required::<IsResource>(move || IsResource::new(resource_component_id));
+    }
+
+    fn clone_behavior() -> ComponentCloneBehavior {
+        ComponentCloneBehavior::clone::<Self>()
+    }
+}
 
 impl Resource for LootState {}
 

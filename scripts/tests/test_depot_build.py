@@ -12,6 +12,7 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "depot-build.py"
 REFRESH = SCRIPT.parent / "depot" / "refresh-source-mtimes.py"
+FIXTURES = ("native_input_fixture", "native_npc_visual_fixture", "native_reconnect_fixture", "native_transfer_fixture")
 SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol")
 FAKE_DEPOT = '''#!/usr/bin/env python3
 import gzip, json, os, pathlib, sys, time
@@ -23,7 +24,8 @@ context = pathlib.Path(args[-1])
 files = {str(p.relative_to(context)): p.read_bytes().decode('latin1') for p in context.rglob('*') if p.is_file()}
 mtimes = {str(p.relative_to(context)): p.stat().st_mtime_ns for p in context.rglob('*') if p.is_file()}
 with open(os.environ['DEPOT_RECORD'], 'a') as record:
-    record.write(json.dumps({'project': project, 'files': files, 'mtimes': mtimes, 'context': str(context), 'args': args}) + '\\n')
+    record.write(json.dumps({'project': project, 'files': files, 'mtimes': mtimes, 'context': str(context), 'args': args,
+                             'xdg_config_home': os.environ.get('XDG_CONFIG_HOME'), 'has_token': 'DEPOT_TOKEN' in os.environ}) + '\\n')
 if os.environ.get('DEPOT_DELAY'):
     time.sleep(float(os.environ['DEPOT_DELAY']))
 if os.environ.get('DEPOT_FAIL'):
@@ -63,6 +65,9 @@ class DepotBuildTests(unittest.TestCase):
         for member in ("core", "network", "rust", "session", "ui-model"):
             self._put(self.root, f"godot/{member}/Cargo.toml", "[package]\nname='fixture'\nversion='0.1.0'\n")
         self._put(self.root, "godot/rust/src/lib.rs", "original")
+        for name in FIXTURES:
+            self._put(self.root, f"godot/network/examples/{name}.rs", "fn main() {}")
+        self._put(self.root, "godot/network/examples/fixture_support/mod.rs", "shared")
         self._put(self.root, "src/asset/mod.rs", "asset")
         self._put(self.root, "src/rendering/ui/nameplate_skins/health-fill.png", "png")
         self._put(self.root, "data/private.rs", "private")
@@ -105,7 +110,10 @@ class DepotBuildTests(unittest.TestCase):
         depot.write_text(FAKE_DEPOT)
         depot.chmod(0o755)
         self.record = self.base / "record.jsonl"
-        self.env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"],
+        self.home = self.base / "home"
+        self._put(self.home, ".config/depot/depot.yaml", "api_token: fake\n")
+        self.env = {key: value for key, value in os.environ.items() if key not in ("XDG_CONFIG_HOME", "DEPOT_TOKEN")}
+        self.env.update(PATH=str(bin_dir) + os.pathsep + os.environ["PATH"], HOME=str(self.home),
                         XDG_CACHE_HOME=str(self.base / "cache"), DEPOT_RECORD=str(self.record))
 
     def _put(self, root, name, content):
@@ -164,7 +172,7 @@ class DepotBuildTests(unittest.TestCase):
         self.assertFalse(Path(snapshot["context"]).exists())
 
     def test_requested_fixture_installs_only_named_executable_and_extension(self):
-        for name in ("native_input_fixture", "native_npc_visual_fixture"):
+        for name in FIXTURES:
             result = self.build(fixture=name, DEPOT_FIXTURE=name)
             self.assertEqual(result.returncode, 0, result.stderr)
             executable = self.root / "target/debug/examples" / name
@@ -172,6 +180,7 @@ class DepotBuildTests(unittest.TestCase):
             self.assertTrue(os.access(executable, os.X_OK))
             self.assertEqual((self.root / "target/debug/libgame_engine_godot.so").read_bytes(), b"new binary")
             self.assertNotIn("target/", "".join(self.records()[-1]["files"]))
+            self.assertEqual(self.build_args(self.records()[-1])["FIXTURE"], name)
         other = self.root / "target/debug/examples/not_requested"
         self.assertFalse(other.exists())
         result = self.build()
@@ -246,8 +255,43 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn("not allowed", result.stderr)
 
     def test_bad_fixture_choice_fails_before_depot(self):
-        result = self.build(fixture="../../other")
+        for name in ("../../other", "fixture_support", "native_input_fixture/swimming"):
+            result = self.build(fixture=name)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("unknown fixture", result.stderr)
+        self.assertEqual(self.records(), [])
+
+    def test_new_example_file_is_buildable_without_script_changes(self):
+        self._put(self.root, "godot/network/examples/native_water_fixture.rs", "fn main() {}")
+        result = self.build(fixture="native_water_fixture", DEPOT_FIXTURE="water")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / "target/debug/examples/native_water_fixture").read_bytes(), b"water")
+
+    def test_isolated_xdg_config_still_finds_user_depot_login(self):
+        isolated = self.base / "fixture-config"
+        isolated.mkdir()
+        for run in (lambda **env: self.build(fixture="native_reconnect_fixture", **env), self.run_test_mode):
+            result = run(XDG_CONFIG_HOME=str(isolated))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            builds = [record for record in self.records() if "args" in record]
+            self.assertEqual(builds[-1]["xdg_config_home"], str(self.home / ".config"))
+        self.assertNotIn("fake", result.stdout + result.stderr)
+
+    def test_depot_login_in_xdg_config_or_token_is_used_unchanged(self):
+        own = self.base / "own-config"
+        self._put(own, "depot/depot.yaml", "api_token: other\n")
+        self.assertEqual(self.build(XDG_CONFIG_HOME=str(own)).returncode, 0)
+        self.assertEqual(self.records()[-1]["xdg_config_home"], str(own))
+        isolated = self.base / "fixture-config"
+        self.assertEqual(self.build(XDG_CONFIG_HOME=str(isolated), DEPOT_TOKEN="secret").returncode, 0)
+        self.assertEqual((self.records()[-1]["xdg_config_home"], self.records()[-1]["has_token"]), (str(isolated), True))
+
+    def test_missing_depot_login_fails_before_depot_without_token(self):
+        (self.home / ".config/depot/depot.yaml").unlink()
+        result = self.build(XDG_CONFIG_HOME=str(self.base / "fixture-config"))
         self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Depot login not found", result.stderr)
+        self.assertIn("depot login", result.stderr)
         self.assertEqual(self.records(), [])
 
     def test_failed_fixture_download_preserves_existing_executable(self):

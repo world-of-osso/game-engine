@@ -2,8 +2,9 @@ use super::*;
 
 #[test]
 fn real_catalog_selects_authored_valid_name_for_race_and_sex() {
-    let catalog = NameCatalog::load(std::path::Path::new("data/NameGen.csv")).unwrap();
-    let source = std::fs::read_to_string("data/NameGen.csv").unwrap();
+    let catalog =
+        NameCatalog::load(std::path::Path::new(super::super::deps::NAME_GEN_CSV)).unwrap();
+    let source = std::fs::read_to_string(super::super::deps::NAME_GEN_CSV).unwrap();
     let authored: Vec<_> = source
         .lines()
         .skip(1)
@@ -20,7 +21,8 @@ fn real_catalog_selects_authored_valid_name_for_race_and_sex() {
 
 #[test]
 fn every_selectable_race_and_body_type_has_authored_names() {
-    let catalog = NameCatalog::load(std::path::Path::new("data/NameGen.csv")).unwrap();
+    let catalog =
+        NameCatalog::load(std::path::Path::new(super::super::deps::NAME_GEN_CSV)).unwrap();
     for race in super::super::deps::char_create_data::RACES {
         for sex in [0, 1] {
             assert!(
@@ -34,7 +36,8 @@ fn every_selectable_race_and_body_type_has_authored_names() {
 
 #[test]
 fn pandaren_alias_uses_only_neutral_pandaren_names() {
-    let catalog = NameCatalog::load(std::path::Path::new("data/NameGen.csv")).unwrap();
+    let catalog =
+        NameCatalog::load(std::path::Path::new(super::super::deps::NAME_GEN_CSV)).unwrap();
     let neutral = catalog.pick_name(24, 1, "", 123).unwrap();
     assert_eq!(catalog.pick_name(25, 1, "", 123), Some(neutral));
     assert_eq!(catalog.pick_name(26, 1, "", 123), Some(neutral));
@@ -43,7 +46,8 @@ fn pandaren_alias_uses_only_neutral_pandaren_names() {
 
 #[test]
 fn repeated_selection_changes_name_and_does_not_change_sex() {
-    let catalog = NameCatalog::load(std::path::Path::new("data/NameGen.csv")).unwrap();
+    let catalog =
+        NameCatalog::load(std::path::Path::new(super::super::deps::NAME_GEN_CSV)).unwrap();
     let previous = catalog.pick_name(3, 1, "", 123).unwrap();
     let next = catalog.pick_name(3, 1, previous, 123).unwrap();
     assert_ne!(previous, next);

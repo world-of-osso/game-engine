@@ -35,13 +35,17 @@ const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 
 const OPTIONS_W: f32 = 980.0;
-const OPTIONS_H: f32 = 660.0;
 const OPTIONS_HEADER_H: f32 = 58.0;
+const OPTIONS_HEADER_GAP: f32 = 18.0;
+const OPTIONS_BODY_INSET_X: f32 = 18.0;
+const OPTIONS_BODY_GAP: f32 = 32.0;
+const OPTIONS_FOOTER_CLEARANCE: f32 = 106.0;
 const OPTIONS_TAB_W: f32 = 186.0;
 const OPTIONS_CONTENT_W: f32 = 716.0;
 const OPTIONS_CONTENT_H: f32 = 478.0;
 const OPTIONS_CONTENT_INSET_X: f32 = 15.0;
 const OPTIONS_CONTENT_INSET_TOP: f32 = 54.0;
+const OPTIONS_CONTENT_INSET_BOTTOM: f32 = 18.0;
 const OPTIONS_FOOTER_RIGHT_INSET: f32 = 80.0;
 const TAB_ROW_W: f32 = 164.0;
 const TAB_ROW_H: f32 = 30.0;
@@ -243,7 +247,9 @@ pub fn options_view(model: &OptionsViewModel) -> Element {
         panel {
             name: OPTIONS_ROOT,
             width: {OPTIONS_W},
-            height: {OPTIONS_H},
+            height: "auto",
+            layout: "flex-column",
+            align: "start",
             strata: FrameStrata::Dialog,
             frame_level: 0.0,
             pos_type: "absolute",
@@ -263,8 +269,17 @@ pub fn options_view(model: &OptionsViewModel) -> Element {
                 top: "0%",
             }
             {title()}
-            {build_tabs(model)}
-            {build_content(model)}
+            r#frame {
+                name: "OptionsHeaderClearance",
+                width: {OPTIONS_W},
+                height: {OPTIONS_HEADER_H + OPTIONS_HEADER_GAP},
+            }
+            {build_body(model)}
+            r#frame {
+                name: "OptionsFooterClearance",
+                width: {OPTIONS_W},
+                height: {OPTIONS_FOOTER_CLEARANCE},
+            }
             {build_footer()}
         }
     }
@@ -280,6 +295,23 @@ fn title() -> Element {
     )
 }
 
+fn build_body(model: &OptionsViewModel) -> Element {
+    rsx! {
+        r#frame {
+            name: "OptionsBody",
+            width: {OPTIONS_TAB_W + OPTIONS_BODY_GAP + OPTIONS_CONTENT_W},
+            height: "auto",
+            layout: "flex-row",
+            align: "start",
+            gap: {OPTIONS_BODY_GAP},
+            pos_type: "relative",
+            margin_left: {OPTIONS_BODY_INSET_X},
+            {build_tabs(model)}
+            {build_content(model)}
+        }
+    }
+}
+
 fn build_tabs(model: &OptionsViewModel) -> Element {
     let buttons: Element = OptionsCategory::ALL
         .iter()
@@ -291,11 +323,7 @@ fn build_tabs(model: &OptionsViewModel) -> Element {
             style: "inner_plain",
             width: {OPTIONS_TAB_W},
             height: {OPTIONS_CONTENT_H},
-            pos_type: "absolute",
-            left: "0%",
-            top: "0%",
-            margin_left: {18},
-            margin_top: {OPTIONS_HEADER_H + 18.0},
+            pos_type: "relative",
             {tab_stack(buttons)}
         }
     }
@@ -411,12 +439,9 @@ fn build_content(model: &OptionsViewModel) -> Element {
             name: OPTIONS_CONTENT_PANEL,
             style: "inner_plain",
             width: {OPTIONS_CONTENT_W},
-            height: {OPTIONS_CONTENT_H},
-            pos_type: "absolute",
-            left: "0%",
-            top: "0%",
-            margin_left: {236},
-            margin_top: {OPTIONS_HEADER_H + 18.0},
+            height: "auto",
+            layout: "flex-column",
+            pos_type: "relative",
             {content_header(model.category)}
             {content_body(model)}
         }
@@ -469,14 +494,13 @@ fn content_body(model: &OptionsViewModel) -> Element {
         r#frame {
             name: OPTIONS_CONTENT_INNER,
             width: {OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X * 2.0},
-            height: {OPTIONS_CONTENT_H - OPTIONS_CONTENT_INSET_TOP - 18.0},
+            height: "auto",
             layout: "flex-column",
             gap: 12.0,
-            pos_type: "absolute",
-            left: "0%",
-            top: "0%",
+            pos_type: "relative",
             margin_left: {OPTIONS_CONTENT_INSET_X},
             margin_top: {OPTIONS_CONTENT_INSET_TOP},
+            margin_bottom: {OPTIONS_CONTENT_INSET_BOTTOM},
             {category_body(model)}
         }
     }
