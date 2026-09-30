@@ -99,6 +99,7 @@ func run_test() -> void:
 	var objects: Dictionary = client.account_state().world_objects
 	var sorted := world_ms.duplicate()
 	sorted.sort()
+	print("FIXTURE MEMORY ", resident_memory())
 	print("FIXTURE WORLD_ENTRY loading_s=%.1f loading_frames=%d loading_max_ms=%.1f world_frames=%d world_median_ms=%.1f world_p99_ms=%.1f world_max_ms=%.1f over_%d_ms=%d settled=%s settled_s=%.1f objects=%s" % [
 		loading_s, loading_ms.size(), max_of(loading_ms), world_ms.size(),
 		sorted[sorted.size() / 2], sorted[int(sorted.size() * 0.99)], max_of(world_ms),
@@ -117,6 +118,12 @@ func run_test() -> void:
 	print("FIXTURE WORLD_ENTRY_FRAMES_DONE")
 	client.free()
 	quit(0)
+
+## VmRSS and VmHWM of this process (/proc/self/status).
+func resident_memory() -> String:
+	var status := FileAccess.get_file_as_string("/proc/self/status")
+	var lines := Array(status.split("\n")).filter(func(line): return line.begins_with("VmRSS") or line.begins_with("VmHWM"))
+	return " ".join(lines.map(func(line): return line.replace("\t", "").replace("  ", " ")))
 
 func max_of(values: Array[float]) -> float:
 	var longest := 0.0
