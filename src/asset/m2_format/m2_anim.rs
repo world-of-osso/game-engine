@@ -34,6 +34,7 @@ const BONE_SIZE: usize = 88;
 const BONE_FLAGS_OFFSET: usize = 0x04;
 const BONE_PARENT_BONE_ID_OFFSET: usize = 0x08;
 const BONE_SUBMESH_ID_OFFSET: usize = 0x0A;
+const BONE_NAME_CRC_OFFSET: usize = 0x0C;
 const BONE_TRANSLATION_BLOCK_OFFSET: usize = 0x10;
 const BONE_ROTATION_BLOCK_OFFSET: usize = 0x24;
 const BONE_SCALE_BLOCK_OFFSET: usize = 0x38;
@@ -52,6 +53,9 @@ pub struct M2Bone {
     pub flags: u32,
     pub parent_bone_id: i16,
     pub submesh_id: u16,
+    /// `M2CompBone.boneNameCRC`: the same bone of a character skeleton and of a
+    /// collection model carries the same value (wow.export `buildBoneRemapTable`).
+    pub name_crc: u32,
     /// Pivot point in raw WoW coordinates. Caller converts to Bevy: [x, z, -y].
     pub pivot: [f32; 3],
 }
@@ -69,6 +73,7 @@ pub fn parse_bones_at(data: &[u8], offset: usize, count: usize) -> Result<Vec<M2
             flags: read_u32(data, base + BONE_FLAGS_OFFSET)?,
             parent_bone_id: read_i16(data, base + BONE_PARENT_BONE_ID_OFFSET)?,
             submesh_id: read_u16(data, base + BONE_SUBMESH_ID_OFFSET)?,
+            name_crc: read_u32(data, base + BONE_NAME_CRC_OFFSET)?,
             pivot: [
                 read_f32(data, base + BONE_PIVOT_OFFSET)?,
                 read_f32(data, base + BONE_PIVOT_OFFSET + 4)?,

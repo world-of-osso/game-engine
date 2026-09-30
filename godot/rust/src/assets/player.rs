@@ -13,7 +13,7 @@ use game_engine_core::{
     asset::m2_texture,
     char_texture_data::CharTextureData,
     character_model_data::race_model_wow_path,
-    customization_data::{CustomizationChoice, CustomizationDb},
+    customization_data::{ChoiceSkinnedModel, CustomizationChoice, CustomizationDb},
     npc_appearance_assets::{load_compositor, load_customization_db},
 };
 use godot::{classes::Node3D, prelude::*};
@@ -24,7 +24,7 @@ use super::{
     appearance::{PreparedAppearance, load_appearance_texture},
     build_model,
     creature::{cache_model_files, cache_model_textures, local_resolver},
-    equipment::attach_equipment,
+    equipment::{attach_equipment, attach_skinned_models},
     material::texture_from_rgba,
     read_model,
 };
@@ -36,6 +36,7 @@ struct PlayerChoices {
     choice_ids: HashSet<u32>,
     materials: Vec<(u16, u32)>,
     geosets: Vec<(u16, u16)>,
+    skinned_models: Vec<ChoiceSkinnedModel>,
 }
 
 fn select_player_choices(
@@ -51,12 +52,29 @@ fn select_player_choices(
     let choice_ids: HashSet<_> = choices.iter().map(|choice| choice.id).collect();
     let materials = project_player_materials(&choices, &choice_ids);
     let geosets = project_player_geosets(&choices, &choice_ids);
+    let skinned_models = project_player_skinned_models(&choices, &choice_ids);
     Ok(PlayerChoices {
         #[cfg(test)]
         choice_ids,
         materials,
         geosets,
+        skinned_models,
     })
+}
+
+/// Skinned models of the selected choices whose related choice, if any, is selected.
+fn project_player_skinned_models(
+    choices: &[&CustomizationChoice],
+    choice_ids: &HashSet<u32>,
+) -> Vec<ChoiceSkinnedModel> {
+    choices
+        .iter()
+        .flat_map(|choice| &choice.skinned_models)
+        .filter(|model| {
+            model.related_choice_id == 0 || choice_ids.contains(&model.related_choice_id)
+        })
+        .copied()
+        .collect()
 }
 
 fn project_player_materials(
@@ -207,24 +225,35 @@ pub(crate) fn load_player_model(
         player.race,
         player.appearance.sex,
     )?;
-    let appearance = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
+    let prepared = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
     let path = GString::from(path.to_string_lossy().as_ref());
     let parsed = read_model(&path)?;
     cache_model_textures(&resolver, data_root, &[0; 3], &parsed)?;
-    let (mut model, missing) = build_model(&parsed, &path, &[0; 3], Some(&appearance))?;
+    let (mut model, missing) = build_model(&parsed, &path, &[0; 3], Some(&prepared.body))?;
     if !missing.is_empty() {
         godot_warn!(
             "Player {} missing authored texture FDIDs: {missing:?}",
             player.name
         );
     }
-    if let Err(error) = attach_equipment(
+    let attached = attach_equipment(
         &mut model,
         &parsed,
         &resolver,
         data_root,
         &equipment.runtime_models,
-    ) {
+    )
+    .and_then(|()| {
+        attach_skinned_models(
+            &mut model,
+            &parsed,
+            &resolver,
+            data_root,
+            &prepared.skinned_appearance,
+            &prepared.skinned_models,
+        )
+    });
+    if let Err(error) = attached {
         model.free();
         return Err(error);
     }
@@ -246,12 +275,19 @@ fn cache_player_model(
     cache_model_files(resolver, data_root, fdid)
 }
 
+/// The body appearance and the choices' skinned models with the textures they bind.
+struct PreparedPlayer {
+    body: PreparedAppearance,
+    skinned_appearance: PreparedAppearance,
+    skinned_models: Vec<ChoiceSkinnedModel>,
+}
+
 fn prepare_player_appearance(
     resolver: &CascListfileResolver,
     data_root: &Path,
     player: &Player,
     equipment: &ResolvedEquipmentAppearance,
-) -> Result<PreparedAppearance, String> {
+) -> Result<PreparedPlayer, String> {
     let race = player.race;
     let sex = player.appearance.sex;
     let db = load_customization_db(data_root)?;
@@ -290,20 +326,75 @@ fn prepare_player_appearance(
             load_appearance_texture(resolver, data_root, fdid, "player cape")?,
         );
     }
-    let textures = pixels
+    let textures = to_textures(pixels)?;
+    let direct = direct_bind_pixels(&compositor, &selected.materials, layout_id, |fdid| {
+        load_appearance_texture(resolver, data_root, fdid, "player skinned model")
+    })?;
+    let mut skinned_textures = textures.clone();
+    for (kind, texture) in to_textures(direct)? {
+        skinned_textures.entry(kind).or_insert(texture);
+    }
+    // Skin extra falls back to the body skin (wow.export `apply_skinned_model_textures`).
+    if let Some(skin) = skinned_textures.get(&1).cloned() {
+        skinned_textures.entry(8).or_insert(skin);
+    }
+    let skinned_appearance = PreparedAppearance {
+        source: "player skinned model",
+        textures: skinned_textures,
+        selected_geosets: selected
+            .skinned_models
+            .iter()
+            .map(|model| (model.geoset_type, model.geoset_id))
+            .collect(),
+        authored_geosets: Vec::new(),
+        equipment_geosets: Vec::new(),
+        hidden_geoset_ids: HashSet::new(),
+    };
+    Ok(PreparedPlayer {
+        body: PreparedAppearance {
+            source: "player",
+            textures,
+            selected_geosets: selected.geosets,
+            authored_geosets: Vec::new(),
+            equipment_geosets: equipment.outfit.geoset_overrides.clone(),
+            hidden_geoset_ids: equipment.hidden_character_geoset_ids.clone(),
+        },
+        skinned_appearance,
+        skinned_models: selected.skinned_models,
+    })
+}
+
+fn to_textures(
+    pixels: HashMap<u32, TexturePixels>,
+) -> Result<HashMap<u32, Gd<godot::classes::ImageTexture>>, String> {
+    pixels
         .into_iter()
         .map(|(kind, (rgba, width, height))| {
             texture_from_rgba(&rgba, width, height).map(|texture| (kind, texture))
         })
-        .collect::<Result<HashMap<_, _>, _>>()?;
-    Ok(PreparedAppearance {
-        source: "player",
-        textures,
-        selected_geosets: selected.geosets,
-        authored_geosets: Vec::new(),
-        equipment_geosets: equipment.outfit.geoset_overrides.clone(),
-        hidden_geoset_ids: equipment.hidden_character_geoset_ids.clone(),
-    })
+        .collect()
+}
+
+/// Raw material textures of the M2 texture types the layout does not composite:
+/// every type but skin (1), skin extra (8), hair (6) and eyes (19), which the body
+/// pipeline composes. wow.export `resolve_replaceable_textures` binds these (the
+/// Demon Hunter blindfold's type 9) on skinned models; the last selected wins.
+fn direct_bind_pixels(
+    compositor: &CharTextureData,
+    materials: &[(u16, u32)],
+    layout_id: u32,
+    mut load: impl FnMut(u32) -> Result<TexturePixels, String>,
+) -> Result<HashMap<u32, TexturePixels>, String> {
+    let mut direct = HashMap::new();
+    for &(target, fdid) in materials {
+        let Some(kind) = compositor.texture_type_for_target(layout_id, target) else {
+            continue;
+        };
+        if !matches!(kind, 1 | 6 | 8 | 19) {
+            direct.insert(kind, load(fdid)?);
+        }
+    }
+    Ok(direct)
 }
 
 #[cfg(test)]
@@ -455,6 +546,7 @@ mod tests {
             choice_ids: HashSet::new(),
             materials: Vec::new(),
             geosets: Vec::new(),
+            skinned_models: Vec::new(),
         }
     }
 

@@ -253,7 +253,12 @@ fn race_columns_end_above_the_navigation_buttons() {
         .min(rect(&harness.reg, NEXT_BUTTON.0).y);
     for race in crate::char_create_data::RACES {
         let r = rect(&harness.reg, &format!("Race_{}", race.id));
-        assert!(r.y + r.height <= nav_top, "{} ends at {}", race.name, r.y + r.height);
+        assert!(
+            r.y + r.height <= nav_top,
+            "{} ends at {}",
+            race.name,
+            r.y + r.height
+        );
     }
 }
 

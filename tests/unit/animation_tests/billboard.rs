@@ -8,6 +8,7 @@ fn spherical_billboard_does_not_propagate_to_descendants() {
             flags: 0x8,
             parent_bone_id: -1,
             submesh_id: 0,
+            name_crc: 0,
             pivot: [0.0, 0.0, 0.0],
         },
         M2Bone {
@@ -15,6 +16,7 @@ fn spherical_billboard_does_not_propagate_to_descendants() {
             flags: 0,
             parent_bone_id: 0,
             submesh_id: 0,
+            name_crc: 0,
             pivot: [0.0, 0.0, 0.0],
         },
         M2Bone {
@@ -22,6 +24,7 @@ fn spherical_billboard_does_not_propagate_to_descendants() {
             flags: 0,
             parent_bone_id: 1,
             submesh_id: 0,
+            name_crc: 0,
             pivot: [0.0, 0.0, 0.0],
         },
     ];
@@ -39,6 +42,7 @@ fn non_billboard_child_world_pose_is_camera_stable() {
             flags: 0x8,
             parent_bone_id: -1,
             submesh_id: 0,
+            name_crc: 0,
             pivot: [0.0, 0.0, 0.0],
         },
         M2Bone {
@@ -46,6 +50,7 @@ fn non_billboard_child_world_pose_is_camera_stable() {
             flags: 0,
             parent_bone_id: 0,
             submesh_id: 0,
+            name_crc: 0,
             pivot: [1.0, 0.0, 0.0],
         },
     ];
@@ -122,6 +127,7 @@ fn spherical_billboard_bone_tracks_camera_motion() {
         flags: 0x8,
         parent_bone_id: -1,
         submesh_id: 0,
+        name_crc: 0,
         pivot: [0.0, 0.0, 0.0],
     }];
     let sbb = vec![true];

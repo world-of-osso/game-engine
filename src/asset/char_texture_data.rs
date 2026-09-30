@@ -131,6 +131,14 @@ impl CharTextureData {
             })
     }
 
+    /// The M2 texture type `target_id` fills in `layout_id` (ChrModelTextureLayer.TextureType).
+    pub fn texture_type_for_target(&self, layout_id: u32, target_id: u16) -> Option<u32> {
+        self.layers
+            .iter()
+            .find(|layer| layer.layout_id == layout_id && layer.target_id == target_id)
+            .map(|layer| layer.texture_type)
+    }
+
     pub fn replacement_texture_fdid(
         &self,
         materials: &[(u16, u32)],
