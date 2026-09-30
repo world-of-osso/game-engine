@@ -10,6 +10,7 @@ extends SceneTree
 ##   NEWCLASS_PICK       optional "category:option:choice" picked in Customize; with
 ##                       NEWCLASS_SKINNED (a collection FDID) the preview must show it
 ##   NEWCLASS_ZOOM       optional camera zoom-in clicks for an extra Customize capture
+##   NEWCLASS_FORMS      set for a Dracthyr: switch the preview to the visage form and back
 ## Creates the character through the real creation screens (race, class, Customize,
 ## name, Create), enters the world at its start, prints FIXTURE AT_START and waits
 ## for the orchestrator to teleport it next to a Northshire Training Dummy. Then Tab
@@ -108,6 +109,8 @@ func create_character(race: int, klass: int, name: String) -> bool:
 	if pick != "" and not await pick_choice(ui, pick.split(":")):
 		return false
 	await capture("%s-0-customize.png" % tag)
+	if OS.get_environment("NEWCLASS_FORMS") != "" and not await switch_forms(ui):
+		return false
 	var zoom := int(OS.get_environment("NEWCLASS_ZOOM"))
 	if zoom > 0:
 		for i in range(zoom):
@@ -119,6 +122,38 @@ func create_character(race: int, klass: int, name: String) -> bool:
 	await wait_frames(2)
 	await click(ui.find_child("CharCreateButton", true, false))
 	return true
+
+## Dracthyr AlteredForms: Form_1 shows the visage model, Form_0 the dragon again.
+func switch_forms(ui: Node) -> bool:
+	var dragon = preview_character()
+	var dragon_meshes := preview_mesh_count()
+	for form in [1, 0]:
+		var button = ui.find_child("Form_%d" % form, true, false)
+		if button == null or not button.is_visible_in_tree():
+			fail("Customize has no visible Form_%d" % form)
+			return false
+		await click(button)
+		await wait_frames(90)
+		var shown := "visage" if form == 1 else "dragon"
+		if not shown(ui, "Form_%d_Selected" % form) or shown(ui, "Form_%d_Selected" % (1 - form)):
+			fail("Form_%d is not the selected form" % form)
+			return false
+		print("FIXTURE FORM %s meshes=%d" % [shown, preview_mesh_count()])
+		if form == 1 and (preview_character() == dragon or preview_mesh_count() == 0):
+			fail("The visage form did not replace the dragon preview")
+			return false
+		await capture("%s-0-%s.png" % [tag, shown])
+	if preview_mesh_count() != dragon_meshes:
+		fail("Back on the dragon form the preview has %d meshes, not %d" % [preview_mesh_count(), dragon_meshes])
+		return false
+	return true
+
+func preview_character() -> Node:
+	return client.get_node_or_null("CharacterCreateScene/CreationCharacter")
+
+func preview_mesh_count() -> int:
+	var character = preview_character()
+	return character.find_children("*", "MeshInstance3D", true, false).size() if character != null else 0
 
 ## Select Customize category/option/choice through the dropdown, then check the
 ## preview for the skinned collection model NEWCLASS_SKINNED.
