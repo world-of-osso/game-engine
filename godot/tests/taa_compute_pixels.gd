@@ -332,7 +332,9 @@ func fixture_images(kind: String, history_size: Vector2i) -> Array[Image]:
 				motion.set_pixel(x, y, Color(move.x, move.y, 0, 0))
 		for y in range(history_size.y):
 			for x in range(history_size.x):
-				var confidence := [-20.0, -10.0, -9.0, 0.0, 1.0, 56.0, 90.0, 120.0][(x + y) % 8]
+				var confidence: float = [-20.0, -10.0, -9.0, 0.0, 1.0, 56.0, 90.0, 120.0][
+					(x + y) % 8
+				]
 				past.set_pixel(
 					x,
 					y,
