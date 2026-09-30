@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode ambient_light_disabled, fog_disabled, specular_disabled;
+#include "res://shaders/m2_point_light.gdshaderinc"
 
 // config: layer count, blend mode (0 layered, 1 weighted, 2 height-weighted), UV repeat.
 uniform vec4 config = vec4(1.0, 0.0, 1.0, 0.0);
@@ -186,6 +187,6 @@ void light() {
 		// M2 point lights (WebWowViewerCpp pointLight.frag.slang:43-58); LIGHT_COLOR
 		// carries Godot's PI.
 		float n_dot_l = max(dot(NORMAL, LIGHT), 0.0);
-		DIFFUSE_LIGHT += gamma_to_linear(terrain_diffuse) * LIGHT_COLOR / PI * ATTENUATION * n_dot_l;
+		DIFFUSE_LIGHT += gamma_to_linear(terrain_diffuse) * LIGHT_COLOR / PI * m2_point_light_attenuation(ATTENUATION, SPECULAR_AMOUNT) * n_dot_l;
 	}
 }

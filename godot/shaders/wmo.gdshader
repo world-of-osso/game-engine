@@ -1,6 +1,7 @@
 shader_type spatial;
 // Material binding selects authored cull/blend variants; no Godot PBR shading or fog.
 render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;
+#include "res://shaders/m2_point_light.gdshaderinc"
 
 // WebWowViewerCpp WMOMaterialTemplate.textures[0..9] (`wmoObject.cpp` getMaterialInstance).
 uniform sampler2D base_texture : source_color, repeat_enable;
@@ -356,7 +357,7 @@ void light() {
 		// M2 point lights reach opaque surfaces only (WebWowViewerCpp
 		// pointLight.frag.slang:43-58); LIGHT_COLOR carries Godot's PI.
 		float n_dot_l = max(dot(NORMAL, LIGHT), 0.0);
-		DIFFUSE_LIGHT += gamma_to_linear(diffuse_authored) * LIGHT_COLOR / PI * ATTENUATION * n_dot_l;
+		DIFFUSE_LIGHT += gamma_to_linear(diffuse_authored) * LIGHT_COLOR / PI * m2_point_light_attenuation(ATTENUATION, SPECULAR_AMOUNT) * n_dot_l;
 	}
 #endif
 }
