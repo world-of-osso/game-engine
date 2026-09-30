@@ -1,6 +1,8 @@
 //! Authored M2 model and primary skin, with coordinates left in WoW model space.
 use crate::asset::m2_batch_data::{self, BatchInputs, ResolvedBatch};
-use crate::asset::m2_format::{self as format, m2_anim, m2_attach, m2_event, m2_particle};
+use crate::asset::m2_format::{
+    self as format, m2_anim, m2_attach, m2_event, m2_light, m2_particle,
+};
 use format::parser::TextureTables;
 
 pub use format::m2_collision::M2CollisionMesh;
@@ -67,6 +69,9 @@ pub struct Model {
     pub particle_emitters: Vec<ParticleEmitter>,
     /// MD20 animation events, their timestamps indexed like `sequences`.
     pub events: Vec<Event>,
+    /// MD20 global flags.
+    pub flags: u32,
+    pub lights: Vec<m2_light::M2Light>,
 }
 
 /// Resolve authored skin batches in the same draw order and opacity policy as the Bevy renderer.
@@ -317,6 +322,7 @@ pub fn parse_model_with_skeleton(
     let (bounding_box_min, bounding_box_max) = format::parse_bounding_box(chunks.md20);
     let collision = format::m2_collision::parse_collision_mesh(chunks.md20)?;
     let texture_fdids = chunks.txid.map(format::parse_txid).unwrap_or_default();
+    let flags = format::parse_model_flags(chunks.md20)?;
     let mut particle_emitters = m2_particle::parse_particle_emitters(chunks.md20);
     m2_particle::resolve_texture_fdids(&mut particle_emitters, &texture_fdids);
     if let Some(exp2) = chunks.exp2 {
@@ -364,7 +370,7 @@ pub fn parse_model_with_skeleton(
         texture_unit_lookup: format::parse_texture_unit_lookup(chunks.md20)?,
         transparency_lookup: format::parse_transparency_lookup(chunks.md20)?,
         uv_animation_lookup: format::parse_uv_animation_lookup(chunks.md20)?,
-        uses_texture_combiner_combos: format::parse_model_flags(chunks.md20)? & 0x8 != 0,
+        uses_texture_combiner_combos: flags & 0x8 != 0,
         color_tracks: m2_anim::parse_color_tracks(chunks.md20)?,
         transparency_tracks: m2_anim::parse_transparency_tracks(chunks.md20)?,
         texture_animations: m2_anim::parse_texture_animations(chunks.md20)?,
@@ -377,5 +383,7 @@ pub fn parse_model_with_skeleton(
         collision,
         particle_emitters,
         events,
+        flags,
+        lights: m2_light::parse_lights(chunks.md20),
     })
 }

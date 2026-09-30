@@ -10,6 +10,7 @@ use std::{path::PathBuf, rc::Rc};
 use game_engine_core::{
     char_select_camera_data::scaled_orbit_delta,
     m2::{self, ParticleEmitter},
+    m2_lights::{self, LightTime, PointLight},
     outfit_data::OutfitData,
 };
 use glam::{Vec2, Vec3};
@@ -189,6 +190,41 @@ pub(crate) fn format_overlay(
     lines.join("\n")
 }
 
+/// Each point light's bone, colour and attenuation as retail evaluates them.
+pub(crate) fn format_lights(lights: &[(i16, PointLight)]) -> Vec<String> {
+    lights
+        .iter()
+        .enumerate()
+        .flat_map(|(index, (bone, light))| {
+            let [r, g, b] = light.color;
+            [
+                String::new(),
+                format!(
+                    "Light #{index} point bone={bone} color=({r:.3}, {g:.3}, {b:.3}) attenuation={:.3}-{:.3}",
+                    light.attenuation_start, light.attenuation_end
+                ),
+            ]
+        })
+        .collect()
+}
+
+/// The model's point lights at the first frame of its first sequence.
+fn model_lights(model: &m2::Model) -> Vec<(i16, PointLight)> {
+    let time = LightTime {
+        sequence: 0,
+        time_ms: 0,
+        global_ms: 0,
+        global_sequences: &model.global_sequences,
+    };
+    model
+        .lights
+        .iter()
+        .filter_map(|light| {
+            m2_lights::point_light(light, model.flags, &time).map(|point| (light.bone_index, point))
+        })
+        .collect()
+}
+
 fn format_emitter_lines(emitter: &ParticleEmitter) -> [String; 5] {
     [
         format_identity_line(emitter),
@@ -201,13 +237,14 @@ fn format_emitter_lines(emitter: &ParticleEmitter) -> [String; 5] {
 
 fn format_identity_line(emitter: &ParticleEmitter) -> String {
     format!(
-        "blend={} type={} particle={} head_tail={} bone={} tex={:?}",
+        "blend={} type={} particle={} head_tail={} bone={} tex={:?} flags={:#x}",
         emitter.blend_type,
         emitter.emitter_type,
         emitter.particle_type,
         emitter.head_or_tail,
         emitter.bone_index,
-        emitter.texture_fdid
+        emitter.texture_fdid,
+        emitter.flags
     )
 }
 
@@ -261,6 +298,7 @@ struct Shown {
     index: usize,
     node: Gd<Node3D>,
     emitters: Vec<ParticleEmitter>,
+    lights: Vec<(i16, PointLight)>,
     particles: Option<Rc<ModelParticles>>,
     placed: Option<PlacedParticles>,
     missing_textures: PackedInt32Array,
@@ -511,6 +549,7 @@ impl WowParticleDebug {
             index,
             node,
             particles: ModelParticles::from_model(fdid, &model),
+            lights: model_lights(&model),
             emitters: model.particle_emitters,
             placed: None,
             missing_textures,
@@ -592,12 +631,16 @@ impl WowParticleDebug {
             return;
         };
         let DebugModel { fdid, name, .. } = MODELS[shown.index];
-        let text = format_overlay(
+        let mut text = format_overlay(
             &format!("{name} ({fdid}) [{}/{}]", shown.index + 1, MODELS.len()),
             &shown.emitters,
             &self.states(shown),
             self.pools.drawn(),
         );
+        for line in format_lights(&shown.lights) {
+            text.push('\n');
+            text.push_str(&line);
+        }
         if let Some(overlay) = self.overlay.as_mut()
             && overlay.get_text().to_string() != text
         {

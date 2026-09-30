@@ -91,11 +91,21 @@ pub(crate) fn right_click(is_npc: bool, dead: bool, distance: f32) -> RightClick
 
 impl GameClient {
     pub(super) fn receive_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
+        if let NpcMessage::Closed(npc) = &message {
+            self.auction_interaction_closed(*npc);
+        }
         let session = &mut self.merchant.session;
         match message {
             NpcMessage::Opened(opened) => match opened.kind {
                 // The vendor list follows the vendor role (`VendorInventory`).
-                InteractionKind::Role(NpcRole::Vendor) => {}
+                InteractionKind::Role(NpcRole::Vendor) => {
+                    self.auction_interaction_closed_any();
+                }
+                InteractionKind::Role(NpcRole::AuctionHouse) => {
+                    session.close();
+                    self.auction.session.open(opened.npc);
+                }
+                InteractionKind::Gossip(menu) => self.show_auction_gossip(opened.npc, menu)?,
                 other => godot_warn!("NPC frame {other:?} is not converted to Godot yet"),
             },
             NpcMessage::Closed(npc) => session.receive_interaction_closed(npc),

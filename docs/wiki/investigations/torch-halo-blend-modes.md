@@ -20,6 +20,10 @@ The blend mode fallback arm (`_ =>`) in the M2 material builder was `AlphaMode::
 **WMVx blend mode reference** (from `~/Repos/WMVx/src/ModelRenderPassRenderer.cpp`):
 - 0: Opaque, 1: Alpha test, 2: Alpha blend, 3: Additive (SRC_COLOR), 4: Additive alpha (SRC_ALPHA), 5: Modulate, 6: ModulateX2, 7: Blend add (ONE, ONE_MINUS_SRC_ALPHA)
 
+## Godot (2026-09-30)
+
+The halo is authored: batch 1 on spherical billboard bone 1. Godot drew it edge-on until bone billboarding landed; see [[godot-torch-rendering]].
+
 ## Sources
 
 - [torch-halo-investigation-2026-03-30.md](../../torch-halo-investigation-2026-03-30.md) — findings and resolution

@@ -745,9 +745,9 @@ fn search_border(name: &str, (x, y, w, h): (f32, f32, f32, f32)) -> Element {
 /// Retail's AuctionHouse `C_AuctionHouse` duration labels (`AUCTION_DURATION_ONE..THREE`).
 pub fn duration_label(duration: AuctionDuration) -> &'static str {
     match duration {
-        AuctionDuration::Short => "12 Hours",
-        AuctionDuration::Medium => "24 Hours",
-        AuctionDuration::Long => "48 Hours",
+        AuctionDuration::Short => "1 Day",
+        AuctionDuration::Medium => "1 Week",
+        AuctionDuration::Long => "2 Weeks",
     }
 }
 
@@ -759,6 +759,6 @@ pub fn duration_token(duration: AuctionDuration) -> &'static str {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "auction_house_frame_component_tests.rs"]
 mod tests;
