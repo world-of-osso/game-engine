@@ -100,6 +100,34 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CAC
 - **Virtual attachment 56.** VirtualSpellDirected is absent from character models. It is taken as the midpoint of SpellLeftHand 21 and SpellRightHand 22 (inferred). Any other missing attachment is reported and uses the origin.
 - **Keyframed emission.** Spell effect emitters author their bursts as keyframed `emissionRate`/`emissionSpeed`/`enabledIn` tracks; the static first key is usually 0. `EmitterSim::set_animation` evaluates them at the placed model's playing sequence time, and pools are sized for the track's peak rate. Doodads get the same behavior.
 
+## Asset loading (`godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`)
+
+Kit models, missile models and kit sound files load on two `spell-assets` worker threads. Nothing on the main thread waits for them.
+
+- **Worker:** local-CASC extraction (`cache_model_files`, `cache_model_textures`, sound `ensure_cached`), the M2/skin/skel/`.anim` parse (`read_model_file`, which makes no engine calls), and BLP decode (`blp::decode_gpu`) of the model's batch and particle textures. A sound's Ogg bytes are read and checked for `OggS`.
+- **Main thread:** `SpellAssets::update` collects results each frame. Arrived models get their textures uploaded into the shared texture cache (`material::insert_shared_texture`) and their particles set up, within a 4 ms budget per frame (at least one model per frame). Godot objects are created as before: `build_model`, particle placement, and `AudioStreamOggVorbis::load_from_buffer` at play time.
+- **Priority:** a load a kit needs now goes ahead of prefetches. A prefetch still queued moves up when a cast needs it (`Priority::Now`/`Later`).
+- **Failures:** each failed asset is logged once when it arrives (`godot_error!`). Every kit that then uses it reports `Spell {id} kit {id}: …`.
+- **Late assets (this client's rule):** a kit whose model or sound file is still loading starts it on arrival, at the point of its timeline the kit has reached, as if it had started on time. A one-shot model joins its start clip, end clip or particle tail (`phase_at`). A held model joins its Hold loop. A sound starts that far into the file, and a loop wraps (`late_offset`). A one-shot already over is not shown and is logged ("arrived … late, after it would have ended"). A missile flies on schedule and shows its model once loaded, and its impact keeps its time.
+  - Retail's rule is undocumented. The wow_client reimplementation keeps a late model's sequence start at request time (`src/gx/m2.c:2966`: `instance->sequence_started = global_time;`, set before the model loads), which is the same rule. WebWowViewerCpp instead starts the animation at arrival (`m2Object.cpp:1146` returns early while unloaded).
+- **Prefetch:** once the catalog is loaded and the local player is replicated, every known spell's visual (for the player's race, class and weapon) has its PrecastStart, ChannelStart, Cast, Impact, AuraStart and AuraEnd kit models, sound files and missile queued as prefetches. No retail source for spell-asset prefetching was found; retail's `preloadPlayerModels` CVar covers racial models only (warcraft.wiki.gg Console_variables). A weapon that replicates after the prefetch can resolve another visual, which then loads when it is first cast.
+- **Automation:** `spell_visuals_state()` reports `assets_pending`, each sound's `late` (seconds after its kit asked for it), and `frame_ms`, the main-thread time spell visuals took in the last frame (`SpellGo` handling plus the per-frame update).
+
+**Measurements (2026-09-30, first use; debug build; machine load average 12-35 from other agents' clients and builds).**
+- **Before** (base `bba70f53`, `data/diagnostics/firstload-2026-09-30/before-*.log`):
+  - The first CASC extraction initializes the resolver on the main thread: TACT keys plus the 1,931,507-entry resolution cache took 1548 ms and 1654 ms. It hit at world entry (an NPC aura's sound 569423 through `sync_casts`). In the earlier `paladin-first-use/` run it hit at the first Flash of Light.
+  - Per file, extraction on the main thread took 0.6-40 ms for sounds, 1.4-33 ms for model+skin and 2.5-34 ms per model's textures. Parsing took 0.7-1.6 ms per model (`read_model`). Godot creation took 0.6-17 ms (`build_model`, including BLP decode and listfile lookups), 1.6-18 ms for particle placement, and 0.5-0.8 ms per Ogg stream.
+  - Whole calls: `SpellGo` 45-59 ms, per-frame advance 27-86 ms, HoJ `sync_casts` 36 ms. Under load the "Spell visuals" frame step took 117 ms and 283 ms during the first Flash of Light.
+- **After** (`data/diagnostics/firstload-2026-09-30/after-*.log`): the prefetch extracted 175 files on the workers after world entry. The first Flash of Light, Judgment and Hammer of Justice sounds all played with `late=0.000`. The largest spell-visual frame share during Flash of Light was 30.4 ms. The precast lasted 1.573 s and 1.493 s on the client clock for a 1.500 s cast. The CASC init ran on a worker (its first extraction was a prefetched kit model).
+- **Other stalls the fixture sees** (not spell visuals; reported, not changed): in the loaded runs the "World objects" step took 50-1074 ms per frame and "Account" took up to 1.5-14.6 s. With a load average around 30, base and this branch alike never reached `world_objects.pending == 0` within 600-900 s. A 74-104 s frame at world entry also shows up in both.
+
+**First-use fixture.** `scripts/agent/first-use-data.py <worktree> isolate` replaces the worktree's `data/models`, `data/textures` and `data/sounds` links with local directories of per-file links to canonical data. `--models`/`--textures` FDIDs are left out, and `sounds/spells/` is empty. `reset` deletes what a run extracted. The Flash of Light kit assets are models 2467327, 2470733, 1237495-1237497 and textures 2062922, 2447763, 1114588, 942427, 1114590-1114592. `spellcast_anim.gd` with `SPELL_SCENARIO=paladin` then requires the following from the press through the loops stopping:
+- no frame spends more than `SPELL_FRAME_SLACK_MS` (50) on spell visuals;
+- when the world had settled, no frame is longer than the 120-frame pre-press median plus the slack;
+- the precast lasts the replicated cast time within 0.1 s plus two median frames.
+
+Run with `SPELL_WORLD_TIMEOUT_S=0` when doodads cannot finish streaming (only the spell share is then required). Passed on 2026-09-30: private game-server `b85943c` on UDP 5094, account `fb_firstload`/Fbfirstpal (level-10 Human paladin at `-8969.78 -154.5 81.6`).
+
 ## Proof (2026-09-29)
 
 **Behavioral tests:**
@@ -233,12 +261,13 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 - Missiles fly straight: `SpellMissileMotion` is not applied. `SpellVisualMissile` `CastOffset`/`ImpactOffset`/`Flags` and `SpellVisual.Flags` are not applied (Frostbolt's offsets are 0).
 - The missile starts at the missile attachment, not at the release event's bone and position. wowdev notes `$CSL/R/T are also used in CGUnit_C::ComputeDefaultMissileFirePos`, which is undocumented.
 - Other events (`$SHK` camera shake, `$FSD` footfall, `$AH*`/`$BRT`/`$FD*` voice events) are parsed but not played. Type-10 unit sound values outside 34-40 are not played (mapping unknown).
-- The first use of a spell extracts its models and sounds from CASC on the main thread, a one-time hitch per asset.
+- The CASC resolver initializes (1.5-1.7 s) on whichever thread extracts first. It is a worker when the spell prefetch comes first, but the terrain, creature and equipment loaders still extract, and can initialize it, on the main thread. A startup warm-up needs a public initialize entry point in asset-resolver.
+- Composite textures (a second texture or overlays on a non-effect batch) are still read and composited on the main thread by `build_model`. Spell effect batches are plain or effect textures.
 - Timed casts show no precast kits for observers until `CastState` replicates. Creature casts get kits only through `SpellGo`/`CastState`, like players.
 
 ## Sources
 
-- `godot/core/src/spell_visual.rs`, `godot/rust/src/spell_effects.rs`, `godot/rust/src/world_combat.rs`, `godot/rust/src/animation/action.rs`
+- `godot/core/src/spell_visual.rs`, `godot/rust/src/spell_effects.rs`, `godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`, `godot/rust/src/world_combat.rs`, `godot/rust/src/animation/action.rs`
 - WoWDBDefs (`~/Repos/wowless/vendor/dbdefs/definitions`) — layouts
 - TrinityCore `ConditionMgr.cpp` `IsPlayerMeetingCondition`, `DBCEnums.h` `PlayerConditionFlags`
 - WMVx `animation-names.csv` — animation ids
