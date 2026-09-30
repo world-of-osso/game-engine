@@ -51,7 +51,13 @@ func run_test() -> void:
 		or not expect_aa_pixels(committed, "unrelated commit")
 	):
 		return
+	if not await run_follow_up(client, path, directory):
+		return
 	print(
 		"PASS: saved Taa produces temporal edge coverage and preserves exact UI/unrelated options"
 	)
 	quit(0)
+
+
+func run_follow_up(_client: Node, _path: String, _directory: String) -> bool:
+	return true
