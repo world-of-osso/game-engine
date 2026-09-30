@@ -3,6 +3,8 @@ extends "res://tests/display_options.gd"
 # Run real GameClient with --screen gamemenu and an owned canonical options copy:
 # bloomEnabled: true, bloomIntensity: 0.08, renderScale: 1.0, uiScale: 1.0.
 # BLOOM_TEST_START_DISABLED=1 requires bloomEnabled: false in that owned copy.
+# BLOOM_TEST_COMBINED=1 requires renderScale: 0.5 for production startup RCAS.
+# Combined MSAA 4X is fixture viewport state, not persisted Options coverage.
 # GODOT_TEST_CAPTURE_DIR and XDG_CONFIG_HOME must be under data/diagnostics/.
 # Qualitative wiring proof only; no claim of exact Bevy bloom kernel fidelity.
 const SIZE := Vector2i(1280, 720)
@@ -13,8 +15,15 @@ const BLACK_TOLERANCE := 1.0 / 255.0
 const MIN_HALO := 2.0 / 255.0
 const MIN_INCREASE := 1.0 / 255.0
 
+var combined := OS.get_environment("BLOOM_TEST_COMBINED") == "1"
+
+func expected_render_scale() -> float:
+	return 0.5 if combined else 1.0
+
 func run_test() -> void:
 	root.size = SIZE
+	if combined:
+		root.msaa_3d = Viewport.MSAA_4X
 	var start_enabled := OS.get_environment("BLOOM_TEST_START_DISABLED") != "1"
 	var config := OS.get_environment("XDG_CONFIG_HOME")
 	var directory := OS.get_environment("GODOT_TEST_CAPTURE_DIR")
@@ -148,7 +157,10 @@ func add_contrasting_ui() -> void:
 func expect_saved_bloom(path: String, enabled: bool, intensity: float, stage: String) -> bool:
 	for key in ["bloomEnabled", "bloomIntensity", "renderScale", "uiScale"]:
 		var actual := saved_option_value(path, key)
-		var expected := str(enabled).to_lower() if key == "bloomEnabled" else str(intensity if key == "bloomIntensity" else 1.0)
+		var expected := str(enabled).to_lower() if key == "bloomEnabled" else str(
+			intensity if key == "bloomIntensity" else
+			expected_render_scale() if key == "renderScale" else 1.0
+		)
 		var matches := actual == expected if key == "bloomEnabled" else actual.is_valid_float() and is_equal_approx(actual.to_float(), expected.to_float())
 		if not matches:
 			fail("%s: persisted %s=%s expected %s in owned %s" % [stage, key, actual, expected, path])
@@ -170,8 +182,13 @@ func expect_capture(image: Image, stage: String) -> bool:
 	if image == null or image.get_size() != SIZE:
 		fail(stage + ": full-resolution bloom capture missing")
 		return false
-	if not is_equal_approx(root.scaling_3d_scale, 1.0):
-		fail(stage + ": renderScale is not 1.0")
+	if not is_equal_approx(root.scaling_3d_scale, expected_render_scale()):
+		fail("%s: renderScale=%f expected %f" % [
+			stage, root.scaling_3d_scale, expected_render_scale()
+		])
+		return false
+	if combined and root.msaa_3d != Viewport.MSAA_4X:
+		fail(stage + ": combined fixture viewport MSAA is not 4X (not Options coverage)")
 		return false
 	for y in range(UI_RECT.position.y, UI_RECT.end.y):
 		for x in range(UI_RECT.position.x, UI_RECT.end.x):
