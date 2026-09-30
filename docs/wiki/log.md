@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] evidence | Bounded Camera Look/FOV main proof; gate pending
+
+Extended existing [camera boundary](systems/godot-conversion.md#native-camera-options-boundary) and matrix with test-only `2fc386d1`/`edfb4ec6` main slider `run1.log` exit-0 evidence: authored 0.02/105° and restored 0.01/90° save/pitch/physical-FOV checks, numeric f32 tolerance, prior InvertY/marker/full Menu assertions passing. No production change/Depot build; `mb61bqgcj2` unaffected. Independent slider gate active/pending; no fresh-process/all-camera/full-scene acceptance. Source unfrozen; shutdown deferred.
+
 ## [2026-09-30] evidence | Bounded CameraInvertY gate accepted
 
 Recorded [CameraInvertY evidence](systems/godot-conversion.md#native-camera-options-boundary): test-only `9671006a`/`47cc143f`/`563968a2`, no production change; owned-UDP/Vulkan Menu `run4.log` exit 0. Authored canonical Off/On persistence, RMB-held +4-pixel pitch deltas −0.03999999165535/+0.03999999165535, released-motion no-change and Off restoration pass alongside marker/original menu assertions. Runs 1–3 fixture failures retained; unchanged Depot `mb61bqgcj2` reused without GDScript-only rebuilds. Main accepts `/tmp/claude/verify-native-camera-invert-options.md` **bounded saved-runtime-artifact and source PASS**; no all-camera/startup/fresh-process/full-conversion acceptance. Shutdown paused; no source pins.
