@@ -120,6 +120,8 @@ Root cause analyses and debug findings.
 - [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`)
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
 
+- [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Shared original state/cards/placement/actions, ordered channel relay and server-owned Auto Loot XOR Shift; actual native RED, main build and portable export pending.
+
 ## Reference
 
 External resources and asset lists.

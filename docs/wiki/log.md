@@ -2217,3 +2217,7 @@ A spell's first use no longer extracts, parses or decodes its kit models, textur
 ## [2026-09-30] fix | Retail ADT water
 
 Northshire streams used the procedural placeholder water shader and lost MH2O LVF 0 depths. Godot water now ports WebWowViewerCpp `liquidWaterMat` with LiquidType/LiquidObject/LiquidTypeXTexture DB2 inputs and LightData/LightParams colours. See [northshire-pale-water](investigations/northshire-pale-water.md).
+
+## [2026-09-30] audit | Native loot integration, proof pending
+
+Recorded shared original loot state/cards/placement/actions, one ordered LootChannel relay, server-owned Auto Loot XOR Shift, actual authored LootFrame and per-looter sparkle/cursor; existing authenticated inventory/gold flow retained. Actual native fixture remains RED (no LootUnit after corpse right-click, case 1); main build and agent1299 portable export pending. Both matrix rows remain Missing; no completion checkbox changed. See [native loot boundary](systems/godot-conversion.md#native-loot--implemented-proof-pending).
