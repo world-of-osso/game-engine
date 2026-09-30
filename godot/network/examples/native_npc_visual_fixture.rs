@@ -264,7 +264,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO geosets VALUES (910012,1,2),(910013,1,1),(910017,1,1);
     ")?;
     // Default player hair is not among any NPC's explicit choices, preserving missing-type-6 cases.
-    write_sqlite_fixture(data, "customization.sqlite", "
+    write_sqlite_fixture(data, "customization-v4.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
         CREATE TABLE chr_models (id INTEGER PRIMARY KEY, layout_id INTEGER NOT NULL, customize_scale REAL NOT NULL, camera_distance_offset REAL NOT NULL);
         CREATE TABLE options (id INTEGER PRIMARY KEY, name TEXT NOT NULL, chr_model_id INTEGER NOT NULL, category_id INTEGER NOT NULL, order_index INTEGER NOT NULL, ui_type INTEGER NOT NULL, requirement_id INTEGER NOT NULL);
@@ -293,7 +293,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO geosets VALUES (910080,1,2);
         INSERT INTO texture_fdids VALUES (910072,910021),(910073,910022),(910076,910023),(910077,910024),(910078,910025);
     ")?;
-    write_sqlite_fixture(data, "char_texture.sqlite", "
+    write_sqlite_fixture(data, "char_texture-v2.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
         CREATE TABLE layers (texture_type INTEGER NOT NULL, layer INTEGER NOT NULL, blend_mode INTEGER NOT NULL, section_bitmask INTEGER NOT NULL, target_id INTEGER NOT NULL, layout_id INTEGER NOT NULL);
         CREATE TABLE sections (layout_id INTEGER NOT NULL, section_type INTEGER NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY(layout_id,section_type));

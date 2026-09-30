@@ -41,11 +41,22 @@ LOCAL_TABLES = {
     "ChrCustomizationSkinnedModel": 3460183,
     "ChrModelTextureLayer": 3548976,
     "ChrModelMaterial": 3566562,
+    "ChrCustomizationReq": 3450453,
+    "ChrCustomizationReqChoice": 3580359,
 }
-WAGO_TABLES = ["TextureFileData"]
+# TextureFileData.db2 is not in the local install. The localized tables' enUS copies
+# have TACT-encrypted BLTE chunks (mode E) that the local readers do not decrypt.
+WAGO_TABLES = [
+    "TextureFileData",
+    "ChrCustomizationChoice",
+    "ChrCustomizationOption",
+    "ChrCustomizationCategory",
+    "ChrCustomizationGeoset",
+    "CharHairGeosets",
+]
 BACKED_UP = [f"{table}.csv" for table in [*LOCAL_TABLES, *WAGO_TABLES]] + [
-    "cache/customization.sqlite",
-    "cache/char_texture.sqlite",
+    "cache/customization-v4.sqlite",
+    "cache/char_texture-v2.sqlite",
 ]
 WAGO_URL = "https://wago.tools/db2/{table}/csv?build={build}"
 MAX_ATTEMPTS = 6

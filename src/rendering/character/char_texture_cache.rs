@@ -11,7 +11,10 @@ use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::sqlite_util::is_missing_table_error;
 
 fn cache_path() -> PathBuf {
-    crate::paths::shared_data_path("cache/char_texture.sqlite")
+    crate::paths::shared_data_path(format!(
+        "cache/{}",
+        char_texture_query_data::char_texture_cache_file()
+    ))
 }
 
 fn source_paths(data_dir: &Path) -> [PathBuf; 4] {

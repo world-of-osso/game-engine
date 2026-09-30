@@ -58,8 +58,8 @@ fn loads_original_hd_compositor_dimensions() {
 fn missing_catalogs_report_the_required_path_without_creating_files() {
     let missing = data_root().join("missing-native-appearance-catalog-fixture");
     let error = load_customization_db(&missing).unwrap_err();
-    assert!(error.contains("customization.sqlite"), "{error}");
+    assert!(error.contains("customization-v4.sqlite"), "{error}");
     let error = load_compositor(&missing).unwrap_err();
-    assert!(error.contains("char_texture.sqlite"), "{error}");
+    assert!(error.contains("char_texture-v2.sqlite"), "{error}");
     assert!(!missing.exists());
 }
