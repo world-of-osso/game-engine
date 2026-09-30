@@ -7,6 +7,8 @@ extends SceneTree
 ##   NEWCLASS_RACE       ChrRaces ID, NEWCLASS_CLASS ChrClasses ID, NEWCLASS_NAME new name
 ##   NEWCLASS_SPELL      spell to cast at the nearest enemy once teleported
 ##   NEWCLASS_SHOTS      screenshot directory
+##   NEWCLASS_PICK       optional "category:option:choice" picked in Customize; with
+##                       NEWCLASS_SKINNED (a collection FDID) the preview must show it
 ## Creates the character through the real creation screens (race, class, Customize,
 ## name, Create), enters the world at its start, prints FIXTURE AT_START and waits
 ## for the orchestrator to teleport it next to a Northshire Training Dummy. Then Tab
@@ -101,11 +103,37 @@ func create_character(race: int, klass: int, name: String) -> bool:
 		fail("Customize must show the name input")
 		return false
 	await wait_frames(60)
+	var pick := OS.get_environment("NEWCLASS_PICK")
+	if pick != "" and not await pick_choice(ui, pick.split(":")):
+		return false
 	await capture("%s-0-customize.png" % tag)
 	input.text = name
 	input.text_changed.emit(name)
 	await wait_frames(2)
 	await click(ui.find_child("CharCreateButton", true, false))
+	return true
+
+## Select Customize category/option/choice through the dropdown, then check the
+## preview for the skinned collection model NEWCLASS_SKINNED.
+func pick_choice(ui: Node, ids: PackedStringArray) -> bool:
+	for button in ["Category_%s" % ids[0], "OptionToggle_%s" % ids[1], "OptionChoice_%s_%s" % [ids[1], ids[2]]]:
+		var control = ui.find_child(button, true, false)
+		if control == null or not control.is_visible_in_tree():
+			fail("Customize has no visible %s" % button)
+			return false
+		await click(control)
+		await wait_frames(10)
+	await wait_frames(60)
+	var skinned := OS.get_environment("NEWCLASS_SKINNED")
+	if skinned != "":
+		var character = client.get_node_or_null("CharacterCreateScene/CreationCharacter")
+		var model = character.find_child("SkinnedModel" + skinned, true, false) if character != null else null
+		var meshes: Array = model.find_children("*", "MeshInstance3D", true, false) if model != null else []
+		var shown := meshes.filter(func(mesh): return mesh.visible)
+		print("FIXTURE SKINNED ", skinned, " meshes=", meshes.size(), " visible=", shown.size())
+		if shown.is_empty():
+			fail("Preview shows no SkinnedModel%s mesh" % skinned)
+			return false
 	return true
 
 func enter_world(name: String) -> bool:
