@@ -638,12 +638,12 @@ fn essence_starts_from_received_fraction_at_received_rate() {
     let view = run(&mut animator, &[(&three, 100.25)]);
     assert!(close(
         texture(&view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
-        -216.0
+        -244.8
     ));
     let view = run(&mut animator, &[(&three, 100.75)]);
     assert!(close(
         texture(&view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
-        -288.0
+        -331.2
     ));
     let view = run(&mut animator, &[(&three, 101.375)]);
     assert_alpha(&view, "PlayerSecondaryResourcePip3FillDoneEssenceIcon", 0.5);
@@ -663,7 +663,7 @@ fn essence_rate_change_retimes_the_existing_partial_point() {
     let view = run(&mut animator, &[(&essence, 101.0), (&essence, 101.5)]);
     assert!(close(
         texture(&view, "PlayerSecondaryResourcePip3FillingTimerSpinner").rotation,
-        -342.0
+        -358.2
     ));
     assert!(!texture(&view, "PlayerSecondaryResourcePip3FillDoneEssenceIcon").shown);
 }
