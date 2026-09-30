@@ -39,6 +39,90 @@ fn resource(bar: ClassBar, current: u8, max: u8) -> ClassBarResource {
     }
 }
 
+#[test]
+fn class_bar_visibility_follows_class_spec_level_and_display_power() {
+    use crate::status::{ClassBarPlayer, power_display_modifier};
+    use PowerType::{Energy, Mana, Rage, RunicPower};
+    use shared::components::{PowerEntry, PowerType, UnitPowers};
+    let cases = [
+        (4, None, 1, Energy, true),
+        (11, Some(103), 20, Energy, true),
+        (11, Some(103), 20, Mana, false),
+        (11, Some(104), 20, Rage, false),
+        (10, Some(269), 20, Energy, true),
+        (10, Some(268), 20, Energy, false),
+        (10, None, 20, Energy, false),
+        (9, Some(267), 9, Mana, false),
+        (9, Some(267), 10, Mana, true),
+        (13, None, 20, Mana, true),
+        (6, Some(250), 20, RunicPower, true),
+        (2, None, 1, Mana, true),
+        (8, Some(62), 20, Mana, true),
+        (8, Some(63), 20, Mana, false),
+    ];
+    for (class, spec, level, primary, shown) in cases {
+        let bar = ClassBar::for_class(class).unwrap();
+        let modifier = power_display_modifier(bar.power());
+        let powers = UnitPowers {
+            entries: vec![
+                PowerEntry {
+                    power: primary,
+                    current: 100,
+                    max: 100,
+                },
+                PowerEntry {
+                    power: bar.power(),
+                    current: 3 * modifier,
+                    max: 5 * modifier,
+                },
+            ],
+            ..Default::default()
+        };
+        let player = ClassBarPlayer {
+            class,
+            spec,
+            level,
+            in_combat: false,
+        };
+        let value = ClassBarResource::for_player(&powers, &player);
+        assert_eq!(
+            value.is_some(),
+            shown,
+            "class {class}, spec {spec:?}, level {level}, primary {primary:?}"
+        );
+        let mut animator = ClassBarAnimator::default();
+        assert_eq!(
+            animator
+                .update_received(42, value.as_ref(), 100.0)
+                .is_some(),
+            shown
+        );
+    }
+}
+
+#[test]
+fn missing_rune_timing_clears_old_swipes_instead_of_inventing_cooldowns() {
+    let mut runes = resource(ClassBar::Runes, 6, 6);
+    let mut animator = ClassBarAnimator::default();
+    animator.update_received(42, Some(&runes), 100.0);
+    runes.current = 0;
+    runes.dynamics.runes = None;
+    let view = animator.update_received(42, Some(&runes), 101.0).unwrap();
+    assert!(view.textures.iter().all(|texture| texture.swipe.is_none()));
+    for pip in 0..6 {
+        assert_alpha(
+            &view,
+            &format!("PlayerSecondaryResourcePip{pip}Rune_Active"),
+            0.0,
+        );
+        assert_alpha(
+            &view,
+            &format!("PlayerSecondaryResourcePip{pip}BG_Inactive"),
+            1.0,
+        );
+    }
+}
+
 fn texture<'a>(view: &'a ClassBarView, name: &str) -> &'a TextureView {
     view.textures
         .iter()
