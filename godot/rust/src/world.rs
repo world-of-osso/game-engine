@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-use game_engine_core::movement_animation_data::{ANIM_RUN, direction_to_anim_id};
+use game_engine_core::movement_animation_data::{ANIM_RUN, ANIM_STAND, direction_to_anim_id};
 use game_engine_core::movement_input_data::MoveDirection;
 use game_engine_core::npc_visibility_data::{npc_should_be_visible, npc_visibility_policy};
 use game_engine_core::unit_motion_data::{
@@ -508,7 +508,16 @@ fn sync_unit_animation(
     let ready = unit
         .in_combat
         .then(|| combat::stance_clip(&animation.bind(), 0, true, unit.weapon, fallbacks));
-    let pose_anim = ready.or(unit.pose_anim);
+    // A held pose the model lacks plays its `AnimationData.Fallback` chain (Dead 6 →
+    // Death 1 → Stand), as the combat stance does.
+    let pose_anim = ready.or_else(|| {
+        unit.pose_anim.map(|pose| {
+            animation
+                .bind()
+                .resolve_clip(pose, fallbacks)
+                .unwrap_or(ANIM_STAND)
+        })
+    });
     // The replicated speed of its gait paces the walk and run clips (0: not yet moved).
     let speed = snapshot
         .movement_speed
