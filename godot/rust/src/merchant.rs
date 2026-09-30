@@ -245,7 +245,7 @@ impl GameClient {
 
     /// The Retail cursor art in world; the system cursor elsewhere, or when the art
     /// fails to load (Bevy `load_cursor_image`: logged, the cursor asset stays absent).
-    fn set_world_cursor(&mut self, cursor: Option<ActiveWowCursor>) {
+    pub(crate) fn set_world_cursor(&mut self, cursor: Option<ActiveWowCursor>) {
         if self.merchant.cursor == cursor {
             return;
         }
