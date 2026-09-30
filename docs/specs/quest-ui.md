@@ -23,3 +23,4 @@ Retail objective tracker, quest log and quest giver frame on the live server que
 - `src/ui/screens/{objective_tracker,quest_frame,quest_log_frame}_component_tests.rs` — rendered frames, text, anchors, actions.
 - `tests/unit/target_tests/world_camera.rs` — right-click ray → `NpcInteractionRequest::Interact`.
 - Live evidence: `data/diagnostics/quest-ui-20260924/` (headless client, shared dev server).
+- Godot: `godot/tests/world_minimap_quest.gd` — native objective tracker block, objective line, anchor and collapse on a private server (`data/diagnostics/minimapquest-2026-09-29/`); see [minimap](minimap.md).

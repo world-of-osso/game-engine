@@ -60,29 +60,6 @@ impl GameClient {
         Some(root_area(&self.area_parents, area))
     }
 
-    pub(super) fn update_cast_sound(&mut self) -> Result<(), String> {
-        let Some(sound) = &mut self.sound else {
-            return Ok(());
-        };
-        let sample = if self.account.session.screen == SessionScreen::InWorld {
-            self.world.local_player_id().and_then(|id| {
-                let position = self.world.local_player_transform()?.origin;
-                let spell_id = self.units.get(&id)?.cast.as_ref().map(|cast| cast.spell_id);
-                Some((id, spell_id, position))
-            })
-        } else {
-            None
-        };
-        if let Some((id, spell_id, position)) = sample {
-            sound
-                .bind_mut()
-                .observe_cast(id, spell_id, position, &self.client_options.sound);
-        } else {
-            sound.bind_mut().stop_casts();
-        }
-        Ok(())
-    }
-
     pub(super) fn update_footsteps(&mut self) -> Result<(), String> {
         let Some(sound) = &mut self.sound else {
             return Ok(());

@@ -5,6 +5,7 @@
 //! each change through `SetTarget`; the TargetFrame and the selection ring show it.
 
 use std::path::PathBuf;
+use std::time::Instant;
 
 use game_engine_core::{
     input_bindings_data::{BindingMouseButton, InputAction, InputState},
@@ -13,8 +14,8 @@ use game_engine_core::{
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, PowerBarState, UnitFrameMenuState, UnitFrameState, format_value_text,
-    fraction, target_level_text,
+    InWorldUnitFramesState, PipAnimations, PowerBarState, UnitFrameMenuState, UnitFrameState,
+    format_value_text, fraction, target_level_text,
 };
 use game_engine_ui_model::status::SecondaryResourceEntry;
 use godot::{
@@ -57,6 +58,9 @@ pub(crate) struct Targeting {
     /// `RING_FDID` unless a test points the ring at other art.
     ring_fdid: u32,
     frame_ui: Option<Gd<RegistryUi>>,
+    /// Class resource pip animations, timed from `started`.
+    pip_animations: PipAnimations,
+    started: Instant,
     data_root: PathBuf,
 }
 
@@ -87,8 +91,15 @@ impl Targeting {
             ring: None,
             ring_fdid: RING_FDID,
             frame_ui: None,
+            pip_animations: PipAnimations::default(),
+            started: Instant::now(),
             data_root,
         }
+    }
+
+    /// The unit frames UI, once shown.
+    pub(crate) fn frame_ui(&self) -> Option<&Gd<RegistryUi>> {
+        self.frame_ui.as_ref()
     }
 
     fn free_circle(&mut self) {
@@ -267,7 +278,11 @@ fn target_frame_state(unit: &UnitSnapshot, viewer_level: Option<u8>) -> UnitFram
     state
 }
 
-fn player_frame_state(unit: &UnitSnapshot, in_rest_area: bool) -> UnitFrameState {
+fn player_frame_state(
+    unit: &UnitSnapshot,
+    in_rest_area: bool,
+    spec: Option<u32>,
+) -> UnitFrameState {
     let mut state = UnitFrameState::named(
         unit.player
             .as_ref()
@@ -287,7 +302,8 @@ fn player_frame_state(unit: &UnitSnapshot, in_rest_area: bool) -> UnitFrameState
     state.secondary_resource = unit
         .powers
         .as_ref()
-        .and_then(SecondaryResourceEntry::from_unit_powers);
+        .and_then(SecondaryResourceEntry::from_unit_powers)
+        .filter(|resource| resource.shown_for_spec(spec));
     state
 }
 
@@ -445,30 +461,42 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.units.get(&id)?.level)
             .map(|level| level.0);
-        let target = self
-            .targeting
-            .target
+        let target_id = self.targeting.target;
+        let mut target = target_id
             .and_then(|id| self.units.get(&id))
             .map(|unit| target_frame_state(unit, viewer_level));
+        if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
+            self.fill_target_auras(state, id);
+        }
+        let target_state = target.clone();
         let player = self
             .world
             .local_player_id()
             .and_then(|id| self.units.get(&id))
-            .map(|unit| player_frame_state(unit, self.in_rest_area));
+            .map(|unit| player_frame_state(unit, self.in_rest_area, self.account.spells.spec()))
+            .map(|mut state| {
+                let now = self.targeting.started.elapsed().as_secs_f64();
+                state.secondary_fx = self
+                    .targeting
+                    .pip_animations
+                    .update(state.secondary_resource.as_ref(), now);
+                state
+            });
         let state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
-            return ui.bind_mut().set_state(state);
+            ui.bind_mut().set_state(state)?;
+        } else {
+            let mut ui = RegistryUi::new_alloc();
+            ui.set_name("UnitFramesUI");
+            self.base_mut().add_child(&ui);
+            let shown = ui.bind_mut().show_unit_frames(state);
+            if let Err(error) = shown {
+                ui.free();
+                return Err(error);
+            }
+            self.targeting.frame_ui = Some(ui);
         }
-        let mut ui = RegistryUi::new_alloc();
-        ui.set_name("UnitFramesUI");
-        self.base_mut().add_child(&ui);
-        let shown = ui.bind_mut().show_unit_frames(state);
-        if let Err(error) = shown {
-            ui.free();
-            return Err(error);
-        }
-        self.targeting.frame_ui = Some(ui);
-        Ok(())
+        self.sync_target_aura_swipes(target_state.as_ref())
     }
 
     /// Bevy `handle_inworld_escape`: with no window open, Escape clears the target

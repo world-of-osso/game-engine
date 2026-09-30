@@ -27,6 +27,13 @@ In the Godot client, Northshire bushes drew their leaf cards as black squares fr
 - `godot/core/src/blp_tests.rs` `a_one_bit_alpha_dxt1_blp_decodes_every_level_with_its_transparent_texels` checks 189937: RGBA8 with 8 levels, mip 0 equal to `decode_rgba`, and more than a quarter of the texels transparent. It has not been run yet, because agents build the Godot workspace only on Depot.
 - Live Northshire captures from a private server are in `data/diagnostics/foliagealpha-2026-09-29/{before,after}/`.
 
+## Verification on master (2026-09-29, `56a134a6`)
+
+- No black cards remain in Northshire. Captures came from a private server: the Polymorph spot (-8966.63, -194, 80) from eight sides, eight-way sweeps from five points, and close-ups of the four bushes, including 10379 by the training dummies. An automated pass framed 294 of the 383 MDDF placements within 140 yards and counted near-black pixels in each screen box. The only flags were the burned vineyard ground behind the frame (`data/diagnostics/foliage2-2026-09-29/`).
+- The Northshire trees and plants use DXT5 leaf textures (alpha depth 8, type 7), which upload as BC3 with alpha: elwynnpine01 127006, elwynntreemid01 198585, the 189927-189930 trees 464351, swampplant04/05 191275 and 190386. elwynnbush09 is the only DXT1 alpha texture there.
+- Across all 25,481 local BLP2 files, no DXT1 without alpha bits (16,619 files) has a punch-through texel. So BC1 RGB against RGBA matters only for the 246 files with alpha bits.
+- Black cards seen after `fe422318` come from builds without it. For example, the `godot-conversion` worktree at `e4d5f8a3` has a 02:46 extension build that predates the fix.
+
 ## Sources
 
 - Godot 4.7.2-stable `servers/rendering/renderer_rd/storage_rd/texture_storage.cpp`

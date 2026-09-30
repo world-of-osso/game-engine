@@ -19,19 +19,30 @@ pub mod ui {
     pub mod screens {
         pub(crate) use crate::screen_title;
         pub use crate::{
-            bag_frame_component, default_button_atlas, game_menu_component,
+            bag_frame_component, buff_frame_component, default_button_atlas, game_menu_component,
             inworld_unit_frames_component, menu_primitives, merchant_frame_component,
-            options_menu_active_sections, options_menu_component, options_menu_sections, quest_art,
-            stack_split_frame_component, trash_button_component, world_map_frame_art,
-            world_map_frame_component,
+            objective_tracker_component, options_menu_active_sections, options_menu_component,
+            options_menu_sections, quest_art, stack_split_frame_component, trash_button_component,
+            world_map_frame_art, world_map_frame_component,
         };
 
         #[cfg(test)]
         pub(crate) use crate::screen_test_helpers;
     }
 
+    pub use crate::chat_frame;
     pub use crate::ui_errors_data;
 }
+
+// In-world chat frame (docs/specs/chat-frame.md).
+#[path = "../../../src/game/chat_data.rs"]
+pub mod chat_data;
+#[path = "../../../src/ui/chat_frame.rs"]
+pub mod chat_frame;
+#[path = "../../../src/ui/screens/chat_frame_component.rs"]
+pub mod chat_frame_component;
+#[path = "../../../src/game/group_state.rs"]
+pub mod group_state;
 
 #[path = "../../../src/ui/screens/char_create_component/mod.rs"]
 pub mod char_create_component;
@@ -76,6 +87,11 @@ pub mod inworld_unit_frames_component;
 pub mod menu_primitives;
 #[path = "../../../src/status_unit_resource_data.rs"]
 pub mod status;
+
+#[path = "../../../src/ui/screens/damage_meter_component.rs"]
+pub mod damage_meter_component;
+#[path = "../../../src/damage_meter_data.rs"]
+pub mod damage_meter_data;
 
 #[path = "../../../src/ui/screens/mirror_timer_component.rs"]
 pub mod mirror_timer_component;
@@ -126,6 +142,11 @@ pub mod bag_frame_component;
 pub mod merchant_frame_component;
 #[path = "../../../src/ui/screens/quest_art.rs"]
 pub mod quest_art;
+
+// Minimap cluster and objective tracker (docs/specs/minimap.md, quest-ui.md).
+pub mod minimap;
+#[path = "../../../src/ui/screens/objective_tracker_component.rs"]
+pub mod objective_tracker_component;
 #[path = "../../../src/ui/screens/stack_split_frame_component.rs"]
 pub mod stack_split_frame_component;
 
@@ -146,11 +167,19 @@ pub mod stack_split;
 #[path = "../../../src/rendering/ui/wow_cursor_data.rs"]
 pub mod wow_cursor_data;
 
-/// The DB2 export build of the item tables (root `spell_catalog::SPELL_DB2_BUILD`).
+/// The DB2 export build of the item tables (root `spell_catalog::SPELL_DB2_BUILD`), and
+/// the core spell catalog the aura model reads.
 mod spell_catalog {
     pub(crate) use crate::csv_records;
     pub const SPELL_DB2_BUILD: &str = "12.1.0.69933";
+    pub(crate) use game_engine_core::spell_catalog::{SpellCatalogData, SpellTextContext};
 }
+
+// Player BuffFrame/DebuffFrame and TargetFrame auras (docs/specs/buff-frame.md).
+#[path = "../../../src/game/aura_display_data.rs"]
+pub mod aura_display_data;
+#[path = "../../../src/ui/screens/buff_frame_component.rs"]
+pub mod buff_frame_component;
 
 #[path = "../../../src/ui/screens/loading_component.rs"]
 pub mod loading_component;

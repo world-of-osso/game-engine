@@ -5,6 +5,11 @@ extends SceneTree
 ##   GODOT_TEST_SERVER           server address (a private test server)
 ##   SPELL_ACCOUNT / SPELL_CHARACTER   account (password fbtest) and level-10 warrior
 ##   SPELL_SHOTS                 screenshot directory
+##   SPELL_WORLD_TIMEOUT_S       seconds to wait for world objects (default 300)
+##   SPELL_SCENARIO=paladin      a level-10 paladin casts Flash of Light on itself and
+##                               hears its precast, cast and impact SoundKits
+##   SPELL_SCENARIO=shout        a level-10 warrior casts Battle Shout: its kit SoundKit
+##                               and the warrior's own battle-shout voice
 ##   SPELL_SCENARIO=mage         a level-10 mage casts Frostbolt instead: the precast
 ##                               ReadySpellDirected loop (51) with hand models 1598571,
 ##                               the SpellCastDirected release (53), the missile 1598570
@@ -39,6 +44,22 @@ const SHOUT_BUFF := 6194303
 ## `SpellPower` rage cost of Slam, in tenths.
 const SLAM_RAGE := 200
 const FROSTBOLT := 116
+const FIREBALL := 133
+const FROST_NOVA := 122
+const FLASH_OF_LIGHT := 19750
+## Retail SoundKits each spell's kits play (SpellVisualKitEffect type 5, missile
+## SoundEntriesID, 12.1.0.69933): Slam 1H cast 57845 and impact 60935; Battle Shout cast
+## 114049; Fireball precast 349555, cast 349556, missile 349558 (looping), impact 349557;
+## Frost Nova cast 350096, aura 350097 (looping) and 350098, aura end 85938; Flash of
+## Light precast 349350 (looping), cast 349352 and 349351, impact 349357 and 349355.
+const SLAM_SOUNDS := [57845, 60935]
+const BATTLE_SHOUT_SOUNDS := [114049]
+const FIREBALL_SOUNDS := [349555, 349556, 349558, 349557]
+const FROST_NOVA_SOUNDS := [350096, 350097, 350098]
+const FROST_NOVA_END_SOUNDS := [85938]
+const FLASH_OF_LIGHT_SOUNDS := [349350, 349352, 349351, 349357, 349355]
+## Human male/female CreatureSoundData 49/50 battle shout (kit unit sound 38).
+const BATTLE_SHOUT_VOICES := [58088, 58100]
 const READY_SPELL_DIRECTED := 51
 const SPELL_CAST_DIRECTED := 53
 const FROSTBOLT_HANDS := 1598571
@@ -60,14 +81,19 @@ var target_id := 0
 var seen_actions := {}
 var seen_models := {}
 var seen_missile := false
+## Longest frame since the Frostbolt press: timings land on frame boundaries, so each
+## may trail its event by up to two frames (the crossing frame and update order).
+var longest_frame := 0.0
 
 func _initialize() -> void:
 	Engine.max_fps = 60
 	call_deferred("run_test")
 
-func _process(_delta: float) -> bool:
+func _process(delta: float) -> bool:
+	longest_frame = maxf(longest_frame, delta)
 	if client == null or not is_instance_valid(client) or local_id == 0:
 		return false
+	var visuals: Dictionary = client.spell_visuals_state()
 	for id in [local_id, target_id]:
 		if id == 0:
 			continue
@@ -75,8 +101,9 @@ func _process(_delta: float) -> bool:
 		if action >= 0:
 			if not seen_actions.has(id):
 				seen_actions[id] = {}
-			seen_actions[id][action] = true
-	var visuals: Dictionary = client.spell_visuals_state()
+			# First seen, on the effects clock.
+			if not seen_actions[id].has(action):
+				seen_actions[id][action] = visuals.clock
 	for model in visuals.active:
 		seen_models[[model.unit, model.model]] = true
 	if visuals.missiles > 0:
@@ -102,13 +129,22 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	var mage := OS.get_environment("SPELL_SCENARIO") == "mage"
-	var signature := FROSTBOLT if mage else BATTLE_SHOUT
+	var scenario := OS.get_environment("SPELL_SCENARIO")
+	var mage := scenario == "mage"
+	var paladin := scenario == "paladin"
+	# Self-cast scenarios need no dummy: a paladin's Flash of Light, a warrior's Battle Shout.
+	var self_cast := paladin or scenario == "shout"
+	var signature := FROSTBOLT if mage else (FLASH_OF_LIGHT if paladin else BATTLE_SHOUT)
 	if not await wait_for(func(s): return s.catalog_ready and s.known.has(signature) and s.level == 10, 60000, "level-10 spells"):
 		return
 	local_id = client.account_state().local_player_id
+	print("FIXTURE SPELLS known=", spells().known, " bar=", spells().bar)
 	# Frame the scene once its doodads have streamed in.
-	if not await wait_until(func(): return client.account_state().world_objects.pending == 0, 300000, "world objects spawned"):
+	# A busy machine spawns objects slower (their per-frame time budget); SPELL_WORLD_TIMEOUT_S
+	# extends the wait.
+	var world_timeout := int(OS.get_environment("SPELL_WORLD_TIMEOUT_S")) if OS.get_environment("SPELL_WORLD_TIMEOUT_S") != "" else 300
+	if not await wait_until(func(): return client.account_state().world_objects.pending == 0, world_timeout * 1000, "world objects spawned"):
+		print("FIXTURE WORLD_OBJECTS ", client.account_state().world_objects)
 		return
 	await wait_frames(60)
 	await frame_camera()
@@ -116,6 +152,12 @@ func run_test() -> void:
 	if not await orbit_camera():
 		return
 	await capture("00-idle.png")
+	if self_cast:
+		if await cast_self_sounds(paladin):
+			print("FIXTURE SPELLCAST_ANIM_DONE")
+			client.free()
+			quit(0)
+		return
 	# Tab cycles nearest-first; take the dummy straight ahead (critters and other
 	# dummies may be nearer).
 	for attempt in range(8):
@@ -128,6 +170,7 @@ func run_test() -> void:
 			if absf(angle_to_target()) < 0.3:
 				break
 	if not await wait_until(func(): return str(client.target_state().target_name).contains("Training Dummy"), 3000, "Tab targets a training dummy"):
+		print("FIXTURE TAB_FAILED units=", client.account_state().unit_count, " target=", client.target_state())
 		return
 	target_id = client.target_state().target
 	print("FIXTURE TARGET ", client.target_state())
@@ -139,7 +182,7 @@ func run_test() -> void:
 		return
 	await capture("00-selected.png")
 	if mage:
-		if await cast_frostbolt():
+		if await cast_frostbolt() and await cast_mage_sounds():
 			print("FIXTURE SEEN actions=", seen_actions, " models=", seen_models.keys(), " missile=", seen_missile)
 			await wait_frames(90)
 			print("FIXTURE SPELLCAST_ANIM_DONE")
@@ -174,6 +217,10 @@ func run_test() -> void:
 		return
 	await wait_frames(30)
 	if not await cast_battle_shout():
+		return
+	if not await heard(SLAM, SLAM_SOUNDS, 3000) or not await heard(BATTLE_SHOUT, BATTLE_SHOUT_SOUNDS, 3000):
+		return
+	if not await heard_voice(BATTLE_SHOUT, BATTLE_SHOUT_VOICES, 3000):
 		return
 	print("FIXTURE SEEN actions=", seen_actions, " models=", seen_models.keys())
 	await wait_frames(90)
@@ -361,6 +408,8 @@ func cast_frostbolt() -> bool:
 	if slot < 0:
 		fail("Frostbolt is not on the main bar: " + str(spells().bar))
 		return false
+	longest_frame = 0.0
+	print("FIXTURE FROSTBOLT_PRESS clock=%.3f wall_ms=%d" % [client.spell_visuals_state().clock, int(Time.get_unix_time_from_system() * 1000.0)])
 	await press(BAR_KEYS[slot])
 	if not await wait_until(func(): return saw(local_id, READY_SPELL_DIRECTED) and seen_models.has([local_id, FROSTBOLT_HANDS]), 3000, "Frostbolt precast loop and hand models"):
 		return false
@@ -369,8 +418,6 @@ func cast_frostbolt() -> bool:
 	if not await wait_until(func(): return saw(local_id, SPELL_CAST_DIRECTED) and seen_missile, 5000, "Frostbolt release and missile"):
 		return false
 	# Frostbolt starts no auto-attack (no SPELL_ATTR1/ATTR2 auto-attack attribute).
-	if not no_melee_yet("before the Frostbolt impact"):
-		return false
 	await capture("11-frostbolt-missile.png")
 	if not await wait_until(func(): return seen_models.has([target_id, FROSTBOLT_IMPACT]) and saw(target_id, COMBAT_WOUND), 5000, "Frostbolt impact on the dummy"):
 		return false
@@ -378,25 +425,179 @@ func cast_frostbolt() -> bool:
 	await capture("12-frostbolt-impact.png")
 	var visuals: Dictionary = client.spell_visuals_state()
 	print("FIXTURE FROSTBOLT ", visuals)
-	return check_frostbolt_flight(visuals.flights)
+	print_cast_timeline(visuals)
+	if not no_reaction_before_impact(visuals.flights):
+		return false
+	return check_frostbolt_flight(visuals.flights) and check_frostbolt_sounds(visuals)
+
+## The mage never swings nor auto-attacks, and the dummy's first wound or crit reaction comes with the
+## Frostbolt landing, not before (timed on the effects clock, so a slow frame rate does
+## not reorder them).
+func no_reaction_before_impact(flights: Array) -> bool:
+	for swing in MELEE_SWINGS:
+		if saw(local_id, swing):
+			fail("Melee swing %d by the mage: %s" % [swing, seen_actions])
+			return false
+	var flight: Dictionary = flights.filter(func(f): return f.spell == FROSTBOLT and f.caster == local_id)[-1]
+	var landed: float = flight.released_at + flight.flight_time
+	for reaction in [COMBAT_WOUND, COMBAT_CRITICAL]:
+		if saw(target_id, reaction) and seen_actions[target_id][reaction] < landed - 0.001:
+			fail("Dummy reaction %d at %.3f, before the Frostbolt landed at %.3f" % [reaction, seen_actions[target_id][reaction], landed])
+			return false
+	if client.target_state().auto_attack != null:
+		fail("Frostbolt started auto-attack: %s" % client.target_state())
+		return false
+	print("FIXTURE NO_MELEE before the Frostbolt impact actions=", seen_actions, " landed=%.3f" % landed)
+	return true
+
+## Without a target: Flash of Light heals the paladin (precast loop, cast, impact), Battle
+## Shout buffs the warrior (its cast kit's SoundKit and the warrior's own shout voice).
+func cast_self_sounds(paladin: bool) -> bool:
+	if paladin:
+		return await cast_and_hear(FLASH_OF_LIGHT, FLASH_OF_LIGHT_SOUNDS, 8000) and await loops_stopped(FLASH_OF_LIGHT, 3000)
+	return await cast_and_hear(BATTLE_SHOUT, BATTLE_SHOUT_SOUNDS, 5000) and await heard_voice(BATTLE_SHOUT, BATTLE_SHOUT_VOICES, 3000)
+
+## After Frostbolt: Fireball (precast, cast, looping missile sound that stops on landing,
+## impact) and Frost Nova (cast, aura sounds on the rooted dummy, aura-end sound).
+func cast_mage_sounds() -> bool:
+	if not await wait_for(func(s): return s.gcd_ms == 0 and s.casting == 0, 8000, "GCD over after Frostbolt"):
+		return false
+	await wait_frames(30)
+	if not await cast_and_hear(FIREBALL, FIREBALL_SOUNDS, 8000):
+		return false
+	if not await loops_stopped(FIREBALL, 3000):
+		return false
+	if not await wait_for(func(s): return s.gcd_ms == 0 and s.casting == 0, 8000, "GCD over after Fireball"):
+		return false
+	await wait_frames(30)
+	if not await cast_and_hear(FROST_NOVA, FROST_NOVA_SOUNDS, 5000):
+		return false
+	# The root breaks after its duration (or damage): the aura's loop stops and its end
+	# kit sounds.
+	if not await heard(FROST_NOVA, FROST_NOVA_END_SOUNDS, 15000):
+		return false
+	return await loops_stopped(FROST_NOVA, 3000)
+
+## Press `spell`'s bar key, then require its kits' SoundKits.
+func cast_and_hear(spell: int, sound_kits: Array, timeout_ms: int) -> bool:
+	var slot: int = spells().bar.find(spell)
+	if slot < 0:
+		fail("Spell %d is not on the main bar: %s" % [spell, spells().bar])
+		return false
+	await press(BAR_KEYS[slot])
+	return await heard(spell, sound_kits, timeout_ms)
+
+## Every one of `sound_kits` played for `spell` (kit or missile sounds), each logged with
+## its file, unit, source and times.
+func heard(spell: int, sound_kits: Array, timeout_ms: int) -> bool:
+	var played := func() -> Array:
+		return client.spell_visuals_state().sounds.filter(func(s): return s.spell == spell)
+	if not await wait_until(func(): return sound_kits.all(func(kit): return played.call().any(func(s): return s.sound_kit == kit)), timeout_ms, "spell %d SoundKits %s" % [spell, sound_kits]):
+		print("FIXTURE SOUNDS_AT_FAILURE ", played.call())
+		return false
+	for sound in played.call():
+		print_sound(sound)
+	return true
+
+## `spell`'s kits played the caster's own voice, one of `sound_kits`.
+func heard_voice(spell: int, sound_kits: Array, timeout_ms: int) -> bool:
+	var voiced := func() -> Array:
+		return client.spell_visuals_state().sounds.filter(func(s): return s.spell == spell and s.source == "voice" and s.unit == local_id and sound_kits.has(s.sound_kit))
+	if not await wait_until(func(): return not voiced.call().is_empty(), timeout_ms, "spell %d caster voice %s" % [spell, sound_kits]):
+		return false
+	for sound in voiced.call():
+		print_sound(sound)
+	return true
+
+## `spell`'s looping sounds (precast, missile, aura) all stopped with their kit.
+func loops_stopped(spell: int, timeout_ms: int) -> bool:
+	var running := func() -> Array:
+		return client.spell_visuals_state().sounds.filter(func(s): return s.spell == spell and s.looping and s.stopped_at < 0.0)
+	if not await wait_until(func(): return running.call().is_empty(), timeout_ms, "spell %d looping sounds to stop" % spell):
+		print("FIXTURE LOOPS_RUNNING ", running.call())
+		return false
+	return true
+
+func print_sound(sound: Dictionary) -> void:
+	print("FIXTURE SPELL_SOUND spell=%d kit=%d sound_kit=%d fdid=%d unit=%d source=%s looping=%s at=%.3f stopped_at=%.3f" % [sound.spell, sound.kit, sound.sound_kit, sound.fdid, sound.unit, sound.source, sound.looping, sound.at, sound.stopped_at])
+
+## When the client saw the Frostbolt cast start (first replicated CastState, with the
+## server's elapsed time) and resolve (SpellGo), on the effects clock and wall clock.
+func print_cast_timeline(visuals: Dictionary) -> void:
+	for seen in visuals.casts:
+		if seen.spell == FROSTBOLT:
+			print("FIXTURE FROSTBOLT_CAST %s at=%.3f wall_ms=%d elapsed=%.3f duration=%.3f" % ["SpellGo" if seen.go else "CastState", seen.at, seen.wall_ms, seen.elapsed, seen.duration])
+
+## Frostbolt's SoundKits (SpellVisualKitEffect type 5): the precast kit 81575 starts
+## 85501 (precast_start) and loops 85500 (precast_loop) when the cast replicates, the cast kit
+## 81337 plays 85502 (cast) at SpellGo and the impact kit 80718 plays 85503 (impact)
+## as the missile lands; the loop stops at SpellGo (PrecastEnd).
+func check_frostbolt_sounds(visuals: Dictionary) -> bool:
+	var frame_s := 2.0 * longest_frame
+	var flight: Dictionary = visuals.flights.filter(func(f): return f.spell == FROSTBOLT and f.caster == local_id)[-1]
+	var go: float = flight.released_at - flight.release_delay
+	var landed: float = flight.released_at + flight.flight_time
+	var expected := {
+		85501: [1631391, 1631394, local_id, false],
+		85500: [1631387, 1631390, local_id, true],
+		85502: [1631379, 1631382, local_id, false],
+		85503: [1631383, 1631386, target_id, false],
+	}
+	var at := {}
+	for sound in visuals.sounds:
+		if sound.spell != FROSTBOLT:
+			continue
+		print("FIXTURE FROSTBOLT_SOUND kit=%d sound_kit=%d fdid=%d unit=%d looping=%s at=%.3f (SpellGo %+.3f) stopped_at=%.3f" % [sound.kit, sound.sound_kit, sound.fdid, sound.unit, sound.looping, sound.at, sound.at - go, sound.stopped_at])
+		var want: Array = expected.get(sound.sound_kit, [])
+		if want.is_empty() or sound.fdid < want[0] or sound.fdid > want[1] or sound.unit != want[2] or sound.looping != want[3]:
+			fail("Unexpected Frostbolt sound: " + str(sound))
+			return false
+		at[sound.sound_kit] = sound.at
+		if sound.looping:
+			at["loop_stop"] = sound.stopped_at
+	if at.size() != expected.size() + 1:
+		fail("Frostbolt sound kits played: %s, expected %s" % [at.keys(), expected.keys()])
+		return false
+	var cast_seen: Array = visuals.casts.filter(func(c): return c.spell == FROSTBOLT and c.unit == local_id and not c.go)
+	if cast_seen.is_empty():
+		fail("The client never saw Frostbolt's CastState: " + str(visuals.casts))
+		return false
+	var precast: float = cast_seen[-1].at
+	if absf(at[85500] - precast) > 0.001 or absf(at[85501] - precast) > 0.001:
+		fail("Precast sounds %.3f/%.3f did not start with the replicated cast at %.3f" % [at[85500], at[85501], precast])
+		return false
+	if at.loop_stop < 0.0 or absf(at.loop_stop - go) > frame_s:
+		fail("Precast loop stopped at %.3f, not with the cast at SpellGo %.3f" % [at.loop_stop, go])
+		return false
+	if absf(at[85502] - go) > frame_s:
+		fail("Cast sound %.3f is not at SpellGo %.3f" % [at[85502], go])
+		return false
+	if absf(at[85503] - landed) > frame_s:
+		fail("Impact sound %.3f is not at the landing %.3f" % [at[85503], landed])
+		return false
+	var loops := client.find_children("SpellSound*", "", true, false).filter(func(node): return int(str(node.name).trim_prefix("SpellSound")) in range(1631387, 1631391))
+	if not loops.is_empty():
+		fail("Precast loop still playing after the cast: " + str(loops))
+		return false
+	return true
 
 ## The missile leaves at SpellCastDirected's `$CSL` release event (200 ms into the clip
-## the SpellGo starts) and flies distance / 35 yd/s (`SpellMisc.Speed`). Tolerance:
-## one frame of the slowest recording rate (15 fps).
+## the SpellGo starts) and flies distance / 35 yd/s (`SpellMisc.Speed`), each within
+## two of the longest frames since the press.
 func check_frostbolt_flight(flights: Array) -> bool:
 	const RELEASE_EVENT_S := 0.2
-	const FRAME_S := 1.0 / 15.0
+	var frame_s := 2.0 * longest_frame
 	var mine := flights.filter(func(f): return f.spell == FROSTBOLT and f.caster == local_id and f.flight_time >= 0.0)
 	if mine.is_empty():
 		fail("No finished Frostbolt flight: " + str(flights))
 		return false
 	var flight: Dictionary = mine[-1]
 	var expected: float = flight.distance / flight.speed
-	print("FIXTURE FROSTBOLT_FLIGHT release_delay=%.3f distance=%.2f speed=%.1f flight=%.3f expected=%.3f" % [flight.release_delay, flight.distance, flight.speed, flight.flight_time, expected])
-	if flight.release_delay < RELEASE_EVENT_S - 0.001 or flight.release_delay > RELEASE_EVENT_S + FRAME_S:
+	print("FIXTURE FROSTBOLT_FLIGHT release_delay=%.3f distance=%.2f speed=%.1f flight=%.3f expected=%.3f longest_frame=%.3f" % [flight.release_delay, flight.distance, flight.speed, flight.flight_time, expected, longest_frame])
+	if flight.release_delay < RELEASE_EVENT_S - 0.001 or flight.release_delay > RELEASE_EVENT_S + frame_s:
 		fail("Frostbolt left %.3f s after SpellGo, not at the 200 ms release event" % flight.release_delay)
 		return false
-	if flight.flight_time < expected - 0.001 or flight.flight_time > expected + FRAME_S:
+	if flight.flight_time < expected - 0.001 or flight.flight_time > expected + frame_s:
 		fail("Frostbolt flew %.3f s over %.2f yd, not distance / speed" % [flight.flight_time, flight.distance])
 		return false
 	return true
@@ -504,10 +705,12 @@ func capture(file: String) -> void:
 	# Movie frame of the still, for cutting a recording (`--write-movie`, fixed fps).
 	print("FIXTURE MARK %s frame=%d" % [file, Engine.get_frames_drawn()])
 	await RenderingServer.frame_post_draw
+	var started := Time.get_ticks_msec()
 	var image := root.get_texture().get_image()
 	var error := image.save_png(shots + file)
 	if error != OK:
 		fail("Could not save " + file + ": " + str(error))
+	print("FIXTURE CAPTURED %s in %d ms" % [file, Time.get_ticks_msec() - started])
 
 func wait_frames(count: int) -> void:
 	for frame in range(count):

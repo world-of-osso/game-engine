@@ -20,6 +20,8 @@ The Godot client plays each spell's Retail visual kits on replicated units. That
 | AnimKitSegment | 1304324 | A6C970CA |
 | AnimKitConfig / AnimKitConfigBoneSet / AnimKitBoneSet / AnimKitPriority | — | — |
 | AnimationData | 1375431 | BBF66A3C |
+| SoundKit | 1237434 | A7FB0451 |
+| SoundKitEntry | 1237435 | 8F82FF7D |
 
 Two export pitfalls:
 
@@ -49,7 +51,7 @@ Gotcha (2026-09-29): half the CASC index buckets were only in Syncthing `.idx.tm
 4. **Missiles.** The missile is the visual's first `SpellVisualMissile`, travelling at `SpellMisc.Speed` in yards per second (TrinityCore `Spell.cpp:2515` `hitDelay += std::max(dist / m_spellInfo->Speed, m_spellInfo->MinDuration)`). For Frostbolt 116 that is model 1598570 at 35 yd/s, from attachment 56 to 34. `SPELL_ATTR9_MISSILE_SPEED_IS_DELAY_IN_SEC` (0x10) is unset for it. Frostbolt's `SpellVisualEvent` rows have no TravelStart kits and all start/end offsets are 0.
 5. **Fallbacks.** `read_animation_fallbacks` loads `AnimationData.Fallback`. `WorldUnits` owns the table and resolves every combat, spell and stance clip a model lacks through it (e.g. 818 → 57 Special1H).
 
-The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933.bin` (`db2_cache`).
+The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933-v{CACHE_FORMAT}.bin` (`db2_cache`). The format is in the name because checkouts share `data/`: with one file name, a branch at another format rebuilt over it on every run. `SpellEffects` loads the catalog on a worker thread when the client starts. The first cast waits only if the worker has not finished. A rebuild parses 1.3M `SoundKitEntry` rows. When that ran on the main thread at the first cast, it froze the client through the cast (see Proof, cast timing).
 
 ## Runtime (`godot/rust/src/spell_effects.rs`)
 
@@ -63,6 +65,37 @@ The catalog is cached as bincode at `data/cache/spell_visuals-12.1.0.69933.bin` 
   - `SpellEffects::flights` records each missile's `SpellGo`-to-release delay, launch distance, speed and flight time for automation.
 - **Server timing.** game-server resolves Frostbolt's damage in the same tick as `SpellGo`: `execute_cast` calls `resolve_effects` right after `broadcast_spell_go`, and TRIGGER_MISSILE runs the damage spell 228597 immediately. `SpellMisc.Speed`/`LaunchDelay` are loaded but unused. The damage number therefore shows before the missile is thrown. TrinityCore delays each unit hit by `max(dist, 5) / Speed` (`Spell.cpp:2514-2515`, and `CalculateDelayMomentForDst` `:880-896` for destinations, plus `LaunchDelay`). That clock also starts at the cast and ignores the client's animation event, so even there the damage lands about 200 ms before the visual missile does. Reported, not changed.
   - The server broadcasts it from `execute_cast` to every connection in the caster's `NetworkVisibility`, or to every authenticated client for units without interest, so observers see other players' casts.
+- **Kit sounds (`godot/rust/src/spell_sounds.rs`).** A `SpellVisualKitEffect` of type 5 is a `SoundKitID` (WoWDBDefs `SpellVisualKitEffect.dbd`).
+  - When its kit starts on a unit, the kit plays one of the SoundKit's `SoundKitEntry` files, weighted by `Frequency` (0 never plays), at `SoundKit.VolumeFloat` × entry `Volume` × master × effects.
+  - The sound plays on an `AudioStreamPlayer3D` named `SpellSound{fdid}` under the unit's node. `unit_size` = `MinDistance` (Godot's inverse attenuation is 1 there) and `max_distance` = `DistanceCutoff`. This approximates retail's full-volume radius and cutoff; the retail curve is not documented.
+  - A SoundKit with Flags 0x200 (looping, WoWDBDefs `SoundKit.dbd`) in a held kit loops until the kit's end event.
+  - Files come from local CASC, cached at `data/sounds/spells/{fdid}.ogg`.
+  - No spell kit's `SoundKitEntry` has a `PlayerConditionID` in 12.1.0.69933 (429,342 entries across 88,635 referenced kits).
+  - **Missile travel sound.** `SpellVisualMissile.SoundEntriesID` is a SoundKit the missile plays under its own node while it flies (Fireball 349558, looping). The sound is freed with the node on landing. Frostbolt's is 0.
+  - **Aura kits.** `SpellEffects::sync_auras` (`spell_auras.rs`) starts a spell's AuraStart kits when a replicated `UnitAuras` instance appears. The aura's unit is the hit unit, and its caster (the unit when unknown) is the caster. Held kits (end AuraEnd) last until that instance leaves, which stops their loops, models and clips; the spell's AuraEnd-start kits then play. Example, Frost Nova 122: kit 266131 loops 350097 and plays 350098 while rooted, and AuraEnd kit 85719 plays 85938.
+  - **Unit voice** (`spell_visual_voice.rs`).
+    - A kit effect of type 10 (WoWDBDefs enum `UnitSoundType`) plays the kit's unit's own `CreatureSoundData` sound.
+    - The value → field mapping is undocumented. 34-40 are inferred from the 12.x field order: Windup, WindupCritical, Charge, ChargeCritical, BattleShout, BattleShoutCritical, Taunt. The evidence is Charge's kit 44000 using 36 and Battle Shout's 43995 using 38. Other values are not played.
+    - A unit's row is `CreatureDisplayInfo.SoundID`, else its model's `CreatureModelData.SoundID`. A player's display comes from `ChrRaceXChrModel` → `ChrModel.DisplayID`. For example, Human male → display 57899 → model 7661 → CreatureSoundData 49 → BattleShout 58088 (7 files); female → 50 → 58100.
+    - The cast clip's `$SCD` M2 event (the action layer reports it) plays `SpellCastDirectedSoundID`. Only 3 rows set it in 12.1.0.69933, and Human 49/50 are 0.
+  - **Synthetic outcomes.** The Godot client plays no synthetic CastStart sweep (removed) and no synthetic Impact/Heal outcome; impact kits carry those sounds. Miss and Interrupt outcomes stay synthetic ([[sound]]).
+  - **SoundKits by spell (12.1.0.69933):**
+
+    | Spell | Kit sounds |
+    |---|---|
+    | Slam 1H | cast 128672 → 57845, impact 62452 → 60935 |
+    | Battle Shout | cast 43995 → 114049 plus the caster's BattleShout voice |
+    | Fireball | precast 349555, cast 349556, missile 349558 (looping), impact 349557 |
+    | Frost Nova | cast 350096; aura 350097 (looping) and 350098; aura end 85938 |
+    | Flash of Light | precast 349350 (looping), cast 349352 and 349351, impact 349357 and 349355 |
+  - Frostbolt (visual 64829) resolves to these SoundKits:
+
+    | Kit | Event | SoundKit | Files |
+    |---|---|---|---|
+    | 81575 | PrecastStart | 85501 (vol 0.30) | 1631391-1631394 `spell_ma_revamp_frostbolt_precast_start_01-04` |
+    | 81575 | PrecastStart, looped until PrecastEnd | 85500 (vol 0.35, 0x200) | 1631387-1631390 `precast_loop_01-04` |
+    | 81337 | Cast (`SpellGo`) | 85502 (vol 0.35) | 1631379-1631382 `frostbolt_cast_01-04` |
+    | 80718 | Impact (missile arrival) | 85503 (vol 0.8, MinDistance 25, cutoff 55) | 1631383-1631386 `frostbolt_impact_01-04` |
 - **Kit model placement.** A model hangs from the unit model's `Skeleton3D/AttachmentBone{id}/Attachment{id}`; `-1` means the unit's origin. It plays its start clip once (the kit's, else Stand), Hold (158) while a held kit lasts, then Decay (159) at the end, and is freed after its particles' longest life. These defaults are inferred from how spell models author their emission. Battle Shout's buff 6194303 enables emitters at 133 ms of Stand, holds steady in Hold, and ramps down in Decay.
 - **Virtual attachment 56.** VirtualSpellDirected is absent from character models. It is taken as the midpoint of SpellLeftHand 21 and SpellRightHand 22 (inferred). Any other missing attachment is reported and uses the origin.
 - **Keyframed emission.** Spell effect emitters author their bursts as keyframed `emissionRate`/`emissionSpeed`/`enabledIn` tracks; the static first key is usually 0. `EmitterSim::set_animation` evaluates them at the placed model's playing sequence time, and pools are sized for the track's peak rate. Doodads get the same behavior.
@@ -114,8 +147,40 @@ Videos (1x and half speed), stills and 2 fps contact sheets are in `data/diagnos
 - The damage number showing 13 frames before the impact is the server's same-tick damage (see Server timing).
 - Evidence is in `data/diagnostics/spellcast-anim-2026-09-29c/`: `mage-frostbolt-1x.mp4` (release at about 61.5 s), `mage-frostbolt-halfspeed.mp4` (about 123 s), `mage-fixture.log` and `stills-mage/`.
 - Root `cargo test -p game-engine --lib m2_` passes 92/92, including `m2_event::tests::human_male_hd_cast_clips_fire_their_release_events` (`tests/unit/asset/m2_event_tests.rs`: 53 fires `$CSL` bone 209 and `$SCD` bone 215 at 200 ms, 54 fires `$CST` at 200 ms, 51 fires nothing). Log: `root-m2-tests.log`.
-- The Godot-workspace tests (`godot/core/tests/m2_events.rs`, the `action_tests.rs` release tests, `spell_effects_tests.rs`) are written but not run, because Cargo may not run in `godot/`.
+- The Godot-workspace tests later ran on Depot (see Frostbolt kit sounds).
 - After merging master (`81a7ce02`), a real-time run (no movie, Depot build) passed with `release_delay=0.219 distance=7.71 flight=0.221 expected=0.220` (`final-merge/`).
+
+**Frostbolt kit sounds (2026-09-29).** The mage fixture now requires Frostbolt's four SoundKits, with the right FDID range, unit and looping flag, at their events:
+- the precast pair with the cast bar;
+- 85502 at `SpellGo`;
+- 85503 at the missile's landing;
+- no precast-loop player left once the cast resolves.
+
+Each time is checked within two of the longest frames since the press.
+
+- **Real-time run** (`sounds/mage-fixture.log`, exit 0):
+  - press at 197.533;
+  - 85500/85501 (1631390 looping, 1631392) at 197.669;
+  - 85502 (1631381) at `SpellGo` +0.000;
+  - 85503 (1631386) on the dummy at +0.540, which is release 0.291 + flight 0.250.
+- **`--fixed-fps 30` run** (`sounds-fixed30/mage-fixture.log`): cast sound exactly at `SpellGo` (108.224), impact exactly at release + flight (108.690).
+  - That run failed the fixture's own "no dummy reaction before the impact" check. In movie mode the real-time server resolved the 1.75 s cast one movie frame after the precast, so the missile landed during the fixture's 20-frame precast wait.
+- Real-time runs failed that same check 3 times out of 6. In those runs the client clock showed 0.03-0.14 s from the precast kit to `SpellGo`, against a 1.75 s cast. **Cause: a main-thread catalog build at the first cast** (2026-09-29, `data/diagnostics/spellcast-anim-2026-09-29c/`).
+  - **Server timing is right.** The client logs the wall time at which it first sees `CastState` and `SpellGo`. When the catalog cache was fresh, `CastState` → `SpellGo` took 1.771 s wall (`elapsed` 0.000 at first sight).
+  - **When the catalog cache was stale,** the same gap was 25.3, 26.3 and 29.8 s wall, but only 0.07-0.10 s on the client clock.
+  - **eu-stack of the main thread** during that gap, sampled every ~4 s for 30 s, is in `SpellEffects::catalog` → `SpellVisualCatalog::load` → `build` (`Table::read`/`parse_csv_line`, `read_speeds`, `read_sound_kits`). The first `CastState` asked for the catalog, and the cache missed, so the client rebuilt it from the CSVs inside one frame while the whole cast resolved.
+  - **The cache missed every run** because checkouts share `data/cache/spell_visuals-12.1.0.69933.bin`. This branch writes format 5 and master clients write format 4, so each rebuilt over the other: the file held format 4 (first byte `04`) right after a master client ran.
+  - **The client clock shows ~0.1 s for a ~26 s frame** because Godot 4.7.2 drops time from the process delta past `max_physics_steps_per_frame` physics ticks (`main/main.cpp:4955-4958`: `process_step -= (advance.physics_steps - max_physics_steps) * physics_step`; the default of 8 gives 133 ms). That is why `longest_frame` read 0.13-0.15 s.
+  - **Fix** (client):
+    - The catalog loads on a worker thread from client start.
+    - Its cache file is named per format (`spell_visuals-12.1.0.69933-v5.bin`), so branches no longer rebuild over each other.
+  - A real player would also hit a multi-second hitch at their first cast after any CSV update (a cold cache), since the build ran on the main thread.
+  - Sound playback costs 1-1.5 ms per start (instrumented run), so it is not the cause.
+  - The fixture checks now use the effects clock, not frame counts:
+    - Dummy reactions must come after the landing.
+    - The precast sounds must start with the replicated `CastState`.
+    - Every tolerance is two of the longest frames since the press.
+- **Tests (Depot `--test -p game-engine-godot --lib`, `depot-godot-lib-tests.log`):** `action_tests.rs` (8, with the two release tests), `spell_effects_tests.rs` (2) and `spell_sounds_tests.rs` (2) pass. The library run has 64 other failures, all reading `data/` files the Depot snapshot does not stage (e.g. `Emotes.csv`, `NameGen.csv`). `--test -p game-engine-core --test spell_visual --test m2_events` passes 5/5 + 1/1 (`depot-core-tests.log`), including `frostbolt_kits_play_the_frostbolt_precast_cast_and_impact_sound_kits`, once SoundKit/SoundKitEntry are staged in `godot/depot-test-assets.txt`.
 
 ## Polymorph (2026-09-29)
 
@@ -137,15 +202,26 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 - `polymorph-realtime-1x.mp4`, `polymorph-realtime-halfspeed.mp4`, `contact-sheet-realtime.png`, `stills-realtime-grab/`: the same fixture with `POLY_GRAB`, one JPEG per 100 ms of wall-clock time; timing is true, motion is choppy (about 8 fps).
 - `stills-realtime/`: an earlier run with the camera behind trees, which shows the full Polymorph cast bar.
 
+**Sounds for every spell (2026-09-29, `data/diagnostics/spellcast-anim-2026-09-29c/sounds-all/`).** The fixture logs each spell's SoundKit, file, unit, source and times. Both runs below exit 0 (game-server c542b6d, UDP 5083).
+
+- **Paladin Flash of Light on self** (`paladin/`, assets cached):
+  - The precast 349350 loop (1713681) runs from 40.862 to its stop at `SpellGo` 42.406, 1.544 s for the 1.5 s cast.
+  - Cast 349352 (1377114) and 349351 (2066679) play at 42.406.
+  - Impact 349357 (1965756) and 349355 (1936459) also play at 42.406 (no missile).
+- **Warrior Battle Shout** (`shout/`): kit 114049 (2118810) and the warrior's own voice 58088 (1343328, source `voice`), both at 41.504.
+- **First-use run** (`paladin-first-use/`): the precast lasted only 0.44 s on the client clock. The first cast extracted its models and sounds from local CASC on the main thread ("CASC resolver initialized", 7 asset-cache misses) and froze the client for that frame.
+- **Not proven live:** Fireball's missile sound, Frost Nova's aura and aura-end sounds, and the Slam and Frostbolt sound runs. From about 19:05 the private server's training dummies stopped reaching the client (`unit_count` 1-8 against "Granted immediate visibility for 81 nearby entities"). That happened with the previously passing client build and with a fresh server DB too. The level-10 mage also knows no Fireball. Catalog tests (`spell_visual.rs`) cover those resolutions.
+
 ## Gaps
 
 - The action layer is full-body when standing and upper-body when moving (SpineLow subtree). `AnimKitSegment` conditions, per-segment bone sets and priorities, and `AnimKit` blend times are not applied.
-- Other effect types are not played: sound kits, camera shakes, procedural effects, shadowy/outline/dissolve effects.
+- Other effect types are not played: camera shakes, procedural effects, shadowy/outline/dissolve effects.
 - Aura (7/8) kits, area and destination kits, and positioner offsets for attachment -1 are not played.
 - `ChrSpecializationIndex` is always treated as no spec, and remote players' spec is unknown.
 - Missiles fly straight: `SpellMissileMotion` is not applied. `SpellVisualMissile` `CastOffset`/`ImpactOffset`/`Flags` and `SpellVisual.Flags` are not applied (Frostbolt's offsets are 0).
 - The missile starts at the missile attachment, not at the release event's bone and position. wowdev notes `$CSL/R/T are also used in CGUnit_C::ComputeDefaultMissileFirePos`, which is undocumented.
-- Other events (`$SCD` cast sound, `$SHK` camera shake, `$FSD` footfall) are parsed but not played.
+- Other events (`$SHK` camera shake, `$FSD` footfall, `$AH*`/`$BRT`/`$FD*` voice events) are parsed but not played. Type-10 unit sound values outside 34-40 are not played (mapping unknown).
+- The first use of a spell extracts its models and sounds from CASC on the main thread, a one-time hitch per asset.
 - Timed casts show no precast kits for observers until `CastState` replicates. Creature casts get kits only through `SpellGo`/`CastState`, like players.
 
 ## Sources

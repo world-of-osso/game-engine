@@ -4,7 +4,8 @@
 //! `SpellVisualEvent` starts a `SpellVisualKit` on the caster or target at a cast event;
 //! the kit's `SpellVisualKitEffect` rows are model attachments
 //! (`SpellVisualKitModelAttach` → `SpellVisualEffectName` model) and a unit animation
-//! (`SpellVisualAnim`, directly or through `AnimKit` → `AnimKitSegment`). Missiles come
+//! (`SpellVisualAnim`, directly or through `AnimKit` → `AnimKitSegment`) and sounds
+//! (`SoundKit` → `SoundKitEntry` files). Missiles come
 //! from the visual's `SpellVisualMissile` set. `AnimationData.Fallback`
 //! ([`read_animation_fallbacks`]) substitutes a clip a model lacks.
 
@@ -16,11 +17,15 @@ use serde::{Deserialize, Serialize};
 use crate::csv_util::{parse_csv_line, parse_csv_records};
 use crate::db2_cache::{CacheKey, load_or_build};
 
+#[path = "spell_visual_voice.rs"]
+mod voice;
+pub use voice::{UnitSound, VoiceSource};
+
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 4;
+const CACHE_FORMAT: u32 = 6;
 
-const SOURCE_TABLES: [&str; 11] = [
+const SOURCE_TABLES: [&str; 18] = [
     "SpellXSpellVisual",
     "SpellVisual",
     "SpellVisualEvent",
@@ -32,11 +37,25 @@ const SOURCE_TABLES: [&str; 11] = [
     "AnimKitSegment",
     "PlayerCondition",
     "SpellMisc",
+    "SoundKit",
+    "SoundKitEntry",
+    "CreatureSoundData",
+    "CreatureDisplayInfo",
+    "CreatureModelData",
+    "ChrModel",
+    "ChrRaceXChrModel",
 ];
 
-/// `SpellVisualKitEffect.EffectType` of a model attachment and a unit animation.
+/// `SpellVisualKitEffect.EffectType` of a model attachment, a sound kit and a unit
+/// animation (WoWDBDefs `SpellVisualKitEffect.dbd`: "5: SoundKitID").
 const EFFECT_MODEL_ATTACH: u32 = 2;
+const EFFECT_SOUND_KIT: u32 = 5;
 const EFFECT_ANIM: u32 = 6;
+/// A unit sound: the kit's unit plays its own `CreatureSoundData` sound of this type
+/// (WoWDBDefs `SpellVisualKitEffectType.dbde`: "10 UnitSoundType").
+const EFFECT_UNIT_SOUND: u32 = 10;
+/// `SoundKit.Flags` 0x200: the sound loops (WoWDBDefs `SoundKit.dbd`).
+const SOUND_KIT_LOOPING: i64 = 0x200;
 
 /// `PlayerCondition.Flags` (TrinityCore `PlayerConditionFlags`).
 const CONDITION_INVERT: i64 = 0x0008;
@@ -210,6 +229,31 @@ pub struct KitModel {
     pub end_anim_id: Option<u16>,
 }
 
+/// One `SoundKitEntry` file of a sound kit.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SoundFile {
+    pub fdid: u32,
+    /// Relative chance of being the one played.
+    pub frequency: u32,
+    pub volume: f32,
+}
+
+/// A `SoundKit` a kit plays on its unit: one of its files, picked by frequency.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct KitSound {
+    pub sound_kit_id: u32,
+    /// `SoundKit.VolumeFloat`.
+    pub volume: f32,
+    /// Loops while its kit lasts (Flags 0x200).
+    pub looping: bool,
+    /// Full volume up to `min_distance` yards; silent past `distance_cutoff`.
+    pub min_distance: f32,
+    pub distance_cutoff: f32,
+    /// Its `SoundKitEntry` files in ID order (no spell kit's entry has a
+    /// `PlayerConditionID` in 12.1.0.69933).
+    pub files: Vec<SoundFile>,
+}
+
 /// The unit animation a kit requests.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KitAnimation {
@@ -221,6 +265,8 @@ pub struct KitAnimation {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 struct KitRow {
     models: Vec<KitModel>,
+    sound_kits: Vec<u32>,
+    unit_sounds: Vec<UnitSound>,
     /// (`SpellVisualAnim.InitialAnimID`, `LoopAnimID`, `AnimKitID`).
     anim: Option<(i32, i32, u32)>,
 }
@@ -241,6 +287,9 @@ pub struct VisualKit {
     pub end: VisualEvent,
     pub models: Vec<KitModel>,
     pub animation: Option<KitAnimation>,
+    pub sounds: Vec<KitSound>,
+    /// Sounds of the kit's unit's own voice (`CreatureSoundData`).
+    pub unit_sounds: Vec<UnitSound>,
 }
 
 /// A missile the visual launches from the caster at the cast event.
@@ -251,6 +300,8 @@ pub struct VisualMissile {
     /// Caster attachment it leaves from and target attachment it flies to (`None`: origin).
     pub cast_attachment: Option<u8>,
     pub impact_attachment: Option<u8>,
+    /// `SoundEntriesID`: the sound kit the missile plays while it flies.
+    pub sound: Option<KitSound>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -258,6 +309,7 @@ struct MissileRow {
     effect_name: u32,
     attachment: i32,
     destination: i32,
+    sound_kit: u32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -277,6 +329,9 @@ pub struct SpellVisualCatalog {
     conditions: HashMap<u32, PlayerCondition>,
     /// `SpellMisc.Speed` (yd/s) of spells with a travel speed.
     speeds: HashMap<u32, f32>,
+    /// The sound kits spell visual kits, missiles and unit voices play.
+    sound_kits: HashMap<u32, KitSound>,
+    voices: voice::Voices,
 }
 
 /// Rows of one exported CSV with named column access.
@@ -402,6 +457,12 @@ fn anim_id(value: i64) -> Option<u16> {
 }
 
 impl SpellVisualCatalog {
+    /// The cache file name, per layout: checkouts sharing one data directory can run
+    /// different layouts without rebuilding over each other's cache.
+    pub fn cache_file_name() -> String {
+        format!("spell_visuals-{DB2_BUILD}-v{CACHE_FORMAT}.bin")
+    }
+
     /// The catalog of `db2_dir`'s CSVs, cached (bincode) at `cache_path`.
     pub fn load(db2_dir: &Path, cache_path: &Path) -> Result<Self, String> {
         let sources = SOURCE_TABLES
@@ -420,6 +481,8 @@ impl SpellVisualCatalog {
         catalog.read_missiles(dir)?;
         catalog.read_conditions(dir)?;
         catalog.read_speeds(dir)?;
+        catalog.read_voices(dir)?;
+        catalog.read_sound_kits(dir)?;
         Ok(catalog)
     }
 
@@ -560,6 +623,8 @@ impl SpellVisualCatalog {
             let kit = self.kits.entry(kit as u32).or_default();
             match kind as u32 {
                 EFFECT_MODEL_ATTACH => kit.models.extend(models.get(&(effect as u32)).cloned()),
+                EFFECT_SOUND_KIT => kit.sound_kits.push(effect as u32),
+                EFFECT_UNIT_SOUND => kit.unit_sounds.extend(UnitSound::from_db2(effect as u32)),
                 EFFECT_ANIM if kit.anim.is_none() => {
                     kit.anim = anims.get(&(effect as u32)).copied()
                 }
@@ -600,9 +665,10 @@ impl SpellVisualCatalog {
             "SpellVisualEffectNameID",
             "Attachment",
             "DestinationAttachment",
+            "SoundEntriesID",
         ])?;
         rows.sort_by_key(|&[set, id, ..]| (set, id));
-        for [set, _, effect_name, attachment, destination] in rows {
+        for [set, _, effect_name, attachment, destination, sound_kit] in rows {
             self.missiles
                 .entry(set as u32)
                 .or_default()
@@ -610,6 +676,7 @@ impl SpellVisualCatalog {
                     effect_name: effect_name as u32,
                     attachment: attachment as i32,
                     destination: destination as i32,
+                    sound_kit: sound_kit as u32,
                 });
         }
         Ok(())
@@ -622,6 +689,54 @@ impl SpellVisualCatalog {
         for ([spell, difficulty], [speed]) in ids.into_iter().zip(speeds) {
             if difficulty == 0 && speed > 0.0 && self.spells.contains_key(&(spell as u32)) {
                 self.speeds.insert(spell as u32, speed);
+            }
+        }
+        Ok(())
+    }
+
+    /// The `SoundKit`s kits, missiles and unit voices reference, with their
+    /// `SoundKitEntry` files.
+    fn read_sound_kits(&mut self, dir: &Path) -> Result<(), String> {
+        let referenced: std::collections::HashSet<u32> = self
+            .kits
+            .values()
+            .flat_map(|kit| kit.sound_kits.iter().copied())
+            .chain(self.missiles.values().flatten().map(|row| row.sound_kit))
+            .chain(self.voices.sound_kits())
+            .filter(|&id| id != 0)
+            .collect();
+        let kits = Table::read(dir, "SoundKit")?;
+        let kit_ints = kits.ints(["ID", "Flags"])?;
+        let kit_floats = kits.floats(["VolumeFloat", "MinDistance", "DistanceCutoff"])?;
+        for ([id, flags], [volume, min_distance, distance_cutoff]) in
+            kit_ints.into_iter().zip(kit_floats)
+        {
+            if referenced.contains(&(id as u32)) {
+                self.sound_kits.insert(
+                    id as u32,
+                    KitSound {
+                        sound_kit_id: id as u32,
+                        volume,
+                        looping: flags & SOUND_KIT_LOOPING != 0,
+                        min_distance,
+                        distance_cutoff,
+                        files: Vec::new(),
+                    },
+                );
+            }
+        }
+        let entries = Table::read(dir, "SoundKitEntry")?;
+        let entry_ints = entries.ints(["ID", "SoundKitID", "FileDataID", "Frequency"])?;
+        let entry_floats = entries.floats(["Volume"])?;
+        let mut rows: Vec<_> = entry_ints.into_iter().zip(entry_floats).collect();
+        rows.sort_by_key(|([id, ..], _)| *id);
+        for ([_, kit, fdid, frequency], [volume]) in rows {
+            if let Some(sound) = self.sound_kits.get_mut(&(kit as u32)) {
+                sound.files.push(SoundFile {
+                    fdid: fdid as u32,
+                    frequency: frequency as u32,
+                    volume,
+                });
             }
         }
         Ok(())
@@ -753,6 +868,13 @@ impl SpellVisualCatalog {
                     animation: kit
                         .and_then(|kit| kit.anim)
                         .and_then(|anim| self.kit_animation(anim, row.end)),
+                    sounds: kit
+                        .into_iter()
+                        .flat_map(|kit| &kit.sound_kits)
+                        .filter_map(|id| self.sound_kits.get(id))
+                        .cloned()
+                        .collect(),
+                    unit_sounds: kit.map(|kit| kit.unit_sounds.clone()).unwrap_or_default(),
                 }
             })
             .collect()
@@ -797,6 +919,7 @@ impl SpellVisualCatalog {
             scale: name.scale,
             cast_attachment: attachment(i64::from(row.attachment)),
             impact_attachment: attachment(i64::from(row.destination)),
+            sound: self.sound_kits.get(&row.sound_kit).cloned(),
         })
     }
 

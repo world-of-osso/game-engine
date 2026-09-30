@@ -1,5 +1,59 @@
 # Wiki Log
 
+## [2026-09-29] evidence | Bounded native bloom lifecycle and shutdown observations
+
+Updated existing bloom spec, matrix, [[godot-conversion#native-bloom--bounded-in-progress-evidence]] and index for test `72cb71fe` plus comment-only `48e626c3`. Main's verbose lifecycle log exits 0: startup/replacement halo 0.21182088022276 versus disabled 0; observed owning-window/viewport/capture resize to 1440×720 gives halo 0.21571181157681 versus disabled 0. Whole independent SubViewport image unchanged within 1/255 with finite-channel checks; exact higher UI preserved. Main inspected `lifecycle-resized-enabled.png`. Fixture frees client/cameras/SubViewport; ROOT controller persists until normal SceneTree shutdown, not explicit disposal or real-world logout/transfer proof. Three isolated production-bloom 12-frame shutdown controls exit 0 without ObjectDB warning; original warning unattributed, not fixed. Combined functional `e7db5844` verbose run exits 0 without ObjectDB warning/errors: saved/observed Render Scale 0.5, production RCAS startup routing plus bloom and fixture MSAA4X; startup/live halo 0.21015625604196 versus disabled 0, intensity 1 halo 1, exact UI/emission preserved. Combined capture inspection and verifier 1071 remain pending. Not persisted MSAA Options or combined HDR/numeric parity proof. Broad/rapid resize, real-world transfer, explicit controller disposal, general MSAA and remaining platform/full-scene parity stay open. Recipes remain wiki-only; no runtime/build reruns.
+
+## [2026-09-29] evidence | Bounded native bloom numeric and startup/live proof
+
+Updated conversion spec, capability matrix, [[godot-conversion#native-bloom--bounded-in-progress-evidence]] and index from saved logs/ledger only. Production `8c704b87` retains packed compute downsampling and restores legacy raster tent/hardware additive upsampling; unchanged Rust `90fc989b`/controller `72030edd` reuses Depot `s4lftbfxrw`. Independent raster oracle + CPU constant goldens: 20,268,551 comparisons, 0 failures/engine errors, exit 0, original tolerances. CPU `6082282d`: independently 8604 checks. Actual enabled startup/Off/On/intensity and `e60ec838` disabled startup → first On after existing camera pass persistence/emission/exact UI with halos 0/0.21182088/1. Initial enabled run has two unattributed ObjectDB instances warnings; paired verbose and lazy runs have none, not a proven fix. Broad camera logout/transfer, production resize/MSAA, bloom+RCAS, export/vendor paths and full-scene/HDR parity remain unproven. Supersedes prior pending CPU/native/numeric evidence; recipes remain wiki-only. No runtime/build reruns.
+
+## [2026-09-29] evidence | Native bloom in progress
+
+Updated [[godot-conversion#native-bloom--bounded-in-progress-evidence]] and index only. Saved `06da11eb` native RED exits 1 after controls/persistence and disabled bright-source validation: no startup halo. Initial black unshaded-emission fixture was a corrected precondition, not a runtime bug. Public `POST_TRANSPARENT` compute probe exits 0 for linear tint, scale/resize, exact UI edges and disposal; Vulkan packed storage/sampling support is true. Both are feasibility evidence, not bloom. Test-only CPU reference `7b0d911e`/`6082282d` excludes packed rounding; reported 8604 assertions lack verified saved proof, so no pass credited. Integrated controller `72030edd`/Rust `90fc989b` remain pending effect/build acceptance. Recorded legacy HDR retention, RCAS `With<Camera>` query and filter semantics; no direct Godot Glow equivalent or full parity claim.
+
+## [2026-09-29] verification | Bounded native RCAS rendered GREEN
+
+Recorded production `543ca754`, integrated `27727fa0`, and actual native fixture `94e7e02a` proof in [[godot-conversion#bounded-rcas-compatibility-investigation]]. Depot `9n5kpbsc6l` built in 62.1 seconds, exit 0; interrupted `zp1dlvr07r` supplies no compilation proof. Native Vulkan run exits 0 for startup 0.75/live 0.5 RCAS oracle, live 1.0 bypass, unchanged discriminating UI edge pixels, and finite opaque black patch. Main inspected the capture. Independent final evidence remains pending; full legacy scene parity and other outstanding Options remain open. Updated both conversion specs and index; recipes remain wiki-only.
+
+## [2026-09-29] fix | Native FontString shadows
+
+The Godot projection ignored FontString `shadow_color`/`shadow_offset`, so the tracker's dark-gold quest title and grey objective line had no shadow and were nearly invisible on grass. Labels now get `font_shadow_color` and `shadow_offset_x/y` (WoW y-up flipped). RED on the previous build: "QuestBlock28766HeaderText has no (1, 1) black shadow"; GREEN `world_minimap_quest.gd` exit 0 with background-relative glyph/shadow pixel counts (title 85/26 vs grass 40/0, line 50/43 vs 0/0). Applies to every native FontString with a shadow. See [[quest-ui]].
+
+## [2026-09-29] implementation | Godot minimap and objective tracker
+
+Branch `minimapquest`: native `MinimapCluster` (TOPRIGHT) and `ObjectiveTrackerFrame` (TOPRIGHT −110, −275). Pure tile/composite/blip/zone/clock logic in `godot/core/src/minimap_data.rs`; the tracker reuses the shared Bevy component through `from_watched`. Two projection fixes were needed: onclick on textures/font strings now clicks, and dynamic-texture pixel updates redraw. Live `godot/tests/world_minimap_quest.gd` exits 0 on a private server (tile `azeroth/map32_48`, rendered pixels = composite, arrow along W movement, quest blips, zoom; tracker "Beating Them Back!" 0/6 and collapse). Core `minimap_data` 8/8 on Depot `--test`. See [[minimap]], [[quest-ui]] and the [minimap spec](../specs/minimap.md).
+
+## [2026-09-29] implementation | Native chat frame
+
+The Godot client had no chat. It now hosts the shared `ChatFrame1` screen on a `ChatFrameUI` RegistryUi. The Bevy channel mapping, whisper recording, tab entries, scroll hold and view builder moved into shared files, so both clients format and route chat the same way. The edit box gained the retail `Say: ` header and ChatFontNormal. `godot/tests/world_chat_flow.gd` passes against a private server: geometry, MOTD, W typing without moving, server echoes of say/yell/emote, the offline-whisper error, local command lines, wheel scroll, history, and Escape without opening the game menu. See [[chat-frame]].
+
+## [2026-09-29] port | Spell visual kit sounds
+
+Frostbolt's cast sound was the synthetic 140 ms CastStart sweep (`sound_cast.rs`). No DB2 sound was played.
+
+**Changes.**
+- SoundKit and SoundKitEntry are exported from local CASC 12.1.0.69933, and `SpellVisualMissile.SoundEntriesID` is now exported.
+- The catalog resolves `SpellVisualKitEffect` type 5.
+- `spell_sounds.rs` plays one weighted entry per SoundKit on the kit's unit, looping (0x200) while a held kit lasts.
+- Frostbolt now plays precast_start + precast_loop (85501/85500), cast (85502) at `SpellGo` and impact (85503) on arrival.
+
+**Sweep removed.** The synthetic CastStart sweep (`CastSpells`) and its sound-click cast stages are removed.
+
+**First-cast freeze.** The fixture's 0.03-0.14 s cast was a 25-30 s main-thread stall: the catalog was rebuilt from the CSVs at the first cast, because checkouts at different formats overwrote each other's cache file. Godot's 8-step delta cap hid the stall's length from the client clock. The catalog now loads on a worker thread from client start, into a per-format cache file.
+
+**Still not played.** `$SCD` (CreatureSoundData).
+
+Details in [[spell-visuals]].
+
+## [2026-09-29] verification | Native Render Scale bounded buffer/UI GREEN
+
+The actual GPU RED at `e3a5c92b` measured 1280×720 instead of 960×540 for saved startup 0.75. Exact `ca2f75c0` built through Depot `40n2xh4n2l` (exit 0; `data/diagnostics/render-scale-depot-green-build.log`). Offscreen Vulkan GREEN then measured startup 0.75 = 960×540 with a 1280×720 target; live 0.5 = 640×360; live 1.0 = 1280×720; resized 1.0 = 1600×900; and resized 0.5 = 800×450 (`data/diagnostics/render-scale-green/green-ca2f75c0.log`, exit 0). The same 2D geometry/red-pixel probe and all final targets pass; captures are in `data/diagnostics/render-scale-green/captures/`. This is bounded compositor-buffer/UI proof, not all 3D scenes, visual equality, bloom, or full parity. Legacy paired CAS/sharpening below 0.999 remains a full-conversion obligation. See [[godot-conversion]] and the [parity matrix](../specs/godot-parity-matrix.md).
+
+## [2026-09-29] fix | Native particle-density placement snapshot
+
+`79d792b0` captures density per doodad-emitter placement; `TerrainObjects` updates only the default after Options saves. Existing placements retain their captured rate, future registrations use the new default, and original `NO_GLOBAL_SCALE` emitters ignore global density. The controlled disposable 197007 portal copy clears only its six `NO_GLOBAL_SCALE` bits and preserves the original asset hash. In the actual `GameClient`, real Options 100→10 keeps known-pool quads at 485.67→488.0; owned same-map `NewWorld` creates a fresh placement at 46.67. Depot `kdhjvgmnt3` and runtime GREEN both exit 0 (`data/diagnostics/portal-density-depot-green-build-retry1.log`, `data/diagnostics/portal-density-green-79d792b0.log`). This is state/rate proof, not retail pixels, audible output, or full parity. See [[godot-conversion]] and [M2 particle spec](../specs/m2-particles.md).
+
 ## [2026-09-29] verification | Native persisted M2-particle startup gate
 
 Merged `d23012b4` + `e5671528` prove the persisted `particleEffectsEnabled` startup boundary through the downloaded Depot `d1q5w3x6v3` fixture and authenticated Azeroth `GameClient`. Both runs exit 0: actual placed `sw_magicdistrict` MODD 1112 portal meshes have no particle pools/emitter state when disabled; enabled has six positive MultiMesh visible-instance counts (42, 21, 21, 21, 21, 2; 143 total; scene totals 711 pools/emitters). Evidence: `data/diagnostics/portal-particles-depot-build-e5671528.log` and `data/diagnostics/portal-particles-{disabled,enabled}-e5671528.log`. This is headless runtime state proof only—not pixels, audibility, live-toggle behavior, density, or full Godot parity. Updated [M2 particles](../specs/m2-particles.md) and the [parity matrix](../specs/godot-parity-matrix.md).
@@ -2038,3 +2092,15 @@ Final gate PASS (`/tmp/claude/verify-ui-scale-all-owners-final.md`): inspected o
 ## [2026-09-29] investigation | DXT1 punch-through alpha
 
 Elwynn bush 189700's leaf texture 189937 (DXT1, alpha depth 1) drew black squares in the Godot client: Godot uploads `FORMAT_DXT1` as BC1 RGB, so punch-through texels were opaque black. `fe422318` decodes DXT1 with alpha bits to RGBA8 with every mip level. See [[godot-dxt1-punch-through]].
+
+## [2026-09-29] investigation | DXT1 punch-through alpha on master
+
+On master `56a134a6`, Northshire captures show no remaining black foliage cards. The trees and plants use DXT5 leaf textures. No local DXT1 BLP without alpha bits has punch-through texels. Black cards reported after `fe422318` come from pre-fix builds. See [[godot-dxt1-punch-through]].
+
+## [2026-09-29] feature | Unit frames at the Modern preset, retail class bar
+
+Player and target frames now sit at Retail's Modern Edit Mode preset. The target health bar uses the `CheckClassification` anchor (`TargetFrame.lua:419`), not the XML default, which had placed the target 12 px high. The class bar is anchored like `PlayerFrameBottomManagedFramesContainer`, and bars are gated by the Retail `spec` KeyValue. Arcane Charges draw the full `ArcaneChargeTemplate` art and animations. Live proof: `godot/tests/player_class_bar.gd`, with captures in `data/diagnostics/resourceorbs-2026-09-29/`. See [ui-system](systems/ui-system.md#unit-frames).
+
+## [2026-09-29] feature | Auras on the Godot HUD
+
+The Godot client shows the player BuffFrame/DebuffFrame and the Retail TargetFrame aura container ([buff frame spec](../specs/buff-frame.md)). The player's own auras are large (21 px). On a hostile NPC, other players' debuffs are hidden. Timed icons get the reverse cooldown swipe with its edge. Countdowns run on wall time. The Retail PlayerFrame draws no aura icons. The shared `aura_display_data` keeps the replicated slot order that BuffFrame uses. Before this, the Godot client drew no auras at all, and the server marked Polymorph on the neutral Blackrock Spy as a buff (game-server `70551a9`, effect positivity). Live proof: `godot/tests/auras_live.gd`, with captures in `data/diagnostics/auras-2026-09-29/`.

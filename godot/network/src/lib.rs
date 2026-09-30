@@ -35,14 +35,15 @@ use shared::{
     },
     protocol::{
         ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
-        CharacterListUpdate, CombatEvent, CombatLogEvent, CreateCharacterResponse,
-        DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate, EnterWorldResponse,
-        ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed, InteractionOpened,
-        InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
-        LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart, MirrorTimerStop,
-        NewWorld, NpcFlags, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate,
-        SpecializationChanged, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned,
-        TransferAborted, VendorInventory,
+        CharacterListUpdate, ChatMessage, CombatEvent, CombatLogEvent, CreateCharacterResponse,
+        DamageMeterSnapshot, DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate,
+        EnterWorldResponse, ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed,
+        InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot,
+        LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart,
+        MirrorTimerStop, NewWorld, NpcFlags, QuestFailed, QuestGiverStatusMultiple,
+        QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
+        SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
+        VendorInventory,
     },
 };
 
@@ -212,9 +213,12 @@ impl NetworkBridge {
             .receive::<LoadTerrain>()
             .receive::<NewWorld>()
             .receive::<TransferAborted>()
-            // Quest log for the world map's quest areas.
+            // Quest log for the world map's quest areas and the objective tracker; quest
+            // giver markers for the minimap.
             .receive::<QuestLogSnapshot>()
             .receive::<QuestLogUpdate>()
+            .receive::<QuestGiverStatusMultiple>()
+            .receive::<QuestFailed>()
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
@@ -229,6 +233,8 @@ impl NetworkBridge {
             .receive::<SpellCooldownUpdate>()
             .receive::<CastFailed>()
             .receive::<CombatLogEvent>()
+            // Server-computed damage meter sessions.
+            .receive::<DamageMeterSnapshot>()
             // Melee swing outcomes and resolved casts of every replicated unit, for
             // combat animations and spell visuals.
             .receive::<CombatEvent>()
@@ -248,6 +254,8 @@ impl NetworkBridge {
             .receive::<InventoryError>()
             .receive::<DurabilityStateUpdate>()
             .receive::<RestStateUpdate>()
+            // Chat lines for the chat frame.
+            .receive::<ChatMessage>()
             .connect(server_addr, client_id)
     }
 

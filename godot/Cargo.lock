@@ -3121,6 +3121,7 @@ dependencies = [
 name = "game-engine-ui-model"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "game-engine-core",
  "serde",
  "shared",

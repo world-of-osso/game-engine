@@ -17,7 +17,7 @@ use godot::classes::{
 };
 use godot::prelude::*;
 
-use crate::{sound_cast::CastSpells, sound_footsteps::Footsteps, sound_outcome::OutcomeSpells};
+use crate::{sound_footsteps::Footsteps, sound_outcome::OutcomeSpells};
 
 struct Channel {
     player: Gd<AudioStreamPlayer>,
@@ -222,7 +222,6 @@ pub struct NativeSound {
     ambient: Channel,
     effects: Gd<AudioStreamPlayer>,
     footsteps: Footsteps,
-    casts: CastSpells,
     outcomes: OutcomeSpells,
 }
 
@@ -237,7 +236,6 @@ impl INode for NativeSound {
             ambient: Channel::new("Ambient"),
             effects: AudioStreamPlayer::new_alloc(),
             footsteps: Footsteps::new(),
-            casts: CastSpells::new(),
             outcomes: OutcomeSpells::new(),
         }
     }
@@ -253,8 +251,6 @@ impl INode for NativeSound {
         self.effects.set_stream(&click_stream());
         let footsteps = self.footsteps.root.clone();
         self.base_mut().add_child(&footsteps);
-        let casts = self.casts.root.clone();
-        self.base_mut().add_child(&casts);
         let outcomes = self.outcomes.root.clone();
         self.base_mut().add_child(&outcomes);
     }
@@ -359,20 +355,6 @@ impl NativeSound {
         self.footsteps.stop();
     }
 
-    pub fn observe_cast(
-        &mut self,
-        player_id: u64,
-        spell_id: Option<u32>,
-        position: Vector3,
-        settings: &SoundOptionsFile,
-    ) {
-        self.casts.observe(player_id, spell_id, position, settings);
-    }
-
-    pub fn stop_casts(&mut self) {
-        self.casts.stop();
-    }
-
     pub fn play_outcome(
         &mut self,
         kind: game_engine_network::spell_event_data::OutcomeSound,
@@ -447,7 +429,6 @@ impl NativeSound {
         self.music.stop();
         self.ambient.stop();
         self.stop_footsteps();
-        self.stop_casts();
         self.stop_outcomes();
     }
 }
