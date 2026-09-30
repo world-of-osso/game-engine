@@ -5,8 +5,8 @@
 //! - A melee `CombatEvent` is held as its attacker's pending swing; the attacker's
 //!   attack clip then fires `$CSS`, which plays its weapon swoosh, and `$CAH`, where the
 //!   swing lands: a hit or crit plays the weapon's impact on the victim's material and
-//!   the victim's injury voice, a parry the impact on the parrying weapon, a miss or
-//!   dodge nothing more.
+//!   the victim's injury voice, a block the impact on the victim's shield and its injury
+//!   voice, a parry the impact on the parrying weapon, a miss or dodge nothing more.
 //! - `$SCD` plays the unit's `SpellCastDirectedSoundID`.
 //! - An NPC whose death clip starts plays its `SoundDeathID`.
 
@@ -34,13 +34,13 @@ pub struct MeleeSeen {
     pub at: f32,
 }
 
-/// The swing result of a melee `CombatEvent` (`None`: not a melee swing). The server
-/// sends a block as MeleeDamage.
+/// The swing result of a melee `CombatEvent` (`None`: not a melee swing).
 fn swing_result(kind: &CombatEventType) -> Option<SwingResult> {
     match kind {
         CombatEventType::MeleeDamage => Some(SwingResult::Hit { critical: false }),
         CombatEventType::CriticalHit => Some(SwingResult::Hit { critical: true }),
         CombatEventType::Parry => Some(SwingResult::Parry),
+        CombatEventType::Block => Some(SwingResult::Block),
         CombatEventType::Miss | CombatEventType::Dodge => Some(SwingResult::Avoided),
         _ => None,
     }
@@ -130,6 +130,8 @@ impl SpellEffects {
             .cloned();
         let wound = match swing.result {
             SwingResult::Hit { critical } => catalog.wound_sound(victim.unit, critical).cloned(),
+            // A blocked swing still hits (`VICTIMSTATE_HIT`, Unit.cpp:1461).
+            SwingResult::Block => catalog.wound_sound(victim.unit, false).cloned(),
             SwingResult::Parry | SwingResult::Avoided => None,
         };
         let impacted = self.play_melee(impact, swing.target, SoundSource::Impact, world);
@@ -143,6 +145,7 @@ impl SpellEffects {
         Some(MeleeHand {
             item_id,
             display_info_id,
+            shield_item_id: world.unit_shield(id),
             unit: *self.voices.get(&id)?,
         })
     }
@@ -180,6 +183,7 @@ mod tests {
             (CombatEventType::MeleeDamage, Some(hit)),
             (CombatEventType::CriticalHit, Some(crit)),
             (CombatEventType::Parry, Some(SwingResult::Parry)),
+            (CombatEventType::Block, Some(SwingResult::Block)),
             (CombatEventType::Miss, Some(SwingResult::Avoided)),
             (CombatEventType::Dodge, Some(SwingResult::Avoided)),
             (CombatEventType::Death, None),

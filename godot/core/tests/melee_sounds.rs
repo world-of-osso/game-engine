@@ -13,6 +13,7 @@ use game_engine_core::spell_visual::{
 const WARRIOR: MeleeHand = MeleeHand {
     item_id: Some(25),
     display_info_id: Some(1542),
+    shield_item_id: None,
     unit: VoiceSource::Player { race: 1, sex: 0 },
 };
 /// Kobold Vermin (creature 6): display 10913 (model 8379 → CreatureSoundData 5042) with
@@ -20,6 +21,7 @@ const WARRIOR: MeleeHand = MeleeHand {
 const KOBOLD: MeleeHand = MeleeHand {
     item_id: Some(5276),
     display_info_id: Some(5010),
+    shield_item_id: None,
     unit: VoiceSource::Creature { display_id: 10913 },
 };
 const HIT: SwingResult = SwingResult::Hit { critical: false };
@@ -124,6 +126,7 @@ fn bare_hands_swing_their_unarmed_weapon_type() {
     let fist = MeleeHand {
         item_id: None,
         display_info_id: None,
+        shield_item_id: None,
         unit: VoiceSource::Creature { display_id: 10913 },
     };
     assert_eq!(kit_id(catalog.impact_sound(fist, WARRIOR, HIT)), Some(1014));
@@ -200,6 +203,7 @@ fn blackrock_worg_fights_bare_handed() {
     let worg = MeleeHand {
         item_id: None,
         display_info_id: None,
+        shield_item_id: None,
         unit: VoiceSource::Creature { display_id: 40147 },
     };
     assert_eq!(kit_id(catalog.swing_sound(worg, false)), Some(235));
@@ -216,5 +220,32 @@ fn blackrock_worg_fights_bare_handed() {
     assert_eq!(
         kit_id(catalog.unit_sound(worg.unit, UnitSound::Death)),
         Some(11910)
+    );
+}
+
+/// A blocked swing lands on the victim's shield (`WeaponImpactSounds` index 3
+/// `shield_metal`, 4 `shield_wood`, by the shield's `Item.Material`): the kobold's staff
+/// row 10 plays 61570 on item 143 (Material 1 Metal) and 61568 on the Deathguard
+/// Buckler 3276 (Material 2 Wood). Without a shield the swing strikes the body: 61562,
+/// the hit impact.
+#[test]
+fn a_block_lands_on_the_victims_shield() {
+    let catalog = catalog();
+    let block = SwingResult::Block;
+    let with_shield = |shield_item_id| MeleeHand {
+        shield_item_id: Some(shield_item_id),
+        ..WARRIOR
+    };
+    assert_eq!(
+        kit_id(catalog.impact_sound(KOBOLD, with_shield(143), block)),
+        Some(61570)
+    );
+    assert_eq!(
+        kit_id(catalog.impact_sound(KOBOLD, with_shield(3276), block)),
+        Some(61568)
+    );
+    assert_eq!(
+        kit_id(catalog.impact_sound(KOBOLD, WARRIOR, block)),
+        Some(61562)
     );
 }
