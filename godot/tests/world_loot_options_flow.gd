@@ -5,6 +5,8 @@ const CORPSE := "Fixture Corpse"
 const ITEM_LINE := "You receive loot: [Melted Candle]x2"
 const MONEY_LINE := "You loot 1 Gold, 5 Silver, 2 Copper"
 const REQUEST_MS := 10000
+# Spread candidates across each actual surface, bounding expensive exact picks.
+const TRIANGLE_SAMPLES := 128
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -107,13 +109,65 @@ func find_corpse(client: Node) -> Dictionary:
 			var mesh := node as MeshInstance3D
 			if mesh.mesh == null or not mesh.is_visible_in_tree():
 				continue
-			var center := mesh.global_transform * mesh.get_aabb().get_center()
-			var point := camera.unproject_position(center)
+			var material := mesh.get_surface_override_material(0) as ShaderMaterial
+			if material != null:
+				var transparency = material.get_shader_parameter("transparency")
+				if transparency != null and float(transparency) <= 0.0:
+					continue
 			var id = area.get_meta("unit_server_id")
-			if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
-				return {"id": id, "point": point}
+			var palette := corpse_bone_palette(mesh)
+			for surface in range(mesh.mesh.get_surface_count()):
+				for center in corpse_triangle_centroids(mesh, surface, palette):
+					var point := camera.unproject_position(center)
+					if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
+						return {"id": id, "point": point}
 	fail("Cached corpse model not visible and UnitPicker-pickable at actual mesh")
 	return {}
+
+func corpse_bone_palette(mesh: MeshInstance3D) -> Array[Transform3D]:
+	var palette: Array[Transform3D] = []
+	var skeleton := mesh.get_node_or_null(mesh.skeleton) as Skeleton3D
+	if mesh.skin == null or skeleton == null:
+		return palette
+	# Same current-pose * skin-bind palette used by UnitPicker, not rest bounds.
+	for bind in range(mesh.skin.get_bind_count()):
+		palette.append(skeleton.get_bone_global_pose(mesh.skin.get_bind_bone(bind)) * mesh.skin.get_bind_pose(bind))
+	return palette
+
+func corpse_triangle_centroids(mesh: MeshInstance3D, surface: int, palette: Array[Transform3D]) -> Array[Vector3]:
+	var centers: Array[Vector3] = []
+	var arrays := mesh.mesh.surface_get_arrays(surface)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	if vertices.is_empty():
+		return centers
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+	var triangles := floori(float(vertices.size() if indices.is_empty() else indices.size()) / 3.0)
+	var samples := mini(triangles, TRIANGLE_SAMPLES)
+	# Evenly spaced real triangles cover separate body regions in the held death
+	# pose. No screen-grid search; every candidate is a posed triangle centroid.
+	for sample in range(samples):
+		var triangle := floori(float(sample) * triangles / samples)
+		var center := Vector3.ZERO
+		for corner in range(3):
+			var slot := triangle * 3 + corner
+			var index := slot if indices.is_empty() else indices[slot]
+			center += corpse_posed_vertex(vertices, bones, weights, palette, index)
+		centers.append(mesh.global_transform * (center / 3.0))
+	return centers
+
+func corpse_posed_vertex(vertices: PackedVector3Array, bones: PackedInt32Array, weights: PackedFloat32Array, palette: Array[Transform3D], index: int) -> Vector3:
+	var vertex := vertices[index]
+	if palette.is_empty() or bones.is_empty():
+		return vertex
+	var influences := floori(float(bones.size()) / vertices.size())
+	var posed := Vector3.ZERO
+	for slot in range(index * influences, (index + 1) * influences):
+		var bone := bones[slot]
+		if bone >= 0 and bone < palette.size() and slot < weights.size() and weights[slot] > 0.0:
+			posed += (palette[bone] * vertex) * weights[slot]
+	return posed
 
 func corpse_click(point: Vector2, shift: bool) -> void:
 	if shift:
@@ -138,6 +192,16 @@ func corpse_click(point: Vector2, shift: bool) -> void:
 		await process_frame
 
 func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
+	# Right-clicking the corpse leaves a target. Original Escape clears it first;
+	# only the next Escape opens Options' parent menu.
+	if client.target_state().target != null:
+		push_key(KEY_ESCAPE, true)
+		await process_frame
+		push_key(KEY_ESCAPE, false)
+		await process_frame
+		if client.target_state().target != null or client.get_node_or_null("GameMenuUI") != null:
+			fail("Escape did not clear corpse target before opening menu")
+			return false
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
