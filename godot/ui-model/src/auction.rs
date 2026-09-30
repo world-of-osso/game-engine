@@ -68,12 +68,22 @@ pub struct AuctionHouseState {
     pub bid_results: Vec<AuctionListingSummary>,
     pub inventory: Option<AuctionInventorySnapshot>,
     pub errors: Vec<String>,
+    pub operation_pending: bool,
     pub requests: Vec<AuctionRequest>,
 }
 impl AuctionHouseState {
     pub fn request(&mut self, request: AuctionRequest) {
         if let AuctionRequest::Browse(query) = &request {
             self.last_query = Some(query.clone());
+        }
+        if matches!(
+            request,
+            AuctionRequest::Create(_)
+                | AuctionRequest::Bid(_)
+                | AuctionRequest::Buyout(_)
+                | AuctionRequest::Cancel(_)
+        ) {
+            self.operation_pending = true;
         }
         self.requests.push(request);
     }
@@ -141,7 +151,9 @@ impl AuctionSession {
         if !self.net.is_open {
             return;
         }
+        self.net.operation_pending = false;
         if reply.success {
+            self.ui.selected_auction = None;
             self.refresh();
         } else {
             self.net.errors.push(reply.message);
@@ -151,14 +163,48 @@ impl AuctionSession {
         if !self.net.is_open {
             return Vec::new();
         }
+        let state = self.full_state(texts);
+        let operation = matches!(
+            action,
+            "auction_bid"
+                | "auction_buyout"
+                | "auction_dialog_buy"
+                | "auction_post"
+                | "auction_cancel"
+        );
+        if operation && self.net.operation_pending {
+            return Vec::new();
+        }
+        let allowed = match action {
+            "auction_bid" => {
+                state.item_buy.as_ref().is_some_and(|item| item.can_bid)
+                    || (self.ui.tab == AuctionHouseTab::Auctions && state.auctions.can_bid)
+            }
+            "auction_buyout" => {
+                state.item_buy.as_ref().is_some_and(|item| item.can_buyout)
+                    || (self.ui.tab == AuctionHouseTab::Auctions && state.auctions.can_buyout)
+            }
+            "auction_cancel" => state.auctions.can_cancel,
+            "auction_post" => state.sell.can_post,
+            "auction_dialog_buy" => state
+                .dialog
+                .as_ref()
+                .is_some_and(|dialog| dialog.price <= state.money),
+            _ => true,
+        };
+        if !allowed {
+            return Vec::new();
+        }
         match action {
             "auction_rows_prev" => {
                 self.ui.row_page = self.ui.row_page.saturating_sub(1);
+                self.ui.selected_auction = None;
                 return Vec::new();
             }
             "auction_rows_next" => {
                 if (self.ui.row_page + 1) * self.row_capacity() < self.row_count(texts) {
                     self.ui.row_page += 1;
+                    self.ui.selected_auction = None;
                 }
                 return Vec::new();
             }
@@ -198,6 +244,16 @@ impl AuctionSession {
         texts: &view::InputTexts,
     ) -> crate::auction_house_frame_component::AuctionHouseFrameState {
         let mut state = self.full_state(texts);
+        if self.net.operation_pending {
+            state.sell.can_post = false;
+            state.auctions.can_bid = false;
+            state.auctions.can_buyout = false;
+            state.auctions.can_cancel = false;
+            if let Some(item) = &mut state.item_buy {
+                item.can_bid = false;
+                item.can_buyout = false;
+            }
+        }
         let offset = self.ui.row_page * self.row_capacity();
         fn page<T>(rows: &mut Vec<T>, offset: usize, capacity: usize) {
             *rows = rows.drain(..).skip(offset).take(capacity).collect();

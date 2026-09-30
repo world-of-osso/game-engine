@@ -618,6 +618,7 @@ impl RegistryUi {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
         register_metal_frame_style(&mut registry)?;
+        register_auction_popup_style(&mut registry);
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
@@ -1502,3 +1503,28 @@ mod button_style_tests;
 #[cfg(test)]
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;
+
+fn register_auction_popup_style(registry: &mut FrameRegistry) {
+    const COLUMNS: [f32; 4] = [1.0 / 128.0, 17.0 / 128.0, 55.0 / 128.0, 71.0 / 128.0];
+    let mut uv_rects = [[0.0; 4]; 9];
+    for (part, rect) in uv_rects.iter_mut().enumerate() {
+        let (col, row) = (part % 3, part / 3);
+        *rect = [
+            COLUMNS[col],
+            COLUMNS[col + 1],
+            COLUMNS[row],
+            COLUMNS[row + 1],
+        ];
+    }
+    registry.register_panel_style(
+        "static_popup",
+        NineSlice {
+            edge_size: 16.0,
+            bg_color: [1.0; 4],
+            border_color: [1.0; 4],
+            texture: Some(TextureSource::FileDataId(6_795_680)),
+            uv_rects: Some(uv_rects),
+            ..Default::default()
+        },
+    );
+}
