@@ -25,11 +25,11 @@ use shared::{
     },
     protocol::{
         ActionBarSnapshot, ActionRef, AuthChannel, BagContents, CharacterListEntry,
-        CloseInteraction, CombatChannel, CombatEvent, CombatEventType, EnterWorldResponse,
-        InteractNpc, InteractionChannel, InteractionKind, InteractionOpened, InventoryChannel,
-        InventorySnapshot, KnownSpellsSnapshot, LoadTerrain, LoginRequest, LoginResponse,
-        MerchantChannel, NpcFlags, NpcRole, PlayerInput, SelectCharacter, SpellCastIntent,
-        TalentChannel, TerrainChannel, VendorInventory, VendorItem,
+        CloseInteraction, EnterWorldResponse, InteractNpc, InteractionChannel, InteractionKind,
+        InteractionOpened, InventoryChannel, InventorySnapshot, KnownSpellsSnapshot, LoadTerrain,
+        LoginRequest, LoginResponse, MerchantChannel, NpcFlags, NpcRole, PlayerInput,
+        SelectCharacter, SpellCastIntent, TalentChannel, TerrainChannel, VendorInventory,
+        VendorItem,
     },
 };
 
@@ -51,6 +51,8 @@ mod portal_density;
 mod portal_particles;
 #[path = "native_input_fixture/reset_windows.rs"]
 mod reset_windows;
+#[path = "native_input_fixture/settings_reload.rs"]
+mod settings_reload;
 #[path = "native_input_fixture/sound.rs"]
 mod sound;
 #[path = "native_input_fixture/sound_click.rs"]
@@ -87,6 +89,7 @@ enum StartupScreen {
     Loot,
     Footsteps,
     ResetWindows,
+    SettingsReload,
     PortalParticlesEnabled,
     PortalParticlesDisabled,
     PortalDensity,
@@ -108,12 +111,13 @@ impl StartupScreen {
             Some("loot") => Self::Loot,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
+            Some("settings-reload") => Self::SettingsReload,
             Some("portal-particles-enabled") => Self::PortalParticlesEnabled,
             Some("portal-particles-disabled") => Self::PortalParticlesDisabled,
             Some("portal-density") => Self::PortalDensity,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, loot, footsteps, reset-windows, portal-particles-enabled, portal-particles-disabled or portal-density"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, loot, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled or portal-density"
                 )
             }
         };
@@ -137,6 +141,7 @@ impl StartupScreen {
             | Self::Loot
             | Self::Footsteps
             | Self::ResetWindows
+            | Self::SettingsReload
             | Self::PortalParticlesEnabled
             | Self::PortalParticlesDisabled
             | Self::PortalDensity => "inworld",
@@ -258,6 +263,9 @@ impl FixtureConfig {
         fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
             .expect("write fixture-only credentials");
         config.persist_menu_defaults(screen);
+        if screen == StartupScreen::SettingsReload {
+            config.seed_canonical();
+        }
         if matches!(
             screen,
             StartupScreen::PortalParticlesEnabled
@@ -314,6 +322,16 @@ impl FixtureConfig {
         config
     }
 
+    fn seed_canonical(&self) {
+        fs::write(self.home.join("world-of-osso/options_settings.ron"), "()")
+            .expect("seed isolated canonical settings once before first child");
+        fs::write(
+            self.home.join("world-of-osso/settings-reload-phase"),
+            "save",
+        )
+        .expect("seed settings reload save phase");
+    }
+
     fn persist_menu_defaults(&self, screen: StartupScreen) {
         if !matches!(screen, StartupScreen::Menu | StartupScreen::Loot) {
             return;
@@ -337,6 +355,7 @@ impl Drop for FixtureConfig {
 fn fixture_script(screen: StartupScreen) -> &'static str {
     match screen {
         StartupScreen::ResetWindows => "res://tests/options_reset_windows.gd",
+        StartupScreen::SettingsReload => "res://tests/world_settings_reload_flow.gd",
         StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
         StartupScreen::Loot => "res://tests/world_loot_options_flow.gd",
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
@@ -362,7 +381,8 @@ fn launch_godot(
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = if matches!(
         screen,
-        StartupScreen::Menu
+        StartupScreen::SettingsReload
+            | StartupScreen::Menu
             | StartupScreen::Sound
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
@@ -387,9 +407,19 @@ fn launch_godot(
     } else {
         &["--headless"]
     };
+    // The swimming probe's phases are frame counts sized for 1/60 s steps (FRAMES_LIMIT,
+    // STILL_FRAMES), but process deltas carry whole stalls: a cold shader cache's 452 ms
+    // first W frame crossed the dry shore before any dry PlayerInput, and slow W+Space
+    // frames carried the swimmer out of the deep water into the far shallows.
+    let step_args: &[&str] = if screen == StartupScreen::Swimming {
+        &["--fixed-fps", "60"]
+    } else {
+        &[]
+    };
     let mut child = Command::new(binary)
         .current_dir(root)
         .args(display_args)
+        .args(step_args)
         .args([
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
@@ -406,6 +436,7 @@ fn launch_godot(
                     | StartupScreen::Loot
                     | StartupScreen::Footsteps
                     | StartupScreen::ResetWindows
+                    | StartupScreen::SettingsReload
                     | StartupScreen::PortalParticlesEnabled
                     | StartupScreen::PortalParticlesDisabled
                     | StartupScreen::PortalDensity
@@ -1272,6 +1303,7 @@ fn stage_isolated_project(
     let project = matches!(
         screen,
         StartupScreen::ResetWindows
+            | StartupScreen::SettingsReload
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
             | StartupScreen::PortalDensity
@@ -1308,7 +1340,8 @@ fn main() {
     let launcher = root.join("target/debug/game-engine-launcher");
     if !matches!(
         screen,
-        StartupScreen::Sound
+        StartupScreen::SettingsReload
+            | StartupScreen::Sound
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
             | StartupScreen::Loot
@@ -1343,6 +1376,18 @@ fn main() {
         StartupScreen::SoundClick => sound_click::run(&mut app, &mut child, lines, reader),
         StartupScreen::MerchantClick => merchant_click::run(&mut app, &mut child, lines, reader),
         StartupScreen::Loot => loot::run(&mut app, &mut child, lines, reader),
+        StartupScreen::SettingsReload => settings_reload::run(
+            &mut app,
+            &mut child,
+            lines,
+            reader,
+            settings_reload::FixtureContext {
+                root,
+                project: &project,
+                config: &config,
+                address,
+            },
+        ),
         StartupScreen::Sound => sound::run(&mut app, &mut child, lines, reader),
         StartupScreen::Footsteps => footsteps::run(&mut app, &mut child, lines, reader),
         StartupScreen::PortalDensity => portal_density::run(&mut app, &mut child, lines, reader),

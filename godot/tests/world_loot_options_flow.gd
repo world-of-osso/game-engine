@@ -5,8 +5,23 @@ const CORPSE := "Fixture Corpse"
 const ITEM_LINE := "You receive loot: [Melted Candle]x2"
 const MONEY_LINE := "You loot 1 Gold, 5 Silver, 2 Copper"
 const REQUEST_MS := 10000
+const INITIAL_COUNT := 3
+const INITIAL_MONEY := 1250
+const LOOT_MONEY := 10502
+const INVENTORY_FULL := "Inventory is full."
 # Spread candidates across each actual surface, bounding expensive exact picks.
 const TRIANGLE_SAMPLES := 128
+
+const OPTIONS_CATEGORIES := {
+	"graphics": "Graphics", "sound": "Sound", "camera": "Camera",
+	"interface": "Interface", "hud": "HUD", "nameplates": "Nameplates",
+	"controls": "Controls", "accessibility": "Accessibility",
+	"keybindings": "Keybindings", "macros": "Macros",
+	"socialaddons": "Social / AddOns", "advanced": "Advanced / Debug",
+	"support": "Support / About",
+}
+
+var overflow_probe = load("res://tests/ui_overflow_probe.gd").new()
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -29,6 +44,13 @@ func run_test() -> void:
 	print("FIXTURE LOOT_READY")
 	# Ordered reliable CorpseLootable must follow completed model replication.
 	await create_timer(0.5).timeout
+	if not await wait_inventory(client, INITIAL_COUNT, INITIAL_MONEY):
+		return
+	var reach_probe = load("res://tests/loot_reach_probe.gd").new()
+	if not await reach_probe.run(self, client):
+		return
+	var expected_count := INITIAL_COUNT
+	var expected_money := INITIAL_MONEY
 	for case in range(4):
 		var default_auto: bool = case >= 2
 		var shift: bool = case == 1 or case == 3
@@ -39,6 +61,10 @@ func run_test() -> void:
 			await create_timer(0.5).timeout
 		corpse = await find_corpse(client)
 		if corpse.is_empty():
+			return
+		if not await wait_corpse_feedback(client, corpse, true):
+			return
+		if not await capture_loot("case-%s-corpse.png" % case):
 			return
 		var item_before := chat_count(client, ITEM_LINE)
 		var money_before := chat_count(client, MONEY_LINE)
@@ -55,6 +81,30 @@ func run_test() -> void:
 			var host := loot_host(client)
 			if not check_label(host, "LootFrameElement1ItemCount", "2") or not check_label(host, "LootFrameElement1QualityText", "Poor"):
 				return
+			# Give ordered unrelated corpse messages time to reach the real frame.
+			await create_timer(0.25).timeout
+			if not await wait_rows(client, ["Melted Candle", "1 Gold\n5 Silver\n2 Copper"]) or not await wait_inventory(client, expected_count, expected_money):
+				return
+			if not await capture_loot("case-%s-manual-frame.png" % case):
+				return
+			if case == 0:
+				await RenderingServer.frame_post_draw
+				overflow_probe.record_money(host)
+				if not overflow_probe.failures.is_empty():
+					fail("Rendered UI overflow:\n" + "\n".join(overflow_probe.failures))
+					return
+				var bags_before: Array = client.merchant_state().bags.duplicate(true)
+				await click(host.find_child("LootFrameElement1", true, false) as Control)
+				if not await wait_inventory_full(client):
+					return
+				await create_timer(0.25).timeout
+				if not await wait_rows(client, ["Melted Candle", "1 Gold\n5 Silver\n2 Copper"]) or not check_label(host, "LootFrameElement1ItemCount", "2"):
+					return
+				var rejected_state: Dictionary = client.merchant_state()
+				if rejected_state.bags != bags_before or rejected_state.money != expected_money or chat_count(client, ITEM_LINE) != item_before or chat_count(client, MONEY_LINE) != money_before:
+					fail("InventoryFull changed bags, money, loot rows or content chat")
+					return
+			# The second actual card click retries the rejected first manual slot.
 			await click(host.find_child("LootFrameElement1", true, false) as Control)
 			if not await wait_rows(client, ["1 Gold\n5 Silver\n2 Copper"]):
 				return
@@ -74,14 +124,115 @@ func run_test() -> void:
 					return
 				print("FIXTURE LOOT_EMPTY")
 				await create_timer(0.25).timeout
+		expected_count += 2
+		if case != 0:
+			expected_money += LOOT_MONEY
+		if not await wait_inventory(client, expected_count, expected_money):
+			return
+		corpse = await find_corpse(client)
+		if corpse.is_empty() or not await wait_corpse_feedback(client, corpse, case == 0):
+			return
+		if not await capture_loot("case-%s-closed-corpse.png" % case):
+			return
 		# Bounded duplicate/mismatched-message check: no additional content lines.
 		await create_timer(0.25).timeout
 		if chat_count(client, ITEM_LINE) != item_before + 1 or chat_count(client, MONEY_LINE) != money_before + (0 if case == 0 else 1):
 			fail("Loot content chat not exactly once for actual taken slots, case=%s" % case)
 			return
+	# Clear the prior target so the final click proves targeting a non-lootable corpse.
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	await process_frame
+	if client.target_state().target != null:
+		fail("Could not clear target before non-lootable corpse click")
+		return
+	corpse = await find_corpse(client)
+	if corpse.is_empty() or not await wait_corpse_feedback(client, corpse, false):
+		return
+	var final_bags: Array = client.merchant_state().bags.duplicate(true)
+	var final_item_chat := chat_count(client, ITEM_LINE)
+	var final_money_chat := chat_count(client, MONEY_LINE)
+	print("FIXTURE LOOT_NOT_LOOTABLE_CLICKED")
+	await corpse_click(corpse.point, false)
+	var empty_deadline := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < empty_deadline:
+		await process_frame
+		var frame := loot_host(client) as Control
+		var state: Dictionary = client.merchant_state()
+		if client.target_state().target != corpse.id or (frame != null and frame.is_visible_in_tree()) or state.bags != final_bags or state.money != expected_money or chat_count(client, ITEM_LINE) != final_item_chat or chat_count(client, MONEY_LINE) != final_money_chat:
+			fail("Non-lootable corpse right-click did more than target")
+			return
 	print("FIXTURE LOOT_DONE")
 	client.free()
 	quit(0)
+
+func wait_inventory(client: Node, count: int, money: int) -> bool:
+	var deadline := Time.get_ticks_msec() + REQUEST_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.merchant_state()
+		if state.money != money or state.bags.size() != 1:
+			continue
+		var item: Dictionary = state.bags[0]
+		if item.bag == 0 and item.slot == 0 and item.item_id == 755 and item.count == count:
+			return true
+	fail("Authoritative bags/money expected count=%s money=%s: %s" % [count, money, client.merchant_state()])
+	return false
+
+func inventory_full_visible(client: Node) -> bool:
+	var errors := client.get_node_or_null("UIErrors")
+	if errors != null:
+		for node in errors.find_children("*", "Label", true, false):
+			var label := node as Label
+			if label.is_visible_in_tree() and label.text == INVENTORY_FULL:
+				return true
+	return false
+
+func wait_inventory_full(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + REQUEST_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if inventory_full_visible(client):
+			return true
+	fail("Matching LootFailed did not display Retail InventoryFull in UIErrors")
+	return false
+
+func wait_corpse_feedback(client: Node, corpse: Dictionary, lootable: bool) -> bool:
+	var motion := InputEventMouseMotion.new()
+	motion.position = corpse.point
+	root.push_input(motion, true)
+	var deadline := Time.get_ticks_msec() + REQUEST_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var unit := client.get_node_or_null("WorldUnits/" + CORPSE) as Node3D
+		var sparkle := unit.get_node_or_null("LootSparkle") as MeshInstance3D if unit != null else null
+		var sparkle_present := sparkle != null and sparkle.mesh != null and sparkle.is_visible_in_tree()
+		var sparkle_absent := unit != null and unit.get_node_or_null("LootSparkle") == null
+		var cursor: String = client.merchant_state().cursor
+		if cursor == ("Loot" if lootable else "Default") and (sparkle_present if lootable else sparkle_absent):
+			return true
+	fail("Hovered corpse cursor/sparkle did not match lootable=%s: %s" % [lootable, client.merchant_state()])
+	return false
+
+func capture_loot(file: String) -> bool:
+	var directory := OS.get_environment("GODOT_LOOT_SCREENSHOTS")
+	if directory.is_empty():
+		return true
+	var error := DirAccess.make_dir_recursive_absolute(directory)
+	if error != OK:
+		fail("Cannot create owned loot screenshot directory: " + str(error))
+		return false
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image.is_empty():
+		fail("Owned loot screenshot has no rendered pixels")
+		return false
+	error = image.save_png(directory.path_join(file))
+	if error != OK:
+		fail("Cannot save owned loot screenshot: " + str(error))
+		return false
+	return true
 
 func wait_world(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
@@ -95,11 +246,11 @@ func wait_world(client: Node) -> bool:
 	fail("Owned corpse world not ready: " + str(client.account_state()))
 	return false
 
-func find_corpse(client: Node) -> Dictionary:
+func find_corpse(client: Node, unit_name: String = CORPSE) -> Dictionary:
 	var deadline := Time.get_ticks_msec() + 15000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		var unit := client.get_node_or_null("WorldUnits/" + CORPSE) as Node3D
+		var unit := client.get_node_or_null("WorldUnits/" + unit_name) as Node3D
 		var model := unit.get_node_or_null("NpcVisualRoot/NpcModel") if unit != null else null
 		var camera := root.get_camera_3d()
 		var area := unit.find_child("UnitPick", true, false) as Area3D if unit != null else null
@@ -121,7 +272,7 @@ func find_corpse(client: Node) -> Dictionary:
 					var point := camera.unproject_position(center)
 					if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == id:
 						return {"id": id, "point": point}
-	fail("Cached corpse model not visible and UnitPicker-pickable at actual mesh")
+	fail("Cached unit model not visible and UnitPicker-pickable at actual mesh: " + unit_name)
 	return {}
 
 func corpse_bone_palette(mesh: MeshInstance3D) -> Array[Transform3D]:
@@ -209,6 +360,9 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 		return false
 	await click_menu_action(client, "MenuBtnOptions")
 	var menu := client.get_node_or_null("GameMenuUI")
+	var first_options: bool = not overflow_probe.options_recorded
+	if first_options:
+		await probe_options_scales(menu)
 	var tab := menu.find_child("OptionsTabhud", true, false) as Control
 	if tab == null:
 		fail("Authored HUD Options tab missing")
@@ -218,13 +372,19 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 	if toggle == null or not toggle.is_visible_in_tree():
 		fail("Authored Auto Loot control missing")
 		return false
+	if first_options and not await capture_loot("options-hud-overflow.png"):
+		return false
 	# Select both sides so initial defaults `()` also get an observable save.
 	for selection in [not enabled, enabled]:
 		var side := menu.find_child("ToggleSwitchauto_lootRightHit" if selection else "ToggleSwitchauto_lootLeftHit", true, false) as Control
 		if side == null:
-			fail("Authored Auto Loot segment missing")
-			return false
-		await click(side)
+			# Authored toggle renders a hit control only for the inactive side.
+			var other := menu.find_child("ToggleSwitchauto_lootLeftHit" if selection else "ToggleSwitchauto_lootRightHit", true, false) as Control
+			if other == null:
+				fail("Authored Auto Loot inactive segment missing")
+				return false
+		else:
+			await click(side)
 	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
@@ -242,13 +402,87 @@ func set_auto_loot(client: Node, config: String, enabled: bool) -> bool:
 	fail("Authored Auto Loot selection did not save canonical boolean")
 	return false
 
+func probe_options_scales(menu: Node) -> void:
+	var canvas := menu.find_child("RegistryCanvas", true, false) as Control
+	if canvas == null:
+		overflow_probe.failures.append("Options RegistryCanvas missing")
+		return
+	var original_scale := canvas.scale.x
+	await probe_options_categories(menu)
+	for scale in [0.75, 1.25]:
+		await select_options_scale(menu, scale)
+		await probe_options_categories(menu)
+	# Restore original fixture scale before HUD Auto Loot and the four loot cases.
+	await select_options_scale(menu, original_scale)
+
+func probe_options_categories(menu: Node) -> void:
+	for category in OPTIONS_CATEGORIES:
+		if not await select_overflow_tab(menu, "OptionsTab" + category):
+			continue
+		var title := menu.find_child("OptionsSectionTitle", true, false) as Label
+		if title == null or not title.is_visible_in_tree() or title.text != OPTIONS_CATEGORIES[category]:
+			overflow_probe.failures.append("Options category click did not display " + category)
+		await RenderingServer.frame_post_draw
+		overflow_probe.record_options(menu, category, "default" if category == "keybindings" else "")
+		if category == "keybindings":
+			# BindingSection default Movement has 8 actions; Action Bar is largest
+			# with 12. Select its real authored button, not a synthetic setter.
+			if await select_overflow_tab(menu, "KeybindingSectionaction_barButton"):
+				var rows := menu.find_children("KeybindingRow*", "Control", true, false)
+				var visible_rows := 0
+				for row in rows:
+					if row.is_visible_in_tree():
+						visible_rows += 1
+				if visible_rows != 12:
+					overflow_probe.failures.append("Action Bar keybindings expected 12 visible rows, got " + str(visible_rows))
+				await RenderingServer.frame_post_draw
+				overflow_probe.record_options(menu, category, "action_bar")
+			# Keep subsequent category/scale passes on the default selected section.
+			await select_overflow_tab(menu, "KeybindingSectionmovementButton")
+
+func select_overflow_tab(menu: Node, name: String) -> bool:
+	var tab := menu.find_child(name, true, false) as Control
+	if tab == null or not tab.is_visible_in_tree():
+		overflow_probe.failures.append("Authored Options tab missing/hidden: " + name)
+		print("UI_OVERFLOW_OPTIONS missing_tab=%s" % name)
+		return false
+	await click(tab)
+	for frame in range(4):
+		await process_frame
+	return true
+
+func select_options_scale(menu: Node, scale: float) -> void:
+	if not await select_overflow_tab(menu, "OptionsTabaccessibility"):
+		return
+	var slider := menu.find_child("Sliderui_scale", true, false) as Control
+	if slider == null or not slider.is_visible_in_tree():
+		overflow_probe.failures.append("Authored UI scale slider missing/hidden")
+		return
+	# Existing authored range 0.75..1.5; same real pixel input as ui_scale.gd.
+	var rect := slider.get_global_rect()
+	var point := Vector2(lerpf(rect.position.x, rect.end.x, (scale - 0.75) / 0.75), rect.get_center().y)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.position = point
+		event.global_position = point
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	for frame in range(4):
+		await process_frame
+	var canvas := menu.find_child("RegistryCanvas", true, false) as Control
+	print("UI_OVERFLOW_SCALE wanted=%s actual=%s physical=%s" % [scale, canvas.scale if canvas != null else null, root.size])
+	if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
+		overflow_probe.failures.append("Options scale input did not produce logical canvas at " + str(scale))
+
 func loot_host(client: Node) -> Node:
 	# Find the authored external frame, without assuming a future host class/API.
 	return client.find_child("LootFrame", true, false)
 
 func check_label(host: Node, name: String, expected: String) -> bool:
 	var label := host.find_child(name, true, false) as Label if host != null else null
-	if label == null or not label.is_visible_in_tree() or label.text != expected:
+	if label == null or not label.is_visible_in_tree() or label.get_visible_line_count() < 1 or label.text != expected:
 		fail("Authored loot label %s expected %s" % [name, expected])
 		return false
 	return true

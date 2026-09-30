@@ -1,7 +1,10 @@
 //! Owned loopback server and real Godot process for the native world-transfer fixture.
-//! Run from the Godot workspace after building its GDExtension:
-//! cargo run -p game-engine-network --example native_transfer_fixture
-//! cargo run -p game-engine-network --example native_transfer_fixture -- --global-wmo
+//! Build it with the GDExtension, then run it from the originating checkout:
+//! python3 scripts/depot-build.py --root "$PWD" --fixture native_transfer_fixture
+//! GODOT_BIN=<godot> target/debug/examples/native_transfer_fixture [--global-wmo]
+
+#[path = "fixture_support/mod.rs"]
+mod fixture_support;
 
 use std::{
     io::{BufRead, BufReader},
@@ -103,9 +106,9 @@ fn launch_godot(
     global_wmo: bool,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
-    let project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("Godot workspace directory");
+    let project = fixture_support::checkout_root_from_executable("native_transfer_fixture")
+        .unwrap_or_else(|error| panic!("{error}"))
+        .join("godot");
     let script = if global_wmo {
         "res://tests/world_global_wmo_flow.gd"
     } else {
