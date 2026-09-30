@@ -284,9 +284,6 @@ static TEMPLATE: PointTemplate = PointTemplate {
 
 /// `FillingAnimationTime` (EssenceFramePlayer.lua:1).
 const FILLING_TIME: f32 = 5.0;
-/// Essence per second: `GetPowerRegenForPowerType`'s 0.2 default, also the server's
-/// `power_type` RegenPeace/RegenCombat for Essence.
-const REGEN: f32 = 0.2;
 
 #[derive(Debug)]
 struct Point {
@@ -387,23 +384,6 @@ const ROW: Row = Row {
 #[derive(Debug, Default)]
 pub struct Bar {
     points: Vec<Point>,
-    /// Last essence count and when the partial point last restarted from zero. The server
-    /// floors essence, so `UnitPartialPower` is rebuilt from its regen: the partial point
-    /// restarts on every gain and keeps filling across spends.
-    power: Option<(u8, f64)>,
-}
-
-impl Bar {
-    /// `UnitPartialPower(unit, Essence) / 1000`: the filling point's progress. Regen
-    /// holds at max, so a spend from max starts the partial point from zero too.
-    fn partial(&mut self, current: u8, max: u8, now: f64) -> f32 {
-        let since = match self.power {
-            Some((last, since)) if current <= last && last < max => since,
-            _ => now,
-        };
-        self.power = Some((current, since));
-        ((now - since) as f32 * REGEN).clamp(0.0, 1.0)
-    }
 }
 
 impl BarLogic for Bar {
@@ -413,7 +393,10 @@ impl BarLogic for Bar {
             self.points = (0..resource.max).map(|_| Point::new()).collect();
         }
         let (current, max) = (usize::from(resource.current), usize::from(resource.max));
-        let portion = self.partial(resource.current, resource.max, now);
+        let elapsed = (now - resource.dynamics.received_at).max(0.0) as f32;
+        let rate = resource.dynamics.regen_per_sec;
+        let portion =
+            (f32::from(resource.dynamics.partial) / 1000.0 + elapsed * rate).clamp(0.0, 1.0);
         for point in self.points.iter_mut().take(current.min(max)) {
             point.set_full(now);
         }
@@ -427,7 +410,7 @@ impl BarLogic for Bar {
             let outdated =
                 filling && (portion - point.visual.progress(FILLING_ANIM, now)).abs() > 0.1;
             if !filling || outdated {
-                let speed = FILLING_TIME / (1.0 / REGEN);
+                let speed = FILLING_TIME * rate;
                 if !filling {
                     point.visual.stop(FILLING_ANIM, now);
                     point.visual.stop(CIRCLE_ANIM, now);

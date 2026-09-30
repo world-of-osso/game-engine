@@ -459,13 +459,26 @@ fn class_bar_texture(texture: &TextureView) -> Element {
             }
         };
     }
-    tinted_art_texture(
-        dyn_name(texture.name.clone()),
-        &texture.art,
-        texture.rect,
-        &format!("1.0,1.0,1.0,{}", texture.alpha),
-        !texture.shown || texture.alpha <= 0.0,
-    )
+    let name = dyn_name(texture.name.clone());
+    let (x, y, width, height) = texture.rect;
+    let coords = texture.art.tex_coords(1.0);
+    let color = format!("1.0,1.0,1.0,{}", texture.alpha);
+    let hidden = !texture.shown || texture.alpha <= 0.0;
+    rsx! {
+        texture {
+            name,
+            width,
+            height,
+            hidden,
+            texture_fdid: {texture.art.fdid},
+            tex_coords: {coords.as_str()},
+            vertex_color: {color.as_str()},
+            rotation: {texture.rotation},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+        }
+    }
 }
 
 /// No portrait to carry Retail's `AttackIcon` and rest flipbook, so both sit on the name tab
