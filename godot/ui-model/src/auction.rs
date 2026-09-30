@@ -63,6 +63,7 @@ pub struct AuctionHouseState {
     pub is_open: bool,
     pub last_query: Option<AuctionSearchQuery>,
     pub search_total: u32,
+    pub search_revision: u64,
     pub search_results: Vec<AuctionListingSummary>,
     pub owned_results: Vec<AuctionListingSummary>,
     pub bid_results: Vec<AuctionListingSummary>,
@@ -141,6 +142,7 @@ impl AuctionSession {
         {
             return;
         }
+        self.net.search_revision += 1;
         self.net.last_query = Some(reply.query);
         self.net.search_total = reply.total_results;
         self.net.search_results = reply.results;
