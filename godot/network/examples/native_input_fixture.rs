@@ -380,9 +380,19 @@ fn launch_godot(
     } else {
         &["--headless"]
     };
+    // The swimming probe's phases are frame counts sized for 1/60 s steps (FRAMES_LIMIT,
+    // STILL_FRAMES), but process deltas carry whole stalls: a cold shader cache's 452 ms
+    // first W frame crossed the dry shore before any dry PlayerInput, and slow W+Space
+    // frames carried the swimmer out of the deep water into the far shallows.
+    let step_args: &[&str] = if screen == StartupScreen::Swimming {
+        &["--fixed-fps", "60"]
+    } else {
+        &[]
+    };
     let mut child = Command::new(binary)
         .current_dir(root)
         .args(display_args)
+        .args(step_args)
         .args([
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
