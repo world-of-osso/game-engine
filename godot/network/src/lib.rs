@@ -266,6 +266,13 @@ impl NetworkBridge {
             .receive::<RestStateUpdate>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
+            // Party/raid roster, member states, invites and results (group-frames.md).
+            .receive::<protocol::GroupRosterSnapshot>()
+            .receive::<protocol::GroupMemberStates>()
+            .receive::<protocol::GroupInvitePrompt>()
+            .receive::<protocol::GroupInviteCancelled>()
+            .receive::<protocol::ReadyCheckUpdate>()
+            .receive::<protocol::GroupCommandResponse>()
             .connect(server_addr, client_id)
     }
 

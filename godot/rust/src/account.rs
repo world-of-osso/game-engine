@@ -32,7 +32,14 @@ use shared::protocol::{
     SellAllJunkItems, SellItem, VendorInventory,
 };
 
+use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::merchant_data::MerchantRequest;
+use shared::protocol::{
+    ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
+    GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
+    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, PromoteGroupLeader, ReadyCheckUpdate,
+    RespondGroupInvite, RespondReadyCheck, SetGroupRole, StartReadyCheck,
+};
 
 use crate::player_spells::PlayerSpells;
 use game_engine_ui_model::auction::{AuctionReply, AuctionRequest};
@@ -78,6 +85,8 @@ pub struct Account {
     pub combat_log_seq: u64,
     /// The server's newest damage meter sessions.
     pub damage_meter: Option<DamageMeterSnapshot>,
+    /// Party/raid roster, live member states, the ready check and the pending invite.
+    pub group: GroupState,
 }
 
 pub enum AccountEvent {
@@ -109,6 +118,8 @@ pub enum AccountEvent {
     Auction(AuctionReply),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
+    /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
+    GroupNotice(String),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -156,6 +167,7 @@ impl Account {
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
             damage_meter: None,
+            group: GroupState::default(),
         }
     }
 
@@ -199,6 +211,7 @@ impl Account {
         self.spells.clear();
         self.combat_log.clear();
         self.damage_meter = None;
+        self.group = GroupState::default();
         self.session.token = self.read_token()?;
         Ok(())
     }
@@ -415,6 +428,37 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// A group request from chat or the invite popup, on `GroupChannel` as the root
+    /// client's `send_group_command` sends it.
+    pub fn send_group(&self, command: GroupCommand) -> Result<(), SessionError> {
+        let bridge = self.bridge()?;
+        match command {
+            GroupCommand::Invite(name) => {
+                bridge.send::<_, GroupChannel>(GroupInviteIntent { name })
+            }
+            GroupCommand::Uninvite(name) => {
+                bridge.send::<_, GroupChannel>(GroupUninviteIntent { name })
+            }
+            GroupCommand::Promote(name) => {
+                bridge.send::<_, GroupChannel>(PromoteGroupLeader { name })
+            }
+            GroupCommand::Leave => bridge.send::<_, GroupChannel>(LeaveGroup),
+            GroupCommand::ConvertToRaid => bridge.send::<_, GroupChannel>(ConvertGroupToRaid),
+            GroupCommand::ConvertToParty => bridge.send::<_, GroupChannel>(ConvertGroupToParty),
+            GroupCommand::SetRole { name, role } => {
+                bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
+            }
+            GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
+            GroupCommand::RespondReadyCheck(ready) => {
+                bridge.send::<_, GroupChannel>(RespondReadyCheck { ready })
+            }
+            GroupCommand::RespondInvite(accept) => {
+                bridge.send::<_, GroupChannel>(RespondGroupInvite { accept })
+            }
+        }
+        .map_err(SessionError)
+    }
+
     /// `/dance`, `/wave`, ...: the server plays the emote and sends its chat line.
     pub fn send_emote(&self, intent: EmoteIntent) -> Result<(), SessionError> {
         self.bridge()?
@@ -507,6 +551,9 @@ impl Account {
             output.push(AccountEvent::Chat(decode(message)?));
             return Ok(());
         }
+        if Self::is_group_message(&message) {
+            return self.dispatch_group_message(message, output);
+        }
         self.dispatch_world_message(message, output)
     }
 
@@ -560,6 +607,44 @@ impl Account {
         }
         let info: InstanceInfo = decode(message)?;
         self.instance_locks = info.locks;
+        Ok(())
+    }
+
+    fn is_group_message(message: &ProtocolMessage) -> bool {
+        message.is::<GroupRosterSnapshot>()
+            || message.is::<GroupMemberStates>()
+            || message.is::<GroupInvitePrompt>()
+            || message.is::<GroupInviteCancelled>()
+            || message.is::<ReadyCheckUpdate>()
+            || message.is::<GroupCommandResponse>()
+    }
+
+    /// Fill [`GroupState`] as the root client's `receive_group` does; results go to chat.
+    fn dispatch_group_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
+        if message.is::<GroupRosterSnapshot>() {
+            self.group.apply_roster(decode(message)?);
+        } else if message.is::<GroupMemberStates>() {
+            let states: GroupMemberStates = decode(message)?;
+            self.group.apply_member_states(states.members);
+        } else if message.is::<GroupInvitePrompt>() {
+            let prompt: GroupInvitePrompt = decode(message)?;
+            self.group.pending_invite = Some(prompt.inviter_name);
+        } else if message.is::<GroupInviteCancelled>() {
+            let cancelled: GroupInviteCancelled = decode(message)?;
+            if self.group.pending_invite.as_deref() == Some(cancelled.inviter_name.as_str()) {
+                self.group.pending_invite = None;
+            }
+        } else if message.is::<ReadyCheckUpdate>() {
+            self.group.apply_ready_check(decode(message)?);
+        } else {
+            let response: GroupCommandResponse = decode(message)?;
+            self.group.last_server_message = Some(response.message.clone());
+            output.push(AccountEvent::GroupNotice(response.message));
+        }
         Ok(())
     }
 

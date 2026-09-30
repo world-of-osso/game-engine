@@ -17,15 +17,14 @@ pub mod ui {
     }
 
     pub mod screens {
-        pub mod static_popup_component {
-            pub const STATIC_POPUP_PANEL_STYLE: &str = "static_popup";
-        }
         pub(crate) use crate::screen_title;
         pub use crate::{
-            bag_frame_component, buff_frame_component, default_button_atlas, game_menu_component,
+            bag_frame_component, buff_frame_component, compact_unit_frame_component,
+            default_button_atlas, game_menu_component, group_frames_component,
             inworld_unit_frames_component, menu_primitives, merchant_frame_component,
             objective_tracker_component, options_menu_active_sections, options_menu_component,
-            options_menu_sections, quest_art, stack_split_frame_component, trash_button_component,
+            options_menu_sections, quest_art, ready_check_frame_component,
+            stack_split_frame_component, static_popup_component, trash_button_component,
             world_map_frame_art, world_map_frame_component,
         };
 
@@ -34,6 +33,7 @@ pub mod ui {
     }
 
     pub use crate::chat_frame;
+    pub use crate::popup;
     pub use crate::ui_errors_data;
 }
 
@@ -46,6 +46,22 @@ pub mod chat_frame;
 pub mod chat_frame_component;
 #[path = "../../../src/game/group_state.rs"]
 pub mod group_state;
+
+// Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).
+/// The compact unit frame's dispel colours (root `buff_data`).
+pub mod buff_data {
+    pub use crate::aura_display_data::DebuffType;
+}
+#[path = "../../../src/ui/screens/compact_unit_frame_component.rs"]
+pub mod compact_unit_frame_component;
+#[path = "../../../src/ui/screens/group_frames_component.rs"]
+pub mod group_frames_component;
+#[path = "../../../src/ui/popup.rs"]
+pub mod popup;
+#[path = "../../../src/ui/screens/ready_check_frame_component.rs"]
+pub mod ready_check_frame_component;
+#[path = "../../../src/ui/screens/static_popup_component.rs"]
+pub mod static_popup_component;
 
 #[path = "../../../src/ui/screens/char_create_component/mod.rs"]
 pub mod char_create_component;
