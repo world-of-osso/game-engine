@@ -1,6 +1,68 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
 #[test]
+fn native_mailbox_requests_preserve_object_mail_and_sparse_attachment_slot() {
+    use shared::protocol::{
+        InteractionChannel, MailAction, MailChannel, MailRequest, UseGameObject,
+    };
+    #[derive(Resource, Default)]
+    struct Requests {
+        uses: Vec<UseGameObject>,
+        claims: Vec<MailRequest>,
+    }
+    fn capture(
+        mut uses: Query<&mut MessageReceiver<UseGameObject>>,
+        mut claims: Query<&mut MessageReceiver<MailRequest>>,
+        mut requests: ResMut<Requests>,
+    ) {
+        for mut receiver in &mut uses {
+            requests.uses.extend(receiver.receive());
+        }
+        for mut receiver in &mut claims {
+            requests.claims.extend(receiver.receive());
+        }
+    }
+    fn install(app: &mut App) {
+        app.init_resource::<Requests>();
+        app.add_systems(Update, capture);
+    }
+    let (mut server, address) = start_fixture_server_with(install);
+    let mut bridge = NetworkBridge::connect(address, 8223).unwrap();
+    await_bridge_event(&mut server, &mut bridge, "mail request connection", |e| {
+        matches!(e, Event::Connected)
+    });
+    let use_object = UseGameObject { object: 517 };
+    let money = MailRequest {
+        object: 517,
+        mail_id: 901,
+        action: MailAction::TakeMoney,
+    };
+    let item = MailRequest {
+        object: 517,
+        mail_id: 902,
+        action: MailAction::TakeAttachment { slot: 7 },
+    };
+    bridge
+        .send::<_, InteractionChannel>(use_object.clone())
+        .unwrap();
+    bridge.send::<_, MailChannel>(money).unwrap();
+    bridge.send::<_, MailChannel>(item).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        server.update();
+        let requests = server.world().resource::<Requests>();
+        if requests.uses.len() == 1 && requests.claims.len() == 2 {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    let requests = server.world().resource::<Requests>();
+    assert_eq!(requests.uses, vec![use_object]);
+    assert_eq!(requests.claims, vec![money, item]);
+    bridge.stop().unwrap();
+}
+
+#[test]
 fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
     use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
     let (mut server, address) = start_fixture_server();

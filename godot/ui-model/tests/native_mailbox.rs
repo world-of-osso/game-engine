@@ -28,6 +28,13 @@ fn mail(id: u64) -> MailHeader {
         returnable: false,
     }
 }
+fn configure_assets() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+}
+
 fn contents(object: u64, mails: Vec<MailHeader>) -> MailboxContents {
     MailboxContents {
         object,
@@ -38,6 +45,7 @@ fn contents(object: u64, mails: Vec<MailHeader>) -> MailboxContents {
 
 #[test]
 fn native_mailbox_claims_are_gated_and_never_change_authoritative_contents_locally() {
+    configure_assets();
     let mut s = MailSession::default();
     s.expect_open(517);
     s.receive_contents(contents(517, vec![mail(9)])); // MailChannel can precede InteractionChannel.
@@ -96,6 +104,7 @@ fn native_mailbox_claims_are_gated_and_never_change_authoritative_contents_local
 
 #[test]
 fn native_mailbox_pages_cod_and_stale_opening_stay_bounded() {
+    configure_assets();
     let mut s = MailSession::default();
     s.expect_open(517);
     s.open(517);
@@ -138,6 +147,77 @@ fn native_mailbox_pages_cod_and_stale_opening_stay_bounded() {
     assert!(s.is_open());
     s.close_for(600);
     assert!(!s.is_open());
+}
+
+#[test]
+fn native_mailbox_authored_receiving_ui_disables_pending_claims_and_excludes_sending() {
+    use game_engine_ui_model::bag_frame_component::BagFrameState;
+    use game_engine_ui_model::mail::{NativeMailView, native_mail_screen};
+    use ui_toolkit::{
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    configure_assets();
+    let mut session = MailSession::default();
+    session.expect_open(517);
+    session.open(517);
+    let mut header = mail(9);
+    header.read = true;
+    session.receive_contents(contents(517, vec![header.clone()]));
+    session.click("mail_open:9");
+    let build = |session: &MailSession| {
+        let mut shared = SharedContext::new();
+        shared.insert(NativeMailView {
+            inbox: session.view(77),
+            bags: BagFrameState::default(),
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(native_mail_screen).sync(&shared, &mut registry);
+        registry
+    };
+    let registry = build(&session);
+    let frame = |name: &str| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    assert_eq!(
+        frame("OpenMailMoneyButton").onclick.as_deref(),
+        Some("mail_take_money")
+    );
+    assert_eq!(
+        frame("OpenMailAttachmentButton8").onclick.as_deref(),
+        Some("mail_take_item:7")
+    );
+    let Some(WidgetData::FontString(subject)) = &frame("OpenMailSubject").widget_data else {
+        panic!("Missing subject label")
+    };
+    assert_eq!(subject.text, header.subject);
+    assert!(registry.get_by_name("SendMailNameEditBox").is_none());
+    assert!(registry.get_by_name("MailFrameTab2").is_none());
+    assert_eq!(
+        frame("OpenMailReplyButton")
+            .onclick
+            .as_deref()
+            .unwrap_or(""),
+        ""
+    );
+    assert_eq!(
+        frame("OpenMailDeleteButton")
+            .onclick
+            .as_deref()
+            .unwrap_or(""),
+        ""
+    );
+    session.click("mail_take_money");
+    let busy = build(&session);
+    for name in ["OpenMailMoneyButton", "OpenMailAttachmentButton8"] {
+        assert_eq!(
+            busy.get(busy.get_by_name(name).unwrap())
+                .unwrap()
+                .onclick
+                .as_deref()
+                .unwrap_or(""),
+            ""
+        );
+    }
 }
 
 #[test]
