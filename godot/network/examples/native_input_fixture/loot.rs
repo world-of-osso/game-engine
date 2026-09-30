@@ -314,7 +314,8 @@ pub(super) fn run(
     let mut remote = None;
     let mut session = Session::default();
     let mut readers = Some(readers);
-    let deadline = Instant::now() + TIMEOUT;
+    // Include cold CASC bootstrap before the owned world/input sequence.
+    let deadline = Instant::now() + TIMEOUT + Duration::from_secs(180);
     while Instant::now() < deadline {
         app.update();
         respond_to_login(app, StartupScreen::Loot)?;

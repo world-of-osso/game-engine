@@ -15,7 +15,8 @@ func run_test() -> void:
 		return
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	if not await wait_screen(client, "Loading", WORLD_WAIT_MS):
+	# Cold local CASC bootstrap builds its resolution database before connecting.
+	if not await wait_screen(client, "Loading", 180000):
 		return
 	print("FIXTURE LOOT_LOADING")
 	if not await wait_world(client):
