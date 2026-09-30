@@ -116,7 +116,8 @@ func wait_for_water_clock(client: Node) -> bool:
 			fail("Refreshed Water lost its shader material")
 			return false
 		var expected: float = fmod(clock.elapsed_time_ms() / 1000.0, 3600.0)
-		var sampled: float = material.get_shader_parameter("animation_time")
+		# LiquidSurface::set_time writes milliseconds wrapped at one hour.
+		var sampled: float = material.get_shader_parameter("animation_time_ms") / 1000.0
 		if frame > 0 and absf(sampled - expected) > 0.2:
 			fail("Refreshed Water clock diverged: sampled=%s expected=%s" % [sampled, expected])
 			return false

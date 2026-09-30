@@ -69,6 +69,7 @@ fn world_space_emitters_skip_bone_parent_transform() {
         flags: 0,
         parent_bone_id: -1,
         submesh_id: 0,
+        name_crc: 0,
         pivot: [4.0, 5.0, 6.0],
     }];
 

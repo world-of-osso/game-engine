@@ -4,10 +4,18 @@ use rusqlite::Connection;
 
 use crate::customization_data::{
     RaceModels, RawCategory, RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial,
-    RawOption,
+    RawOption, RawSkinnedModel,
 };
 
 type HairGeosetKey = (u32, u16, u16);
+
+/// Cache schema; the version is in the file name because checkouts and the two
+/// clients share `data/cache`, and one name made each rebuild over the other's.
+pub(crate) const CACHE_SCHEMA_VERSION: u32 = 4;
+
+pub fn customization_cache_file() -> String {
+    format!("customization-v{CACHE_SCHEMA_VERSION}.sqlite")
+}
 
 pub(crate) fn query_customization_raw_data(
     conn: &Connection,
@@ -21,6 +29,7 @@ pub(crate) fn query_customization_raw_data(
         elements: load_elements(conn)?,
         materials: load_materials(conn)?,
         geosets: load_geosets(conn)?,
+        skinned_models: load_skinned_models(conn)?,
         hair_geosets: load_hair_geosets(conn)?,
         texture_fdids: load_texture_fdids(conn)?,
         race_models,
@@ -109,7 +118,7 @@ fn load_choices(conn: &Connection) -> Result<Vec<RawChoice>, String> {
 
 fn load_elements(conn: &Connection) -> Result<Vec<RawElement>, String> {
     let mut elements_stmt = conn
-        .prepare("SELECT choice_id, related_choice_id, geoset_id, material_id, has_unsupported_effects FROM elements")
+        .prepare("SELECT choice_id, related_choice_id, geoset_id, material_id, skinned_model_id, has_unsupported_effects FROM elements")
         .map_err(|err| format!("prepare elements lookup: {err}"))?;
     elements_stmt
         .query_map([], |row| {
@@ -118,7 +127,8 @@ fn load_elements(conn: &Connection) -> Result<Vec<RawElement>, String> {
                 related_choice_id: row.get(1)?,
                 geoset_id: row.get(2)?,
                 material_id: row.get(3)?,
-                has_unsupported_effects: row.get(4)?,
+                skinned_model_id: row.get(4)?,
+                has_unsupported_effects: row.get(5)?,
             })
         })
         .map_err(|err| format!("query elements: {err}"))?
@@ -162,6 +172,25 @@ fn load_geosets(conn: &Connection) -> Result<HashMap<u32, RawGeoset>, String> {
         .map_err(|err| format!("query geosets: {err}"))?
         .collect::<Result<HashMap<_, _>, _>>()
         .map_err(|err| format!("read geosets row: {err}"))
+}
+
+fn load_skinned_models(conn: &Connection) -> Result<HashMap<u32, RawSkinnedModel>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, collection_fdid, geoset_type, geoset_id FROM skinned_models")
+        .map_err(|err| format!("prepare skinned_models lookup: {err}"))?;
+    stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, u32>(0)?,
+            RawSkinnedModel {
+                collection_fdid: row.get(1)?,
+                geoset_type: row.get(2)?,
+                geoset_id: row.get(3)?,
+            },
+        ))
+    })
+    .map_err(|err| format!("query skinned_models: {err}"))?
+    .collect::<Result<HashMap<_, _>, _>>()
+    .map_err(|err| format!("read skinned_models row: {err}"))
 }
 
 fn load_hair_geosets(conn: &Connection) -> Result<HashMap<HairGeosetKey, bool>, String> {

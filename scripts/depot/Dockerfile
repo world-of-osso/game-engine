@@ -18,10 +18,9 @@ RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry 
     mkdir -p /out && gzip -1 -c target/debug/libgame_engine_godot.so > /out/libgame_engine_godot.so.gz && \
     case "$FIXTURE" in \
       "") ;; \
-      native_input_fixture|native_npc_visual_fixture) \
+      *) \
         cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-network --example "$FIXTURE" -j 16 && \
         gzip -1 -c "target/debug/examples/$FIXTURE" > "/out/$FIXTURE.gz" ;; \
-      *) echo "Unsupported fixture: $FIXTURE" >&2; exit 1 ;; \
     esac && du -sb target
 FROM scratch AS artifact
 COPY --from=build /out/ /
