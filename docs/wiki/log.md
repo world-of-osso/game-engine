@@ -2148,3 +2148,7 @@ Player and target frames now sit at Retail's Modern Edit Mode preset. The target
 ## [2026-09-29] feature | Auras on the Godot HUD
 
 The Godot client shows the player BuffFrame/DebuffFrame and the Retail TargetFrame aura container ([buff frame spec](../specs/buff-frame.md)). The player's own auras are large (21 px). On a hostile NPC, other players' debuffs are hidden. Timed icons get the reverse cooldown swipe with its edge. Countdowns run on wall time. The Retail PlayerFrame draws no aura icons. The shared `aura_display_data` keeps the replicated slot order that BuffFrame uses. Before this, the Godot client drew no auras at all, and the server marked Polymorph on the neutral Blackrock Spy as a buff (game-server `70551a9`, effect positivity). Live proof: `godot/tests/auras_live.gd`, with captures in `data/diagnostics/auras-2026-09-29/`.
+
+## [2026-09-30] fix | Retail ADT water
+
+Northshire streams used the procedural placeholder water shader and lost MH2O LVF 0 depths. Godot water now ports WebWowViewerCpp `liquidWaterMat` with LiquidType/LiquidObject/LiquidTypeXTexture DB2 inputs and LightData/LightParams colours. See [northshire-pale-water](investigations/northshire-pale-water.md).
