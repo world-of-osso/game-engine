@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use bevy::{ecs::component::ComponentId, prelude::*};
+use bevy::{ecs::component::ComponentId, platform::hash::NoOpHash, prelude::*};
 use bevy_replicon::{
     bytes::Bytes,
     postcard_utils,
@@ -173,8 +173,11 @@ pub struct Schema {
     pub(crate) codecs: Vec<Codec>,
     /// Codec index for each `FnsId`.
     by_fns: Vec<usize>,
-    by_type: HashMap<TypeId, usize>,
+    /// Looked up on every component read; `TypeId` is already a hash.
+    by_type: TypeIndex,
 }
+
+type TypeIndex = HashMap<TypeId, usize, NoOpHash>;
 
 impl Schema {
     /// Resolve the replication rules the worker registered (the same registrations that
@@ -182,7 +185,7 @@ impl Schema {
     pub(crate) fn from_world(world: &World) -> Result<Arc<Self>, String> {
         let codecs = codecs();
         assert!(codecs.len() <= 64, "ComponentSet holds at most 64 codecs");
-        let by_type: HashMap<TypeId, usize> = codecs
+        let by_type: TypeIndex = codecs
             .iter()
             .enumerate()
             .map(|(index, codec)| (codec.type_id, index))
@@ -213,7 +216,7 @@ impl Schema {
         Arc::new(Self {
             codecs: Vec::new(),
             by_fns: Vec::new(),
-            by_type: HashMap::new(),
+            by_type: TypeIndex::default(),
         })
     }
 
@@ -252,11 +255,7 @@ impl Schema {
     }
 }
 
-fn codec_of(
-    world: &World,
-    component: ComponentId,
-    by_type: &HashMap<TypeId, usize>,
-) -> Result<usize, String> {
+fn codec_of(world: &World, component: ComponentId, by_type: &TypeIndex) -> Result<usize, String> {
     let info = world
         .components()
         .get_info(component)
