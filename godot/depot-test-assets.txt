@@ -167,6 +167,7 @@ models/1139464.m2
 models/113946400.skin
 db2/12.1.0.69933/WeaponSwingSounds2.csv
 db2/12.1.0.69933/WeaponImpactSounds.csv
+db2/12.1.0.69933/Material.csv
 db2/12.1.0.69933/ItemDisplayInfo.csv
 db2/12.1.0.69933/UiMap.csv
 db2/12.1.0.69933/UiMapAssignment.csv
