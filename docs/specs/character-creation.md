@@ -21,6 +21,14 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - [x] Keep choices and primary controls within tested viewport bounds; disabled controls must not emit selection actions.
 - [x] Preserve the reference category tabs' 15-pixel hit insets so overlapping artwork does not steal neighboring clicks.
 
+### Races and classes
+
+- [x] Offer the 13 classes in Retail creation order (`classLayoutIndices`, Blizzard_CharacterCreate.lua:912). Monk, Demon Hunter and Evoker use their `ClassIcon_*` FileDataIDs and `ChrClasses.ClassColor` values.
+- [x] Gate Monk, Demon Hunter and Evoker by Retail `CharBaseInfo` (FileDataID 1343386, 12.1.0.69933), the same table the server enforces. Monk is on every listed race except Dracthyr. Demon Hunter is on Night Elf, Blood Elf and Void Elf. Evoker is on Dracthyr only. The older classes keep their earlier lists.
+- [x] Show Dracthyr (ChrRaces 52 Alliance, 70 Horde) in both allied columns. A Dracthyr selection defaults to Evoker (`ChrRaces.DefaultClassID` 13). The preview and the world model are the dragon form, `character/dracthyr/dracthyrdragon.m2` (ChrModel 89).
+- [x] Fit both race columns above the navigation buttons at 1280×720, including six Horde allied races.
+- [x] Offer the Demon Hunter horn, tattoo and blindfold choices (ChrCustomizationReq ClassMask 2048) and the Dracthyr dragon-form options.
+
 ### Authored creation scenes
 
 - [x] Resolve creation-scene FileDataIDs from `ChrRaces.CreateScreenFileDataID`, including Alliance, Horde and neutral Pandaren; keep the selectable roster unchanged.
@@ -75,6 +83,8 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - `src/scenes/char_create/{scene_tests,scene_tests_runtime,neutral_capture_tests}.rs` — authored backdrop lighting/material boundaries, camera/preview presentation, neutral loader-only capture and native mouse-input scheduling.
 - `tests/unit/{customization_data_tests,customization_catalog_cache_tests}.rs` — catalog fidelity, filtering, stale-schema autoload and real local-data loading.
 - `godot/rust/src/char_create/tests.rs` — real-catalog Human skin eligibility, a rejected Death Knight skin for a warrior, the reported skin 4978/face 27 combination, and a sweep over races 1/2/3/4/10/22 × sex × class checking requirements, randomize and select-any-choice ReqChoice validity.
+- `src/scenes/char_create/data.rs` tests: CharBaseInfo gates of the new classes, Dracthyr factions and default class, Retail class order. `godot/ui-model/tests/char_create.rs` `race_columns_end_above_the_navigation_buttons_at_720p`. `godot/rust/src/char_create/tests.rs`: Demon Hunter class choices and the Dracthyr dragon-form options.
+- `godot/tests/new_class_live.gd` (live, private server): creates a character through the real screens, enters the world, then casts at a Training Dummy.
 - `godot/rust/src/assets/player.rs` `swatch_tests`, `godot/core/tests/char_texture_data.rs` — rendered body chromaticity against every offered skin swatch (Human, Orc, Dwarf, Night Elf, Blood Elf), and exact blend-mode and non-body-layer bytes.
 - `src/ui/character_creation_icons.rs` — decoded pixel/mask/cache/error regressions.
 - Shared/server appearance tests — wire roundtrips, six historical storage schemas, temporary-database reopen and login roster preservation.
@@ -94,6 +104,23 @@ Closed-value centering and authored circular hover sizes passed independent nati
 - [ ] Bone sets, conditional/skinned models, voice, animation-kit and other non-material/geoset effects remain unsupported or partial, as shown by the controls.
 - [ ] Slider type 2 has no records in the local option data and is not implemented; types 0/1 are the supported contract for this data set.
 - [ ] The local install reports build `12.1.0.69875`; independent version provenance of the extracted Interface source is unconfirmed. The local files themselves are the chosen reference.
+
+## New classes live run — 2026-09-30
+
+`godot/tests/new_class_live.gd` exited 0 three times on private UDP 5100 (game-server `newclasses`), one run per class:
+
+- Human Monk `Fbmonktwo`: level 1 in Northshire; Tiger Palm hit.
+- Night Elf Demon Hunter `Fbhavoc`: level 8 in Shadowglen; Demon's Bite left 25/100 Fury.
+- Dracthyr Evoker `Fbscales`: level 10, Devastation, at the Stormwind flight master; Living Flame dealt 180 damage and cost 93 mana.
+
+Each character was teleported next to a Northshire Training Dummy before casting. Captures are in `data/diagnostics/newclasses-2026-09-30/`.
+
+Gaps found in this run:
+- [ ] Demon Hunter blindfolds use `ChrCustomizationSkinnedModelID`, which the engine does not render. The Blindfold row therefore keeps choice 789 "None", which ChrCustomizationReq 145 forbids for Demon Hunters. The `randomize_only_produces_offered_combinations_that_meet_required_choices` sweep fails on Night Elf and Blood Elf Demon Hunters because of this.
+- [ ] Dracthyr visage form (ChrRaces 75, ChrModel 127/128) and the dragon/visage toggle are missing. The dragon-form wings render untextured (white).
+- [ ] The Demon Hunter preview body renders black above the waist. This is unexamined.
+- [ ] "Demon Hunter" overflows its class tile label.
+- [ ] A cross-map teleport logs `Node3D::upcast_ref ... after it has been freed` panics in `GameClient::process()`. The client keeps running.
 
 ## Out of scope
 
