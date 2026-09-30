@@ -8,11 +8,11 @@
 2. Export ChrCustomizationElement, ChrCustomizationMaterial,
    ChrCustomizationSkinnedModel, ChrModelTextureLayer and ChrModelMaterial from the local CASC
    install (casc-local + scripts/export_db2_csv.py).
-3. Fetch TextureFileData for 12.1.0.69933 from wago.tools as a build-pinned CSV
-   (the game-server scripts/db2.py precedent). The local install has no
-   TextureFileData.db2: its encoding key 83eb4cdc8845756de5748773dec63407 is in no
-   Data/data/*.idx bucket file, so casc-local cannot read it. Textures still come
-   from local CASC.
+3. Fetch WAGO_TABLES for 12.1.0.69933 from wago.tools as build-pinned CSVs (the
+   game-server scripts/db2.py precedent): the tables the local install cannot
+   provide (see WAGO_TABLES). TextureFileData's encoding key
+   83eb4cdc8845756de5748773dec63407 is in no Data/data/*.idx bucket file. Textures
+   still come from local CASC.
 
 Then rebuild the caches the clients read with the root-crate importers:
   cargo run -j2 --bin customization_cache_import
@@ -41,11 +41,10 @@ LOCAL_TABLES = {
     "ChrCustomizationSkinnedModel": 3460183,
     "ChrModelTextureLayer": 3548976,
     "ChrModelMaterial": 3566562,
-    "ChrCustomizationReq": 3450453,
-    "ChrCustomizationReqChoice": 3580359,
 }
-# TextureFileData.db2 is not in the local install. The localized tables' enUS copies
-# have TACT-encrypted BLTE chunks (mode E) that the local readers do not decrypt.
+# Not readable from the local install: TextureFileData.db2 and ChrCustomizationReq.db2
+# have no local archive location for their encoding keys, and the localized tables'
+# enUS copies have TACT-encrypted BLTE chunks (mode E) the local readers do not decrypt.
 WAGO_TABLES = [
     "TextureFileData",
     "ChrCustomizationChoice",
@@ -53,6 +52,8 @@ WAGO_TABLES = [
     "ChrCustomizationCategory",
     "ChrCustomizationGeoset",
     "CharHairGeosets",
+    "ChrCustomizationReq",
+    "ChrCustomizationReqChoice",
 ]
 BACKED_UP = [f"{table}.csv" for table in [*LOCAL_TABLES, *WAGO_TABLES]] + [
     "cache/customization-v4.sqlite",
