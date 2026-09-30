@@ -225,9 +225,9 @@ impl GameClient {
             }
             result
         }
-        result.set("search", listings(&session.net.search_results));
-        result.set("owned", listings(&session.net.owned_results));
-        result.set("bids", listings(&session.net.bid_results));
+        result.set("search", &listings(&session.net.search_results));
+        result.set("owned", &listings(&session.net.owned_results));
+        result.set("bids", &listings(&session.net.bid_results));
         let mut inventory = VarArray::new();
         if let Some(inv) = &session.net.inventory {
             for row in &inv.items {
@@ -239,7 +239,7 @@ impl GameClient {
                 inventory.push(&item.to_variant());
             }
         }
-        result.set("inventory", inventory);
+        result.set("inventory", &inventory);
         result
     }
 }
