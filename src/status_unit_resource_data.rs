@@ -166,14 +166,32 @@ pub struct ClassBarPlayer {
     pub in_combat: bool,
 }
 
-/// The player's shown class bar and its power.
+/// Received resource timing and charged-point state. Times use the animator's monotonic
+/// seconds clock; `partial` uses thousandths and charged indices are 1-based.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ClassBarDynamics {
+    pub partial: u16,
+    pub regen_per_sec: f32,
+    pub received_at: f64,
+    pub charged_points: Vec<u8>,
+    pub runes: Option<ClassBarRunes>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ClassBarRunes {
+    pub duration_ms: u32,
+    pub ready_in_ms: Vec<u32>,
+}
+
+/// The player's shown class bar and its power.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClassBarResource {
     pub bar: ClassBar,
     pub current: u8,
     pub max: u8,
     /// Power in tenths of a displayed unit (soul shard fragments).
     pub tenths: u16,
+    pub dynamics: ClassBarDynamics,
     pub spec: Option<u32>,
     pub in_combat: bool,
 }
@@ -197,6 +215,7 @@ impl ClassBarResource {
             current: whole(entry.current),
             max: whole(entry.max),
             tenths: (entry.current * 10 / modifier).clamp(0, u16::MAX as i32) as u16,
+            dynamics: ClassBarDynamics::default(),
             spec: player.spec,
             in_combat: player.in_combat,
         })
