@@ -433,7 +433,10 @@ fn native_bridge_reports_protocol_rejection_instead_of_connecting() {
             Event::Connected => "connected".into(),
             Event::ProtocolRejected(reason) => format!("rejected: {reason}"),
             Event::Disconnected(_) => "disconnected".into(),
-            Event::Message(_) | Event::UnitUpdated(_) | Event::UnitRemoved(_) => "data".into(),
+            Event::Message(_)
+            | Event::UnitUpdated(_)
+            | Event::GameObjectUpdated(_)
+            | Event::UnitRemoved(_) => "data".into(),
         })
         .collect();
     assert_eq!(

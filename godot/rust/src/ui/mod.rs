@@ -620,6 +620,28 @@ impl RegistryUi {
         self.initialize_hud_model(model, parent)
     }
 
+    pub fn show_mail(
+        &mut self,
+        state: game_engine_ui_model::mail::NativeMailView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::mail::native_mail_screen,
+            ScreenPostsetup::Merchant,
+            registry,
+            parent,
+        )
+    }
+
     pub fn show_auction_gossip(
         &mut self,
         state: game_engine_ui_model::auction::AuctionGossipView,
