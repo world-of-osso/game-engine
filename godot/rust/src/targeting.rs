@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use game_engine_core::{
+    creature_health_scaling_data::CreatureHealthByLevel,
     input_bindings_data::{BindingMouseButton, InputAction, InputState},
     target_selection_data::{next_target, opaque_to_alpha_mask},
 };
@@ -25,6 +26,7 @@ use godot::{
     },
     prelude::*,
 };
+use shared::level_scaling::level_for_viewer;
 
 use crate::frame_error::{FrameError, SessionError, report_once};
 pub(crate) use crate::unit_pick::pick_unit;
@@ -46,6 +48,7 @@ const DECAL_SCALE: f32 = 2.0;
 /// The ring sits 0.08 above the unit origin and projects onto ground within this height.
 const CIRCLE_LIFT: f32 = 0.08;
 const CIRCLE_DEPTH: f32 = 1.0;
+const EXPECTED_STAT_CSV: &str = "db2/12.1.0.69933/ExpectedStat.csv";
 
 pub(crate) struct Targeting {
     target: Option<u64>,
@@ -62,6 +65,10 @@ pub(crate) struct Targeting {
     pip_animations: PipAnimations,
     started: Instant,
     data_root: PathBuf,
+    /// ExpectedStat creature health, loaded with the first tuned target.
+    health_by_level: Option<Result<CreatureHealthByLevel, String>>,
+    /// The TargetFrame's level and health texts last shown, for automation.
+    frame_texts: (String, String),
 }
 
 struct TargetCircle {
@@ -94,7 +101,21 @@ impl Targeting {
             pip_animations: PipAnimations::default(),
             started: Instant::now(),
             data_root,
+            health_by_level: None,
+            frame_texts: Default::default(),
         }
+    }
+
+    fn health_by_level(&mut self) -> Result<&CreatureHealthByLevel, String> {
+        self.health_by_level
+            .get_or_insert_with(|| {
+                let path = self.data_root.join(EXPECTED_STAT_CSV);
+                std::fs::read_to_string(&path)
+                    .map_err(|error| format!("Read {}: {error}", path.display()))
+                    .and_then(|text| CreatureHealthByLevel::parse_expected_stat_csv(&text))
+            })
+            .as_ref()
+            .map_err(Clone::clone)
     }
 
     /// The unit frames UI, once shown.
@@ -267,15 +288,47 @@ fn unit_name(unit: &UnitSnapshot) -> String {
         .unwrap_or_else(|| "Unknown".into())
 }
 
-/// Bevy `build_target_state` from the replicated values the native snapshot carries.
-fn target_frame_state(unit: &UnitSnapshot, viewer_level: Option<u8>) -> UnitFrameState {
+/// Bevy `build_target_state` from the replicated values the native snapshot carries. A
+/// tuned creature shows its level against the viewer (`UnitEffectiveLevel`,
+/// TargetFrameMixin:CheckLevel, TargetFrame.lua:266-282) and its health pool times
+/// `health_multiplier` (`GetHealthMultiplierForTarget`).
+fn target_frame_state(
+    unit: &UnitSnapshot,
+    viewer_level: Option<u8>,
+    health_multiplier: f32,
+) -> UnitFrameState {
     let mut state = UnitFrameState::named(unit_name(unit));
-    state.level_text = target_level_text(unit.level.map(|level| level.0), viewer_level);
+    let level = unit.level.map(|level| {
+        level_for_viewer(
+            level,
+            unit.level_scaling.as_ref(),
+            viewer_level.unwrap_or(level.0),
+        )
+    });
+    state.level_text = target_level_text(level, viewer_level);
     if let Some(health) = unit.health {
-        state.health_text = format_value_text(health.current, health.max);
+        let (current, max) = (
+            (health.current * health_multiplier).round(),
+            (health.max * health_multiplier).round(),
+        );
+        state.health_text = format_value_text(current, max);
         state.health_fraction = fraction(health.current, health.max);
     }
     state
+}
+
+/// The health multiplier a tuned `unit` has for a viewer of `viewer_level`; 1 untuned.
+fn target_health_multiplier(
+    table: &CreatureHealthByLevel,
+    unit: &UnitSnapshot,
+    viewer_level: Option<u8>,
+) -> f32 {
+    match (unit.level_scaling, viewer_level) {
+        (Some(scaling), Some(viewer)) => {
+            table.health_multiplier(scaling.native_level(), scaling.level_for_target(viewer))
+        }
+        _ => 1.0,
+    }
 }
 
 fn player_frame_state(
@@ -462,13 +515,22 @@ impl GameClient {
             .and_then(|id| self.units.get(&id)?.level)
             .map(|level| level.0);
         let target_id = self.targeting.target;
-        let mut target = target_id
-            .and_then(|id| self.units.get(&id))
-            .map(|unit| target_frame_state(unit, viewer_level));
+        let target_unit = target_id.and_then(|id| self.units.get(&id));
+        let multiplier = match target_unit.filter(|unit| unit.level_scaling.is_some()) {
+            Some(unit) => {
+                target_health_multiplier(self.targeting.health_by_level()?, unit, viewer_level)
+            }
+            None => 1.0,
+        };
+        let mut target = target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier));
         if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
             self.fill_target_auras(state, id);
         }
         let target_state = target.clone();
+        self.targeting.frame_texts = target
+            .as_ref()
+            .map(|state| (state.level_text.clone(), state.health_text.clone()))
+            .unwrap_or_default();
         let player = self
             .world
             .local_player_id()
@@ -524,6 +586,8 @@ impl GameClient {
                 .unwrap_or_default()
                 .as_str(),
         );
+        state.set("level_text", self.targeting.frame_texts.0.as_str());
+        state.set("health_text", self.targeting.frame_texts.1.as_str());
         state.set("sent", &optional_id(self.targeting.sent));
         let (pick_us, pick_candidates) = crate::unit_pick::last_pick_stats();
         state.set("last_pick_us", pick_us as i64);

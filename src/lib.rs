@@ -10,10 +10,10 @@ pub mod asset;
 pub mod auction_house;
 #[path = "game/auction_house_data.rs"]
 pub mod auction_house_data;
-#[path = "game/bag_data.rs"]
-pub mod bag_data;
 #[path = "game/aura_display_data.rs"]
 pub mod aura_display_data;
+#[path = "game/bag_data.rs"]
+pub mod bag_data;
 #[path = "game/bank_data.rs"]
 pub mod bank_data;
 pub mod barber_shop;
@@ -59,6 +59,8 @@ pub mod creation_scene_data;
 pub mod creature_display;
 #[path = "game/creatures/creature_display_data.rs"]
 pub mod creature_display_data;
+#[path = "game/creature_health_scaling_data.rs"]
+pub mod creature_health_scaling_data;
 pub mod csv_util;
 pub mod currency;
 #[path = "game/cursor_item.rs"]

@@ -36,6 +36,8 @@ pub mod creation_scene_data;
 pub mod creature_display_data;
 #[cfg(test)]
 mod creature_display_data_tests;
+#[path = "../../../src/game/creature_health_scaling_data.rs"]
+pub mod creature_health_scaling_data;
 #[path = "../../../src/csv_util.rs"]
 pub mod csv_util;
 #[path = "../../../src/rendering/character/customization_catalog.rs"]
@@ -65,9 +67,9 @@ pub mod m2;
 #[path = "../../../src/asset/m2_effect_uv_data.rs"]
 pub mod m2_effect_uv_data;
 pub mod m2_particles;
-pub mod minimap_data;
 #[path = "../../../src/asset/m2_texture_composite_data.rs"]
 pub mod m2_texture_composite_data;
+pub mod minimap_data;
 #[path = "../../../src/movement_animation_data.rs"]
 pub mod movement_animation_data;
 #[path = "../../../src/movement_input_data.rs"]

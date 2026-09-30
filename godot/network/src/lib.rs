@@ -33,6 +33,7 @@ use shared::{
         UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
         UnitThreatList,
     },
+    level_scaling::LevelScaling,
     protocol::{
         ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
         CharacterListUpdate, ChatMessage, CombatEvent, CombatLogEvent, CreateCharacterResponse,
@@ -86,6 +87,8 @@ pub struct UnitSnapshot {
     pub mana: Option<Mana>,
     pub model: Option<ModelDisplay>,
     pub level: Option<UnitLevel>,
+    /// A tuned creature's ContentTuning range: the level and health each viewer sees.
+    pub level_scaling: Option<LevelScaling>,
     pub equipment: Option<EquipmentAppearance>,
     pub movement_control: Option<MovementControl>,
     /// Server speed (yd/s) for the unit's newest applied movement: base × auras × direction.
@@ -130,6 +133,7 @@ impl UnitSnapshot {
             mana: entity.get::<Mana>().copied(),
             model: entity.get::<ModelDisplay>().copied(),
             level: entity.get::<UnitLevel>().copied(),
+            level_scaling: entity.get::<LevelScaling>().copied(),
             equipment: entity.get::<EquipmentAppearance>().cloned(),
             movement_control: entity.get::<MovementControl>().copied(),
             movement_speed: entity.get::<MovementSpeed>().copied(),
