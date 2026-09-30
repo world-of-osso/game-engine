@@ -249,8 +249,18 @@ fn resolve_selected_player(
     chosen
 }
 
-fn unit_appearance(snapshot: &UnitSnapshot) -> Option<UnitAppearance> {
+fn unit_appearance(snapshot: &UnitSnapshot, native_display: Option<u32>) -> Option<UnitAppearance> {
     if let Some(player) = &snapshot.player {
+        if let Some(model) = snapshot
+            .model
+            .filter(|model| model.display_id != 0 && Some(model.display_id) != native_display)
+        {
+            return Some(UnitAppearance::Creature {
+                display_id: model.display_id,
+                // Player armor and weapons belong to the native humanoid, not its form.
+                items: Default::default(),
+            });
+        }
         return Some(UnitAppearance::Player(
             player.clone(),
             snapshot.equipment.clone().unwrap_or_default(),
@@ -277,7 +287,21 @@ fn sync_unit_visual(
     models: &mut WorldModels,
     light: Option<&TerrainLight>,
 ) {
-    let appearance = unit_appearance(snapshot);
+    let native_display = match snapshot
+        .player
+        .as_ref()
+        .filter(|_| snapshot.model.is_some_and(|model| model.display_id != 0))
+    {
+        Some(player) => match models.player_native_display(player) {
+            Ok(display) => Some(display),
+            Err(error) => {
+                godot_error!("Player {} native display: {error}", snapshot.server_id);
+                return;
+            }
+        },
+        None => None,
+    };
+    let appearance = unit_appearance(snapshot, native_display);
     if unit.appearance == appearance {
         return;
     }
@@ -894,7 +918,8 @@ mod tests {
             snapshot.model = Some(shared::components::ModelDisplay {
                 display_id: expected,
             });
-            let actual = match unit_appearance(&snapshot).expect("player appearance") {
+            let actual = match unit_appearance(&snapshot, Some(native)).expect("player appearance")
+            {
                 UnitAppearance::Creature { display_id, .. } => display_id,
                 UnitAppearance::Player(_, _) => native,
             };
