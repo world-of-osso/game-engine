@@ -97,6 +97,7 @@ db2/12.1.0.69933/LiquidType.csv
 db2/12.1.0.69933/LiquidObject.csv
 db2/12.1.0.69933/LiquidMaterial.csv
 db2/12.1.0.69933/LiquidTypeXTexture.csv
+terrain/778417.adt
 
 # game-engine-core tests/spell_visual.rs
 db2/12.1.0.69933/SpellXSpellVisual.csv
@@ -120,6 +121,7 @@ db2/12.1.0.69933/ChrRaceXChrModel.csv
 
 # game-engine-core --lib
 textures/464811.blp
+textures/1886758.blp
 textures/464043.blp
 textures/198077.blp
 textures/1022933.blp

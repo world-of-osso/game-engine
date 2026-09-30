@@ -171,3 +171,29 @@ fn magma_and_slime_use_the_magma_shader_with_lvf1_layers_and_int2_base_colour() 
     assert_eq!(slime.shader, LiquidShader::Magma);
     assert_eq!(slime.texture_slots[1], [374_986]);
 }
+
+/// Searing Gorge tile azeroth_34_46 (FDID 778417): its magma LiquidObjects are LVF 1, so
+/// each layer re-reads its vertices as a height array followed by a UV array.
+#[test]
+fn searing_gorge_magma_layers_reread_as_lvf1() {
+    let catalog = catalog();
+    let bytes = std::fs::read(data_root().join("terrain/778417.adt")).expect("cached ADT");
+    let mut water = parse_root(&bytes).expect("parse ADT").water.expect("MH2O");
+    let layers: Vec<_> = water
+        .chunks
+        .iter_mut()
+        .flat_map(|chunk| &mut chunk.layers)
+        .collect();
+    assert_eq!(layers.len(), 53);
+    for layer in layers {
+        let material = catalog
+            .liquid_material(layer.liquid_type, layer.liquid_object)
+            .expect("magma material");
+        assert_eq!((material.shader, material.lvf), (LiquidShader::Magma, 1));
+        layer.decode_object_vertices(material.lvf).expect("LVF 1");
+        let vertices = (layer.width as usize + 1) * (layer.height as usize + 1);
+        assert_eq!(layer.vertex_heights.len(), vertices);
+        assert_eq!(layer.vertex_uvs.len(), vertices);
+        assert!(layer.vertex_depths.is_empty());
+    }
+}
