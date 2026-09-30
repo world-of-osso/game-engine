@@ -334,6 +334,15 @@ impl Session {
         vec![SessionEffect::Transition(self.screen)]
     }
 
+    /// Client and server protocols differ. The transport drops the link itself; the reason
+    /// becomes the login feedback when `Disconnected` arrives, with no reconnect.
+    pub fn receive_protocol_rejected(&mut self, reason: String) {
+        self.pending_forced_disconnect = Some(ForcedDisconnect {
+            message: reason,
+            reconnect_allowed: false,
+        });
+    }
+
     /// Preserve notice until the host reports actual disconnection, as the old lifecycle did.
     pub fn receive_forced_disconnect(&mut self, notice: ForcedDisconnect) -> Vec<SessionEffect> {
         self.pending_forced_disconnect = Some(notice);
@@ -351,13 +360,12 @@ impl Session {
         if let Some(notice) = self.pending_forced_disconnect.take() {
             self.clear_reconnect();
             self.feedback = Some(notice.message);
-            let transition = self.screen != SessionScreen::Login;
             self.screen = SessionScreen::Login;
-            let mut effects = vec![SessionEffect::ResetNetworkWorld];
-            if transition {
-                effects.push(SessionEffect::Transition(self.screen));
-            }
-            return effects;
+            // Also from Login itself: the host shows feedback on a screen transition.
+            return vec![
+                SessionEffect::ResetNetworkWorld,
+                SessionEffect::Transition(self.screen),
+            ];
         }
         match self.screen {
             SessionScreen::CharacterSelect
