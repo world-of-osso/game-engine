@@ -12,6 +12,7 @@ use godot::{
 use godot::builtin::{Basis, Transform3D};
 
 mod action;
+mod billboard;
 pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
@@ -446,9 +447,10 @@ pub struct WowAnimationPlayer {
     sampling: bool,
     /// A pose change was skipped while not sampling.
     stale: bool,
-    /// Some bone track changes over time; a static model keeps its first pose and never
-    /// processes.
+    /// Some bone track changes over time, or a billboard follows the camera; a static
+    /// model keeps its first pose and never processes.
     animates: bool,
+    billboards: Option<billboard::Billboards>,
 }
 
 #[godot_api]
@@ -462,6 +464,7 @@ impl INode for WowAnimationPlayer {
             sampling: true,
             stale: false,
             animates: true,
+            billboards: None,
         }
     }
 
@@ -479,6 +482,7 @@ impl INode for WowAnimationPlayer {
 impl WowAnimationPlayer {
     pub fn from_model(model: &m2::Model, skeleton: Gd<Skeleton3D>) -> Result<Gd<Self>, String> {
         let animation = AnimationState::new(model)?;
+        let billboards = billboard::Billboards::new(model);
         if skeleton.get_bone_count() as usize != model.bones.len() {
             return Err(format!(
                 "M2 animation has {} bones but Skeleton3D has {}",
@@ -493,7 +497,8 @@ impl WowAnimationPlayer {
             paused: false,
             sampling: true,
             stale: false,
-            animates: !m2::bones_are_static(model),
+            animates: !m2::bones_are_static(model) || billboards.is_some(),
+            billboards,
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
@@ -662,7 +667,11 @@ impl WowAnimationPlayer {
         let (Some(animation), Some(skeleton)) = (&self.animation, &mut self.skeleton) else {
             return;
         };
-        for (index, pose) in animation.sampled_poses().into_iter().enumerate() {
+        let mut poses = animation.sampled_poses();
+        if let Some(billboards) = &self.billboards {
+            billboards.apply(&mut poses, skeleton);
+        }
+        for (index, pose) in poses.into_iter().enumerate() {
             skeleton.set_bone_pose_position(index as i32, pose.position);
             skeleton.set_bone_pose_rotation(index as i32, pose.rotation);
             skeleton.set_bone_pose_scale(index as i32, pose.scale);
@@ -726,7 +735,7 @@ impl WowAnimationPlayer {
                 // static props keep the pose already on the skeleton.
                 let varied = animation.pose_varies();
                 animation.advance(delta_ms)?;
-                Ok(varied || animation.pose_varies())
+                Ok(varied || animation.pose_varies() || self.billboards.is_some())
             });
         match result {
             Ok(changed) => {

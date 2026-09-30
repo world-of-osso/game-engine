@@ -9,9 +9,14 @@ use std::{
 };
 
 use game_engine_core::{
-    adt,
+    adt, blp,
     footstep_data::FootstepSurface,
-    ground_effect_data, terrain_surface_data, wdt,
+    ground_effect_data,
+    liquid_data::{
+        FIRST_LIQUID_OBJECT, LiquidCatalog, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE,
+        TEXTURE_SLOTS,
+    },
+    terrain_surface_data, wdt,
     wmo_surface_data::{WmoSurfaceBounds, select_wmo_material_surface},
 };
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
@@ -28,6 +33,7 @@ pub(crate) struct NativeTerrainAssets {
     textures: RefCell<TerrainTextureCache>,
     lighting: RefCell<Option<Arc<LightingCatalog>>>,
     surface_catalog: OnceLock<Result<SurfaceCatalog, String>>,
+    liquids: OnceLock<Result<LiquidCatalog, String>>,
     /// Parsed group floors and root-wide material surface, keyed by root FDID.
     wmo_groups: RefCell<HashMap<u32, (Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>)>>,
 }
@@ -53,6 +59,19 @@ pub(crate) struct NativeTerrainTile {
     /// tile is parsed, before any WMO node spawns. A WMO spanning tiles is in each tile's list.
     pub wmo_floors: Vec<(u32, WmoCollision)>,
     pub wmo_surfaces: Vec<(WmoSurfaceBounds, FootstepSurface)>,
+    /// Liquid material of each MH2O `(liquid_type, liquid_object)` on the tile.
+    pub liquid_materials: BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>,
+}
+
+/// One decoded texture frame; a zero-FDID (procedural) frame has no image and binds black.
+pub(crate) type LiquidFrame = (u32, Option<Arc<blp::RgbaImage>>);
+
+/// A LiquidType's DB2 inputs with the decoded frames of the slots its shader samples and
+/// its engine-global textures by uniform name.
+pub(crate) struct NativeLiquidMaterial {
+    pub params: LiquidMaterial,
+    pub slots: [Vec<LiquidFrame>; TEXTURE_SLOTS],
+    pub globals: Vec<(&'static str, Arc<blp::RgbaImage>)>,
 }
 
 impl NativeTerrainAssets {
@@ -68,6 +87,7 @@ impl NativeTerrainAssets {
             textures: RefCell::new(TerrainTextureCache::default()),
             lighting: RefCell::new(None),
             surface_catalog: OnceLock::new(),
+            liquids: OnceLock::new(),
             wmo_groups: RefCell::new(HashMap::new()),
         }
     }
@@ -117,7 +137,7 @@ impl NativeTerrainAssets {
         let (root_path, root_bytes) = self.read_declared_file(&format!("{stem}.adt"), "adt")?;
         let tex_file = self.read_optional_companion(&format!("{stem}_tex0.adt"))?;
         let obj_file = self.read_optional_companion(&format!("{stem}_obj0.adt"))?;
-        let root = adt::parse_root_for_tile(
+        let mut root = adt::parse_root_for_tile(
             &root_bytes,
             tile_y,
             tile_x,
@@ -146,6 +166,7 @@ impl NativeTerrainAssets {
             }
             None => BTreeMap::new(),
         };
+        let liquid_materials = self.read_liquid_materials(&mut root)?;
         let (wmo_floors, wmo_surfaces) = obj
             .as_ref()
             .map(|obj| self.read_wmo_floors(&obj.wmos, (tile_y, tile_x)))
@@ -161,7 +182,127 @@ impl NativeTerrainAssets {
             chunk_surfaces,
             wmo_floors,
             wmo_surfaces,
+            liquid_materials,
         })
+    }
+
+    /// Resolves each layer's material, then reads LiquidObject vertices in its LVF.
+    fn read_liquid_materials(
+        &self,
+        root: &mut adt::Root,
+    ) -> Result<BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>, String> {
+        let mut materials = BTreeMap::new();
+        let layers = root
+            .water
+            .iter_mut()
+            .flat_map(|water| &mut water.chunks)
+            .flat_map(|chunk| &mut chunk.layers);
+        for layer in layers {
+            let key = (layer.liquid_type, layer.liquid_object);
+            if !materials.contains_key(&key) {
+                let material = match self.resolve_liquid_material(key) {
+                    Ok(params) => Ok(Arc::new(self.read_liquid_textures(params)?)),
+                    Err(error) => Err(error),
+                };
+                materials.insert(key, material);
+            }
+            let Some(Ok(material)) = materials.get(&key) else {
+                continue;
+            };
+            if layer.liquid_object >= FIRST_LIQUID_OBJECT {
+                let lvf = material.params.lvf;
+                if let Err(error) = layer.decode_object_vertices(lvf) {
+                    let error = format!(
+                        "LiquidObject {} LVF {lvf} vertices: {error}",
+                        layer.liquid_object
+                    );
+                    materials.insert(key, Err(error));
+                }
+            }
+        }
+        Ok(materials)
+    }
+
+    /// The liquid material of one MH2O `(liquid_type, liquid_object)`; texture read failures
+    /// are errors of the whole tile, material resolution failures only of its layers.
+    pub fn read_liquid_material(&self, key: (u16, u16)) -> Result<NativeLiquidMaterial, String> {
+        self.read_liquid_textures(self.resolve_liquid_material(key)?)
+    }
+
+    fn read_liquid_textures(&self, params: LiquidMaterial) -> Result<NativeLiquidMaterial, String> {
+        let mut slots: [Vec<LiquidFrame>; TEXTURE_SLOTS] = Default::default();
+        for &slot in params.shader.texture_slots() {
+            slots[slot] = self.read_liquid_frames(&params.texture_slots[slot])?;
+        }
+        let globals = params
+            .shader
+            .global_textures()
+            .iter()
+            .map(|&(name, fdid)| Ok((name, self.read_global_liquid_texture(fdid)?)))
+            .collect::<Result<_, String>>()?;
+        Ok(NativeLiquidMaterial {
+            params,
+            slots,
+            globals,
+        })
+    }
+
+    fn resolve_liquid_material(
+        &self,
+        (liquid_type, liquid_object): (u16, u16),
+    ) -> Result<LiquidMaterial, String> {
+        let catalog = self
+            .liquids
+            .get_or_init(|| LiquidCatalog::read(&self.data_root.join("db2/12.1.0.69933")))
+            .as_ref()
+            .map_err(Clone::clone)?;
+        catalog.liquid_material(liquid_type, liquid_object)
+    }
+
+    fn read_liquid_frames(&self, fdids: &[u32]) -> Result<Vec<LiquidFrame>, String> {
+        fdids
+            .iter()
+            .map(|&fdid| {
+                let image = (fdid != 0)
+                    .then(|| {
+                        self.textures
+                            .borrow_mut()
+                            .load_image(&self.resolver, &self.data_root, fdid)
+                    })
+                    .transpose()?;
+                Ok((fdid, image))
+            })
+            .collect()
+    }
+
+    /// The magma noise volume is raw RGBA slices, every other global a BLP.
+    fn read_global_liquid_texture(&self, fdid: u32) -> Result<Arc<blp::RgbaImage>, String> {
+        if fdid != MAGMA_NOISE_FDID {
+            return self
+                .textures
+                .borrow_mut()
+                .load_image(&self.resolver, &self.data_root, fdid);
+        }
+        let cache = self.data_root.join("textures").join(format!("{fdid}.blob"));
+        let path = self.resolver.ensure_cached(fdid, &cache).ok_or_else(|| {
+            format!(
+                "Local CASC noise volume FDID {fdid} unavailable at {}",
+                cache.display()
+            )
+        })?;
+        let pixels = read_bytes(&path)?;
+        let (width, height) = MAGMA_NOISE_SIZE;
+        if pixels.len() != (width * height * 4) as usize {
+            return Err(format!(
+                "Noise volume FDID {fdid} has {} bytes, expected {width}x{height} RGBA",
+                pixels.len()
+            ));
+        }
+        Ok(Arc::new(blp::RgbaImage {
+            pixels,
+            width,
+            height,
+        }))
     }
 
     fn classify_tile_surfaces(
@@ -498,7 +639,8 @@ mod tests {
 
         let assets = cached_assets();
         let root_path = test_data_root().join("terrain/azeroth_32_48.adt");
-        let root = adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
+        let mut root =
+            adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
         let layer = |effect_id| TextureLayer {
             texture_index: 0,
             flags: MclyFlags::default(),
@@ -553,7 +695,8 @@ mod tests {
             .ok()
             .unwrap();
         let root_path = test_data_root().join("terrain/azeroth_32_48.adt");
-        let root = adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
+        let mut root =
+            adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
         let tex = adt::AdtTexData {
             map_flags: wdt::MphdFlags::default(),
             texture_amplifier: None,

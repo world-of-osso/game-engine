@@ -1,6 +1,6 @@
 //! Authored light catalogs loaded on the terrain asset worker.
 
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 use game_engine_core::{
     light_lookup_data::{
@@ -17,12 +17,36 @@ pub(crate) struct LightingCatalog {
     lights: Vec<LightEntry>,
     zone_lights: Vec<ZoneLight>,
     keyframes: LightKeyframes,
+    /// `LightParams` Water/Ocean Shallow/Deep alphas by LightParams ID.
+    liquid_alphas: HashMap<u32, LiquidAlphas>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct LiquidAlphas {
+    river: [f32; 2],
+    ocean: [f32; 2],
 }
 
 pub(crate) struct LightingSample {
     pub retail: RetailLightData,
     pub fog: RetailFog,
     pub sky: SkyColorSet<[f32; 3]>,
+    pub water: WaterLight,
+}
+
+/// Scene inputs of the retail water material in authored RGB (WebWowViewerCpp
+/// DayNightLightHolder.cpp:928-937 liquid colours and alphas; MapSceneRenderer.cpp:194-203
+/// close/far colour with shallow/deep alpha, specular = SunColor; :297-315 underwater fog
+/// from the Light's underwater LightParams slot).
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct WaterLight {
+    pub river_close: [f32; 4],
+    pub river_far: [f32; 4],
+    pub ocean_close: [f32; 4],
+    pub ocean_far: [f32; 4],
+    pub specular: [f32; 3],
+    pub underwater_fog: RetailFog,
+    pub underwater_fog_color: [f32; 3],
 }
 
 impl LightingCatalog {
@@ -38,10 +62,13 @@ impl LightingCatalog {
             &read_text(&data_root.join("ZoneLightPoint.csv"))?,
         )
         .map_err(|error| format!("{}: {error}", data_root.display()))?;
+        let liquid_alphas =
+            parse_liquid_alphas(&data_root.join("db2/12.1.0.69933/LightParams.csv"))?;
         Ok(Self {
             lights,
             zone_lights,
             keyframes,
+            liquid_alphas,
         })
     }
 
@@ -51,13 +78,61 @@ impl LightingCatalog {
         wow_position: [f32; 3],
         minutes: f32,
     ) -> Result<LightingSample, String> {
-        let blend = light_params_blend(
+        let weights = self.blend_weights(map_id, wow_position, LightParamsSlot::Clear)?;
+        let sky = self.sample_sky(&weights, minutes, map_id, wow_position)?;
+        let alphas = self.blend_liquid_alphas(&weights)?;
+        let retail = scene_light(&retail_colors(&sky), minutes);
+        let fog = retail_fog(&sky);
+        let mut water = WaterLight {
+            river_close: with_alpha(sky.river_close_color, alphas.river[0]),
+            river_far: with_alpha(sky.river_far_color, alphas.river[1]),
+            ocean_close: with_alpha(sky.ocean_close_color, alphas.ocean[0]),
+            ocean_far: with_alpha(sky.ocean_far_color, alphas.ocean[1]),
+            specular: linear_to_authored_rgb(sky.sun_color),
+            underwater_fog: INERT_UNDERWATER_FOG,
+            underwater_fog_color: [0.0; 3],
+        };
+        if let Some(underwater) = self.sample_underwater(map_id, wow_position, minutes) {
+            water.underwater_fog = retail_fog(&underwater);
+            water.underwater_fog_color = linear_to_authored_rgb(underwater.fog_color);
+        }
+        Ok(LightingSample {
+            retail,
+            fog,
+            sky,
+            water,
+        })
+    }
+
+    /// The underwater LightParams blend. Like the reference's day/night blend it skips
+    /// LightParams without keyframes (21 authored Lights name such underwater slots); with none
+    /// left the fog is inert (MapSceneRenderer.cpp:310-313 "no data -> inert fog").
+    fn sample_underwater(
+        &self,
+        map_id: u32,
+        wow_position: [f32; 3],
+        minutes: f32,
+    ) -> Option<SkyColorSet<[f32; 3]>> {
+        let weights: Vec<_> = light_params_blend(
             &self.lights,
             &self.zone_lights,
             map_id,
             wow_position,
-            LightParamsSlot::Clear,
-        );
+            LightParamsSlot::ClearUnderwater,
+        )
+        .iter()
+        .map(|light| (light.light_params_id, light.weight))
+        .collect();
+        sample_light_blend(&self.keyframes, &weights, minutes, lerp_rgb)
+    }
+
+    fn blend_weights(
+        &self,
+        map_id: u32,
+        wow_position: [f32; 3],
+        slot: LightParamsSlot,
+    ) -> Result<Vec<(u32, f32)>, String> {
+        let blend = light_params_blend(&self.lights, &self.zone_lights, map_id, wow_position, slot);
         for light in &blend {
             if self
                 .keyframes
@@ -70,16 +145,95 @@ impl LightingCatalog {
                 ));
             }
         }
-        let weights: Vec<_> = blend
+        Ok(blend
             .iter()
             .map(|light| (light.light_params_id, light.weight))
-            .collect();
-        let sky = sample_light_blend(&self.keyframes, &weights, minutes, lerp_rgb)
-            .ok_or_else(|| format!("No authored lighting for map {map_id} at {wow_position:?}"))?;
-        let retail = scene_light(&retail_colors(&sky), minutes);
-        let fog = retail_fog(&sky);
-        Ok(LightingSample { retail, fog, sky })
+            .collect())
     }
+
+    fn sample_sky(
+        &self,
+        weights: &[(u32, f32)],
+        minutes: f32,
+        map_id: u32,
+        wow_position: [f32; 3],
+    ) -> Result<SkyColorSet<[f32; 3]>, String> {
+        sample_light_blend(&self.keyframes, weights, minutes, lerp_rgb)
+            .ok_or_else(|| format!("No authored lighting for map {map_id} at {wow_position:?}"))
+    }
+
+    /// Overlays each LightParams' alphas by its weight, as `sample_light_blend` does colours.
+    fn blend_liquid_alphas(&self, weights: &[(u32, f32)]) -> Result<LiquidAlphas, String> {
+        let mut blended: Option<LiquidAlphas> = None;
+        for &(id, weight) in weights {
+            let alphas = *self
+                .liquid_alphas
+                .get(&id)
+                .ok_or_else(|| format!("LightParams {id} has no DB2 row"))?;
+            blended = Some(match blended {
+                None => alphas,
+                Some(base) => LiquidAlphas {
+                    river: std::array::from_fn(|i| lerp(base.river[i], alphas.river[i], weight)),
+                    ocean: std::array::from_fn(|i| lerp(base.ocean[i], alphas.ocean[i], weight)),
+                },
+            });
+        }
+        blended.ok_or_else(|| "No LightParams for liquid alphas".into())
+    }
+}
+
+fn parse_liquid_alphas(path: &Path) -> Result<HashMap<u32, LiquidAlphas>, String> {
+    let text = read_text(path)?;
+    let mut lines = text.lines();
+    let header: Vec<_> = lines.next().unwrap_or("").split(',').collect();
+    let column = |name: &str| {
+        header
+            .iter()
+            .position(|column| *column == name)
+            .ok_or_else(|| format!("{} has no {name} column", path.display()))
+    };
+    let columns = [
+        column("ID")?,
+        column("WaterShallowAlpha")?,
+        column("WaterDeepAlpha")?,
+        column("OceanShallowAlpha")?,
+        column("OceanDeepAlpha")?,
+    ];
+    lines
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            let values: Vec<_> = line.split(',').collect();
+            let number = |index: usize| {
+                values
+                    .get(index)
+                    .and_then(|value| value.parse::<f32>().ok())
+                    .ok_or_else(|| format!("{}: invalid row {line:?}", path.display()))
+            };
+            Ok((
+                number(columns[0])? as u32,
+                LiquidAlphas {
+                    river: [number(columns[1])?, number(columns[2])?],
+                    ocean: [number(columns[3])?, number(columns[4])?],
+                },
+            ))
+        })
+        .collect()
+}
+
+/// MapSceneRenderer.cpp:312 underwater fog without data: start 0, end 1e8, density 0.
+const INERT_UNDERWATER_FOG: RetailFog = RetailFog {
+    start: 0.0,
+    end: 100_000_000.0,
+    density: 0.0,
+};
+
+fn with_alpha(linear: [f32; 3], alpha: f32) -> [f32; 4] {
+    let [r, g, b] = linear_to_authored_rgb(linear);
+    [r, g, b, alpha]
+}
+
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
 }
 
 fn read_text(path: &Path) -> Result<String, String> {
@@ -99,5 +253,5 @@ fn retail_colors(sky: &SkyColorSet<[f32; 3]>) -> RetailLightColors {
 }
 
 fn lerp_rgb(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
-    std::array::from_fn(|index| a[index] + (b[index] - a[index]) * t)
+    std::array::from_fn(|index| lerp(a[index], b[index], t))
 }
