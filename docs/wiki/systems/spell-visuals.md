@@ -203,15 +203,26 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 - `polymorph-realtime-1x.mp4`, `polymorph-realtime-halfspeed.mp4`, `contact-sheet-realtime.png`, `stills-realtime-grab/`: the same fixture with `POLY_GRAB`, one JPEG per 100 ms of wall-clock time; timing is true, motion is choppy (about 8 fps).
 - `stills-realtime/`: an earlier run with the camera behind trees, which shows the full Polymorph cast bar.
 
-**Sounds for every spell (2026-09-29, `data/diagnostics/spellcast-anim-2026-09-29c/sounds-all/`).** The fixture logs each spell's SoundKit, file, unit, source and times. Both runs below exit 0 (game-server c542b6d, UDP 5083).
+**Sounds for every spell (2026-09-29, `data/diagnostics/spellcast-anim-2026-09-29c/sounds-all/`).** The fixture logs each spell's SoundKit, file, unit, source (`kit`, `missile`, `voice`) and start/stop times. Setup: game-server dd45440, shared-protocol d252965, fresh DB, UDP 5083. All three scenarios exit 0.
 
-- **Paladin Flash of Light on self** (`paladin/`, assets cached):
-  - The precast 349350 loop (1713681) runs from 40.862 to its stop at `SpellGo` 42.406, 1.544 s for the 1.5 s cast.
-  - Cast 349352 (1377114) and 349351 (2066679) play at 42.406.
-  - Impact 349357 (1965756) and 349355 (1936459) also play at 42.406 (no missile).
-- **Warrior Battle Shout** (`shout/`): kit 114049 (2118810) and the warrior's own voice 58088 (1343328, source `voice`), both at 41.504.
-- **First-use run** (`paladin-first-use/`): the precast lasted only 0.44 s on the client clock. The first cast extracted its models and sounds from local CASC on the main thread ("CASC resolver initialized", 7 asset-cache misses) and froze the client for that frame.
-- **Not proven live:** Fireball's missile sound, Frost Nova's aura and aura-end sounds, and the Slam and Frostbolt sound runs. From about 19:05 the private server's training dummies stopped reaching the client (`unit_count` 1-8 against "Granted immediate visibility for 81 nearby entities"). That happened with the previously passing client build and with a fresh server DB too. The level-10 mage also knows no Fireball. Catalog tests (`spell_visual.rs`) cover those resolutions.
+- **Paladin** (`paladin/`):
+  - Flash of Light on self: the precast loop 349350 runs 100.184 → 101.760 (1.58 s; the cast is 1.5 s). At `SpellGo` 101.760 the cast sounds 349352 and 349351 and the impact sounds 349357 and 349355 play.
+  - Judgment on the dummy: cast 218258 and 349488 at 111.308. The missile's travel sound 53649 starts at release 111.510 and is logged stopped at 111.744. The impact sounds 218257, 221597 and 224414 play at the landing, 111.718. The stop is logged one frame late: the player is freed with the missile node, and the next frame records it.
+  - Hammer of Justice: cast 53854, impact 221582, and the stun aura's loop 349372 on the dummy from 113.518 to the aura's end at 118.553.
+- **Mage** (`mage/`):
+  - Frostbolt: precast loop 85500 from 53.234 until `SpellGo` 54.879, cast 85502, impact 85503 at 55.334 (flight 0.229 s).
+  - Frost Nova: cast 350096. On each of the 8 rooted dummies, loop 350097 and 350098 run 56.414 → 61.394, then the aura-end sound 85938 plays at 61.394.
+- **Warrior** (`warrior/`, Worn Shortsword and shield, 2 yd from the dummy):
+  - Slam: 57845 on the warrior, 60935 on the dummy.
+  - Battle Shout: 114049 and the warrior's voice 58088 (source `voice`).
+- **First-use run** (`paladin-first-use/`): the precast lasted 0.58 s on the client clock. The first use of each model and sound file extracts it from local CASC on the main thread, and that frame froze.
+- **Earlier "dummies missing" runs (19:05-19:45)** were a protocol split.
+  - shared-protocol d252965 (18:47) registered a new replicated component, `UnitThreatList`. Clients built after it ran against a server built at 18:2x with 2cf99a1.
+  - The connection passed lightyear's check, which reported only "message protocol" mismatches when it failed earlier. The server logged "Granted immediate visibility for 81 nearby entities", but the client kept 1-8 units.
+  - The same client passed against servers 9b4d1bd and c542b6d once both sides were rebuilt on d252965.
+  - Rebuilding server c542b6d on 2cf99a1 reproduced the failure against a d252965 client: 2 units, no protocol error.
+  - The server ticked 20/s in the bad runs, so machine load was not the cause.
+  - An unmatched component registry is not caught at connect.
 
 ## Gaps
 
