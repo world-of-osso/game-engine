@@ -50,6 +50,7 @@ impl Default for AuctionHouseUi {
 pub enum AuctionRequest {
     Open,
     Browse(AuctionSearchQuery),
+    Listings(AuctionSearchQuery),
     Owned,
     Bids,
     Inventory,
@@ -62,6 +63,8 @@ pub enum AuctionRequest {
 pub struct AuctionHouseState {
     pub is_open: bool,
     pub last_query: Option<AuctionSearchQuery>,
+    pub query_is_browse: bool,
+    pub browse_results: Vec<AuctionBrowseItem>,
     pub search_total: u32,
     pub search_revision: u64,
     pub search_results: Vec<AuctionListingSummary>,
@@ -74,8 +77,17 @@ pub struct AuctionHouseState {
 }
 impl AuctionHouseState {
     pub fn request(&mut self, request: AuctionRequest) {
-        if let AuctionRequest::Browse(query) = &request {
-            self.last_query = Some(query.clone());
+        match &request {
+            AuctionRequest::Browse(query) => {
+                self.last_query = Some(query.clone());
+                self.query_is_browse = true;
+            }
+            AuctionRequest::Listings(query) => {
+                self.last_query = Some(query.clone());
+                self.query_is_browse = false;
+                self.search_results.clear();
+            }
+            _ => {}
         }
         if matches!(
             request,
@@ -129,17 +141,32 @@ impl AuctionSession {
             self.net.request(request);
         }
         if let Some(query) = self.net.last_query.clone() {
-            self.net.request(AuctionRequest::Browse(query));
+            self.request_query_page(query);
         }
     }
+    fn request_query_page(&mut self, query: AuctionSearchQuery) {
+        let request = if self.net.query_is_browse {
+            AuctionRequest::Browse(query)
+        } else {
+            AuctionRequest::Listings(query)
+        };
+        self.net.request(request);
+    }
+    pub fn browse_results(&mut self, reply: AuctionBrowseResults) {
+        if !self.net.query_is_browse || !self.accept_query(&reply.query) {
+            return;
+        }
+        self.net.search_revision += 1;
+        self.net.search_total = reply.total_results;
+        self.net.browse_results = reply.items;
+        self.ui.row_page = 0;
+        self.ui.selected_auction = None;
+    }
+    fn accept_query(&self, query: &AuctionSearchQuery) -> bool {
+        self.net.is_open && self.net.last_query.as_ref() == Some(query)
+    }
     pub fn search_results(&mut self, reply: AuctionSearchResults) {
-        if !self.net.is_open
-            || self
-                .net
-                .last_query
-                .as_ref()
-                .is_some_and(|query| *query != reply.query)
-        {
+        if self.net.query_is_browse || !self.accept_query(&reply.query) {
             return;
         }
         self.net.search_revision += 1;
@@ -221,7 +248,7 @@ impl AuctionSession {
                     } else {
                         return Vec::new();
                     }
-                    self.net.request(AuctionRequest::Browse(query));
+                    self.request_query_page(query);
                     self.ui.row_page = 0;
                     self.ui.selected_auction = None;
                 }
@@ -308,6 +335,7 @@ impl AuctionSession {
 
 pub enum AuctionReply {
     Opened(AuctionHouseOpened),
+    Browse(AuctionBrowseResults),
     Search(AuctionSearchResults),
     Inventory(AuctionInventorySnapshot),
     Owned(OwnedAuctionListResponse),
@@ -318,6 +346,7 @@ impl AuctionSession {
     pub fn receive(&mut self, reply: AuctionReply) {
         match reply {
             AuctionReply::Opened(reply) => self.opened(reply),
+            AuctionReply::Browse(reply) => self.browse_results(reply),
             AuctionReply::Search(reply) => self.search_results(reply),
             AuctionReply::Operation(reply) => self.operation(reply),
             AuctionReply::Inventory(reply) if self.net.is_open => self.net.inventory = Some(reply),
@@ -368,14 +397,12 @@ pub fn native_auction_screen(
     let search_left = if sell { 0.0 } else { 240.0 };
     let search_top = if sell { 24.0 } else { 0.0 };
     let hide_search = !state.search_paging;
-    let hide_browse_scope = state.frame.tab != AuctionHouseTab::Buy;
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state.frame.clone());
     let content = crate::auction_house_frame_component::auction_house_frame_screen(&shared);
     rsx! {
         r#frame { name:"NativeAuctionRoot", width:800.0,height:570.0,hidden:hide,strata:ui_toolkit::strata::FrameStrata::High,pos_type:"absolute",left:16.0,top:104.0,
             {content}
-            fontstring {name:"AuctionBrowseScope",width:160.0,height:32.0,hidden:hide_browse_scope,text:"Prices/stock on this page",font_size:10.0,pos_type:"absolute",left:8.0,top:470.0,}
             r#frame { name:"AuctionPaging",width:610.0,height:26.0,pos_type:"absolute",left:left,top:top,
                 button {name:"AuctionRowsPrev",width:48.0,height:22.0,text:"Prev",onclick:"auction_rows_prev",enabled:{state.row_page>0},pos_type:"absolute",left:0.0,top:0.0,}
                 fontstring {name:"AuctionRowsLabel",width:120.0,height:22.0,text:{rows.as_str()},pos_type:"absolute",left:50.0,top:0.0,}

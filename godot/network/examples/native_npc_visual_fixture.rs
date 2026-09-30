@@ -278,13 +278,14 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO geosets VALUES (910012,1,2),(910013,1,1),(910017,1,1);
     ")?;
     // Default player hair is not among any NPC's explicit choices, preserving missing-type-6 cases.
-    write_sqlite_fixture(data, "customization.sqlite", "
+    write_sqlite_fixture(data, "customization-v4.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
         CREATE TABLE chr_models (id INTEGER PRIMARY KEY, layout_id INTEGER NOT NULL, customize_scale REAL NOT NULL, camera_distance_offset REAL NOT NULL);
         CREATE TABLE options (id INTEGER PRIMARY KEY, name TEXT NOT NULL, chr_model_id INTEGER NOT NULL, category_id INTEGER NOT NULL, order_index INTEGER NOT NULL, ui_type INTEGER NOT NULL, requirement_id INTEGER NOT NULL);
         CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT NOT NULL, order_index INTEGER NOT NULL, icon INTEGER NOT NULL, selected_icon INTEGER NOT NULL);
         CREATE TABLE choices (id INTEGER PRIMARY KEY, option_id INTEGER NOT NULL, name TEXT NOT NULL, requirement_id INTEGER NOT NULL, order_index INTEGER NOT NULL, visibility_requirement_id INTEGER NOT NULL, swatch_color_0 INTEGER NOT NULL, swatch_color_1 INTEGER NOT NULL);
-        CREATE TABLE elements (choice_id INTEGER NOT NULL, related_choice_id INTEGER NOT NULL, geoset_id INTEGER NOT NULL, material_id INTEGER NOT NULL, has_unsupported_effects INTEGER NOT NULL);
+        CREATE TABLE elements (choice_id INTEGER NOT NULL, related_choice_id INTEGER NOT NULL, geoset_id INTEGER NOT NULL, material_id INTEGER NOT NULL, skinned_model_id INTEGER NOT NULL, has_unsupported_effects INTEGER NOT NULL);
+        CREATE TABLE skinned_models (id INTEGER PRIMARY KEY, collection_fdid INTEGER NOT NULL, geoset_type INTEGER NOT NULL, geoset_id INTEGER NOT NULL);
         CREATE TABLE materials (id INTEGER PRIMARY KEY, texture_target_id INTEGER NOT NULL, material_resources_id INTEGER NOT NULL);
         CREATE TABLE geosets (id INTEGER PRIMARY KEY, geoset_type INTEGER NOT NULL, geoset_id INTEGER NOT NULL);
         CREATE TABLE hair_geosets (model_id INTEGER NOT NULL, geoset_type INTEGER NOT NULL, geoset_id INTEGER NOT NULL, shows_scalp INTEGER NOT NULL, PRIMARY KEY(model_id,geoset_type,geoset_id));
@@ -299,18 +300,19 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
             (910032,910052,'Base skin',0,0,0,0,0),(910033,910053,'Body color',0,0,0,0,0),
             (910034,910054,'Head color',0,0,0,0,0),(910035,910055,'Hair color',0,0,0,0,0),(910036,910056,'Eye color',0,0,0,0,0),
             (910037,910057,'Player hair',0,0,0,0,0);
-        INSERT INTO elements VALUES (910030,0,0,910070,0),(910031,910030,910080,910071,0),
-            (910032,0,0,910070,0),(910033,0,0,910071,0),(910034,0,0,910074,0),(910035,0,0,910075,0),(910036,0,0,910076,0),
-            (910037,0,0,910075,0);
+        INSERT INTO elements VALUES (910030,0,0,910070,0,0),(910031,910030,910080,910071,0,0),
+            (910032,0,0,910070,0,0),(910033,0,0,910071,0,0),(910034,0,0,910074,0,0),(910035,0,0,910075,0,0),(910036,0,0,910076,0,0),
+            (910037,0,0,910075,0,0);
         INSERT INTO materials VALUES (910070,1,910072),(910071,2,910073),(910074,9,910076),(910075,10,910077),(910076,11,910078);
         INSERT INTO geosets VALUES (910080,1,2);
         INSERT INTO texture_fdids VALUES (910072,910021),(910073,910022),(910076,910023),(910077,910024),(910078,910025);
     ")?;
-    write_sqlite_fixture(data, "char_texture.sqlite", "
+    write_sqlite_fixture(data, "char_texture-v2.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
         CREATE TABLE layers (texture_type INTEGER NOT NULL, layer INTEGER NOT NULL, blend_mode INTEGER NOT NULL, section_bitmask INTEGER NOT NULL, target_id INTEGER NOT NULL, layout_id INTEGER NOT NULL);
         CREATE TABLE sections (layout_id INTEGER NOT NULL, section_type INTEGER NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY(layout_id,section_type));
         CREATE TABLE layouts (id INTEGER PRIMARY KEY, width INTEGER NOT NULL, height INTEGER NOT NULL);
+        CREATE TABLE model_materials (layout_id INTEGER NOT NULL, texture_type INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY (layout_id, texture_type));
         INSERT INTO layouts VALUES (910041,2,2),(910043,2048,1024);
         INSERT INTO layers VALUES (1,0,0,-1,1,910041),(1,1,0,-1,2,910041),
             (1,0,0,-1,1,910043),(1,1,0,-1,2,910043),

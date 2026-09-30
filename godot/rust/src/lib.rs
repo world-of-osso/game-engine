@@ -29,6 +29,7 @@ mod input_keys;
 mod lighting;
 mod loading;
 mod logout;
+mod loot;
 mod merchant;
 mod minimap;
 mod mirror_timers;
@@ -153,6 +154,7 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
+    loot: loot::Loot,
     auction: auction::Auction,
     auto_attack: auto_attack::AutoAttack,
     auras: auras::Auras,
@@ -243,6 +245,7 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
+            loot: loot::Loot::default(),
             auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
@@ -420,6 +423,7 @@ impl INode3D for GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
             ("Merchant", |c, _| c.update_merchant()),
+            ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
             ("World map", |c, _| Ok(c.update_world_map()?)),
@@ -856,6 +860,7 @@ impl GameClient {
             }
         }
         self.merchant.visit_uis(&mut visit)?;
+        self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
         }
@@ -1321,9 +1326,11 @@ impl GameClient {
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
             AccountEvent::Npc(message) => self.receive_npc_message(message)?,
+            AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::UnitRemoved(id) => {
+                self.loot.lootable.remove(&id);
                 self.world.remove(id);
                 self.units.remove(&id);
                 self.auras.aura_set_changed(id, false);
@@ -1517,6 +1524,7 @@ impl GameClient {
     fn reset_world(&mut self) -> Result<(), String> {
         self.stop_sound();
         self.logout.clear();
+        self.loot.reset();
         self.in_rest_area = false;
         self.character_preview.reset();
         self.creation_scene.reset();
