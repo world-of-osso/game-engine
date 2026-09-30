@@ -23,6 +23,10 @@ extends RefCounted
 ## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ## SOFTWARE.
 
+# Vector2 rounds the shader's f32 threshold like pixel_motion's components;
+# comparing against a GDScript f64 .01 incorrectly classifies exact equality.
+const STATIC_PIXEL_THRESHOLD := Vector2(.01, .01)
+
 
 static func rgb(value: Vector4) -> Vector3:
 	return Vector3(value.x, value.y, value.z)
@@ -185,7 +189,7 @@ static func resolve(
 		)
 		confidence = nearest(history, uv).w
 		var pixel_motion := velocity.abs() * extent
-		if pixel_motion.x < .01 and pixel_motion.y < .01:
+		if pixel_motion.x < STATIC_PIXEL_THRESHOLD.x and pixel_motion.y < STATIC_PIXEL_THRESHOLD.y:
 			confidence += 10.0
 		else:
 			confidence = 1.0
