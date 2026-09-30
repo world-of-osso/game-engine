@@ -159,3 +159,5 @@ Status vocabulary: **Partial** — bounded implementation/runtime evidence with 
 ## Maintenance
 
 Update a row only after the Godot implementation and proof cover the stated capability at the current integrated revision. Link proof in the row; do not change the source contract or use a partial/parser/transport result to close runtime parity.
+
+[SettingsReload bounded main proof](../wiki/systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) supplements Options, camera, TargetSelf and loot rows without changing their Missing/full-parity classification. Independent gate pending; normal shutdown remains deferred.

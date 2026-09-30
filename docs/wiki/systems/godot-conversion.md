@@ -537,7 +537,7 @@ Independent `/tmp/claude/verify-native-loot-reach.md` accepts saved real posed-m
 
 Original four Auto Loot XOR Shift cases, InventoryFull rejection/retry, matching/duplicate/unrelated lifecycle checks, bags 11/money 32756, and 42 Options checks remain retained. Independent decoding confirms 6,792 descendant observations with zero enclosure violations and money geometry, not a full glyph-pixel oracle. Hostile living-NPC behavior and role/UI responses remain source-only gaps; corpse-pose parity is unproved.
 
-**Process completion FAIL: exit 101 after DONE**, RenderingServer-null followed by fixture panic. Exit status is caller-recorded, consistent with the saved panic, not embedded in the runtime log. Shutdown unresolved/deferred; no clean full-slice or full-conversion acceptance. Settings-reload `71ae65f6` + `92abd2d2` / `b8aca2ff` are test preparation only, not fresh-process proof. See [LootFrame contract](../../specs/loot-frame.md#native-godot-conversion).
+**Process completion FAIL: exit 101 after DONE**, RenderingServer-null followed by fixture panic. Exit status is caller-recorded, consistent with the saved panic, not embedded in the runtime log. Shutdown unresolved/deferred; no clean full-slice or full-conversion acceptance. Separate [SettingsReload functional proof](#native-settingsreload--bounded-two-process-proof) now covers fresh-process consumers, not normal shutdown. See [LootFrame contract](../../specs/loot-frame.md#native-godot-conversion).
 
 <a id="native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering"></a>
 
@@ -563,3 +563,14 @@ Sources: `src/{loot_data,loot_frame_data}.rs`, `godot/network/src/lib.rs`, `godo
 - [[ui-system]] — existing UI behavior to preserve.
 - [[rendering-pipeline]] — existing client rendering behavior to replace.
 - [Remote Godot builds](../../remote-builds.md) — Depot-native-extension build path.
+
+## Native SettingsReload — bounded two-process proof
+
+Test-only `92abd2d2`, `b8aca2ff`, `71ae65f6`, `fc303c77`; main Depot build `v6ckg4sm70`. Saved `/tmp/claude/native-settings-reload-second-run.log` records main exit 0 with distinct native PIDs 3680165/3681158, real authentication and World entry. Authored UI saves AutoLoot=true, FOV=105°, InvertY=true and TargetSelf=T. Both processes use the same owned canonical 3653-byte options file; bytes remain unchanged after fresh start/load.
+
+Fresh native consumers show physical FOV 105°, RMB-held +4-pixel pitch delta +0.03999999165535 at default sensitivity 0.01, old F1 inactive and T self-selection with visible authored TargetFrame/ring. First actual corpse click sends one decoded `LootUnit(auto=true)`; authoritative awards are five items and 11752 money, with zero `LootSlotRequest`/`LootRelease`. No backpack/B or UseItem behavior is claimed.
+
+Both processes deliberately receive owned SIGKILL at fixture markers, followed by reap and reader join. Main exit 0 proves bounded functional reload, **not normal shutdown**. Prior exit-101 RenderingServer-null failures and shutdown hangs remain unresolved; shutdown explicitly deferred. Independent `/tmp/claude/verify-native-settings-reload.md` is absent at reconciliation: pending, no independent PASS. No source-pin gate or full Options/camera/loot/conversion acceptance.
+
+See [fixture workflow](../../remote-builds.md), [loot scope](../../specs/loot-frame.md#native-godot-conversion) and [conversion matrix](../../specs/godot-parity-matrix.md).
+
