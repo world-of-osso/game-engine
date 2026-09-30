@@ -22,9 +22,13 @@ func run(flow: SceneTree, client: Node) -> bool:
 	return true
 
 func set_invert_y(client: Node, inverted: bool) -> bool:
-	print("CAMERA_MENU_PROBE before Escape target=", client.target_state(), " hover=", fixture.root.gui_get_hovered_control(), " focus=", fixture.root.gui_get_focus_owner())
+	# A real RMB press can select the unit under the pointer. Original Escape
+	# clears that selection before it can open the menu.
+	if client.target_state().target != null:
+		await tap_escape()
+		if client.target_state().target != null or client.get_node_or_null("GameMenuUI") != null:
+			return reject("Escape did not clear mouse-look selection before menu")
 	await tap_escape()
-	print("CAMERA_MENU_PROBE after Escape target=", client.target_state(), " menu=", client.get_node_or_null("GameMenuUI"))
 	if not await fixture.wait_menu(client) or not fixture.menu_authored(client):
 		return false
 	for name in ["MenuBtnOptions", "OptionsTabcamera"]:
