@@ -246,7 +246,10 @@ impl Fixture {
             .spawn((
                 LocalPlayer,
                 Transform::default(),
-                UnitPowers { entries: powers },
+                UnitPowers {
+                    entries: powers,
+                    charged_points: Vec::new(),
+                },
             ))
             .id()
     }
@@ -462,6 +465,8 @@ fn slot_dims_when_cost_exceeds_current_power() {
         power: PowerType::Rage,
         current: 200,
         max: 1000,
+        partial: 0,
+        regen_per_sec: 0.0,
     }]);
     f.app.update();
     assert_eq!(f.icon("ActionButton1_1Icon"), Some((132355, TINT_NO_POWER)));

@@ -69,11 +69,15 @@ fn class_bar_visibility_follows_class_spec_level_and_display_power() {
                     power: primary,
                     current: 100,
                     max: 100,
+                    partial: 0,
+                    regen_per_sec: 0.0,
                 },
                 PowerEntry {
                     power: bar.power(),
                     current: 3 * modifier,
                     max: 5 * modifier,
+                    partial: 0,
+                    regen_per_sec: 0.0,
                 },
             ],
             ..Default::default()
@@ -84,7 +88,7 @@ fn class_bar_visibility_follows_class_spec_level_and_display_power() {
             level,
             in_combat: false,
         };
-        let value = ClassBarResource::for_player(&powers, &player);
+        let value = ClassBarResource::for_player(&powers, None, &player);
         assert_eq!(
             value.is_some(),
             shown,

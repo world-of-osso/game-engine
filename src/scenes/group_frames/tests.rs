@@ -34,6 +34,8 @@ fn live(name: &str, health: u32, x: f32) -> GroupMemberState {
             power: PowerType::Rage,
             current: 25,
             max: 100,
+            partial: 0,
+            regen_per_sec: 0.0,
         }),
         death: DeathState::Alive,
         position: Position { x, y: 0.0, z: 0.0 },

@@ -2,7 +2,7 @@
 //! Godot unit frames share them.
 
 use serde::{Deserialize, Serialize};
-use shared::components::{PowerType, UnitPowers};
+use shared::components::{PowerType, UnitPowers, UnitRunes};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SecondaryResourceKindEntry {
@@ -198,7 +198,14 @@ pub struct ClassBarResource {
 
 impl ClassBarResource {
     /// The class's bar when Retail shows it, with its power from `powers`.
-    pub fn for_player(powers: &UnitPowers, player: &ClassBarPlayer) -> Option<Self> {
+    /// Received timing: `partial` (thousandths) and the regen rate in displayed units per
+    /// second from the bar's `PowerEntry`, the 1-based charged points, and, for runes, each
+    /// rune's `UnitRunes` recharge. `received_at` is stamped by the animator.
+    pub fn for_player(
+        powers: &UnitPowers,
+        runes: Option<&UnitRunes>,
+        player: &ClassBarPlayer,
+    ) -> Option<Self> {
         let bar = ClassBar::for_class(player.class)?;
         let primary = powers.entries.first().map(|entry| entry.power);
         if !bar.shown(player, primary) {
@@ -215,7 +222,18 @@ impl ClassBarResource {
             current: whole(entry.current),
             max: whole(entry.max),
             tenths: (entry.current * 10 / modifier).clamp(0, u16::MAX as i32) as u16,
-            dynamics: ClassBarDynamics::default(),
+            dynamics: ClassBarDynamics {
+                partial: entry.partial,
+                regen_per_sec: entry.regen_per_sec / modifier as f32,
+                received_at: 0.0,
+                charged_points: powers.charged_points.clone(),
+                runes: runes
+                    .filter(|_| bar == ClassBar::Runes)
+                    .map(|runes| ClassBarRunes {
+                        duration_ms: runes.duration_ms,
+                        ready_in_ms: runes.ready_in_ms.clone(),
+                    }),
+            },
             spec: player.spec,
             in_combat: player.in_combat,
         })

@@ -421,13 +421,18 @@ mod tests {
                     power: PowerType::Mana,
                     current: 4200,
                     max: 5000,
+                    partial: 0,
+                    regen_per_sec: 0.0,
                 },
                 PowerEntry {
                     power: PowerType::HolyPower,
                     current: 3,
                     max: 5,
+                    partial: 0,
+                    regen_per_sec: 0.0,
                 },
             ],
+            charged_points: Vec::new(),
         };
         let auras = UnitAuras {
             auras: vec![AuraView {

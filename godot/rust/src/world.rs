@@ -902,6 +902,7 @@ mod tests {
             in_combat: false,
             cast: None,
             powers: None,
+            runes: None,
             auras: None,
             npc_flags: None,
             gold: None,

@@ -370,7 +370,7 @@ fn build_player_state(
     });
     state.class_bar = powers
         .zip(class_bar_player)
-        .and_then(|(powers, player)| ClassBarResource::for_player(powers, &player))
+        .and_then(|(powers, player)| ClassBarResource::for_player(powers, None, &player))
         .as_ref()
         .and_then(settled_view);
     populate_resources(&mut state, health, powers);
@@ -836,7 +836,10 @@ mod tests {
                     current: 80.0,
                     max: 100.0,
                 },
-                UnitPowers { entries: powers },
+                UnitPowers {
+                    entries: powers,
+                    charged_points: Vec::new(),
+                },
                 UnitFactionTemplate(HUMAN_TEMPLATE),
             ))
             .id()
@@ -864,6 +867,8 @@ mod tests {
             power,
             current,
             max,
+            partial: 0,
+            regen_per_sec: 0.0,
         }
     }
 

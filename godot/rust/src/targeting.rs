@@ -360,7 +360,7 @@ fn player_class_resource(unit: &UnitSnapshot, spec: Option<u32>) -> Option<Class
         level: unit.level.map_or(0, |level| level.0),
         in_combat: unit.in_combat,
     };
-    ClassBarResource::for_player(unit.powers.as_ref()?, &player)
+    ClassBarResource::for_player(unit.powers.as_ref()?, unit.runes.as_ref(), &player)
 }
 
 fn unit_frames_state(
