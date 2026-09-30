@@ -293,8 +293,8 @@ impl WorldUnits {
         u16::try_from(animation.bind().action_id()).ok()
     }
 
-    /// (unit, identifier) of the reported M2 events (`$SCD`) units' action clips passed
-    /// since the last call.
+    /// (unit, identifier) of the reported M2 events (`$SCD`, `$CSS`, `$CAH`) units'
+    /// action clips passed since the last call.
     pub(crate) fn take_animation_events(&mut self) -> Vec<(u64, [u8; 4])> {
         self.units
             .iter()
@@ -304,6 +304,25 @@ impl WorldUnits {
                 fired.into_iter().map(move |event| (id, event))
             })
             .collect()
+    }
+
+    /// Units whose death clip started since the last call.
+    pub(crate) fn take_deaths(&mut self) -> Vec<u64> {
+        std::mem::take(&mut self.deaths)
+    }
+
+    /// Unit `id`'s visible main-hand (`Item` ID, `ItemDisplayInfo` ID).
+    pub(crate) fn unit_main_hand(&self, id: u64) -> (Option<u32>, Option<u32>) {
+        self.units
+            .get(&id)
+            .and_then(UnitNode::equipment)
+            .and_then(|equipment| {
+                equipment
+                    .entries
+                    .iter()
+                    .find(|entry| entry.slot == EquipmentVisualSlot::MainHand && !entry.hidden)
+            })
+            .map_or((None, None), |entry| (entry.item_id, entry.display_info_id))
     }
 
     /// Unit `id`'s cast clip has a missile release event yet to fire.

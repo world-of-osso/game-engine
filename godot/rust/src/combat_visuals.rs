@@ -1,6 +1,6 @@
 //! Host wiring of combat animations and spell visuals: server combat traffic to
-//! `WorldUnits` clips (`world_combat`) and `SpellEffects` kits, per-frame cast holds,
-//! kit lifetimes, missiles and particles, and automation state.
+//! `WorldUnits` clips (`world_combat`), `SpellEffects` kits and melee sounds, per-frame
+//! cast holds, kit lifetimes, missiles and particles, and automation state.
 
 use godot::prelude::*;
 
@@ -14,7 +14,10 @@ impl GameClient {
         message: CombatMessage,
     ) -> Result<(), FrameError> {
         match message {
-            CombatMessage::Event(event) => Ok(self.world.apply_combat_event(&event)?),
+            CombatMessage::Event(event) => {
+                self.spell_effects.observe_melee(&event);
+                Ok(self.world.apply_combat_event(&event)?)
+            }
             CombatMessage::SpellGo(go) => {
                 self.auto_attack_post_cast(&go)?;
                 Ok(self
