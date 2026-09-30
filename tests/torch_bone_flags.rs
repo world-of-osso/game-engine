@@ -1,13 +1,14 @@
 use std::path::Path;
 
+#[path = "unit/required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
+
 use bevy::mesh::VertexAttributeValues;
 
 #[test]
 fn torch_glow_bone_uses_spherical_billboard_flag() {
-    let path = Path::new("data/models/club_1h_torch_a_01.m2");
-    if !path.exists() {
-        return;
-    }
+    let path = require_asset(Path::new("data/models/club_1h_torch_a_01.m2"));
 
     let model = game_engine::asset::m2::load_m2_uncached(path, &[0, 0, 0]).unwrap();
     let glow_bone = model.bones.get(1).expect("torch glow bone 1 should exist");
@@ -16,10 +17,7 @@ fn torch_glow_bone_uses_spherical_billboard_flag() {
 
 #[test]
 fn torch_glow_batch_is_a_rigid_single_joint_quad() {
-    let path = Path::new("data/models/club_1h_torch_a_01.m2");
-    if !path.exists() {
-        return;
-    }
+    let path = require_asset(Path::new("data/models/club_1h_torch_a_01.m2"));
 
     let model = game_engine::asset::m2::load_m2_uncached(path, &[0, 0, 0]).unwrap();
     let glow_batch = model
@@ -63,10 +61,7 @@ fn torch_glow_batch_is_a_rigid_single_joint_quad() {
 
 #[test]
 fn torch_item_model_skin_resolution_restores_missing_body_texture() {
-    let path = Path::new("data/models/club_1h_torch_a_01.m2");
-    if !path.exists() {
-        return;
-    }
+    let path = require_asset(Path::new("data/models/club_1h_torch_a_01.m2"));
 
     let bare_model = game_engine::asset::m2::load_m2_uncached(path, &[0, 0, 0]).unwrap();
     assert!(

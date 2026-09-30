@@ -606,10 +606,16 @@ fn teardown_scene(mut commands: Commands, query: Query<Entity, With<ParticleDebu
 }
 
 #[cfg(test)]
+#[path = "../../../tests/unit/required_asset.rs"]
+mod required_asset;
+
+#[cfg(test)]
 mod tests {
     use super::format_particle_overlay;
     use crate::asset::m2_particle::M2ParticleEmitter;
     use std::path::{Path, PathBuf};
+
+    use super::required_asset::require_asset;
 
     #[test]
     fn particle_overlay_lists_key_emitter_fields() {
@@ -632,9 +638,7 @@ mod tests {
 
     #[test]
     fn emitter_overlay_load_uses_model_cache() {
-        let Some((model_path, skin_path)) = copy_torch_model_to_temp() else {
-            return;
-        };
+        let (model_path, skin_path) = copy_torch_model_to_temp();
         let skin_fdids = [0, 0, 0];
 
         let text = super::load_emitter_overlay_text(&model_path, &skin_fdids)
@@ -649,12 +653,9 @@ mod tests {
         assert_eq!(text, second_text);
     }
 
-    fn copy_torch_model_to_temp() -> Option<(PathBuf, PathBuf)> {
-        let source_model = Path::new(super::TORCH_M2);
-        let source_skin = Path::new("data/models/club_1h_torch_a_0100.skin");
-        if !source_model.exists() || !source_skin.exists() {
-            return None;
-        }
+    fn copy_torch_model_to_temp() -> (PathBuf, PathBuf) {
+        let source_model = require_asset(Path::new(super::TORCH_M2));
+        let source_skin = require_asset(Path::new("data/models/club_1h_torch_a_0100.skin"));
         let unique = format!(
             "particle_debug_cache_test_{}_{}",
             std::process::id(),
@@ -669,6 +670,6 @@ mod tests {
         let skin_path = temp_dir.join("club_1h_torch_a_0100.skin");
         std::fs::copy(source_model, &model_path).expect("copy temp torch model");
         std::fs::copy(source_skin, &skin_path).expect("copy temp torch skin");
-        Some((model_path, skin_path))
+        (model_path, skin_path)
     }
 }
