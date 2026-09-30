@@ -254,7 +254,18 @@ impl RegistryModel {
             ScreenPostsetup::Login if !connecting => {
                 actions.push_back(login::LoginAction::Connect.to_string());
             }
-            ScreenPostsetup::Auction => actions.push_back("auction_search".into()),
+            ScreenPostsetup::Auction
+                if self
+                    .registry
+                    .focused_frame
+                    .and_then(|id| self.registry.get(id))
+                    .is_some_and(|frame| {
+                        frame.name.as_deref()
+                            == Some(game_engine_ui_model::auction_house_frame_component::SEARCH_BOX)
+                    }) =>
+            {
+                actions.push_back("auction_search".into())
+            }
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
                 actions.push_back(CharSelectAction::ConfirmDeleteChar.to_string());
