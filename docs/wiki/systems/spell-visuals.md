@@ -113,7 +113,17 @@ Kit models, missile models and kit sound files load on two `spell-assets` worker
 - **Prefetch:** once the catalog is loaded and the local player is replicated, every known spell's visual (for the player's race, class and weapon) has its PrecastStart, ChannelStart, Cast, Impact, AuraStart and AuraEnd kit models, sound files and missile queued as prefetches. No retail source for spell-asset prefetching was found; retail's `preloadPlayerModels` CVar covers racial models only (warcraft.wiki.gg Console_variables). A weapon that replicates after the prefetch can resolve another visual, which then loads when it is first cast.
 - **Automation:** `spell_visuals_state()` reports `assets_pending`, each sound's `late` (seconds after its kit asked for it), and `frame_ms`, the main-thread time spell visuals took in the last frame (`SpellGo` handling plus the per-frame update).
 
-**Measurements (2026-09-30, first use; debug build; machine load average 12-35 from other agents' clients and builds).**
+### CASC startup initialization (source audit, 2026-09-30)
+
+`c0165d28` moves process-wide resolver initialization ahead of asset-using client startup. `GameClient::init` starts a named `casc-startup` thread; `AssetStartup::start` calls the shared local resolver's public `initialize()` there. This initializes resolver state, not the spell catalog or every spell asset; their workers and prefetch remain separate.
+
+`ready` configures display/focus without waiting for CASC. Each `process` polls the worker: while pending, it finishes physical-input bookkeeping and returns before normal client steps. Input handlers also return while startup is pending. `AssetStartup::poll` checks `is_finished` before joining and delivers completion once; the main thread does not join a running initializer.
+
+Only successful completion clears the pending gate and resumes sound initialization, startup intent (including attaching the asset-backed login UI and opening the requested screen), then UI-scale synchronization. Worker-spawn errors, initialization errors and worker panics reach the startup error path, which logs `Cannot initialize client: …` and requests exit code 1. There is no alternate startup path on failure.
+
+**Evidence boundary:** this is a source audit of `asset_startup.rs`, `lib.rs` and `startup.rs`, not a live startup-latency measurement. Worker tests in `asset_startup.rs` describe pending/non-caller-thread execution, one-shot completion, error and panic behavior; this docs audit did not run them. The historical first-use measurements below predate this explicit startup gate and do not prove its latency, rendered readiness, or elimination of later terrain/creature/equipment extraction stalls.
+
+**Historical measurements (2026-09-30, first use; before the explicit startup gate; debug build; machine load average 12-35 from other agents' clients and builds).**
 - **Before** (base `bba70f53`, `data/diagnostics/firstload-2026-09-30/before-*.log`):
   - The first CASC extraction initializes the resolver on the main thread: TACT keys plus the 1,931,507-entry resolution cache took 1548 ms and 1654 ms. It hit at world entry (an NPC aura's sound 569423 through `sync_casts`). In the earlier `paladin-first-use/` run it hit at the first Flash of Light.
   - Per file, extraction on the main thread took 0.6-40 ms for sounds, 1.4-33 ms for model+skin and 2.5-34 ms per model's textures. Parsing took 0.7-1.6 ms per model (`read_model`). Godot creation took 0.6-17 ms (`build_model`, including BLP decode and listfile lookups), 1.6-18 ms for particle placement, and 0.5-0.8 ms per Ogg stream.
@@ -261,12 +271,13 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 - Missiles fly straight: `SpellMissileMotion` is not applied. `SpellVisualMissile` `CastOffset`/`ImpactOffset`/`Flags` and `SpellVisual.Flags` are not applied (Frostbolt's offsets are 0).
 - The missile starts at the missile attachment, not at the release event's bone and position. wowdev notes `$CSL/R/T are also used in CGUnit_C::ComputeDefaultMissileFirePos`, which is undocumented.
 - Other events (`$SHK` camera shake, `$FSD` footfall, `$AH*`/`$BRT`/`$FD*` voice events) are parsed but not played. Type-10 unit sound values outside 34-40 are not played (mapping unknown).
-- The CASC resolver initializes (1.5-1.7 s) on whichever thread extracts first. It is a worker when the spell prefetch comes first, but the terrain, creature and equipment loaders still extract, and can initialize it, on the main thread. A startup warm-up needs a public initialize entry point in asset-resolver.
+- The explicit CASC startup initialization gate is implemented (see [CASC startup initialization](#casc-startup-initialization-source-audit-2026-09-30)); live startup latency remains unproven. Terrain, creature and equipment extraction is not moved to workers by that gate.
 - Composite textures (a second texture or overlays on a non-effect batch) are still read and composited on the main thread by `build_model`. Spell effect batches are plain or effect textures.
 - Timed casts show no precast kits for observers until `CastState` replicates. Creature casts get kits only through `SpellGo`/`CastState`, like players.
 
 ## Sources
 
+- `godot/rust/src/asset_startup.rs`, `godot/rust/src/lib.rs`, `godot/rust/src/startup.rs` — explicit CASC startup worker and readiness/failure gate (`c0165d28`, source audit only)
 - `godot/core/src/spell_visual.rs`, `godot/rust/src/spell_effects.rs`, `godot/rust/src/spell_assets.rs`, `godot/core/src/asset_loader.rs`, `godot/rust/src/world_combat.rs`, `godot/rust/src/animation/action.rs`
 - WoWDBDefs (`~/Repos/wowless/vendor/dbdefs/definitions`) — layouts
 - TrinityCore `ConditionMgr.cpp` `IsPlayerMeetingCondition`, `DBCEnums.h` `PlayerConditionFlags`
