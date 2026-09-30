@@ -199,6 +199,22 @@ fn interspersed_client_pairs_follow_native_engine_arguments() {
 }
 
 #[test]
+fn particle_debug_screen_reaches_godot_client_arguments() {
+    let fixture = Fixture::new();
+    let output = fixture.launch(&["--screen", "particledebug"]);
+    assert!(output.status.success(), "{output:?}");
+    let godot_project = fixture.directory.join("godot");
+    let expected = [
+        "--path",
+        godot_project.to_str().unwrap(),
+        "--",
+        "--screen",
+        "particledebug",
+    ];
+    assert_eq!(fixture.godot_args(), expected.map(hex));
+}
+
+#[test]
 fn explicit_separator_keeps_remainder_in_client_order_without_duplication() {
     let fixture = Fixture::new();
     let output = fixture.launch(&[

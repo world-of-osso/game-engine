@@ -18,6 +18,10 @@ use crate::game_state::GameState;
 use crate::networking::CurrentZone;
 use crate::window_manager::{WindowId, WindowManager};
 
+#[path = "../../../tests/unit/required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
+
 fn inworld_app() -> App {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, StatesPlugin, InputPlugin));
@@ -159,10 +163,8 @@ fn model(app: &App) -> &WorldMapFrameState {
 
 #[test]
 fn m_opens_the_players_zone_and_the_arrow_follows_movement() {
+    require_asset(std::path::Path::new(super::DB2_DIR).join("UiMapArtTile.csv"));
     let mut app = inworld_app();
-    if !std::path::Path::new(super::DB2_DIR).exists() {
-        return;
-    }
     let player = spawn_player_at_goldshire(&mut app);
     queue_script(&mut app, r#"ui.key("M");"#);
     run_until_queue_drained(&mut app);

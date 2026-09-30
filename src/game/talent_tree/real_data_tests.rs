@@ -1,4 +1,4 @@
-//! Tests against the pinned 12.1.0.69933 CSVs; skipped when `data/db2` is absent.
+//! Tests against the pinned 12.1.0.69933 CSVs; fail when `data/db2` lacks them.
 
 use std::path::Path;
 use std::sync::OnceLock;
@@ -6,46 +6,41 @@ use std::time::Instant;
 
 use super::rules::{TraitContext, granted_entries, node_visible};
 use super::*;
+#[path = "../../../tests/unit/required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
 
 const PALADIN_TREE: u32 = 790;
 const RETRIBUTION: u32 = 70;
 const PROTECTION: u32 = 66;
 
 /// Cold load (CSV build + cache write) and warm load (cache read), once per process.
-fn loaded() -> Option<&'static TalentTreeData> {
-    static LOADED: OnceLock<Option<TalentTreeData>> = OnceLock::new();
-    LOADED
-        .get_or_init(|| {
-            if !talent_source_dir(Path::new("data"))
-                .join("TraitNode.csv")
-                .exists()
-            {
-                eprintln!("skipping: trait DB2 CSVs not present");
-                return None;
-            }
-            let mut paths = TalentTreePaths::for_data_dir(Path::new("data"));
-            paths.cache_path =
-                std::env::temp_dir().join(format!("talent_trees_test_{}.bin", std::process::id()));
-            let started = Instant::now();
-            let cold = load_talent_trees(&paths).expect("cold talent tree load");
-            let cold_time = started.elapsed();
-            let started = Instant::now();
-            let warm = load_talent_trees(&paths).expect("warm talent tree load");
-            eprintln!(
-                "talent trees: cold {cold_time:?}, warm {:?}, cache {} bytes",
-                started.elapsed(),
-                std::fs::metadata(&paths.cache_path).map_or(0, |meta| meta.len())
-            );
-            std::fs::remove_file(&paths.cache_path).expect("remove test cache");
-            assert_eq!(cold, warm, "cache round trip");
-            Some(warm)
-        })
-        .as_ref()
+fn loaded() -> &'static TalentTreeData {
+    static LOADED: OnceLock<TalentTreeData> = OnceLock::new();
+    LOADED.get_or_init(|| {
+        require_asset(talent_source_dir(Path::new("data")).join("TraitNode.csv"));
+        let mut paths = TalentTreePaths::for_data_dir(Path::new("data"));
+        paths.cache_path =
+            std::env::temp_dir().join(format!("talent_trees_test_{}.bin", std::process::id()));
+        let started = Instant::now();
+        let cold = load_talent_trees(&paths).expect("cold talent tree load");
+        let cold_time = started.elapsed();
+        let started = Instant::now();
+        let warm = load_talent_trees(&paths).expect("warm talent tree load");
+        eprintln!(
+            "talent trees: cold {cold_time:?}, warm {:?}, cache {} bytes",
+            started.elapsed(),
+            std::fs::metadata(&paths.cache_path).map_or(0, |meta| meta.len())
+        );
+        std::fs::remove_file(&paths.cache_path).expect("remove test cache");
+        assert_eq!(cold, warm, "cache round trip");
+        warm
+    })
 }
 
 #[test]
 fn loads_all_ten_class_trees_with_paladin_shape() {
-    let Some(data) = loaded() else { return };
+    let data = loaded();
     assert_eq!(data.trees().len(), 10);
     let paladin = data.tree(PALADIN_TREE).expect("paladin tree");
     assert_eq!(paladin.class_id, 2);
@@ -62,7 +57,7 @@ fn loads_all_ten_class_trees_with_paladin_shape() {
 
 #[test]
 fn retribution_level_80_grants_hammer_of_wrath() {
-    let Some(data) = loaded() else { return };
+    let data = loaded();
     let tree = data.tree(PALADIN_TREE).unwrap();
     let ctx = TraitContext {
         spec_id: RETRIBUTION,
@@ -78,7 +73,7 @@ fn retribution_level_80_grants_hammer_of_wrath() {
 
 #[test]
 fn spec_visibility_hides_other_spec_nodes() {
-    let Some(data) = loaded() else { return };
+    let data = loaded();
     let tree = data.tree(PALADIN_TREE).unwrap();
     let ret = TraitContext {
         spec_id: RETRIBUTION,
@@ -104,7 +99,7 @@ fn spec_visibility_hides_other_spec_nodes() {
 
 #[test]
 fn retribution_background_is_the_authored_retail_atlas_member() {
-    let Some(data) = loaded() else { return };
+    let data = loaded();
     let tree = data.tree(PALADIN_TREE).unwrap();
     let background = data.spec_background(tree, RETRIBUTION).expect("background");
     // UiTextureAtlasMember 15969 in UiTextureAtlas 2048 (2048x1024).
@@ -116,7 +111,7 @@ fn retribution_background_is_the_authored_retail_atlas_member() {
 
 #[test]
 fn entry_spells_carry_the_passive_attribute() {
-    let Some(data) = loaded() else { return };
+    let data = loaded();
     let tree = data.tree(PALADIN_TREE).unwrap();
     let entries = || tree.nodes.iter().flat_map(|node| &node.entries);
     // Greater Judgment 231663 is passive; Lay on Hands 633 is not.
@@ -150,7 +145,7 @@ fn level_80_budget() -> std::collections::HashMap<u32, i32> {
 
 #[test]
 fn mirrored_rules_reject_like_the_server() {
-    let Some(data) = loaded() else { return };
+    let data = loaded();
     let tree = data.tree(PALADIN_TREE).unwrap();
     let owned = level_80_budget();
     let (ctx, granted) = ret_config(tree, 80);

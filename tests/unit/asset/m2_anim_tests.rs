@@ -1,5 +1,9 @@
 use super::*;
 
+#[path = "../required_asset.rs"]
+mod required_asset;
+use required_asset::require_asset;
+
 /// Extract MD20 blob from chunked M2 data (test helper).
 fn extract_md20(data: &[u8]) -> &[u8] {
     let mut off = 0;
@@ -88,13 +92,7 @@ fn validate_detects_invalid_parent() {
 #[test]
 fn parse_humanmale_bones() {
     let m2_path = "data/models/humanmale.m2";
-    let data = match std::fs::read(m2_path) {
-        Ok(d) => d,
-        Err(_) => {
-            println!("Skipping: {m2_path} not found");
-            return;
-        }
-    };
+    let data = std::fs::read(require_asset(m2_path)).unwrap();
     let md20 = extract_md20(&data);
     let bones = parse_bones(md20).unwrap();
     assert!(!bones.is_empty(), "humanmale should have bones, got 0");
@@ -109,13 +107,7 @@ fn parse_humanmale_bones() {
 #[test]
 fn parse_humanmale_hd_bones() {
     let m2_path = "data/models/humanmale_hd.m2";
-    let data = match std::fs::read(m2_path) {
-        Ok(d) => d,
-        Err(_) => {
-            println!("Skipping: {m2_path} not found");
-            return;
-        }
-    };
+    let data = std::fs::read(require_asset(m2_path)).unwrap();
     let md20 = extract_md20(&data);
     let bones = parse_bones(md20).unwrap();
     println!("humanmale_hd: {} bones", bones.len());
@@ -127,13 +119,7 @@ fn parse_humanmale_hd_bones() {
 #[test]
 fn parse_humanmale_sequences() {
     let m2_path = "data/models/humanmale.m2";
-    let data = match std::fs::read(m2_path) {
-        Ok(d) => d,
-        Err(_) => {
-            println!("Skipping: {m2_path} not found");
-            return;
-        }
-    };
+    let data = std::fs::read(require_asset(m2_path)).unwrap();
     let md20 = extract_md20(&data);
     let sequences = parse_sequences(md20).unwrap();
     assert!(
@@ -154,13 +140,7 @@ fn parse_humanmale_sequences() {
 #[test]
 fn parse_humanmale_global_sequences() {
     let m2_path = "data/models/humanmale.m2";
-    let data = match std::fs::read(m2_path) {
-        Ok(d) => d,
-        Err(_) => {
-            println!("Skipping: {m2_path} not found");
-            return;
-        }
-    };
+    let data = std::fs::read(require_asset(m2_path)).unwrap();
     let md20 = extract_md20(&data);
     let global_seqs = parse_global_sequences(md20).unwrap();
     println!("humanmale: {} global sequences", global_seqs.len());
@@ -192,13 +172,7 @@ fn count_bones_with_stand_keyframes(tracks: &[BoneAnimTracks], stand_idx: usize)
 #[test]
 fn parse_humanmale_bone_animations() {
     let m2_path = "data/models/humanmale.m2";
-    let data = match std::fs::read(m2_path) {
-        Ok(d) => d,
-        Err(_) => {
-            println!("Skipping: {m2_path} not found");
-            return;
-        }
-    };
+    let data = std::fs::read(require_asset(m2_path)).unwrap();
     let md20 = extract_md20(&data);
     let bones = parse_bones(md20).unwrap();
     let tracks = parse_bone_animations(md20).unwrap();
