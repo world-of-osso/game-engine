@@ -35,6 +35,12 @@ use shared::protocol::{
 use game_engine_ui_model::merchant_data::MerchantRequest;
 
 use crate::player_spells::PlayerSpells;
+use game_engine_ui_model::auction::{AuctionReply, AuctionRequest};
+use shared::protocol::{
+    AuctionChannel, AuctionHouseOpened, AuctionInventorySnapshot, AuctionOperationResponse,
+    AuctionSearchResults, BidAuctionListResponse, OpenAuctionHouse, OwnedAuctionListResponse,
+    QueryAuctionInventory, QueryAuctions, QueryBidAuctions, QueryOwnedAuctions, SelectGossipOption,
+};
 
 /// Combat log lines kept for automation and the cast result readout.
 const COMBAT_LOG_KEEP: usize = 64;
@@ -100,6 +106,7 @@ pub enum AccountEvent {
     Combat(CombatMessage),
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
+    Auction(AuctionReply),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
 }
@@ -338,6 +345,29 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_gossip_option(&self, npc: u64, option_id: u32) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InteractionChannel>(SelectGossipOption { npc, option_id })
+            .map_err(SessionError)
+    }
+    pub fn send_auction_request(&self, request: AuctionRequest) -> Result<(), SessionError> {
+        let bridge = self.bridge()?;
+        match request {
+            AuctionRequest::Open => bridge.send::<_, AuctionChannel>(OpenAuctionHouse),
+            AuctionRequest::Browse(query) => {
+                bridge.send::<_, AuctionChannel>(QueryAuctions { query })
+            }
+            AuctionRequest::Owned => bridge.send::<_, AuctionChannel>(QueryOwnedAuctions),
+            AuctionRequest::Bids => bridge.send::<_, AuctionChannel>(QueryBidAuctions),
+            AuctionRequest::Inventory => bridge.send::<_, AuctionChannel>(QueryAuctionInventory),
+            AuctionRequest::Create(request) => bridge.send::<_, AuctionChannel>(request),
+            AuctionRequest::Bid(request) => bridge.send::<_, AuctionChannel>(request),
+            AuctionRequest::Buyout(request) => bridge.send::<_, AuctionChannel>(request),
+            AuctionRequest::Cancel(request) => bridge.send::<_, AuctionChannel>(request),
+        }
+        .map_err(SessionError)
+    }
+
     /// A MerchantFrame request to the open vendor `npc` (Bevy `send_merchant_requests`).
     pub fn send_merchant_request(
         &self,
@@ -572,6 +602,13 @@ impl Account {
         if Self::is_roster_message(&message) {
             return self.dispatch_roster_message(message, output);
         }
+        let message = match auction_message(message)? {
+            Ok(reply) => {
+                output.push(AccountEvent::Auction(reply));
+                return Ok(());
+            }
+            Err(message) => message,
+        };
         let message = match npc_message(message)? {
             Ok(npc) => {
                 output.push(AccountEvent::Npc(npc));
@@ -1057,4 +1094,25 @@ fn decode<M: game_engine_network::WireMessage>(message: ProtocolMessage) -> Resu
             std::any::type_name::<M>()
         )
     })
+}
+
+fn auction_message(
+    message: ProtocolMessage,
+) -> Result<Result<AuctionReply, ProtocolMessage>, String> {
+    let reply = if message.is::<AuctionHouseOpened>() {
+        AuctionReply::Opened(decode(message)?)
+    } else if message.is::<AuctionSearchResults>() {
+        AuctionReply::Search(decode(message)?)
+    } else if message.is::<AuctionInventorySnapshot>() {
+        AuctionReply::Inventory(decode(message)?)
+    } else if message.is::<OwnedAuctionListResponse>() {
+        AuctionReply::Owned(decode(message)?)
+    } else if message.is::<BidAuctionListResponse>() {
+        AuctionReply::Bids(decode(message)?)
+    } else if message.is::<AuctionOperationResponse>() {
+        AuctionReply::Operation(decode(message)?)
+    } else {
+        return Ok(Err(message));
+    };
+    Ok(Ok(reply))
 }
