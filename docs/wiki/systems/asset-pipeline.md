@@ -26,7 +26,9 @@ Files are named `{fdid}.{ext}` (extension derived from the community listfile). 
 
 The shared file cache previously treated an empty persisted `.missing` file as permanent absence, bypassing local extraction even when CASC held the asset. Asset-resolver `c24d035` removes that check and marker writes; existing markers remain untouched and are ignored. Positive-cache hits, local extraction, failure diagnostics and public initialization are unchanged. The contract lives in the sibling [asset-cache spec](../../../../asset-resolver/docs/specs/asset-cache.md).
 
-Regression `0cf7ec6` exercises fresh-process recovery after positive-cache and unavailable-asset cases. Saved RED `/tmp/claude/negative-cache-red2.log` exits 101: FDID `1244035` resolves as valid BLP2 bytes, but the old empty marker makes `ensure_cached` return `None`. GREEN and independent acceptance remain pending; this is not a passing-test claim.
+Main accepts standalone `25debb1` **bounded PASS** in `/tmp/claude/verify-shared-negative-cache-final.md`: fresh processes persist a marker, preserve positive-cache bytes/inode/timestamps, assert unavailable-FDID failure context, then recover FDID `1244035` as exact valid local-CASC BLP2 bytes. Saved regression exits 0 (1/1); format, offline locked all-target check and focused readability pass. Existing `binrw` future-incompatibility warning remains. This proves the standalone cache boundary, not native cold-marker recovery.
+
+Main reports Depot `s1q4qhb120` build2 exit 0 and `data/diagnostics/negative-cache-native/runtime.log` exit 0 through actual full Options/Menu/UDP/Exit. Independent native integration gate `/tmp/claude/verify-negative-cache-native-integration.md` remains pending; no cold-marker, full-conversion or deployment acceptance.
 
 Extraction to disk is not the only access path. The project `AssetResolver` also exposes `resolve_bytes(fdid)`, which can read file contents directly from local CASC. Runtime DB2 loading can use direct bytes because the DB2 parsers accept `&[u8]`; path-based helpers such as `ensure_db2_path` are mainly useful for debug artifacts, cache inspection, and tools that require filesystem paths.
 

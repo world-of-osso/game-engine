@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-30] audit | Shared asset-cache negative markers; GREEN/gate pending
+## [2026-09-30] evidence | Shared cache standalone PASS; native gate pending
 
-Updated existing [asset pipeline](systems/asset-pipeline.md#local-extraction) and index; contract remains in sibling [asset-cache spec](../../../asset-resolver/docs/specs/asset-cache.md), committed with source `c24d035`. Eighteen-line deletion ignores legacy `.missing` files and stops writing new markers; positive-cache/local-extraction/errors/public initialization unchanged. Regression `0cf7ec6`: saved `/tmp/claude/negative-cache-red2.log` exit 101, fresh-process FDID `1244035` valid local BLP2 bytes but marker blocks `ensure_cached`; positive/unavailable cases precede recovery. Main GREEN report and independent acceptance pending; package checkboxes remain open. Docs-only isolated checkout; no source/Cargo/GPU/network/delegation/cache writes, startup refactor or cache cleanup. Cargo.lock, PLAN.md, data and user-data preserved.
+Updated [asset pipeline](systems/asset-pipeline.md#local-extraction) and index with main-accepted standalone `25debb1` proof: persisted-marker fresh-process recovery of exact valid local-CASC bytes, positive-cache preservation, explicit failure context, format/check/readability. Main Depot `s1q4qhb120` build2 and actual full Options/Menu/UDP/Exit runtime exit 0; independent native integration gate pending, not cold-marker/full-conversion/deploy proof. Contract remains in sibling [asset-cache spec](../../../asset-resolver/docs/specs/asset-cache.md). Isolated engine docs only; asset repo untouched, user-dirty files preserved. Source unfrozen; shutdown paused.
 
 ## [2026-09-30] evidence | Bounded TargetSelf Options rebind; gate accepted
 
