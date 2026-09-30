@@ -106,7 +106,7 @@ Saved artifacts under `data/diagnostics/taa-production-observer/` cover the prod
 
 ### Production-controller observer — bounded main-observed evidence
 
-Main read saved `data/diagnostics/taa-controller-observer/{run1.log,gpu-run1.log}`; both exit 0. Independent gate agent 1153 (`/tmp/claude/verify-taa-controller-observer.md`) remains **pending**; the independent oracle is not a completed independent acceptance gate.
+Main read saved `data/diagnostics/taa-controller-observer/{run1.log,gpu-run1.log}`; both exit 0. Independent gate 1153 (`/tmp/claude/verify-taa-controller-observer.md`) is **accepted bounded PASS**: independently recomputed 430080 main + 3072 confidence + 54 jitter comparisons, zero discrepancies; all 62 capture/36 oracle binaries finite, source-dataflow audit passed. This directory-only saved-artifact audit excludes production `res://` hash re-audit and upstream translation fidelity; no runtime reruns or general acceptance claim.
 
 | Capability | Main-observed evidence / boundary |
 | --- | --- |
