@@ -12,7 +12,7 @@ use crate::customization_data::{RaceModels, RawData};
 mod customization_query_data;
 use crate::sqlite_util::is_missing_table_error;
 
-const CACHE_SCHEMA_VERSION: u32 = 3;
+const CACHE_SCHEMA_VERSION: u32 = 4;
 
 fn cache_path() -> PathBuf {
     crate::paths::shared_data_path("cache/customization.sqlite")
@@ -550,7 +550,14 @@ fn populate_texture_fdids(conn: &Connection, path: &Path) -> Result<(), String> 
         path,
         |headers, fields, path| {
             let file_data_id = header_index(headers, "FileDataID", path)?;
+            let usage_type = header_index(headers, "UsageType", path)?;
             let material_resources_id = header_index(headers, "MaterialResourcesID", path)?;
+            // A material's texture is its UsageType 0 row; others (such as the
+            // Demon Hunter tattoos' opaque UsageType 2 companions) are not the
+            // diffuse layer (wow.export `DBCharacterCustomization._initialize`).
+            if parse_u32(fields, usage_type) != 0 {
+                return Ok(None);
+            }
             Ok(Some((
                 parse_u32(fields, material_resources_id),
                 parse_u32(fields, file_data_id),
