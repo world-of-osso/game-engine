@@ -28,6 +28,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - [x] Show Dracthyr (ChrRaces 52 Alliance, 70 Horde) in both allied columns. A Dracthyr selection defaults to Evoker (`ChrRaces.DefaultClassID` 13). The preview and the world model are the dragon form, `character/dracthyr/dracthyrdragon.m2` (ChrModel 89).
 - [x] Fit both race columns above the navigation buttons at 1280×720, including six Horde allied races.
 - [x] Offer the Demon Hunter horn, tattoo and blindfold choices (ChrCustomizationReq ClassMask 2048) and the Dracthyr dragon-form options.
+- [x] Render `ChrCustomizationSkinnedModel` choices. A selected choice's collection M2 (`CollectionsFileDataID`) shows only submesh `GeosetType * 100 + GeosetID`. It is skinned to the character skeleton, with collection bones matched to character joints by `M2CompBone.boneNameCRC`, then by key-bone name. Its replaceable textures use the body skin (type 1, and type 8 by fallback) plus the raw material textures of the layout's other texture types, such as the Demon Hunter blindfold's type 9. This follows wow.export `update_skinned_models`, `buildBoneRemapTable` and `resolve_replaceable_textures`. Verified live in the creation preview: Night Elf Demon Hunter horns and blindfold (7760205), Dracthyr horns and armor pieces (4375631, 4489412), Mechagnome arm upgrade (2628212).
 
 ### Authored creation scenes
 
@@ -116,11 +117,15 @@ Closed-value centering and authored circular hover sizes passed independent nati
 Each character was teleported next to a Northshire Training Dummy before casting. Captures are in `data/diagnostics/newclasses-2026-09-30/`.
 
 Gaps found in this run:
-- [ ] Demon Hunter blindfolds use `ChrCustomizationSkinnedModelID`, which the engine does not render. The Blindfold row therefore keeps choice 789 "None", which ChrCustomizationReq 145 forbids for Demon Hunters. The `randomize_only_produces_offered_combinations_that_meet_required_choices` sweep fails on Night Elf and Blood Elf Demon Hunters because of this.
+- [ ] The Demon Hunter blindfold geometry renders untextured (white). Its type-9 textures are ChrCustomizationMaterial 104975/104978, MaterialResourcesID 1104904/1104903. The local CASC install has no TextureFileData.db2, and data/TextureFileData.csv has no rows for those IDs, so the texture FDIDs are unresolved.
 - [ ] Dracthyr visage form (ChrRaces 75, ChrModel 127/128) and the dragon/visage toggle are missing. The dragon-form wings render untextured (white).
 - [ ] The Demon Hunter preview body renders black above the waist. This is unexamined.
 - [ ] "Demon Hunter" overflows its class tile label.
 - [ ] A cross-map teleport logs `Node3D::upcast_ref ... after it has been freed` panics in `GameClient::process()`. The client keeps running.
+
+## Customization data refresh — 2026-09-30
+
+`scripts/export_db2_csv.py` re-exported ChrCustomizationElement, ChrCustomizationMaterial, ChrCustomizationSkinnedModel (new) and ChrModelTextureLayer from local CASC (build 12.1.0.69933 layouts). The previous CSVs were dated 2026-03-12 and lacked the 12.x Demon Hunter rows. The delta is +360/-35 elements, +68/-24 materials and +12 layers. The old files and caches are in `data/pre-12x-customization-20260930/`. `data/cache/customization.sqlite` is now schema 3, with `elements.skinned_model_id` and `skinned_models`. ChrCustomizationChoice and ChrCustomizationOption were not refreshed, so choices added in 12.x without a local Choice row (for example 62817) are not offered.
 
 ## Out of scope
 
