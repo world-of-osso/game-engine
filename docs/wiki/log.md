@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] evidence | Bounded character-select MouseSensitivity; gate pending
+
+Extended existing [camera Options boundary](systems/godot-conversion.md#native-camera-options-boundary) and matrix from test-only `576a374a`/`c46515ec`, `data/diagnostics/charselect-sensitivity-options/run1.log` exit 0: authored Menu/Camera 0.003/0.006 numeric saves, physical left-drag +4 pixels asserts rendered-basis yaw against original shared math (expected −0.012/−0.024, not logged raw observed deltas). Opposite drags restore baseline/scene/roster/character pose; mouse sensitivity restored to 0.003. Existing gameplay camera/marker/full Menu UDP/Exit pass. Independent `/tmp/claude/verify-native-charselect-sensitivity-options.md` active/pending; no all-camera/all-account-scenes/startup/fresh-reload/full-conversion claim. Docs only; no production change/new Depot/tests/build/GPU/network/delegation. Cargo.lock, PLAN.md, user-data and data preserved. Source unfrozen; shutdown paused.
+
 ## [2026-09-30] evidence | Bounded Camera Look/FOV gate accepted
 
 Extended existing [camera boundary](systems/godot-conversion.md#native-camera-options-boundary) and matrix with test-only `2fc386d1`/`edfb4ec6` main slider `run1.log` exit-0 evidence: authored 0.02/105° and restored 0.01/90° save/pitch/physical-FOV checks, numeric f32 tolerance, prior InvertY/marker/full Menu assertions passing. No production change/Depot build; `mb61bqgcj2` unaffected. Main accepts `/tmp/claude/verify-native-camera-slider-options.md` **bounded saved-runtime-artifact and source PASS**: original ranges/math, 4 canonical numeric/2 pitch/2 physical-FOV checks and retained release/InvertY/marker/Menu; no rendered-pixel proof; no fresh-process/all-camera/full-scene acceptance. Source unfrozen; shutdown deferred.
