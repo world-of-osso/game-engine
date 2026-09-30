@@ -2205,3 +2205,7 @@ A spell's first use no longer extracts, parses or decodes its kit models, textur
 ## [2026-09-30] fix | Retail ADT water
 
 Northshire streams used the procedural placeholder water shader and lost MH2O LVF 0 depths. Godot water now ports WebWowViewerCpp `liquidWaterMat` with LiquidType/LiquidObject/LiquidTypeXTexture DB2 inputs and LightData/LightParams colours. See [northshire-pale-water](investigations/northshire-pale-water.md).
+
+## [2026-09-30] fix | Showcase client bugs
+
+Floating combat text starts at per-number camera-plane offsets from the retail WorldText CVars; the target's nameplate takes `nameplateSelectedAlpha`; robes select skirt/sleeve geosets and paste over shirt and pants in `CCharacterComponent` priority; player weapons sheathe at `Item.SheatheType`; creature poses follow `AnimationData.Fallback` (Dead → Death held). `.anim` out-of-bounds reads trace to stale cached `.skel` files. See [showcase-client-bugs](investigations/showcase-client-bugs.md).
