@@ -62,7 +62,10 @@ impl NpcAppearances {
             return Ok(None);
         };
         let armor = resolve_armor(appearance.race, appearance.sex)?;
-        let (mut selected, layout_id) = self.select_choices_and_layout(data_root, &appearance)?;
+        let (mut selected, layout_id) = crate::profile::time(
+            || format!("npc {display_id} select_choices_and_layout"),
+            || self.select_choices_and_layout(data_root, &appearance),
+        )?;
         let db = self
             .customization
             .as_ref()
@@ -78,6 +81,8 @@ impl NpcAppearances {
                 .with_shared_data_root(data_root)
                 .with_cache_root(cache_root),
         );
+        let _span =
+            crate::profile::span(|| format!("npc {display_id} compose_replacement_textures"));
         let textures = compose_replacement_textures(
             compositor,
             &appearance,

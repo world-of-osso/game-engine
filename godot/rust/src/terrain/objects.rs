@@ -64,7 +64,7 @@ impl ObjectSelection for AllObjects {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Pending {
     Doodad(Tile, usize),
     Wmo(Tile, usize),
@@ -335,12 +335,16 @@ impl TerrainObjects {
         if let Some(pools) = &mut self.particles {
             pools.attach(parent);
         }
-        self.queue_tiles(terrain, selection);
+        crate::profile::time(
+            || "objects.queue_tiles".to_owned(),
+            || self.queue_tiles(terrain, selection),
+        );
         let started = Instant::now();
         while started.elapsed() < self.budget {
             let Some(pending) = self.pending.pop_front() else {
                 break;
             };
+            let _span = crate::profile::span(|| format!("objects.spawn {pending:?}"));
             if let Err(error) = self.spawn(parent, terrain, pending) {
                 // One broken authored object must not hide the rest of the scene.
                 self.failures += 1;
@@ -446,7 +450,10 @@ impl TerrainObjects {
         let mut doodad = CulledDoodad::new(built.node, scenery, unique_id, wmo_groups);
         if let (Some(pools), Some(particles)) = (&mut self.particles, &built.particles) {
             let texture_dir = self.data_root.join("textures");
-            let (placed, errors) = pools.place(particles, &doodad.node, unique_id, &texture_dir);
+            let (placed, errors) = crate::profile::time(
+                || format!("doodad {unique_id} particles.place"),
+                || pools.place(particles, &doodad.node, unique_id, &texture_dir),
+            );
             for error in errors {
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
@@ -496,11 +503,21 @@ impl TerrainObjects {
     /// Parse and cache each model FDID once; build a node per placement.
     fn build_doodad_model(&mut self, fdid: u32) -> Result<BuiltDoodad, String> {
         if !self.models.contains_key(&fdid) {
-            let path = cache_model_files(&self.resolver, &self.data_root, fdid)?;
+            let path = crate::profile::time(
+                || format!("doodad {fdid} cache_model_files"),
+                || cache_model_files(&self.resolver, &self.data_root, fdid),
+            )?;
             let path = GString::from(path.to_string_lossy().as_ref());
-            let model = read_model(&path)?;
-            cache_model_textures(&self.resolver, &self.data_root, &[0; 3], &model)?;
-            let particles = ModelParticles::from_model(fdid, &model);
+            let model =
+                crate::profile::time(|| format!("doodad {fdid} read_model"), || read_model(&path))?;
+            crate::profile::time(
+                || format!("doodad {fdid} cache_model_textures"),
+                || cache_model_textures(&self.resolver, &self.data_root, &[0; 3], &model),
+            )?;
+            let particles = crate::profile::time(
+                || format!("doodad {fdid} particles"),
+                || ModelParticles::from_model(fdid, &model),
+            );
             self.models.insert(
                 fdid,
                 ParsedModel {
@@ -511,7 +528,10 @@ impl TerrainObjects {
             );
         }
         let parsed = &self.models[&fdid];
-        let (model, missing) = build_model(&parsed.model, &parsed.path, &[0; 3], None)?;
+        let (model, missing) = crate::profile::time(
+            || format!("doodad {fdid} build_model"),
+            || build_model(&parsed.model, &parsed.path, &[0; 3], None),
+        )?;
         if !missing.is_empty() {
             model.free();
             return Err(format!("model {fdid} missing textures {missing:?}"));
@@ -617,14 +637,22 @@ impl TerrainObjects {
         tile: Tile,
         doodad_sets: &[u16],
     ) -> Result<(crate::wmo::scene::WmoNode, CulledWmo, Vec<LitDoodad>), String> {
-        let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
+        let asset = crate::profile::time(
+            || format!("wmo {} read_placement", placement.unique_id),
+            || crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement),
+        )?;
         let doodads = asset.doodads(doodad_sets);
-        let mut wmo_node = crate::wmo::scene::build_wmo_node(
-            &asset,
-            &self.resolver,
-            &self.data_root,
-            doodad_sets,
-            self.light.as_ref(),
+        let mut wmo_node = crate::profile::time(
+            || format!("wmo {} build_wmo_node", placement.unique_id),
+            || {
+                crate::wmo::scene::build_wmo_node(
+                    &asset,
+                    &self.resolver,
+                    &self.data_root,
+                    doodad_sets,
+                    self.light.as_ref(),
+                )
+            },
         )?;
         let model = &mut wmo_node.node;
         let position = placement_position(placement.position, tile.0, tile.1);

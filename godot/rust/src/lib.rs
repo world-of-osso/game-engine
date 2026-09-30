@@ -38,6 +38,7 @@ mod objective_tracker;
 mod particle_debug;
 mod particles;
 mod player_spells;
+mod profile;
 mod scene;
 mod sound;
 mod sound_client;
@@ -90,6 +91,7 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
         // Release cached shaders before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
             assets::material::clear_shared_shaders();
+            assets::clear_shared_meshes();
             particles::clear_quad_mesh();
         }
     }
@@ -450,6 +452,7 @@ impl INode3D for GameClient {
             }),
         ];
         for (step, run) in steps {
+            let _span = profile::span(|| format!("step={step}"));
             if let Err(error) = run(self, delta as f32)
                 && self.handle_frame_error(step, error)
             {
@@ -1245,7 +1248,13 @@ impl GameClient {
     /// A failure handling one event is reported and the next event still applies;
     /// only a transport or protocol failure ends the poll.
     fn poll_account(&mut self) -> Result<(), FrameError> {
-        for event in self.account.poll()? {
+        let events = {
+            let _span = profile::span(|| "account.poll".to_owned());
+            self.account.poll()?
+        };
+        for event in events {
+            let kind = account_event_kind(&event);
+            let _span = profile::span(|| format!("account.event {kind}"));
             match self.apply_account_event(event) {
                 Err(FrameError::Client(error)) => {
                     frame_error::report_once(&format!("Account event: {error}"))
@@ -1253,6 +1262,7 @@ impl GameClient {
                 result => result?,
             }
         }
+        let _span = profile::span(|| "account.after_events".to_owned());
         self.world
             .select_local_player(self.account.session.selected_character_name.as_deref());
         self.world
@@ -1402,9 +1412,15 @@ impl GameClient {
 
     fn attach_world_objects(&mut self) {
         let mut parent = self.to_gd().upcast::<Node3D>();
-        self.world_objects
-            .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
+        crate::profile::time(
+            || "objects.sync".to_owned(),
+            || {
+                self.world_objects
+                    .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects)
+            },
+        );
         if let Some(player) = self.world.local_player_transform() {
+            let _span = crate::profile::span(|| "wmo_collision.sync".to_owned());
             let origin = player.origin;
             self.wmo_collision.sync(
                 &mut parent,
@@ -1828,4 +1844,25 @@ fn authored_campsites(
         panel_visible: false,
         page: 0,
     })
+}
+
+fn account_event_kind(event: &AccountEvent) -> String {
+    match event {
+        AccountEvent::Screen(screen) => format!("Screen({screen:?})"),
+        AccountEvent::Feedback => "Feedback".into(),
+        AccountEvent::WorldReset => "WorldReset".into(),
+        AccountEvent::RestState(_) => "RestState".into(),
+        AccountEvent::LoadTerrain(_) => "LoadTerrain".into(),
+        AccountEvent::NewWorld(_) => "NewWorld".into(),
+        AccountEvent::TransferError(_) => "TransferError".into(),
+        AccountEvent::UnitUpdated(unit) => format!("UnitUpdated({})", unit.server_id),
+        AccountEvent::UnitRemoved(_) => "UnitRemoved".into(),
+        AccountEvent::RosterChanged => "RosterChanged".into(),
+        AccountEvent::MirrorTimer(_) => "MirrorTimer".into(),
+        AccountEvent::CharacterCreated { .. } => "CharacterCreated".into(),
+        AccountEvent::CastFailed(_) => "CastFailed".into(),
+        AccountEvent::Combat(_) => "Combat".into(),
+        AccountEvent::Npc(_) => "Npc".into(),
+        AccountEvent::Chat(_) => "Chat".into(),
+    }
 }

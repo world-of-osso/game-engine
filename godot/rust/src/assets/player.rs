@@ -200,31 +200,46 @@ pub(crate) fn load_player_model(
     equipment: &EquipmentAppearance,
 ) -> Result<Gd<Node3D>, String> {
     let resolver = local_resolver(data_root, cache_root);
-    let path = cache_player_model(&resolver, data_root, player)?;
-    let equipment = resolve_equipment_appearance(
-        equipment,
-        &OutfitData::load(data_root),
-        player.race,
-        player.appearance.sex,
+    let path = crate::profile::time(
+        || "player cache_player_model".to_owned(),
+        || cache_player_model(&resolver, data_root, player),
     )?;
-    let appearance = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
+    let outfit = crate::profile::time(
+        || "player OutfitData::load".to_owned(),
+        || OutfitData::load(data_root),
+    );
+    let equipment =
+        resolve_equipment_appearance(equipment, &outfit, player.race, player.appearance.sex)?;
+    let appearance = crate::profile::time(
+        || "player prepare_player_appearance".to_owned(),
+        || prepare_player_appearance(&resolver, data_root, player, &equipment),
+    )?;
     let path = GString::from(path.to_string_lossy().as_ref());
-    let parsed = read_model(&path)?;
+    let parsed = crate::profile::time(|| "player read_model".to_owned(), || read_model(&path))?;
     cache_model_textures(&resolver, data_root, &[0; 3], &parsed)?;
-    let (mut model, missing) = build_model(&parsed, &path, &[0; 3], Some(&appearance))?;
+    let (mut model, missing) = crate::profile::time(
+        || "player build_model".to_owned(),
+        || build_model(&parsed, &path, &[0; 3], Some(&appearance)),
+    )?;
     if !missing.is_empty() {
         godot_warn!(
             "Player {} missing authored texture FDIDs: {missing:?}",
             player.name
         );
     }
-    if let Err(error) = attach_equipment(
-        &mut model,
-        &parsed,
-        &resolver,
-        data_root,
-        &equipment.runtime_models,
-    ) {
+    let attached = crate::profile::time(
+        || "player attach_equipment".to_owned(),
+        || {
+            attach_equipment(
+                &mut model,
+                &parsed,
+                &resolver,
+                data_root,
+                &equipment.runtime_models,
+            )
+        },
+    );
+    if let Err(error) = attached {
         model.free();
         return Err(error);
     }
@@ -254,7 +269,10 @@ fn prepare_player_appearance(
 ) -> Result<PreparedAppearance, String> {
     let race = player.race;
     let sex = player.appearance.sex;
-    let db = load_customization_db(data_root)?;
+    let db = crate::profile::time(
+        || "player load_customization_db".to_owned(),
+        || load_customization_db(data_root),
+    )?;
     let mut selected = select_player_choices(&db, race, sex, player.class, &player.appearance)?;
     for group in &equipment.hidden_character_geoset_groups {
         selected.geosets.retain(|(active, _)| active != group);
@@ -268,7 +286,10 @@ fn prepare_player_appearance(
     let layout_id = db
         .layout_id(race, sex)
         .ok_or_else(|| format!("missing player texture layout for race {race} sex {sex}"))?;
-    let compositor = load_compositor(data_root)?;
+    let compositor = crate::profile::time(
+        || "player load_compositor".to_owned(),
+        || load_compositor(data_root),
+    )?;
     let mut seen = HashSet::new();
     let item_textures: Vec<_> = equipment
         .outfit
@@ -277,6 +298,7 @@ fn prepare_player_appearance(
         .copied()
         .filter(|texture| seen.insert(*texture))
         .collect();
+    let span = crate::profile::span(|| "player compose_player_pixels".to_owned());
     let mut pixels = compose_player_pixels(
         &compositor,
         &selected,
@@ -290,6 +312,7 @@ fn prepare_player_appearance(
             load_appearance_texture(resolver, data_root, fdid, "player cape")?,
         );
     }
+    drop(span);
     let textures = pixels
         .into_iter()
         .map(|(kind, (rgba, width, height))| {

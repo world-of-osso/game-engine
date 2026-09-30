@@ -32,6 +32,9 @@ thread_local! {
     /// placement: building textures per material uploaded a copy for every doodad.
     static TEXTURES: RefCell<HashMap<TextureKey, Gd<ImageTexture>>> =
         RefCell::new(HashMap::new());
+    /// `batch_shaders` by (blend mode, effect route, two-sided).
+    static BATCH_SHADERS: RefCell<HashMap<(u16, bool, bool), (Gd<Shader>, Option<Gd<Shader>>)>> =
+        RefCell::new(HashMap::new());
 }
 
 /// A batch's base texture: the file itself, or the file with its second texture
@@ -92,6 +95,7 @@ pub(crate) fn shared_shader(code: &str) -> Gd<Shader> {
 pub(crate) fn clear_shared_shaders() {
     SHADERS.with_borrow_mut(HashMap::clear);
     TEXTURES.with_borrow_mut(HashMap::clear);
+    BATCH_SHADERS.with_borrow_mut(HashMap::clear);
 }
 
 pub(super) fn is_effect(batch: &ResolvedBatch) -> bool {
@@ -128,18 +132,11 @@ pub(super) fn load_material(
         .transpose()?
         .flatten();
 
-    let source = ResourceLoader::singleton()
-        .load(SHADER_PATH)
-        .ok_or_else(|| format!("Cannot load M2 shader {SHADER_PATH}"))?
-        .try_cast::<Shader>()
-        .map_err(|_| format!("M2 shader {SHADER_PATH} has wrong resource type"))?
-        .get_code()
-        .to_string();
-    let variant = shader_variant(&source, batch, effect)?;
+    let (shader, fade) = batch_shaders(batch, effect)?;
     let mut material = ShaderMaterial::new_gd();
-    material.set_shader(&shared_shader(&variant));
-    if let Some(fade) = scenery_fade_variant(&source, batch, effect)? {
-        material.set_meta(SCENERY_FADE_SHADER_META, &shared_shader(&fade).to_variant());
+    material.set_shader(&shader);
+    if let Some(fade) = fade {
+        material.set_meta(SCENERY_FADE_SHADER_META, &fade.to_variant());
     }
     bind_textures(&mut material, base, second)?;
     if let Some(texture) = replacement {
@@ -148,6 +145,34 @@ pub(super) fn load_material(
     bind_uniforms(&mut material, batch, effect);
     material.set_shader_parameter("mesh_color", &Vector3::from_array(mesh_color).to_variant());
     Ok(material)
+}
+
+/// A batch's shader and, when opaque, its scenery-fade shader. The variant depends only
+/// on the blend mode, the effect route and two-sided culling, so it is made once per
+/// combination rather than from the shader source for every batch.
+fn batch_shaders(
+    batch: &ResolvedBatch,
+    effect: bool,
+) -> Result<(Gd<Shader>, Option<Gd<Shader>>), String> {
+    let key = (
+        batch.blend_mode,
+        effect,
+        !effect && batch.render_flags & 4 != 0,
+    );
+    if let Some(shaders) = BATCH_SHADERS.with_borrow(|shaders| shaders.get(&key).cloned()) {
+        return Ok(shaders);
+    }
+    let source = ResourceLoader::singleton()
+        .load(SHADER_PATH)
+        .ok_or_else(|| format!("Cannot load M2 shader {SHADER_PATH}"))?
+        .try_cast::<Shader>()
+        .map_err(|_| format!("M2 shader {SHADER_PATH} has wrong resource type"))?
+        .get_code()
+        .to_string();
+    let shader = shared_shader(&shader_variant(&source, batch, effect)?);
+    let fade = scenery_fade_variant(&source, batch, effect)?.map(|fade| shared_shader(&fade));
+    BATCH_SHADERS.with_borrow_mut(|shaders| shaders.insert(key, (shader.clone(), fade.clone())));
+    Ok((shader, fade))
 }
 
 fn bind_textures(

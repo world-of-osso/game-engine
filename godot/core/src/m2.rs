@@ -387,3 +387,69 @@ pub fn parse_model_with_skeleton(
         lights: m2_light::parse_lights(chunks.md20),
     })
 }
+
+/// One submesh's triangles as engine vertex streams: each vertex it references once, in
+/// first-reference order, with position and normal in engine axes (WoW `x, z, -y`), both
+/// UV sets and four bone indices and weights; `indices` into those streams are wound
+/// for counter-clockwise front faces, the reverse of M2's outward winding.
+#[derive(Debug, PartialEq)]
+pub struct SubmeshArrays {
+    pub positions: Vec<[f32; 3]>,
+    pub normals: Vec<[f32; 3]>,
+    pub uv: Vec<[f32; 2]>,
+    pub uv2: Vec<[f32; 2]>,
+    pub bones: Vec<i32>,
+    pub weights: Vec<f32>,
+    pub indices: Vec<i32>,
+}
+
+pub fn submesh_arrays(model: &Model, sub: &Submesh) -> Result<SubmeshArrays, String> {
+    let start = sub.triangle_start as usize;
+    let end = start + sub.triangle_count as usize;
+    let triangles = model
+        .indices
+        .get(start..end)
+        .ok_or("Submesh indices out of bounds")?;
+    if triangles.is_empty() || triangles.len() % 3 != 0 {
+        return Err("Submesh has no complete triangles".into());
+    }
+    let engine = |[x, y, z]: [f32; 3]| [x, z, -y];
+    let mut arrays = SubmeshArrays {
+        positions: Vec::new(),
+        normals: Vec::new(),
+        uv: Vec::new(),
+        uv2: Vec::new(),
+        bones: Vec::new(),
+        weights: Vec::new(),
+        indices: Vec::with_capacity(triangles.len()),
+    };
+    let mut remap = std::collections::HashMap::<u16, i32>::new();
+    for &global in triangles {
+        if let Some(&local) = remap.get(&global) {
+            arrays.indices.push(local);
+            continue;
+        }
+        let vertex = model
+            .vertices
+            .get(global as usize)
+            .ok_or_else(|| format!("Vertex {global} out of bounds"))?;
+        let local = arrays.positions.len() as i32;
+        arrays.positions.push(engine(vertex.position));
+        arrays.normals.push(engine(vertex.normal));
+        arrays.uv.push(vertex.tex_coords);
+        arrays.uv2.push(vertex.tex_coords_2);
+        for (&bone, &weight) in vertex.bone_indices.iter().zip(&vertex.bone_weights) {
+            if weight > 0 && bone as usize >= model.bones.len() {
+                return Err(format!("Vertex {global} references absent bone {bone}"));
+            }
+            arrays.bones.push(i32::from(bone));
+            arrays.weights.push(f32::from(weight) / 255.0);
+        }
+        remap.insert(global, local);
+        arrays.indices.push(local);
+    }
+    for triangle in arrays.indices.chunks_exact_mut(3) {
+        triangle.swap(1, 2);
+    }
+    Ok(arrays)
+}

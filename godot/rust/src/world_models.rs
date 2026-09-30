@@ -56,7 +56,7 @@ fn mesh_bounds(model: &Gd<Node3D>) -> Aabb {
         .unwrap_or_default()
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub(crate) enum UnitAppearance {
     /// A creature display and its virtual items (`creature_equip_template`).
     Creature {
@@ -197,7 +197,9 @@ impl WorldModels {
         equipment: &EquipmentAppearance,
         previous_player: Option<&Gd<Node3D>>,
     ) -> Result<Gd<Node3D>, String> {
+        let span = crate::profile::span(|| format!("player {} load_player_model", player.name));
         let mut model = load_player_model(&self.data_root, &self.cache_root, player, equipment)?;
+        drop(span);
         model.set_name("PlayerModel");
         if let Some(previous) = previous_player {
             if let Err(error) = transfer_player_playback(previous, &model) {
@@ -214,24 +216,35 @@ impl WorldModels {
         items: &EquipmentAppearance,
         sheath: SheathState,
     ) -> Result<Gd<Node3D>, String> {
+        let span = crate::profile::span(|| format!("creature {display_id} query_display"));
         let display = self.query_display(display_id)?;
+        drop(span);
+        let span = crate::profile::span(|| format!("creature {display_id} gear"));
         let armor = self.gear()?.display_armor(display_id)?;
+        drop(span);
+        let span = crate::profile::span(|| format!("creature {display_id} outfit"));
         let outfit = self
             .outfit
             .get_or_insert_with(|| OutfitData::load(&self.data_root));
+        drop(span);
+        let _prepare = crate::profile::span(|| format!("creature {display_id} prepare"));
         let prepared = self.appearances.prepare(
             &self.data_root,
             &self.cache_root,
             display_id,
             |race, sex| resolve_equipment_appearance(&armor, outfit, race, sex),
         )?;
+        drop(_prepare);
         let (race, sex) = prepared.as_ref().map_or((0, 0), |npc| (npc.race, npc.sex));
+        let span = crate::profile::span(|| format!("creature {display_id} virtual items"));
         let gear = CreatureGear {
             armor_models: prepared
                 .as_ref()
                 .map_or_else(Vec::new, |npc| npc.armor.runtime_models.clone()),
             items: self.virtual_item_models(display_id, items, sheath, race, sex)?,
         };
+        drop(span);
+        let _span = crate::profile::span(|| format!("creature {display_id} load_creature_model"));
         let (mut model, missing) = load_creature_model(
             &self.data_root,
             &self.cache_root,
