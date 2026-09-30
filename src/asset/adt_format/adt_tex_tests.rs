@@ -305,13 +305,7 @@ fn parse_mh2o_reads_chunk_fishable_and_deep_masks() {
 
 #[test]
 fn parse_mh2o_reads_lvf1_height_and_uv_vertices() {
-    let vertex_data = [
-        mh2o_height_uv_vertex(1.5, 64, 128),
-        mh2o_height_uv_vertex(2.5, 255, 0),
-        mh2o_height_uv_vertex(3.5, 32, 96),
-        mh2o_height_uv_vertex(4.5, 16, 240),
-    ]
-    .concat();
+    let vertex_data = mh2o_vertex_arrays(&[1.5, 2.5, 3.5, 4.5], &UVS, &[]);
     let payload = mh2o_payload_with_vertex_data(0, 1, None, 1, &vertex_data);
 
     let parsed = parse_mh2o(&payload).expect("expected MH2O payload to parse");
@@ -340,13 +334,7 @@ fn parse_mh2o_reads_lvf2_depth_only_vertices() {
 
 #[test]
 fn parse_mh2o_reads_lvf3_height_uv_and_depth_vertices() {
-    let vertex_data = [
-        mh2o_height_uv_depth_vertex(1.5, 64, 128, 12),
-        mh2o_height_uv_depth_vertex(2.5, 255, 0, 34),
-        mh2o_height_uv_depth_vertex(3.5, 32, 96, 56),
-        mh2o_height_uv_depth_vertex(4.5, 16, 240, 78),
-    ]
-    .concat();
+    let vertex_data = mh2o_vertex_arrays(&[1.5, 2.5, 3.5, 4.5], &UVS, &[12, 34, 56, 78]);
     let payload = mh2o_payload_with_vertex_data(0, 1, None, 3, &vertex_data);
 
     let parsed = parse_mh2o(&payload).expect("expected MH2O payload to parse");
@@ -486,20 +474,19 @@ fn mh2o_payload_with_vertex_data(
     payload
 }
 
-fn mh2o_height_uv_vertex(height: f32, u: u16, v: u16) -> Vec<u8> {
-    let mut payload = Vec::with_capacity(8);
-    payload.extend_from_slice(&height.to_le_bytes());
-    payload.extend_from_slice(&u.to_le_bytes());
-    payload.extend_from_slice(&v.to_le_bytes());
-    payload
-}
+const UVS: [(u16, u16); 4] = [(64, 128), (255, 0), (32, 96), (16, 240)];
 
-fn mh2o_height_uv_depth_vertex(height: f32, u: u16, v: u16, depth: u8) -> Vec<u8> {
-    let mut payload = Vec::with_capacity(9);
-    payload.extend_from_slice(&height.to_le_bytes());
-    payload.extend_from_slice(&u.to_le_bytes());
-    payload.extend_from_slice(&v.to_le_bytes());
-    payload.push(depth);
+/// wowdev MH2O vertex data: the height array, then the UV array, then the depth array.
+fn mh2o_vertex_arrays(heights: &[f32], uvs: &[(u16, u16)], depths: &[u8]) -> Vec<u8> {
+    let mut payload = Vec::new();
+    for height in heights {
+        payload.extend_from_slice(&height.to_le_bytes());
+    }
+    for (u, v) in uvs {
+        payload.extend_from_slice(&u.to_le_bytes());
+        payload.extend_from_slice(&v.to_le_bytes());
+    }
+    payload.extend_from_slice(depths);
     payload
 }
 
