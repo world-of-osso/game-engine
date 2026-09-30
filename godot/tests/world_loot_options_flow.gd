@@ -5,6 +5,10 @@ const CORPSE := "Fixture Corpse"
 const ITEM_LINE := "You receive loot: [Melted Candle]x2"
 const MONEY_LINE := "You loot 1 Gold, 5 Silver, 2 Copper"
 const REQUEST_MS := 10000
+const INITIAL_COUNT := 3
+const INITIAL_MONEY := 1250
+const LOOT_MONEY := 10502
+const INVENTORY_FULL := "Inventory is full."
 # Spread candidates across each actual surface, bounding expensive exact picks.
 const TRIANGLE_SAMPLES := 128
 
@@ -29,6 +33,10 @@ func run_test() -> void:
 	print("FIXTURE LOOT_READY")
 	# Ordered reliable CorpseLootable must follow completed model replication.
 	await create_timer(0.5).timeout
+	if not await wait_inventory(client, INITIAL_COUNT, INITIAL_MONEY):
+		return
+	var expected_count := INITIAL_COUNT
+	var expected_money := INITIAL_MONEY
 	for case in range(4):
 		var default_auto: bool = case >= 2
 		var shift: bool = case == 1 or case == 3
@@ -39,6 +47,10 @@ func run_test() -> void:
 			await create_timer(0.5).timeout
 		corpse = await find_corpse(client)
 		if corpse.is_empty():
+			return
+		if not await wait_corpse_feedback(client, corpse, true):
+			return
+		if not await capture_loot("case-%s-corpse.png" % case):
 			return
 		var item_before := chat_count(client, ITEM_LINE)
 		var money_before := chat_count(client, MONEY_LINE)
@@ -55,6 +67,28 @@ func run_test() -> void:
 			var host := loot_host(client)
 			if not check_label(host, "LootFrameElement1ItemCount", "2") or not check_label(host, "LootFrameElement1QualityText", "Poor"):
 				return
+			# Give ordered unrelated corpse messages time to reach the real frame.
+			await create_timer(0.25).timeout
+			if not await wait_rows(client, ["Melted Candle", "1 Gold\n5 Silver\n2 Copper"]) or not await wait_inventory(client, expected_count, expected_money):
+				return
+			if case == 0 and inventory_full_visible(client):
+				fail("Mismatched LootFailed showed an error for the open corpse")
+				return
+			if not await capture_loot("case-%s-manual-frame.png" % case):
+				return
+			if case == 0:
+				var bags_before: Array = client.merchant_state().bags.duplicate(true)
+				await click(host.find_child("LootFrameElement1", true, false) as Control)
+				if not await wait_inventory_full(client):
+					return
+				await create_timer(0.25).timeout
+				if not await wait_rows(client, ["Melted Candle", "1 Gold\n5 Silver\n2 Copper"]) or not check_label(host, "LootFrameElement1ItemCount", "2"):
+					return
+				var rejected_state: Dictionary = client.merchant_state()
+				if rejected_state.bags != bags_before or rejected_state.money != expected_money or chat_count(client, ITEM_LINE) != item_before or chat_count(client, MONEY_LINE) != money_before:
+					fail("InventoryFull changed bags, money, loot rows or content chat")
+					return
+			# The second actual card click retries the rejected first manual slot.
 			await click(host.find_child("LootFrameElement1", true, false) as Control)
 			if not await wait_rows(client, ["1 Gold\n5 Silver\n2 Copper"]):
 				return
@@ -74,14 +108,115 @@ func run_test() -> void:
 					return
 				print("FIXTURE LOOT_EMPTY")
 				await create_timer(0.25).timeout
+		expected_count += 2
+		if case != 0:
+			expected_money += LOOT_MONEY
+		if not await wait_inventory(client, expected_count, expected_money):
+			return
+		corpse = await find_corpse(client)
+		if corpse.is_empty() or not await wait_corpse_feedback(client, corpse, case == 0):
+			return
+		if not await capture_loot("case-%s-closed-corpse.png" % case):
+			return
 		# Bounded duplicate/mismatched-message check: no additional content lines.
 		await create_timer(0.25).timeout
 		if chat_count(client, ITEM_LINE) != item_before + 1 or chat_count(client, MONEY_LINE) != money_before + (0 if case == 0 else 1):
 			fail("Loot content chat not exactly once for actual taken slots, case=%s" % case)
 			return
+	# Clear the prior target so the final click proves targeting a non-lootable corpse.
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	await process_frame
+	if client.target_state().target != null:
+		fail("Could not clear target before non-lootable corpse click")
+		return
+	corpse = await find_corpse(client)
+	if corpse.is_empty() or not await wait_corpse_feedback(client, corpse, false):
+		return
+	var final_bags: Array = client.merchant_state().bags.duplicate(true)
+	var final_item_chat := chat_count(client, ITEM_LINE)
+	var final_money_chat := chat_count(client, MONEY_LINE)
+	print("FIXTURE LOOT_NOT_LOOTABLE_CLICKED")
+	await corpse_click(corpse.point, false)
+	var empty_deadline := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < empty_deadline:
+		await process_frame
+		var frame := loot_host(client) as Control
+		var state: Dictionary = client.merchant_state()
+		if client.target_state().target != corpse.id or (frame != null and frame.is_visible_in_tree()) or state.bags != final_bags or state.money != expected_money or chat_count(client, ITEM_LINE) != final_item_chat or chat_count(client, MONEY_LINE) != final_money_chat:
+			fail("Non-lootable corpse right-click did more than target")
+			return
 	print("FIXTURE LOOT_DONE")
 	client.free()
 	quit(0)
+
+func wait_inventory(client: Node, count: int, money: int) -> bool:
+	var deadline := Time.get_ticks_msec() + REQUEST_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.merchant_state()
+		if state.money != money or state.bags.size() != 1:
+			continue
+		var item: Dictionary = state.bags[0]
+		if item.bag == 0 and item.slot == 0 and item.item_id == 755 and item.count == count:
+			return true
+	fail("Authoritative bags/money expected count=%s money=%s: %s" % [count, money, client.merchant_state()])
+	return false
+
+func inventory_full_visible(client: Node) -> bool:
+	var errors := client.get_node_or_null("UIErrors")
+	if errors != null:
+		for node in errors.find_children("*", "Label", true, false):
+			var label := node as Label
+			if label.is_visible_in_tree() and label.text == INVENTORY_FULL:
+				return true
+	return false
+
+func wait_inventory_full(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + REQUEST_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if inventory_full_visible(client):
+			return true
+	fail("Matching LootFailed did not display Retail InventoryFull in UIErrors")
+	return false
+
+func wait_corpse_feedback(client: Node, corpse: Dictionary, lootable: bool) -> bool:
+	var motion := InputEventMouseMotion.new()
+	motion.position = corpse.point
+	root.push_input(motion, true)
+	var deadline := Time.get_ticks_msec() + REQUEST_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var unit := client.get_node_or_null("WorldUnits/" + CORPSE) as Node3D
+		var sparkle := unit.get_node_or_null("LootSparkle") as MeshInstance3D if unit != null else null
+		var sparkle_present := sparkle != null and sparkle.mesh != null and sparkle.is_visible_in_tree()
+		var sparkle_absent := unit != null and unit.get_node_or_null("LootSparkle") == null
+		var cursor: String = client.merchant_state().cursor
+		if cursor == ("Loot" if lootable else "Default") and (sparkle_present if lootable else sparkle_absent):
+			return true
+	fail("Hovered corpse cursor/sparkle did not match lootable=%s: %s" % [lootable, client.merchant_state()])
+	return false
+
+func capture_loot(file: String) -> bool:
+	var directory := OS.get_environment("GODOT_LOOT_SCREENSHOTS")
+	if directory.is_empty():
+		return true
+	var error := DirAccess.make_dir_recursive_absolute(directory)
+	if error != OK:
+		fail("Cannot create owned loot screenshot directory: " + str(error))
+		return false
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image.is_empty():
+		fail("Owned loot screenshot has no rendered pixels")
+		return false
+	error = image.save_png(directory.path_join(file))
+	if error != OK:
+		fail("Cannot save owned loot screenshot: " + str(error))
+		return false
+	return true
 
 func wait_world(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
