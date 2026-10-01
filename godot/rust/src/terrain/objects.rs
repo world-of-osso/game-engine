@@ -17,7 +17,10 @@ use game_engine_core::{
     wmo::{WmoDoodad, WmoDoodadModel},
 };
 use glam::{Affine3A, Vec3};
-use godot::{classes::Node3D, prelude::*};
+use godot::{
+    classes::{ConcavePolygonShape3D, Node3D},
+    prelude::*,
+};
 use osso_asset_resolver::CascListfileResolver;
 
 use crate::{
@@ -33,7 +36,7 @@ use crate::{
     },
     lighting::TerrainLight,
     particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
-    terrain::{scenery::SceneryDistance, streaming::StreamedTerrain, wmo_liquid::WmoLiquids},
+    terrain::{doodad_collision, scenery::SceneryDistance, streaming::StreamedTerrain, wmo_liquid::WmoLiquids},
     wmo::{
         assets::{LitDoodad, NativeWmoAsset, wmo_fog_volume},
         doodad_light::bind_doodad_light,
@@ -82,6 +85,8 @@ struct ParsedModel {
     path: GString,
     model: Arc<CachedModel>,
     particles: Option<std::rc::Rc<ModelParticles>>,
+    /// Camera collision shape, when the model has collision faces.
+    collision: Option<Gd<ConcavePolygonShape3D>>,
 }
 
 /// A file set a worker loads for placements: an M2 model or a WMO root and its groups.
@@ -517,6 +522,7 @@ impl TerrainObjects {
                 let parsed = Ok(ParsedModel {
                     path: GString::from(cached.path.to_string_lossy().as_ref()),
                     particles: ModelParticles::from_model(fdid, &cached.model),
+                    collision: doodad_collision::collision_shape(cached.model.collision.as_ref()),
                     model: cached,
                 });
                 self.models.insert(fdid, parsed);
@@ -777,10 +783,14 @@ impl TerrainObjects {
         let parsed = self.models[&fdid]
             .as_ref()
             .map_err(|error| format!("model {fdid}: {error}"))?;
-        let (model, missing) = build_model(&parsed.model.model, &parsed.path, &[0; 3], None)?;
+        let (mut model, missing) =
+            build_model(&parsed.model.model, &parsed.path, &[0; 3], None)?;
         if !missing.is_empty() {
             model.free();
             return Err(format!("model {fdid} missing textures {missing:?}"));
+        }
+        if let Some(shape) = &parsed.collision {
+            doodad_collision::attach_collision(&mut model, shape);
         }
         let engine_axes = |[x, y, z]: [f32; 3]| Vec3::new(x, z, -y);
         let render_box = (
