@@ -68,6 +68,7 @@ mod terrain;
 mod ui;
 mod ui_scale;
 mod unit_pick;
+mod window_stack;
 mod wmo;
 mod world;
 mod world_map;
@@ -324,11 +325,18 @@ impl INode3D for GameClient {
                 if let Some(mut viewport) = self.base().get_viewport() {
                     viewport.set_input_as_handled();
                 }
+                return;
             }
             Ok(false) => {}
             Err(error) => {
                 self.handle_frame_error("Cursor world drop", error);
+                return;
             }
+        }
+        // Only a press no native frame consumed starts camera drags, targeting or
+        // interaction; `input` already recorded everything else.
+        if self.game_menu_ui.is_none() {
+            self.physical_input.capture_unconsumed_press(&event);
         }
     }
 
@@ -349,60 +357,7 @@ impl INode3D for GameClient {
             }
             return;
         }
-        // Retail Escape closes the spellbook, then the world map, before the game menu.
-        if key.get_keycode() == godot::global::Key::ESCAPE && self.spellbook_open() {
-            self.close_spellbook();
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
-            }
-            return;
-        }
-        if key.get_keycode() == godot::global::Key::ESCAPE && self.world_map.is_open() {
-            self.close_world_map();
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
-            }
-            return;
-        }
-        match self.trade_key(key.get_keycode()) {
-            Ok(true) => {
-                if let Some(mut viewport) = self.base().get_viewport() {
-                    viewport.set_input_as_handled();
-                }
-                return;
-            }
-            Ok(false) => {}
-            Err(error) => {
-                self.handle_frame_error("Trade key", error.into());
-                return;
-            }
-        }
-        match self.mailbox_key(key.get_keycode()) {
-            Ok(true) => {
-                if let Some(mut viewport) = self.base().get_viewport() {
-                    viewport.set_input_as_handled();
-                }
-                return;
-            }
-            Ok(false) => {}
-            Err(error) => {
-                self.handle_frame_error("Mailbox key", error.into());
-                return;
-            }
-        }
-        match self.auction_key(key.get_keycode()) {
-            Ok(true) => {
-                if let Some(mut viewport) = self.base().get_viewport() {
-                    viewport.set_input_as_handled();
-                }
-                return;
-            }
-            Err(error) => {
-                self.handle_frame_error("Auction key", error.into());
-                return;
-            }
-            Ok(false) => {}
-        }
+        // Split pickers own their keys, Escape included, before any window closes.
         match self.merchant_key(key.get_keycode()) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -416,11 +371,20 @@ impl INode3D for GameClient {
             }
             Ok(false) => {}
         }
-        if self.bags_key(key.get_keycode()) {
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
+        if key.get_keycode() == godot::global::Key::ESCAPE {
+            match self.close_all_windows() {
+                Ok(true) => {
+                    if let Some(mut viewport) = self.base().get_viewport() {
+                        viewport.set_input_as_handled();
+                    }
+                    return;
+                }
+                Err(error) => {
+                    self.handle_frame_error("Close all windows", error.into());
+                    return;
+                }
+                Ok(false) => {}
             }
-            return;
         }
         match self.open_chat_from_key(&key) {
             Ok(true) => {

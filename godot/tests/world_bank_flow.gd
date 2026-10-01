@@ -113,6 +113,10 @@ func run_test() -> void:
 	while true:
 		await process_frame
 
+func wait_frames(count: int) -> void:
+	for index in range(count):
+		await process_frame
+
 func bank_text(name: String) -> String:
 	var control := authored_control(bank_client, name)
 	return control.text if control is Label and control.is_visible_in_tree() else ""

@@ -4,6 +4,15 @@ use std::collections::HashSet;
 
 use game_engine_core::input_bindings_data::{BindingKey, BindingMouseButton, InputState};
 
+/// Where in Godot's input pipeline an event was observed.
+#[derive(Clone, Copy)]
+enum InputStage {
+    /// `_input`, before any control sees the event.
+    BeforeGui,
+    /// `_unhandled_input`, after no control consumed it.
+    Unconsumed,
+}
+
 #[derive(Default)]
 pub(crate) struct PhysicalInput {
     keys: HashSet<BindingKey>,
@@ -49,17 +58,41 @@ impl PhysicalInput {
         }
     }
 
+    /// After GUI handling: a button press no control consumed reaches gameplay.
+    pub fn capture_unconsumed_press(&mut self, event: &godot::obj::Gd<godot::classes::InputEvent>) {
+        let Ok(mouse) = event
+            .clone()
+            .try_cast::<godot::classes::InputEventMouseButton>()
+        else {
+            return;
+        };
+        if let Some(binding) = crate::input_keys::binding_mouse_button(mouse.get_button_index()) {
+            self.mouse_button(binding, mouse.is_pressed(), InputStage::Unconsumed);
+        }
+    }
+
     fn capture_mouse(&mut self, mouse: &godot::obj::Gd<godot::classes::InputEventMouseButton>) {
         use godot::global::MouseButton;
         let button = mouse.get_button_index();
         if let Some(binding) = crate::input_keys::binding_mouse_button(button) {
-            self.set_mouse(binding, mouse.is_pressed());
+            self.mouse_button(binding, mouse.is_pressed(), InputStage::BeforeGui);
         } else if mouse.is_pressed() {
             match button {
                 MouseButton::WHEEL_UP => self.add_scroll(mouse.get_factor()),
                 MouseButton::WHEEL_DOWN => self.add_scroll(-mouse.get_factor()),
                 _ => {}
             }
+        }
+    }
+
+    /// A press waits for GUI handling, so one a frame consumed never holds a gameplay
+    /// button (no camera drag from UI); a release always arrives before the GUI.
+    fn mouse_button(&mut self, button: BindingMouseButton, pressed: bool, stage: InputStage) {
+        match (pressed, stage) {
+            (true, InputStage::Unconsumed) | (false, InputStage::BeforeGui) => {
+                self.set_mouse(button, pressed)
+            }
+            (true, InputStage::BeforeGui) | (false, InputStage::Unconsumed) => {}
         }
     }
 
@@ -189,7 +222,7 @@ impl InputState for PhysicalInput {
 
 #[cfg(test)]
 mod tests {
-    use super::PhysicalInput;
+    use super::{InputStage, PhysicalInput};
     use game_engine_core::input_bindings_data::{BindingKey, BindingMouseButton, InputState};
 
     #[test]
@@ -246,6 +279,33 @@ mod tests {
         assert_eq!(input.motion(), [0.0, 0.0]);
         assert_eq!(input.scroll(), 0.0);
         input.set_mouse(BindingMouseButton::Right, false);
+        assert!(!input.mouse_pressed(BindingMouseButton::Right));
+    }
+
+    #[test]
+    fn press_consumed_by_ui_never_holds_a_gameplay_button_during_its_drag() {
+        let mut input = PhysicalInput::default();
+        // Press on a bag slot: seen before the GUI, then consumed by the control.
+        input.mouse_button(BindingMouseButton::Left, true, InputStage::BeforeGui);
+        input.add_motion(40.0, -12.0);
+        assert!(!input.mouse_pressed(BindingMouseButton::Left));
+        assert!(!input.mouse_just_pressed(BindingMouseButton::Left));
+        input.mouse_button(BindingMouseButton::Left, false, InputStage::BeforeGui);
+        assert!(!input.mouse_pressed(BindingMouseButton::Left));
+    }
+
+    #[test]
+    fn unconsumed_world_press_holds_until_its_release_even_over_ui() {
+        let mut input = PhysicalInput::default();
+        input.mouse_button(BindingMouseButton::Right, true, InputStage::BeforeGui);
+        input.mouse_button(BindingMouseButton::Right, true, InputStage::Unconsumed);
+        assert!(input.mouse_just_pressed(BindingMouseButton::Right));
+        input.finish_frame();
+        // The release arrives before the GUI, even when it lands on a frame.
+        input.mouse_button(BindingMouseButton::Right, false, InputStage::BeforeGui);
+        assert!(!input.mouse_pressed(BindingMouseButton::Right));
+        // A release seen again after the GUI does not re-press.
+        input.mouse_button(BindingMouseButton::Right, false, InputStage::Unconsumed);
         assert!(!input.mouse_pressed(BindingMouseButton::Right));
     }
 
