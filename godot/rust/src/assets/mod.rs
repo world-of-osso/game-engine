@@ -442,7 +442,7 @@ fn load_batch(
         )
     })?;
     let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
-    let replacement = replacement_texture(batch, appearance)?;
+    check_required_replacement(batch, appearance)?;
     let (material, binding) = material::load_material(
         model,
         tracks,
@@ -450,7 +450,7 @@ fn load_batch(
         skin_texture_fdids,
         path,
         missing,
-        replacement,
+        appearance.map(|appearance| &appearance.textures),
     )?;
     let visible = appearance.is_none_or(|appearance| {
         let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
@@ -473,24 +473,21 @@ fn load_batch(
     })
 }
 
-fn replacement_texture<'a>(
+/// A prepared body must bind its own body (1) and hair (6) textures.
+fn check_required_replacement(
     batch: &game_engine_core::m2_batch_data::ResolvedBatch,
-    appearance: Option<&'a appearance::PreparedAppearance>,
-) -> Result<Option<&'a Gd<ImageTexture>>, String> {
-    let Some(appearance) = appearance else {
-        return Ok(None);
+    appearance: Option<&appearance::PreparedAppearance>,
+) -> Result<(), String> {
+    let (Some(appearance), Some(kind)) = (appearance, batch.texture_type) else {
+        return Ok(());
     };
-    let Some(kind) = batch.texture_type else {
-        return Ok(None);
-    };
-    let replacement = appearance.textures.get(&kind);
-    if replacement.is_none() && matches!(kind, 1 | 6) {
+    if matches!(kind, 1 | 6) && !appearance.textures.contains_key(&kind) {
         return Err(format!(
             "missing {} replacement texture type {kind} for batch {}",
             appearance.source, batch.source_unit_index
         ));
     }
-    Ok(replacement)
+    Ok(())
 }
 
 thread_local! {
