@@ -58,7 +58,8 @@ fn player(with_running_landing: bool) -> AnimationState {
                 [1.0, 1.0, 1.0];
                 if with_running_landing { 6 } else { 5 }
             ]),
-        }],
+        }]
+        .into(),
         local_pivots: vec![godot::builtin::Vector3::ZERO],
         current: 0,
         time_ms: 0.0,

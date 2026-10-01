@@ -67,7 +67,20 @@ pub(crate) fn read_placement(
     data_root: &Path,
     placement: &adt::WmoPlacement,
 ) -> Result<NativeWmoAsset, String> {
-    let root_fdid = resolve_placement_fdid(resolver, placement)?;
+    read_wmo(
+        resolver,
+        data_root,
+        resolve_placement_fdid(resolver, placement)?,
+    )
+}
+
+/// WMO root `root_fdid` and its groups, extracted from local CASC and parsed; no engine
+/// calls, so a worker can read it.
+pub(crate) fn read_wmo(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    root_fdid: u32,
+) -> Result<NativeWmoAsset, String> {
     let root = read_root(resolver, data_root, root_fdid)?;
     let group_fdids = resolve_group_fdids(resolver, root_fdid, &root)?;
     let mut groups = Vec::with_capacity(group_fdids.len());
@@ -83,7 +96,7 @@ pub(crate) fn read_placement(
     })
 }
 
-fn resolve_placement_fdid(
+pub(crate) fn resolve_placement_fdid(
     resolver: &CascListfileResolver,
     placement: &adt::WmoPlacement,
 ) -> Result<u32, String> {
