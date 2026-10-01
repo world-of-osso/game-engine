@@ -7,7 +7,6 @@ use game_engine_ui_model::bag_frame_component::{
 use game_engine_ui_model::bags_bar_component::{BagBarState, bags_bar_screen};
 use game_engine_ui_model::container_layout_data::container_positions;
 use game_engine_ui_model::window_manager::{WindowId, WindowManager};
-use godot::global::Key;
 use godot::prelude::*;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -25,7 +24,10 @@ pub(crate) struct Bags {
     pub(crate) ui: Option<Gd<RegistryUi>>,
     pub(crate) tooltip_ui: Option<Gd<RegistryUi>>,
     pub(crate) cursor: crate::bag_cursor::BagCursor,
-    npc_backpack_open: bool,
+    /// NPC windows open last frame, for their OpenAllBags/CloseAllBags edges.
+    npc_windows: Vec<WindowId>,
+    /// Retail `FRAME_THAT_OPENED_BAGS` (ContainerFrame.lua:1903-1921, 1987-1999).
+    bags_opener: Option<WindowId>,
 }
 
 #[derive(Clone, PartialEq)]
@@ -56,7 +58,51 @@ impl Bags {
         }
         self.windows.close_all();
         self.cursor.reset();
-        self.npc_backpack_open = false;
+        self.npc_windows.clear();
+        self.bags_opener = None;
+    }
+
+    fn any_bag_open(&self) -> bool {
+        self.windows
+            .open_windows()
+            .iter()
+            .any(|id| matches!(id, WindowId::Bag(_)))
+    }
+
+    /// Retail `OpenAllBags(frame)`: a no-op while any bag is open; the first opener
+    /// is remembered so only it closes them again.
+    pub(crate) fn open_all_bags(
+        &mut self,
+        opener: WindowId,
+        bags: impl IntoIterator<Item = usize>,
+    ) {
+        if self.any_bag_open() {
+            return;
+        }
+        self.bags_opener.get_or_insert(opener);
+        for bag in bags {
+            self.windows.open(WindowId::Bag(bag));
+        }
+    }
+
+    /// Retail `CloseAllBags(frame)`: a frame that did not open the bags closes none;
+    /// `None` (Escape's `CloseAllWindows`) closes them unconditionally.
+    pub(crate) fn close_all_bags(&mut self, closer: Option<WindowId>) -> bool {
+        if closer.is_some() && closer != self.bags_opener {
+            return false;
+        }
+        self.bags_opener = None;
+        let open: Vec<_> = self
+            .windows
+            .open_windows()
+            .iter()
+            .copied()
+            .filter(|id| matches!(id, WindowId::Bag(_)))
+            .collect();
+        for id in &open {
+            self.windows.close(*id);
+        }
+        !open.is_empty()
     }
 }
 
@@ -66,10 +112,10 @@ impl GameClient {
             self.bags.reset();
             return Ok(());
         }
-        self.sync_npc_backpack();
+        self.sync_npc_bags();
         self.clear_stale_bag_cursor();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
-            self.poll_bag_actions()?;
+            self.poll_window_inputs()?;
         }
         let view = self.bags_view();
         let scale = self.effective_ui_scale();
@@ -84,19 +130,58 @@ impl GameClient {
         Ok(self.sync_bag_tooltip()?)
     }
 
-    fn sync_npc_backpack(&mut self) {
-        let open = self.merchant.session.is_open() || self.mailbox.session.is_open();
-        if open != self.bags.npc_backpack_open {
-            self.bags.windows.set_open(WindowId::Bag(0), open);
-            self.bags.npc_backpack_open = open;
+    /// NPC windows that open every bag on show and close them on hide (Retail
+    /// `OpenAllBags`/`CloseAllBags` in MerchantFrame.lua:147/165, MailFrame.lua:63/73,
+    /// Blizzard_AuctionHouseFrame.lua:402/462, BankFrame.lua:74/81). TradeFrame and
+    /// GuildBankFrame do not open bags. A new NPC window adds its entry here.
+    fn npc_bag_windows(&self) -> [(WindowId, bool); 3] {
+        [
+            (WindowId::Merchant, self.merchant.session.is_open()),
+            (WindowId::Mail, self.mailbox.session.is_open()),
+            (
+                WindowId::AuctionHouse,
+                self.auction.session.ui.npc.is_some(),
+            ),
+        ]
+    }
+
+    /// NPC windows that draw the backpack inside their own canvas.
+    fn npc_backpack_embedded(&self) -> bool {
+        self.merchant.session.is_open() || self.mailbox.session.is_open()
+    }
+
+    fn sync_npc_bags(&mut self) {
+        let open: Vec<WindowId> = self
+            .npc_bag_windows()
+            .into_iter()
+            .filter_map(|(id, open)| open.then_some(id))
+            .collect();
+        for closed in self.bags.npc_windows.clone() {
+            if !open.contains(&closed) {
+                self.bags.close_all_bags(Some(closed));
+            }
         }
+        let bags: Vec<usize> = self
+            .merchant
+            .session
+            .inventory
+            .bags
+            .iter()
+            .map(|bag| bag.index)
+            .collect();
+        for opened in &open {
+            if !self.bags.npc_windows.contains(opened) {
+                self.bags.open_all_bags(*opened, bags.iter().copied());
+            }
+        }
+        self.bags.npc_windows = open;
     }
 
     fn bags_view(&self) -> BagsView {
         let mut containers = self.merchant.session.bag_state();
         for bag in &mut containers.bags {
-            // The existing NPC owners retain their backpack, never a second visible copy.
-            let npc_backpack = bag.bag_index == 0 && self.bags.npc_backpack_open;
+            // NPC windows drawing the backpack keep it; never a second visible copy.
+            let npc_backpack = bag.bag_index == 0 && self.npc_backpack_embedded();
             bag.visible = self.bags.windows.is_open(WindowId::Bag(bag.bag_index)) && !npc_backpack;
             for (index, slot) in bag.slots.iter_mut().enumerate() {
                 slot.locked = self.bags.cursor.item.source()
@@ -130,17 +215,6 @@ impl GameClient {
         Ok(())
     }
 
-    fn poll_bag_actions(&mut self) -> Result<(), FrameError> {
-        let Some(mut ui) = self.bags.ui.clone() else {
-            return Ok(());
-        };
-        let inputs = ui.bind_mut().drain_bag_inputs()?;
-        for input in inputs {
-            self.dispatch_bag_cursor_input(input)?;
-        }
-        Ok(())
-    }
-
     pub(super) fn dispatch_bag_action(
         &mut self,
         action: &str,
@@ -171,10 +245,6 @@ impl GameClient {
             self.bags.windows.toggle(WindowId::Bag(index));
         }
         Ok(())
-    }
-
-    pub(super) fn bags_key(&mut self, key: Key) -> bool {
-        key == Key::ESCAPE && self.bags.windows.close_all()
     }
 
     fn place_bags(&self, ui: &mut Gd<RegistryUi>) -> Result<(), String> {
