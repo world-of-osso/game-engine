@@ -271,9 +271,8 @@ fn native_bridge_receives_loot_messages_in_channel_order() {
 }
 
 /// A roster and the member states sent right after it reach the host in `GroupChannel`
-/// order. Per-type relays handed the states over first, and `GroupState` drops states of
-/// members not yet in its roster; the server sends states only on change, so a new party
-/// member's bars stayed empty.
+/// order; per-type relays handed them over grouped by type, so states could overtake the
+/// roster that admits their member.
 #[test]
 fn native_bridge_receives_group_messages_in_channel_order() {
     use shared::components::Position;
@@ -283,13 +282,11 @@ fn native_bridge_receives_group_messages_in_channel_order() {
         GroupMemberStates, GroupMessageCode, GroupRoleSnapshot, GroupRosterSnapshot,
     };
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8211).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8211);
+    await_connected(&mut server, &mut host);
     let (held, hold_confirmed) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();
-    bridge
+    host.bridge
         .enqueue(move |_| {
             held.send(()).expect("confirm fixture worker hold");
             resumed
@@ -360,7 +357,7 @@ fn native_bridge_receives_group_messages_in_channel_order() {
         thread::sleep(Duration::from_millis(5));
     }
     resume.send(()).expect("resume fixture worker");
-    let mut received = await_messages(&mut server, &mut bridge, 6).into_iter();
+    let mut received = await_messages(&mut server, &mut host, 6).into_iter();
     macro_rules! assert_next {
         ($ty:ty, $expected:expr) => {
             assert_eq!(
@@ -374,7 +371,7 @@ fn native_bridge_receives_group_messages_in_channel_order() {
         assert_next!(GroupRosterSnapshot, roster.clone());
         assert_next!(GroupMemberStates, states.clone());
     }
-    bridge.stop().expect("join fixture worker");
+    host.stop();
 }
 
 use super::*;
