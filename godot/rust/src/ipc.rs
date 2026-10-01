@@ -59,8 +59,7 @@ impl Reply {
 
 /// The client's own requests over its live state; a request it does not serve comes
 /// back with its reply.
-pub(crate) type ClientRequests<'a> =
-    dyn FnMut(Request, Reply) -> Result<(), (Request, Reply)> + 'a;
+pub(crate) type ClientRequests<'a> = dyn FnMut(Request, Reply) -> Result<(), (Request, Reply)> + 'a;
 
 /// Own-PID listener plus main-thread diagnostics dispatch. Never move to a worker.
 pub(crate) struct NativeIpc {

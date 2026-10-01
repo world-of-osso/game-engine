@@ -87,7 +87,10 @@ impl GameClient {
         let Some(area) = self.terrain.area_id_at(position.x, position.z) else {
             return;
         };
-        if self.current_zone.is_some_and(|(current, _)| current == area) {
+        if self
+            .current_zone
+            .is_some_and(|(current, _)| current == area)
+        {
             return;
         }
         self.current_zone = Some((area, root_area(&self.area_parents, area)));
