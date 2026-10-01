@@ -17,12 +17,15 @@ uniform int pixel_shader = 0;
 uniform int gx_blend = 4;
 uniform float alpha_test = 0.0039215689;
 
+#include "res://shaders/retail_fog.gdshaderinc"
+
 // Instance data: basis x/y are the quad half axes, basis z holds layer 1's UV offset
 // and the placement fade; custom holds the atlas cell offset and layer 2's UV offset.
 varying vec2 uv0;
 varying vec2 uv1;
 varying vec2 uv2;
 varying float fade;
+varying vec3 world_position;
 
 vec3 gamma_to_linear(vec3 gamma_color) {
 	vec3 low = gamma_color / 12.92;
@@ -38,6 +41,8 @@ void vertex() {
 	uv2 = corner * layer_scale.y + INSTANCE_CUSTOM.zw;
 	// The quad lies in its xy plane (VERTEX.z = 0), so basis z never moves it.
 	fade = MODEL_MATRIX[2].z;
+	// Pools draw top-level, so MODEL_MATRIX is the instance's world basis.
+	world_position = (MODEL_MATRIX * vec4(VERTEX.xy, 0.0, 1.0)).xyz;
 }
 
 void fragment() {
@@ -56,7 +61,9 @@ void fragment() {
 	if (color.a < alpha_test) {
 		discard;
 	}
-	vec3 rgb = color.rgb;
+	// m2ParticleShader.frag.slang: makeFog2 with the particle's blend mode, which fogs
+	// additive and modulating particles toward their identity colour.
+	vec3 rgb = retail_fog(color.rgb, world_position, CAMERA_POSITION_WORLD, gx_blend);
 	float alpha = color.a;
 	// A fading placement fades its particles; modes that ignore source alpha scale
 	// colour toward their identity instead.
