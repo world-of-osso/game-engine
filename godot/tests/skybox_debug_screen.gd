@@ -610,7 +610,7 @@ func print_cloud_source_scope() -> void:
 		"LIMIT: cloud opacity scope: MD21 transparency 0x58/lookup 0x90; SKIN all54 batches use tracks0/1/3/4, not opaque unused track2; sequence0 duration800000ms, global_sequence=-1, no color tracks"
 	)
 	print(
-		"LIMIT: original m2_anim.rs::evaluate_i16_track preceding-key step + skybox_m2_material.rs::evaluate_skybox_opacity_track fixed16; raw0 at0/100000ms, batch0 track0 raw32767 at200000ms"
+		"LIMIT: original src/asset/m2_format/m2_anim.rs::evaluate_i16_track preceding-key step + src/rendering/skybox/skybox_m2_material.rs::evaluate_skybox_opacity_track fixed16; raw0 at0/100000ms, batch0 track0 raw32767 at200000ms"
 	)
 	print(
 		"FIXTURE CLOUD_KEYS track0 ms=[0,133333,200000,543333,576667,800000] raw=[0,0,32767,32767,0,0]; track1 ms=[0,543333,576667,700000,800000] raw=[0,0,32767,0,0]"
@@ -619,7 +619,7 @@ func print_cloud_source_scope() -> void:
 		"FIXTURE CLOUD_KEYS track3 ms=[0,133333,200000,543233,576667,800000] raw=[0,0,32767,32767,0,0]; track4 ms=[0,133333,300000,543333,576667,800000] raw=[0,0,32767,32767,0,0]"
 	)
 	print(
-		"LIMIT: cloud source diagnosis cloud-zero-opacity-root.md + cloud-zero-opacity-tracks.json; historical fixed0/100000 contribution failures are incorrect-oracle RED, not production RED; no full original/native pixel parity"
+		"LIMIT: source diagnosis /tmp/claude/retained-conversion-20/cloud-zero-opacity-root.md + /tmp/claude/retained-conversion-20/cloud-zero-opacity-tracks.json; historical fixed0/100000 contribution failures are incorrect-oracle RED, not production RED; no full original/native pixel parity"
 	)
 
 
