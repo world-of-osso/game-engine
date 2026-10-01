@@ -1,6 +1,6 @@
 //! Independent standalone bags peer; no merchant, loot or production UI setters.
 use super::*;
-use shared::protocol::BagSlotItem;
+use shared::protocol::{BagSlotItem, ItemStack};
 
 #[derive(Debug, PartialEq, Eq)]
 enum Phase {
@@ -20,10 +20,32 @@ fn send_inventory(app: &mut App) {
                 BagContents {
                     bag: 0,
                     size: 16,
-                    items: vec![BagSlotItem {
-                        slot: 0,
-                        item: loot::candle_stack(3),
-                    }],
+                    items: vec![
+                        BagSlotItem {
+                            slot: 0,
+                            item: loot::candle_stack(3),
+                        },
+                        BagSlotItem {
+                            slot: 1,
+                            item: ItemStack {
+                                item_guid: 9_180_001,
+                                item_id: 2589,
+                                count: 3,
+                                durability: None,
+                                soulbound: false,
+                            },
+                        },
+                        BagSlotItem {
+                            slot: 2,
+                            item: ItemStack {
+                                item_guid: 9_180_002,
+                                item_id: 4865,
+                                count: 1,
+                                durability: None,
+                                soulbound: false,
+                            },
+                        },
+                    ],
                 },
                 BagContents {
                     bag: 1,
@@ -156,7 +178,7 @@ pub(super) fn run(
         (Err(error), _) | (_, Err(error)) => Err(error),
         (Ok(()), Ok(())) => {
             println!(
-                "PASS: BAGS authored backpack/equipped container toggles, inventory, positions and Escape; deliberate cleanup complete"
+                "PASS: BAGS authored backpack/equipped container toggles, inventory, positions, item hover tooltips and Escape; deliberate cleanup complete"
             );
             Ok(())
         }
