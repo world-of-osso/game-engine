@@ -35,8 +35,7 @@ use crate::ui_input::walk_up_for_onclick;
 
 pub use stack_split_frame::split_request;
 
-const CURSOR_ICON_NAME: &str = "CursorItemIcon";
-const CURSOR_ICON_SIZE: f32 = 32.0;
+use game_engine::ui::screens::cursor_item_component::{CURSOR_ICON_NAME, CURSOR_ICON_SIZE};
 /// Pointer travel (UI px) that turns a press into a drag.
 const DRAG_THRESHOLD: f32 = 4.0;
 /// `StaticPopupDialogs["DELETE_ITEM"]` / `["DELETE_GOOD_ITEM"]`.

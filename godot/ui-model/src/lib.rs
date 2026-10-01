@@ -24,7 +24,7 @@ pub mod ui {
         pub(crate) use crate::screen_title;
         pub use crate::{
             auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
-            buff_frame_component, default_button_atlas, game_menu_component,
+            buff_frame_component, cursor_item_component, default_button_atlas, game_menu_component,
             inworld_unit_frames_component, loot_frame_component, mail_frame_component,
             menu_primitives, merchant_frame_component, objective_tracker_component,
             options_menu_active_sections, options_menu_component, options_menu_sections, quest_art,
@@ -157,6 +157,11 @@ pub mod loot_data;
 pub mod loot_frame_component;
 #[path = "../../../src/loot_frame_data.rs"]
 pub mod loot_frame_data;
+
+#[path = "../../../src/game/cursor_item.rs"]
+pub mod cursor_item;
+#[path = "../../../src/ui/screens/cursor_item_component.rs"]
+pub mod cursor_item_component;
 
 // Merchant frame, backpack and stack split (docs/specs/merchant-frame.md, cursor-item.md).
 #[path = "../../../src/ui/screens/bag_frame_component.rs"]
