@@ -1,3 +1,7 @@
+## 2026-10-01 — Merchant ordering/content bounded MAIN-observed GREEN
+
+[Merchant system SSOT](systems/merchant-frame.md#native-reply-ordering-and-tooltip-content--bounded-main-observed-green) records ordered same-channel replies `55648101`, original tooltip content `33e81860`, real-UDP RED/GREEN, five portable tests and Depot `0xdh43jcwk` physical runtime0. Independent1529 pending; forced cleanup, historical failures, inherited WMO warning and transferred-owner exclusions retained. Parity links updated; full merchant/conversion, junk tooltip and per-item repair remain open.
+
 ## 2026-10-01 — Native IPC bounded MAIN-observed GREEN
 
 [Evidence SSOT](systems/godot-conversion.md#native-ipc-diagnostics--bounded-main-observed-green-independent-gate-pending): six public diagnostics, rendered WebP and own-instance cleanup have MAIN-observed GREEN; independent1524 pending. Historical failures, unported consumers, semantic parity and shutdown/resource exclusions retained. Parity remains Partial, conversion open.
