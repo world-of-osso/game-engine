@@ -56,14 +56,14 @@ func observe_node(node: Node) -> void:
 		connect_button = node
 		connect_button.pressed.connect(observe_authored_click)
 
-func observe_timeout_login(login: Control) -> void:
+func observe_timeout_login(login: CanvasLayer) -> void:
 	# Give production's frame-driven deadline and queued successor time to run.
 	# Parent alone checks the native timeout diagnostic and live stdout dump.
 	var deadline := Time.get_ticks_msec() + 2000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 	var state: Dictionary = client.account_state()
-	if not login.is_visible_in_tree() or not username.is_visible_in_tree() or not connect_button.is_visible_in_tree() or state.screen != "Login" or state.reply_received:
+	if not login.visible or not username.is_visible_in_tree() or not connect_button.is_visible_in_tree() or state.screen != "Login" or state.reply_received:
 		fail("FEATURE: timeout-continuation did not retain actual visible Login without auth", true)
 		return
 	if saw_credentials or saw_authored_click:
