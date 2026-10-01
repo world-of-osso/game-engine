@@ -119,13 +119,24 @@ fn read_exists_bitmask(
         }
         return Ok(exists);
     }
-    let h = height as usize;
-    if offset + h > payload.len() {
+    // wowdev MH2O / WebWowViewerCpp LiquidInstance.cpp:264-265: one bit stream over the
+    // layer's cells, bit `y * width + x`, in (width * height + 7) / 8 bytes. Rows of
+    // `exists` hold the layer-relative columns.
+    let (w, h) = (width as usize, height as usize);
+    let size = (w * h).div_ceil(8);
+    let Some(bits) = payload.get(offset..offset + size) else {
         return Err(format!(
-            "MH2O exists bitmask out of bounds: offset {offset:#x}, need {h} bytes"
+            "MH2O exists bitmask out of bounds: offset {offset:#x}, need {size} bytes"
         ));
+    };
+    for (y, row) in exists.iter_mut().enumerate().take(h) {
+        for x in 0..w {
+            let index = y * w + x;
+            if (bits[index / 8] >> (index % 8)) & 1 != 0 {
+                *row |= 1 << x;
+            }
+        }
     }
-    exists[..h].copy_from_slice(&payload[offset..offset + h]);
     Ok(exists)
 }
 
