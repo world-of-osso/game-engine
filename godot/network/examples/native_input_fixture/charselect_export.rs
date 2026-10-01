@@ -5,7 +5,9 @@
 use super::*;
 
 const MARKER_WAIT: Duration = Duration::from_secs(120);
-const CLI_DEADLINE: Duration = Duration::from_secs(8);
+// The original engine sets no response deadline; this bounds a hung client. Shared
+// agent hosts (load average 30+) stall a busy client frame for several seconds.
+const CLI_DEADLINE: Duration = Duration::from_secs(30);
 
 struct Run<'a> {
     app: &'a mut App,
