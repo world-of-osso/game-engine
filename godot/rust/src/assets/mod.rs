@@ -80,6 +80,33 @@ impl WowAssetLoader {
         }
     }
 
+    /// `load_player` with customization `choices`, a dictionary of ChrCustomizationOption
+    /// ID to ChrCustomizationChoice ID, set as character creation and the barber do.
+    #[func]
+    fn load_player_customized(
+        &self,
+        race: i64,
+        sex: i64,
+        class: i64,
+        items: VarArray,
+        choices: VarDictionary,
+    ) -> VarDictionary {
+        let loaded = player_request::player(race, sex, class)
+            .and_then(|player| player_request::customized(player, &choices))
+            .and_then(|player| {
+                let equipment = player_request::equipment(&items)?;
+                player::load_player_model(&player_request::data_root(), &player, &equipment)
+            });
+        match loaded {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("node", &node);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
     /// Place `model`'s weapons (`items`, as given to `load_player`) for sheath state
     /// `sheath` (0 sheathed, 1 melee drawn, 2 ranged drawn); "" or the error.
     #[func]
