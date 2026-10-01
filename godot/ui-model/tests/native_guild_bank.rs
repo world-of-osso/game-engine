@@ -205,6 +205,77 @@ fn tabs_permissions_and_allowances_are_server_supplied_not_invented_rules() {
 }
 
 #[test]
+fn authoritative_inventory_delta_and_tab_purchase_replace_only_server_state() {
+    let mut session = opened();
+    session.apply_inventory(InventorySnapshot {
+        bags: vec![BagContents {
+            bag: 0,
+            size: 16,
+            items: vec![],
+        }],
+    });
+    session.apply_inventory_delta(InventoryDelta {
+        changes: vec![InventorySlotChange {
+            location: ItemLocation::Bag { bag: 0, slot: 2 },
+            item: Some(ItemStack {
+                item_guid: 81,
+                item_id: 2589,
+                count: 9,
+                durability: None,
+                soulbound: false,
+            }),
+        }],
+    });
+    assert_eq!(session.inventory.slot(0, 2).unwrap().count, 9);
+    session.select_tab(1);
+    let mut purchased = contents(42);
+    let mut new_tab = purchased.tabs[0].clone();
+    new_tab.name = "New tab".into();
+    new_tab.slots = vec![None; 98];
+    purchased.tabs.push(new_tab);
+    session.apply_contents(purchased);
+    assert_eq!(session.state.tab, 1);
+    assert!(session.frame_state().buy.is_none());
+    assert_eq!(session.frame_state().tab_title.unwrap().0, "New tab");
+    session.close();
+    assert!(session.inventory.slot(0, 2).is_some());
+}
+
+#[test]
+fn no_tabs_nonleader_money_cancel_and_purchase_cancel_emit_no_requests() {
+    let mut session = opened();
+    let mut empty = contents(42);
+    empty.tabs.clear();
+    empty.is_leader = false;
+    empty.next_tab_cost = None;
+    empty.withdraw_money_remaining = None;
+    session.apply_contents(empty);
+    let view = session.frame_state();
+    assert_eq!(
+        view.error_message.as_deref(),
+        Some("Your guild has not purchased any guild bank space.")
+    );
+    assert!(view.buy.is_none());
+    assert!(view.withdraw_limit.is_none());
+    assert!(
+        session
+            .click("guild_bank_money_deposit", Click::LEFT, &Default::default())
+            .is_empty()
+    );
+    assert_eq!(session.frame_state().money_prompt, Some(true));
+    assert!(
+        session
+            .click("guild_bank_money_cancel", Click::LEFT, &Default::default())
+            .is_empty()
+    );
+    assert!(session.frame_state().money_prompt.is_none());
+    session.apply_contents(contents(42));
+    session.click("guild_bank_buy_tab", Click::LEFT, &Default::default());
+    assert!(session.confirm_purchase(false).is_empty());
+    assert!(session.purchase_confirmation.is_none());
+}
+
+#[test]
 fn purchase_info_denial_and_close_are_bound_to_current_vault() {
     let mut session = opened();
     session.money = 120_000;
