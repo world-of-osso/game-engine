@@ -9,8 +9,8 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::bag_data::InventoryRequest;
 use game_engine_ui_model::character_frame::{
     ACTION_CLOSE, ACTION_MODEL, CharacterFrameView, MIN_LEVEL_FOR_ITEM_LEVEL, PAPERDOLL_BUTTONS,
-    attribute_lines, average_equipped_item_level, class_background, level_line, paperdoll_slots,
-    parse_equipment_slot_action, race_background,
+    attribute_lines, average_equipped_item_level, class_background, enhancement_lines, level_line,
+    paperdoll_slots, parse_equipment_slot_action, race_background,
 };
 use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget};
 use game_engine_ui_model::damage_meter_data::class_color;
@@ -20,7 +20,7 @@ use game_engine_ui_model::micro_menu::{
     ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PREFIX, ACTION_SPELLBOOK,
 };
 use godot::prelude::*;
-use shared::components::{CombatRatings, Player, UnitLevel, UnitStats};
+use shared::components::{CombatRatings, DerivedStats, Player, UnitLevel, UnitStats};
 use shared::protocol::{EquipItem, ItemLocation};
 
 use crate::GameClient;
@@ -247,7 +247,12 @@ impl GameClient {
             .map_or(1, |level| level.0);
         let sheet =
             unit.and_then(|unit| Some((unit.get::<UnitStats>()?, unit.get::<CombatRatings>()?)));
-        let attributes = attribute_lines(sheet);
+        let spec_primary = self.spells.catalog().and_then(|data| {
+            let spec = data.tabs.specs.get(&self.account.spells.spec()?)?;
+            Some(spec.primary_stat())
+        });
+        let attributes = attribute_lines(sheet, spec_primary);
+        let enhancements = enhancement_lines(unit.and_then(|unit| unit.get::<DerivedStats>()));
         let (race_id, class_id, title) = player.as_ref().map_or((0, 0, String::new()), |player| {
             (player.race, player.class, player.name.clone())
         });
@@ -265,6 +270,7 @@ impl GameClient {
             item_level: (level >= MIN_LEVEL_FOR_ITEM_LEVEL)
                 .then(|| self.equipped_item_level().to_string()),
             attributes,
+            enhancements,
             race_id,
             class_id,
         }

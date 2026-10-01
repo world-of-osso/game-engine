@@ -9,7 +9,9 @@ fn effect(index: u8, base_points: f32) -> CatalogEffect {
         aura_period_ms: 0,
         chain_targets: 0,
         radius_yd: 0.0,
-        caster_scaled: false,
+        spell_power_coefficient: 0.0,
+        attack_power_coefficient: 0.0,
+        level_scaled: false,
     }
 }
 
@@ -50,7 +52,7 @@ fn fixture_catalog() -> SpellCatalogData {
         aura_description: "Burning for $200s1%.".into(),
         effects: vec![
             CatalogEffect {
-                caster_scaled: true,
+                spell_power_coefficient: 1.5,
                 ..effect(0, 0.0)
             },
             effect(1, 25.0),
@@ -116,6 +118,7 @@ fn conditionals_test_known_spells_auras_and_values_with_else_if_chains() {
         known_spells: vec![137033],
         auras: vec![100],
         spec_id: None,
+        caster_power: None,
     };
     assert_eq!(render_with(100, text, &ctx), "known aura neg two not both");
     assert_eq!(
