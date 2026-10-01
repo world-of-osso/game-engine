@@ -428,6 +428,41 @@ fn stage_fixture_listfile(repo: &Path, data: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Authored terrain heights at the fixture's unit positions (z = 3). The fixture maps
+/// stream their real ADT tiles here, so units at the former y = 2 stood about 80 yd
+/// underground and the world camera, held above the terrain, was beyond the 60-yard
+/// NPC animation LOD range (measured with `terrain_height_at`, 2026-10-01; kalimdor
+/// has no terrain at these coordinates).
+fn fixture_position(map: &str, x: f32) -> Position {
+    let heights: &[(f32, f32)] = match map {
+        "azeroth" => &[
+            (1.0, 82.654),
+            (5.0, 81.259),
+            (6.0, 80.951),
+            (7.0, 80.670),
+            (8.0, 80.409),
+            (9.0, 80.196),
+            (60.0, 69.082),
+        ],
+        // No kalimdor tile has ground here; units keep the player's azeroth height so
+        // camera distances stay horizontal.
+        "kalimdor" => &[
+            (1.0, 69.082),
+            (5.0, 69.082),
+            (7.0, 69.082),
+            (8.0, 69.082),
+            (9.0, 69.082),
+        ],
+        _ => panic!("no measured ground for fixture map {map}"),
+    };
+    let y = heights
+        .iter()
+        .find(|(at, _)| *at == x)
+        .unwrap_or_else(|| panic!("no measured {map} ground at x {x}"))
+        .1;
+    Position { x, y, z: 3.0 }
+}
+
 fn stage_lighting(repo: &Path, data: &Path) -> Result<(), String> {
     stage_fixture_listfile(repo, data)?;
     let mut wdt = Vec::new();
@@ -443,7 +478,7 @@ fn stage_lighting(repo: &Path, data: &Path) -> Result<(), String> {
     }
     let lights = "ID,GameCoords_0,GameCoords_1,GameCoords_2,GameFalloffStart,GameFalloffEnd,ContinentID,LightParamsID_0,LightParamsID_1,LightParamsID_2,LightParamsID_3,LightParamsID_4,LightParamsID_5,LightParamsID_6,LightParamsID_7\n\
 1,0,0,0,0,0,0,1,0,0,0,0,0,0,0\n\
-2,60,-3,2,10,15,0,2,0,0,0,0,0,0,0\n\
+2,60,-3,69.08,10,15,0,2,0,0,0,0,0,0,0\n\
 3,0,0,0,0,0,1,3,0,0,0,0,0,0,0\n";
     fs::write(data.join("Light.csv"), lights)
         .map_err(|error| format!("Write fixture Light.csv: {error}"))?;
@@ -590,11 +625,7 @@ fn respond_to_selection(
                     class: 2,
                     appearance: Default::default(),
                 },
-                Position {
-                    x: 1.0,
-                    y: 2.0,
-                    z: 3.0,
-                },
+                fixture_position("azeroth", 1.0),
                 Replicate::to_clients(NetworkTarget::All),
             ))
             .id();
@@ -635,11 +666,7 @@ fn spawn_named_npc(app: &mut App, display_id: u32, name: &str) -> Entity {
                 name: name.into(),
             },
             ModelDisplay { display_id },
-            Position {
-                x: 5.0,
-                y: 2.0,
-                z: 3.0,
-            },
+            fixture_position("azeroth", 5.0),
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id()
@@ -681,11 +708,7 @@ fn run_fixture(
                         .entity_mut(npc.expect("spawned NPC"))
                         .insert((
                             ModelDisplay { display_id: 910010 },
-                            Position {
-                                x: 6.0,
-                                y: 2.0,
-                                z: 3.0,
-                            },
+                            fixture_position("azeroth", 6.0),
                         ));
                     phase = 1;
                 }
@@ -699,11 +722,7 @@ fn run_fixture(
                     app.world_mut()
                         .entity_mut(player.expect("spawned player"))
                         .insert((
-                            Position {
-                                x: 60.0,
-                                y: 2.0,
-                                z: 3.0,
-                            },
+                            fixture_position("azeroth", 60.0),
                             MovementControl {
                                 epoch: 1,
                                 controlled: true,
@@ -738,6 +757,17 @@ fn run_fixture(
                     phase = 8;
                 }
                 (8, "FIXTURE NPC_RESTORED") => {
+                    // Back beside the NPC positions: the world camera faces the NPCs from
+                    // here, so the animation LOD samples them for the pose checks.
+                    app.world_mut()
+                        .entity_mut(player.expect("spawned player"))
+                        .insert((
+                            fixture_position("kalimdor", 1.0),
+                            MovementControl {
+                                epoch: 2,
+                                controlled: true,
+                            },
+                        ));
                     let link = app
                         .world()
                         .resource::<Incoming>()
@@ -771,11 +801,7 @@ fn run_fixture(
                                 template_id: 6491,
                                 name: NPC.into(),
                             },
-                            Position {
-                                x: 7.0,
-                                y: 2.0,
-                                z: 3.0,
-                            },
+                            fixture_position("kalimdor", 7.0),
                         ));
                     phase = 11;
                 }
@@ -787,11 +813,7 @@ fn run_fixture(
                                 current: 0.0,
                                 max: 10.0,
                             },
-                            Position {
-                                x: 8.0,
-                                y: 2.0,
-                                z: 3.0,
-                            },
+                            fixture_position("kalimdor", 8.0),
                         ));
                     phase = 12;
                 }
@@ -819,11 +841,7 @@ fn run_fixture(
                         });
                     app.world_mut()
                         .entity_mut(npc.expect("spawned NPC"))
-                        .insert(Position {
-                            x: 9.0,
-                            y: 2.0,
-                            z: 3.0,
-                        });
+                        .insert(fixture_position("kalimdor", 9.0));
                     phase = 15;
                 }
                 (15, "FIXTURE RESURRECTED_READY") => {
@@ -860,11 +878,7 @@ fn run_fixture(
                             name: DEAD_ON_SPAWN.into(),
                         },
                         ModelDisplay { display_id: 910010 },
-                        Position {
-                            x: 5.0,
-                            y: 2.0,
-                            z: 3.0,
-                        },
+                        fixture_position("kalimdor", 5.0),
                         Health {
                             current: 0.0,
                             max: 10.0,

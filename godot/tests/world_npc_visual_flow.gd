@@ -337,7 +337,7 @@ func lod_trace(client: Node, model: Node3D) -> String:
 	var camera := client.get_node_or_null("WorldCamera") as Camera3D
 	if camera == null or model == null:
 		return "lod=unknown (no camera or model)"
-	return "in_frustum=%s distance=%.1f" % [camera.is_position_in_frustum(model.global_position), camera.global_position.distance_to(model.global_position)]
+	return "in_frustum=%s distance=%.1f camera=%s model=%s" % [camera.is_position_in_frustum(model.global_position), camera.global_position.distance_to(model.global_position), camera.global_position, model.global_position]
 
 func _death_animation_id(client: Node, name: String) -> Variant:
 	var animation = client.get_node_or_null("WorldUnits/" + name + "/NpcVisualRoot/NpcModel/M2Animation")
