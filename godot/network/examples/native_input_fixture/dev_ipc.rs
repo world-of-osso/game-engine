@@ -790,8 +790,9 @@ fn check_timed_forward(run: &mut Run) -> Result<(), String> {
         thread::sleep(TICK);
     }
     if moving == 0 || stops(run) != before + 1 {
+        let network = run.cli(&["status", "network"])?;
         return Err(format!(
-            "1 s forward: {moving} moving inputs, {} stops",
+            "1 s forward: {moving} moving inputs, {} stops; status network: {network:?}",
             stops(run) - before
         ));
     }
