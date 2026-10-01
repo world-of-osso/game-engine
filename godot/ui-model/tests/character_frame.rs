@@ -455,6 +455,7 @@ fn arcane_mage_derived() -> DerivedStats {
         haste_pct: 8.0 / 4.239_275_5,
         mastery_pct: 10.56,
         versatility_pct: 6.0 / 5.202_747,
+        ..DerivedStats::default()
     }
 }
 
@@ -486,6 +487,32 @@ fn enhancements_round_retail_percentages_and_hide_zero_stats() {
         .collect();
     assert_eq!(labels, ["Critical Strike:"]);
     assert!(enhancement_lines(None).is_empty());
+}
+
+/// Leech, Avoidance and Speed follow Versatility in `PAPERDOLL_STATCATEGORIES` order once
+/// non-zero; the server's level 20 values for 12% raw leech, 5% avoidance and 30% raw
+/// speed (game-server `tertiary_ratings_follow_curve_21025`).
+#[test]
+fn enhancements_show_nonzero_tertiary_stats_after_versatility() {
+    let derived = DerivedStats {
+        leech_pct: 11.6,
+        avoidance_pct: 5.0,
+        speed_pct: 21.0,
+        ..arcane_mage_derived()
+    };
+    let shown: Vec<_> = enhancement_lines(Some(&derived))
+        .iter()
+        .map(|line| (line.label, line.value.clone()))
+        .collect();
+    assert_eq!(
+        shown[3..],
+        [
+            ("Versatility:", "1%".to_string()),
+            ("Leech:", "12%".to_string()),
+            ("Avoidance:", "5%".to_string()),
+            ("Speed:", "21%".to_string()),
+        ]
+    );
 }
 
 #[test]

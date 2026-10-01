@@ -20,6 +20,6 @@ References:
 - [x] `AttributesCategory`: Strength, Agility, Intellect, Stamina and Armor as `BreakUpLargeNumbers` integers, under the item level, or at the pane top with 5 more between lines below level 10; hidden until the stats arrive.
 - [x] The server replicates `UnitStats` / `CombatRatings` / `DerivedStats` only to the owning connection; equipping updates them.
 - [x] With a known spec only its primary stat shows (`ChrSpecialization.PrimaryStatPriority` mapped as TrinityCore `Player::GetPrimaryStat`); without one all three show.
-- [x] `EnhancementsCategory` under the last attribute (11 lower below level 10): Critical Strike, Haste, Mastery and Versatility from the server's `DerivedStats` percentages, `format("%d%%", value + 0.5)`, each hidden at exactly 0.
-- [ ] Leech, Avoidance and Speed never show: the server models no tertiary stats (Retail hides them at 0). Dodge, Parry and Block (tank role, shield) and red negative haste are not built.
+- [x] `EnhancementsCategory` under the last attribute (11 lower below level 10): Critical Strike, Haste, Mastery, Versatility, Leech, Avoidance and Speed from the server's `DerivedStats` percentages, `format("%d%%", value + 0.5)`, each hidden at exactly 0. No content item carries a tertiary stat, so Leech, Avoidance and Speed stay hidden in play.
+- [ ] Dodge, Parry and Block (tank role, shield) and red negative haste are not built.
 - [ ] Not built: stat tooltips, Stagger and mana regen (need a role), the Reputation and Currency tabs, title and equipment-manager sidebars, slot flyouts.
