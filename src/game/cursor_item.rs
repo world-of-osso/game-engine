@@ -48,6 +48,8 @@ pub enum CursorTarget {
     MerchantItem(usize),
     /// The MerchantFrame outside its cells (`OnMouseUp` → `PickupMerchantItem(0)`).
     MerchantFrame,
+    /// The player's TradeFrame slot (`ClickTradeButton`); the trade owns the drop.
+    TradeSlot(u8),
     /// No frame under the cursor: the item is dropped on the world.
     World,
 }
@@ -263,9 +265,10 @@ fn pick_up(
         CursorTarget::MerchantItem(index) if merchant.tab == MerchantTab::Merchant => {
             CursorItem::from_merchant(merchant, index, 1)
         }
-        CursorTarget::MerchantItem(_) | CursorTarget::MerchantFrame | CursorTarget::World => {
-            CursorItem::Empty
-        }
+        CursorTarget::MerchantItem(_)
+        | CursorTarget::MerchantFrame
+        | CursorTarget::TradeSlot(_)
+        | CursorTarget::World => CursorItem::Empty,
     }
 }
 
@@ -294,6 +297,7 @@ fn drop_inventory_item(
         CursorTarget::MerchantItem(_) | CursorTarget::MerchantFrame => {
             return sell(held, inventory, merchant);
         }
+        CursorTarget::TradeSlot(_) => return None,
         CursorTarget::World => {
             let item = inventory.item_at(held.from)?;
             return Some(CursorEffect::ConfirmDestroy(DestroyConfirm {

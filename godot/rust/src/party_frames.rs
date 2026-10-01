@@ -271,6 +271,10 @@ impl GameClient {
             self.account
                 .send_group(GroupCommand::RespondInvite(accept))?;
         }
+        for request in self.trade.session.popup_results(&results) {
+            self.account.send_trade(request)?;
+        }
+        self.trade.session.sync_popup(&mut self.group_frames.popups);
         sync_invite_popup(&self.account.group, &mut self.group_frames.popups);
         let popups = StaticPopupState {
             popups: self.group_frames.popups.visible(),

@@ -67,8 +67,10 @@ mod terrain;
 mod tooltip_sources;
 mod tooltip_units;
 mod tooltips;
+mod trade;
 mod ui;
 mod ui_scale;
+mod unit_menu;
 mod unit_pick;
 mod window_stack;
 mod wmo;
@@ -179,6 +181,8 @@ pub struct GameClient {
     character_frame: character_frame::CharacterFrame,
     tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
+    trade: trade::Trade,
+    unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -268,6 +272,8 @@ impl INode3D for GameClient {
             character_frame: character_frame::CharacterFrame::default(),
             tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
+            trade: trade::Trade::default(),
+            unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
@@ -311,6 +317,7 @@ impl INode3D for GameClient {
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
             || self.mailbox_pointer(&event)
+            || self.unit_menu_pointer(&event)
         {
             return;
         }
@@ -727,6 +734,12 @@ impl GameClient {
         self.mailbox_snapshot()
     }
 
+    /// Read-only trade state; requests only come from real frame/bag/menu input.
+    #[func]
+    fn trade_state(&self) -> VarDictionary {
+        self.trade_snapshot()
+    }
+
     /// Spell visual kits started, kit models and missiles shown.
     #[func]
     fn spell_visuals_state(&self) -> VarDictionary {
@@ -941,6 +954,9 @@ impl GameClient {
         self.merchant.visit_uis(&mut visit)?;
         self.character_frame.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
+            visit(ui)?;
+        }
+        if let Some(ui) = &mut self.trade.ui {
             visit(ui)?;
         }
         self.banks.visit_uis(&mut visit)?;
@@ -1400,6 +1416,7 @@ impl GameClient {
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),
+            ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
@@ -1518,6 +1535,7 @@ impl GameClient {
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::Mail(message) => self.receive_mail(message)?,
+            AccountEvent::Trade(update) => self.receive_trade(update)?,
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
@@ -1813,6 +1831,7 @@ impl GameClient {
         self.loot.reset();
         self.game_objects.reset();
         self.mailbox.reset();
+        self.trade.reset();
         self.in_rest_area = false;
         self.character_preview.reset();
         self.creation_scene.reset();

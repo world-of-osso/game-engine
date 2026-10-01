@@ -170,6 +170,10 @@ pub mod mail;
 #[path = "../../../src/ui/screens/mail_frame_component.rs"]
 pub mod mail_frame_component;
 
+pub mod trade;
+#[path = "../../../src/ui/screens/trade_frame_component.rs"]
+pub mod trade_frame_component;
+
 pub mod auction;
 #[path = "../../../src/ui/screens/auction_house_frame_component.rs"]
 pub mod auction_house_frame_component;

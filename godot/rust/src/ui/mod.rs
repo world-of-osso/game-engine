@@ -110,6 +110,8 @@ enum ScreenPostsetup {
     EntranceBar,
     Merchant,
     Auction,
+    /// Enter in a TradeFrame money box submits the amount.
+    Trade,
     Spellbook,
     Minimap,
     CharacterFrame,
@@ -123,7 +125,10 @@ impl RegistryModel {
 
     fn apply_postsetup(&mut self) {
         match self.postsetup {
-            ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Auction => {}
+            ScreenPostsetup::None
+            | ScreenPostsetup::Loading
+            | ScreenPostsetup::Auction
+            | ScreenPostsetup::Trade => {}
             ScreenPostsetup::WorldMap => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
@@ -344,6 +349,7 @@ impl RegistryModel {
             {
                 actions.push_back("auction_search".into())
             }
+            ScreenPostsetup::Trade => actions.push_back(crate::trade::ACTION_MONEY_SUBMIT.into()),
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
                 actions.push_back(CharSelectAction::ConfirmDeleteChar.to_string());
@@ -890,6 +896,33 @@ impl RegistryUi {
         )?;
         self.enable_cursor_inputs();
         // Blizzard_GuildBankUI.xml:167 `toplevel="true"`.
+        self.toplevel = true;
+        Ok(())
+    }
+
+    pub fn show_trade(
+        &mut self,
+        state: game_engine_ui_model::trade::NativeTradeView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::trade::native_trade_screen,
+            ScreenPostsetup::Trade,
+            registry,
+            parent,
+        )?;
+        // Slot clicks and drops share the cursor queue with the bags.
+        self.enable_cursor_inputs();
+        // TradeFrame.xml:143 `toplevel="true"`.
         self.toplevel = true;
         Ok(())
     }
