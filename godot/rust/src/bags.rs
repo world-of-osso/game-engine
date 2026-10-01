@@ -181,12 +181,16 @@ impl GameClient {
             // NPC windows drawing the backpack keep it; never a second visible copy.
             let npc_backpack = bag.bag_index == 0 && self.npc_backpack_embedded();
             bag.visible = self.bags.windows.is_open(WindowId::Bag(bag.bag_index)) && !npc_backpack;
+            let items = self.merchant.session.inventory.slots.get(bag.bag_index);
             for (index, slot) in bag.slots.iter_mut().enumerate() {
+                let guid = items.and_then(|s| s.get(index)).map_or(0, |s| s.item_guid);
+                // Mail attachments stay locked in every bag (`SetItemButtonDesaturated`).
                 slot.locked = self.bags.cursor.item.source()
                     == Some(shared::protocol::ItemLocation::Bag {
                         bag: bag.bag_index as u8,
                         slot: index as u8,
-                    });
+                    })
+                    || (guid != 0 && self.mailbox.session.is_attached(guid));
             }
         }
         let money = self
@@ -221,6 +225,9 @@ impl GameClient {
         if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
             if click.right && self.bank_bag_right_click(action)? {
                 return Ok(());
+            }
+            if let Some(handled) = self.mail_bag_slot_click(action, click) {
+                return Ok(handled?);
             }
             self.bag_cursor_click(action, click)
         } else {

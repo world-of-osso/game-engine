@@ -14,7 +14,8 @@ use game_engine_ui_model::buff_frame_component::buff_button_at;
 use game_engine_ui_model::chat_frame_component::chat_spell_link_at;
 use game_engine_ui_model::game_tooltip::hud::{
     backpack_tooltip, calendar_tooltip, clock_tooltip, empty_bag_slot_tooltip,
-    minimap_mouseover_tooltip, tracking_tooltip, twelve_hour_time, zoom_tooltip,
+    minimap_mouseover_tooltip, tracking_tooltip, twelve_hour_time, unread_mail_tooltip,
+    zoom_tooltip,
 };
 use game_engine_ui_model::game_tooltip::item::{
     auction_row_item, item_game_tooltip, named_item, without_sell_price,
@@ -376,7 +377,8 @@ impl GameClient {
 }
 
 impl GameClient {
-    /// The minimap header buttons drawn as plain art (`MinimapClusterTrackingBackground`,
+    /// The minimap header buttons drawn as plain art (`MiniMapMailFrame`,
+    /// `MinimapClusterTrackingBackground`,
     /// `TimeManagerClockTicker`, `GameTimeFrame`), hit by their rect.
     pub(crate) fn minimap_button_tooltip(&self) -> Option<HoveredTooltip> {
         let ui = self.minimap.ui.as_ref()?;
@@ -393,7 +395,13 @@ impl GameClient {
         if let Some(tooltip) = minimap_mouseover_tooltip(&self.minimap_blip_names(&host, &hit)) {
             return Some(HoveredTooltip::text(tooltip));
         }
-        let (tooltip, rect, side) = if let Some(rect) = hit("MinimapClusterTrackingBackground") {
+        let senders = &self.mailbox.session.pending_senders;
+        let mail = (!senders.is_empty())
+            .then(|| hit(game_engine_ui_model::minimap::MINIMAP_MAIL_FRAME))
+            .flatten();
+        let (tooltip, rect, side) = if let Some(rect) = mail {
+            (unread_mail_tooltip(senders), rect, OwnerSide::BottomLeft)
+        } else if let Some(rect) = hit("MinimapClusterTrackingBackground") {
             (tracking_tooltip(), rect, OwnerSide::Left)
         } else if let Some(rect) = hit(game_engine_ui_model::minimap::MINIMAP_CLOCK_TEXT) {
             // No realm clock is replicated: the realm time reads the local time.
