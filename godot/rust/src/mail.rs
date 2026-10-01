@@ -64,37 +64,24 @@ impl Mailbox {
     }
     /// The Send Mail edit boxes as typed, cut to their Retail `letters` (money digits
     /// only); returns the boxes whose text had to be cut.
-    fn read_inputs(&mut self) -> Vec<(&'static str, String)> {
+    /// Send Mail edit box texts, cut to their letters (money boxes digits only).
+    fn read_inputs(&mut self) {
         let Some(ui) = self.ui.as_ref() else {
-            return Vec::new();
+            return;
         };
-        let bound = ui.bind();
-        let Some(registry) = bound.registry() else {
-            return Vec::new();
-        };
-        let mut cut = Vec::new();
         for name in input_names() {
-            let Some(WidgetData::EditBox(edit)) = registry
-                .get_by_name(name)
-                .and_then(|id| registry.get(id))
-                .and_then(|frame| frame.widget_data.as_ref())
-            else {
+            let Some(text) = editbox_text(ui, name) else {
                 continue;
             };
             let money = MONEY_BOXES.all().contains(&name);
             let letters = input_letters(name).unwrap_or(usize::MAX);
-            let text: String = edit
-                .text
+            let text = text
                 .chars()
                 .filter(|c| !money || c.is_ascii_digit())
                 .take(letters)
                 .collect();
-            if text != edit.text {
-                cut.push((name, text.clone()));
-            }
             self.texts.insert(name, text);
         }
-        cut
     }
 }
 impl GameClient {
@@ -180,16 +167,16 @@ impl GameClient {
             self.mailbox.free_ui();
             return Ok(());
         }
-        let cut = self.mailbox.read_inputs();
+        self.mailbox.read_inputs();
         let inventory = &self.merchant.session.inventory;
         self.mailbox.session.retain_attachments(inventory);
         let free = inventory.total_free_slots();
         if let Some(request) = self.mailbox.session.next_open_all(free) {
             self.account.send_mail_request(request)?;
         }
-        Ok(self.sync_mailbox_ui(cut)?)
+        Ok(self.sync_mailbox_ui()?)
     }
-    fn sync_mailbox_ui(&mut self, cut: Vec<(&'static str, String)>) -> Result<(), String> {
+    fn sync_mailbox_ui(&mut self) -> Result<(), String> {
         let view = self.mailbox_view();
         let scale = self.effective_ui_scale();
         if self.mailbox.ui.is_none() {
@@ -206,8 +193,13 @@ impl GameClient {
         let mut ui = self.mailbox.ui.clone().ok_or("Mailbox UI missing")?;
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
-        for (name, text) in cut {
-            self.set_mail_text(&mut ui, name, &text)?;
+        // Edit boxes show the form's texts: cut input, and texts set while their tab
+        // was hidden (Reply fills To and Subject from the Inbox).
+        for name in input_names() {
+            let text = self.mailbox.texts.get(name).cloned().unwrap_or_default();
+            if editbox_text(&ui, name).is_some_and(|shown| shown != text) {
+                ui.bind_mut().set_editbox_text(name, &text)?;
+            }
         }
         if let Some(position) = self.mailbox.position {
             ui.bind_mut().set_window_position(FRAME_NAME, position)?;
@@ -546,4 +538,14 @@ fn mail_rows(mails: &[shared::protocol::MailHeader]) -> VarArray {
         rows.push(&row.to_variant());
     }
     rows
+}
+
+fn editbox_text(ui: &Gd<RegistryUi>, name: &str) -> Option<String> {
+    let bound = ui.bind();
+    let registry = bound.registry()?;
+    let frame = registry.get(registry.get_by_name(name)?)?;
+    match frame.widget_data.as_ref()? {
+        WidgetData::EditBox(edit) => Some(edit.text.clone()),
+        _ => None,
+    }
 }
