@@ -71,6 +71,11 @@ impl TerrainLight {
         bind_fog(material, &self.fog);
     }
 
+    /// Only the scene fog (`retail_fog.gdshaderinc`), for unlit materials such as particles.
+    pub fn bind_scene_fog(&self, material: &mut Gd<ShaderMaterial>) {
+        bind_fog(material, &self.fog);
+    }
+
     /// The model light plus the retail water scene inputs of `water.gdshader`.
     pub fn bind_water(&self, material: &mut Gd<ShaderMaterial>) {
         self.bind_model(material);
