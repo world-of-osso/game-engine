@@ -402,7 +402,7 @@ func move_mouse(point: Vector2) -> void:
 
 func hover(target: Control) -> void:
 	if target == null:
-		fail("Missing control to hover")
+		fail("Missing control to hover; tooltip %s spells %s" % [tooltip(), spells().bar])
 		return
 	await move_mouse(target.get_global_rect().get_center())
 
