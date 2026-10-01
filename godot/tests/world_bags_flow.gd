@@ -126,7 +126,7 @@ func right_click_control(control: Control) -> void:
 		Input.parse_input_event(event)
 		await process_frame
 
-func capture_bags() -> bool:
+func capture_bags(filename: String = "standalone-bags.png", tooltip_client: Node = null, tooltip_title: String = "") -> bool:
 	var directory := OS.get_environment("GODOT_BAGS_SCREENSHOTS")
 	if directory.is_empty():
 		return true
@@ -138,7 +138,13 @@ func capture_bags() -> bool:
 		fail("Cannot create bag capture directory: %s" % error)
 		return false
 	await RenderingServer.frame_post_draw
-	error = root.get_texture().get_image().save_png(directory.path_join("standalone-bags.png"))
+	if tooltip_client != null:
+		var panel := authored_control(tooltip_client, "TooltipFrame")
+		var title := authored_control(tooltip_client, "TooltipTitle") as Label
+		if panel == null or not panel.is_visible_in_tree() or title == null or not title.is_visible_in_tree() or title.text != tooltip_title:
+			fail("Item tooltip must remain shown in capture: " + filename)
+			return false
+	error = root.get_texture().get_image().save_png(directory.path_join(filename))
 	if error != OK:
 		fail("Cannot save authored bag capture: %s" % error)
 		return false
@@ -184,9 +190,13 @@ func check_item_hover_tooltips(client: Node) -> bool:
 		return false
 	if not await quiet_tooltip_inventory(client, true, backpack_rect):
 		return false
+	if not await capture_bags("standalone-bags-linen-tooltip.png", client, "Linen Cloth"):
+		return false
 	if not await hover_bag_slot(client, 2) or not await wait_item_tooltip(client, "Ruined Pelt", Color(0.62, 0.62, 0.62, 1.0), "5", "Item ID: 4865"):
 		return false
 	if not await quiet_tooltip_inventory(client, true, backpack_rect):
+		return false
+	if not await capture_bags("standalone-bags-poor-tooltip.png", client, "Ruined Pelt"):
 		return false
 	if not await hover_bag_slot(client, 3) or not await wait_item_tooltip_hidden(client):
 		return false
@@ -217,7 +227,10 @@ func check_item_hover_tooltips(client: Node) -> bool:
 		return false
 	if not check_container(client, 0, 16, 0, "3") or not check_solo_position(client, 0):
 		return false
-	print("BAGS TOOLTIP title/quality, stack price, empty/away/close hide and unchanged authority checked")
+	# Re-show before the original backpack-close click too.
+	if not await hover_bag_slot(client, 1) or not await wait_item_tooltip(client, "Linen Cloth", Color.WHITE, "39", "Item ID: 2589"):
+		return false
+	print("BAGS TOOLTIP title/quality, stack price, placement, empty/away/close hide and unchanged authority checked")
 	return await quiet_tooltip_inventory(client, true, backpack_rect)
 
 func hover_bag_slot(client: Node, slot: int) -> bool:
@@ -261,10 +274,45 @@ func wait_item_tooltip(client: Node, title_text: String, title_color: Color, cop
 			if extra != null and extra.is_visible_in_tree():
 				fail("Simple item tooltip has unexpected extra money/line: " + unexpected)
 				return false
+		var owner_slot := 1 if title_text == "Linen Cloth" else 2
+		if not check_item_tooltip_rect(client, panel, owner_slot):
+			return false
 		print("BAGS TOOLTIP observed title=", title_text, " color=", title.get_theme_color("font_color"), " copper=", copper, " id=", item_id_line)
 		return true
 	fail("RED: physical authored bag hover did not project original TooltipFrame/TooltipTitle for " + title_text)
 	return false
+
+func check_item_tooltip_rect(client: Node, panel: Control, owner_slot: int) -> bool:
+	var owner := authored_control(client, "ContainerFrame0Slot%s" % owner_slot)
+	if owner == null or not owner.is_visible_in_tree():
+		fail("Tooltip placement requires its visible authored slot owner")
+		return false
+	# Original tooltip_frame/mod.rs: width260; max(34, 2*8 + 16 + 2*14).
+	# Sell Price and the appended Item ID are exactly two lines for both items.
+	# Convert logical units using the owner's canvas transform, not tooltip size.
+	var transform := owner.get_global_transform()
+	var scale := Vector2(transform.x.length(), transform.y.length())
+	if scale.x <= 0.0 or not is_equal_approx(scale.x, scale.y):
+		fail("Authored bag owner must have positive uniform logical UI scale")
+		return false
+	var expected_size := Vector2(260.0, maxf(34.0, 2.0 * 8.0 + 16.0 + 2.0 * 14.0)) * scale
+	var viewport := root.get_visible_rect()
+	var owner_rect := owner.get_global_rect()
+	if owner_rect.end.x < viewport.get_center().x:
+		fail("Fixture tooltip owners must exercise original right-edge left placement")
+		return false
+	# Original owner_anchor_position: left of owner, above owner; then clamp.
+	var expected_position := owner_rect.position - expected_size
+	expected_position.x = clampf(expected_position.x, viewport.position.x, maxf(viewport.position.x, viewport.end.x - expected_size.x))
+	expected_position.y = clampf(expected_position.y, viewport.position.y, maxf(viewport.position.y, viewport.end.y - expected_size.y))
+	var observed := panel.get_global_rect()
+	if not viewport.encloses(observed):
+		fail("Full item tooltip panel must fit viewport: panel=%s viewport=%s" % [observed, viewport])
+		return false
+	if absf(observed.size.x - expected_size.x) > POSITION_TOLERANCE or absf(observed.size.y - expected_size.y) > POSITION_TOLERANCE or absf(observed.position.x - expected_position.x) > POSITION_TOLERANCE or absf(observed.position.y - expected_position.y) > POSITION_TOLERANCE:
+		fail("Original left/above/clamped tooltip geometry: expected=%s observed=%s owner=%s scale=%s" % [Rect2(expected_position, expected_size), observed, owner_rect, scale])
+		return false
+	return true
 
 func wait_item_tooltip_hidden(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
@@ -275,10 +323,15 @@ func wait_item_tooltip_hidden(client: Node) -> bool:
 			continue
 		for frame in range(8):
 			await process_frame
-			for control_name in ["TooltipFrame", "TooltipTitle", "TooltipLine0Left", "TooltipLine0MoneyAmount0", "TooltipLine1Left"]:
-				var control := authored_control(client, control_name)
-				if control != null and control.is_visible_in_tree():
-					fail("Item tooltip remained/reappeared visible after empty/away/close: " + control_name)
+			# Include coins, extra denominations, right text, ID and any other
+			# descendants, even if they lack the authored Tooltip name prefix.
+			var controls := client.find_children("Tooltip*", "Control", true, false)
+			var current_panel := authored_control(client, "TooltipFrame")
+			if current_panel != null:
+				controls.append_array(current_panel.find_children("*", "Control", true, false))
+			for control in controls:
+				if control.is_visible_in_tree():
+					fail("Item tooltip remained/reappeared visible after empty/away/close: " + str(control.name))
 					return false
 		return true
 	fail("RED: item tooltip did not hide after empty/away/close")
