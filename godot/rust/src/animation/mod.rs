@@ -833,6 +833,29 @@ mod tests {
         .expect("HD model with authored tracks")
     }
 
+    #[test]
+    fn fixed_sky_zero_duration_keeps_requested_sampled_pose() {
+        let mut model = model();
+        model.sequences.truncate(1);
+        model.sequences[0].id = 0;
+        model.sequences[0].duration = 0;
+        model.bones.truncate(1);
+        model.bones[0].parent_bone_id = -1;
+        model.bones[0].pivot = [0.0; 3];
+        let mut tracks = model.bone_tracks.as_ref().clone();
+        tracks.truncate(1);
+        tracks[0].translation = m2::AnimTrack {
+            interpolation_type: 1,
+            global_sequence: -1,
+            sequences: vec![(vec![0, 2000], vec![[0.0; 3], [20.0, 0.0, 0.0]])],
+        };
+        model.bone_tracks = std::sync::Arc::new(tracks);
+        let mut player = AnimationState::new(&model).unwrap();
+        player.advance(1234.0).unwrap();
+        let sampled = player.poses()[0].origin.x;
+        assert!((sampled - 12.34).abs() < 0.00001, "sampled={sampled}");
+    }
+
     fn basis(v: [f32; 3]) -> Vector3 {
         Vector3::new(v[0], v[2], -v[1])
     }
