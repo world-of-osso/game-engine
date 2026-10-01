@@ -467,7 +467,13 @@ impl crate::GameClient {
             delta,
         );
         // The original applies the waypoint's facing after the scripted step's.
-        let waypoint_yaw = self.follow_waypoint(manual)?;
+        let waypoint_yaw = follow_waypoint(
+            &mut self.waypoint_path,
+            &mut self.map_waypoint,
+            &self.world,
+            &self.terrain,
+            manual,
+        )?;
         let yaw = waypoint_yaw
             .or(step.and_then(|step| step.facing_yaw))
             .unwrap_or(yaw);
@@ -489,38 +495,6 @@ impl crate::GameClient {
             .is_just_pressed(InputAction::Jump, &input);
         let delta = step.map_or(delta, |step| step.duration_secs);
         self.predict_player(frame, jump, yaw, delta)
-    }
-
-    /// The facing toward the map waypoint's next path node while walking to it.
-    fn follow_waypoint(&mut self, manual_override: bool) -> Result<Option<f32>, String> {
-        use godot::prelude::*;
-        if self.map_waypoint.is_none() {
-            self.waypoint_path.clear();
-            return Ok(None);
-        }
-        let player = self
-            .world
-            .local_player_node()
-            .ok_or("Selected player vanished during input")?;
-        let position = player.get_position();
-        let space = player
-            .get_world_3d()
-            .and_then(|world| world.get_direct_space_state())
-            .ok_or("Local player has no physics space")?;
-        let walls = |origin, direction, length| {
-            crate::wmo::collision::wall_hit(&space, origin, direction, length)
-        };
-        let ground = crate::ground::TerrainGround {
-            terrain: &self.terrain,
-            walls: &walls,
-        };
-        Ok(self.waypoint_path.follow(
-            &mut self.map_waypoint,
-            Vec3::new(position.x, position.y, position.z),
-            manual_override,
-            &self.terrain,
-            &ground,
-        ))
     }
 
     fn halt_player_movement(&mut self) {
@@ -603,6 +577,42 @@ impl crate::GameClient {
             self.player_movement.adopt_server_speed(speed.0);
         }
     }
+}
+
+/// The facing toward the map waypoint's next path node while walking to it.
+fn follow_waypoint(
+    path: &mut crate::waypoint_path::WaypointPath,
+    waypoint: &mut Option<(f32, f32)>,
+    world: &crate::world::WorldUnits,
+    terrain: &crate::terrain::streaming::StreamedTerrain,
+    manual_override: bool,
+) -> Result<Option<f32>, String> {
+    if waypoint.is_none() {
+        path.clear();
+        return Ok(None);
+    }
+    let player = world
+        .local_player_node()
+        .ok_or("Selected player vanished during input")?;
+    let position = player.get_position();
+    let space = player
+        .get_world_3d()
+        .and_then(|world| world.get_direct_space_state())
+        .ok_or("Local player has no physics space")?;
+    let walls = |origin, direction, length| {
+        crate::wmo::collision::wall_hit(&space, origin, direction, length)
+    };
+    let ground = crate::ground::TerrainGround {
+        terrain,
+        walls: &walls,
+    };
+    Ok(path.follow(
+        waypoint,
+        Vec3::new(position.x, position.y, position.z),
+        manual_override,
+        terrain,
+        &ground,
+    ))
 }
 
 /// This frame's IPC scripted movement (Bevy `advance_scripted_movement`): manual
