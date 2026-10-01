@@ -142,14 +142,17 @@ func grab_frame() -> void:
 	var path := grab_dir + "grab-%05d.jpg" % (grab_times.size() - 1)
 	grab_tasks.append(WorkerThreadPool.add_task(func(): image.save_jpg(path, 0.9)))
 
+## The `t=` timeline starts here with or without POLY_GRAB; `unix=` aligns it with an
+## external recording (scripts/agent/record-window).
 func start_grab() -> void:
+	grab_start_us = Time.get_ticks_usec()
+	print("FIXTURE TIMELINE_START unix=%.3f" % Time.get_unix_time_from_system())
 	grab_dir = OS.get_environment("POLY_GRAB")
 	if grab_dir == "":
 		return
 	DirAccess.make_dir_recursive_absolute(grab_dir)
 	grab_record = AudioEffectRecord.new()
 	AudioServer.add_bus_effect(0, grab_record)
-	grab_start_us = Time.get_ticks_usec()
 	grab_record.set_recording_active(true)
 	grab_audio_us = Time.get_ticks_usec()
 	print("FIXTURE GRAB_START driver=%s mix_rate=%d output_latency=%.3f" % [AudioServer.get_driver_name(), AudioServer.get_mix_rate(), AudioServer.get_output_latency()])

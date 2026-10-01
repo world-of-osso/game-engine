@@ -228,6 +228,7 @@ def main():
     enlarge_pipe(video.stdout)
     width, height, fps = read_header(video.stdout.fileno())
     video_start = time.monotonic()  # frame 0 follows the header immediately
+    video_start_unix = time.time()
     # Started after the first video frame so both captures begin together.
     recorders = [video]
     audio_start = {}
@@ -243,7 +244,7 @@ def main():
     video.stdout.close()
     print(f"record-window: recording {width}x{height} @ {fps} fps"
           f"{'' if audio is None else f' + audio from {audio[1]} (serial {audio[0]})'}"
-          f" to {output}", file=sys.stderr)
+          f" to {output}; frame 0 at unix {video_start_unix:.3f}", file=sys.stderr)
 
     wait_for_stop(video, args.duration)
     for recorder in recorders:
