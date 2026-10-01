@@ -67,9 +67,8 @@ pub mod liquid_data;
 pub mod loading_readiness;
 pub mod m2;
 pub mod m2_billboard;
-#[path = "../../../src/asset/m2_effect_uv_data.rs"]
-pub mod m2_effect_uv_data;
 pub mod m2_lights;
+pub mod m2_material;
 pub mod m2_particles;
 #[path = "../../../src/asset/m2_texture_composite_data.rs"]
 pub mod m2_texture_composite_data;
