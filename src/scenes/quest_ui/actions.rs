@@ -8,6 +8,7 @@ use game_engine::quest_runtime::{QuestRuntime, QuestUiState};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::popup::{PopupOutcome, PopupResult, PopupStack};
+use game_engine::ui::ui_errors::UiErrors;
 
 use crate::networking_quests::NpcInteractionRequest;
 use crate::ui_input::walk_up_for_onclick;
@@ -24,6 +25,7 @@ pub(super) struct QuestUiContext<'w> {
     manager: ResMut<'w, WindowManager>,
     popups: ResMut<'w, PopupStack>,
     pending_abandon: ResMut<'w, PendingAbandon>,
+    errors: ResMut<'w, UiErrors>,
 }
 
 #[derive(SystemParam)]
@@ -76,11 +78,14 @@ fn dispatch_action(action: &str, context: &mut QuestUiContext) -> Vec<NpcInterac
         match effect {
             QuestUiEffect::Send(request) => requests.push(request),
             QuestUiEffect::OpenLog => context.manager.open(WindowId::QuestLog),
-            QuestUiEffect::CloseLog => context.manager.close(WindowId::QuestLog),
+            QuestUiEffect::CloseLog => {
+                context.manager.close(WindowId::QuestLog);
+            }
             QuestUiEffect::ConfirmAbandon { quest_id, popup } => {
                 context.pending_abandon.0 = Some(quest_id);
                 context.popups.push(popup);
             }
+            QuestUiEffect::Error(text) => context.errors.add(text),
         }
     }
     requests

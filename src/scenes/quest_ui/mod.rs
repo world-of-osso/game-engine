@@ -68,7 +68,8 @@ impl Plugin for QuestUiPlugin {
         app.init_resource::<QuestUiState>()
             .init_resource::<QuestLogData>()
             .init_resource::<actions::PendingAbandon>()
-            .init_resource::<PopupStack>();
+            .init_resource::<PopupStack>()
+            .init_resource::<game_engine::ui::ui_errors::UiErrors>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_quest_ui.run_if(inworld_scene_stage_allows_ui),

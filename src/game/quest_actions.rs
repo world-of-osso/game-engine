@@ -1,9 +1,11 @@
 //! Click actions of the quest screens (objective tracker, quest log, quest giver frame)
 //! as pure state changes and host effects; shared by the Bevy and Godot hosts.
 
-use shared::protocol::QuestGiverQuestState;
+use shared::protocol::{QuestFailedReason, QuestGiverQuestState};
 
-use crate::quest_runtime::{NpcInteractionRequest, QuestDialogPage, QuestRuntime, QuestUiState};
+use crate::quest_runtime::{
+    NpcInteractionRequest, QuestDialogPage, QuestRuntime, QuestUiState, quest_failed_text,
+};
 use crate::quest_view::selected_quest;
 use crate::ui::popup::PopupSpec;
 use crate::ui::screens::{
@@ -25,6 +27,8 @@ pub enum QuestUiEffect {
         quest_id: u32,
         popup: PopupSpec,
     },
+    /// A `UIErrorsFrame` line.
+    Error(&'static str),
 }
 
 /// Applies one screen action to the client quest state; returns its host effects.
@@ -39,9 +43,6 @@ pub fn quest_ui_action(
         log_action(action, runtime, ui)
     } else if action.starts_with("quest_frame:") {
         frame_action(action, runtime)
-            .into_iter()
-            .map(QuestUiEffect::Send)
-            .collect()
     } else {
         Vec::new()
     }
@@ -101,7 +102,17 @@ fn abandon_popup(title: &str) -> PopupSpec {
 }
 
 /// Quest giver frame buttons (`QuestFrame.lua` handlers).
-fn frame_action(action: &str, runtime: &mut QuestRuntime) -> Vec<NpcInteractionRequest> {
+fn frame_action(action: &str, runtime: &mut QuestRuntime) -> Vec<QuestUiEffect> {
+    if action == frame::COMPLETE_ACTION {
+        return complete_effect(runtime).into_iter().collect();
+    }
+    frame_requests(action, runtime)
+        .into_iter()
+        .map(QuestUiEffect::Send)
+        .collect()
+}
+
+fn frame_requests(action: &str, runtime: &mut QuestRuntime) -> Vec<NpcInteractionRequest> {
     use NpcInteractionRequest as R;
     let Some(dialog) = runtime.dialog.as_ref() else {
         return Vec::new();
@@ -122,7 +133,6 @@ fn frame_action(action: &str, runtime: &mut QuestRuntime) -> Vec<NpcInteractionR
         frame::CONTINUE_ACTION => quest_id
             .map(|quest_id| vec![R::Complete { npc, quest_id }])
             .unwrap_or_default(),
-        frame::COMPLETE_ACTION => complete_request(&dialog.page, npc).into_iter().collect(),
         _ => frame_list_action(action, runtime, npc),
     }
 }
@@ -155,19 +165,25 @@ fn frame_list_action(
     Vec::new()
 }
 
-/// `QuestRewardCompleteButton_OnClick`: needs a choice when choices exist.
-fn complete_request(page: &QuestDialogPage, npc: u64) -> Option<NpcInteractionRequest> {
-    let QuestDialogPage::Reward { offer, choice } = page else {
+/// `QuestRewardCompleteButton_OnClick` (QuestFrame.lua:145): a lone choice is taken;
+/// several need one chosen, else `QuestChooseRewardError`.
+fn complete_effect(runtime: &QuestRuntime) -> Option<QuestUiEffect> {
+    let dialog = runtime.dialog.as_ref()?;
+    let QuestDialogPage::Reward { offer, choice } = &dialog.page else {
         return None;
     };
-    if !offer.rewards.choice_items.is_empty() && choice.is_none() {
-        return None;
+    let choices = offer.rewards.choice_items.len();
+    let choice = if choices == 1 { Some(0) } else { *choice };
+    if choices > 0 && choice.is_none() {
+        return Some(QuestUiEffect::Error(quest_failed_text(
+            QuestFailedReason::InvalidRewardChoice,
+        )));
     }
-    Some(NpcInteractionRequest::ChooseReward {
-        npc,
+    Some(QuestUiEffect::Send(NpcInteractionRequest::ChooseReward {
+        npc: dialog.npc,
         quest_id: offer.quest_id,
-        choice: *choice,
-    })
+        choice,
+    }))
 }
 
 fn page_quest_id(page: &QuestDialogPage) -> Option<u32> {
