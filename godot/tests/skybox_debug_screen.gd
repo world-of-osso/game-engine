@@ -88,7 +88,9 @@ func choose_case() -> bool:
 	fixed_time = args.has("--skybox-time-ms")
 	var fdid := first_value(args, "--skybox-fdid")
 	var light_id := first_value(args, "--light-skybox-id")
-	if not fdid.is_empty() and not light_id.is_empty():
+	var has_fdid := not fdid.is_empty()
+	var has_light_id := not light_id.is_empty()
+	if has_fdid and has_light_id:
 		return reject("--skybox-fdid and --light-skybox-id are mutually exclusive")
 	if light_id == "653" or fdid == "5412968":
 		expected_file = "11xp_cloudsky01.m2"
@@ -331,8 +333,10 @@ func rgb_error(a: Color, b: Color) -> float:
 	return maxf(absf(a.r - b.r), maxf(absf(a.g - b.g), absf(a.b - b.b)))
 
 func check_pose(yaw: float, distance: float) -> bool:
-	if not is_instance_valid(camera) or not is_instance_valid(sky):
-		return reject("Camera/authored sky freed during observation")
+	if not is_instance_valid(camera):
+		return reject("Camera freed during observation")
+	if not is_instance_valid(sky):
+		return reject("Authored sky freed during observation")
 	var offset := Vector3(sin(yaw) * cos(BASE_PITCH), sin(BASE_PITCH), cos(yaw) * cos(BASE_PITCH))
 	var expected_eye := FOCUS + offset * distance
 	if camera.global_position.distance_to(expected_eye) > POSE_EPSILON:
