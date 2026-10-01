@@ -21,6 +21,7 @@ pub mod ui {
         pub(crate) use crate::screen_title;
         pub use crate::{
             auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
+            bank_frame_component, guild_bank_frame_component,
             buff_frame_component, compact_unit_frame_component, cursor_item_component,
             default_button_atlas, game_menu_component, group_frames_component,
             inworld_unit_frames_component, loot_frame_component, mail_frame_component,
@@ -158,6 +159,15 @@ pub mod panel_style_data;
 
 #[path = "../../../src/ui/screens/bank_art.rs"]
 pub mod bank_art;
+// Bank and guild bank (docs/specs/bank-frame.md, guild-bank-frame.md).
+pub mod bank;
+#[path = "../../../src/game/bank_data.rs"]
+pub mod bank_data;
+#[path = "../../../src/ui/screens/bank_frame_component.rs"]
+pub mod bank_frame_component;
+pub mod guild_bank;
+#[path = "../../../src/ui/screens/guild_bank_frame_component.rs"]
+pub mod guild_bank_frame_component;
 pub mod mail;
 #[path = "../../../src/ui/screens/mail_frame_component.rs"]
 pub mod mail_frame_component;
