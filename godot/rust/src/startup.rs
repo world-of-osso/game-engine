@@ -114,6 +114,7 @@ impl GameClient {
             ScreenArg::M2Debug => self.open_m2_debug(),
             ScreenArg::SelectionDebug => self.open_selection_debug(),
             ScreenArg::DebugCharacter => self.open_debug_character(),
+            ScreenArg::NameplateDebug => self.open_nameplate_debug(),
             _ => Err(format!(
                 "--screen {} is not yet implemented in Godot",
                 screen.as_cli_str()

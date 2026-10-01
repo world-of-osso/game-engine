@@ -43,6 +43,8 @@ mod bags_cursor;
 mod bags_drag;
 #[path = "native_input_fixture/bank.rs"]
 mod bank;
+#[path = "native_input_fixture/dev_ipc.rs"]
+mod dev_ipc;
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
 #[path = "native_input_fixture/footsteps.rs"]
@@ -129,6 +131,7 @@ enum StartupScreen {
     PortalParticlesDisabled,
     PortalDensity,
     Trade,
+    DevIpc,
 }
 
 impl StartupScreen {
@@ -163,9 +166,10 @@ impl StartupScreen {
             Some("portal-particles-disabled") => Self::PortalParticlesDisabled,
             Some("portal-density") => Self::PortalDensity,
             Some("trade") => Self::Trade,
+            Some("dev-ipc") => Self::DevIpc,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, keybinds, sound, sound-click, merchant-click, merchant-cursor, merchant-services, merchant-tooltips, ui-ownership, loot, bags, bags-actions, bags-cursor, bags-drag, bank, guild-bank, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled, portal-density or trade"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, keybinds, sound, sound-click, merchant-click, merchant-cursor, merchant-services, merchant-tooltips, ui-ownership, loot, bags, bags-actions, bags-cursor, bags-drag, bank, guild-bank, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled, portal-density, trade or dev-ipc"
                 )
             }
         };
@@ -204,7 +208,8 @@ impl StartupScreen {
             | Self::PortalParticlesEnabled
             | Self::PortalParticlesDisabled
             | Self::PortalDensity
-            | Self::Trade => "inworld",
+            | Self::Trade
+            | Self::DevIpc => "inworld",
         }
     }
 }
@@ -366,6 +371,7 @@ impl FixtureConfig {
                 | StartupScreen::SoundClick
                 | StartupScreen::MerchantClick
                 | StartupScreen::Footsteps
+                | StartupScreen::DevIpc
         ) {
             fs::write(
                 config.home.join("world-of-osso/options_settings.ron"),
@@ -458,6 +464,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::Logout => "res://tests/world_logout_flow.gd",
         StartupScreen::Menu => "res://tests/world_menu_flow.gd",
         StartupScreen::Trade => "res://tests/world_trade_flow.gd",
+        StartupScreen::DevIpc => "res://tests/world_dev_ipc_flow.gd",
         _ => "res://tests/world_input_flow.gd",
     }
 }
@@ -495,6 +502,7 @@ fn launch_godot(
             | StartupScreen::PortalParticlesDisabled
             | StartupScreen::PortalDensity
             | StartupScreen::Trade
+            | StartupScreen::DevIpc
     ) {
         std::env::var_os("GODOT_BIN")
             .map(PathBuf::from)
@@ -555,6 +563,7 @@ fn launch_godot(
                     | StartupScreen::PortalParticlesDisabled
                     | StartupScreen::PortalDensity
                     | StartupScreen::Trade
+                    | StartupScreen::DevIpc
             ) {
                 &["--"][..]
             } else {
@@ -816,6 +825,7 @@ fn respond_to_selection(
                 | StartupScreen::MerchantTooltips
                 | StartupScreen::UiOwnership
                 | StartupScreen::Keybinds
+                | StartupScreen::DevIpc
         ) {
             app.world_mut()
                 .entity_mut(player)
@@ -1520,6 +1530,7 @@ fn main() {
             | StartupScreen::PortalDensity
             | StartupScreen::BagsActions
             | StartupScreen::Trade
+            | StartupScreen::DevIpc
     ) {
         assert!(
             launcher.is_file(),
@@ -1586,6 +1597,7 @@ fn main() {
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
             portal_particles::run(&mut app, &mut child, lines, reader, screen)
         }
+        StartupScreen::DevIpc => dev_ipc::run(&mut app, &mut child, lines, reader, root, address),
         StartupScreen::CharSelect | StartupScreen::InWorld | StartupScreen::Overlay => {
             run_fixture(&mut app, &mut child, lines, reader, screen)
         }
