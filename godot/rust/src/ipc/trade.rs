@@ -1,6 +1,8 @@
-//! `trade status` and the trade actions in the original response text (src/trade.rs
-//! `queue_ipc_request`, `apply_trade_update`, `format_status`): an action is answered by
-//! the server's next `TradeStateUpdate`.
+//! `trade status` and the trade actions in the original response text, re-stated
+//! because the originals read the Bevy `TradeClientState` resource: src/trade.rs:108
+//! `queue_ipc_request`, :125 `map_action`, :220 `apply_trade_update`, :241
+//! `format_status`, :262 `format_party`. An action is answered by the server's next
+//! `TradeStateUpdate`.
 use game_engine_network::ipc_wire::{Request, Response};
 use game_engine_ui_model::trade::TradeRequest;
 use shared::protocol::{SetTradeItem, TradePartySnapshot, TradePhase};

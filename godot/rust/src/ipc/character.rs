@@ -1,5 +1,5 @@
-//! `status character-stats` in the original response text (src/ipc/format_status.rs
-//! `format_character_stats_status`), from the selected roster entry, the local player's
+//! `status character-stats` in the original response text, re-stated because the
+//! original formats the Bevy `CharacterStatsSnapshot` (src/ipc/format_status.rs:503), from the selected roster entry, the local player's
 //! replicated unit, the server's rest state and the current zone, as the original
 //! `sync_character_stats_snapshot` and `receive_rest_state_update` fill it.
 use game_engine_network::ipc_wire::{Request, Response};

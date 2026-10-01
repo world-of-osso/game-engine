@@ -1,6 +1,8 @@
-//! Item, quest and presence status in the original response text (src/ipc/format.rs,
-//! src/ipc/plugin.rs `dispatch_inventory_request`, src/friends.rs
-//! `format_presence_status`). The original listed bags from the last auction-house
+//! Item, quest and presence status in the original response text. The originals format
+//! Bevy status resources (`crate::status` snapshots), so the text is re-stated here:
+//! bags src/ipc/format.rs:107, storage :139 (entries src/game/networking/bank.rs:299),
+//! quest list/watch/show :226/:249/:274, inventory list/search/whereis :496-598, item info
+//! :209, presence src/friends.rs:177. The original listed bags from the last auction-house
 //! inventory query; the native client lists the live bags. The guild vault and Warband
 //! bank list the last contents the server sent, with no item names, as the original.
 use game_engine_network::ipc_wire::{Request, Response};

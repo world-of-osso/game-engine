@@ -1,7 +1,8 @@
-//! `combat log` and `combat recap` in the original response text (src/ipc/format.rs
-//! `format_combat_log`, `format_combat_recap`) over the received `CombatEvent`s, mapped
-//! as the original `combat_event_to_log_entry` does (src/game/networking/
-//! messages_combat.rs): source and target are server entity bits.
+//! `combat log` and `combat recap` in the original response text over the received
+//! `CombatEvent`s, re-stated because the originals use the Bevy `CombatLogStatusSnapshot`
+//! types: src/ipc/format.rs:312/:331/:355, mapping src/game/networking/
+//! messages_combat.rs:71-150 (`combat_event_to_log_entry`), limit :352. Source and target
+//! are server entity bits.
 use std::collections::VecDeque;
 
 use game_engine_network::ipc_wire::{Request, Response};

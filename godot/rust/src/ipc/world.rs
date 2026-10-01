@@ -7,15 +7,13 @@
 //! entity IDs: `map target` reports the target's server entity.
 use game_engine_network::ipc_wire::{Request, Response};
 use game_engine_ui_model::{
-    group_state::{GroupCommand, GroupState},
+    group_state::GroupCommand,
+    ipc_format::{format_group_roster, format_group_status, resolve_spell_identifier},
     loot_data::{NpcRightClick, loot_chat_text, npc_right_click},
 };
 use shared::{
     components::{Health, Npc, Player},
-    protocol::{
-        EmoteIntent, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo, GroupMemberState, GroupRoleSnapshot,
-        ReadyCheckAnswer, SpellCastIntent,
-    },
+    protocol::{EmoteIntent, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo, SpellCastIntent},
 };
 
 impl crate::GameClient {
@@ -63,8 +61,8 @@ impl crate::GameClient {
             .is_some_and(|link| link.connected)
     }
 
-    /// `format_map_target`: the target's name, server entity, position and ground
-    /// distance from the local player.
+    /// The original `format_map_target` (src/ipc/format.rs:465, over Bevy queries): the
+    /// target's name, server entity, position and ground distance from the local player.
     fn map_target(&self) -> Result<String, String> {
         let Some(target) = self.targeting_target() else {
             return Ok("map_target: none\ndistance: -".into());
@@ -86,7 +84,8 @@ impl crate::GameClient {
         ))
     }
 
-    /// A right-click on the nearest NPC named `name` (auto-loot off; the server checks
+    /// The original `handle_quest_interact` (src/ipc/plugin.rs:761, over Bevy queries):
+    /// a right-click on the nearest NPC named `name` (auto-loot off; the server checks
     /// range), else a use of the nearest game object of that name, else targeting the
     /// player of that name.
     fn quest_interact(&mut self, name: &str) -> Result<String, String> {
@@ -166,7 +165,8 @@ impl crate::GameClient {
         Ok(format!("target {player}"))
     }
 
-    /// Takes every slot of the open loot window; the answer lists what was on them.
+    /// The original `handle_loot_take_all` (src/ipc/plugin.rs:742): takes every slot of
+    /// the open loot window; the answer lists what was on them.
     fn loot_take_all(&self) -> Result<String, String> {
         let corpse = self.loot.state.corpse.ok_or("no loot window open")?;
         for slot in &self.loot.state.slots {
@@ -232,25 +232,8 @@ impl crate::GameClient {
     }
 }
 
-/// `resolve_spell_identifier`: a spell ID or a name token.
-fn resolve_spell_identifier(spell: &str) -> Result<(Option<u32>, String), String> {
-    let trimmed = spell.trim();
-    if trimmed.is_empty() {
-        return Err("spell identifier cannot be empty".into());
-    }
-    if let Ok(spell_id) = trimmed.parse::<u32>() {
-        return Ok((Some(spell_id), trimmed.to_string()));
-    }
-    let valid_token = trimmed
-        .chars()
-        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == ' ' || ch == '-');
-    if !valid_token {
-        return Err(format!("invalid spell identifier '{trimmed}'"));
-    }
-    Ok((None, trimmed.to_string()))
-}
-
-/// `resolve_spell_target`: the current target (default or `current`), `none`, or a
+/// The original `resolve_spell_target` (src/ipc/format.rs:622), which reads the
+/// Bevy `CurrentTarget` entity: the current target (default or `current`), `none`, or a
 /// server entity.
 fn resolve_spell_target(
     selector: Option<&str>,
@@ -268,94 +251,5 @@ fn resolve_spell_target(
             .parse::<u64>()
             .map(Some)
             .map_err(|_| format!("invalid target selector '{selector}'")),
-    }
-}
-
-/// `format_group_roster`.
-fn format_group_roster(group: &GroupState) -> String {
-    if group.members.is_empty() {
-        return "group_roster: 0\n-".into();
-    }
-    let lines = group
-        .members
-        .iter()
-        .map(|m| {
-            format!(
-                "{} leader={} role={} online={} subgroup={} level={}{}{}",
-                m.name,
-                m.is_leader,
-                role_label(&m.role),
-                m.online,
-                m.subgroup,
-                m.level,
-                group
-                    .live
-                    .get(&m.name)
-                    .map(format_member_live)
-                    .unwrap_or_default(),
-                group
-                    .ready_mark(&m.name)
-                    .map(|mark| format!(" ready={mark:?}"))
-                    .unwrap_or_default(),
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("group_roster: {}\n{lines}", group.members.len())
-}
-
-fn format_member_live(live: &GroupMemberState) -> String {
-    let power = live
-        .power
-        .as_ref()
-        .map(|p| format!(" power={:?}:{}/{}", p.power, p.current, p.max))
-        .unwrap_or_default();
-    let debuffs = live
-        .debuffs
-        .iter()
-        .map(|d| format!("{}:{}", d.spell_id, d.dispel_type))
-        .collect::<Vec<_>>()
-        .join(",");
-    format!(
-        " hp={}/{}{power} death={:?} pos={:.1},{:.1},{:.1} debuffs=[{debuffs}]",
-        live.health, live.max_health, live.death, live.position.x, live.position.y, live.position.z
-    )
-}
-
-/// `format_group_status`.
-fn format_group_status(group: &GroupState) -> String {
-    let ready = group
-        .ready_check
-        .as_ref()
-        .map(|view| {
-            let answered = view
-                .update
-                .members
-                .iter()
-                .filter(|m| m.answer == ReadyCheckAnswer::Ready)
-                .count();
-            format!(
-                "{answered}/{} finished={}",
-                view.update.members.len(),
-                view.update.finished
-            )
-        })
-        .unwrap_or_else(|| "-".into());
-    format!(
-        "in_group: {}\nis_raid: {}\nmembers: {}\nready_check: {ready}\npending_invite: {}\nlast_message: {}",
-        group.in_group(),
-        group.is_raid,
-        group.members.len(),
-        group.pending_invite.as_deref().unwrap_or("-"),
-        group.last_server_message.as_deref().unwrap_or("-")
-    )
-}
-
-fn role_label(role: &GroupRoleSnapshot) -> &'static str {
-    match role {
-        GroupRoleSnapshot::Tank => "tank",
-        GroupRoleSnapshot::Healer => "healer",
-        GroupRoleSnapshot::Damage => "damage",
-        GroupRoleSnapshot::None => "none",
     }
 }
