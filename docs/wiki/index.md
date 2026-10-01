@@ -26,7 +26,7 @@ Engine subsystems and how they work.
 - [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
 - [loot-and-flight](systems/loot-and-flight.md) — corpses, Retail LootFrame, auto-loot and cursor, Retail FlightMapFrame on UiMap art, server-driven flights and `MovementControl` repositioning
 - [chat-frame](systems/chat-frame.md) — tabbed `ChatFrame1` (Chattynator look) shared by Bevy and Godot: server chat routing, retail line wording/colours, slash commands, edit box focus, combat log tab; live Godot fixture on a private server
-- [cursor-item](systems/cursor-item.md) — legacy cursor pickup/drop/swap/equip/destroy, StackSplitFrame, merchant and catalog tooltips; [native bags/cursor boundary](systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending): saved standalone window PASS, new cursor consumer build/runtime/gate pending
+- [cursor-item](systems/cursor-item.md) — legacy cursor pickup/drop/swap/equip/destroy, StackSplitFrame, merchant and catalog tooltips; [native bags/cursor boundary](systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending): saved standalone window PASS, cursor pure policy 8/8 and icon 1/1; first actual GREEN blocked at startup, post-animation-gate rebuild/runtime/independent proof pending
 - [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All; Godot port with right-click interact, NPC cursors, vendor split, owned UDP merchant-click proof, and native selected-character MerchantFrame-only placement
 - [professions-ui](systems/professions-ui.md) — Retail trainer frame, ProfessionsBook (K) and ProfessionsFrame: DB2 recipe catalog, ProfessionSnapshot, CraftRecipe through the spell pipeline
 - [quest-ui](systems/quest-ui.md) — client quest runtime, objective tracker, quest log (L), quest giver frame and talktome markers on the server quest/interaction protocol
@@ -70,6 +70,8 @@ Architecture decisions and feature designs.
 - [collision-system](design/collision-system.md) — collision layers: terrain and WMO floors (see player-ground), horizontal WMO/M2 blocking; no M2 floors
 
 ## Investigations
+
+- [local-animation-loading-gate](investigations/local-animation-loading-gate.md) — first cursor GREEN fails before readiness after async world entry; `f7b137fb` gates local animation on InWorld without suppressing missing-visual errors. Post-gate rebuild/GREEN/independent proof pending.
 
 - [charcreate-invalid-customization-combos](investigations/charcreate-invalid-customization-combos.md) — Tan swatch + face 27 rendered a teal body: overlay/tint layer blend modes were copied opaquely; Death Knight/NPC/transmog choices were offered because ChrCustomizationReq/ReqChoice were not evaluated.
 - [godot-torch-rendering](investigations/godot-torch-rendering.md) — particledebug torch vs solarity/WebWowViewerCpp: halo quad needed bone billboarding and the flame's M2 point light was never rendered; both added, remaining gaps listed.
