@@ -183,7 +183,9 @@ impl GameClient {
         let Some(mut ui) = self.character_frame.ui.clone() else {
             return Ok(());
         };
-        for input in ui.bind_mut().drain_bag_inputs()? {
+        // The guard must drop first: a release resolves its target over every UI.
+        let inputs = ui.bind_mut().drain_bag_inputs()?;
+        for input in inputs {
             self.dispatch_bag_cursor_input(input)?;
         }
         Ok(())
@@ -406,6 +408,23 @@ impl GameClient {
         }
         self.character_frame.tooltip_ui = Some(ui);
         Ok(())
+    }
+}
+
+impl GameClient {
+    /// Open state, the frame's slot icons, the model preview and the tooltip, for automation.
+    pub(super) fn character_frame_snapshot(&self) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        state.set("open", self.character_frame.open);
+        self.character_frame.preview.snapshot(&mut state);
+        state.set(
+            "world_slots",
+            &preview::appearance_slots(self.world.local_player_appearance()),
+        );
+        let tooltip = self.character_tooltip_state();
+        state.set("tooltip_visible", tooltip.visible);
+        state.set("tooltip_title", tooltip.title.as_str());
+        state
     }
 }
 
