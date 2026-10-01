@@ -728,6 +728,19 @@ impl WowAnimationPlayer {
         true
     }
 
+    /// Play model clip `id` (base variation), crossfading as gameplay does.
+    #[func]
+    fn play_animation(&mut self, id: i32, looping: bool) -> bool {
+        let played = u16::try_from(id)
+            .map_err(|_| format!("Invalid animation ID {id}"))
+            .and_then(|id| self.play_clip(id, looping));
+        if let Err(error) = played {
+            godot_error!("{error}");
+            return false;
+        }
+        true
+    }
+
     #[func]
     pub(crate) fn advance_time_ms(&mut self, delta_ms: f64) -> bool {
         if self.paused {

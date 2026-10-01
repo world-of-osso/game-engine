@@ -43,14 +43,55 @@ Skin files contain render batches that pair a submesh with a material and a text
 
 ## Materials and Render Flags
 
-The `M2Material` table (parsed from MD20 offset `0x70`) holds per-batch `flags` and `blend_mode`:
+The `M2Material` table (parsed from MD20 offset `0x70`) holds per-batch `flags` and `blend_mode`
+(WebWowViewerCpp `1a8cccb` `m2Object.cpp` createM2Material, `M2MeshBufferUpdater.cpp`):
 
 | Flag | Meaning |
 |------|---------|
-| `0x01` | Unlit |
+| `0x01` | Unlit (IsAffectedByLight off) |
+| `0x02` | Unfogged |
 | `0x04` | Two-sided (no backface cull) |
+| `0x08` | No depth test |
+| `0x10` | No depth write (blended batches otherwise still write depth) |
 
-Blend modes follow WMVx conventions: 0=Opaque, 1=AlphaMask, 2=AlphaBlend, 3=Additive (SRC_COLOR), 4=Additive alpha (SRC_ALPHA), 5=Modulate, 6=ModulateX2, 7=BlendAdd.
+Blend mode -> `EGxBlend` (M2BlendingModeToEGxBlendEnum) and GL factors: 0 Opaque, 1 AlphaKey
+(discard combiner alpha < 128/255), 2 Alpha (SRC_ALPHA, 1-SRC_ALPHA), 3 NoAlphaAdd (ONE, ONE),
+4 Add (SRC_ALPHA, ONE), 5 Mod (DST_COLOR, ZERO), 6 Mod2x (DST_COLOR, SRC_COLOR), 7 BlendAdd
+(ONE, 1-SRC_ALPHA). The written colour and alpha clamp to [0, 1] (UNORM attachment).
+
+## Batch Shaders
+
+A skin batch's `shader_id` and `textureCount` select a pixel shader (combiner, `calcM2FragMaterial`,
+37 ids) and a vertex shader (texture-coordinate generator, `calcM2VertexMat`, 19 ids), retail
+"Legion logic" (`getPixelShaderId`, `getVertexShaderId`):
+
+- `shader_id & 0x8000`: row `shader_id & 0x7FFF` of the 36-row `M2ShaderTable`. `0x8000` itself is
+  row 0, Opaque_Mod2xNA_Alpha + Diffuse_T1_Env: the env shine of armor and characters (1,335 of
+  17.8k local batches). WotLK's `getShaderNames` numbering (0x8001 = Mod2xNA_Alpha) is not retail.
+- Otherwise, one texture: pixel 0 (Opaque) or 1 (Mod, `shader_id & 0x70`); vertex Diffuse_T1,
+  Diffuse_T2 (`0x4000`) or Diffuse_Env (`0x80`). Two or more: `shader_id & 7` picks the Opaque_*
+  or Mod_* combiner, `0x80`/`0x8`/`0x4000` the vertex shader.
+- Up to four textures are sampled: `textureLookup[textureComboIndex + j]`.
+- Env coordinates are the view-space sphere map `posToTexCoord`; edge fade (vertex shaders 9, 12,
+  13) scales the mesh colour and alpha by `clamp(2.7 (N.V)^2 - 0.4)`.
+- Combiner specular (Add/AddAlpha terms) is added after lighting, times the mesh colour.
+
+Mesh colour is `colors[colorIndex]` (RGB, alpha); mesh opacity is its alpha times texture weight 0
+(`transparencyLookup[textureWeightComboIndex]`) unless batch flag `0x40` is set. Weights 0..2 also
+feed the `_Wgt`/crossfade combiners. A batch whose opacity is below 0.0001 is skipped that frame
+(`forEachVisibleMesh`), not dropped. Local tracks (global sequence -1) loop sequence 0 (Stand).
+
+## Texture Transforms
+
+`M2TextureTransform` (MD20 `0x60`, 60 bytes): translation `M2Track<C3Vector>`, rotation
+`M2Track<C4Quaternion>` (four floats, not the compressed bone quaternion) and scaling. The matrix
+is rotation then scale about the texture centre (0.5, 0.5), then translation, applied to
+(u, v, 0, 1) (`calcTextureAnimationTransform`). Matrix slots are
+`textureTransformsLookup[textureTransformComboIndex + {0, 1}]`, `{0, 2}` for Diffuse_T1_Env_T2.
+Every batch uses them, single-texture ones included (waterfalls, lava, portals).
+
+`M2Texture.flags` (MD20 `0x50`, 16-byte entries): `0x1` wraps U, `0x2` wraps V; an axis without
+its flag clamps to the edge.
 
 ## Texture Types
 
@@ -79,6 +120,8 @@ For MD20 version 274 inside the `MD21` chunk, the camera array header is at payl
 Particle emitter data lives in the MD21 header at offset `0x128` (Cata+ layout, 476-byte stride). Each emitter references a bone index, a texture FDID (from TXID), and carries M2Track fields for emission speed, gravity, lifespan, etc. See [[particle-system]] for the renderer details and known limitations.
 
 ## Sources
+
+- WebWowViewerCpp `1a8cccb`: `wowViewerLib/src/engine/objects/m2/m2Object.cpp`, `m2Helpers/M2MeshBufferUpdater.cpp`, `managers/animationManager.cpp`, `shaders/slang/common/commonM2Material.slang`, `bindless/m2/m2shader_text.slang`
 
 - [wowlib M2 camera records](https://skarndev.github.io/wowlib/python/m2/records/) — versioned camera fields and spline/FOV interpretation
 - [M2 camera parser](../../../src/asset/m2_format/m2_camera.rs) — MD20 layout, bounds checks, and cached creation-model fixtures

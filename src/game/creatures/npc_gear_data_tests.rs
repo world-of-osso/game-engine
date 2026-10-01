@@ -115,6 +115,23 @@ fn rifle_without_sheath_position_stays_in_hand_and_ranged_copy_hides() {
     );
 }
 
+/// Native `GetSheatheLink` (solarityclient `sheath_point`): a back (1) or large back (2)
+/// sheath has a main-hand and an off-hand link, so two sheathed weapons do not overlap;
+/// a gun or thrown weapon (InventoryType 26/25) uses the main-hand side.
+#[test]
+fn sheathed_main_and_off_hand_use_their_own_sides() {
+    use EquipmentVisualSlot::{MainHand, OffHand, Ranged};
+    let sheathed = |slot, inventory_type, sheathe_type| {
+        virtual_item_attachment(slot, inventory_type, sheathe_type, SheathState::Unarmed)
+    };
+    assert_eq!(sheathed(MainHand, 13, 1), Some(26));
+    assert_eq!(sheathed(OffHand, 13, 1), Some(27));
+    assert_eq!(sheathed(MainHand, 17, 2), Some(30));
+    assert_eq!(sheathed(OffHand, 17, 2), Some(31));
+    assert_eq!(sheathed(Ranged, 26, 1), Some(26));
+    assert_eq!(sheathed(Ranged, 15, 1), Some(27));
+}
+
 /// Stockade Guard display 2989 → CreatureDisplayInfoExtra 1274, build 12.1.0.69933.
 #[test]
 fn stockade_guard_display_authors_its_armor() {

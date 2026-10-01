@@ -214,6 +214,11 @@ impl GameClient {
     ) -> Result<(), FrameError> {
         let location = parse_bag_location(action)?;
         self.bags.cursor.split = None;
+        if !click.right
+            && let Some(effect) = self.merchant.session.repair_click(location)
+        {
+            return Ok(self.apply_merchant_effect(effect)?);
+        }
         if click.right {
             // ContainerFrame.lua:1405-1406: with TradeFrame shown the item goes to the trade.
             if self.offer_trade_item(action)? {

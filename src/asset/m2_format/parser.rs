@@ -94,7 +94,7 @@ struct RawM2TextureUnit {
 #[br(little)]
 struct M2TextureTypeEntry {
     texture_type: u32,
-    _flags: u32,
+    flags: u32,
     _filename_length: u32,
     _filename_offset: u32,
 }
@@ -317,6 +317,18 @@ pub(crate) fn parse_texture_types(md20: &[u8]) -> Result<Vec<u32>, String> {
     )?
     .into_iter()
     .map(|entry| entry.texture_type)
+    .collect())
+}
+
+/// M2Texture flags: 0x1 wraps U and 0x2 wraps V; without them the axis clamps.
+pub(crate) fn parse_texture_flags(md20: &[u8]) -> Result<Vec<u32>, String> {
+    Ok(read_m2_array::<M2TextureTypeEntry>(
+        md20,
+        super::MD20_TEXTURES_COUNT_OFFSET,
+        "texture flags",
+    )?
+    .into_iter()
+    .map(|entry| entry.flags)
     .collect())
 }
 

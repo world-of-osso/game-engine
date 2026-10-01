@@ -47,6 +47,8 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   LiquidMaterial               FDID 1132538
   LiquidObject                 FDID 1308058
   LiquidTypeXTexture           FDID 2261065
+  ComponentTextureFileData     FDID 1278239
+  ComponentModelFileData       FDID 1349053
 """
 
 import csv
@@ -458,6 +460,22 @@ TABLES = {
             ("OrderIndex", ("int", 1, 0)),
             ("Type", ("i8", 2)),
             ("LiquidTypeID", "parent"),
+        ],
+    ),
+    # Race/sex/class owner of an item texture or model file (WMVx
+    # `FileDataGameDatabase::findByMaterialResId`/`findByModelResId`).
+    "ComponentTextureFileData": (
+        0xB32B030A,
+        [("ID", "id"), ("GenderIndex", ("u8", 0)), ("ClassID", ("u8", 1)), ("RaceID", ("u8", 2))],
+    ),
+    "ComponentModelFileData": (
+        0xAD90D87A,
+        [
+            ("ID", "id"),
+            ("GenderIndex", ("u8", 0)),
+            ("ClassID", ("u8", 1)),
+            ("RaceID", ("u8", 2)),
+            ("PositionIndex", ("i8", 3)),
         ],
     ),
 }
