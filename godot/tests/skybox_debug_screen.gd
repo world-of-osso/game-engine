@@ -63,12 +63,16 @@ func run_test() -> void:
 		return
 	if not await check_orbit_input():
 		return
+	if not await check_authored_animation():
+		return
+	if not await check_default_layers():
+		return
 	if not await check_sky_pixels():
 		return
 	if not check_offline():
 		return
 	print("LIMIT: no original-expected pixel oracle; contribution is not full pixel parity")
-	print("LIMIT: cached sequence durations alone do not prove varying material/bone tracks; no live-animation assertion")
+	print("LIMIT: concrete batch0 UV translation proof does not cover every bone/material track")
 	print("PASS: bounded production skybox startup/source/camera/input/composition/contribution observer")
 	quit(0)
 
@@ -221,7 +225,7 @@ func check_offline() -> bool:
 	var state: Dictionary = client.call("account_state")
 	if not state.has("reply_received"):
 		return reject("Production account_state lacks reply_received")
-	var reply_received: bool = state["reply_received"]
+	var reply_received := bool(state["reply_received"])
 	if reply_received:
 		return reject("Offline SkyboxDebug received authentication reply")
 	return true
@@ -274,7 +278,7 @@ func check_rendered_fog() -> bool:
 	var material := plane.get_active_material(0) as ShaderMaterial
 	if material == null:
 		return reject("Reference plane lacks actual shader-owned fog material")
-	var original: bool = material.get_shader_parameter("linear_fog_enabled")
+	var original := bool(material.get_shader_parameter("linear_fog_enabled"))
 	if not original:
 		return reject("Default forced-source reference shader fog is disabled")
 	var enabled := await capture("fog-enabled.png")
@@ -404,7 +408,122 @@ func mouse_button(button: MouseButton, pressed: bool, factor: float = 1.0) -> vo
 	event.factor = factor
 	root.push_input(event, true)
 
+func check_authored_animation() -> bool:
+	# Independent cached MD21 + SKIN observations: batch0's first texture uses
+	# translation track0, linear keys at 0 and the global-sequence0 endpoint.
+	var period := 200000
+	var endpoint := 1.0000001192092896
+	var model_hash := "d337757ddb5848f7e2b7e9feeaa302f2c73db4e619d16aa88636feb996c30b47"
+	var skin_hash := "e794dfb98491f1f22c3b67ba3ae587d8fbc0c68ffa2a419266b4ff6a5247ce26"
+	if expected_file == "11xp_cloudsky01.m2":
+		period = 733333
+		endpoint = 4.0
+		model_hash = "b15bf9b587b81c55e7c5fcba843adfe603dcd348a1f9041353a708f4ee37e517"
+		skin_hash = "9dd550de7fb3f13c2301e7bdea45921b9d0a6f2a25c3f185d4c0d06150742804"
+	var source := str(sky.get_meta(SOURCE_META))
+	if FileAccess.get_sha256(source) != model_hash:
+		return reject("Concrete animation fixture M2 hash differs; reestablish expected tracks")
+	var skin_path := source.get_basename() + "00.skin"
+	if FileAccess.get_sha256(skin_path) != skin_hash:
+		return reject("Concrete animation fixture SKIN hash differs; reestablish batch0 binding")
+	var batch := sky.get_node_or_null("SkyBatch0") as MeshInstance3D
+	if batch == null:
+		return reject("Concrete animated source batch0 unavailable")
+	var material := batch.get_active_material(0) as ShaderMaterial
+	if material == null:
+		return reject("Concrete animated batch0 lacks ShaderMaterial")
+	if not check_uv_sample(material, period, endpoint):
+		return false
+	var first_uv: Vector2 = material.get_shader_parameter("uv_offset_1")
+	var first := await capture("animation-start.png")
+	if first == null:
+		return false
+	var deadline := Time.get_ticks_msec() + 4000
+	while Time.get_ticks_msec() < deadline:
+		await RenderingServer.frame_post_draw
+		if not check_uv_sample(material, period, endpoint):
+			return false
+	var later := await capture("animation-later.png")
+	if later == null:
+		return false
+	var last_uv: Vector2 = material.get_shader_parameter("uv_offset_1")
+	var changed := changed_pixels(first, later)
+	if fixed_time:
+		if first_uv.distance_to(last_uv) > 0.000002 or changed != 0:
+			return reject("Fixed concrete UV sample/rendered output changed")
+	else:
+		if first_uv.distance_to(last_uv) < 0.001:
+			return reject("Live concrete translation track did not advance naturally")
+		if changed < 100:
+			return reject("Live UV advanced but too few rendered authored pixels changed: %d" % changed)
+	print("FIXTURE TRACK0 period=", period, " endpoint=", endpoint, " fixed=", fixed_time, " first=", first_uv, " last=", last_uv, " rendered_changed=", changed)
+	return true
+
+func check_uv_sample(material: ShaderMaterial, period: int, endpoint: float) -> bool:
+	var elapsed := 0
+	if fixed_time:
+		elapsed = int(first_value(OS.get_cmdline_user_args(), "--skybox-time-ms"))
+	else:
+		var clock := root.get_node_or_null("M2MaterialClock")
+		if clock == null:
+			return reject("Actual live material clock unavailable")
+		elapsed = int(clock.call("elapsed_time_ms"))
+	var phase := elapsed % period
+	var expected := Vector2(endpoint * float(phase) / float(period), 0.0)
+	var actual: Vector2 = material.get_shader_parameter("uv_offset_1")
+	if actual.distance_to(expected) > 0.000002:
+		return reject("Concrete batch0 translation mismatch ms=%d expected=%s actual=%s" % [elapsed, expected, actual])
+	return true
+
+func changed_pixels(a: Image, b: Image) -> int:
+	var changed := 0
+	for y in range(0, a.get_height(), 2):
+		for x in range(0, a.get_width(), 2):
+			if pixel_delta(a, b, Vector2i(x, y)) > PIXEL_DELTA:
+				changed += 1
+	return changed
+
+func check_default_layers() -> bool:
+	if verify_only:
+		return true
+	if not fixed_time:
+		print("LIMIT: live default layer A/B/A attribution skipped; use fixed-time composition run")
+		return true
+	var plane := scene.get_node_or_null("SkyboxDebugGroundPlane") as MeshInstance3D
+	var dome := camera.get_node_or_null("SkyDome") as MeshInstance3D
+	if plane == null or dome == null:
+		return reject("Default production reference/procedural actors unavailable")
+	var sky_visible := sky.visible
+	var plane_visible := plane.visible
+	var dome_visible := dome.visible
+	sky.visible = false
+	var baseline := await capture("composition-baseline.png")
+	plane.visible = false
+	var procedural := await capture("composition-procedural.png")
+	dome.visible = false
+	var clear := await capture("composition-clear.png")
+	dome.visible = dome_visible
+	plane.visible = plane_visible
+	var restored := await capture("composition-baseline-restored.png")
+	sky.visible = sky_visible
+	if baseline == null or procedural == null:
+		return false
+	if clear == null or restored == null:
+		return false
+	var plane_pixels := changed_pixels(baseline, procedural)
+	var dome_pixels := changed_pixels(procedural, clear)
+	if plane_pixels < 100 or dome_pixels < 100:
+		return reject("Default reference/procedural actors lack rendered contributions: %d/%d" % [plane_pixels, dome_pixels])
+	if changed_pixels(baseline, restored) != 0:
+		return reject("Default reference/procedural composition failed actual actor hide/restore")
+	print("FIXTURE DEFAULT_LAYERS reference_pixels=", plane_pixels, " procedural_pixels=", dome_pixels)
+	print("LIMIT: layer contributions are not original-renderer pixel equivalence")
+	return true
+
 func check_sky_pixels() -> bool:
+	if not fixed_time:
+		print("LIMIT: live authored hide/restore attribution skipped; concrete track/rendered change tested separately")
+		return true
 	# Visible Control rectangles are excluded from the sky mask; UI is not hidden.
 	for node in client.find_children("*", "Control", true, false):
 		var control := node as Control
