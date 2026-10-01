@@ -171,6 +171,22 @@ fn run_fixture() -> Result<(), String> {
     ] {
         call_cli(&cli, &socket, &artifacts, name, &args)?;
     }
+    let scene = artifacts.join("scene.json");
+    let scene_path = scene.to_str().ok_or("Non-UTF8 fixture scene path")?;
+    let exported = call_cli(
+        &cli,
+        &socket,
+        &artifacts,
+        "export-scene",
+        &["export-scene", scene_path],
+    )?;
+    if exported.trim() != format!("scene exported to {scene_path}") {
+        return Err(format!(
+            "CLI export-scene changed existing plain output: {exported:?}"
+        ));
+    }
+    fs::write(artifacts.join("verify-export"), "").map_err(|error| error.to_string())?;
+    wait_file(&artifacts.join("verified-export"), &mut native)?;
     for phase in ["red", "green"] {
         let image = artifacts.join(format!("{phase}.webp"));
         let image_path = image.to_str().ok_or("Non-UTF8 fixture image path")?;
