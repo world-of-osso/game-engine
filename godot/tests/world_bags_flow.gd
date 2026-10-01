@@ -341,9 +341,11 @@ func quiet_tooltip_inventory(client: Node, backpack_open: bool, backpack_rect: R
 	for frame in range(8):
 		await process_frame
 		var state: Dictionary = client.merchant_state()
+		# merchant_state.cursor names the NPC pointer shape, not a carried bag item.
 		var cursor_icon := authored_control(client, "CursorItemIcon")
+		var split := authored_control(client, "StackSplitFrame")
 		var popup := authored_control(client, "StaticPopup1")
-		if not bag_inventory_matches(client) or state.cursor != "" or state.split_open or (cursor_icon != null and cursor_icon.is_visible_in_tree()) or (popup != null and popup.is_visible_in_tree()):
+		if not bag_inventory_matches(client) or state.split_open or (cursor_icon != null and cursor_icon.is_visible_in_tree()) or (split != null and split.is_visible_in_tree()) or (popup != null and popup.is_visible_in_tree()):
 			fail("Item hover changed exact authoritative inventory/cursor/split/popup: %s" % state)
 			return false
 		var container := authored_control(client, "ContainerFrame0")
