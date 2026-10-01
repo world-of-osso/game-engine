@@ -21,7 +21,7 @@ use game_engine_ui_model::{
 };
 use godot::{
     classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion},
-    global::{Key, MouseButton},
+    global::MouseButton,
     prelude::*,
 };
 use shared::protocol::GameObjectInfo;
@@ -156,13 +156,12 @@ impl GameClient {
         }
         Ok(())
     }
-    pub(super) fn mailbox_key(&mut self, key: Key) -> Result<bool, SessionError> {
-        if key != Key::ESCAPE || !self.mailbox.session.is_open() {
+    /// Escape's `CloseAllWindows` hides MailFrame and an open letter together.
+    pub(super) fn close_mailbox_window(&mut self) -> Result<bool, SessionError> {
+        if !self.mailbox.session.is_open() {
             return Ok(false);
         }
-        if !self.mailbox.session.close_open_mail() {
-            self.close_mailbox()?;
-        }
+        self.close_mailbox()?;
         Ok(true)
     }
     fn money(&self) -> u64 {
@@ -520,6 +519,15 @@ impl GameClient {
             &[close.map(|n| n / scale)],
         ) {
             return false;
+        }
+        // A window raised over the title owns the press instead of the mailbox.
+        match self.ui_owns_point(&ui, button.get_position()) {
+            Ok(true) => {}
+            Ok(false) => return false,
+            Err(error) => {
+                godot_error!("Mailbox title hit-test: {error}");
+                return false;
+            }
         }
         self.mailbox.drag = Some(WindowDrag::begin(
             button.get_position() / scale,
