@@ -19,6 +19,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [x] Side tabs are 42×50 (UI-GuildBankFrame-Tab), starting at TOPRIGHT −1,−17 and stepping 50 down. The Guild Master's buy tab (UI-GuildBankFrame-NewTab) comes last.
 - [x] Mode tabs Guild Bank / Log / Money Log / Info start at BOTTOMLEFT 7,−30. The shown mode takes no click.
 - [x] Tab title plate: the name plus its access suffix — `(Full Access)` in green, or `(Withdraw Only)` / `(Deposit Only)` / `(Locked)` in red. A locked tab greys its columns.
+- [x] The name and its suffix sit on one line. Both labels are sized to their text, as `TabTitle` has no width (GB.xml:195-199). The `guild-bank` fixture fails if either label wraps.
 - [x] Withdrawal plate: `GUILDBANK_REMAINING_MONEY` with `N Stacks`, `None` or `Unlimited`.
 - [x] Money bar: `Available Amount:` shows the withdraw allowance, or `Unlimited`. The guild money sits at BOTTOMRIGHT, with Deposit and Withdraw buttons (100×21). Withdraw is disabled without an allowance.
 - [x] Buy screen (Guild Master, buy tab selected): "Do you wish to purchase this tab?", "(n/6 tabs purchased)", the price and a Purchase button (124×21). Purchase opens `CONFIRM_BUY_GUILDBANK_TAB`, and accepting sends `GuildBankBuyTab`. Non-leaders see `NO_GUILDBANK_TABS`.
