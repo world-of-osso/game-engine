@@ -190,6 +190,8 @@ impl NetworkBridge {
             .receive_mirror_timers()
             .receive_loot()
             .receive_mail()
+            // Player trade: one message type, so channel order is kept.
+            .receive::<protocol::TradeStateUpdate>()
             // Spellbook, action bar and casting.
             .receive::<KnownSpellsSnapshot>()
             .receive::<SpellsLearned>()

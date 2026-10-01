@@ -407,6 +407,12 @@ impl GameClient {
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.apply_targeting_input();
         }
+        if self.targeting.target.is_none() {
+            self.unit_menu = crate::unit_menu::UnitMenu::default();
+        }
+        if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
+            self.poll_unit_menu_actions()?;
+        }
         self.follow_selection_with_auto_attack()?;
         self.send_target()?;
         self.sync_target_circle()?;
@@ -557,7 +563,8 @@ impl GameClient {
                 state
             });
         let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());
-        let state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
+        let mut state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
+        state.menu = self.unit_menu.state.clone();
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             ui.bind_mut().set_state(state)?;
         } else {

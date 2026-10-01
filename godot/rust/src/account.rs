@@ -16,6 +16,11 @@ use game_engine_session::{
     normalize_auth_token, token_path,
 };
 use game_engine_ui_model::bank_data::{BankRequest, GuildBankRequest};
+use game_engine_ui_model::trade::TradeRequest;
+use shared::protocol::{
+    AcceptTrade, CancelTrade, CancelTradeAccept, ClearTradeItem, ConfirmTrade, DeclineTrade,
+    InitiateTrade, SetTradeMoney, TradeChannel, TradeStateUpdate,
+};
 use shared::protocol::{
     ActionBarSnapshot, AttackStart, AttackStop, AttackStopped, AttackSwing, AuthChannel,
     CastFailed, CharacterListUpdate, ChatChannel, ChatMessage, CombatChannel, CombatEvent,
@@ -144,6 +149,8 @@ pub enum AccountEvent {
     Npc(NpcMessage),
     Auction(AuctionReply),
     Mail(MailMessage),
+    /// `TradeStateUpdate`: the trade snapshot, its refusal and message.
+    Trade(TradeStateUpdate),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     Loot(LootMessage),
@@ -533,6 +540,28 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_trade(&self, request: TradeRequest) -> Result<(), SessionError> {
+        let bridge = self.bridge()?;
+        match request {
+            TradeRequest::Initiate(target_name) => {
+                bridge.send::<_, TradeChannel>(InitiateTrade { target_name })
+            }
+            TradeRequest::Accept => bridge.send::<_, TradeChannel>(AcceptTrade),
+            TradeRequest::Decline => bridge.send::<_, TradeChannel>(DeclineTrade),
+            TradeRequest::Cancel => bridge.send::<_, TradeChannel>(CancelTrade),
+            TradeRequest::SetItem(item) => bridge.send::<_, TradeChannel>(item),
+            TradeRequest::ClearItem(slot) => {
+                bridge.send::<_, TradeChannel>(ClearTradeItem { slot })
+            }
+            TradeRequest::SetMoney(copper) => {
+                bridge.send::<_, TradeChannel>(SetTradeMoney { copper })
+            }
+            TradeRequest::Confirm => bridge.send::<_, TradeChannel>(ConfirmTrade),
+            TradeRequest::CancelAccept => bridge.send::<_, TradeChannel>(CancelTradeAccept),
+        }
+        .map_err(SessionError)
+    }
+
     pub fn send_mail(&self, mail: SendMail) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, MailChannel>(mail)
@@ -798,6 +827,10 @@ impl Account {
         }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<TradeStateUpdate>() {
+            output.push(AccountEvent::Trade(decode(message)?));
             return Ok(());
         }
         if is_loot_message(&message) {
