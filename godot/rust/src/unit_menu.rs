@@ -65,7 +65,7 @@ impl GameClient {
         let point = button.get_position();
         match button.get_button_index() {
             MouseButton::RIGHT => self.open_unit_menu(point),
-            MouseButton::LEFT if !self.unit_menu_rect_contains(point) => {
+            MouseButton::LEFT if !self.pointer_over_unit_menu() => {
                 self.unit_menu = UnitMenu::default();
                 false
             }
@@ -129,13 +129,27 @@ impl GameClient {
         }
     }
 
-    fn unit_menu_rect_contains(&self, point: Vector2) -> bool {
-        self.unit_menu.state.visible
-            && self
-                .targeting
-                .frame_ui()
-                .and_then(|ui| ui.bind().frame_rect("UnitFrameContextMenu"))
-                .is_some_and(|(rect, _)| inside(rect, point))
+    /// Whether the pointer is over the open menu (its frame or any entry).
+    fn pointer_over_unit_menu(&self) -> bool {
+        if !self.unit_menu.state.visible {
+            return false;
+        }
+        let mut node = self
+            .base()
+            .get_viewport()
+            .and_then(|viewport| viewport.gui_get_hovered_control())
+            .map(|control| control.upcast::<Node>());
+        while let Some(current) = node {
+            if current
+                .get_name()
+                .to_string()
+                .starts_with("UnitFrameContextMenu")
+            {
+                return true;
+            }
+            node = current.get_parent();
+        }
+        false
     }
 
     /// The menu's button clicks; the menu closes after any entry.
