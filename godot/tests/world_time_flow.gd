@@ -42,3 +42,7 @@ func run_test() -> void:
 func local_half_minutes() -> float:
 	var now := Time.get_time_dict_from_system()
 	return (now.hour * 3600 + now.minute * 60 + now.second) / 30.0
+
+## The time of day does not depend on the world's objects: start once in the world.
+func wait_objects(_deadline: int) -> bool:
+	return true
