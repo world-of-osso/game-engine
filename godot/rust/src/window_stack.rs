@@ -101,6 +101,13 @@ impl GameClient {
             .collect();
         if let Some(index) = raised_index(stack_key(ui), &peers) {
             self.base_mut().move_child(ui, index);
+            // Workaround: Godot 4.7 restacks the moved canvas's drawing but keeps its
+            // GUI pick order until `set_layer` marks the viewport's root order dirty
+            // (probe: hover stays on the old top canvas after move_child alone).
+            // Retire when moving a CanvasLayer re-sorts GUI roots itself.
+            let mut ui = ui.clone();
+            let layer = ui.get_layer();
+            ui.set_layer(layer);
         }
         Ok(())
     }

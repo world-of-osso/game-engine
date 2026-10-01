@@ -253,13 +253,17 @@ impl GameClient {
             let registry = host.registry().ok_or("Bags registry missing")?;
             [registry.screen_width, registry.screen_height]
         };
+        // An NPC canvas drawing the backpack keeps its slot in the stack.
+        let embedded = self.npc_backpack_embedded();
         let mut bags: Vec<_> = self
             .merchant
             .session
             .inventory
             .bags
             .iter()
-            .filter(|bag| self.bags.windows.is_open(WindowId::Bag(bag.index)))
+            .filter(|bag| {
+                self.bags.windows.is_open(WindowId::Bag(bag.index)) || (embedded && bag.index == 0)
+            })
             .map(|bag| {
                 let (w, h) = BagFrameState::bag_dimensions(bag.size);
                 (bag.index, [w, h])
@@ -271,5 +275,52 @@ impl GameClient {
                 .set_window_position(&format!("ContainerFrame{index}"), position)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn open_bags(bags: &Bags) -> Vec<WindowId> {
+        bags.windows.open_windows().to_vec()
+    }
+
+    #[test]
+    fn npc_opener_opens_every_bag_and_only_it_closes_them() {
+        let mut bags = Bags::default();
+        bags.open_all_bags(WindowId::Merchant, [0, 1, 2]);
+        assert_eq!(
+            open_bags(&bags),
+            [WindowId::Bag(0), WindowId::Bag(1), WindowId::Bag(2)]
+        );
+        // A second NPC window opening meanwhile does not take over the opener.
+        bags.open_all_bags(WindowId::AuctionHouse, [0, 1, 2]);
+        assert!(!bags.close_all_bags(Some(WindowId::AuctionHouse)));
+        assert_eq!(open_bags(&bags).len(), 3);
+        assert!(bags.close_all_bags(Some(WindowId::Merchant)));
+        assert!(open_bags(&bags).is_empty());
+    }
+
+    #[test]
+    fn bags_the_player_opened_survive_an_npc_visit() {
+        let mut bags = Bags::default();
+        bags.windows.open(WindowId::Bag(1));
+        bags.open_all_bags(WindowId::Mail, [0, 1]);
+        assert_eq!(open_bags(&bags), [WindowId::Bag(1)]);
+        assert!(!bags.close_all_bags(Some(WindowId::Mail)));
+        assert_eq!(open_bags(&bags), [WindowId::Bag(1)]);
+    }
+
+    #[test]
+    fn escape_closes_every_bag_whoever_opened_them() {
+        let mut bags = Bags::default();
+        bags.open_all_bags(WindowId::Merchant, [0, 1]);
+        assert!(bags.close_all_bags(None));
+        assert!(open_bags(&bags).is_empty());
+        // The opener is forgotten: the next NPC window opens them afresh.
+        bags.open_all_bags(WindowId::AuctionHouse, [0]);
+        assert!(bags.close_all_bags(Some(WindowId::AuctionHouse)));
+        assert!(!bags.close_all_bags(None));
     }
 }
