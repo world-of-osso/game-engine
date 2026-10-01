@@ -223,7 +223,7 @@ fn bind_sheet_light(visual: &Gd<Node3D>) {
         .done();
     for node in meshes.iter_shared() {
         let mesh = node.cast::<MeshInstance3D>();
-        let Some(material) = mesh.get_material_override() else {
+        let Some(material) = mesh.get_active_material(0) else {
             continue;
         };
         let mut material = material.cast::<ShaderMaterial>();
