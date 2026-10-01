@@ -11,6 +11,11 @@ use shared::protocol::{DestroyItem, EquipmentSlot, ItemLocation, SplitItem, Swap
 
 use crate::bag_data::{InventoryRequest, InventoryState, ItemQuality};
 use crate::merchant_data::{MerchantRequest, MerchantState, MerchantTab};
+use crate::ui::popup::PopupSpec;
+
+/// `StaticPopupDialogs["DELETE_ITEM"]` / `["DELETE_GOOD_ITEM"]`.
+pub const DELETE_ITEM: &str = "DELETE_ITEM";
+pub const DELETE_GOOD_ITEM: &str = "DELETE_GOOD_ITEM";
 
 #[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -63,6 +68,34 @@ pub struct DestroyConfirm {
     /// Rare and better, heirlooms excepted: `DELETE_GOOD_ITEM`, which makes the
     /// player type `DELETE`.
     pub good: bool,
+}
+
+/// `DELETE_ITEM` ("Do you want to destroy %s?"); Rare and better get
+/// `DELETE_GOOD_ITEM`, where Yes waits for `DELETE` typed into its edit box.
+pub fn destroy_popup(confirm: &DestroyConfirm) -> PopupSpec {
+    let (key, text) = if confirm.good {
+        (
+            DELETE_GOOD_ITEM,
+            format!(
+                "Do you want to destroy {}?\n\nType \"DELETE\" into the field to confirm.",
+                confirm.name
+            ),
+        )
+    } else {
+        (
+            DELETE_ITEM,
+            format!("Do you want to destroy {}?", confirm.name),
+        )
+    };
+    PopupSpec {
+        key: key.into(),
+        text,
+        accept_label: "Yes".into(),
+        cancel_label: Some("No".into()),
+        timeout: None,
+        // DELETE_ITEM_CONFIRM_STRING.
+        confirm_text: confirm.good.then(|| "DELETE".into()),
+    }
 }
 
 impl CursorItem {

@@ -12,14 +12,18 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::bag_data::{InventoryRequest, InventoryState};
-use game_engine::cursor_item::{CursorEffect, CursorItem, CursorTarget, DestroyConfirm};
+#[cfg(test)]
+use game_engine::cursor_item::DestroyConfirm;
+use game_engine::cursor_item::{
+    CursorEffect, CursorItem, CursorTarget, DELETE_GOOD_ITEM, DELETE_ITEM, destroy_popup,
+};
 use game_engine::merchant_data::{MerchantRequest, MerchantState};
 use game_engine::stack_split::StackSplit;
 use game_engine::status::CharacterStatsSnapshot;
 use game_engine::ui::frame::{Dimension, WidgetData, WidgetType};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::UiState;
-use game_engine::ui::popup::{PopupOutcome, PopupResult, PopupSpec, PopupStack};
+use game_engine::ui::popup::{PopupOutcome, PopupResult, PopupStack};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::bag_frame_component::parse_bag_slot_action;
 use game_engine::ui::screens::character_frame_component::parse_equipment_slot_action;
@@ -38,9 +42,6 @@ pub use stack_split_frame::split_request;
 use game_engine::ui::screens::cursor_item_component::{CURSOR_ICON_NAME, CURSOR_ICON_SIZE};
 /// Pointer travel (UI px) that turns a press into a drag.
 const DRAG_THRESHOLD: f32 = 4.0;
-/// `StaticPopupDialogs["DELETE_ITEM"]` / `["DELETE_GOOD_ITEM"]`.
-const DELETE_ITEM: &str = "DELETE_ITEM";
-const DELETE_GOOD_ITEM: &str = "DELETE_GOOD_ITEM";
 
 pub struct CursorItemPlugin;
 
@@ -244,34 +245,6 @@ fn handle_cursor_clicks(
     {
         // A drag released over another target (`OnReceiveDrag`).
         writers.apply(effect);
-    }
-}
-
-/// `DELETE_ITEM` ("Do you want to destroy %s?"); Rare and better get
-/// `DELETE_GOOD_ITEM`, where Yes waits for `DELETE` typed into its edit box.
-fn destroy_popup(confirm: &DestroyConfirm) -> PopupSpec {
-    let (key, text) = if confirm.good {
-        (
-            DELETE_GOOD_ITEM,
-            format!(
-                "Do you want to destroy {}?\n\nType \"DELETE\" into the field to confirm.",
-                confirm.name
-            ),
-        )
-    } else {
-        (
-            DELETE_ITEM,
-            format!("Do you want to destroy {}?", confirm.name),
-        )
-    };
-    PopupSpec {
-        key: key.into(),
-        text,
-        accept_label: "Yes".into(),
-        cancel_label: Some("No".into()),
-        timeout: None,
-        // DELETE_ITEM_CONFIRM_STRING.
-        confirm_text: confirm.good.then(|| "DELETE".into()),
     }
 }
 
