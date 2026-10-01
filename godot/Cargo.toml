@@ -31,3 +31,8 @@ opt-level = 2
 # Replica decodes every replicated component change on the main thread each frame.
 [profile.dev.package.game-engine-network]
 opt-level = 2
+
+# The extension's per-frame work (world units, nameplates, UI sync) runs on Godot's
+# main thread; unoptimized it held the in-world client to 5 fps.
+[profile.dev.package.game-engine-godot]
+opt-level = 2

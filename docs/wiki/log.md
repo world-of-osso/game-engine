@@ -1,4 +1,11 @@
+## 2026-10-01 — Polymorph video with audio
+
+[[spell-visuals]] Polymorph section: the `POLY_GRAB` recording now uses 30 fps wall-clock slots and adds Master-bus audio, muxed by `scripts/agent/grab-video.py`. Added a `set_specialization` fixture API, because a level-10 mage on game-server 40241f5 defaults to Arcane and has no Frostbolt. Findings: the client renders only 5-7 fps in the headless cage, the spy and sheep float above the mage, and stalls can cause reconnects.
+
+## 2026-09-30 — Merchant cursor test-only checkpoint
 ## 2026-10-01 — Native merchant cursor MAIN-accepted bounded PASS
+||||||| 71e0796f
+## 2026-09-30 — Merchant cursor test-only checkpoint
 
 [SSOT proof matrix](systems/godot-conversion.md#native-merchant-cursor-buy--main-accepted-bounded-pass) supersedes gate-pending `588ec432` and `7ec8c814`: matching Depot build and five full runtimes exit0 at native `837e2c1e`/`b073e4dd`. Exact owned embedded-slot Buy,900ms pre-response COMMIT and peer-only inventory/gold final now MAIN-accepted under independent gate1446 bounded functional/source/format/five-flow PASS. Rename-only fixture SIDE_EFFECT fix `afa2d71a` accepted without new compile proof; helper-length/root/foreign debt retained. Historical RED, inherited debt/auth timeout/ObjectDB warning and shutdown exclusions retained; no whole merchant cursor/SELL/global ownership/full conversion acceptance. Docs only; no source/PLAN/data edits, tests/builds/delegation/ops.
 

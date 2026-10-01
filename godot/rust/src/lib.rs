@@ -759,6 +759,21 @@ impl GameClient {
         self.spells_snapshot()
     }
 
+    /// `SetSpecialization(spec_id)` as the talent frame's spec choice sends it, for
+    /// fixtures that need a spec (a level-10 character without one gets the server's
+    /// default). An empty string once sent, else the error.
+    #[func]
+    fn set_specialization(&mut self, spec_id: i64) -> GString {
+        let sent = u32::try_from(spec_id)
+            .map_err(|_| format!("Bad spec {spec_id}"))
+            .and_then(|id| {
+                self.account
+                    .send_set_specialization(id)
+                    .map_err(|error| error.to_string())
+            });
+        GString::from(sent.err().unwrap_or_default().as_str())
+    }
+
     /// The shown fill of mirror timer `timer`'s bar, or nil while it is not running.
     #[func]
     fn mirror_timer_fraction(&self, timer: i64) -> Variant {
