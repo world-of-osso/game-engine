@@ -100,6 +100,10 @@ fn server_and_character_are_owned_optional_values() {
             server: None,
             character: None,
             js_script: None,
+            skybox_fdid: None,
+            light_skybox_id: None,
+            skybox_time_ms: None,
+            skybox_verify: false,
         }
     );
 }
@@ -113,31 +117,88 @@ fn script_option_is_accepted_with_login_startup() {
 
 #[test]
 fn skybox_original_options_accept_u32_values_and_valueless_verification() {
-    for options in [
-        vec!["--skybox-fdid", "120191"],
-        vec!["--light-skybox-id", "42"],
-        vec!["--skybox-time-ms", "43200000"],
-        vec!["--skybox-verify"],
-        vec![
-            "--skybox-fdid",
-            "0",
-            "--skybox-time-ms",
-            "4294967295",
-            "--skybox-verify",
-        ],
-        vec![
-            "--light-skybox-id",
-            "4294967295",
-            "--skybox-time-ms",
-            "0",
-            "--skybox-verify",
-        ],
+    for (options, expected) in [
+        (
+            vec!["--skybox-fdid", "120191"],
+            (Some(120191), None, None, false),
+        ),
+        (
+            vec!["--light-skybox-id", "42"],
+            (None, Some(42), None, false),
+        ),
+        (
+            vec!["--skybox-time-ms", "43200000"],
+            (None, None, Some(43_200_000), false),
+        ),
+        (vec!["--skybox-verify"], (None, None, None, true)),
+        (
+            vec!["--skybox-fdid", "4294967295"],
+            (Some(u32::MAX), None, None, false),
+        ),
+        (vec!["--light-skybox-id", "0"], (None, Some(0), None, false)),
+        (
+            vec![
+                "--skybox-fdid",
+                "0",
+                "--skybox-time-ms",
+                "4294967295",
+                "--skybox-verify",
+            ],
+            (Some(0), None, Some(u32::MAX), true),
+        ),
+        (
+            vec![
+                "--light-skybox-id",
+                "4294967295",
+                "--skybox-time-ms",
+                "0",
+                "--skybox-verify",
+            ],
+            (None, Some(u32::MAX), Some(0), true),
+        ),
     ] {
         let args = [vec!["--screen", "skyboxdebug"], options].concat();
         let parsed = parse(&args).unwrap_or_else(|error| panic!("{args:?}: {error}"));
         assert_eq!(
+            (
+                parsed.skybox_fdid,
+                parsed.light_skybox_id,
+                parsed.skybox_time_ms,
+                parsed.skybox_verify
+            ),
+            expected,
+            "{args:?}"
+        );
+        assert_eq!(
             parsed.target,
             Some(StartupTarget::Screen(ScreenArg::SkyboxDebug))
+        );
+    }
+}
+
+#[test]
+fn skybox_repeated_options_preserve_first_values_and_require_values() {
+    for flag in ["--skybox-fdid", "--light-skybox-id", "--skybox-time-ms"] {
+        let parsed = parse(&[
+            flag,
+            "7",
+            flag,
+            "invalid",
+            "--skybox-verify",
+            "--skybox-verify",
+        ])
+        .expect("later values are ignored, as with existing client options");
+        let actual = match flag {
+            "--skybox-fdid" => parsed.skybox_fdid,
+            "--light-skybox-id" => parsed.light_skybox_id,
+            "--skybox-time-ms" => parsed.skybox_time_ms,
+            _ => unreachable!(),
+        };
+        assert_eq!(actual, Some(7), "{flag}");
+        assert!(parsed.skybox_verify);
+        assert_eq!(
+            parse(&[flag, "7", flag]).unwrap_err(),
+            format!("missing value for {flag}")
         );
     }
 }

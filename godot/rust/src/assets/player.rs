@@ -3,7 +3,7 @@
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
-    sync::Arc,
+    sync::{Arc, OnceLock},
 };
 
 use crate::{
@@ -14,9 +14,9 @@ use game_engine_core::{
     asset::m2_texture,
     blp,
     char_texture_data::CharTextureData,
-    character_model_data::race_model_wow_path,
     customization_data::{ChoiceSkinnedModel, CustomizationChoice, CustomizationDb},
     npc_appearance_assets::{load_compositor, load_customization_db},
+    player_model_data::player_model_fdids,
 };
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
@@ -331,12 +331,19 @@ fn load_player_body(
 ) -> Result<Arc<CachedModel>, String> {
     let race = player.race;
     let sex = player.appearance.sex;
-    let wow_path = race_model_wow_path(race, sex)
+    let fdid = player_model_fdid(data_root, race, sex)?
         .ok_or_else(|| format!("no player model for race {race} sex {sex}"))?;
-    let fdid = resolver
-        .lookup_path(wow_path)
-        .ok_or_else(|| format!("player model {wow_path} absent from local listfile"))?;
     load_model_files(resolver, data_root, fdid)
+}
+
+/// The race/sex body model FDID (`player_model_data`); the table is read once.
+fn player_model_fdid(data_root: &Path, race: u8, sex: u8) -> Result<Option<u32>, String> {
+    static MODELS: OnceLock<Result<HashMap<(u8, u8), u32>, String>> = OnceLock::new();
+    let models = MODELS
+        .get_or_init(|| player_model_fdids(&data_root.join("db2/12.1.0.69933")))
+        .as_ref()
+        .map_err(Clone::clone)?;
+    Ok(models.get(&(race, sex)).copied())
 }
 
 /// The body appearance and the choices' skinned models with the textures they bind.

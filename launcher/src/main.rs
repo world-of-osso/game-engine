@@ -84,7 +84,9 @@ fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsStr
             client.extend(args);
             break;
         }
-        if is_client_option(&arg) {
+        if arg == "--skybox-verify" {
+            client.push(arg);
+        } else if is_client_option(&arg) {
             let value = args
                 .next()
                 .filter(|value| !value.as_bytes().starts_with(b"-"));
@@ -107,7 +109,16 @@ fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsStr
 fn is_client_option(argument: &OsStr) -> bool {
     matches!(
         argument.to_str(),
-        Some("--screen" | "--state" | "--server" | "--char" | "--run-js-ui-script")
+        Some(
+            "--screen"
+                | "--state"
+                | "--server"
+                | "--char"
+                | "--run-js-ui-script"
+                | "--skybox-fdid"
+                | "--light-skybox-id"
+                | "--skybox-time-ms"
+        )
     )
 }
 
