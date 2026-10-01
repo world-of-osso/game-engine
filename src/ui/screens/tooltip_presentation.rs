@@ -270,13 +270,19 @@ pub fn tooltip_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<TooltipPresentation>()
         .expect("TooltipPresentation must be in SharedContext");
+    tooltip_frame(state, "Tooltip")
+}
+
+/// One authored tooltip whose frames are named `{prefix}Frame`, `{prefix}Title` and
+/// `{prefix}Line{i}Left`/`Right`/`Mark`/`Money*`.
+pub fn tooltip_frame(state: &TooltipPresentation, prefix: &str) -> Element {
     let hidden = !state.visible;
     let height = state.height();
-    let title = tooltip_title(state);
-    let lines = tooltip_lines(&state.lines);
+    let title = tooltip_title(state, prefix);
+    let lines = tooltip_lines(&state.lines, prefix);
     rsx! {
         r#frame {
-            name: "TooltipFrame",
+            name: {DynName(format!("{prefix}Frame"))},
             width: {TOOLTIP_W},
             height: {height},
             hidden: {hidden},
@@ -293,10 +299,10 @@ pub fn tooltip_frame_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn tooltip_title(state: &TooltipPresentation) -> Element {
+fn tooltip_title(state: &TooltipPresentation, prefix: &str) -> Element {
     rsx! {
         fontstring {
-            name: "TooltipTitle",
+            name: {DynName(format!("{prefix}Title"))},
             width: {TOOLTIP_TEXT_W},
             height: {TOOLTIP_TITLE_H},
             text: {state.title.as_str()},
@@ -311,28 +317,28 @@ fn tooltip_title(state: &TooltipPresentation) -> Element {
     }
 }
 
-fn tooltip_lines(lines: &[TooltipLineState]) -> Element {
+fn tooltip_lines(lines: &[TooltipLineState], prefix: &str) -> Element {
     lines
         .iter()
         .enumerate()
-        .flat_map(|(index, line)| tooltip_line(index, line))
+        .flat_map(|(index, line)| tooltip_line(&format!("{prefix}Line{index}"), index, line))
         .collect()
 }
 
-fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
+fn tooltip_line(name: &str, index: usize, line: &TooltipLineState) -> Element {
     let y = TOOLTIP_INSET + TOOLTIP_TITLE_H + index as f32 * TOOLTIP_LINE_H;
     let indent = if line.item_mark.is_some() {
         TOOLTIP_MARK_SIZE + TOOLTIP_MARK_GAP
     } else {
         0.0
     };
-    let mut elements = tooltip_line_mark(index, line.item_mark, y);
-    elements.extend(tooltip_line_text(index, line, y, indent));
+    let mut elements = tooltip_line_mark(name, line.item_mark, y);
+    elements.extend(tooltip_line_text(name, line, y, indent));
     if let Some(copper) = line.money {
         let label_w = measure_text(&line.left_text, GameFont::FrizQuadrata, TOOLTIP_FONT_SIZE)
             .map_or(0.0, |(width, _)| width.ceil());
         elements.extend(money(
-            &format!("TooltipLine{index}Money"),
+            &format!("{name}Money"),
             copper,
             (TOOLTIP_INSET + indent + label_w + 4.0, y + TOOLTIP_LINE_H),
             MoneyAlign::Left,
@@ -342,7 +348,7 @@ fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
     elements
 }
 
-fn tooltip_line_mark(index: usize, mark: Option<ItemMark>, y: f32) -> Element {
+fn tooltip_line_mark(name: &str, mark: Option<ItemMark>, y: f32) -> Element {
     let art = match mark {
         Some(ItemMark::Collected) => &COLLECTED_MARK,
         Some(ItemMark::Uncollected) => &UNCOLLECTED_MARK,
@@ -352,7 +358,7 @@ fn tooltip_line_mark(index: usize, mark: Option<ItemMark>, y: f32) -> Element {
     let top = y + (TOOLTIP_LINE_H - TOOLTIP_MARK_SIZE) / 2.0;
     rsx! {
         texture {
-            name: {DynName(format!("TooltipLine{index}Mark"))},
+            name: {DynName(format!("{name}Mark"))},
             width: {TOOLTIP_MARK_SIZE},
             height: {TOOLTIP_MARK_SIZE},
             texture_fdid: {art.fdid},
@@ -364,12 +370,12 @@ fn tooltip_line_mark(index: usize, mark: Option<ItemMark>, y: f32) -> Element {
     }
 }
 
-fn tooltip_line_text(index: usize, line: &TooltipLineState, y: f32, indent: f32) -> Element {
+fn tooltip_line_text(name: &str, line: &TooltipLineState, y: f32, indent: f32) -> Element {
     let left_x = TOOLTIP_INSET + indent;
     let left_w = TOOLTIP_TEXT_W - indent;
     rsx! {
         fontstring {
-            name: {DynName(format!("TooltipLine{index}Left"))},
+            name: {DynName(format!("{name}Left"))},
             width: {left_w},
             height: {TOOLTIP_LINE_H},
             text: {line.left_text.as_str()},
@@ -382,7 +388,7 @@ fn tooltip_line_text(index: usize, line: &TooltipLineState, y: f32, indent: f32)
             pos_y: {y},
         }
         fontstring {
-            name: {DynName(format!("TooltipLine{index}Right"))},
+            name: {DynName(format!("{name}Right"))},
             width: {TOOLTIP_TEXT_W},
             height: {TOOLTIP_LINE_H},
             text: {line.right_text.as_str()},
@@ -397,7 +403,7 @@ fn tooltip_line_text(index: usize, line: &TooltipLineState, y: f32, indent: f32)
     }
 }
 
-fn rgba_string(color: [f32; 4]) -> String {
+pub fn rgba_string(color: [f32; 4]) -> String {
     format!("{},{},{},{}", color[0], color[1], color[2], color[3])
 }
 
