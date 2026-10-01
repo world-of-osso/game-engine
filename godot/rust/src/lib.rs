@@ -87,6 +87,7 @@ mod unit_menu;
 mod unit_pick;
 mod window_stack;
 mod wmo;
+mod waypoint_path;
 mod world;
 mod world_map;
 mod world_models;
@@ -193,6 +194,7 @@ pub struct GameClient {
     scripted_movement: game_engine_network::movement_control::ScriptedMovement,
     /// IPC `MapWaypointAdd`: the map waypoint (world x, z).
     map_waypoint: Option<(f32, f32)>,
+    waypoint_path: waypoint_path::WaypointPath,
     /// The newest received `CombatEvent`s (IPC `combat log|recap`).
     ipc_combat_events: std::collections::VecDeque<shared::protocol::CombatEvent>,
     /// The last area (and its zone) found under the local player; kept where no tile
@@ -294,6 +296,7 @@ impl INode3D for GameClient {
             player_movement: gameplay::PlayerMovement::default(),
             scripted_movement: Default::default(),
             map_waypoint: None,
+            waypoint_path: Default::default(),
             ipc_combat_events: std::collections::VecDeque::new(),
             current_zone: None,
             // Preserve the original GameTime default: noon, with time advancement stopped.
@@ -1931,6 +1934,7 @@ impl GameClient {
         self.physical_input.clear();
         self.player_movement = gameplay::PlayerMovement::default();
         self.map_waypoint = None;
+        self.waypoint_path.clear();
         self.current_zone = None;
         if let Some(ui) = self.errors_ui.as_mut() {
             ui.bind_mut().clear_errors()?;
