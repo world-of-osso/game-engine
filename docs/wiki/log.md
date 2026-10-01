@@ -1,6 +1,10 @@
-## 2026-09-30 — Merchant cursor test-only checkpoint
+## 2026-10-01 — Merchant cursor actual RED and bounded source checkpoint
 
-[SSOT](systems/godot-conversion.md#native-merchant-cursor-buy--test-only-preparation-red-pending) records tests `d825108c`/`2c00a751`, MAIN registration `3cb53ab4`, literal Linen/embedded-slot Buy+COMMIT barrier, strict phases and intentional owned cleanup. First Native Depot/authenticated RED pending; no production cursor implementation or new user screen. Spec/parity links and invocation docs reconciled without changing product policy; accepted startup1429/tooltip1415 and existing merchant-click/bag scopes retained. Docs only; no builds/tests/gates/operations.
+[SSOT proof matrix](systems/godot-conversion.md#native-merchant-cursor-buy--actual-red-bounded-implementation-pending-gates) supersedes prepared docs `e5c98513`: actual authenticated first pickup RED101, then ordered owner-tagged Merchant inputs `b073e4dd` and shared cursor dispatch/private owner check `837e2c1e`. First vendor → own embedded bag only; matching build, five runtime regressions and gate1446 pending, no accepted GREEN. Existing startup1429/tooltip1415 scopes retained; inherited debt/auth timeout/ObjectDB warning/general shutdown open. Docs-only commit; no source/PLAN/data edits, tests/builds/delegation/operations.
+
+## 2026-09-30 — Merchant cursor test-only checkpoint (historical)
+
+[SSOT](systems/godot-conversion.md#native-merchant-cursor-buy--actual-red-bounded-implementation-pending-gates) records tests `d825108c`/`2c00a751`, MAIN registration `3cb53ab4`, literal Linen/embedded-slot Buy+COMMIT barrier, strict phases and intentional owned cleanup. First Native Depot/authenticated RED pending; no production cursor implementation or new user screen. Spec/parity links and invocation docs reconciled without changing product policy; accepted startup1429/tooltip1415 and existing merchant-click/bag scopes retained. Docs only; no builds/tests/gates/operations.
 
 ## 2026-09-30 — Startup equipment bounded acceptance reconciled
 
