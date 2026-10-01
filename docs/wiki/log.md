@@ -1,3 +1,7 @@
+## 2026-10-01 — Godot ground detail (worldvis)
+
+[Ground detail](systems/terrain.md#ground-detail-godot): 12340 detail-doodad scatter/mesh port matching solarityclient's native fixtures; retail GroundEffect CSV exports; live Northshire clutter fixture. Spec [ground-detail](../specs/ground-detail.md).
+
 ## 2026-10-01 — Godot M2 batch materials on WebWowViewer retail rules
 
 [[m2-format#batch-shaders]] now records retail pixel/vertex shader resolution, render flags 0x2/0x8/0x10, texture weights, float-quaternion texture transforms and wrap flags; [[rendering-pipeline#godot-m2-batch-materials]] records the Godot binder/shader and its real-model oracle proof (16 named batches, baseline 14/16 RED). Parity row added (Partial: decals, transparent sort, Bevy/Retail comparisons open).
