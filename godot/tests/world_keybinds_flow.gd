@@ -273,8 +273,8 @@ func kb_rect(ui_name: String, control_name: String) -> Rect2:
 # a button or slot that would act on the click.
 func kb_only_point(ui_name: String, rect: Rect2, other: Rect2) -> Vector2:
 	for y in [0.3, 0.5, 0.7, 0.15, 0.85]:
-		for x in [0.02, 0.05, 0.1, 0.5, 0.9, 0.95, 0.98]:
-			var point := rect.position + rect.size * Vector2(x, y)
+		for step in range(1, 50):
+			var point := rect.position + rect.size * Vector2(step / 50.0, y)
 			if other.has_point(point):
 				continue
 			var path := uo_hover_path(point)

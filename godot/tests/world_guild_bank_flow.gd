@@ -46,6 +46,13 @@ func run_test() -> void:
 # GUILD_BANK_SCREENSHOT=<png> saves the open frame (needs GODOT_TEST_VISUAL=1).
 func check_tab_title(host: Node) -> bool:
 	await process_frame
+	var shot := OS.get_environment("GUILD_BANK_SCREENSHOT")
+	if not shot.is_empty():
+		await RenderingServer.frame_post_draw
+		if root.get_texture().get_image().save_png(shot) != OK:
+			fail("Could not save " + shot)
+			return false
+		print("GUILD_BANK SCREENSHOT ", shot)
 	for name in ["GuildBankFrameTabTitle", "GuildBankFrameTabTitleAccess"]:
 		var label := host.find_child(name, true, false) as Label
 		if label == null or not label.is_visible_in_tree():
@@ -55,13 +62,6 @@ func check_tab_title(host: Node) -> bool:
 		if label.get_line_count() != 1:
 			fail("%s wraps onto %d lines" % [name, label.get_line_count()])
 			return false
-	var shot := OS.get_environment("GUILD_BANK_SCREENSHOT")
-	if not shot.is_empty():
-		await RenderingServer.frame_post_draw
-		if root.get_texture().get_image().save_png(shot) != OK:
-			fail("Could not save " + shot)
-			return false
-		print("GUILD_BANK SCREENSHOT ", shot)
 	return true
 
 func find_vault(client: Node) -> Dictionary:
