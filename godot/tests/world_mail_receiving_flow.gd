@@ -63,7 +63,8 @@ func run_test() -> void:
 	var claimed_bags: Array = client.merchant_state().bags.duplicate(true)
 	if not await click_mail(client, "MailFrameCloseButton"):
 		return
-	await wait_frames(8)
+	for _frame in range(8):
+		await process_frame
 	if client.mail_state().open or client.get_node_or_null("MailboxUI") != null:
 		fail("Mailbox close did not remove receiving UI")
 		return
