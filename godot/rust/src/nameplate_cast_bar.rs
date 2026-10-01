@@ -134,7 +134,26 @@ fn atlas_region(texture: &Gd<ImageTexture>, region: Rect2) -> Gd<AtlasTexture> {
     atlas
 }
 
-fn atlas_art(art: &AtlasArt, textures: &Path) -> Result<Gd<AtlasTexture>, String> {
+/// Texture `fdid` under `data/textures`, copied from local CASC when absent.
+fn ensure_texture(data_root: &Path, fdid: u32) -> Result<(), String> {
+    let path = data_root.join("textures").join(format!("{fdid}.blp"));
+    if path.exists()
+        || crate::assets::creature::local_resolver(data_root)
+            .ensure_cached(fdid, &path)
+            .is_some()
+    {
+        Ok(())
+    } else {
+        Err(format!(
+            "nameplate cast texture {fdid} is not in local CASC"
+        ))
+    }
+}
+
+fn atlas_art(art: &AtlasArt, data_root: &Path) -> Result<Gd<AtlasTexture>, String> {
+    ensure_texture(data_root, art.fdid)?;
+    let textures = data_root.join("textures");
+    let textures = textures.as_path();
     let mut missing = PackedInt32Array::new();
     let texture = shared_texture(art.fdid, textures, &mut missing)?
         .ok_or_else(|| format!("missing nameplate cast texture {}", art.fdid))?;
@@ -152,6 +171,7 @@ impl CastArt {
         data_root: &Path,
         skin: impl Fn(&[u8]) -> Result<Gd<ImageTexture>, String>,
     ) -> Result<Self, String> {
+        ensure_texture(data_root, CASTING_BAR_FDID)?;
         let textures = data_root.join("textures");
         let mut missing = PackedInt32Array::new();
         let sheet = shared_texture(CASTING_BAR_FDID, &textures, &mut missing)?
@@ -173,9 +193,9 @@ impl CastArt {
             ))?,
             background: atlas_region(&sheet, rect(BACKGROUND_RECT)),
             fill_sheet: texture_from_rgba(&pixels, width, height)?,
-            pip: atlas_art(&atlases[PIP], &textures)?,
-            pip_red: atlas_art(&atlases[PIP_RED], &textures)?,
-            shield: atlas_art(&atlases[SHIELD], &textures)?,
+            pip: atlas_art(&atlases[PIP], data_root)?,
+            pip_red: atlas_art(&atlases[PIP_RED], data_root)?,
+            shield: atlas_art(&atlases[SHIELD], data_root)?,
             icons: HashMap::new(),
         })
     }

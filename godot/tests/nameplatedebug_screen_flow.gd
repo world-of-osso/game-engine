@@ -28,6 +28,13 @@ func check_live() -> bool:
 		if not plates.has(owner) or plates[owner].name != owner:
 			fail("No plate named %s: %s" % [owner, plates])
 			return false
+	# 45° camera 12 yd away: the 3.8 yd apart owners' plates do not overlap.
+	for pair in [[0, 1], [1, 2]]:
+		var a: Rect2 = plates[OWNERS[pair[0]]].frame_rect
+		var b: Rect2 = plates[OWNERS[pair[1]]].frame_rect
+		if a.intersects(b):
+			fail("Plates of %s and %s overlap: %s %s" % [OWNERS[pair[0]], OWNERS[pair[1]], a, b])
+			return false
 	if not expect_cast("Zolramus Sorcerer", "standard", "Necrotic Bolt") or not expect_cast("Channeling Adept", "channel", "Arcane Missiles"):
 		return false
 	if not await check_loop():
@@ -59,13 +66,21 @@ func wait_icons() -> bool:
 
 # The 5 s bolt restarts at the loop, the 6 s channel keeps draining.
 func check_loop() -> bool:
+	# Sample away from either loop's wrap.
+	var deadline := Time.get_ticks_msec() + 30000
+	while Time.get_ticks_msec() < deadline:
+		var b: float = cast("Zolramus Sorcerer").get("fraction", 0.0)
+		var c: float = cast("Channeling Adept").get("fraction", 0.0)
+		if b > 0.1 and b < 0.8 and c > 0.2 and c < 0.9:
+			break
+		await process_frame
 	var bolt := cast("Zolramus Sorcerer").fraction as float
 	var channel := cast("Channeling Adept").fraction as float
-	await settle(400)
+	await settle(300)
 	if cast("Zolramus Sorcerer").fraction <= bolt or cast("Channeling Adept").fraction >= channel:
 		fail("Cast fills and channel drains: bolt %.3f -> %.3f, channel %.3f -> %.3f" % [bolt, cast("Zolramus Sorcerer").fraction, channel, cast("Channeling Adept").fraction])
 		return false
-	var deadline := Time.get_ticks_msec() + 8000
+	deadline = Time.get_ticks_msec() + 8000
 	var peak := 0.0
 	while Time.get_ticks_msec() < deadline:
 		var fraction: float = cast("Zolramus Sorcerer").get("fraction", 0.0)
