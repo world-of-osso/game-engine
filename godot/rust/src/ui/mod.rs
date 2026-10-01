@@ -1,5 +1,6 @@
 pub(crate) mod assets;
 mod icon_masks;
+pub(crate) mod input_queue;
 mod layout;
 mod parts;
 mod projection;
@@ -68,8 +69,13 @@ pub struct RegistryUi {
     actions: VecDeque<String>,
     /// Right-clicks and Shift-left-clicks: `(action, right, shift)`.
     alt_clicks: VecDeque<(String, bool, bool)>,
-    bag_inputs: Option<VecDeque<crate::bag_cursor::BagInput>>,
+    /// Cursor-item input with its arrival stamp; `None` for canvases without item slots.
+    bag_inputs: Option<VecDeque<(u64, crate::bag_cursor::BagInput)>>,
     pointer_clicks: u32,
+    /// Retail `toplevel`: a press inside raises this canvas over the other windows.
+    toplevel: bool,
+    /// Arrival stamp of the latest press inside a toplevel canvas, until the host raises it.
+    raise_request: Option<u64>,
     slider_events: VecDeque<SliderInput>,
     login_fade: Option<f32>,
     loading_displayed_percent: f32,
@@ -225,18 +231,12 @@ impl RegistryModel {
         }
     }
 
-    fn bag_input(
-        &mut self,
-        owner: i64,
-        input: &UiInput,
-        projection: &UiProjection,
-    ) -> Option<crate::bag_cursor::BagInput> {
+    fn bag_input(&mut self, owner: i64, input: &UiInput) -> Option<crate::bag_cursor::BagInput> {
         if let UiInput::PointerUp(at) = input {
             return Some(crate::bag_cursor::BagInput::Release {
                 owner,
                 at: *at / self.registry.ui_scale,
                 physical_at: *at,
-                action: projection.pointer_action_at(&self.registry, *at),
             });
         }
         self.bag_click_input(owner, input)
@@ -397,6 +397,8 @@ impl ICanvasLayer for RegistryUi {
             alt_clicks: VecDeque::new(),
             bag_inputs: None,
             pointer_clicks: 0,
+            toplevel: false,
+            raise_request: None,
             slider_events: VecDeque::new(),
             login_fade: None,
             loading_displayed_percent: 0.0,
@@ -417,31 +419,48 @@ pub fn create_login_ui(width: f32, height: f32) -> Result<Gd<RegistryUi>, String
 }
 
 impl RegistryUi {
-    /// Physical point: no hit, blocking frame, or frame with a click action.
-    pub(crate) fn pointer_action_at(&self, at: Vector2) -> Option<Option<String>> {
-        let model = self.model.as_ref()?;
-        let projection = self.projection.as_ref()?;
-        projection.pointer_action_at(&model.registry, at)
-    }
-
-    /// The topmost mouse-enabled frame under the physical point, with its stacking order
-    /// (`strata`, `frame_level`, `raise_order`) for comparing hits of other registries.
-    pub(crate) fn pointer_frame_at(&self, at: Vector2) -> Option<(u64, (u8, i32, i32))> {
+    /// The topmost mouse-enabled frame under the physical point.
+    pub(crate) fn pointer_frame_at(&self, at: Vector2) -> Option<u64> {
         let model = self.model.as_ref()?;
         let frame = self
             .projection
             .as_ref()?
             .pointer_frame_at(&model.registry, at)?;
-        Some((
-            frame.id,
-            (frame.strata as u8, frame.frame_level, frame.raise_order),
-        ))
+        Some(frame.id)
+    }
+
+    /// The click action of frame `id` or its nearest ancestor with one.
+    pub(crate) fn frame_click_action(&self, id: u64) -> Option<String> {
+        projection::frame_click_action(&self.model.as_ref()?.registry, id)
     }
 
     /// The physical screen rect of frame `id` as projected.
     pub(crate) fn frame_id_rect(&self, id: u64) -> Option<Rect2> {
         let node = self.projection.as_ref()?.node(id)?;
         node.is_visible_in_tree().then(|| node.get_global_rect())
+    }
+
+    /// Route this canvas's slot clicks and pointer releases through the shared cursor
+    /// queue (`GameClient::poll_window_inputs`) instead of `pop_action`.
+    pub(crate) fn enable_cursor_inputs(&mut self) {
+        self.bag_inputs.get_or_insert_with(VecDeque::new);
+    }
+
+    pub(crate) fn accepts_cursor_inputs(&self) -> bool {
+        self.bag_inputs.is_some()
+    }
+
+    pub(crate) fn is_toplevel(&self) -> bool {
+        self.toplevel
+    }
+
+    /// Arrival stamp of a press inside this toplevel canvas since the last call.
+    pub(crate) fn take_raise_request(&mut self) -> Result<Option<u64>, String> {
+        let error = self.sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        Ok(self.raise_request.take())
     }
 
     fn initialize_login(&mut self, width: f32, height: f32) -> Result<(), String> {
@@ -568,11 +587,16 @@ impl RegistryUi {
     /// Initialize the authored bag strip and standalone containers.
     pub(crate) fn show_bags(&mut self, view: crate::bags::BagsView) -> Result<(), String> {
         self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::None)?;
-        self.bag_inputs = Some(VecDeque::new());
+        self.enable_cursor_inputs();
+        // ContainerFrame.xml:216: every bag lives in toplevel `ContainerFrameContainer`.
+        self.toplevel = true;
         Ok(())
     }
 
-    pub(crate) fn drain_bag_inputs(&mut self) -> Result<Vec<crate::bag_cursor::BagInput>, String> {
+    /// Cursor-item input with arrival stamps; merge canvases with `input_queue::in_arrival_order`.
+    pub(crate) fn drain_bag_inputs(
+        &mut self,
+    ) -> Result<Vec<(u64, crate::bag_cursor::BagInput)>, String> {
         let error = self.sync_input();
         if !error.is_empty() {
             return Err(error.to_string());
@@ -749,7 +773,9 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_hud_model(model, parent)?;
-        self.bag_inputs = Some(VecDeque::new());
+        self.enable_cursor_inputs();
+        // MerchantFrame.xml:91 `toplevel="true"`.
+        self.toplevel = true;
         Ok(())
     }
 
@@ -772,7 +798,10 @@ impl RegistryUi {
             ScreenPostsetup::Merchant,
             registry,
             parent,
-        )
+        )?;
+        // MailFrame.xml:274 `toplevel="true"`.
+        self.toplevel = true;
+        Ok(())
     }
 
     pub fn show_auction_gossip(
@@ -824,7 +853,10 @@ impl RegistryUi {
             postsetup: ScreenPostsetup::Auction,
         };
         model.sync();
-        self.initialize_hud_model(model, parent)
+        self.initialize_hud_model(model, parent)?;
+        // Blizzard_AuctionHouseFrame.xml:4 `toplevel="true"`.
+        self.toplevel = true;
+        Ok(())
     }
     pub fn set_auction(
         &mut self,
@@ -1416,13 +1448,13 @@ impl RegistryUi {
         if inputs.is_empty() {
             return Ok(());
         }
-        for event in inputs {
-            self.dispatch_ui_input(event)?;
+        for (arrival, event) in inputs {
+            self.dispatch_ui_input(arrival, event)?;
         }
         self.sync_model()
     }
 
-    fn queue_bag_input(&mut self, event: &UiInput) -> Result<bool, String> {
+    fn queue_bag_input(&mut self, arrival: u64, event: &UiInput) -> Result<bool, String> {
         let owner = self.to_gd().instance_id().to_i64();
         let Some(queue) = self.bag_inputs.as_mut() else {
             return Ok(false);
@@ -1431,19 +1463,18 @@ impl RegistryUi {
             .model
             .as_mut()
             .ok_or("Login model is not initialized")?;
-        let projection = self
-            .projection
-            .as_ref()
-            .ok_or("Login UI is not initialized")?;
-        let Some(input) = model.bag_input(owner, event, projection) else {
+        let Some(input) = model.bag_input(owner, event) else {
             return Ok(false);
         };
-        queue.push_back(input);
+        queue.push_back((arrival, input));
         Ok(true)
     }
 
-    fn dispatch_ui_input(&mut self, event: UiInput) -> Result<(), String> {
-        if self.queue_bag_input(&event)? {
+    fn dispatch_ui_input(&mut self, arrival: u64, event: UiInput) -> Result<(), String> {
+        if self.toplevel && matches!(event, UiInput::PointerDown(_)) {
+            self.raise_request = Some(arrival);
+        }
+        if self.queue_bag_input(arrival, &event)? {
             return Ok(());
         }
         let model = self

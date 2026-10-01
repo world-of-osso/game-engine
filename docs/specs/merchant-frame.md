@@ -45,7 +45,7 @@ References:
 - [x] Hovering an item cell shows a tooltip: name in quality colour, stack count, stock.
 - [x] Bags: `InventorySnapshot` and `InventoryDelta` fill the backpack (item guid, id, count, icon from `ItemModifiedAppearance`/`ItemAppearance`). Bag slots draw their icon and count.
 - [x] Left-click pickup to the cursor, buy by dropping on a bag slot (`BuyItem.destination`), sell by dropping on the frame, Shift-click quantity (`StackSplitFrame`): [cursor-item](cursor-item.md).
-- [x] `MerchantSellAllJunkButton` (36×36, `SpellIcon-256x256-SellJunk`): RIGHT at RepairAll LEFT +80 at a repairer, else BOTTOMRIGHT −148,33 (MF.lua:933-954); enabled (not desaturated) while a poor bag item has a sell price (`GetNumJunkItems`, MF.lua:196-198); hidden on the buyback tab. A click asks `SELL_ALL_JUNK_ITEMS_POPUP` (Yes / No) and Yes sends `SellAllJunkItems` (MF.lua:1054-1063).
+- [x] `MerchantSellAllJunkButton` (36×36, `SpellIcon-256x256-SellJunk`): RIGHT at RepairAll LEFT +80 at a repairer, else BOTTOMRIGHT −148,33 (MF.lua:933-954); enabled (not desaturated) while a poor bag item has a sell price (`GetNumJunkItems`, MF.lua:196-198); hidden on the buyback tab. Native direct-action behavior is specified below; Retail's confirmation (MF.lua:1054-1063) is not the native client contract.
 - [x] Bag item names/quality and their full item tooltips come from the client item catalog (ItemSparse): [cursor-item](cursor-item.md).
 - [ ] The per-item repair cursor (`MerchantRepairItemButton`), guild-bank repair, the Sell All Junk hover tooltip, and the stats/armor/damage lines of item tooltips.
 - [ ] NPC portrait in the portrait ring, the filter dropdown, alternate currencies (`ExtendedCost` items are not sold), and the refund confirmation popup.
@@ -55,7 +55,8 @@ References:
 - [x] Right-click on a unit targets it; a living NPC within 5 yd gets `InteractNpc`. Hovering an NPC shows its Retail cursor (Buy for a vendor, from replicated `NpcFlags` and the reaction).
 - [x] The frame, backpack and StackSplitFrame are the shared components above, driven by the same server messages; right-click buy and sell, buyback (tab and last-sale slot), Repair All, paging, tabs, and vendor Shift-click split with its keys.
 - [x] Escape, the close button and `InteractionClosed` close the frame; the first two send `CloseInteraction`.
-- [ ] Cursor item (pickup, drag-buy, drop-sell, bag split), tooltips, the Sell All Junk popup, the gossip frame, Retail ContainerFrame art.
+- [ ] Repair All and Sell All Junk execute directly, without a confirmation dialog. An eligible Merchant-tab junk click sends `SellAllJunkItems` immediately; common-only inventory and the Buyback tab send none. Bags, money and repair cost remain server-owned and change only from authoritative updates.
+- [ ] Cursor item (pickup, drag-buy, drop-sell, bag split), tooltips, direct Sell All Junk, the gossip frame, Retail ContainerFrame art.
 
 Native cursor coverage is partial, not wholly unconverted: [current bounded Buy + whole/split sale acceptance](../wiki/systems/godot-conversion.md#native-merchant-split-cursor-sale--main-accepted-bounded-pass). The unchecked combined requirement above is not full native acceptance.
 
@@ -70,7 +71,7 @@ Native cursor coverage is partial, not wholly unconverted: [current bounded Buy 
 - `src/game/bag_data_tests/inventory.rs`: snapshot then delta drive the backpack.
 - `src/ui/screens/bag_frame_component.rs` tests: icon, count, click action.
 - `src/scenes/bag_frame/mod.rs` tests: right-click sells only on the merchant tab.
-- `src/ui/screens/merchant_frame_component_tests.rs`: Sell All Junk placement with and without repair, disabled icon, hidden on buyback, the frame's drop action; `src/scenes/merchant_frame/tests.rs`: junk detection (Ruined Pelt vs Linen Cloth), the popup sends `SellAllJunk` only on Yes.
+- `src/ui/screens/merchant_frame_component_tests.rs`: Sell All Junk placement with and without repair, disabled icon, hidden on buyback, the frame's drop action; `src/scenes/merchant_frame/tests.rs`: junk detection (Ruined Pelt vs Linen Cloth), historical Bevy confirmation behavior. Native direct services: `godot/ui-model/tests/merchant_junk.rs` and `godot/tests/world_merchant_services_flow.gd` assert immediate requests without confirmation, no optimistic mutation, and authoritative results.
 - `src/scenes/tooltip_frame/mod.rs` tests: merchant cell tooltip.
 - `src/ui/js_automation.rs` test: `ui.rightClick`.
 - Godot: `godot/ui-model/tests/merchant.rs` (session over world.db vendors), `godot/network/src/wire_tests.rs` (`NpcFlags`, `Gold`, `VendorInventory` over UDP), `godot/rust/src/merchant.rs` tests (interact range, split keys), live `godot/tests/world_merchant_flow.gd` (`data/diagnostics/merchant-godot-20260928/`).

@@ -21,8 +21,8 @@ use crate::merchant_data::{
 };
 use crate::merchant_frame_component::{
     ACTION_BUYBACK_LAST, ACTION_CLOSE, ACTION_ITEM_PREFIX, ACTION_PAGE_NEXT, ACTION_PAGE_PREV,
-    ACTION_REPAIR_ALL, ACTION_TAB_BUYBACK, ACTION_TAB_MERCHANT, CellTint, MerchantCell,
-    MerchantFrameState, merchant_frame_screen,
+    ACTION_REPAIR_ALL, ACTION_SELL_ALL_JUNK, ACTION_TAB_BUYBACK, ACTION_TAB_MERCHANT, CellTint,
+    MerchantCell, MerchantFrameState, merchant_frame_screen,
 };
 use crate::stack_split::{StackSplitOwner, StackSplitState};
 use crate::stack_split_frame_component::{
@@ -166,7 +166,7 @@ impl MerchantSession {
         }
     }
 
-    /// Paging, tabs, Repair All and the last-sale buyback slot.
+    /// Paging, tabs, direct merchant services and the last-sale buyback slot.
     fn frame_button(&mut self, action: &str) -> Option<MerchantRequest> {
         match action {
             ACTION_PAGE_PREV => self.merchant.prev_page(),
@@ -174,6 +174,11 @@ impl MerchantSession {
             ACTION_TAB_MERCHANT => self.merchant.set_tab(MerchantTab::Merchant),
             ACTION_TAB_BUYBACK => self.merchant.set_tab(MerchantTab::Buyback),
             ACTION_REPAIR_ALL => return Some(MerchantRequest::Repair { item_guid: None }),
+            ACTION_SELL_ALL_JUNK
+                if self.merchant.tab == MerchantTab::Merchant && has_junk(&self.inventory) =>
+            {
+                return Some(MerchantRequest::SellAllJunk);
+            }
             ACTION_BUYBACK_LAST => {
                 let slot = self.merchant.last_buyback()?.slot;
                 return Some(MerchantRequest::Buyback { slot });
