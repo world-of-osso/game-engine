@@ -9,7 +9,7 @@ Last updated: 2026-09-29.
 
 [Foreign-chat World rejection](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) at `5f6782b5`: MAIN observed GREEN; independent gate1406 accepted bounded PASS. Bounded mounted-hit rejection, not cross-layer winner/global ownership acceptance; existing exclusions retained.
 
-Native `5a3ebf7b` startup functional/readability proof remains accepted. Merchant rendering omission is fixed; unexplained pre-auth timeout remains historical. Timed diagnostic passes within15 seconds, but restored15-second retry passes; independent1429 remains pending; combined gate OPEN. Prior runtime failures and Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
+Single MainHand startup native `5a3ebf7b` and original15-second merchant regression have MAIN-accepted independent1429 bounded PASS. Historical failures, inherited readability debt and unchanged startup/tooltip/pure proofs retained; no auth fix, general reliability or clean-resource/general-shutdown acceptance. Main goal/full conversion remain OPEN. [Exact evidence and exclusions](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 Engine subsystems and how they work.
 
