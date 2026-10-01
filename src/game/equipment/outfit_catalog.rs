@@ -412,7 +412,9 @@ impl OutfitData {
             .unwrap_or(0)
     }
 
-    fn display_geoset_variant(&self, display_info_id: u32, group_index: usize) -> Option<u16> {
+    /// `ItemDisplayInfo.GeosetGroup[group_index]` + 1 (the geoset variant it selects), or
+    /// none when that group is 0.
+    pub fn display_geoset_variant(&self, display_info_id: u32, group_index: usize) -> Option<u16> {
         let data = self.loaded()?;
         let display = self.display_info(data, display_info_id)?;
         let raw = *display.geoset_groups.get(group_index)?;

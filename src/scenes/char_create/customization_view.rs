@@ -10,12 +10,12 @@ pub fn offered_options<'a>(
     state: &CharCreateState,
     db: &'a CustomizationDb,
 ) -> Vec<&'a CustomizationOption> {
-    db.options_for(state.selected_race, state.selected_sex)
+    db.options_for(state.customization_race(), state.selected_sex)
         .unwrap_or(&[])
         .iter()
         .filter(|option| {
             !db.offered_choices(
-                state.selected_race,
+                state.customization_race(),
                 state.selected_sex,
                 state.selected_class,
                 option.id,
@@ -57,7 +57,7 @@ pub fn build_ui_state(state: &CharCreateState, db: &CustomizationDb) -> CharCrea
         .filter(|option| option.category_id == selected_category)
         .filter(|option| {
             db.offered_choices(
-                state.selected_race,
+                state.customization_race(),
                 state.selected_sex,
                 state.selected_class,
                 option.id,
@@ -87,6 +87,7 @@ pub fn build_ui_state(state: &CharCreateState, db: &CustomizationDb) -> CharCrea
         open_dropdown: state.open_dropdown,
         error_text: state.error_text.clone(),
         class_availability: build_class_availability(state.selected_race),
+        altered_form: super::has_visage_form(state.selected_race).then_some(state.visage_active),
         ..Default::default()
     }
 }
@@ -108,14 +109,14 @@ fn build_option(
     option: &CustomizationOption,
 ) -> CustomizationOptionUi {
     let choices = db.offered_choices(
-        state.selected_race,
+        state.customization_race(),
         state.selected_sex,
         state.selected_class,
         option.id,
     );
     let selected = appearance_options::selected_choice(
         db,
-        state.selected_race,
+        state.customization_race(),
         state.selected_sex,
         state.selected_class,
         &state.appearance,

@@ -5,7 +5,6 @@
 //! movement keeps working while it is open, like the Retail windowed map.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
@@ -17,7 +16,7 @@ use game_engine_ui_model::world_map_view_data::{
     WorldMapData, WorldMapPlayer, WorldMapRequest, engine_to_world, player_map,
     world_map_frame_state, zoom_in, zoom_out,
 };
-use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, ProjectSettings};
+use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
 
@@ -253,12 +252,7 @@ impl GameClient {
         if unknown.is_empty() {
             return;
         }
-        let cache_root = PathBuf::from(
-            ProjectSettings::singleton()
-                .globalize_path("user://asset-resolver")
-                .to_string(),
-        );
-        let resolver = crate::assets::creature::local_resolver(&self.data_root, &cache_root);
+        let resolver = crate::assets::creature::local_resolver(&self.data_root);
         let textures = self.data_root.join("textures");
         for fdid in unknown {
             let path = textures.join(format!("{fdid}.blp"));

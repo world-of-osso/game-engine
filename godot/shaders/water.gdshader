@@ -46,17 +46,14 @@ uniform vec4 ocean_far = vec4(0.0);
 // Underwater fog (start, end, density per yard) and colour.
 uniform vec3 underwater_fog = vec3(0.0, 100000000.0, 0.0);
 uniform vec3 underwater_fog_color = vec3(0.0);
-// Scene fog in linear RGB, as the terrain shader.
-uniform vec3 fog_color;
-uniform vec2 fog_range;
-uniform float fog_density;
-uniform float fog_opacity;
-uniform int fog_mode = 0;
+#include "res://shaders/retail_fog.gdshaderinc"
 
 // MapSceneRenderer.cpp:204 binds uExteriorSpecularColor.a, the specular power, as 1.0.
 const float SPECULAR_POWER = 1.0;
 const float DEGREES = 0.017453292;
 
+// WMO liquids carry their texture coordinates (wmoGroupGeom.cpp:566-575).
+uniform bool mesh_uv = false;
 varying vec3 wow_position;
 varying float vertex_depth;
 
@@ -99,15 +96,9 @@ float scene_view_depth(sampler2D depth, vec2 uv, mat4 inverse_projection) {
 	return -view.z / view.w;
 }
 
-vec3 apply_retail_fog(vec3 color, float distance_to_camera) {
-	float amount = 0.0;
-	if (fog_mode == 1) {
-		// commonFogFunctions.slang calculateLegacyFog, without height fog.
-		float exp_fog = exp(-max(0.0, distance_to_camera - fog_range.x) * fog_density);
-		float end_fade = clamp(1.42857146 * (1.0 - distance_to_camera / fog_range.y), 0.0, 1.0);
-		amount = 1.0 - min(exp_fog, end_fade);
-	}
-	return mix(color, linear_to_gamma(fog_color), amount * fog_opacity);
+// makeFog2 on the liquid's view-space fragment (liquid materials blend as mode 2).
+vec3 apply_retail_fog(vec3 color, vec3 view_position, mat4 inv_view) {
+	return retail_fog(color, (inv_view * vec4(view_position, 1.0)).xyz, inv_view[3].xyz, 2);
 }
 
 void vertex() {
@@ -147,7 +138,7 @@ void fragment() {
 		waves = vec2(wave_offset(time, wave_speed, wave_periods.x), wave_offset(time, wave_speed, wave_periods.y));
 	}
 	vec4 v25 = vec4(mod(time, 10000.0) * 0.00031415926, f3 * waves.x, f4 * waves.y, f8);
-	vec2 uv = wow_position.xy * 0.06;
+	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;
 	vec4 v20 = vec4(scale0 * (uv / 32.0), scale1 * (-(uv + 0.5) / 32.0));
 	vec4 phase = vec4(4.0, 2.0, -1.0, -1.0) * v25.x + wow_position.xyxy;
 	float wobble_s = sin(phase.x);
@@ -232,7 +223,7 @@ void fragment() {
 
 	float n_dot_l = clamp(dot(to_sun, normal), 0.0, 1.0);
 	color += f9 * n_dot_l * sun_attenuation * direct * lit_water + (interior ? 0.0 : f10) * specular;
-	color = apply_retail_fog(color, distance_to_camera);
+	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = gamma_to_linear(max(color, vec3(0.0)));
 	ALPHA = alpha;
 }

@@ -34,16 +34,18 @@ use game_engine_core::spell_visual::{
     CasterContext, KitModel, KitSound, KitTarget, SpellVisualCatalog, VisualEvent, VisualKit,
     VisualMissile, VoiceSource,
 };
-use game_engine_network::UnitSnapshot;
+use game_engine_network::replica::{Replica, Unit};
 use godot::builtin::{Basis, EulerOrder, Transform3D, Vector3};
 use godot::classes::Node3D;
 use godot::prelude::*;
-use shared::casting::CastType;
+use shared::casting::{CastState, CastType};
+use shared::components::{ModelDisplay, Player, UnitLevel};
 use shared::protocol::SpellGo;
 
 use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::build_model;
 use crate::particles::{ParticlePools, PlacedParticles, view_basis};
+use crate::replicated::is_unit;
 use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
 use crate::spell_sounds::{SoundHold, SoundRequest, SoundSource, SoundStart, SpellSounds};
 use crate::world::WorldUnits;
@@ -438,6 +440,8 @@ pub struct SpellEffects {
     /// Newest kit starts, oldest first, bounded.
     started: Vec<KitStart>,
     seed: u32,
+    /// Melee vocal chance rolls (`spell_melee`).
+    vocal_seed: u32,
     /// Main-thread time spent on spell visuals this frame so far, and in the last frame.
     busy: Duration,
     frame_ms: f32,
@@ -446,10 +450,10 @@ pub struct SpellEffects {
 const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         let catalog = Catalog::load(&data_root);
         Self {
-            assets: SpellAssets::new(data_root.clone(), &cache_root),
+            assets: SpellAssets::new(data_root.clone()),
             data_root,
             catalog,
             prefetched: HashSet::new(),
@@ -471,6 +475,7 @@ impl SpellEffects {
             root: None,
             started: Vec::new(),
             seed: 0,
+            vocal_seed: 0,
             busy: Duration::ZERO,
             frame_ms: 0.0,
         }
@@ -558,6 +563,13 @@ impl SpellEffects {
         self.clock
     }
 
+    /// Kit models are children of their unit's attachment nodes (`spawn_due`), so a
+    /// unit whose model is freed (a far teleport despawns every unit of the old map)
+    /// frees them too. Drop those before anything ends or plays them.
+    fn forget_freed_effects(&mut self) {
+        self.active.retain(|effect| effect.node.is_instance_valid());
+    }
+
     pub fn reset(&mut self) {
         self.sounds.reset();
         self.swings.clear();
@@ -579,24 +591,22 @@ impl SpellEffects {
     }
 
     /// Start and end held precast/channel kits as units' replicated casts change.
-    pub fn sync_casts(
-        &mut self,
-        units: &HashMap<u64, UnitSnapshot>,
-        world: &mut WorldUnits,
-    ) -> Result<(), String> {
+    pub fn sync_casts(&mut self, units: &Replica, world: &mut WorldUnits) -> Result<(), String> {
         let mut errors = Vec::new();
         self.voices = units
-            .iter()
-            .filter_map(|(&id, unit)| Some((id, voice_source(unit)?)))
+            .units()
+            .filter(|unit| is_unit(*unit))
+            .filter_map(|unit| Some((unit.server_id, voice_source(unit)?)))
             .collect();
+        self.forget_freed_effects();
         errors.extend(self.sync_auras(units, world).err());
         let ended: Vec<u64> = self
             .held
             .iter()
             .filter(|(id, held)| {
                 units
-                    .get(id)
-                    .and_then(|unit| unit.cast.as_ref())
+                    .unit(**id)
+                    .and_then(|unit| unit.get::<CastState>())
                     .is_none_or(|cast| cast.spell_id != held.spell_id)
             })
             .map(|(&id, _)| id)
@@ -604,8 +614,9 @@ impl SpellEffects {
         for id in ended {
             self.end_held(id, world);
         }
-        for (&id, unit) in units {
-            let Some(cast) = &unit.cast else {
+        for unit in units.units().filter(|unit| is_unit(*unit)) {
+            let id = unit.server_id;
+            let Some(cast) = unit.get::<CastState>() else {
                 continue;
             };
             if self.held.contains_key(&id) {
@@ -673,7 +684,7 @@ impl SpellEffects {
     pub fn spell_go(
         &mut self,
         go: &SpellGo,
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
         let mut errors = Vec::new();
@@ -718,19 +729,15 @@ impl SpellEffects {
         join_errors(errors)
     }
 
-    fn caster_context(
-        units: &HashMap<u64, UnitSnapshot>,
-        world: &WorldUnits,
-        caster: u64,
-    ) -> CasterContext {
-        let unit = units.get(&caster);
-        let player = unit.and_then(|unit| unit.player.as_ref());
+    fn caster_context(units: &Replica, world: &WorldUnits, caster: u64) -> CasterContext {
+        let unit = units.unit(caster);
+        let player = unit.and_then(|unit| unit.get::<Player>());
         CasterContext {
             race: player.map_or(0, |player| player.race),
             class: player.map_or(0, |player| player.class),
             gender: player.map_or(0, |player| player.appearance.sex),
             level: unit
-                .and_then(|unit| unit.level)
+                .and_then(|unit| unit.get::<UnitLevel>())
                 .map_or(0, |level| u32::from(level.0)),
             spec_order_index: None,
             main_hand_subclass: world.unit_main_hand_subclass(caster),
@@ -742,7 +749,7 @@ impl SpellEffects {
         &mut self,
         spell_id: u32,
         caster: u64,
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &WorldUnits,
     ) -> Result<Option<u32>, String> {
         let context = Self::caster_context(units, world, caster);
@@ -756,7 +763,7 @@ impl SpellEffects {
         spell_id: u32,
         event: VisualEvent,
         cast_units: CastUnits,
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &mut WorldUnits,
     ) -> Result<Vec<u16>, String> {
         let Some(visual) = self.visual(spell_id, cast_units.caster, units, world)? else {
@@ -945,7 +952,7 @@ impl SpellEffects {
     fn ready_missile(
         &mut self,
         go: &SpellGo,
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &WorldUnits,
     ) -> Result<Option<MissileLaunch>, String> {
         let Some(target) = go.target.filter(|&target| target != go.caster) else {
@@ -1212,11 +1219,11 @@ impl SpellEffects {
         &mut self,
         caster: u64,
         spells: &[u32],
-        units: &HashMap<u64, UnitSnapshot>,
+        units: &Replica,
         world: &WorldUnits,
     ) -> Result<(), String> {
         // Its race, class and weapon pick the visuals (`caster_context`).
-        let replicated = units.get(&caster).is_some_and(|unit| unit.player.is_some());
+        let replicated = units.unit(caster).is_some_and(|unit| unit.has::<Player>());
         if !replicated || spells.iter().all(|spell| self.prefetched.contains(spell)) {
             return Ok(());
         }
@@ -1345,14 +1352,14 @@ impl SpellEffects {
 }
 
 /// Whose voice unit `unit` speaks in: a player's race and sex, or a creature's display.
-fn voice_source(unit: &UnitSnapshot) -> Option<VoiceSource> {
-    if let Some(player) = &unit.player {
+fn voice_source(unit: Unit) -> Option<VoiceSource> {
+    if let Some(player) = unit.get::<Player>() {
         return Some(VoiceSource::Player {
             race: player.race,
             sex: player.appearance.sex,
         });
     }
-    let display_id = unit.model.as_ref()?.display_id;
+    let display_id = unit.get::<ModelDisplay>()?.display_id;
     (display_id != 0).then_some(VoiceSource::Creature { display_id })
 }
 

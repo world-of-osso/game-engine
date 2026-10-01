@@ -10,6 +10,12 @@ How corpses, the LootFrame, the flight map and server-driven flights fit togethe
 - `LootState` holds the open corpse's remaining slots; `scenes/loot_frame` places the frame under the cursor once per corpse (`LootFrameAnchor`) and turns card clicks into `LootRequest::Take`.
 - Chrome: `quest_art::flat_panel_chrome` = `DefaultPanelFlatTemplate` on the `metal_frame_no_portrait` panel style (the portrait layout with `ui-frame-metal-cornertopleft-2x` in the top-left cell).
 
+### Native Godot evidence and money-card overflow
+
+Native integration and bounded proof are tracked in [[godot-conversion#Native loot — implemented, proof pending]]. Shared exports and targeted tests (8 + 1), ordered relay wire test (1 at `c6ae14bf`) and root compilation have passed. Runtime `af03660f` reaches `LOOT_DONE` after four Auto Loot/Shift cases plus inventory/error/cursor assertions; post-DONE RenderingServer-null shutdown exits 101, unresolved and explicitly deferred. Independent final acceptance remains pending; no source-pinning requirement.
+
+The [rendered overflow investigation](godot-conversion.md#native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering) records native money text needing 51 px (`15 × 3 + 3 × 2`) at authored font size 12, versus its 38 px label and 46 px card. `d6f39c45` reduces explicit fixed multiline projection line gaps to fit native glyph metrics and shadow, without smaller fonts, truncation or clipping. Main rendered proof remains pending, not GREEN.
+
 ## Flight
 
 - `TaxiMap` fills `TaxiMapState`; `scenes/flight_map` loads the continent art once per `MapID` from the UiMap CSVs (`FlightMapArt::load`) and lays out tiles, pins, route dots and the tooltip; hovering updates `TaxiMapState.hovered`.
@@ -26,6 +32,7 @@ How corpses, the LootFrame, the flight map and server-driven flights fit togethe
 
 - [loot-frame spec](../../specs/loot-frame.md), [flight-master spec](../../specs/flight-master.md)
 - Live run: `data/diagnostics/npcloot-20260925/`
+- Native evidence and overflow sources: [[godot-conversion#Native loot — implemented, proof pending]]; `/tmp/claude/native-ui-overflow-red.log`; `godot/rust/src/ui/projection.rs`.
 
 ## See Also
 

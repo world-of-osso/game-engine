@@ -136,11 +136,11 @@ func build_charges(ui: Node, row: Control, dir: String) -> bool:
 		while Time.get_ticks_msec() < deadline and int(client.spells_state().gcd_ms) > 0:
 			await process_frame
 		await press(BAR_KEYS[slot])
-		var lit := ui.find_child("PlayerSecondaryResourcePip%dLit" % (charge - 1), true, false) as Control
+		var lit := ui.find_child("PlayerSecondaryResourcePip%dArcaneIcon" % (charge - 1), true, false) as Control
 		deadline = Time.get_ticks_msec() + 8000
 		while Time.get_ticks_msec() < deadline and not (lit != null and lit.is_visible_in_tree()):
 			await process_frame
-			lit = ui.find_child("PlayerSecondaryResourcePip%dLit" % (charge - 1), true, false) as Control
+			lit = ui.find_child("PlayerSecondaryResourcePip%dArcaneIcon" % (charge - 1), true, false) as Control
 		if lit == null or not lit.is_visible_in_tree():
 			fail("Arcane Blast %d gave no charge: %s" % [charge, client.target_state()])
 			return false
@@ -149,7 +149,7 @@ func build_charges(ui: Node, row: Control, dir: String) -> bool:
 		await wait_real(1.2)
 		await capture(dir + "/charges-%d.png" % charge, region)
 		for index in range(4):
-			var icon := ui.find_child("PlayerSecondaryResourcePip%dLit" % index, true, false) as Control
+			var icon := ui.find_child("PlayerSecondaryResourcePip%dArcaneIcon" % index, true, false) as Control
 			if icon.is_visible_in_tree() != (index < charge):
 				fail("Charge %d icon shown=%s with %d charges" % [index, icon.is_visible_in_tree(), charge])
 				return false

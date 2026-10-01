@@ -8,7 +8,8 @@
 //! - A cast clip's `$SCD` M2 event plays `SpellCastDirectedSoundID` (wowdev.wiki/M2 Events:
 //!   "soundEffect ID is defined by CreatureSoundDataRec::m_spellCastDirectedSoundID").
 //!
-//! - Melee (`spell_visual_melee`): a wounded unit plays `SoundInjuryID`, on a crit
+//! - Melee (`spell_visual_melee`): a swinging unit plays `SoundExertionID`
+//!   (`SoundExertionCriticalID` on a crit), a wounded unit `SoundInjuryID`, on a crit
 //!   `SoundInjuryCriticalID` (or `SoundInjuryID` when a row leaves it 0, as Human 49/50
 //!   do, whose injury kit holds the `woundcrit` files); a dying one `SoundDeathID`
 //!   (wowdev.wiki/M2 Events `$DTH`: "CreatureSoundDataRec::m_soundDeathID ... is just
@@ -29,6 +30,8 @@ use super::{KitSound, SpellVisualCatalog, Table};
 /// A `CreatureSoundData` sound a unit plays in its own voice.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UnitSound {
+    Exertion,
+    ExertionCritical,
     SpellCastDirected,
     Windup,
     WindupCritical,
@@ -43,7 +46,9 @@ pub enum UnitSound {
 }
 
 /// `CreatureSoundData` columns of each [`UnitSound`], in `VOICE_COLUMNS` order.
-const VOICE_COLUMNS: [&str; 11] = [
+const VOICE_COLUMNS: [&str; 13] = [
+    "SoundExertionID",
+    "SoundExertionCriticalID",
     "SpellCastDirectedSoundID",
     "WindupSoundID",
     "WindupCriticalSoundID",
@@ -74,17 +79,19 @@ impl UnitSound {
 
     fn column(self) -> usize {
         match self {
-            Self::SpellCastDirected => 0,
-            Self::Windup => 1,
-            Self::WindupCritical => 2,
-            Self::Charge => 3,
-            Self::ChargeCritical => 4,
-            Self::BattleShout => 5,
-            Self::BattleShoutCritical => 6,
-            Self::Taunt => 7,
-            Self::Injury => 8,
-            Self::InjuryCritical => 9,
-            Self::Death => 10,
+            Self::Exertion => 0,
+            Self::ExertionCritical => 1,
+            Self::SpellCastDirected => 2,
+            Self::Windup => 3,
+            Self::WindupCritical => 4,
+            Self::Charge => 5,
+            Self::ChargeCritical => 6,
+            Self::BattleShout => 7,
+            Self::BattleShoutCritical => 8,
+            Self::Taunt => 9,
+            Self::Injury => 10,
+            Self::InjuryCritical => 11,
+            Self::Death => 12,
         }
     }
 }
@@ -99,7 +106,7 @@ pub enum VoiceSource {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub(super) struct Voices {
     /// `CreatureSoundData` sound kits by row, in `VOICE_COLUMNS` order.
-    rows: HashMap<u32, [u32; 11]>,
+    rows: HashMap<u32, [u32; 13]>,
     /// `CreatureSoundData.CreatureImpactType` of each row that sets it.
     impact_types: HashMap<u32, u8>,
     /// `CreatureSoundData` row of each display that has one.
@@ -119,7 +126,7 @@ impl SpellVisualCatalog {
         let sounds = Table::read(dir, "CreatureSoundData")?;
         let mut columns = vec!["ID"];
         columns.extend(VOICE_COLUMNS);
-        let columns: [&str; 12] = columns.try_into().expect("ID and eleven voice columns");
+        let columns: [&str; 14] = columns.try_into().expect("ID and thirteen voice columns");
         for [id, kits @ ..] in sounds.ints(columns)? {
             if kits.iter().any(|&kit| kit != 0) {
                 self.voices
@@ -196,7 +203,7 @@ fn display_voices(dir: &Path) -> Result<HashMap<u32, u32>, String> {
 }
 
 /// The display of each (race, sex) player model (`ChrRaceXChrModel` → `ChrModel`).
-fn player_displays(dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
+pub fn player_displays(dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
     let chr_models: HashMap<i64, i64> = Table::read(dir, "ChrModel")?
         .ints(["ID", "DisplayID"])?
         .into_iter()

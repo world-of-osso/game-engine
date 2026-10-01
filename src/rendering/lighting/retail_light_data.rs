@@ -61,7 +61,7 @@ const DIRECTIONAL_LIGHT_THETA: [[f32; 2]; 4] = [
 ];
 
 /// MathHelper::InterpTable: cyclic linear interpolation over the day.
-fn interp_day_table(table: &[[f32; 2]], day: f32) -> f32 {
+pub fn interp_day_table(table: &[[f32; 2]], day: f32) -> f32 {
     let day = if day >= 0.0 { day.min(1.0) } else { day };
     let first = table.iter().position(|entry| day <= entry[0]).unwrap_or(0);
     let second = if first == 0 {

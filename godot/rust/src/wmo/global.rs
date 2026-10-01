@@ -1,6 +1,6 @@
 //! The WDT global WMO of a WMO-only map (a dungeon such as the Stockade) as a native node.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use game_engine_core::loading_readiness::GlobalWmoState;
 use godot::{classes::Node3D, prelude::*};
@@ -30,10 +30,10 @@ pub(crate) struct SpawnedGlobalWmo {
 }
 
 impl GlobalWmoScene {
-    pub fn new(data_root: PathBuf, cache_root: &Path) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         Self {
             root: None,
-            resolver: crate::assets::creature::local_resolver(&data_root, cache_root),
+            resolver: crate::assets::creature::local_resolver(&data_root),
             data_root,
             state: GlobalWmoState::None,
             light: None,

@@ -19,16 +19,15 @@ use game_engine_ui_model::minimap::{
     MINIMAP_DISPLAY, MINIMAP_ZONE_TEXT, MinimapBlip, MinimapClusterState, minimap_texture_fdids,
 };
 use game_engine_ui_model::world_map_view_data::arrow_rotation;
-use godot::classes::{
-    InputEvent, InputEventMouseButton, InputEventMouseMotion, ProjectSettings, Time,
-};
+use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, Time};
 use godot::global::MouseButton;
 use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
+use shared::components::Position;
 use shared::protocol::{NpcFlags, QuestGiverStatus};
 use ui_toolkit::frame::WidgetData;
 
-use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use crate::{GameClient, frame_error::FrameError, replicated::UnitFields, ui::RegistryUi};
 
 /// Composite resolution: the 198-unit map at up to 1.3× UI scale without upsampling.
 const COMPOSITE_PX: u32 = 256;
@@ -82,14 +81,8 @@ impl Minimap {
     }
 
     fn resolver(&mut self, data_root: &std::path::Path) -> &CascListfileResolver {
-        self.resolver.get_or_insert_with(|| {
-            let cache_root = PathBuf::from(
-                ProjectSettings::singleton()
-                    .globalize_path("user://asset-resolver")
-                    .to_string(),
-            );
-            crate::assets::creature::local_resolver(data_root, &cache_root)
-        })
+        self.resolver
+            .get_or_insert_with(|| crate::assets::creature::local_resolver(data_root))
     }
 
     /// Decode one tile out of local CASC once; an ocean or unlisted tile stays None.
@@ -189,23 +182,23 @@ impl GameClient {
 
     /// Bevy `quests.rs`: every mirrored NPC with `NPCFlags::QUESTGIVER` is queried once.
     fn query_quest_givers(&mut self) -> Result<(), FrameError> {
-        let units = &self.units;
+        let units = &self.replica;
         let removed: Vec<u64> = self
             .minimap
             .queried
             .iter()
             .copied()
-            .filter(|id| !units.contains_key(id))
+            .filter(|id| units.unit(*id).is_none())
             .collect();
         for id in removed {
             self.minimap.queried.remove(&id);
             self.account.quest_giver_status.remove(&id);
         }
         let new: Vec<u64> = self
-            .units
-            .values()
+            .replica
+            .units()
             .filter(|unit| {
-                unit.npc_flags
+                unit.npc_flags()
                     .is_some_and(|flags| flags & NpcFlags::QUESTGIVER != 0)
             })
             .map(|unit| unit.server_id)
@@ -306,7 +299,7 @@ impl GameClient {
                     QuestGiverStatus::Reward => BlipKind::QuestTurnIn,
                     _ => return None,
                 };
-                let position = self.units.get(&unit)?.position?;
+                let position = self.replica.unit(unit)?.get::<Position>()?;
                 let offset = view.blip_offset([position.x, position.z])?;
                 Some(MinimapBlip { unit, kind, offset })
             })

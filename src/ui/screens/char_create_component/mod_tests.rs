@@ -240,6 +240,28 @@ fn every_supported_race_and_class_remains_present_and_hittable() {
     }
 }
 
+/// Six Horde allied races (Dracthyr included) stay above the navigation buttons.
+#[test]
+fn race_columns_end_above_the_navigation_buttons() {
+    let harness = ScreenHarness::new(CharCreateUiState {
+        viewport_width: 1280,
+        viewport_height: 720,
+        ..Default::default()
+    });
+    let nav_top = rect(&harness.reg, BACK_BUTTON.0)
+        .y
+        .min(rect(&harness.reg, NEXT_BUTTON.0).y);
+    for race in crate::char_create_data::RACES {
+        let r = rect(&harness.reg, &format!("Race_{}", race.id));
+        assert!(
+            r.y + r.height <= nav_top,
+            "{} ends at {}",
+            race.name,
+            r.y + r.height
+        );
+    }
+}
+
 #[test]
 fn unavailable_classes_are_disabled_and_selected_race_updates_in_place() {
     let mut harness = ScreenHarness::new(CharCreateUiState::default());
@@ -271,10 +293,11 @@ fn class_buttons_wrap_to_two_rows_without_overlapping_navigation() {
     let back = rect(&harness.reg, BACK_BUTTON.0);
     let next = rect(&harness.reg, NEXT_BUTTON.0);
     let first = rect(&harness.reg, "Class_1");
-    let last = rect(&harness.reg, "Class_11");
+    // Retail order ends with Evoker.
+    let last = rect(&harness.reg, "Class_13");
     assert!(
         last.y > first.y,
-        "ten classes should span two rows at this width"
+        "thirteen classes should span two rows at this width"
     );
     for class in crate::char_create_data::CLASSES {
         let r = rect(&harness.reg, &format!("Class_{}", class.id));

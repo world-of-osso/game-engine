@@ -834,18 +834,15 @@ fn mh2o_attribute_bit_position_mapping() {
 }
 
 #[test]
-fn mh2o_default_vertex_format_has_heights() {
-    // liquid_object 0 = default format: height-only vertices
-    let heights: Vec<u8> = [1.0f32, 2.0, 3.0, 4.0]
-        .iter()
-        .flat_map(|h| h.to_le_bytes())
-        .collect();
-    let payload = mh2o_payload_with_vertex_data(0, 1, None, 0, &heights);
+fn mh2o_default_vertex_format_has_heights_and_depths() {
+    // liquid_object 0 = wowdev LVF 0: the height array, then the depth array
+    let vertex_data = mh2o_vertex_arrays(&[1.0, 2.0, 3.0, 4.0], &[], &[5, 6, 7, 8]);
+    let payload = mh2o_payload_with_vertex_data(0, 1, None, 0, &vertex_data);
     let parsed = parse_mh2o(&payload).expect("should parse");
     let layer = &parsed.chunks[0].layers[0];
     assert_eq!(layer.vertex_heights, vec![1.0, 2.0, 3.0, 4.0]);
     assert!(layer.vertex_uvs.is_empty());
-    assert!(layer.vertex_depths.is_empty());
+    assert_eq!(layer.vertex_depths, vec![5, 6, 7, 8]);
 }
 
 #[test]

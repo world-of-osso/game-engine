@@ -110,7 +110,6 @@ fn local_commands_print_system_lines_and_send_nothing() {
     assert_eq!(model.submit("/help"), None);
     assert_eq!(model.submit("/join Trade"), None);
     assert_eq!(model.submit("/who Bob"), None);
-    assert_eq!(model.submit("/invite Bob"), None);
     let shown: Vec<String> = lines(&model, ChatTab::General)
         .into_iter()
         .map(|(text, _)| text)
@@ -118,8 +117,28 @@ fn local_commands_print_system_lines_and_send_nothing() {
     let mut expected: Vec<String> = HELP_LINES.map(String::from).to_vec();
     expected.push(UNKNOWN_COMMAND_TEXT.into());
     expected.push(WHO_UNAVAILABLE_TEXT.into());
-    expected.push(GROUP_UNAVAILABLE_TEXT.into());
     assert_eq!(shown, expected);
+}
+
+/// `/invite` and friends go to the server's group backend instead of a local line.
+#[test]
+fn group_commands_become_group_requests() {
+    let mut model = ChatModel::default();
+    for (line, command) in [
+        ("/invite Bob", GroupCommand::Invite("Bob".into())),
+        ("/inv Bob", GroupCommand::Invite("Bob".into())),
+        ("/uninvite Bob", GroupCommand::Uninvite("Bob".into())),
+        ("/promote Bob", GroupCommand::Promote("Bob".into())),
+        ("/leave", GroupCommand::Leave),
+        ("/readycheck", GroupCommand::StartReadyCheck),
+    ] {
+        assert_eq!(
+            model.submit(line),
+            Some(ChatRequest::Group(command)),
+            "{line}"
+        );
+    }
+    assert!(lines(&model, ChatTab::General).is_empty());
 }
 
 #[test]

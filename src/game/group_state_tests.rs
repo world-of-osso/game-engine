@@ -37,6 +37,8 @@ fn live(name: &str, health: u32) -> GroupMemberState {
             power: PowerType::Mana,
             current: 50,
             max: 100,
+            partial: 0,
+            regen_per_sec: 0.0,
         }),
         death: DeathState::Alive,
         position: Position {
@@ -78,7 +80,7 @@ fn ready_update(answers: &[(&str, ReadyCheckAnswer)], finished: bool) -> ReadyCh
 #[test]
 fn member_states_are_kept_for_roster_members_and_dropped_when_they_go_offline() {
     let mut state = party_of(&[("Ann", true), ("Bob", false)]);
-    state.apply_member_states(vec![live("Ann", 900), live("Bob", 412), live("Zed", 1)]);
+    state.apply_member_states(vec![live("Ann", 900), live("Bob", 412)]);
     assert_eq!(state.live.len(), 2);
     assert_eq!(state.live["Bob"].health, 412);
 
@@ -89,6 +91,21 @@ fn member_states_are_kept_for_roster_members_and_dropped_when_they_go_offline() 
 
     assert!(state.live.contains_key("Ann"));
     assert!(!state.live.contains_key("Bob"));
+}
+
+/// Live: Zed accepts; the server's tick queues Zed's state ahead of the roster that adds
+/// Zed and sends it only once. The state waits for the roster instead of being lost; a
+/// name the next roster does not list is dropped.
+#[test]
+fn a_state_that_arrives_before_its_roster_is_kept_until_the_roster_decides() {
+    let mut state = party_of(&[("Ann", true)]);
+    state.apply_member_states(vec![live("Zed", 412), live("Yan", 7)]);
+    state.apply_roster(roster(
+        false,
+        vec![member("Ann", true, true), member("Zed", false, true)],
+    ));
+    assert_eq!(state.live["Zed"].health, 412);
+    assert!(!state.live.contains_key("Yan"));
 }
 
 #[test]

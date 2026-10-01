@@ -19,7 +19,18 @@ pub(crate) struct PhysicalInput {
 }
 
 impl PhysicalInput {
+    /// Cursor presentation observes mouse positions even when gameplay input is modal.
+    pub fn capture_pointer(&mut self, event: &godot::obj::Gd<godot::classes::InputEvent>) {
+        use godot::classes::{InputEventMouseButton, InputEventMouseMotion};
+        if let Ok(mouse) = event.clone().try_cast::<InputEventMouseButton>() {
+            self.pointer = mouse.get_position().to_array();
+        } else if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            self.pointer = motion.get_position().to_array();
+        }
+    }
+
     pub fn capture(&mut self, event: &godot::obj::Gd<godot::classes::InputEvent>) {
+        self.capture_pointer(event);
         use godot::classes::{
             InputEventKey, InputEventMouseButton, InputEventMouseMotion, InputEventWithModifiers,
         };
@@ -31,10 +42,8 @@ impl PhysicalInput {
                 self.set_key(binding, key.is_pressed());
             }
         } else if let Ok(mouse) = event.clone().try_cast::<InputEventMouseButton>() {
-            self.pointer = mouse.get_position().to_array();
             self.capture_mouse(&mouse);
         } else if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
-            self.pointer = motion.get_position().to_array();
             let relative = motion.get_relative();
             self.add_motion(relative.x, relative.y);
         }
@@ -109,6 +118,13 @@ impl PhysicalInput {
 
     pub fn clear(&mut self) {
         *self = Self::default();
+    }
+
+    /// A keyboard-owning picker stops movement without moving the item cursor.
+    pub fn clear_gameplay(&mut self) {
+        let pointer = self.pointer;
+        self.clear();
+        self.pointer = pointer;
     }
 
     pub fn gameplay_state(&self, keyboard_enabled: bool) -> GameplayInputState<'_> {

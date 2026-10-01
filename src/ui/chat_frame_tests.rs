@@ -86,6 +86,10 @@ fn emote_who_invite_help_and_unknown_commands() {
         ChatCommand::Group(GroupCommand::StartReadyCheck)
     );
     assert_eq!(parse_chat_input("/promote", None), ChatCommand::None);
+    assert_eq!(
+        parse_chat_input("/leave", None),
+        ChatCommand::Group(GroupCommand::Leave)
+    );
     let ChatCommand::System(help) = parse_chat_input("/help", None) else {
         panic!("help prints system lines");
     };

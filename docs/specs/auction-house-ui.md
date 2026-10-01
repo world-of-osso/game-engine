@@ -91,7 +91,7 @@ See [native data flow](../wiki/systems/auction-house-ui.md#native-godot).
 
 - [x] Portable session gates actions until the house opens, loads inventory/money, owned auctions and bids, refreshes after success, surfaces server rejection messages, and discards replies after close.
 - [x] Category searches send server `class_id`; selecting a browse/sell item sends exact `item_id`, not a name substring or page-local category filter. Search previous/next keeps its filters; Back restores the browse query.
-- [x] Every fetched browse, item-auction, inventory, owned and bids row is reachable through local row paging; server result-page paging exposes results beyond 50. Browse price and available quantity are explicitly scoped to the current result page, not advertised as global item totals.
+- [x] Every fetched browse, item-auction, inventory, owned and bids row is reachable through local row paging. Native browse sends `QueryAuctionBrowse`; server pages over distinct items and supplies global eligible-item `lowest_unit_price` (ceiling integer copper) and `total_quantity` (`u64`). Display uses these values unchanged, never sums or prices flat client-page listings. Drilldown/sell-market queries remain flat `QueryAuctions` with exact `item_id`; selection and trading retain real auction IDs.
 - [x] Bid prefills the next minimum; affordable bids/buyouts and owned cancellation without bids emit their requests. Sell validates stack quantity, per-item bid/buyout totals and deposit; 1 Day / 1 Week / 2 Weeks retain deposit multipliers 1 / 2 / 4. Operations awaiting a reply disable conflicting trading actions.
 - [ ] Native rendered NPC right-click/gossip → AH, pointer editing/selection, Bid/Buyout/Create/Cancel, rejection text, Escape/close and server range-close pass on the integrated server **after game-cli proof**. Implementation and fixture exist; runtime acceptance remains with main.
 
@@ -104,11 +104,11 @@ See [native data flow](../wiki/systems/auction-house-ui.md#native-godot).
 
 ### Tests asserting this spec
 
-- `godot/ui-model/tests/native_auction.rs` — trading, deposits/durations, gate/rejection/close, exact-item/category queries, stale-query rejection and all list-page traversal; run with `scripts/depot-build.py --test -p game-engine-ui-model --test native_auction`.
-- `godot/network/src/wire_tests.rs::native_bridge_auction_operations_and_query_rejections` — owned loopback UDP: nine request types and six reply relays, including query rejection.
+- `godot/ui-model/tests/native_auction.rs` — trading, deposits/durations, gate/rejection/close, authoritative global price/`u64` stock, distinct-item second page, exact flat drilldown and real-ID buyout, stale-query rejection and all list-page traversal; run with `scripts/depot-build.py --test -p game-engine-ui-model --test native_auction`.
+- `godot/network/src/wire_tests.rs::native_bridge_auction_operations_and_query_rejections` — owned loopback UDP: ten request types and seven reply relays, including global item browse with stock beyond `u32`, unchanged flat drilldown and query rejection.
 - `godot/tests/world_auction_flow.gd` — main-owned ordered native pointer smoke. Requires `GODOT_AUCTION_CLI_PROVED=1`, `GODOT_TEST_SERVER` loopback, `GODOT_AUCTION_NPC`, `GODOT_AUCTION_MODE=seller|buyer`; startup client flags select the disposable authenticated roster character. Seller needs three sellable items and deposits; buyer requires two distinct other-player auction IDs in `GODOT_AUCTION_BID_ID` and `GODOT_AUCTION_BUYOUT_ID`. Optional `GODOT_AUCTION_ITEM_ID` defaults to 2589. No embedded credentials/server setup. Fixture mutations are confined to main's owned disposable server. It is not yet executed or GDScript-parse certified.
 
 ### Known gaps (current cycle)
 
 - [ ] Native live/runtime acceptance and UI inspection; fixture does not yet cover server range-close, title dragging or Wide-window replacement.
-- [ ] Global per-item browse aggregates need a server aggregate contract; current grouped display explicitly represents fetched-page listings.
+- [x] Global browse implemented at `5b9cb76c`; targeted Depot model 8/8, owned UDP 1/1 and shared frame 1/1 passed. No native runtime acceptance claimed; main rebuilds and runs actual Godot only after game-cli proof.

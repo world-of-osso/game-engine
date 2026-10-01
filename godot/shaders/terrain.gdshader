@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode ambient_light_disabled, fog_disabled, specular_disabled;
+#include "res://shaders/m2_point_light.gdshaderinc"
 
 // config: layer count, blend mode (0 layered, 1 weighted, 2 height-weighted), UV repeat.
 uniform vec4 config = vec4(1.0, 0.0, 1.0, 0.0);
@@ -35,13 +36,7 @@ uniform vec3 direct;
 // World direction sunlight travels, not the direction towards the sun.
 uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
 // Godot's fog is disabled: fog colour in linear space.
-uniform vec3 fog_color;
-// Retail legacy exponential fog: (start, end) in yards and density per yard.
-uniform vec2 fog_range;
-uniform float fog_density;
-uniform float fog_opacity;
-// 0 off, 1 retail legacy fog.
-uniform int fog_mode = 0;
+#include "res://shaders/retail_fog.gdshaderinc"
 
 varying vec3 terrain_world_position;
 varying vec3 terrain_diffuse;
@@ -106,15 +101,7 @@ vec3 retail_ambient(vec3 world_normal, float n_dot_l) {
 }
 
 vec3 apply_retail_fog(vec3 color, vec3 world_position, vec3 camera_position) {
-	float distance_to_camera = length(world_position - camera_position);
-	float amount = 0.0;
-	if (fog_mode == 1) {
-		// commonFogFunctions.slang calculateLegacyFog, without height fog.
-		float exp_fog = exp(-max(0.0, distance_to_camera - fog_range.x) * fog_density);
-		float end_fade = clamp(1.42857146 * (1.0 - distance_to_camera / fog_range.y), 0.0, 1.0);
-		amount = 1.0 - min(exp_fog, end_fade);
-	}
-	return mix(color, linear_to_gamma(fog_color), amount * fog_opacity);
+	return retail_fog(color, world_position, camera_position, 0);
 }
 
 void vertex() {
@@ -186,6 +173,6 @@ void light() {
 		// M2 point lights (WebWowViewerCpp pointLight.frag.slang:43-58); LIGHT_COLOR
 		// carries Godot's PI.
 		float n_dot_l = max(dot(NORMAL, LIGHT), 0.0);
-		DIFFUSE_LIGHT += gamma_to_linear(terrain_diffuse) * LIGHT_COLOR / PI * ATTENUATION * n_dot_l;
+		DIFFUSE_LIGHT += gamma_to_linear(terrain_diffuse) * LIGHT_COLOR / PI * m2_point_light_attenuation(ATTENUATION, SPECULAR_AMOUNT) * n_dot_l;
 	}
 }

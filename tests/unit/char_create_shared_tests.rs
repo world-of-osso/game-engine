@@ -280,7 +280,7 @@ fn char_create_shared_eye_ear_eyebrow_and_jewelry_choices_reach_registry_control
         fixture.show_option(option_id);
         let choice_id = fixture
             .db
-            .choices_for_option(race, sex, 1, option_id)
+            .offered_choices(race, sex, 1, option_id)
             .into_iter()
             .rfind(|choice| !choice.has_unsupported_effects)
             .expect("fixture must offer a supported choice")
@@ -399,6 +399,7 @@ fn char_create_shared_request_uses_live_name_after_next_and_category_changes() {
         registry,
         state,
         db,
+        names,
         ..
     } = fixture;
     world.insert_resource(UiState {
@@ -408,6 +409,8 @@ fn char_create_shared_request_uses_live_name_after_next_and_category_changes() {
     });
     world.insert_resource(CharCreateStateRes(state));
     world.insert_resource(db);
+    // The creation automation input reads the name catalog (input.rs).
+    world.insert_resource(names);
     world.insert_resource(startup_ui);
     world.init_resource::<CharCreateFocus>();
     world.init_resource::<UiAutomationQueue>();
@@ -495,11 +498,19 @@ fn char_create_shared_catalog_choices_keep_filtered_ids_names_and_swatches_align
         for source in source_options {
             state.selected_category = source.category_id;
             let view = build_ui_state(&state, &db);
+            // The view lists what the class may select (offered_choices, 27d02d52); an
+            // option with nothing to offer is left out.
+            let choices = db.offered_choices(race, sex, class, source.id);
+            if choices.is_empty() {
+                assert!(view.options.iter().all(|option| option.id != source.id));
+                filtered_options += 1;
+                continue;
+            }
             let row = view
                 .options
                 .iter()
                 .find(|option| option.id == source.id)
-                .expect("every authored option must reach its category view");
+                .expect("every offered option must reach its category view");
             let category = view
                 .categories
                 .iter()
@@ -508,7 +519,6 @@ fn char_create_shared_catalog_choices_keep_filtered_ids_names_and_swatches_align
             assert_eq!(category.label, source.category_name);
             assert_eq!(row.label, source.display_name);
             assert_eq!(row.ui_type, source.ui_type);
-            let choices = db.choices_for_option(race, sex, class, source.id);
             filtered_options += usize::from(choices.len() != source.choices.len());
             assert_eq!(row.choices.len(), choices.len());
             for (index, (actual, expected)) in row.choices.iter().zip(&choices).enumerate() {

@@ -16,12 +16,14 @@ use godot::classes::{
 use godot::global::Key;
 use godot::global::MouseButton;
 use godot::prelude::*;
+use shared::components::{Health, Npc};
 use shared::protocol::{InteractionKind, NpcFlags, NpcRole};
 
 use crate::GameClient;
 use crate::account::NpcMessage;
 use crate::faction_reaction::{Reaction, reaction};
 use crate::frame_error::{FrameError, SessionError, report_once};
+use crate::replicated::UnitFields;
 use crate::targeting::pick_unit;
 use crate::ui::{MerchantStates, RegistryUi};
 use crate::world_map::{WindowDrag, title_hit};
@@ -33,7 +35,7 @@ const DEFAULT_POSITION: [f32; 2] = [16.0, 104.0];
 
 #[derive(Default)]
 pub(crate) struct Merchant {
-    session: MerchantSession,
+    pub(crate) session: MerchantSession,
     ui: Option<Gd<RegistryUi>>,
     position: Option<[f32; 2]>,
     position_character: Option<u64>,
@@ -93,7 +95,19 @@ impl GameClient {
     pub(super) fn receive_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
         if let NpcMessage::Closed(npc) = &message {
             self.auction_interaction_closed(*npc);
+            self.mailbox.close_for(*npc);
         }
+        if let NpcMessage::Opened(opened) = &message {
+            if opened.kind == InteractionKind::Role(NpcRole::Mailbox) {
+                self.open_mailbox(opened.npc);
+                return Ok(());
+            }
+            self.mailbox.session.close();
+        }
+        self.apply_npc_message(message)
+    }
+
+    fn apply_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
         let session = &mut self.merchant.session;
         match message {
             NpcMessage::Opened(opened) => match opened.kind {
@@ -111,17 +125,24 @@ impl GameClient {
             NpcMessage::Closed(npc) => session.receive_interaction_closed(npc),
             NpcMessage::Vendor(inventory) => {
                 let name = self
-                    .units
-                    .get(&inventory.npc)
-                    .and_then(|unit| unit.npc.as_ref())
+                    .replica
+                    .unit(inventory.npc)
+                    .and_then(|unit| unit.get::<Npc>())
                     .map(|npc| npc.name.clone())
                     .unwrap_or_default();
                 session.receive_inventory(inventory, name);
             }
             NpcMessage::Buyback(list) => session.receive_buyback(list),
             NpcMessage::Inventory(snapshot) => session.receive_inventory_snapshot(&snapshot),
+            NpcMessage::Equipment(snapshot) => {
+                session.inventory.apply_equipment_snapshot(&snapshot)
+            }
             NpcMessage::InventoryChanged(delta) => session.receive_inventory_delta(&delta),
             NpcMessage::RepairCost(cost) => session.repair_cost = cost,
+            NpcMessage::InteractionError(failed) => {
+                self.mailbox.close_for(failed.npc);
+                self.add_world_error(failed.error.message())?;
+            }
             NpcMessage::Error(error) => self.add_world_error(&error)?,
         }
         Ok(())
@@ -140,7 +161,7 @@ impl GameClient {
         let money = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id)?.gold)
+            .and_then(|id| self.replica.unit(id)?.gold())
             .unwrap_or(0);
         self.merchant.session.money = money;
         let interactive =
@@ -173,6 +194,9 @@ impl GameClient {
         });
         let unit = match clicked {
             Some(unit) => {
+                if self.use_mailbox(unit)? {
+                    return Ok(());
+                }
                 // Right-click targets, as Retail does.
                 self.set_target(Some(unit));
                 unit
@@ -182,6 +206,9 @@ impl GameClient {
                 None => return Ok(()),
             },
         };
+        if self.send_corpse_loot(unit)? {
+            return Ok(());
+        }
         // Right-clicking an attackable unit attacks it (`CMSG_ATTACK_SWING`).
         if self.can_auto_attack(unit) {
             self.start_auto_attack(unit)?;
@@ -192,7 +219,7 @@ impl GameClient {
     }
 
     fn unit_right_click(&self, id: u64) -> RightClick {
-        let Some(unit) = self.units.get(&id) else {
+        let Some(unit) = self.replica.unit(id) else {
             return RightClick::Target;
         };
         let distance = self
@@ -202,8 +229,10 @@ impl GameClient {
             .map_or(f32::INFINITY, |(player, node)| {
                 player.origin.distance_to(node.get_global_position())
             });
-        let dead = unit.health.is_some_and(|health| health.current <= 0.0);
-        right_click(unit.npc.is_some(), dead, distance)
+        let dead = unit
+            .get::<Health>()
+            .is_some_and(|health| health.current <= 0.0);
+        right_click(unit.has::<Npc>(), dead, distance)
     }
 
     /// Bevy `pick_desired_cursor` for units: the cursor of the NPC under the pointer.
@@ -217,32 +246,37 @@ impl GameClient {
         else {
             return Some(ActiveWowCursor::Default);
         };
-        let unit = self.units.get(&id)?;
-        if unit.npc.is_none() {
+        if self.game_objects.contains(id) {
+            return Some(ActiveWowCursor::Mail);
+        }
+        let unit = self.replica.unit(id)?;
+        if !unit.has::<Npc>() {
             return Some(ActiveWowCursor::Default);
         }
         let viewer = self
             .world
             .local_player_id()
-            .and_then(|player| self.units.get(&player)?.faction_template);
+            .and_then(|player| self.replica.unit(player)?.faction_template());
         let reaction = match self.nameplates.templates(&self.data_root) {
             Ok(templates) => reaction(
-                unit.faction_template.and_then(|id| templates.get(&id)),
+                unit.faction_template().and_then(|id| templates.get(&id)),
                 viewer.and_then(|id| templates.get(&id)),
             ),
             Err(_) => Reaction::Neutral,
         };
         Some(npc_cursor(NpcCursorView {
-            flags: NpcFlags(unit.npc_flags.unwrap_or(0)),
-            dead: unit.health.is_some_and(|health| health.current <= 0.0),
-            lootable: false,
+            flags: NpcFlags(unit.npc_flags().unwrap_or(0)),
+            dead: unit
+                .get::<Health>()
+                .is_some_and(|health| health.current <= 0.0),
+            lootable: self.loot.lootable.contains(&id),
             reaction,
         }))
     }
 
     /// The Retail cursor art in world; the system cursor elsewhere, or when the art
     /// fails to load (Bevy `load_cursor_image`: logged, the cursor asset stays absent).
-    fn set_world_cursor(&mut self, cursor: Option<ActiveWowCursor>) {
+    pub(crate) fn set_world_cursor(&mut self, cursor: Option<ActiveWowCursor>) {
         if self.merchant.cursor == cursor {
             return;
         }
@@ -567,7 +601,7 @@ impl GameClient {
         }
     }
 
-    /// Automation view of the vendor session: open vendor, cells, buyback, bags, money.
+    /// Automation view of the vendor session: vendor, cells, buyback, bags, equipment, money.
     pub(super) fn merchant_snapshot(&self) -> VarDictionary {
         let session = &self.merchant.session;
         let merchant = &session.merchant;
@@ -590,6 +624,7 @@ impl GameClient {
             &string_array(merchant.buyback.iter().map(|item| &item.name)),
         );
         state.set("bags", &bag_items(&session.inventory));
+        state.set("equipment", &equipment_items(&session.inventory));
         state.set("money", session.money as i64);
         state.set("repair_cost", i64::from(session.repair_cost));
         state.set("split_open", session.split.is_some());
@@ -614,6 +649,22 @@ fn string_array<'a>(items: impl Iterator<Item = &'a String>) -> VarArray {
     array
 }
 
+/// Occupied equipment slots from the authoritative inventory state.
+fn equipment_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarArray {
+    inventory
+        .equipment
+        .iter()
+        .map(|(slot, item)| {
+            let mut entry = VarDictionary::new();
+            entry.set("slot", format!("{slot:?}").as_str());
+            entry.set("item_id", i64::from(item.item_id));
+            entry.set("item_guid", item.item_guid as i64);
+            entry.set("count", i64::from(item.count));
+            entry.to_variant()
+        })
+        .collect()
+}
+
 /// Occupied bag slots: bag, slot, item id, catalog name and count.
 fn bag_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarArray {
     let mut bags = VarArray::new();
@@ -635,7 +686,7 @@ fn bag_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarA
     bags
 }
 
-fn split_key(key: Key) -> Option<SplitKey> {
+pub(super) fn split_key(key: Key) -> Option<SplitKey> {
     Some(match key {
         Key::ENTER | Key::KP_ENTER => SplitKey::Enter,
         Key::ESCAPE => SplitKey::Escape,

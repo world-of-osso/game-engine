@@ -35,8 +35,13 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   CreatureSoundData            FDID 1344466
   WeaponSwingSounds2           FDID 1267068
   WeaponImpactSounds           FDID 1267648
+  Material                     FDID 1294217
   ChrModel                     FDID 3384313
   ChrRaceXChrModel             FDID 3490304
+  ChrCustomizationElement      FDID 3512765
+  ChrCustomizationMaterial     FDID 3459652
+  ChrCustomizationSkinnedModel FDID 3460183
+  ChrModelTextureLayer         FDID 3548976
   LightParams                  FDID 1334669
   LiquidType                   FDID 1371380
   LiquidMaterial               FDID 1132538
@@ -308,6 +313,8 @@ TABLES = {
         0x8CC18B68,
         [("ID", "id"), ("SwingType", ("u8", 0)), ("Crit", ("u8", 1)), ("SoundID", 2)],
     ),
+    # WoWDBDefs layout BE3E0E4C (non-inline ID): Flags 0x1 metal, 0x2 plate, 0x4 chain.
+    "Material": (0xBE3E0E4C, [("ID", "id"), ("Flags", 0)]),
     # WoWDBDefs layout A77CBD9D (non-inline ID); the four sound arrays have 11 elements.
     "WeaponImpactSounds": (
         0xA77CBD9D,
@@ -329,6 +336,75 @@ TABLES = {
         0xA203BC29,
         [("ID", "id"), ("ChrRacesID", ("u8", 0)), ("ChrModelID", 1), ("Sex", ("u8", 2))],
     ),
+    "ChrCustomizationElement": (
+        0x6483C37E,
+        [("ID", "id")]
+        + [
+            (name, ("int", index, 0))
+            for index, name in enumerate(
+                [
+                    "ChrCustomizationChoiceID",
+                    "RelatedChrCustomizationChoiceID",
+                    "ChrCustomizationGeosetID",
+                    "ChrCustomizationSkinnedModelID",
+                    "ChrCustomizationMaterialID",
+                    "ChrCustomizationBoneSetID",
+                    "ChrCustomizationCondModelID",
+                    "ChrCustomizationDisplayInfoID",
+                    "ChrCustItemGeoModifyID",
+                    "ChrCustomizationVoiceID",
+                    "AnimKitID",
+                    "ParticleColorID",
+                    "ChrCustGeoComponentLinkID",
+                ]
+            )
+        ],
+    ),
+    "ChrCustomizationMaterial": (
+        0xBE9767E9,
+        [("ID", "id"), ("ChrModelTextureTargetID", ("int", 0, 0)), ("MaterialResourcesID", ("int", 1, 0))],
+    ),
+    "ChrCustomizationSkinnedModel": (
+        0x4C32AA8A,
+        [
+            ("ID", "id"),
+            ("CollectionsFileDataID", ("int", 0, 0)),
+            ("GeosetType", ("u8", 1)),
+            ("GeosetID", ("int", 2, 0)),
+            ("Modifier", ("int", 3, 0)),
+            ("Flags", ("int", 4, 0)),
+        ],
+    ),
+    # WoWDBDefs layout 22469480: inline ID, then the layout relation as field 1.
+    "ChrModelMaterial": (
+        0x22469480,
+        [
+            ("ID", "id"),
+            ("CharComponentTextureLayoutsID", ("int", 1, 0)),
+            ("TextureType", ("int", 2, 0)),
+            ("Width", ("int", 3, 0)),
+            ("Height", ("int", 4, 0)),
+            ("Flags", ("int", 5, 0)),
+        ],
+    ),
+    "ChrModelTextureLayer": (
+        0xD0583FB4,
+        [
+            ("ID", "id"),
+            ("TextureType", ("int", 0, 0)),
+            ("Layer", ("int", 1, 0)),
+            ("Flags", ("int", 2, 0)),
+            ("BlendMode", ("int", 3, 0)),
+            ("TextureSectionTypeBitMask", ("int", 4, 0)),
+            ("TextureSectionTypeBitMask2", ("int", 5, 0)),
+            ("Field_9_0_1_34365_006_0", ("int", 6, 0)),
+            ("Field_9_0_1_34365_006_1", ("int", 6, 1)),
+            ("Field_9_0_1_34365_006_2", ("int", 6, 2)),
+            ("ChrModelTextureTargetID_0", ("int", 7, 0)),
+            ("ChrModelTextureTargetID_1", ("int", 7, 1)),
+            ("CharComponentTextureLayoutsID", "parent"),
+        ],
+    ),
     "SoundKitEntry": (
         0x8F82FF7D,
         [
@@ -349,6 +425,7 @@ TABLES = {
             ("WaterDeepAlpha", ("float", 7, 0)),
             ("OceanShallowAlpha", ("float", 8, 0)),
             ("OceanDeepAlpha", ("float", 9, 0)),
+            ("Flags", ("int", 10, 0)),
         ],
     ),
     # WoWDBDefs layout D1ECEEC9. WebWowViewerCpp reads Color[0..1], Float[0..17], Int[0..3] and

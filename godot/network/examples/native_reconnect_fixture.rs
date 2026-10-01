@@ -1,6 +1,10 @@
 //! Owned loopback UDP server and real Godot process for ordinary reconnect.
-//! Run after building the Godot GDExtension:
-//! cargo run -p game-engine-network --example native_reconnect_fixture
+//! Build it with the GDExtension, then run it from the originating checkout:
+//! python3 scripts/depot-build.py --root "$PWD" --fixture native_reconnect_fixture
+//! GODOT_BIN=<godot> target/debug/examples/native_reconnect_fixture
+
+#[path = "fixture_support/mod.rs"]
+mod fixture_support;
 
 use std::{
     io::{BufRead, BufReader},
@@ -112,9 +116,9 @@ fn start_server() -> (App, SocketAddr) {
 
 fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, thread::JoinHandle<()>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
-    let project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("Godot workspace directory");
+    let project = fixture_support::checkout_root_from_executable("native_reconnect_fixture")
+        .unwrap_or_else(|error| panic!("{error}"))
+        .join("godot");
     let display_args: &[&str] = if std::env::var("GODOT_TEST_VISUAL").as_deref() == Ok("1") {
         &[]
     } else {
