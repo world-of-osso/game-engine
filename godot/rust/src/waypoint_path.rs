@@ -1,5 +1,7 @@
-//! IPC `map waypoint add` auto-walk: the original's terrain path search and following
-//! (`src/pathing.rs`). A path is a grid search around blocked segments, smoothed to the
+//! IPC `map waypoint add` auto-walk: the original's terrain path search and following,
+//! re-stated because `src/pathing.rs` uses Bevy mesh raycasts and status types:
+//! `sync_path_state` :113-156, `terrain_step_is_walkable` :271, `find_grid_path` :313,
+//! constants :14-20. A path is a grid search around blocked segments, smoothed to the
 //! furthest walkable node; each frame the player faces the next node and walks forward
 //! until within the goal radius, which clears the waypoint. Manual movement input
 //! clears it too.

@@ -173,6 +173,10 @@ pub mod guild_bank;
 #[path = "../../../src/ui/screens/guild_bank_frame_component.rs"]
 pub mod guild_bank_frame_component;
 pub mod mail;
+#[path = "../../../src/ipc/mail_format.rs"]
+pub mod mail_format;
+#[path = "../../../src/ipc/format_shared.rs"]
+pub mod ipc_format;
 #[path = "../../../src/ui/screens/mail_frame_component.rs"]
 pub mod mail_frame_component;
 
