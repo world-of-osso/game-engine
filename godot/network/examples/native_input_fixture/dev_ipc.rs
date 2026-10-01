@@ -1,6 +1,6 @@
 //! Dev-tool IPC through the public CLI against the live native client: `status
-//! network|sound|terrain`, `map position`, `hover`, `camera set` and `movement
-//! forward|stop`. The parent calls the real `game-engine-cli` (GAME_ENGINE_CLI) on the
+//! network|sound|terrain`, `map position`, `hover`, `camera set`, `export-scene` and
+//! `movement forward|stop`. The parent calls the real `game-engine-cli` (GAME_ENGINE_CLI) on the
 //! client's own-PID socket and checks each answer against the fixture server's state,
 //! the decoded `PlayerInput`s and the markers the observing GDScript prints.
 use std::f32::consts::FRAC_PI_2;
@@ -255,6 +255,19 @@ fn check_camera(run: &mut Run) -> Result<(), String> {
     }
 }
 
+/// `export-scene` answers with the original reply; the observing script checks the
+/// written snapshot against the live scene.
+fn check_export(run: &mut Run) -> Result<(), String> {
+    let path = run.artifacts.join("scene-export.json");
+    let path = path.to_str().ok_or("non-UTF-8 artifact path")?.to_owned();
+    let reply = run.expect_text(&["export-scene", &path])?;
+    if reply.trim() != format!("scene exported to {path}") {
+        return Err(format!("export-scene answered {reply}"));
+    }
+    run.wait_marker("EXPORT")?;
+    Ok(())
+}
+
 /// Moving inputs since the last call must head east (yaw 90 degrees) at run speed.
 fn eastward_inputs(app: &mut App) -> Result<usize, String> {
     let inputs = take_inputs(app);
@@ -451,6 +464,7 @@ pub(super) fn run(
     check_spawn_position(&mut run)?;
     check_hover(&mut run)?;
     check_camera(&mut run)?;
+    check_export(&mut run)?;
     check_timed_forward(&mut run)?;
     check_stopped_forward(&mut run)?;
     finish(&mut run, readers)?;
