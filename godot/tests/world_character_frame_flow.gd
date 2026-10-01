@@ -6,7 +6,7 @@ extends "res://tests/world_merchant_flow.gd"
 # visible on the model; dragging the weapon from its slot to an empty bag slot unequips
 # it; right-clicking the leggings (2381) in the backpack equips them; dropping the
 # Worn Shortsword (25) on the head slot shows ERR_WRONG_SLOT; hover shows the item
-# tooltip; Escape closes; the micro-menu button opens it again.
+# GameTooltip (an empty slot shows its name); Escape closes; the micro-menu button opens it again.
 #
 # Setup (game-server-admin, private UDP server): create-account fb_charframe fbtest,
 # create-character fb_charframe Charframe 1 1, set-level Charframe 10 (Gladius needs 2),
@@ -196,16 +196,16 @@ func cf_model_redressed(before: Array) -> bool:
 
 func cf_hover_tooltip() -> bool:
 	await hover_point(cf_control("CharacterChestSlot").get_global_rect().get_center())
-	await frames(4)
-	var state: Dictionary = client.character_frame_state()
-	if not state.tooltip_visible or state.tooltip_title != "Tarnished Chain Vest":
+	await frames(8)
+	var state: Dictionary = client.tooltip_state()
+	if not state.visible or state.title != "Tarnished Chain Vest" or not ("Item ID: 2379|" in state.lines):
 		fail("Chest slot tooltip: " + str(state))
 		return false
 	await cf_capture("04-vest-tooltip.png")
 	await hover_point(cf_control("CharacterHeadSlot").get_global_rect().get_center())
-	await frames(4)
-	state = client.character_frame_state()
-	if not state.tooltip_visible or state.tooltip_title != "Head":
+	await frames(8)
+	state = client.tooltip_state()
+	if not state.visible or state.title != "Head" or not state.lines.is_empty():
 		fail("Empty head slot tooltip: " + str(state))
 		return false
 	print("FIXTURE CF_TOOLTIPS vest / Head")

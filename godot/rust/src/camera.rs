@@ -15,7 +15,7 @@ use godot::{
 };
 
 use crate::{
-    terrain::streaming::StreamedTerrain,
+    terrain::{doodad_collision::DOODAD_LAYER, streaming::StreamedTerrain},
     wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
 };
 
@@ -161,7 +161,7 @@ impl WorldCamera {
 
 /// One follow step: the shared follow calculation, then the smoothed position kept in sight of
 /// the eye. `solid_hit(origin, direction, length)` is the distance to the first solid surface
-/// (terrain or WMO) along the ray, if within `length`.
+/// (terrain, WMO or doodad) along the ray, if within `length`.
 pub(crate) fn follow_pose(
     state: &mut CameraState,
     current: glam::Vec3,
@@ -213,8 +213,8 @@ fn camera_ground(terrain: &StreamedTerrain, x: f32, z: f32) -> Option<f32> {
     Some(terrain.height_at(x, z).unwrap_or(0.0))
 }
 
-/// Nearest hit on visible terrain or on WMO collision, which is solid whether or not the WMO
-/// group is drawn.
+/// Nearest hit on visible terrain, on WMO collision, which is solid whether or not the WMO
+/// group is drawn, or on a drawn doodad's collision.
 fn raycast_solid(
     space: &mut Gd<PhysicsDirectSpaceState3D>,
     origin: Vector3,
@@ -223,7 +223,7 @@ fn raycast_solid(
 ) -> Option<f32> {
     let mut query = PhysicsRayQueryParameters3D::create(origin, origin + ray)
         .expect("Godot could not allocate camera ray parameters");
-    query.set_collision_mask(TERRAIN_LAYER | WMO_LAYER);
+    query.set_collision_mask(TERRAIN_LAYER | WMO_LAYER | DOODAD_LAYER);
     let mut excluded = Array::new();
     loop {
         let hit = space.intersect_ray(&query);

@@ -41,10 +41,14 @@ mod bags_actions;
 mod bags_cursor;
 #[path = "native_input_fixture/bags_drag.rs"]
 mod bags_drag;
+#[path = "native_input_fixture/bank.rs"]
+mod bank;
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
 #[path = "native_input_fixture/footsteps.rs"]
 mod footsteps;
+#[path = "native_input_fixture/guild_bank.rs"]
+mod guild_bank;
 #[path = "native_input_fixture/logout.rs"]
 mod logout;
 #[path = "native_input_fixture/loot.rs"]
@@ -57,6 +61,8 @@ mod merchant_click;
 mod merchant_cursor;
 #[path = "native_input_fixture/merchant_services.rs"]
 mod merchant_services;
+#[path = "native_input_fixture/merchant_tooltips.rs"]
+mod merchant_tooltips;
 #[path = "native_input_fixture/portal_density.rs"]
 mod portal_density;
 #[path = "native_input_fixture/portal_particles.rs"]
@@ -102,12 +108,15 @@ enum StartupScreen {
     MerchantClick,
     MerchantCursor,
     MerchantServices,
+    MerchantTooltips,
     UiOwnership,
     Loot,
     Bags,
     BagsActions,
     BagsCursor,
     BagsDrag,
+    Bank,
+    GuildBank,
     Footsteps,
     ResetWindows,
     SettingsReload,
@@ -131,12 +140,15 @@ impl StartupScreen {
             Some("merchant-click") => Self::MerchantClick,
             Some("merchant-cursor") => Self::MerchantCursor,
             Some("merchant-services") => Self::MerchantServices,
+            Some("merchant-tooltips") => Self::MerchantTooltips,
             Some("ui-ownership") => Self::UiOwnership,
             Some("loot") => Self::Loot,
             Some("bags") => Self::Bags,
             Some("bags-actions") => Self::BagsActions,
             Some("bags-cursor") => Self::BagsCursor,
             Some("bags-drag") => Self::BagsDrag,
+            Some("bank") => Self::Bank,
+            Some("guild-bank") => Self::GuildBank,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
             Some("settings-reload") => Self::SettingsReload,
@@ -145,7 +157,7 @@ impl StartupScreen {
             Some("portal-density") => Self::PortalDensity,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, merchant-cursor, merchant-services, loot, bags, bags-actions, bags-cursor, bags-drag, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled or portal-density"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, merchant-cursor, merchant-services, merchant-tooltips, ui-ownership, loot, bags, bags-actions, bags-cursor, bags-drag, bank, guild-bank, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled or portal-density"
                 )
             }
         };
@@ -168,12 +180,15 @@ impl StartupScreen {
             | Self::MerchantClick
             | Self::MerchantCursor
             | Self::MerchantServices
+            | Self::MerchantTooltips
             | Self::UiOwnership
             | Self::Loot
             | Self::Bags
             | Self::BagsActions
             | Self::BagsCursor
             | Self::BagsDrag
+            | Self::Bank
+            | Self::GuildBank
             | Self::Footsteps
             | Self::ResetWindows
             | Self::SettingsReload
@@ -376,6 +391,7 @@ impl FixtureConfig {
                 | StartupScreen::BagsActions
                 | StartupScreen::BagsCursor
                 | StartupScreen::BagsDrag
+                | StartupScreen::Bank
         ) {
             return;
         }
@@ -395,19 +411,31 @@ impl Drop for FixtureConfig {
     }
 }
 
+fn merchant_fixture_script(screen: StartupScreen) -> Option<&'static str> {
+    match screen {
+        StartupScreen::MerchantClick => Some("res://tests/world_merchant_click_flow.gd"),
+        StartupScreen::MerchantCursor => Some("res://tests/world_merchant_cursor_flow.gd"),
+        StartupScreen::MerchantServices => Some("res://tests/world_merchant_services_flow.gd"),
+        StartupScreen::MerchantTooltips => Some("res://tests/world_merchant_tooltips_flow.gd"),
+        _ => None,
+    }
+}
+
 fn fixture_script(screen: StartupScreen) -> &'static str {
+    if let Some(script) = merchant_fixture_script(screen) {
+        return script;
+    }
     match screen {
         StartupScreen::ResetWindows => "res://tests/options_reset_windows.gd",
         StartupScreen::SettingsReload => "res://tests/world_settings_reload_flow.gd",
-        StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
-        StartupScreen::MerchantCursor => "res://tests/world_merchant_cursor_flow.gd",
-        StartupScreen::MerchantServices => "res://tests/world_merchant_services_flow.gd",
         StartupScreen::UiOwnership => "res://tests/world_ui_ownership_flow.gd",
         StartupScreen::Loot => "res://tests/world_loot_options_flow.gd",
         StartupScreen::Bags => "res://tests/world_bags_flow.gd",
         StartupScreen::BagsActions => "res://tests/world_bags_actions_flow.gd",
         StartupScreen::BagsCursor => "res://tests/world_bags_cursor_flow.gd",
         StartupScreen::BagsDrag => "res://tests/world_bags_drag_flow.gd",
+        StartupScreen::Bank => "res://tests/world_bank_flow.gd",
+        StartupScreen::GuildBank => "res://tests/world_guild_bank_flow.gd",
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
             "res://tests/world_portal_particles_flow.gd"
         }
@@ -438,12 +466,15 @@ fn launch_godot(
             | StartupScreen::MerchantClick
             | StartupScreen::MerchantCursor
             | StartupScreen::MerchantServices
+            | StartupScreen::MerchantTooltips
             | StartupScreen::UiOwnership
             | StartupScreen::Loot
             | StartupScreen::Bags
             | StartupScreen::BagsActions
             | StartupScreen::BagsCursor
             | StartupScreen::BagsDrag
+            | StartupScreen::Bank
+            | StartupScreen::GuildBank
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
             | StartupScreen::PortalParticlesEnabled
@@ -492,12 +523,15 @@ fn launch_godot(
                     | StartupScreen::MerchantClick
                     | StartupScreen::MerchantCursor
                     | StartupScreen::MerchantServices
+                    | StartupScreen::MerchantTooltips
                     | StartupScreen::UiOwnership
                     | StartupScreen::Loot
                     | StartupScreen::Bags
                     | StartupScreen::BagsActions
                     | StartupScreen::BagsCursor
                     | StartupScreen::BagsDrag
+                    | StartupScreen::Bank
+                    | StartupScreen::GuildBank
                     | StartupScreen::Footsteps
                     | StartupScreen::ResetWindows
                     | StartupScreen::SettingsReload
@@ -762,6 +796,7 @@ fn respond_to_selection(
             StartupScreen::MerchantClick
                 | StartupScreen::MerchantCursor
                 | StartupScreen::MerchantServices
+                | StartupScreen::MerchantTooltips
                 | StartupScreen::UiOwnership
         ) {
             app.world_mut()
@@ -1451,11 +1486,14 @@ fn main() {
             | StartupScreen::MerchantClick
             | StartupScreen::MerchantCursor
             | StartupScreen::MerchantServices
+            | StartupScreen::MerchantTooltips
             | StartupScreen::UiOwnership
             | StartupScreen::Loot
             | StartupScreen::Bags
             | StartupScreen::BagsCursor
             | StartupScreen::BagsDrag
+            | StartupScreen::Bank
+            | StartupScreen::GuildBank
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
             | StartupScreen::PortalParticlesEnabled
@@ -1491,12 +1529,20 @@ fn main() {
         StartupScreen::MerchantServices => {
             merchant_services::run(&mut app, &mut child, lines, reader)
         }
+        StartupScreen::MerchantTooltips => {
+            merchant_tooltips::run(&mut app, &mut child, lines, reader)
+        }
         StartupScreen::UiOwnership => ui_ownership::run(&mut app, &mut child, lines, reader),
         StartupScreen::Loot => loot::run(&mut app, &mut child, lines, reader),
         StartupScreen::Bags => bags::run(&mut app, &mut child, lines, reader),
         StartupScreen::BagsActions => bags_actions::run(&mut app, &mut child, lines, reader),
         StartupScreen::BagsCursor => bags_cursor::run(&mut app, &mut child, lines, reader),
         StartupScreen::BagsDrag => bags_drag::run(&mut app, &mut child, lines, reader),
+        StartupScreen::Bank => bank::run(&mut app, &mut child, lines, reader),
+        StartupScreen::GuildBank => {
+            guild_bank::install(&mut app);
+            guild_bank::run(&mut app, &mut child, lines, reader)
+        }
         StartupScreen::SettingsReload => settings_reload::run(
             &mut app,
             &mut child,

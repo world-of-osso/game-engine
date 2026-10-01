@@ -1,11 +1,13 @@
 //! `GameTooltip:SetBagItem` / `SetInventoryItem` lines from the item catalog
 //! (ItemSparse): name in its quality colour, item level, binding, uniqueness,
-//! slot and type, durability, level requirement, flavor text and sell price, in
-//! Retail's order. Stats, armor and weapon damage need the item-level budget
-//! tables and are not shown.
+//! slot and type, weapon damage and speed, armor, stats, durability, level
+//! requirement, flavor text and sell price, in Retail's order. Armor, damage and
+//! stat values come from `item_stats`; item spell effects ("Use:", "Equip:") are
+//! not shown.
 
 use crate::bag_data::InventorySlot;
 use crate::item_catalog::{ItemCatalogEntry, item_catalog_entry, item_subclass_name};
+use crate::item_stats::{ItemStat, item_armor, item_stats, weapon_damage};
 use crate::merchant_data::quality_color;
 
 use crate::tooltip_presentation::{
@@ -14,7 +16,9 @@ use crate::tooltip_presentation::{
 };
 
 /// `RED_FONT_COLOR`.
-const RED_FONT_COLOR: [f32; 4] = [1.0, 0.125, 0.125, 1.0];
+pub const RED_FONT_COLOR: [f32; 4] = [1.0, 0.125, 0.125, 1.0];
+/// `GREEN_FONT_COLOR`: secondary stats.
+pub const GREEN_FONT_COLOR: [f32; 4] = [0.1, 1.0, 0.1, 1.0];
 const ITEM_CLASS_WEAPON: u8 = 2;
 const ITEM_CLASS_ARMOR: u8 = 4;
 const ARMOR_SUBCLASS_MISCELLANEOUS: u8 = 0;
@@ -62,6 +66,7 @@ fn item_lines(entry: &ItemCatalogEntry, item: &TooltipItem) -> Vec<TooltipLineSt
     if let Some(line) = slot_line(entry) {
         lines.push(line);
     }
+    lines.extend(combat_lines(entry));
     if let Some(durability) = slot.durability {
         // DURABILITY_TEMPLATE "Durability %d / %d".
         lines.push(white(format!(
@@ -93,6 +98,93 @@ fn item_lines(entry: &ItemCatalogEntry, item: &TooltipItem) -> Vec<TooltipLineSt
         ));
     }
     lines
+}
+
+/// `DAMAGE_TEMPLATE` "%s - %s Damage" with `SPEED` right and `DPS_TEMPLATE`, then
+/// `ARMOR_TEMPLATE` "%s Armor", then the stats: primary attributes white, the rest green.
+fn combat_lines(entry: &ItemCatalogEntry) -> Vec<TooltipLineState> {
+    let white = |text: String| TooltipLineState::colored(text, TOOLTIP_WHITE);
+    let mut lines = Vec::new();
+    if let Some(damage) = weapon_damage(entry) {
+        lines.push(TooltipLineState::pair(
+            format!("{} - {} Damage", (damage.min + 0.5).floor(), damage.max),
+            format!("Speed {:.2}", damage.speed),
+        ));
+        lines.push(white(format!("({:.1} damage per second)", damage.dps)));
+    }
+    let armor = item_armor(entry);
+    if armor > 0 {
+        lines.push(white(format!("{armor} Armor")));
+    }
+    lines.extend(item_stats(entry).into_iter().filter_map(|stat| {
+        let (name, primary) = stat_name(stat.stat)?;
+        let color = if primary {
+            TOOLTIP_WHITE
+        } else {
+            GREEN_FONT_COLOR
+        };
+        Some(TooltipLineState::colored(stat_text(stat, name), color))
+    }));
+    lines
+}
+
+/// `ITEM_MOD_*` "%c%s Stamina": the signed value and the stat's name.
+pub fn stat_text(stat: ItemStat, name: &str) -> String {
+    let sign = if stat.value < 0 { '-' } else { '+' };
+    format!("{sign}{} {name}", stat.value.abs())
+}
+
+/// The `ITEM_MOD_*_SHORT` name of a stat type and whether it is a primary attribute
+/// (white; ratings and the rest are green). Hybrid primaries read their combined name.
+pub fn stat_name(stat: i8) -> Option<(&'static str, bool)> {
+    let primary = |name| Some((name, true));
+    let secondary = |name| Some((name, false));
+    match stat {
+        0 => primary("Mana"),
+        1 => primary("Health"),
+        3 => primary("Agility"),
+        4 => primary("Strength"),
+        5 => primary("Intellect"),
+        6 => primary("Spirit"),
+        7 => primary("Stamina"),
+        71 => primary("Agility or Strength or Intellect"),
+        72 => primary("Agility or Strength"),
+        73 => primary("Agility or Intellect"),
+        74 => primary("Strength or Intellect"),
+        12 => secondary("Defense"),
+        13 => secondary("Dodge"),
+        14 => secondary("Parry"),
+        15 => secondary("Block"),
+        16 => secondary("Hit (Melee)"),
+        17 => secondary("Hit (Ranged)"),
+        18 => secondary("Hit (Spell)"),
+        19 => secondary("Critical Strike (Melee)"),
+        20 => secondary("Critical Strike (Ranged)"),
+        21 => secondary("Critical Strike (Spell)"),
+        31 => secondary("Hit"),
+        32 => secondary("Critical Strike"),
+        35 => secondary("PvP Resilience"),
+        36 => secondary("Haste"),
+        37 => secondary("Expertise"),
+        38 => secondary("Attack Power"),
+        39 => secondary("Ranged Attack Power"),
+        40 => secondary("Versatility"),
+        41 => secondary("Bonus Healing"),
+        42 => secondary("Bonus Damage"),
+        43 => secondary("Mana Regeneration"),
+        45 => secondary("Spell Power"),
+        46 => secondary("Health Regeneration"),
+        47 => secondary("Spell Penetration"),
+        48 => secondary("Block Value"),
+        49 => secondary("Mastery"),
+        50 => secondary("Bonus Armor"),
+        57 => secondary("PvP Power"),
+        61 => secondary("Speed"),
+        62 => secondary("Leech"),
+        63 => secondary("Avoidance"),
+        64 => secondary("Indestructible"),
+        _ => None,
+    }
 }
 
 /// `ITEM_SOULBOUND` once bound, else the item's `Bonding`
@@ -212,6 +304,8 @@ mod tests {
                 pair("Item Level 1", ""),
                 pair("Soulbound", ""),
                 pair("Main Hand", "Sword"),
+                pair("1 - 1 Damage", "Speed 2.60"),
+                pair("(0.4 damage per second)", ""),
                 pair("Durability 18 / 20", ""),
                 pair("Sell Price:", ""),
             ]
@@ -241,6 +335,38 @@ mod tests {
         };
         let tooltip = item_tooltip(&pelt, None);
         assert_eq!(tooltip.title_color, parse_rgba(quality_color(0)));
+    }
+
+    #[test]
+    fn rare_gear_shows_damage_speed_dps_and_white_then_green_stats() {
+        configure_test_data();
+        let axe = InventorySlot {
+            count: 1,
+            quality: ItemQuality::Rare,
+            name: "Arced War Axe".into(),
+            item_id: 3191,
+            ..Default::default()
+        };
+        let tooltip = item_tooltip(&axe, Some(10));
+        let rows = texts(&tooltip);
+        let at = |text: &str| rows.iter().position(|(left, _)| left == text).expect(text);
+        assert_eq!(
+            rows[at("6 - 12 Damage")],
+            pair("6 - 12 Damage", "Speed 3.60")
+        );
+        assert_eq!(
+            rows[at("6 - 12 Damage") + 1],
+            pair("(2.5 damage per second)", "")
+        );
+        assert_eq!(tooltip.lines[at("+3 Strength")].left_color, TOOLTIP_WHITE);
+        assert_eq!(tooltip.lines[at("+5 Stamina")].left_color, TOOLTIP_WHITE);
+        assert_eq!(tooltip.lines[at("+3 Haste")].left_color, GREEN_FONT_COLOR);
+        assert_eq!(
+            tooltip.lines[at("+2 Critical Strike")].left_color,
+            GREEN_FONT_COLOR
+        );
+        assert!(at("Two-Hand") < at("6 - 12 Damage"));
+        assert!(at("+2 Critical Strike") < at("Requires Level 8"));
     }
 
     #[test]
@@ -276,11 +402,13 @@ mod tests {
                 "Binds when equipped",
                 "Unique",
                 "Chest",
+                // A poor cloth robe of item level 20.
+                "5 Armor",
                 "Requires Level 15",
                 "\"Soft as a kitten.\"",
             ]
         );
-        assert_eq!(lines[4].left_color, RED_FONT_COLOR);
-        assert_eq!(lines[5].left_color, TOOLTIP_DESCRIPTION_COLOR);
+        assert_eq!(lines[5].left_color, RED_FONT_COLOR);
+        assert_eq!(lines[6].left_color, TOOLTIP_DESCRIPTION_COLOR);
     }
 }

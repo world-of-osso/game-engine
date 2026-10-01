@@ -22,7 +22,6 @@ const BAGS_UI: &str = "BagsUI";
 pub(crate) struct Bags {
     windows: WindowManager,
     pub(crate) ui: Option<Gd<RegistryUi>>,
-    pub(crate) tooltip_ui: Option<Gd<RegistryUi>>,
     pub(crate) cursor: crate::bag_cursor::BagCursor,
     /// NPC windows open last frame, for their OpenAllBags/CloseAllBags edges.
     npc_windows: Vec<WindowId>,
@@ -51,9 +50,6 @@ pub(crate) fn bags_screen(ctx: &SharedContext) -> Element {
 impl Bags {
     fn reset(&mut self) {
         if let Some(ui) = self.ui.take() {
-            ui.free();
-        }
-        if let Some(ui) = self.tooltip_ui.take() {
             ui.free();
         }
         self.windows.close_all();
@@ -126,15 +122,14 @@ impl GameClient {
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
         self.place_bags(&mut ui)?;
-        self.sync_bag_cursor()?;
-        Ok(self.sync_bag_tooltip()?)
+        Ok(self.sync_bag_cursor()?)
     }
 
     /// NPC windows that open every bag on show and close them on hide (Retail
     /// `OpenAllBags`/`CloseAllBags` in MerchantFrame.lua:147/165, MailFrame.lua:63/73,
     /// Blizzard_AuctionHouseFrame.lua:402/462, BankFrame.lua:74/81). TradeFrame and
     /// GuildBankFrame do not open bags. A new NPC window adds its entry here.
-    fn npc_bag_windows(&self) -> [(WindowId, bool); 3] {
+    fn npc_bag_windows(&self) -> [(WindowId, bool); 4] {
         [
             (WindowId::Merchant, self.merchant.session.is_open()),
             (WindowId::Mail, self.mailbox.session.is_open()),
@@ -142,12 +137,15 @@ impl GameClient {
                 WindowId::AuctionHouse,
                 self.auction.session.ui.npc.is_some(),
             ),
+            (WindowId::Bank, self.bank_backpack_open()),
         ]
     }
 
     /// NPC windows that draw the backpack inside their own canvas.
     fn npc_backpack_embedded(&self) -> bool {
-        self.merchant.session.is_open() || self.mailbox.session.is_open()
+        self.merchant.session.is_open()
+            || self.mailbox.session.is_open()
+            || self.guild_bank_backpack_embedded()
     }
 
     fn sync_npc_bags(&mut self) {
@@ -221,6 +219,9 @@ impl GameClient {
         click: game_engine_ui_model::merchant::Click,
     ) -> Result<(), FrameError> {
         if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
+            if click.right && self.bank_bag_right_click(action)? {
+                return Ok(());
+            }
             self.bag_cursor_click(action, click)
         } else {
             Ok(self.toggle_bag_action(action)?)

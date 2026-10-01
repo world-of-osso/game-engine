@@ -163,7 +163,7 @@ fn counted_down(mut auras: Vec<AuraInstance>, elapsed: f32) -> Vec<AuraInstance>
 
 impl GameClient {
     /// Displayable auras of `unit` now.
-    fn unit_auras(&self, unit: u64) -> Vec<AuraInstance> {
+    pub(crate) fn unit_auras(&self, unit: u64) -> Vec<AuraInstance> {
         let Some(views) = self
             .replica
             .unit(unit)
@@ -190,7 +190,7 @@ impl GameClient {
         counted_down(auras, elapsed)
     }
 
-    fn reaction_to(&mut self, unit: u64) -> Reaction {
+    pub(crate) fn reaction_to(&mut self, unit: u64) -> Reaction {
         let target = self
             .replica
             .unit(unit)

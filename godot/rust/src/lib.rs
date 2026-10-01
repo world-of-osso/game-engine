@@ -10,8 +10,8 @@ mod auras;
 mod auto_attack;
 mod bag_cursor;
 mod bag_destroy;
-mod bag_tooltip;
 mod bags;
+mod bank;
 mod camera;
 mod char_create;
 mod character_frame;
@@ -58,12 +58,14 @@ mod sound_footsteps;
 mod spell_assets;
 mod spell_effects;
 mod spell_sounds;
-mod spell_tooltip;
 mod spells;
 mod startup;
 mod swim;
 mod targeting;
 mod terrain;
+mod tooltip_sources;
+mod tooltip_units;
+mod tooltips;
 mod ui;
 mod ui_scale;
 mod unit_pick;
@@ -174,7 +176,9 @@ pub struct GameClient {
     merchant: merchant::Merchant,
     bags: bags::Bags,
     character_frame: character_frame::CharacterFrame,
+    tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
+    banks: bank::Banks,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
@@ -260,7 +264,9 @@ impl INode3D for GameClient {
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
             character_frame: character_frame::CharacterFrame::default(),
+            tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
+            banks: bank::Banks::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
@@ -696,6 +702,12 @@ impl GameClient {
         self.auction_snapshot()
     }
 
+    /// Read-only bank and guild bank state; requests only come from real frame input.
+    #[func]
+    fn bank_state(&self) -> VarDictionary {
+        self.bank_snapshot()
+    }
+
     /// Read-only receiving mail state; requests only come from real mailbox/frame input.
     #[func]
     fn mail_state(&self) -> VarDictionary {
@@ -737,6 +749,13 @@ impl GameClient {
             state.set("animation_rate", rate);
         }
         state
+    }
+
+    /// The shown `GameTooltip`: visibility, title, `left|right` lines, UI-unit rect and the
+    /// comparison tooltips.
+    #[func]
+    fn tooltip_state(&self) -> VarDictionary {
+        self.tooltip_snapshot()
     }
 
     /// Known spells, bar, cooldowns, sent casts, errors and spellbook entries.
@@ -905,14 +924,13 @@ impl GameClient {
         if let Some(ui) = &mut self.bags.cursor.ui {
             visit(ui)?;
         }
-        if let Some(ui) = &mut self.bags.tooltip_ui {
-            visit(ui)?;
-        }
+        self.tooltips.visit_uis(&mut visit)?;
         self.merchant.visit_uis(&mut visit)?;
         self.character_frame.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
+        self.banks.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
@@ -1360,6 +1378,7 @@ impl GameClient {
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),
+            ("Banks", |c, _| c.update_banks()),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -1399,6 +1418,7 @@ impl GameClient {
             ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
             ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
             ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
+            ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
                 c.cull_world_objects();
                 Ok(())
@@ -1476,6 +1496,7 @@ impl GameClient {
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::Mail(message) => self.receive_mail(message)?,
+            AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
             AccountEvent::ReplicationEnded => {
@@ -1487,11 +1508,17 @@ impl GameClient {
                 self.receive_creation_result(success, error)?
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
-            AccountEvent::Npc(message) => self.receive_npc_message(message)?,
+            AccountEvent::Npc(message) => {
+                if !self.bank_npc_message(&message) {
+                    self.receive_npc_message(message)?
+                }
+            }
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
+            AccountEvent::CreatureTooltip(tooltip) => self.tooltips.receive_creature(tooltip),
+            AccountEvent::Appearances(update) => self.tooltips.receive_appearances(update),
         }
         Ok(())
     }
@@ -1710,6 +1737,16 @@ impl GameClient {
                 .adopt_wmo(wmo.unique_id, &wmo.node, wmo.doodads, wmo.culled);
         }
         let state = self.terrain.state();
+        let objects = position.and_then(|(x, z)| {
+            let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
+            self.world_objects.prioritize_tile(tile);
+            let (done, total) = self.world_objects.tile_progress(tile)?;
+            Some(loading::TileObjects {
+                done,
+                total,
+                collision_pending: self.wmo_collision.tile_pending(tile)?,
+            })
+        });
         let readiness = loading::evaluate_native_loading(
             position,
             self.world.local_visual_settled(),
@@ -1717,11 +1754,12 @@ impl GameClient {
             self.terrain_materials.attached_tiles(),
             self.terrain_materials.failures(),
             global_wmo,
+            objects,
         );
         if let Some(ui) = self.loading_ui.as_mut() {
             ui.bind_mut().advance_loading(
                 readiness.progress_percent,
-                readiness.status_text,
+                &readiness.status_text,
                 delta,
             )?;
         }
@@ -1775,6 +1813,7 @@ impl GameClient {
         self.replica.clear();
         self.replica.drain_changes();
         self.auras.reset();
+        self.tooltips.reset();
         self.terrain.reset()
     }
 

@@ -110,7 +110,7 @@ fn run_fixture() -> Result<(), String> {
         "data/diagnostics/native-ipc-{}",
         std::process::id()
     ));
-    for directory in ["config", "user-data", "cache"] {
+    for directory in ["config", "user-data"] {
         fs::create_dir_all(artifacts.join(directory)).map_err(|error| error.to_string())?;
     }
     let mut native = NativeProcess(
@@ -127,7 +127,6 @@ fn run_fixture() -> Result<(), String> {
             .env("GODOT_IPC_ARTIFACTS", &artifacts)
             .env("XDG_CONFIG_HOME", artifacts.join("config"))
             .env("XDG_DATA_HOME", artifacts.join("user-data"))
-            .env("XDG_CACHE_HOME", artifacts.join("cache"))
             .stdout(Stdio::from(
                 fs::File::create(artifacts.join("native.log"))
                     .map_err(|error| error.to_string())?,
