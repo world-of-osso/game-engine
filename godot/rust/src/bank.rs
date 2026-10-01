@@ -20,7 +20,8 @@ use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
 use godot::prelude::*;
 use shared::protocol::{
-    GAMEOBJECT_TYPE_GUILD_BANK, GameObjectInfo, InteractionKind, ItemLocation, NpcRole,
+    BankContents, GAMEOBJECT_TYPE_GUILD_BANK, GameObjectInfo, GuildBankContents, InteractionKind,
+    ItemLocation, NpcRole,
 };
 
 use crate::GameClient;
@@ -36,6 +37,10 @@ const VAULT_RANGE: f32 = 5.0;
 pub(crate) struct Banks {
     pub(crate) bank: BankSession,
     pub(crate) guild: GuildBankSession,
+    /// The last Warband bank and guild vault contents the server sent, kept after the
+    /// frames close (IPC `status warbank|guild-vault`).
+    pub(crate) warbank_seen: Option<BankContents>,
+    pub(crate) guild_vault_seen: Option<GuildBankContents>,
     bank_ui: Option<Gd<RegistryUi>>,
     guild_ui: Option<Gd<RegistryUi>>,
 }
@@ -187,7 +192,12 @@ impl GameClient {
 
     pub(crate) fn receive_bank(&mut self, message: BankMessage) -> Result<(), FrameError> {
         match message {
-            BankMessage::Contents(contents) => self.banks.bank.apply_contents(contents),
+            BankMessage::Contents(contents) => {
+                self.banks.bank.apply_contents(contents);
+                if let Some(account) = &self.banks.bank.state.account {
+                    self.banks.warbank_seen = Some(account.clone());
+                }
+            }
             BankMessage::Failed(failed) => {
                 if let Some(error) = self.banks.bank.apply_failed(failed) {
                     self.add_world_error(error)?;
@@ -195,6 +205,9 @@ impl GameClient {
             }
             BankMessage::GuildContents(contents) => {
                 let effects = self.banks.guild.apply_contents(contents);
+                if let Some(seen) = &self.banks.guild.state.contents {
+                    self.banks.guild_vault_seen = Some(seen.clone());
+                }
                 self.send_guild_effects(effects)?;
             }
             BankMessage::GuildLog(log) => self.banks.guild.apply_log(log),

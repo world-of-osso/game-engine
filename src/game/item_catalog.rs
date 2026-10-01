@@ -31,6 +31,8 @@ pub struct ItemCatalogEntry {
     /// `Bonding`: 1 on pickup, 2 on equip, 3 on use, 4 quest.
     pub bonding: u8,
     pub required_level: u16,
+    /// `ExpansionID`.
+    pub expansion_id: u8,
     /// `InventoryType` (Retail `Enum.InventoryType`).
     pub inventory_type: u8,
     pub item_level: u16,
@@ -208,7 +210,7 @@ pub(crate) fn parse_item_catalog(table: &CsvTable) -> Result<ItemCatalog, String
 /// Fill the ItemSparse fields of the catalog's items; sparse rows without an
 /// `Item` row are skipped (the client cannot show an item without its icon).
 pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> Result<(), String> {
-    const COLUMNS: [&str; 12] = [
+    const COLUMNS: [&str; 13] = [
         "ID",
         "Display_lang",
         "OverallQualityID",
@@ -221,6 +223,7 @@ pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> 
         "MaxCount",
         "Description_lang",
         "ContainerSlots",
+        "ExpansionID",
     ];
     let path = table.path();
     csv_rows(table, COLUMNS, |values| {
@@ -237,6 +240,7 @@ pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> 
             max,
             desc,
             slots,
+            expansion,
         ] = values;
         let Some(entry) = catalog.items.get_mut(&(number(id, path)? as u32)) else {
             return Ok(());
@@ -247,6 +251,7 @@ pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> 
         entry.sell_price = number(sell, path)?.max(0) as u32;
         entry.bonding = number(bonding, path)? as u8;
         entry.required_level = number(level, path)?.max(0) as u16;
+        entry.expansion_id = number(expansion, path)?.max(0) as u8;
         entry.inventory_type = number(inventory_type, path)? as u8;
         entry.item_level = number(ilvl, path)?.max(0) as u16;
         entry.max_count = number(max, path)?.max(0) as u32;

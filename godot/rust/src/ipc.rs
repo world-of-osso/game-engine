@@ -5,6 +5,7 @@
 
 mod dev;
 mod export;
+mod items;
 mod tree;
 mod ui_tree;
 mod world;

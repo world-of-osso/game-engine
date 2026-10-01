@@ -1,12 +1,21 @@
 //! World and combat requests in the original response text: `map target` and `map
 //! waypoint add|clear` (src/ipc/plugin.rs, src/ipc/format.rs `format_map_target`),
+//! `quest interact` and `loot take-all` (src/ipc/plugin.rs `handle_quest_interact`,
+//! `handle_loot_take_all`),
 //! `group roster|status|invite|uninvite`, `emote`, `spell cast|stop`
 //! (src/ipc/plugin/combat.rs, src/ipc/format.rs). The native client has no client-side
 //! entity IDs: `map target` reports the target's server entity.
 use game_engine_network::ipc_wire::{Request, Response};
-use game_engine_ui_model::group_state::{GroupCommand, GroupState};
-use shared::protocol::{
-    EmoteIntent, GroupMemberState, GroupRoleSnapshot, ReadyCheckAnswer, SpellCastIntent,
+use game_engine_ui_model::{
+    group_state::{GroupCommand, GroupState},
+    loot_data::{NpcRightClick, loot_chat_text, npc_right_click},
+};
+use shared::{
+    components::{Health, Npc, Player},
+    protocol::{
+        EmoteIntent, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo, GroupMemberState, GroupRoleSnapshot,
+        ReadyCheckAnswer, SpellCastIntent,
+    },
 };
 
 impl crate::GameClient {
@@ -37,7 +46,9 @@ impl crate::GameClient {
             Request::Emote { emote } => self.emote_ipc(emote),
             Request::SpellCast { spell, target } => self.spell_cast_ipc(&spell, target.as_deref()),
             Request::SpellStop => self.spell_stop_ipc(),
-            request => return Err(request),
+            Request::QuestInteract { npc } => self.quest_interact(&npc),
+            Request::LootTakeAll => self.loot_take_all(),
+            request => return self.item_request(request),
         };
         Ok(match answer {
             Ok(text) => Response::Text(text),
@@ -46,7 +57,10 @@ impl crate::GameClient {
     }
 
     fn connected(&self) -> bool {
-        self.account.link.as_ref().is_some_and(|link| link.connected)
+        self.account
+            .link
+            .as_ref()
+            .is_some_and(|link| link.connected)
     }
 
     /// `format_map_target`: the target's name, server entity, position and ground
@@ -70,6 +84,104 @@ impl crate::GameClient {
             "map_target: {name}\nentity: {target}\nposition: {:.2},{:.2}\ndistance: {distance:.2}",
             position.x, position.z
         ))
+    }
+
+    /// A right-click on the nearest NPC named `name` (auto-loot off; the server checks
+    /// range), else a use of the nearest game object of that name, else targeting the
+    /// player of that name.
+    fn quest_interact(&mut self, name: &str) -> Result<String, String> {
+        let player = self
+            .world
+            .local_player_transform()
+            .ok_or("quest interact requires a local player")?
+            .origin;
+        let distance = |position: godot::prelude::Vector3| {
+            (position.x - player.x).powi(2) + (position.z - player.z).powi(2)
+        };
+        let npc = self
+            .replica
+            .units()
+            .filter_map(|unit| {
+                let npc = unit.get::<Npc>()?;
+                let node = self.world.unit_node(unit.server_id)?;
+                npc.name.eq_ignore_ascii_case(name).then(|| {
+                    let dead = unit
+                        .get::<Health>()
+                        .is_some_and(|health| health.current <= 0.0);
+                    (
+                        unit.server_id,
+                        npc.name.clone(),
+                        dead,
+                        distance(node.get_global_position()),
+                    )
+                })
+            })
+            .min_by(|a, b| a.3.total_cmp(&b.3));
+        if let Some((id, npc, dead, _)) = npc {
+            self.set_target(Some(id));
+            let lootable = self.loot.lootable.contains(&id);
+            return match npc_right_click(dead, lootable, false) {
+                NpcRightClick::Loot { auto } => self
+                    .account
+                    .send_loot_unit(id, auto)
+                    .map(|()| format!("loot {npc}")),
+                NpcRightClick::Target => Ok(format!("target {npc}")),
+                NpcRightClick::Interact => self
+                    .account
+                    .send_interact(id)
+                    .map(|()| format!("interact {npc}")),
+            }
+            .map_err(|error| error.to_string());
+        }
+        let object = self
+            .replica
+            .units()
+            .filter_map(|unit| {
+                let info = unit.get::<GameObjectInfo>()?;
+                let position = self.game_objects.position(unit.server_id)?;
+                info.name
+                    .eq_ignore_ascii_case(name)
+                    .then(|| (unit.server_id, info.clone(), distance(position)))
+            })
+            .min_by(|a, b| a.2.total_cmp(&b.2));
+        if let Some((id, info, _)) = object {
+            self.account
+                .send_use_game_object(id)
+                .map_err(|error| error.to_string())?;
+            if info.go_type == GAMEOBJECT_TYPE_MAILBOX {
+                self.mailbox.session.expect_open(id);
+            }
+            return Ok(format!("use {}", info.name));
+        }
+        let player = self.replica.units().find_map(|unit| {
+            let player = unit.get::<Player>()?;
+            player
+                .name
+                .eq_ignore_ascii_case(name)
+                .then(|| (unit.server_id, player.name.clone()))
+        });
+        let (id, player) =
+            player.ok_or_else(|| format!("no NPC, game object or player named {name}"))?;
+        self.set_target(Some(id));
+        Ok(format!("target {player}"))
+    }
+
+    /// Takes every slot of the open loot window; the answer lists what was on them.
+    fn loot_take_all(&self) -> Result<String, String> {
+        let corpse = self.loot.state.corpse.ok_or("no loot window open")?;
+        for slot in &self.loot.state.slots {
+            self.account
+                .send_loot_slot(corpse, slot.slot)
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(self
+            .loot
+            .state
+            .slots
+            .iter()
+            .map(|slot| loot_chat_text(&slot.content))
+            .collect::<Vec<_>>()
+            .join("\n"))
     }
 
     fn group_ipc(&self, what: &str, command: GroupCommand, sent: String) -> Result<String, String> {
@@ -140,12 +252,17 @@ fn resolve_spell_identifier(spell: &str) -> Result<(Option<u32>, String), String
 
 /// `resolve_spell_target`: the current target (default or `current`), `none`, or a
 /// server entity.
-fn resolve_spell_target(selector: Option<&str>, current: Option<u64>) -> Result<Option<u64>, String> {
+fn resolve_spell_target(
+    selector: Option<&str>,
+    current: Option<u64>,
+) -> Result<Option<u64>, String> {
     match selector {
-        None => current.map(Some).ok_or_else(|| "no current target selected".into()),
-        Some(selector) if selector.eq_ignore_ascii_case("current") => {
-            current.map(Some).ok_or_else(|| "no current target selected".into())
-        }
+        None => current
+            .map(Some)
+            .ok_or_else(|| "no current target selected".into()),
+        Some(selector) if selector.eq_ignore_ascii_case("current") => current
+            .map(Some)
+            .ok_or_else(|| "no current target selected".into()),
         Some(selector) if selector.eq_ignore_ascii_case("none") => Ok(None),
         Some(selector) => selector
             .parse::<u64>()
