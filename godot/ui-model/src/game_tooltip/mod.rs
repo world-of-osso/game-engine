@@ -5,6 +5,7 @@
 
 pub mod hud;
 pub mod item;
+pub mod render;
 pub mod spell;
 pub mod unit;
 
@@ -14,11 +15,14 @@ use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::tooltip_presentation::{
-    GRAY_FONT_COLOR, TOOLTIP_BG, TOOLTIP_BORDER, TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_FONT_SIZE,
-    TOOLTIP_W, TooltipLineState, TooltipPresentation, item_id_line, rgba_string, tooltip_frame,
+    GRAY_FONT_COLOR, TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation,
+    item_id_line, rgba_string,
 };
 pub use item::ShoppingTooltip;
+use render::retail_tooltip;
+pub use render::tooltip_size;
 
 /// `GameTooltipDefaultContainer` (GameTooltip.xml:242-247): BOTTOMRIGHT of UIParent at
 /// x -9, y 85; `GameTooltip_SetDefaultAnchor` puts the tooltip's BOTTOMRIGHT there.
@@ -146,6 +150,12 @@ const HEALTH_BAR_GREEN: &str = "0.0,1.0,0.0,1.0";
 /// BOTTOMLEFT 1 below the tooltip's TOPLEFT, the label 30 narrower than the header.
 const COMPARE_HEADER_H: f32 = 22.0;
 const COMPARE_HEADER_PADDING: f32 = 30.0;
+/// `tooltip-compare-label`: UiTextureAtlas 3479 (7304549, 128×32), 94×29 at (1, 1).
+const COMPARE_LABEL: AtlasArt = AtlasArt {
+    fdid: 7_304_549,
+    atlas: (128.0, 32.0),
+    rect: (1.0, 95.0, 1.0, 30.0),
+};
 
 struct DynName(String);
 
@@ -161,12 +171,12 @@ pub fn game_tooltip_screen(ctx: &SharedContext) -> Element {
     let view = ctx
         .get::<GameTooltipView>()
         .expect("GameTooltipView must be in SharedContext");
-    let mut elements = tooltip_frame(&view.main, "Tooltip");
+    let mut elements = retail_tooltip(&view.main, "Tooltip");
     elements.extend(health_bar(&view.main, view.health));
     for (index, shopping) in view.shopping.iter().enumerate() {
         let prefix = format!("ShoppingTooltip{}", index + 1);
         elements.extend(compare_header(&prefix, shopping));
-        elements.extend(tooltip_frame(&shopping.tooltip, &prefix));
+        elements.extend(retail_tooltip(&shopping.tooltip, &prefix));
     }
     elements
 }
@@ -174,8 +184,9 @@ pub fn game_tooltip_screen(ctx: &SharedContext) -> Element {
 fn health_bar(main: &TooltipPresentation, health: Option<f32>) -> Element {
     let fraction = health.unwrap_or(0.0).clamp(0.0, 1.0);
     let hidden = !main.visible || health.is_none();
-    let width = TOOLTIP_W - 2.0 * HEALTH_BAR_INSET;
-    let (x, y) = (main.x + HEALTH_BAR_INSET, main.y + main.height() + 1.0);
+    let [main_w, main_h] = tooltip_size(main);
+    let width = main_w - 2.0 * HEALTH_BAR_INSET;
+    let (x, y) = (main.x + HEALTH_BAR_INSET, main.y + main_h + 1.0);
     let fill = width * fraction;
     let fill_hidden = hidden || fill <= 0.0;
     let fill_coords = format!("0,{fraction},0,1");
@@ -207,7 +218,7 @@ fn health_bar(main: &TooltipPresentation, health: Option<f32>) -> Element {
 }
 
 fn compare_header(prefix: &str, shopping: &ShoppingTooltip) -> Element {
-    let label_w = measure_text(&shopping.header, GameFont::FrizQuadrata, TOOLTIP_FONT_SIZE)
+    let label_w = measure_text(&shopping.header, GameFont::FrizQuadrata, render::TEXT_SIZE)
         .map_or(0.0, |(width, _)| width.ceil());
     let width = label_w + COMPARE_HEADER_PADDING;
     let hidden = !shopping.tooltip.visible || shopping.header.is_empty();
@@ -215,6 +226,7 @@ fn compare_header(prefix: &str, shopping: &ShoppingTooltip) -> Element {
         shopping.tooltip.x,
         shopping.tooltip.y - COMPARE_HEADER_H + 1.0,
     );
+    let coords = COMPARE_LABEL.tex_coords(1.0);
     rsx! {
         r#frame {
             name: {DynName(format!("{prefix}Header"))},
@@ -222,19 +234,27 @@ fn compare_header(prefix: &str, shopping: &ShoppingTooltip) -> Element {
             height: {COMPARE_HEADER_H},
             hidden: {hidden},
             strata: "TOOLTIP",
-            background_color: TOOLTIP_BG,
-            border: TOOLTIP_BORDER,
             pos_type: "absolute",
             anchor: "screen",
             pos_x: {x},
             pos_y: {y},
+            texture {
+                name: {DynName(format!("{prefix}HeaderBackground"))},
+                width: {width},
+                height: {COMPARE_HEADER_H},
+                texture_fdid: {COMPARE_LABEL.fdid},
+                tex_coords: {coords.as_str()},
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: 0.0,
+            }
             fontstring {
                 name: {DynName(format!("{prefix}HeaderLabel"))},
                 width: {width},
                 height: {COMPARE_HEADER_H},
                 text: {shopping.header.as_str()},
                 font: "FrizQuadrata",
-                font_size: {TOOLTIP_FONT_SIZE},
+                font_size: {render::TEXT_SIZE},
                 font_color: {rgba_string(TOOLTIP_DESCRIPTION_COLOR)},
                 justify_h: "CENTER",
                 pos_type: "absolute",
@@ -259,7 +279,7 @@ pub fn place(tooltip: GameTooltip, screen: TooltipScreen) -> TooltipPresentation
     if let Some(record) = tooltip.record {
         content.lines.push(record.id_line());
     }
-    let (width, height) = (TOOLTIP_W, content.height());
+    let [width, height] = tooltip_size(&content);
     let [x, y] = anchor_origin(tooltip.anchor, screen, [width, height]);
     content.visible = true;
     content.x = x.clamp(0.0, (screen.size[0] - width).max(0.0));
@@ -315,10 +335,14 @@ pub fn place_comparisons(
     comparisons: Vec<ShoppingTooltip>,
     screen: TooltipScreen,
 ) -> [ShoppingTooltip; 2] {
-    let width = TOOLTIP_W;
-    let mut comparisons: Vec<_> = comparisons.into_iter().take(2).collect();
-    let total = width * comparisons.len() as f32;
-    let (left, right_dist) = (main.x, screen.size[0] - (main.x + width));
+    let comparisons: Vec<_> = comparisons.into_iter().take(2).collect();
+    let widths: Vec<f32> = comparisons
+        .iter()
+        .map(|shopping| tooltip_size(&shopping.tooltip)[0])
+        .collect();
+    let total: f32 = widths.iter().sum();
+    let main_w = tooltip_size(main)[0];
+    let (left, right_dist) = (main.x, screen.size[0] - (main.x + main_w));
     let side = match anchor {
         TooltipAnchor::Owner { side, .. } => Some(side),
         _ => None,
@@ -337,25 +361,27 @@ pub fn place_comparisons(
     } else if !on_left && total > right_dist {
         main.x -= total - right_dist;
     }
-    main.x = main.x.clamp(0.0, (screen.size[0] - width).max(0.0));
-    if !on_left {
-        comparisons.reverse();
-    }
+    main.x = main.x.clamp(0.0, (screen.size[0] - main_w).max(0.0));
+    // Outward from the main tooltip: the first comparison on the left, the second on the
+    // right (secondary next to the main tooltip, primary beyond it).
+    let order: Vec<usize> = if on_left {
+        (0..comparisons.len()).collect()
+    } else {
+        (0..comparisons.len()).rev().collect()
+    };
     let mut placed = [ShoppingTooltip::hidden(), ShoppingTooltip::hidden()];
-    let count = comparisons.len();
-    for (step, mut shopping) in comparisons.into_iter().enumerate() {
-        let offset = width * (step + 1) as f32;
+    let mut edge = if on_left { main.x } else { main.x + main_w };
+    let mut comparisons: Vec<Option<ShoppingTooltip>> = comparisons.into_iter().map(Some).collect();
+    for index in order {
+        let Some(mut shopping) = comparisons[index].take() else {
+            continue;
+        };
+        let [width, height] = tooltip_size(&shopping.tooltip);
         let tooltip = &mut shopping.tooltip;
         tooltip.visible = true;
-        tooltip.x = if on_left {
-            main.x - offset
-        } else {
-            main.x + offset
-        };
-        tooltip.y = main
-            .y
-            .clamp(0.0, (screen.size[1] - tooltip.height()).max(0.0));
-        let index = if on_left { step } else { count - 1 - step };
+        tooltip.x = if on_left { edge - width } else { edge };
+        edge = if on_left { edge - width } else { edge + width };
+        tooltip.y = main.y.clamp(0.0, (screen.size[1] - height).max(0.0));
         placed[index] = shopping;
     }
     placed
@@ -389,9 +415,15 @@ mod tests {
         )
     }
 
+    /// Width of the five-line test tooltip.
+    fn w() -> f32 {
+        set_test_data_root();
+        tooltip_size(&five_lines().content)[0]
+    }
+
     fn beside(x: f32, y: f32, side: OwnerSide) -> (f32, f32, f32) {
         let tooltip = five_lines();
-        let height = tooltip.content.height();
+        let height = tooltip_size(&tooltip.content)[1];
         let placed = place(tooltip.owned([x, y, 36.0, 36.0], side), SCREEN);
         assert!(placed.visible);
         (placed.x, placed.y, height)
@@ -402,17 +434,17 @@ mod tests {
         let (x, y, h) = beside(600.0, 500.0, OwnerSide::Right);
         assert_eq!((x, y), (636.0, 500.0 - h));
         let (x, y, h) = beside(600.0, 500.0, OwnerSide::Left);
-        assert_eq!((x, y), (600.0 - TOOLTIP_W, 500.0 - h));
+        assert_eq!((x, y), (600.0 - w(), 500.0 - h));
         let (x, y, h) = beside(600.0, 500.0, OwnerSide::Top);
-        assert_eq!((x, y), (618.0 - TOOLTIP_W / 2.0, 500.0 - h));
+        assert_eq!((x, y), (618.0 - w() / 2.0, 500.0 - h));
         let (x, y, _) = beside(600.0, 500.0, OwnerSide::Bottom);
-        assert_eq!((x, y), (618.0 - TOOLTIP_W / 2.0, 536.0));
+        assert_eq!((x, y), (618.0 - w() / 2.0, 536.0));
         let (x, y, h) = beside(600.0, 500.0, OwnerSide::TopLeft);
         assert_eq!((x, y), (600.0, 500.0 - h));
         let (x, y, h) = beside(600.0, 500.0, OwnerSide::TopRight);
-        assert_eq!((x, y), (636.0 - TOOLTIP_W, 500.0 - h));
+        assert_eq!((x, y), (636.0 - w(), 500.0 - h));
         let (x, y, _) = beside(1600.0, 20.0, OwnerSide::BottomLeft);
-        assert_eq!((x, y), (1600.0 - TOOLTIP_W, 56.0));
+        assert_eq!((x, y), (1600.0 - w(), 56.0));
         let (x, y, _) = beside(600.0, 20.0, OwnerSide::BottomRight);
         assert_eq!((x, y), (636.0, 56.0));
     }
@@ -420,29 +452,20 @@ mod tests {
     #[test]
     fn bag_slots_and_target_auras_pick_their_side_by_screen_half() {
         assert_eq!(beside(600.0, 500.0, OwnerSide::BagSlot).0, 636.0);
-        assert_eq!(
-            beside(1700.0, 500.0, OwnerSide::BagSlot).0,
-            1700.0 - TOOLTIP_W
-        );
+        assert_eq!(beside(1700.0, 500.0, OwnerSide::BagSlot).0, 1700.0 - w());
         // The right edge decides for bags: 928 + 36 > 960.
-        assert_eq!(
-            beside(928.0, 500.0, OwnerSide::BagSlot).0,
-            928.0 - TOOLTIP_W
-        );
+        assert_eq!(beside(928.0, 500.0, OwnerSide::BagSlot).0, 928.0 - w());
         // The centre decides for auras: 928 + 18 < 960.
         assert_eq!(beside(928.0, 500.0, OwnerSide::ByCenter).0, 964.0);
-        assert_eq!(
-            beside(1000.0, 200.0, OwnerSide::ByCenter).0,
-            1000.0 - TOOLTIP_W
-        );
+        assert_eq!(beside(1000.0, 200.0, OwnerSide::ByCenter).0, 1000.0 - w());
     }
 
     #[test]
     fn the_default_anchor_is_bottom_right_and_cursor_follows_the_pointer() {
         let tooltip = five_lines();
-        let height = tooltip.content.height();
+        let height = tooltip_size(&tooltip.content)[1];
         let placed = place(tooltip.clone(), SCREEN);
-        assert_eq!(placed.x + TOOLTIP_W, 1920.0 - 9.0);
+        assert_eq!(placed.x + w(), 1920.0 - 9.0);
         assert_eq!(placed.y + height, 1080.0 - 85.0);
         let placed = place(tooltip.at_cursor(), SCREEN);
         assert_eq!((placed.x, placed.y), (800.0, 580.0));
@@ -450,8 +473,8 @@ mod tests {
 
     #[test]
     fn tooltips_clamp_to_every_screen_edge() {
-        let (x, y, _) = beside(1800.0, 10.0, OwnerSide::Right);
-        assert_eq!((x, y), (1920.0 - TOOLTIP_W, 0.0));
+        let (x, y, _) = beside(1900.0, 10.0, OwnerSide::Right);
+        assert_eq!((x, y), (1920.0 - w(), 0.0));
         let (x, y, h) = beside(10.0, 1070.0, OwnerSide::BottomLeft);
         assert_eq!((x, y), (0.0, 1080.0 - h));
         let corner = TooltipScreen {
@@ -459,7 +482,7 @@ mod tests {
             ..SCREEN
         };
         let placed = place(five_lines().at_cursor(), corner);
-        assert_eq!((placed.x, placed.y), (1920.0 - TOOLTIP_W, 0.0));
+        assert_eq!((placed.x, placed.y), (1920.0 - w(), 0.0));
     }
 
     #[test]
@@ -507,6 +530,7 @@ mod tests {
                 ..five_lines().content
             },
         };
+        let view_main = main.clone();
         let view = GameTooltipView {
             main,
             shopping: [shopping, ShoppingTooltip::hidden()],
@@ -538,9 +562,10 @@ mod tests {
         assert!(frame("ShoppingTooltip2Header").hidden);
         // The health bar under the main tooltip, a quarter full.
         assert!(!frame("TooltipStatusBar").hidden);
+        let main_w = tooltip_size(&view_main)[0];
         assert_eq!(
             frame("TooltipStatusBarFill").width,
-            ui_toolkit::frame::Dimension::Fixed((TOOLTIP_W - 4.0) * 0.25)
+            ui_toolkit::frame::Dimension::Fixed((main_w - 4.0) * 0.25)
         );
     }
 
@@ -567,11 +592,8 @@ mod tests {
         );
         let [first, second] =
             place_comparisons(&mut main, anchor, vec![compare("1"), compare("2")], SCREEN);
-        assert_eq!(
-            (second.tooltip.x, second.tooltip.y),
-            (main.x + TOOLTIP_W, main.y)
-        );
-        assert_eq!(first.tooltip.x, main.x + 2.0 * TOOLTIP_W);
+        assert_eq!((second.tooltip.x, second.tooltip.y), (main.x + w(), main.y));
+        assert_eq!(first.tooltip.x, main.x + 2.0 * w());
         // The default anchor at the bottom right has more room on the left.
         let mut main = place(five_lines(), SCREEN);
         let [first, second] = place_comparisons(
@@ -580,7 +602,7 @@ mod tests {
             vec![compare("1")],
             SCREEN,
         );
-        assert_eq!(first.tooltip.x, main.x - TOOLTIP_W);
+        assert_eq!(first.tooltip.x, main.x - w());
         assert!(first.tooltip.visible && !second.tooltip.visible);
         // A left-anchored tooltip keeps its side when the comparison fits there.
         let anchor = TooltipAnchor::Owner {
@@ -595,14 +617,14 @@ mod tests {
             SCREEN,
         );
         let [first, _] = place_comparisons(&mut main, anchor, vec![compare("1")], SCREEN);
-        assert_eq!((main.x, first.tooltip.x), (340.0, 80.0));
+        assert_eq!((main.x, first.tooltip.x), (600.0 - w(), 600.0 - 2.0 * w()));
         // Room on neither side: the main tooltip slides inward, staying on the screen.
         let narrow = TooltipScreen {
-            size: [500.0, 1080.0],
+            size: [1.5 * w(), 1080.0],
             ..SCREEN
         };
         let mut main = TooltipPresentation {
-            x: 100.0,
+            x: 0.25 * w(),
             ..five_lines().content
         };
         let [first, _] = place_comparisons(
@@ -611,6 +633,6 @@ mod tests {
             vec![compare("1")],
             narrow,
         );
-        assert_eq!((main.x, first.tooltip.x), (0.0, TOOLTIP_W));
+        assert_eq!((main.x, first.tooltip.x), (0.0, w()));
     }
 }

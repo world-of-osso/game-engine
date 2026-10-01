@@ -287,15 +287,16 @@ func check_item_tooltip_rect(client: Node, panel: Control, owner_slot: int) -> b
 	if owner == null or not owner.is_visible_in_tree():
 		fail("Tooltip placement requires its visible authored slot owner")
 		return false
-	# Original tooltip_frame/mod.rs: width260; max(34, 2*8 + 16 + 2*14).
-	# Sell Price and the appended Item ID are exactly two lines for both items.
-	# Convert logical units using the owner's canvas transform, not tooltip size.
+	# The Retail GameTooltip fits its widest line (game_tooltip/render.rs tooltip_size); the
+	# tooltip state reports that size in UI units.
+	# Convert logical units using the owner's canvas transform.
 	var transform := owner.get_global_transform()
 	var scale := Vector2(transform.x.length(), transform.y.length())
 	if scale.x <= 0.0 or not is_equal_approx(scale.x, scale.y):
 		fail("Authored bag owner must have positive uniform logical UI scale")
 		return false
-	var expected_size := Vector2(260.0, maxf(34.0, 2.0 * 8.0 + 16.0 + 2.0 * 14.0)) * scale
+	var state_rect: PackedFloat32Array = client.tooltip_state().rect
+	var expected_size := Vector2(state_rect[2], state_rect[3]) * scale
 	var viewport := root.get_visible_rect()
 	var owner_rect := owner.get_global_rect()
 	if owner_rect.end.x < viewport.get_center().x:
