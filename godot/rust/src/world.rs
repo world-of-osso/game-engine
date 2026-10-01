@@ -1,12 +1,18 @@
 //! Server-identified replicated unit nodes and their authored visual children.
 
-use std::{collections::HashMap, f32::consts::PI, path::PathBuf};
+use std::{
+    collections::{HashMap, VecDeque},
+    f32::consts::PI,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use crate::{
     animation::{WowAnimationPlayer, lod::AnimationLod},
     lighting::TerrainLight,
     world_models::{
-        UnitAppearance, WorldModels, bind_visual_light, place_items, place_virtual_items,
+        UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_items,
+        place_virtual_items,
     },
 };
 
@@ -32,6 +38,9 @@ use shared::components::{
 pub(crate) mod combat;
 use combat::MeleeWeapon;
 
+/// Main-thread time per frame for attaching loaded unit visuals.
+const VISUAL_BUDGET: Duration = Duration::from_millis(8);
+
 /// Unit node metadata: the replicated name (Godot renames duplicate siblings `@Node3D@N`).
 const UNIT_NAME_META: &str = "unit_name";
 
@@ -40,8 +49,14 @@ struct UnitNode {
     name: String,
     is_player: bool,
     motion: UnitMotion,
+    /// The appearance of the newest requested visual.
     appearance: Option<UnitAppearance>,
     visual: Option<Gd<Node3D>>,
+    /// Visual request still loading and the sheath state its virtual items are placed
+    /// for; `visual` shows the previous appearance until it arrives.
+    loading: Option<(u64, SheathState)>,
+    /// Player race and sex of `visual`'s body, whose playback a re-dress continues.
+    visual_player_model: Option<(u8, u8)>,
     death_applied: bool,
     /// Animation ID last selected on `visual` from its `CreatureMotion` and `UnitPose`.
     animation: Option<u16>,
@@ -207,6 +222,8 @@ fn spawn_unit(
         motion: UnitMotion::new([position.x, position.y, position.z], yaw),
         appearance: None,
         visual: None,
+        loading: None,
+        visual_player_model: None,
         death_applied: false,
         animation: None,
         player_motion: None,
@@ -294,12 +311,8 @@ fn unit_sheath(snapshot: Unit) -> SheathState {
     }
 }
 
-fn sync_unit_visual(
-    unit: &mut UnitNode,
-    snapshot: Unit,
-    models: &mut WorldModels,
-    light: Option<&TerrainLight>,
-) {
+/// Request the visual of a changed appearance; a unit without one loses its visual.
+fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
     let native_display = match snapshot.get::<Player>().filter(|_| {
         snapshot
             .get::<ModelDisplay>()
@@ -318,43 +331,60 @@ fn sync_unit_visual(
     if unit.appearance == appearance {
         return;
     }
-    let preserve_playback = unit
+    unit.appearance = appearance;
+    unit.loading = unit.appearance.as_ref().map(|appearance| {
+        let sheath = unit_sheath(snapshot);
+        (models.request(appearance, sheath), sheath)
+    });
+    if unit.appearance.is_none() {
+        unit.animation = None;
+        unit.sheath = None;
+        if let Some(previous) = unit.visual.take() {
+            previous.free();
+        }
+    }
+}
+
+/// Replace `unit`'s visual with the loaded one of its newest request.
+fn attach_unit_visual(
+    unit: &mut UnitNode,
+    server_id: u64,
+    loaded: Result<VisualParts, String>,
+    sheath: SheathState,
+    models: &WorldModels,
+    light: Option<&TerrainLight>,
+) {
+    let appearance = unit
         .appearance
         .as_ref()
-        .zip(appearance.as_ref())
-        .is_some_and(|(old, new)| old.same_player_model(new));
-    let previous = unit.visual.take();
-    unit.appearance = appearance;
-    unit.animation = None;
-    let sheath = unit_sheath(snapshot);
-    unit.sheath = Some(sheath);
-    let replacement = unit.appearance.as_ref().map(|appearance| {
-        models.load_visual(
-            appearance,
-            sheath,
-            previous.as_ref().filter(|_| preserve_playback),
-        )
+        .expect("a loading unit has an appearance");
+    let preserve_playback = unit.visual.is_some()
+        && unit.visual_player_model.is_some()
+        && unit.visual_player_model == appearance.player_model();
+    let replacement = loaded.and_then(|parts| {
+        models.build_visual(parts, unit.visual.as_ref().filter(|_| preserve_playback))
     });
-    if let Some(previous) = previous {
+    unit.animation = None;
+    // A creature's load places its virtual items for `sheath`; a player's weapons are
+    // placed by the sheath sync that follows the attach.
+    unit.sheath = appearance.player_model().is_none().then_some(sheath);
+    if let Some(previous) = unit.visual.take() {
         previous.free();
     }
     match replacement {
-        Some(Ok(visual)) => {
-            if let Err(error) = crate::targeting::attach_pick_area(&visual, snapshot.server_id) {
+        Ok(visual) => {
+            if let Err(error) = crate::targeting::attach_pick_area(&visual, server_id) {
                 godot_error!("{error}");
             }
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
             unit.visual = Some(visual);
+            unit.visual_player_model = appearance.player_model();
         }
-        Some(Err(error)) => {
-            let appearance = unit
-                .appearance
-                .as_ref()
-                .expect("Visual load has appearance");
-            godot_error!("{}: {error}", appearance.describe_unit(snapshot.server_id));
+        Err(error) => {
+            unit.visual_player_model = None;
+            godot_error!("{}: {error}", appearance.describe_unit(server_id));
         }
-        None => {}
     }
 }
 
@@ -496,8 +526,12 @@ fn sync_unit_pose(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels)
         });
 }
 
-/// Move the weapons of a creature or player whose sheath state changed.
+/// Move the weapons of a creature or player whose sheath state changed; a visual still
+/// loading places them for the current state when it arrives.
 fn sync_unit_sheath(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
+    if unit.loading.is_some() {
+        return;
+    }
     let sheath = unit_sheath(snapshot);
     let (Some(visual), Some(appearance)) = (&unit.visual, &unit.appearance) else {
         return;
@@ -573,6 +607,8 @@ pub struct WorldUnits {
     selected_name: Option<String>,
     local_player_id: Option<u64>,
     models: WorldModels,
+    /// Loaded visuals waiting for main-thread time, oldest first.
+    arrived: VecDeque<(u64, Result<VisualParts, String>)>,
     light: Option<TerrainLight>,
     /// Units whose death clip started since `take_deaths`.
     deaths: Vec<u64>,
@@ -588,6 +624,7 @@ impl WorldUnits {
             selected_name: None,
             local_player_id: None,
             models: WorldModels::new(data_root),
+            arrived: VecDeque::new(),
             light: None,
             deaths: Vec::new(),
         }
@@ -626,7 +663,7 @@ impl WorldUnits {
         unit.in_combat = snapshot
             .get::<CombatStatus>()
             .is_some_and(|status| status.0);
-        sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
+        request_unit_visual(unit, snapshot, &mut self.models);
         (unit.weapon, unit.main_hand_subclass) = combat::unit_weapon_class(unit, &mut self.models);
         sync_unit_sheath(unit, snapshot, &mut self.models);
         sync_unit_pose(unit, snapshot, &mut self.models);
@@ -640,6 +677,54 @@ impl WorldUnits {
             snapshot.get::<Rotation>().map(|rotation| rotation.y),
             snapshot.get::<MovementControl>().copied(),
         );
+    }
+
+    /// Attach arrived visuals within `VISUAL_BUDGET` of main-thread time (at least one
+    /// per frame), each brought up to its unit's snapshot.
+    pub fn attach_loaded_visuals(&mut self, replica: &Replica) {
+        self.arrived.extend(self.models.poll());
+        let started = Instant::now();
+        while let Some((request, loaded)) = self.arrived.pop_front() {
+            let loading = self
+                .units
+                .iter_mut()
+                .find(|(_, unit)| unit.loading.is_some_and(|(pending, _)| pending == request));
+            let Some((&id, unit)) = loading else {
+                // A superseded request, or its unit is gone.
+                if let Ok(parts) = loaded {
+                    self.models.discard(parts);
+                }
+                continue;
+            };
+            let (_, sheath) = unit.loading.take().expect("matched a loading unit");
+            attach_unit_visual(unit, id, loaded, sheath, &self.models, self.light.as_ref());
+            if let Some(snapshot) = replica.unit(id) {
+                sync_unit_sheath(unit, snapshot, &mut self.models);
+                if sync_unit_death(unit, snapshot) {
+                    self.deaths.push(id);
+                }
+                let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
+                sync_unit_animation(unit, snapshot, fallbacks);
+            }
+            if started.elapsed() >= VISUAL_BUDGET {
+                break;
+            }
+        }
+    }
+
+    /// Visuals requested and not yet attached.
+    pub fn visuals_pending(&self) -> usize {
+        self.units
+            .values()
+            .filter(|unit| unit.loading.is_some())
+            .count()
+    }
+
+    /// The local player's visual is attached, or failed and was reported.
+    pub fn local_visual_settled(&self) -> bool {
+        self.local_player_id
+            .and_then(|id| self.units.get(&id))
+            .is_some_and(|unit| unit.loading.is_none())
     }
 
     pub fn update_lighting(&mut self, light: Option<TerrainLight>) {

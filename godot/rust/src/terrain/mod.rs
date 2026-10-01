@@ -134,36 +134,36 @@ fn build_terrain(chunks: Vec<Chunk>, tile: Option<(u32, u32)>) -> Gd<Node3D> {
 }
 
 fn build_mesh(geometry: Geometry, colors: &[[f32; 4]; 145]) -> Gd<ArrayMesh> {
-    let mut positions = PackedVector3Array::new();
-    let mut normals = PackedVector3Array::new();
-    let mut uvs = PackedVector2Array::new();
-    let mut vertex_colors = PackedColorArray::new();
-    let mut indices = PackedInt32Array::new();
-    for position in geometry.positions {
-        positions.push(Vector3::new(position[0], position[1], position[2]));
-    }
-    for normal in geometry.normals {
-        normals.push(Vector3::new(normal[0], normal[1], normal[2]));
-    }
-    for uv in geometry.uvs {
-        uvs.push(Vector2::new(uv[0], uv[1]));
-    }
+    let vectors = |values: Vec<[f32; 3]>| {
+        let values: Vec<_> = values.into_iter().map(Vector3::from_array).collect();
+        PackedVector3Array::from(values.as_slice())
+    };
+    let positions = vectors(geometry.positions);
+    let normals = vectors(geometry.normals);
+    let uvs: Vec<_> = geometry.uvs.into_iter().map(Vector2::from_array).collect();
+    let uvs = PackedVector2Array::from(uvs.as_slice());
     // ArrayMesh packs COLOR into byte/255; the shader restores authored byte/127.
     const MCCV_TO_VERTEX_COLOR: f32 = 127.0 / 255.0;
-    for color in colors {
-        vertex_colors.push(Color::from_rgba(
-            color[0] * MCCV_TO_VERTEX_COLOR,
-            color[1] * MCCV_TO_VERTEX_COLOR,
-            color[2] * MCCV_TO_VERTEX_COLOR,
-            color[3],
-        ));
-    }
+    let vertex_colors: Vec<_> = colors
+        .iter()
+        .map(|color| {
+            Color::from_rgba(
+                color[0] * MCCV_TO_VERTEX_COLOR,
+                color[1] * MCCV_TO_VERTEX_COLOR,
+                color[2] * MCCV_TO_VERTEX_COLOR,
+                color[3],
+            )
+        })
+        .collect();
+    let vertex_colors = PackedColorArray::from(vertex_colors.as_slice());
     // Godot ArrayMesh front faces are clockwise; Bevy's authored indices are counterclockwise.
-    for triangle in geometry.indices.chunks_exact(3) {
-        indices.push(triangle[0] as i32);
-        indices.push(triangle[2] as i32);
-        indices.push(triangle[1] as i32);
-    }
+    let indices: Vec<i32> = geometry
+        .indices
+        .chunks_exact(3)
+        .flat_map(|triangle| [triangle[0], triangle[2], triangle[1]])
+        .map(|index| index as i32)
+        .collect();
+    let indices = PackedInt32Array::from(indices.as_slice());
     let mut arrays = VarArray::new();
     arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
     arrays.set(

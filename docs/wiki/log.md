@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] investigation | World-entry stalls
+
+Added [[world-entry-stalls]]. The "Account" step at world entry (17-48 s in base) built every replicated unit's visual synchronously. "World objects" overran its 8 ms budget with whole-model and whole-WMO units. Unit visuals and ADT objects now load on `AssetLoader` workers, and the main thread builds them within 8 ms budgets: WMOs a slice of batches at a time, terrain chunk by chunk. The loading screen also waits for the local player's model. Back-to-back A/B (`world_entry_frames.gd`, two rounds at load 14-44): longest loading frame 17.6-47.7 s → 0.22-0.91 s. Gaps: the first in-world HUD frame, the per-unit build cost of humanoid NPCs, and object throughput under heavy load.
+
 ## [2026-09-30] audit | Standalone bag RED and pending host integration
 
 Updated conversion spec, parity matrix and [system evidence](systems/godot-conversion.md#native-standalone-bags--red-host-implementation-proof-pending) for tests `67870535`/`a3e34213` and host `91bbc703`. Saved runtime RED reaches authoritative BAGS_READY then fails missing MainMenuBarBackpackButton, exit 101; Depot `d11bz93c7w` is compiled baseline only. Portable agents 1343/1344 APIs and actual GREEN remain pending. Standalone visibility, inventory interactions and unified window ownership remain unproven; full conversion open. Docs-only update; no tests/build/runtime operations.
