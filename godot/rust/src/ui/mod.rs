@@ -260,6 +260,23 @@ impl RegistryModel {
         Some(crate::bag_cursor::BagInput::Click { action, click, at })
     }
 
+    fn update_input_widgets(&mut self, event: UiInput, sliders: &mut VecDeque<SliderInput>) {
+        match event {
+            UiInput::Focus(id) => self.focus_frame(id),
+            UiInput::Blur(id) => self.blur_frame(id),
+            UiInput::Text(id, text) => self.edit_text(id, text),
+            UiInput::Hover(id, hovered) => self.set_button(id, |button| button.hovered = hovered),
+            UiInput::Press(id) => self.press_button(id, true),
+            UiInput::Release(id) => self.press_button(id, false),
+            UiInput::Slider(id, percent) => {
+                if let Some(input) = self.slider_input(id, percent) {
+                    sliders.push_back(input);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn set_button(
         &mut self,
         id: u64,
@@ -1345,58 +1362,70 @@ impl RegistryUi {
 
     #[func]
     pub fn sync_input(&mut self) -> GString {
-        if let Err(error) = self.sync_viewport() {
-            return GString::from(error.as_str());
-        }
-        let Some(projection) = self.projection.as_mut() else {
-            return "Login UI is not initialized".into();
-        };
+        GString::from(self.sync_pending_input().err().unwrap_or_default().as_str())
+    }
+
+    fn sync_pending_input(&mut self) -> Result<(), String> {
+        self.sync_viewport()?;
+        let projection = self
+            .projection
+            .as_mut()
+            .ok_or("Login UI is not initialized")?;
         let inputs = projection.drain_input();
         if inputs.is_empty() {
-            return GString::new();
+            return Ok(());
         }
-        let Some(model) = self.model.as_mut() else {
-            return "Login model is not initialized".into();
-        };
         for event in inputs {
-            if let Some(queue) = self.bag_inputs.as_mut()
-                && let Some(input) = model.bag_input(&event, projection)
-            {
-                queue.push_back(input);
-                continue;
-            }
-            match event {
-                UiInput::Click(id) | UiInput::FrameClick { id, .. } => {
-                    model.queue_click_action(&mut self.actions, id);
-                }
-                UiInput::PointerUp(_) => {}
-                UiInput::AltClick { id, right, shift } => {
-                    if let Some(action) = model.registry.click_frame(id) {
-                        self.alt_clicks.push_back((action, right, shift));
-                    }
-                }
-                UiInput::PointerDown(id) => {
-                    if model.pointer_click_eligible(id) {
-                        self.pointer_clicks += 1;
-                    }
-                }
-                UiInput::Focus(id) => model.focus_frame(id),
-                UiInput::Blur(id) => model.blur_frame(id),
-                UiInput::Text(id, text) => model.edit_text(id, text),
-                UiInput::Submit => model.submit(&mut self.actions),
-                UiInput::Hover(id, hovered) => {
-                    model.set_button(id, |button| button.hovered = hovered)
-                }
-                UiInput::Press(id) => model.press_button(id, true),
-                UiInput::Release(id) => model.press_button(id, false),
-                UiInput::Slider(id, percent) => {
-                    if let Some(input) = model.slider_input(id, percent) {
-                        self.slider_events.push_back(input);
-                    }
-                }
-            }
+            self.dispatch_ui_input(event)?;
         }
-        GString::from(self.sync_model().err().unwrap_or_default().as_str())
+        self.sync_model()
+    }
+
+    fn queue_bag_input(&mut self, event: &UiInput) -> Result<bool, String> {
+        let Some(queue) = self.bag_inputs.as_mut() else {
+            return Ok(false);
+        };
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Login model is not initialized")?;
+        let projection = self
+            .projection
+            .as_ref()
+            .ok_or("Login UI is not initialized")?;
+        let Some(input) = model.bag_input(event, projection) else {
+            return Ok(false);
+        };
+        queue.push_back(input);
+        Ok(true)
+    }
+
+    fn dispatch_ui_input(&mut self, event: UiInput) -> Result<(), String> {
+        if self.queue_bag_input(&event)? {
+            return Ok(());
+        }
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Login model is not initialized")?;
+        match event {
+            UiInput::Click(id) | UiInput::FrameClick { id, .. } => {
+                model.queue_click_action(&mut self.actions, id);
+            }
+            UiInput::AltClick { id, right, shift } => {
+                if let Some(action) = model.registry.click_frame(id) {
+                    self.alt_clicks.push_back((action, right, shift));
+                }
+            }
+            UiInput::PointerDown(id) => {
+                if model.pointer_click_eligible(id) {
+                    self.pointer_clicks += 1;
+                }
+            }
+            UiInput::Submit => model.submit(&mut self.actions),
+            other => model.update_input_widgets(other, &mut self.slider_events),
+        }
+        Ok(())
     }
 
     pub fn sync_pointer_clicks(&mut self) -> Result<u32, String> {
