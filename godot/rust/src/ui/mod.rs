@@ -588,6 +588,39 @@ impl RegistryUi {
         self.initialize_model(model, size.x, size.y)
     }
 
+    /// Initialize a dedicated RegistryUi instance for a full-viewport standalone screen.
+    pub(crate) fn show_standalone_screen<T: 'static>(
+        &mut self,
+        state: T,
+        build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        let mut registry = FrameRegistry::new(size.x, size.y);
+        // The original client registers this style for every screen's plain panels.
+        registry.register_panel_style(
+            "default",
+            game_engine_ui_model::panel_style_data::default_panel_style(),
+        );
+        let mut model = RegistryModel {
+            screen: Screen::new(build),
+            shared,
+            registry,
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
+    }
+
     /// Project the original cursor icon and authored stack-split picker.
     pub(crate) fn show_cursor_item(
         &mut self,
