@@ -275,102 +275,107 @@ impl BankSession {
         if !self.is_open() {
             return Vec::new();
         }
-        let shown = self.state.shown;
+        if action == frame::ACTION_CLOSE {
+            return self.close();
+        }
+        if self.frame_button(action) {
+            return Vec::new();
+        }
+        let request = match action {
+            frame::ACTION_MONEY_ACCEPT => self.money_request(texts),
+            frame::ACTION_AUTO_DEPOSIT => self.auto_deposit_request(),
+            frame::ACTION_SETTINGS_ACCEPT => self.settings_request(texts),
+            _ => self.indexed_click(action, click),
+        };
+        request.map_or_else(Vec::new, |request| self.effect(request))
+    }
+
+    /// Buttons that only change the frame; `false` for any other action.
+    fn frame_button(&mut self, action: &str) -> bool {
         match action {
-            frame::ACTION_CLOSE => self.close(),
-            frame::ACTION_SHOW_CHARACTER => {
-                self.state.show(BankType::Character);
-                Vec::new()
-            }
-            frame::ACTION_SHOW_ACCOUNT => {
-                self.state.show(BankType::Account);
-                Vec::new()
-            }
+            frame::ACTION_SHOW_CHARACTER => self.state.show(BankType::Character),
+            frame::ACTION_SHOW_ACCOUNT => self.state.show(BankType::Account),
             frame::ACTION_PURCHASE_TAB => {
                 let purchased = self.state.shown_contents().map_or(0, |c| c.tabs.len());
                 self.state.select_tab(purchased);
-                Vec::new()
             }
-            frame::ACTION_PURCHASE => {
-                if let Some(prompt) = self.frame_state().purchase.filter(|p| p.can_afford) {
-                    // CONFIRM_BUY_CHARACTER_BANK_TAB / CONFIRM_BUY_ACCOUNT_BANK_TAB.
-                    let text = match shown {
-                        BankType::Character => "Do you want to purchase a Bank tab for:",
-                        BankType::Account => "Do you want to purchase a Warband Bank tab for:",
-                    };
-                    self.purchase_confirmation =
-                        Some(confirm_purchase(BUY_BANK_TAB_POPUP, text, prompt.cost));
-                }
-                Vec::new()
-            }
-            frame::ACTION_DEPOSIT_MONEY | frame::ACTION_WITHDRAW_MONEY => {
-                let deposit = action == frame::ACTION_DEPOSIT_MONEY;
-                let enabled = self.frame_state().money.is_some_and(|m| {
-                    if deposit {
-                        m.can_deposit
-                    } else {
-                        m.can_withdraw
-                    }
-                });
-                if enabled {
-                    self.state.prompt = Some(if deposit {
-                        BankPrompt::DepositMoney
-                    } else {
-                        BankPrompt::WithdrawMoney
-                    });
-                    self.text_edits = cleared(frame::MONEY_BOXES);
-                }
-                Vec::new()
-            }
-            frame::ACTION_MONEY_ACCEPT => {
-                let deposit = match self.state.prompt.take() {
-                    Some(BankPrompt::DepositMoney) => true,
-                    Some(BankPrompt::WithdrawMoney) => false,
-                    _ => return Vec::new(),
-                };
-                let copper = money_input(texts, frame::MONEY_BOXES);
-                if copper == 0 {
-                    return Vec::new();
-                }
-                self.effect(BankRequest::Money {
-                    bank: shown,
-                    copper,
-                    deposit,
-                })
-            }
-            frame::ACTION_MONEY_CANCEL | frame::ACTION_SETTINGS_CANCEL => {
-                self.state.prompt = None;
-                Vec::new()
-            }
-            frame::ACTION_AUTO_DEPOSIT if !self.state.shows_purchase_prompt() => {
-                let include_reagents = self.state.include_reagents && shown == BankType::Account;
-                self.effect(BankRequest::AutoDeposit {
-                    bank: shown,
-                    include_reagents,
-                })
-            }
+            frame::ACTION_PURCHASE => self.ask_purchase(),
+            frame::ACTION_DEPOSIT_MONEY => self.open_money_prompt(true),
+            frame::ACTION_WITHDRAW_MONEY => self.open_money_prompt(false),
+            frame::ACTION_MONEY_CANCEL | frame::ACTION_SETTINGS_CANCEL => self.state.prompt = None,
             frame::ACTION_INCLUDE_REAGENTS => {
                 self.state.include_reagents = !self.state.include_reagents;
-                Vec::new()
             }
-            frame::ACTION_SETTINGS_ACCEPT => self.settings_accept(texts),
-            _ => self.indexed_click(action, click),
+            _ => return false,
         }
+        true
     }
 
-    fn settings_accept(&mut self, texts: &InputTexts) -> Vec<BankEffect> {
+    /// Purchase on an affordable prompt asks `CONFIRM_BUY_*_BANK_TAB` first.
+    fn ask_purchase(&mut self) {
+        let Some(prompt) = self.frame_state().purchase.filter(|p| p.can_afford) else {
+            return;
+        };
+        let text = match self.state.shown {
+            BankType::Character => "Do you want to purchase a Bank tab for:",
+            BankType::Account => "Do you want to purchase a Warband Bank tab for:",
+        };
+        self.purchase_confirmation = Some(confirm_purchase(BUY_BANK_TAB_POPUP, text, prompt.cost));
+    }
+
+    /// Deposit / Withdraw open the amount prompt while their button is enabled.
+    fn open_money_prompt(&mut self, deposit: bool) {
+        let enabled = self.frame_state().money.is_some_and(|money| {
+            if deposit {
+                money.can_deposit
+            } else {
+                money.can_withdraw
+            }
+        });
+        if !enabled {
+            return;
+        }
+        self.state.prompt = Some(if deposit {
+            BankPrompt::DepositMoney
+        } else {
+            BankPrompt::WithdrawMoney
+        });
+        self.text_edits = cleared(frame::MONEY_BOXES);
+    }
+
+    /// Accept on the amount prompt; an empty amount sends nothing.
+    fn money_request(&mut self, texts: &InputTexts) -> Option<BankRequest> {
+        let deposit = match self.state.prompt.take()? {
+            BankPrompt::DepositMoney => true,
+            BankPrompt::WithdrawMoney => false,
+            BankPrompt::TabSettings { .. } => return None,
+        };
+        let copper = money_input(texts, frame::MONEY_BOXES);
+        (copper > 0).then_some(BankRequest::Money {
+            bank: self.state.shown,
+            copper,
+            deposit,
+        })
+    }
+
+    /// Deposit All; "Include tradeable reagents" applies to the Warband bank only.
+    fn auto_deposit_request(&self) -> Option<BankRequest> {
+        if self.state.shows_purchase_prompt() {
+            return None;
+        }
+        let bank = self.state.shown;
+        Some(BankRequest::AutoDeposit {
+            bank,
+            include_reagents: self.state.include_reagents && bank == BankType::Account,
+        })
+    }
+
+    fn settings_request(&mut self, texts: &InputTexts) -> Option<BankRequest> {
         let Some(BankPrompt::TabSettings { tab, flags }) = self.state.prompt.take() else {
-            return Vec::new();
+            return None;
         };
-        let Some(icon) = self
-            .state
-            .shown_contents()
-            .and_then(|contents| contents.tabs.get(tab))
-            .map(|tab| tab.icon)
-        else {
-            return Vec::new();
-        };
-        self.effect(BankRequest::UpdateTab {
+        let icon = self.state.shown_contents()?.tabs.get(tab)?.icon;
+        Some(BankRequest::UpdateTab {
             bank: self.state.shown,
             tab: tab as u8,
             name: text(texts, frame::TAB_NAME_BOX).trim().to_string(),
@@ -379,35 +384,32 @@ impl BankSession {
         })
     }
 
-    fn indexed_click(&mut self, action: &str, click: Click) -> Vec<BankEffect> {
+    /// Settings checkboxes, side tabs and right-clicked filled slots.
+    fn indexed_click(&mut self, action: &str, click: Click) -> Option<BankRequest> {
         if let Some(bit) = index(action, frame::ACTION_SETTINGS_FLAG_PREFIX) {
             if let Some(BankPrompt::TabSettings { flags, .. }) = &mut self.state.prompt {
                 *flags ^= bit as u32;
             }
-            return Vec::new();
+            return None;
         }
         if let Some(side) = index(action, frame::ACTION_TAB_PREFIX) {
             self.select_side_tab(side, click);
-            return Vec::new();
+            return None;
         }
-        let Some(slot) = index(action, frame::ACTION_SLOT_PREFIX) else {
-            return Vec::new();
-        };
+        let slot = index(action, frame::ACTION_SLOT_PREFIX)?;
         if !click.right || self.state.shows_purchase_prompt() {
-            return Vec::new();
+            return None;
         }
         let bank = self.state.shown;
         let tab = self.state.selected_tab(bank);
-        let filled = self
-            .state
-            .shown_contents()
-            .and_then(|c| c.tabs.get(tab))
-            .and_then(|t| t.slots.get(slot))
-            .is_some_and(Option::is_some);
-        if !filled {
-            return Vec::new();
-        }
-        self.effect(BankRequest::Withdraw {
+        self.state
+            .shown_contents()?
+            .tabs
+            .get(tab)?
+            .slots
+            .get(slot)?
+            .as_ref()?;
+        Some(BankRequest::Withdraw {
             bank,
             tab: tab as u8,
             slot: slot as u8,
@@ -449,25 +451,9 @@ impl BankSession {
                 .get(selected)
                 .map(|tab| tab.name.clone())
                 .unwrap_or_default(),
-            tabs: contents
-                .tabs
-                .iter()
-                .enumerate()
-                .map(|(index, tab)| SideTab {
-                    icon_fdid: tab.icon,
-                    selected: index == selected,
-                })
-                .collect(),
+            tabs: side_tabs(contents, selected),
             purchase_tab: contents.next_tab_cost.map(|_| purchasing),
-            slots: if purchasing {
-                Vec::new()
-            } else {
-                contents.tabs[selected]
-                    .slots
-                    .iter()
-                    .map(|slot| slot.as_ref().map(|stack| self.icons.slot_item(stack)))
-                    .collect()
-            },
+            slots: self.slots(contents.tabs.get(selected)),
             purchase: self.purchase_prompt(contents, purchasing),
             money: contents.money.map(|stored| MoneyFrameView {
                 money: stored,
@@ -480,19 +466,18 @@ impl BankSession {
                 "Deposit All Reagents".into()
             },
             include_reagents: account.then_some(bank.include_reagents),
-            prompt: bank.prompt.map(|prompt| match prompt {
-                BankPrompt::DepositMoney => BankPromptView::Money { deposit: true },
-                BankPrompt::WithdrawMoney => BankPromptView::Money { deposit: false },
-                BankPrompt::TabSettings { flags, .. } => BankPromptView::TabSettings {
-                    flags,
-                    name_prompt: if account {
-                        "Enter Warband Bank Tab Name:".into()
-                    } else {
-                        "Enter Bank Tab Name:".into()
-                    },
-                },
-            }),
+            prompt: bank.prompt.map(|prompt| prompt_view(prompt, account)),
         }
+    }
+
+    /// The selected tab's grid; none while the purchase prompt shows.
+    fn slots(&self, tab: Option<&shared::protocol::BankTabView>) -> Vec<Option<SlotItem>> {
+        tab.map_or_else(Vec::new, |tab| {
+            tab.slots
+                .iter()
+                .map(|slot| slot.as_ref().map(|stack| self.icons.slot_item(stack)))
+                .collect()
+        })
     }
 
     fn purchase_prompt(
@@ -507,5 +492,32 @@ impl BankSession {
             cost,
             can_afford: self.money >= cost,
         })
+    }
+}
+
+fn side_tabs(contents: &BankContents, selected: usize) -> Vec<SideTab> {
+    contents
+        .tabs
+        .iter()
+        .enumerate()
+        .map(|(index, tab)| SideTab {
+            icon_fdid: tab.icon,
+            selected: index == selected,
+        })
+        .collect()
+}
+
+fn prompt_view(prompt: BankPrompt, account: bool) -> BankPromptView {
+    match prompt {
+        BankPrompt::DepositMoney => BankPromptView::Money { deposit: true },
+        BankPrompt::WithdrawMoney => BankPromptView::Money { deposit: false },
+        BankPrompt::TabSettings { flags, .. } => BankPromptView::TabSettings {
+            flags,
+            name_prompt: if account {
+                "Enter Warband Bank Tab Name:".into()
+            } else {
+                "Enter Bank Tab Name:".into()
+            },
+        },
     }
 }

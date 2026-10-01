@@ -239,64 +239,68 @@ impl GuildBankSession {
         if !self.state.is_open() {
             return Vec::new();
         }
-        match action {
-            frame::ACTION_CLOSE => self.close(),
+        let request = match action {
+            frame::ACTION_CLOSE => return self.close(),
             frame::ACTION_BUY_TAB_TAB => {
                 let purchased = self.state.contents.as_ref().map_or(0, |c| c.tabs.len());
-                self.select_tab(purchased)
+                return self.select_tab(purchased);
             }
-            frame::ACTION_BUY_TAB => {
-                if let Some(buy) = self.frame_state().buy.filter(|buy| buy.can_afford) {
-                    self.purchase_confirmation = Some(confirm_purchase(
-                        BUY_GUILD_BANK_TAB_POPUP,
-                        "Do you want to purchase a Guild Bank tab for:",
-                        buy.cost,
-                    ));
-                }
-                Vec::new()
-            }
-            frame::ACTION_DEPOSIT_MONEY | frame::ACTION_WITHDRAW_MONEY => {
-                let deposit = action == frame::ACTION_DEPOSIT_MONEY;
-                if deposit || self.frame_state().can_withdraw {
-                    self.state.prompt = Some(if deposit {
-                        BankPrompt::DepositMoney
-                    } else {
-                        BankPrompt::WithdrawMoney
-                    });
-                    self.text_edits = cleared(frame::MONEY_BOXES);
-                }
-                Vec::new()
-            }
-            frame::ACTION_MONEY_ACCEPT => {
-                let deposit = match self.state.prompt.take() {
-                    Some(BankPrompt::DepositMoney) => true,
-                    Some(BankPrompt::WithdrawMoney) => false,
-                    _ => return Vec::new(),
-                };
-                let copper = money_input(texts, frame::MONEY_BOXES);
-                if copper == 0 {
-                    return Vec::new();
-                }
-                self.effects(Some(GuildBankRequest::Money { copper, deposit }))
-            }
+            frame::ACTION_BUY_TAB => self.ask_purchase(),
+            frame::ACTION_DEPOSIT_MONEY => self.open_money_prompt(true),
+            frame::ACTION_WITHDRAW_MONEY => self.open_money_prompt(false),
+            frame::ACTION_MONEY_ACCEPT => self.money_request(texts),
             frame::ACTION_MONEY_CANCEL => {
                 self.state.prompt = None;
-                Vec::new()
+                None
             }
-            frame::ACTION_SAVE_INFO => {
-                if self
-                    .frame_state()
-                    .info
-                    .is_none_or(|(_, editable)| !editable)
-                {
-                    return Vec::new();
-                }
-                let text = texts.get(frame::INFO_BOX).cloned().unwrap_or_default();
-                let tab = self.state.tab as u8;
-                self.effects(Some(GuildBankRequest::SetTabText { tab, text }))
-            }
-            _ => self.indexed_click(action, click),
+            frame::ACTION_SAVE_INFO => self.save_info_request(texts),
+            _ => return self.indexed_click(action, click),
+        };
+        self.effects(request)
+    }
+
+    /// Purchase on an affordable buy screen asks `CONFIRM_BUY_GUILDBANK_TAB` first.
+    fn ask_purchase(&mut self) -> Option<GuildBankRequest> {
+        let buy = self.frame_state().buy.filter(|buy| buy.can_afford)?;
+        self.purchase_confirmation = Some(confirm_purchase(
+            BUY_GUILD_BANK_TAB_POPUP,
+            "Do you want to purchase a Guild Bank tab for:",
+            buy.cost,
+        ));
+        None
+    }
+
+    /// Deposit always, Withdraw while enabled, open the amount prompt.
+    fn open_money_prompt(&mut self, deposit: bool) -> Option<GuildBankRequest> {
+        if deposit || self.frame_state().can_withdraw {
+            self.state.prompt = Some(if deposit {
+                BankPrompt::DepositMoney
+            } else {
+                BankPrompt::WithdrawMoney
+            });
+            self.text_edits = cleared(frame::MONEY_BOXES);
         }
+        None
+    }
+
+    /// Accept on the amount prompt; an empty amount sends nothing.
+    fn money_request(&mut self, texts: &InputTexts) -> Option<GuildBankRequest> {
+        let deposit = match self.state.prompt.take()? {
+            BankPrompt::DepositMoney => true,
+            BankPrompt::WithdrawMoney => false,
+            BankPrompt::TabSettings { .. } => return None,
+        };
+        let copper = money_input(texts, frame::MONEY_BOXES);
+        (copper > 0).then_some(GuildBankRequest::Money { copper, deposit })
+    }
+
+    /// The Guild Master's Save on the info tab.
+    fn save_info_request(&self, texts: &InputTexts) -> Option<GuildBankRequest> {
+        let (_, editable) = self.frame_state().info?;
+        editable.then(|| GuildBankRequest::SetTabText {
+            tab: self.state.tab as u8,
+            text: texts.get(frame::INFO_BOX).cloned().unwrap_or_default(),
+        })
     }
 
     fn indexed_click(&mut self, action: &str, click: Click) -> Vec<GuildBankEffect> {
@@ -341,15 +345,7 @@ impl GuildBankSession {
             visible: true,
             title: contents.guild_name.clone(),
             mode: mode_view(guild.mode),
-            tabs: contents
-                .tabs
-                .iter()
-                .enumerate()
-                .map(|(index, tab)| GuildSideTab {
-                    icon_fdid: tab.icon,
-                    selected: index == selected,
-                })
-                .collect(),
+            tabs: side_tabs(contents, selected),
             buy_tab: contents
                 .next_tab_cost
                 .filter(|_| contents.is_leader)
@@ -366,17 +362,7 @@ impl GuildBankSession {
         };
         match guild.mode {
             GuildBankMode::Bank => self.bank_mode(&mut state, contents, tab, buying),
-            GuildBankMode::Log | GuildBankMode::MoneyLog => {
-                if let Some(tab) = tab.filter(|_| guild.mode == GuildBankMode::Log) {
-                    state.tab_title = Some((format!("{} Log", tab.name), String::new(), ""));
-                }
-                state.log_lines = guild
-                    .log
-                    .iter()
-                    .flat_map(|log| &log.entries)
-                    .map(log_line)
-                    .collect();
-            }
+            GuildBankMode::Log | GuildBankMode::MoneyLog => self.log_mode(&mut state, tab),
             GuildBankMode::Info => {
                 if let Some(tab) = tab.filter(|tab| tab.viewable) {
                     state.tab_title = Some((format!("{} Info", tab.name), String::new(), ""));
@@ -385,6 +371,20 @@ impl GuildBankSession {
             }
         }
         state
+    }
+
+    /// The selected tab's item log or the money log, oldest line first.
+    fn log_mode(&self, state: &mut GuildBankFrameState, tab: Option<&GuildBankTabView>) {
+        if let Some(tab) = tab.filter(|_| self.state.mode == GuildBankMode::Log) {
+            state.tab_title = Some((format!("{} Log", tab.name), String::new(), ""));
+        }
+        state.log_lines = self
+            .state
+            .log
+            .iter()
+            .flat_map(|log| &log.entries)
+            .map(log_line)
+            .collect();
     }
 
     fn bank_mode(
@@ -424,6 +424,18 @@ impl GuildBankSession {
             .map(|slot| slot.as_ref().map(|stack| self.icons.slot_item(stack)))
             .collect();
     }
+}
+
+fn side_tabs(contents: &GuildBankContents, selected: usize) -> Vec<GuildSideTab> {
+    contents
+        .tabs
+        .iter()
+        .enumerate()
+        .map(|(index, tab)| GuildSideTab {
+            icon_fdid: tab.icon,
+            selected: index == selected,
+        })
+        .collect()
 }
 
 fn mode_for(key: &str) -> Option<GuildBankMode> {
