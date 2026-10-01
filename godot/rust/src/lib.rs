@@ -276,30 +276,7 @@ impl INode3D for GameClient {
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
         self.physical_input.capture_pointer(&event);
-        // Asset-using screens/actions must not race the startup worker's CASC locks.
-        if self.asset_startup.is_some() {
-            return;
-        }
-        if self.static_popup_key(&event) {
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
-            }
-            return;
-        }
-        let chat_used = self.chat_edit_key(&event).unwrap_or_else(|error| {
-            self.handle_frame_error("Chat key", error.into());
-            true
-        }) || self.chat_wheel(&event);
-        if chat_used {
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
-            }
-            return;
-        }
-        if self.capture_game_menu_binding(&event) {
-            if let Some(mut viewport) = self.base().get_viewport() {
-                viewport.set_input_as_handled();
-            }
+        if self.dispatch_priority_input(&event) {
             return;
         }
         match self.handle_game_menu_pointer(&event) {
@@ -836,6 +813,37 @@ impl GameClient {
 }
 
 impl GameClient {
+    /// Startup, then popup keys, chat and binding capture preserve input precedence.
+    fn dispatch_priority_input(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        // Asset-using actions must not race the startup worker's CASC locks.
+        if self.asset_startup.is_some() {
+            return true;
+        }
+        if self.static_popup_key(event) {
+            self.mark_viewport_input_handled();
+            return true;
+        }
+        let chat_used = self.chat_edit_key(event).unwrap_or_else(|error| {
+            self.handle_frame_error("Chat key", error.into());
+            true
+        }) || self.chat_wheel(event);
+        if chat_used {
+            self.mark_viewport_input_handled();
+            return true;
+        }
+        if self.capture_game_menu_binding(event) {
+            self.mark_viewport_input_handled();
+            return true;
+        }
+        false
+    }
+
+    fn mark_viewport_input_handled(&mut self) {
+        if let Some(mut viewport) = self.base().get_viewport() {
+            viewport.set_input_as_handled();
+        }
+    }
+
     /// Report a failed frame step. A session failure stops the account and returns true;
     /// a client failure is reported once and the session continues.
     fn handle_frame_error(&mut self, step: &str, error: FrameError) -> bool {
