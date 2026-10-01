@@ -644,16 +644,18 @@ fn string_array<'a>(items: impl Iterator<Item = &'a String>) -> VarArray {
 
 /// Occupied equipment slots from the authoritative inventory state.
 fn equipment_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarArray {
-    let mut equipment = VarArray::new();
-    for (slot, item) in &inventory.equipment {
-        let mut entry = VarDictionary::new();
-        entry.set("slot", format!("{slot:?}").as_str());
-        entry.set("item_id", i64::from(item.item_id));
-        entry.set("item_guid", item.item_guid as i64);
-        entry.set("count", i64::from(item.count));
-        equipment.push(&entry.to_variant());
-    }
-    equipment
+    inventory
+        .equipment
+        .iter()
+        .map(|(slot, item)| {
+            let mut entry = VarDictionary::new();
+            entry.set("slot", format!("{slot:?}").as_str());
+            entry.set("item_id", i64::from(item.item_id));
+            entry.set("item_guid", item.item_guid as i64);
+            entry.set("count", i64::from(item.count));
+            entry.to_variant()
+        })
+        .collect()
 }
 
 /// Occupied bag slots: bag, slot, item id, catalog name and count.
