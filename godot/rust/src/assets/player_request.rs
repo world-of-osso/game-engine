@@ -13,6 +13,7 @@ use shared::components::{
 };
 
 use crate::{npc_gear_data::NpcGearData, world_models};
+use game_engine_core::npc_appearance_assets::load_customization_db;
 
 pub(super) fn data_root() -> PathBuf {
     PathBuf::from(
@@ -36,6 +37,30 @@ pub(super) fn player(race: i64, sex: i64, class: i64) -> Result<Player, String> 
             ..CharacterAppearance::default()
         },
     })
+}
+
+/// `player` with each option of `choices` (option ID to choice ID) selected.
+pub(super) fn customized(mut player: Player, choices: &VarDictionary) -> Result<Player, String> {
+    let db = load_customization_db(&data_root())?;
+    for (option, choice) in choices.iter_shared() {
+        let id = |value: &Variant| {
+            value
+                .try_to::<i64>()
+                .ok()
+                .and_then(|id| u32::try_from(id).ok())
+                .ok_or_else(|| format!("Customization {option}: {choice} is not an ID"))
+        };
+        crate::appearance_options::set_choice(
+            &db,
+            player.race,
+            player.appearance.sex,
+            player.class,
+            &mut player.appearance,
+            id(&option)?,
+            id(&choice)?,
+        )?;
+    }
+    Ok(player)
 }
 
 /// Equipment from dictionaries `{slot, item_id?, display_id?, inventory_type?, hidden?}`;

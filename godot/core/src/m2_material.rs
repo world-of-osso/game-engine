@@ -115,6 +115,9 @@ pub struct BatchBinding {
     /// Texture of each sampled slot (the first `min(texture_count, 4)`); `None` when a
     /// replaceable slot has no source.
     pub textures: Vec<Option<u32>>,
+    /// M2Texture type of each sampled slot: 0 a file, else the replaceable type a
+    /// character or creature binds there (WebWowViewerCpp `getBlpTextureData`).
+    pub texture_types: Vec<u32>,
     /// M2Texture wrap flags of slot n at bits 2n (U) and 2n + 1 (V).
     pub texture_wrap: u32,
     /// `Model::texture_animations` index of the shader's two texture matrices.
@@ -139,7 +142,7 @@ fn slot_texture(
     unit: &TextureUnit,
     slot: u16,
     skin_texture_fdids: &[u32; 3],
-) -> Result<(Option<u32>, u32), String> {
+) -> Result<(Option<u32>, u32, u32), String> {
     let lookup = usize::from(unit.texture_id + slot);
     let index = usize::from(*model.texture_lookup.get(lookup).ok_or_else(|| {
         format!("Batch texture lookup {lookup} outside the texture lookup table")
@@ -157,7 +160,7 @@ fn slot_texture(
             skin_texture_fdids,
         ),
     };
-    Ok((fdid, flags & 3))
+    Ok((fdid, flags & 3, texture_type))
 }
 
 /// getTextureMatrixIndexes: texture matrices of the first two texture slots, the second
@@ -205,16 +208,19 @@ pub fn batch_binding(
 ) -> Result<BatchBinding, String> {
     let vertex_shader = vertex_shader_id(unit.texture_count, unit.shader_id)?;
     let mut textures = Vec::new();
+    let mut texture_types = Vec::new();
     let mut texture_wrap = 0;
     for slot in 0..unit.texture_count.min(4) {
-        let (fdid, wrap) = slot_texture(model, unit, slot, skin_texture_fdids)?;
+        let (fdid, wrap, texture_type) = slot_texture(model, unit, slot, skin_texture_fdids)?;
         textures.push(fdid);
+        texture_types.push(texture_type);
         texture_wrap |= wrap << (slot * 2);
     }
     Ok(BatchBinding {
         pixel_shader: pixel_shader_id(unit.texture_count, unit.shader_id)?,
         vertex_shader,
         textures,
+        texture_types,
         texture_wrap,
         texture_transforms: texture_transforms(model, unit, vertex_shader),
         texture_weights: texture_weights(model, unit),

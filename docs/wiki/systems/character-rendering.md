@@ -47,6 +47,15 @@ Fixtures: `godot/tests/character_equipment_fixtures.gd` builds named characters 
 
 Open: player death pose (needs replicated death/ghost state), Sheathe/HipSheathe clips (89/90; swap timing unknown), ranged Ready stances, class-specific textures (`ClassID` 12), weapon second models (artifacts), `SheatheTransformMatrixID`, Pandaren female default loincloth 1401 over pants, Dracthyr dragon armor (no Retail reference).
 
+## Grounded appearance pixels (2026-10-01)
+
+Branch `appearpix`. Evidence: `game-engine/data/diagnostics/appearpix-2026-10-01/` (`red-all/` before the fixes, `green-*/` after); handoff `/home/osso/.worktrees/handoff-appearpix.md`.
+
+- **Reference**: `godot/tests/character_appearance_oracle.gd` re-derives a character from the DB2 CSVs and texture files only: body model (ChrRaceXChrModel chain), customization elements/materials/geosets (WMVx `ModernCharacterCustomizationProvider`), one canvas per ChrModelMaterial with ChrModelTextureLayer order/blend/sections (WMVx `CharacterTextureBuilder`), region paste/PasteScale/alpha blend and item priorities (solarityclient `composer.rs`/`atlas.rs`), item files by race/sex (ComponentTextureFileData), geosets (WMVx defaults, solarity item order, wowdev.wiki DB/ItemDisplayInfo groups). Retail screenshots were not used: the Windows machine was in active use and Retail cannot reproduce a fixed camera and light.
+- **Test**: `godot/tests/character_real_pixels.gd` loads each case through `WowAssetLoader.load_player_customized(race, sex, class, items, {option: choice})` and checks visible geosets, each bound replaceable texture against the oracle canvas, and close-up views against a CPU raster of the oracle's geosets/textures with `m2_wwv_oracle.gd` shading (pass: at least 97% of compared pixels within 10/255, at least 400 pixels; silhouettes, batch seams, depth ties within 1 mm, blended batches and LOD above 2 skipped and counted). Eight cases: Human male (two customizations, armored), Orc female robe, Dwarf male leather, Night Elf female kilt, Tauren male tabard, Blood Elf female cloak.
+- **Fixed** (each RED first): item textures pasted opaque instead of alpha-blended; undersized layers expanded nearest instead of stock PasteScale; composited textures uploaded without mipmaps; eyes (type 19) bound only the last layer's file (Eyesight overlay lost); the second eye slot of a two-texture batch unbound (replacements applied to slot 0 only); translucent layers darkened on empty canvases (straight-alpha "over" ignored destination alpha); HD body halved to 1024x512; group-0 meshes 1 and 27+ always shown, ears 701 with 702, both faces 3201/3202; Eyesight hidden from non-Demon Hunter Night/Blood Elves (its "Both" hides eye group 51).
+- **Assumptions/open**: 4x expansion of legacy 128x64 item files into HD sections repeats PasteScale (no stock reference); face 3202 default comes from WMVx alone; a non-Demon Hunter Night/Blood Elf body batch of type 9 has no texture on either side (Retail's binding unknown); attached models (helmets, shoulders, weapons) and skinned collections are not in the pixel cases; NPC/Bevy paths share the compositor but were not pixel-checked; the Bevy client still binds eyes from the last layer (`character_customization_textures.rs`, `npc_appearance.rs`).
+
 ## Character Models and HD Skeletons
 
 Legacy models (`humanmale.m2`) store 215 bones inline in the MD20 header. HD models (`humanmale_hd.m2`) store bones externally in a `.skel` file (referenced via the SKID chunk). The `.skel` file contains SKS1 (sequences + global sequences) and SKB1 (216 bones + animation tracks). `load_skel_data()` handles both paths transparently.
@@ -82,7 +91,7 @@ Texture types: 0 = hardcoded TXID, 1 = body skin, 6 = face/hair atlas.
 
 ## Texture Compositing
 
-Body skin texture (HD: 1024×512) is composited in `src/asset/char_texture.rs` (`seed_default_body_texture()`). Layers:
+Body skin texture (HD: the 2048×1024 ChrModelMaterial canvas) is composited in `src/asset/char_texture.rs` (`seed_default_body_texture()`). Layers:
 - Body base (type 1)
 - Underwear overlay at `(256, 192)`
 - Face upper + lower textures composited into the FACE_UPPER/FACE_LOWER regions

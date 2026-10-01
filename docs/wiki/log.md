@@ -2426,6 +2426,10 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 [Race and sex item files](systems/character-rendering.md#race-and-sex-item-files-2026-10-01): Component*FileData texture/model selection, ChrModel body chain, wowdev geoset group table, native sheath links, skinned collections with both model columns, player social emotes; named-character and 62-way race fixtures.
 
 
+## 2026-10-01 — Grounded character/clothing pixels (appearpix)
+
+[Grounded appearance pixels](systems/character-rendering.md#grounded-appearance-pixels-2026-10-01): independent DB2/texture oracle and close-up pixel test over the player loader; fixes to item alpha, PasteScale, mipmaps, eye layers and slots, translucent canvases, full HD body canvas, group-0/ears/face geosets, Eyesight for every class.
+
 ## 2026-10-01 — Native IPC request coverage and semantic ExportScene (tooling)
 
 [Native IPC request coverage](systems/godot-conversion.md#native-ipc-request-coverage): semantic ExportScene per screen, map target/waypoint auto-walk, group/emote/spell, quests, items, presence, character stats, trade (deferred replies), combat log; per-request not-ported reasons; index-based terrain chunk lookup fixing the zone-0/no-height gap.
