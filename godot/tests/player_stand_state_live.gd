@@ -131,7 +131,13 @@ func eat() -> void:
 		return
 	await wait_ms(1500)
 	var hurt: float = client.account_state().local_player_health
-	print("FIXTURE HURT %s of %s" % [hurt, full])
+	await wait_ms(4000)
+	var standing_gain: float = client.account_state().local_player_health - hurt
+	hurt = client.account_state().local_player_health
+	print("FIXTURE HURT %s of %s, regained %s standing in 4 s" % [hurt, full, standing_gain])
+	if hurt >= full:
+		fail("Healed to full before eating")
+		return
 	var backpack := client.find_child("MainMenuBarBackpackButton", true, false) as Control
 	if backpack == null or not backpack.is_visible_in_tree():
 		fail("No visible backpack button")
@@ -146,13 +152,15 @@ func eat() -> void:
 	if not await expect_clips(animation, [SIT_DOWN, SIT], "Bread sits down"):
 		return
 	await pointer_click(backpack.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+	var seated: float = client.account_state().local_player_health
 	var samples: Array = []
-	for _second in 6:
+	for _second in 4:
 		await wait_ms(1000)
 		samples.append(client.account_state().local_player_health)
-	print("FIXTURE EATING_HEALTH ", samples)
-	if samples[-1] <= hurt or animation.current_animation_id() != SIT:
-		fail("Eating seated did not heal: %s from %s, clip %d" % [samples, hurt, animation.current_animation_id()])
+	var eating_gain: float = samples[-1] - seated
+	print("FIXTURE EATING_HEALTH %s from %s: %s in 4 s seated vs %s standing" % [samples, seated, eating_gain, standing_gain])
+	if eating_gain <= 2.0 * standing_gain or animation.current_animation_id() != SIT:
+		fail("Eating seated did not out-heal standing regen: %s vs %s, clip %d" % [eating_gain, standing_gain, animation.current_animation_id()])
 		return
 	await capture("food-eating.png")
 	var fed: float = client.account_state().local_player_health
