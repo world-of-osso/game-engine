@@ -9,7 +9,7 @@ Native startup runs the existing synchronous JavaScript UI automation API agains
 - [ ] `--run-js-ui-script <path>` loads the chosen UTF-8 script through production startup and synchronously compiles it before frame-driven consumption. QuickJS must not access Godot objects.
 - [ ] Preserve all ten original action variants and the original `ui.*`, `env`, state aliases, and key-chord parser semantics. Missing environment values are empty strings.
 - [ ] Execute queued actions in order on the main thread, after the native client frame, without a GameClient bind during input dispatch. Waits and deadlines advance by frame delta; no blocking or UI-thread sleeps.
-- [ ] Report explicit errors for failed actions, invalid timing, unknown/unconverted keys, missing or hidden frames, or unmet state/frame deadlines. Never bypass authentication or substitute callbacks.
+- [ ] Report explicit errors for failed actions, invalid timing, unknown/unconverted keys, missing or hidden frames, or unmet state/frame deadlines. State/frame deadline failures retain the last wait error, pop only that wait, reset its clock, and continue following actions; other errors stop the queue. Never bypass authentication or substitute callbacks.
 
 ### Native input and waits
 
@@ -44,9 +44,9 @@ Native startup runs the existing synchronous JavaScript UI automation API agains
 
 ## Known gaps (current cycle)
 
-- Native startup and launcher routing now recognize the script path; startup attaches the dedicated priority-2 host. Connecting derives from an active Login bridge awaiting its reply. Compilation and native fixture GREEN remain pending.
-- [ ] Native action errors currently stop the queue. The original wait runner records a timeout and advances past that wait; timeout-continuation compatibility remains unresolved.
-- [ ] Supplied first-runtime evidence is genuine RED: authored Login mounted, but no script credential entry or Connect click. Login fixture alone cannot prove all ten actions, key/modifier behavior, every state wait, or timeout/error boundaries.
+- Supplied unchanged `debug/login.js` process evidence proves bounded authored Login input, real authentication, authoritative CharSelect, and stdout UI dump. Independent acceptance `/tmp/claude/verify-native-js-login.md` records functional Login PASS but overall FAIL; no all-ten-action or full-goal acceptance.
+- [ ] Genuine timeout process RED at fixture revision `73cb16e0` logs the missing-frame deadline with visible Login and no authentication, but lacks the successor stdout dump. Native timeout continuation is implemented; main-owned build/runtime GREEN remains pending. The earlier Control-versus-CanvasLayer setup failure is not feature RED.
+- [ ] Login evidence cannot prove all ten actions, key/modifier behavior, every state wait, or timeout/error boundaries. State-wait timeout runtime coverage remains pending; fixture changes belong to main.
 
 ## Out of scope
 
