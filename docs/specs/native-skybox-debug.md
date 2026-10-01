@@ -46,17 +46,31 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 
 ## Tests asserting this spec
 
-- `godot/core/src/startup_args_data_tests.rs` — parsed values, boundaries, verification, first-value/target semantics, missing/invalid values and mutual exclusion. Native core GREEN must be established on Depot.
+- `godot/core/src/startup_args_data_tests.rs` — parsed values, boundaries, verification, first-value/target semantics, missing/invalid values and mutual exclusion. Saved Depot core GREEN at `f23343bb` covers these parser cases; not native parity.
 - `godot/core/src/skybox_debug_data.rs` tests — cached LightSkybox653 → FDID5412968/flags15, LightParams5615 → skybox653, and explicit unknown-row error; not runtime/render proof.
 - `launcher/tests/process.rs` — three `skybox` process cases asserting exact recorded Godot argv with fake build/Godot executables; not native runtime proof.
 - `src/scenes/skybox_debug/tests.rs` — legacy source, composition, FOV and camera-relative behavior references; not native acceptance.
-- `godot/tests/skybox_debug_screen.gd` — production observer for cached source cases, real orbit/zoom, composition and hide/restore image attribution. Script/runtime proof is pending; attribution is not original-expected pixel parity.
+- `godot/tests/skybox_debug_screen.gd` — production observer for cached source cases, real orbit/zoom, composition and hide/restore image attribution. Bounded coastal runtime proof is retained below; cloud authored attribution fails. Attribution is not original-expected pixel parity.
+
+## Retained proof limits — 2026-10-01
+
+Evidence: `/tmp/claude/retained-conversion-20/main-proof-ledger.md` and adjacent named logs. These are revision-scoped saved results, not a fresh acceptance run. Native runtime evidence uses `f23343bb` with observer fixture `0eb4784e`; installed build-ID/tool-return provenance still needs recovery, not inference from checkout HEAD. Contract checkboxes remain open.
+
+| Exact scope | Retained result | Proof limit |
+|---|---|---|
+| Fixed phase/state seek | `ba3cd12f` state-backed zero-duration behavioral RED (`sky-state-pose-red-full.log`: sampled pose 0); `f23343bb` dedicated seek GREEN (`sky-helpers-integrated-green-{depot,full}.log`), saved command exit 0, core 12/native 15 tests passed | Concrete state/phase/source/options tests, not all-track or rendered parity; two pre-existing terrain `unused_mut` warnings remain |
+| Coastal FDID525142, authored-only, fixed 100000 ms | MAIN exit 0; UV translation 0.5 stable; 114853 sampled authored-contribution pixels; fixed stability, hide/restore and physical orbit checks (`coastal-authored-100000.log`) | Bounded rendered attribution/input proof, not original-expected pixels or default composition |
+| Coastal FDID525142, authored-only, live | MAIN exit 0; UV 0.04731 → 0.068335; 27511 changed sampled pixels (`coastal-live.log`) | One concrete UV/material track; no time-identical live hide/restore assertion or all-track proof |
+| Cloud FDID5412968, authored-only, fixed 0 and 100000 ms | Both exit 1, authored contribution 0; fixed UV respectively 0 and 0.545455 (`cloud-authored-first.log`, `cloud-authored-100000.log`) | Loaded 54 surfaces and advancing phase do not prove visibility; zero phase alone does not explain failure; no full-cloud visible/parity claim |
+| Reference comparator `f6aa48f5` | MAIN exit 0 (`comparator-selftest.log`) | Synthetic offline self-test only; no matching current original PNG comparison |
 
 ## Known gaps (current cycle)
 
-- [ ] Establish current parser GREEN and native startup consumption separately; CLI GREEN does not establish native parity.
-- [ ] Resolve the existing legacy source-fallback incompatibility as a data/semantic boundary. Current default-source correctness remains unproved; no replacement default asset is authorized.
-- [ ] Prove native default composition and rendering special cases, authored material/animation behavior and independent render/input behavior before marking native conversion complete.
+- [ ] Establish cloud authored-render failure root cause and matching original evidence. [Historical Bevy black-output investigation](../skyboxdebug-black-screen-brief-2026-04-11.md) documents earlier failures/fixes, not an established cause for this retained failure. No current original matching lossless PNG or verified original binary-to-revision provenance exists; preserve the original oracle and comparison criteria.
+- [ ] Supply authoritative default `Light.map2703` data, currently absent: explicit default-source blocker, not permission to substitute another map/model. Default composition, rendering special cases and physical-unit/image equivalence remain unproved; resolve the legacy source-fallback semantic boundary without a replacement default.
+- [ ] Run nondefault persisted/live camera options and complete independent rendered/input/material/animation coverage. Saved effective FOV90/sensitivity0.003 and pure option tests do not establish those runtime cases.
+- [ ] Run integrated loading/frame-time/memory performance with comparable baseline. Concurrent GPU clients and unavailable requested disabled VSync preclude an isolated performance claim from retained sky runs.
+- [ ] Complete retained skybox acceptance without closing whole conversion. Transferred water/appearance/remaining tooling are excluded here and unresolved; whole conversion remains **OPEN**.
 
 ## Out of scope
 
