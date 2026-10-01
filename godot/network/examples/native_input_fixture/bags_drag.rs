@@ -9,7 +9,12 @@ const QUIET: Duration = Duration::from_millis(400);
 const REQUEST_WAIT: Duration = Duration::from_secs(10);
 const SOURCE: ItemLocation = ItemLocation::Bag { bag: 0, slot: 0 };
 const TARGET: ItemLocation = ItemLocation::Bag { bag: 1, slot: 0 };
-const QUIET_MARKERS: [&str; 3] = ["SAME_SOURCE", "HELD_RELEASE", "FRAME_RELEASE"];
+const QUIET_MARKERS: [&str; 4] = [
+    "SAME_SOURCE",
+    "HELD_RELEASE",
+    "FRAME_RELEASE",
+    "FOREIGN_CHAT",
+];
 const CASES: [&str; 3] = ["SEPARATED", "RAPID", "CLICK"];
 
 #[derive(Resource, Default)]
@@ -114,7 +119,7 @@ impl Session {
                 if line == format!("FIXTURE BAGS_DRAG_{}", QUIET_MARKERS[index]) =>
             {
                 self.require_quiet()?;
-                self.advance(if index == 2 {
+                self.advance(if index == QUIET_MARKERS.len() - 1 {
                     Phase::Arm(0)
                 } else {
                     Phase::Quiet(index + 1)
