@@ -102,10 +102,10 @@ impl GameClient {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name(BAGS_UI);
         self.base_mut().add_child(&ui);
-        let shown = ui
-            .bind_mut()
-            .set_ui_scale(scale)
-            .and_then(|()| ui.bind_mut().show_bags(view));
+        let shown = {
+            let mut host = ui.bind_mut();
+            host.set_ui_scale(scale).and_then(|()| host.show_bags(view))
+        };
         if let Err(error) = shown {
             ui.free();
             return Err(error);
