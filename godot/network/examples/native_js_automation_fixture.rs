@@ -27,7 +27,7 @@ const CHARACTER: &str = "Automation Fixture";
 const TIMEOUT: Duration = Duration::from_secs(180);
 const TIMEOUT_SCRIPT: &str = "ui.waitForFrame(\"NativeJsMissingFrame\", 0.05); ui.dumpUiTree();\n";
 const OFFLINE_SCRIPT: &str = concat!(
-    "ui.waitForFrame(\"UsernameInput\");\n",
+    "ui.waitForFrame(\"UsernameInput\", 5.0);\n",
     "ui.click(\"UsernameInput\");\n",
     "ui.type(\"abcd\");\n",
     "ui.key(\"Backspace\");\n",
