@@ -16,9 +16,10 @@ pub use crate::asset::adt_format::adt_tex::FIRST_LIQUID_OBJECT;
 /// are flat at sea level and store LVF 2 depth-only vertices, not their material's LVF 0
 /// (wowdev ADT/v18 SMLiquidInstance: "≥ WoD ... assumes both 0.0 for LVF = 2"; noggit3
 /// `liquid_layer.cpp`: "lvf 2 is only used for flat water at height 0"; WebWowViewerCpp
-/// `LiquidInstance.cpp` `createAdtVertexData` singles out liquid_type 2). In the cached tiles
-/// every type 2 vertex block is 81 bytes, and every other LiquidObject block, Kul Tiras Ocean
-/// 947 on object 42 included, has its material's LVF size.
+/// `LiquidInstance.cpp` `createAdtVertexData` singles out liquid_type 2). Across the active
+/// build's 52,882 root ADTs every type 2 vertex block is 81 bytes, and every other block,
+/// the Kul Tiras, Zandalar and Nazjatar oceans on object 42 included, has its material's
+/// LVF size.
 pub const OCEAN_LIQUID_TYPE: u32 = 2;
 const OCEAN_LVF: u8 = 2;
 
