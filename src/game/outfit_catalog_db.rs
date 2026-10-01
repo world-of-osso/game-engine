@@ -21,7 +21,7 @@ type OutfitKey = (u8, u8, u8);
 type StarterOutfits = HashMap<OutfitKey, Vec<u32>>;
 /// Versioned by schema: checkouts with an older schema keep reading their own file.
 fn outfit_links_cache_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("cache/outfit_links-v2.sqlite")
+    data_dir.join("cache/outfit_links-v3.sqlite")
 }
 fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
     [
@@ -293,8 +293,9 @@ fn populate_display_info(conn: &Connection, path: &Path) -> Result<(), String> {
         .prepare(
             "INSERT OR REPLACE INTO display_info (
             id, model_res_0, model_res_1, model_mat_res_0, model_mat_res_1,
-            geoset_group_0, geoset_group_1, geoset_group_2, helmet_vis_0, helmet_vis_1
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            geoset_group_0, geoset_group_1, geoset_group_2, geoset_group_3, geoset_group_4,
+            geoset_group_5, helmet_vis_0, helmet_vis_1
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         )
         .map_err(|err| format!("prepare display_info insert: {err}"))?;
     insert_display_info_rows(&mut reader, path, &columns, &mut insert)?;
@@ -307,14 +308,26 @@ struct DisplayInfoColumns {
     model_res_1: usize,
     model_mat_res_0: usize,
     model_mat_res_1: usize,
-    geoset_group_0: usize,
-    geoset_group_1: usize,
-    geoset_group_2: usize,
+    geoset_groups: [usize; 6],
     helmet_vis_0: usize,
     helmet_vis_1: usize,
 }
 
-type DisplayInfoRow = (u32, u32, u32, u32, u32, i16, i16, i16, u32, u32);
+type DisplayInfoRow = (
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    i16,
+    i16,
+    i16,
+    i16,
+    i16,
+    i16,
+    u32,
+    u32,
+);
 
 fn display_info_columns(headers: &[String], path: &Path) -> Result<DisplayInfoColumns, String> {
     Ok(DisplayInfoColumns {
@@ -323,9 +336,14 @@ fn display_info_columns(headers: &[String], path: &Path) -> Result<DisplayInfoCo
         model_res_1: header_index(headers, "ModelResourcesID_1", path)?,
         model_mat_res_0: header_index(headers, "ModelMaterialResourcesID_0", path)?,
         model_mat_res_1: header_index(headers, "ModelMaterialResourcesID_1", path)?,
-        geoset_group_0: header_index(headers, "GeosetGroup_0", path)?,
-        geoset_group_1: header_index(headers, "GeosetGroup_1", path)?,
-        geoset_group_2: header_index(headers, "GeosetGroup_2", path)?,
+        geoset_groups: [
+            header_index(headers, "GeosetGroup_0", path)?,
+            header_index(headers, "GeosetGroup_1", path)?,
+            header_index(headers, "GeosetGroup_2", path)?,
+            header_index(headers, "GeosetGroup_3", path)?,
+            header_index(headers, "GeosetGroup_4", path)?,
+            header_index(headers, "GeosetGroup_5", path)?,
+        ],
         helmet_vis_0: header_index(headers, "HelmetGeosetVis_0", path)?,
         helmet_vis_1: header_index(headers, "HelmetGeosetVis_1", path)?,
     })
@@ -384,9 +402,12 @@ fn parse_display_info_row(
         get_u32(columns.model_res_1),
         get_u32(columns.model_mat_res_0),
         get_u32(columns.model_mat_res_1),
-        get_i16(columns.geoset_group_0),
-        get_i16(columns.geoset_group_1),
-        get_i16(columns.geoset_group_2),
+        get_i16(columns.geoset_groups[0]),
+        get_i16(columns.geoset_groups[1]),
+        get_i16(columns.geoset_groups[2]),
+        get_i16(columns.geoset_groups[3]),
+        get_i16(columns.geoset_groups[4]),
+        get_i16(columns.geoset_groups[5]),
         get_u32(columns.helmet_vis_0),
         get_u32(columns.helmet_vis_1),
     ))

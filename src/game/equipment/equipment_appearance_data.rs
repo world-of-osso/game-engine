@@ -134,6 +134,7 @@ struct BodyDisplays {
     /// Texture-bearing `CCharacterComponent` slot rows (see [`ITEM_PRIORITIES`]) with
     /// their displays and body textures, in equip order.
     painted: Vec<(usize, u32, Vec<(u8, u32)>)>,
+    shirt: Option<u32>,
     chest: Option<u32>,
     legs: Option<u32>,
     hands: Option<u32>,
@@ -142,6 +143,7 @@ struct BodyDisplays {
 impl BodyDisplays {
     fn record(&mut self, slot: EquipmentVisualSlot, display_id: u32, textures: Vec<(u8, u32)>) {
         match slot {
+            EquipmentVisualSlot::Shirt => self.shirt = Some(display_id),
             EquipmentVisualSlot::Chest => self.chest = Some(display_id),
             EquipmentVisualSlot::Legs => self.legs = Some(display_id),
             EquipmentVisualSlot::Hands => self.hands = Some(display_id),
@@ -156,9 +158,10 @@ impl BodyDisplays {
 /// The robe and sleeves decided across slots, after every item's own overrides, in the
 /// order of build 12340's `CCharacterComponent` (solarityclient
 /// `character_component/geoset.rs` `apply_equipment_geosets`): gloves (GeosetGroup[0])
-/// take the arms, else the chest's GeosetGroup[0] picks sleeves 801+n; a chest robe
-/// (GeosetGroup[2], inventory type 20), else a legs one, hides boots 5xx, kneepads
-/// 902-999 and pants 11xx and shows skirt 1301+n in place of the pants' trousers.
+/// take the arms, else the chest's, else the shirt's GeosetGroup[0] picks sleeves 801+n
+/// and their GeosetGroup[1] the undershirt 1001+n (wowdev.wiki DB/ItemDisplayInfo); a
+/// chest robe (GeosetGroup[2], inventory type 20), else a legs one, hides boots 5xx,
+/// kneepads 902-999 and pants 11xx and shows skirt 1301+n in place of the pants' trousers.
 fn apply_body_geosets(
     resolved: &mut ResolvedEquipmentAppearance,
     body: &BodyDisplays,
@@ -172,10 +175,14 @@ fn apply_body_geosets(
         overrides.retain(|(existing, _)| *existing != geoset);
         overrides.push((geoset, variant));
     };
+    let torso = |index| group(body.chest, index).or_else(|| group(body.shirt, index));
     if group(body.hands, 0).is_none()
-        && let Some(sleeves) = group(body.chest, 0)
+        && let Some(sleeves) = torso(0)
     {
         set(8, sleeves);
+    }
+    if let Some(undershirt) = torso(1) {
+        set(10, undershirt);
     }
     let Some(robe) = group(body.chest, 2).or_else(|| group(body.legs, 2)) else {
         return;
@@ -354,54 +361,50 @@ fn merge_overlay_texture_sets(base: &mut OutfitResult, overlay: &OutfitResult) {
     }
 }
 
+/// The body geoset groups an item's `ItemDisplayInfo.GeosetGroup[index]` selects
+/// (wowdev.wiki DB/ItemDisplayInfo "Geoset Group Field Meaning"): geoset
+/// `group * 100 + 1 + value`. Shirt/chest sleeves (8xx) and undershirt (10xx) and the
+/// robe (13xx) are decided across slots ([`apply_body_geosets`]); the helmet in
+/// `head_geoset_overrides`; boots' feet (20xx) in [`feet_geoset`].
+fn slot_geoset_groups(slot: EquipmentVisualSlot) -> &'static [(usize, u16)] {
+    match slot {
+        EquipmentVisualSlot::Shoulder => &[(0, 26)],
+        EquipmentVisualSlot::Chest => &[(3, 22), (4, 28)],
+        EquipmentVisualSlot::Waist => &[(0, 18)],
+        EquipmentVisualSlot::Legs => &[(0, 11), (1, 9), (2, 13)],
+        EquipmentVisualSlot::Feet => &[(0, 5)],
+        EquipmentVisualSlot::Hands => &[(0, 4), (1, 23)],
+        EquipmentVisualSlot::Back => &[(0, 15)],
+        EquipmentVisualSlot::Tabard => &[(0, 12)],
+        _ => &[],
+    }
+}
+
 fn slot_geoset_overrides(
     slot: EquipmentVisualSlot,
     display_id: u32,
     data: &OutfitData,
 ) -> Option<Vec<(u16, u16)>> {
-    match slot {
-        EquipmentVisualSlot::Chest => {
-            single_geoset_override(22, data.chest_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Hands => {
-            single_geoset_override(4, data.hand_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Waist => {
-            single_geoset_override(18, data.hand_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Legs => legs_geoset_overrides(display_id, data),
-        EquipmentVisualSlot::Back => {
-            single_geoset_override(15, data.cape_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Tabard => {
-            single_geoset_override(12, data.tabard_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Feet => data
-            .boot_geoset_variant(display_id)
-            .map(|variant| vec![(5, variant), (20, variant)]),
-        _ => None,
+    let mut overrides: Vec<(u16, u16)> = slot_geoset_groups(slot)
+        .iter()
+        .filter_map(|&(index, group)| {
+            data.display_geoset_variant(display_id, index)
+                .map(|variant| (group, variant))
+        })
+        .collect();
+    if slot == EquipmentVisualSlot::Feet {
+        overrides.push(feet_geoset(display_id, data));
     }
-}
-
-fn legs_geoset_overrides(display_id: u32, data: &OutfitData) -> Option<Vec<(u16, u16)>> {
-    let mut overrides = Vec::new();
-    push_optional_geoset_override(&mut overrides, 11, data.pants_geoset_variant(display_id));
-    push_optional_geoset_override(&mut overrides, 9, data.kneepad_geoset_variant(display_id));
-    push_optional_geoset_override(&mut overrides, 13, data.trouser_geoset_variant(display_id));
     (!overrides.is_empty()).then_some(overrides)
 }
 
-fn single_geoset_override(group: u16, variant: Option<u16>) -> Option<Vec<(u16, u16)>> {
-    variant.map(|value| vec![(group, value)])
-}
-
-fn push_optional_geoset_override(
-    overrides: &mut Vec<(u16, u16)>,
-    group: u16,
-    variant: Option<u16>,
-) {
-    if let Some(value) = variant {
-        overrides.push((group, value));
+/// Boots' feet: 2000 + GeosetGroup[1], or 2002 when it is 0 (wowdev.wiki: "If you are
+/// wearing boots and geosetGroup[1] for your boots is 0, you get 2002"); bare feet keep
+/// the body's 2001.
+fn feet_geoset(display_id: u32, data: &OutfitData) -> (u16, u16) {
+    match data.display_geoset_raw(display_id, 1) {
+        Some(raw) if raw > 0 => (20, raw),
+        _ => (20, 2),
     }
 }
 
@@ -676,6 +679,34 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// wowdev.wiki DB/ItemDisplayInfo: boots select feet 2000 + GeosetGroup[1] (2002 when
+    /// it is 0), a shirt's GeosetGroup[1] the undershirt 1001+n, a chest's GeosetGroup[3]
+    /// the torso 2201+n. Recruit's Boots 40 (all groups 0), Dirt-Trodden Boots 4936
+    /// (GeosetGroup 0/1), Sacredite's Research Tunic 241267 (shirt 1/3), Empyrial
+    /// Breastplate 151576 (GeosetGroup[3] 1), Apprentice's Robe 56 (1/0/1/0).
+    #[test]
+    fn item_geoset_groups_select_their_body_groups() {
+        let overrides = |slot, item| resolve(vec![entry(slot, item)]).outfit.geoset_overrides;
+        assert!(overrides(EquipmentVisualSlot::Feet, 40).contains(&(20, 2)));
+        assert!(
+            !overrides(EquipmentVisualSlot::Feet, 40)
+                .iter()
+                .any(|(g, _)| *g == 5)
+        );
+        assert!(overrides(EquipmentVisualSlot::Feet, 4936).contains(&(20, 1)));
+        let tunic = overrides(EquipmentVisualSlot::Shirt, 241267);
+        assert!(
+            tunic.contains(&(8, 2)) && tunic.contains(&(10, 4)),
+            "{tunic:?}"
+        );
+        assert!(overrides(EquipmentVisualSlot::Chest, 151576).contains(&(22, 2)));
+        assert!(
+            !overrides(EquipmentVisualSlot::Chest, 56)
+                .iter()
+                .any(|(g, _)| *g == 22)
+        );
     }
 
     #[test]

@@ -155,7 +155,8 @@ fn query_display_info_row(
     let mut stmt = conn
         .prepare(
             "SELECT model_res_0, model_res_1, model_mat_res_0, model_mat_res_1,
-                    geoset_group_0, geoset_group_1, geoset_group_2, helmet_vis_0, helmet_vis_1
+                    geoset_group_0, geoset_group_1, geoset_group_2, geoset_group_3,
+                    geoset_group_4, geoset_group_5, helmet_vis_0, helmet_vis_1
              FROM display_info
              WHERE id = ?1",
         )
@@ -168,8 +169,11 @@ fn query_display_info_row(
                 row.get::<_, i16>(4)?,
                 row.get::<_, i16>(5)?,
                 row.get::<_, i16>(6)?,
+                row.get::<_, i16>(7)?,
+                row.get::<_, i16>(8)?,
+                row.get::<_, i16>(9)?,
             ],
-            [row.get::<_, u32>(7)?, row.get::<_, u32>(8)?],
+            [row.get::<_, u32>(10)?, row.get::<_, u32>(11)?],
         ))
     })
     .optional()
@@ -203,7 +207,7 @@ fn query_display_materials(
 fn build_display_info_row(
     model_resources: [u32; 2],
     model_material_resources: [u32; 2],
-    geoset_groups: [i16; 3],
+    geoset_groups: [i16; 6],
     helmet_vis_ids: [u32; 2],
 ) -> DisplayInfoResolved {
     let collect = |values: [u32; 2]| values.into_iter().filter(|v| *v != 0).collect::<Vec<_>>();
@@ -215,14 +219,7 @@ fn build_display_info_row(
         model_resource_columns: model_resources,
         model_material_resource_columns: model_material_resources,
         helmet_geoset_vis_ids: collect(helmet_vis_ids),
-        geoset_groups: [
-            geoset_groups[0],
-            geoset_groups[1],
-            geoset_groups[2],
-            0,
-            0,
-            0,
-        ],
+        geoset_groups,
     }
 }
 

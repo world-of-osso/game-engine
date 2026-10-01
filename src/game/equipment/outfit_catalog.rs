@@ -205,45 +205,6 @@ impl OutfitData {
         self.resolve_display_infos(data, [display_info_id], race, sex)
     }
 
-    pub fn hand_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn cape_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn tabard_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn chest_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        let data = self.loaded()?;
-        let display = self.display_info(data, display_info_id)?;
-        let raw = *display.geoset_groups.first()?;
-        (raw > 0).then_some(2)
-    }
-
-    pub fn waist_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn pants_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn kneepad_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 1)
-    }
-
-    pub fn boot_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn trouser_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 2)
-    }
-
     /// The model textures of display `display_info_id` as race `race`/sex `sex` wears it.
     pub fn display_material_texture_fdids(
         &self,
@@ -411,11 +372,15 @@ impl OutfitData {
     /// `ItemDisplayInfo.GeosetGroup[group_index]` + 1 (the geoset variant it selects), or
     /// none when that group is 0.
     pub fn display_geoset_variant(&self, display_info_id: u32, group_index: usize) -> Option<u16> {
+        let raw = self.display_geoset_raw(display_info_id, group_index)?;
+        (raw != 0).then_some(raw + 1)
+    }
+
+    /// `ItemDisplayInfo.GeosetGroup[group_index]` itself.
+    pub fn display_geoset_raw(&self, display_info_id: u32, group_index: usize) -> Option<u16> {
         let data = self.loaded()?;
         let display = self.display_info(data, display_info_id)?;
-        let raw = *display.geoset_groups.get(group_index)?;
-        let raw = u16::try_from(raw).ok()?;
-        (raw != 0).then_some(raw + 1)
+        u16::try_from(*display.geoset_groups.get(group_index)?).ok()
     }
     fn display_info(
         &self,
@@ -620,10 +585,11 @@ fn head_geoset_primary_variant(raw_value: i16) -> Option<u16> {
     }
 }
 
+/// GeosetGroup[1] selects 2101 + value (wowdev.wiki DB/ItemDisplayInfo).
 fn head_geoset_secondary_variant(raw_value: i16) -> Option<u16> {
     match raw_value {
         value if value <= 0 => None,
-        value => Some(value as u16),
+        value => Some(value as u16 + 1),
     }
 }
 
