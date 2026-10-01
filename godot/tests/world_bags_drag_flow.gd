@@ -55,21 +55,13 @@ func point_in_slot(client: Node, control_name: String) -> Vector2:
 	return control.get_global_rect().get_center()
 
 func inert_frame_point(client: Node) -> Vector2:
-	var frame := authored_control(client, "ContainerFrame0")
-	var title := authored_control(client, "ContainerFrame0Title")
-	if frame == null or title == null or not frame.is_visible_in_tree():
-		fail("Missing authored nonactionable bag frame/title")
+	# bag_toggle:2 is not a cursor target, and no authoritative bag2 exists.
+	# Unlike the mouse-disabled container/title, this authored button blocks World.
+	var control := authored_control(client, "CharacterBag1Slot")
+	if control == null or not control.is_visible_in_tree() or control.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+		fail("Missing authored mouse-blocking, cursor-inert absent-bag button")
 		return Vector2.INF
-	var point := title.get_global_rect().get_center()
-	if not frame.get_global_rect().has_point(point):
-		fail("Authored bag title point is outside bag frame")
-		return Vector2.INF
-	for slot in range(16):
-		var control := authored_control(client, "ContainerFrame0Slot%s" % slot)
-		if control == null or control.get_global_rect().has_point(point):
-			fail("Nonactionable title release point intersects a slot or capacity missing")
-			return Vector2.INF
-	return point
+	return control.get_global_rect().get_center()
 
 func move_pointer(point: Vector2, previous: Vector2, held: bool) -> void:
 	cursor_pointer = point
@@ -138,7 +130,7 @@ func quiet_releases(client: Node) -> bool:
 		return false
 	print("FIXTURE BAGS_DRAG_SAME_SOURCE")
 
-	# Cursor was already held; this press on an inert frame did not pick it up.
+	# Cursor was already held; this press on a cursor-inert button did not pick it up.
 	# Release on a different actionable slot must not drop that held cursor.
 	if not await click_slot(client, SOURCE_SLOT) or not await wait_cursor(client, true):
 		return false
@@ -158,7 +150,7 @@ func quiet_releases(client: Node) -> bool:
 		return false
 	print("FIXTURE BAGS_DRAG_HELD_RELEASE")
 
-	# Pickup this press, then release onto authored title/frame (not world).
+	# Pickup this press, then release onto a mouse-blocking non-cursor button.
 	source = point_in_slot(client, SOURCE_SLOT)
 	inert = inert_frame_point(client)
 	if source == Vector2.INF or inert == Vector2.INF or source.distance_to(inert) < DRAG_MIN:
