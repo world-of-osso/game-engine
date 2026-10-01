@@ -182,10 +182,15 @@ func run_cases() -> void:
 			fail("cannot create capture directory (%s): %s" % [error, shots_directory])
 			return
 	build_fixture(shader)
+	var reference: Vector3i = expected_product()
+	print("SRGB_REFERENCE first=", FIRST, " second=", SECOND, " decoded=", Vector3(decode_srgb(64), decode_srgb(96), decode_srgb(128)), " encoded_product=", reference, " script_sha256=", FileAccess.get_sha256("res://tests/skybox_linear_combine.gd"))
+	if reference != Vector3i(9, 28, 61):
+		fail("Independent standard sRGB reference differs from precomputed [9,28,61]")
+		return
 	var control_passed: bool = await check_case("single_stage", false, FIRST)
 	if finished:
 		return
-	var combine_passed: bool = await check_case("linear_product_0xE", true, expected_product())
+	var combine_passed: bool = await check_case("linear_product_0xE", true, reference)
 	if finished:
 		return
 	if not control_passed or not combine_passed:
