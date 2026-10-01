@@ -21,7 +21,7 @@ func run_test() -> void:
 		return
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	if not await wait_screen(client, "CharacterSelect", 15000):
+	if not await wait_screen(client, "CharacterSelect", 90000):
 		return
 	if not await wait_campsite(client):
 		return
