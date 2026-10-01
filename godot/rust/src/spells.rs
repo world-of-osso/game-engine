@@ -34,7 +34,7 @@ use godot::classes::{
 };
 use godot::prelude::*;
 use shared::components::PowerType;
-use shared::protocol::{ActionRef, CastFailed, CombatLogKind};
+use shared::protocol::{ActionRef, CastFailed, CombatLogEvent, CombatLogKind};
 
 use crate::frame_error::{FrameError, SessionError, report_once};
 use crate::{
@@ -216,6 +216,18 @@ impl SpellsHud {
             },
             CatalogLoad::Ready(_) | CatalogLoad::Failed => {}
         }
+    }
+}
+
+/// Floating combat text size: 64, × 1.5 for a crit and × 0.75 for a glancing blow
+/// (`CombatFeedback_OnCombatEvent`, CombatFeedback.lua:39-42).
+fn combat_text_size(event: &CombatLogEvent) -> i32 {
+    if event.crit {
+        96
+    } else if event.glancing {
+        48
+    } else {
+        64
     }
 }
 
@@ -937,7 +949,7 @@ impl GameClient {
                 godot::classes::label_3d::DrawFlags::DISABLE_DEPTH_TEST,
                 true,
             );
-            label.set_font_size(if event.crit { 96 } else { 64 });
+            label.set_font_size(combat_text_size(&event));
             label.set_outline_size(8);
             // Constant on-screen size, as Retail combat text.
             label.set_draw_flag(godot::classes::label_3d::DrawFlags::FIXED_SIZE, true);
@@ -1092,6 +1104,34 @@ impl GameClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn combat_text_is_larger_for_a_crit_and_smaller_for_a_glancing_blow() {
+        let hit = CombatLogEvent {
+            source: Some(1),
+            target: Some(2),
+            spell_id: None,
+            school_mask: 1,
+            amount: 10,
+            overflow: 0,
+            absorbed: 0,
+            resisted: 0,
+            blocked: 0,
+            crit: false,
+            glancing: false,
+            periodic: false,
+            kind: CombatLogKind::Damage,
+        };
+        let crit = CombatLogEvent {
+            crit: true,
+            ..hit.clone()
+        };
+        let glancing = CombatLogEvent {
+            glancing: true,
+            ..hit.clone()
+        };
+        assert_eq!([&hit, &crit, &glancing].map(combat_text_size), [64, 96, 48]);
+    }
 
     fn spell(id: u32, available_at: Option<u32>) -> SpellbookSpell {
         SpellbookSpell {
