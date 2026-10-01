@@ -3,9 +3,11 @@
 //! MAIN calls `start` in ready, `poll` on the main thread each process frame,
 //! and drops this value in exit_tree, before Godot singleton teardown.
 
+mod combat;
 mod dev;
 mod export;
 mod items;
+mod trade;
 mod tree;
 mod ui_tree;
 mod world;
@@ -44,9 +46,20 @@ struct Command {
 
 type ScreenshotReplies = Rc<RefCell<Vec<oneshot::Sender<Response>>>>;
 
-/// The client's own requests (dev tooling over its live state); a request it does not
-/// serve comes back.
-pub(crate) type ClientRequests<'a> = dyn FnMut(Request) -> Result<Response, Request> + 'a;
+/// The answer to one request; the client may keep it until the server replies, as the
+/// original's queued requests do.
+pub(crate) struct Reply(oneshot::Sender<Response>);
+
+impl Reply {
+    pub(crate) fn send(self, response: Response) {
+        reply(self.0, response);
+    }
+}
+
+/// The client's own requests over its live state; a request it does not serve comes
+/// back with its reply.
+pub(crate) type ClientRequests<'a> =
+    dyn FnMut(Request, Reply) -> Result<(), (Request, Reply)> + 'a;
 
 /// Own-PID listener plus main-thread diagnostics dispatch. Never move to a worker.
 pub(crate) struct NativeIpc {
@@ -130,9 +143,14 @@ impl NativeIpc {
                 self.queue_screenshot(client, command.respond);
                 return;
             }
-            request => requests(request).unwrap_or_else(|request| {
-                Response::Error(format!("native IPC: unported request {request:?}"))
-            }),
+            request => {
+                if let Err((request, respond)) = requests(request, Reply(command.respond)) {
+                    respond.send(Response::Error(format!(
+                        "native IPC: unported request {request:?}"
+                    )));
+                }
+                return;
+            }
         };
         reply(command.respond, response);
     }

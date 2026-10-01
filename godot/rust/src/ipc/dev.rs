@@ -19,6 +19,25 @@ use crate::process_memory_status::current_process_memory_kb;
 const NPC_AIM_HEIGHT: f32 = 1.0;
 
 impl crate::GameClient {
+    /// Requests the client answers, now or once the server replies; others come back.
+    pub(crate) fn client_request(
+        &mut self,
+        request: Request,
+        reply: super::Reply,
+    ) -> Result<(), (Request, super::Reply)> {
+        let (request, reply) = match self.trade_request(request, reply) {
+            Ok(()) => return Ok(()),
+            Err(unserved) => unserved,
+        };
+        match self.dev_request(request) {
+            Ok(response) => {
+                reply.send(response);
+                Ok(())
+            }
+            Err(request) => Err((request, reply)),
+        }
+    }
+
     /// The dev-tool request's response, or the request when the client does not serve it.
     pub(crate) fn dev_request(&mut self, request: Request) -> Result<Response, Request> {
         let answer = match request {
