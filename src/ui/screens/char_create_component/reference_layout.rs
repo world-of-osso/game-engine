@@ -26,7 +26,11 @@ pub(super) fn fit_spacing(space: f32, count: usize, size: f32, base: f32) -> f32
         return base;
     }
     let left = space - count as f32 * size;
-    if left < base * count as f32 {
+    if left < 0.0 && count > 1 {
+        // Overlapping items: only the count - 1 gaps between them may absorb the excess,
+        // or the last item ends past `space`.
+        (left / (count - 1) as f32).floor()
+    } else if left < base * count as f32 {
         (left / count as f32).floor()
     } else {
         base
