@@ -128,28 +128,13 @@ fn semantic_subtree(node: &Gd<Node>, depth: usize) -> Vec<String> {
 fn semantic_label(node: &Gd<Node>) -> Option<String> {
     let name = node.get_name().to_string();
     if let Ok(camera) = node.clone().try_cast::<Camera3D>() {
-        return Some(format!(
-            "Camera \"{name}\" fov={}{} current={}",
-            camera.get_fov(),
-            semantic_position(&camera.clone().upcast()),
-            camera.is_current(),
-        ));
+        return Some(format_camera_label(&name, camera));
     }
     if let Ok(light) = node.clone().try_cast::<Light3D>() {
-        return Some(format!(
-            "Light \"{name}\" {}={}{}",
-            light.get_class(),
-            light.get_param(godot::classes::light_3d::Param::ENERGY),
-            semantic_position(&light.upcast()),
-        ));
+        return Some(format_light_label(&name, light));
     }
     if let Ok(mesh) = node.clone().try_cast::<MeshInstance3D>() {
-        let surfaces = mesh.get_mesh().map(|resource| resource.get_surface_count());
-        return Some(format!(
-            "Object \"{name}\" MeshInstance3D{} surfaces={surfaces:?} is_displayed={}",
-            semantic_position(&mesh.clone().upcast()),
-            mesh.is_visible_in_tree(),
-        ));
+        return Some(format_mesh_label(&name, mesh));
     }
     let spatial = node.clone().try_cast::<Node3D>().ok()?;
     if node.has_meta(crate::assets::M2_BOUNDS_META) {
@@ -162,6 +147,33 @@ fn semantic_label(node: &Gd<Node>) -> Option<String> {
     }
     // Live spatial group names retain the native scene's ownership hierarchy.
     Some(format!("{name}{}", semantic_position(&spatial)))
+}
+
+fn format_camera_label(name: &str, camera: Gd<Camera3D>) -> String {
+    format!(
+        "Camera \"{name}\" fov={}{} current={}",
+        camera.get_fov(),
+        semantic_position(&camera.clone().upcast()),
+        camera.is_current(),
+    )
+}
+
+fn format_light_label(name: &str, light: Gd<Light3D>) -> String {
+    format!(
+        "Light \"{name}\" {}={}{}",
+        light.get_class(),
+        light.get_param(godot::classes::light_3d::Param::ENERGY),
+        semantic_position(&light.upcast()),
+    )
+}
+
+fn format_mesh_label(name: &str, mesh: Gd<MeshInstance3D>) -> String {
+    let surfaces = mesh.get_mesh().map(|resource| resource.get_surface_count());
+    format!(
+        "Object \"{name}\" MeshInstance3D{} surfaces={surfaces:?} is_displayed={}",
+        semantic_position(&mesh.clone().upcast()),
+        mesh.is_visible_in_tree(),
+    )
 }
 
 fn semantic_position(node: &Gd<Node3D>) -> String {
