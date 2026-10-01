@@ -60,10 +60,22 @@ Buy remains MAIN-accepted gate1446 at `e9a7e303`. Whole-sale test `6e2d74ba` aut
 | Boundary | Evidence / status |
 | --- | --- |
 | Matching build / functional GREEN | MAIN Depot `2lj2lv35sz` exit0; `/tmp/claude/native-merchant-whole-sale-first-green.log` exit0. Exactly1 Buy and1 whole Sell, GUID9182589/count0. Held source RGB0.5 with textured cursor; own MerchantFrame release restores white source and hides cursor. Linen1/Gold975 stays quiet900ms before SELL_COMMIT; only afterward authoritative empty inventory/Gold988. |
-| Independent gate / cleanup | Bounded functional/source/build/format PASS; no new production readability finding. Two introduced fixture findings: marker cyclomatic18→28 and compound sale guard. Cleanup `a7975c9b` committed but not compiled/proved; bounded whole-sale gate **not fully accepted** until cleanup proof and followup acceptance. |
-| Next slice / lifecycle | Split test `fabff2f5` awaits authentic RED; no split acceptance. PID4032713 deliberate SIGKILL/reap/readers0 is **NOT shutdown proof**. |
+| Independent gate / cleanup | Bounded functional/source/build/format PASS; no new production readability finding. Two introduced fixture findings: marker cyclomatic18→28 and compound sale guard. Cleanup `a7975c9b` compiled with next test `fabff2f5` in Depot `cjrpp8zkgk` (build exit0); cleanup runtime/followup acceptance remains pending. Bounded whole-sale gate **not fully accepted**. |
+| Next slice / lifecycle | Split test `fabff2f5`, oracle correction `34b6f691`: authentic owner-placement RED below; no split acceptance. PIDs4032713/4046506/4052718 deliberate SIGKILL/reap/readers0 are **NOT shutdown proof**. |
 
 Owned authenticated authority peer, not execution of production server sale policy. Split, cross-root/global ownership, general lifecycle, buyback, Shift vendor buy and full conversion remain excluded; prior Buy/tooltip/startup proofs retain their scopes. Full conversion remains OPEN.
+
+### Native merchant split cursor sale — authentic owner-placement RED
+
+[Actual owner RED log](/tmp/claude/native-merchant-split-sale-owner-red.log) exit101 is the current runtime evidence SSOT. Initial `/tmp/claude/native-merchant-split-sale-first-red.log` exit101 was an invalid duplicate-picker oracle: client `find_child` selected hidden MerchantUI. Correction `34b6f691` scopes lookup to CursorItemUI and preserves expected `merchant_split_open == false`.
+
+| Boundary | Evidence / status |
+| --- | --- |
+| Reached | Exact Buy/whole-Sell prefixes and authority barriers pass. Real picker is wrongly anchored at `(-172,-96,172,96)` against visible merchant bag owner `(1740,820,36,36)`; expected position `(1604,724)` at scale1. Digit/Enter and split Sell are **not reached**. |
+| Root cause / correction | `bag_split_view` uses hidden BagsUI owner0 rect. MAIN correction in progress: `find_bag_split_owner` chooses open merchant + bag0 registry, otherwise existing BagsUI. `merchant_frame_control` helper agent1458 pending. No new fallback, protocol, state or Mail changes; fresh correction build/runtime/gate pending. |
+| Intended next boundary — NOT proof | Original empty-cursor picker leaves source white; Enter holds split and locks source. Own-frame drop is CLICK on press, not a fresh drag. Exact Sell GUID9182590/count2 requires a withheld-client barrier before peer Linen3/Gold1014. Future test intent does not establish these behaviors. |
+
+Prior whole-sale functional PASS and cleanup-pending gate remain unchanged. Full conversion remains OPEN; split acceptance and all remaining exclusions above remain unproved.
 
 ## Native standalone bags — bounded window and cursor PASS
 
