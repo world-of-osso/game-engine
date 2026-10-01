@@ -26,6 +26,7 @@ pub(crate) struct NativeJsAutomation {
     elapsed: f64,
     wait_started: Option<f64>,
     error: Option<String>,
+    last_wait_error: Option<String>,
 }
 
 impl NativeJsAutomation {
@@ -38,6 +39,7 @@ impl NativeJsAutomation {
             elapsed: 0.0,
             wait_started: None,
             error: None,
+            last_wait_error: None,
         })
     }
 
@@ -146,9 +148,11 @@ impl NativeJsAutomation {
         }
         let started = *self.wait_started.get_or_insert(self.elapsed);
         if self.elapsed - started > f64::from(timeout) {
-            return Err(format!(
+            let error = self.last_wait_error.insert(format!(
                 "native JS automation: timed out waiting for {target} after {timeout:.2}s"
             ));
+            godot_error!("{error}");
+            return Ok(true);
         }
         Ok(false)
     }
@@ -424,7 +428,8 @@ impl INode for NativeJsAutomationHost {
             return;
         };
         match runtime.poll(&client.upcast(), delta, state) {
-            Ok(true) => self.runtime = None,
+            // Retain the last wait failure after draining; it was reported at its deadline.
+            Ok(true) => self.base_mut().set_process(false),
             Ok(false) => {}
             Err(error) => {
                 godot_error!("{error}");
