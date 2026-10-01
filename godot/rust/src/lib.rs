@@ -710,7 +710,7 @@ impl GameClient {
         self.auction_snapshot()
     }
 
-    /// Read-only receiving mail state; requests only come from real mailbox/frame input.
+    /// Read-only mail state; requests only come from real mailbox/frame input.
     #[func]
     fn mail_state(&self) -> VarDictionary {
         self.mailbox_snapshot()

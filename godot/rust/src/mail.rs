@@ -1,4 +1,5 @@
-//! Native receiving mail host. Only actual mailbox use can open the authored frame.
+//! Native mail host. Only actual mailbox use opens the authored MailFrame; the
+//! portable session decides every request, and the server's replies change state.
 use crate::replicated::UnitFields;
 use crate::{
     GameClient,
@@ -9,8 +10,14 @@ use crate::{
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
-    mail::{MailSession, NativeMailView, can_use_mailbox},
-    mail_frame_component::{ACTION_CLOSE, FRAME_NAME},
+    bag_frame_component::{ACTION_BAG_SLOT_PREFIX, parse_bag_slot_action},
+    mail::{
+        MailEffect, MailOutgoing, MailSession, MailTexts, NativeMailView, bag_item,
+        can_use_mailbox, input_letters, input_names,
+    },
+    mail_frame_component::{ACTION_CLOSE, FRAME_NAME, MONEY_BOXES, MailFrameTab},
+    merchant::Click,
+    popup::{PopupOutcome, PopupResult},
 };
 use godot::{
     classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion},
@@ -18,11 +25,13 @@ use godot::{
     prelude::*,
 };
 use shared::protocol::GameObjectInfo;
+use ui_toolkit::frame::WidgetData;
 
 #[derive(Default)]
 pub(crate) struct Mailbox {
     pub session: MailSession,
     pub ui: Option<Gd<RegistryUi>>,
+    texts: MailTexts,
     position: Option<[f32; 2]>,
     drag: Option<WindowDrag>,
 }
@@ -31,6 +40,7 @@ impl Mailbox {
         if let Some(ui) = self.ui.take() {
             ui.free();
         }
+        self.texts.clear();
         self.drag = None;
     }
     pub fn reset(&mut self) {
@@ -43,6 +53,40 @@ impl Mailbox {
         if !self.session.is_open() {
             self.free_ui();
         }
+    }
+    /// The Send Mail edit boxes as typed, cut to their Retail `letters` (money digits
+    /// only); returns the boxes whose text had to be cut.
+    fn read_inputs(&mut self) -> Vec<(&'static str, String)> {
+        let Some(ui) = self.ui.as_ref() else {
+            return Vec::new();
+        };
+        let bound = ui.bind();
+        let Some(registry) = bound.registry() else {
+            return Vec::new();
+        };
+        let mut cut = Vec::new();
+        for name in input_names() {
+            let Some(WidgetData::EditBox(edit)) = registry
+                .get_by_name(name)
+                .and_then(|id| registry.get(id))
+                .and_then(|frame| frame.widget_data.as_ref())
+            else {
+                continue;
+            };
+            let money = MONEY_BOXES.all().contains(&name);
+            let letters = input_letters(name).unwrap_or(usize::MAX);
+            let text: String = edit
+                .text
+                .chars()
+                .filter(|c| !money || c.is_ascii_digit())
+                .take(letters)
+                .collect();
+            if text != edit.text {
+                cut.push((name, text.clone()));
+            }
+            self.texts.insert(name, text);
+        }
+        cut
     }
 }
 impl GameClient {
@@ -83,6 +127,11 @@ impl GameClient {
                     self.add_world_error(error)?;
                 }
             }
+            MailMessage::Sent(sent) => {
+                if let Some(effect) = self.mailbox.session.mail_sent(sent) {
+                    self.apply_mail_effect(effect)?;
+                }
+            }
             MailMessage::Pending(pending) => self.mailbox.session.pending_senders = pending.senders,
         }
         Ok(())
@@ -91,6 +140,9 @@ impl GameClient {
         let object = self.mailbox.session.object;
         self.mailbox.session.close();
         self.mailbox.free_ui();
+        for key in game_engine_ui_model::mail::POPUP_KEYS {
+            self.group_frames.popups.hide(key);
+        }
         if let Some(object) = object {
             self.account.send_close_interaction(object)?;
         }
@@ -105,6 +157,12 @@ impl GameClient {
         }
         Ok(true)
     }
+    fn money(&self) -> u64 {
+        self.world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.gold())
+            .unwrap_or(0)
+    }
     pub(super) fn update_mailbox(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.mailbox.reset();
@@ -114,25 +172,23 @@ impl GameClient {
             self.mailbox.free_ui();
             return Ok(());
         }
+        let cut = self.mailbox.read_inputs();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.poll_mailbox_input()?;
         }
         if !self.mailbox.session.is_open() {
             return Ok(());
         }
-        let money = self
-            .world
-            .local_player_id()
-            .and_then(|id| self.replica.unit(id)?.gold())
-            .unwrap_or(0);
-        let mut bags = self.merchant.session.bag_state();
-        for bag in &mut bags.bags {
-            bag.visible = bag.bag_index == 0;
+        let inventory = &self.merchant.session.inventory;
+        self.mailbox.session.retain_attachments(inventory);
+        let free = inventory.total_free_slots();
+        if let Some(request) = self.mailbox.session.next_open_all(free) {
+            self.account.send_mail_request(request)?;
         }
-        let view = NativeMailView {
-            inbox: self.mailbox.session.view(money),
-            bags,
-        };
+        Ok(self.sync_mailbox_ui(cut)?)
+    }
+    fn sync_mailbox_ui(&mut self, cut: Vec<(&'static str, String)>) -> Result<(), String> {
+        let view = self.mailbox_view();
         let scale = self.effective_ui_scale();
         if self.mailbox.ui.is_none() {
             let mut ui = RegistryUi::new_alloc();
@@ -141,37 +197,149 @@ impl GameClient {
             let shown = ui.bind_mut().show_mail(view.clone());
             if let Err(error) = shown {
                 ui.free();
-                return Err(error.into());
+                return Err(error);
             }
             self.mailbox.ui = Some(ui);
         }
         let mut ui = self.mailbox.ui.clone().ok_or("Mailbox UI missing")?;
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
+        for (name, text) in cut {
+            self.set_mail_text(&mut ui, name, &text)?;
+        }
         if let Some(position) = self.mailbox.position {
             ui.bind_mut().set_window_position(FRAME_NAME, position)?;
         }
+        Ok(())
+    }
+    /// The frame, and the backpack with the attached items locked (`SetItemButtonDesaturated`).
+    fn mailbox_view(&self) -> NativeMailView {
+        let inventory = &self.merchant.session.inventory;
+        let session = &self.mailbox.session;
+        let mut bags = self.merchant.session.bag_state();
+        for bag in &mut bags.bags {
+            bag.visible = bag.bag_index == 0;
+            let slots = inventory.slots.get(bag.bag_index);
+            for (index, slot) in bag.slots.iter_mut().enumerate() {
+                let guid = slots.and_then(|s| s.get(index)).map_or(0, |s| s.item_guid);
+                slot.locked = guid != 0 && session.attachments.contains(&guid);
+            }
+        }
+        NativeMailView {
+            frame: session.view(self.money(), inventory, &self.mailbox.texts),
+            bags,
+        }
+    }
+    fn set_mail_text(
+        &mut self,
+        ui: &mut Gd<RegistryUi>,
+        name: &'static str,
+        text: &str,
+    ) -> Result<(), String> {
+        let present = ui
+            .bind()
+            .registry()
+            .is_some_and(|reg| reg.get_by_name(name).is_some());
+        if present {
+            ui.bind_mut().set_editbox_text(name, text)?;
+        }
+        self.mailbox.texts.insert(name, text.to_string());
         Ok(())
     }
     fn poll_mailbox_input(&mut self) -> Result<(), FrameError> {
         let Some(mut ui) = self.mailbox.ui.clone() else {
             return Ok(());
         };
-        let error = ui.bind_mut().sync_input();
-        if !error.is_empty() {
-            return Err(error.to_string().into());
+        let inputs = ui.bind_mut().drain_bag_inputs()?;
+        for input in inputs {
+            self.dispatch_bag_cursor_input(input)?;
+            if !self.mailbox.session.is_open() {
+                break;
+            }
         }
-        loop {
-            let action = ui.bind_mut().pop_action().to_string();
-            if action.is_empty() {
-                break;
+        Ok(())
+    }
+    pub(super) fn mail_input_owner(&self, owner: i64) -> bool {
+        self.mailbox
+            .ui
+            .as_ref()
+            .is_some_and(|ui| ui.instance_id().to_i64() == owner)
+    }
+    /// A click in the mail UI: Send Mail takes right-clicked bag items, other bag
+    /// clicks keep their bag behavior, and the rest are MailFrame actions.
+    pub(super) fn mail_cursor_click(
+        &mut self,
+        action: &str,
+        click: Click,
+    ) -> Result<(), FrameError> {
+        if action.starts_with(ACTION_BAG_SLOT_PREFIX) {
+            if click.right && self.mailbox.session.tab == MailFrameTab::Send {
+                return Ok(self.attach_bag_item(action)?);
             }
-            if action == ACTION_CLOSE {
-                self.close_mailbox()?;
-                break;
+            return self.bag_cursor_click(action, click);
+        }
+        if action == ACTION_CLOSE {
+            return Ok(self.close_mailbox()?);
+        }
+        let money = self.money();
+        let effect = self.mailbox.session.click(
+            action,
+            &self.mailbox.texts,
+            money,
+            &self.merchant.session.inventory,
+        );
+        Ok(self.apply_mail_effect(effect)?)
+    }
+    fn attach_bag_item(&mut self, action: &str) -> Result<(), String> {
+        let (bag, slot) = parse_bag_slot_action(action)
+            .ok_or_else(|| format!("Invalid bag slot action: {action}"))?;
+        let inventory = &self.merchant.session.inventory;
+        let Some(item) = inventory.slot(bag, slot).filter(|item| !item.is_empty()) else {
+            return Ok(());
+        };
+        let item = item.clone();
+        let effect = self
+            .mailbox
+            .session
+            .attach(&item, &self.mailbox.texts, inventory);
+        self.apply_mail_effect(effect)
+    }
+    fn apply_mail_effect(&mut self, effect: MailEffect) -> Result<(), String> {
+        match effect.outgoing {
+            Some(MailOutgoing::Request(request)) => {
+                self.account.send_mail_request(request).map_err(|e| e.0)?
             }
-            if let Some(request) = self.mailbox.session.click(&action) {
-                self.account.send_mail_request(request)?;
+            Some(MailOutgoing::Send(mail)) => self.account.send_mail(mail).map_err(|e| e.0)?,
+            None => {}
+        }
+        if let Some(popup) = effect.popup {
+            self.group_frames.popups.push(popup);
+        }
+        if let Some(mut ui) = self.mailbox.ui.clone() {
+            for (name, text) in effect.edits {
+                self.set_mail_text(&mut ui, name, &text)?;
+            }
+        } else {
+            for (name, text) in effect.edits {
+                self.mailbox.texts.insert(name, text);
+            }
+        }
+        if let Some(error) = effect.error {
+            self.add_world_error(error)?;
+        }
+        Ok(())
+    }
+    /// `COD_CONFIRMATION` / `DELETE_MAIL` / `DELETE_MONEY` answers.
+    pub(super) fn dispatch_mail_popup_results(
+        &mut self,
+        results: &[PopupResult],
+    ) -> Result<(), FrameError> {
+        for result in results {
+            let accepted = result.outcome == PopupOutcome::Accepted;
+            match self.mailbox.session.popup_result(&result.key, accepted) {
+                Some(MailOutgoing::Request(request)) => self.account.send_mail_request(request)?,
+                Some(MailOutgoing::Send(mail)) => self.account.send_mail(mail)?,
+                None => {}
             }
         }
         Ok(())
@@ -199,7 +367,22 @@ impl GameClient {
                 .unwrap_or_default(),
         );
         state.set("busy", session.busy());
+        state.set("opening_all", session.opening_all());
         state.set("page", session.page as i64);
+        state.set(
+            "tab",
+            match session.tab {
+                MailFrameTab::Inbox => "inbox",
+                MailFrameTab::Send => "send",
+            },
+        );
+        state.set("cod_mode", session.cod_mode);
+        state.set("attachments", &self.mail_draft_rows());
+        let mut texts = VarDictionary::new();
+        for (name, text) in &self.mailbox.texts {
+            texts.set(*name, text.as_str());
+        }
+        state.set("texts", &texts);
         state.set(
             "selected",
             &session
@@ -216,29 +399,11 @@ impl GameClient {
                 .map(|v| (v as i64).to_variant())
                 .unwrap_or_default(),
         );
-        let mut mails = VarArray::new();
         if let Some(contents) = &session.contents {
-            for mail in &contents.mails {
-                let mut row = VarDictionary::new();
-                row.set("id", mail.mail_id as i64);
-                row.set("subject", mail.subject.as_str());
-                row.set("money", mail.money as i64);
-                row.set("cod", mail.cod as i64);
-                row.set("read", mail.read);
-                let mut attachments = VarArray::new();
-                for attachment in &mail.attachments {
-                    let mut item = VarDictionary::new();
-                    item.set("slot", attachment.slot as i64);
-                    item.set("item_id", attachment.item.item_id as i64);
-                    item.set("guid", attachment.item.item_guid as i64);
-                    item.set("count", attachment.item.count as i64);
-                    attachments.push(&item.to_variant());
-                }
-                row.set("attachments", &attachments);
-                mails.push(&row.to_variant());
-            }
+            state.set("now", contents.now as i64);
+            state.set("mails", &mail_rows(&contents.mails));
         }
-        state.set("mails", &mails);
+
         let mut senders = VarArray::new();
         for sender in &session.pending_senders {
             senders.push(&sender.to_variant());
@@ -247,11 +412,45 @@ impl GameClient {
         state
     }
 
+    fn drag_mailbox(
+        &mut self,
+        motion: &Gd<InputEventMouseMotion>,
+        rect: [f32; 4],
+        scale: f32,
+    ) -> bool {
+        let Some(drag) = &self.mailbox.drag else {
+            return false;
+        };
+        let Some(viewport) = self.base().get_viewport() else {
+            return false;
+        };
+        let size = viewport.get_visible_rect().size / scale;
+        self.mailbox.position = Some(drag.position(
+            motion.get_position() / scale,
+            [size.x, size.y],
+            [rect[2] / scale, rect[3] / scale],
+        ));
+        true
+    }
+
+    fn mail_draft_rows(&self) -> VarArray {
+        let mut attached = VarArray::new();
+        for guid in &self.mailbox.session.attachments {
+            let mut row = VarDictionary::new();
+            row.set("guid", *guid as i64);
+            let item = bag_item(&self.merchant.session.inventory, *guid);
+            row.set("item_id", item.map_or(0, |item| i64::from(item.item_id)));
+            row.set("count", item.map_or(0, |item| i64::from(item.count)));
+            attached.push(&row.to_variant());
+        }
+        attached
+    }
+
     pub(super) fn mailbox_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
         if !self.mailbox.session.is_open() || self.game_menu_ui.is_some() {
             return false;
         }
-        let Some(ui) = self.mailbox.ui.as_ref() else {
+        let Some(ui) = self.mailbox.ui.clone() else {
             return false;
         };
         let Some((rect, _)) = ui.bind().frame_rect(FRAME_NAME) else {
@@ -259,19 +458,7 @@ impl GameClient {
         };
         let scale = self.effective_ui_scale();
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
-            let Some(drag) = &self.mailbox.drag else {
-                return false;
-            };
-            let Some(viewport) = self.base().get_viewport() else {
-                return false;
-            };
-            let size = viewport.get_visible_rect().size / scale;
-            self.mailbox.position = Some(drag.position(
-                motion.get_position() / scale,
-                [size.x, size.y],
-                [rect[2] / scale, rect[3] / scale],
-            ));
-            return true;
+            return self.drag_mailbox(&motion, rect, scale);
         }
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
@@ -300,4 +487,34 @@ impl GameClient {
         ));
         true
     }
+}
+
+fn mail_rows(mails: &[shared::protocol::MailHeader]) -> VarArray {
+    let mut rows = VarArray::new();
+    for mail in mails {
+        let mut row = VarDictionary::new();
+        row.set("id", mail.mail_id as i64);
+        row.set("sender", mail.sender.as_str());
+        row.set("subject", mail.subject.as_str());
+        row.set("body", mail.body.as_str());
+        row.set("money", mail.money as i64);
+        row.set("cod", mail.cod as i64);
+        row.set("read", mail.read);
+        row.set("returned", mail.returned);
+        row.set("from_player", mail.from_player);
+        row.set("can_delete", mail.can_delete());
+        row.set("expires_at", mail.expires_at as i64);
+        let mut attachments = VarArray::new();
+        for attachment in &mail.attachments {
+            let mut item = VarDictionary::new();
+            item.set("slot", attachment.slot as i64);
+            item.set("item_id", attachment.item.item_id as i64);
+            item.set("guid", attachment.item.item_guid as i64);
+            item.set("count", attachment.item.count as i64);
+            attachments.push(&item.to_variant());
+        }
+        row.set("attachments", &attachments);
+        rows.push(&row.to_variant());
+    }
+    rows
 }

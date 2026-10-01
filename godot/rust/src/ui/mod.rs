@@ -758,7 +758,9 @@ impl RegistryUi {
             ScreenPostsetup::Merchant,
             registry,
             parent,
-        )
+        )?;
+        self.bag_inputs = Some(VecDeque::new());
+        Ok(())
     }
 
     pub fn show_auction_gossip(

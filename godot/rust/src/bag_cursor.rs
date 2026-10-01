@@ -112,6 +112,8 @@ impl GameClient {
         let target = cursor_action_target(action)?;
         if self.merchant_input_owner(owner) {
             self.merchant_cursor_click(action, click)?;
+        } else if self.mail_input_owner(owner) {
+            self.mail_cursor_click(action, click)?;
         } else {
             self.dispatch_bag_action(action, click)?;
         }

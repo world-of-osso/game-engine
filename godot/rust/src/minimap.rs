@@ -16,7 +16,11 @@ use game_engine_core::minimap_data::{
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::minimap::{
     ACTION_TOGGLE_WORLD_MAP, ACTION_ZOOM_IN, ACTION_ZOOM_OUT, BlipKind, MINIMAP_ARROW,
-    MINIMAP_DISPLAY, MINIMAP_ZONE_TEXT, MinimapBlip, MinimapClusterState, minimap_texture_fdids,
+    MINIMAP_DISPLAY, MINIMAP_MAIL_FRAME, MINIMAP_ZONE_TEXT, MinimapBlip, MinimapClusterState,
+    mail_tooltip_lines, minimap_texture_fdids,
+};
+use game_engine_ui_model::tooltip_presentation::{
+    TOOLTIP_W, TooltipLineState, TooltipPresentation,
 };
 use game_engine_ui_model::world_map_view_data::arrow_rotation;
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, Time};
@@ -282,6 +286,7 @@ impl GameClient {
             zoom_buttons: self.minimap.hovered,
             zoom: self.minimap.zoom,
             blips: self.quest_blips(&view),
+            has_mail: !self.mailbox.session.pending_senders.is_empty(),
             map_texture: None,
         })
     }
@@ -370,6 +375,29 @@ impl GameClient {
         let scale = self.effective_ui_scale();
         let centre = Vector2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0) * scale;
         Some((centre, rect.width / 2.0 * scale))
+    }
+
+    /// `MiniMapMailFrameMixin:OnEnter`: the unread senders, `ANCHOR_BOTTOMLEFT` of the icon.
+    pub(super) fn minimap_mail_tooltip(&self) -> Option<TooltipPresentation> {
+        let senders = &self.mailbox.session.pending_senders;
+        if senders.is_empty() {
+            return None;
+        }
+        let ui = self.minimap.ui.as_ref()?.bind();
+        let rect = ui.frame_control(MINIMAP_MAIL_FRAME)?.get_global_rect();
+        if !rect.contains_point(Vector2::from_array(self.physical_input.pointer())) {
+            return None;
+        }
+        let scale = self.effective_ui_scale();
+        let (title, lines) = mail_tooltip_lines(senders);
+        Some(TooltipPresentation {
+            visible: true,
+            x: (rect.position.x / scale - TOOLTIP_W).max(0.0),
+            y: rect.end().y / scale,
+            title: title.into(),
+            lines: lines.into_iter().map(TooltipLineState::new).collect(),
+            ..TooltipPresentation::hidden()
+        })
     }
 
     /// Pointer over the map: hover shows the zoom buttons (`MinimapMixin:OnEnter`), and
