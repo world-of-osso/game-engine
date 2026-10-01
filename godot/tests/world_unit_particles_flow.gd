@@ -1,9 +1,10 @@
 extends "res://tests/capture_world_view.gd"
 
-## Creature model particle emitters in the real client (WebWowViewerCpp
+## Creature and item model particle emitters in the real client (WebWowViewerCpp
 ## animationManager.cpp calcParticleEmitters runs for every M2 object, units included):
 ## after the world's units attach, the creatures whose display models author emitters
-## draw them. Environment as capture_world_view.gd; VIEW_PLAN shots follow. A shot whose
+## draw them, and so do the item models units hold (VIEW_MIN_ITEM_EMITTERS: at least that
+## many item emitters). Environment as capture_world_view.gd; VIEW_PLAN shots follow. A shot whose
 ## yaw is "aim" turns the camera onto unit VIEW_AIM_UNIT and requires its particles to
 ## change at least MIN_PARTICLE_PIXELS pixels around it (frame with the unit particle
 ## pools shown vs hidden).
@@ -55,6 +56,10 @@ func run_test() -> void:
 		await capture(fields[0] + ".png")
 		if units == null or int(units.units) == 0 or int(units.emitters) == 0:
 			fail("%s: no creature carries particle emitters: %s" % [fields[0], units])
+			return
+		var min_items := int(OS.get_environment("VIEW_MIN_ITEM_EMITTERS"))
+		if int(units.get("item_emitters", 0)) < min_items:
+			fail("%s: item models carry %s emitters (< %d)" % [fields[0], units.get("item_emitters"), min_items])
 			return
 		if target != null and not await check_particle_pixels(fields[0], target, pools):
 			return

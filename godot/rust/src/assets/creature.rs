@@ -167,6 +167,12 @@ pub(crate) fn load_model_files(
     Ok(cached)
 }
 
+/// Model `fdid` if a worker already parsed it (`load_model_files`), without file work.
+pub(crate) fn cached_model(data_root: &Path, fdid: u32) -> Option<Arc<CachedModel>> {
+    let key = data_root.join("models").join(format!("{fdid}.m2"));
+    MODELS.lock().expect("model cache").get(&key).cloned()
+}
+
 /// Texture FDIDs some worker already decoded for the main thread's shared textures.
 static DECODED: LazyLock<Mutex<HashSet<u32>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
