@@ -1913,3 +1913,6 @@ models/18995800.skin
 # creature texture prefetch: instance portal glowball batch fades in from zero opacity.
 models/197012.m2
 models/19701200.skin
+# ground_detail: retail GroundEffectTexture / GroundEffectDoodad exports.
+db2/12.1.0.69933/GroundEffectTexture.csv
+db2/12.1.0.69933/GroundEffectDoodad.csv
