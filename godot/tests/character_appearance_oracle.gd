@@ -51,16 +51,21 @@ var errors: Array[String] = []
 
 # --- tables ------------------------------------------------------------------------------
 
-func table_path(name: String) -> String:
+# The build's own export (db2/12.1.0.69933) when it has every column, else data/'s.
+func table_path(name: String, columns: Array) -> String:
 	var build := BUILD + name + ".csv"
-	return build if FileAccess.file_exists(build) else DATA + name + ".csv"
+	if FileAccess.file_exists(build):
+		var header := FileAccess.open(build, FileAccess.READ).get_csv_line()
+		if columns.all(func(column): return header.has(column)):
+			return build
+	return DATA + name + ".csv"
 
 # Rows of `name` as dictionaries of the named columns (ints), optionally indexed by one.
 func rows(name: String, columns: Array, key: String = "") -> Variant:
 	var cache_key := name + ":" + ",".join(columns) + ":" + key
 	if tables.has(cache_key):
 		return tables[cache_key]
-	var file := FileAccess.open(table_path(name), FileAccess.READ)
+	var file := FileAccess.open(table_path(name, columns), FileAccess.READ)
 	assert(file != null, "missing table " + name)
 	var header := file.get_csv_line()
 	var indexes := []
@@ -104,7 +109,7 @@ func body_model_fdid(model: Dictionary) -> int:
 # --- customization ----------------------------------------------------------------------
 
 func options(model_id: int) -> Array:
-	var found: Array = rows("ChrCustomizationOption", ["ID", "ChrModelID", "OrderIndex"], "ChrModelID").get(model_id, []).duplicate()
+	var found: Array = rows("ChrCustomizationOption", ["ID", "ChrModelID", "OrderIndex", "Requirement"], "ChrModelID").get(model_id, []).duplicate()
 	found.sort_custom(func(a, b): return a.OrderIndex < b.OrderIndex or (a.OrderIndex == b.OrderIndex and a.ID < b.ID))
 	return found
 
@@ -129,6 +134,8 @@ func choice_ids(race: int, sex: int, class_id: int, picks: Dictionary) -> Dictio
 	var model := chr_model(race, sex)
 	var result := {}
 	for option in options(model.ID):
+		if not class_allows(option.Requirement, class_id):
+			continue
 		var available := choices(option.ID, class_id)
 		if available.is_empty():
 			continue
@@ -148,7 +155,7 @@ func texture_fdids(material_resources: int) -> Array:
 	return found
 
 # Selected materials [[target, fdid]], geosets [[type, id]] and skinned model IDs.
-func customization(chosen: Dictionary) -> Dictionary:
+func customization(chosen: Dictionary, race: int, sex: int, class_id: int) -> Dictionary:
 	var selected: Array = chosen.values()
 	var result := {"materials": [], "geosets": [], "skinned": []}
 	for choice_id in selected:
@@ -162,11 +169,11 @@ func customization(chosen: Dictionary) -> Dictionary:
 				result.skinned.append(element.ChrCustomizationSkinnedModelID)
 			if element.ChrCustomizationMaterialID != 0:
 				var material := first("ChrCustomizationMaterial", ["ID", "ChrModelTextureTargetID", "MaterialResourcesID"], "ID", element.ChrCustomizationMaterialID)
-				var files := texture_fdids(material.MaterialResourcesID)
-				if files.size() != 1:
-					errors.append("material %d resources %d has files %s" % [material.ID, material.MaterialResourcesID, files])
-				if not files.is_empty():
-					result.materials.append([material.ChrModelTextureTargetID, files[0]])
+				var fdid := item_texture_fdid(material.MaterialResourcesID, race, sex, class_id)
+				if fdid == 0:
+					errors.append("material %d resources %d has no file for this body" % [material.ID, material.MaterialResourcesID])
+				else:
+					result.materials.append([material.ChrModelTextureTargetID, fdid])
 	return result
 
 # --- items -------------------------------------------------------------------------------
@@ -266,7 +273,7 @@ func adjusted_priority(row: int, section: int, base: int, display: Dictionary) -
 func appearance(race: int, sex: int, class_id: int, picks: Dictionary, items: Array) -> Dictionary:
 	var model := chr_model(race, sex)
 	var chosen := choice_ids(race, sex, class_id, picks)
-	var custom := customization(chosen)
+	var custom := customization(chosen, race, sex, class_id)
 	var gear := equipment(items, race, sex, class_id)
 	return {
 		"race": race, "sex": sex, "class": class_id, "chr_model": model.ID,
@@ -287,7 +294,10 @@ func visible_parts(app: Dictionary, parts: Array) -> Array:
 	set_group(visible, parts, 7, 702)
 	for geoset in app.geosets:
 		set_group(visible, parts, geoset[0], geoset[0] * 100 + geoset[1])
-	set_group(visible, parts, 32, 3201)
+	# WMVx forces the face (CG_FACE 1, relative: 3202) after the customization geosets; a
+	# face shape choice of the body already selects one.
+	if not app.geosets.any(func(geoset): return geoset[0] == 32):
+		set_group(visible, parts, 32, 3202)
 	if app["class"] != DEATH_KNIGHT:
 		hide_range(visible, 1700, 1799)
 	apply_equipment(visible, parts, app.displays)
@@ -356,8 +366,9 @@ func apply_equipment(visible: Dictionary, parts: Array, displays: Dictionary) ->
 			show(visible, parts, 901)
 			show(visible, parts, 501 + geoset_group(feet, 0))
 		show(visible, parts, 901 + geoset_group(legs, 1))
+	# wowdev.wiki DB/ItemDisplayInfo: worn boots give 2002 for [1] = 0, else 2000 + [1].
 	if not feet.is_empty():
-		set_group(visible, parts, 20, 2001 + geoset_group(feet, 1))
+		set_group(visible, parts, 20, 2002 if geoset_group(feet, 1) == 0 else 2000 + geoset_group(feet, 1))
 	var item_tabard := false
 	if robe == 0 and geoset_group(tabard, 0) != 0:
 		show(visible, parts, 1201 + geoset_group(tabard, 0))
@@ -450,11 +461,13 @@ func layer_rects(layout: int, mask: int, size: Vector2i) -> Array:
 func fitted(source: Image, size: Vector2i) -> Image:
 	var level := source.duplicate() as Image
 	level.convert(Image.FORMAT_RGBA8)
-	if level.get_width() < size.x and level.get_height() < size.y:
-		if level.get_width() * 2 != size.x or level.get_height() * 2 != size.y:
+	# Wow.exe expands one level per PasteScale; the HD atlas needs 4x for legacy item
+	# files, taken here as repeated 2x expansion (assumption, no stock reference).
+	while level.get_width() < size.x and level.get_height() < size.y:
+		if level.get_width() * 2 > size.x or level.get_height() * 2 > size.y:
 			errors.append("source %s cannot scale to %s" % [level.get_size(), size])
 			return null
-		return paste_scale(level)
+		level = paste_scale(level)
 	while level.get_width() > size.x:
 		level.resize(maxi(level.get_width() / 2, 1), maxi(level.get_height() / 2, 1), Image.INTERPOLATE_BILINEAR)
 	if level.get_width() != size.x or level.get_height() < size.y:

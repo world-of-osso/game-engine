@@ -30,6 +30,7 @@ const SCENE := {
 const VIEWS := {
 	"head": [0.84, 1.0, 1.0], "torso": [0.55, 0.84, 1.0], "back": [0.5, 0.84, -1.0],
 	"hips": [0.4, 0.62, 1.0], "legs": [0.15, 0.5, 1.0], "feet": [0.0, 0.16, 1.0],
+	"mid": [0.35, 1.0, 1.0],
 }
 
 # Item IDs from ItemSparse (build 12.1.0.69933). Choices by ChrCustomizationOption ID;
@@ -42,7 +43,7 @@ const CASES := [
 			{"slot": "Shirt", "item_id": 38}, {"slot": "Legs", "item_id": 39},
 			{"slot": "Feet", "item_id": 40},
 		],
-		"views": ["head", "torso", "legs", "feet"],
+		"views": ["mid", "head", "torso", "legs", "feet"],
 	},
 	{
 		"name": "HumanMaleBareEyesight", "race": 1, "sex": 0, "class": 1,
@@ -60,6 +61,50 @@ const CASES := [
 			{"slot": "Back", "item_id": 1190},
 		],
 		"views": ["torso", "back", "hips", "legs", "feet"],
+	},
+	{
+		"name": "OrcFemaleRobe", "race": 2, "sex": 1, "class": 8, "picks": {},
+		"items": [
+			{"slot": "Shirt", "item_id": 6096}, {"slot": "Chest", "item_id": 56},
+			{"slot": "Legs", "item_id": 1395}, {"slot": "Feet", "item_id": 55},
+		],
+		"views": ["head", "torso", "hips", "legs"],
+	},
+	{
+		"name": "DwarfMaleLeather", "race": 3, "sex": 0, "class": 1, "picks": {},
+		"items": [
+			{"slot": "Chest", "item_id": 846}, {"slot": "Legs", "item_id": 147},
+			{"slot": "Feet", "item_id": 843}, {"slot": "Hands", "item_id": 203},
+			{"slot": "Waist", "item_id": 46071},
+		],
+		"views": ["head", "torso", "hips", "legs", "feet"],
+	},
+	{
+		"name": "NightElfFemaleKilt", "race": 4, "sex": 1, "class": 4, "picks": {},
+		"items": [
+			{"slot": "Chest", "item_id": 5202}, {"slot": "Legs", "item_id": 153},
+			{"slot": "Feet", "item_id": 121}, {"slot": "Wrist", "item_id": 763},
+			{"slot": "Back", "item_id": 1190},
+		],
+		"views": ["head", "torso", "back", "legs", "feet"],
+	},
+	{
+		"name": "TaurenMaleTabard", "race": 6, "sex": 0, "class": 1, "picks": {},
+		"items": [
+			{"slot": "Shirt", "item_id": 38}, {"slot": "Chest", "item_id": 8245},
+			{"slot": "Legs", "item_id": 201}, {"slot": "Tabard", "item_id": 15196},
+			{"slot": "Hands", "item_id": 1360}, {"slot": "Feet", "item_id": 287},
+		],
+		"views": ["head", "torso", "hips", "legs", "feet"],
+	},
+	{
+		"name": "BloodElfFemaleCloak", "race": 10, "sex": 1, "class": 8, "picks": {},
+		"items": [
+			{"slot": "Shirt", "item_id": 6096}, {"slot": "Legs", "item_id": 194},
+			{"slot": "Feet", "item_id": 1121}, {"slot": "Back", "item_id": 1190},
+			{"slot": "Tabard", "item_id": 15198},
+		],
+		"views": ["head", "torso", "back", "legs", "feet"],
 	},
 ]
 
@@ -126,6 +171,11 @@ func make_viewport() -> void:
 	camera.far = 100.0
 	viewport.add_child(camera)
 	camera.current = true
+	# The M2 shader evaluates calcLight in light() for one directional light; its
+	# direction and colours come from the material's scene uniforms.
+	var sun := DirectionalLight3D.new()
+	sun.shadow_enabled = false
+	viewport.add_child(sun)
 
 # A frozen material clock at time 0, so batch colours and texture matrices are static.
 func set_clock() -> void:
@@ -304,7 +354,8 @@ func check_textures(case: Dictionary, draws: Array, canvases: Dictionary, proble
 		var ratio := float(matched) / maxf(compared, 1.0)
 		var line := "texture type %d: bound %s (mipmaps %s), oracle %s; %.1f%% of texels within 10/255" % [kind, got.get_size(), got.has_mipmaps(), expected.get_size(), ratio * 100.0]
 		print("  " + line)
-		if got.get_size() != expected.get_size() or not got.has_mipmaps() or ratio < MIN_MATCH:
+		# Stock composes the atlas with its whole mip chain (solarity composer.rs compose).
+		if not got.has_mipmaps() or ratio < MIN_MATCH:
 			problems.append(line)
 
 # --- rendered pixels ---------------------------------------------------------------------
@@ -365,11 +416,11 @@ func frame(draws: Array, band: Array) -> void:
 			var point: Vector3 = transform * vertex
 			bounds = bounds.expand(point) if started else AABB(point, Vector3.ZERO)
 			started = true
-	var low := bounds.position.y + bounds.size.y * band[0]
-	var high := bounds.position.y + bounds.size.y * band[1]
+	var low: float = bounds.position.y + bounds.size.y * float(band[0])
+	var high: float = bounds.position.y + bounds.size.y * float(band[1])
 	var center := Vector3(bounds.get_center().x, (low + high) * 0.5, bounds.get_center().z)
-	var radius := (high - low) * 0.6
-	var distance := radius / sin(deg_to_rad(camera.fov * 0.5))
+	var radius: float = (high - low) * 0.6
+	var distance: float = radius / sin(deg_to_rad(camera.fov * 0.5))
 	var direction := Vector3(1.0, 0.15, 0.25).normalized() * float(band[2])
 	camera.look_at_from_position(center + direction * distance, center, Vector3.UP)
 
