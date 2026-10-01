@@ -3,9 +3,11 @@
 //!
 //! Retail applies them in a deferred pass (WebWowViewerCpp
 //! `shaders/slang/deferred/lights/pointLight.frag.slang:43-58`): full colour inside the
-//! attenuation start, ramping to none at its end, squared. Here the light's sRGB colour
-//! is linearised by Godot, which stands in for the squaring, and Godot's windowed
-//! falloff (attenuation exponent 0) reaches none at the same end.
+//! attenuation start, ramping linearly to none at its end, squared. Godot linearises the
+//! light's sRGB colour, which stands in for squaring the colour; the opaque shaders
+//! recover the distance from Godot's windowed falloff (range = end, exponent 0) and
+//! apply retail's squared ramp (`shaders/m2_point_light.gdshaderinc`), reading start /
+//! end from the light's specular parameter.
 use game_engine_core::{
     asset::m2_format::m2_light::{M2_LIGHT_TYPE_POINT, M2Light},
     m2, m2_billboard,
@@ -31,7 +33,6 @@ impl Light {
         let mut node = OmniLight3D::new_alloc();
         node.set_name(&format!("M2Light{index}"));
         node.set_param(light_3d::Param::ATTENUATION, 0.0);
-        node.set_param(light_3d::Param::SPECULAR, 0.0);
         node.set_shadow(false);
         let bone = usize::try_from(authored.bone_index)
             .ok()
@@ -52,6 +53,8 @@ impl Light {
         self.node.set_color(Color::from_rgb(r, g, b));
         self.node
             .set_param(light_3d::Param::RANGE, point.attenuation_end * model_scale);
+        self.node
+            .set_param(light_3d::Param::SPECULAR, point.start_fraction());
     }
 }
 

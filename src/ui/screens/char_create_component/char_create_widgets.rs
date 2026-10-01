@@ -1,7 +1,9 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::char_create_data::{Faction, RACES, RaceInfo};
+use crate::char_create_data::{
+    FULL_ICON, Faction, RACE_ICON_ATLAS, RACES, RaceInfo, race_atlas_crop,
+};
 use crate::ui::screens::default_button_atlas::{
     DISABLED as BUTTON_ATLAS_DISABLED, HIGHLIGHT as BUTTON_ATLAS_HIGHLIGHT,
     PRESSED as BUTTON_ATLAS_PRESSED, UP as BUTTON_ATLAS_UP,
@@ -60,27 +62,31 @@ fn selection_ring(name: &str, size: f32, selected: bool) -> Element {
     )
 }
 
-fn icon(name: &str, fdid: u32, size: f32, disabled: bool) -> Element {
+/// `crop` is the normalized (left, right, top, bottom) region of `fdid`.
+fn icon(name: &str, fdid: u32, crop: [f32; 4], size: f32, disabled: bool) -> Element {
     let alpha = if disabled { 0.25 } else { 1.0 };
+    let coords = format!("{},{},{},{}", crop[0], crop[1], crop[2], crop[3]);
     rsx! {
         texture { name: DynName(format!("{name}_Icon")), width: size, height: size,
-            texture_fdid: fdid, alpha,
+            texture_fdid: fdid, alpha, tex_coords: {coords.as_str()},
             pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
         }
     }
 }
 
+/// `size` is the label box and `font_size` its text; the text word-wraps in the box.
 fn tile_label(
     frame_name: &str,
     label: &str,
-    width: f32,
+    size: [f32; 2],
+    font_size: f32,
     y: f32,
     color: FontColor,
     hidden: bool,
 ) -> Element {
     rsx! {
-        fontstring { name: DynName(format!("{frame_name}_Label")), width, height: 40.0,
-            text: label, hidden, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color,
+        fontstring { name: DynName(format!("{frame_name}_Label")), width: size[0], height: size[1],
+            text: label, hidden, font: GameFont::FrizQuadrata, font_size, font_color: color,
             pos_type: "absolute", left: "50%", top: y, translate_x: "-50%",
         }
     }
@@ -100,10 +106,10 @@ fn race_button(race: &RaceInfo, selected: bool, position: [f32; 2]) -> Element {
             onclick: CharCreateAction::SelectRace(race.id),
             button_atlas_highlight: highlight_atlas, button_highlight_size: highlight_size,
             pos_type: "absolute", left: position[0], top: position[1],
-            {icon(&frame_name, race.icon_fdid, 79.0, false)}
+            {icon(&frame_name, race.icon_fdid, race.icon_crop, 79.0, false)}
             {ring(&frame_name, ring_atlas, [139.0, 140.0])}
             {selection_ring(&frame_name, 118.0, selected)}
-            {tile_label(&frame_name, race.name, 112.0, 72.0, COLOR_GOLD, !selected)}
+            {tile_label(&frame_name, race.name, [112.0, 40.0], 12.0, 72.0, COLOR_GOLD, !selected)}
         }
     }
 }
@@ -130,8 +136,16 @@ fn build_faction_race_buttons(faction: Faction, state: &CharCreateUiState) -> El
         .filter(|race| race.faction == faction)
         .collect();
     let base_count = races.iter().filter(|race| race.id < 27).count();
+    let allied_count = races.len() - base_count;
     let space = state.viewport_height as f32 - 106.0 - NAV_HEIGHT - NAV_BOTTOM - 20.0;
-    let step = 79.0 + fit_spacing(space, base_count, 79.0, 18.0);
+    // The allied column starts 68 px lower, so it fits in less space.
+    let gap = fit_spacing(space, base_count, 79.0, 18.0).min(fit_spacing(
+        space - 68.0,
+        allied_count,
+        79.0,
+        18.0,
+    ));
+    let step = 79.0 + gap;
     let mut counts = [0, 0];
     races
         .into_iter()
@@ -202,6 +216,9 @@ pub(super) fn class_button(
     } else {
         COLOR_WHITE
     };
+    // Retail `ClassName`: GameFontNormalMed2 (Friz Quadrata 13) in an 85x50 box, TOP
+    // 3 px above the icon's BOTTOM (Blizzard_CharacterCreate.xml:72-77); `SetScale`
+    // scales the whole button (Blizzard_CharacterCreate.lua UpdateClassButtons).
     let scale = bounds[2] / 67.0;
     let onclick = CharCreateAction::SelectClass(id).when_enabled(available);
     let (highlight_atlas, highlight_size) = hover_ring_art(
@@ -216,10 +233,10 @@ pub(super) fn class_button(
             onclick,
             button_atlas_highlight: highlight_atlas, button_highlight_size: highlight_size,
             pos_type: "absolute", left: bounds[0], top: bounds[1],
-            {icon(&frame_name, fdid, bounds[2], disabled)}
+            {icon(&frame_name, fdid, FULL_ICON, bounds[2], disabled)}
             {ring(&frame_name, ring_atlas, [116.0 * scale, 117.0 * scale])}
             {selection_ring(&frame_name, 99.0 * scale, selected && available)}
-            {tile_label(&frame_name, name, 85.0 * scale, bounds[2] - 3.0, color, false)}
+            {tile_label(&frame_name, name, [85.0 * scale, 50.0 * scale], 13.0 * scale, bounds[2] - 3.0 * scale, color, false)}
         }
     }
 }
@@ -351,10 +368,69 @@ fn body_type_button(sex: u8, selected: bool, x: f32) -> Element {
     }
 }
 
+/// Retail `CharCustomizeFrame.AlteredForms`: TOPRIGHT -41,-37, 79 px masked buttons
+/// 18 px apart (Blizzard_CharacterCustomize.xml:19-31, 88-95).
+const ALTERED_FORM_SIZE: f32 = 79.0;
+const ALTERED_FORM_SPACING: f32 = 18.0;
+const ALTERED_FORMS_WIDTH: f32 = 2.0 * ALTERED_FORM_SIZE + ALTERED_FORM_SPACING;
+
+/// `raceicon128-dracthyr-*` and `raceicon128-dracthyrvisage-*` in atlas 897, per sex.
+fn altered_form_icon(visage: bool, sex: u8) -> [f32; 4] {
+    let top = match (visage, sex) {
+        (false, 0) => 521,
+        (false, _) => 391,
+        (true, 0) => 781,
+        (true, _) => 651,
+    };
+    race_atlas_crop(261, 389, top, top + 128)
+}
+
+pub(super) fn altered_form_buttons(state: &CharCreateUiState) -> Element {
+    let Some(visage_shown) = state
+        .altered_form
+        .filter(|_| state.mode == CharCreateMode::Customize)
+    else {
+        return Element::default();
+    };
+    let left = state.viewport_width as f32 - 41.0 - ALTERED_FORMS_WIDTH;
+    [false, true]
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, visage)| {
+            let frame_name = format!("Form_{}", u8::from(visage));
+            let selected = visage == visage_shown;
+            let (highlight_atlas, highlight_size) = hover_ring_art(
+                selected,
+                "charactercreate-ring-metallight",
+                [139.0, 140.0],
+                118.0,
+            );
+            let x = left + index as f32 * (ALTERED_FORM_SIZE + ALTERED_FORM_SPACING);
+            rsx! {
+                button { name: DynName(frame_name.clone()), width: ALTERED_FORM_SIZE, height: ALTERED_FORM_SIZE,
+                    button_default_skin: "false",
+                    onclick: CharCreateAction::SetForm(visage),
+                    button_atlas_highlight: highlight_atlas, button_highlight_size: highlight_size,
+                    pos_type: "absolute", left: x, top: 37.0,
+                    {icon(&frame_name, RACE_ICON_ATLAS, altered_form_icon(visage, state.selected_sex), ALTERED_FORM_SIZE, false)}
+                    {ring(&frame_name, "charactercreate-ring-metallight", [139.0, 140.0])}
+                    {selection_ring(&frame_name, 118.0, selected)}
+                }
+            }
+        })
+        .collect()
+}
+
 pub(super) fn body_type_buttons(state: &CharCreateUiState) -> Element {
+    // Beside the altered forms, the body types move left of them.
+    let forms = if state.altered_form.is_some() {
+        ALTERED_FORMS_WIDTH + ALTERED_FORM_SPACING
+    } else {
+        0.0
+    };
     let x = match state.mode {
         CharCreateMode::RaceClass => (state.viewport_width as f32 - 114.0) / 2.0,
-        CharCreateMode::Customize => state.viewport_width as f32 - 41.0 - 114.0,
+        CharCreateMode::Customize => state.viewport_width as f32 - 41.0 - 114.0 - forms,
     };
     let y = if state.mode == CharCreateMode::RaceClass {
         27.0

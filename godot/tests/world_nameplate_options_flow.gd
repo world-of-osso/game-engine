@@ -11,7 +11,7 @@ func run_test() -> void:
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var error: String = client.connect_account(server, "fixture", "fixture", false)
-	if error != "" or not await wait_screen(client, "CharacterSelect"):
+	if error != "" or not await wait_screen(client, "CharacterSelect", STARTUP_WAIT_MS):
 		fail("Fixture authentication: " + error)
 		return
 	var ui = client.get_node("CharacterSelectUI")

@@ -1,10 +1,387 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
+#[test]
+fn native_mailbox_requests_preserve_object_mail_and_sparse_attachment_slot() {
+    use shared::protocol::{
+        InteractionChannel, MailAction, MailChannel, MailRequest, UseGameObject,
+    };
+    #[derive(Resource, Default)]
+    struct Requests {
+        uses: Vec<UseGameObject>,
+        claims: Vec<MailRequest>,
+    }
+    fn capture(
+        mut uses: Query<&mut MessageReceiver<UseGameObject>>,
+        mut claims: Query<&mut MessageReceiver<MailRequest>>,
+        mut requests: ResMut<Requests>,
+    ) {
+        for mut receiver in &mut uses {
+            requests.uses.extend(receiver.receive());
+        }
+        for mut receiver in &mut claims {
+            requests.claims.extend(receiver.receive());
+        }
+    }
+    fn install(app: &mut App) {
+        app.init_resource::<Requests>();
+        app.add_systems(Update, capture);
+    }
+    let (mut server, address) = start_fixture_server_with(install);
+    let mut host = Host::connect(address, 8223);
+    await_connected(&mut server, &mut host);
+    let use_object = UseGameObject { object: 517 };
+    let money = MailRequest {
+        object: 517,
+        mail_id: 901,
+        action: MailAction::TakeMoney,
+    };
+    let item = MailRequest {
+        object: 517,
+        mail_id: 902,
+        action: MailAction::TakeAttachment { slot: 7 },
+    };
+    host.bridge
+        .send::<_, InteractionChannel>(use_object.clone())
+        .unwrap();
+    host.bridge.send::<_, MailChannel>(money).unwrap();
+    host.bridge.send::<_, MailChannel>(item).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        server.update();
+        let requests = server.world().resource::<Requests>();
+        if requests.uses.len() == 1 && requests.claims.len() == 2 {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    let requests = server.world().resource::<Requests>();
+    assert_eq!(requests.uses, vec![use_object]);
+    assert_eq!(requests.claims, vec![money, item]);
+    host.stop();
+}
+
+#[test]
+fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
+    use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8221);
+    await_connected(&mut server, &mut host);
+    let object = server
+        .world_mut()
+        .spawn((
+            GameObjectInfo {
+                entry: 140907,
+                go_type: GAMEOBJECT_TYPE_MAILBOX,
+                display_id: 1727,
+                name: "Stormwind Mailbox".into(),
+                scale: 1.0,
+            },
+            Position {
+                x: 2.0,
+                y: 3.0,
+                z: 4.0,
+            },
+            Rotation {
+                x: 0.0,
+                y: 0.7,
+                z: 0.0,
+            },
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let id = object.to_bits();
+    await_unit(&mut server, &mut host, id, "mailbox replication", |unit| {
+        unit.has::<GameObjectInfo>()
+    });
+    let unit = host.unit(id).unwrap();
+    assert!(!unit.has::<Npc>() && !unit.has::<Player>());
+    assert_eq!(
+        unit.get::<Position>(),
+        Some(&Position {
+            x: 2.0,
+            y: 3.0,
+            z: 4.0
+        })
+    );
+    let info = unit.get::<GameObjectInfo>().unwrap();
+    assert_eq!(info.display_id, 1727);
+    assert_eq!(info.entry, 140907);
+    assert_eq!(
+        unit.get::<Rotation>(),
+        Some(&Rotation {
+            x: 0.0,
+            y: 0.7,
+            z: 0.0
+        })
+    );
+    server.world_mut().entity_mut(object).insert(Position {
+        x: 6.0,
+        y: 3.0,
+        z: 4.0,
+    });
+    await_unit(
+        &mut server,
+        &mut host,
+        id,
+        "mailbox position update",
+        |unit| position_x(unit) == Some(6.0),
+    );
+    server.world_mut().despawn(object);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !host.despawned.contains(&id) {
+        assert!(Instant::now() < deadline, "mailbox removal");
+        server.update();
+        host.poll();
+        thread::sleep(Duration::from_millis(5));
+    }
+    host.stop();
+}
+
+#[test]
+fn native_mailbox_replies_reach_default_bridge() {
+    use shared::protocol::{MailChannel, MailError, MailFailed, MailboxContents, PendingMail};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8222);
+    await_connected(&mut server, &mut host);
+    macro_rules! reply {
+        ($ty:ty, $expected:expr) => {{
+            let expected = $expected;
+            let world = server.world_mut();
+            for mut sender in world.query::<&mut MessageSender<$ty>>().iter_mut(world) {
+                sender.send::<MailChannel>(expected.clone());
+            }
+            let Event::Message(message) = await_bridge_event(&mut server, &mut host, "mail reply", |e| matches!(e, Event::Message(m) if m.is::<$ty>())) else { unreachable!() };
+            assert_eq!(message.downcast::<$ty>().ok(), Some(expected));
+        }};
+    }
+    reply!(
+        MailboxContents,
+        MailboxContents {
+            object: 517,
+            mails: vec![],
+            now: 100
+        }
+    );
+    reply!(
+        MailFailed,
+        MailFailed {
+            object: 517,
+            error: MailError::InventoryFull
+        }
+    );
+    reply!(
+        PendingMail,
+        PendingMail {
+            senders: vec!["Auction House".into()]
+        }
+    );
+    host.stop();
+}
+
+#[test]
+fn native_bridge_receives_loot_messages_in_channel_order() {
+    use shared::protocol::{
+        CorpseLootable, LootChannel, LootClosed, LootContent, LootError, LootFailed, LootResponse,
+        LootSlot, LootSlotRemoved,
+    };
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8210);
+    await_connected(&mut server, &mut host);
+    // Hold the worker before receiving so different types reach its relay together.
+    // The host also leaves its event FIFO unpolled until all eight sends are flushed.
+    let (held, hold_confirmed) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    host.bridge
+        .enqueue(move |_| {
+            held.send(()).expect("confirm fixture worker hold");
+            resumed
+                .recv_timeout(Duration::from_secs(10))
+                .expect("release fixture worker hold");
+        })
+        .expect("hold fixture worker");
+    hold_confirmed
+        .recv_timeout(Duration::from_secs(10))
+        .expect("fixture worker entered hold");
+    // MessageSender queues per type, not in cross-type caller order. A full update
+    // after each send flushes it into LootChannel before the next type is queued.
+    // Repeat response/removal/close to expose a relay that groups messages by type.
+    let corpse = 123;
+    let opened = LootResponse {
+        corpse,
+        auto: false,
+        slots: vec![LootSlot {
+            slot: 0,
+            content: LootContent::Money { copper: 12345 },
+        }],
+    };
+    let removed = LootSlotRemoved { corpse, slot: 0 };
+    let closed = LootClosed { corpse };
+    let failed = LootFailed {
+        corpse,
+        error: LootError::InventoryFull,
+    };
+    let lootable = CorpseLootable {
+        corpse,
+        lootable: true,
+    };
+    macro_rules! send_and_flush {
+        ($ty:ty, $value:expr) => {{
+            let world = server.world_mut();
+            world
+                .query::<&mut MessageSender<$ty>>()
+                .single_mut(world)
+                .expect("one connected loot sender")
+                .send::<LootChannel>($value.clone());
+            server.update();
+        }};
+    }
+    send_and_flush!(CorpseLootable, lootable);
+    send_and_flush!(LootResponse, opened);
+    send_and_flush!(LootSlotRemoved, removed);
+    send_and_flush!(LootClosed, closed);
+    send_and_flush!(LootFailed, failed);
+    send_and_flush!(LootResponse, opened);
+    send_and_flush!(LootSlotRemoved, removed);
+    send_and_flush!(LootClosed, closed);
+    // Allow throttled UDP sends to leave the server while the worker stays held.
+    let send_deadline = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < send_deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    resume.send(()).expect("resume fixture worker");
+    let mut received = await_messages(&mut server, &mut host, 8).into_iter();
+    macro_rules! assert_next {
+        ($ty:ty, $expected:expr) => {
+            assert_eq!(
+                received.next().unwrap().downcast::<$ty>().ok(),
+                Some($expected)
+            );
+        };
+    }
+    assert_next!(CorpseLootable, lootable);
+    assert_next!(LootResponse, opened.clone());
+    assert_next!(LootSlotRemoved, removed);
+    assert_next!(LootClosed, closed);
+    assert_next!(LootFailed, failed);
+    assert_next!(LootResponse, opened);
+    assert_next!(LootSlotRemoved, removed);
+    assert_next!(LootClosed, closed);
+    host.stop();
+}
+
+/// A roster and the member states sent right after it reach the host in `GroupChannel`
+/// order; per-type relays handed them over grouped by type, so states could overtake the
+/// roster that admits their member.
+#[test]
+fn native_bridge_receives_group_messages_in_channel_order() {
+    use shared::components::Position;
+    use shared::death::DeathState;
+    use shared::protocol::{
+        GroupChannel, GroupCommandResponse, GroupMemberSnapshot, GroupMemberState,
+        GroupMemberStates, GroupMessageCode, GroupRoleSnapshot, GroupRosterSnapshot,
+    };
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8211);
+    await_connected(&mut server, &mut host);
+    let (held, hold_confirmed) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    host.bridge
+        .enqueue(move |_| {
+            held.send(()).expect("confirm fixture worker hold");
+            resumed
+                .recv_timeout(Duration::from_secs(10))
+                .expect("release fixture worker hold");
+        })
+        .expect("hold fixture worker");
+    hold_confirmed
+        .recv_timeout(Duration::from_secs(10))
+        .expect("fixture worker entered hold");
+    let roster = GroupRosterSnapshot {
+        is_raid: false,
+        ready_count: 0,
+        total_count: 2,
+        members: ["Ann", "Bob"]
+            .map(|name| GroupMemberSnapshot {
+                name: name.into(),
+                role: GroupRoleSnapshot::None,
+                is_leader: name == "Ann",
+                online: true,
+                subgroup: 1,
+                class: 1,
+                level: 10,
+                entity: None,
+            })
+            .to_vec(),
+        loot_method: shared::loot::LootMode::PersonalLoot,
+    };
+    let states = GroupMemberStates {
+        members: vec![GroupMemberState {
+            name: "Ann".into(),
+            health: 300,
+            max_health: 400,
+            power: None,
+            death: DeathState::Alive,
+            position: Position {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            debuffs: Vec::new(),
+        }],
+    };
+    let joined = GroupCommandResponse {
+        message: "Ann joins the party.".into(),
+        code: GroupMessageCode::JoinedGroup,
+    };
+    macro_rules! send_and_flush {
+        ($ty:ty, $value:expr) => {{
+            let world = server.world_mut();
+            world
+                .query::<&mut MessageSender<$ty>>()
+                .single_mut(world)
+                .expect("one connected group sender")
+                .send::<GroupChannel>($value.clone());
+            server.update();
+        }};
+    }
+    send_and_flush!(GroupCommandResponse, joined);
+    send_and_flush!(GroupRosterSnapshot, roster);
+    send_and_flush!(GroupMemberStates, states);
+    send_and_flush!(GroupCommandResponse, joined);
+    send_and_flush!(GroupRosterSnapshot, roster);
+    send_and_flush!(GroupMemberStates, states);
+    let send_deadline = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < send_deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    resume.send(()).expect("resume fixture worker");
+    let mut received = await_messages(&mut server, &mut host, 6).into_iter();
+    macro_rules! assert_next {
+        ($ty:ty, $expected:expr) => {
+            assert_eq!(
+                received.next().unwrap().downcast::<$ty>().ok(),
+                Some($expected)
+            );
+        };
+    }
+    for _ in 0..2 {
+        assert_next!(GroupCommandResponse, joined.clone());
+        assert_next!(GroupRosterSnapshot, roster.clone());
+        assert_next!(GroupMemberStates, states.clone());
+    }
+    host.stop();
+}
+
 use super::*;
+use crate::replica::{Replica, Unit, UnitChange};
+use bevy_replicon::bytes::Bytes;
 use lightyear::prelude::{LinkOf, NetworkTarget, Replicate, ReplicationSender, server};
 use shared::{
     components::{
-        CombatStatus, CreatureMotion, MovementControl, SheathState, StandState, UnitPose,
+        CombatStatus, CreatureMotion, MovementControl, Npc, Player, Position, Rotation,
+        SheathState, StandState, UnitPose,
     },
     protocol::{
         CombatChannel, CombatEvent, CombatEventType, InputChannel, PlayerInput, RestChannel,
@@ -44,7 +421,7 @@ fn create_fixture_server(register_extra: fn(&mut App)) -> App {
     app
 }
 
-fn start_fixture_server() -> (App, SocketAddr) {
+pub(crate) fn start_fixture_server() -> (App, SocketAddr) {
     start_fixture_server_with(|_| {})
 }
 
@@ -66,20 +443,68 @@ fn start_fixture_server_with(register_extra: fn(&mut App)) -> (App, SocketAddr) 
     (app, address)
 }
 
+/// A native host: the bridge plus the `Replica` its replication events maintain.
+struct Host {
+    bridge: NetworkBridge,
+    replica: Option<Replica>,
+    despawned: Vec<u64>,
+}
+
+impl Host {
+    fn connect(address: SocketAddr, client_id: u64) -> Self {
+        Self {
+            bridge: NetworkBridge::connect(address, client_id).expect("start fixture bridge"),
+            replica: None,
+            despawned: Vec::new(),
+        }
+    }
+
+    /// Apply replication events; return the rest in order.
+    fn poll(&mut self) -> Vec<Event> {
+        let mut events = Vec::new();
+        for event in self.bridge.drain_events().expect("poll fixture bridge") {
+            match event {
+                Event::ReplicationStarted(schema) => self.replica = Some(Replica::new(schema)),
+                Event::Replication(batch) => {
+                    let replica = self.replica.as_mut().expect("schema precedes replication");
+                    replica.apply(batch).expect("apply fixture replication");
+                    for change in replica.drain_changes() {
+                        if let UnitChange::Despawned(id) = change {
+                            self.despawned.push(id);
+                        }
+                    }
+                }
+                event => {
+                    assert!(
+                        !matches!(event, Event::Disconnected(_)),
+                        "fixture disconnected"
+                    );
+                    events.push(event);
+                }
+            }
+        }
+        events
+    }
+
+    fn unit(&self, server_id: u64) -> Option<Unit<'_>> {
+        self.replica.as_ref()?.unit(server_id)
+    }
+
+    fn stop(&mut self) {
+        self.bridge.stop().expect("join fixture worker");
+    }
+}
+
 fn await_bridge_event(
     server: &mut App,
-    bridge: &mut NetworkBridge,
+    host: &mut Host,
     description: &str,
     mut matches: impl FnMut(&Event) -> bool,
 ) -> Event {
     let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline {
         server.update();
-        for event in bridge.drain_events().expect("poll fixture bridge") {
-            assert!(
-                !matches!(event, Event::Disconnected(_)),
-                "fixture disconnected waiting for {description}"
-            );
+        for event in host.poll() {
             if matches(&event) {
                 return event;
             }
@@ -89,21 +514,41 @@ fn await_bridge_event(
     panic!("timed out waiting for {description}");
 }
 
-/// The next `count` protocol messages, polled together (one drain can hold several).
-fn await_messages(
+fn await_connected(server: &mut App, host: &mut Host) {
+    await_bridge_event(server, host, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+}
+
+/// Poll until the replicated unit `server_id` satisfies `ready`.
+fn await_unit(
     server: &mut App,
-    bridge: &mut NetworkBridge,
-    count: usize,
-) -> Vec<ProtocolMessage> {
+    host: &mut Host,
+    server_id: u64,
+    description: &str,
+    mut ready: impl FnMut(Unit) -> bool,
+) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        server.update();
+        host.poll();
+        if host.unit(server_id).is_some_and(&mut ready) {
+            return;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    panic!("timed out waiting for {description}");
+}
+
+/// The next `count` protocol messages, polled together (one drain can hold several).
+fn await_messages(server: &mut App, host: &mut Host, count: usize) -> Vec<ProtocolMessage> {
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut messages = Vec::new();
     while Instant::now() < deadline && messages.len() < count {
         server.update();
-        for event in bridge.drain_events().expect("poll fixture bridge") {
-            match event {
-                Event::Message(message) => messages.push(message),
-                Event::Disconnected(_) => panic!("fixture disconnected waiting for messages"),
-                _ => {}
+        for event in host.poll() {
+            if let Event::Message(message) = event {
+                messages.push(message);
             }
         }
         thread::sleep(Duration::from_millis(5));
@@ -116,19 +561,11 @@ fn await_messages(
     messages
 }
 
-fn await_input(server: &mut App, bridge: &mut NetworkBridge) -> PlayerInput {
+fn await_input(server: &mut App, host: &mut Host) -> PlayerInput {
     let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline {
         server.update();
-        for event in bridge
-            .drain_events()
-            .expect("poll bridge while server decodes input")
-        {
-            assert!(
-                !matches!(event, Event::Disconnected(_)),
-                "fixture disconnected before decoding input"
-            );
-        }
+        host.poll();
         if let Some(input) = server.world_mut().resource_mut::<ReceivedInputs>().0.pop() {
             return input;
         }
@@ -137,40 +574,14 @@ fn await_input(server: &mut App, bridge: &mut NetworkBridge) -> PlayerInput {
     panic!("server did not decode PlayerInput from native bridge UDP");
 }
 
-fn await_control(
-    server: &mut App,
-    bridge: &mut NetworkBridge,
-    server_id: u64,
-    expected: MovementControl,
-) -> UnitSnapshot {
-    let event = await_bridge_event(
+fn await_combat(server: &mut App, host: &mut Host, server_id: u64, expected: Option<CombatStatus>) {
+    await_unit(
         server,
-        bridge,
-        "replicated movement control",
-        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && unit.movement_control == Some(expected)),
-    );
-    let Event::UnitUpdated(unit) = event else {
-        unreachable!()
-    };
-    unit
-}
-
-fn await_combat(
-    server: &mut App,
-    bridge: &mut NetworkBridge,
-    server_id: u64,
-    expected: Option<CombatStatus>,
-) -> UnitSnapshot {
-    let event = await_bridge_event(
-        server,
-        bridge,
+        host,
+        server_id,
         "replicated combat transition",
-        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && unit.combat_status == expected),
+        |unit| unit.get::<CombatStatus>() == expected.as_ref(),
     );
-    let Event::UnitUpdated(unit) = event else {
-        unreachable!()
-    };
-    unit
 }
 
 fn send_rest(server: &mut App, update: RestStateUpdate) {
@@ -182,10 +593,10 @@ fn send_rest(server: &mut App, update: RestStateUpdate) {
         .send::<RestChannel>(update);
 }
 
-fn await_rest(server: &mut App, bridge: &mut NetworkBridge, expected: RestStateUpdate) {
+fn await_rest(server: &mut App, host: &mut Host, expected: RestStateUpdate) {
     let event = await_bridge_event(
         server,
-        bridge,
+        host,
         "rest state update",
         |event| matches!(event, Event::Message(message) if message.is::<RestStateUpdate>()),
     );
@@ -195,13 +606,26 @@ fn await_rest(server: &mut App, bridge: &mut NetworkBridge, expected: RestStateU
     assert_eq!(message.downcast::<RestStateUpdate>().ok(), Some(expected));
 }
 
+fn fixture_player(name: &str) -> Player {
+    Player {
+        name: name.into(),
+        race: 1,
+        class: 1,
+        appearance: Default::default(),
+    }
+}
+
+fn position_x(unit: Unit) -> Option<f32> {
+    unit.get::<Position>().map(|position| position.x)
+}
+
 #[test]
 fn native_bridge_reports_protocol_rejection_instead_of_connecting() {
-    use lightyear::prelude::AppComponentExt;
+    use shared::protocol::ProtocolRegistrationExt;
     // The server replicates one component more than the client, like a component added to
     // `shared` after the client was built.
     let (mut server, address) = start_fixture_server_with(|app| {
-        app.component::<shared::components::VerticalVelocity>()
+        app.protocol_component::<shared::components::VerticalVelocity>()
             .replicate();
     });
     let mut bridge = NetworkBridge::connect(address, 8200).expect("start fixture bridge");
@@ -214,11 +638,13 @@ fn native_bridge_reports_protocol_rejection_instead_of_connecting() {
     }
     let described: Vec<String> = events
         .iter()
-        .map(|event| match event {
-            Event::Connected => "connected".into(),
-            Event::ProtocolRejected(reason) => format!("rejected: {reason}"),
-            Event::Disconnected(_) => "disconnected".into(),
-            Event::Message(_) | Event::UnitUpdated(_) | Event::UnitRemoved(_) => "data".into(),
+        .filter_map(|event| match event {
+            // Every connection starts one; it carries no server data.
+            Event::ReplicationStarted(_) => None,
+            Event::Connected => Some("connected".into()),
+            Event::ProtocolRejected(reason) => Some(format!("rejected: {reason}")),
+            Event::Disconnected(_) => Some("disconnected".into()),
+            Event::Message(_) | Event::Replication(_) => Some("data".into()),
         })
         .collect();
     assert_eq!(
@@ -233,10 +659,8 @@ fn native_bridge_reports_protocol_rejection_instead_of_connecting() {
 #[test]
 fn native_bridge_delivers_all_original_combat_events_once_over_udp() {
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8194).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8194);
+    await_connected(&mut server, &mut host);
 
     let kinds = [
         CombatEventType::SpellDamage,
@@ -260,7 +684,7 @@ fn native_bridge_delivers_all_original_combat_events_once_over_udp() {
     for event in &expected {
         send_combat(&mut server, event.clone());
     }
-    let received = await_messages(&mut server, &mut bridge, expected.len());
+    let received = await_messages(&mut server, &mut host, expected.len());
     for (message, event) in received.into_iter().zip(&expected) {
         let actual = message
             .downcast::<CombatEvent>()
@@ -272,9 +696,9 @@ fn native_bridge_delivers_all_original_combat_events_once_over_udp() {
     }
     for _ in 0..3 {
         server.update();
-        assert!(bridge.drain_events().expect("second frame").is_empty());
+        assert!(host.poll().is_empty(), "no further messages");
     }
-    bridge.stop().expect("join fixture worker");
+    host.stop();
 }
 
 fn send_combat(server: &mut App, event: CombatEvent) {
@@ -289,56 +713,31 @@ fn send_combat(server: &mut App, event: CombatEvent) {
 #[test]
 fn native_bridge_tracks_combat_and_rest_transitions_over_udp() {
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8193).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8193);
+    await_connected(&mut server, &mut host);
 
     let entity = server
         .world_mut()
         .spawn((
-            Player {
-                name: "Resting fighter".into(),
-                race: 1,
-                class: 1,
-                appearance: Default::default(),
-            },
+            fixture_player("Resting fighter"),
             CombatStatus(false),
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id();
     let id = entity.to_bits();
-    assert_eq!(
-        await_combat(&mut server, &mut bridge, id, Some(CombatStatus(false))).combat_status,
-        Some(CombatStatus(false))
-    );
-
-    server
-        .world_mut()
-        .entity_mut(entity)
-        .insert(CombatStatus(true));
-    assert_eq!(
-        await_combat(&mut server, &mut bridge, id, Some(CombatStatus(true))).combat_status,
-        Some(CombatStatus(true))
-    );
-
-    server
-        .world_mut()
-        .entity_mut(entity)
-        .insert(CombatStatus(false));
-    assert_eq!(
-        await_combat(&mut server, &mut bridge, id, Some(CombatStatus(false))).combat_status,
-        Some(CombatStatus(false))
-    );
-
+    await_combat(&mut server, &mut host, id, Some(CombatStatus(false)));
+    for status in [true, false] {
+        server
+            .world_mut()
+            .entity_mut(entity)
+            .insert(CombatStatus(status));
+        await_combat(&mut server, &mut host, id, Some(CombatStatus(status)));
+    }
     server
         .world_mut()
         .entity_mut(entity)
         .remove::<CombatStatus>();
-    assert_eq!(
-        await_combat(&mut server, &mut bridge, id, None).combat_status,
-        None
-    );
+    await_combat(&mut server, &mut host, id, None);
 
     let present = RestStateUpdate {
         snapshot: Some(RestSnapshot {
@@ -351,24 +750,22 @@ fn native_bridge_tracks_combat_and_rest_transitions_over_udp() {
         error: None,
     };
     send_rest(&mut server, present.clone());
-    await_rest(&mut server, &mut bridge, present);
+    await_rest(&mut server, &mut host, present);
     let cleared = RestStateUpdate {
         snapshot: None,
         message: None,
         error: None,
     };
     send_rest(&mut server, cleared.clone());
-    await_rest(&mut server, &mut bridge, cleared);
-    bridge.stop().expect("join fixture worker");
+    await_rest(&mut server, &mut host, cleared);
+    host.stop();
 }
 
 #[test]
 fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8192).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8192);
+    await_connected(&mut server, &mut host);
 
     let input = PlayerInput {
         direction: [0.6, 0.0, 0.8],
@@ -379,10 +776,10 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
         position: [-8949.5, 112.88, 0.25],
         epoch: 7,
     };
-    bridge
+    host.bridge
         .send::<PlayerInput, InputChannel>(input.clone())
         .expect("queue player input");
-    let received = await_input(&mut server, &mut bridge);
+    let received = await_input(&mut server, &mut host);
     assert_eq!(received.direction, input.direction);
     assert_eq!(received.facing_yaw, input.facing_yaw);
     assert_eq!(received.jumping, input.jumping);
@@ -398,12 +795,7 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
     let entity = server
         .world_mut()
         .spawn((
-            Player {
-                name: "UDP fixture".into(),
-                race: 1,
-                class: 1,
-                appearance: Default::default(),
-            },
+            fixture_player("UDP fixture"),
             Position {
                 x: 1.0,
                 y: 2.0,
@@ -413,9 +805,13 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id();
-    let first = await_control(&mut server, &mut bridge, entity.to_bits(), first_control);
-    assert_eq!(first.player.as_ref().unwrap().name, "UDP fixture");
-    assert_eq!(first.position.unwrap().x, 1.0);
+    let id = entity.to_bits();
+    await_unit(&mut server, &mut host, id, "movement control", |unit| {
+        unit.get::<MovementControl>() == Some(&first_control)
+    });
+    let unit = host.unit(id).unwrap();
+    assert_eq!(unit.get::<Player>().unwrap().name, "UDP fixture");
+    assert_eq!(position_x(unit), Some(1.0));
 
     let next_control = MovementControl {
         epoch: 8,
@@ -429,19 +825,25 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
             z: 40.0,
         },
     ));
-    let next = await_control(&mut server, &mut bridge, entity.to_bits(), next_control);
-    assert_eq!(next.position.unwrap().x, 20.0);
-    assert_eq!(first.movement_control, Some(first_control));
-    assert_eq!(first.position.unwrap().x, 1.0);
+    await_unit(
+        &mut server,
+        &mut host,
+        id,
+        "next movement control",
+        |unit| unit.get::<MovementControl>() == Some(&next_control),
+    );
+    assert_eq!(position_x(host.unit(id).unwrap()), Some(20.0));
 
     server.world_mut().despawn(entity);
-    await_bridge_event(
-        &mut server,
-        &mut bridge,
-        "replicated unit removal",
-        |event| matches!(event, Event::UnitRemoved(id) if *id == entity.to_bits()),
-    );
-    bridge.stop().expect("join fixture worker");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !host.despawned.contains(&id) {
+        assert!(Instant::now() < deadline, "replicated unit removal");
+        server.update();
+        host.poll();
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert!(host.unit(id).is_none());
+    host.stop();
 }
 
 /// A wandering creature's replicated `CreatureMotion` reaches the host with its unit,
@@ -449,10 +851,8 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
 #[test]
 fn native_bridge_receives_creature_motion_changes() {
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8193).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8193);
+    await_connected(&mut server, &mut host);
     let entity = server
         .world_mut()
         .spawn((
@@ -469,48 +869,38 @@ fn native_bridge_receives_creature_motion_changes() {
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id();
-    let server_id = entity.to_bits();
-    let mut await_motion = |server: &mut App, motion: CreatureMotion| {
-        await_bridge_event(server, &mut bridge, "replicated creature motion", |event| {
-            matches!(event, Event::UnitUpdated(unit)
-                if unit.server_id == server_id && unit.creature_motion == Some(motion))
-        })
-    };
-    let Event::UnitUpdated(walking) = await_motion(&mut server, CreatureMotion::Walk) else {
-        unreachable!()
-    };
-    assert_eq!(walking.npc.as_ref().unwrap().name, "Defias Bandit");
+    let id = entity.to_bits();
+    await_unit(&mut server, &mut host, id, "walking creature", |unit| {
+        unit.get::<CreatureMotion>() == Some(&CreatureMotion::Walk)
+    });
+    assert_eq!(
+        host.unit(id).unwrap().get::<Npc>().unwrap().name,
+        "Defias Bandit"
+    );
     server
         .world_mut()
         .entity_mut(entity)
         .insert(CreatureMotion::Still);
-    let Event::UnitUpdated(stopped) = await_motion(&mut server, CreatureMotion::Still) else {
-        unreachable!()
-    };
-    assert_eq!(stopped.position.unwrap().x, -9050.0);
-    bridge.stop().expect("join fixture worker");
+    await_unit(&mut server, &mut host, id, "stopped creature", |unit| {
+        unit.get::<CreatureMotion>() == Some(&CreatureMotion::Still)
+    });
+    assert_eq!(position_x(host.unit(id).unwrap()), Some(-9050.0));
+    host.stop();
 }
 
 /// Another player's replicated `PlayerMotion` (Retail `MovementFlags`) reaches the host
 /// with its unit, including the stop that clears it without moving the player.
 #[test]
 fn native_bridge_receives_remote_player_motion_changes() {
-    use shared::components::{Player, PlayerMotion};
+    use shared::components::PlayerMotion;
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8195).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8195);
+    await_connected(&mut server, &mut host);
     let strafing_jump = PlayerMotion(PlayerMotion::STRAFE_LEFT | PlayerMotion::FALLING);
     let entity = server
         .world_mut()
         .spawn((
-            Player {
-                name: "Fbfps".into(),
-                race: 1,
-                class: 1,
-                appearance: Default::default(),
-            },
+            fixture_player("Fbfps"),
             Position {
                 x: -8913.0,
                 y: 82.0,
@@ -520,38 +910,33 @@ fn native_bridge_receives_remote_player_motion_changes() {
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id();
-    let server_id = entity.to_bits();
-    let mut await_motion = |server: &mut App, motion: PlayerMotion| {
-        await_bridge_event(server, &mut bridge, "replicated player motion", |event| {
-            matches!(event, Event::UnitUpdated(unit)
-                if unit.server_id == server_id && unit.player_motion == Some(motion))
-        })
-    };
-    let Event::UnitUpdated(moving) = await_motion(&mut server, strafing_jump) else {
-        unreachable!()
-    };
-    assert_eq!(moving.player.as_ref().unwrap().name, "Fbfps");
+    let id = entity.to_bits();
+    await_unit(&mut server, &mut host, id, "moving player", |unit| {
+        unit.get::<PlayerMotion>() == Some(&strafing_jump)
+    });
+    assert_eq!(
+        host.unit(id).unwrap().get::<Player>().unwrap().name,
+        "Fbfps"
+    );
     server
         .world_mut()
         .entity_mut(entity)
         .insert(PlayerMotion::default());
-    let Event::UnitUpdated(stopped) = await_motion(&mut server, PlayerMotion::default()) else {
-        unreachable!()
-    };
-    assert_eq!(stopped.position.unwrap().x, -8913.0);
-    bridge.stop().expect("join fixture worker");
+    await_unit(&mut server, &mut host, id, "stopped player", |unit| {
+        unit.get::<PlayerMotion>() == Some(&PlayerMotion::default())
+    });
+    assert_eq!(position_x(host.unit(id).unwrap()), Some(-8913.0));
+    host.stop();
 }
 
 /// The nameplate rule inputs reach the host with the unit: FactionTemplate, UnitFlags
 /// and the combat flag, including a combat drop that changes nothing else.
 #[test]
 fn native_bridge_receives_faction_flags_and_combat_status() {
-    use shared::components::{CombatStatus, UnitFactionTemplate, UnitFlags};
+    use shared::components::{UnitFactionTemplate, UnitFlags};
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8194).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8194);
+    await_connected(&mut server, &mut host);
     let entity = server
         .world_mut()
         .spawn((
@@ -570,31 +955,27 @@ fn native_bridge_receives_faction_flags_and_combat_status() {
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id();
-    let server_id = entity.to_bits();
-    let Event::UnitUpdated(fighting) = await_bridge_event(
-        &mut server,
-        &mut bridge,
-        "unit in combat",
-        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && unit.in_combat),
-    ) else {
-        unreachable!()
-    };
-    assert_eq!(fighting.faction_template, Some(7));
-    assert_eq!(fighting.unit_flags, Some(UnitFlags::NOT_SELECTABLE));
+    let id = entity.to_bits();
+    await_combat(&mut server, &mut host, id, Some(CombatStatus(true)));
+    let unit = host.unit(id).unwrap();
+    assert_eq!(
+        unit.get::<UnitFactionTemplate>(),
+        Some(&UnitFactionTemplate(7))
+    );
+    assert_eq!(
+        unit.get::<UnitFlags>(),
+        Some(&UnitFlags(UnitFlags::NOT_SELECTABLE))
+    );
     server
         .world_mut()
         .entity_mut(entity)
         .insert(CombatStatus(false));
-    let Event::UnitUpdated(calm) = await_bridge_event(
-        &mut server,
-        &mut bridge,
-        "combat drop",
-        |event| matches!(event, Event::UnitUpdated(unit) if unit.server_id == server_id && !unit.in_combat),
-    ) else {
-        unreachable!()
-    };
-    assert_eq!(calm.faction_template, Some(7));
-    bridge.stop().expect("join fixture worker");
+    await_combat(&mut server, &mut host, id, Some(CombatStatus(false)));
+    assert_eq!(
+        host.unit(id).unwrap().get::<UnitFactionTemplate>(),
+        Some(&UnitFactionTemplate(7))
+    );
+    host.stop();
 }
 
 /// A creature's replicated `UnitPose` reaches the host with its unit, and a pose-only
@@ -602,10 +983,8 @@ fn native_bridge_receives_faction_flags_and_combat_status() {
 #[test]
 fn native_bridge_receives_unit_pose_changes() {
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8194).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8194);
+    await_connected(&mut server, &mut host);
     let asleep = UnitPose {
         stand_state: StandState::Sleep,
         sheath_state: SheathState::Unarmed,
@@ -627,28 +1006,25 @@ fn native_bridge_receives_unit_pose_changes() {
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id();
-    let server_id = entity.to_bits();
-    let mut await_pose = |server: &mut App, pose: UnitPose| {
-        await_bridge_event(server, &mut bridge, "replicated unit pose", |event| {
-            matches!(event, Event::UnitUpdated(unit)
-                if unit.server_id == server_id && unit.unit_pose == Some(pose))
-        })
-    };
-    let Event::UnitUpdated(sleeping) = await_pose(&mut server, asleep) else {
-        unreachable!()
-    };
-    assert_eq!(sleeping.npc.as_ref().unwrap().name, "Petty Criminal");
+    let id = entity.to_bits();
+    await_unit(&mut server, &mut host, id, "sleeping criminal", |unit| {
+        unit.get::<UnitPose>() == Some(&asleep)
+    });
+    assert_eq!(
+        host.unit(id).unwrap().get::<Npc>().unwrap().name,
+        "Petty Criminal"
+    );
     let ready = UnitPose {
         stand_state: StandState::Stand,
         sheath_state: SheathState::Melee,
         emote_state: 333,
     };
     server.world_mut().entity_mut(entity).insert(ready);
-    let Event::UnitUpdated(standing) = await_pose(&mut server, ready) else {
-        unreachable!()
-    };
-    assert_eq!(standing.position.unwrap().x, 100.0);
-    bridge.stop().expect("join fixture worker");
+    await_unit(&mut server, &mut host, id, "standing criminal", |unit| {
+        unit.get::<UnitPose>() == Some(&ready)
+    });
+    assert_eq!(position_x(host.unit(id).unwrap()), Some(100.0));
+    host.stop();
 }
 
 /// Server-driven mirror timers (TrinityCore `SMSG_START/PAUSE/STOP_MIRROR_TIMER`) reach the
@@ -660,10 +1036,8 @@ fn native_bridge_receives_mirror_timer_messages_in_order() {
         MirrorTimerStop,
     };
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8195).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8195);
+    await_connected(&mut server, &mut host);
     let start = MirrorTimerStart {
         timer: MIRROR_TIMER_BREATH,
         value_ms: 180_000,
@@ -693,7 +1067,7 @@ fn native_bridge_receives_mirror_timer_messages_in_order() {
         .send::<MirrorTimerChannel>(MirrorTimerStop {
             timer: MIRROR_TIMER_BREATH,
         });
-    let received = await_messages(&mut server, &mut bridge, 3);
+    let received = await_messages(&mut server, &mut host, 3);
     let mut received = received.into_iter();
     assert_eq!(
         received.next().unwrap().downcast::<MirrorTimerStart>().ok(),
@@ -712,7 +1086,7 @@ fn native_bridge_receives_mirror_timer_messages_in_order() {
             timer: MIRROR_TIMER_BREATH
         })
     );
-    bridge.stop().expect("join fixture worker");
+    host.stop();
 }
 
 /// A vendor's replicated `NpcFlags` and the player's `Gold` reach the host with their
@@ -723,10 +1097,8 @@ fn native_bridge_receives_vendor_flags_gold_and_inventory() {
     use shared::protocol::{MerchantChannel, NpcFlags, VendorInventory, VendorItem};
 
     let (mut server, address) = start_fixture_server();
-    let mut bridge = NetworkBridge::connect(address, 8195).expect("start fixture bridge");
-    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
-        matches!(event, Event::Connected)
-    });
+    let mut host = Host::connect(address, 8195);
+    await_connected(&mut server, &mut host);
     let vendor = server
         .world_mut()
         .spawn((
@@ -741,36 +1113,35 @@ fn native_bridge_receives_vendor_flags_gold_and_inventory() {
     let player = server
         .world_mut()
         .spawn((
-            Player {
-                name: "Fbworldmap".into(),
-                race: 1,
-                class: 1,
-                appearance: Default::default(),
-            },
+            fixture_player("Fbworldmap"),
             Gold(12_345),
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id();
-    // Both units replicate in one batch; keep whichever arrives first.
-    let (mut npc_flags, mut npc_gold, mut player_gold) = (None, None, None);
-    await_bridge_event(
+    await_unit(
         &mut server,
-        &mut bridge,
-        "vendor flags and player gold",
-        |event| {
-            if let Event::UnitUpdated(unit) = event {
-                if unit.server_id == vendor.to_bits() {
-                    (npc_flags, npc_gold) = (unit.npc_flags, unit.gold);
-                } else if unit.server_id == player.to_bits() {
-                    player_gold = unit.gold;
-                }
-            }
-            npc_flags.is_some() && player_gold.is_some()
-        },
+        &mut host,
+        player.to_bits(),
+        "player gold",
+        |unit| unit.has::<Gold>(),
     );
-    assert_eq!(npc_flags, Some(NpcFlags::VENDOR | NpcFlags::REPAIR));
-    assert_eq!(npc_gold, None);
-    assert_eq!(player_gold, Some(12_345));
+    await_unit(
+        &mut server,
+        &mut host,
+        vendor.to_bits(),
+        "vendor flags",
+        |unit| unit.has::<NpcFlags>(),
+    );
+    let vendor_unit = host.unit(vendor.to_bits()).unwrap();
+    assert_eq!(
+        vendor_unit.get::<NpcFlags>(),
+        Some(&NpcFlags(NpcFlags::VENDOR | NpcFlags::REPAIR))
+    );
+    assert_eq!(vendor_unit.get::<Gold>(), None);
+    assert_eq!(
+        host.unit(player.to_bits()).unwrap().get::<Gold>(),
+        Some(&Gold(12_345))
+    );
     let inventory = VendorInventory {
         npc: vendor.to_bits(),
         can_repair: true,
@@ -794,14 +1165,85 @@ fn native_bridge_receives_vendor_flags_gold_and_inventory() {
     }
     let Event::Message(message) = await_bridge_event(
         &mut server,
-        &mut bridge,
+        &mut host,
         "vendor inventory",
         |event| matches!(event, Event::Message(message) if message.is::<VendorInventory>()),
     ) else {
         unreachable!()
     };
     assert_eq!(message.downcast::<VendorInventory>().ok(), Some(inventory));
-    bridge.stop().expect("join fixture worker");
+    host.stop();
+}
+
+#[derive(Resource, Default)]
+struct ReceivedAcks(Vec<Bytes>);
+
+fn record_acks(
+    messages: Res<bevy_replicon::prelude::ServerMessages>,
+    mut acks: ResMut<ReceivedAcks>,
+) {
+    let channel = bevy_replicon::shared::backend::channels::ClientChannel::MutationAcks;
+    acks.0.extend(
+        messages
+            .iter_received(channel)
+            .map(|(_, bytes)| bytes.clone()),
+    );
+}
+
+/// The server receives the worker's `MutationAcks` for the mutate messages it sent: whole
+/// fixint `MutateIndex` values, as replicon's client sends them.
+#[test]
+fn native_bridge_acknowledges_mutate_messages_to_the_server() {
+    use bevy_replicon::server::ServerSystems;
+    let (mut server, address) = start_fixture_server_with(|app| {
+        app.init_resource::<ReceivedAcks>();
+        app.add_systems(
+            PreUpdate,
+            record_acks
+                .after(ServerSystems::ReceivePackets)
+                .before(ServerSystems::Receive),
+        );
+    });
+    let mut host = Host::connect(address, 8196);
+    await_connected(&mut server, &mut host);
+    let entity = server
+        .world_mut()
+        .spawn((
+            fixture_player("Fback"),
+            Position {
+                x: 1.0,
+                y: 2.0,
+                z: 3.0,
+            },
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let id = entity.to_bits();
+    await_unit(&mut server, &mut host, id, "spawned player", |unit| {
+        position_x(unit) == Some(1.0)
+    });
+    server.world_mut().resource_mut::<ReceivedAcks>().0.clear();
+    server.world_mut().entity_mut(entity).insert(Position {
+        x: 5.0,
+        y: 2.0,
+        z: 3.0,
+    });
+    await_unit(&mut server, &mut host, id, "mutated player", |unit| {
+        position_x(unit) == Some(5.0)
+    });
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while server.world().resource::<ReceivedAcks>().0.is_empty() {
+        assert!(
+            Instant::now() < deadline,
+            "server received no acknowledgments"
+        );
+        server.update();
+        host.poll();
+        thread::sleep(Duration::from_millis(5));
+    }
+    let acks = &server.world().resource::<ReceivedAcks>().0;
+    assert!(acks.iter().all(|ack| !ack.is_empty() && ack.len() % 2 == 0));
+    host.stop();
 }
 
 /// Auction requests cross real UDP; every default native relay delivers its original reply.
@@ -825,6 +1267,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     fn install_auction(app: &mut App) {
         install::<OpenAuctionHouse>(app);
         install::<QueryAuctions>(app);
+        install::<QueryAuctionBrowse>(app);
         install::<QueryAuctionInventory>(app);
         install::<QueryOwnedAuctions>(app);
         install::<QueryBidAuctions>(app);
@@ -833,13 +1276,11 @@ fn native_bridge_auction_operations_and_query_rejections() {
         install::<BuyoutAuction>(app);
         install::<CancelAuction>(app);
     }
-    fn received<M: network::Message>(server: &mut App, bridge: &mut NetworkBridge) -> M {
+    fn received<M: network::Message>(server: &mut App, host: &mut Host) -> M {
         let deadline = Instant::now() + Duration::from_secs(10);
         while Instant::now() < deadline {
             server.update();
-            for event in bridge.drain_events().expect("auction worker") {
-                assert!(!matches!(event, Event::Disconnected(_)));
-            }
+            host.poll();
             if let Some(message) = server.world_mut().resource_mut::<Requests<M>>().0.pop() {
                 return message;
             }
@@ -852,7 +1293,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     }
     fn reply<M: network::Message + Clone + std::fmt::Debug + PartialEq>(
         server: &mut App,
-        bridge: &mut NetworkBridge,
+        host: &mut Host,
         expected: M,
     ) {
         let mut senders = server.world_mut().query::<&mut MessageSender<M>>();
@@ -861,7 +1302,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
         }
         let Event::Message(message) = await_bridge_event(
             server,
-            bridge,
+            host,
             "auction relay",
             |e| matches!(e,Event::Message(m) if m.is::<M>()),
         ) else {
@@ -870,15 +1311,15 @@ fn native_bridge_auction_operations_and_query_rejections() {
         assert_eq!(message.downcast::<M>().ok(), Some(expected));
     }
     let (mut server, address) = start_fixture_server_with(install_auction);
-    let mut bridge = NetworkBridge::connect(address, 9088).expect("auction connect");
-    await_bridge_event(&mut server, &mut bridge, "auction connected", |e| {
-        matches!(e, Event::Connected)
-    });
+    let mut host = Host::connect(address, 9088);
+    await_connected(&mut server, &mut host);
     macro_rules! request {
         ($value:expr,$kind:ty) => {{
             let value = $value;
-            bridge.send::<_, AuctionChannel>(value.clone()).unwrap();
-            assert_eq!(received::<$kind>(&mut server, &mut bridge), value);
+            host.bridge
+                .send::<_, AuctionChannel>(value.clone())
+                .unwrap();
+            assert_eq!(received::<$kind>(&mut server, &mut host), value);
         }};
     }
     request!(OpenAuctionHouse, OpenAuctionHouse);
@@ -901,6 +1342,30 @@ fn native_bridge_auction_operations_and_query_rejections() {
             query: query.clone()
         },
         QueryAuctions
+    );
+    let mut browse_query = query.clone();
+    browse_query.item_id = None;
+    request!(
+        QueryAuctionBrowse {
+            query: browse_query.clone()
+        },
+        QueryAuctionBrowse
+    );
+    reply(
+        &mut server,
+        &mut host,
+        AuctionBrowseResults {
+            query: browse_query,
+            total_results: 103,
+            items: vec![AuctionBrowseItem {
+                item_id: 2589,
+                name: "Linen Cloth".into(),
+                quality: 1,
+                required_level: 1,
+                lowest_unit_price: 17,
+                total_quantity: 5_000_000_001,
+            }],
+        },
     );
     request!(QueryAuctionInventory, QueryAuctionInventory);
     request!(QueryOwnedAuctions, QueryOwnedAuctions);
@@ -926,7 +1391,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     request!(CancelAuction { auction_id: 13 }, CancelAuction);
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         AuctionHouseOpened {
             success: true,
             error: None,
@@ -934,7 +1399,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         AuctionSearchResults {
             query,
             total_results: 103,
@@ -943,7 +1408,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         AuctionInventorySnapshot {
             gold: 1000,
             items: vec![],
@@ -951,21 +1416,21 @@ fn native_bridge_auction_operations_and_query_rejections() {
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         OwnedAuctionListResponse { listings: vec![] },
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         BidAuctionListResponse { listings: vec![] },
     );
     reply(
         &mut server,
-        &mut bridge,
+        &mut host,
         AuctionOperationResponse {
             success: false,
             message: "not interacting with an auctioneer".into(),
         },
     );
-    bridge.stop().expect("auction stop");
+    host.stop();
 }

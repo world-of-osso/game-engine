@@ -1,1 +1,4 @@
 .godot/
+# Godot-generated resource metadata (master e56c813e stopped tracking it).
+*.uid
+*.import

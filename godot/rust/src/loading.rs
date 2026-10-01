@@ -8,8 +8,11 @@ use game_engine_core::loading_readiness::{
 
 use crate::terrain::streaming::TerrainStreamState;
 
+/// `local_visual_settled`: the local player's model is attached, or failed and was
+/// reported; the loading screen does not show a world without it.
 pub(crate) fn evaluate_native_loading(
     player_position: Option<(f32, f32)>,
+    local_visual_settled: bool,
     stream: &TerrainStreamState,
     attached: &BTreeSet<(u32, u32)>,
     unbuildable: &BTreeMap<(u32, u32), String>,
@@ -34,7 +37,7 @@ pub(crate) fn evaluate_native_loading(
         _ => TileState::NotRequested,
     };
     evaluate_world_loading(LoadingInput {
-        local_player_ready: player_position.is_some(),
+        local_player_ready: player_position.is_some() && local_visual_settled,
         map_ready: stream.map.as_ref().is_some_and(|map| !map.is_empty())
             && stream.wdt_path.is_some()
             && stream.map_error.is_none(),
@@ -68,6 +71,7 @@ mod tests {
         assert_eq!(
             evaluate_native_loading(
                 None,
+                true,
                 &stream(),
                 &attached,
                 &BTreeMap::new(),
@@ -81,6 +85,7 @@ mod tests {
         assert!(
             !evaluate_native_loading(
                 Some((-8949.0, 0.0)),
+                true,
                 &map,
                 &attached,
                 &BTreeMap::new(),
@@ -93,6 +98,7 @@ mod tests {
         assert!(
             !evaluate_native_loading(
                 Some((-8949.0, 0.0)),
+                true,
                 &map,
                 &attached,
                 &BTreeMap::new(),
@@ -105,6 +111,7 @@ mod tests {
         assert!(
             !evaluate_native_loading(
                 Some((-8949.0, 0.0)),
+                true,
                 &map,
                 &attached,
                 &BTreeMap::new(),
@@ -136,6 +143,7 @@ mod tests {
         assert!(
             !evaluate_native_loading(
                 Some(position),
+                true,
                 &map,
                 &neighbor,
                 &BTreeMap::new(),
@@ -144,9 +152,21 @@ mod tests {
             .complete
         );
         let attached = BTreeSet::from([(32, 48)]);
+        // The loaded center tile does not finish while the player's model is loading.
+        let character = evaluate_native_loading(
+            Some(position),
+            false,
+            &map,
+            &attached,
+            &BTreeMap::new(),
+            GlobalWmoState::None,
+        );
+        assert!(!character.complete);
+        assert_eq!(character.status_text, "Initializing character...");
         assert!(
             evaluate_native_loading(
                 Some(position),
+                true,
                 &map,
                 &attached,
                 &BTreeMap::new(),
@@ -158,6 +178,7 @@ mod tests {
         assert!(
             !evaluate_native_loading(
                 Some((0.0, 0.0)),
+                true,
                 &map,
                 &attached,
                 &BTreeMap::new(),
@@ -172,6 +193,7 @@ mod tests {
         assert_eq!(
             evaluate_native_loading(
                 Some((0.0, 0.0)),
+                true,
                 &map,
                 &attached,
                 &BTreeMap::new(),
@@ -190,6 +212,7 @@ mod tests {
         let unbuildable = BTreeMap::from([((32, 48), "Terrain (32, 48): bad chunk".to_string())]);
         let readiness = evaluate_native_loading(
             Some(position),
+            true,
             &map,
             &BTreeSet::new(),
             &unbuildable,
@@ -203,6 +226,7 @@ mod tests {
         assert!(
             evaluate_native_loading(
                 Some(position),
+                true,
                 &map,
                 &attached,
                 &neighbour,
@@ -221,6 +245,7 @@ mod tests {
         let loading = |global_wmo| {
             evaluate_native_loading(
                 Some((103.0, -76.0)),
+                true,
                 &map,
                 &BTreeSet::new(),
                 &BTreeMap::new(),

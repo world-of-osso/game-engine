@@ -11,6 +11,8 @@ fn scheduling_app(state: crate::game_state::GameState) -> App {
     app.init_resource::<crate::rendering::sky::GameTime>();
     app.init_resource::<LocalAliveState>();
     app.init_resource::<CharacterList>();
+    // NPC gear sync (dc1742b2) reads the outfit tables main inserts at startup.
+    app.init_resource::<game_engine::outfit_data::OutfitData>();
     app.insert_resource(SelectedCharacterId {
         character_name: Some("Alice".into()),
         ..default()

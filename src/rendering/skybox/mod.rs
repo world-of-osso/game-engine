@@ -275,19 +275,25 @@ pub(crate) fn insert_sky_env_map(
 // Systems
 // ---------------------------------------------------------------------------
 
-type SceneCameras<'w, 's> =
-    Query<'w, 's, &'static Camera, Or<(With<crate::camera::WowCamera>, With<CharSelectScene>)>>;
-
-/// Create the sky cubemap once a world or character-select camera is active.
+/// Create the sky cubemap once the current scene's camera is active: the world camera in
+/// world, the character-select scene camera at character select.
 fn initialize_sky_env_map(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
     env_map: Option<Res<SkyEnvMapHandle>>,
-    cameras: SceneCameras,
+    state: Res<State<GameState>>,
+    world_cameras: Query<&Camera, With<crate::camera::WowCamera>>,
+    char_select_cameras: Query<&Camera, With<CharSelectScene>>,
 ) {
-    if env_map.is_some() || !cameras.iter().any(|camera| camera.is_active) {
+    let active = |camera: &Camera| camera.is_active;
+    let scene_camera_active = match state.get() {
+        GameState::InWorld => world_cameras.iter().any(active),
+        GameState::CharSelect => char_select_cameras.iter().any(active),
+        _ => false,
+    };
+    if env_map.is_some() || !scene_camera_active {
         return;
     }
     let colors = keyframes.sample(game_time.minutes);

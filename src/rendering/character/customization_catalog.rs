@@ -47,6 +47,20 @@ impl RaceModels {
         let unaltered = *self.unaltered_race.get(&race)?;
         self.chr_model_id(unaltered, sex)
     }
+
+    /// The race whose ChrCustomizationReq masks gate `race`'s options: an unplayable
+    /// unaltered form (Dracthyr visage 75 / 76) answers for the playable race that
+    /// names it, as TrinityCore's DB2Manager registers its options under that
+    /// parent race (`parentRaces`).
+    fn requirement_race(&self, race: u8) -> u8 {
+        if support::race_mask_bit(race).is_some() {
+            return race;
+        }
+        self.unaltered_race
+            .iter()
+            .find_map(|(&parent, &form)| (form == race).then_some(parent))
+            .unwrap_or(race)
+    }
 }
 
 /// One ChrCustomizationReq row, which gates who may select an option or choice.
@@ -230,6 +244,25 @@ pub struct ChoiceGeoset {
     pub geoset_id: u16,
 }
 
+/// One `ChrCustomizationSkinnedModel` row of a choice: submesh
+/// `geoset_type * 100 + geoset_id` of collection M2 `collection_fdid`, bound to
+/// the character skeleton (wow.export `DBCharacterCustomization.get_skinned_model_for_choice`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChoiceSkinnedModel {
+    /// Nonzero: shown only while that other choice is selected.
+    pub related_choice_id: u32,
+    pub collection_fdid: u32,
+    pub geoset_type: u16,
+    pub geoset_id: u16,
+}
+
+impl ChoiceSkinnedModel {
+    /// The collection submesh ID this row shows.
+    pub fn mesh_part_id(&self) -> u16 {
+        self.geoset_type * 100 + self.geoset_id
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CustomizationChoice {
     pub id: u32,
@@ -247,6 +280,8 @@ pub struct CustomizationChoice {
     pub geosets: Vec<(u16, u16)>,
     /// Geosets gated by another selected customization choice.
     pub related_geosets: Vec<ChoiceGeoset>,
+    /// Collection models bound to the character skeleton.
+    pub skinned_models: Vec<ChoiceSkinnedModel>,
     pub shows_scalp: bool,
     pub(super) sample_swatch: bool,
     /// Representative RGB color sampled from the primary texture (center pixel).
@@ -446,7 +481,9 @@ impl CustomizationDb {
             || self
                 .requirements
                 .get(&requirement_id)
-                .is_some_and(|requirement| requirement.allows_new_character(race, class))
+                .is_some_and(|requirement| {
+                    requirement.allows_new_character(self.race_models.requirement_race(race), class)
+                })
     }
 
     /// Other options' choices this choice's requirement needs selected alongside it.
@@ -745,6 +782,7 @@ fn resolve_option_choices(
                 related_materials,
                 geosets,
                 related_geosets,
+                skinned_models: resolve_choice_skinned_models(ch.id, indexed, raw),
                 shows_scalp,
                 sample_swatch,
                 swatch_color_cache: Arc::new(OnceLock::new()),
@@ -866,6 +904,28 @@ fn resolve_choice_geosets(
     (geosets, related_geosets)
 }
 
+fn resolve_choice_skinned_models(
+    choice_id: u32,
+    indexed: &IndexedData<'_>,
+    raw: &RawData,
+) -> Vec<ChoiceSkinnedModel> {
+    let Some(elements) = indexed.elements_by_choice.get(&choice_id) else {
+        return Vec::new();
+    };
+    elements
+        .iter()
+        .filter_map(|element| {
+            let row = raw.skinned_models.get(&element.skinned_model_id)?;
+            Some(ChoiceSkinnedModel {
+                related_choice_id: element.related_choice_id,
+                collection_fdid: row.collection_fdid,
+                geoset_type: row.geoset_type,
+                geoset_id: row.geoset_id,
+            })
+        })
+        .collect()
+}
+
 // --- CSV parsing (manual, no csv crate) ---
 
 pub(crate) struct RawData {
@@ -876,6 +936,8 @@ pub(crate) struct RawData {
     pub(crate) elements: Vec<RawElement>,
     pub(crate) materials: HashMap<u32, RawMaterial>,
     pub(crate) geosets: HashMap<u32, RawGeoset>,
+    /// `ChrCustomizationSkinnedModel` rows by ID.
+    pub(crate) skinned_models: HashMap<u32, RawSkinnedModel>,
     pub(crate) hair_geosets: HashMap<(u32, u16, u16), bool>,
     pub(crate) texture_fdids: HashMap<u32, u32>,
     pub(crate) race_models: RaceModels,
@@ -918,7 +980,13 @@ pub(crate) struct RawElement {
     pub(crate) related_choice_id: u32,
     pub(crate) geoset_id: u32,
     pub(crate) material_id: u32,
+    pub(crate) skinned_model_id: u32,
     pub(crate) has_unsupported_effects: bool,
+}
+pub(crate) struct RawSkinnedModel {
+    pub(crate) collection_fdid: u32,
+    pub(crate) geoset_type: u16,
+    pub(crate) geoset_id: u16,
 }
 pub(crate) struct RawMaterial {
     pub(crate) texture_target_id: u16,

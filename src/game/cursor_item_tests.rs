@@ -254,6 +254,46 @@ fn dropping_on_the_world_asks_first_and_rare_items_need_delete_typed() {
 }
 
 #[test]
+fn destroy_popup_for_an_ordinary_item_asks_yes_or_no_without_a_confirm_word() {
+    let popup = destroy_popup(&DestroyConfirm {
+        name: "Ruined Pelt".into(),
+        good: false,
+    });
+    assert_eq!(
+        popup,
+        crate::ui::popup::PopupSpec {
+            key: "DELETE_ITEM".into(),
+            text: "Do you want to destroy Ruined Pelt?".into(),
+            accept_label: "Yes".into(),
+            cancel_label: Some("No".into()),
+            timeout: None,
+            confirm_text: None,
+        }
+    );
+}
+
+#[test]
+fn destroy_popup_for_a_rare_item_requires_delete_without_a_timeout() {
+    let popup = destroy_popup(&DestroyConfirm {
+        name: "Martin Fury".into(),
+        good: true,
+    });
+    assert_eq!(
+        popup,
+        crate::ui::popup::PopupSpec {
+            key: "DELETE_GOOD_ITEM".into(),
+            text:
+                "Do you want to destroy Martin Fury?\n\nType \"DELETE\" into the field to confirm."
+                    .into(),
+            accept_label: "Yes".into(),
+            cancel_label: Some("No".into()),
+            timeout: None,
+            confirm_text: Some("DELETE".into()),
+        }
+    );
+}
+
+#[test]
 fn a_vendor_item_on_the_cursor_is_bought_into_the_bag_slot_it_is_dropped_on() {
     let (inventory, merchant) = (inventory(), vendor());
     let mut cursor = CursorItem::Empty;

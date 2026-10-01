@@ -34,6 +34,8 @@ fn live(name: &str, health: u32, x: f32) -> GroupMemberState {
             power: PowerType::Rage,
             current: 25,
             max: 100,
+            partial: 0,
+            regen_per_sec: 0.0,
         }),
         death: DeathState::Alive,
         position: Position { x, y: 0.0, z: 0.0 },
@@ -245,16 +247,16 @@ fn click(
     .handle(at, button, menu)
 }
 
+/// Retail Modern preset (51c1d69e): the party column hangs from the collapsed raid
+/// manager's top-right, 22 right and 147 down from the screen's top-left.
 #[test]
-fn party_frames_sit_left_of_the_player_frame_bottom_aligned_with_it_growing_upward() {
+fn party_frame_hangs_from_the_modern_preset_top_left_growing_downward() {
     let (group, _) = party_fixture();
     let registry = registry_for(&views(&group, "Ann", None));
     let id = registry.get_by_name(PARTY_FRAME_NAME).unwrap();
     let rect = registry.get(id).unwrap().layout_rect.clone().unwrap();
 
-    // PlayerFrame left edge is 281 left of centre; the column ends 12 before it.
-    assert_eq!(rect.x + rect.width, 960.0 - 281.0 - 12.0);
-    assert_eq!(rect.y + rect.height, 1080.0 - 152.0);
+    assert_eq!((rect.x, rect.y), (22.0, 147.0));
     assert_eq!((rect.width, rect.height), (98.0, 14.0 + 2.0 * 44.0));
 }
 

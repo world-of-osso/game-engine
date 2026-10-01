@@ -24,11 +24,12 @@ use game_engine::instance_state::{
 };
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::player_spells::ActiveSpecialization;
-use game_engine::status::{CharacterStatsSnapshot, SecondaryResourceEntry};
+use game_engine::status::{CharacterStatsSnapshot, ClassBarPlayer, ClassBarResource};
 use game_engine::targeting::{CurrentTarget, FocusTarget, SetFocus, apply_set_focus};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
+use game_engine::ui::screens::inworld_unit_frames_component::class_bars::settled_view;
 use game_engine::ui::screens::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_DUNGEON_DIFFICULTY, ACTION_UNIT_MENU_INSPECT,
     ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX, ACTION_UNIT_MENU_SET_FOCUS,
@@ -361,9 +362,17 @@ fn build_player_state(
     state.level_text = level.map(|level| level.0.to_string()).unwrap_or_default();
     state.show_combat_icon = character_stats.is_some_and(|stats| stats.in_combat);
     state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
-    state.secondary_resource = powers
-        .and_then(SecondaryResourceEntry::from_unit_powers)
-        .filter(|resource| resource.shown_for_spec(spec));
+    let class_bar_player = player.map(|player| ClassBarPlayer {
+        class: player.class,
+        spec,
+        level: level.map_or(0, |level| level.0),
+        in_combat: state.show_combat_icon,
+    });
+    state.class_bar = powers
+        .zip(class_bar_player)
+        .and_then(|(powers, player)| ClassBarResource::for_player(powers, None, &player))
+        .as_ref()
+        .and_then(settled_view);
     populate_resources(&mut state, health, powers);
     state
 }
@@ -827,7 +836,10 @@ mod tests {
                     current: 80.0,
                     max: 100.0,
                 },
-                UnitPowers { entries: powers },
+                UnitPowers {
+                    entries: powers,
+                    charged_points: Vec::new(),
+                },
                 UnitFactionTemplate(HUMAN_TEMPLATE),
             ))
             .id()
@@ -855,6 +867,8 @@ mod tests {
             power,
             current,
             max,
+            partial: 0,
+            regen_per_sec: 0.0,
         }
     }
 
@@ -950,45 +964,59 @@ mod tests {
         );
         app.update();
 
-        let lit = |index: usize| !frame(&app, &format!("PlayerSecondaryResourcePip{index}")).hidden;
+        // Each holy power rune shows its ActiveTexture while charged (paladin.rs).
+        let lit = |index: usize| {
+            !frame(
+                &app,
+                &format!("PlayerSecondaryResourcePip{index}ActiveTexture"),
+            )
+            .hidden
+        };
         assert_eq!(
             [lit(0), lit(1), lit(2), lit(3), lit(4)],
             [true, true, true, false, false]
         );
-        assert!(!frame(&app, "PlayerSecondaryResourceHolder").hidden);
-        assert!(
-            app.world()
-                .resource::<UiState>()
-                .registry
-                .get_by_name("PlayerSecondaryResourcePip5")
-                .is_none()
-        );
+        assert!(!frame(&app, "PlayerSecondaryResourceHolderBackground").hidden);
+        assert!(app_frame_missing(
+            &app,
+            "PlayerSecondaryResourcePip5ActiveTexture"
+        ));
         assert_eq!(text(&app, "PlayerManaBarText"), "5000 / 10000");
     }
 
     #[test]
     fn combo_points_light_the_retail_point_icon_over_each_slot() {
         let mut app = unit_frames_app();
-        spawn_local_player(
+        let player = spawn_local_player(
             &mut app,
             vec![
                 power(PowerType::Energy, 60, 100),
                 power(PowerType::ComboPoints, 2, 5),
             ],
         );
+        // Combo points are the rogue's class bar (ClassBar::for_class).
+        app.world_mut().get_mut::<NetPlayer>(player).unwrap().class = 4;
         app.update();
 
         let shown = |part: &str, index: usize| {
             !frame(&app, &format!("PlayerSecondaryResourcePip{index}{part}")).hidden
         };
         assert_eq!(
-            (0..5).map(|index| shown("Lit", index)).collect::<Vec<_>>(),
+            (0..5)
+                .map(|index| shown("IconUncharged", index))
+                .collect::<Vec<_>>(),
             [true, true, false, false, false]
         );
-        assert!((0..5).all(|index| shown("Background", index)));
+        assert_eq!(
+            (0..5)
+                .map(|index| shown("BGActive", index))
+                .collect::<Vec<_>>(),
+            [true, true, false, false, false]
+        );
+        assert!((2..5).all(|index| shown("BGInactive", index)));
         let rogue_points = 4_902_605; // interface/hud/uiroguecombpoints.blp
         assert_eq!(
-            texture(&app, "PlayerSecondaryResourcePip0Lit").source,
+            texture(&app, "PlayerSecondaryResourcePip0IconUncharged").source,
             TextureSource::FileDataId(rogue_points)
         );
         assert_bar_art(

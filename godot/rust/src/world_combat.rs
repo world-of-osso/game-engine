@@ -144,10 +144,9 @@ pub(crate) fn melee_reaction(kind: &CombatEventType, weapon: MeleeWeapon) -> Opt
 impl UnitNode {
     /// The unit's bone animation player.
     pub(super) fn animation_player(&self) -> Option<Gd<WowAnimationPlayer>> {
-        let path = if self.is_player {
-            "M2Animation"
-        } else {
-            "NpcModel/M2Animation"
+        let path = match self.appearance.as_ref()? {
+            UnitAppearance::Player(_, _) => "M2Animation",
+            UnitAppearance::Creature { .. } => "NpcModel/M2Animation",
         };
         self.visual
             .as_ref()?
@@ -157,10 +156,9 @@ impl UnitNode {
     /// The model node whose skeleton carries the unit's attachments.
     pub(super) fn model_node(&self) -> Option<Gd<Node3D>> {
         let visual = self.visual.as_ref()?;
-        if self.is_player {
-            Some(visual.clone())
-        } else {
-            visual.try_get_node_as::<Node3D>("NpcModel")
+        match self.appearance.as_ref()? {
+            UnitAppearance::Player(_, _) => Some(visual.clone()),
+            UnitAppearance::Creature { .. } => visual.try_get_node_as::<Node3D>("NpcModel"),
         }
     }
 
@@ -341,6 +339,17 @@ impl WorldUnits {
                     && !entry.hidden
             })
             .and_then(|entry| entry.item_id)
+    }
+
+    /// `Item` ID of unit `id`'s worn chest, shown or hidden.
+    pub(crate) fn unit_chest_item(&self, id: u64) -> Option<u32> {
+        self.units
+            .get(&id)
+            .and_then(UnitNode::equipment)?
+            .entries
+            .iter()
+            .find(|entry| entry.slot == EquipmentVisualSlot::Chest)?
+            .item_id
     }
 
     /// Unit `id`'s cast clip has a missile release event yet to fire.

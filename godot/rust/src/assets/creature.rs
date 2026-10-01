@@ -1,11 +1,12 @@
 //! Local-only creature model companions and textures for the native M2 loader.
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
+    sync::{Arc, LazyLock, Mutex},
 };
 
-use game_engine_core::{creature_display_data::CreatureDisplay, m2};
+use game_engine_core::{blp, creature_display_data::CreatureDisplay, m2};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
@@ -13,7 +14,8 @@ use super::{
     appearance::PreparedAppearance,
     build_model,
     equipment::{attach_each_equipment, place_equipment},
-    read_model,
+    material::insert_shared_texture,
+    read_model_file,
 };
 use crate::equipment_appearance_data::{RuntimeModelAppearance, model_attachment_id};
 
@@ -27,19 +29,54 @@ pub(crate) struct CreatureGear {
     pub(crate) items: Vec<(RuntimeModelAppearance, Option<u32>)>,
 }
 
-pub(crate) fn load_creature_model(
+/// A creature display's model parsed and its textures decoded, off the main thread.
+pub(crate) struct CreatureModelParts {
+    pub(crate) model: Arc<CachedModel>,
+    pub(crate) textures: Vec<(u32, blp::GpuImage)>,
+}
+
+/// Worker: extract and parse the display's model and its armor and item models, and
+/// decode their textures, so `build_creature_model` does no file work.
+pub(crate) fn prepare_creature_model(
+    resolver: &CascListfileResolver,
     data_root: &Path,
-    cache_root: &Path,
     display: &CreatureDisplay,
+    gear: &CreatureGear,
+) -> Result<CreatureModelParts, String> {
+    let model = load_model_files(resolver, data_root, display.model_fdid)?;
+    let mut fdids = cache_model_textures(resolver, data_root, &display.skin_fdids, &model.model)?;
+    let items = gear
+        .armor_models
+        .iter()
+        .chain(gear.items.iter().map(|(item, _)| item));
+    for item in items {
+        // An item that cannot load is reported when it is attached.
+        if let Ok(parts) = load_model_files(resolver, data_root, item.fdid)
+            && let Ok(textures) =
+                cache_model_textures(resolver, data_root, &item.skin_fdids, &parts.model)
+        {
+            fdids.extend(textures);
+        }
+    }
+    Ok(CreatureModelParts {
+        model,
+        textures: decode_new_textures(data_root, &fdids)?,
+    })
+}
+
+/// Main thread: the nodes of the display's `model` with its armor and held items; their
+/// decoded textures are inserted first (`insert_decoded_textures`).
+pub(crate) fn build_creature_model(
+    data_root: &Path,
+    display: &CreatureDisplay,
+    model: &CachedModel,
     appearance: Option<&PreparedAppearance>,
     gear: &CreatureGear,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
-    let resolver = local_resolver(data_root, cache_root);
-    let path = cache_model_files(&resolver, data_root, display.model_fdid)?;
-    let path = GString::from(path.to_string_lossy().as_ref());
-    let parsed = read_model(&path)?;
-    cache_model_textures(&resolver, data_root, &display.skin_fdids, &parsed)?;
-    let (mut model, missing) = build_model(&parsed, &path, &display.skin_fdids, appearance)?;
+    let resolver = local_resolver(data_root);
+    let parsed = &model.model;
+    let path = GString::from(model.path.to_string_lossy().as_ref());
+    let (mut model, missing) = build_model(parsed, &path, &display.skin_fdids, appearance)?;
     let items = held_items(&model, &resolver, &gear.items);
     let models: Vec<_> = gear
         .armor_models
@@ -56,7 +93,7 @@ pub(crate) fn load_creature_model(
         );
     };
     if let Err(error) =
-        attach_each_equipment(&mut model, &parsed, &resolver, data_root, &models, report)
+        attach_each_equipment(&mut model, parsed, &resolver, data_root, &models, report)
     {
         model.free();
         return Err(error);
@@ -91,13 +128,86 @@ fn held_items<'a>(
         .collect()
 }
 
-pub(crate) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {
+pub(crate) fn local_resolver(data_root: &Path) -> CascListfileResolver {
     CascListfileResolver::new(
         AssetResolverConfig::new()
             .with_data_root(data_root)
-            .with_shared_data_root(data_root)
-            .with_cache_root(cache_root),
+            .with_shared_data_root(data_root),
     )
+}
+
+/// A model extracted from local CASC with its companions and parsed.
+pub(crate) struct CachedModel {
+    pub(crate) path: PathBuf,
+    pub(crate) model: m2::Model,
+}
+
+/// Parsed models by `.m2` path: every unit, item and doodad of a model shares one parse.
+static MODELS: LazyLock<Mutex<HashMap<PathBuf, Arc<CachedModel>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Model `fdid`, extracted and parsed once per process (workers load it ahead of the
+/// main thread); a failure is not kept, so the next use tries again.
+pub(crate) fn load_model_files(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    fdid: u32,
+) -> Result<Arc<CachedModel>, String> {
+    let key = data_root.join("models").join(format!("{fdid}.m2"));
+    if let Some(cached) = MODELS.lock().expect("model cache").get(&key) {
+        return Ok(Arc::clone(cached));
+    }
+    let path = cache_model_files(resolver, data_root, fdid)?;
+    let model = read_model_file(&path)?;
+    let cached = Arc::new(CachedModel { path, model });
+    MODELS
+        .lock()
+        .expect("model cache")
+        .insert(key, Arc::clone(&cached));
+    Ok(cached)
+}
+
+/// Texture FDIDs some worker already decoded for the main thread's shared textures.
+static DECODED: LazyLock<Mutex<HashSet<u32>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
+
+/// Worker: decode each of `fdids` under `data/textures` that no worker decoded before.
+/// A file absent there stays the material loader's reported missing FDID.
+pub(crate) fn decode_new_textures(
+    data_root: &Path,
+    fdids: &BTreeSet<u32>,
+) -> Result<Vec<(u32, blp::GpuImage)>, String> {
+    let fresh: Vec<u32> = {
+        let mut decoded = DECODED.lock().expect("decoded textures");
+        fdids
+            .iter()
+            .copied()
+            .filter(|&fdid| decoded.insert(fdid))
+            .collect()
+    };
+    fresh
+        .into_iter()
+        .filter_map(|fdid| {
+            let file = data_root.join("textures").join(format!("{fdid}.blp"));
+            let bytes = fs::read(&file).ok()?;
+            Some(
+                blp::decode_gpu(&bytes)
+                    .map(|image| (fdid, image))
+                    .map_err(|error| format!("Texture {fdid}: {error}")),
+            )
+        })
+        .collect()
+}
+
+/// Main thread: make worker-decoded `textures` the shared textures of their files.
+pub(crate) fn insert_decoded_textures(
+    data_root: &Path,
+    textures: Vec<(u32, blp::GpuImage)>,
+) -> Result<(), String> {
+    let dir = data_root.join("textures");
+    for (fdid, image) in textures {
+        insert_shared_texture(fdid, &dir, image)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn cache_model_files(
@@ -211,7 +321,7 @@ mod tests {
     #[test]
     fn acquires_cached_creature_skin_from_sfid_not_creature_texture_slots() {
         let data_root = cached_data_root();
-        let resolver = local_resolver(&data_root, &data_root.join("cache"));
+        let resolver = local_resolver(&data_root);
         let display = CreatureDisplay {
             model_fdid: 126278,
             skin_fdids: [126280, 0, 0],
@@ -232,7 +342,7 @@ mod tests {
     #[test]
     fn collects_authored_batch_textures_and_explicit_creature_slots() {
         let data_root = cached_data_root();
-        let resolver = local_resolver(&data_root, &data_root.join("cache"));
+        let resolver = local_resolver(&data_root);
         let model = std::fs::read(data_root.join("models/126278.m2")).unwrap();
         let skin = std::fs::read(data_root.join("models/12627800.skin")).unwrap();
         let parsed = m2::parse_model(&model, &skin).unwrap();
@@ -245,7 +355,7 @@ mod tests {
     #[test]
     fn acquires_cached_external_skeleton_from_skid() {
         let data_root = cached_data_root();
-        let resolver = local_resolver(&data_root, &data_root.join("cache"));
+        let resolver = local_resolver(&data_root);
         let display = CreatureDisplay {
             model_fdid: 1011653,
             skin_fdids: [0; 3],

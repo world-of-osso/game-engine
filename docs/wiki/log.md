@@ -1,8 +1,112 @@
+## 2026-09-30 — Startup equipment bounded acceptance reconciled
+
+MAIN read FULL and accepts independent1429 bounded PASS. [Acceptance SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) retains exact startup/actions, byte-equivalent extraction/direct4/helper18, required rendering assembly and original15-second merchant0/Loading2738ms/strict3opens3closes/successful child exit. Earlier pending entries and failures remain historical; auth cause, ObjectDB leak, inherited debt and full conversion remain unresolved. Docs only; no tests/builds/operations.
+
+## [2026-09-30] audit | Original-bound merchant runtime passes; independent gate pending
+
+[SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending): `51a3e85f` final log0, Loading2738ms under original15 seconds, strict three opens/closes and placement/reset/pointer/quiet-reopen proof, normal child success. Newly observed one ObjectDB leak warning is unattributed; shutdown investigation deferred, no clean-resource/general-shutdown acceptance or pre-existing claim. Independent1429 pending MAIN acceptance; native5a unchanged, no redundant build/tests.
+
+## [2026-09-30] audit | Merchant diagnostic passes; original-bound acceptance pending
+
+[SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending) records rendering fix/build0, unexplained pre-auth retry101, and test-only `6bea` timing/strict merchant exit0 (Loading4162ms, normal child0). No auth-root-cause or180-second necessity claim. `51a3e85f` restores15 seconds; final retry/independent1429 pending. Native5a startup/readability and unchanged tooltip/pure proofs retained; combined gate OPEN, no general shutdown clearance.
+
+## [2026-09-30] audit | Merchant fixture rendering links corrected; gate OPEN
+
+[SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending) records native5a source/build/actions and own readability resolution, actual merchant pre-login exit101, and fixture-only `54eaef69` required-link correction. Fresh fixture build/merchant retry and read-only1425 acceptance pending; prior startup failures and valid unchanged startup proof retained. Full conversion OPEN; Mail/Auction untouched. Docs only; no tests/builds/operations.
+
+## [2026-09-30] audit | Startup equipment followup pending after lifecycle split
+
+[SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records gate1421's new own complexity finding and source-only `5a3ebf7b` lifecycle/application split. Fresh build/actions/merchant-click and independent1423 acceptance pending MAIN proof; no metric clearance. Prior first-GREEN remains historical functional evidence, not current integration proof. Inherited readability remains uncleared; inventory snapshot is not Appearance/mesh proof. Docs only; no tests/builds or operations.
+
+## [2026-09-30] audit | Startup MainHand inventory MAIN observed GREEN
+
+MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records fresh Depot `04kwqv77h7` build0/runtime0, pre-Equip GUID9170105, authoritative GUID9170005 replacement, exact one Equip/two Destroy and original popup flow. Intentional child3934038 kill/reap/readers0 is not shutdown; broader coverage excluded. Supersedes pending-GREEN docs `cf9c3d63`.
+
 # Wiki Log
 
 ## [2026-09-30] systems | Login handshake timeout
 
 Updated [[godot-conversion]]: Netcode client timeout 60 s → 10 s and a 5 s handshake timeout whose reason the login screen shows (`login_connection_loss.gd` GREEN, 5.8 s).
+
+## [2026-09-30] audit | Occupied startup equipment authentic RED; minimal consumer committed
+
+[Owned checkpoint](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green): test `57b30f57` distinct startup MainHand25/count1/GUID9170105 versus bag9170005; exact pre-Equip equipment/bags/no carried icon/split/popup oracle and later replacement/original one Equip/two Destroy retained. MAIN Depot `rxnbcnxs5z` native build0/existing WMO warning; actual startup log exit101 equipment empty after authenticated READY/exact bags, before Equip input. Missing typed network receive/account decode/merchant apply chain; minimal account/merchant `ee2d3e47` committed using original inventory apply, transport1419 `2d1829fc` committed (typed receive after InventorySnapshot, before InventoryDelta). Integration Depot build/verifier1421 active; runtime GREEN pending; occupied startup still missing, not EquipmentAppearance/mesh proof. No separate-owner architecture/server/protocol change. Tooltip gate1415/docs `2142e85f` retained; protected Mail/Auction branches untouched, ownership inquiry outstanding without freeze. Docs-only reconciliation; no test/build/gate reruns.
+
+## [2026-09-30] audit | Foreign-chat World rejection main-observed GREEN; independent bounded PASS accepted
+
+[Owned evidence](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records diagnostic RED on `b3bf65a2`, bounded `5f6782b5` rejection, new Depot build and three parent0 drag/actions/cursor logs. Independent gate1406 accepted bounded PASS; own hits unchanged, no cross-layer winner/global ownership claim. Existing exclusions retained; deliberate SIGKILL is not shutdown. Docs-only reconciliation; no tests/builds/operations.
+
+## [2026-09-30] audit | Exact standalone drag followup independently accepted bounded PASS
+
+Reconciled existing specs, parity coverage, wiki and index against `/tmp/claude/verify-native-bags-drag.md`. [Exact coverage](systems/godot-conversion.md#standalone-drag--exact-bounded-proof-and-pending-followup): `4677d732` independent functional/build/fmt PASS; Depot `hv02mf7mfc` and full native drag/actions/cursor logs all0. Same/held/noncursor negatives0; separated124px/rapid-frame837/ordinary-click each one Swap0/0→1/0, deltas withheld until unchanged INITIAL client proof then authoritative3/2. `b3bf65a2` independently accepted bounded PASS (`/tmp/claude/verify-native-bags-drag-followup.md`): source/event semantics and own readability findings resolved; fresh supplied Depot `0c4hdfxff4` build exit0 and full drag/actions/cursor logs parent0. Twelve inherited findings remain uncleared. Test-only `cc3765b1`/`7bd81e29` confer no production proof. Root/pure/invite unchanged proofs retained, no reruns. Intentional SIGKILL/reap/readers0 is not normal shutdown. No whole-file readability, threshold boundary/nondefault-scale runtime, NPC/global ownership or full-goal acceptance. Prior REDs and capture limits retained; previous pending-build checkpoint below is historical. Docs only; accepted saved followup evidence, no verification/build/runtime reruns.
+
+## [2026-09-30] system | Standalone authored bag drag implemented; build/runtime pending
+
+[Current evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass): production `4677d732` + projection `c61fc93d` implement ordered physical `FrameClick`/global-release `PointerUp` → opt-in `BagInput`. Successful empty-cursor pickup records logical press/source target; release consumes the record, dispatching existing effects only for >=4 logical pixels and a distinct target, without optimistic inventory. Held-cursor release has no origin. Own visible mouse-enabled frames use original strata/level/raise priority, actual global rectangles, scaled insets and action ancestors. Authentic `615bd810` RED and earlier failures retained. Main build `/tmp/claude/native-bags-drag-first-green-build.log` and runtime remain pending; cross-registry/NPC ownership, drag GREEN, full goal and normal shutdown unproved. Reconciled existing specs/wiki/index only; main-owned cursor spec already records implementation.
+
+## [2026-09-30] audit | Accepted bounded actions followup; authentic drag RED
+
+[Checkpoint evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) reconciled against `/tmp/claude/native-bags-proof-ledger.md` and `/tmp/claude/verify-native-bags-actions-followup.md`: exact `ed135319` priority comparison, full captured build/actions PASS, fresh scoped fmt0, input cognitive19→9 and own naming fixed. Main accepts applicable own findings fixed; inherited input33-body-line/complex-condition/bumpy-road findings deferred, not feature bugs or whole-file clearance. Latest test-only `615bd810` authentic drag RED parent101 supersedes report's pending-RED status: three quiet release controls zero swaps; separated124 logical pixels leaves icon held/no Swap. Initial parsing failure (`8f14db08` fix) and second wrong mouse-disabled-title oracle remain failures. Authored absent-bag2 mouse-enabled button supplies inert noncursor control. Drag implementation NOT started at checkpoint; no drag/full-goal, normal-shutdown, startup EquipmentSnapshot, mesh or NPC/global-owner acceptance. Historical entry below records its earlier checkpoint, not current status.
+
+## [2026-09-30] audit | Actions verifier PASS; readability followup and drag RED pending
+
+[Existing evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) records independent1377 functional/compile/format PASS, accepted own input complexity/length and neutral resolve naming findings, not clean readability. `ed135319` preserves startup→popup→chat→binding precedence and names `dispatch_bag_destroy_results`; followup proof pending. Test-only `233cbd63` compiles via Depot `0ml790cpjz`, full stdout/stderr saved, existing WMO warning only. Main rerunning actions after input change; actual drag RED pending. Historical capture limitations/failed builds and unchanged root/pure proof retained; no full-goal, shutdown, drag PASS or startup-equipment/mesh claim.
+
+## [2026-09-30] audit | Bounded native equip/destroy GREEN; verifier pending
+
+Reconciled existing conversion/cursor specs, parity matrix and wiki against `/tmp/claude/native-bags-proof-ledger.md`, `/tmp/claude/cursor-destroy-popup-proof-ledger.md` and actual `/tmp/claude/native-bags-actions-first-green.log`. [Exact evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass): shared original popup/key `bf1b1a73` pure10/10; native fix `a0b295b4`, read-only diagnostics `6bc3cde0`, Depot `jv155pp2xb` exit0 with existing WMO warning only. Main-observed actions parent0 proves one Equip/two Destroy, authoritative bags empty/MainHand retained, PoorNo quiet/cursor cleared, rare disabled+Enter inert, Unicode32/scalar Backspace/lowercase DELETE. Historical texture wrong-boundary failure, actual right-click RED, equip→world-drop RED, import and match-arm build failures retained. Independent actions verifier pending, not accepted gate; full goal, drag, meshes/startup equipment, NPC/global owner and normal shutdown unproved. Docs only; no tests, ops or delegation.
+
+## [2026-09-30] audit | Bounded equip observation, destroy RED and unverified host
+
+Updated existing conversion/cursor specs, parity matrix and wiki from authoritative `/tmp/claude/native-bags-proof-ledger.md` and `2223d6d3`. [Exact evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass): historical `ln9jmltc2m` import failure fixed by `2086200d`; `0mbvzk13ft` build exit0. Saved actions parent101 observes one EquipItem0/5, authoritative bag clear/MainHand25 guid9170005 count1 and quiet EquipDone, then PoorNo missing StaticPopup1 RED. `2223d6d3` native world-drop/shared-popup/result-drain/keyboard implementation is NOT GREEN; portable extraction1375 pending before compilation. No full gate, startup-equipment, mesh, destroy, drag or shutdown acceptance. Prior window/cursor proof preserved; docs only, no ops/tests/delegation, PLAN/data excluded.
+
+## [2026-09-30] audit | Native standalone equip sender, GREEN pending
+
+Reconciled existing conversion docs against `093f3816` and `/tmp/claude/native-bags-proof-ledger.md`. [Actions evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass): fixture build exit0; first run missing texture is not equip RED; same-binary second run after local CASC extraction reproduces missing right-click equip. Production now sends original catalog-gated EquipItem from authoritative inventory only. GREEN pending; no equip PASS, equipment mesh/startup equipment, destroy/drag or shutdown acceptance. Prior bounded window/cursor proof unchanged. Docs only; no build/test/ops/delegation; PLAN/data excluded.
+
+## [2026-09-30] audit | Independent bounded native cursor PASS accepted
+
+Accepted `/tmp/claude/verify-native-bags-cursor.md`, superseding earlier independent-pending entries only within [bounded cursor evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass). EXIST/SUBSTANTIVE/WIRED pass; actual root package check errors0/two existing parser warnings, root fmt and 13-path scoped fmt pass. Saved original policy8/icon1 and exact once Swap/Split, authoritative deltas, event-pointer/icon/source-lock, Escape/source-return/stale proof accepted without reruns. Test-only `19b1de2d` bags-actions remains pending actual RED/build; no production RightEquip/Destroy. New fixtures do not invalidate unchanged original pure scope. Pending request timing/interleaving NOT logged; child SIGKILL is not normal shutdown. No all-cursor/global-window/full-conversion acceptance. Docs-only reconciliation, not goal completion; PLAN remains unstaged.
+
+## [2026-09-30] audit | Bounded native cursor UI/network GREEN
+
+Reconciled [conversion evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass), specs/matrix/index and [startup investigation](investigations/local-animation-loading-gate.md) after `40497cb7`. Barrier `f7b137fb`/`76487261` now reaches READY; no exact pending-request timing claim. Diagnostic `9dc97a47` establishes actual event/OS pointer producer DataMismatch; `40497cb7` retains actual event position across handled/UI-blocked and keyboard-only split input, without test calibration. Existing pure8/icon1 pass; Depot `7p31d9cmcw` native+fixture exit0 with existing WMO warning only. Actual third GREEN parent0 completes quiet return/Escape/stale, bags open, exact once Swap0/0→1/0 and Split0/0→1/1 count2, typed2+Enter, icon center/source lock and authoritative final1/2. Child3813397 intentional SIGKILL/readers0 is not shutdown. Independent cursor agent1360 pending; full goal and exclusions remain open, legacy checked tests preserved. Earlier pending entries below are historical, superseded only within this bounded proof. Docs only; PLAN remains unstaged.
+
+## [2026-09-30] investigation | Local animation Loading → InWorld gate
+
+Added [startup investigation](investigations/local-animation-loading-gate.md); reconciled conversion system/spec/index. Cursor `2b3fa596` has saved Depot build exit0, pure policy 8/8 and icon 1/1; actual first GREEN exits101 before cursor readiness on missing local authored visual. Async world entry `5e26bc9b` permits pending visuals during Loading; `f7b137fb` gates local animation on existing InWorld barrier, retaining the post-readiness error. Log lacks request timing/state booleans: no specific captured-interleaving claim. Post-gate rebuild/GREEN/independent proof pending; legacy checked tests preserved, full goal open, shutdown deferred. Docs only; no source/build/test/push/delegation; protected PLAN unstaged.
+
+## [2026-09-30] audit | Standalone window PASS and pending native cursor
+
+Reconciled conversion spec/matrix, cursor native coverage and [bounded bag evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) from independent window/actual Bevy reports and proof ledger. Saved window/runtime/ten portable tests PASS; actual Bevy compile PASS with three historical warnings. `9f954a3b` own-warning cleanup not rechecked. Actual authenticated slot0 cursor RED parent101; `9e301fb5` portable policy/icon and `2b3fa596` native consumer implemented, build/runtime/independent gate pending. Legacy cursor checkboxes preserved; remaining parity/readability gaps and intentional SIGKILL/normal-shutdown deferral retained. Full conversion open; docs only, no tests/builds/runtime operations.
+
+## [2026-09-30] investigation | World-entry stalls
+
+Added [[world-entry-stalls]]. The "Account" step at world entry (17-48 s in base) built every replicated unit's visual synchronously. "World objects" overran its 8 ms budget with whole-model and whole-WMO units. Unit visuals and ADT objects now load on `AssetLoader` workers, and the main thread builds them within 8 ms budgets: WMOs a slice of batches at a time, terrain chunk by chunk. The loading screen also waits for the local player's model. Back-to-back A/B (`world_entry_frames.gd`, two rounds at load 14-44): longest loading frame 17.6-47.7 s → 0.22-0.91 s. Gaps: the first in-world HUD frame, the per-unit build cost of humanoid NPCs, and object throughput under heavy load.
+
+## [2026-09-30] audit | Standalone bag RED and pending host integration
+
+Updated conversion spec, parity matrix and [system evidence](systems/godot-conversion.md#native-standalone-bags--red-host-implementation-proof-pending) for tests `67870535`/`a3e34213` and host `91bbc703`. Saved runtime RED reaches authoritative BAGS_READY then fails missing MainMenuBarBackpackButton, exit 101; Depot `d11bz93c7w` is compiled baseline only. Portable agents 1343/1344 APIs and actual GREEN remain pending. Standalone visibility, inventory interactions and unified window ownership remain unproven; full conversion open. Docs-only update; no tests/build/runtime operations.
+
+## [2026-09-30] system | Godot replication without an ECS replica
+
+New [[godot-replication]]: the network worker no longer runs replicon's client; it forwards raw replicon payloads and acks mutations, and the host-owned `Replica` decodes them into per-type columns. Wire layout, ack flow, fingerprint reasoning, codec schema and proof recorded; `UnitSnapshot` mentions in merchant, chat, spellbook, nameplate, movement and NPC appearance docs now point at the `Replica`.
+
+## [2026-09-30] verification | Bounded native loot reach
+
+Reconciled LootFrame spec/matrix with [saved reach proof](systems/godot-conversion.md#native-loot-reach--bounded-runtime-proof): inclusive corpse reach and friendly dispatch accepted; original four cases/42 UI checks retained. Hostile/role-response gaps remain; post-DONE exit 101 RenderingServer-null is FAIL/deferred. Settings-reload commits remain test preparation, not proof. Docs only; no clean full-conversion or source-pinning claim.
+
+## [2026-09-30] implementation | Bounded native receiving mail
+
+Updated [[trade-and-mail]] and the MailFrame spec to distinguish preserved Bevy full mail from the native AH receiving dependency. `9ed690bf` Depot focused source proof: metadata 1/1, owned UDP 3/3, model/registry/interaction 4/4. Real mailbox M2/picking, matching role/contents gate, authoritative claims and receiving-only authored UI are implemented. Committed GDScript fixture remains unrun until main's CLI proof; no extension install, native live run, backend/shared change or full-AH acceptance. Two pre-existing terrain test unused-mut warnings remain outside this slice.
+
+## [2026-09-30] verification | Native Options and loot overflow
+
+Recorded the [bounded functional gate](systems/godot-conversion.md#native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering); reconciled LootFrame spec/matrix proof, leaving deferred termination and full-conversion acceptance open.
+
+## [2026-09-30] implementation | Server-global native auction browse
+
+Updated [[auction-house-ui]] and spec after `5b9cb76c`: native browse now consumes server-global distinct-item pages, authoritative unit price and `u64` stock; drilldown/sell remain flat with real auction IDs. Snapshot adds `groups` and active endpoint flag; fixture reads groups. Targeted Depot native model 8/8, owned UDP 1/1 and shared frame 1/1 passed. Model RED missing-API compilation and wire RED missing-reply timeout recorded separately. Host/runtime proof remains with main after game-cli; no integration/ops run.
 
 ## [2026-09-30] implementation | Bounded native auction client
 
@@ -11,6 +115,10 @@ Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, port
 ## [2026-09-30] update | Server missile timing
 
 [[spell-visuals]] Server timing: game-server `fa5e689` delays missile hits by TrinityCore's `max(dist, 5) / Speed + LaunchDelay` (`Spell::HandleDelayed`). Frostbolt's damage number no longer arrives with `SpellGo`. About 200 ms early remains: the server clock starts at the cast, while the client releases at the M2 event. Not re-captured on the client.
+
+## [2026-09-30] feature | Retail class resource bars
+
+Every player class bar now ports its Retail template and mixin: art, animation groups and visibility gates. Rogue and druid combo points, chi, soul shards (with Destruction fragments), essence, death knight runes, holy power and Arcane Charges are covered. `ui/screens/class_bars/` holds a small `AnimationGroup` player plus one module per bar. Live proof against a private server: rogue, paladin, warlock, mage and a caster-form druid (bar hidden). Monk and Evoker cannot be created on the server. Runes wait on per-rune cooldowns from the powers protocol. See [ui-system](systems/ui-system.md#unit-frames).
 
 ## [2026-09-30] feature | Retail melee sounds; synthetic miss/interrupt PCM removed
 
@@ -2213,3 +2321,35 @@ A spell's first use no longer extracts, parses or decodes its kit models, textur
 ## [2026-09-30] fix | Retail ADT water
 
 Northshire streams used the procedural placeholder water shader and lost MH2O LVF 0 depths. Godot water now ports WebWowViewerCpp `liquidWaterMat` with LiquidType/LiquidObject/LiquidTypeXTexture DB2 inputs and LightData/LightParams colours. See [northshire-pale-water](investigations/northshire-pale-water.md).
+
+## [2026-09-30] audit | Native loot integration, proof pending
+
+Recorded shared original loot state/cards/placement/actions, one ordered LootChannel relay, server-owned Auto Loot XOR Shift, actual authored LootFrame and per-looter sparkle/cursor; existing authenticated inventory/gold flow retained. Actual native fixture remains RED (no LootUnit after corpse right-click, case 1); main build and agent1299 portable export pending. Both matrix rows remain Missing; no completion checkbox changed. See [native loot boundary](systems/godot-conversion.md#native-loot--implemented-proof-pending).
+
+## [2026-09-30] documentation | Native Options and loot money overflow; final pending
+
+Updated existing [[godot-conversion]], [[loot-and-flight]], index and loot spec. Saved rendered RED: HUD last row 12 px past panel; money native 51 px versus authored 38 px (font size 12, glyph height 15, default gaps 3). Records content-driven Options height `b50a139f` and fixed multiline gap fitting `d6f39c45`, without smaller fonts/truncation/clipping; main rendering pending, no GREEN claim. Replaces stale export/build/agent-pending wording with shared exports/tests 8 + 1, relay wire test 1 at `c6ae14bf`, root compile and runtime `af03660f` all four cases/inventory/error/cursor through LOOT_DONE. Post-DONE RenderingServer-null exit 101 unresolved/deferred; independent final boxes pending, source unfrozen. Docs only; no builds/tests/delegation or source/server/protocol/data/PLAN changes. Existing log entries preserved.
+
+## [2026-09-30] evidence | Native loot/caption final main reconciliation
+
+Updated loot spec, Partial matrix rows, [[godot-conversion]] and index for `292a2fb2`/Depot `tt4c247nl1`, latest `/tmp/claude/native-ui-caption-run.log`: 42 Options records/no overflow, three visible money lines/contained shadow and main-inspected Items/stack 2/Poor captions. Four Auto Loot cases, InventoryFull reject/retry, authoritative bags 11/money 32756, matching removals/closure, duplicate chat once and empty-corpse target-only reach LOOT_DONE. Full exit 101 after DONE is fixture timeout; prior af03660f RenderingServer-null retained separately. Caption-2 RED corrected by width caps on all fixed axes, height caps only on spacing-fitted explicit multilines; no glyph clipping/font shrink. Verifier 1314 report absent at reconciliation, no PASS credited. Exact range/living-NPC runtime, corpse-pose parity, clean acceptance/full conversion open; shutdown explicitly deferred, source unfrozen. Supersedes older pending build/export/main-rendering entries; preserves AA/shutdown/cache evidence. Docs only; no tests/build/delegation or source/data/PLAN changes.
+
+## [2026-09-30] fix | Showcase client bugs
+
+Floating combat text starts at per-number camera-plane offsets from the retail WorldText CVars; the target's nameplate takes `nameplateSelectedAlpha`; robes select skirt/sleeve geosets and paste over shirt and pants in `CCharacterComponent` priority; player weapons sheathe at `Item.SheatheType`; creature poses follow `AnimationData.Fallback` (Dead → Death held). `.anim` out-of-bounds reads trace to stale cached `.skel` files. See [showcase-client-bugs](investigations/showcase-client-bugs.md).
+
+## 2026-09-30 — SettingsReload reconciliation
+
+Linked [accepted bounded two-process proof](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) from fixture workflow, loot/conversion specs, matrix and index. Accepted `/tmp/claude/verify-native-settings-reload.md`: bounded saved-artifact functional reload and scoped Rust formatting PASS at `fc303c77`. Byte equality only at post-spawn/post-load observation boundaries; both children deliberately SIGKILL/reap/join, not normal shutdown. Saved build provenance is caller-supplied; parent exit 0 lacks a log footer. Partial/full conversion and shutdown gaps remain open; inherited 42 Options records do not upgrade all-options/geometry acceptance.
+
+## [2026-09-30] fix | Audio/visual parity gaps (avfix)
+
+M2 point lights fall off as retail's squared linear ramp; melee sounds apply the reverse-engineered 1.12 rules (miss whoosh, exertion and injury chances, chest armour, Material flags; dagger size 8 and the Pierce columns stay unknown); WMO group liquids draw with their LiquidType materials; scene fog is the full `makeFog2` (height, artistic, end and sun fog). See [godot-torch-rendering](investigations/godot-torch-rendering.md), [spell-visuals](systems/spell-visuals.md#melee-sounds), [northshire-pale-water](investigations/northshire-pale-water.md#wmo-liquids-mliq), [retail-lighting](systems/retail-lighting.md#scene-fog-godot). Water specular power stays 1.0: no retail source.
+
+- 2026-09-30: Docs-only standalone bag tooltip checkpoint: `7e7b70af` saved build/actual hover RED, committed `ac7c16d7`, test-only `1c00b32a`; extraction/integration compile/GREEN/independent gate pending. [Owned evidence](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending); accepted `ddc318d8` foreign gate and exclusions preserved. No builds/tests/operations.
+
+- 2026-09-30: Docs-only followup to `f35996cd`: shared original extraction `0e41239a` committed alongside native `ac7c16d7`/test `1c00b32a`; actual source audit names root/ui-model exports and Bevy record/anchor adapter. [Owned checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending). Main Depot build/runtime/pure proof, walkthrough and independent verifier1415 pending; no accepted tooltip GREEN. Prior foreign accepted PASS, inherited findings/exclusions and whole goal open preserved. No tests/builds/delegation/operations.
+
+- 2026-09-30: Reconciled cursor formatter/unit-tooltip authored-screen source paths after extraction walkthrough became available. MAIN reports Depot `ksb906c316` native compile0, existing WMO warning only; runtime/CPU tests/verifier1415 pending, no accepted tooltip GREEN. [Owned checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending); prior accepted evidence/exclusions unchanged.
+
+- 2026-09-30: Docs-only reconciliation records MAIN-observed bounded tooltip GREEN for native `ac7c16d7` + shared `0e41239a`, tests `1c00b32a` + oracle correction `88b0505f`: actual corrected runtime, CPU native5/shared4, registry2, same-build drag/actions/cursor and MAIN-opened Linen/Poor captures. [Owned evidence](systems/godot-conversion.md#standalone-bag-item-tooltip--accepted-bounded-pass) retains authentic RED101, labels first GREEN attempt101 false oracle (not production failure), exact exclusions/inherited12 findings and intentional kills (not shutdown). Verifier1415 accepted bounded PASS after MAIN read the full report; original pure gear proof is not native gear hover. No source/PLAN/data edits, tests, builds, delegation or runtime operations.

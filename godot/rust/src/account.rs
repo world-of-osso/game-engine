@@ -8,7 +8,8 @@ use std::{
 use crate::frame_error::SessionError;
 use crate::mirror_timers::MirrorTimerMessage;
 use game_engine_network::{
-    Event, HANDSHAKE_TIMEOUT_REASON, NetworkBridge, ProtocolMessage, UnitSnapshot,
+    Event, HANDSHAKE_TIMEOUT_REASON, NetworkBridge, ProtocolMessage,
+    replica::{ReplicationBatch, Schema},
 };
 use game_engine_session::{
     AuthRequest, ReconnectPhase, Session, SessionEffect, SessionOptions, SessionScreen,
@@ -28,20 +29,36 @@ use shared::protocol::{
     SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
-    BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
-    InteractionChannel, InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta,
-    InventoryError, InventorySnapshot, MerchantChannel, MerchantFailed, RepairItem,
-    SellAllJunkItems, SellItem, VendorInventory,
+    BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate,
+    EquipmentSnapshot, InteractNpc, InteractionChannel, InteractionClosed, InteractionFailed,
+    InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, MerchantChannel,
+    MerchantFailed, RepairItem, SellAllJunkItems, SellItem, VendorInventory,
+};
+use shared::protocol::{
+    MailChannel, MailFailed, MailRequest, MailboxContents, PendingMail, UseGameObject,
 };
 
+use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::merchant_data::MerchantRequest;
+use shared::protocol::{
+    ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
+    GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
+    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, PromoteGroupLeader, ReadyCheckUpdate,
+    RespondGroupInvite, RespondReadyCheck, SetGroupRole, StartReadyCheck,
+};
+
+use shared::protocol::{
+    CorpseLootable, LootChannel, LootClosed, LootFailed, LootRelease, LootResponse,
+    LootSlotRemoved, LootSlotRequest, LootUnit,
+};
 
 use crate::player_spells::PlayerSpells;
 use game_engine_ui_model::auction::{AuctionReply, AuctionRequest};
 use shared::protocol::{
-    AuctionChannel, AuctionHouseOpened, AuctionInventorySnapshot, AuctionOperationResponse,
-    AuctionSearchResults, BidAuctionListResponse, OpenAuctionHouse, OwnedAuctionListResponse,
-    QueryAuctionInventory, QueryAuctions, QueryBidAuctions, QueryOwnedAuctions, SelectGossipOption,
+    AuctionBrowseResults, AuctionChannel, AuctionHouseOpened, AuctionInventorySnapshot,
+    AuctionOperationResponse, AuctionSearchResults, BidAuctionListResponse, OpenAuctionHouse,
+    OwnedAuctionListResponse, QueryAuctionBrowse, QueryAuctionInventory, QueryAuctions,
+    QueryBidAuctions, QueryOwnedAuctions, SelectGossipOption,
 };
 
 /// Combat log lines kept for automation and the cast result readout.
@@ -80,6 +97,8 @@ pub struct Account {
     pub combat_log_seq: u64,
     /// The server's newest damage meter sessions.
     pub damage_meter: Option<DamageMeterSnapshot>,
+    /// Party/raid roster, live member states, the ready check and the pending invite.
+    pub group: GroupState,
 }
 
 pub enum AccountEvent {
@@ -91,8 +110,11 @@ pub enum AccountEvent {
     LoadTerrain(LoadTerrain),
     NewWorld(NewWorld),
     TransferError(String),
-    UnitUpdated(UnitSnapshot),
-    UnitRemoved(u64),
+    /// A connection started replicating; its entities replace the previous connection's.
+    ReplicationStarted(std::sync::Arc<Schema>),
+    Replication(ReplicationBatch),
+    /// The connection ended: every replicated entity is gone.
+    ReplicationEnded,
     /// The character roster changed through a server update or response.
     RosterChanged,
     /// A server breath, fatigue or feign-death bar change.
@@ -109,8 +131,28 @@ pub enum AccountEvent {
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
     Auction(AuctionReply),
+    Mail(MailMessage),
+    Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
+    /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
+    GroupNotice(String),
+}
+
+pub(crate) enum MailMessage {
+    Contents(MailboxContents),
+    Failed(MailFailed),
+    Pending(PendingMail),
+}
+
+/// Authoritative loot traffic, retained in `LootChannel` send order.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum LootMessage {
+    Lootable(CorpseLootable),
+    Opened(LootResponse),
+    Removed(LootSlotRemoved),
+    Closed(LootClosed),
+    Failed(LootFailed),
 }
 
 /// Combat traffic that animates units and spawns spell visuals.
@@ -133,10 +175,12 @@ pub enum NpcMessage {
     Vendor(VendorInventory),
     Buyback(BuybackList),
     Inventory(InventorySnapshot),
+    Equipment(EquipmentSnapshot),
     InventoryChanged(InventoryDelta),
     /// `DurabilityStateUpdate.total_repair_cost` (`GetRepairAllCost`).
     RepairCost(u32),
-    /// Retail `UIErrorsFrame` text of a refused interaction, vendor or bag request.
+    InteractionError(InteractionFailed),
+    /// Retail `UIErrorsFrame` text of a refused vendor or bag request.
     Error(String),
 }
 
@@ -158,6 +202,7 @@ impl Account {
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
             damage_meter: None,
+            group: GroupState::default(),
         }
     }
 
@@ -201,6 +246,7 @@ impl Account {
         self.spells.clear();
         self.combat_log.clear();
         self.damage_meter = None;
+        self.group = GroupState::default();
         self.session.token = self.read_token()?;
         Ok(())
     }
@@ -326,6 +372,55 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_use_game_object(&self, object: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InteractionChannel>(UseGameObject { object })
+            .map_err(SessionError)
+    }
+
+    pub fn send_mail_request(&self, request: MailRequest) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, MailChannel>(request)
+            .map_err(SessionError)
+    }
+
+    /// Original cursor requests; only server InventoryDelta changes local contents.
+    pub fn send_inventory_request(
+        &self,
+        request: &game_engine_ui_model::bag_data::InventoryRequest,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::bag_data::InventoryRequest;
+        use shared::protocol::InventoryChannel;
+        let bridge = self.bridge()?;
+        match request {
+            InventoryRequest::Swap(request) => bridge.send::<_, InventoryChannel>(request.clone()),
+            InventoryRequest::Equip(request) => bridge.send::<_, InventoryChannel>(request.clone()),
+            InventoryRequest::Split(request) => bridge.send::<_, InventoryChannel>(request.clone()),
+            InventoryRequest::Destroy(request) => {
+                bridge.send::<_, InventoryChannel>(request.clone())
+            }
+        }
+        .map_err(SessionError)
+    }
+
+    pub fn send_loot_unit(&self, corpse: u64, auto: bool) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(LootUnit { corpse, auto })
+            .map_err(SessionError)
+    }
+
+    pub fn send_loot_slot(&self, corpse: u64, slot: u8) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(LootSlotRequest { corpse, slot })
+            .map_err(SessionError)
+    }
+
+    pub fn send_loot_release(&self, corpse: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, LootChannel>(LootRelease { corpse })
+            .map_err(SessionError)
+    }
+
     /// Ask for the quest markers of NPCs the client sees (`CMSG_QUEST_GIVER_STATUS_MULTIPLE_QUERY`).
     pub fn send_quest_giver_status_query(&self, npcs: Vec<u64>) -> Result<(), SessionError> {
         self.bridge()?
@@ -357,6 +452,9 @@ impl Account {
         match request {
             AuctionRequest::Open => bridge.send::<_, AuctionChannel>(OpenAuctionHouse),
             AuctionRequest::Browse(query) => {
+                bridge.send::<_, AuctionChannel>(QueryAuctionBrowse { query })
+            }
+            AuctionRequest::Listings(query) => {
                 bridge.send::<_, AuctionChannel>(QueryAuctions { query })
             }
             AuctionRequest::Owned => bridge.send::<_, AuctionChannel>(QueryOwnedAuctions),
@@ -417,6 +515,37 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// A group request from chat or the invite popup, on `GroupChannel` as the root
+    /// client's `send_group_command` sends it.
+    pub fn send_group(&self, command: GroupCommand) -> Result<(), SessionError> {
+        let bridge = self.bridge()?;
+        match command {
+            GroupCommand::Invite(name) => {
+                bridge.send::<_, GroupChannel>(GroupInviteIntent { name })
+            }
+            GroupCommand::Uninvite(name) => {
+                bridge.send::<_, GroupChannel>(GroupUninviteIntent { name })
+            }
+            GroupCommand::Promote(name) => {
+                bridge.send::<_, GroupChannel>(PromoteGroupLeader { name })
+            }
+            GroupCommand::Leave => bridge.send::<_, GroupChannel>(LeaveGroup),
+            GroupCommand::ConvertToRaid => bridge.send::<_, GroupChannel>(ConvertGroupToRaid),
+            GroupCommand::ConvertToParty => bridge.send::<_, GroupChannel>(ConvertGroupToParty),
+            GroupCommand::SetRole { name, role } => {
+                bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
+            }
+            GroupCommand::StartReadyCheck => bridge.send::<_, GroupChannel>(StartReadyCheck),
+            GroupCommand::RespondReadyCheck(ready) => {
+                bridge.send::<_, GroupChannel>(RespondReadyCheck { ready })
+            }
+            GroupCommand::RespondInvite(accept) => {
+                bridge.send::<_, GroupChannel>(RespondGroupInvite { accept })
+            }
+        }
+        .map_err(SessionError)
+    }
+
     /// `/dance`, `/wave`, ...: the server plays the emote and sends its chat line.
     pub fn send_emote(&self, intent: EmoteIntent) -> Result<(), SessionError> {
         self.bridge()?
@@ -462,6 +591,7 @@ impl Account {
                 Event::Connected => self.session.receive_connected(),
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
+                    output.push(AccountEvent::ReplicationEnded);
                     let effects = match reason.as_deref() {
                         Some(reason @ HANDSHAKE_TIMEOUT_REASON) => {
                             self.session.receive_connect_failed(reason)
@@ -471,8 +601,10 @@ impl Account {
                     self.apply_effects(effects, &mut output)?;
                 }
                 Event::Message(message) => self.dispatch_message(message, &mut output)?,
-                Event::UnitUpdated(unit) => output.push(AccountEvent::UnitUpdated(unit)),
-                Event::UnitRemoved(id) => output.push(AccountEvent::UnitRemoved(id)),
+                Event::ReplicationStarted(schema) => {
+                    output.push(AccountEvent::ReplicationStarted(schema))
+                }
+                Event::Replication(batch) => output.push(AccountEvent::Replication(batch)),
             }
             if self.bridge.is_none() {
                 break;
@@ -497,6 +629,22 @@ impl Account {
         if Self::is_mirror_timer_message(&message) {
             return Self::dispatch_mirror_timer_message(message, output);
         }
+        if message.is::<MailboxContents>() {
+            output.push(AccountEvent::Mail(MailMessage::Contents(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<MailFailed>() {
+            output.push(AccountEvent::Mail(MailMessage::Failed(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<PendingMail>() {
+            output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if is_loot_message(&message) {
+            output.push(AccountEvent::Loot(receive_loot_message(message)?));
+            return Ok(());
+        }
         if message.is::<CombatEvent>() {
             output.push(AccountEvent::Combat(CombatMessage::Event(decode(message)?)));
             return Ok(());
@@ -511,6 +659,9 @@ impl Account {
         if message.is::<ChatMessage>() {
             output.push(AccountEvent::Chat(decode(message)?));
             return Ok(());
+        }
+        if Self::is_group_message(&message) {
+            return self.dispatch_group_message(message, output);
         }
         self.dispatch_world_message(message, output)
     }
@@ -565,6 +716,44 @@ impl Account {
         }
         let info: InstanceInfo = decode(message)?;
         self.instance_locks = info.locks;
+        Ok(())
+    }
+
+    fn is_group_message(message: &ProtocolMessage) -> bool {
+        message.is::<GroupRosterSnapshot>()
+            || message.is::<GroupMemberStates>()
+            || message.is::<GroupInvitePrompt>()
+            || message.is::<GroupInviteCancelled>()
+            || message.is::<ReadyCheckUpdate>()
+            || message.is::<GroupCommandResponse>()
+    }
+
+    /// Fill [`GroupState`] as the root client's `receive_group` does; results go to chat.
+    fn dispatch_group_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
+        if message.is::<GroupRosterSnapshot>() {
+            self.group.apply_roster(decode(message)?);
+        } else if message.is::<GroupMemberStates>() {
+            let states: GroupMemberStates = decode(message)?;
+            self.group.apply_member_states(states.members);
+        } else if message.is::<GroupInvitePrompt>() {
+            let prompt: GroupInvitePrompt = decode(message)?;
+            self.group.pending_invite = Some(prompt.inviter_name);
+        } else if message.is::<GroupInviteCancelled>() {
+            let cancelled: GroupInviteCancelled = decode(message)?;
+            if self.group.pending_invite.as_deref() == Some(cancelled.inviter_name.as_str()) {
+                self.group.pending_invite = None;
+            }
+        } else if message.is::<ReadyCheckUpdate>() {
+            self.group.apply_ready_check(decode(message)?);
+        } else {
+            let response: GroupCommandResponse = decode(message)?;
+            self.group.last_server_message = Some(response.message.clone());
+            output.push(AccountEvent::GroupNotice(response.message));
+        }
         Ok(())
     }
 
@@ -842,7 +1031,7 @@ fn npc_message(message: ProtocolMessage) -> Result<Result<NpcMessage, ProtocolMe
     } else if message.is::<InteractionClosed>() {
         NpcMessage::Closed(decode::<InteractionClosed>(message)?.npc)
     } else if message.is::<InteractionFailed>() {
-        NpcMessage::Error(decode::<InteractionFailed>(message)?.error.message().into())
+        NpcMessage::InteractionError(decode(message)?)
     } else if message.is::<VendorInventory>() {
         NpcMessage::Vendor(decode(message)?)
     } else if message.is::<BuybackList>() {
@@ -851,6 +1040,8 @@ fn npc_message(message: ProtocolMessage) -> Result<Result<NpcMessage, ProtocolMe
         NpcMessage::Error(decode::<MerchantFailed>(message)?.error.message().into())
     } else if message.is::<InventorySnapshot>() {
         NpcMessage::Inventory(decode(message)?)
+    } else if message.is::<EquipmentSnapshot>() {
+        NpcMessage::Equipment(decode(message)?)
     } else if message.is::<InventoryDelta>() {
         NpcMessage::InventoryChanged(decode(message)?)
     } else if message.is::<InventoryError>() {
@@ -1092,6 +1283,30 @@ mod tests {
     }
 }
 
+fn is_loot_message(message: &ProtocolMessage) -> bool {
+    message.is::<CorpseLootable>()
+        || message.is::<LootResponse>()
+        || message.is::<LootSlotRemoved>()
+        || message.is::<LootClosed>()
+        || message.is::<LootFailed>()
+}
+
+fn receive_loot_message(message: ProtocolMessage) -> Result<LootMessage, String> {
+    if message.is::<CorpseLootable>() {
+        return Ok(LootMessage::Lootable(decode(message)?));
+    }
+    if message.is::<LootResponse>() {
+        return Ok(LootMessage::Opened(decode(message)?));
+    }
+    if message.is::<LootSlotRemoved>() {
+        return Ok(LootMessage::Removed(decode(message)?));
+    }
+    if message.is::<LootClosed>() {
+        return Ok(LootMessage::Closed(decode(message)?));
+    }
+    Ok(LootMessage::Failed(decode(message)?))
+}
+
 fn decode<M: game_engine_network::WireMessage>(message: ProtocolMessage) -> Result<M, String> {
     message.downcast::<M>().map_err(|_| {
         format!(
@@ -1106,6 +1321,8 @@ fn auction_message(
 ) -> Result<Result<AuctionReply, ProtocolMessage>, String> {
     let reply = if message.is::<AuctionHouseOpened>() {
         AuctionReply::Opened(decode(message)?)
+    } else if message.is::<AuctionBrowseResults>() {
+        AuctionReply::Browse(decode(message)?)
     } else if message.is::<AuctionSearchResults>() {
         AuctionReply::Search(decode(message)?)
     } else if message.is::<AuctionInventorySnapshot>() {

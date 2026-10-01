@@ -162,7 +162,7 @@ impl FixtureProject {
             std::os::unix::fs::symlink(entry.path(), data.join("textures").join(name))
                 .map_err(|error| format!("Link authored UI texture: {error}"))?;
         }
-        for folder in ["glues", "fonts", "ui", "db2"] {
+        for folder in ["casc", "glues", "fonts", "ui", "db2"] {
             std::os::unix::fs::symlink(repo.join("data").join(folder), data.join(folder))
                 .map_err(|error| format!("Link authored {folder} assets: {error}"))?;
         }
@@ -177,9 +177,23 @@ impl FixtureProject {
             std::os::unix::fs::symlink(repo.join("data").join(name), data.join(name))
                 .map_err(|error| format!("Link authored {name}: {error}"))?;
         }
-        for name in ["project.godot", "scenes", "shaders", "tests", "ui"] {
-            std::os::unix::fs::symlink(source.join(name), project.join(name))
-                .map_err(|error| format!("Link {name}: {error}"))?;
+        // Every Godot project entry; the extension manifest is copied, and the Rust
+        // workspace and Godot's import cache stay out of the isolated project.
+        for entry in fs::read_dir(&source)
+            .map_err(|error| format!("List Godot project {}: {error}", source.display()))?
+        {
+            let entry = entry.map_err(|error| format!("Read Godot project entry: {error}"))?;
+            let name = entry.file_name();
+            let text = name.to_string_lossy();
+            if text.starts_with('.')
+                || text.starts_with("Cargo.")
+                || text.starts_with("game_engine.gdextension")
+                || entry.path().join("Cargo.toml").is_file()
+            {
+                continue;
+            }
+            std::os::unix::fs::symlink(entry.path(), project.join(&name))
+                .map_err(|error| format!("Link {text}: {error}"))?;
         }
         fs::copy(
             source.join("game_engine.gdextension"),
@@ -214,21 +228,21 @@ impl FixtureProject {
         }
         stage_preview_assets(repo, &data)?;
         stage_lighting(repo, &data)?;
+        // No zone light covers the fixture maps; Light.csv alone lights them.
+        fs::write(
+            data.join("ZoneLight.csv"),
+            "ID,MapID,LightID,TransitionType,Zmin,Zmax\n1,99999,1,0,-100,100\n",
+        )
+        .map_err(|error| format!("Stage fixture ZoneLight.csv: {error}"))?;
+        fs::write(
+            data.join("ZoneLightPoint.csv"),
+            "ZoneLightID,PointOrder,Pos_0,Pos_1\n",
+        )
+        .map_err(|error| format!("Stage fixture ZoneLightPoint.csv: {error}"))?;
         if nameplates {
-            // The visual-only fixture's sampled lighting rows predate the native
-            // FogDensity reader; use the real catalog in this isolated Options run.
+            // The Options run uses the real keyframe catalog instead of the sampled rows.
             fs::copy(repo.join("data/LightData.csv"), data.join("LightData.csv"))
                 .map_err(|error| format!("Stage authored LightData.csv: {error}"))?;
-            fs::write(
-                data.join("ZoneLight.csv"),
-                "ID,MapID,LightID,TransitionType,Zmin,Zmax\n1,99999,1,0,-100,100\n",
-            )
-            .map_err(|error| format!("Stage fixture ZoneLight.csv: {error}"))?;
-            fs::write(
-                data.join("ZoneLightPoint.csv"),
-                "ZoneLightID,PointOrder,Pos_0,Pos_1\n",
-            )
-            .map_err(|error| format!("Stage fixture ZoneLightPoint.csv: {error}"))?;
         }
         stage_npc_appearance(&data)?;
         Ok(Self { root, project })
@@ -264,13 +278,14 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO geosets VALUES (910012,1,2),(910013,1,1),(910017,1,1);
     ")?;
     // Default player hair is not among any NPC's explicit choices, preserving missing-type-6 cases.
-    write_sqlite_fixture(data, "customization.sqlite", "
+    write_sqlite_fixture(data, "customization-v4.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
         CREATE TABLE chr_models (id INTEGER PRIMARY KEY, layout_id INTEGER NOT NULL, customize_scale REAL NOT NULL, camera_distance_offset REAL NOT NULL);
         CREATE TABLE options (id INTEGER PRIMARY KEY, name TEXT NOT NULL, chr_model_id INTEGER NOT NULL, category_id INTEGER NOT NULL, order_index INTEGER NOT NULL, ui_type INTEGER NOT NULL, requirement_id INTEGER NOT NULL);
         CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT NOT NULL, order_index INTEGER NOT NULL, icon INTEGER NOT NULL, selected_icon INTEGER NOT NULL);
         CREATE TABLE choices (id INTEGER PRIMARY KEY, option_id INTEGER NOT NULL, name TEXT NOT NULL, requirement_id INTEGER NOT NULL, order_index INTEGER NOT NULL, visibility_requirement_id INTEGER NOT NULL, swatch_color_0 INTEGER NOT NULL, swatch_color_1 INTEGER NOT NULL);
-        CREATE TABLE elements (choice_id INTEGER NOT NULL, related_choice_id INTEGER NOT NULL, geoset_id INTEGER NOT NULL, material_id INTEGER NOT NULL, has_unsupported_effects INTEGER NOT NULL);
+        CREATE TABLE elements (choice_id INTEGER NOT NULL, related_choice_id INTEGER NOT NULL, geoset_id INTEGER NOT NULL, material_id INTEGER NOT NULL, skinned_model_id INTEGER NOT NULL, has_unsupported_effects INTEGER NOT NULL);
+        CREATE TABLE skinned_models (id INTEGER PRIMARY KEY, collection_fdid INTEGER NOT NULL, geoset_type INTEGER NOT NULL, geoset_id INTEGER NOT NULL);
         CREATE TABLE materials (id INTEGER PRIMARY KEY, texture_target_id INTEGER NOT NULL, material_resources_id INTEGER NOT NULL);
         CREATE TABLE geosets (id INTEGER PRIMARY KEY, geoset_type INTEGER NOT NULL, geoset_id INTEGER NOT NULL);
         CREATE TABLE hair_geosets (model_id INTEGER NOT NULL, geoset_type INTEGER NOT NULL, geoset_id INTEGER NOT NULL, shows_scalp INTEGER NOT NULL, PRIMARY KEY(model_id,geoset_type,geoset_id));
@@ -285,18 +300,19 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
             (910032,910052,'Base skin',0,0,0,0,0),(910033,910053,'Body color',0,0,0,0,0),
             (910034,910054,'Head color',0,0,0,0,0),(910035,910055,'Hair color',0,0,0,0,0),(910036,910056,'Eye color',0,0,0,0,0),
             (910037,910057,'Player hair',0,0,0,0,0);
-        INSERT INTO elements VALUES (910030,0,0,910070,0),(910031,910030,910080,910071,0),
-            (910032,0,0,910070,0),(910033,0,0,910071,0),(910034,0,0,910074,0),(910035,0,0,910075,0),(910036,0,0,910076,0),
-            (910037,0,0,910075,0);
+        INSERT INTO elements VALUES (910030,0,0,910070,0,0),(910031,910030,910080,910071,0,0),
+            (910032,0,0,910070,0,0),(910033,0,0,910071,0,0),(910034,0,0,910074,0,0),(910035,0,0,910075,0,0),(910036,0,0,910076,0,0),
+            (910037,0,0,910075,0,0);
         INSERT INTO materials VALUES (910070,1,910072),(910071,2,910073),(910074,9,910076),(910075,10,910077),(910076,11,910078);
         INSERT INTO geosets VALUES (910080,1,2);
         INSERT INTO texture_fdids VALUES (910072,910021),(910073,910022),(910076,910023),(910077,910024),(910078,910025);
     ")?;
-    write_sqlite_fixture(data, "char_texture.sqlite", "
+    write_sqlite_fixture(data, "char_texture-v2.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
         CREATE TABLE layers (texture_type INTEGER NOT NULL, layer INTEGER NOT NULL, blend_mode INTEGER NOT NULL, section_bitmask INTEGER NOT NULL, target_id INTEGER NOT NULL, layout_id INTEGER NOT NULL);
         CREATE TABLE sections (layout_id INTEGER NOT NULL, section_type INTEGER NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY(layout_id,section_type));
         CREATE TABLE layouts (id INTEGER PRIMARY KEY, width INTEGER NOT NULL, height INTEGER NOT NULL);
+        CREATE TABLE model_materials (layout_id INTEGER NOT NULL, texture_type INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY (layout_id, texture_type));
         INSERT INTO layouts VALUES (910041,2,2),(910043,2048,1024);
         INSERT INTO layers VALUES (1,0,0,-1,1,910041),(1,1,0,-1,2,910041),
             (1,0,0,-1,1,910043),(1,1,0,-1,2,910043),
@@ -412,6 +428,41 @@ fn stage_fixture_listfile(repo: &Path, data: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Authored terrain heights at the fixture's unit positions (z = 3). The fixture maps
+/// stream their real ADT tiles here, so units at the former y = 2 stood about 80 yd
+/// underground and the world camera, held above the terrain, was beyond the 60-yard
+/// NPC animation LOD range (measured with `terrain_height_at`, 2026-10-01; kalimdor
+/// has no terrain at these coordinates).
+fn fixture_position(map: &str, x: f32) -> Position {
+    let heights: &[(f32, f32)] = match map {
+        "azeroth" => &[
+            (1.0, 82.654),
+            (5.0, 81.259),
+            (6.0, 80.951),
+            (7.0, 80.670),
+            (8.0, 80.409),
+            (9.0, 80.196),
+            (60.0, 69.082),
+        ],
+        // No kalimdor tile has ground here; units keep the player's azeroth height so
+        // camera distances stay horizontal.
+        "kalimdor" => &[
+            (1.0, 69.082),
+            (5.0, 69.082),
+            (7.0, 69.082),
+            (8.0, 69.082),
+            (9.0, 69.082),
+        ],
+        _ => panic!("no measured ground for fixture map {map}"),
+    };
+    let y = heights
+        .iter()
+        .find(|(at, _)| *at == x)
+        .unwrap_or_else(|| panic!("no measured {map} ground at x {x}"))
+        .1;
+    Position { x, y, z: 3.0 }
+}
+
 fn stage_lighting(repo: &Path, data: &Path) -> Result<(), String> {
     stage_fixture_listfile(repo, data)?;
     let mut wdt = Vec::new();
@@ -427,20 +478,37 @@ fn stage_lighting(repo: &Path, data: &Path) -> Result<(), String> {
     }
     let lights = "ID,GameCoords_0,GameCoords_1,GameCoords_2,GameFalloffStart,GameFalloffEnd,ContinentID,LightParamsID_0,LightParamsID_1,LightParamsID_2,LightParamsID_3,LightParamsID_4,LightParamsID_5,LightParamsID_6,LightParamsID_7\n\
 1,0,0,0,0,0,0,1,0,0,0,0,0,0,0\n\
-2,60,-3,2,10,15,0,2,0,0,0,0,0,0,0\n\
+2,60,-3,69.08,10,15,0,2,0,0,0,0,0,0,0\n\
 3,0,0,0,0,0,1,3,0,0,0,0,0,0,0\n";
     fs::write(data.join("Light.csv"), lights)
         .map_err(|error| format!("Write fixture Light.csv: {error}"))?;
-    let header = "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,HorizonAmbientColor,GroundAmbientColor,FogEnd,FogScaler,SunFogStrength,CloudDensity,Field_10_0_0_44649_042,Field_12_0_0_63854_043\n";
-    let mut keyframes = header.to_owned();
+    // Sampled keyframes in the authored catalog's current columns; unnamed columns are 0.
+    let authored = fs::read_to_string(repo.join("data/LightData.csv"))
+        .map_err(|error| format!("Read authored LightData.csv header: {error}"))?;
+    let header = authored
+        .lines()
+        .next()
+        .ok_or("Empty authored LightData.csv")?;
+    let mut keyframes = format!("{header}\n");
     for (id, ambient, direct) in [
         (1, 0x336699, 0x775533),
         (2, 0x995533, 0x337799),
         (3, 0x226688, 0x994433),
     ] {
-        keyframes.push_str(&format!(
-            "{id},{id},0,{direct},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},1000,0.2,0.5,0.2,0,0\n"
-        ));
+        let row: Vec<String> = header
+            .split(',')
+            .map(|column| match column {
+                "ID" | "LightParamID" => id.to_string(),
+                "DirectColor" => direct.to_string(),
+                "FogEnd" => "1000".into(),
+                "FogScaler" | "CloudDensity" => "0.2".into(),
+                "SunFogStrength" => "0.5".into(),
+                color if color.ends_with("Color") => ambient.to_string(),
+                _ => "0".into(),
+            })
+            .collect();
+        keyframes.push_str(&row.join(","));
+        keyframes.push('\n');
     }
     fs::write(data.join("LightData.csv"), keyframes)
         .map_err(|error| format!("Write fixture LightData.csv: {error}"))
@@ -557,11 +625,7 @@ fn respond_to_selection(
                     class: 2,
                     appearance: Default::default(),
                 },
-                Position {
-                    x: 1.0,
-                    y: 2.0,
-                    z: 3.0,
-                },
+                fixture_position("azeroth", 1.0),
                 Replicate::to_clients(NetworkTarget::All),
             ))
             .id();
@@ -602,11 +666,7 @@ fn spawn_named_npc(app: &mut App, display_id: u32, name: &str) -> Entity {
                 name: name.into(),
             },
             ModelDisplay { display_id },
-            Position {
-                x: 5.0,
-                y: 2.0,
-                z: 3.0,
-            },
+            fixture_position("azeroth", 5.0),
             Replicate::to_clients(NetworkTarget::All),
         ))
         .id()
@@ -621,7 +681,9 @@ fn run_fixture(
     let mut player = None;
     let mut npc = None;
     let mut phase = 0;
-    let deadline = Instant::now() + Duration::from_secs(110);
+    // Covers the flow's cold-CASC login and two cold map loads (STARTUP_WAIT_MS,
+    // WORLD_LOAD_WAIT_MS).
+    let deadline = Instant::now() + Duration::from_secs(600);
     let mut readers = Some(readers);
     let mut saw_missing_type6_error = false;
     while Instant::now() < deadline {
@@ -646,11 +708,7 @@ fn run_fixture(
                         .entity_mut(npc.expect("spawned NPC"))
                         .insert((
                             ModelDisplay { display_id: 910010 },
-                            Position {
-                                x: 6.0,
-                                y: 2.0,
-                                z: 3.0,
-                            },
+                            fixture_position("azeroth", 6.0),
                         ));
                     phase = 1;
                 }
@@ -664,11 +722,7 @@ fn run_fixture(
                     app.world_mut()
                         .entity_mut(player.expect("spawned player"))
                         .insert((
-                            Position {
-                                x: 60.0,
-                                y: 2.0,
-                                z: 3.0,
-                            },
+                            fixture_position("azeroth", 60.0),
                             MovementControl {
                                 epoch: 1,
                                 controlled: true,
@@ -703,6 +757,17 @@ fn run_fixture(
                     phase = 8;
                 }
                 (8, "FIXTURE NPC_RESTORED") => {
+                    // Back beside the NPC positions: the world camera faces the NPCs from
+                    // here, so the animation LOD samples them for the pose checks.
+                    app.world_mut()
+                        .entity_mut(player.expect("spawned player"))
+                        .insert((
+                            fixture_position("kalimdor", 1.0),
+                            MovementControl {
+                                epoch: 2,
+                                controlled: true,
+                            },
+                        ));
                     let link = app
                         .world()
                         .resource::<Incoming>()
@@ -736,11 +801,7 @@ fn run_fixture(
                                 template_id: 6491,
                                 name: NPC.into(),
                             },
-                            Position {
-                                x: 7.0,
-                                y: 2.0,
-                                z: 3.0,
-                            },
+                            fixture_position("kalimdor", 7.0),
                         ));
                     phase = 11;
                 }
@@ -752,11 +813,7 @@ fn run_fixture(
                                 current: 0.0,
                                 max: 10.0,
                             },
-                            Position {
-                                x: 8.0,
-                                y: 2.0,
-                                z: 3.0,
-                            },
+                            fixture_position("kalimdor", 8.0),
                         ));
                     phase = 12;
                 }
@@ -784,11 +841,7 @@ fn run_fixture(
                         });
                     app.world_mut()
                         .entity_mut(npc.expect("spawned NPC"))
-                        .insert(Position {
-                            x: 9.0,
-                            y: 2.0,
-                            z: 3.0,
-                        });
+                        .insert(fixture_position("kalimdor", 9.0));
                     phase = 15;
                 }
                 (15, "FIXTURE RESURRECTED_READY") => {
@@ -825,11 +878,7 @@ fn run_fixture(
                             name: DEAD_ON_SPAWN.into(),
                         },
                         ModelDisplay { display_id: 910010 },
-                        Position {
-                            x: 5.0,
-                            y: 2.0,
-                            z: 3.0,
-                        },
+                        fixture_position("kalimdor", 5.0),
                         Health {
                             current: 0.0,
                             max: 10.0,
@@ -901,7 +950,10 @@ fn populate_nameplate_units(app: &mut App, player: Entity, npc: Entity) {
                 power: shared::components::PowerType::Mana,
                 current: 19,
                 max: 60,
+                partial: 0,
+                regen_per_sec: 0.0,
             }],
+            charged_points: Vec::new(),
         },
         Position {
             x: -8949.0,
@@ -978,7 +1030,8 @@ fn run_nameplate_fixture(
     let (mut player, mut npc) = (None, None);
     let mut ready = false;
     let mut completed = false;
-    let deadline = Instant::now() + Duration::from_secs(60);
+    // Covers the flow's cold-CASC login allowance (STARTUP_WAIT_MS) and world load.
+    let deadline = Instant::now() + Duration::from_secs(420);
     let mut readers = Some(readers);
     while Instant::now() < deadline {
         app.update();

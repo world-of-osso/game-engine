@@ -24,6 +24,18 @@ pub struct PointLight {
     pub visible: bool,
 }
 
+impl PointLight {
+    /// Attenuation start as a fraction of the end: where the linear ramp begins
+    /// (WebWowViewerCpp `pointLight.frag.slang:51`). A zero-reach light has none.
+    pub fn start_fraction(&self) -> f32 {
+        if self.attenuation_end > 0.0 {
+            (self.attenuation_start / self.attenuation_end).clamp(0.0, 1.0)
+        } else {
+            0.0
+        }
+    }
+}
+
 /// The playing sequence and clocks a light's tracks read.
 #[derive(Clone, Copy, Debug)]
 pub struct LightTime<'a> {

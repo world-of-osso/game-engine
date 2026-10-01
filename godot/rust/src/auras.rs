@@ -7,6 +7,9 @@
 
 use std::collections::HashMap;
 use std::f32::consts::TAU;
+
+use crate::replicated::UnitFields;
+use shared::components::UnitAuras;
 use std::time::Instant;
 
 use game_engine_session::SessionScreen;
@@ -14,6 +17,8 @@ use game_engine_ui_model::aura_display_data::{AuraCasterLookup, AuraInstance, au
 use game_engine_ui_model::buff_frame_component::{
     BuffFrameState, aura_button_name, aura_warning_alpha,
 };
+use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarView;
+use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use game_engine_ui_model::inworld_unit_frames_component::{
     TargetAuraIconState, TargetAuraView, UnitFrameState, set_target_auras,
 };
@@ -51,6 +56,8 @@ pub(crate) struct Auras {
     edge: Option<Option<Gd<Texture2D>>>,
     /// The TargetFrame's buff and debuff icons as last shown.
     target_icons: (Vec<TargetAuraIconState>, Vec<TargetAuraIconState>),
+    /// The class bar's Cooldown swipe crop (a rune `-LevelBar`) as loaded.
+    class_bar_swipe: Option<(AtlasArt, Gd<Texture2D>)>,
 }
 
 impl Auras {
@@ -99,6 +106,33 @@ impl Auras {
         Ok(texture)
     }
 
+    /// `art` cut from its atlas, loaded once per crop.
+    fn class_bar_swipe(
+        &mut self,
+        art: &AtlasArt,
+        ui: &RegistryUi,
+    ) -> Result<Gd<Texture2D>, String> {
+        if let Some((loaded, texture)) = &self.class_bar_swipe
+            && loaded == art
+        {
+            return Ok(texture.clone());
+        }
+        let registry = ui.registry().ok_or("Class bar swipe before the UI model")?;
+        let (image, _) =
+            crate::ui::assets::load_source(&TextureSource::FileDataId(art.fdid), registry)?;
+        let (left, right, top, bottom) = art.rect;
+        let scale = image.get_width() as f32 / art.atlas.0;
+        let region = [
+            left * scale,
+            top * scale,
+            (right - left) * scale,
+            (bottom - top) * scale,
+        ];
+        let texture = crate::ui::assets::sub_texture(&image, region);
+        self.class_bar_swipe = Some((*art, texture.clone()));
+        Ok(texture)
+    }
+
     fn edge_texture(&mut self, ui: &RegistryUi) -> Option<Gd<Texture2D>> {
         self.edge
             .get_or_insert_with(|| {
@@ -130,16 +164,14 @@ fn counted_down(mut auras: Vec<AuraInstance>, elapsed: f32) -> Vec<AuraInstance>
 impl GameClient {
     /// Displayable auras of `unit` now.
     fn unit_auras(&self, unit: u64) -> Vec<AuraInstance> {
-        let Some(views) = self.units.get(&unit).and_then(|unit| unit.auras.as_ref()) else {
+        let Some(views) = self
+            .replica
+            .unit(unit)
+            .and_then(|unit| unit.get::<UnitAuras>())
+        else {
             return Vec::new();
         };
-        let name_of = |caster: u64| {
-            let unit = self.units.get(&caster)?;
-            unit.player
-                .as_ref()
-                .map(|player| player.name.clone())
-                .or_else(|| unit.npc.as_ref().map(|npc| npc.name.clone()))
-        };
+        let name_of = |caster: u64| Some(self.replica.unit(caster)?.name()?.to_owned());
         let casters = AuraCasterLookup {
             local_player: self.world.local_player_id(),
             name_of: &name_of,
@@ -159,11 +191,14 @@ impl GameClient {
     }
 
     fn reaction_to(&mut self, unit: u64) -> Reaction {
-        let target = self.units.get(&unit).and_then(|unit| unit.faction_template);
+        let target = self
+            .replica
+            .unit(unit)
+            .and_then(UnitFields::faction_template);
         let viewer = self
             .world
             .local_player_id()
-            .and_then(|player| self.units.get(&player)?.faction_template);
+            .and_then(|player| self.replica.unit(player)?.faction_template());
         match self.nameplates.templates(&self.data_root) {
             Ok(templates) => reaction(
                 target.and_then(|id| templates.get(&id)),
@@ -178,9 +213,9 @@ impl GameClient {
         let player_is_target = self.world.local_player_id() == Some(target);
         let reaction = self.reaction_to(target);
         let npc = self
-            .units
-            .get(&target)
-            .is_some_and(|unit| unit.npc.is_some());
+            .replica
+            .unit(target)
+            .is_some_and(|unit| unit.has::<shared::components::Npc>());
         let view = TargetAuraView {
             player_is_target,
             friendly: player_is_target || reaction == Reaction::Friendly,
@@ -216,6 +251,28 @@ impl GameClient {
                     sync_swipe(control, icon, &swipe, edge.as_ref());
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Class bar Cooldown frames (RuneFrame.xml:83-92): a `reverse` swipe fills the
+    /// spec's `-LevelBar` clockwise as the rune recharges.
+    pub(super) fn sync_class_bar_swipes(
+        &mut self,
+        view: Option<&ClassBarView>,
+    ) -> Result<(), String> {
+        let Some(ui) = self.targeting.frame_ui().cloned() else {
+            return Ok(());
+        };
+        for texture in view.into_iter().flat_map(|view| &view.textures) {
+            let Some(progress) = texture.swipe else {
+                continue;
+            };
+            let Some(control) = ui.bind().frame_control(&texture.name) else {
+                continue;
+            };
+            let art = self.auras.class_bar_swipe(&texture.art, &ui.bind())?;
+            sync_class_bar_swipe(control, &art, progress);
         }
         Ok(())
     }
@@ -367,6 +424,28 @@ fn flash_expiring(ui: &RegistryUi, auras: &[AuraInstance], clock: f32) {
 
 /// The dark swipe covers the elapsed part clockwise from 12 o'clock; the edge marks its
 /// leading side. Permanent auras have neither.
+fn sync_class_bar_swipe(mut cooldown: Gd<Control>, art: &Gd<Texture2D>, progress: f32) {
+    let mut bar = match cooldown.get_node_or_null(SWIPE_NODE) {
+        Some(node) => node.cast::<TextureProgressBar>(),
+        None => {
+            let mut bar = TextureProgressBar::new_alloc();
+            bar.set_name(SWIPE_NODE);
+            bar.set_mouse_filter(control::MouseFilter::IGNORE);
+            bar.set_fill_mode(FillMode::CLOCKWISE);
+            bar.set_min(0.0);
+            bar.set_max(1.0);
+            bar.set_step(0.0);
+            cooldown.add_child(&bar);
+            bar
+        }
+    };
+    bar.set_progress_texture(art);
+    let native = art.get_size();
+    bar.set_size(native);
+    bar.set_scale(cooldown.get_size() / native);
+    bar.set_value(f64::from(progress));
+}
+
 fn sync_swipe(
     mut cooldown: Gd<Control>,
     icon: &TargetAuraIconState,

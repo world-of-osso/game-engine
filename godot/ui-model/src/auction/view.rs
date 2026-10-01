@@ -153,43 +153,29 @@ fn categories(selected: Option<usize>) -> Vec<CategoryRow> {
         .collect()
 }
 
-/// Search results in the selected category (by the item's `ClassID`).
-fn category_results<'a>(inputs: &'a ViewInputs) -> impl Iterator<Item = &'a AuctionListingSummary> {
-    inputs.net.search_results.iter()
-}
-
-/// One row per item in result order: lowest per-item price (buyout, else bid) and the
-/// total quantity on sale — Retail's browse result `minPrice` / `totalQuantity`.
+/// Server-global item totals, already ordered and paged over distinct items.
 fn browse_rows(inputs: &ViewInputs) -> Vec<BrowseRow> {
-    let mut rows: Vec<BrowseRow> = Vec::new();
-    for listing in category_results(inputs) {
-        let price = listing
-            .buyout_price
-            .map_or_else(|| listing_bid(listing), u64::from)
-            / u64::from(listing.stack_count.max(1));
-        match rows
-            .iter_mut()
-            .find(|row| row.item_id == listing.item.item_id)
-        {
-            Some(row) => {
-                row.price = row.price.min(price);
-                row.available += listing.stack_count;
-            }
-            None => rows.push(BrowseRow {
-                item_id: listing.item.item_id,
-                item: inputs.item_line(&listing.item),
-                price,
-                available: listing.stack_count,
-            }),
-        }
-    }
-    rows
+    inputs
+        .net
+        .browse_results
+        .iter()
+        .map(|item| BrowseRow {
+            item_id: item.item_id,
+            item: ItemLine {
+                name: item.name.clone(),
+                quality: item.quality,
+                icon_fdid: (inputs.catalog)(item.item_id).map_or(0, |entry| entry.icon_fdid),
+            },
+            price: item.lowest_unit_price,
+            available: item.total_quantity,
+        })
+        .collect()
 }
 
 /// `BROWSE_NO_RESULTS` once a search came back empty.
 fn browse_empty_text(inputs: &ViewInputs) -> Option<String> {
     let searched = inputs.net.last_query.is_some();
-    (searched && category_results(inputs).next().is_none()).then(|| "No items found".into())
+    (searched && inputs.net.browse_results.is_empty()).then(|| "No items found".into())
 }
 
 fn item_buy(inputs: &ViewInputs) -> Option<ItemBuyView> {

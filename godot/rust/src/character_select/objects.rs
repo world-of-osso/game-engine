@@ -73,19 +73,9 @@ pub(super) struct CampsiteObjects {
 }
 
 impl CampsiteObjects {
-    pub fn new(
-        data_root: PathBuf,
-        cache_root: PathBuf,
-        primary: (u32, u32),
-        focus: Vector3,
-    ) -> Self {
+    pub fn new(data_root: PathBuf, primary: (u32, u32), focus: Vector3) -> Self {
         Self {
-            objects: TerrainObjects::new(
-                "CampsiteObjects",
-                CAMPSITE_OBJECT_BUDGET,
-                data_root,
-                cache_root,
-            ),
+            objects: TerrainObjects::new("CampsiteObjects", CAMPSITE_OBJECT_BUDGET, data_root),
             selection: CampsiteSelection {
                 primary,
                 focus: glam::Vec3::from_array(focus.to_array()),
