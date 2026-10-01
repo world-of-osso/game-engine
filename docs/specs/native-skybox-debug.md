@@ -38,7 +38,10 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 - `src/main.rs` — preserved Bevy skybox resource insertion.
 - `src/scenes/skybox_debug/mod.rs` — original scene, composition and camera behavior.
 - `src/scenes/skybox_debug/resolution.rs` — original authored lookup and existing source-fallback boundary.
-- `godot/rust/src/startup.rs` — native screen dispatch and consumer integration boundary; implementation/proof remains separate from parser support.
+- `godot/rust/src/startup.rs` — native offline screen dispatch; options reach the controller without account authentication.
+- `godot/rust/src/skybox_debug.rs` — original composition flags, current orbit camera, real mouse input and authored material clock; live options come from the existing `CameraOptionsFile`.
+- `godot/rust/src/character_select/sky.rs` — shared authored M2 loading with exact source metadata and fixed-time material/bone sampling; character-select default entry remains unchanged.
+- `godot/rust/src/skybox_debug/environment.rs` — original procedural/reference layer; custom radial linear fog is shader-owned, not stock Environment fog. Physical-unit/image equivalence remains unproved.
 
 ## Tests asserting this spec
 
@@ -46,6 +49,7 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 - `godot/core/src/skybox_debug_data.rs` tests — cached LightSkybox653 → FDID5412968/flags15, LightParams5615 → skybox653, and explicit unknown-row error; not runtime/render proof.
 - `launcher/tests/process.rs` — three `skybox` process cases asserting exact recorded Godot argv with fake build/Godot executables; not native runtime proof.
 - `src/scenes/skybox_debug/tests.rs` — legacy source, composition, FOV and camera-relative behavior references; not native acceptance.
+- `godot/tests/skybox_debug_screen.gd` — production observer for cached source cases, real orbit/zoom, composition and hide/restore image attribution. Script/runtime proof is pending; attribution is not original-expected pixel parity.
 
 ## Known gaps (current cycle)
 

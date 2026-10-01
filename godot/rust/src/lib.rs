@@ -59,6 +59,7 @@ mod quests;
 mod replicated;
 mod scene;
 mod selection_debug;
+mod skybox_debug;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
@@ -1446,6 +1447,9 @@ impl GameClient {
             ("UI scale", |c, _| Ok(c.sync_registry_ui_scale()?)),
             ("UI click sounds", |c, _| Ok(c.play_ui_clicks()?)),
             ("UI actions", |c, _| c.poll_ui_actions()),
+            ("Skybox debug options", |c, _| {
+                Ok(c.update_skybox_debug_options()?)
+            }),
             ("Account", |c, _| c.poll_account()),
             ("Unit visuals", |c, _| {
                 c.world.attach_loaded_visuals(&c.replica);
