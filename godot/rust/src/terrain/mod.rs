@@ -2,6 +2,7 @@
 mod assets;
 pub(crate) mod doodad_collision;
 pub(crate) mod ground_detail;
+pub(crate) mod horizon;
 pub(crate) mod material;
 pub(crate) mod objects;
 mod probe;
