@@ -46,7 +46,7 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
         let mesh = node.cast::<MeshInstance3D>();
         // The native M2 loader creates one surface and one ShaderMaterial per batch.
         let mut material = mesh
-            .get_surface_override_material(0)
+            .get_material_override()
             .expect("M2 batch has an authored material")
             .cast::<ShaderMaterial>();
         match light {
