@@ -1,3 +1,7 @@
+## 2026-10-01 — LiquidObject missing rows knowledge preservation
+
+[Investigation SSOT](investigations/northshire-pale-water.md#native-liquidobject-missing-rows--unresolved) preserves supplied MAIN base/copy, cached content identity and bounded XFTH membership evidence; authoritative consumer/overlay semantics remain unresolved. Docs only, no new independent data/runtime proof.
+
 ## 2026-10-01 — Native JS negative startup bounded docs audit
 
 [Evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) adds tests-only absent-focus typing rejection/successor suppression and distinguishes historical parse-error setup from RED and observer-owned exit from production auto-exit. MAIN accepts independent1568 bounded source/readability/supplied-runtime PASS; broad JS/root-format FULL goal and retained warnings remain open. Three owned docs only; no code/tests/build/runtime/delegation/operations or index change.

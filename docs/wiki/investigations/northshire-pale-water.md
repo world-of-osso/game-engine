@@ -37,6 +37,51 @@ Proof: `godot/core/tests/wmo_liquid.rs` (5 tests): the resolution table; interio
 - `liquid_water.rs` also covers LVF 1/3 arrays, magma/slime resolution and the Searing Gorge tile's 53 magma layers re-read as LVF 1; `blp_tests.rs` covers BC5.
 - Before/after Northshire sweeps: `data/diagnostics/water-2026-09-30/{before,after}/`. Streams now show a teal-tinted, refracted stream bed near the camera instead of the opaque pale sheet.
 
+## Native LiquidObject missing rows — unresolved
+
+**Verified: 2026-10-01.** Supplied MAIN read-only reports, not new independent proof. This char-select failure is separate from the Northshire fixes above; no fix or exhaustive liquid parity is claimed.
+
+### Failure boundary
+
+Adventurer's Rest has **133 missing-row layers and omitted water meshes**, for six LiquidObject IDs: `42, 13134, 13136, 13137, 13138, 13139`. Raw MH2O `(liquid_type, liquid_object)` counts account for every logged failure:
+
+| Root | FDID | Failing pairs and layer counts |
+|---|---:|---|
+| Supplemental `2703_31_36.adt` | 5493433 | `(2,42)` ×16; `(5,13134)` ×5; `(5,13136)` ×13; `(5,13137)` ×3; `(81,13138)` ×26; `(5,13139)` ×39: **102** |
+| Primary `2703_31_37.adt` | 5493438 | `(2,42)` ×31: **31** |
+
+The native material lookup misses the object row and `WaterMaterials::layer_mesh()` omits that layer. Historical logs lack `root_path`; exact pair/count correspondence supports tile attribution, not direct historical path telemetry.
+
+Base DB2 copy handling works: the exporter applies copy destinations after explicit source IDs. The inspected WDC5 has 314 stored records and 7,768 copy pairs; in-memory export yields 8,082 rows matching CSV. None of the six IDs occurs in base IDs or copy destinations. Exporter copy omission is excluded for this file.
+
+### Content identity and container membership
+
+Active product `wow` is `12.1.0.69933`, build key `dcfc90fffd79ba00406ae46f5f657592`. Local MD5s match the active cached root ContentKeys:
+
+| FDID | Local file | MD5 / cached root ContentKey |
+|---:|---|---|
+| 1308058 | `data/dbfilesclient/1308058.db2` | `a2fc7df6448cecb865e2ca09db835e35` |
+| 5493433 | `data/terrain/5493433.adt` | `9c9f48805fd0f621026828473527d841` |
+| 5493438 | `data/terrain/5493438.adt` | `d9b6adbf952398ee4edfe535ac79e30e` |
+
+Named ADT roots also match their FDID files byte-for-byte. This establishes internal active-build cache-namespace identity, **not authenticated production provenance**, semantic authority or historical runtime consumption. DB2 internal build `WOWSTATIC_12_1_0_68914` alone does not prove stale content.
+
+The actual WDC5 header supplies table hash `0xfc2a0dff` at byte **152** (layout hash `0xcb0d39e8` at 156). DBD is not required for container hash membership; semantic field decoding still needs a matching schema.
+
+MAIN fully parsed retail `DBCache.bin`, XFTH9/build69933: **139,431 records, zero LiquidObject table entries**, across all entry states with validated entry magic, boundaries and final offset. SHA-256: `07179f115da6ebfa46e382d912292d85d8b301ae14fc329f17d1b9dea2901301`. Supplied MAIN follow-up queried three current-build tmp containers of **45,241 / 64,874 / 121,713 records**: each has zero entries for the same table hash. Four older containers were skipped; temporary-container applicability is unknown. These bounded absences do not establish absence from every client overlay or remote source.
+
+### Remaining authoritative gap
+
+Obtain authoritative active-build overlay rows with provenance and schema-backed decoding, or actual target-client lookup behavior for a failing ID. Determine whether the consumer supplies additional rows or interprets these MH2O entries differently; tie its resolution to exact root/FDID bytes. Current evidence does not decide that consumer/overlay semantic boundary. No fallback/default records, parser reinterpretation or cache rewrites are justified or implemented.
+
+## Sources
+
+- `/tmp/claude/native-charselect-water-provenance.md` — supplied MAIN-corrected pair counts, FDID files and historical-path limits.
+- `/tmp/claude/native-liquidobject-copy-records-seam.md` — base/copy membership and exporter behavior.
+- `/tmp/claude/native-liquidobject-active-content-hotfix.md` — active cached ContentKeys and namespace/authenticity limits; initial undecoded-cache limits superseded by membership evidence below.
+- `/tmp/claude/native-liquidobject-hotfix-container-main.md` — MAIN retail container walk and actual WDC5 hash offset; its tmp-not-queried limit superseded only by supplied MAIN follow-up.
+- Supplied MAIN follow-up in knowledge-preservation request, 2026-10-01 — three current-build tmp counts/zero membership and four older containers skipped; no new independent proof here.
+
 ## Open
 
 - **Specular power: unknown for retail.** The shaders use `uExteriorSpecularColor.a = 1.0` from WebWowViewerCpp `MapSceneRenderer.cpp`. Retail's `dx_5_0` water pixel shaders (`procwaterabove.bls` FDID 2977223, `water.bls` 2977281) read the exponent from `cb1[5].w`, a CPU-set constant with no reflection names, so its value is not in the shader. The Wrath 3.3.5 client uses 6.0 (solarityclient `crates/rendering/src/liquid/shader_uniform.rs:159-160`, "Native 8A38B0 uses the constant at 9E8CF8"); that is not retail evidence. With power 1, distant water gets a pale sun-coloured haze.
@@ -45,4 +90,6 @@ Proof: `godot/core/tests/wmo_liquid.rs` (5 tests): the resolution table; interio
 ## See Also
 
 - [[terrain]] — MH2O geometry and streaming
+- [[adt-format]] — root MH2O data
+- [[db2-format]] — table schemas and decoded records
 - [[retail-lighting]] — LightParams blend the water colours use
