@@ -129,7 +129,7 @@ impl GameClient {
     /// `OpenAllBags`/`CloseAllBags` in MerchantFrame.lua:147/165, MailFrame.lua:63/73,
     /// Blizzard_AuctionHouseFrame.lua:402/462, BankFrame.lua:74/81). TradeFrame and
     /// GuildBankFrame do not open bags. A new NPC window adds its entry here.
-    fn npc_bag_windows(&self) -> [(WindowId, bool); 3] {
+    fn npc_bag_windows(&self) -> [(WindowId, bool); 4] {
         [
             (WindowId::Merchant, self.merchant.session.is_open()),
             (WindowId::Mail, self.mailbox.session.is_open()),
@@ -137,12 +137,15 @@ impl GameClient {
                 WindowId::AuctionHouse,
                 self.auction.session.ui.npc.is_some(),
             ),
+            (WindowId::Bank, self.bank_backpack_open()),
         ]
     }
 
     /// NPC windows that draw the backpack inside their own canvas.
     fn npc_backpack_embedded(&self) -> bool {
-        self.merchant.session.is_open() || self.mailbox.session.is_open()
+        self.merchant.session.is_open()
+            || self.mailbox.session.is_open()
+            || self.guild_bank_backpack_embedded()
     }
 
     fn sync_npc_bags(&mut self) {
@@ -216,6 +219,9 @@ impl GameClient {
         click: game_engine_ui_model::merchant::Click,
     ) -> Result<(), FrameError> {
         if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
+            if click.right && self.bank_bag_right_click(action)? {
+                return Ok(());
+            }
             self.bag_cursor_click(action, click)
         } else {
             Ok(self.toggle_bag_action(action)?)

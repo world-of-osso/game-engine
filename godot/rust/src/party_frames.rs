@@ -263,6 +263,7 @@ impl GameClient {
         hud.popups.tick(Duration::from_secs_f32(delta.max(0.0)));
         let results = hud.popups.drain_results();
         self.dispatch_bag_destroy_results(&results)?;
+        self.dispatch_bank_popup_results(&results)?;
         self.hide_stale_bag_destroy_popups();
         for accept in invite_answers(&results) {
             self.account.group.pending_invite = None;
