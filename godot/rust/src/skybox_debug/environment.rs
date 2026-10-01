@@ -306,26 +306,22 @@ fn dome_mesh_arrays(vertices: &[DomeVertex]) -> VarArray {
         .iter()
         .map(|vertex| Vector2::from_array(vertex.1))
         .collect();
+    let positions = PackedVector3Array::from(positions.as_slice()).to_variant();
+    let normals = PackedVector3Array::from(normals.as_slice()).to_variant();
+    let uv = PackedVector2Array::from(uv.as_slice()).to_variant();
+    let indices = PackedInt32Array::from(dome_indices().as_slice()).to_variant();
+    mesh_arrays([
+        (mesh::ArrayType::VERTEX, positions),
+        (mesh::ArrayType::NORMAL, normals),
+        (mesh::ArrayType::TEX_UV, uv),
+        (mesh::ArrayType::INDEX, indices),
+    ])
+}
+
+fn mesh_arrays(attributes: [(mesh::ArrayType, Variant); 4]) -> VarArray {
     let mut arrays = VarArray::new();
     arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
-    for (kind, values) in [
-        (
-            mesh::ArrayType::VERTEX,
-            PackedVector3Array::from(positions.as_slice()).to_variant(),
-        ),
-        (
-            mesh::ArrayType::NORMAL,
-            PackedVector3Array::from(normals.as_slice()).to_variant(),
-        ),
-        (
-            mesh::ArrayType::TEX_UV,
-            PackedVector2Array::from(uv.as_slice()).to_variant(),
-        ),
-        (
-            mesh::ArrayType::INDEX,
-            PackedInt32Array::from(dome_indices().as_slice()).to_variant(),
-        ),
-    ] {
+    for (kind, values) in attributes {
         arrays.set(kind.ord() as usize, &values);
     }
     arrays
