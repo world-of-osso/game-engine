@@ -205,6 +205,25 @@ class DepotBuildTests(unittest.TestCase):
         self.assertFalse(Path(staged["asset_dir"]).exists())
         self.assertFalse((self.root / "target/debug/libgame_engine_godot.so").exists())
 
+    def test_context_path_is_stable_per_checkout_and_mode(self):
+        for _ in range(2):
+            self.assertEqual(self.run_test_mode().returncode, 0)
+            self.assertEqual(self.build().returncode, 0)
+        contexts = [record["context"] for record in self.records() if "args" in record]
+        test_contexts, build_contexts = contexts[0::2], contexts[1::2]
+        self.assertEqual(len(set(test_contexts)), 1)
+        self.assertEqual(len(set(build_contexts)), 1)
+        self.assertNotEqual(test_contexts[0], build_contexts[0])
+        other = self.base / "game-engine-alt-worktree"
+        self._git(self.base, "clone", "-q", str(self.root), str(other))
+        self._put(other, "data/models/boar.m2", "boar model")
+        self._put(other, "data/Light.csv", "light rows")
+        result = subprocess.run(["python3", str(SCRIPT), "--root", str(other), "--test"],
+                                env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(self.records()[-2]["context"], test_contexts[0])
+        self.assertFalse(Path(test_contexts[0]).exists())
+
     def test_test_mode_exits_with_cargo_status(self):
         result = self.run_test_mode("-p", "game-engine-core", DEPOT_TEST_STATUS="101", DEPOT_TEST_LOG="1 failed")
         self.assertEqual(result.returncode, 101)
