@@ -9,7 +9,8 @@ extends "res://tests/world_merchant_flow.gd"
 # tooltip; Escape closes; the micro-menu button opens it again.
 #
 # Setup (game-server-admin, private UDP server): create-account fb_charframe fbtest,
-# create-character fb_charframe Charframe 1 1, grant-item Charframe 2488/2379/2381/25 1.
+# create-character fb_charframe Charframe 1 1, set-level Charframe 10 (Gladius needs 2),
+# grant-item Charframe 2488/2379/2381/25 1.
 
 const CF_ACCOUNT := "fb_charframe"
 const CF_PASSWORD := "fbtest"
