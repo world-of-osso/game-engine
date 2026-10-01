@@ -21,7 +21,7 @@ Native startup runs the existing synchronous JavaScript UI automation API agains
 
 ### Behavioral proof
 
-- [ ] Run unchanged `debug/login.js` through startup. Observe actual LineEdit changes, actual ConnectButton pressed, real Account UDP authentication, authoritative CharSelect roster projection, and production stdout `ui.dumpUiTree`.
+- [x] Run unchanged `debug/login.js` through startup. Observe actual LineEdit changes, actual ConnectButton pressed, real Account UDP authentication, authoritative CharSelect roster projection, and production stdout `ui.dumpUiTree`.
 
 ## How it works
 
@@ -42,11 +42,12 @@ Native startup runs the existing synchronous JavaScript UI automation API agains
 - `godot/tests/native_js_automation_flow.gd` — observation-only authored Login input and authoritative CharSelect checks.
 - `src/ui/js_automation.rs` tests — compiler action/key/wait semantics, not native input proof.
 
-## Known gaps (current cycle)
+## Current proof and gaps
 
-- Supplied unchanged `debug/login.js` process evidence proves bounded authored Login input, real authentication, authoritative CharSelect, and stdout UI dump. Independent acceptance `/tmp/claude/verify-native-js-login.md` records functional Login PASS but overall FAIL; no all-ten-action or full-goal acceptance.
-- [ ] Genuine timeout process RED at fixture revision `73cb16e0` logs the missing-frame deadline with visible Login and no authentication, but lacks the successor stdout dump. Native timeout continuation is implemented; main-owned build/runtime GREEN remains pending. The earlier Control-versus-CanvasLayer setup failure is not feature RED.
-- [ ] Login evidence cannot prove all ten actions, key/modifier behavior, every state wait, or timeout/error boundaries. State-wait timeout runtime coverage remains pending; fixture changes belong to main.
+- Independent1542 accepts bounded unchanged `debug/login.js` and missing-frame deadline → successor live UI dump, plus four introduced readability corrections. Functional/readability/root compilation PASS; overall FAIL because root formatting remains blocked on transferred quest-owned comment spacing (owner836 notified). This is not full-feature or root CI readiness.
+- `bab8597c` records the deadline error, pops only the failed wait, resets its clock and continues following actions; other errors remain terminal. Current frame-continuation and normal Login supplied runtimes exit0. Historical genuine continuation RED and earlier observer setup failure remain distinct.
+- [ ] Current offline-actions and world cases have MAIN-observed runtime0, with independent1547/1548 pending. Combined bounded cases exercise all ten action variants, not all semantics, 71 keys, modifier/context/negative/lifecycle boundaries or full JS parity. State Connecting deadline continuation is MAIN-observed, not independently accepted here.
+- [Godot conversion evidence SSOT](../wiki/systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) owns exact revisions, artifacts, coverage and retained warnings/errors. Broad requirement checkboxes above remain open where bounded proof does not cover the whole requirement.
 
 ## Out of scope
 
