@@ -133,6 +133,7 @@ pub mod player_physics_data;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
 pub mod retail_fog;
+pub mod sky_bodies;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]

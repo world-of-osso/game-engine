@@ -2,7 +2,6 @@
 
 mod background;
 mod objects;
-mod sky;
 
 use std::path::PathBuf;
 

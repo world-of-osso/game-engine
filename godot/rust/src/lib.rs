@@ -55,6 +55,7 @@ mod profile;
 mod quests;
 mod replicated;
 mod scene;
+mod sky_model;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
@@ -1477,6 +1478,7 @@ impl GameClient {
             }),
             ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
             ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
+            ("Sky", |c, _| Ok(c.place_sky()?)),
             ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
             ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
@@ -1739,6 +1741,20 @@ impl GameClient {
             self.global_wmo.update_lighting(&light);
             self.terrain_materials.update_lighting(light);
         }
+        Ok(())
+    }
+
+    /// Sky models follow the camera after it moved this frame.
+    fn place_sky(&mut self) -> Result<(), String> {
+        let Some(camera) = self.world_camera.position() else {
+            return Ok(());
+        };
+        let clock = self
+            .base()
+            .try_get_node_as::<assets::uv_animation::WowMaterialClock>("/root/M2MaterialClock")
+            .ok_or("Sky models require /root/M2MaterialClock")?;
+        let time_ms = clock.bind().elapsed_time_ms() as u32;
+        self.world_lighting.place_sky(camera, time_ms);
         Ok(())
     }
 

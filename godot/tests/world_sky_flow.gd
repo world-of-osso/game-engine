@@ -6,9 +6,12 @@ extends "res://tests/capture_world_view.gd"
 ##   SKY_CASES   "name,minutes,yaw,pitch,distance" joined by ";"
 ## Each case sets the time of day and camera, captures the frame, and checks every
 ## sampled upper-screen pixel against the dome colour along that pixel's view ray,
-## computed here from the dome's authored LightData stops.
+## computed here from the dome's authored LightData stops. The stars model
+## (environments/stars/stars.m2) shows at the night alpha and is hidden by day; where it
+## shows, its additive points may only brighten the dome.
 
 const SKY_SHADER := "res://shaders/sky_dome.gdshader"
+const STARS_NODE := "WorldLighting/AuthoredSky130629"
 # 8-bit rounding and the steep sun-scatter gradient sampled from the
 # camera after the captured frame.
 const TOLERANCE := 4.0 / 255.0
@@ -48,7 +51,11 @@ func run_test() -> void:
 			return
 		await capture(fields[0] + ".png")
 		var image := root.get_texture().get_image()
-		if not check_dome(fields[0], image, material):
+		var stars := stars_alpha()
+		print("FIXTURE STARS %s alpha=%s" % [fields[0], stars])
+		if not check_stars(fields[0], float(fields[1]), stars):
+			return
+		if not check_dome(fields[0], image, material, stars > 0.0):
 			return
 		tops[fields[0]] = image.get_pixelv(sample_point(image, 0.5, 0.02))
 	if tops.size() >= 2 and tops.values()[0].is_equal_approx(tops.values()[1]):
@@ -73,10 +80,26 @@ func sky_material() -> ShaderMaterial:
 		return null
 	return material
 
+## The stars model's alpha, 0 when it is absent or hidden.
+func stars_alpha() -> float:
+	var stars := client.get_node_or_null(STARS_NODE) as Node3D
+	if stars == null or not stars.visible:
+		return 0.0
+	var batch := stars.find_children("SkyBatch*", "MeshInstance3D", false, false)[0] as MeshInstance3D
+	return float((batch.get_surface_override_material(0) as ShaderMaterial).get_shader_parameter("model_alpha"))
+
+## starsBrightnessTable: full stars at midnight, none at noon.
+func check_stars(name: String, minutes: float, alpha: float) -> bool:
+	var want := 1.0 if minutes == 0.0 else (0.0 if minutes == 1440.0 else alpha)
+	if absf(alpha - want) > 1e-4:
+		fail("%s: stars alpha %s, want %s" % [name, alpha, want])
+		return false
+	return true
+
 func sample_point(image: Image, column: float, row: float) -> Vector2i:
 	return Vector2i(int(image.get_width() * column), int(image.get_height() * row))
 
-func check_dome(name: String, image: Image, material: ShaderMaterial) -> bool:
+func check_dome(name: String, image: Image, material: ShaderMaterial, stars: bool) -> bool:
 	var camera := client.get_node("WorldCamera") as Camera3D
 	var scale := Vector2(root.size) / Vector2(image.get_size())
 	for row in SAMPLE_ROWS:
@@ -85,9 +108,12 @@ func check_dome(name: String, image: Image, material: ShaderMaterial) -> bool:
 			var direction := camera.project_ray_normal(Vector2(point) * scale)
 			var want := expected_color(material, direction)
 			var got := image.get_pixelv(point)
-			var delta := maxf(absf(got.r - want.r), maxf(absf(got.g - want.g), absf(got.b - want.b)))
+			var delta := Vector3(got.r - want.r, got.g - want.g, got.b - want.b)
+			var off := maxf(absf(delta.x), maxf(absf(delta.y), absf(delta.z)))
+			if stars:
+				off = -minf(delta.x, minf(delta.y, delta.z))
 			print("FIXTURE SKY %s pixel=%s elevation=%.2f got=%s want=%s" % [name, point, rad_to_deg(asin(direction.y)), got, want])
-			if delta > TOLERANCE:
+			if off > TOLERANCE:
 				fail("%s: sky pixel %s is %s, the dome along %s is %s" % [name, point, got, direction, want])
 				return false
 	return true

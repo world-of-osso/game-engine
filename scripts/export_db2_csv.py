@@ -43,6 +43,7 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   ChrCustomizationSkinnedModel FDID 3460183
   ChrModelTextureLayer         FDID 3548976
   LightParams                  FDID 1334669
+  LightSkybox                  FDID 1308501
   LiquidType                   FDID 1371380
   LiquidMaterial               FDID 1132538
   LiquidObject                 FDID 1308058
@@ -426,7 +427,13 @@ TABLES = {
             ("OceanShallowAlpha", ("float", 8, 0)),
             ("OceanDeepAlpha", ("float", 9, 0)),
             ("Flags", ("int", 10, 0)),
+            ("LightSkyboxID", 3),
         ],
+    ),
+    # WoWDBDefs layout 9D4956FF: Name, Flags, SkyboxFileDataID, CelestialSkyboxFileDataID.
+    "LightSkybox": (
+        0x9D4956FF,
+        [("ID", "id"), ("Flags", 1), ("SkyboxFileDataID", 2), ("CelestialSkyboxFileDataID", 3)],
     ),
     # WoWDBDefs layout D1ECEEC9. WebWowViewerCpp reads Color[0..1], Float[0..17], Int[0..3] and
     # Coefficient[0..3].
