@@ -412,6 +412,7 @@ func explore(quest_id: int, outside: Array, center: Array, radius: float) -> boo
 	if not await walk_to(target, radius * 0.5):
 		fail("Could not walk into the trigger of %d from %s" % [quest_id, player_position()])
 		return false
+	print("FIXTURE IN_TRIGGER? ", quest_id, " player ", player_position(), " center ", target)
 	if not await wait_quest(func(s): return log_entry(s, quest_id).get("completed", false), "%d explored" % quest_id):
 		return false
 	await capture("explored-%d.png" % quest_id)
