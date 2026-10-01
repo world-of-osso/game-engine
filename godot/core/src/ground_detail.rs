@@ -109,6 +109,8 @@ pub struct DetailChunk<'a> {
     /// MCSH, 64 rows of 64 bits, least significant bit first.
     pub shadow: Option<&'a [u8; 512]>,
     pub holes_low_res: u16,
+    /// Per-cell holes of chunks flagged 0x10000; they replace `holes_low_res`.
+    pub holes_high_res: Option<u64>,
     /// MCNK header 0x40: per cell row, 2-bit MCLY indices.
     pub texture_selection: [u16; 8],
     /// MCNK header 0x50: per cell row, detail-doodad disable bits.
@@ -135,6 +137,7 @@ impl<'a> DetailChunk<'a> {
             vertex_colors_bgra,
             shadow: chunk.shadow_map.as_ref(),
             holes_low_res: chunk.holes_low_res,
+            holes_high_res: chunk.holes_high_res,
             texture_selection: chunk.texture_selection,
             detail_exclusion: chunk.detail_exclusion,
             layer_effects,
@@ -143,10 +146,17 @@ impl<'a> DetailChunk<'a> {
 
     /// The ground effect of cell `(x, y)`: holes and header 0x50 exclude it, header 0x40
     /// selects its layer (client 0x007A0530).
+    /// The ground effect of cell `(x, y)`: holes and header 0x50 exclude it, header 0x40
+    /// selects its layer (client 0x007A0530). Retail's per-cell high-resolution holes
+    /// exclude their cell as the 2x2-cell low-resolution ones do.
     fn detail_effect_at(&self, x: u8, y: u8) -> Option<u32> {
-        if self.detail_exclusion[usize::from(y)] & (1 << x) != 0
-            || self.holes_low_res & (1 << (x / 2 + (y / 2) * 4)) != 0
-        {
+        let hole = crate::asset::adt_format::adt_geometry::terrain_hole_at(
+            self.holes_low_res,
+            self.holes_high_res,
+            usize::from(x),
+            usize::from(y),
+        );
+        if hole || self.detail_exclusion[usize::from(y)] & (1 << x) != 0 {
             return None;
         }
         let layer = (self.texture_selection[usize::from(y)] >> (x * 2)) & 3;
@@ -165,6 +175,24 @@ impl<'a> DetailChunk<'a> {
 pub fn chunk_seed(tile: (u32, u32), chunk_x: u32, chunk_y: u32) -> u32 {
     let (tile_y, tile_x) = tile;
     ((tile_x * 16 + chunk_y) << 16) | (tile_y * 16 + chunk_x)
+}
+
+/// Engine-space position of the chunk's first vertex at the chunk base height: the frame
+/// of placements and detail vertices (`adt::chunk_geometry` places vertex 0 there plus its
+/// height). `tile` is `(tile_y, tile_x)` as there.
+pub fn chunk_origin(chunk: &adt::Chunk, tile: (u32, u32)) -> [f32; 3] {
+    let (x, z) = crate::asset::adt_format::adt::chunk_origin_from_parts(
+        chunk.index_x,
+        chunk.index_y,
+        chunk.position,
+        Some(tile),
+    );
+    [x, chunk.position[2], z]
+}
+
+/// WoW axes (x north, y west, z up) to engine axes (x, y up, z).
+pub fn wow_to_engine([x, y, z]: [f32; 3]) -> [f32; 3] {
+    [x, z, -y]
 }
 
 /// One scattered doodad, before mesh expansion.

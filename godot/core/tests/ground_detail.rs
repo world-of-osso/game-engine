@@ -8,7 +8,7 @@ use game_engine_core::{
     adt,
     ground_detail::{
         BlizzardRand, DetailChunk, DetailModel, EffectDoodad, EffectTexture, GroundEffects,
-        build_mesh, chunk_seed, scatter,
+        build_mesh, chunk_origin, chunk_seed, scatter, wow_to_engine,
     },
     wdt,
 };
@@ -147,6 +147,7 @@ fn scatter_matches_original_client_placements() {
             vertex_colors_bgra: case.colors.then(colors),
             shadow: case.shadow.then_some(&shadow),
             holes_low_res: case.holes,
+            holes_high_res: None,
             texture_selection: [0; 8],
             detail_exclusion: case.stencil.to_le_bytes(),
             layer_effects: &[1],
@@ -202,6 +203,7 @@ fn mesh_matches_original_client_vertex_expansion() {
             vertex_colors_bgra: case.colors.then(colors),
             shadow: case.shadow.then_some(&shadow),
             holes_low_res: case.holes,
+            holes_high_res: None,
             texture_selection: [0; 8],
             detail_exclusion: case.stencil.to_le_bytes(),
             layer_effects: &[1],
@@ -295,4 +297,67 @@ fn chunk_seed_puts_global_row_high_and_column_low() {
         chunk_seed((32, 48), 3, 5),
         ((48 * 16 + 5) << 16) | (32 * 16 + 3)
     );
+}
+
+/// A placement converted to engine axes stands on the chunk's terrain surface: its height
+/// matches the terrain triangle under it (vertex 0 frame of `adt::chunk_geometry`).
+#[test]
+fn placements_stand_on_the_rendered_terrain() {
+    let tex_bytes = cached("terrain/azeroth_32_48_tex0.adt");
+    let root = adt::parse_root_for_tile(
+        &cached("terrain/azeroth_32_48.adt"),
+        32,
+        48,
+        Some(&tex_bytes),
+    )
+    .unwrap();
+    let tex = adt::parse_tex(&tex_bytes, wdt::MphdFlags { raw: 0x4 }, &root).unwrap();
+    let effects = GroundEffects::parse(
+        &String::from_utf8(cached("db2/12.1.0.69933/GroundEffectTexture.csv")).unwrap(),
+        &String::from_utf8(cached("db2/12.1.0.69933/GroundEffectDoodad.csv")).unwrap(),
+    )
+    .unwrap();
+    let mut total = 0;
+    for (chunk, layers) in root.chunks.iter().zip(&tex.chunk_layers) {
+        let layers: Vec<u32> = layers.layers.iter().map(|layer| layer.effect_id).collect();
+        let seed = chunk_seed((32, 48), chunk.index_x, chunk.index_y);
+        let placements =
+            scatter(&DetailChunk::from_adt(chunk, &layers), &effects, seed, 64).unwrap();
+        let origin = chunk_origin(chunk, (32, 48));
+        let geometry = adt::chunk_geometry(chunk, Some((32, 48)));
+        assert_eq!(
+            [geometry.positions[0][0], geometry.positions[0][2]],
+            [origin[0], origin[2]]
+        );
+        assert_eq!(geometry.positions[0][1], origin[1] + chunk.heights[0]);
+        for placement in &placements {
+            let local = wow_to_engine(placement.position);
+            let point = [
+                origin[0] + local[0],
+                origin[1] + local[1],
+                origin[2] + local[2],
+            ];
+            let surface = terrain_height(&geometry, point[0], point[2])
+                .unwrap_or_else(|| panic!("{placement:?} outside chunk {}", chunk.index_x));
+            assert!(
+                (point[1] - surface).abs() < 1e-2,
+                "{placement:?}: {} vs {surface}",
+                point[1]
+            );
+        }
+        total += placements.len();
+    }
+    assert!(total > 10_000, "{total} placements on the tile");
+}
+
+/// Height of the terrain triangle containing engine `(x, z)`.
+fn terrain_height(geometry: &adt::Geometry, x: f32, z: f32) -> Option<f32> {
+    geometry.indices.chunks_exact(3).find_map(|triangle| {
+        let [a, b, c] = [0, 1, 2].map(|corner| geometry.positions[triangle[corner] as usize]);
+        let area = (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
+        let u = ((b[0] - x) * (c[2] - z) - (c[0] - x) * (b[2] - z)) / area;
+        let v = ((c[0] - x) * (a[2] - z) - (a[0] - x) * (c[2] - z)) / area;
+        let w = 1.0 - u - v;
+        (u >= -1e-4 && v >= -1e-4 && w >= -1e-4).then(|| u * a[1] + v * b[1] + w * c[1])
+    })
 }
