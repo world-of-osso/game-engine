@@ -334,7 +334,8 @@ func check_reward_choice() -> bool:
 		return false
 	if not await wait_quest(func(s): return Array(s.system_lines).has("You receive item: [Urchin's Pants]."), "received-item line"):
 		return false
-	await open_bags("18-choice-in-bags.png")
+	if not await open_bags("18-choice-in-bags.png"):
+		return false
 	print("FIXTURE REWARD_CHOICE pants ", pants_before, " -> ", bag_count(URCHINS_PANTS))
 	return true
 
@@ -362,7 +363,8 @@ func check_fixed_reward() -> bool:
 	for item in FIXED_REWARDS:
 		if not await wait_frames(func(): return bag_count(item) == before[item] + FIXED_REWARDS[item], "reward item %d in the bags" % item):
 			return false
-	await open_bags("20-fixed-in-bags.png")
+	if not await open_bags("20-fixed-in-bags.png"):
+		return false
 	print("FIXTURE FIXED_REWARD ", before, " lines ", Array(client.quest_state().system_lines).slice(-4))
 	return true
 
@@ -410,12 +412,20 @@ func open_quest(at: Array, npc: String, title: String) -> bool:
 	await click_control(quest_control("QuestFrameUI", "QuestTitleButton%dText" % (index + 1)))
 	return true
 
-func open_bags(file: String) -> void:
-	await tap(KEY_B)
-	await frames(10)
+## Open the backpack with its bag bar button, capture it, and close it with Escape
+## (`CloseAllWindows`).
+func open_bags(file: String) -> bool:
+	await click_control(client.find_child("MainMenuBarBackpackButton", true, false) as Control)
+	if not await wait_frames(func(): return backpack_shown(), "backpack open"):
+		return false
+	await frames(5)
 	await capture(file)
 	await tap(KEY_ESCAPE)
-	await frames(5)
+	return await wait_frames(func(): return not backpack_shown(), "Escape closes the backpack")
+
+func backpack_shown() -> bool:
+	var bag := client.find_child("ContainerFrame0", true, false) as Control
+	return bag != null and bag.is_visible_in_tree()
 
 ## A `UIErrorsFrame` line showing `text`.
 func error_shown(text: String) -> bool:
