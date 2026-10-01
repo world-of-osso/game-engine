@@ -107,6 +107,7 @@ enum ScreenPostsetup {
     Auction,
     Spellbook,
     Minimap,
+    CharacterFrame,
 }
 
 impl RegistryModel {
@@ -140,6 +141,11 @@ impl RegistryModel {
             }
             ScreenPostsetup::Merchant => {
                 game_engine_ui_model::merchant::place_merchant_windows(&mut self.registry)
+            }
+            ScreenPostsetup::CharacterFrame => {
+                game_engine_ui_model::character_frame::apply_character_frame_postsetup(
+                    &mut self.registry,
+                )
             }
             ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
             ScreenPostsetup::CharacterSelect => apply_char_select_postsetup(&mut self.registry),
@@ -563,6 +569,37 @@ impl RegistryUi {
             .as_mut()
             .ok_or("Bags input not initialized")?;
         Ok(inputs.drain(..).collect())
+    }
+
+    /// The Retail CharacterFrame; its clicks and releases queue as cursor inputs.
+    pub(crate) fn show_character_frame(
+        &mut self,
+        view: game_engine_ui_model::character_frame::CharacterFrameView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            view,
+            game_engine_ui_model::character_frame::character_frame_screen,
+            ScreenPostsetup::CharacterFrame,
+            registry,
+            parent,
+        )?;
+        self.bag_inputs = Some(VecDeque::new());
+        Ok(())
+    }
+
+    /// The Retail micro menu row.
+    pub(crate) fn show_micro_menu(&mut self) -> Result<(), String> {
+        self.show_viewport_screen(
+            (),
+            game_engine_ui_model::micro_menu::micro_menu_screen,
+            ScreenPostsetup::None,
+        )
     }
 
     /// Initialize a dedicated RegistryUi instance for the Retail main action bar.

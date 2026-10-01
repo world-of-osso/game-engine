@@ -14,6 +14,7 @@ mod bag_tooltip;
 mod bags;
 mod camera;
 mod char_create;
+mod character_frame;
 mod character_select;
 mod chat;
 mod combat_text;
@@ -171,6 +172,7 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
+    character_frame: character_frame::CharacterFrame,
     mailbox: mail::Mailbox,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -256,6 +258,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
+            character_frame: character_frame::CharacterFrame::default(),
             mailbox: mail::Mailbox::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
@@ -352,6 +355,12 @@ impl INode3D for GameClient {
         }
         if key.get_keycode() == godot::global::Key::ESCAPE && self.world_map.is_open() {
             self.close_world_map();
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
+        if self.character_frame_key(key.get_keycode()) {
             if let Some(mut viewport) = self.base().get_viewport() {
                 viewport.set_input_as_handled();
             }
@@ -923,6 +932,7 @@ impl GameClient {
             visit(ui)?;
         }
         self.merchant.visit_uis(&mut visit)?;
+        self.character_frame.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
@@ -1369,6 +1379,7 @@ impl GameClient {
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
+            ("Character frame", |c, _| c.update_character_frame()),
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),

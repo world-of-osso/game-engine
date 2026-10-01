@@ -379,7 +379,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn keyboard_free(&self) -> bool {
+    pub(super) fn keyboard_free(&self) -> bool {
         self.base().get_viewport().is_some_and(|viewport| {
             !viewport
                 .gui_get_focus_owner()
@@ -457,7 +457,7 @@ impl GameClient {
     }
 
     /// Icons whose BLP is on disk (copied from local CASC on first use); others show empty.
-    fn drawable_fdid(&mut self, fdid: u32) -> u32 {
+    pub(super) fn drawable_fdid(&mut self, fdid: u32) -> u32 {
         if fdid == 0 {
             return 0;
         }
