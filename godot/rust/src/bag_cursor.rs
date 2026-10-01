@@ -6,6 +6,7 @@ use game_engine_ui_model::cursor_item::{CursorEffect, CursorItem, CursorTarget};
 use game_engine_ui_model::cursor_item_component::{CursorItemFrameState, cursor_item_screen};
 use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::merchant::{Click, SplitKey};
+use game_engine_ui_model::merchant_frame_component::{ACTION_FRAME, ACTION_ITEM_PREFIX};
 use game_engine_ui_model::stack_split::{StackSplitOwner, StackSplitState};
 use game_engine_ui_model::stack_split_frame_component::{
     ACTION_CANCEL, ACTION_LEFT, ACTION_OKAY, ACTION_RIGHT, FRAME_W, StackSplitFrameState,
@@ -29,11 +30,13 @@ const DRAG_THRESHOLD: f32 = 4.0;
 
 pub(crate) enum BagInput {
     Click {
+        owner: i64,
         action: String,
         click: Click,
         at: Option<Vector2>,
     },
     Release {
+        owner: i64,
         at: Vector2,
         physical_at: Vector2,
         /// No frame is World; a blocking frame can lack a cursor action.
@@ -45,7 +48,7 @@ pub(crate) enum BagInput {
 pub(crate) struct BagCursor {
     pub(crate) item: CursorItem,
     split: Option<StackSplitState>,
-    picked_at: Option<(Vector2, CursorTarget)>,
+    picked_at: Option<(i64, Vector2, CursorTarget)>,
     pub(crate) ui: Option<Gd<RegistryUi>>,
 }
 
@@ -81,32 +84,50 @@ impl BagCursor {
 impl GameClient {
     pub(super) fn dispatch_bag_cursor_input(&mut self, input: BagInput) -> Result<(), FrameError> {
         match input {
-            BagInput::Click { action, click, at } => {
-                self.bags.cursor.picked_at = None;
-                let was_empty = self.bags.cursor.item.is_empty();
-                self.dispatch_bag_action(&action, click)?;
-                if was_empty && !self.bags.cursor.item.is_empty() {
-                    self.bags.cursor.picked_at = at
-                        .zip(self.bags.cursor.item.source())
-                        .map(|(at, source)| (at, CursorTarget::Location(source)));
-                }
-                Ok(())
-            }
+            BagInput::Click {
+                owner,
+                action,
+                click,
+                at,
+            } => self.send_cursor_press(owner, &action, click, at),
             BagInput::Release {
+                owner,
                 at,
                 physical_at,
                 action,
-            } => self.send_bag_drag_release(at, physical_at, action),
+            } => self.send_bag_drag_release(owner, at, physical_at, action),
         }
+    }
+
+    fn send_cursor_press(
+        &mut self,
+        owner: i64,
+        action: &str,
+        click: Click,
+        at: Option<Vector2>,
+    ) -> Result<(), FrameError> {
+        self.bags.cursor.picked_at = None;
+        let was_empty = self.bags.cursor.item.is_empty();
+        let target = cursor_action_target(action)?;
+        if self.merchant_input_owner(owner) {
+            self.merchant_cursor_click(action, click)?;
+        } else {
+            self.dispatch_bag_action(action, click)?;
+        }
+        if was_empty && !self.bags.cursor.item.is_empty() {
+            self.bags.cursor.picked_at = at.zip(target).map(|(at, target)| (owner, at, target));
+        }
+        Ok(())
     }
 
     fn send_bag_drag_release(
         &mut self,
+        owner: i64,
         at: Vector2,
         physical_at: Vector2,
         action: Option<Option<String>>,
     ) -> Result<(), FrameError> {
-        let Some((picked_at, picked_target)) = self.bags.cursor.picked_at.take() else {
+        let Some((picked_at, picked_target)) = self.take_owned_drag_origin(owner) else {
             return Ok(());
         };
         let distance = picked_at.distance_to(at);
@@ -120,6 +141,22 @@ impl GameClient {
         if target == picked_target {
             return Ok(());
         }
+        self.send_cursor_click(target)
+    }
+
+    fn take_owned_drag_origin(&mut self, owner: i64) -> Option<(Vector2, CursorTarget)> {
+        let (picked_owner, _, _) = self.bags.cursor.picked_at.as_ref()?;
+        if *picked_owner != owner {
+            return None;
+        }
+        self.bags
+            .cursor
+            .picked_at
+            .take()
+            .map(|(_, at, target)| (at, target))
+    }
+
+    pub(super) fn send_cursor_click(&mut self, target: CursorTarget) -> Result<(), FrameError> {
         let session = &self.merchant.session;
         let effect = self
             .bags
@@ -176,13 +213,7 @@ impl GameClient {
             self.open_bag_split(location);
             return Ok(());
         }
-        let session = &self.merchant.session;
-        let effect = self.bags.cursor.item.click(
-            CursorTarget::Location(location),
-            &session.inventory,
-            &session.merchant,
-        );
-        self.send_cursor_effect(effect)
+        self.send_cursor_click(CursorTarget::Location(location))
     }
 
     fn send_bag_equip_request(&self, location: ItemLocation) -> Result<(), FrameError> {
@@ -397,16 +428,24 @@ impl GameClient {
 fn bag_release_target(action: Option<Option<String>>) -> Result<Option<CursorTarget>, String> {
     match action {
         None => Ok(Some(CursorTarget::World)),
-        Some(Some(action))
-            if action
-                .starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) =>
-        {
-            parse_bag_location(&action)
-                .map(CursorTarget::Location)
-                .map(Some)
-        }
-        Some(_) => Ok(None),
+        Some(Some(action)) => cursor_action_target(&action),
+        Some(None) => Ok(None),
     }
+}
+
+pub(super) fn cursor_action_target(action: &str) -> Result<Option<CursorTarget>, String> {
+    if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
+        return parse_bag_location(action)
+            .map(CursorTarget::Location)
+            .map(Some);
+    }
+    if let Some(index) = action.strip_prefix(ACTION_ITEM_PREFIX) {
+        let index = index
+            .parse()
+            .map_err(|error| format!("Merchant cell {index}: {error}"))?;
+        return Ok(Some(CursorTarget::MerchantItem(index)));
+    }
+    Ok((action == ACTION_FRAME).then_some(CursorTarget::MerchantFrame))
 }
 
 fn parse_bag_location(action: &str) -> Result<ItemLocation, String> {
