@@ -5,7 +5,9 @@ extends "res://tests/world_menu_flow.gd"
 # the hover tooltip, the hover leaving it, and the live camera after `camera set`.
 const VENDOR := "Fixture Vendor"
 const REMOTE := "Remote Fixture"
-const OBSERVE_MS := 60000
+# The parent runs every other CLI check before hovering; the first item-catalog lookup
+# can stall the client for minutes on a loaded host.
+const OBSERVE_MS := 300000
 # `camera set --yaw-degrees 90 --pitch-degrees -20`: the orbit direction the camera
 # looks along, Quat::from_euler(YXZ, yaw, pitch, 0) * -Z (camera_follow_data.rs).
 const CAMERA_YAW := deg_to_rad(90.0)
