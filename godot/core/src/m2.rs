@@ -117,24 +117,6 @@ pub fn resolve_render_batches(
     )
 }
 
-/// The batch colour's RGB track, the pixel shader's `meshColor` (authored gamma space).
-pub fn batch_color_track<'a>(
-    model: &'a Model,
-    batch: &ResolvedBatch,
-) -> Option<&'a AnimTrack<[f32; 3]>> {
-    batch
-        .color_opacity_track_index
-        .and_then(|index| model.color_tracks.get(index))
-        .map(|tracks| &tracks.color)
-}
-
-/// `meshColor` at time zero; white without a colour.
-pub fn batch_mesh_color(model: &Model, batch: &ResolvedBatch) -> [f32; 3] {
-    batch_color_track(model, batch)
-        .and_then(|track| m2_anim::evaluate_vec3_track(track, 0, 0))
-        .unwrap_or([1.0; 3])
-}
-
 /// FileDataIDs for the primary geometry skin and optional external skeleton.
 #[derive(Debug, PartialEq, Eq)]
 pub struct AssetReferences {
