@@ -130,6 +130,9 @@ impl GameClient {
             }
             NpcMessage::Buyback(list) => session.receive_buyback(list),
             NpcMessage::Inventory(snapshot) => session.receive_inventory_snapshot(&snapshot),
+            NpcMessage::Equipment(snapshot) => {
+                session.inventory.apply_equipment_snapshot(&snapshot)
+            }
             NpcMessage::InventoryChanged(delta) => session.receive_inventory_delta(&delta),
             NpcMessage::RepairCost(cost) => session.repair_cost = cost,
             NpcMessage::InteractionError(failed) => {

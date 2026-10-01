@@ -29,10 +29,10 @@ use shared::protocol::{
     SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
-    BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate, InteractNpc,
-    InteractionChannel, InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta,
-    InventoryError, InventorySnapshot, MerchantChannel, MerchantFailed, RepairItem,
-    SellAllJunkItems, SellItem, VendorInventory,
+    BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate,
+    EquipmentSnapshot, InteractNpc, InteractionChannel, InteractionClosed, InteractionFailed,
+    InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, MerchantChannel,
+    MerchantFailed, RepairItem, SellAllJunkItems, SellItem, VendorInventory,
 };
 use shared::protocol::{
     MailChannel, MailFailed, MailRequest, MailboxContents, PendingMail, UseGameObject,
@@ -175,6 +175,7 @@ pub enum NpcMessage {
     Vendor(VendorInventory),
     Buyback(BuybackList),
     Inventory(InventorySnapshot),
+    Equipment(EquipmentSnapshot),
     InventoryChanged(InventoryDelta),
     /// `DurabilityStateUpdate.total_repair_cost` (`GetRepairAllCost`).
     RepairCost(u32),
@@ -1036,6 +1037,8 @@ fn npc_message(message: ProtocolMessage) -> Result<Result<NpcMessage, ProtocolMe
         NpcMessage::Error(decode::<MerchantFailed>(message)?.error.message().into())
     } else if message.is::<InventorySnapshot>() {
         NpcMessage::Inventory(decode(message)?)
+    } else if message.is::<EquipmentSnapshot>() {
+        NpcMessage::Equipment(decode(message)?)
     } else if message.is::<InventoryDelta>() {
         NpcMessage::InventoryChanged(decode(message)?)
     } else if message.is::<InventoryError>() {
