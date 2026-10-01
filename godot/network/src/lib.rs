@@ -29,12 +29,12 @@ use shared::protocol::{
     self, ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
     CharacterListUpdate, ChatMessage, CombatEvent, CombatLogEvent, CreateCharacterResponse,
     DamageMeterSnapshot, DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate,
-    EnterWorldResponse, ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed,
-    InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot,
-    LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart,
-    MirrorTimerStop, NewWorld, QuestFailed, QuestGiverStatusMultiple, QuestLogSnapshot,
-    QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged, SpellCooldownUpdate,
-    SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
+    EnterWorldResponse, EquipmentSnapshot, ForcedDisconnect, InstanceInfo, InteractionClosed,
+    InteractionFailed, InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot,
+    KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause,
+    MirrorTimerStart, MirrorTimerStop, NewWorld, QuestFailed, QuestGiverStatusMultiple,
+    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
+    SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
 };
 
 /// Trait bound for decoding messages carried by this transport boundary.
@@ -192,6 +192,7 @@ impl NetworkBridge {
             .receive::<BuybackList>()
             .receive::<MerchantFailed>()
             .receive::<InventorySnapshot>()
+            .receive::<EquipmentSnapshot>()
             .receive::<InventoryDelta>()
             .receive::<InventoryError>()
             .receive::<DurabilityStateUpdate>()
