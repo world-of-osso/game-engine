@@ -112,13 +112,43 @@ pub fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
     (row.clamp(0, 63) as u32, col.clamp(0, 63) as u32)
 }
 
+/// Tile `(row, col)` and chunk `(index_x, index_y)` (MCNK `IndexX` along +z, `IndexY`
+/// along -x) containing Bevy (x, z), by index arithmetic from the world coordinate as
+/// TrinityCore `GridMap::getHeight` locates a cell (`CENTER_GRID_ID - coord /
+/// SIZE_OF_GRIDS`). Authored MCNK positions leave sub-millimetre gaps between
+/// neighbouring chunks (azeroth 31_48 ends at z -0.00068), so containment tests miss
+/// positions on those edges.
+pub fn bevy_to_chunk_coords(bx: f32, bz: f32) -> ((u32, u32), (u32, u32)) {
+    let tile_size = CHUNK_SIZE * 16.0;
+    let center = 32.0 * tile_size;
+    let along = |offset: f32| {
+        let tiles = offset / tile_size;
+        let tile = tiles.floor().clamp(0.0, 63.0);
+        let chunk = ((tiles - tile) * 16.0).floor().clamp(0.0, 15.0);
+        (tile as u32, chunk as u32)
+    };
+    let (row, index_x) = along(center + bz);
+    let (col, index_y) = along(center - bx);
+    ((row, col), (index_x, index_y))
+}
+
+/// Height of Bevy (x, z) in the chunk that index arithmetic places it in
+/// (`bevy_to_chunk_coords`), clamped onto the chunk's edges.
+pub fn sample_located_chunk_height(g: &ChunkHeightGrid, bx: f32, bz: f32) -> f32 {
+    let local_x = (g.origin_x - bx).clamp(0.0, CHUNK_SIZE);
+    let local_z = (bz - g.origin_z).clamp(0.0, CHUNK_SIZE);
+    let col = ((local_z / UNIT_SIZE).floor() as usize).min(7);
+    let row = ((local_x / UNIT_SIZE).floor() as usize).min(7);
+    let frac_x = (local_z - col as f32 * UNIT_SIZE) / UNIT_SIZE;
+    let frac_z = (local_x - row as f32 * UNIT_SIZE) / UNIT_SIZE;
+    interpolate_quad_height(g, row, col, frac_x, frac_z)
+}
+
 /// Try to get height from a single chunk. Returns None if (bx, bz) is outside this chunk.
-/// Both edges belong to the chunk: an edge is shared with the neighbor and the heights
-/// agree there, and an f32 position just past a tile row's origin rounds onto it.
 pub fn sample_chunk_height(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
     let local_x = g.origin_x - bx;
     let local_z = bz - g.origin_z;
-    if !(0.0..=CHUNK_SIZE).contains(&local_x) || !(0.0..=CHUNK_SIZE).contains(&local_z) {
+    if !(0.0..CHUNK_SIZE).contains(&local_x) || !(0.0..CHUNK_SIZE).contains(&local_z) {
         return None;
     }
     let col = (local_z / UNIT_SIZE).floor() as usize;

@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread::{self, JoinHandle};
 
+use game_engine_core::asset::adt_format::adt::ChunkHeightGrid;
+
 use super::assets::{NativeMapWdt, NativeTerrainAssets, NativeTerrainTile};
 
 const MAP_TILE_BOUND: u32 = 64;
@@ -147,24 +149,31 @@ impl StreamedTerrain {
     }
 
     pub fn height_at(&self, x: f32, z: f32) -> Option<f32> {
+        let grid = self.chunk_grid_at(x, z)?;
+        Some(game_engine_core::terrain_height_data::sample_located_chunk_height(grid, x, z))
+    }
+
+    /// The parsed chunk grid index arithmetic places Bevy (x, z) in.
+    fn chunk_grid_at(&self, x: f32, z: f32) -> Option<&ChunkHeightGrid> {
+        let (tile, (index_x, index_y)) =
+            game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
         self.parsed_tiles
-            .values()
-            .flat_map(|tile| &tile.root.height_grids)
-            .find_map(|grid| game_engine_core::terrain_height_data::sample_chunk_height(grid, x, z))
+            .get(&tile)?
+            .root
+            .height_grids
+            .iter()
+            .find(|grid| grid.index_x == index_x && grid.index_y == index_y)
     }
 
     pub fn area_id_at(&self, x: f32, z: f32) -> Option<u32> {
-        use game_engine_core::asset::adt_format::adt::CHUNK_SIZE;
-        use game_engine_core::terrain_height_data::bevy_to_tile_coords;
-
-        let root = &self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?.root;
-        let grid = root.height_grids.iter().find(|grid| {
-            (0.0..=CHUNK_SIZE).contains(&(grid.origin_x - x))
-                && (0.0..=CHUNK_SIZE).contains(&(z - grid.origin_z))
-        })?;
-        root.chunks
+        let (tile, (index_x, index_y)) =
+            game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
+        self.parsed_tiles
+            .get(&tile)?
+            .root
+            .chunks
             .iter()
-            .find(|chunk| chunk.index_x == grid.index_x && chunk.index_y == grid.index_y)
+            .find(|chunk| chunk.index_x == index_x && chunk.index_y == index_y)
             .map(|chunk| chunk.area_id)
             .filter(|&area_id| area_id != 0)
     }
@@ -174,16 +183,11 @@ impl StreamedTerrain {
         x: f32,
         z: f32,
     ) -> Option<game_engine_core::footstep_data::FootstepSurface> {
-        use game_engine_core::asset::adt_format::adt::CHUNK_SIZE;
-        use game_engine_core::terrain_height_data::bevy_to_tile_coords;
-
-        let tile = self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?;
-        let grid = tile.root.height_grids.iter().find(|grid| {
-            (0.0..=CHUNK_SIZE).contains(&(grid.origin_x - x))
-                && (0.0..=CHUNK_SIZE).contains(&(z - grid.origin_z))
-        })?;
-        tile.chunk_surfaces
-            .get(&(grid.index_x, grid.index_y))
+        let (tile, chunk) = game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
+        self.parsed_tiles
+            .get(&tile)?
+            .chunk_surfaces
+            .get(&chunk)
             .copied()
     }
 
@@ -673,7 +677,10 @@ mod tests {
         tile.chunk_surfaces.insert((0, 1), FootstepSurface::Stone);
         assert_eq!(stream.surface_at(x - 1.0, z + 1.0), None);
         stream.parsed_tiles.insert((32, 48), tile);
-        assert_eq!(stream.surface_at(x, z + 1.0), Some(FootstepSurface::Grass));
+        assert_eq!(
+            stream.surface_at(x - 1.0, z + 1.0),
+            Some(FootstepSurface::Grass)
+        );
         let adjacent = tile_chunk_origin_x(&stream.parsed_tiles[&(32, 48)], 0, 1) - 1.0;
         assert_eq!(
             stream.surface_at(adjacent, z + 1.0),
