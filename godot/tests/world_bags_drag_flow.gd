@@ -92,7 +92,7 @@ func quiet_drag_state(client: Node, expected: Array, held: bool) -> bool:
 		var shown := icon != null and icon.is_visible_in_tree()
 		var popup := authored_control(client, "StaticPopup1")
 		if shown != held or (popup != null and popup.is_visible_in_tree()) or not inventory_matches(client, expected) or not containers_remain_open(client):
-			fail("Drag quiet phase changed cursor/inventory/containers or opened World destroy confirmation")
+			fail("Drag quiet state: cursor=%s expected=%s popup=%s inventory=%s containers=%s" % [shown, held, popup != null and popup.is_visible_in_tree(), inventory_matches(client, expected), containers_remain_open(client)])
 			return false
 		for bag in [0, 1]:
 			for slot in range(16 if bag == 0 else 8):
