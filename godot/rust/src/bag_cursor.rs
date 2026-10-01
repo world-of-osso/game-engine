@@ -1,5 +1,6 @@
 //! Original cursor-item policy projected for standalone bag slots and stack splits.
 
+use game_engine_ui_model::bag_data::InventoryRequest;
 use game_engine_ui_model::bag_frame_component::parse_bag_slot_action;
 use game_engine_ui_model::cursor_item::{CursorEffect, CursorItem, CursorTarget};
 use game_engine_ui_model::cursor_item_component::{CursorItemFrameState, cursor_item_screen};
@@ -12,7 +13,7 @@ use game_engine_ui_model::stack_split_frame_component::{
 };
 use godot::global::Key;
 use godot::prelude::*;
-use shared::protocol::{EquipItem, InventoryRequest, ItemLocation};
+use shared::protocol::{EquipItem, ItemLocation};
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
