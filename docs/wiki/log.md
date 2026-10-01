@@ -1,3 +1,7 @@
+## 2026-10-01 — Retained skybox/performance bounded reconciliation
+
+[[authored-skybox-black-output]] records source zero opacity and bounded 100000 ms original/native RGB match, preserving active timeout, coastal phase-ready gap and oracle SETUP failures. [[world-entry-stalls]] records actual run1/run2 failures and readiness RED/GREEN without settled/baseline/budget/leak acceptance. Retained/conversion goals remain open; docs only.
+
 ## 2026-10-01 — M2 free material-null errors
 
 [[godot-material-null-free]]: M2 batches bound materials as surface overrides, which Godot releases before freeing the RenderingServer instance; a batch freed before its first draw read the freed material. `eb619da4` binds them as the material override; regression `godot/tests/m2_free_material.gd`. [[rendering-pipeline#godot-m2-batch-materials]] notes the binding.

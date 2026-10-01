@@ -1,6 +1,6 @@
 # Authored Skybox Black Output
 
-Forced authored WoW skyboxes still render effectively black in `skyboxdebug`. The older default warband-scene repro was misleading: scene 1 was reaching `deathskybox.m2` through a global `Light.csv` fallback row, not a local campsite-authored skybox choice.
+Cloud `11xp_cloudsky01.m2` black output at authored times 0 and 100000 ms is explained by source opacity keys, not an established production renderer defect. Original/native cloud RGB matches at 100000 ms; active-phase and coastal parity remain open. The older default warband-scene repro was misleading: scene 1 reached `deathskybox.m2` through a global `Light.csv` fallback row, not a local campsite-authored choice.
 
 ## Reproduction
 
@@ -28,7 +28,7 @@ Measured image output:
   - `field[1]` decodes as flags.
   - `field[2]` decodes as the authored skybox FDID.
   - `LightSkyboxID 653` carries the blend bits that keep procedural sky and fog visible in default debug mode.
-- The remaining failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`. This does not describe ordinary Azeroth InWorld sky: that live path selected `LightParamsID 12 → raw LightSkyboxID 0`. The independent procedural-dome lifecycle restoration required a later visibility correction in `58d4b12a`; see [[procedural-sky-dome-visibility]].
+- Historically, the remaining failure was attributed downstream of lookup; the retained source-opacity evidence below supersedes a renderer-bug inference for cloud times 0/100000. This does not describe ordinary Azeroth InWorld sky: that live path selected `LightParamsID 12 → raw LightSkyboxID 0`. The independent procedural-dome lifecycle restoration required a later visibility correction in `58d4b12a`; see [[procedural-sky-dome-visibility]].
 
 ## Fixed
 
@@ -42,16 +42,16 @@ Specifically:
 
 The current regression tests cover both the CPU material contract and the authored `deathskybox.m2` asset path, so this specific bug should not regress silently.
 
-## Remaining Problem
+## Historical unresolved trace
 
-The remaining black-output bug is not the single-texture case anymore.
+The April black-output observation was not the single-texture case; it did not establish a renderer defect.
 
 Traced batch inputs on 2026-04-11:
 
 - `11xp_cloudsky01.m2` is not single-texture at all: it loads 54 batches, all with a real `texture_2_fdid`
 - the `11xp_cloudsky01.m2` batch shader id set is `{0x4014, 0x8012, 0x8016}`
 
-`11xp_cloudsky01.m2` still renders black, which means the remaining bug is downstream of the single-texture fix. The current gap is that the engine still treats the raw M2 `shader_id` as a direct shader opcode. The local reference client resolves some modern M2 shader ids through texture-combiner combo tables instead.
+The initial trace suspected direct raw M2 shader-opcode handling versus the reference client's texture-combiner tables. That missing-modern-combiner claim is superseded by the trace below; black output alone does not identify a combiner bug.
 
 ## Modern Shader Trace (2026-04-21)
 
@@ -83,8 +83,23 @@ Current shader combine implementation has explicit `0x8012` and `0x8016` branche
 
 The unresolved authored gap is pixel correctness: the current formulas have CPU stage/UV coverage but no reference-client GPU proof that their operation order and alpha source reproduce WoW's combiner semantics. This remains independent of the fixed ordinary InWorld dome omission.
 
+## Retained original/native evidence — 2026-10-01
+
+| Case | Retained proof | Boundary / status |
+| --- | --- | --- |
+| Cloud FDID 5412968, 0/100000 ms | Raw M2/SKIN decode resolves all 54 batches to tracks dark at both times; actual native 100000 state has 54 transparency values of 0. Batch-zero track keys `[0,133333,200000,543333,576667,800000]` carry signed values `[0,0,32767,32767,0,0]`, step-sampled by the source evaluator. | Source-authored zero opacity, not parser/sampler failure. Track 2 is nonzero but not selected by these batches. No production renderer fix for this black output. |
+| Cloud original 100000 ms | Fresh original Bevy build `f23343bb`, 19m09s, exit0; lossless `grim` 1280×720 capture is black. Strict comparator at `da429bfd` accepts metadata and compares all 921600 RGB pixels without mask/fit: failed pixels 0, maximum error 0, exit0. | Bounded dark-phase image match only. Nominal source camera coordinates rounded to six decimals; FOV matched semantically, not full camera/projection equivalence or other-phase parity. Four original build warnings remain historical. |
+| Diagnostic active 200000 ms | Observed selected opacity 1 and retained PNG. | Normal-exit attempt timeout124 despite PNG: not whole-case PASS. Separate `cloud-authored-200000-final.log` attempt fails startup wait, exit1. |
+| Coastal FDID 525142, 100000 ms | Premature diagnostic comparison records 450491 mismatched pixels, exit1. | **OPEN** pending phase-ready capture; not a renderer-bug assertion. Earlier native fixed/live contribution observations are not original-pixel parity. |
+| New oracles `d2cec014` / `5cc16630` | Runtime remains pending: SETUP failed the 30-second CASC wait under shared-host contention. | Preserve historical incorrect positive-contribution RED at dark cloud phases; setup failure is neither new behavioral RED nor GREEN. |
+
+Source cloud keys stay dark until 200000 ms for the selected initial tracks; later selected tracks have different activation times. The April modern-stage/UV coverage remains bounded CPU/source evidence, not active-phase rendered equivalence. Original capture provenance and strict comparison do not close full camera, all-track, full-scene, retained-goal or conversion acceptance. Shared-host contention also limits [[world-entry-stalls#Retained integrated performance — 2026-10-01|retained performance evidence]].
+
 ## Sources
 
+- `/tmp/claude/retained-conversion-20/cloud-zero-opacity-root.md` and `cloud-zero-opacity-tracks.json` — raw source keys, batch lookup and asset hashes; older `cloud-zero-pixels-root.md` / `main-proof-ledger.md` unknown-root statements are historical.
+- `/tmp/claude/retained-conversion-20/{cloud-render-state.json,cloud-active-state.log,original-bevy-build.log,cloud-original-comparison-valid-json.log,coastal-original-comparison-valid-json.log,cloud-authored-200000-final.log}` — retained observations, failures and strict comparison; newer oracle/setup and timeout status supplied by scope handoff.
+- `data/diagnostics/retained-original-cloud-100000-f23343bb/` — original PNG, runtime, scene dump and capture receipt; compositor capture is distinct from lossy IPC WebP.
 - [skybox-authored-lookup.md](../../skybox-authored-lookup.md) — authored lookup chain and forced override commands
 - [skybox_debug/mod.rs](../../../src/scenes/skybox_debug/mod.rs) — debug skybox resolution and spawn path
 - [m2_spawn_material.rs](../../../src/rendering/model/m2_spawn_material.rs) — `skybox_batch_needs_effect_combine()` classification
