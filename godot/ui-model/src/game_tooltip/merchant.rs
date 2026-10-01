@@ -2,7 +2,9 @@
 
 use super::{GameTooltip, TooltipRecord};
 use crate::merchant_data::quality_color;
-use crate::tooltip_presentation::{TooltipLineState, TooltipPresentation, parse_rgba};
+use crate::tooltip_presentation::{
+    TOOLTIP_WHITE, TooltipLineState, TooltipPresentation, parse_rgba,
+};
 
 /// Concrete merchant name/quality, bundle count and finite stock; placement appends the ID.
 pub fn merchant_tooltip(
@@ -33,11 +35,55 @@ pub fn merchant_tooltip(
     )
 }
 
+/// `RED_FONT_COLOR`.
+const RED_FONT_COLOR: [f32; 4] = [1.0, 0.1, 0.1, 1.0];
+
+/// A button tooltip: `GameTooltip:SetText(text)` in `HIGHLIGHT_FONT_COLOR`.
+fn button_tooltip(title: &str, lines: Vec<TooltipLineState>) -> GameTooltip {
+    GameTooltip::new(
+        TooltipPresentation {
+            title: title.to_owned(),
+            title_color: TOOLTIP_WHITE,
+            lines,
+            ..TooltipPresentation::hidden()
+        },
+        None,
+    )
+}
+
+/// `MerchantSellAllJunkButton` `OnEnter`: `SELL_ALL_JUNK_ITEMS` (MF.xml:207-211).
+pub fn sell_all_junk_tooltip() -> GameTooltip {
+    button_tooltip("Sell All Junk Items", Vec::new())
+}
+
+/// `MerchantRepairItemButton` `OnEnter`: `REPAIR_AN_ITEM` (MF.xml:300-303).
+pub fn repair_item_tooltip() -> GameTooltip {
+    button_tooltip("Repair an Item", Vec::new())
+}
+
+/// `MerchantRepairAllButton` `OnEnter` (MF.xml:240-252): with something to repair,
+/// `REPAIR_ALL_ITEMS`, the cost (`GameTooltip_AddMoneyLine`) and, when it exceeds the
+/// player's money, `GUILDBANK_REPAIR_INSUFFICIENT_FUNDS` in red. Nothing damaged shows
+/// an empty tooltip, which is not drawn.
+pub fn repair_all_tooltip(cost: u64, money: u64) -> Option<GameTooltip> {
+    if cost == 0 {
+        return None;
+    }
+    let mut lines = vec![TooltipLineState::money(String::new(), cost)];
+    if cost > money {
+        lines.push(TooltipLineState::colored(
+            "Insufficient funds to repair all items",
+            RED_FONT_COLOR,
+        ));
+    }
+    Some(button_tooltip("Repair All Items", lines))
+}
+
 #[cfg(test)]
 mod tests {
     use shared::protocol::{BuybackItem, VendorInventory, VendorItem};
 
-    use super::merchant_tooltip;
+    use super::{merchant_tooltip, repair_all_tooltip, repair_item_tooltip, sell_all_junk_tooltip};
     use crate::game_tooltip::{GameTooltip, TooltipRecord, TooltipScreen, place};
     use crate::merchant_data::{MerchantState, MerchantTab};
     use crate::tooltip_presentation::{TooltipLineState, item_id_line};
@@ -186,5 +232,41 @@ mod tests {
             merchant.apply_inventory(inventory, "Fixture Vendor".into());
             assert_eq!(tooltip_for_cell(&merchant).content.title_color, color);
         }
+    }
+
+    #[test]
+    fn service_buttons_show_their_retail_strings_in_white() {
+        for (tooltip, title) in [
+            (sell_all_junk_tooltip(), "Sell All Junk Items"),
+            (repair_item_tooltip(), "Repair an Item"),
+        ] {
+            assert!(tooltip.content.visible);
+            assert_eq!(tooltip.content.title, title);
+            assert_eq!(tooltip.content.title_color, [1.0, 1.0, 1.0, 1.0]);
+            assert!(tooltip.content.lines.is_empty());
+            assert_eq!(tooltip.record, None);
+        }
+    }
+
+    #[test]
+    fn repair_all_shows_cost_and_red_shortfall_only_when_damaged() {
+        assert_eq!(repair_all_tooltip(0, 1000), None);
+        let affordable = repair_all_tooltip(16, 1000).unwrap();
+        assert_eq!(affordable.content.title, "Repair All Items");
+        assert_eq!(
+            affordable.content.lines,
+            vec![TooltipLineState::money(String::new(), 16)]
+        );
+        let short = repair_all_tooltip(1016, 1000).unwrap();
+        assert_eq!(
+            short.content.lines,
+            vec![
+                TooltipLineState::money(String::new(), 1016),
+                TooltipLineState::colored(
+                    "Insufficient funds to repair all items",
+                    [1.0, 0.1, 0.1, 1.0]
+                ),
+            ]
+        );
     }
 }
