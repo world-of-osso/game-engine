@@ -1,101 +1,11 @@
 use std::collections::VecDeque;
 
-use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::game_state_enum::GameState;
 use crate::ui::plugin::UiState;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum UiAutomationAction {
-    ClickFrame(String),
-    /// Right mouse button on a frame; InWorld only.
-    RightClickFrame(String),
-    /// Left click with Shift held (Retail `SPLITSTACK`); InWorld only.
-    ShiftClickFrame(String),
-    TypeText(String),
-    PressKey(KeyChord),
-    WaitForState(GameState, f32),
-    WaitForFrame(String, f32),
-    /// Pause the script for this many seconds.
-    Wait(f32),
-    DumpTree,
-    DumpUiTree,
-}
-
-/// A key press with held modifiers, e.g. `Shift+M`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct KeyChord {
-    pub modifiers: Vec<KeyCode>,
-    pub key: KeyCode,
-}
-
-impl From<KeyCode> for KeyChord {
-    fn from(key: KeyCode) -> Self {
-        Self {
-            modifiers: Vec::new(),
-            key,
-        }
-    }
-}
-
-impl KeyChord {
-    /// The key for screens whose automation handlers do not model modifiers.
-    pub fn unmodified_key(&self) -> Result<KeyCode, String> {
-        if self.modifiers.is_empty() {
-            Ok(self.key)
-        } else {
-            Err(format!(
-                "modifier chord {self:?} is only supported in InWorld"
-            ))
-        }
-    }
-}
-
-/// Parse `"M"`, `"F10"`, `"Escape"`, or `"Shift+M"` / `"Ctrl+Alt+1"` into a chord.
-pub fn parse_key_chord(value: &str) -> Result<KeyChord, String> {
-    let mut tokens: Vec<&str> = value.split('+').map(str::trim).collect();
-    let key_token = tokens.pop().unwrap_or_default();
-    let key = parse_automation_key(key_token)
-        .ok_or_else(|| format!("unsupported automation key '{value}'"))?;
-    let modifiers = tokens
-        .into_iter()
-        .map(|token| {
-            parse_modifier(token)
-                .ok_or_else(|| format!("unsupported modifier '{token}' in key '{value}'"))
-        })
-        .collect::<Result<_, _>>()?;
-    Ok(KeyChord { modifiers, key })
-}
-
-fn parse_automation_key(token: &str) -> Option<KeyCode> {
-    if token.eq_ignore_ascii_case("esc") {
-        return Some(KeyCode::Escape);
-    }
-    crate::input_bindings::parse_key_name(token)
-}
-
-fn parse_modifier(token: &str) -> Option<KeyCode> {
-    match token.to_ascii_lowercase().as_str() {
-        "shift" => Some(KeyCode::ShiftLeft),
-        "ctrl" | "control" => Some(KeyCode::ControlLeft),
-        "alt" => Some(KeyCode::AltLeft),
-        _ => None,
-    }
-}
-
-impl UiAutomationAction {
-    pub fn is_input_action(&self) -> bool {
-        matches!(
-            self,
-            Self::ClickFrame(_)
-                | Self::RightClickFrame(_)
-                | Self::ShiftClickFrame(_)
-                | Self::TypeText(_)
-                | Self::PressKey(_)
-        )
-    }
-}
+pub use crate::automation_data::{KeyChord, UiAutomationAction, parse_key_chord};
 
 #[derive(Resource, Default)]
 pub struct UiAutomationQueue(pub VecDeque<UiAutomationAction>);

@@ -3,8 +3,7 @@ use std::path::{Path, PathBuf};
 
 use quick_js::{Arguments, Context, JsValue};
 
-use crate::game_state_enum::GameState;
-use crate::ui::automation::{UiAutomationAction, parse_key_chord};
+use crate::automation_data::{UiAutomationAction, parse_key_chord, parse_state};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JsAutomationScriptPath {
@@ -159,17 +158,6 @@ fn parse_wait_args(args: Arguments) -> Result<(String, f32), String> {
     Ok((state, timeout_secs))
 }
 
-fn parse_state(value: &str) -> Result<GameState, String> {
-    match value {
-        "Login" | "login" => Ok(GameState::Login),
-        "Connecting" | "connecting" => Ok(GameState::Connecting),
-        "CharSelect" | "charselect" => Ok(GameState::CharSelect),
-        "Loading" | "loading" => Ok(GameState::Loading),
-        "InWorld" | "inworld" => Ok(GameState::InWorld),
-        other => Err(format!("unknown game state '{other}'")),
-    }
-}
-
 const PRELUDE: &str = r#"
 globalThis.ui = {
   click: (name) => __click(name),
@@ -191,6 +179,80 @@ globalThis.env = new Proxy({}, {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::game_state_enum::GameState;
+
+    #[test]
+    fn js_missing_env_lookup_emits_empty_text() {
+        let name = format!(
+            "WORLD_OF_OSSO_JS_MISSING_ENV_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        assert!(std::env::var_os(&name).is_none());
+        let script = format!("ui.type(env[{name:?}]);");
+        assert_eq!(
+            run_js_to_actions(&script).unwrap(),
+            vec![UiAutomationAction::TypeText(String::new())]
+        );
+    }
+
+    #[test]
+    fn js_frame_wait_and_ui_dump_emit_actions() {
+        assert_eq!(
+            run_js_to_actions("ui.waitForFrame('LoginRoot', 3); ui.dumpUiTree();").unwrap(),
+            vec![
+                UiAutomationAction::WaitForFrame("LoginRoot".into(), 3.0),
+                UiAutomationAction::DumpUiTree,
+            ]
+        );
+    }
+
+    #[test]
+    fn js_state_aliases_preserve_original_states() {
+        for (upper, lower, state) in [
+            ("Login", "login", GameState::Login),
+            ("Connecting", "connecting", GameState::Connecting),
+            ("CharSelect", "charselect", GameState::CharSelect),
+            ("Loading", "loading", GameState::Loading),
+            ("InWorld", "inworld", GameState::InWorld),
+        ] {
+            let script = format!("ui.waitForState({upper:?}, 1); ui.waitForState({lower:?}, 2);");
+            assert_eq!(
+                run_js_to_actions(&script).unwrap(),
+                vec![
+                    UiAutomationAction::WaitForState(state, 1.0),
+                    UiAutomationAction::WaitForState(state, 2.0),
+                ]
+            );
+        }
+        assert!(run_js_to_actions("ui.waitForState('LOGIN', 1);").is_err());
+        assert!(run_js_to_actions("ui.waitForState('CharCreate', 1);").is_err());
+    }
+
+    #[test]
+    fn js_compilation_does_not_leak_actions_between_scripts() {
+        assert!(run_js_to_actions("ui.click('LoginRoot'); throw new Error('stop');").is_err());
+        assert_eq!(run_js_to_actions("").unwrap(), vec![]);
+        assert_eq!(
+            run_js_to_actions("ui.type('next');").unwrap(),
+            vec![UiAutomationAction::TypeText("next".into())]
+        );
+    }
+
+    #[test]
+    fn js_wait_rejects_invalid_argument_types_and_counts() {
+        for script in [
+            "ui.wait('1');",
+            "ui.waitForFrame('LoginRoot');",
+            "ui.waitForFrame(1, 2);",
+            "ui.waitForState('Login', '2');",
+        ] {
+            assert!(run_js_to_actions(script).is_err(), "accepted {script}");
+        }
+    }
 
     #[test]
     fn js_click_and_type_emit_automation_actions() {
@@ -229,7 +291,7 @@ mod tests {
         "#;
         let actions = run_js_to_actions(script).expect("JS actions should parse");
         let chord = |modifiers: Vec<KeyCode>, key| {
-            UiAutomationAction::PressKey(crate::ui::automation::KeyChord { modifiers, key })
+            UiAutomationAction::PressKey(crate::automation_data::KeyChord { modifiers, key })
         };
         assert_eq!(
             actions,
