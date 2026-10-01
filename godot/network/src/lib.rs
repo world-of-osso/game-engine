@@ -127,6 +127,12 @@ impl BridgeConfig {
         self
     }
 
+    /// All three merchant replies in their reliable ordered `MerchantChannel` send order.
+    pub fn receive_merchant(mut self) -> Self {
+        self.relays.push(install_merchant_relay);
+        self
+    }
+
     /// Receiving mailbox traffic in its reliable ordered channel order.
     pub fn receive_mail(mut self) -> Self {
         self.relays.push(install_mail_relay);
@@ -201,9 +207,7 @@ impl NetworkBridge {
             .receive::<protocol::OwnedAuctionListResponse>()
             .receive::<protocol::BidAuctionListResponse>()
             .receive::<protocol::AuctionOperationResponse>()
-            .receive::<VendorInventory>()
-            .receive::<BuybackList>()
-            .receive::<MerchantFailed>()
+            .receive_merchant()
             .receive::<InventorySnapshot>()
             .receive::<EquipmentSnapshot>()
             .receive::<InventoryDelta>()
@@ -614,6 +618,37 @@ fn install_loot_relay(app: &mut App, events: Sender<Event>) {
     );
 }
 
+/// A single relay preserves order across message types sharing `MerchantChannel`.
+fn install_merchant_relay(app: &mut App, events: Sender<Event>) {
+    app.add_systems(
+        Update,
+        (move |mut inventories: Query<&mut MessageReceiver<VendorInventory>>,
+               mut buybacks: Query<&mut MessageReceiver<BuybackList>>,
+               mut failures: Query<&mut MessageReceiver<MerchantFailed>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(inventories);
+            drain!(buybacks);
+            drain!(failures);
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
 fn install_mail_relay(app: &mut App, events: Sender<Event>) {
     use protocol::{MailFailed, MailboxContents, PendingMail};
     app.add_systems(
@@ -705,10 +740,10 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
 mod wire_tests;
 
 #[cfg(test)]
-mod tests {
-#[cfg(test)]
 mod merchant_wire_tests;
 
+#[cfg(test)]
+mod tests {
     use super::*;
     use shared::protocol::{AuthChannel, LoginRequest};
     use std::{
