@@ -68,7 +68,7 @@ const FARGODEEP_TRIGGER_AT := [-9796.2, 157.8, 25.4]
 const FARGODEEP_OUTSIDE_AT := [-9781.2, 157.8, 25.4]
 const JASPERLODE_TRIGGER_AT := [-9077.3, -552.9, 60.3]
 const JASPERLODE_OUTSIDE_AT := [-9040.3, -552.9, 60.3]
-const HUNT_MS := 420000
+const HUNT_MS := 900000
 const MUST_CHOOSE := "You must choose a reward."
 ## WoW world positions about three yards from each NPC's spawn.
 const DUGHAN_AT := [-9462.5, 74.0, 56.8]
