@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] audit | Foreign-chat World rejection main-observed GREEN; independent pending
+
+[Owned evidence](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records diagnostic RED on `b3bf65a2`, bounded `5f6782b5` rejection, new Depot build and three parent0 drag/actions/cursor logs. Independent gate1406 pending; own hits unchanged, no cross-layer winner/global ownership claim. Existing exclusions retained; deliberate SIGKILL is not shutdown. Docs-only reconciliation; no tests/builds/operations.
+
 ## [2026-09-30] audit | Exact standalone drag followup independently accepted bounded PASS
 
 Reconciled existing specs, parity coverage, wiki and index against `/tmp/claude/verify-native-bags-drag.md`. [Exact coverage](systems/godot-conversion.md#standalone-drag--exact-bounded-proof-and-pending-followup): `4677d732` independent functional/build/fmt PASS; Depot `hv02mf7mfc` and full native drag/actions/cursor logs all0. Same/held/noncursor negatives0; separated124px/rapid-frame837/ordinary-click each one Swap0/0→1/0, deltas withheld until unchanged INITIAL client proof then authoritative3/2. `b3bf65a2` independently accepted bounded PASS (`/tmp/claude/verify-native-bags-drag-followup.md`): source/event semantics and own readability findings resolved; fresh supplied Depot `0c4hdfxff4` build exit0 and full drag/actions/cursor logs parent0. Twelve inherited findings remain uncleared. Test-only `cc3765b1`/`7bd81e29` confer no production proof. Root/pure/invite unchanged proofs retained, no reruns. Intentional SIGKILL/reap/readers0 is not normal shutdown. No whole-file readability, threshold boundary/nondefault-scale runtime, NPC/global ownership or full-goal acceptance. Prior REDs and capture limits retained; previous pending-build checkpoint below is historical. Docs only; accepted saved followup evidence, no verification/build/runtime reruns.
