@@ -17,7 +17,9 @@ use game_engine_ui_model::damage_meter_data::class_color;
 use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::item_tooltip::item_tooltip;
 use game_engine_ui_model::merchant::Click;
-use game_engine_ui_model::micro_menu::ACTION_CHARACTER;
+use game_engine_ui_model::micro_menu::{
+    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PREFIX, ACTION_SPELLBOOK,
+};
 use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, append_item_id};
 use godot::global::Key;
 use godot::prelude::*;
@@ -31,8 +33,6 @@ use crate::ui::RegistryUi;
 const FRAME_UI: &str = "CharacterFrameUI";
 const MICRO_UI: &str = "MicroMenuUI";
 const TOOLTIP_UI: &str = "CharacterTooltipUI";
-/// Above the standalone bags (layer 1), below the spellbook (5) and tooltips (8).
-const FRAME_LAYER: i32 = 2;
 const TOOLTIP_LAYER: i32 = 8;
 /// `OrbitCameraMixin:GetDeltaModifierForCameraMode` yaw: radians per UI unit dragged.
 const ROTATE_PER_UNIT: f32 = 0.008;
@@ -113,14 +113,12 @@ impl GameClient {
         self.character_frame.rotating = false;
     }
 
-    /// Escape: `CloseAllWindows` hides the frame and every bag.
-    pub(super) fn character_frame_key(&mut self, key: Key) -> bool {
-        if key != Key::ESCAPE || !self.character_frame.open {
-            return false;
-        }
-        self.toggle_character_frame();
-        self.bags_key(key);
-        true
+    /// `CloseAllWindows` step: hides the frame. Returns whether it was open.
+    pub(super) fn close_character_window(&mut self) -> bool {
+        let open = self.character_frame.open;
+        self.character_frame.open = false;
+        self.character_frame.rotating = false;
+        open
     }
 
     pub(super) fn character_frame_input_owner(&self, owner: i64) -> bool {
@@ -175,18 +173,23 @@ impl GameClient {
                 if action.is_empty() {
                     break;
                 }
-                if action == ACTION_CHARACTER {
-                    self.toggle_character_frame();
-                }
+                self.micro_button_click(&action)?;
             }
         }
-        let Some(mut ui) = self.character_frame.ui.clone() else {
-            return Ok(());
-        };
-        // The guard must drop first: a release resolves its target over every UI.
-        let inputs = ui.bind_mut().drain_bag_inputs()?;
-        for input in inputs {
-            self.dispatch_bag_cursor_input(input)?;
+        Ok(())
+    }
+
+    /// A micro-menu button: its native window toggles; one without a native window
+    /// reports that it is not converted.
+    fn micro_button_click(&mut self, action: &str) -> Result<(), String> {
+        match action {
+            ACTION_CHARACTER => self.toggle_character_frame(),
+            ACTION_SPELLBOOK => self.toggle_spellbook()?,
+            ACTION_MAIN_MENU => self.open_game_menu()?,
+            _ => godot_error!(
+                "Micro menu {} is not converted: no native window",
+                action.trim_start_matches(ACTION_PREFIX)
+            ),
         }
         Ok(())
     }
@@ -229,7 +232,6 @@ impl GameClient {
         }
         let mut ui = RegistryUi::new_alloc();
         ui.set_name(FRAME_UI);
-        ui.set_layer(FRAME_LAYER);
         self.base_mut().add_child(&ui);
         let shown = {
             let mut host = ui.bind_mut();

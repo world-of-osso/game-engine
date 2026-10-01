@@ -670,7 +670,7 @@ impl GameClient {
         self.spells.book_drag = None;
     }
 
-    fn toggle_spellbook(&mut self) -> Result<(), String> {
+    pub(super) fn toggle_spellbook(&mut self) -> Result<(), String> {
         if self.spellbook_open() {
             self.close_spellbook();
         } else {

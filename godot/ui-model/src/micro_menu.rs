@@ -2,7 +2,8 @@
 //! `MicroMenuContainer.xml`): `MainMenuBarMicroButton` 32×40 buttons laid out with
 //! `childXPadding=-5` at the bottom right of `MicroButtonAndBagsBar` (232×80,
 //! BOTTOMRIGHT -6,6, `EditModePresetLayouts.lua`), the order and atlas crops of the
-//! root HUD's `inworld_hud_micro.rs`. Only buttons whose window exists natively act.
+//! root HUD's `inworld_hud_micro.rs`. Every button clicks `micro:<button name>`; the
+//! host acts on those whose window exists natively and reports the rest as unconverted.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
@@ -11,7 +12,10 @@ use ui_toolkit::widget_def::Element;
 use crate::quest_art::DynName;
 
 pub const MICRO_MENU: &str = "MicroMenuContainer";
-pub const ACTION_CHARACTER: &str = "micro:character";
+pub const ACTION_PREFIX: &str = "micro:";
+pub const ACTION_CHARACTER: &str = "micro:CharacterMicroButton";
+pub const ACTION_SPELLBOOK: &str = "micro:SpellbookMicroButton";
+pub const ACTION_MAIN_MENU: &str = "micro:MainMenuMicroButton";
 
 const BUTTON_W: f32 = 32.0;
 const BUTTON_H: f32 = 40.0;
@@ -57,12 +61,6 @@ fn icon(button: &str) -> Option<(f32, f32)> {
     })
 }
 
-fn action(button: &str) -> &'static str {
-    match button {
-        "CharacterMicroButton" => ACTION_CHARACTER,
-        _ => "",
-    }
-}
 
 /// `()` state: the menu has no data of its own.
 pub fn micro_menu_screen(_ctx: &SharedContext) -> Element {
@@ -92,13 +90,14 @@ fn micro_button(index: usize, name: &str) -> Element {
         .enumerate()
         .flat_map(|(layer, crop)| art_layer(name, layer, crop))
         .collect();
+    let action = format!("{ACTION_PREFIX}{name}");
     rsx! {
         button {
             name: {DynName(name.into())},
             width: BUTTON_W,
             height: BUTTON_H,
             text: "",
-            onclick: {action(name)},
+            onclick: {action.as_str()},
             pos_type: "absolute",
             left: {index as f32 * (BUTTON_W + GAP)},
             top: 0.0,

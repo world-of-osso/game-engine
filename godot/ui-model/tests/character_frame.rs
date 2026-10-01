@@ -305,7 +305,7 @@ fn hidden_view_hides_the_frame_and_the_frame_itself_blocks_clicks() {
 }
 
 #[test]
-fn micro_menu_character_button_toggles_the_character_frame() {
+fn every_micro_button_clicks_its_own_named_action() {
     data_root();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
@@ -317,6 +317,6 @@ fn micro_menu_character_button_toggles_the_character_frame() {
     );
     assert_eq!(
         onclick(&registry, "AchievementMicroButton").as_deref(),
-        Some("")
+        Some("micro:AchievementMicroButton")
     );
 }

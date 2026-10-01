@@ -13,7 +13,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 const NPC: u64 = 4_294_966_979;
 
-fn session(poor: bool) -> MerchantSession {
+fn configure_catalog_session(poor: bool) -> MerchantSession {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -45,7 +45,7 @@ fn session(poor: bool) -> MerchantSession {
     session
 }
 
-fn stack(slot: u32, item_id: u32, count: u32) -> BagSlotItem {
+fn stack(slot: u8, item_id: u32, count: u32) -> BagSlotItem {
     BagSlotItem {
         slot,
         item: ItemStack {
@@ -64,7 +64,7 @@ fn effect(request: MerchantRequest) -> Option<MerchantEffect> {
 
 #[test]
 fn poor_pelt_sends_direct_junk_request_without_optimistic_mutation() {
-    let mut session = session(true);
+    let mut session = configure_catalog_session(true);
     let pelt = item_catalog_entry(4865).expect("real Ruined Pelt catalog row");
     assert_eq!(pelt.quality, 0);
     assert!(pelt.sell_price > 0);
@@ -81,7 +81,7 @@ fn poor_pelt_sends_direct_junk_request_without_optimistic_mutation() {
 
 #[test]
 fn common_linen_is_not_junk_and_cannot_send_junk_request() {
-    let mut session = session(false);
+    let mut session = configure_catalog_session(false);
     assert!(!session.frame_state().has_junk);
     let before = session.clone();
     assert_eq!(session.click_frame(ACTION_SELL_ALL_JUNK, Click::LEFT), None);
@@ -90,7 +90,7 @@ fn common_linen_is_not_junk_and_cannot_send_junk_request() {
 
 #[test]
 fn buyback_tab_skips_junk_service_even_with_eligible_pelt() {
-    let mut session = session(true);
+    let mut session = configure_catalog_session(true);
     assert_eq!(session.click_frame(ACTION_TAB_BUYBACK, Click::LEFT), None);
     let mut shared = SharedContext::new();
     shared.insert(session.frame_state());
@@ -105,7 +105,7 @@ fn buyback_tab_skips_junk_service_even_with_eligible_pelt() {
 
 #[test]
 fn repair_all_preserves_direct_none_guid_and_peer_owned_state() {
-    let mut session = session(true);
+    let mut session = configure_catalog_session(true);
     assert_eq!(session.frame_state().repair, Some(true));
     let before = session.clone();
     assert_eq!(
