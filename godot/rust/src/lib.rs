@@ -20,6 +20,7 @@ mod chat;
 mod combat_text;
 mod combat_visuals;
 mod damage_meter;
+mod debug_character;
 mod display_options;
 mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
