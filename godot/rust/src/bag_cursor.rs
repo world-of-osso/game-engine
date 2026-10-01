@@ -3,6 +3,7 @@
 use game_engine_ui_model::bag_frame_component::parse_bag_slot_action;
 use game_engine_ui_model::cursor_item::{CursorEffect, CursorItem, CursorTarget};
 use game_engine_ui_model::cursor_item_component::{CursorItemFrameState, cursor_item_screen};
+use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::merchant::{Click, SplitKey};
 use game_engine_ui_model::stack_split::{StackSplitOwner, StackSplitState};
 use game_engine_ui_model::stack_split_frame_component::{
@@ -11,7 +12,7 @@ use game_engine_ui_model::stack_split_frame_component::{
 };
 use godot::global::Key;
 use godot::prelude::*;
-use shared::protocol::ItemLocation;
+use shared::protocol::{EquipItem, InventoryRequest, ItemLocation};
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
@@ -84,7 +85,7 @@ impl GameClient {
         let location = parse_bag_location(action)?;
         self.bags.cursor.split = None;
         if click.right {
-            return Err(format!("Standalone bag right-click not converted: {action}").into());
+            return self.send_bag_equip_request(location);
         }
         if click.shift && self.bags.cursor.item.is_empty() {
             self.open_bag_split(location);
@@ -97,6 +98,19 @@ impl GameClient {
             &session.merchant,
         );
         self.send_cursor_effect(effect)
+    }
+
+    fn send_bag_equip_request(&self, location: ItemLocation) -> Result<(), FrameError> {
+        let Some(item) = self.merchant.session.inventory.item_at(location) else {
+            return Ok(());
+        };
+        let can_equip =
+            item_catalog_entry(item.item_id).is_some_and(|entry| entry.inventory_type != 0);
+        if can_equip {
+            let request = InventoryRequest::Equip(EquipItem { from: location });
+            self.account.send_inventory_request(&request)?;
+        }
+        Ok(())
     }
 
     fn open_bag_split(&mut self, location: ItemLocation) {
