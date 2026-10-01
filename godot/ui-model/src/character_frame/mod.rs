@@ -7,6 +7,7 @@
 
 mod art;
 
+use shared::components::{CombatRatings, UnitStats};
 use shared::protocol::{EquipmentSlot, ItemLocation};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -243,8 +244,57 @@ pub struct CharacterFrameView {
     pub slots: Vec<PaperDollSlotView>,
     /// `STAT_AVERAGE_ITEM_LEVEL` value; `None` below [`MIN_LEVEL_FOR_ITEM_LEVEL`].
     pub item_level: Option<String>,
+    /// `AttributesCategory` lines; empty hides the category.
+    pub attributes: Vec<StatLine>,
     pub race_id: u8,
     pub class_id: u8,
+}
+
+/// One `CharacterStatFrameTemplate`: `STAT_FORMAT` label and its value text.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StatLine {
+    pub label: &'static str,
+    pub value: String,
+}
+
+/// `PAPERDOLL_STATCATEGORIES` Attributes from the replicated sheet stats (PDF.lua:246):
+/// Strength, Agility and Intellect (`primary`: all three, as Retail shows them without a
+/// specialization; the client has no `ChrSpecialization` primary stat), Stamina
+/// (`UnitStat`, an integer), and Armor (`UnitArmor`). Stagger and mana regen need a
+/// role, which the client does not know. `None` before the stats arrive.
+pub fn attribute_lines(stats: Option<(&UnitStats, &CombatRatings)>) -> Vec<StatLine> {
+    let Some((stats, ratings)) = stats else {
+        return Vec::new();
+    };
+    [
+        ("Strength:", stats.strength),
+        ("Agility:", stats.agility),
+        ("Intellect:", stats.intellect),
+        ("Stamina:", stats.stamina),
+        ("Armor:", ratings.armor),
+    ]
+    .into_iter()
+    .map(|(label, value)| StatLine {
+        label,
+        value: break_up_large_numbers(value.trunc() as i64),
+    })
+    .collect()
+}
+
+/// `BreakUpLargeNumbers`: thousands separated by `LARGE_NUMBER_SEPERATOR` ",".
+pub fn break_up_large_numbers(value: i64) -> String {
+    let digits = value.unsigned_abs().to_string();
+    let mut grouped = String::new();
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    if value < 0 {
+        grouped.insert(0, '-');
+    }
+    grouped
 }
 
 /// `MIN_PLAYER_LEVEL_FOR_ITEM_LEVEL_DISPLAY` (PDF.lua:77).
@@ -334,7 +384,7 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
     children.extend(art::inner_border());
     children.extend(model_scene_frame());
     children.extend(level_text(&view.level));
-    children.extend(stats_pane(view.item_level.as_deref()));
+    children.extend(stats_pane(view.item_level.as_deref(), &view.attributes));
     children.extend(slots(&view.slots));
     children.extend(tabs());
     rsx! {
@@ -445,15 +495,40 @@ fn level_text(line: &LevelLine) -> Element {
     children
 }
 
-/// `CharacterStatsPane`: `ItemLevelCategory` (TOP 0,-2) and `ItemLevelFrame` below it
-/// (CF.xml). Attributes and Enhancements hide when they show no stat
-/// (`catFrame:SetShown(numStatInCat > 0)`, PDF.lua:1985).
-fn stats_pane(item_level: Option<&str>) -> Element {
-    let Some(item_level) = item_level else {
-        return Element::default();
-    };
+/// `CharacterStatsPane` (`PaperDollFrame_UpdateStats`, PDF.lua:1912): from level 10
+/// `ItemLevelCategory` (TOP 0,-2) and `ItemLevelFrame` below it, then the
+/// `AttributesCategory` under the item level frame, or at TOP 0,-2 with -5 between stats
+/// below level 10. A category hides without a stat (`catFrame:SetShown(numStatInCat > 0)`,
+/// PDF.lua:1985); Enhancements needs the derived percentages the client does not receive.
+fn stats_pane(item_level: Option<&str>, attributes: &[StatLine]) -> Element {
     let y = STATS.1 + 2.0;
-    let mut children = item_level_category(STATS.0 + (STATS_W - 197.0) / 2.0, y);
+    let mut children = Element::default();
+    let (attributes_y, stat_gap) = match item_level {
+        Some(item_level) => {
+            children.extend(item_level_frames(item_level, y));
+            (y + 40.0 + 29.0, 0.0)
+        }
+        None => (y, 5.0),
+    };
+    if !attributes.is_empty() {
+        children.extend(category(
+            "CharacterStatsPaneAttributesCategory",
+            "Attributes",
+            STATS.0 + (STATS_W - 197.0) / 2.0,
+            attributes_y,
+        ));
+        children.extend(stat_lines(attributes, attributes_y + 40.0 + 2.0, stat_gap));
+    }
+    children
+}
+
+fn item_level_frames(item_level: &str, y: f32) -> Element {
+    let mut children = category(
+        "CharacterStatsPaneItemLevelCategory",
+        "Item Level",
+        STATS.0 + (STATS_W - 197.0) / 2.0,
+        y,
+    );
     let frame_x = STATS.0 + (STATS_W - 187.0) / 2.0;
     let frame_y = y + 40.0;
     children.extend(atlas(
@@ -472,17 +547,54 @@ fn stats_pane(item_level: Option<&str>) -> Element {
     children
 }
 
-/// `CharacterStatFrameCategoryTemplate` 197×40 titled `STAT_AVERAGE_ITEM_LEVEL`.
-fn item_level_category(x: f32, y: f32) -> Element {
+/// `CharacterStatFrameTemplate` 187×15 stacked TOP to BOTTOM: `Label`
+/// (`GameFontNormalSmall`) LEFT 11, `Value` (`GameFontHighlightSmall`) RIGHT -8, and the
+/// `UI-Character-Info-Line-Bounce` band (alpha 0.3) behind every second line.
+fn stat_lines(lines: &[StatLine], top: f32, gap: f32) -> Element {
+    const SIZE: f32 = 10.0;
+    let x = STATS.0 + (STATS_W - 187.0) / 2.0;
+    let mut children = Element::default();
+    for (index, line) in lines.iter().enumerate() {
+        let y = top + index as f32 * (15.0 + gap);
+        let name = format!("CharacterStatsPaneStat{}", index + 1);
+        if index % 2 == 1 {
+            children.extend(atlas(
+                format!("{name}Background"),
+                &art::LINE_BOUNCE,
+                (x + (187.0 - 157.0) / 2.0, y - 2.0, 157.0, 19.0),
+                "1.0,1.0,1.0,0.3",
+            ));
+        }
+        children.extend(text(
+            format!("{name}Label"),
+            line.label,
+            (x + 11.0, y, 187.0 - 19.0, 15.0),
+            (SIZE, NORMAL_FONT_COLOR),
+            "LEFT",
+        ));
+        children.extend(text(
+            format!("{name}Value"),
+            &line.value,
+            (x + 11.0, y, 187.0 - 19.0, 15.0),
+            (SIZE, HIGHLIGHT_FONT_COLOR),
+            "RIGHT",
+        ));
+    }
+    children
+}
+
+/// `CharacterStatFrameCategoryTemplate` 197×40: `UI-Character-Info-Title` and its
+/// `GameFontHighlight` title CENTER 0,1.
+fn category(name: &str, title: &str, x: f32, y: f32) -> Element {
     let mut children = atlas(
-        "CharacterStatsPaneItemLevelCategoryBackground".into(),
+        format!("{name}Background"),
         &art::CATEGORY_TITLE,
         (x, y, 196.0, 40.0),
         WHITE,
     );
     children.extend(text(
-        "CharacterStatsPaneItemLevelCategoryTitle".into(),
-        "Item Level",
+        format!("{name}Title"),
+        title,
         (x, y - 1.0, 197.0, 40.0),
         (13.0, HIGHLIGHT_FONT_COLOR),
         "CENTER",

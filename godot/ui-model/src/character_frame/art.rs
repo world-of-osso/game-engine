@@ -24,6 +24,8 @@ const INFO_ATLAS: (u32, (f32, f32)) = (1_400_895, (1024.0, 1024.0));
 const INFO_ATLAS2: (u32, (f32, f32)) = (1_400_896, (1024.0, 512.0));
 /// `UI-Character-Info-Title` (6033) 196×40.
 pub(super) const CATEGORY_TITLE: AtlasArt = info((1.0, 197.0, 715.0, 755.0));
+/// `UI-Character-Info-Line-Bounce` (6028) 157×19.
+pub(super) const LINE_BOUNCE: AtlasArt = info((1.0, 158.0, 788.0, 807.0));
 /// `UI-Character-Info-ItemLevel-Bounce` (6030) 162×29.
 pub(super) const ITEM_LEVEL_BOUNCE: AtlasArt = info((1.0, 163.0, 757.0, 786.0));
 

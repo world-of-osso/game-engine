@@ -7,16 +7,19 @@ use std::path::PathBuf;
 use game_engine_ui_model::bag_data::InventoryState;
 use game_engine_ui_model::character_frame::{
     ACTION_FRAME, CharacterFrameView, MIN_LEVEL_FOR_ITEM_LEVEL, PAPERDOLL_BUTTONS,
-    apply_character_frame_postsetup, average_equipped_item_level, character_frame_screen,
-    level_line, paperdoll_button, paperdoll_slots, parse_equipment_slot_action,
+    apply_character_frame_postsetup, attribute_lines, average_equipped_item_level,
+    break_up_large_numbers, character_frame_screen, level_line, paperdoll_button, paperdoll_slots,
+    parse_equipment_slot_action,
 };
 use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::micro_menu::{ACTION_CHARACTER, micro_menu_screen};
+use shared::components::{CombatRatings, UnitStats};
 use shared::protocol::{
     EquipmentSlot, EquipmentSnapshot, EquippedItem, InventoryDelta, InventorySlotChange,
     ItemLocation, ItemStack,
 };
 use ui_toolkit::frame::WidgetData;
+use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::TextureSource;
@@ -75,6 +78,7 @@ fn view(inventory: &InventoryState, cursor: Option<ItemLocation>) -> CharacterFr
         level: level_line(12, Some("Protection"), "Warrior", [0.78, 0.61, 0.43]),
         slots: paperdoll_slots(inventory, cursor),
         item_level: Some("1".into()),
+        attributes: Vec::new(),
         race_id: 1,
         class_id: 1,
     }
@@ -318,5 +322,100 @@ fn every_micro_button_clicks_its_own_named_action() {
     assert_eq!(
         onclick(&registry, "AchievementMicroButton").as_deref(),
         Some("micro:AchievementMicroButton")
+    );
+}
+
+/// Level 5 human warrior with a Notched Shortsword (+1 Agility, +1 Stamina) and some
+/// armor, as the server replicates it.
+fn warrior_sheet() -> (UnitStats, CombatRatings) {
+    (
+        UnitStats {
+            stamina: 22.6,
+            strength: 25.0,
+            agility: 18.0,
+            intellect: 10.0,
+            spirit: 0.0,
+        },
+        CombatRatings {
+            armor: 1234.0,
+            ..CombatRatings::default()
+        },
+    )
+}
+
+#[test]
+fn attributes_list_primaries_stamina_and_armor_as_retail_integers() {
+    let (stats, ratings) = warrior_sheet();
+    let lines = attribute_lines(Some((&stats, &ratings)));
+    let shown: Vec<_> = lines
+        .iter()
+        .map(|line| (line.label, line.value.as_str()))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            ("Strength:", "25"),
+            ("Agility:", "18"),
+            ("Intellect:", "10"),
+            ("Stamina:", "22"),
+            ("Armor:", "1,234"),
+        ]
+    );
+    assert!(attribute_lines(None).is_empty());
+    assert_eq!(break_up_large_numbers(1_234_567), "1,234,567");
+    assert_eq!(break_up_large_numbers(999), "999");
+    assert_eq!(break_up_large_numbers(-1_000), "-1,000");
+}
+
+#[test]
+fn attributes_category_sits_under_the_item_level_and_hides_without_stats() {
+    let (stats, ratings) = warrior_sheet();
+    let mut sheet = view(&InventoryState::default(), None);
+    sheet.attributes = attribute_lines(Some((&stats, &ratings)));
+    let registry = build(sheet.clone());
+    assert_eq!(
+        text(&registry, "CharacterStatsPaneAttributesCategoryTitle"),
+        "Attributes"
+    );
+    assert_eq!(text(&registry, "CharacterStatsPaneStat1Label"), "Strength:");
+    assert_eq!(text(&registry, "CharacterStatsPaneStat5Value"), "1,234");
+    // Every second line has the bounce band (`numStatInCat % 2 == 0`).
+    assert!(
+        registry
+            .get_by_name("CharacterStatsPaneStat1Background")
+            .is_none()
+    );
+    assert!(
+        registry
+            .get_by_name("CharacterStatsPaneStat2Background")
+            .is_some()
+    );
+    let top = |registry: &FrameRegistry, name: &str| {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Val::Px(top) = frame.position.top else {
+            panic!("{name} has no absolute top");
+        };
+        top
+    };
+    let category = top(&registry, "CharacterStatsPaneAttributesCategoryBackground");
+    let item_level = top(&registry, "CharacterStatsPaneItemLevelCategoryBackground");
+    // ItemLevelCategory 40 + ItemLevelFrame 29, then the category's 40 and -2.
+    assert_eq!(category - item_level, 69.0);
+    let first = top(&registry, "CharacterStatsPaneStat1Label");
+    assert_eq!(first - category, 42.0);
+    assert_eq!(top(&registry, "CharacterStatsPaneStat2Label") - first, 15.0);
+
+    sheet.item_level = None;
+    let low = build(sheet.clone());
+    let first = top(&low, "CharacterStatsPaneStat1Label");
+    // Below level 10 the stats are 5 further apart (`statYOffset = -5`).
+    assert_eq!(top(&low, "CharacterStatsPaneStat2Label") - first, 20.0);
+
+    sheet.attributes.clear();
+    let empty = build(sheet);
+    assert!(
+        empty
+            .get_by_name("CharacterStatsPaneAttributesCategoryTitle")
+            .is_none()
     );
 }
