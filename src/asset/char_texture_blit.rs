@@ -227,12 +227,23 @@ pub(crate) fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, blen
         dst[di + 2] = src[si + 2];
         dst[di + 3] = 255;
     } else {
-        let inv = 255 - alpha;
-        dst[di] = ((alpha * src[si] as u16 + inv * dst[di] as u16) / 255) as u8;
-        dst[di + 1] = ((alpha * src[si + 1] as u16 + inv * dst[di + 1] as u16) / 255) as u8;
-        dst[di + 2] = ((alpha * src[si + 2] as u16 + inv * dst[di + 2] as u16) / 255) as u8;
-        dst[di + 3] = dst[di + 3].max(src[si + 3]);
+        source_over(dst, di, src, si);
     }
+}
+
+/// Straight-alpha "over" (WMVx CharacterTextureBuilder::mergeLayer, QPainter
+/// SourceOver): weights the destination by its own alpha, so a translucent layer on an
+/// empty canvas keeps its colour; over an opaque destination it is a plain lerp.
+fn source_over(dst: &mut [u8], di: usize, src: &[u8], si: usize) {
+    let source_alpha = u32::from(src[si + 3]);
+    let below = u32::from(dst[di + 3]) * (255 - source_alpha);
+    let alpha = source_alpha * 255 + below;
+    for channel in 0..3 {
+        let colour = u32::from(src[si + channel]) * source_alpha * 255
+            + u32::from(dst[di + channel]) * below;
+        dst[di + channel] = (colour / alpha) as u8;
+    }
+    dst[di + 3] = (alpha / 255) as u8;
 }
 
 pub(crate) fn scaled_section(section: TextureSection, divisor: u32) -> TextureSection {

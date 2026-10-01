@@ -295,3 +295,16 @@ fn item_textures_expand_by_stock_paste_scale() {
     assert_eq!(result.body.0[..16], row);
     assert_eq!(result.body.0[16..], row);
 }
+
+#[test]
+fn translucent_first_layer_keeps_its_colour_on_an_empty_canvas() {
+    // Straight-alpha "over" an empty canvas (WMVx CharacterTextureBuilder::mergeLayer,
+    // QPainter SourceOver): the eye texel keeps its colour and alpha instead of
+    // darkening towards the canvas' transparent black.
+    let data = data(vec![layer(25, 10, 1, -1, 19)])
+        .with_material_sizes(HashMap::from([((1, 19), (1, 1))]));
+    let (pixels, ..) = data
+        .composite_texture_type(&[(25, 4)], 1, 19, texture)
+        .unwrap();
+    assert_eq!(pixels, [90, 100, 110, 128]);
+}
