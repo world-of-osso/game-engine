@@ -246,7 +246,7 @@ func uo_target_cases(client: Node) -> void:
 	print("UIOWN CAMERA after T2 ", uo_camera())
 	await uo_begin("T3_DRAG_BAGSUI_BAG1_TO_MERCHANT_OVER_BAG1")
 	await uo_drag(source, uo_merchant_over_bag)
-	await uo_end("T3_DRAG_BAGSUI_BAG1_TO_MERCHANT_OVER_BAG1", client, "expect exactly 1 SellItem (bag1 item), 0 SwapItem")
+	await uo_end("T3_DRAG_BAGSUI_BAG1_TO_MERCHANT_OVER_BAG1", client, "expect exactly 1 SwapItem Bag{1,3} to Bag{1,0}: the press raises the bags, so bag1 slot0 is topmost at release")
 
 	await uo_begin("T4_DRAG_BAGSUI_BAG1_TO_MERCHANT_CLEAR")
 	await uo_drag(source, uo_merchant_clear)
@@ -473,6 +473,11 @@ func uo_ah_visible(client: Node) -> bool:
 	return false
 
 func uo_auction_cases(client: Node) -> void:
+	# Retail OpenAllBags is a no-op while any bag is open (IsAnyBagOpen): start with none.
+	if uo_visible(uo_ctl(client, UO_BAGS, "ContainerFrame1")) or client.merchant_state().open:
+		await uo_escape()
+		await uo_settle(300)
+	uo_obs("A1_BEFORE", client)
 	await uo_begin("A1_AUCTION_OPEN_ESCAPE")
 	print("FIXTURE UIOWN_AH_OPEN")
 	var opened := await uo_wait(func(): return uo_ah_visible(client), 6000)
