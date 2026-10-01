@@ -43,7 +43,11 @@ impl crate::GameClient {
                 let semantic = self
                     .semantic_scene()
                     .map(|scene| scene.as_ref().map(crate::scene_export::snapshot));
-                return Ok(super::export_scene(&self.base().clone().upcast(), semantic, &output_path));
+                return Ok(super::export_scene(
+                    &self.base().clone().upcast(),
+                    semantic,
+                    &output_path,
+                ));
             }
             Request::HoverNpc { name } => self
                 .npc_screen_point(&name)
