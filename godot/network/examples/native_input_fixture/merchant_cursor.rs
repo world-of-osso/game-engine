@@ -566,6 +566,10 @@ impl Session {
                 ));
             }
         }
+        self.send_quantity_buyback_and_close_responses(app)
+    }
+
+    fn send_quantity_buyback_and_close_responses(&mut self, app: &mut App) -> Result<(), String> {
         self.respond_to_shift_buy(app)?;
         self.respond_to_buyback(app)?;
         self.respond_to_last_buyback(app)?;
