@@ -2248,4 +2248,4 @@ Floating combat text starts at per-number camera-plane offsets from the retail W
 
 ## 2026-09-30 — SettingsReload reconciliation
 
-Linked [bounded two-process main proof](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) from fixture workflow, loot/conversion specs, matrix and index. Retained pending independent gate and unresolved normal-shutdown/full-conversion gaps.
+Linked [accepted bounded two-process proof](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) from fixture workflow, loot/conversion specs, matrix and index. Accepted `/tmp/claude/verify-native-settings-reload.md`: bounded saved-artifact functional reload and scoped Rust formatting PASS at `fc303c77`. Byte equality only at post-spawn/post-load observation boundaries; both children deliberately SIGKILL/reap/join, not normal shutdown. Saved build provenance is caller-supplied; parent exit 0 lacks a log footer. Partial/full conversion and shutdown gaps remain open; inherited 42 Options records do not upgrade all-options/geometry acceptance.
