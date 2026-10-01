@@ -278,7 +278,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn group_frames_view(&self) -> GroupFramesState {
+    pub(crate) fn group_frames_view(&self) -> GroupFramesState {
         let target_name = self
             .targeting_target()
             .and_then(|id| self.replica.unit(id))

@@ -116,6 +116,17 @@ pub fn calendar_tooltip() -> GameTooltip {
     text_tooltip("Click to show the calendar.", NORMAL, Vec::new())
 }
 
+/// `Minimap_OnUpdate`: `SetOwner(UIParent, "ANCHOR_CURSOR")` and `SetMinimapMouseover`, one
+/// white line per unit whose blip is under the cursor; none without blips.
+pub fn minimap_mouseover_tooltip(names: &[String]) -> Option<GameTooltip> {
+    let (first, rest) = names.split_first()?;
+    let lines = rest
+        .iter()
+        .map(|name| TooltipLineState::colored(name.clone(), TOOLTIP_WHITE))
+        .collect();
+    Some(text_tooltip(first.clone(), TOOLTIP_WHITE, lines).at_cursor())
+}
+
 /// `MainMenuBarBackpackMixin:OnEnterInternal`: `BACKPACK_TOOLTIP` and `NUM_FREE_SLOTS`.
 pub fn backpack_tooltip(free_slots: usize) -> GameTooltip {
     let slots = if free_slots == 1 { "Slot" } else { "Slots" };
@@ -201,6 +212,19 @@ mod tests {
         );
         assert_eq!(tooltip.content.lines[0].left_color, NORMAL);
         assert_eq!(tooltip.content.lines[0].right_color, TOOLTIP_WHITE);
+    }
+
+    #[test]
+    fn minimap_blips_list_their_units_at_the_cursor() {
+        super::super::set_test_data_root();
+        assert_eq!(minimap_mouseover_tooltip(&[]), None);
+        let names = ["Brother Danil".to_owned(), "Marshal McBride".to_owned()];
+        let tooltip = minimap_mouseover_tooltip(&names).expect("blips");
+        assert_eq!(
+            rows(&tooltip),
+            [("Brother Danil", ""), ("Marshal McBride", "")]
+        );
+        assert_eq!(tooltip.anchor, super::super::TooltipAnchor::Cursor);
     }
 
     #[test]

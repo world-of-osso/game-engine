@@ -129,7 +129,18 @@ impl GameTooltip {
 pub struct GameTooltipView {
     pub main: TooltipPresentation,
     pub shopping: [ShoppingTooltip; 2],
+    /// Health fraction of the unit a unit tooltip shows, for `GameTooltipStatusBar`.
+    pub health: Option<f32>,
 }
+
+/// `GameTooltipStatusBar` (GameTooltip.xml:9-23): 8 tall, TOPLEFT 2 in from the tooltip's
+/// BOTTOMLEFT and 1 below it, as wide as the tooltip less 2 on each side, filled with
+/// `Interface\TargetingFrame\UI-TargetingFrame-BarFill` in `HealthBar_OnValueChanged`'s
+/// green.
+const HEALTH_BAR_H: f32 = 8.0;
+const HEALTH_BAR_INSET: f32 = 2.0;
+const HEALTH_BAR_FILL_FDID: u32 = 137_014;
+const HEALTH_BAR_GREEN: &str = "0.0,1.0,0.0,1.0";
 
 /// `ShoppingTooltipTemplate.CompareHeader` (GameTooltip.xml:111-128): 22 tall, its
 /// BOTTOMLEFT 1 below the tooltip's TOPLEFT, the label 30 narrower than the header.
@@ -151,12 +162,48 @@ pub fn game_tooltip_screen(ctx: &SharedContext) -> Element {
         .get::<GameTooltipView>()
         .expect("GameTooltipView must be in SharedContext");
     let mut elements = tooltip_frame(&view.main, "Tooltip");
+    elements.extend(health_bar(&view.main, view.health));
     for (index, shopping) in view.shopping.iter().enumerate() {
         let prefix = format!("ShoppingTooltip{}", index + 1);
         elements.extend(compare_header(&prefix, shopping));
         elements.extend(tooltip_frame(&shopping.tooltip, &prefix));
     }
     elements
+}
+
+fn health_bar(main: &TooltipPresentation, health: Option<f32>) -> Element {
+    let fraction = health.unwrap_or(0.0).clamp(0.0, 1.0);
+    let hidden = !main.visible || health.is_none();
+    let width = TOOLTIP_W - 2.0 * HEALTH_BAR_INSET;
+    let (x, y) = (main.x + HEALTH_BAR_INSET, main.y + main.height() + 1.0);
+    let fill = width * fraction;
+    let fill_hidden = hidden || fill <= 0.0;
+    let fill_coords = format!("0,{fraction},0,1");
+    rsx! {
+        r#frame {
+            name: "TooltipStatusBar",
+            width: {width},
+            height: {HEALTH_BAR_H},
+            hidden: {hidden},
+            strata: "TOOLTIP",
+            pos_type: "absolute",
+            anchor: "screen",
+            pos_x: {x},
+            pos_y: {y},
+            texture {
+                name: "TooltipStatusBarFill",
+                width: {fill.max(1.0)},
+                height: {HEALTH_BAR_H},
+                hidden: {fill_hidden},
+                texture_fdid: {HEALTH_BAR_FILL_FDID},
+                tex_coords: {fill_coords.as_str()},
+                vertex_color: HEALTH_BAR_GREEN,
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: 0.0,
+            }
+        }
+    }
 }
 
 fn compare_header(prefix: &str, shopping: &ShoppingTooltip) -> Element {
@@ -463,6 +510,7 @@ mod tests {
         let view = GameTooltipView {
             main,
             shopping: [shopping, ShoppingTooltip::hidden()],
+            health: Some(0.25),
         };
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
@@ -488,6 +536,12 @@ mod tests {
         assert!(!frame("ShoppingTooltip1Header").hidden);
         assert!(frame("ShoppingTooltip2Frame").hidden);
         assert!(frame("ShoppingTooltip2Header").hidden);
+        // The health bar under the main tooltip, a quarter full.
+        assert!(!frame("TooltipStatusBar").hidden);
+        assert_eq!(
+            frame("TooltipStatusBarFill").width,
+            ui_toolkit::frame::Dimension::Fixed((TOOLTIP_W - 4.0) * 0.25)
+        );
     }
 
     #[test]
