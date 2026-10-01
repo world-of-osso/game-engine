@@ -340,14 +340,16 @@ impl GameClient {
         Ok(())
     }
 
-    /// Escape closes the quest giver frame (ending the interaction), then the log.
-    pub(super) fn quest_escape(&mut self) -> Result<bool, FrameError> {
+    /// `CloseAllWindows` part: the quest giver frame (ending the interaction) and the log.
+    pub(super) fn close_quest_windows(&mut self) -> Result<bool, FrameError> {
+        let mut closed = false;
         if let Some(dialog) = self.account.quests.dialog.take() {
             self.account
                 .send_quest_request(NpcInteractionRequest::Close { npc: dialog.npc })?;
-            return Ok(true);
+            closed = true;
         }
-        Ok(self.quests.windows.close(WindowId::QuestLog))
+        closed |= self.quests.windows.close(WindowId::QuestLog);
+        Ok(closed)
     }
 
     /// Bevy `sync_quest_giver_window`: the QuestFrame window is open exactly while a
