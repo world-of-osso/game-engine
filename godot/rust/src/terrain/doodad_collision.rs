@@ -29,9 +29,7 @@ pub(crate) fn collision_triangles(mesh: &M2CollisionMesh) -> Vec<[Vec3; 3]> {
 }
 
 /// One shape per model, shared by its placements; `None` when it has no collision faces.
-pub(crate) fn collision_shape(
-    mesh: Option<&M2CollisionMesh>,
-) -> Option<Gd<ConcavePolygonShape3D>> {
+pub(crate) fn collision_shape(mesh: Option<&M2CollisionMesh>) -> Option<Gd<ConcavePolygonShape3D>> {
     let faces: PackedVector3Array = collision_triangles(mesh?)
         .into_iter()
         .flatten()
