@@ -37,12 +37,11 @@ pub(crate) enum BagInput {
         click: Click,
         at: Option<Vector2>,
     },
+    /// Every cursor canvas reports each release; only the pickup's canvas acts on it.
     Release {
         owner: i64,
         at: Vector2,
         physical_at: Vector2,
-        /// No frame is World; a blocking frame can lack a cursor action.
-        action: Option<Option<String>>,
     },
 }
 
@@ -96,8 +95,7 @@ impl GameClient {
                 owner,
                 at,
                 physical_at,
-                action,
-            } => self.send_bag_drag_release(owner, at, physical_at, action),
+            } => self.send_bag_drag_release(owner, at, physical_at),
         }
     }
 
@@ -129,7 +127,6 @@ impl GameClient {
         owner: i64,
         at: Vector2,
         physical_at: Vector2,
-        action: Option<Option<String>>,
     ) -> Result<(), FrameError> {
         let Some((picked_at, picked_target)) = self.take_owned_drag_origin(owner) else {
             return Ok(());
@@ -138,8 +135,9 @@ impl GameClient {
         if distance < DRAG_THRESHOLD {
             return Ok(());
         }
-        let action = self.resolve_bag_release_action(physical_at, action)?;
-        let Some(target) = bag_release_target(action)? else {
+        // The drop target is the topmost frame of any canvas, not the pickup's own.
+        let hit = self.ui_hit_at(physical_at)?;
+        let Some(target) = bag_release_target(hit.map(|hit| hit.action))? else {
             return Ok(());
         };
         if target == picked_target {
@@ -168,26 +166,6 @@ impl GameClient {
             .item
             .click(target, &session.inventory, &session.merchant);
         self.send_cursor_effect(effect)
-    }
-
-    fn resolve_bag_release_action(
-        &mut self,
-        physical_at: Vector2,
-        action: Option<Option<String>>,
-    ) -> Result<Option<Option<String>>, FrameError> {
-        let mut topmost: Option<((i32, usize), Option<String>)> = None;
-        self.for_each_registry_ui(|ui| {
-            let Some(hit) = ui.bind().pointer_action_at(physical_at) else {
-                return Ok(());
-            };
-            // Godot draws and picks the higher CanvasLayer, then the later sibling.
-            let order = (ui.get_layer(), ui.get_index().max(0) as usize);
-            if topmost.as_ref().is_none_or(|(best, _)| order > *best) {
-                topmost = Some((order, hit));
-            }
-            Ok(())
-        })?;
-        Ok(topmost.map(|(_, hit)| hit).or(action))
     }
 
     pub(super) fn clear_stale_bag_cursor(&mut self) {

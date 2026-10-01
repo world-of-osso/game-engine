@@ -118,21 +118,34 @@ func services_texture(control: Control) -> TextureRect:
 	return null
 
 func services_no_modal(client: Node) -> bool:
-	if client.merchant_state().split_open or client.get_node_or_null("GameMenuUI") != null:
-		return false
-	for name in ["CursorItemIcon", "StackSplitFrame", "MerchantRepairItemButton"]:
+	return services_modal_reason(client).is_empty()
+
+func services_modal_reason(client: Node) -> String:
+	if client.merchant_state().split_open:
+		return "merchant split_open=true"
+	for name in ["CursorItemIcon", "StackSplitFrame", "GameMenuFrame"]:
 		var control := client.find_child(name, true, false) as Control
 		if control != null and control.is_visible_in_tree():
-			return false
+			return services_modal_path(control)
 	for node in root.find_children("*", "Window", true, false):
 		if (node as Window).visible:
-			return false
-	for node in client.find_children("*", "Control", true, false):
-		var name := str(node.name).to_lower()
-		if name.contains("popup") or name.contains("confirmation") or name.contains("picker"):
-			if (node as Control).is_visible_in_tree():
-				return false
-	return true
+			return "visible Window: " + str(node.get_path())
+	# StaticPopupRoot is an always-mounted empty container, not a dialog.
+	# The authored visible dialogs are StaticPopup1, StaticPopup2, and so on.
+	for node in client.find_children("StaticPopup*", "Control", true, false):
+		var suffix := str(node.name).trim_prefix("StaticPopup")
+		if suffix.is_valid_int() and (node as Control).is_visible_in_tree():
+			return services_modal_path(node)
+	return ""
+
+func services_modal_path(control: Node) -> String:
+	var layers: Array[String] = []
+	var ancestor := control.get_parent()
+	while ancestor != null:
+		if ancestor is CanvasLayer:
+			layers.append("%s visible=%s" % [ancestor.get_path(), (ancestor as CanvasLayer).visible])
+		ancestor = ancestor.get_parent()
+	return "visible Control: %s; canvas_layers=%s" % [control.get_path(), layers]
 
 func services_tap(client: Node, name: String) -> bool:
 	var control := services_control(client, name)
@@ -246,7 +259,7 @@ func services_wait(client: Node, poor: int, money: int, cost: int) -> bool:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if not services_no_modal(client):
-			fail("Direct services opened popup/cursor/picker/menu while waiting for authority")
+			fail("Direct services rejected modal oracle: " + services_modal_reason(client))
 			return false
 		if services_matches(client, poor, money, cost):
 			return true
