@@ -1,3 +1,7 @@
+## 2026-10-01 — Server game time, WDL horizon, item particles (worldvis)
+
+[Retail lighting](systems/retail-lighting.md#sky-dome-godot): time of day from `LoginSetTimeSpeed`. [Terrain](systems/terrain.md#horizon-godot): WDL horizon. [m2-particles](../specs/m2-particles.md): item model emitters.
+
 ## 2026-10-01 — In-world LightSkybox models (worldvis)
 
 [Retail lighting](systems/retail-lighting.md#sky-dome-godot): LightSkybox models collected over the LightParams blend (SkyBoxCollector) and drawn on the camera; Twilight Highlands fixture.
