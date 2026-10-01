@@ -7,12 +7,12 @@ use game_engine_core::{
     lighting_assets::{authored_to_linear_rgb, linear_to_authored_rgb},
     retail_fog::{FogResult, FogUniforms, blend_wmo_fog, fog_uniforms, wmo_fog},
     retail_light_data::RetailLightData,
-    sky_cubemap_data,
+    sky_cubemap_data::{self, sky_dome_profile},
 };
 use godot::{
     classes::{
-        Cubemap, DirectionalLight3D, Environment, Image, Node3D, ShaderMaterial, WorldEnvironment,
-        environment, image,
+        Cubemap, DirectionalLight3D, Environment, Image, Node3D, ResourceLoader, Shader,
+        ShaderMaterial, Sky, WorldEnvironment, environment, image, sky,
     },
     prelude::*,
 };
@@ -116,8 +116,11 @@ impl TerrainLight {
 pub(crate) struct WorldLighting {
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
+    sky: Option<Gd<ShaderMaterial>>,
     previous: Option<(RetailLightData, FogResult, SkyStops, WaterLight)>,
 }
+
+const SKY_DOME_SHADER: &str = "res://shaders/sky_dome.gdshader";
 
 impl WorldLighting {
     /// Samples the authored light at `position`; `wmo_fog` is the MFOG fog of the WMO
@@ -149,7 +152,8 @@ impl WorldLighting {
         }
         let direction = Vector3::from_array(sample.retail.sun_direction);
         let light = TerrainLight::new(sample, fog)?;
-        self.attach_nodes(parent);
+        self.attach_nodes(parent)?;
+        bind_sky_dome(self.sky.as_mut().expect("attached sky"), &stops, &light.fog);
         self.sun
             .as_mut()
             .expect("attached sun")
@@ -158,10 +162,11 @@ impl WorldLighting {
         Ok(Some(light))
     }
 
-    fn attach_nodes(&mut self, parent: &mut Gd<Node3D>) {
+    fn attach_nodes(&mut self, parent: &mut Gd<Node3D>) -> Result<(), String> {
         if self.root.is_some() {
-            return;
+            return Ok(());
         }
+        let sky_material = sky_dome_material()?;
         let mut root = Node3D::new_alloc();
         root.set_name("WorldLighting");
         parent.add_child(&root);
@@ -169,6 +174,11 @@ impl WorldLighting {
         environment.set_ambient_source(environment::AmbientSource::DISABLED);
         environment.set_reflection_source(environment::ReflectionSource::DISABLED);
         environment.set_tonemapper(environment::ToneMapper::LINEAR);
+        let mut sky = Sky::new_gd();
+        sky.set_material(&sky_material);
+        sky.set_radiance_size(sky::RadianceSize::SIZE_32);
+        environment.set_sky(&sky);
+        environment.set_background(environment::BgMode::SKY);
         let mut environment_node = WorldEnvironment::new_alloc();
         environment_node.set_name("Environment");
         environment_node.set_environment(&environment);
@@ -178,15 +188,52 @@ impl WorldLighting {
         sun.set_shadow(true);
         root.add_child(&sun);
         self.sun = Some(sun);
+        self.sky = Some(sky_material);
         self.root = Some(root);
+        Ok(())
     }
 
     pub fn reset(&mut self) {
         self.sun = None;
+        self.sky = None;
         if let Some(root) = self.root.take() {
             root.free();
         }
         self.previous = None;
+    }
+}
+
+fn sky_dome_material() -> Result<Gd<ShaderMaterial>, String> {
+    let shader = ResourceLoader::singleton()
+        .load(SKY_DOME_SHADER)
+        .and_then(|resource| resource.try_cast::<Shader>().ok())
+        .ok_or_else(|| format!("Sky dome shader {SKY_DOME_SHADER} failed to load"))?;
+    let mut material = ShaderMaterial::new_gd();
+    material.set_shader(&shader);
+    let points: PackedVector2Array = sky_dome_profile()
+        .iter()
+        .map(|point| Vector2::new(point.horizontal, point.height))
+        .collect();
+    material.set_shader_parameter("dome_points", &points.to_variant());
+    Ok(material)
+}
+
+/// The exterior sky dome's ring colours (map.cpp `Map::updateBuffers` skyColor[0..5])
+/// and the scene sun fog it scatters (skyConus.frag.slang).
+fn bind_sky_dome(material: &mut Gd<ShaderMaterial>, stops: &SkyStops, fog: &FogUniforms) {
+    let stops: PackedVector3Array = stops.iter().copied().map(Vector3::from_array).collect();
+    material.set_shader_parameter("sky_stops", &stops.to_variant());
+    for (name, value) in [
+        ("fog_sun_direction", fog.sun_direction),
+        ("fog_sun_color", fog.sun_color),
+    ] {
+        material.set_shader_parameter(name, &Vector3::from_array(value).to_variant());
+    }
+    for (name, value) in [
+        ("fog_sun_angle", fog.sun_angle),
+        ("fog_sun_percentage", fog.sun_percentage),
+    ] {
+        material.set_shader_parameter(name, &value.to_variant());
     }
 }
 
