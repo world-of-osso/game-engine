@@ -134,6 +134,20 @@ impl Session {
                 "merchant-cursor marker before authenticated selection: {line}"
             ));
         }
+        if line.starts_with("FIXTURE MERCHANT_CURSOR_SPLIT_")
+            || line == "FIXTURE MERCHANT_CURSOR_DONE"
+        {
+            self.send_split_marker_response(app, line)
+        } else if line.starts_with("FIXTURE MERCHANT_CURSOR_SALE_")
+            || line == "FIXTURE MERCHANT_CURSOR_SELL_COMMIT"
+        {
+            self.send_whole_sale_marker_response(line)
+        } else {
+            self.send_buy_marker_response(app, line)
+        }
+    }
+
+    fn send_buy_marker_response(&mut self, app: &mut App, line: &str) -> Result<(), String> {
         match (&self.phase, line) {
             (Phase::Loading, "FIXTURE MERCHANT_CURSOR_LOADING") => {
                 let selected = self.selected.ok_or("Loading requires selected player")?;
@@ -170,6 +184,13 @@ impl Session {
                 self.require_quiet()?;
                 self.advance(Phase::BuyDone);
             }
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn send_whole_sale_marker_response(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
             (Phase::BuyDone, "FIXTURE MERCHANT_CURSOR_SALE_PICKUP_ARM") => {
                 self.advance(Phase::SalePickupArm)
             }
@@ -187,9 +208,16 @@ impl Session {
                 self.require_quiet()?;
                 self.sell_commit = true;
             }
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn send_split_marker_response(&mut self, app: &mut App, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
             (Phase::SaleDelta, "FIXTURE MERCHANT_CURSOR_SPLIT_SEED") => {
                 self.require_quiet()?;
-                if self.buys != 1 || self.sells != 1 || !self.commit || !self.sell_commit {
+                if !self.completed_whole_sale() {
                     return Err("split seed requires completed buy and whole-sale barriers".into());
                 }
                 send_split_stack(app, 5);
@@ -221,14 +249,28 @@ impl Session {
                 self.require_quiet()?;
                 self.advance(Phase::Drain);
             }
-            _ => {
-                return Err(format!(
-                    "out-of-order merchant-cursor marker in {:?}: {line}",
-                    self.phase
-                ));
-            }
+            _ => return Err(self.marker_order_error(line)),
         }
         Ok(())
+    }
+
+    fn marker_order_error(&self, line: &str) -> String {
+        format!(
+            "out-of-order merchant-cursor marker in {:?}: {line}",
+            self.phase
+        )
+    }
+
+    fn completed_purchase(&self) -> bool {
+        self.buys == 1 && self.commit
+    }
+
+    fn completed_whole_sale(&self) -> bool {
+        self.completed_purchase() && self.sells == 1 && self.sell_commit
+    }
+
+    fn whole_sale_phase_ready(&self) -> bool {
+        self.phase == Phase::SaleRequest && self.sells == 0 && self.completed_purchase()
     }
 
     fn respond(&mut self, app: &mut App) -> Result<(), String> {
@@ -348,17 +390,8 @@ impl Session {
                 self.receive_split_sale(request, vendor)?;
                 continue;
             }
-            let expected = SellItem {
-                npc: vendor.ok_or("SellItem requires owned vendor")?,
-                item_guid: 9_182_589,
-                count: 0,
-            };
-            if self.phase != Phase::SaleRequest
-                || self.buys != 1
-                || !self.commit
-                || self.sells != 0
-                || request != expected
-            {
+            let npc = vendor.ok_or("SellItem requires owned vendor")?;
+            if !self.whole_sale_phase_ready() || !whole_sale_fields_match(&request, npc) {
                 return Err(format!(
                     "unexpected/duplicate SellItem {request:?} in {:?}; count={}",
                     self.phase, self.sells
@@ -378,12 +411,7 @@ impl Session {
             item_guid: 9_182_590,
             count: 2,
         };
-        if self.buys != 1
-            || self.sells != 1
-            || !self.commit
-            || !self.sell_commit
-            || request != expected
-        {
+        if !self.completed_whole_sale() || request != expected {
             return Err(format!(
                 "unexpected/duplicate split SellItem {request:?} in {:?}; sells={}",
                 self.phase, self.sells
@@ -395,6 +423,15 @@ impl Session {
         );
         Ok(())
     }
+}
+
+fn whole_sale_fields_match(request: &SellItem, npc: u64) -> bool {
+    *request
+        == SellItem {
+            npc,
+            item_guid: 9_182_589,
+            count: 0,
+        }
 }
 
 fn send_split_stack(app: &mut App, count: u32) {
