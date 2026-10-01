@@ -291,10 +291,10 @@ pub fn attribute_lines(
 
 /// `PAPERDOLL_STATCATEGORIES` Enhancements (PDF.lua:259-273) from the replicated
 /// `DerivedStats`: Critical Strike (`PaperDollFrame_SetCritChance`), Haste
-/// (`PaperDollFrame_SetHaste`), Mastery (`GetMasteryEffect`) and Versatility (its damage
-/// done bonus), each `format("%d%%", value + 0.5)` (`PaperDollFrame_SetLabelAndText`,
-/// PDF.lua:1993-2002) and hidden at exactly 0 (`hideAt = 0`). Leech, Avoidance and Speed
-/// would hide at 0 too: the server models no tertiary stats. `None` before the stats arrive.
+/// (`PaperDollFrame_SetHaste`), Mastery (`GetMasteryEffect`), Versatility (its damage
+/// done bonus), Leech, Avoidance and Speed (`GetLifesteal`, `GetAvoidance`, `GetSpeed`,
+/// PDF.lua:1229-1275), each `format("%d%%", value + 0.5)` (`PaperDollFrame_SetLabelAndText`,
+/// PDF.lua:1993-2002) and hidden at exactly 0 (`hideAt = 0`). `None` before the stats arrive.
 pub fn enhancement_lines(derived: Option<&DerivedStats>) -> Vec<StatLine> {
     let Some(derived) = derived else {
         return Vec::new();
@@ -304,6 +304,9 @@ pub fn enhancement_lines(derived: Option<&DerivedStats>) -> Vec<StatLine> {
         ("Haste:", derived.haste_pct),
         ("Mastery:", derived.mastery_pct),
         ("Versatility:", derived.versatility_pct),
+        ("Leech:", derived.leech_pct),
+        ("Avoidance:", derived.avoidance_pct),
+        ("Speed:", derived.speed_pct),
     ]
     .into_iter()
     .filter(|&(_, value)| value != 0.0)
