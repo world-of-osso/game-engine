@@ -18,7 +18,7 @@ impl crate::GameClient {
     pub(crate) fn character_request(&mut self, request: Request) -> Result<Response, Request> {
         match request {
             Request::CharacterStatsStatus => Ok(Response::Text(self.character_stats())),
-            request => Err(request),
+            request => self.mail_request(request),
         }
     }
 

@@ -178,6 +178,8 @@ pub struct MailSession {
     replying: bool,
     /// The subject Send Mail filled in from the first attachment (`previousItem`).
     item_subject: Option<String>,
+    /// Mails sent since the mailbox opened (`MAIL_SEND_SUCCESS`; IPC `mail status`).
+    pub sent: u32,
 }
 
 impl MailSession {
@@ -264,6 +266,7 @@ impl MailSession {
             return None;
         }
         self.pending = None;
+        self.sent += 1;
         self.attachments.clear();
         self.cod_mode = false;
         self.item_subject = None;
@@ -550,6 +553,19 @@ impl MailSession {
             })),
             ..MailEffect::default()
         }
+    }
+
+    /// IPC `mail send`: `mail` addressed to the open mailbox, as the original sends its
+    /// `MailRequest::Send` draft (src/game/networking/mail.rs:118-127).
+    pub fn ipc_send(&mut self, mail: SendMail) -> Option<SendMail> {
+        let object = self.object?;
+        self.pending = Some(Pending::Send);
+        Some(SendMail { object, ..mail })
+    }
+
+    /// IPC `mail act`: one inbox action for the open mailbox.
+    pub fn ipc_act(&mut self, mail_id: u64, action: MailAction) -> Option<MailRequest> {
+        self.request(mail_id, action)
     }
 
     /// `SendMailFrame_CanSend` (MF.lua:1106-1135).
