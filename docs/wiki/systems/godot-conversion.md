@@ -107,7 +107,20 @@ Test-only `cd354317` appends Buyback to the unchanged four cases; [test report S
 | Fifth authority barrier | Exact BuybackItemRequest npc4294966979/slot0. Linen5/Gold964/list2/no held cursor/no picker unchanged900ms **before BUYBACK_COMMIT**; only afterward peer produces Linen7/Gold938 and empty list, final tab retained. |
 | Totals / lifecycle | Old four cases retained; Buy2/Sell2/Buyback1, five barriers. Child4086596 deliberately killed/reaped, readers0: **not shutdown proof**. |
 
-Negative-packet/wrong-phase/duplicate guards are source-audited only, not fault-injected. Price26/count7 are fixture authority, not production-server pricing or autostack proof. Buyback right/Shift/last-sale button, other cells, lifecycle, cross-root/general ownership and remaining full-goal scopes stay unproved. Accepted Shift gate1467/`deefafa8` and sales gate1461 retain historical scopes. Next TEST1475 vendor-cursor CloseButton pre-ack barrier is preparing, **NO PROOF**; not a generic lifecycle gate. Full conversion remains **OPEN**.
+Negative-packet/wrong-phase/duplicate guards are source-audited only, not fault-injected. Price26/count7 are fixture authority, not production-server pricing or autostack proof. Buyback right/Shift/last-sale button, other cells, lifecycle, cross-root/general ownership and remaining full-goal scopes stay unproved. Accepted Shift gate1467/`deefafa8` and sales gate1461 retain historical scopes. [Vendor-cursor CloseButton](#native-merchant-vendor-cursor-close--main-observed-green-gate-pending) now has bounded MAIN-observed GREEN; independent gate remains pending, not generic lifecycle acceptance. Full conversion remains **OPEN**.
+
+### Native merchant vendor-cursor close — MAIN-observed GREEN, gate PENDING
+
+Test-only `62b3e87e` plus observable-oracle correction `13029846` has fresh saved Depot `zwl5rsk1n1` [build0](/tmp/claude/native-merchant-vendor-close-first-build.log) and [actual runtime0](/tmp/claude/native-merchant-vendor-close-first-runtime.log), both read FULL. [Original test handoff](/tmp/claude/native-merchant-vendor-cursor-close-test.md) is superseded by [corrected oracle](/tmp/claude/native-merchant-vendor-cursor-close-oracle.md): actual GDScript asserts observable hidden controls before this build; MerchantUI root may remain. The saved parent's PASS string still says “freed”; summary-string-only `3bfb2aa5` corrects that wording, **not the oracle**. No freeing claim. First test passes existing behavior: **no RED or production fix**. Independent report **pending**; actual verifier ID/tool unknown, no ID assigned here.
+
+| Boundary | Bounded MAIN-observed GREEN |
+| --- | --- |
+| Catalog / held cursor | Physical own Tab1 restores catalog; vendor Left held900ms shows textured centered Linen cursor. Same-source/same-point release below4 logical px retains cursor quiet900ms, Linen7/Gold938 unchanged, no extra Buy. |
+| Pre-ack close | Physical own CloseButton emits exactly one CloseInteraction npc4294966979. Locally closed merchant, merchant/backpack controls hidden, no held icon/picker/popup/Menu, Linen7/Gold938 unchanged quiet900ms **before CLOSE_COMMIT**. |
+| Post-send boundary | Peer sends ordinary InteractionClosed only after exact request plus commit. Strict CLOSE_ACK_QUIET_ARM is accepted only after peer send; closed900ms then parent400ms drain proves post-send stability, **not a client-receipt timestamp**. |
+| Totals / cleanup | Original five cases retained: opens1/Buy2/Sell2/Buyback1/Close1, five inventory barriers plus close barrier. Owned4108924 kill/reap/readers0 is deliberate termination, **not shutdown**. |
+
+Historical accepted gates1472/1467/1461/1446 remain scoped to their old revisions; none accepts this new close case. Inherited WMO dead-field build warning remains. No broader lifecycle/freeing, Escape/reopen, inventory-cursor, World/cross-root/global ownership or full-conversion proof. Full conversion remains **OPEN**.
 
 ## Native standalone bags — bounded window and cursor PASS
 
