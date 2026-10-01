@@ -8,6 +8,7 @@ mod assets;
 mod auction;
 mod auras;
 mod auto_attack;
+mod bags;
 mod camera;
 mod char_create;
 mod character_select;
@@ -161,6 +162,7 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
+    bags: bags::Bags,
     mailbox: mail::Mailbox,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -243,6 +245,7 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
+            bags: bags::Bags::default(),
             mailbox: mail::Mailbox::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
@@ -373,6 +376,12 @@ impl INode3D for GameClient {
             }
             Ok(false) => {}
         }
+        if self.bags_key(key.get_keycode()) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         match self.open_chat_from_key(&key) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -437,6 +446,7 @@ impl INode3D for GameClient {
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
+            ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),
             ("Loot", |c, _| c.update_loot()),
@@ -894,6 +904,9 @@ impl GameClient {
             if let Some(ui) = ui {
                 visit(ui)?;
             }
+        }
+        if let Some(ui) = &mut self.bags.ui {
+            visit(ui)?;
         }
         self.merchant.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {

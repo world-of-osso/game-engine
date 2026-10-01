@@ -453,6 +453,11 @@ impl RegistryUi {
         self.initialize_model(model, size.x, size.y)
     }
 
+    /// Initialize the authored bag strip and standalone containers.
+    pub(crate) fn show_bags(&mut self, view: crate::bags::BagsView) -> Result<(), String> {
+        self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::None)
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail main action bar.
     pub fn show_main_action_bar(&mut self, state: MainActionBarState) -> Result<(), String> {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
