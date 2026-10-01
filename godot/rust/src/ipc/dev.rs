@@ -39,6 +39,12 @@ impl crate::GameClient {
                 Ok("scripted movement stopped".into())
             }
             Request::HoverAt { x, y } => self.hover_at(Vector2::new(x, y)),
+            Request::ExportScene { output_path } => {
+                let semantic = self
+                    .semantic_scene()
+                    .map(|scene| scene.as_ref().map(crate::scene_export::snapshot));
+                return Ok(super::export_scene(&self.base().clone().upcast(), semantic, &output_path));
+            }
             Request::HoverNpc { name } => self
                 .npc_screen_point(&name)
                 .and_then(|point| self.hover_at(point)),

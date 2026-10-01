@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use game_engine_core::scene_snapshot::{
-    NodeProps, SceneNodeTransform, SceneSnapshot, SceneSnapshotNode, write_scene_snapshot_file,
+    NodeProps, SceneSnapshot, SceneSnapshotNode, write_scene_snapshot_file,
 };
 use game_engine_network::ipc_wire::Response;
 use godot::{
@@ -11,8 +11,18 @@ use godot::{
     prelude::*,
 };
 
-pub(super) fn export_scene(client: &Gd<Node>, output_path: &str) -> Response {
-    let result = read_scene_snapshot(client)
+/// Writes the client's semantic scene when its screen has one, else the selected live
+/// camera, light and M2 nodes under the containing window.
+pub(crate) fn export_scene(
+    client: &Gd<Node>,
+    semantic: Result<Option<SceneSnapshot>, String>,
+    output_path: &str,
+) -> Response {
+    let result = semantic
+        .and_then(|semantic| match semantic {
+            Some(snapshot) => Ok(snapshot),
+            None => read_scene_snapshot(client),
+        })
         .and_then(|snapshot| write_scene_snapshot_file(Path::new(output_path), &snapshot));
     match result {
         Ok(()) => Response::Text(format!("scene exported to {output_path}")),
@@ -54,7 +64,7 @@ fn read_semantic_subtree(
     };
     Ok(vec![SceneSnapshotNode {
         label: node.get_name().to_string(),
-        transform: Some(snapshot_transform(transform)),
+        transform: Some(crate::scene_export::snapshot_transform(transform)),
         props,
         children: read_semantic_children(node, Transform3D::IDENTITY)?,
     }])
@@ -105,16 +115,4 @@ fn read_m2_props(node: &Gd<Node>) -> Result<NodeProps, String> {
         kind: "M2".into(),
         model,
     })
-}
-
-fn snapshot_transform(transform: Transform3D) -> SceneNodeTransform {
-    let translation = transform.origin;
-    // godot-rust names Godot's get_rotation_quaternion() get_quaternion().
-    let rotation = transform.basis.get_quaternion();
-    let scale = transform.basis.get_scale();
-    SceneNodeTransform {
-        translation: [translation.x, translation.y, translation.z],
-        rotation: [rotation.x, rotation.y, rotation.z, rotation.w],
-        scale: [scale.x, scale.y, scale.z],
-    }
 }

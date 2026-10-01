@@ -181,6 +181,11 @@ impl WorldLighting {
         self.root = Some(root);
     }
 
+    /// The attached sun, once the first sample placed it.
+    pub fn sun(&self) -> Option<Gd<DirectionalLight3D>> {
+        self.sun.clone()
+    }
+
     pub fn reset(&mut self) {
         self.sun = None;
         if let Some(root) = self.root.take() {

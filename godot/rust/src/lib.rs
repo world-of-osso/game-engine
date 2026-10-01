@@ -62,6 +62,7 @@ mod profile;
 mod quests;
 mod replicated;
 mod scene;
+mod scene_export;
 mod selection_debug;
 mod skybox_debug;
 mod sound;
