@@ -26,6 +26,11 @@ pub(crate) struct Trade {
     pub ui: Option<Gd<RegistryUi>>,
     /// The money boxes had focus last frame: losing it submits the amount.
     money_focused: bool,
+    /// The last update's error and message (IPC `trade status`).
+    pub last_error: Option<String>,
+    pub last_message: Option<String>,
+    /// IPC trade actions waiting for the server's next update, oldest first.
+    pub ipc_replies: std::collections::VecDeque<crate::ipc::Reply>,
 }
 
 impl Trade {
@@ -38,6 +43,8 @@ impl Trade {
 
     pub fn reset(&mut self) {
         self.session.reset();
+        self.last_error = None;
+        self.last_message = None;
         self.free_ui();
     }
 }
@@ -60,9 +67,13 @@ fn read_money(ui: &Gd<RegistryUi>) -> Option<([String; 3], bool)> {
 
 impl GameClient {
     pub(crate) fn receive_trade(&mut self, update: TradeStateUpdate) -> Result<(), String> {
+        self.trade.last_error = update.error.clone();
+        self.trade.last_message = update.message.clone();
+        let (error, message) = (update.error.clone(), update.message.clone());
         for text in self.trade.session.receive(update) {
             self.add_world_error(&text)?;
         }
+        self.answer_trade_ipc(error, message);
         Ok(())
     }
 

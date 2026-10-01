@@ -17,6 +17,7 @@ impl GameClient {
     ) -> Result<(), FrameError> {
         match message {
             CombatMessage::Event(event) => {
+                self.record_combat_event(&event);
                 let voiced = self.spell_effects.observe_melee(&event, &self.world);
                 self.world.apply_combat_event(&event)?;
                 Ok(voiced?)

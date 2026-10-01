@@ -48,7 +48,7 @@ impl crate::GameClient {
             Request::WarbankStatus => Ok(format_storage_list("warbank", &self.warbank_items())),
             Request::ItemInfo { query } => self.item_info(query.item_id),
             Request::PresenceStatus => Ok(self.presence_status()),
-            request => return Err(request),
+            request => return self.combat_request(request),
         };
         Ok(match answer {
             Ok(text) => Response::Text(text),

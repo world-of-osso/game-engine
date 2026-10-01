@@ -191,6 +191,8 @@ pub struct GameClient {
     scripted_movement: game_engine_network::movement_control::ScriptedMovement,
     /// IPC `MapWaypointAdd`: the map waypoint (world x, z).
     map_waypoint: Option<(f32, f32)>,
+    /// The newest received `CombatEvent`s (IPC `combat log|recap`).
+    ipc_combat_events: std::collections::VecDeque<shared::protocol::CombatEvent>,
     /// The last area (and its zone) found under the local player; kept where no tile
     /// answers, as the original's `CurrentZone`.
     current_zone: Option<(u32, u32)>,
@@ -289,6 +291,7 @@ impl INode3D for GameClient {
             player_movement: gameplay::PlayerMovement::default(),
             scripted_movement: Default::default(),
             map_waypoint: None,
+            ipc_combat_events: std::collections::VecDeque::new(),
             current_zone: None,
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
@@ -1442,7 +1445,9 @@ impl GameClient {
             return;
         };
         let client = self.to_gd().upcast();
-        match service.poll(&client, &mut |request| self.dev_request(request)) {
+        match service.poll(&client, &mut |request, reply| {
+            self.client_request(request, reply)
+        }) {
             Ok(()) => self.ipc = Some(service),
             Err(error) => godot_error!("Client IPC stopped: {error}"),
         }
