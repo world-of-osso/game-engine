@@ -25,6 +25,8 @@ use crate::world_models::{UnitAppearance, WorldModels};
 const LOOSE_TWO_HAND_SUBCLASSES: [u8; 2] = [6, 10];
 /// `INVTYPE_2HWEAPON`.
 const INVTYPE_TWO_HAND: u8 = 17;
+/// `INVTYPE_SHIELD`.
+const INVTYPE_SHIELD: u8 = 14;
 /// `INVTYPE_WEAPON`, `INVTYPE_WEAPONMAINHAND`.
 const INVTYPE_ONE_HAND: [u8; 2] = [13, 21];
 
@@ -322,6 +324,21 @@ impl WorldUnits {
                     .find(|entry| entry.slot == EquipmentVisualSlot::MainHand && !entry.hidden)
             })
             .map_or((None, None), |entry| (entry.item_id, entry.display_info_id))
+    }
+
+    /// `Item` ID of unit `id`'s visible off-hand shield (`InventoryType` 14).
+    pub(crate) fn unit_shield(&self, id: u64) -> Option<u32> {
+        self.units
+            .get(&id)
+            .and_then(UnitNode::equipment)?
+            .entries
+            .iter()
+            .find(|entry| {
+                entry.slot == EquipmentVisualSlot::OffHand
+                    && entry.inventory_type == INVTYPE_SHIELD
+                    && !entry.hidden
+            })
+            .and_then(|entry| entry.item_id)
     }
 
     /// `Item` ID of unit `id`'s worn chest, shown or hidden.

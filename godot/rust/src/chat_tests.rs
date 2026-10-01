@@ -233,6 +233,7 @@ fn combat_log_lines_list_only_in_the_combat_log_tab() {
         resisted: 0,
         blocked: 0,
         crit: false,
+        glancing: false,
         periodic: false,
         kind: CombatLogKind::Damage,
     };

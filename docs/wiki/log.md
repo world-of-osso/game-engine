@@ -28,6 +28,10 @@ MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` +
 
 # Wiki Log
 
+## [2026-09-30] systems | Login handshake timeout
+
+Updated [[godot-conversion]]: Netcode client timeout 60 s → 10 s and a 5 s handshake timeout whose reason the login screen shows (`login_connection_loss.gd` GREEN, 5.8 s).
+
 ## [2026-09-30] audit | Occupied startup equipment authentic RED; minimal consumer committed
 
 [Owned checkpoint](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green): test `57b30f57` distinct startup MainHand25/count1/GUID9170105 versus bag9170005; exact pre-Equip equipment/bags/no carried icon/split/popup oracle and later replacement/original one Equip/two Destroy retained. MAIN Depot `rxnbcnxs5z` native build0/existing WMO warning; actual startup log exit101 equipment empty after authenticated READY/exact bags, before Equip input. Missing typed network receive/account decode/merchant apply chain; minimal account/merchant `ee2d3e47` committed using original inventory apply, transport1419 `2d1829fc` committed (typed receive after InventorySnapshot, before InventoryDelta). Integration Depot build/verifier1421 active; runtime GREEN pending; occupied startup still missing, not EquipmentAppearance/mesh proof. No separate-owner architecture/server/protocol change. Tooltip gate1415/docs `2142e85f` retained; protected Mail/Auction branches untouched, ownership inquiry outstanding without freeze. Docs-only reconciliation; no test/build/gate reruns.

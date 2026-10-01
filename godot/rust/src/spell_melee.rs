@@ -36,13 +36,13 @@ pub struct MeleeSeen {
     pub at: f32,
 }
 
-/// The swing result of a melee `CombatEvent` (`None`: not a melee swing). The server
-/// sends a block as MeleeDamage.
+/// The swing result of a melee `CombatEvent` (`None`: not a melee swing).
 fn swing_result(kind: &CombatEventType) -> Option<SwingResult> {
     match kind {
         CombatEventType::MeleeDamage => Some(SwingResult::Hit { critical: false }),
         CombatEventType::CriticalHit => Some(SwingResult::Hit { critical: true }),
         CombatEventType::Parry => Some(SwingResult::Parry),
+        CombatEventType::Block => Some(SwingResult::Block),
         CombatEventType::Dodge => Some(SwingResult::Dodge),
         CombatEventType::Miss => Some(SwingResult::Miss),
         _ => None,
@@ -165,6 +165,7 @@ impl SpellEffects {
             item_id,
             display_info_id,
             chest_item_id: world.unit_chest_item(id),
+            shield_item_id: world.unit_shield(id),
             unit: *self.voices.get(&id)?,
         })
     }
@@ -202,6 +203,7 @@ mod tests {
             (CombatEventType::MeleeDamage, Some(hit)),
             (CombatEventType::CriticalHit, Some(crit)),
             (CombatEventType::Parry, Some(SwingResult::Parry)),
+            (CombatEventType::Block, Some(SwingResult::Block)),
             (CombatEventType::Miss, Some(SwingResult::Miss)),
             (CombatEventType::Dodge, Some(SwingResult::Dodge)),
             (CombatEventType::Death, None),

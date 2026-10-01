@@ -26,7 +26,7 @@ pub use voice::{UnitSound, VoiceSource, player_displays};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 8;
+const CACHE_FORMAT: u32 = 9;
 
 const SOURCE_TABLES: [&str; 24] = [
     "SpellXSpellVisual",

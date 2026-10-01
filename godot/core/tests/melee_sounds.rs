@@ -14,6 +14,7 @@ const WARRIOR: MeleeHand = MeleeHand {
     item_id: Some(25),
     display_info_id: Some(1542),
     chest_item_id: None,
+    shield_item_id: None,
     unit: VoiceSource::Player { race: 1, sex: 0 },
 };
 /// Kobold Vermin (creature 6): display 10913 (model 8379 → CreatureSoundData 5042) with
@@ -22,6 +23,7 @@ const KOBOLD: MeleeHand = MeleeHand {
     item_id: Some(5276),
     display_info_id: Some(5010),
     chest_item_id: None,
+    shield_item_id: None,
     unit: VoiceSource::Creature { display_id: 10913 },
 };
 const HIT: SwingResult = SwingResult::Hit { critical: false };
@@ -192,6 +194,7 @@ fn bare_hands_swing_their_unarmed_weapon_type() {
         item_id: None,
         display_info_id: None,
         chest_item_id: None,
+        shield_item_id: None,
         unit: VoiceSource::Creature { display_id: 10913 },
     };
     assert_eq!(kit_id(catalog.impact_sound(fist, WARRIOR, HIT)), Some(1014));
@@ -268,6 +271,7 @@ fn blackrock_worg_fights_bare_handed() {
         item_id: None,
         display_info_id: None,
         chest_item_id: None,
+        shield_item_id: None,
         unit: VoiceSource::Creature { display_id: 40147 },
     };
     assert_eq!(kit_id(catalog.swing_sound(worg, HIT)), Some(233));
@@ -356,6 +360,7 @@ fn undocumented_creature_impact_types_land_on_flesh() {
         item_id: None,
         display_info_id: None,
         chest_item_id: None,
+        shield_item_id: None,
         unit: VoiceSource::Creature { display_id: 19162 },
     };
     assert_eq!(
@@ -433,4 +438,35 @@ fn victims_voice_injuries_by_chance_on_hits() {
     for result in [SwingResult::Parry, SwingResult::Dodge, SwingResult::Miss] {
         assert!(catalog.injury_sound(kobold, result, ROLL_LOW).is_none());
     }
+}
+
+/// A blocked swing strikes the victim's shield (slot 3 metal, 4 wood, by the shield's
+/// `Material.Flags & 1`): the kobold's staff row 10 plays 61570 on item 143 (Material 1)
+/// and 61568 on the Deathguard Buckler 3276 (Material 2 Wood); without a shield it
+/// strikes the body as a hit (61562). The victim still voices its injury.
+#[test]
+fn a_block_strikes_the_victims_shield() {
+    let catalog = catalog();
+    let block = SwingResult::Block;
+    let with_shield = |shield_item_id| MeleeHand {
+        shield_item_id: Some(shield_item_id),
+        ..WARRIOR
+    };
+    assert_eq!(
+        kit_id(catalog.impact_sound(KOBOLD, with_shield(143), block)),
+        Some(61570)
+    );
+    assert_eq!(
+        kit_id(catalog.impact_sound(KOBOLD, with_shield(3276), block)),
+        Some(61568)
+    );
+    assert_eq!(
+        kit_id(catalog.impact_sound(KOBOLD, WARRIOR, block)),
+        Some(61562)
+    );
+    assert!(
+        catalog
+            .injury_sound(WARRIOR.unit, block, ROLL_LOW)
+            .is_some()
+    );
 }

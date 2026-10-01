@@ -36,6 +36,10 @@
 //!     mechagnomes and golems, 5-6 a few oddities) are undocumented.
 //!   - A parry strikes the parrying weapon (`0x457dc0`), not crit-tiered: 5 metal, 6 wood;
 //!     bare hands are not metal.
+//!   - A block (`HITINFO_BLOCK`, a hit the shield partly stopped) strikes the victim's
+//!     off-hand shield, not crit-tiered: 3 metal, 4 wood by the shield's `Material.Flags & 1`
+//!     as for a weapon. benilla does not cover blocks; the slots follow the files (`shield_metal`,
+//!     `shield_wood`). A victim without a shield is struck as on a hit.
 //!   - `ImpactSource` (inferred from the files): 1 rows hold the player sets
 //!     (`*_combatrevamp`, `1h_sword_hit_*`), 0 rows the `*_npc_*` and pre-revamp sets. A
 //!     player swings 1, a creature 0; a subclass without that row takes its closest row
@@ -62,6 +66,8 @@ use super::{KitSound, SpellVisualCatalog, Table, UnitSound, VoiceSource};
 /// `ItemClass` Weapon and Armor.
 const WEAPON_CLASS: i64 = 2;
 const ARMOR_CLASS: i64 = 4;
+/// `ItemSubClass` Shield of class Armor.
+const SHIELD_SUBCLASS: i64 = 6;
 /// `Material.Flags` (WoWDBDefs `MaterialFlags`; benilla `material.rs:30-51`).
 const MATERIAL_METAL: i64 = 0x1;
 const MATERIAL_PLATE: i64 = 0x2;
@@ -82,6 +88,8 @@ const IMPACT_SLOTS: usize = 11;
 const SLOT_FLESH: usize = 0;
 const SLOT_CHAIN: usize = 1;
 const SLOT_PLATE: usize = 2;
+const SLOT_SHIELD_METAL: usize = 3;
+const SLOT_SHIELD_WOOD: usize = 4;
 const SLOT_PARRY_METAL: usize = 5;
 const SLOT_PARRY_WOOD: usize = 6;
 const SLOT_WOOD: usize = 7;
@@ -104,6 +112,8 @@ pub struct MeleeHand {
     pub display_info_id: Option<u32>,
     /// Worn chest `Item` ID.
     pub chest_item_id: Option<u32>,
+    /// Off-hand shield `Item` ID.
+    pub shield_item_id: Option<u32>,
     /// The unit's voice, whose display gives bare hands and players `ImpactSource` 1.
     pub unit: VoiceSource,
 }
@@ -111,7 +121,11 @@ pub struct MeleeHand {
 /// How a melee swing ended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SwingResult {
-    Hit { critical: bool },
+    Hit {
+        critical: bool,
+    },
+    /// A hit partly stopped by the victim's shield.
+    Block,
     Parry,
     Dodge,
     Miss,
@@ -172,6 +186,8 @@ pub(super) struct MeleeSounds {
     weapons: HashMap<u32, WeaponItem>,
     /// Chain or plate impact slot of the armour (`Item` class 4) that presents one.
     armour: HashMap<u32, usize>,
+    /// Shields (`Item` class 4, subclass 6): their material.
+    shields: HashMap<u32, ParryMaterial>,
     /// `ItemDisplayInfo.OverrideSwooshSoundKitID` of the displays that set it.
     swooshes: HashMap<u32, u32>,
     /// `CreatureDisplayInfo.UnarmedWeaponType` of the displays that set it.
@@ -196,13 +212,14 @@ impl MeleeSounds {
 impl SpellVisualCatalog {
     pub(super) fn read_melee(&mut self, dir: &Path) -> Result<(), String> {
         let flags = read_material_flags(dir)?;
-        let (weapons, armour) = read_items(dir, &flags)?;
+        let (weapons, armour, shields) = read_items(dir, &flags)?;
         self.melee = MeleeSounds {
             swings: read_swings(dir)?,
             swing_sizes: read_swing_sizes(dir)?,
             impacts: read_impacts(dir)?,
             weapons,
             armour,
+            shields,
             swooshes: read_at_least(dir, "ItemDisplayInfo", "OverrideSwooshSoundKitID", 1)?,
             unarmed: read_at_least(dir, "CreatureDisplayInfo", "UnarmedWeaponType", 0)?,
         };
@@ -220,7 +237,7 @@ impl SpellVisualCatalog {
                     COMBAT_MISS_1H
                 }
             }
-            SwingResult::Hit { .. } | SwingResult::Parry => {
+            SwingResult::Hit { .. } | SwingResult::Block | SwingResult::Parry => {
                 match hand.display_info_id.and_then(|id| melee.swooshes.get(&id)) {
                     Some(&kit) => kit,
                     None => *melee
@@ -245,6 +262,14 @@ impl SpellVisualCatalog {
             SwingResult::Parry => match self.weapon_of(victim).1 {
                 ParryMaterial::Metal => SLOT_PARRY_METAL,
                 ParryMaterial::Wood => SLOT_PARRY_WOOD,
+            },
+            SwingResult::Block => match victim
+                .shield_item_id
+                .and_then(|id| self.melee.shields.get(&id))
+            {
+                Some(ParryMaterial::Metal) => SLOT_SHIELD_METAL,
+                Some(ParryMaterial::Wood) => SLOT_SHIELD_WOOD,
+                None => self.hit_slot(victim),
             },
             SwingResult::Hit { .. } => self.hit_slot(victim),
         };
@@ -299,8 +324,11 @@ impl SpellVisualCatalog {
         result: SwingResult,
         roll: u32,
     ) -> Option<&KitSound> {
-        let SwingResult::Hit { critical } = result else {
-            return None;
+        let critical = match result {
+            SwingResult::Hit { critical } => critical,
+            // A blocked swing still hits (`VICTIMSTATE_HIT`, Unit.cpp:1461).
+            SwingResult::Block => false,
+            _ => return None,
         };
         vocal_passes(MeleeVocal::Injury, victim, result, roll)
             .then(|| self.wound_sound(victim, critical))
@@ -390,11 +418,14 @@ fn read_material_flags(dir: &Path) -> Result<HashMap<i64, i64>, String> {
 }
 
 /// Each weapon's sound subclass (`Sound_override_subclassID` when set) and parry material,
-/// and each chain or plate armour's impact slot.
-fn read_items(
-    dir: &Path,
-    flags: &HashMap<i64, i64>,
-) -> Result<(HashMap<u32, WeaponItem>, HashMap<u32, usize>), String> {
+/// each chain or plate armour's impact slot, and each shield's material.
+type ItemTables = (
+    HashMap<u32, WeaponItem>,
+    HashMap<u32, usize>,
+    HashMap<u32, ParryMaterial>,
+);
+
+fn read_items(dir: &Path, flags: &HashMap<i64, i64>) -> Result<ItemTables, String> {
     let rows = Table::read(dir, "Item")?.ints([
         "ID",
         "ClassID",
@@ -404,15 +435,19 @@ fn read_items(
     ])?;
     let mut weapons = HashMap::new();
     let mut armour = HashMap::new();
+    let mut shields = HashMap::new();
     for [id, class, subclass, material, sound_subclass] in rows {
         let flags = flags.get(&material).copied().unwrap_or(0);
         if class == WEAPON_CLASS {
             weapons.insert(id as u32, weapon_item(subclass, sound_subclass, flags));
         } else if class == ARMOR_CLASS {
             armour.extend(armour_slot(flags).map(|slot| (id as u32, slot)));
+            if subclass == SHIELD_SUBCLASS {
+                shields.insert(id as u32, weapon_item(subclass, -1, flags).material);
+            }
         }
     }
-    Ok((weapons, armour))
+    Ok((weapons, armour, shields))
 }
 
 /// A weapon's sound subclass (`Sound_override_subclassID` when set) and parry material.

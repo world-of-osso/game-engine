@@ -564,6 +564,7 @@ mod tests {
             resisted: 0,
             blocked: 0,
             crit,
+            glancing: false,
             periodic: false,
             kind,
         }
