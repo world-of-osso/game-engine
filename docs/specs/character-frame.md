@@ -14,7 +14,7 @@ References:
 - [x] 18 `PaperDollItemSlotButton`s (no Ranged) with empty-slot textures, item icons, quality borders, and the slot on the cursor dimmed.
 - [x] Hover shows the shared item tooltip (`ANCHOR_RIGHT`); an empty slot shows its slot name.
 - [x] Equip: drag a bag item onto a slot, click-drop it, or right-click it in the bag (`UseContainerItem` → `EquipItem`). Unequip: drag a slot to a bag slot. A wrong slot shows the server's `ERR_WRONG_SLOT` text.
-- [x] A drop on a slot that covers another window's bag slot equips once and sends nothing for the covered slot (ui-ownership `E1_EQUIP_OVER_BAG`).
+- [x] A drop on a slot raised over another window equips once and does nothing to the window underneath: with the MerchantFrame under the Hands slot, a bag item released there sends one `SwapItem` to `Equipment(Hands)` and no `SellItem` (ui-ownership `E1_EQUIP_OVER_MERCHANT`). No layout puts a bag under the frame: both keep fixed Retail anchors and the HUD scale follows the window width.
 - [x] Model preview of the local player in `CharacterModelScene`, re-dressed when the replicated appearance changes, weapons sheathed, left-drag rotates; a cursor item dropped on it auto-equips.
 - [x] Level line `PLAYER_LEVEL` with spec and class in the class colour; average item level from level 10.
 - [x] `AttributesCategory`: Strength, Agility, Intellect, Stamina and Armor as `BreakUpLargeNumbers` integers, under the item level, or at the pane top with 5 more between lines below level 10; hidden until the stats arrive.
