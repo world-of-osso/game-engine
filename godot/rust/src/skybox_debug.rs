@@ -16,7 +16,13 @@ use godot::{
     prelude::*,
 };
 
-use crate::{GameClient, assets::uv_animation::WowMaterialClock, character_select::sky::Sky};
+use crate::{
+    GameClient,
+    assets::uv_animation::WowMaterialClock,
+    character_select::sky::Sky,
+    scene_export::{SceneEntry, camera_entry, m2_source},
+};
+use game_engine_core::scene_snapshot::NodeProps;
 
 mod environment;
 mod source;
@@ -242,6 +248,24 @@ impl WowSkyboxDebug {
         let environment = environment::create(&mut root, &mut self.camera, data_root, composition)?;
         self.environment = Some(environment);
         Ok(())
+    }
+
+    /// `SkyboxDebugScene`: the orbit camera and the resolved skybox model.
+    pub(crate) fn scene_entry(&self) -> Result<SceneEntry, String> {
+        let root = self.base().clone().upcast::<Node3D>();
+        let sky = SceneEntry::new(
+            "Skybox",
+            Some(self.sky.node.clone()),
+            NodeProps::Object {
+                kind: "Skybox".into(),
+                model: m2_source(&self.sky.node)?,
+            },
+        );
+        Ok(SceneEntry::scene(
+            "SkyboxDebugScene",
+            Some(root),
+            vec![camera_entry(&self.camera), sky],
+        ))
     }
 
     pub(crate) fn update_options(&mut self, options: CameraOptionsFile) {

@@ -132,6 +132,14 @@ pub(crate) fn read_model(path: &GString) -> Result<m2::Model, String> {
     read_model_file(Path::new(&global_path(path)))
 }
 
+/// The `{stem}00.skin` read with the M2 at `model_path`.
+pub(crate) fn primary_skin_path(model_path: &str) -> Result<String, String> {
+    let stem = model_path
+        .strip_suffix(".m2")
+        .ok_or_else(|| format!("Expected .m2 path: {model_path}"))?;
+    Ok(format!("{stem}00.skin"))
+}
+
 /// Parse the M2 at `model_path` with its `{stem}00.skin`, optional `{stem}.skel` and
 /// external `.anim` files; no engine calls, so a worker thread can run it.
 pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
@@ -141,7 +149,7 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
     let model = read(model_path)?;
     let base = model_path.to_string_lossy();
     let stem = base.strip_suffix(".m2").ok_or("Expected .m2 path")?;
-    let skin = read(Path::new(&format!("{stem}00.skin")))?;
+    let skin = read(Path::new(&primary_skin_path(&base)?))?;
     let skel_path = format!("{stem}.skel");
     let skeleton = if Path::new(&skel_path).exists() {
         Some(read(Path::new(&skel_path))?)

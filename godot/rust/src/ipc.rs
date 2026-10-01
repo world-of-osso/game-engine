@@ -33,6 +33,8 @@ pub(crate) fn dump_ui_tree(client: &Gd<Node>, filter: Option<&str>) -> Response 
     ui_tree::dump_mounted_ui(client, filter)
 }
 
+pub(crate) use export::export_scene;
+
 struct Command {
     request: Request,
     respond: oneshot::Sender<Response>,
@@ -121,7 +123,6 @@ impl NativeIpc {
             Request::DumpUiTree { filter } => ui_tree::dump_mounted_ui(client, filter.as_deref()),
             // The original scene dispatcher ignores this filter.
             Request::DumpScene { filter: _ } => tree::dump_scene(client),
-            Request::ExportScene { output_path } => export::export_scene(client, &output_path),
             Request::Performance => self.performance(client),
             Request::Screenshot => {
                 self.queue_screenshot(client, command.respond);

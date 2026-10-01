@@ -635,6 +635,16 @@ fn sync_unit_animation(unit: &mut UnitNode, snapshot: Unit, fallbacks: &HashMap<
     }
 }
 
+/// A unit as `export-scene` reports it.
+pub(crate) struct SceneUnit {
+    pub id: u64,
+    pub node: Gd<Node3D>,
+    pub name: String,
+    pub is_player: bool,
+    pub is_local: bool,
+    pub visual: Option<Gd<Node3D>>,
+}
+
 pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
     /// `AnimationData.Fallback`, loaded on first use.
@@ -968,6 +978,24 @@ impl WorldUnits {
             .try_get_node_as::<WowAnimationPlayer>("NpcModel/M2Animation")?
             .bind()
             .playback_rate()
+    }
+
+    /// Every unit's node and current visual, by server ID, for scene exports.
+    pub(crate) fn scene_units(&self) -> Vec<SceneUnit> {
+        let mut units: Vec<SceneUnit> = self
+            .units
+            .iter()
+            .map(|(&id, unit)| SceneUnit {
+                id,
+                node: unit.node.clone(),
+                name: unit.name.clone(),
+                is_player: unit.is_player,
+                is_local: self.local_player_id == Some(id),
+                visual: unit.visual.clone(),
+            })
+            .collect();
+        units.sort_by_key(|unit| unit.id);
+        units
     }
 
     pub fn unit_node(&self, id: u64) -> Option<Gd<Node3D>> {

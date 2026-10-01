@@ -150,6 +150,8 @@ struct WmoSpawn {
     asset: Arc<NativeWmoAsset>,
     doodad_sets: Vec<u16>,
     build: WmoBuild,
+    /// `WMO_MODEL_META` for the placed root.
+    model: String,
 }
 
 /// A spawned WMO node and the doodads it still places as children.
@@ -343,6 +345,21 @@ impl TileProgress {
     }
 }
 
+/// WMO root metadata: the original export's model label, the root's listfile path
+/// (else its FDID) with ` nameSet=<n>` for a non-default name set
+/// (`terrain_objects_wmo.rs` `build_spawned_wmo_root`).
+pub(crate) const WMO_MODEL_META: &str = "wmo_model";
+
+fn wmo_model_label(resolver: &CascListfileResolver, root_fdid: u32, name_set: u16) -> String {
+    let model = resolver
+        .resolve_path(root_fdid)
+        .unwrap_or_else(|| root_fdid.to_string());
+    match name_set {
+        0 => model,
+        name_set => format!("{model} nameSet={name_set}"),
+    }
+}
+
 pub(crate) struct TerrainObjects {
     name: &'static str,
     budget: Duration,
@@ -438,6 +455,22 @@ impl TerrainObjects {
     }
 
     /// Objects spawned so far, excluding failures.
+    pub fn doodad_count(&self) -> usize {
+        self.spawned_doodads.len()
+    }
+
+    /// Spawned WMO roots, in node order.
+    pub fn wmo_nodes(&self) -> Vec<Gd<Node3D>> {
+        let Some(root) = &self.root else {
+            return Vec::new();
+        };
+        root.get_children()
+            .iter_shared()
+            .filter(|node| node.has_meta(WMO_MODEL_META))
+            .filter_map(|node| node.try_cast::<Node3D>().ok())
+            .collect()
+    }
+
     pub fn spawned_count(&self) -> usize {
         self.spawned_doodads.len() + self.spawned_wmos.len()
     }
@@ -714,6 +747,7 @@ impl TerrainObjects {
                     asset,
                     doodad_sets,
                     build,
+                    model: wmo_model_label(&self.resolver, root_fdid, wmo.name_set),
                 });
                 Ok(())
             }
@@ -766,6 +800,7 @@ impl TerrainObjects {
         let position = placement_position(placement.position, tile.0, tile.1);
         let rotation = shared::ground::placement_rotation(placement.rotation);
         model.set_name(&format!("Wmo{}", placement.unique_id));
+        model.set_meta(WMO_MODEL_META, &spawn.model.to_variant());
         model.set_position(Vector3::from_array(position.to_array()));
         model.set_quaternion(Quaternion::new(
             rotation.x, rotation.y, rotation.z, rotation.w,
