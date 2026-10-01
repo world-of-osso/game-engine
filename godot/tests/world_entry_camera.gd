@@ -13,6 +13,9 @@ extends SceneTree
 ##    after loading).
 ## Requires GODOT_TEST_SERVER, ENTRY_CAMERA_ACCOUNT, ENTRY_CAMERA_PASSWORD and
 ## ENTRY_CAMERA_CHARACTER (card 0). ENTRY_CAMERA_SHOTS names a directory for screenshots.
+## ENTRY_CAMERA_MEASURE=1 then waits for the object queue to drain and reports frame time and
+## resident memory with every doodad collision body attached, detached and re-attached, then
+## after freeing them.
 const CAMERA_DISTANCE := 15.0
 const EYE_HEIGHT := 1.8
 const DOODAD_LAYER := 8
@@ -45,6 +48,8 @@ func run_test() -> void:
 	if not await first_frame():
 		return
 	if not await late_obstacle_pulls_camera_in():
+		return
+	if OS.get_environment("ENTRY_CAMERA_MEASURE") == "1" and not await measure_doodad_bodies():
 		return
 	print("PASS: center tile objects and an on-orbit camera from the first in-world frame; a late doodad body pulls the camera in")
 	client.free()
@@ -119,6 +124,85 @@ func late_obstacle_pulls_camera_in() -> bool:
 		fail("Late doodad body did not pull the camera in on the next frame: %.2f yd" % after)
 		return false
 	return true
+
+## Frame time and RSS with all doodad collision bodies of the streamed 3x3 tiles in place.
+func measure_doodad_bodies() -> bool:
+	var deadline := Time.get_ticks_msec() + 600000
+	while client.account_state().world_objects.pending > 0:
+		if Time.get_ticks_msec() > deadline:
+			fail("Object queue did not drain: " + str(client.account_state().world_objects))
+			return false
+		await process_frame
+	print("MEASURE objects=%s" % client.account_state().world_objects)
+	var bodies := client.find_children("M2Collision", "StaticBody3D", true, false)
+	var parents := bodies.map(func(body): return body.get_parent())
+	print_shapes(bodies)
+	await sample_frames("attached", bodies.size())
+	for body in bodies:
+		body.get_parent().remove_child(body)
+	await sample_frames("detached", 0)
+	for i in bodies.size():
+		parents[i].add_child(bodies[i])
+	await sample_frames("reattached", bodies.size())
+	for body in bodies:
+		body.free()
+	await sample_frames("freed", 0)
+	return true
+
+## Distinct shared shapes and their face vertices (12 bytes each).
+func print_shapes(bodies: Array) -> void:
+	var shapes := {}
+	for body in bodies:
+		var shape: ConcavePolygonShape3D = body.get_child(0).shape
+		shapes[shape] = shape.get_faces().size()
+	var vertices := 0
+	for count in shapes.values():
+		vertices += count
+	print("MEASURE shapes=%d face_vertices=%d face_mib=%.1f" % [shapes.size(), vertices, vertices * 12 / 1048576.0])
+
+## Frame time, physics step time, camera-ray cost (terrain | WMO | doodad mask, 15 yd rays
+## around the eye) and memory.
+func sample_frames(label: String, bodies: int) -> void:
+	for _frame in 60:
+		await RenderingServer.frame_post_draw
+	var times: Array[float] = []
+	var physics := 0.0
+	var last := Time.get_ticks_usec()
+	for _frame in 300:
+		await RenderingServer.frame_post_draw
+		var now := Time.get_ticks_usec()
+		times.append((now - last) / 1000.0)
+		physics += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+		last = now
+	times.sort()
+	var total := 0.0
+	for time in times:
+		total += time
+	print("MEASURE %s bodies=%d mean_ms=%.2f p50_ms=%.2f p99_ms=%.2f physics_ms=%.3f ray_us=%.2f rss_mib=%.1f static_mib=%.1f" % [
+		label, bodies, total / times.size(), times[times.size() / 2], times[int(times.size() * 0.99)],
+		physics / times.size(), ray_cost_us(), resident_mib(), OS.get_static_memory_usage() / 1048576.0])
+
+func ray_cost_us() -> float:
+	var space := client.get_world_3d().direct_space_state
+	var eye := player_node().global_position + Vector3.UP * EYE_HEIGHT
+	var rays := 0
+	var start := Time.get_ticks_usec()
+	for _pass in 20:
+		for step in 360:
+			var point := orbit_point(eye, deg_to_rad(step), -0.3, CAMERA_DISTANCE)
+			var query := PhysicsRayQueryParameters3D.create(eye, point, 1 | 2 | DOODAD_LAYER)
+			query.hit_back_faces = true
+			space.intersect_ray(query)
+			rays += 1
+	return float(Time.get_ticks_usec() - start) / rays
+
+func resident_mib() -> float:
+	var status := FileAccess.open("/proc/self/status", FileAccess.READ)
+	while status != null and not status.eof_reached():
+		var line := status.get_line()
+		if line.begins_with("VmRSS:"):
+			return float(line.split(":")[1].strip_edges().split(" ")[0]) / 1024.0
+	return -1.0
 
 ## The follow camera's position: `eye - orbit_dir * distance`, with orbit_dir the
 ## `Quat::from_euler(YXZ, yaw, pitch, 0) * -Z` of `camera_follow_data::follow_camera`.
