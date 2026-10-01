@@ -1,10 +1,12 @@
 extends "res://tests/world_bags_flow.gd"
 
 # Separate from bags-cursor acceptance. Real input only; peer owns every mutation.
-# Planned read-only API: merchant_state().equipment Array of occupied entries,
-# each {slot: "MainHand", item_id: 25, item_guid: 9170005, count: 1}.
+# Read-only merchant_state().equipment: MainHand item25/count1, startup GUID
+# 9170105 replaced by bag sword GUID9170005 only after the peer's Equip delta.
 # No equipment mesh parity or raw drag-release coverage.
 const ACTION_QUIET_MS := 650
+const STARTUP_SWORD_GUID := 9170105
+const BAG_SWORD_GUID := 9170005
 const INITIAL_ITEMS := [[5, 25, "Worn Shortsword"], [2, 4865, "Ruined Pelt"], [3, 3871, "Plans: Golden Scale Shoulders"]]
 const POOR_TEXT := "Do you want to destroy Ruined Pelt?"
 const RARE_TEXT := "Do you want to destroy Plans: Golden Scale Shoulders?\n\nType \"DELETE\" into the field to confirm."
@@ -30,6 +32,8 @@ func run_test() -> void:
 		return
 	print("FIXTURE BAGS_ACTIONS_READY")
 	if not await wait_action_inventory(client, INITIAL_ITEMS):
+		return
+	if not await wait_startup_equipment(client):
 		return
 	if not bags_closed(client):
 		fail("Bags-actions must start closed without merchant/menu")
@@ -69,8 +73,7 @@ func equip_sword(client: Node) -> bool:
 	await process_frame
 	if not await press_slot(client, 5, MOUSE_BUTTON_RIGHT):
 		return false
-	# First intended RED: existing native rightbagclick raises explicit runtime error.
-	# Getter assumptions are checked only after the peer's decoded Equip delta.
+	# Peer rejects premature/duplicate requests; only its delta may replace startup GUID.
 	if not await wait_action_inventory(client, [INITIAL_ITEMS[1], INITIAL_ITEMS[2]]):
 		return false
 	if not await wait_equipment(client):
@@ -299,7 +302,26 @@ func wait_action_inventory(client: Node, expected: Array) -> bool:
 	fail("Bags-actions authoritative inventory expected=%s observed=%s" % [expected, client.merchant_state().bags])
 	return false
 
-func equipment_matches(client: Node) -> bool:
+func wait_startup_equipment(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + INVENTORY_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.merchant_state()
+		var popup := authored_control(client, "StaticPopup1")
+		var split := authored_control(client, "StackSplitFrame")
+		if not action_inventory_matches(client, INITIAL_ITEMS) or not bags_closed(client) or cursor_shown(client) or state.split_open:
+			fail("Bags-actions startup equipment wait changed bags/windows/carried cursor/split: %s" % state)
+			return false
+		if (popup != null and popup.is_visible_in_tree()) or (split != null and split.is_visible_in_tree()):
+			fail("Bags-actions startup equipment wait opened popup/split")
+			return false
+		if equipment_matches(client, STARTUP_SWORD_GUID):
+			print("BAGS ACTIONS STARTUP_EQUIPMENT MainHand item25 guid%s count1 unchanged bags/no popup/no carried cursor/no split" % STARTUP_SWORD_GUID)
+			return true
+	fail("RED: startup EquipmentSnapshot requires exactly MainHand item25 guid%s count1 before EQUIP_ARM; observed=%s" % [STARTUP_SWORD_GUID, client.merchant_state()])
+	return false
+
+func equipment_matches(client: Node, expected_guid: int = BAG_SWORD_GUID) -> bool:
 	var state: Dictionary = client.merchant_state()
 	if not state.has("equipment") or not (state.equipment is Array):
 		return false
@@ -307,7 +329,7 @@ func equipment_matches(client: Node) -> bool:
 	if entries.size() != 1:
 		return false
 	var item: Dictionary = entries[0]
-	return item.get("slot") == "MainHand" and item.get("item_id") == 25 and item.get("item_guid") == 9170005 and item.get("count") == 1
+	return item.get("slot") == "MainHand" and item.get("item_id") == 25 and item.get("item_guid") == expected_guid and item.get("count") == 1
 
 func wait_equipment(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + INVENTORY_WAIT_MS

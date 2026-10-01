@@ -1,13 +1,15 @@
 //! Standalone authored equip/destroy actions; owned UDP deltas, no UI/state setters.
 use super::*;
 use shared::protocol::{
-    BagSlotItem, DestroyItem, EquipItem, EquipmentSlot, EquipmentSnapshot, InventoryDelta,
-    InventorySlotChange, ItemLocation, ItemStack, SortBags, SplitItem, SwapItem, UseItem,
+    BagSlotItem, DestroyItem, EquipItem, EquipmentSlot, EquipmentSnapshot, EquippedItem,
+    InventoryDelta, InventorySlotChange, ItemLocation, ItemStack, SortBags, SplitItem, SwapItem,
+    UseItem,
 };
 
 const QUIET: Duration = Duration::from_millis(400);
 const REQUEST_WAIT: Duration = Duration::from_secs(6);
 const SWORD_SLOT: u8 = 5;
+const STARTUP_SWORD_GUID: u64 = 9_170_105;
 const PELT_SLOT: u8 = 2;
 const PLANS_SLOT: u8 = 3;
 
@@ -283,7 +285,18 @@ fn reject_unrelated(app: &App) -> Result<(), String> {
 }
 
 fn send_snapshot(app: &mut App) {
-    send::<_, InventoryChannel>(app, EquipmentSnapshot { items: vec![] });
+    send::<_, InventoryChannel>(
+        app,
+        EquipmentSnapshot {
+            items: vec![EquippedItem {
+                slot: EquipmentSlot::MainHand,
+                item: ItemStack {
+                    item_guid: STARTUP_SWORD_GUID,
+                    ..stack(SWORD_SLOT)
+                },
+            }],
+        },
+    );
     let items = [SWORD_SLOT, PELT_SLOT, PLANS_SLOT]
         .into_iter()
         .map(|slot| BagSlotItem {
