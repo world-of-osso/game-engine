@@ -9,6 +9,8 @@ Last updated: 2026-09-29.
 
 [Foreign-chat World rejection](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) at `5f6782b5`: MAIN observed GREEN; independent gate1406 accepted bounded PASS. Bounded mounted-hit rejection, not cross-layer winner/global ownership acceptance; existing exclusions retained.
 
+[Occupied startup equipment](systems/godot-conversion.md#occupied-startup-equipment--authentic-red-integration-pending): test `57b30f57`, actual startup RED101 with exact bags/authenticated READY but equipment empty before Equip input. Minimal account/merchant `ee2d3e47` committed; transport1419 `2d1829fc` committed; integration Depot build/verifier1421 active, runtime GREEN pending. Startup inventory remains missing, independent of appearance/meshes; tooltip gate1415/docs `2142e85f` retained.
+
 Engine subsystems and how they work.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
