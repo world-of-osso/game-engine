@@ -34,6 +34,7 @@ impl SpellTextContext {
             known_spells: known.map_or_else(Vec::new, |known| known.spells().to_vec()),
             auras,
             spec_id: spec.and_then(|spec| spec.0),
+            caster_power: None,
         }
     }
 }

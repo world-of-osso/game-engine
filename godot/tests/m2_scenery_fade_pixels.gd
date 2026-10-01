@@ -7,7 +7,7 @@ extends "res://tests/m2_blend_pixels.gd"
 
 func batch_material() -> ShaderMaterial:
 	var mesh := loaded.get_node_or_null("Batch0") as MeshInstance3D
-	return mesh.get_surface_override_material(0) as ShaderMaterial if mesh != null else null
+	return mesh.get_active_material(0) as ShaderMaterial if mesh != null else null
 
 func fade_shader(material: ShaderMaterial) -> Shader:
 	return material.get_meta("scenery_fade_shader") if material.has_meta("scenery_fade_shader") else null

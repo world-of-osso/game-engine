@@ -263,10 +263,7 @@ pub(crate) fn bind_doodad_light(
         .owned(false)
         .done();
     for node in meshes.iter_shared() {
-        if let Some(material) = node
-            .cast::<MeshInstance3D>()
-            .get_surface_override_material(0)
-        {
+        if let Some(material) = node.cast::<MeshInstance3D>().get_active_material(0) {
             set_light_parameters(material.cast(), light, sun);
         }
     }

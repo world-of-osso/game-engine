@@ -3,7 +3,7 @@ pub(super) fn fixed_sequence_phase_ms(time_ms: u32, duration_ms: u32) -> f64 {
     if duration_ms > 0 {
         f64::from(time_ms as f32 % duration_ms as f32)
     } else {
-        0.0
+        f64::from(time_ms as f32)
     }
 }
 

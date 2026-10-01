@@ -52,7 +52,7 @@ func wait_for_authored_material(tree: SceneTree, client: Node) -> ShaderMaterial
 		if objects != null:
 			for child in objects.find_children("*", "MeshInstance3D", true, false):
 				var mesh := child as MeshInstance3D
-				var material := mesh.get_surface_override_material(0) as ShaderMaterial
+				var material := mesh.get_active_material(0) as ShaderMaterial
 				if material == null or material.get_shader_parameter("pixel_shader") != 7:
 					continue
 				var sizes := [layer_size(material, "base_texture"), layer_size(material, "second_texture"), layer_size(material, "third_texture")]

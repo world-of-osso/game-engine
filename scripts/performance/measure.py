@@ -35,6 +35,8 @@ COMPARISON_KEYS = (
 
 
 def distribution(values, limit=100.0):
+    if not math.isfinite(limit) or limit <= 0:
+        raise ValueError("fixture limit must be finite and positive")
     if any(not math.isfinite(value) or value < 0 for value in values):
         raise ValueError("frame intervals must be finite and nonnegative")
     ordered = sorted(values)
@@ -61,6 +63,22 @@ def summarize(report):
         report.get("settled_ms", []), report.get("frame_limit_ms", 100)
     )
     elapsed = report.get("settled_elapsed_s", 0)
+    memory = report.get("memory", {})
+    memory_gaps = [
+        phase
+        for phase in (
+            "script_start",
+            "client_mounted",
+            "character_selected",
+            "enter_world",
+            "loading_hidden",
+            "queue_drained",
+            "settled_end",
+        )
+        if phase not in memory
+        or memory[phase].get("error")
+        or any(memory[phase].get(key) is None for key in ("VmRSS_kib", "VmHWM_kib"))
+    ]
     return {
         "startup": distribution(report.get("startup_ms", [])),
         "loading": distribution(
@@ -76,7 +94,12 @@ def summarize(report):
         "adequate_duration": 60 <= elapsed <= 301
         and 60 <= settled["interval_sum_s"] <= 301
         and settled["samples"] >= 2,
-        "memory": report.get("memory", {}),
+        "memory": memory,
+        "memory_gaps": memory_gaps,
+        "settled_queue_stable": report.get("queue_drained", False)
+        and not report.get("settled_pending_changed", False)
+        and report.get("objects", {}).get("pending") == 0,
+        "percentile_scope": "Empirical nearest-rank only; sample count reported, no statistical tail-stability claim",
         "objects": report.get("objects", {}),
         "limits_scope": "fixture policy only; no product budget or parity assertion",
     }
@@ -184,11 +207,22 @@ def run_measurement(command, output, manifest, timeout):
             "missing PERF_REPORT" if not reports else "multiple PERF_REPORT records"
         )
     else:
-        measurement = summarize(reports[0])
-        if not measurement["adequate_duration"]:
-            gaps.append(
-                "settled sample window is not 60–300 seconds; not final acceptance evidence"
-            )
+        try:
+            measurement = summarize(reports[0])
+        except (ValueError, TypeError, AttributeError) as error:
+            gaps.append("invalid PERF_REPORT: " + str(error))
+        if measurement is not None:
+            if not measurement["adequate_duration"]:
+                gaps.append(
+                    "settled sample window is not 60–300 seconds; not final acceptance evidence"
+                )
+            if measurement["memory_gaps"]:
+                gaps.append(
+                    "missing/invalid phase memory: "
+                    + ", ".join(measurement["memory_gaps"])
+                )
+            if not measurement["settled_queue_stable"]:
+                gaps.append("object queue not continuously settled during observation")
     return {
         "command": command,
         "manifest": manifest,
@@ -246,6 +280,27 @@ def main():
     result["checkout_before"] = provenance
     result["checkout_after"] = git_record(repo)
     result["host"] = {"platform": platform.platform(), "uname": list(platform.uname())}
+    result["environment"] = {
+        name: os.environ.get(name)
+        for name in (
+            "XDG_CONFIG_HOME",
+            "XDG_DATA_HOME",
+            "XDG_CACHE_HOME",
+            "WAYLAND_DISPLAY",
+            "DISPLAY",
+            "WLR_BACKENDS",
+            "WLR_RENDERER",
+            "WLR_LIBINPUT_NO_DEVICES",
+            "GODOT_BIN",
+            "GODOT_TEST_SERVER",
+            "WORLD_ENTRY_ACCOUNT",
+            "WORLD_ENTRY_CHARACTER",
+            "WORLD_ENTRY_MEASURE_S",
+            "WORLD_ENTRY_SETTLE_S",
+            "WORLD_ENTRY_FRAME_MS",
+            "WORLD_ENTRY_LOADING_FRAME_MS",
+        )
+    }
     result["comparison"] = compare(manifest, baseline)
     if before != result["inputs_after"]:
         result["gaps"].append("frozen input files changed during workload")

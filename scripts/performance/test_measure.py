@@ -90,6 +90,45 @@ class MeasurementTests(unittest.TestCase):
             self.assertIsNone(result["measurement"])
             self.assertIn("missing PERF_REPORT", result["gaps"])
 
+    def test_file_snapshots_detect_changed_options(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "options.json"
+            path.write_text('{"vsync":true}')
+            manifest = {"input_paths": {"options": str(path)}}
+            before = self.measure.capture_inputs(manifest)
+            path.write_text('{"vsync":false}')
+            after = self.measure.capture_inputs(manifest)
+            self.assertNotEqual(before["options"]["sha256"], after["options"]["sha256"])
+            self.assertEqual(after["options"]["bytes"], path.stat().st_size)
+
+    def test_malformed_measurement_preserves_raw_log_and_reports_gap(self):
+        child = "print('PERF_REPORT {\\\"settled_ms\\\":[-1]}')"
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.measure.run_measurement(
+                [sys.executable, "-c", child], Path(tmp), {}, 5
+            )
+            self.assertEqual(result["exit_code"], 0)
+            self.assertIsNone(result["measurement"])
+            self.assertTrue(result["gaps"])
+            self.assertEqual(result["raw_reports"], [{"settled_ms": [-1]}])
+            self.assertEqual(
+                (Path(tmp) / "stdout.log").read_text(),
+                'PERF_REPORT {"settled_ms":[-1]}\n',
+            )
+
+    def test_memory_gaps_and_queue_change_remain_explicit(self):
+        report = {
+            "settled_elapsed_s": 60,
+            "settled_ms": [1000] * 60,
+            "settled_pending_changed": True,
+            "memory": {
+                "settled_end": {"VmRSS_kib": None, "VmHWM_kib": None, "error": "denied"}
+            },
+        }
+        result = self.measure.summarize(report)
+        self.assertFalse(result["settled_queue_stable"])
+        self.assertIn("settled_end", result["memory_gaps"])
+
     def test_short_or_inconsistent_sample_window_is_not_adequate(self):
         report = {"settled_elapsed_s": 60, "settled_ms": [10] * 120}
         self.assertFalse(self.measure.summarize(report)["adequate_duration"])

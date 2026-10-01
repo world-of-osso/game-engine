@@ -3,15 +3,18 @@
 //!
 //! Resolved from the local DB2 rows and the viewing player's [`SpellTextContext`]:
 //! effect tokens (`$s1`, `$m1`, `$w1`, `$t1`, `$a1`, `$o1`, `$x1`, upper-case
-//! variants), `$d`, `$u`, `$n`, `$h`, `$r`, each optionally prefixed by a spell id;
+//! variants; spell and attack power scaled points with the player's replicated
+//! powers), `$d`, `$u`, `$n`, `$h`, `$r`, `$SP`, `$AP`, each optionally prefixed by a
+//! spell id;
 //! `$?cond[..][..]` chains over known spells (`s`), player auras (`a`), the spec
 //! index (`c`) and numeric comparisons; `${expr}.N`; `$/N;tok` and `$*N;tok`;
 //! `$lsingular:plural;`; `$@spelldesc`/`$@spelltooltip`/`$@spellaura`/
 //! `$@auradesc`/`$@spellname` references.
 //!
-//! Anything else (caster stats such as `$AP`, spell-power or level scaled effect
-//! points, `$<var>` description variables, `$g` gender forms, inline icons) renders
-//! as the visible marker `{?<token>}` and logs one warning per spell and token.
+//! Anything else (other caster stats such as `$pri`, level scaled effect points,
+//! power scaled points before the powers arrive, `$<var>` description variables, `$g`
+//! gender forms, inline icons) renders as the visible marker `{?<token>}` and logs one
+//! warning per spell and token.
 
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
@@ -271,7 +274,7 @@ impl Renderer<'_> {
         spell: &CatalogSpell,
     ) -> Result<f64, Unresolved> {
         let source = self.source(token, spell).ok_or(Unresolved)?;
-        letter_value(source, token).ok_or(Unresolved)
+        letter_value(source, token, self.ctx.caster_power).ok_or(Unresolved)
     }
 
     pub(super) fn evaluate(&self, expr: &Expr, spell: &CatalogSpell) -> Result<f64, Unresolved> {
@@ -379,24 +382,51 @@ fn factor_len(after_op: &str) -> usize {
     after_op.find(';').map_or(0, |pos| pos + 1)
 }
 
-fn letter_value(spell: &CatalogSpell, token: &ValueToken) -> Option<f64> {
+fn letter_value(
+    spell: &CatalogSpell,
+    token: &ValueToken,
+    power: Option<super::CasterPower>,
+) -> Option<f64> {
     let effect = || spell.effect(token.index.unwrap_or(0));
-    let points = || effect().filter(|effect| !effect.caster_scaled);
+    let points = || effect_points(effect()?, power);
     let value = match token.name.as_str() {
-        "s" | "S" | "w" | "W" => f64::from(points()?.base_points.abs()),
-        "m" | "M" => f64::from(points()?.base_points),
+        "s" | "S" | "w" | "W" => points()?.abs(),
+        "m" | "M" => points()?,
         "t" | "T" => positive(effect()?.aura_period_ms)? as f64 / 1000.0,
         "a" | "A" => Some(f64::from(effect()?.radius_yd)).filter(|radius| *radius > 0.0)?,
-        "o" | "O" => periodic_total(spell, points()?)?,
+        "o" | "O" => periodic_total(spell, effect()?, points()?)?,
         "x" | "X" => positive(effect()?.chain_targets)? as f64,
         "d" | "D" => positive(spell.duration_ms)? as f64 / 1000.0,
         "u" | "U" => positive(spell.max_stacks)? as f64,
         "n" | "N" => positive(spell.proc_charges)? as f64,
         "h" | "H" => positive(spell.proc_chance)? as f64,
         "r" | "R" => max_range(spell)?,
+        "SP" | "sp" => f64::from(power?.spell_power),
+        "AP" | "ap" => f64::from(power?.attack_power),
         _ => return None,
     };
     Some(value)
+}
+
+/// The effect's points as the caster deals them before crit and percentage modifiers:
+/// base points plus attack power and spell power times their coefficients, each bonus
+/// truncated to an integer (`DoneTotal += int32(...)` in `Unit::SpellDamageBonusDone`,
+/// TrinityCore a352b1fa Unit.cpp:6868-6905; the game server's `scaled_amount`). `None`
+/// for level scaled points, and for power scaled points without the player's powers.
+fn effect_points(effect: &super::CatalogEffect, power: Option<super::CasterPower>) -> Option<f64> {
+    if effect.level_scaled {
+        return None;
+    }
+    let base = f64::from(effect.base_points);
+    if effect.spell_power_coefficient == 0.0 && effect.attack_power_coefficient == 0.0 {
+        return Some(base);
+    }
+    let power = power?;
+    let bonus = |coefficient: f32, power: f32| (f64::from(coefficient) * f64::from(power)).trunc();
+    Some(
+        base + bonus(effect.attack_power_coefficient, power.attack_power)
+            + bonus(effect.spell_power_coefficient, power.spell_power),
+    )
 }
 
 fn positive<T: PartialOrd + Default>(value: T) -> Option<T> {
@@ -409,11 +439,12 @@ fn max_range(spell: &CatalogSpell) -> Option<f64> {
     (range > 0.0).then_some(f64::from(range))
 }
 
-fn periodic_total(spell: &CatalogSpell, effect: &super::CatalogEffect) -> Option<f64> {
+/// `$o`: the points of every tick over the duration.
+fn periodic_total(spell: &CatalogSpell, effect: &super::CatalogEffect, points: f64) -> Option<f64> {
     let period_ms = positive(effect.aura_period_ms)?;
     let duration_ms = positive(spell.duration_ms)?;
     let ticks = duration_ms as u32 / period_ms;
-    Some(f64::from(effect.base_points.abs()) * f64::from(ticks))
+    Some(points.abs() * f64::from(ticks))
 }
 
 fn duration_text(spell: &CatalogSpell) -> Option<String> {

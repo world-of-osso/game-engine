@@ -380,7 +380,11 @@ pub(super) fn build_model_filtered(
             instance.set_skin(skin);
             instance.set_skeleton_path("../Skeleton3D");
         }
-        instance.set_surface_override_material(0, &material);
+        // Bound as the material override, which GeometryInstance3D clears from its
+        // RenderingServer instance before releasing: a surface override is released
+        // first, and freeing a batch that held its last reference before the instance
+        // was next drawn read the freed material (godotengine/godot#85817).
+        instance.set_material_override(&material);
         root.add_child(&instance);
     }
     if let Some(player) = player {

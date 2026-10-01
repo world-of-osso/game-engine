@@ -295,8 +295,7 @@ impl SceneryFade {
             .iter_shared()
             .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
             .filter_map(|mesh| {
-                let material: Gd<ShaderMaterial> =
-                    mesh.get_surface_override_material(0)?.try_cast().ok()?;
+                let material: Gd<ShaderMaterial> = mesh.get_active_material(0)?.try_cast().ok()?;
                 let authored = material.get_shader()?;
                 let fade = material
                     .has_meta(SCENERY_FADE_SHADER_META)
