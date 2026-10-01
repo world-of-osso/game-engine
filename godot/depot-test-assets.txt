@@ -1918,3 +1918,5 @@ db2/12.1.0.69933/GroundEffectTexture.csv
 db2/12.1.0.69933/GroundEffectDoodad.csv
 # LightingCatalog: LightParams.LightSkyboxID rows.
 db2/12.1.0.69933/LightSkybox.csv
+# horizon: Azeroth WDL.
+terrain/775970.wdl
