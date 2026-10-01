@@ -52,6 +52,12 @@ fn standalone_bar_preserves_authored_buttons_art_and_geometry() {
         match art.widget_data.as_ref() {
             Some(WidgetData::Texture(texture)) => {
                 assert_eq!(texture.source, TextureSource::FileDataId(4_691_255));
+                let expected_crop = if name == "MainMenuBarBackpackButton" {
+                    [1.0 / 512.0, 97.0 / 512.0, 1.0 / 128.0, 97.0 / 128.0]
+                } else {
+                    [295.0 / 512.0, 356.0 / 512.0, 64.0 / 128.0, 125.0 / 128.0]
+                };
+                assert_eq!(texture.tex_coords, expected_crop);
             }
             other => panic!("{name} art is not a texture: {other:?}"),
         }
