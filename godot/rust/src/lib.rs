@@ -736,6 +736,12 @@ impl GameClient {
         self.mailbox_snapshot()
     }
 
+    /// Read-only trade state; requests only come from real frame/bag/menu input.
+    #[func]
+    fn trade_state(&self) -> VarDictionary {
+        self.trade_snapshot()
+    }
+
     /// Spell visual kits started, kit models and missiles shown.
     #[func]
     fn spell_visuals_state(&self) -> VarDictionary {

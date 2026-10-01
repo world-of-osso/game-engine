@@ -9,7 +9,7 @@ use game_engine_ui_model::trade_frame_component::MONEY_BOXES;
 use godot::global::Key;
 use godot::prelude::*;
 use shared::components::Player;
-use shared::protocol::TradeStateUpdate;
+use shared::protocol::{TradePartySnapshot, TradeStateUpdate};
 use ui_toolkit::frame::WidgetData;
 
 use crate::GameClient;
@@ -211,5 +211,53 @@ impl GameClient {
         };
         let request = self.trade.session.money(copper);
         self.send_trade(request)
+    }
+}
+
+fn party_snapshot(party: &TradePartySnapshot) -> VarDictionary {
+    let mut state = VarDictionary::new();
+    state.set("name", party.name.as_str());
+    state.set("accepted", party.accepted);
+    state.set("gold", party.gold as i64);
+    let mut slots = VarArray::new();
+    for slot in &party.slots {
+        let Some(item) = slot else {
+            slots.push(&Variant::nil());
+            continue;
+        };
+        let mut row = VarDictionary::new();
+        row.set("guid", item.item_guid as i64);
+        row.set("item_id", i64::from(item.item_id));
+        row.set("name", item.name.as_str());
+        row.set("count", i64::from(item.stack_count));
+        slots.push(&row.to_variant());
+    }
+    state.set("slots", &slots);
+    state
+}
+
+impl GameClient {
+    pub(super) fn trade_snapshot(&self) -> VarDictionary {
+        let session = &self.trade.session;
+        let mut state = VarDictionary::new();
+        state.set("window_open", session.window_open());
+        // Other replicated players a trade can be started with, by name.
+        let local = self.world.local_player_id();
+        let mut players = VarDictionary::new();
+        for unit in self.replica.units() {
+            if let Some(player) = unit.get::<Player>()
+                && Some(unit.server_id) != local
+            {
+                players.set(player.name.as_str(), unit.server_id as i64);
+            }
+        }
+        state.set("players", &players);
+        let Some(snapshot) = &session.snapshot else {
+            return state;
+        };
+        state.set("phase", format!("{:?}", snapshot.phase).as_str());
+        state.set("player", &party_snapshot(&snapshot.player));
+        state.set("other", &party_snapshot(&snapshot.other));
+        state
     }
 }
