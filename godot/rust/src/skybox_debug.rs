@@ -16,7 +16,7 @@ use godot::{
     prelude::*,
 };
 
-use crate::{assets::uv_animation::WowMaterialClock, character_select::sky::Sky};
+use crate::{GameClient, assets::uv_animation::WowMaterialClock, character_select::sky::Sky};
 
 mod environment;
 mod source;
@@ -304,5 +304,33 @@ impl WowSkyboxDebug {
             }
             _ => false,
         }
+    }
+}
+
+impl GameClient {
+    pub(super) fn open_skybox_debug(&mut self, arguments: &StartupArgs) -> Result<(), String> {
+        let scene = WowSkyboxDebug::load(
+            &self.data_root,
+            arguments,
+            self.client_options.camera.clone(),
+        )?;
+        if let Some(login) = self.login_ui.as_mut() {
+            login.set_visible(false);
+        }
+        self.base_mut().add_child(&scene);
+        Ok(())
+    }
+
+    pub(super) fn update_skybox_debug_options(&mut self) -> Result<(), String> {
+        let Some(scene) = self.base().get_node_or_null("SkyboxDebug") else {
+            return Ok(());
+        };
+        let mut scene = scene
+            .try_cast::<WowSkyboxDebug>()
+            .map_err(|_| "SkyboxDebug child has an unexpected native class")?;
+        scene
+            .bind_mut()
+            .update_options(self.client_options.camera.clone());
+        Ok(())
     }
 }
