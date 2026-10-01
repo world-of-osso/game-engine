@@ -110,7 +110,7 @@ impl GameClient {
             .then(|| StackSplitState::open(StackSplitOwner::Bag(location), count, 1))
             .flatten();
         if self.bags.cursor.split.is_some() {
-            self.physical_input.clear();
+            self.physical_input.clear_gameplay();
         }
     }
 
@@ -231,12 +231,8 @@ impl GameClient {
     }
 
     fn bag_cursor_view(&self) -> Result<CursorView, String> {
-        let pointer = self
-            .base()
-            .get_viewport()
-            .ok_or("Cursor item viewport missing")?
-            .get_mouse_position()
-            / self.effective_ui_scale();
+        let pointer =
+            Vector2::from_array(self.physical_input.pointer()) / self.effective_ui_scale();
         Ok(CursorView {
             icon: CursorItemFrameState {
                 icon_fdid: self.bags.cursor.item.icon_fdid(),
