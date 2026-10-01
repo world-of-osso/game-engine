@@ -89,6 +89,11 @@ enum Phase {
     SplitHeld,
     SplitRequest,
     SplitDelta,
+    ShiftPickerArm,
+    ShiftPicker,
+    ShiftCap,
+    ShiftRequest,
+    ShiftDelta,
     Drain,
 }
 
@@ -102,6 +107,7 @@ struct Session {
     commit: bool,
     sell_commit: bool,
     split_sell_commit: bool,
+    shift_buy_commit: bool,
 }
 
 impl Session {
@@ -134,9 +140,11 @@ impl Session {
                 "merchant-cursor marker before authenticated selection: {line}"
             ));
         }
-        if line.starts_with("FIXTURE MERCHANT_CURSOR_SPLIT_")
+        if line.starts_with("FIXTURE MERCHANT_CURSOR_SHIFT_")
             || line == "FIXTURE MERCHANT_CURSOR_DONE"
         {
+            self.send_shift_buy_marker_response(line)
+        } else if line.starts_with("FIXTURE MERCHANT_CURSOR_SPLIT_") {
             self.send_split_marker_response(app, line)
         } else if line.starts_with("FIXTURE MERCHANT_CURSOR_SALE_")
             || line == "FIXTURE MERCHANT_CURSOR_SELL_COMMIT"
@@ -245,13 +253,48 @@ impl Session {
                 self.require_quiet()?;
                 self.split_sell_commit = true;
             }
-            (Phase::SplitDelta, "FIXTURE MERCHANT_CURSOR_DONE") => {
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn send_shift_buy_marker_response(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
+            (Phase::SplitDelta, "FIXTURE MERCHANT_CURSOR_SHIFT_BUY_ARM") => {
+                self.require_quiet()?;
+                if !self.completed_split_sale() {
+                    return Err("Shift buy requires completed original three barriers".into());
+                }
+                self.advance(Phase::ShiftPickerArm);
+            }
+            (Phase::ShiftPickerArm, "FIXTURE MERCHANT_CURSOR_SHIFT_PICKER_OPEN") => {
+                self.require_quiet()?;
+                self.advance(Phase::ShiftPicker);
+            }
+            (Phase::ShiftPicker, "FIXTURE MERCHANT_CURSOR_SHIFT_CAP40") => {
+                self.require_quiet()?;
+                self.advance(Phase::ShiftCap);
+            }
+            (Phase::ShiftCap, "FIXTURE MERCHANT_CURSOR_SHIFT_REQUEST_ARM") => {
+                self.advance(Phase::ShiftRequest);
+            }
+            (Phase::ShiftRequest, "FIXTURE MERCHANT_CURSOR_SHIFT_BUY_COMMIT")
+                if !self.shift_buy_commit =>
+            {
+                self.require_quiet()?;
+                self.shift_buy_commit = true;
+            }
+            (Phase::ShiftDelta, "FIXTURE MERCHANT_CURSOR_DONE") => {
                 self.require_quiet()?;
                 self.advance(Phase::Drain);
             }
             _ => return Err(self.marker_order_error(line)),
         }
         Ok(())
+    }
+
+    fn completed_split_sale(&self) -> bool {
+        self.completed_purchase() && self.sells == 2 && self.sell_commit && self.split_sell_commit
     }
 
     fn marker_order_error(&self, line: &str) -> String {
@@ -318,6 +361,29 @@ impl Session {
                 ));
             }
         }
+        self.respond_to_shift_buy(app)
+    }
+
+    fn respond_to_shift_buy(&mut self, app: &mut App) -> Result<(), String> {
+        if self.phase != Phase::ShiftRequest {
+            return Ok(());
+        }
+        if self.shift_buy_commit && self.buys == 2 {
+            // Fixture authority only: ordinary delta into the same GUID-backed stack.
+            send_split_stack(app, 5);
+            app.world_mut()
+                .entity_mut(self.selected.ok_or("Shift buy requires selected player")?)
+                .insert(Gold(964));
+            println!(
+                "MERCHANT CURSOR SHIFT AUTHORITATIVE Linen5 guid9182590 Gold964; fixture stack/pricing, NOT production server proof"
+            );
+            self.advance(Phase::ShiftDelta);
+        } else if self.since.elapsed() > REQUEST_WAIT {
+            return Err(format!(
+                "merchant-cursor missing exact Shift BuyItem/SHIFT_BUY_COMMIT; buys={} commit={}",
+                self.buys, self.shift_buy_commit
+            ));
+        }
         Ok(())
     }
 
@@ -367,6 +433,10 @@ impl Session {
             .vendor
             .map(Entity::to_bits);
         for request in requests.buys {
+            if self.phase == Phase::ShiftRequest {
+                self.receive_shift_buy(request, vendor)?;
+                continue;
+            }
             let expected = BuyItem {
                 npc: vendor.ok_or("BuyItem requires owned vendor")?,
                 slot: 0,
@@ -402,6 +472,27 @@ impl Session {
                 "MERCHANT CURSOR DECODED {request:?} count=1; delta and Gold withheld until SELL_COMMIT"
             );
         }
+        Ok(())
+    }
+
+    fn receive_shift_buy(&mut self, request: BuyItem, vendor: Option<u64>) -> Result<(), String> {
+        let expected = BuyItem {
+            npc: vendor.ok_or("Shift BuyItem requires owned vendor")?,
+            slot: 0,
+            item_id: 2589,
+            count: 2,
+            destination: None,
+        };
+        if !self.completed_split_sale() || request != expected {
+            return Err(format!(
+                "unexpected/duplicate Shift BuyItem {request:?} in {:?}; buys={}",
+                self.phase, self.buys
+            ));
+        }
+        self.buys += 1;
+        println!(
+            "MERCHANT CURSOR SHIFT DECODED {request:?}; Linen3/Gold1014 withheld until SHIFT_BUY_COMMIT"
+        );
         Ok(())
     }
 
@@ -561,6 +652,7 @@ fn run_until_done(
         commit: false,
         sell_commit: false,
         split_sell_commit: false,
+        shift_buy_commit: false,
     };
     let deadline = Instant::now() + TIMEOUT + Duration::from_secs(180);
     while Instant::now() < deadline {
@@ -580,11 +672,12 @@ fn run_until_done(
         }
         if session.phase == Phase::Drain && session.since.elapsed() >= QUIET {
             if session.opens != 1
-                || session.buys != 1
+                || session.buys != 2
                 || session.sells != 2
                 || !session.commit
                 || !session.sell_commit
                 || !session.split_sell_commit
+                || !session.shift_buy_commit
             {
                 return Err(
                     "merchant-cursor final interaction/request/barrier totals failed".into(),
@@ -626,7 +719,7 @@ pub(super) fn run(
         (Err(error), _) | (_, Err(error)) => Err(error),
         (Ok(()), Ok(())) => {
             println!(
-                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
+                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; physical Shift-vendor buy, MerchantUI-owned BOTTOMLEFT=MerchantItem1 TOPLEFT picker172x96, digits40/Up clamp40/Backspace4/1/digit2/Enter, exact once BuyItem count2 destinationNone, pre-delta SHIFT_BUY_COMMIT Linen3/1014/source white/no cursor, fixture authoritative same guid9182590 Linen5/964, opens1/buys2/sells2/four barriers; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
             );
             Ok(())
         }

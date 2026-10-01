@@ -14,6 +14,7 @@ const MC_SALE_BACKGROUND := Vector2(170.0, 145.0)
 
 var mc_pointer := Vector2.ZERO
 var mc_sale_texture: Texture2D
+var mc_shift_npc: Variant
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -47,6 +48,8 @@ func run_test() -> void:
 		return
 	print("FIXTURE MERCHANT_CURSOR_SPLIT_SEED")
 	if not await mc_split_sale(client):
+		return
+	if not await mc_shift_buy(client):
 		return
 	print("FIXTURE MERCHANT_CURSOR_DONE")
 	# Parent owns deliberate kill/reap/readers drain; not shutdown proof.
@@ -250,6 +253,152 @@ func mc_split_sale(client: Node) -> bool:
 	if not await mc_split_wait(client, 3, false, 1014, false) or not await mc_split_quiet(client, 3, false, 1014, false):
 		return false
 	print("MERCHANT CURSOR SPLIT FINAL rendered Linen3/money1014/cursor hidden/modal hidden; exact peer totals buys1/sells2")
+	return true
+
+func mc_shift_buy(client: Node) -> bool:
+	mc_shift_npc = client.merchant_state().npc
+	if not mc_embedded_bag(client) or not await mc_shift_wait(client, 3, 1014, ""):
+		return false
+	var source := mc_control(client, MC_SOURCE)
+	if source == null:
+		fail("Shift buy requires actual own MerchantItem1 with no carried cursor")
+		return false
+	var start := source.get_global_rect().get_center()
+	print("FIXTURE MERCHANT_CURSOR_SHIFT_BUY_ARM")
+	mc_motion(start, false)
+	await process_frame
+	mc_split_key(KEY_SHIFT, 0, true)
+	mc_split_shift_edge(start, true)
+	await process_frame
+	mc_split_shift_edge(start, false)
+	mc_split_key(KEY_SHIFT, 0, false)
+	if not await mc_shift_wait(client, 3, 1014, "1") or not await mc_shift_quiet(client, 3, 1014, "1"):
+		return false
+	print("MERCHANT CURSOR SHIFT PICKER MerchantUI-owned BOTTOMLEFT=actual MerchantItem1 TOPLEFT, 172x96 at actual scale; text1/no held cursor/source white/Linen3/money1014")
+	print("FIXTURE MERCHANT_CURSOR_SHIFT_PICKER_OPEN")
+	if not await mc_shift_cap(client):
+		return false
+	if not await mc_shift_choose_two(client):
+		return false
+	print("FIXTURE MERCHANT_CURSOR_SHIFT_REQUEST_ARM")
+	await mc_split_tap(KEY_ENTER)
+	if not await mc_shift_wait(client, 3, 1014, "") or not await mc_shift_quiet(client, 3, 1014, ""):
+		return false
+	print("MERCHANT CURSOR SHIFT BUY COMMIT picker closed/no held/Linen3/money1014/source white; exact count2 destinationNone only peer-visible")
+	print("FIXTURE MERCHANT_CURSOR_SHIFT_BUY_COMMIT")
+	if not await mc_shift_wait(client, 5, 964, "") or not await mc_shift_quiet(client, 5, 964, ""):
+		return false
+	print("MERCHANT CURSOR SHIFT FINAL rendered Linen5/money964/no held/source white; fixture authority same GUID9182590 only peer-visible, NOT production server autostack/pricing; opens1/buys2/sells2/four barriers")
+	return true
+
+func mc_shift_cap(client: Node) -> bool:
+	if not await mc_shift_digit(client, KEY_4, 52, "4"):
+		return false
+	if not await mc_shift_digit(client, KEY_0, 48, "40"):
+		return false
+	await mc_split_tap(KEY_UP)
+	if not await mc_shift_wait(client, 3, 1014, "40") or not await mc_shift_quiet(client, 3, 1014, "40"):
+		return false
+	print("MERCHANT CURSOR SHIFT CAP40 physical digits4,0/Up clamps40; affordability floor(1014/25)=40 NOT maxstack1000; Linen3/money1014 unchanged")
+	print("FIXTURE MERCHANT_CURSOR_SHIFT_CAP40")
+	return true
+
+func mc_shift_choose_two(client: Node) -> bool:
+	await mc_split_tap(KEY_BACKSPACE)
+	if not await mc_shift_wait(client, 3, 1014, "4"):
+		return false
+	await mc_split_tap(KEY_BACKSPACE)
+	if not await mc_shift_wait(client, 3, 1014, "1"):
+		return false
+	# Returning to1 resets typing: next physical digit replaces rather than appends.
+	return await mc_shift_digit(client, KEY_2, 50, "2")
+
+func mc_shift_digit(client: Node, code: Key, unicode: int, amount: String) -> bool:
+	mc_split_key(code, unicode, true)
+	await process_frame
+	mc_split_key(code, unicode, false)
+	await process_frame
+	return await mc_shift_wait(client, 3, 1014, amount)
+
+func mc_shift_picker_matches(client: Node, amount: String) -> bool:
+	var picker := mc_control(client, "StackSplitFrame")
+	var shown := picker != null and picker.is_visible_in_tree()
+	if shown != (not amount.is_empty()):
+		return false
+	# Only the merchant-session picker may be visible, never the cursor-owned duplicate.
+	for node in client.find_children("StackSplitFrame", "Control", true, false):
+		if node != picker and (node as Control).is_visible_in_tree():
+			return false
+	if not shown:
+		return true
+	var source := mc_control(client, MC_SOURCE)
+	var canvas := mc_control(client, "RegistryCanvas")
+	var label := mc_control(client, "StackSplitText") as Label
+	if source == null or canvas == null or label == null:
+		return false
+	if not label.is_visible_in_tree() or label.text != amount:
+		return false
+	var scale := canvas.get_global_transform().get_scale()
+	if scale.x <= 0 or scale.y <= 0:
+		return false
+	# Original vendor anchor: picker BOTTOMLEFT = actual MerchantItem1 TOPLEFT.
+	var expected_size := Vector2(172.0, 96.0) * scale
+	var expected_position := source.get_global_rect().position - Vector2(0.0, expected_size.y)
+	var actual := picker.get_global_rect()
+	return actual.position.distance_to(expected_position) <= 1.0 and actual.size.distance_to(expected_size) <= 1.0
+
+func mc_shift_money_matches(client: Node, money: int) -> bool:
+	# Original SmallMoneyFrame: nonzero silver then copper, no gold in this slice.
+	var silver := mc_control(client, "MerchantMoneyFrameAmount0") as Label
+	var copper := mc_control(client, "MerchantMoneyFrameAmount1") as Label
+	var extra := mc_control(client, "MerchantMoneyFrameAmount2") as Label
+	if silver == null or copper == null:
+		return false
+	if not silver.is_visible_in_tree() or not copper.is_visible_in_tree():
+		return false
+	return silver.text == str(money / 100) and copper.text == str(money % 100) and (extra == null or not extra.is_visible_in_tree())
+
+func mc_shift_inventory_matches(state: Dictionary, count: int, money: int) -> bool:
+	if not state.open or state.npc != mc_shift_npc or state.vendor_name != VENDOR:
+		return false
+	if state.items != ["Linen Cloth"] or state.money != money or state.bags.size() != 1:
+		return false
+	var item: Dictionary = state.bags[0]
+	return item.bag == 0 and item.slot == 0 and item.item_id == 2589 and item.name == "Linen Cloth" and item.count == count
+
+func mc_shift_state_matches(client: Node, count: int, money: int, amount: String) -> bool:
+	var state: Dictionary = client.merchant_state()
+	if state.split_open != (not amount.is_empty()) or not mc_shift_inventory_matches(state, count, money):
+		return false
+	if client.get_node_or_null("GameMenuUI") != null:
+		return false
+	var popup := client.find_child("StaticPopup1", true, false) as Control
+	if popup != null and popup.is_visible_in_tree():
+		return false
+	if not mc_shift_picker_matches(client, amount) or not mc_cursor_matches(client, false):
+		return false
+	if not mc_source_matches(client) or not mc_sale_source_matches(client, count, false):
+		return false
+	return mc_split_render_matches(client, count) and mc_shift_money_matches(client, money)
+
+func mc_shift_wait(client: Node, count: int, money: int, amount: String) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if mc_shift_state_matches(client, count, money, amount):
+			return true
+	var picker := mc_control(client, "StackSplitFrame")
+	var source := mc_control(client, MC_SOURCE)
+	fail("Shift vendor buy missing count%s money%s pickertext%s; MerchantUI picker=%s owner=%s state=%s; no feature RED claim without actual runtime counterexample" % [count, money, amount, picker.get_global_rect() if picker != null else Rect2(), source.get_global_rect() if source != null else Rect2(), client.merchant_state()])
+	return false
+
+func mc_shift_quiet(client: Node, count: int, money: int, amount: String) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_QUIET_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if not mc_shift_state_matches(client, count, money, amount):
+			fail("Shift vendor buy quiet phase changed owned picker/cursor/source/inventory/rendered count/money: " + str(client.merchant_state()))
+			return false
 	return true
 
 func mc_split_key(code: Key, unicode: int, down: bool) -> void:
