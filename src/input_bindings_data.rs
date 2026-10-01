@@ -72,6 +72,8 @@ pub enum BindingKey {
     Delete,
     Backspace,
     Enter,
+    NumpadAdd,
+    NumpadSubtract,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -151,7 +153,7 @@ const FUNCTION_KEYS: [(&str, BindingKey); 12] = [
     ("F12", BindingKey::F12),
 ];
 
-const NAMED_KEYS: [(&str, BindingKey); 20] = [
+const NAMED_KEYS: [(&str, BindingKey); 22] = [
     ("Space", BindingKey::Space),
     ("Tab", BindingKey::Tab),
     ("Escape", BindingKey::Escape),
@@ -172,6 +174,8 @@ const NAMED_KEYS: [(&str, BindingKey); 20] = [
     ("Delete", BindingKey::Delete),
     ("Backspace", BindingKey::Backspace),
     ("Enter", BindingKey::Enter),
+    ("NumpadAdd", BindingKey::NumpadAdd),
+    ("NumpadSubtract", BindingKey::NumpadSubtract),
 ];
 
 struct InputActionMeta {
@@ -225,6 +229,8 @@ pub enum InputAction {
     ToggleQuestLog,
     ToggleWorldMap,
     ToggleFramerate,
+    MinimapZoomIn,
+    MinimapZoomOut,
     OpenAllBags,
     ToggleBackpack,
     ToggleBag1,
@@ -234,7 +240,7 @@ pub enum InputAction {
 }
 
 impl InputAction {
-    pub const ALL: [Self; 48] = [
+    pub const ALL: [Self; 50] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -277,6 +283,8 @@ impl InputAction {
         Self::ToggleQuestLog,
         Self::ToggleWorldMap,
         Self::ToggleFramerate,
+        Self::MinimapZoomIn,
+        Self::MinimapZoomOut,
         Self::OpenAllBags,
         Self::ToggleBackpack,
         Self::ToggleBag1,
@@ -375,6 +383,18 @@ impl InputAction {
                 "Toggle Framerate Display",
                 Some(InputBinding::CtrlKeyboard(BindingKey::KeyR)),
             ),
+            // Retail `MINIMAPZOOMIN`/`MINIMAPZOOMOUT` (`Bindings_Standard.xml:1378-1383`):
+            // `Minimap_ZoomIn()`/`Minimap_ZoomOut()`, Num Pad +/-.
+            Self::MinimapZoomIn => (
+                "minimap_zoom_in",
+                "Minimap Zoom In",
+                Some(keyboard(BindingKey::NumpadAdd)),
+            ),
+            Self::MinimapZoomOut => (
+                "minimap_zoom_out",
+                "Minimap Zoom Out",
+                Some(keyboard(BindingKey::NumpadSubtract)),
+            ),
             _ => return None,
         };
         Some(input_action_meta(
@@ -470,7 +490,9 @@ impl InputAction {
             | Self::ToggleLootRules
             | Self::ToggleQuestLog
             | Self::ToggleWorldMap
-            | Self::ToggleFramerate => unreachable!("panel toggles handled by interface_meta"),
+            | Self::ToggleFramerate
+            | Self::MinimapZoomIn
+            | Self::MinimapZoomOut => unreachable!("panel toggles handled by interface_meta"),
             Self::OpenAllBags
             | Self::ToggleBackpack
             | Self::ToggleBag1
@@ -863,6 +885,8 @@ fn interface_action_from_key(key: &str) -> Option<InputAction> {
         "toggle_quest_log" => InputAction::ToggleQuestLog,
         "toggle_world_map" => InputAction::ToggleWorldMap,
         "toggle_framerate" => InputAction::ToggleFramerate,
+        "minimap_zoom_in" => InputAction::MinimapZoomIn,
+        "minimap_zoom_out" => InputAction::MinimapZoomOut,
         _ => return None,
     })
 }
@@ -1048,6 +1072,8 @@ fn key_short_label(key: BindingKey) -> Option<&'static str> {
         BindingKey::PageUp => Some("Page Up"),
         BindingKey::PageDown => Some("Page Down"),
         BindingKey::NumLock => Some("Num Lock"),
+        BindingKey::NumpadAdd => Some("Num Pad +"),
+        BindingKey::NumpadSubtract => Some("Num Pad -"),
         _ => key_alpha_numeric_label(key),
     }
 }

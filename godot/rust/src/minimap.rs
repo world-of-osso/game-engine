@@ -191,8 +191,21 @@ impl GameClient {
             self.minimap.free_ui();
             return Ok(());
         }
+        self.apply_minimap_zoom_bindings();
         self.poll_minimap_actions()?;
         Ok(self.sync_minimap()?)
+    }
+
+    /// Retail `MINIMAPZOOMIN`/`MINIMAPZOOMOUT` (Bindings_Standard.xml:1378-1383).
+    fn apply_minimap_zoom_bindings(&mut self) {
+        let input = self.physical_input.gameplay_state(self.keyboard_free());
+        let bindings = &self.client_options.bindings;
+        if bindings.is_just_pressed(InputAction::MinimapZoomIn, &input) {
+            self.minimap.zoom = zoom_in(self.minimap.zoom);
+        }
+        if bindings.is_just_pressed(InputAction::MinimapZoomOut, &input) {
+            self.minimap.zoom = zoom_out(self.minimap.zoom);
+        }
     }
 
     fn poll_minimap_actions(&mut self) -> Result<(), String> {

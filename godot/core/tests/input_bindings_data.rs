@@ -61,12 +61,14 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
                 "Delete",
                 "Backspace",
                 "Enter",
+                "NumpadAdd",
+                "NumpadSubtract",
             ]
             .into_iter()
             .map(str::to_string),
         )
         .collect();
-    assert_eq!(keys.len(), 68);
+    assert_eq!(keys.len(), 70);
     for key in keys {
         for prefix in ["key:", "shift+key:", "ctrl+key:"] {
             let token = format!("{prefix}{key}");
@@ -106,10 +108,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 48);
+    assert_eq!(InputAction::ALL.len(), 50);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 4, 12, 1, 11, 6]
+        [8, 6, 4, 12, 1, 13, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
@@ -160,6 +162,19 @@ fn inventory_defaults_and_sections_are_exact() {
         assert_eq!(action.toggled_bag(), bag, "{action:?}");
         assert_eq!(action.section(), BindingSection::Bags);
     }
+    // Retail MINIMAPZOOMIN Num Pad +, MINIMAPZOOMOUT Num Pad -.
+    assert_eq!(
+        bindings.binding(InputAction::MinimapZoomIn),
+        Some(InputBinding::Keyboard(BindingKey::NumpadAdd))
+    );
+    assert_eq!(
+        bindings.binding(InputAction::MinimapZoomOut),
+        Some(InputBinding::Keyboard(BindingKey::NumpadSubtract))
+    );
+    assert_eq!(
+        InputBinding::Keyboard(BindingKey::NumpadAdd).display(),
+        "Num Pad +"
+    );
     // Retail ASSISTTARGET F, TARGETPREVIOUSENEMY Shift-Tab.
     assert_eq!(
         bindings.binding(InputAction::AssistTarget),

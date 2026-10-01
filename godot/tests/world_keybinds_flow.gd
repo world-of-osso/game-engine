@@ -1,7 +1,7 @@
 extends "res://tests/world_ui_ownership_flow.gd"
 
-# native_input_fixture keybinds: physical key presses of the Retail default bag and
-# targeting bindings, the world map tiled at three zones, and QuestFrame /
+# native_input_fixture keybinds: physical key presses of the Retail default bag,
+# targeting and minimap zoom bindings, the world map tiled at three zones, and QuestFrame /
 # QuestLogFrame raise-on-click over the MerchantFrame. Every check fails the run.
 # KEYBINDS_SHOTS=<dir> saves screenshots (needs GODOT_TEST_VISUAL=1).
 const KB_BAGS := [0, 1, 2, 4]
@@ -31,6 +31,8 @@ func run_test() -> void:
 	if not await kb_bag_cases():
 		return
 	if not await kb_target_cases():
+		return
+	if not await kb_minimap_zoom_cases():
 		return
 	if not await kb_world_map_cases():
 		return
@@ -185,6 +187,33 @@ func kb_target_cases() -> bool:
 func fail_false(message: String) -> bool:
 	fail(message)
 	return false
+
+# ---------- minimap: MINIMAPZOOMIN Num Pad +, MINIMAPZOOMOUT Num Pad - ----------
+
+func kb_expect_zoom(label: String, expected: int) -> bool:
+	var zoom: int = kb_client.minimap_state().zoom
+	print("KEYBINDS MINIMAP ", label, " zoom=", zoom)
+	return zoom == expected or fail_false("%s: minimap zoom %s, expected %s" % [label, zoom, expected])
+
+func kb_minimap_zoom_cases() -> bool:
+	if not kb_client.minimap_state().open:
+		fail("minimap not shown: " + str(kb_client.minimap_state()))
+		return false
+	if not kb_expect_zoom("start", 0):
+		return false
+	await kb_tap(KEY_KP_ADD)
+	if not kb_expect_zoom("Num Pad +", 1):
+		return false
+	await kb_tap(KEY_KP_ADD)
+	if not kb_expect_zoom("Num Pad + again", 2):
+		return false
+	await kb_capture("minimap-numpad-plus-zoom2.png")
+	await kb_tap(KEY_KP_SUBTRACT)
+	if not kb_expect_zoom("Num Pad -", 1):
+		return false
+	await kb_tap(KEY_KP_SUBTRACT)
+	await kb_tap(KEY_KP_SUBTRACT)
+	return kb_expect_zoom("Num Pad - at the widest", 0)
 
 # ---------- world map: every art tile of three zones is drawn ----------
 
