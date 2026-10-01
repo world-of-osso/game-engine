@@ -2412,3 +2412,8 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 ## 2026-10-01 — Native JS bounded acceptance reconciliation
 
 [JS evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) reconciles accepted1550 offline source-equivalent cleanup and1557 current world source/order/runtime17/17 readability. Ten combined variant examples only; historical failures, rootfmt FAIL, omitted-water errors/warnings and deferred shutdown retained. Broader goal OPEN; no new page/index change.
+
+## 2026-10-01 — Race/sex item files, collections, sheath links, emotes (charequip)
+
+[Race and sex item files](systems/character-rendering.md#race-and-sex-item-files-2026-10-01): Component*FileData texture/model selection, ChrModel body chain, wowdev geoset group table, native sheath links, skinned collections with both model columns, player social emotes; named-character and 62-way race fixtures.
+
