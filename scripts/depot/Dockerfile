@@ -26,16 +26,20 @@ FROM scratch AS artifact
 COPY --from=build /out/ /
 
 # Test failures must still export the log, so the step records cargo's status instead of failing.
+# The assets bind read-only and tests write to a local copy: a writable bind of the context
+# made BuildKit re-send all of it on the next build instead of only changed files.
 FROM source AS test
 ARG TEST_ARGS
 ARG TEST_RUN
 RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
-    --mount=type=bind,source=test-assets,target=/src/game-engine-godot-conversion/data,rw \
+    --mount=type=bind,source=test-assets,target=/test-assets \
     python3 /src/refresh-source-mtimes.py /src && \
+    rm -rf data && cp -a /test-assets data && \
     ln -sfn ../../data godot/core/data && mkdir -p /out && echo "test run $TEST_RUN" && \
     eval "set -- $TEST_ARGS" && \
-    { cargo test --locked --manifest-path godot/Cargo.toml -j 16 "$@" 2>&1; echo $? > /out/status; } | tee /out/test.log
+    { cargo test --locked --manifest-path godot/Cargo.toml -j 16 "$@" 2>&1; echo $? > /out/status; } | tee /out/test.log; \
+    rm -rf data
 FROM scratch AS test-result
 COPY --from=test /out/ /
