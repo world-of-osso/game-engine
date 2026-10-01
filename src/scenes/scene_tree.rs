@@ -1,11 +1,6 @@
 use bevy::prelude::*;
 
-#[path = "scene_snapshot_data.rs"]
-mod snapshot_data;
-pub use snapshot_data::{
-    NodeProps, SceneNodeTransform, SceneSnapshot, SceneSnapshotNode, read_scene_snapshot_file,
-    write_scene_snapshot_file,
-};
+include!("scene_snapshot_data.rs");
 
 /// Semantic scene tree for high-level introspection.
 #[derive(Resource)]

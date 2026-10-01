@@ -1,4 +1,4 @@
-//! Original renderer-independent scene export representation and JSON file contract.
+// Original renderer-independent scene export representation and JSON file contract.
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
