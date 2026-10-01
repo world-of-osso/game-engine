@@ -3,6 +3,7 @@
 //! MAIN calls `start` in ready, `poll` on the main thread each process frame,
 //! and drops this value in exit_tree, before Godot singleton teardown.
 
+mod character;
 mod combat;
 mod dev;
 mod export;

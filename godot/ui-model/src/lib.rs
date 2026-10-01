@@ -233,6 +233,8 @@ pub mod objective_tracker_component;
 #[path = "../../../src/ui/screens/stack_split_frame_component.rs"]
 pub mod stack_split_frame_component;
 
+#[path = "../../../src/game/auction_house_data.rs"]
+pub mod auction_house_data;
 #[path = "../../../src/game/bag_data.rs"]
 pub mod bag_data;
 #[path = "../../../src/container_layout_data.rs"]
