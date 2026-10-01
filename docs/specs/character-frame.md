@@ -1,6 +1,6 @@
 # Character Frame
 
-The Retail `CharacterFrame` with its `PaperDollFrame`, opened by C and the micro menu, over the live server equipment. Equipment stays server-owned: every equip and unequip is an inventory request (shared-protocol `protocol/inventory_messages.rs`); sheet stats are the owner-only replicated `UnitStats` and `CombatRatings` (game-server `sheet_visibility.rs`).
+The Retail `CharacterFrame` with its `PaperDollFrame`, opened by C and the micro menu, over the live server equipment. Equipment stays server-owned: every equip and unequip is an inventory request (shared-protocol `protocol/inventory_messages.rs`); sheet stats are the owner-only replicated `UnitStats`, `CombatRatings` and `DerivedStats` (game-server `sheet_visibility.rs`).
 
 References:
 - CF.xml / CF.lua = `Blizzard_UIPanels_Game/Mainline/CharacterFrame.xml` / `.lua`
@@ -18,7 +18,8 @@ References:
 - [x] Model preview of the local player in `CharacterModelScene`, re-dressed when the replicated appearance changes, weapons sheathed, left-drag rotates; a cursor item dropped on it auto-equips.
 - [x] Level line `PLAYER_LEVEL` with spec and class in the class colour; average item level from level 10.
 - [x] `AttributesCategory`: Strength, Agility, Intellect, Stamina and Armor as `BreakUpLargeNumbers` integers, under the item level, or at the pane top with 5 more between lines below level 10; hidden until the stats arrive.
-- [x] The server replicates `UnitStats` / `CombatRatings` only to the owning connection; equipping updates them.
-- [ ] All three primary stats show: Retail hides the two that are not the spec's primary stat, and the client has no `ChrSpecialization` primary-stat data.
-- [ ] No `EnhancementsCategory`: crit, haste, mastery and versatility are percentages the server derives (`CharacterStats`, with base crit, auras and the mastery coefficient); `CombatRatings` carries only ratings.
+- [x] The server replicates `UnitStats` / `CombatRatings` / `DerivedStats` only to the owning connection; equipping updates them.
+- [x] With a known spec only its primary stat shows (`ChrSpecialization.PrimaryStatPriority` mapped as TrinityCore `Player::GetPrimaryStat`); without one all three show.
+- [x] `EnhancementsCategory` under the last attribute (11 lower below level 10): Critical Strike, Haste, Mastery and Versatility from the server's `DerivedStats` percentages, `format("%d%%", value + 0.5)`, each hidden at exactly 0.
+- [ ] Leech, Avoidance and Speed never show: the server models no tertiary stats (Retail hides them at 0). Dodge, Parry and Block (tank role, shield) and red negative haste are not built.
 - [ ] Not built: stat tooltips, Stagger and mana regen (need a role), the Reputation and Currency tabs, title and equipment-manager sidebars, slot flyouts.
