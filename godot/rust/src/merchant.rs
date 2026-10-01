@@ -185,7 +185,12 @@ impl GameClient {
         if interactive {
             self.right_click_interact()?;
         }
-        let cursor = interactive.then(|| self.hover_cursor()).flatten();
+        // `ShowRepairCursor` replaces the hover cursor everywhere until hidden.
+        let cursor = if self.merchant.session.repair_mode {
+            Some(ActiveWowCursor::Repair)
+        } else {
+            interactive.then(|| self.hover_cursor()).flatten()
+        };
         self.set_world_cursor(cursor);
         Ok(self.sync_merchant_ui()?)
     }
@@ -397,7 +402,7 @@ impl GameClient {
         Ok(self.apply_merchant_effect(effect)?)
     }
 
-    fn apply_merchant_effect(
+    pub(super) fn apply_merchant_effect(
         &mut self,
         effect: Option<MerchantEffect>,
     ) -> Result<(), SessionError> {
