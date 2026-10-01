@@ -1,6 +1,8 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
+#[path = "../../../src/ipc/wire.rs"]
+pub mod ipc_wire;
 pub mod replica;
 
 use std::{
@@ -125,6 +127,12 @@ impl BridgeConfig {
         self
     }
 
+    /// All three merchant replies in their reliable ordered `MerchantChannel` send order.
+    pub fn receive_merchant(mut self) -> Self {
+        self.relays.push(install_merchant_relay);
+        self
+    }
+
     /// Receiving mailbox traffic in its reliable ordered channel order.
     pub fn receive_mail(mut self) -> Self {
         self.relays.push(install_mail_relay);
@@ -206,15 +214,22 @@ impl NetworkBridge {
             .receive::<protocol::OwnedAuctionListResponse>()
             .receive::<protocol::BidAuctionListResponse>()
             .receive::<protocol::AuctionOperationResponse>()
-            .receive::<VendorInventory>()
-            .receive::<BuybackList>()
-            .receive::<MerchantFailed>()
+            .receive_merchant()
             .receive::<InventorySnapshot>()
             .receive::<EquipmentSnapshot>()
             .receive::<InventoryDelta>()
             .receive::<InventoryError>()
             .receive::<DurabilityStateUpdate>()
             .receive::<RestStateUpdate>()
+            // Unit tooltip data and the account's appearance collection (unit-tooltip.md).
+            .receive::<protocol::CreatureTooltip>()
+            .receive::<protocol::AppearanceCollectionUpdate>()
+            // Bank and guild bank contents, logs and refusals (bank-frame.md).
+            .receive::<protocol::BankContents>()
+            .receive::<protocol::BankFailed>()
+            .receive::<protocol::GuildBankContents>()
+            .receive::<protocol::GuildBankLog>()
+            .receive::<protocol::GuildBankFailed>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
             // Party/raid roster, member states, invites and results (group-frames.md).
@@ -610,12 +625,44 @@ fn install_loot_relay(app: &mut App, events: Sender<Event>) {
     );
 }
 
+/// A single relay preserves order across message types sharing `MerchantChannel`.
+fn install_merchant_relay(app: &mut App, events: Sender<Event>) {
+    app.add_systems(
+        Update,
+        (move |mut inventories: Query<&mut MessageReceiver<VendorInventory>>,
+               mut buybacks: Query<&mut MessageReceiver<BuybackList>>,
+               mut failures: Query<&mut MessageReceiver<MerchantFailed>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(inventories);
+            drain!(buybacks);
+            drain!(failures);
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
 fn install_mail_relay(app: &mut App, events: Sender<Event>) {
-    use protocol::{MailFailed, MailboxContents, PendingMail};
+    use protocol::{MailFailed, MailSent, MailboxContents, PendingMail};
     app.add_systems(
         Update,
         (move |mut contents: Query<&mut MessageReceiver<MailboxContents>>,
                mut failed: Query<&mut MessageReceiver<MailFailed>>,
+               mut sent: Query<&mut MessageReceiver<MailSent>>,
                mut pending: Query<&mut MessageReceiver<PendingMail>>| {
             let mut received = Vec::new();
             macro_rules! drain {
@@ -629,6 +676,7 @@ fn install_mail_relay(app: &mut App, events: Sender<Event>) {
             }
             drain!(contents);
             drain!(failed);
+            drain!(sent);
             drain!(pending);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
@@ -699,6 +747,9 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
 
 #[cfg(test)]
 mod wire_tests;
+
+#[cfg(test)]
+mod merchant_wire_tests;
 
 #[cfg(test)]
 mod tests {

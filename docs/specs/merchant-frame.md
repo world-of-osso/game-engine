@@ -55,7 +55,7 @@ References:
 - [x] Right-click on a unit targets it; a living NPC within 5 yd gets `InteractNpc`. Hovering an NPC shows its Retail cursor (Buy for a vendor, from replicated `NpcFlags` and the reaction).
 - [x] The frame, backpack and StackSplitFrame are the shared components above, driven by the same server messages; right-click buy and sell, buyback (tab and last-sale slot), Repair All, paging, tabs, and vendor Shift-click split with its keys.
 - [x] Escape, the close button and `InteractionClosed` close the frame; the first two send `CloseInteraction`.
-- [ ] Repair All and Sell All Junk execute directly, without a confirmation dialog. An eligible Merchant-tab junk click sends `SellAllJunkItems` immediately; common-only inventory and the Buyback tab send none. Bags, money and repair cost remain server-owned and change only from authoritative updates.
+- [x] Repair All and Sell All Junk execute directly, without a confirmation dialog. An eligible Merchant-tab junk click sends `SellAllJunkItems` immediately; common-only inventory and the Buyback tab send none. Bags, money and repair cost remain server-owned and change only from authoritative updates.
 - [ ] Cursor item (pickup, drag-buy, drop-sell, bag split), tooltips, direct Sell All Junk, the gossip frame, Retail ContainerFrame art.
 
 Native cursor coverage is partial, not wholly unconverted: [current bounded Buy + whole/split sale acceptance](../wiki/systems/godot-conversion.md#native-merchant-split-cursor-sale--main-accepted-bounded-pass). The unchecked combined requirement above is not full native acceptance.

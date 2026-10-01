@@ -132,6 +132,7 @@ fn send_mail_has_the_form_twelve_attachment_buttons_and_the_postage() {
         postage_unaffordable: false,
         cod: false,
         cod_enabled: true,
+        can_send: true,
     };
     let reg = build(state);
     assert_eq!(fontstring_text(&reg, "MailFrameTitleText"), "Send Mail");
@@ -153,6 +154,38 @@ fn send_mail_has_the_form_twelve_attachment_buttons_and_the_postage() {
         Some(ACTION_MODE_COD)
     );
     assert_eq!(fontstring_text(&reg, "SendMailMoneyText"), "Send Money:");
+}
+
+#[test]
+fn send_waits_for_a_sendable_form_and_a_free_mailbox() {
+    let mut state = inbox();
+    state.tab = MailFrameTab::Send;
+    state.send.attachments = vec![Some(linen())];
+    state.send.can_send = true;
+    assert_eq!(
+        onclick(&build(state.clone()), "SendMailMailButton").as_deref(),
+        Some(ACTION_SEND)
+    );
+    state.busy = true;
+    let reg = build(state.clone());
+    assert_eq!(onclick(&reg, "SendMailMailButton"), None);
+    assert_eq!(onclick(&reg, "SendMailAttachment1"), None);
+    state.busy = false;
+    state.send.can_send = false;
+    assert_eq!(onclick(&build(state), "SendMailMailButton"), None);
+}
+
+#[test]
+fn open_all_shows_opening_while_it_takes_attachments() {
+    let mut state = inbox();
+    assert_eq!(
+        onclick(&build(state.clone()), "OpenAllMail").as_deref(),
+        Some(ACTION_OPEN_ALL)
+    );
+    state.opening_all = true;
+    let reg = build(state);
+    assert_eq!(fontstring_text(&reg, "OpenAllMail"), "Opening...");
+    assert_eq!(onclick(&reg, "OpenAllMail"), None);
 }
 
 #[test]

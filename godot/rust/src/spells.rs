@@ -111,7 +111,6 @@ pub(crate) struct SpellsHud {
     book_ui: Option<Gd<RegistryUi>>,
     book_position: Option<[f32; 2]>,
     book_drag: Option<WindowDrag>,
-    pub(crate) tooltip_ui: Option<Gd<RegistryUi>>,
     book: SpellbookFrameState,
     /// FDID → whether `data/textures/{fdid}.blp` exists or was copied from local CASC.
     textures: HashMap<u32, bool>,
@@ -136,7 +135,6 @@ impl Default for SpellsHud {
             book_ui: None,
             book_position: None,
             book_drag: None,
-            tooltip_ui: None,
             book: SpellbookFrameState::default(),
             textures: HashMap::new(),
             cast: None,
@@ -155,12 +153,7 @@ impl SpellsHud {
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
     ) -> Result<(), String> {
-        for ui in [
-            &mut self.bar_ui,
-            &mut self.cast_ui,
-            &mut self.book_ui,
-            &mut self.tooltip_ui,
-        ] {
+        for ui in [&mut self.bar_ui, &mut self.cast_ui, &mut self.book_ui] {
             if let Some(ui) = ui {
                 visit(ui)?;
             }
@@ -176,14 +169,9 @@ impl SpellsHud {
     }
 
     fn close(&mut self) {
-        for ui in [
-            self.bar_ui.take(),
-            self.cast_ui.take(),
-            self.book_ui.take(),
-            self.tooltip_ui.take(),
-        ]
-        .into_iter()
-        .flatten()
+        for ui in [self.bar_ui.take(), self.cast_ui.take(), self.book_ui.take()]
+            .into_iter()
+            .flatten()
         {
             ui.free();
         }
@@ -374,12 +362,11 @@ impl GameClient {
         self.sync_action_bar()?;
         self.sync_cast_bar(delta)?;
         self.sync_spellbook()?;
-        self.sync_spell_tooltip()?;
         self.float_combat_text(delta);
         Ok(())
     }
 
-    fn keyboard_free(&self) -> bool {
+    pub(super) fn keyboard_free(&self) -> bool {
         self.base().get_viewport().is_some_and(|viewport| {
             !viewport
                 .gui_get_focus_owner()
@@ -457,7 +444,7 @@ impl GameClient {
     }
 
     /// Icons whose BLP is on disk (copied from local CASC on first use); others show empty.
-    fn drawable_fdid(&mut self, fdid: u32) -> u32 {
+    pub(super) fn drawable_fdid(&mut self, fdid: u32) -> u32 {
         if fdid == 0 {
             return 0;
         }
@@ -625,37 +612,16 @@ impl GameClient {
     }
 
     /// The main bar button under the pointer and its spell, if any.
-    pub(crate) fn hovered_bar_spell(&self) -> Option<(u32, [f32; 4])> {
-        let ui = self.spells.bar_ui.as_ref()?;
-        if !ui.is_visible() {
-            return None;
-        }
-        let (name, rect) = ui.bind().hovered_button()?;
-        let index: usize = name.strip_prefix("ActionButton")?.parse().ok()?;
-        match self.account.spells.slot(index.checked_sub(1)?) {
-            Some(ActionRef::Spell(spell_id)) => Some((spell_id, rect)),
-            _ => None,
-        }
-    }
-
-    /// The spellbook item under the pointer and its level when not learned yet.
-    pub(crate) fn hovered_book_spell(&self) -> Option<(u32, Option<u32>, [f32; 4])> {
-        let (name, rect) = self.spells.book_ui.as_ref()?.bind().hovered_button()?;
-        let spell_id: u32 = name
-            .strip_prefix("SpellBookItem")?
-            .strip_suffix("Button")?
-            .parse()
-            .ok()?;
-        let available_at = self
-            .spells
+    /// `SPELLBOOK_AVAILABLE_AT` of a spellbook spell not learned yet.
+    pub(crate) fn spellbook_available_at(&self, spell_id: u32) -> Option<u32> {
+        self.spells
             .book
             .categories
             .iter()
             .flat_map(|category| &category.groups)
             .flat_map(|group| &group.items)
             .find(|item| item.spell_id == spell_id)
-            .and_then(|item| item.available_at);
-        Some((spell_id, available_at, rect))
+            .and_then(|item| item.available_at)
     }
 
     pub(super) fn spellbook_open(&self) -> bool {
@@ -670,7 +636,7 @@ impl GameClient {
         self.spells.book_drag = None;
     }
 
-    fn toggle_spellbook(&mut self) -> Result<(), String> {
+    pub(super) fn toggle_spellbook(&mut self) -> Result<(), String> {
         if self.spellbook_open() {
             self.close_spellbook();
         } else {
@@ -1081,7 +1047,7 @@ impl GameClient {
         state.set("damage_dealt", &ids(&damage));
         state.set("spellbook_open", self.spellbook_open());
         let tooltip: PackedStringArray = self
-            .spell_tooltip_lines()
+            .tooltip_text_lines()
             .iter()
             .map(|line| GString::from(line.as_str()))
             .collect();

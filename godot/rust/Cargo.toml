@@ -35,6 +35,10 @@ ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-co
 taffy = "0.10.1"
 # Decode the existing authored KTX2 UI assets without converting their source files.
 ktx2-rw = "0.2.4"
+# Preserve the public CLI MessagePack framing and peer credential identification.
+peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0" }
+# Own-PID IPC listener and response delivery; Godot objects stay on the main thread.
+tokio = { version = "1", features = ["rt", "sync", "net", "macros", "time"] }
 
 [dev-dependencies]
 # `Replica::for_tests` builds replicated units without a server.

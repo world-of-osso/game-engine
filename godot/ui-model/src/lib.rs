@@ -21,6 +21,7 @@ pub mod ui {
         pub(crate) use crate::screen_title;
         pub use crate::{
             auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
+            bank_frame_component, guild_bank_frame_component,
             buff_frame_component, compact_unit_frame_component, cursor_item_component,
             default_button_atlas, game_menu_component, group_frames_component,
             inworld_unit_frames_component, loot_frame_component, mail_frame_component,
@@ -126,8 +127,6 @@ pub mod cast_failed_text;
 pub mod casting_bar_frame_component;
 #[path = "../../../src/ui/screens/main_action_bar_component.rs"]
 pub mod main_action_bar_component;
-#[path = "../../../src/ui/screens/spell_tooltip_component.rs"]
-pub mod spell_tooltip_component;
 #[path = "../../../src/ui/screens/spellbook_frame_component.rs"]
 pub mod spellbook_frame_component;
 #[path = "../../../src/ui/ui_errors_data.rs"]
@@ -160,6 +159,15 @@ pub mod panel_style_data;
 
 #[path = "../../../src/ui/screens/bank_art.rs"]
 pub mod bank_art;
+// Bank and guild bank (docs/specs/bank-frame.md, guild-bank-frame.md).
+pub mod bank;
+#[path = "../../../src/game/bank_data.rs"]
+pub mod bank_data;
+#[path = "../../../src/ui/screens/bank_frame_component.rs"]
+pub mod bank_frame_component;
+pub mod guild_bank;
+#[path = "../../../src/ui/screens/guild_bank_frame_component.rs"]
+pub mod guild_bank_frame_component;
 pub mod mail;
 #[path = "../../../src/ui/screens/mail_frame_component.rs"]
 pub mod mail_frame_component;
@@ -174,6 +182,12 @@ pub mod loot_data;
 pub mod loot_frame_component;
 #[path = "../../../src/loot_frame_data.rs"]
 pub mod loot_frame_data;
+
+// Native CharacterFrame / paperdoll (docs/specs/character-frame.md).
+pub mod character_frame;
+#[path = "../../../src/ui/screens/character_frame_component.rs"]
+pub mod character_frame_component;
+pub mod micro_menu;
 
 #[path = "../../../src/game/cursor_item.rs"]
 pub mod cursor_item;
@@ -221,8 +235,12 @@ pub(crate) mod csv_records;
 pub mod item_catalog;
 #[path = "../../../src/game/item_icons.rs"]
 pub mod item_icons;
+#[path = "../../../src/game/item_stats.rs"]
+pub mod item_stats;
 #[path = "../../../src/game/item_tooltip.rs"]
 pub mod item_tooltip;
+// Native GameTooltip content and placement (docs/specs/unit-tooltip.md).
+pub mod game_tooltip;
 pub mod merchant;
 #[path = "../../../src/game/merchant_data.rs"]
 pub mod merchant_data;

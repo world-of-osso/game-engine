@@ -233,7 +233,6 @@ func run_test() -> void:
 	# player entity.
 	local_id = client.account_state().local_player_id
 	await wait_frames(60)
-	await frame_camera()
 	if not await orbit_camera():
 		return
 	if not await full_health():
@@ -473,27 +472,30 @@ func cast(spell: int, what: String) -> bool:
 	print("FIXTURE ACCEPTED t=%.3f %s" % [grab_time(), what])
 	return true
 
-## Close framing from the mage's front-left (as spellcast_anim.gd).
-func frame_camera() -> void:
-	var center := Vector2(640, 360)
-	var goal := float(OS.get_environment("POLY_CAMERA_DISTANCE")) if OS.get_environment("POLY_CAMERA_DISTANCE") != "" else 7.0
-	for step in range(40):
-		var distance: float = client.account_state().camera_distance
-		if absf(distance - goal) < 0.6:
-			break
-		var wheel := InputEventMouseButton.new()
-		wheel.position = center
-		wheel.global_position = center
-		wheel.button_index = MOUSE_BUTTON_WHEEL_UP if distance > goal else MOUSE_BUTTON_WHEEL_DOWN
-		wheel.factor = 1.0
-		wheel.pressed = true
-		root.push_input(wheel, true)
-		await wait_frames(40)
-	await wait_frames(30)
+## Close framing from the mage's front-right: POLY_CAMERA_DISTANCE (default 7) yards at
+## POLY_ORBIT (default 1.2) radians from behind the player. The mirrored front-left framing of
+## spellcast_anim.gd (-1.2) puts the camera in the oak beside the mage: its M2 collision pulls
+## the 7 yd orbit in to 3.6-5.7 yd from -1.35 to -0.3.
+func camera_goal() -> Vector2:
+	var distance := float(OS.get_environment("POLY_CAMERA_DISTANCE")) if OS.get_environment("POLY_CAMERA_DISTANCE") != "" else 7.0
+	var offset := float(OS.get_environment("POLY_ORBIT")) if OS.get_environment("POLY_ORBIT") != "" else 1.2
+	return Vector2(distance, offset)
 
+## Places the orbit directly, while loading, so the first in-world frame is already framed.
+func frame_camera(state: Dictionary) -> void:
+	var goal := camera_goal()
+	client.set_camera_orbit(state.local_player_facing - PI + goal.y, state.camera_pitch, goal.x)
+
+## Whether the camera is at the framing distance and orbit yaw.
+func framed(state: Dictionary) -> bool:
+	var goal := camera_goal()
+	var error := wrapf(state.camera_yaw - (state.local_player_facing - PI + goal.y), -PI, PI)
+	return absf(state.camera_distance - goal.x) < 0.05 and absf(error) < 0.05
+
+## Keeps the framing yaw by mouse look should the server turn the player after entry.
 func orbit_camera() -> bool:
 	var center := Vector2(640, 60)
-	var offset := float(OS.get_environment("POLY_ORBIT")) if OS.get_environment("POLY_ORBIT") != "" else -1.2
+	var offset := camera_goal().y
 	for attempt in range(60):
 		var state: Dictionary = client.account_state()
 		var behind: float = state.local_player_facing - PI
@@ -573,9 +575,20 @@ func enter_world() -> bool:
 		return false
 	await click(ui.find_child("EnterWorld", true, false))
 	deadline = Time.get_ticks_msec() + 120000
+	var first_frame := true
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
+		if state.screen != "InWorld" and state.local_player_facing != null:
+			frame_camera(state)
+		if state.screen == "InWorld" and first_frame:
+			first_frame = false
+			# The last drawn frame: the first one with the world on screen.
+			root.get_texture().get_image().save_png(shots + "first-frame.png")
+			print("FIXTURE FIRST_FRAME yaw=%.3f facing=%s distance=%.2f" % [state.camera_yaw, state.local_player_facing, state.camera_distance])
+			if state.local_player_facing == null or not framed(state):
+				fail("First in-world frame is not framed: " + str(state))
+				return false
 		if state.screen == "InWorld" and state.local_player_position != null and state.local_server_position != null and state.terrain.pending_count == 0 and not state.terrain.parsed_tiles.is_empty():
 			print("FIXTURE IN_WORLD at ", state.local_player_position)
 			await wait_frames(60)
