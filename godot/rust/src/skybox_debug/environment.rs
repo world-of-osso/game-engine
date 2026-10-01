@@ -28,7 +28,7 @@ use glam::{IVec2, Vec2};
 use godot::{
     classes::{
         ArrayMesh, Camera3D, Cubemap, DirectionalLight3D, Environment, Image, MeshInstance3D,
-        Node3D, PlaneMesh, Shader, ShaderMaterial, environment,
+        Node3D, PlaneMesh, ResourceLoader, Shader, ShaderMaterial, environment,
         geometry_instance_3d::ShadowCastingSetting, image, light_3d, mesh,
     },
     prelude::*,
@@ -113,7 +113,7 @@ fn read_noon_colors(data_root: &Path) -> Result<SkyColors, String> {
 
 fn attach_environment(camera: &mut Gd<Camera3D>, clear: Color) {
     let mut environment = Environment::new_gd();
-    environment.set_background(environment::BGMode::COLOR);
+    environment.set_background(environment::BgMode::COLOR);
     environment.set_bg_color(clear);
     environment.set_ambient_source(environment::AmbientSource::COLOR);
     environment.set_ambient_light_color(Color::WHITE);
@@ -144,12 +144,15 @@ fn attach_sun(root: &mut Gd<Node3D>) {
     root.add_child(&sun);
 }
 
-fn create_material(source: &str) -> Gd<ShaderMaterial> {
-    let mut shader = Shader::new_gd();
-    shader.set_code(source);
+fn load_material(path: &str) -> Result<Gd<ShaderMaterial>, String> {
+    let shader = ResourceLoader::singleton()
+        .load(path)
+        .ok_or_else(|| format!("Cannot load SkyboxDebug shader {path}"))?
+        .try_cast::<Shader>()
+        .map_err(|_| format!("SkyboxDebug resource {path} is not a Shader"))?;
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
-    material
+    Ok(material)
 }
 
 fn create_reference_material(
@@ -160,9 +163,7 @@ fn create_reference_material(
     let mut missing = PackedInt32Array::new();
     let texture = shared_texture(GRASS_FDID, &data_root.join("textures"), &mut missing)?
         .ok_or_else(|| format!("SkyboxDebug missing cached grass FDID {GRASS_FDID}"))?;
-    let mut material = create_material(include_str!(
-        "../../../shaders/skybox_debug_reference.gdshader"
-    ));
+    let mut material = load_material("res://shaders/skybox_debug_reference.gdshader")?;
     material.set_shader_parameter("base_texture", &texture.to_variant());
     material.set_shader_parameter("linear_fog_enabled", &fog.to_variant());
     bind_reference_light(&mut material, colors);
@@ -208,9 +209,7 @@ fn attach_reference_plane(root: &mut Gd<Node3D>, material: &Gd<ShaderMaterial>) 
 fn create_dome_material(colors: &SkyColors) -> Result<Gd<ShaderMaterial>, String> {
     let pixels = generate_cloud_pixels(CLOUD_TEXTURE_WIDTH, CLOUD_TEXTURE_HEIGHT, 0);
     let cloud = texture_from_rgba(&pixels, CLOUD_TEXTURE_WIDTH, CLOUD_TEXTURE_HEIGHT)?;
-    let mut material = create_material(include_str!(
-        "../../../shaders/skybox_debug_procedural.gdshader"
-    ));
+    let mut material = load_material("res://shaders/skybox_debug_procedural.gdshader")?;
     material.set_render_priority(-128);
     material.set_shader_parameter("cloud_texture", &cloud.to_variant());
     bind_dome_colors(&mut material, colors);
