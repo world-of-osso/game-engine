@@ -101,6 +101,7 @@ pub mod ui_sound_kits;
 pub mod wmo_surface_data;
 #[cfg(test)]
 mod wmo_surface_data_tests;
+pub mod world_time;
 pub use asset::m2_batch_data;
 #[path = "../../../src/cache_source_mtime.rs"]
 mod cache_source_mtime;

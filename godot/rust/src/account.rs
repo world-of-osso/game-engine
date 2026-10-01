@@ -127,6 +127,8 @@ pub enum AccountEvent {
     Feedback,
     WorldReset,
     RestState(RestStateUpdate),
+    /// The realm's game time (`SMSG_LOGIN_SET_TIME_SPEED`).
+    GameTime(shared::protocol::LoginSetTimeSpeed),
     LoadTerrain(LoadTerrain),
     NewWorld(NewWorld),
     TransferError(String),
@@ -907,6 +909,10 @@ impl Account {
         }
         if message.is::<RestStateUpdate>() {
             output.push(AccountEvent::RestState(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::LoginSetTimeSpeed>() {
+            output.push(AccountEvent::GameTime(decode(message)?));
             return Ok(());
         }
         if message.is::<ChatMessage>() {

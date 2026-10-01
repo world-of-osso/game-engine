@@ -86,7 +86,7 @@ mod world;
 mod world_map;
 mod world_models;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, time::Instant};
 
 use account::{Account, AccountEvent};
 use frame_error::FrameError;
@@ -184,6 +184,10 @@ pub struct GameClient {
     framerate_toggled: bool,
     player_movement: gameplay::PlayerMovement,
     world_minutes: f32,
+    /// The server's game time: `(second of day, speed, received)`; drives `world_minutes`
+    /// unless automation fixed the time of day.
+    world_clock: Option<(u32, f32, Instant)>,
+    world_minutes_fixed: bool,
     server_hostname: String,
     startup_customize: bool,
     targeting: targeting::Targeting,
@@ -282,6 +286,8 @@ impl INode3D for GameClient {
             player_movement: gameplay::PlayerMovement::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
+            world_clock: None,
+            world_minutes_fixed: false,
             startup_customize: false,
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
@@ -458,7 +464,7 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, delta: f64) {
-        let started = std::time::Instant::now();
+        let started = Instant::now();
         self.poll_native_ipc();
         self.run_frame(delta);
         self.last_process_ms = started.elapsed().as_secs_f64() * 1000.0;
@@ -862,10 +868,18 @@ impl GameClient {
         self.world_camera.set_orbit(yaw, pitch, distance);
     }
 
-    /// Automation: the time of day (0..2880 half-minutes) the world light samples.
+    /// Automation: the time of day (0..2880 half-minutes) the world light samples, from now
+    /// on instead of the server's game time.
     #[func]
     fn set_world_minutes(&mut self, minutes: f32) {
         self.world_minutes = minutes.rem_euclid(2880.0);
+        self.world_minutes_fixed = true;
+    }
+
+    /// The time of day (0..2880 half-minutes) the world light samples.
+    #[func]
+    fn world_minutes(&self) -> f32 {
+        self.world_minutes
     }
 
     #[func]
@@ -1503,6 +1517,10 @@ impl GameClient {
             ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
             ("Player movement", |c, _| c.send_player_input()),
             ("Terrain", |c, _| Ok(c.poll_terrain()?)),
+            ("World time", |c, _| {
+                c.advance_world_time();
+                Ok(())
+            }),
             ("World lighting", |c, _| Ok(c.update_world_lighting()?)),
             (
                 "Terrain materials",
@@ -1597,6 +1615,9 @@ impl GameClient {
             AccountEvent::WorldReset => self.reset_world()?,
             AccountEvent::RestState(update) => {
                 self.in_rest_area = update.snapshot.is_some_and(|rest| rest.in_rest_area);
+            }
+            AccountEvent::GameTime(time) => {
+                self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
             }
             AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
@@ -1764,6 +1785,16 @@ impl GameClient {
             frame_error::report_once(&format!("Terrain tile ({y}, {x}): {error}"));
         }
         Ok(())
+    }
+
+    /// The server's game time advanced to now, unless automation fixed the time of day.
+    fn advance_world_time(&mut self) {
+        if let (Some((second, speed, received)), false) =
+            (self.world_clock, self.world_minutes_fixed)
+        {
+            let elapsed = received.elapsed().as_secs_f64();
+            self.world_minutes = game_engine_core::world_time::half_minutes(second, speed, elapsed);
+        }
     }
 
     fn update_world_lighting(&mut self) -> Result<(), String> {
