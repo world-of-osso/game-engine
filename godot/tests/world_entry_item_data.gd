@@ -7,6 +7,8 @@ extends "res://tests/world_bags_flow.gd"
 ##   GODOT_TEST_SERVER                             server address (a private test server)
 ##   WORLD_ENTRY_ACCOUNT / WORLD_ENTRY_CHARACTER   account (password fbtest) and character
 ## whose bags hold Linen Cloth (2589).
+##   GODOT_BAGS_SCREENSHOTS                        optional data/diagnostics/ directory
+##                                                 for the bags and tooltip capture
 
 const PASSWORD := "fbtest"
 const LINEN := 2589
@@ -53,6 +55,8 @@ func run_test() -> void:
 		return
 	print("FIXTURE ITEM_DATA_LOADED longest_pending_frame_ms=%.1f bags=%s equipment=%s" % [longest_pending_ms, loaded.bags, loaded.equipment])
 	if not check_resolved(loaded):
+		return
+	if not await wait_screen(client, "InWorld", 180000):
 		return
 	if not await check_linen_tooltip(client, loaded):
 		return
@@ -149,7 +153,7 @@ func check_linen_tooltip(client: Node, state: Dictionary) -> bool:
 	if not title.get_theme_color("font_color").is_equal_approx(Color.WHITE):
 		fail("Linen Cloth tooltip title must be Common white")
 		return false
-	return true
+	return await capture_bags("item-data-linen-tooltip.png", client, "Linen Cloth")
 
 func fail(message: String) -> void:
 	push_error(message)
