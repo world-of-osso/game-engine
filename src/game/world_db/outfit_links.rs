@@ -10,8 +10,8 @@ DROP TABLE IF EXISTS starter_outfits;
 DROP TABLE IF EXISTS item_modified_appearance_map;
 DROP TABLE IF EXISTS item_appearance_map;
 DROP TABLE IF EXISTS display_info;
-DROP TABLE IF EXISTS material_to_texture;
-DROP TABLE IF EXISTS display_material_textures;
+DROP TABLE IF EXISTS material_textures;
+DROP TABLE IF EXISTS display_materials;
 DROP TABLE IF EXISTS model_to_fdid;
 CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
 CREATE TABLE starter_outfits (
@@ -41,15 +41,17 @@ CREATE TABLE display_info (
     helmet_vis_0 INTEGER NOT NULL,
     helmet_vis_1 INTEGER NOT NULL
 );
-CREATE TABLE material_to_texture (
-    material_resource_id INTEGER PRIMARY KEY,
-    texture_fdid INTEGER NOT NULL
+CREATE TABLE material_textures (
+    material_resource_id INTEGER NOT NULL,
+    file_order INTEGER NOT NULL,
+    texture_fdid INTEGER NOT NULL,
+    PRIMARY KEY (material_resource_id, file_order)
 );
-CREATE TABLE display_material_textures (
+CREATE TABLE display_materials (
     display_info_id INTEGER NOT NULL,
     component_section INTEGER NOT NULL,
-    texture_fdid INTEGER NOT NULL,
-    PRIMARY KEY (display_info_id, component_section, texture_fdid)
+    material_resource_id INTEGER NOT NULL,
+    PRIMARY KEY (display_info_id, component_section, material_resource_id)
 );
 CREATE TABLE model_to_fdid (
     model_resource_id INTEGER NOT NULL,
@@ -128,8 +130,8 @@ fn import_rows(conn: &Connection, csv_paths: &[PathBuf; 7]) -> Result<(), String
     super::populate_item_modified_appearance_map(conn, &csv_paths[1])?;
     super::populate_item_appearance_map(conn, &csv_paths[2])?;
     super::populate_display_info(conn, &csv_paths[3])?;
-    super::material_links::populate_material_to_texture(conn, &csv_paths[4])?;
-    super::material_links::populate_display_material_textures(conn, &csv_paths[5])?;
+    super::material_links::populate_material_textures(conn, &csv_paths[4])?;
+    super::material_links::populate_display_materials(conn, &csv_paths[5])?;
     super::populate_model_to_fdid(conn, &csv_paths[6])?;
     Ok(())
 }

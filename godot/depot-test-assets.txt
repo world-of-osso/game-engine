@@ -144,6 +144,8 @@ ItemDisplayInfo.csv
 TextureFileData.csv
 ItemDisplayInfoMaterialRes.csv
 ModelFileData.csv
+db2/12.1.0.69933/ComponentTextureFileData.csv
+db2/12.1.0.69933/ComponentModelFileData.csv
 models/skyboxes/11xp_cloudsky01.m2
 models/322057.wmo
 models/623712.m2
