@@ -45,6 +45,10 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
   - Bankone deposits Copper Ore and 100g into the Warband bank.
   - Banktwo, on the same account, sees the ore, withdraws it, and withdraws 10g.
 
+- Native (Godot) client, `data/diagnostics/bank-live/` (2026-10-01, game-engine `bank`, private server UDP 5114, fresh redb, `godot/tests/bank_live.gd`):
+  - Bankone right-clicks Olivia Burnside, picks the gossip option, buys a character tab (1g), deposits and withdraws Linen, buys Warband tab 1 (1000g), deposits Linen and 1g there and withdraws the Linen.
+  - Escape closes BankFrame and its bags without opening the game menu.
+
 ## How it works
 - [banks](../wiki/systems/banks.md)
 

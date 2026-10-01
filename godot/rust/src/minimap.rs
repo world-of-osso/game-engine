@@ -9,11 +9,14 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 
+use game_engine_core::input_bindings_data::InputAction;
 use game_engine_core::minimap_data::{
-    AreaCatalog, MinimapView, TileImage, TileKey, compose, parse_race_faction_groups, sample,
-    tile_path, zoom_in, zoom_out,
+    AreaCatalog, FACTION_GROUP_ALLIANCE, FACTION_GROUP_HORDE, MinimapView, TileImage, TileKey,
+    ZonePvp, compose, parse_race_faction_groups, sample, tile_path, zoom_in, zoom_out,
 };
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::game_tooltip::GameTooltip;
+use game_engine_ui_model::game_tooltip::hud::zone_tooltip;
 use game_engine_ui_model::minimap::{
     ACTION_TOGGLE_WORLD_MAP, ACTION_ZOOM_IN, ACTION_ZOOM_OUT, BlipKind, MINIMAP_ARROW,
     MINIMAP_DISPLAY, MINIMAP_ZONE_TEXT, MinimapBlip, MinimapClusterState, minimap_texture_fdids,
@@ -158,7 +161,7 @@ fn load_catalogs(data_root: &std::path::Path) -> Result<Catalogs, String> {
 
 /// Local wall-clock hour, minute and day of month (`timeMgrUseLocalTime` shows local time;
 /// the protocol carries no realm time).
-fn local_time() -> (u32, u32, u32) {
+pub(crate) fn local_time() -> (u32, u32, u32) {
     let time = Time::singleton().get_datetime_dict_from_system();
     let field = |key: &str| time.get(key).map_or(0, |value| value.to::<i64>() as u32);
     (field("hour"), field("minute"), field("day"))
@@ -248,6 +251,39 @@ impl GameClient {
             .unwrap_or(0)
     }
 
+    /// `MinimapZoneTextButtonMixin:OnEnter`: the zone, the subzone in its PvP colour and
+    /// the world map button text with its key.
+    pub(crate) fn zone_text_tooltip(&mut self) -> Option<GameTooltip> {
+        let (position, _) = self.minimap_player()?;
+        let catalogs = self.minimap.catalogs.as_ref()?.as_ref().ok()?;
+        let area = self.terrain.area_id_at(position[0], position[1])?;
+        let group = self.player_faction_group(catalogs);
+        let pvp = catalogs.areas.pvp(area, group);
+        // C_PvP.GetZonePVPInfo's factionName: the side controlling the zone.
+        let own = match group {
+            FACTION_GROUP_ALLIANCE => Some(("Alliance", "Horde")),
+            FACTION_GROUP_HORDE => Some(("Horde", "Alliance")),
+            _ => None,
+        };
+        let faction = match pvp {
+            ZonePvp::Friendly => own.map(|(own, _)| own),
+            ZonePvp::Hostile => own.map(|(_, other)| other),
+            _ => None,
+        };
+        let key = self
+            .client_options
+            .bindings
+            .binding(InputAction::ToggleWorldMap)
+            .map(|binding| binding.display());
+        Some(zone_tooltip(
+            catalogs.areas.zone(area)?,
+            catalogs.areas.name(area)?,
+            pvp,
+            faction,
+            key.as_deref(),
+        ))
+    }
+
     fn minimap_cluster_state(
         &mut self,
         position: [f32; 2],
@@ -282,6 +318,7 @@ impl GameClient {
             zoom_buttons: self.minimap.hovered,
             zoom: self.minimap.zoom,
             blips: self.quest_blips(&view),
+            has_mail: !self.mailbox.session.pending_senders.is_empty(),
             map_texture: None,
         })
     }

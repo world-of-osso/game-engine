@@ -563,8 +563,7 @@ impl GameClient {
                 state
             });
         let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());
-        let mut state =
-            unit_frames_state(player, target, self.client_options.hud.show_health_bars);
+        let mut state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
         state.menu = self.unit_menu.state.clone();
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             ui.bind_mut().set_state(state)?;

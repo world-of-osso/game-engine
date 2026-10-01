@@ -15,6 +15,12 @@ use game_engine_session::{
     AuthRequest, ReconnectPhase, Session, SessionEffect, SessionOptions, SessionScreen,
     normalize_auth_token, token_path,
 };
+use game_engine_ui_model::bank_data::{BankRequest, GuildBankRequest};
+use game_engine_ui_model::trade::TradeRequest;
+use shared::protocol::{
+    AcceptTrade, CancelTrade, CancelTradeAccept, ClearTradeItem, ConfirmTrade, DeclineTrade,
+    InitiateTrade, SetTradeMoney, TradeChannel, TradeStateUpdate,
+};
 use shared::protocol::{
     ActionBarSnapshot, AttackStart, AttackStop, AttackStopped, AttackSwing, AuthChannel,
     CastFailed, CharacterListUpdate, ChatChannel, ChatMessage, CombatChannel, CombatEvent,
@@ -30,18 +36,23 @@ use shared::protocol::{
     TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
+    AppearanceCollectionUpdate, CreatureTooltip, CreatureTooltipQuery, TooltipChannel,
+};
+use shared::protocol::{
+    BankAutoDeposit, BankChannel, BankContents, BankDeposit, BankFailed, BankMoneyTransfer,
+    BankPurchaseTab, BankUpdateTabSettings, BankWithdraw, GuildBankBuyTab, GuildBankChannel,
+    GuildBankContents, GuildBankDeposit, GuildBankFailed, GuildBankLog, GuildBankMoneyTransfer,
+    GuildBankQueryLog, GuildBankSetTabInfo, GuildBankSetTabText, GuildBankWithdraw,
+};
+use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate,
     EquipmentSnapshot, InteractNpc, InteractionChannel, InteractionClosed, InteractionFailed,
     InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, MerchantChannel,
     MerchantFailed, RepairItem, SellAllJunkItems, SellItem, VendorInventory,
 };
 use shared::protocol::{
-    MailChannel, MailFailed, MailRequest, MailboxContents, PendingMail, UseGameObject,
-};
-use game_engine_ui_model::trade::TradeRequest;
-use shared::protocol::{
-    AcceptTrade, CancelTrade, CancelTradeAccept, ClearTradeItem, ConfirmTrade, DeclineTrade,
-    InitiateTrade, SetTradeMoney, TradeChannel, TradeStateUpdate,
+    MailChannel, MailFailed, MailRequest, MailSent, MailboxContents, PendingMail, SendMail,
+    UseGameObject,
 };
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
@@ -140,16 +151,31 @@ pub enum AccountEvent {
     Mail(MailMessage),
     /// `TradeStateUpdate`: the trade snapshot, its refusal and message.
     Trade(TradeStateUpdate),
+    /// Bank and guild bank contents, logs and refusals.
+    Bank(BankMessage),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
     /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
     GroupNotice(String),
+    /// The server's tooltip data for one creature entry.
+    CreatureTooltip(CreatureTooltip),
+    /// The account's learned appearances.
+    Appearances(AppearanceCollectionUpdate),
+}
+
+pub(crate) enum BankMessage {
+    Contents(BankContents),
+    Failed(BankFailed),
+    GuildContents(GuildBankContents),
+    GuildLog(GuildBankLog),
+    GuildFailed(GuildBankFailed),
 }
 
 pub(crate) enum MailMessage {
     Contents(MailboxContents),
     Failed(MailFailed),
+    Sent(MailSent),
     Pending(PendingMail),
 }
 
@@ -374,6 +400,13 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// `CreatureTooltipQuery`; the server answers `CreatureTooltip` for the entry.
+    pub fn send_creature_tooltip_query(&self, entry: u32) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, TooltipChannel>(CreatureTooltipQuery { entry })
+            .map_err(SessionError)
+    }
+
     /// `RequestRaidInfo()`; the server answers `InstanceInfo`.
     pub fn send_request_raid_info(&self) -> Result<(), SessionError> {
         self.bridge()?
@@ -392,6 +425,113 @@ impl Account {
         self.bridge()?
             .send::<_, InteractionChannel>(UseGameObject { object })
             .map_err(SessionError)
+    }
+
+    /// A BankFrame request to the open banker `npc`.
+    pub fn send_bank_request(&self, npc: u64, request: &BankRequest) -> Result<(), SessionError> {
+        let bridge = self.bridge()?;
+        match request.clone() {
+            BankRequest::Deposit {
+                bank,
+                tab,
+                item_guid,
+            } => bridge.send::<_, BankChannel>(BankDeposit {
+                npc,
+                bank,
+                tab,
+                item_guid,
+            }),
+            BankRequest::Withdraw { bank, tab, slot } => {
+                bridge.send::<_, BankChannel>(BankWithdraw {
+                    npc,
+                    bank,
+                    tab,
+                    slot,
+                })
+            }
+            BankRequest::PurchaseTab { bank } => {
+                bridge.send::<_, BankChannel>(BankPurchaseTab { npc, bank })
+            }
+            BankRequest::Money {
+                bank,
+                copper,
+                deposit,
+            } => bridge.send::<_, BankChannel>(BankMoneyTransfer {
+                npc,
+                bank,
+                copper,
+                deposit,
+            }),
+            BankRequest::AutoDeposit {
+                bank,
+                include_reagents,
+            } => bridge.send::<_, BankChannel>(BankAutoDeposit {
+                npc,
+                bank,
+                include_reagents,
+            }),
+            BankRequest::UpdateTab {
+                bank,
+                tab,
+                name,
+                icon,
+                deposit_flags,
+            } => bridge.send::<_, BankChannel>(BankUpdateTabSettings {
+                npc,
+                bank,
+                tab,
+                name,
+                icon,
+                deposit_flags,
+            }),
+        }
+        .map_err(SessionError)
+    }
+
+    /// A GuildBankFrame request to the open Guild Vault `object`.
+    pub fn send_guild_bank_request(
+        &self,
+        object: u64,
+        request: &GuildBankRequest,
+    ) -> Result<(), SessionError> {
+        let bridge = self.bridge()?;
+        match request.clone() {
+            GuildBankRequest::Deposit { tab, item_guid } => {
+                bridge.send::<_, GuildBankChannel>(GuildBankDeposit {
+                    object,
+                    tab,
+                    item_guid,
+                })
+            }
+            GuildBankRequest::Withdraw { tab, slot } => {
+                bridge.send::<_, GuildBankChannel>(GuildBankWithdraw { object, tab, slot })
+            }
+            GuildBankRequest::Money { copper, deposit } => {
+                bridge.send::<_, GuildBankChannel>(GuildBankMoneyTransfer {
+                    object,
+                    copper,
+                    deposit,
+                })
+            }
+            GuildBankRequest::BuyTab => {
+                bridge.send::<_, GuildBankChannel>(GuildBankBuyTab { object })
+            }
+            GuildBankRequest::SetTabInfo { tab, name, icon } => {
+                bridge.send::<_, GuildBankChannel>(GuildBankSetTabInfo {
+                    object,
+                    tab,
+                    name,
+                    icon,
+                })
+            }
+            GuildBankRequest::SetTabText { tab, text } => {
+                bridge.send::<_, GuildBankChannel>(GuildBankSetTabText { object, tab, text })
+            }
+            GuildBankRequest::QueryLog { tab } => {
+                bridge.send::<_, GuildBankChannel>(GuildBankQueryLog { object, tab })
+            }
+        }
+        .map_err(SessionError)
     }
 
     pub fn send_mail_request(&self, request: MailRequest) -> Result<(), SessionError> {
@@ -420,6 +560,12 @@ impl Account {
             TradeRequest::CancelAccept => bridge.send::<_, TradeChannel>(CancelTradeAccept),
         }
         .map_err(SessionError)
+    }
+
+    pub fn send_mail(&self, mail: SendMail) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, MailChannel>(mail)
+            .map_err(SessionError)
     }
 
     /// Original cursor requests; only server InventoryDelta changes local contents.
@@ -675,6 +821,10 @@ impl Account {
             output.push(AccountEvent::Mail(MailMessage::Failed(decode(message)?)));
             return Ok(());
         }
+        if message.is::<MailSent>() {
+            output.push(AccountEvent::Mail(MailMessage::Sent(decode(message)?)));
+            return Ok(());
+        }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
             return Ok(());
@@ -700,6 +850,14 @@ impl Account {
         }
         if message.is::<ChatMessage>() {
             output.push(AccountEvent::Chat(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<CreatureTooltip>() {
+            output.push(AccountEvent::CreatureTooltip(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<AppearanceCollectionUpdate>() {
+            output.push(AccountEvent::Appearances(decode(message)?));
             return Ok(());
         }
         if Self::is_group_message(&message) {
@@ -841,6 +999,13 @@ impl Account {
         let message = match auction_message(message)? {
             Ok(reply) => {
                 output.push(AccountEvent::Auction(reply));
+                return Ok(());
+            }
+            Err(message) => message,
+        };
+        let message = match bank_message(message)? {
+            Ok(bank) => {
+                output.push(AccountEvent::Bank(bank));
                 return Ok(());
             }
             Err(message) => message,
@@ -1067,6 +1232,23 @@ impl Account {
 }
 
 /// The NPC interaction, vendor, bag or durability message, or the message back.
+fn bank_message(message: ProtocolMessage) -> Result<Result<BankMessage, ProtocolMessage>, String> {
+    let bank = if message.is::<BankContents>() {
+        BankMessage::Contents(decode(message)?)
+    } else if message.is::<BankFailed>() {
+        BankMessage::Failed(decode(message)?)
+    } else if message.is::<GuildBankContents>() {
+        BankMessage::GuildContents(decode(message)?)
+    } else if message.is::<GuildBankLog>() {
+        BankMessage::GuildLog(decode(message)?)
+    } else if message.is::<GuildBankFailed>() {
+        BankMessage::GuildFailed(decode(message)?)
+    } else {
+        return Ok(Err(message));
+    };
+    Ok(Ok(bank))
+}
+
 fn npc_message(message: ProtocolMessage) -> Result<Result<NpcMessage, ProtocolMessage>, String> {
     let npc = if message.is::<InteractionOpened>() {
         NpcMessage::Opened(decode(message)?)

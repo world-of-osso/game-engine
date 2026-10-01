@@ -13,7 +13,7 @@ use std::sync::OnceLock;
 use crate::spell_catalog::SPELL_DB2_BUILD;
 use crate::spell_catalog::csv_records::CsvTable;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ItemCatalogEntry {
     pub class_id: u8,
     pub subclass_id: u8,
@@ -40,9 +40,17 @@ pub struct ItemCatalogEntry {
     pub description: String,
     /// `ContainerSlots` of a bag.
     pub container_slots: u8,
+    /// `ItemDelay`: a weapon's swing time in milliseconds.
+    pub delay_ms: u32,
+    /// `DmgVariance`: the damage spread around the average hit.
+    pub damage_variance: f32,
+    /// `Flags_1 & ITEM_FLAG2_CASTER_WEAPON` (0x200): the weapon reads the caster damage tables.
+    pub caster_weapon: bool,
+    /// `StatModifier_bonusStat_N` and `StatPercentEditor_N` of the used stat slots.
+    pub stats: Vec<(i8, i32)>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ItemCatalog {
     items: HashMap<u32, ItemCatalogEntry>,
     /// `ItemSubClass.DisplayName_lang` by (ClassID, SubClassID).
@@ -108,7 +116,9 @@ fn db2_dir(data_dir: &Path) -> PathBuf {
 /// `Item.csv`, `ItemSparse.csv` and `ItemSubClass.csv` from one DB2 export directory.
 pub fn load_item_catalog(dir: &Path) -> Result<ItemCatalog, String> {
     let mut catalog = parse_item_catalog(&CsvTable::read(&dir.join("Item.csv"))?)?;
-    apply_item_sparse(&mut catalog, &CsvTable::read(&dir.join("ItemSparse.csv"))?)?;
+    let sparse = CsvTable::read(&dir.join("ItemSparse.csv"))?;
+    apply_item_sparse(&mut catalog, &sparse)?;
+    apply_item_sparse_stats(&mut catalog, &sparse)?;
     apply_subclass_names(
         &mut catalog,
         &CsvTable::read(&dir.join("ItemSubClass.csv"))?,
@@ -244,6 +254,57 @@ pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> 
         entry.container_slots = number(slots, path)?.clamp(0, 255) as u8;
         Ok(())
     })
+}
+
+/// `ITEM_FLAG2_CASTER_WEAPON`.
+const CASTER_WEAPON_FLAG: i64 = 0x200;
+/// `MAX_ITEM_PROTO_STATS`.
+const STAT_SLOTS: usize = 10;
+
+/// Fill the weapon and stat ItemSparse fields the tooltip's armor, damage and stat lines read
+/// (`item_stats`).
+pub(crate) fn apply_item_sparse_stats(
+    catalog: &mut ItemCatalog,
+    table: &CsvTable,
+) -> Result<(), String> {
+    let path = table.path();
+    let column = |name: &str| table.column(name);
+    let (id, delay, variance, flags) = (
+        column("ID")?,
+        column("ItemDelay")?,
+        column("DmgVariance")?,
+        column("Flags_1")?,
+    );
+    let mut stat_columns = [(0, 0); STAT_SLOTS];
+    for (slot, columns) in stat_columns.iter_mut().enumerate() {
+        *columns = (
+            column(&format!("StatModifier_bonusStat_{slot}"))?,
+            column(&format!("StatPercentEditor_{slot}"))?,
+        );
+    }
+    for record in table.records() {
+        let field = |index: usize| {
+            record
+                .get(index)
+                .ok_or_else(|| format!("{}: short row {record:?}", path.display()))
+        };
+        let Some(entry) = catalog.items.get_mut(&(number(field(id)?, path)? as u32)) else {
+            continue;
+        };
+        entry.delay_ms = number(field(delay)?, path)?.max(0) as u32;
+        entry.damage_variance = field(variance)?
+            .parse()
+            .map_err(|err| format!("{}: bad DmgVariance: {err}", path.display()))?;
+        entry.caster_weapon = number(field(flags)?, path)? & CASTER_WEAPON_FLAG != 0;
+        entry.stats.clear();
+        for (stat, percent) in stat_columns {
+            let (stat, percent) = (number(field(stat)?, path)?, number(field(percent)?, path)?);
+            if stat >= 0 && percent != 0 {
+                entry.stats.push((stat as i8, percent as i32));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

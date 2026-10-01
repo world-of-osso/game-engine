@@ -2,10 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::io::BufRead;
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ItemInfoQuery {
-    pub item_id: u32,
-}
+pub use crate::ipc::ItemInfoQuery;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ItemStaticInfo {

@@ -50,7 +50,7 @@ target/debug/examples/native_input_fixture merchant-cursor
 
 MAIN `3cb53ab4` registers independent fixture dispatch and direct pinned Godot launch (or `GODOT_BIN`), client flags after `--`, `world_merchant_cursor_flow.gd`, and the existing owned vendor spawn. `merchant-cursor` is not a launcher `--screen` destination. Test-only `d825108c`/`2c00a751` prepares physical vendor pickup → own embedded bag0/slot0 with exact decoded Buy and client COMMIT before peer inventory/gold updates. MAIN-accepted independent gate1446 bounded PASS at `837e2c1e`/`b073e4dd`: scoped functional/source/format/readability and matching build/five-flow evidence accepted. Historical authenticated pickup RED retained. Invocation documentation is not GREEN evidence. Cleanup deliberately kills/reaps the owned child, not normal shutdown. Existing merchant-click and bags modes are unchanged. [Exact oracle and exclusions](wiki/systems/godot-conversion.md#native-merchant-cursor-buy--main-accepted-bounded-pass).
 
-## Native merchant services fixture — prepared, proof pending
+## Native merchant services fixture — MAIN-accepted bounded PASS
 
 Existing `--fixture native_input_fixture` builds/installs this mode with the matching extension. Invoke from this checkout:
 
@@ -58,9 +58,9 @@ Existing `--fixture native_input_fixture` builds/installs this mode with the mat
 target/debug/examples/native_input_fixture merchant-services
 ```
 
-Registration `3acd7369` dispatches test-only `4b3173b5` to `world_merchant_services_flow.gd`, launching pinned Godot directly (or `GODOT_BIN`) with client flags after `--`; no root launcher required. `merchant-services` is an internal fixture mode, not a user startup destination.
+`merchant-services` launches pinned Godot directly (or `GODOT_BIN`) with client flags after `--`; no root launcher required. It is an internal fixture mode, not a user startup destination.
 
-Prepared assertions cover physical RepairAll and SellJunk clicks, exactly one decoded `RepairItem { npc: 4294966979, item_guid: None }` and `SellAllJunkItems { npc: 4294966979 }`, unchanged client inventory/gold during 900ms authority barriers, authoritative durability/inventory/gold updates, and disabled-repeat 900ms quiet windows. No confirmation is the explicit user requirement. Build, native runtime and pure-model tests remain pending; no RED/GREEN claimed. `frame_state` already overrides `has_junk` to true; the missing junk action route awaits observed RED, not enablement work. The existing spec's confirmation contract awaits MAIN's production/spec commit. Cleanup deliberately kills/reaps the owned child, not normal shutdown proof.
+MAIN independently accepted1513 **bounded PASS**, recorded in `158e523d`: direct Repair All and Sell All Junk without confirmation, exact decoded requests, client-before-authority barriers, authoritative results and quiet disabled repeats. See [authoritative acceptance, historical REDs, retained warnings and exclusions](wiki/systems/godot-conversion.md#native-direct-services--main-accepted-bounded-pass); that section owns the proof ledger. Cleanup deliberately kills/reaps the owned child: forced cleanup is not normal shutdown proof. Full conversion remains **OPEN**.
 
 ## Remote tests
 
