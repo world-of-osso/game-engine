@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-30] audit | Foreign-chat World rejection main-observed GREEN; independent pending
+## [2026-09-30] audit | Foreign-chat World rejection main-observed GREEN; independent bounded PASS accepted
 
-[Owned evidence](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records diagnostic RED on `b3bf65a2`, bounded `5f6782b5` rejection, new Depot build and three parent0 drag/actions/cursor logs. Independent gate1406 pending; own hits unchanged, no cross-layer winner/global ownership claim. Existing exclusions retained; deliberate SIGKILL is not shutdown. Docs-only reconciliation; no tests/builds/operations.
+[Owned evidence](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records diagnostic RED on `b3bf65a2`, bounded `5f6782b5` rejection, new Depot build and three parent0 drag/actions/cursor logs. Independent gate1406 accepted bounded PASS; own hits unchanged, no cross-layer winner/global ownership claim. Existing exclusions retained; deliberate SIGKILL is not shutdown. Docs-only reconciliation; no tests/builds/operations.
 
 ## [2026-09-30] audit | Exact standalone drag followup independently accepted bounded PASS
 
