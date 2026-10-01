@@ -885,9 +885,8 @@ fn check_timed_forward(run: &mut Run) -> Result<(), String> {
         thread::sleep(TICK);
     }
     if moving == 0 || stops(run) != before + 1 {
-        let network = run.cli(&["status", "network"])?;
         return Err(format!(
-            "1 s forward: {moving} moving inputs, {} stops; status network: {network:?}",
+            "1 s forward: {moving} moving inputs, {} stops",
             stops(run) - before
         ));
     }
@@ -995,6 +994,27 @@ fn finish(run: &mut Run, readers: Vec<thread::JoinHandle<()>>) -> Result<(), Str
     Ok(())
 }
 
+fn run_checks(run: &mut Run, address: SocketAddr, tiles: &str) -> Result<(), String> {
+    check_network(run, address)?;
+    check_sound(run)?;
+    check_terrain(run, tiles)?;
+    check_spawn_position(run)?;
+    check_map_requests(run)?;
+    check_social_and_combat(run)?;
+    check_items_and_quests(run)?;
+    check_character_stats(run)?;
+    check_interact(run)?;
+    check_trade(run)?;
+    check_combat_log(run)?;
+    check_hover(run)?;
+    check_camera(run)?;
+    check_export(run)?;
+    check_timed_forward(run)?;
+    check_stopped_forward(run)?;
+    check_waypoint_walk(run)?;
+    Ok(())
+}
+
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
@@ -1025,23 +1045,13 @@ pub(super) fn run(
         run.child.id(),
         run.socket.display()
     );
-    check_network(&mut run, address)?;
-    check_sound(&mut run)?;
-    check_terrain(&mut run, &tiles)?;
-    check_spawn_position(&mut run)?;
-    check_map_requests(&mut run)?;
-    check_social_and_combat(&mut run)?;
-    check_items_and_quests(&mut run)?;
-    check_character_stats(&mut run)?;
-    check_interact(&mut run)?;
-    check_trade(&mut run)?;
-    check_combat_log(&mut run)?;
-    check_hover(&mut run)?;
-    check_camera(&mut run)?;
-    check_export(&mut run)?;
-    check_timed_forward(&mut run)?;
-    check_stopped_forward(&mut run)?;
-    check_waypoint_walk(&mut run)?;
+    if let Err(error) = run_checks(&mut run, address, &tiles) {
+        // The client's link state tells a lost connection from a wrong answer.
+        let network = run.cli(&["status", "network"]);
+        return Err(format!(
+            "{error}\nstatus network at the failure: {network:?}"
+        ));
+    }
     finish(&mut run, readers)?;
     println!(
         "PASS: public CLI status network/sound/terrain, map position/target/waypoint (walk), group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
