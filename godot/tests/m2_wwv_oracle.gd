@@ -161,6 +161,11 @@ func texture_slot(info: Dictionary, slot: int) -> Array:
 		txid = txid_fdid(index)
 	return [txid, flags & 1 != 0, flags & 2 != 0]
 
+# The M2 texture type of slot j: 0 a file, else the replaceable type (1 body, 6 hair...).
+func texture_type(info: Dictionary, slot: int) -> int:
+	var index := lookup_i16(0x80, info.texture_combo + slot)
+	return md20.decode_u32(array_at(md20, 0x50).y + index * 16)
+
 func txid_fdid(index: int) -> int:
 	return txid_values[index] if index < txid_values.size() else 0
 
