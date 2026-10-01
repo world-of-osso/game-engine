@@ -219,11 +219,19 @@ pub fn trade_click(action: &str, trade: &TradeClientState) -> Option<TradeAction
         ACTION_TRADE => Some(TradeAction::Confirm),
         ACTION_CANCEL if player_accepted => Some(TradeAction::CancelAccept),
         ACTION_CANCEL | ACTION_CLOSE => Some(TradeAction::Cancel),
-        _ => action
-            .strip_prefix(ACTION_PLAYER_SLOT_PREFIX)?
-            .parse()
-            .ok()
-            .map(TradeAction::ClearItem),
+        _ => {
+            let slot: u8 = action
+                .strip_prefix(ACTION_PLAYER_SLOT_PREFIX)?
+                .parse()
+                .ok()?;
+            // An empty slot without a cursor item does nothing.
+            let player = &trade.snapshot.as_ref()?.player;
+            player
+                .slots
+                .get(usize::from(slot))?
+                .as_ref()
+                .map(|_| TradeAction::ClearItem(slot))
+        }
     }
 }
 

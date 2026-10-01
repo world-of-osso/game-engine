@@ -51,6 +51,7 @@ fn state_with_quests(
             hovered: None,
             player: Some(player),
             quests,
+            quest_areas: &[],
         },
     )
 }
@@ -255,9 +256,45 @@ fn hovering_a_zone_on_the_continent_highlights_it() {
             hovered: Some([on_continent.x, on_continent.y]),
             player: Some(&player),
             quests: &[],
+            quest_areas: &[],
         },
     );
     let highlight = view.highlight.unwrap();
     assert_eq!(highlight.name, "Elwynn Forest");
     assert_ne!(highlight.fdid, 0);
+}
+
+#[test]
+fn objective_areas_outline_on_zone_and_continent_maps_only() {
+    let data = data();
+    let area = poi(0, [-9433.99, 85.149]);
+    let elsewhere = poi(0, [1000.0, 1000.0]);
+    let areas = [&area, &elsewhere];
+    let view = |map_id| {
+        world_map_frame_state(
+            data,
+            WorldMapRequest {
+                visible: true,
+                viewport: [1280.0, 720.0],
+                map_id,
+                hovered: None,
+                player: None,
+                quests: &[],
+                quest_areas: &areas,
+            },
+        )
+    };
+    // Elwynn Forest (37): the 40-yard square around Goldshire, centred on the
+    // Goldshire UV the turn-in pin test resolves; the far-away area is off the map.
+    let elwynn = view(37);
+    assert_eq!(elwynn.quest_areas.len(), 1);
+    let square = &elwynn.quest_areas[0];
+    assert_eq!(square.len(), 4);
+    let centre_u = square.iter().map(|[u, _]| u).sum::<f32>() / 4.0;
+    assert!((centre_u - 0.4178).abs() < 0.002, "centre u {centre_u}");
+    let width = square.iter().map(|[u, _]| *u).fold(f32::MIN, f32::max)
+        - square.iter().map(|[u, _]| *u).fold(f32::MAX, f32::min);
+    assert!(width > 0.0 && width < 0.05, "40 yd span {width} of Elwynn");
+    // The world map (947) draws no objective areas.
+    assert!(view(947).quest_areas.is_empty());
 }

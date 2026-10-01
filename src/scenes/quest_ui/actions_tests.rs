@@ -2,7 +2,8 @@ use bevy::ecs::system::RunSystemOnce;
 use game_engine::quest_runtime::QuestDialog;
 use shared::protocol::{
     GossipMenu, QuestEntrySnapshot, QuestGiverOfferReward, QuestGiverQuestDetails,
-    QuestGiverQuestEntry, QuestLogSnapshot, QuestRepeatability, QuestRewardItem, QuestRewards,
+    QuestGiverQuestEntry, QuestGiverQuestState, QuestLogSnapshot, QuestRepeatability,
+    QuestRewardItem, QuestRewards,
 };
 
 use super::*;
@@ -18,7 +19,8 @@ fn app() -> App {
         .init_resource::<QuestUiState>()
         .init_resource::<WindowManager>()
         .init_resource::<PopupStack>()
-        .init_resource::<PendingAbandon>();
+        .init_resource::<PendingAbandon>()
+        .init_resource::<UiErrors>();
     app
 }
 
@@ -158,6 +160,10 @@ fn complete_quest_waits_for_a_choice_then_sends_it() {
         },
     );
     assert!(dispatch(&mut app, "quest_frame:complete").is_empty());
+    assert_eq!(
+        app.world().resource::<UiErrors>().lines[0].text,
+        "You must choose a reward."
+    );
     assert!(dispatch(&mut app, "quest_frame:choice:1").is_empty());
     assert_eq!(
         dispatch(&mut app, "quest_frame:complete"),

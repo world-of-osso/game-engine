@@ -39,7 +39,7 @@ use game_engine_ui_model::spellbook_frame_component::{
 };
 use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
 use game_engine_ui_model::world_map_frame_component::{
-    WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
+    WORLD_MAP_QUEST_AREAS, WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
 use game_engine_ui_model::{
     CharacterCreateModel, CharacterSelectModel, GameMenuModel, LoadingModel, LoginModel,
@@ -54,7 +54,7 @@ use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::button::ButtonState;
-use ui_toolkit::widgets::texture::TextureSource;
+use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
 use projection::{UiInput, UiProjection};
 use ui_parent::UiParent;
@@ -106,10 +106,13 @@ enum ScreenPostsetup {
     CharacterSelect,
     CharacterCreate,
     Loading,
-    WorldMap,
+    /// The world map, with the dynamic texture its objective area overlay shows.
+    WorldMap(DynamicTextureId),
     EntranceBar,
     Merchant,
     Auction,
+    /// Enter in a TradeFrame money box submits the amount.
+    Trade,
     Spellbook,
     Minimap,
     CharacterFrame,
@@ -123,11 +126,15 @@ impl RegistryModel {
 
     fn apply_postsetup(&mut self) {
         match self.postsetup {
-            ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Auction => {}
-            ScreenPostsetup::WorldMap => {
+            ScreenPostsetup::None
+            | ScreenPostsetup::Loading
+            | ScreenPostsetup::Auction
+            | ScreenPostsetup::Trade => {}
+            ScreenPostsetup::WorldMap(texture) => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
                 }
+                set_dynamic_texture(&mut self.registry, WORLD_MAP_QUEST_AREAS.0, texture);
             }
             ScreenPostsetup::Minimap => {
                 if let Some(state) = self.shared.get::<MinimapClusterState>() {
@@ -344,6 +351,7 @@ impl RegistryModel {
             {
                 actions.push_back("auction_search".into())
             }
+            ScreenPostsetup::Trade => actions.push_back(crate::trade::ACTION_MONEY_SUBMIT.into()),
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
                 actions.push_back(CharSelectAction::ConfirmDeleteChar.to_string());
@@ -537,14 +545,16 @@ impl RegistryUi {
             return Err("RegistryUi already has a screen".into());
         }
         let [width, height] = state.viewport;
+        let mut registry = FrameRegistry::new(width, height);
+        let quest_areas = registry.create_dynamic_texture(1, 1, vec![0; 4])?;
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
             screen: Screen::new(world_map_frame_screen),
             shared,
-            registry: FrameRegistry::new(width, height),
+            registry,
             icon_masks: Default::default(),
-            postsetup: ScreenPostsetup::WorldMap,
+            postsetup: ScreenPostsetup::WorldMap(quest_areas),
         };
         model.sync();
         let viewport = self
@@ -714,6 +724,42 @@ impl RegistryUi {
         )
     }
 
+    /// Replace the world map state and, when given, the RGBA8 objective area overlay
+    /// (`QUEST_AREA_TEXTURE_SIZE`).
+    pub fn set_world_map(
+        &mut self,
+        state: WorldMapFrameState,
+        overlay: Option<Vec<u8>>,
+    ) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("World map UI is not initialized")?;
+        let ScreenPostsetup::WorldMap(texture) = model.postsetup else {
+            return Err("World map quest area texture missing".into());
+        };
+        let redraw = overlay.is_some();
+        if let Some(rgba) = overlay {
+            let [width, height] =
+                game_engine_ui_model::world_map_frame_component::QUEST_AREA_TEXTURE_SIZE;
+            model
+                .registry
+                .update_dynamic_texture(texture, width, height, rgba)?;
+        }
+        self.set_state(state)?;
+        if redraw {
+            let model = self
+                .model
+                .as_mut()
+                .ok_or("World map UI is not initialized")?;
+            self.projection
+                .as_mut()
+                .ok_or("Native projection not initialized")?
+                .sync(&mut model.registry)?;
+        }
+        Ok(())
+    }
+
     /// Replace the minimap state and, when given, the `size`² RGBA8 map composite.
     pub fn set_minimap(
         &mut self,
@@ -785,6 +831,28 @@ impl RegistryUi {
         };
         model.sync();
         self.initialize_hud_model(model, parent)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for one quest window (`QuestFrame`,
+    /// `QuestLogFrame`) with the portrait `metal_frame` border their chrome uses.
+    pub fn show_quest_window<T: 'static>(
+        &mut self,
+        state: T,
+        build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        // QuestFrame.xml:36 and QuestMapFrame.xml:269 (QuestLogPopupDetailFrame)
+        // `toplevel="true"`.
+        self.toplevel = true;
+        self.show_viewport_screen_in(state, build, ScreenPostsetup::None, registry, parent)
     }
 
     /// Initialize a dedicated RegistryUi instance for the MerchantFrame, backpack and
@@ -890,6 +958,33 @@ impl RegistryUi {
         )?;
         self.enable_cursor_inputs();
         // Blizzard_GuildBankUI.xml:167 `toplevel="true"`.
+        self.toplevel = true;
+        Ok(())
+    }
+
+    pub fn show_trade(
+        &mut self,
+        state: game_engine_ui_model::trade::NativeTradeView,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::trade::native_trade_screen,
+            ScreenPostsetup::Trade,
+            registry,
+            parent,
+        )?;
+        // Slot clicks and drops share the cursor queue with the bags.
+        self.enable_cursor_inputs();
+        // TradeFrame.xml:143 `toplevel="true"`.
         self.toplevel = true;
         Ok(())
     }
@@ -1802,6 +1897,18 @@ pub struct MerchantStates {
     pub frame: MerchantFrameState,
     pub bags: BagFrameState,
     pub split: StackSplitFrameState,
+}
+
+/// Point the texture frame `name` at the host-owned dynamic `texture`.
+fn set_dynamic_texture(registry: &mut FrameRegistry, name: &str, texture: DynamicTextureId) {
+    let Some(id) = registry.get_by_name(name) else {
+        return;
+    };
+    if let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::Texture(data)) = frame.widget_data.as_mut()
+    {
+        data.source = TextureSource::Dynamic(texture);
+    }
 }
 
 /// Register `metal_frame` (`PortraitFrameTemplate` border) from the composed atlas sheet.

@@ -1,4 +1,4 @@
-use game_engine::quest_runtime::QuestDialog;
+use crate::quest_runtime::QuestDialog;
 use shared::protocol::{
     GossipMenuOption, QuestGiverOfferReward, QuestGiverQuestEntry, QuestLogSnapshot,
     QuestObjectiveKind, QuestObjectiveSnapshot, QuestRepeatability,

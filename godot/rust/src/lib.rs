@@ -52,6 +52,7 @@ mod particles;
 mod party_frames;
 mod player_spells;
 mod profile;
+mod quests;
 mod replicated;
 mod scene;
 mod sound;
@@ -68,8 +69,10 @@ mod terrain;
 mod tooltip_sources;
 mod tooltip_units;
 mod tooltips;
+mod trade;
 mod ui;
 mod ui_scale;
+mod unit_menu;
 mod unit_pick;
 mod window_stack;
 mod wmo;
@@ -143,6 +146,7 @@ pub struct GameClient {
     world_map: world_map::WorldMap,
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
+    quests: quests::QuestHud,
     entrance_bar: entrance_bar::EntranceBar,
     damage_meter: damage_meter::DamageMeterHud,
     group_frames: party_frames::GroupFramesHud,
@@ -180,6 +184,8 @@ pub struct GameClient {
     character_frame: character_frame::CharacterFrame,
     tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
+    trade: trade::Trade,
+    unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -237,6 +243,7 @@ impl INode3D for GameClient {
             world_map: world_map::WorldMap::default(),
             minimap: minimap::Minimap::default(),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
+            quests: quests::QuestHud::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
             damage_meter: damage_meter::DamageMeterHud::default(),
             group_frames: party_frames::GroupFramesHud::default(),
@@ -269,6 +276,8 @@ impl INode3D for GameClient {
             character_frame: character_frame::CharacterFrame::default(),
             tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
+            trade: trade::Trade::default(),
+            unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
@@ -312,6 +321,7 @@ impl INode3D for GameClient {
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
             || self.mailbox_pointer(&event)
+            || self.unit_menu_pointer(&event)
         {
             return;
         }
@@ -728,6 +738,12 @@ impl GameClient {
         self.mailbox_snapshot()
     }
 
+    /// Read-only trade state; requests only come from real frame/bag/menu input.
+    #[func]
+    fn trade_state(&self) -> VarDictionary {
+        self.trade_snapshot()
+    }
+
     /// Spell visual kits started, kit models and missiles shown.
     #[func]
     fn spell_visuals_state(&self) -> VarDictionary {
@@ -944,6 +960,9 @@ impl GameClient {
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
+        if let Some(ui) = &mut self.trade.ui {
+            visit(ui)?;
+        }
         self.banks.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
@@ -953,6 +972,7 @@ impl GameClient {
         self.targeting.visit_uis(&mut visit)?;
         self.minimap.visit_uis(&mut visit)?;
         self.objective_tracker.visit_uis(&mut visit)?;
+        self.quests.visit_uis(&mut visit)?;
         self.auras.visit_uis(&mut visit)?;
         self.damage_meter.visit_uis(&mut visit)?;
         self.group_frames.visit_uis(&mut visit)?;
@@ -1416,12 +1436,14 @@ impl GameClient {
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),
+            ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
             ("World map", |c, _| Ok(c.update_world_map()?)),
             ("Minimap", |c, _| c.update_minimap()),
+            ("Quests", |c, _| c.update_quests()),
             ("Objective tracker", |c, _| c.update_objective_tracker()),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
             ("Damage meter", |c, _| c.update_damage_meter()),
@@ -1534,6 +1556,7 @@ impl GameClient {
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::Mail(message) => self.receive_mail(message)?,
+            AccountEvent::Trade(update) => self.receive_trade(update)?,
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
@@ -1547,14 +1570,16 @@ impl GameClient {
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
             AccountEvent::Npc(message) => {
-                if !self.bank_npc_message(&message) {
-                    self.receive_npc_message(message)?
+                if !self.receive_quest_npc_message(&message)? && !self.bank_npc_message(&message) {
+                    self.receive_npc_message(message)?;
                 }
             }
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
+            AccountEvent::Quest(message) => self.receive_quest_message(message)?,
+            AccountEvent::QuestNotice(text) => self.add_quest_notice(&text),
             AccountEvent::CreatureTooltip(tooltip) => self.tooltips.receive_creature(tooltip),
             AccountEvent::Appearances(update) => self.tooltips.receive_appearances(update),
         }
@@ -1829,6 +1854,7 @@ impl GameClient {
         self.loot.reset();
         self.game_objects.reset();
         self.mailbox.reset();
+        self.trade.reset();
         self.in_rest_area = false;
         self.character_preview.reset();
         self.creation_scene.reset();

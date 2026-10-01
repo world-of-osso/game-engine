@@ -1,6 +1,7 @@
 //! Portable trade contract; native receiver/UI RED is driven separately by MAIN.
 use game_engine_ui_model::{
-    bag_data::InventoryState,
+    bag_data::{InventoryState, stack_slot},
+    cursor_item::CursorItem,
     popup::{PopupOutcome, PopupStack},
     trade::{NativeTradeView, TRADE_POPUP, TradeRequest, TradeSession, native_trade_screen},
 };
@@ -183,7 +184,7 @@ fn offers_use_original_whole_stack_first_free_and_duplicate_guards_without_inven
             stack_count: 3
         }))
     );
-    assert_eq!(inventory.slot(0, 2), Some(&stack(81, 3)));
+    assert_eq!(inventory.slot(0, 2), Some(&stack_slot(&stack(81, 3))));
     assert!(session.snapshot.as_ref().unwrap().player.slots[1].is_none());
     session.snapshot.as_mut().unwrap().player.slots[1] = Some(item(81));
     assert!(session.offer("bag_slot:0:2", &inventory).is_none());
@@ -194,6 +195,48 @@ fn offers_use_original_whole_stack_first_free_and_duplicate_guards_without_inven
     assert!(session.offer("bag_slot:0:2", &inventory).is_none()); // Seventh slot never auto-offered.
     session.reset();
     assert!(session.offer("bag_slot:0:2", &inventory).is_none());
+}
+
+#[test]
+fn cursor_item_placed_in_any_slot_including_will_not_be_traded() {
+    let mut inventory = InventoryState::default();
+    inventory.apply_snapshot(&InventorySnapshot {
+        bags: vec![BagContents {
+            bag: 0,
+            size: 16,
+            items: vec![BagSlotItem {
+                slot: 2,
+                item: stack(81, 5),
+            }],
+        }],
+    });
+    let from = ItemLocation::Bag { bag: 0, slot: 2 };
+    let whole = CursorItem::split_from(&inventory, from, 5);
+    let split = CursorItem::split_from(&inventory, from, 2);
+    let session = open();
+    assert_eq!(
+        session.place(6, &whole, &inventory),
+        Some(TradeRequest::SetItem(SetTradeItem {
+            slot: 6,
+            item_guid: 81,
+            stack_count: 5
+        }))
+    );
+    assert_eq!(
+        session.place(0, &split, &inventory),
+        Some(TradeRequest::SetItem(SetTradeItem {
+            slot: 0,
+            item_guid: 81,
+            stack_count: 2
+        }))
+    );
+    assert!(session.place(7, &whole, &inventory).is_none());
+    assert!(session.place(0, &CursorItem::Empty, &inventory).is_none());
+    assert!(
+        TradeSession::default()
+            .place(0, &whole, &inventory)
+            .is_none()
+    );
 }
 
 #[test]

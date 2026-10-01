@@ -148,7 +148,7 @@ fn detail_panel_shows_texts_rewards_and_accept_decline() {
 }
 
 #[test]
-fn reward_panel_requires_a_choice_before_complete() {
+fn reward_panel_keeps_complete_enabled_and_highlights_the_choice() {
     let choices = vec![
         hammer(),
         RewardItemView {
@@ -167,7 +167,10 @@ fn reward_panel_requires_a_choice_before_complete() {
         },
     };
     let unchosen = build(frame("Deputy Willem", page(None)));
-    assert_eq!(onclick(&unchosen, "QuestFrameCompleteQuestButton"), None);
+    assert_eq!(
+        onclick(&unchosen, "QuestFrameCompleteQuestButton").as_deref(),
+        Some(COMPLETE_ACTION)
+    );
     assert_eq!(
         onclick(&unchosen, "QuestInfoRewardsFrameQuestInfoItem2").as_deref(),
         Some("quest_frame:choice:1")

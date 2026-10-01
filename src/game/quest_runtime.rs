@@ -7,15 +7,17 @@
 
 use std::collections::{HashMap, HashSet};
 
+#[cfg(not(godot_host))]
 use bevy::prelude::*;
 use shared::protocol::{
     GossipMenu, GossipMenuOption, NpcRole, QuestEntrySnapshot, QuestFailedReason,
     QuestGiverOfferReward, QuestGiverQuestComplete, QuestGiverQuestDetails, QuestGiverQuestEntry,
     QuestGiverQuestList, QuestGiverRequestItems, QuestGiverStatus, QuestLogSnapshot,
-    QuestLogUpdate,
+    QuestLogUpdate, QuestPoiSnapshot,
 };
 
-#[derive(Resource, Default, Debug, Clone, PartialEq)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct QuestRuntime {
     /// Quest log in server order.
     pub log: Vec<QuestEntrySnapshot>,
@@ -28,18 +30,22 @@ pub struct QuestRuntime {
 
 /// A role frame (auction house, vendor, ...) the server opened for an NPC interaction,
 /// or the end of that interaction. Frames other than the quest dialog read these.
-#[derive(Message, Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(not(godot_host), derive(Message))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NpcFrameEvent {
     Opened { npc: u64, role: NpcRole },
     Closed { npc: u64 },
 }
 
 /// A player action for the server quest / interaction runtime.
-#[derive(Message, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(not(godot_host), derive(Message))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NpcInteractionRequest {
     /// Right-click on an NPC (main-world entity).
+    #[cfg(not(godot_host))]
     Interact(Entity),
     /// Right-click on a server game object (main-world entity).
+    #[cfg(not(godot_host))]
     UseObject(Entity),
     Hello {
         npc: u64,
@@ -78,7 +84,8 @@ pub enum NpcInteractionRequest {
 }
 
 /// Player-facing UI state that the server does not own.
-#[derive(Resource, Default, Debug, Clone, PartialEq)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct QuestUiState {
     pub log_selected: Option<u32>,
     /// Collapsed quest log headers (`sort_id`).
@@ -126,6 +133,23 @@ impl QuestRuntime {
         self.watched
             .iter()
             .filter_map(|id| self.entry(*id))
+            .collect()
+    }
+
+    /// Objective areas (`QuestPOI` blobs) of the watched quests: the polygons of each
+    /// unfinished objective; finished quests show their turn-in pin instead.
+    pub fn watched_objective_areas(&self) -> Vec<&QuestPoiSnapshot> {
+        self.watched_entries()
+            .into_iter()
+            .filter(|entry| !entry.completed)
+            .flat_map(|entry| {
+                entry.pois.iter().filter(move |poi| {
+                    let objective = usize::try_from(poi.objective_index)
+                        .ok()
+                        .and_then(|index| entry.objectives.get(index));
+                    poi.points.len() >= 3 && objective.is_some_and(|objective| !objective.completed)
+                })
+            })
             .collect()
     }
 
@@ -288,6 +312,28 @@ impl QuestRuntime {
                 ..
             }) if offer.quest_id == quest_id
         )
+    }
+}
+
+/// `interface/buttons/talktome.m2`: yellow `!`.
+pub const TALKTOME_AVAILABLE_FDID: u32 = 130_731;
+/// `interface/buttons/talktomequestionmark.m2`: yellow `?`.
+pub const TALKTOME_TURN_IN_FDID: u32 = 130_738;
+/// `interface/buttons/talktomegrey.m2`: grey `!`.
+pub const TALKTOME_UNAVAILABLE_FDID: u32 = 130_734;
+/// `interface/buttons/talktomequestion_grey.m2`: grey `?`.
+pub const TALKTOME_INCOMPLETE_FDID: u32 = 130_735;
+
+/// The `talktome` marker M2 floating over a quest giver with `status`. Trivial
+/// (`LowLevelAvailable`) quests show none: Retail's "Trivial Quests" tracking defaults
+/// to off (`InterfaceOverrides.lua:239`, `Settings.Default.False`).
+pub fn quest_marker_model(status: QuestGiverStatus) -> Option<u32> {
+    match status {
+        QuestGiverStatus::None | QuestGiverStatus::LowLevelAvailable => None,
+        QuestGiverStatus::Unavailable => Some(TALKTOME_UNAVAILABLE_FDID),
+        QuestGiverStatus::Incomplete => Some(TALKTOME_INCOMPLETE_FDID),
+        QuestGiverStatus::Available => Some(TALKTOME_AVAILABLE_FDID),
+        QuestGiverStatus::Reward => Some(TALKTOME_TURN_IN_FDID),
     }
 }
 
