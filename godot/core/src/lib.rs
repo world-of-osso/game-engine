@@ -355,12 +355,9 @@ mod terrain_height_data_tests {
     }
 
     #[test]
-    fn chunk_bounds_include_both_edges_in_authored_axes() {
+    fn chunk_bounds_are_half_open_in_authored_axes() {
         let grid = authored_grid();
         assert_height(&grid, 0.0, 0.0, 50.0);
-        // The far edges are shared with the next chunks and sample this one too.
-        assert_height(&grid, 8.0, 0.0, 130.0);
-        assert_height(&grid, 0.0, 8.0, 58.0);
         assert_eq!(sample(&grid, 8.01, 0.0), None);
         assert_eq!(sample(&grid, 0.0, 8.01), None);
         assert_eq!(sample(&grid, -0.25, 0.0), None);
@@ -368,16 +365,32 @@ mod terrain_height_data_tests {
         assert!(sample(&grid, 7.5, 7.5).is_some());
     }
 
-    /// The last chunk row of tile row 31 ends on Bevy z = 0. A position a rounding
-    /// error below 0 (scripted runs east from z = 0 report -3.47e-7) lies on that edge
-    /// in f32 and must sample it, not fall between the two tile rows.
+    /// Azeroth 31_48's last chunk row starts at z -33.334015 and ends 0.00068 short of
+    /// tile row 32 at z 0. A scripted run east from z 0 reports z -3.23e-7: in that
+    /// gap neither chunk's half-open bounds contain it. Index arithmetic rounds it onto
+    /// tile row 32's first chunk in f32, which samples its z edge.
     #[test]
-    fn a_position_rounding_onto_the_tile_row_edge_samples_its_chunk() {
-        use crate::asset::adt_format::adt::CHUNK_SIZE;
-        let grid = ChunkHeightGrid {
-            origin_z: -CHUNK_SIZE,
+    fn index_arithmetic_locates_positions_in_the_gap_between_authored_chunks() {
+        use crate::terrain_height_data::{bevy_to_chunk_coords, sample_located_chunk_height};
+        let (x, z) = (-8941.611, -0.000_000_322_978_85);
+        assert_eq!(bevy_to_chunk_coords(x, z), ((32, 48), (0, 12)));
+        let row_32 = ChunkHeightGrid {
+            index_x: 0,
+            index_y: 12,
+            origin_x: -8933.334,
+            origin_z: 0.0,
             ..authored_grid()
         };
-        assert!(sample_chunk_height(&grid, 99.0, -3.47e-7).is_some());
+        let row_31 = ChunkHeightGrid {
+            index_x: 15,
+            origin_z: -33.334_015,
+            ..row_32.clone()
+        };
+        assert_eq!(sample_chunk_height(&row_32, x, z), None, "the authored gap");
+        assert_eq!(sample_chunk_height(&row_31, x, z), None, "the authored gap");
+        // 8.277 yd (1.9866 units) in along x, on the near z edge (column 0): linear
+        // between rows 1 and 2 of that edge, 50 + 10 + 9.866.
+        let edge = sample_located_chunk_height(&row_32, x, z);
+        assert!((edge - 69.866).abs() < 0.01, "{edge}");
     }
 }
