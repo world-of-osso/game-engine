@@ -9,7 +9,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::texture::{BlendMode, DynamicTextureId, TextureData, TextureSource};
+use ui_toolkit::widgets::texture::{BlendMode, TextureData};
 
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::world_map_frame_art::{self as art, MapArt};
@@ -144,10 +144,9 @@ pub struct WorldMapFrameState {
     pub tiles: Vec<MapTile>,
     pub highlight: Option<MapHighlight>,
     pub pins: Vec<MapPin>,
-    /// Watched quests' objective areas as map-UV polygons (`QuestPOI` blobs).
+    /// Watched quests' objective areas as map-UV polygons (`QuestPOI` blobs); the host
+    /// draws them into `WORLD_MAP_QUEST_AREAS`.
     pub quest_areas: Vec<Vec<[f32; 2]>>,
-    /// Host texture the objective areas are drawn into, covering the canvas.
-    pub quest_area_texture: Option<DynamicTextureId>,
     pub player: Option<MapPlayerMarker>,
 }
 
@@ -511,7 +510,7 @@ fn canvas(state: &WorldMapFrameState, s: f32) -> Element {
             GOLD,
         ));
     }
-    if state.quest_area_texture.is_some() && !state.quest_areas.is_empty() {
+    if !state.quest_areas.is_empty() {
         children.extend(quest_areas([w, h]));
     }
     for (index, pin) in state.pins.iter().enumerate() {
@@ -546,7 +545,7 @@ fn canvas(state: &WorldMapFrameState, s: f32) -> Element {
     }
 }
 
-/// The host's objective area overlay (its texture is set in the postsetup).
+/// The host's objective area overlay over the whole canvas; the host sets its texture.
 fn quest_areas([width, height]: [f32; 2]) -> Element {
     rsx! {
         texture {
@@ -603,11 +602,6 @@ pub fn apply_world_map_postsetup(state: &WorldMapFrameState, registry: &mut Fram
     edit_texture(registry, WORLD_MAP_HIGHLIGHT, |texture| {
         texture.blend_mode = BlendMode::Additive;
     });
-    if let Some(id) = state.quest_area_texture {
-        edit_texture(registry, WORLD_MAP_QUEST_AREAS.0, |texture| {
-            texture.source = TextureSource::Dynamic(id);
-        });
-    }
 }
 
 fn edit_texture(registry: &mut FrameRegistry, name: &str, edit: impl FnOnce(&mut TextureData)) {

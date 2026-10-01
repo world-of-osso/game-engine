@@ -38,6 +38,7 @@ fn sample_state() -> WorldMapFrameState {
             x: 0.5,
             y: 0.25,
         }],
+        quest_areas: Vec::new(),
         player: Some(MapPlayerMarker {
             x: 0.4178,
             y: 0.6456,
