@@ -503,79 +503,51 @@ func uo_toggle_character(client: Node) -> void:
 	push_key(KEY_C, false)
 	await uo_settle(300)
 
-# Paperdoll slot name -> global centre, read while the CharacterFrame shows.
-func uo_paperdoll_centers(client: Node) -> Dictionary:
-	var centers := {}
-	var ui := uo_ui(client, UO_CHARACTER)
-	if ui == null:
-		return centers
-	for control in ui.find_children("Character*Slot", "Control", true, false):
-		if (control as Control).is_visible_in_tree():
-			centers[str(control.name)] = (control as Control).get_global_rect().get_center()
-	return centers
-
-# E1: a paperdoll slot over a BagsUI bag slot. The layout keeps them apart at 1920 wide,
-# so the window narrows to 700 (the HUD scale follows the height): the bags slide under
-# the paperdoll's right column. Picking a bag item raises the bags; pressing the
-# CharacterFrame raises it back; the click on the paperdoll slot then sends exactly one
-# SwapItem to that equipment slot and nothing to the covered bag slot.
-const UO_E1_SIZE := Vector2i(700, 1080)
-const UO_ITEM_SLOTS := ["ContainerFrame0Slot0", "ContainerFrame0Slot1", "ContainerFrame1Slot0", "ContainerFrame1Slot3"]
-
+# E1: a paperdoll slot over the MerchantFrame. No layout puts a bag under the
+# CharacterFrame (both sit at fixed Retail anchors, the bags bottom right), so the
+# movable merchant goes underneath instead: a drop there would sell. The merchant is
+# dragged under the Hands slot, the CharacterFrame raised back over it, and a drag from
+# BagsUI bag1 released on the Hands slot must send exactly one SwapItem to
+# Equipment(Hands) and no SellItem.
 func uo_equipment_case(client: Node) -> void:
-	if client.merchant_state().open or uo_visible(uo_ctl(client, UO_BAGS, "ContainerFrame1")):
-		await uo_escape()
-		await uo_settle(300)
-	root.size = UO_E1_SIZE
-	await uo_settle(500)
-	await uo_click(uo_center(client, UO_BAGS, "MainMenuBarBackpackButton"))
-	await uo_settle(300)
+	if not await uo_reopen(client, "E1"):
+		fail("vendor reopen for E1 failed")
+		return
 	if not uo_visible(uo_ctl(client, UO_BAGS, "ContainerFrame1")) and not await uo_open_bag1(client):
-		root.size = Vector2i(1920, 1080)
 		return
 	await uo_toggle_character(client)
 	var frame_ctl := uo_ctl(client, UO_CHARACTER, "CharacterFrame")
 	var frame_rect := frame_ctl.get_global_rect() if uo_visible(frame_ctl) else Rect2()
-	var slots := uo_paperdoll_centers(client)
-	var cover := uo_paperdoll_over_bag(client, slots)
-	var source := ""
-	for name in UO_ITEM_SLOTS:
-		var center := uo_center(client, UO_BAGS, name)
-		if center != Vector2.INF and not frame_rect.has_point(center):
-			source = name
-			break
-	print("UIOWN GEOMETRY E1 frame=", frame_rect, " slots=", slots, " cover=", cover, " source=", source)
-	if slots.size() != 18 or cover.is_empty() or source.is_empty():
-		fail("E1 geometry: no paperdoll slot over a bag slot, or no uncovered bag item")
-		root.size = Vector2i(1920, 1080)
+	var hands := uo_center(client, UO_CHARACTER, "CharacterHandsSlot")
+	if hands == Vector2.INF:
+		fail("C did not show the CharacterFrame Hands slot")
 		return
-	var point: Vector2 = slots[cover.paperdoll]
-	await uo_begin("E1_EQUIP_OVER_BAG")
-	await uo_click(uo_center(client, UO_BAGS, source))
+	var merchant := uo_ctl(client, UO_MERCHANT, "MerchantFrame")
+	var canvas := uo_ctl(client, UO_MERCHANT, "RegistryCanvas")
+	var scale := canvas.get_global_transform().get_scale().x
+	var m := merchant.get_global_rect()
+	var title := m.position + Vector2(m.size.x * 0.4, 10.0 * scale)
+	var target := Vector2(maxf(0.0, hands.x - m.size.x * 0.5), maxf(0.0, hands.y - m.size.y * 0.25))
+	await drag_title(title, title + target - m.position)
 	await uo_settle(300)
-	var held := uo_cursor_held(client)
-	var under := uo_hover_path(point)
+	var under := uo_hover_path(hands)
 	var raise := uo_uncovered_frame_point(frame_rect)
+	if raise == Vector2.INF:
+		fail("E1 geometry: the merchant covers the whole CharacterFrame")
+		return
 	await uo_click(raise)
 	await uo_settle(300)
-	var top := uo_hover_path(point)
-	print("UIOWN GEOMETRY E1 held=", held, " before_raise=", under, " raise=", raise, " after_raise=", top)
-	await uo_click(point)
-	await uo_end("E1_EQUIP_OVER_BAG", client, "source=%s paperdoll=%s bag_slot=%s held_after_pickup=%s bag_topmost_before_raise=%s paperdoll_topmost=%s character_visible=%s expect exactly 1 SwapItem from the source to that Equipment slot, nothing to the covered bag slot" % [source, cover.paperdoll, cover.bag, held, under.ends_with("/" + cover.bag), top.ends_with("/" + cover.paperdoll), uo_visible(frame_ctl)])
+	var top := uo_hover_path(hands)
+	var source := uo_center(client, UO_BAGS, "ContainerFrame1Slot3")
+	print("UIOWN GEOMETRY E1 merchant=", merchant.get_global_rect(), " hands=", hands, " before_raise=", under, " raise=", raise, " after_raise=", top, " source_hovered=", uo_hover_path(source))
+	if not under.ends_with("/MerchantFrame") or not top.ends_with("/CharacterHandsSlot") or source == Vector2.INF:
+		fail("E1 geometry: Hands slot not raised over the MerchantFrame")
+		return
+	await uo_begin("E1_EQUIP_OVER_MERCHANT")
+	await uo_drag(source, hands)
+	await uo_end("E1_EQUIP_OVER_MERCHANT", client, "merchant_under_hands=true hands_topmost=true character_visible=%s expect exactly 1 SwapItem Bag{1,3} to Equipment(Hands), no SellItem" % uo_visible(frame_ctl))
 	await uo_escape()
 	await uo_settle(300)
-	root.size = Vector2i(1920, 1080)
-	await uo_settle(300)
-
-# The first paperdoll slot whose centre lies on a visible BagsUI bag slot.
-func uo_paperdoll_over_bag(client: Node, slots: Dictionary) -> Dictionary:
-	var bags := uo_ui(client, UO_BAGS)
-	for paperdoll in slots:
-		for control in bags.find_children("ContainerFrame?Slot*", "Control", true, false):
-			var slot := control as Control
-			if slot.is_visible_in_tree() and slot.get_global_rect().has_point(slots[paperdoll]):
-				return {"paperdoll": paperdoll, "bag": str(slot.name)}
-	return {}
 
 # A CharacterFrame point (not a paperdoll slot) the pointer reaches on top.
 func uo_uncovered_frame_point(rect: Rect2) -> Vector2:
