@@ -190,7 +190,7 @@ impl WowSkyboxDebug {
         args: &StartupArgs,
         camera_options: CameraOptionsFile,
     ) -> Result<Gd<Self>, String> {
-        let source = source::resolve_source(data_root, args)?;
+        let source = source::read_source(data_root, args)?;
         let composition = Composition::from_source(&source, args.skybox_verify);
         let sky = Sky::load_model(data_root, &source.path, source.fdid, args.skybox_time_ms)?;
         let mut root = Self::from_sky(sky, camera_options, args.skybox_time_ms);

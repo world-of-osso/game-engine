@@ -20,10 +20,7 @@ pub(super) struct ResolvedSource {
     pub params_flags: Option<LightParamsFlags>,
 }
 
-pub(super) fn resolve_source(
-    data_root: &Path,
-    args: &StartupArgs,
-) -> Result<ResolvedSource, String> {
+pub(super) fn read_source(data_root: &Path, args: &StartupArgs) -> Result<ResolvedSource, String> {
     let (fdid, flags, params_flags) = match (args.skybox_fdid, args.light_skybox_id) {
         (Some(fdid), None) => (fdid, None, None),
         (None, Some(id)) => {
