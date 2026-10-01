@@ -177,12 +177,17 @@ impl NetworkBridge {
             .receive::<LoadTerrain>()
             .receive::<NewWorld>()
             .receive::<TransferAborted>()
-            // Quest log for the world map's quest areas and the objective tracker; quest
-            // giver markers for the minimap.
+            // Quest log for the quest log, the objective tracker and the map quest areas;
+            // quest giver markers; the quest giver dialog pages and turn-in results.
             .receive::<QuestLogSnapshot>()
             .receive::<QuestLogUpdate>()
             .receive::<QuestGiverStatusMultiple>()
             .receive::<QuestFailed>()
+            .receive::<protocol::QuestGiverQuestList>()
+            .receive::<protocol::QuestGiverQuestDetails>()
+            .receive::<protocol::QuestGiverRequestItems>()
+            .receive::<protocol::QuestGiverOfferReward>()
+            .receive::<protocol::QuestGiverQuestComplete>()
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
@@ -203,6 +208,8 @@ impl NetworkBridge {
             .receive::<CombatLogEvent>()
             // Server-computed damage meter sessions.
             .receive::<DamageMeterSnapshot>()
+            // The XP bar values after enter world, every gain and every level-up.
+            .receive::<protocol::PlayerXpUpdate>()
             // Melee swing outcomes and resolved casts of every replicated unit, for
             // combat animations and spell visuals.
             .receive::<CombatEvent>()

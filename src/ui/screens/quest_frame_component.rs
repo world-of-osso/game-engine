@@ -10,7 +10,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 use crate::ui::screens::quest_art::{
     DynName, GOSSIP_ACTIVE_ICON, GOSSIP_AVAILABLE_ICON, GOSSIP_IN_PROGRESS_ICON,
     HIGHLIGHT_FONT_COLOR, QUEST_PARCHMENT, QUEST_SMALL_HEADER_COLOR, QUEST_TEXT_COLOR,
-    atlas_texture, line_height, panel_button, window_chrome, wrapped_text_height,
+    atlas_texture, panel_button, window_chrome, wrapped_text_height,
 };
 use crate::ui::strata::FrameStrata;
 
@@ -251,12 +251,15 @@ fn text_block(
     y: &mut f32,
 ) -> Element {
     let top = *y;
-    *y += wrapped_text_height(text, column.width, font_size);
+    // The block is as tall as its wrapped lines, so a multi-line text is not squeezed
+    // into one line's height.
+    let height = wrapped_text_height(text, column.width, font_size);
+    *y += height;
     rsx! {
         fontstring {
             name: {DynName(name)},
             width: {column.width},
-            height: {line_height(font_size)},
+            height,
             text,
             font: GameFont::FrizQuadrata,
             font_size,
@@ -531,13 +534,12 @@ fn reward_panel(title: &str, text: &str, rewards: &RewardView) -> Element {
         &mut y,
     ));
     elements.extend(rewards_section(rewards, true, CONTENT, &mut y));
-    // QuestFrameRewardPanel_OnShow: a choice is required before completing.
-    let ready = rewards.choices.is_empty() || rewards.selected_choice.is_some();
+    // Always enabled; QuestRewardCompleteButton_OnClick reports a missing choice.
     elements.extend(left_button(
         "QuestFrameCompleteQuestButton",
         "Complete Quest",
         COMPLETE_ACTION,
-        ready,
+        true,
         120.0,
     ));
     elements
@@ -741,6 +743,6 @@ fn item_button(
     elements
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "quest_frame_component_tests.rs"]
 mod tests;

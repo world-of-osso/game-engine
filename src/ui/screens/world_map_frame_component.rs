@@ -19,6 +19,10 @@ struct DynName(String);
 
 pub const WORLD_MAP_ROOT: FrameName = FrameName("WorldMapFrame");
 pub const WORLD_MAP_CANVAS: FrameName = FrameName("WorldMapCanvas");
+/// Objective area overlay over the canvas.
+pub const WORLD_MAP_QUEST_AREAS: FrameName = FrameName("WorldMapQuestAreas");
+/// Pixel size of the objective area overlay (the 1002×668 canvas at half resolution).
+pub const QUEST_AREA_TEXTURE_SIZE: [u32; 2] = [501, 334];
 pub const WORLD_MAP_PLAYER_ARROW: &str = "WorldMapPlayerArrow";
 pub const WORLD_MAP_HIGHLIGHT: &str = "WorldMapHighlight";
 pub const WORLD_MAP_HIGHLIGHT_NAME: &str = "WorldMapAreaLabel";
@@ -140,6 +144,9 @@ pub struct WorldMapFrameState {
     pub tiles: Vec<MapTile>,
     pub highlight: Option<MapHighlight>,
     pub pins: Vec<MapPin>,
+    /// Watched quests' objective areas as map-UV polygons (`QuestPOI` blobs); the host
+    /// draws them into `WORLD_MAP_QUEST_AREAS`.
+    pub quest_areas: Vec<Vec<[f32; 2]>>,
     pub player: Option<MapPlayerMarker>,
 }
 
@@ -503,6 +510,9 @@ fn canvas(state: &WorldMapFrameState, s: f32) -> Element {
             GOLD,
         ));
     }
+    if !state.quest_areas.is_empty() {
+        children.extend(quest_areas([w, h]));
+    }
     for (index, pin) in state.pins.iter().enumerate() {
         children.extend(map_pin(index, pin, [w, h], s));
     }
@@ -531,6 +541,20 @@ fn canvas(state: &WorldMapFrameState, s: f32) -> Element {
             left,
             top,
             {children}
+        }
+    }
+}
+
+/// The host's objective area overlay over the whole canvas; the host sets its texture.
+fn quest_areas([width, height]: [f32; 2]) -> Element {
+    rsx! {
+        texture {
+            name: WORLD_MAP_QUEST_AREAS,
+            width,
+            height,
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
         }
     }
 }

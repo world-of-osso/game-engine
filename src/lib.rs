@@ -185,12 +185,17 @@ pub mod professions_data;
 pub mod pvp;
 #[path = "game/pvp_data.rs"]
 pub mod pvp_data;
+#[path = "game/quest_actions.rs"]
+pub mod quest_actions;
+pub mod quest_area_data;
 #[path = "game/quest_data.rs"]
 pub mod quest_data;
 #[path = "game/quest_runtime.rs"]
 pub mod quest_runtime;
 #[path = "game/quest_tracking.rs"]
 pub mod quest_tracking;
+#[path = "game/quest_view.rs"]
+pub mod quest_view;
 pub mod realm_preset_data;
 pub mod reputation;
 #[path = "game/reputation_data.rs"]

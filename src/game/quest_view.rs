@@ -1,17 +1,18 @@
-//! Pure view models for the quest screens, built from [`QuestRuntime`].
+//! Pure view models for the quest screens (objective tracker, quest log, quest giver
+//! frame), built from [`QuestRuntime`]; shared by the Bevy and Godot hosts.
 
 use std::collections::HashMap;
 
-use game_engine::item_icons::item_icon_fdid;
-use game_engine::quest_runtime::{
+use crate::item_icons::item_icon_fdid;
+use crate::quest_runtime::{
     QuestDialog, QuestDialogPage, QuestRuntime, QuestTextTokens, QuestUiState,
     substitute_quest_text,
 };
-use game_engine::ui::screens::quest_frame_component::{
+use crate::ui::screens::quest_frame_component::{
     GossipOptionView, GreetingQuest, GreetingQuestKind, QuestFramePage, QuestFrameState,
     RewardItemView, RewardView,
 };
-use game_engine::ui::screens::quest_log_frame_component::{
+use crate::ui::screens::quest_log_frame_component::{
     QuestLogDetails, QuestLogFrameState, QuestLogGroup, QuestLogObjectiveLine, QuestLogRow,
 };
 use shared::protocol::{
@@ -107,6 +108,33 @@ fn reward_view(rewards: &QuestRewards, selected_choice: Option<usize>) -> Reward
     }
 }
 
+/// `QuestInfoItem{n}` (1-based: the choices, then the fixed items) of `rewards`.
+fn reward_item_at(rewards: &QuestRewards, n: usize) -> Option<&QuestRewardItem> {
+    let index = n.checked_sub(1)?;
+    rewards.choice_items.iter().chain(&rewards.items).nth(index)
+}
+
+/// The item behind the quest frame's `QuestInfoItem{n}` (`GameTooltip:SetQuestItem`).
+pub fn frame_reward_item(dialog: Option<&QuestDialog>, n: usize) -> Option<&QuestRewardItem> {
+    let rewards = match &dialog?.page {
+        QuestDialogPage::Detail(details) => &details.rewards,
+        QuestDialogPage::Reward { offer, .. } => &offer.rewards,
+        QuestDialogPage::Greeting { .. } | QuestDialogPage::Progress(_) => return None,
+    };
+    reward_item_at(rewards, n)
+}
+
+/// The item behind the quest log's `QuestInfoItem{n}` for the selected quest
+/// (`GameTooltip:SetQuestLogItem`), from the rewards its giver showed.
+pub fn log_reward_item<'a>(
+    runtime: &QuestRuntime,
+    ui: &QuestUiState,
+    cache: &'a QuestDetailsCache,
+    n: usize,
+) -> Option<&'a QuestRewardItem> {
+    reward_item_at(&cache.get(&selected_quest(runtime, ui)?)?.rewards, n)
+}
+
 /// The selected quest, or the first one when the selection left the log.
 pub fn selected_quest(runtime: &QuestRuntime, ui: &QuestUiState) -> Option<u32> {
     ui.log_selected
@@ -187,5 +215,5 @@ fn log_details(
 }
 
 #[cfg(test)]
-#[path = "view_tests.rs"]
+#[path = "quest_view_tests.rs"]
 mod tests;
