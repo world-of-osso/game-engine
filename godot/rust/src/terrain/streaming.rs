@@ -159,8 +159,8 @@ impl StreamedTerrain {
 
         let root = &self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?.root;
         let grid = root.height_grids.iter().find(|grid| {
-            (0.0..CHUNK_SIZE).contains(&(grid.origin_x - x))
-                && (0.0..CHUNK_SIZE).contains(&(z - grid.origin_z))
+            (0.0..=CHUNK_SIZE).contains(&(grid.origin_x - x))
+                && (0.0..=CHUNK_SIZE).contains(&(z - grid.origin_z))
         })?;
         root.chunks
             .iter()
@@ -179,8 +179,8 @@ impl StreamedTerrain {
 
         let tile = self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?;
         let grid = tile.root.height_grids.iter().find(|grid| {
-            (0.0..CHUNK_SIZE).contains(&(grid.origin_x - x))
-                && (0.0..CHUNK_SIZE).contains(&(z - grid.origin_z))
+            (0.0..=CHUNK_SIZE).contains(&(grid.origin_x - x))
+                && (0.0..=CHUNK_SIZE).contains(&(z - grid.origin_z))
         })?;
         tile.chunk_surfaces
             .get(&(grid.index_x, grid.index_y))

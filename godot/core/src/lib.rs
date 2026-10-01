@@ -355,13 +355,29 @@ mod terrain_height_data_tests {
     }
 
     #[test]
-    fn chunk_bounds_are_half_open_in_authored_axes() {
+    fn chunk_bounds_include_both_edges_in_authored_axes() {
         let grid = authored_grid();
         assert_height(&grid, 0.0, 0.0, 50.0);
+        // The far edges are shared with the next chunks and sample this one too.
+        assert_height(&grid, 8.0, 0.0, 130.0);
+        assert_height(&grid, 0.0, 8.0, 58.0);
         assert_eq!(sample(&grid, 8.01, 0.0), None);
         assert_eq!(sample(&grid, 0.0, 8.01), None);
         assert_eq!(sample(&grid, -0.25, 0.0), None);
         assert_eq!(sample(&grid, 0.0, -0.25), None);
         assert!(sample(&grid, 7.5, 7.5).is_some());
+    }
+
+    /// The last chunk row of tile row 31 ends on Bevy z = 0. A position a rounding
+    /// error below 0 (scripted runs east from z = 0 report -3.47e-7) lies on that edge
+    /// in f32 and must sample it, not fall between the two tile rows.
+    #[test]
+    fn a_position_rounding_onto_the_tile_row_edge_samples_its_chunk() {
+        use crate::asset::adt_format::adt::CHUNK_SIZE;
+        let grid = ChunkHeightGrid {
+            origin_z: -CHUNK_SIZE,
+            ..authored_grid()
+        };
+        assert!(sample_chunk_height(&grid, 99.0, -3.47e-7).is_some());
     }
 }
