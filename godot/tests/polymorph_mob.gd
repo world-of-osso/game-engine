@@ -6,12 +6,18 @@ extends SceneTree
 ##   POLY_ACCOUNT / POLY_CHARACTER   account (password fbtest) and level-10 mage,
 ##                                   placed with the spy straight ahead
 ##   POLY_SHOTS                      screenshot directory
-##   POLY_GRAB                       optional directory for a real-time recording: a JPEG
-##                                   every 100 ms of wall-clock time from the idle framing on,
-##                                   with `frames.txt` (ffmpeg concat durations). Movie Maker
-##                                   (`--write-movie`) steps 1/30 s of game time per frame while
-##                                   the server runs on wall-clock time, so its server events
-##                                   come early whenever rendering is slower than 30 fps.
+##   POLY_GRAB                       optional directory for a real-time recording from the idle
+##                                   framing on: the first rendered frame in each 1/30 s slot of
+##                                   wall-clock time as a JPEG (encoded off the main thread),
+##                                   `frames.txt` (ffmpeg concat durations from the grab times),
+##                                   `times.txt` (each frame's grab time, s), and the Master bus
+##                                   through an AudioEffectRecord as `audio.wav`, started at the
+##                                   first frame (`audio.txt`: its start relative to that frame).
+##                                   The client needs an audio driver that mixes in real time.
+##                                   Movie Maker (`--write-movie`) steps 1/30 s of game time per
+##                                   frame while the server runs on wall-clock time, so its server
+##                                   events come early whenever rendering is slower than 30 fps.
+##                                   Fixture events and spell sounds print `t=` on this timeline.
 ## Tab targets the spy. Frostbolt pulls it: it runs in and swings at the mage (the
 ## mage's CombatWound 9). Polymorph from the bar shows its precast and cast bar, then
 ## the server's TRANSFORM swaps the spy's display for the Polymorphed Sheep (856 or
@@ -65,9 +71,14 @@ var seen_models := {}
 ## Locomotion clips seen on the target per display id.
 var seen_animations := {}
 var grab_dir := ""
-var grab_last_ms := -1
-var grab_index := 0
-var grab_list := ""
+## Wall-clock start of the recording (usec), -1 before it.
+var grab_start_us := -1
+var grab_slot := -1
+var grab_times: Array = []
+var grab_tasks: Array = []
+var grab_record: AudioEffectRecord
+var grab_audio_us := -1
+var heard_sounds := {}
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -94,30 +105,79 @@ func _process(delta: float) -> bool:
 	var visuals: Dictionary = client.spell_visuals_state()
 	for model in visuals.active:
 		seen_models[[model.unit, model.model]] = true
+	log_sounds()
 	grab_frame()
 	return false
 
-## One JPEG per 100 ms of wall-clock time; each listed with the time until the next.
-func grab_frame() -> void:
-	if grab_dir == "" or grab_last_ms < 0:
-		return
-	var now := Time.get_ticks_msec()
-	if grab_index > 0 and now - grab_last_ms < 100:
-		return
-	if grab_index > 0:
-		grab_list += "duration %.3f\n" % ((now - grab_last_ms) / 1000.0)
-	var file := "grab-%05d.jpg" % grab_index
-	root.get_texture().get_image().save_jpg(grab_dir + file, 0.9)
-	grab_list += "file '%s'\n" % file
-	grab_index += 1
-	grab_last_ms = now
+## Seconds since the recording's first frame (0 without a recording).
+func grab_time() -> float:
+	return (Time.get_ticks_usec() - grab_start_us) / 1000000.0 if grab_start_us >= 0 else 0.0
 
-func finish_grab() -> void:
-	if grab_dir == "" or grab_index == 0:
+## The first rendered frame of every 1/30 s slot of wall-clock time; slower rendering
+## leaves slots empty and the previous frame lasts longer (`frames.txt`).
+func grab_frame() -> void:
+	if grab_dir == "" or grab_start_us < 0:
 		return
-	var list := FileAccess.open(grab_dir + "frames.txt", FileAccess.WRITE)
-	list.store_string(grab_list + "duration 0.1\n")
-	list.close()
+	var slot := int((Time.get_ticks_usec() - grab_start_us) * 30 / 1000000)
+	if slot <= grab_slot:
+		return
+	grab_slot = slot
+	grab_times.append(grab_time())
+	var image := root.get_texture().get_image()
+	var path := grab_dir + "grab-%05d.jpg" % (grab_times.size() - 1)
+	grab_tasks.append(WorkerThreadPool.add_task(func(): image.save_jpg(path, 0.9)))
+
+func start_grab() -> void:
+	grab_dir = OS.get_environment("POLY_GRAB")
+	if grab_dir == "":
+		return
+	DirAccess.make_dir_recursive_absolute(grab_dir)
+	grab_record = AudioEffectRecord.new()
+	AudioServer.add_bus_effect(0, grab_record)
+	grab_start_us = Time.get_ticks_usec()
+	grab_record.set_recording_active(true)
+	grab_audio_us = Time.get_ticks_usec()
+	print("FIXTURE GRAB_START driver=%s mix_rate=%d output_latency=%.3f" % [AudioServer.get_driver_name(), AudioServer.get_mix_rate(), AudioServer.get_output_latency()])
+
+## Spell sounds the client started, each once, on the recording's timeline.
+func log_sounds() -> void:
+	if grab_start_us < 0:
+		return
+	for sound in client.spell_visuals_state().sounds:
+		var key := [sound.spell, sound.kit, sound.sound_kit, sound.fdid, sound.unit, sound.at]
+		if heard_sounds.has(key):
+			continue
+		heard_sounds[key] = true
+		print("FIXTURE SOUND t=%.3f spell=%d kit=%d sound_kit=%d fdid=%d unit=%d source=%s looping=%s" % [grab_time(), sound.spell, sound.kit, sound.sound_kit, sound.fdid, sound.unit, sound.source, sound.looping])
+
+## Waits for the pending image writes; writes the recording's lists and audio once.
+func finish_grab() -> void:
+	for task in grab_tasks:
+		WorkerThreadPool.wait_for_task_completion(task)
+	grab_tasks.clear()
+	if grab_dir == "" or grab_times.is_empty() or not grab_record.is_recording_active():
+		return
+	var end := grab_time()
+	grab_record.set_recording_active(false)
+	var list := ""
+	var times := ""
+	for index in grab_times.size():
+		var next: float = grab_times[index + 1] if index + 1 < grab_times.size() else end
+		list += "file 'grab-%05d.jpg'\nduration %.6f\n" % [index, next - grab_times[index]]
+		times += "%.6f\n" % grab_times[index]
+	# The concat demuxer drops the last entry's duration without a repeated last file.
+	list += "file 'grab-%05d.jpg'\n" % (grab_times.size() - 1)
+	write_text(grab_dir + "frames.txt", list)
+	write_text(grab_dir + "times.txt", times)
+	var wav := grab_record.get_recording()
+	wav.save_to_wav(grab_dir + "audio.wav")
+	write_text(grab_dir + "audio.txt", "audio_start_s %.6f\nend_s %.6f\nframes %d\nmix_rate %d\naudio_s %.6f\n" % [(grab_audio_us - grab_start_us) / 1000000.0, end, grab_times.size(), wav.mix_rate, wav.get_length()])
+	print("FIXTURE GRAB_DONE frames=%d over %.3f s (%.2f fps), audio %.3f s" % [grab_times.size(), end, grab_times.size() / end, wav.get_length()])
+
+func write_text(path: String, text: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(text)
+	file.close()
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
@@ -155,10 +215,7 @@ func run_test() -> void:
 	if not await full_health():
 		return
 	await capture("00-idle.png")
-	grab_dir = OS.get_environment("POLY_GRAB")
-	if grab_dir != "":
-		DirAccess.make_dir_recursive_absolute(grab_dir)
-		grab_last_ms = Time.get_ticks_msec()
+	start_grab()
 	for attempt in range(10):
 		push_key(KEY_TAB, true)
 		await wait_frames(2)
@@ -212,6 +269,7 @@ func run_test() -> void:
 	# Polymorph: precast and cast bar, then the sheep.
 	await wait_for(func(s): return s.gcd_ms == 0, 5000, "GCD over")
 	seen_actions.erase(local_id)
+	print("FIXTURE PRESS t=%.3f Polymorph" % grab_time())
 	if not await press_spell(POLYMORPH):
 		return
 	await wait_frames(25)
@@ -221,7 +279,7 @@ func run_test() -> void:
 	if not await wait_until(func(): return SHEEP_SHOWN(), 5000, "the spy turns into a sheep"):
 		return
 	var poly_frame := Engine.get_frames_drawn()
-	print("FIXTURE SHEEP frame=%d display=%s target=%s nameplates=%s" % [poly_frame, client.unit_display(target_id), client.target_state(), client.nameplate_state()])
+	print("FIXTURE SHEEP t=%.3f frame=%d display=%s target=%s nameplates=%s" % [grab_time(), poly_frame, client.unit_display(target_id), client.target_state(), client.nameplate_state()])
 	await wait_frames(6)
 	await capture("03-sheep.png")
 	# Swapped in place: the unit keeps its position (the sheep wanders at most 2 yd).
@@ -264,7 +322,7 @@ func run_test() -> void:
 		return
 	if not await wait_until(func(): return client.unit_display(target_id).display_id == native.display_id and client.unit_display(target_id).visual, 8000, "the spy's own display returns"):
 		return
-	print("FIXTURE BROKEN frame=%d display=%s" % [Engine.get_frames_drawn(), client.unit_display(target_id)])
+	print("FIXTURE BROKEN t=%.3f frame=%d display=%s" % [grab_time(), Engine.get_frames_drawn(), client.unit_display(target_id)])
 	await wait_frames(4)
 	await capture("06-broken.png")
 	if not await wait_until(func(): return saw_swing(target_id), 20000, "the spy swings again"):
@@ -383,9 +441,13 @@ func press_spell(spell: int) -> bool:
 func cast(spell: int, what: String) -> bool:
 	if not await wait_for(func(s): return s.gcd_ms == 0, 5000, "GCD before " + what):
 		return false
+	print("FIXTURE PRESS t=%.3f %s" % [grab_time(), what])
 	if not await press_spell(spell):
 		return false
-	return await wait_for(func(s): return s.gcd_ms > 0, 3000, what + " accepted")
+	if not await wait_for(func(s): return s.gcd_ms > 0, 3000, what + " accepted"):
+		return false
+	print("FIXTURE ACCEPTED t=%.3f %s" % [grab_time(), what])
+	return true
 
 ## Close framing from the mage's front-left (as spellcast_anim.gd).
 func frame_camera() -> void:
@@ -468,13 +530,15 @@ func wait_until(predicate: Callable, timeout_ms: int, what: String) -> bool:
 	return false
 
 func enter_world() -> bool:
-	var deadline := Time.get_ticks_msec() + 20000
+	# The character select UI appears once asset startup is over (`assets_starting`).
+	var ui = null
+	var deadline := Time.get_ticks_msec() + 60000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1:
+		ui = client.get_node_or_null("CharacterSelectUI")
+		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1 and ui != null:
 			break
-	var ui = client.get_node_or_null("CharacterSelectUI")
 	if ui == null:
 		fail("No character select: " + str(client.account_state()))
 		return false
@@ -530,12 +594,11 @@ func click(control: Control) -> void:
 	await wait_frames(3)
 
 func capture(file: String) -> void:
-	print("FIXTURE MARK %s frame=%d" % [file, Engine.get_frames_drawn()])
+	print("FIXTURE MARK t=%.3f %s frame=%d" % [grab_time(), file, Engine.get_frames_drawn()])
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	var error := image.save_png(shots + file)
-	if error != OK:
-		fail("Could not save " + file + ": " + str(error))
+	# Off the main thread: a PNG encode would stall the recording.
+	grab_tasks.append(WorkerThreadPool.add_task(func(): image.save_png(shots + file)))
 
 func wait_real(seconds: float) -> void:
 	var deadline := Time.get_ticks_msec() + int(seconds * 1000)
@@ -548,4 +611,5 @@ func wait_frames(count: int) -> void:
 
 func fail(message: String) -> void:
 	push_error(message)
+	finish_grab()
 	quit(1)
