@@ -71,18 +71,7 @@ impl INode3D for WowM2Debug {
     }
 
     fn unhandled_input(&mut self, event: Gd<InputEvent>) {
-        let handled = if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
-            if self.dragging {
-                let relative = motion.get_relative();
-                self.orbit
-                    .drag(Vec2::new(relative.x, relative.y), self.sensitivity);
-            }
-            self.dragging
-        } else if let Ok(button) = event.try_cast::<InputEventMouseButton>() {
-            self.mouse_button(&button)
-        } else {
-            false
-        };
+        let handled = orbit_input(&mut self.orbit, &mut self.dragging, self.sensitivity, event);
         if handled && let Some(mut viewport) = self.base().get_viewport() {
             viewport.set_input_as_handled();
         }
@@ -117,27 +106,11 @@ impl WowM2Debug {
         })
     }
 
-    fn mouse_button(&mut self, button: &Gd<InputEventMouseButton>) -> bool {
-        match button.get_button_index() {
-            MouseButton::LEFT => {
-                self.dragging = button.is_pressed();
-                true
-            }
-            MouseButton::WHEEL_UP if button.is_pressed() => {
-                self.orbit.zoom(button.get_factor().max(1.0));
-                true
-            }
-            MouseButton::WHEEL_DOWN if button.is_pressed() => {
-                self.orbit.zoom(-button.get_factor().max(1.0));
-                true
-            }
-            _ => false,
-        }
-    }
-
     fn attach_scene(&mut self) -> Result<(), String> {
-        let ground = ground_node(&self.data_root)?;
-        for node in [environment_node(), light_node(), ground] {
+        let ground = ground_node(&self.data_root, GROUND_SIZE, GROUND_UV_TILES)?;
+        let environment = environment_node(Color::from_rgb(0.05, 0.06, 0.08), Color::WHITE);
+        let light = light_node(Color::WHITE, [-0.9, -0.6, 0.0]);
+        for node in [environment, light, ground] {
             self.base_mut().add_child(&node);
         }
         let mut camera = Camera3D::new_alloc();
@@ -185,13 +158,13 @@ fn preferred_skins(data_root: &Path, model_fdid: u32) -> Result<[u32; 3], String
         .map_err(|error| format!("Cannot query skins of {model_fdid}: {error}"))
 }
 
-/// The original's dark clear colour and white ambient light.
-fn environment_node() -> Gd<Node> {
+/// A debug scene's clear colour and ambient light colour.
+pub(crate) fn environment_node(clear: Color, ambient: Color) -> Gd<Node> {
     let mut environment = Environment::new_gd();
     environment.set_background(environment::BgMode::COLOR);
-    environment.set_bg_color(Color::from_rgb(0.05, 0.06, 0.08));
+    environment.set_bg_color(clear);
     environment.set_ambient_source(environment::AmbientSource::COLOR);
-    environment.set_ambient_light_color(Color::WHITE);
+    environment.set_ambient_light_color(ambient);
     environment.set_ambient_light_energy(0.4);
     environment.set_tonemapper(environment::ToneMapper::LINEAR);
     let mut world = WorldEnvironment::new_alloc();
@@ -200,27 +173,63 @@ fn environment_node() -> Gd<Node> {
     world.upcast()
 }
 
-/// The original's shadowed directional light, rotated XYZ (-0.9, -0.6, 0) rad.
-fn light_node() -> Gd<Node> {
-    let rotation = Quat::from_euler(EulerRot::XYZ, -0.9, -0.6, 0.0);
+/// A debug scene's shadowed directional light, rotated by Bevy XYZ Euler angles.
+pub(crate) fn light_node(color: Color, [x, y, z]: [f32; 3]) -> Gd<Node> {
+    let rotation = Quat::from_euler(EulerRot::XYZ, x, y, z);
     let mut light = DirectionalLight3D::new_alloc();
     light.set_name("Light");
+    light.set_color(color);
     light.set_shadow(true);
     light.set_quaternion(Quaternion::new(rotation.x, rotation.y, rotation.z, rotation.w));
     light.upcast()
 }
 
-/// The original 100-yd grass plane, its texture tiled 20 times.
-fn ground_node(data_root: &Path) -> Result<Gd<Node>, String> {
+/// The original debug scenes' original orbit controls: left drag orbits, the wheel
+/// zooms. `true` when `event` was theirs.
+pub(crate) fn orbit_input(
+    orbit: &mut Orbit,
+    dragging: &mut bool,
+    sensitivity: f32,
+    event: Gd<InputEvent>,
+) -> bool {
+    if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+        if *dragging {
+            let relative = motion.get_relative();
+            orbit.drag(Vec2::new(relative.x, relative.y), sensitivity);
+        }
+        return *dragging;
+    }
+    let Ok(button) = event.try_cast::<InputEventMouseButton>() else {
+        return false;
+    };
+    match button.get_button_index() {
+        MouseButton::LEFT => {
+            *dragging = button.is_pressed();
+            true
+        }
+        MouseButton::WHEEL_UP if button.is_pressed() => {
+            orbit.zoom(button.get_factor().max(1.0));
+            true
+        }
+        MouseButton::WHEEL_DOWN if button.is_pressed() => {
+            orbit.zoom(-button.get_factor().max(1.0));
+            true
+        }
+        _ => false,
+    }
+}
+
+/// The original debug scenes' grass plane: `size` yd, its texture tiled `tiles` times.
+pub(crate) fn ground_node(data_root: &Path, size: f32, tiles: f32) -> Result<Gd<Node>, String> {
     let mut missing = PackedInt32Array::new();
     let grass = shared_texture(GRASS_FDID, &data_root.join("textures"), &mut missing)?
         .ok_or_else(|| format!("missing ground texture {GRASS_FDID}"))?;
     let mut material = StandardMaterial3D::new_gd();
     material.set_texture(TextureParam::ALBEDO, &grass);
-    material.set_uv1_scale(Vector3::new(GROUND_UV_TILES, GROUND_UV_TILES, 1.0));
+    material.set_uv1_scale(Vector3::new(tiles, tiles, 1.0));
     material.set_roughness(0.9);
     let mut plane = PlaneMesh::new_gd();
-    plane.set_size(Vector2::new(GROUND_SIZE, GROUND_SIZE));
+    plane.set_size(Vector2::new(size, size));
     plane.set_material(&material);
     let mut ground = MeshInstance3D::new_alloc();
     ground.set_name("Ground");
