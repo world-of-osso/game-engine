@@ -310,7 +310,6 @@ struct Shown {
 pub struct WowParticleDebug {
     base: Base<Node3D>,
     data_root: PathBuf,
-    cache_root: PathBuf,
     resolver: Option<CascListfileResolver>,
     outfit: Option<OutfitData>,
     sensitivity: f32,
@@ -419,11 +418,10 @@ impl WowParticleDebug {
 }
 
 impl WowParticleDebug {
-    fn new(data_root: PathBuf, cache_root: PathBuf, sensitivity: f32) -> Gd<Self> {
+    fn new(data_root: PathBuf, sensitivity: f32) -> Gd<Self> {
         Gd::from_init_fn(|base| Self {
             base,
             data_root,
-            cache_root,
             resolver: None,
             outfit: None,
             sensitivity,
@@ -564,7 +562,7 @@ impl WowParticleDebug {
         let data_root = self.data_root.clone();
         let resolver = self
             .resolver
-            .get_or_insert_with(|| local_resolver(&data_root, &self.cache_root));
+            .get_or_insert_with(|| local_resolver(&data_root));
         let path = cache_model_files(resolver, &data_root, fdid)?;
         let skins = self
             .outfit
@@ -709,11 +707,6 @@ impl GameClient {
         }
         let mut scene = WowParticleDebug::new(
             self.data_root.clone(),
-            PathBuf::from(
-                godot::classes::ProjectSettings::singleton()
-                    .globalize_path("user://asset-resolver")
-                    .to_string(),
-            ),
             self.client_options.camera.mouse_sensitivity,
         );
         scene.set_name("ParticleDebug");

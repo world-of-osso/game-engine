@@ -23,6 +23,7 @@ pub mod equipment_appearance_data;
 mod faction_reaction;
 mod frame_error;
 mod game_menu;
+mod game_objects;
 mod gameplay;
 mod ground;
 mod input;
@@ -30,6 +31,8 @@ mod input_keys;
 mod lighting;
 mod loading;
 mod logout;
+mod loot;
+mod mail;
 mod merchant;
 mod minimap;
 mod mirror_timers;
@@ -116,6 +119,8 @@ pub struct GameClient {
     data_root: PathBuf,
     /// Pending CASC startup worker, or its spawn error; None after startup completes.
     asset_startup: Option<Result<asset_startup::AssetStartup, String>>,
+    /// Account events received while CASC initializes, applied once it has.
+    startup_events: Vec<AccountEvent>,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
@@ -156,6 +161,9 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
+    mailbox: mail::Mailbox,
+    game_objects: game_objects::GameObjects,
+    loot: loot::Loot,
     auction: auction::Auction,
     auto_attack: auto_attack::AutoAttack,
     auras: auras::Auras,
@@ -166,12 +174,7 @@ impl INode3D for GameClient {
     fn init(base: Base<Node3D>) -> Self {
         let settings = ProjectSettings::singleton();
         let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
-        let cache_root =
-            PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
-        let asset_startup = Some(asset_startup::AssetStartup::start(
-            data_root.clone(),
-            cache_root.clone(),
-        ));
+        let asset_startup = Some(asset_startup::AssetStartup::start(data_root.clone()));
         let client_options =
             load_options_file_with_legacy(&data_root.join("ui/options_settings.ron")).clamped();
         // Bag items resolve names, quality and icons from the shared item tables; the
@@ -184,7 +187,6 @@ impl INode3D for GameClient {
             "WorldObjects",
             WORLD_OBJECT_BUDGET,
             data_root.clone(),
-            cache_root.clone(),
         );
         let graphics = &client_options.graphics;
         if graphics.particle_effects_enabled {
@@ -202,12 +204,10 @@ impl INode3D for GameClient {
             name_catalog: None,
             data_root: data_root.clone(),
             asset_startup,
-            character_preview: character_select::CharacterPreview::new(
-                data_root.clone(),
-                cache_root.clone(),
-            ),
+            startup_events: Vec::new(),
+            character_preview: character_select::CharacterPreview::new(data_root.clone()),
             campsite: CampsiteState::default(),
-            creation_scene: char_create::CreationScene::new(data_root.clone(), cache_root.clone()),
+            creation_scene: char_create::CreationScene::new(data_root.clone()),
             loading_ui: None,
             errors_ui: None,
             mirror_timer_ui: None,
@@ -226,13 +226,10 @@ impl INode3D for GameClient {
             account: Account::new(data_root.clone()),
             sound: None,
             area_parents: HashMap::new(),
-            terrain: terrain::streaming::StreamedTerrain::new(
-                data_root.clone(),
-                cache_root.clone(),
-            ),
+            terrain: terrain::streaming::StreamedTerrain::new(data_root.clone()),
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
-            global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone(), &cache_root),
+            global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone()),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_map_id: None,
@@ -247,12 +244,15 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
+            mailbox: mail::Mailbox::default(),
+            game_objects: game_objects::GameObjects::new(data_root.clone()),
+            loot: loot::Loot::default(),
             auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
             units: HashMap::new(),
-            spell_effects: spell_effects::SpellEffects::new(data_root.clone(), cache_root.clone()),
-            world: world::WorldUnits::new(data_root, cache_root),
+            spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
+            world: world::WorldUnits::new(data_root),
             server_hostname: if cfg!(debug_assertions) {
                 "127.0.0.1:5000"
             } else {
@@ -300,6 +300,7 @@ impl INode3D for GameClient {
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
+            || self.mailbox_pointer(&event)
         {
             return;
         }
@@ -333,6 +334,19 @@ impl INode3D for GameClient {
                 viewport.set_input_as_handled();
             }
             return;
+        }
+        match self.mailbox_key(key.get_keycode()) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.handle_frame_error("Mailbox key", error.into());
+                return;
+            }
         }
         match self.auction_key(key.get_keycode()) {
             Ok(true) => {
@@ -402,6 +416,7 @@ impl INode3D for GameClient {
 
     fn process(&mut self, delta: f64) {
         if !self.poll_asset_startup() {
+            self.receive_account_during_startup();
             self.physical_input.finish_frame();
             return;
         }
@@ -424,6 +439,8 @@ impl INode3D for GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
             ("Merchant", |c, _| c.update_merchant()),
+            ("Mailbox", |c, _| c.update_mailbox()),
+            ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
             ("World map", |c, _| Ok(c.update_world_map()?)),
@@ -667,6 +684,7 @@ impl GameClient {
                 .unwrap_or_default(),
         );
         state.set("reply_received", self.account.reply_received);
+        state.set("assets_starting", self.asset_startup.is_some());
         state.set("connected", self.account.is_connected());
         state.set(
             "selected_character_id",
@@ -719,6 +737,12 @@ impl GameClient {
     #[func]
     fn auction_state(&self) -> VarDictionary {
         self.auction_snapshot()
+    }
+
+    /// Read-only receiving mail state; requests only come from real mailbox/frame input.
+    #[func]
+    fn mail_state(&self) -> VarDictionary {
+        self.mailbox_snapshot()
     }
 
     /// Spell visual kits started, kit models and missiles shown.
@@ -861,6 +885,10 @@ impl GameClient {
             }
         }
         self.merchant.visit_uis(&mut visit)?;
+        if let Some(ui) = &mut self.mailbox.ui {
+            visit(ui)?;
+        }
+        self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
         }
@@ -1274,8 +1302,21 @@ impl GameClient {
 
     /// A failure handling one event is reported and the next event still applies;
     /// only a transport or protocol failure ends the poll.
+    /// While CASC initializes, the session still receives its traffic (a login reply
+    /// updates the session at once); events that show screens or units wait for it.
+    fn receive_account_during_startup(&mut self) {
+        match self.account.poll() {
+            Ok(events) => self.startup_events.extend(events),
+            Err(error) => {
+                self.handle_frame_error("Account", error.into());
+            }
+        }
+    }
+
     fn poll_account(&mut self) -> Result<(), FrameError> {
-        for event in self.account.poll()? {
+        let mut events = std::mem::take(&mut self.startup_events);
+        events.extend(self.account.poll()?);
+        for event in events {
             match self.apply_account_event(event) {
                 Err(FrameError::Client(error)) => {
                     frame_error::report_once(&format!("Account event: {error}"))
@@ -1309,6 +1350,11 @@ impl GameClient {
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
+            AccountEvent::GameObjectUpdated(object) => {
+                let mut parent = self.to_gd().upcast::<Node3D>();
+                self.game_objects.upsert(&mut parent, object)?;
+            }
+            AccountEvent::Mail(message) => self.receive_mail(message)?,
             AccountEvent::UnitUpdated(unit) => {
                 let mut parent = self.to_gd().upcast::<Node3D>();
                 self.world.upsert(&mut parent, &unit);
@@ -1327,10 +1373,14 @@ impl GameClient {
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
             AccountEvent::Npc(message) => self.receive_npc_message(message)?,
+            AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
             AccountEvent::UnitRemoved(id) => {
+                self.game_objects.remove(id);
+                self.mailbox.close_for(id);
+                self.loot.lootable.remove(&id);
                 self.world.remove(id);
                 self.units.remove(&id);
                 self.auras.aura_set_changed(id, false);
@@ -1352,6 +1402,8 @@ impl GameClient {
             self.world_camera.reset();
             self.world_lighting.reset();
             self.world.update_lighting(None);
+            self.game_objects.reset();
+            self.mailbox.reset();
             self.terrain_materials.reset();
             self.world_objects.reset();
             self.global_wmo.reset();
@@ -1371,6 +1423,8 @@ impl GameClient {
         self.wmo_collision.reset();
         self.world_lighting.reset();
         self.world.update_lighting(None);
+        self.game_objects.reset();
+        self.mailbox.reset();
         let [x, y, z] = destination.position;
         let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
         self.terrain.request_map(destination.map_directory, tile)?;
@@ -1420,6 +1474,7 @@ impl GameClient {
             wmo_fog.as_ref(),
         )? {
             self.world.update_lighting(Some(light.clone()));
+            self.game_objects.update_lighting(Some(light.clone()));
             self.world_objects.update_lighting(&light);
             self.global_wmo.update_lighting(&light);
             self.terrain_materials.update_lighting(light);
@@ -1524,6 +1579,9 @@ impl GameClient {
     fn reset_world(&mut self) -> Result<(), String> {
         self.stop_sound();
         self.logout.clear();
+        self.loot.reset();
+        self.game_objects.reset();
+        self.mailbox.reset();
         self.in_rest_area = false;
         self.character_preview.reset();
         self.creation_scene.reset();

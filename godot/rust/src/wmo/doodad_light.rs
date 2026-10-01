@@ -356,8 +356,7 @@ mod tests {
         let resolver = osso_asset_resolver::CascListfileResolver::new(
             osso_asset_resolver::AssetResolverConfig::new()
                 .with_data_root(&data_root)
-                .with_shared_data_root(&data_root)
-                .with_cache_root(data_root.join("cache")),
+                .with_shared_data_root(&data_root),
         );
         let placement = game_engine_core::adt::WmoPlacement {
             name_id: 0,

@@ -105,6 +105,11 @@ fn authored_race_class_mode_retains_named_actions_and_navigation() {
 
 #[test]
 fn authored_customize_mode_keeps_dropdown_choices_name_and_postsetup() {
+    // Closed dropdown labels are measured with the client's FrizQuadrata.
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut model = CharacterCreateModel::new(1920.0, 1080.0);
     model.shared.insert(customize());
     model.sync();
@@ -155,4 +160,19 @@ fn authored_customize_mode_keeps_dropdown_choices_name_and_postsetup() {
         Some([23.0, 18.0, 23.0, 28.0])
     );
     assert!(model.registry.get_by_name(NEXT_BUTTON.0).is_none());
+}
+
+/// At 1280x720 both race columns, with six Horde allied races (Dracthyr 70
+/// included), end above the 66 px navigation buttons 28 px from the bottom.
+#[test]
+fn race_columns_end_above_the_navigation_buttons_at_720p() {
+    let mut model = CharacterCreateModel::new(1280.0, 720.0);
+    model.sync();
+    let nav_top = 720.0 - 28.0 - 66.0;
+    for race in game_engine_ui_model::char_create_data::RACES {
+        let Val::Px(top) = frame(&model, &format!("Race_{}", race.id)).position.top else {
+            panic!("Race_{} has no pixel top", race.id);
+        };
+        assert!(top + 79.0 <= nav_top, "{} ends at {}", race.name, top + 79.0);
+    }
 }

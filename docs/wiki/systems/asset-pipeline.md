@@ -12,7 +12,7 @@ FDID (integer)
   → .data.XXX:    seek, read BLTE blob, decompress
 ```
 
-Cached tables live under `~/.cache/asset-resolver/casc/<product>/<build-key>/` (~250MB total). They are generated cache data and can be rebuilt with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` when they drift from the local WoW install.
+Cached tables live under `~/.cache/asset-resolver/casc/<product>/<build-key>/` (~250MB total). The Godot client uses that default too: its resolvers set no cache root (`assets::creature::local_resolver`), so every run shares one resolution cache whatever its `XDG_DATA_HOME`. Measured 2026-09-30 (`godot/tests/startup_login.gd`, load about 20): two runs with different `XDG_DATA_HOME` each loaded the 1,931,507-entry cache in 4.1 and 6.5 s, with no rebuild. With `ASSET_RESOLVER_CACHE_DIR` pointed at an empty directory, the rebuild took 48.1 s. The login reply was handled at 1.2 s, while the build was still running; character select showed at 63.1 s. While CASC starts, the client keeps polling its session and holds back the screen and unit events until startup finishes. They are generated cache data and can be rebuilt with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` when they drift from the local WoW install.
 
 ## Local Extraction
 
@@ -23,6 +23,12 @@ cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid
 ```
 
 Files are named `{fdid}.{ext}` (extension derived from the community listfile). Always extract from local CASC; never use Blizzard CDN.
+
+The shared file cache previously treated an empty persisted `.missing` file as permanent absence, bypassing local extraction even when CASC held the asset. Asset-resolver `c24d035` removes that check and marker writes; existing markers remain untouched and are ignored. Positive-cache hits, local extraction, failure diagnostics and public initialization are unchanged. The contract lives in the sibling [asset-cache spec](../../../../asset-resolver/docs/specs/asset-cache.md).
+
+Main accepts standalone `25debb1` **bounded PASS** in `/tmp/claude/verify-shared-negative-cache-final.md`: fresh processes persist a marker, preserve positive-cache bytes/inode/timestamps, assert unavailable-FDID failure context, then recover FDID `1244035` as exact valid local-CASC BLP2 bytes. Saved regression exits 0 (1/1); format, offline locked all-target check and focused readability pass. Existing `binrw` future-incompatibility warning remains. This proves the standalone cache boundary, not native cold-marker recovery.
+
+Main accepts `/tmp/claude/verify-negative-cache-native-integration.md` **bounded saved-artifact PASS**: Depot `s1q4qhb120` build2 exit 0 compiles the native consumer and fixture; extension load and `data/diagnostics/negative-cache-native/runtime.log` exit 0 cover eight Options helper PASS markers plus Menu/owned UDP/Exit. Native cold-marker acquisition is not verified; standalone proof above supplies that separate process boundary. Logs do not independently attest compiled binary identity. Existing native `fdid` warning and runtime warnings/notices remain disclosed in the report. No full-conversion, deployment or current unfrozen whole-tree acceptance; shutdown remains paused.
 
 Extraction to disk is not the only access path. The project `AssetResolver` also exposes `resolve_bytes(fdid)`, which can read file contents directly from local CASC. Runtime DB2 loading can use direct bytes because the DB2 parsers accept `&[u8]`; path-based helpers such as `ensure_db2_path` are mainly useful for debug artifacts, cache inspection, and tools that require filesystem paths.
 

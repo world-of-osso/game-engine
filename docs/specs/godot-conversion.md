@@ -35,6 +35,8 @@ Main-observed [LDR controller evidence](../wiki/systems/godot-conversion.md#ldr-
 
 ### Client engine and assets
 
+- [ ] Options must enclose every category's visible list controls with content-driven height, preserving authored row heights, gaps, fonts, widths and padding. Short pages retain the 660px baseline; longer pages expand without clipping, scrolling or shrinking controls. Screen centering, saved drag offsets, tab/content horizontal positions and footer bottom clearance remain unchanged.
+
 - [ ] `77a9b4cc` implements standalone `--screen gamemenu` / `--state gamemenu`: `GameState::GameMenu.is_logged_in` is true, `OnEnter` opens the logged-in menu without authentication or a Login underlay, and Return/Escape only dismisses the overlay while state remains `GameMenu`; Exit quits. Root-launcher Vulkan fixtures at `6e8c14b7` exit 0 for Escape, resume, and Exit (`/tmp/claude/startup-menu-{escape,resume,exit}-6e8c14b7.log`). Main inspected `data/diagnostics/godot-conversion/startup-game-menu.png`: six slate/gold buttons on a blank background, with no Login underlay; this is bounded inspection, not pixel equality. Standalone Log Out must close the menu without a visible countdown because original timer/overlay systems run only InWorld: `f7280c8d` RED finds the visible countdown, and `27637f64` limits sync visibility to `InWorld`; `/tmp/claude/startup-menu-logout-green-27637f64.log` exits 0. Options/AddOns and full parent-menu parity remain open.
 
 - [ ] Godot owns client rendering, scenes, input, UI, audio, lifecycle, and gameplay. Bevy remains only in the headless networking worker for transport; it is not a rendering/UI/scene/gameplay fallback.
@@ -177,3 +179,5 @@ Native `4c7927a6` loads cached local-CASC WMO roots and indexed complete groups 
 ## Out of scope
 
 Unrequested server/protocol redesign, new gameplay features, production deployment, and changes to host safety mitigations. No existing client feature is excluded from the conversion target.
+
+[SettingsReload bounded main proof](../wiki/systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) now covers authored AutoLoot/FOV/InvertY/TargetSelf saves and fresh native consumers. Independent gate pending; deliberate owned termination does not close shutdown or full-conversion gaps.

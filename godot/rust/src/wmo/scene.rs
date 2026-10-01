@@ -575,8 +575,7 @@ mod tests {
         let resolver = CascListfileResolver::new(
             AssetResolverConfig::new()
                 .with_data_root(&data_root)
-                .with_shared_data_root(&data_root)
-                .with_cache_root(data_root.join("cache")),
+                .with_shared_data_root(&data_root),
         );
         (resolver, data_root)
     }

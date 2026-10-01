@@ -27,7 +27,7 @@ use shared::{
     components::{
         CombatStatus, CreatureMotion, EquipmentAppearance, Gold, Health, Mana, ModelDisplay,
         MovementControl, MovementSpeed, Npc, Player, PlayerMotion, Position, Rotation, UnitAuras,
-        UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitTarget,
+        UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitRunes, UnitTarget,
         UnitThreatList,
     },
     level_scaling::LevelScaling,
@@ -110,6 +110,8 @@ pub struct UnitSnapshot {
     pub cast: Option<CastState>,
     /// Raw DB2 power values, primary power first.
     pub powers: Option<UnitPowers>,
+    /// A death knight's per-rune recharge (`GetRuneCooldown`).
+    pub runes: Option<UnitRunes>,
     pub auras: Option<UnitAuras>,
     /// Retail `NPCFlags` / `NPCFlags2` bits of an NPC (vendor, repair, gossip, ...).
     pub npc_flags: Option<u64>,
@@ -148,12 +150,22 @@ impl UnitSnapshot {
             in_combat: entity.get::<CombatStatus>().is_some_and(|status| status.0),
             cast: entity.get::<CastState>().cloned(),
             powers: entity.get::<UnitPowers>().cloned(),
+            runes: entity.get::<UnitRunes>().cloned(),
             auras: entity.get::<UnitAuras>().cloned(),
             npc_flags: entity.get::<NpcFlags>().map(|flags| flags.0),
             gold: entity.get::<Gold>().map(|gold| gold.0),
             combat_status: entity.get::<CombatStatus>().copied(),
         }
     }
+}
+
+/// A real replicated world object, independent of player/NPC markers.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GameObjectSnapshot {
+    pub server_id: u64,
+    pub info: protocol::GameObjectInfo,
+    pub position: Option<Position>,
+    pub rotation: Option<Rotation>,
 }
 
 pub enum Event {
@@ -164,6 +176,8 @@ pub enum Event {
     Disconnected(Option<String>),
     Message(ProtocolMessage),
     UnitUpdated(UnitSnapshot),
+    GameObjectUpdated(GameObjectSnapshot),
+    /// A replicated unit or game object disappeared.
     UnitRemoved(u64),
 }
 
@@ -188,6 +202,18 @@ impl BridgeConfig {
     /// sent them on `MirrorTimerChannel`.
     pub fn receive_mirror_timers(mut self) -> Self {
         self.relays.push(install_mirror_timer_relay);
+        self
+    }
+
+    /// All five loot messages in their reliable ordered `LootChannel` send order.
+    pub fn receive_loot(mut self) -> Self {
+        self.relays.push(install_loot_relay);
+        self
+    }
+
+    /// Receiving mailbox traffic in its reliable ordered channel order.
+    pub fn receive_mail(mut self) -> Self {
+        self.relays.push(install_mail_relay);
         self
     }
 
@@ -228,6 +254,8 @@ impl NetworkBridge {
             .receive::<InstanceInfo>()
             // Server-driven breath, fatigue and feign-death bars.
             .receive_mirror_timers()
+            .receive_loot()
+            .receive_mail()
             // Spellbook, action bar and casting.
             .receive::<KnownSpellsSnapshot>()
             .receive::<SpellsLearned>()
@@ -251,6 +279,7 @@ impl NetworkBridge {
             .receive::<InteractionFailed>()
             .receive::<InteractionClosed>()
             .receive::<protocol::AuctionHouseOpened>()
+            .receive::<protocol::AuctionBrowseResults>()
             .receive::<protocol::AuctionSearchResults>()
             .receive::<protocol::AuctionInventorySnapshot>()
             .receive::<protocol::OwnedAuctionListResponse>()
@@ -538,6 +567,73 @@ fn install_mirror_timer_relay(app: &mut App, events: Sender<Event>) {
     );
 }
 
+/// A single relay preserves order across message types sharing `LootChannel`.
+fn install_loot_relay(app: &mut App, events: Sender<Event>) {
+    use protocol::{CorpseLootable, LootClosed, LootFailed, LootResponse, LootSlotRemoved};
+    app.add_systems(
+        Update,
+        (move |mut lootable: Query<&mut MessageReceiver<CorpseLootable>>,
+               mut opened: Query<&mut MessageReceiver<LootResponse>>,
+               mut removed: Query<&mut MessageReceiver<LootSlotRemoved>>,
+               mut closed: Query<&mut MessageReceiver<LootClosed>>,
+               mut failed: Query<&mut MessageReceiver<LootFailed>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(lootable);
+            drain!(opened);
+            drain!(removed);
+            drain!(closed);
+            drain!(failed);
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+fn install_mail_relay(app: &mut App, events: Sender<Event>) {
+    use protocol::{MailFailed, MailboxContents, PendingMail};
+    app.add_systems(
+        Update,
+        (move |mut contents: Query<&mut MessageReceiver<MailboxContents>>,
+               mut failed: Query<&mut MessageReceiver<MailFailed>>,
+               mut pending: Query<&mut MessageReceiver<PendingMail>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(contents);
+            drain!(failed);
+            drain!(pending);
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
 #[derive(Resource, Default)]
 struct ReplicatedIds(HashMap<Entity, u64>);
 
@@ -575,6 +671,16 @@ fn install_replication(app: &mut App, events: Sender<Event>) {
                     let snapshot = UnitSnapshot::capture(server_id, entity);
                     events
                         .send(Event::UnitUpdated(snapshot))
+                        .expect("host event receiver closed");
+                } else if let Some(info) = entity.get::<protocol::GameObjectInfo>() {
+                    known.0.insert(worker_entity, server_id);
+                    events
+                        .send(Event::GameObjectUpdated(GameObjectSnapshot {
+                            server_id,
+                            info: info.clone(),
+                            position: entity.get::<Position>().copied(),
+                            rotation: entity.get::<Rotation>().copied(),
+                        }))
                         .expect("host event receiver closed");
                 } else if known.0.remove(&worker_entity).is_some() {
                     events

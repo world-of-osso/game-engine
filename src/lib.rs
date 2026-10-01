@@ -121,6 +121,8 @@ pub mod lfg;
 pub mod lfg_data;
 pub mod listfile;
 pub mod little_endian;
+pub mod loot_data;
+pub mod loot_frame_data;
 #[path = "game/loot_state.rs"]
 pub mod loot_state;
 #[path = "game/loss_of_control_data.rs"]
