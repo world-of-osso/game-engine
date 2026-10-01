@@ -317,11 +317,8 @@ fn tooltip_lines(
 fn rect_array(
     tooltip: &game_engine_ui_model::tooltip_presentation::TooltipPresentation,
 ) -> PackedFloat32Array {
-    let size = [
-        game_engine_ui_model::tooltip_presentation::TOOLTIP_W,
-        tooltip.height(),
-    ];
-    PackedFloat32Array::from(&[tooltip.x, tooltip.y, size[0], size[1]][..])
+    let [width, height] = game_engine_ui_model::game_tooltip::tooltip_size(tooltip);
+    PackedFloat32Array::from(&[tooltip.x, tooltip.y, width, height][..])
 }
 
 /// The nearest frame from `id` up whose name `parse` accepts, and what it parsed.
