@@ -51,6 +51,8 @@ func run_test() -> void:
 		return
 	if not await mc_shift_buy(client):
 		return
+	if not await mc_buyback(client):
+		return
 	print("FIXTURE MERCHANT_CURSOR_DONE")
 	# Parent owns deliberate kill/reap/readers drain; not shutdown proof.
 	while true:
@@ -289,6 +291,145 @@ func mc_shift_buy(client: Node) -> bool:
 	if not await mc_shift_wait(client, 5, 964, "") or not await mc_shift_quiet(client, 5, 964, ""):
 		return false
 	print("MERCHANT CURSOR SHIFT FINAL rendered Linen5/money964/no held/source white; fixture authority same GUID9182590 only peer-visible, NOT production server autostack/pricing; opens1/buys2/sells2/four barriers")
+	return true
+
+func mc_buyback(client: Node) -> bool:
+	# Continue only after the unchanged Shift case's rendered Linen5/Gold964.
+	if mc_shift_npc != 4294966979 or not mc_embedded_bag(client):
+		fail("Buyback requires the same exact owned vendor and embedded backpack")
+		return false
+	print("FIXTURE MERCHANT_CURSOR_BUYBACK_SEED")
+	if not await mc_buyback_wait_seed(client):
+		return false
+	if not await mc_buyback_click(client, "MerchantFrameTab2"):
+		return false
+	if not await mc_buyback_wait(client, false) or not await mc_buyback_quiet(client, false):
+		return false
+	print("MERCHANT CURSOR BUYBACK TAB own MerchantUI/title Merchant Buyback/Linen image/count2/price26; bagLinen5/money964/source white/no held/no picker900ms; items diagnostic remains vendor catalog, buyback checked separately")
+	print("FIXTURE MERCHANT_CURSOR_BUYBACK_TAB_OPEN")
+	print("FIXTURE MERCHANT_CURSOR_BUYBACK_REQUEST_ARM")
+	if not await mc_buyback_click(client, MC_SOURCE):
+		return false
+	if not await mc_buyback_wait(client, false) or not await mc_buyback_quiet(client, false):
+		return false
+	print("MERCHANT CURSOR BUYBACK COMMIT pre-delta bagLinen5/money964/list count2/frame retained/no held/no picker900ms; exact npc4294966979 slot0 only peer-visible")
+	print("FIXTURE MERCHANT_CURSOR_BUYBACK_COMMIT")
+	if not await mc_buyback_wait(client, true) or not await mc_buyback_quiet(client, true):
+		return false
+	print("MERCHANT CURSOR BUYBACK FINAL rendered bagLinen7/money938/empty Buyback/tab retained/no cursor/no picker900ms; peer inputs price26/count7 NOT production pricing/autostacking proof; opens1/buys2/sells2/buybacks1/all five barriers")
+	return true
+
+func mc_buyback_click(client: Node, control_name: String) -> bool:
+	var ui := client.get_node_or_null("MerchantUI")
+	var control := mc_control(client, control_name)
+	if ui == null or control == null or not ui.is_ancestor_of(control) or not control.is_visible_in_tree() or not control.get_global_rect().has_area():
+		fail("Buyback physical Left requires actual own control: " + control_name)
+		return false
+	var point := control.get_global_rect().get_center()
+	mc_motion(point, false)
+	await process_frame
+	mc_edge(point, true)
+	await process_frame
+	mc_edge(point, false)
+	await process_frame
+	return true
+
+func mc_buyback_wait_seed(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.merchant_state()
+		if state.buyback == ["Linen Cloth"] and mc_shift_state_matches(client, 5, 964, ""):
+			return true
+	fail("Authoritative BuybackList seed missing with unchanged vendor/bagLinen5/money964: " + str(client.merchant_state()))
+	return false
+
+func mc_buyback_image_matches(client: Node) -> bool:
+	var texture := mc_texture(mc_control(client, MC_SOURCE_ICON))
+	if texture == null or mc_sale_texture == null:
+		return false
+	var actual := texture.texture.get_image()
+	var expected := mc_sale_texture.get_image()
+	if actual == null or expected == null:
+		return false
+	return actual.get_size() == expected.get_size() and actual.get_format() == expected.get_format() and actual.get_data() == expected.get_data()
+
+func mc_buyback_cell_matches(client: Node, empty: bool) -> bool:
+	# Original item_contents -> item_button(prefix + ItemButton) -> Count.
+	# Audit MerchantItem1Count was wrong; authored child is ItemButtonCount.
+	var source := mc_control(client, MC_SOURCE)
+	if source == null or not source.is_visible_in_tree():
+		return false
+	var name_label := mc_control(client, "MerchantItem1Name") as Label
+	var count := mc_control(client, "MerchantItem1ItemButtonCount") as Label
+	var price := mc_control(client, "MerchantItem1MoneyFrameAmount0") as Label
+	if empty:
+		return mc_buyback_empty_cells(client)
+	if name_label == null or count == null or price == null:
+		return false
+	if not name_label.is_visible_in_tree() or not count.is_visible_in_tree() or not price.is_visible_in_tree():
+		return false
+	var extra_price := mc_control(client, "MerchantItem1MoneyFrameAmount1") as Label
+	return name_label.text == "Linen Cloth" and count.text == "2" and price.text == "26" and (extra_price == null or not extra_price.is_visible_in_tree()) and mc_buyback_image_matches(client)
+
+func mc_buyback_empty_cells(client: Node) -> bool:
+	for index in range(1, 13):
+		var prefix := "MerchantItem%s" % index
+		var cell := mc_control(client, prefix)
+		if cell == null or not cell.is_visible_in_tree():
+			return false
+		if mc_texture(mc_control(client, prefix + "ItemButtonIcon")) != null:
+			return false
+		for suffix in ["Name", "ItemButtonCount", "MoneyFrameAmount0"]:
+			var control := mc_control(client, prefix + suffix)
+			if control != null and control.is_visible_in_tree():
+				return false
+	return true
+
+func mc_buyback_no_picker(client: Node) -> bool:
+	for node in client.find_children("StackSplitFrame", "Control", true, false):
+		if (node as Control).is_visible_in_tree():
+			return false
+	var popup := client.find_child("StaticPopup1", true, false) as Control
+	return (popup == null or not popup.is_visible_in_tree()) and client.get_node_or_null("GameMenuUI") == null
+
+func mc_buyback_state_matches(client: Node, committed: bool) -> bool:
+	var state: Dictionary = client.merchant_state()
+	var count := 7 if committed else 5
+	var money := 938 if committed else 964
+	var expected_buyback := [] if committed else ["Linen Cloth"]
+	# items reports the vendor catalog even on Buyback: do not treat it as tab cells.
+	if not mc_shift_inventory_matches(state, count, money) or state.buyback != expected_buyback or state.split_open:
+		return false
+	var frame := mc_control(client, "MerchantFrame")
+	var tab := mc_control(client, "MerchantFrameTab2")
+	var title := mc_control(client, "MerchantFrameTitleText") as Label
+	if frame == null or tab == null or title == null:
+		return false
+	if not frame.is_visible_in_tree() or not tab.is_visible_in_tree() or not title.is_visible_in_tree() or title.text != "Merchant Buyback":
+		return false
+	if not mc_buyback_no_picker(client) or not mc_cursor_matches(client, false):
+		return false
+	if not mc_sale_source_matches(client, count, false) or not mc_split_render_matches(client, count):
+		return false
+	return mc_shift_money_matches(client, money) and mc_buyback_cell_matches(client, committed)
+
+func mc_buyback_wait(client: Node, committed: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if mc_buyback_state_matches(client, committed):
+			return true
+	fail("Buyback missing actual owned title/cell/image/count/price/bag/money/no cursor/no picker; committed=%s state=%s; no feature RED claim without actual runtime" % [committed, client.merchant_state()])
+	return false
+
+func mc_buyback_quiet(client: Node, committed: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_QUIET_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if not mc_buyback_state_matches(client, committed):
+			fail("Buyback900ms quiet state changed; committed=%s state=%s" % [committed, client.merchant_state()])
+			return false
 	return true
 
 func mc_shift_cap(client: Node) -> bool:

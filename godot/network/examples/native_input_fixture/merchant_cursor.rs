@@ -1,9 +1,9 @@
 //! Physical vendor buy -> embedded backpack pickup -> merchant background whole-stack sale.
 use super::*;
 use shared::protocol::{
-    BuyItem, BuybackItemRequest, DestroyItem, EquipItem, InventoryDelta, InventorySlotChange,
-    ItemLocation, ItemStack, RepairItem, SellAllJunkItems, SellItem, SortBags, SplitItem, SwapItem,
-    UseItem,
+    BuyItem, BuybackItem, BuybackItemRequest, BuybackList, DestroyItem, EquipItem, InventoryDelta,
+    InventorySlotChange, ItemLocation, ItemStack, RepairItem, SellAllJunkItems, SellItem, SortBags,
+    SplitItem, SwapItem, UseItem,
 };
 
 const QUIET: Duration = Duration::from_millis(400);
@@ -14,6 +14,7 @@ const DESTINATION: ItemLocation = ItemLocation::Bag { bag: 0, slot: 0 };
 struct Requests {
     buys: Vec<BuyItem>,
     sells: Vec<SellItem>,
+    buybacks: Vec<BuybackItemRequest>,
     forbidden: Vec<String>,
 }
 
@@ -45,8 +46,17 @@ fn receive_merchant(
         requests.sells.extend(receiver.receive());
     }
     collect_forbidden(&mut junk, &mut requests);
-    collect_forbidden(&mut buybacks, &mut requests);
+    collect_buybacks(&mut buybacks, &mut requests);
     collect_forbidden(&mut repairs, &mut requests);
+}
+
+fn collect_buybacks(
+    receivers: &mut Query<&mut MessageReceiver<BuybackItemRequest>>,
+    requests: &mut Requests,
+) {
+    for mut receiver in receivers.iter_mut() {
+        requests.buybacks.extend(receiver.receive());
+    }
 }
 
 fn receive_inventory(
@@ -94,6 +104,10 @@ enum Phase {
     ShiftCap,
     ShiftRequest,
     ShiftDelta,
+    BuybackSeed,
+    BuybackTab,
+    BuybackRequest,
+    BuybackDelta,
     Drain,
 }
 
@@ -104,6 +118,8 @@ struct Session {
     opens: usize,
     buys: usize,
     sells: usize,
+    buybacks: usize,
+    buyback_commit: bool,
     commit: bool,
     sell_commit: bool,
     split_sell_commit: bool,
@@ -140,9 +156,11 @@ impl Session {
                 "merchant-cursor marker before authenticated selection: {line}"
             ));
         }
-        if line.starts_with("FIXTURE MERCHANT_CURSOR_SHIFT_")
+        if line.starts_with("FIXTURE MERCHANT_CURSOR_BUYBACK_")
             || line == "FIXTURE MERCHANT_CURSOR_DONE"
         {
+            self.send_buyback_marker_response(app, line)
+        } else if line.starts_with("FIXTURE MERCHANT_CURSOR_SHIFT_") {
             self.send_shift_buy_marker_response(line)
         } else if line.starts_with("FIXTURE MERCHANT_CURSOR_SPLIT_") {
             self.send_split_marker_response(app, line)
@@ -284,13 +302,61 @@ impl Session {
                 self.require_quiet()?;
                 self.shift_buy_commit = true;
             }
-            (Phase::ShiftDelta, "FIXTURE MERCHANT_CURSOR_DONE") => {
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn send_buyback_marker_response(&mut self, app: &mut App, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
+            (Phase::ShiftDelta, "FIXTURE MERCHANT_CURSOR_BUYBACK_SEED") => {
+                self.require_quiet()?;
+                if !self.completed_shift_buy() {
+                    return Err("buyback seed requires all four original barriers".into());
+                }
+                let vendor = app
+                    .world()
+                    .resource::<Incoming>()
+                    .vendor
+                    .map(Entity::to_bits);
+                if vendor != Some(4_294_966_979) {
+                    return Err(format!(
+                        "buyback seed requires exact owned vendor: {vendor:?}"
+                    ));
+                }
+                send_buyback_seed(app);
+                self.advance(Phase::BuybackSeed);
+            }
+            (Phase::BuybackSeed, "FIXTURE MERCHANT_CURSOR_BUYBACK_TAB_OPEN") => {
+                self.require_quiet()?;
+                self.advance(Phase::BuybackTab);
+            }
+            (Phase::BuybackTab, "FIXTURE MERCHANT_CURSOR_BUYBACK_REQUEST_ARM") => {
+                self.advance(Phase::BuybackRequest);
+            }
+            (Phase::BuybackRequest, "FIXTURE MERCHANT_CURSOR_BUYBACK_COMMIT")
+                if !self.buyback_commit =>
+            {
+                self.require_quiet()?;
+                self.buyback_commit = true;
+            }
+            (Phase::BuybackDelta, "FIXTURE MERCHANT_CURSOR_DONE") => {
                 self.require_quiet()?;
                 self.advance(Phase::Drain);
             }
             _ => return Err(self.marker_order_error(line)),
         }
         Ok(())
+    }
+
+    fn completed_shift_buy(&self) -> bool {
+        self.opens == 1
+            && self.buys == 2
+            && self.sells == 2
+            && self.commit
+            && self.sell_commit
+            && self.split_sell_commit
+            && self.shift_buy_commit
     }
 
     fn completed_split_sale(&self) -> bool {
@@ -361,7 +427,8 @@ impl Session {
                 ));
             }
         }
-        self.respond_to_shift_buy(app)
+        self.respond_to_shift_buy(app)?;
+        self.respond_to_buyback(app)
     }
 
     fn respond_to_shift_buy(&mut self, app: &mut App) -> Result<(), String> {
@@ -382,6 +449,25 @@ impl Session {
             return Err(format!(
                 "merchant-cursor missing exact Shift BuyItem/SHIFT_BUY_COMMIT; buys={} commit={}",
                 self.buys, self.shift_buy_commit
+            ));
+        }
+        Ok(())
+    }
+
+    fn respond_to_buyback(&mut self, app: &mut App) -> Result<(), String> {
+        if self.phase != Phase::BuybackRequest {
+            return Ok(());
+        }
+        if self.buyback_commit && self.buybacks == 1 {
+            send_buyback_commit(
+                app,
+                self.selected.ok_or("buyback requires selected player")?,
+            );
+            self.advance(Phase::BuybackDelta);
+        } else if self.since.elapsed() > REQUEST_WAIT {
+            return Err(format!(
+                "merchant-cursor missing exact BuybackItemRequest/BUYBACK_COMMIT; buybacks={} commit={}",
+                self.buybacks, self.buyback_commit
             ));
         }
         Ok(())
@@ -432,6 +518,9 @@ impl Session {
             .resource::<Incoming>()
             .vendor
             .map(Entity::to_bits);
+        for request in requests.buybacks {
+            self.receive_buyback(request, vendor)?;
+        }
         for request in requests.buys {
             if self.phase == Phase::ShiftRequest {
                 self.receive_shift_buy(request, vendor)?;
@@ -472,6 +561,33 @@ impl Session {
                 "MERCHANT CURSOR DECODED {request:?} count=1; delta and Gold withheld until SELL_COMMIT"
             );
         }
+        Ok(())
+    }
+
+    fn receive_buyback(
+        &mut self,
+        request: BuybackItemRequest,
+        vendor: Option<u64>,
+    ) -> Result<(), String> {
+        let expected = BuybackItemRequest {
+            npc: 4_294_966_979,
+            slot: 0,
+        };
+        if self.phase != Phase::BuybackRequest
+            || self.buybacks != 0
+            || !self.completed_shift_buy()
+            || vendor != Some(expected.npc)
+            || request != expected
+        {
+            return Err(format!(
+                "unexpected/duplicate BuybackItemRequest {request:?} in {:?}; buybacks={}",
+                self.phase, self.buybacks
+            ));
+        }
+        self.buybacks += 1;
+        println!(
+            "MERCHANT CURSOR BUYBACK DECODED {request:?}; Linen5/Gold964/list count2 withheld until BUYBACK_COMMIT"
+        );
         Ok(())
     }
 
@@ -542,6 +658,35 @@ fn send_split_stack(app: &mut App, count: u32) {
         },
     );
     println!("MERCHANT CURSOR SPLIT InventoryDelta bag0/slot0 Linen2589 guid9182590 count{count}");
+}
+
+fn send_buyback_seed(app: &mut App) {
+    send::<_, MerchantChannel>(
+        app,
+        BuybackList {
+            items: vec![BuybackItem {
+                slot: 0,
+                item_id: 2589,
+                name: "Linen Cloth".into(),
+                quality: 1,
+                count: 2,
+                price: 26,
+            }],
+        },
+    );
+    println!(
+        "MERCHANT CURSOR BUYBACK SEED slot0 Linen2589 quality1 count2 price26; inventory/Gold unchanged"
+    );
+}
+
+fn send_buyback_commit(app: &mut App, selected: Entity) {
+    // Explicit peer inputs, not production pricing or automatic stacking proof.
+    send_split_stack(app, 7);
+    app.world_mut().entity_mut(selected).insert(Gold(938));
+    send::<_, MerchantChannel>(app, BuybackList::default());
+    println!(
+        "MERCHANT CURSOR BUYBACK AUTHORITATIVE Linen7 guid9182590 Gold938 empty BuybackList; fixture-only price26/count7"
+    );
 }
 
 fn send_vendor(app: &mut App, npc: u64) {
@@ -649,6 +794,8 @@ fn run_until_done(
         opens: 0,
         buys: 0,
         sells: 0,
+        buybacks: 0,
+        buyback_commit: false,
         commit: false,
         sell_commit: false,
         split_sell_commit: false,
@@ -674,6 +821,8 @@ fn run_until_done(
             if session.opens != 1
                 || session.buys != 2
                 || session.sells != 2
+                || session.buybacks != 1
+                || !session.buyback_commit
                 || !session.commit
                 || !session.sell_commit
                 || !session.split_sell_commit
@@ -719,7 +868,7 @@ pub(super) fn run(
         (Err(error), _) | (_, Err(error)) => Err(error),
         (Ok(()), Ok(())) => {
             println!(
-                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; physical Shift-vendor buy, MerchantUI-owned BOTTOMLEFT=MerchantItem1 TOPLEFT picker172x96, digits40/Up clamp40/Backspace4/1/digit2/Enter, exact once BuyItem count2 destinationNone, pre-delta SHIFT_BUY_COMMIT Linen3/1014/source white/no cursor, fixture authoritative same guid9182590 Linen5/964, opens1/buys2/sells2/four barriers; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
+                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; physical Shift-vendor buy, MerchantUI-owned BOTTOMLEFT=MerchantItem1 TOPLEFT picker172x96, digits40/Up clamp40/Backspace4/1/digit2/Enter, exact once BuyItem count2 destinationNone, pre-delta SHIFT_BUY_COMMIT Linen3/1014/source white/no cursor, fixture authoritative same guid9182590 Linen5/964; seeded BuybackList slot0 Linen2589 quality1 count2 price26, physical own Buyback tab then cell Left press/release, exact once BuybackItemRequest npc4294966979 slot0, pre-delta BUYBACK_COMMIT Linen5/964/list count2/no held/no picker, fixture authoritative same guid9182590 Linen7/938/empty list/tab retained, opens1/buys2/sells2/buybacks1/five barriers; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
             );
             Ok(())
         }
