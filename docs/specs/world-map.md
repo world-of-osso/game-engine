@@ -53,7 +53,7 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 - `src/scenes/world_map_frame/automation_tests.rs` (Bevy host)
 
 ## Known gaps (current cycle)
-- [ ] Local CASC lacks many world-map tiles (e.g. all Elwynn Forest, 11 of 12 Stormwind City, parts of Eastern Kingdoms and Azeroth); those areas draw black.
+- [x] Every art tile resolves from the enUS root record. Map tiles are localized: each FDID has one root record per locale, and only enUS content is in the install. The resolution cache used to keep the last locale's record, so 133,495 FDIDs (Northshire, all of Elwynn Forest and Westfall among them) resolved to absent content keys and drew black. Fix: asset-resolver `a626003`/`bbafd03` (branch `uigaps`). Proof: the `keybinds` fixture reports `missing=0` for Northshire, Elwynn Forest and Westfall (12 tiles each).
 - [ ] Bevy host: no hover highlight, quest pins or faction (it passes none).
 - [ ] `WorldMapFrame` is the only native managed window. The open-map reset is a state test; simultaneous Options-plus-map UI is not keyboard-reachable because Escape closes the map. Other native windows and generic window-manager parity remain unconverted.
 
