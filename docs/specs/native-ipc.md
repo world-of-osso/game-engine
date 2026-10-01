@@ -50,7 +50,7 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 
 ## Tests asserting this spec
 
-- `godot/network/examples/native_ipc_fixture.rs` — parent invokes actual public CLI after native READY; retained six diagnostics/captures/normal-exit checks plus public `export-scene` before captures, exact plain-text response and written JSON.
+- `godot/network/examples/native_ipc_fixture.rs` — parent invokes actual public CLI after native READY; retained six diagnostics/captures/normal-exit checks plus public `export-scene` before captures, exact plain-text response and written JSON. A directory output path must produce the original explicit write error; later capture requests still run.
 - `godot/tests/native_ipc_flow.gd` — retained diagnostic/pixel oracles plus independent exported-JSON checks: schema/tag/TRS arrays, omitted groups/UI/procedural mesh, direct Camera→Light/M2 ancestry, exact loader input, native FOV75/energy2.5 and analytically authored compensated transforms. Camera `(0,0,3)`; skipped group `(4,2,-6)`/Y90; light `(1,3,2)`/X60 becomes camera-relative `(6,5,-7)`; M2 `(-2,1,3)`/Y−90/scale0.5 becomes `(7,3,-4)`/identity quaternion/scale0.5. These new assertions have RED evidence only; no runtime GREEN claimed.
 
 MAIN-observed pre-implementation RED: `/tmp/claude/native-ipc-third-runtime-red.log`, October 1, 2026. Actual Login READY precedes public CLI `ping` failing with `No such file or directory`; this is socket absence, not a fixture setup failure. MAIN accepts independent1531 **bounded PASS** at formatter fix `68dfe530`: [acceptance SSOT](/tmp/claude/verify-native-ipc-diagnostics-accepted.md). Scope: six public diagnostics and the unchanged fixture's normal exit/own socket cleanup, not full conversion.

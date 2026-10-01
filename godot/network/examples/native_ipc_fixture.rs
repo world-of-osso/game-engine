@@ -94,6 +94,26 @@ fn call_cli(
     }
 }
 
+fn expect_export_write_failure(cli: &Path, socket: &Path, artifacts: &Path) -> Result<(), String> {
+    let directory = artifacts.join("export-write-directory");
+    fs::create_dir(&directory).map_err(|error| error.to_string())?;
+    let path = directory.to_str().ok_or("Non-UTF8 export error path")?;
+    let result = call_cli(
+        cli,
+        socket,
+        artifacts,
+        "export-write-error",
+        &["export-scene", path],
+    );
+    match result {
+        Err(error) if error.contains(&format!("error: failed to write {path}:")) => Ok(()),
+        Err(error) => Err(format!("ExportScene failed for the wrong reason: {error}")),
+        Ok(output) => Err(format!(
+            "ExportScene accepted a directory output path: {output}"
+        )),
+    }
+}
+
 fn run_fixture() -> Result<(), String> {
     let repo = fixture_support::checkout_root_from_executable("native_ipc_fixture")?;
     let godot = executable("GODOT_BIN")?;
@@ -185,6 +205,7 @@ fn run_fixture() -> Result<(), String> {
             "CLI export-scene changed existing plain output: {exported:?}"
         ));
     }
+    expect_export_write_failure(&cli, &socket, &artifacts)?;
     fs::write(artifacts.join("verify-export"), "").map_err(|error| error.to_string())?;
     wait_file(&artifacts.join("verified-export"), &mut native)?;
     for phase in ["red", "green"] {
