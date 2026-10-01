@@ -152,6 +152,8 @@ func observe_surface(batch: MeshInstance3D, surface: int) -> bool:
 		"local_aabb": aabb_data(batch.get_aabb()),
 		"global_aabb": aabb_data(batch.global_transform * batch.get_aabb()),
 		"vertices": vertex_bounds(vertices),
+		"uv_bounds": uv_bounds(arrays[Mesh.ARRAY_TEX_UV]),
+		"uv2_bounds": uv_bounds(arrays[Mesh.ARRAY_TEX_UV2]),
 		"local_transform": transform_data(batch.transform),
 		"global_transform": transform_data(batch.global_transform),
 		"material": resource_data(material), "render_priority": material.render_priority,
@@ -210,6 +212,18 @@ func sample_image(image: Image) -> Array:
 			var y := int(row * (image.get_height() - 1) / float(SAMPLE_GRID - 1))
 			result.append({"xy": [x, y], "rgba": color_data(image.get_pixel(x, y))})
 	return result
+
+func uv_bounds(values: PackedVector2Array) -> Dictionary:
+	var low := Vector2(INF, INF)
+	var high := Vector2(-INF, -INF)
+	var finite_count := 0
+	for value in values:
+		if value.is_finite():
+			low = low.min(value)
+			high = high.max(value)
+			finite_count += 1
+	return {"count": values.size(), "finite_count": finite_count,
+		"min": [low.x, low.y], "max": [high.x, high.y]}
 
 func vertex_bounds(vertices: PackedVector3Array) -> Dictionary:
 	var low := Vector3(INF, INF, INF)
