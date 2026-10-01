@@ -23,8 +23,8 @@ pub fn apply_character_create_styles(
     appearance_widgets::apply_dropdown_background_style(registry, open_dropdown);
 }
 use char_create_widgets::{
-    body_type_buttons, bottom_buttons, camera_controls, category_button, class_button,
-    faction_column, name_input_field, small_button,
+    altered_form_buttons, body_type_buttons, bottom_buttons, camera_controls, category_button,
+    class_button, faction_column, name_input_field, small_button,
 };
 use reference_layout::*;
 
@@ -191,6 +191,7 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
         r#frame { name: CHAR_CREATE_ROOT, width: "fill", height: "fill", strata: FrameStrata::Background,
             {content}
             {body_type_buttons(state)}
+            {altered_form_buttons(state)}
             {bottom_buttons(state.mode)}
         }
     }

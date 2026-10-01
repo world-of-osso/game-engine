@@ -313,6 +313,7 @@ mod tests {
                         hair_color: 5,
                         facial_style: 1,
                         customization_choices: Vec::new(),
+                        visage: None,
                     },
                     gold: 80_000,
                 }),
