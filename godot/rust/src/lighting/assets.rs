@@ -1,6 +1,10 @@
 //! Authored light catalogs loaded on the terrain asset worker.
 
-use std::{collections::HashMap, fs, path::Path};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use game_engine_core::{
     light_lookup_data::{
@@ -13,8 +17,11 @@ use game_engine_core::{
         FogKeyframes, FogResult, parse_fog_keyframes, sample_fog_blend, sun_fog_direction,
     },
     retail_light_data::{RetailLightColors, RetailLightData, scene_light},
+    sky_bodies::{LIGHT_PARAMS_HIDE_STARS, STARS_FDID, stars_alpha},
     sky_lightdata_data::{RetailFog, SkyColorSet, retail_fog, sample_light_blend},
 };
+
+use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
 
 pub(crate) struct LightingCatalog {
     lights: Vec<LightEntry>,
@@ -24,6 +31,9 @@ pub(crate) struct LightingCatalog {
     /// `LightParams` Water/Ocean Shallow/Deep alphas and flags by LightParams ID.
     liquid_alphas: HashMap<u32, LiquidAlphas>,
     light_params_flags: HashMap<u32, u32>,
+    pub data_root: PathBuf,
+    /// The stars model, extracted from local CASC with its skin and textures.
+    pub stars_path: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -39,6 +49,8 @@ pub(crate) struct LightingSample {
     pub fog_sun_direction: [f32; 3],
     pub sky: SkyColorSet<[f32; 3]>,
     pub water: WaterLight,
+    /// The stars model's alpha, `None` when no stars are drawn.
+    pub stars_alpha: Option<f32>,
 }
 
 /// Scene inputs of the retail water material in authored RGB (WebWowViewerCpp
@@ -74,6 +86,11 @@ impl LightingCatalog {
         .map_err(|error| format!("{}: {error}", data_root.display()))?;
         let (liquid_alphas, light_params_flags) =
             parse_light_params(&data_root.join("db2/12.1.0.69933/LightParams.csv"))?;
+        let resolver = local_resolver(data_root);
+        let stars_path = cache_model_files(&resolver, data_root, STARS_FDID)
+            .map_err(|error| format!("Stars model {STARS_FDID}: {error}"))?;
+        let stars = crate::assets::read_model_file(&stars_path)?;
+        cache_model_textures(&resolver, data_root, &[0; 3], &stars)?;
         Ok(Self {
             lights,
             zone_lights,
@@ -81,6 +98,8 @@ impl LightingCatalog {
             fog_keyframes,
             liquid_alphas,
             light_params_flags,
+            data_root: data_root.to_path_buf(),
+            stars_path,
         })
     }
 
@@ -124,6 +143,16 @@ impl LightingCatalog {
             fog_sun_direction: sun_fog_direction(minutes),
             sky,
             water,
+            stars_alpha: stars_alpha(minutes, self.blend_flag(&weights, LIGHT_PARAMS_HIDE_STARS)),
+        })
+    }
+
+    /// LightParams flag `flag` as a blendable 0/1 overlaid by weight, as
+    /// `calcLightParamResult` turns flags into `SkyBodyData` blends.
+    fn blend_flag(&self, weights: &[(u32, f32)], flag: u32) -> f32 {
+        weights.iter().fold(0.0, |blended, &(id, weight)| {
+            let set = self.light_params_flags.get(&id).is_some_and(|f| f & flag != 0);
+            lerp(blended, f32::from(u8::from(set)), weight)
         })
     }
 

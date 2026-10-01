@@ -18,6 +18,9 @@ use godot::{
 };
 
 use assets::{LightingCatalog, LightingSample, WaterLight};
+use game_engine_core::sky_bodies::STARS_FDID;
+
+use crate::sky_model::SkyModel;
 
 type SkyStops = [[f32; 3]; 7];
 
@@ -117,7 +120,8 @@ pub(crate) struct WorldLighting {
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
     sky: Option<Gd<ShaderMaterial>>,
-    previous: Option<(RetailLightData, FogResult, SkyStops, WaterLight)>,
+    stars: Option<SkyModel>,
+    previous: Option<(RetailLightData, FogResult, SkyStops, WaterLight, Option<f32>)>,
 }
 
 const SKY_DOME_SHADER: &str = "res://shaders/sky_dome.gdshader";
@@ -146,7 +150,14 @@ impl WorldLighting {
             sky.fog_color,
         ];
         let fog = apply_wmo_fog(&sample.fog, wmo_fog);
-        let values = (sample.retail.clone(), fog, stops, sample.water.clone());
+        let stars_alpha = sample.stars_alpha;
+        let values = (
+            sample.retail.clone(),
+            fog,
+            stops,
+            sample.water.clone(),
+            stars_alpha,
+        );
         if self.previous.as_ref() == Some(&values) {
             return Ok(None);
         }
@@ -154,12 +165,37 @@ impl WorldLighting {
         let light = TerrainLight::new(sample, fog)?;
         self.attach_nodes(parent)?;
         bind_sky_dome(self.sky.as_mut().expect("attached sky"), &stops, &light.fog);
+        self.sync_stars(catalog, stars_alpha)?;
         self.sun
             .as_mut()
             .expect("attached sun")
             .look_at_from_position(Vector3::ZERO, direction);
         self.previous = Some(values);
         Ok(Some(light))
+    }
+
+    /// map.cpp: the stars model draws in the sky view while `stars.enabled`, at the
+    /// night alpha.
+    fn sync_stars(&mut self, catalog: &LightingCatalog, alpha: Option<f32>) -> Result<(), String> {
+        if self.stars.is_none() && alpha.is_some() {
+            let stars = SkyModel::load(&catalog.data_root, STARS_FDID, &catalog.stars_path)?;
+            self.root.as_mut().expect("attached root").add_child(&stars.node);
+            self.stars = Some(stars);
+        }
+        if let Some(stars) = self.stars.as_mut() {
+            stars.node.set_visible(alpha.is_some());
+            stars.set_alpha(alpha.unwrap_or(0.0));
+        }
+        Ok(())
+    }
+
+    /// Sky models sit on the camera (WebWowViewerCpp's sky view drops the view
+    /// translation) and play their animation at `time_ms`.
+    pub fn place_sky(&mut self, camera: Vector3, time_ms: u32) {
+        if let Some(stars) = self.stars.as_mut().filter(|stars| stars.node.is_visible()) {
+            stars.node.set_global_position(camera);
+            stars.sample(time_ms);
+        }
     }
 
     fn attach_nodes(&mut self, parent: &mut Gd<Node3D>) -> Result<(), String> {
@@ -196,6 +232,7 @@ impl WorldLighting {
     pub fn reset(&mut self) {
         self.sun = None;
         self.sky = None;
+        self.stars = None;
         if let Some(root) = self.root.take() {
             root.free();
         }

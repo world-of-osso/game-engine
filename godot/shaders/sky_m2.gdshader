@@ -7,6 +7,8 @@ uniform sampler2D third_texture : source_color, repeat_enable;
 uniform sampler2D fourth_texture : source_color, repeat_enable;
 uniform vec4 base_color : source_color = vec4(1.0);
 uniform float transparency = 1.0;
+// The model alpha (M2Object::setAlpha): stars' night brightness, skybox blend weights.
+uniform float model_alpha = 1.0;
 uniform float alpha_test = 0.0;
 uniform int combine_mode = 0;
 uniform bool has_second_texture = false;
@@ -81,7 +83,7 @@ void fragment() {
 		color = combine_textures(color, second, third, fourth);
 	}
 	color *= base_color;
-	color.a = clamp(color.a * transparency, 0.0, 1.0);
+	color.a = clamp(color.a * transparency * model_alpha, 0.0, 1.0);
 	if (color.a < alpha_test) {
 		discard;
 	}

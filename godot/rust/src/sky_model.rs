@@ -1,4 +1,6 @@
-//! Scene-one authored sky: M2 geometry and texture stages stay behind world depth.
+//! Authored sky M2s (character-select skyboxes, in-world stars): M2 geometry and texture
+//! stages drawn behind world depth, with an overall model alpha (WebWowViewerCpp
+//! `M2Object::setAlpha`, as `map.cpp` sets the stars' and `SkyBoxCollector` the skyboxes').
 use std::path::Path;
 
 use game_engine_core::{
@@ -15,8 +17,6 @@ use godot::{
 
 use crate::{animation::WowAnimationPlayer, assets};
 
-const SKY_FDID: u32 = 525142;
-const SKY_NAME: &str = "costalislandskybox";
 const SHADER_PATH: &str = "res://shaders/sky_m2.gdshader";
 const RENDER_MODE: &str =
     "render_mode unshaded, fog_disabled, cull_back, blend_mix, depth_draw_never, shadows_disabled;";
@@ -29,27 +29,41 @@ struct AnimatedBatch {
     second_uv: Option<m2::AnimTrack<[f32; 3]>>,
 }
 
-pub(super) struct Sky {
+pub(crate) struct SkyModel {
     pub node: Gd<Node3D>,
+    /// Every batch's material, for the model alpha.
+    materials: Vec<Gd<ShaderMaterial>>,
     animations: Vec<AnimatedBatch>,
     global_sequences: Vec<u32>,
     default_sequence_index: usize,
+    alpha: f32,
 }
 
-impl Sky {
-    pub fn load(data_root: &Path) -> Result<Self, String> {
-        let path = data_root
-            .join("models/skyboxes")
-            .join(format!("{SKY_NAME}.m2"));
+impl SkyModel {
+    /// Sky M2 `fdid`, cached at `path` with its skin and its textures under
+    /// `data_root/textures`.
+    pub fn load(data_root: &Path, fdid: u32, path: &Path) -> Result<Self, String> {
         if !path.is_file() {
             return Err(format!(
-                "Sky FDID {SKY_FDID} missing cached model {}",
+                "Sky FDID {fdid} missing cached model {}",
                 path.display()
             ));
         }
         let model = assets::read_model(&GString::from(path.to_string_lossy().as_ref()))?;
-        let prepared = prepare_batches(&model, data_root)?;
-        assemble_sky(model, prepared)
+        let prepared = prepare_batches(&model, data_root, fdid)?;
+        assemble_sky(model, prepared, fdid)
+    }
+
+    /// The model alpha every batch's transparency is multiplied by.
+    pub fn set_alpha(&mut self, alpha: f32) {
+        self.alpha = alpha;
+        for material in &mut self.materials {
+            material.set_shader_parameter("model_alpha", &alpha.to_variant());
+        }
+    }
+
+    pub fn alpha(&self) -> f32 {
+        self.alpha
     }
 
     pub fn sample(&mut self, time_ms: u32) {
@@ -92,10 +106,14 @@ impl Sky {
 
 type PreparedBatch = (ResolvedBatch, Gd<ArrayMesh>, Gd<ShaderMaterial>);
 
-fn prepare_batches(model: &m2::Model, data_root: &Path) -> Result<Vec<PreparedBatch>, String> {
+fn prepare_batches(
+    model: &m2::Model,
+    data_root: &Path,
+    fdid: u32,
+) -> Result<Vec<PreparedBatch>, String> {
     let batches = m2::resolve_render_batches(model, &[0; 3], true, |_| None)?;
     if batches.is_empty() {
-        return Err(format!("Sky FDID {SKY_FDID} has no render batches"));
+        return Err(format!("Sky FDID {fdid} has no render batches"));
     }
     let shader = load_shader_source()?;
     let mut ordered = batches;
@@ -108,7 +126,7 @@ fn prepare_batches(model: &m2::Model, data_root: &Path) -> Result<Vec<PreparedBa
     });
     if ordered.len() > 256 {
         return Err(format!(
-            "Sky FDID {SKY_FDID} needs {} render priorities (maximum 256)",
+            "Sky FDID {fdid} needs {} render priorities (maximum 256)",
             ordered.len()
         ));
     }
@@ -123,13 +141,17 @@ fn prepare_batches(model: &m2::Model, data_root: &Path) -> Result<Vec<PreparedBa
                 )
             })?;
             let mesh = assets::build_batch_mesh(model, submesh)?;
-            let material = build_material(&batch, &shader, data_root, order as i32 - 128)?;
+            let material = build_material(&batch, &shader, data_root, fdid, order as i32 - 128)?;
             Ok((batch, mesh, material))
         })
         .collect()
 }
 
-fn assemble_sky(model: m2::Model, prepared: Vec<PreparedBatch>) -> Result<Sky, String> {
+fn assemble_sky(
+    model: m2::Model,
+    prepared: Vec<PreparedBatch>,
+    fdid: u32,
+) -> Result<SkyModel, String> {
     let (skeleton, skin) = assets::build_skeleton(&model.bones);
     let player = if model.sequences.is_empty() {
         None
@@ -143,14 +165,16 @@ fn assemble_sky(model: m2::Model, prepared: Vec<PreparedBatch>) -> Result<Sky, S
         }
     };
     let mut node = Node3D::new_alloc();
-    node.set_name("AuthoredSky525142");
+    node.set_name(&format!("AuthoredSky{fdid}"));
     node.add_child(&skeleton);
     if let Some(mut player) = player {
         player.set_name("M2Animation");
         node.add_child(&player);
     }
     let mut animations = Vec::new();
+    let mut materials = Vec::new();
     for (batch, mesh, material) in prepared {
+        materials.push(material.clone());
         if batch.transparency_anim.is_some()
             || batch.color_opacity_anim.is_some()
             || batch.texture_anim.is_some()
@@ -177,8 +201,9 @@ fn assemble_sky(model: m2::Model, prepared: Vec<PreparedBatch>) -> Result<Sky, S
         }
         node.add_child(&instance);
     }
-    let mut sky = Sky {
+    let mut sky = SkyModel {
         node,
+        materials,
         animations,
         global_sequences: model.global_sequences,
         default_sequence_index: model
@@ -186,6 +211,7 @@ fn assemble_sky(model: m2::Model, prepared: Vec<PreparedBatch>) -> Result<Sky, S
             .iter()
             .position(|sequence| sequence.id == 0)
             .unwrap_or(0),
+        alpha: 1.0,
     };
     sky.sample(0);
     Ok(sky)
@@ -266,6 +292,7 @@ fn build_material(
     batch: &ResolvedBatch,
     source: &str,
     data_root: &Path,
+    fdid: u32,
     priority: i32,
 ) -> Result<Gd<ShaderMaterial>, String> {
     let cull = if batch.render_flags & 4 != 0 {
@@ -291,18 +318,11 @@ fn build_material(
     material.set_render_priority(priority);
     let texture_dir = data_root.join("textures");
     let mut missing = PackedInt32Array::new();
-    let first = load_stage(batch.texture_fdid, &texture_dir, &mut missing)?;
-    let second = load_stage(batch.texture_2_fdid, &texture_dir, &mut missing)?;
-    let third = load_stage(
-        batch.extra_texture_fdids.first().copied(),
-        &texture_dir,
-        &mut missing,
-    )?;
-    let fourth = load_stage(
-        batch.extra_texture_fdids.get(1).copied(),
-        &texture_dir,
-        &mut missing,
-    )?;
+    let mut stage = |texture: Option<u32>| load_stage(texture, &texture_dir, fdid, &mut missing);
+    let first = stage(batch.texture_fdid)?;
+    let second = stage(batch.texture_2_fdid)?;
+    let third = stage(batch.extra_texture_fdids.first().copied())?;
+    let fourth = stage(batch.extra_texture_fdids.get(1).copied())?;
     for (name, stage) in [
         ("base_texture", first.as_ref()),
         ("second_texture", second.as_ref().or(first.as_ref())),
@@ -336,17 +356,18 @@ fn build_material(
 }
 
 fn load_stage(
-    fdid: Option<u32>,
+    texture: Option<u32>,
     dir: &Path,
+    model_fdid: u32,
     missing: &mut PackedInt32Array,
 ) -> Result<Option<Gd<ImageTexture>>, String> {
-    let Some(fdid) = fdid else {
+    let Some(texture) = texture else {
         return Ok(None);
     };
-    assets::material::shared_texture(fdid, dir, missing)?
+    assets::material::shared_texture(texture, dir, missing)?
         .ok_or_else(|| {
             format!(
-                "Sky FDID {SKY_FDID} missing texture {fdid} at {}",
+                "Sky FDID {model_fdid} missing texture {texture} at {}",
                 dir.display()
             )
         })
