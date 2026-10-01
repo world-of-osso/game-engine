@@ -147,7 +147,7 @@ impl GameClient {
         let Some(screen) = self.tooltip_screen() else {
             return Ok(GameTooltipView::default());
         };
-        let hovered = match self.hovered_ui_frame() {
+        let hovered = match self.hovered_ui_frame()? {
             Some(hit) => self.frame_tooltip(&hit),
             None => match self.minimap_button_tooltip() {
                 Some(tooltip) => Some(tooltip),
@@ -182,33 +182,12 @@ impl GameClient {
         Some(u16::from(level.0))
     }
 
-    /// The topmost visible mouse-enabled frame under the pointer over every mounted
-    /// registry but the tooltip's and the cursor item's: highest canvas layer, then strata,
-    /// frame level and raise order.
-    fn hovered_ui_frame(&mut self) -> Option<HoveredFrame> {
+    /// The frame the pointer hovers: the same topmost-canvas test as clicks
+    /// ([`Self::ui_hit_at`]), past the tooltip's and the cursor item's own canvases.
+    fn hovered_ui_frame(&mut self) -> Result<Option<HoveredFrame>, String> {
         let at = Vector2::from_array(self.physical_input.pointer());
         let skip = [self.tooltips.ui.clone(), self.bags.cursor.ui.clone()];
-        let mut best: Option<((i32, (u8, i32, i32)), HoveredFrame)> = None;
-        let _ = self.for_each_registry_ui(|ui| {
-            if !ui.is_visible() || skip.iter().flatten().any(|other| other == ui) {
-                return Ok(());
-            }
-            let Some((frame, order)) = ui.bind().pointer_frame_at(at) else {
-                return Ok(());
-            };
-            let key = (ui.get_layer(), order);
-            if best.as_ref().is_none_or(|(best, _)| key > *best) {
-                best = Some((
-                    key,
-                    HoveredFrame {
-                        ui: ui.clone(),
-                        frame,
-                    },
-                ));
-            }
-            Ok(())
-        });
-        best.map(|(_, hit)| hit)
+        self.ui_frame_at(at, &skip)
     }
 
     /// The owner rect `[x, y, w, h]` in UI units of frame `id` of `ui`.

@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use godot::classes::{
@@ -16,6 +16,7 @@ use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
 use ui_toolkit::widgets::texture::TextureSource;
 
 use super::assets;
+use super::input_queue::PendingInputs;
 use super::layout;
 use super::parts::{self, ImagePart, TextPart};
 use crate::frame_error::report_once;
@@ -89,7 +90,7 @@ impl UiProjection {
             root,
             nodes: HashMap::new(),
             visuals: HashMap::new(),
-            pending: Rc::new(RefCell::new(VecDeque::new())),
+            pending: PendingInputs::default(),
             slider_capture: Rc::new(RefCell::new(None)),
             fonts: HashMap::new(),
             textures: HashMap::new(),
@@ -99,16 +100,6 @@ impl UiProjection {
     /// The control projecting frame `id`.
     pub fn node(&self, id: u64) -> Option<Gd<Control>> {
         self.nodes.get(&id).cloned()
-    }
-
-    /// None means world; Some(None) means a blocking frame without a click action.
-    pub fn pointer_action_at(
-        &self,
-        registry: &FrameRegistry,
-        at: Vector2,
-    ) -> Option<Option<String>> {
-        let frame = self.pointer_frame_at(registry, at)?;
-        Some(frame_click_action(registry, frame.id))
     }
 
     /// The topmost visible mouse-enabled frame containing the physical point.
@@ -162,14 +153,13 @@ impl UiProjection {
         }
     }
 
-    pub fn drain_input(&mut self) -> Vec<UiInput> {
-        self.pending.borrow_mut().drain(..).collect()
+    /// Pending input with its arrival stamp, oldest first.
+    pub fn drain_input(&mut self) -> Vec<(u64, UiInput)> {
+        self.pending.drain()
     }
 
     pub fn has_pointer_down(&self) -> bool {
         self.pending
-            .borrow()
-            .iter()
             .any(|input| matches!(input, UiInput::PointerDown(_)))
     }
 
@@ -178,18 +168,17 @@ impl UiProjection {
         let release = left_pointer_release(event);
         if let Some(button) = release.as_ref() {
             self.pending
-                .borrow_mut()
-                .push_back(UiInput::PointerUp(button.get_global_position()));
+                .push(UiInput::PointerUp(button.get_global_position()));
         }
         let capture = *self.slider_capture.borrow();
         let Some(capture) = capture else { return };
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
-            self.pending.borrow_mut().push_back(UiInput::Slider(
+            self.pending.push(UiInput::Slider(
                 capture.id,
                 slider_percent(motion.get_global_position().x, capture.x, capture.width),
             ));
         } else if let Some(button) = release {
-            self.pending.borrow_mut().push_back(UiInput::Slider(
+            self.pending.push(UiInput::Slider(
                 capture.id,
                 slider_percent(button.get_global_position().x, capture.x, capture.width),
             ));
@@ -721,8 +710,6 @@ fn color([r, g, b, a]: [f32; 4]) -> Color {
     Color::from_rgba(r, g, b, a)
 }
 
-type PendingInputs = Rc<RefCell<VecDeque<UiInput>>>;
-
 #[derive(Clone, Copy)]
 struct SliderCapture {
     id: u64,
@@ -759,7 +746,7 @@ fn connect_slider(
             x: rect.position.x,
             width: rect.size.x,
         });
-        pending.borrow_mut().push_back(UiInput::Slider(
+        pending.push(UiInput::Slider(
             id,
             slider_percent(button.get_global_position().x, rect.position.x, rect.size.x),
         ));
@@ -769,9 +756,7 @@ fn connect_slider(
 
 fn emit(pending: &PendingInputs, input: UiInput) -> Callable {
     let pending = pending.clone();
-    Callable::from_fn("registry-input", move |_| {
-        pending.borrow_mut().push_back(input.clone())
-    })
+    Callable::from_fn("registry-input", move |_| pending.push(input.clone()))
 }
 
 fn left_pointer_release(event: &Gd<InputEvent>) -> Option<Gd<InputEventMouseButton>> {
@@ -782,7 +767,7 @@ fn left_pointer_release(event: &Gd<InputEvent>) -> Option<Gd<InputEventMouseButt
 }
 
 /// Original cursor hit policy walks from the mouse-enabled frame to its action.
-fn frame_click_action(registry: &FrameRegistry, mut id: u64) -> Option<String> {
+pub(crate) fn frame_click_action(registry: &FrameRegistry, mut id: u64) -> Option<String> {
     loop {
         let frame = registry.get(id)?;
         if let Some(action) = frame.onclick.as_ref() {
@@ -802,7 +787,7 @@ fn connect_pointer_down(pending: &PendingInputs, id: u64, node: &mut Gd<Control>
                 event.is_pressed() && event.get_button_index() == godot::global::MouseButton::LEFT
             });
         if left_press {
-            pending.borrow_mut().push_back(UiInput::PointerDown(id));
+            pending.push(UiInput::PointerDown(id));
         }
     });
     node.connect("gui_input", &callback);
@@ -829,7 +814,7 @@ fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>)
             (true, _) | (_, true) => UiInput::AltClick { id, right, shift },
             _ => return,
         };
-        pending.borrow_mut().push_back(input);
+        pending.push(input);
     });
     node.connect("gui_input", &callback);
 }
@@ -850,9 +835,7 @@ fn connect_edit_box(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
     let text_pending = pending.clone();
     let text_changed = Callable::from_fn("registry-text-changed", move |args| {
         if let Some(text) = args.first() {
-            text_pending
-                .borrow_mut()
-                .push_back(UiInput::Text(id, text.to::<GString>().to_string()));
+            text_pending.push(UiInput::Text(id, text.to::<GString>().to_string()));
         }
     });
     node.connect("text_changed", &text_changed);
