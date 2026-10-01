@@ -7,7 +7,9 @@ use std::{
 
 use crate::frame_error::SessionError;
 use crate::mirror_timers::MirrorTimerMessage;
-use game_engine_network::{Event, NetworkBridge, ProtocolMessage, UnitSnapshot};
+use game_engine_network::{
+    Event, GameObjectSnapshot, NetworkBridge, ProtocolMessage, UnitSnapshot,
+};
 use game_engine_session::{
     AuthRequest, ReconnectPhase, Session, SessionEffect, SessionOptions, SessionScreen,
     normalize_auth_token, token_path,
@@ -30,6 +32,9 @@ use shared::protocol::{
     InteractionChannel, InteractionClosed, InteractionFailed, InteractionOpened, InventoryDelta,
     InventoryError, InventorySnapshot, MerchantChannel, MerchantFailed, RepairItem,
     SellAllJunkItems, SellItem, VendorInventory,
+};
+use shared::protocol::{
+    MailChannel, MailFailed, MailRequest, MailboxContents, PendingMail, UseGameObject,
 };
 
 use game_engine_ui_model::merchant_data::MerchantRequest;
@@ -96,6 +101,7 @@ pub enum AccountEvent {
     NewWorld(NewWorld),
     TransferError(String),
     UnitUpdated(UnitSnapshot),
+    GameObjectUpdated(GameObjectSnapshot),
     UnitRemoved(u64),
     /// The character roster changed through a server update or response.
     RosterChanged,
@@ -113,9 +119,16 @@ pub enum AccountEvent {
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
     Auction(AuctionReply),
+    Mail(MailMessage),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
+}
+
+pub(crate) enum MailMessage {
+    Contents(MailboxContents),
+    Failed(MailFailed),
+    Pending(PendingMail),
 }
 
 /// Authoritative loot traffic, retained in `LootChannel` send order.
@@ -151,7 +164,8 @@ pub enum NpcMessage {
     InventoryChanged(InventoryDelta),
     /// `DurabilityStateUpdate.total_repair_cost` (`GetRepairAllCost`).
     RepairCost(u32),
-    /// Retail `UIErrorsFrame` text of a refused interaction, vendor or bag request.
+    InteractionError(InteractionFailed),
+    /// Retail `UIErrorsFrame` text of a refused vendor or bag request.
     Error(String),
 }
 
@@ -341,6 +355,18 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_use_game_object(&self, object: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InteractionChannel>(UseGameObject { object })
+            .map_err(SessionError)
+    }
+
+    pub fn send_mail_request(&self, request: MailRequest) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, MailChannel>(request)
+            .map_err(SessionError)
+    }
+
     pub fn send_loot_unit(&self, corpse: u64, auto: bool) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, LootChannel>(LootUnit { corpse, auto })
@@ -505,6 +531,9 @@ impl Account {
                 }
                 Event::Message(message) => self.dispatch_message(message, &mut output)?,
                 Event::UnitUpdated(unit) => output.push(AccountEvent::UnitUpdated(unit)),
+                Event::GameObjectUpdated(object) => {
+                    output.push(AccountEvent::GameObjectUpdated(object))
+                }
                 Event::UnitRemoved(id) => output.push(AccountEvent::UnitRemoved(id)),
             }
             if self.bridge.is_none() {
@@ -529,6 +558,18 @@ impl Account {
         }
         if Self::is_mirror_timer_message(&message) {
             return Self::dispatch_mirror_timer_message(message, output);
+        }
+        if message.is::<MailboxContents>() {
+            output.push(AccountEvent::Mail(MailMessage::Contents(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<MailFailed>() {
+            output.push(AccountEvent::Mail(MailMessage::Failed(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<PendingMail>() {
+            output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
         }
         if is_loot_message(&message) {
             output.push(AccountEvent::Loot(receive_loot_message(message)?));
@@ -879,7 +920,7 @@ fn npc_message(message: ProtocolMessage) -> Result<Result<NpcMessage, ProtocolMe
     } else if message.is::<InteractionClosed>() {
         NpcMessage::Closed(decode::<InteractionClosed>(message)?.npc)
     } else if message.is::<InteractionFailed>() {
-        NpcMessage::Error(decode::<InteractionFailed>(message)?.error.message().into())
+        NpcMessage::InteractionError(decode(message)?)
     } else if message.is::<VendorInventory>() {
         NpcMessage::Vendor(decode(message)?)
     } else if message.is::<BuybackList>() {

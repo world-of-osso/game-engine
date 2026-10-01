@@ -50,16 +50,14 @@ struct Scene {
 
 pub(crate) struct CreationScene {
     data_root: PathBuf,
-    cache_root: PathBuf,
     catalog: Option<CreationSceneCatalog>,
     scene: Option<Scene>,
 }
 
 impl CreationScene {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         Self {
             data_root,
-            cache_root,
             catalog: None,
             scene: None,
         }
@@ -87,11 +85,11 @@ impl CreationScene {
             .as_ref()
             .is_none_or(|scene| scene.backdrop.fdid != fdid)
         {
-            let backdrop = load_backdrop(&self.data_root, &self.cache_root, fdid)?;
+            let backdrop = load_backdrop(&self.data_root, fdid)?;
             self.replace_backdrop(parent, backdrop);
         }
         let scene = self.scene.as_mut().expect("backdrop loaded above");
-        scene.sync_character(&self.data_root, &self.cache_root, state, db)?;
+        scene.sync_character(&self.data_root, state, db)?;
         if let Some(control) = state.camera_action.take() {
             scene.orbit.apply_control(control);
         }
@@ -155,7 +153,6 @@ impl Scene {
     fn sync_character(
         &mut self,
         data_root: &Path,
-        cache_root: &Path,
         state: &CharCreateState,
         db: &CustomizationDb,
     ) -> Result<(), String> {
@@ -181,12 +178,7 @@ impl Scene {
             appearance: key.appearance.clone(),
         };
         // Original creation previews the unequipped body.
-        let mut model = load_player_model(
-            data_root,
-            cache_root,
-            &player,
-            &EquipmentAppearance::default(),
-        )?;
+        let mut model = load_player_model(data_root, &player, &EquipmentAppearance::default())?;
         model.set_name("CreationCharacter");
         model.set_rotation(Vector3::new(0.0, -FRAC_PI_2, 0.0));
         let scale = db
@@ -212,8 +204,8 @@ impl Scene {
     }
 }
 
-fn load_backdrop(data_root: &Path, cache_root: &Path, fdid: u32) -> Result<Backdrop, String> {
-    let resolver = local_resolver(data_root, cache_root);
+fn load_backdrop(data_root: &Path, fdid: u32) -> Result<Backdrop, String> {
+    let resolver = local_resolver(data_root);
     let path = cache_model_files(&resolver, data_root, fdid)?;
     let bytes = fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
     let camera = parse_camera_snapshot(&bytes)?;

@@ -22,11 +22,12 @@ pub mod ui {
         }
         pub(crate) use crate::screen_title;
         pub use crate::{
-            bag_frame_component, buff_frame_component, default_button_atlas, game_menu_component,
-            inworld_unit_frames_component, loot_frame_component, menu_primitives,
-            merchant_frame_component, objective_tracker_component, options_menu_active_sections,
-            options_menu_component, options_menu_sections, quest_art, stack_split_frame_component,
-            trash_button_component, world_map_frame_art, world_map_frame_component,
+            auction_house_frame_component, bag_frame_component, bank_art, buff_frame_component,
+            default_button_atlas, game_menu_component, inworld_unit_frames_component,
+            loot_frame_component, mail_frame_component, menu_primitives, merchant_frame_component,
+            objective_tracker_component, options_menu_active_sections, options_menu_component,
+            options_menu_sections, quest_art, stack_split_frame_component, trash_button_component,
+            world_map_frame_art, world_map_frame_component,
         };
 
         #[cfg(test)]
@@ -137,6 +138,12 @@ pub mod options_menu_data;
 pub mod options_menu_sections;
 #[path = "../../../src/ui/panel_style_data.rs"]
 pub mod panel_style_data;
+
+#[path = "../../../src/ui/screens/bank_art.rs"]
+pub mod bank_art;
+pub mod mail;
+#[path = "../../../src/ui/screens/mail_frame_component.rs"]
+pub mod mail_frame_component;
 
 pub mod auction;
 #[path = "../../../src/ui/screens/auction_house_frame_component.rs"]

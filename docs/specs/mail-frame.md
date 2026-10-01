@@ -4,7 +4,20 @@ The Retail `MailFrame` and `OpenMailFrame` at Mailbox game objects, and the mini
 
 References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Blizzard_Minimap/Mainline/Minimap.xml` under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
 
-## What it must do
+## Native Godot receiving slice
+
+Native source implements the auction-delivery dependency; the checklists below describe the preserved Bevy client, not native runtime proof.
+
+- Replicated type-19 `GameObjectInfo` and `Position` identify real mailboxes. Render/pick the `GameObjectDisplayInfo.FileDataID` model with replicated rotation/scale; unresolved metadata, models or textures must report their precise asset error, never substitute a mailbox.
+- Right-click within 5 yards sends `UseGameObject`. Only its matching Mailbox role opens the receiving frame; matching `MailboxContents` may arrive before that role. Closed, unrelated and stale mailbox traffic must not reopen it.
+- Reuse authored `MailFrame`/`OpenMailFrame`, seven-row inbox paging, sender/subject/body and fixed attachment slots. Native slice excludes sending, reply, delete/return actions, bulk Open All and COD payment; COD attachments are not claimable here.
+- Row selection marks unread mail read. `TakeMoney`/`TakeAttachment` address the open object and actual mail/attachment IDs, with one pending request until matching contents or failure. Claims must not predict currency, inventory or attachment removal.
+- Server `Gold`, `InventorySnapshot`/`InventoryDelta` and refreshed mailbox contents update native state/backpack; failures show server UI text. Close/Escape, server close, object removal, transfer and session reset close receiving state.
+- Focused native metadata, interaction/model/authored-registry and owned UDP tests cover source behavior. Main owns CLI-first AH proof, extension build, actual native receiving fixture and final integration; no source-only test establishes rendered/live acceptance.
+
+Receiving fixture: `godot/tests/world_mail_receiving_flow.gd`, run only after main's CLI proof. It requires an owned loopback endpoint, prepared recipient within range, exact real mailbox entry/display/model FDIDs, one proceeds mail and at least two won/returned item mails. It uses real model triangle picking and authored controls, then asserts received labels, exact inventory/currency changes and quiet reopen. Environment inputs are documented in the fixture; startup selects the prepared character normally with `--server`, `--screen inworld`, `--char` after Godot's `--` separator. No protocol injection or claim shortcuts.
+
+## What it must do (preserved Bevy client)
 
 ### Mailboxes
 - [x] Replicated type-19 game objects are `WorldObjectInteractionKind::Mailbox`: the mail cursor and minimap mailbox icon, and right-clicking sends `UseGameObject`. Mailbox doodads are scenery; there is no mail keybind.

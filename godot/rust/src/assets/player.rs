@@ -233,11 +233,10 @@ impl PlayerParts {
 /// Worker: everything `build_player_model` needs from files.
 pub(crate) fn prepare_player_parts(
     data_root: &Path,
-    cache_root: &Path,
     player: &Player,
     equipment: &EquipmentAppearance,
 ) -> Result<PlayerParts, String> {
-    let resolver = local_resolver(data_root, cache_root);
+    let resolver = local_resolver(data_root);
     let model = load_player_body(&resolver, data_root, player)?;
     let equipment = resolve_equipment_appearance(
         equipment,
@@ -278,10 +277,9 @@ pub(crate) fn prepare_player_parts(
 /// Main thread: the player model nodes of `parts` with its equipment and skinned models.
 pub(crate) fn build_player_model(
     data_root: &Path,
-    cache_root: &Path,
     parts: PlayerParts,
 ) -> Result<Gd<Node3D>, String> {
-    let resolver = local_resolver(data_root, cache_root);
+    let resolver = local_resolver(data_root);
     insert_decoded_textures(data_root, parts.textures)?;
     let prepared = parts.appearance.into_prepared()?;
     let parsed = &parts.model.model;
@@ -319,12 +317,11 @@ pub(crate) fn build_player_model(
 
 pub(crate) fn load_player_model(
     data_root: &Path,
-    cache_root: &Path,
     player: &Player,
     equipment: &EquipmentAppearance,
 ) -> Result<Gd<Node3D>, String> {
-    let parts = prepare_player_parts(data_root, cache_root, player, equipment)?;
-    build_player_model(data_root, cache_root, parts)
+    let parts = prepare_player_parts(data_root, player, equipment)?;
+    build_player_model(data_root, parts)
 }
 
 fn load_player_body(
@@ -795,8 +792,7 @@ mod swatch_tests {
         let chosen = select_player_choices(db, race, sex, class, &state.appearance).unwrap();
         let compositor =
             game_engine_core::npc_appearance_assets::load_compositor(&data_root()).unwrap();
-        let resolver =
-            super::super::creature::local_resolver(&data_root(), &data_root().join("cache"));
+        let resolver = super::super::creature::local_resolver(&data_root());
         let layout = db.layout_id(race, sex).unwrap();
         let mut textures = compose_player_pixels(&compositor, &chosen, &[], layout, |fdid| {
             load_appearance_texture(&resolver, &data_root(), fdid, "swatch test")

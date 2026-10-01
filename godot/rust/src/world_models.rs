@@ -136,7 +136,6 @@ pub(crate) enum VisualParts {
 /// loads once, on a worker at startup, so no frame waits for it.
 struct VisualCatalogs {
     data_root: PathBuf,
-    cache_root: PathBuf,
     /// `cache/creature_display.sqlite`, opened on first use.
     displays: Mutex<Option<Connection>>,
     appearances: Mutex<NpcAppearances>,
@@ -188,7 +187,7 @@ impl VisualCatalogs {
                 sheath,
             } => self.load_creature(display_id, &items, sheath),
             VisualRequest::Player(player, equipment) => Ok(VisualParts::Player(
-                prepare_player_parts(&self.data_root, &self.cache_root, &player, &equipment)?,
+                prepare_player_parts(&self.data_root, &player, &equipment)?,
             )),
         }
     }
@@ -203,7 +202,6 @@ impl VisualCatalogs {
         let armor = self.gear()?.display_armor(display_id)?;
         let npc = self.appearances.lock().expect("NPC appearances").prepare(
             &self.data_root,
-            &self.cache_root,
             display_id,
             |race, sex| resolve_equipment_appearance(&armor, &self.outfit, race, sex),
         )?;
@@ -214,7 +212,7 @@ impl VisualCatalogs {
                 .map_or_else(Vec::new, |npc| npc.armor.runtime_models.clone()),
             items: self.virtual_item_models(display_id, items, sheath, race, sex)?,
         };
-        let resolver = local_resolver(&self.data_root, &self.cache_root);
+        let resolver = local_resolver(&self.data_root);
         let model = prepare_creature_model(&resolver, &self.data_root, &display, &gear)?;
         Ok(VisualParts::Creature {
             display_id,
@@ -277,11 +275,10 @@ pub(crate) struct WorldModels {
 }
 
 impl WorldModels {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         let catalogs = Arc::new(VisualCatalogs {
             outfit: OutfitData::load(&data_root),
             data_root,
-            cache_root,
             displays: Mutex::new(None),
             appearances: Mutex::new(NpcAppearances::default()),
             gear: OnceLock::new(),
@@ -436,7 +433,7 @@ impl WorldModels {
         previous_player: Option<&Gd<Node3D>>,
     ) -> Result<Gd<Node3D>, String> {
         let catalogs = &self.catalogs;
-        let mut model = build_player_model(&catalogs.data_root, &catalogs.cache_root, parts)?;
+        let mut model = build_player_model(&catalogs.data_root, parts)?;
         model.set_name("PlayerModel");
         if let Some(previous) = previous_player {
             if let Err(error) = transfer_player_playback(previous, &model) {
@@ -460,7 +457,6 @@ impl WorldModels {
         let appearance = npc.map(|npc| npc.appearance.into_prepared()).transpose()?;
         let (mut model, missing) = build_creature_model(
             &catalogs.data_root,
-            &catalogs.cache_root,
             display,
             &parts.model,
             appearance.as_ref(),
@@ -510,7 +506,7 @@ mod tests {
     #[test]
     fn player_model_display_native_identity_uses_authored_chrmodel_rows() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let mut player = Player {
             name: "Alice".into(),
             race: 1,
@@ -535,7 +531,7 @@ mod tests {
     #[test]
     fn stockade_guard_display_armor_resolves_to_body_geosets() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let models = WorldModels::new(data_root.clone());
         let armor = models.gear().unwrap().display_armor(2989).unwrap();
         let resolved = resolve_equipment_appearance(&armor, models.outfit(), 1, 0).unwrap();
         for geoset in [(4, 2), (5, 2), (20, 2), (12, 2)] {
@@ -554,7 +550,7 @@ mod tests {
     fn virtual_item_placements_follow_the_sheath_state() {
         use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
             slot,
             item_id: Some(item_id),
