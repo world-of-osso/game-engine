@@ -57,6 +57,8 @@ References:
 - [x] Escape, the close button and `InteractionClosed` close the frame; the first two send `CloseInteraction`.
 - [ ] Cursor item (pickup, drag-buy, drop-sell, bag split), tooltips, the Sell All Junk popup, the gossip frame, Retail ContainerFrame art.
 
+Native cursor coverage is partial, not wholly unconverted: [current bounded Buy + whole/split sale acceptance](../wiki/systems/godot-conversion.md#native-merchant-split-cursor-sale--main-accepted-bounded-pass). The unchecked combined requirement above is not full native acceptance.
+
 `merchant-cursor` is an independent owned native fixture mode, not a user game screen. MAIN-accepted independent gate1446 bounded PASS at `837e2c1e`/`b073e4dd`: scoped functional/source/format/readability and matching build/five-flow evidence accepted. First vendor → own embedded bag only. Right-click/Shift/buyback model paths remain retained, not full runtime proof. [Oracle, source coverage and proof boundary](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--main-accepted-bounded-pass); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing merchant-click open/close, placement and audio gates remain unchanged.
 
 ## Tests asserting this spec
