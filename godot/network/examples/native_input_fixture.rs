@@ -33,6 +33,8 @@ use shared::{
     },
 };
 
+#[path = "native_input_fixture/bags.rs"]
+mod bags;
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
 #[path = "native_input_fixture/footsteps.rs"]
@@ -87,6 +89,7 @@ enum StartupScreen {
     SoundClick,
     MerchantClick,
     Loot,
+    Bags,
     Footsteps,
     ResetWindows,
     SettingsReload,
@@ -109,6 +112,7 @@ impl StartupScreen {
             Some("sound-click") => Self::SoundClick,
             Some("merchant-click") => Self::MerchantClick,
             Some("loot") => Self::Loot,
+            Some("bags") => Self::Bags,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
             Some("settings-reload") => Self::SettingsReload,
@@ -117,7 +121,7 @@ impl StartupScreen {
             Some("portal-density") => Self::PortalDensity,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, loot, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled or portal-density"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, loot, bags, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled or portal-density"
                 )
             }
         };
@@ -139,6 +143,7 @@ impl StartupScreen {
             | Self::SoundClick
             | Self::MerchantClick
             | Self::Loot
+            | Self::Bags
             | Self::Footsteps
             | Self::ResetWindows
             | Self::SettingsReload
@@ -333,7 +338,10 @@ impl FixtureConfig {
     }
 
     fn persist_menu_defaults(&self, screen: StartupScreen) {
-        if !matches!(screen, StartupScreen::Menu | StartupScreen::Loot) {
+        if !matches!(
+            screen,
+            StartupScreen::Menu | StartupScreen::Loot | StartupScreen::Bags
+        ) {
             return;
         }
         fs::write(self.home.join("world-of-osso/options_settings.ron"), "()")
@@ -358,6 +366,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::SettingsReload => "res://tests/world_settings_reload_flow.gd",
         StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
         StartupScreen::Loot => "res://tests/world_loot_options_flow.gd",
+        StartupScreen::Bags => "res://tests/world_bags_flow.gd",
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
             "res://tests/world_portal_particles_flow.gd"
         }
@@ -387,6 +396,7 @@ fn launch_godot(
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
             | StartupScreen::Loot
+            | StartupScreen::Bags
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
             | StartupScreen::PortalParticlesEnabled
@@ -434,6 +444,7 @@ fn launch_godot(
                     | StartupScreen::SoundClick
                     | StartupScreen::MerchantClick
                     | StartupScreen::Loot
+                    | StartupScreen::Bags
                     | StartupScreen::Footsteps
                     | StartupScreen::ResetWindows
                     | StartupScreen::SettingsReload
@@ -500,8 +511,8 @@ fn launch_godot(
     let errors = child.stderr.take().expect("read Godot stderr");
     let (sender, receiver) = mpsc::channel();
     let readers = vec![
-        read_output(output, sender.clone(), false),
-        read_output(errors, sender, true),
+        read_output(output, sender.clone(), false, screen == StartupScreen::Bags),
+        read_output(errors, sender, true, screen == StartupScreen::Bags),
     ];
     (child, receiver, readers)
 }
@@ -510,11 +521,25 @@ fn read_output(
     output: impl std::io::Read + Send + 'static,
     sender: mpsc::Sender<String>,
     stderr: bool,
+    bounded: bool,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
+        const LOG_LINES: usize = 60;
+        const LOG_CHARS: usize = 1024;
+        let mut logged = 0;
         for line in BufReader::new(output).lines() {
             let line = line.expect("read Godot fixture output");
-            println!("godot: {line}");
+            let line = if bounded {
+                line.chars().take(LOG_CHARS).collect::<String>()
+            } else {
+                line
+            };
+            let bags_observation =
+                line.starts_with("FIXTURE BAGS_") || line.starts_with("BAGS POSITION");
+            if !bounded || logged < LOG_LINES || bags_observation {
+                println!("godot: {line}");
+                logged += 1;
+            }
             let line = if stderr {
                 format!("GODOT_STDERR: {line}")
             } else {
@@ -1344,6 +1369,7 @@ fn main() {
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
             | StartupScreen::Loot
+            | StartupScreen::Bags
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
             | StartupScreen::PortalParticlesEnabled
@@ -1375,6 +1401,7 @@ fn main() {
         StartupScreen::SoundClick => sound_click::run(&mut app, &mut child, lines, reader),
         StartupScreen::MerchantClick => merchant_click::run(&mut app, &mut child, lines, reader),
         StartupScreen::Loot => loot::run(&mut app, &mut child, lines, reader),
+        StartupScreen::Bags => bags::run(&mut app, &mut child, lines, reader),
         StartupScreen::SettingsReload => settings_reload::run(
             &mut app,
             &mut child,

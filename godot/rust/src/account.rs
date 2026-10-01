@@ -8,7 +8,8 @@ use std::{
 use crate::frame_error::SessionError;
 use crate::mirror_timers::MirrorTimerMessage;
 use game_engine_network::{
-    Event, GameObjectSnapshot, NetworkBridge, ProtocolMessage, UnitSnapshot,
+    Event, NetworkBridge, ProtocolMessage,
+    replica::{ReplicationBatch, Schema},
 };
 use game_engine_session::{
     AuthRequest, ReconnectPhase, Session, SessionEffect, SessionOptions, SessionScreen,
@@ -100,9 +101,11 @@ pub enum AccountEvent {
     LoadTerrain(LoadTerrain),
     NewWorld(NewWorld),
     TransferError(String),
-    UnitUpdated(UnitSnapshot),
-    GameObjectUpdated(GameObjectSnapshot),
-    UnitRemoved(u64),
+    /// A connection started replicating; its entities replace the previous connection's.
+    ReplicationStarted(std::sync::Arc<Schema>),
+    Replication(ReplicationBatch),
+    /// The connection ended: every replicated entity is gone.
+    ReplicationEnded,
     /// The character roster changed through a server update or response.
     RosterChanged,
     /// A server breath, fatigue or feign-death bar change.
@@ -524,17 +527,17 @@ impl Account {
                 Event::Connected => self.session.receive_connected(),
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
+                    output.push(AccountEvent::ReplicationEnded);
                     let effects = self
                         .session
                         .receive_disconnected_with_reason(reason.as_deref());
                     self.apply_effects(effects, &mut output)?;
                 }
                 Event::Message(message) => self.dispatch_message(message, &mut output)?,
-                Event::UnitUpdated(unit) => output.push(AccountEvent::UnitUpdated(unit)),
-                Event::GameObjectUpdated(object) => {
-                    output.push(AccountEvent::GameObjectUpdated(object))
+                Event::ReplicationStarted(schema) => {
+                    output.push(AccountEvent::ReplicationStarted(schema))
                 }
-                Event::UnitRemoved(id) => output.push(AccountEvent::UnitRemoved(id)),
+                Event::Replication(batch) => output.push(AccountEvent::Replication(batch)),
             }
             if self.bridge.is_none() {
                 break;
