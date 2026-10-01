@@ -230,7 +230,11 @@ fn separate_texture_type_composites_its_layers_on_its_material_canvas() {
         .composite_texture_type(&[(10, 1), (12, 3)], 1, 9, texture)
         .unwrap();
     assert_eq!((width, height), (2, 2));
-    assert_eq!(pixels, [40, 50, 60, 255].repeat(4), "target 12 is drawn last");
+    assert_eq!(
+        pixels,
+        [40, 50, 60, 255].repeat(4),
+        "target 12 is drawn last"
+    );
 
     let (pixels, ..) = data
         .composite_texture_type(&[(10, 1)], 1, 9, texture)
@@ -240,5 +244,21 @@ fn separate_texture_type_composites_its_layers_on_its_material_canvas() {
         data.composite_texture_type(&[(1, 1)], 1, 9, texture)
             .is_none(),
         "no selected material targets a type 9 layer"
+    );
+}
+
+#[test]
+fn item_textures_alpha_blend_over_the_body() {
+    // Wow.exe Paste (solarityclient composer.rs `alpha_blend`): an item texel of alpha
+    // 128 mixes with the skin below instead of replacing it.
+    let data = data(vec![]);
+    let result = data
+        .composite_model_textures_with(&[], &[(0, 4)], 1, 1, texture)
+        .unwrap();
+    let blended =
+        |item: u8, skin: u8| ((u16::from(item) * 128 + u16::from(skin) * 127) / 255) as u8;
+    assert_eq!(
+        result.body.0[4..8],
+        [blended(90, 1), blended(100, 2), blended(110, 3), 255]
     );
 }
