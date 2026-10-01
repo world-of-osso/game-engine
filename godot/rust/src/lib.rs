@@ -2273,6 +2273,13 @@ fn account_event_kind(event: &AccountEvent) -> String {
         AccountEvent::LoadTerrain(_) => "LoadTerrain".into(),
         AccountEvent::NewWorld(_) => "NewWorld".into(),
         AccountEvent::Combat(_) => "Combat".into(),
+        AccountEvent::Replication(_) => "Replication".into(),
+        AccountEvent::Npc(account::NpcMessage::Inventory(_)) => "Npc(Inventory)".into(),
+        AccountEvent::Npc(account::NpcMessage::Equipment(_)) => "Npc(Equipment)".into(),
+        AccountEvent::Npc(account::NpcMessage::InventoryChanged(_)) => {
+            "Npc(InventoryChanged)".into()
+        }
+        AccountEvent::Npc(_) => "Npc".into(),
         _ => "other".into(),
     }
 }
