@@ -27,6 +27,8 @@ pub mod char_texture_query_data;
 pub mod character_creation_icon_mask_data;
 #[path = "../../../src/character_model_data.rs"]
 pub mod character_model_data;
+#[path = "../../../src/game/equipment/component_file_data.rs"]
+mod component_file_data;
 #[path = "../../../src/client_options_data.rs"]
 pub mod client_options_data;
 #[cfg(test)]
@@ -129,6 +131,7 @@ pub mod outfit_data;
 mod outfit_data_tests;
 #[path = "../../../src/game/outfit_listfile.rs"]
 mod outfit_listfile;
+pub mod player_model_data;
 #[path = "../../../src/player_physics_data.rs"]
 pub mod player_physics_data;
 pub mod retail_fog;

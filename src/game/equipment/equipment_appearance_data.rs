@@ -12,6 +12,7 @@ pub enum EquipmentSlot {
     Back,
     Chest,
     Hands,
+    Wrist,
     Waist,
     Legs,
     Feet,
@@ -51,6 +52,7 @@ pub fn visual_slot_to_runtime_slots(slot: EquipmentVisualSlot) -> Vec<EquipmentS
         EquipmentVisualSlot::Waist => vec![EquipmentSlot::Waist],
         EquipmentVisualSlot::Legs => vec![EquipmentSlot::Legs],
         EquipmentVisualSlot::Hands => vec![EquipmentSlot::Hands],
+        EquipmentVisualSlot::Wrist => vec![EquipmentSlot::Wrist],
         EquipmentVisualSlot::Feet => vec![EquipmentSlot::Feet],
         EquipmentVisualSlot::MainHand => vec![EquipmentSlot::MainHand],
         EquipmentVisualSlot::OffHand => vec![EquipmentSlot::OffHand],
@@ -134,6 +136,7 @@ struct BodyDisplays {
     /// Texture-bearing `CCharacterComponent` slot rows (see [`ITEM_PRIORITIES`]) with
     /// their displays and body textures, in equip order.
     painted: Vec<(usize, u32, Vec<(u8, u32)>)>,
+    shirt: Option<u32>,
     chest: Option<u32>,
     legs: Option<u32>,
     hands: Option<u32>,
@@ -142,6 +145,7 @@ struct BodyDisplays {
 impl BodyDisplays {
     fn record(&mut self, slot: EquipmentVisualSlot, display_id: u32, textures: Vec<(u8, u32)>) {
         match slot {
+            EquipmentVisualSlot::Shirt => self.shirt = Some(display_id),
             EquipmentVisualSlot::Chest => self.chest = Some(display_id),
             EquipmentVisualSlot::Legs => self.legs = Some(display_id),
             EquipmentVisualSlot::Hands => self.hands = Some(display_id),
@@ -156,9 +160,10 @@ impl BodyDisplays {
 /// The robe and sleeves decided across slots, after every item's own overrides, in the
 /// order of build 12340's `CCharacterComponent` (solarityclient
 /// `character_component/geoset.rs` `apply_equipment_geosets`): gloves (GeosetGroup[0])
-/// take the arms, else the chest's GeosetGroup[0] picks sleeves 801+n; a chest robe
-/// (GeosetGroup[2], inventory type 20), else a legs one, hides boots 5xx, kneepads
-/// 902-999 and pants 11xx and shows skirt 1301+n in place of the pants' trousers.
+/// take the arms, else the chest's, else the shirt's GeosetGroup[0] picks sleeves 801+n
+/// and their GeosetGroup[1] the undershirt 1001+n (wowdev.wiki DB/ItemDisplayInfo); a
+/// chest robe (GeosetGroup[2], inventory type 20), else a legs one, hides boots 5xx,
+/// kneepads 902-999 and pants 11xx and shows skirt 1301+n in place of the pants' trousers.
 fn apply_body_geosets(
     resolved: &mut ResolvedEquipmentAppearance,
     body: &BodyDisplays,
@@ -172,10 +177,14 @@ fn apply_body_geosets(
         overrides.retain(|(existing, _)| *existing != geoset);
         overrides.push((geoset, variant));
     };
+    let torso = |index| group(body.chest, index).or_else(|| group(body.shirt, index));
     if group(body.hands, 0).is_none()
-        && let Some(sleeves) = group(body.chest, 0)
+        && let Some(sleeves) = torso(0)
     {
         set(8, sleeves);
+    }
+    if let Some(undershirt) = torso(1) {
+        set(10, undershirt);
     }
     let Some(robe) = group(body.chest, 2).or_else(|| group(body.legs, 2)) else {
         return;
@@ -273,7 +282,7 @@ fn apply_visible_entry(
     sex: u8,
 ) -> Result<Vec<(u8, u32)>, String> {
     let mut display = outfit_data
-        .try_resolve_display_info(display_info_id)?
+        .try_resolve_display_info(display_info_id, race, sex)?
         .ok_or_else(|| format!("display {display_info_id} missing"))?;
     if slot == EquipmentVisualSlot::Head {
         let has_vis_data = outfit_data.has_helmet_geoset_vis_data(display_info_id);
@@ -285,12 +294,12 @@ fn apply_visible_entry(
             outfit_data.head_geoset_overrides(display_info_id),
         );
         merge_overlay_texture_sets(&mut resolved.outfit, &display);
-        if let Some((fdid, skin_fdids)) =
-            outfit_data.try_resolve_runtime_model(display_info_id, race, sex)?
-        {
-            if !has_vis_data {
-                resolved.hidden_character_geoset_groups.insert(0);
-            }
+        let models =
+            runtime_slot_models(outfit_data, display_info_id, EquipmentSlot::Head, race, sex)?;
+        if !models.is_empty() && !has_vis_data {
+            resolved.hidden_character_geoset_groups.insert(0);
+        }
+        for (fdid, skin_fdids) in models {
             resolved.runtime_models.push(RuntimeModelAppearance {
                 slot: EquipmentSlot::Head,
                 fdid,
@@ -300,7 +309,7 @@ fn apply_visible_entry(
         return Ok(display.item_textures);
     }
     if slot == EquipmentVisualSlot::Back {
-        if let Some(fdid) = outfit_data.cape_texture_fdid(display_info_id) {
+        if let Some(fdid) = outfit_data.cape_texture_fdid(display_info_id, race, sex) {
             resolved.merged_cape_texture_fdid = Some(fdid);
             resolved.texture_fdids.push(fdid);
         }
@@ -313,16 +322,9 @@ fn apply_visible_entry(
         .extend(display.item_textures.iter().map(|(_, fdid)| *fdid));
     merge_overlay_texture_sets(&mut resolved.outfit, &display);
     for runtime_slot in visual_slot_to_runtime_slots(slot) {
-        let model = match runtime_slot {
-            EquipmentSlot::ShoulderLeft => {
-                outfit_data.resolve_shoulder_runtime_model(display_info_id, 0, race, sex)
-            }
-            EquipmentSlot::ShoulderRight => {
-                outfit_data.resolve_shoulder_runtime_model(display_info_id, 1, race, sex)
-            }
-            _ => outfit_data.try_resolve_runtime_model(display_info_id, race, sex)?,
-        };
-        if let Some((fdid, skin_fdids)) = model {
+        for (fdid, skin_fdids) in
+            runtime_slot_models(outfit_data, display_info_id, runtime_slot, race, sex)?
+        {
             resolved
                 .texture_fdids
                 .extend(skin_fdids.into_iter().filter(|fdid| *fdid != 0));
@@ -334,6 +336,35 @@ fn apply_visible_entry(
         }
     }
     Ok(display.item_textures)
+}
+
+/// The models display `display_info_id` puts in `slot`: one shoulder per side; both
+/// model columns of a helmet, cloak, belt or bracer (a belt's buckle and its collection,
+/// a cloak's model in either column); a weapon's or body armor's first model.
+fn runtime_slot_models(
+    outfit_data: &OutfitData,
+    display_info_id: u32,
+    slot: EquipmentSlot,
+    race: u8,
+    sex: u8,
+) -> Result<Vec<(u32, [u32; 3])>, String> {
+    Ok(match slot {
+        EquipmentSlot::ShoulderLeft => outfit_data
+            .resolve_shoulder_runtime_model(display_info_id, 0, race, sex)
+            .into_iter()
+            .collect(),
+        EquipmentSlot::ShoulderRight => outfit_data
+            .resolve_shoulder_runtime_model(display_info_id, 1, race, sex)
+            .into_iter()
+            .collect(),
+        EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Waist | EquipmentSlot::Wrist => {
+            outfit_data.try_resolve_column_models(display_info_id, race, sex)?
+        }
+        _ => outfit_data
+            .try_resolve_runtime_model(display_info_id, race, sex)?
+            .into_iter()
+            .collect(),
+    })
 }
 
 fn merge_overlay_texture_sets(base: &mut OutfitResult, overlay: &OutfitResult) {
@@ -354,54 +385,51 @@ fn merge_overlay_texture_sets(base: &mut OutfitResult, overlay: &OutfitResult) {
     }
 }
 
+/// The body geoset groups an item's `ItemDisplayInfo.GeosetGroup[index]` selects
+/// (wowdev.wiki DB/ItemDisplayInfo "Geoset Group Field Meaning"): geoset
+/// `group * 100 + 1 + value`; a group of 0 keeps the body's own (the hidden-cloak display
+/// 146518 has GeosetGroup[0] 0 and no cape). Shirt/chest sleeves (8xx) and undershirt (10xx) and the
+/// robe (13xx) are decided across slots ([`apply_body_geosets`]); the helmet in
+/// `head_geoset_overrides`; boots' feet (20xx) in [`feet_geoset`].
+fn slot_geoset_groups(slot: EquipmentVisualSlot) -> &'static [(usize, u16)] {
+    match slot {
+        EquipmentVisualSlot::Shoulder => &[(0, 26)],
+        EquipmentVisualSlot::Chest => &[(3, 22), (4, 28)],
+        EquipmentVisualSlot::Waist => &[(0, 18)],
+        EquipmentVisualSlot::Legs => &[(0, 11), (1, 9), (2, 13)],
+        EquipmentVisualSlot::Feet => &[(0, 5)],
+        EquipmentVisualSlot::Hands => &[(0, 4), (1, 23)],
+        EquipmentVisualSlot::Back => &[(0, 15)],
+        EquipmentVisualSlot::Tabard => &[(0, 12)],
+        _ => &[],
+    }
+}
+
 fn slot_geoset_overrides(
     slot: EquipmentVisualSlot,
     display_id: u32,
     data: &OutfitData,
 ) -> Option<Vec<(u16, u16)>> {
-    match slot {
-        EquipmentVisualSlot::Chest => {
-            single_geoset_override(22, data.chest_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Hands => {
-            single_geoset_override(4, data.hand_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Waist => {
-            single_geoset_override(18, data.hand_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Legs => legs_geoset_overrides(display_id, data),
-        EquipmentVisualSlot::Back => {
-            single_geoset_override(15, data.cape_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Tabard => {
-            single_geoset_override(12, data.tabard_geoset_variant(display_id))
-        }
-        EquipmentVisualSlot::Feet => data
-            .boot_geoset_variant(display_id)
-            .map(|variant| vec![(5, variant), (20, variant)]),
-        _ => None,
+    let mut overrides: Vec<(u16, u16)> = slot_geoset_groups(slot)
+        .iter()
+        .filter_map(|&(index, group)| {
+            data.display_geoset_variant(display_id, index)
+                .map(|variant| (group, variant))
+        })
+        .collect();
+    if slot == EquipmentVisualSlot::Feet {
+        overrides.push(feet_geoset(display_id, data));
     }
-}
-
-fn legs_geoset_overrides(display_id: u32, data: &OutfitData) -> Option<Vec<(u16, u16)>> {
-    let mut overrides = Vec::new();
-    push_optional_geoset_override(&mut overrides, 11, data.pants_geoset_variant(display_id));
-    push_optional_geoset_override(&mut overrides, 9, data.kneepad_geoset_variant(display_id));
-    push_optional_geoset_override(&mut overrides, 13, data.trouser_geoset_variant(display_id));
     (!overrides.is_empty()).then_some(overrides)
 }
 
-fn single_geoset_override(group: u16, variant: Option<u16>) -> Option<Vec<(u16, u16)>> {
-    variant.map(|value| vec![(group, value)])
-}
-
-fn push_optional_geoset_override(
-    overrides: &mut Vec<(u16, u16)>,
-    group: u16,
-    variant: Option<u16>,
-) {
-    if let Some(value) = variant {
-        overrides.push((group, value));
+/// Boots' feet: 2000 + GeosetGroup[1], or 2002 when it is 0 (wowdev.wiki: "If you are
+/// wearing boots and geosetGroup[1] for your boots is 0, you get 2002"); bare feet keep
+/// the body's 2001.
+fn feet_geoset(display_id: u32, data: &OutfitData) -> (u16, u16) {
+    match data.display_geoset_raw(display_id, 1) {
+        Some(raw) if raw > 0 => (20, raw),
+        _ => (20, 2),
     }
 }
 
@@ -423,6 +451,7 @@ pub fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
         EquipmentSlot::Back => 12,
         EquipmentSlot::Chest => unreachable!("chest runtime models anchor on the character root"),
         EquipmentSlot::Hands => unreachable!("hands runtime models anchor on the character root"),
+        EquipmentSlot::Wrist => unreachable!("wrist runtime models anchor on the character root"),
         EquipmentSlot::Waist => 53,
         EquipmentSlot::Legs => unreachable!("legs runtime models anchor on the character root"),
         EquipmentSlot::Feet => unreachable!("feet runtime models anchor on the character root"),
@@ -438,11 +467,39 @@ pub fn is_collection_model(path: &Path) -> bool {
         .contains("item/objectcomponents/collections/")
 }
 
+/// Body armor and every `item/objectcomponents/collections/` model (a cloak, belt or
+/// bracer collection as much as a helmet one) is skinned to the character's joints.
 pub fn slot_uses_bound_joints(slot: EquipmentSlot, m2_path: &Path) -> bool {
     matches!(
         slot,
-        EquipmentSlot::Chest | EquipmentSlot::Hands | EquipmentSlot::Legs | EquipmentSlot::Feet
-    ) || (slot == EquipmentSlot::Head && is_collection_model(m2_path))
+        EquipmentSlot::Chest
+            | EquipmentSlot::Hands
+            | EquipmentSlot::Wrist
+            | EquipmentSlot::Legs
+            | EquipmentSlot::Feet
+    ) || is_collection_model(m2_path)
+}
+
+/// Whether a collection model's mesh part belongs to `slot`: a collection file is shared
+/// by several slots' items, each showing the geoset groups of its slot (WMVx
+/// `MergedEquipmentGeosetModifier`; body armor keeps the groups it had); all of the
+/// slot's parts show, whatever the body's variant (the
+/// Tauren heritage belt collection has only 1801 while the belt selects 1802).
+pub fn collection_mesh_part_in_slot(slot: EquipmentSlot, mesh_part_id: u16) -> bool {
+    let groups: &[u16] = match slot {
+        EquipmentSlot::Head => &[21, 24, 27, 37],
+        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight => &[26],
+        EquipmentSlot::Back => &[15],
+        EquipmentSlot::Chest => &[22],
+        EquipmentSlot::Hands => &[4],
+        // WMVx wristbands 8xx; the Fanciful Corsage collection's bracer is 2301.
+        EquipmentSlot::Wrist => &[8, 23],
+        EquipmentSlot::Waist => &[18],
+        EquipmentSlot::Legs => &[11, 13],
+        EquipmentSlot::Feet => &[5, 20],
+        EquipmentSlot::MainHand | EquipmentSlot::OffHand | EquipmentSlot::Ranged => &[],
+    };
+    groups.contains(&(mesh_part_id / 100))
 }
 
 pub fn model_attachment_id(slot: EquipmentSlot, path: &Path) -> u32 {
@@ -676,6 +733,72 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// wowdev.wiki DB/ItemDisplayInfo: boots select feet 2000 + GeosetGroup[1] (2002 when
+    /// it is 0), a shirt's GeosetGroup[1] the undershirt 1001+n, a chest's GeosetGroup[3]
+    /// the torso 2201+n. Recruit's Boots 40 (all groups 0), Dirt-Trodden Boots 4936
+    /// (GeosetGroup 0/1), Sacredite's Research Tunic 241267 (shirt 1/3), Empyrial
+    /// Breastplate 151576 (GeosetGroup[3] 1), Apprentice's Robe 56 (1/0/1/0).
+    #[test]
+    fn item_geoset_groups_select_their_body_groups() {
+        let overrides = |slot, item| resolve(vec![entry(slot, item)]).outfit.geoset_overrides;
+        assert!(overrides(EquipmentVisualSlot::Feet, 40).contains(&(20, 2)));
+        assert!(
+            !overrides(EquipmentVisualSlot::Feet, 40)
+                .iter()
+                .any(|(g, _)| *g == 5)
+        );
+        assert!(overrides(EquipmentVisualSlot::Feet, 4936).contains(&(20, 1)));
+        let tunic = overrides(EquipmentVisualSlot::Shirt, 241267);
+        assert!(
+            tunic.contains(&(8, 2)) && tunic.contains(&(10, 4)),
+            "{tunic:?}"
+        );
+        assert!(overrides(EquipmentVisualSlot::Chest, 151576).contains(&(22, 2)));
+        assert!(
+            !overrides(EquipmentVisualSlot::Chest, 56)
+                .iter()
+                .any(|(g, _)| *g == 22)
+        );
+    }
+
+    /// Ancestral Chieftain's Greatbelt 168296 (display 180643): buckle 2429565 in model
+    /// column 0 and the Tauren collection (male 2429554) in column 1; Fanciful Corsage
+    /// 190091: a bracer collection, now a runtime model of the wrist.
+    #[test]
+    fn belt_keeps_buckle_and_collection_and_bracers_have_models() {
+        let tauren = |entries| {
+            resolve_equipment_appearance(
+                &EquipmentAppearance { entries },
+                &OutfitData::load(&data_dir()),
+                6,
+                0,
+            )
+            .unwrap()
+            .runtime_models
+        };
+        let belt: Vec<_> = tauren(vec![entry(EquipmentVisualSlot::Waist, 168296)])
+            .iter()
+            .map(|model| (model.slot, model.fdid))
+            .collect();
+        assert_eq!(
+            belt,
+            [
+                (EquipmentSlot::Waist, 2_429_565),
+                (EquipmentSlot::Waist, 2_429_554)
+            ]
+        );
+        let bracer = tauren(vec![entry(EquipmentVisualSlot::Wrist, 190091)]);
+        assert_eq!(bracer.len(), 1);
+        assert_eq!(bracer[0].slot, EquipmentSlot::Wrist);
+        let collection = Path::new("item/objectcomponents/collections/belt.m2");
+        assert!(slot_uses_bound_joints(EquipmentSlot::Waist, collection));
+        assert!(slot_uses_bound_joints(EquipmentSlot::Back, collection));
+        assert!(!slot_uses_bound_joints(
+            EquipmentSlot::Waist,
+            Path::new("item/objectcomponents/waist/buckle.m2")
+        ));
     }
 
     #[test]

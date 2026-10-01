@@ -351,42 +351,16 @@ impl WorldModels {
         items: &EquipmentAppearance,
         sheath: SheathState,
     ) -> Result<Vec<(EquipmentSlot, Option<u32>)>, String> {
-        let gear = self.gear()?;
-        Ok(items
-            .entries
-            .iter()
-            .flat_map(|entry| {
-                let attachment = gear.virtual_item_placement(entry, sheath);
-                visual_slot_to_runtime_slots(entry.slot)
-                    .into_iter()
-                    .map(move |slot| (slot, attachment))
-            })
-            .collect())
+        Ok(virtual_item_placements(self.gear()?, items, sheath))
     }
 
-    /// Where a player's weapons sit under `sheath`: drawn in the hands or at their
-    /// `Item.SheatheType` place, as a creature's virtual items. Armor stays where it is.
+    /// Where a player's weapons sit under `sheath` (see [`player_weapon_placements`]).
     pub fn player_weapon_placements(
         &mut self,
         equipment: &EquipmentAppearance,
         sheath: SheathState,
     ) -> Result<Vec<(EquipmentSlot, Option<u32>)>, String> {
-        let weapons = EquipmentAppearance {
-            entries: equipment
-                .entries
-                .iter()
-                .filter(|entry| {
-                    matches!(
-                        entry.slot,
-                        EquipmentVisualSlot::MainHand
-                            | EquipmentVisualSlot::OffHand
-                            | EquipmentVisualSlot::Ranged
-                    )
-                })
-                .cloned()
-                .collect(),
-        };
-        self.virtual_item_placements(&weapons, sheath)
+        Ok(player_weapon_placements(self.gear()?, equipment, sheath))
     }
 
     /// Start loading the visual of `appearance` (its virtual items placed for `sheath`);
@@ -505,6 +479,49 @@ impl WorldModels {
         visual.add_child(&model);
         Ok(visual)
     }
+}
+
+/// Where each of a creature's virtual item models goes under `sheath`.
+pub(crate) fn virtual_item_placements(
+    gear: &NpcGearData,
+    items: &EquipmentAppearance,
+    sheath: SheathState,
+) -> Vec<(EquipmentSlot, Option<u32>)> {
+    items
+        .entries
+        .iter()
+        .flat_map(|entry| {
+            let attachment = gear.virtual_item_placement(entry, sheath);
+            visual_slot_to_runtime_slots(entry.slot)
+                .into_iter()
+                .map(move |slot| (slot, attachment))
+        })
+        .collect()
+}
+
+/// Where a player's weapons sit under `sheath`: drawn in the hands or at their
+/// `Item.SheatheType` place, as a creature's virtual items. Armor stays where it is.
+pub(crate) fn player_weapon_placements(
+    gear: &NpcGearData,
+    equipment: &EquipmentAppearance,
+    sheath: SheathState,
+) -> Vec<(EquipmentSlot, Option<u32>)> {
+    let weapons = EquipmentAppearance {
+        entries: equipment
+            .entries
+            .iter()
+            .filter(|entry| {
+                matches!(
+                    entry.slot,
+                    EquipmentVisualSlot::MainHand
+                        | EquipmentVisualSlot::OffHand
+                        | EquipmentVisualSlot::Ranged
+                )
+            })
+            .cloned()
+            .collect(),
+    };
+    virtual_item_placements(gear, &weapons, sheath)
 }
 
 /// Move a creature visual's virtual item models to their `placements`.

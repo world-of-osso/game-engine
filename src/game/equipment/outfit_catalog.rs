@@ -3,6 +3,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
+use crate::component_file_data::ComponentFileData;
 use crate::helmet_geoset_data::{HelmetGeosetRule, load_helmet_geoset_rules};
 
 /// Result of resolving a starter outfit for a (race, class, sex) combo.
@@ -20,7 +21,9 @@ pub struct OutfitResult {
 
 #[derive(Debug, Clone, Default)]
 pub struct DisplayInfoResolved {
-    pub item_textures: Vec<(u8, u32)>,
+    /// (ComponentSection, MaterialResourcesID) pairs; the texture of each material a
+    /// character wears depends on its race and sex.
+    pub item_materials: Vec<(u8, u32)>,
     pub geoset_overrides: Vec<(u16, u16)>,
     pub model_resource_ids: Vec<u32>,
     pub model_material_resource_ids: Vec<u32>,
@@ -30,20 +33,15 @@ pub struct DisplayInfoResolved {
     pub geoset_groups: [i16; 6],
 }
 
-#[cfg(test)]
-pub struct DisplayMaterialTextures {
-    pub direct: HashMap<u32, Vec<(u8, u32)>>,
-}
-
 #[derive(Debug, Default)]
 struct LoadedOutfitData {
     cache_path: PathBuf,
-    data_dir: PathBuf,
     display_info_cache: Mutex<HashMap<u32, Option<DisplayInfoResolved>>>,
-    material_to_texture_cache: Mutex<HashMap<u32, Option<u32>>>,
+    /// MaterialResourcesID -> its texture files.
+    material_textures_cache: Mutex<HashMap<u32, Vec<u32>>>,
     model_to_fdids_cache: Mutex<HashMap<u32, Vec<u32>>>,
-    /// RaceID -> model filename token prefix (for example `hu`, `be`).
-    race_prefix: HashMap<u8, String>,
+    /// Which race, sex and side each texture and model file is for.
+    components: ComponentFileData,
     /// HelmetGeosetVisDataID -> race-specific hide rules.
     helmet_geoset_rules: HashMap<u32, Vec<HelmetGeosetRule>>,
 }
@@ -53,7 +51,6 @@ struct LoadedOutfitData {
 pub struct OutfitData {
     data_dir: PathBuf,
     loaded: OnceLock<Result<LoadedOutfitData, String>>,
-    race_prefix_loader: Option<fn(&Path) -> Result<HashMap<u8, String>, String>>,
     helmet_cache: Option<fn(&Path) -> Result<(), String>>,
 }
 
@@ -62,18 +59,15 @@ impl OutfitData {
         Self {
             data_dir: data_dir.to_path_buf(),
             loaded: OnceLock::new(),
-            race_prefix_loader: None,
             helmet_cache: None,
         }
     }
 
     pub fn with_root_loaders(
         data_dir: &Path,
-        race_prefix_loader: fn(&Path) -> Result<HashMap<u8, String>, String>,
         helmet_cache: fn(&Path) -> Result<(), String>,
     ) -> Self {
         let mut catalog = Self::load(data_dir);
-        catalog.race_prefix_loader = Some(race_prefix_loader);
         catalog.helmet_cache = Some(helmet_cache);
         catalog
     }
@@ -92,20 +86,15 @@ impl OutfitData {
     fn try_load(&self) -> Result<LoadedOutfitData, String> {
         let data_dir = &self.data_dir;
         let cache_path = crate::outfit_catalog_db::import_outfit_links_cache(data_dir)?;
-        let race_prefix = match self.race_prefix_loader {
-            Some(loader) => loader(data_dir)?,
-            None => crate::outfit_catalog_db::load_chr_race_prefixes(data_dir)?,
-        };
         if let Some(cache_helmet) = self.helmet_cache {
             cache_helmet(data_dir)?;
         }
         let data = LoadedOutfitData {
             cache_path,
-            data_dir: data_dir.to_path_buf(),
             display_info_cache: Mutex::new(HashMap::new()),
-            material_to_texture_cache: Mutex::new(HashMap::new()),
+            material_textures_cache: Mutex::new(HashMap::new()),
             model_to_fdids_cache: Mutex::new(HashMap::new()),
-            race_prefix,
+            components: ComponentFileData::load(&data_dir.join("db2/12.1.0.69933"))?,
             helmet_geoset_rules: load_helmet_geoset_rules(data_dir)?,
         };
         Ok(data)
@@ -126,7 +115,7 @@ impl OutfitData {
         if display_ids.is_empty() {
             return OutfitResult::default();
         }
-        self.resolve_display_infos(data, display_ids)
+        self.resolve_display_infos(data, display_ids, race, sex)
     }
 
     /// Resolve a starter outfit without hiding catalog or cache errors.
@@ -138,12 +127,15 @@ impl OutfitData {
             class,
             sex,
         )?;
-        self.resolve_display_infos_checked(data, ids)
+        self.resolve_display_infos_checked(data, ids, race, sex)
     }
 
+    /// Display `display_id` as race `race`/sex `sex` wears it.
     pub fn try_resolve_display_info(
         &self,
         display_id: u32,
+        race: u8,
+        sex: u8,
     ) -> Result<Option<OutfitResult>, String> {
         let data = self.loaded_result()?;
         let Some(display) =
@@ -153,7 +145,7 @@ impl OutfitData {
         };
         self.check_model_resources(&display)?;
         let mut result = OutfitResult::default();
-        self.merge_display_into_result(&mut result, data, &display);
+        self.merge_display_into_result(&mut result, data, &display, race, sex);
         Ok(Some(result))
     }
 
@@ -161,13 +153,15 @@ impl OutfitData {
         &self,
         data: &LoadedOutfitData,
         ids: impl IntoIterator<Item = u32>,
+        race: u8,
+        sex: u8,
     ) -> Result<OutfitResult, String> {
         let mut result = OutfitResult::default();
         for id in ids {
             let display = crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, id)?
                 .ok_or_else(|| format!("outfit display {id} missing"))?;
             self.check_model_resources(&display)?;
-            self.merge_display_into_result(&mut result, data, &display);
+            self.merge_display_into_result(&mut result, data, &display, race, sex);
         }
         Ok(result)
     }
@@ -204,53 +198,20 @@ impl OutfitData {
         .map_err(|err| format!("resolve item {item_id} display: {err}"))
     }
 
-    pub fn resolve_display_info(&self, display_info_id: u32) -> OutfitResult {
+    pub fn resolve_display_info(&self, display_info_id: u32, race: u8, sex: u8) -> OutfitResult {
         let Some(data) = self.loaded() else {
             return OutfitResult::default();
         };
-        self.resolve_display_infos(data, [display_info_id])
+        self.resolve_display_infos(data, [display_info_id], race, sex)
     }
 
-    pub fn hand_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn cape_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn tabard_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn chest_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        let data = self.loaded()?;
-        let display = self.display_info(data, display_info_id)?;
-        let raw = *display.geoset_groups.first()?;
-        (raw > 0).then_some(2)
-    }
-
-    pub fn waist_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn pants_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn kneepad_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 1)
-    }
-
-    pub fn boot_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 0)
-    }
-
-    pub fn trouser_geoset_variant(&self, display_info_id: u32) -> Option<u16> {
-        self.display_geoset_variant(display_info_id, 2)
-    }
-
-    pub fn display_material_texture_fdids(&self, display_info_id: u32) -> Vec<u32> {
+    /// The model textures of display `display_info_id` as race `race`/sex `sex` wears it.
+    pub fn display_material_texture_fdids(
+        &self,
+        display_info_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Vec<u32> {
         let Some(data) = self.loaded() else {
             return Vec::new();
         };
@@ -261,14 +222,14 @@ impl OutfitData {
             .model_material_resource_ids
             .iter()
             .filter_map(|material_resource_id| {
-                self.material_texture_fdid(data, *material_resource_id)
+                self.material_texture_fdid(data, *material_resource_id, race, sex)
             })
             .filter(|fdid| *fdid != 0)
             .collect()
     }
 
-    pub fn cape_texture_fdid(&self, display_info_id: u32) -> Option<u32> {
-        self.display_material_texture_fdids(display_info_id)
+    pub fn cape_texture_fdid(&self, display_info_id: u32, race: u8, sex: u8) -> Option<u32> {
+        self.display_material_texture_fdids(display_info_id, race, sex)
             .into_iter()
             .next()
     }
@@ -297,9 +258,41 @@ impl OutfitData {
         };
         self.check_model_paths(&display)?;
         for &id in &display.model_material_resource_ids {
-            crate::outfit_catalog_db::load_cached_material_texture_fdid(&self.data_dir, id)?;
+            crate::outfit_catalog_db::load_cached_material_texture_fdids(&self.data_dir, id)?;
         }
         Ok(self.resolve_runtime_model(display_info_id, race, sex))
+    }
+
+    /// Each model column of display `display_info_id` as race `race`/sex `sex` wears it,
+    /// with that column's material as its texture.
+    pub fn try_resolve_column_models(
+        &self,
+        display_info_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Result<Vec<(u32, [u32; 3])>, String> {
+        let data = self.loaded_result()?;
+        let Some(display) =
+            crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, display_info_id)?
+        else {
+            return Ok(Vec::new());
+        };
+        self.check_model_paths(&display)?;
+        let columns = display
+            .model_resource_columns
+            .iter()
+            .zip(display.model_material_resource_columns);
+        Ok(columns
+            .filter(|(model, _)| **model != 0)
+            .filter_map(|(&model, material)| {
+                let fdid = self.select_model_fdid(data, model, race, sex)?;
+                let texture = (material != 0)
+                    .then(|| self.material_texture_fdid(data, material, race, sex))
+                    .flatten()
+                    .unwrap_or(0);
+                Some((fdid, [texture, 0, 0]))
+            })
+            .collect())
     }
 
     pub fn resolve_runtime_model(
@@ -320,7 +313,7 @@ impl OutfitData {
             .enumerate()
         {
             skin_fdids[idx] = self
-                .material_texture_fdid(data, *material_resource_id)
+                .material_texture_fdid(data, *material_resource_id, race, sex)
                 .unwrap_or(0);
         }
         Some((model_fdid, skin_fdids))
@@ -365,7 +358,7 @@ impl OutfitData {
         let material_resource_id = display.model_material_resource_columns[column_index];
         if material_resource_id != 0 {
             skin_fdids[0] = self
-                .material_texture_fdid(data, material_resource_id)
+                .material_texture_fdid(data, material_resource_id, race, sex)
                 .unwrap_or(0);
         }
         Some((model_fdid, skin_fdids))
@@ -395,31 +388,31 @@ impl OutfitData {
         &self,
         data: &LoadedOutfitData,
         display_ids: impl IntoIterator<Item = u32>,
+        race: u8,
+        sex: u8,
     ) -> OutfitResult {
         let mut result = OutfitResult::default();
         for display_id in display_ids {
             let Some(display) = self.display_info(data, display_id) else {
                 continue;
             };
-            self.merge_display_into_result(&mut result, data, &display);
+            self.merge_display_into_result(&mut result, data, &display, race, sex);
         }
         result
-    }
-
-    pub fn material_texture_count(&self) -> usize {
-        self.loaded()
-            .map(|data| data.material_to_texture_cache.lock().unwrap().len())
-            .unwrap_or(0)
     }
 
     /// `ItemDisplayInfo.GeosetGroup[group_index]` + 1 (the geoset variant it selects), or
     /// none when that group is 0.
     pub fn display_geoset_variant(&self, display_info_id: u32, group_index: usize) -> Option<u16> {
+        let raw = self.display_geoset_raw(display_info_id, group_index)?;
+        (raw != 0).then_some(raw + 1)
+    }
+
+    /// `ItemDisplayInfo.GeosetGroup[group_index]` itself.
+    pub fn display_geoset_raw(&self, display_info_id: u32, group_index: usize) -> Option<u16> {
         let data = self.loaded()?;
         let display = self.display_info(data, display_info_id)?;
-        let raw = *display.geoset_groups.get(group_index)?;
-        let raw = u16::try_from(raw).ok()?;
-        (raw != 0).then_some(raw + 1)
+        u16::try_from(*display.geoset_groups.get(group_index)?).ok()
     }
     fn display_info(
         &self,
@@ -446,31 +439,36 @@ impl OutfitData {
         resolved
     }
 
+    /// The texture of material `material_resource_id` race `race`/sex `sex` wears.
     fn material_texture_fdid(
         &self,
         data: &LoadedOutfitData,
         material_resource_id: u32,
+        race: u8,
+        sex: u8,
     ) -> Option<u32> {
-        if let Some(cached) = data
-            .material_to_texture_cache
+        let cached = data
+            .material_textures_cache
             .lock()
             .unwrap()
             .get(&material_resource_id)
-            .copied()
-        {
-            return cached;
-        }
-        let resolved = crate::outfit_catalog_db::load_cached_material_texture_fdid(
-            &self.data_dir,
-            material_resource_id,
-        )
-        .ok()
-        .flatten();
-        data.material_to_texture_cache
-            .lock()
-            .unwrap()
-            .insert(material_resource_id, resolved);
-        resolved
+            .cloned();
+        let candidates = match cached {
+            Some(candidates) => candidates,
+            None => {
+                let loaded = crate::outfit_catalog_db::load_cached_material_texture_fdids(
+                    &self.data_dir,
+                    material_resource_id,
+                )
+                .unwrap_or_default();
+                data.material_textures_cache
+                    .lock()
+                    .unwrap()
+                    .insert(material_resource_id, loaded.clone());
+                loaded
+            }
+        };
+        data.components.select_texture(&candidates, race, sex)
     }
 
     fn model_fdids(&self, data: &LoadedOutfitData, model_resource_id: u32) -> Vec<u32> {
@@ -498,9 +496,14 @@ impl OutfitData {
         result: &mut OutfitResult,
         data: &LoadedOutfitData,
         display: &DisplayInfoResolved,
+        race: u8,
+        sex: u8,
     ) {
         let mut seen_item_textures = result.item_textures.iter().copied().collect::<HashSet<_>>();
-        for &(component_section, fdid) in &display.item_textures {
+        for &(component_section, material) in &display.item_materials {
+            let Some(fdid) = self.material_texture_fdid(data, material, race, sex) else {
+                continue;
+            };
             if seen_item_textures.insert((component_section, fdid)) {
                 result.item_textures.push((component_section, fdid));
             }
@@ -519,7 +522,7 @@ impl OutfitData {
 
         let mut seen_model_fdids = result.model_fdids.iter().copied().collect::<HashSet<_>>();
         for &model_resource_id in &display.model_resource_ids {
-            let Some(model_fdid) = self.model_fdids(data, model_resource_id).first().copied()
+            let Some(model_fdid) = self.select_model_fdid(data, model_resource_id, race, sex)
             else {
                 continue;
             };
@@ -538,7 +541,7 @@ impl OutfitData {
         sex: u8,
     ) -> Option<u32> {
         let candidates = self.model_fdids(data, model_resource_id);
-        select_candidate_fdid(data, &candidates, race, sex)
+        data.components.select_model(&candidates, race, sex, None)
     }
 
     fn select_shoulder_model_fdid(
@@ -550,13 +553,8 @@ impl OutfitData {
         sex: u8,
     ) -> Option<u32> {
         let candidates = self.model_fdids(data, model_resource_id);
-        let side_candidates = candidates
-            .iter()
-            .copied()
-            .filter(|fdid| shoulder_model_matches_side(&data.data_dir, *fdid, shoulder_index))
-            .collect::<Vec<_>>();
-        select_candidate_fdid(data, &side_candidates, race, sex)
-            .or_else(|| select_candidate_fdid(data, &candidates, race, sex))
+        data.components
+            .select_model(&candidates, race, sex, Some(shoulder_index as u8))
     }
 }
 
@@ -619,27 +617,12 @@ fn head_geoset_primary_variant(raw_value: i16) -> Option<u16> {
     }
 }
 
+/// GeosetGroup[1] selects 2101 + value (wowdev.wiki DB/ItemDisplayInfo).
 fn head_geoset_secondary_variant(raw_value: i16) -> Option<u16> {
     match raw_value {
         value if value <= 0 => None,
-        value => Some(value as u16),
+        value => Some(value as u16 + 1),
     }
-}
-
-fn race_model_suffixes(data: &LoadedOutfitData, race: u8, sex: u8) -> Vec<String> {
-    let Some(prefix) = data.race_prefix.get(&race) else {
-        return Vec::new();
-    };
-    let sex_suffix = match sex {
-        0 => "m",
-        1 => "f",
-        _ => return Vec::new(),
-    };
-    let mut suffixes = vec![format!("{prefix}{sex_suffix}")];
-    if prefix.len() == 2 {
-        suffixes.push(format!("{prefix}_{sex_suffix}"));
-    }
-    suffixes
 }
 
 fn shoulder_model_column_index(
@@ -667,42 +650,4 @@ fn shoulder_model_column_index(
         }
         _ => None,
     }
-}
-
-fn shoulder_model_matches_side(data_dir: &Path, fdid: u32, shoulder_index: usize) -> bool {
-    let Ok(Some(path)) = crate::outfit_listfile::lookup_fdid(data_dir, fdid) else {
-        return false;
-    };
-    let lower = path.to_ascii_lowercase();
-    match shoulder_index {
-        0 => lower.contains("/lshoulder_") || lower.ends_with("_l.m2"),
-        1 => lower.contains("/rshoulder_") || lower.ends_with("_r.m2"),
-        _ => false,
-    }
-}
-
-fn select_candidate_fdid(
-    data: &LoadedOutfitData,
-    candidates: &[u32],
-    race: u8,
-    sex: u8,
-) -> Option<u32> {
-    if candidates.is_empty() {
-        return None;
-    }
-    let suffixes = race_model_suffixes(data, race, sex);
-    if !suffixes.is_empty() {
-        for suffix in &suffixes {
-            for &fdid in candidates {
-                let Ok(Some(path)) = crate::outfit_listfile::lookup_fdid(&data.data_dir, fdid)
-                else {
-                    continue;
-                };
-                if path.ends_with(&format!("_{suffix}.m2")) {
-                    return Some(fdid);
-                }
-            }
-        }
-    }
-    (candidates.len() == 1).then(|| candidates[0])
 }
