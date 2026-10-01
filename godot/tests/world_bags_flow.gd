@@ -36,6 +36,12 @@ func run_test() -> void:
 	var backpack := await wait_bag_button(client, BACKPACK)
 	if backpack == null:
 		return
+	await right_click_control(backpack)
+	for frame in range(8):
+		await process_frame
+		if not bags_closed(client):
+			fail("RED: right backpack click toggled bags; original toggle_bag_frame accepts left press only")
+			return
 	await click(backpack)
 	if not await wait_container(client, 0, true):
 		return
@@ -96,6 +102,18 @@ func run_test() -> void:
 	print("FIXTURE BAGS_DONE")
 	# Parent owns deliberate kill/reap; normal engine shutdown is not this test.
 	while true:
+		await process_frame
+
+func right_click_control(control: Control) -> void:
+	var point := control.get_global_rect().get_center()
+	Input.warp_mouse(point)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_RIGHT
+		event.pressed = pressed
+		event.position = point
+		event.global_position = point
+		Input.parse_input_event(event)
 		await process_frame
 
 func capture_bags() -> bool:
