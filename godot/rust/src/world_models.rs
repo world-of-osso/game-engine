@@ -429,7 +429,7 @@ mod tests {
     fn a_player_staff_is_sheathed_on_the_back() {
         use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
             slot,
             item_id: Some(item_id),
