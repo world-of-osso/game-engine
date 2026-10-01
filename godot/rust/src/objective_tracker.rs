@@ -3,9 +3,7 @@
 //! in watch order, with the "All Objectives" and "Quests" collapse buttons.
 
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::objective_tracker_component::{
-    OPEN_QUEST_PREFIX, ObjectiveTrackerState, TOGGLE_ACTION, TOGGLE_QUESTS_ACTION, TRACKER_FRAME,
-};
+use game_engine_ui_model::objective_tracker_component::{ObjectiveTrackerState, TRACKER_FRAME};
 use godot::prelude::*;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -18,8 +16,6 @@ const TRACKER_FDIDS: [u32; 4] = [5_320_671, 5_320_914, 5_423_566, 3_509_168];
 #[derive(Default)]
 pub(crate) struct ObjectiveTracker {
     ui: Option<Gd<RegistryUi>>,
-    collapsed: bool,
-    quests_collapsed: bool,
     textures_cached: bool,
 }
 
@@ -51,32 +47,25 @@ impl GameClient {
         Ok(self.sync_objective_tracker()?)
     }
 
-    fn poll_objective_tracker_actions(&mut self) -> Result<(), String> {
+    /// Collapse buttons, and a title or POI click opening the quest log on its quest.
+    fn poll_objective_tracker_actions(&mut self) -> Result<(), FrameError> {
         let Some(ui) = self.objective_tracker.ui.as_mut() else {
             return Ok(());
         };
         let action = ui.bind_mut().pop_action().to_string();
-        let tracker = &mut self.objective_tracker;
-        match action.as_str() {
-            "" => {}
-            TOGGLE_ACTION => tracker.collapsed = !tracker.collapsed,
-            TOGGLE_QUESTS_ACTION => tracker.quests_collapsed = !tracker.quests_collapsed,
-            // Retail opens QuestLogFrame on the quest; the native quest log is not ported.
-            open if open.starts_with(OPEN_QUEST_PREFIX) => {}
-            other => return Err(format!("Unknown objective tracker action: {other}")),
+        if action.is_empty() {
+            return Ok(());
         }
-        Ok(())
+        self.apply_quest_action(&action)
     }
 
     fn objective_tracker_view(&self) -> ObjectiveTrackerState {
-        let log = &self.account.quest_log;
-        let watched = self
-            .account
-            .quest_watched
-            .iter()
-            .filter_map(|id| log.iter().find(|entry| entry.quest_id == *id));
-        let tracker = &self.objective_tracker;
-        ObjectiveTrackerState::from_watched(watched, tracker.collapsed, tracker.quests_collapsed)
+        let ui = &self.quests.ui;
+        ObjectiveTrackerState::from_runtime(
+            &self.account.quests,
+            ui.tracker_collapsed,
+            ui.quests_collapsed,
+        )
     }
 
     fn sync_objective_tracker(&mut self) -> Result<(), String> {
@@ -118,8 +107,8 @@ impl GameClient {
     #[func]
     fn objective_tracker_state(&self) -> VarDictionary {
         let mut result = VarDictionary::new();
-        result.set("collapsed", self.objective_tracker.collapsed);
-        result.set("quests_collapsed", self.objective_tracker.quests_collapsed);
+        result.set("collapsed", self.quests.ui.tracker_collapsed);
+        result.set("quests_collapsed", self.quests.ui.quests_collapsed);
         let Some(ui) = &self.objective_tracker.ui else {
             return result;
         };
@@ -144,7 +133,7 @@ impl GameClient {
         }
         result.set("screen_width", registry.screen_width);
         let mut quests = VarArray::new();
-        for id in &self.account.quest_watched {
+        for id in &self.account.quests.watched {
             if let Some(quest) = rendered_quest_block(registry, *id) {
                 quests.push(&quest.to_variant());
             }
@@ -153,8 +142,8 @@ impl GameClient {
         result
     }
 
-    /// Fixture hook until the native QuestFrame exists: accept `quest_id` from the
-    /// mirrored NPC named `npc_name` (`CMSG_QUEST_GIVER_ACCEPT_QUEST`).
+    /// Fixture hook (`world_minimap_quest.gd`): accept `quest_id` from the mirrored NPC
+    /// named `npc_name` without the quest frame (`CMSG_QUEST_GIVER_ACCEPT_QUEST`).
     #[func]
     fn accept_quest_from(&self, npc_name: GString, quest_id: i64) -> GString {
         let name = npc_name.to_string();
@@ -164,10 +153,11 @@ impl GameClient {
         }) else {
             return GString::from(format!("No mirrored NPC named {name}").as_str());
         };
-        match self
-            .account
-            .send_accept_quest(npc.server_id, quest_id as u32)
-        {
+        let request = game_engine_ui_model::quest_runtime::NpcInteractionRequest::Accept {
+            npc: npc.server_id,
+            quest_id: quest_id as u32,
+        };
+        match self.account.send_quest_request(request) {
             Ok(()) => GString::new(),
             Err(error) => error.0.as_str().into(),
         }

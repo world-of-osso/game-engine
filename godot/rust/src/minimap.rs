@@ -4,7 +4,7 @@
 //! the subzone text in its PvP colour, the local-time clock and calendar day. Hovering the
 //! map shows the zoom buttons; the wheel over it zooms, as `MinimapMixin:OnMouseWheel`.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -12,7 +12,8 @@ use std::path::PathBuf;
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_core::minimap_data::{
     AreaCatalog, FACTION_GROUP_ALLIANCE, FACTION_GROUP_HORDE, MinimapView, TileImage, TileKey,
-    ZonePvp, compose, parse_race_faction_groups, sample, tile_path, zoom_in, zoom_out,
+    ZonePvp, compose, parse_race_faction_groups, sample, tile_path, tint_quest_areas, zoom_in,
+    zoom_out,
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::game_tooltip::GameTooltip;
@@ -27,10 +28,10 @@ use godot::global::MouseButton;
 use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
 use shared::components::Position;
-use shared::protocol::{NpcFlags, QuestGiverStatus};
+use shared::protocol::QuestGiverStatus;
 use ui_toolkit::frame::WidgetData;
 
-use crate::{GameClient, frame_error::FrameError, replicated::UnitFields, ui::RegistryUi};
+use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
 /// Composite resolution: the 198-unit map at up to 1.3× UI scale without upsampling.
 const COMPOSITE_PX: u32 = 256;
@@ -49,9 +50,9 @@ pub(crate) struct Minimap {
     chrome: HashMap<u32, bool>,
     /// Map and view of the current composite, and its pixels.
     drawn: Option<(String, MinimapView, Vec<u8>)>,
-    /// Quest givers already sent in a `QuestGiverStatusQuery`; the server re-sends
-    /// their status after every quest change.
-    queried: HashSet<u64>,
+    /// Quest objective areas (engine `(x, z)` polygons) tinted into the composite, and
+    /// the pixels they cover.
+    quest_areas: (Vec<Vec<[f32; 2]>>, usize),
 }
 
 struct Catalogs {
@@ -65,6 +66,20 @@ struct Tile {
 }
 
 impl Minimap {
+    /// `AreaTable` name of `area_id` (the quest log's zone headers share the catalog).
+    pub(crate) fn area_name(
+        &mut self,
+        data_root: &std::path::Path,
+        area_id: u32,
+    ) -> Option<String> {
+        let catalogs = self
+            .catalogs
+            .get_or_insert_with(|| load_catalogs(data_root))
+            .as_ref()
+            .ok()?;
+        catalogs.areas.name(area_id).map(str::to_owned)
+    }
+
     fn free_ui(&mut self) {
         if let Some(ui) = self.ui.take() {
             ui.free();
@@ -174,44 +189,10 @@ impl GameClient {
             || !self.client_options.hud.show_minimap
         {
             self.minimap.free_ui();
-            self.minimap.queried.clear();
-            self.account.quest_giver_status.clear();
             return Ok(());
         }
-        self.query_quest_givers()?;
         self.poll_minimap_actions()?;
         Ok(self.sync_minimap()?)
-    }
-
-    /// Bevy `quests.rs`: every mirrored NPC with `NPCFlags::QUESTGIVER` is queried once.
-    fn query_quest_givers(&mut self) -> Result<(), FrameError> {
-        let units = &self.replica;
-        let removed: Vec<u64> = self
-            .minimap
-            .queried
-            .iter()
-            .copied()
-            .filter(|id| units.unit(*id).is_none())
-            .collect();
-        for id in removed {
-            self.minimap.queried.remove(&id);
-            self.account.quest_giver_status.remove(&id);
-        }
-        let new: Vec<u64> = self
-            .replica
-            .units()
-            .filter(|unit| {
-                unit.npc_flags()
-                    .is_some_and(|flags| flags & NpcFlags::QUESTGIVER != 0)
-            })
-            .map(|unit| unit.server_id)
-            .filter(|id| !self.minimap.queried.contains(id))
-            .collect();
-        if new.is_empty() {
-            return Ok(());
-        }
-        self.minimap.queried.extend(new.iter().copied());
-        Ok(self.account.send_quest_giver_status_query(new)?)
     }
 
     fn poll_minimap_actions(&mut self) -> Result<(), String> {
@@ -328,7 +309,8 @@ impl GameClient {
     fn quest_blips(&self, view: &MinimapView) -> Vec<MinimapBlip> {
         let mut blips: Vec<MinimapBlip> = self
             .account
-            .quest_giver_status
+            .quests
+            .giver_status
             .iter()
             .filter_map(|(&unit, status)| {
                 let kind = match status {
@@ -350,8 +332,10 @@ impl GameClient {
         let map = self.terrain.map_name()?.to_owned();
         let view = MinimapView::new(position, self.minimap.zoom);
         let pixel_yards = view.diameter / COMPOSITE_PX as f32;
+        let areas = self.minimap_quest_areas();
         if let Some((drawn_map, drawn, _)) = &self.minimap.drawn
             && *drawn_map == map
+            && self.minimap.quest_areas.0 == areas
             && drawn.diameter == view.diameter
             && (drawn.center[0] - view.center[0]).hypot(drawn.center[1] - view.center[1])
                 < pixel_yards / 2.0
@@ -362,11 +346,33 @@ impl GameClient {
             self.minimap.load_tile(&self.data_root, &map, key);
         }
         let minimap = &self.minimap;
-        let pixels = compose(&view, COMPOSITE_PX, |key| {
+        let mut pixels = compose(&view, COMPOSITE_PX, |key| {
             minimap.tile(&map, key).map(|tile| &tile.image)
         });
+        let tinted = tint_quest_areas(&view, COMPOSITE_PX, &mut pixels, &areas);
+        self.minimap.quest_areas = (areas, tinted);
         self.minimap.drawn = Some((map, view, pixels.clone()));
         Some((COMPOSITE_PX, pixels))
+    }
+
+    /// Objective areas of the watched quests on the player's map, as engine `(x, z)`
+    /// polygons (world `(x, y)` is engine `(x, -z)`).
+    fn minimap_quest_areas(&self) -> Vec<Vec<[f32; 2]>> {
+        let Some(map_id) = self.world_map_id else {
+            return Vec::new();
+        };
+        self.account
+            .quests
+            .watched_objective_areas()
+            .into_iter()
+            .filter(|poi| poi.map_id == map_id)
+            .map(|poi| {
+                poi.points
+                    .iter()
+                    .map(|point| [point.x as f32, -(point.y as f32)])
+                    .collect()
+            })
+            .collect()
     }
 
     fn sync_minimap(&mut self) -> Result<(), String> {
@@ -452,6 +458,14 @@ impl GameClient {
         if let Some((_, yaw)) = self.minimap_player() {
             result.set("facing_yaw", yaw);
         }
+        let mut areas = VarArray::new();
+        for area in &self.minimap.quest_areas.0 {
+            let points: PackedVector2Array =
+                area.iter().map(|[x, z]| Vector2::new(*x, *z)).collect();
+            areas.push(&points.to_variant());
+        }
+        result.set("quest_areas", &areas);
+        result.set("quest_area_pixels", self.minimap.quest_areas.1 as i64);
         self.describe_minimap_composite(&mut result);
         self.describe_minimap_frames(&mut result);
         result

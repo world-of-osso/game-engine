@@ -5,7 +5,7 @@
 use std::f32::consts::FRAC_PI_2;
 use std::path::Path;
 
-use shared::protocol::QuestEntrySnapshot;
+use shared::protocol::{QuestEntrySnapshot, QuestPoiSnapshot};
 
 use crate::csv_util::parse_csv_line;
 use crate::ui::screens::world_map_frame_component::{
@@ -93,6 +93,8 @@ pub struct WorldMapRequest<'a> {
     pub hovered: Option<[f32; 2]>,
     pub player: Option<&'a WorldMapPlayer>,
     pub quests: &'a [QuestEntrySnapshot],
+    /// Objective areas to outline (`QuestRuntime::watched_objective_areas`).
+    pub quest_areas: &'a [&'a QuestPoiSnapshot],
 }
 
 /// The map the frame opens on: the player's best map.
@@ -116,8 +118,10 @@ pub fn world_map_frame_state(data: &WorldMapData, request: WorldMapRequest) -> W
     let map_id = request.map_id;
     let kind = catalog.map(map_id).map(|map| map.kind);
     let mut pins = Vec::new();
+    let mut quest_areas = Vec::new();
     if matches!(kind, Some(map_type::ZONE | map_type::CONTINENT)) {
         pins.extend(quest_pins(catalog, map_id, request.quests));
+        quest_areas = quest_area_polygons(catalog, map_id, request.quest_areas);
     }
     // Retail draws flight points on zone maps only.
     if kind == Some(map_type::ZONE) {
@@ -138,6 +142,7 @@ pub fn world_map_frame_state(data: &WorldMapData, request: WorldMapRequest) -> W
             .hovered
             .and_then(|uv| highlight(catalog, map_id, uv)),
         pins,
+        quest_areas,
         player: request
             .player
             .and_then(|player| player_marker(catalog, map_id, player)),
@@ -195,6 +200,25 @@ fn player_marker(
         y,
         rotation: arrow_rotation(player.yaw),
     })
+}
+
+/// Map-UV outlines of the objective areas drawn on `map_id`.
+fn quest_area_polygons(
+    catalog: &UiMapCatalog,
+    map_id: u32,
+    areas: &[&QuestPoiSnapshot],
+) -> Vec<Vec<[f32; 2]>> {
+    areas
+        .iter()
+        .filter_map(|poi| {
+            let points: Vec<[f32; 2]> = poi
+                .points
+                .iter()
+                .map(|point| [point.x as f32, point.y as f32])
+                .collect();
+            catalog.map_polygon(map_id, poi.map_id, &points)
+        })
+        .collect()
 }
 
 /// One pin per quest: its turn-in once complete, else its first objective area.

@@ -51,6 +51,7 @@ mod particles;
 mod party_frames;
 mod player_spells;
 mod profile;
+mod quests;
 mod replicated;
 mod scene;
 mod sound;
@@ -144,6 +145,7 @@ pub struct GameClient {
     world_map: world_map::WorldMap,
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
+    quests: quests::QuestHud,
     entrance_bar: entrance_bar::EntranceBar,
     damage_meter: damage_meter::DamageMeterHud,
     group_frames: party_frames::GroupFramesHud,
@@ -240,6 +242,7 @@ impl INode3D for GameClient {
             world_map: world_map::WorldMap::default(),
             minimap: minimap::Minimap::default(),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
+            quests: quests::QuestHud::default(),
             entrance_bar: entrance_bar::EntranceBar::default(),
             damage_meter: damage_meter::DamageMeterHud::default(),
             group_frames: party_frames::GroupFramesHud::default(),
@@ -968,6 +971,7 @@ impl GameClient {
         self.targeting.visit_uis(&mut visit)?;
         self.minimap.visit_uis(&mut visit)?;
         self.objective_tracker.visit_uis(&mut visit)?;
+        self.quests.visit_uis(&mut visit)?;
         self.auras.visit_uis(&mut visit)?;
         self.damage_meter.visit_uis(&mut visit)?;
         self.group_frames.visit_uis(&mut visit)?;
@@ -1423,6 +1427,7 @@ impl GameClient {
             ("Chat", |c, d| c.update_chat(d)),
             ("World map", |c, _| Ok(c.update_world_map()?)),
             ("Minimap", |c, _| c.update_minimap()),
+            ("Quests", |c, _| c.update_quests()),
             ("Objective tracker", |c, _| c.update_objective_tracker()),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
             ("Damage meter", |c, _| c.update_damage_meter()),
@@ -1549,14 +1554,16 @@ impl GameClient {
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
             AccountEvent::Npc(message) => {
-                if !self.bank_npc_message(&message) {
-                    self.receive_npc_message(message)?
+                if !self.receive_quest_npc_message(&message)? && !self.bank_npc_message(&message) {
+                    self.receive_npc_message(message)?;
                 }
             }
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
+            AccountEvent::Quest(message) => self.receive_quest_message(message)?,
+            AccountEvent::QuestNotice(text) => self.add_quest_notice(&text),
             AccountEvent::CreatureTooltip(tooltip) => self.tooltips.receive_creature(tooltip),
             AccountEvent::Appearances(update) => self.tooltips.receive_appearances(update),
         }

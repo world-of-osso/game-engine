@@ -28,12 +28,11 @@ use shared::protocol::{
     DeleteCharacterResponse, DungeonDifficultySet, EmoteIntent, EnterWorldResponse,
     ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo,
     KnownSpellsSnapshot, LoadTerrain, LoginResponse, MirrorTimerPause, MirrorTimerStart,
-    MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestEntrySnapshot, QuestFailed,
-    QuestGiverAcceptQuest, QuestGiverStatus, QuestGiverStatusMultiple, QuestGiverStatusQuery,
-    QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate,
-    SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged, SpellCastIntent,
-    SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TalentChannel, TransferAborted,
-    TransferChannel, WorldPortAck,
+    MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestFailed, QuestGiverStatusMultiple,
+    QuestGiverStatusQuery, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
+    RestStateUpdate, SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged,
+    SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TalentChannel,
+    TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     AppearanceCollectionUpdate, CreatureTooltip, CreatureTooltipQuery, TooltipChannel,
@@ -57,6 +56,12 @@ use shared::protocol::{
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::merchant_data::MerchantRequest;
+use game_engine_ui_model::quest_runtime::{NpcInteractionRequest, QuestRuntime};
+use shared::protocol::{
+    AbandonQuest, QuestGiverAcceptQuest, QuestGiverChooseReward, QuestGiverCompleteQuest,
+    QuestGiverHello, QuestGiverOfferReward, QuestGiverQueryQuest, QuestGiverQuestComplete,
+    QuestGiverQuestDetails, QuestGiverQuestList, QuestGiverRequestItems, SetQuestWatched,
+};
 use shared::protocol::{
     ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
     GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
@@ -96,12 +101,8 @@ pub struct Account {
     bridge: Option<NetworkBridge>,
     data_root: PathBuf,
     hostname: String,
-    /// Server quest log in log order, for the world map's quest areas.
-    pub quest_log: Vec<QuestEntrySnapshot>,
-    /// Watched quest ids in objective-tracker order (`watched_quest_ids`).
-    pub quest_watched: Vec<u32>,
-    /// Newest `QuestGiverStatusMultiple` entry per queried NPC.
-    pub quest_giver_status: std::collections::HashMap<u64, QuestGiverStatus>,
+    /// Server quest log, watch list, quest giver markers and the open quest dialog.
+    pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
     /// Saved instances of the last `InstanceInfo`.
@@ -114,6 +115,8 @@ pub struct Account {
     pub combat_log_seq: u64,
     /// The server's newest damage meter sessions.
     pub damage_meter: Option<DamageMeterSnapshot>,
+    /// The newest `PlayerXpUpdate`: XP into the level and the level's requirement.
+    pub xp: Option<shared::protocol::PlayerXpUpdate>,
     /// Party/raid roster, live member states, the ready check and the pending invite.
     pub group: GroupState,
 }
@@ -158,10 +161,24 @@ pub enum AccountEvent {
     Chat(ChatMessage),
     /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
     GroupNotice(String),
+    /// Quest giver dialog traffic and quest results.
+    Quest(QuestMessage),
+    /// A quest system line (`ERR_QUEST_ACCEPTED_S`, ...), shown as a system chat line.
+    QuestNotice(String),
     /// The server's tooltip data for one creature entry.
     CreatureTooltip(CreatureTooltip),
     /// The account's learned appearances.
     Appearances(AppearanceCollectionUpdate),
+}
+
+/// Quest giver dialog pages, turn-in results and rejections (`QuestChannel`).
+pub(crate) enum QuestMessage {
+    List(QuestGiverQuestList),
+    Details(QuestGiverQuestDetails),
+    Progress(QuestGiverRequestItems),
+    Reward(QuestGiverOfferReward),
+    Complete(QuestGiverQuestComplete),
+    Failed(QuestFailed),
 }
 
 pub(crate) enum BankMessage {
@@ -227,15 +244,14 @@ impl Account {
             bridge: None,
             data_root,
             hostname: String::new(),
-            quest_log: Vec::new(),
-            quest_watched: Vec::new(),
-            quest_giver_status: std::collections::HashMap::new(),
+            quests: QuestRuntime::default(),
             dungeon_difficulty: None,
             instance_locks: Vec::new(),
             spells: PlayerSpells::default(),
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
             damage_meter: None,
+            xp: None,
             group: GroupState::default(),
         }
     }
@@ -280,7 +296,9 @@ impl Account {
         self.spells.clear();
         self.combat_log.clear();
         self.damage_meter = None;
+        self.xp = None;
         self.group = GroupState::default();
+        self.quests = QuestRuntime::default();
         self.session.token = self.read_token()?;
         Ok(())
     }
@@ -612,11 +630,41 @@ impl Account {
             .map_err(SessionError)
     }
 
-    /// Accept `quest_id` from the giver `npc` (`CMSG_QUEST_GIVER_ACCEPT_QUEST`).
-    pub fn send_accept_quest(&self, npc: u64, quest_id: u32) -> Result<(), SessionError> {
-        self.bridge()?
-            .send::<_, QuestChannel>(QuestGiverAcceptQuest { npc, quest_id })
-            .map_err(SessionError)
+    /// A quest giver frame, quest log or gossip request (Bevy `networking/quests.rs`
+    /// `send_request`).
+    pub fn send_quest_request(&self, request: NpcInteractionRequest) -> Result<(), SessionError> {
+        use NpcInteractionRequest as R;
+        let bridge = self.bridge()?;
+        match request {
+            R::Hello { npc } => bridge.send::<_, QuestChannel>(QuestGiverHello { npc }),
+            R::SelectGossip { npc, option_id } => {
+                bridge.send::<_, InteractionChannel>(SelectGossipOption { npc, option_id })
+            }
+            R::QueryQuest { npc, quest_id } => {
+                bridge.send::<_, QuestChannel>(QuestGiverQueryQuest { npc, quest_id })
+            }
+            R::Accept { npc, quest_id } => {
+                bridge.send::<_, QuestChannel>(QuestGiverAcceptQuest { npc, quest_id })
+            }
+            R::Complete { npc, quest_id } => {
+                bridge.send::<_, QuestChannel>(QuestGiverCompleteQuest { npc, quest_id })
+            }
+            R::ChooseReward {
+                npc,
+                quest_id,
+                choice,
+            } => bridge.send::<_, QuestChannel>(QuestGiverChooseReward {
+                npc,
+                quest_id,
+                choice_index: choice,
+            }),
+            R::Abandon { quest_id } => bridge.send::<_, QuestChannel>(AbandonQuest { quest_id }),
+            R::SetWatched { quest_id, watched } => {
+                bridge.send::<_, QuestChannel>(SetQuestWatched { quest_id, watched })
+            }
+            R::Close { npc } => bridge.send::<_, InteractionChannel>(CloseInteraction { npc }),
+        }
+        .map_err(SessionError)
     }
 
     /// The player closed the NPC's frame (`CMSG_CLOSE_INTERACTION`).
@@ -808,8 +856,15 @@ impl Account {
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
         if Self::is_account_state_message(&message) {
-            return self.dispatch_account_state_message(message);
+            return self.dispatch_account_state_message(message, output);
         }
+        let message = match quest_message(message)? {
+            Ok(quest) => {
+                output.push(AccountEvent::Quest(quest));
+                return Ok(());
+            }
+            Err(message) => message,
+        };
         if Self::is_mirror_timer_message(&message) {
             return Self::dispatch_mirror_timer_message(message, output);
         }
@@ -870,39 +925,38 @@ impl Account {
         message.is::<QuestLogSnapshot>()
             || message.is::<QuestLogUpdate>()
             || message.is::<QuestGiverStatusMultiple>()
-            || message.is::<QuestFailed>()
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<DamageMeterSnapshot>()
+            || message.is::<shared::protocol::PlayerXpUpdate>()
     }
 
-    fn dispatch_account_state_message(&mut self, message: ProtocolMessage) -> Result<(), String> {
+    fn dispatch_account_state_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
         if message.is::<QuestLogSnapshot>() {
-            let snapshot: QuestLogSnapshot = decode(message)?;
-            self.quest_log = snapshot.entries;
-            self.quest_watched = snapshot.watched_quest_ids;
+            self.quests.apply_snapshot(decode(message)?);
             return Ok(());
         }
         if message.is::<QuestLogUpdate>() {
-            let update: QuestLogUpdate = decode(message)?;
-            self.quest_watched = update.watched_quest_ids.clone();
-            apply_quest_log_update(&mut self.quest_log, update);
+            let notices = self.quests.apply_update(decode(message)?);
+            output.extend(notices.into_iter().map(AccountEvent::QuestNotice));
             return Ok(());
         }
         if message.is::<QuestGiverStatusMultiple>() {
             let statuses: QuestGiverStatusMultiple = decode(message)?;
-            for entry in statuses.statuses {
-                self.quest_giver_status.insert(entry.npc, entry.status);
-            }
+            self.quests.apply_statuses(
+                statuses
+                    .statuses
+                    .into_iter()
+                    .map(|entry| (entry.npc, entry.status)),
+            );
             return Ok(());
         }
-        if message.is::<QuestFailed>() {
-            let failed: QuestFailed = decode(message)?;
-            godot::prelude::godot_warn!(
-                "Quest {} request failed: {:?}",
-                failed.quest_id,
-                failed.reason
-            );
+        if message.is::<shared::protocol::PlayerXpUpdate>() {
+            self.xp = Some(decode(message)?);
             return Ok(());
         }
         if message.is::<DamageMeterSnapshot>() {
@@ -1365,59 +1419,31 @@ fn find_map_field(
     Err(format!("{}: no {key_column} {key}", path.display()))
 }
 
-/// Original `QuestLogUpdate`: changed entries replace or append, removed ids leave.
-fn apply_quest_log_update(log: &mut Vec<QuestEntrySnapshot>, update: QuestLogUpdate) {
-    log.retain(|entry| !update.removed.contains(&entry.quest_id));
-    for changed in update.changed {
-        match log
-            .iter_mut()
-            .find(|entry| entry.quest_id == changed.quest_id)
-        {
-            Some(entry) => *entry = changed,
-            None => log.push(changed),
-        }
-    }
+/// The quest giver dialog message, or the message back (`QuestChannel`).
+fn quest_message(
+    message: ProtocolMessage,
+) -> Result<Result<QuestMessage, ProtocolMessage>, String> {
+    Ok(Ok(if message.is::<QuestGiverQuestList>() {
+        QuestMessage::List(decode(message)?)
+    } else if message.is::<QuestGiverQuestDetails>() {
+        QuestMessage::Details(decode(message)?)
+    } else if message.is::<QuestGiverRequestItems>() {
+        QuestMessage::Progress(decode(message)?)
+    } else if message.is::<QuestGiverOfferReward>() {
+        QuestMessage::Reward(decode(message)?)
+    } else if message.is::<QuestGiverQuestComplete>() {
+        QuestMessage::Complete(decode(message)?)
+    } else if message.is::<QuestFailed>() {
+        QuestMessage::Failed(decode(message)?)
+    } else {
+        return Ok(Err(message));
+    }))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn quest_entry(quest_id: u32, title: &str) -> QuestEntrySnapshot {
-        QuestEntrySnapshot {
-            quest_id,
-            title: title.into(),
-            zone: String::new(),
-            completed: false,
-            repeatability: shared::protocol::QuestRepeatability::Normal,
-            objectives: Vec::new(),
-            level: 1,
-            sort_id: 0,
-            objectives_text: String::new(),
-            completion_text: String::new(),
-            watched: false,
-            pois: Vec::new(),
-        }
-    }
-
-    #[test]
-    fn quest_log_update_replaces_appends_and_removes_in_log_order() {
-        let mut log = vec![
-            quest_entry(1, "A"),
-            quest_entry(2, "B"),
-            quest_entry(3, "C"),
-        ];
-        apply_quest_log_update(
-            &mut log,
-            QuestLogUpdate {
-                changed: vec![quest_entry(3, "C done"), quest_entry(4, "D")],
-                removed: vec![2],
-                watched_quest_ids: Vec::new(),
-            },
-        );
-        let titles: Vec<_> = log.iter().map(|entry| entry.title.as_str()).collect();
-        assert_eq!(titles, ["A", "C done", "D"]);
-    }
     use shared::components::{CharacterAppearance, EquipmentAppearance};
     use shared::protocol::{CharacterListEntry, TransferAbortReason};
 
