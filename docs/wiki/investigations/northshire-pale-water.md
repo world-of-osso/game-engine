@@ -25,6 +25,8 @@ WMO group liquids were parsed but never drawn. They now follow WebWowViewerCpp (
 - **Interior colour.** `isInteriorLightingLit` (interior 0x2000 without exterior 0x8 or exterior-lit 0x40) sets the water shader's `interior`, which makes procedural WMO water (LiquidTypeXTexture Type 2, e.g. WMO Water 13) white (`liquidWaterMat.slang:162-176`).
 - The surface is a `Group{g}_Liquid` child of the WMO node, so the placement and portal culling apply. `TerrainObjects` owns one WMO liquid material set, advanced by the shared material clock and relit with the terrain light.
 
+Live (private game-server 2ceae17, UDP 5106, engine `dee54d9d`): the WMO liquid is the 3 × 4-tile WMO Water pool of WMO placement 10544 (`abbeygate01`) beside Northshire Abbey, drawn translucent teal at its MLIQ height, 1.46 yd above the WMO origin; hiding the `Group0_Liquid` node shows the grass under it (`data/diagnostics/avfix-2026-09-30/wmo-liquid/abbeygate/before-after.png`, `sheet.png`). Whether retail shows this pool here is not confirmed: it lies flat over the grass, with no basin. Stormwind's canals are WMO liquid too (groups 107520-107523, liquid 5, 0x7F/0x2F tiles common), but the city's ~16,000 objects had not finished spawning within the capture's time limit, so they were not shot.
+
 Proof: `godot/core/tests/wmo_liquid.rs` (5 tests): the resolution table; interior lighting; Northshire Abbey's gate fountain (`abbeygate01` 108104/108105: MOHD 0x5, liquid 5 → 13, 10 of 12 tiles, tile 0x3F hidden); the Cultists' Quay delve cave (5356285/5533972) as interior WMO Water; magma vertex UVs.
 
 ## Proof
