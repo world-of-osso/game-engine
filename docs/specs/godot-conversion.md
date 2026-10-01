@@ -18,7 +18,7 @@ Standalone bag tooltip native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + 
 
 ### Native merchant cursor — MAIN-observed bounded GREEN, gates pending
 
-Independent fixture has **MAIN-observed bounded GREEN at `837e2c1e`/`b073e4dd`: matching Depot build and five full runtimes exit0; independent gate1446/readability pending, not accepted until MAIN confirms**. No independent acceptance or user game screen added. Scope: first vendor → own embedded bag only. [SSOT oracle, source proof matrix, exclusions and retained proofs](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--main-observed-bounded-green-gates-pending); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing product cursor policy remains unchanged; full conversion OPEN.
+Independent fixture has **MAIN-accepted independent gate1446 bounded PASS at `837e2c1e`/`b073e4dd`: scoped functional/source/format/readability and matching build/five-flow evidence accepted**. No user game screen added. Scope: first vendor → own embedded bag only. [SSOT oracle, source proof matrix, exclusions and retained proofs](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--main-accepted-bounded-pass); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing product cursor policy remains unchanged; full conversion OPEN.
 
 ### Occupied startup equipment inventory
 
