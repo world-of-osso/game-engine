@@ -171,19 +171,23 @@ impl UnitNode {
     }
 }
 
-/// The main-hand weapon class and subclass of `unit`'s equipment or virtual items.
+/// The main-hand weapon class and subclass of `unit`'s equipment or virtual items;
+/// `None` while the gear rows load.
 pub(super) fn unit_weapon_class(
     unit: &UnitNode,
-    models: &mut WorldModels,
-) -> (MeleeWeapon, Option<u8>) {
+    models: &WorldModels,
+) -> Option<(MeleeWeapon, Option<u8>)> {
     let Some(equipment) = unit.equipment() else {
-        return (MeleeWeapon::Unarmed, None);
+        return Some((MeleeWeapon::Unarmed, None));
     };
-    match models.gear() {
-        Ok(gear) => main_hand_weapon(equipment, |item| gear.weapon_subclass(item)),
+    match models.loaded_gear() {
+        Ok(Some(gear)) => Some(main_hand_weapon(equipment, |item| {
+            gear.weapon_subclass(item)
+        })),
+        Ok(None) => None,
         Err(error) => {
             godot_error!("{} weapon class: {error}", unit.name);
-            main_hand_weapon(equipment, |_| None)
+            Some(main_hand_weapon(equipment, |_| None))
         }
     }
 }
