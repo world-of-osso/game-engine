@@ -341,7 +341,9 @@ impl INode3D for GameClient {
                 }
             }
             Ok(false) => {}
-            Err(error) => self.handle_frame_error("Cursor world drop", error),
+            Err(error) => {
+                self.handle_frame_error("Cursor world drop", error);
+            }
         }
     }
 

@@ -1,16 +1,13 @@
 //! Original world-drop confirmation using the shared StaticPopup host.
 
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget};
+use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget, DELETE_GOOD_ITEM, DELETE_ITEM};
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult};
 use godot::classes::{InputEvent, InputEventMouseButton};
 use godot::global::MouseButton;
 use godot::prelude::*;
 
 use crate::{GameClient, frame_error::FrameError};
-
-pub(crate) const DELETE_ITEM: &str = "DELETE_ITEM";
-pub(crate) const DELETE_GOOD_ITEM: &str = "DELETE_GOOD_ITEM";
 
 fn world_drop_pressed(event: &Gd<InputEvent>) -> bool {
     let Ok(mouse) = event.clone().try_cast::<InputEventMouseButton>() else {
