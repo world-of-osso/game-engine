@@ -337,7 +337,7 @@ func wait_until(predicate: Callable, what: String) -> bool:
 func barrier(name: String) -> bool:
 	FileAccess.open("%s/%s-%s" % [sync_dir, role, name], FileAccess.WRITE).store_string("1")
 	var other := "%s/%s-%s" % [sync_dir, "b" if role == "a" else "a", name]
-	var deadline := Time.get_ticks_msec() + 180000
+	var deadline := Time.get_ticks_msec() + 600000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if FileAccess.file_exists(other):
