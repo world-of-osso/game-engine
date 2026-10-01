@@ -23,7 +23,6 @@ const BAGS_UI: &str = "BagsUI";
 pub(crate) struct Bags {
     windows: WindowManager,
     pub(crate) ui: Option<Gd<RegistryUi>>,
-    pub(crate) tooltip_ui: Option<Gd<RegistryUi>>,
     pub(crate) cursor: crate::bag_cursor::BagCursor,
     npc_backpack_open: bool,
 }
@@ -49,9 +48,6 @@ pub(crate) fn bags_screen(ctx: &SharedContext) -> Element {
 impl Bags {
     fn reset(&mut self) {
         if let Some(ui) = self.ui.take() {
-            ui.free();
-        }
-        if let Some(ui) = self.tooltip_ui.take() {
             ui.free();
         }
         self.windows.close_all();
@@ -80,8 +76,7 @@ impl GameClient {
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
         self.place_bags(&mut ui)?;
-        self.sync_bag_cursor()?;
-        Ok(self.sync_bag_tooltip()?)
+        Ok(self.sync_bag_cursor()?)
     }
 
     fn sync_npc_backpack(&mut self) {

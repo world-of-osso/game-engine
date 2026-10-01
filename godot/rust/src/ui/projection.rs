@@ -107,6 +107,16 @@ impl UiProjection {
         registry: &FrameRegistry,
         at: Vector2,
     ) -> Option<Option<String>> {
+        let frame = self.pointer_frame_at(registry, at)?;
+        Some(frame_click_action(registry, frame.id))
+    }
+
+    /// The topmost visible mouse-enabled frame containing the physical point.
+    pub fn pointer_frame_at<'a>(
+        &self,
+        registry: &'a FrameRegistry,
+        at: Vector2,
+    ) -> Option<&'a Frame> {
         let mut candidates: Vec<_> = registry
             .frames_iter()
             .filter(|frame| frame.visible && frame.mouse_enabled)
@@ -117,10 +127,9 @@ impl UiProjection {
                 .then(b.frame_level.cmp(&a.frame_level))
                 .then(b.raise_order.cmp(&a.raise_order))
         });
-        let frame = candidates
+        candidates
             .into_iter()
-            .find(|frame| self.frame_contains_pointer(frame, registry.ui_scale, at))?;
-        Some(frame_click_action(registry, frame.id))
+            .find(|frame| self.frame_contains_pointer(frame, registry.ui_scale, at))
     }
 
     fn frame_contains_pointer(&self, frame: &Frame, scale: f32, at: Vector2) -> bool {

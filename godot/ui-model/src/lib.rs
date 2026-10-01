@@ -125,8 +125,6 @@ pub mod cast_failed_text;
 pub mod casting_bar_frame_component;
 #[path = "../../../src/ui/screens/main_action_bar_component.rs"]
 pub mod main_action_bar_component;
-#[path = "../../../src/ui/screens/spell_tooltip_component.rs"]
-pub mod spell_tooltip_component;
 #[path = "../../../src/ui/screens/spellbook_frame_component.rs"]
 pub mod spellbook_frame_component;
 #[path = "../../../src/ui/ui_errors_data.rs"]

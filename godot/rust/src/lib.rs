@@ -10,7 +10,6 @@ mod auras;
 mod auto_attack;
 mod bag_cursor;
 mod bag_destroy;
-mod bag_tooltip;
 mod bags;
 mod camera;
 mod char_create;
@@ -57,12 +56,14 @@ mod sound_footsteps;
 mod spell_assets;
 mod spell_effects;
 mod spell_sounds;
-mod spell_tooltip;
 mod spells;
 mod startup;
 mod swim;
 mod targeting;
 mod terrain;
+mod tooltip_sources;
+mod tooltip_units;
+mod tooltips;
 mod ui;
 mod ui_scale;
 mod unit_pick;
@@ -171,6 +172,7 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
+    tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -256,6 +258,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
+            tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
@@ -753,6 +756,13 @@ impl GameClient {
         state
     }
 
+    /// The shown `GameTooltip`: visibility, title, `left|right` lines, UI-unit rect and the
+    /// comparison tooltips.
+    #[func]
+    fn tooltip_state(&self) -> VarDictionary {
+        self.tooltip_snapshot()
+    }
+
     /// Known spells, bar, cooldowns, sent casts, errors and spellbook entries.
     #[func]
     fn spells_state(&self) -> VarDictionary {
@@ -919,9 +929,7 @@ impl GameClient {
         if let Some(ui) = &mut self.bags.cursor.ui {
             visit(ui)?;
         }
-        if let Some(ui) = &mut self.bags.tooltip_ui {
-            visit(ui)?;
-        }
+        self.tooltips.visit_uis(&mut visit)?;
         self.merchant.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
@@ -1411,6 +1419,7 @@ impl GameClient {
             ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
             ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
             ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
+            ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
                 c.cull_world_objects();
                 Ok(())
@@ -1504,6 +1513,8 @@ impl GameClient {
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
+            AccountEvent::CreatureTooltip(tooltip) => self.tooltips.receive_creature(tooltip),
+            AccountEvent::Appearances(update) => self.tooltips.receive_appearances(update),
         }
         Ok(())
     }
@@ -1787,6 +1798,7 @@ impl GameClient {
         self.replica.clear();
         self.replica.drain_changes();
         self.auras.reset();
+        self.tooltips.reset();
         self.terrain.reset()
     }
 
