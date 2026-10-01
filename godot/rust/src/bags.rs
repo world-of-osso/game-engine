@@ -85,7 +85,10 @@ impl GameClient {
     }
 
     fn sync_npc_backpack(&mut self) {
-        let open = self.merchant.session.is_open() || self.mailbox.session.is_open();
+        let open = self.merchant.session.is_open()
+            || self.mailbox.session.is_open()
+            || self.bank_backpack_open()
+            || self.guild_bank_backpack_embedded();
         if open != self.bags.npc_backpack_open {
             self.bags.windows.set_open(WindowId::Bag(0), open);
             self.bags.npc_backpack_open = open;
@@ -96,7 +99,8 @@ impl GameClient {
         let mut containers = self.merchant.session.bag_state();
         for bag in &mut containers.bags {
             // The existing NPC owners retain their backpack, never a second visible copy.
-            let npc_backpack = bag.bag_index == 0 && self.bags.npc_backpack_open;
+            let npc_backpack =
+                bag.bag_index == 0 && self.bags.npc_backpack_open && !self.bank_backpack_open();
             bag.visible = self.bags.windows.is_open(WindowId::Bag(bag.bag_index)) && !npc_backpack;
             for (index, slot) in bag.slots.iter_mut().enumerate() {
                 slot.locked = self.bags.cursor.item.source()
@@ -147,6 +151,9 @@ impl GameClient {
         click: game_engine_ui_model::merchant::Click,
     ) -> Result<(), FrameError> {
         if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
+            if click.right && self.bank_bag_right_click(action)? {
+                return Ok(());
+            }
             self.bag_cursor_click(action, click)
         } else {
             Ok(self.toggle_bag_action(action)?)

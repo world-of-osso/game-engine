@@ -12,12 +12,10 @@ use shared::protocol::{
 };
 
 use crate::bag_data::InventoryState;
-use crate::bag_frame_component::{BagFrameState, bag_frame_screen};
 use crate::bank_art::{MoneyBoxNames, SlotItem};
 use crate::bank_data::{BankPrompt, BankRequest, BankState, money_text};
 use crate::bank_frame_component::{
     self as frame, BankFrameState, BankPromptView, MoneyFrameView, PurchasePromptView, SideTab,
-    bank_frame_screen,
 };
 use crate::merchant::Click;
 use crate::popup::PopupSpec;
@@ -26,27 +24,6 @@ use crate::popup::PopupSpec;
 pub type InputTexts = HashMap<String, String>;
 
 pub const BUY_BANK_TAB_POPUP: &str = "CONFIRM_BUY_BANK_TAB";
-
-/// The BankFrame and the backpack it deposits from.
-#[derive(Clone, Debug, PartialEq)]
-pub struct NativeBankView {
-    pub frame: BankFrameState,
-    pub bags: BagFrameState,
-}
-
-pub fn native_bank_screen(
-    ctx: &ui_toolkit::screen::SharedContext,
-) -> ui_toolkit::widget_def::Element {
-    let view = ctx
-        .get::<NativeBankView>()
-        .expect("NativeBankView must be in SharedContext");
-    let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert(view.frame.clone());
-    shared.insert(view.bags.clone());
-    let mut elements = bank_frame_screen(&shared);
-    elements.extend(bag_frame_screen(&shared));
-    elements
-}
 
 /// What the host sends for a frame input.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -250,7 +227,8 @@ impl BankSession {
         vec![BankEffect::CloseInteraction { npc }]
     }
 
-    fn close_frame(&mut self) {
+    /// Another frame or a reset ends the interaction; the server already knows.
+    pub fn close_frame(&mut self) {
         self.state.close();
         self.purchase_confirmation = None;
         self.text_edits.clear();

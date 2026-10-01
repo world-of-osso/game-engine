@@ -113,6 +113,19 @@ func run_test() -> void:
 	while true:
 		await process_frame
 
+# Inherited menu wait counts player + remote; the owned peer also replicates the banker.
+func wait_world(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.account_state()
+		if state.screen == "InWorld" and state.selected_character_name == NAME and state.unit_count == 3:
+			var terrain: Dictionary = state.terrain
+			if terrain.map == "azeroth" and terrain.pending_count == 0 and terrain.failures.is_empty() and not terrain.parsed_tiles.is_empty() and client.get_node_or_null("WorldUnits/" + NAME) != null:
+				return true
+	fail("Timed out waiting for native world, terrain and banker: " + str(client.account_state()))
+	return false
+
 func wait_frames(count: int) -> void:
 	for index in range(count):
 		await process_frame
