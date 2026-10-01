@@ -4,7 +4,7 @@ extends "res://tests/world_loot_options_flow.gd"
 # Startup must select the prepared recipient within 5 yd of the actual mailbox.
 # Required env: GODOT_TEST_SERVER, GODOT_MAIL_ENTRY, GODOT_MAIL_DISPLAY,
 # GODOT_MAIL_MODEL, GODOT_MAIL_MONEY_ID, GODOT_MAIL_ITEM_IDS (won,returned mail ids).
-# No direct requests, injected mailbox data, synthetic objects, sending or COD payment.
+# No direct requests, injected mailbox data or synthetic objects; sending and COD are world_mail_flow.gd.
 const MAIL_WAIT_MS := 15000
 
 func run_test() -> void:
@@ -128,9 +128,6 @@ func wait_mail_open(client: Node, object: int) -> bool:
 			var frame := host.find_child("MailFrame", true, false) as Control
 			var bag := host.find_child("ContainerFrame0", true, false) as Control
 			if frame != null and frame.is_visible_in_tree() and bag != null and bag.is_visible_in_tree() and not state.mails.is_empty():
-				if host.find_child("SendMailNameEditBox", true, false) != null or host.find_child("MailFrameTab2", true, false) != null:
-					fail("Receiving-only slice exposed sending controls")
-					return false
 				return true
 	fail("UseGameObject did not open actual mailbox contents, MailFrame and backpack")
 	return false

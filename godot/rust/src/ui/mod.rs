@@ -801,6 +801,7 @@ impl RegistryUi {
         )?;
         // MailFrame.xml:274 `toplevel="true"`.
         self.toplevel = true;
+        self.bag_inputs = Some(VecDeque::new());
         Ok(())
     }
 

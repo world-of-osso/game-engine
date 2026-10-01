@@ -174,7 +174,9 @@ fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
 
 #[test]
 fn native_mailbox_replies_reach_default_bridge() {
-    use shared::protocol::{MailChannel, MailError, MailFailed, MailboxContents, PendingMail};
+    use shared::protocol::{
+        MailChannel, MailError, MailFailed, MailSent, MailboxContents, PendingMail,
+    };
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8222);
     await_connected(&mut server, &mut host);
@@ -204,6 +206,7 @@ fn native_mailbox_replies_reach_default_bridge() {
             error: MailError::InventoryFull
         }
     );
+    reply!(MailSent, MailSent { object: 517 });
     reply!(
         PendingMail,
         PendingMail {

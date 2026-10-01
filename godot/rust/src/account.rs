@@ -46,7 +46,8 @@ use shared::protocol::{
     MerchantFailed, RepairItem, SellAllJunkItems, SellItem, VendorInventory,
 };
 use shared::protocol::{
-    MailChannel, MailFailed, MailRequest, MailboxContents, PendingMail, UseGameObject,
+    MailChannel, MailFailed, MailRequest, MailSent, MailboxContents, PendingMail, SendMail,
+    UseGameObject,
 };
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
@@ -167,6 +168,7 @@ pub(crate) enum BankMessage {
 pub(crate) enum MailMessage {
     Contents(MailboxContents),
     Failed(MailFailed),
+    Sent(MailSent),
     Pending(PendingMail),
 }
 
@@ -531,6 +533,12 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_mail(&self, mail: SendMail) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, MailChannel>(mail)
+            .map_err(SessionError)
+    }
+
     /// Original cursor requests; only server InventoryDelta changes local contents.
     pub fn send_inventory_request(
         &self,
@@ -782,6 +790,10 @@ impl Account {
         }
         if message.is::<MailFailed>() {
             output.push(AccountEvent::Mail(MailMessage::Failed(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<MailSent>() {
+            output.push(AccountEvent::Mail(MailMessage::Sent(decode(message)?)));
             return Ok(());
         }
         if message.is::<PendingMail>() {
