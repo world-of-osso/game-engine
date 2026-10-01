@@ -37,8 +37,15 @@ func run_test() -> void:
 	quit(0)
 
 func check_particle_fog(name: String) -> bool:
-	var terrain := client.get_node("WorldTerrain").get_child(0).get_child(0) as MeshInstance3D
-	var terrain_material := terrain.get_surface_override_material(0) as ShaderMaterial
+	var terrain_material: ShaderMaterial = null
+	for mesh in client.get_node("WorldTerrain").find_children("*", "MeshInstance3D", true, false):
+		var candidate := (mesh as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		if candidate != null and candidate.get_shader_parameter("fog_mode") == 1:
+			terrain_material = candidate
+			break
+	if terrain_material == null:
+		fail("%s: no fogged terrain material" % name)
+		return false
 	var want: Vector2 = terrain_material.get_shader_parameter("fog_range")
 	var want_color: Vector3 = terrain_material.get_shader_parameter("fog_color")
 	var pools := client.find_children("Particles*", "MultiMeshInstance3D", true, false)
