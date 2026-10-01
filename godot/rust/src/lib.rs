@@ -1723,6 +1723,7 @@ impl GameClient {
         let state = self.terrain.state();
         let objects = position.and_then(|(x, z)| {
             let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
+            self.world_objects.prioritize_tile(tile);
             let (done, total) = self.world_objects.tile_progress(tile)?;
             Some(loading::TileObjects {
                 done,
