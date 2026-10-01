@@ -80,12 +80,15 @@ var grab_tasks: Array = []
 var grab_record: AudioEffectRecord
 var grab_audio_us := -1
 var heard_sounds := {}
+var fps_ms := -1
+var fps_frames := 0
 
 func _initialize() -> void:
 	Engine.max_fps = 60
 	call_deferred("run_test")
 
 func _process(delta: float) -> bool:
+	log_fps()
 	if client == null or not is_instance_valid(client) or local_id == 0:
 		return false
 	measure_speed(delta)
@@ -109,6 +112,17 @@ func _process(delta: float) -> bool:
 	log_sounds()
 	grab_frame()
 	return false
+
+## Frames drawn per 5 s of wall-clock time, to tell render rate from grab rate.
+func log_fps() -> void:
+	var now := Time.get_ticks_msec()
+	if now - fps_ms < 5000:
+		return
+	var frames := Engine.get_frames_drawn()
+	if fps_ms >= 0:
+		print("FIXTURE FPS t=%.3f %.1f" % [grab_time(), (frames - fps_frames) * 1000.0 / (now - fps_ms)])
+	fps_ms = now
+	fps_frames = frames
 
 ## Seconds since the recording's first frame (0 without a recording).
 func grab_time() -> float:
@@ -207,14 +221,17 @@ func run_test() -> void:
 		return
 	if not await wait_for(func(s): return s.catalog_ready and s.known.has(POLYMORPH) and s.known.has(FROSTBOLT) and s.level == 10, 60000, "level-10 Frost mage with Polymorph and Frostbolt"):
 		return
-	local_id = client.account_state().local_player_id
 	# Nearby objects stream first; the far valley keeps streaming for many minutes, so
 	# frame the scene after POLY_STREAM_SECS (default 90) even if some are pending.
 	var stream_ms := int(OS.get_environment("POLY_STREAM_SECS")) * 1000 if OS.get_environment("POLY_STREAM_SECS") != "" else 90000
 	var streaming := Time.get_ticks_msec()
-	while client.account_state().world_objects.pending > 0 and Time.get_ticks_msec() - streaming < stream_ms:
+	# Placements arrive after entry: `spawned` stays 0 until the first ones are queued.
+	while (client.account_state().world_objects.pending > 0 or client.account_state().world_objects.spawned == 0) and Time.get_ticks_msec() - streaming < stream_ms:
 		await wait_frames(60)
 	print("FIXTURE STREAMING ", client.account_state().world_objects)
+	# After streaming: a main-thread stall past the netcode timeout reconnects with a new
+	# player entity.
+	local_id = client.account_state().local_player_id
 	await wait_frames(60)
 	await frame_camera()
 	if not await orbit_camera():
