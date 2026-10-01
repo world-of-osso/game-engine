@@ -26,16 +26,34 @@ WebWowViewerCpp (retail) on 2026-09-30. Captures: `data/diagnostics/torch-2026-0
 | Ribbons, tail quads, EXP2 alpha cutoff, DETL light multiplier | none | present | torch has none; not implemented |
 | Soft particles | none | none in either | — |
 
+## Point-light falloff
+
+Retail: `attenuation = 1 - clamp((d - start) / (end - start), 0, 1)`, light =
+`(attenuation * color)^2 * N.L` (WWV `pointLight.frag.slang:51-58`): flat to the start,
+then a squared linear ramp. Godot's omni window `(1 - (d/r)^4)^2`
+(`scene_forward_lights_inc.glsl` `get_omni_attenuation`) has no flat part, and no range or
+exponent reproduces the ramp: at the torch's midpoint (3.47 yd) it gave 0.66 against
+retail's 0.25.
+
+The lights keep range = end, exponent 0 and no shadow, so `ATTENUATION` depends on
+distance alone; `shaders/m2_point_light.gdshaderinc` inverts it to `d / end` and applies
+retail's squared ramp. The light carries `start / end` (`PointLight::start_fraction`) in
+its specular parameter, which reaches `light()` as `SPECULAR_AMOUNT = 2 * specular`
+(Godot `light_storage.cpp`) even under `specular_disabled`. M2, WMO and terrain share the
+include. Fixture `godot/tests/m2_point_light_pixels.gd`: before, the M2 floor 0.32 yd from
+the light got 0.744 of overhead light (retail 0.718); after, all three shaders are within
+0.02 of retail from 0.32 to 0.99 yd (e.g. 0.28 at 0.46 yd, where Godot's window gives
+0.47). Log `data/diagnostics/avfix-2026-09-30/torch/`.
+
 ## Remaining gaps
 
-- Godot's omni falloff `(1 - (d/r)^4)^2` stands in for retail's linear start-to-end ramp
-  (squared); range is the retail end.
 - Blending runs in linear space; retail adds in gamma space, so overlapping additive
   flame particles stay more orange here than retail's yellow-white core.
 - The particle debug ground is near-black (0.08 albedo), so the light barely shows on it.
 
 ## Tests
 
+`godot/tests/m2_point_light_pixels.gd` (retail falloff on M2, WMO and terrain);
 `godot/tests/particle_debug_screen.gd` (flame ramps/cells from the MultiMesh buffer, light
 placement/colour/range and ground/M2 reach, halo and flame bones facing the camera from two
 orbits); `godot/core/tests/m2_billboard.rs`, `m2_lights.rs`.

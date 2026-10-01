@@ -130,6 +130,7 @@ mod outfit_listfile;
 pub mod player_physics_data;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
+pub mod retail_fog;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]
@@ -162,6 +163,7 @@ pub mod unit_motion_data;
 pub mod warband_scene_data;
 pub mod wdt;
 pub mod wmo;
+pub mod wmo_liquid;
 #[path = "../../../src/rendering/terrain/terrain_objects_wmo_material.rs"]
 pub mod wmo_material_data;
 
