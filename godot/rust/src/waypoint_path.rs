@@ -67,34 +67,45 @@ impl WaypointPath {
         manual_override: bool,
         rebuild_path: impl FnOnce(Vec2, Vec2) -> Option<Vec<Vec2>>,
     ) -> Option<f32> {
-        if manual_override {
+        let target = (*waypoint).filter(|_| !manual_override);
+        let facing = target
+            .filter(|target| current.distance(Vec2::from(*target)) > PATH_GOAL_REACHED_RADIUS)
+            .filter(|target| self.ensure_path(*target, current, rebuild_path))
+            .and_then(|_| self.next_facing(current));
+        if facing.is_none() {
             self.active = None;
-            *waypoint = None;
-            return None;
-        }
-        let Some(target) = *waypoint else {
-            self.active = None;
-            return None;
-        };
-        let goal = Vec2::new(target.0, target.1);
-        if current.distance(goal) <= PATH_GOAL_REACHED_RADIUS {
-            self.active = None;
-            *waypoint = None;
-            return None;
-        }
-        if self.active.as_ref().is_none_or(|path| path.waypoint != target) {
-            let Some(nodes) = rebuild_path(current, goal) else {
-                self.active = None;
+            if target.is_some() || manual_override {
                 *waypoint = None;
-                return None;
-            };
-            self.active = Some(ActivePath {
-                waypoint: target,
-                nodes,
-                next_node: 0,
-            });
+            }
         }
-        let path = self.active.as_mut().expect("path built above");
+        facing
+    }
+
+    /// Keeps the path to `target`, or searches a new one; `false` when unreachable.
+    fn ensure_path(
+        &mut self,
+        target: (f32, f32),
+        current: Vec2,
+        rebuild_path: impl FnOnce(Vec2, Vec2) -> Option<Vec<Vec2>>,
+    ) -> bool {
+        if self
+            .active
+            .as_ref()
+            .is_some_and(|path| path.waypoint == target)
+        {
+            return true;
+        }
+        self.active = rebuild_path(current, Vec2::from(target)).map(|nodes| ActivePath {
+            waypoint: target,
+            nodes,
+            next_node: 0,
+        });
+        self.active.is_some()
+    }
+
+    /// Passes reached nodes, then faces the next one.
+    fn next_facing(&mut self, current: Vec2) -> Option<f32> {
+        let path = self.active.as_mut()?;
         while path
             .nodes
             .get(path.next_node)
@@ -102,17 +113,8 @@ impl WaypointPath {
         {
             path.next_node += 1;
         }
-        let facing = path
-            .nodes
-            .get(path.next_node)
-            .map(|node| *node - current)
-            .filter(|to_node| to_node.length_squared() > f32::EPSILON)
-            .map(|to_node| to_node.x.atan2(to_node.y));
-        if facing.is_none() {
-            self.active = None;
-            *waypoint = None;
-        }
-        facing
+        let to_node = *path.nodes.get(path.next_node)? - current;
+        (to_node.length_squared() > f32::EPSILON).then(|| to_node.x.atan2(to_node.y))
     }
 }
 
@@ -124,7 +126,9 @@ fn segment_is_walkable(
     terrain: &StreamedTerrain,
     ground: &TerrainGround,
 ) -> bool {
-    let steps = (start.distance(end) / PATH_EDGE_SAMPLE_STEP).ceil().max(1.0) as usize;
+    let steps = (start.distance(end) / PATH_EDGE_SAMPLE_STEP)
+        .ceil()
+        .max(1.0) as usize;
     let mut previous = start;
     (1..=steps).all(|index| {
         let sample = start.lerp(end, index as f32 / steps as f32);
@@ -187,52 +191,88 @@ fn find_grid_path(
     if walkable(start, goal) {
         return Some(vec![goal]);
     }
-    let delta = goal - start;
-    let goal_cell = IVec2::new(
-        (delta.x / step).round() as i32,
-        (delta.y / step).round() as i32,
-    );
-    let min = goal_cell.min(IVec2::ZERO) - IVec2::splat(PATH_REBUILD_MARGIN_STEPS);
-    let max = goal_cell.max(IVec2::ZERO) + IVec2::splat(PATH_REBUILD_MARGIN_STEPS);
-    let to_world = |cell: IVec2| start + cell.as_vec2() * step;
-    let mut open = BinaryHeap::from([OpenCell {
-        cell: IVec2::ZERO,
-        estimated_total_cost: start.distance(goal),
-    }]);
-    let mut came_from = HashMap::new();
-    let mut cost_so_far = HashMap::from([(IVec2::ZERO, 0.0_f32)]);
+    let mut search = GridSearch::new(start, goal, step);
     let mut expansions = 0;
-    while let Some(OpenCell { cell, .. }) = open.pop() {
+    while let Some(OpenCell { cell, .. }) = search.open.pop() {
         expansions += 1;
         if expansions > PATH_MAX_EXPANSIONS {
             return None;
         }
-        let cell_world = to_world(cell);
-        if cell == goal_cell && walkable(cell_world, goal) {
-            return reconstruct_path(start, goal, step, cell, &came_from, &mut walkable);
+        if cell == search.goal_cell && walkable(search.world(cell), goal) {
+            return reconstruct_path(start, goal, step, cell, &search.came_from, &mut walkable);
         }
+        search.expand(cell, &mut walkable);
+    }
+    None
+}
+
+struct GridSearch {
+    start: Vec2,
+    goal: Vec2,
+    step: f32,
+    goal_cell: IVec2,
+    min: IVec2,
+    max: IVec2,
+    open: BinaryHeap<OpenCell>,
+    came_from: HashMap<IVec2, IVec2>,
+    cost_so_far: HashMap<IVec2, f32>,
+}
+
+impl GridSearch {
+    fn new(start: Vec2, goal: Vec2, step: f32) -> Self {
+        let delta = goal - start;
+        let goal_cell = IVec2::new(
+            (delta.x / step).round() as i32,
+            (delta.y / step).round() as i32,
+        );
+        Self {
+            start,
+            goal,
+            step,
+            goal_cell,
+            min: goal_cell.min(IVec2::ZERO) - IVec2::splat(PATH_REBUILD_MARGIN_STEPS),
+            max: goal_cell.max(IVec2::ZERO) + IVec2::splat(PATH_REBUILD_MARGIN_STEPS),
+            open: BinaryHeap::from([OpenCell {
+                cell: IVec2::ZERO,
+                estimated_total_cost: start.distance(goal),
+            }]),
+            came_from: HashMap::new(),
+            cost_so_far: HashMap::from([(IVec2::ZERO, 0.0)]),
+        }
+    }
+
+    fn world(&self, cell: IVec2) -> Vec2 {
+        self.start + cell.as_vec2() * self.step
+    }
+
+    /// Queues each in-bounds neighbor reached walkably at a lower cost.
+    fn expand(&mut self, cell: IVec2, walkable: &mut impl FnMut(Vec2, Vec2) -> bool) {
+        let cell_world = self.world(cell);
         for offset in NEIGHBORS {
             let neighbor = cell + offset;
-            if neighbor.cmplt(min).any() || neighbor.cmpgt(max).any() {
+            if neighbor.cmplt(self.min).any() || neighbor.cmpgt(self.max).any() {
                 continue;
             }
-            let neighbor_world = to_world(neighbor);
+            let neighbor_world = self.world(neighbor);
             if !walkable(cell_world, neighbor_world) {
                 continue;
             }
-            let cost = cost_so_far[&cell] + cell_world.distance(neighbor_world);
-            if cost_so_far.get(&neighbor).is_some_and(|known| *known <= cost) {
+            let cost = self.cost_so_far[&cell] + cell_world.distance(neighbor_world);
+            if self
+                .cost_so_far
+                .get(&neighbor)
+                .is_some_and(|known| *known <= cost)
+            {
                 continue;
             }
-            cost_so_far.insert(neighbor, cost);
-            came_from.insert(neighbor, cell);
-            open.push(OpenCell {
+            self.cost_so_far.insert(neighbor, cost);
+            self.came_from.insert(neighbor, cell);
+            self.open.push(OpenCell {
                 cell: neighbor,
-                estimated_total_cost: cost + neighbor_world.distance(goal),
+                estimated_total_cost: cost + neighbor_world.distance(self.goal),
             });
         }
     }
-    None
 }
 
 const NEIGHBORS: [IVec2; 8] = [
