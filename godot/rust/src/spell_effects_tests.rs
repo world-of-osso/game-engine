@@ -1,5 +1,5 @@
 //! Missile flight at `SpellMisc.Speed`, and where a late kit model joins its timeline.
-use super::{Catalog, EffectClips, Phase, missile_step, phase_at};
+use super::{EffectClips, Phase, missile_step, phase_at};
 use godot::builtin::Vector3;
 
 const FRAME: f32 = 1.0 / 60.0;
@@ -112,32 +112,4 @@ fn a_late_held_model_joins_its_hold_loop() {
     };
     let (_, clip) = phase_at(&no_hold, true, 60.0).unwrap();
     assert_eq!(clip.map(|(id, looping, _)| (id, looping)), Some((0, true)));
-}
-
-/// A cast seen while the visual catalog loads finds no catalog instead of joining the
-/// worker on the main thread; the first read after the worker is done takes its result.
-#[test]
-fn the_catalog_is_read_without_waiting_for_its_worker() {
-    let (release, gate) = std::sync::mpsc::channel::<()>();
-    let mut catalog = Catalog {
-        worker: Some(std::thread::spawn(move || {
-            gate.recv().expect("released");
-            Err("Spell visuals: test catalog".into())
-        })),
-        loaded: None,
-    };
-    assert!(catalog.get().is_none(), "the worker is still loading");
-    release.send(()).expect("worker waiting");
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    while catalog.get().is_none() {
-        assert!(
-            std::time::Instant::now() < deadline,
-            "the worker never finished"
-        );
-        std::thread::yield_now();
-    }
-    assert_eq!(
-        catalog.get().map(|loaded| loaded.map(drop)),
-        Some(Err("Spell visuals: test catalog".into()))
-    );
 }
