@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use game_engine_core::adt::parse_root;
 use game_engine_core::asset::adt_format::adt_tex::parse_mh2o;
-use game_engine_core::liquid_data::{LiquidCatalog, LiquidShader, WaterColorSource};
+use game_engine_core::liquid_data::{
+    LiquidCatalog, LiquidMaterial, LiquidShader, WaterColorSource,
+};
 
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
@@ -149,10 +151,118 @@ fn liquid_type_below_object_range_resolves_directly_and_ocean_uses_ocean_colours
     assert_eq!(shallow.wave_periods, [1.0, 0.4]);
 }
 
+/// MH2O `(liquid_type, liquid_object)` pairs whose LiquidObject has no row in the active
+/// 12.1.0.69933 DB2 or its hotfix caches: ocean 42 on every open-sea tile, and the five
+/// Adventurer's Rest objects of tiles 2703_31_36 (FDID 5493433) and 2703_31_37 (5493438).
+const OBJECTLESS_PAIRS: [(u16, u16); 6] = [
+    (2, 42),
+    (5, 13134),
+    (5, 13136),
+    (5, 13137),
+    (81, 13138),
+    (5, 13139),
+];
+
+/// WebWowViewerCpp `CSqliteDB::getLiquidObjectData`: without a LiquidObject row the layer's
+/// own MH2O liquid_type is the LiquidType, with no flow. Ocean 42 stores LVF 2 depth-only
+/// vertices; the others their material's LVF 0.
 #[test]
-fn unknown_liquid_object_is_an_error() {
-    let error = catalog().liquid_material(5, 65_000).unwrap_err();
-    assert_eq!(error, "LiquidObject 65000 has no DB2 row");
+fn objectless_liquid_layers_use_their_mh2o_liquid_type() {
+    let catalog = catalog();
+    for (liquid_type, liquid_object) in OBJECTLESS_PAIRS {
+        let material = catalog
+            .liquid_material(liquid_type, liquid_object)
+            .unwrap_or_else(|error| panic!("({liquid_type}, {liquid_object}): {error}"));
+        let direct = catalog.liquid_material(liquid_type, 0).expect("LiquidType");
+        let lvf = if liquid_object == 42 { 2 } else { 0 };
+        assert_eq!(
+            material,
+            LiquidMaterial { lvf, ..direct },
+            "({liquid_type}, {liquid_object})"
+        );
+        assert_eq!(u32::from(liquid_type), material.liquid_type);
+        assert_eq!(material.material_id, 1);
+        assert_eq!(material.shader, LiquidShader::Water);
+        assert_eq!((material.flow_direction, material.flow_speed), (0.0, 0.0));
+    }
+    assert_eq!(
+        catalog.liquid_material(2, 42).expect("ocean").color_source,
+        WaterColorSource::Ocean
+    );
+}
+
+/// The MH2O payload of a root ADT (chunk tags are stored byte-reversed). These roots shadow
+/// from `_tex0`, so a root-only `parse_root` cannot load them.
+fn mh2o_chunk(adt: &[u8]) -> &[u8] {
+    let mut offset = 0;
+    while offset + 8 <= adt.len() {
+        let size = u32::from_le_bytes(adt[offset + 4..offset + 8].try_into().unwrap()) as usize;
+        if &adt[offset..offset + 4] == b"O2HM" {
+            return &adt[offset + 8..offset + 8 + size];
+        }
+        offset += 8 + size;
+    }
+    panic!("root ADT has no MH2O");
+}
+
+/// Every Adventurer's Rest layer, 133 of them on objectless LiquidObjects, has a material
+/// whose LVF reads its whole vertex block: ocean depths at sea level, river heights and
+/// depths.
+#[test]
+fn adventurers_rest_tiles_resolve_every_liquid_layer() {
+    let catalog = catalog();
+    let mut objectless = 0;
+    for fdid in [5_493_433, 5_493_438] {
+        let bytes =
+            std::fs::read(data_root().join(format!("terrain/{fdid}.adt"))).expect("cached ADT");
+        let mut water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
+        for layer in water.chunks.iter_mut().flat_map(|chunk| &mut chunk.layers) {
+            let key = (layer.liquid_type, layer.liquid_object);
+            let material = catalog
+                .liquid_material(key.0, key.1)
+                .unwrap_or_else(|error| panic!("{fdid} {key:?}: {error}"));
+            layer
+                .decode_object_vertices(material.lvf)
+                .unwrap_or_else(|error| panic!("{fdid} {key:?}: {error}"));
+            if !layer.object_vertex_bytes.is_empty() {
+                assert_eq!(layer.vertex_depths.len(), 81, "{fdid} {key:?}");
+                let heights = if key == (2, 42) { 0 } else { 81 };
+                assert_eq!(layer.vertex_heights.len(), heights, "{fdid} {key:?}");
+            }
+            objectless += usize::from(OBJECTLESS_PAIRS.contains(&key));
+        }
+    }
+    assert_eq!(objectless, 133);
+}
+
+/// Kul Tiras Ocean (LiquidType 947) also uses ocean object 42, but stores its material's
+/// LVF 0 heights and depths: kultiras_20_17 (FDID 1422588), all 256 layers at sea level
+/// with depth 255.
+#[test]
+fn kul_tiras_ocean_object_42_layers_read_material_lvf0() {
+    let catalog = catalog();
+    let bytes = std::fs::read(data_root().join("terrain/1422588.adt")).expect("cached ADT");
+    let mut water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
+    let layers: Vec<_> = water
+        .chunks
+        .iter_mut()
+        .flat_map(|chunk| &mut chunk.layers)
+        .collect();
+    assert_eq!(layers.len(), 256);
+    for layer in layers {
+        assert_eq!((layer.liquid_type, layer.liquid_object), (947, 42));
+        let material = catalog.liquid_material(947, 42).expect("Kul Tiras Ocean");
+        assert_eq!((material.liquid_type, material.lvf), (947, 0));
+        layer.decode_object_vertices(material.lvf).expect("LVF 0");
+        assert_eq!(layer.vertex_heights, [0.0; 81]);
+        assert_eq!(layer.vertex_depths, [255; 81]);
+    }
+}
+
+#[test]
+fn unknown_liquid_type_is_an_error() {
+    let error = catalog().liquid_material(65_000, 0).unwrap_err();
+    assert_eq!(error, "LiquidType 65000 has no DB2 row");
 }
 
 #[test]

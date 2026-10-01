@@ -46,6 +46,8 @@ func run_test() -> void:
 		return
 	if not await equip_sword(client):
 		return
+	if not await use_pelt(client):
+		return
 	if not await poor_destroy(client):
 		return
 	if not await rare_destroy(client):
@@ -81,6 +83,19 @@ func equip_sword(client: Node) -> bool:
 	if not await quiet_actions(client, [INITIAL_ITEMS[1], INITIAL_ITEMS[2]], false):
 		return false
 	print("FIXTURE BAGS_ACTIONS_EQUIP_DONE")
+	return true
+
+# ContainerFrame.lua:1342 UseContainerItem: right-clicking a non-equippable item uses it;
+# the peer records the UseItem and changes nothing.
+func use_pelt(client: Node) -> bool:
+	var remaining := [INITIAL_ITEMS[1], INITIAL_ITEMS[2]]
+	print("FIXTURE BAGS_ACTIONS_USE_ARM")
+	await process_frame
+	if not await press_slot(client, 2, MOUSE_BUTTON_RIGHT):
+		return false
+	if not await quiet_actions(client, remaining, false):
+		return false
+	print("FIXTURE BAGS_ACTIONS_USE_DONE")
 	return true
 
 func poor_destroy(client: Node) -> bool:

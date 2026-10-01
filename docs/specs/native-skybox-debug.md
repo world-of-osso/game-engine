@@ -43,6 +43,7 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 - `godot/rust/src/character_select/sky.rs` — shared authored M2 loading with exact source metadata and fixed-time material/bone sampling; character-select default entry remains unchanged.
 - `godot/rust/src/animation/mod.rs` — dedicated validated fixed-time seek samples sky bones without ordinary clip advancement; ordinary playback remains unchanged.
 - `godot/rust/src/skybox_debug/environment.rs` — original procedural/reference layer; custom radial linear fog is shader-owned, not stock Environment fog. Physical-unit/image equivalence remains unproved.
+- `godot/shaders/sky_m2.gdshader` — authored texture-stage combinations use the original linear color domain; no extra gamma roundtrip.
 
 ## Tests asserting this spec
 
@@ -51,6 +52,8 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 - `launcher/tests/process.rs` — three `skybox` process cases asserting exact recorded Godot argv with fake build/Godot executables; not native runtime proof.
 - `src/scenes/skybox_debug/tests.rs` — legacy source, composition, FOV and camera-relative behavior references; not native acceptance.
 - `godot/tests/skybox_debug_screen.gd` — production observer for cached source cases, real orbit/zoom, composition and hide/restore image attribution. Bounded coastal runtime proof is retained below; cloud authored attribution fails. Attribution is not original-expected pixel parity.
+
+- `godot/tests/skybox_linear_combine.gd` — real production-shader GPU single-stage control and two-stage linear-product contract; source difference reproduced before correction. Not complete asset/image parity.
 
 ## Retained proof limits — 2026-10-01
 

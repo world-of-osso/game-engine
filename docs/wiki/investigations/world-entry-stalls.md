@@ -102,8 +102,28 @@ Single runs at low load (GAME_PROFILE_MS on, branch before the merge):
 - **No retail source:** none was found for the loading-screen wait set, or for how retail streams assets on its threads (see Fix).
 - **Tests not run on Depot:** `world_models` and `wmo::scene` unit tests need `data/` files that are not in `godot/depot-test-assets.txt`. They fail there with missing-file errors, as on master. `m2_submesh_arrays` (core) and the `loading` tests pass.
 
+## Retained integrated performance — 2026-10-01
+
+These are actual failed workloads, not a retained-original baseline or accepted settled performance. Historical A/B results above retain their original object-only definition of “settled”; do not apply that definition to the integrated measurements.
+
+| Case | Actual observations | Proof boundary |
+| --- | --- | --- |
+| Run1, exit1 | Loading 22.068802 s, maximum loading frame 8053.257 ms. Object pending briefly 0, then final 5803. Seven memory phases; nominal window 60.172530 s. | Duration adequate, readiness unstable: invalid settled window. Raw distributions/logs remain useful; loading and post-hide fixture limits failed. |
+| Readiness test | Pure behavioral RED at `f52e58c9`: 2 fail/2 pass; `bfc4e373` GREEN 4/4. Predicate requires terrain pending 0, object pending 0 and unit-visual pending 0; observation also monitors unchanged parsed tiles. | Fixes diagnostic readiness, not a production streaming-terminal signal or successful runtime performance case. |
+| Run2, exit1 | Loading 172.615 s, maximum loading frame 2429.502 ms; drain 251.532 s. Nominal window 60.077 s; readiness changed even though object pending ended at 0. | Invalid settled window again. Final object zero does not override changed readiness or fixture-limit failures. |
+| Memory/environment | Seven phase samples preserved; run2 RSS around 3 GB, HWM 3189628 KiB. Shared-host contention, degraded FIFO pacing and unsupported disabled-VSync request retained. | Lifetime process HWM, not per-phase allocation/VRAM/leak proof. No isolated performance baseline, product-budget violation or shutdown acceptance. |
+
+Run1's root measurement error was treating one empty object queue as terminal readiness: terrain polling can expose another parsed tile before the later object-sync step queues its placements. Loading hidden intentionally precedes full surrounding streaming. The corrected fixture monitors all three pending counts and parsed-tile stability; run2 still rejects its window. Do not substitute a longer sleep or relax fixture thresholds (1000 ms loading / 100 ms after hide). These policies are not supplied product budgets.
+
+`scripts/performance/measure.py` retains wall-clock phase arrays, nearest-rank distributions, seven `/proc` RSS/HWM samples, combined logs, exit status and before/after input snapshots; `test_measure.py` has retained targeted GREEN9/9 at `2c92ff3f`, not native performance acceptance. No baseline supplied: comparison remains a gap across workload/assets/options/cache/hardware/resolution/renderer/server/camera/sampling/resource limits. Checkout HEAD observations are not native binary provenance; run records separately identify the supplied `f23343bb` native artifact with retained build-ID/tool-return limits.
+
+Only new owned dev account `fb_perf_01a0dea2` / character `Fbretainperf` was used; no server restart or existing-account changes were authorized. Account data remains retained; no supported deletion was observed. Pre-existing spell-attachment errors belong to another owner: report, do not repair. Water, appearance and remaining tooling handoffs remain outside this scope. [[authored-skybox-black-output#Retained original/native evidence — 2026-10-01|Skybox evidence]] has its own dark-phase parity limits; neither investigation closes the retained goal or full conversion.
+
 ## Sources
 
+- `data/diagnostics/retained-performance-20261001/run1/` and `run2/` — actual `result.json` and `stdout.log`; manifests/config retained alongside them.
+- `/tmp/claude/retained-conversion-20/{performance-run1-verification.md,perf-settled-boundary.md,readiness-red.log,readiness-green.log,performance-runner1.log,performance-runner2.log,C.md}` — arithmetic/source-boundary audit, test proof and runner status; run2 rounded summary is not a separate settled distribution.
+- [measure.py](../../../scripts/performance/measure.py), [test_measure.py](../../../scripts/performance/test_measure.py), [world_entry_frames.gd](../../../godot/tests/world_entry_frames.gd), [world_entry_readiness.gd](../../../godot/tests/world_entry_readiness.gd) — runner and diagnostic readiness contract.
 - `data/diagnostics/firstload-2026-09-30/ab/` — the original first-load A/B logs with the step timings.
 - `/home/osso/.worktrees/.worldentry-artifacts/runs/` — this A/B's client logs (not in the repo).
 

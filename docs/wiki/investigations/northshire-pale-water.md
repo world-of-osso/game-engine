@@ -31,56 +31,54 @@ Proof: `godot/core/tests/wmo_liquid.rs` (5 tests): the resolution table; interio
 
 ## Proof
 
-- `godot/core/tests/liquid_water.rs` (5 tests): an LVF 0 payload keeps its depths; tile 32_48 depths range 0..>64; LiquidObject 427 resolves to type 5 with its textures, floats and coefficients; ocean colours; Shallow Water wave periods [1.0, 0.4]; an unknown object is an error.
+- `godot/core/tests/liquid_water.rs` (5 tests): an LVF 0 payload keeps its depths; tile 32_48 depths range 0..>64; LiquidObject 427 resolves to type 5 with its textures, floats and coefficients; ocean colours; Shallow Water wave periods [1.0, 0.4]; an unknown LiquidType is an error. Row-less LiquidObjects: see [above](#liquidobject-ids-without-db2-rows--resolved).
 - `godot/tests/water_material_pixels.gd` (GPU) uses the real material at the vineyard stream at noon. It checks five things: deeper vertex depth hides more of the backing (0.48 → 0.39); depth 0 is invisible (response 1.00); backing 60 yd down is fogged (0.44 → 0.33); shallow water over black matches the retail river mix within 0.002; the clock moves 2,274 px. Run with the old shader, it fails the depth-0 check (`data/diagnostics/water-2026-09-30/fixture-red-old-shader.log`).
 - `godot/tests/liquid_material_pixels.gd` (GPU) draws every non-water material from its DB2 data: all cover the view and animate over 1000→2333 ms; magma (Searing Gorge LiquidObject 413) and slime are opaque, and magma is lava-coloured (0.56, 0.15, 0.01). Screenshots: `data/diagnostics/water-2026-09-30/liquids/`. In-world magma at Searing Gorge: `data/diagnostics/water-2026-09-30/magma/sheet-gorge.png`.
 - `liquid_water.rs` also covers LVF 1/3 arrays, magma/slime resolution and the Searing Gorge tile's 53 magma layers re-read as LVF 1; `blp_tests.rs` covers BC5.
 - Before/after Northshire sweeps: `data/diagnostics/water-2026-09-30/{before,after}/`. Streams now show a teal-tinted, refracted stream bed near the camera instead of the opaque pale sheet.
 
-## Native LiquidObject missing rows — unresolved
+## LiquidObject IDs without DB2 rows — resolved
 
-**Verified: 2026-10-01.** Supplied MAIN read-only reports, not new independent proof. This char-select failure is separate from the Northshire fixes above; no fix or exhaustive liquid parity is claimed.
+**Verified: 2026-10-01** (branch `liquidobj`, `99b8bf67`, `01b80006`, `4b0b6d05`).
 
-### Failure boundary
+**Symptom.** Character select at Adventurer's Rest (map 2703, tiles 31_36 FDID 5493433 and 31_37 FDID 5493438) logged 133 `LiquidObject … has no DB2 row` errors and drew no mesh for those layers. The pairs were `(2,42)` ×47, `(5,13134)` ×5, `(5,13136)` ×13, `(5,13137)` ×3, `(81,13138)` ×26 and `(5,13139)` ×39.
 
-Adventurer's Rest has **133 missing-row layers and omitted water meshes**, for six LiquidObject IDs: `42, 13134, 13136, 13137, 13138, 13139`. Raw MH2O `(liquid_type, liquid_object)` counts account for every logged failure:
+**The rows do not exist.** The active 12.1.0.69933 LiquidObject DB2 starts at ID 57 and has no IDs 13103–13141. The earlier evidence, preserved below, matched the DB2 to the active root ContentKey and found no LiquidObject rows in `DBCache.bin` or the three current tmp hotfix containers. Object 42 is the ocean object: a world-wide scan of the 52,882 root ADTs in local CASC found 4,509,101 `(2,42)` layers on 458 maps. On master every one of them was dropped, so no open sea rendered natively.
 
-| Root | FDID | Failing pairs and layer counts |
-|---|---:|---|
-| Supplemental `2703_31_36.adt` | 5493433 | `(2,42)` ×16; `(5,13134)` ×5; `(5,13136)` ×13; `(5,13137)` ×3; `(81,13138)` ×26; `(5,13139)` ×39: **102** |
-| Primary `2703_31_37.adt` | 5493438 | `(2,42)` ×31: **31** |
+**Rule 1: LiquidType of a row-less object.** The layer uses its own MH2O `liquid_type`, with no flow. This is WebWowViewerCpp `CSqliteDB::getLiquidObjectData` (`loData.liquidTypeId = fallbackliquidTypeId`) and its default `LiquidObjectRec` flow 0. It matches the data: the world-wide scan found 4,924,089 LiquidObject layers, and only 207 of them differ from their row's `LiquidTypeID`: hellfireraid62 876→869 ×182, devmapg 940→951 ×21, islands11 5→1 ×4. Present rows still decide the type.
 
-The native material lookup misses the object row and `WaterMaterials::layer_mesh()` omits that layer. Historical logs lack `root_path`; exact pair/count correspondence supports tile attribution, not direct historical path telemetry.
+**Rule 2: vertex format of LiquidType 2 Ocean.** These layers are flat at sea level (min and max height 0). Their vertex block is absent (3,274,235 layers) or exactly 81 bytes (1,234,866): LVF 2, depths only. LiquidType 2's material 1 says LVF 0, so reading the block that way overran it ("MH2O depthmap needs 81 bytes, has 72"). Sources for the LVF 2 reading:
+- wowdev ADT/v18 SMLiquidInstance: "≥ WoD ignores value and assumes both 0.0 for LVF = 2".
+- noggit3 `liquid_layer.cpp`: "lvf 2 is only used for flat water at height 0".
+- WebWowViewerCpp `LiquidInstance.cpp` `createAdtVertexData` singles out `liquid_type != 2`. WebWowViewerCpp itself still reads the material LVF.
 
-Base DB2 copy handling works: the exporter applies copy destinations after explicit source IDs. The inspected WDC5 has 314 stored records and 7,768 copy pairs; in-memory export yields 8,082 rows matching CSV. None of the six IDs occurs in base IDs or copy destinations. Exporter copy omission is excluded for this file.
+Other oceans on object 42 keep their material's LVF 0 (405-byte blocks, heights 0): Kul Tiras Ocean 947 (148,047 layers), Zandalar 1100 (29,854) and Nazjatar 1142 (15,975). So the rule is keyed on LiquidType 2, not on object 42 (`liquid_data::OCEAN_LIQUID_TYPE`).
 
-### Content identity and container membership
+**Residue: none.** With both rules, every one of the 4,975,880 MH2O layers resolves its LiquidType and LiquidMaterial, and every vertex block exactly fits its LVF size: 0 omitted, 0 inexact. The 4,703,325 row-less layers fall into 14 pairs:
+- the six above;
+- `(947,42)`, `(1100,42)` and `(1142,42)`;
+- `(1177,9302)` on map 2534, `(877,4050)` in acquisitionhavoc, `(5,13675)` on map 2662, `(5,4137)` in nightmareraid and `(5,1951)` in cotwaroftheancients.
 
-Active product `wow` is `12.1.0.69933`, build key `dcfc90fffd79ba00406ae46f5f657592`. Local MD5s match the active cached root ContentKeys:
+Scanner and merged counts: `data/diagnostics/liquidobj-2026-10-01/{world_scan2.py,merge.py,world_scan2_merged.json}`. 10,079 listfile root paths are not in this build's CASC.
 
-| FDID | Local file | MD5 / cached root ContentKey |
-|---:|---|---|
-| 1308058 | `data/dbfilesclient/1308058.db2` | `a2fc7df6448cecb865e2ca09db835e35` |
-| 5493433 | `data/terrain/5493433.adt` | `9c9f48805fd0f621026828473527d841` |
-| 5493438 | `data/terrain/5493438.adt` | `d9b6adbf952398ee4edfe535ac79e30e` |
+**Proof.**
+- `godot/core/tests/liquid_water.rs` lists the six IDs (`OBJECTLESS_PAIRS`). Each must resolve to its MH2O LiquidType's material: water shader, no flow, LVF 2 for ocean and 0 for the rest. The test was RED on master ("LiquidObject 42 has no DB2 row").
+- Both Adventurer's Rest tiles: all layers resolve, and every block decodes in its LVF. 133 of the layers are row-less.
+- Kul Tiras `kultiras_20_17` (FDID 1422588): all 256 `(947,42)` layers decode as LVF 0, heights 0 and depth 255. This test was RED under the object-42 rule.
+- `game-engine-core` is 0 failed (Depot).
 
-Named ADT roots also match their FDID files byte-for-byte. This establishes internal active-build cache-namespace identity, **not authenticated production provenance**, semantic authority or historical runtime consumption. DB2 internal build `WOWSTATIC_12_1_0_68914` alone does not prove stale content.
+**Live** (private server on UDP 5130, master `6f3c6ab7` against `4b0b6d05`):
+- Character select logs 133 errors on master and 0 on the branch. `Tile31_36/Water` has 0 meshes on master and 102 (5,954 triangles) on the branch; `Tile31_37/Water` has 6 and 37. The lake under the campsite waterfalls (Godot ≈ −2400, 720, −470) is empty rock on master and water on the branch: `adventurers-rest-lake-pair.png`. The 47 ocean layers lie 400–900 yd under that terrain and are not visible.
+- The Stranglethorn coast west of Booty Bay (−14045, 520) logs 1,313 errors on master and 0 on the branch. The sea appears at yaw 180: `stranglethorn-coast-y{0,90,180,270}-pair.png`.
+- Northshire has no row-less layers (all `(5,427)`).
+- Not live-captured: Kul Tiras and the other maps, which `set-position` cannot reach. The pale look of the ocean is the open water-material work below, not this fix.
 
-The actual WDC5 header supplies table hash `0xfc2a0dff` at byte **152** (layout hash `0xcb0d39e8` at 156). DBD is not required for container hash membership; semantic field decoding still needs a matching schema.
+### Earlier evidence (2026-10-01, MAIN read-only reports)
 
-MAIN fully parsed retail `DBCache.bin`, XFTH9/build69933: **139,431 records, zero LiquidObject table entries**, across all entry states with validated entry magic, boundaries and final offset. SHA-256: `07179f115da6ebfa46e382d912292d85d8b301ae14fc329f17d1b9dea2901301`. Supplied MAIN follow-up queried three current-build tmp containers of **45,241 / 64,874 / 121,713 records**: each has zero entries for the same table hash. Four older containers were skipped; temporary-container applicability is unknown. These bounded absences do not establish absence from every client overlay or remote source.
-
-### Remaining authoritative gap
-
-Obtain authoritative active-build overlay rows with provenance and schema-backed decoding, or actual target-client lookup behavior for a failing ID. Determine whether the consumer supplies additional rows or interprets these MH2O entries differently; tie its resolution to exact root/FDID bytes. Current evidence does not decide that consumer/overlay semantic boundary. No fallback/default records, parser reinterpretation or cache rewrites are justified or implemented.
-
-## Sources
-
-- `/tmp/claude/native-charselect-water-provenance.md` — supplied MAIN-corrected pair counts, FDID files and historical-path limits.
-- `/tmp/claude/native-liquidobject-copy-records-seam.md` — base/copy membership and exporter behavior.
-- `/tmp/claude/native-liquidobject-active-content-hotfix.md` — active cached ContentKeys and namespace/authenticity limits; initial undecoded-cache limits superseded by membership evidence below.
-- `/tmp/claude/native-liquidobject-hotfix-container-main.md` — MAIN retail container walk and actual WDC5 hash offset; its tmp-not-queried limit superseded only by supplied MAIN follow-up.
-- Supplied MAIN follow-up in knowledge-preservation request, 2026-10-01 — three current-build tmp counts/zero membership and four older containers skipped; no new independent proof here.
+- **Content identity.** Active product `wow` is `12.1.0.69933`, build key `dcfc90fffd79ba00406ae46f5f657592`. Local MD5s match the cached root ContentKeys: LiquidObject DB2 1308058 is `a2fc7df6448cecb865e2ca09db835e35`, 5493433 is `9c9f48805fd0f621026828473527d841` and 5493438 is `d9b6adbf952398ee4edfe535ac79e30e`.
+- **Table.** The WDC5 has 314 stored records and 7,768 copy pairs; the in-memory export yields 8,082 rows, matching the CSV. Table hash `0xfc2a0dff` is at byte 152.
+- **Hotfixes.** Retail `DBCache.bin` (XFTH9, build 69933, SHA-256 `07179f115da6ebfa46e382d912292d85d8b301ae14fc329f17d1b9dea2901301`) has 139,431 records and none for this table hash. The three current-build tmp containers (45,241, 64,874 and 121,713 records) have none either.
+- **Sources.** `/tmp/claude/native-charselect-water-provenance.md`, `/tmp/claude/native-liquidobject-copy-records-seam.md`, `/tmp/claude/native-liquidobject-active-content-hotfix.md` and `/tmp/claude/native-liquidobject-hotfix-container-main.md`.
 
 ## Open
 

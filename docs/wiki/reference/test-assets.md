@@ -32,9 +32,16 @@ Available test assets for the engine, all under `data/` relative to the project 
 - **boar**: tests creature skin resolution without hardcoded texture paths
 - **azeroth_32_48**: tests terrain rendering, heightmap collision, and chunk streaming
 
+## Zaralda native merchant fixture (2026-10-01)
+
+[`world_zaralda_merchant_flow.gd`](../../../godot/tests/world_zaralda_merchant_flow.gd), revision `7903cb5e`, was prepared, parsed and executed against the owned private server; native acceptance remains **BLOCKED, 0/3 passes**. Window/title, ray-pick, authored item tooltip and close checks were not reached. Saved artifacts: [`data/diagnostics/zaralda-20261001/`](../../../data/diagnostics/zaralda-20261001/).
+
+[Server Midnight investigation](../../../../game-server/docs/wiki/investigations/midnight-economy-content.md#native-acceptance-blocker) owns the exact attempt boundaries, local-CASC extraction limits and unresolved root cause; its linked catalog/CLI proof is not native proof. No fourth blind probe, native runtime fix or Depot build in this bounded work.
+
 ## Sources
 
 - [test-assets.md](../../test-assets.md) — asset paths and FDIDs
+- [Server Midnight investigation](../../../../game-server/docs/wiki/investigations/midnight-economy-content.md) — Zaralda source/data and acceptance SSOT.
 
 ## See Also
 

@@ -325,6 +325,15 @@ impl GameClient {
         Ok(())
     }
 
+    /// Switches the open game menu to its Options panel.
+    pub(super) fn show_game_menu_options(&mut self) -> Result<(), String> {
+        self.game_menu_options
+            .as_mut()
+            .ok_or("Options needs an open game menu")?
+            .view = GameMenuView::Options;
+        self.refresh_game_menu()
+    }
+
     fn refresh_game_menu(&mut self) -> Result<(), String> {
         let model = self
             .game_menu_options
@@ -464,15 +473,13 @@ impl GameClient {
                     break;
                 }
                 ACTION_OPTIONS | ACTION_ADDONS => {
-                    let model = self
-                        .game_menu_options
-                        .as_mut()
-                        .expect("menu has options model");
-                    model.view = GameMenuView::Options;
                     if action == ACTION_ADDONS {
-                        model.category = OptionsCategory::SocialAddons;
+                        self.game_menu_options
+                            .as_mut()
+                            .expect("menu has options model")
+                            .category = OptionsCategory::SocialAddons;
                     }
-                    self.refresh_game_menu()?;
+                    self.show_game_menu_options()?;
                 }
                 _ => return Err(format!("Unknown game menu action: {action}")),
             }

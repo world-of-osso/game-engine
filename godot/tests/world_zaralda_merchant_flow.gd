@@ -184,5 +184,24 @@ func save_shot(filename: String) -> bool:
 func fail(message: String) -> void:
 	push_error(message)
 	if is_instance_valid(client):
+		var observation := {"failure": message, "account": client.account_state()}
+		var loading = client.get_node_or_null("LoadingUI")
+		for label_name in ["LoadingProgressText", "LoadingStatusText"]:
+			var label = loading.find_child(label_name, true, false) if loading != null else null
+			observation[label_name] = label.text if label is Label else null
+		print("ZARALDA FAILURE OBSERVATION ", observation)
+		if shots.is_absolute_path() and not shots.begins_with("/tmp/"):
+			var file := FileAccess.open(shots.path_join("failure-observation.json"), FileAccess.WRITE)
+			if file == null:
+				push_error("Cannot write failure observation: " + str(FileAccess.get_open_error()))
+			else:
+				file.store_string(JSON.stringify(observation, "\t"))
+				var write_error := file.get_error()
+				file.close()
+				if write_error != OK:
+					push_error("Cannot save failure observation: " + str(write_error))
+			var image_error := root.get_texture().get_image().save_png(shots.path_join("failure.png"))
+			if image_error != OK:
+				push_error("Cannot save failure screenshot: " + str(image_error))
 		client.free()
 	quit(1)
