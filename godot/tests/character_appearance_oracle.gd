@@ -145,6 +145,17 @@ func choice_ids(race: int, sex: int, class_id: int, picks: Dictionary) -> Dictio
 		result[option.ID] = available[0].ID
 	return result
 
+# The choices that change the render: some element with a material, geoset, or a
+# skinned model showing a mesh (GeosetID 0 shows none, e.g. Blindfold "None").
+func visual_choices(chosen: Dictionary) -> Dictionary:
+	var result := {}
+	for option in chosen:
+		for element in elements(chosen[option]):
+			var model := first("ChrCustomizationSkinnedModel", ["ID", "GeosetID"], "ID", element.ChrCustomizationSkinnedModelID)
+			if element.ChrCustomizationMaterialID != 0 or element.ChrCustomizationGeosetID != 0 or (not model.is_empty() and model.GeosetID != 0):
+				result[option] = chosen[option]
+	return result
+
 func elements(choice_id: int) -> Array:
 	return rows("ChrCustomizationElement", ["ChrCustomizationChoiceID", "RelatedChrCustomizationChoiceID", "ChrCustomizationGeosetID", "ChrCustomizationSkinnedModelID", "ChrCustomizationMaterialID"], "ChrCustomizationChoiceID").get(choice_id, [])
 
