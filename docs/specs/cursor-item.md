@@ -35,7 +35,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ## Native Godot coverage
 
-- [ ] Preserve occupied authoritative startup equipment before any Equip input, separately from replicated appearance/meshes. `57b30f57` requires exact MainHand item25/count1/GUID9170105 (not bag sword9170005), exact unchanged bags/no carried icon/split/popup, and later authoritative GUID replacement with unchanged one Equip/two Destroy. Actual startup RED101 observes equipment empty before EquipArm; `ee2d3e47` minimal account/merchant consumer committed, transport1419 `2d1829fc` committed; integration Depot build/verifier1421 active, runtime GREEN pending. [Owned evidence](../wiki/systems/godot-conversion.md#occupied-startup-equipment--authentic-red-integration-pending); earlier bounded actions and accepted tooltip gate1415 remain unchanged.
+- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand case: MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 The `[x]` requirements above preserve legacy implementation status; they are not native parity acceptance. Native coverage remains partial; [conversion evidence](../wiki/systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) owns exact saved proof and limitations.
 
