@@ -146,6 +146,7 @@ mod tests {
                     order_index: 1,
                     initial: false,
                     spells: [76671].into(),
+                    primary_stat_priority: 5,
                 },
             )]
             .into(),
