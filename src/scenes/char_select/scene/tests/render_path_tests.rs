@@ -242,23 +242,18 @@ fn setup_char_select_scene_proves_render_path_via_runtime_scene_snapshot() {
         has_camera_fog,
         "char-select camera should carry distance fog"
     );
+    // The sky-managed EnvironmentSun is the scene's only directional light since
+    // f46f82ab removed the fabricated campsite fill rig.
     assert!(
         snapshot.root.children.iter().any(|child| {
-            matches!(
-                child.props,
-                game_engine::scene_tree::NodeProps::Light { ref kind, .. } if kind == "directional"
-            )
+            child.label == "EnvironmentSun"
+                && matches!(
+                    child.props,
+                    game_engine::scene_tree::NodeProps::Light { ref kind, .. }
+                        if kind == "directional (initial; sky-managed)"
+                )
         }),
-        "scene snapshot should contain the primary directional light"
-    );
-    assert!(
-        snapshot.root.children.iter().any(|child| {
-            matches!(
-                child.props,
-                game_engine::scene_tree::NodeProps::Light { ref kind, .. } if kind == "directional"
-            )
-        }),
-        "scene snapshot should contain the fill directional light"
+        "scene snapshot should contain the environment sun"
     );
 
     assert!(

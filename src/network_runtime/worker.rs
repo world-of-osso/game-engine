@@ -393,10 +393,11 @@ mod tests {
         packets: Arc<AtomicUsize>,
     ) {
         use lightyear::prelude::{
-            AppChannelExt, AppMessageExt, ChannelMode, ChannelSettings, LinkSystems,
-            MessageReceiver,
+            AppChannelExt, ChannelMode, ChannelSettings, LinkSystems, MessageReceiver,
         };
-        app.register_message::<WireValue>();
+        use shared::protocol::ProtocolRegistrationExt;
+        // The protocol check refuses a message registered without its wire layout.
+        app.register_protocol_message::<WireValue>();
         app.add_channel::<WireChannel>(ChannelSettings {
             mode: ChannelMode::OrderedReliable(Default::default()),
             ..Default::default()

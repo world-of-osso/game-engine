@@ -964,45 +964,59 @@ mod tests {
         );
         app.update();
 
-        let lit = |index: usize| !frame(&app, &format!("PlayerSecondaryResourcePip{index}")).hidden;
+        // Each holy power rune shows its ActiveTexture while charged (paladin.rs).
+        let lit = |index: usize| {
+            !frame(
+                &app,
+                &format!("PlayerSecondaryResourcePip{index}ActiveTexture"),
+            )
+            .hidden
+        };
         assert_eq!(
             [lit(0), lit(1), lit(2), lit(3), lit(4)],
             [true, true, true, false, false]
         );
-        assert!(!frame(&app, "PlayerSecondaryResourceHolder").hidden);
-        assert!(
-            app.world()
-                .resource::<UiState>()
-                .registry
-                .get_by_name("PlayerSecondaryResourcePip5")
-                .is_none()
-        );
+        assert!(!frame(&app, "PlayerSecondaryResourceHolderBackground").hidden);
+        assert!(app_frame_missing(
+            &app,
+            "PlayerSecondaryResourcePip5ActiveTexture"
+        ));
         assert_eq!(text(&app, "PlayerManaBarText"), "5000 / 10000");
     }
 
     #[test]
     fn combo_points_light_the_retail_point_icon_over_each_slot() {
         let mut app = unit_frames_app();
-        spawn_local_player(
+        let player = spawn_local_player(
             &mut app,
             vec![
                 power(PowerType::Energy, 60, 100),
                 power(PowerType::ComboPoints, 2, 5),
             ],
         );
+        // Combo points are the rogue's class bar (ClassBar::for_class).
+        app.world_mut().get_mut::<NetPlayer>(player).unwrap().class = 4;
         app.update();
 
         let shown = |part: &str, index: usize| {
             !frame(&app, &format!("PlayerSecondaryResourcePip{index}{part}")).hidden
         };
         assert_eq!(
-            (0..5).map(|index| shown("Lit", index)).collect::<Vec<_>>(),
+            (0..5)
+                .map(|index| shown("IconUncharged", index))
+                .collect::<Vec<_>>(),
             [true, true, false, false, false]
         );
-        assert!((0..5).all(|index| shown("Background", index)));
+        assert_eq!(
+            (0..5)
+                .map(|index| shown("BGActive", index))
+                .collect::<Vec<_>>(),
+            [true, true, false, false, false]
+        );
+        assert!((2..5).all(|index| shown("BGInactive", index)));
         let rogue_points = 4_902_605; // interface/hud/uiroguecombpoints.blp
         assert_eq!(
-            texture(&app, "PlayerSecondaryResourcePip0Lit").source,
+            texture(&app, "PlayerSecondaryResourcePip0IconUncharged").source,
             TextureSource::FileDataId(rogue_points)
         );
         assert_bar_art(

@@ -54,8 +54,9 @@ fn geoset_only_chest_display_keeps_and_caches_chest_textures() {
     );
     assert_eq!(
         resolved.outfit.geoset_overrides,
-        vec![(22, 2)],
-        "expected geoset-only chest display to drive the chest geoset: {:?}",
+        // GeosetGroup[1] = 1 drives chest 2201+1; GeosetGroup[0] = 3 the sleeves 801+3.
+        vec![(22, 2), (8, 4)],
+        "expected geoset-only chest display to drive the chest and sleeve geosets: {:?}",
         resolved.outfit.geoset_overrides
     );
     cached_texture_fdids.sort_unstable();
