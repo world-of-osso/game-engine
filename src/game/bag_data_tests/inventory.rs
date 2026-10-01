@@ -170,6 +170,7 @@ fn server_snapshot_then_delta_drive_the_backpack() {
         BagContents, BagSlotItem, InventoryDelta, InventorySlotChange, InventorySnapshot,
         ItemLocation,
     };
+    crate::item_catalog::wait_for_item_catalog();
     let mut inv = InventoryState::default();
     inv.apply_snapshot(&InventorySnapshot {
         bags: vec![
@@ -234,6 +235,7 @@ fn server_snapshot_then_delta_drive_the_backpack() {
 
 #[test]
 fn server_stacks_take_name_and_quality_from_the_item_catalog() {
+    crate::item_catalog::wait_for_item_catalog();
     let linen = stack_slot(&stack(41, 2589, 20));
     assert_eq!(
         (linen.name.as_str(), linen.quality),
@@ -252,6 +254,7 @@ fn equipment_snapshot_and_deltas_fill_the_equipped_slots() {
         EquipmentSlot, EquipmentSnapshot, EquippedItem, InventoryDelta, InventorySlotChange,
         ItemLocation,
     };
+    crate::item_catalog::wait_for_item_catalog();
     let mut inv = InventoryState::default();
     inv.apply_equipment_snapshot(&EquipmentSnapshot {
         items: vec![EquippedItem {

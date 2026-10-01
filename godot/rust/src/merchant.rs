@@ -45,6 +45,8 @@ pub(crate) struct Merchant {
     shown: bool,
     /// Item icon FDIDs already looked up in local CASC.
     cached_icons: std::collections::HashSet<u32>,
+    /// The bags took the item catalog's data once it loaded.
+    item_data_resolved: bool,
     cursor: Option<ActiveWowCursor>,
     /// Loaded cursor art; `None` caches a kind whose art failed to load.
     cursor_textures: Vec<(ActiveWowCursor, Option<Gd<ImageTexture>>)>,
@@ -518,6 +520,18 @@ impl GameClient {
         }
         self.merchant.ui = Some(ui);
         self.place_merchant()
+    }
+
+    /// Bag and equipment items that arrived while the item catalog loaded get their
+    /// icon, quality and name in the first frame it is loaded; no frame waits for it.
+    pub(super) fn receive_item_catalog(&mut self) {
+        if self.merchant.item_data_resolved
+            || game_engine_ui_model::item_catalog::item_catalog().is_none()
+        {
+            return;
+        }
+        self.merchant.item_data_resolved = true;
+        self.merchant.session.inventory.refresh_item_data();
     }
 
     /// Item icons come from local CASC into `data/textures` before the frame draws them,
