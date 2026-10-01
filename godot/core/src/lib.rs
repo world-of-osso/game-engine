@@ -130,6 +130,7 @@ pub mod outfit_data;
 mod outfit_data_tests;
 #[path = "../../../src/game/outfit_listfile.rs"]
 mod outfit_listfile;
+pub mod player_model_data;
 #[path = "../../../src/player_physics_data.rs"]
 pub mod player_physics_data;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]

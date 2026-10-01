@@ -87,6 +87,15 @@ const FIXTURES := [
 		"attachments": {"EquipmentMainHand": 2},
 	},
 	{
+		# Horde (26) and neutral (24) Pandaren share ChrModel 47/48 with Alliance (25).
+		"name": "MeiHuojin", "race": 26, "sex": 1, "class": 10, "sheath": 0, "anim": 0, "time_ms": 0.0,
+		"items": [], "attachments": {},
+	},
+	{
+		"name": "TaoNeutral", "race": 24, "sex": 0, "class": 10, "sheath": 0, "anim": 4, "time_ms": 200.0,
+		"items": [], "attachments": {},
+	},
+	{
 		"name": "GromShoulders", "race": 2, "sex": 0, "class": 1, "sheath": 0, "anim": 0, "time_ms": 0.0,
 		"items": [
 			{"slot": "Shoulder", "item_id": 1445, "inventory_type": 3},
