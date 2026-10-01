@@ -112,6 +112,16 @@ enum Phase {
     LastBuybackTab,
     LastBuybackRequest,
     LastBuybackDelta,
+    OutsideWorldPickup,
+    OutsideWorldHeld,
+    OutsideWorldRelease,
+    OutsideWorldDone,
+    OutsideForeignPickup,
+    OutsideForeignHeld,
+    OutsideForeignRelease,
+    OutsideForeignRetained,
+    OutsideReset,
+    OutsideDone,
     CloseCatalog,
     ClosePickup,
     ClosePressed,
@@ -133,6 +143,7 @@ struct Session {
     buybacks: usize,
     last_buybacks: usize,
     last_buyback_commit: bool,
+    outside_complete: bool,
     closes: usize,
     close_commit: bool,
     buyback_commit: bool,
@@ -172,6 +183,14 @@ impl Session {
                 "merchant-cursor marker before authenticated selection: {line}"
             ));
         }
+        if line.starts_with("FIXTURE MERCHANT_CURSOR_OUTSIDE_") {
+            self.advance_outside_marker_phase(line)
+        } else {
+            self.send_merchant_marker_response(app, line)
+        }
+    }
+
+    fn send_merchant_marker_response(&mut self, app: &mut App, line: &str) -> Result<(), String> {
         if line.starts_with("FIXTURE MERCHANT_CURSOR_CLOSE_")
             || line == "FIXTURE MERCHANT_CURSOR_DONE"
         {
@@ -417,9 +436,96 @@ impl Session {
         self.completed_five_cases() && self.last_buybacks == 1 && self.last_buyback_commit
     }
 
+    fn advance_outside_marker_phase(&mut self, line: &str) -> Result<(), String> {
+        match self.phase {
+            Phase::LastBuybackDelta | Phase::OutsideWorldPickup | Phase::OutsideWorldHeld => {
+                self.advance_world_pickup_marker_phase(line)
+            }
+            Phase::OutsideWorldRelease | Phase::OutsideWorldDone | Phase::OutsideForeignPickup => {
+                self.advance_world_done_foreign_pickup_marker_phase(line)
+            }
+            _ => self.advance_foreign_release_reset_marker_phase(line),
+        }
+    }
+
+    fn advance_world_pickup_marker_phase(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
+            (Phase::LastBuybackDelta, "FIXTURE MERCHANT_CURSOR_OUTSIDE_WORLD_PICKUP_ARM") => {
+                self.require_quiet()?;
+                self.require_outside_entry()?;
+                self.advance(Phase::OutsideWorldPickup);
+            }
+            (Phase::OutsideWorldPickup, "FIXTURE MERCHANT_CURSOR_OUTSIDE_WORLD_HELD") => {
+                self.require_quiet()?;
+                self.advance(Phase::OutsideWorldHeld);
+            }
+            (Phase::OutsideWorldHeld, "FIXTURE MERCHANT_CURSOR_OUTSIDE_WORLD_RELEASE_ARM") => {
+                self.advance(Phase::OutsideWorldRelease);
+            }
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn require_outside_entry(&self) -> Result<(), String> {
+        let close_not_started = self.closes == 0 && !self.close_commit;
+        if self.completed_last_buyback() && close_not_started && !self.outside_complete {
+            return Ok(());
+        }
+        Err("outside cursor cases require all six inventory barriers and no close".into())
+    }
+
+    fn advance_world_done_foreign_pickup_marker_phase(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
+            (Phase::OutsideWorldRelease, "FIXTURE MERCHANT_CURSOR_OUTSIDE_WORLD_DONE") => {
+                self.require_quiet()?;
+                self.advance(Phase::OutsideWorldDone);
+            }
+            (Phase::OutsideWorldDone, "FIXTURE MERCHANT_CURSOR_OUTSIDE_FOREIGN_PICKUP_ARM") => {
+                self.require_quiet()?;
+                self.advance(Phase::OutsideForeignPickup);
+            }
+            (Phase::OutsideForeignPickup, "FIXTURE MERCHANT_CURSOR_OUTSIDE_FOREIGN_HELD") => {
+                self.require_quiet()?;
+                self.advance(Phase::OutsideForeignHeld);
+            }
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn advance_foreign_release_reset_marker_phase(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
+            (Phase::OutsideForeignHeld, "FIXTURE MERCHANT_CURSOR_OUTSIDE_FOREIGN_RELEASE_ARM") => {
+                self.advance(Phase::OutsideForeignRelease);
+            }
+            (Phase::OutsideForeignRelease, "FIXTURE MERCHANT_CURSOR_OUTSIDE_FOREIGN_RETAINED") => {
+                self.require_quiet()?;
+                self.advance(Phase::OutsideForeignRetained);
+            }
+            _ => return self.advance_outside_reset_marker_phase(line),
+        }
+        Ok(())
+    }
+
+    fn advance_outside_reset_marker_phase(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
+            (Phase::OutsideForeignRetained, "FIXTURE MERCHANT_CURSOR_OUTSIDE_RESET_ARM") => {
+                self.advance(Phase::OutsideReset);
+            }
+            (Phase::OutsideReset, "FIXTURE MERCHANT_CURSOR_OUTSIDE_RESET_DONE") => {
+                self.require_quiet()?;
+                self.outside_complete = true;
+                self.advance(Phase::OutsideDone);
+            }
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
     fn advance_close_marker_phase(&mut self, line: &str) -> Result<(), String> {
         match self.phase {
-            Phase::LastBuybackDelta
+            Phase::OutsideDone
             | Phase::CloseCatalog
             | Phase::ClosePickup
             | Phase::ClosePressed
@@ -431,10 +537,13 @@ impl Session {
 
     fn advance_close_pickup_marker_phase(&mut self, line: &str) -> Result<(), String> {
         match (&self.phase, line) {
-            (Phase::LastBuybackDelta, "FIXTURE MERCHANT_CURSOR_CLOSE_CATALOG_ARM") => {
+            (Phase::OutsideDone, "FIXTURE MERCHANT_CURSOR_CLOSE_CATALOG_ARM") => {
                 self.require_quiet()?;
-                if !self.completed_last_buyback() {
-                    return Err("vendor close requires all six inventory barriers".into());
+                if !self.completed_last_buyback() || !self.outside_complete {
+                    return Err(
+                        "vendor close requires six inventory barriers and both outside quiet cases"
+                            .into(),
+                    );
                 }
                 self.advance(Phase::CloseCatalog);
             }
@@ -485,7 +594,10 @@ impl Session {
     }
 
     fn completed_close(&self) -> bool {
-        self.completed_last_buyback() && self.closes == 1 && self.close_commit
+        self.completed_last_buyback()
+            && self.outside_complete
+            && self.closes == 1
+            && self.close_commit
     }
 
     fn completed_shift_buy(&self) -> bool {
@@ -677,6 +789,7 @@ impl Session {
         self.phase == Phase::CloseRequest
             && self.closes == 0
             && self.completed_last_buyback()
+            && self.outside_complete
             && vendor == Some(expected.npc)
             && request.npc == expected.npc
     }
@@ -1118,6 +1231,7 @@ fn run_until_done(
         buybacks: 0,
         last_buybacks: 0,
         last_buyback_commit: false,
+        outside_complete: false,
         closes: 0,
         close_commit: false,
         buyback_commit: false,
@@ -1184,7 +1298,7 @@ pub(super) fn run(
         (Err(error), _) | (_, Err(error)) => Err(error),
         (Ok(()), Ok(())) => {
             println!(
-                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; physical Shift-vendor buy, MerchantUI-owned BOTTOMLEFT=MerchantItem1 TOPLEFT picker172x96, digits40/Up clamp40/Backspace4/1/digit2/Enter, exact once BuyItem count2 destinationNone, pre-delta SHIFT_BUY_COMMIT Linen3/1014/source white/no cursor, fixture authoritative same guid9182590 Linen5/964; seeded BuybackList slot0 Linen2589 quality1 count2 price26, physical own Buyback tab then cell Left press/release, exact once BuybackItemRequest npc4294966979 slot0, pre-delta BUYBACK_COMMIT Linen5/964/list count2/no held/no picker, fixture authoritative same guid9182590 Linen7/938/empty list/tab retained; seeded LAST_BUYBACK ordered slot0 Linen1/13 and slot1 Linen2/26 with inventory/Gold unchanged, physical owned Tab1 then actual MerchantBuyBackItem Left press/release, decoded-image/name/count2/price26 and vendor25 projection, exact once BuybackItemRequest npc4294966979 slot1 NOT slot0, pre-authority LAST_BUYBACK_COMMIT Linen7/938/two entries/no held/no picker900ms, fixture authoritative same guid9182590 Linen9/912/original slot0 Linen1/13 remaining, actual last-sale art/name/price13/count1 hidden quiet900ms; physical Tab1 retains vendor catalog, Left hold900ms textured centered Linen vendor cursor, same-source same-point release <4logical px retains cursor quiet900ms/no extra Buy; own CloseButton Left press/release, exact once CloseInteraction npc4294966979 only CloseRequest, pre-ack CLOSE_COMMIT locally closed/merchant and backpack controls hidden (MerchantUI root may remain)/cursor hidden/no picker/popup/Menu/unchanged Linen9 Gold912 quiet900ms, ordinary InteractionClosed only after request plus marker then closed quiet900ms DONE; opens1/buys2/sells2/buybacks2 (original1/last1)/closes1/six inventory barriers plus close barrier and400ms drain; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
+                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; physical Shift-vendor buy, MerchantUI-owned BOTTOMLEFT=MerchantItem1 TOPLEFT picker172x96, digits40/Up clamp40/Backspace4/1/digit2/Enter, exact once BuyItem count2 destinationNone, pre-delta SHIFT_BUY_COMMIT Linen3/1014/source white/no cursor, fixture authoritative same guid9182590 Linen5/964; seeded BuybackList slot0 Linen2589 quality1 count2 price26, physical own Buyback tab then cell Left press/release, exact once BuybackItemRequest npc4294966979 slot0, pre-delta BUYBACK_COMMIT Linen5/964/list count2/no held/no picker, fixture authoritative same guid9182590 Linen7/938/empty list/tab retained; seeded LAST_BUYBACK ordered slot0 Linen1/13 and slot1 Linen2/26 with inventory/Gold unchanged, physical owned Tab1 then actual MerchantBuyBackItem Left press/release, decoded-image/name/count2/price26 and vendor25 projection, exact once BuybackItemRequest npc4294966979 slot1 NOT slot0, pre-authority LAST_BUYBACK_COMMIT Linen7/938/two entries/no held/no picker900ms, fixture authoritative same guid9182590 Linen9/912/original slot0 Linen1/13 remaining, actual last-sale art/name/price13/count1 hidden quiet900ms; physical vendor-origin release onto viewport-fraction-grid World point with no actual visible mouse-active client Control hit clears cursor/no destroy; fresh vendor-origin release onto distinct mounted ChatFrameUI ChatFrame1TabsTab0 center outside own MerchantUI active hits retains textured centered cursor with stable visible tab presentation, then original MerchantItem1 held-cursor click clears locally; both zero-request quiet cases retain Linen9/912/source white/list1/target/autoattack, mounted-hit negative claim ONLY not global winner/arbitration; physical Tab1 retains vendor catalog, Left hold900ms textured centered Linen vendor cursor, same-source same-point release <4logical px retains cursor quiet900ms/no extra Buy; own CloseButton Left press/release, exact once CloseInteraction npc4294966979 only CloseRequest, pre-ack CLOSE_COMMIT locally closed/merchant and backpack controls hidden (MerchantUI root may remain)/cursor hidden/no picker/popup/Menu/unchanged Linen9 Gold912 quiet900ms, ordinary InteractionClosed only after request plus marker then closed quiet900ms DONE; opens1/buys2/sells2/buybacks2 (original1/last1)/closes1/nine flows: seven authority barriers (six inventory plus close) and two zero-request outside quiet cases, then400ms drain; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
             );
             Ok(())
         }
