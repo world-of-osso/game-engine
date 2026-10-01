@@ -85,6 +85,7 @@ use std::{collections::HashMap, path::PathBuf};
 use account::{Account, AccountEvent};
 use frame_error::FrameError;
 use game_engine_core::client_options_data::{ClientOptionsFile, load_options_file_with_legacy};
+use game_engine_core::input_bindings_data::InputAction;
 use game_engine_network::replica::{Replica, ReplicationBatch, Schema, UnitChange};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
@@ -172,6 +173,8 @@ pub struct GameClient {
     world_camera: camera::WorldCamera,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
+    /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
+    framerate_toggled: bool,
     player_movement: gameplay::PlayerMovement,
     world_minutes: f32,
     server_hostname: String,
@@ -264,6 +267,7 @@ impl INode3D for GameClient {
             world_camera: camera::WorldCamera::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,
+            framerate_toggled: false,
             player_movement: gameplay::PlayerMovement::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
@@ -507,7 +511,7 @@ impl GameClient {
 
     #[func]
     fn fps_overlay_enabled(&self) -> bool {
-        self.client_options.hud.show_fps_overlay
+        self.client_options.hud.show_fps_overlay != self.framerate_toggled
     }
 
     #[func]
@@ -864,6 +868,26 @@ impl GameClient {
 }
 
 impl GameClient {
+    /// `TOGGLEFPS` (`Bindings_Standard.xml`): `FramerateFrame:Toggle()` shows or hides
+    /// the framerate in the world; it is hidden until toggled (`FramerateFrame.xml`
+    /// `hidden="true"`) unless the HUD option shows it.
+    fn update_framerate_toggle(&mut self) {
+        if self.account.session.screen != SessionScreen::InWorld
+            || self.game_menu_ui.is_some()
+            || !self.account.session.gameplay_input_allowed()
+        {
+            return;
+        }
+        let input = self.physical_input.gameplay_state(self.keyboard_free());
+        if self
+            .client_options
+            .bindings
+            .is_just_pressed(InputAction::ToggleFramerate, &input)
+        {
+            self.framerate_toggled = !self.framerate_toggled;
+        }
+    }
+
     /// Startup, then popup keys, chat and binding capture preserve input precedence.
     fn dispatch_priority_input(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
         // Asset-using actions must not race the startup worker's CASC locks.
@@ -1433,6 +1457,10 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
             ("Character frame", |c, _| c.update_character_frame()),
+            ("Framerate toggle", |c, _| {
+                c.update_framerate_toggle();
+                Ok(())
+            }),
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),

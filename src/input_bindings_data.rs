@@ -222,10 +222,11 @@ pub enum InputAction {
     ToggleLootRules,
     ToggleQuestLog,
     ToggleWorldMap,
+    ToggleFramerate,
 }
 
 impl InputAction {
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 40] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -265,6 +266,7 @@ impl InputAction {
         Self::ToggleLootRules,
         Self::ToggleQuestLog,
         Self::ToggleWorldMap,
+        Self::ToggleFramerate,
     ];
 
     pub fn key(self) -> &'static str {
@@ -347,6 +349,12 @@ impl InputAction {
                 "World Map",
                 Some(keyboard(BindingKey::KeyM)),
             ),
+            // Retail `TOGGLEFPS` (`Bindings_Standard.xml`: `FramerateFrame:Toggle()`), Ctrl+R.
+            Self::ToggleFramerate => (
+                "toggle_framerate",
+                "Toggle Framerate Display",
+                Some(InputBinding::CtrlKeyboard(BindingKey::KeyR)),
+            ),
             _ => return None,
         };
         Some(input_action_meta(
@@ -393,7 +401,8 @@ impl InputAction {
             | Self::ToggleSocial
             | Self::ToggleLootRules
             | Self::ToggleQuestLog
-            | Self::ToggleWorldMap => unreachable!("panel toggles handled by interface_meta"),
+            | Self::ToggleWorldMap
+            | Self::ToggleFramerate => unreachable!("panel toggles handled by interface_meta"),
             Self::ActionSlot1
             | Self::ActionSlot2
             | Self::ActionSlot3
@@ -772,6 +781,7 @@ fn interface_action_from_key(key: &str) -> Option<InputAction> {
         "toggle_loot_rules" => InputAction::ToggleLootRules,
         "toggle_quest_log" => InputAction::ToggleQuestLog,
         "toggle_world_map" => InputAction::ToggleWorldMap,
+        "toggle_framerate" => InputAction::ToggleFramerate,
         _ => return None,
     })
 }
@@ -869,6 +879,7 @@ fn interface_section_actions() -> &'static [InputAction] {
         InputAction::ToggleLootRules,
         InputAction::ToggleQuestLog,
         InputAction::ToggleWorldMap,
+        InputAction::ToggleFramerate,
     ]
 }
 
