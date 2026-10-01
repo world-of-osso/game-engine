@@ -2,6 +2,8 @@
 
 Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The launcher runs `python3 scripts/depot-build.py --root <checkout>` to compile the Godot native extension remotely, then launches/imports Godot locally as usual.
 
+Client options `--screen`, `--state`, `--server`, `--char`, and `--run-js-ui-script <path>` are routed after Godot's `--` separator; native Godot options stay before it. Direct Godot invocation must place client options after `--`. The script uses the shared synchronous JS compiler and native frame-driven consumer; see the [native UI automation contract](specs/native-ui-automation.md) and [bounded Login evidence and open gates](wiki/systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail). Routing is not all-action or full-feature acceptance.
+
 ## Requirements
 
 - Linux x86_64 host.

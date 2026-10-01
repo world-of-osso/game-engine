@@ -1,3 +1,7 @@
+## 2026-10-01 — Native JS bounded docs audit
+
+[Evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) records MAIN Login GREEN `ea9c4482`, independent1537 functional subset PASS/overall FAIL, five runtime action variants and genuine timeout RED `73cb16e0`/`61bfdc12`. Root script routing and native contract links corrected; pending fixes, unresolved MH2O errors, warnings and conversion/shutdown/transferred exclusions retained. No new page or index change.
+
 ## 2026-10-01 — Merchant ordering/content bounded MAIN-observed GREEN
 
 [Merchant system SSOT](systems/merchant-frame.md#native-reply-ordering-and-tooltip-content--bounded-main-observed-green) records ordered same-channel replies `55648101`, original tooltip content `33e81860`, real-UDP RED/GREEN, five portable tests and Depot `0xdh43jcwk` physical runtime0. Independent1529 pending; forced cleanup, historical failures, inherited WMO warning and transferred-owner exclusions retained. Parity links updated; full merchant/conversion, junk tooltip and per-item repair remain open.
