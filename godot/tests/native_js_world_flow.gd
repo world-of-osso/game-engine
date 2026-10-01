@@ -91,35 +91,58 @@ func texture(node: Control) -> TextureRect:
 			return child
 	return null
 
+func charselect_account_ready(state: Dictionary) -> bool:
+	return saw_credentials and saw_connect and state.reply_received and state.screen == "CharacterSelect" and state.character_count == 1
+
+func charselect_presentation_ready(selection: CanvasLayer, selected: Label, enter: Button) -> bool:
+	if selection == null or not selection.visible:
+		return false
+	if selected == null or selected.text != CHARACTER:
+		return false
+	return enter != null and enter.is_visible_in_tree()
+
 func charselect_ready() -> bool:
 	var state: Dictionary = client.account_state()
 	var selection := client.get_node_or_null("CharacterSelectUI") as CanvasLayer
 	var selected := client.find_child("CharSelectCharacterName", true, false) as Label
 	var enter := client.find_child("EnterWorld", true, false) as Button
-	return saw_credentials and saw_connect and state.reply_received and state.screen == "CharacterSelect" and state.character_count == 1 and selection != null and selection.visible and selected != null and selected.text == CHARACTER and enter != null and enter.is_visible_in_tree()
+	return charselect_account_ready(state) and charselect_presentation_ready(selection, selected, enter)
 
 func loading_ready() -> bool:
 	var loading := client.get_node_or_null("LoadingUI") as CanvasLayer
 	return saw_enter and client.account_state().screen == "Loading" and loading != null and loading.visible and client.get_node_or_null("CharacterSelectScene") == null
 
-func world_ready() -> bool:
-	var state: Dictionary = client.account_state()
-	if state.screen != "InWorld" or not state.reply_received or state.selected_character_id != 17 or state.selected_character_name != CHARACTER or state.unit_count != 1 or not state.world_attached or not state.gameplay_input_allowed:
+func world_account_ready(state: Dictionary) -> bool:
+	if state.screen != "InWorld" or not state.reply_received:
 		return false
-	var terrain: Dictionary = state.terrain
+	if state.selected_character_id != 17 or state.selected_character_name != CHARACTER:
+		return false
+	return state.unit_count == 1 and state.world_attached and state.gameplay_input_allowed
+
+func terrain_ready(terrain: Dictionary) -> bool:
 	if terrain.map != "azeroth" or terrain.pending_count != 0 or not terrain.failures.is_empty() or terrain.parsed_tiles.is_empty():
 		return false
 	for tile in terrain.parsed_tiles:
 		if tile.chunk_count <= 0 or not FileAccess.file_exists(tile.root_path):
 			return false
-	var loading := client.get_node_or_null("LoadingUI") as CanvasLayer
-	var terrain_root := client.get_node_or_null("WorldTerrain")
-	var player := client.get_node_or_null("WorldUnits/" + CHARACTER) as Node3D
-	if loading == null or loading.visible or terrain_root == null or terrain_root.get_child_count() == 0 or player == null or player.position.distance_to(FIRST) > 0.5:
+	return true
+
+func world_presentation_ready(loading: CanvasLayer, terrain_root: Node, player: Node3D) -> bool:
+	if loading == null or loading.visible:
 		return false
+	if terrain_root == null or terrain_root.get_child_count() == 0:
+		return false
+	if player == null or player.position.distance_to(FIRST) > 0.5:
+		return false
+	return true
+
+func player_grounded(player: Node3D) -> bool:
 	var height: Variant = client.terrain_height_at(player.position.x, player.position.z)
 	if height == null or absf(player.position.y - float(height)) >= 0.3:
 		return false
+	return true
+
+func player_visual_ready(player: Node3D) -> bool:
 	# Existing helpers, read-only subset: no paused clocks/pose setters/capture mutation.
 	var equipment = load("res://tests/world_player_equipment_pixels.gd").new()
 	var visual: Node3D = equipment.find_visual(player)
@@ -131,6 +154,20 @@ func world_ready() -> bool:
 	var poses: Array[Transform3D] = locomotion.capture_pose()
 	return not poses.is_empty() and poses.all(func(pose): return pose.origin.is_finite() and pose.basis.is_finite())
 
+func world_ready() -> bool:
+	var state: Dictionary = client.account_state()
+	if not world_account_ready(state):
+		return false
+	var terrain: Dictionary = state.terrain
+	if not terrain_ready(terrain):
+		return false
+	var loading := client.get_node_or_null("LoadingUI") as CanvasLayer
+	var terrain_root := client.get_node_or_null("WorldTerrain")
+	var player := client.get_node_or_null("WorldUnits/" + CHARACTER) as Node3D
+	if not world_presentation_ready(loading, terrain_root, player):
+		return false
+	return player_grounded(player) and player_visual_ready(player)
+
 func npc_ready() -> bool:
 	var vendor := client.get_node_or_null("WorldUnits/" + VENDOR) as Node3D
 	if vendor == null or client.account_state().unit_count != 2:
@@ -138,13 +175,26 @@ func npc_ready() -> bool:
 	var equipment = load("res://tests/world_player_equipment_pixels.gd").new()
 	return vendor.position.distance_to(FIRST + Vector3(-2.0, 0.1, 3.0)) <= 0.5 and equipment.has_visible_mesh(vendor)
 
+func visible_label_matches(label: Label, text: String) -> bool:
+	return label != null and label.is_visible_in_tree() and label.text == text
+
+func merchant_source_ready(source: Control) -> bool:
+	return source != null and source.is_visible_in_tree() and source.get_global_rect().has_area()
+
+func merchant_item_content_matches(name_label: Label, icon: TextureRect, count: Label, price: Label) -> bool:
+	if not visible_label_matches(name_label, "Linen Cloth"):
+		return false
+	if icon == null or icon.texture != vendor_texture:
+		return false
+	return (count == null or not count.is_visible_in_tree()) and visible_label_matches(price, "25")
+
 func source_matches() -> bool:
 	var name_label := control("MerchantItem1Name") as Label
 	var count := control("MerchantItem1ItemButtonCount") as Label
 	var price := control("MerchantItem1MoneyFrameAmount0") as Label
 	var icon := texture(control("MerchantItem1ItemButtonIcon"))
 	var source := control("MerchantItem1")
-	return source != null and source.is_visible_in_tree() and source.get_global_rect().has_area() and name_label != null and name_label.is_visible_in_tree() and name_label.text == "Linen Cloth" and icon != null and icon.texture == vendor_texture and (count == null or not count.is_visible_in_tree()) and price != null and price.is_visible_in_tree() and price.text == "25"
+	return merchant_source_ready(source) and merchant_item_content_matches(name_label, icon, count, price)
 
 func picker_matches(amount: String) -> bool:
 	var picker := control("StackSplitFrame")
@@ -210,23 +260,45 @@ func money_matches(money: int) -> bool:
 			return false
 	return true
 
-func authority_matches(count: int, money: int, amount: String = "") -> bool:
-	var account: Dictionary = client.account_state()
-	var state: Dictionary = client.merchant_state()
-	if account.screen != "InWorld" or account.selected_character_id != 17 or not state.open or state.npc != npc_id or state.vendor_name != VENDOR or state.items != ["Linen Cloth"] or state.money != money or state.split_open != (not amount.is_empty()):
-		return false
+func merchant_account_matches(account: Dictionary) -> bool:
+	return account.screen == "InWorld" and account.selected_character_id == 17
+
+func merchant_session_matches(state: Dictionary) -> bool:
+	return state.open and state.npc == npc_id and state.vendor_name == VENDOR and state.items == ["Linen Cloth"]
+
+func inventory_item_matches(item: Dictionary, count: int) -> bool:
+	return item.bag == 0 and item.slot == 0 and item.item_id == 2589 and item.name == "Linen Cloth" and item.count == count
+
+func inventory_authority_matches(state: Dictionary, count: int) -> bool:
 	# Visual starter gear is EquipmentAppearance, not an invented occupied inventory slot.
 	if not state.equipment.is_empty() or state.bags.size() != (0 if count == 0 else 1):
 		return false
 	if count > 0:
 		var item: Dictionary = state.bags[0]
-		if item.bag != 0 or item.slot != 0 or item.item_id != 2589 or item.name != "Linen Cloth" or item.count != count:
+		if not inventory_item_matches(item, count):
 			return false
+	return true
+
+func cursor_and_popup_absent() -> bool:
 	for name in ["CursorItemIcon", "StaticPopup1"]:
 		var node := client.find_child(name, true, false) as Control
 		if node != null and node.is_visible_in_tree():
 			return false
+	return true
+
+func merchant_presentation_matches(count: int, money: int, amount: String) -> bool:
 	return client.get_node_or_null("GameMenuUI") == null and source_matches() and bag_matches(count) and money_matches(money) and picker_matches(amount)
+
+func authority_matches(count: int, money: int, amount: String = "") -> bool:
+	var account: Dictionary = client.account_state()
+	var state: Dictionary = client.merchant_state()
+	if not merchant_account_matches(account) or not merchant_session_matches(state):
+		return false
+	if state.money != money or state.split_open != (not amount.is_empty()):
+		return false
+	if not inventory_authority_matches(state, count) or not cursor_and_popup_absent():
+		return false
+	return merchant_presentation_matches(count, money, amount)
 
 func quiet(count: int, money: int, amount: String = "") -> bool:
 	var deadline := Time.get_ticks_msec() + QUIET_MS
@@ -252,42 +324,50 @@ func observe_buy(index: int, before_count: int, before_money: int, after_count: 
 		return false
 	return mark("applied%s" % index)
 
-func run() -> void:
+func mount_world_client() -> bool:
 	artifacts = OS.get_environment("NATIVE_JS_WORLD_ARTIFACTS")
 	if artifacts.is_empty() or not ClassDB.class_exists("GameClient") or not ClassDB.class_exists("WowAnimationPlayer"):
 		fail("SETUP: owned artifacts and current native classes required")
-		return
+		return false
 	root.size = Vector2i(1920, 1080)
 	var scene: PackedScene = load("res://scenes/client.tscn")
 	if scene == null:
 		fail("SETUP: production client scene missing")
-		return
+		return false
 	client = scene.instantiate()
 	node_added.connect(observe_node)
 	root.add_child(client)
+	return true
+
+func observe_world_entry() -> bool:
 	if not await wait_until(charselect_ready, 150000, "authored-charselect") or not mark("charselect"):
-		return
+		return false
 	if not await wait_until(loading_ready, 30000, "actual-loading") or not mark("loading"):
-		return
+		return false
 	if not await wait_until(world_ready, 180000, "actual-world") or not snapshot("world-ready") or not mark("world-ready"):
-		return
+		return false
+	return true
+
+func observe_vendor_baseline() -> bool:
 	if not await wait_until(npc_ready, 30000, "replicated-npc") or not mark("npc-ready"):
-		return
+		return false
 	if not await wait_until(func(): return client.merchant_state().open and texture(control("MerchantItem1ItemButtonIcon")) != null, 6000, "merchant-mount"):
-		return
+		return false
 	npc_id = client.merchant_state().npc
 	vendor_texture = texture(control("MerchantItem1ItemButtonIcon")).texture
 	if not authority_matches(0, 1000) or not await quiet(0, 1000) or not snapshot("merchant-ready") or not mark("merchant-ready"):
 		fail("actual vendor baseline/empty inventory/Gold1000 not stable")
-		return
-	if not await observe_buy(1, 0, 1000, 1, 975):
-		return
+		return false
+	return true
+
+func observe_picker_edits() -> bool:
 	if not await wait_until(func(): return authority_matches(1, 975, "1"), 10000, "actual-picker1") or not snapshot("picker1") or not mark("picker1"):
-		return
+		return false
 	if not await wait_until(func(): return authority_matches(1, 975, "2"), 6000, "actual-key2-picker") or not snapshot("picker2") or not mark("picker2"):
-		return
-	if not await observe_buy(2, 1, 975, 3, 925):
-		return
+		return false
+	return true
+
+func observe_final_authority() -> void:
 	# Script has5s post-Enter wait then its own live dump. Observer never calls dumps.
 	if not await quiet(3, 925) or not snapshot("done") or not mark("done"):
 		return
@@ -300,3 +380,18 @@ func run() -> void:
 	client.queue_free()
 	await process_frame
 	quit(0)
+
+func run() -> void:
+	if not mount_world_client():
+		return
+	if not await observe_world_entry():
+		return
+	if not await observe_vendor_baseline():
+		return
+	if not await observe_buy(1, 0, 1000, 1, 975):
+		return
+	if not await observe_picker_edits():
+		return
+	if not await observe_buy(2, 1, 975, 3, 925):
+		return
+	await observe_final_authority()
