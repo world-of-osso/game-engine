@@ -307,6 +307,34 @@ impl WowSkyboxDebug {
     }
 }
 
+#[cfg(test)]
+mod camera_options_tests {
+    use super::*;
+
+    #[test]
+    fn persisted_camera_sensitivity_drives_debug_orbit_without_generic_camera_overrides() {
+        let options: CameraOptionsFile = ron::from_str(
+            "(mouseSensitivity:0.007,look_sensitivity:0.01,invert_y:true,\
+             fovDegrees:73.0,follow_speed:10.0,zoom_speed:8.0,\
+             min_distance:2.0,max_distance:40.0)",
+        )
+        .unwrap();
+        let saved = ron::to_string(&options).unwrap();
+        let restored: CameraOptionsFile = ron::from_str(&saved).unwrap();
+        assert_eq!(restored.fov_degrees, 73.0);
+        let mut orbit = Orbit::new();
+        orbit.drag(Vector2::new(100.0, -50.0), restored.mouse_sensitivity);
+        assert!((orbit.yaw + 0.7).abs() < 0.00001);
+        assert!((orbit.pitch + 0.35).abs() < 0.00001);
+        assert_eq!(orbit.distance, 7.5);
+        // Debug limits are original scene controls, not generic camera min/max.
+        orbit.zoom(100.0);
+        assert_eq!(orbit.target_distance, 0.5);
+        orbit.zoom(-100.0);
+        assert_eq!(orbit.target_distance, 20.0);
+    }
+}
+
 impl GameClient {
     pub(super) fn open_skybox_debug(&mut self, arguments: &StartupArgs) -> Result<(), String> {
         let scene = WowSkyboxDebug::load(
