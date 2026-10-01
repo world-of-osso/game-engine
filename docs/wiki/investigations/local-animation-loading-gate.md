@@ -1,6 +1,6 @@
 # Local animation before world readiness
 
-The first native cursor GREEN attempt failed during startup, before cursor readiness. Concurrent world-entry change `5e26bc9b` made pending asynchronous unit visuals valid during Loading; `f7b137fb` gates local animation on the existing `SessionScreen::InWorld` barrier. `76487261` fixes the gate's missing import; post-fix runtime reaches READY and final cursor flow exits0. Independent cursor acceptance remains pending.
+The first native cursor GREEN attempt failed during startup, before cursor readiness. Concurrent world-entry change `5e26bc9b` made pending asynchronous unit visuals valid during Loading; `f7b137fb` gates local animation on the existing `SessionScreen::InWorld` barrier. `76487261` fixes the gate's missing import; post-fix runtime reaches READY and final cursor flow exits0. Independent bounded cursor PASS is accepted in `/tmp/claude/verify-native-bags-cursor.md`.
 
 ## Observed failure and source diagnosis
 
@@ -23,13 +23,13 @@ The log does not embed request/attachment timing or state booleans. Source estab
 | Pre-gate native build | Depot `0wg2pzt429` exits 0; does not cover later `f7b137fb`. |
 | First actual cursor GREEN attempt | Parent exit 101 before readiness; startup error above blocks cursor assertions. |
 | InWorld animation gate | `f7b137fb`/`76487261`; Depot `6tpzkhk2xx` build exits0 and second GREEN reaches READY before cursor-image failure. No exact pending-request timing claim. |
-| Final cursor flow | Depot `7p31d9cmcw` at `40497cb7` native+fixture exit0, existing WMO warning only; third GREEN parent0 completes UI/network flow. Independent agent1360 pending; [exact cursor evidence](../systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending). |
+| Final cursor flow | Depot `7p31d9cmcw` at `40497cb7` native+fixture exit0, existing WMO warning only; third GREEN parent0 completes UI/network flow. Independent bounded cursor PASS accepted; [exact cursor evidence](../systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass). |
 
 Earlier standalone-window PASS and legacy checked tests remain valid within their recorded scope. Full conversion stays open. Owned fixture child `3783421` was intentionally SIGKILLed/reaped with reader errors 0; this is not normal-shutdown proof. Shutdown remains deferred.
 
 ## Cursor-image producer mismatch after READY
 
-Diagnostic `9dc97a47` records event point1758,838, OS viewport point0, rendered center0 and texture present in `/tmp/claude/native-bags-cursor-pointer-probe.log`. This is actual producer DataMismatch, not an expected-position calibration. `40497cb7` uses existing `PhysicalInput.pointer` actual event data, preserves pointer across keyboard-only split-modal input and captures position even while handled/UI-blocked. Final `/tmp/claude/native-bags-cursor-third-green.log` parent0 completes authored UI and decoded network flow; child3813397 intentional SIGKILL/reap/readers0 is not normal shutdown. Full conversion and independent cursor gate remain open.
+Diagnostic `9dc97a47` records event point1758,838, OS viewport point0, rendered center0 and texture present in `/tmp/claude/native-bags-cursor-pointer-probe.log`. This is actual producer DataMismatch, not an expected-position calibration. `40497cb7` uses existing `PhysicalInput.pointer` actual event data, preserves pointer across keyboard-only split-modal input and captures position even while handled/UI-blocked. Final `/tmp/claude/native-bags-cursor-third-green.log` parent0 completes authored UI and decoded network flow; child3813397 intentional SIGKILL/reap/readers0 is not normal shutdown. Independent bounded cursor PASS is accepted; full conversion remains open.
 
 ## Sources
 
@@ -39,6 +39,6 @@ Diagnostic `9dc97a47` records event point1758,838, OS viewport point0, rendered 
 
 ## See Also
 
-- [Godot conversion](../systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending) — cursor/window acceptance limits.
+- [Godot conversion](../systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) — cursor/window acceptance limits.
 - [[world-entry-stalls]] — asynchronous visual-loading change.
-- [Conversion contract](../../specs/godot-conversion.md#standalone-bags-bounded-window-proof-cursor-pending) — full goal remains open.
+- [Conversion contract](../../specs/godot-conversion.md#standalone-bags-bounded-window-and-cursor-proof) — full goal remains open.
