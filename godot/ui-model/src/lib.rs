@@ -83,6 +83,9 @@ mod char_select_delete_confirm_component;
 pub mod char_select_top_nav_component;
 #[path = "../../../src/ui/screens/default_button_atlas.rs"]
 pub mod default_button_atlas;
+// First-login legal acceptance (`src/scenes/eula/mod.rs`).
+#[path = "../../../src/ui/screens/eula_component.rs"]
+pub mod eula_component;
 #[path = "../../../src/ui/screens/entrance_difficulty_component.rs"]
 pub mod entrance_difficulty_component;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
