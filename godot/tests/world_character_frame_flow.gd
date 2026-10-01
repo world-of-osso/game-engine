@@ -254,14 +254,23 @@ func cf_wrong_slot() -> bool:
 func cf_rotate() -> bool:
 	var scene := cf_control("CharacterModelScene").get_global_rect()
 	var before: float = client.character_frame_state().model_yaw
+	var camera_before := cf_camera()
 	await cf_drag_points(scene.get_center(), scene.get_center() + Vector2(120, 0))
+	await frames(10)
 	var after: float = client.character_frame_state().model_yaw
 	if after <= before:
 		fail("Dragging the model did not rotate it: %f -> %f" % [before, after])
 		return false
+	if not cf_camera().is_equal_approx(camera_before):
+		fail("Dragging the model also moved the world camera: %s -> %s" % [camera_before, cf_camera()])
+		return false
 	await cf_capture("08-rotated.png")
 	print("FIXTURE CF_ROTATED ", before, " -> ", after)
 	return true
+
+func cf_camera() -> Transform3D:
+	var camera := root.get_viewport().get_camera_3d()
+	return camera.global_transform if camera != null else Transform3D()
 
 func cf_drag_points(start: Vector2, finish: Vector2) -> void:
 	await hover_point(start)
