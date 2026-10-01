@@ -49,6 +49,25 @@ impl GameClient {
         Ok(())
     }
 
+    /// `PlaySound(kit)`; nothing plays when native audio failed to start (already reported).
+    pub(crate) fn play_ui_sound_kit(&mut self, kit: u32) -> Result<(), String> {
+        let Some(sound) = &mut self.sound else {
+            return Ok(());
+        };
+        sound
+            .bind_mut()
+            .ui_kits
+            .play(&self.data_root, kit, &self.client_options.sound)
+    }
+
+    /// UI sound kits started so far, for automation.
+    pub(crate) fn played_ui_sound_kits(&self) -> Vec<u32> {
+        self.sound
+            .as_ref()
+            .map(|sound| sound.bind().ui_kits.played.clone())
+            .unwrap_or_default()
+    }
+
     pub(super) fn current_zone_id(&self) -> Option<u32> {
         if self.account.session.screen != SessionScreen::InWorld {
             return None;
