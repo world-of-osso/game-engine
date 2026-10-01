@@ -21,7 +21,6 @@ use game_engine_ui_model::micro_menu::{
     ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PREFIX, ACTION_SPELLBOOK,
 };
 use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, append_item_id};
-use godot::global::Key;
 use godot::prelude::*;
 use shared::components::{Player, UnitLevel};
 use shared::protocol::{EquipItem, EquipmentSlot, ItemLocation};
