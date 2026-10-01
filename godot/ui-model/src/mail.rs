@@ -198,12 +198,6 @@ impl MailSession {
     pub fn is_attached(&self, item_guid: u64) -> bool {
         self.attachments.contains(&item_guid)
     }
-    /// Escape closes the open mail first; false when none is open.
-    pub fn close_open_mail(&mut self) -> bool {
-        let open = self.selected.is_some();
-        self.select(None);
-        open
-    }
     /// Opening another mail, or none, drops the open mail's confirmation
     /// (`OpenMailFrame_OnHide` hides `DELETE_MAIL`).
     fn select(&mut self, mail_id: Option<u64>) {
