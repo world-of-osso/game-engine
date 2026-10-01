@@ -497,6 +497,9 @@ impl INode3D for GameClient {
     }
 
     fn exit_tree(&mut self) {
+        // The display server keeps the custom cursor texture until it is replaced; left
+        // set, it outlives RenderingServer and its RID leaks at exit.
+        self.set_world_cursor(None);
         self.stop_sound();
         if let Err(error) = self.account.stop() {
             godot_error!("Account shutdown failed: {error}");
