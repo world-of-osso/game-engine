@@ -40,11 +40,25 @@ The shared frame now labels Short/Medium/Long as 1 Day/1 Week/2 Weeks; deposit m
 
 At `5b9cb76c` with shared protocol `88bc3fe`, Depot `scripts/depot-build.py --root <canonical-engine> --test -p game-engine-ui-model -p game-engine-network auction` exited 0: native model 8/8, owned UDP 1/1, shared frame 1/1 (`/tmp/native-ah-global-green-5b9cb76c.log`). Assertions cover global 17-copper price and 5,000,000,001 stock despite unrelated flat data, distinct-item second page out of 103 results, stale browse rejection, flat exact-item drilldown and real-ID buyout. Model RED was missing-API compilation failure; wire RED reached UDP and timed out awaiting the unregistered browse reply (`/tmp/native-ah-global-{model,wire}-red.log`). Later docs-only changes do not invalidate this proof; host compilation/GDScript execution are not covered. Main owns extension rebuild and game-cli-first native runtime acceptance. No local extension Cargo, engine integration, broad/check/lint or operations ran.
 
-At `5f855404`, targeted Depot native model tests passed 8/8 (`target/native-auction-model-green-final.log`, build `xstxljj1h2`) and host compile/right-click-range proof passed 1/1 (`target/native-auction-host-green-final.log`, build `wfkdvgnm8z`). This compiles the input-first read order and read-only fixture lookup; it does not execute Godot. `97e96435` owned UDP passed 1/1 (`target/native-auction-wire-green.log`, build `w7w7zc9rff`); its source remains unchanged. Two unrelated existing `terrain/assets.rs` unused-mut warnings remain. Native GDScript fixture exists but has not run or been parse-certified; main must first prove game-cli against its integrated disposable server. No rendered parity, full conversion or economic acceptance is claimed.
+At `5f855404`, targeted Depot native model tests passed 8/8 (`target/native-auction-model-green-final.log`, build `xstxljj1h2`) and host compile/right-click-range proof passed 1/1 (`target/native-auction-host-green-final.log`, build `wfkdvgnm8z`). This compiles the input-first read order and read-only fixture lookup; it does not execute Godot. `97e96435` owned UDP passed 1/1 (`target/native-auction-wire-green.log`, build `w7w7zc9rff`); its source remains unchanged. Two unrelated existing `terrain/assets.rs` unused-mut warnings remain. This historical CPU proof did not execute the native fixture. Later saved runtime proof below supersedes its pending-fixture status, without establishing rendered parity or full conversion.
+
+### Saved native runtime proof (2026-10-01)
+
+Evidence root: `/home/osso/.cache/economy-cli-20260930/a54a0ad0`. Real CLI receipts there precede all native runs: `buyer-buyout.json`, `buyer-take-won.json`, `seller-take-proceeds.json` and `seller-take-return.json` exit 0 and confirm server trading plus inbox/Gold/inventory claims. Native run manifests record owned loopback endpoints and capture directories.
+
+- `native-seller-run3.json` → `/tmp/pyrun-tmux/02cf3245798a4262ad7a7ff2484438e5.log`, exit 0: NPC pointer entry, authored controls, all three duration choices, own-buyout rejection, cancellation and Escape/close. The log retains wire duration values 12/24/48; displayed labels remain 1 Day/1 Week/2 Weeks.
+- `native-buyer-run.json` → `/tmp/pyrun-tmux/149529b576ae499e86d1b676bdc8ee7d.log`, exit 0: real bid and buyout; `FIXTURE BID_BUYOUT money=99700` followed by buyer completion.
+- `native-large-run.json` → `/tmp/pyrun-tmux/676eac7fea0d4aa9b0406265e2827b68.log`, exit 0: 311 global item groups, 87 category groups, disjoint 50/50 server pages and local-row advancement. `world_auction_browse_flow.gd` asserts a real second page, no overlap and category page reset. Main inspected `native-large-shots/` captures; this docs update inspected receipts, not screenshots.
+
+Root fix `dc638c8e` accepts the server-selected house faction in otherwise matching query replies while retaining stale-filter rejection. `native-house-red.json` records the concrete 0-versus-1 mismatch; `native-house-green.json` records all nine native model tests passing. These are saved proofs, not newly rerun tests.
+
+LiquidObject 42, local-CASC and UI icon errors remain. `extract-ah-icons.json` records 23 of 25 missing icons extracted locally; FDIDs 133849 and 136113 were unavailable. No universal performance, rendering, clean-resource or shutdown claim follows from fixture exit 0. Server range-close, title dragging and Wide-window replacement remain unproved. Full Godot conversion is owned elsewhere and remains open. Auction delivery receiving proof is in [[trade-and-mail]].
 
 ## Sources
 
 - [Auction requirements](../../specs/auction-house-ui.md) — native baseline and ordered smoke contract.
+- Saved root manifests/receipts and exact runtime logs listed above — bounded CLI-first native acceptance.
+- `godot/tests/world_auction_flow.gd`, `godot/tests/world_auction_browse_flow.gd` — native pointer and paging assertions.
 - `godot/ui-model/src/auction.rs`, `auction/{actions,view}.rs` — portable decisions and paging.
 - `godot/rust/src/{auction,account,merchant}.rs`, `ui/mod.rs`, `godot/network/src/{lib,wire_tests}.rs` — native protocol/UI boundary.
 
