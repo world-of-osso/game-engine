@@ -18,10 +18,6 @@ use crate::ui_layout_store::{UiLayoutStore, character_key};
 pub const PANEL_LEFT: f32 = 16.0;
 pub const WINDOW_TOP: f32 = 104.0;
 const PANEL_GAP: f32 = 16.0;
-const CONTAINER_RIGHT: f32 = 16.0;
-/// Clears the micro menu and bags bar at the bottom-right.
-const CONTAINER_BOTTOM: f32 = 96.0;
-const CONTAINER_GAP: f32 = 8.0;
 /// Frame-level distance between stacked windows; deeper than any window tree.
 const STACK_LEVEL_STRIDE: i32 = 32;
 
@@ -132,29 +128,19 @@ fn container_positions(
     size: &impl Fn(WindowId) -> Vec2,
     screen: Vec2,
 ) -> Vec<(WindowId, Vec2)> {
-    let mut bags: Vec<WindowId> = manager
+    let mut bags: Vec<(usize, [f32; 2])> = manager
         .open_windows()
         .iter()
-        .copied()
-        .filter(|id| id.class() == WindowClass::Container)
+        .filter_map(|&id| match id {
+            WindowId::Bag(index) => Some((index, size(id).to_array())),
+            _ => None,
+        })
         .collect();
-    bags.sort();
-    let mut placed = Vec::with_capacity(bags.len());
-    let mut column_right = screen.x - CONTAINER_RIGHT;
-    let mut column_width: f32 = 0.0;
-    let mut bottom = screen.y - CONTAINER_BOTTOM;
-    for id in bags {
-        let bag = size(id);
-        if bottom - bag.y < WINDOW_TOP && column_width > 0.0 {
-            column_right -= column_width + CONTAINER_GAP;
-            column_width = 0.0;
-            bottom = screen.y - CONTAINER_BOTTOM;
-        }
-        placed.push((id, Vec2::new(column_right - bag.x, bottom - bag.y)));
-        bottom -= bag.y + CONTAINER_GAP;
-        column_width = column_width.max(bag.x);
-    }
-    placed
+    bags.sort_by_key(|(index, _)| *index);
+    game_engine::container_layout_data::container_positions(&bags, screen.to_array())
+        .into_iter()
+        .map(|(index, position)| (WindowId::Bag(index), Vec2::from_array(position)))
+        .collect()
 }
 
 pub fn clamp_to_screen(pos: Vec2, size: Vec2, screen: Vec2) -> Vec2 {

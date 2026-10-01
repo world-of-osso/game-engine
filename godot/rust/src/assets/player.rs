@@ -2,7 +2,8 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::Path,
+    sync::Arc,
 };
 
 use crate::{
@@ -11,6 +12,7 @@ use crate::{
 };
 use game_engine_core::{
     asset::m2_texture,
+    blp,
     char_texture_data::CharTextureData,
     character_model_data::race_model_wow_path,
     customization_data::{ChoiceSkinnedModel, CustomizationChoice, CustomizationDb},
@@ -21,12 +23,13 @@ use osso_asset_resolver::CascListfileResolver;
 use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
 
 use super::{
-    appearance::{PreparedAppearance, load_appearance_texture},
+    appearance::{AppearanceParts, PreparedAppearance, load_appearance_texture},
     build_model,
-    creature::{cache_model_files, cache_model_textures, local_resolver},
+    creature::{
+        CachedModel, cache_model_textures, decode_new_textures, insert_decoded_textures,
+        load_model_files, local_resolver,
+    },
     equipment::{attach_equipment, attach_skinned_models},
-    material::texture_from_rgba,
-    read_model,
 };
 
 type TexturePixels = (Vec<u8>, u32, u32);
@@ -211,42 +214,94 @@ fn insert_player_eye_pixels(
     Ok(())
 }
 
-pub(crate) fn load_player_model(
+/// A player's body model parsed, its customization composed and equipment resolved,
+/// and their textures decoded, off the main thread.
+pub(crate) struct PlayerParts {
+    name: String,
+    model: Arc<CachedModel>,
+    appearance: PlayerAppearanceParts,
+    equipment: ResolvedEquipmentAppearance,
+    textures: Vec<(u32, blp::GpuImage)>,
+}
+
+impl PlayerParts {
+    pub(crate) fn into_textures(self) -> Vec<(u32, blp::GpuImage)> {
+        self.textures
+    }
+}
+
+/// Worker: everything `build_player_model` needs from files.
+pub(crate) fn prepare_player_parts(
     data_root: &Path,
-    cache_root: &Path,
     player: &Player,
     equipment: &EquipmentAppearance,
-) -> Result<Gd<Node3D>, String> {
-    let resolver = local_resolver(data_root, cache_root);
-    let path = cache_player_model(&resolver, data_root, player)?;
+) -> Result<PlayerParts, String> {
+    let resolver = local_resolver(data_root);
+    let model = load_player_body(&resolver, data_root, player)?;
     let equipment = resolve_equipment_appearance(
         equipment,
         &OutfitData::load(data_root),
         player.race,
         player.appearance.sex,
     )?;
-    let prepared = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
-    let path = GString::from(path.to_string_lossy().as_ref());
-    let parsed = read_model(&path)?;
-    cache_model_textures(&resolver, data_root, &[0; 3], &parsed)?;
-    let (mut model, missing) = build_model(&parsed, &path, &[0; 3], Some(&prepared.body))?;
+    let appearance = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
+    let mut fdids = cache_model_textures(&resolver, data_root, &[0; 3], &model.model)?;
+    let items = equipment
+        .runtime_models
+        .iter()
+        .map(|item| (item.fdid, item.skin_fdids))
+        .chain(
+            appearance
+                .skinned_models
+                .iter()
+                .map(|model| (model.collection_fdid, [0; 3])),
+        );
+    for (fdid, skin_fdids) in items {
+        // A model that cannot load is reported when it is attached.
+        if let Ok(parts) = load_model_files(&resolver, data_root, fdid)
+            && let Ok(textures) =
+                cache_model_textures(&resolver, data_root, &skin_fdids, &parts.model)
+        {
+            fdids.extend(textures);
+        }
+    }
+    Ok(PlayerParts {
+        name: player.name.clone(),
+        model,
+        appearance,
+        equipment,
+        textures: decode_new_textures(data_root, &fdids)?,
+    })
+}
+
+/// Main thread: the player model nodes of `parts` with its equipment and skinned models.
+pub(crate) fn build_player_model(
+    data_root: &Path,
+    parts: PlayerParts,
+) -> Result<Gd<Node3D>, String> {
+    let resolver = local_resolver(data_root);
+    insert_decoded_textures(data_root, parts.textures)?;
+    let prepared = parts.appearance.into_prepared()?;
+    let parsed = &parts.model.model;
+    let path = GString::from(parts.model.path.to_string_lossy().as_ref());
+    let (mut model, missing) = build_model(parsed, &path, &[0; 3], Some(&prepared.body))?;
     if !missing.is_empty() {
         godot_warn!(
             "Player {} missing authored texture FDIDs: {missing:?}",
-            player.name
+            parts.name
         );
     }
     let attached = attach_equipment(
         &mut model,
-        &parsed,
+        parsed,
         &resolver,
         data_root,
-        &equipment.runtime_models,
+        &parts.equipment.runtime_models,
     )
     .and_then(|()| {
         attach_skinned_models(
             &mut model,
-            &parsed,
+            parsed,
             &resolver,
             data_root,
             &prepared.skinned_appearance,
@@ -260,11 +315,20 @@ pub(crate) fn load_player_model(
     Ok(model)
 }
 
-fn cache_player_model(
+pub(crate) fn load_player_model(
+    data_root: &Path,
+    player: &Player,
+    equipment: &EquipmentAppearance,
+) -> Result<Gd<Node3D>, String> {
+    let parts = prepare_player_parts(data_root, player, equipment)?;
+    build_player_model(data_root, parts)
+}
+
+fn load_player_body(
     resolver: &CascListfileResolver,
     data_root: &Path,
     player: &Player,
-) -> Result<PathBuf, String> {
+) -> Result<Arc<CachedModel>, String> {
     let race = player.race;
     let sex = player.appearance.sex;
     let wow_path = race_model_wow_path(race, sex)
@@ -272,7 +336,7 @@ fn cache_player_model(
     let fdid = resolver
         .lookup_path(wow_path)
         .ok_or_else(|| format!("player model {wow_path} absent from local listfile"))?;
-    cache_model_files(resolver, data_root, fdid)
+    load_model_files(resolver, data_root, fdid)
 }
 
 /// The body appearance and the choices' skinned models with the textures they bind.
@@ -282,12 +346,44 @@ struct PreparedPlayer {
     skinned_models: Vec<ChoiceSkinnedModel>,
 }
 
+/// A `PreparedPlayer` with its textures still pixels, so a worker can prepare it.
+struct PlayerAppearanceParts {
+    body: AppearanceParts,
+    /// The skinned models' geosets: each model's (type, ID).
+    skinned_geosets: Vec<(u16, u16)>,
+    skinned_models: Vec<ChoiceSkinnedModel>,
+}
+
+impl PlayerAppearanceParts {
+    /// Main thread: the textures, shared by the body and its skinned models.
+    fn into_prepared(self) -> Result<PreparedPlayer, String> {
+        let body = self.body.into_prepared()?;
+        let mut skinned_textures = body.textures.clone();
+        // Skin extra falls back to the body skin (wow.export `apply_skinned_model_textures`).
+        if let Some(skin) = skinned_textures.get(&1).cloned() {
+            skinned_textures.entry(8).or_insert(skin);
+        }
+        Ok(PreparedPlayer {
+            skinned_appearance: PreparedAppearance {
+                source: "player skinned model",
+                textures: skinned_textures,
+                selected_geosets: self.skinned_geosets,
+                authored_geosets: Vec::new(),
+                equipment_geosets: Vec::new(),
+                hidden_geoset_ids: HashSet::new(),
+            },
+            body,
+            skinned_models: self.skinned_models,
+        })
+    }
+}
+
 fn prepare_player_appearance(
     resolver: &CascListfileResolver,
     data_root: &Path,
     player: &Player,
     equipment: &ResolvedEquipmentAppearance,
-) -> Result<PreparedPlayer, String> {
+) -> Result<PlayerAppearanceParts, String> {
     let race = player.race;
     let sex = player.appearance.sex;
     let db = load_customization_db(data_root)?;
@@ -333,47 +429,22 @@ fn prepare_player_appearance(
         &mut pixels,
         |fdid| load_appearance_texture(resolver, data_root, fdid, "player"),
     )?;
-    let textures = to_textures(pixels)?;
-    let mut skinned_textures = textures.clone();
-    // Skin extra falls back to the body skin (wow.export `apply_skinned_model_textures`).
-    if let Some(skin) = skinned_textures.get(&1).cloned() {
-        skinned_textures.entry(8).or_insert(skin);
-    }
-    let skinned_appearance = PreparedAppearance {
-        source: "player skinned model",
-        textures: skinned_textures,
-        selected_geosets: selected
-            .skinned_models
-            .iter()
-            .map(|model| (model.geoset_type, model.geoset_id))
-            .collect(),
-        authored_geosets: Vec::new(),
-        equipment_geosets: Vec::new(),
-        hidden_geoset_ids: HashSet::new(),
-    };
-    Ok(PreparedPlayer {
-        body: PreparedAppearance {
+    Ok(PlayerAppearanceParts {
+        body: AppearanceParts {
             source: "player",
-            textures,
+            textures: pixels,
             selected_geosets: selected.geosets,
             authored_geosets: Vec::new(),
             equipment_geosets: equipment.outfit.geoset_overrides.clone(),
             hidden_geoset_ids: equipment.hidden_character_geoset_ids.clone(),
         },
-        skinned_appearance,
+        skinned_geosets: selected
+            .skinned_models
+            .iter()
+            .map(|model| (model.geoset_type, model.geoset_id))
+            .collect(),
         skinned_models: selected.skinned_models,
     })
-}
-
-fn to_textures(
-    pixels: HashMap<u32, TexturePixels>,
-) -> Result<HashMap<u32, Gd<godot::classes::ImageTexture>>, String> {
-    pixels
-        .into_iter()
-        .map(|(kind, (rgba, width, height))| {
-            texture_from_rgba(&rgba, width, height).map(|texture| (kind, texture))
-        })
-        .collect()
 }
 
 /// Composite each texture type the layout keeps on its own canvas and the body
@@ -670,8 +741,8 @@ mod swatch_tests {
         customization_data::OptionType, npc_appearance_assets::load_customization_db,
     };
 
-    fn data_root() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
+    fn data_root() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
     }
 
     fn rgb(raw: i32) -> [f64; 3] {
@@ -721,8 +792,7 @@ mod swatch_tests {
         let chosen = select_player_choices(db, race, sex, class, &state.appearance).unwrap();
         let compositor =
             game_engine_core::npc_appearance_assets::load_compositor(&data_root()).unwrap();
-        let resolver =
-            super::super::creature::local_resolver(&data_root(), &data_root().join("cache"));
+        let resolver = super::super::creature::local_resolver(&data_root());
         let layout = db.layout_id(race, sex).unwrap();
         let mut textures = compose_player_pixels(&compositor, &chosen, &[], layout, |fdid| {
             load_appearance_texture(&resolver, &data_root(), fdid, "swatch test")

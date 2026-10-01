@@ -116,3 +116,38 @@ fn criminal_sleep_and_sit_poses_leave_the_stand_pose() {
         assert!(distance > 0.3, "{anim}: pose moved only {distance}");
     }
 }
+
+/// A creature spawned in the Dead stand state (`UnitPose` → Dead 6) on HumanMale HD, which
+/// has no Dead clip: `AnimationData.Fallback` 6 → 1 plays Death once and lies at its end
+/// instead of failing with "M2 animation ID 6 has no base variation".
+#[test]
+fn a_corpse_without_a_dead_clip_lies_at_the_end_of_death() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let fallbacks = game_engine_core::spell_visual::read_animation_fallbacks(&root).unwrap();
+    let mut player = human_male_hd();
+    let err = player.update_locomotion(6, false, false).unwrap_err();
+    assert_eq!(err, "M2 animation ID 6 has no base variation");
+
+    let pose = player.resolve_clip(6, &fallbacks);
+    assert_eq!(pose, Some(super::ANIM_DEATH));
+    let mut applied = None;
+    assert!(receive(
+        &mut player,
+        &mut applied,
+        CreatureMotion::Still,
+        pose
+    ));
+    assert_eq!(current_id(&player), super::ANIM_DEATH);
+    let duration = f64::from(player.sequences[player.current].duration);
+    player.advance(duration + 2000.0).unwrap();
+    assert_eq!(current_id(&player), super::ANIM_DEATH);
+    assert_eq!(player.time_ms, duration, "holds the last Death frame");
+    // The next unchanged snapshot keeps it lying.
+    assert!(!receive(
+        &mut player,
+        &mut applied,
+        CreatureMotion::Still,
+        pose
+    ));
+    assert_eq!(player.time_ms, duration);
+}

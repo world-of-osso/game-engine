@@ -80,6 +80,7 @@ fn flat_water_layer(height: f32) -> adt::WaterLayer {
         vertex_heights: vec![height; 4],
         vertex_uvs: Vec::new(),
         vertex_depths: Vec::new(),
+        object_vertex_bytes: Vec::new(),
     }
 }
 

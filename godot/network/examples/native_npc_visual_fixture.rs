@@ -654,8 +654,9 @@ fn run_fixture(
     let mut player = None;
     let mut npc = None;
     let mut phase = 0;
-    // Includes the flow's cold-CASC login allowance (STARTUP_WAIT_MS).
-    let deadline = Instant::now() + Duration::from_secs(290);
+    // Covers the flow's cold-CASC login and two cold map loads (STARTUP_WAIT_MS,
+    // WORLD_LOAD_WAIT_MS).
+    let deadline = Instant::now() + Duration::from_secs(600);
     let mut readers = Some(readers);
     let mut saw_missing_type6_error = false;
     while Instant::now() < deadline {
@@ -1015,8 +1016,8 @@ fn run_nameplate_fixture(
     let (mut player, mut npc) = (None, None);
     let mut ready = false;
     let mut completed = false;
-    // Includes the flow's cold-CASC login allowance (STARTUP_WAIT_MS).
-    let deadline = Instant::now() + Duration::from_secs(240);
+    // Covers the flow's cold-CASC login allowance (STARTUP_WAIT_MS) and world load.
+    let deadline = Instant::now() + Duration::from_secs(420);
     let mut readers = Some(readers);
     while Instant::now() < deadline {
         app.update();

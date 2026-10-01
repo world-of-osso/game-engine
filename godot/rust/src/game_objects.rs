@@ -9,18 +9,19 @@ use crate::{
     world_models::bind_visual_light,
 };
 use game_engine_core::csv_util::parse_csv_line;
-use game_engine_network::GameObjectSnapshot;
+use game_engine_network::replica::Unit;
 use godot::{classes::Node3D, prelude::*};
+use shared::components::{Position, Rotation};
 use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
 use std::{collections::HashMap, path::PathBuf};
 
 struct ObjectNode {
-    snapshot: GameObjectSnapshot,
+    /// The display its loaded visual shows.
+    display_id: u32,
     node: Gd<Node3D>,
 }
 pub(crate) struct GameObjects {
     data_root: PathBuf,
-    cache_root: PathBuf,
     displays: Option<Result<HashMap<u32, u32>, String>>,
     objects: HashMap<u64, ObjectNode>,
     light: Option<TerrainLight>,
@@ -53,17 +54,17 @@ fn parse_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
 }
 
 impl GameObjects {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         Self {
             data_root,
-            cache_root,
             displays: None,
             objects: HashMap::new(),
             light: None,
         }
     }
-    pub fn info(&self, id: u64) -> Option<&GameObjectInfo> {
-        Some(&self.objects.get(&id)?.snapshot.info)
+    /// Whether `id` is a shown mailbox.
+    pub fn contains(&self, id: u64) -> bool {
+        self.objects.contains_key(&id)
     }
     pub fn position(&self, id: u64) -> Option<Vector3> {
         Some(self.objects.get(&id)?.node.get_global_position())
@@ -71,28 +72,29 @@ impl GameObjects {
     pub fn upsert(
         &mut self,
         parent: &mut Gd<Node3D>,
-        snapshot: GameObjectSnapshot,
+        unit: Unit,
+        info: &GameObjectInfo,
     ) -> Result<(), String> {
-        let id = snapshot.server_id;
-        if snapshot.info.go_type != GAMEOBJECT_TYPE_MAILBOX {
+        let id = unit.server_id;
+        if info.go_type != GAMEOBJECT_TYPE_MAILBOX {
             self.remove(id);
             return Ok(());
         }
-        let Some(position) = snapshot.position else {
+        let Some(position) = unit.get::<Position>() else {
             return Ok(());
         };
-        if !snapshot.info.scale.is_finite() || snapshot.info.scale <= 0.0 {
+        if !info.scale.is_finite() || info.scale <= 0.0 {
             return Err(format!(
                 "Mailbox {id} has invalid replicated scale {}",
-                snapshot.info.scale
+                info.scale
             ));
         }
         let changed = self
             .objects
             .get(&id)
-            .is_none_or(|old| old.snapshot.info.display_id != snapshot.info.display_id);
+            .is_none_or(|old| old.display_id != info.display_id);
         if changed {
-            let visual = self.load_visual(&snapshot.info)?;
+            let visual = self.load_visual(info)?;
             if let Err(error) = crate::targeting::attach_pick_area(&visual, id) {
                 visual.free();
                 return Err(error);
@@ -101,21 +103,18 @@ impl GameObjects {
             let mut node = Node3D::new_alloc();
             node.set_name(&format!("Mailbox_{id}"));
             node.set_meta("game_object_server_id", &(id as i64).to_variant());
-            node.set_meta("game_object_name", &snapshot.info.name.to_variant());
-            node.set_meta(
-                "game_object_entry",
-                &(snapshot.info.entry as i64).to_variant(),
-            );
+            node.set_meta("game_object_name", &info.name.to_variant());
+            node.set_meta("game_object_entry", &(info.entry as i64).to_variant());
             node.set_meta(
                 "game_object_display_id",
-                &(snapshot.info.display_id as i64).to_variant(),
+                &(info.display_id as i64).to_variant(),
             );
             node.add_child(&visual);
             parent.add_child(&node);
             self.objects.insert(
                 id,
                 ObjectNode {
-                    snapshot: snapshot.clone(),
+                    display_id: info.display_id,
                     node,
                 },
             );
@@ -129,11 +128,10 @@ impl GameObjects {
             .set_position(Vector3::new(position.x, position.y, position.z));
         object.node.set_rotation(Vector3::new(
             0.0,
-            snapshot.rotation.map_or(0.0, |r| r.y),
+            unit.get::<Rotation>().map_or(0.0, |r| r.y),
             0.0,
         ));
-        object.node.set_scale(Vector3::ONE * snapshot.info.scale);
-        object.snapshot = snapshot;
+        object.node.set_scale(Vector3::ONE * info.scale);
         Ok(())
     }
     fn load_visual(&mut self, info: &GameObjectInfo) -> Result<Gd<Node3D>, String> {
@@ -159,7 +157,7 @@ impl GameObjects {
                     info.entry, info.display_id
                 )
             })?;
-        let resolver = local_resolver(&self.data_root, &self.cache_root);
+        let resolver = local_resolver(&self.data_root);
         let path = cache_model_files(&resolver, &self.data_root, fdid).map_err(|e| {
             format!(
                 "Mailbox entry {} display {} model {fdid}: {e}",

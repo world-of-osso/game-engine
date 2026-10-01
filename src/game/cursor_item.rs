@@ -5,13 +5,15 @@
 //! Retail sends for that drop; the server owns every move and answers with
 //! inventory deltas.
 
+#[cfg(not(godot_host))]
 use bevy::prelude::*;
 use shared::protocol::{DestroyItem, EquipmentSlot, ItemLocation, SplitItem, SwapItem};
 
 use crate::bag_data::{InventoryRequest, InventoryState, ItemQuality};
 use crate::merchant_data::{MerchantRequest, MerchantState, MerchantTab};
 
-#[derive(Resource, Clone, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(not(godot_host), derive(Resource))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum CursorItem {
     #[default]
     Empty,

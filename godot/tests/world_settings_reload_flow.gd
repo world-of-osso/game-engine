@@ -54,7 +54,7 @@ func save_options(client: Node, config: String) -> bool:
 		return false
 	var camera := root.get_camera_3d()
 	if camera == null or absf(camera.fov - SAVED_FOV) > FOV_EPSILON:
-		fail("Authored saved FOV did not reach the first physical camera")
+		fail("Authored saved FOV expected 105, observed %s" % (camera.fov if camera != null else "missing"))
 		return false
 	print("SETTINGS SAVE consumers FOV=%s TargetSelf=T AutoLoot=true InvertY=true" % camera.fov)
 	return true
@@ -86,7 +86,7 @@ func save_camera(client: Node) -> bool:
 func prove_loaded_consumers(client: Node) -> bool:
 	var camera := root.get_camera_3d()
 	if camera == null or absf(camera.fov - SAVED_FOV) > FOV_EPSILON:
-		fail("Fresh process did not load physical camera FOV 105")
+		fail("Fresh process FOV expected 105, observed %s" % (camera.fov if camera != null else "missing"))
 		return false
 	if not await prove_loaded_binding(client):
 		return false

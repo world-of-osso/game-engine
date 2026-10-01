@@ -18,7 +18,7 @@ fn wow(x: f32, y: f32, z: f32) -> Vec3 {
 
 fn load(map: &str, tile: (u32, u32), ready: impl Fn(&StreamedTerrain) -> bool) -> StreamedTerrain {
     let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    let mut terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
+    let mut terrain = StreamedTerrain::new(data_root.clone());
     terrain.request_map(map.into(), tile).unwrap();
     let deadline = Instant::now() + Duration::from_secs(90);
     while !ready(&terrain) {

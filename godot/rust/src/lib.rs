@@ -8,10 +8,12 @@ mod assets;
 mod auction;
 mod auras;
 mod auto_attack;
+mod bags;
 mod camera;
 mod char_create;
 mod character_select;
 mod chat;
+mod combat_text;
 mod combat_visuals;
 mod damage_meter;
 mod display_options;
@@ -42,6 +44,8 @@ mod objective_tracker;
 mod particle_debug;
 mod particles;
 mod player_spells;
+mod profile;
+mod replicated;
 mod scene;
 mod sound;
 mod sound_client;
@@ -68,7 +72,7 @@ use std::{collections::HashMap, path::PathBuf};
 use account::{Account, AccountEvent};
 use frame_error::FrameError;
 use game_engine_core::client_options_data::{ClientOptionsFile, load_options_file_with_legacy};
-use game_engine_network::UnitSnapshot;
+use game_engine_network::replica::{Replica, ReplicationBatch, Schema, UnitChange};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     char_create_component::{CREATE_NAME_INPUT, CharCreateAction, CharCreateMode},
@@ -93,6 +97,8 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
         // Release cached shaders before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
             assets::material::clear_shared_shaders();
+            assets::clear_shared_meshes();
+            wmo::scene::clear_shaders();
             particles::clear_quad_mesh();
         }
     }
@@ -117,6 +123,8 @@ pub struct GameClient {
     data_root: PathBuf,
     /// Pending CASC startup worker, or its spawn error; None after startup completes.
     asset_startup: Option<Result<asset_startup::AssetStartup, String>>,
+    /// Account events received while CASC initializes, applied once it has.
+    startup_events: Vec<AccountEvent>,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
@@ -134,7 +142,8 @@ pub struct GameClient {
     account: Account,
     sound: Option<Gd<sound::NativeSound>>,
     area_parents: HashMap<u32, u32>,
-    units: HashMap<u64, UnitSnapshot>,
+    /// Every replicated entity of the connection, the client's only copy.
+    replica: Replica,
     world: world::WorldUnits,
     spell_effects: spell_effects::SpellEffects,
     terrain: terrain::streaming::StreamedTerrain,
@@ -156,12 +165,14 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
+    bags: bags::Bags,
     mailbox: mail::Mailbox,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
     auto_attack: auto_attack::AutoAttack,
     auras: auras::Auras,
+    last_process_ms: f64,
 }
 
 #[godot_api]
@@ -169,12 +180,7 @@ impl INode3D for GameClient {
     fn init(base: Base<Node3D>) -> Self {
         let settings = ProjectSettings::singleton();
         let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
-        let cache_root =
-            PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
-        let asset_startup = Some(asset_startup::AssetStartup::start(
-            data_root.clone(),
-            cache_root.clone(),
-        ));
+        let asset_startup = Some(asset_startup::AssetStartup::start(data_root.clone()));
         let client_options =
             load_options_file_with_legacy(&data_root.join("ui/options_settings.ron")).clamped();
         // Bag items resolve names, quality and icons from the shared item tables; the
@@ -187,7 +193,6 @@ impl INode3D for GameClient {
             "WorldObjects",
             WORLD_OBJECT_BUDGET,
             data_root.clone(),
-            cache_root.clone(),
         );
         let graphics = &client_options.graphics;
         if graphics.particle_effects_enabled {
@@ -205,12 +210,10 @@ impl INode3D for GameClient {
             name_catalog: None,
             data_root: data_root.clone(),
             asset_startup,
-            character_preview: character_select::CharacterPreview::new(
-                data_root.clone(),
-                cache_root.clone(),
-            ),
+            startup_events: Vec::new(),
+            character_preview: character_select::CharacterPreview::new(data_root.clone()),
             campsite: CampsiteState::default(),
-            creation_scene: char_create::CreationScene::new(data_root.clone(), cache_root.clone()),
+            creation_scene: char_create::CreationScene::new(data_root.clone()),
             loading_ui: None,
             errors_ui: None,
             mirror_timer_ui: None,
@@ -228,13 +231,10 @@ impl INode3D for GameClient {
             account: Account::new(data_root.clone()),
             sound: None,
             area_parents: HashMap::new(),
-            terrain: terrain::streaming::StreamedTerrain::new(
-                data_root.clone(),
-                cache_root.clone(),
-            ),
+            terrain: terrain::streaming::StreamedTerrain::new(data_root.clone()),
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
-            global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone(), &cache_root),
+            global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone()),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_map_id: None,
@@ -249,15 +249,17 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
+            bags: bags::Bags::default(),
             mailbox: mail::Mailbox::default(),
-            game_objects: game_objects::GameObjects::new(data_root.clone(), cache_root.clone()),
+            game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
-            units: HashMap::new(),
-            spell_effects: spell_effects::SpellEffects::new(data_root.clone(), cache_root.clone()),
-            world: world::WorldUnits::new(data_root, cache_root),
+            last_process_ms: 0.0,
+            replica: Replica::default(),
+            spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
+            world: world::WorldUnits::new(data_root),
             server_hostname: if cfg!(debug_assertions) {
                 "127.0.0.1:5000"
             } else {
@@ -379,6 +381,12 @@ impl INode3D for GameClient {
             }
             Ok(false) => {}
         }
+        if self.bags_key(key.get_keycode()) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         match self.open_chat_from_key(&key) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -420,90 +428,15 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, delta: f64) {
-        if !self.poll_asset_startup() {
-            self.physical_input.finish_frame();
-            return;
-        }
-        type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
-        // Each step runs even when an earlier one failed; only a session failure ends
-        // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
-        let steps: &[(&str, Step)] = &[
-            ("UI scale", |c, _| Ok(c.sync_registry_ui_scale()?)),
-            ("UI click sounds", |c, _| Ok(c.play_ui_clicks()?)),
-            ("UI actions", |c, _| c.poll_ui_actions()),
-            ("Account", |c, _| c.poll_account()),
-            ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
-            (
-                "Character preview",
-                |c, _| Ok(c.update_character_preview()?),
-            ),
-            ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
-            ("Player input", |c, d| Ok(c.update_player_input(d)?)),
-            ("Targeting", |c, _| c.update_targeting()),
-            ("Spells", |c, d| c.update_spells(d)),
-            ("Auras", |c, _| c.update_auras()),
-            ("Merchant", |c, _| c.update_merchant()),
-            ("Mailbox", |c, _| c.update_mailbox()),
-            ("Loot", |c, _| c.update_loot()),
-            ("Auction", |c, _| c.update_auction()),
-            ("Chat", |c, d| c.update_chat(d)),
-            ("World map", |c, _| Ok(c.update_world_map()?)),
-            ("Minimap", |c, _| c.update_minimap()),
-            ("Objective tracker", |c, _| c.update_objective_tracker()),
-            ("Entrance bar", |c, d| c.update_entrance_bar(d)),
-            ("Damage meter", |c, _| c.update_damage_meter()),
-            ("World units", |c, d| {
-                c.world.advance(d);
-                Ok(())
-            }),
-            ("Player animation", |c, _| Ok(c.update_player_animation()?)),
-            ("Footsteps", |c, _| Ok(c.update_footsteps()?)),
-            ("Remote player animation", |c, _| {
-                Ok(c.world.update_remote_locomotion()?)
-            }),
-            ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
-            ("Player movement", |c, _| c.send_player_input()),
-            ("Terrain", |c, _| Ok(c.poll_terrain()?)),
-            ("World lighting", |c, _| Ok(c.update_world_lighting()?)),
-            (
-                "Terrain materials",
-                |c, _| Ok(c.attach_terrain_materials()?),
-            ),
-            ("World objects", |c, _| {
-                c.attach_world_objects();
-                Ok(())
-            }),
-            ("Loading", |c, d| c.update_loading_readiness(d)),
-            ("World errors", |c, d| Ok(c.update_world_errors(d)?)),
-            ("Mirror timers", |c, d| Ok(c.update_mirror_timers(d)?)),
-            ("Delete confirmation", |c, d| {
-                Ok(c.tick_delete_confirmation(d)?)
-            }),
-            ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
-            ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
-            ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
-            ("Culling", |c, _| {
-                c.cull_world_objects();
-                Ok(())
-            }),
-            ("UI scale after updates", |c, _| {
-                Ok(c.sync_registry_ui_scale()?)
-            }),
-        ];
-        for (step, run) in steps {
-            if let Err(error) = run(self, delta as f32)
-                && self.handle_frame_error(step, error)
-            {
-                break;
-            }
-        }
-        self.physical_input.finish_frame();
-        if let Err(error) = self.update_sound() {
-            frame_error::report_once(&format!("Sound update failed: {error}"));
-        }
+        let started = std::time::Instant::now();
+        self.run_frame(delta);
+        self.last_process_ms = started.elapsed().as_secs_f64() * 1000.0;
     }
 
     fn exit_tree(&mut self) {
+        // The display server keeps the custom cursor texture until it is replaced; left
+        // set, it outlives RenderingServer and its RID leaks at exit.
+        self.set_world_cursor(None);
         self.stop_sound();
         if let Err(error) = self.account.stop() {
             godot_error!("Account shutdown failed: {error}");
@@ -539,6 +472,12 @@ impl GameClient {
             &self.client_options.graphics,
             &mut viewport,
         );
+    }
+
+    /// Main-thread time of the last `process`, in milliseconds.
+    #[func]
+    fn process_ms(&self) -> f64 {
+        self.last_process_ms
     }
 
     #[func]
@@ -608,7 +547,13 @@ impl GameClient {
         state.set("gameplay_input_allowed", session.gameplay_input_allowed());
         state.set("status", session.feedback.as_deref().unwrap_or(""));
         state.set("character_count", session.characters.len() as i64);
-        state.set("unit_count", self.units.len() as i64);
+        state.set(
+            "unit_count",
+            self.replica
+                .units()
+                .filter(|unit| replicated::is_unit(*unit))
+                .count() as i64,
+        );
         state.set("world_attached", self.world.root().is_some());
         state.set(
             "zone_id",
@@ -634,6 +579,10 @@ impl GameClient {
             objects.set("particles", &particles);
         }
         state.set("world_objects", &objects);
+        state.set(
+            "unit_visuals_pending",
+            &(self.world.visuals_pending() as i64).to_variant(),
+        );
         state.set(
             "local_player_position",
             &local_transform
@@ -673,7 +622,11 @@ impl GameClient {
             &self
                 .world
                 .local_player_id()
-                .and_then(|id| self.units.get(&id)?.movement_speed)
+                .and_then(|id| {
+                    self.replica
+                        .unit(id)?
+                        .get::<shared::components::MovementSpeed>()
+                })
                 .map(|speed| speed.0.to_variant())
                 .unwrap_or_default(),
         );
@@ -682,11 +635,12 @@ impl GameClient {
             &self
                 .world
                 .local_player_id()
-                .and_then(|id| self.units.get(&id)?.health)
+                .and_then(|id| self.replica.unit(id)?.get::<shared::components::Health>())
                 .map(|health| health.current.to_variant())
                 .unwrap_or_default(),
         );
         state.set("reply_received", self.account.reply_received);
+        state.set("assets_starting", self.asset_startup.is_some());
         state.set("connected", self.account.is_connected());
         state.set(
             "selected_character_id",
@@ -897,6 +851,9 @@ impl GameClient {
             if let Some(ui) = ui {
                 visit(ui)?;
             }
+        }
+        if let Some(ui) = &mut self.bags.ui {
+            visit(ui)?;
         }
         self.merchant.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
@@ -1315,8 +1272,119 @@ impl GameClient {
 
     /// A failure handling one event is reported and the next event still applies;
     /// only a transport or protocol failure ends the poll.
+    /// One frame of client steps (`process`, which times it).
+    fn run_frame(&mut self, delta: f64) {
+        if !self.poll_asset_startup() {
+            self.receive_account_during_startup();
+            self.physical_input.finish_frame();
+            return;
+        }
+        type Step = fn(&mut GameClient, f32) -> Result<(), FrameError>;
+        // Each step runs even when an earlier one failed; only a session failure ends
+        // the frame (docs/specs/godot-conversion.md, "Frame failure policy").
+        let steps: &[(&str, Step)] = &[
+            ("UI scale", |c, _| Ok(c.sync_registry_ui_scale()?)),
+            ("UI click sounds", |c, _| Ok(c.play_ui_clicks()?)),
+            ("UI actions", |c, _| c.poll_ui_actions()),
+            ("Account", |c, _| c.poll_account()),
+            ("Unit visuals", |c, _| {
+                c.world.attach_loaded_visuals(&c.replica);
+                Ok(())
+            }),
+            ("Logout", |c, d| Ok(c.update_logout(f64::from(d))?)),
+            (
+                "Character preview",
+                |c, _| Ok(c.update_character_preview()?),
+            ),
+            ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
+            ("Player input", |c, d| Ok(c.update_player_input(d)?)),
+            ("Targeting", |c, _| c.update_targeting()),
+            ("Spells", |c, d| c.update_spells(d)),
+            ("Auras", |c, _| c.update_auras()),
+            ("Bags", |c, _| c.update_bags()),
+            ("Merchant", |c, _| c.update_merchant()),
+            ("Mailbox", |c, _| c.update_mailbox()),
+            ("Loot", |c, _| c.update_loot()),
+            ("Auction", |c, _| c.update_auction()),
+            ("Chat", |c, d| c.update_chat(d)),
+            ("World map", |c, _| Ok(c.update_world_map()?)),
+            ("Minimap", |c, _| c.update_minimap()),
+            ("Objective tracker", |c, _| c.update_objective_tracker()),
+            ("Entrance bar", |c, d| c.update_entrance_bar(d)),
+            ("Damage meter", |c, _| c.update_damage_meter()),
+            ("World units", |c, d| {
+                c.world.advance(d);
+                Ok(())
+            }),
+            ("Player animation", |c, _| Ok(c.update_player_animation()?)),
+            ("Footsteps", |c, _| Ok(c.update_footsteps()?)),
+            ("Remote player animation", |c, _| {
+                Ok(c.world.update_remote_locomotion()?)
+            }),
+            ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
+            ("Player movement", |c, _| c.send_player_input()),
+            ("Terrain", |c, _| Ok(c.poll_terrain()?)),
+            ("World lighting", |c, _| Ok(c.update_world_lighting()?)),
+            (
+                "Terrain materials",
+                |c, _| Ok(c.attach_terrain_materials()?),
+            ),
+            ("World objects", |c, _| {
+                c.attach_world_objects();
+                Ok(())
+            }),
+            ("Loading", |c, d| c.update_loading_readiness(d)),
+            ("World errors", |c, d| Ok(c.update_world_errors(d)?)),
+            ("Mirror timers", |c, d| Ok(c.update_mirror_timers(d)?)),
+            ("Delete confirmation", |c, d| {
+                Ok(c.tick_delete_confirmation(d)?)
+            }),
+            ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
+            ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
+            ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
+            ("Culling", |c, _| {
+                c.cull_world_objects();
+                Ok(())
+            }),
+            ("UI scale after updates", |c, _| {
+                Ok(c.sync_registry_ui_scale()?)
+            }),
+        ];
+        for (step, run) in steps {
+            let _span = profile::span(|| format!("step={step}"));
+            if let Err(error) = run(self, delta as f32)
+                && self.handle_frame_error(step, error)
+            {
+                break;
+            }
+        }
+        self.physical_input.finish_frame();
+        if let Err(error) = self.update_sound() {
+            frame_error::report_once(&format!("Sound update failed: {error}"));
+        }
+    }
+
+    /// While CASC initializes, the session still receives its traffic (a login reply
+    /// updates the session at once); events that show screens or units wait for it.
+    fn receive_account_during_startup(&mut self) {
+        match self.account.poll() {
+            Ok(events) => self.startup_events.extend(events),
+            Err(error) => {
+                self.handle_frame_error("Account", error.into());
+            }
+        }
+    }
+
     fn poll_account(&mut self) -> Result<(), FrameError> {
-        for event in self.account.poll()? {
+        let events = {
+            let _span = profile::span(|| "account.poll".to_owned());
+            let mut events = std::mem::take(&mut self.startup_events);
+            events.extend(self.account.poll()?);
+            events
+        };
+        for event in events {
+            let kind = account_event_kind(&event);
+            let _span = profile::span(|| format!("account.event {kind}"));
             match self.apply_account_event(event) {
                 Err(FrameError::Client(error)) => {
                     frame_error::report_once(&format!("Account event: {error}"))
@@ -1327,7 +1395,7 @@ impl GameClient {
         self.world
             .select_local_player(self.account.session.selected_character_name.as_deref());
         self.world
-            .update_visibility(&self.units, self.world_minutes);
+            .update_visibility(&self.replica, self.world_minutes);
         self.account
             .session
             .finish_reconnect(self.world.local_player_node().is_some());
@@ -1350,22 +1418,12 @@ impl GameClient {
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
-            AccountEvent::GameObjectUpdated(object) => {
-                let mut parent = self.to_gd().upcast::<Node3D>();
-                self.game_objects.upsert(&mut parent, object)?;
-            }
             AccountEvent::Mail(message) => self.receive_mail(message)?,
-            AccountEvent::UnitUpdated(unit) => {
-                let mut parent = self.to_gd().upcast::<Node3D>();
-                self.world.upsert(&mut parent, &unit);
-                let previous = self
-                    .units
-                    .get(&unit.server_id)
-                    .and_then(|old| old.auras.as_ref());
-                if previous != unit.auras.as_ref() {
-                    self.auras.aura_set_changed(unit.server_id, true);
-                }
-                self.units.insert(unit.server_id, unit);
+            AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
+            AccountEvent::Replication(batch) => self.apply_replication(batch)?,
+            AccountEvent::ReplicationEnded => {
+                self.replica.clear();
+                self.project_replication()?;
             }
             AccountEvent::RosterChanged => self.sync_character_select_state()?,
             AccountEvent::CharacterCreated { success, error } => {
@@ -1376,16 +1434,70 @@ impl GameClient {
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
-            AccountEvent::UnitRemoved(id) => {
-                self.game_objects.remove(id);
-                self.mailbox.close_for(id);
-                self.loot.lootable.remove(&id);
-                self.world.remove(id);
-                self.units.remove(&id);
-                self.auras.aura_set_changed(id, false);
-            }
         }
         Ok(())
+    }
+
+    /// A new connection: the previous connection's entities leave the world first.
+    fn start_replication(&mut self, schema: std::sync::Arc<Schema>) -> Result<(), String> {
+        self.replica.clear();
+        self.project_replication()?;
+        self.replica = Replica::new(schema);
+        Ok(())
+    }
+
+    fn apply_replication(&mut self, batch: ReplicationBatch) -> Result<(), String> {
+        self.replica
+            .apply(batch)
+            .map_err(|error| format!("Replication: {error}"))?;
+        self.project_replication()
+    }
+
+    /// Update the world node of each changed player or creature, and the node of each
+    /// changed game object, from their replicated components; an entity that stops being
+    /// either, or despawns, loses its node. Every change is applied; failures are joined.
+    fn project_replication(&mut self) -> Result<(), String> {
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        let mut errors = Vec::new();
+        for change in self.replica.drain_changes() {
+            let (server_id, components) = match change {
+                UnitChange::Changed {
+                    server_id,
+                    components,
+                } => (server_id, components),
+                UnitChange::Despawned(server_id) => {
+                    self.remove_replicated(server_id);
+                    continue;
+                }
+            };
+            let unit = self.replica.unit(server_id).expect("changed entity exists");
+            if replicated::is_unit(unit) {
+                self.world.upsert(&mut parent, unit);
+                if self
+                    .replica
+                    .changed::<shared::components::UnitAuras>(components)
+                {
+                    self.auras.aura_set_changed(server_id, true);
+                }
+            } else if let Some(info) = unit.get::<shared::protocol::GameObjectInfo>() {
+                errors.extend(self.game_objects.upsert(&mut parent, unit, info).err());
+            } else {
+                self.remove_replicated(server_id);
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
+        }
+    }
+
+    fn remove_replicated(&mut self, server_id: u64) {
+        self.game_objects.remove(server_id);
+        self.mailbox.close_for(server_id);
+        self.loot.lootable.remove(&server_id);
+        self.world.remove(server_id);
+        self.auras.aura_set_changed(server_id, false);
     }
 
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
@@ -1541,6 +1653,7 @@ impl GameClient {
         let state = self.terrain.state();
         let readiness = loading::evaluate_native_loading(
             position,
+            self.world.local_visual_settled(),
             &state,
             self.terrain_materials.attached_tiles(),
             self.terrain_materials.failures(),
@@ -1600,7 +1713,8 @@ impl GameClient {
         self.wmo_collision.reset();
         self.spell_effects.reset();
         self.world.reset();
-        self.units.clear();
+        self.replica.clear();
+        self.replica.drain_changes();
         self.auras.reset();
         self.terrain.reset()
     }
@@ -1912,4 +2026,15 @@ fn authored_campsites(
         panel_visible: false,
         page: 0,
     })
+}
+
+/// Profile label of an account event; kinds not named here are "other".
+fn account_event_kind(event: &AccountEvent) -> String {
+    match event {
+        AccountEvent::Screen(screen) => format!("Screen({screen:?})"),
+        AccountEvent::LoadTerrain(_) => "LoadTerrain".into(),
+        AccountEvent::NewWorld(_) => "NewWorld".into(),
+        AccountEvent::Combat(_) => "Combat".into(),
+        _ => "other".into(),
+    }
 }
