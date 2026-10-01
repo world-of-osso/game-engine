@@ -1,3 +1,7 @@
+## 2026-10-01 — Native IPC bounded MAIN-observed GREEN
+
+[Evidence SSOT](systems/godot-conversion.md#native-ipc-diagnostics--bounded-main-observed-green-independent-gate-pending): six public diagnostics, rendered WebP and own-instance cleanup have MAIN-observed GREEN; independent1524 pending. Historical failures, unported consumers, semantic parity and shutdown/resource exclusions retained. Parity remains Partial, conversion open.
+
 ## 2026-10-01 — Polymorph video with audio
 
 [[spell-visuals]] Polymorph section: the `POLY_GRAB` recording now uses 30 fps wall-clock slots and adds Master-bus audio, muxed by `scripts/agent/grab-video.py`. Added a `set_specialization` fixture API, because a level-10 mage on game-server 40241f5 defaults to Arcane and has no Frostbolt. Findings: the client renders only 5-7 fps in the headless cage, the spy and sheep float above the mage, and stalls can cause reconnects.
