@@ -49,7 +49,7 @@ MAIN reports bounded GREEN at native `837e2c1e` + `b073e4dd`, tests `d825108c`/`
 | Merchant-click regression | Full `/tmp/claude/native-merchant-cursor-click-green.log` exit0: strict3 opens/3 closes, placement/reset, TWO individually asserted completed audio effects (tab/close, each exactly1), plus quiet release/right/reopen/keyboard gates; not an exact3-audio total. Normal status0, Loading4784ms. Generic PointerDown audio preserved. |
 | Acceptance/lifecycle | MAIN-accepted gate1446 bounded five-flow PASS; original four regressions retain exact counts, authoritative barriers and quiet assertions. Owned PIDs4006296/4006295/4006325/4006420 intentional SIGKILL/reap/readers0 are NOT shutdown proof. Only merchant-click exits normally; it does not clear the previous warning. |
 
-Historical gate1446 scope/exclusions below remain specific to that proof; [current bounded Buy + whole/split sale acceptance](#native-merchant-split-cursor-sale--main-accepted-bounded-pass) extends it. [Shift vendor buy](#native-merchant-shift-vendor-buy--observed-existing-behavior-gate-pending) is MAIN-observed GREEN with gate1467 pending, not accepted; Buyback TEST1469 is preparing, not proof.
+Historical gate1446 scope/exclusions below remain specific to that proof; [current bounded Buy + whole/split sale acceptance](#native-merchant-split-cursor-sale--main-accepted-bounded-pass) extends it. [Shift vendor buy](#native-merchant-shift-vendor-buy--observed-existing-behavior-gate-pending) has MAIN-accepted gate1467 bounded PASS at the old audited revision; [Buyback](#native-merchant-buyback--observed-existing-behavior-gate-pending) has fresh MAIN runtime proof, gate1472 pending, not accepted.
 
 Scope: first vendor pickup → own embedded empty bag slot. Right-click/Shift/buyback direct model routes retained in source, not new runtime coverage. Broader Sell, vendor split, outside-vendor World/foreign-frame behavior, buyback, standalone cross-host drops, cross-root delivery/global FIFO/global winner/ownership and general lifecycle remain unproved. Original World policy clears a vendor cursor without an effect; producer-blocked frame input retains it: source distinction, not new runtime proof or authorization to rewrite [cursor requirements](../../specs/cursor-item.md).
 
@@ -79,11 +79,13 @@ MAIN read FULL and accepts independent gate1461 **bounded compiled/format/source
 | Split sale / authority | Own background left **PRESS** sends exactly1 Sell GUID9182590/count2. Client Linen5/Gold988, unlocked source and hidden cursor stay quiet900ms before SPLIT_SELL_COMMIT; only peer response produces Linen3/Gold1014. Combined totals: Buy1/Sell2, three authority barriers. Owned authenticated peer, not production server-sale-policy execution. |
 | Acceptance / lifecycle | MAIN-accepted gate1461 bounded PASS includes both resolved whole-fixture findings and standalone regression (exact Swap1/Split1, count2; authoritative rendering). New production changed-function violations0; inherited test length/adjacent native debt and WMO warning remain, **not clean**. Owned children4063477/4065619 deliberately SIGKILLed/reaped, reader_errors0: **NOT shutdown proof**. Earlier reports/failures and lifecycle exclusions retained. |
 
-Earlier `5c312ff3` source-lock proof is retained. Source-owner acceptance covers Merchant open + bag0 selection only, not general winners, cross-root or Mail behavior. Valid anchor RED is distinct from wrong-root and cross-owner resource-identity false oracles; final actual image-byte proof is **not screenshot raster parity**. Shift vendor-buy now has the test-only runtime evidence below; independent gate1467 remains pending, **not accepted**. Buyback, lifecycle/general ownership and all broader remaining scopes stay unproved. Full conversion remains OPEN.
+Earlier `5c312ff3` source-lock proof is retained. Source-owner acceptance covers Merchant open + bag0 selection only, not general winners, cross-root or Mail behavior. Valid anchor RED is distinct from wrong-root and cross-owner resource-identity false oracles; final actual image-byte proof is **not screenshot raster parity**. Shift vendor-buy has MAIN-accepted bounded gate1467 evidence below. Buyback has separate fresh runtime evidence below, not independent acceptance; lifecycle/general ownership and broader remaining scopes stay unproved. Full conversion remains OPEN.
 
-### Native merchant Shift vendor buy — observed existing behavior, gate pending
+<a id="native-merchant-shift-vendor-buy--observed-existing-behavior-gate-pending"></a>
 
-Test-only `deefafa8` adds coverage without production changes after accepted docs `5faec7d2`; prior MAIN-accepted gate1461 remains unchanged. [Test report SSOT](/tmp/claude/native-merchant-shift-buy-test.md) records exact authored values and exclusions; its unexecuted status is historical, superseded by MAIN-supplied first-run evidence here. Depot `477ngxz729`, `/tmp/claude/native-merchant-shift-buy-first-build.log` exit0; actual `/tmp/claude/native-merchant-shift-buy-first-runtime.log` exit0 retains all three previous cases. First test passes existing behavior: **not a missing-feature RED or production fix**. Independent gate1467 pending, **not accepted**.
+### Native merchant Shift vendor buy — MAIN-accepted bounded PASS
+
+Test-only `deefafa8` adds coverage without production changes after accepted docs `5faec7d2`; prior MAIN-accepted gate1461 remains unchanged. [Test report SSOT](/tmp/claude/native-merchant-shift-buy-test.md) records exact authored values and exclusions; its unexecuted status is historical, superseded by MAIN-supplied first-run evidence here. Depot `477ngxz729`, `/tmp/claude/native-merchant-shift-buy-first-build.log` exit0; actual `/tmp/claude/native-merchant-shift-buy-first-runtime.log` exit0 retains all three previous cases. First test passes existing behavior: **not a missing-feature RED or production fix**. MAIN read FULL [independent report SSOT](/tmp/claude/verify-native-merchant-shift-buy.md) and accepts gate1467 **bounded PASS for audited `deefafa8` only**: scoped format/build/runtime exit0, four cases/four barriers, no native/production fix or introduced threshold warnings. Native `a5a39774` remains unchanged. Later Buyback `cd354317` owns new proof; this gate does not cover it.
 
 | Boundary | Observed evidence / status |
 | --- | --- |
@@ -91,7 +93,19 @@ Test-only `deefafa8` adds coverage without production changes after accepted doc
 | Fourth authority barrier | No held icon, source white, Linen3/Gold1014 remain before new client SHIFT_BUY_COMMIT. Exactly one extra decoded BuyItem: owned npc/slot0/item2589/count2/destinationNone. Only peer response produces Linen5/same GUID9182590/Gold964. |
 | Preserved totals / lifecycle | opens1/buys2/sells2, four request/commit barriers; prior three cases retained. Owned child4077399 deliberately killed/reaped, reader_errors0: **not normal shutdown**. |
 
-Fixture authority does not prove production-server pricing or autostacking. No new production acceptance, buyback, lifecycle, cross-root/global ownership or full-conversion claim. Full conversion remains **OPEN**.
+Fixture authority does not prove production-server pricing or autostacking. Historical gate1467 exclusions remain specific to its audited revision; no Buyback, lifecycle, cross-root/global ownership or full-conversion acceptance. Full conversion remains **OPEN**.
+
+### Native merchant Buyback — observed existing behavior, gate pending
+
+Test-only `cd354317` appends Buyback to the unchanged four cases; [test report SSOT](/tmp/claude/native-merchant-buyback-test.md) describes authored coverage, with its unexecuted status superseded only by this fresh MAIN proof. Depot `2j1dwb5mvf`, [build log](/tmp/claude/native-merchant-buyback-first-build.log) EXIT_CODE=0; [actual runtime log](/tmp/claude/native-merchant-buyback-first-runtime.log) EXIT_CODE=0. Existing behavior newly proved at runtime: **not RED or a production fix**. Independent Buyback gate1472 actual report ID pending, **not accepted**.
+
+| Boundary | MAIN-observed evidence / status |
+| --- | --- |
+| Physical tab / cell | Peer lists Linen2, price26, slot0. Physical Buyback Tab2 then cell Left; actual title/art/count2/price26 asserted. |
+| Fifth authority barrier | Exact BuybackItemRequest npc4294966979/slot0. Linen5/Gold964/list2/no held cursor/no picker unchanged900ms **before BUYBACK_COMMIT**; only afterward peer produces Linen7/Gold938 and empty list, final tab retained. |
+| Totals / lifecycle | Old four cases retained; Buy2/Sell2/Buyback1, five barriers. Child4086596 deliberately killed/reaped, readers0: **not shutdown proof**. |
+
+No production-server pricing or autostack claim. Buyback right/Shift/last-sale button, lifecycle, cross-root/general ownership and remaining full-goal scopes stay unproved. Full goal remains **OPEN**.
 
 ## Native standalone bags — bounded window and cursor PASS
 
