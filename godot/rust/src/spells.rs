@@ -33,7 +33,8 @@ use godot::classes::{
     base_material_3d::BillboardMode,
 };
 use godot::prelude::*;
-use shared::components::PowerType;
+use shared::casting::CastState;
+use shared::components::{Health, Player, PowerType, UnitLevel, UnitPowers};
 use shared::protocol::{ActionRef, CastFailed, CombatLogKind};
 
 use crate::combat_text;
@@ -542,7 +543,7 @@ impl GameClient {
 
     fn local_cast_state(&mut self, delta: f32) -> Option<LocalCast> {
         let player = self.world.local_player_id()?;
-        let replicated = self.units.get(&player)?.cast.as_ref()?;
+        let replicated = self.replica.unit(player)?.get::<CastState>()?;
         let channel = replicated.cast_type == shared::casting::CastType::Channel;
         let cast = match self.spells.cast {
             Some(local)
@@ -683,12 +684,12 @@ impl GameClient {
     }
 
     fn spellbook_player(&self) -> Option<SpellbookPlayer> {
-        let unit = self.units.get(&self.world.local_player_id()?)?;
-        let player = unit.player.as_ref()?;
+        let unit = self.replica.unit(self.world.local_player_id()?)?;
+        let player = unit.get::<Player>()?;
         Some(SpellbookPlayer {
             class_id: u32::from(player.class),
             race_id: u32::from(player.race),
-            level: u32::from(unit.level?.0),
+            level: u32::from(unit.get::<UnitLevel>()?.0),
         })
     }
 
@@ -1081,20 +1082,20 @@ impl GameClient {
         let player = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id));
+            .and_then(|id| self.replica.unit(id));
         let power = player
-            .and_then(|unit| unit.powers.as_ref()?.entries.first().cloned())
+            .and_then(|unit| unit.get::<UnitPowers>()?.entries.first().cloned())
             .map_or(-1, |entry| i64::from(entry.current));
         state.set("power", power);
         state.set(
             "level",
             player
-                .and_then(|unit| unit.level)
+                .and_then(|unit| unit.get::<UnitLevel>())
                 .map_or(0, |level| i64::from(level.0)),
         );
         let target_health = self
             .targeting_target()
-            .and_then(|id| self.units.get(&id)?.health)
+            .and_then(|id| self.replica.unit(id)?.get::<Health>())
             .map_or(-1.0, |health| f64::from(health.current));
         state.set("target_health", target_health);
         let book: Vec<VarDictionary> = self

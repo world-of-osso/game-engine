@@ -1,4 +1,5 @@
 //! Native receiving mail host. Only actual mailbox use can open the authored frame.
+use crate::replicated::UnitFields;
 use crate::{
     GameClient,
     account::MailMessage,
@@ -16,6 +17,7 @@ use godot::{
     global::{Key, MouseButton},
     prelude::*,
 };
+use shared::protocol::GameObjectInfo;
 
 #[derive(Default)]
 pub(crate) struct Mailbox {
@@ -46,7 +48,11 @@ impl Mailbox {
 impl GameClient {
     /// The picker returned a real drawn mailbox. No SetTarget or NPC interaction for it.
     pub(crate) fn use_mailbox(&mut self, id: u64) -> Result<bool, FrameError> {
-        let Some(info) = self.game_objects.info(id) else {
+        let info = self
+            .replica
+            .unit(id)
+            .and_then(|object| object.get::<GameObjectInfo>());
+        let Some(info) = info.filter(|_| self.game_objects.contains(id)) else {
             return Ok(false);
         };
         let distance = self
@@ -117,7 +123,7 @@ impl GameClient {
         let money = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id)?.gold)
+            .and_then(|id| self.replica.unit(id)?.gold())
             .unwrap_or(0);
         let mut bags = self.merchant.session.bag_state();
         for bag in &mut bags.bags {
@@ -195,7 +201,7 @@ impl GameClient {
             &self
                 .world
                 .local_player_id()
-                .and_then(|id| self.units.get(&id)?.gold)
+                .and_then(|id| self.replica.unit(id)?.gold())
                 .map(|v| (v as i64).to_variant())
                 .unwrap_or_default(),
         );

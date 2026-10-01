@@ -16,7 +16,7 @@ use game_engine_core::nameplate_visibility_data::{
     NameplateCvars, PlateUnit, in_combat_with_player, nameplate_alpha, plate_alpha, plate_shown,
     selection_in_combat_is_hostile,
 };
-use game_engine_network::UnitSnapshot;
+use game_engine_network::replica::{Replica, Unit as ReplicatedUnit};
 use game_engine_session::SessionScreen;
 use godot::{
     classes::{
@@ -26,13 +26,14 @@ use godot::{
     prelude::*,
 };
 use shared::{
-    components::UnitFlags,
+    components::{Health, Player, UnitFlags},
     faction_reaction::{Unit, can_attack},
 };
 
 use crate::{
     GameClient,
     faction_reaction::{FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction},
+    replicated::UnitFields,
     targeting::unit_pick_shape,
     wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
 };
@@ -382,16 +383,12 @@ fn apply_plate(
     });
 }
 
-fn unit_name(unit: &UnitSnapshot) -> String {
-    unit.player
-        .as_ref()
-        .map(|player| player.name.clone())
-        .or_else(|| unit.npc.as_ref().map(|npc| npc.name.clone()))
-        .unwrap_or_default()
+fn unit_name(unit: ReplicatedUnit) -> String {
+    unit.name().unwrap_or_default().to_owned()
 }
 
-fn health_fraction(unit: &UnitSnapshot) -> f32 {
-    unit.health
+fn health_fraction(unit: ReplicatedUnit) -> f32 {
+    unit.get::<Health>()
         .filter(|health| health.max > 0.0)
         .map_or(1.0, |health| (health.current / health.max).clamp(0.0, 1.0))
 }
@@ -435,7 +432,7 @@ struct Viewer<'a> {
 
 fn build_viewer<'a>(
     world: &crate::world::WorldUnits,
-    units: &HashMap<u64, UnitSnapshot>,
+    units: &Replica,
     target: Option<u64>,
     templates: &'a HashMap<u32, FactionTemplateEntry>,
 ) -> Option<Viewer<'a>> {
@@ -446,20 +443,20 @@ fn build_viewer<'a>(
         target,
         position: node.get_global_position(),
         template: units
-            .get(&id)
-            .and_then(|unit| unit.faction_template)
+            .unit(id)
+            .and_then(UnitFields::faction_template)
             .and_then(|template| templates.get(&template)),
     })
 }
 
 fn plate_rule_input(
     viewer: &Viewer,
-    unit: &UnitSnapshot,
+    unit: ReplicatedUnit,
     template: Option<&FactionTemplateEntry>,
     node: &Gd<Node3D>,
 ) -> PlateUnit {
-    let flags = UnitFlags(unit.unit_flags.unwrap_or_default());
-    let is_player = unit.player.is_some();
+    let flags = UnitFlags(unit.unit_flags().unwrap_or_default());
+    let is_player = unit.has::<Player>();
     let attacker = Unit {
         template: viewer.template,
         is_player: true,
@@ -471,14 +468,16 @@ fn plate_rule_input(
     PlateUnit {
         is_local_player: unit.server_id == viewer.id,
         selectable: flags.is_selectable(),
-        alive: unit.health.is_none_or(|health| health.current > 0.0),
+        alive: unit
+            .get::<Health>()
+            .is_none_or(|health| health.current > 0.0),
         is_player,
         enemy: flags.is_attackable() && can_attack(attacker, defender),
         targeted: viewer.target == Some(unit.server_id),
         in_combat_with_player: in_combat_with_player(
-            unit.in_combat,
-            unit.unit_target,
-            &unit.threat_list,
+            unit.in_combat(),
+            unit.unit_target(),
+            unit.threat_list(),
             viewer.id,
         ),
         distance: node.get_global_position().distance_to(viewer.position),
@@ -489,7 +488,7 @@ fn plate_rule_input(
 fn project_plate(
     camera: &Gd<Camera3D>,
     cvars: &NameplateCvars,
-    unit: &UnitSnapshot,
+    unit: ReplicatedUnit,
     node: &Gd<Node3D>,
     (color, name_color): (Color, Color),
     fade_far: f32,
@@ -546,15 +545,15 @@ impl GameClient {
         let fade_far = self.client_options.hud.nameplate_distance;
         let colorblind_mode = self.client_options.graphics.colorblind_mode;
         let templates = self.nameplates.templates(&self.data_root)?;
-        let Some(viewer) = build_viewer(&self.world, &self.units, target, templates) else {
+        let Some(viewer) = build_viewer(&self.world, &self.replica, target, templates) else {
             return Ok(HashMap::new());
         };
         let views = self
-            .units
-            .values()
+            .replica
+            .units()
             .filter_map(|unit| {
                 let node = self.world.unit_node(unit.server_id)?;
-                let template = unit.faction_template.and_then(|id| templates.get(&id));
+                let template = unit.faction_template().and_then(|id| templates.get(&id));
                 let rules = plate_rule_input(&viewer, unit, template, &node);
                 if !node.is_visible_in_tree() || !plate_shown(&cvars, &rules) {
                     return None;
@@ -562,13 +561,13 @@ impl GameClient {
                 let reaction = reaction(template, viewer.template);
                 let friendly = reaction == Reaction::Friendly;
                 let color =
-                    if selection_in_combat_is_hostile(&unit.threat_list, viewer.id, friendly) {
+                    if selection_in_combat_is_hostile(unit.threat_list(), viewer.id, friendly) {
                         // CompactUnitFrame_UpdateHealthColor: `r, g, b = 1.0, 0.0, 0.0`.
                         Color::from_rgb(1.0, 0.0, 0.0)
                     } else {
                         reaction_color(&style, reaction)
                     };
-                let name_color = nameplate_text_color(unit.player.is_some(), colorblind_mode);
+                let name_color = nameplate_text_color(unit.has::<Player>(), colorblind_mode);
                 let view = project_plate(
                     camera,
                     &cvars,
@@ -591,13 +590,13 @@ impl GameClient {
         let cvars = self.nameplates.cvars;
         let templates = self.nameplates.templates(&self.data_root)?;
         let (Some(viewer), Some(node), Some(unit)) = (
-            build_viewer(&self.world, &self.units, target, templates),
+            build_viewer(&self.world, &self.replica, target, templates),
             self.world.unit_node(id),
-            self.units.get(&id),
+            self.replica.unit(id),
         ) else {
             return Ok(state);
         };
-        let template = unit.faction_template.and_then(|id| templates.get(&id));
+        let template = unit.faction_template().and_then(|id| templates.get(&id));
         let rules = plate_rule_input(&viewer, unit, template, &node);
         state.set("enemy", rules.enemy);
         state.set("selectable", rules.selectable);
@@ -608,7 +607,7 @@ impl GameClient {
         state.set("shown", plate_shown(&cvars, &rules));
         state.set(
             "faction_template",
-            unit.faction_template.unwrap_or_default() as i64,
+            unit.faction_template().unwrap_or_default() as i64,
         );
         state.set(
             "reaction",
