@@ -143,11 +143,15 @@ func eat() -> void:
 		fail("No visible backpack button")
 		return
 	await pointer_click(backpack.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
-	await wait_ms(1000)
-	var bread := client.find_child("ContainerFrame0Slot0", true, false) as Control
-	if bread == null or not bread.is_visible_in_tree():
-		fail("Backpack slot 0 not shown")
-		return
+	var bread: Control = null
+	var bag_deadline := Time.get_ticks_msec() + 10000
+	while bread == null or not bread.is_visible_in_tree() or not bread.get_global_rect().has_area():
+		if Time.get_ticks_msec() > bag_deadline:
+			fail("Backpack slot 0 not shown")
+			return
+		await process_frame
+		bread = client.find_child("ContainerFrame0Slot0", true, false) as Control
+	await capture("food-bag.png")
 	await pointer_click(bread.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 	if not await expect_clips(animation, [SIT_DOWN, SIT], "Bread sits down"):
 		return
