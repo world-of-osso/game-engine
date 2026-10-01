@@ -180,6 +180,17 @@ impl GameClient {
         let session = &self.mailbox.session;
         let mut state = VarDictionary::new();
         state.set("open", session.is_open());
+        let mut objects = Array::<VarDictionary>::new();
+        for unit in self.replica.units() {
+            if let Some(info) = unit.get::<GameObjectInfo>() {
+                let mut row = VarDictionary::new();
+                row.set("id", unit.server_id as i64);
+                row.set("entry", i64::from(info.entry));
+                row.set("rendered", self.game_objects.contains(unit.server_id));
+                objects.push(&row);
+            }
+        }
+        state.set("replicated_objects", &objects);
         state.set(
             "object",
             &session
