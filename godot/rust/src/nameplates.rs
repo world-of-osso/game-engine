@@ -780,6 +780,9 @@ impl NameplateProbe {
     }
 }
 
+#[path = "nameplate_debug.rs"]
+mod debug;
+
 #[cfg(test)]
 mod tests {
     use super::*;
