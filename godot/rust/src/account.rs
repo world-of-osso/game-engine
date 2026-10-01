@@ -25,8 +25,9 @@ use shared::protocol::{
     MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestEntrySnapshot, QuestFailed,
     QuestGiverAcceptQuest, QuestGiverStatus, QuestGiverStatusMultiple, QuestGiverStatusQuery,
     QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo, RestStateUpdate,
-    SetDungeonDifficulty, SetTarget, SpecializationChanged, SpellCastIntent, SpellCooldownUpdate,
-    SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, TransferChannel, WorldPortAck,
+    SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged, SpellCastIntent,
+    SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TalentChannel, TransferAborted,
+    TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate,
@@ -355,6 +356,14 @@ impl Account {
     pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InstanceChannel>(SetDungeonDifficulty { difficulty_id })
+            .map_err(SessionError)
+    }
+
+    /// `SetSpecialization(spec_id)`; the server answers `SpecializationChanged` and the
+    /// spec's spells.
+    pub fn send_set_specialization(&self, spec_id: u32) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, TalentChannel>(SetSpecialization { spec_id })
             .map_err(SessionError)
     }
 
