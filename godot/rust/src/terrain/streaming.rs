@@ -101,8 +101,8 @@ impl StreamedTerrain {
         &self.initial_tiles
     }
 
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
-        Self::with_reader(NativeTerrainAssets::new(data_root, cache_root))
+    pub fn new(data_root: PathBuf) -> Self {
+        Self::with_reader(NativeTerrainAssets::new(data_root))
     }
 
     fn with_reader(reader: impl TerrainReader) -> Self {
@@ -531,12 +531,7 @@ mod tests {
 
     fn cached_assets() -> NativeTerrainAssets {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let cache_root = std::env::var_os("XDG_CACHE_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
-            .expect("cache location")
-            .join("asset-resolver");
-        NativeTerrainAssets::new(data_root, cache_root)
+        NativeTerrainAssets::new(data_root)
     }
 
     struct ControlledReader {
@@ -859,7 +854,7 @@ mod tests {
     #[test]
     fn cached_global_wmo_map_is_parsed_without_tile_requests() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut stream = StreamedTerrain::new(data_root, PathBuf::from("/tmp/unused-cache"));
+        let mut stream = StreamedTerrain::new(data_root);
         stream
             .request_map("stormwindjail".into(), (32, 48))
             .unwrap();
@@ -1039,7 +1034,7 @@ mod tests {
     #[test]
     fn missing_map_surfaces_read_error_without_scheduling_tiles() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut stream = StreamedTerrain::new(data_root, PathBuf::from("/tmp/unused-cache"));
+        let mut stream = StreamedTerrain::new(data_root);
         stream
             .request_map("map_that_does_not_exist_999".into(), (0, 0))
             .unwrap();

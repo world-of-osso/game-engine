@@ -9,11 +9,9 @@ pub(crate) struct AssetStartup {
 }
 
 impl AssetStartup {
-    pub(crate) fn start(data_root: PathBuf, cache_root: PathBuf) -> Result<Self, String> {
-        Self::spawn(move || {
-            crate::assets::creature::local_resolver(&data_root, &cache_root).initialize()
-        })
-        .map_err(|error| format!("Cannot spawn CASC initialization worker: {error}"))
+    pub(crate) fn start(data_root: PathBuf) -> Result<Self, String> {
+        Self::spawn(move || crate::assets::creature::local_resolver(&data_root).initialize())
+            .map_err(|error| format!("Cannot spawn CASC initialization worker: {error}"))
     }
 
     fn spawn(

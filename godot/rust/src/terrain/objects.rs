@@ -351,13 +351,8 @@ pub(crate) struct TerrainObjects {
 }
 
 impl TerrainObjects {
-    pub fn new(
-        name: &'static str,
-        budget: Duration,
-        data_root: PathBuf,
-        cache_root: PathBuf,
-    ) -> Self {
-        let resolver = Arc::new(local_resolver(&data_root, &cache_root));
+    pub fn new(name: &'static str, budget: Duration, data_root: PathBuf) -> Self {
+        let resolver = Arc::new(local_resolver(&data_root));
         let loader = {
             let resolver = Arc::clone(&resolver);
             let data_root = data_root.clone();

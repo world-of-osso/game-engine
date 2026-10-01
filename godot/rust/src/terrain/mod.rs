@@ -85,10 +85,8 @@ fn read_liquid_material(
 ) -> Result<Gd<godot::classes::ShaderMaterial>, String> {
     let settings = ProjectSettings::singleton();
     let data_root = std::path::PathBuf::from(settings.globalize_path("res://../data").to_string());
-    let cache_root =
-        std::path::PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
-    let native = assets::NativeTerrainAssets::new(data_root.clone(), cache_root)
-        .read_liquid_material(liquid)?;
+    let native =
+        assets::NativeTerrainAssets::new(data_root.clone()).read_liquid_material(liquid)?;
     let sample = crate::lighting::assets::LightingCatalog::read(&data_root)?.sample(
         map_id,
         wow_position,

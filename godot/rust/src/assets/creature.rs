@@ -68,13 +68,12 @@ pub(crate) fn prepare_creature_model(
 /// decoded textures are inserted first (`insert_decoded_textures`).
 pub(crate) fn build_creature_model(
     data_root: &Path,
-    cache_root: &Path,
     display: &CreatureDisplay,
     model: &CachedModel,
     appearance: Option<&PreparedAppearance>,
     gear: &CreatureGear,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
-    let resolver = local_resolver(data_root, cache_root);
+    let resolver = local_resolver(data_root);
     let parsed = &model.model;
     let path = GString::from(model.path.to_string_lossy().as_ref());
     let (mut model, missing) = build_model(parsed, &path, &display.skin_fdids, appearance)?;
@@ -129,12 +128,11 @@ fn held_items<'a>(
         .collect()
 }
 
-pub(crate) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {
+pub(crate) fn local_resolver(data_root: &Path) -> CascListfileResolver {
     CascListfileResolver::new(
         AssetResolverConfig::new()
             .with_data_root(data_root)
-            .with_shared_data_root(data_root)
-            .with_cache_root(cache_root),
+            .with_shared_data_root(data_root),
     )
 }
 
@@ -323,7 +321,7 @@ mod tests {
     #[test]
     fn acquires_cached_creature_skin_from_sfid_not_creature_texture_slots() {
         let data_root = cached_data_root();
-        let resolver = local_resolver(&data_root, &data_root.join("cache"));
+        let resolver = local_resolver(&data_root);
         let display = CreatureDisplay {
             model_fdid: 126278,
             skin_fdids: [126280, 0, 0],
@@ -344,7 +342,7 @@ mod tests {
     #[test]
     fn collects_authored_batch_textures_and_explicit_creature_slots() {
         let data_root = cached_data_root();
-        let resolver = local_resolver(&data_root, &data_root.join("cache"));
+        let resolver = local_resolver(&data_root);
         let model = std::fs::read(data_root.join("models/126278.m2")).unwrap();
         let skin = std::fs::read(data_root.join("models/12627800.skin")).unwrap();
         let parsed = m2::parse_model(&model, &skin).unwrap();
@@ -357,7 +355,7 @@ mod tests {
     #[test]
     fn acquires_cached_external_skeleton_from_skid() {
         let data_root = cached_data_root();
-        let resolver = local_resolver(&data_root, &data_root.join("cache"));
+        let resolver = local_resolver(&data_root);
         let display = CreatureDisplay {
             model_fdid: 1011653,
             skin_fdids: [0; 3],

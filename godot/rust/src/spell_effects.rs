@@ -446,10 +446,10 @@ pub struct SpellEffects {
 const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         let catalog = Catalog::load(&data_root);
         Self {
-            assets: SpellAssets::new(data_root.clone(), &cache_root),
+            assets: SpellAssets::new(data_root.clone()),
             data_root,
             catalog,
             prefetched: HashSet::new(),
