@@ -14,6 +14,54 @@ mod tests {
 use game_engine_ui_model::auction::{AuctionRequest, AuctionSession, view::InputTexts};
 use shared::protocol::*;
 #[test]
+fn native_auction_accepts_server_selected_house_but_rejects_stale_filters() {
+    let mut session = AuctionSession::default();
+    session.open(99);
+    session.opened(AuctionHouseOpened {
+        success: true,
+        error: None,
+    });
+    let query = AuctionSearchQuery {
+        text: "Linen".into(),
+        item_id: Some(2589),
+        ..Default::default()
+    };
+    session.net.request(AuctionRequest::Browse(query.clone()));
+    let mut server_query = query.clone();
+    server_query.faction = 1;
+    session.browse_results(AuctionBrowseResults {
+        query: server_query.clone(),
+        total_results: 1,
+        items: vec![AuctionBrowseItem {
+            item_id: 2589,
+            name: "Linen Cloth".into(),
+            quality: 1,
+            required_level: 0,
+            lowest_unit_price: 200,
+            total_quantity: 3,
+        }],
+    });
+    assert_eq!(session.net.search_revision, 1);
+    assert_eq!(session.net.browse_results[0].total_quantity, 3);
+    let mut stale = server_query.clone();
+    stale.page = 1;
+    session.browse_results(AuctionBrowseResults {
+        query: stale,
+        total_results: 0,
+        items: vec![],
+    });
+    assert_eq!(session.net.search_revision, 1);
+    session.net.request(AuctionRequest::Listings(query));
+    session.search_results(AuctionSearchResults {
+        query: server_query,
+        total_results: 0,
+        results: vec![],
+    });
+    assert_eq!(session.net.search_revision, 2);
+    assert_eq!(session.net.last_query.as_ref().unwrap().faction, 1);
+}
+
+#[test]
 fn native_auction_interaction_gate_refresh_rejection_close() {
     let mut s = AuctionSession::default();
     assert!(s.click("auction_search", &InputTexts::new()).is_empty());

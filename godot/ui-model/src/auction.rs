@@ -163,7 +163,13 @@ impl AuctionSession {
         self.ui.selected_auction = None;
     }
     fn accept_query(&self, query: &AuctionSearchQuery) -> bool {
-        self.net.is_open && self.net.last_query.as_ref() == Some(query)
+        let Some(expected) = self.net.last_query.as_ref().filter(|_| self.net.is_open) else {
+            return false;
+        };
+        // The authoritative auctioneer session selects the house, not the client.
+        let mut effective = expected.clone();
+        effective.faction = query.faction;
+        effective == *query
     }
     pub fn search_results(&mut self, reply: AuctionSearchResults) {
         if self.net.query_is_browse || !self.accept_query(&reply.query) {
