@@ -37,6 +37,7 @@ use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
 use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
+use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, tooltip_frame_screen};
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
@@ -573,6 +574,11 @@ impl RegistryUi {
     /// Initialize a dedicated RegistryUi instance for the player casting bar.
     pub fn show_casting_bar(&mut self, state: CastingBarState) -> Result<(), String> {
         self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
+    }
+
+    /// Project the original authored item tooltip without a second formatter.
+    pub(crate) fn show_item_tooltip(&mut self, state: TooltipPresentation) -> Result<(), String> {
+        self.show_viewport_screen(state, tooltip_frame_screen, ScreenPostsetup::None)
     }
 
     /// Initialize a dedicated RegistryUi instance for the spell tooltip.

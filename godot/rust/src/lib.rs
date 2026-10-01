@@ -10,6 +10,7 @@ mod auras;
 mod auto_attack;
 mod bag_cursor;
 mod bag_destroy;
+mod bag_tooltip;
 mod bags;
 mod camera;
 mod char_create;
@@ -901,6 +902,9 @@ impl GameClient {
             visit(ui)?;
         }
         if let Some(ui) = &mut self.bags.cursor.ui {
+            visit(ui)?;
+        }
+        if let Some(ui) = &mut self.bags.tooltip_ui {
             visit(ui)?;
         }
         self.merchant.visit_uis(&mut visit)?;
