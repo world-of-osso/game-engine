@@ -31,8 +31,8 @@ use shared::protocol::{
     MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestFailed, QuestGiverStatusMultiple,
     QuestGiverStatusQuery, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
     RestStateUpdate, SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged,
-    SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TalentChannel,
-    TransferAborted, TransferChannel, WorldPortAck,
+    SpellCastIntent, SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned,
+    TalentChannel, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     AppearanceCollectionUpdate, CreatureTooltip, CreatureTooltipQuery, TooltipChannel,
@@ -212,6 +212,8 @@ pub enum CombatMessage {
     Event(CombatEvent),
     /// `SpellGo`: a cast resolved.
     SpellGo(SpellGo),
+    /// `SpellFailure` (`SMSG_SPELL_FAILURE`): a cast or channel was interrupted or failed.
+    SpellFailure(SpellFailure),
     /// `AttackStart` (`SMSG_ATTACK_START`): a unit started auto-attacking.
     AttackStart(AttackStart),
     /// `AttackStopped` (`SMSG_ATTACK_STOP`): a unit stopped auto-attacking.
@@ -1148,6 +1150,7 @@ impl Account {
             || message.is::<CastFailed>()
             || message.is::<CombatLogEvent>()
             || message.is::<SpellGo>()
+            || message.is::<SpellFailure>()
             || message.is::<AttackStart>()
             || message.is::<AttackStopped>()
     }
@@ -1175,6 +1178,10 @@ impl Account {
             output.push(AccountEvent::CastFailed(decode(message)?));
         } else if message.is::<SpellGo>() {
             output.push(AccountEvent::Combat(CombatMessage::SpellGo(decode(
+                message,
+            )?)));
+        } else if message.is::<SpellFailure>() {
+            output.push(AccountEvent::Combat(CombatMessage::SpellFailure(decode(
                 message,
             )?)));
         } else if message.is::<AttackStart>() {

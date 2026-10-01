@@ -45,6 +45,8 @@ mod mail;
 mod merchant;
 mod minimap;
 mod mirror_timers;
+mod nameplate_cast_bar;
+mod nameplate_casts;
 mod nameplates;
 #[path = "../../../src/game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
@@ -1480,7 +1482,7 @@ impl GameClient {
             }),
             ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
             ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
-            ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
+            ("Nameplates", |c, d| Ok(c.update_nameplates(d)?)),
             ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
                 c.cull_world_objects();

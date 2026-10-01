@@ -48,7 +48,8 @@ use shared::protocol::{
     KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause,
     MirrorTimerStart, MirrorTimerStop, NewWorld, QuestFailed, QuestGiverStatusMultiple,
     QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
-    SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
+    SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
+    VendorInventory,
 };
 
 /// Trait bound for decoding messages carried by this transport boundary.
@@ -214,6 +215,7 @@ impl NetworkBridge {
             // combat animations and spell visuals.
             .receive::<CombatEvent>()
             .receive::<SpellGo>()
+            .receive::<SpellFailure>()
             // Auto-attack starts and stops of every replicated unit.
             .receive::<AttackStart>()
             .receive::<AttackStopped>()
