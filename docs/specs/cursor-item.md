@@ -38,8 +38,8 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 The `[x]` requirements above preserve legacy implementation status; they are not native parity acceptance. Native coverage remains partial; [conversion evidence](../wiki/systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending) owns exact saved proof and limitations.
 
 - Actual authenticated/readied slot0 click in `/tmp/claude/native-bags-cursor-first-red.log` fails unconverted `bag_slot:0:0`, parent exit101; intentional child SIGKILL is not normal shutdown.
-- `9e301fb5` shares original `CursorItem` policy and portable icon; `2b3fa596` implements native bag pickup/source-return, Escape, stale clearing, swap and split consumer. Build/runtime/independent verification pending; existing ten bag-window/bar tests do not cover these changes.
-- Right-gear equip, world DestroyItem, drag release, item tooltips, NPC cursor/visibility and global window ownership remain missing or unproved. No full cursor/native parity claim.
+- `9e301fb5` shares original `CursorItem` policy and portable icon; `2b3fa596` implements native bag pickup/source-return, Escape, stale clearing, swap and split consumer. Existing pure policy8/icon1 reports pass; ten bag-window/bar tests do not cover cursor behavior. Native+fixture Depot `7p31d9cmcw` at `40497cb7` exits0, existing WMO warning only. Actual final `/tmp/claude/native-bags-cursor-third-green.log` parent0 proves source-return/Escape/stale with no requests and bags open, exactly one Swap0/0→1/0 and Split0/0→1/1 count2, typed2+Enter, cursor center/source icon lock and authoritative final1/2. Startup barrier `f7b137fb`/`76487261` reaches READY; `40497cb7` fixes actual event-pointer producer mismatch, not expected-value calibration. Independent gate agent1360 pending; child3813397 intentional SIGKILL/readers0 is not shutdown proof.
+- Right-gear equip, world DestroyItem, drag release, item tooltips, NPC cursor/visibility, global window ownership, audio and saved positions remain missing or unproved. No full cursor/native parity claim.
 
 ## Tests asserting this spec
 
