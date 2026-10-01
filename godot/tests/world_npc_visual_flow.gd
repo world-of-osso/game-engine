@@ -271,6 +271,7 @@ func wait_authored_stand(client: Node) -> bool:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var pose := skeleton.get_bone_pose_position(0) - skeleton.get_bone_rest(0).origin
+		print("TRACE stand pose=%s %s" % [pose, lod_trace(client, model)])
 		if absf(pose.x) > 0.05 or absf(pose.y) > 1.05 or absf(pose.z) > 0.05:
 			fail("NPC defaulted to non-Stand sequence; authored Stand is Y 0..1, pose=" + str(pose))
 			return false
@@ -310,6 +311,7 @@ func wait_death_pose(client: Node, name: String, unit_id: int, visual_id: int) -
 			return false
 		var pose := skeleton.get_bone_pose_position(0) - skeleton.get_bone_rest(0).origin
 		last_pose = pose
+		print("TRACE death %s pose=%s %s" % [name, pose, lod_trace(client, visual.get_node("NpcModel") as Node3D)])
 		if pose.y > 2.1 and pose.y < 2.9:
 			saw_advance = true
 		if saw_advance and absf(pose.y - 3.0) < 0.05:
@@ -328,6 +330,14 @@ func wait_death_pose(client: Node, name: String, unit_id: int, visual_id: int) -
 			return true
 	fail("Automatic Death pose never advanced to its held Y=3 end: %s, saw motion=%s, last pose=%s, animation id=%s" % [name, saw_advance, last_pose, _death_animation_id(client, name)])
 	return false
+
+## The NPC animation LOD inputs for `model`: whether its origin is in the world
+## camera's view frustum, and its distance from the camera.
+func lod_trace(client: Node, model: Node3D) -> String:
+	var camera := client.get_node_or_null("WorldCamera") as Camera3D
+	if camera == null or model == null:
+		return "lod=unknown (no camera or model)"
+	return "in_frustum=%s distance=%.1f camera=%s model=%s" % [camera.is_position_in_frustum(model.global_position), camera.global_position.distance_to(model.global_position), camera.global_position, model.global_position]
 
 func _death_animation_id(client: Node, name: String) -> Variant:
 	var animation = client.get_node_or_null("WorldUnits/" + name + "/NpcVisualRoot/NpcModel/M2Animation")

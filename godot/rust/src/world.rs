@@ -17,6 +17,8 @@ use crate::{
 };
 
 use crate::replicated::UnitFields;
+use crate::terrain::scenery::SceneryDistance;
+use crate::wmo::portals::HalfSpace;
 use game_engine_core::movement_animation_data::{ANIM_RUN, ANIM_STAND, direction_to_anim_id};
 use game_engine_core::movement_input_data::MoveDirection;
 use game_engine_core::npc_visibility_data::{npc_should_be_visible, npc_visibility_policy};
@@ -24,9 +26,10 @@ use game_engine_core::unit_motion_data::{
     MotionPose, MotionTarget, follow_server_motion, interpolate_remote_motion,
 };
 use game_engine_network::replica::{Replica, Unit};
+use glam::{Affine3A, Vec3};
 use godot::{
     builtin::{Transform3D, Vector3},
-    classes::{Node3D, VisibleOnScreenNotifier3D},
+    classes::Node3D,
     prelude::*,
 };
 use shared::components::{
@@ -803,8 +806,9 @@ impl WorldUnits {
     }
 
     /// NPC animation LOD: each NPC model samples its pose at the rate its camera
-    /// distance and last frame's on-screen state allow; players always sample.
-    pub fn apply_animation_lod(&mut self, camera: Vector3, frame: u64) {
+    /// distance and whether its bounds are in the view frustum allow; players always
+    /// sample.
+    pub fn apply_animation_lod(&mut self, camera: Vector3, frustum: &[HalfSpace], frame: u64) {
         for (id, unit) in &self.units {
             if unit.is_player {
                 continue;
@@ -816,14 +820,17 @@ impl WorldUnits {
             else {
                 continue;
             };
-            let (Some(mut animation), Some(on_screen)) = (
-                model.try_get_node_as::<WowAnimationPlayer>("M2Animation"),
-                model.try_get_node_as::<VisibleOnScreenNotifier3D>("OnScreen"),
-            ) else {
+            let Some(mut animation) = model.try_get_node_as::<WowAnimationPlayer>("M2Animation")
+            else {
                 continue;
             };
-            let distance = model.get_global_position().distance_to(camera);
-            let lod = AnimationLod::new(distance, on_screen.is_on_screen());
+            let bounds = crate::world_models::mesh_bounds(&model);
+            let lod = npc_animation_lod(
+                (bounds.position, bounds.end()),
+                crate::terrain::objects::affine(model.get_global_transform()),
+                Vec3::new(camera.x, camera.y, camera.z),
+                frustum,
+            );
             animation
                 .bind_mut()
                 .set_sampling(lod.samples_frame(frame, *id));
@@ -983,9 +990,68 @@ impl WorldUnits {
     }
 }
 
+/// The NPC animation rate for model-space `bounds` placed by `world_from_model`: by
+/// the model's camera distance and whether its world box is in the view `frustum`,
+/// the doodad box-vs-frustum test (`SceneryDistance::box_in_frustum`).
+fn npc_animation_lod(
+    (min, max): (Vector3, Vector3),
+    world_from_model: Affine3A,
+    camera: Vec3,
+    frustum: &[HalfSpace],
+) -> AnimationLod {
+    let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
+    let in_frustum =
+        SceneryDistance::new(to_glam(min), to_glam(max), world_from_model).box_in_frustum(frustum);
+    AnimationLod::new(
+        Vec3::from(world_from_model.translation).distance(camera),
+        in_frustum,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A camera at the origin looking down -Z with a 90° view, near 0.05, far 1000.
+    fn forward_frustum() -> Vec<HalfSpace> {
+        [
+            (Vec3::new(0.0, 0.0, -1.0), -0.05),
+            (Vec3::new(0.0, 0.0, 1.0), 1000.0),
+            (Vec3::new(1.0, 0.0, -1.0), 0.0),
+            (Vec3::new(-1.0, 0.0, -1.0), 0.0),
+            (Vec3::new(0.0, 1.0, -1.0), 0.0),
+            (Vec3::new(0.0, -1.0, -1.0), 0.0),
+        ]
+        .into_iter()
+        .map(|(normal, d)| HalfSpace { normal, d })
+        .collect()
+    }
+
+    /// The rate of a 1-yard NPC box centered at `position` seen from the origin.
+    fn lod_at(position: Vec3) -> AnimationLod {
+        npc_animation_lod(
+            (Vector3::splat(-0.5), Vector3::splat(0.5)),
+            Affine3A::from_translation(position),
+            Vec3::ZERO,
+            &forward_frustum(),
+        )
+    }
+
+    /// NPC animation LOD from bounds and the view frustum alone, so it is the same with
+    /// or without a renderer: in view it samples by distance, out of view or beyond
+    /// 60 yd it freezes.
+    #[test]
+    fn npc_animation_lod_samples_in_the_frustum_and_freezes_outside_or_far() {
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -10.0)), AnimationLod::Full);
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -45.0)), AnimationLod::Half);
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, -70.0)), AnimationLod::Frozen);
+        assert_eq!(lod_at(Vec3::new(0.0, 0.0, 10.0)), AnimationLod::Frozen);
+        assert_eq!(lod_at(Vec3::new(13.0, 0.0, -10.0)), AnimationLod::Frozen);
+        // A box straddling the frustum edge is in view.
+        assert_eq!(lod_at(Vec3::new(10.3, 0.0, -10.0)), AnimationLod::Full);
+        assert!(lod_at(Vec3::new(0.0, 0.0, -10.0)).samples_frame(7, 3));
+        assert!(!lod_at(Vec3::new(0.0, 0.0, 10.0)).samples_frame(7, 3));
+    }
 
     const PLAYER_ID: u64 = 42;
 

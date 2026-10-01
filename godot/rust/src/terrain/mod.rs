@@ -3,7 +3,7 @@ mod assets;
 pub(crate) mod material;
 pub(crate) mod objects;
 mod probe;
-mod scenery;
+pub(crate) mod scenery;
 pub(crate) mod state;
 pub(crate) mod streaming;
 mod textures;
