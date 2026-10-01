@@ -1,7 +1,15 @@
 //! Authored player and creature visual children for replicated units.
-use std::{collections::HashMap, f32::consts::FRAC_PI_2, path::PathBuf};
+use std::{
+    collections::HashMap,
+    f32::consts::FRAC_PI_2,
+    path::PathBuf,
+    sync::{Arc, Mutex, OnceLock},
+};
 
-use game_engine_core::creature_display_data::{CreatureDisplay, query_display};
+use game_engine_core::{
+    asset_loader::{AssetLoader, Priority},
+    creature_display_data::{CreatureDisplay, query_display},
+};
 use godot::{
     classes::{MeshInstance3D, Node3D, ShaderMaterial, VisibleOnScreenNotifier3D},
     prelude::*,
@@ -12,10 +20,13 @@ use shared::components::{EquipmentAppearance, EquipmentVisualSlot, Player, Sheat
 use crate::{
     animation::WowAnimationPlayer,
     assets::{
-        appearance::NpcAppearances,
-        creature::{CreatureGear, load_creature_model},
+        appearance::{NpcAppearances, PreparedNpc},
+        creature::{
+            CreatureGear, CreatureModelParts, build_creature_model, insert_decoded_textures,
+            local_resolver, prepare_creature_model,
+        },
         equipment::place_equipment,
-        player::load_player_model,
+        player::{PlayerParts, build_player_model, prepare_player_parts},
     },
     equipment_appearance_data::{
         EquipmentSlot, resolve_equipment_appearance, visual_slot_to_runtime_slots,
@@ -56,7 +67,7 @@ fn mesh_bounds(model: &Gd<Node3D>) -> Aabb {
         .unwrap_or_default()
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub(crate) enum UnitAppearance {
     /// A creature display and its virtual items (`creature_equip_template`).
     Creature {
@@ -74,9 +85,12 @@ impl UnitAppearance {
         }
     }
 
-    pub fn same_player_model(&self, other: &Self) -> bool {
-        matches!((self, other), (Self::Player(left, _), Self::Player(right, _))
-            if left.race == right.race && left.appearance.sex == right.appearance.sex)
+    /// A player's body model: its race and sex.
+    pub fn player_model(&self) -> Option<(u8, u8)> {
+        match self {
+            Self::Player(player, _) => Some((player.race, player.appearance.sex)),
+            Self::Creature { .. } => None,
+        }
     }
 }
 
@@ -93,31 +107,217 @@ fn transfer_player_playback(previous: &Gd<Node3D>, replacement: &Gd<Node3D>) -> 
         .transfer_playback_from(&mut old_animation.bind_mut())
 }
 
-pub(crate) struct WorldModels {
+/// Two workers: one unit's cold extraction does not hold up the next.
+const WORKERS: usize = 2;
+
+/// What a worker loads for one unit visual.
+enum VisualRequest {
+    Creature {
+        display_id: u32,
+        items: EquipmentAppearance,
+        sheath: SheathState,
+    },
+    Player(Player, EquipmentAppearance),
+}
+
+/// A unit visual with its file work done: `WorldModels::build_visual` makes its nodes.
+pub(crate) enum VisualParts {
+    Creature {
+        display_id: u32,
+        display: CreatureDisplay,
+        npc: Option<PreparedNpc>,
+        gear: CreatureGear,
+        model: CreatureModelParts,
+    },
+    Player(PlayerParts),
+}
+
+/// The catalogs unit visuals read, shared by the main thread and the workers; each
+/// loads once, on a worker at startup, so no frame waits for it.
+struct VisualCatalogs {
     data_root: PathBuf,
-    catalog: Option<Connection>,
+    /// `cache/creature_display.sqlite`, opened on first use.
+    displays: Mutex<Option<Connection>>,
+    appearances: Mutex<NpcAppearances>,
+    /// Creature pose and gear rows; an error stays.
+    gear: OnceLock<Result<NpcGearData, String>>,
+    outfit: OutfitData,
+}
+
+impl VisualCatalogs {
+    fn gear(&self) -> Result<&NpcGearData, String> {
+        self.gear
+            .get_or_init(|| {
+                let dir = self.data_root.join("db2/12.1.0.69933");
+                NpcGearData::load(&dir).map_err(|error| format!("NPC pose and gear: {error}"))
+            })
+            .as_ref()
+            .map_err(Clone::clone)
+    }
+
+    fn query_display(&self, display_id: u32) -> Result<CreatureDisplay, String> {
+        let path = self.data_root.join("cache/creature_display.sqlite");
+        let mut displays = self.displays.lock().expect("creature display catalog");
+        if displays.is_none() {
+            let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .map_err(|error| format!("Cannot open {}: {error}", path.display()))?;
+            *displays = Some(connection);
+        }
+        let connection = displays.as_ref().expect("Catalog opened above");
+        query_display(connection, display_id)
+            .map_err(|error| {
+                format!(
+                    "Cannot query display {display_id} in {}: {error}",
+                    path.display()
+                )
+            })?
+            .ok_or_else(|| {
+                format!(
+                    "Creature display {display_id} absent from {}",
+                    path.display()
+                )
+            })
+    }
+
+    fn load(&self, request: VisualRequest) -> Result<VisualParts, String> {
+        match request {
+            VisualRequest::Creature {
+                display_id,
+                items,
+                sheath,
+            } => self.load_creature(display_id, &items, sheath),
+            VisualRequest::Player(player, equipment) => Ok(VisualParts::Player(
+                prepare_player_parts(&self.data_root, &player, &equipment)?,
+            )),
+        }
+    }
+
+    fn load_creature(
+        &self,
+        display_id: u32,
+        items: &EquipmentAppearance,
+        sheath: SheathState,
+    ) -> Result<VisualParts, String> {
+        let display = self.query_display(display_id)?;
+        let armor = self.gear()?.display_armor(display_id)?;
+        let npc = self.appearances.lock().expect("NPC appearances").prepare(
+            &self.data_root,
+            display_id,
+            |race, sex| resolve_equipment_appearance(&armor, &self.outfit, race, sex),
+        )?;
+        let (race, sex) = npc.as_ref().map_or((0, 0), |npc| (npc.race, npc.sex));
+        let gear = CreatureGear {
+            armor_models: npc
+                .as_ref()
+                .map_or_else(Vec::new, |npc| npc.armor.runtime_models.clone()),
+            items: self.virtual_item_models(display_id, items, sheath, race, sex)?,
+        };
+        let resolver = local_resolver(&self.data_root);
+        let model = prepare_creature_model(&resolver, &self.data_root, &display, &gear)?;
+        Ok(VisualParts::Creature {
+            display_id,
+            display,
+            npc,
+            gear,
+            model,
+        })
+    }
+
+    /// Each virtual item's models with the attachment `sheath` places it on; an item
+    /// that does not resolve is reported and left out.
+    fn virtual_item_models(
+        &self,
+        display_id: u32,
+        items: &EquipmentAppearance,
+        sheath: SheathState,
+        race: u8,
+        sex: u8,
+    ) -> Result<
+        Vec<(
+            crate::equipment_appearance_data::RuntimeModelAppearance,
+            Option<u32>,
+        )>,
+        String,
+    > {
+        let gear = self.gear()?;
+        let mut models = Vec::new();
+        for entry in &items.entries {
+            let attachment = gear.virtual_item_placement(entry, sheath);
+            let single = EquipmentAppearance {
+                entries: vec![entry.clone()],
+            };
+            match resolve_equipment_appearance(&single, &self.outfit, race, sex) {
+                Ok(resolved) => models.extend(
+                    resolved
+                        .runtime_models
+                        .into_iter()
+                        .map(|model| (model, attachment)),
+                ),
+                Err(error) => godot_error!(
+                    "Creature display {display_id} virtual item {:?}: {error}",
+                    entry.item_id
+                ),
+            }
+        }
+        Ok(models)
+    }
+}
+
+/// Unit visuals: workers do the file work of each requested appearance (extraction,
+/// parsing, texture composition and decoding) and the main thread makes its nodes.
+pub(crate) struct WorldModels {
+    catalogs: Arc<VisualCatalogs>,
     player_displays: Option<Result<HashMap<(u8, u8), u32>, String>>,
-    appearances: NpcAppearances,
-    /// Creature pose and gear rows, loaded with the first creature; an error stays.
-    gear: Option<Result<NpcGearData, String>>,
-    outfit: Option<OutfitData>,
+    loader: AssetLoader<u64, VisualParts>,
+    /// Requests the workers have not taken yet, by request ID.
+    requests: Arc<Mutex<HashMap<u64, VisualRequest>>>,
+    next_request: u64,
 }
 
 impl WorldModels {
     pub fn new(data_root: PathBuf) -> Self {
-        Self {
+        let catalogs = Arc::new(VisualCatalogs {
+            outfit: OutfitData::load(&data_root),
             data_root,
-            catalog: None,
+            displays: Mutex::new(None),
+            appearances: Mutex::new(NpcAppearances::default()),
+            gear: OnceLock::new(),
+        });
+        let requests: Arc<Mutex<HashMap<u64, VisualRequest>>> = Arc::default();
+        let loader = {
+            let catalogs = Arc::clone(&catalogs);
+            let requests = Arc::clone(&requests);
+            AssetLoader::new("unit-visuals", WORKERS, move |id: &u64| {
+                let request = requests
+                    .lock()
+                    .expect("unit visual requests")
+                    .remove(id)
+                    .expect("each request is loaded once");
+                catalogs.load(request)
+            })
+        };
+        let warm = Arc::clone(&catalogs);
+        loader.run(
+            move || {
+                if let Err(error) = warm.gear() {
+                    godot_error!("{error}");
+                }
+                warm.outfit.resolve_outfit(1, 1, 0);
+            },
+            Priority::Now,
+        );
+        Self {
+            catalogs,
             player_displays: None,
-            appearances: NpcAppearances::default(),
-            gear: None,
-            outfit: None,
+            loader,
+            requests,
+            next_request: 0,
         }
     }
 
     /// Native player display from the same build-pinned ChrModel rows as unit voices.
     pub fn player_native_display(&mut self, player: &Player) -> Result<u32, String> {
-        let dir = self.data_root.join("db2/12.1.0.69933");
+        let dir = self.catalogs.data_root.join("db2/12.1.0.69933");
         let displays = self
             .player_displays
             .get_or_insert_with(|| game_engine_core::spell_visual::player_displays(&dir))
@@ -135,21 +335,13 @@ impl WorldModels {
     }
 
     /// The build-pinned DB2 pose and gear rows (`NpcGearData`).
-    pub fn gear(&mut self) -> Result<&NpcGearData, String> {
-        let data_root = &self.data_root;
-        self.gear
-            .get_or_insert_with(|| {
-                let dir = data_root.join("db2/12.1.0.69933");
-                NpcGearData::load(&dir).map_err(|error| format!("NPC pose and gear: {error}"))
-            })
-            .as_ref()
-            .map_err(Clone::clone)
+    pub fn gear(&self) -> Result<&NpcGearData, String> {
+        self.catalogs.gear()
     }
 
-    fn outfit(&mut self) -> &OutfitData {
-        let data_root = &self.data_root;
-        self.outfit
-            .get_or_insert_with(|| OutfitData::load(data_root))
+    #[cfg(test)]
+    fn outfit(&self) -> &OutfitData {
+        &self.catalogs.outfit
     }
 
     /// Where each of a creature's virtual item models goes under `sheath`.
@@ -169,67 +361,6 @@ impl WorldModels {
                     .map(move |slot| (slot, attachment))
             })
             .collect())
-    }
-
-    fn query_display(&mut self, display_id: u32) -> Result<CreatureDisplay, String> {
-        let path = self.data_root.join("cache/creature_display.sqlite");
-        if self.catalog.is_none() {
-            let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-                .map_err(|error| format!("Cannot open {}: {error}", path.display()))?;
-            self.catalog = Some(connection);
-        }
-        let connection = self.catalog.as_ref().expect("Catalog opened above");
-        query_display(connection, display_id)
-            .map_err(|error| {
-                format!(
-                    "Cannot query display {display_id} in {}: {error}",
-                    path.display()
-                )
-            })?
-            .ok_or_else(|| {
-                format!(
-                    "Creature display {display_id} absent from {}",
-                    path.display()
-                )
-            })
-    }
-
-    pub fn load_visual(
-        &mut self,
-        appearance: &UnitAppearance,
-        sheath: SheathState,
-        previous_player: Option<&Gd<Node3D>>,
-    ) -> Result<Gd<Node3D>, String> {
-        match appearance {
-            UnitAppearance::Creature { display_id, items } => {
-                self.load_creature_visual(*display_id, items, sheath)
-            }
-            UnitAppearance::Player(player, equipment) => {
-                self.load_player_visual(player, equipment, sheath, previous_player)
-            }
-        }
-    }
-
-    fn load_player_visual(
-        &mut self,
-        player: &Player,
-        equipment: &EquipmentAppearance,
-        sheath: SheathState,
-        previous_player: Option<&Gd<Node3D>>,
-    ) -> Result<Gd<Node3D>, String> {
-        let mut model = load_player_model(&self.data_root, player, equipment)?;
-        model.set_name("PlayerModel");
-        let placed = self
-            .player_weapon_placements(equipment, sheath)
-            .and_then(|placements| place_items(&model, &placements));
-        let transferred = previous_player.map_or(Ok(()), |previous| {
-            transfer_player_playback(previous, &model)
-        });
-        if let Err(error) = placed.and(transferred) {
-            model.free();
-            return Err(error);
-        }
-        Ok(model)
     }
 
     /// Where a player's weapons sit under `sheath`: drawn in the hands or at their
@@ -257,34 +388,105 @@ impl WorldModels {
         self.virtual_item_placements(&weapons, sheath)
     }
 
-    fn load_creature_visual(
-        &mut self,
-        display_id: u32,
-        items: &EquipmentAppearance,
-        sheath: SheathState,
-    ) -> Result<Gd<Node3D>, String> {
-        let display = self.query_display(display_id)?;
-        let armor = self.gear()?.display_armor(display_id)?;
-        let outfit = self
-            .outfit
-            .get_or_insert_with(|| OutfitData::load(&self.data_root));
-        let prepared = self
-            .appearances
-            .prepare(&self.data_root, display_id, |race, sex| {
-                resolve_equipment_appearance(&armor, outfit, race, sex)
-            })?;
-        let (race, sex) = prepared.as_ref().map_or((0, 0), |npc| (npc.race, npc.sex));
-        let gear = CreatureGear {
-            armor_models: prepared
-                .as_ref()
-                .map_or_else(Vec::new, |npc| npc.armor.runtime_models.clone()),
-            items: self.virtual_item_models(display_id, items, sheath, race, sex)?,
+    /// Start loading the visual of `appearance` (its virtual items placed for `sheath`);
+    /// `poll` hands it out under the returned request ID. Players load ahead of
+    /// creatures: the loading screen waits for the local player's model.
+    pub fn request(&mut self, appearance: &UnitAppearance, sheath: SheathState) -> u64 {
+        let (request, priority) = match appearance {
+            UnitAppearance::Creature { display_id, items } => (
+                VisualRequest::Creature {
+                    display_id: *display_id,
+                    items: items.clone(),
+                    sheath,
+                },
+                Priority::Later,
+            ),
+            UnitAppearance::Player(player, equipment) => (
+                VisualRequest::Player(player.clone(), equipment.clone()),
+                Priority::Now,
+            ),
         };
-        let (mut model, missing) = load_creature_model(
-            &self.data_root,
-            &display,
-            prepared.as_ref().map(|npc| &npc.appearance),
-            &gear,
+        let id = self.next_request;
+        self.next_request += 1;
+        self.requests
+            .lock()
+            .expect("unit visual requests")
+            .insert(id, request);
+        self.loader.request(id, priority);
+        id
+    }
+
+    /// Requested visuals whose file work finished since the last call.
+    pub fn poll(&mut self) -> Vec<(u64, Result<VisualParts, String>)> {
+        self.loader.poll()
+    }
+
+    /// Main thread: the nodes of `parts`; a player visual replacing `previous_player`
+    /// continues its playback.
+    pub fn build_visual(
+        &self,
+        parts: VisualParts,
+        previous_player: Option<&Gd<Node3D>>,
+    ) -> Result<Gd<Node3D>, String> {
+        match parts {
+            VisualParts::Creature {
+                display_id,
+                display,
+                npc,
+                gear,
+                model,
+            } => self.build_creature_visual(display_id, &display, npc, &gear, model),
+            VisualParts::Player(parts) => self.build_player_visual(parts, previous_player),
+        }
+    }
+
+    /// Main thread: keep the textures a discarded visual's worker decoded, as no other
+    /// worker decodes them again.
+    pub fn discard(&self, parts: VisualParts) {
+        let textures = match parts {
+            VisualParts::Creature { model, .. } => model.textures,
+            VisualParts::Player(parts) => parts.into_textures(),
+        };
+        if let Err(error) = insert_decoded_textures(&self.catalogs.data_root, textures) {
+            godot_error!("{error}");
+        }
+    }
+
+    fn build_player_visual(
+        &self,
+        parts: PlayerParts,
+        previous_player: Option<&Gd<Node3D>>,
+    ) -> Result<Gd<Node3D>, String> {
+        let catalogs = &self.catalogs;
+        let mut model = build_player_model(&catalogs.data_root, parts)?;
+        model.set_name("PlayerModel");
+        // Its weapons are placed for the sheath state by the sync that follows the attach.
+        if let Some(previous) = previous_player
+            && let Err(error) = transfer_player_playback(previous, &model)
+        {
+            model.free();
+            return Err(error);
+        }
+        Ok(model)
+    }
+
+    fn build_creature_visual(
+        &self,
+        display_id: u32,
+        display: &CreatureDisplay,
+        npc: Option<PreparedNpc>,
+        gear: &CreatureGear,
+        parts: CreatureModelParts,
+    ) -> Result<Gd<Node3D>, String> {
+        let catalogs = &self.catalogs;
+        insert_decoded_textures(&catalogs.data_root, parts.textures)?;
+        let appearance = npc.map(|npc| npc.appearance.into_prepared()).transpose()?;
+        let (mut model, missing) = build_creature_model(
+            &catalogs.data_root,
+            display,
+            &parts.model,
+            appearance.as_ref(),
+            gear,
         )?;
         if !missing.is_empty() {
             godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
@@ -306,52 +508,6 @@ impl WorldModels {
         visual.set_rotation(Vector3::new(0.0, -FRAC_PI_2, 0.0));
         visual.add_child(&model);
         Ok(visual)
-    }
-
-    /// Each virtual item's models with the attachment `sheath` places it on; an item
-    /// that does not resolve is reported and left out.
-    fn virtual_item_models(
-        &mut self,
-        display_id: u32,
-        items: &EquipmentAppearance,
-        sheath: SheathState,
-        race: u8,
-        sex: u8,
-    ) -> Result<
-        Vec<(
-            crate::equipment_appearance_data::RuntimeModelAppearance,
-            Option<u32>,
-        )>,
-        String,
-    > {
-        let placements: Vec<_> = {
-            let gear = self.gear()?;
-            items
-                .entries
-                .iter()
-                .map(|entry| (entry.clone(), gear.virtual_item_placement(entry, sheath)))
-                .collect()
-        };
-        let outfit = self.outfit();
-        let mut models = Vec::new();
-        for (entry, attachment) in placements {
-            let single = EquipmentAppearance {
-                entries: vec![entry.clone()],
-            };
-            match resolve_equipment_appearance(&single, outfit, race, sex) {
-                Ok(resolved) => models.extend(
-                    resolved
-                        .runtime_models
-                        .into_iter()
-                        .map(|model| (model, attachment)),
-                ),
-                Err(error) => godot_error!(
-                    "Creature display {display_id} virtual item {:?}: {error}",
-                    entry.item_id
-                ),
-            }
-        }
-        Ok(models)
     }
 }
 
@@ -409,7 +565,7 @@ mod tests {
     #[test]
     fn stockade_guard_display_armor_resolves_to_body_geosets() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone());
+        let models = WorldModels::new(data_root.clone());
         let armor = models.gear().unwrap().display_armor(2989).unwrap();
         let resolved = resolve_equipment_appearance(&armor, models.outfit(), 1, 0).unwrap();
         for geoset in [(4, 2), (5, 2), (20, 2), (12, 2)] {

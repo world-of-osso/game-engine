@@ -57,6 +57,7 @@ Focused proof records historical main-thread network **8/8**, migrated API **55/
 ## See Also
 
 - [[nameplate-design]] — cast state consumer and planned display policy
+- [[godot-replication]] — the Godot client's replicon receive side without an ECS replica
 
 ## Auth Flow
 

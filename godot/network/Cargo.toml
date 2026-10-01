@@ -4,8 +4,20 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 
+[features]
+# `Replica` constructors that bypass the wire, for host crates' unit tests.
+test-util = []
+
 [dependencies]
 bevy = { version = "0.19", default-features = false, features = ["bevy_state"] }
 lightyear = { version = "0.28", features = ["client", "netcode", "replication", "udp"] }
 bevy_replicon = { version = "0.41.1", default-features = false, features = ["client"] }
+# Named directly to disable lightyear's replicon client and read its payload channels.
+lightyear_replication = { version = "0.28", default-features = false }
+lightyear_transport = { version = "0.28", default-features = false }
+serde = "1"
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
+
+[dev-dependencies]
+# Tap decoded fingerprints before shared's validation without consuming the messages.
+lightyear_messages = { version = "0.28", default-features = false }

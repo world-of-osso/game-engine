@@ -18,15 +18,12 @@ uniform vec4 floats_8 = vec4(0.0);
 // LiquidType.Color[0]; LiquidFog.cpp packs it as fogColor with alpha 1.
 uniform vec3 liquid_color_0 = vec3(0.0);
 
-// Scene fog in linear RGB, as the terrain shader.
-uniform vec3 fog_color;
-uniform vec2 fog_range;
-uniform float fog_density;
-uniform float fog_opacity;
-uniform int fog_mode = 0;
+#include "res://shaders/retail_fog.gdshaderinc"
 
 const float DEGREES = 0.017453292;
 
+// WMO liquids carry their texture coordinates (wmoGroupGeom.cpp:566-575).
+uniform bool mesh_uv = false;
 varying vec3 wow_position;
 varying float vertex_depth;
 
@@ -69,15 +66,9 @@ float scene_view_depth(sampler2D depth, vec2 uv, mat4 inverse_projection) {
 	return -view.z / view.w;
 }
 
-vec3 apply_retail_fog(vec3 color, float distance_to_camera) {
-	float amount = 0.0;
-	if (fog_mode == 1) {
-		// commonFogFunctions.slang calculateLegacyFog, without height fog.
-		float exp_fog = exp(-max(0.0, distance_to_camera - fog_range.x) * fog_density);
-		float end_fade = clamp(1.42857146 * (1.0 - distance_to_camera / fog_range.y), 0.0, 1.0);
-		amount = 1.0 - min(exp_fog, end_fade);
-	}
-	return mix(color, linear_to_gamma(fog_color), amount * fog_opacity);
+// makeFog2 on the liquid's view-space fragment (liquid materials blend as mode 2).
+vec3 apply_retail_fog(vec3 color, vec3 view_position, mat4 inv_view) {
+	return retail_fog(color, (inv_view * vec4(view_position, 1.0)).xyz, inv_view[3].xyz, 2);
 }
 
 void vertex() {
@@ -98,7 +89,7 @@ void fragment() {
 
 	// Exterior ADT liquid maps world position * 0.06 (LiquidInstance.cpp
 	// generateTexCoordsFromPos); two rotated/scaled layers scrolled along u by f9/f10 (v27).
-	vec2 uv = wow_position.xy * 0.06;
+	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;
 	vec2 uv_0 = rotate_scale(uv, f5, f3) + vec2(scroll_component(time, f9), 0.0);
 	vec2 uv_1 = rotate_scale(uv + 0.5, f5, f4) + vec2(scroll_component(time, f10), 0.0);
 	vec4 layer_0 = texture(texture_0, uv_0);  // v28
@@ -126,7 +117,7 @@ void fragment() {
 	float alpha = (1.0 - transmittance) * authored_depth;  // v49
 
 	vec3 color = liquid_color_0;  // v50, fogColor.rgb * fogColor.a with a = 1
-	color = apply_retail_fog(color, distance_to_camera);
+	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = gamma_to_linear(color);
 	ALPHA = alpha;
 }

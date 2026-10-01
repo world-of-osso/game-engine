@@ -17,15 +17,16 @@ impl GameClient {
     ) -> Result<(), FrameError> {
         match message {
             CombatMessage::Event(event) => {
-                self.spell_effects.observe_melee(&event);
-                Ok(self.world.apply_combat_event(&event)?)
+                let voiced = self.spell_effects.observe_melee(&event, &self.world);
+                self.world.apply_combat_event(&event)?;
+                Ok(voiced?)
             }
             CombatMessage::SpellGo(go) => {
                 self.auto_attack_post_cast(&go)?;
                 let started = Instant::now();
                 let shown = self
                     .spell_effects
-                    .spell_go(&go, &self.units, &mut self.world);
+                    .spell_go(&go, &self.replica, &mut self.world);
                 self.spell_effects.add_busy(started.elapsed());
                 Ok(shown?)
             }
@@ -46,12 +47,14 @@ impl GameClient {
             Some(local) => self.spell_effects.prefetch(
                 local,
                 self.account.spells.known(),
-                &self.units,
+                &self.replica,
                 &self.world,
             ),
             None => Ok(()),
         };
-        let held = self.spell_effects.sync_casts(&self.units, &mut self.world);
+        let held = self
+            .spell_effects
+            .sync_casts(&self.replica, &mut self.world);
         let camera = self.world_camera.transform();
         let sound = &self.client_options.sound;
         let gain = if sound.muted {

@@ -10,12 +10,13 @@
 
 use game_engine_core::spell_catalog::SpellAutoAttack;
 use game_engine_session::SessionScreen;
-use shared::components::UnitFlags;
+use shared::components::{Health, Player, UnitFlags};
 use shared::faction_reaction::{Unit, can_attack};
 use shared::protocol::{AttackStart, AttackStopped, SpellGo};
 
 use crate::GameClient;
 use crate::frame_error::SessionError;
+use crate::replicated::UnitFields;
 
 /// `Auto Attack`.
 const AUTO_ATTACK_SPELL: u32 = 6603;
@@ -33,18 +34,20 @@ impl GameClient {
         let Some(player) = self.world.local_player_id() else {
             return false;
         };
-        let (Some(me), Some(unit)) = (self.units.get(&player), self.units.get(&id)) else {
+        let (Some(me), Some(unit)) = (self.replica.unit(player), self.replica.unit(id)) else {
             return false;
         };
-        let alive = unit.health.is_none_or(|health| health.current > 0.0);
+        let alive = unit
+            .get::<Health>()
+            .is_none_or(|health| health.current > 0.0);
         let selectable = unit
-            .unit_flags
+            .unit_flags()
             .is_none_or(|flags| UnitFlags(flags).is_selectable());
         if id == player || !alive || !selectable {
             return false;
         }
-        let (own, other) = (me.faction_template, unit.faction_template);
-        let other_is_player = unit.player.is_some();
+        let (own, other) = (me.faction_template(), unit.faction_template());
+        let other_is_player = unit.has::<Player>();
         let Ok(templates) = self.nameplates.templates(&self.data_root) else {
             return false;
         };

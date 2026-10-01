@@ -9,6 +9,9 @@ use game_engine_core::{
     lighting_assets::{
         LightKeyframes, linear_to_authored_rgb, parse_light_csv, parse_light_data_csv,
     },
+    retail_fog::{
+        FogKeyframes, FogResult, parse_fog_keyframes, sample_fog_blend, sun_fog_direction,
+    },
     retail_light_data::{RetailLightColors, RetailLightData, scene_light},
     sky_lightdata_data::{RetailFog, SkyColorSet, retail_fog, sample_light_blend},
 };
@@ -17,8 +20,10 @@ pub(crate) struct LightingCatalog {
     lights: Vec<LightEntry>,
     zone_lights: Vec<ZoneLight>,
     keyframes: LightKeyframes,
-    /// `LightParams` Water/Ocean Shallow/Deep alphas by LightParams ID.
+    fog_keyframes: FogKeyframes,
+    /// `LightParams` Water/Ocean Shallow/Deep alphas and flags by LightParams ID.
     liquid_alphas: HashMap<u32, LiquidAlphas>,
+    light_params_flags: HashMap<u32, u32>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -29,7 +34,9 @@ struct LiquidAlphas {
 
 pub(crate) struct LightingSample {
     pub retail: RetailLightData,
-    pub fog: RetailFog,
+    pub fog: FogResult,
+    /// World direction toward the sun disc, for the fog's sun scattering.
+    pub fog_sun_direction: [f32; 3],
     pub sky: SkyColorSet<[f32; 3]>,
     pub water: WaterLight,
 }
@@ -55,20 +62,25 @@ impl LightingCatalog {
         let keyframes_path = data_root.join("LightData.csv");
         let lights = parse_light_csv(&read_text(&lights_path)?)
             .map_err(|error| format!("{}: {error}", lights_path.display()))?;
-        let keyframes = parse_light_data_csv(&read_text(&keyframes_path)?)
+        let keyframes_text = read_text(&keyframes_path)?;
+        let keyframes = parse_light_data_csv(&keyframes_text)
+            .map_err(|error| format!("{}: {error}", keyframes_path.display()))?;
+        let fog_keyframes = parse_fog_keyframes(&keyframes_text)
             .map_err(|error| format!("{}: {error}", keyframes_path.display()))?;
         let zone_lights = parse_zone_lights(
             &read_text(&data_root.join("ZoneLight.csv"))?,
             &read_text(&data_root.join("ZoneLightPoint.csv"))?,
         )
         .map_err(|error| format!("{}: {error}", data_root.display()))?;
-        let liquid_alphas =
-            parse_liquid_alphas(&data_root.join("db2/12.1.0.69933/LightParams.csv"))?;
+        let (liquid_alphas, light_params_flags) =
+            parse_light_params(&data_root.join("db2/12.1.0.69933/LightParams.csv"))?;
         Ok(Self {
             lights,
             zone_lights,
             keyframes,
+            fog_keyframes,
             liquid_alphas,
+            light_params_flags,
         })
     }
 
@@ -79,10 +91,20 @@ impl LightingCatalog {
         minutes: f32,
     ) -> Result<LightingSample, String> {
         let weights = self.blend_weights(map_id, wow_position, LightParamsSlot::Clear)?;
-        let sky = self.sample_sky(&weights, minutes, map_id, wow_position)?;
+        let mut sky = self.sample_sky(&weights, minutes, map_id, wow_position)?;
         let alphas = self.blend_liquid_alphas(&weights)?;
         let retail = scene_light(&retail_colors(&sky), minutes);
-        let fog = retail_fog(&sky);
+        let fog = sample_fog_blend(
+            &self.fog_keyframes,
+            &self.light_params_flags,
+            &weights,
+            minutes,
+        )
+        .ok_or_else(|| format!("No authored fog for map {map_id} at {wow_position:?}"))?;
+        // getLightResultsFromDB :850-851: the sky's fog band leans toward the end fog colour
+        // by farClip / EndFogColorDistance.
+        let toward_end = (FOG_FAR_CLIP / fog.end_fog_color_distance).clamp(0.0, 1.0);
+        sky.fog_color = lerp_rgb(sky.fog_color, fog.end_fog_color, toward_end);
         let mut water = WaterLight {
             river_close: with_alpha(sky.river_close_color, alphas.river[0]),
             river_far: with_alpha(sky.river_far_color, alphas.river[1]),
@@ -99,6 +121,7 @@ impl LightingCatalog {
         Ok(LightingSample {
             retail,
             fog,
+            fog_sun_direction: sun_fog_direction(minutes),
             sky,
             water,
         })
@@ -182,7 +205,13 @@ impl LightingCatalog {
     }
 }
 
-fn parse_liquid_alphas(path: &Path) -> Result<HashMap<u32, LiquidAlphas>, String> {
+/// WebWowViewerCpp's default far clip (`config.h:119`), as `retail_fog` uses.
+const FOG_FAR_CLIP: f32 = 1000.0;
+
+type LightParamsRows = (HashMap<u32, LiquidAlphas>, HashMap<u32, u32>);
+
+/// LightParams liquid alphas and flags by ID.
+fn parse_light_params(path: &Path) -> Result<LightParamsRows, String> {
     let text = read_text(path)?;
     let mut lines = text.lines();
     let header: Vec<_> = lines.next().unwrap_or("").split(',').collect();
@@ -198,7 +227,10 @@ fn parse_liquid_alphas(path: &Path) -> Result<HashMap<u32, LiquidAlphas>, String
         column("WaterDeepAlpha")?,
         column("OceanShallowAlpha")?,
         column("OceanDeepAlpha")?,
+        column("Flags")?,
     ];
+    let mut alphas = HashMap::new();
+    let mut flags = HashMap::new();
     lines
         .filter(|line| !line.is_empty())
         .map(|line| {
@@ -209,15 +241,17 @@ fn parse_liquid_alphas(path: &Path) -> Result<HashMap<u32, LiquidAlphas>, String
                     .and_then(|value| value.parse::<f32>().ok())
                     .ok_or_else(|| format!("{}: invalid row {line:?}", path.display()))
             };
-            Ok((
-                number(columns[0])? as u32,
-                LiquidAlphas {
-                    river: [number(columns[1])?, number(columns[2])?],
-                    ocean: [number(columns[3])?, number(columns[4])?],
-                },
-            ))
+            let id = number(columns[0])? as u32;
+            let liquid = LiquidAlphas {
+                river: [number(columns[1])?, number(columns[2])?],
+                ocean: [number(columns[3])?, number(columns[4])?],
+            };
+            alphas.insert(id, liquid);
+            flags.insert(id, number(columns[5])? as u32);
+            Ok(())
         })
-        .collect()
+        .collect::<Result<(), String>>()?;
+    Ok((alphas, flags))
 }
 
 /// MapSceneRenderer.cpp:312 underwater fog without data: start 0, end 1e8, density 0.

@@ -23,10 +23,11 @@ use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, T
 use godot::global::MouseButton;
 use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
+use shared::components::Position;
 use shared::protocol::{NpcFlags, QuestGiverStatus};
 use ui_toolkit::frame::WidgetData;
 
-use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use crate::{GameClient, frame_error::FrameError, replicated::UnitFields, ui::RegistryUi};
 
 /// Composite resolution: the 198-unit map at up to 1.3× UI scale without upsampling.
 const COMPOSITE_PX: u32 = 256;
@@ -181,23 +182,23 @@ impl GameClient {
 
     /// Bevy `quests.rs`: every mirrored NPC with `NPCFlags::QUESTGIVER` is queried once.
     fn query_quest_givers(&mut self) -> Result<(), FrameError> {
-        let units = &self.units;
+        let units = &self.replica;
         let removed: Vec<u64> = self
             .minimap
             .queried
             .iter()
             .copied()
-            .filter(|id| !units.contains_key(id))
+            .filter(|id| units.unit(*id).is_none())
             .collect();
         for id in removed {
             self.minimap.queried.remove(&id);
             self.account.quest_giver_status.remove(&id);
         }
         let new: Vec<u64> = self
-            .units
-            .values()
+            .replica
+            .units()
             .filter(|unit| {
-                unit.npc_flags
+                unit.npc_flags()
                     .is_some_and(|flags| flags & NpcFlags::QUESTGIVER != 0)
             })
             .map(|unit| unit.server_id)
@@ -298,7 +299,7 @@ impl GameClient {
                     QuestGiverStatus::Reward => BlipKind::QuestTurnIn,
                     _ => return None,
                 };
-                let position = self.units.get(&unit)?.position?;
+                let position = self.replica.unit(unit)?.get::<Position>()?;
                 let offset = view.blip_offset([position.x, position.z])?;
                 Some(MinimapBlip { unit, kind, offset })
             })

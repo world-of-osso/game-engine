@@ -79,13 +79,13 @@ impl GroupState {
         }
     }
 
-    /// Stores live states of current members; states for names not in the roster are
-    /// ignored.
+    /// Stores live states by name. The server sends states only of group members, but
+    /// within one tick its per-type message queues may put a new member's state ahead of
+    /// the roster that adds them; that state is kept (it is sent again only on change),
+    /// and [`Self::apply_roster`] drops states of names that are not online members.
     pub fn apply_member_states(&mut self, states: Vec<GroupMemberState>) {
         for state in states {
-            if self.member(&state.name).is_some() {
-                self.live.insert(state.name.clone(), state);
-            }
+            self.live.insert(state.name.clone(), state);
         }
     }
 

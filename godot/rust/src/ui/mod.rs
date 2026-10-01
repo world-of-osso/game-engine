@@ -37,6 +37,7 @@ use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
 use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
+use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, tooltip_frame_screen};
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
@@ -68,6 +69,7 @@ pub struct RegistryUi {
     actions: VecDeque<String>,
     /// Right-clicks and Shift-left-clicks: `(action, right, shift)`.
     alt_clicks: VecDeque<(String, bool, bool)>,
+    bag_inputs: Option<VecDeque<crate::bag_cursor::BagInput>>,
     pointer_clicks: u32,
     slider_events: VecDeque<SliderInput>,
     login_fade: Option<f32>,
@@ -203,7 +205,7 @@ impl RegistryModel {
         }
     }
 
-    fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
+    fn click_action(&mut self, id: u64) -> Option<String> {
         let disabled = self
             .registry
             .get(id)
@@ -212,8 +214,68 @@ impl RegistryModel {
                 matches!(data, WidgetData::Button(button)
                     if !button.enabled || button.state == ButtonState::Disabled)
             });
-        if !disabled && let Some(action) = self.registry.click_frame(id) {
+        if disabled {
+            return None;
+        }
+        self.registry.click_frame(id)
+    }
+
+    fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
+        if let Some(action) = self.click_action(id) {
             actions.push_back(action);
+        }
+    }
+
+    fn bag_input(
+        &mut self,
+        input: &UiInput,
+        projection: &UiProjection,
+    ) -> Option<crate::bag_cursor::BagInput> {
+        if let UiInput::PointerUp(at) = input {
+            return Some(crate::bag_cursor::BagInput::Release {
+                at: *at / self.registry.ui_scale,
+                physical_at: *at,
+                action: projection.pointer_action_at(&self.registry, *at),
+            });
+        }
+        self.bag_click_input(input)
+    }
+
+    fn bag_click_input(&mut self, input: &UiInput) -> Option<crate::bag_cursor::BagInput> {
+        use game_engine_ui_model::merchant::Click;
+        let (action, click, at) = match input {
+            UiInput::FrameClick { id, at } => (
+                self.click_action(*id)?,
+                Click::LEFT,
+                Some(*at / self.registry.ui_scale),
+            ),
+            UiInput::Click(id) => (self.click_action(*id)?, Click::LEFT, None),
+            UiInput::AltClick { id, right, shift } => {
+                let click = Click {
+                    right: *right,
+                    shift: *shift,
+                };
+                (self.registry.click_frame(*id)?, click, None)
+            }
+            _ => return None,
+        };
+        Some(crate::bag_cursor::BagInput::Click { action, click, at })
+    }
+
+    fn update_input_widgets(&mut self, event: UiInput, sliders: &mut VecDeque<SliderInput>) {
+        match event {
+            UiInput::Focus(id) => self.focus_frame(id),
+            UiInput::Blur(id) => self.blur_frame(id),
+            UiInput::Text(id, text) => self.edit_text(id, text),
+            UiInput::Hover(id, hovered) => self.set_button(id, |button| button.hovered = hovered),
+            UiInput::Press(id) => self.press_button(id, true),
+            UiInput::Release(id) => self.press_button(id, false),
+            UiInput::Slider(id, percent) => {
+                if let Some(input) = self.slider_input(id, percent) {
+                    sliders.push_back(input);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -323,6 +385,7 @@ impl ICanvasLayer for RegistryUi {
             projection: None,
             actions: VecDeque::new(),
             alt_clicks: VecDeque::new(),
+            bag_inputs: None,
             pointer_clicks: 0,
             slider_events: VecDeque::new(),
             login_fade: None,
@@ -344,6 +407,13 @@ pub fn create_login_ui(width: f32, height: f32) -> Result<Gd<RegistryUi>, String
 }
 
 impl RegistryUi {
+    /// Physical point: no hit, blocking frame, or frame with a click action.
+    pub(crate) fn pointer_action_at(&self, at: Vector2) -> Option<Option<String>> {
+        let model = self.model.as_ref()?;
+        let projection = self.projection.as_ref()?;
+        projection.pointer_action_at(&model.registry, at)
+    }
+
     fn initialize_login(&mut self, width: f32, height: f32) -> Result<(), String> {
         let LoginModel {
             screen,
@@ -453,6 +523,37 @@ impl RegistryUi {
         self.initialize_model(model, size.x, size.y)
     }
 
+    /// Project the original cursor icon and authored stack-split picker.
+    pub(crate) fn show_cursor_item(
+        &mut self,
+        view: crate::bag_cursor::CursorView,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            view,
+            crate::bag_cursor::cursor_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
+    /// Initialize the authored bag strip and standalone containers.
+    pub(crate) fn show_bags(&mut self, view: crate::bags::BagsView) -> Result<(), String> {
+        self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::None)?;
+        self.bag_inputs = Some(VecDeque::new());
+        Ok(())
+    }
+
+    pub(crate) fn drain_bag_inputs(&mut self) -> Result<Vec<crate::bag_cursor::BagInput>, String> {
+        let error = self.sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        let inputs = self
+            .bag_inputs
+            .as_mut()
+            .ok_or("Bags input not initialized")?;
+        Ok(inputs.drain(..).collect())
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail main action bar.
     pub fn show_main_action_bar(&mut self, state: MainActionBarState) -> Result<(), String> {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
@@ -473,6 +574,11 @@ impl RegistryUi {
     /// Initialize a dedicated RegistryUi instance for the player casting bar.
     pub fn show_casting_bar(&mut self, state: CastingBarState) -> Result<(), String> {
         self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
+    }
+
+    /// Project the original authored item tooltip without a second formatter.
+    pub(crate) fn show_item_tooltip(&mut self, state: TooltipPresentation) -> Result<(), String> {
+        self.show_viewport_screen(state, tooltip_frame_screen, ScreenPostsetup::None)
     }
 
     /// Initialize a dedicated RegistryUi instance for the spell tooltip.
@@ -730,6 +836,39 @@ impl RegistryUi {
     /// The registry as last laid out, for anchoring frames to other frames.
     pub fn registry(&self) -> Option<&FrameRegistry> {
         self.model.as_ref().map(|model| &model.registry)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the party and raid frames.
+    pub fn show_group_frames(
+        &mut self,
+        state: game_engine_ui_model::group_frames_component::GroupFramesState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::group_frames_component::group_frames_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
+    /// Initialize a dedicated RegistryUi instance for `StaticPopup1..3` (`PARTY_INVITE`),
+    /// on the `static_popup` dialog border.
+    pub fn show_static_popups(
+        &mut self,
+        state: game_engine_ui_model::static_popup_component::StaticPopupState,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_auction_popup_style(&mut registry);
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::static_popup_component::static_popup_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
     }
 
     /// Initialize a dedicated RegistryUi instance for the player BuffFrame and DebuffFrame.
@@ -1237,49 +1376,70 @@ impl RegistryUi {
 
     #[func]
     pub fn sync_input(&mut self) -> GString {
-        if let Err(error) = self.sync_viewport() {
-            return GString::from(error.as_str());
-        }
-        let Some(projection) = self.projection.as_mut() else {
-            return "Login UI is not initialized".into();
-        };
+        GString::from(self.sync_pending_input().err().unwrap_or_default().as_str())
+    }
+
+    fn sync_pending_input(&mut self) -> Result<(), String> {
+        self.sync_viewport()?;
+        let projection = self
+            .projection
+            .as_mut()
+            .ok_or("Login UI is not initialized")?;
         let inputs = projection.drain_input();
         if inputs.is_empty() {
-            return GString::new();
+            return Ok(());
         }
-        let Some(model) = self.model.as_mut() else {
-            return "Login model is not initialized".into();
-        };
         for event in inputs {
-            match event {
-                UiInput::Click(id) => model.queue_click_action(&mut self.actions, id),
-                UiInput::AltClick { id, right, shift } => {
-                    if let Some(action) = model.registry.click_frame(id) {
-                        self.alt_clicks.push_back((action, right, shift));
-                    }
-                }
-                UiInput::PointerDown(id) => {
-                    if model.pointer_click_eligible(id) {
-                        self.pointer_clicks += 1;
-                    }
-                }
-                UiInput::Focus(id) => model.focus_frame(id),
-                UiInput::Blur(id) => model.blur_frame(id),
-                UiInput::Text(id, text) => model.edit_text(id, text),
-                UiInput::Submit => model.submit(&mut self.actions),
-                UiInput::Hover(id, hovered) => {
-                    model.set_button(id, |button| button.hovered = hovered)
-                }
-                UiInput::Press(id) => model.press_button(id, true),
-                UiInput::Release(id) => model.press_button(id, false),
-                UiInput::Slider(id, percent) => {
-                    if let Some(input) = model.slider_input(id, percent) {
-                        self.slider_events.push_back(input);
-                    }
+            self.dispatch_ui_input(event)?;
+        }
+        self.sync_model()
+    }
+
+    fn queue_bag_input(&mut self, event: &UiInput) -> Result<bool, String> {
+        let Some(queue) = self.bag_inputs.as_mut() else {
+            return Ok(false);
+        };
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Login model is not initialized")?;
+        let projection = self
+            .projection
+            .as_ref()
+            .ok_or("Login UI is not initialized")?;
+        let Some(input) = model.bag_input(event, projection) else {
+            return Ok(false);
+        };
+        queue.push_back(input);
+        Ok(true)
+    }
+
+    fn dispatch_ui_input(&mut self, event: UiInput) -> Result<(), String> {
+        if self.queue_bag_input(&event)? {
+            return Ok(());
+        }
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Login model is not initialized")?;
+        match event {
+            UiInput::Click(id) | UiInput::FrameClick { id, .. } => {
+                model.queue_click_action(&mut self.actions, id);
+            }
+            UiInput::AltClick { id, right, shift } => {
+                if let Some(action) = model.registry.click_frame(id) {
+                    self.alt_clicks.push_back((action, right, shift));
                 }
             }
+            UiInput::PointerDown(id) => {
+                if model.pointer_click_eligible(id) {
+                    self.pointer_clicks += 1;
+                }
+            }
+            UiInput::Submit => model.submit(&mut self.actions),
+            other => model.update_input_widgets(other, &mut self.slider_events),
         }
-        GString::from(self.sync_model().err().unwrap_or_default().as_str())
+        Ok(())
     }
 
     pub fn sync_pointer_clicks(&mut self) -> Result<u32, String> {

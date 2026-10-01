@@ -26,7 +26,7 @@ pub const HELP_LINES: [&str; 6] = [
     "Chat: /s /say, /y /yell, /p /party, /g /guild, /e /emote",
     "Whisper: /w /whisper <name> <message>, /r /reply <message>",
     "Emotes: /dance /wave /sit /sleep /kneel",
-    "Social: /who <query>; Group: /invite /uninvite /promote <name>, /readycheck",
+    "Social: /who <query>; Group: /invite /uninvite /promote <name>, /leave, /readycheck",
     "Keys: Enter opens chat, / starts a command, R replies to the last whisper",
     "Up/Down recall sent lines; Escape closes the chat box",
 ];
@@ -469,6 +469,9 @@ pub fn parse_chat_input(line: &str, reply_target: Option<&str>) -> ChatCommand {
         "uninvite" | "un" | "u" | "kick" => named_group_command(rest, GroupCommand::Uninvite),
         "promote" | "pr" => named_group_command(rest, GroupCommand::Promote),
         "readycheck" | "rc" => ChatCommand::Group(GroupCommand::StartReadyCheck),
+        // Bare `/leave` leaves the party or raid (`C_PartyInfo.LeaveParty`); `/leave <n>`
+        // (chat channels) stays unsupported.
+        "leave" if rest.is_empty() => ChatCommand::Group(GroupCommand::Leave),
         "help" | "h" | "?" => ChatCommand::System(HELP_LINES.map(String::from).to_vec()),
         other => match emote_command(other) {
             Some(emote) => ChatCommand::Emote(emote),

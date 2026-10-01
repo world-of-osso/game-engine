@@ -50,6 +50,7 @@ pub mod collection;
 pub mod combat_feedback;
 #[path = "game/communities_data.rs"]
 pub mod communities_data;
+pub mod container_layout_data;
 #[path = "game/cooldown_data.rs"]
 pub mod cooldown_data;
 #[cfg(feature = "cpu-system-profile")]
@@ -116,6 +117,8 @@ pub mod item_catalog;
 pub mod item_icons;
 #[path = "game/equipment/item_info.rs"]
 pub mod item_info;
+#[path = "game/item_tooltip.rs"]
+pub mod item_tooltip;
 pub mod lfg;
 #[path = "game/lfg_data.rs"]
 pub mod lfg_data;
@@ -214,6 +217,8 @@ pub mod talent_tree;
 #[path = "game/taxi_state.rs"]
 pub mod taxi_state;
 pub mod test_harness;
+#[path = "ui/screens/tooltip_presentation.rs"]
+pub mod tooltip_presentation;
 pub mod trade;
 #[path = "game/trainer_data.rs"]
 pub mod trainer_data;
