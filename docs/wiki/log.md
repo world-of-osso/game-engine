@@ -2417,3 +2417,7 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 
 [Race and sex item files](systems/character-rendering.md#race-and-sex-item-files-2026-10-01): Component*FileData texture/model selection, ChrModel body chain, wowdev geoset group table, native sheath links, skinned collections with both model columns, player social emotes; named-character and 62-way race fixtures.
 
+
+## 2026-10-01 — Player stand state (standstate)
+
+[Animation](systems/animation.md): players hold the replicated `PlayerStandState` pose (SitGround 97, Sleep 100, SitChairLow/Med/High 102-104, KneelLoop 115) with down/up clips 96/98, 99/101, 114/116 on a change; X (`SITORSTAND`) and /sit, /sleep, /kneel send `StandStateIntent`; sit/sleep/kneel no longer play from `EmoteEvent`. Chairs (`GAMEOBJECT_TYPE_CHAIR`) render and right-click seats. Live: `godot/tests/player_stand_state_live.gd` (sitter, observer, `STAND_FOOD=1` bread phase); evidence `data/diagnostics/standstate2-2026-10-01/`.
