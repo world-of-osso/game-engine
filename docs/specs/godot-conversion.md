@@ -16,6 +16,10 @@ Bounded foreign-chat World rejection at `5f6782b5`: **MAIN observed GREEN; indep
 
 Standalone bag tooltip native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + oracle correction `88b0505f`: **MAIN-observed bounded GREEN; independent verifier1415 accepted bounded PASS after MAIN read the full report**. Corrected actual tooltip/content/placement/hiding, inspected Linen/Poor captures, CPU native5/shared4, registry2 and same-build drag/actions/cursor pass. Authentic `7e7b70af` RED101 retained; first GREEN attempt101 was a false oracle, not production failure. Pure gear formatter4 is not native gear-hover proof; paperdoll/NPC/global winner/nondefault scale/reset-runtime/all gear-line runtime/shutdown/full conversion remain unproved, inherited12 readability findings uncleared. [Owned checkpoint](../wiki/systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending) records exact evidence without extending accepted `ddc318d8` foreign gate or clearing inherited exclusions.
 
+### Prepared native merchant cursor fixture
+
+Independent fixture `d825108c`/`2c00a751`, MAIN registration `3cb53ab4`: **test-only preparation, no native production cursor implementation or actual RED yet**. First Native Depot/authenticated RED pending; no user game screen added. [SSOT oracle, exclusions and retained proofs](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--test-only-preparation-red-pending); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing product cursor policy remains unchanged; full conversion OPEN.
+
 ### Occupied startup equipment inventory
 
 - [ ] Preserve authoritative startup equipment across required coverage. Single MainHand startup native `5a3ebf7b` and original15-second merchant regression have MAIN-accepted independent1429 bounded PASS. Historical failures, inherited readability debt and unchanged startup/tooltip/pure proofs retained; no auth fix, general reliability or clean-resource/general-shutdown acceptance. Main goal/full conversion remain OPEN. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).

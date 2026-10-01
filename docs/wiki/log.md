@@ -1,3 +1,7 @@
+## 2026-09-30 — Merchant cursor test-only checkpoint
+
+[SSOT](systems/godot-conversion.md#native-merchant-cursor-buy--test-only-preparation-red-pending) records tests `d825108c`/`2c00a751`, MAIN registration `3cb53ab4`, literal Linen/embedded-slot Buy+COMMIT barrier, strict phases and intentional owned cleanup. First Native Depot/authenticated RED pending; no production cursor implementation or new user screen. Spec/parity links and invocation docs reconciled without changing product policy; accepted startup1429/tooltip1415 and existing merchant-click/bag scopes retained. Docs only; no builds/tests/gates/operations.
+
 ## 2026-09-30 — Startup equipment bounded acceptance reconciled
 
 MAIN read FULL and accepts independent1429 bounded PASS. [Acceptance SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) retains exact startup/actions, byte-equivalent extraction/direct4/helper18, required rendering assembly and original15-second merchant0/Loading2738ms/strict3opens3closes/successful child exit. Earlier pending entries and failures remain historical; auth cause, ObjectDB leak, inherited debt and full conversion remain unresolved. Docs only; no tests/builds/operations.
