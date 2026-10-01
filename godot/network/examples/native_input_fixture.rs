@@ -69,6 +69,8 @@ mod sound;
 mod sound_click;
 #[path = "native_input_fixture/swimming.rs"]
 mod swimming;
+#[path = "native_input_fixture/trade.rs"]
+mod trade;
 
 const NAME: &str = "Input Fixture";
 const SWIM_START: [f32; 3] = [-8558.0, 144.960_08, 522.0];
@@ -108,6 +110,7 @@ enum StartupScreen {
     PortalParticlesEnabled,
     PortalParticlesDisabled,
     PortalDensity,
+    Trade,
 }
 
 impl StartupScreen {
@@ -135,9 +138,10 @@ impl StartupScreen {
             Some("portal-particles-enabled") => Self::PortalParticlesEnabled,
             Some("portal-particles-disabled") => Self::PortalParticlesDisabled,
             Some("portal-density") => Self::PortalDensity,
+            Some("trade") => Self::Trade,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, merchant-cursor, loot, bags, bags-actions, bags-cursor, bags-drag, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled or portal-density"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, merchant-cursor, loot, bags, bags-actions, bags-cursor, bags-drag, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled, portal-density or trade"
                 )
             }
         };
@@ -169,7 +173,8 @@ impl StartupScreen {
             | Self::SettingsReload
             | Self::PortalParticlesEnabled
             | Self::PortalParticlesDisabled
-            | Self::PortalDensity => "inworld",
+            | Self::PortalDensity
+            | Self::Trade => "inworld",
         }
     }
 }
@@ -366,6 +371,7 @@ impl FixtureConfig {
                 | StartupScreen::BagsActions
                 | StartupScreen::BagsCursor
                 | StartupScreen::BagsDrag
+                | StartupScreen::Trade
         ) {
             return;
         }
@@ -405,6 +411,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::Footsteps => "res://tests/world_footsteps_flow.gd",
         StartupScreen::Logout => "res://tests/world_logout_flow.gd",
         StartupScreen::Menu => "res://tests/world_menu_flow.gd",
+        StartupScreen::Trade => "res://tests/world_trade_flow.gd",
         _ => "res://tests/world_input_flow.gd",
     }
 }
@@ -435,6 +442,7 @@ fn launch_godot(
             | StartupScreen::PortalParticlesEnabled
             | StartupScreen::PortalParticlesDisabled
             | StartupScreen::PortalDensity
+            | StartupScreen::Trade
     ) {
         std::env::var_os("GODOT_BIN")
             .map(PathBuf::from)
@@ -488,6 +496,7 @@ fn launch_godot(
                     | StartupScreen::PortalParticlesEnabled
                     | StartupScreen::PortalParticlesDisabled
                     | StartupScreen::PortalDensity
+                    | StartupScreen::Trade
             ) {
                 &["--"][..]
             } else {
@@ -1441,6 +1450,7 @@ fn main() {
             | StartupScreen::PortalParticlesDisabled
             | StartupScreen::PortalDensity
             | StartupScreen::BagsActions
+            | StartupScreen::Trade
     ) {
         assert!(
             launcher.is_file(),
@@ -1487,6 +1497,10 @@ fn main() {
         StartupScreen::Sound => sound::run(&mut app, &mut child, lines, reader),
         StartupScreen::Footsteps => footsteps::run(&mut app, &mut child, lines, reader),
         StartupScreen::PortalDensity => portal_density::run(&mut app, &mut child, lines, reader),
+        StartupScreen::Trade => {
+            trade::install(&mut app);
+            trade::run(&mut app, &mut child, lines, reader)
+        }
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
             portal_particles::run(&mut app, &mut child, lines, reader, screen)
         }

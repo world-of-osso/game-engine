@@ -208,6 +208,10 @@ impl GameClient {
         let location = parse_bag_location(action)?;
         self.bags.cursor.split = None;
         if click.right {
+            // ContainerFrame.lua:1405-1406: with TradeFrame shown the item goes to the trade.
+            if self.offer_trade_item(action)? {
+                return Ok(());
+            }
             return self.send_bag_equip_request(location);
         }
         if click.shift && self.bags.cursor.item.is_empty() {

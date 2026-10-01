@@ -37,6 +37,8 @@ mod loading;
 mod logout;
 mod loot;
 mod mail;
+mod trade;
+mod unit_menu;
 mod merchant;
 mod minimap;
 mod mirror_timers;
@@ -172,6 +174,8 @@ pub struct GameClient {
     merchant: merchant::Merchant,
     bags: bags::Bags,
     mailbox: mail::Mailbox,
+    trade: trade::Trade,
+    unit_menu: unit_menu::UnitMenu,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
@@ -257,6 +261,8 @@ impl INode3D for GameClient {
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
             mailbox: mail::Mailbox::default(),
+            trade: trade::Trade::default(),
+            unit_menu: unit_menu::UnitMenu::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
@@ -298,6 +304,7 @@ impl INode3D for GameClient {
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
             || self.mailbox_pointer(&event)
+            || self.unit_menu_pointer(&event)
         {
             return;
         }
@@ -356,6 +363,19 @@ impl INode3D for GameClient {
                 viewport.set_input_as_handled();
             }
             return;
+        }
+        match self.trade_key(key.get_keycode()) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.handle_frame_error("Trade key", error.into());
+                return;
+            }
         }
         match self.mailbox_key(key.get_keycode()) {
             Ok(true) => {
@@ -926,6 +946,9 @@ impl GameClient {
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
+        if let Some(ui) = &mut self.trade.ui {
+            visit(ui)?;
+        }
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
@@ -1372,6 +1395,7 @@ impl GameClient {
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),
+            ("Trade", |c, _| c.update_trade()),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -1488,6 +1512,7 @@ impl GameClient {
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::Mail(message) => self.receive_mail(message)?,
+            AccountEvent::Trade(update) => self.receive_trade(update)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
             AccountEvent::ReplicationEnded => {
@@ -1765,6 +1790,7 @@ impl GameClient {
         self.loot.reset();
         self.game_objects.reset();
         self.mailbox.reset();
+        self.trade.reset();
         self.in_rest_area = false;
         self.character_preview.reset();
         self.creation_scene.reset();
