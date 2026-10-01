@@ -189,6 +189,8 @@ fn wow_vec3(value: [f32; 3]) -> Vector3 {
 
 /// Root metadata: the M2 header bounding box in the model root's axes.
 pub(crate) const M2_BOUNDS_META: &str = "m2_bounds";
+/// Exact model-loader input identifier for semantic scene exports.
+pub(crate) const M2_SOURCE_META: &str = "m2_source_path";
 /// Batch metadata: the skin section's mesh part (geoset) ID.
 const M2_MESH_PART_META: &str = "m2_mesh_part";
 
@@ -310,6 +312,7 @@ pub(super) fn build_model_filtered(
     );
     let mut root = Node3D::new_alloc();
     root.set_meta(M2_BOUNDS_META, &m2_bounds(model).to_variant());
+    root.set_meta(M2_SOURCE_META, &path.to_variant());
     root.add_child(&skeleton);
     for (batch_index, ((mesh, material, visible), mesh_part)) in
         batches.into_iter().zip(mesh_parts).enumerate()
