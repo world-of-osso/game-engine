@@ -3,7 +3,7 @@
 //! Launches the real client with `--screen <screen>` under the observation script
 //! `res://tests/<screen>_screen_flow.gd`, then drives it with the public
 //! `game-engine-cli` over the client's own-PID socket: `ping`, `dump-scene`,
-//! `dump-tree`, `dump-ui-tree` and `screenshot`. The script asserts on the CLI's
+//! `dump-tree`, `dump-ui-tree`, `screenshot` and `export-scene`. The script asserts on the CLI's
 //! stdout files and the screenshot it wrote, then exits; the fixture requires a
 //! normal exit and the socket's removal.
 //! Requires GODOT_BIN and GAME_ENGINE_CLI pointing to existing executables.
@@ -158,12 +158,15 @@ fn run_fixture(screen: &str) -> Result<PathBuf, String> {
     println!("READY native PID={} socket={}", native.0.id(), socket.display());
     let screenshot = artifacts.join("screen.webp");
     let screenshot = screenshot.to_str().ok_or("Non-UTF8 artifact path")?;
+    let export = artifacts.join("scene-export.json");
+    let export = export.to_str().ok_or("Non-UTF8 artifact path")?;
     for (name, args) in [
         ("ping", vec!["ping"]),
         ("scene", vec!["--json", "dump-scene"]),
         ("tree", vec!["--json", "dump-tree"]),
         ("ui", vec!["--json", "dump-ui-tree"]),
         ("screenshot", vec!["screenshot", screenshot]),
+        ("export", vec!["export-scene", export]),
     ] {
         call_cli(&cli, &socket, &artifacts, name, &args)?;
     }

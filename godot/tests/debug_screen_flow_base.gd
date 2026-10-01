@@ -3,7 +3,7 @@ extends SceneTree
 # Shared driver for `native_debug_screen_fixture <screen>`: mounts the real client with
 # its `--screen` startup, runs the screen's live checks, signals `ready`, waits while
 # the parent drives the public CLI (`ping`, `dump-scene`, `dump-tree`, `dump-ui-tree`,
-# `screenshot`), then checks the CLI's replies and screenshot and exits 0.
+# `screenshot`, `export-scene`), then checks the CLI's replies and screenshot and exits 0.
 # Screen scripts extend this file and override `check_live` and `check_cli`.
 const SIZE := Vector2i(1280, 720)
 # Pixels whose largest channel changes by more than this count as changed.
@@ -79,6 +79,50 @@ func tree_reply(name: String) -> String:
 		fail("CLI %s did not reply with a Tree: %s" % [name, read_stdout(name)])
 		return ""
 	return value.Tree
+
+# The root of the snapshot the CLI `export-scene` command wrote, after its exact reply.
+func exported_scene() -> Dictionary:
+	var path := artifacts.path_join("scene-export.json")
+	if read_stdout("export").strip_edges() != "scene exported to " + path:
+		fail("CLI export-scene replied: " + read_stdout("export"))
+		return {}
+	var value: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not value is Dictionary or not value.has("root") or not value.root is Dictionary:
+		fail("Exported scene is not a snapshot: " + FileAccess.get_file_as_string(path))
+		return {}
+	return value.root
+
+func child_labels(node: Dictionary) -> Array:
+	return node.children.map(func(child): return child.label)
+
+# The only child of `node` labelled `label`.
+func scene_child(node: Dictionary, label: String) -> Dictionary:
+	var found: Array = node.children.filter(func(child): return child.label == label)
+	if found.size() != 1:
+		fail("Exported %s has %d children labelled %s: %s" % [node.label, found.size(), label, child_labels(node)])
+		return {}
+	return found[0]
+
+# `props` of an externally tagged variant with fields, e.g. {"Camera": {"fov": 45}}.
+func props_of(node: Dictionary, variant: String) -> Dictionary:
+	if not node.props is Dictionary or not node.props.has(variant):
+		fail("Exported %s props are not %s: %s" % [node.label, variant, node.props])
+		return {}
+	return node.props[variant]
+
+# An exported transform matches `expected` (relative to the exported parent).
+func transform_matches(node: Dictionary, expected: Transform3D) -> bool:
+	var t: Variant = node.transform
+	if not t is Dictionary:
+		fail("Exported %s has no transform" % node.label)
+		return false
+	var q := expected.basis.get_rotation_quaternion()
+	var s := expected.basis.get_scale()
+	var actual := [Vector3(t.translation[0], t.translation[1], t.translation[2]), Quaternion(t.rotation[0], t.rotation[1], t.rotation[2], t.rotation[3]), Vector3(t.scale[0], t.scale[1], t.scale[2])]
+	if actual[0].distance_to(expected.origin) > 0.001 or absf(actual[1].dot(q)) < 0.9999 or actual[2].distance_to(s) > 0.001:
+		fail("Exported %s transform %s, live %s" % [node.label, actual, [expected.origin, q, s]])
+		return false
+	return true
 
 # The WebP the CLI `screenshot` command wrote.
 func screenshot() -> Image:
