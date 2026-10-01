@@ -101,9 +101,13 @@ func run_uv_pixels() -> bool:
 	var control_u := await assert_pixel("plain single-texture unchanged at 250ms", QUADRANTS[0])
 	set_phase_ms(500.0)
 	var control_v := await assert_pixel("plain single-texture unchanged at 500ms", QUADRANTS[0])
-	# Authored UV animation applies only to the two-texture effect route.
-	# Shader 0x10 multiplies the patterned first texture by the white second texture.
+	# Diffuse_T1 applies texture matrix 0 to a single texture too (calcM2VertexMat).
 	animated = true
+	if not prepare_fixture(7, 0x10, 1) or not await load_quad():
+		return false
+	set_phase_ms(250.0)
+	var single_u := await assert_pixel("single-texture authored +U translation", QUADRANTS[1])
+	# Shader 0x10 over two textures multiplies the pattern by the white second texture.
 	if not prepare_fixture(7, 0x10, 2, 2) or not await load_quad():
 		return false
 	set_phase_ms(0.0)
@@ -123,7 +127,7 @@ func run_uv_pixels() -> bool:
 	set_phase_ms(1000.0)
 	var wrap_passed := await assert_pixel("global duration wraps to first UV", QUADRANTS[0])
 	var automatic := await assert_automatic_pixels()
-	return control_u and control_v and effect_base and u_passed and uv_passed and shared_phase and v_passed and wrap_passed and automatic
+	return control_u and control_v and single_u and effect_base and u_passed and uv_passed and shared_phase and v_passed and wrap_passed and automatic
 
 func assert_automatic_pixels() -> bool:
 	var clock := get_root().get_node_or_null("M2MaterialClock")

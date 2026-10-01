@@ -19,6 +19,30 @@ This proves the foliage-card depth defect only. Camera-motion flicker in the rep
 
 See [[character-rendering]] for character-specific mesh assembly.
 
+## Godot M2 batch materials
+
+The Godot client binds each skin batch per WebWowViewerCpp's retail rules ([[m2-format#batch-shaders]]):
+`godot/core/src/m2_material.rs` resolves pixel/vertex shader IDs, up to four texture slots with
+wrap flags, texture-matrix and weight indices and samples them on the shared material clock;
+`godot/rust/src/assets/material.rs` binds GPU textures (character overlays are the only CPU
+composite) and builds one shader variant per blend/cull/depth-test/depth-write pipeline;
+`godot/shaders/m2.gdshader` runs calcM2VertexMat and calcM2FragMaterial. It replaced the Bevy-era
+route that composited second textures on the CPU, knew eight raw shader ids (`0x8000` fell back
+to the first texture, `0x8001` was read as table row 0), animated UVs only on two-texture blended
+batches, dropped batches transparent at time 0, keyed AlphaKey at 224/255 and let HDR output
+exceed 1.
+
+Proof: `godot/tests/m2_real_pixels.gd` loads 16 named retail batches through `WowAssetLoader`,
+draws each alone with a perspective camera, fixed scene light and frozen material clock, and
+compares every unambiguous magnified pixel with `godot/tests/m2_wwv_oracle.gd`, a GDScript
+transliteration of the reference read directly from the `.m2`/`.skin` bytes (tolerance 10/255,
+>=97% of pixels, mips <= LOD 2 from 2x2-averaged levels). Godot blends in its linear framebuffer,
+the reference in gamma; the oracle follows Godot's framebuffer. Shader-level combiner coverage
+(all 37 pixel shaders, wrap/clamp, T2 and texture matrices, AlphaKey threshold, specular after
+light) is `godot/tests/m2_material_pixels.gd`. Evidence and the coverage matrix:
+`data/diagnostics/m2render-20261001/` and the M2 materials row of
+[the parity matrix](../../specs/godot-parity-matrix.md).
+
 ## M2 effect fog specialization
 
 Commit `fbda0693` compiles `m2_fog_color` only under `DISTANCE_FOG`, matching Bevy's conditional fog binding. Previously the no-fog pipeline referenced a nonexistent binding. The fog-enabled path also supplies fragment coordinates to Bevy 0.19's five-argument `apply_fog` API. Binding paths and authored blend-mode fog colors are unchanged.

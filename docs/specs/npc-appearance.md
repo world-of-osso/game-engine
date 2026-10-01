@@ -33,7 +33,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 - `src/game/creatures/npc_appearance.rs` — authored display cache reader, owned by the importer/data integration.
 - `godot/rust/src/assets/appearance.rs` — native lazy read-only `npc_appearance.sqlite`/customization/compositor cache handles; prepares body, type-6, and type-19 textures plus selected/authored geosets.
 - `godot/rust/src/assets/mod.rs` — passes an optional prepared native appearance into M2 batch construction; `assets/creature.rs` prepares it after creature asset caching and before model allocation.
-- `godot/rust/src/assets/material.rs` — substitutes a prepared non-effect batch base texture; `assets/mod.rs` applies shared selected-then-authored geoset visibility per batch.
+- `godot/rust/src/assets/material.rs` — substitutes a prepared replacement for a batch's replaceable slot-0 texture; `assets/mod.rs` applies shared selected-then-authored geoset visibility per batch.
 - `godot/rust/src/world_models.rs` — owns `NpcAppearances`, prepares by display ID before `load_creature_model`, and retains ordinary displays on the no-appearance path.
 
 ## Tests asserting this spec

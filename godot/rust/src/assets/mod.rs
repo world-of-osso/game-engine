@@ -273,15 +273,28 @@ pub(super) fn build_model_filtered(
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
     let resolver = model_asset_resolver(Path::new(&model_path))?;
-    let resolved: Vec<_> = m2::resolve_render_batches(model, skin_texture_fdids, false, |fdid| {
+    // Every batch is drawn: one whose opacity animates from zero appears later, and
+    // the shader skips it while its opacity is zero (WebWowViewerCpp forEachVisibleMesh).
+    let resolved: Vec<_> = m2::resolve_render_batches(model, skin_texture_fdids, true, |fdid| {
         resolver.resolve_path(fdid)
     })?
     .into_iter()
     .filter(|batch| allowed(batch.mesh_part_id))
     .collect();
+    let tracks = game_engine_core::m2_material::MaterialTracks::of(model);
     let batches = resolved
         .iter()
-        .map(|batch| load_batch(model, batch, path, &mut missing, appearance))
+        .map(|batch| {
+            load_batch(
+                model,
+                &tracks,
+                batch,
+                skin_texture_fdids,
+                path,
+                &mut missing,
+                appearance,
+            )
+        })
         .collect::<Result<Vec<_>, String>>()?;
     let mesh_parts: Vec<u16> = resolved.iter().map(|batch| batch.mesh_part_id).collect();
     let (mut skeleton, skin) = build_skeleton(&model.bones);
@@ -304,19 +317,22 @@ pub(super) fn build_model_filtered(
         }
     };
     let material_animation = uv_animation::WowMaterialAnimation::from_batches(
-        model,
+        tracks,
         batches
             .iter()
-            .map(|(_, material, _)| material.clone())
-            .zip(resolved),
+            .map(|batch| (batch.material.clone(), batch.binding.clone())),
     );
     let mut root = Node3D::new_alloc();
     root.set_meta(M2_BOUNDS_META, &m2_bounds(model).to_variant());
     root.set_meta(M2_SOURCE_META, &path.to_variant());
     root.add_child(&skeleton);
-    for (batch_index, ((mesh, material, visible), mesh_part)) in
-        batches.into_iter().zip(mesh_parts).enumerate()
-    {
+    for (batch_index, (batch, mesh_part)) in batches.into_iter().zip(mesh_parts).enumerate() {
+        let LoadedBatch {
+            mesh,
+            material,
+            visible,
+            ..
+        } = batch;
         let mut instance = MeshInstance3D::new_alloc();
         instance.set_name(&format!("Batch{batch_index}"));
         instance.set_meta(M2_MESH_PART_META, &i64::from(mesh_part).to_variant());
@@ -342,11 +358,18 @@ pub(super) fn build_model_filtered(
     Ok((root, missing))
 }
 
-type LoadedBatch = (Gd<ArrayMesh>, Gd<ShaderMaterial>, bool);
+struct LoadedBatch {
+    mesh: Gd<ArrayMesh>,
+    material: Gd<ShaderMaterial>,
+    binding: game_engine_core::m2_material::BatchBinding,
+    visible: bool,
+}
 
 fn load_batch(
     model: &m2::Model,
+    tracks: &game_engine_core::m2_material::MaterialTracks,
     batch: &game_engine_core::m2_batch_data::ResolvedBatch,
+    skin_texture_fdids: &[u32; 3],
     path: &GString,
     missing: &mut PackedInt32Array,
     appearance: Option<&appearance::PreparedAppearance>,
@@ -359,9 +382,11 @@ fn load_batch(
     })?;
     let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
     let replacement = replacement_texture(batch, appearance)?;
-    let material = material::load_material(
+    let (material, binding) = material::load_material(
+        model,
+        tracks,
         batch,
-        m2::batch_mesh_color(model, batch),
+        skin_texture_fdids,
         path,
         missing,
         replacement,
@@ -379,14 +404,19 @@ fn load_batch(
             &appearance.equipment_geosets,
         )
     });
-    Ok((mesh, material, visible))
+    Ok(LoadedBatch {
+        mesh,
+        material,
+        binding,
+        visible,
+    })
 }
 
 fn replacement_texture<'a>(
     batch: &game_engine_core::m2_batch_data::ResolvedBatch,
     appearance: Option<&'a appearance::PreparedAppearance>,
 ) -> Result<Option<&'a Gd<ImageTexture>>, String> {
-    let Some(appearance) = appearance.filter(|_| !material::is_effect(batch)) else {
+    let Some(appearance) = appearance else {
         return Ok(None);
     };
     let Some(kind) = batch.texture_type else {

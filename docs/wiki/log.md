@@ -1,3 +1,7 @@
+## 2026-10-01 — Godot M2 batch materials on WebWowViewer retail rules
+
+[[m2-format#batch-shaders]] now records retail pixel/vertex shader resolution, render flags 0x2/0x8/0x10, texture weights, float-quaternion texture transforms and wrap flags; [[rendering-pipeline#godot-m2-batch-materials]] records the Godot binder/shader and its real-model oracle proof (16 named batches, baseline 14/16 RED). Parity row added (Partial: decals, transparent sort, Bevy/Retail comparisons open).
+
 ## 2026-10-01 — Native ExportScene bounded MAIN-observed GREEN
 
 [Evidence SSOT](systems/godot-conversion.md#native-exportscene--accepted-bounded-pass) records MAIN-accepted independent1573 bounded PASS at `3ea4580c`: shared original JSON, actual native public export/write error, compensated transforms, retained legacy decoder and root check0. Post-READY `d1981968` RED and introduced re-export warning remain historical. Native runtime0/Depot0 are retained by source equivalence after the include correction. Full semantics/UI/actions/performance/shutdown remain open; root formatting still fails.
