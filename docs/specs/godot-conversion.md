@@ -180,4 +180,4 @@ Native `4c7927a6` loads cached local-CASC WMO roots and indexed complete groups 
 
 Unrequested server/protocol redesign, new gameplay features, production deployment, and changes to host safety mitigations. No existing client feature is excluded from the conversion target.
 
-[SettingsReload bounded main proof](../wiki/systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) now covers authored AutoLoot/FOV/InvertY/TargetSelf saves and fresh native consumers. Independent gate pending; deliberate owned termination does not close shutdown or full-conversion gaps.
+[SettingsReload accepted bounded saved-artifact PASS](../wiki/systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) now covers authored AutoLoot/FOV/InvertY/TargetSelf saves and fresh native consumers. Independent `/tmp/claude/verify-native-settings-reload.md` accepted bounded functional reload and scoped Rust formatting PASS. Byte equality holds at observation boundaries only; deliberate owned SIGKILL does not close shutdown or full-conversion gaps. No all-options or geometry gate upgrade.

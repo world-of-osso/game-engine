@@ -160,4 +160,4 @@ Status vocabulary: **Partial** — bounded implementation/runtime evidence with 
 
 Update a row only after the Godot implementation and proof cover the stated capability at the current integrated revision. Link proof in the row; do not change the source contract or use a partial/parser/transport result to close runtime parity.
 
-[SettingsReload bounded main proof](../wiki/systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) supplements Options, camera, TargetSelf and loot rows without changing their Missing/full-parity classification. Independent gate pending; normal shutdown remains deferred.
+[SettingsReload accepted bounded saved-artifact PASS](../wiki/systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) supplements Options, camera, TargetSelf and loot rows without changing their Missing/full-parity classification. Independent `/tmp/claude/verify-native-settings-reload.md` accepted bounded functional reload and scoped Rust formatting PASS; byte equality is limited to observation boundaries. Deliberate SIGKILL is not normal shutdown, which remains deferred; no all-options or geometry gate upgrade.
