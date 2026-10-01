@@ -225,7 +225,7 @@ func wait_lighting(client: Node, ambient: Vector3, direct: Vector3, map: String,
 	var npc := client.get_node_or_null("WorldUnits/" + NPC)
 	var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
 	var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
-	var material := batch.get_surface_override_material(0) as ShaderMaterial if batch != null else null
+	var material := batch.get_active_material(0) as ShaderMaterial if batch != null else null
 	var actual := "no creature material" if material == null else str({
 		"ambient": material.get_shader_parameter("ambient"),
 		"direct": material.get_shader_parameter("direct"),
@@ -244,7 +244,7 @@ func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: Stri
 	var npc := client.get_node_or_null("WorldUnits/" + NPC)
 	var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
 	var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
-	var material := batch.get_surface_override_material(0) as ShaderMaterial if batch != null else null
+	var material := batch.get_active_material(0) as ShaderMaterial if batch != null else null
 	if sun == null or material == null:
 		return false
 	var actual_ambient = material.get_shader_parameter("ambient")
@@ -489,7 +489,7 @@ func appearance_batch_material(client: Node, batch_name: String) -> ShaderMateri
 	var batch := model.find_child(batch_name, true, false) as MeshInstance3D if model != null else null
 	if batch == null or batch.mesh == null or not batch.visible:
 		return null
-	return batch.get_surface_override_material(0) as ShaderMaterial
+	return batch.get_active_material(0) as ShaderMaterial
 
 func wait_type19(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + WAIT_MS
@@ -541,7 +541,7 @@ func wait_hair_type6(client: Node) -> bool:
 		var npc := client.get_node_or_null("WorldUnits/" + HAIR_TYPE6_NPC)
 		var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
 		var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
-		var material := batch.get_surface_override_material(0) as ShaderMaterial if batch != null else null
+		var material := batch.get_active_material(0) as ShaderMaterial if batch != null else null
 		var texture := material.get_shader_parameter("base_texture") as Texture2D if material != null else null
 		if batch == null or batch.mesh == null or texture == null:
 			continue
@@ -580,7 +580,7 @@ func wait_appearance(client: Node, expected: Color) -> bool:
 		var npc := client.get_node_or_null("WorldUnits/" + APPEARANCE_NPC)
 		var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
 		var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
-		var material := batch.get_surface_override_material(0) as ShaderMaterial if batch != null else null
+		var material := batch.get_active_material(0) as ShaderMaterial if batch != null else null
 		var texture := material.get_shader_parameter("base_texture") as Texture2D if material != null else null
 		if texture == null:
 			continue
@@ -610,7 +610,7 @@ func visual_matches(client: Node, scale: float) -> bool:
 	var batch = model.find_child("Batch0", true, false)
 	if not batch is MeshInstance3D or batch.mesh == null:
 		return false
-	var material = batch.get_surface_override_material(0) as ShaderMaterial
+	var material = batch.get_active_material(0) as ShaderMaterial
 	if material == null:
 		return false
 	var expected := 910002 if scale == 2.0 or scale == 0.01 else 910001

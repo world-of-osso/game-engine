@@ -122,7 +122,7 @@ fn nearest_triangle(visual: &Gd<Node3D>, ray: &Ray) -> Option<f32> {
 fn drawn(instance: &Gd<MeshInstance3D>) -> bool {
     instance.is_visible_in_tree()
         && instance
-            .get_surface_override_material(0)
+            .get_active_material(0)
             .and_then(|material| material.try_cast::<ShaderMaterial>().ok())
             .map(|material| material.get_shader_parameter("transparency"))
             .filter(|value| !value.is_nil())

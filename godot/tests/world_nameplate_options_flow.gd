@@ -169,8 +169,11 @@ func expect_plate(client: Node, id: int, bars: bool, expected_color: Color) -> b
 		return false
 	var layer := client.get_node_or_null("Nameplates")
 	var plate: Control = layer.get_child(0) if layer != null and layer.get_child_count() == 1 else null
-	if plate == null or plate.get_child_count() != 3:
-		fail("Expected one live plate with fill, frame and label")
+	if plate == null or plate.get_child_count() != 4:
+		fail("Expected one live plate with fill, frame, label and cast bar")
+		return false
+	if (plate.get_child(3) as Control).visible:
+		fail("Cast bar shown without a cast")
 		return false
 	var fill := plate.get_child(0) as TextureRect
 	var frame := plate.get_child(1) as TextureRect

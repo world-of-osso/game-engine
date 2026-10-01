@@ -13,6 +13,8 @@ pub mod input_bindings_data;
 pub mod ipc_wire;
 #[path = "../../../src/ui/js_automation.rs"]
 pub mod js_automation;
+#[path = "../../../src/movement_control.rs"]
+pub mod movement_control;
 pub mod replica;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;
@@ -48,7 +50,8 @@ use shared::protocol::{
     KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause,
     MirrorTimerStart, MirrorTimerStop, NewWorld, QuestFailed, QuestGiverStatusMultiple,
     QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
-    SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
+    SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
+    VendorInventory,
 };
 
 /// Trait bound for decoding messages carried by this transport boundary.
@@ -214,6 +217,7 @@ impl NetworkBridge {
             // combat animations and spell visuals.
             .receive::<CombatEvent>()
             .receive::<SpellGo>()
+            .receive::<SpellFailure>()
             // Auto-attack starts and stops of every replicated unit.
             .receive::<AttackStart>()
             .receive::<AttackStopped>()
