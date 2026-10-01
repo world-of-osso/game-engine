@@ -1,3 +1,7 @@
+## [2026-09-30] audit | Merchant diagnostic passes; original-bound acceptance pending
+
+[SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending) records rendering fix/build0, unexplained pre-auth retry101, and test-only `6bea` timing/strict merchant exit0 (Loading4162ms, normal child0). No auth-root-cause or180-second necessity claim. `51a3e85f` restores15 seconds; final retry/independent1429 pending. Native5a startup/readability and unchanged tooltip/pure proofs retained; combined gate OPEN, no general shutdown clearance.
+
 ## [2026-09-30] audit | Merchant fixture rendering links corrected; gate OPEN
 
 [SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending) records native5a source/build/actions and own readability resolution, actual merchant pre-login exit101, and fixture-only `54eaef69` required-link correction. Fresh fixture build/merchant retry and read-only1425 acceptance pending; prior startup failures and valid unchanged startup proof retained. Full conversion OPEN; Mail/Auction untouched. Docs only; no tests/builds/operations.
