@@ -77,6 +77,19 @@ impl WorldCamera {
         self.state.target_distance = distance;
     }
 
+    /// IPC `SetCameraDirection`: one or both orbit angles in degrees.
+    pub fn set_direction_degrees(
+        &mut self,
+        yaw: Option<f32>,
+        pitch: Option<f32>,
+    ) -> Result<(), String> {
+        self.state.set_direction_degrees(yaw, pitch)
+    }
+
+    pub fn camera(&self) -> Option<&Gd<Camera3D>> {
+        self.node.as_ref()
+    }
+
     /// Current follow distance in yards.
     pub fn distance(&self) -> f32 {
         self.state.distance

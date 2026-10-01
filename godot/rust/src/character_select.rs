@@ -2,7 +2,7 @@
 
 mod background;
 mod objects;
-mod sky;
+pub(crate) mod sky;
 
 use std::path::PathBuf;
 

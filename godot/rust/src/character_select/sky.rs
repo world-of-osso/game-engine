@@ -15,6 +15,10 @@ use godot::{
 
 use crate::{animation::WowAnimationPlayer, assets};
 
+#[path = "sky_time.rs"]
+mod sky_time;
+use sky_time::fixed_sequence_phase_ms;
+
 const SKY_FDID: u32 = 525142;
 const SKY_NAME: &str = "costalislandskybox";
 const SHADER_PATH: &str = "res://shaders/sky_m2.gdshader";
@@ -193,17 +197,13 @@ fn load_player(
     let mut player = WowAnimationPlayer::from_model(model, skeleton)?;
     if let Some(time_ms) = time_override_ms {
         let duration = model.sequences[default_sequence_index(model)].duration;
-        // Match the original override's f32 conversion before remainder. Wide u32
-        // values lose millisecond precision; zero-duration native clips stay at zero.
-        let phase = if duration > 0 {
-            f64::from(time_ms as f32 % duration as f32)
-        } else {
-            0.0
-        };
-        let advanced = player.bind_mut().advance_time_ms(phase);
-        if !advanced {
+        let phase = fixed_sequence_phase_ms(time_ms, duration);
+        let sampled = player.bind_mut().seek_fixed_time_ms(phase);
+        if let Err(error) = sampled {
             player.free();
-            return Err("Cannot sample fixed sky bone animation phase".into());
+            return Err(format!(
+                "Cannot sample fixed sky bone animation phase: {error}"
+            ));
         }
         player.call("set_paused", &[true.to_variant()]);
     }
@@ -403,6 +403,40 @@ fn load_stage(
     assets::material::shared_texture(fdid, dir, missing)?
         .ok_or_else(|| format!("Sky missing texture {fdid} at {}", dir.display()))
         .map(Some)
+}
+
+#[cfg(test)]
+mod fixed_sky_track_tests {
+    use super::*;
+
+    fn translated_bone_at(time_ms: u32, duration_ms: u32) -> [f32; 3] {
+        let track = m2::AnimTrack {
+            interpolation_type: 1,
+            global_sequence: -1,
+            sequences: vec![(vec![0, 2000], vec![[0.0; 3], [20.0, 0.0, 0.0]])],
+        };
+        let phase = fixed_sequence_phase_ms(time_ms, duration_ms) as u32;
+        evaluate_vec3_track(&track, 0, phase).unwrap()
+    }
+
+    #[test]
+    fn fixed_positive_duration_samples_wrapped_concrete_bone_track() {
+        assert_eq!(translated_bone_at(2500, 1000), [5.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn fixed_wide_time_samples_original_f32_phase_concrete_bone_track() {
+        let position = translated_bone_at(u32::MAX, 1000);
+        assert!((position[0] - 2.96).abs() < 0.00001);
+        assert_eq!([position[1], position[2]], [0.0; 2]);
+    }
+
+    #[test]
+    fn fixed_zero_duration_samples_requested_concrete_bone_track() {
+        let position = translated_bone_at(1234, 0);
+        assert!((position[0] - 12.34).abs() < 0.00001);
+        assert_eq!([position[1], position[2]], [0.0; 2]);
+    }
 }
 
 fn combine_mode(batch: &ResolvedBatch) -> u16 {

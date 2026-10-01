@@ -350,7 +350,7 @@ pub fn parse_model_with_skeleton(
         bone_tracks: std::sync::Arc::new(bone_tracks),
         global_sequences,
         texture_types: format::parse_texture_types(chunks.md20)?,
-        texture_flags: format::parse_texture_flags(chunks.md20)?,
+        texture_flags: format::parser::parse_texture_flags(chunks.md20)?,
         texture_fdids,
         texture_lookup: format::parse_texture_lookup(chunks.md20)?,
         texture_unit_lookup: format::parse_texture_unit_lookup(chunks.md20)?,

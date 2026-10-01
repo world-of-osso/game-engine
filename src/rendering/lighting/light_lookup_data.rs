@@ -39,6 +39,21 @@ pub struct WeightedLightParams {
     pub weight: f32,
 }
 
+/// Original debug lookup priority: the closest applicable local sphere, then same-map global.
+pub fn score_light_row(row: &LightEntry, wow_position: [f32; 3]) -> Option<f32> {
+    if row.position == [0.0, 0.0, 0.0] {
+        return Some(f32::MAX / 4.0);
+    }
+    let dx = row.position[0] - wow_position[0];
+    let dy = row.position[1] - wow_position[1];
+    let dz = row.position[2] - wow_position[2];
+    let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+    if row.falloff_end > 0.0 && distance > row.falloff_end {
+        return None;
+    }
+    Some(distance)
+}
+
 pub fn map_name_to_id(map_name: &str) -> Option<u32> {
     let normalized = normalize_map_name(map_name);
     if let Ok(id) = normalized.parse() {

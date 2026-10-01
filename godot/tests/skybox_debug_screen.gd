@@ -8,6 +8,11 @@ extends SceneTree
 # class and assets::M2_SOURCE_META, whose value must be the actual loader input.
 const SOURCE_META := "m2_source_path"
 const WAIT_MS := 30000
+const CLOUD_ACTIVE_MS := 200000
+const CLOUD_ACTIVE_END_MS := 543233
+const CLOUD_WAIT_MS := 230000
+const CLOUD_MODEL_HASH := "b15bf9b587b81c55e7c5fcba843adfe603dcd348a1f9041353a708f4ee37e517"
+const CLOUD_SKIN_HASH := "9dd550de7fb3f13c2301e7bdea45921b9d0a6f2a25c3f185d4c0d06150742804"
 const FOCUS := Vector3(0, 1, 0)
 const START_DISTANCE := 7.5
 const BASE_PITCH := 0.15
@@ -21,6 +26,11 @@ const MIN_DISTANCE := 0.5
 const MAX_DISTANCE := 20.0
 const POSE_EPSILON := 0.0002
 const PIXEL_DELTA := 2.0 / 255.0
+# Encoded screenshot tolerance, declared before runtime; allows texture/output rounding.
+const FOG_PIXEL_EPSILON := 0.025
+const FOG_COLOR := Color(0.18, 0.2, 0.23)
+const FOG_START := 15.0
+const FOG_END := 45.0
 
 var client: Node
 var scene: Node3D
@@ -35,8 +45,10 @@ var expected_fov := DEFAULT_FOV
 var failed := false
 var ui_rects: Array[Rect2] = []
 
+
 func _initialize() -> void:
 	call_deferred("run_test")
+
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
@@ -54,16 +66,23 @@ func run_test() -> void:
 		return
 	if not check_pose(0.0, START_DISTANCE):
 		return
+	if not await check_rendered_fog():
+		return
 	if not await check_orbit_input():
+		return
+	if not await check_authored_animation():
+		return
+	if not await check_default_layers():
 		return
 	if not await check_sky_pixels():
 		return
 	if not check_offline():
 		return
 	print("LIMIT: no original-expected pixel oracle; contribution is not full pixel parity")
-	print("LIMIT: cached sequence durations alone do not prove varying material/bone tracks; no live-animation assertion")
-	print("PASS: bounded production skybox startup/source/camera/input/composition/contribution observer")
+	print("LIMIT: concrete batch0 UV translation proof does not cover every bone/material track")
+	print("PASS: bounded skybox observers; exact coverage is individual FIXTURE records above")
 	quit(0)
+
 
 func choose_case() -> bool:
 	shots = OS.get_environment("GODOT_SKYBOX_SCREENSHOTS")
@@ -77,7 +96,9 @@ func choose_case() -> bool:
 	fixed_time = args.has("--skybox-time-ms")
 	var fdid := first_value(args, "--skybox-fdid")
 	var light_id := first_value(args, "--light-skybox-id")
-	if not fdid.is_empty() and not light_id.is_empty():
+	var has_fdid := not fdid.is_empty()
+	var has_light_id := not light_id.is_empty()
+	if has_fdid and has_light_id:
 		return reject("--skybox-fdid and --light-skybox-id are mutually exclusive")
 	if light_id == "653" or fdid == "5412968":
 		expected_file = "11xp_cloudsky01.m2"
@@ -87,6 +108,7 @@ func choose_case() -> bool:
 		return reject("Bounded cached cases: --skybox-fdid 525142/5412968 or --light-skybox-id 653")
 	return true
 
+
 func first_value(args: PackedStringArray, flag: String) -> String:
 	var index := args.find(flag)
 	if index < 0:
@@ -95,9 +117,12 @@ func first_value(args: PackedStringArray, flag: String) -> String:
 		return ""
 	return args[index + 1]
 
+
 func mount_production() -> bool:
 	if not ClassDB.class_exists("GameClient"):
-		return reject("GameClient native class unavailable; extension/setup failure, not missing-scene RED")
+		return reject(
+			"GameClient native class unavailable; extension/setup failure, not missing-scene RED"
+		)
 	var packed := load("res://scenes/client.tscn") as PackedScene
 	if packed == null:
 		return reject("Production client scene failed to load")
@@ -114,7 +139,9 @@ func mount_production() -> bool:
 		if not is_instance_valid(client):
 			return reject("Production client freed during asset/startup initialization")
 		if client.is_queued_for_deletion():
-			return reject("Production client queued for deletion during asset/startup initialization")
+			return reject(
+				"Production client queued for deletion during asset/startup initialization"
+			)
 		scene = client.get_node_or_null("SkyboxDebug") as Node3D
 		if scene != null:
 			if scene.is_node_ready():
@@ -122,7 +149,10 @@ func mount_production() -> bool:
 				return true
 	# Current native production exits 1 itself after API/Vulkan/CASC startup:
 	# Cannot initialize client: --screen skyboxdebug is not yet implemented in Godot.
-	return reject("Missing production SkyboxDebug after bounded asset/startup wait; inspect Cannot initialize client error")
+	return reject(
+		"Missing production SkyboxDebug after bounded asset/startup wait; inspect Cannot initialize client error"
+	)
+
 
 func observe_assets() -> bool:
 	var cameras := scene.find_children("*", "Camera3D", true, false)
@@ -136,7 +166,12 @@ func observe_assets() -> bool:
 		if node.has_meta(SOURCE_META):
 			roots.append(node as Node3D)
 	if roots.size() != 1:
-		return reject("Expected one actual authored M2 loader root with %s, found %d" % [SOURCE_META, roots.size()])
+		return reject(
+			(
+				"Expected one actual authored M2 loader root with %s, found %d"
+				% [SOURCE_META, roots.size()]
+			)
+		)
 	sky = roots[0]
 	var source := str(sky.get_meta(SOURCE_META))
 	if not source.replace("\\", "/").ends_with("/models/skyboxes/" + expected_file):
@@ -164,8 +199,18 @@ func observe_assets() -> bool:
 			surfaces += 1
 	if surfaces == 0:
 		return reject("Source metadata without actual M2 geometry")
-	print("FIXTURE SKYBOX_SOURCE ", source, " surfaces=", surfaces, " camera=", camera.get_path(), " sky=", sky.get_path())
+	print(
+		"FIXTURE SKYBOX_SOURCE ",
+		source,
+		" surfaces=",
+		surfaces,
+		" camera=",
+		camera.get_path(),
+		" sky=",
+		sky.get_path()
+	)
 	return true
+
 
 func read_camera_options() -> bool:
 	var config := OS.get_environment("XDG_CONFIG_HOME")
@@ -184,11 +229,14 @@ func read_camera_options() -> bool:
 		var matched := block.search(raw)
 		if matched != null:
 			expected_fov = saved_number(matched.get_string(1), "fovDegrees", DEFAULT_FOV)
-			sensitivity = saved_number(matched.get_string(1), "mouseSensitivity", DEFAULT_SENSITIVITY)
+			sensitivity = saved_number(
+				matched.get_string(1), "mouseSensitivity", DEFAULT_SENSITIVITY
+			)
 		expected_fov = clampf(expected_fov, 90.0, 120.0)
 		sensitivity = clampf(sensitivity, 0.001, 0.01)
 	print("FIXTURE CAMERA_OPTIONS ", path, " fov=", expected_fov, " sensitivity=", sensitivity)
 	return not failed
+
 
 func saved_number(raw: String, field: String, default_value: float) -> float:
 	var regex := RegEx.new()
@@ -202,6 +250,7 @@ func saved_number(raw: String, field: String, default_value: float) -> float:
 		return default_value
 	return value.to_float()
 
+
 func check_offline() -> bool:
 	if not is_instance_valid(client):
 		return reject("Client freed before offline checks")
@@ -214,10 +263,11 @@ func check_offline() -> bool:
 	var state: Dictionary = client.call("account_state")
 	if not state.has("reply_received"):
 		return reject("Production account_state lacks reply_received")
-	var reply_received: bool = state["reply_received"]
+	var reply_received := bool(state["reply_received"])
 	if reply_received:
 		return reject("Offline SkyboxDebug received authentication reply")
 	return true
+
 
 func check_composition() -> bool:
 	var planes := 0
@@ -252,27 +302,138 @@ func check_composition() -> bool:
 		# LightSkyboxID 653 has audited flags 0b01111. Both retain baseline + fog.
 		if planes != 1 or other_geometry == 0:
 			return reject("Default forced-source mode lacks reference plane/procedural baseline")
-		if not fog:
-			return reject("Default forced-source mode lacks original procedural fog")
-	print("FIXTURE COMPOSITION verify=", verify_only, " planes=", planes, " other_geometry=", other_geometry, " fog=", fog)
+	# Stock fog must remain off: reference ShaderMaterial owns radial linear fog.
+	if fog:
+		return reject("Stock Environment fog would double-apply shader-owned fog")
+	print(
+		"FIXTURE COMPOSITION verify=",
+		verify_only,
+		" planes=",
+		planes,
+		" other_geometry=",
+		other_geometry,
+		" stock_fog=",
+		fog
+	)
 	return true
 
+
+func check_rendered_fog() -> bool:
+	if verify_only:
+		return true  # No reference actors and black hidden-sky assertion below.
+	var plane := scene.get_node_or_null("SkyboxDebugGroundPlane") as MeshInstance3D
+	if plane == null:
+		return reject("Missing actual production reference plane")
+	var material := plane.get_active_material(0) as ShaderMaterial
+	if material == null:
+		return reject("Reference plane lacks actual shader-owned fog material")
+	var original := bool(material.get_shader_parameter("linear_fog_enabled"))
+	if not original:
+		return reject("Default forced-source reference shader fog is disabled")
+	var enabled := await capture("fog-enabled.png")
+	material.set_shader_parameter("linear_fog_enabled", false)
+	var disabled := await capture("fog-disabled.png")
+	material.set_shader_parameter("linear_fog_enabled", original)
+	var restored := await capture("fog-restored.png")
+	if enabled == null or disabled == null:
+		return false
+	if restored == null:
+		return false
+	return compare_radial_fog(enabled, disabled, restored, plane)
+
+
+func compare_radial_fog(
+	enabled: Image, disabled: Image, restored: Image, plane: MeshInstance3D
+) -> bool:
+	var counts := PackedInt32Array([0, 0, 0])
+	var changed_ground_samples := 0
+	var max_error := 0.0
+	var bounds := plane.get_aabb()
+	for y in range(8, enabled.get_height() - 8, 8):
+		for x in range(8, enabled.get_width() - 8, 8):
+			var point := Vector2i(x, y)
+			var origin := camera.project_ray_origin(Vector2(point) + Vector2(0.5, 0.5))
+			var direction := camera.project_ray_normal(Vector2(point) + Vector2(0.5, 0.5))
+			if direction.y >= -0.001:
+				continue
+			var hit := origin + direction * (-origin.y / direction.y)
+			var local_hit := plane.to_local(hit)
+			if absf(local_hit.x) > bounds.size.x * 0.5 - 1.0:
+				continue
+			if absf(local_hit.z) > bounds.size.z * 0.5 - 1.0:
+				continue
+			var distance := camera.global_position.distance_to(hit)
+			var weight := clampf((distance - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0)
+			var expected := disabled.get_pixelv(point).lerp(FOG_COLOR, weight)
+			var actual := enabled.get_pixelv(point)
+			var error := rgb_error(actual, expected)
+			max_error = maxf(max_error, error)
+			if error > FOG_PIXEL_EPSILON:
+				return reject(
+					(
+						"Rendered radial fog mismatch at %s distance=%.4f error=%.6f"
+						% [point, distance, error]
+					)
+				)
+			if weight > 0.0 and pixel_delta(enabled, disabled, point) > PIXEL_DELTA:
+				changed_ground_samples += 1
+			if pixel_delta(enabled, restored, point) > PIXEL_DELTA:
+				return reject("Reference fog restoration changed ground pixel at %s" % point)
+			var band := 0 if weight == 0.0 else (2 if weight == 1.0 else 1)
+			counts[band] += 1
+	for band in 3:
+		if counts[band] < 10:
+			return reject(
+				(
+					"Insufficient rendered fog samples in near/transition/far band %d: %d"
+					% [band, counts[band]]
+				)
+			)
+	if changed_ground_samples < 100:
+		return reject(
+			(
+				"Shader fog toggle changed too few actual reference-ground samples: %d"
+				% changed_ground_samples
+			)
+		)
+	print(
+		"FIXTURE RADIAL_FOG near/transition/far=",
+		counts,
+		" changed_ground=",
+		changed_ground_samples,
+		" max_error=",
+		max_error
+	)
+	return true
+
+
+func rgb_error(a: Color, b: Color) -> float:
+	return maxf(absf(a.r - b.r), maxf(absf(a.g - b.g), absf(a.b - b.b)))
+
+
 func check_pose(yaw: float, distance: float) -> bool:
-	if not is_instance_valid(camera) or not is_instance_valid(sky):
-		return reject("Camera/authored sky freed during observation")
+	if not is_instance_valid(camera):
+		return reject("Camera freed during observation")
+	if not is_instance_valid(sky):
+		return reject("Authored sky freed during observation")
 	var offset := Vector3(sin(yaw) * cos(BASE_PITCH), sin(BASE_PITCH), cos(yaw) * cos(BASE_PITCH))
 	var expected_eye := FOCUS + offset * distance
 	if camera.global_position.distance_to(expected_eye) > POSE_EPSILON:
-		return reject("Camera eye mismatch: expected %s got %s" % [expected_eye, camera.global_position])
+		return reject(
+			"Camera eye mismatch: expected %s got %s" % [expected_eye, camera.global_position]
+		)
 	var expected_basis := Basis.looking_at(FOCUS - expected_eye, Vector3.UP)
 	for axis in 3:
 		if camera.global_basis[axis].distance_to(expected_basis[axis]) > POSE_EPSILON:
 			return reject("Camera orbit basis mismatch at axis %d" % axis)
 	if absf(camera.fov - expected_fov) > 0.001:
-		return reject("Camera FOV mismatch: persisted/default %.4f actual %.4f" % [expected_fov, camera.fov])
+		return reject(
+			"Camera FOV mismatch: persisted/default %.4f actual %.4f" % [expected_fov, camera.fov]
+		)
 	if sky.global_position.distance_to(FOCUS) > POSE_EPSILON:
 		return reject("Authored sky is not centered on orbit focus")
 	return true
+
 
 func check_orbit_input() -> bool:
 	await RenderingServer.frame_post_draw
@@ -314,16 +475,20 @@ func check_orbit_input() -> bool:
 		await RenderingServer.frame_post_draw
 	return check_pose(0.0, START_DISTANCE)
 
+
 func drag(relative: Vector2) -> void:
 	mouse_button(MOUSE_BUTTON_LEFT, true)
 	var motion := InputEventMouseMotion.new()
 	motion.position = Vector2(640, 360)
 	motion.relative = relative
+	# Physical motion supplies both fields; screen_relative is unscaled by viewport stretch.
+	motion.screen_relative = relative
 	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
 	root.push_input(motion, true)
 	await RenderingServer.frame_post_draw
 	mouse_button(MOUSE_BUTTON_LEFT, false)
 	await RenderingServer.frame_post_draw
+
 
 func mouse_button(button: MouseButton, pressed: bool, factor: float = 1.0) -> void:
 	var event := InputEventMouseButton.new()
@@ -333,7 +498,272 @@ func mouse_button(button: MouseButton, pressed: bool, factor: float = 1.0) -> vo
 	event.factor = factor
 	root.push_input(event, true)
 
+
+func check_authored_animation() -> bool:
+	# Independent cached MD21 + SKIN observations: batch0's first texture uses
+	# translation track0, linear keys at 0 and the global-sequence0 endpoint.
+	var period := 200000
+	var endpoint := 1.0000001192092896
+	var model_hash := "d337757ddb5848f7e2b7e9feeaa302f2c73db4e619d16aa88636feb996c30b47"
+	var skin_hash := "e794dfb98491f1f22c3b67ba3ae587d8fbc0c68ffa2a419266b4ff6a5247ce26"
+	if expected_file == "11xp_cloudsky01.m2":
+		period = 733333
+		endpoint = 4.0
+		model_hash = CLOUD_MODEL_HASH
+		skin_hash = CLOUD_SKIN_HASH
+	var source := str(sky.get_meta(SOURCE_META))
+	if FileAccess.get_sha256(source) != model_hash:
+		return reject("Concrete animation fixture M2 hash differs; reestablish expected tracks")
+	var skin_path := source.get_basename() + "00.skin"
+	if FileAccess.get_sha256(skin_path) != skin_hash:
+		return reject("Concrete animation fixture SKIN hash differs; reestablish batch0 binding")
+	var batch := sky.get_node_or_null("SkyBatch0") as MeshInstance3D
+	if batch == null:
+		return reject("Concrete animated source batch0 unavailable")
+	var material := batch.get_active_material(0) as ShaderMaterial
+	if material == null:
+		return reject("Concrete animated batch0 lacks ShaderMaterial")
+	if expected_file == "11xp_cloudsky01.m2":
+		print_cloud_source_scope()
+		if not fixed_time:
+			if not await wait_for_cloud_active_key():
+				return false
+		if not check_cloud_opacity():
+			return false
+	if not check_uv_sample(material, period, endpoint):
+		return false
+	var observation_start := Time.get_ticks_msec()
+	var start_clock := material_time_ms()
+	var first_uv: Vector2 = material.get_shader_parameter("uv_offset_1")
+	var first := await capture("animation-start.png")
+	if first == null:
+		return false
+	var deadline := Time.get_ticks_msec() + 4000
+	while Time.get_ticks_msec() < deadline:
+		await RenderingServer.frame_post_draw
+		if not check_uv_sample(material, period, endpoint):
+			return false
+	var later := await capture("animation-later.png")
+	if later == null:
+		return false
+	var last_uv: Vector2 = material.get_shader_parameter("uv_offset_1")
+	var changed := changed_pixels(first, later)
+	if fixed_time:
+		if first_uv.distance_to(last_uv) > 0.000002 or changed != 0:
+			return reject("Fixed concrete UV sample/rendered output changed")
+	else:
+		if first_uv.distance_to(last_uv) < 0.001:
+			return reject("Live concrete translation track did not advance naturally")
+		if changed < 100:
+			return reject(
+				"Live UV advanced but too few rendered authored pixels changed: %d" % changed
+			)
+	print(
+		"FIXTURE TRACK0 period=",
+		period,
+		" endpoint=",
+		endpoint,
+		" fixed=",
+		fixed_time,
+		" first=",
+		first_uv,
+		" last=",
+		last_uv,
+		" rendered_changed=",
+		changed,
+		" start_clock_ms=",
+		start_clock,
+		" observation_elapsed_ms=",
+		Time.get_ticks_msec() - observation_start,
+		" observation_window_ms=4000"
+	)
+	return true
+
+
+func cloud_dormant_fixed() -> bool:
+	if expected_file != "11xp_cloudsky01.m2" or not fixed_time:
+		return false
+	var time_ms := material_time_ms()
+	return time_ms == 0 or time_ms == 100000
+
+
+func material_time_ms() -> int:
+	if fixed_time:
+		return int(first_value(OS.get_cmdline_user_args(), "--skybox-time-ms"))
+	var clock := root.get_node_or_null("M2MaterialClock")
+	if clock == null:
+		reject("Actual live material clock unavailable")
+		return -1
+	return int(clock.call("elapsed_time_ms"))
+
+
+func print_cloud_source_scope() -> void:
+	print(
+		"FIXTURE CLOUD_SOURCE model=",
+		sky.get_meta(SOURCE_META),
+		" model_sha256=",
+		CLOUD_MODEL_HASH,
+		" skin_sha256=",
+		CLOUD_SKIN_HASH
+	)
+	print(
+		"LIMIT: cloud opacity scope: MD21 transparency 0x58/lookup 0x90; SKIN all54 batches use tracks0/1/3/4, not opaque unused track2; sequence0 duration800000ms, global_sequence=-1, no color tracks"
+	)
+	print(
+		"LIMIT: original src/asset/m2_format/m2_anim.rs::evaluate_i16_track preceding-key step + src/rendering/skybox/skybox_m2_material.rs::evaluate_skybox_opacity_track fixed16; raw0 at0/100000ms, batch0 track0 raw32767 at200000ms"
+	)
+	print(
+		"FIXTURE CLOUD_KEYS track0 ms=[0,133333,200000,543333,576667,800000] raw=[0,0,32767,32767,0,0]; track1 ms=[0,543333,576667,700000,800000] raw=[0,0,32767,0,0]"
+	)
+	print(
+		"FIXTURE CLOUD_KEYS track3 ms=[0,133333,200000,543233,576667,800000] raw=[0,0,32767,32767,0,0]; track4 ms=[0,133333,300000,543333,576667,800000] raw=[0,0,32767,32767,0,0]"
+	)
+	print(
+		"LIMIT: source diagnosis /tmp/claude/retained-conversion-20/cloud-zero-opacity-root.md + /tmp/claude/retained-conversion-20/cloud-zero-opacity-tracks.json; historical fixed0/100000 contribution failures are incorrect-oracle RED, not production RED; no full original/native pixel parity"
+	)
+
+
+func wait_for_cloud_active_key() -> bool:
+	var started := Time.get_ticks_msec()
+	var initial_clock := material_time_ms()
+	if failed:
+		return false
+	while Time.get_ticks_msec() - started < CLOUD_WAIT_MS:
+		var clock_ms := material_time_ms()
+		if failed:
+			return false
+		var phase := clock_ms % 800000
+		if phase >= CLOUD_ACTIVE_MS and phase < CLOUD_ACTIVE_END_MS:
+			print(
+				"FIXTURE CLOUD_NATURAL_WAIT initial_clock_ms=",
+				initial_clock,
+				" start_clock_ms=",
+				clock_ms,
+				" elapsed_ms=",
+				Time.get_ticks_msec() - started,
+				" bound_ms=",
+				CLOUD_WAIT_MS,
+				" authored_active_key_ms=",
+				CLOUD_ACTIVE_MS
+			)
+			return true
+		await RenderingServer.frame_post_draw
+	return reject(
+		(
+			"Cloud never reached authored active key200000ms within wall bound%dms; elapsed=%dms initial_clock=%dms final_clock=%dms"
+			% [CLOUD_WAIT_MS, Time.get_ticks_msec() - started, initial_clock, material_time_ms()]
+		)
+	)
+
+
+func check_cloud_opacity() -> bool:
+	if expected_file != "11xp_cloudsky01.m2":
+		return true
+	if cloud_dormant_fixed():
+		var surfaces := 0
+		for node in sky.find_children("*", "MeshInstance3D", true, false):
+			var mesh_node := node as MeshInstance3D
+			for index in mesh_node.mesh.get_surface_count():
+				var material := mesh_node.get_active_material(index) as ShaderMaterial
+				if float(material.get_shader_parameter("transparency")) != 0.0:
+					return reject(
+						"Authored dormant cloud opacity is not exactly0: " + str(node.get_path())
+					)
+				surfaces += 1
+		if surfaces != 54:
+			return reject("Pinned dormant cloud requires all54 surfaces; got%d" % surfaces)
+		print(
+			"FIXTURE CLOUD_AUTHORED_ZERO_OPACITY fixed_ms=",
+			material_time_ms(),
+			" surfaces=",
+			surfaces,
+			" tracks=0/1/3/4 raw=0 transparency=0"
+		)
+	elif not fixed_time or material_time_ms() == CLOUD_ACTIVE_MS:
+		var batch := sky.get_node_or_null("SkyBatch0") as MeshInstance3D
+		var material := batch.get_active_material(0) as ShaderMaterial
+		if float(material.get_shader_parameter("transparency")) != 1.0:
+			return reject("Active cloud batch0 track0 raw32767 must render with transparency1")
+	return true
+
+
+func check_uv_sample(material: ShaderMaterial, period: int, endpoint: float) -> bool:
+	var elapsed := material_time_ms()
+	if failed:
+		return false
+	var phase := elapsed % period
+	var expected := Vector2(endpoint * float(phase) / float(period), 0.0)
+	var actual: Vector2 = material.get_shader_parameter("uv_offset_1")
+	if actual.distance_to(expected) > 0.000002:
+		return reject(
+			(
+				"Concrete batch0 translation mismatch ms=%d expected=%s actual=%s"
+				% [elapsed, expected, actual]
+			)
+		)
+	return true
+
+
+func changed_pixels(a: Image, b: Image) -> int:
+	var changed := 0
+	for y in range(0, a.get_height(), 2):
+		for x in range(0, a.get_width(), 2):
+			if pixel_delta(a, b, Vector2i(x, y)) > PIXEL_DELTA:
+				changed += 1
+	return changed
+
+
+func check_default_layers() -> bool:
+	if verify_only:
+		return true
+	if not fixed_time:
+		print("LIMIT: live default layer A/B/A attribution skipped; use fixed-time composition run")
+		return true
+	var plane := scene.get_node_or_null("SkyboxDebugGroundPlane") as MeshInstance3D
+	var dome := camera.get_node_or_null("SkyDome") as MeshInstance3D
+	if plane == null or dome == null:
+		return reject("Default production reference/procedural actors unavailable")
+	var sky_visible := sky.visible
+	var plane_visible := plane.visible
+	var dome_visible := dome.visible
+	sky.visible = false
+	var baseline := await capture("composition-baseline.png")
+	plane.visible = false
+	var procedural := await capture("composition-procedural.png")
+	dome.visible = false
+	var clear := await capture("composition-clear.png")
+	dome.visible = dome_visible
+	plane.visible = plane_visible
+	var restored := await capture("composition-baseline-restored.png")
+	sky.visible = sky_visible
+	if baseline == null or procedural == null:
+		return false
+	if clear == null or restored == null:
+		return false
+	var plane_pixels := changed_pixels(baseline, procedural)
+	var dome_pixels := changed_pixels(procedural, clear)
+	if plane_pixels < 100 or dome_pixels < 100:
+		return reject(
+			(
+				"Default reference/procedural actors lack rendered contributions: %d/%d"
+				% [plane_pixels, dome_pixels]
+			)
+		)
+	if changed_pixels(baseline, restored) != 0:
+		return reject("Default reference/procedural composition failed actual actor hide/restore")
+	print(
+		"FIXTURE DEFAULT_LAYERS reference_pixels=", plane_pixels, " procedural_pixels=", dome_pixels
+	)
+	print("LIMIT: layer contributions are not original-renderer pixel equivalence")
+	return true
+
+
 func check_sky_pixels() -> bool:
+	if not fixed_time:
+		print(
+			"LIMIT: live authored hide/restore attribution skipped; concrete track/rendered change tested separately"
+		)
+		return true
 	# Visible Control rectangles are excluded from the sky mask; UI is not hidden.
 	for node in client.find_children("*", "Control", true, false):
 		var control := node as Control
@@ -357,20 +787,37 @@ func check_sky_pixels() -> bool:
 		return false
 	if shown.get_size() != hidden.get_size() or shown.get_size() != restored.get_size():
 		return reject("Shown/hidden/restored capture extents differ")
+	var dormant := cloud_dormant_fixed()
+	if not check_cloud_opacity():
+		return false
 	var mask: Array[Vector2i] = []
+	var domain: Array[Vector2i] = []
 	for y in range(0, shown.get_height(), 2):
 		for x in range(0, shown.get_width(), 2):
 			var point := Vector2i(x, y)
 			if is_ui_pixel(point):
 				continue
+			domain.append(point)
 			if pixel_delta(shown, hidden, point) > PIXEL_DELTA:
 				mask.append(point)
-	if mask.size() < 100:
+	if domain.is_empty():
+		return reject("No non-UI attributed sky domain")
+	if dormant:
+		if not mask.is_empty():
+			return reject(
+				"Authored zero-opacity cloud changed shown/hidden domain pixels: %d" % mask.size()
+			)
+		mask = domain
+	elif mask.size() < 100:
 		return reject("Hiding only actual authored M2 changed too few pixels: %d" % mask.size())
 	if not coherent(shown, restored, mask):
-		return reject("Shown/restored sky captures incoherent; cannot attribute hidden baseline to M2")
+		return reject(
+			"Shown/restored sky captures incoherent; cannot attribute hidden baseline to M2"
+		)
 	if verify_only:
 		if not black_baseline(hidden):
+			return false
+		if dormant and not black_baseline(shown):
 			return false
 	if fixed_time:
 		for sample in 3:
@@ -379,12 +826,30 @@ func check_sky_pixels() -> bool:
 			var later := await capture("sky-fixed-%d.png" % sample)
 			if later == null:
 				return false
+			if not check_cloud_opacity():
+				return false
 			if not coherent(shown, later, mask):
 				return reject("Fixed --skybox-time-ms did not stabilize actual authored sky pixels")
 	else:
-		print("LIMIT: no fixed time; A/B/A contribution coherence only, no track-specific animation oracle")
-	print("FIXTURE SKYBOX_CONTRIBUTION sampled_pixels=", mask.size(), " fixed_time=", fixed_time)
+		print(
+			"LIMIT: no fixed time; A/B/A contribution coherence only, no track-specific animation oracle"
+		)
+	if dormant:
+		print(
+			"FIXTURE CLOUD_TRANSPARENT_RENDER fixed_ms=",
+			material_time_ms(),
+			" authored_only=",
+			verify_only,
+			" domain_pixels=",
+			domain.size(),
+			" shown_hidden_changed=0 stable_restore=true tolerance_codes=2; default composition identical in non-UI attributed domain, authored-only shown/hidden black"
+		)
+	else:
+		print(
+			"FIXTURE SKYBOX_CONTRIBUTION sampled_pixels=", mask.size(), " fixed_time=", fixed_time
+		)
 	return not failed
+
 
 func capture(name: String) -> Image:
 	await RenderingServer.frame_post_draw
@@ -404,6 +869,7 @@ func capture(name: String) -> Image:
 		return null
 	return image
 
+
 func visible_ui_surface(control: Control) -> bool:
 	if not control.is_visible_in_tree():
 		return false
@@ -422,16 +888,19 @@ func visible_ui_surface(control: Control) -> bool:
 		return true
 	return false
 
+
 func is_ui_pixel(point: Vector2i) -> bool:
 	for rect in ui_rects:
 		if rect.grow(2.0).has_point(Vector2(point)):
 			return true
 	return false
 
+
 func pixel_delta(a: Image, b: Image, point: Vector2i) -> float:
 	var p := a.get_pixelv(point)
 	var q := b.get_pixelv(point)
 	return maxf(absf(p.r - q.r), maxf(absf(p.g - q.g), absf(p.b - q.b)))
+
 
 func coherent(a: Image, b: Image, mask: Array[Vector2i]) -> bool:
 	if a.get_size() != b.get_size():
@@ -440,6 +909,7 @@ func coherent(a: Image, b: Image, mask: Array[Vector2i]) -> bool:
 		if pixel_delta(a, b, point) > PIXEL_DELTA:
 			return false
 	return true
+
 
 func black_baseline(image: Image) -> bool:
 	for y in range(0, image.get_height(), 2):
@@ -451,6 +921,7 @@ func black_baseline(image: Image) -> bool:
 			if maxf(color.r, maxf(color.g, color.b)) > PIXEL_DELTA:
 				return reject("Authored-only hidden-sky baseline is not black at %s" % point)
 	return true
+
 
 func reject(message: String) -> bool:
 	failed = true

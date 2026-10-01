@@ -73,6 +73,8 @@ pub(crate) fn binding_key(key: Key) -> Option<BindingKey> {
         Key::DELETE => B::Delete,
         Key::BACKSPACE => B::Backspace,
         Key::ENTER => B::Enter,
+        Key::KP_ADD => B::NumpadAdd,
+        Key::KP_SUBTRACT => B::NumpadSubtract,
         _ => return None,
     })
 }
@@ -185,6 +187,8 @@ mod tests {
             (Key::DELETE, BindingKey::Delete),
             (Key::BACKSPACE, BindingKey::Backspace),
             (Key::ENTER, BindingKey::Enter),
+            (Key::KP_ADD, BindingKey::NumpadAdd),
+            (Key::KP_SUBTRACT, BindingKey::NumpadSubtract),
         ];
         for (godot_key, expected) in keys {
             assert_eq!(binding_key(godot_key), Some(expected), "{godot_key:?}");

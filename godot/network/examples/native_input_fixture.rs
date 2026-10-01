@@ -43,12 +43,16 @@ mod bags_cursor;
 mod bags_drag;
 #[path = "native_input_fixture/bank.rs"]
 mod bank;
+#[path = "native_input_fixture/dev_ipc.rs"]
+mod dev_ipc;
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
 #[path = "native_input_fixture/footsteps.rs"]
 mod footsteps;
 #[path = "native_input_fixture/guild_bank.rs"]
 mod guild_bank;
+#[path = "native_input_fixture/keybinds.rs"]
+mod keybinds;
 #[path = "native_input_fixture/logout.rs"]
 mod logout;
 #[path = "native_input_fixture/loot.rs"]
@@ -112,6 +116,7 @@ enum StartupScreen {
     MerchantServices,
     MerchantTooltips,
     UiOwnership,
+    Keybinds,
     Loot,
     Bags,
     BagsActions,
@@ -126,6 +131,7 @@ enum StartupScreen {
     PortalParticlesDisabled,
     PortalDensity,
     Trade,
+    DevIpc,
 }
 
 impl StartupScreen {
@@ -145,6 +151,7 @@ impl StartupScreen {
             Some("merchant-services") => Self::MerchantServices,
             Some("merchant-tooltips") => Self::MerchantTooltips,
             Some("ui-ownership") => Self::UiOwnership,
+            Some("keybinds") => Self::Keybinds,
             Some("loot") => Self::Loot,
             Some("bags") => Self::Bags,
             Some("bags-actions") => Self::BagsActions,
@@ -159,9 +166,10 @@ impl StartupScreen {
             Some("portal-particles-disabled") => Self::PortalParticlesDisabled,
             Some("portal-density") => Self::PortalDensity,
             Some("trade") => Self::Trade,
+            Some("dev-ipc") => Self::DevIpc,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, merchant-cursor, merchant-services, merchant-tooltips, ui-ownership, loot, bags, bags-actions, bags-cursor, bags-drag, bank, guild-bank, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled, portal-density or trade"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, keybinds, sound, sound-click, merchant-click, merchant-cursor, merchant-services, merchant-tooltips, ui-ownership, loot, bags, bags-actions, bags-cursor, bags-drag, bank, guild-bank, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled, portal-density, trade or dev-ipc"
                 )
             }
         };
@@ -186,6 +194,7 @@ impl StartupScreen {
             | Self::MerchantServices
             | Self::MerchantTooltips
             | Self::UiOwnership
+            | Self::Keybinds
             | Self::Loot
             | Self::Bags
             | Self::BagsActions
@@ -199,7 +208,8 @@ impl StartupScreen {
             | Self::PortalParticlesEnabled
             | Self::PortalParticlesDisabled
             | Self::PortalDensity
-            | Self::Trade => "inworld",
+            | Self::Trade
+            | Self::DevIpc => "inworld",
         }
     }
 }
@@ -361,6 +371,7 @@ impl FixtureConfig {
                 | StartupScreen::SoundClick
                 | StartupScreen::MerchantClick
                 | StartupScreen::Footsteps
+                | StartupScreen::DevIpc
         ) {
             fs::write(
                 config.home.join("world-of-osso/options_settings.ron"),
@@ -435,6 +446,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::ResetWindows => "res://tests/options_reset_windows.gd",
         StartupScreen::SettingsReload => "res://tests/world_settings_reload_flow.gd",
         StartupScreen::UiOwnership => "res://tests/world_ui_ownership_flow.gd",
+        StartupScreen::Keybinds => "res://tests/world_keybinds_flow.gd",
         StartupScreen::Loot => "res://tests/world_loot_options_flow.gd",
         StartupScreen::Bags => "res://tests/world_bags_flow.gd",
         StartupScreen::BagsActions => "res://tests/world_bags_actions_flow.gd",
@@ -452,6 +464,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::Logout => "res://tests/world_logout_flow.gd",
         StartupScreen::Menu => "res://tests/world_menu_flow.gd",
         StartupScreen::Trade => "res://tests/world_trade_flow.gd",
+        StartupScreen::DevIpc => "res://tests/world_dev_ipc_flow.gd",
         _ => "res://tests/world_input_flow.gd",
     }
 }
@@ -475,6 +488,7 @@ fn launch_godot(
             | StartupScreen::MerchantServices
             | StartupScreen::MerchantTooltips
             | StartupScreen::UiOwnership
+            | StartupScreen::Keybinds
             | StartupScreen::Loot
             | StartupScreen::Bags
             | StartupScreen::BagsActions
@@ -488,6 +502,7 @@ fn launch_godot(
             | StartupScreen::PortalParticlesDisabled
             | StartupScreen::PortalDensity
             | StartupScreen::Trade
+            | StartupScreen::DevIpc
     ) {
         std::env::var_os("GODOT_BIN")
             .map(PathBuf::from)
@@ -533,6 +548,7 @@ fn launch_godot(
                     | StartupScreen::MerchantServices
                     | StartupScreen::MerchantTooltips
                     | StartupScreen::UiOwnership
+                    | StartupScreen::Keybinds
                     | StartupScreen::Loot
                     | StartupScreen::Bags
                     | StartupScreen::BagsActions
@@ -547,6 +563,7 @@ fn launch_godot(
                     | StartupScreen::PortalParticlesDisabled
                     | StartupScreen::PortalDensity
                     | StartupScreen::Trade
+                    | StartupScreen::DevIpc
             ) {
                 &["--"][..]
             } else {
@@ -807,6 +824,8 @@ fn respond_to_selection(
                 | StartupScreen::MerchantServices
                 | StartupScreen::MerchantTooltips
                 | StartupScreen::UiOwnership
+                | StartupScreen::Keybinds
+                | StartupScreen::DevIpc
         ) {
             app.world_mut()
                 .entity_mut(player)
@@ -1497,6 +1516,7 @@ fn main() {
             | StartupScreen::MerchantServices
             | StartupScreen::MerchantTooltips
             | StartupScreen::UiOwnership
+            | StartupScreen::Keybinds
             | StartupScreen::Loot
             | StartupScreen::Bags
             | StartupScreen::BagsCursor
@@ -1510,6 +1530,7 @@ fn main() {
             | StartupScreen::PortalDensity
             | StartupScreen::BagsActions
             | StartupScreen::Trade
+            | StartupScreen::DevIpc
     ) {
         assert!(
             launcher.is_file(),
@@ -1543,6 +1564,7 @@ fn main() {
             merchant_tooltips::run(&mut app, &mut child, lines, reader)
         }
         StartupScreen::UiOwnership => ui_ownership::run(&mut app, &mut child, lines, reader),
+        StartupScreen::Keybinds => keybinds::run(&mut app, &mut child, lines, reader),
         StartupScreen::Loot => loot::run(&mut app, &mut child, lines, reader),
         StartupScreen::Bags => bags::run(&mut app, &mut child, lines, reader),
         StartupScreen::BagsActions => bags_actions::run(&mut app, &mut child, lines, reader),
@@ -1575,6 +1597,7 @@ fn main() {
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
             portal_particles::run(&mut app, &mut child, lines, reader, screen)
         }
+        StartupScreen::DevIpc => dev_ipc::run(&mut app, &mut child, lines, reader, root, address),
         StartupScreen::CharSelect | StartupScreen::InWorld | StartupScreen::Overlay => {
             run_fixture(&mut app, &mut child, lines, reader, screen)
         }

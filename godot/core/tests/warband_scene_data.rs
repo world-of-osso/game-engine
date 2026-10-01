@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use game_engine_core::warband_scene_data::{AtlasArt, read_authored_catalog, read_texture_kit_art};
+use game_engine_core::warband_scene_data::{
+    AtlasArt, read_atlas_art, read_authored_catalog, read_texture_kit_art,
+};
 
 #[test]
 fn authored_adventurers_rest_records_preserve_camera_focus_and_primary_tile() {
@@ -111,4 +113,36 @@ fn missing_texture_kit_table_is_an_error() {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/nonexistent-warband-fixture");
     let error = read_texture_kit_art(&absent, &[5743]).expect_err("missing CSV must fail");
     assert!(error.contains("UiTextureKit.csv"), "{error}");
+}
+
+#[test]
+fn atlas_names_resolve_to_their_scale_one_members() {
+    let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let art = read_atlas_art(
+        &data_root,
+        &[
+            "UI-CastingBar-Pip",
+            "ui-castingbar-pip-red",
+            "nameplates-InterruptShield",
+        ],
+    )
+    .expect("read atlas tables");
+    // Member of the same name in UiTextureAtlas 1942 (512x256).
+    assert_eq!(
+        art["ui-castingbar-pip"],
+        AtlasArt {
+            fdid: 4505182,
+            tex_coords: [1.0 / 512.0, 7.0 / 512.0, 151.0 / 256.0, 181.0 / 256.0],
+        }
+    );
+    // No member named after the element: its 6x30 `-1x_red`, not the 10x60 `-2x_red`.
+    assert_eq!(
+        art["ui-castingbar-pip-red"],
+        AtlasArt {
+            fdid: 4549775,
+            tex_coords: [1009.0 / 1024.0, 1015.0 / 1024.0, 69.0 / 512.0, 99.0 / 512.0],
+        }
+    );
+    assert_eq!(art["nameplates-interruptshield"].fdid, 1300837);
+    assert!(read_atlas_art(&data_root, &["no-such-atlas"]).is_err());
 }
