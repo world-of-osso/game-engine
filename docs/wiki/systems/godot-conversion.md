@@ -77,7 +77,19 @@ MAIN read FULL and accepts independent gate1461 **bounded compiled/format/source
 | Split sale / authority | Own background left **PRESS** sends exactly1 Sell GUID9182590/count2. Client Linen5/Gold988, unlocked source and hidden cursor stay quiet900ms before SPLIT_SELL_COMMIT; only peer response produces Linen3/Gold1014. Combined totals: Buy1/Sell2, three authority barriers. Owned authenticated peer, not production server-sale-policy execution. |
 | Acceptance / lifecycle | MAIN-accepted gate1461 bounded PASS includes both resolved whole-fixture findings and standalone regression (exact Swap1/Split1, count2; authoritative rendering). New production changed-function violations0; inherited test length/adjacent native debt and WMO warning remain, **not clean**. Owned children4063477/4065619 deliberately SIGKILLed/reaped, reader_errors0: **NOT shutdown proof**. Earlier reports/failures and lifecycle exclusions retained. |
 
-Earlier `5c312ff3` source-lock proof is retained. Source-owner acceptance covers Merchant open + bag0 selection only, not general winners, cross-root or Mail behavior. Valid anchor RED is distinct from wrong-root and cross-owner resource-identity false oracles; final actual image-byte proof is **not screenshot raster parity**. Shift vendor-buy test agent1464 is preparing, **not proof**. Buyback, lifecycle/general ownership and all broader remaining scopes stay unproved. Full conversion remains OPEN.
+Earlier `5c312ff3` source-lock proof is retained. Source-owner acceptance covers Merchant open + bag0 selection only, not general winners, cross-root or Mail behavior. Valid anchor RED is distinct from wrong-root and cross-owner resource-identity false oracles; final actual image-byte proof is **not screenshot raster parity**. Shift vendor-buy now has the test-only runtime evidence below; independent gate1467 remains pending, **not accepted**. Buyback, lifecycle/general ownership and all broader remaining scopes stay unproved. Full conversion remains OPEN.
+
+### Native merchant Shift vendor buy — observed existing behavior, gate pending
+
+Test-only `deefafa8` adds coverage without production changes after accepted docs `5faec7d2`; prior MAIN-accepted gate1461 remains unchanged. [Test report SSOT](/tmp/claude/native-merchant-shift-buy-test.md) records exact authored values and exclusions; its unexecuted status is historical, superseded by MAIN-supplied first-run evidence here. Depot `477ngxz729`, `/tmp/claude/native-merchant-shift-buy-first-build.log` exit0; actual `/tmp/claude/native-merchant-shift-buy-first-runtime.log` exit0 retains all three previous cases. First test passes existing behavior: **not a missing-feature RED or production fix**. Independent gate1467 pending, **not accepted**.
+
+| Boundary | Observed evidence / status |
+| --- | --- |
+| Physical picker | Shift-left actual vendor item opens own MerchantUI172×96 picker, BOTTOMLEFT = vendor TOPLEFT. Initial1; physical digits4 then0 produce40, Up stays40: affordability floor(1014/25)=40, not max stack1000. Backspace40→4→1, digit2, Enter. |
+| Fourth authority barrier | No held icon, source white, Linen3/Gold1014 remain before new client SHIFT_BUY_COMMIT. Exactly one extra decoded BuyItem: owned npc/slot0/item2589/count2/destinationNone. Only peer response produces Linen5/same GUID9182590/Gold964. |
+| Preserved totals / lifecycle | opens1/buys2/sells2, four request/commit barriers; prior three cases retained. Owned child4077399 deliberately killed/reaped, reader_errors0: **not normal shutdown**. |
+
+Fixture authority does not prove production-server pricing or autostacking. No new production acceptance, buyback, lifecycle, cross-root/global ownership or full-conversion claim. Full conversion remains **OPEN**.
 
 ## Native standalone bags — bounded window and cursor PASS
 
