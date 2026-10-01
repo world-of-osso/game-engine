@@ -56,6 +56,7 @@ mod profile;
 mod quests;
 mod replicated;
 mod scene;
+mod selection_debug;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
