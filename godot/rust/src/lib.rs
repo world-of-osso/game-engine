@@ -43,6 +43,7 @@ mod loot;
 mod m2_debug;
 mod mail;
 mod merchant;
+mod merchant_window;
 mod minimap;
 mod mirror_timers;
 mod nameplates;
@@ -61,6 +62,7 @@ mod selection_debug;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
+mod sound_ui_kits;
 mod spell_assets;
 mod spell_effects;
 mod spell_sounds;
@@ -1608,6 +1610,11 @@ impl GameClient {
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
+            AccountEvent::Emote(event) => {
+                if let Err(error) = self.world.receive_emote(event.player_entity, event.emote) {
+                    godot_error!("Emote of {}: {error}", event.sender);
+                }
+            }
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
             AccountEvent::Quest(message) => self.receive_quest_message(message)?,
             AccountEvent::QuestNotice(text) => self.add_quest_notice(&text),
