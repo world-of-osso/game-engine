@@ -1,10 +1,14 @@
+## 2026-10-01 — Native merchant cursor MAIN-observed bounded GREEN; gates pending
+
+[SSOT proof matrix](systems/godot-conversion.md#native-merchant-cursor-buy--main-observed-bounded-green-gates-pending) supersedes `7ec8c814`: matching Depot build and five full runtimes exit0 at native `837e2c1e`/`b073e4dd`. Exact owned embedded-slot Buy,900ms pre-response COMMIT and peer-only inventory/gold final now MAIN-observed; gate1446/readability pending until MAIN confirms. Historical RED, inherited debt/auth timeout/ObjectDB warning and shutdown exclusions retained; no whole merchant cursor/SELL/global ownership/full conversion acceptance. Docs only; no source/PLAN/data edits, tests/builds/delegation/ops.
+
 ## 2026-10-01 — Merchant cursor actual RED and bounded source checkpoint
 
-[SSOT proof matrix](systems/godot-conversion.md#native-merchant-cursor-buy--actual-red-bounded-implementation-pending-gates) supersedes prepared docs `e5c98513`: actual authenticated first pickup RED101, then ordered owner-tagged Merchant inputs `b073e4dd` and shared cursor dispatch/private owner check `837e2c1e`. First vendor → own embedded bag only; matching build, five runtime regressions and gate1446 pending, no accepted GREEN. Existing startup1429/tooltip1415 scopes retained; inherited debt/auth timeout/ObjectDB warning/general shutdown open. Docs-only commit; no source/PLAN/data edits, tests/builds/delegation/operations.
+[SSOT proof matrix](systems/godot-conversion.md#native-merchant-cursor-buy--main-observed-bounded-green-gates-pending) supersedes prepared docs `e5c98513`: actual authenticated first pickup RED101, then ordered owner-tagged Merchant inputs `b073e4dd` and shared cursor dispatch/private owner check `837e2c1e`. First vendor → own embedded bag only; matching build, five runtime regressions and gate1446 pending, no accepted GREEN. Existing startup1429/tooltip1415 scopes retained; inherited debt/auth timeout/ObjectDB warning/general shutdown open. Docs-only commit; no source/PLAN/data edits, tests/builds/delegation/operations.
 
 ## 2026-09-30 — Merchant cursor test-only checkpoint (historical)
 
-[SSOT](systems/godot-conversion.md#native-merchant-cursor-buy--actual-red-bounded-implementation-pending-gates) records tests `d825108c`/`2c00a751`, MAIN registration `3cb53ab4`, literal Linen/embedded-slot Buy+COMMIT barrier, strict phases and intentional owned cleanup. First Native Depot/authenticated RED pending; no production cursor implementation or new user screen. Spec/parity links and invocation docs reconciled without changing product policy; accepted startup1429/tooltip1415 and existing merchant-click/bag scopes retained. Docs only; no builds/tests/gates/operations.
+[SSOT](systems/godot-conversion.md#native-merchant-cursor-buy--main-observed-bounded-green-gates-pending) records tests `d825108c`/`2c00a751`, MAIN registration `3cb53ab4`, literal Linen/embedded-slot Buy+COMMIT barrier, strict phases and intentional owned cleanup. First Native Depot/authenticated RED pending; no production cursor implementation or new user screen. Spec/parity links and invocation docs reconciled without changing product policy; accepted startup1429/tooltip1415 and existing merchant-click/bag scopes retained. Docs only; no builds/tests/gates/operations.
 
 ## 2026-09-30 — Startup equipment bounded acceptance reconciled
 

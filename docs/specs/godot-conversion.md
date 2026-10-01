@@ -16,9 +16,9 @@ Bounded foreign-chat World rejection at `5f6782b5`: **MAIN observed GREEN; indep
 
 Standalone bag tooltip native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + oracle correction `88b0505f`: **MAIN-observed bounded GREEN; independent verifier1415 accepted bounded PASS after MAIN read the full report**. Corrected actual tooltip/content/placement/hiding, inspected Linen/Poor captures, CPU native5/shared4, registry2 and same-build drag/actions/cursor pass. Authentic `7e7b70af` RED101 retained; first GREEN attempt101 was a false oracle, not production failure. Pure gear formatter4 is not native gear-hover proof; paperdoll/NPC/global winner/nondefault scale/reset-runtime/all gear-line runtime/shutdown/full conversion remain unproved, inherited12 readability findings uncleared. [Owned checkpoint](../wiki/systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending) records exact evidence without extending accepted `ddc318d8` foreign gate or clearing inherited exclusions.
 
-### Native merchant cursor — actual RED, pending gates
+### Native merchant cursor — MAIN-observed bounded GREEN, gates pending
 
-Independent fixture has **actual authenticated pickup RED; bounded native `b073e4dd`/`837e2c1e` awaits matching build, five runtime regressions and gate1446**. No accepted GREEN or user game screen added. Scope: first vendor → own embedded bag only. [SSOT oracle, source proof matrix, exclusions and retained proofs](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--actual-red-bounded-implementation-pending-gates); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing product cursor policy remains unchanged; full conversion OPEN.
+Independent fixture has **MAIN-observed bounded GREEN at `837e2c1e`/`b073e4dd`: matching Depot build and five full runtimes exit0; independent gate1446/readability pending, not accepted until MAIN confirms**. No independent acceptance or user game screen added. Scope: first vendor → own embedded bag only. [SSOT oracle, source proof matrix, exclusions and retained proofs](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--main-observed-bounded-green-gates-pending); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing product cursor policy remains unchanged; full conversion OPEN.
 
 ### Occupied startup equipment inventory
 
