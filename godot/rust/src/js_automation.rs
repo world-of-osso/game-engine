@@ -1,6 +1,10 @@
 //! Main-thread consumption of the original synchronous JS action compiler.
 
-use std::{collections::VecDeque, path::Path};
+use std::{
+    collections::{HashMap, VecDeque},
+    path::Path,
+    sync::LazyLock,
+};
 
 use game_engine_network::{
     automation_data::{KeyChord, KeyCode, UiAutomationAction},
@@ -96,49 +100,41 @@ impl NativeJsAutomation {
         state: GameState,
         action: UiAutomationAction,
     ) -> Result<bool, String> {
-        match action {
+        self.input = match action {
             UiAutomationAction::WaitForState(target, timeout) => {
-                self.wait_until(state == target, timeout, &format!("state {target:?}"))
+                return self.wait_until(state == target, timeout, &format!("state {target:?}"));
             }
-            UiAutomationAction::WaitForFrame(name, timeout) => self.wait_until(
-                visible_control(client, &name).is_some(),
-                timeout,
-                &format!("frame '{name}'"),
-            ),
-            UiAutomationAction::Wait(seconds) => {
-                validate_seconds(seconds)?;
-                let started = *self.wait_started.get_or_insert(self.elapsed);
-                Ok(self.elapsed - started >= f64::from(seconds))
+            UiAutomationAction::WaitForFrame(name, timeout) => {
+                return self.wait_for_frame(client, &name, timeout);
             }
+            UiAutomationAction::Wait(seconds) => return self.wait_delay(seconds),
             UiAutomationAction::ClickFrame(name) => {
-                self.input = click_events(client, &name, MouseButton::LEFT, false)?;
-                Ok(true)
+                click_events(client, &name, MouseButton::LEFT, false)
             }
-            UiAutomationAction::RightClickFrame(name) => {
-                require_inworld(state, "rightClick")?;
-                self.input = click_events(client, &name, MouseButton::RIGHT, false)?;
-                Ok(true)
-            }
-            UiAutomationAction::ShiftClickFrame(name) => {
-                require_inworld(state, "shiftClick")?;
-                self.input = click_events(client, &name, MouseButton::LEFT, true)?;
-                Ok(true)
-            }
-            UiAutomationAction::TypeText(text) => {
-                require_focused_editor(client)?;
-                self.input = text_events(&text);
-                Ok(true)
-            }
-            UiAutomationAction::PressKey(chord) => {
-                if state != GameState::InWorld {
-                    chord.unmodified_key()?;
-                }
-                self.input = chord_events(&chord)?;
-                Ok(true)
-            }
-            UiAutomationAction::DumpTree => print_tree(ipc::dump_tree(client, None)),
-            UiAutomationAction::DumpUiTree => print_tree(ipc::dump_ui_tree(client, None)),
-        }
+            UiAutomationAction::RightClickFrame(name) => right_click_events(client, state, &name),
+            UiAutomationAction::ShiftClickFrame(name) => shift_click_events(client, state, &name),
+            UiAutomationAction::TypeText(text) => focused_text_events(client, &text),
+            UiAutomationAction::PressKey(chord) => state_chord_events(state, &chord),
+            UiAutomationAction::DumpTree => return print_tree(ipc::dump_tree(client, None)),
+            UiAutomationAction::DumpUiTree => return print_tree(ipc::dump_ui_tree(client, None)),
+        }?;
+        Ok(true)
+    }
+
+    fn wait_for_frame(
+        &mut self,
+        client: &Gd<Node>,
+        name: &str,
+        timeout: f32,
+    ) -> Result<bool, String> {
+        let ready = visible_control(client, name).is_some();
+        self.wait_until(ready, timeout, &format!("frame '{name}'"))
+    }
+
+    fn wait_delay(&mut self, seconds: f32) -> Result<bool, String> {
+        validate_seconds(seconds)?;
+        let started = *self.wait_started.get_or_insert(self.elapsed);
+        Ok(self.elapsed - started >= f64::from(seconds))
     }
 
     fn wait_until(&mut self, ready: bool, timeout: f32, target: &str) -> Result<bool, String> {
@@ -205,28 +201,74 @@ fn click_events(
         ));
     }
     let point = control.get_global_transform_with_canvas() * (size * 0.5);
-    let mut motion = InputEventMouseMotion::new_gd();
-    motion.set_position(point);
-    motion.set_global_position(point);
-    motion.set_shift_pressed(shift);
     let mut events = VecDeque::new();
     if shift {
         events.push_back(key_event(Key::SHIFT, true, &[Key::SHIFT]));
     }
-    events.push_back(motion.upcast());
+    events.push_back(mouse_motion_event(point, shift));
     for pressed in [true, false] {
-        let mut event = InputEventMouseButton::new_gd();
-        event.set_position(point);
-        event.set_global_position(point);
-        event.set_button_index(button);
-        event.set_pressed(pressed);
-        event.set_shift_pressed(shift);
-        events.push_back(event.upcast());
+        events.push_back(mouse_button_event(point, button, pressed, shift));
     }
     if shift {
         events.push_back(key_event(Key::SHIFT, false, &[]));
     }
     Ok(events)
+}
+
+fn mouse_motion_event(point: Vector2, shift: bool) -> Gd<InputEvent> {
+    let mut event = InputEventMouseMotion::new_gd();
+    event.set_position(point);
+    event.set_global_position(point);
+    event.set_shift_pressed(shift);
+    event.upcast()
+}
+
+fn mouse_button_event(
+    point: Vector2,
+    button: MouseButton,
+    pressed: bool,
+    shift: bool,
+) -> Gd<InputEvent> {
+    let mut event = InputEventMouseButton::new_gd();
+    event.set_position(point);
+    event.set_global_position(point);
+    event.set_button_index(button);
+    event.set_pressed(pressed);
+    event.set_shift_pressed(shift);
+    event.upcast()
+}
+
+fn right_click_events(
+    client: &Gd<Node>,
+    state: GameState,
+    name: &str,
+) -> Result<VecDeque<Gd<InputEvent>>, String> {
+    require_inworld(state, "rightClick")?;
+    click_events(client, name, MouseButton::RIGHT, false)
+}
+
+fn shift_click_events(
+    client: &Gd<Node>,
+    state: GameState,
+    name: &str,
+) -> Result<VecDeque<Gd<InputEvent>>, String> {
+    require_inworld(state, "shiftClick")?;
+    click_events(client, name, MouseButton::LEFT, true)
+}
+
+fn focused_text_events(client: &Gd<Node>, text: &str) -> Result<VecDeque<Gd<InputEvent>>, String> {
+    require_focused_editor(client)?;
+    Ok(text_events(text))
+}
+
+fn state_chord_events(
+    state: GameState,
+    chord: &KeyChord,
+) -> Result<VecDeque<Gd<InputEvent>>, String> {
+    if state != GameState::InWorld {
+        chord.unmodified_key()?;
+    }
+    chord_events(chord)
 }
 
 fn require_focused_editor(client: &Gd<Node>) -> Result<(), String> {
@@ -299,86 +341,88 @@ fn key_event(key: Key, pressed: bool, held: &[Key]) -> Gd<InputEvent> {
     event.upcast()
 }
 
+const NATIVE_KEY_PAIRS: [(KeyCode, Key); 71] = [
+    (KeyCode::KeyA, Key::A),
+    (KeyCode::KeyB, Key::B),
+    (KeyCode::KeyC, Key::C),
+    (KeyCode::KeyD, Key::D),
+    (KeyCode::KeyE, Key::E),
+    (KeyCode::KeyF, Key::F),
+    (KeyCode::KeyG, Key::G),
+    (KeyCode::KeyH, Key::H),
+    (KeyCode::KeyI, Key::I),
+    (KeyCode::KeyJ, Key::J),
+    (KeyCode::KeyK, Key::K),
+    (KeyCode::KeyL, Key::L),
+    (KeyCode::KeyM, Key::M),
+    (KeyCode::KeyN, Key::N),
+    (KeyCode::KeyO, Key::O),
+    (KeyCode::KeyP, Key::P),
+    (KeyCode::KeyQ, Key::Q),
+    (KeyCode::KeyR, Key::R),
+    (KeyCode::KeyS, Key::S),
+    (KeyCode::KeyT, Key::T),
+    (KeyCode::KeyU, Key::U),
+    (KeyCode::KeyV, Key::V),
+    (KeyCode::KeyW, Key::W),
+    (KeyCode::KeyX, Key::X),
+    (KeyCode::KeyY, Key::Y),
+    (KeyCode::KeyZ, Key::Z),
+    (KeyCode::Digit0, Key::KEY_0),
+    (KeyCode::Digit1, Key::KEY_1),
+    (KeyCode::Digit2, Key::KEY_2),
+    (KeyCode::Digit3, Key::KEY_3),
+    (KeyCode::Digit4, Key::KEY_4),
+    (KeyCode::Digit5, Key::KEY_5),
+    (KeyCode::Digit6, Key::KEY_6),
+    (KeyCode::Digit7, Key::KEY_7),
+    (KeyCode::Digit8, Key::KEY_8),
+    (KeyCode::Digit9, Key::KEY_9),
+    (KeyCode::F1, Key::F1),
+    (KeyCode::F2, Key::F2),
+    (KeyCode::F3, Key::F3),
+    (KeyCode::F4, Key::F4),
+    (KeyCode::F5, Key::F5),
+    (KeyCode::F6, Key::F6),
+    (KeyCode::F7, Key::F7),
+    (KeyCode::F8, Key::F8),
+    (KeyCode::F9, Key::F9),
+    (KeyCode::F10, Key::F10),
+    (KeyCode::F11, Key::F11),
+    (KeyCode::F12, Key::F12),
+    (KeyCode::Space, Key::SPACE),
+    (KeyCode::Tab, Key::TAB),
+    (KeyCode::Escape, Key::ESCAPE),
+    (KeyCode::Minus, Key::MINUS),
+    (KeyCode::Equal, Key::EQUAL),
+    (KeyCode::BracketLeft, Key::BRACKETLEFT),
+    (KeyCode::BracketRight, Key::BRACKETRIGHT),
+    (KeyCode::ArrowLeft, Key::LEFT),
+    (KeyCode::ArrowRight, Key::RIGHT),
+    (KeyCode::ArrowUp, Key::UP),
+    (KeyCode::ArrowDown, Key::DOWN),
+    (KeyCode::PageUp, Key::PAGEUP),
+    (KeyCode::PageDown, Key::PAGEDOWN),
+    (KeyCode::NumLock, Key::NUMLOCK),
+    (KeyCode::Home, Key::HOME),
+    (KeyCode::End, Key::END),
+    (KeyCode::Insert, Key::INSERT),
+    (KeyCode::Delete, Key::DELETE),
+    (KeyCode::Backspace, Key::BACKSPACE),
+    (KeyCode::Enter, Key::ENTER),
+    (KeyCode::ShiftLeft, Key::SHIFT),
+    (KeyCode::ControlLeft, Key::CTRL),
+    (KeyCode::AltLeft, Key::ALT),
+];
+
+static NATIVE_KEYS: LazyLock<HashMap<KeyCode, Key>> =
+    LazyLock::new(|| NATIVE_KEY_PAIRS.into_iter().collect());
+
 fn native_key(key: KeyCode) -> Result<Key, String> {
-    use KeyCode as B;
-    Ok(match key {
-        B::KeyA => Key::A,
-        B::KeyB => Key::B,
-        B::KeyC => Key::C,
-        B::KeyD => Key::D,
-        B::KeyE => Key::E,
-        B::KeyF => Key::F,
-        B::KeyG => Key::G,
-        B::KeyH => Key::H,
-        B::KeyI => Key::I,
-        B::KeyJ => Key::J,
-        B::KeyK => Key::K,
-        B::KeyL => Key::L,
-        B::KeyM => Key::M,
-        B::KeyN => Key::N,
-        B::KeyO => Key::O,
-        B::KeyP => Key::P,
-        B::KeyQ => Key::Q,
-        B::KeyR => Key::R,
-        B::KeyS => Key::S,
-        B::KeyT => Key::T,
-        B::KeyU => Key::U,
-        B::KeyV => Key::V,
-        B::KeyW => Key::W,
-        B::KeyX => Key::X,
-        B::KeyY => Key::Y,
-        B::KeyZ => Key::Z,
-        B::Digit0 => Key::KEY_0,
-        B::Digit1 => Key::KEY_1,
-        B::Digit2 => Key::KEY_2,
-        B::Digit3 => Key::KEY_3,
-        B::Digit4 => Key::KEY_4,
-        B::Digit5 => Key::KEY_5,
-        B::Digit6 => Key::KEY_6,
-        B::Digit7 => Key::KEY_7,
-        B::Digit8 => Key::KEY_8,
-        B::Digit9 => Key::KEY_9,
-        B::F1 => Key::F1,
-        B::F2 => Key::F2,
-        B::F3 => Key::F3,
-        B::F4 => Key::F4,
-        B::F5 => Key::F5,
-        B::F6 => Key::F6,
-        B::F7 => Key::F7,
-        B::F8 => Key::F8,
-        B::F9 => Key::F9,
-        B::F10 => Key::F10,
-        B::F11 => Key::F11,
-        B::F12 => Key::F12,
-        B::Space => Key::SPACE,
-        B::Tab => Key::TAB,
-        B::Escape => Key::ESCAPE,
-        B::Minus => Key::MINUS,
-        B::Equal => Key::EQUAL,
-        B::BracketLeft => Key::BRACKETLEFT,
-        B::BracketRight => Key::BRACKETRIGHT,
-        B::ArrowLeft => Key::LEFT,
-        B::ArrowRight => Key::RIGHT,
-        B::ArrowUp => Key::UP,
-        B::ArrowDown => Key::DOWN,
-        B::PageUp => Key::PAGEUP,
-        B::PageDown => Key::PAGEDOWN,
-        B::NumLock => Key::NUMLOCK,
-        B::Home => Key::HOME,
-        B::End => Key::END,
-        B::Insert => Key::INSERT,
-        B::Delete => Key::DELETE,
-        B::Backspace => Key::BACKSPACE,
-        B::Enter => Key::ENTER,
-        B::ShiftLeft => Key::SHIFT,
-        B::ControlLeft => Key::CTRL,
-        B::AltLeft => Key::ALT,
-        other => {
-            return Err(format!(
-                "native JS automation: unconverted native key {other:?}"
-            ));
-        }
-    })
+    NATIVE_KEYS
+        .get(&key)
+        .copied()
+        .ok_or_else(|| format!("native JS automation: unconverted native key {key:?}"))
 }
 
 fn print_tree(response: Response) -> Result<bool, String> {
