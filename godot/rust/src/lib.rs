@@ -217,8 +217,11 @@ impl INode3D for GameClient {
             data_root.clone(),
         );
         let graphics = &client_options.graphics;
+        let mut world = world::WorldUnits::new(data_root.clone());
         if graphics.particle_effects_enabled {
-            world_objects.enable_particles(f32::from(graphics.particle_density) / 100.0);
+            let density = f32::from(graphics.particle_density) / 100.0;
+            world_objects.enable_particles(density);
+            world.enable_particles(density);
         }
         Self {
             base,
@@ -289,7 +292,7 @@ impl INode3D for GameClient {
             last_process_ms: 0.0,
             replica: Replica::default(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
-            world: world::WorldUnits::new(data_root),
+            world,
             server_hostname: if cfg!(debug_assertions) {
                 "127.0.0.1:5000"
             } else {
@@ -605,6 +608,9 @@ impl GameClient {
             objects.set("particles", &particles);
         }
         state.set("world_objects", &objects);
+        if let Some(particles) = self.world.particle_state() {
+            state.set("unit_particles", &particles);
+        }
         state.set(
             "unit_visuals_pending",
             &(self.world.visuals_pending() as i64).to_variant(),
@@ -1782,11 +1788,10 @@ impl GameClient {
             self.world_objects
                 .cull_doodads(camera, &frustum, delta_ms, frame);
             if let Some(transform) = self.world_camera.transform() {
-                self.world_objects.update_particles(
-                    transform,
-                    &frustum,
-                    (delta_ms / 1000.0) as f32,
-                );
+                let delta = (delta_ms / 1000.0) as f32;
+                self.world_objects
+                    .update_particles(transform, &frustum, delta);
+                self.world.update_particles(transform, &frustum, delta);
             }
             self.world.apply_animation_lod(camera, &frustum, frame);
         }

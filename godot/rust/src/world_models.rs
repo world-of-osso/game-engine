@@ -133,6 +133,19 @@ pub(crate) enum VisualParts {
     Player(PlayerParts),
 }
 
+impl VisualParts {
+    /// The particle emitters of a creature's display model (the model `build_visual`
+    /// names `NpcModel`); `None` for players and emitterless models.
+    pub fn particles(&self) -> Option<std::rc::Rc<crate::particles::ModelParticles>> {
+        match self {
+            Self::Creature { display, model, .. } => {
+                crate::particles::ModelParticles::from_model(display.model_fdid, &model.model.model)
+            }
+            Self::Player(_) => None,
+        }
+    }
+}
+
 /// The catalogs unit visuals read, shared by the main thread and the workers; each
 /// loads once, on a worker at startup, so no frame waits for it.
 struct VisualCatalogs {
