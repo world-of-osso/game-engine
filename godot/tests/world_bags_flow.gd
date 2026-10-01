@@ -65,8 +65,8 @@ func run_test() -> void:
 	var first := authored_control(client, "ContainerFrame0").get_global_rect()
 	var second := authored_control(client, "ContainerFrame1").get_global_rect()
 	print("BAGS POSITIONS together bag0=", first, " bag1=", second)
-	if first.intersects(second):
-		fail("Authored standalone bag containers overlap")
+	if first.intersects(second) or absf(root.get_visible_rect().end.y - first.end.y - CONTAINER_BOTTOM) > POSITION_TOLERANCE or absf(first.position.y - second.end.y - 8.0) > POSITION_TOLERANCE:
+		fail("Authored standalone bags must stack by bag index with the original eight-unit gap")
 		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
