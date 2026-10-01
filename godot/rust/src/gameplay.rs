@@ -458,6 +458,7 @@ impl crate::GameClient {
                 invert_y: options.invert_y,
             },
         );
+        let manual = has_manual_movement_override(&self.client_options.bindings, &input);
         let step = scripted_step(
             &mut self.scripted_movement,
             &mut self.player_movement,
@@ -465,7 +466,11 @@ impl crate::GameClient {
             &input,
             delta,
         );
-        let yaw = step.and_then(|step| step.facing_yaw).unwrap_or(yaw);
+        // The original applies the waypoint's facing after the scripted step's.
+        let waypoint_yaw = self.follow_waypoint(manual)?;
+        let yaw = waypoint_yaw
+            .or(step.and_then(|step| step.facing_yaw))
+            .unwrap_or(yaw);
         self.world.set_local_player_facing(yaw);
         if self.world.local_player_controlled() {
             self.halt_player_movement();
@@ -476,7 +481,7 @@ impl crate::GameClient {
             &input,
             yaw,
             self.world_camera.pitch(),
-            step.is_some(),
+            step.is_some() || waypoint_yaw.is_some(),
         );
         let jump = self
             .client_options
@@ -484,6 +489,38 @@ impl crate::GameClient {
             .is_just_pressed(InputAction::Jump, &input);
         let delta = step.map_or(delta, |step| step.duration_secs);
         self.predict_player(frame, jump, yaw, delta)
+    }
+
+    /// The facing toward the map waypoint's next path node while walking to it.
+    fn follow_waypoint(&mut self, manual_override: bool) -> Result<Option<f32>, String> {
+        use godot::prelude::*;
+        if self.map_waypoint.is_none() {
+            self.waypoint_path.clear();
+            return Ok(None);
+        }
+        let player = self
+            .world
+            .local_player_node()
+            .ok_or("Selected player vanished during input")?;
+        let position = player.get_position();
+        let space = player
+            .get_world_3d()
+            .and_then(|world| world.get_direct_space_state())
+            .ok_or("Local player has no physics space")?;
+        let walls = |origin, direction, length| {
+            crate::wmo::collision::wall_hit(&space, origin, direction, length)
+        };
+        let ground = crate::ground::TerrainGround {
+            terrain: &self.terrain,
+            walls: &walls,
+        };
+        Ok(self.waypoint_path.follow(
+            &mut self.map_waypoint,
+            Vec3::new(position.x, position.y, position.z),
+            manual_override,
+            &self.terrain,
+            &ground,
+        ))
     }
 
     fn halt_player_movement(&mut self) {
