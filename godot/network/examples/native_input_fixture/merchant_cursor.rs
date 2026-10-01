@@ -83,6 +83,12 @@ enum Phase {
     SaleHeld,
     SaleRequest,
     SaleDelta,
+    SplitSeed,
+    SplitPickerArm,
+    SplitPicker,
+    SplitHeld,
+    SplitRequest,
+    SplitDelta,
     Drain,
 }
 
@@ -95,6 +101,7 @@ struct Session {
     sells: usize,
     commit: bool,
     sell_commit: bool,
+    split_sell_commit: bool,
 }
 
 impl Session {
@@ -180,7 +187,37 @@ impl Session {
                 self.require_quiet()?;
                 self.sell_commit = true;
             }
-            (Phase::SaleDelta, "FIXTURE MERCHANT_CURSOR_DONE") => {
+            (Phase::SaleDelta, "FIXTURE MERCHANT_CURSOR_SPLIT_SEED") => {
+                self.require_quiet()?;
+                if self.buys != 1 || self.sells != 1 || !self.commit || !self.sell_commit {
+                    return Err("split seed requires completed buy and whole-sale barriers".into());
+                }
+                send_split_stack(app, 5);
+                self.advance(Phase::SplitSeed);
+            }
+            (Phase::SplitSeed, "FIXTURE MERCHANT_CURSOR_SPLIT_PICKER_ARM") => {
+                self.require_quiet()?;
+                self.advance(Phase::SplitPickerArm);
+            }
+            (Phase::SplitPickerArm, "FIXTURE MERCHANT_CURSOR_SPLIT_PICKER_OPEN") => {
+                self.require_quiet()?;
+                self.advance(Phase::SplitPicker);
+            }
+            (Phase::SplitPicker, "FIXTURE MERCHANT_CURSOR_SPLIT_HELD") => {
+                self.require_quiet()?;
+                self.advance(Phase::SplitHeld);
+            }
+            (Phase::SplitHeld, "FIXTURE MERCHANT_CURSOR_SPLIT_SELL_PRESS_ARM") => {
+                self.require_quiet()?;
+                self.advance(Phase::SplitRequest);
+            }
+            (Phase::SplitRequest, "FIXTURE MERCHANT_CURSOR_SPLIT_SELL_COMMIT")
+                if !self.split_sell_commit =>
+            {
+                self.require_quiet()?;
+                self.split_sell_commit = true;
+            }
+            (Phase::SplitDelta, "FIXTURE MERCHANT_CURSOR_DONE") => {
                 self.require_quiet()?;
                 self.advance(Phase::Drain);
             }
@@ -219,6 +256,23 @@ impl Session {
                 return Err(format!(
                     "merchant-cursor missing exact SellItem/SELL_COMMIT; sells={} commit={}",
                     self.sells, self.sell_commit
+                ));
+            }
+        }
+        if self.phase == Phase::SplitRequest {
+            if self.split_sell_commit && self.sells == 2 {
+                send_split_stack(app, 3);
+                app.world_mut()
+                    .entity_mut(self.selected.ok_or("split sale requires selected player")?)
+                    .insert(Gold(1014));
+                println!(
+                    "MERCHANT CURSOR SPLIT AUTHORITATIVE Linen3 guid9182590 Gold1014; 988+13*2"
+                );
+                self.advance(Phase::SplitDelta);
+            } else if self.since.elapsed() > REQUEST_WAIT {
+                return Err(format!(
+                    "merchant-cursor missing exact split SellItem/SPLIT_SELL_COMMIT; sells={} commit={}",
+                    self.sells, self.split_sell_commit
                 ));
             }
         }
@@ -290,6 +344,10 @@ impl Session {
             );
         }
         for request in requests.sells {
+            if self.phase == Phase::SplitRequest {
+                self.receive_split_sale(request, vendor)?;
+                continue;
+            }
             let expected = SellItem {
                 npc: vendor.ok_or("SellItem requires owned vendor")?,
                 item_guid: 9_182_589,
@@ -313,6 +371,49 @@ impl Session {
         }
         Ok(())
     }
+
+    fn receive_split_sale(&mut self, request: SellItem, vendor: Option<u64>) -> Result<(), String> {
+        let expected = SellItem {
+            npc: vendor.ok_or("split SellItem requires owned vendor")?,
+            item_guid: 9_182_590,
+            count: 2,
+        };
+        if self.buys != 1
+            || self.sells != 1
+            || !self.commit
+            || !self.sell_commit
+            || request != expected
+        {
+            return Err(format!(
+                "unexpected/duplicate split SellItem {request:?} in {:?}; sells={}",
+                self.phase, self.sells
+            ));
+        }
+        self.sells += 1;
+        println!(
+            "MERCHANT CURSOR SPLIT DECODED {request:?}; Linen5/Gold988 withheld until SPLIT_SELL_COMMIT"
+        );
+        Ok(())
+    }
+}
+
+fn send_split_stack(app: &mut App, count: u32) {
+    send::<_, InventoryChannel>(
+        app,
+        InventoryDelta {
+            changes: vec![InventorySlotChange {
+                location: DESTINATION,
+                item: Some(ItemStack {
+                    item_guid: 9_182_590,
+                    item_id: 2589,
+                    count,
+                    durability: None,
+                    soulbound: false,
+                }),
+            }],
+        },
+    );
+    println!("MERCHANT CURSOR SPLIT InventoryDelta bag0/slot0 Linen2589 guid9182590 count{count}");
 }
 
 fn send_vendor(app: &mut App, npc: u64) {
@@ -422,6 +523,7 @@ fn run_until_done(
         sells: 0,
         commit: false,
         sell_commit: false,
+        split_sell_commit: false,
     };
     let deadline = Instant::now() + TIMEOUT + Duration::from_secs(180);
     while Instant::now() < deadline {
@@ -442,9 +544,10 @@ fn run_until_done(
         if session.phase == Phase::Drain && session.since.elapsed() >= QUIET {
             if session.opens != 1
                 || session.buys != 1
-                || session.sells != 1
+                || session.sells != 2
                 || !session.commit
                 || !session.sell_commit
+                || !session.split_sell_commit
             {
                 return Err(
                     "merchant-cursor final interaction/request/barrier totals failed".into(),
@@ -486,7 +589,7 @@ pub(super) fn run(
         (Err(error), _) | (_, Err(error)) => Err(error),
         (Ok(()), Ok(())) => {
             println!(
-                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
+                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
             );
             Ok(())
         }
