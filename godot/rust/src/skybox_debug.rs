@@ -3,7 +3,7 @@ use std::path::Path;
 
 use game_engine_core::{
     char_select_camera_data::scaled_orbit_delta,
-    client_options_data::CameraOptions,
+    client_options_data::CameraOptionsFile,
     light_lookup_types::{LightParamsFlags, LightSkyboxFlags},
     startup_args_data::StartupArgs,
 };
@@ -149,7 +149,7 @@ impl Orbit {
 #[class(base = Node3D, no_init)]
 pub struct WowSkyboxDebug {
     base: Base<Node3D>,
-    options: CameraOptions,
+    options: CameraOptionsFile,
     orbit: Orbit,
     dragging: bool,
     camera: Gd<Camera3D>,
@@ -188,7 +188,7 @@ impl WowSkyboxDebug {
     pub(crate) fn load(
         data_root: &Path,
         args: &StartupArgs,
-        camera_options: CameraOptions,
+        camera_options: CameraOptionsFile,
     ) -> Result<Gd<Self>, String> {
         let source = source::resolve_source(data_root, args)?;
         let composition = Composition::from_source(&source, args.skybox_verify);
@@ -202,7 +202,7 @@ impl WowSkyboxDebug {
         Ok(root)
     }
 
-    fn from_sky(mut sky: Sky, options: CameraOptions, fixed_time_ms: Option<u32>) -> Gd<Self> {
+    fn from_sky(mut sky: Sky, options: CameraOptionsFile, fixed_time_ms: Option<u32>) -> Gd<Self> {
         sky.node.set_position(FOCUS);
         // The constructor is outside the tree: retain the loader's initial zero/fixed sample.
         sky.sample(fixed_time_ms.unwrap_or(0));
@@ -244,7 +244,7 @@ impl WowSkyboxDebug {
         Ok(())
     }
 
-    pub(crate) fn update_options(&mut self, options: CameraOptions) {
+    pub(crate) fn update_options(&mut self, options: CameraOptionsFile) {
         self.camera.set_fov(options.fov_degrees);
         self.options = options;
     }
