@@ -438,6 +438,59 @@ mod tests {
     }
 
     #[test]
+    fn the_screen_draws_the_main_tooltip_and_headed_comparisons() {
+        set_test_data_root();
+        use ui_toolkit::frame::WidgetData;
+        use ui_toolkit::registry::FrameRegistry;
+        use ui_toolkit::screen::Screen;
+        let main = TooltipPresentation {
+            visible: true,
+            title: "Defias Rapier".into(),
+            x: 900.0,
+            y: 500.0,
+            ..five_lines().content
+        };
+        let shopping = ShoppingTooltip {
+            header: "Equipped".into(),
+            tooltip: TooltipPresentation {
+                visible: true,
+                title: "Worn Shortsword".into(),
+                x: 640.0,
+                y: 500.0,
+                ..five_lines().content
+            },
+        };
+        let view = GameTooltipView {
+            main,
+            shopping: [shopping, ShoppingTooltip::hidden()],
+        };
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(view);
+        Screen::new(game_tooltip_screen).sync(&shared, &mut registry);
+        let frame = |name: &str| {
+            registry
+                .get(
+                    registry
+                        .get_by_name(name)
+                        .unwrap_or_else(|| panic!("{name}")),
+                )
+                .unwrap()
+        };
+        let text = |name: &str| match frame(name).widget_data.as_ref() {
+            Some(WidgetData::FontString(text)) => text.text.clone(),
+            other => panic!("{name}: {other:?}"),
+        };
+        assert_eq!(text("TooltipTitle"), "Defias Rapier");
+        assert_eq!(text("ShoppingTooltip1Title"), "Worn Shortsword");
+        assert_eq!(text("ShoppingTooltip1HeaderLabel"), "Equipped");
+        assert!(!frame("ShoppingTooltip1Frame").hidden);
+        assert!(!frame("ShoppingTooltip1Header").hidden);
+        assert!(frame("ShoppingTooltip2Frame").hidden);
+        assert!(frame("ShoppingTooltip2Header").hidden);
+    }
+
+    #[test]
     fn comparisons_sit_beside_the_main_tooltip_on_the_side_with_room() {
         let compare = |title: &str| ShoppingTooltip {
             header: "Equipped".into(),

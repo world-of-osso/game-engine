@@ -161,16 +161,20 @@ fn cast_text(spell: &CatalogSpell) -> String {
     }
 }
 
-/// `SPELL_RECAST_TIME_CHARGES_*` "%.2g sec recharge" for spells with charges, else
-/// `SPELL_RECAST_TIME_*` "%.2g sec cooldown"; none without a cooldown.
+/// `SPELL_RECAST_TIME_CHARGES_*` "%.2g sec recharge" for spells with several charges, else
+/// `SPELL_RECAST_TIME_*` "%.2g sec cooldown" from the longest of the spell's recovery, its
+/// category's and a single-charge category's recharge (`SpellCategory.ChargeRecoveryTime`,
+/// how Blink and Frost Nova store theirs); none without a cooldown.
 fn recast_text(spell: &CatalogSpell) -> String {
-    if let Some(charges) = spell.charges.filter(|charges| charges.max_charges > 1) {
+    let charges = spell.charges.filter(|charges| charges.max_charges > 0);
+    if let Some(charges) = charges.filter(|charges| charges.max_charges > 1) {
         return format!("{} recharge", g2_duration(charges.recovery_ms));
     }
     let ms = spell
         .cooldown
         .recovery_ms
-        .max(spell.cooldown.category_recovery_ms);
+        .max(spell.cooldown.category_recovery_ms)
+        .max(charges.map_or(0, |charges| charges.recovery_ms));
     if ms == 0 {
         return String::new();
     }
@@ -415,6 +419,19 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(recast_text(&shield_wall), "4 min cooldown");
+        // Blink: a 0.5 s recovery and a single-charge category recharging in 20 s.
+        let blink = CatalogSpell {
+            cooldown: SpellCooldown {
+                recovery_ms: 500,
+                ..Default::default()
+            },
+            charges: Some(SpellCharges {
+                max_charges: 1,
+                recovery_ms: 20_000,
+            }),
+            ..Default::default()
+        };
+        assert_eq!(recast_text(&blink), "20 sec cooldown");
         assert_eq!(cooldown_remaining_text(95.0), "Cooldown remaining: 2 min");
         assert_eq!(
             cooldown_remaining_text(7_300.0),

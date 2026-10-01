@@ -153,19 +153,36 @@ mod tests {
     #[test]
     fn the_zone_button_names_zone_subzone_and_the_world_map_key() {
         super::super::set_test_data_root();
-        let tooltip = zone_tooltip("Elwynn Forest", "Northshire", Some("M"));
+        let elwynn = zone_tooltip(
+            "Elwynn Forest",
+            "Northshire Valley",
+            ZonePvp::Friendly,
+            Some("Alliance"),
+            Some("M"),
+        );
         assert_eq!(
-            rows(&tooltip),
+            rows(&elwynn),
             [
                 ("Elwynn Forest", ""),
-                ("Northshire", ""),
-                ("World Map (M)", "")
+                ("Northshire Valley", ""),
+                ("(Alliance Territory)", ""),
+                ("World Map (M)", ""),
             ]
         );
-        assert_eq!(tooltip.content.title_color, TOOLTIP_WHITE);
-        assert_eq!(tooltip.content.lines[1].left_color, NORMAL);
-        let same = zone_tooltip("Stormwind City", "Stormwind City", None);
-        assert_eq!(rows(&same)[1..], [("", ""), ("World Map", "")]);
+        assert_eq!(elwynn.content.title_color, TOOLTIP_WHITE);
+        assert_eq!(elwynn.content.lines[0].left_color, [0.1, 1.0, 0.1, 1.0]);
+        assert_eq!(elwynn.content.lines[2].left_color, NORMAL);
+        let city = zone_tooltip(
+            "Stormwind City",
+            "Stormwind City",
+            ZonePvp::Normal,
+            None,
+            None,
+        );
+        assert_eq!(rows(&city)[1..], [("", ""), ("World Map", "")]);
+        assert_eq!(city.content.lines[0].left_color, NORMAL);
+        let goldshire = zone_tooltip("Elwynn Forest", "Goldshire", ZonePvp::Sanctuary, None, None);
+        assert_eq!(rows(&goldshire)[2], ("(Sanctuary)", ""));
     }
 
     #[test]
