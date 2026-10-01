@@ -180,19 +180,21 @@ impl LiquidCatalog {
     }
 
     /// The liquid material of an MH2O instance (`liquid_type`, `liquid_object_or_lvf`).
+    /// A LiquidObject without a DB2 row (ocean 42 and a few authored IDs the shipped table
+    /// omits) takes the instance's own `liquid_type` with no flow, as WebWowViewerCpp
+    /// `CSqliteDB::getLiquidObjectData` does; every present row's `LiquidTypeID` equals the
+    /// instances' `liquid_type` on all locally cached tiles.
     pub fn liquid_material(
         &self,
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
-        let (type_id, flow_direction, flow_speed) = if liquid_object >= FIRST_LIQUID_OBJECT {
-            let object = self
-                .objects
-                .get(&u32::from(liquid_object))
-                .ok_or_else(|| format!("LiquidObject {liquid_object} has no DB2 row"))?;
-            (object.liquid_type, object.flow_direction, object.flow_speed)
-        } else {
-            (u32::from(liquid_type), 0.0, 0.0)
+        let object = (liquid_object >= FIRST_LIQUID_OBJECT)
+            .then(|| self.objects.get(&u32::from(liquid_object)))
+            .flatten();
+        let (type_id, flow_direction, flow_speed) = match object {
+            Some(object) => (object.liquid_type, object.flow_direction, object.flow_speed),
+            None => (u32::from(liquid_type), 0.0, 0.0),
         };
         let row = self
             .types

@@ -105,6 +105,8 @@ db2/12.1.0.69933/LiquidObject.csv
 db2/12.1.0.69933/LiquidMaterial.csv
 db2/12.1.0.69933/LiquidTypeXTexture.csv
 terrain/778417.adt
+terrain/5493433.adt
+terrain/5493438.adt
 
 # game-engine-core tests/spell_visual.rs
 db2/12.1.0.69933/SpellXSpellVisual.csv
