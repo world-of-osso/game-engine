@@ -8,9 +8,11 @@ use std::f32::consts::FRAC_PI_2;
 use shared::{
     components::PresenceStatus,
     protocol::{
-        BagSlotItem, EmoteIntent, EmoteKind, GroupInviteIntent, GroupUninviteIntent, ItemStack,
+        AcceptTrade, BagSlotItem, CancelTrade, CombatChannel, CombatEvent, CombatEventType,
+        EmoteIntent, EmoteKind, GroupInviteIntent, GroupUninviteIntent, InitiateTrade, ItemStack,
         QuestChannel, QuestEntrySnapshot, QuestLogSnapshot, QuestObjectiveKind,
-        QuestObjectiveSnapshot, QuestRepeatability, StopSpellCast,
+        QuestObjectiveSnapshot, QuestRepeatability, StopSpellCast, TradeChannel,
+        TradePartySnapshot, TradePhase, TradeSnapshot, TradeStateUpdate,
     },
 };
 
@@ -27,7 +29,57 @@ struct Requests {
 
 pub(super) fn install(app: &mut App) {
     app.init_resource::<Requests>();
-    app.add_systems(Update, receive);
+    app.add_systems(Update, (receive, answer_trades));
+}
+
+fn trade_party(name: &str) -> TradePartySnapshot {
+    TradePartySnapshot {
+        name: name.into(),
+        accepted: false,
+        gold: 0,
+        slots: vec![None; 7],
+    }
+}
+
+/// A scripted trade server: an initiate opens a pending outgoing request, a cancel
+/// ends it, an accept without a trade is refused.
+fn answer_trades(
+    mut initiates: Query<&mut MessageReceiver<InitiateTrade>>,
+    mut cancels: Query<&mut MessageReceiver<CancelTrade>>,
+    mut accepts: Query<&mut MessageReceiver<AcceptTrade>>,
+    mut senders: Query<&mut MessageSender<TradeStateUpdate>>,
+) {
+    let mut updates = Vec::new();
+    for mut receiver in &mut initiates {
+        updates.extend(receiver.receive().map(|initiate| TradeStateUpdate {
+            trade: Some(TradeSnapshot {
+                phase: TradePhase::PendingOutgoing,
+                player: trade_party(NAME),
+                other: trade_party(&initiate.target_name),
+            }),
+            message: None,
+            error: None,
+        }));
+    }
+    for mut receiver in &mut cancels {
+        updates.extend(receiver.receive().map(|_| TradeStateUpdate {
+            trade: None,
+            message: Some("Trade cancelled.".into()),
+            error: None,
+        }));
+    }
+    for mut receiver in &mut accepts {
+        updates.extend(receiver.receive().map(|_| TradeStateUpdate {
+            trade: None,
+            message: None,
+            error: Some("You are not trading.".into()),
+        }));
+    }
+    for update in updates {
+        for mut sender in &mut senders {
+            sender.send::<TradeChannel>(update.clone());
+        }
+    }
 }
 
 fn receive(
@@ -553,6 +605,73 @@ fn check_interact(run: &mut Run) -> Result<(), String> {
     }
 }
 
+/// Trade actions answer with the server's next update: an opened request's status, a
+/// cancel's message, a refusal's error; `trade status` keeps the last error.
+fn check_trade(run: &mut Run) -> Result<(), String> {
+    expect_exact(run, &["trade", "status"], "trade: inactive")?;
+    expect_exact(
+        run,
+        &["trade", "initiate", "--name", "Remote Fixture"],
+        "trade: pending-outgoing\nyou: Input Fixture copper=0 accepted=no items=none\nother: Remote Fixture copper=0 accepted=no items=none",
+    )?;
+    expect_exact(run, &["trade", "cancel"], "Trade cancelled.")?;
+    match run.cli(&["trade", "accept"])? {
+        Err(error) if error.contains("You are not trading.") => {}
+        other => return Err(format!("trade accept without a trade answered {other:?}")),
+    }
+    expect_exact(
+        run,
+        &["trade", "status"],
+        "trade: inactive\nerror: You are not trading.",
+    )
+}
+
+/// A melee hit the server reports: `combat log` and `combat recap` by the attacker.
+fn check_combat_log(run: &mut Run) -> Result<(), String> {
+    expect_exact(run, &["combat", "log"], "combat_log: 0\n-")?;
+    let vendor = run
+        .app
+        .world()
+        .resource::<Incoming>()
+        .vendor
+        .ok_or("vendor missing")?
+        .to_bits();
+    let mut players = run.app.world_mut().query::<(Entity, &Player)>();
+    let player = players
+        .iter(run.app.world())
+        .find(|(_, player)| player.name == NAME)
+        .map(|(entity, _)| entity.to_bits())
+        .ok_or("the selected player is not spawned")?;
+    send::<_, CombatChannel>(
+        run.app,
+        CombatEvent {
+            attacker: vendor,
+            target: player,
+            amount: 12.4,
+            spell_id: 0,
+            event_type: CombatEventType::MeleeDamage,
+        },
+    );
+    let line = format!(
+        "damage src={vendor} dst={player} spell=- amount=12 aura=- text={vendor} hit {player} for 12"
+    );
+    expect_eventually(
+        run,
+        &["combat", "log", "--lines", "5"],
+        &format!("combat_log: 1\n{line}"),
+    )?;
+    expect_exact(
+        run,
+        &["combat", "recap", "--target", &vendor.to_string()],
+        &format!("combat_recap target={vendor}: 1\n{line}"),
+    )?;
+    expect_exact(
+        run,
+        &["combat", "recap", "--target", "nobody"],
+        "combat_recap target=nobody: 0\n-",
+    )
+}
+
 fn check_spawn_position(run: &mut Run) -> Result<(), String> {
     let map = run.expect_text(&["map", "position"])?;
     expect_lines(
@@ -816,6 +935,8 @@ pub(super) fn run(
     check_social_and_combat(&mut run)?;
     check_items_and_quests(&mut run)?;
     check_interact(&mut run)?;
+    check_trade(&mut run)?;
+    check_combat_log(&mut run)?;
     check_hover(&mut run)?;
     check_camera(&mut run)?;
     check_export(&mut run)?;
@@ -823,7 +944,7 @@ pub(super) fn run(
     check_stopped_forward(&mut run)?;
     finish(&mut run, readers)?;
     println!(
-        "PASS: public CLI status network/sound/terrain, map position/target/waypoint, group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, quest interact, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
+        "PASS: public CLI status network/sound/terrain, map position/target/waypoint, group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, quest interact, trade, combat log/recap, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
     );
     Ok(())
 }
