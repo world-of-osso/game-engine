@@ -101,3 +101,41 @@ mod tests {
         assert_eq!(fields, vec!["a", "b", "c"]);
     }
 }
+
+/// Call `row` with the integer values of `columns` for each record of the CSV export at
+/// `path`; other columns may hold quoted text.
+pub fn read_numeric_rows<const N: usize>(
+    path: &Path,
+    columns: [&str; N],
+    mut row: impl FnMut([i64; N]),
+) -> Result<(), String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|error| format!("read {}: {error}", path.display()))?;
+    let mut lines = text.lines();
+    let header = parse_csv_line(
+        lines
+            .next()
+            .ok_or_else(|| format!("{} has no header", path.display()))?,
+    );
+    let mut indexes = [0; N];
+    for (index, column) in indexes.iter_mut().zip(columns) {
+        *index = header
+            .iter()
+            .position(|name| *name == column)
+            .ok_or_else(|| format!("{} has no column {column}", path.display()))?;
+    }
+    for line in lines.filter(|line| !line.is_empty()) {
+        let fields = parse_csv_line(line);
+        let mut values = [0; N];
+        for (value, index) in values.iter_mut().zip(indexes) {
+            let field = fields
+                .get(index)
+                .ok_or_else(|| format!("{}: short row {line:?}", path.display()))?;
+            *value = field
+                .parse()
+                .map_err(|error| format!("{}: bad value {field:?}: {error}", path.display()))?;
+        }
+        row(values);
+    }
+    Ok(())
+}

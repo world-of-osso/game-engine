@@ -39,18 +39,26 @@ pub(crate) struct SkyModel {
 }
 
 impl SkyModel {
-    /// Sky M2 `fdid`, cached at `path` with its skin and its textures under
+    /// Sky M2 `fdid`, cached at `model_path` with its skin and its textures under
     /// `data_root/textures`.
-    pub fn load(data_root: &Path, fdid: u32, path: &Path) -> Result<Self, String> {
-        if !path.is_file() {
-            return Err(format!(
-                "Sky FDID {fdid} missing cached model {}",
-                path.display()
-            ));
+    pub fn load_model(
+        data_root: &Path,
+        model_path: &Path,
+        fdid: u32,
+        time_override_ms: Option<u32>,
+    ) -> Result<Self, String> {
+        let context = |error| format!("Sky FDID {fdid} at {}: {error}", model_path.display());
+        if !model_path.is_file() {
+            return Err(context("missing cached model".to_string()));
         }
-        let model = assets::read_model(&GString::from(path.to_string_lossy().as_ref()))?;
-        let prepared = prepare_batches(&model, data_root, fdid)?;
-        assemble_sky(model, prepared, fdid)
+        let source = GString::from(model_path.to_string_lossy().as_ref());
+        let model = assets::read_model(&source).map_err(&context)?;
+        let prepared = prepare_batches(&model, data_root).map_err(&context)?;
+        let mut sky = assemble_sky(model, prepared, time_override_ms).map_err(&context)?;
+        sky.node.set_name(&format!("AuthoredSky{fdid}"));
+        sky.node
+            .set_meta(assets::M2_SOURCE_META, &source.to_variant());
+        Ok(sky)
     }
 
     /// The model alpha every batch's transparency is multiplied by.
@@ -100,14 +108,10 @@ impl SkyModel {
 
 type PreparedBatch = (ResolvedBatch, Gd<ArrayMesh>, Gd<ShaderMaterial>);
 
-fn prepare_batches(
-    model: &m2::Model,
-    data_root: &Path,
-    fdid: u32,
-) -> Result<Vec<PreparedBatch>, String> {
+fn prepare_batches(model: &m2::Model, data_root: &Path) -> Result<Vec<PreparedBatch>, String> {
     let batches = m2::resolve_render_batches(model, &[0; 3], true, |_| None)?;
     if batches.is_empty() {
-        return Err(format!("Sky FDID {fdid} has no render batches"));
+        return Err("Sky has no render batches".into());
     }
     let shader = load_shader_source()?;
     let mut ordered = batches;
@@ -120,7 +124,7 @@ fn prepare_batches(
     });
     if ordered.len() > 256 {
         return Err(format!(
-            "Sky FDID {fdid} needs {} render priorities (maximum 256)",
+            "Sky needs {} render priorities (maximum 256)",
             ordered.len()
         ));
     }
@@ -135,7 +139,7 @@ fn prepare_batches(
                 )
             })?;
             let mesh = assets::build_batch_mesh(model, submesh)?;
-            let material = build_material(&batch, &shader, data_root, fdid, order as i32 - 128)?;
+            let material = build_material(&batch, &shader, data_root, order as i32 - 128)?;
             Ok((batch, mesh, material))
         })
         .collect()
@@ -144,70 +148,113 @@ fn prepare_batches(
 fn assemble_sky(
     model: m2::Model,
     prepared: Vec<PreparedBatch>,
-    fdid: u32,
+    time_override_ms: Option<u32>,
 ) -> Result<SkyModel, String> {
     let (skeleton, skin) = assets::build_skeleton(&model.bones);
-    let player = if model.sequences.is_empty() {
-        None
-    } else {
-        match WowAnimationPlayer::from_model(&model, skeleton.clone()) {
-            Ok(player) => Some(player),
-            Err(error) => {
-                skeleton.free();
-                return Err(error);
-            }
+    let player = match load_player(&model, skeleton.clone(), time_override_ms) {
+        Ok(player) => player,
+        Err(error) => {
+            skeleton.free();
+            return Err(error);
         }
     };
     let mut node = Node3D::new_alloc();
-    node.set_name(&format!("AuthoredSky{fdid}"));
     node.add_child(&skeleton);
     if let Some(mut player) = player {
         player.set_name("M2Animation");
         node.add_child(&player);
     }
-    let mut animations = Vec::new();
-    let mut materials = Vec::new();
-    for (batch, mesh, material) in prepared {
-        materials.push(material.clone());
-        if batch.transparency_anim.is_some()
-            || batch.color_opacity_anim.is_some()
-            || batch.texture_anim.is_some()
-            || batch.texture_anim_2.is_some()
-        {
-            animations.push(AnimatedBatch {
-                material: material.clone(),
-                transparency: batch.transparency_anim,
-                color_opacity: batch.color_opacity_anim,
-                first_uv: batch.texture_anim,
-                second_uv: batch.texture_anim_2,
-            });
-        }
-        let mut instance = MeshInstance3D::new_alloc();
-        instance.set_name(&format!("SkyBatch{}", batch.source_unit_index));
-        instance.set_mesh(&mesh);
-        instance.set_surface_override_material(0, &material);
-        instance.set_cast_shadows_setting(
-            godot::classes::geometry_instance_3d::ShadowCastingSetting::OFF,
-        );
-        if let Some(skin) = &skin {
-            instance.set_skin(skin);
-            instance.set_skeleton_path("../Skeleton3D");
-        }
-        node.add_child(&instance);
-    }
+    let materials = prepared
+        .iter()
+        .map(|(_, _, material)| material.clone())
+        .collect();
+    let animations = prepared
+        .into_iter()
+        .filter_map(|batch| attach_batch(&mut node, batch, skin.as_ref()))
+        .collect();
     let mut sky = SkyModel {
         node,
         materials,
         animations,
+        default_sequence_index: default_sequence_index(&model),
         global_sequences: model.global_sequences,
-        default_sequence_index: model
-            .sequences
-            .iter()
-            .position(|sequence| sequence.id == 0)
-            .unwrap_or(0),
     };
-    sky.sample(0);
+    sky.sample(time_override_ms.unwrap_or(0));
     Ok(sky)
+}
+
+fn default_sequence_index(model: &m2::Model) -> usize {
+    model
+        .sequences
+        .iter()
+        .position(|sequence| sequence.id == 0)
+        .unwrap_or(0)
+}
+
+fn load_player(
+    model: &m2::Model,
+    skeleton: Gd<godot::classes::Skeleton3D>,
+    time_override_ms: Option<u32>,
+) -> Result<Option<Gd<WowAnimationPlayer>>, String> {
+    if model.sequences.is_empty() {
+        return Ok(None);
+    }
+    let mut player = WowAnimationPlayer::from_model(model, skeleton)?;
+    if let Some(time_ms) = time_override_ms {
+        let duration = model.sequences[default_sequence_index(model)].duration;
+        // Match the original override's f32 conversion before remainder. Wide u32
+        // values lose millisecond precision; zero-duration native clips stay at zero.
+        let phase = if duration > 0 {
+            f64::from(time_ms as f32 % duration as f32)
+        } else {
+            0.0
+        };
+        let advanced = player.bind_mut().advance_time_ms(phase);
+        if !advanced {
+            player.free();
+            return Err("Cannot sample fixed sky bone animation phase".into());
+        }
+        player.call("set_paused", &[true.to_variant()]);
+    }
+    Ok(Some(player))
+}
+
+fn attach_batch(
+    node: &mut Gd<Node3D>,
+    prepared: PreparedBatch,
+    skin: Option<&Gd<godot::classes::Skin>>,
+) -> Option<AnimatedBatch> {
+    let (batch, mesh, material) = prepared;
+    let mut instance = MeshInstance3D::new_alloc();
+    instance.set_name(&format!("SkyBatch{}", batch.source_unit_index));
+    instance.set_mesh(&mesh);
+    instance.set_surface_override_material(0, &material);
+    instance
+        .set_cast_shadows_setting(godot::classes::geometry_instance_3d::ShadowCastingSetting::OFF);
+    if let Some(skin) = skin {
+        instance.set_skin(skin);
+        instance.set_skeleton_path("../Skeleton3D");
+    }
+    node.add_child(&instance);
+    animated_batch(batch, material)
+}
+
+fn animated_batch(batch: ResolvedBatch, material: Gd<ShaderMaterial>) -> Option<AnimatedBatch> {
+    let has_tracks = [
+        batch.transparency_anim.is_some(),
+        batch.color_opacity_anim.is_some(),
+        batch.texture_anim.is_some(),
+        batch.texture_anim_2.is_some(),
+    ]
+    .into_iter()
+    .any(|present| present);
+    has_tracks.then_some(AnimatedBatch {
+        material,
+        transparency: batch.transparency_anim,
+        color_opacity: batch.color_opacity_anim,
+        first_uv: batch.texture_anim,
+        second_uv: batch.texture_anim_2,
+    })
 }
 
 fn track_sample_time<T>(
@@ -285,7 +332,6 @@ fn build_material(
     batch: &ResolvedBatch,
     source: &str,
     data_root: &Path,
-    fdid: u32,
     priority: i32,
 ) -> Result<Gd<ShaderMaterial>, String> {
     let cull = if batch.render_flags & 4 != 0 {
@@ -311,11 +357,18 @@ fn build_material(
     material.set_render_priority(priority);
     let texture_dir = data_root.join("textures");
     let mut missing = PackedInt32Array::new();
-    let mut stage = |texture: Option<u32>| load_stage(texture, &texture_dir, fdid, &mut missing);
-    let first = stage(batch.texture_fdid)?;
-    let second = stage(batch.texture_2_fdid)?;
-    let third = stage(batch.extra_texture_fdids.first().copied())?;
-    let fourth = stage(batch.extra_texture_fdids.get(1).copied())?;
+    let first = load_stage(batch.texture_fdid, &texture_dir, &mut missing)?;
+    let second = load_stage(batch.texture_2_fdid, &texture_dir, &mut missing)?;
+    let third = load_stage(
+        batch.extra_texture_fdids.first().copied(),
+        &texture_dir,
+        &mut missing,
+    )?;
+    let fourth = load_stage(
+        batch.extra_texture_fdids.get(1).copied(),
+        &texture_dir,
+        &mut missing,
+    )?;
     for (name, stage) in [
         ("base_texture", first.as_ref()),
         ("second_texture", second.as_ref().or(first.as_ref())),
@@ -349,21 +402,15 @@ fn build_material(
 }
 
 fn load_stage(
-    texture: Option<u32>,
+    fdid: Option<u32>,
     dir: &Path,
-    model_fdid: u32,
     missing: &mut PackedInt32Array,
 ) -> Result<Option<Gd<ImageTexture>>, String> {
-    let Some(texture) = texture else {
+    let Some(fdid) = fdid else {
         return Ok(None);
     };
-    assets::material::shared_texture(texture, dir, missing)?
-        .ok_or_else(|| {
-            format!(
-                "Sky FDID {model_fdid} missing texture {texture} at {}",
-                dir.display()
-            )
-        })
+    assets::material::shared_texture(fdid, dir, missing)?
+        .ok_or_else(|| format!("Sky missing texture {fdid} at {}", dir.display()))
         .map(Some)
 }
 

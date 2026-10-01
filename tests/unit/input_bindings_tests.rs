@@ -112,6 +112,10 @@ fn panel_toggles_use_retail_default_keys() {
             InputAction::ToggleWorldMap,
             Some(InputBinding::Keyboard(BindingKey::KeyM)),
         ),
+        (
+            InputAction::ToggleFramerate,
+            Some(InputBinding::CtrlKeyboard(BindingKey::KeyR)),
+        ),
     ];
     for (action, binding) in expected {
         assert_eq!(bindings.binding(action), binding, "{action:?}");

@@ -2,8 +2,6 @@ use crate::cache_source_mtime::csv_mtime;
 use crate::cache_sqlite::open_read_only;
 use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::outfit_data::DisplayInfoResolved;
-#[cfg(test)]
-use crate::outfit_data::DisplayMaterialTextures;
 use crate::sqlite_util::is_missing_table_error;
 use rusqlite::{Connection, Statement};
 use std::collections::{HashMap, HashSet};
@@ -21,15 +19,9 @@ mod outfit_query;
 mod outfit_resolve;
 type OutfitKey = (u8, u8, u8);
 type StarterOutfits = HashMap<OutfitKey, Vec<u32>>;
-#[cfg(test)]
-pub struct CachedDisplayResources {
-    pub display_info: HashMap<u32, DisplayInfoResolved>,
-    pub material_to_texture: HashMap<u32, u32>,
-    pub display_materials: DisplayMaterialTextures,
-    pub model_to_fdids: HashMap<u32, Vec<u32>>,
-}
+/// Versioned by schema: checkouts with an older schema keep reading their own file.
 fn outfit_links_cache_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("cache/outfit_links.sqlite")
+    data_dir.join("cache/outfit_links-v3.sqlite")
 }
 fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
     [
@@ -47,48 +39,6 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     let file =
         std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
     Ok(BufReader::new(file))
-}
-
-pub fn load_chr_race_prefixes(data_dir: &Path) -> Result<HashMap<u8, String>, String> {
-    let path = data_dir.join("ChrRaces.csv");
-    let mut reader = open_reader(&path)?;
-    let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    let headers = parse_csv_line(header.trim_end_matches(['\r', '\n']));
-    let id_col = header_index(&headers, "ID", &path)?;
-    let prefix_col = header_index(&headers, "ClientPrefix", &path)?;
-    collect_chr_race_prefix_rows(&mut reader, &path, id_col, prefix_col)
-}
-fn collect_chr_race_prefix_rows<R: BufRead>(
-    reader: &mut R,
-    path: &Path,
-    id_col: usize,
-    prefix_col: usize,
-) -> Result<HashMap<u8, String>, String> {
-    let mut prefixes = HashMap::new();
-    for line in reader.lines() {
-        let line = line.map_err(|err| format!("read {} row: {err}", path.display()))?;
-        let fields = parse_csv_line(&line);
-        let Some(id) = fields
-            .get(id_col)
-            .and_then(|value| value.parse::<u8>().ok())
-        else {
-            continue;
-        };
-        let Some(prefix) = fields.get(prefix_col) else {
-            continue;
-        };
-        let prefix = prefix.trim().to_ascii_lowercase();
-        if !prefix.is_empty() {
-            prefixes.insert(id, prefix);
-        }
-    }
-    if prefixes.is_empty() {
-        return Err(format!("{} returned no ClientPrefix rows", path.display()));
-    }
-    Ok(prefixes)
 }
 
 fn outfit_csv_source_key(path: &Path) -> Result<String, String> {
@@ -343,8 +293,9 @@ fn populate_display_info(conn: &Connection, path: &Path) -> Result<(), String> {
         .prepare(
             "INSERT OR REPLACE INTO display_info (
             id, model_res_0, model_res_1, model_mat_res_0, model_mat_res_1,
-            geoset_group_0, geoset_group_1, geoset_group_2, helmet_vis_0, helmet_vis_1
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            geoset_group_0, geoset_group_1, geoset_group_2, geoset_group_3, geoset_group_4,
+            geoset_group_5, helmet_vis_0, helmet_vis_1
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         )
         .map_err(|err| format!("prepare display_info insert: {err}"))?;
     insert_display_info_rows(&mut reader, path, &columns, &mut insert)?;
@@ -357,14 +308,26 @@ struct DisplayInfoColumns {
     model_res_1: usize,
     model_mat_res_0: usize,
     model_mat_res_1: usize,
-    geoset_group_0: usize,
-    geoset_group_1: usize,
-    geoset_group_2: usize,
+    geoset_groups: [usize; 6],
     helmet_vis_0: usize,
     helmet_vis_1: usize,
 }
 
-type DisplayInfoRow = (u32, u32, u32, u32, u32, i16, i16, i16, u32, u32);
+type DisplayInfoRow = (
+    u32,
+    u32,
+    u32,
+    u32,
+    u32,
+    i16,
+    i16,
+    i16,
+    i16,
+    i16,
+    i16,
+    u32,
+    u32,
+);
 
 fn display_info_columns(headers: &[String], path: &Path) -> Result<DisplayInfoColumns, String> {
     Ok(DisplayInfoColumns {
@@ -373,9 +336,14 @@ fn display_info_columns(headers: &[String], path: &Path) -> Result<DisplayInfoCo
         model_res_1: header_index(headers, "ModelResourcesID_1", path)?,
         model_mat_res_0: header_index(headers, "ModelMaterialResourcesID_0", path)?,
         model_mat_res_1: header_index(headers, "ModelMaterialResourcesID_1", path)?,
-        geoset_group_0: header_index(headers, "GeosetGroup_0", path)?,
-        geoset_group_1: header_index(headers, "GeosetGroup_1", path)?,
-        geoset_group_2: header_index(headers, "GeosetGroup_2", path)?,
+        geoset_groups: [
+            header_index(headers, "GeosetGroup_0", path)?,
+            header_index(headers, "GeosetGroup_1", path)?,
+            header_index(headers, "GeosetGroup_2", path)?,
+            header_index(headers, "GeosetGroup_3", path)?,
+            header_index(headers, "GeosetGroup_4", path)?,
+            header_index(headers, "GeosetGroup_5", path)?,
+        ],
         helmet_vis_0: header_index(headers, "HelmetGeosetVis_0", path)?,
         helmet_vis_1: header_index(headers, "HelmetGeosetVis_1", path)?,
     })
@@ -434,9 +402,12 @@ fn parse_display_info_row(
         get_u32(columns.model_res_1),
         get_u32(columns.model_mat_res_0),
         get_u32(columns.model_mat_res_1),
-        get_i16(columns.geoset_group_0),
-        get_i16(columns.geoset_group_1),
-        get_i16(columns.geoset_group_2),
+        get_i16(columns.geoset_groups[0]),
+        get_i16(columns.geoset_groups[1]),
+        get_i16(columns.geoset_groups[2]),
+        get_i16(columns.geoset_groups[3]),
+        get_i16(columns.geoset_groups[4]),
+        get_i16(columns.geoset_groups[5]),
         get_u32(columns.helmet_vis_0),
         get_u32(columns.helmet_vis_1),
     ))
@@ -531,11 +502,11 @@ pub(crate) fn load_cached_display_info(
     outfit_query::load_cached_display_info(data_dir, display_info_id)
 }
 
-pub(crate) fn load_cached_material_texture_fdid(
+pub(crate) fn load_cached_material_texture_fdids(
     data_dir: &Path,
     material_resource_id: u32,
-) -> Result<Option<u32>, String> {
-    outfit_query::load_cached_material_texture_fdid(data_dir, material_resource_id)
+) -> Result<Vec<u32>, String> {
+    outfit_query::load_cached_material_texture_fdids(data_dir, material_resource_id)
 }
 
 pub(crate) fn load_cached_model_fdids(
@@ -565,9 +536,4 @@ pub fn load_cached_item_modified_appearance(data_dir: &Path) -> Result<HashMap<u
 
 pub fn load_cached_item_appearance(data_dir: &Path) -> Result<HashMap<u32, u32>, String> {
     outfit_cache_load::load_cached_item_appearance(data_dir)
-}
-
-#[cfg(test)]
-pub fn load_cached_display_resources(data_dir: &Path) -> Result<CachedDisplayResources, String> {
-    outfit_cache_load::load_cached_display_resources(data_dir)
 }

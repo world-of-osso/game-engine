@@ -183,7 +183,7 @@ impl WorldLighting {
     /// night alpha.
     fn sync_stars(&mut self, catalog: &LightingCatalog, alpha: Option<f32>) -> Result<(), String> {
         if self.stars.is_none() && alpha.is_some() {
-            let stars = SkyModel::load(&catalog.data_root, STARS_FDID, &catalog.stars_path)?;
+            let stars = SkyModel::load_model(&catalog.data_root, &catalog.stars_path, STARS_FDID, None)?;
             self.root.as_mut().expect("attached root").add_child(&stars.node);
             self.stars = Some(stars);
         }

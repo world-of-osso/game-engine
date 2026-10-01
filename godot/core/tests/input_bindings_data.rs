@@ -106,10 +106,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 39);
+    assert_eq!(InputAction::ALL.len(), 40);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 2, 12, 1, 10]
+        [8, 6, 2, 12, 1, 11]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
@@ -122,6 +122,15 @@ fn inventory_defaults_and_sections_are_exact() {
         Some(InputBinding::CtrlKeyboard(BindingKey::KeyS))
     );
     assert_eq!(bindings.binding(InputAction::ToggleLootRules), None);
+    // Retail `TOGGLEFPS` "Toggle Framerate Display": Ctrl+R.
+    assert_eq!(
+        bindings.binding(InputAction::ToggleFramerate),
+        Some(InputBinding::CtrlKeyboard(BindingKey::KeyR))
+    );
+    assert_eq!(
+        InputAction::ToggleFramerate.label(),
+        "Toggle Framerate Display"
+    );
     // Retail `SITORSTAND` (`BINDING_NAME_SITORSTAND` "Sit/Move Down"): X, descends while swimming.
     assert_eq!(
         bindings.binding(InputAction::SitOrStand),

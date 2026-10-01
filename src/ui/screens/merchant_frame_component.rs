@@ -25,6 +25,8 @@ pub const ACTION_PAGE_NEXT: &str = "merchant_page_next";
 pub const ACTION_TAB_MERCHANT: &str = "merchant_tab:merchant";
 pub const ACTION_TAB_BUYBACK: &str = "merchant_tab:buyback";
 pub const ACTION_REPAIR_ALL: &str = "merchant_repair_all";
+/// `MerchantRepairItemButton`: toggles the repair cursor (MF.xml:305-313).
+pub const ACTION_REPAIR_ITEM: &str = "merchant_repair_item";
 pub const ACTION_BUYBACK_LAST: &str = "merchant_buyback_last";
 pub const ACTION_SELL_ALL_JUNK: &str = "merchant_sell_all_junk";
 /// The frame outside its buttons: a cursor item dropped there is sold
@@ -54,6 +56,7 @@ const NEXT_PAGE_UP: u32 = 130_866; // UI-SpellbookIcon-NextPage-Up
 const NEXT_PAGE_DISABLED: u32 = 130_864;
 const INSET_BG: u32 = 374_154; // Interface\FrameGeneral\UI-Background-Marble
 const MONEY_EDGE: u32 = 525_911; // Interface\Common\Moneyframe (ThinGoldEdgeTemplate)
+const BUTTON_HIGHLIGHT: u32 = 130_718; // Interface\Buttons\ButtonHilight-Square
 
 /// UiTextureAtlas `interface/merchantframe/merchant.blp` 512×256.
 const MERCHANT_ATLAS: (u32, (f32, f32)) = (5_222_222, (512.0, 256.0));
@@ -68,6 +71,8 @@ const fn merchant_art(rect: (f32, f32, f32, f32)) -> AtlasArt {
 const BOT_FRAME: AtlasArt = merchant_art((1.0, 333.0, 1.0, 62.0));
 /// `SpellIcon-256x256-RepairAll`.
 const REPAIR_ALL_ICON: AtlasArt = merchant_art((1.0, 73.0, 138.0, 210.0));
+/// `SpellIcon-256x256-Repair`.
+const REPAIR_ICON: AtlasArt = merchant_art((75.0, 147.0, 64.0, 136.0));
 /// `SpellIcon-256x256-SellJunk`.
 const SELL_JUNK_ICON: AtlasArt = merchant_art((1.0, 73.0, 64.0, 136.0));
 /// `common-icon-undo`, atlas 3487944 2048×1024.
@@ -151,6 +156,8 @@ pub struct MerchantFrameState {
     pub next_enabled: bool,
     /// Repair buttons: `None` when the NPC can't repair; `Some(enabled)`.
     pub repair: Option<bool>,
+    /// `InRepairMode()`: `MerchantRepairItemButton` keeps its highlight locked (MF.lua:136-142).
+    pub repair_mode: bool,
     /// Most recent sale for `MerchantBuyBackItem` on the merchant tab.
     pub last_buyback: Option<MerchantCell>,
     pub money: u64,
@@ -386,7 +393,7 @@ fn merchant_tab_extras(state: &MerchantFrameState) -> Element {
         children.extend(paging(page_text, state.prev_enabled, state.next_enabled));
     }
     if let Some(enabled) = state.repair {
-        children.extend(repair_buttons(enabled));
+        children.extend(repair_buttons(enabled, state.repair_mode));
     }
     children.extend(sell_all_junk_button(state.repair.is_some(), state.has_junk));
     children.extend(buyback_slot(state.last_buyback.as_ref()));
@@ -478,56 +485,77 @@ fn page_button(
     }
 }
 
-/// `MerchantRepairAllButton` 36×36, BOTTOMRIGHT at BOTTOMLEFT 118,33 (MF.lua:933-967,
-/// no guild bank). `MerchantRepairItemButton` (the per-item repair cursor) is not
-/// built: equipped items have no click targets yet.
-fn repair_buttons(enabled: bool) -> Element {
-    let y = FRAME_H - 33.0 - 36.0;
-    repair_button(
-        "MerchantRepairAllButton",
-        82.0,
-        y,
-        &REPAIR_ALL_ICON,
+/// The 36×36 service buttons along the bottom edge (BOTTOMRIGHT at BOTTOMLEFT …,33).
+const SERVICE_Y: f32 = FRAME_H - 33.0 - 36.0;
+const REPAIR_ALL_X: f32 = 118.0 - 36.0;
+
+struct ServiceButton<'a> {
+    name: &'a str,
+    x: f32,
+    icon: &'a AtlasArt,
+    enabled: bool,
+    action: &'a str,
+    /// `LockHighlight` (`Some(true)`) for a button with a `ButtonHilight-Square`.
+    highlight: Option<bool>,
+}
+
+/// `MerchantRepairAllButton` 36×36, BOTTOMRIGHT at BOTTOMLEFT 118,33, and
+/// `MerchantRepairItemButton` RIGHT at its LEFT −8 (MF.lua:948-960, no guild bank).
+/// The item button is always enabled; its highlight stays lit in repair mode.
+fn repair_buttons(enabled: bool, repair_mode: bool) -> Element {
+    let mut children = service_button(ServiceButton {
+        name: "MerchantRepairAllButton",
+        x: REPAIR_ALL_X,
+        icon: &REPAIR_ALL_ICON,
         enabled,
-        ACTION_REPAIR_ALL,
-    )
+        action: ACTION_REPAIR_ALL,
+        highlight: None,
+    });
+    children.extend(service_button(ServiceButton {
+        name: "MerchantRepairItemButton",
+        x: REPAIR_ALL_X - 8.0 - 36.0,
+        icon: &REPAIR_ICON,
+        enabled: true,
+        action: ACTION_REPAIR_ITEM,
+        highlight: Some(repair_mode),
+    }));
+    children
 }
 
 /// `MerchantSellAllJunkButton` 36×36: RIGHT at RepairAll LEFT +80 with a repairer
 /// (MF.lua:943), else BOTTOMRIGHT at BOTTOMRIGHT -148,33 (MF.lua:954).
 fn sell_all_junk_button(repairer: bool, enabled: bool) -> Element {
     let right = if repairer {
-        82.0 + 80.0
+        REPAIR_ALL_X + 80.0
     } else {
         FRAME_W - 148.0
     };
-    repair_button(
-        "MerchantSellAllJunkButton",
-        right - 36.0,
-        FRAME_H - 33.0 - 36.0,
-        &SELL_JUNK_ICON,
+    service_button(ServiceButton {
+        name: "MerchantSellAllJunkButton",
+        x: right - 36.0,
+        icon: &SELL_JUNK_ICON,
         enabled,
-        ACTION_SELL_ALL_JUNK,
-    )
+        action: ACTION_SELL_ALL_JUNK,
+        highlight: None,
+    })
 }
 
-fn repair_button(
-    name: &str,
-    x: f32,
-    y: f32,
-    icon: &AtlasArt,
-    enabled: bool,
-    action: &str,
-) -> Element {
-    let action = if enabled { action } else { "" };
+fn service_button(button: ServiceButton) -> Element {
+    let name = button.name;
+    let action = if button.enabled { button.action } else { "" };
     // Disabled buttons desaturate their icon (MF.lua:909-931).
-    let icon_color = if enabled { WHITE } else { "0.4,0.4,0.4,1.0" };
+    let icon_color = if button.enabled {
+        WHITE
+    } else {
+        "0.4,0.4,0.4,1.0"
+    };
     let mut children = texture(
         format!("{name}Slot"),
         EMPTY_SLOT,
         (-13.0, -14.0, 64.0, 64.0),
         WHITE,
     );
+    let icon = button.icon;
     let coords = icon.tex_coords(1.0);
     children.extend(rsx! {
         texture {
@@ -542,6 +570,21 @@ fn repair_button(
             top: 0.0,
         }
     });
+    if let Some(lit) = button.highlight {
+        let unlit = !lit;
+        children.extend(rsx! {
+            texture {
+                name: {DynName(format!("{name}Highlight"))},
+                width: 36.0,
+                height: 36.0,
+                texture_fdid: BUTTON_HIGHLIGHT,
+                hidden: unlit,
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
+        });
+    }
     rsx! {
         r#frame {
             name: {DynName(name.into())},
@@ -550,8 +593,8 @@ fn repair_button(
             onclick: action,
             mouse_enabled: true,
             pos_type: "absolute",
-            left: x,
-            top: y,
+            left: {button.x},
+            top: SERVICE_Y,
             {children}
         }
     }

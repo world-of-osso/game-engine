@@ -139,7 +139,7 @@ fn authored_material_texture_animation_and_opacity_resolution() {
     }];
     let anim = |value| TextureAnimTracks {
         translation: track([value, 0.0, 0.0]),
-        rotation: track([0; 4]),
+        rotation: track([0.0; 4]),
         scale: track([1.0; 3]),
     };
     model.texture_animations = vec![anim(0.25), anim(0.75)];
@@ -253,7 +253,10 @@ fn instance_portal_sheet_carries_its_colour_track_rgb() {
     assert_eq!(sheet.blend_mode, 7);
     assert_eq!(sheet.color_opacity_track_index, Some(0));
     let expected = [108.0 / 255.0, 133.0 / 255.0, 203.0 / 255.0];
-    let mesh_color = m2::batch_mesh_color(&model, sheet);
+    let unit = &model.batches[sheet.source_unit_index];
+    let binding = crate::m2_material::batch_binding(&model, unit, &[0; 3]).unwrap();
+    let tracks = crate::m2_material::MaterialTracks::of(&model);
+    let mesh_color = crate::m2_material::sample_material(&tracks, &binding, 0).mesh_color;
     for (actual, expected) in mesh_color.iter().zip(expected) {
         assert!((actual - expected).abs() < 1e-6, "{mesh_color:?}");
     }

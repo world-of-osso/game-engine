@@ -13,21 +13,34 @@ pub(super) fn load_cached_display_info(
     let Some(mut display) = query_display_info_row(&conn, display_info_id)? else {
         return Ok(None);
     };
-    display.item_textures = query_display_material_textures(&conn, display_info_id)?;
+    display.item_materials = query_display_materials(&conn, display_info_id)?;
     Ok(Some(display))
 }
 
-pub(super) fn load_cached_material_texture_fdid(
+/// The material's texture files in TextureFileData order.
+pub(super) fn load_cached_material_texture_fdids(
     data_dir: &Path,
     material_resource_id: u32,
-) -> Result<Option<u32>, String> {
+) -> Result<Vec<u32>, String> {
     let conn = open_outfit_conn(data_dir)?;
+    query_material_texture_fdids(&conn, material_resource_id)
+}
+
+fn query_material_texture_fdids(
+    conn: &Connection,
+    material_resource_id: u32,
+) -> Result<Vec<u32>, String> {
     let mut stmt = conn
-        .prepare("SELECT texture_fdid FROM material_to_texture WHERE material_resource_id = ?1")
-        .map_err(|err| format!("prepare material_to_texture single lookup: {err}"))?;
-    stmt.query_row([material_resource_id], |row| row.get::<_, u32>(0))
-        .optional()
-        .map_err(|err| format!("query material_to_texture single row: {err}"))
+        .prepare(
+            "SELECT texture_fdid FROM material_textures
+             WHERE material_resource_id = ?1 ORDER BY file_order",
+        )
+        .map_err(|err| format!("prepare material_textures lookup: {err}"))?;
+    let rows = stmt
+        .query_map([material_resource_id], |row| row.get::<_, u32>(0))
+        .map_err(|err| format!("query material_textures rows: {err}"))?;
+    rows.collect::<Result<_, _>>()
+        .map_err(|err| format!("read material_textures row: {err}"))
 }
 
 pub(super) fn load_cached_model_fdids(
@@ -142,7 +155,8 @@ fn query_display_info_row(
     let mut stmt = conn
         .prepare(
             "SELECT model_res_0, model_res_1, model_mat_res_0, model_mat_res_1,
-                    geoset_group_0, geoset_group_1, geoset_group_2, helmet_vis_0, helmet_vis_1
+                    geoset_group_0, geoset_group_1, geoset_group_2, geoset_group_3,
+                    geoset_group_4, geoset_group_5, helmet_vis_0, helmet_vis_1
              FROM display_info
              WHERE id = ?1",
         )
@@ -155,61 +169,57 @@ fn query_display_info_row(
                 row.get::<_, i16>(4)?,
                 row.get::<_, i16>(5)?,
                 row.get::<_, i16>(6)?,
+                row.get::<_, i16>(7)?,
+                row.get::<_, i16>(8)?,
+                row.get::<_, i16>(9)?,
             ],
-            [row.get::<_, u32>(7)?, row.get::<_, u32>(8)?],
+            [row.get::<_, u32>(10)?, row.get::<_, u32>(11)?],
         ))
     })
     .optional()
     .map_err(|err| format!("query display_info single row: {err}"))
 }
 
-fn query_display_material_textures(
+fn query_display_materials(
     conn: &Connection,
     display_info_id: u32,
 ) -> Result<Vec<(u8, u32)>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT component_section, texture_fdid
-             FROM display_material_textures
+            "SELECT component_section, material_resource_id
+             FROM display_materials
              WHERE display_info_id = ?1
-             ORDER BY component_section, texture_fdid",
+             ORDER BY component_section, material_resource_id",
         )
-        .map_err(|err| format!("prepare display_material_textures single lookup: {err}"))?;
+        .map_err(|err| format!("prepare display_materials single lookup: {err}"))?;
     let rows = stmt
         .query_map([display_info_id], |row| {
             Ok((row.get::<_, u8>(0)?, row.get::<_, u32>(1)?))
         })
-        .map_err(|err| format!("query display_material_textures single rows: {err}"))?;
-    let mut textures = Vec::new();
+        .map_err(|err| format!("query display_materials single rows: {err}"))?;
+    let mut materials = Vec::new();
     for row in rows {
-        textures.push(row.map_err(|err| format!("read display_material_textures row: {err}"))?);
+        materials.push(row.map_err(|err| format!("read display_materials row: {err}"))?);
     }
-    Ok(textures)
+    Ok(materials)
 }
 
 fn build_display_info_row(
     model_resources: [u32; 2],
     model_material_resources: [u32; 2],
-    geoset_groups: [i16; 3],
+    geoset_groups: [i16; 6],
     helmet_vis_ids: [u32; 2],
 ) -> DisplayInfoResolved {
     let collect = |values: [u32; 2]| values.into_iter().filter(|v| *v != 0).collect::<Vec<_>>();
     DisplayInfoResolved {
-        item_textures: Vec::new(),
+        item_materials: Vec::new(),
         geoset_overrides: Vec::new(),
         model_resource_ids: collect(model_resources),
         model_material_resource_ids: collect(model_material_resources),
         model_resource_columns: model_resources,
         model_material_resource_columns: model_material_resources,
         helmet_geoset_vis_ids: collect(helmet_vis_ids),
-        geoset_groups: [
-            geoset_groups[0],
-            geoset_groups[1],
-            geoset_groups[2],
-            0,
-            0,
-            0,
-        ],
+        geoset_groups,
     }
 }
 
@@ -274,13 +284,10 @@ fn resolve_skin_fdids(
             skin_fdids[idx] = fdid;
             continue;
         }
-        let mut stmt = conn
-            .prepare("SELECT texture_fdid FROM material_to_texture WHERE material_resource_id = ?1")
-            .map_err(|err| format!("prepare material skin lookup: {err}"))?;
-        let fdid = stmt
-            .query_row([material_id], |row| row.get::<_, u32>(0))
-            .optional()
-            .map_err(|err| format!("query material skin row: {err}"))?
+        // Model-path lookups have no wearer: the material's first file.
+        let fdid = query_material_texture_fdids(conn, material_id)?
+            .first()
+            .copied()
             .unwrap_or(0);
         cache.insert(material_id, fdid);
         skin_fdids[idx] = fdid;

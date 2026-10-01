@@ -119,13 +119,30 @@ func mt_bag_hovers(client: Node) -> bool:
 		return false
 	if not await mt_tab(client, "MerchantFrameTab1", "Merchant"):
 		return false
-	# No invented SellJunk hover text or unchecked per-item Repair contract.
-	if not await mt_hover(client, "MerchantSellAllJunkButton", {}, "SERVICE"):
+	if not await mt_service_hovers(client):
 		return false
 	# Peer closes after900ms visible bag hover, with pointer stationary on it.
 	if not await mt_hover(client, "ContainerFrame0Slot0", bag, "CLOSE_ARM"):
 		return false
 	return await mt_expect_stable(client, "", {}, false, "")
+
+# Service button OnEnter (MF.xml:207-211, 240-252, 300-303) and the last-sale slot
+# (MerchantBuyBackButton_OnEnter, SetBuybackItem(GetNumBuybackItems())).
+func mt_service_hovers(client: Node) -> bool:
+	if not await mt_hover(client, "MerchantSellAllJunkButton", mt_expected("Sell All Junk Items", Color.WHITE, []), "SERVICE"):
+		return false
+	if not await mt_hover(client, "MerchantRepairItemButton", mt_expected("Repair an Item", Color.WHITE, []), "REPAIR_ITEM"):
+		return false
+	# Nothing damaged: GetRepairAllCost() 0 shows an empty, undrawn tooltip.
+	if not await mt_hover(client, "MerchantRepairAllButton", {}, "REPAIR_ALL_EMPTY"):
+		return false
+	# The peer's DurabilityStateUpdate cost1016 exceeds Gold1000; same physical pointer.
+	var short := mt_expected("Repair All Items", Color.WHITE, [["", "", Color.WHITE], ["Insufficient funds to repair all items", "", Color(1.0, 0.1, 0.1, 1.0)]])
+	short.copper = "10"
+	if not await mt_expect_stable(client, "MerchantRepairAllButton", short, true, "REPAIR_ALL_SHORT"):
+		return false
+	var last := mt_expected("Fixture Returned Pelt", Color.WHITE, [["Item ID: 4865", ""]])
+	return await mt_hover(client, "MerchantBuyBackItem", last, "LAST_BUYBACK")
 
 func mt_expected(title: String, color: Color, lines: Array) -> Dictionary:
 	return {"title": title, "color": color, "lines": lines, "copper": "", "bag": false}
@@ -272,7 +289,9 @@ func mt_projection(client: Node, owner: String, expected: Dictionary) -> bool:
 				return false
 			var color := Color(0.92, 0.89, 0.82, 1.0)
 			if side == 0:
-				if expected.lines[index][0].begins_with("Item ID:"):
+				if expected.lines[index].size() > 2:
+					color = expected.lines[index][2]
+				elif expected.lines[index][0].begins_with("Item ID:"):
 					color = Color(0.5, 0.5, 0.5, 1.0)
 				elif expected.bag:
 					color = Color.WHITE
