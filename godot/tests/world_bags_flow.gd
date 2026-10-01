@@ -8,6 +8,12 @@ const BAG_ONE := "CharacterBag0Slot"
 const CONTAINER_RIGHT := 16.0
 const CONTAINER_BOTTOM := 96.0
 const POSITION_TOLERANCE := 2.0
+const EXPECTED_ITEMS := [
+	[0, 0, 755, "Melted Candle", 3],
+	[0, 1, 2589, "Linen Cloth", 3],
+	[0, 2, 4865, "Ruined Pelt", 1],
+	[1, 7, 755, "Melted Candle", 2],
+]
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -47,11 +53,15 @@ func run_test() -> void:
 		return
 	if not check_container(client, 0, 16, 0, "3") or not check_solo_position(client, 0):
 		return
+	if not await check_item_hover_tooltips(client):
+		return
 	backpack = await wait_bag_button(client, BACKPACK)
 	if backpack == null:
 		return
 	await click(backpack)
 	if not await wait_container(client, 0, false):
+		return
+	if not await wait_item_tooltip_hidden(client):
 		return
 	var bag_one := await wait_bag_button(client, BAG_ONE)
 	if bag_one == null:
@@ -148,18 +158,150 @@ func wait_bag_inventory(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + INVENTORY_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		var items: Array = client.merchant_state().bags
-		if items.size() != 2:
-			continue
-		var backpack_matches := false
-		var bag_matches := false
-		for item in items:
-			backpack_matches = backpack_matches or (item.bag == 0 and item.slot == 0 and item.item_id == 755 and item.count == 3)
-			bag_matches = bag_matches or (item.bag == 1 and item.slot == 7 and item.item_id == 755 and item.count == 2)
-		if backpack_matches and bag_matches:
+		if bag_inventory_matches(client):
 			return true
-	fail("Bags authoritative inventory missing: expected candle bag0/slot0 x3 and bag1/slot7 x2")
+	fail("Bags authoritative inventory must remain exactly %s; observed=%s" % [EXPECTED_ITEMS, client.merchant_state().bags])
 	return false
+
+func bag_inventory_matches(client: Node) -> bool:
+	var items: Array = client.merchant_state().bags
+	if items.size() != EXPECTED_ITEMS.size():
+		return false
+	for wanted in EXPECTED_ITEMS:
+		var matches := 0
+		for item in items:
+			if item.bag == wanted[0] and item.slot == wanted[1] and item.item_id == wanted[2] and item.name == wanted[3] and item.count == wanted[4]:
+				matches += 1
+		if matches != 1:
+			return false
+	return true
+
+func check_item_hover_tooltips(client: Node) -> bool:
+	var backpack_rect := authored_control(client, "ContainerFrame0").get_global_rect()
+	# Names below are the original tooltip screen's desired native contract, not
+	# existing native controls. Physical motion must produce the mounted projection.
+	if not await hover_bag_slot(client, 1) or not await wait_item_tooltip(client, "Linen Cloth", Color(1.0, 1.0, 1.0, 1.0), "39", "Item ID: 2589"):
+		return false
+	if not await quiet_tooltip_inventory(client, true, backpack_rect):
+		return false
+	if not await hover_bag_slot(client, 2) or not await wait_item_tooltip(client, "Ruined Pelt", Color(0.62, 0.62, 0.62, 1.0), "5", "Item ID: 4865"):
+		return false
+	if not await quiet_tooltip_inventory(client, true, backpack_rect):
+		return false
+	if not await hover_bag_slot(client, 3) or not await wait_item_tooltip_hidden(client):
+		return false
+	if not await quiet_tooltip_inventory(client, true, backpack_rect):
+		return false
+	# Re-show before leaving the whole bag, so away-hide is not a vacuous check.
+	if not await hover_bag_slot(client, 1) or not await wait_item_tooltip(client, "Linen Cloth", Color.WHITE, "39", "Item ID: 2589"):
+		return false
+	await move_tooltip_pointer(Vector2(64.0, 64.0))
+	if not await wait_item_tooltip_hidden(client) or not await quiet_tooltip_inventory(client, true, backpack_rect):
+		return false
+	# Close via keyboard while the captured physical pointer remains on the item.
+	if not await hover_bag_slot(client, 1) or not await wait_item_tooltip(client, "Linen Cloth", Color.WHITE, "39", "Item ID: 2589"):
+		return false
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	if not await wait_container(client, 0, false) or not await wait_item_tooltip_hidden(client):
+		return false
+	if not await quiet_tooltip_inventory(client, false, backpack_rect):
+		return false
+	# Restore the original flow before its existing backpack-close click.
+	var backpack := await wait_bag_button(client, BACKPACK)
+	if backpack == null:
+		return false
+	await click(backpack)
+	if not await wait_container(client, 0, true):
+		return false
+	if not check_container(client, 0, 16, 0, "3") or not check_solo_position(client, 0):
+		return false
+	print("BAGS TOOLTIP title/quality, stack price, empty/away/close hide and unchanged authority checked")
+	return await quiet_tooltip_inventory(client, true, backpack_rect)
+
+func hover_bag_slot(client: Node, slot: int) -> bool:
+	var control := authored_control(client, "ContainerFrame0Slot%s" % slot)
+	if control == null or not control.is_visible_in_tree() or not control.get_global_rect().has_area():
+		fail("Missing real authored backpack hover slot: %s" % slot)
+		return false
+	await move_tooltip_pointer(control.get_global_rect().get_center())
+	return true
+
+func move_tooltip_pointer(point: Vector2) -> void:
+	Input.warp_mouse(point)
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	await process_frame
+
+func wait_item_tooltip(client: Node, title_text: String, title_color: Color, copper: String, item_id_line: String) -> bool:
+	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var panel := authored_control(client, "TooltipFrame")
+		var title := authored_control(client, "TooltipTitle") as Label
+		if panel == null or not panel.is_visible_in_tree() or title == null or not title.is_visible_in_tree() or title.text != title_text:
+			continue
+		if not title.get_theme_color("font_color").is_equal_approx(title_color):
+			fail("Original item tooltip quality color for %s: expected=%s observed=%s" % [title_text, title_color, title.get_theme_color("font_color")])
+			return false
+		for expected in [["TooltipLine0Left", "Sell Price:"], ["TooltipLine0MoneyAmount0", copper], ["TooltipLine1Left", item_id_line]]:
+			var label := authored_control(client, expected[0]) as Label
+			if label == null or not label.is_visible_in_tree() or label.text != expected[1]:
+				fail("Original item tooltip %s must show %s" % [expected[0], expected[1]])
+				return false
+		var coin := authored_control(client, "TooltipLine0MoneyCoin0")
+		if coin == null or not coin.is_visible_in_tree():
+			fail("Original stack sell price requires its authored copper coin")
+			return false
+		for unexpected in ["TooltipLine0MoneyAmount1", "TooltipLine2Left"]:
+			var extra := authored_control(client, unexpected)
+			if extra != null and extra.is_visible_in_tree():
+				fail("Simple item tooltip has unexpected extra money/line: " + unexpected)
+				return false
+		print("BAGS TOOLTIP observed title=", title_text, " color=", title.get_theme_color("font_color"), " copper=", copper, " id=", item_id_line)
+		return true
+	fail("RED: physical authored bag hover did not project original TooltipFrame/TooltipTitle for " + title_text)
+	return false
+
+func wait_item_tooltip_hidden(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var panel := authored_control(client, "TooltipFrame")
+		if panel != null and panel.is_visible_in_tree():
+			continue
+		for frame in range(8):
+			await process_frame
+			for control_name in ["TooltipFrame", "TooltipTitle", "TooltipLine0Left", "TooltipLine0MoneyAmount0", "TooltipLine1Left"]:
+				var control := authored_control(client, control_name)
+				if control != null and control.is_visible_in_tree():
+					fail("Item tooltip remained/reappeared visible after empty/away/close: " + control_name)
+					return false
+		return true
+	fail("RED: item tooltip did not hide after empty/away/close")
+	return false
+
+func quiet_tooltip_inventory(client: Node, backpack_open: bool, backpack_rect: Rect2) -> bool:
+	for frame in range(8):
+		await process_frame
+		var state: Dictionary = client.merchant_state()
+		var cursor_icon := authored_control(client, "CursorItemIcon")
+		var popup := authored_control(client, "StaticPopup1")
+		if not bag_inventory_matches(client) or state.cursor != "" or state.split_open or (cursor_icon != null and cursor_icon.is_visible_in_tree()) or (popup != null and popup.is_visible_in_tree()):
+			fail("Item hover changed exact authoritative inventory/cursor/split/popup: %s" % state)
+			return false
+		var container := authored_control(client, "ContainerFrame0")
+		var other := authored_control(client, "ContainerFrame1")
+		if container == null or container.is_visible_in_tree() != backpack_open or (other != null and other.is_visible_in_tree()) or client.get_node_or_null("GameMenuUI") != null or client.get_node_or_null("MerchantUI") != null:
+			fail("Item hover changed standalone container/unrelated-window visibility")
+			return false
+		if backpack_open and container.get_global_rect() != backpack_rect:
+			fail("Item hover changed authored backpack geometry")
+			return false
+	return true
 
 func wait_bag_button(client: Node, control_name: String) -> Control:
 	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
