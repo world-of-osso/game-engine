@@ -1,3 +1,7 @@
+## [2026-09-30] audit | Merchant fixture rendering links corrected; gate OPEN
+
+[SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending) records native5a source/build/actions and own readability resolution, actual merchant pre-login exit101, and fixture-only `54eaef69` required-link correction. Fresh fixture build/merchant retry and read-only1425 acceptance pending; prior startup failures and valid unchanged startup proof retained. Full conversion OPEN; Mail/Auction untouched. Docs only; no tests/builds/operations.
+
 ## [2026-09-30] audit | Startup equipment followup pending after lifecycle split
 
 [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records gate1421's new own complexity finding and source-only `5a3ebf7b` lifecycle/application split. Fresh build/actions/merchant-click and independent1423 acceptance pending MAIN proof; no metric clearance. Prior first-GREEN remains historical functional evidence, not current integration proof. Inherited readability remains uncleared; inventory snapshot is not Appearance/mesh proof. Docs only; no tests/builds or operations.
