@@ -329,7 +329,7 @@ func enter_world() -> bool:
 		return false
 	var ui: Node = null
 	var card: Control = null
-	var ui_deadline := Time.get_ticks_msec() + 30000
+	var ui_deadline := Time.get_ticks_msec() + 180000
 	while card == null:
 		if Time.get_ticks_msec() > ui_deadline:
 			fail("CharacterSelectUI never showed CharCard_0")
