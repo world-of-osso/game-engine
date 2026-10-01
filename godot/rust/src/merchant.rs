@@ -531,7 +531,15 @@ impl GameClient {
             return;
         }
         self.merchant.item_data_resolved = true;
-        self.merchant.session.inventory.refresh_item_data();
+        let inventory = &mut self.merchant.session.inventory;
+        inventory.refresh_item_data();
+        let items = inventory
+            .slots
+            .iter()
+            .flatten()
+            .chain(inventory.equipment.values());
+        let received = items.filter(|item| item.item_id != 0).count();
+        godot_print!("Item catalog loaded: {received} received bag and equipment items resolved");
     }
 
     /// Item icons come from local CASC into `data/textures` before the frame draws them,
@@ -609,6 +617,10 @@ impl GameClient {
             "buyback",
             &string_array(merchant.buyback.iter().map(|item| &item.name)),
         );
+        state.set(
+            "item_catalog_loaded",
+            game_engine_ui_model::item_catalog::item_catalog().is_some(),
+        );
         state.set("bags", &bag_items(&session.inventory));
         state.set("equipment", &equipment_items(&session.inventory));
         state.set("money", session.money as i64);
@@ -653,6 +665,8 @@ fn equipment_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -
             entry.set("item_id", i64::from(item.item_id));
             entry.set("item_guid", item.item_guid as i64);
             entry.set("count", i64::from(item.count));
+            entry.set("name", item.name.as_str());
+            entry.set("icon_fdid", i64::from(item.icon_fdid));
             entry.to_variant()
         })
         .collect()
@@ -673,6 +687,8 @@ fn bag_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarA
             entry.set("item_id", i64::from(item.item_id));
             entry.set("name", item.name.as_str());
             entry.set("count", i64::from(item.count));
+            entry.set("icon_fdid", i64::from(item.icon_fdid));
+            entry.set("quality", i64::from(item.quality.id()));
             bags.push(&entry.to_variant());
         }
     }

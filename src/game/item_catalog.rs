@@ -131,11 +131,19 @@ pub fn wait_for_item_catalog() -> &'static ItemCatalog {
 }
 
 fn load_client_catalog() -> ItemCatalog {
+    let started = std::time::Instant::now();
     let dir = crate::paths::resolve_data_path(db2_dir(Path::new("")));
     let loaded = load_item_catalog(&dir).and_then(|mut catalog| {
         catalog.appearance_icons = crate::item_icons::load_item_icons()?;
         Ok(catalog)
     });
+    if let Ok(catalog) = &loaded {
+        let (items, seconds) = (catalog.len(), started.elapsed().as_secs_f32());
+        #[cfg(not(godot_host))]
+        bevy::log::info!("item catalog: {items} items loaded in {seconds:.1} s");
+        #[cfg(godot_host)]
+        println!("item catalog: {items} items loaded in {seconds:.1} s");
+    }
     loaded.unwrap_or_else(|err| {
         #[cfg(not(godot_host))]
         bevy::log::error!("item catalog unavailable: {err}");
