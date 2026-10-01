@@ -1,4 +1,4 @@
-//! Real replicated mailbox and Guild Vault M2s, resolved through build-pinned
+//! Real replicated mailbox, Guild Vault and chair M2s, resolved through build-pinned
 //! GameObjectDisplayInfo.
 use crate::{
     assets::{
@@ -13,7 +13,9 @@ use game_engine_core::csv_util::parse_csv_line;
 use game_engine_network::replica::Unit;
 use godot::{classes::Node3D, prelude::*};
 use shared::components::{Position, Rotation};
-use shared::protocol::{GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
+use shared::protocol::{
+    GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo,
+};
 use std::{collections::HashMap, path::PathBuf};
 
 struct ObjectNode {
@@ -63,7 +65,7 @@ impl GameObjects {
             light: None,
         }
     }
-    /// Whether `id` is a shown mailbox or Guild Vault.
+    /// Whether `id` is a shown mailbox, Guild Vault or chair.
     pub fn contains(&self, id: u64) -> bool {
         self.objects.contains_key(&id)
     }
@@ -79,7 +81,7 @@ impl GameObjects {
         let id = unit.server_id;
         if !matches!(
             info.go_type,
-            GAMEOBJECT_TYPE_MAILBOX | GAMEOBJECT_TYPE_GUILD_BANK
+            GAMEOBJECT_TYPE_MAILBOX | GAMEOBJECT_TYPE_GUILD_BANK | GAMEOBJECT_TYPE_CHAIR
         ) {
             self.remove(id);
             return Ok(());
@@ -89,7 +91,7 @@ impl GameObjects {
         };
         if !info.scale.is_finite() || info.scale <= 0.0 {
             return Err(format!(
-                "Mailbox {id} has invalid replicated scale {}",
+                "Game object {id} has invalid replicated scale {}",
                 info.scale
             ));
         }
@@ -157,14 +159,14 @@ impl GameObjects {
             .filter(|id| *id != 0)
             .ok_or_else(|| {
                 format!(
-                    "Mailbox entry {} has no GameObjectDisplayInfo {} model FileDataID",
+                    "Game object entry {} has no GameObjectDisplayInfo {} model FileDataID",
                     info.entry, info.display_id
                 )
             })?;
         let resolver = local_resolver(&self.data_root);
         let path = cache_model_files(&resolver, &self.data_root, fdid).map_err(|e| {
             format!(
-                "Mailbox entry {} display {} model {fdid}: {e}",
+                "Game object entry {} display {} model {fdid}: {e}",
                 info.entry, info.display_id
             )
         })?;
@@ -175,7 +177,7 @@ impl GameObjects {
         if !missing.is_empty() {
             model.free();
             return Err(format!(
-                "Mailbox entry {} model {fdid} missing texture FDIDs: {missing:?}",
+                "Game object entry {} model {fdid} missing texture FDIDs: {missing:?}",
                 info.entry
             ));
         }
