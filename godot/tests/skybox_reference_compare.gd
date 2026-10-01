@@ -90,7 +90,13 @@ func validate_manifest(manifest: Dictionary, renderer: String) -> bool:
 	for field in ["client_args", "viewport", "camera_eye", "camera_target", "fov_degrees", "time_ms", "composition", "asset_sha256", "render_options", "light_sample", "pixel_encoding"]:
 		if not inputs.has(field):
 			return false
-	if inputs["viewport"] != [1280, 720]:
+	if not inputs["viewport"] is Array:
+		return false
+	var viewport: Array = inputs["viewport"]
+	if viewport.size() != 2:
+		return false
+	# JSON numbers decode as floats; compare values, not Array variant types.
+	if viewport[0] != 1280 or viewport[1] != 720:
 		return false
 	if str(inputs["pixel_encoding"]) != "srgb-rgb8":
 		return false
@@ -170,6 +176,9 @@ func self_test() -> bool:
 	var decoded: Dictionary = JSON.parse_string(JSON.stringify(valid))
 	if not validate_manifest(decoded, "bevy"):
 		return reject("Valid manifest metadata failed actual JSON decode boundary")
+	decoded["inputs"]["viewport"][0] = 1280.5
+	if validate_manifest(decoded, "bevy"):
+		return reject("Fractional viewport extent was silently truncated")
 	print("PASS: bounded exact image comparator self-test, no renderer-parity claim")
 	return true
 
