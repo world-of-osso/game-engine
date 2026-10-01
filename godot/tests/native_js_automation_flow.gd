@@ -1,9 +1,11 @@
 extends SceneTree
 
-# Observation only. Production startup reads debug/login.js and owns every input/action.
+# Observation only. Production startup reads chosen JS and owns every input/action.
+# Default remains debug/login.js; timeout-continuation observes Login without input.
 # No credential setters, emitted input signals, connect_account, or automation hooks.
 var client: Node
 var artifacts: String
+var mode: String
 var username: LineEdit
 var password: LineEdit
 var connect_button: Button
@@ -54,9 +56,33 @@ func observe_node(node: Node) -> void:
 		connect_button = node
 		connect_button.pressed.connect(observe_authored_click)
 
+func observe_timeout_login(login: Control) -> void:
+	# Give production's frame-driven deadline and queued successor time to run.
+	# Parent alone checks the native timeout diagnostic and live stdout dump.
+	var deadline := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+	var state: Dictionary = client.account_state()
+	if not login.is_visible_in_tree() or not username.is_visible_in_tree() or not connect_button.is_visible_in_tree() or state.screen != "Login" or state.reply_received:
+		fail("FEATURE: timeout-continuation did not retain actual visible Login without auth", true)
+		return
+	if saw_credentials or saw_authored_click:
+		fail("FEATURE: timeout-continuation unexpectedly entered credentials or clicked Connect", true)
+		return
+	if not mark("observed-timeout-login"):
+		return
+	print("OBSERVE: timeout-continuation retained actual visible Login without credential entry/Connect click; parent owns deadline/dump assertions")
+	client.queue_free()
+	await process_frame
+	quit(0)
+
 func run() -> void:
 	artifacts = OS.get_environment("NATIVE_JS_ARTIFACTS")
-	if artifacts.is_empty() or OS.get_environment("LOGIN_USER").is_empty() or OS.get_environment("LOGIN_PASS").is_empty():
+	mode = OS.get_environment("NATIVE_JS_MODE")
+	if mode != "" and mode != "login" and mode != "timeout-continuation":
+		fail("SETUP: unknown native JS observer mode")
+		return
+	if artifacts.is_empty() or (mode != "timeout-continuation" and (OS.get_environment("LOGIN_USER").is_empty() or OS.get_environment("LOGIN_PASS").is_empty())):
 		fail("SETUP: owned artifacts and synthetic credential environment required")
 		return
 	if not ClassDB.class_exists("GameClient"):
@@ -90,6 +116,9 @@ func run() -> void:
 	if not mark("login-ready"):
 		return
 	print("OBSERVE: authored Login ready; password=***")
+	if mode == "timeout-continuation":
+		await observe_timeout_login(login)
+		return
 	var deadline := Time.get_ticks_msec() + 15000
 	while Time.get_ticks_msec() < deadline:
 		observe_credentials()

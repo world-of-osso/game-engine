@@ -1,4 +1,5 @@
 //! Unchanged debug/login.js through root startup, authored Login and real loopback auth.
+//! Optional positional mode: timeout-continuation (missing-frame deadline then live dump).
 //! MAIN builds/runs this fixture; requires an existing root launcher and GODOT_BIN.
 //! No external server. Passwords are masked before writing persistent diagnostics.
 
@@ -24,6 +25,33 @@ const USERNAME: &str = "native-js-owned-user";
 const PASSWORD: &str = "native-js-owned-secret";
 const CHARACTER: &str = "Automation Fixture";
 const TIMEOUT: Duration = Duration::from_secs(180);
+const TIMEOUT_SCRIPT: &str = "ui.waitForFrame(\"NativeJsMissingFrame\", 0.05); ui.dumpUiTree();\n";
+const FRAME_TIMEOUT: &str =
+    "native JS automation: timed out waiting for frame 'NativeJsMissingFrame' after 0.05s";
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Login,
+    TimeoutContinuation,
+}
+
+impl Mode {
+    fn from_args() -> Result<Self, String> {
+        let args: Vec<_> = std::env::args_os().skip(1).collect();
+        match args.as_slice() {
+            [] => Ok(Self::Login),
+            [mode] if mode == "timeout-continuation" => Ok(Self::TimeoutContinuation),
+            _ => Err("SETUP: usage: native_js_automation_fixture [timeout-continuation]".into()),
+        }
+    }
+
+    fn observer_mode(self) -> &'static str {
+        match self {
+            Self::Login => "login",
+            Self::TimeoutContinuation => "timeout-continuation",
+        }
+    }
+}
 
 #[derive(Resource, Default)]
 struct Incoming(Vec<(Entity, LoginRequest)>);
@@ -70,9 +98,13 @@ fn start_server() -> Result<(App, SocketAddr), String> {
     Ok((app, address))
 }
 
-fn authenticate(app: &mut App, count: &mut usize) -> Result<(), String> {
+fn authenticate(app: &mut App, count: &mut usize, mode: Mode) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().0);
     for (link, request) in requests {
+        if mode == Mode::TimeoutContinuation {
+            *count += 1;
+            return Err("FEATURE: timeout-continuation decoded unexpected LoginRequest; expected zero auth (password masked)".into());
+        }
         if request.username != USERNAME || request.password != PASSWORD || request.token.is_some() {
             return Err("FEATURE: decoded LoginRequest did not contain exact owned credentials and no token (password masked)".into());
         }
@@ -160,6 +192,7 @@ fn launch(
     root: &Path,
     address: SocketAddr,
     artifacts: &Path,
+    mode: Mode,
 ) -> Result<(OwnedChild, Receiver<Result<Output, String>>), String> {
     let launcher = require_file(
         root.join("target/debug/game-engine-launcher"),
@@ -171,7 +204,15 @@ fn launch(
             .ok_or("SETUP: GODOT_BIN must select an existing executable")?,
         "Godot executable",
     )?;
-    let script = require_file(root.join("debug/login.js"), "unchanged login JS")?;
+    let script = match mode {
+        Mode::Login => require_file(root.join("debug/login.js"), "unchanged login JS")?,
+        Mode::TimeoutContinuation => {
+            let path = artifacts.join("timeout-continuation.js");
+            fs::write(&path, TIMEOUT_SCRIPT)
+                .map_err(|error| format!("SETUP: write timeout-continuation script: {error}"))?;
+            path
+        }
+    };
     require_file(
         root.join("godot/.godot/extension_list.cfg"),
         "imported native extension cache",
@@ -206,6 +247,7 @@ fn launch(
             .env("LOGIN_USER", USERNAME)
             .env("LOGIN_PASS", PASSWORD)
             .env("NATIVE_JS_ARTIFACTS", artifacts)
+            .env("NATIVE_JS_MODE", mode.observer_mode())
             .env("NATIVE_JS_CHARACTER", CHARACTER)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -264,7 +306,48 @@ fn assert_dump(lines: &[&str]) -> Result<(), String> {
     Ok(())
 }
 
+fn assert_timeout_continuation(
+    lines: &[Output],
+    artifacts: &Path,
+    auth_count: usize,
+) -> Result<(), String> {
+    if auth_count != 0
+        || !artifacts.join("login-ready").is_file()
+        || !artifacts.join("observed-timeout-login").is_file()
+    {
+        return Err(
+            "FEATURE: timeout-continuation requires observed visible Login and zero decoded auth"
+                .into(),
+        );
+    }
+    if !lines
+        .iter()
+        .any(|output| output.line.contains(FRAME_TIMEOUT))
+    {
+        return Err("SETUP/UNCLASSIFIED: real native 0.05s missing-frame deadline not logged; not timeout-continuation RED".into());
+    }
+    // Only the queued JS successor can emit these live formatter records. Neither
+    // observer nor parent calls a dump. Do not infer cross-pipe order from reader scheduling.
+    for frame in ["UsernameInput [EditBox]", "ConnectButton [Button]"] {
+        if !lines.iter().any(|output| {
+            output.stdout
+                && output.line.trim_start().starts_with(frame)
+                && output.line.contains(" visible ")
+                && output.line.contains("alpha=")
+        }) {
+            return Err(format!(
+                "FEATURE RED: real missing-frame deadline logged but subsequent live stdout dump lacks visible {frame} with alpha; timeout queue continuation missing"
+            ));
+        }
+    }
+    println!(
+        "PASS: timeout-continuation, real native missing-frame deadline, successor live stdout Login UI dump, zero decoded auth and normal observed child exit; bounded feature only"
+    );
+    Ok(())
+}
+
 fn run_fixture() -> Result<(), String> {
+    let mode = Mode::from_args()?;
     let root = fixture_support::checkout_root_from_executable("native_js_automation_fixture")
         .map_err(|error| format!("SETUP: {error}"))?;
     let stamp = SystemTime::now()
@@ -279,7 +362,7 @@ fn run_fixture() -> Result<(), String> {
     let mut log =
         fs::File::create(artifacts.join("native.log")).map_err(|error| error.to_string())?;
     let (mut app, address) = start_server()?;
-    let (mut child, receiver) = launch(&root, address, &artifacts)?;
+    let (mut child, receiver) = launch(&root, address, &artifacts, mode)?;
     println!(
         "ARTIFACTS: {} own client PID={} loopback={address}",
         artifacts.display(),
@@ -291,7 +374,7 @@ fn run_fixture() -> Result<(), String> {
     let mut exited = None;
     loop {
         app.update();
-        authenticate(&mut app, &mut auth_count)?;
+        authenticate(&mut app, &mut auth_count, mode)?;
         drain_output(&receiver, &mut log, &mut lines)?;
         if exited.is_none() {
             exited = child
@@ -347,6 +430,9 @@ fn run_fixture() -> Result<(), String> {
                 "SETUP/UNCLASSIFIED (not feature RED)"
             }
         ));
+    }
+    if mode == Mode::TimeoutContinuation {
+        return assert_timeout_continuation(&lines, &artifacts, auth_count);
     }
     if auth_count != 1 || !artifacts.join("observed-charselect").is_file() {
         return Err(
