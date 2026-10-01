@@ -58,6 +58,10 @@ func _initialize() -> void:
 	check.call_deferred()
 
 
+func _finalize() -> void:
+	OS.remove_logger(observer)
+
+
 func load_model(loader: Object) -> Node3D:
 	var result: Dictionary = loader.load_m2(DATA + "%d.m2" % MODEL)
 	if result.has("error"):
