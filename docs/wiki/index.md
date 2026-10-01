@@ -147,4 +147,4 @@ External resources and asset lists.
 
 [SettingsReload](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof): accepted independent bounded saved-artifact functional reload and scoped Rust formatting PASS; byte equality at observation boundaries, deliberate SIGKILL not normal shutdown. Partial/full conversion remains open; no all-options/geometry upgrade.
 
-[Standalone bag tooltip checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): authentic hover RED; bridge `ac7c16d7` and shared extraction `0e41239a` committed; main Depot build/runtime/pure proof and verifier1415 pending, no accepted tooltip GREEN. Prior bounded foreign gate and exclusions unchanged.
+[Standalone bag tooltip checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): authentic hover RED; bridge `ac7c16d7` and shared extraction `0e41239a` committed; main runtime/pure proof and verifier1415 pending, no accepted tooltip GREEN. Prior bounded foreign gate and exclusions unchanged.

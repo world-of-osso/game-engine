@@ -45,7 +45,7 @@ The `[x]` requirements above preserve legacy implementation status; they are not
 
 Bounded foreign-chat World rejection at `5f6782b5` is **MAIN observed GREEN; independent gate1406 accepted bounded PASS**. Captured physical-point mounted hits block only own-no-hit World candidates; own hits are unchanged, not cross-layer winner arbitration. [Owned evidence and exclusions](../wiki/systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records actual RED/GREEN and same-build regressions; no full global/NPC ownership, world-drag, scale/threshold-boundary, overlap-winner, tooltip or shutdown acceptance.
 
-Standalone bag hover: test `7e7b70af` has actual pre-bridge build exit0/runtime RED exit101; native `ac7c16d7` is committed, shared extraction `0e41239a` committed. Integration compile, tooltip GREEN and independent gate remain pending; test-only `1c00b32a` adds placement/hiding assertions, not runtime proof. [Owned tooltip checkpoint](../wiki/systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending) preserves exact scopes and prior accepted exclusions.
+Standalone bag hover: test `7e7b70af` has actual pre-bridge build exit0/runtime RED exit101; native `ac7c16d7` is committed, shared extraction `0e41239a` committed. MAIN reports Depot `ksb906c316` native compile0; runtime/CPU tests and verifier1415 remain pending, no accepted tooltip GREEN; test-only `1c00b32a` adds placement/hiding assertions, not runtime proof. [Owned tooltip checkpoint](../wiki/systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending) preserves exact scopes and prior accepted exclusions.
 
 ## Tests asserting this spec
 
