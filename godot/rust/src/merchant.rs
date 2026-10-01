@@ -209,7 +209,7 @@ impl GameClient {
         });
         let unit = match clicked {
             Some(unit) => {
-                if self.use_mailbox(unit)? {
+                if self.use_guild_vault(unit)? || self.use_mailbox(unit)? {
                     return Ok(());
                 }
                 // Right-click targets, as Retail does.
