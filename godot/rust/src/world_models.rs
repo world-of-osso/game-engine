@@ -570,6 +570,24 @@ pub(crate) fn place_items(
 mod tests {
     use super::*;
 
+    /// The main thread reads the gear rows without waiting for their startup load; the
+    /// first replicated unit at world entry used to wait for the whole 28 MB parse.
+    #[test]
+    fn gear_rows_are_read_without_waiting_for_their_load() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let models = WorldModels::new(data_root);
+        let started = std::time::Instant::now();
+        let first = models.loaded_gear().map(|gear| gear.is_some());
+        let waited = started.elapsed();
+        assert!(
+            waited < std::time::Duration::from_millis(50),
+            "waited {waited:?}"
+        );
+        assert_eq!(first, Ok(false), "the startup load is still parsing");
+        models.catalogs.gear().expect("gear rows");
+        assert!(models.loaded_gear().expect("gear rows").is_some());
+    }
+
     #[test]
     fn player_model_display_native_identity_uses_authored_chrmodel_rows() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -619,6 +637,8 @@ mod tests {
         use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut models = WorldModels::new(data_root.clone());
+        // Placements read the gear rows; wait for the startup load, as a visual load does.
+        models.catalogs.gear().expect("gear rows");
         let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
             slot,
             item_id: Some(item_id),
@@ -653,6 +673,8 @@ mod tests {
         use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut models = WorldModels::new(data_root.clone());
+        // Placements read the gear rows; wait for the startup load, as a visual load does.
+        models.catalogs.gear().expect("gear rows");
         let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
             slot,
             item_id: Some(item_id),
