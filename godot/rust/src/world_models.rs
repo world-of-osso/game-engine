@@ -7,7 +7,7 @@ use godot::{
     prelude::*,
 };
 use rusqlite::{Connection, OpenFlags};
-use shared::components::{EquipmentAppearance, Player, SheathState};
+use shared::components::{EquipmentAppearance, EquipmentVisualSlot, Player, SheathState};
 
 use crate::{
     animation::WowAnimationPlayer,
@@ -95,7 +95,6 @@ fn transfer_player_playback(previous: &Gd<Node3D>, replacement: &Gd<Node3D>) -> 
 
 pub(crate) struct WorldModels {
     data_root: PathBuf,
-    cache_root: PathBuf,
     catalog: Option<Connection>,
     player_displays: Option<Result<HashMap<(u8, u8), u32>, String>>,
     appearances: NpcAppearances,
@@ -105,10 +104,9 @@ pub(crate) struct WorldModels {
 }
 
 impl WorldModels {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         Self {
             data_root,
-            cache_root,
             catalog: None,
             player_displays: None,
             appearances: NpcAppearances::default(),
@@ -207,26 +205,56 @@ impl WorldModels {
                 self.load_creature_visual(*display_id, items, sheath)
             }
             UnitAppearance::Player(player, equipment) => {
-                self.load_player_visual(player, equipment, previous_player)
+                self.load_player_visual(player, equipment, sheath, previous_player)
             }
         }
     }
 
     fn load_player_visual(
-        &self,
+        &mut self,
         player: &Player,
         equipment: &EquipmentAppearance,
+        sheath: SheathState,
         previous_player: Option<&Gd<Node3D>>,
     ) -> Result<Gd<Node3D>, String> {
-        let mut model = load_player_model(&self.data_root, &self.cache_root, player, equipment)?;
+        let mut model = load_player_model(&self.data_root, player, equipment)?;
         model.set_name("PlayerModel");
-        if let Some(previous) = previous_player {
-            if let Err(error) = transfer_player_playback(previous, &model) {
-                model.free();
-                return Err(error);
-            }
+        let placed = self
+            .player_weapon_placements(equipment, sheath)
+            .and_then(|placements| place_items(&model, &placements));
+        let transferred = previous_player.map_or(Ok(()), |previous| {
+            transfer_player_playback(previous, &model)
+        });
+        if let Err(error) = placed.and(transferred) {
+            model.free();
+            return Err(error);
         }
         Ok(model)
+    }
+
+    /// Where a player's weapons sit under `sheath`: drawn in the hands or at their
+    /// `Item.SheatheType` place, as a creature's virtual items. Armor stays where it is.
+    pub fn player_weapon_placements(
+        &mut self,
+        equipment: &EquipmentAppearance,
+        sheath: SheathState,
+    ) -> Result<Vec<(EquipmentSlot, Option<u32>)>, String> {
+        let weapons = EquipmentAppearance {
+            entries: equipment
+                .entries
+                .iter()
+                .filter(|entry| {
+                    matches!(
+                        entry.slot,
+                        EquipmentVisualSlot::MainHand
+                            | EquipmentVisualSlot::OffHand
+                            | EquipmentVisualSlot::Ranged
+                    )
+                })
+                .cloned()
+                .collect(),
+        };
+        self.virtual_item_placements(&weapons, sheath)
     }
 
     fn load_creature_visual(
@@ -240,12 +268,11 @@ impl WorldModels {
         let outfit = self
             .outfit
             .get_or_insert_with(|| OutfitData::load(&self.data_root));
-        let prepared = self.appearances.prepare(
-            &self.data_root,
-            &self.cache_root,
-            display_id,
-            |race, sex| resolve_equipment_appearance(&armor, outfit, race, sex),
-        )?;
+        let prepared = self
+            .appearances
+            .prepare(&self.data_root, display_id, |race, sex| {
+                resolve_equipment_appearance(&armor, outfit, race, sex)
+            })?;
         let (race, sex) = prepared.as_ref().map_or((0, 0), |npc| (npc.race, npc.sex));
         let gear = CreatureGear {
             armor_models: prepared
@@ -255,7 +282,6 @@ impl WorldModels {
         };
         let (mut model, missing) = load_creature_model(
             &self.data_root,
-            &self.cache_root,
             &display,
             prepared.as_ref().map(|npc| &npc.appearance),
             &gear,
@@ -337,8 +363,16 @@ pub(crate) fn place_virtual_items(
     let model = visual
         .try_get_node_as::<Node3D>("NpcModel")
         .ok_or("Creature visual has no NpcModel")?;
+    place_items(&model, placements)
+}
+
+/// Move a model's item models to their `placements`.
+pub(crate) fn place_items(
+    model: &Gd<Node3D>,
+    placements: &[(EquipmentSlot, Option<u32>)],
+) -> Result<(), String> {
     for &(slot, attachment) in placements {
-        place_equipment(&model, slot, attachment)?;
+        place_equipment(model, slot, attachment)?;
     }
     Ok(())
 }
@@ -350,7 +384,7 @@ mod tests {
     #[test]
     fn player_model_display_native_identity_uses_authored_chrmodel_rows() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let mut player = Player {
             name: "Alice".into(),
             race: 1,
@@ -375,7 +409,7 @@ mod tests {
     #[test]
     fn stockade_guard_display_armor_resolves_to_body_geosets() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let armor = models.gear().unwrap().display_armor(2989).unwrap();
         let resolved = resolve_equipment_appearance(&armor, models.outfit(), 1, 0).unwrap();
         for geoset in [(4, 2), (5, 2), (20, 2), (12, 2)] {
@@ -388,13 +422,48 @@ mod tests {
         assert!(resolved.hidden_character_geoset_groups.is_empty());
     }
 
+    /// The mage starter set (showcase gear.json): Bent Staff 35 (InventoryType 17,
+    /// SheatheType 2) sits on the back (30) while sheathed and in the right hand (1)
+    /// when drawn; the robe and the rest of the armor are not moved.
+    #[test]
+    fn a_player_staff_is_sheathed_on_the_back() {
+        use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut models = WorldModels::new(data_root.clone());
+        let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
+            slot,
+            item_id: Some(item_id),
+            display_info_id: None,
+            inventory_type,
+            hidden: false,
+        };
+        let mage = EquipmentAppearance {
+            entries: vec![
+                item(EquipmentVisualSlot::MainHand, 35, 17),
+                item(EquipmentVisualSlot::Feet, 55, 8),
+                item(EquipmentVisualSlot::Chest, 56, 20),
+                item(EquipmentVisualSlot::Legs, 1395, 7),
+                item(EquipmentVisualSlot::Shirt, 6096, 4),
+            ],
+        };
+        let mut placements = |sheath| models.player_weapon_placements(&mage, sheath).unwrap();
+        assert_eq!(
+            placements(SheathState::Unarmed),
+            [(EquipmentSlot::MainHand, Some(30))]
+        );
+        assert_eq!(
+            placements(SheathState::Melee),
+            [(EquipmentSlot::MainHand, Some(1))]
+        );
+    }
+
     /// Stockade Guard 46405's sword and shield leave the hands for the hip and back when
     /// sheathed; the rifleman's ranged copy of its rifle is not shown.
     #[test]
     fn virtual_item_placements_follow_the_sheath_state() {
         use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut models = WorldModels::new(data_root.clone(), data_root.join("cache"));
+        let mut models = WorldModels::new(data_root.clone());
         let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
             slot,
             item_id: Some(item_id),

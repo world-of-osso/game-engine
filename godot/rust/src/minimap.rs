@@ -19,9 +19,7 @@ use game_engine_ui_model::minimap::{
     MINIMAP_DISPLAY, MINIMAP_ZONE_TEXT, MinimapBlip, MinimapClusterState, minimap_texture_fdids,
 };
 use game_engine_ui_model::world_map_view_data::arrow_rotation;
-use godot::classes::{
-    InputEvent, InputEventMouseButton, InputEventMouseMotion, ProjectSettings, Time,
-};
+use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, Time};
 use godot::global::MouseButton;
 use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
@@ -83,14 +81,8 @@ impl Minimap {
     }
 
     fn resolver(&mut self, data_root: &std::path::Path) -> &CascListfileResolver {
-        self.resolver.get_or_insert_with(|| {
-            let cache_root = PathBuf::from(
-                ProjectSettings::singleton()
-                    .globalize_path("user://asset-resolver")
-                    .to_string(),
-            );
-            crate::assets::creature::local_resolver(data_root, &cache_root)
-        })
+        self.resolver
+            .get_or_insert_with(|| crate::assets::creature::local_resolver(data_root))
     }
 
     /// Decode one tile out of local CASC once; an ocean or unlisted tile stays None.

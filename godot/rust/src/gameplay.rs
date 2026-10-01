@@ -704,7 +704,7 @@ mod tests {
     #[test]
     fn snared_run_predicts_the_server_distance() {
         let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
+        let terrain = StreamedTerrain::new(data_root.clone());
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
@@ -731,7 +731,7 @@ mod tests {
     #[test]
     fn strafe_run_reports_the_predicted_diagonal_position() {
         let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
+        let terrain = StreamedTerrain::new(data_root.clone());
         let ground = TerrainGround {
             terrain: &terrain,
             walls: &|_, _, _| None,
@@ -836,7 +836,7 @@ mod tests {
 
     fn swimming_terrain() -> StreamedTerrain {
         let data_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
+        let mut terrain = StreamedTerrain::new(data_root.clone());
         terrain.request_map("azeroth".into(), (32, 48)).unwrap();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
         while !terrain.parsed_tiles.contains_key(&(32, 48)) {
