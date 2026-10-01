@@ -1,5 +1,282 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
+#[test]
+fn native_mailbox_requests_preserve_object_mail_and_sparse_attachment_slot() {
+    use shared::protocol::{
+        InteractionChannel, MailAction, MailChannel, MailRequest, UseGameObject,
+    };
+    #[derive(Resource, Default)]
+    struct Requests {
+        uses: Vec<UseGameObject>,
+        claims: Vec<MailRequest>,
+    }
+    fn capture(
+        mut uses: Query<&mut MessageReceiver<UseGameObject>>,
+        mut claims: Query<&mut MessageReceiver<MailRequest>>,
+        mut requests: ResMut<Requests>,
+    ) {
+        for mut receiver in &mut uses {
+            requests.uses.extend(receiver.receive());
+        }
+        for mut receiver in &mut claims {
+            requests.claims.extend(receiver.receive());
+        }
+    }
+    fn install(app: &mut App) {
+        app.init_resource::<Requests>();
+        app.add_systems(Update, capture);
+    }
+    let (mut server, address) = start_fixture_server_with(install);
+    let mut bridge = NetworkBridge::connect(address, 8223).unwrap();
+    await_bridge_event(&mut server, &mut bridge, "mail request connection", |e| {
+        matches!(e, Event::Connected)
+    });
+    let use_object = UseGameObject { object: 517 };
+    let money = MailRequest {
+        object: 517,
+        mail_id: 901,
+        action: MailAction::TakeMoney,
+    };
+    let item = MailRequest {
+        object: 517,
+        mail_id: 902,
+        action: MailAction::TakeAttachment { slot: 7 },
+    };
+    bridge
+        .send::<_, InteractionChannel>(use_object.clone())
+        .unwrap();
+    bridge.send::<_, MailChannel>(money).unwrap();
+    bridge.send::<_, MailChannel>(item).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        server.update();
+        let requests = server.world().resource::<Requests>();
+        if requests.uses.len() == 1 && requests.claims.len() == 2 {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    let requests = server.world().resource::<Requests>();
+    assert_eq!(requests.uses, vec![use_object]);
+    assert_eq!(requests.claims, vec![money, item]);
+    bridge.stop().unwrap();
+}
+
+#[test]
+fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
+    use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8221).unwrap();
+    await_bridge_event(&mut server, &mut bridge, "mailbox connection", |e| {
+        matches!(e, Event::Connected)
+    });
+    let object = server
+        .world_mut()
+        .spawn((
+            GameObjectInfo {
+                entry: 140907,
+                go_type: GAMEOBJECT_TYPE_MAILBOX,
+                display_id: 1727,
+                name: "Stormwind Mailbox".into(),
+                scale: 1.0,
+            },
+            Position {
+                x: 2.0,
+                y: 3.0,
+                z: 4.0,
+            },
+            Rotation {
+                x: 0.0,
+                y: 0.7,
+                z: 0.0,
+            },
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let Event::GameObjectUpdated(snapshot) = await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "mailbox replication",
+        |e| matches!(e, Event::GameObjectUpdated(u) if u.server_id == object.to_bits()),
+    ) else {
+        unreachable!()
+    };
+    assert_eq!(
+        snapshot.position,
+        Some(Position {
+            x: 2.0,
+            y: 3.0,
+            z: 4.0
+        })
+    );
+    assert_eq!(snapshot.info.display_id, 1727);
+    assert_eq!(snapshot.info.entry, 140907);
+    assert_eq!(
+        snapshot.rotation,
+        Some(Rotation {
+            x: 0.0,
+            y: 0.7,
+            z: 0.0
+        })
+    );
+    server.world_mut().entity_mut(object).insert(Position {
+        x: 6.0,
+        y: 3.0,
+        z: 4.0,
+    });
+    await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "mailbox position update",
+        |e| matches!(e, Event::GameObjectUpdated(u) if u.server_id == object.to_bits() && u.position.is_some_and(|p| p.x == 6.0)),
+    );
+    server.world_mut().despawn(object);
+    await_bridge_event(
+        &mut server,
+        &mut bridge,
+        "mailbox removal",
+        |e| matches!(e, Event::UnitRemoved(id) if *id == object.to_bits()),
+    );
+    bridge.stop().unwrap();
+}
+
+#[test]
+fn native_mailbox_replies_reach_default_bridge() {
+    use shared::protocol::{MailChannel, MailError, MailFailed, MailboxContents, PendingMail};
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8222).unwrap();
+    await_bridge_event(&mut server, &mut bridge, "mail connection", |e| {
+        matches!(e, Event::Connected)
+    });
+    macro_rules! reply {
+        ($ty:ty, $expected:expr) => {{
+            let expected = $expected;
+            let world = server.world_mut();
+            for mut sender in world.query::<&mut MessageSender<$ty>>().iter_mut(world) {
+                sender.send::<MailChannel>(expected.clone());
+            }
+            let Event::Message(message) = await_bridge_event(&mut server, &mut bridge, "mail reply", |e| matches!(e, Event::Message(m) if m.is::<$ty>())) else { unreachable!() };
+            assert_eq!(message.downcast::<$ty>().ok(), Some(expected));
+        }};
+    }
+    reply!(
+        MailboxContents,
+        MailboxContents {
+            object: 517,
+            mails: vec![],
+            now: 100
+        }
+    );
+    reply!(
+        MailFailed,
+        MailFailed {
+            object: 517,
+            error: MailError::InventoryFull
+        }
+    );
+    reply!(
+        PendingMail,
+        PendingMail {
+            senders: vec!["Auction House".into()]
+        }
+    );
+    bridge.stop().unwrap();
+}
+
+#[test]
+fn native_bridge_receives_loot_messages_in_channel_order() {
+    use shared::protocol::{
+        CorpseLootable, LootChannel, LootClosed, LootContent, LootError, LootFailed, LootResponse,
+        LootSlot, LootSlotRemoved,
+    };
+    let (mut server, address) = start_fixture_server();
+    let mut bridge = NetworkBridge::connect(address, 8210).expect("start fixture bridge");
+    await_bridge_event(&mut server, &mut bridge, "Netcode connection", |event| {
+        matches!(event, Event::Connected)
+    });
+    // Hold the worker before receiving so different types reach its relay together.
+    // The host also leaves its event FIFO unpolled until all eight sends are flushed.
+    let (held, hold_confirmed) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    bridge
+        .enqueue(move |_| {
+            held.send(()).expect("confirm fixture worker hold");
+            resumed
+                .recv_timeout(Duration::from_secs(10))
+                .expect("release fixture worker hold");
+        })
+        .expect("hold fixture worker");
+    hold_confirmed
+        .recv_timeout(Duration::from_secs(10))
+        .expect("fixture worker entered hold");
+    // MessageSender queues per type, not in cross-type caller order. A full update
+    // after each send flushes it into LootChannel before the next type is queued.
+    // Repeat response/removal/close to expose a relay that groups messages by type.
+    let corpse = 123;
+    let opened = LootResponse {
+        corpse,
+        auto: false,
+        slots: vec![LootSlot {
+            slot: 0,
+            content: LootContent::Money { copper: 12345 },
+        }],
+    };
+    let removed = LootSlotRemoved { corpse, slot: 0 };
+    let closed = LootClosed { corpse };
+    let failed = LootFailed {
+        corpse,
+        error: LootError::InventoryFull,
+    };
+    let lootable = CorpseLootable {
+        corpse,
+        lootable: true,
+    };
+    macro_rules! send_and_flush {
+        ($ty:ty, $value:expr) => {{
+            let world = server.world_mut();
+            world
+                .query::<&mut MessageSender<$ty>>()
+                .single_mut(world)
+                .expect("one connected loot sender")
+                .send::<LootChannel>($value.clone());
+            server.update();
+        }};
+    }
+    send_and_flush!(CorpseLootable, lootable);
+    send_and_flush!(LootResponse, opened);
+    send_and_flush!(LootSlotRemoved, removed);
+    send_and_flush!(LootClosed, closed);
+    send_and_flush!(LootFailed, failed);
+    send_and_flush!(LootResponse, opened);
+    send_and_flush!(LootSlotRemoved, removed);
+    send_and_flush!(LootClosed, closed);
+    // Allow throttled UDP sends to leave the server while the worker stays held.
+    let send_deadline = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < send_deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    resume.send(()).expect("resume fixture worker");
+    let mut received = await_messages(&mut server, &mut bridge, 8).into_iter();
+    macro_rules! assert_next {
+        ($ty:ty, $expected:expr) => {
+            assert_eq!(
+                received.next().unwrap().downcast::<$ty>().ok(),
+                Some($expected)
+            );
+        };
+    }
+    assert_next!(CorpseLootable, lootable);
+    assert_next!(LootResponse, opened.clone());
+    assert_next!(LootSlotRemoved, removed);
+    assert_next!(LootClosed, closed);
+    assert_next!(LootFailed, failed);
+    assert_next!(LootResponse, opened);
+    assert_next!(LootSlotRemoved, removed);
+    assert_next!(LootClosed, closed);
+    bridge.stop().expect("join fixture worker");
+}
+
 use super::*;
 use lightyear::prelude::{LinkOf, NetworkTarget, Replicate, ReplicationSender, server};
 use shared::{
@@ -218,7 +495,10 @@ fn native_bridge_reports_protocol_rejection_instead_of_connecting() {
             Event::Connected => "connected".into(),
             Event::ProtocolRejected(reason) => format!("rejected: {reason}"),
             Event::Disconnected(_) => "disconnected".into(),
-            Event::Message(_) | Event::UnitUpdated(_) | Event::UnitRemoved(_) => "data".into(),
+            Event::Message(_)
+            | Event::UnitUpdated(_)
+            | Event::GameObjectUpdated(_)
+            | Event::UnitRemoved(_) => "data".into(),
         })
         .collect();
     assert_eq!(
@@ -825,6 +1105,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
     fn install_auction(app: &mut App) {
         install::<OpenAuctionHouse>(app);
         install::<QueryAuctions>(app);
+        install::<QueryAuctionBrowse>(app);
         install::<QueryAuctionInventory>(app);
         install::<QueryOwnedAuctions>(app);
         install::<QueryBidAuctions>(app);
@@ -901,6 +1182,30 @@ fn native_bridge_auction_operations_and_query_rejections() {
             query: query.clone()
         },
         QueryAuctions
+    );
+    let mut browse_query = query.clone();
+    browse_query.item_id = None;
+    request!(
+        QueryAuctionBrowse {
+            query: browse_query.clone()
+        },
+        QueryAuctionBrowse
+    );
+    reply(
+        &mut server,
+        &mut bridge,
+        AuctionBrowseResults {
+            query: browse_query,
+            total_results: 103,
+            items: vec![AuctionBrowseItem {
+                item_id: 2589,
+                name: "Linen Cloth".into(),
+                quality: 1,
+                required_level: 1,
+                lowest_unit_price: 17,
+                total_quantity: 5_000_000_001,
+            }],
+        },
     );
     request!(QueryAuctionInventory, QueryAuctionInventory);
     request!(QueryOwnedAuctions, QueryOwnedAuctions);

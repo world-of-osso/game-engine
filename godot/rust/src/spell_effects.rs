@@ -446,10 +446,10 @@ pub struct SpellEffects {
 const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         let catalog = Catalog::load(&data_root);
         Self {
-            assets: SpellAssets::new(data_root.clone(), &cache_root),
+            assets: SpellAssets::new(data_root.clone()),
             data_root,
             catalog,
             prefetched: HashSet::new(),
@@ -558,6 +558,13 @@ impl SpellEffects {
         self.clock
     }
 
+    /// Kit models are children of their unit's attachment nodes (`spawn_due`), so a
+    /// unit whose model is freed (a far teleport despawns every unit of the old map)
+    /// frees them too. Drop those before anything ends or plays them.
+    fn forget_freed_effects(&mut self) {
+        self.active.retain(|effect| effect.node.is_instance_valid());
+    }
+
     pub fn reset(&mut self) {
         self.sounds.reset();
         self.swings.clear();
@@ -589,6 +596,7 @@ impl SpellEffects {
             .iter()
             .filter_map(|(&id, unit)| Some((id, voice_source(unit)?)))
             .collect();
+        self.forget_freed_effects();
         errors.extend(self.sync_auras(units, world).err());
         let ended: Vec<u64> = self
             .held

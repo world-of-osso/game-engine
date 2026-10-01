@@ -125,18 +125,12 @@ mod tests {
 
     fn fixture() -> (PathBuf, CascListfileResolver, adt::AdtTexData) {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let cache_root = std::env::var_os("XDG_CACHE_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
-            .expect("cache location")
-            .join("asset-resolver");
-        let assets = NativeTerrainAssets::new(data_root.clone(), cache_root.clone());
+        let assets = NativeTerrainAssets::new(data_root.clone());
         let tile = assets.read_tile("azeroth", 32, 48).expect("cached tile");
         let resolver = CascListfileResolver::new(
             AssetResolverConfig::new()
                 .with_data_root(&data_root)
-                .with_shared_data_root(&data_root)
-                .with_cache_root(cache_root),
+                .with_shared_data_root(&data_root),
         );
         (data_root, resolver, tile.tex.expect("texture companion"))
     }

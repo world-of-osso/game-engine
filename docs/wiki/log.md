@@ -1,5 +1,21 @@
 # Wiki Log
 
+## [2026-09-30] verification | Bounded native loot reach
+
+Reconciled LootFrame spec/matrix with [saved reach proof](systems/godot-conversion.md#native-loot-reach--bounded-runtime-proof): inclusive corpse reach and friendly dispatch accepted; original four cases/42 UI checks retained. Hostile/role-response gaps remain; post-DONE exit 101 RenderingServer-null is FAIL/deferred. Settings-reload commits remain test preparation, not proof. Docs only; no clean full-conversion or source-pinning claim.
+
+## [2026-09-30] implementation | Bounded native receiving mail
+
+Updated [[trade-and-mail]] and the MailFrame spec to distinguish preserved Bevy full mail from the native AH receiving dependency. `9ed690bf` Depot focused source proof: metadata 1/1, owned UDP 3/3, model/registry/interaction 4/4. Real mailbox M2/picking, matching role/contents gate, authoritative claims and receiving-only authored UI are implemented. Committed GDScript fixture remains unrun until main's CLI proof; no extension install, native live run, backend/shared change or full-AH acceptance. Two pre-existing terrain test unused-mut warnings remain outside this slice.
+
+## [2026-09-30] verification | Native Options and loot overflow
+
+Recorded the [bounded functional gate](systems/godot-conversion.md#native-options-and-loot-money-overflow--rendered-red-fixes-awaiting-main-rendering); reconciled LootFrame spec/matrix proof, leaving deferred termination and full-conversion acceptance open.
+
+## [2026-09-30] implementation | Server-global native auction browse
+
+Updated [[auction-house-ui]] and spec after `5b9cb76c`: native browse now consumes server-global distinct-item pages, authoritative unit price and `u64` stock; drilldown/sell remain flat with real auction IDs. Snapshot adds `groups` and active endpoint flag; fixture reads groups. Targeted Depot native model 8/8, owned UDP 1/1 and shared frame 1/1 passed. Model RED missing-API compilation and wire RED missing-reply timeout recorded separately. Host/runtime proof remains with main after game-cli; no integration/ops run.
+
 ## [2026-09-30] implementation | Bounded native auction client
 
 Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, portable trading validation, exact-item/category queries, all fetched-row/server-page navigation and corrected duration labels. Targeted current model 8/8, retained owned UDP 1/1 and current host compile/range test 1/1 passed; no Godot runtime executed. Main owns game-cli-first integration and native smoke; no runtime/full-AH acceptance claim.
@@ -8,9 +24,17 @@ Updated [[auction-house-ui]] and its spec: native NPC/gossip protocol host, port
 
 [[spell-visuals]] Server timing: game-server `fa5e689` delays missile hits by TrinityCore's `max(dist, 5) / Speed + LaunchDelay` (`Spell::HandleDelayed`). Frostbolt's damage number no longer arrives with `SpellGo`. About 200 ms early remains: the server clock starts at the cast, while the client releases at the M2 event. Not re-captured on the client.
 
+## [2026-09-30] feature | Retail class resource bars
+
+Every player class bar now ports its Retail template and mixin: art, animation groups and visibility gates. Rogue and druid combo points, chi, soul shards (with Destruction fragments), essence, death knight runes, holy power and Arcane Charges are covered. `ui/screens/class_bars/` holds a small `AnimationGroup` player plus one module per bar. Live proof against a private server: rogue, paladin, warlock, mage and a caster-form druid (bar hidden). Monk and Evoker cannot be created on the server. Runes wait on per-rune cooldowns from the powers protocol. See [ui-system](systems/ui-system.md#unit-frames).
+
 ## [2026-09-30] feature | Retail melee sounds; synthetic miss/interrupt PCM removed
 
 [Melee sounds](systems/spell-visuals.md#melee-sounds): WeaponSwingSounds2 swoosh at `$CSS`, WeaponImpactSounds impact and CreatureSoundData injury at `$CAH`, SoundDeathID on NPC death clips. Hit reactions no longer cut a unit's own swing. [[sound]] outcome section rewritten; `OutcomeSpells` and `sound-outcome` fixture removed.
+
+## [2026-09-30] evidence | Shared cache standalone and bounded native gates accepted
+
+Updated [asset pipeline](systems/asset-pipeline.md#local-extraction) and index with main-accepted standalone `25debb1` proof: persisted-marker fresh-process recovery of exact valid local-CASC bytes, positive-cache preservation, explicit failure context, format/check/readability. Main accepts `/tmp/claude/verify-negative-cache-native-integration.md` bounded saved-artifact PASS: Depot `s1q4qhb120` build2 exit 0 compiles native consumer/fixture; extension load and eight Options helper PASS markers plus Menu/owned UDP/Exit runtime exit 0. Native cold-marker recovery remains unverified; standalone fresh-process regression supplies that separate proof. No independent binary-identity attestation, native cold-marker/full-conversion/deploy/current unfrozen whole-tree acceptance; native compiler/runtime warnings retained in report. Contract remains in sibling [asset-cache spec](../../../asset-resolver/docs/specs/asset-cache.md). Isolated engine docs only; asset repo untouched, user-dirty files preserved. Source unfrozen; shutdown paused.
 
 ## [2026-09-30] evidence | Bounded TargetSelf Options rebind; gate accepted
 
@@ -2206,6 +2230,22 @@ A spell's first use no longer extracts, parses or decodes its kit models, textur
 
 Northshire streams used the procedural placeholder water shader and lost MH2O LVF 0 depths. Godot water now ports WebWowViewerCpp `liquidWaterMat` with LiquidType/LiquidObject/LiquidTypeXTexture DB2 inputs and LightData/LightParams colours. See [northshire-pale-water](investigations/northshire-pale-water.md).
 
+## [2026-09-30] audit | Native loot integration, proof pending
+
+Recorded shared original loot state/cards/placement/actions, one ordered LootChannel relay, server-owned Auto Loot XOR Shift, actual authored LootFrame and per-looter sparkle/cursor; existing authenticated inventory/gold flow retained. Actual native fixture remains RED (no LootUnit after corpse right-click, case 1); main build and agent1299 portable export pending. Both matrix rows remain Missing; no completion checkbox changed. See [native loot boundary](systems/godot-conversion.md#native-loot--implemented-proof-pending).
+
+## [2026-09-30] documentation | Native Options and loot money overflow; final pending
+
+Updated existing [[godot-conversion]], [[loot-and-flight]], index and loot spec. Saved rendered RED: HUD last row 12 px past panel; money native 51 px versus authored 38 px (font size 12, glyph height 15, default gaps 3). Records content-driven Options height `b50a139f` and fixed multiline gap fitting `d6f39c45`, without smaller fonts/truncation/clipping; main rendering pending, no GREEN claim. Replaces stale export/build/agent-pending wording with shared exports/tests 8 + 1, relay wire test 1 at `c6ae14bf`, root compile and runtime `af03660f` all four cases/inventory/error/cursor through LOOT_DONE. Post-DONE RenderingServer-null exit 101 unresolved/deferred; independent final boxes pending, source unfrozen. Docs only; no builds/tests/delegation or source/server/protocol/data/PLAN changes. Existing log entries preserved.
+
+## [2026-09-30] evidence | Native loot/caption final main reconciliation
+
+Updated loot spec, Partial matrix rows, [[godot-conversion]] and index for `292a2fb2`/Depot `tt4c247nl1`, latest `/tmp/claude/native-ui-caption-run.log`: 42 Options records/no overflow, three visible money lines/contained shadow and main-inspected Items/stack 2/Poor captions. Four Auto Loot cases, InventoryFull reject/retry, authoritative bags 11/money 32756, matching removals/closure, duplicate chat once and empty-corpse target-only reach LOOT_DONE. Full exit 101 after DONE is fixture timeout; prior af03660f RenderingServer-null retained separately. Caption-2 RED corrected by width caps on all fixed axes, height caps only on spacing-fitted explicit multilines; no glyph clipping/font shrink. Verifier 1314 report absent at reconciliation, no PASS credited. Exact range/living-NPC runtime, corpse-pose parity, clean acceptance/full conversion open; shutdown explicitly deferred, source unfrozen. Supersedes older pending build/export/main-rendering entries; preserves AA/shutdown/cache evidence. Docs only; no tests/build/delegation or source/data/PLAN changes.
+
 ## [2026-09-30] fix | Showcase client bugs
 
 Floating combat text starts at per-number camera-plane offsets from the retail WorldText CVars; the target's nameplate takes `nameplateSelectedAlpha`; robes select skirt/sleeve geosets and paste over shirt and pants in `CCharacterComponent` priority; player weapons sheathe at `Item.SheatheType`; creature poses follow `AnimationData.Fallback` (Dead → Death held). `.anim` out-of-bounds reads trace to stale cached `.skel` files. See [showcase-client-bugs](investigations/showcase-client-bugs.md).
+
+## 2026-09-30 — SettingsReload reconciliation
+
+Linked [bounded two-process main proof](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) from fixture workflow, loot/conversion specs, matrix and index. Retained pending independent gate and unresolved normal-shutdown/full-conversion gaps.

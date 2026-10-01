@@ -75,11 +75,10 @@ pub(crate) struct NativeLiquidMaterial {
 }
 
 impl NativeTerrainAssets {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         let config = AssetResolverConfig::new()
             .with_data_root(&data_root)
-            .with_shared_data_root(&data_root)
-            .with_cache_root(cache_root);
+            .with_shared_data_root(&data_root);
         Self {
             resolver: CascListfileResolver::new(config),
             terrain_dir: data_root.join("terrain"),
@@ -500,12 +499,7 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
 /// Repository `data/` plus the user's local-CASC resolver cache.
 #[cfg(test)]
 pub(crate) fn cached_assets() -> NativeTerrainAssets {
-    let cache_root = std::env::var_os("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
-        .expect("cache location")
-        .join("asset-resolver");
-    NativeTerrainAssets::new(test_data_root(), cache_root)
+    NativeTerrainAssets::new(test_data_root())
 }
 
 #[cfg(test)]
