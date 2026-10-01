@@ -20,8 +20,8 @@ use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
 use godot::prelude::*;
 use shared::protocol::{
-    BankContents, GAMEOBJECT_TYPE_GUILD_BANK, GameObjectInfo, GuildBankContents, InteractionKind,
-    ItemLocation, NpcRole,
+    BankContents, GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GUILD_BANK, GameObjectInfo,
+    GuildBankContents, InteractionKind, ItemLocation, NpcRole,
 };
 
 use crate::GameClient;
@@ -31,6 +31,7 @@ use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
 
 /// Server `GUILD_BANK_REACH`: the Guild Vault answers within five yards.
+/// Game object interaction reach (`GAME_OBJECT_INTERACT_DISTANCE`), vaults and chairs.
 const VAULT_RANGE: f32 = 5.0;
 
 #[derive(Default)]
@@ -121,6 +122,30 @@ fn cursor_bag_stack(item: &CursorItem) -> Option<(u8, u8)> {
 }
 
 impl GameClient {
+    /// The picker returned a drawn chair: `UseGameObject` within reach seats the player
+    /// (TrinityCore `GameObject::Use` `GAMEOBJECT_TYPE_CHAIR`).
+    pub(crate) fn use_chair(&mut self, id: u64) -> Result<bool, FrameError> {
+        let is_chair = self
+            .replica
+            .unit(id)
+            .and_then(|object| object.get::<GameObjectInfo>())
+            .is_some_and(|info| info.go_type == GAMEOBJECT_TYPE_CHAIR);
+        if !is_chair || !self.game_objects.contains(id) {
+            return Ok(false);
+        }
+        let distance = self
+            .world
+            .local_player_transform()
+            .zip(self.game_objects.position(id))
+            .map_or(f32::INFINITY, |(player, position)| {
+                player.origin.distance_to(position)
+            });
+        if distance <= VAULT_RANGE {
+            self.account.send_use_game_object(id)?;
+        }
+        Ok(true)
+    }
+
     /// The picker returned a drawn Guild Vault: `UseGameObject` within reach.
     pub(crate) fn use_guild_vault(&mut self, id: u64) -> Result<bool, FrameError> {
         let is_vault = self
