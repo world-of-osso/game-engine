@@ -21,7 +21,7 @@ use game_engine_core::{
     sky_lightdata_data::{RetailFog, SkyColorSet, retail_fog, sample_light_blend},
 };
 
-use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
+use crate::assets::creature::{cache_model_files, local_resolver};
 
 pub(crate) struct LightingCatalog {
     lights: Vec<LightEntry>,
@@ -86,11 +86,8 @@ impl LightingCatalog {
         .map_err(|error| format!("{}: {error}", data_root.display()))?;
         let (liquid_alphas, light_params_flags) =
             parse_light_params(&data_root.join("db2/12.1.0.69933/LightParams.csv"))?;
-        let resolver = local_resolver(data_root);
-        let stars_path = cache_model_files(&resolver, data_root, STARS_FDID)
+        let stars_path = cache_stars(data_root)
             .map_err(|error| format!("Stars model {STARS_FDID}: {error}"))?;
-        let stars = crate::assets::read_model_file(&stars_path)?;
-        cache_model_textures(&resolver, data_root, &[0; 3], &stars)?;
         Ok(Self {
             lights,
             zone_lights,
@@ -232,6 +229,27 @@ impl LightingCatalog {
         }
         blended.ok_or_else(|| "No LightParams for liquid alphas".into())
     }
+}
+
+/// Extracts the stars model, its skin and its TXID textures from local CASC (no listfile
+/// lookups: the sky loader reads textures by FDID).
+fn cache_stars(data_root: &Path) -> Result<PathBuf, String> {
+    let resolver = local_resolver(data_root);
+    let path = cache_model_files(&resolver, data_root, STARS_FDID)?;
+    let model = crate::assets::read_model_file(&path)?;
+    for batch in game_engine_core::m2::resolve_render_batches(&model, &[0; 3], true, |_| None)? {
+        for texture in [batch.texture_fdid, batch.texture_2_fdid]
+            .into_iter()
+            .flatten()
+            .chain(batch.extra_texture_fdids)
+        {
+            let destination = data_root.join("textures").join(format!("{texture}.blp"));
+            resolver
+                .ensure_cached(texture, &destination)
+                .ok_or_else(|| format!("texture {texture} not in local CASC"))?;
+        }
+    }
+    Ok(path)
 }
 
 /// WebWowViewerCpp's default far clip (`config.h:119`), as `retail_fog` uses.

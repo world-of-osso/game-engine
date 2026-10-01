@@ -1839,3 +1839,18 @@ textures/997266.blp
 # game-engine-ui-model: text measurement reads the fonts through ui-toolkit set_font_directory.
 fonts/FRIZQT__.TTF
 fonts/ARIALN.ttf
+textures/186770.blp
+textures/187115.blp
+textures/187138.blp
+textures/187127.blp
+textures/187125.blp
+textures/188986.blp
+textures/321215.blp
+textures/187100.blp
+textures/242660.blp
+textures/187901.blp
+models/130629.m2
+models/13062900.skin
+textures/130630.blp
+textures/1067600.blp
+textures/130628.blp

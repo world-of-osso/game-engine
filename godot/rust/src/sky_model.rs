@@ -36,7 +36,6 @@ pub(crate) struct SkyModel {
     animations: Vec<AnimatedBatch>,
     global_sequences: Vec<u32>,
     default_sequence_index: usize,
-    alpha: f32,
 }
 
 impl SkyModel {
@@ -56,14 +55,9 @@ impl SkyModel {
 
     /// The model alpha every batch's transparency is multiplied by.
     pub fn set_alpha(&mut self, alpha: f32) {
-        self.alpha = alpha;
         for material in &mut self.materials {
             material.set_shader_parameter("model_alpha", &alpha.to_variant());
         }
-    }
-
-    pub fn alpha(&self) -> f32 {
-        self.alpha
     }
 
     pub fn sample(&mut self, time_ms: u32) {
@@ -211,7 +205,6 @@ fn assemble_sky(
             .iter()
             .position(|sequence| sequence.id == 0)
             .unwrap_or(0),
-        alpha: 1.0,
     };
     sky.sample(0);
     Ok(sky)
