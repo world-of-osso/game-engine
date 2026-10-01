@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""Record one niri window plus its application's audio to MP4 (H.264 + AAC), with no portal.
+
+Usage: record-window (--pid PID | --app-id APP_ID) [-o OUT.mp4] [--fps N] [--duration SECONDS]
+                     [--no-audio]
+
+Calls niri's own org.gnome.Mutter.ScreenCast D-Bus service (CreateSession, RecordWindow, Start),
+so no xdg-desktop-portal dialog appears. Video comes from the stream's PipeWire node through
+pw-video-cat (scripts/agent/pw-video-cat, built on first use); audio is the window process's
+PipeWire output stream, captured by pw-record without touching default devices. Records until
+SIGINT/SIGTERM, --duration elapses, or the window closes.
+"""
+
+import argparse
+import ctypes
+import fcntl
+import json
+import os
+import signal
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import dbus
+import dbus.mainloop.glib
+from gi.repository import GLib
+
+SCREEN_CAST = "org.gnome.Mutter.ScreenCast"
+SCREEN_CAST_PATH = "/org/gnome/Mutter/ScreenCast"
+CURSOR_EMBEDDED = 1
+RENDER_NODE = "/dev/dri/renderD128"
+AUDIO_RATE, AUDIO_CHANNELS = 48000, 2
+PR_SET_PDEATHSIG = 1
+TOOL_MANIFEST = Path(__file__).resolve().parent / "pw-video-cat" / "Cargo.toml"
+
+
+def die_with_parent():
+    """Children get SIGTERM if this script dies, so no capture outlives it."""
+    ctypes.CDLL(None, use_errno=True).prctl(PR_SET_PDEATHSIG, signal.SIGTERM)
+
+
+# Own process group: a terminal Ctrl-C reaches only this script, which then stops the children
+# in order (ffmpeg interrupted directly would truncate the file and exit non-zero).
+CHILD = {"preexec_fn": die_with_parent, "process_group": 0}
+
+
+def fail(message):
+    sys.exit(f"record-window: {message}")
+
+
+def find_window(pid, app_id):
+    windows = json.loads(subprocess.check_output(["niri", "msg", "--json", "windows"]))
+    matches = [
+        w for w in windows
+        if (pid is not None and w["pid"] == pid) or (app_id is not None and w["app_id"] == app_id)
+    ]
+    if len(matches) != 1:
+        found = [(w["id"], w["pid"], w["app_id"]) for w in matches]
+        fail(f"expected exactly one window for pid={pid} app_id={app_id}, found {found}")
+    return matches[0]
+
+
+def find_audio_stream(pid):
+    """object.serial of the PipeWire audio output stream owned by `pid`."""
+    nodes = [
+        o for o in json.loads(subprocess.check_output(["pw-dump"]))
+        if o.get("type") == "PipeWire:Interface:Node"
+    ]
+    serials = []
+    for node in nodes:
+        props = node.get("info", {}).get("props", {})
+        if (props.get("media.class") == "Stream/Output/Audio"
+                and str(props.get("application.process.id")) == str(pid)):
+            serials.append((props["object.serial"], props.get("application.name")))
+    if len(serials) != 1:
+        fail(f"expected one audio output stream for pid {pid}, found {serials}; "
+             "use --no-audio to record video only")
+    return serials[0]
+
+
+def start_screencast(window_id):
+    """Returns (session interface, PipeWire node id) for a started RecordWindow stream."""
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    bus = dbus.SessionBus()
+    screen_cast = dbus.Interface(bus.get_object(SCREEN_CAST, SCREEN_CAST_PATH), SCREEN_CAST)
+    session_path = screen_cast.CreateSession(dbus.Dictionary({}, signature="sv"))
+    session = dbus.Interface(
+        bus.get_object(SCREEN_CAST, session_path), SCREEN_CAST + ".Session")
+    stream_path = session.RecordWindow(dbus.Dictionary({
+        "window-id": dbus.UInt64(window_id),
+        "cursor-mode": dbus.UInt32(CURSOR_EMBEDDED),
+    }, signature="sv"))
+
+    loop = GLib.MainLoop()
+    node = {}
+
+    def on_stream_added(node_id):
+        node["id"] = int(node_id)
+        loop.quit()
+
+    bus.add_signal_receiver(
+        on_stream_added, "PipeWireStreamAdded", SCREEN_CAST + ".Stream", SCREEN_CAST, stream_path)
+    session.Start()
+    GLib.timeout_add_seconds(10, loop.quit)
+    loop.run()
+    if "id" not in node:
+        session.Stop()
+        fail("niri did not announce a PipeWire stream within 10 s")
+    return session, node["id"]
+
+
+def build_video_tool():
+    subprocess.run(
+        ["cargo", "build", "--release", "-q", "-j2", "--manifest-path", str(TOOL_MANIFEST)],
+        check=True)
+    metadata = json.loads(subprocess.check_output([
+        "cargo", "metadata", "--format-version", "1", "--no-deps",
+        "--manifest-path", str(TOOL_MANIFEST)]))
+    return Path(metadata["target_directory"]) / "release" / "pw-video-cat"
+
+
+def enlarge_pipe(pipe):
+    """A 64 KiB default pipe costs ~70 reader wake-ups per 4 MiB frame; on a loaded machine that
+    alone held ffmpeg to ~15 fps. Use the unprivileged maximum (fs.pipe-max-size)."""
+    size = int(Path("/proc/sys/fs/pipe-max-size").read_text())
+    fcntl.fcntl(pipe.fileno(), fcntl.F_SETPIPE_SZ, size)
+
+
+def read_header(fd):
+    """The `<width> <height> <fps>` line, read byte-wise so no frame bytes are consumed."""
+    line = b""
+    while not line.endswith(b"\n"):
+        byte = os.read(fd, 1)
+        if not byte:
+            fail("pw-video-cat exited before its first frame")
+        line += byte
+    width, height, fps = map(int, line.split())
+    return width, height, fps
+
+
+def encode_video_command(width, height, fps, output):
+    return [
+        "ffmpeg", "-hide_banner", "-loglevel", "warning", "-y",
+        "-f", "rawvideo", "-pix_fmt", "bgr0", "-video_size", f"{width}x{height}",
+        "-framerate", str(fps), "-i", "pipe:0",
+        # Colour conversion and H.264 run on the GPU: on a loaded machine libx264 veryfast fell
+        # to 10 fps at this size, which back-pressures pw-video-cat below real time.
+        "-vaapi_device", RENDER_NODE,
+        "-vf", "hwupload,scale_vaapi=w=trunc(iw/2)*2:h=trunc(ih/2)*2:format=nv12:out_range=limited",
+        "-c:v", "h264_vaapi", "-qp", "20",
+        str(output),
+    ]
+
+
+def record_audio_command(serial, output):
+    return [
+        "pw-record", "--target", str(serial),
+        "--format", "s16", "--rate", str(AUDIO_RATE), "--channels", str(AUDIO_CHANNELS),
+        "-P", "{ node.dont-fallback = true node.dont-reconnect = true }", str(output),
+    ]
+
+
+def watch_audio_start(path, result):
+    """Stores in result["start"] the monotonic time pw-record's first sample was captured:
+    when data first follows the WAV header, minus the length of the data already written."""
+    while not path.exists():
+        time.sleep(0.002)
+    header = path.stat().st_size
+    while (size := path.stat().st_size) <= header:
+        time.sleep(0.002)
+    written = (size - header) / (AUDIO_RATE * AUDIO_CHANNELS * 2)
+    result["start"] = time.monotonic() - written
+
+
+def mux(video, audio, audio_delay, output):
+    """Final MP4. Video and audio are captured to separate files first: a live two-input ffmpeg
+    stalls the video pipe while it waits to interleave, and pw-record then drops audio."""
+    command = ["ffmpeg", "-hide_banner", "-loglevel", "warning", "-y", "-i", str(video)]
+    if audio is not None:
+        print(f"record-window: audio starts {audio_delay * 1000:.0f} ms after video",
+              file=sys.stderr)
+        command += ["-itsoffset", f"{audio_delay:.3f}", "-i", str(audio), "-c:a", "aac", "-b:a", "160k"]
+    command += ["-c:v", "copy", "-movflags", "+faststart", str(output)]
+    subprocess.run(command, check=True)
+
+
+def wait_for_stop(video, duration):
+    stop = threading.Event()
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(signum, lambda *_: stop.set())
+    deadline = None if duration is None else time.monotonic() + duration
+    while not stop.is_set() and video.poll() is None:
+        if deadline is not None and time.monotonic() >= deadline:
+            return
+        stop.wait(0.1)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("--pid", type=int)
+    target.add_argument("--app-id")
+    parser.add_argument("-o", "--output", default="recording.mp4")
+    parser.add_argument("--fps", type=int, default=30)
+    parser.add_argument("--duration", type=float, help="stop after this many seconds")
+    parser.add_argument("--no-audio", action="store_true")
+    args = parser.parse_args()
+    output = Path(args.output)
+    video_file = output.with_suffix(".video.mp4")
+    audio_file = None if args.no_audio else output.with_suffix(".audio.wav")
+
+    for part in (video_file, audio_file):
+        if part is not None:
+            part.unlink(missing_ok=True)  # a stale WAV would fool the audio-start watcher
+
+    window = find_window(args.pid, args.app_id)
+    audio = None if args.no_audio else find_audio_stream(window["pid"])
+    video_tool = build_video_tool()
+    session, node = start_screencast(window["id"])
+    print(f"record-window: window {window['id']} pid {window['pid']} -> PipeWire node {node}",
+          file=sys.stderr)
+
+    video = subprocess.Popen(
+        [str(video_tool), "--node", str(node), "--fps", str(args.fps)],
+        stdout=subprocess.PIPE, **CHILD)
+    enlarge_pipe(video.stdout)
+    width, height, fps = read_header(video.stdout.fileno())
+    video_start = time.monotonic()  # frame 0 follows the header immediately
+    # Started after the first video frame so both captures begin together.
+    recorders = [video]
+    audio_start = {}
+    if audio is not None:
+        watcher = threading.Thread(
+            target=watch_audio_start, args=(audio_file, audio_start), daemon=True)
+        watcher.start()
+        recorders.append(subprocess.Popen(
+            record_audio_command(audio[0], audio_file), **CHILD))
+    encoder = subprocess.Popen(
+        encode_video_command(width, height, fps, video_file),
+        stdin=video.stdout, **CHILD)
+    video.stdout.close()
+    print(f"record-window: recording {width}x{height} @ {fps} fps"
+          f"{'' if audio is None else f' + audio from {audio[1]} (serial {audio[0]})'}"
+          f" to {output}", file=sys.stderr)
+
+    wait_for_stop(video, args.duration)
+    for recorder in recorders:
+        if recorder.poll() is None:
+            recorder.send_signal(signal.SIGINT)
+    for recorder in recorders:
+        recorder.wait()
+    try:
+        session.Stop()
+    except dbus.DBusException as error:  # the window may have closed and ended the session
+        print(f"record-window: session Stop: {error.get_dbus_message()}", file=sys.stderr)
+    if encoder.wait() != 0:
+        fail(f"video encoder exited with {encoder.returncode}")
+    if audio is not None and "start" not in audio_start:
+        fail(f"pw-record captured no audio from {audio[1]}; is it linked? ({audio_file})")
+    delay = max(0.0, audio_start["start"] - video_start) if audio_start else 0.0
+    mux(video_file, audio_file, delay, output)
+    video_file.unlink()
+    if audio_file is not None:
+        audio_file.unlink()
+    print(f"record-window: wrote {output}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
