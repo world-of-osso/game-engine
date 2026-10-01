@@ -1,10 +1,43 @@
 //! Merchant and buyback tooltip content (docs/specs/merchant-frame.md).
 
+use super::{GameTooltip, TooltipRecord};
+use crate::merchant_data::quality_color;
+use crate::tooltip_presentation::{TooltipLineState, TooltipPresentation, parse_rgba};
+
+/// Concrete merchant name/quality, bundle count and finite stock; placement appends the ID.
+pub fn merchant_tooltip(
+    item_id: u32,
+    name: &str,
+    quality: u8,
+    count: u32,
+    stock: Option<u32>,
+) -> GameTooltip {
+    let mut lines = Vec::new();
+    if count > 1 {
+        lines.push(TooltipLineState::key_value(
+            "Stack Count",
+            count.to_string(),
+        ));
+    }
+    if let Some(stock) = stock {
+        lines.push(TooltipLineState::key_value("In Stock", stock.to_string()));
+    }
+    GameTooltip::new(
+        TooltipPresentation {
+            title: name.to_owned(),
+            title_color: parse_rgba(quality_color(quality)),
+            lines,
+            ..Default::default()
+        },
+        Some(TooltipRecord::Item(item_id)),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use shared::protocol::{BuybackItem, VendorInventory, VendorItem};
 
-    use crate::game_tooltip::item::{item_game_tooltip, named_item};
+    use super::merchant_tooltip;
     use crate::game_tooltip::{GameTooltip, TooltipRecord, TooltipScreen, place};
     use crate::merchant_data::{MerchantState, MerchantTab};
     use crate::tooltip_presentation::{TooltipLineState, item_id_line};
@@ -29,9 +62,8 @@ mod tests {
 
     fn tooltip_for_cell(merchant: &MerchantState) -> GameTooltip {
         super::super::set_test_data_root();
-        let (item_id, name, quality, count, _stock) = merchant.cell_item(0).unwrap();
-        // Exercise the current native merchant content route before its port.
-        item_game_tooltip(&named_item(item_id, name, quality, count), Some(1))
+        let (item_id, name, quality, count, stock) = merchant.cell_item(0).unwrap();
+        merchant_tooltip(item_id, name, quality, count, stock)
     }
 
     fn assert_content(

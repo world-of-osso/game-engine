@@ -20,6 +20,7 @@ use game_engine_ui_model::game_tooltip::hud::{
 use game_engine_ui_model::game_tooltip::item::{
     auction_row_item, item_game_tooltip, named_item, without_sell_price,
 };
+use game_engine_ui_model::game_tooltip::merchant::merchant_tooltip;
 use game_engine_ui_model::game_tooltip::spell::{
     SpellTooltipInput, aura_tooltip, spell_tooltip, unknown_spell_tooltip,
 };
@@ -184,9 +185,14 @@ impl GameClient {
             indexed(frame, "MerchantItem")?.checked_sub(1)
         })?;
         drop(ui);
-        let (item_id, name, quality, count, _) = merchant.cell_item(index)?;
+        let (item_id, name, quality, count, stock) = merchant.cell_item(index)?;
         let item = named_item(item_id, name, quality, count);
-        self.item_owned(hit, owner, OwnerSide::Right, item)
+        let tooltip = merchant_tooltip(item_id, name, quality, count, stock);
+        Some(HoveredTooltip {
+            tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
+            item: Some(item),
+            health: None,
+        })
     }
 
     /// `LootFrameElement{n}`: `SetLootItem` for item slots; money slots have no tooltip.
