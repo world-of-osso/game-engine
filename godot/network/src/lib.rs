@@ -704,6 +704,9 @@ mod wire_tests;
 
 #[cfg(test)]
 mod tests {
+#[cfg(test)]
+mod merchant_wire_tests;
+
     use super::*;
     use shared::protocol::{AuthChannel, LoginRequest};
     use std::{
