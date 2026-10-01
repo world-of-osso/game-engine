@@ -608,6 +608,7 @@ impl Account {
             InventoryRequest::Destroy(request) => {
                 bridge.send::<_, InventoryChannel>(request.clone())
             }
+            InventoryRequest::Use(request) => bridge.send::<_, InventoryChannel>(request.clone()),
         }
         .map_err(SessionError)
     }
