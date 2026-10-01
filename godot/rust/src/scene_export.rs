@@ -178,19 +178,19 @@ pub(crate) fn character_entry(
     .with_children(equipment_slot_entries(model, equipment)))
 }
 
-/// One `Slot:<slot>` per equipped visual; a shoulder display is both shoulders
-/// (`geoset_debug` slot definitions). Its model is the display, `display:<id>`; the
-/// anchor and attachment are the item model's parent and name when a model was placed.
+/// One `Slot:<slot>` per shown equipment entry; a shoulder is both shoulders
+/// (`geoset_debug` slot definitions). Its model is the entry's display, `display:<id>`
+/// (none for an entry given only by item); the anchor and attachment are the item
+/// model's parent and name when a model was placed.
 fn equipment_slot_entries(character: &Gd<Node3D>, equipment: &EquipmentAppearance) -> Vec<SceneEntry> {
     equipment
         .entries
         .iter()
         .filter(|entry| !entry.hidden)
-        .filter_map(|entry| Some((entry.slot.clone(), entry.display_info_id?)))
-        .flat_map(|(slot, display)| {
-            equipment_slot_names(&slot)
+        .flat_map(|entry| {
+            equipment_slot_names(&entry.slot)
                 .iter()
-                .map(|name| slot_entry(character, name, display))
+                .map(|name| slot_entry(character, name, entry.display_info_id))
                 .collect::<Vec<_>>()
         })
         .collect()
@@ -216,7 +216,7 @@ fn equipment_slot_names(slot: &EquipmentVisualSlot) -> &'static [&'static str] {
 }
 
 /// The original reports the item's parent as both `anchor` and `attachment_anchor`.
-fn slot_entry(character: &Gd<Node3D>, slot: &str, display: u32) -> SceneEntry {
+fn slot_entry(character: &Gd<Node3D>, slot: &str, display: Option<u32>) -> SceneEntry {
     let item = character
         .find_child_ex(&format!("Equipment{slot}"))
         .owned(false)
@@ -231,7 +231,7 @@ fn slot_entry(character: &Gd<Node3D>, slot: &str, display: u32) -> SceneEntry {
         item.clone(),
         NodeProps::EquipmentSlot {
             slot: slot.into(),
-            model: Some(format!("display:{display}")),
+            model: display.map(|display| format!("display:{display}")),
             anchor: anchor.clone(),
             attachment: item.map(|item| item.get_name().to_string()),
             attachment_anchor: anchor,
