@@ -198,7 +198,10 @@ func write_text(path: String, text: String) -> void:
 	file.close()
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	# Headless has no window to follow; a real window (record-window) keeps the size
+	# the compositor configures, or a forced size renders into a corner of the surface.
+	if DisplayServer.get_name() == "headless":
+		root.size = Vector2i(1280, 720)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	var account := OS.get_environment("POLY_ACCOUNT")
 	character = OS.get_environment("POLY_CHARACTER")
@@ -497,7 +500,7 @@ func framed(state: Dictionary) -> bool:
 
 ## Keeps the framing yaw by mouse look should the server turn the player after entry.
 func orbit_camera() -> bool:
-	var center := Vector2(640, 60)
+	var center := Vector2(root.size.x / 2.0, 60)
 	var offset := camera_goal().y
 	for attempt in range(60):
 		var state: Dictionary = client.account_state()
