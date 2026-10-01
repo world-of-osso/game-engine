@@ -283,6 +283,9 @@ impl PlateCasts {
             return;
         };
         match self.bars.get_mut(&unit) {
+            // The cast this bar showed, still replicated after a message or the bar's own
+            // clock ended it: no new `UNIT_SPELLCAST_START`.
+            Some(bar) if same_cast(bar, cast) && !(bar.casting || bar.channeling) => {}
             Some(bar) if same_cast(bar, cast) => {
                 let seen = Seen::of(cast);
                 if bar.seen != Some(seen) {
@@ -306,11 +309,14 @@ impl PlateCasts {
     /// No replicated cast: a channel's `UNIT_SPELLCAST_CHANNEL_STOP` without an
     /// interrupter finishes it; a cast waits for its `SpellGo` or `SpellFailure`.
     fn cast_gone(&mut self, unit: u64) {
-        if let Some(bar) = self.bars.get_mut(&unit)
-            && bar.channeling
-        {
+        let Some(bar) = self.bars.get_mut(&unit) else {
+            return;
+        };
+        if bar.channeling {
             bar.finish();
         }
+        // Whatever is replicated next is a new cast.
+        bar.seen = None;
     }
 
     /// `SpellGo`: `UNIT_SPELLCAST_STOP` of the resolved cast.
@@ -353,15 +359,15 @@ impl PlateCasts {
     }
 }
 
-/// The replicated cast is the bar's: same spell and kind, and no restart (progress
-/// going back without a pushback).
+/// The replicated cast is the one the bar showed: same spell and kind, replicated
+/// without a gap, and no restart (progress going back without a further pushback).
 fn same_cast(bar: &CastBar, cast: &CastState) -> bool {
     let channel = cast.cast_type == CastType::Channel;
-    if bar.spell_id != cast.spell_id || channel != bar.channel || !(bar.casting || bar.channeling) {
+    if bar.spell_id != cast.spell_id || channel != bar.channel {
         return false;
     }
-    bar.seen.is_none_or(|seen| {
-        cast.elapsed >= seen.elapsed - 1e-4 || cast.pushback_count != seen.pushbacks
+    bar.seen.is_some_and(|seen| {
+        cast.elapsed >= seen.elapsed - 1e-4 || cast.pushback_count > seen.pushbacks
     })
 }
 
