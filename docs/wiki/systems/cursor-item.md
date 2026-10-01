@@ -8,7 +8,7 @@ How the client picks items up onto the cursor, drops them, splits stacks and sho
 - `src/scenes/cursor_item/mod.rs`: left press (and a drag released elsewhere) → `cursor_target(action)` from the frame's `onclick` (`bag_slot:b:s`, `equipment_slot:n`, `merchant_item:i`, `merchant_frame`; no frame = world). Shift-click opens the split frame instead. `DELETE_ITEM` / `DELETE_GOOD_ITEM` popups resolve through `PopupResult`. `CursorItemIcon` is a registry texture moved to the pointer every frame (same pattern as `ActionDragIcon`).
 - `src/game/stack_split.rs` + `src/scenes/cursor_item/stack_split_frame.rs` + `src/ui/screens/stack_split_frame_component.rs`: StackSplitFrame logic (StackSplitFrame.lua ported: steps, typing, backspace), its screen, and Okay → `CursorItem::split_from` or a vendor `Buy { count: split / stackCount }`.
 - `src/game/item_catalog.rs`: `Item.csv` + `ItemSparse.csv` + `ItemSubClass.csv` (build 12.1.0.69933), parsed with `CsvTable` (RFC 4180; ItemSparse descriptions contain quoted newlines) and warmed on a thread at startup. `bag_data::stack_slot` takes name and quality from it.
-- `src/scenes/tooltip_frame/item_tooltip.rs`: bag and paperdoll tooltips from the catalog; `TooltipLineState::money` draws `SELL_PRICE:` coins with `merchant_frame_component::money`.
+- `src/game/item_tooltip.rs`: shared original bag/paperdoll catalog formatter; `src/scenes/tooltip_frame/item_tooltip.rs` retains the Bevy record/anchor adapter; `TooltipLineState::money` draws `SELL_PRICE:` coins with `merchant_frame_component::money`.
 - `src/ui/popup.rs` `PopupSpec::confirm_text`: an edit-box popup whose Accept waits for the typed word (`DELETE`).
 
 ## Native coverage
