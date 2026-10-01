@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] audit | Standalone bag RED and pending host integration
+
+Updated conversion spec, parity matrix and [system evidence](systems/godot-conversion.md#native-standalone-bags--red-host-implementation-proof-pending) for tests `67870535`/`a3e34213` and host `91bbc703`. Saved runtime RED reaches authoritative BAGS_READY then fails missing MainMenuBarBackpackButton, exit 101; Depot `d11bz93c7w` is compiled baseline only. Portable agents 1343/1344 APIs and actual GREEN remain pending. Standalone visibility, inventory interactions and unified window ownership remain unproven; full conversion open. Docs-only update; no tests/build/runtime operations.
+
 ## [2026-09-30] system | Godot replication without an ECS replica
 
 New [[godot-replication]]: the network worker no longer runs replicon's client; it forwards raw replicon payloads and acks mutations, and the host-owned `Replica` decodes them into per-type columns. Wire layout, ack flow, fingerprint reasoning, codec schema and proof recorded; `UnitSnapshot` mentions in merchant, chat, spellbook, nameplate, movement and NPC appearance docs now point at the `Replica`.
