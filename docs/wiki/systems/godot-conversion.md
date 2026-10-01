@@ -63,7 +63,7 @@ Original six-diagnostic independent1531 acceptance above is retained as historic
 
 ## Native IPC request coverage
 
-October 1, 2026 (agent `tooling`, branch `tooling`). The [native IPC specification](../../specs/native-ipc.md) owns the behavior; this is the per-request status of the 129 original requests. Proof is the real `game-engine-cli` against the live client: `native_input_fixture dev-ipc` (fixture server decodes the sent intents and seeds bags, quest log, presence, rest state, trade and combat replies), `native_input_fixture charselect-export`, `native_debug_screen_fixture m2debug|debugcharacter|skyboxdebug`, and the unchanged `native_ipc_fixture`. Evidence: `data/diagnostics/tooling-2026-10-01/`.
+October 1, 2026 (agent `tooling`, branch `tooling`). The [native IPC specification](../../specs/native-ipc.md) owns the behavior; this is the per-request status of the 129 original requests (55 served, 74 not ported). Proof is the real `game-engine-cli` against the live client: `native_input_fixture dev-ipc` (fixture server decodes the sent intents and seeds bags, quest log, presence, rest state, trade and combat replies), `native_input_fixture charselect-export`, `native_debug_screen_fixture m2debug|debugcharacter|skyboxdebug`, and the unchanged `native_ipc_fixture`. Evidence: `data/diagnostics/tooling-2026-10-01/`.
 
 | Requests | Status | Proof |
 | --- | --- | --- |
@@ -79,7 +79,8 @@ October 1, 2026 (agent `tooling`, branch `tooling`). The [native IPC specificati
 | TradeStatus and the nine trade actions | served; actions answer on the next `TradeStateUpdate` | dev-ipc: status, initiate, cancel, refused accept; the other six actions are mapped, not individually proved |
 | CombatLog, CombatRecap | served over received `CombatEvent`s | dev-ipc |
 | LootTakeAll | served | no process proof: the canonical `game-engine-cli` binary predates `quest take-loot` and agents may not build the root crate |
-| Auction (10), Mail (3), Profession (3) | not ported | the other session owns these features; native state exists for auction and mail |
+| MailStatus, MailSend, MailAct | served at the open mailbox (shared status text) | dev-ipc RED/GREEN at a scripted mailbox: `UseGameObject`, `SendMail`, `MailRequest` decoded; `sent` counts `MailSent` |
+| Auction (10), Profession (3) | not ported | owned by the other session |
 | Inspect (2), Duel (4), Calendar (4), Guild (5), Friends/Who/Ignore and presence changes (11), PvP (4), LFG (5), Barber (4), Death (5), Achievements, Currencies (3), Reputations (2), Collections (6) | not ported | no native state and no receive for their server updates; the IPC needs the feature first |
 | EncounterJournalStatus | not ported | its data module (`encounter_journal_data.rs`) is Bevy-bound and the native client has no journal |
 | EquippedGearStatus, EquipmentSet, EquipmentClear, ExportCharacter | not ported | they read or edit the original's model-path `Equipment` component and per-slot durability snapshot, which the native client replaced with appearance-resolved equipment |
