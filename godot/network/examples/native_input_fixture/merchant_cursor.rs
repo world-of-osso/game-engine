@@ -118,6 +118,12 @@ impl Session {
         }
         match (&self.phase, line) {
             (Phase::Loading, "FIXTURE MERCHANT_CURSOR_LOADING") => {
+                let selected = self.selected.ok_or("Loading requires selected player")?;
+                app.world_mut().entity_mut(selected).insert(Gold(1000));
+                println!(
+                    "MERCHANT CURSOR INITIAL selected={} Gold1000",
+                    selected.to_bits()
+                );
                 send::<_, TerrainChannel>(
                     app,
                     LoadTerrain {
@@ -310,20 +316,12 @@ fn tick_peer(
 ) -> Result<(), String> {
     app.update();
     respond_to_login(app, StartupScreen::MerchantCursor)?;
-    let was_selected = session.selected.is_some();
     respond_to_selection(
         app,
         StartupScreen::MerchantCursor,
         &mut session.selected,
         remote,
     )?;
-    if !was_selected && let Some(selected) = session.selected {
-        app.world_mut().entity_mut(selected).insert(Gold(1000));
-        println!(
-            "MERCHANT CURSOR INITIAL selected={} Gold1000",
-            selected.to_bits()
-        );
-    }
     Ok(())
 }
 
