@@ -194,7 +194,7 @@ fn parse_supported_row(line: &str) -> Option<(u32, &str)> {
     Some((fdid.parse().ok()?, path))
 }
 
-fn load_ogg(path: &PathBuf, fdid: u32) -> Result<Gd<AudioStream>, String> {
+pub(super) fn load_ogg(path: &PathBuf, fdid: u32) -> Result<Gd<AudioStream>, String> {
     let bytes = std::fs::read(path).map_err(|error| format!("read {}: {error}", path.display()))?;
     if !bytes.starts_with(b"OggS") {
         return Err(format!("{}: not Ogg data", path.display()));

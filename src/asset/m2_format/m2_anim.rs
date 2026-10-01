@@ -210,7 +210,8 @@ pub struct BoneAnimTracks {
 #[derive(Clone)]
 pub struct TextureAnimTracks {
     pub translation: AnimTrack<[f32; 3]>,
-    pub rotation: AnimTrack<[i16; 4]>,
+    /// M2TextureTransform rotation: an uncompressed `C4Quaternion` (x, y, z, w).
+    pub rotation: AnimTrack<[f32; 4]>,
     pub scale: AnimTrack<[f32; 3]>,
 }
 
@@ -457,6 +458,15 @@ pub fn parse_color_tracks(md20: &[u8]) -> Result<Vec<ColorAnimTracks>, String> {
     Ok(tracks)
 }
 
+fn read_quat_f32(data: &[u8], offset: usize) -> Result<[f32; 4], String> {
+    Ok([
+        read_f32(data, offset)?,
+        read_f32(data, offset + 4)?,
+        read_f32(data, offset + 8)?,
+        read_f32(data, offset + 12)?,
+    ])
+}
+
 pub fn parse_texture_animations(md20: &[u8]) -> Result<Vec<TextureAnimTracks>, String> {
     let (count, offset) = read_m2_array_header(md20, MD20_TEXTURE_WEIGHTS_COUNT_OFFSET)?;
     let mut tracks = Vec::with_capacity(count);
@@ -469,7 +479,7 @@ pub fn parse_texture_animations(md20: &[u8]) -> Result<Vec<TextureAnimTracks>, S
         }
         tracks.push(TextureAnimTracks {
             translation: parse_anim_track(md20, base, 12, &[], read_vec3)?,
-            rotation: parse_anim_track(md20, base + 20, 8, &[], read_quat_i16)?,
+            rotation: parse_anim_track(md20, base + 20, 16, &[], read_quat_f32)?,
             scale: parse_anim_track(md20, base + 40, 12, &[], read_vec3)?,
         });
     }

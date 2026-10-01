@@ -64,6 +64,8 @@ pub mod creature_display;
 pub mod creature_display_data;
 #[path = "game/creature_health_scaling_data.rs"]
 pub mod creature_health_scaling_data;
+#[path = "game/equipment/component_file_data.rs"]
+mod component_file_data;
 pub mod csv_util;
 pub mod currency;
 #[path = "game/cursor_item.rs"]

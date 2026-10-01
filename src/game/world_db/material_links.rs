@@ -5,7 +5,10 @@ use std::path::Path;
 use crate::csv_util::parse_csv_line_trimmed as parse_csv_line;
 use rusqlite::{Connection, Statement};
 
-pub(super) fn populate_material_to_texture(conn: &Connection, path: &Path) -> Result<(), String> {
+/// Every texture file of each material, in TextureFileData order: its UsageType 0 files,
+/// or its first file when it has none. Which of them a character wears is chosen per
+/// race and sex (`ComponentFileData::select_texture`).
+pub(super) fn populate_material_textures(conn: &Connection, path: &Path) -> Result<(), String> {
     let mut reader = super::open_reader(path)?;
     let mut header = String::new();
     reader
@@ -15,7 +18,7 @@ pub(super) fn populate_material_to_texture(conn: &Connection, path: &Path) -> Re
     let file_data_col = super::header_index(&headers, "FileDataID", path)?;
     let usage_type_col = super::header_index(&headers, "UsageType", path)?;
     let material_col = super::header_index(&headers, "MaterialResourcesID", path)?;
-    let preferred = collect_material_texture_rows(
+    let candidates = collect_material_texture_rows(
         &mut reader,
         path,
         file_data_col,
@@ -24,13 +27,15 @@ pub(super) fn populate_material_to_texture(conn: &Connection, path: &Path) -> Re
     )?;
     let mut insert = conn
         .prepare(
-            "INSERT OR REPLACE INTO material_to_texture (material_resource_id, texture_fdid) VALUES (?1, ?2)",
+            "INSERT INTO material_textures (material_resource_id, file_order, texture_fdid) VALUES (?1, ?2, ?3)",
         )
-        .map_err(|err| format!("prepare material_to_texture insert: {err}"))?;
-    for (material_resource_id, texture_fdid) in preferred {
-        insert
-            .execute((material_resource_id, texture_fdid))
-            .map_err(|err| format!("insert material_to_texture row: {err}"))?;
+        .map_err(|err| format!("prepare material_textures insert: {err}"))?;
+    for (material_resource_id, texture_fdids) in candidates {
+        for (order, texture_fdid) in texture_fdids.into_iter().enumerate() {
+            insert
+                .execute((material_resource_id, order as u32, texture_fdid))
+                .map_err(|err| format!("insert material_textures row: {err}"))?;
+        }
     }
     Ok(())
 }
@@ -41,8 +46,8 @@ fn collect_material_texture_rows(
     file_data_col: usize,
     usage_type_col: usize,
     material_col: usize,
-) -> Result<HashMap<u32, u32>, String> {
-    let mut preferred = HashMap::new();
+) -> Result<HashMap<u32, Vec<u32>>, String> {
+    let mut preferred: HashMap<u32, Vec<u32>> = HashMap::new();
     let mut fallback = HashMap::new();
     let mut line = String::new();
     loop {
@@ -67,7 +72,7 @@ fn collect_material_texture_rows(
     for (material_resource_id, file_data_id) in fallback {
         preferred
             .entry(material_resource_id)
-            .or_insert(file_data_id);
+            .or_insert_with(|| vec![file_data_id]);
     }
     Ok(preferred)
 }
@@ -77,7 +82,7 @@ fn record_material_texture_row(
     file_data_col: usize,
     usage_type_col: usize,
     material_col: usize,
-    preferred: &mut HashMap<u32, u32>,
+    preferred: &mut HashMap<u32, Vec<u32>>,
     fallback: &mut HashMap<u32, u32>,
 ) {
     let file_data_id = fields
@@ -99,31 +104,25 @@ fn record_material_texture_row(
     if usage_type == 0 {
         preferred
             .entry(material_resource_id)
-            .or_insert(file_data_id);
+            .or_default()
+            .push(file_data_id);
     }
 }
 
-fn load_material_to_texture_map(conn: &Connection) -> Result<HashMap<u32, u32>, String> {
+fn load_textured_materials(conn: &Connection) -> Result<HashSet<u32>, String> {
     let mut stmt = conn
-        .prepare("SELECT material_resource_id, texture_fdid FROM material_to_texture")
-        .map_err(|err| format!("prepare material_to_texture lookup: {err}"))?;
+        .prepare("SELECT DISTINCT material_resource_id FROM material_textures")
+        .map_err(|err| format!("prepare material_textures lookup: {err}"))?;
     let rows = stmt
-        .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, u32>(1)?)))
-        .map_err(|err| format!("query material_to_texture: {err}"))?;
-    let mut map = HashMap::new();
-    for row in rows {
-        let (material_resource_id, texture_fdid) =
-            row.map_err(|err| format!("read material_to_texture row: {err}"))?;
-        map.insert(material_resource_id, texture_fdid);
-    }
-    Ok(map)
+        .query_map([], |row| row.get::<_, u32>(0))
+        .map_err(|err| format!("query material_textures: {err}"))?;
+    rows.collect::<Result<_, _>>()
+        .map_err(|err| format!("read material_textures row: {err}"))
 }
 
-pub(super) fn populate_display_material_textures(
-    conn: &Connection,
-    path: &Path,
-) -> Result<(), String> {
-    let material_to_texture = load_material_to_texture_map(conn)?;
+/// Each display's (component section, material) rows whose material has a texture.
+pub(super) fn populate_display_materials(conn: &Connection, path: &Path) -> Result<(), String> {
+    let textured = load_textured_materials(conn)?;
     let mut reader = super::open_reader(path)?;
     let mut header = String::new();
     reader
@@ -135,28 +134,28 @@ pub(super) fn populate_display_material_textures(
     let display_info_col = super::header_index(&headers, "ItemDisplayInfoID", path)?;
     let mut insert = conn
         .prepare(
-            "INSERT OR IGNORE INTO display_material_textures (display_info_id, component_section, texture_fdid) VALUES (?1, ?2, ?3)",
+            "INSERT OR IGNORE INTO display_materials (display_info_id, component_section, material_resource_id) VALUES (?1, ?2, ?3)",
         )
-        .map_err(|err| format!("prepare display_material_textures insert: {err}"))?;
-    insert_display_material_texture_rows(
+        .map_err(|err| format!("prepare display_materials insert: {err}"))?;
+    insert_display_material_rows(
         &mut reader,
         path,
         component_col,
         material_col,
         display_info_col,
-        &material_to_texture,
+        &textured,
         &mut insert,
     )?;
     Ok(())
 }
 
-fn insert_display_material_texture_rows(
+fn insert_display_material_rows(
     reader: &mut dyn BufRead,
     path: &Path,
     component_col: usize,
     material_col: usize,
     display_info_col: usize,
-    material_to_texture: &HashMap<u32, u32>,
+    textured: &HashSet<u32>,
     insert: &mut Statement<'_>,
 ) -> Result<(), String> {
     let mut seen = HashSet::new();
@@ -183,13 +182,13 @@ fn insert_display_material_texture_rows(
             .get(material_col)
             .and_then(|v| v.parse::<u32>().ok())
             .unwrap_or(0);
-        let Some(&texture_fdid) = material_to_texture.get(&material_resource_id) else {
+        if !textured.contains(&material_resource_id) {
             continue;
-        };
-        if seen.insert((display_info_id, component_section, texture_fdid)) {
+        }
+        if seen.insert((display_info_id, component_section, material_resource_id)) {
             insert
-                .execute((display_info_id, component_section, texture_fdid))
-                .map_err(|err| format!("insert display_material_textures row: {err}"))?;
+                .execute((display_info_id, component_section, material_resource_id))
+                .map_err(|err| format!("insert display_materials row: {err}"))?;
         }
     }
     Ok(())

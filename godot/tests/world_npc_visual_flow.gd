@@ -204,7 +204,7 @@ func run_test() -> void:
 	if not await wait_type19(client):
 		return
 	print("FIXTURE TYPE19_READY")
-	if not await wait_effect_isolation(client):
+	if not await wait_two_texture_type19(client):
 		return
 	print("FIXTURE EFFECT_ISOLATED_READY")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
@@ -498,7 +498,7 @@ func wait_type19(client: Node) -> bool:
 		await process_frame
 		var material := appearance_batch_material(client, "Batch0")
 		var texture := material.get_shader_parameter("base_texture") as Texture2D if material != null else null
-		if texture == null or int(material.get_shader_parameter("effect_mode")) != 0:
+		if texture == null or int(material.get_shader_parameter("pixel_shader")) != 1:
 			continue
 		actual = texture.get_image().get_pixel(0, 0)
 		if absf(actual.r - EYE.r) < TOLERANCE and absf(actual.g - EYE.g) < TOLERANCE \
@@ -507,14 +507,17 @@ func wait_type19(client: Node) -> bool:
 	fail("NPC ordinary type-19 base expected authored RGBA %s, got %s" % [EYE, actual])
 	return false
 
-func wait_effect_isolation(client: Node) -> bool:
+# The two-texture blend-2 batch (shader 0x4014, Combiners_Mod_Mod2x) binds both slots
+# like any batch: its replaceable type-19 slot 0 takes the NPC's type-19 texture
+# (WebWowViewerCpp prepearMaterial -> getTexture) and slot 1 keeps TXID 910002.
+func wait_two_texture_type19(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + WAIT_MS
 	var actual_base := Color.TRANSPARENT
 	var actual_second := Color.TRANSPARENT
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var material := appearance_batch_material(client, "Batch1")
-		if material == null or int(material.get_shader_parameter("effect_mode")) != 1:
+		if material == null or int(material.get_shader_parameter("pixel_shader")) != 7:
 			continue
 		var base := material.get_shader_parameter("base_texture") as Texture2D
 		var second := material.get_shader_parameter("second_texture") as Texture2D
@@ -522,12 +525,12 @@ func wait_effect_isolation(client: Node) -> bool:
 			continue
 		actual_base = base.get_image().get_pixel(0, 0)
 		actual_second = second.get_image().get_pixel(0, 0)
-		if absf(actual_base.r - BASE.r) < TOLERANCE and absf(actual_base.g - BASE.g) < TOLERANCE \
-			and absf(actual_base.b - BASE.b) < TOLERANCE and absf(actual_base.a - BASE.a) < TOLERANCE \
+		if absf(actual_base.r - EYE.r) < TOLERANCE and absf(actual_base.g - EYE.g) < TOLERANCE \
+			and absf(actual_base.b - EYE.b) < TOLERANCE and absf(actual_base.a - EYE.a) < TOLERANCE \
 			and absf(actual_second.r - SECOND.r) < TOLERANCE and absf(actual_second.g - SECOND.g) < TOLERANCE \
 			and absf(actual_second.b - SECOND.b) < TOLERANCE and absf(actual_second.a - SECOND.a) < TOLERANCE:
 			return true
-	fail("NPC effect batch expected original base %s and second %s, got %s and %s" % [BASE, SECOND, actual_base, actual_second])
+	fail("NPC two-texture batch expected type-19 base %s and second %s, got %s and %s" % [EYE, SECOND, actual_base, actual_second])
 	return false
 
 func wait_hair_type6(client: Node) -> bool:
