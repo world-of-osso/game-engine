@@ -1,9 +1,9 @@
 //! Physical vendor buy -> embedded backpack pickup -> merchant background whole-stack sale.
 use super::*;
 use shared::protocol::{
-    BuyItem, BuybackItem, BuybackItemRequest, BuybackList, DestroyItem, EquipItem, InventoryDelta,
-    InventorySlotChange, ItemLocation, ItemStack, RepairItem, SellAllJunkItems, SellItem, SortBags,
-    SplitItem, SwapItem, UseItem,
+    BuyItem, BuybackItem, BuybackItemRequest, BuybackList, DestroyItem, EquipItem,
+    InteractionClosed, InventoryDelta, InventorySlotChange, ItemLocation, ItemStack, RepairItem,
+    SellAllJunkItems, SellItem, SortBags, SplitItem, SwapItem, UseItem,
 };
 
 const QUIET: Duration = Duration::from_millis(400);
@@ -108,6 +108,14 @@ enum Phase {
     BuybackTab,
     BuybackRequest,
     BuybackDelta,
+    CloseCatalog,
+    ClosePickup,
+    ClosePressed,
+    CloseRelease,
+    CloseHeld,
+    CloseRequest,
+    CloseDelta,
+    CloseQuiet,
     Drain,
 }
 
@@ -119,6 +127,8 @@ struct Session {
     buys: usize,
     sells: usize,
     buybacks: usize,
+    closes: usize,
+    close_commit: bool,
     buyback_commit: bool,
     commit: bool,
     sell_commit: bool,
@@ -156,9 +166,11 @@ impl Session {
                 "merchant-cursor marker before authenticated selection: {line}"
             ));
         }
-        if line.starts_with("FIXTURE MERCHANT_CURSOR_BUYBACK_")
+        if line.starts_with("FIXTURE MERCHANT_CURSOR_CLOSE_")
             || line == "FIXTURE MERCHANT_CURSOR_DONE"
         {
+            self.send_close_marker_response(line)
+        } else if line.starts_with("FIXTURE MERCHANT_CURSOR_BUYBACK_") {
             self.send_buyback_marker_response(app, line)
         } else if line.starts_with("FIXTURE MERCHANT_CURSOR_SHIFT_") {
             self.send_shift_buy_marker_response(line)
@@ -349,6 +361,58 @@ impl Session {
         Ok(())
     }
 
+    fn send_close_marker_response(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
+            (Phase::BuybackDelta, "FIXTURE MERCHANT_CURSOR_CLOSE_CATALOG_ARM") => {
+                self.require_quiet()?;
+                if !self.completed_five_cases() {
+                    return Err("vendor close requires all five inventory barriers".into());
+                }
+                self.advance(Phase::CloseCatalog);
+            }
+            (Phase::CloseCatalog, "FIXTURE MERCHANT_CURSOR_CLOSE_PICKUP_ARM") => {
+                self.require_quiet()?;
+                self.advance(Phase::ClosePickup);
+            }
+            (Phase::ClosePickup, "FIXTURE MERCHANT_CURSOR_CLOSE_PICKED_UP") => {
+                self.require_quiet()?;
+                self.advance(Phase::ClosePressed);
+            }
+            (Phase::ClosePressed, "FIXTURE MERCHANT_CURSOR_CLOSE_RELEASE_ARM") => {
+                self.advance(Phase::CloseRelease);
+            }
+            (Phase::CloseRelease, "FIXTURE MERCHANT_CURSOR_CLOSE_HELD") => {
+                self.require_quiet()?;
+                self.advance(Phase::CloseHeld);
+            }
+            (Phase::CloseHeld, "FIXTURE MERCHANT_CURSOR_CLOSE_REQUEST_ARM") => {
+                self.advance(Phase::CloseRequest);
+            }
+            (Phase::CloseRequest, "FIXTURE MERCHANT_CURSOR_CLOSE_COMMIT") if !self.close_commit => {
+                self.require_quiet()?;
+                self.close_commit = true;
+            }
+            (Phase::CloseDelta, "FIXTURE MERCHANT_CURSOR_CLOSE_ACK_QUIET_ARM") => {
+                self.require_quiet()?;
+                self.advance(Phase::CloseQuiet);
+            }
+            (Phase::CloseQuiet, "FIXTURE MERCHANT_CURSOR_DONE") => {
+                self.require_quiet()?;
+                self.advance(Phase::Drain);
+            }
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn completed_five_cases(&self) -> bool {
+        self.completed_shift_buy() && self.buybacks == 1 && self.buyback_commit
+    }
+
+    fn completed_close(&self) -> bool {
+        self.completed_five_cases() && self.closes == 1 && self.close_commit
+    }
+
     fn completed_shift_buy(&self) -> bool {
         self.opens == 1
             && self.buys == 2
@@ -428,7 +492,8 @@ impl Session {
             }
         }
         self.respond_to_shift_buy(app)?;
-        self.respond_to_buyback(app)
+        self.respond_to_buyback(app)?;
+        self.respond_to_close(app)
     }
 
     fn respond_to_shift_buy(&mut self, app: &mut App) -> Result<(), String> {
@@ -473,6 +538,46 @@ impl Session {
         Ok(())
     }
 
+    fn respond_to_close(&mut self, app: &mut App) -> Result<(), String> {
+        if self.phase != Phase::CloseRequest {
+            return Ok(());
+        }
+        if self.completed_close() {
+            send_close_ack(app);
+            self.advance(Phase::CloseDelta);
+        } else if self.since.elapsed() > REQUEST_WAIT {
+            return Err(format!(
+                "merchant-cursor missing exact CloseInteraction/CLOSE_COMMIT; closes={} commit={}",
+                self.closes, self.close_commit
+            ));
+        }
+        Ok(())
+    }
+
+    fn receive_close(
+        &mut self,
+        request: CloseInteraction,
+        vendor: Option<u64>,
+    ) -> Result<(), String> {
+        let expected = CloseInteraction { npc: 4_294_966_979 };
+        if self.phase != Phase::CloseRequest
+            || self.closes != 0
+            || !self.completed_five_cases()
+            || vendor != Some(expected.npc)
+            || request.npc != expected.npc
+        {
+            return Err(format!(
+                "forbidden/wrong-NPC/duplicate CloseInteraction {request:?} in {:?}; closes={}",
+                self.phase, self.closes
+            ));
+        }
+        self.closes += 1;
+        println!(
+            "MERCHANT CURSOR CLOSE DECODED {request:?} count=1; InteractionClosed withheld until pre-ack CLOSE_COMMIT"
+        );
+        Ok(())
+    }
+
     fn respond_to_interaction(&mut self, app: &mut App) -> Result<(), String> {
         let (vendor, interactions, closes, casts) = {
             let mut incoming = app.world_mut().resource_mut::<Incoming>();
@@ -483,10 +588,13 @@ impl Session {
                 std::mem::take(&mut incoming.casts),
             )
         };
-        if !closes.is_empty() || !casts.is_empty() {
+        if !casts.is_empty() {
             return Err(format!(
                 "merchant-cursor unrelated close/spell requests: {closes:?} {casts:?}"
             ));
+        }
+        for request in closes {
+            self.receive_close(request, vendor.map(Entity::to_bits))?;
         }
         for request in interactions {
             if self.phase != Phase::Open
@@ -660,6 +768,13 @@ fn send_split_stack(app: &mut App, count: u32) {
     println!("MERCHANT CURSOR SPLIT InventoryDelta bag0/slot0 Linen2589 guid9182590 count{count}");
 }
 
+fn send_close_ack(app: &mut App) {
+    send::<_, InteractionChannel>(app, InteractionClosed { npc: 4_294_966_979 });
+    println!(
+        "MERCHANT CURSOR CLOSE ACK InteractionClosed npc4294966979; only after exact request and pre-ack CLOSE_COMMIT, no inventory/Gold input"
+    );
+}
+
 fn send_buyback_seed(app: &mut App) {
     send::<_, MerchantChannel>(
         app,
@@ -795,6 +910,8 @@ fn run_until_done(
         buys: 0,
         sells: 0,
         buybacks: 0,
+        closes: 0,
+        close_commit: false,
         buyback_commit: false,
         commit: false,
         sell_commit: false,
@@ -818,16 +935,7 @@ fn run_until_done(
             ));
         }
         if session.phase == Phase::Drain && session.since.elapsed() >= QUIET {
-            if session.opens != 1
-                || session.buys != 2
-                || session.sells != 2
-                || session.buybacks != 1
-                || !session.buyback_commit
-                || !session.commit
-                || !session.sell_commit
-                || !session.split_sell_commit
-                || !session.shift_buy_commit
-            {
+            if !session.completed_close() {
                 return Err(
                     "merchant-cursor final interaction/request/barrier totals failed".into(),
                 );
@@ -868,7 +976,7 @@ pub(super) fn run(
         (Err(error), _) | (_, Err(error)) => Err(error),
         (Ok(()), Ok(())) => {
             println!(
-                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; physical Shift-vendor buy, MerchantUI-owned BOTTOMLEFT=MerchantItem1 TOPLEFT picker172x96, digits40/Up clamp40/Backspace4/1/digit2/Enter, exact once BuyItem count2 destinationNone, pre-delta SHIFT_BUY_COMMIT Linen3/1014/source white/no cursor, fixture authoritative same guid9182590 Linen5/964; seeded BuybackList slot0 Linen2589 quality1 count2 price26, physical own Buyback tab then cell Left press/release, exact once BuybackItemRequest npc4294966979 slot0, pre-delta BUYBACK_COMMIT Linen5/964/list count2/no held/no picker, fixture authoritative same guid9182590 Linen7/938/empty list/tab retained, opens1/buys2/sells2/buybacks1/five barriers; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
+                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; seeded Linen5/988, physical Shift-left authored owner-slot picker and digit2/Enter, already-held cursor background press, exact once SellItem guid9182590 count2, pre-delta SPLIT_SELL_COMMIT Linen5/988/unlocked/cursor hidden, authoritative Linen3/1014; physical Shift-vendor buy, MerchantUI-owned BOTTOMLEFT=MerchantItem1 TOPLEFT picker172x96, digits40/Up clamp40/Backspace4/1/digit2/Enter, exact once BuyItem count2 destinationNone, pre-delta SHIFT_BUY_COMMIT Linen3/1014/source white/no cursor, fixture authoritative same guid9182590 Linen5/964; seeded BuybackList slot0 Linen2589 quality1 count2 price26, physical own Buyback tab then cell Left press/release, exact once BuybackItemRequest npc4294966979 slot0, pre-delta BUYBACK_COMMIT Linen5/964/list count2/no held/no picker, fixture authoritative same guid9182590 Linen7/938/empty list/tab retained, physical Tab1 restores vendor catalog, Left hold900ms textured centered Linen vendor cursor, same-source same-point release <4logical px retains cursor quiet900ms/no extra Buy; own CloseButton Left press/release, exact once CloseInteraction npc4294966979 only CloseRequest, pre-ack CLOSE_COMMIT locally closed/actual MerchantUI freed/cursor hidden/no merchant backpack/no picker/popup/Menu/unchanged Linen7 Gold938 quiet900ms, ordinary InteractionClosed only after request plus marker then closed quiet900ms DONE; opens1/buys2/sells2/buybacks1/closes1/five inventory barriers plus close barrier and400ms drain; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
             );
             Ok(())
         }
