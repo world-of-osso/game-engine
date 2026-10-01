@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] audit | Bounded equip observation, destroy RED and unverified host
+
+Updated existing conversion/cursor specs, parity matrix and wiki from authoritative `/tmp/claude/native-bags-proof-ledger.md` and `2223d6d3`. [Exact evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass): historical `ln9jmltc2m` import failure fixed by `2086200d`; `0mbvzk13ft` build exit0. Saved actions parent101 observes one EquipItem0/5, authoritative bag clear/MainHand25 guid9170005 count1 and quiet EquipDone, then PoorNo missing StaticPopup1 RED. `2223d6d3` native world-drop/shared-popup/result-drain/keyboard implementation is NOT GREEN; portable extraction1375 pending before compilation. No full gate, startup-equipment, mesh, destroy, drag or shutdown acceptance. Prior window/cursor proof preserved; docs only, no ops/tests/delegation, PLAN/data excluded.
+
 ## [2026-09-30] audit | Native standalone equip sender, GREEN pending
 
 Reconciled existing conversion docs against `093f3816` and `/tmp/claude/native-bags-proof-ledger.md`. [Actions evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass): fixture build exit0; first run missing texture is not equip RED; same-binary second run after local CASC extraction reproduces missing right-click equip. Production now sends original catalog-gated EquipItem from authoritative inventory only. GREEN pending; no equip PASS, equipment mesh/startup equipment, destroy/drag or shutdown acceptance. Prior bounded window/cursor proof unchanged. Docs only; no build/test/ops/delegation; PLAN/data excluded.
