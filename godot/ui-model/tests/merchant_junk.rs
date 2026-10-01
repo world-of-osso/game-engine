@@ -45,7 +45,7 @@ fn session(poor: bool) -> MerchantSession {
     session
 }
 
-fn stack(slot: u32, item_id: u32, count: u32) -> BagSlotItem {
+fn stack(slot: u8, item_id: u32, count: u32) -> BagSlotItem {
     BagSlotItem {
         slot,
         item: ItemStack {

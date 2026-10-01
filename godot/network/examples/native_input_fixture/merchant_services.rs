@@ -307,7 +307,7 @@ pub(super) fn setup(app: &mut App) -> Result<(), String> {
     Ok(())
 }
 
-fn bag_item(slot: u32, item_id: u32, count: u32) -> BagSlotItem {
+fn bag_item(slot: u8, item_id: u32, count: u32) -> BagSlotItem {
     BagSlotItem {
         slot,
         item: ItemStack {
