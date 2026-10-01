@@ -142,7 +142,7 @@ Root cause analyses and debug findings.
 External resources and asset lists.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Clients, renderers, viewers, editors, format libraries
-- [test-assets](reference/test-assets.md) — Available local test files with paths and use cases
+- [test-assets](reference/test-assets.md) — Available local test files; [Zaralda fixture](reference/test-assets.md#zaralda-native-merchant-fixture-2026-10-01) blocked 0/3, linked server SSOT for data/CLI proof and native limits
 - [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries
 - [audio-libraries](reference/audio-libraries.md) — Audio engines and spatial audio tools (AudioNimbus, etc.)
 

@@ -83,6 +83,10 @@ MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` +
 
 # Wiki Log
 
+## 2026-10-01 — Zaralda fixture acceptance blocker
+
+Updated [[test-assets]] and index with prepared/executed `7903cb5e` fixture and native BLOCKED 0/3. Linked [server Midnight SSOT](../../../game-server/docs/wiki/investigations/midnight-economy-content.md#native-acceptance-blocker) rather than duplicating catalog/data/CLI facts. No runtime fix, new probe, build or service operation; concurrent engine work preserved. Overall goal open.
+
 ## [2026-09-30] systems | Login handshake timeout
 
 Updated [[godot-conversion]]: Netcode client timeout 60 s → 10 s and a 5 s handshake timeout whose reason the login screen shows (`login_connection_loss.gd` GREEN, 5.8 s).
