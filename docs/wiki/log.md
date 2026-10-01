@@ -2390,3 +2390,5 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 - 2026-10-01: [Native player mail](systems/trade-and-mail.md#native-player-mail-2026-10-01): full native MailFrame (Send Mail, C.O.D., Return/Delete, Reply, Open All, minimap indicator) and the live two-client private-server proof including a server restart; `PendingMail` now survives Loading and map changes.
 
 - 2026-10-01: [Native player mail proof](systems/trade-and-mail.md#native-player-mail-proof-2026-10-01) rerun after merging master 3f0779e6 (uiown bags/Escape): Reply and Open All now live; Reply edit-box fix `ad8553f3`.
+
+- 2026-10-01: Bounded [native JS reconciliation](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail): independent1542 accepts Login/frame-deadline continuation and four readability fixes; root compilation PASS, overall FAIL on transferred quest rootfmt spacing. MAIN offline/world runtime0 covers ten variants combined, independent1547/1548 pending. Linked spec/matrix retain semantic, omitted-water, shutdown and full-conversion gaps; no source/tests/operations.
