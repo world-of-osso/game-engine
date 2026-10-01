@@ -100,6 +100,19 @@ struct Session {
 }
 
 impl Session {
+    fn new(since: Instant) -> Self {
+        Self {
+            phase: Phase::Loading,
+            since,
+            selected: None,
+            opens: 0,
+            repairs: 0,
+            junk: 0,
+            commit: false,
+            configured: false,
+        }
+    }
+
     fn advance(&mut self, phase: Phase) {
         println!(
             "MERCHANT SERVICES PHASE {phase:?} repair={} junk={}",
@@ -127,6 +140,15 @@ impl Session {
         }
         self.selected
             .ok_or("services marker before authenticated selection")?;
+        match self.phase {
+            Phase::Loading | Phase::Ready | Phase::VendorOpen | Phase::RepairReady => {
+                self.apply_startup_marker(app, line)
+            }
+            _ => self.apply_service_marker(line),
+        }
+    }
+
+    fn apply_startup_marker(&mut self, app: &mut App, line: &str) -> Result<(), String> {
         match (&self.phase, line) {
             (Phase::Loading, "FIXTURE MERCHANT_SERVICES_LOADING") => self.send_loading(app),
             (Phase::Ready, "FIXTURE MERCHANT_SERVICES_READY") => self.advance(Phase::Open),
@@ -136,13 +158,16 @@ impl Session {
             (Phase::RepairReady, "FIXTURE MERCHANT_SERVICES_REPAIR_ARM") => {
                 self.advance(Phase::RepairRequest)
             }
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn apply_service_marker(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
             (Phase::RepairRequest, "FIXTURE MERCHANT_SERVICES_REPAIR_COMMIT")
             | (Phase::JunkRequest, "FIXTURE MERCHANT_SERVICES_JUNK_COMMIT") => {
-                self.require_quiet()?;
-                if self.commit {
-                    return Err("duplicate services commit marker".into());
-                }
-                self.commit = true;
+                self.commit_after_quiet()?;
             }
             (Phase::RepairDelta, "FIXTURE MERCHANT_SERVICES_REPAIR_DONE") => {
                 self.require_quiet()?;
@@ -156,14 +181,22 @@ impl Session {
                 self.require_quiet()?;
                 self.advance(Phase::Drain);
             }
-            _ => {
-                return Err(format!(
-                    "services marker out of order {line} in {:?}",
-                    self.phase
-                ));
-            }
+            _ => return Err(self.marker_order_error(line)),
         }
         Ok(())
+    }
+
+    fn commit_after_quiet(&mut self) -> Result<(), String> {
+        self.require_quiet()?;
+        if self.commit {
+            return Err("duplicate services commit marker".into());
+        }
+        self.commit = true;
+        Ok(())
+    }
+
+    fn marker_order_error(&self, line: &str) -> String {
+        format!("services marker out of order {line} in {:?}", self.phase)
     }
 
     fn send_loading(&mut self, app: &mut App) {
@@ -199,7 +232,8 @@ impl Session {
         for request in interactions {
             let owned = vendor.map(Entity::to_bits) == Some(NPC);
             let first_open = self.phase == Phase::Open && self.opens == 0;
-            if !owned || !first_open || request.npc != NPC {
+            let admissible = owned && first_open && request.npc == NPC;
+            if !admissible {
                 return Err(format!(
                     "unexpected services interaction {request:?} in {:?}",
                     self.phase
@@ -289,7 +323,7 @@ impl Session {
 }
 
 /// Call once after root selection creates the same owned vendor as merchant-cursor.
-pub(super) fn setup(app: &mut App) -> Result<(), String> {
+fn configure_owned_vendor_flags(app: &mut App) -> Result<(), String> {
     let vendor = app
         .world()
         .resource::<Incoming>()
@@ -342,35 +376,37 @@ fn send_vendor(app: &mut App) {
             kind: InteractionKind::Role(NpcRole::Vendor),
         },
     );
-    send::<_, InventoryChannel>(
-        app,
-        InventorySnapshot {
-            bags: vec![BagContents {
-                bag: 0,
-                size: 16,
-                items: vec![bag_item(0, 4865, 2), bag_item(1, 2589, 3)],
-            }],
-        },
-    );
-    send::<_, MerchantChannel>(
-        app,
-        VendorInventory {
-            npc: NPC,
-            can_repair: true,
-            items: vec![VendorItem {
-                slot: 0,
-                item_id: 2589,
-                name: "Linen Cloth".into(),
-                quality: 1,
-                price: 25,
-                stack_count: 1,
-                max_stack: 1000,
-                num_available: None,
-                usable: true,
-            }],
-        },
-    );
+    send::<_, InventoryChannel>(app, build_initial_inventory_snapshot());
+    send::<_, MerchantChannel>(app, build_vendor_inventory());
     send_durability(app, 16);
+}
+
+fn build_initial_inventory_snapshot() -> InventorySnapshot {
+    InventorySnapshot {
+        bags: vec![BagContents {
+            bag: 0,
+            size: 16,
+            items: vec![bag_item(0, 4865, 2), bag_item(1, 2589, 3)],
+        }],
+    }
+}
+
+fn build_vendor_inventory() -> VendorInventory {
+    VendorInventory {
+        npc: NPC,
+        can_repair: true,
+        items: vec![VendorItem {
+            slot: 0,
+            item_id: 2589,
+            name: "Linen Cloth".into(),
+            quality: 1,
+            price: 25,
+            stack_count: 1,
+            max_stack: 1000,
+            num_available: None,
+            usable: true,
+        }],
+    }
 }
 
 fn send_junk_authority(app: &mut App, selected: Entity) {
@@ -418,7 +454,7 @@ fn tick_peer(
         remote,
     )?;
     if session.selected.is_some() && !session.configured {
-        setup(app)?;
+        configure_owned_vendor_flags(app)?;
         session.configured = true;
     }
     Ok(())
@@ -451,11 +487,7 @@ fn run_iteration(
     Ok(())
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn register_service_receivers(app: &mut App) {
     app.init_resource::<Requests>();
     app.add_systems(
         Update,
@@ -465,16 +497,15 @@ fn run_until_done(
             receive_inventory_rejections,
         ),
     );
-    let mut session = Session {
-        phase: Phase::Loading,
-        since: Instant::now(),
-        selected: None,
-        opens: 0,
-        repairs: 0,
-        junk: 0,
-        commit: false,
-        configured: false,
-    };
+}
+
+fn run_until_done(
+    app: &mut App,
+    child: &mut Child,
+    lines: &Receiver<String>,
+) -> Result<(), String> {
+    register_service_receivers(app);
+    let mut session = Session::new(Instant::now());
     let mut remote = None;
     let deadline = Instant::now() + TIMEOUT + Duration::from_secs(60);
     while Instant::now() < deadline {
