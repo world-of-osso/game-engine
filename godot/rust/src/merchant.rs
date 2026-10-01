@@ -594,7 +594,7 @@ impl GameClient {
         }
     }
 
-    /// Automation view of the vendor session: open vendor, cells, buyback, bags, money.
+    /// Automation view of the vendor session: vendor, cells, buyback, bags, equipment, money.
     pub(super) fn merchant_snapshot(&self) -> VarDictionary {
         let session = &self.merchant.session;
         let merchant = &session.merchant;
@@ -617,6 +617,7 @@ impl GameClient {
             &string_array(merchant.buyback.iter().map(|item| &item.name)),
         );
         state.set("bags", &bag_items(&session.inventory));
+        state.set("equipment", &equipment_items(&session.inventory));
         state.set("money", session.money as i64);
         state.set("repair_cost", i64::from(session.repair_cost));
         state.set("split_open", session.split.is_some());
@@ -639,6 +640,20 @@ fn string_array<'a>(items: impl Iterator<Item = &'a String>) -> VarArray {
         array.push(&item.to_variant());
     }
     array
+}
+
+/// Occupied equipment slots from the authoritative inventory state.
+fn equipment_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarArray {
+    let mut equipment = VarArray::new();
+    for (slot, item) in &inventory.equipment {
+        let mut entry = VarDictionary::new();
+        entry.set("slot", format!("{slot:?}").as_str());
+        entry.set("item_id", i64::from(item.item_id));
+        entry.set("item_guid", item.item_guid as i64);
+        entry.set("count", i64::from(item.count));
+        equipment.push(&entry.to_variant());
+    }
+    equipment
 }
 
 /// Occupied bag slots: bag, slot, item id, catalog name and count.
