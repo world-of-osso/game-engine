@@ -12,6 +12,7 @@ mod bag_cursor;
 mod bag_destroy;
 mod bag_tooltip;
 mod bags;
+mod bank;
 mod camera;
 mod char_create;
 mod character_select;
@@ -172,6 +173,7 @@ pub struct GameClient {
     merchant: merchant::Merchant,
     bags: bags::Bags,
     mailbox: mail::Mailbox,
+    banks: bank::Banks,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
@@ -257,6 +259,7 @@ impl INode3D for GameClient {
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
             mailbox: mail::Mailbox::default(),
+            banks: bank::Banks::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
@@ -356,6 +359,19 @@ impl INode3D for GameClient {
                 viewport.set_input_as_handled();
             }
             return;
+        }
+        match self.bank_key(key.get_keycode()) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.handle_frame_error("Bank key", error.into());
+                return;
+            }
         }
         match self.mailbox_key(key.get_keycode()) {
             Ok(true) => {
@@ -710,6 +726,12 @@ impl GameClient {
         self.auction_snapshot()
     }
 
+    /// Read-only bank and guild bank state; requests only come from real frame input.
+    #[func]
+    fn bank_state(&self) -> VarDictionary {
+        self.bank_snapshot()
+    }
+
     /// Read-only receiving mail state; requests only come from real mailbox/frame input.
     #[func]
     fn mail_state(&self) -> VarDictionary {
@@ -926,6 +948,7 @@ impl GameClient {
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
+        self.banks.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
@@ -1372,6 +1395,7 @@ impl GameClient {
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),
+            ("Banks", |c, _| c.update_banks()),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -1488,6 +1512,7 @@ impl GameClient {
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::Mail(message) => self.receive_mail(message)?,
+            AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
             AccountEvent::ReplicationEnded => {
@@ -1499,7 +1524,11 @@ impl GameClient {
                 self.receive_creation_result(success, error)?
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
-            AccountEvent::Npc(message) => self.receive_npc_message(message)?,
+            AccountEvent::Npc(message) => {
+                if !self.bank_npc_message(&message) {
+                    self.receive_npc_message(message)?
+                }
+            }
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),

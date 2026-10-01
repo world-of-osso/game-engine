@@ -147,7 +147,8 @@ impl GuildBankSession {
         vec![GuildBankEffect::CloseInteraction { npc }]
     }
 
-    fn close_frame(&mut self) {
+    /// Another frame or a reset ends the interaction; the server already knows.
+    pub fn close_frame(&mut self) {
         self.state.close();
         self.error = None;
         self.purchase_confirmation = None;

@@ -761,6 +761,52 @@ impl RegistryUi {
         )
     }
 
+    /// BankFrame on the metal border; bag slots stay in the standalone Bags UI.
+    pub fn show_bank(
+        &mut self,
+        state: game_engine_ui_model::bank_frame_component::BankFrameState,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::bank_frame_component::bank_frame_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )?;
+        self.bag_inputs = Some(VecDeque::new());
+        Ok(())
+    }
+
+    /// GuildBankFrame with the backpack it deposits from.
+    pub fn show_guild_bank(
+        &mut self,
+        state: game_engine_ui_model::guild_bank::NativeGuildBankView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::guild_bank::native_guild_bank_screen,
+            ScreenPostsetup::Merchant,
+            registry,
+            parent,
+        )?;
+        self.bag_inputs = Some(VecDeque::new());
+        Ok(())
+    }
+
     pub fn show_auction_gossip(
         &mut self,
         state: game_engine_ui_model::auction::AuctionGossipView,
