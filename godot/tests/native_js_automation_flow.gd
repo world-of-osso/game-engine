@@ -122,7 +122,7 @@ func negative_login_is_mounted(login: CanvasLayer) -> bool:
 	var state: Dictionary = client.account_state()
 	var editors_visible := username.is_visible_in_tree() and password.is_visible_in_tree()
 	var login_visible := login.is_inside_tree() and login.visible and connect_button.is_visible_in_tree()
-	var awaiting_login := state.screen == "Login" and not state.reply_received
+	var awaiting_login: bool = state.screen == "Login" and not state.reply_received
 	return editors_visible and login_visible and awaiting_login
 
 func observe_noneditable_type(login: CanvasLayer) -> void:
@@ -131,7 +131,8 @@ func observe_noneditable_type(login: CanvasLayer) -> void:
 		fail("SETUP: noneditable-type requires actual authored BlizzardThanks label")
 		return
 	var label_has_area := label.size.x > 0 and label.size.y > 0
-	if not label.is_visible_in_tree() or not label_has_area:
+	var label_is_clickable: bool = label.is_visible_in_tree() and label_has_area
+	if not label_is_clickable:
 		fail("SETUP: noneditable-type requires actual visible authored BlizzardThanks label with click area")
 		return
 	if root.gui_get_focus_owner() != null:
