@@ -4,7 +4,7 @@ extends SceneTree
 # No renderer oracle, hide control, animation seek, or acceptance assertions.
 # godot --path godot -s res://tests/skybox_render_state.gd -- --screen skyboxdebug
 #   --skybox-fdid 5412968 --skybox-verify --skybox-time-ms 0
-# Repeat with 100000; coastal control uses --skybox-fdid 525142.
+# Repeat with 100000 or the cloud's first opaque key at 200000; coastal uses FDID 525142.
 const SOURCE_META := "m2_source_path"
 const WAIT_MS := 30000
 const SAMPLE_GRID := 4
@@ -59,8 +59,8 @@ func validate_inputs() -> bool:
 	time_arg = first_value(args, "--skybox-time-ms")
 	if not fdid_arg in ["5412968", "525142"]:
 		return reject("Bounded sources require --skybox-fdid 5412968 or coastal 525142")
-	if not time_arg in ["0", "100000"]:
-		return reject("Requires --skybox-time-ms 0 or 100000")
+	if not time_arg in ["0", "100000", "200000"]:
+		return reject("Requires --skybox-time-ms 0, 100000 or 200000")
 	if args.has("--light-skybox-id"):
 		return reject("Conflicting --light-skybox-id with forced FDID")
 	return true
@@ -251,7 +251,11 @@ func camera_data() -> Dictionary:
 		"path": str(camera.get_path()), "transform": transform_data(camera.global_transform),
 		"fov": camera.fov, "near": camera.near, "far": camera.far,
 		"projection": camera.projection, "keep_aspect": camera.keep_aspect,
-		"viewport_extent": [root.size.x, root.size.y]
+		"viewport_extent": [root.size.x, root.size.y],
+		"msaa_3d": root.msaa_3d, "msaa_2d": root.msaa_2d,
+		"scaling_3d_scale": root.scaling_3d_scale, "use_taa": root.use_taa,
+		"screen_space_aa": root.screen_space_aa,
+		"vsync_mode": DisplayServer.window_get_vsync_mode()
 	}
 
 func render_modes(code: String) -> Array:
