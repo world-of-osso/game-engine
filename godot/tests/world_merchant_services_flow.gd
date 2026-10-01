@@ -123,20 +123,19 @@ func services_no_modal(client: Node) -> bool:
 func services_modal_reason(client: Node) -> String:
 	if client.merchant_state().split_open:
 		return "merchant split_open=true"
-	if client.get_node_or_null("GameMenuUI") != null:
-		return "GameMenuUI root exists"
-	for name in ["CursorItemIcon", "StackSplitFrame", "MerchantRepairItemButton"]:
+	for name in ["CursorItemIcon", "StackSplitFrame", "GameMenuFrame"]:
 		var control := client.find_child(name, true, false) as Control
 		if control != null and control.is_visible_in_tree():
 			return services_modal_path(control)
 	for node in root.find_children("*", "Window", true, false):
 		if (node as Window).visible:
 			return "visible Window: " + str(node.get_path())
-	for node in client.find_children("*", "Control", true, false):
-		var name := str(node.name).to_lower()
-		if name.contains("popup") or name.contains("confirmation") or name.contains("picker"):
-			if (node as Control).is_visible_in_tree():
-				return services_modal_path(node)
+	# StaticPopupRoot is an always-mounted empty container, not a dialog.
+	# The authored visible dialogs are StaticPopup1, StaticPopup2, and so on.
+	for node in client.find_children("StaticPopup*", "Control", true, false):
+		var suffix := str(node.name).trim_prefix("StaticPopup")
+		if suffix.is_valid_int() and (node as Control).is_visible_in_tree():
+			return services_modal_path(node)
 	return ""
 
 func services_modal_path(control: Node) -> String:
