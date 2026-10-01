@@ -10,7 +10,7 @@ use std::{
     io::{BufRead, BufReader, Read, Write},
     net::{SocketAddr, UdpSocket},
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    process::{Child, Command, ExitStatus, Stdio},
     sync::mpsc::{self, Receiver, Sender},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -301,7 +301,11 @@ impl Peer {
         Ok(())
     }
 
-    fn observe_world(&mut self, app: &mut App, artifacts: &Path) -> Result<(), String> {
+    fn send_terrain_spawn_npc_and_open_vendor(
+        &mut self,
+        app: &mut App,
+        artifacts: &Path,
+    ) -> Result<(), String> {
         match self.phase {
             Phase::Loading if artifacts.join("loading").is_file() => {
                 self.send::<_, TerrainChannel>(
@@ -486,7 +490,7 @@ impl Peer {
     fn tick(&mut self, app: &mut App, artifacts: &Path) -> Result<(), String> {
         self.authenticate(app)?;
         self.select(app, artifacts)?;
-        self.observe_world(app, artifacts)?;
+        self.send_terrain_spawn_npc_and_open_vendor(app, artifacts)?;
         self.receive_buys(app, artifacts)?;
         self.commit_buys(app, artifacts)
     }
@@ -650,11 +654,7 @@ fn record(
     Ok(())
 }
 
-fn run_fixture() -> Result<(), String> {
-    if std::env::args_os().len() != 1 {
-        return Err("SETUP: usage: native_js_world_fixture".into());
-    }
-    let root = fixture_support::checkout_root_from_executable("native_js_world_fixture")?;
+fn create_artifacts_and_log(root: &Path) -> Result<(PathBuf, fs::File), String> {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|error| error.to_string())?
@@ -664,34 +664,49 @@ fn run_fixture() -> Result<(), String> {
         std::process::id()
     ));
     fs::create_dir_all(&artifacts).map_err(|error| error.to_string())?;
-    let mut log =
-        fs::File::create(artifacts.join("native.log")).map_err(|error| error.to_string())?;
-    let (mut app, address) = start_peer()?;
-    let (mut child, receiver) = launch(&root, &artifacts, address)?;
-    println!(
-        "ARTIFACTS {} owned client PID={} loopback={address}",
-        artifacts.display(),
-        child.0.id()
-    );
-    let mut peer = Peer::new();
+    let log = fs::File::create(artifacts.join("native.log")).map_err(|error| error.to_string())?;
+    Ok((artifacts, log))
+}
+
+fn poll_child_exit_and_drain_output(
+    child: &mut OwnedChild,
+    exited: &mut Option<ExitStatus>,
+    receiver: &Receiver<Result<Output, String>>,
+    log: &mut fs::File,
+    lines: &mut Vec<Output>,
+) -> Result<bool, String> {
+    if exited.is_none() {
+        *exited = child.0.try_wait().map_err(|error| error.to_string())?;
+    }
+    if exited.is_some() {
+        match receiver.recv_timeout(Duration::from_millis(10)) {
+            Ok(output) => record(output, log, lines)?,
+            Err(mpsc::RecvTimeoutError::Disconnected) => return Ok(true),
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+        }
+    }
+    Ok(false)
+}
+
+fn pump_peer_and_child_output_until_readers_close(
+    app: &mut App,
+    peer: &mut Peer,
+    artifacts: &Path,
+    child: &mut OwnedChild,
+    receiver: &Receiver<Result<Output, String>>,
+    log: &mut fs::File,
+) -> Result<(Option<ExitStatus>, Vec<Output>), String> {
     let mut lines = Vec::new();
     let deadline = Instant::now() + TIMEOUT;
     let mut exited = None;
     loop {
         app.update();
-        peer.tick(&mut app, &artifacts)?;
+        peer.tick(app, artifacts)?;
         for output in receiver.try_iter() {
-            record(output, &mut log, &mut lines)?;
+            record(output, log, &mut lines)?;
         }
-        if exited.is_none() {
-            exited = child.0.try_wait().map_err(|error| error.to_string())?;
-        }
-        if exited.is_some() {
-            match receiver.recv_timeout(Duration::from_millis(10)) {
-                Ok(output) => record(output, &mut log, &mut lines)?,
-                Err(mpsc::RecvTimeoutError::Disconnected) => break,
-                Err(mpsc::RecvTimeoutError::Timeout) => {}
-            }
+        if poll_child_exit_and_drain_output(child, &mut exited, receiver, log, &mut lines)? {
+            break;
         }
         if Instant::now() >= deadline {
             return Err(format!(
@@ -701,6 +716,13 @@ fn run_fixture() -> Result<(), String> {
         }
         thread::sleep(Duration::from_millis(5));
     }
+    Ok((exited, lines))
+}
+
+fn assert_child_exit_and_peer_result(
+    exited: Option<ExitStatus>,
+    peer: &Peer,
+) -> Result<(), String> {
     let status = exited.ok_or("SETUP: missing child exit")?;
     if !status.success() || peer.phase != Phase::Done || peer.buys != 2 {
         return Err(format!(
@@ -708,6 +730,10 @@ fn run_fixture() -> Result<(), String> {
             peer.phase, peer.buys
         ));
     }
+    Ok(())
+}
+
+fn assert_production_stdout_frames(lines: &[Output]) -> Result<(), String> {
     for frame in ["CharSelectCharacterName", "MerchantItem1", "MerchantFrame"] {
         if !lines.iter().any(|output| {
             output.stdout
@@ -720,6 +746,28 @@ fn run_fixture() -> Result<(), String> {
             ));
         }
     }
+    Ok(())
+}
+
+fn run_fixture() -> Result<(), String> {
+    if std::env::args_os().len() != 1 {
+        return Err("SETUP: usage: native_js_world_fixture".into());
+    }
+    let root = fixture_support::checkout_root_from_executable("native_js_world_fixture")?;
+    let (artifacts, mut log) = create_artifacts_and_log(&root)?;
+    let (mut app, address) = start_peer()?;
+    let (mut child, receiver) = launch(&root, &artifacts, address)?;
+    println!(
+        "ARTIFACTS {} owned client PID={} loopback={address}",
+        artifacts.display(),
+        child.0.id()
+    );
+    let mut peer = Peer::new();
+    let (exited, lines) = pump_peer_and_child_output_until_readers_close(
+        &mut app, &mut peer, &artifacts, &mut child, &receiver, &mut log,
+    )?;
+    assert_child_exit_and_peer_result(exited, &peer)?;
+    assert_production_stdout_frames(&lines)?;
     println!(
         "PASS bounded JS world: real owned auth/selection/terrain; exact Buy1 None + Shift/key2/Enter Buy2 None; both authority barriers; not server economy/global ownership/full conversion/shutdown proof"
     );
