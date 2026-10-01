@@ -73,7 +73,7 @@ func run_test() -> void:
 		return
 	print("LIMIT: no original-expected pixel oracle; contribution is not full pixel parity")
 	print("LIMIT: concrete batch0 UV translation proof does not cover every bone/material track")
-	print("PASS: bounded production skybox startup/source/camera/input/composition/contribution observer")
+	print("PASS: bounded skybox observers; exact coverage is individual FIXTURE records above")
 	quit(0)
 
 func choose_case() -> bool:
@@ -296,6 +296,7 @@ func check_rendered_fog() -> bool:
 
 func compare_radial_fog(enabled: Image, disabled: Image, restored: Image, plane: MeshInstance3D) -> bool:
 	var counts := PackedInt32Array([0, 0, 0])
+	var changed_ground_samples := 0
 	var max_error := 0.0
 	var bounds := plane.get_aabb()
 	for y in range(8, enabled.get_height() - 8, 8):
@@ -319,6 +320,8 @@ func compare_radial_fog(enabled: Image, disabled: Image, restored: Image, plane:
 			max_error = maxf(max_error, error)
 			if error > FOG_PIXEL_EPSILON:
 				return reject("Rendered radial fog mismatch at %s distance=%.4f error=%.6f" % [point, distance, error])
+			if weight > 0.0 and pixel_delta(enabled, disabled, point) > PIXEL_DELTA:
+				changed_ground_samples += 1
 			if pixel_delta(enabled, restored, point) > PIXEL_DELTA:
 				return reject("Reference fog restoration changed ground pixel at %s" % point)
 			var band := 0 if weight == 0.0 else (2 if weight == 1.0 else 1)
@@ -326,7 +329,9 @@ func compare_radial_fog(enabled: Image, disabled: Image, restored: Image, plane:
 	for band in 3:
 		if counts[band] < 10:
 			return reject("Insufficient rendered fog samples in near/transition/far band %d: %d" % [band, counts[band]])
-	print("FIXTURE RADIAL_FOG near/transition/far=", counts, " max_error=", max_error)
+	if changed_ground_samples < 100:
+		return reject("Shader fog toggle changed too few actual reference-ground samples: %d" % changed_ground_samples)
+	print("FIXTURE RADIAL_FOG near/transition/far=", counts, " changed_ground=", changed_ground_samples, " max_error=", max_error)
 	return true
 
 func rgb_error(a: Color, b: Color) -> float:
