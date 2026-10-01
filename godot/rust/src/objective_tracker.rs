@@ -102,12 +102,7 @@ impl GameClient {
     }
 
     fn cache_objective_tracker_textures(&self) {
-        let cache_root = std::path::PathBuf::from(
-            godot::classes::ProjectSettings::singleton()
-                .globalize_path("user://asset-resolver")
-                .to_string(),
-        );
-        let resolver = crate::assets::creature::local_resolver(&self.data_root, &cache_root);
+        let resolver = crate::assets::creature::local_resolver(&self.data_root);
         for fdid in TRACKER_FDIDS {
             let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
             if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {

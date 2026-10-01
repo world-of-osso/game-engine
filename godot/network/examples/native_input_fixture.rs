@@ -1303,7 +1303,6 @@ fn stage_isolated_project(
     let project = matches!(
         screen,
         StartupScreen::ResetWindows
-            | StartupScreen::SettingsReload
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
             | StartupScreen::PortalDensity

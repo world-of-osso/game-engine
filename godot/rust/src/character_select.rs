@@ -106,7 +106,6 @@ fn sync_camera_and_facing(
 
 pub(crate) struct CharacterPreview {
     data_root: PathBuf,
-    cache_root: PathBuf,
     customization: Option<CustomizationDb>,
     preview: Option<Preview>,
     /// Chosen campsite; `None` shows the first authored scene.
@@ -114,10 +113,9 @@ pub(crate) struct CharacterPreview {
 }
 
 impl CharacterPreview {
-    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+    pub fn new(data_root: PathBuf) -> Self {
         Self {
             data_root,
-            cache_root,
             customization: None,
             preview: None,
             scene_id: None,
@@ -174,11 +172,7 @@ impl CharacterPreview {
     }
 
     fn load_scene(&self, parent: &mut Gd<Node3D>) -> Result<Preview, String> {
-        let background = Background::load(
-            self.data_root.clone(),
-            self.cache_root.clone(),
-            self.scene_id,
-        )?;
+        let background = Background::load(self.data_root.clone(), self.scene_id)?;
         let mut root = Node3D::new_alloc();
         root.set_name("CharacterSelectScene");
         parent.add_child(&root);
@@ -208,12 +202,8 @@ impl CharacterPreview {
             class: character.class,
             appearance: character.appearance.clone(),
         };
-        let mut model = load_player_model(
-            &self.data_root,
-            &self.cache_root,
-            &player,
-            &character.equipment_appearance,
-        )?;
+        let mut model =
+            load_player_model(&self.data_root, &player, &character.equipment_appearance)?;
         model.set_name("SelectedCharacter");
         model.set_scale(Vector3::ONE * presentation.customize_scale.max(0.01));
         Ok(Shown {

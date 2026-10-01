@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn stockade_worker_floor_support_respects_bounds_and_reset() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let mut terrain = StreamedTerrain::new(data_root.clone(), data_root.join("cache"));
+        let mut terrain = StreamedTerrain::new(data_root.clone());
         let inside = Vec3::new(103.0, -34.5, -76.0);
         let outside = Vec3::new(99.0, -34.5, -77.0);
         assert_eq!(
@@ -174,8 +174,7 @@ mod tests {
     #[test]
     fn stockade_entrance_ground_is_the_placed_wmo_floor_and_stairs() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let cache_root = data_root.join("cache");
-        let mut terrain = StreamedTerrain::new(data_root.clone(), cache_root.clone());
+        let mut terrain = StreamedTerrain::new(data_root.clone());
         terrain.request_map("azeroth".into(), (30, 48)).unwrap();
         let deadline = Instant::now() + Duration::from_secs(60);
         while !terrain.parsed_tiles.contains_key(&(30, 48)) {

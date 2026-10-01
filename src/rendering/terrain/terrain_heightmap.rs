@@ -509,6 +509,7 @@ mod tests {
                                 vertex_heights: vec![5.0, 5.0, 5.0, 5.0],
                                 vertex_uvs: Vec::new(),
                                 vertex_depths: Vec::new(),
+                                object_vertex_bytes: Vec::new(),
                             }]
                         } else {
                             Vec::new()

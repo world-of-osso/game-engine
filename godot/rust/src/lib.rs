@@ -12,6 +12,7 @@ mod camera;
 mod char_create;
 mod character_select;
 mod chat;
+mod combat_text;
 mod combat_visuals;
 mod damage_meter;
 mod display_options;
@@ -118,6 +119,8 @@ pub struct GameClient {
     data_root: PathBuf,
     /// Pending CASC startup worker, or its spawn error; None after startup completes.
     asset_startup: Option<Result<asset_startup::AssetStartup, String>>,
+    /// Account events received while CASC initializes, applied once it has.
+    startup_events: Vec<AccountEvent>,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
@@ -171,12 +174,7 @@ impl INode3D for GameClient {
     fn init(base: Base<Node3D>) -> Self {
         let settings = ProjectSettings::singleton();
         let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
-        let cache_root =
-            PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
-        let asset_startup = Some(asset_startup::AssetStartup::start(
-            data_root.clone(),
-            cache_root.clone(),
-        ));
+        let asset_startup = Some(asset_startup::AssetStartup::start(data_root.clone()));
         let client_options =
             load_options_file_with_legacy(&data_root.join("ui/options_settings.ron")).clamped();
         // Bag items resolve names, quality and icons from the shared item tables; the
@@ -189,7 +187,6 @@ impl INode3D for GameClient {
             "WorldObjects",
             WORLD_OBJECT_BUDGET,
             data_root.clone(),
-            cache_root.clone(),
         );
         let graphics = &client_options.graphics;
         if graphics.particle_effects_enabled {
@@ -207,12 +204,10 @@ impl INode3D for GameClient {
             name_catalog: None,
             data_root: data_root.clone(),
             asset_startup,
-            character_preview: character_select::CharacterPreview::new(
-                data_root.clone(),
-                cache_root.clone(),
-            ),
+            startup_events: Vec::new(),
+            character_preview: character_select::CharacterPreview::new(data_root.clone()),
             campsite: CampsiteState::default(),
-            creation_scene: char_create::CreationScene::new(data_root.clone(), cache_root.clone()),
+            creation_scene: char_create::CreationScene::new(data_root.clone()),
             loading_ui: None,
             errors_ui: None,
             mirror_timer_ui: None,
@@ -230,13 +225,10 @@ impl INode3D for GameClient {
             account: Account::new(data_root.clone()),
             sound: None,
             area_parents: HashMap::new(),
-            terrain: terrain::streaming::StreamedTerrain::new(
-                data_root.clone(),
-                cache_root.clone(),
-            ),
+            terrain: terrain::streaming::StreamedTerrain::new(data_root.clone()),
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
-            global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone(), &cache_root),
+            global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone()),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_map_id: None,
@@ -252,14 +244,14 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
             mailbox: mail::Mailbox::default(),
-            game_objects: game_objects::GameObjects::new(data_root.clone(), cache_root.clone()),
+            game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
             replica: Replica::default(),
-            spell_effects: spell_effects::SpellEffects::new(data_root.clone(), cache_root.clone()),
-            world: world::WorldUnits::new(data_root, cache_root),
+            spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
+            world: world::WorldUnits::new(data_root),
             server_hostname: if cfg!(debug_assertions) {
                 "127.0.0.1:5000"
             } else {
@@ -423,6 +415,7 @@ impl INode3D for GameClient {
 
     fn process(&mut self, delta: f64) {
         if !self.poll_asset_startup() {
+            self.receive_account_during_startup();
             self.physical_input.finish_frame();
             return;
         }
@@ -506,6 +499,9 @@ impl INode3D for GameClient {
     }
 
     fn exit_tree(&mut self) {
+        // The display server keeps the custom cursor texture until it is replaced; left
+        // set, it outlives RenderingServer and its RID leaks at exit.
+        self.set_world_cursor(None);
         self.stop_sound();
         if let Err(error) = self.account.stop() {
             godot_error!("Account shutdown failed: {error}");
@@ -699,6 +695,7 @@ impl GameClient {
                 .unwrap_or_default(),
         );
         state.set("reply_received", self.account.reply_received);
+        state.set("assets_starting", self.asset_startup.is_some());
         state.set("connected", self.account.is_connected());
         state.set(
             "selected_character_id",
@@ -1315,8 +1312,21 @@ impl GameClient {
 
     /// A failure handling one event is reported and the next event still applies;
     /// only a transport or protocol failure ends the poll.
+    /// While CASC initializes, the session still receives its traffic (a login reply
+    /// updates the session at once); events that show screens or units wait for it.
+    fn receive_account_during_startup(&mut self) {
+        match self.account.poll() {
+            Ok(events) => self.startup_events.extend(events),
+            Err(error) => {
+                self.handle_frame_error("Account", error.into());
+            }
+        }
+    }
+
     fn poll_account(&mut self) -> Result<(), FrameError> {
-        for event in self.account.poll()? {
+        let mut events = std::mem::take(&mut self.startup_events);
+        events.extend(self.account.poll()?);
+        for event in events {
             match self.apply_account_event(event) {
                 Err(FrameError::Client(error)) => {
                     frame_error::report_once(&format!("Account event: {error}"))

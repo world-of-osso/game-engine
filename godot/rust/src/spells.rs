@@ -37,6 +37,7 @@ use shared::casting::CastState;
 use shared::components::{Health, Player, PowerType, UnitLevel, UnitPowers};
 use shared::protocol::{ActionRef, CastFailed, CombatLogKind};
 
+use crate::combat_text;
 use crate::frame_error::{FrameError, SessionError, report_once};
 use crate::{
     GameClient,
@@ -71,6 +72,12 @@ const FLOAT_TEXT_RISE: f32 = 1.5;
 const FLOAT_TEXT_SECS: f32 = 1.5;
 /// Height above the unit origin where combat text starts.
 const FLOAT_TEXT_HEIGHT: f32 = 3.6;
+/// Combat text `pixel_size` at its settled size.
+const FLOAT_TEXT_PIXEL: f32 = 0.0016;
+/// Font size of a hit; a crit is 1.5 times it.
+const FLOAT_TEXT_FONT_SIZE: i32 = 64;
+/// Normal text heights in one unit of the combat text start spread.
+const FLOAT_TEXT_SPREAD_HEIGHTS: f32 = 1.5;
 
 enum CatalogLoad {
     Idle,
@@ -94,6 +101,7 @@ struct FloatingText {
     node: Gd<Label3D>,
     age: f32,
     origin: Vector3,
+    crit: bool,
 }
 
 pub(crate) struct SpellsHud {
@@ -111,6 +119,8 @@ pub(crate) struct SpellsHud {
     pushed: [f32; MAIN_BAR_BUTTONS],
     combat_seen: u64,
     floating: Vec<FloatingText>,
+    /// Numbers floated so far, indexing each one's start offset.
+    floats_spawned: u32,
     /// Spell ids sent, oldest first, for automation.
     sent: Vec<u32>,
     /// Error lines shown for `CastFailed`, oldest first, for automation.
@@ -133,6 +143,7 @@ impl Default for SpellsHud {
             pushed: [0.0; MAIN_BAR_BUTTONS],
             combat_seen: 0,
             floating: Vec::new(),
+            floats_spawned: 0,
             sent: Vec::new(),
             errors: Vec::new(),
         }
@@ -442,13 +453,8 @@ impl GameClient {
             return if *found { fdid } else { 0 };
         }
         let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
-        let cache_root = PathBuf::from(
-            ProjectSettings::singleton()
-                .globalize_path("user://asset-resolver")
-                .to_string(),
-        );
         let found = path.exists()
-            || crate::assets::creature::local_resolver(&self.data_root, &cache_root)
+            || crate::assets::creature::local_resolver(&self.data_root)
                 .ensure_cached(fdid, &path)
                 .is_some();
         if !found {
@@ -921,8 +927,15 @@ impl GameClient {
             .filter(|event| matches!(event.kind, CombatLogKind::Damage | CombatLogKind::Miss(_)))
             .cloned()
             .collect();
+        let camera = self
+            .base()
+            .get_viewport()
+            .and_then(|viewport| viewport.get_camera_3d())
+            .map(|camera| camera.get_global_transform());
         for event in events {
-            let Some(unit) = event.target.and_then(|id| self.world.unit_node(id)) else {
+            let (Some(unit), Some(camera)) =
+                (event.target.and_then(|id| self.world.unit_node(id)), camera)
+            else {
                 continue;
             };
             let text = match event.kind {
@@ -938,11 +951,14 @@ impl GameClient {
                 godot::classes::label_3d::DrawFlags::DISABLE_DEPTH_TEST,
                 true,
             );
-            label.set_font_size(if event.crit { 96 } else { 64 });
+            label.set_font_size(if event.crit {
+                FLOAT_TEXT_FONT_SIZE * 3 / 2
+            } else {
+                FLOAT_TEXT_FONT_SIZE
+            });
             label.set_outline_size(8);
             // Constant on-screen size, as Retail combat text.
             label.set_draw_flag(godot::classes::label_3d::DrawFlags::FIXED_SIZE, true);
-            label.set_pixel_size(0.0016);
             // Retail white for physical damage, yellow for spell schools.
             let color = if event.school_mask == 1 {
                 Color::from_rgb(1.0, 1.0, 1.0)
@@ -950,16 +966,30 @@ impl GameClient {
                 Color::from_rgb(1.0, 1.0, 0.0)
             };
             label.set_modulate(color);
-            // Under the client root: unit nodes carry model scale.
-            // Successive numbers fan out sideways instead of stacking.
-            let lane = [0.0, -0.8, 0.8][(self.spells.floating.len()) % 3];
-            let origin = unit.get_global_position() + Vector3::new(lane, FLOAT_TEXT_HEIGHT, 0.0);
+            // Under the client root: unit nodes carry model scale. Each number starts at
+            // its own offset in the camera plane so simultaneous ones do not stack.
+            let anchor = unit.get_global_position() + Vector3::new(0.0, FLOAT_TEXT_HEIGHT, 0.0);
+            // A fixed-size label is `font_size * pixel_size` world units tall per unit of
+            // camera distance; the spread unit is 1.5 normal text heights at its depth.
+            let spread = FLOAT_TEXT_SPREAD_HEIGHTS
+                * FLOAT_TEXT_FONT_SIZE as f32
+                * FLOAT_TEXT_PIXEL
+                * camera.origin.distance_to(anchor);
+            let origin = anchor
+                + combat_text::start_offset(
+                    self.spells.floats_spawned,
+                    camera.basis.col_a(),
+                    spread,
+                );
+            self.spells.floats_spawned = self.spells.floats_spawned.wrapping_add(1);
             label.set_position(origin);
+            label.set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(0.0, event.crit));
             self.base_mut().add_child(&label);
             self.spells.floating.push(FloatingText {
                 node: label,
                 age: 0.0,
                 origin,
+                crit: event.crit,
             });
         }
         self.spells.floating.retain_mut(|text| {
@@ -974,6 +1004,8 @@ impl GameClient {
             let t = text.age / FLOAT_TEXT_SECS;
             text.node
                 .set_position(text.origin + Vector3::new(0.0, FLOAT_TEXT_RISE * t, 0.0));
+            text.node
+                .set_pixel_size(FLOAT_TEXT_PIXEL * combat_text::ramp_scale(text.age, text.crit));
             let mut color = text.node.get_modulate();
             color.a = 1.0 - t * t;
             text.node.set_modulate(color);
