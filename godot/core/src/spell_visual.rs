@@ -26,9 +26,9 @@ pub use voice::{UnitSound, VoiceSource, player_displays};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 7;
+const CACHE_FORMAT: u32 = 8;
 
-const SOURCE_TABLES: [&str; 23] = [
+const SOURCE_TABLES: [&str; 24] = [
     "SpellXSpellVisual",
     "SpellVisual",
     "SpellVisualEvent",
@@ -52,6 +52,7 @@ const SOURCE_TABLES: [&str; 23] = [
     "ItemSubClass",
     "Item",
     "ItemDisplayInfo",
+    "Material",
 ];
 
 /// `SpellVisualKitEffect.EffectType` of a model attachment, a sound kit and a unit

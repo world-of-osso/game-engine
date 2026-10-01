@@ -14,9 +14,10 @@ extends SceneTree
 ## - the warrior's swings swoosh 235 (WeaponSwingSounds2 Medium) and land 53248
 ##   (WeaponImpactSounds row 8, flesh) with the worg's wound 11908 (CreatureSoundData
 ##   2482);
-## - the worg's bare-handed (Fist Weapon) swings swoosh 235 and land 1014 (row 13,
+## - the worg's bare-handed (Fist Weapon) swings swoosh Light 233 and land 1014 (row 13,
 ##   flesh) with the warrior's wound 2942;
-## - a missed or dodged swing swooshes with no impact;
+## - wounds and exertions roll their chance: the warrior exerts 2941, the worg 11907;
+## - a missed or dodged swing swooshes the 1H miss whoosh 7080 with no impact;
 ## - each impact follows its swoosh within the clip's $CSS → $CAH gap.
 
 const PASSWORD := "fbtest"
@@ -29,7 +30,10 @@ const WARRIOR_IMPACT_CRIT := 53249
 const WARRIOR_PARRIED := 53263
 const MOB := "Blackrock Worg"
 const MOB_WOUND := [11908, 11909]
-const MOB_SWING := [235, 236]
+const MOB_SWING := [233, 234]
+const MISS_WHOOSH := 7080
+const WARRIOR_EXERTION := 2941
+const MOB_EXERTION := [11907]
 const MOB_IMPACT := [1014]
 const MOB_PARRIED := 1019
 const WARRIOR_WOUND := 2942
@@ -154,7 +158,10 @@ func starts(source: String, units: Array, kits: Array) -> Array:
 	return sounds.values().filter(func(s): return s.source == source and units.has(s.unit) and kits.has(s.sound_kit))
 
 func avoided_swings() -> Array:
-	return melee.values().filter(func(m): return m.result == "Avoided" and (m.attacker == local_id or mobs.has(m.attacker)))
+	return melee.values().filter(func(m): return avoided(m) and (m.attacker == local_id or mobs.has(m.attacker)))
+
+func avoided(event: Dictionary) -> bool:
+	return event.result == "Miss" or event.result == "Dodge"
 
 func complete() -> bool:
 	return not starts("swing", [local_id], [WARRIOR_SWING, WARRIOR_SWING_CRIT]).is_empty() \
@@ -163,6 +170,8 @@ func complete() -> bool:
 		and not starts("swing", mobs, MOB_SWING).is_empty() \
 		and not starts("impact", [local_id], [MOB_IMPACT[0]]).is_empty() \
 		and not starts("voice", [local_id], [WARRIOR_WOUND]).is_empty() \
+		and not starts("voice", [local_id], [WARRIOR_EXERTION]).is_empty() \
+		and not starts("voice", mobs, MOB_EXERTION).is_empty() \
 		and not avoided_swings().is_empty()
 
 func summary() -> Dictionary:
@@ -174,6 +183,8 @@ func summary() -> Dictionary:
 		"worg_impacts": starts("impact", [local_id], MOB_IMPACT + [MOB_PARRIED]).size(),
 		"warrior_wounds": starts("voice", [local_id], [WARRIOR_WOUND]).size(),
 		"worg_deaths": starts("voice", mobs, [MOB_DEATH]).size(),
+		"warrior_exertions": starts("voice", [local_id], [WARRIOR_EXERTION]).size(),
+		"worg_exertions": starts("voice", mobs, MOB_EXERTION).size(),
 		"melee": melee.size(),
 		"avoided": avoided_swings().size(),
 	}
@@ -203,8 +214,13 @@ func check_landing() -> bool:
 			fail("No swoosh for %s's %s at %.3f" % [who(attacker), event.result, event.at])
 			return false
 		var swoosh: Dictionary = swooshes[0]
-		var impacts: Array = sounds.values().filter(func(s): return s.source == "impact" and s.unit == victim and s.at >= swoosh.at and s.at < next_at)
-		if event.result == "Avoided":
+		# From the event, not the swoosh: a first-use swoosh file (e.g. the worg's first
+		# Light kit 233) starts when its async load ends, which can trail its own impact.
+		var impacts: Array = sounds.values().filter(func(s): return s.source == "impact" and s.unit == victim and s.at >= event.at and s.at < next_at)
+		if avoided(event):
+			if swoosh.sound_kit != MISS_WHOOSH:
+				fail("Avoided swing at %.3f swooshed %d, not the miss whoosh" % [event.at, swoosh.sound_kit])
+				return false
 			if not impacts.is_empty():
 				fail("Avoided swing at %.3f struck: %s" % [event.at, impacts])
 				return false
@@ -216,7 +232,7 @@ func check_landing() -> bool:
 			fail("No impact for %s's %s at %.3f" % [who(attacker), event.result, event.at])
 			return false
 		var gap: float = impacts[0].at - swoosh.at
-		if gap < 0.0 or gap > LAND_GAP + 2.0 * longest_frame:
+		if absf(gap) > LAND_GAP + 2.0 * longest_frame:
 			fail("%s's impact %.3f s after its swoosh (longest frame %.3f s)" % [who(attacker), gap, longest_frame])
 			return false
 		print("FIXTURE LANDED %s %s swoosh=%d/%d at=%.3f impact=%d/%d gap=%.3f" % [who(attacker), event.result, swoosh.sound_kit, swoosh.fdid, swoosh.at, impacts[0].sound_kit, impacts[0].fdid, gap])

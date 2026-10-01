@@ -97,7 +97,7 @@ fn read_light_data_row(row: &CsvRow<'_>) -> Result<LightDataRow<[f32; 3]>, Strin
     })
 }
 
-fn csv_rows(
+pub(crate) fn csv_rows(
     source: &str,
 ) -> Result<(HashMap<String, usize>, impl Iterator<Item = (usize, &str)>), String> {
     let mut lines = source.lines();
@@ -113,14 +113,14 @@ fn csv_rows(
     Ok((columns, lines.enumerate()))
 }
 
-struct CsvRow<'a> {
+pub(crate) struct CsvRow<'a> {
     columns: &'a HashMap<String, usize>,
     values: Vec<&'a str>,
     line: usize,
 }
 
 impl<'a> CsvRow<'a> {
-    fn new(columns: &'a HashMap<String, usize>, line: &'a str, number: usize) -> Self {
+    pub(crate) fn new(columns: &'a HashMap<String, usize>, line: &'a str, number: usize) -> Self {
         Self {
             columns,
             values: line.split(',').collect(),
@@ -128,7 +128,7 @@ impl<'a> CsvRow<'a> {
         }
     }
 
-    fn parse<T: FromStr>(&self, name: &str) -> Result<T, String>
+    pub(crate) fn parse<T: FromStr>(&self, name: &str) -> Result<T, String>
     where
         T::Err: std::fmt::Display,
     {
@@ -145,7 +145,7 @@ impl<'a> CsvRow<'a> {
             .map_err(|error| format!("CSV row {} invalid {name}: {error}", self.line))
     }
 
-    fn number(&self, name: &str) -> Result<f32, String> {
+    pub(crate) fn number(&self, name: &str) -> Result<f32, String> {
         let value: f32 = self.parse(name)?;
         if !value.is_finite() {
             return Err(format!("CSV row {} non-finite {name}", self.line));
@@ -153,7 +153,7 @@ impl<'a> CsvRow<'a> {
         Ok(value)
     }
 
-    fn color(&self, name: &str) -> Result<[f32; 3], String> {
+    pub(crate) fn color(&self, name: &str) -> Result<[f32; 3], String> {
         // CSV exports the packed 32-bit color as either signed or unsigned decimal.
         let value: i64 = self.parse(name)?;
         if !(i64::from(i32::MIN)..=i64::from(u32::MAX)).contains(&value) {

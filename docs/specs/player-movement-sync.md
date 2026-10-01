@@ -25,7 +25,7 @@ The Godot client predicts the local player's movement and reports each moved pos
 ## Implementation inventory
 
 - `godot/rust/src/gameplay.rs` — `PlayerMovement` speed, aura multiplier, `network_input` / `stop_input`; `GameClient::send_player_input`
-- `godot/network/src/lib.rs` — `UnitSnapshot::movement_speed` from the replicated `MovementSpeed`
+- `godot/rust/src/gameplay.rs` — the local player's replicated `MovementSpeed` from the host `Replica`
 - `godot/rust/src/lib.rs` — `account_state` `local_server_speed`, `local_player_swimming`
 
 ## Tests asserting this spec

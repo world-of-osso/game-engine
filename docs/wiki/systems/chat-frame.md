@@ -33,7 +33,7 @@ This page covers the in-world chat frame `ChatFrame1`. It has the Chattynator Da
   - Any other focus loss closes the box on the next frame.
 - **Wheel.** The wheel over `ChatFrame1Messages` scrolls the chat and is consumed, so the camera does not zoom.
 - **Copy Chat** goes to `DisplayServer.clipboard_set`.
-- **Combat log.** Lines come from `Account::combat_log` by sequence number. Names come from the replicated `UnitSnapshot` NPC or player name, else `Unknown`. Spell names come from the native spell catalog.
+- **Combat log.** Lines come from `Account::combat_log` by sequence number. Names come from the replicated NPC or player name in the host `Replica`, else `Unknown`. Spell names come from the native spell catalog.
 - **RegistryUi additions:** `show_chat_frame`, `set_editbox_text`, `set_frame_alpha` (flash pulse without a rebuild), `frame_viewport_rect` and `release_focus_named`.
 - Not ported: `/who` prints `Who is unavailable.` and group commands print `Group commands are unavailable.`, because Godot has no who or group networking yet.
 

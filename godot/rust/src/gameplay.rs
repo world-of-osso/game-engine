@@ -12,8 +12,10 @@ use game_engine_core::{
         update_grounded,
     },
 };
+use game_engine_session::SessionScreen;
 use glam::Vec3;
 use shared::{
+    components::MovementSpeed,
     movement::{RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
     protocol::PlayerInput,
 };
@@ -384,6 +386,11 @@ impl PlayerMovement {
 
 impl crate::GameClient {
     pub(super) fn update_player_animation(&mut self) -> Result<(), String> {
+        // World entry now loads unit visuals asynchronously. Local gameplay animation
+        // starts at the same Loading → InWorld barrier as input and footsteps.
+        if self.account.session.screen != SessionScreen::InWorld {
+            return Ok(());
+        }
         let Some(facing) = self.world.local_player_facing() else {
             return Ok(());
         };
@@ -535,7 +542,7 @@ impl crate::GameClient {
         if let Some(speed) = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id)?.movement_speed)
+            .and_then(|id| self.replica.unit(id)?.get::<MovementSpeed>())
         {
             self.player_movement.adopt_server_speed(speed.0);
         }

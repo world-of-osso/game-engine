@@ -1,14 +1,13 @@
 //! Raid-style party frame (`CompactPartyFrame`, the player first) and raid frames
-//! (`CompactRaidFrameContainer`, 8 groups of 5), placed around the central unit-frame
-//! cluster, the member right-click menu and the ready check frame. Layout at the 1920×1080
-//! reference.
+//! (`CompactRaidFrameContainer`, 8 groups of 5): the party at the Retail Modern preset's
+//! top-left, the raid above the central unit-frame cluster; the member right-click menu
+//! and the ready check frame.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::compact_unit_frame_component::{CompactUnitView, compact_unit_frame};
-use crate::ui::screens::inworld_unit_frames_component::{PLAYER_FRAME_BOTTOM, PLAYER_FRAME_LEFT};
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
@@ -31,12 +30,15 @@ pub const RAID_GROUPS: usize = 8;
 pub const GROUP_SIZE: usize = 5;
 /// `CompactRaidGroupTemplate` title button height (CompactRaidGroup.xml).
 const TITLE_H: f32 = 14.0;
-/// Party column right edge this far left of the player frame.
-pub const PARTY_GAP: f32 = 12.0;
-pub const PARTY_LEFT: f32 = PLAYER_FRAME_LEFT - PARTY_GAP - PARTY_MEMBER_W;
-pub const PARTY_BOTTOM: f32 = PLAYER_FRAME_BOTTOM;
-/// Party column height for `members` frames; the column is bottom-anchored, so it grows
-/// upward as members join and its last frame always sits level with the player frame.
+/// Retail Modern preset: the party frame's TOPLEFT on `CompactRaidFrameManager`'s TOPRIGHT
+/// at (0, -7) (EditModePresetLayouts.lua:290-295). The 222 × 140 manager
+/// (Blizzard_CompactRaidFrameManager.xml:113) starts collapsed at UIParent TOPLEFT
+/// (-200, -140) (Blizzard_CompactRaidFrameManager.lua:93, :335), so the party frame's
+/// top-left sits 22 right and 147 down from UIParent's top-left.
+pub const PARTY_LEFT: f32 = -200.0 + 222.0;
+pub const PARTY_TOP: f32 = 140.0 + 7.0;
+/// Party column height for `members` frames; the column hangs from its top-left, so it
+/// grows downward as members join.
 pub fn party_height(members: usize) -> f32 {
     TITLE_H + members.min(MAX_PARTY_MEMBERS) as f32 * PARTY_MEMBER_H
 }
@@ -134,9 +136,8 @@ fn party_frame(members: &[CompactUnitView]) -> Element {
             strata: FrameStrata::Low,
             hidden: {members.is_empty()},
             pos_type: "absolute",
-            left: "50%",
-            margin_left: PARTY_LEFT,
-            bottom: PARTY_BOTTOM,
+            left: PARTY_LEFT,
+            top: PARTY_TOP,
             {group_title("CompactPartyFrameTitle", "Party", 0.0, PARTY_MEMBER_W)}
             {frames}
         }

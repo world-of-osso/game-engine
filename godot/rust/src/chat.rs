@@ -24,18 +24,23 @@ use godot::prelude::*;
 use shared::protocol::{ChatMessage, ChatType, CombatLogEvent, EmoteIntent, EmoteKind};
 
 use crate::frame_error::FrameError;
+use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
+use game_engine_ui_model::group_state::GroupCommand;
 
-/// Group commands have no native group networking yet.
-const GROUP_UNAVAILABLE_TEXT: &str = "Group commands are unavailable.";
 /// The root client's line when `/who` has no who state.
 const WHO_UNAVAILABLE_TEXT: &str = "Who is unavailable.";
 
 /// A submitted line's network request.
 #[derive(Debug, PartialEq)]
 pub(crate) enum ChatRequest {
-    Send { channel: ChatType, content: String },
+    Send {
+        channel: ChatType,
+        content: String,
+    },
     Emote(EmoteKind),
+    /// `/invite`, `/uninvite`, `/promote`, `/leave`, `/readycheck`.
+    Group(GroupCommand),
 }
 
 /// Chat log, whisper partners and frame state. The log outlives the world, as the
@@ -131,7 +136,7 @@ impl ChatModel {
             }
             ChatCommand::Emote(emote) => Some(ChatRequest::Emote(emote)),
             ChatCommand::Who(_) => self.system(WHO_UNAVAILABLE_TEXT),
-            ChatCommand::Group(_) => self.system(GROUP_UNAVAILABLE_TEXT),
+            ChatCommand::Group(command) => Some(ChatRequest::Group(command)),
             ChatCommand::System(lines) => {
                 for line in lines {
                     add_system_line(&mut self.log, &line);
@@ -262,6 +267,11 @@ impl crate::GameClient {
         Ok(())
     }
 
+    /// A group result or notice from the server, as a system line.
+    pub(crate) fn receive_group_notice(&mut self, text: &str) {
+        add_system_line(&mut self.chat.model.log, text);
+    }
+
     /// A server chat line.
     pub(crate) fn receive_chat(&mut self, msg: &ChatMessage) {
         let local = self.account.session.selected_character_name.clone();
@@ -317,13 +327,8 @@ impl crate::GameClient {
 
     /// Replicated NPC name, then player name, else `Unknown`.
     fn unit_display_name(&self, id: Option<u64>) -> String {
-        id.and_then(|id| self.units.get(&id))
-            .and_then(|unit| {
-                unit.npc
-                    .as_ref()
-                    .map(|npc| npc.name.clone())
-                    .or_else(|| unit.player.as_ref().map(|player| player.name.clone()))
-            })
+        id.and_then(|id| self.replica.unit(id))
+            .and_then(|unit| Some(unit.name()?.to_owned()))
             .unwrap_or_else(|| UNKNOWN_NAME.to_string())
     }
 
@@ -458,6 +463,7 @@ impl crate::GameClient {
                 channel,
             }),
             ChatRequest::Emote(emote) => self.account.send_emote(EmoteIntent { emote }),
+            ChatRequest::Group(command) => self.account.send_group(command),
         }
         .map_err(|error| error.0)
     }
