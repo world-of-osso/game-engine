@@ -493,8 +493,28 @@ impl crate::GameClient {
             .client_options
             .bindings
             .is_just_pressed(InputAction::Jump, &input);
+        if !self.player_movement.swimming
+            && self
+                .client_options
+                .bindings
+                .is_just_pressed(InputAction::SitOrStand, &input)
+            && let Err(error) = self.sit_or_stand()
+        {
+            godot_error!("Sit or stand: {error}");
+        }
         let delta = step.map_or(delta, |step| step.duration_secs);
         self.predict_player(frame, jump, yaw, delta)
+    }
+
+    /// Retail `SitStandOrDescendStart` on land: toggle sitting.
+    fn sit_or_stand(&self) -> Result<(), String> {
+        let current = self
+            .world
+            .local_player_stand_state()
+            .ok_or("Local player has no replicated stand state")?;
+        self.account
+            .send_stand_state(crate::world::stand::sit_or_stand(current))
+            .map_err(|error| error.0)
     }
 
     fn halt_player_movement(&mut self) {

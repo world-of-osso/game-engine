@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use shared::protocol::{
     BagContents, DestroyItem, EquipItem, EquipmentSlot, EquipmentSnapshot, InventoryDelta,
-    InventorySnapshot, ItemDurability, ItemLocation, ItemStack, SplitItem, SwapItem,
+    InventorySnapshot, ItemDurability, ItemLocation, ItemStack, SplitItem, SwapItem, UseItem,
 };
 
 /// Texture FDIDs for bag frames and slots.
@@ -155,6 +155,7 @@ pub enum InventoryRequest {
     Equip(EquipItem),
     Split(SplitItem),
     Destroy(DestroyItem),
+    Use(UseItem),
 }
 
 /// Runtime inventory state for all bags and the equipped items.

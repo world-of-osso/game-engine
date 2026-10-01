@@ -36,6 +36,7 @@ fn stack(slot: u8) -> ItemStack {
 #[derive(Resource, Default)]
 struct Requests {
     equips: Vec<EquipItem>,
+    uses: Vec<UseItem>,
     destroys: Vec<DestroyItem>,
     forbidden: Vec<String>,
 }
@@ -56,9 +57,7 @@ fn receive(
         requests.destroys.extend(receiver.receive());
     }
     for mut receiver in &mut uses {
-        requests
-            .forbidden
-            .extend(receiver.receive().map(|r| format!("UseItem {r:?}")));
+        requests.uses.extend(receiver.receive());
     }
     for mut receiver in &mut swaps {
         requests
@@ -84,6 +83,9 @@ enum Phase {
     EquipArm,
     EquipRequest,
     EquipDone,
+    UseArm,
+    UseRequest,
+    UseDone,
     PoorNo,
     PoorArm,
     PoorRequest,
@@ -100,6 +102,7 @@ struct Session {
     phase: Phase,
     since: Instant,
     equips: usize,
+    uses: usize,
     destroys: usize,
 }
 
@@ -142,7 +145,9 @@ impl Session {
                 Phase::EquipArm
             }
             ("FIXTURE BAGS_ACTIONS_EQUIP_ARM", Phase::EquipArm) => Phase::EquipRequest,
-            ("FIXTURE BAGS_ACTIONS_EQUIP_DONE", Phase::EquipDone) => Phase::PoorNo,
+            ("FIXTURE BAGS_ACTIONS_EQUIP_DONE", Phase::EquipDone) => Phase::UseArm,
+            ("FIXTURE BAGS_ACTIONS_USE_ARM", Phase::UseArm) => Phase::UseRequest,
+            ("FIXTURE BAGS_ACTIONS_USE_DONE", Phase::UseDone) => Phase::PoorNo,
             ("FIXTURE BAGS_ACTIONS_POOR_NO", Phase::PoorNo) => {
                 self.require_quiet()?;
                 Phase::PoorArm
@@ -183,12 +188,15 @@ impl Session {
         for request in requests.equips {
             self.respond_equip(app, request)?;
         }
+        for request in requests.uses {
+            self.respond_use(request)?;
+        }
         for request in requests.destroys {
             self.respond_destroy(app, request)?;
         }
         let waiting = matches!(
             self.phase,
-            Phase::EquipRequest | Phase::PoorRequest | Phase::RareRequest
+            Phase::EquipRequest | Phase::UseRequest | Phase::PoorRequest | Phase::RareRequest
         );
         if waiting && self.since.elapsed() > REQUEST_WAIT {
             return Err(format!(
@@ -230,6 +238,24 @@ impl Session {
             },
         );
         self.advance(Phase::EquipDone);
+        Ok(())
+    }
+
+    /// Right-clicking the non-equippable pelt uses it (`UseContainerItem`); the item stays.
+    fn respond_use(&mut self, request: UseItem) -> Result<(), String> {
+        let expected = UseItem {
+            location: bag(PELT_SLOT),
+            target: None,
+        };
+        if self.phase != Phase::UseRequest || self.uses != 0 || request != expected {
+            return Err(format!(
+                "unexpected UseItem {request:?} in {:?}; count={}",
+                self.phase, self.uses
+            ));
+        }
+        self.uses += 1;
+        println!("BAGS ACTIONS DECODED UseItem {request:?} count={}", self.uses);
+        self.advance(Phase::UseDone);
         Ok(())
     }
 
@@ -329,6 +355,7 @@ fn run_until_done(
         phase: Phase::Loading,
         since: Instant::now(),
         equips: 0,
+        uses: 0,
         destroys: 0,
     };
     let deadline = Instant::now() + TIMEOUT + Duration::from_secs(180);
@@ -350,10 +377,10 @@ fn run_until_done(
             ));
         }
         if session.phase == Phase::Complete {
-            if session.equips != 1 || session.destroys != 2 {
+            if session.equips != 1 || session.uses != 1 || session.destroys != 2 {
                 return Err(format!(
-                    "bags-actions totals equips={} destroys={}",
-                    session.equips, session.destroys
+                    "bags-actions totals equips={} uses={} destroys={}",
+                    session.equips, session.uses, session.destroys
                 ));
             }
             return Ok(());
@@ -384,7 +411,7 @@ pub(super) fn run(
         (Err(error), _) | (_, Err(error)) => Err(error),
         (Ok(()), Ok(())) => {
             println!(
-                "PASS: BAGS_ACTIONS authored equip, poor No/Yes, rare DELETE typing/inert/accept, exact 1 Equip/2 Destroy and authoritative inventory/equipment; deliberate kill/reap/readers drained, NOT shutdown or mesh parity"
+                "PASS: BAGS_ACTIONS authored equip, right-click use, poor No/Yes, rare DELETE typing/inert/accept, exact 1 Equip/1 Use/2 Destroy and authoritative inventory/equipment; deliberate kill/reap/readers drained, NOT shutdown or mesh parity"
             );
             Ok(())
         }

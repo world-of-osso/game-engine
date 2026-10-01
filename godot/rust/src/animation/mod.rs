@@ -19,6 +19,40 @@ pub(crate) mod lod;
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
 /// Death: a one-shot clip that holds its last frame.
 const ANIM_DEATH: u16 = 1;
+const ANIM_STAND: u16 = 0;
+
+/// A stand state pose loop with its one-shot down and up clips (wowdev AnimationList;
+/// AnimationData.db2 12.1.0.69933 falls the loop and up clip back to the down clip).
+struct PoseClips {
+    down: u16,
+    pose: u16,
+    up: u16,
+}
+
+const POSE_CLIPS: [PoseClips; 3] = [
+    // SitGroundDown, SitGround, SitGroundUp.
+    PoseClips {
+        down: 96,
+        pose: 97,
+        up: 98,
+    },
+    // SleepDown, Sleep, SleepUp.
+    PoseClips {
+        down: 99,
+        pose: 100,
+        up: 101,
+    },
+    // KneelStart, KneelLoop, KneelEnd.
+    PoseClips {
+        down: 114,
+        pose: 115,
+        up: 116,
+    },
+];
+
+fn pose_clips(matches: impl Fn(&PoseClips) -> bool) -> Option<&'static PoseClips> {
+    POSE_CLIPS.iter().find(|clips| matches(clips))
+}
 
 fn wow_vec3(value: [f32; 3]) -> Vector3 {
     Vector3::new(value[0], value[2], -value[1])
@@ -134,6 +168,9 @@ pub struct AnimationState {
     legs_free: bool,
     /// The unit's current ground speed for its movement clip, yd/s.
     locomotion_speed: Option<f32>,
+    /// The next `update_locomotion` may enter or leave a stand state pose through its
+    /// down or up clip.
+    pose_transition: bool,
 }
 
 impl AnimationState {
@@ -184,6 +221,7 @@ impl AnimationState {
             fired_events: Vec::new(),
             legs_free: true,
             locomotion_speed: None,
+            pose_transition: false,
         })
     }
 
@@ -283,8 +321,16 @@ impl AnimationState {
         Ok(true)
     }
 
-    /// Select local movement through JumpStart → Jump → landing, holding each
-    /// non-looping clip to completion. Call after advancing animation time.
+    fn has_base_sequence(&self, id: u16) -> bool {
+        self.sequences
+            .iter()
+            .any(|sequence| sequence.id == id && sequence.variation_id == 0)
+    }
+
+    /// Select local movement through JumpStart → Jump → landing, and into and out of a
+    /// stand state pose through its down and up clips, holding each non-looping clip to
+    /// completion; moving cuts a pose transition short. Call after advancing animation
+    /// time.
     pub fn update_locomotion(
         &mut self,
         movement_id: u16,
@@ -294,6 +340,12 @@ impl AnimationState {
         self.set_locomotion_stationary(movement_id, jumping);
         let current_id = self.sequences[self.current].id;
         let finished = self.time_ms >= f64::from(self.sequences[self.current].duration);
+        let armed = std::mem::take(&mut self.pose_transition);
+        if !jumping
+            && let Some(selected) = self.update_pose(current_id, movement_id, finished, armed)
+        {
+            return selected;
+        }
         match current_id {
             37 if finished => self.select_animation_id(38, true),
             37 => Ok(false),
@@ -317,6 +369,50 @@ impl AnimationState {
             // A corpse pose whose Dead clip falls back to Death lies at Death's end.
             _ => self.select_animation_id(movement_id, movement_id != ANIM_DEATH),
         }
+    }
+
+    /// The pose transition `update_locomotion` selects, if any: a down clip held until
+    /// its pose loop, an up clip held while the unit stands still, and, when `armed` by
+    /// a stand state change, the up clip on leaving a pose for Stand or the down clip on
+    /// entering a pose.
+    fn update_pose(
+        &mut self,
+        current_id: u16,
+        movement_id: u16,
+        finished: bool,
+        armed: bool,
+    ) -> Option<Result<bool, String>> {
+        if let Some(clips) = pose_clips(|clips| clips.down == current_id)
+            && movement_id == clips.pose
+        {
+            return Some(if finished {
+                self.select_animation_id(clips.pose, true)
+            } else {
+                Ok(false)
+            });
+        }
+        if pose_clips(|clips| clips.up == current_id).is_some()
+            && movement_id == ANIM_STAND
+            && !finished
+        {
+            return Some(Ok(false));
+        }
+        if !armed {
+            return None;
+        }
+        if let Some(clips) = pose_clips(|clips| clips.pose == current_id)
+            && movement_id == ANIM_STAND
+            && self.has_base_sequence(clips.up)
+        {
+            return Some(self.select_animation_id(clips.up, false));
+        }
+        if let Some(clips) = pose_clips(|clips| clips.pose == movement_id)
+            && current_id != clips.pose
+            && self.has_base_sequence(clips.down)
+        {
+            return Some(self.select_animation_id(clips.down, false));
+        }
+        None
     }
 
     fn play_death(&mut self) {
@@ -577,6 +673,15 @@ impl WowAnimationPlayer {
         Ok(())
     }
 
+    /// The next `update_locomotion` plays the down or up clip into or out of a stand
+    /// state pose: the unit's stand state just changed (a unit first seen in a pose
+    /// holds it without one).
+    pub(crate) fn arm_pose_transition(&mut self) {
+        if let Some(animation) = self.animation.as_mut() {
+            animation.pose_transition = true;
+        }
+    }
+
     pub(crate) fn playback_rate(&self) -> Option<f32> {
         self.animation.as_ref().map(AnimationState::playback_rate)
     }
@@ -818,6 +923,8 @@ mod npc_locomotion_tests;
 
 #[cfg(test)]
 mod npc_pose_tests;
+#[cfg(test)]
+mod stand_pose_tests;
 
 #[cfg(test)]
 mod sampling_tests {
