@@ -407,10 +407,10 @@ fn assert_offline_actions(
     artifacts: &Path,
     auth_count: usize,
 ) -> Result<(), String> {
-    if auth_count != 0
-        || !artifacts.join("login-ready").is_file()
-        || !artifacts.join("observed-offline-actions").is_file()
-    {
+    let login_ready = artifacts.join("login-ready").is_file();
+    let actions_observed = artifacts.join("observed-offline-actions").is_file();
+    let markers_ready = login_ready && actions_observed;
+    if auth_count != 0 || !markers_ready {
         return Err("FEATURE: offline-actions requires observed real typing/deletion, visible Login and zero decoded auth".into());
     }
     if !lines
@@ -445,10 +445,10 @@ fn assert_offline_actions(
         let records = stdout
             .iter()
             .filter(|line| {
-                line.trim_start().starts_with(frame)
-                    && line.contains(" visible ")
-                    && line.contains(" alpha=1.00")
-                    && text.is_none_or(|text| line.contains(text))
+                let is_frame = line.trim_start().starts_with(frame);
+                let visible_with_alpha = line.contains(" visible ") && line.contains(" alpha=1.00");
+                let matches_text = text.is_none_or(|text| line.contains(text));
+                is_frame && visible_with_alpha && matches_text
             })
             .count();
         if records < 2 {
