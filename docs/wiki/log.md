@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] audit | Native standalone equip sender, GREEN pending
+
+Reconciled existing conversion docs against `093f3816` and `/tmp/claude/native-bags-proof-ledger.md`. [Actions evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass): fixture build exit0; first run missing texture is not equip RED; same-binary second run after local CASC extraction reproduces missing right-click equip. Production now sends original catalog-gated EquipItem from authoritative inventory only. GREEN pending; no equip PASS, equipment mesh/startup equipment, destroy/drag or shutdown acceptance. Prior bounded window/cursor proof unchanged. Docs only; no build/test/ops/delegation; PLAN/data excluded.
+
 ## [2026-09-30] audit | Independent bounded native cursor PASS accepted
 
 Accepted `/tmp/claude/verify-native-bags-cursor.md`, superseding earlier independent-pending entries only within [bounded cursor evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass). EXIST/SUBSTANTIVE/WIRED pass; actual root package check errors0/two existing parser warnings, root fmt and 13-path scoped fmt pass. Saved original policy8/icon1 and exact once Swap/Split, authoritative deltas, event-pointer/icon/source-lock, Escape/source-return/stale proof accepted without reruns. Test-only `19b1de2d` bags-actions remains pending actual RED/build; no production RightEquip/Destroy. New fixtures do not invalidate unchanged original pure scope. Pending request timing/interleaving NOT logged; child SIGKILL is not normal shutdown. No all-cursor/global-window/full-conversion acceptance. Docs-only reconciliation, not goal completion; PLAN remains unstaged.
