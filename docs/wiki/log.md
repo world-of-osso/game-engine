@@ -1,3 +1,7 @@
+## 2026-10-01 — Native SkyboxDebug source/test-first docs audit
+
+[Evidence SSOT](systems/godot-conversion.md#native-skyboxdebug--sourcetest-first-contribution-runtime-green-pending) records contribution through `da694c79`/`f786be27`, original CLI transport, cached no-fallback source and owned renderer/controller/environment. Supplied parser/launcher RED/GREEN are bounded; MAIN's actual pre-production Vulkan/CASC startup rejected the screen and exited1. Current build/new independent gate pending, no native runtime GREEN; core data-helper tests unexecuted. [Architecture](systems/skybox.md#native-offline-skyboxdebug) separates shader-owned fog and legacy fallback. Pixel/default-source/fog/physical-unit/bone/shutdown gaps and root quest-format FAIL retained; no other feature closure. Three owned docs only; no index/new page, code/build/runtime/tests/delegation/operations.
+
 ## 2026-10-01 — Godot M2 batch materials on WebWowViewer retail rules
 
 [[m2-format#batch-shaders]] now records retail pixel/vertex shader resolution, render flags 0x2/0x8/0x10, texture weights, float-quaternion texture transforms and wrap flags; [[rendering-pipeline#godot-m2-batch-materials]] records the Godot binder/shader and its real-model oracle proof (16 named batches, baseline 14/16 RED). Parity row added (Partial: decals, transparent sort, Bevy/Retail comparisons open).
