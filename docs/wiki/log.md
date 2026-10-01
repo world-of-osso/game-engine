@@ -2433,6 +2433,10 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 
 [Race and sex item files](systems/character-rendering.md#race-and-sex-item-files-2026-10-01): Component*FileData texture/model selection, ChrModel body chain, wowdev geoset group table, native sheath links, skinned collections with both model columns, player social emotes; named-character and 62-way race fixtures.
 
+
+## 2026-10-01 — Player stand state (standstate)
+
+[Animation](systems/animation.md): players hold the replicated `PlayerStandState` pose (SitGround 97, Sleep 100, SitChairLow/Med/High 102-104, KneelLoop 115) with down/up clips 96/98, 99/101, 114/116 on a change; X (`SITORSTAND`) and /sit, /sleep, /kneel send `StandStateIntent`; sit/sleep/kneel no longer play from `EmoteEvent`. Chairs (`GAMEOBJECT_TYPE_CHAIR`) render and right-click seats. Live: `godot/tests/player_stand_state_live.gd` (sitter, observer, `STAND_FOOD=1` bread phase); evidence `data/diagnostics/standstate2-2026-10-01/`.
 ## 2026-10-01 — LiquidObject IDs without DB2 rows (liquidobj)
 
 [Resolved](investigations/northshire-pale-water.md#liquidobject-ids-without-db2-rows--resolved): IDs 42 and 13134/13136–13139 have no LiquidObject row in the build or its hotfixes; 42 is the ocean object (4.5M layers, 458 maps). Row-less objects take their MH2O liquid_type (WebWowViewerCpp `getLiquidObjectData`), and LiquidType 2 Ocean object layers are LVF 2 depth-only. A world-wide scan of 52,882 root ADTs leaves 0 omitted layers. Live Adventurer's Rest: 133 errors → 0.
