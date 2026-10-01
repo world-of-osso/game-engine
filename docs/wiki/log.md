@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] system | Godot replication without an ECS replica
+
+New [[godot-replication]]: the network worker no longer runs replicon's client; it forwards raw replicon payloads and acks mutations, and the host-owned `Replica` decodes them into per-type columns. Wire layout, ack flow, fingerprint reasoning, codec schema and proof recorded; `UnitSnapshot` mentions in merchant, chat, spellbook, nameplate, movement and NPC appearance docs now point at the `Replica`.
+
 ## [2026-09-30] verification | Bounded native loot reach
 
 Reconciled LootFrame spec/matrix with [saved reach proof](systems/godot-conversion.md#native-loot-reach--bounded-runtime-proof): inclusive corpse reach and friendly dispatch accepted; original four cases/42 UI checks retained. Hostile/role-response gaps remain; post-DONE exit 101 RenderingServer-null is FAIL/deferred. Settings-reload commits remain test preparation, not proof. Docs only; no clean full-conversion or source-pinning claim.
