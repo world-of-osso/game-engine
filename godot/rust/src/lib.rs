@@ -9,6 +9,7 @@ mod auction;
 mod auras;
 mod auto_attack;
 mod bag_cursor;
+mod bag_destroy;
 mod bags;
 mod camera;
 mod char_create;
@@ -279,6 +280,12 @@ impl INode3D for GameClient {
         if self.asset_startup.is_some() {
             return;
         }
+        if self.static_popup_key(&event) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         let chat_used = self.chat_edit_key(&event).unwrap_or_else(|error| {
             self.handle_frame_error("Chat key", error.into());
             true
@@ -323,6 +330,18 @@ impl INode3D for GameClient {
                 .is_ok();
         if self.game_menu_ui.is_none() && !split_key_event {
             self.physical_input.capture(&event);
+        }
+    }
+
+    fn unhandled_input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        match self.bag_cursor_world_pointer(&event) {
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+            }
+            Ok(false) => {}
+            Err(error) => self.handle_frame_error("Cursor world drop", error),
         }
     }
 
