@@ -91,6 +91,8 @@ func check_orbit(camera: Camera3D) -> bool:
 	return true
 
 func check_cli() -> bool:
+	if not check_export():
+		return false
 	var semantic := tree_reply("scene")
 	for expected in ["Camera \"Camera\" fov=45", "current=true", "Light \"Light\" DirectionalLight3D", "Object \"Ground\" MeshInstance3D", "Model \"M2DebugReferenceModel\" @ (0.0, 0.0, 0.0)"]:
 		if not semantic.contains(expected):
@@ -120,4 +122,42 @@ func check_cli() -> bool:
 	if live_pixels < MIN_MODEL_PIXELS or cli_pixels < live_pixels * 0.8:
 		fail("CLI screenshot shows %d of the live frame's %d model pixels" % [cli_pixels, live_pixels])
 		return false
+	return true
+
+# `export-scene` writes the original M2DebugScene (src/scenes/m2_debug/mod.rs): Camera,
+# Light, Ground and ReferenceModel, with the live FOV, light energy and loader input.
+func check_export() -> bool:
+	var exported := exported_scene()
+	if exported.is_empty():
+		return false
+	if exported.label != "M2DebugScene" or exported.props != "Scene" or exported.transform != null:
+		fail("Exported root %s %s %s" % [exported.label, exported.props, exported.transform])
+		return false
+	if child_labels(exported) != ["Camera", "Light", "Ground", "ReferenceModel"]:
+		fail("Exported M2DebugScene children: %s" % [child_labels(exported)])
+		return false
+	var camera := scene.get_node("Camera") as Camera3D
+	var light := scene.get_node("Light") as DirectionalLight3D
+	var model := scene.get_node("M2DebugReferenceModel") as Node3D
+	var exported_camera := scene_child(exported, "Camera")
+	if absf(props_of(exported_camera, "Camera").fov - FOV) > 0.001 or not transform_matches(exported_camera, camera.transform):
+		fail("Exported camera %s" % exported_camera)
+		return false
+	var light_props := props_of(scene_child(exported, "Light"), "Light")
+	if light_props.kind != "DirectionalLight3D" or absf(light_props.intensity - light.light_energy) > 0.0001:
+		fail("Exported light %s, live energy %.3f" % [light_props, light.light_energy])
+		return false
+	var ground := scene_child(exported, "Ground")
+	if ground.props != "Ground" or not transform_matches(ground, (scene.get_node("Ground") as Node3D).transform):
+		fail("Exported ground %s" % ground)
+		return false
+	var reference := scene_child(exported, "ReferenceModel")
+	var object := props_of(reference, "Object")
+	if object.kind != "reference-model" or object.model != model.get_meta("m2_source_path") or not str(object.model).ends_with("/%d.m2" % MODEL):
+		fail("Exported reference model %s, loader input %s" % [object, model.get_meta("m2_source_path")])
+		return false
+	if not transform_matches(reference, model.transform) or not reference.children.is_empty():
+		fail("Exported reference model transform/children %s" % reference)
+		return false
+	print("FIXTURE M2DEBUG_EXPORT %s" % object.model)
 	return true

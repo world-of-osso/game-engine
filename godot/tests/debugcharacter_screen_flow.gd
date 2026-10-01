@@ -42,6 +42,8 @@ func check_live() -> bool:
 	return true
 
 func check_cli() -> bool:
+	if not check_export():
+		return false
 	var semantic := tree_reply("scene")
 	for expected in ["Camera \"Camera\" fov=45", "Light \"Light\" DirectionalLight3D", "Object \"Ground\" MeshInstance3D", "Model \"DebugCharacterGeoset\" @ (-1.7, 0.0, 0.0)", "Model \"DebugCharacterM2\" @ (1.7, 0.0, 0.0)"]:
 		if not semantic.contains(expected):
@@ -68,3 +70,63 @@ func check_cli() -> bool:
 			fail("CLI screenshot shows %d of %s's %d live pixels" % [cli_pixels, name, live_pixels])
 			return false
 	return true
+
+# Default displays (DebugCharacterConfig): shared shoulder 148865, back 181925, chest
+# 175942, then each side's head, hands, waist, legs and feet.
+const SLOT_DISPLAYS := {
+	"DebugCharacterGeoset": [["Head", 1128], ["ShoulderLeft", 148865], ["ShoulderRight", 148865], ["Back", 181925], ["Chest", 175942], ["Hands", 510], ["Waist", 109162], ["Legs", 159629], ["Feet", 154620]],
+	"DebugCharacterM2": [["Head", 685129], ["ShoulderLeft", 148865], ["ShoulderRight", 148865], ["Back", 181925], ["Chest", 175942], ["Hands", 154616], ["Waist", 160997], ["Legs", 73783], ["Feet", 154620]],
+}
+
+# `export-scene` writes the original DebugCharacterScene (src/scenes/geoset_debug):
+# both characters, sorted by label, as human males with one slot per display, then the
+# camera, light and ground.
+func check_export() -> bool:
+	var exported := exported_scene()
+	if exported.is_empty():
+		return false
+	if exported.label != "DebugCharacterScene" or exported.props != "Scene":
+		fail("Exported root %s %s" % [exported.label, exported.props])
+		return false
+	if child_labels(exported) != ["DebugCharacterGeoset", "DebugCharacterM2", "Camera", "Light", "Ground"]:
+		fail("Exported DebugCharacterScene children: %s" % [child_labels(exported)])
+		return false
+	for name in SLOT_DISPLAYS:
+		if not check_character(scene_child(exported, name), scene.get_node(name) as Node3D):
+			return false
+	return true
+
+func check_character(exported: Dictionary, model: Node3D) -> bool:
+	var props := props_of(exported, "Character")
+	var source := str(model.get_meta("m2_source_path"))
+	if props.model != source.get_file() or props.race != "Human" or props.gender != "Male" or props.name != null or props.character_id != null:
+		fail("Exported %s character %s, loader input %s" % [model.name, props, source])
+		return false
+	if not transform_matches(exported, model.transform):
+		return false
+	var slots: Array = SLOT_DISPLAYS[model.name]
+	if child_labels(exported) != slots.map(func(slot): return "Slot:" + slot[0]):
+		fail("Exported %s slots %s" % [model.name, child_labels(exported)])
+		return false
+	var attached := 0
+	for i in slots.size():
+		var slot: Dictionary = exported.children[i]
+		var equipment := props_of(slot, "EquipmentSlot")
+		var item := model.find_child("Equipment" + slots[i][0], true, false) as Node3D
+		if equipment.slot != slots[i][0] or equipment.model != "display:%d" % slots[i][1]:
+			fail("Exported %s %s" % [model.name, slot])
+			return false
+		if item == null:
+			if equipment.anchor != null or equipment.attachment != null or slot.transform != null:
+				fail("Exported %s %s names an item the scene lacks" % [model.name, slot])
+				return false
+			continue
+		attached += 1
+		var anchor := str(item.get_parent().name)
+		if equipment.attachment != str(item.name) or equipment.anchor != anchor or equipment.attachment_anchor != anchor:
+			fail("Exported %s %s, live parent %s" % [model.name, equipment, anchor])
+			return false
+		if not transform_matches(slot, model.global_transform.affine_inverse() * item.global_transform):
+			return false
+	print("FIXTURE DEBUGCHARACTER_EXPORT %s slots=%d attached=%d" % [model.name, slots.size(), attached])
+	return attached > 0
