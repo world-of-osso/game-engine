@@ -68,6 +68,8 @@ func run_test() -> void:
 	if first.intersects(second) or absf(root.get_visible_rect().end.y - first.end.y - CONTAINER_BOTTOM) > POSITION_TOLERANCE or absf(first.position.y - second.end.y - 8.0) > POSITION_TOLERANCE:
 		fail("Authored standalone bags must stack by bag index with the original eight-unit gap")
 		return
+	if not await capture_bags():
+		return
 	push_key(KEY_ESCAPE, true)
 	await process_frame
 	push_key(KEY_ESCAPE, false)
@@ -95,6 +97,24 @@ func run_test() -> void:
 	# Parent owns deliberate kill/reap; normal engine shutdown is not this test.
 	while true:
 		await process_frame
+
+func capture_bags() -> bool:
+	var directory := OS.get_environment("GODOT_BAGS_SCREENSHOTS")
+	if directory.is_empty():
+		return true
+	if not directory.contains("/data/diagnostics/"):
+		fail("Bag capture path must be persistent owned diagnostics")
+		return false
+	var error := DirAccess.make_dir_recursive_absolute(directory)
+	if error != OK:
+		fail("Cannot create bag capture directory: %s" % error)
+		return false
+	await RenderingServer.frame_post_draw
+	error = root.get_texture().get_image().save_png(directory.path_join("standalone-bags.png"))
+	if error != OK:
+		fail("Cannot save authored bag capture: %s" % error)
+		return false
+	return true
 
 func authored_control(client: Node, control_name: String) -> Control:
 	return client.find_child(control_name, true, false) as Control
