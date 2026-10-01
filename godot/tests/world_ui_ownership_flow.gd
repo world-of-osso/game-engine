@@ -248,6 +248,15 @@ func uo_target_cases(client: Node) -> void:
 	await uo_drag(source, uo_merchant_over_bag)
 	await uo_end("T3_DRAG_BAGSUI_BAG1_TO_MERCHANT_OVER_BAG1", client, "expect exactly 1 SwapItem Bag{1,3} to Bag{1,0}: the press raises the bags, so bag1 slot0 is topmost at release")
 
+	# T3's sibling: the merchant is again on top when the bag press raises BagsUI, but
+	# the release lands where no bag covers the merchant.
+	await uo_click(uo_merchant_clear)
+	await uo_settle(300)
+	var merchant_top := uo_hover_path(uo_merchant_over_bag).ends_with("/MerchantFrame")
+	await uo_begin("T3B_DRAG_BAGSUI_BAG1_RAISED_TO_MERCHANT_UNCOVERED")
+	await uo_drag(source, uo_merchant_clear)
+	await uo_end("T3B_DRAG_BAGSUI_BAG1_RAISED_TO_MERCHANT_UNCOVERED", client, "merchant_top_before_press=%s expect exactly 1 SellItem (bag1 item): the raised bags do not cover the release point" % merchant_top)
+
 	await uo_begin("T4_DRAG_BAGSUI_BAG1_TO_MERCHANT_CLEAR")
 	await uo_drag(source, uo_merchant_clear)
 	await uo_end("T4_DRAG_BAGSUI_BAG1_TO_MERCHANT_CLEAR", client, "expect exactly 1 SellItem (bag1 item)")

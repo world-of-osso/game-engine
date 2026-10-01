@@ -762,7 +762,7 @@ fn respond_to_selection(
             StartupScreen::MerchantClick
                 | StartupScreen::MerchantCursor
                 | StartupScreen::MerchantServices
-            StartupScreen::MerchantClick | StartupScreen::MerchantCursor | StartupScreen::UiOwnership
+                | StartupScreen::UiOwnership
         ) {
             app.world_mut()
                 .entity_mut(player)
