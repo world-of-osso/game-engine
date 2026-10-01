@@ -25,7 +25,8 @@ The Godot client binds each skin batch per WebWowViewerCpp's retail rules ([[m2-
 `godot/core/src/m2_material.rs` resolves pixel/vertex shader IDs, up to four texture slots with
 wrap flags, texture-matrix and weight indices and samples them on the shared material clock;
 `godot/rust/src/assets/material.rs` binds GPU textures (character overlays are the only CPU
-composite) and builds one shader variant per blend/cull/depth-test/depth-write pipeline;
+composite) and builds one shader variant per blend/cull/depth-test/depth-write pipeline; each
+batch `MeshInstance3D` takes its material as the material override ([[godot-material-null-free]]);
 `godot/shaders/m2.gdshader` runs calcM2VertexMat and calcM2FragMaterial. It replaced the Bevy-era
 route that composited second textures on the CPU, knew eight raw shader ids (`0x8000` fell back
 to the first texture, `0x8001` was read as table row 0), animated UVs only on two-texture blended

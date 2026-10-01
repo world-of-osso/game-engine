@@ -26,6 +26,7 @@ use godot::{
     prelude::*,
 };
 use shared::{
+    casting::CastState,
     components::{Health, Player, UnitFlags},
     faction_reaction::{Unit, can_attack},
 };
@@ -33,6 +34,8 @@ use shared::{
 use crate::{
     GameClient,
     faction_reaction::{FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction},
+    nameplate_cast_bar::{CastArt, CastNodes, text_bbcode},
+    nameplate_casts::{BarType, Interrupter, PlateCasts},
     replicated::UnitFields,
     targeting::unit_pick_shape,
     wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
@@ -198,6 +201,7 @@ struct PlateNodes {
     frame: Gd<TextureRect>,
     fill: Gd<TextureRect>,
     name: Gd<Label>,
+    cast: CastNodes,
 }
 
 /// One unit's plate this frame, also reported to automation.
@@ -216,6 +220,9 @@ pub(crate) struct Nameplates {
     cvars: NameplateCvars,
     templates: Option<Result<HashMap<u32, FactionTemplateEntry>, String>>,
     art: Option<PlateArt>,
+    cast_art: Option<CastArt>,
+    /// Every plate's cast bar.
+    pub(crate) casts: PlateCasts,
     layer: Option<Gd<CanvasLayer>>,
     plates: HashMap<u64, PlateNodes>,
     views: HashMap<u64, PlateView>,
@@ -227,6 +234,8 @@ impl Nameplates {
             cvars: NameplateCvars::default(),
             templates: None,
             art: None,
+            cast_art: None,
+            casts: PlateCasts::default(),
             layer: None,
             plates: HashMap::new(),
             views: HashMap::new(),
@@ -252,6 +261,7 @@ impl Nameplates {
 
     fn clear(&mut self) {
         self.views.clear();
+        self.casts = PlateCasts::default();
         for (_, plate) in self.plates.drain() {
             plate.root.free();
         }
@@ -278,11 +288,17 @@ impl Nameplates {
         views: HashMap<u64, PlateView>,
         style: &NameplateStyle,
         show_health_bars: bool,
+        (data_root, icons): (&Path, &HashMap<u32, u32>),
     ) -> Result<(), String> {
         if self.art.is_none() {
             self.art = Some(PlateArt::load()?);
         }
+        if self.cast_art.is_none() {
+            self.cast_art = Some(CastArt::load(data_root, |bytes| png_texture(bytes, false))?);
+        }
         let art = self.art.as_ref().expect("art loaded above");
+        let cast_art = self.cast_art.as_mut().expect("cast art loaded above");
+        let textures = data_root.join("textures");
         let layer = self.layer.get_or_insert_with(|| {
             let mut layer = CanvasLayer::new_alloc();
             layer.set_name(LAYER_NAME);
@@ -303,8 +319,15 @@ impl Nameplates {
             let plate = self
                 .plates
                 .entry(*id)
-                .or_insert_with(|| spawn_plate(layer, art));
+                .or_insert_with(|| spawn_plate(layer, art, cast_art));
             apply_plate(plate, view, style, thick, art, show_health_bars);
+            // `ShouldShowCastBar`: no cast bar on a name-only plate.
+            let bar = self.casts.get(*id).filter(|_| show_health_bars);
+            let icon = match bar.and_then(|bar| icons.get(&bar.spell_id)) {
+                Some(&fdid) => cast_art.icon(fdid, &textures)?,
+                None => None,
+            };
+            plate.cast.apply(bar, icon.as_ref(), style, cast_art);
         }
         self.views = views;
         Ok(())
@@ -315,7 +338,7 @@ fn ignore_mouse(control: &mut Gd<impl Inherits<Control>>) {
     control.upcast_mut().set_mouse_filter(MouseFilter::IGNORE);
 }
 
-fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt) -> PlateNodes {
+fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) -> PlateNodes {
     let mut root = Control::new_alloc();
     ignore_mouse(&mut root);
     let texture_rect = || {
@@ -338,12 +361,14 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt) -> PlateNodes {
     root.add_child(&fill);
     root.add_child(&frame);
     root.add_child(&name);
+    let cast = CastNodes::spawn(&mut root, cast_art, &art.font);
     layer.add_child(&root);
     PlateNodes {
         root,
         frame,
         fill,
         name,
+        cast,
     }
 }
 
@@ -533,7 +558,7 @@ fn project_plate(
 
 impl GameClient {
     /// Per frame after the camera moves: which units have plates, their alpha, and nodes.
-    pub(super) fn update_nameplates(&mut self) -> Result<(), String> {
+    pub(super) fn update_nameplates(&mut self, delta: f32) -> Result<(), String> {
         let enabled = self.account.session.screen == SessionScreen::InWorld
             && self.client_options.hud.show_nameplates;
         let camera = self
@@ -545,11 +570,56 @@ impl GameClient {
             return Ok(());
         };
         let views = self.nameplate_views(&camera)?;
+        for id in views.keys() {
+            let cast = self
+                .replica
+                .unit(*id)
+                .and_then(|unit| unit.get::<CastState>());
+            self.nameplates.casts.observe(*id, cast);
+        }
+        self.nameplates
+            .casts
+            .advance(delta, |id| views.contains_key(&id));
+        let icons = self.nameplate_cast_icons();
         let style = self.client_options.hud.nameplate_style;
         let show_health_bars = self.client_options.hud.show_health_bars;
         let mut parent = self.to_gd().upcast::<Node3D>();
-        self.nameplates
-            .sync_nodes(&mut parent, views, &style, show_health_bars)
+        let data_root = self.data_root.clone();
+        self.nameplates.sync_nodes(
+            &mut parent,
+            views,
+            &style,
+            show_health_bars,
+            (&data_root, &icons),
+        )
+    }
+
+    /// Spell ID to drawable icon FDID for every shown cast bar.
+    fn nameplate_cast_icons(&mut self) -> HashMap<u32, u32> {
+        let spells: Vec<u32> = self
+            .nameplates
+            .casts
+            .iter()
+            .map(|(_, bar)| bar.spell_id)
+            .collect();
+        spells
+            .into_iter()
+            .filter_map(|spell| {
+                let fdid = self.spells.catalog()?.get(spell)?.icon_fdid;
+                Some((spell, self.drawable_fdid(fdid)))
+            })
+            .collect()
+    }
+
+    /// `GetInterruptText`'s interrupter: its name, class-coloured for a player.
+    pub(super) fn cast_interrupter(&self, unit: u64) -> Option<Interrupter> {
+        let unit = self.replica.unit(unit)?;
+        Some(Interrupter {
+            name: unit.name()?.to_owned(),
+            color: unit
+                .get::<Player>()
+                .map(|player| game_engine_ui_model::damage_meter_data::class_color(player.class)),
+        })
     }
 
     fn nameplate_views(
@@ -648,10 +718,44 @@ impl GameClient {
                 entry.set("frame_rect", plate.frame.get_global_rect());
                 entry.set("name_rect", plate.name.get_global_rect());
             }
+            if let Some(bar) = self.nameplates.casts.get(*id) {
+                entry.set("cast", &cast_snapshot(bar, self.nameplates.plates.get(id)));
+            }
             plates.set(*id as i64, &entry);
         }
         plates
     }
+}
+
+fn cast_snapshot(
+    bar: &crate::nameplate_casts::CastBar,
+    plate: Option<&PlateNodes>,
+) -> VarDictionary {
+    let mut cast = VarDictionary::new();
+    cast.set("spell_id", i64::from(bar.spell_id));
+    let bar_type = match bar.bar_type {
+        BarType::Standard => "standard",
+        BarType::Channel => "channel",
+        BarType::Uninterruptable => "uninterruptable",
+        BarType::Interrupted => "interrupted",
+    };
+    cast.set("bar_type", bar_type);
+    cast.set("casting", bar.casting);
+    cast.set("channeling", bar.channeling);
+    cast.set("fraction", bar.fraction());
+    cast.set("alpha", bar.alpha());
+    cast.set("text", text_bbcode(bar).as_str());
+    cast.set("icon_shown", bar.icon_shown);
+    cast.set("shield_shown", bar.shield_shown);
+    cast.set("spark", format!("{:?}", bar.spark).as_str());
+    if let Some(plate) = plate {
+        let nodes = &plate.cast;
+        cast.set("visible", nodes.root.is_visible_in_tree());
+        cast.set("icon_visible", nodes.icon.is_visible_in_tree());
+        cast.set("shield_visible", nodes.shield.is_visible_in_tree());
+        cast.set("text_rect", nodes.text.get_global_rect());
+    }
+    cast
 }
 
 /// Script access to the native occlusion ray and alpha, for physics-level fixtures.
@@ -675,6 +779,9 @@ impl NameplateProbe {
         plate_alpha(&NameplateCvars::default(), false, 1.0, is_occluded)
     }
 }
+
+#[path = "nameplate_debug.rs"]
+mod debug;
 
 #[cfg(test)]
 mod tests {

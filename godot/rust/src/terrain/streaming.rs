@@ -86,6 +86,8 @@ pub(crate) struct StreamedTerrain {
     generation: u64,
     map: Option<String>,
     initial_tiles: BTreeSet<(u32, u32)>,
+    /// The tile the current map request named, `(tile_y, tile_x)`.
+    primary_tile: Option<(u32, u32)>,
     pending_map: bool,
     pub(crate) map_wdt: Option<NativeMapWdt>,
     pub(crate) parsed_tiles: BTreeMap<(u32, u32), NativeTerrainTile>,
@@ -120,6 +122,7 @@ impl StreamedTerrain {
             generation: 0,
             map: None,
             initial_tiles: BTreeSet::new(),
+            primary_tile: None,
             pending_map: false,
             map_wdt: None,
             parsed_tiles: BTreeMap::new(),
@@ -128,6 +131,10 @@ impl StreamedTerrain {
             failures: BTreeMap::new(),
             map_error: None,
         }
+    }
+
+    pub fn primary_tile(&self) -> Option<(u32, u32)> {
+        self.primary_tile
     }
 
     pub fn map_name(&self) -> Option<&str> {
@@ -234,7 +241,7 @@ impl StreamedTerrain {
     pub fn request_map(&mut self, map: String, tile: (u32, u32)) -> Result<(), String> {
         validate_tile(tile)?;
         if self.map.as_ref() != Some(&map) {
-            return self.begin_map(map, square_tiles(tile).collect());
+            return self.begin_map(map, tile, square_tiles(tile).collect());
         }
         self.request_tile(tile)
     }
@@ -251,7 +258,7 @@ impl StreamedTerrain {
         }
         let initial_tiles = tiles.iter().copied().chain([primary]).collect();
         if self.map.as_ref() != Some(&map) {
-            return self.begin_map(map, initial_tiles);
+            return self.begin_map(map, primary, initial_tiles);
         }
         for tile in initial_tiles {
             self.request_tile(tile)?;
@@ -262,10 +269,12 @@ impl StreamedTerrain {
     fn begin_map(
         &mut self,
         map: String,
+        primary: (u32, u32),
         initial_tiles: BTreeSet<(u32, u32)>,
     ) -> Result<(), String> {
         self.reset()?;
         self.map = Some(map.clone());
+        self.primary_tile = Some(primary);
         self.initial_tiles = initial_tiles;
         self.pending_map = true;
         self.send(WorkerRequest::Map {
@@ -319,6 +328,7 @@ impl StreamedTerrain {
             .ok_or("Terrain generation overflow")?;
         self.map = None;
         self.initial_tiles.clear();
+        self.primary_tile = None;
         self.pending_map = false;
         self.map_wdt = None;
         self.parsed_tiles.clear();
@@ -937,8 +947,12 @@ mod tests {
         stream
             .request_map_tiles("azeroth".into(), (31, 37), &[(31, 36), (31, 37), (31, 36)])
             .unwrap();
+        assert_eq!(stream.primary_tile(), Some((31, 37)));
+        assert_eq!(stream.initial_tiles().len(), 2);
         started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
         stream.request_map("azeroth".into(), (31, 36)).unwrap();
+        // A same-map request adds a tile; the map request's tile stays.
+        assert_eq!(stream.primary_tile(), Some((31, 37)));
         release_tx.send(()).unwrap();
         wait_for(&mut stream, |state| {
             !state.pending_map && state.pending_tiles.is_empty() && state.failures.len() == 2
@@ -953,6 +967,8 @@ mod tests {
         });
         let failed_tiles: BTreeSet<_> = stream.state().failures.iter().map(|f| f.tile).collect();
         assert_eq!(failed_tiles, BTreeSet::from([(31, 36), (31, 37), (31, 38)]));
+        stream.reset().unwrap();
+        assert_eq!(stream.primary_tile(), None);
     }
 
     #[test]

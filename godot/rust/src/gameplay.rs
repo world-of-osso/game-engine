@@ -4,14 +4,15 @@ use game_engine_core::{
     input_bindings_data::{BindingMouseButton, InputAction, InputBindingsData, InputState},
     movement_animation_data::direction_to_anim_id,
     movement_input_data::{
-        MoveDirection, compute_movement_input, movement_speed_multiplier, movement_to_direction,
-        sync_movement_toggles,
+        MoveDirection, compute_movement_input, has_manual_movement_override,
+        movement_speed_multiplier, movement_to_direction, sync_movement_toggles,
     },
     player_physics_data::{
         GroundState, VerticalState, apply_gravity_and_ground_snap, build_proposed_ground_movement,
         update_grounded,
     },
 };
+use game_engine_network::movement_control::{ScriptedMovement, ScriptedMovementStep};
 use game_engine_session::SessionScreen;
 use glam::Vec3;
 use shared::{
@@ -128,18 +129,20 @@ impl PlayerMovement {
         turn_animation_id(delta).unwrap_or(locomotion)
     }
 
-    /// `pitch` is the camera pitch, steering a swimmer moved with the right mouse button.
+    /// `pitch` is the camera pitch, steering a swimmer moved with the right mouse button;
+    /// `scripted_forward` is an IPC `ScriptedMovementForward` step.
     pub fn resolve(
         &mut self,
         bindings: &InputBindingsData,
         input: &impl InputState,
         yaw: f32,
         pitch: f32,
+        scripted_forward: bool,
     ) -> MovementFrame {
         (self.autorun, self.running) =
             sync_movement_toggles(bindings, input, self.autorun, self.running);
         let (direction, animation) =
-            compute_movement_input(bindings, input, self.autorun, false, yaw);
+            compute_movement_input(bindings, input, self.autorun, scripted_forward, yaw);
         self.direction = animation;
         let mut direction = Vec3::from_array(direction);
         if self.swimming && input.mouse_pressed(BindingMouseButton::Right) {
@@ -410,10 +413,11 @@ impl crate::GameClient {
             // Match original modal movement: stop direction/autorun, retain airborne state.
             self.player_movement.autorun = false;
             self.player_movement.direction = MoveDirection::None;
+            self.scripted_movement.stop();
             return Ok(());
         }
         if !self.gameplay_input_allowed() {
-            self.player_movement.stop();
+            self.halt_player_movement();
             return Ok(());
         }
         self.adopt_server_speed();
@@ -426,7 +430,7 @@ impl crate::GameClient {
             .iter_shared()
             .any(|window| window.is_visible() && window.is_exclusive())
         {
-            self.player_movement.stop();
+            self.halt_player_movement();
             return Ok(());
         }
         let keyboard = !viewport.gui_is_dragging()
@@ -434,7 +438,7 @@ impl crate::GameClient {
                 .gui_get_focus_owner()
                 .is_some_and(|focus| focus.is_class("LineEdit") || focus.is_class("TextEdit"));
         let Some(facing) = self.world.local_player_facing() else {
-            self.player_movement.stop();
+            self.halt_player_movement();
             return Ok(());
         };
         let input = self.physical_input.gameplay_state(keyboard);
@@ -454,9 +458,17 @@ impl crate::GameClient {
                 invert_y: options.invert_y,
             },
         );
+        let step = scripted_step(
+            &mut self.scripted_movement,
+            &mut self.player_movement,
+            &self.client_options.bindings,
+            &input,
+            delta,
+        );
+        let yaw = step.and_then(|step| step.facing_yaw).unwrap_or(yaw);
         self.world.set_local_player_facing(yaw);
         if self.world.local_player_controlled() {
-            self.player_movement.stop();
+            self.halt_player_movement();
             return Ok(());
         }
         let frame = self.player_movement.resolve(
@@ -464,6 +476,7 @@ impl crate::GameClient {
             &input,
             yaw,
             self.world_camera.pitch(),
+            step.is_some(),
         );
         let jump = self
             .client_options
@@ -478,6 +491,7 @@ impl crate::GameClient {
         {
             godot_error!("Sit or stand: {error}");
         }
+        let delta = step.map_or(delta, |step| step.duration_secs);
         self.predict_player(frame, jump, yaw, delta)
     }
 
@@ -490,6 +504,11 @@ impl crate::GameClient {
         self.account
             .send_stand_state(crate::world::stand::sit_or_stand(current))
             .map_err(|error| error.0)
+    }
+
+    fn halt_player_movement(&mut self) {
+        self.player_movement.stop();
+        self.scripted_movement.stop();
     }
 
     fn predict_player(
@@ -569,6 +588,24 @@ impl crate::GameClient {
     }
 }
 
+/// This frame's IPC scripted movement (Bevy `advance_scripted_movement`): manual
+/// movement input cancels it; a step turns autorun off.
+fn scripted_step(
+    scripted: &mut ScriptedMovement,
+    movement: &mut PlayerMovement,
+    bindings: &InputBindingsData,
+    input: &impl InputState,
+    delta: f32,
+) -> Option<ScriptedMovementStep> {
+    if has_manual_movement_override(bindings, input) {
+        scripted.stop();
+        return None;
+    }
+    let step = scripted.next_step(delta)?;
+    movement.autorun = false;
+    Some(step)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{PlayerMovement, turn_animation_id};
@@ -586,6 +623,27 @@ mod tests {
     /// The Stockade entrance (`tdb_world_safe_locs` 3599), world space.
     const FEET: Vec3 = Vec3::new(56.682, -19.269, -0.624);
 
+    /// A scripted step runs forward along the facing with no key held and reports it
+    /// as forward running on the wire.
+    #[test]
+    fn scripted_forward_runs_along_the_facing_without_keys() {
+        let mut movement = PlayerMovement::default();
+        let input = PhysicalInput::default();
+        let yaw = std::f32::consts::FRAC_PI_2;
+        let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, true);
+        assert!((frame.direction[0] - 1.0).abs() < 1e-6 && frame.direction[2].abs() < 1e-6);
+        assert_eq!(frame.speed, 7.0);
+        let packet = movement.network_input(yaw, FEET, 2).unwrap();
+        assert!((packet.direction[0] - 1.0).abs() < 1e-6);
+        assert_eq!(packet.facing_yaw, yaw);
+        assert!(packet.running);
+        movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, false);
+        assert_eq!(
+            movement.network_input(yaw, FEET, 2).unwrap().direction,
+            [0.0; 3]
+        );
+    }
+
     #[test]
     fn diagonal_prediction_keeps_original_forward_wire_priority() {
         let mut movement = PlayerMovement::default();
@@ -594,7 +652,7 @@ mod tests {
         input.set_key(BindingKey::KeyD, true);
         input.set_mouse(BindingMouseButton::Left, true);
         input.set_mouse(BindingMouseButton::Right, true);
-        let frame = movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        let frame = movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false);
         assert_eq!(frame.direction, [-1.0, 0.0, 2.0]);
         assert_eq!(frame.speed, 7.0);
         let packet = movement.network_input(0.0, FEET, 3).unwrap();
@@ -603,7 +661,7 @@ mod tests {
         assert!(!packet.jumping);
         assert!(!packet.swimming);
         input.clear();
-        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false);
         let stop = movement.network_input(0.0, FEET, 3).unwrap();
         assert_eq!(stop.direction, [0.0; 3]);
         assert!(movement.network_input(0.0, FEET, 3).is_none());
@@ -617,11 +675,11 @@ mod tests {
         let mut input = PhysicalInput::default();
         assert!(movement.network_input(0.0, FEET, 4).is_none());
         input.set_key(BindingKey::KeyW, true);
-        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false);
         let moving = movement.network_input(0.0, FEET, 4).unwrap();
         assert_eq!(moving.direction, [0.0, 0.0, 1.0]);
         input.clear();
-        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false);
         let last = FEET + Vec3::new(0.0, 0.0, 0.117);
         let stop = movement.network_input(0.0, last, 4).unwrap();
         assert_eq!(stop.direction, [0.0; 3]);
@@ -630,7 +688,7 @@ mod tests {
         assert_eq!(stop.position, last.to_array());
         assert_eq!(stop.epoch, 4);
         for _ in 0..3 {
-            movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+            movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false);
             assert!(movement.network_input(0.0, last, 4).is_none());
         }
     }
@@ -643,7 +701,7 @@ mod tests {
         assert!(movement.stop_input(0.0, FEET, 2).is_none());
         let mut input = PhysicalInput::default();
         input.set_key(BindingKey::KeyW, true);
-        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false);
         assert!(movement.network_input(0.0, FEET, 2).is_some());
         movement.stop();
         let stop = movement.stop_input(0.0, FEET, 2).unwrap();
@@ -658,7 +716,7 @@ mod tests {
             input.set_key(*key, true);
         }
         movement
-            .resolve(&InputBindingsData::default(), &input, 0.0, 0.0)
+            .resolve(&InputBindingsData::default(), &input, 0.0, 0.0, false)
             .speed
     }
 
@@ -739,12 +797,12 @@ mod tests {
         let mut movement = PlayerMovement::default();
         let mut input = PhysicalInput::default();
         input.set_key(BindingKey::KeyW, true);
-        movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0);
+        movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, false);
         movement.network_input(yaw, FEET, 3).unwrap();
         movement.adopt_server_speed(3.5);
         let mut feet = FEET;
         for _ in 0..60 {
-            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0);
+            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, false);
             feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
         }
         let ran = (feet - FEET).length();
@@ -769,7 +827,7 @@ mod tests {
         input.set_key(BindingKey::KeyD, true);
         let mut feet = FEET;
         for _ in 0..60 {
-            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0);
+            let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, false);
             feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
         }
         let packet = movement.network_input(yaw, feet, 3).unwrap();
@@ -841,6 +899,7 @@ mod tests {
             &PhysicalInput::default(),
             0.0,
             0.0,
+            false,
         );
         assert!(movement.network_input(0.0, FEET, 3).is_some());
         movement.stop();
@@ -899,7 +958,7 @@ mod tests {
         dt: f32,
     ) -> Vec3 {
         for _ in 0..frames {
-            let frame = movement.resolve(&InputBindingsData::default(), input, yaw, pitch);
+            let frame = movement.resolve(&InputBindingsData::default(), input, yaw, pitch, false);
             feet = movement.predict(feet, frame, false, ground, dt);
         }
         feet

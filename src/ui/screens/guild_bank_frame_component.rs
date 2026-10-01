@@ -8,6 +8,7 @@
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::ui::screens::bank_art::{
     HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, QUICKSLOT, SlotItem, WHITE,
@@ -235,7 +236,6 @@ fn title_plate(key: &str, text: &str, suffix: Option<(&str, &str)>, top: f32) ->
         "0.546875,0.609375,0.0,0.5625",
         (x + width, top, 8.0, 18.0),
     ));
-    let text_width = width - 20.0;
     let (main, rest) = match suffix {
         Some((access, color)) => (text.to_string(), Some((access, color))),
         None => (full.clone(), None),
@@ -246,26 +246,44 @@ fn title_plate(key: &str, text: &str, suffix: Option<(&str, &str)>, top: f32) ->
         12.0,
     )
     .map_or(8.0 * main.len() as f32, |(w, _)| w.ceil());
-    children.extend(label(
+    // GB.xml:195-199: `TabTitle` has no width, so it never wraps; the suffix is
+    // split off only to colour it, and both halves size to their own text.
+    children.extend(title_text(
         name.clone(),
         &main,
-        (x + 10.0, top + 2.0, main_width, 14.0),
-        (12.0, NORMAL_FONT_COLOR, "LEFT"),
+        (x + 10.0, top + 2.0),
+        NORMAL_FONT_COLOR,
     ));
     if let Some((access, color)) = rest {
-        children.extend(label(
+        children.extend(title_text(
             format!("{name}Access"),
             access,
-            (
-                x + 10.0 + main_width,
-                top + 2.0,
-                text_width - main_width,
-                14.0,
-            ),
-            (12.0, color, "LEFT"),
+            (x + 10.0 + main_width, top + 2.0),
+            color,
         ));
     }
     children
+}
+
+/// One auto-width line of the title plate (`GameFontNormal`, shadowed).
+fn title_text(name: String, text: &str, (x, y): (f32, f32), color: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(name)},
+            width: "auto",
+            height: 14.0,
+            text,
+            font: GameFont::FrizQuadrata,
+            font_size: 12.0,
+            font_color: color,
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: "LEFT",
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
 }
 
 fn bank_mode(state: &GuildBankFrameState) -> Element {

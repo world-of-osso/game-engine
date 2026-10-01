@@ -13,6 +13,14 @@ pub fn next_target<T: Copy + PartialEq>(sorted: &[T], current: Option<T>) -> Opt
     }
 }
 
+/// Shift-Tab, Retail `TARGETPREVIOUSENEMY` (`TargetNearestEnemy(true)`, "true means
+/// reverse", Bindings_Standard.xml:998): Tab's cycle walked backwards, so it starts
+/// at the farthest unit.
+pub fn previous_target<T: Copy + PartialEq>(sorted: &[T], current: Option<T>) -> Option<T> {
+    let reversed: Vec<T> = sorted.iter().rev().copied().collect();
+    next_target(&reversed, current)
+}
+
 /// Selection-ring textures without authored alpha draw their intensity as alpha,
 /// so the ring's black background is transparent. RGBA8 pixels.
 pub fn opaque_to_alpha_mask(rgba: &mut [u8]) {

@@ -490,6 +490,7 @@ fn keybinding_section_tabs_layout_left_to_right_without_overlap() {
         ("KeybindingSectionaction_bar", "Action Bar"),
         ("KeybindingSectionaudio", "Audio"),
         ("KeybindingSectioninterface", "Interface"),
+        ("KeybindingSectionbags", "Bags"),
     ];
     let rects: Vec<_> = tabs
         .iter()

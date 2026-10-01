@@ -31,6 +31,8 @@ use shared::{
 
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
+#[path = "native_npc_visual_fixture/nameplate_casts.rs"]
+mod nameplate_casts;
 
 const TICK: Duration = Duration::from_millis(5);
 const NAME: &str = "Fixture Player";
@@ -522,10 +524,18 @@ impl Drop for FixtureProject {
     }
 }
 
+/// What the fixture runs: creature visuals, nameplate Options, or nameplate cast bars.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Visual,
+    Nameplates,
+    NameplateCasts,
+}
+
 fn launch_godot(
     project: &Path,
     address: SocketAddr,
-    nameplates: bool,
+    mode: Mode,
 ) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let mut child = Command::new(binary)
@@ -533,10 +543,10 @@ fn launch_godot(
         .arg(project)
         .args([
             "--script",
-            if nameplates {
-                "res://tests/world_nameplate_options_flow.gd"
-            } else {
-                "res://tests/world_npc_visual_flow.gd"
+            match mode {
+                Mode::Visual => "res://tests/world_npc_visual_flow.gd",
+                Mode::Nameplates => "res://tests/world_nameplate_options_flow.gd",
+                Mode::NameplateCasts => "res://tests/world_nameplate_casts_flow.gd",
             },
         ])
         .env("GODOT_TEST_SERVER", address.to_string())
@@ -987,6 +997,11 @@ fn read_nameplate_fixture_output(
         if line.contains("SCRIPT ERROR") || line.contains("Account update failed") {
             return Err(format!("Native nameplate fixture setup: {line}"));
         }
+        if let (Some(player), Some(npc)) = (*player, npc)
+            && nameplate_casts::step(app, line.trim(), player, npc)?
+        {
+            continue;
+        }
         match line.trim() {
             "FIXTURE NAMEPLATE_MOVE" => {
                 app.world_mut()
@@ -1008,6 +1023,12 @@ fn read_nameplate_fixture_output(
             "FIXTURE PLAYER_REMOVE" => {
                 app.world_mut()
                     .despawn(player.take().ok_or("Player missing")?);
+            }
+            "FIXTURE NAMEPLATE_CASTS_DONE" => {
+                *completed = true;
+                println!(
+                    "PASS: server CastState, SpellFailure and SpellGo drive the enemy nameplate cast bar"
+                );
             }
             "FIXTURE NAMEPLATE_OPTIONS_DONE" => {
                 *completed = true;
@@ -1063,20 +1084,21 @@ fn run_nameplate_fixture(
 }
 
 fn main() {
-    let nameplates = match std::env::args().nth(1).as_deref() {
-        None => false,
-        Some("nameplates") => true,
+    let mode = match std::env::args().nth(1).as_deref() {
+        None => Mode::Visual,
+        Some("nameplates") => Mode::Nameplates,
+        Some("nameplate-casts") => Mode::NameplateCasts,
         Some(other) => panic!("Unknown fixture mode: {other}"),
     };
-    let project =
-        FixtureProject::create(nameplates).expect("stage isolated fixture data and Godot project");
+    let project = FixtureProject::create(mode != Mode::Visual)
+        .expect("stage isolated fixture data and Godot project");
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
-    let (mut child, lines, reader) = launch_godot(&project.project, address, nameplates);
-    let result = if nameplates {
-        run_nameplate_fixture(&mut app, &mut child, lines, reader)
-    } else {
+    let (mut child, lines, reader) = launch_godot(&project.project, address, mode);
+    let result = if mode == Mode::Visual {
         run_fixture(&mut app, &mut child, lines, reader)
+    } else {
+        run_nameplate_fixture(&mut app, &mut child, lines, reader)
     };
     if result.is_err() && child.try_wait().expect("inspect Godot status").is_none() {
         child.kill().expect("terminate failed Godot fixture");

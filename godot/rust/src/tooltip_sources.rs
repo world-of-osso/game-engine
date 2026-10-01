@@ -8,7 +8,7 @@
 //! `ANCHOR_BOTTOMLEFT` (BuffFrame.lua:888-899), target auras by their centre
 //! (TargetFrame.xml:35-40) and the minimap buttons as Minimap.lua sets them.
 
-use game_engine_core::spell_catalog::SpellTextContext;
+use game_engine_core::spell_catalog::{CasterPower, SpellTextContext};
 use game_engine_ui_model::bag_data::{InventorySlot, InventoryState};
 use game_engine_ui_model::buff_frame_component::buff_button_at;
 use game_engine_ui_model::character_frame::{paperdoll_button, parse_equipment_slot_action};
@@ -94,6 +94,7 @@ impl GameClient {
             known_spells: self.account.spells.known().to_vec(),
             auras: Vec::new(),
             spec_id: self.account.spells.spec(),
+            caster_power: self.local_caster_power(),
         };
         let input = SpellTooltipInput {
             description: catalog
@@ -107,6 +108,16 @@ impl GameClient {
                 .map(|timer| timer.remaining),
         };
         spell_tooltip(spell, &input)
+    }
+
+    /// The local player's replicated `DerivedStats` powers.
+    fn local_caster_power(&self) -> Option<CasterPower> {
+        let unit = self.replica.unit(self.world.local_player_id()?)?;
+        let derived = unit.get::<shared::components::DerivedStats>()?;
+        Some(CasterPower {
+            spell_power: derived.spell_power,
+            attack_power: derived.attack_power,
+        })
     }
 
     fn action_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {

@@ -80,7 +80,7 @@ func run_pixels() -> bool:
 	if not prepare_fixture(7, 0x10, 1) or not await load_quad():
 		return false
 	# An unbound Godot sampler reads white; the loader must not synthesize a texture.
-	var material := loaded.get_node("Batch0").get_surface_override_material(0) as ShaderMaterial
+	var material := loaded.get_node("Batch0").get_active_material(0) as ShaderMaterial
 	if material.get_shader_parameter("base_texture") != null:
 		push_error("Zero creature slot unexpectedly bound a texture")
 		return false

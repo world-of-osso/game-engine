@@ -118,15 +118,25 @@ cargo run --bin game-engine -- --screen skyboxdebug --light-skybox-id 653
 cargo run --bin game-engine -- --screen skyboxdebug --skybox-fdid 5412968
 ```
 
-## Known Issue
+## Known Issue (legacy authored-sky diagnostic)
 
-`skyboxdebug` currently resolves authored skyboxes correctly but still renders an effectively black frame, including the known-good `LightSkyboxID 653 -> 11xp_cloudsky01.m2` override. This is separate from the corrected ordinary InWorld procedural-dome omission. See [[authored-skybox-black-output]].
+The recorded legacy `skyboxdebug` diagnostic resolves authored skyboxes correctly but still renders an effectively black frame, including the known-good `LightSkyboxID 653 -> 11xp_cloudsky01.m2` override. This is separate from the corrected ordinary InWorld procedural-dome omission. See [[authored-skybox-black-output]].
 
 ## Material animation updates
 
 Skybox M2 UV offsets and transparency are still evaluated every update to preserve authored animation. Commit `e0aa5809` compares the evaluated values before mutably borrowing `SkyboxM2Material`; static tracks and repeated override times no longer emit asset modification events, while changed UV or transparency values update together. Two behavioral regression tests cover static and animated material cases. No whole-engine CPU claim follows from those tests.
 
-## Fallback Behavior
+## Native offline SkyboxDebug
+
+The native contribution reuses `character_select::sky::Sky` for the selected cached authored M2 rather than loading the entire campsite background lifecycle. Parent startup passes the four existing flat skybox argument fields into the offline controller named `SkyboxDebug`. That controller owns the scene, current orbit camera, real drag/wheel input, camera-relative authored sky and material-clock sampling; fixed-time sampling also reaches bones. Live camera settings use the existing serialized camera options. These are source facts, **not native runtime GREEN**.
+
+Cached LightSkybox/LightParams rows use the shared original WDC5 decoder. Default selection uses same-map clear-Light data; missing rows, listfile paths or cached models fail explicitly. Native debug does not substitute the legacy campsite fallback below. Default-source correctness and that legacy compatibility boundary remain open.
+
+Procedural dome/reference-ground composition is a separate environment layer. Verification selects authored sky against black without visible procedural baseline, reference objects or procedural fog. Reference-ground radial linear fog is shader-owned; stock Godot Environment fog remains off. Recorded original light inputs do not prove physical-unit equivalence. An Environment-only fixture observation cannot establish the shader-fog result.
+
+The [native spec](../../specs/native-skybox-debug.md) owns exact CLI/composition requirements and source inventory. The [conversion evidence ledger](godot-conversion.md#native-skyboxdebug--sourcetest-first-contribution-runtime-green-pending) owns revisions, genuine parser/launcher RED/GREEN provenance, MAIN's pre-production unsupported native exit, pending build/independent gate and unexecuted data-helper tests. Full pixel parity, default source, fog oracle, wide/zero-duration bones and general shutdown remain unproved.
+
+## Fallback Behavior (legacy warband path)
 
 When a warband scene has no local scene-specific skybox row with a resolvable `LightSkyboxID`, it falls back to:
 ```

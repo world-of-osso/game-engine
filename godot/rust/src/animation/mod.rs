@@ -459,6 +459,16 @@ impl AnimationState {
         )
     }
 
+    /// Sample an explicitly forced sky phase without ordinary clip advancement.
+    pub(crate) fn seek_fixed_time_ms(&mut self, time_ms: f64) -> Result<(), String> {
+        if !time_ms.is_finite() || time_ms < 0.0 {
+            return Err("Fixed sky animation time must be finite and nonnegative".into());
+        }
+        self.time_ms = time_ms;
+        self.transition = None;
+        Ok(())
+    }
+
     pub fn advance(&mut self, delta_ms: f64) -> Result<(), String> {
         let mut state = self.random_state;
         let rate = self.playback_rate();
@@ -775,6 +785,18 @@ impl WowAnimationPlayer {
         self.sampling = sampling;
     }
 
+    pub(crate) fn seek_fixed_time_ms(&mut self, time_ms: f64) -> Result<(), String> {
+        self.validated_bone_count("Fixed sky animation time")?;
+        let animation = self
+            .animation
+            .as_mut()
+            .ok_or("Fixed sky animation has no state")?;
+        animation.seek_fixed_time_ms(time_ms)?;
+        self.write_poses();
+        self.stale = false;
+        Ok(())
+    }
+
     fn write_poses(&mut self) {
         let (Some(animation), Some(skeleton)) = (&self.animation, &mut self.skeleton) else {
             return;
@@ -938,6 +960,40 @@ mod tests {
             |fdid| fs::read(root.join(format!("{fdid}.anim"))).ok(),
         )
         .expect("HD model with authored tracks")
+    }
+
+    #[test]
+    fn fixed_sky_zero_duration_keeps_requested_sampled_pose() {
+        let mut model = model();
+        model.sequences.truncate(1);
+        model.sequences[0].id = 0;
+        model.sequences[0].duration = 0;
+        model.bones.truncate(1);
+        model.bones[0].parent_bone_id = -1;
+        model.bones[0].pivot = [0.0; 3];
+        let mut tracks = model.bone_tracks.as_ref().clone();
+        tracks.truncate(1);
+        tracks[0].translation = m2::AnimTrack {
+            interpolation_type: 1,
+            global_sequence: -1,
+            sequences: vec![(vec![0, 2000], vec![[0.0; 3], [20.0, 0.0, 0.0]])],
+        };
+        model.bone_tracks = std::sync::Arc::new(tracks);
+        let mut player = AnimationState::new(&model).unwrap();
+        player.seek_fixed_time_ms(1234.0).unwrap();
+        let sampled = player.poses()[0].origin.x;
+        assert!((sampled - 12.34).abs() < 0.00001, "sampled={sampled}");
+    }
+
+    #[test]
+    fn fixed_sky_seek_rejects_invalid_time_without_pose_mutation() {
+        let mut player = AnimationState::new(&model()).unwrap();
+        player.seek_fixed_time_ms(1234.0).unwrap();
+        let before = player.poses();
+        for invalid in [f64::NAN, f64::INFINITY, -1.0] {
+            assert!(player.seek_fixed_time_ms(invalid).is_err());
+            assert_eq!(player.poses(), before);
+        }
     }
 
     fn basis(v: [f32; 3]) -> Vector3 {

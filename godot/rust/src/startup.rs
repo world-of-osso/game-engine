@@ -56,17 +56,17 @@ impl GameClient {
     pub(super) fn initialize_startup(&mut self) -> Result<(), String> {
         let arguments = read_startup_arguments()?;
         let explicit_server = arguments.server.is_some();
-        if let Some(server) = arguments.server {
-            self.server_hostname = RealmPreset::from_alias(&server)
+        if let Some(server) = arguments.server.as_deref() {
+            self.server_hostname = RealmPreset::from_alias(server)
                 .map(|preset| preset.hostname().to_owned())
-                .unwrap_or(server);
+                .unwrap_or_else(|| server.to_owned());
         }
-        self.account.startup_options.preselected_name = arguments.character;
+        self.account.startup_options.preselected_name = arguments.character.clone();
         self.attach_login_ui()?;
         match arguments.target {
             None => Ok(()),
             Some(StartupTarget::Screen(screen)) => {
-                self.start_requested_screen(screen, explicit_server)
+                self.start_requested_screen(screen, explicit_server, &arguments)
             }
             Some(StartupTarget::Connecting) => {
                 Err("--state connecting is not yet implemented in Godot".into())
@@ -85,6 +85,7 @@ impl GameClient {
         &mut self,
         screen: ScreenArg,
         explicit_server: bool,
+        arguments: &StartupArgs,
     ) -> Result<(), String> {
         match screen {
             ScreenArg::Login => Ok(()),
@@ -109,9 +110,11 @@ impl GameClient {
                 self.open_game_menu()
             }
             ScreenArg::ParticleDebug => self.open_particle_debug(),
+            ScreenArg::SkyboxDebug => self.open_skybox_debug(arguments),
             ScreenArg::M2Debug => self.open_m2_debug(),
             ScreenArg::SelectionDebug => self.open_selection_debug(),
             ScreenArg::DebugCharacter => self.open_debug_character(),
+            ScreenArg::NameplateDebug => self.open_nameplate_debug(),
             _ => Err(format!(
                 "--screen {} is not yet implemented in Godot",
                 screen.as_cli_str()

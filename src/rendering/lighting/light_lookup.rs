@@ -11,7 +11,7 @@ mod types;
 mod wdc5;
 
 pub use data::{LightEntry, WeightedLightParams, map_name_to_id};
-use data::{LightParamsSlot, ZoneLight, light_params_blend, parse_zone_lights};
+use data::{LightParamsSlot, ZoneLight, light_params_blend, parse_zone_lights, score_light_row};
 use types::LightSkyboxMetadata;
 pub use types::{LightParamsFlags, LightSkyboxFlags, ResolvedLightSkyboxModel};
 use wdc5::ParsedWdc5Db2;
@@ -320,20 +320,6 @@ fn resolve_skybox_light_params_id_for_slot(
 fn resolve_clear_light_params_id_for_slot(light_params_ids: [u32; 8]) -> Option<u32> {
     let id = light_params_ids[LightParamsSlot::Clear.index()];
     (id != 0).then_some(id)
-}
-
-fn score_light_row(row: &LightEntry, wow_position: [f32; 3]) -> Option<f32> {
-    if row.position == [0.0, 0.0, 0.0] {
-        return Some(f32::MAX / 4.0);
-    }
-    let dx = row.position[0] - wow_position[0];
-    let dy = row.position[1] - wow_position[1];
-    let dz = row.position[2] - wow_position[2];
-    let distance = (dx * dx + dy * dy + dz * dz).sqrt();
-    if row.falloff_end > 0.0 && distance > row.falloff_end {
-        return None;
-    }
-    Some(distance)
 }
 
 #[cfg(test)]
