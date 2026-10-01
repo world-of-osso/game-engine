@@ -6,6 +6,7 @@ pub(crate) mod equipment;
 pub(crate) mod m2_lights;
 pub(crate) mod material;
 pub(crate) mod player;
+mod player_request;
 pub(crate) mod uv_animation;
 use std::{cell::RefCell, collections::HashMap, fs, path::Path};
 
@@ -59,6 +60,35 @@ impl WowAssetLoader {
     ) -> VarDictionary {
         let slots = parse_skin_texture_slots(skin_fdids.as_slice());
         model_result(slots.and_then(|slots| load_model_node_with_skin_fdids(&path, &slots)))
+    }
+
+    /// The player `race`/`sex`/`class` wearing `items` (`player_request::equipment`),
+    /// built by the world's player loader: `{node}` or `{error}`.
+    #[func]
+    fn load_player(&self, race: i64, sex: i64, class: i64, items: VarArray) -> VarDictionary {
+        let loaded = player_request::player(race, sex, class).and_then(|player| {
+            let equipment = player_request::equipment(&items)?;
+            player::load_player_model(&player_request::data_root(), &player, &equipment)
+        });
+        match loaded {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("node", &node);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
+    /// Place `model`'s weapons (`items`, as given to `load_player`) for sheath state
+    /// `sheath` (0 sheathed, 1 melee drawn, 2 ranged drawn); "" or the error.
+    #[func]
+    fn place_player_weapons(&self, model: Gd<Node3D>, items: VarArray, sheath: i64) -> GString {
+        let placed = player_request::sheath_state(sheath).and_then(|sheath| {
+            let equipment = player_request::equipment(&items)?;
+            player_request::place_player_weapons(&model, &equipment, sheath)
+        });
+        GString::from(placed.err().unwrap_or_default().as_str())
     }
 }
 
