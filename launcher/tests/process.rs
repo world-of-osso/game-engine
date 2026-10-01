@@ -160,6 +160,33 @@ fn successful_build_then_launch_forwards_arguments_and_environment() {
 }
 
 #[test]
+fn js_script_flag_reaches_godot_as_a_client_argument() {
+    let fixture = Fixture::new();
+    let output = fixture.launch(&[
+        "--headless",
+        "--screen",
+        "login",
+        "--run-js-ui-script",
+        "debug/login.js",
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        fixture.godot_args(),
+        [
+            "--path",
+            fixture.directory.join("godot").to_str().unwrap(),
+            "--headless",
+            "--",
+            "--screen",
+            "login",
+            "--run-js-ui-script",
+            "debug/login.js",
+        ]
+        .map(hex)
+    );
+}
+
+#[test]
 fn interspersed_client_pairs_follow_native_engine_arguments() {
     let fixture = Fixture::new();
     let output = fixture.launch(&[
