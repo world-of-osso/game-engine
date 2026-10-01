@@ -27,10 +27,6 @@ pub use name_catalog::NameCatalog;
 
 const MALE: u8 = 0;
 const FEMALE: u8 = 1;
-/// ChrRaces 75 "Visage": the Dracthyr altered form, customized with its own models
-/// (ChrModel 127/128) and options.
-pub const VISAGE_RACE: u8 = 75;
-
 /// Dracthyr (52 Alliance, 70 Horde) create a visage form beside the dragon form.
 pub fn has_visage_form(race: u8) -> bool {
     matches!(race, 52 | 70)
@@ -54,12 +50,13 @@ pub struct CharCreateState {
 }
 
 impl CharCreateState {
-    /// The race whose models and options the edited form uses.
+    /// The race whose models and options the edited form uses: the visage form is
+    /// ChrRaces.UnalteredVisualRaceID of Dracthyr 52 / 70 (75 / 76, ChrModel 127/128).
     pub fn customization_race(&self) -> u8 {
-        if self.visage_active {
-            VISAGE_RACE
-        } else {
-            self.selected_race
+        match (self.visage_active, self.selected_race) {
+            (true, 52) => 75,
+            (true, 70) => 76,
+            (_, race) => race,
         }
     }
 }

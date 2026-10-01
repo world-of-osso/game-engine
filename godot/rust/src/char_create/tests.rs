@@ -48,6 +48,7 @@ fn offered_rows(state: &CharCreateState) -> Vec<CustomizationOptionUi> {
         selected_race: state.selected_race,
         selected_sex: state.selected_sex,
         selected_class: state.selected_class,
+        visage_active: state.visage_active,
         ..CharCreateState::default()
     };
     let categories = build_ui_state(&probe, db()).categories;
@@ -537,4 +538,25 @@ fn dracthyr_creates_a_visage_form_beside_the_dragon_form() {
     act(&mut state, CharCreateAction::SelectRace(1));
     assert!(state.appearance.visage.is_none());
     assert_eq!(build_ui_state(&state, db()).altered_form, None);
+}
+
+/// The visage form edits ChrRaces 75 (Alliance) / 76 (Horde), the
+/// UnalteredVisualRaceID of 52 / 70. Neither has a PlayableRaceBit, so its
+/// options' ChrCustomizationReq rows are checked against the Dracthyr race,
+/// as TrinityCore registers alt-form options under the parent race.
+#[test]
+fn dracthyr_visage_form_offers_its_customization_options() {
+    for (race, visage_race) in [(52, 75), (70, 76)] {
+        let mut state = CharCreateState::default();
+        act(&mut state, CharCreateAction::SelectRace(race));
+        act(&mut state, CharCreateAction::SetForm(true));
+        assert_eq!(state.customization_race(), visage_race);
+        let labels: Vec<String> = offered_rows(&state)
+            .iter()
+            .map(|row| row.label.clone())
+            .collect();
+        for label in ["Face", "Skin Color", "Hair Style"] {
+            assert!(labels.iter().any(|l| l == label), "race {race}: {labels:?}");
+        }
+    }
 }
