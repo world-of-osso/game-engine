@@ -12,7 +12,7 @@ use godot::prelude::*;
 use shared::protocol::{CombatLogKind, DamageMeterSession};
 use ui_toolkit::widgets::font_string::GameFont;
 
-use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
+use crate::{GameClient, frame_error::FrameError, replicated::UnitFields, ui::RegistryUi};
 
 /// `GameFontNormalMed1` (FRIZQT 13), the session timer's font.
 const TIMER_FONT_SIZE: i32 = 13;
@@ -88,8 +88,8 @@ impl GameClient {
         let in_combat = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id))
-            .is_some_and(|unit| unit.in_combat);
+            .and_then(|id| self.replica.unit(id))
+            .is_some_and(UnitFields::in_combat);
         let hud = &mut self.damage_meter;
         let timer_text = hud.window.timer_text(in_combat);
         let timer_width = hud.timer_width(&timer_text)?;

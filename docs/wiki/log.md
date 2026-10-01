@@ -1,5 +1,21 @@
 # Wiki Log
 
+## [2026-09-30] investigation | World-entry stalls
+
+Added [[world-entry-stalls]]. The "Account" step at world entry (17-48 s in base) built every replicated unit's visual synchronously. "World objects" overran its 8 ms budget with whole-model and whole-WMO units. Unit visuals and ADT objects now load on `AssetLoader` workers, and the main thread builds them within 8 ms budgets: WMOs a slice of batches at a time, terrain chunk by chunk. The loading screen also waits for the local player's model. Back-to-back A/B (`world_entry_frames.gd`, two rounds at load 14-44): longest loading frame 17.6-47.7 s → 0.22-0.91 s. Gaps: the first in-world HUD frame, the per-unit build cost of humanoid NPCs, and object throughput under heavy load.
+
+## [2026-09-30] audit | Standalone bag RED and pending host integration
+
+Updated conversion spec, parity matrix and [system evidence](systems/godot-conversion.md#native-standalone-bags--red-host-implementation-proof-pending) for tests `67870535`/`a3e34213` and host `91bbc703`. Saved runtime RED reaches authoritative BAGS_READY then fails missing MainMenuBarBackpackButton, exit 101; Depot `d11bz93c7w` is compiled baseline only. Portable agents 1343/1344 APIs and actual GREEN remain pending. Standalone visibility, inventory interactions and unified window ownership remain unproven; full conversion open. Docs-only update; no tests/build/runtime operations.
+
+## [2026-09-30] system | Godot replication without an ECS replica
+
+New [[godot-replication]]: the network worker no longer runs replicon's client; it forwards raw replicon payloads and acks mutations, and the host-owned `Replica` decodes them into per-type columns. Wire layout, ack flow, fingerprint reasoning, codec schema and proof recorded; `UnitSnapshot` mentions in merchant, chat, spellbook, nameplate, movement and NPC appearance docs now point at the `Replica`.
+
+## [2026-09-30] verification | Bounded native loot reach
+
+Reconciled LootFrame spec/matrix with [saved reach proof](systems/godot-conversion.md#native-loot-reach--bounded-runtime-proof): inclusive corpse reach and friendly dispatch accepted; original four cases/42 UI checks retained. Hostile/role-response gaps remain; post-DONE exit 101 RenderingServer-null is FAIL/deferred. Settings-reload commits remain test preparation, not proof. Docs only; no clean full-conversion or source-pinning claim.
+
 ## [2026-09-30] implementation | Bounded native receiving mail
 
 Updated [[trade-and-mail]] and the MailFrame spec to distinguish preserved Bevy full mail from the native AH receiving dependency. `9ed690bf` Depot focused source proof: metadata 1/1, owned UDP 3/3, model/registry/interaction 4/4. Real mailbox M2/picking, matching role/contents gate, authoritative claims and receiving-only authored UI are implemented. Committed GDScript fixture remains unrun until main's CLI proof; no extension install, native live run, backend/shared change or full-AH acceptance. Two pre-existing terrain test unused-mut warnings remain outside this slice.
@@ -2237,6 +2253,14 @@ Updated existing [[godot-conversion]], [[loot-and-flight]], index and loot spec.
 ## [2026-09-30] evidence | Native loot/caption final main reconciliation
 
 Updated loot spec, Partial matrix rows, [[godot-conversion]] and index for `292a2fb2`/Depot `tt4c247nl1`, latest `/tmp/claude/native-ui-caption-run.log`: 42 Options records/no overflow, three visible money lines/contained shadow and main-inspected Items/stack 2/Poor captions. Four Auto Loot cases, InventoryFull reject/retry, authoritative bags 11/money 32756, matching removals/closure, duplicate chat once and empty-corpse target-only reach LOOT_DONE. Full exit 101 after DONE is fixture timeout; prior af03660f RenderingServer-null retained separately. Caption-2 RED corrected by width caps on all fixed axes, height caps only on spacing-fitted explicit multilines; no glyph clipping/font shrink. Verifier 1314 report absent at reconciliation, no PASS credited. Exact range/living-NPC runtime, corpse-pose parity, clean acceptance/full conversion open; shutdown explicitly deferred, source unfrozen. Supersedes older pending build/export/main-rendering entries; preserves AA/shutdown/cache evidence. Docs only; no tests/build/delegation or source/data/PLAN changes.
+
+## [2026-09-30] fix | Showcase client bugs
+
+Floating combat text starts at per-number camera-plane offsets from the retail WorldText CVars; the target's nameplate takes `nameplateSelectedAlpha`; robes select skirt/sleeve geosets and paste over shirt and pants in `CCharacterComponent` priority; player weapons sheathe at `Item.SheatheType`; creature poses follow `AnimationData.Fallback` (Dead → Death held). `.anim` out-of-bounds reads trace to stale cached `.skel` files. See [showcase-client-bugs](investigations/showcase-client-bugs.md).
+
+## 2026-09-30 — SettingsReload reconciliation
+
+Linked [accepted bounded two-process proof](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) from fixture workflow, loot/conversion specs, matrix and index. Accepted `/tmp/claude/verify-native-settings-reload.md`: bounded saved-artifact functional reload and scoped Rust formatting PASS at `fc303c77`. Byte equality only at post-spawn/post-load observation boundaries; both children deliberately SIGKILL/reap/join, not normal shutdown. Saved build provenance is caller-supplied; parent exit 0 lacks a log footer. Partial/full conversion and shutdown gaps remain open; inherited 42 Options records do not upgrade all-options/geometry acceptance.
 
 ## [2026-09-30] fix | Audio/visual parity gaps (avfix)
 

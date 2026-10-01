@@ -266,6 +266,7 @@ func click(control: Control) -> void:
 	for pressed in [true, false]:
 		var event := InputEventMouseButton.new()
 		event.position = point
+		event.global_position = point
 		event.button_index = MOUSE_BUTTON_LEFT
 		event.pressed = pressed
 		root.push_input(event, true)

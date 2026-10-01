@@ -97,10 +97,8 @@ impl WowWmoPlacementProbe {
     fn load(&mut self, map: GString, tile_y: u32, tile_x: u32, wmo_fdid: u32) -> GString {
         let settings = ProjectSettings::singleton();
         let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
-        let cache_root =
-            PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
         let tile = (tile_y, tile_x);
-        let mut terrain = StreamedTerrain::new(data_root.clone(), cache_root.clone());
+        let mut terrain = StreamedTerrain::new(data_root.clone());
         if let Err(error) = terrain.request_map_tiles(map.to_string(), tile, &[]) {
             return error.as_str().into();
         }
@@ -108,7 +106,6 @@ impl WowWmoPlacementProbe {
             "WorldObjects",
             crate::WORLD_OBJECT_BUDGET,
             data_root.clone(),
-            cache_root.clone(),
         );
         objects.enable_particles(1.0);
         self.loaded = Some(Loaded {
@@ -118,7 +115,7 @@ impl WowWmoPlacementProbe {
                 tile,
                 fdid: wmo_fdid,
             },
-            global: GlobalWmoScene::new(data_root, &cache_root),
+            global: GlobalWmoScene::new(data_root),
         });
         GString::new()
     }

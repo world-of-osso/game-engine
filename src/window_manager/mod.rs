@@ -4,19 +4,27 @@
 //! at most two Panels (slot L then R), one Wide window exclusive with every Panel,
 //! and Containers (bags) that coexist with everything.
 
+#[cfg(not(godot_host))]
 use bevy::prelude::*;
 
+#[cfg(not(godot_host))]
 use crate::game_state::GameState;
 
+#[cfg(not(godot_host))]
 mod input;
+#[cfg(not(godot_host))]
 mod placement;
+#[cfg(not(godot_host))]
 mod sessions;
 
+#[cfg(not(godot_host))]
 pub use placement::{WindowPlacements, place_windows};
 
 /// Clears the current character's moved-window positions ("Reset window positions").
+#[cfg(not(godot_host))]
 pub struct ResetWindowPositionsCommand;
 
+#[cfg(not(godot_host))]
 impl Command for ResetWindowPositionsCommand {
     type Out = ();
 
@@ -141,7 +149,8 @@ impl WindowId {
     }
 }
 
-#[derive(Resource, Default, Debug)]
+#[derive(Default, Debug)]
+#[cfg_attr(not(godot_host), derive(Resource))]
 pub struct WindowManager {
     /// Open windows, oldest first.
     open: Vec<WindowId>,
@@ -281,14 +290,17 @@ impl WindowManager {
 }
 
 /// Leaving the world (logout, character switch) starts the next session clean.
+#[cfg(not(godot_host))]
 fn close_all_windows(mut manager: ResMut<WindowManager>) {
     if manager.any_open() {
         manager.close_all();
     }
 }
 
+#[cfg(not(godot_host))]
 pub struct WindowManagerPlugin;
 
+#[cfg(not(godot_host))]
 impl Plugin for WindowManagerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WindowManager>();
@@ -309,6 +321,6 @@ impl Plugin for WindowManagerPlugin {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(godot_host)))]
 #[path = "../../tests/unit/window_manager_tests.rs"]
 mod tests;

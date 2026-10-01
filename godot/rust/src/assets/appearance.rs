@@ -21,7 +21,7 @@ use rusqlite::{Connection, OpenFlags};
 use super::material::texture_from_rgba;
 use crate::equipment_appearance_data::ResolvedEquipmentAppearance;
 
-type TexturePixels = (Vec<u8>, u32, u32);
+pub(super) type TexturePixels = (Vec<u8>, u32, u32);
 
 #[derive(Default)]
 pub(crate) struct NpcAppearances {
@@ -39,9 +39,38 @@ pub(crate) struct PreparedAppearance {
     pub(super) hidden_geoset_ids: HashSet<u16>,
 }
 
+/// A `PreparedAppearance` with its replacement textures still pixels, so a worker can
+/// prepare it; `into_prepared` makes the textures on the main thread.
+pub(crate) struct AppearanceParts {
+    pub(super) source: &'static str,
+    pub(super) textures: HashMap<u32, TexturePixels>,
+    pub(super) selected_geosets: Vec<(u16, u16)>,
+    pub(super) authored_geosets: Vec<(u16, u16)>,
+    pub(super) equipment_geosets: Vec<(u16, u16)>,
+    pub(super) hidden_geoset_ids: HashSet<u16>,
+}
+
+impl AppearanceParts {
+    pub(crate) fn into_prepared(self) -> Result<PreparedAppearance, String> {
+        let textures = self
+            .textures
+            .into_iter()
+            .map(|(kind, pixels)| make_texture(pixels).map(|texture| (kind, texture)))
+            .collect::<Result<_, _>>()?;
+        Ok(PreparedAppearance {
+            source: self.source,
+            textures,
+            selected_geosets: self.selected_geosets,
+            authored_geosets: self.authored_geosets,
+            equipment_geosets: self.equipment_geosets,
+            hidden_geoset_ids: self.hidden_geoset_ids,
+        })
+    }
+}
+
 /// An authored NPC body with its display's armor (`NPCModelItemSlotDisplayInfo`).
 pub(crate) struct PreparedNpc {
-    pub(crate) appearance: PreparedAppearance,
+    pub(crate) appearance: AppearanceParts,
     /// Item models, textures and geosets of the armor; its textures are in the bake.
     pub(crate) armor: ResolvedEquipmentAppearance,
     pub(crate) race: u8,
@@ -54,7 +83,6 @@ impl NpcAppearances {
     pub(crate) fn prepare(
         &mut self,
         data_root: &Path,
-        cache_root: &Path,
         display_id: u32,
         resolve_armor: impl FnOnce(u8, u8) -> Result<ResolvedEquipmentAppearance, String>,
     ) -> Result<Option<PreparedNpc>, String> {
@@ -75,8 +103,7 @@ impl NpcAppearances {
         let resolver = CascListfileResolver::new(
             AssetResolverConfig::new()
                 .with_data_root(data_root)
-                .with_shared_data_root(data_root)
-                .with_cache_root(cache_root),
+                .with_shared_data_root(data_root),
         );
         let textures = compose_replacement_textures(
             compositor,
@@ -88,7 +115,7 @@ impl NpcAppearances {
             display_id,
         )?;
         Ok(Some(PreparedNpc {
-            appearance: PreparedAppearance {
+            appearance: AppearanceParts {
                 source: "NPC",
                 textures,
                 selected_geosets: selected.geosets,
@@ -179,7 +206,7 @@ fn compose_replacement_textures(
     resolver: &CascListfileResolver,
     data_root: &Path,
     display_id: u32,
-) -> Result<HashMap<u32, Gd<ImageTexture>>, String> {
+) -> Result<HashMap<u32, TexturePixels>, String> {
     let (composed, mut decoded) = load_and_compose_selected_pixels(
         compositor, selected, layout_id, resolver, data_root, display_id,
     )?;
@@ -187,19 +214,19 @@ fn compose_replacement_textures(
         Some(fdid) => load_npc_texture(resolver, data_root, fdid)?,
         None => composed.body,
     };
-    let mut textures = HashMap::from([(1, make_texture(body)?)]);
+    let mut textures = HashMap::from([(1, body)]);
     if let Some(type6) = select_npc_type6_texture(
         compositor.declares_hair(&selected.materials, layout_id),
         composed.hair,
         composed.head,
     )? {
-        textures.insert(6, make_texture(type6)?);
+        textures.insert(6, type6);
     }
     if let Some(fdid) = compositor.replacement_texture_fdid(&selected.materials, layout_id, 19) {
         let pixels = decoded
             .remove(&fdid)
             .ok_or_else(|| format!("missing NPC texture FDID {fdid}"))?;
-        textures.insert(19, make_texture(pixels)?);
+        textures.insert(19, pixels);
     }
     Ok(textures)
 }

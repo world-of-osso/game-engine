@@ -27,3 +27,7 @@ opt-level = 2
 # unoptimized they dominated character-select loading.
 [profile.dev.package.game-engine-core]
 opt-level = 2
+
+# Replica decodes every replicated component change on the main thread each frame.
+[profile.dev.package.game-engine-network]
+opt-level = 2

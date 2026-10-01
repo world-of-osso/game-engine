@@ -102,12 +102,7 @@ impl GameClient {
     }
 
     fn cache_objective_tracker_textures(&self) {
-        let cache_root = std::path::PathBuf::from(
-            godot::classes::ProjectSettings::singleton()
-                .globalize_path("user://asset-resolver")
-                .to_string(),
-        );
-        let resolver = crate::assets::creature::local_resolver(&self.data_root, &cache_root);
+        let resolver = crate::assets::creature::local_resolver(&self.data_root);
         for fdid in TRACKER_FDIDS {
             let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
             if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
@@ -163,11 +158,10 @@ impl GameClient {
     #[func]
     fn accept_quest_from(&self, npc_name: GString, quest_id: i64) -> GString {
         let name = npc_name.to_string();
-        let Some(npc) = self
-            .units
-            .values()
-            .find(|unit| unit.npc.as_ref().is_some_and(|npc| npc.name == name))
-        else {
+        let Some(npc) = self.replica.units().find(|unit| {
+            unit.get::<shared::components::Npc>()
+                .is_some_and(|npc| npc.name == name)
+        }) else {
             return GString::from(format!("No mirrored NPC named {name}").as_str());
         };
         match self
