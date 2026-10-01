@@ -109,7 +109,7 @@ fn run_until_done(
     Err(format!("bags fixture timed out; phase={phase:?}"))
 }
 
-fn cleanup_owned_child(
+pub(super) fn cleanup_owned_child(
     child: &mut Child,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
