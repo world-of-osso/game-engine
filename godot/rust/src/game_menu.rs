@@ -355,8 +355,9 @@ impl GameClient {
         file.modal_offset = Some(snapshot.modal_position);
         save_options_file_to_path(&path, &file)?;
         self.client_options = file;
-        self.world_objects
-            .set_particle_density(f32::from(self.client_options.graphics.particle_density) / 100.0);
+        let density = f32::from(self.client_options.graphics.particle_density) / 100.0;
+        self.world_objects.set_particle_density(density);
+        self.world.set_particle_density(density);
         self.apply_display_options();
         Ok(())
     }
