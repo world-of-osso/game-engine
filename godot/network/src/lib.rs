@@ -650,11 +650,12 @@ fn install_merchant_relay(app: &mut App, events: Sender<Event>) {
 }
 
 fn install_mail_relay(app: &mut App, events: Sender<Event>) {
-    use protocol::{MailFailed, MailboxContents, PendingMail};
+    use protocol::{MailFailed, MailSent, MailboxContents, PendingMail};
     app.add_systems(
         Update,
         (move |mut contents: Query<&mut MessageReceiver<MailboxContents>>,
                mut failed: Query<&mut MessageReceiver<MailFailed>>,
+               mut sent: Query<&mut MessageReceiver<MailSent>>,
                mut pending: Query<&mut MessageReceiver<PendingMail>>| {
             let mut received = Vec::new();
             macro_rules! drain {
@@ -668,6 +669,7 @@ fn install_mail_relay(app: &mut App, events: Sender<Event>) {
             }
             drain!(contents);
             drain!(failed);
+            drain!(sent);
             drain!(pending);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {

@@ -145,6 +145,17 @@ pub fn empty_bag_slot_tooltip() -> GameTooltip {
     text_tooltip("Equip Container", TOOLTIP_WHITE, Vec::new())
 }
 
+/// `MiniMapMailFrameMixin:OnEnter` / `FormatUnreadMailTooltip`: one white `SetText` of
+/// `HAVE_MAIL_FROM` and a line per sender, or `HAVE_MAIL` without senders.
+pub fn unread_mail_tooltip(senders: &[String]) -> GameTooltip {
+    let (header, senders) = crate::minimap::mail_tooltip_lines(senders);
+    let lines = senders
+        .into_iter()
+        .map(|sender| TooltipLineState::colored(sender, TOOLTIP_WHITE))
+        .collect();
+    text_tooltip(header, TOOLTIP_WHITE, lines)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,5 +256,32 @@ mod tests {
         assert_eq!(rows(&empty_bag_slot_tooltip()), [("Equip Container", "")]);
         assert_eq!(rows(&zoom_tooltip(true)), [("Zoom In", "")]);
         assert_eq!(rows(&tracking_tooltip())[0], ("Tracking", ""));
+    }
+
+    #[test]
+    fn unread_mail_lists_its_senders_in_white_under_the_header() {
+        super::super::set_test_data_root();
+        let senders = ["Fbalpha".to_owned(), "Auction House".to_owned()];
+        let tooltip = unread_mail_tooltip(&senders);
+        assert_eq!(
+            rows(&tooltip),
+            [
+                ("Unread mail from:", ""),
+                ("Fbalpha", ""),
+                ("Auction House", "")
+            ]
+        );
+        assert_eq!(tooltip.content.title_color, TOOLTIP_WHITE);
+        assert!(
+            tooltip
+                .content
+                .lines
+                .iter()
+                .all(|l| l.left_color == TOOLTIP_WHITE)
+        );
+        assert_eq!(
+            rows(&unread_mail_tooltip(&[])),
+            [("You have unread mail", "")]
+        );
     }
 }

@@ -264,6 +264,7 @@ impl GameClient {
         let results = hud.popups.drain_results();
         self.dispatch_bag_destroy_results(&results)?;
         self.dispatch_bank_popup_results(&results)?;
+        self.dispatch_mail_popup_results(&results)?;
         self.hide_stale_bag_destroy_popups();
         for accept in invite_answers(&results) {
             self.account.group.pending_invite = None;
