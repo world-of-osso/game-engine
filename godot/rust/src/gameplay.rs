@@ -385,6 +385,11 @@ impl PlayerMovement {
 
 impl crate::GameClient {
     pub(super) fn update_player_animation(&mut self) -> Result<(), String> {
+        // World entry now loads unit visuals asynchronously. Local gameplay animation
+        // starts at the same Loading → InWorld barrier as input and footsteps.
+        if self.account.session.screen != SessionScreen::InWorld {
+            return Ok(());
+        }
         let Some(facing) = self.world.local_player_facing() else {
             return Ok(());
         };
