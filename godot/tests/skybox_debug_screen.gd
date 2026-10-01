@@ -319,6 +319,8 @@ func drag(relative: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
 	motion.position = Vector2(640, 360)
 	motion.relative = relative
+	# Physical motion supplies both fields; screen_relative is unscaled by viewport stretch.
+	motion.screen_relative = relative
 	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
 	root.push_input(motion, true)
 	await RenderingServer.frame_post_draw
