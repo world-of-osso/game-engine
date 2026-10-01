@@ -1,3 +1,7 @@
+## [2026-09-30] audit | Startup equipment followup pending after lifecycle split
+
+[SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records gate1421's new own complexity finding and source-only `5a3ebf7b` lifecycle/application split. Fresh build/actions/merchant-click and independent1423 acceptance pending MAIN proof; no metric clearance. Prior first-GREEN remains historical functional evidence, not current integration proof. Inherited readability remains uncleared; inventory snapshot is not Appearance/mesh proof. Docs only; no tests/builds or operations.
+
 ## [2026-09-30] audit | Startup MainHand inventory MAIN observed GREEN
 
 MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records fresh Depot `04kwqv77h7` build0/runtime0, pre-Equip GUID9170105, authoritative GUID9170005 replacement, exact one Equip/two Destroy and original popup flow. Intentional child3934038 kill/reap/readers0 is not shutdown; broader coverage excluded. Supersedes pending-GREEN docs `cf9c3d63`.
