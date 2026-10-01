@@ -228,20 +228,26 @@ impl RegistryModel {
 
     fn bag_input(
         &mut self,
+        owner: i64,
         input: &UiInput,
         projection: &UiProjection,
     ) -> Option<crate::bag_cursor::BagInput> {
         if let UiInput::PointerUp(at) = input {
             return Some(crate::bag_cursor::BagInput::Release {
+                owner,
                 at: *at / self.registry.ui_scale,
                 physical_at: *at,
                 action: projection.pointer_action_at(&self.registry, *at),
             });
         }
-        self.bag_click_input(input)
+        self.bag_click_input(owner, input)
     }
 
-    fn bag_click_input(&mut self, input: &UiInput) -> Option<crate::bag_cursor::BagInput> {
+    fn bag_click_input(
+        &mut self,
+        owner: i64,
+        input: &UiInput,
+    ) -> Option<crate::bag_cursor::BagInput> {
         use game_engine_ui_model::merchant::Click;
         let (action, click, at) = match input {
             UiInput::FrameClick { id, at } => (
@@ -259,7 +265,12 @@ impl RegistryModel {
             }
             _ => return None,
         };
-        Some(crate::bag_cursor::BagInput::Click { action, click, at })
+        Some(crate::bag_cursor::BagInput::Click {
+            owner,
+            action,
+            click,
+            at,
+        })
     }
 
     fn update_input_widgets(&mut self, event: UiInput, sliders: &mut VecDeque<SliderInput>) {
@@ -723,7 +734,9 @@ impl RegistryUi {
             postsetup: ScreenPostsetup::Merchant,
         };
         model.sync();
-        self.initialize_hud_model(model, parent)
+        self.initialize_hud_model(model, parent)?;
+        self.bag_inputs = Some(VecDeque::new());
+        Ok(())
     }
 
     pub fn show_mail(
@@ -1396,6 +1409,7 @@ impl RegistryUi {
     }
 
     fn queue_bag_input(&mut self, event: &UiInput) -> Result<bool, String> {
+        let owner = self.to_gd().instance_id().to_i64();
         let Some(queue) = self.bag_inputs.as_mut() else {
             return Ok(false);
         };
@@ -1407,7 +1421,7 @@ impl RegistryUi {
             .projection
             .as_ref()
             .ok_or("Login UI is not initialized")?;
-        let Some(input) = model.bag_input(event, projection) else {
+        let Some(input) = model.bag_input(owner, event, projection) else {
             return Ok(false);
         };
         queue.push_back(input);
