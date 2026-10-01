@@ -13,8 +13,8 @@ use game_engine_ui_model::bag_data::{InventorySlot, InventoryState};
 use game_engine_ui_model::buff_frame_component::buff_button_at;
 use game_engine_ui_model::chat_frame_component::chat_spell_link_at;
 use game_engine_ui_model::game_tooltip::hud::{
-    backpack_tooltip, calendar_tooltip, clock_tooltip, empty_bag_slot_tooltip, tracking_tooltip,
-    twelve_hour_time, zoom_tooltip,
+    backpack_tooltip, calendar_tooltip, clock_tooltip, empty_bag_slot_tooltip,
+    minimap_mouseover_tooltip, tracking_tooltip, twelve_hour_time, zoom_tooltip,
 };
 use game_engine_ui_model::game_tooltip::item::{
     auction_row_item, item_game_tooltip, named_item, without_sell_price,
@@ -35,6 +35,7 @@ use ui_toolkit::frame::Frame;
 
 use crate::GameClient;
 use crate::faction_reaction::Reaction;
+use crate::replicated::UnitFields;
 use crate::tooltips::{HoveredFrame, HoveredTooltip, named_ancestor};
 
 /// `ENCLOSED_MONEY`, `COD_AMOUNT`, `MAIL_MULTIPLE_ITEMS`.
@@ -150,6 +151,7 @@ impl GameClient {
         Some(HoveredTooltip {
             tooltip: self.owned_by(hit, owner, side, tooltip)?,
             item: Some(item),
+            health: None,
         })
     }
 
@@ -263,6 +265,7 @@ impl GameClient {
         Some(HoveredTooltip {
             tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
             item: Some(item),
+            health: None,
         })
     }
 
@@ -348,7 +351,7 @@ impl GameClient {
     /// Unit frames and the minimap buttons.
     fn hud_frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         if let Some(unit) = self.unit_frame_unit(hit) {
-            return self.unit_tooltip(unit).map(HoveredTooltip::text);
+            return self.unit_hovered_tooltip(unit);
         }
         let ui = hit.ui.bind();
         let (owner, name) = named_ancestor(ui.registry()?, hit.frame, |frame| {
@@ -387,6 +390,9 @@ impl GameClient {
         };
         let (hour, minute, _) = crate::minimap::local_time();
         let time = twelve_hour_time(hour, minute);
+        if let Some(tooltip) = minimap_mouseover_tooltip(&self.minimap_blip_names(&host, &hit)) {
+            return Some(HoveredTooltip::text(tooltip));
+        }
         let (tooltip, rect, side) = if let Some(rect) = hit("MinimapClusterTrackingBackground") {
             (tracking_tooltip(), rect, OwnerSide::Left)
         } else if let Some(rect) = hit(game_engine_ui_model::minimap::MINIMAP_CLOCK_TEXT) {
@@ -457,6 +463,28 @@ fn inbox_tooltip(mail: &MailHeader, player_level: Option<u16>) -> Option<GameToo
         (money, _) => add_money_section(&mut tooltip.content, ENCLOSED_MONEY, money),
     }
     Some(tooltip)
+}
+
+impl GameClient {
+    /// Names of the units whose minimap blips (`MinimapBlip{unit}`) `hit` covers.
+    fn minimap_blip_names(
+        &self,
+        host: &crate::ui::RegistryUi,
+        hit: &dyn Fn(&str) -> Option<[f32; 4]>,
+    ) -> Vec<String> {
+        let Some(registry) = host.registry() else {
+            return Vec::new();
+        };
+        registry
+            .frames_iter()
+            .filter_map(|frame| {
+                let name = frame.name.as_deref()?;
+                let unit: u64 = name.strip_prefix("MinimapBlip")?.parse().ok()?;
+                hit(name)?;
+                Some(self.replica.unit(unit)?.name()?.to_owned())
+            })
+            .collect()
+    }
 }
 
 /// `SetInventoryItem` for an equipped bag from what the server names: the bag and

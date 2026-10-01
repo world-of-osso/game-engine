@@ -103,10 +103,12 @@ pub(crate) struct HoveredFrame {
     pub frame: u64,
 }
 
-/// A tooltip and the item it shows, which the Shift comparison compares.
+/// A tooltip, the item it shows (which the Shift comparison compares) and the health of
+/// the unit it shows.
 pub(crate) struct HoveredTooltip {
     pub tooltip: GameTooltip,
     pub item: Option<InventorySlot>,
+    pub health: Option<f32>,
 }
 
 impl HoveredTooltip {
@@ -114,6 +116,7 @@ impl HoveredTooltip {
         Self {
             tooltip,
             item: None,
+            health: None,
         }
     }
 }
@@ -151,7 +154,12 @@ impl GameClient {
                 None => self.world_tooltip()?,
             },
         };
-        let Some(HoveredTooltip { tooltip, item }) = hovered else {
+        let Some(HoveredTooltip {
+            tooltip,
+            item,
+            health,
+        }) = hovered
+        else {
             return Ok(GameTooltipView::default());
         };
         let anchor = tooltip.anchor;
@@ -161,7 +169,11 @@ impl GameClient {
             .map(|item| comparisons(&item, &self.merchant.session.inventory, self.player_level()))
             .unwrap_or_default();
         let shopping = place_comparisons(&mut main, anchor, compared, screen);
-        Ok(GameTooltipView { main, shopping })
+        Ok(GameTooltipView {
+            main,
+            shopping,
+            health,
+        })
     }
 
     pub(crate) fn player_level(&self) -> Option<u16> {
@@ -258,6 +270,7 @@ impl GameClient {
         state.set("title", view.main.title.as_str());
         state.set("lines", &tooltip_lines(&view.main));
         state.set("rect", &rect_array(&view.main));
+        state.set("health", view.health.map_or(-1.0, f64::from));
         let mut shopping = VarArray::new();
         for compare in view
             .shopping

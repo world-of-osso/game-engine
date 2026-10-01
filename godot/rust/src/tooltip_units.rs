@@ -9,8 +9,9 @@ use game_engine_ui_model::game_tooltip::unit::{
     NpcTooltipInput, PlayerTooltipInput, npc_tooltip, player_tooltip,
 };
 use game_engine_ui_model::tooltip_presentation::{TOOLTIP_WHITE, TooltipPresentation};
+use godot::classes::Camera3D;
 use godot::prelude::*;
-use shared::components::{GuildMembership, Npc, Player, UnitLevel};
+use shared::components::{GuildMembership, Health, Npc, Player, UnitLevel};
 use shared::level_scaling::{LevelScaling, level_for_viewer};
 use shared::protocol::GameObjectInfo;
 
@@ -21,21 +22,36 @@ use crate::tooltips::{HoveredFrame, HoveredTooltip, named_ancestor};
 use crate::unit_pick::pick_unit;
 
 impl GameClient {
-    /// The unit a hovered unit frame cluster shows (`PlayerFrame`, `TargetFrame`).
+    /// The unit a hovered unit frame shows: `PlayerFrame`, `TargetFrame`, and the party
+    /// and raid members of the compact group frames (`UnitFrame_OnEnter`), found by name.
     pub(crate) fn unit_frame_unit(&self, hit: &HoveredFrame) -> Option<u64> {
         let ui = hit.ui.bind();
-        let (_, root) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            match frame.name.as_deref()? {
-                "PlayerFrame" => Some(true),
-                "TargetFrame" => Some(false),
-                _ => None,
-            }
+        let (_, frame) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            UnitFrameName::parse(frame.name.as_deref()?)
         })?;
-        if root {
-            self.world.local_player_id()
-        } else {
-            self.targeting_target()
+        drop(ui);
+        match frame {
+            UnitFrameName::Player => self.world.local_player_id(),
+            UnitFrameName::Target => self.targeting_target(),
+            UnitFrameName::Party(index) => {
+                self.group_member_unit(&self.group_frames_view().party.get(index)?.name)
+            }
+            UnitFrameName::Raid(group, member) => {
+                let view = self.group_frames_view();
+                self.group_member_unit(&view.raid.get(group)?.get(member)?.name)
+            }
         }
+    }
+
+    /// The replicated player named `name`.
+    fn group_member_unit(&self, name: &str) -> Option<u64> {
+        self.replica
+            .units()
+            .find(|unit| {
+                unit.get::<Player>()
+                    .is_some_and(|player| player.name == name)
+            })
+            .map(|unit| unit.server_id)
     }
 
     /// With no UI under the cursor: the unit or game object the cursor ray picks.
@@ -49,12 +65,47 @@ impl GameClient {
         let Some(camera) = viewport.get_camera_3d() else {
             return Ok(None);
         };
-        let Some(id) = pick_unit(&camera, Vector2::from_array(self.physical_input.pointer()))
+        let pointer = Vector2::from_array(self.physical_input.pointer());
+        let Some(id) = self
+            .nameplate_at(&camera, pointer)
+            .or_else(|| pick_unit(&camera, pointer))
         else {
             return Ok(None);
         };
         self.request_creature_tooltip(id)?;
-        Ok(self.unit_tooltip(id).map(HoveredTooltip::text))
+        Ok(self.unit_hovered_tooltip(id))
+    }
+
+    /// The unit tooltip of `id` with its health for `GameTooltipStatusBar`
+    /// (`TooltipDataRules.HealthBar`: units and objects with health).
+    pub(crate) fn unit_hovered_tooltip(&mut self, id: u64) -> Option<HoveredTooltip> {
+        let tooltip = self.unit_tooltip(id)?;
+        let health = self
+            .replica
+            .unit(id)
+            .and_then(|unit| unit.get::<Health>())
+            .filter(|health| health.max > 0.0)
+            .map(|health| health.current / health.max);
+        Some(HoveredTooltip {
+            tooltip,
+            item: None,
+            health,
+        })
+    }
+
+    /// The unit of the nameplate under the pointer nearest the camera (Bevy
+    /// `NameplatePicker`): plates come before the unit models behind them.
+    fn nameplate_at(&self, camera: &Gd<Camera3D>, pointer: Vector2) -> Option<u64> {
+        let eye = camera.get_global_position();
+        self.nameplates
+            .plate_rects()
+            .filter(|(_, rect)| rect.contains_point(pointer))
+            .filter_map(|(id, _)| {
+                let node = self.world.unit_node(id)?;
+                Some((id, node.get_global_position().distance_to(eye)))
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(id, _)| id)
     }
 
     /// `CreatureTooltipQuery` the first time an NPC entry is hovered.
@@ -130,6 +181,35 @@ impl GameClient {
         let data_root = self.data_root.clone();
         let names = self.tooltips.faction_names(&data_root)?;
         names.get(faction).map(str::to_owned)
+    }
+}
+
+/// Unit frames by name: `PlayerFrame`, `TargetFrame`, `CompactPartyFrameMember{n}` and
+/// `CompactRaidGroup{g}Member{m}` (1-based).
+enum UnitFrameName {
+    Player,
+    Target,
+    Party(usize),
+    Raid(usize, usize),
+}
+
+impl UnitFrameName {
+    fn parse(name: &str) -> Option<Self> {
+        match name {
+            "PlayerFrame" => return Some(Self::Player),
+            "TargetFrame" => return Some(Self::Target),
+            _ => {}
+        }
+        if let Some(index) = name.strip_prefix("CompactPartyFrameMember") {
+            return Some(Self::Party(index.parse::<usize>().ok()?.checked_sub(1)?));
+        }
+        let (group, member) = name
+            .strip_prefix("CompactRaidGroup")?
+            .split_once("Member")?;
+        Some(Self::Raid(
+            group.parse::<usize>().ok()?.checked_sub(1)?,
+            member.parse::<usize>().ok()?.checked_sub(1)?,
+        ))
     }
 }
 
