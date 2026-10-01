@@ -368,6 +368,7 @@ pub(crate) struct TerrainObjects {
     doodads: Vec<CulledDoodad>,
     wmos: Vec<CulledWmo>,
     progress: TileProgress,
+    prioritized: BTreeSet<Tile>,
     /// The tile each ADT WMO was spawned from, for its MODD doodads' progress.
     wmo_tiles: HashMap<u32, Tile>,
     /// Loaded doodad models, or why they cannot load, by FDID; kept across `reset` like
@@ -412,6 +413,7 @@ impl TerrainObjects {
             doodads: Vec::new(),
             wmos: Vec::new(),
             progress: TileProgress::default(),
+            prioritized: BTreeSet::new(),
             wmo_tiles: HashMap::new(),
             models: HashMap::new(),
             wmo_assets: HashMap::new(),
@@ -456,6 +458,23 @@ impl TerrainObjects {
     /// those spawn) that are done, attached or failed, and in all; `None` until queued.
     pub fn tile_progress(&self, tile: Tile) -> Option<(usize, usize)> {
         self.progress.get(tile)
+    }
+
+    /// Moves `tile`'s queued placements ahead of the other tiles', once it is queued; the
+    /// loading screen waits for them.
+    pub fn prioritize_tile(&mut self, tile: Tile) {
+        if self.prioritized.contains(&tile) || !self.queued_tiles.contains(&tile) {
+            return;
+        }
+        self.prioritized.insert(tile);
+        let wmo_tiles = &self.wmo_tiles;
+        let (first, rest): (VecDeque<_>, VecDeque<_>) =
+            self.pending.drain(..).partition(|&pending| match pending {
+                Pending::Doodad(of, _) | Pending::Wmo(of, _) => of == tile,
+                Pending::WmoDoodad(wmo, _) => wmo_tiles.get(&wmo) == Some(&tile),
+            });
+        self.pending = first;
+        self.pending.extend(rest);
     }
 
     /// The tile a placement counts toward; `None` for the global WMO's doodads.
@@ -874,7 +893,8 @@ impl TerrainObjects {
         self.queue_wmo_doodads(wmo, node, doodads, self.wmos.len() - 1);
     }
 
-    /// Doodads spawn later, one per pending entry, so the object budget covers them.
+    /// Doodads spawn later, one per pending entry, so the object budget covers them; they
+    /// are next in line, so a placed WMO is furnished before other placements spawn.
     fn queue_wmo_doodads(
         &mut self,
         wmo: u32,
@@ -885,8 +905,9 @@ impl TerrainObjects {
         if doodads.is_empty() {
             return;
         }
-        self.pending
-            .extend((0..doodads.len()).map(|index| Pending::WmoDoodad(wmo, index)));
+        for index in (0..doodads.len()).rev() {
+            self.pending.push_front(Pending::WmoDoodad(wmo, index));
+        }
         let node = node.clone();
         self.wmo_doodads.insert(
             wmo,
@@ -1070,6 +1091,7 @@ impl TerrainObjects {
         self.doodads.clear();
         self.wmos.clear();
         self.progress = TileProgress::default();
+        self.prioritized.clear();
         self.wmo_tiles.clear();
         self.light = None;
         self.liquids = WmoLiquids::default();
