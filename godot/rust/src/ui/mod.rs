@@ -710,6 +710,25 @@ impl RegistryUi {
         self.initialize_hud_model(model, parent)
     }
 
+    /// Initialize a dedicated RegistryUi instance for one quest window (`QuestFrame`,
+    /// `QuestLogFrame`) with the portrait `metal_frame` border their chrome uses.
+    pub fn show_quest_window<T: 'static>(
+        &mut self,
+        state: T,
+        build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(state, build, ScreenPostsetup::None, registry, parent)
+    }
+
     /// Initialize a dedicated RegistryUi instance for the MerchantFrame, backpack and
     /// StackSplitFrame, with the `metal_frame` window border composed from its atlases.
     pub fn show_merchant(&mut self, states: MerchantStates) -> Result<(), String> {

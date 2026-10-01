@@ -1,103 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::asset;
-pub use game_engine::character_model_data::race_model_wow_path;
-
-struct RaceNameEntry {
-    race: u8,
-    name: &'static str,
-}
-
-const RACE_NAMES: &[RaceNameEntry] = &[
-    RaceNameEntry {
-        race: 1,
-        name: "Human",
-    },
-    RaceNameEntry {
-        race: 2,
-        name: "Orc",
-    },
-    RaceNameEntry {
-        race: 3,
-        name: "Dwarf",
-    },
-    RaceNameEntry {
-        race: 4,
-        name: "NightElf",
-    },
-    RaceNameEntry {
-        race: 5,
-        name: "Undead",
-    },
-    RaceNameEntry {
-        race: 6,
-        name: "Tauren",
-    },
-    RaceNameEntry {
-        race: 7,
-        name: "Gnome",
-    },
-    RaceNameEntry {
-        race: 8,
-        name: "Troll",
-    },
-    RaceNameEntry {
-        race: 9,
-        name: "Goblin",
-    },
-    RaceNameEntry {
-        race: 10,
-        name: "BloodElf",
-    },
-    RaceNameEntry {
-        race: 11,
-        name: "Draenei",
-    },
-    RaceNameEntry {
-        race: 22,
-        name: "Worgen",
-    },
-    RaceNameEntry {
-        race: 25,
-        name: "Pandaren",
-    },
-    RaceNameEntry {
-        race: 27,
-        name: "Nightborne",
-    },
-    RaceNameEntry {
-        race: 28,
-        name: "HighmountainTauren",
-    },
-    RaceNameEntry {
-        race: 29,
-        name: "VoidElf",
-    },
-    RaceNameEntry {
-        race: 30,
-        name: "LightforgedDraenei",
-    },
-    RaceNameEntry {
-        race: 31,
-        name: "ZandalariTroll",
-    },
-    RaceNameEntry {
-        race: 34,
-        name: "DarkIronDwarf",
-    },
-    RaceNameEntry {
-        race: 35,
-        name: "Vulpera",
-    },
-    RaceNameEntry {
-        race: 36,
-        name: "MagharOrc",
-    },
-    RaceNameEntry {
-        race: 37,
-        name: "Mechagnome",
-    },
-];
+pub use game_engine::character_model_data::{class_name, race_model_wow_path, race_name};
 
 pub fn ensure_named_model_bundle(wow_model_path: &str) -> Option<PathBuf> {
     let model_path = ensure_named_model_asset(wow_model_path)?;
@@ -157,37 +61,6 @@ fn ensure_named_model_asset(wow_path: &str) -> Option<PathBuf> {
     asset::asset_cache::file_at_path(fdid, &out_path)
 }
 
-/// Retail `ChrClasses` names by class id.
-pub fn class_name(class_id: u8) -> &'static str {
-    match class_id {
-        1 => "Warrior",
-        2 => "Paladin",
-        3 => "Hunter",
-        4 => "Rogue",
-        5 => "Priest",
-        6 => "Death Knight",
-        7 => "Shaman",
-        8 => "Mage",
-        9 => "Warlock",
-        10 => "Monk",
-        11 => "Druid",
-        12 => "Demon Hunter",
-        13 => "Evoker",
-        _ => "Unknown",
-    }
-}
-
-pub fn race_name(race: u8) -> &'static str {
-    race_name_entry(race).unwrap_or("Unknown")
-}
-
-fn race_name_entry(race: u8) -> Option<&'static str> {
-    RACE_NAMES
-        .iter()
-        .find(|entry| entry.race == race)
-        .map(|entry| entry.name)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -208,16 +81,5 @@ mod tests {
     fn race_model_lookup_rejects_invalid_sex() {
         assert_eq!(race_model_wow_path(1, 2), None);
         assert_eq!(race_model_wow_path(27, 3), None);
-    }
-
-    #[test]
-    fn race_name_lookup_resolves_known_entries() {
-        assert_eq!(race_name(1), "Human");
-        assert_eq!(race_name(36), "MagharOrc");
-    }
-
-    #[test]
-    fn race_name_lookup_uses_unknown_fallback() {
-        assert_eq!(race_name(99), "Unknown");
     }
 }

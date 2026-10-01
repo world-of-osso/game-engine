@@ -183,3 +183,145 @@ fn race_model_path_for_sex(models: &[SexedModelPath], race: u8, sex: u8) -> Opti
 pub fn race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {
     base_race_model_wow_path(race, sex).or_else(|| allied_race_model_wow_path(race, sex))
 }
+struct RaceNameEntry {
+    race: u8,
+    name: &'static str,
+}
+
+const RACE_NAMES: &[RaceNameEntry] = &[
+    RaceNameEntry {
+        race: 1,
+        name: "Human",
+    },
+    RaceNameEntry {
+        race: 2,
+        name: "Orc",
+    },
+    RaceNameEntry {
+        race: 3,
+        name: "Dwarf",
+    },
+    RaceNameEntry {
+        race: 4,
+        name: "NightElf",
+    },
+    RaceNameEntry {
+        race: 5,
+        name: "Undead",
+    },
+    RaceNameEntry {
+        race: 6,
+        name: "Tauren",
+    },
+    RaceNameEntry {
+        race: 7,
+        name: "Gnome",
+    },
+    RaceNameEntry {
+        race: 8,
+        name: "Troll",
+    },
+    RaceNameEntry {
+        race: 9,
+        name: "Goblin",
+    },
+    RaceNameEntry {
+        race: 10,
+        name: "BloodElf",
+    },
+    RaceNameEntry {
+        race: 11,
+        name: "Draenei",
+    },
+    RaceNameEntry {
+        race: 22,
+        name: "Worgen",
+    },
+    RaceNameEntry {
+        race: 25,
+        name: "Pandaren",
+    },
+    RaceNameEntry {
+        race: 27,
+        name: "Nightborne",
+    },
+    RaceNameEntry {
+        race: 28,
+        name: "HighmountainTauren",
+    },
+    RaceNameEntry {
+        race: 29,
+        name: "VoidElf",
+    },
+    RaceNameEntry {
+        race: 30,
+        name: "LightforgedDraenei",
+    },
+    RaceNameEntry {
+        race: 31,
+        name: "ZandalariTroll",
+    },
+    RaceNameEntry {
+        race: 34,
+        name: "DarkIronDwarf",
+    },
+    RaceNameEntry {
+        race: 35,
+        name: "Vulpera",
+    },
+    RaceNameEntry {
+        race: 36,
+        name: "MagharOrc",
+    },
+    RaceNameEntry {
+        race: 37,
+        name: "Mechagnome",
+    },
+];
+
+/// Retail `ChrClasses` names by class id.
+pub fn class_name(class_id: u8) -> &'static str {
+    match class_id {
+        1 => "Warrior",
+        2 => "Paladin",
+        3 => "Hunter",
+        4 => "Rogue",
+        5 => "Priest",
+        6 => "Death Knight",
+        7 => "Shaman",
+        8 => "Mage",
+        9 => "Warlock",
+        10 => "Monk",
+        11 => "Druid",
+        12 => "Demon Hunter",
+        13 => "Evoker",
+        _ => "Unknown",
+    }
+}
+
+pub fn race_name(race: u8) -> &'static str {
+    race_name_entry(race).unwrap_or("Unknown")
+}
+
+fn race_name_entry(race: u8) -> Option<&'static str> {
+    RACE_NAMES
+        .iter()
+        .find(|entry| entry.race == race)
+        .map(|entry| entry.name)
+}
+
+#[cfg(test)]
+mod name_tests {
+    use super::*;
+
+    #[test]
+    fn race_name_lookup_resolves_known_entries() {
+        assert_eq!(race_name(1), "Human");
+        assert_eq!(race_name(36), "MagharOrc");
+    }
+
+    #[test]
+    fn race_name_lookup_uses_unknown_fallback() {
+        assert_eq!(race_name(99), "Unknown");
+    }
+}

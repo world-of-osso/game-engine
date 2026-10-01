@@ -2,7 +2,8 @@ use bevy::ecs::system::RunSystemOnce;
 use game_engine::quest_runtime::QuestDialog;
 use shared::protocol::{
     GossipMenu, QuestEntrySnapshot, QuestGiverOfferReward, QuestGiverQuestDetails,
-    QuestGiverQuestEntry, QuestLogSnapshot, QuestRepeatability, QuestRewardItem, QuestRewards,
+    QuestGiverQuestEntry, QuestGiverQuestState, QuestLogSnapshot, QuestRepeatability,
+    QuestRewardItem, QuestRewards,
 };
 
 use super::*;

@@ -4,7 +4,7 @@
 //! the subzone text in its PvP colour, the local-time clock and calendar day. Hovering the
 //! map shows the zoom buttons; the wheel over it zooms, as `MinimapMixin:OnMouseWheel`.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -24,10 +24,10 @@ use godot::global::MouseButton;
 use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
 use shared::components::Position;
-use shared::protocol::{NpcFlags, QuestGiverStatus};
+use shared::protocol::QuestGiverStatus;
 use ui_toolkit::frame::WidgetData;
 
-use crate::{GameClient, frame_error::FrameError, replicated::UnitFields, ui::RegistryUi};
+use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
 /// Composite resolution: the 198-unit map at up to 1.3× UI scale without upsampling.
 const COMPOSITE_PX: u32 = 256;
@@ -46,9 +46,6 @@ pub(crate) struct Minimap {
     chrome: HashMap<u32, bool>,
     /// Map and view of the current composite, and its pixels.
     drawn: Option<(String, MinimapView, Vec<u8>)>,
-    /// Quest givers already sent in a `QuestGiverStatusQuery`; the server re-sends
-    /// their status after every quest change.
-    queried: HashSet<u64>,
 }
 
 struct Catalogs {
@@ -62,6 +59,20 @@ struct Tile {
 }
 
 impl Minimap {
+    /// `AreaTable` name of `area_id` (the quest log's zone headers share the catalog).
+    pub(crate) fn area_name(
+        &mut self,
+        data_root: &std::path::Path,
+        area_id: u32,
+    ) -> Option<String> {
+        let catalogs = self
+            .catalogs
+            .get_or_insert_with(|| load_catalogs(data_root))
+            .as_ref()
+            .ok()?;
+        catalogs.areas.name(area_id).map(str::to_owned)
+    }
+
     fn free_ui(&mut self) {
         if let Some(ui) = self.ui.take() {
             ui.free();
@@ -171,44 +182,10 @@ impl GameClient {
             || !self.client_options.hud.show_minimap
         {
             self.minimap.free_ui();
-            self.minimap.queried.clear();
-            self.account.quest_giver_status.clear();
             return Ok(());
         }
-        self.query_quest_givers()?;
         self.poll_minimap_actions()?;
         Ok(self.sync_minimap()?)
-    }
-
-    /// Bevy `quests.rs`: every mirrored NPC with `NPCFlags::QUESTGIVER` is queried once.
-    fn query_quest_givers(&mut self) -> Result<(), FrameError> {
-        let units = &self.replica;
-        let removed: Vec<u64> = self
-            .minimap
-            .queried
-            .iter()
-            .copied()
-            .filter(|id| units.unit(*id).is_none())
-            .collect();
-        for id in removed {
-            self.minimap.queried.remove(&id);
-            self.account.quest_giver_status.remove(&id);
-        }
-        let new: Vec<u64> = self
-            .replica
-            .units()
-            .filter(|unit| {
-                unit.npc_flags()
-                    .is_some_and(|flags| flags & NpcFlags::QUESTGIVER != 0)
-            })
-            .map(|unit| unit.server_id)
-            .filter(|id| !self.minimap.queried.contains(id))
-            .collect();
-        if new.is_empty() {
-            return Ok(());
-        }
-        self.minimap.queried.extend(new.iter().copied());
-        Ok(self.account.send_quest_giver_status_query(new)?)
     }
 
     fn poll_minimap_actions(&mut self) -> Result<(), String> {
@@ -291,7 +268,8 @@ impl GameClient {
     fn quest_blips(&self, view: &MinimapView) -> Vec<MinimapBlip> {
         let mut blips: Vec<MinimapBlip> = self
             .account
-            .quest_giver_status
+            .quests
+            .giver_status
             .iter()
             .filter_map(|(&unit, status)| {
                 let kind = match status {

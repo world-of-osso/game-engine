@@ -741,6 +741,6 @@ fn item_button(
     elements
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "quest_frame_component_tests.rs"]
 mod tests;
