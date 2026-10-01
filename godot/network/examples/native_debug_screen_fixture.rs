@@ -65,7 +65,13 @@ fn wait_file(path: &Path, child: &mut NativeProcess, timeout: Duration) -> Resul
     Err(format!("Timed out waiting for {}", path.display()))
 }
 
-fn call_cli(cli: &Path, socket: &Path, artifacts: &Path, name: &str, args: &[&str]) -> Result<(), String> {
+fn call_cli(
+    cli: &Path,
+    socket: &Path,
+    artifacts: &Path,
+    name: &str,
+    args: &[&str],
+) -> Result<(), String> {
     let stdout = artifacts.join(format!("{name}.stdout"));
     let stderr = artifacts.join(format!("{name}.stderr"));
     let mut child = NativeProcess(
@@ -137,12 +143,17 @@ fn wait_exit(native: &mut NativeProcess, socket: &Path) -> Result<(), String> {
                 return Err(format!("Native assertions exited {status}"));
             }
             if socket.exists() {
-                return Err(format!("Own PID socket survived native exit: {}", socket.display()));
+                return Err(format!(
+                    "Own PID socket survived native exit: {}",
+                    socket.display()
+                ));
             }
             return Ok(());
         }
         if Instant::now() >= deadline {
-            return Err(format!("Native fixture did not exit within {EXIT_TIMEOUT:?}"));
+            return Err(format!(
+                "Native fixture did not exit within {EXIT_TIMEOUT:?}"
+            ));
         }
         thread::sleep(Duration::from_millis(20));
     }
@@ -150,7 +161,10 @@ fn wait_exit(native: &mut NativeProcess, socket: &Path) -> Result<(), String> {
 
 fn run_fixture(screen: &str, client_args: &[String]) -> Result<PathBuf, String> {
     let repo = fixture_support::checkout_root_from_executable("native_debug_screen_fixture")?;
-    if !repo.join(format!("godot/tests/{screen}_screen_flow.gd")).is_file() {
+    if !repo
+        .join(format!("godot/tests/{screen}_screen_flow.gd"))
+        .is_file()
+    {
         return Err(format!("SETUP: no godot/tests/{screen}_screen_flow.gd"));
     }
     let godot = executable("GODOT_BIN")?;
@@ -162,7 +176,11 @@ fn run_fixture(screen: &str, client_args: &[String]) -> Result<PathBuf, String> 
     let mut native = launch(&godot, &repo, screen, client_args, &artifacts)?;
     wait_file(&artifacts.join("ready"), &mut native, READY_TIMEOUT)?;
     let socket = PathBuf::from(format!("/tmp/game-engine-{}.sock", native.0.id()));
-    println!("READY native PID={} socket={}", native.0.id(), socket.display());
+    println!(
+        "READY native PID={} socket={}",
+        native.0.id(),
+        socket.display()
+    );
     let screenshot = artifacts.join("screen.webp");
     let screenshot = screenshot.to_str().ok_or("Non-UTF8 artifact path")?;
     let export = artifacts.join("scene-export.json");

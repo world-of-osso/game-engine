@@ -210,22 +210,41 @@ impl WowDebugCharacter {
                 let model = child_3d(&root, name)?;
                 let equipment = self.config.equipment(self.config.side(*side));
                 let appearance = &self.config.appearance;
-                character_entry(name, &model, self.config.race, appearance.sex, (None, None), &equipment)
+                character_entry(
+                    name,
+                    &model,
+                    self.config.race,
+                    appearance.sex,
+                    (None, None),
+                    &equipment,
+                )
             })
             .collect::<Result<Vec<_>, String>>()?;
         characters.sort_by(|a, b| a.label.cmp(&b.label));
         characters.extend(debug_stage_entries(&root)?);
-        Ok(SceneEntry::scene("DebugCharacterScene", Some(root), characters))
+        Ok(SceneEntry::scene(
+            "DebugCharacterScene",
+            Some(root),
+            characters,
+        ))
     }
 
-    fn attach_scene(&mut self, data_root: &Path, config: &DebugCharacterConfig) -> Result<(), String> {
+    fn attach_scene(
+        &mut self,
+        data_root: &Path,
+        config: &DebugCharacterConfig,
+    ) -> Result<(), String> {
         let environment = environment_node(
             Color::from_rgb(0.05, 0.06, 0.08),
             Color::from_rgb(1.0, 0.95, 0.85),
         );
         let light = light_node(
             Color::from_rgb(1.0, 0.92, 0.8),
-            [-std::f32::consts::FRAC_PI_4, std::f32::consts::FRAC_PI_6, 0.0],
+            [
+                -std::f32::consts::FRAC_PI_4,
+                std::f32::consts::FRAC_PI_6,
+                0.0,
+            ],
         );
         let ground = ground_node(data_root, GROUND_SIZE, GROUND_UV_TILES)?;
         for node in [environment, light, ground] {
@@ -244,8 +263,9 @@ impl WowDebugCharacter {
             appearance: config.appearance.clone(),
         };
         for (name, x, side) in SIDES {
-            let mut model = load_player_model(data_root, &player, &config.equipment(config.side(side)))
-                .map_err(|error| format!("{name}: {error}"))?;
+            let mut model =
+                load_player_model(data_root, &player, &config.equipment(config.side(side)))
+                    .map_err(|error| format!("{name}: {error}"))?;
             model.set_name(name);
             model.set_position(Vector3::new(x, 0.0, 0.0));
             model.set_rotation(Vector3::new(0.0, -std::f32::consts::FRAC_PI_2, 0.0));

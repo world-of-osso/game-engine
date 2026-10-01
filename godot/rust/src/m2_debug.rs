@@ -198,7 +198,9 @@ pub(crate) fn light_node(color: Color, [x, y, z]: [f32; 3]) -> Gd<Node> {
     light.set_name("Light");
     light.set_color(color);
     light.set_shadow(true);
-    light.set_quaternion(Quaternion::new(rotation.x, rotation.y, rotation.z, rotation.w));
+    light.set_quaternion(Quaternion::new(
+        rotation.x, rotation.y, rotation.z, rotation.w,
+    ));
     light.upcast()
 }
 

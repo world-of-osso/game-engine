@@ -182,7 +182,10 @@ pub(crate) fn character_entry(
 /// (`geoset_debug` slot definitions). Its model is the entry's display, `display:<id>`
 /// (none for an entry given only by item); the anchor and attachment are the item
 /// model's parent and name when a model was placed.
-fn equipment_slot_entries(character: &Gd<Node3D>, equipment: &EquipmentAppearance) -> Vec<SceneEntry> {
+fn equipment_slot_entries(
+    character: &Gd<Node3D>,
+    equipment: &EquipmentAppearance,
+) -> Vec<SceneEntry> {
     equipment
         .entries
         .iter()
@@ -317,7 +320,10 @@ impl crate::GameClient {
             NodeProps::Player {
                 name: unit.name.clone(),
                 is_local: unit.is_local,
-                skin_path: visual.as_ref().map(|(model, _)| primary_skin_path(model)).transpose()?,
+                skin_path: visual
+                    .as_ref()
+                    .map(|(model, _)| primary_skin_path(model))
+                    .transpose()?,
                 display_scale: visual.as_ref().and_then(|(_, scale)| *scale),
                 model_path: visual.map(|(model, _)| model),
             },
@@ -341,7 +347,10 @@ impl crate::GameClient {
                 display_id: snapshot
                     .get::<shared::components::ModelDisplay>()
                     .map(|display| display.display_id),
-                skin_path: visual.as_ref().map(|(model, _)| primary_skin_path(model)).transpose()?,
+                skin_path: visual
+                    .as_ref()
+                    .map(|(model, _)| primary_skin_path(model))
+                    .transpose()?,
                 display_scale: visual.as_ref().and_then(|(_, scale)| *scale),
                 model_path: visual.map(|(model, _)| model),
             },
