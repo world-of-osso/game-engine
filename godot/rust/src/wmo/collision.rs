@@ -45,6 +45,8 @@ enum PlacementKey {
 /// A queued placement and, once its first group builds, its body.
 struct Placement {
     key: PlacementKey,
+    /// The parsed tile that queued it; `None` for the global WMO.
+    tile: Option<(u32, u32)>,
     world_from_local: Affine3A,
     local_from_world: Affine3A,
     body: Option<Gd<StaticBody3D>>,
@@ -107,19 +109,29 @@ impl WmoCollisionBodies {
             .as_ref()
             .and_then(|map| map.global_wmo.as_ref())
         {
-            self.queue(PlacementKey::Global, &global.collision);
+            self.queue(PlacementKey::Global, None, &global.collision);
         }
         for (tile, parsed) in &terrain.parsed_tiles {
             if !self.tiles.insert(*tile) {
                 continue;
             }
             for (unique_id, wmo) in &parsed.wmo_floors {
-                self.queue(PlacementKey::Modf(*unique_id), wmo);
+                self.queue(PlacementKey::Modf(*unique_id), Some(*tile), wmo);
             }
         }
     }
 
-    fn queue(&mut self, key: PlacementKey, wmo: &WmoCollision) {
+    /// Groups of the WMOs `tile` queued that are not built yet; `None` until it is queued.
+    pub fn tile_pending(&self, tile: (u32, u32)) -> Option<usize> {
+        self.tiles.contains(&tile).then(|| {
+            self.pending
+                .iter()
+                .filter(|pending| self.placements[pending.placement].tile == Some(tile))
+                .count()
+        })
+    }
+
+    fn queue(&mut self, key: PlacementKey, tile: Option<(u32, u32)>, wmo: &WmoCollision) {
         if !self.queued.insert(key) {
             return;
         }
@@ -127,6 +139,7 @@ impl WmoCollisionBodies {
         let world_from_local = wmo.world_from_local();
         self.placements.push(Placement {
             key,
+            tile,
             world_from_local,
             local_from_world: world_from_local.inverse(),
             body: None,
