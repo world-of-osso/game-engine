@@ -88,6 +88,8 @@ func run_test() -> void:
 			if not await capture_loot("case-%s-manual-frame.png" % case):
 				return
 			if case == 0:
+				if not await check_loot_tooltip(client, host):
+					return
 				await RenderingServer.frame_post_draw
 				overflow_probe.record_money(host)
 				if not overflow_probe.failures.is_empty():
@@ -475,6 +477,37 @@ func select_options_scale(menu: Node, scale: float) -> void:
 	print("UI_OVERFLOW_SCALE wanted=%s actual=%s physical=%s" % [scale, canvas.scale if canvas != null else null, root.size])
 	if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
 		overflow_probe.failures.append("Options scale input did not produce logical canvas at " + str(scale))
+
+## LootItem_OnEnter: the slot's item in the shared GameTooltip, ANCHOR_RIGHT (its BOTTOMLEFT
+## on the slot's TOPRIGHT, clamped), quality-coloured, ending with the grey Item ID line.
+func check_loot_tooltip(client: Node, host: Node) -> bool:
+	var slot := host.find_child("LootFrameElement1", true, false) as Control
+	if slot == null or not slot.is_visible_in_tree():
+		fail("Loot tooltip needs the visible LootFrameElement1")
+		return false
+	var motion := InputEventMouseMotion.new()
+	motion.position = slot.get_global_rect().get_center()
+	root.push_input(motion, true)
+	var deadline := Time.get_ticks_msec() + REQUEST_MS
+	var state: Dictionary = {}
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		state = client.tooltip_state()
+		if state.visible and state.title == "Melted Candle":
+			break
+	if not state.visible or state.title != "Melted Candle" or state.lines.back() != "Item ID: 755|":
+		fail("Loot slot tooltip: " + str(state))
+		return false
+	var scale := slot.get_global_transform().get_scale().x
+	var owner := Rect2(slot.get_global_rect().position / scale, slot.get_global_rect().size / scale)
+	var rect: PackedFloat32Array = state.rect
+	var view := root.get_visible_rect().size / scale
+	var expected := Vector2(clampf(owner.end.x, 0.0, view.x - rect[2]), clampf(owner.position.y - rect[3], 0.0, view.y - rect[3]))
+	if Vector2(rect[0], rect[1]).distance_to(expected) > 1.0:
+		fail("Loot tooltip not ANCHOR_RIGHT: rect=%s owner=%s expected=%s" % [rect, owner, expected])
+		return false
+	print("LOOT TOOLTIP ", state)
+	return await capture_loot("case-0-loot-tooltip.png")
 
 func loot_host(client: Node) -> Node:
 	# Find the authored external frame, without assuming a future host class/API.
