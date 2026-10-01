@@ -9,6 +9,8 @@ Last updated: 2026-09-29.
 
 [Foreign-chat World rejection](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) at `5f6782b5`: MAIN observed GREEN; independent gate1406 accepted bounded PASS. Bounded mounted-hit rejection, not cross-layer winner/global ownership acceptance; existing exclusions retained.
 
+Single startup MainHand inventory has fresh native `5a3ebf7b` build/actions proof and source-verified own readability resolution; combined gate OPEN because merchant-click exits101 before login on isolated rendering resources. Fixture-only `54eaef69` corrects the required links; fresh fixture build/merchant retry and read-only1425 acceptance pending. Prior runtime failures and Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
+
 Engine subsystems and how they work.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
@@ -147,4 +149,4 @@ External resources and asset lists.
 
 [SettingsReload](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof): accepted independent bounded saved-artifact functional reload and scoped Rust formatting PASS; byte equality at observation boundaries, deliberate SIGKILL not normal shutdown. Partial/full conversion remains open; no all-options/geometry upgrade.
 
-[Standalone bag tooltip checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): authentic hover RED; bridge `ac7c16d7` and shared extraction `0e41239a` committed; main runtime/pure proof and verifier1415 pending, no accepted tooltip GREEN. Prior bounded foreign gate and exclusions unchanged.
+[Standalone bag tooltip checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + oracle `88b0505f`: MAIN-observed bounded GREEN with corrected runtime, CPU native5/shared4, registry2, same-build regressions and inspected Linen/Poor captures. Verifier1415 accepted bounded PASS after MAIN read the full report. Authentic RED101 retained; first GREEN attempt101 false oracle, not production failure; pure gear proof is not native gear hover. Prior bounded foreign gate and exclusions unchanged.

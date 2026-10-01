@@ -154,9 +154,16 @@ def link_or_copy(source, target):
         shutil.copy2(source, target)
 
 
+def sibling_repo(root, name):
+    """`root`'s sibling checkout `name`, or `DEPOT_SIBLING_<NAME>` (for example
+    DEPOT_SIBLING_SHARED_PROTOCOL for a protocol branch worktree)."""
+    override = os.environ.get("DEPOT_SIBLING_" + name.upper().replace("-", "_"))
+    return Path(override).resolve() if override else root.parent / name
+
+
 def snapshot(root, context):
     for name in (ROOT_NAME, *SIBLINGS):
-        repo = root if name == ROOT_NAME else root.parent / name
+        repo = root if name == ROOT_NAME else sibling_repo(root, name)
         if not repo.is_dir():
             raise FileNotFoundError(f"missing build dependency: {repo}")
         snapshot_repo(repo, context / name, ROOT_PATHS if name == ROOT_NAME else (".",), name)

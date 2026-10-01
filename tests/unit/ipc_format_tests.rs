@@ -122,6 +122,7 @@ fn formats_barber_shop_status_snapshot() {
             hair_color: 0,
             facial_style: 0,
             customization_choices: Vec::new(),
+            visage: None,
         },
         pending_appearance: shared::components::CharacterAppearance {
             sex: 0,
@@ -132,6 +133,7 @@ fn formats_barber_shop_status_snapshot() {
             hair_color: 1,
             facial_style: 1,
             customization_choices: Vec::new(),
+            visage: None,
         },
         gold: 50_000,
         pending_cost: 20_000,
