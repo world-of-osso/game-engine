@@ -207,12 +207,16 @@ pub(crate) mod csv_records;
 pub mod item_catalog;
 #[path = "../../../src/game/item_icons.rs"]
 pub mod item_icons;
+#[path = "../../../src/game/item_tooltip.rs"]
+pub mod item_tooltip;
 pub mod merchant;
 #[path = "../../../src/game/merchant_data.rs"]
 pub mod merchant_data;
 pub mod paths;
 #[path = "../../../src/game/stack_split.rs"]
 pub mod stack_split;
+#[path = "../../../src/ui/screens/tooltip_presentation.rs"]
+pub mod tooltip_presentation;
 #[path = "../../../src/window_manager/mod.rs"]
 pub mod window_manager;
 #[path = "../../../src/rendering/ui/wow_cursor_data.rs"]
