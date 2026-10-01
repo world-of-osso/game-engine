@@ -110,9 +110,11 @@ fn receive(
 }
 
 const MARKER_WAIT: Duration = Duration::from_secs(60);
-// The original engine sets no response deadline; this bounds a hung client. Shared
-// agent hosts (load average 30+) stall a busy client frame for several seconds.
-const CLI_DEADLINE: Duration = Duration::from_secs(30);
+// The original engine sets no response deadline; this bounds a hung client. The first
+// item-catalog lookup (the seeded bags) blocks the client's main thread until the
+// background catalog load ends: over 30 s on a loaded agent host (eu-stack: main thread
+// in `item_catalog::catalog` OnceLock wait from `InventoryState::apply_snapshot`).
+const CLI_DEADLINE: Duration = Duration::from_secs(120);
 
 struct Run<'a> {
     app: &'a mut App,
