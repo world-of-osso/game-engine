@@ -1,5 +1,5 @@
 //! Unchanged debug/login.js through root startup, authored Login and real loopback auth.
-//! Optional positional mode: timeout-continuation (missing-frame deadline then live dump).
+//! Optional modes: timeout-continuation or offline-actions (real input/dumps, no auth).
 //! MAIN builds/runs this fixture; requires an existing root launcher and GODOT_BIN.
 //! No external server. Passwords are masked before writing persistent diagnostics.
 
@@ -26,6 +26,19 @@ const PASSWORD: &str = "native-js-owned-secret";
 const CHARACTER: &str = "Automation Fixture";
 const TIMEOUT: Duration = Duration::from_secs(180);
 const TIMEOUT_SCRIPT: &str = "ui.waitForFrame(\"NativeJsMissingFrame\", 0.05); ui.dumpUiTree();\n";
+const OFFLINE_SCRIPT: &str = concat!(
+    "ui.waitForFrame(\"UsernameInput\");\n",
+    "ui.click(\"UsernameInput\");\n",
+    "ui.type(\"abcd\");\n",
+    "ui.key(\"Backspace\");\n",
+    "ui.wait(0.05);\n",
+    "ui.dumpTree();\n",
+    "ui.dumpUiTree();\n",
+    "ui.waitForState(\"Connecting\", 0.05);\n",
+    "ui.dumpUiTree();\n",
+);
+const STATE_TIMEOUT: &str =
+    "native JS automation: timed out waiting for state Connecting after 0.05s";
 const FRAME_TIMEOUT: &str =
     "native JS automation: timed out waiting for frame 'NativeJsMissingFrame' after 0.05s";
 
@@ -33,6 +46,7 @@ const FRAME_TIMEOUT: &str =
 enum Mode {
     Login,
     TimeoutContinuation,
+    OfflineActions,
 }
 
 impl Mode {
@@ -41,7 +55,11 @@ impl Mode {
         match args.as_slice() {
             [] => Ok(Self::Login),
             [mode] if mode == "timeout-continuation" => Ok(Self::TimeoutContinuation),
-            _ => Err("SETUP: usage: native_js_automation_fixture [timeout-continuation]".into()),
+            [mode] if mode == "offline-actions" => Ok(Self::OfflineActions),
+            _ => Err(
+                "SETUP: usage: native_js_automation_fixture [timeout-continuation|offline-actions]"
+                    .into(),
+            ),
         }
     }
 
@@ -49,6 +67,7 @@ impl Mode {
         match self {
             Self::Login => "login",
             Self::TimeoutContinuation => "timeout-continuation",
+            Self::OfflineActions => "offline-actions",
         }
     }
 }
@@ -101,9 +120,12 @@ fn start_server() -> Result<(App, SocketAddr), String> {
 fn authenticate(app: &mut App, count: &mut usize, mode: Mode) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().0);
     for (link, request) in requests {
-        if mode == Mode::TimeoutContinuation {
+        if mode != Mode::Login {
             *count += 1;
-            return Err("FEATURE: timeout-continuation decoded unexpected LoginRequest; expected zero auth (password masked)".into());
+            return Err(format!(
+                "FEATURE: {} decoded unexpected LoginRequest; expected zero auth (password masked)",
+                mode.observer_mode()
+            ));
         }
         if request.username != USERNAME || request.password != PASSWORD || request.token.is_some() {
             return Err("FEATURE: decoded LoginRequest did not contain exact owned credentials and no token (password masked)".into());
@@ -210,6 +232,12 @@ fn launch(
             let path = artifacts.join("timeout-continuation.js");
             fs::write(&path, TIMEOUT_SCRIPT)
                 .map_err(|error| format!("SETUP: write timeout-continuation script: {error}"))?;
+            path
+        }
+        Mode::OfflineActions => {
+            let path = artifacts.join("offline-actions.js");
+            fs::write(&path, OFFLINE_SCRIPT)
+                .map_err(|error| format!("SETUP: write offline-actions script: {error}"))?;
             path
         }
     };
@@ -374,6 +402,67 @@ fn assert_timeout_continuation(
     Ok(())
 }
 
+fn assert_offline_actions(
+    lines: &[Output],
+    artifacts: &Path,
+    auth_count: usize,
+) -> Result<(), String> {
+    if auth_count != 0
+        || !artifacts.join("login-ready").is_file()
+        || !artifacts.join("observed-offline-actions").is_file()
+    {
+        return Err("FEATURE: offline-actions requires observed real typing/deletion, visible Login and zero decoded auth".into());
+    }
+    if !lines
+        .iter()
+        .any(|output| output.line.contains(STATE_TIMEOUT))
+    {
+        return Err(
+            "FEATURE: real native 0.05s missing-state Connecting deadline not logged".into(),
+        );
+    }
+    let stdout: Vec<_> = lines
+        .iter()
+        .filter(|output| output.stdout)
+        .map(|output| output.line.as_str())
+        .collect();
+    for name in ["root", "WorldOfOsso"] {
+        if !stdout.iter().any(|line| {
+            let line = line.trim_start();
+            line.starts_with(&format!("{name} (")) && (name == "root" || line.contains(" at ("))
+        }) {
+            return Err(format!(
+                "FEATURE: actual stdout hierarchy lacks live {name} node/spatial record"
+            ));
+        }
+    }
+    // Both production UI actions must emit real records. Counting this single stdout
+    // stream proves the successor ran, not a total order with the stderr deadline.
+    for (frame, text) in [
+        ("UsernameInput [EditBox]", Some(" text=\"abc\" cursor=")),
+        ("ConnectButton [Button]", None),
+    ] {
+        let records = stdout
+            .iter()
+            .filter(|line| {
+                line.trim_start().starts_with(frame)
+                    && line.contains(" visible ")
+                    && line.contains(" alpha=1.00")
+                    && text.is_none_or(|text| line.contains(text))
+            })
+            .count();
+        if records < 2 {
+            return Err(format!(
+                "FEATURE: offline-actions requires both actual stdout UI dumps with visible {frame}, alpha=1.00 and exact widget text where applicable; got {records}"
+            ));
+        }
+    }
+    println!(
+        "PASS: offline-actions real typing/Backspace, delay traversal, live root/spatial hierarchy, two live UI dumps and missing-state deadline continuation; zero decoded auth and normal observed child exit; bounded feature only"
+    );
+    Ok(())
+}
+
 fn create_artifacts(root: &Path) -> Result<PathBuf, String> {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -503,6 +592,7 @@ fn run_fixture() -> Result<(), String> {
     match mode {
         Mode::Login => assert_login_result(&lines, &artifacts, auth_count),
         Mode::TimeoutContinuation => assert_timeout_continuation(&lines, &artifacts, auth_count),
+        Mode::OfflineActions => assert_offline_actions(&lines, &artifacts, auth_count),
     }
 }
 

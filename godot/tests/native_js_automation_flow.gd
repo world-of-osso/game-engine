@@ -1,7 +1,7 @@
 extends SceneTree
 
 # Observation only. Production startup reads chosen JS and owns every input/action.
-# Default remains debug/login.js; timeout-continuation observes Login without input.
+# Default remains debug/login.js; offline modes never click Connect.
 # No credential setters, emitted input signals, connect_account, or automation hooks.
 var client: Node
 var artifacts: String
@@ -11,6 +11,9 @@ var password: LineEdit
 var connect_button: Button
 var saw_credentials := false
 var saw_authored_click := false
+var saw_connect_press := false
+var saw_offline_typed := false
+var saw_offline_deleted := false
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -40,7 +43,16 @@ func observe_credentials(_text: String = "") -> void:
 	if username.text == OS.get_environment("LOGIN_USER") and password.text == OS.get_environment("LOGIN_PASS"):
 		saw_credentials = true
 
+func observe_offline_text(text: String) -> void:
+	if mode != "offline-actions":
+		return
+	if text == "abcd":
+		saw_offline_typed = true
+	elif text == "abc" and saw_offline_typed:
+		saw_offline_deleted = true
+
 func observe_authored_click() -> void:
+	saw_connect_press = true
 	observe_credentials()
 	saw_authored_click = saw_authored_click or saw_credentials
 
@@ -49,6 +61,7 @@ func observe_node(node: Node) -> void:
 	if node.name == "UsernameInput" and node is LineEdit:
 		username = node
 		username.text_changed.connect(observe_credentials)
+		username.text_changed.connect(observe_offline_text)
 	elif node.name == "PasswordInput" and node is LineEdit:
 		password = node
 		password.text_changed.connect(observe_credentials)
@@ -76,13 +89,35 @@ func observe_timeout_login(login: CanvasLayer) -> void:
 	await process_frame
 	quit(0)
 
+func observe_offline_actions(login: CanvasLayer) -> void:
+	# Observe real changes only; parent checks production hierarchy/UI/deadline output.
+	var deadline := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+	var state: Dictionary = client.account_state()
+	if not login.visible or not username.is_visible_in_tree() or not connect_button.is_visible_in_tree() or state.screen != "Login" or state.reply_received:
+		fail("FEATURE: offline-actions did not retain actual visible Login without auth", true)
+		return
+	if not saw_offline_typed or not saw_offline_deleted or username.text != "abc":
+		fail("FEATURE: offline-actions lacked actual typed text then Backspace deletion outcome", true)
+		return
+	if saw_connect_press or saw_credentials or not password.text.is_empty():
+		fail("FEATURE: offline-actions entered credentials or clicked Connect", true)
+		return
+	if not mark("observed-offline-actions"):
+		return
+	print("OBSERVE: offline-actions actual LineEdit typing/deletion and visible Login without Connect; parent owns production output assertions")
+	client.queue_free()
+	await process_frame
+	quit(0)
+
 func run() -> void:
 	artifacts = OS.get_environment("NATIVE_JS_ARTIFACTS")
 	mode = OS.get_environment("NATIVE_JS_MODE")
-	if mode != "" and mode != "login" and mode != "timeout-continuation":
+	if mode != "" and mode != "login" and mode != "timeout-continuation" and mode != "offline-actions":
 		fail("SETUP: unknown native JS observer mode")
 		return
-	if artifacts.is_empty() or (mode != "timeout-continuation" and (OS.get_environment("LOGIN_USER").is_empty() or OS.get_environment("LOGIN_PASS").is_empty())):
+	if artifacts.is_empty() or ((mode == "" or mode == "login") and (OS.get_environment("LOGIN_USER").is_empty() or OS.get_environment("LOGIN_PASS").is_empty())):
 		fail("SETUP: owned artifacts and synthetic credential environment required")
 		return
 	if not ClassDB.class_exists("GameClient"):
@@ -118,6 +153,9 @@ func run() -> void:
 	print("OBSERVE: authored Login ready; password=***")
 	if mode == "timeout-continuation":
 		await observe_timeout_login(login)
+		return
+	if mode == "offline-actions":
+		await observe_offline_actions(login)
 		return
 	var deadline := Time.get_ticks_msec() + 15000
 	while Time.get_ticks_msec() < deadline:
