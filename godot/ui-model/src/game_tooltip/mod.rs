@@ -5,6 +5,7 @@
 
 pub mod hud;
 pub mod item;
+pub mod merchant;
 pub mod render;
 pub mod spell;
 pub mod unit;
