@@ -150,6 +150,26 @@ func self_test() -> bool:
 		return reject("Unequal extents were silently aligned")
 	if validate_manifest({}, "bevy"):
 		return reject("Missing original provenance was accepted")
+	var valid := {
+		"renderer": "bevy", "revision": "f23343bb4d43d83ce18f6324064f9f939e67b5bd",
+		"image": "original.png", "inputs": {
+			"client_args": ["--screen", "skyboxdebug"], "viewport": [1280, 720],
+			"camera_eye": [0, 2, 7], "camera_target": [0, 1, 0], "fov_degrees": 90,
+			"time_ms": 100000, "composition": "authored-only",
+			"asset_sha256": {
+				"model": "b15bf9b587b81c55e7c5fcba843adfe603dcd348a1f9041353a708f4ee37e517",
+				"skin": "9dd550de7fb3f13c2301e7bdea45921b9d0a6f2a25c3f185d4c0d06150742804",
+				"texture": "d337757ddb5848f7e2b7e9feeaa302f2c73db4e619d16aa88636feb996c30b47",
+			},
+			"render_options": {}, "light_sample": "unshaded", "pixel_encoding": "srgb-rgb8",
+		},
+	}
+	# These are synthetic metadata-format fixtures, not measured renderer provenance.
+	if not validate_manifest(valid, "bevy"):
+		return reject("Valid raw-hex manifest metadata was rejected")
+	var decoded: Dictionary = JSON.parse_string(JSON.stringify(valid))
+	if not validate_manifest(decoded, "bevy"):
+		return reject("Valid manifest metadata failed actual JSON decode boundary")
 	print("PASS: bounded exact image comparator self-test, no renderer-parity claim")
 	return true
 
