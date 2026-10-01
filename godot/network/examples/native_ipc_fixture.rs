@@ -115,7 +115,7 @@ fn run_fixture() -> Result<(), String> {
     }
     let mut native = NativeProcess(
         Command::new(godot)
-            .args(["--path"])
+            .args(["--audio-driver", "Dummy", "--path"])
             .arg(repo.join("godot"))
             .args([
                 "-s",
