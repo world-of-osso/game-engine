@@ -1,4 +1,20 @@
+## [2026-09-30] audit | Merchant fixture rendering links corrected; gate OPEN
+
+[SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending) records native5a source/build/actions and own readability resolution, actual merchant pre-login exit101, and fixture-only `54eaef69` required-link correction. Fresh fixture build/merchant retry and read-only1425 acceptance pending; prior startup failures and valid unchanged startup proof retained. Full conversion OPEN; Mail/Auction untouched. Docs only; no tests/builds/operations.
+
+## [2026-09-30] audit | Startup equipment followup pending after lifecycle split
+
+[SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records gate1421's new own complexity finding and source-only `5a3ebf7b` lifecycle/application split. Fresh build/actions/merchant-click and independent1423 acceptance pending MAIN proof; no metric clearance. Prior first-GREEN remains historical functional evidence, not current integration proof. Inherited readability remains uncleared; inventory snapshot is not Appearance/mesh proof. Docs only; no tests/builds or operations.
+
+## [2026-09-30] audit | Startup MainHand inventory MAIN observed GREEN
+
+MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records fresh Depot `04kwqv77h7` build0/runtime0, pre-Equip GUID9170105, authoritative GUID9170005 replacement, exact one Equip/two Destroy and original popup flow. Intentional child3934038 kill/reap/readers0 is not shutdown; broader coverage excluded. Supersedes pending-GREEN docs `cf9c3d63`.
+
 # Wiki Log
+
+## [2026-09-30] audit | Occupied startup equipment authentic RED; minimal consumer committed
+
+[Owned checkpoint](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green): test `57b30f57` distinct startup MainHand25/count1/GUID9170105 versus bag9170005; exact pre-Equip equipment/bags/no carried icon/split/popup oracle and later replacement/original one Equip/two Destroy retained. MAIN Depot `rxnbcnxs5z` native build0/existing WMO warning; actual startup log exit101 equipment empty after authenticated READY/exact bags, before Equip input. Missing typed network receive/account decode/merchant apply chain; minimal account/merchant `ee2d3e47` committed using original inventory apply, transport1419 `2d1829fc` committed (typed receive after InventorySnapshot, before InventoryDelta). Integration Depot build/verifier1421 active; runtime GREEN pending; occupied startup still missing, not EquipmentAppearance/mesh proof. No separate-owner architecture/server/protocol change. Tooltip gate1415/docs `2142e85f` retained; protected Mail/Auction branches untouched, ownership inquiry outstanding without freeze. Docs-only reconciliation; no test/build/gate reruns.
 
 ## [2026-09-30] audit | Foreign-chat World rejection main-observed GREEN; independent bounded PASS accepted
 
@@ -2319,3 +2335,5 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 - 2026-09-30: Docs-only followup to `f35996cd`: shared original extraction `0e41239a` committed alongside native `ac7c16d7`/test `1c00b32a`; actual source audit names root/ui-model exports and Bevy record/anchor adapter. [Owned checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending). Main Depot build/runtime/pure proof, walkthrough and independent verifier1415 pending; no accepted tooltip GREEN. Prior foreign accepted PASS, inherited findings/exclusions and whole goal open preserved. No tests/builds/delegation/operations.
 
 - 2026-09-30: Reconciled cursor formatter/unit-tooltip authored-screen source paths after extraction walkthrough became available. MAIN reports Depot `ksb906c316` native compile0, existing WMO warning only; runtime/CPU tests/verifier1415 pending, no accepted tooltip GREEN. [Owned checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending); prior accepted evidence/exclusions unchanged.
+
+- 2026-09-30: Docs-only reconciliation records MAIN-observed bounded tooltip GREEN for native `ac7c16d7` + shared `0e41239a`, tests `1c00b32a` + oracle correction `88b0505f`: actual corrected runtime, CPU native5/shared4, registry2, same-build drag/actions/cursor and MAIN-opened Linen/Poor captures. [Owned evidence](systems/godot-conversion.md#standalone-bag-item-tooltip--accepted-bounded-pass) retains authentic RED101, labels first GREEN attempt101 false oracle (not production failure), exact exclusions/inherited12 findings and intentional kills (not shutdown). Verifier1415 accepted bounded PASS after MAIN read the full report; original pure gear proof is not native gear hover. No source/PLAN/data edits, tests, builds, delegation or runtime operations.

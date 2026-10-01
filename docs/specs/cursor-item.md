@@ -35,6 +35,8 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ## Native Godot coverage
 
+- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand case: Single startup MainHand inventory has fresh native `5a3ebf7b` build/actions proof and source-verified own readability resolution; combined gate OPEN because merchant-click exits101 before login on isolated rendering resources. Fixture-only `54eaef69` corrects the required links; fresh fixture build/merchant retry and read-only1425 acceptance pending. Prior runtime failures and Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
+
 The `[x]` requirements above preserve legacy implementation status; they are not native parity acceptance. Native coverage remains partial; [conversion evidence](../wiki/systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) owns exact saved proof and limitations.
 
 - Actual authenticated/readied slot0 click in `/tmp/claude/native-bags-cursor-first-red.log` fails unconverted `bag_slot:0:0`, parent exit101; intentional child SIGKILL is not normal shutdown.
@@ -45,7 +47,7 @@ The `[x]` requirements above preserve legacy implementation status; they are not
 
 Bounded foreign-chat World rejection at `5f6782b5` is **MAIN observed GREEN; independent gate1406 accepted bounded PASS**. Captured physical-point mounted hits block only own-no-hit World candidates; own hits are unchanged, not cross-layer winner arbitration. [Owned evidence and exclusions](../wiki/systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records actual RED/GREEN and same-build regressions; no full global/NPC ownership, world-drag, scale/threshold-boundary, overlap-winner, tooltip or shutdown acceptance.
 
-Standalone bag hover: test `7e7b70af` has actual pre-bridge build exit0/runtime RED exit101; native `ac7c16d7` is committed, shared extraction `0e41239a` committed. MAIN reports Depot `ksb906c316` native compile0; runtime/CPU tests and verifier1415 remain pending, no accepted tooltip GREEN; test-only `1c00b32a` adds placement/hiding assertions, not runtime proof. [Owned tooltip checkpoint](../wiki/systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending) preserves exact scopes and prior accepted exclusions.
+Standalone bag hover: native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + corrected oracle `88b0505f` have **MAIN-observed bounded GREEN; verifier1415 accepted bounded PASS after MAIN read the full report**. Original `7e7b70af` authentic RED101 retained; first GREEN attempt101 was a false merchant-NPC/carried-cursor/StackSplitFrame oracle, not a production failure. Corrected actual tooltip, CPU native5/shared4, registry2 and same-build drag/actions/cursor pass; MAIN inspected Linen/Poor captures. Original pure gear formatter4 proof does not establish native gear hover. Paperdoll/NPC/global winner/nondefault scale/reset-runtime/all gear-line runtime/shutdown/full conversion remain unproved; inherited12 readability findings remain uncleared. [Owned tooltip checkpoint](../wiki/systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending) preserves exact scopes and prior accepted exclusions.
 
 ## Tests asserting this spec
 

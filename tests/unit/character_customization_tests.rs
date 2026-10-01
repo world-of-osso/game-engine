@@ -74,6 +74,7 @@ fn human_male_defaults_to_single_round_ear_geoset() {
                 hair_color: 0,
                 facial_style: 0,
                 customization_choices: Vec::new(),
+                visage: None,
             },
         },
         &db,
@@ -210,6 +211,7 @@ fn human_male_eye_color_selection_provides_default_eye_texture() {
             hair_color: 5,
             facial_style: 1,
             customization_choices: Vec::new(),
+            visage: None,
         },
     };
 
@@ -241,6 +243,7 @@ fn hidden_helmet_groups_use_scalp_fallback_for_group_zero() {
             hair_color: 0,
             facial_style: 0,
             customization_choices: Vec::new(),
+            visage: None,
         },
     };
 
@@ -273,6 +276,7 @@ fn selection_with_skin_color(skin_color: u8) -> CharacterCustomizationSelection 
             hair_color: 0,
             facial_style: 0,
             customization_choices: Vec::new(),
+            visage: None,
         },
     }
 }

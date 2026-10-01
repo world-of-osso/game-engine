@@ -26,13 +26,15 @@ pub fn randomize_appearance_with_seed(
     seed: u64,
 ) {
     let (race, sex, class) = (
-        state.selected_race,
+        state.customization_race(),
         state.selected_sex,
         state.selected_class,
     );
     let mut seed = seed ^ ((race as u64) << 40) ^ ((sex as u64) << 32) ^ ((class as u64) << 24);
+    // Only the edited form is randomized; the other form is kept.
     state.appearance = CharacterAppearance {
         sex,
+        visage: state.appearance.visage.take(),
         ..CharacterAppearance::default()
     };
     for option in db.options_for(race, sex).into_iter().flatten() {
@@ -51,7 +53,7 @@ pub fn randomize_appearance_with_seed(
 
 pub fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
     let (race, sex, class) = (
-        state.selected_race,
+        state.customization_race(),
         state.selected_sex,
         state.selected_class,
     );
@@ -94,7 +96,8 @@ pub fn adjust_appearance(
     delta: i8,
     db: &CustomizationDb,
 ) {
-    let Some(option) = db.option_by_id(state.selected_race, state.selected_sex, option_id) else {
+    let Some(option) = db.option_by_id(state.customization_race(), state.selected_sex, option_id)
+    else {
         return;
     };
     let choices = selectable_choices(state, db, option_id);
@@ -103,7 +106,7 @@ pub fn adjust_appearance(
     }
     let selected = appearance_options::selected_choice(
         db,
-        state.selected_race,
+        state.customization_race(),
         state.selected_sex,
         state.selected_class,
         &state.appearance,
@@ -135,7 +138,7 @@ pub fn select_choice(
     }
     let result = appearance_options::set_choice(
         db,
-        state.selected_race,
+        state.customization_race(),
         state.selected_sex,
         state.selected_class,
         &mut state.appearance,
@@ -158,7 +161,7 @@ fn selectable_choices<'a>(
     option_id: u32,
 ) -> Vec<&'a CustomizationChoice> {
     db.offered_choices(
-        state.selected_race,
+        state.customization_race(),
         state.selected_sex,
         state.selected_class,
         option_id,
@@ -171,7 +174,7 @@ fn selectable_choices<'a>(
 fn apply_choice(state: &mut CharCreateState, db: &CustomizationDb, option_id: u32, choice_id: u32) {
     appearance_options::set_choice(
         db,
-        state.selected_race,
+        state.customization_race(),
         state.selected_sex,
         state.selected_class,
         &mut state.appearance,
@@ -186,13 +189,13 @@ pub fn selected_option_choices<'a>(
     state: &CharCreateState,
     db: &'a CustomizationDb,
 ) -> Vec<(u32, &'a CustomizationChoice)> {
-    db.options_for(state.selected_race, state.selected_sex)
+    db.options_for(state.customization_race(), state.selected_sex)
         .into_iter()
         .flatten()
         .filter_map(|option| {
             appearance_options::selected_choice(
                 db,
-                state.selected_race,
+                state.customization_race(),
                 state.selected_sex,
                 state.selected_class,
                 &state.appearance,
@@ -210,7 +213,7 @@ fn repair_required_choices(
     kept_option: Option<u32>,
 ) {
     let option_count = db
-        .options_for(state.selected_race, state.selected_sex)
+        .options_for(state.customization_race(), state.selected_sex)
         .map_or(0, <[_]>::len);
     for _ in 0..option_count * 2 {
         let Some((option_id, choice_id)) = next_required_choice_fix(state, db, kept_option) else {

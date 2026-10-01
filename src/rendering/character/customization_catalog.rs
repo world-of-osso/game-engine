@@ -47,6 +47,20 @@ impl RaceModels {
         let unaltered = *self.unaltered_race.get(&race)?;
         self.chr_model_id(unaltered, sex)
     }
+
+    /// The race whose ChrCustomizationReq masks gate `race`'s options: an unplayable
+    /// unaltered form (Dracthyr visage 75 / 76) answers for the playable race that
+    /// names it, as TrinityCore's DB2Manager registers its options under that
+    /// parent race (`parentRaces`).
+    fn requirement_race(&self, race: u8) -> u8 {
+        if support::race_mask_bit(race).is_some() {
+            return race;
+        }
+        self.unaltered_race
+            .iter()
+            .find_map(|(&parent, &form)| (form == race).then_some(parent))
+            .unwrap_or(race)
+    }
 }
 
 /// One ChrCustomizationReq row, which gates who may select an option or choice.
@@ -467,7 +481,9 @@ impl CustomizationDb {
             || self
                 .requirements
                 .get(&requirement_id)
-                .is_some_and(|requirement| requirement.allows_new_character(race, class))
+                .is_some_and(|requirement| {
+                    requirement.allows_new_character(self.race_models.requirement_race(race), class)
+                })
     }
 
     /// Other options' choices this choice's requirement needs selected alongside it.

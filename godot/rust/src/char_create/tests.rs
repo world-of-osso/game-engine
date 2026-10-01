@@ -48,6 +48,7 @@ fn offered_rows(state: &CharCreateState) -> Vec<CustomizationOptionUi> {
         selected_race: state.selected_race,
         selected_sex: state.selected_sex,
         selected_class: state.selected_class,
+        visage_active: state.visage_active,
         ..CharCreateState::default()
     };
     let categories = build_ui_state(&probe, db()).categories;
@@ -339,6 +340,7 @@ fn appearance(
         hair_color,
         facial_style: facial,
         customization_choices: Vec::new(),
+        visage: None,
     }
 }
 
@@ -455,7 +457,10 @@ fn demon_hunter_offers_its_class_horns_blindfolds_and_tattoos() {
     for label in ["Horns", "Blindfold", "Tattoo"] {
         let hunter = offered_choice_count(NIGHT_ELF, DEMON_HUNTER, label);
         let warrior = offered_choice_count(NIGHT_ELF, WARRIOR, label);
-        assert!(hunter >= warrior + 6, "{label}: DH {hunter}, warrior {warrior}");
+        assert!(
+            hunter >= warrior + 6,
+            "{label}: DH {hunter}, warrior {warrior}"
+        );
     }
 }
 
@@ -464,5 +469,94 @@ fn demon_hunter_offers_its_class_horns_blindfolds_and_tattoos() {
 fn dracthyr_evoker_offers_dragon_form_options() {
     for label in ["Horns", "Tail", "Body Size", "Snout"] {
         assert!(offered_choice_count(52, 13, label) > 1, "{label}");
+    }
+}
+
+fn act(state: &mut CharCreateState, action: CharCreateAction) -> Vec<super::CharCreateEffect> {
+    reduce(state, action, db(), Err("no names"), "Scalesong", 5)
+}
+
+/// A Dracthyr gets both forms: the dragon form is edited first, the visage form
+/// (ChrRaces 75) is stored beside it, `SetForm` swaps which one is edited and
+/// previewed, and the create request always carries the dragon form first.
+#[test]
+fn dracthyr_creates_a_visage_form_beside_the_dragon_form() {
+    let mut state = CharCreateState::default();
+    act(&mut state, CharCreateAction::SelectRace(52));
+    assert_eq!(state.customization_race(), 52);
+    let dragon = state.appearance.clone();
+    let visage = dragon.visage.clone().expect("Dracthyr visage form");
+    let visage_options = db().options_for(75, state.selected_sex).unwrap();
+    let visage_choices: HashSet<u32> = visage_options
+        .iter()
+        .flat_map(|option| option.choices.iter().map(|choice| choice.id))
+        .collect();
+    assert!(
+        visage
+            .customization_choices
+            .iter()
+            .all(|selection| visage_choices.contains(&selection.choice_id)),
+        "visage choices come from race 75 options"
+    );
+
+    act(&mut state, CharCreateAction::SetForm(true));
+    assert_eq!(state.customization_race(), 75);
+    assert_eq!(
+        state.appearance.customization_choices,
+        visage.customization_choices
+    );
+    assert_eq!(
+        state
+            .appearance
+            .visage
+            .as_ref()
+            .unwrap()
+            .customization_choices,
+        dragon.customization_choices
+    );
+    let ui = build_ui_state(&state, db());
+    assert_eq!(ui.altered_form, Some(true));
+
+    let effects = act(&mut state, CharCreateAction::CreateConfirm);
+    let request = effects
+        .into_iter()
+        .find_map(|effect| match effect {
+            super::CharCreateEffect::SendCreate(request) => Some(request),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(request.race, 52);
+    assert_eq!(
+        request.appearance.customization_choices,
+        dragon.customization_choices
+    );
+    assert_eq!(
+        request.appearance.visage.unwrap().customization_choices,
+        visage.customization_choices
+    );
+
+    act(&mut state, CharCreateAction::SelectRace(1));
+    assert!(state.appearance.visage.is_none());
+    assert_eq!(build_ui_state(&state, db()).altered_form, None);
+}
+
+/// The visage form edits ChrRaces 75 (Alliance) / 76 (Horde), the
+/// UnalteredVisualRaceID of 52 / 70. Neither has a PlayableRaceBit, so its
+/// options' ChrCustomizationReq rows are checked against the Dracthyr race,
+/// as TrinityCore registers alt-form options under the parent race.
+#[test]
+fn dracthyr_visage_form_offers_its_customization_options() {
+    for (race, visage_race) in [(52, 75), (70, 76)] {
+        let mut state = CharCreateState::default();
+        act(&mut state, CharCreateAction::SelectRace(race));
+        act(&mut state, CharCreateAction::SetForm(true));
+        assert_eq!(state.customization_race(), visage_race);
+        let labels: Vec<String> = offered_rows(&state)
+            .iter()
+            .map(|row| row.label.clone())
+            .collect();
+        for label in ["Face", "Skin Color", "Hair Style"] {
+            assert!(labels.iter().any(|l| l == label), "race {race}: {labels:?}");
+        }
     }
 }

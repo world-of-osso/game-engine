@@ -48,6 +48,8 @@ pub enum CharCreateAction {
     SelectOptionChoice(u32, u32),
     Camera(CameraControl),
     CreateConfirm,
+    /// Show the altered (visage, `true`) or normal form (Retail `SetViewingAlteredForm`).
+    SetForm(bool),
 }
 
 impl fmt::Display for CharCreateAction {
@@ -68,6 +70,7 @@ impl fmt::Display for CharCreateAction {
             }
             Self::Camera(control) => write!(f, "camera:{}", control.as_str()),
             Self::CreateConfirm => f.write_str("create_confirm"),
+            Self::SetForm(altered) => write!(f, "set_form:{}", u8::from(*altered)),
         }
     }
 }
@@ -110,6 +113,8 @@ impl CharCreateAction {
             ["next_mode"] => Some(Self::NextMode),
             ["back"] => Some(Self::Back),
             ["create_confirm"] => Some(Self::CreateConfirm),
+            ["set_form", "0"] => Some(Self::SetForm(false)),
+            ["set_form", "1"] => Some(Self::SetForm(true)),
             _ => None,
         }
     }
@@ -170,6 +175,8 @@ pub struct CharCreateUiState {
     pub class_availability: Vec<(u8, &'static str, u32, bool)>,
     pub viewport_width: u32,
     pub viewport_height: u32,
+    /// For a race with an altered form (Dracthyr): whether the altered form is shown.
+    pub altered_form: Option<bool>,
 }
 
 impl Default for CharCreateUiState {
@@ -202,6 +209,7 @@ impl Default for CharCreateUiState {
                 .collect(),
             viewport_width: 1920,
             viewport_height: 1080,
+            altered_form: None,
         }
     }
 }

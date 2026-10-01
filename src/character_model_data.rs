@@ -143,6 +143,12 @@ const ALLIED_RACE_MODEL_PATHS: &[SexedModelPath] = &[
         male: "character/harronir/harronirmale.m2",
         female: "character/harronir/harronirfemale.m2",
     },
+    // Dracthyr visage form (ChrRaces 75, ChrModel 127/128).
+    SexedModelPath {
+        race: 75,
+        male: "character/dracthyr/dracthyrmale.m2",
+        female: "character/dracthyr/dracthyrfemale.m2",
+    },
     // Dracthyr dragon form: both sexes use ChrModel 89 (ChrRaceXChrModel), whose
     // display is this sexless model. The visage form (ChrRaces 75) is not modeled.
     SexedModelPath {

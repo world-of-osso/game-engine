@@ -26,6 +26,7 @@ fn blood_elf_warrior_state() -> CharCreateState {
             hair_color: 0,
             facial_style: 0,
             customization_choices: Vec::new(),
+            visage: None,
         },
         ..Default::default()
     }

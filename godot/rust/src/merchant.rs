@@ -104,6 +104,10 @@ impl GameClient {
             }
             self.mailbox.session.close();
         }
+        self.apply_npc_message(message)
+    }
+
+    fn apply_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
         let session = &mut self.merchant.session;
         match message {
             NpcMessage::Opened(opened) => match opened.kind {
@@ -130,6 +134,9 @@ impl GameClient {
             }
             NpcMessage::Buyback(list) => session.receive_buyback(list),
             NpcMessage::Inventory(snapshot) => session.receive_inventory_snapshot(&snapshot),
+            NpcMessage::Equipment(snapshot) => {
+                session.inventory.apply_equipment_snapshot(&snapshot)
+            }
             NpcMessage::InventoryChanged(delta) => session.receive_inventory_delta(&delta),
             NpcMessage::RepairCost(cost) => session.repair_cost = cost,
             NpcMessage::InteractionError(failed) => {
