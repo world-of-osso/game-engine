@@ -1,3 +1,7 @@
+## 2026-10-01 — In-world LightSkybox models (worldvis)
+
+[Retail lighting](systems/retail-lighting.md#sky-dome-godot): LightSkybox models collected over the LightParams blend (SkyBoxCollector) and drawn on the camera; Twilight Highlands fixture.
+
 ## 2026-10-01 — Godot ground detail (worldvis)
 
 [Ground detail](systems/terrain.md#ground-detail-godot): 12340 detail-doodad scatter/mesh port matching solarityclient's native fixtures; retail GroundEffect CSV exports; live Northshire clutter fixture. Spec [ground-detail](../specs/ground-detail.md).
