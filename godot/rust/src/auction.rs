@@ -4,7 +4,6 @@ use game_engine_ui_model::auction::{
     AuctionSession,
     view::{self, InputTexts},
 };
-use godot::global::Key;
 use godot::prelude::*;
 use shared::protocol::GossipMenu;
 use ui_toolkit::frame::WidgetData;
@@ -189,14 +188,12 @@ impl GameClient {
         }
         Ok(())
     }
-    pub(super) fn auction_key(&mut self, key: Key) -> Result<bool, SessionError> {
-        if key == Key::ESCAPE
-            && (self.auction.session.ui.npc.is_some() || self.auction.gossip.is_some())
-        {
-            self.close_auction()?;
-            return Ok(true);
+    pub(super) fn close_auction_window(&mut self) -> Result<bool, SessionError> {
+        if self.auction.session.ui.npc.is_none() && self.auction.gossip.is_none() {
+            return Ok(false);
         }
-        Ok(false)
+        self.close_auction()?;
+        Ok(true)
     }
     pub(super) fn auction_snapshot(&self) -> VarDictionary {
         let session = &self.auction.session;

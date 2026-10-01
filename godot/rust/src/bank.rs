@@ -18,7 +18,6 @@ use game_engine_ui_model::guild_bank_frame_component::{self as guild_frame, INFO
 use game_engine_ui_model::item_icons::item_icon_fdid;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
-use godot::global::Key;
 use godot::prelude::*;
 use shared::protocol::{
     GAMEOBJECT_TYPE_GUILD_BANK, GameObjectInfo, InteractionKind, ItemLocation, NpcRole,
@@ -26,7 +25,6 @@ use shared::protocol::{
 
 use crate::GameClient;
 use crate::account::{BankMessage, NpcMessage};
-use crate::bag_cursor::BagInput;
 use crate::frame_error::{FrameError, SessionError};
 use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
@@ -263,22 +261,24 @@ impl GameClient {
         Ok(())
     }
 
-    /// Escape closes the open bank frame and its backpack, before the game menu.
-    pub(super) fn bank_key(&mut self, key: Key) -> Result<bool, SessionError> {
-        if key != Key::ESCAPE {
+    /// Escape's `CloseAllWindows` hides BankFrame and the bags it opened.
+    pub(super) fn close_bank_window(&mut self) -> Result<bool, SessionError> {
+        if !self.banks.bank.is_open() {
             return Ok(false);
         }
-        if self.banks.bank.is_open() {
-            let effects = self.banks.bank.close();
-            self.send_bank_effects(effects)?;
-            return Ok(true);
+        let effects = self.banks.bank.close();
+        self.send_bank_effects(effects)?;
+        Ok(true)
+    }
+
+    /// Escape's `CloseAllWindows` hides GuildBankFrame and its embedded backpack.
+    pub(super) fn close_guild_bank_window(&mut self) -> Result<bool, SessionError> {
+        if !self.banks.guild.state.is_open() {
+            return Ok(false);
         }
-        if self.banks.guild.state.is_open() {
-            let effects = self.banks.guild.close();
-            self.send_guild_effects(effects)?;
-            return Ok(true);
-        }
-        Ok(false)
+        let effects = self.banks.guild.close();
+        self.send_guild_effects(effects)?;
+        Ok(true)
     }
 
     /// `CONFIRM_BUY_BANK_TAB` / `CONFIRM_BUY_GUILDBANK_TAB` answers.
@@ -319,12 +319,6 @@ impl GameClient {
             return Ok(());
         }
         self.feed_bank_sessions();
-        let interactive =
-            self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed();
-        if interactive {
-            self.poll_bank_input()?;
-            self.poll_guild_bank_input()?;
-        }
         self.sync_bank_popup(
             BUY_BANK_TAB_POPUP,
             self.banks.bank.purchase_confirmation.clone(),
@@ -354,23 +348,52 @@ impl GameClient {
         banks.guild.money = money;
     }
 
-    fn poll_bank_input(&mut self) -> Result<(), FrameError> {
-        let Some(mut ui) = self.banks.bank_ui.clone() else {
-            return Ok(());
-        };
-        let inputs = ui.bind_mut().drain_bag_inputs()?;
-        for input in inputs {
-            let BagInput::Click { action, click, .. } = input else {
-                continue;
-            };
-            if self.drop_cursor_on_bank(&action, click)? {
-                continue;
-            }
-            let texts = read_texts(&mut ui, &BANK_INPUTS);
-            let effects = self.banks.bank.click(&action, click, &texts);
-            self.send_bank_effects(effects)?;
+    fn is_ui(ui: &Option<Gd<RegistryUi>>, owner: i64) -> bool {
+        ui.as_ref()
+            .is_some_and(|ui| ui.instance_id().to_i64() == owner)
+    }
+
+    /// A press on a bank canvas from the shared cursor queue; `false` for other canvases.
+    pub(super) fn bank_cursor_press(
+        &mut self,
+        owner: i64,
+        action: &str,
+        click: Click,
+    ) -> Result<bool, FrameError> {
+        if Self::is_ui(&self.banks.bank_ui, owner) {
+            self.bank_press(action, click)?;
+            return Ok(true);
         }
-        Ok(())
+        if Self::is_ui(&self.banks.guild_ui, owner) {
+            self.guild_bank_press(action, click)?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    /// A cursor stack released over a bank slot of any canvas deposits it.
+    pub(super) fn bank_cursor_drop(
+        &mut self,
+        owner: i64,
+        action: &str,
+    ) -> Result<bool, FrameError> {
+        if Self::is_ui(&self.banks.bank_ui, owner) {
+            return self.drop_cursor_on_bank(action, Click::LEFT);
+        }
+        if Self::is_ui(&self.banks.guild_ui, owner) {
+            return self.drop_cursor_on_guild_bank(action, Click::LEFT);
+        }
+        Ok(false)
+    }
+
+    fn bank_press(&mut self, action: &str, click: Click) -> Result<(), FrameError> {
+        if self.drop_cursor_on_bank(action, click)? {
+            return Ok(());
+        }
+        let mut ui = self.banks.bank_ui.clone().ok_or("Bank UI missing")?;
+        let texts = read_texts(&mut ui, &BANK_INPUTS);
+        let effects = self.banks.bank.click(action, click, &texts);
+        Ok(self.send_bank_effects(effects)?)
     }
 
     /// A whole bag stack on the cursor clicked onto a bank slot is deposited.
@@ -389,50 +412,43 @@ impl GameClient {
         Ok(true)
     }
 
-    fn poll_guild_bank_input(&mut self) -> Result<(), FrameError> {
-        let Some(mut ui) = self.banks.guild_ui.clone() else {
-            return Ok(());
-        };
-        let inputs = ui.bind_mut().drain_bag_inputs()?;
-        for input in inputs {
-            let (action, click) = match &input {
-                BagInput::Click { action, click, .. } => (action.clone(), *click),
-                BagInput::Release { .. } => {
-                    self.dispatch_bag_cursor_input(input)?;
-                    continue;
-                }
-            };
-            if action.starts_with(ACTION_BAG_SLOT_PREFIX) {
-                self.guild_bag_click(input, &action, click)?;
-                continue;
-            }
-            if !click.right
-                && action.starts_with(guild_frame::ACTION_SLOT_PREFIX)
-                && let Some((bag, slot)) = cursor_bag_stack(&self.bags.cursor.item)
-            {
-                let effects = self.banks.guild.deposit_bag(bag, slot);
-                if !effects.is_empty() {
-                    self.bags.cursor.item = CursorItem::Empty;
-                }
-                self.send_guild_effects(effects)?;
-                continue;
-            }
-            let texts = read_texts(&mut ui, &GUILD_INPUTS);
-            let effects = self.banks.guild.click(&action, click, &texts);
-            self.send_guild_effects(effects)?;
+    fn guild_bank_press(&mut self, action: &str, click: Click) -> Result<(), FrameError> {
+        if action.starts_with(ACTION_BAG_SLOT_PREFIX) {
+            return self.guild_bag_click(action, click);
         }
-        Ok(())
+        if self.drop_cursor_on_guild_bank(action, click)? {
+            return Ok(());
+        }
+        let mut ui = self.banks.guild_ui.clone().ok_or("Guild bank UI missing")?;
+        let texts = read_texts(&mut ui, &GUILD_INPUTS);
+        let effects = self.banks.guild.click(action, click, &texts);
+        Ok(self.send_guild_effects(effects)?)
     }
 
-    /// Right-click deposits; other clicks keep the shared bag cursor behaviour.
-    fn guild_bag_click(
+    fn drop_cursor_on_guild_bank(
         &mut self,
-        input: BagInput,
         action: &str,
         click: Click,
-    ) -> Result<(), FrameError> {
+    ) -> Result<bool, FrameError> {
+        if click.right || !action.starts_with(guild_frame::ACTION_SLOT_PREFIX) {
+            return Ok(false);
+        }
+        let Some((bag, slot)) = cursor_bag_stack(&self.bags.cursor.item) else {
+            return Ok(false);
+        };
+        let effects = self.banks.guild.deposit_bag(bag, slot);
+        if !effects.is_empty() {
+            self.bags.cursor.item = CursorItem::Empty;
+        }
+        self.send_guild_effects(effects)?;
+        Ok(true)
+    }
+
+    /// Right-click on the embedded backpack deposits; other clicks keep the shared bag
+    /// cursor behaviour.
+    fn guild_bag_click(&mut self, action: &str, click: Click) -> Result<(), FrameError> {
         if !click.right {
-            return self.dispatch_bag_cursor_input(input);
+            return self.dispatch_bag_action(action, click);
         }
         let Some((bag, slot)) = bag_slot(action) else {
             return Ok(());

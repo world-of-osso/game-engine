@@ -22,6 +22,7 @@ use ui_toolkit::widget_def::Element;
 use crate::GameClient;
 use crate::frame_error::FrameError;
 use crate::ui::RegistryUi;
+use crate::window_stack::UiHit;
 
 const CURSOR_UI: &str = "CursorItemUI";
 /// The original cursor icon is above every frame and ignores pointer input.
@@ -36,12 +37,11 @@ pub(crate) enum BagInput {
         click: Click,
         at: Option<Vector2>,
     },
+    /// Every cursor canvas reports each release; only the pickup's canvas acts on it.
     Release {
         owner: i64,
         at: Vector2,
         physical_at: Vector2,
-        /// No frame is World; a blocking frame can lack a cursor action.
-        action: Option<Option<String>>,
     },
 }
 
@@ -95,8 +95,7 @@ impl GameClient {
                 owner,
                 at,
                 physical_at,
-                action,
-            } => self.send_bag_drag_release(owner, at, physical_at, action),
+            } => self.send_bag_drag_release(owner, at, physical_at),
         }
     }
 
@@ -112,7 +111,7 @@ impl GameClient {
         let target = cursor_action_target(action)?;
         if self.merchant_input_owner(owner) {
             self.merchant_cursor_click(action, click)?;
-        } else {
+        } else if !self.bank_cursor_press(owner, action, click)? {
             self.dispatch_bag_action(action, click)?;
         }
         if was_empty && !self.bags.cursor.item.is_empty() {
@@ -126,7 +125,6 @@ impl GameClient {
         owner: i64,
         at: Vector2,
         physical_at: Vector2,
-        action: Option<Option<String>>,
     ) -> Result<(), FrameError> {
         let Some((picked_at, picked_target)) = self.take_owned_drag_origin(owner) else {
             return Ok(());
@@ -135,8 +133,17 @@ impl GameClient {
         if distance < DRAG_THRESHOLD {
             return Ok(());
         }
-        let action = self.resolve_bag_release_action(physical_at, action)?;
-        let Some(target) = bag_release_target(action)? else {
+        // The drop target is the topmost frame of any canvas, not the pickup's own.
+        let hit = self.ui_hit_at(physical_at)?;
+        if let Some(UiHit {
+            owner,
+            action: Some(action),
+        }) = &hit
+            && self.bank_cursor_drop(*owner, action)?
+        {
+            return Ok(());
+        }
+        let Some(target) = bag_release_target(hit.map(|hit| hit.action))? else {
             return Ok(());
         };
         if target == picked_target {
@@ -165,22 +172,6 @@ impl GameClient {
             .item
             .click(target, &session.inventory, &session.merchant);
         self.send_cursor_effect(effect)
-    }
-
-    fn resolve_bag_release_action(
-        &mut self,
-        physical_at: Vector2,
-        action: Option<Option<String>>,
-    ) -> Result<Option<Option<String>>, FrameError> {
-        if action.is_some() {
-            return Ok(action);
-        }
-        let mut claimed = false;
-        self.for_each_registry_ui(|ui| {
-            claimed |= ui.bind().pointer_action_at(physical_at).is_some();
-            Ok(())
-        })?;
-        Ok(claimed.then_some(None))
     }
 
     pub(super) fn clear_stale_bag_cursor(&mut self) {
