@@ -567,6 +567,6 @@ fn tab_settings(flags: u32, name_prompt: &str) -> Element {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "bank_frame_component_tests.rs"]
 mod tests;

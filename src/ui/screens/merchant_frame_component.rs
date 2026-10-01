@@ -721,6 +721,32 @@ pub fn money(
     money_colored(prefix, copper, anchor, align, color)
 }
 
+/// Each shown denomination's digits, their width and its coin.
+fn money_parts(copper: u64) -> Vec<(String, f32, &'static AtlasArt)> {
+    coins(copper)
+        .into_iter()
+        .map(|(amount, art)| {
+            let digits = amount.to_string();
+            let width = measure_text(&digits, GameFont::ArialNarrow, MONEY_FONT_SIZE)
+                .map_or(7.0 * digits.len() as f32, |(w, _)| w.ceil());
+            (digits, width, art)
+        })
+        .collect()
+}
+
+fn parts_width(parts: &[(String, f32, &AtlasArt)]) -> f32 {
+    parts
+        .iter()
+        .map(|(_, w, _)| w + 1.0 + COIN_SIZE)
+        .sum::<f32>()
+        + 4.0 * (parts.len() as f32 - 1.0)
+}
+
+/// Width of [`money`]'s coins for `copper`.
+pub fn money_width(copper: u64) -> f32 {
+    parts_width(&money_parts(copper))
+}
+
 /// [`money`] with the amounts in `color` (the trainer's red unaffordable cost).
 pub(crate) fn money_colored(
     prefix: &str,
@@ -729,20 +755,8 @@ pub(crate) fn money_colored(
     align: MoneyAlign,
     color: &str,
 ) -> Element {
-    let parts: Vec<(String, f32, &AtlasArt)> = coins(copper)
-        .into_iter()
-        .map(|(amount, art)| {
-            let digits = amount.to_string();
-            let width = measure_text(&digits, GameFont::ArialNarrow, MONEY_FONT_SIZE)
-                .map_or(7.0 * digits.len() as f32, |(w, _)| w.ceil());
-            (digits, width, art)
-        })
-        .collect();
-    let total: f32 = parts
-        .iter()
-        .map(|(_, w, _)| w + 1.0 + COIN_SIZE)
-        .sum::<f32>()
-        + 4.0 * (parts.len() as f32 - 1.0);
+    let parts = money_parts(copper);
+    let total = parts_width(&parts);
     let mut x = match align {
         MoneyAlign::Left => anchor.0,
         MoneyAlign::Right => anchor.0 - total,

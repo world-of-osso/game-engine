@@ -2,8 +2,9 @@
 //! The GDScript side prints case markers; counts are read from the combined log.
 use super::*;
 use shared::protocol::{
-    AuctionChannel, AuctionHouseOpened, BagSlotItem, OpenAuctionHouse, BuyItem, BuybackItemRequest, DestroyItem, EquipItem, InteractionClosed,
-    ItemStack, RepairItem, SellAllJunkItems, SellItem, SortBags, SplitItem, SwapItem, UseItem,
+    AuctionChannel, AuctionHouseOpened, BagSlotItem, BuyItem, BuybackItemRequest, DestroyItem,
+    EquipItem, InteractionClosed, ItemStack, OpenAuctionHouse, RepairItem, SellAllJunkItems,
+    SellItem, SortBags, SplitItem, SwapItem, UseItem,
 };
 
 const QUIET: Duration = Duration::from_millis(400);
@@ -29,7 +30,10 @@ fn collect<M: network::Message + std::fmt::Debug>(
 ) {
     for mut receiver in receivers.iter_mut() {
         requests.0.extend(receiver.receive().map(|request| {
-            let name = std::any::type_name::<M>().rsplit("::").next().unwrap_or("?");
+            let name = std::any::type_name::<M>()
+                .rsplit("::")
+                .next()
+                .unwrap_or("?");
             format!("{name} {request:?}")
         }));
     }
@@ -149,11 +153,18 @@ struct Session {
 
 impl Session {
     fn observe(&mut self, app: &mut App, line: &str) -> Result<(), String> {
-        let message = line.strip_prefix("GODOT_STDERR: ").unwrap_or(line).trim_start();
+        let message = line
+            .strip_prefix("GODOT_STDERR: ")
+            .unwrap_or(line)
+            .trim_start();
         if message.starts_with("ERROR:") || message.starts_with("SCRIPT ERROR:") {
             println!("UIOWN PEER GODOT_ERROR {message}");
         }
-        let vendor = app.world().resource::<Incoming>().vendor.map(Entity::to_bits);
+        let vendor = app
+            .world()
+            .resource::<Incoming>()
+            .vendor
+            .map(Entity::to_bits);
         match line {
             "FIXTURE UIOWN_LOADING" if self.selected.is_some() => send::<_, TerrainChannel>(
                 app,

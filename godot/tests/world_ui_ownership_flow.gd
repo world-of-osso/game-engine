@@ -504,14 +504,66 @@ func uo_auction_cases(client: Node) -> void:
 	await uo_settle()
 	await uo_end("A2_AUCTION_SERVER_CLOSE", client, "ah_opened=%s ah_visible_after_server_close=%s expect closed, 0 CloseInteraction" % [opened, uo_ah_visible(client)])
 
-func uo_equipment_case(client: Node) -> void:
-	await uo_begin("E1_CHARACTER_FRAME_KEY_C")
+const UO_CHARACTER := "CharacterFrameUI"
+
+func uo_toggle_character(client: Node) -> void:
 	push_key(KEY_C, true)
 	await process_frame
 	push_key(KEY_C, false)
-	await uo_settle()
-	var frame := client.find_child("CharacterFrame", true, false) as Control
-	await uo_end("E1_CHARACTER_FRAME_KEY_C", client, "character_frame_exists=%s visible=%s" % [frame != null, uo_visible(frame)])
-	push_key(KEY_ESCAPE, true)
-	await process_frame
-	push_key(KEY_ESCAPE, false)
+	await uo_settle(300)
+
+# E1: a paperdoll slot over the MerchantFrame. No layout puts a bag under the
+# CharacterFrame (both sit at fixed Retail anchors, the bags bottom right), so the
+# movable merchant goes underneath instead: a drop there would sell. The merchant is
+# dragged under the Hands slot, the CharacterFrame raised back over it, and a drag from
+# BagsUI bag1 released on the Hands slot must send exactly one SwapItem to
+# Equipment(Hands) and no SellItem.
+func uo_equipment_case(client: Node) -> void:
+	if not await uo_reopen(client, "E1"):
+		fail("vendor reopen for E1 failed")
+		return
+	if not uo_visible(uo_ctl(client, UO_BAGS, "ContainerFrame1")) and not await uo_open_bag1(client):
+		return
+	await uo_toggle_character(client)
+	var frame_ctl := uo_ctl(client, UO_CHARACTER, "CharacterFrame")
+	var frame_rect := frame_ctl.get_global_rect() if uo_visible(frame_ctl) else Rect2()
+	var hands := uo_center(client, UO_CHARACTER, "CharacterHandsSlot")
+	if hands == Vector2.INF:
+		fail("C did not show the CharacterFrame Hands slot")
+		return
+	var merchant := uo_ctl(client, UO_MERCHANT, "MerchantFrame")
+	var canvas := uo_ctl(client, UO_MERCHANT, "RegistryCanvas")
+	var scale := canvas.get_global_transform().get_scale().x
+	var m := merchant.get_global_rect()
+	var title := m.position + Vector2(m.size.x * 0.4, 10.0 * scale)
+	var target := Vector2(maxf(0.0, hands.x - m.size.x * 0.5), maxf(0.0, hands.y - m.size.y * 0.25))
+	await drag_title(title, title + target - m.position)
+	await uo_settle(300)
+	var under := uo_hover_path(hands)
+	var raise := uo_uncovered_frame_point(frame_rect)
+	if raise == Vector2.INF:
+		fail("E1 geometry: the merchant covers the whole CharacterFrame")
+		return
+	await uo_click(raise)
+	await uo_settle(300)
+	var top := uo_hover_path(hands)
+	var source := uo_center(client, UO_BAGS, "ContainerFrame1Slot3")
+	print("UIOWN GEOMETRY E1 merchant=", merchant.get_global_rect(), " hands=", hands, " before_raise=", under, " raise=", raise, " after_raise=", top, " source_hovered=", uo_hover_path(source))
+	if not under.ends_with("/MerchantFrame") or not top.ends_with("/CharacterHandsSlot") or source == Vector2.INF:
+		fail("E1 geometry: Hands slot not raised over the MerchantFrame")
+		return
+	await uo_begin("E1_EQUIP_OVER_MERCHANT")
+	await uo_drag(source, hands)
+	await uo_end("E1_EQUIP_OVER_MERCHANT", client, "merchant_under_hands=true hands_topmost=true character_visible=%s expect exactly 1 SwapItem Bag{1,3} to Equipment(Hands), no SellItem" % uo_visible(frame_ctl))
+	await uo_escape()
+	await uo_settle(300)
+
+# A CharacterFrame point (not a paperdoll slot) the pointer reaches on top.
+func uo_uncovered_frame_point(rect: Rect2) -> Vector2:
+	for y in [0.15, 0.3, 0.5, 0.7, 0.9]:
+		for x in [0.02, 0.1, 0.5, 0.9, 0.97]:
+			var point := rect.position + rect.size * Vector2(x, y)
+			var path := uo_hover_path(point)
+			if path.contains("/" + UO_CHARACTER + "/") and not path.ends_with("Slot"):
+				return point
+	return Vector2.INF
