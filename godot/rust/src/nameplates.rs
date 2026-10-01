@@ -233,6 +233,23 @@ impl Nameplates {
         }
     }
 
+    /// The screen rect of every shown plate by unit, for the unit tooltip's nameplate hover.
+    pub(crate) fn plate_rects(&self) -> impl Iterator<Item = (u64, Rect2)> + '_ {
+        self.plates
+            .iter()
+            .filter(|(_, plate)| plate.root.is_visible_in_tree())
+            .map(|(&id, plate)| {
+                let frame = plate.frame.get_global_rect();
+                let name = plate.name.get_global_rect();
+                let rect = if plate.frame.is_visible_in_tree() {
+                    frame.merge(name)
+                } else {
+                    name
+                };
+                (id, rect)
+            })
+    }
+
     fn clear(&mut self) {
         self.views.clear();
         for (_, plate) in self.plates.drain() {

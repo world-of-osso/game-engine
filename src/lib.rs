@@ -117,6 +117,8 @@ pub mod item_catalog;
 pub mod item_icons;
 #[path = "game/equipment/item_info.rs"]
 pub mod item_info;
+#[path = "game/item_stats.rs"]
+pub mod item_stats;
 #[path = "game/item_tooltip.rs"]
 pub mod item_tooltip;
 pub mod lfg;

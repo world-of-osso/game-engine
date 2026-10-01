@@ -308,7 +308,9 @@ func mt_geometry(client: Node, panel: Control, owner_name: String, expected: Dic
 	var scale := owner.get_global_transform().get_scale()
 	if scale.x <= 0.0 or not is_equal_approx(scale.x, scale.y):
 		return false
-	var size := Vector2(260.0, maxf(34.0, 16.0 + 16.0 + 14.0 * expected.lines.size())) * scale
+	# Retail GameTooltip fits its widest line (game_tooltip/render.rs tooltip_size).
+	var rect: PackedFloat32Array = client.tooltip_state().rect
+	var size := Vector2(rect[2], rect[3]) * scale
 	var owner_rect := owner.get_global_rect()
 	var viewport := root.get_visible_rect()
 	# Existing merchant ANCHOR_RIGHT: tooltip BOTTOMLEFT at owner's TOPRIGHT.

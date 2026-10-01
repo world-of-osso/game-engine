@@ -111,7 +111,7 @@ func check_world_host_scales(client: Node, scale: float) -> bool:
 		if canvas == null or not canvas.scale.is_equal_approx(Vector2.ONE * scale) or not canvas.size.is_equal_approx(Vector2(root.size) / scale):
 			fail("World %s canvas did not fit viewport at scale %s" % [host_name, scale])
 			return false
-	for host_name in ["SpellTooltipUI", "EntranceBarUI", "MirrorTimers", "WorldMapUI", "SpellBookUI", "MerchantUI"]:
+	for host_name in ["GameTooltipUI", "EntranceBarUI", "MirrorTimers", "WorldMapUI", "SpellBookUI", "MerchantUI"]:
 		var host := client.get_node_or_null(host_name)
 		if host == null:
 			continue
