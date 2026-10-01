@@ -2,6 +2,8 @@
 
 pub(crate) mod assets;
 
+use std::collections::HashMap;
+
 use game_engine_core::{
     asset::wmo_format::fog::WmoFogBlend,
     lighting_assets::{authored_to_linear_rgb, linear_to_authored_rgb},
@@ -18,11 +20,19 @@ use godot::{
 };
 
 use assets::{LightingCatalog, LightingSample, WaterLight};
-use game_engine_core::sky_bodies::STARS_FDID;
+use game_engine_core::sky_bodies::{STARS_FDID, SkyboxDraw};
 
 use crate::sky_model::SkyModel;
 
 type SkyStops = [[f32; 3]; 7];
+type LightValues = (
+    RetailLightData,
+    FogResult,
+    SkyStops,
+    WaterLight,
+    Option<f32>,
+    Vec<SkyboxDraw>,
+);
 
 #[derive(Clone)]
 pub(crate) struct TerrainLight {
@@ -126,7 +136,9 @@ pub(crate) struct WorldLighting {
     sun: Option<Gd<DirectionalLight3D>>,
     sky: Option<Gd<ShaderMaterial>>,
     stars: Option<SkyModel>,
-    previous: Option<(RetailLightData, FogResult, SkyStops, WaterLight, Option<f32>)>,
+    /// LightSkybox models by FDID, with the day fraction a flag 0x1 skybox is held at.
+    skyboxes: HashMap<u32, (SkyModel, Option<f32>)>,
+    previous: Option<LightValues>,
 }
 
 const SKY_DOME_SHADER: &str = "res://shaders/sky_dome.gdshader";
@@ -162,6 +174,7 @@ impl WorldLighting {
             stops,
             sample.water.clone(),
             stars_alpha,
+            sample.skyboxes.clone(),
         );
         if self.previous.as_ref() == Some(&values) {
             return Ok(None);
@@ -171,6 +184,7 @@ impl WorldLighting {
         self.attach_nodes(parent)?;
         bind_sky_dome(self.sky.as_mut().expect("attached sky"), &stops, &light.fog);
         self.sync_stars(catalog, stars_alpha)?;
+        self.sync_skyboxes(catalog, &values.5, minutes)?;
         self.sun
             .as_mut()
             .expect("attached sun")
@@ -183,13 +197,62 @@ impl WorldLighting {
     /// night alpha.
     fn sync_stars(&mut self, catalog: &LightingCatalog, alpha: Option<f32>) -> Result<(), String> {
         if self.stars.is_none() && alpha.is_some() {
-            let stars = SkyModel::load_model(&catalog.data_root, &catalog.stars_path, STARS_FDID, None)?;
-            self.root.as_mut().expect("attached root").add_child(&stars.node);
+            let stars =
+                SkyModel::load_model(&catalog.data_root, &catalog.stars_path, STARS_FDID, None)?;
+            self.root
+                .as_mut()
+                .expect("attached root")
+                .add_child(&stars.node);
             self.stars = Some(stars);
         }
         if let Some(stars) = self.stars.as_mut() {
             stars.node.set_visible(alpha.is_some());
             stars.set_alpha(alpha.unwrap_or(0.0));
+        }
+        Ok(())
+    }
+
+    /// map.cpp: the Light's LightSkybox models draw in the sky view at their collected
+    /// alphas; a flag 0x1 skybox holds its animation at the day's fraction.
+    fn sync_skyboxes(
+        &mut self,
+        catalog: &LightingCatalog,
+        draws: &[SkyboxDraw],
+        minutes: f32,
+    ) -> Result<(), String> {
+        for draw in draws {
+            let fraction = (draw.flags & 1 != 0).then_some(minutes.rem_euclid(2880.0) / 2880.0);
+            if self
+                .skyboxes
+                .get(&draw.fdid)
+                .is_some_and(|(_, held)| *held != fraction)
+            {
+                let (stale, _) = self.skyboxes.remove(&draw.fdid).expect("present");
+                stale.node.free();
+            }
+            if !self.skyboxes.contains_key(&draw.fdid) {
+                let path = assets::cache_sky_model(&catalog.data_root, draw.fdid)
+                    .map_err(|error| format!("Skybox {}: {error}", draw.fdid))?;
+                let model = match fraction {
+                    Some(fraction) => {
+                        SkyModel::load_at_fraction(&catalog.data_root, &path, draw.fdid, fraction)?
+                    }
+                    None => SkyModel::load_model(&catalog.data_root, &path, draw.fdid, None)?,
+                };
+                self.root
+                    .as_mut()
+                    .expect("attached root")
+                    .add_child(&model.node);
+                self.skyboxes.insert(draw.fdid, (model, fraction));
+            }
+            let (model, _) = self.skyboxes.get_mut(&draw.fdid).expect("loaded above");
+            model.node.set_visible(true);
+            model.set_alpha(draw.alpha);
+        }
+        for (fdid, (model, _)) in &mut self.skyboxes {
+            if !draws.iter().any(|draw| draw.fdid == *fdid) {
+                model.node.set_visible(false);
+            }
         }
         Ok(())
     }
@@ -200,6 +263,14 @@ impl WorldLighting {
         if let Some(stars) = self.stars.as_mut().filter(|stars| stars.node.is_visible()) {
             stars.node.set_global_position(camera);
             stars.sample(time_ms);
+        }
+        for (model, fraction) in self.skyboxes.values_mut() {
+            if model.node.is_visible() {
+                model.node.set_global_position(camera);
+                if fraction.is_none() {
+                    model.sample(time_ms);
+                }
+            }
         }
     }
 
@@ -238,6 +309,7 @@ impl WorldLighting {
         self.sun = None;
         self.sky = None;
         self.stars = None;
+        self.skyboxes.clear();
         if let Some(root) = self.root.take() {
             root.free();
         }

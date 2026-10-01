@@ -47,12 +47,41 @@ impl SkyModel {
         fdid: u32,
         time_override_ms: Option<u32>,
     ) -> Result<Self, String> {
+        Self::load_with_phase(data_root, model_path, fdid, |_| time_override_ms)
+    }
+
+    /// As `load_model`, held at `fraction` of its default sequence (WebWowViewerCpp
+    /// `M2Object::setOverrideAnimationPerc`, LightSkybox flag 0x1 skyboxes at the day's
+    /// fraction).
+    pub fn load_at_fraction(
+        data_root: &Path,
+        model_path: &Path,
+        fdid: u32,
+        fraction: f32,
+    ) -> Result<Self, String> {
+        Self::load_with_phase(data_root, model_path, fdid, |duration| {
+            Some((fraction.clamp(0.0, 1.0) * duration as f32) as u32)
+        })
+    }
+
+    /// `phase` maps the default sequence's duration to the fixed time to hold, if any.
+    fn load_with_phase(
+        data_root: &Path,
+        model_path: &Path,
+        fdid: u32,
+        phase: impl FnOnce(u32) -> Option<u32>,
+    ) -> Result<Self, String> {
         let context = |error| format!("Sky FDID {fdid} at {}: {error}", model_path.display());
         if !model_path.is_file() {
             return Err(context("missing cached model".to_string()));
         }
         let source = GString::from(model_path.to_string_lossy().as_ref());
         let model = assets::read_model(&source).map_err(&context)?;
+        let duration = model
+            .sequences
+            .get(default_sequence_index(&model))
+            .map_or(0, |sequence| sequence.duration);
+        let time_override_ms = phase(duration);
         let prepared = prepare_batches(&model, data_root).map_err(&context)?;
         let mut sky = assemble_sky(model, prepared, time_override_ms).map_err(&context)?;
         sky.node.set_name(&format!("AuthoredSky{fdid}"));

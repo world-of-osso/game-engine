@@ -17,7 +17,7 @@ use game_engine_core::{
         FogKeyframes, FogResult, parse_fog_keyframes, sample_fog_blend, sun_fog_direction,
     },
     retail_light_data::{RetailLightColors, RetailLightData, scene_light},
-    sky_bodies::{LIGHT_PARAMS_HIDE_STARS, STARS_FDID, stars_alpha},
+    sky_bodies::{LIGHT_PARAMS_HIDE_STARS, STARS_FDID, SkyboxDraw, skybox_draws, stars_alpha},
     sky_lightdata_data::{RetailFog, SkyColorSet, retail_fog, sample_light_blend},
 };
 
@@ -31,6 +31,8 @@ pub(crate) struct LightingCatalog {
     /// `LightParams` Water/Ocean Shallow/Deep alphas and flags by LightParams ID.
     liquid_alphas: HashMap<u32, LiquidAlphas>,
     light_params_flags: HashMap<u32, u32>,
+    /// LightSkybox `(SkyboxFileDataID, Flags)` by LightParams ID, for those with one.
+    skyboxes: HashMap<u32, (u32, u32)>,
     pub data_root: PathBuf,
     /// The stars model, extracted from local CASC with its skin and textures.
     pub stars_path: PathBuf,
@@ -51,6 +53,7 @@ pub(crate) struct LightingSample {
     pub water: WaterLight,
     /// The stars model's alpha, `None` when no stars are drawn.
     pub stars_alpha: Option<f32>,
+    pub skyboxes: Vec<SkyboxDraw>,
 }
 
 /// Scene inputs of the retail water material in authored RGB (WebWowViewerCpp
@@ -84,10 +87,12 @@ impl LightingCatalog {
             &read_text(&data_root.join("ZoneLightPoint.csv"))?,
         )
         .map_err(|error| format!("{}: {error}", data_root.display()))?;
-        let (liquid_alphas, light_params_flags) =
-            parse_light_params(&data_root.join("db2/12.1.0.69933/LightParams.csv"))?;
-        let stars_path = cache_stars(data_root)
-            .map_err(|error| format!("Stars model {STARS_FDID}: {error}"))?;
+        let db2 = data_root.join("db2/12.1.0.69933");
+        let (liquid_alphas, light_params_flags, params_skybox) =
+            parse_light_params(&db2.join("LightParams.csv"))?;
+        let skyboxes = parse_light_skyboxes(&db2.join("LightSkybox.csv"), &params_skybox)?;
+        let stars_path =
+            cache_stars(data_root).map_err(|error| format!("Stars model {STARS_FDID}: {error}"))?;
         Ok(Self {
             lights,
             zone_lights,
@@ -95,6 +100,7 @@ impl LightingCatalog {
             fog_keyframes,
             liquid_alphas,
             light_params_flags,
+            skyboxes,
             data_root: data_root.to_path_buf(),
             stars_path,
         })
@@ -141,6 +147,7 @@ impl LightingCatalog {
             sky,
             water,
             stars_alpha: stars_alpha(minutes, self.blend_flag(&weights, LIGHT_PARAMS_HIDE_STARS)),
+            skyboxes: skybox_draws(&weights, |params| self.skyboxes.get(&params).copied()),
         })
     }
 
@@ -148,7 +155,10 @@ impl LightingCatalog {
     /// `calcLightParamResult` turns flags into `SkyBodyData` blends.
     fn blend_flag(&self, weights: &[(u32, f32)], flag: u32) -> f32 {
         weights.iter().fold(0.0, |blended, &(id, weight)| {
-            let set = self.light_params_flags.get(&id).is_some_and(|f| f & flag != 0);
+            let set = self
+                .light_params_flags
+                .get(&id)
+                .is_some_and(|f| f & flag != 0);
             lerp(blended, f32::from(u8::from(set)), weight)
         })
     }
@@ -234,8 +244,14 @@ impl LightingCatalog {
 /// Extracts the stars model, its skin and its TXID textures from local CASC (no listfile
 /// lookups: the sky loader reads textures by FDID).
 fn cache_stars(data_root: &Path) -> Result<PathBuf, String> {
+    cache_sky_model(data_root, STARS_FDID)
+}
+
+/// Extracts sky model `fdid` (stars, a LightSkybox) with its skin and batch textures from
+/// local CASC; returns the cached model path.
+pub(crate) fn cache_sky_model(data_root: &Path, fdid: u32) -> Result<PathBuf, String> {
     let resolver = local_resolver(data_root);
-    let path = cache_model_files(&resolver, data_root, STARS_FDID)?;
+    let path = cache_model_files(&resolver, data_root, fdid)?;
     let model = crate::assets::read_model_file(&path)?;
     for batch in game_engine_core::m2::resolve_render_batches(&model, &[0; 3], true, |_| None)? {
         for texture in [batch.texture_fdid, batch.texture_2_fdid]
@@ -252,12 +268,42 @@ fn cache_stars(data_root: &Path) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+/// LightSkybox `(SkyboxFileDataID, Flags)` of each LightParams in `params_skybox`.
+fn parse_light_skyboxes(
+    path: &Path,
+    params_skybox: &HashMap<u32, u32>,
+) -> Result<HashMap<u32, (u32, u32)>, String> {
+    let text = read_text(path)?;
+    let mut lines = text.lines();
+    if lines.next() != Some("ID,Flags,SkyboxFileDataID,CelestialSkyboxFileDataID") {
+        return Err(format!("{} has an unexpected header", path.display()));
+    }
+    let mut rows = HashMap::new();
+    for line in lines.filter(|line| !line.is_empty()) {
+        let values: Result<Vec<u32>, _> = line.split(',').map(str::parse).collect();
+        let values = values.map_err(|error| format!("{}: {line:?}: {error}", path.display()))?;
+        rows.insert(values[0], (values[2], values[1]));
+    }
+    params_skybox
+        .iter()
+        .map(|(&params, skybox)| {
+            rows.get(skybox)
+                .map(|&row| (params, row))
+                .ok_or_else(|| format!("LightParams {params}: LightSkybox {skybox} has no row"))
+        })
+        .collect()
+}
+
 /// WebWowViewerCpp's default far clip (`config.h:119`), as `retail_fog` uses.
 const FOG_FAR_CLIP: f32 = 1000.0;
 
-type LightParamsRows = (HashMap<u32, LiquidAlphas>, HashMap<u32, u32>);
+type LightParamsRows = (
+    HashMap<u32, LiquidAlphas>,
+    HashMap<u32, u32>,
+    HashMap<u32, u32>,
+);
 
-/// LightParams liquid alphas and flags by ID.
+/// LightParams liquid alphas, flags and LightSkyboxID by ID.
 fn parse_light_params(path: &Path) -> Result<LightParamsRows, String> {
     let text = read_text(path)?;
     let mut lines = text.lines();
@@ -275,9 +321,11 @@ fn parse_light_params(path: &Path) -> Result<LightParamsRows, String> {
         column("OceanShallowAlpha")?,
         column("OceanDeepAlpha")?,
         column("Flags")?,
+        column("LightSkyboxID")?,
     ];
     let mut alphas = HashMap::new();
     let mut flags = HashMap::new();
+    let mut skyboxes = HashMap::new();
     lines
         .filter(|line| !line.is_empty())
         .map(|line| {
@@ -295,10 +343,14 @@ fn parse_light_params(path: &Path) -> Result<LightParamsRows, String> {
             };
             alphas.insert(id, liquid);
             flags.insert(id, number(columns[5])? as u32);
+            let skybox = number(columns[6])? as u32;
+            if skybox != 0 {
+                skyboxes.insert(id, skybox);
+            }
             Ok(())
         })
         .collect::<Result<(), String>>()?;
-    Ok((alphas, flags))
+    Ok((alphas, flags, skyboxes))
 }
 
 /// MapSceneRenderer.cpp:312 underwater fog without data: start 0, end 1e8, density 0.
