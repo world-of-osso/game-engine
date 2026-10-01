@@ -13,6 +13,7 @@ pub struct StartupArgs {
     pub target: Option<StartupTarget>,
     pub server: Option<String>,
     pub character: Option<String>,
+    pub js_script: Option<String>,
 }
 
 impl StartupArgs {
@@ -22,24 +23,35 @@ impl StartupArgs {
         let mut index = 0;
         while index < args.len() {
             let flag = args[index].as_str();
-            if !matches!(flag, "--screen" | "--state" | "--server" | "--char") {
+            if !matches!(
+                flag,
+                "--screen" | "--state" | "--server" | "--char" | "--run-js-ui-script"
+            ) {
                 return Err(format!("unknown client option '{flag}'"));
             }
             let value = args.get(index + 1).map(String::as_str).unwrap_or_default();
             if value.is_empty() || value.starts_with("--") {
                 return Err(format!("missing value for {flag}"));
             }
-            match flag {
-                "--screen" | "--state" if parsed.target.is_none() => {
-                    parsed.target = Some(parse_target(flag, value)?);
-                }
-                "--server" if parsed.server.is_none() => parsed.server = Some(value.to_owned()),
-                "--char" if parsed.character.is_none() => parsed.character = Some(value.to_owned()),
-                _ => {}
-            }
+            parsed.assign_first_value(flag, value)?;
             index += 2;
         }
         Ok(parsed)
+    }
+
+    fn assign_first_value(&mut self, flag: &str, value: &str) -> Result<(), String> {
+        match flag {
+            "--screen" | "--state" if self.target.is_none() => {
+                self.target = Some(parse_target(flag, value)?);
+            }
+            "--server" if self.server.is_none() => self.server = Some(value.to_owned()),
+            "--char" if self.character.is_none() => self.character = Some(value.to_owned()),
+            "--run-js-ui-script" if self.js_script.is_none() => {
+                self.js_script = Some(value.to_owned());
+            }
+            _ => {}
+        }
+        Ok(())
     }
 }
 

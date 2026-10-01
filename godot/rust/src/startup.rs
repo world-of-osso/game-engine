@@ -15,6 +15,16 @@ use godot::{
 
 use crate::GameClient;
 
+fn read_startup_arguments() -> Result<StartupArgs, String> {
+    let arguments = Os::singleton()
+        .get_cmdline_user_args()
+        .to_vec()
+        .into_iter()
+        .map(|argument| argument.to_string())
+        .collect::<Vec<_>>();
+    StartupArgs::parse(&arguments)
+}
+
 impl GameClient {
     pub(super) fn poll_asset_startup(&mut self) -> bool {
         match self.resume_asset_startup() {
@@ -44,13 +54,7 @@ impl GameClient {
     }
 
     pub(super) fn initialize_startup(&mut self) -> Result<(), String> {
-        let arguments = Os::singleton()
-            .get_cmdline_user_args()
-            .to_vec()
-            .into_iter()
-            .map(|argument| argument.to_string())
-            .collect::<Vec<_>>();
-        let arguments = StartupArgs::parse(&arguments)?;
+        let arguments = read_startup_arguments()?;
         let explicit_server = arguments.server.is_some();
         if let Some(server) = arguments.server {
             self.server_hostname = RealmPreset::from_alias(&server)
@@ -70,7 +74,11 @@ impl GameClient {
             Some(StartupTarget::Reconnecting) => {
                 Err("--state reconnecting is not yet implemented in Godot".into())
             }
+        }?;
+        if let Some(path) = arguments.js_script {
+            crate::js_automation::attach(&mut self.to_gd(), std::path::Path::new(&path))?;
         }
+        Ok(())
     }
 
     fn start_requested_screen(

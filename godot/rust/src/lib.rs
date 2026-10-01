@@ -34,6 +34,7 @@ mod ground;
 mod input;
 mod input_keys;
 mod ipc;
+mod js_automation;
 mod lighting;
 mod loading;
 mod logout;
@@ -1354,6 +1355,21 @@ impl GameClient {
             return Err(error.to_string());
         }
         Ok(())
+    }
+
+    pub(crate) fn automation_game_state(&self) -> game_engine_network::game_state_enum::GameState {
+        use game_engine_network::game_state_enum::GameState;
+        if self.account.login_reply_pending() {
+            return GameState::Connecting;
+        }
+        match self.account.session.screen {
+            SessionScreen::Login => GameState::Login,
+            SessionScreen::CharacterSelect => GameState::CharSelect,
+            SessionScreen::CharacterCreate => GameState::CharCreate,
+            SessionScreen::Loading => GameState::Loading,
+            SessionScreen::InWorld => GameState::InWorld,
+            SessionScreen::GameMenu => GameState::GameMenu,
+        }
     }
 
     fn poll_native_ipc(&mut self) {

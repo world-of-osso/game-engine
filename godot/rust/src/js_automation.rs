@@ -434,7 +434,7 @@ impl INode for NativeJsAutomationHost {
     }
 }
 
-/// MAIN calls after parsing the startup path, without holding a client bind.
+/// Loads and mounts the queue after startup parsing; input starts in the host's process.
 pub(crate) fn attach(client: &mut Gd<GameClient>, path: &Path) -> Result<(), String> {
     let runtime = NativeJsAutomation::load(path)?;
     let mut host = NativeJsAutomationHost::new_alloc();

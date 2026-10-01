@@ -212,6 +212,10 @@ pub enum NpcMessage {
 }
 
 impl Account {
+    pub(crate) fn login_reply_pending(&self) -> bool {
+        self.session.screen == SessionScreen::Login && self.bridge.is_some() && !self.reply_received
+    }
+
     pub fn new(data_root: PathBuf) -> Self {
         Self {
             session: Session::default(),
