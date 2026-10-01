@@ -233,6 +233,7 @@ impl RegistryModel {
         if let UiInput::PointerUp(at) = input {
             return Some(crate::bag_cursor::BagInput::Release {
                 at: *at / self.registry.ui_scale,
+                physical_at: *at,
                 action: projection.pointer_action_at(&self.registry, *at),
             });
         }
@@ -405,6 +406,13 @@ pub fn create_login_ui(width: f32, height: f32) -> Result<Gd<RegistryUi>, String
 }
 
 impl RegistryUi {
+    /// Physical point: no hit, blocking frame, or frame with a click action.
+    pub(crate) fn pointer_action_at(&self, at: Vector2) -> Option<Option<String>> {
+        let model = self.model.as_ref()?;
+        let projection = self.projection.as_ref()?;
+        projection.pointer_action_at(&model.registry, at)
+    }
+
     fn initialize_login(&mut self, width: f32, height: f32) -> Result<(), String> {
         let LoginModel {
             screen,

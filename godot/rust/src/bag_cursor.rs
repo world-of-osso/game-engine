@@ -35,6 +35,7 @@ pub(crate) enum BagInput {
     },
     Release {
         at: Vector2,
+        physical_at: Vector2,
         /// No frame is World; a blocking frame can lack a cursor action.
         action: Option<Option<String>>,
     },
@@ -91,13 +92,18 @@ impl GameClient {
                 }
                 Ok(())
             }
-            BagInput::Release { at, action } => self.send_bag_drag_release(at, action),
+            BagInput::Release {
+                at,
+                physical_at,
+                action,
+            } => self.send_bag_drag_release(at, physical_at, action),
         }
     }
 
     fn send_bag_drag_release(
         &mut self,
         at: Vector2,
+        physical_at: Vector2,
         action: Option<Option<String>>,
     ) -> Result<(), FrameError> {
         let Some((picked_at, picked_target)) = self.bags.cursor.picked_at.take() else {
@@ -107,6 +113,7 @@ impl GameClient {
         if distance < DRAG_THRESHOLD {
             return Ok(());
         }
+        let action = self.resolve_bag_release_action(physical_at, action)?;
         let Some(target) = bag_release_target(action)? else {
             return Ok(());
         };
@@ -120,6 +127,22 @@ impl GameClient {
             .item
             .click(target, &session.inventory, &session.merchant);
         self.send_cursor_effect(effect)
+    }
+
+    fn resolve_bag_release_action(
+        &mut self,
+        physical_at: Vector2,
+        action: Option<Option<String>>,
+    ) -> Result<Option<Option<String>>, FrameError> {
+        if action.is_some() {
+            return Ok(action);
+        }
+        let mut claimed = false;
+        self.for_each_registry_ui(|ui| {
+            claimed |= ui.bind().pointer_action_at(physical_at).is_some();
+            Ok(())
+        })?;
+        Ok(claimed.then_some(None))
     }
 
     pub(super) fn clear_stale_bag_cursor(&mut self) {
