@@ -10,7 +10,7 @@ const CONTAINER_BOTTOM := 96.0
 const POSITION_TOLERANCE := 2.0
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(1920, 1080)
 	var endpoint := OS.get_environment("GODOT_TEST_SERVER")
 	var config := OS.get_environment("XDG_CONFIG_HOME")
 	if not endpoint.begins_with("127.0.0.1:") or endpoint.ends_with(":0") or not config.contains("/data/diagnostics/native-input-"):
