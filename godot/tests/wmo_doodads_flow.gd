@@ -138,7 +138,7 @@ func assert_interior_doodad_light(wmo: Node3D) -> bool:
 	var ambient := Vector3(25.0, 25.0, 25.0) / 255.0
 	var batches := doodad.find_children("*", "MeshInstance3D", true, false)
 	for mesh in batches:
-		var material := (mesh as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		var material := (mesh as MeshInstance3D).get_active_material(0) as ShaderMaterial
 		var blend = material.get_shader_parameter("exterior_blend")
 		var lit = material.get_shader_parameter("interior_direct")
 		var amb = material.get_shader_parameter("interior_ambient")
@@ -267,7 +267,7 @@ func assert_portal_particles(probe: Node, portal: Node3D) -> bool:
 func material_state(doodad: Node3D) -> Array:
 	var state := []
 	for mesh in doodad.find_children("Batch*", "MeshInstance3D", false, false):
-		var material := (mesh as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		var material := (mesh as MeshInstance3D).get_active_material(0) as ShaderMaterial
 		state.append([material.get_shader_parameter("mesh_color"), material.get_shader_parameter("transparency"), material.get_shader_parameter("texture_matrix_1")])
 	return state
 
