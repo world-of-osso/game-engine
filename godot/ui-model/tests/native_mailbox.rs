@@ -563,3 +563,16 @@ fn minimap_mail_icon_shows_with_unread_mail_and_names_its_senders() {
     );
     assert_eq!(mail_tooltip_lines(&[]), ("You have unread mail", vec![]));
 }
+
+#[test]
+fn unread_senders_survive_closing_the_mailbox_but_not_a_new_connection() {
+    // PendingMail arrives once per change, often while the world is still loading.
+    let mut s = MailSession::default();
+    s.pending_senders = vec!["Postalpha".into()];
+    s.expect_open(BOX);
+    s.open(BOX);
+    s.close();
+    assert_eq!(s.pending_senders, vec!["Postalpha".to_string()]);
+    s.reset();
+    assert!(s.pending_senders.is_empty());
+}

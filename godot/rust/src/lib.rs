@@ -1585,7 +1585,7 @@ impl GameClient {
             self.world.update_lighting(None);
             // Replication may precede LoadTerrain; entity despawns own object lifetime.
             self.game_objects.update_lighting(None);
-            self.mailbox.reset();
+            self.mailbox.close();
             self.terrain_materials.reset();
             self.world_objects.reset();
             self.global_wmo.reset();
@@ -1606,7 +1606,7 @@ impl GameClient {
         self.world_lighting.reset();
         self.world.update_lighting(None);
         self.game_objects.reset();
-        self.mailbox.reset();
+        self.mailbox.close();
         let [x, y, z] = destination.position;
         let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
         self.terrain.request_map(destination.map_directory, tile)?;
