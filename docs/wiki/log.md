@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] investigation | Local animation Loading → InWorld gate
+
+Added [startup investigation](investigations/local-animation-loading-gate.md); reconciled conversion system/spec/index. Cursor `2b3fa596` has saved Depot build exit0, pure policy 8/8 and icon 1/1; actual first GREEN exits101 before cursor readiness on missing local authored visual. Async world entry `5e26bc9b` permits pending visuals during Loading; `f7b137fb` gates local animation on existing InWorld barrier, retaining the post-readiness error. Log lacks request timing/state booleans: no specific captured-interleaving claim. Post-gate rebuild/GREEN/independent proof pending; legacy checked tests preserved, full goal open, shutdown deferred. Docs only; no source/build/test/push/delegation; protected PLAN unstaged.
+
 ## [2026-09-30] audit | Standalone window PASS and pending native cursor
 
 Reconciled conversion spec/matrix, cursor native coverage and [bounded bag evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending) from independent window/actual Bevy reports and proof ledger. Saved window/runtime/ten portable tests PASS; actual Bevy compile PASS with three historical warnings. `9f954a3b` own-warning cleanup not rechecked. Actual authenticated slot0 cursor RED parent101; `9e301fb5` portable policy/icon and `2b3fa596` native consumer implemented, build/runtime/independent gate pending. Legacy cursor checkboxes preserved; remaining parity/readability gaps and intentional SIGKILL/normal-shutdown deferral retained. Full conversion open; docs only, no tests/builds/runtime operations.
