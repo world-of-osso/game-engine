@@ -274,6 +274,7 @@ impl INode3D for GameClient {
     }
 
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        self.physical_input.capture_pointer(&event);
         // Asset-using screens/actions must not race the startup worker's CASC locks.
         if self.asset_startup.is_some() {
             return;
