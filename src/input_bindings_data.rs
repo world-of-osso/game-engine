@@ -1014,6 +1014,8 @@ fn interface_section_actions() -> &'static [InputAction] {
         InputAction::ToggleQuestLog,
         InputAction::ToggleWorldMap,
         InputAction::ToggleFramerate,
+        InputAction::MinimapZoomIn,
+        InputAction::MinimapZoomOut,
     ]
 }
 
