@@ -172,6 +172,7 @@ pub struct GameClient {
     terrain_materials: terrain::material::TerrainMaterials,
     world_objects: terrain::objects::TerrainObjects,
     ground_detail: terrain::ground_detail::GroundDetail,
+    horizon: terrain::horizon::WorldHorizon,
     global_wmo: wmo::global::GlobalWmoScene,
     wmo_collision: wmo::collision::WmoCollisionBodies,
     world_lighting: lighting::WorldLighting,
@@ -275,6 +276,7 @@ impl INode3D for GameClient {
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
             ground_detail: terrain::ground_detail::GroundDetail::new(data_root.clone()),
+            horizon: terrain::horizon::WorldHorizon::new(data_root.clone()),
             global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone()),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
@@ -626,6 +628,7 @@ impl GameClient {
         }
         state.set("world_objects", &objects);
         state.set("ground_detail", &self.ground_detail.state());
+        state.set("horizon_tiles", self.horizon.shown_count() as i64);
         if let Some(particles) = self.world.particle_state() {
             state.set("unit_particles", &particles);
         }
@@ -1741,6 +1744,7 @@ impl GameClient {
             self.terrain_materials.reset();
             self.world_objects.reset();
             self.ground_detail.reset();
+            self.horizon.reset();
             self.global_wmo.reset();
             self.wmo_collision.reset();
             self.account.session.screen = SessionScreen::Loading;
@@ -1755,6 +1759,7 @@ impl GameClient {
         self.terrain_materials.reset();
         self.world_objects.reset();
         self.ground_detail.reset();
+        self.horizon.reset();
         self.global_wmo.reset();
         self.wmo_collision.reset();
         self.world_lighting.reset();
@@ -1823,6 +1828,7 @@ impl GameClient {
             self.game_objects.update_lighting(Some(light.clone()));
             self.world_objects.update_lighting(&light);
             self.ground_detail.update_lighting(&light);
+            self.horizon.update_lighting(&light);
             self.global_wmo.update_lighting(&light);
             self.terrain_materials.update_lighting(light);
         }
@@ -1851,6 +1857,7 @@ impl GameClient {
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.ground_detail
             .update(&mut parent, &self.terrain, camera);
+        self.horizon.update(&mut parent, &self.terrain, camera);
     }
 
     fn attach_world_objects(&mut self) {
@@ -1981,6 +1988,7 @@ impl GameClient {
         self.terrain_materials.reset();
         self.world_objects.reset();
         self.ground_detail.reset();
+        self.horizon.reset();
         self.global_wmo.reset();
         self.wmo_collision.reset();
         self.spell_effects.reset();
