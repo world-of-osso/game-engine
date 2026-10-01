@@ -56,6 +56,8 @@ mod particle_debug;
 mod particles;
 mod party_frames;
 mod player_spells;
+#[path = "../../../src/process_memory_status.rs"]
+mod process_memory_status;
 mod profile;
 mod quests;
 mod replicated;
@@ -183,6 +185,8 @@ pub struct GameClient {
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
     framerate_toggled: bool,
     player_movement: gameplay::PlayerMovement,
+    /// IPC `ScriptedMovementForward`: forward steps for a bounded time.
+    scripted_movement: game_engine_network::movement_control::ScriptedMovement,
     world_minutes: f32,
     server_hostname: String,
     startup_customize: bool,
@@ -276,6 +280,7 @@ impl INode3D for GameClient {
             client_options,
             framerate_toggled: false,
             player_movement: gameplay::PlayerMovement::default(),
+            scripted_movement: Default::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             startup_customize: false,
@@ -1424,11 +1429,13 @@ impl GameClient {
     }
 
     fn poll_native_ipc(&mut self) {
+        let Some(mut service) = self.ipc.take() else {
+            return;
+        };
         let client = self.to_gd().upcast();
-        let result = self.ipc.as_mut().map(|service| service.poll(&client));
-        if let Some(Err(error)) = result {
-            godot_error!("Client IPC stopped: {error}");
-            drop(self.ipc.take());
+        match service.poll(&client, &mut |request| self.dev_request(request)) {
+            Ok(()) => self.ipc = Some(service),
+            Err(error) => godot_error!("Client IPC stopped: {error}"),
         }
     }
 

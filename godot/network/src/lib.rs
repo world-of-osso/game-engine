@@ -13,6 +13,8 @@ pub mod input_bindings_data;
 pub mod ipc_wire;
 #[path = "../../../src/ui/js_automation.rs"]
 pub mod js_automation;
+#[path = "../../../src/movement_control.rs"]
+pub mod movement_control;
 pub mod replica;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;
