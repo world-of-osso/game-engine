@@ -159,6 +159,9 @@ impl WorldHorizon {
         instance.set_mesh(&array_mesh);
         instance.set_surface_override_material(0, self.material.as_ref().expect("prepared"));
         instance.set_cast_shadows_setting(ShadowCastingSetting::OFF);
+        // The camera's far plane (1000 yd) is nearer than the horizon: keep Godot's frustum
+        // culling from dropping tiles the shader draws at the far depth anyway.
+        instance.set_extra_cull_margin(HORIZON_RANGE + TILE_RADIUS);
         self.root.as_mut().expect("prepared").add_child(&instance);
         instance
     }
