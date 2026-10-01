@@ -43,10 +43,18 @@ impl Mailbox {
         self.texts.clear();
         self.drag = None;
     }
+    /// A new connection: nothing of the last one's mail survives.
     pub fn reset(&mut self) {
         self.session.reset();
         self.free_ui();
         self.position = None;
+    }
+    /// Leaving the world view or its map closes the mailbox. The unread senders stay:
+    /// the server sends `PendingMail` only when they change, and it can arrive while
+    /// the world is still loading.
+    pub fn close(&mut self) {
+        self.session.close();
+        self.free_ui();
     }
     pub fn close_for(&mut self, object: u64) {
         self.session.close_for(object);
@@ -165,7 +173,7 @@ impl GameClient {
     }
     pub(super) fn update_mailbox(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
-            self.mailbox.reset();
+            self.mailbox.close();
             return Ok(());
         }
         if !self.mailbox.session.is_open() {

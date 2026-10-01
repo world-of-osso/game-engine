@@ -2,7 +2,7 @@
 
 How the client does trade and mail. Contracts: [trade frame](../../specs/trade-frame.md), [mail frame](../../specs/mail-frame.md).
 
-## Native Godot receiving mail
+## Native Godot mail
 
 The native receiving contract is in [mail frame](../../specs/mail-frame.md#native-godot-receiving-slice). Legacy sending/COD/minimap behavior below is not native proof.
 
@@ -19,6 +19,24 @@ Evidence root and preceding real CLI AH/mail receipts: [auction runtime evidence
 Earlier `/tmp/pyrun-tmux/68515b504e7d48db98707a7e88c8966b.log` showed replicas present but `rendered=false`. Root fix `90dc2ccf` removes object reset from the initial terrain request: replication can precede LoadTerrain, so entity despawns own object lifetime; lighting still resets. `/tmp/pyrun-tmux/120e239e8e8c4b98a01c19db4b7d8c38.log` then showed actual models present/rendered but outside the pickable camera view. The successful fixture moved only the owned player to world coordinates (-8810.13, 642.57, 94.875); no production picking/range bypass was added.
 
 LiquidObject 42 and local-CASC/UI icon errors remain; [auction evidence](auction-house-ui.md#saved-native-runtime-proof-2026-10-01) records partial icon extraction. Exit 0 proves this bounded receiving sequence, not universal rendering, clean resources, performance or shutdown. Sending, reply, delete/return controls, Open All, COD payment and native minimap indication remain outside this receiving slice. Full conversion and broader integration remain owned elsewhere.
+
+### Native player mail (2026-10-01)
+
+- `godot/ui-model/src/mail.rs` `MailSession` owns the native mailbox: inbox paging/selection, the Send Mail draft (attachment guids, C.O.D. mode, the subject it filled in), the one in-flight request (`Pending::Request` until matching `MailboxContents`/`MailFailed`; `Pending::Send` until `MailSent`/`MailFailed`), the request a popup stands for, and Open All's skipped items. `click` / `attach` / `popup_result` / `next_open_all` return `MailEffect`s (outgoing message, popup, edit-box texts, UI error).
+- `godot/rust/src/mail.rs` reads the Send Mail edit boxes each frame (cut to their letters, money boxes digits only), routes the mail UI's clicks through the bag-input queue (`mail_cursor_click`: right-click on a bag slot attaches while Send Mail shows; other bag clicks keep bag behaviour), pushes mail popups on the shared `PopupStack` and answers them from `update_group_frames`, and sends one Open All step per frame once the last request is answered.
+- `PendingMail` is kept across Loading, map changes and transfers (`Mailbox::close`); only a new connection clears it (`Mailbox::reset`). The server sends it only when the senders change, and the first one usually arrives while the client still shows Loading.
+- The minimap icon and its tooltip read `MailSession.pending_senders`; the tooltip reuses the bag tooltip UI.
+
+### Native player mail proof (2026-10-01)
+
+`godot/tests/world_mail_flow.gd` on a private server (UDP 5111, fresh redb, own admin socket), orchestrated by `/home/osso/.worktrees/.playermail-proof/run.sh` (logs, `sync/` flags and `shots/` in the same directory). Accounts `fb_mail_a` / `fb_mail_b` (human, different accounts), both placed 4 yd from Stormwind mailbox entry 197134. All requests came from real clicks, right-clicks and typed keys.
+
+- Sender: unknown recipient and self refused with Retail text, form and money kept; money (5g), Linen (item), Silk C.O.D. 1g, Wool (to be returned) and a letter sent; "Mail sent." each time; gold 100000 → 49850 (5g + 5 × 30c postage).
+- Recipient, online while mail arrived: minimap icon and "Unread mail from: Postalpha" tooltip; inbox held only the money mail and the letter until `mail-deliver-now` (item mail to another account waits 1 h); money taken and the emptied letter deleted; Linen taken; Silk: `COD_CONFIRMATION` "Accepting this item will cost: 1g", Accept, gold −1g, Silk in bags; Wool mail Return. Gold 20000 → 60000.
+- Sender again: minimap icon for the C.O.D. payment, then after `mail-deliver-now` (returned items to another account wait 1 h) the payment (10000c) and the returned mail; both taken. Gold 59850.
+- Server restart on the same redb: recipient still has the unread letter (minimap icon), Linen 20 and Silk 10, gold 60000; sender still has Wool 5, gold 59850.
+- Not covered live: Open All, Reply, `COD_ALERT`, `DELETE_MAIL` / `DELETE_MONEY` popups (ui-model tests only). Two harness problems were hit and fixed in the harness: both clients share the checkout's saved-token file, so the first sender run logged in as the recipient's account and displaced it; the recipient's Return step ran in a resumed process after a fixture label lookup was fixed. The run surfaced the `PendingMail`-during-Loading bug above, fixed before the passing run.
+- Visible but outside mail: some item icons missing (local asset cache), `LiquidObject 42` errors; the C.O.D. amount label overlaps the attachment count in `OpenMailFrame`.
 
 ## Trade (preserved Bevy client)
 - `game_engine::trade::TradeClientState` keeps the last `TradeSnapshot` (`player` = our side). `TradeAction`s queued by the frame, the unit / group menus, the bags and IPC go out in `send_pending_actions`; IPC actions get the next update as their reply.
