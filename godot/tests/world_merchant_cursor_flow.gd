@@ -45,6 +45,9 @@ func run_test() -> void:
 	print("FIXTURE MERCHANT_CURSOR_BUY_DONE")
 	if not await mc_sale_drag(client):
 		return
+	print("FIXTURE MERCHANT_CURSOR_SPLIT_SEED")
+	if not await mc_split_sale(client):
+		return
 	print("FIXTURE MERCHANT_CURSOR_DONE")
 	# Parent owns deliberate kill/reap/readers drain; not shutdown proof.
 	while true:
@@ -174,6 +177,172 @@ func mc_sale_drag(client: Node) -> bool:
 	if not await mc_sale_quiet_state(client, 0, false, 988, false):
 		return false
 	print("MERCHANT CURSOR SALE FINAL bags=[] money988 rendered empty cursor hidden; vendor Linen price25 pack1 unchanged")
+	return true
+
+func mc_split_sale(client: Node) -> bool:
+	if not mc_embedded_bag(client):
+		return false
+	if not await mc_split_wait(client, 5, false, 988, false) or not await mc_split_quiet(client, 5, false, 988, false):
+		return false
+	var source := mc_control(client, MC_SLOT)
+	if source == null:
+		fail("Split sale requires seeded own bag0/slot0")
+		return false
+	var start := source.get_global_rect().get_center()
+	print("FIXTURE MERCHANT_CURSOR_SPLIT_PICKER_ARM")
+	mc_motion(start, false)
+	await process_frame
+	mc_split_key(KEY_SHIFT, 0, true)
+	mc_split_shift_edge(start, true)
+	await process_frame
+	mc_split_shift_edge(start, false)
+	mc_split_key(KEY_SHIFT, 0, false)
+	# Picker alone has no cursor.source(): original source stays WHITE.
+	if not await mc_split_wait(client, 5, false, 988, false, "1") or not await mc_split_quiet(client, 5, false, 988, false, "1"):
+		return false
+	# No bag-split max diagnostic exists. Prove authored max5 physically:
+	# four increments reach5; another stays5; four decrements restore1.
+	for amount in [2, 3, 4, 5, 5]:
+		await mc_split_tap(KEY_UP)
+		if not await mc_split_wait(client, 5, false, 988, false, str(amount)):
+			return false
+	if not await mc_split_quiet(client, 5, false, 988, false, "5"):
+		return false
+	for amount in [4, 3, 2, 1]:
+		await mc_split_tap(KEY_DOWN)
+		if not await mc_split_wait(client, 5, false, 988, false, str(amount)):
+			return false
+	print("MERCHANT CURSOR SPLIT PICKER original BOTTOMRIGHT=owner TOPRIGHT, 172x96; text1/max5, cursor empty/source white/Linen5/money988")
+	print("FIXTURE MERCHANT_CURSOR_SPLIT_PICKER_OPEN")
+	mc_split_key(KEY_2, 50, true)
+	mc_split_key(KEY_2, 50, false)
+	if not await mc_split_wait(client, 5, false, 988, false, "2"):
+		return false
+	await mc_split_tap(KEY_ENTER)
+	if not await mc_split_wait(client, 5, true, 988, true) or not await mc_split_quiet(client, 5, true, 988, true):
+		return false
+	print("FIXTURE MERCHANT_CURSOR_SPLIT_HELD")
+	var frame := mc_control(client, "MerchantFrame")
+	if frame == null:
+		fail("Split sale lost own MerchantFrame")
+		return false
+	var finish := frame.get_global_transform() * MC_SALE_BACKGROUND
+	if not mc_sale_background_matches(client, finish):
+		fail("Split sale requires uncovered own merchant background")
+		return false
+	# Enter produced an already-held split, not a fresh pickup drag origin.
+	mc_motion(finish, false)
+	if not await mc_split_wait(client, 5, true, 988, true) or not await mc_split_quiet(client, 5, true, 988, true):
+		return false
+	if not mc_sale_background_matches(client, finish):
+		fail("Split sale press background moved/became covered")
+		return false
+	print("FIXTURE MERCHANT_CURSOR_SPLIT_SELL_PRESS_ARM")
+	mc_edge(finish, true)
+	# Prove sale on PRESS, before release; peer still withholds both updates.
+	if not await mc_split_wait(client, 5, false, 988, false) or not await mc_split_quiet(client, 5, false, 988, false):
+		return false
+	mc_edge(finish, false)
+	if not await mc_split_quiet(client, 5, false, 988, false):
+		return false
+	print("MERCHANT CURSOR SPLIT SELL COMMIT Linen5/money988/source white/cursor hidden; guid9182590 count2 only peer-visible")
+	print("FIXTURE MERCHANT_CURSOR_SPLIT_SELL_COMMIT")
+	if not await mc_split_wait(client, 3, false, 1014, false) or not await mc_split_quiet(client, 3, false, 1014, false):
+		return false
+	print("MERCHANT CURSOR SPLIT FINAL rendered Linen3/money1014/cursor hidden/modal hidden; exact peer totals buys1/sells2")
+	return true
+
+func mc_split_key(code: Key, unicode: int, down: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.physical_keycode = code
+	event.unicode = unicode
+	event.pressed = down
+	root.push_input(event, true)
+
+func mc_split_tap(code: Key) -> void:
+	mc_split_key(code, 0, true)
+	await process_frame
+	mc_split_key(code, 0, false)
+	await process_frame
+
+func mc_split_shift_edge(point: Vector2, down: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.position = point
+	event.global_position = point
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT if down else 0
+	event.shift_pressed = true
+	event.pressed = down
+	mc_pointer = point
+	root.push_input(event, true)
+
+func mc_split_picker_matches(client: Node, amount: String) -> bool:
+	var picker := client.find_child("StackSplitFrame", true, false) as Control
+	if amount.is_empty():
+		return picker == null or not picker.is_visible_in_tree()
+	var source := mc_control(client, MC_SLOT)
+	var canvas := mc_control(client, "RegistryCanvas")
+	var label := client.find_child("StackSplitText", true, false) as Label
+	if picker == null or not picker.is_visible_in_tree() or source == null or canvas == null or label == null or not label.is_visible_in_tree() or label.text != amount:
+		return false
+	# Original frame_state and authored SSF geometry, NOT native calibration.
+	# Bag picker BOTTOMRIGHT at owner TOPRIGHT, width172 height96.
+	var scale := canvas.get_global_transform().get_scale()
+	if scale.x <= 0 or scale.y <= 0:
+		return false
+	var owner_rect := source.get_global_rect()
+	var expected_size := Vector2(172.0, 96.0) * scale
+	var expected_position := Vector2(owner_rect.end.x, owner_rect.position.y) - expected_size
+	var actual := picker.get_global_rect()
+	return actual.position.distance_to(expected_position) <= 1.0 and actual.size.distance_to(expected_size) <= 1.0
+
+func mc_split_render_matches(client: Node, count: int) -> bool:
+	for slot in range(16):
+		var prefix := "ContainerFrame0Slot%s" % slot
+		var texture := mc_texture(mc_control(client, prefix + "Icon"))
+		var label := mc_control(client, prefix + "Count") as Label
+		if slot == 0:
+			if texture == null or texture.texture != mc_sale_texture or label == null or not label.is_visible_in_tree() or label.text != str(count):
+				return false
+		elif texture != null or (label != null and label.is_visible_in_tree()):
+			return false
+	return true
+
+func mc_split_state_matches(client: Node, count: int, held: bool, money: int, locked: bool, amount: String) -> bool:
+	var state: Dictionary = client.merchant_state()
+	if not state.open or state.items != ["Linen Cloth"] or state.money != money or state.bags.size() != 1 or state.split_open or client.get_node_or_null("GameMenuUI") != null:
+		return false
+	var item: Dictionary = state.bags[0]
+	if item.bag != 0 or item.slot != 0 or item.item_id != 2589 or item.name != "Linen Cloth" or item.count != count:
+		return false
+	var popup := client.find_child("StaticPopup1", true, false) as Control
+	if popup != null and popup.is_visible_in_tree():
+		return false
+	if held:
+		var cursor_texture := mc_texture(client.find_child(MC_CURSOR, true, false) as Control)
+		if cursor_texture == null or cursor_texture.texture != mc_sale_texture:
+			return false
+	return mc_split_picker_matches(client, amount) and mc_cursor_matches(client, held) and mc_source_matches(client) and mc_split_render_matches(client, count) and mc_sale_source_matches(client, count, locked)
+
+func mc_split_wait(client: Node, count: int, held: bool, money: int, locked: bool, amount: String = "") -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if mc_split_state_matches(client, count, held, money, locked, amount):
+			return true
+	var picker := client.find_child("StackSplitFrame", true, false) as Control
+	var source := mc_control(client, MC_SLOT)
+	fail("Split sale state missing count%s held%s money%s locked%s pickertext%s; picker_rect=%s owner_rect=%s state=%s; anchor defect is unproved until native run" % [count, held, money, locked, amount, picker.get_global_rect() if picker != null else Rect2(), source.get_global_rect() if source != null else Rect2(), client.merchant_state()])
+	return false
+
+func mc_split_quiet(client: Node, count: int, held: bool, money: int, locked: bool, amount: String = "") -> bool:
+	var deadline := Time.get_ticks_msec() + MC_QUIET_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if not mc_split_state_matches(client, count, held, money, locked, amount):
+			fail("Split sale quiet phase changed authored picker/source/cursor/rendered count/inventory/money: " + str(client.merchant_state()))
+			return false
 	return true
 
 func mc_sale_background_matches(client: Node, point: Vector2) -> bool:
