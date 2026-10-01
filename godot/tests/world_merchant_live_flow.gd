@@ -298,8 +298,20 @@ func capture_live(file: String) -> void:
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(shots.path_join(file))
 
+# A wandering vendor can leave the clicked point between the pick and the press: the
+# click targets nothing, so pick it again (printed, so a miss is visible in the log).
 func open_named_vendor(npc: Dictionary, vendor: String) -> bool:
-	await click(npc.point, MOUSE_BUTTON_RIGHT)
+	for attempt in range(3):
+		await click(npc.point, MOUSE_BUTTON_RIGHT)
+		var deadline := Time.get_ticks_msec() + 3000
+		while not client.merchant_state().open and Time.get_ticks_msec() < deadline:
+			await process_frame
+		if client.merchant_state().open:
+			break
+		print("LIVE MERCHANT OPEN MISS attempt=", attempt, " target=", client.target_state())
+		npc = await find_named_vendor(vendor)
+		if npc.is_empty():
+			return false
 	if not await wait_for(func(s): return s.open and s.vendor_name == vendor, vendor + " frame"):
 		return false
 	await frames(3)
