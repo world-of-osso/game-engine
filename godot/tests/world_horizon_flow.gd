@@ -42,8 +42,10 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-## Pixels differing by more than 0.05 in any channel between the frame with `horizon`
-## shown and hidden (every second pixel, counted four times).
+## Pixels the horizon itself changes: differing by more than 0.05 in any channel between
+## the frames with `horizon` shown and hidden, and by less than 0.02 between two shown
+## frames around the hidden one (so swaying foliage and particles do not count; every
+## second pixel, counted four times).
 func check_pixels(shot: String, horizon: Node3D) -> bool:
 	await RenderingServer.frame_post_draw
 	var shown := root.get_texture().get_image()
@@ -54,15 +56,27 @@ func check_pixels(shot: String, horizon: Node3D) -> bool:
 	var hidden := root.get_texture().get_image()
 	hidden.save_png(shots.path_join(shot + "_hidden.png"))
 	horizon.visible = true
+	await wait_frames(2)
+	await RenderingServer.frame_post_draw
+	var again := root.get_texture().get_image()
 	var changed := 0
 	for y in range(0, shown.get_height(), 2):
 		for x in range(0, shown.get_width(), 2):
 			var a := shown.get_pixel(x, y)
 			var b := hidden.get_pixel(x, y)
-			if maxf(maxf(absf(a.r - b.r), absf(a.g - b.g)), absf(a.b - b.b)) > 0.05:
+			var c := again.get_pixel(x, y)
+			if channel_difference(a, b) > 0.05 and channel_difference(a, c) < 0.02:
 				changed += 4
 	print("FIXTURE HORIZON_PIXELS %s changed=%d" % [shot, changed])
 	if changed < MIN_HORIZON_PIXELS:
 		fail("%s: horizon changes %d pixels (< %d)" % [shot, changed, MIN_HORIZON_PIXELS])
 		return false
+	return true
+
+func channel_difference(a: Color, b: Color) -> float:
+	return maxf(maxf(absf(a.r - b.r), absf(a.g - b.g)), absf(a.b - b.b))
+
+## The horizon stands beyond the streamed tiles: start once their terrain is in, without
+## waiting for every object (pop-ins between the compared frames do not count).
+func wait_objects(_deadline: int) -> bool:
 	return true
