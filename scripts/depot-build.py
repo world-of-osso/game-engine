@@ -2,6 +2,7 @@
 """Build the Godot native library, or run godot/ workspace tests, on Depot from a source-only checkout snapshot."""
 
 import argparse
+import contextlib
 import fcntl
 import gzip
 import hashlib
@@ -204,6 +205,20 @@ def locked_checkout(root):
     return lock, cache, checkout_key
 
 
+@contextlib.contextmanager
+def stable_context(cache, mode, checkout_key):
+    """A fresh build context at a fixed per-checkout path. BuildKit keys its incremental
+    context transfer by path: a new temporary path re-sent every file, while a fixed path
+    sends only files whose metadata changed, so unchanged reflinked assets stay remote."""
+    context = cache / f"context-{mode}-{checkout_key}"
+    shutil.rmtree(context, ignore_errors=True)
+    context.mkdir()
+    try:
+        yield context
+    finally:
+        shutil.rmtree(context, ignore_errors=True)
+
+
 def build(root, fixture=None):
     if fixture and fixture not in fixture_names(root):
         raise ValueError(f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}")
@@ -215,9 +230,8 @@ def build(root, fixture=None):
                 or (fixture and (target / "debug" / "examples").is_symlink())):
             raise ValueError(f"target symlink cannot guarantee checkout-local artifact: {target}")
         start = time.monotonic()
-        with tempfile.TemporaryDirectory(prefix="build-", dir=cache) as work:
-            context = Path(work) / "context"
-            context.mkdir()
+        with tempfile.TemporaryDirectory(prefix="build-", dir=cache) as work, \
+                stable_context(cache, "build", checkout_key) as context:
             snapshot(root, context)
             phase("Snapshot", start)
             output = Path(work) / "output"
@@ -244,9 +258,8 @@ def run_tests(root, cargo_args):
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         start = time.monotonic()
-        with tempfile.TemporaryDirectory(prefix="test-", dir=cache) as work:
-            context = Path(work) / "context"
-            context.mkdir()
+        with tempfile.TemporaryDirectory(prefix="test-", dir=cache) as work, \
+                stable_context(cache, "test", checkout_key) as context:
             snapshot(root, context)
             count = stage_assets(root, context / "test-assets")
             phase(f"Snapshot ({count} test assets)", start)
