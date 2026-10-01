@@ -1,10 +1,10 @@
 extends "res://tests/debug_screen_flow_base.gd"
 
-# `--screen skyboxdebug` with its default authored source (original
+# `--screen skyboxdebug --skybox-fdid 525142` (original
 # `src/scenes/skybox_debug/mod.rs`): the orbit camera around the skybox M2. Needs no
 # server. This flow checks the public CLI's `export-scene` snapshot; the screen's
 # rendering is covered by skybox_debug_screen.gd.
-# Run: native_debug_screen_fixture skyboxdebug
+# Run: native_debug_screen_fixture skyboxdebug --skybox-fdid 525142
 
 var scene: Node3D
 
