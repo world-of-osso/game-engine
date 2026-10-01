@@ -94,6 +94,20 @@ pub(crate) fn right_click(is_npc: bool, dead: bool, distance: f32) -> RightClick
 }
 
 impl GameClient {
+    pub(super) fn merchant_frame_control(
+        &self,
+        name: &str,
+    ) -> Result<Gd<godot::classes::Control>, String> {
+        let ui = self
+            .merchant
+            .ui
+            .as_ref()
+            .ok_or_else(|| format!("MerchantUI is missing while resolving control '{name}'"))?;
+        ui.bind()
+            .frame_control(name)
+            .ok_or_else(|| format!("MerchantUI control '{name}' is missing"))
+    }
+
     pub(super) fn receive_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
         if let NpcMessage::Closed(npc) = &message {
             self.auction_interaction_closed(*npc);
