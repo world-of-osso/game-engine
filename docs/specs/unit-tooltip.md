@@ -37,3 +37,14 @@ References:
 - `src/game/networking/unit_tooltip_tests.rs`: an entry is asked for once and its answer cached; a collection update replaces the account appearances.
 - `src/bin/game-engine-cli/tests/camera.rs`: `hover` arguments.
 - Live evidence: `data/diagnostics/npctooltip-20260926/` (Dermot Johns vendor, Defias Thug drops, gloves collected, Brother Danil before/after learning Scout's Arrow live, player frame; ID lines: 07 Creature ID: 38, 08 Slam Spell ID: 1464 on the action bar, 09 Thin Cloth Shoes Item ID: 2117 in the merchant window).
+
+## Native Godot coverage
+
+One `GameTooltipUI` canvas (layer 8) shows every native tooltip; `godot/ui-model/src/game_tooltip/` builds the content and placement, `godot/rust/src/tooltips.rs` picks the source.
+
+- [x] Look (`game_tooltip/render.rs`): `TooltipDefaultLayout` nine-slice (atlases 4185447/4185474, centre 4185455 tinted `TOOLTIP_DEFAULT_BACKGROUND_COLOR`), title `GameTooltipHeaderText` 14, lines `GameTooltipText` 12, 10 px insets, 2 px line gaps, right text ≥ 20 px after the left, width of the widest line. The comparison header uses `tooltip-compare-label` (7304549). The 260 px Bevy look is not used natively.
+- [x] Hover: the same topmost-frame test as clicks (`window_stack::ui_frame_at`: canvas layer, then sibling index; strata/level/raise inside a canvas), excluding the tooltip and cursor canvases; with no UI frame, the nameplate under the cursor nearest the camera, else the unit ray.
+- [x] Sources: bag slots, merchant/buyback cells, loot slots, mail attachments and inbox packages, auction rows (no vendor price), bag bar, action bar and spellbook spells, chat links, player and target auras, PlayerFrame/TargetFrame/party/raid frames, nameplates, world units and game objects, minimap zone/zoom/tracking/clock/calendar/blips. Shift adds the `Equipped` comparisons with `ITEM_DELTA_DESCRIPTION` deltas. Spell tooltips show cost/range, cast time, cooldown remaining (live), and the next rank's level.
+- [ ] Not native yet: paperdoll slots (CharacterFrame lives on branch `charframe` with its own tooltip host), quest rewards (quest frame on branch `quests`), talents (no native talent frame). Caster-scaled spell values (`$s1` of Arcane Blast) render as `{?$30451s1}`: the client has no replicated spell/attack power.
+
+Tests: `game_tooltip` unit tests (anchors, clamp, comparisons, render size, items, spells, units, HUD); `godot/tests/world_bags_flow.gd` (bag item tooltip placement with the fitted size; `native_input_fixture bags` PASS at `bebda137`); `godot/tests/tooltips_live.gd` against a private server (action bar, spellbook, BuffFrame, world vendor, PlayerFrame/TargetFrame, merchant cell, bag item with Shift comparison, minimap zone and clock, cooldown countdown, nameplate): `FIXTURE TOOLTIPS_LIVE_DONE` at `5ec9eb33`, screenshots `data/diagnostics/tooltips2-20261001/01..13`.
