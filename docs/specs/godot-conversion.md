@@ -12,7 +12,7 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 Actual Bevy package check had three historical warnings; plain root check was launcher-only. Independent verifier 1377 actual-package check at `a0b295b4` passes with only two existing parser warnings; root format passes. Root/pure code unchanged by `ed135319` and test-only `233cbd63`, so that proof remains valid, not warning-free. Inherited declarative bag-bar length finding remains deferred. Fixture children intentionally SIGKILL; normal shutdown deferred. Full conversion stays open.
 
-Bounded foreign-chat World rejection at `5f6782b5`: **MAIN observed GREEN; independent gate1406 pending**. [Owned proof](../wiki/systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records captured physical-point rejection only for own-no-hit World candidates, unchanged own hits and same-build regressions. No cross-layer winner or full ownership acceptance; exclusions above remain.
+Bounded foreign-chat World rejection at `5f6782b5`: **MAIN observed GREEN; independent gate1406 accepted bounded PASS**. [Owned proof](../wiki/systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records captured physical-point rejection only for own-no-hit World candidates, unchanged own hits and same-build regressions. No cross-layer winner or full ownership acceptance; exclusions above remain.
 
 ### Graphics bloom (bounded native proof)
 
