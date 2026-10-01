@@ -225,7 +225,10 @@ func wait_cursor(client: Node, visible: bool) -> bool:
 		var rect := icon.get_global_rect()
 		if rect.has_area() and rect.get_center().distance_to(cursor_pointer) <= POSITION_TOLERANCE:
 			return true
-	fail("RED: missing/incorrect CursorItemIcon after actual slot input; expected visible=%s, textured and centered on pointer" % visible)
+	var observed := authored_control(client, CURSOR)
+	var observed_rect := str(observed.get_global_rect()) if observed != null else "missing"
+	var observed_texture := observed != null and rendered_texture(observed) != null
+	fail("RED: CursorItemIcon expected visible=%s textured/centered; pointer=%s viewport_mouse=%s observed_rect=%s texture=%s shown=%s" % [visible, cursor_pointer, root.get_mouse_position(), observed_rect, observed_texture, observed != null and observed.is_visible_in_tree()])
 	return false
 
 func wait_split_frame(client: Node, visible: bool) -> bool:
