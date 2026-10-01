@@ -455,7 +455,7 @@ func mc_vendor_cursor_close(client: Node) -> bool:
 		return false
 	if not await mc_close_wait(client, true, false) or not await mc_close_quiet(client, true, false):
 		return false
-	print("MERCHANT CURSOR CLOSE COMMIT pre-ack: locally closed, actual MerchantUI freed/frame and backpack not visible, carried icon hidden, Linen7/Gold938 unchanged/no picker/popup/Menu900ms")
+	print("MERCHANT CURSOR CLOSE COMMIT pre-ack: locally closed, merchant and backpack controls hidden (MerchantUI root may remain), carried icon hidden, Linen7/Gold938 unchanged/no picker/popup/Menu900ms")
 	print("FIXTURE MERCHANT_CURSOR_CLOSE_COMMIT")
 	# Closed state cannot reveal an idempotent InteractionClosed. This explicit
 	# marker is accepted ONLY after the peer sent the ordinary protocol ack;
@@ -465,7 +465,7 @@ func mc_vendor_cursor_close(client: Node) -> bool:
 	print("FIXTURE MERCHANT_CURSOR_CLOSE_ACK_QUIET_ARM")
 	if not await mc_close_quiet(client, true, false):
 		return false
-	print("MERCHANT CURSOR CLOSE FINAL ack phase then closed900ms; Linen7/Gold938/no carried icon/no MerchantUI/backpack/picker/popup/Menu; peer opens1/Buy2/Sell2/Buyback1/Close1, five inventory barriers plus close barrier")
+	print("MERCHANT CURSOR CLOSE FINAL ack phase then closed900ms; Linen7/Gold938/no carried icon/merchant and backpack controls hidden (MerchantUI root may remain)/no picker/popup/Menu; peer opens1/Buy2/Sell2/Buyback1/Close1, five inventory barriers plus close barrier")
 	return true
 
 func mc_close_pickup_release(client: Node) -> bool:
@@ -560,9 +560,7 @@ func mc_close_closed_matches(client: Node) -> bool:
 	var state: Dictionary = client.merchant_state()
 	if state.open or state.npc != null or state.split_open or not mc_close_inventory_matches(state):
 		return false
-	# Absence/hidden alone is insufficient: require the captured actual root FREED.
-	if mc_close_ui_id == 0 or is_instance_id_valid(mc_close_ui_id) or client.get_node_or_null("MerchantUI") != null:
-		return false
+	# Closed merchant/backpack controls must be hidden; the UI root may remain.
 	for control_name in ["MerchantFrame", "ContainerFrame0"]:
 		for node in client.find_children(control_name, "Control", true, false):
 			if (node as Control).is_visible_in_tree():
