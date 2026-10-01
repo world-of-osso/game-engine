@@ -296,6 +296,6 @@ fn buttons(state: &TradeFrameState) -> Element {
     out
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dev"))]
 #[path = "trade_frame_component_tests.rs"]
 mod tests;

@@ -1,6 +1,6 @@
 //! Portable trade contract; native receiver/UI RED is driven separately by MAIN.
 use game_engine_ui_model::{
-    bag_data::InventoryState,
+    bag_data::{InventoryState, stack_slot},
     popup::{PopupOutcome, PopupStack},
     trade::{NativeTradeView, TRADE_POPUP, TradeRequest, TradeSession, native_trade_screen},
 };
@@ -183,7 +183,7 @@ fn offers_use_original_whole_stack_first_free_and_duplicate_guards_without_inven
             stack_count: 3
         }))
     );
-    assert_eq!(inventory.slot(0, 2), Some(&stack(81, 3)));
+    assert_eq!(inventory.slot(0, 2), Some(&stack_slot(&stack(81, 3))));
     assert!(session.snapshot.as_ref().unwrap().player.slots[1].is_none());
     session.snapshot.as_mut().unwrap().player.slots[1] = Some(item(81));
     assert!(session.offer("bag_slot:0:2", &inventory).is_none());
