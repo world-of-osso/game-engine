@@ -254,7 +254,8 @@ fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
             radius(row.get(9)?)
         };
         let base_points: f32 = row.get(5)?;
-        let has_power_coefficient = row.get::<f32>(10)? != 0.0 || row.get::<f32>(11)? != 0.0;
+        let (sp_coefficient, ap_coefficient): (f32, f32) = (row.get(10)?, row.get(11)?);
+        let has_power_coefficient = sp_coefficient != 0.0 || ap_coefficient != 0.0;
         let damage_or_heal = DAMAGE_OR_HEAL_EFFECTS.contains(&row.get(3)?)
             || DAMAGE_OR_HEAL_AURAS.contains(&row.get(4)?);
         let spell_power_scaled = has_power_coefficient && (damage_or_heal || base_points == 0.0);
@@ -267,7 +268,17 @@ fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
             aura_period_ms: row.get(6)?,
             chain_targets: row.get(7)?,
             radius_yd,
-            caster_scaled: spell_power_scaled || level_scaled,
+            spell_power_coefficient: if spell_power_scaled {
+                sp_coefficient
+            } else {
+                0.0
+            },
+            attack_power_coefficient: if spell_power_scaled {
+                ap_coefficient
+            } else {
+                0.0
+            },
+            level_scaled,
         });
         Ok(())
     })?;

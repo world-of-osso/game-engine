@@ -47,6 +47,28 @@ pub struct SpecTabInfo {
     pub order_index: u32,
     pub initial: bool,
     pub spells: HashSet<u32>,
+    /// `ChrSpecialization.PrimaryStatPriority`; see [`SpecTabInfo::primary_stat`].
+    pub primary_stat_priority: u32,
+}
+
+/// The stat a specialization's gear and character sheet favour.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PrimaryStat {
+    Strength,
+    Agility,
+    Intellect,
+}
+
+impl SpecTabInfo {
+    /// `Player::GetPrimaryStat` (TrinityCore a352b1fa StatSystem.cpp:297-314):
+    /// `PrimaryStatPriority` 4 and up Strength, 2-3 Agility, else Intellect.
+    pub fn primary_stat(&self) -> PrimaryStat {
+        match self.primary_stat_priority {
+            4.. => PrimaryStat::Strength,
+            2 | 3 => PrimaryStat::Agility,
+            _ => PrimaryStat::Intellect,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -250,6 +272,7 @@ fn load_specs(dir: &Path) -> Result<HashMap<u32, SpecTabInfo>, String> {
         "OrderIndex",
         "MasterySpellID_0",
         "MasterySpellID_1",
+        "PrimaryStatPriority",
     ];
     let mut specs = HashMap::new();
     for_each_record(dir, "ChrSpecialization", &columns, |row| {
@@ -262,6 +285,7 @@ fn load_specs(dir: &Path) -> Result<HashMap<u32, SpecTabInfo>, String> {
             order_index,
             initial: order_index == INITIAL_SPEC_ORDER,
             spells: mastery.into_iter().filter(|&id| id != 0).collect(),
+            primary_stat_priority: parse_u32(table, row[6])?,
         };
         specs.insert(parse_u32(table, row[0])?, spec);
         Ok(())
