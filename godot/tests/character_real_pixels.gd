@@ -241,7 +241,11 @@ func run_case(case: Dictionary) -> Array[String]:
 	await process_frame
 	for draw in draws:
 		draw.mesh = (draw.node as MeshInstance3D).bake_mesh_from_current_skeleton_pose().surface_get_arrays(0)
-		var material := (draw.node as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
+		var material := (draw.node as MeshInstance3D).material_override as ShaderMaterial
+		if material == null:
+			problems.append("mesh part %d has no batch material" % draw.part)
+			model.free()
+			return problems
 		material.set_shader_parameter("ambient", SCENE.ambient)
 		material.set_shader_parameter("horizon_ambient", SCENE.horizon)
 		material.set_shader_parameter("ground_ambient", SCENE.ground)
@@ -323,7 +327,11 @@ func check_textures(case: Dictionary, draws: Array, canvases: Dictionary, proble
 		if kind == 0 or checked.has(kind):
 			continue
 		checked[kind] = true
-		var texture: Texture2D = (draw.node as MeshInstance3D).get_surface_override_material(0).get_shader_parameter("base_texture")
+		var material := (draw.node as MeshInstance3D).material_override as ShaderMaterial
+		if material == null:
+			problems.append("mesh part %d has no batch material" % draw.part)
+			continue
+		var texture: Texture2D = material.get_shader_parameter("base_texture")
 		var want: Variant = canvases.get(kind)
 		if texture == null and want == null:
 			# No material reaches the type (a Demon Hunter-only layer on another class):
