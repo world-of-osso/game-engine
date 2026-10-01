@@ -129,10 +129,11 @@ fn npc_animated_spawn_advances_real_idle_bones_and_preserves_display_skin() {
             .iter()
             .any(|batch| batch.texture_fdid == Some(skin[0]))
     );
-    let (pixels, width, height) =
-        crate::asset::blp::load_blp_rgba(&crate::asset::asset_cache::texture(skin[0]).unwrap())
-            .unwrap();
-    let expected_image = crate::rgba_image(pixels, width, height);
+    // An uncomposited M2 texture uploads block-compressed as authored (570d707d).
+    let expected_image = crate::asset::blp::load_blp_gpu_material_image(
+        &crate::asset::asset_cache::texture(skin[0]).unwrap(),
+    )
+    .unwrap();
     let images = app.world().resource::<Assets<Image>>();
     assert!(
         images.iter().any(|(_, image)| image.texture_descriptor.size
