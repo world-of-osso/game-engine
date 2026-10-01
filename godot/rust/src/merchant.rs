@@ -123,30 +123,7 @@ impl GameClient {
         self.apply_npc_message(message)
     }
 
-    fn trace_merchant_order(&self, event: &str, stage: &str) {
-        if std::env::var_os("GODOT_MERCHANT_ORDER_TRACE").is_some() {
-            let merchant = &self.merchant.session.merchant;
-            eprintln!(
-                "MERCHANT ORDER {stage} {event}: npc={:?} buyback_count={}",
-                merchant.npc,
-                merchant.buyback.len()
-            );
-        }
-    }
-
     fn apply_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
-        let event = match &message {
-            NpcMessage::Vendor(_) => Some("Vendor"),
-            NpcMessage::Buyback(_) => Some("Buyback"),
-            NpcMessage::Opened(opened) if opened.kind == InteractionKind::Role(NpcRole::Vendor) => {
-                Some("OpenedVendor")
-            }
-            NpcMessage::Closed(_) => Some("Closed"),
-            _ => None,
-        };
-        if let Some(event) = event {
-            self.trace_merchant_order(event, "before");
-        }
         let session = &mut self.merchant.session;
         match message {
             NpcMessage::Opened(opened) => match opened.kind {
@@ -183,9 +160,6 @@ impl GameClient {
                 self.add_world_error(failed.error.message())?;
             }
             NpcMessage::Error(error) => self.add_world_error(&error)?,
-        }
-        if let Some(event) = event {
-            self.trace_merchant_order(event, "after");
         }
         Ok(())
     }
