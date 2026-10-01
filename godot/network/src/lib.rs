@@ -100,6 +100,14 @@ impl BridgeConfig {
         self
     }
 
+    /// The six group messages in their reliable ordered `GroupChannel` send order: the
+    /// roster must arrive before the member states that follow it, or the states of new
+    /// members are dropped and, sent only on change, never repeated.
+    pub fn receive_group(mut self) -> Self {
+        self.relays.push(install_group_relay);
+        self
+    }
+
     /// All five loot messages in their reliable ordered `LootChannel` send order.
     pub fn receive_loot(mut self) -> Self {
         self.relays.push(install_loot_relay);
@@ -190,6 +198,8 @@ impl NetworkBridge {
             .receive::<RestStateUpdate>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
+            // Party/raid roster, member states, invites and results (group-frames.md).
+            .receive_group()
             .connect(server_addr, client_id)
     }
 
@@ -456,6 +466,47 @@ fn install_mirror_timer_relay(app: &mut App, events: Sender<Event>) {
                     }),
                 );
             }
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+/// A single relay preserves order across message types sharing `GroupChannel`.
+fn install_group_relay(app: &mut App, events: Sender<Event>) {
+    use protocol::{
+        GroupCommandResponse, GroupInviteCancelled, GroupInvitePrompt, GroupMemberStates,
+        GroupRosterSnapshot, ReadyCheckUpdate,
+    };
+    app.add_systems(
+        Update,
+        (move |mut rosters: Query<&mut MessageReceiver<GroupRosterSnapshot>>,
+               mut states: Query<&mut MessageReceiver<GroupMemberStates>>,
+               mut prompts: Query<&mut MessageReceiver<GroupInvitePrompt>>,
+               mut cancels: Query<&mut MessageReceiver<GroupInviteCancelled>>,
+               mut checks: Query<&mut MessageReceiver<ReadyCheckUpdate>>,
+               mut responses: Query<&mut MessageReceiver<GroupCommandResponse>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(rosters);
+            drain!(states);
+            drain!(prompts);
+            drain!(cancels);
+            drain!(checks);
+            drain!(responses);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events

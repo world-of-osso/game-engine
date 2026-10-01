@@ -749,6 +749,39 @@ impl RegistryUi {
         self.model.as_ref().map(|model| &model.registry)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the party and raid frames.
+    pub fn show_group_frames(
+        &mut self,
+        state: game_engine_ui_model::group_frames_component::GroupFramesState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::group_frames_component::group_frames_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
+    /// Initialize a dedicated RegistryUi instance for `StaticPopup1..3` (`PARTY_INVITE`),
+    /// on the `static_popup` dialog border.
+    pub fn show_static_popups(
+        &mut self,
+        state: game_engine_ui_model::static_popup_component::StaticPopupState,
+    ) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_auction_popup_style(&mut registry);
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::static_popup_component::static_popup_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the player BuffFrame and DebuffFrame.
     pub fn show_buff_frame(&mut self, state: BuffFrameState) -> Result<(), String> {
         self.show_viewport_screen(state, buff_frame_screen, ScreenPostsetup::None)

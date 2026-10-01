@@ -270,6 +270,110 @@ fn native_bridge_receives_loot_messages_in_channel_order() {
     host.stop();
 }
 
+/// A roster and the member states sent right after it reach the host in `GroupChannel`
+/// order; per-type relays handed them over grouped by type, so states could overtake the
+/// roster that admits their member.
+#[test]
+fn native_bridge_receives_group_messages_in_channel_order() {
+    use shared::components::Position;
+    use shared::death::DeathState;
+    use shared::protocol::{
+        GroupChannel, GroupCommandResponse, GroupMemberSnapshot, GroupMemberState,
+        GroupMemberStates, GroupMessageCode, GroupRoleSnapshot, GroupRosterSnapshot,
+    };
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8211);
+    await_connected(&mut server, &mut host);
+    let (held, hold_confirmed) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    host.bridge
+        .enqueue(move |_| {
+            held.send(()).expect("confirm fixture worker hold");
+            resumed
+                .recv_timeout(Duration::from_secs(10))
+                .expect("release fixture worker hold");
+        })
+        .expect("hold fixture worker");
+    hold_confirmed
+        .recv_timeout(Duration::from_secs(10))
+        .expect("fixture worker entered hold");
+    let roster = GroupRosterSnapshot {
+        is_raid: false,
+        ready_count: 0,
+        total_count: 2,
+        members: ["Ann", "Bob"]
+            .map(|name| GroupMemberSnapshot {
+                name: name.into(),
+                role: GroupRoleSnapshot::None,
+                is_leader: name == "Ann",
+                online: true,
+                subgroup: 1,
+                class: 1,
+                level: 10,
+                entity: None,
+            })
+            .to_vec(),
+        loot_method: shared::loot::LootMode::PersonalLoot,
+    };
+    let states = GroupMemberStates {
+        members: vec![GroupMemberState {
+            name: "Ann".into(),
+            health: 300,
+            max_health: 400,
+            power: None,
+            death: DeathState::Alive,
+            position: Position {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            debuffs: Vec::new(),
+        }],
+    };
+    let joined = GroupCommandResponse {
+        message: "Ann joins the party.".into(),
+        code: GroupMessageCode::JoinedGroup,
+    };
+    macro_rules! send_and_flush {
+        ($ty:ty, $value:expr) => {{
+            let world = server.world_mut();
+            world
+                .query::<&mut MessageSender<$ty>>()
+                .single_mut(world)
+                .expect("one connected group sender")
+                .send::<GroupChannel>($value.clone());
+            server.update();
+        }};
+    }
+    send_and_flush!(GroupCommandResponse, joined);
+    send_and_flush!(GroupRosterSnapshot, roster);
+    send_and_flush!(GroupMemberStates, states);
+    send_and_flush!(GroupCommandResponse, joined);
+    send_and_flush!(GroupRosterSnapshot, roster);
+    send_and_flush!(GroupMemberStates, states);
+    let send_deadline = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < send_deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    resume.send(()).expect("resume fixture worker");
+    let mut received = await_messages(&mut server, &mut host, 6).into_iter();
+    macro_rules! assert_next {
+        ($ty:ty, $expected:expr) => {
+            assert_eq!(
+                received.next().unwrap().downcast::<$ty>().ok(),
+                Some($expected)
+            );
+        };
+    }
+    for _ in 0..2 {
+        assert_next!(GroupCommandResponse, joined.clone());
+        assert_next!(GroupRosterSnapshot, roster.clone());
+        assert_next!(GroupMemberStates, states.clone());
+    }
+    host.stop();
+}
+
 use super::*;
 use crate::replica::{Replica, Unit, UnitChange};
 use bevy_replicon::bytes::Bytes;
