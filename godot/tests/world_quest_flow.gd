@@ -123,6 +123,8 @@ func check_pickup() -> bool:
 		return false
 	if not await wait_quest(func(s): return s.markers.get(giver.id) == TALKTOME, "yellow ! over " + GIVER):
 		return false
+	if not await teleport(GIVER_AT):
+		return false
 	if not await approach(giver.id, INTERACT_YARDS + 4.0):
 		fail("Could not walk to " + GIVER)
 		return false
