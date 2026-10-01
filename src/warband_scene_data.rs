@@ -106,12 +106,75 @@ pub fn read_texture_kit_art(
         .collect())
 }
 
-/// Base-member art keyed by atlas element ID for the named `elements`.
-fn read_base_members(
-    dir: &Path,
-    elements: &HashMap<String, u32>,
-) -> Result<HashMap<u32, AtlasArt>, String> {
-    let atlases: HashMap<u32, [u32; 3]> = read_columns(
+/// The art each named `UiTextureAtlasElement` (case-insensitive) draws at UI scale 1, as
+/// `SetAtlas(name)` crops it: the member of the same name, else the element's smallest
+/// member (`-1x` rather than `-2x`). An unknown name is an error.
+pub fn read_atlas_art(
+    data_root: &Path,
+    names: &[&str],
+) -> Result<HashMap<String, AtlasArt>, String> {
+    let dir = data_root.join(UI_DB2_DIR);
+    let wanted: HashSet<String> = names.iter().map(|name| name.to_ascii_lowercase()).collect();
+    let elements: HashMap<u32, String> =
+        read_columns(&dir.join("UiTextureAtlasElement.csv"), &["Name", "ID"])?
+            .into_iter()
+            .filter(|row| wanted.contains(&row[0].to_ascii_lowercase()))
+            .filter_map(|row| Some((row[1].parse().ok()?, row[0].to_ascii_lowercase())))
+            .collect();
+    let atlases = read_atlas_sizes(&dir)?;
+    let columns = [
+        "CommittedName",
+        "UiTextureAtlasElementID",
+        "UiTextureAtlasID",
+        "Width",
+        "CommittedLeft",
+        "CommittedRight",
+        "CommittedTop",
+        "CommittedBottom",
+    ];
+    // Per element: (exact name, member width, art) of the best member so far.
+    let mut best: HashMap<u32, (bool, u32, AtlasArt)> = HashMap::new();
+    for row in read_columns(&dir.join("UiTextureAtlasMember.csv"), &columns)? {
+        let parsed: Option<Vec<u32>> = row[1..].iter().map(|field| field.parse().ok()).collect();
+        let Some([element, atlas, width, left, right, top, bottom]) =
+            parsed.and_then(|values| <[u32; 7]>::try_from(values).ok())
+        else {
+            continue;
+        };
+        let Some(name) = elements.get(&element) else {
+            continue;
+        };
+        let exact = row[0].eq_ignore_ascii_case(name);
+        let art = member_art(&atlases, atlas, [left, right, top, bottom], &row[0])?;
+        let better = best
+            .get(&element)
+            .is_none_or(|&(best_exact, best_width, _)| {
+                (exact, std::cmp::Reverse(width)) > (best_exact, std::cmp::Reverse(best_width))
+            });
+        if better {
+            best.insert(element, (exact, width, art));
+        }
+    }
+    let by_name: HashMap<&String, AtlasArt> = elements
+        .iter()
+        .filter_map(|(element, name)| Some((name, best.get(element)?.2)))
+        .collect();
+    names
+        .iter()
+        .map(|name| {
+            let key = name.to_ascii_lowercase();
+            let art = by_name
+                .get(&key)
+                .copied()
+                .ok_or_else(|| format!("no UiTextureAtlas member for atlas {name}"))?;
+            Ok((key, art))
+        })
+        .collect()
+}
+
+/// `UiTextureAtlas` ID to its texture FileDataID, width and height.
+fn read_atlas_sizes(dir: &Path) -> Result<HashMap<u32, [u32; 3]>, String> {
+    Ok(read_columns(
         &dir.join("UiTextureAtlas.csv"),
         &["ID", "FileDataID", "AtlasWidth", "AtlasHeight"],
     )?
@@ -126,7 +189,37 @@ fn read_base_members(
             ],
         ))
     })
-    .collect();
+    .collect())
+}
+
+/// A member's `[left, right, top, bottom]` pixels normalized by its atlas size.
+fn member_art(
+    atlases: &HashMap<u32, [u32; 3]>,
+    atlas: u32,
+    [left, right, top, bottom]: [u32; 4],
+    member: &str,
+) -> Result<AtlasArt, String> {
+    let [fdid, width, height] = *atlases
+        .get(&atlas)
+        .ok_or_else(|| format!("UiTextureAtlasMember {member} names missing atlas {atlas}"))?;
+    let (width, height) = (width as f32, height as f32);
+    Ok(AtlasArt {
+        fdid,
+        tex_coords: [
+            left as f32 / width,
+            right as f32 / width,
+            top as f32 / height,
+            bottom as f32 / height,
+        ],
+    })
+}
+
+/// Base-member art keyed by atlas element ID for the named `elements`.
+fn read_base_members(
+    dir: &Path,
+    elements: &HashMap<String, u32>,
+) -> Result<HashMap<u32, AtlasArt>, String> {
+    let atlases = read_atlas_sizes(dir)?;
     let columns = [
         "CommittedName",
         "UiTextureAtlasElementID",
@@ -150,20 +243,8 @@ fn read_base_members(
         if member_element != element {
             continue;
         }
-        let [fdid, width, height] = *atlases.get(&atlas).ok_or_else(|| {
-            format!(
-                "UiTextureAtlasMember {} names missing atlas {atlas}",
-                row[0]
-            )
-        })?;
-        let (width, height) = (width as f32, height as f32);
-        let tex_coords = [
-            left as f32 / width,
-            right as f32 / width,
-            top as f32 / height,
-            bottom as f32 / height,
-        ];
-        members.insert(element, AtlasArt { fdid, tex_coords });
+        let art = member_art(&atlases, atlas, [left, right, top, bottom], &row[0])?;
+        members.insert(element, art);
     }
     Ok(members)
 }
