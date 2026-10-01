@@ -55,6 +55,11 @@ The client answers these from its live state (`godot/rust/src/ipc/dev.rs`, `worl
 - [x] `status bags`, `inventory list|search|whereis`: the live bags (the original read the last auction-house inventory query), with the item catalog's required level; the guild vault and Warband bank (`status guild-vault|warbank`) list the last contents the server sent, without item names, as the original.
 - [x] `item info`: the DB2 item catalog (`ItemSparse`, including `ExpansionID`); the appearance is known when the item is in the bags or equipped. The original read a generated item table its line parser never matched.
 - [x] `presence status`: the local player's replicated presence.
+- [x] `status character-stats`: the selected roster entry (name, level, race, class), the local player's replicated health, mana, class resource, speed, money, presence and combat flag, the server's last rest state and the zone.
+- [x] `trade status` and the trade actions: an action sends its request and is answered by the server's next `TradeStateUpdate` (its error, its message with the status while a trade remains, or the status); not connected is the original immediate error. Requests can therefore wait for the server (`ipc::Reply`), with the original's absent response deadline.
+- [x] `combat log|recap`: the newest 200 received `CombatEvent`s mapped as the original `combat_event_to_log_entry` (source and target are server entity bits).
+- [x] `map waypoint add` walks there: the original grid path search around segments the movement rules (walls, slope, step height) change, smoothed to the furthest walkable node; the player faces the next node and runs forward until within 0.8 yd, which clears the waypoint; manual movement input clears it.
+- [x] Terrain height, area and footstep surface take the tile and chunk from the coordinates by index arithmetic (TrinityCore `GridMap::getHeight`), not the authored MCNK bounds, whose sub-millimetre gaps had no height or area.
 
 ## How it works
 
