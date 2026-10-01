@@ -141,7 +141,9 @@ func select_character(character: String) -> bool:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1:
+		# The session reaches character select before CASC startup ends; its UI after.
+		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1 \
+				and client.get_node_or_null("CharacterSelectUI") != null:
 			break
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	if ui == null:
