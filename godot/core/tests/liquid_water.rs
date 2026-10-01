@@ -149,10 +149,78 @@ fn liquid_type_below_object_range_resolves_directly_and_ocean_uses_ocean_colours
     assert_eq!(shallow.wave_periods, [1.0, 0.4]);
 }
 
+/// MH2O `(liquid_type, liquid_object)` pairs whose LiquidObject has no row in the active
+/// 12.1.0.69933 DB2 or its hotfix caches: ocean 42 on every open-sea tile, and the five
+/// Adventurer's Rest objects of tiles 2703_31_36 (FDID 5493433) and 2703_31_37 (5493438).
+const OBJECTLESS_PAIRS: [(u16, u16); 6] = [
+    (2, 42),
+    (5, 13134),
+    (5, 13136),
+    (5, 13137),
+    (81, 13138),
+    (5, 13139),
+];
+
+/// WebWowViewerCpp `CSqliteDB::getLiquidObjectData`: without a LiquidObject row the layer's
+/// own MH2O liquid_type is the LiquidType, with no flow.
 #[test]
-fn unknown_liquid_object_is_an_error() {
-    let error = catalog().liquid_material(5, 65_000).unwrap_err();
-    assert_eq!(error, "LiquidObject 65000 has no DB2 row");
+fn objectless_liquid_layers_use_their_mh2o_liquid_type() {
+    let catalog = catalog();
+    for (liquid_type, liquid_object) in OBJECTLESS_PAIRS {
+        let material = catalog
+            .liquid_material(liquid_type, liquid_object)
+            .unwrap_or_else(|error| panic!("({liquid_type}, {liquid_object}): {error}"));
+        let direct = catalog.liquid_material(liquid_type, 0).expect("LiquidType");
+        assert_eq!(material, direct, "({liquid_type}, {liquid_object})");
+        assert_eq!(u32::from(liquid_type), material.liquid_type);
+        assert_eq!((material.material_id, material.lvf), (1, 0));
+        assert_eq!(material.shader, LiquidShader::Water);
+        assert_eq!((material.flow_direction, material.flow_speed), (0.0, 0.0));
+    }
+    assert_eq!(
+        catalog.liquid_material(2, 42).expect("ocean").color_source,
+        WaterColorSource::Ocean
+    );
+}
+
+/// The MH2O payload of a root ADT (chunk tags are stored byte-reversed). These roots shadow
+/// from `_tex0`, so a root-only `parse_root` cannot load them.
+fn mh2o_chunk(adt: &[u8]) -> &[u8] {
+    let mut offset = 0;
+    while offset + 8 <= adt.len() {
+        let size = u32::from_le_bytes(adt[offset + 4..offset + 8].try_into().unwrap()) as usize;
+        if &adt[offset..offset + 4] == b"O2HM" {
+            return &adt[offset + 8..offset + 8 + size];
+        }
+        offset += 8 + size;
+    }
+    panic!("root ADT has no MH2O");
+}
+
+/// Every Adventurer's Rest layer, 133 of them on objectless LiquidObjects, has a material.
+#[test]
+fn adventurers_rest_tiles_resolve_every_liquid_layer() {
+    let catalog = catalog();
+    let mut objectless = 0;
+    for fdid in [5_493_433, 5_493_438] {
+        let bytes =
+            std::fs::read(data_root().join(format!("terrain/{fdid}.adt"))).expect("cached ADT");
+        let water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
+        for layer in water.chunks.iter().flat_map(|chunk| &chunk.layers) {
+            let key = (layer.liquid_type, layer.liquid_object);
+            catalog
+                .liquid_material(key.0, key.1)
+                .unwrap_or_else(|error| panic!("{fdid} {key:?}: {error}"));
+            objectless += usize::from(OBJECTLESS_PAIRS.contains(&key));
+        }
+    }
+    assert_eq!(objectless, 133);
+}
+
+#[test]
+fn unknown_liquid_type_is_an_error() {
+    let error = catalog().liquid_material(65_000, 0).unwrap_err();
+    assert_eq!(error, "LiquidType 65000 has no DB2 row");
 }
 
 #[test]
