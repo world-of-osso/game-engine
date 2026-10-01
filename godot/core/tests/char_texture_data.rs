@@ -262,3 +262,36 @@ fn item_textures_alpha_blend_over_the_body() {
         [blended(90, 1), blended(100, 2), blended(110, 3), 255]
     );
 }
+
+#[test]
+fn item_textures_expand_by_stock_paste_scale() {
+    // Wow.exe PasteScale (solarityclient composer.rs `blend_scaled_rect`): a texture half
+    // its section's size expands 2x with odd texels averaging their neighbours.
+    let data = CharTextureData::from_parts(
+        vec![],
+        HashMap::from([(
+            (1, 0),
+            TextureSection {
+                x: 0,
+                y: 0,
+                width: 4,
+                height: 2,
+            },
+        )]),
+        HashMap::from([(
+            1,
+            TextureLayout {
+                width: 4,
+                height: 2,
+            },
+        )]),
+    );
+    let result = data
+        .composite_model_textures_with(&[], &[(0, 2)], 1, 1, texture)
+        .unwrap();
+    let row = [
+        10, 20, 30, 255, 25, 35, 45, 255, 40, 50, 60, 255, 40, 50, 60, 255,
+    ];
+    assert_eq!(result.body.0[..16], row);
+    assert_eq!(result.body.0[16..], row);
+}
