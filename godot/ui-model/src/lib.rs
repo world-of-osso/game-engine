@@ -26,6 +26,7 @@ pub mod ui {
             inworld_unit_frames_component, loot_frame_component, mail_frame_component,
             menu_primitives, merchant_frame_component, objective_tracker_component,
             options_menu_active_sections, options_menu_component, options_menu_sections, quest_art,
+            quest_frame_component, quest_log_frame_component,
             ready_check_frame_component, stack_split_frame_component, static_popup_component,
             trash_button_component, world_map_frame_art, world_map_frame_component,
         };
@@ -189,6 +190,18 @@ pub mod bags_bar_component;
 pub mod merchant_frame_component;
 #[path = "../../../src/ui/screens/quest_art.rs"]
 pub mod quest_art;
+
+// Quest giver frame, quest log and their shared state and actions (docs/specs/quest-ui.md).
+#[path = "../../../src/game/quest_actions.rs"]
+pub mod quest_actions;
+#[path = "../../../src/ui/screens/quest_frame_component.rs"]
+pub mod quest_frame_component;
+#[path = "../../../src/ui/screens/quest_log_frame_component.rs"]
+pub mod quest_log_frame_component;
+#[path = "../../../src/game/quest_runtime.rs"]
+pub mod quest_runtime;
+#[path = "../../../src/game/quest_view.rs"]
+pub mod quest_view;
 
 // Minimap cluster and objective tracker (docs/specs/minimap.md, quest-ui.md).
 pub mod minimap;

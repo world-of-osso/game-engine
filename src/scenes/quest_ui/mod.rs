@@ -2,7 +2,6 @@
 //! quest giver frame (npc-driven Panel), all driven by [`QuestRuntime`].
 
 mod actions;
-mod view;
 
 use std::collections::HashMap;
 
@@ -31,7 +30,7 @@ use crate::networking_quests::NpcInteractionRequest;
 use crate::scenes::static_popup::StaticPopupSystems;
 use crate::window_manager::{WindowId, WindowManager};
 
-use view::QuestDetailsCache;
+use game_engine::quest_view::{self as view, QuestDetailsCache};
 
 struct QuestScreens {
     tracker: Screen,

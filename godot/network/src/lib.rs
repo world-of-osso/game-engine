@@ -157,12 +157,17 @@ impl NetworkBridge {
             .receive::<LoadTerrain>()
             .receive::<NewWorld>()
             .receive::<TransferAborted>()
-            // Quest log for the world map's quest areas and the objective tracker; quest
-            // giver markers for the minimap.
+            // Quest log for the quest log, the objective tracker and the map quest areas;
+            // quest giver markers; the quest giver dialog pages and turn-in results.
             .receive::<QuestLogSnapshot>()
             .receive::<QuestLogUpdate>()
             .receive::<QuestGiverStatusMultiple>()
             .receive::<QuestFailed>()
+            .receive::<protocol::QuestGiverQuestList>()
+            .receive::<protocol::QuestGiverQuestDetails>()
+            .receive::<protocol::QuestGiverRequestItems>()
+            .receive::<protocol::QuestGiverOfferReward>()
+            .receive::<protocol::QuestGiverQuestComplete>()
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()

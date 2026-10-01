@@ -1,17 +1,18 @@
-//! Pure view models for the quest screens, built from [`QuestRuntime`].
+//! Pure view models for the quest screens (objective tracker, quest log, quest giver
+//! frame), built from [`QuestRuntime`]; shared by the Bevy and Godot hosts.
 
 use std::collections::HashMap;
 
-use game_engine::item_icons::item_icon_fdid;
-use game_engine::quest_runtime::{
+use crate::item_icons::item_icon_fdid;
+use crate::quest_runtime::{
     QuestDialog, QuestDialogPage, QuestRuntime, QuestTextTokens, QuestUiState,
     substitute_quest_text,
 };
-use game_engine::ui::screens::quest_frame_component::{
+use crate::ui::screens::quest_frame_component::{
     GossipOptionView, GreetingQuest, GreetingQuestKind, QuestFramePage, QuestFrameState,
     RewardItemView, RewardView,
 };
-use game_engine::ui::screens::quest_log_frame_component::{
+use crate::ui::screens::quest_log_frame_component::{
     QuestLogDetails, QuestLogFrameState, QuestLogGroup, QuestLogObjectiveLine, QuestLogRow,
 };
 use shared::protocol::{
@@ -187,5 +188,5 @@ fn log_details(
 }
 
 #[cfg(test)]
-#[path = "view_tests.rs"]
+#[path = "quest_view_tests.rs"]
 mod tests;

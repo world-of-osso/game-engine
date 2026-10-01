@@ -227,7 +227,7 @@ impl GameClient {
                 map_id: self.world_map.map_id,
                 hovered: self.world_map.hovered,
                 player: player.as_ref(),
-                quests: &self.account.quest_log,
+                quests: &self.account.quests.log,
             },
         ))
     }

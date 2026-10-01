@@ -229,10 +229,10 @@ impl QuestIndicator {
     pub fn model_fdid(self) -> u32 {
         match self {
             Self::None => 0,
-            Self::Available => 130731,         // talktome.m2 (yellow !)
-            Self::TurnIn => 130738,            // talktomequestionmark.m2 (yellow ?)
-            Self::Unavailable => 130734,       // talktomegrey.m2 (silver !)
-            Self::Incomplete => 130735,        // talktomequestion_grey.m2 (silver ?)
+            Self::Available => crate::quest_runtime::TALKTOME_AVAILABLE_FDID,
+            Self::TurnIn => crate::quest_runtime::TALKTOME_TURN_IN_FDID,
+            Self::Unavailable => crate::quest_runtime::TALKTOME_UNAVAILABLE_FDID,
+            Self::Incomplete => crate::quest_runtime::TALKTOME_INCOMPLETE_FDID,
             Self::DailyAvailable => 130732,    // talktomeblue.m2 (blue !)
             Self::DailyTurnIn => 130736,       // talktomequestion_ltblue.m2 (blue ?)
             Self::CampaignAvailable => 650616, // talktome_legendary.m2 (orange !)
