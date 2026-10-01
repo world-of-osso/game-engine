@@ -7,7 +7,9 @@
 
 use game_engine_core::input_bindings_data::{BindingMouseButton, InputState};
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::cursor_item::CursorTarget;
 use game_engine_ui_model::merchant::{Click, MerchantEffect, MerchantSession, SplitKey};
+use game_engine_ui_model::merchant_data::MerchantTab;
 use game_engine_ui_model::merchant_frame_component::{FRAME_H, FRAME_NAME, FRAME_W};
 use game_engine_ui_model::wow_cursor_data::{ActiveWowCursor, NpcCursorView, npc_cursor};
 use godot::classes::{
@@ -335,17 +337,52 @@ impl GameClient {
         let Some(mut ui) = self.merchant.ui.clone() else {
             return Ok(());
         };
-        loop {
-            let action = ui.bind_mut().pop_action().to_string();
-            if action.is_empty() {
-                break;
-            }
-            self.merchant_click(&action, Click::LEFT)?;
-        }
-        while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
-            self.merchant_click(&action, Click { right, shift })?;
+        let inputs = ui.bind_mut().drain_bag_inputs()?;
+        for input in inputs {
+            self.dispatch_bag_cursor_input(input)?;
         }
         Ok(())
+    }
+
+    pub(super) fn merchant_input_owner(&self, owner: i64) -> bool {
+        self.merchant
+            .ui
+            .as_ref()
+            .is_some_and(|ui| ui.instance_id().to_i64() == owner)
+    }
+
+    pub(super) fn merchant_cursor_click(
+        &mut self,
+        action: &str,
+        click: Click,
+    ) -> Result<(), FrameError> {
+        if self.merchant.session.split.is_some() {
+            return self.merchant_click(action, click);
+        }
+        if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
+            if click.right {
+                return self.merchant_click(action, click);
+            }
+            return self.bag_cursor_click(action, click);
+        }
+        let Some(target) = self.merchant_cursor_target(action, click)? else {
+            return self.merchant_click(action, click);
+        };
+        self.send_cursor_click(target)
+    }
+
+    fn merchant_cursor_target(
+        &self,
+        action: &str,
+        click: Click,
+    ) -> Result<Option<CursorTarget>, String> {
+        if click.right || click.shift {
+            return Ok(None);
+        }
+        if self.merchant.session.merchant.tab != MerchantTab::Merchant {
+            return Ok(None);
+        }
+        crate::bag_cursor::cursor_action_target(action)
     }
 
     fn merchant_click(&mut self, action: &str, click: Click) -> Result<(), FrameError> {
