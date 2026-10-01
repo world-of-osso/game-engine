@@ -102,14 +102,13 @@ struct RegistryModel {
 
 #[derive(Clone, Copy)]
 enum ScreenPostsetup {
-    /// The world map, with the dynamic texture its objective area overlay shows.
-    WorldMapWithQuestAreas(DynamicTextureId),
     None,
     Login,
     CharacterSelect,
     CharacterCreate,
     Loading,
-    WorldMap,
+    /// The world map, with the dynamic texture its objective area overlay shows.
+    WorldMap(DynamicTextureId),
     EntranceBar,
     Merchant,
     Auction,
@@ -126,16 +125,11 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Auction => {}
-            ScreenPostsetup::WorldMapWithQuestAreas(texture) => {
+            ScreenPostsetup::WorldMap(texture) => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
                 }
                 set_dynamic_texture(&mut self.registry, WORLD_MAP_QUEST_AREAS.0, texture);
-            }
-            ScreenPostsetup::WorldMap => {
-                if let Some(state) = self.shared.get::<WorldMapFrameState>() {
-                    apply_world_map_postsetup(state, &mut self.registry);
-                }
             }
             ScreenPostsetup::Minimap => {
                 if let Some(state) = self.shared.get::<MinimapClusterState>() {
@@ -535,7 +529,7 @@ impl RegistryUi {
             shared,
             registry,
             icon_masks: Default::default(),
-            postsetup: ScreenPostsetup::WorldMapWithQuestAreas(quest_areas),
+            postsetup: ScreenPostsetup::WorldMap(quest_areas),
         };
         model.sync();
         let viewport = self
@@ -688,7 +682,7 @@ impl RegistryUi {
             .model
             .as_mut()
             .ok_or("World map UI is not initialized")?;
-        let ScreenPostsetup::WorldMapWithQuestAreas(texture) = model.postsetup else {
+        let ScreenPostsetup::WorldMap(texture) = model.postsetup else {
             return Err("World map quest area texture missing".into());
         };
         let redraw = overlay.is_some();
