@@ -106,10 +106,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 40);
+    assert_eq!(InputAction::ALL.len(), 48);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 2, 12, 1, 11]
+        [8, 6, 4, 12, 1, 11, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
@@ -122,6 +122,53 @@ fn inventory_defaults_and_sections_are_exact() {
         Some(InputBinding::CtrlKeyboard(BindingKey::KeyS))
     );
     assert_eq!(bindings.binding(InputAction::ToggleLootRules), None);
+    // Retail OPENALLBAGS B, TOGGLEBACKPACK Shift-B, TOGGLEBAG1-4 F8-F11 -> ToggleBag(4..1).
+    let bag_defaults = [
+        (
+            InputAction::OpenAllBags,
+            InputBinding::Keyboard(BindingKey::KeyB),
+            None,
+        ),
+        (
+            InputAction::ToggleBackpack,
+            InputBinding::ShiftKeyboard(BindingKey::KeyB),
+            None,
+        ),
+        (
+            InputAction::ToggleBag1,
+            InputBinding::Keyboard(BindingKey::F8),
+            Some(4),
+        ),
+        (
+            InputAction::ToggleBag2,
+            InputBinding::Keyboard(BindingKey::F9),
+            Some(3),
+        ),
+        (
+            InputAction::ToggleBag3,
+            InputBinding::Keyboard(BindingKey::F10),
+            Some(2),
+        ),
+        (
+            InputAction::ToggleBag4,
+            InputBinding::Keyboard(BindingKey::F11),
+            Some(1),
+        ),
+    ];
+    for (action, binding, bag) in bag_defaults {
+        assert_eq!(bindings.binding(action), Some(binding), "{action:?}");
+        assert_eq!(action.toggled_bag(), bag, "{action:?}");
+        assert_eq!(action.section(), BindingSection::Bags);
+    }
+    // Retail ASSISTTARGET F, TARGETPREVIOUSENEMY Shift-Tab.
+    assert_eq!(
+        bindings.binding(InputAction::AssistTarget),
+        Some(InputBinding::Keyboard(BindingKey::KeyF))
+    );
+    assert_eq!(
+        bindings.binding(InputAction::TargetPreviousEnemy),
+        Some(InputBinding::ShiftKeyboard(BindingKey::Tab))
+    );
     // Retail `TOGGLEFPS` "Toggle Framerate Display": Ctrl+R.
     assert_eq!(
         bindings.binding(InputAction::ToggleFramerate),
@@ -217,4 +264,32 @@ fn modifiers_shadow_plain_and_edges_are_distinct() {
     );
     assert!(bindings.is_pressed(InputAction::Jump, &state));
     assert!(!bindings.is_just_pressed(InputAction::Jump, &state));
+}
+
+#[test]
+fn shift_b_toggles_backpack_and_plain_b_opens_all_bags() {
+    let bindings = InputBindingsData::default();
+    let shift_b = State {
+        held: vec![BindingKey::KeyB],
+        edge: vec![BindingKey::KeyB],
+        shift: true,
+        ..Default::default()
+    };
+    assert!(bindings.is_just_pressed(InputAction::ToggleBackpack, &shift_b));
+    assert!(!bindings.is_just_pressed(InputAction::OpenAllBags, &shift_b));
+    let b = State {
+        held: vec![BindingKey::KeyB],
+        edge: vec![BindingKey::KeyB],
+        ..Default::default()
+    };
+    assert!(bindings.is_just_pressed(InputAction::OpenAllBags, &b));
+    assert!(!bindings.is_just_pressed(InputAction::ToggleBackpack, &b));
+    let shift_tab = State {
+        held: vec![BindingKey::Tab],
+        edge: vec![BindingKey::Tab],
+        shift: true,
+        ..Default::default()
+    };
+    assert!(bindings.is_just_pressed(InputAction::TargetPreviousEnemy, &shift_tab));
+    assert!(!bindings.is_just_pressed(InputAction::TargetNearest, &shift_tab));
 }
