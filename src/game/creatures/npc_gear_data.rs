@@ -51,23 +51,27 @@ pub fn unit_pose_anim_id(
 const ATTACH_LEFT_WRIST: u32 = 0;
 const ATTACH_RIGHT_PALM: u32 = 1;
 const ATTACH_LEFT_PALM: u32 = 2;
+const ATTACH_RIGHT_BACK_SHEATH: u32 = 26;
 const ATTACH_LEFT_BACK_SHEATH: u32 = 27;
 const ATTACH_MIDDLE_BACK_SHEATH: u32 = 28;
 const ATTACH_LEFT_BACK: u32 = 30;
+const ATTACH_RIGHT_BACK: u32 = 31;
 const ATTACH_LEFT_HIP_SHEATH: u32 = 32;
 const ATTACH_RIGHT_HIP_SHEATH: u32 = 33;
 
 // `Item.InventoryType`.
 const INVTYPE_SHIELD: u8 = 14;
 const INVTYPE_RANGED: u8 = 15;
+const INVTYPE_THROWN: u8 = 25;
+const INVTYPE_RANGED_RIGHT: u8 = 26;
 
 /// The attachment a creature virtual item renders on, or `None` when it is not shown.
 /// Main and off hand are drawn with `SheathState::Melee`, the ranged item with
 /// `SheathState::Ranged`; a shield is drawn on the left wrist, a bow in the left hand.
-/// Otherwise the item sits at its `Item.SheatheType` position (WMVx
-/// `Mapping::sheathTypeAttachmentPosition`: 1 back, 2 large weapon back, 3 hip, 4 shield
-/// back); a hand item without one stays in the hand, a ranged item without one is not
-/// shown.
+/// Otherwise the item sits at its `Item.SheatheType` position on the side of its hand
+/// (native `GetSheatheLink`, solarityclient `sheath_point`: 1 back, 2 large weapon back,
+/// 3 hip, each a main-hand and an off-hand link, 4 shield back); a hand item without one
+/// stays in the hand, a ranged item without one is not shown.
 pub fn virtual_item_attachment(
     slot: EquipmentVisualSlot,
     inventory_type: u8,
@@ -81,12 +85,17 @@ pub fn virtual_item_attachment(
         EquipmentVisualSlot::Ranged => sheath == SheathState::Ranged,
         _ => return None,
     };
-    let sheathed = match sheathe_type {
-        1 => Some(ATTACH_LEFT_BACK_SHEATH),
-        2 => Some(ATTACH_LEFT_BACK),
-        3 if slot == EquipmentVisualSlot::OffHand => Some(ATTACH_RIGHT_HIP_SHEATH),
-        3 => Some(ATTACH_LEFT_HIP_SHEATH),
-        4 => Some(ATTACH_MIDDLE_BACK_SHEATH),
+    let right_hand = slot == EquipmentVisualSlot::MainHand
+        || (slot == EquipmentVisualSlot::Ranged
+            && matches!(inventory_type, INVTYPE_THROWN | INVTYPE_RANGED_RIGHT));
+    let sheathed = match (sheathe_type, right_hand) {
+        (1, true) => Some(ATTACH_RIGHT_BACK_SHEATH),
+        (1, false) => Some(ATTACH_LEFT_BACK_SHEATH),
+        (2, true) => Some(ATTACH_LEFT_BACK),
+        (2, false) => Some(ATTACH_RIGHT_BACK),
+        (3, true) => Some(ATTACH_LEFT_HIP_SHEATH),
+        (3, false) => Some(ATTACH_RIGHT_HIP_SHEATH),
+        (4, _) => Some(ATTACH_MIDDLE_BACK_SHEATH),
         _ => None,
     };
     if !drawn && slot == EquipmentVisualSlot::Ranged {

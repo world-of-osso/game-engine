@@ -1,9 +1,9 @@
 //! Authenticated owned-NPC hover proof; the peer seeds state, never awards items.
 use super::*;
 use shared::protocol::{
-    BagSlotItem, BuyItem, BuybackItem, BuybackItemRequest, BuybackList, DestroyItem, EquipItem,
-    InteractionClosed, ItemStack, RepairItem, SellAllJunkItems, SellItem, SortBags, SplitItem,
-    SwapItem, UseItem,
+    BagSlotItem, BuyItem, BuybackItem, BuybackItemRequest, BuybackList, DestroyItem,
+    DurabilityChannel, DurabilitySnapshot, DurabilityStateUpdate, EquipItem, InteractionClosed,
+    ItemStack, RepairItem, SellAllJunkItems, SellItem, SortBags, SplitItem, SwapItem, UseItem,
 };
 
 const QUIET: Duration = Duration::from_millis(900);
@@ -21,6 +21,10 @@ const MARKERS: &[&str] = &[
     "BAG_EMPTY",
     "AWAY",
     "SERVICE",
+    "REPAIR_ITEM",
+    "REPAIR_ALL_EMPTY",
+    "REPAIR_ALL_SHORT",
+    "LAST_BUYBACK",
     "CLOSE_ARM",
     "DONE",
 ];
@@ -138,6 +142,18 @@ impl Session {
         let npc = self.npc(app)?;
         match marker {
             "REFRESH_ARM" => send_catalog(app, npc, 2, 0),
+            // Repair All costs more than the seeded Gold1000 (MF.xml:246-248).
+            "REPAIR_ALL_EMPTY" => send::<_, DurabilityChannel>(
+                app,
+                DurabilityStateUpdate {
+                    snapshot: Some(DurabilitySnapshot {
+                        total_repair_cost: 1016,
+                        slots: vec![],
+                    }),
+                    message: None,
+                    error: None,
+                },
+            ),
             "CLOSE_ARM" => send::<_, InteractionChannel>(app, InteractionClosed { npc }),
             _ => {}
         }

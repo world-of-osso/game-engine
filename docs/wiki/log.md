@@ -1,6 +1,10 @@
-## 2026-10-01 — Native ExportScene source/test-first checkpoint
+## 2026-10-01 — Godot M2 batch materials on WebWowViewer retail rules
 
-[Evidence SSOT](systems/godot-conversion.md#native-exportscene--sourcetest-first-checkpoint-green-pending) records original shared schema `30413fe6`, metadata/wiring `cdbcc95d`, consumer `6962c1d9` and current write-error fixture `c33da2a8`. Actual `d1981968` public CLI RED follows READY (native635186, Depot `330ww90wlr0`, parent1); matching build/GREEN runtime and independent gate remain pending. Historical six-diagnostic acceptance does not prove export; broad semantics/UI/actions/performance/shutdown/root formatting remain open. Two owned wiki paths only; no new page/index or code/tests/build/runtime/gate/delegation/operations.
+[[m2-format#batch-shaders]] now records retail pixel/vertex shader resolution, render flags 0x2/0x8/0x10, texture weights, float-quaternion texture transforms and wrap flags; [[rendering-pipeline#godot-m2-batch-materials]] records the Godot binder/shader and its real-model oracle proof (16 named batches, baseline 14/16 RED). Parity row added (Partial: decals, transparent sort, Bevy/Retail comparisons open).
+
+## 2026-10-01 — Native ExportScene bounded MAIN-observed GREEN
+
+[Evidence SSOT](systems/godot-conversion.md#native-exportscene--accepted-bounded-pass) records MAIN-accepted independent1573 bounded PASS at `3ea4580c`: shared original JSON, actual native public export/write error, compensated transforms, retained legacy decoder and root check0. Post-READY `d1981968` RED and introduced re-export warning remain historical. Native runtime0/Depot0 are retained by source equivalence after the include correction. Full semantics/UI/actions/performance/shutdown remain open; root formatting still fails.
 
 ## 2026-10-01 — LiquidObject missing rows knowledge preservation
 
@@ -2408,3 +2412,8 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 ## 2026-10-01 — Native JS bounded acceptance reconciliation
 
 [JS evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) reconciles accepted1550 offline source-equivalent cleanup and1557 current world source/order/runtime17/17 readability. Ten combined variant examples only; historical failures, rootfmt FAIL, omitted-water errors/warnings and deferred shutdown retained. Broader goal OPEN; no new page/index change.
+
+## 2026-10-01 — Race/sex item files, collections, sheath links, emotes (charequip)
+
+[Race and sex item files](systems/character-rendering.md#race-and-sex-item-files-2026-10-01): Component*FileData texture/model selection, ChrModel body chain, wowdev geoset group table, native sheath links, skinned collections with both model columns, player social emotes; named-character and 62-way race fixtures.
+
