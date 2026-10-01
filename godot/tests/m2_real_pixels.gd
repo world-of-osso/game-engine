@@ -183,7 +183,7 @@ func run_case(case: Dictionary) -> bool:
 	for child in model.get_children():
 		if child is MeshInstance3D and child != target:
 			child.visible = false
-	var shader_material := target.get_surface_override_material(0) as ShaderMaterial
+	var shader_material := target.get_active_material(0) as ShaderMaterial
 	shader_material.set_shader_parameter("ambient", SCENE.ambient)
 	shader_material.set_shader_parameter("horizon_ambient", SCENE.horizon)
 	shader_material.set_shader_parameter("ground_ambient", SCENE.ground)

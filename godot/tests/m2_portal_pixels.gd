@@ -82,7 +82,7 @@ func portal_material() -> ShaderMaterial:
 		model.free()
 		fail("Portal model has no Batch0")
 		return null
-	var material := batch.get_surface_override_material(0) as ShaderMaterial
+	var material := batch.get_active_material(0) as ShaderMaterial
 	model.free()
 	if material == null:
 		fail("Portal Batch0 has no shader material")

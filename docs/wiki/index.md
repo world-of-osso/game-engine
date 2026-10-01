@@ -75,6 +75,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [godot-material-null-free](investigations/godot-material-null-free.md) — freeing an M2 logged four `Parameter "material" is null` errors per batch (footsteps/keybinds fixtures): MeshInstance3D releases surface override materials before its RenderingServer instance (godotengine/godot#85817); `eb619da4` binds batch materials as the material override, read through `get_active_material(0)`.
 - [local-animation-loading-gate](investigations/local-animation-loading-gate.md) — first cursor GREEN fails before readiness after async world entry; `f7b137fb` gates local animation on InWorld without suppressing missing-visual errors. `76487261` import fix reaches READY; `40497cb7` fixes actual cursor event-pointer DataMismatch and final UI/network flow exits0. Independent bounded cursor PASS accepted; no exact request-timing claim.
 
 - [charcreate-invalid-customization-combos](investigations/charcreate-invalid-customization-combos.md) — Tan swatch + face 27 rendered a teal body: overlay/tint layer blend modes were copied opaquely; Death Knight/NPC/transmog choices were offered because ChrCustomizationReq/ReqChoice were not evaluated.
