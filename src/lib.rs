@@ -50,6 +50,7 @@ pub mod collection;
 pub mod combat_feedback;
 #[path = "game/communities_data.rs"]
 pub mod communities_data;
+pub mod container_layout_data;
 #[path = "game/cooldown_data.rs"]
 pub mod cooldown_data;
 #[cfg(feature = "cpu-system-profile")]

@@ -173,6 +173,8 @@ pub mod stack_split_frame_component;
 
 #[path = "../../../src/game/bag_data.rs"]
 pub mod bag_data;
+#[path = "../../../src/container_layout_data.rs"]
+pub mod container_layout_data;
 #[path = "../../../src/game/spell_catalog/csv_records.rs"]
 pub(crate) mod csv_records;
 #[path = "../../../src/game/item_catalog.rs"]
@@ -185,6 +187,8 @@ pub mod merchant_data;
 pub mod paths;
 #[path = "../../../src/game/stack_split.rs"]
 pub mod stack_split;
+#[path = "../../../src/window_manager/mod.rs"]
+pub mod window_manager;
 #[path = "../../../src/rendering/ui/wow_cursor_data.rs"]
 pub mod wow_cursor_data;
 
