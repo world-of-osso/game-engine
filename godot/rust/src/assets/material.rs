@@ -8,8 +8,9 @@ use std::{
 };
 
 use game_engine_core::{
-    blp,
+    blp, m2,
     m2_batch_data::{OverlayScale, ResolvedBatch, TextureOverlay},
+    m2_material::{self, BatchBinding, MaterialTracks, TextureMatrix},
     m2_texture_composite_data,
 };
 use godot::{
@@ -23,6 +24,13 @@ use godot::{
 const SHADER_PATH: &str = "res://shaders/m2.gdshader";
 const RENDER_MODE: &str =
     "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
+/// The shader's texture uniforms, one per batch texture slot.
+const TEXTURE_SLOTS: [&str; 4] = [
+    "base_texture",
+    "second_texture",
+    "third_texture",
+    "fourth_texture",
+];
 type DecodedTexture = (Vec<u8>, u32, u32);
 
 thread_local! {
@@ -32,19 +40,17 @@ thread_local! {
     /// placement: building textures per material uploaded a copy for every doodad.
     static TEXTURES: RefCell<HashMap<TextureKey, Gd<ImageTexture>>> =
         RefCell::new(HashMap::new());
-    /// `batch_shaders` by (blend mode, effect route, two-sided).
-    static BATCH_SHADERS: RefCell<HashMap<(u16, bool, bool), (Gd<Shader>, Option<Gd<Shader>>)>> =
+    /// `batch_shaders` by pipeline state.
+    static BATCH_SHADERS: RefCell<HashMap<Pipeline, (Gd<Shader>, Option<Gd<Shader>>)>> =
         RefCell::new(HashMap::new());
 }
 
-/// A batch's base texture: the file itself, or the file with its second texture
-/// and overlays composited onto it on the CPU.
+/// A batch's base texture: the file itself, or the file with its character overlays
+/// composited onto it on the CPU.
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct TextureKey {
     dir: PathBuf,
     fdid: u32,
-    /// Second texture composited with this shader, unless it is an environment map.
-    second: Option<(u32, u16)>,
     overlays: Vec<TextureOverlay>,
 }
 
@@ -53,27 +59,8 @@ impl TextureKey {
         Self {
             dir: dir.to_path_buf(),
             fdid,
-            second: None,
             overlays: Vec::new(),
         }
-    }
-
-    fn for_batch(fdid: u32, batch: &ResolvedBatch, effect: bool, dir: &Path) -> Self {
-        if effect {
-            return Self::plain(fdid, dir);
-        }
-        Self {
-            second: batch
-                .texture_2_fdid
-                .filter(|_| !batch.use_env_map_2)
-                .map(|second| (second, batch.shader_id)),
-            overlays: batch.overlays.clone(),
-            ..Self::plain(fdid, dir)
-        }
-    }
-
-    fn is_composite(&self) -> bool {
-        self.second.is_some() || !self.overlays.is_empty()
     }
 }
 
@@ -98,17 +85,16 @@ pub(crate) fn clear_shared_shaders() {
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
 }
 
-pub(super) fn is_effect(batch: &ResolvedBatch) -> bool {
-    batch.texture_2_fdid.is_some() && batch.blend_mode >= 2 && batch.overlays.is_empty()
-}
-
+/// The batch's material and the binding its animation samples.
 pub(super) fn load_material(
+    model: &m2::Model,
+    tracks: &MaterialTracks,
     batch: &ResolvedBatch,
-    mesh_color: [f32; 3],
+    skin_texture_fdids: &[u32; 3],
     path: &GString,
     missing: &mut PackedInt32Array,
     replacement: Option<&Gd<ImageTexture>>,
-) -> Result<Gd<ShaderMaterial>, String> {
+) -> Result<(Gd<ShaderMaterial>, BatchBinding), String> {
     let texture_dir = Path::new(
         &ProjectSettings::singleton()
             .globalize_path(path)
@@ -118,48 +104,151 @@ pub(super) fn load_material(
     .and_then(Path::parent)
     .ok_or("Model path has no asset root")?
     .join("textures");
-    let effect = is_effect(batch);
-    let base = batch
-        .texture_fdid
-        .filter(|_| replacement.is_none())
-        .map(|fdid| batch_texture(fdid, batch, effect, &texture_dir, missing))
-        .transpose()?
-        .flatten();
-    let second = batch
-        .texture_2_fdid
-        .filter(|_| effect)
-        .map(|fdid| shared_texture(fdid, &texture_dir, missing))
-        .transpose()?
-        .flatten();
-
-    let (shader, fade) = batch_shaders(batch, effect)?;
+    let unit = model
+        .batches
+        .get(batch.source_unit_index)
+        .ok_or("Resolved batch has no skin batch")?;
+    let binding = m2_material::batch_binding(model, unit, skin_texture_fdids)?;
+    let pipeline = Pipeline::of(batch)?;
+    let (shader, fade) = batch_shaders(pipeline)?;
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
     if let Some(fade) = fade {
         material.set_meta(SCENERY_FADE_SHADER_META, &fade.to_variant());
     }
-    bind_textures(&mut material, base, second)?;
-    if let Some(texture) = replacement {
-        material.set_shader_parameter("base_texture", &texture.to_variant());
+    for (slot, fdid) in binding.textures.iter().enumerate() {
+        let texture = match (slot, replacement) {
+            (0, Some(texture)) => Some(texture.clone()),
+            (0, None) => fdid
+                .map(|fdid| base_texture(fdid, &batch.overlays, &texture_dir, missing))
+                .transpose()?
+                .flatten(),
+            _ => fdid
+                .map(|fdid| shared_texture(fdid, &texture_dir, missing))
+                .transpose()?
+                .flatten(),
+        };
+        if let Some(texture) = texture {
+            material.set_shader_parameter(TEXTURE_SLOTS[slot], &texture.to_variant());
+        }
     }
-    bind_uniforms(&mut material, batch, effect);
-    material.set_shader_parameter("mesh_color", &Vector3::from_array(mesh_color).to_variant());
-    Ok(material)
+    material.set_shader_parameter(
+        "pixel_shader",
+        &i32::from(binding.pixel_shader).to_variant(),
+    );
+    material.set_shader_parameter(
+        "vertex_shader",
+        &i32::from(binding.vertex_shader).to_variant(),
+    );
+    material.set_shader_parameter("texture_wrap", &(binding.texture_wrap as i32).to_variant());
+    material.set_shader_parameter("render_flags", &i32::from(batch.render_flags).to_variant());
+    material.set_shader_parameter("gx_blend", &i32::from(pipeline.gx_blend).to_variant());
+    apply_sample(
+        &mut material,
+        &m2_material::sample_material(tracks, &binding, 0),
+    );
+    Ok((material, binding))
 }
 
-/// A batch's shader and, when opaque, its scenery-fade shader. The variant depends only
-/// on the blend mode, the effect route and two-sided culling, so it is made once per
-/// combination rather than from the shader source for every batch.
-fn batch_shaders(
-    batch: &ResolvedBatch,
-    effect: bool,
-) -> Result<(Gd<Shader>, Option<Gd<Shader>>), String> {
-    let key = (
-        batch.blend_mode,
-        effect,
-        !effect && batch.render_flags & 4 != 0,
+/// The animated inputs of a batch material at one time.
+pub(super) fn apply_sample(
+    material: &mut Gd<ShaderMaterial>,
+    sample: &m2_material::MaterialSample,
+) {
+    material.set_shader_parameter(
+        "mesh_color",
+        &Vector3::from_array(sample.mesh_color).to_variant(),
     );
-    if let Some(shaders) = BATCH_SHADERS.with_borrow(|shaders| shaders.get(&key).cloned()) {
+    material.set_shader_parameter("transparency", &sample.opacity.to_variant());
+    material.set_shader_parameter(
+        "texture_weights",
+        &Vector3::from_array(sample.texture_weights).to_variant(),
+    );
+    for (name, matrix) in ["texture_matrix_1", "texture_matrix_2"]
+        .into_iter()
+        .zip(sample.texture_matrices)
+    {
+        material.set_shader_parameter(name, &texture_basis(matrix).to_variant());
+    }
+}
+
+/// A texture matrix as the shader's `mat3` acting on (u, v, 1).
+fn texture_basis([m00, m10, m01, m11, tx, ty]: TextureMatrix) -> Basis {
+    Basis::from_cols(
+        Vector3::new(m00, m10, 0.0),
+        Vector3::new(m01, m11, 0.0),
+        Vector3::new(tx, ty, 1.0),
+    )
+}
+
+/// The GPU state WebWowViewer's createM2Material derives from a batch's material:
+/// GX blend, backface culling off for render flag 0x4, depth test off for 0x8 and depth
+/// write off for 0x10.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct Pipeline {
+    gx_blend: u8,
+    two_sided: bool,
+    depth_test: bool,
+    depth_write: bool,
+}
+
+impl Pipeline {
+    fn of(batch: &ResolvedBatch) -> Result<Self, String> {
+        Ok(Self {
+            gx_blend: m2_material::gx_blend(batch.blend_mode)?,
+            two_sided: batch.render_flags & 0x4 != 0,
+            depth_test: batch.render_flags & 0x8 == 0,
+            depth_write: batch.render_flags & 0x10 == 0,
+        })
+    }
+
+    fn opaque(self) -> bool {
+        self.gx_blend <= 1
+    }
+
+    /// Godot blend state for the GX blend and its GL factors: Alpha (SRC_ALPHA,
+    /// 1-SRC_ALPHA), NoAlphaAdd (ONE, ONE), Add (SRC_ALPHA, ONE), Mod (DST_COLOR, ZERO),
+    /// Mod2x (DST_COLOR, SRC_COLOR), BlendAdd (ONE, 1-SRC_ALPHA). Mod2x multiplies by
+    /// twice the output (the shader doubles it); NoAlphaAdd writes alpha 1 so the add
+    /// ignores it.
+    fn blend(self) -> &'static str {
+        match self.gx_blend {
+            0..=2 => "blend_mix",
+            3 | 10 => "blend_add",
+            4 | 5 => "blend_mul",
+            _ => "blend_premul_alpha",
+        }
+    }
+
+    /// `depth_write` decides the draw for blended batches too: the reference keeps
+    /// writing depth for them unless flag 0x10 clears it, so later triangles of the same
+    /// batch behind earlier ones fail the depth test.
+    fn render_mode(self, fading: bool) -> String {
+        let cull = if self.two_sided {
+            "cull_disabled"
+        } else {
+            "cull_back"
+        };
+        let depth = match (self.depth_write, self.opaque() && !fading) {
+            (false, _) => ", depth_draw_never",
+            (true, true) => "",
+            (true, false) => ", depth_draw_always",
+        };
+        let test = if self.depth_test {
+            ""
+        } else {
+            ", depth_test_disabled"
+        };
+        format!(
+            "render_mode ambient_light_disabled, fog_disabled, specular_disabled, {cull}, {}{depth}{test};",
+            self.blend()
+        )
+    }
+}
+
+/// A batch's shader and, when opaque, its scenery-fade shader, made once per pipeline.
+fn batch_shaders(pipeline: Pipeline) -> Result<(Gd<Shader>, Option<Gd<Shader>>), String> {
+    if let Some(shaders) = BATCH_SHADERS.with_borrow(|shaders| shaders.get(&pipeline).cloned()) {
         return Ok(shaders);
     }
     let source = ResourceLoader::singleton()
@@ -169,55 +258,11 @@ fn batch_shaders(
         .map_err(|_| format!("M2 shader {SHADER_PATH} has wrong resource type"))?
         .get_code()
         .to_string();
-    let shader = shared_shader(&shader_variant(&source, batch, effect)?);
-    let fade = scenery_fade_variant(&source, batch, effect)?.map(|fade| shared_shader(&fade));
-    BATCH_SHADERS.with_borrow_mut(|shaders| shaders.insert(key, (shader.clone(), fade.clone())));
+    let shader = shared_shader(&shader_variant(&source, pipeline)?);
+    let fade = scenery_fade_variant(&source, pipeline)?.map(|fade| shared_shader(&fade));
+    BATCH_SHADERS
+        .with_borrow_mut(|shaders| shaders.insert(pipeline, (shader.clone(), fade.clone())));
     Ok((shader, fade))
-}
-
-fn bind_textures(
-    material: &mut Gd<ShaderMaterial>,
-    base: Option<Gd<ImageTexture>>,
-    second: Option<Gd<ImageTexture>>,
-) -> Result<(), String> {
-    if let Some(texture) = base {
-        material.set_shader_parameter("base_texture", &texture.to_variant());
-    }
-    if let Some(texture) = second {
-        material.set_shader_parameter("second_texture", &texture.to_variant());
-    }
-    Ok(())
-}
-
-fn bind_uniforms(material: &mut Gd<ShaderMaterial>, batch: &ResolvedBatch, effect: bool) {
-    material.set_shader_parameter("effect_mode", &(effect as i32).to_variant());
-    material.set_shader_parameter("shader_id", &(batch.shader_id as i32).to_variant());
-    material.set_shader_parameter("render_flags", &(batch.render_flags as i32).to_variant());
-    material.set_shader_parameter("gx_blend", &gx_blend(batch.blend_mode).to_variant());
-    material.set_shader_parameter("uv_mode_1", &(batch.use_uv_2_1 as i32).to_variant());
-    material.set_shader_parameter("uv_mode_2", &(batch.use_uv_2_2 as i32).to_variant());
-    material.set_shader_parameter("transparency", &batch.transparency.to_variant());
-    let alpha_test = match batch.blend_mode {
-        1 => 224.0 / 255.0 * batch.transparency,
-        2..=7 if effect => 1.0 / 255.0 * batch.transparency,
-        _ => 0.0,
-    };
-    material.set_shader_parameter("alpha_test", &alpha_test.to_variant());
-}
-
-/// Godot blend state for an M2 blend mode, after WebWowViewerCpp's M2 → EGxBlend
-/// table and its GL blend factors: Alpha (SRC_ALPHA, 1-SRC_ALPHA), NoAlphaAdd (ONE,
-/// ONE), Add (SRC_ALPHA, ONE), Mod (DST_COLOR, ZERO), Mod2x (DST_COLOR, SRC_COLOR),
-/// BlendAdd (ONE, 1-SRC_ALPHA). Mod2x multiplies by twice the output (the shader
-/// doubles it); NoAlphaAdd writes alpha 1 so the add ignores it.
-fn blend_render_mode(blend_mode: u16) -> &'static str {
-    match blend_mode {
-        0..=2 => "blend_mix",
-        3 | 4 => "blend_add",
-        5 | 6 => "blend_mul",
-        7 => "blend_premul_alpha",
-        _ => "blend_add",
-    }
 }
 
 /// Metadata of an opaque (blend 0/1) M2 material: the shader variant a placement
@@ -302,11 +347,11 @@ impl SceneryFade {
     }
 }
 
-fn shader_variant(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<String, String> {
-    let variant = with_render_mode(source, batch, effect)?;
-    let alpha = match batch.blend_mode {
+fn shader_variant(source: &str, pipeline: Pipeline) -> Result<String, String> {
+    let variant = with_render_mode(source, pipeline, false)?;
+    let alpha = match pipeline.gx_blend {
         0 | 1 => "",
-        3 => "ALPHA = 1.0;",
+        10 => "ALPHA = 1.0;",
         _ => return Ok(variant),
     };
     replace_alpha(&variant, alpha)
@@ -314,22 +359,14 @@ fn shader_variant(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<S
 
 /// The blended variant of an opaque batch: source-alpha blending by the placement's
 /// `scenery_opacity` alone, as the opaque combiners ignore texture alpha. Blended
-/// batches already multiply their alpha by it.
-fn scenery_fade_variant(
-    source: &str,
-    batch: &ResolvedBatch,
-    effect: bool,
-) -> Result<Option<String>, String> {
-    if batch.blend_mode > 1 {
+/// batches already multiply their alpha by it. It keeps the opaque depth write, as the
+/// fade only enables blending: without it the overlapping cards of a fading tree
+/// compound their coverage toward opaque.
+fn scenery_fade_variant(source: &str, pipeline: Pipeline) -> Result<Option<String>, String> {
+    if !pipeline.opaque() {
         return Ok(None);
     }
-    // Keep the opaque depth write, as the fade only enables blending: without it the
-    // overlapping cards of a fading tree compound their coverage toward opaque.
-    let variant = with_render_mode(source, batch, effect)?.replacen(
-        "blend_mix;",
-        "blend_mix, depth_draw_always;",
-        1,
-    );
+    let variant = with_render_mode(source, pipeline, true)?;
     replace_alpha(&variant, "ALPHA = scenery_opacity;").map(Some)
 }
 
@@ -341,41 +378,14 @@ fn replace_alpha(variant: &str, alpha: &str) -> Result<String, String> {
     Ok(variant.replace(AUTHORED, alpha))
 }
 
-fn with_render_mode(source: &str, batch: &ResolvedBatch, effect: bool) -> Result<String, String> {
-    let blend = blend_render_mode(batch.blend_mode);
-    let cull = if !effect && batch.render_flags & 4 != 0 {
-        "cull_disabled"
-    } else {
-        "cull_back"
-    };
-    let depth = if effect { ", depth_draw_never" } else { "" };
-    let render_mode = format!(
-        "render_mode ambient_light_disabled, fog_disabled, specular_disabled, {cull}, {blend}{depth};"
-    );
-    let (variant, count) = (
-        source.replace(RENDER_MODE, &render_mode),
-        source.matches(RENDER_MODE).count(),
-    );
+fn with_render_mode(source: &str, pipeline: Pipeline, fading: bool) -> Result<String, String> {
+    let count = source.matches(RENDER_MODE).count();
     if count != 1 {
         return Err(format!(
             "Expected one M2 render_mode declaration, found {count}"
         ));
     }
-    Ok(variant)
-}
-
-fn gx_blend(mode: u16) -> i32 {
-    match mode {
-        0 => 0,
-        1 => 1,
-        2 => 2,
-        3 => 10,
-        4 => 3,
-        5 => 4,
-        6 => 5,
-        7 => 13,
-        _ => 0,
-    }
+    Ok(source.replace(RENDER_MODE, &pipeline.render_mode(fading)))
 }
 
 fn texture_path(fdid: u32, dir: &Path) -> PathBuf {
@@ -400,17 +410,20 @@ pub(crate) fn load_texture(
     Ok(Some((rgba.pixels, rgba.width, rgba.height)))
 }
 
-fn batch_texture(
+/// A batch's base texture: the file, with its character overlays composited on the CPU.
+fn base_texture(
     fdid: u32,
-    batch: &ResolvedBatch,
-    effect: bool,
+    overlays: &[TextureOverlay],
     dir: &Path,
     missing: &mut PackedInt32Array,
 ) -> Result<Option<Gd<ImageTexture>>, String> {
-    let key = TextureKey::for_batch(fdid, batch, effect, dir);
-    if !key.is_composite() {
+    if overlays.is_empty() {
         return shared_texture(fdid, dir, missing);
     }
+    let key = TextureKey {
+        overlays: overlays.to_vec(),
+        ..TextureKey::plain(fdid, dir)
+    };
     if let Some(texture) = TEXTURES.with_borrow(|textures| textures.get(&key).cloned()) {
         return Ok(Some(texture));
     }
@@ -418,7 +431,7 @@ fn batch_texture(
         return Ok(None);
     };
     let missing_before = missing.len();
-    compose_texture(&mut pixels, width, height, &key, missing)?;
+    compose_overlays(&mut pixels, width, &key, missing)?;
     let texture = texture_from_rgba(&pixels, width, height)?;
     // A composite missing a layer is reported again to every model that uses it.
     if missing.len() == missing_before {
@@ -488,20 +501,12 @@ pub(crate) fn texture_from_gpu_image(image: blp::GpuImage) -> Result<Gd<ImageTex
         .ok_or_else(|| format!("Godot rejected {width}x{height} {format:?} texture"))
 }
 
-fn compose_texture(
+fn compose_overlays(
     pixels: &mut [u8],
     width: u32,
-    height: u32,
     key: &TextureKey,
     missing: &mut PackedInt32Array,
 ) -> Result<(), String> {
-    if let Some((fdid, shader_id)) = key.second {
-        if let Some((second, w, h)) = load_texture(fdid, &key.dir, missing)? {
-            m2_texture_composite_data::composite_second_texture_pixels(
-                pixels, width, height, &second, w, h, shader_id,
-            );
-        }
-    }
     for overlay in &key.overlays {
         if let Some((bytes, w, h)) = load_texture(overlay.fdid, &key.dir, missing)? {
             m2_texture_composite_data::composite_overlay_pixels(
