@@ -66,6 +66,12 @@ The fixture's bounds were a 100 ms frame limit and 300 s to settle. "Settled" me
 | R2 branch 2 | 44 | 13.6 s | 0.91 s | 131 / 627 ms | 0.91 s | 1156 | no (2135) |
 | R2 base 3 | 31 | 29.3 s | 24.7 s | 116 / 1736 ms | 3.48 s | 1231 | no (6556) |
 | R2 branch 3 | 30 | 46.7 s | 0.80 s | 143 / 450 ms | 29.4 s | 1299 | no (1111) |
+| R3 base 1 | 18 | 25.6 s | 21.3 s | 96 / 808 ms | 3.01 s | 1144 | no (4851) |
+| R3 branch 1 | 13 | 4.6 s | 0.27 s | 81 / 335 ms | 0.53 s | 461 | 119 s |
+| R3 base 2 | 21 | 17.3 s | 15.1 s | 47 / 155 ms | 0.66 s | 59 | 137 s |
+| R3 branch 2 | 7-14 | 4.7 s | 0.20 s | 49 / 91 ms | 0.43 s | 4 | 30 s |
+
+**Round 3** compared base `4b20e16e` with branch `e0728e69`. Both include the resolver-cache change (`237d3c27`), so both reuse `~/.cache/asset-resolver`, and neither rebuilt the CASC table. Base still blocked one frame for 15-21 s, so that stall is the synchronous unit visuals, not the CASC cache. VmHWM at the end was 3.66 and 4.09 GB for base, 2.73 and 2.80 GB for the branch.
 
 - **Longest loading frame:** 17.6-47.7 s in base, 0.22-0.91 s on the branch.
 - **Longest world frame:** 0.62-7.4 s in base. On the branch it was 0.45-1.25 s, except one 29.4 s frame in R2 branch 3.
@@ -91,7 +97,7 @@ Single runs at low load (GAME_PROFILE_MS on, branch before the merge):
   - one terrain chunk's first-use ground textures (RGBA uploads): "Terrain materials" steps of 22-46 ms;
   - a WMO shader variant's first compile: 35-94 ms.
 - **Throughput under load.** Spawning gets at most 8 ms of main-thread time per frame. At 7-10 fps (load 30-44) the ~10,000 placements, WMO doodads included, do not drain in 300 s. An adaptive budget or retail-style distance ordering would help, but neither is implemented.
-- **Memory:** the parsed-model cache (`creature::MODELS`) and the doodad/WMO asset caches are kept for the whole process, across world changes. One run each was measured 120 s after the loading screen hid, at load about 40 with swap full: the branch was at 2.30 GB VmHWM with 3,866 objects spawned, base at 3.46 GB with 1,937. Swapping lowers resident size, so these figures do not show whether the caches add or save memory.
+- **Memory:** the parsed-model cache (`creature::MODELS`) and the doodad/WMO asset caches are kept for the whole process, across world changes. In round 3 the branch peaked at 2.73-2.80 GB VmHWM and base at 3.66-4.09 GB, with every object spawned in R3 base 2 and both branch runs. The caches' size across world changes is not measured.
 - **Shutdown:** in R2 branch 3, Godot's main thread stayed in `pthread_join` on one of Godot's own threads after the fixture failed. No `unit-visuals`, `world-objects` or `spell-assets` threads were left, and the process was stopped by PID.
 - **No retail source:** none was found for the loading-screen wait set, or for how retail streams assets on its threads (see Fix).
 - **Tests not run on Depot:** `world_models` and `wmo::scene` unit tests need `data/` files that are not in `godot/depot-test-assets.txt`. They fail there with missing-file errors, as on master. `m2_submesh_arrays` (core) and the `loading` tests pass.
