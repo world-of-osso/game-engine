@@ -220,6 +220,7 @@ fn build_state(
         next_enabled: merchant.page + 1 < merchant.page_count(),
         // `GetRepairAllCost()` enables Repair All while anything is damaged.
         repair: merchant.can_repair.then_some(repair_cost > 0),
+        repair_mode: false,
         last_buyback: merchant.last_buyback().map(|item| MerchantCell {
             action: ACTION_BUYBACK_LAST.into(),
             ..buyback_cell(item, money, 0)

@@ -95,6 +95,7 @@ pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
 pub mod ui_layout_data;
+pub mod ui_sound_kits;
 #[path = "../../../src/sound/wmo_surface_data.rs"]
 pub mod wmo_surface_data;
 #[cfg(test)]

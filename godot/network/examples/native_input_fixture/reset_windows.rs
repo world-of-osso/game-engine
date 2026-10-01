@@ -48,7 +48,8 @@ const CACHE_FILES: &[&str] = &[
     "creature_display.sqlite",
     "npc_appearance.sqlite",
 ];
-const DATA_DIRS: &[&str] = &["glues", "fonts", "ui", "db2", "dbfilesclient"];
+/// `sounds/ui`: the interface sound kits (`godot/core` `ui_sound_kits`).
+const DATA_DIRS: &[&str] = &["glues", "fonts", "ui", "db2", "dbfilesclient", "sounds/ui"];
 const DATA_FILES: &[&str] = &[
     "AreaTable.csv",
     "Light.csv",
