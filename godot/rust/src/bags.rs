@@ -14,6 +14,7 @@ use ui_toolkit::widget_def::Element;
 
 use crate::GameClient;
 use crate::frame_error::FrameError;
+use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
 
 const BAGS_UI: &str = "BagsUI";
@@ -93,7 +94,7 @@ impl GameClient {
         let money = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id)?.gold)
+            .and_then(|id| self.replica.unit(id)?.gold())
             .unwrap_or(0);
         BagsView { containers, money }
     }
