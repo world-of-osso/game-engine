@@ -57,7 +57,7 @@ References:
 - [x] Escape, the close button and `InteractionClosed` close the frame; the first two send `CloseInteraction`.
 - [ ] Cursor item (pickup, drag-buy, drop-sell, bag split), tooltips, the Sell All Junk popup, the gossip frame, Retail ContainerFrame art.
 
-Prepared `merchant-cursor` is an independent owned native fixture mode, not a user game screen. Test `d825108c`/`2c00a751` and MAIN registration `3cb53ab4` add no production cursor implementation or actual RED/runtime acceptance. [Oracle and proof boundary](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--test-only-preparation-red-pending); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing merchant-click open/close, placement and audio gates remain unchanged.
+`merchant-cursor` is an independent owned native fixture mode, not a user game screen. Actual authenticated pickup RED precedes bounded native `b073e4dd`/`837e2c1e`; matching build, five runtime regressions and gate1446 pending, no accepted GREEN. First vendor → own embedded bag only. Right-click/Shift/buyback model paths remain retained, not full runtime proof. [Oracle, source coverage and proof boundary](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--actual-red-bounded-implementation-pending-gates); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing merchant-click open/close, placement and audio gates remain unchanged.
 
 ## Tests asserting this spec
 
