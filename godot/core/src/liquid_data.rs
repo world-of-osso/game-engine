@@ -12,13 +12,14 @@ use crate::csv_util::parse_csv_records;
 
 pub use crate::asset::adt_format::adt_tex::FIRST_LIQUID_OBJECT;
 
-/// The ocean LiquidObject. It has no DB2 row; its layers are flat at sea level (min and max
-/// height 0) and store LVF 2 depth-only vertices (wowdev ADT/v18 SMLiquidInstance: "≥ WoD
-/// ... assumes both 0.0 for LVF = 2"; noggit3 `liquid_layer.cpp`: "lvf 2 is only used for
-/// flat water at height 0"; WebWowViewerCpp `LiquidDataGetters.h` `getLiquidSettings` treats
-/// 42 as ocean). Every one of the 640,861 cached ocean-42 layers has no vertex block or an
-/// 81-byte one.
-pub const OCEAN_LIQUID_OBJECT: u16 = 42;
+/// LiquidType 2 "Ocean". Its LiquidObject layers (all on object 42, which has no DB2 row)
+/// are flat at sea level and store LVF 2 depth-only vertices, not their material's LVF 0
+/// (wowdev ADT/v18 SMLiquidInstance: "≥ WoD ... assumes both 0.0 for LVF = 2"; noggit3
+/// `liquid_layer.cpp`: "lvf 2 is only used for flat water at height 0"; WebWowViewerCpp
+/// `LiquidInstance.cpp` `createAdtVertexData` singles out liquid_type 2). In the cached tiles
+/// every type 2 vertex block is 81 bytes, and every other LiquidObject block, Kul Tiras Ocean
+/// 947 on object 42 included, has its material's LVF size.
+pub const OCEAN_LIQUID_TYPE: u32 = 2;
 const OCEAN_LVF: u8 = 2;
 
 /// Texture slots per LiquidType (`FrameCountTexture[6]`).
@@ -189,10 +190,9 @@ impl LiquidCatalog {
     }
 
     /// The liquid material of an MH2O instance (`liquid_type`, `liquid_object_or_lvf`).
-    /// A LiquidObject without a DB2 row ([`OCEAN_LIQUID_OBJECT`] and a few authored IDs the
-    /// shipped table omits) takes the instance's own `liquid_type` with no flow, as WebWowViewerCpp
-    /// `CSqliteDB::getLiquidObjectData` does; every present row's `LiquidTypeID` equals the
-    /// instances' `liquid_type` on all locally cached tiles.
+    /// A LiquidObject without a DB2 row (ocean object 42 and a few authored IDs the shipped
+    /// table omits) takes the instance's own `liquid_type` with no flow, as WebWowViewerCpp
+    /// `CSqliteDB::getLiquidObjectData` does.
     pub fn liquid_material(
         &self,
         liquid_type: u16,
@@ -213,7 +213,7 @@ impl LiquidCatalog {
             .material_lvf
             .get(&u32::from(row.material_id))
             .ok_or_else(|| format!("LiquidMaterial {} has no DB2 row", row.material_id))?;
-        let lvf = if liquid_object == OCEAN_LIQUID_OBJECT {
+        let lvf = if type_id == OCEAN_LIQUID_TYPE && liquid_object >= FIRST_LIQUID_OBJECT {
             OCEAN_LVF
         } else {
             material_lvf

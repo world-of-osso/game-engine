@@ -235,6 +235,30 @@ fn adventurers_rest_tiles_resolve_every_liquid_layer() {
     assert_eq!(objectless, 133);
 }
 
+/// Kul Tiras Ocean (LiquidType 947) also uses ocean object 42, but stores its material's
+/// LVF 0 heights and depths: kultiras_20_17 (FDID 1422588), all 256 layers at sea level
+/// with depth 255.
+#[test]
+fn kul_tiras_ocean_object_42_layers_read_material_lvf0() {
+    let catalog = catalog();
+    let bytes = std::fs::read(data_root().join("terrain/1422588.adt")).expect("cached ADT");
+    let mut water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
+    let layers: Vec<_> = water
+        .chunks
+        .iter_mut()
+        .flat_map(|chunk| &mut chunk.layers)
+        .collect();
+    assert_eq!(layers.len(), 256);
+    for layer in layers {
+        assert_eq!((layer.liquid_type, layer.liquid_object), (947, 42));
+        let material = catalog.liquid_material(947, 42).expect("Kul Tiras Ocean");
+        assert_eq!((material.liquid_type, material.lvf), (947, 0));
+        layer.decode_object_vertices(material.lvf).expect("LVF 0");
+        assert_eq!(layer.vertex_heights, [0.0; 81]);
+        assert_eq!(layer.vertex_depths, [255; 81]);
+    }
+}
+
 #[test]
 fn unknown_liquid_type_is_an_error() {
     let error = catalog().liquid_material(65_000, 0).unwrap_err();
