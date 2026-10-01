@@ -181,12 +181,6 @@ impl GameClient {
             return Ok(());
         }
         let cut = self.mailbox.read_inputs();
-        if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
-            self.poll_mailbox_input()?;
-        }
-        if !self.mailbox.session.is_open() {
-            return Ok(());
-        }
         let inventory = &self.merchant.session.inventory;
         self.mailbox.session.retain_attachments(inventory);
         let free = inventory.total_free_slots();
@@ -252,19 +246,6 @@ impl GameClient {
             ui.bind_mut().set_editbox_text(name, text)?;
         }
         self.mailbox.texts.insert(name, text.to_string());
-        Ok(())
-    }
-    fn poll_mailbox_input(&mut self) -> Result<(), FrameError> {
-        let Some(mut ui) = self.mailbox.ui.clone() else {
-            return Ok(());
-        };
-        let inputs = ui.bind_mut().drain_bag_inputs()?;
-        for input in inputs {
-            self.dispatch_bag_cursor_input(input)?;
-            if !self.mailbox.session.is_open() {
-                break;
-            }
-        }
         Ok(())
     }
     pub(super) fn mail_input_owner(&self, owner: i64) -> bool {
