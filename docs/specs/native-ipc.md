@@ -32,6 +32,18 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 - [ ] Omit nonsemantic spatial groups, UI containers and procedural meshes without retyping them as Scene/Object. Retain nearest exported semantic ancestry; accumulate local `Transform3D` through skipped Node3D groups, resetting for children of selected nodes. Export translation/rotation-quaternion/scale arrays relative to the nearest exported ancestor; no global-transform substitution or coordinate fallback.
 - [ ] Do not fabricate character race/gender/name/ID, background/doodad counts, equipment slots/anchors, generic mesh-resource identity or unsupported Player/Npc/Terrain/Ground semantics. Legacy JSON compatibility does not mean full legacy semantic parity.
 
+### Dev-tool requests
+
+The client answers these from its live state (`godot/rust/src/ipc/dev.rs`) in the original response text; other requests still reach the unported error.
+
+- [x] `status network`: bridge endpoint, game state, Netcode `Connected`, client id, zone, replicated entity count, local player, chat messages.
+- [x] `status sound`: sound node present, mute and master/ambient volumes from options, ambience playing, playing audio players.
+- [x] `status terrain`: map, the map request's tile, initial/loaded/pending/failed tiles, process memory. The original's Bevy asset-store and cache counters have no native source and are not reported.
+- [x] `map position`: zone and the local player's x,z; the native client has no waypoint or graveyard marker (`-`). No local player is an error.
+- [x] `camera set`: the original angle validation and reply; the live camera follows the new orbit.
+- [x] `movement forward|stop`: the original duration/heading validation; forward steps along the heading for the duration, manual movement input or a modal cancels it, stop reports one stop input.
+- [x] `hover --x/--y|--npc`: pointer motion through the root window at the point or the nearest named NPC in front of the camera (1 yd above its origin), driving hover tooltips; outside the window or no such NPC is an error.
+
 ## How it works
 
 - [Godot conversion architecture and current proof boundaries](../wiki/systems/godot-conversion.md)
@@ -56,6 +68,8 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 MAIN-observed pre-implementation RED: `/tmp/claude/native-ipc-third-runtime-red.log`, October 1, 2026. Actual Login READY precedes public CLI `ping` failing with `No such file or directory`; this is socket absence, not a fixture setup failure. MAIN accepts independent1531 **bounded PASS** at formatter fix `68dfe530`: [acceptance SSOT](/tmp/claude/verify-native-ipc-diagnostics-accepted.md). Scope: six public diagnostics and the unchanged fixture's normal exit/own socket cleanup, not full conversion.
 
 Export RED at `d1981968`, October 1, 2026: `/tmp/claude/native-export-scene-first-red-runtime.log` records READY PID635186; retained `data/diagnostics/native-ipc-635183/export-scene.stderr` records public CLI `ExportScene` unported failure (parent exit1). Depot `330ww90wlr0`; the existing six diagnostic requests passed before RED. This is missing consumer behavior, not setup failure. New export implementation has no compile/runtime GREEN or full semantic acceptance yet.
+
+- `native_input_fixture dev-ipc` + `godot/tests/world_dev_ipc_flow.gd` — public CLI against the live client: exact status/map replies, vendor tooltip on `hover --npc`, cleared on a sky point, camera forward after `camera set`, eastward `PlayerInput`s, 7 yd and one stop for `movement forward --seconds 1 --yaw-degrees 90`, `movement stop` ending a 30 s run, and the error replies.
 
 ## Known gaps (current cycle)
 
