@@ -144,6 +144,34 @@ pub fn compose<'a>(
     out
 }
 
+/// Tints the composite inside each quest objective polygon (engine `(x, z)` points,
+/// three or more) with the shared quest area overlay; returns how many pixels changed.
+pub fn tint_quest_areas(
+    view: &MinimapView,
+    size: u32,
+    pixels: &mut [u8],
+    areas: &[Vec<[f32; 2]>],
+) -> usize {
+    let scale = size as f32 / view.diameter;
+    let half = size as f32 / 2.0;
+    // Engine (x, z) to composite pixels: right is +z, down is -x.
+    let polygons: Vec<Vec<[f32; 2]>> = areas
+        .iter()
+        .map(|area| {
+            area.iter()
+                .map(|[x, z]| {
+                    [
+                        half + (z - view.center[1]) * scale,
+                        half + (view.center[0] - x) * scale,
+                    ]
+                })
+                .collect()
+        })
+        .collect();
+    let overlay = crate::quest_area_data::quest_area_overlay(size, size, &polygons);
+    crate::quest_area_data::blend_overlay(pixels, &overlay)
+}
+
 /// Bilinear sample at `uv`, clamped to the tile edge.
 pub fn sample(image: &TileImage, [u, v]: [f32; 2]) -> [u8; 4] {
     let (w, h) = (image.width as usize, image.height as usize);

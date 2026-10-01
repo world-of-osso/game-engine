@@ -183,6 +183,7 @@ pub mod pvp;
 pub mod pvp_data;
 #[path = "game/quest_actions.rs"]
 pub mod quest_actions;
+pub mod quest_area_data;
 #[path = "game/quest_data.rs"]
 pub mod quest_data;
 #[path = "game/quest_runtime.rs"]

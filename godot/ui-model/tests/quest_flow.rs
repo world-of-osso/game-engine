@@ -129,6 +129,16 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 
+fn fixed_height(registry: &FrameRegistry, name: &str) -> f32 {
+    let id = registry
+        .get_by_name(name)
+        .unwrap_or_else(|| panic!("{name} missing"));
+    match registry.get(id).unwrap().height {
+        ui_toolkit::frame::Dimension::Fixed(height) => height,
+        other => panic!("{name} height is {other:?}"),
+    }
+}
+
 /// Click the rendered button `name`.
 fn click(
     registry: &FrameRegistry,
@@ -161,7 +171,12 @@ fn pick_up_from_the_greeting_shows_details_and_accept_sends_accept_then_close() 
         "Beating Them Back!"
     );
     assert_eq!(
-        sent(click(&greeting, "QuestTitleButton1Text", &mut runtime, &mut ui)),
+        sent(click(
+            &greeting,
+            "QuestTitleButton1Text",
+            &mut runtime,
+            &mut ui
+        )),
         [R::QueryQuest {
             npc: MCBRIDE,
             quest_id: BEATING_THEM_BACK
@@ -174,7 +189,7 @@ fn pick_up_from_the_greeting_shows_details_and_accept_sends_accept_then_close() 
             npc: MCBRIDE,
             quest_id: BEATING_THEM_BACK,
             title: "Beating Them Back!".into(),
-            description: "Welcome, $c. The worgs press our lines.".into(),
+            description: "Welcome, $c.$B$BThe worgs press our lines.".into(),
             objectives_text: "Kill 6 Blackrock Worgs.".into(),
             level: -1,
             min_level: 1,
@@ -188,6 +203,18 @@ fn pick_up_from_the_greeting_shows_details_and_accept_sends_accept_then_close() 
     );
     let detail = render_frame(&runtime);
     assert_eq!(text(&detail, "QuestInfoMoneyText"), "Money: 20 Silver");
+    // `$B$B` breaks the story into three lines; its block holds all three so the
+    // native label does not squeeze them together.
+    assert_eq!(
+        text(&detail, "QuestInfoDescriptionText"),
+        "Welcome, warrior.\n\nThe worgs press our lines."
+    );
+    let description = fixed_height(&detail, "QuestInfoDescriptionText");
+    let line = fixed_height(&detail, "QuestInfoTitleHeader") * 13.0 / 18.0;
+    assert!(
+        description >= 3.0 * line,
+        "description block {description} is shorter than three {line} lines"
+    );
     let effects = sent(click(
         &detail,
         "QuestFrameAcceptButton",
@@ -214,7 +241,12 @@ fn turn_in_needs_a_reward_choice_and_then_sends_the_chosen_index() {
     mcbride_greeting(&mut runtime, QuestGiverQuestState::Complete);
     let greeting = render_frame(&runtime);
     assert_eq!(
-        sent(click(&greeting, "QuestTitleButton1Text", &mut runtime, &mut ui)),
+        sent(click(
+            &greeting,
+            "QuestTitleButton1Text",
+            &mut runtime,
+            &mut ui
+        )),
         [R::Complete {
             npc: MCBRIDE,
             quest_id: BEATING_THEM_BACK
@@ -406,4 +438,46 @@ fn markers_use_the_talktome_models_and_hide_trivial_quests() {
     assert_eq!(marker(QuestGiverStatus::Incomplete), Some(130_735));
     assert_eq!(marker(QuestGiverStatus::LowLevelAvailable), None);
     assert_eq!(marker(QuestGiverStatus::None), None);
+}
+
+#[test]
+fn watched_unfinished_objectives_are_the_outlined_areas() {
+    let area = |objective_index: i32, points: usize| QuestPoiSnapshot {
+        objective_index,
+        map_id: 0,
+        world_map_area_id: 425,
+        floor: 0,
+        priority: 0,
+        flags: 1,
+        points: (0..points as i32)
+            .map(|i| QuestPoiPoint {
+                x: -8894 + i * 10,
+                y: -138 + i * i,
+            })
+            .collect(),
+    };
+    let with_areas = |mut entry: QuestEntrySnapshot| {
+        // Turn-in point, the worg field, and a one-point marker.
+        entry.pois = vec![area(-1, 1), area(0, 7), area(32, 1)];
+        entry
+    };
+    let mut lions = with_areas(worgs(0));
+    lions.quest_id = LIONS_FOR_LAMBS;
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![with_areas(worgs(2)), lions],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
+    let areas = runtime.watched_objective_areas();
+    assert_eq!(areas.len(), 1, "only the watched quest's worg field");
+    assert_eq!((areas[0].objective_index, areas[0].points.len()), (0, 7));
+    runtime.apply_update(QuestLogUpdate {
+        changed: vec![with_areas(worgs(6))],
+        removed: Vec::new(),
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
+    assert!(
+        runtime.watched_objective_areas().is_empty(),
+        "a finished quest shows its turn-in pin, not its areas"
+    );
 }

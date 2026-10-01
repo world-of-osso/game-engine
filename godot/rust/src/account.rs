@@ -99,6 +99,8 @@ pub struct Account {
     pub combat_log_seq: u64,
     /// The server's newest damage meter sessions.
     pub damage_meter: Option<DamageMeterSnapshot>,
+    /// The newest `PlayerXpUpdate`: XP into the level and the level's requirement.
+    pub xp: Option<shared::protocol::PlayerXpUpdate>,
     /// Party/raid roster, live member states, the ready check and the pending invite.
     pub group: GroupState,
 }
@@ -216,6 +218,7 @@ impl Account {
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
             damage_meter: None,
+            xp: None,
             group: GroupState::default(),
         }
     }
@@ -260,6 +263,7 @@ impl Account {
         self.spells.clear();
         self.combat_log.clear();
         self.damage_meter = None;
+        self.xp = None;
         self.group = GroupState::default();
         self.quests = QuestRuntime::default();
         self.session.token = self.read_token()?;
@@ -733,6 +737,7 @@ impl Account {
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<DamageMeterSnapshot>()
+            || message.is::<shared::protocol::PlayerXpUpdate>()
     }
 
     fn dispatch_account_state_message(
@@ -757,6 +762,10 @@ impl Account {
                     .into_iter()
                     .map(|entry| (entry.npc, entry.status)),
             );
+            return Ok(());
+        }
+        if message.is::<shared::protocol::PlayerXpUpdate>() {
+            self.xp = Some(decode(message)?);
             return Ok(());
         }
         if message.is::<DamageMeterSnapshot>() {

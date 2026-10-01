@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use game_engine_core::character_model_data::{class_name, race_name};
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::chat_data::ChatChannelType;
 use game_engine_ui_model::chat_frame::add_system_line;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult};
 use game_engine_ui_model::quest_actions::{ABANDON_QUEST_POPUP, QuestUiEffect, quest_ui_action};
@@ -591,6 +592,15 @@ impl GameClient {
 
 #[godot_api(secondary)]
 impl GameClient {
+    /// Whether replicated unit `id` has health left.
+    #[func]
+    fn unit_alive(&self, id: i64) -> bool {
+        self.replica
+            .unit(id as u64)
+            .and_then(|unit| unit.get::<shared::components::Health>())
+            .is_some_and(|health| health.current > 0.0)
+    }
+
     /// Quest state for automation: the open dialog page, the log, the watch list and the
     /// marker model on each quest giver.
     #[func]
@@ -655,6 +665,20 @@ impl GameClient {
             statuses.set(*npc as i64, format!("{status:?}").as_str());
         }
         result.set("giver_status", &statuses);
+        if let Some(xp) = self.account.xp {
+            result.set("xp", i64::from(xp.xp));
+            result.set("next_level_xp", i64::from(xp.next_level_xp));
+        }
+        let lines: PackedStringArray = self
+            .chat
+            .model
+            .log
+            .messages
+            .iter()
+            .filter(|message| message.channel_type == ChatChannelType::System)
+            .map(|message| GString::from(message.text.as_str()))
+            .collect();
+        result.set("system_lines", &lines);
         result
     }
 }

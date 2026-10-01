@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use game_engine_core::minimap_data::{
     AreaCatalog, MinimapView, TileImage, TileKey, compose, parse_race_faction_groups, sample,
-    tile_path, zoom_in, zoom_out,
+    tile_path, tint_quest_areas, zoom_in, zoom_out,
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::minimap::{
@@ -46,6 +46,9 @@ pub(crate) struct Minimap {
     chrome: HashMap<u32, bool>,
     /// Map and view of the current composite, and its pixels.
     drawn: Option<(String, MinimapView, Vec<u8>)>,
+    /// Quest objective areas (engine `(x, z)` polygons) tinted into the composite, and
+    /// the pixels they cover.
+    quest_areas: (Vec<Vec<[f32; 2]>>, usize),
 }
 
 struct Catalogs {
@@ -291,8 +294,10 @@ impl GameClient {
         let map = self.terrain.map_name()?.to_owned();
         let view = MinimapView::new(position, self.minimap.zoom);
         let pixel_yards = view.diameter / COMPOSITE_PX as f32;
+        let areas = self.minimap_quest_areas();
         if let Some((drawn_map, drawn, _)) = &self.minimap.drawn
             && *drawn_map == map
+            && self.minimap.quest_areas.0 == areas
             && drawn.diameter == view.diameter
             && (drawn.center[0] - view.center[0]).hypot(drawn.center[1] - view.center[1])
                 < pixel_yards / 2.0
@@ -303,11 +308,33 @@ impl GameClient {
             self.minimap.load_tile(&self.data_root, &map, key);
         }
         let minimap = &self.minimap;
-        let pixels = compose(&view, COMPOSITE_PX, |key| {
+        let mut pixels = compose(&view, COMPOSITE_PX, |key| {
             minimap.tile(&map, key).map(|tile| &tile.image)
         });
+        let tinted = tint_quest_areas(&view, COMPOSITE_PX, &mut pixels, &areas);
+        self.minimap.quest_areas = (areas, tinted);
         self.minimap.drawn = Some((map, view, pixels.clone()));
         Some((COMPOSITE_PX, pixels))
+    }
+
+    /// Objective areas of the watched quests on the player's map, as engine `(x, z)`
+    /// polygons (world `(x, y)` is engine `(x, -z)`).
+    fn minimap_quest_areas(&self) -> Vec<Vec<[f32; 2]>> {
+        let Some(map_id) = self.world_map_id else {
+            return Vec::new();
+        };
+        self.account
+            .quests
+            .watched_objective_areas()
+            .into_iter()
+            .filter(|poi| poi.map_id == map_id)
+            .map(|poi| {
+                poi.points
+                    .iter()
+                    .map(|point| [point.x as f32, -(point.y as f32)])
+                    .collect()
+            })
+            .collect()
     }
 
     fn sync_minimap(&mut self) -> Result<(), String> {
@@ -393,6 +420,14 @@ impl GameClient {
         if let Some((_, yaw)) = self.minimap_player() {
             result.set("facing_yaw", yaw);
         }
+        let mut areas = VarArray::new();
+        for area in &self.minimap.quest_areas.0 {
+            let points: PackedVector2Array =
+                area.iter().map(|[x, z]| Vector2::new(*x, *z)).collect();
+            areas.push(&points.to_variant());
+        }
+        result.set("quest_areas", &areas);
+        result.set("quest_area_pixels", self.minimap.quest_areas.1 as i64);
         self.describe_minimap_composite(&mut result);
         self.describe_minimap_frames(&mut result);
         result

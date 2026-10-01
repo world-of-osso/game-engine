@@ -13,7 +13,7 @@ use shared::protocol::{
     GossipMenu, GossipMenuOption, NpcRole, QuestEntrySnapshot, QuestFailedReason,
     QuestGiverOfferReward, QuestGiverQuestComplete, QuestGiverQuestDetails, QuestGiverQuestEntry,
     QuestGiverQuestList, QuestGiverRequestItems, QuestGiverStatus, QuestLogSnapshot,
-    QuestLogUpdate,
+    QuestLogUpdate, QuestPoiSnapshot,
 };
 
 #[cfg_attr(not(godot_host), derive(Resource))]
@@ -133,6 +133,23 @@ impl QuestRuntime {
         self.watched
             .iter()
             .filter_map(|id| self.entry(*id))
+            .collect()
+    }
+
+    /// Objective areas (`QuestPOI` blobs) of the watched quests: the polygons of each
+    /// unfinished objective; finished quests show their turn-in pin instead.
+    pub fn watched_objective_areas(&self) -> Vec<&QuestPoiSnapshot> {
+        self.watched_entries()
+            .into_iter()
+            .filter(|entry| !entry.completed)
+            .flat_map(|entry| {
+                entry.pois.iter().filter(move |poi| {
+                    let objective = usize::try_from(poi.objective_index)
+                        .ok()
+                        .and_then(|index| entry.objectives.get(index));
+                    poi.points.len() >= 3 && objective.is_some_and(|objective| !objective.completed)
+                })
+            })
             .collect()
     }
 

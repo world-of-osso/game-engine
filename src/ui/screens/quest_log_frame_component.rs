@@ -10,7 +10,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
     QUEST_LOG_DIVIDER, QUEST_PARCHMENT, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
-    line_height, panel_button, window_chrome, wrapped_text_height,
+    panel_button, window_chrome, wrapped_text_height,
 };
 use crate::ui::screens::quest_frame_component::{Column, RewardView, rewards_section};
 use crate::ui::strata::FrameStrata;
@@ -364,12 +364,13 @@ fn details_pane(details: Option<&QuestLogDetails>) -> Element {
 
 fn details_text(name: &str, text: &str, font_size: f32, color: &str, y: &mut f32) -> Element {
     let top = *y;
-    *y += wrapped_text_height(text, DETAILS_TEXT_W, font_size);
+    let height = wrapped_text_height(text, DETAILS_TEXT_W, font_size);
+    *y += height;
     rsx! {
         fontstring {
             name: {DynName(name.into())},
             width: DETAILS_TEXT_W,
-            height: {line_height(font_size)},
+            height,
             text,
             font: GameFont::FrizQuadrata,
             font_size,
