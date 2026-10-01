@@ -5,7 +5,7 @@ Last updated: 2026-09-29.
 
 ## Systems
 
-- [Native standalone bags](systems/godot-conversion.md#native-standalone-bags--red-host-implementation-proof-pending) — Authored HUD RED exit 101; `91bbc703` host implemented, portable manager/layout APIs and visibility runtime proof pending. Full conversion open; inventory interactions and unified window ownership unproven.
+- [Native standalone bags](systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending) — Bounded window PASS; final cursor UI/network parent0 at `40497cb7`, retained event-pointer fix, exact once swap/split and authoritative final1/2. Native build passes; independent cursor agent1360 pending. Full conversion open; NPC/global ownership and normal shutdown unproved.
 
 Engine subsystems and how they work.
 
@@ -71,7 +71,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [local-animation-loading-gate](investigations/local-animation-loading-gate.md) — first cursor GREEN fails before readiness after async world entry; `f7b137fb` gates local animation on InWorld without suppressing missing-visual errors. Post-gate rebuild/GREEN/independent proof pending.
+- [local-animation-loading-gate](investigations/local-animation-loading-gate.md) — first cursor GREEN fails before readiness after async world entry; `f7b137fb` gates local animation on InWorld without suppressing missing-visual errors. `76487261` import fix reaches READY; `40497cb7` fixes actual cursor event-pointer DataMismatch and final UI/network flow exits0. Independent cursor gate pending; no exact request-timing claim.
 
 - [charcreate-invalid-customization-combos](investigations/charcreate-invalid-customization-combos.md) — Tan swatch + face 27 rendered a teal body: overlay/tint layer blend modes were copied opaquely; Death Knight/NPC/transmog choices were offered because ChrCustomizationReq/ReqChoice were not evaluated.
 - [godot-torch-rendering](investigations/godot-torch-rendering.md) — particledebug torch vs solarity/WebWowViewerCpp: halo quad needed bone billboarding and the flame's M2 point light was never rendered; both added, remaining gaps listed.
