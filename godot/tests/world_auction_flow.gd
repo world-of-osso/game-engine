@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/world_loot_options_flow.gd"
 
 # Main runs AFTER game-cli proof, using an owned loopback server and disposable roster.
 # Startup: -- --screen inworld --server <loopback> --char <fixture character>.
@@ -33,6 +33,7 @@ func run_test() -> void:
 		return
 	if not await open_auction():
 		return
+	await capture_auction("auction-open.png")
 	if mode == "seller":
 		if not await seller_operations():
 			return
@@ -162,11 +163,10 @@ func open_auction() -> bool:
 			var area := unit.find_child("UnitPick", true, false) as Area3D
 			if area == null:
 				continue
-			var position := (area.get_child(0) as Node3D).global_position
-			var point := camera.unproject_position(position)
-			if not camera.is_position_in_frustum(position) or UnitPicker.pick(camera, point) != area.get_meta("unit_server_id"):
+			var picked := auctioneer_surface_point(unit, area, camera)
+			if picked.is_empty():
 				continue
-			await pointer(point, MOUSE_BUTTON_RIGHT)
+			await pointer(picked.point, MOUSE_BUTTON_RIGHT)
 			if not await wait_until(func(): return client.auction_state().open or (ui() != null and ui().find_child("AuctionGossip", true, false) != null), "auction interaction"):
 				return false
 			if not client.auction_state().open:
@@ -180,8 +180,41 @@ func open_auction() -> bool:
 					fail("Gossip lacks explicit auction option")
 					return false
 			return await wait_until(func(): return client.auction_state().open, "native auction open")
+	var units := client.get_node_or_null("WorldUnits")
+	var camera := root.get_camera_3d()
+	print("FIXTURE AUCTION_PICK_DIAGNOSTIC camera=", camera.global_transform if camera != null else null, " units=", units.get_children().map(func(unit): return {"name":str(unit.name),"position":unit.global_position}) if units != null else [])
+	await capture_auction("auction-pick-failure.png")
 	fail("Auctioneer must be nearby, visible and unoccluded")
 	return false
+
+func auctioneer_surface_point(unit: Node, area: Area3D, camera: Camera3D) -> Dictionary:
+	var model := unit.get_node_or_null("NpcVisualRoot/NpcModel")
+	if model == null:
+		return {}
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.mesh == null or not mesh.is_visible_in_tree():
+			continue
+		var palette := corpse_bone_palette(mesh)
+		for surface in range(mesh.mesh.get_surface_count()):
+			for center in corpse_triangle_centroids(mesh, surface, palette):
+				var point := camera.unproject_position(center)
+				if camera.is_position_in_frustum(center) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point) and UnitPicker.pick(camera, point) == area.get_meta("unit_server_id"):
+					return {"point":point}
+	return {}
+
+func capture_auction(file: String) -> void:
+	var directory := OS.get_environment("GODOT_AUCTION_SCREENSHOTS")
+	if directory.is_empty():
+		return
+	var error := DirAccess.make_dir_recursive_absolute(directory)
+	if error != OK:
+		fail("Cannot create auction screenshot directory: " + str(error))
+		return
+	await RenderingServer.frame_post_draw
+	error = root.get_texture().get_image().save_png(directory.path_join(file))
+	if error != OK:
+		fail("Cannot save auction screenshot: " + str(error))
 
 func ui() -> Node:
 	return client.get_node_or_null("AuctionUI")
