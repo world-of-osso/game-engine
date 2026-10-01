@@ -4,7 +4,7 @@ use std::path::Path;
 use game_engine_core::minimap_data::{
     AreaCatalog, FACTION_GROUP_ALLIANCE, FACTION_GROUP_HORDE, MISSING_TILE_COLOR, MinimapView,
     OUTDOOR_DIAMETERS, TILE_YARDS, TileImage, ZonePvp, clock_text, compose,
-    parse_race_faction_groups, tile_path, zoom_in, zoom_out,
+    parse_race_faction_groups, tile_path, tint_quest_areas, zoom_in, zoom_out,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 
@@ -164,4 +164,49 @@ fn races_map_to_their_faction_group() {
     assert_eq!(races.get(&1), Some(&FACTION_GROUP_ALLIANCE));
     assert_eq!(races.get(&2), Some(&FACTION_GROUP_HORDE));
     assert_eq!(races.get(&24), None);
+}
+
+#[test]
+fn quest_area_tints_only_inside_its_polygon_with_a_brighter_rim() {
+    let view = MinimapView::new(NORTHSHIRE, 0);
+    let grey = solid([100, 100, 100, 255]);
+    let size = 256;
+    let mut image = compose(&view, size, |_| Some(&grey));
+    // A 40-yard square north-east of the player: engine +x is north, +z east.
+    let [x, z] = NORTHSHIRE;
+    let square = vec![
+        [x + 10.0, z + 10.0],
+        [x + 50.0, z + 10.0],
+        [x + 50.0, z + 50.0],
+        [x + 10.0, z + 50.0],
+    ];
+    let tinted = tint_quest_areas(&view, size, &mut image, &[square]);
+    let yards_per_pixel = view.diameter / size as f32;
+    let expected = (40.0 / yards_per_pixel).powi(2);
+    assert!(
+        (tinted as f32 - expected).abs() <= 4.0 * 40.0 / yards_per_pixel,
+        "{tinted} tinted pixels for a {expected} pixel square"
+    );
+    // The player's pixel (centre) is outside the square and untouched.
+    assert_eq!(
+        pixel(&image, size, size / 2, size / 2),
+        [100, 100, 100, 255]
+    );
+    // The square's centre (30 yd north and east) is filled, its rim brighter.
+    let centre = |yards_east: f32, yards_north: f32| {
+        let px = (size as f32 / 2.0 + yards_east / yards_per_pixel) as u32;
+        let py = (size as f32 / 2.0 - yards_north / yards_per_pixel) as u32;
+        pixel(&image, size, px, py)
+    };
+    let fill = centre(30.0, 30.0);
+    assert_eq!(fill[3], 255);
+    assert!(
+        fill[0] > 100 && fill[2] < 100,
+        "fill {fill:?} is not gold-tinted"
+    );
+    let rim = centre(11.0, 30.0);
+    assert!(
+        rim[0] > fill[0],
+        "rim {rim:?} is not brighter than the fill {fill:?}"
+    );
 }

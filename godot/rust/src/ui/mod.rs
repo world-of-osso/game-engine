@@ -488,17 +488,19 @@ impl RegistryUi {
     }
 
     /// Initialize a dedicated RegistryUi instance for the shared world map frame.
-    pub fn show_world_map(&mut self, state: WorldMapFrameState) -> Result<(), String> {
+    pub fn show_world_map(&mut self, mut state: WorldMapFrameState) -> Result<(), String> {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
         let [width, height] = state.viewport;
+        let mut registry = FrameRegistry::new(width, height);
+        state.quest_area_texture = Some(registry.create_dynamic_texture(1, 1, vec![0; 4])?);
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
             screen: Screen::new(world_map_frame_screen),
             shared,
-            registry: FrameRegistry::new(width, height),
+            registry,
             icon_masks: Default::default(),
             postsetup: ScreenPostsetup::WorldMap,
         };
@@ -635,6 +637,45 @@ impl RegistryUi {
             registry,
             parent,
         )
+    }
+
+    /// Replace the world map state and, when given, the RGBA8 objective area overlay
+    /// (`QUEST_AREA_TEXTURE_SIZE`).
+    pub fn set_world_map(
+        &mut self,
+        mut state: WorldMapFrameState,
+        overlay: Option<Vec<u8>>,
+    ) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("World map UI is not initialized")?;
+        let texture = model
+            .shared
+            .get::<WorldMapFrameState>()
+            .and_then(|current| current.quest_area_texture)
+            .ok_or("World map quest area texture missing")?;
+        state.quest_area_texture = Some(texture);
+        let redraw = overlay.is_some();
+        if let Some(rgba) = overlay {
+            let [width, height] =
+                game_engine_ui_model::world_map_frame_component::QUEST_AREA_TEXTURE_SIZE;
+            model
+                .registry
+                .update_dynamic_texture(texture, width, height, rgba)?;
+        }
+        self.set_state(state)?;
+        if redraw {
+            let model = self
+                .model
+                .as_mut()
+                .ok_or("World map UI is not initialized")?;
+            self.projection
+                .as_mut()
+                .ok_or("Native projection not initialized")?
+                .sync(&mut model.registry)?;
+        }
+        Ok(())
     }
 
     /// Replace the minimap state and, when given, the `size`² RGBA8 map composite.

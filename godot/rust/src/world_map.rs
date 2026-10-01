@@ -8,9 +8,10 @@ use std::collections::HashMap;
 
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::quest_area_data::quest_area_overlay;
 use game_engine_ui_model::world_map_frame_component::{
-    ACTION_WORLD_MAP_CLOSE, ACTION_WORLD_MAP_NAV_PREFIX, WorldMapFrameState, WorldMapLayout,
-    world_map_texture_fdids,
+    ACTION_WORLD_MAP_CLOSE, ACTION_WORLD_MAP_NAV_PREFIX, QUEST_AREA_TEXTURE_SIZE,
+    WorldMapFrameState, WorldMapLayout, world_map_texture_fdids,
 };
 use game_engine_ui_model::world_map_view_data::{
     WorldMapData, WorldMapPlayer, WorldMapRequest, engine_to_world, player_map,
@@ -40,6 +41,8 @@ pub(crate) struct WorldMap {
     /// Saved top-left in logical UI units; None uses Wide slot.
     position: Option<[f32; 2]>,
     drag: Option<WindowDrag>,
+    /// Objective area polygons last drawn into the overlay texture.
+    drawn_areas: Option<Vec<Vec<[f32; 2]>>>,
 }
 
 impl WorldMap {
@@ -102,6 +105,20 @@ impl WindowDrag {
             target.y.clamp(0.0, (viewport[1] - size[1]).max(0.0)),
         ]
     }
+}
+
+/// The objective area overlay for map-UV polygons, at `QUEST_AREA_TEXTURE_SIZE`.
+fn quest_area_pixels(areas: &[Vec<[f32; 2]>]) -> Vec<u8> {
+    let [width, height] = QUEST_AREA_TEXTURE_SIZE;
+    let polygons: Vec<Vec<[f32; 2]>> = areas
+        .iter()
+        .map(|area| {
+            area.iter()
+                .map(|[u, v]| [u * width as f32, v * height as f32])
+                .collect()
+        })
+        .collect();
+    quest_area_overlay(width, height, &polygons)
 }
 
 fn canvas_uv(layout: &WorldMapLayout, point: Vector2) -> Option<[f32; 2]> {
@@ -228,6 +245,7 @@ impl GameClient {
                 hovered: self.world_map.hovered,
                 player: player.as_ref(),
                 quests: &self.account.quests.log,
+                quest_areas: &self.account.quests.watched_objective_areas(),
             },
         ))
     }
@@ -336,6 +354,7 @@ impl GameClient {
         self.world_map.hovered = None;
         self.world_map.position = None;
         self.world_map.drag = None;
+        self.world_map.drawn_areas = None;
     }
 
     fn world_map_toggle_pressed(&self) -> bool {
@@ -402,9 +421,12 @@ impl GameClient {
         let state = self.drawable_world_map()?;
         let scale = self.effective_ui_scale();
         let layout = placed_map_layout(self.world_map_viewport(), self.world_map.position);
+        let overlay = (self.world_map.drawn_areas.as_ref() != Some(&state.quest_areas))
+            .then(|| quest_area_pixels(&state.quest_areas));
+        self.world_map.drawn_areas = Some(state.quest_areas.clone());
         let ui = self.world_map.ui.as_mut().ok_or("World map UI vanished")?;
         ui.bind_mut().set_ui_scale(scale)?;
-        ui.bind_mut().set_state(state)?;
+        ui.bind_mut().set_world_map(state, overlay)?;
         ui.bind_mut()
             .set_window_position("WorldMapBorderFrame", layout.origin)
     }
@@ -602,6 +624,16 @@ impl GameClient {
                 .map_or("", |highlight| highlight.name.as_str()),
         );
         result.set("pin_count", state.pins.len() as i64);
+        let mut pins = VarArray::new();
+        for pin in &state.pins {
+            let mut entry = VarDictionary::new();
+            entry.set("type", format!("{:?}", pin.pin_type).as_str());
+            entry.set("label", pin.label.as_str());
+            entry.set("badge", pin.badge.as_str());
+            entry.set("uv", Vector2::new(pin.x, pin.y));
+            pins.push(&entry.to_variant());
+        }
+        result.set("pins", &pins);
         result.set("tile_count", state.tiles.len() as i64);
         result.set("missing_tiles", self.world_map.missing_tiles as i64);
         result

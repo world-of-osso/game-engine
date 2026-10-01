@@ -141,6 +141,7 @@ pub use game_engine_core::input_bindings_data;
 pub use game_engine_core::input_bindings_data as input_bindings;
 pub use game_engine_core::nameplate_style_data;
 pub use game_engine_core::nameplate_style_data as nameplate_style;
+pub use game_engine_core::quest_area_data;
 
 #[path = "../../../src/ui/screens/game_menu_component.rs"]
 pub mod game_menu_component;

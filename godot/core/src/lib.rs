@@ -84,6 +84,8 @@ pub mod nameplate_style_data;
 pub mod nameplate_visibility_data;
 #[cfg(test)]
 mod nameplate_visibility_data_tests;
+#[path = "../../../src/quest_area_data.rs"]
+pub mod quest_area_data;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
 pub mod spell_visual;

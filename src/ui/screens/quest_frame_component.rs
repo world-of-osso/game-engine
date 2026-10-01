@@ -10,7 +10,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 use crate::ui::screens::quest_art::{
     DynName, GOSSIP_ACTIVE_ICON, GOSSIP_AVAILABLE_ICON, GOSSIP_IN_PROGRESS_ICON,
     HIGHLIGHT_FONT_COLOR, QUEST_PARCHMENT, QUEST_SMALL_HEADER_COLOR, QUEST_TEXT_COLOR,
-    atlas_texture, line_height, panel_button, window_chrome, wrapped_text_height,
+    atlas_texture, panel_button, window_chrome, wrapped_text_height,
 };
 use crate::ui::strata::FrameStrata;
 
@@ -251,12 +251,15 @@ fn text_block(
     y: &mut f32,
 ) -> Element {
     let top = *y;
-    *y += wrapped_text_height(text, column.width, font_size);
+    // The block is as tall as its wrapped lines, so a multi-line text is not squeezed
+    // into one line's height.
+    let height = wrapped_text_height(text, column.width, font_size);
+    *y += height;
     rsx! {
         fontstring {
             name: {DynName(name)},
             width: {column.width},
-            height: {line_height(font_size)},
+            height,
             text,
             font: GameFont::FrizQuadrata,
             font_size,
