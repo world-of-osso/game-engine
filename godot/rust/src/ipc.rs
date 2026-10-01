@@ -3,6 +3,7 @@
 //! MAIN calls `start` in ready, `poll` on the main thread each process frame,
 //! and drops this value in exit_tree, before Godot singleton teardown.
 
+mod dev;
 mod export;
 mod tree;
 mod ui_tree;
@@ -38,6 +39,10 @@ struct Command {
 }
 
 type ScreenshotReplies = Rc<RefCell<Vec<oneshot::Sender<Response>>>>;
+
+/// The client's own requests (dev tooling over its live state); a request it does not
+/// serve comes back.
+pub(crate) type ClientRequests<'a> = dyn FnMut(Request) -> Result<Response, Request> + 'a;
 
 /// Own-PID listener plus main-thread diagnostics dispatch. Never move to a worker.
 pub(crate) struct NativeIpc {
@@ -83,11 +88,15 @@ impl NativeIpc {
     }
 
     /// Call once per process frame on Godot's main thread with the mounted client.
-    pub(crate) fn poll(&mut self, client: &Gd<Node>) -> Result<(), String> {
+    pub(crate) fn poll(
+        &mut self,
+        client: &Gd<Node>,
+        requests: &mut ClientRequests,
+    ) -> Result<(), String> {
         self.measure_frame();
         loop {
             match self.commands.try_recv() {
-                Ok(command) => self.dispatch(client, command),
+                Ok(command) => self.dispatch(client, requests, command),
                 Err(mpsc::TryRecvError::Empty) => return Ok(()),
                 Err(mpsc::TryRecvError::Disconnected) => {
                     return Err("native IPC: socket worker stopped".into());
@@ -105,7 +114,7 @@ impl NativeIpc {
             .filter(|value| value.is_finite() && *value > 0.0);
     }
 
-    fn dispatch(&mut self, client: &Gd<Node>, command: Command) {
+    fn dispatch(&mut self, client: &Gd<Node>, requests: &mut ClientRequests, command: Command) {
         let response = match command.request {
             Request::Ping => Response::Pong,
             Request::DumpTree { filter } => tree::dump_tree(client, filter.as_deref()),
@@ -118,7 +127,9 @@ impl NativeIpc {
                 self.queue_screenshot(client, command.respond);
                 return;
             }
-            request => Response::Error(format!("native IPC: unported request {request:?}")),
+            request => requests(request).unwrap_or_else(|request| {
+                Response::Error(format!("native IPC: unported request {request:?}"))
+            }),
         };
         reply(command.respond, response);
     }

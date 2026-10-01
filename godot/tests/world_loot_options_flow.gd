@@ -262,7 +262,7 @@ func find_corpse(client: Node, unit_name: String = CORPSE) -> Dictionary:
 			var mesh := node as MeshInstance3D
 			if mesh.mesh == null or not mesh.is_visible_in_tree():
 				continue
-			var material := mesh.get_surface_override_material(0) as ShaderMaterial
+			var material := mesh.get_active_material(0) as ShaderMaterial
 			if material != null:
 				var transparency = material.get_shader_parameter("transparency")
 				if transparency != null and float(transparency) <= 0.0:

@@ -11,6 +11,10 @@
 - [ ] Retain the approved half-size artwork and independent HUD thickness settings: Thick health and Thin spellbar defaults.
 - [ ] Remove preview owners, camera, labels and linked visuals on exit.
 
+### Godot client
+
+- [x] `--screen nameplatedebug` mounts Zolramus Sorcerer, Channeling Adept and Training Guardian with looping Necrotic Bolt / Arcane Missiles on the native cast bars (spell icons from the spell catalog), Space pause, plate click selection and the original caption, from a 45° camera at (0, 2.5, 12).
+
 ## How it works
 
 - [Nameplate design](../wiki/design/nameplate-design.md)
@@ -28,6 +32,8 @@
 ## Tests asserting this spec
 
 - `src/scenes/nameplate_debug_tests.rs` — routing, pause/resume, looping and state cleanup.
+- `godot/rust/src/nameplate_debug_tests.rs` — demo casts, looping and pause, caption.
+- `native_debug_screen_fixture nameplatedebug` + `godot/tests/nameplatedebug_screen_flow.gd` — looping bars and icons, Space pause, plate click, public CLI dumps and screenshot.
 
 ## Known gaps (current cycle)
 

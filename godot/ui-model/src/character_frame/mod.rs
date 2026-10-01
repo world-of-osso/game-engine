@@ -7,7 +7,8 @@
 
 mod art;
 
-use shared::components::{CombatRatings, UnitStats};
+use game_engine_core::spell_catalog::PrimaryStat;
+use shared::components::{CombatRatings, DerivedStats, UnitStats};
 use shared::protocol::{EquipmentSlot, ItemLocation};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -246,6 +247,8 @@ pub struct CharacterFrameView {
     pub item_level: Option<String>,
     /// `AttributesCategory` lines; empty hides the category.
     pub attributes: Vec<StatLine>,
+    /// `EnhancementsCategory` lines; empty hides the category.
+    pub enhancements: Vec<StatLine>,
     pub race_id: u8,
     pub class_id: u8,
 }
@@ -257,26 +260,59 @@ pub struct StatLine {
     pub value: String,
 }
 
-/// `PAPERDOLL_STATCATEGORIES` Attributes from the replicated sheet stats (PDF.lua:246):
-/// Strength, Agility and Intellect (`primary`: all three, as Retail shows them without a
-/// specialization; the client has no `ChrSpecialization` primary stat), Stamina
+/// `PAPERDOLL_STATCATEGORIES` Attributes from the replicated sheet stats (PDF.lua:246-257):
+/// Strength, Agility and Intellect, of which a specialization shows only its primary stat
+/// (`stat.primary ~= primaryStat`, PDF.lua:1940-1945; all three without one), Stamina
 /// (`UnitStat`, an integer), and Armor (`UnitArmor`). Stagger and mana regen need a
 /// role, which the client does not know. `None` before the stats arrive.
-pub fn attribute_lines(stats: Option<(&UnitStats, &CombatRatings)>) -> Vec<StatLine> {
+pub fn attribute_lines(
+    stats: Option<(&UnitStats, &CombatRatings)>,
+    spec_primary: Option<PrimaryStat>,
+) -> Vec<StatLine> {
     let Some((stats, ratings)) = stats else {
         return Vec::new();
     };
+    let shown = |stat| spec_primary.is_none_or(|primary| primary == stat);
     [
-        ("Strength:", stats.strength),
-        ("Agility:", stats.agility),
-        ("Intellect:", stats.intellect),
-        ("Stamina:", stats.stamina),
-        ("Armor:", ratings.armor),
+        ("Strength:", stats.strength, shown(PrimaryStat::Strength)),
+        ("Agility:", stats.agility, shown(PrimaryStat::Agility)),
+        ("Intellect:", stats.intellect, shown(PrimaryStat::Intellect)),
+        ("Stamina:", stats.stamina, true),
+        ("Armor:", ratings.armor, true),
     ]
     .into_iter()
-    .map(|(label, value)| StatLine {
+    .filter(|&(_, _, shown)| shown)
+    .map(|(label, value, _)| StatLine {
         label,
         value: break_up_large_numbers(value.trunc() as i64),
+    })
+    .collect()
+}
+
+/// `PAPERDOLL_STATCATEGORIES` Enhancements (PDF.lua:259-273) from the replicated
+/// `DerivedStats`: Critical Strike (`PaperDollFrame_SetCritChance`), Haste
+/// (`PaperDollFrame_SetHaste`), Mastery (`GetMasteryEffect`), Versatility (its damage
+/// done bonus), Leech, Avoidance and Speed (`GetLifesteal`, `GetAvoidance`, `GetSpeed`,
+/// PDF.lua:1229-1275), each `format("%d%%", value + 0.5)` (`PaperDollFrame_SetLabelAndText`,
+/// PDF.lua:1993-2002) and hidden at exactly 0 (`hideAt = 0`). `None` before the stats arrive.
+pub fn enhancement_lines(derived: Option<&DerivedStats>) -> Vec<StatLine> {
+    let Some(derived) = derived else {
+        return Vec::new();
+    };
+    [
+        ("Critical Strike:", derived.crit_pct),
+        ("Haste:", derived.haste_pct),
+        ("Mastery:", derived.mastery_pct),
+        ("Versatility:", derived.versatility_pct),
+        ("Leech:", derived.leech_pct),
+        ("Avoidance:", derived.avoidance_pct),
+        ("Speed:", derived.speed_pct),
+    ]
+    .into_iter()
+    .filter(|&(_, value)| value != 0.0)
+    .map(|(label, value)| StatLine {
+        label,
+        value: format!("{}%", (value + 0.5) as i64),
     })
     .collect()
 }
@@ -384,7 +420,11 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
     children.extend(art::inner_border());
     children.extend(model_scene_frame());
     children.extend(level_text(&view.level));
-    children.extend(stats_pane(view.item_level.as_deref(), &view.attributes));
+    children.extend(stats_pane(
+        view.item_level.as_deref(),
+        &view.attributes,
+        &view.enhancements,
+    ));
     children.extend(slots(&view.slots));
     children.extend(tabs());
     rsx! {
@@ -498,26 +538,51 @@ fn level_text(line: &LevelLine) -> Element {
 /// `CharacterStatsPane` (`PaperDollFrame_UpdateStats`, PDF.lua:1912): from level 10
 /// `ItemLevelCategory` (TOP 0,-2) and `ItemLevelFrame` below it, then the
 /// `AttributesCategory` under the item level frame, or at TOP 0,-2 with -5 between stats
-/// below level 10. A category hides without a stat (`catFrame:SetShown(numStatInCat > 0)`,
-/// PDF.lua:1985); Enhancements needs the derived percentages the client does not receive.
-fn stats_pane(item_level: Option<&str>, attributes: &[StatLine]) -> Element {
+/// below level 10. The Enhancements category follows the last shown stat
+/// (`catFrame:SetPoint("TOP", lastAnchor, "BOTTOM", 0, categoryYOffset)`, -11 below level
+/// 10). A category hides without a stat (`catFrame:SetShown(numStatInCat > 0)`,
+/// PDF.lua:1985). Stat lines number on across categories, as Retail's shared frame pool.
+fn stats_pane(
+    item_level: Option<&str>,
+    attributes: &[StatLine],
+    enhancements: &[StatLine],
+) -> Element {
     let y = STATS.1 + 2.0;
     let mut children = Element::default();
-    let (attributes_y, stat_gap) = match item_level {
+    let (mut category_y, stat_gap, category_gap) = match item_level {
         Some(item_level) => {
             children.extend(item_level_frames(item_level, y));
-            (y + 40.0 + 29.0, 0.0)
+            (y + 40.0 + 29.0, 0.0, 0.0)
         }
-        None => (y, 5.0),
+        None => (y, 5.0, 11.0),
     };
-    if !attributes.is_empty() {
-        children.extend(category(
+    let mut first_stat = 1;
+    for (name, title, lines) in [
+        (
             "CharacterStatsPaneAttributesCategory",
             "Attributes",
+            attributes,
+        ),
+        (
+            "CharacterStatsPaneEnhancementsCategory",
+            "Enhancements",
+            enhancements,
+        ),
+    ] {
+        if lines.is_empty() {
+            continue;
+        }
+        children.extend(category(
+            name,
+            title,
             STATS.0 + (STATS_W - 197.0) / 2.0,
-            attributes_y,
+            category_y,
         ));
-        children.extend(stat_lines(attributes, attributes_y + 40.0 + 2.0, stat_gap));
+        let top = category_y + 40.0 + 2.0;
+        children.extend(stat_lines(lines, first_stat, top, stat_gap));
+        first_stat += lines.len();
+        let count = lines.len() as f32;
+        category_y = top + count * 15.0 + (count - 1.0) * stat_gap + category_gap;
     }
     children
 }
@@ -550,13 +615,13 @@ fn item_level_frames(item_level: &str, y: f32) -> Element {
 /// `CharacterStatFrameTemplate` 187×15 stacked TOP to BOTTOM: `Label`
 /// (`GameFontNormalSmall`) LEFT 11, `Value` (`GameFontHighlightSmall`) RIGHT -8, and the
 /// `UI-Character-Info-Line-Bounce` band (alpha 0.3) behind every second line.
-fn stat_lines(lines: &[StatLine], top: f32, gap: f32) -> Element {
+fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
     const SIZE: f32 = 10.0;
     let x = STATS.0 + (STATS_W - 187.0) / 2.0;
     let mut children = Element::default();
     for (index, line) in lines.iter().enumerate() {
         let y = top + index as f32 * (15.0 + gap);
-        let name = format!("CharacterStatsPaneStat{}", index + 1);
+        let name = format!("CharacterStatsPaneStat{}", first + index);
         if index % 2 == 1 {
             children.extend(atlas(
                 format!("{name}Background"),
