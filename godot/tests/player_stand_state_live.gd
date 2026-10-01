@@ -327,8 +327,17 @@ func release_turn() -> void:
 func enter_world() -> bool:
 	if not await wait_until(func(state): return state.screen == "CharacterSelect" and state.reply_received, 60000, "CharacterSelect"):
 		return false
-	var ui = client.get_node("CharacterSelectUI")
-	await click_control(ui.find_child("CharCard_0", true, false))
+	var ui: Node = null
+	var card: Control = null
+	var ui_deadline := Time.get_ticks_msec() + 30000
+	while card == null:
+		if Time.get_ticks_msec() > ui_deadline:
+			fail("CharacterSelectUI never showed CharCard_0")
+			return false
+		await process_frame
+		ui = client.get_node_or_null("CharacterSelectUI")
+		card = ui.find_child("CharCard_0", true, false) as Control if ui != null else null
+	await click_control(card)
 	await process_frame
 	var selected = ui.find_child("CharSelectCharacterName", true, false)
 	if selected.text != NAME:
