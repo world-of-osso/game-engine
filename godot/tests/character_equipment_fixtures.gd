@@ -96,6 +96,27 @@ const FIXTURES := [
 		"items": [], "attachments": {},
 	},
 	{
+		# Mantle of the Forgemaster's Dark Blades: a cape model (column 1) on the back;
+		# Ancestral Chieftain's Greatbelt (Tauren heritage): buckle (column 0) on 53 and a collection
+		# (column 1) skinned to the body; Fanciful Corsage: a bracer collection.
+		"name": "TahoModern", "race": 6, "sex": 0, "class": 4, "sheath": 0, "anim": 0, "time_ms": 0.0,
+		"items": [
+			{"slot": "Back", "item_id": 180939, "inventory_type": 16},
+			{"slot": "Waist", "item_id": 168296, "inventory_type": 6},
+			{"slot": "Wrist", "item_id": 190091, "inventory_type": 9},
+		],
+		"attachments": {"EquipmentBack": 12, "EquipmentWaist": 53},
+		"bound": {"EquipmentWaist2": [18], "EquipmentWrist": [8, 23]},
+	},
+	{
+		# Ancestral Chieftain's Totem: a collection shared with other slots' items, of
+		# which a cloak shows only its cape group.
+		"name": "HulaTotem", "race": 6, "sex": 1, "class": 7, "sheath": 0, "anim": 0, "time_ms": 0.0,
+		"items": [{"slot": "Back", "item_id": 170063, "inventory_type": 16}],
+		"attachments": {},
+		"bound": {"EquipmentBack": [15]},
+	},
+	{
 		"name": "GromShoulders", "race": 2, "sex": 0, "class": 1, "sheath": 0, "anim": 0, "time_ms": 0.0,
 		"items": [
 			{"slot": "Shoulder", "item_id": 1445, "inventory_type": 3},
@@ -197,6 +218,7 @@ func check_fixture(loader: Object, camera: Camera3D, fixture: Dictionary) -> voi
 			fail(fixture, "could not save " + path)
 	check_geosets(fixture, model)
 	check_attachments(fixture, model)
+	check_bound(fixture, model)
 	print("FIXTURE %s geosets=%s items=%s" % [fixture.name, visible_geosets(model), item_parents(model)])
 	model.free()
 
@@ -252,7 +274,11 @@ func check_geosets(fixture: Dictionary, model: Node3D) -> void:
 func item_parents(model: Node3D) -> Dictionary:
 	var parents := {}
 	for node in model.find_children("Equipment*", "Node3D", true, false):
-		parents[String(node.name)] = String(node.get_parent().name)
+		var parts: Array[int] = []
+		for child in node.get_children():
+			if child is MeshInstance3D and child.visible and child.has_meta("m2_mesh_part"):
+				parts.append(child.get_meta("m2_mesh_part"))
+		parents[String(node.name)] = "%s %s" % [node.get_parent().name, parts]
 	return parents
 
 func check_attachments(fixture: Dictionary, model: Node3D) -> void:
@@ -274,6 +300,25 @@ func check_attachments(fixture: Dictionary, model: Node3D) -> void:
 		var expected_origin := parent.global_transform * item.transform.origin
 		if item.global_position.distance_to(expected_origin) > EPSILON:
 			fail(fixture, "%s at %s, attachment puts it at %s" % [item_name, item.global_position, expected_origin])
+
+## Items skinned to the character: children of the model root showing only mesh parts
+## of their slot's geoset groups.
+func check_bound(fixture: Dictionary, model: Node3D) -> void:
+	var bound: Dictionary = fixture.get("bound", {})
+	for item_name in bound:
+		var item := model.find_child(item_name, true, false) as Node3D
+		if item == null:
+			fail(fixture, "%s missing" % item_name)
+			continue
+		if item.get_parent() != model:
+			fail(fixture, "%s on %s, not skinned to the body" % [item_name, item.get_parent().name])
+		if not has_visible_mesh(item):
+			fail(fixture, "%s has no visible mesh" % item_name)
+		for child in item.get_children():
+			if child is MeshInstance3D and child.visible and child.has_meta("m2_mesh_part"):
+				var part: int = child.get_meta("m2_mesh_part")
+				if not bound[item_name].has(part / 100):
+					fail(fixture, "%s shows mesh part %d outside groups %s" % [item_name, part, bound[item_name]])
 
 func has_visible_mesh(node: Node) -> bool:
 	for child in node.find_children("*", "MeshInstance3D", true, false):
