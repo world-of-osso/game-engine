@@ -273,7 +273,7 @@ fn apply_visible_entry(
     sex: u8,
 ) -> Result<Vec<(u8, u32)>, String> {
     let mut display = outfit_data
-        .try_resolve_display_info(display_info_id)?
+        .try_resolve_display_info(display_info_id, race, sex)?
         .ok_or_else(|| format!("display {display_info_id} missing"))?;
     if slot == EquipmentVisualSlot::Head {
         let has_vis_data = outfit_data.has_helmet_geoset_vis_data(display_info_id);
@@ -300,7 +300,7 @@ fn apply_visible_entry(
         return Ok(display.item_textures);
     }
     if slot == EquipmentVisualSlot::Back {
-        if let Some(fdid) = outfit_data.cape_texture_fdid(display_info_id) {
+        if let Some(fdid) = outfit_data.cape_texture_fdid(display_info_id, race, sex) {
             resolved.merged_cape_texture_fdid = Some(fdid);
             resolved.texture_fdids.push(fdid);
         }

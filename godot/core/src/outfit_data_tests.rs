@@ -19,17 +19,21 @@ fn selected_human_warrior_items_resolve_original_displays_and_resources() {
     ] {
         assert_eq!(catalog.resolve_item_display_id(item).unwrap(), display);
     }
+    // Recruit's Pants: `leather_a_05yellow_pant_lu_m` 157713 for a man,
+    // `..._lu_f` 157712 (listed first in TextureFileData) for a woman.
     let outfit = catalog.try_resolve_outfit(1, 1, 0).unwrap();
-    assert!(outfit.item_textures.contains(&(5, 157712)));
+    assert!(outfit.item_textures.contains(&(5, 157713)));
+    assert!(!outfit.item_textures.contains(&(5, 157712)));
     assert!(outfit.model_fdids.contains(&(16810, 148132)));
-    assert!(
+    let pants = |sex| {
         catalog
-            .try_resolve_display_info(6050)
+            .try_resolve_display_info(6050, 1, sex)
             .unwrap()
             .unwrap()
             .item_textures
-            .contains(&(5, 157712))
-    );
+    };
+    assert_eq!(pants(0), [(5, 157713), (6, 155104)]);
+    assert_eq!(pants(1), [(5, 157712), (6, 155103)]);
     assert_eq!(
         catalog.try_resolve_runtime_model(1542, 1, 0).unwrap(),
         Some((148132, [148134, 0, 0]))
@@ -88,7 +92,7 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
             worker.join().unwrap();
         }
     });
-    let cache = fixture.join("cache/outfit_links.sqlite");
+    let cache = fixture.join("cache/outfit_links-v2.sqlite");
     let before = std::fs::metadata(&cache).unwrap().modified().unwrap();
     let alias = fixture.join("..").join(fixture.file_name().unwrap());
     crate::outfit_catalog_db::import_outfit_links_cache(&alias).unwrap();

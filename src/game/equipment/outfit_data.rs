@@ -2,8 +2,6 @@ use std::ops::Deref;
 use std::path::Path;
 
 pub(crate) use crate::outfit_catalog::DisplayInfoResolved;
-#[cfg(test)]
-pub(crate) use crate::outfit_catalog::DisplayMaterialTextures;
 pub use crate::outfit_catalog::OutfitResult;
 use bevy::prelude::Resource;
 
@@ -15,7 +13,6 @@ impl OutfitData {
     pub fn load(data_dir: &Path) -> Self {
         Self(crate::outfit_catalog::OutfitData::with_root_loaders(
             data_dir,
-            |_| crate::world_db::load_chr_race_prefixes(),
             cache_helmet_geoset_data,
         ))
     }
@@ -82,7 +79,7 @@ mod tests {
     fn waist_display_without_material_rows_has_no_item_textures() {
         let data = OutfitData::load(Path::new("data"));
 
-        let resolved = data.resolve_display_info(15040);
+        let resolved = data.resolve_display_info(15040, 1, 0);
 
         assert!(
             resolved.item_textures.is_empty(),
