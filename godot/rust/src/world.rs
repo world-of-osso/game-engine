@@ -11,11 +11,12 @@ use crate::{
     animation::{WowAnimationPlayer, lod::AnimationLod},
     lighting::TerrainLight,
     world_models::{
-        UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_virtual_items,
+        UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_items,
+        place_virtual_items,
     },
 };
 
-use game_engine_core::movement_animation_data::{ANIM_RUN, direction_to_anim_id};
+use game_engine_core::movement_animation_data::{ANIM_RUN, ANIM_STAND, direction_to_anim_id};
 use game_engine_core::movement_input_data::MoveDirection;
 use game_engine_core::npc_visibility_data::{npc_should_be_visible, npc_visibility_policy};
 use game_engine_core::unit_motion_data::{
@@ -292,11 +293,15 @@ fn unit_appearance(snapshot: &UnitSnapshot, native_display: Option<u32>) -> Opti
     })
 }
 
+/// A unit's replicated sheath state. A player has none replicated: its weapons are drawn
+/// in combat and otherwise sheathed (`SHEATH_STATE_UNARMED`, the `SheatheState` a
+/// TrinityCore unit starts with, UnitDefines.h:82).
 fn unit_sheath(snapshot: &UnitSnapshot) -> SheathState {
-    snapshot
-        .unit_pose
-        .map(|pose| pose.sheath_state)
-        .unwrap_or_default()
+    match snapshot.unit_pose {
+        Some(pose) => pose.sheath_state,
+        None if snapshot.player.is_some() && snapshot.in_combat => SheathState::Melee,
+        None => SheathState::Unarmed,
+    }
 }
 
 /// Request the visual of a changed appearance; a unit without one loses its visual.
@@ -353,7 +358,9 @@ fn attach_unit_visual(
         models.build_visual(parts, unit.visual.as_ref().filter(|_| preserve_playback))
     });
     unit.animation = None;
-    unit.sheath = Some(sheath);
+    // A creature's load places its virtual items for `sheath`; a player's weapons are
+    // placed by the sheath sync that follows the attach.
+    unit.sheath = appearance.player_model().is_none().then_some(sheath);
     if let Some(previous) = unit.visual.take() {
         previous.free();
     }
@@ -512,27 +519,30 @@ fn sync_unit_pose(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut Wor
         });
 }
 
-/// Move the virtual items of a creature whose sheath state changed; a visual still
+/// Move the weapons of a creature or player whose sheath state changed; a visual still
 /// loading places them for the current state when it arrives.
 fn sync_unit_sheath(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut WorldModels) {
     if unit.loading.is_some() {
         return;
     }
     let sheath = unit_sheath(snapshot);
-    let (Some(visual), Some(UnitAppearance::Creature { items, .. })) =
-        (&unit.visual, &unit.appearance)
-    else {
+    let (Some(visual), Some(appearance)) = (&unit.visual, &unit.appearance) else {
         return;
     };
     if unit.sheath == Some(sheath) {
         return;
     }
     unit.sheath = Some(sheath);
-    let placed = models
-        .virtual_item_placements(items, sheath)
-        .and_then(|placements| place_virtual_items(visual, &placements));
+    let placed = match appearance {
+        UnitAppearance::Creature { items, .. } => models
+            .virtual_item_placements(items, sheath)
+            .and_then(|placements| place_virtual_items(visual, &placements)),
+        UnitAppearance::Player(_, equipment) => models
+            .player_weapon_placements(equipment, sheath)
+            .and_then(|placements| place_items(visual, &placements)),
+    };
     if let Err(error) = placed {
-        godot_error!("NPC {} {sheath:?}: {error}", snapshot.server_id);
+        godot_error!("Unit {} {sheath:?}: {error}", snapshot.server_id);
     }
 }
 
@@ -556,7 +566,16 @@ fn sync_unit_animation(
     let ready = unit
         .in_combat
         .then(|| combat::stance_clip(&animation.bind(), 0, true, unit.weapon, fallbacks));
-    let pose_anim = ready.or(unit.pose_anim);
+    // A held pose the model lacks plays its `AnimationData.Fallback` chain (Dead 6 →
+    // Death 1 → Stand), as the combat stance does.
+    let pose_anim = ready.or_else(|| {
+        unit.pose_anim.map(|pose| {
+            animation
+                .bind()
+                .resolve_clip(pose, fallbacks)
+                .unwrap_or(ANIM_STAND)
+        })
+    });
     // The replicated speed of its gait paces the walk and run clips (0: not yet moved).
     let speed = snapshot
         .movement_speed
