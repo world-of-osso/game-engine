@@ -3,30 +3,7 @@
 //! (`UI-HUD-MicroMenu-<Name>-Up`) and `Blizzard_MainMenuBarBagButtons` (`bag-main`,
 //! `bag-border-empty`).
 
-/// Pixel crop (left, right, top, bottom) on a sheet.
-#[derive(Clone, Copy)]
-pub(super) struct SheetCrop {
-    pub fdid: u32,
-    sheet_w: f32,
-    sheet_h: f32,
-    left: f32,
-    right: f32,
-    top: f32,
-    bottom: f32,
-}
-
-impl SheetCrop {
-    /// Normalized `tex_coords` attribute value.
-    pub fn tex_coords(self) -> String {
-        format!(
-            "{},{},{},{}",
-            self.left / self.sheet_w,
-            self.right / self.sheet_w,
-            self.top / self.sheet_h,
-            self.bottom / self.sheet_h
-        )
-    }
-}
+pub(super) use super::bags_bar_art::{BACKPACK, BAG_SLOT_EMPTY, SheetCrop};
 
 /// `interface/hud/uiminimap.blp`, 512x512.
 const MINIMAP_SHEET: u32 = 4_618_651;
@@ -70,8 +47,6 @@ pub(super) const INSTANCE_BANNER_MYTHIC: SheetCrop = guild_banner(95.0, 111.0, 1
 
 /// UiTextureAtlas 2136, 1024x512.
 const MICRO_SHEET: u32 = 4_708_813;
-/// UiTextureAtlas 2098, 512x128.
-const BAG_SHEET: u32 = 4_691_255;
 
 const fn micro(left: f32, top: f32) -> SheetCrop {
     SheetCrop {
@@ -82,18 +57,6 @@ const fn micro(left: f32, top: f32) -> SheetCrop {
         right: left + 64.0,
         top,
         bottom: top + 82.0,
-    }
-}
-
-const fn bag(left: f32, right: f32, top: f32, bottom: f32) -> SheetCrop {
-    SheetCrop {
-        fdid: BAG_SHEET,
-        sheet_w: 512.0,
-        sheet_h: 128.0,
-        left,
-        right,
-        top,
-        bottom,
     }
 }
 
@@ -117,8 +80,3 @@ pub(super) fn micro_button_icon(button: &str) -> Option<SheetCrop> {
         _ => return None,
     })
 }
-
-/// `bag-main-2x` (member 16752): the backpack button.
-pub(super) const BACKPACK: SheetCrop = bag(1.0, 97.0, 1.0, 97.0);
-/// `bag-border-empty-2x` (member 16751): an empty bag slot.
-pub(super) const BAG_SLOT_EMPTY: SheetCrop = bag(295.0, 356.0, 64.0, 125.0);

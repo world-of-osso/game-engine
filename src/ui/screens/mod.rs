@@ -1,6 +1,7 @@
 pub mod achievement_frame_component;
 pub mod auction_house_frame_component;
 pub mod bag_frame_component;
+pub(super) mod bags_bar_art;
 pub mod bags_bar_component;
 pub mod bank_art;
 pub mod bank_frame_component;
