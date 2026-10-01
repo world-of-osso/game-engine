@@ -11,6 +11,10 @@ How the client picks items up onto the cursor, drops them, splits stacks and sho
 - `src/scenes/tooltip_frame/item_tooltip.rs`: bag and paperdoll tooltips from the catalog; `TooltipLineState::money` draws `SELL_PRICE:` coins with `merchant_frame_component::money`.
 - `src/ui/popup.rs` `PopupSpec::confirm_text`: an edit-box popup whose Accept waits for the typed word (`DELETE`).
 
+## Native coverage
+
+[Conversion evidence](godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) owns exact saved logs and limits. Bounded equip observation: one EquipItem0/5, authoritative bag clear/MainHand25 guid9170005 count1 and quiet EquipDone; actions run still ends parent101 on missing StaticPopup1 at world-drop PoorNo. `2223d6d3` routes native world presses to original destroy effects through existing shared popup host/results and adds popup keyboard ownership. Source implementation only, NOT GREEN; portable extraction1375 pending before compilation. No full gate, startup-equipment, mesh, destroy, drag or shutdown acceptance.
+
 ## Gotchas
 
 - Keyboard ownership: the split frame and edit-box popups read `KeyboardInput` directly and force `UiInputMode::Text`, so digits don't fire action-bar keybinds.
