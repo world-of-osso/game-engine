@@ -129,23 +129,14 @@ impl GameClient {
         let Some(mut ui) = self.bags.ui.clone() else {
             return Ok(());
         };
-        loop {
-            let action = ui.bind_mut().pop_action().to_string();
-            if action.is_empty() {
-                break;
-            }
-            self.dispatch_bag_action(&action, game_engine_ui_model::merchant::Click::LEFT)?;
-        }
-        while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
-            self.dispatch_bag_action(
-                &action,
-                game_engine_ui_model::merchant::Click { right, shift },
-            )?;
+        let inputs = ui.bind_mut().drain_bag_inputs()?;
+        for input in inputs {
+            self.dispatch_bag_cursor_input(input)?;
         }
         Ok(())
     }
 
-    fn dispatch_bag_action(
+    pub(super) fn dispatch_bag_action(
         &mut self,
         action: &str,
         click: game_engine_ui_model::merchant::Click,

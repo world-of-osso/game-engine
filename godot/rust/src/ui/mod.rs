@@ -68,6 +68,7 @@ pub struct RegistryUi {
     actions: VecDeque<String>,
     /// Right-clicks and Shift-left-clicks: `(action, right, shift)`.
     alt_clicks: VecDeque<(String, bool, bool)>,
+    bag_inputs: Option<VecDeque<crate::bag_cursor::BagInput>>,
     pointer_clicks: u32,
     slider_events: VecDeque<SliderInput>,
     login_fade: Option<f32>,
@@ -203,7 +204,7 @@ impl RegistryModel {
         }
     }
 
-    fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
+    fn click_action(&mut self, id: u64) -> Option<String> {
         let disabled = self
             .registry
             .get(id)
@@ -212,9 +213,51 @@ impl RegistryModel {
                 matches!(data, WidgetData::Button(button)
                     if !button.enabled || button.state == ButtonState::Disabled)
             });
-        if !disabled && let Some(action) = self.registry.click_frame(id) {
+        if disabled {
+            return None;
+        }
+        self.registry.click_frame(id)
+    }
+
+    fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
+        if let Some(action) = self.click_action(id) {
             actions.push_back(action);
         }
+    }
+
+    fn bag_input(
+        &mut self,
+        input: &UiInput,
+        projection: &UiProjection,
+    ) -> Option<crate::bag_cursor::BagInput> {
+        if let UiInput::PointerUp(at) = input {
+            return Some(crate::bag_cursor::BagInput::Release {
+                at: *at / self.registry.ui_scale,
+                action: projection.pointer_action_at(&self.registry, *at),
+            });
+        }
+        self.bag_click_input(input)
+    }
+
+    fn bag_click_input(&mut self, input: &UiInput) -> Option<crate::bag_cursor::BagInput> {
+        use game_engine_ui_model::merchant::Click;
+        let (action, click, at) = match input {
+            UiInput::FrameClick { id, at } => (
+                self.click_action(*id)?,
+                Click::LEFT,
+                Some(*at / self.registry.ui_scale),
+            ),
+            UiInput::Click(id) => (self.click_action(*id)?, Click::LEFT, None),
+            UiInput::AltClick { id, right, shift } => {
+                let click = Click {
+                    right: *right,
+                    shift: *shift,
+                };
+                (self.registry.click_frame(*id)?, click, None)
+            }
+            _ => return None,
+        };
+        Some(crate::bag_cursor::BagInput::Click { action, click, at })
     }
 
     fn set_button(
@@ -323,6 +366,7 @@ impl ICanvasLayer for RegistryUi {
             projection: None,
             actions: VecDeque::new(),
             alt_clicks: VecDeque::new(),
+            bag_inputs: None,
             pointer_clicks: 0,
             slider_events: VecDeque::new(),
             login_fade: None,
@@ -467,7 +511,21 @@ impl RegistryUi {
 
     /// Initialize the authored bag strip and standalone containers.
     pub(crate) fn show_bags(&mut self, view: crate::bags::BagsView) -> Result<(), String> {
-        self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::None)
+        self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::None)?;
+        self.bag_inputs = Some(VecDeque::new());
+        Ok(())
+    }
+
+    pub(crate) fn drain_bag_inputs(&mut self) -> Result<Vec<crate::bag_cursor::BagInput>, String> {
+        let error = self.sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        let inputs = self
+            .bag_inputs
+            .as_mut()
+            .ok_or("Bags input not initialized")?;
+        Ok(inputs.drain(..).collect())
     }
 
     /// Initialize a dedicated RegistryUi instance for the Retail main action bar.
@@ -1301,8 +1359,17 @@ impl RegistryUi {
             return "Login model is not initialized".into();
         };
         for event in inputs {
+            if let Some(queue) = self.bag_inputs.as_mut()
+                && let Some(input) = model.bag_input(&event, projection)
+            {
+                queue.push_back(input);
+                continue;
+            }
             match event {
-                UiInput::Click(id) => model.queue_click_action(&mut self.actions, id),
+                UiInput::Click(id) | UiInput::FrameClick { id, .. } => {
+                    model.queue_click_action(&mut self.actions, id);
+                }
+                UiInput::PointerUp(_) => {}
                 UiInput::AltClick { id, right, shift } => {
                     if let Some(action) = model.registry.click_frame(id) {
                         self.alt_clicks.push_back((action, right, shift));
