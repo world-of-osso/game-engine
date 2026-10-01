@@ -187,9 +187,15 @@ impl VisualCatalogs {
                 items,
                 sheath,
             } => self.load_creature(display_id, &items, sheath),
-            VisualRequest::Player(player, equipment) => Ok(VisualParts::Player(
-                prepare_player_parts(&self.data_root, &player, &equipment)?,
-            )),
+            VisualRequest::Player(player, equipment) => {
+                // The main thread places an arrived visual's weapons from these rows.
+                self.gear()?;
+                Ok(VisualParts::Player(prepare_player_parts(
+                    &self.data_root,
+                    &player,
+                    &equipment,
+                )?))
+            }
         }
     }
 
@@ -335,9 +341,19 @@ impl WorldModels {
             })
     }
 
-    /// The build-pinned DB2 pose and gear rows (`NpcGearData`).
-    pub fn gear(&self) -> Result<&NpcGearData, String> {
-        self.catalogs.gear()
+    /// The build-pinned DB2 pose and gear rows (`NpcGearData`) once the startup worker
+    /// has loaded them; `None` until then, so no frame waits for the load.
+    pub fn loaded_gear(&self) -> Result<Option<&NpcGearData>, String> {
+        let loaded = self.catalogs.gear.get();
+        loaded
+            .map(|gear| gear.as_ref().map_err(Clone::clone))
+            .transpose()
+    }
+
+    /// The gear rows for a unit whose visual has arrived: every visual load reads them.
+    pub fn visual_gear(&self) -> Result<&NpcGearData, String> {
+        self.loaded_gear()?
+            .ok_or_else(|| "NPC pose and gear rows not loaded before a unit visual".into())
     }
 
     #[cfg(test)]
@@ -351,7 +367,7 @@ impl WorldModels {
         items: &EquipmentAppearance,
         sheath: SheathState,
     ) -> Result<Vec<(EquipmentSlot, Option<u32>)>, String> {
-        Ok(virtual_item_placements(self.gear()?, items, sheath))
+        Ok(virtual_item_placements(self.visual_gear()?, items, sheath))
     }
 
     /// Where a player's weapons sit under `sheath` (see [`player_weapon_placements`]).
@@ -360,7 +376,11 @@ impl WorldModels {
         equipment: &EquipmentAppearance,
         sheath: SheathState,
     ) -> Result<Vec<(EquipmentSlot, Option<u32>)>, String> {
-        Ok(player_weapon_placements(self.gear()?, equipment, sheath))
+        Ok(player_weapon_placements(
+            self.visual_gear()?,
+            equipment,
+            sheath,
+        ))
     }
 
     /// Start loading the visual of `appearance` (its virtual items placed for `sheath`);
@@ -579,7 +599,7 @@ mod tests {
     fn stockade_guard_display_armor_resolves_to_body_geosets() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let models = WorldModels::new(data_root.clone());
-        let armor = models.gear().unwrap().display_armor(2989).unwrap();
+        let armor = models.catalogs.gear().unwrap().display_armor(2989).unwrap();
         let resolved = resolve_equipment_appearance(&armor, models.outfit(), 1, 0).unwrap();
         for geoset in [(4, 2), (5, 2), (20, 2), (12, 2)] {
             assert!(
