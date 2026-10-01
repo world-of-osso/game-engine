@@ -548,6 +548,17 @@ static func blend_texel(dst: PackedByteArray, d: int, src: PackedByteArray, s: i
 		for ch in 4:
 			dst[d + ch] = src[s + ch]
 		return
+	if dst[d + 3] < 255 and (mode == 9 or mode == 15):
+		# QPainter SourceOver onto a translucent canvas (WMVx mergeLayer): the
+		# destination weighs by its own alpha.
+		var below := dst[d + 3] * (255 - alpha)
+		var total := alpha * 255 + below
+		if total == 0:
+			return
+		for ch in 3:
+			dst[d + ch] = (src[s + ch] * alpha * 255 + dst[d + ch] * below) / total
+		dst[d + 3] = total / 255
+		return
 	for ch in 3:
 		var value := tint(mode, src[s + ch], dst[d + ch])
 		dst[d + ch] = (value * alpha + dst[d + ch] * (255 - alpha)) >> 8
