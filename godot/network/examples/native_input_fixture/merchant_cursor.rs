@@ -169,7 +169,7 @@ impl Session {
         if line.starts_with("FIXTURE MERCHANT_CURSOR_CLOSE_")
             || line == "FIXTURE MERCHANT_CURSOR_DONE"
         {
-            self.send_close_marker_response(line)
+            self.advance_close_marker_phase(line)
         } else if line.starts_with("FIXTURE MERCHANT_CURSOR_BUYBACK_") {
             self.send_buyback_marker_response(app, line)
         } else if line.starts_with("FIXTURE MERCHANT_CURSOR_SHIFT_") {
@@ -361,7 +361,19 @@ impl Session {
         Ok(())
     }
 
-    fn send_close_marker_response(&mut self, line: &str) -> Result<(), String> {
+    fn advance_close_marker_phase(&mut self, line: &str) -> Result<(), String> {
+        match self.phase {
+            Phase::BuybackDelta
+            | Phase::CloseCatalog
+            | Phase::ClosePickup
+            | Phase::ClosePressed
+            | Phase::CloseRelease
+            | Phase::CloseHeld => self.advance_close_pickup_marker_phase(line),
+            _ => self.advance_close_commit_quiet_marker_phase(line),
+        }
+    }
+
+    fn advance_close_pickup_marker_phase(&mut self, line: &str) -> Result<(), String> {
         match (&self.phase, line) {
             (Phase::BuybackDelta, "FIXTURE MERCHANT_CURSOR_CLOSE_CATALOG_ARM") => {
                 self.require_quiet()?;
@@ -388,6 +400,13 @@ impl Session {
             (Phase::CloseHeld, "FIXTURE MERCHANT_CURSOR_CLOSE_REQUEST_ARM") => {
                 self.advance(Phase::CloseRequest);
             }
+            _ => return Err(self.marker_order_error(line)),
+        }
+        Ok(())
+    }
+
+    fn advance_close_commit_quiet_marker_phase(&mut self, line: &str) -> Result<(), String> {
+        match (&self.phase, line) {
             (Phase::CloseRequest, "FIXTURE MERCHANT_CURSOR_CLOSE_COMMIT") if !self.close_commit => {
                 self.require_quiet()?;
                 self.close_commit = true;
@@ -559,13 +578,7 @@ impl Session {
         request: CloseInteraction,
         vendor: Option<u64>,
     ) -> Result<(), String> {
-        let expected = CloseInteraction { npc: 4_294_966_979 };
-        if self.phase != Phase::CloseRequest
-            || self.closes != 0
-            || !self.completed_five_cases()
-            || vendor != Some(expected.npc)
-            || request.npc != expected.npc
-        {
+        if !self.expected_close_request(&request, vendor) {
             return Err(format!(
                 "forbidden/wrong-NPC/duplicate CloseInteraction {request:?} in {:?}; closes={}",
                 self.phase, self.closes
@@ -575,6 +588,26 @@ impl Session {
         println!(
             "MERCHANT CURSOR CLOSE DECODED {request:?} count=1; InteractionClosed withheld until pre-ack CLOSE_COMMIT"
         );
+        Ok(())
+    }
+
+    fn expected_close_request(&self, request: &CloseInteraction, vendor: Option<u64>) -> bool {
+        let expected = CloseInteraction { npc: 4_294_966_979 };
+        self.phase == Phase::CloseRequest
+            && self.closes == 0
+            && self.completed_five_cases()
+            && vendor == Some(expected.npc)
+            && request.npc == expected.npc
+    }
+
+    fn drain_close_requests(
+        &mut self,
+        mut closes: Vec<CloseInteraction>,
+        vendor: Option<Entity>,
+    ) -> Result<(), String> {
+        for request in closes.drain(..) {
+            self.receive_close(request, vendor.map(Entity::to_bits))?;
+        }
         Ok(())
     }
 
@@ -593,9 +626,7 @@ impl Session {
                 "merchant-cursor unrelated close/spell requests: {closes:?} {casts:?}"
             ));
         }
-        for request in closes {
-            self.receive_close(request, vendor.map(Entity::to_bits))?;
-        }
+        self.drain_close_requests(closes, vendor)?;
         for request in interactions {
             if self.phase != Phase::Open
                 || self.opens != 0
