@@ -72,9 +72,9 @@ impl GameClient {
             return Ok(());
         };
         let Some(race) = self
-            .units
-            .get(&id)
-            .and_then(|unit| unit.player.as_ref())
+            .replica
+            .unit(id)
+            .and_then(|unit| unit.get::<shared::components::Player>())
             .map(|player| player.race)
         else {
             sound.bind_mut().stop_footsteps();

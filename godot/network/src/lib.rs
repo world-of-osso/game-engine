@@ -1,48 +1,40 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
+pub mod replica;
+
 use std::{
     any::Any,
-    collections::{HashMap, HashSet},
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::mpsc::{self, Receiver, Sender, TryRecvError},
+    sync::{
+        Arc,
+        mpsc::{self, Receiver, Sender, TryRecvError},
+    },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
 
 use bevy::{
     app::{AppExit, ScheduleRunnerPlugin},
-    ecs::resource::IsResource,
     prelude::*,
     state::app::StatesPlugin,
 };
-use bevy_replicon::{
-    client::confirm_history::EntityReplicated, shared::server_entity_map::ServerEntityMap,
-};
 use lightyear::prelude::{
-    self as network, MessageReceiver, MessageSender, client as client_network,
+    self as network, Client, MessageReceiver, MessageSender, Transport, client as client_network,
 };
-use shared::{
-    casting::CastState,
-    components::{
-        CombatStatus, CreatureMotion, EquipmentAppearance, Gold, Health, Mana, ModelDisplay,
-        MovementControl, MovementSpeed, Npc, Player, PlayerMotion, Position, Rotation, UnitAuras,
-        UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitRunes, UnitTarget,
-        UnitThreatList,
-    },
-    level_scaling::LevelScaling,
-    protocol::{
-        self, ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
-        CharacterListUpdate, ChatMessage, CombatEvent, CombatLogEvent, CreateCharacterResponse,
-        DamageMeterSnapshot, DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate,
-        EnterWorldResponse, ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed,
-        InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot,
-        LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart,
-        MirrorTimerStop, NewWorld, NpcFlags, QuestFailed, QuestGiverStatusMultiple,
-        QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
-        SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
-        VendorInventory,
-    },
+use lightyear_replication::{LightyearRepliconClientBackend, channels::RepliconChannelMap};
+use lightyear_transport::plugin::TransportSystems;
+use replica::{ReplicationBatch, Schema};
+use shared::protocol::{
+    self, ActionBarSnapshot, AttackStart, AttackStopped, BuybackList, CastFailed,
+    CharacterListUpdate, ChatMessage, CombatEvent, CombatLogEvent, CreateCharacterResponse,
+    DamageMeterSnapshot, DeleteCharacterResponse, DungeonDifficultySet, DurabilityStateUpdate,
+    EnterWorldResponse, ForcedDisconnect, InstanceInfo, InteractionClosed, InteractionFailed,
+    InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, KnownSpellsSnapshot,
+    LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause, MirrorTimerStart,
+    MirrorTimerStop, NewWorld, QuestFailed, QuestGiverStatusMultiple, QuestLogSnapshot,
+    QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged, SpellCooldownUpdate,
+    SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted, VendorInventory,
 };
 
 /// Trait bound for decoding messages carried by this transport boundary.
@@ -71,103 +63,6 @@ impl ProtocolMessage {
     }
 }
 
-/// Full state for one replicated player/NPC at one server notification.
-/// `server_id` is the server Entity bits including generation, not a Godot node ID.
-#[derive(Debug, Clone, PartialEq)]
-pub struct UnitSnapshot {
-    pub server_id: u64,
-    pub player: Option<Player>,
-    pub npc: Option<Npc>,
-    pub position: Option<Position>,
-    pub rotation: Option<Rotation>,
-    pub health: Option<Health>,
-    pub mana: Option<Mana>,
-    pub model: Option<ModelDisplay>,
-    pub level: Option<UnitLevel>,
-    /// A tuned creature's ContentTuning range: the level and health each viewer sees.
-    pub level_scaling: Option<LevelScaling>,
-    pub equipment: Option<EquipmentAppearance>,
-    pub movement_control: Option<MovementControl>,
-    /// Server speed (yd/s) for the unit's newest applied movement: base × auras × direction.
-    pub movement_speed: Option<MovementSpeed>,
-    /// A creature's stand/walk/run; players carry none.
-    pub creature_motion: Option<CreatureMotion>,
-    /// A player's Retail `MovementFlags` from its newest applied input; creatures carry none.
-    pub player_motion: Option<PlayerMotion>,
-    /// A creature's stand, sheath and emote state (`creature_addon`); players carry none.
-    pub unit_pose: Option<UnitPose>,
-    /// Server entity bits of the unit's own target (`SetTarget` echo for players).
-    pub unit_target: Option<u64>,
-    /// Server entity bits of the units on a creature's threat list; empty for players.
-    pub threat_list: Vec<u64>,
-    /// Retail `FactionTemplate` id, for reaction to the local player.
-    pub faction_template: Option<u32>,
-    /// `UNIT_FIELD_FLAGS` bits.
-    pub unit_flags: Option<u32>,
-    /// Replicated `CombatStatus`.
-    pub in_combat: bool,
-    /// The cast or channel in progress; the server removes it on completion or interrupt.
-    pub cast: Option<CastState>,
-    /// Raw DB2 power values, primary power first.
-    pub powers: Option<UnitPowers>,
-    /// A death knight's per-rune recharge (`GetRuneCooldown`).
-    pub runes: Option<UnitRunes>,
-    pub auras: Option<UnitAuras>,
-    /// Retail `NPCFlags` / `NPCFlags2` bits of an NPC (vendor, repair, gossip, ...).
-    pub npc_flags: Option<u64>,
-    /// The local player's money in copper; other units carry none.
-    pub gold: Option<u64>,
-    pub combat_status: Option<CombatStatus>,
-}
-
-impl UnitSnapshot {
-    fn capture(server_id: u64, entity: EntityRef) -> Self {
-        Self {
-            server_id,
-            player: entity.get::<Player>().cloned(),
-            npc: entity.get::<Npc>().cloned(),
-            position: entity.get::<Position>().copied(),
-            rotation: entity.get::<Rotation>().copied(),
-            health: entity.get::<Health>().copied(),
-            mana: entity.get::<Mana>().copied(),
-            model: entity.get::<ModelDisplay>().copied(),
-            level: entity.get::<UnitLevel>().copied(),
-            level_scaling: entity.get::<LevelScaling>().copied(),
-            equipment: entity.get::<EquipmentAppearance>().cloned(),
-            movement_control: entity.get::<MovementControl>().copied(),
-            movement_speed: entity.get::<MovementSpeed>().copied(),
-            creature_motion: entity.get::<CreatureMotion>().copied(),
-            player_motion: entity.get::<PlayerMotion>().copied(),
-            unit_pose: entity.get::<UnitPose>().copied(),
-            unit_target: entity.get::<UnitTarget>().and_then(|target| target.0),
-            threat_list: entity
-                .get::<UnitThreatList>()
-                .map_or_else(Vec::new, |list| list.0.clone()),
-            faction_template: entity
-                .get::<UnitFactionTemplate>()
-                .map(|template| template.0),
-            unit_flags: entity.get::<UnitFlags>().map(|flags| flags.0),
-            in_combat: entity.get::<CombatStatus>().is_some_and(|status| status.0),
-            cast: entity.get::<CastState>().cloned(),
-            powers: entity.get::<UnitPowers>().cloned(),
-            runes: entity.get::<UnitRunes>().cloned(),
-            auras: entity.get::<UnitAuras>().cloned(),
-            npc_flags: entity.get::<NpcFlags>().map(|flags| flags.0),
-            gold: entity.get::<Gold>().map(|gold| gold.0),
-            combat_status: entity.get::<CombatStatus>().copied(),
-        }
-    }
-}
-
-/// A real replicated world object, independent of player/NPC markers.
-#[derive(Debug, Clone, PartialEq)]
-pub struct GameObjectSnapshot {
-    pub server_id: u64,
-    pub info: protocol::GameObjectInfo,
-    pub position: Option<Position>,
-    pub rotation: Option<Rotation>,
-}
-
 pub enum Event {
     /// The server's protocol fingerprint matched; the connection is usable.
     Connected,
@@ -175,14 +70,14 @@ pub enum Event {
     ProtocolRejected(String),
     Disconnected(Option<String>),
     Message(ProtocolMessage),
-    UnitUpdated(UnitSnapshot),
-    GameObjectUpdated(GameObjectSnapshot),
-    /// A replicated unit or game object disappeared.
-    UnitRemoved(u64),
+    /// Sent once per connection before any `Replication`: start a new `Replica`.
+    ReplicationStarted(Arc<Schema>),
+    /// Replicon payloads of one worker frame, for `Replica::apply`.
+    Replication(ReplicationBatch),
 }
 
 /// Register any server-to-client type already registered by `shared::ProtocolPlugin`.
-/// A new connection owns an independent FIFO and replication identity map.
+/// A new connection owns an independent FIFO and replication schema event.
 #[derive(Default)]
 pub struct BridgeConfig {
     relays: Vec<fn(&mut App, Sender<Event>)>,
@@ -410,22 +305,19 @@ fn run_worker(
     client_id: u64,
     relays: Vec<fn(&mut App, Sender<Event>)>,
 ) -> Result<(), String> {
-    let mut app = App::new();
-    app.set_error_handler(protocol::defer_lightyear_protocol_check);
-    app.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>());
-    app.add_plugins(StatesPlugin);
-    app.add_plugins(client_network::ClientPlugins {
-        tick_duration: SIMULATION_INTERVAL,
-    });
-    app.add_plugins(shared::ProtocolPlugin);
+    let mut app = client_app();
     for relay in relays {
         relay(&mut app, events.clone());
     }
     install_lifecycle(&mut app, events.clone());
-    install_replication(&mut app, events);
+    install_replication(&mut app, events.clone());
     connect_transport(app.world_mut(), server_addr, client_id)?;
     app.finish();
     app.cleanup();
+    let schema = Schema::from_world(app.world())?;
+    events
+        .send(Event::ReplicationStarted(schema))
+        .map_err(|_| "host event receiver closed")?;
     let started = Instant::now();
     while apply_commands(app.world_mut(), &commands)? {
         app.update();
@@ -438,6 +330,28 @@ fn run_worker(
         thread::sleep(next_tick_delay(started.elapsed()));
     }
     Ok(())
+}
+
+/// Lightyear client with replicon's receive side replaced by `replica`: lightyear's backend
+/// adds replicon's `ClientPlugin` and applies replication into this world, which the host
+/// never reads. Lightyear prediction rolls back that world and needs replicon's client; the
+/// host predicts the local player itself. Replication rules, channels and the protocol hash
+/// are unchanged: they come from lightyear's shared plugins and `shared::ProtocolPlugin`.
+fn client_app() -> App {
+    let mut app = App::new();
+    app.set_error_handler(protocol::defer_lightyear_protocol_check);
+    app.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>());
+    app.add_plugins(StatesPlugin);
+    app.add_plugins(
+        client_network::ClientPlugins {
+            tick_duration: SIMULATION_INTERVAL,
+        }
+        .build()
+        .disable::<LightyearRepliconClientBackend>()
+        .disable::<lightyear::prediction::plugin::PredictionPlugin>(),
+    );
+    app.add_plugins(shared::ProtocolPlugin);
+    app
 }
 
 fn connect_transport(
@@ -472,13 +386,6 @@ fn connect_transport(
 }
 
 fn install_lifecycle(app: &mut App, events: Sender<Event>) {
-    app.add_observer(
-        |connected: On<Add, client_network::Connected>, mut commands: Commands| {
-            commands
-                .entity(connected.entity)
-                .insert(network::ReplicationReceiver);
-        },
-    );
     app.add_systems(
         PostUpdate,
         move |verified: Query<(), Added<protocol::ProtocolVerified>>,
@@ -678,62 +585,28 @@ fn install_mail_relay(app: &mut App, events: Sender<Event>) {
     );
 }
 
-#[derive(Resource, Default)]
-struct ReplicatedIds(HashMap<Entity, u64>);
-
+/// Forward replicon payloads; nothing from a rejected connection reaches the host.
 fn install_replication(app: &mut App, events: Sender<Event>) {
-    app.init_resource::<ReplicatedIds>();
     app.add_systems(
-        Update,
-        (move |mut changes: MessageReader<EntityReplicated>,
-               mut removed: RemovedComponents<client_network::Remote>,
-               entities: Query<EntityRef, (With<client_network::Remote>, Without<IsResource>)>,
-               server_ids: Res<ServerEntityMap>,
-               mut known: ResMut<ReplicatedIds>| {
-            for worker_entity in removed.read() {
-                if let Some(server_id) = known.0.remove(&worker_entity) {
-                    events
-                        .send(Event::UnitRemoved(server_id))
-                        .expect("host event receiver closed");
-                }
+        PreUpdate,
+        (move |channels: Res<RepliconChannelMap>,
+               mut transports: Query<&mut Transport, With<Client>>,
+               rejected: Query<(), With<protocol::ProtocolRejected>>|
+              -> Result {
+            let batches = replica::receive::receive_batches(&channels, &mut transports)?;
+            if !rejected.is_empty() {
+                return Ok(());
             }
-            let mut seen = HashSet::new();
-            for change in changes.read() {
-                let worker_entity = change.entity;
-                if !seen.insert(worker_entity) {
-                    continue;
-                }
-                let Ok(entity) = entities.get(worker_entity) else {
-                    continue;
-                };
-                let Some(server) = server_ids.to_server().get(&worker_entity) else {
-                    panic!("replicated entity {worker_entity:?} has no server identity");
-                };
-                let server_id = server.to_bits();
-                if entity.get::<Player>().is_some() || entity.get::<Npc>().is_some() {
-                    known.0.insert(worker_entity, server_id);
-                    let snapshot = UnitSnapshot::capture(server_id, entity);
-                    events
-                        .send(Event::UnitUpdated(snapshot))
-                        .expect("host event receiver closed");
-                } else if let Some(info) = entity.get::<protocol::GameObjectInfo>() {
-                    known.0.insert(worker_entity, server_id);
-                    events
-                        .send(Event::GameObjectUpdated(GameObjectSnapshot {
-                            server_id,
-                            info: info.clone(),
-                            position: entity.get::<Position>().copied(),
-                            rotation: entity.get::<Rotation>().copied(),
-                        }))
-                        .expect("host event receiver closed");
-                } else if known.0.remove(&worker_entity).is_some() {
-                    events
-                        .send(Event::UnitRemoved(server_id))
-                        .expect("host event receiver closed");
-                }
+            for batch in batches {
+                events
+                    .send(Event::Replication(batch))
+                    .expect("host event receiver closed");
             }
+            Ok(())
         })
-        .run_if(protocol_not_rejected),
+        // Message receive drains every channel receiver, replicon's included.
+        .after(TransportSystems::Receive)
+        .before(network::MessageSystems::Receive),
     );
 }
 
@@ -774,10 +647,7 @@ mod wire_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared::{
-        components::MovementControl,
-        protocol::{AuthChannel, LoginRequest},
-    };
+    use shared::protocol::{AuthChannel, LoginRequest};
     use std::{
         net::UdpSocket,
         time::{Duration, Instant},
@@ -796,51 +666,31 @@ mod tests {
         assert_eq!(reply.error.as_deref(), Some("invalid credentials"));
     }
 
+    /// The fingerprint `shared::protocol_check` compares (lightyear message and channel
+    /// hashes, replicon `ProtocolHash`) is the stock lightyear client's.
     #[test]
-    fn unit_snapshot_owns_server_identity_and_component_values() {
-        let mut world = World::new();
-        let entity = world
-            .spawn((
-                Npc {
-                    template_id: 42,
-                    name: "Loup — Écorché".into(),
-                },
-                Position {
-                    x: 1.0,
-                    y: 2.0,
-                    z: 3.0,
-                },
-                Health {
-                    current: 8.0,
-                    max: 10.0,
-                },
-                MovementControl {
-                    epoch: 7,
-                    controlled: true,
-                },
-                MovementSpeed(3.5),
-            ))
-            .id();
-        let server_id = world.spawn_empty().id().to_bits();
-        let snapshot = UnitSnapshot::capture(server_id, world.entity(entity));
-        world.despawn(entity);
-        assert_eq!(snapshot.server_id, server_id);
-        assert_eq!(snapshot.npc.unwrap().name, "Loup — Écorché");
-        assert_eq!(snapshot.health.unwrap().current, 8.0);
-        assert_eq!(snapshot.movement_speed, Some(MovementSpeed(3.5)));
-        assert_eq!(
-            snapshot.movement_control,
-            Some(MovementControl {
-                epoch: 7,
-                controlled: true,
-            })
-        );
-
-        let entity_without_control = world.spawn_empty().id();
-        let absent = UnitSnapshot::capture(server_id, world.entity(entity_without_control));
-        world.despawn(entity_without_control);
-        assert_eq!(absent.movement_control, None);
-        assert_eq!(absent.movement_speed, None);
+    fn replacing_replicon_client_keeps_the_protocol_fingerprint() {
+        fn fingerprint(mut app: App) -> (u64, u64, bevy_replicon::shared::protocol::ProtocolHash) {
+            app.finish();
+            app.cleanup();
+            let world = app.world_mut();
+            (
+                world.resource_mut::<network::MessageRegistry>().finish(),
+                world.resource_mut::<network::ChannelRegistry>().finish(),
+                *world.resource::<bevy_replicon::shared::protocol::ProtocolHash>(),
+            )
+        }
+        let mut stock = App::new();
+        stock.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>());
+        stock.add_plugins(StatesPlugin);
+        stock.add_plugins(client_network::ClientPlugins {
+            tick_duration: SIMULATION_INTERVAL,
+        });
+        stock.add_plugins(shared::ProtocolPlugin);
+        assert!(stock.is_plugin_added::<LightyearRepliconClientBackend>());
+        let replaced = client_app();
+        assert!(!replaced.is_plugin_added::<bevy_replicon::client::ClientPlugin>());
+        assert_eq!(fingerprint(replaced), fingerprint(stock));
     }
 
     #[test]

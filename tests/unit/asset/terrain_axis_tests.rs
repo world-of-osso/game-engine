@@ -119,6 +119,7 @@ fn terrain_axis_water_offsets_match_authored_grid() {
         vertex_heights: vec![7.0; 4],
         vertex_uvs: vec![],
         vertex_depths: vec![],
+        object_vertex_bytes: vec![],
     };
     let mesh = adt::build_water_mesh([-200.0, 100.0, 0.0], &layer);
     let p = positions(&mesh);

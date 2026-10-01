@@ -19,12 +19,18 @@ const WAIT_MS := 15000
 # CASC initialization (16.8 s idle, over 60 s on a loaded host) before the client
 # processes frames.
 const STARTUP_WAIT_MS := 180000
+# The isolated data starts without terrain: entering a map extracts its 3x3 ADT tiles
+# (root, tex0, obj0) and their WMOs from CASC before the world attaches; 12 files took over
+# 15 s on a loaded host.
+const WORLD_LOAD_WAIT_MS := 180000
 const GLOBAL_AMBIENT := Vector3(51.0, 102.0, 153.0) / 255.0
 const GLOBAL_DIRECT := Vector3(119.0, 85.0, 51.0) / 255.0
 const LOCAL_AMBIENT := Vector3(153.0, 85.0, 51.0) / 255.0
 const LOCAL_DIRECT := Vector3(51.0, 119.0, 153.0) / 255.0
 const MAP_AMBIENT := Vector3(34.0, 102.0, 136.0) / 255.0
 const MAP_DIRECT := Vector3(153.0, 68.0, 51.0) / 255.0
+# retail_fog: from the 1000-yard far clip times the fixture's FogScaler 0.2, to the far clip.
+const RETAIL_FOG_RANGE := Vector2(200.0, 1000.0)
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -57,7 +63,7 @@ func run_test() -> void:
 		return
 	await click_control(card)
 	await click_control(enter)
-	if not await wait_visual(client, 1.5):
+	if not await wait_visual(client, 1.5, WORLD_LOAD_WAIT_MS):
 		return
 	if not await wait_lighting(client, GLOBAL_AMBIENT, GLOBAL_DIRECT, "azeroth"):
 		return
@@ -134,7 +140,7 @@ func run_test() -> void:
 		return
 	var old_light_id: int = client.get_node("WorldLighting").get_instance_id()
 	print("FIXTURE NPC_RESTORED")
-	if not await wait_lighting(client, MAP_AMBIENT, MAP_DIRECT, "kalimdor"):
+	if not await wait_lighting(client, MAP_AMBIENT, MAP_DIRECT, "kalimdor", WORLD_LOAD_WAIT_MS):
 		return
 	if client.get_node("WorldLighting").get_instance_id() == old_light_id:
 		fail("Map change retained previous lighting producer")
@@ -209,8 +215,8 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-func wait_lighting(client: Node, ambient: Vector3, direct: Vector3, map: String) -> bool:
-	var deadline := Time.get_ticks_msec() + WAIT_MS
+func wait_lighting(client: Node, ambient: Vector3, direct: Vector3, map: String, timeout_ms := WAIT_MS) -> bool:
+	var deadline := Time.get_ticks_msec() + timeout_ms
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if lighting_matches(client, ambient, direct, map):
@@ -248,7 +254,7 @@ func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: Stri
 	return actual_ambient is Vector3 and (actual_ambient as Vector3).is_equal_approx(ambient) \
 		and actual_direct is Vector3 and (actual_direct as Vector3).is_equal_approx(direct) \
 		and direction is Vector3 and (direction as Vector3).is_equal_approx(-sun.global_basis.z) \
-		and fog is Vector2 and (fog as Vector2).is_equal_approx(Vector2(200.0 / 36.0, 1000.0 / 36.0)) \
+		and fog is Vector2 and (fog as Vector2).is_equal_approx(RETAIL_FOG_RANGE) \
 		and int(material.get_shader_parameter("fog_mode")) == 1
 
 func wait_authored_stand(client: Node) -> bool:
@@ -289,6 +295,7 @@ func wait_initially_dead_npc(client: Node) -> bool:
 
 func wait_death_pose(client: Node, name: String, unit_id: int, visual_id: int) -> bool:
 	var saw_advance := false
+	var last_pose := Vector3.INF
 	var deadline := Time.get_ticks_msec() + WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
@@ -302,6 +309,7 @@ func wait_death_pose(client: Node, name: String, unit_id: int, visual_id: int) -
 			fail("Death animation lost authored skeleton: " + name)
 			return false
 		var pose := skeleton.get_bone_pose_position(0) - skeleton.get_bone_rest(0).origin
+		last_pose = pose
 		if pose.y > 2.1 and pose.y < 2.9:
 			saw_advance = true
 		if saw_advance and absf(pose.y - 3.0) < 0.05:
@@ -318,8 +326,12 @@ func wait_death_pose(client: Node, name: String, unit_id: int, visual_id: int) -
 					fail("Death clip did not hold its last pose on retained visual: " + name)
 					return false
 			return true
-	fail("Automatic Death pose never advanced to its held Y=3 end: %s, saw motion=%s" % [name, saw_advance])
+	fail("Automatic Death pose never advanced to its held Y=3 end: %s, saw motion=%s, last pose=%s, animation id=%s" % [name, saw_advance, last_pose, _death_animation_id(client, name)])
 	return false
+
+func _death_animation_id(client: Node, name: String) -> Variant:
+	var animation = client.get_node_or_null("WorldUnits/" + name + "/NpcVisualRoot/NpcModel/M2Animation")
+	return animation.current_animation_id() if animation != null else null
 
 func make_npc_m2() -> PackedByteArray:
 	var model := make_m2(7, 0)
@@ -340,6 +352,8 @@ func make_npc_m2() -> PackedByteArray:
 	put_u16(md20, 0x2c0, 1) # Death at index 2.
 	put_u32(md20, 0x2c4, 1000)
 	put_u16(md20, 0x2fc, 0xffff)
+	for sequence in 3:
+		put_u32(md20, 0x24c + sequence * 0x40, 0x20) # Keyframes in the model, not an .anim file.
 	put_u32(md20, 0x300, 0xffffffff) # No key bone ID.
 	put_u16(md20, 0x308, 0xffff) # Root parent.
 	put_u16(md20, 0x310, 1) # Linear translation interpolation.
@@ -594,8 +608,8 @@ func visual_matches(client: Node, scale: float) -> bool:
 	var expected_color := SECOND if expected == 910002 else BASE
 	return absf(actual.r - expected_color.r) < TOLERANCE and absf(actual.g - expected_color.g) < TOLERANCE and absf(actual.b - expected_color.b) < TOLERANCE
 
-func wait_visual(client: Node, scale: float) -> bool:
-	var deadline := Time.get_ticks_msec() + WAIT_MS
+func wait_visual(client: Node, scale: float, timeout_ms := WAIT_MS) -> bool:
+	var deadline := Time.get_ticks_msec() + timeout_ms
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if visual_matches(client, scale):

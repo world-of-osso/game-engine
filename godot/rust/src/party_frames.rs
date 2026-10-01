@@ -18,7 +18,7 @@ use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::popup::{PopupOutcome, PopupSpec, PopupStack};
 use game_engine_ui_model::static_popup_component::{StaticPopupState, parse_popup_action};
 use godot::prelude::*;
-use shared::components::PowerType;
+use shared::components::{Player, PowerType};
 use shared::death::DeathState;
 use shared::protocol::{GROUP_INVITE_TIMEOUT_SECS, GroupMemberSnapshot};
 
@@ -240,8 +240,8 @@ impl GameClient {
     fn group_frames_view(&self) -> GroupFramesState {
         let target_name = self
             .targeting_target()
-            .and_then(|id| self.units.get(&id))
-            .and_then(|unit| unit.player.as_ref())
+            .and_then(|id| self.replica.unit(id))
+            .and_then(|unit| unit.get::<Player>())
             .map(|player| player.name.clone());
         let local_name = self.account.session.selected_character_name.clone();
         let viewer = GroupViewer {

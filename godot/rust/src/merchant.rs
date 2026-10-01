@@ -16,12 +16,14 @@ use godot::classes::{
 use godot::global::Key;
 use godot::global::MouseButton;
 use godot::prelude::*;
+use shared::components::{Health, Npc};
 use shared::protocol::{InteractionKind, NpcFlags, NpcRole};
 
 use crate::GameClient;
 use crate::account::NpcMessage;
 use crate::faction_reaction::{Reaction, reaction};
 use crate::frame_error::{FrameError, SessionError, report_once};
+use crate::replicated::UnitFields;
 use crate::targeting::pick_unit;
 use crate::ui::{MerchantStates, RegistryUi};
 use crate::world_map::{WindowDrag, title_hit};
@@ -119,9 +121,9 @@ impl GameClient {
             NpcMessage::Closed(npc) => session.receive_interaction_closed(npc),
             NpcMessage::Vendor(inventory) => {
                 let name = self
-                    .units
-                    .get(&inventory.npc)
-                    .and_then(|unit| unit.npc.as_ref())
+                    .replica
+                    .unit(inventory.npc)
+                    .and_then(|unit| unit.get::<Npc>())
                     .map(|npc| npc.name.clone())
                     .unwrap_or_default();
                 session.receive_inventory(inventory, name);
@@ -152,7 +154,7 @@ impl GameClient {
         let money = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id)?.gold)
+            .and_then(|id| self.replica.unit(id)?.gold())
             .unwrap_or(0);
         self.merchant.session.money = money;
         let interactive =
@@ -210,7 +212,7 @@ impl GameClient {
     }
 
     fn unit_right_click(&self, id: u64) -> RightClick {
-        let Some(unit) = self.units.get(&id) else {
+        let Some(unit) = self.replica.unit(id) else {
             return RightClick::Target;
         };
         let distance = self
@@ -220,8 +222,10 @@ impl GameClient {
             .map_or(f32::INFINITY, |(player, node)| {
                 player.origin.distance_to(node.get_global_position())
             });
-        let dead = unit.health.is_some_and(|health| health.current <= 0.0);
-        right_click(unit.npc.is_some(), dead, distance)
+        let dead = unit
+            .get::<Health>()
+            .is_some_and(|health| health.current <= 0.0);
+        right_click(unit.has::<Npc>(), dead, distance)
     }
 
     /// Bevy `pick_desired_cursor` for units: the cursor of the NPC under the pointer.
@@ -235,27 +239,29 @@ impl GameClient {
         else {
             return Some(ActiveWowCursor::Default);
         };
-        if self.game_objects.info(id).is_some() {
+        if self.game_objects.contains(id) {
             return Some(ActiveWowCursor::Mail);
         }
-        let unit = self.units.get(&id)?;
-        if unit.npc.is_none() {
+        let unit = self.replica.unit(id)?;
+        if !unit.has::<Npc>() {
             return Some(ActiveWowCursor::Default);
         }
         let viewer = self
             .world
             .local_player_id()
-            .and_then(|player| self.units.get(&player)?.faction_template);
+            .and_then(|player| self.replica.unit(player)?.faction_template());
         let reaction = match self.nameplates.templates(&self.data_root) {
             Ok(templates) => reaction(
-                unit.faction_template.and_then(|id| templates.get(&id)),
+                unit.faction_template().and_then(|id| templates.get(&id)),
                 viewer.and_then(|id| templates.get(&id)),
             ),
             Err(_) => Reaction::Neutral,
         };
         Some(npc_cursor(NpcCursorView {
-            flags: NpcFlags(unit.npc_flags.unwrap_or(0)),
-            dead: unit.health.is_some_and(|health| health.current <= 0.0),
+            flags: NpcFlags(unit.npc_flags().unwrap_or(0)),
+            dead: unit
+                .get::<Health>()
+                .is_some_and(|health| health.current <= 0.0),
             lootable: self.loot.lootable.contains(&id),
             reaction,
         }))
@@ -263,7 +269,7 @@ impl GameClient {
 
     /// The Retail cursor art in world; the system cursor elsewhere, or when the art
     /// fails to load (Bevy `load_cursor_image`: logged, the cursor asset stays absent).
-    fn set_world_cursor(&mut self, cursor: Option<ActiveWowCursor>) {
+    pub(crate) fn set_world_cursor(&mut self, cursor: Option<ActiveWowCursor>) {
         if self.merchant.cursor == cursor {
             return;
         }
