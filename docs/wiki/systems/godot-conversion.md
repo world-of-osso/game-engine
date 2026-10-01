@@ -49,7 +49,7 @@ MAIN reports bounded GREEN at native `837e2c1e` + `b073e4dd`, tests `d825108c`/`
 | Merchant-click regression | Full `/tmp/claude/native-merchant-cursor-click-green.log` exit0: strict3 opens/3 closes, placement/reset, TWO individually asserted completed audio effects (tab/close, each exactly1), plus quiet release/right/reopen/keyboard gates; not an exact3-audio total. Normal status0, Loading4784ms. Generic PointerDown audio preserved. |
 | Acceptance/lifecycle | MAIN-accepted gate1446 bounded five-flow PASS; original four regressions retain exact counts, authoritative barriers and quiet assertions. Owned PIDs4006296/4006295/4006325/4006420 intentional SIGKILL/reap/readers0 are NOT shutdown proof. Only merchant-click exits normally; it does not clear the previous warning. |
 
-Historical gate1446 scope/exclusions below remain specific to that proof; [current bounded Buy + whole/split sale acceptance](#native-merchant-split-cursor-sale--main-accepted-bounded-pass) extends it. [Shift vendor buy](#native-merchant-shift-vendor-buy--observed-existing-behavior-gate-pending) has MAIN-accepted gate1467 bounded PASS at the old audited revision; [Buyback](#native-merchant-buyback--observed-existing-behavior-gate-pending) has fresh MAIN runtime proof, gate1472 pending, not accepted.
+Historical gate1446 scope/exclusions below remain specific to that proof; [current bounded Buy + whole/split sale acceptance](#native-merchant-split-cursor-sale--main-accepted-bounded-pass) extends it. [Shift vendor buy](#native-merchant-shift-vendor-buy--observed-existing-behavior-gate-pending) has MAIN-accepted gate1467 bounded PASS at the old audited revision; [Buyback](#native-merchant-buyback--observed-existing-behavior-gate-pending) has MAIN-accepted gate1472 bounded PASS for test-only `cd354317`.
 
 Scope: first vendor pickup → own embedded empty bag slot. Right-click/Shift/buyback direct model routes retained in source, not new runtime coverage. Broader Sell, vendor split, outside-vendor World/foreign-frame behavior, buyback, standalone cross-host drops, cross-root delivery/global FIFO/global winner/ownership and general lifecycle remain unproved. Original World policy clears a vendor cursor without an effect; producer-blocked frame input retains it: source distinction, not new runtime proof or authorization to rewrite [cursor requirements](../../specs/cursor-item.md).
 
@@ -95,17 +95,19 @@ Test-only `deefafa8` adds coverage without production changes after accepted doc
 
 Fixture authority does not prove production-server pricing or autostacking. Historical gate1467 exclusions remain specific to its audited revision; no Buyback, lifecycle, cross-root/global ownership or full-conversion acceptance. Full conversion remains **OPEN**.
 
-### Native merchant Buyback — observed existing behavior, gate pending
+<a id="native-merchant-buyback--observed-existing-behavior-gate-pending"></a>
 
-Test-only `cd354317` appends Buyback to the unchanged four cases; [test report SSOT](/tmp/claude/native-merchant-buyback-test.md) describes authored coverage, with its unexecuted status superseded only by this fresh MAIN proof. Depot `2j1dwb5mvf`, [build log](/tmp/claude/native-merchant-buyback-first-build.log) EXIT_CODE=0; [actual runtime log](/tmp/claude/native-merchant-buyback-first-runtime.log) EXIT_CODE=0. Existing behavior newly proved at runtime: **not RED or a production fix**. Independent Buyback gate1472 actual report ID pending, **not accepted**.
+### Native merchant Buyback — MAIN-accepted bounded PASS
+
+Test-only `cd354317` appends Buyback to the unchanged four cases; [test report SSOT](/tmp/claude/native-merchant-buyback-test.md) describes authored coverage, with its unexecuted status superseded only by this fresh MAIN proof. Depot `2j1dwb5mvf`, [build log](/tmp/claude/native-merchant-buyback-first-build.log) EXIT_CODE=0; [actual runtime log](/tmp/claude/native-merchant-buyback-first-runtime.log) EXIT_CODE=0. Existing behavior newly proved at runtime: **not RED or a production fix**. MAIN read FULL [independent report SSOT](/tmp/claude/verify-native-merchant-buyback.md) and accepts gate1472 **bounded PASS for test-only `cd354317`**: five existing native cases, five client-before-peer-delta barriers, matching fresh first-build/first-runtime exit0, scoped formatting and zero new cognitive>15/cyclomatic>20 crossings. Production source unchanged; this first test passes existing behavior, **not a production fix**. `run_until_done` cyclomatic sum20 is at the limit, not above. Ordinary test-length/final compound-guard debt and inherited WMO warning remain, not clean.
 
 | Boundary | MAIN-observed evidence / status |
 | --- | --- |
-| Physical tab / cell | Peer lists Linen2, price26, slot0. Physical Buyback Tab2 then cell Left; actual title/art/count2/price26 asserted. |
+| Physical tab / cell | Peer lists Linen2, price26, slot0. Physical Buyback Tab2 → first cell Left only; actual title/art/count2/price26 asserted. |
 | Fifth authority barrier | Exact BuybackItemRequest npc4294966979/slot0. Linen5/Gold964/list2/no held cursor/no picker unchanged900ms **before BUYBACK_COMMIT**; only afterward peer produces Linen7/Gold938 and empty list, final tab retained. |
 | Totals / lifecycle | Old four cases retained; Buy2/Sell2/Buyback1, five barriers. Child4086596 deliberately killed/reaped, readers0: **not shutdown proof**. |
 
-No production-server pricing or autostack claim. Buyback right/Shift/last-sale button, lifecycle, cross-root/general ownership and remaining full-goal scopes stay unproved. Full goal remains **OPEN**.
+Negative-packet/wrong-phase/duplicate guards are source-audited only, not fault-injected. Price26/count7 are fixture authority, not production-server pricing or autostack proof. Buyback right/Shift/last-sale button, other cells, lifecycle, cross-root/general ownership and remaining full-goal scopes stay unproved. Accepted Shift gate1467/`deefafa8` and sales gate1461 retain historical scopes. Next TEST1475 vendor-cursor CloseButton pre-ack barrier is preparing, **NO PROOF**; not a generic lifecycle gate. Full conversion remains **OPEN**.
 
 ## Native standalone bags — bounded window and cursor PASS
 
