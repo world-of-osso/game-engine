@@ -8,6 +8,7 @@ mod combat;
 mod dev;
 mod export;
 mod items;
+mod mail;
 mod trade;
 mod tree;
 mod ui_tree;
