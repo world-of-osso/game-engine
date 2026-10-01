@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    animation::{WowAnimationPlayer, lod::AnimationLod},
+    animation::{ActionPriority, WowAnimationPlayer, lod::AnimationLod},
     lighting::TerrainLight,
     world_models::{
         UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_items,
@@ -36,9 +36,12 @@ use shared::components::{
     CombatStatus, CreatureMotion, EquipmentAppearance, Health, ModelDisplay, MovementControl,
     MovementSpeed, Npc, Player, PlayerMotion, Position, Rotation, SheathState, UnitPose,
 };
+use shared::protocol::EmoteKind;
 
 #[path = "world_combat.rs"]
 pub(crate) mod combat;
+#[path = "world_emotes.rs"]
+mod emotes;
 use combat::MeleeWeapon;
 
 /// Main-thread time per frame for attaching loaded unit visuals.
@@ -77,6 +80,8 @@ struct UnitNode {
     weapon: MeleeWeapon,
     /// `Item.SubclassID` of the main-hand weapon, for spell visual conditions.
     main_hand_subclass: Option<u8>,
+    /// The clip of a held social emote (/sit, /dance) the player shows while still.
+    emote: Option<u16>,
 }
 
 struct UnitMotion {
@@ -236,6 +241,7 @@ fn spawn_unit(
         in_combat: false,
         weapon: MeleeWeapon::Unarmed,
         main_hand_subclass: None,
+        emote: None,
     }
 }
 
@@ -503,6 +509,34 @@ pub(crate) fn remote_player_locomotion(
         return None;
     }
     motion.map(player_motion_locomotion)
+}
+
+/// A player's movement clip: its held emote while it stands still out of combat, else
+/// its locomotion clip in its combat stance.
+fn player_movement_clip(
+    unit: &mut UnitNode,
+    animation: &Gd<WowAnimationPlayer>,
+    animation_id: u16,
+    jumping: bool,
+    fallbacks: &HashMap<u16, u16>,
+) -> u16 {
+    let standing_still = animation_id == ANIM_STAND && !jumping;
+    let held = emotes::held_emote_movement(
+        &mut unit.emote,
+        animation_id,
+        standing_still,
+        unit.in_combat,
+    );
+    if held != animation_id {
+        return held;
+    }
+    combat::stance_clip(
+        &animation.bind(),
+        animation_id,
+        unit.in_combat,
+        unit.weapon,
+        fallbacks,
+    )
 }
 
 /// Resolve the held animation of a changed replicated pose; an unmapped pose holds none.
@@ -836,11 +870,11 @@ impl WorldUnits {
             else {
                 continue;
             };
-            let movement = combat::stance_clip(
-                &animation.bind(),
+            let movement = player_movement_clip(
+                unit,
+                &animation,
                 locomotion.animation_id,
-                unit.in_combat,
-                unit.weapon,
+                locomotion.jumping,
                 fallbacks,
             );
             if let Err(error) = animation.bind_mut().update_locomotion(
@@ -975,17 +1009,42 @@ impl WorldUnits {
             .try_get_node_as::<WowAnimationPlayer>("M2Animation")
             .ok_or_else(|| format!("Local player {} has no bone animation", unit.name))?;
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
-        let movement = combat::stance_clip(
-            &animation.bind(),
-            animation_id,
-            unit.in_combat,
-            unit.weapon,
-            fallbacks,
-        );
+        let movement = player_movement_clip(unit, &animation, animation_id, jumping, fallbacks);
         animation
             .bind_mut()
             .update_locomotion(movement, jumping, running_forward)
             .map_err(|error| format!("Local player {} animation: {error}", unit.name))
+    }
+
+    /// Player `server_id`'s social emote: a /wave plays once over its stance, a held
+    /// emote replaces its standing clip until it moves. A unit not in view is ignored.
+    pub fn receive_emote(&mut self, server_id: u64, emote: EmoteKind) -> Result<(), String> {
+        let clip = emotes::emote_clip(emote, self.models.gear()?)?;
+        let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
+        let Some(unit) = self.units.get_mut(&server_id) else {
+            return Ok(());
+        };
+        let Some(mut animation) = unit
+            .visual
+            .as_ref()
+            .and_then(|visual| visual.try_get_node_as::<WowAnimationPlayer>("M2Animation"))
+        else {
+            return Ok(());
+        };
+        let missing = || format!("Player {} has no {emote:?} clip", unit.name);
+        match clip {
+            emotes::EmoteClip::Held(id) => {
+                let clip = animation.bind().resolve_clip(id, fallbacks);
+                unit.emote = Some(clip.ok_or_else(missing)?);
+            }
+            emotes::EmoteClip::Once(id) => {
+                animation
+                    .bind_mut()
+                    .play_action(id, false, ActionPriority::Reaction, fallbacks)?
+                    .ok_or_else(missing)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn local_player_facing(&self) -> Option<f32> {
