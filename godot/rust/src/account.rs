@@ -99,6 +99,8 @@ pub struct Account {
     pub reply_received: bool,
     pub(crate) startup_options: StartupLoginOptions,
     bridge: Option<NetworkBridge>,
+    /// The running bridge's endpoint and Netcode client, for `status network`.
+    pub link: Option<NetworkLink>,
     data_root: PathBuf,
     hostname: String,
     /// Server quest log, watch list, quest giver markers and the open quest dialog.
@@ -119,6 +121,13 @@ pub struct Account {
     pub xp: Option<shared::protocol::PlayerXpUpdate>,
     /// Party/raid roster, live member states, the ready check and the pending invite.
     pub group: GroupState,
+}
+
+pub struct NetworkLink {
+    pub server: std::net::SocketAddr,
+    pub client_id: u64,
+    /// Whether the server's protocol fingerprint matched (`Event::Connected`).
+    pub connected: bool,
 }
 
 pub enum AccountEvent {
@@ -250,6 +259,7 @@ impl Account {
             reply_received: false,
             startup_options: StartupLoginOptions::default(),
             bridge: None,
+            link: None,
             data_root,
             hostname: String::new(),
             quests: QuestRuntime::default(),
@@ -334,6 +344,11 @@ impl Account {
             AuthRequest::Register(request) => bridge.send::<_, AuthChannel>(request)?,
         }
         self.bridge = Some(bridge);
+        self.link = Some(NetworkLink {
+            server: address,
+            client_id,
+            connected: false,
+        });
         Ok(())
     }
 
@@ -828,9 +843,13 @@ impl Account {
         let mut output = Vec::new();
         for event in events {
             match event {
-                Event::Connected => self.session.receive_connected(),
+                Event::Connected => {
+                    self.set_link_connected(true);
+                    self.session.receive_connected();
+                }
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
+                    self.set_link_connected(false);
                     output.push(AccountEvent::ReplicationEnded);
                     let effects = match reason.as_deref() {
                         Some(reason @ HANDSHAKE_TIMEOUT_REASON) => {
@@ -1293,8 +1312,15 @@ impl Account {
         self.stop_bridge().map_err(SessionError)
     }
 
+    fn set_link_connected(&mut self, connected: bool) {
+        if let Some(link) = &mut self.link {
+            link.connected = connected;
+        }
+    }
+
     fn stop_bridge(&mut self) -> Result<(), String> {
         self.session.reset_world_port();
+        self.link = None;
         if let Some(mut bridge) = self.bridge.take() {
             bridge.stop()?;
         }
