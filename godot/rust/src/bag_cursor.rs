@@ -95,7 +95,12 @@ impl GameClient {
                 owner,
                 at,
                 physical_at,
-            } => self.send_bag_drag_release(owner, at, physical_at),
+            } => {
+                if self.character_frame_input_owner(owner) {
+                    self.release_character_frame_pointer();
+                }
+                self.send_bag_drag_release(owner, at, physical_at)
+            }
         }
     }
 

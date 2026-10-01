@@ -319,13 +319,14 @@ impl GameClient {
     }
 
     /// Left-drag on the model scene turns it (`OrbitCameraMixin:OnUpdate`).
+    /// The frame's pointer release ends a model drag: a press the frame consumed never
+    /// holds the gameplay Left button.
+    pub(super) fn release_character_frame_pointer(&mut self) {
+        self.character_frame.rotating = false;
+    }
+
     fn rotate_character_model(&mut self) {
-        use game_engine_core::input_bindings_data::{BindingMouseButton, InputState};
         if !self.character_frame.rotating {
-            return;
-        }
-        if !self.physical_input.mouse_pressed(BindingMouseButton::Left) {
-            self.character_frame.rotating = false;
             return;
         }
         let delta = self.physical_input.motion()[0] / self.effective_ui_scale();
