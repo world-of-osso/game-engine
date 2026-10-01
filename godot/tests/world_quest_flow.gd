@@ -315,6 +315,9 @@ func check_reward_choice() -> bool:
 		fail("Reward page without the two choices: " + str(client.quest_state()))
 		return false
 	await capture("15-reward-choice.png")
+	if not await hover_tooltip(quest_control("QuestFrameUI", "QuestInfoRewardsFrameQuestInfoItem1"), "Militia Buckler"):
+		return false
+	await capture("15b-reward-tooltip.png")
 	var pants_before := bag_count(URCHINS_PANTS)
 	await click_control(quest_control("QuestFrameUI", "QuestFrameCompleteQuestButton"))
 	if not await wait_frames(func(): return error_shown(MUST_CHOOSE), "'" + MUST_CHOOSE + "'"):
@@ -422,6 +425,19 @@ func open_bags(file: String) -> bool:
 	await capture(file)
 	await tap(KEY_ESCAPE)
 	return await wait_frames(func(): return not backpack_shown(), "Escape closes the backpack")
+
+## Hover `control` until the GameTooltip shows `title`, then move the pointer off it.
+func hover_tooltip(control: Control, title: String) -> bool:
+	if control == null:
+		fail("No control to hover for " + title)
+		return false
+	var motion := InputEventMouseMotion.new()
+	motion.position = control.get_global_rect().get_center()
+	motion.global_position = motion.position
+	root.push_input(motion, true)
+	var shown := await wait_frames(func(): return client.tooltip_state().visible and client.tooltip_state().title == title, "tooltip " + title)
+	print("FIXTURE TOOLTIP ", client.tooltip_state())
+	return shown
 
 func backpack_shown() -> bool:
 	var bag := client.find_child("ContainerFrame0", true, false) as Control

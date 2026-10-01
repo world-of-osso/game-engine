@@ -28,7 +28,9 @@ use game_engine_ui_model::quest_runtime::{
     NpcInteractionRequest, QuestDialogPage, QuestTextTokens, QuestUiState, quest_failed_text,
     quest_marker_model,
 };
-use game_engine_ui_model::quest_view::{QuestDetailsCache, quest_frame_state, quest_log_state};
+use game_engine_ui_model::quest_view::{
+    QuestDetailsCache, frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
+};
 use game_engine_ui_model::window_manager::{WindowId, WindowManager};
 use godot::classes::Node3D;
 use godot::prelude::*;
@@ -339,6 +341,22 @@ impl GameClient {
             }
         }
         Ok(())
+    }
+
+    /// The reward item behind `QuestInfoItem{n}` of the quest frame or log canvas `ui`.
+    pub(crate) fn quest_reward_item(
+        &self,
+        ui: &Gd<RegistryUi>,
+        n: usize,
+    ) -> Option<shared::protocol::QuestRewardItem> {
+        let quests = &self.quests;
+        if quests.frame_ui.as_ref() == Some(ui) {
+            frame_reward_item(self.account.quests.dialog.as_ref(), n).cloned()
+        } else if quests.log_ui.as_ref() == Some(ui) {
+            log_reward_item(&self.account.quests, &quests.ui, &quests.details, n).cloned()
+        } else {
+            None
+        }
     }
 
     /// `CloseAllWindows` part: the quest giver frame (ending the interaction) and the log.

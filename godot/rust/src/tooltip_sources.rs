@@ -2,9 +2,9 @@
 //! `OnEnter`: action buttons and chat spell links at the default anchor
 //! (ActionButton.lua:1070-1080 with `UberTooltips` 1), spellbook items `ANCHOR_RIGHT`
 //! (Blizzard_SpellBookItem.lua:494), bag slots by screen half (ContainerFrame.lua:1448-1458),
-//! merchant, loot, mail and auction items `ANCHOR_RIGHT` (MerchantFrame.lua:710-711,
-//! LootFrame.lua:342-357, MailFrame.lua:354-378 and 903-911, AuctionHouseUtil.lua:83), the
-//! bag bar `ANCHOR_LEFT` (MainMenuBarBagButtons.lua:102-126 and 243-256), player auras
+//! merchant, loot, mail, auction and quest reward items `ANCHOR_RIGHT` (MerchantFrame.lua:710-711,
+//! LootFrame.lua:342-357, MailFrame.lua:354-378 and 903-911, AuctionHouseUtil.lua:83,
+//! QuestInfo.lua:1240-1258), the bag bar `ANCHOR_LEFT` (MainMenuBarBagButtons.lua:102-126 and 243-256), player auras
 //! `ANCHOR_BOTTOMLEFT` (BuffFrame.lua:888-899), target auras by their centre
 //! (TargetFrame.xml:35-40) and the minimap buttons as Minimap.lua sets them.
 
@@ -26,6 +26,7 @@ use game_engine_ui_model::game_tooltip::spell::{
     SpellTooltipInput, aura_tooltip, spell_tooltip, unknown_spell_tooltip,
 };
 use game_engine_ui_model::game_tooltip::{GameTooltip, OwnerSide};
+use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::inworld_unit_frames_component::{TargetAuraView, target_frame_auras};
 use game_engine_ui_model::mail_frame_component::ACTION_OPEN_PREFIX;
 use game_engine_ui_model::main_action_bar_component::parse_action_button;
@@ -59,7 +60,7 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 14] = [
+        const SOURCES: [Source; 15] = [
             GameClient::action_button_tooltip,
             GameClient::spellbook_tooltip,
             GameClient::chat_link_tooltip,
@@ -70,6 +71,7 @@ impl GameClient {
             GameClient::mail_attachment_tooltip,
             GameClient::inbox_item_tooltip,
             GameClient::auction_tooltip,
+            GameClient::quest_reward_tooltip,
             GameClient::bag_bar_tooltip,
             GameClient::player_aura_tooltip,
             GameClient::target_aura_tooltip,
@@ -234,6 +236,20 @@ impl GameClient {
             return None;
         };
         let item = named_item(*item_id, name, *quality, *count);
+        self.item_owned(hit, owner, OwnerSide::Right, item)
+    }
+
+    /// `QuestInfoItem{n}` of the quest frame and log: `QuestInfoRewardItemMixin:OnEnter`
+    /// (QuestInfo.lua:1240-1258), `SetQuestItem`/`SetQuestLogItem` at `ANCHOR_RIGHT`.
+    fn quest_reward_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, n) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            indexed(frame, "QuestInfoRewardsFrameQuestInfoItem")
+        })?;
+        drop(ui);
+        let reward = self.quest_reward_item(&hit.ui, n)?;
+        let quality = item_catalog_entry(reward.item_id).map_or(1, |entry| entry.quality);
+        let item = named_item(reward.item_id, &reward.name, quality, reward.count);
         self.item_owned(hit, owner, OwnerSide::Right, item)
     }
 

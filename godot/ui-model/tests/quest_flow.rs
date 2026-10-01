@@ -8,7 +8,9 @@ use game_engine_ui_model::quest_log_frame_component::quest_log_frame_screen;
 use game_engine_ui_model::quest_runtime::{
     NpcInteractionRequest as R, QuestRuntime, QuestTextTokens, QuestUiState, quest_marker_model,
 };
-use game_engine_ui_model::quest_view::{QuestDetailsCache, quest_frame_state, quest_log_state};
+use game_engine_ui_model::quest_view::{
+    QuestDetailsCache, frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
+};
 use shared::protocol::*;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -517,5 +519,80 @@ fn complete_quest_takes_a_lone_reward_choice_without_a_click() {
             quest_id: BEATING_THEM_BACK,
             choice: Some(0)
         }]
+    );
+}
+
+fn reward(item_id: u32, name: &str) -> QuestRewardItem {
+    QuestRewardItem {
+        item_id,
+        name: name.into(),
+        count: 1,
+    }
+}
+
+fn buckler_pants_and_hammer() -> QuestRewards {
+    QuestRewards {
+        money: 0,
+        items: vec![reward(5580, "Small Wooden Hammer")],
+        choice_items: vec![reward(2249, "Militia Buckler"), reward(2238, "Urchin's Pants")],
+    }
+}
+
+#[test]
+fn reward_buttons_name_the_choices_then_the_fixed_items_their_tooltips_show() {
+    let mut runtime = QuestRuntime::default();
+    runtime.show_reward(
+        "Marshal McBride".into(),
+        QuestGiverOfferReward {
+            npc: MCBRIDE,
+            quest_id: BEATING_THEM_BACK,
+            title: "Beating Them Back!".into(),
+            reward_text: String::new(),
+            rewards: buckler_pants_and_hammer(),
+        },
+    );
+    let frame = render_frame(&runtime);
+    for n in 1..=3 {
+        let button = format!("QuestInfoRewardsFrameQuestInfoItem{n}");
+        let item = frame_reward_item(runtime.dialog.as_ref(), n).expect("reward item");
+        assert_eq!(text(&frame, &format!("{button}Name")), item.name);
+    }
+    assert_eq!(
+        frame_reward_item(runtime.dialog.as_ref(), 3).map(|item| item.item_id),
+        Some(5580)
+    );
+    assert!(frame_reward_item(runtime.dialog.as_ref(), 0).is_none());
+    assert!(frame_reward_item(runtime.dialog.as_ref(), 4).is_none());
+    assert!(frame_reward_item(None, 1).is_none());
+}
+
+#[test]
+fn log_reward_tooltips_come_from_the_rewards_the_giver_showed() {
+    let mut runtime = QuestRuntime::default();
+    let ui = QuestUiState::default();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![worgs(2)],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
+    let mut cache = QuestDetailsCache::new();
+    assert!(log_reward_item(&runtime, &ui, &cache, 1).is_none());
+    cache.insert(
+        BEATING_THEM_BACK,
+        QuestGiverQuestDetails {
+            npc: MCBRIDE,
+            quest_id: BEATING_THEM_BACK,
+            title: "Beating Them Back!".into(),
+            description: String::new(),
+            objectives_text: String::new(),
+            level: -1,
+            min_level: 1,
+            suggested_group: 0,
+            objectives: Vec::new(),
+            rewards: buckler_pants_and_hammer(),
+        },
+    );
+    assert_eq!(
+        log_reward_item(&runtime, &ui, &cache, 2).map(|item| item.name.as_str()),
+        Some("Urchin's Pants")
     );
 }
