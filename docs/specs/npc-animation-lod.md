@@ -8,7 +8,7 @@ Replicated NPC models and placed doodads sample their bone animation at a rate c
 - [x] M2 +X model forward maps to logical network +Z forward below the NPC root; display scale is retained.
 - [ ] NPC models within 30 yd of the camera and on screen sample every frame.
 - [ ] NPC models between 30 yd and 60 yd and on screen sample every other frame, staggered by entity so roughly half sample each frame.
-- [ ] NPC models beyond 60 yd, or with no mesh visible in the previous frame, do not sample; their joints keep the last written pose.
+- [ ] NPC models beyond 60 yd, or whose model bounds lie outside the camera frustum in the previous frame, do not sample; their joints keep the last written pose. The frustum test is the doodads' box-vs-frustum test, so the decision does not depend on renderer state and a headless client classifies NPCs as a rendered one does.
 - [x] A new binding samples until Bevy has evaluated it once, so an NPC frozen since spawn holds an authored pose, not the bind pose.
 - [ ] A skipped frame writes no joint transform, so the NPC's transform subtree is not dirtied.
 - [ ] Models that are neither NPCs nor doodads (the local player, other players, debug scenes) are never rate-limited.
@@ -32,7 +32,7 @@ Replicated NPC models and placed doodads sample their bone animation at a rate c
 - `godot/rust/src/animation/lod.rs`: the Godot thresholds, `AnimationLod`, and `DeferredClock` (time owed to a doodad advanced only on sampled frames).
 - `godot/rust/src/terrain/scenery.rs`: doodad drawn/on-screen/distance classification into `AnimationLod`.
 - `godot/rust/src/terrain/objects.rs`: the in-world doodad cull advances bone and material animation on sampled frames.
-- `godot/rust/src/world.rs`: NPC assignment in the Godot client.
+- `godot/rust/src/world.rs`: NPC assignment in the Godot client: `npc_animation_lod` classifies the model's batch-mesh bounds with `SceneryDistance::box_in_frustum` and its camera distance.
 
 ## Tests asserting this spec
 
@@ -42,6 +42,7 @@ Replicated NPC models and placed doodads sample their bone animation at a rate c
 - `tests/unit/animation_tests/lod.rs` `doodads_follow_the_npc_distance_and_visibility_rates`: Bevy near, mid, far, and off-screen doodad joint writes.
 - `godot/rust/src/animation/lod.rs`: thresholds, stagger, and `deferred_clock_resumes_at_the_every_frame_time`.
 - `godot/rust/src/terrain/scenery.rs` `drawn_doodads_animate_at_the_shared_lod_rate`: near, mid, far, behind, beside, partly in view, and beyond scenery distance.
+- `godot/rust/src/world.rs` `npc_animation_lod_samples_in_the_frustum_and_freezes_outside_or_far`: Godot NPC near, mid, far, behind, beside, and frustum-edge cases.
 
 ## Known gaps
 

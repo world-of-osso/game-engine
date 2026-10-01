@@ -11,7 +11,7 @@ use game_engine_core::{
     creature_display_data::{CreatureDisplay, query_display},
 };
 use godot::{
-    classes::{MeshInstance3D, Node3D, ShaderMaterial, VisibleOnScreenNotifier3D},
+    classes::{MeshInstance3D, Node3D, ShaderMaterial},
     prelude::*,
 };
 use rusqlite::{Connection, OpenFlags};
@@ -57,7 +57,8 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
 }
 
 /// Union of the model's batch mesh bounds, in model space.
-fn mesh_bounds(model: &Gd<Node3D>) -> Aabb {
+/// Model-space bounds of a model's batch meshes, for the NPC animation LOD frustum test.
+pub(crate) fn mesh_bounds(model: &Gd<Node3D>) -> Aabb {
     model
         .get_children()
         .iter_shared()
@@ -492,11 +493,6 @@ impl WorldModels {
             godot_warn!("Creature display {display_id} missing texture FDIDs: {missing:?}");
         }
         model.set_name("NpcModel");
-        // Last frame's on-screen state for the NPC animation LOD.
-        let mut on_screen = VisibleOnScreenNotifier3D::new_alloc();
-        on_screen.set_name("OnScreen");
-        on_screen.set_aabb(mesh_bounds(&model));
-        model.add_child(&on_screen);
         let scale = if display.scale_milli == 0 {
             1.0
         } else {
