@@ -125,6 +125,10 @@ func check_pickup() -> bool:
 		return false
 	if not await teleport(GIVER_AT):
 		return false
+	# Units are mirrored again after the teleport.
+	giver = await locate(GIVER)
+	if giver.is_empty():
+		return false
 	if not await approach(giver.id, INTERACT_YARDS + 4.0):
 		fail("Could not walk to " + GIVER)
 		return false
@@ -827,6 +831,7 @@ func approach(id: int, yards: float) -> bool:
 	while Time.get_ticks_msec() < deadline:
 		var unit := unit_by_id(id)
 		if unit == null:
+			print("FIXTURE APPROACH_LOST ", id)
 			return false
 		var to: Vector3 = (unit as Node3D).global_position - player_position()
 		if Vector2(to.x, to.z).length() <= yards:
@@ -837,6 +842,8 @@ func approach(id: int, yards: float) -> bool:
 		push_key(KEY_W, true)
 		await frames(6)
 	push_key(KEY_W, false)
+	var unit := unit_by_id(id)
+	print("FIXTURE APPROACH_TIMEOUT ", id, " player ", player_position(), " unit ", (unit as Node3D).global_position if unit != null else null)
 	return false
 
 ## Right-click the prey to start auto-attack and fight until its objective count rises
