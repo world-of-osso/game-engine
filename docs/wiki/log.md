@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] audit | Occupied startup equipment authentic RED; minimal consumer committed
+
+[Owned checkpoint](systems/godot-conversion.md#occupied-startup-equipment--authentic-red-integration-pending): test `57b30f57` distinct startup MainHand25/count1/GUID9170105 versus bag9170005; exact pre-Equip equipment/bags/no carried icon/split/popup oracle and later replacement/original one Equip/two Destroy retained. MAIN Depot `rxnbcnxs5z` native build0/existing WMO warning; actual startup log exit101 equipment empty after authenticated READY/exact bags, before Equip input. Missing typed network receive/account decode/merchant apply chain; minimal account/merchant `ee2d3e47` committed using original inventory apply, transport1419 `2d1829fc` committed (typed receive after InventorySnapshot, before InventoryDelta). Integration Depot build/verifier1421 active; runtime GREEN pending; occupied startup still missing, not EquipmentAppearance/mesh proof. No separate-owner architecture/server/protocol change. Tooltip gate1415/docs `2142e85f` retained; protected Mail/Auction branches untouched, ownership inquiry outstanding without freeze. Docs-only reconciliation; no test/build/gate reruns.
+
 ## [2026-09-30] audit | Foreign-chat World rejection main-observed GREEN; independent bounded PASS accepted
 
 [Owned evidence](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records diagnostic RED on `b3bf65a2`, bounded `5f6782b5` rejection, new Depot build and three parent0 drag/actions/cursor logs. Independent gate1406 accepted bounded PASS; own hits unchanged, no cross-layer winner/global ownership claim. Existing exclusions retained; deliberate SIGKILL is not shutdown. Docs-only reconciliation; no tests/builds/operations.
