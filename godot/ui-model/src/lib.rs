@@ -28,7 +28,8 @@ pub mod ui {
             menu_primitives, merchant_frame_component, objective_tracker_component,
             options_menu_active_sections, options_menu_component, options_menu_sections, quest_art,
             quest_frame_component, quest_log_frame_component,
-            ready_check_frame_component, stack_split_frame_component, static_popup_component,
+            ready_check_frame_component, selection_debug_component, stack_split_frame_component,
+            static_popup_component,
             trash_button_component, world_map_frame_art, world_map_frame_component,
         };
 
@@ -86,6 +87,9 @@ pub mod default_button_atlas;
 pub mod entrance_difficulty_component;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
 pub mod trash_button_component;
+// `--screen selectiondebug` (src/scenes/selection_debug/mod.rs).
+#[path = "../../../src/ui/screens/selection_debug_component.rs"]
+pub mod selection_debug_component;
 
 #[path = "../../../src/csv_util.rs"]
 pub mod csv_util;
