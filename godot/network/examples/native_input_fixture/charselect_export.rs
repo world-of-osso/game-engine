@@ -92,6 +92,41 @@ impl Run<'_> {
     }
 }
 
+/// The real CLI's `export-scene` into `artifacts`, with its original reply.
+fn export(run: &mut Run, cli: &Path, artifacts: &Path) -> Result<(), String> {
+    let path = artifacts.join("scene-export.json");
+    let path = path.to_str().ok_or("non-UTF-8 artifact path")?.to_owned();
+    let reply = run.cli(cli, &["export-scene", &path], artifacts)?;
+    println!("CLI export-scene -> {}", reply.trim());
+    if reply.trim() != format!("scene exported to {path}") {
+        return Err(format!("export-scene answered {reply}"));
+    }
+    Ok(())
+}
+
+/// The script's checks end with DONE and a normal exit.
+fn finish(run: &mut Run, readers: Vec<thread::JoinHandle<()>>) -> Result<(), String> {
+    run.wait_marker("DONE")?;
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let status = loop {
+        if let Some(status) = run.child.try_wait().map_err(|error| error.to_string())? {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            return Err("Godot did not exit after DONE".into());
+        }
+        run.app.update();
+        thread::sleep(TICK);
+    };
+    for reader in readers {
+        reader.join().map_err(|_| "Godot output reader panicked")?;
+    }
+    if !status.success() {
+        return Err(format!("Godot exited {status}"));
+    }
+    Ok(())
+}
+
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
@@ -112,31 +147,8 @@ pub(super) fn run(
         markers: Vec::new(),
     };
     run.wait_marker("READY")?;
-    let path = artifacts.join("scene-export.json");
-    let path = path.to_str().ok_or("non-UTF-8 artifact path")?.to_owned();
-    let reply = run.cli(&cli, &["export-scene", &path], &artifacts)?;
-    println!("CLI export-scene -> {}", reply.trim());
-    if reply.trim() != format!("scene exported to {path}") {
-        return Err(format!("export-scene answered {reply}"));
-    }
-    run.wait_marker("DONE")?;
-    let deadline = Instant::now() + Duration::from_secs(20);
-    let status = loop {
-        if let Some(status) = run.child.try_wait().map_err(|error| error.to_string())? {
-            break status;
-        }
-        if Instant::now() >= deadline {
-            return Err("Godot did not exit after DONE".into());
-        }
-        run.app.update();
-        thread::sleep(TICK);
-    };
-    for reader in readers {
-        reader.join().map_err(|_| "Godot output reader panicked")?;
-    }
-    if !status.success() {
-        return Err(format!("Godot exited {status}"));
-    }
+    export(&mut run, &cli, &artifacts)?;
+    finish(&mut run, readers)?;
     println!(
         "PASS: public CLI export-scene wrote the live character-select scene ({})",
         artifacts.display()
