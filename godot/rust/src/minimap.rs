@@ -318,6 +318,7 @@ impl GameClient {
             zoom_buttons: self.minimap.hovered,
             zoom: self.minimap.zoom,
             blips: self.quest_blips(&view),
+            has_mail: !self.mailbox.session.pending_senders.is_empty(),
             map_texture: None,
         })
     }

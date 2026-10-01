@@ -4,20 +4,24 @@ The Retail `MailFrame` and `OpenMailFrame` at Mailbox game objects, and the mini
 
 References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Blizzard_Minimap/Mainline/Minimap.xml` under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
 
-## Native Godot receiving slice
-
-Native source implements the auction-delivery dependency; the checklists below describe the preserved Bevy client, not native runtime proof.
+## Native Godot client
 
 - Replicated type-19 `GameObjectInfo` and `Position` identify real mailboxes. Render/pick the `GameObjectDisplayInfo.FileDataID` model with replicated rotation/scale; unresolved metadata, models or textures must report their precise asset error, never substitute a mailbox.
-- Right-click within 5 yards sends `UseGameObject`. Only its matching Mailbox role opens the receiving frame; matching `MailboxContents` may arrive before that role. Closed, unrelated and stale mailbox traffic must not reopen it.
-- Reuse authored `MailFrame`/`OpenMailFrame`, seven-row inbox paging, sender/subject/body and fixed attachment slots. Native slice excludes sending, reply, delete/return actions, bulk Open All and COD payment; COD attachments are not claimable here.
-- Row selection marks unread mail read. `TakeMoney`/`TakeAttachment` address the open object and actual mail/attachment IDs, with one pending request until matching contents or failure. Claims must not predict currency, inventory or attachment removal.
-- Server `Gold`, `InventorySnapshot`/`InventoryDelta` and refreshed mailbox contents update native state/backpack; failures show server UI text. Close/Escape, server close, object removal, transfer and session reset close receiving state.
-- Focused native metadata, interaction/model/authored-registry and owned UDP tests cover source behavior; no source-only test establishes rendered/live acceptance.
-- [x] After saved CLI proof, the native receiving fixture picks the actual replicated mailbox model, opens authored receiving controls, claims proceeds and two item mails, observes authoritative Gold/inventory and reopens without duplicate claims. Exact saved receipts and limits: [native receiving evidence](../wiki/systems/trade-and-mail.md#saved-native-receiving-proof-2026-10-01).
-- [ ] Object removal, transfer, session reset and server range-close have native live acceptance; not established by this receiving run.
-
-Receiving fixture: `godot/tests/world_mail_receiving_flow.gd`, run only after main's CLI proof. It requires an owned loopback endpoint, prepared recipient within range, exact real mailbox entry/display/model FDIDs, one proceeds mail and at least two won/returned item mails. It uses real model triangle picking and authored controls, then asserts received labels, exact inventory/currency changes and quiet reopen. Environment inputs are documented in the fixture; startup selects the prepared character normally with `--server`, `--screen inworld`, `--char` after Godot's `--` separator. No protocol injection or claim shortcuts.
+- Right-click within 5 yards sends `UseGameObject`. Only its matching Mailbox role opens the authored `MailFrame` (Inbox and Send Mail tabs) with the backpack; matching `MailboxContents` may arrive before that role. Closed, unrelated and stale mailbox traffic must not reopen it.
+- One mail request is in flight at a time (`C_Mail.IsCommandPending`): the mail buttons wait for matching contents, `MailSent` or `MailFailed`. No client change predicts currency, inventory or mail contents; server `Gold`, inventory and refreshed contents do.
+- [x] Inbox: seven-row pages, row selection marks unread mail read, money and attachment buttons send `TakeMoney` / `TakeAttachment`.
+- [x] C.O.D. (`OpenMailAttachment_OnClick`): a charge above the player's money shows `COD_ALERT` ("You do not have enough money to pay the C.O.D. charges.", Close); otherwise `COD_CONFIRMATION` ("Accepting this item will cost:" + amount) and Accept takes the item.
+- [x] Delete / Return (`OpenMail_Delete`): returnable mail still holding something is returned at once; deleting mail with an item asks `DELETE_MAIL` ("Deleting this mail will also destroy %s"), with money `DELETE_MONEY`; an empty letter is deleted. Delete and Return close the open mail.
+- [x] Reply (player mail): Send Mail with To = sender and Subject = "RE: subject"; a sent reply returns to the inbox.
+- [x] Open All (`OpenAllMailMixin`): "Opening..." while it runs; newest mail first, its money then its items from the last slot, one request at a time; C.O.D. mail is skipped, a failed item or money is skipped, and it stops with no free bag slot, on `InventoryFull` or when nothing is left.
+- [x] Send Mail: To (77 letters), Subject (64), letter (500) and gold / silver / copper boxes (digits). Right-clicking a bag item while Send Mail shows attaches it to the next of 12 buttons (soulbound: "You can't mail soulbound items."; a 13th: "You cannot attach more than 12 items to mail."); attached bag slots are locked; clicking an attachment takes it off; attachments that leave the bags fall off. An empty subject, or the one filled in before, takes the first attachment's name ("name (count)" for a stack). Postage is red when above the player's money.
+- [x] Send Money / C.O.D. radio buttons; C.O.D. needs an attachment. Send is enabled with a recipient, a subject and a C.O.D. of at most 10,000 gold (`SendMailFrame_CanSend`), sends `SendMail`, and `MailSent` shows "Mail sent." and clears the form; `MailFailed` shows its Retail text and keeps the form. Cancel clears the form.
+- [x] Minimap: `PendingMail` senders show `MiniMapMailFrame` (`ui-hud-minimap-mail-up`, TOPRIGHT at the Tracking button's BOTTOMRIGHT); hovering it shows "Unread mail from:" and a line per sender, `ANCHOR_BOTTOMLEFT`.
+- Close/Escape (`CloseAllWindows`: MailFrame and an open letter together), server close, object removal, transfer and session reset close the mailbox and its popups. The mailbox opens all bags (`OpenAllBags`, MF.lua:63) and closes them on hide; attached items are locked in every bag.
+- [x] Send Mail texts survive tab switches; Reply's To/Subject fill even though Reply is pressed on the Inbox tab.
+- Focused ui-model behaviour tests: `godot/ui-model/tests/native_mailbox.rs`; network relay: `godot/network/src/wire_tests.rs`.
+- [x] Live two-client proof (`godot/tests/world_mail_flow.gd`): see [native player mail proof](../wiki/systems/trade-and-mail.md#native-player-mail-proof-2026-10-01).
+- [x] Receiving fixture `godot/tests/world_mail_receiving_flow.gd` (auction delivery) and its [saved proof](../wiki/systems/trade-and-mail.md#saved-native-receiving-proof-2026-10-01).
 
 ## What it must do (preserved Bevy client)
 
@@ -48,3 +52,4 @@ Receiving fixture: `godot/tests/world_mail_receiving_flow.gd`, run only after ma
 
 ## Gaps
 - The letter edit box is one line (Enter leaves it); no stationery choice, no attachment tooltips, no minimap flipbook animation, no auction invoice layout.
+- Native: "Mail sent." uses the red UIErrorsFrame line (no yellow info-message variant yet); bag items attach by right-click only, not by dropping a cursor item on an attachment button.
