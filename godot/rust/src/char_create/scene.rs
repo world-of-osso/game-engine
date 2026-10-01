@@ -256,7 +256,7 @@ fn bind_scene_ambient(visual: &Gd<Node3D>, ambient: Vector3) {
         let mesh = node.cast::<MeshInstance3D>();
         // The native M2 loader creates one surface and one ShaderMaterial per batch.
         let mut material = mesh
-            .get_surface_override_material(0)
+            .get_material_override()
             .expect("M2 batch has an authored material")
             .cast::<ShaderMaterial>();
         for name in ["ambient", "horizon_ambient", "ground_ambient"] {
