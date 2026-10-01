@@ -27,7 +27,8 @@ const CUSTOMIZATION_CROPS: &[(&str, [usize; 4])] = &[
         "charactercreate-customize-nextbutton-disabled",
         [281, 1881, 76, 76],
     ),
-    ("charactercreate-customize-palette", [1923, 213, 84, 20]),
+    // UiTextureAtlasMember 10646 for build 12.1.0.69933 (ui-toolkit 78c67e7).
+    ("charactercreate-customize-palette", [519, 471, 84, 20]),
     (
         "charactercreate-customize-palette-selected",
         [1819, 213, 102, 40],
