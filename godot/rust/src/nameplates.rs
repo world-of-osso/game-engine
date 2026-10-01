@@ -491,22 +491,22 @@ fn project_plate(
     cvars: &NameplateCvars,
     unit: &UnitSnapshot,
     node: &Gd<Node3D>,
-    color: Color,
-    name_color: Color,
+    (color, name_color): (Color, Color),
     fade_far: f32,
+    selected: bool,
 ) -> Option<PlateView> {
     let (top, center) = unit_points(node)?;
     if !camera.is_position_in_frustum(top) {
         return None;
     }
     let fade = nameplate_alpha(camera.get_global_position().distance_to(top), fade_far);
-    if fade <= 0.0 {
+    if fade <= 0.0 && !selected {
         return None;
     }
     let is_occluded = occluded(camera, center);
     Some(PlateView {
         name: unit_name(unit),
-        alpha: fade * plate_alpha(cvars, is_occluded),
+        alpha: plate_alpha(cvars, selected, fade, is_occluded),
         occluded: is_occluded,
         anchor: camera.unproject_position(top),
         fraction: health_fraction(unit),
@@ -569,7 +569,15 @@ impl GameClient {
                         reaction_color(&style, reaction)
                     };
                 let name_color = nameplate_text_color(unit.player.is_some(), colorblind_mode);
-                let view = project_plate(camera, &cvars, unit, &node, color, name_color, fade_far)?;
+                let view = project_plate(
+                    camera,
+                    &cvars,
+                    unit,
+                    &node,
+                    (color, name_color),
+                    fade_far,
+                    rules.targeted,
+                )?;
                 Some((unit.server_id, view))
             })
             .collect();
@@ -648,7 +656,7 @@ impl NameplateProbe {
     /// The Retail-default plate alpha for an occluded or clear unit.
     #[func]
     fn alpha(is_occluded: bool) -> f32 {
-        plate_alpha(&NameplateCvars::default(), is_occluded)
+        plate_alpha(&NameplateCvars::default(), false, 1.0, is_occluded)
     }
 }
 

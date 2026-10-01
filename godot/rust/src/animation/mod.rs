@@ -17,6 +17,8 @@ pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
+/// Death: a one-shot clip that holds its last frame.
+const ANIM_DEATH: u16 = 1;
 
 fn wow_vec3(value: [f32; 3]) -> Vector3 {
     Vector3::new(value[0], value[2], -value[1])
@@ -312,13 +314,18 @@ impl AnimationState {
             39 | 187 if finished => self.select_animation_id(movement_id, true),
             39 | 187 => Ok(false),
             _ if jumping => self.select_animation_id(37, false),
-            _ => self.select_animation_id(movement_id, true),
+            // A corpse pose whose Dead clip falls back to Death lies at Death's end.
+            _ => self.select_animation_id(movement_id, movement_id != ANIM_DEATH),
         }
     }
 
     fn play_death(&mut self) {
         self.action = None;
-        if let Some(index) = self.sequences.iter().position(|sequence| sequence.id == 1) {
+        if let Some(index) = self
+            .sequences
+            .iter()
+            .position(|sequence| sequence.id == ANIM_DEATH)
+        {
             self.start_transition(index, false);
         }
     }
