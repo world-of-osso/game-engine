@@ -137,7 +137,9 @@ func run_test() -> void:
 		deadline = Time.get_ticks_msec() + int((measure_s + 5.0) * 1000)
 		while last_usec - measurement_started_usec < int(measure_s * 1e6) and Time.get_ticks_msec() < deadline:
 			await process_frame
-			if client.account_state().world_objects.pending != 0:
+			var observed: Dictionary = client.account_state()
+			var same_tiles: bool = observed.terrain.parsed_tiles == workload_snapshots.queue_drained.terrain.parsed_tiles
+			if not Readiness.is_ready(observed) or not same_tiles:
 				settled_pending_changed = true
 	var settled_elapsed_s := (Time.get_ticks_usec() - measurement_started_usec) / 1e6 if settled else 0.0
 	phase = "done"
@@ -155,8 +157,7 @@ func run_test() -> void:
 		"memory": memory, "objects": objects, "queue_drained": settled,
 		"workload_snapshots": workload_snapshots,
 		"measurement_scope": "all current requested terrain jobs/object jobs/unit visuals at stationary initialworld workload; monitored throughout60s, not global gameworld terminal",
-		# This test-first stage still uses object-only readiness/live checks; MAIN corrects after RED.
-		"readiness_predicate": "world_objects.pending == 0 (source-equivalent test-first stage)",
+		"readiness_predicate": "terrain.pending_count == 0; world_objects.pending == 0; unit_visuals_pending == 0; parsed tile set unchanged throughout observation",
 		"startup_scope": "script initialize through character selection; launch/import excluded",
 	}))
 	print("FIXTURE MEMORY ", resident_memory())

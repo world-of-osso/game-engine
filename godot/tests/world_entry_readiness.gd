@@ -1,6 +1,7 @@
 extends RefCounted
 
-## TEST-FIRST extraction only: preserve the fixture's existing object-only predicate.
-## Terrain and unit-visual readiness must remain unfixed until MAIN observes RED.
+## All currently requested work must drain; an empty object queue alone is transient.
 static func is_ready(state: Dictionary) -> bool:
-	return state.world_objects.pending == 0
+	if state.terrain.pending_count != 0:
+		return false
+	return state.world_objects.pending == 0 and state.unit_visuals_pending == 0
