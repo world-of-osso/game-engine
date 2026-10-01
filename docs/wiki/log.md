@@ -1,3 +1,15 @@
+## 2026-10-01 — Native ExportScene source/test-first checkpoint
+
+[Evidence SSOT](systems/godot-conversion.md#native-exportscene--sourcetest-first-checkpoint-green-pending) records original shared schema `30413fe6`, metadata/wiring `cdbcc95d`, consumer `6962c1d9` and current write-error fixture `c33da2a8`. Actual `d1981968` public CLI RED follows READY (native635186, Depot `330ww90wlr0`, parent1); matching build/GREEN runtime and independent gate remain pending. Historical six-diagnostic acceptance does not prove export; broad semantics/UI/actions/performance/shutdown/root formatting remain open. Two owned wiki paths only; no new page/index or code/tests/build/runtime/gate/delegation/operations.
+
+## 2026-10-01 — LiquidObject missing rows knowledge preservation
+
+[Investigation SSOT](investigations/northshire-pale-water.md#native-liquidobject-missing-rows--unresolved) preserves supplied MAIN base/copy, cached content identity and bounded XFTH membership evidence; authoritative consumer/overlay semantics remain unresolved. Docs only, no new independent data/runtime proof.
+
+## 2026-10-01 — Native JS negative startup bounded docs audit
+
+[Evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) adds tests-only absent-focus typing rejection/successor suppression and distinguishes historical parse-error setup from RED and observer-owned exit from production auto-exit. MAIN accepts independent1568 bounded source/readability/supplied-runtime PASS; broad JS/root-format FULL goal and retained warnings remain open. Three owned docs only; no code/tests/build/runtime/delegation/operations or index change.
+
 ## 2026-10-01 — Native JS bounded docs audit
 
 [Evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) records MAIN Login GREEN `ea9c4482`, independent1537 functional subset PASS/overall FAIL, five runtime action variants and genuine timeout RED `73cb16e0`/`61bfdc12`. Root script routing and native contract links corrected; pending fixes, unresolved MH2O errors, warnings and conversion/shutdown/transferred exclusions retained. No new page or index change.
