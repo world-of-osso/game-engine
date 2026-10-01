@@ -13,6 +13,7 @@ use game_engine_ui_model::stack_split_frame_component::{
     ACTION_CANCEL, ACTION_LEFT, ACTION_OKAY, ACTION_RIGHT, FRAME_W, StackSplitFrameState,
     stack_split_frame_screen,
 };
+use game_engine_ui_model::trade_frame_component::ACTION_PLAYER_SLOT_PREFIX;
 use godot::classes::Control;
 use godot::global::Key;
 use godot::prelude::*;
@@ -117,6 +118,8 @@ impl GameClient {
         let target = cursor_action_target(action)?;
         if self.merchant_input_owner(owner) {
             self.merchant_cursor_click(action, click)?;
+        } else if self.trade_input_owner(owner) {
+            self.trade_cursor_click(action, target)?;
         } else if self.character_frame_input_owner(owner) {
             self.character_frame_click(action, click)?;
         } else if self.mail_input_owner(owner) {
@@ -175,6 +178,9 @@ impl GameClient {
     }
 
     pub(super) fn send_cursor_click(&mut self, target: CursorTarget) -> Result<(), FrameError> {
+        if let CursorTarget::TradeSlot(slot) = target {
+            return Ok(self.place_trade_item(slot)?);
+        }
         let session = &self.merchant.session;
         let effect = self
             .bags
@@ -209,6 +215,10 @@ impl GameClient {
         let location = parse_bag_location(action)?;
         self.bags.cursor.split = None;
         if click.right {
+            // ContainerFrame.lua:1405-1406: with TradeFrame shown the item goes to the trade.
+            if self.offer_trade_item(action)? {
+                return Ok(());
+            }
             return self.send_bag_equip_request(location);
         }
         if click.shift && self.bags.cursor.item.is_empty() {
@@ -456,6 +466,12 @@ pub(super) fn cursor_action_target(action: &str) -> Result<Option<CursorTarget>,
             .parse()
             .map_err(|error| format!("Merchant cell {index}: {error}"))?;
         return Ok(Some(CursorTarget::MerchantItem(index)));
+    }
+    if let Some(slot) = action.strip_prefix(ACTION_PLAYER_SLOT_PREFIX) {
+        let slot = slot
+            .parse()
+            .map_err(|error| format!("Trade slot {slot}: {error}"))?;
+        return Ok(Some(CursorTarget::TradeSlot(slot)));
     }
     Ok((action == ACTION_FRAME).then_some(CursorTarget::MerchantFrame))
 }

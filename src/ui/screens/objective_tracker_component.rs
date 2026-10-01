@@ -8,7 +8,6 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
-#[cfg(not(godot_host))]
 use crate::quest_runtime::QuestRuntime;
 use crate::ui::screens::quest_art::{
     DynName, POI_IN_PROGRESS, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL,
@@ -89,7 +88,6 @@ pub struct ObjectiveTrackerState {
 }
 
 impl ObjectiveTrackerState {
-    #[cfg(not(godot_host))]
     pub fn from_runtime(runtime: &QuestRuntime, collapsed: bool, quests_collapsed: bool) -> Self {
         Self::from_watched(runtime.watched_entries(), collapsed, quests_collapsed)
     }

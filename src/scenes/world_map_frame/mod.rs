@@ -166,6 +166,7 @@ impl MapContext<'_, '_> {
                 hovered: None,
                 player: player.as_ref(),
                 quests: &[],
+                quest_areas: &[],
             },
         )
     }

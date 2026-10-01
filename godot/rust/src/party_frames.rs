@@ -263,6 +263,7 @@ impl GameClient {
         hud.popups.tick(Duration::from_secs_f32(delta.max(0.0)));
         let results = hud.popups.drain_results();
         self.dispatch_bag_destroy_results(&results)?;
+        self.dispatch_quest_abandon_results(&results)?;
         self.dispatch_bank_popup_results(&results)?;
         self.dispatch_mail_popup_results(&results)?;
         self.hide_stale_bag_destroy_popups();
@@ -271,6 +272,10 @@ impl GameClient {
             self.account
                 .send_group(GroupCommand::RespondInvite(accept))?;
         }
+        for request in self.trade.session.popup_results(&results) {
+            self.account.send_trade(request)?;
+        }
+        self.trade.session.sync_popup(&mut self.group_frames.popups);
         sync_invite_popup(&self.account.group, &mut self.group_frames.popups);
         let popups = StaticPopupState {
             popups: self.group_frames.popups.visible(),

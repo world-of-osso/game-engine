@@ -211,6 +211,25 @@ impl UiMapCatalog {
             .map(|row| row.uv(position[0], position[1]))
     }
 
+    /// UVs of a world-space polygon (`[x, y]` yards) on `ui_map`, through the
+    /// assignment that holds its centroid, so edge points outside it still map.
+    pub fn map_polygon(
+        &self,
+        ui_map: u32,
+        map_id: u32,
+        points: &[[f32; 2]],
+    ) -> Option<Vec<[f32; 2]>> {
+        let count = points.len() as f32;
+        let centroid = points.iter().fold([0.0, 0.0], |[x, y], [px, py]| {
+            [x + px / count, y + py / count]
+        });
+        let row = self
+            .assignments(ui_map)
+            .filter(|row| row.map_id == map_id && row.contains([centroid[0], centroid[1], 0.0]))
+            .min_by_key(|row| row.order)?;
+        Some(points.iter().map(|[x, y]| row.uv(*x, *y)).collect())
+    }
+
     /// The navigable parent (world system, with art) of `id`.
     pub fn parent(&self, id: u32) -> Option<u32> {
         let parent = self.world_map(id)?.parent;
