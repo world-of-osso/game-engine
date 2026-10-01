@@ -1,6 +1,6 @@
 use std::{
     env,
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fs,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt, process::CommandExt},
     path::{Path, PathBuf},
@@ -84,7 +84,7 @@ fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsStr
             client.extend(args);
             break;
         }
-        if ["--screen", "--state", "--server", "--char"].contains(&arg.to_str().unwrap_or("")) {
+        if is_client_option(&arg) {
             let value = args
                 .next()
                 .filter(|value| !value.as_bytes().starts_with(b"-"));
@@ -102,6 +102,13 @@ fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsStr
         engine.extend(client);
     }
     Ok(engine)
+}
+
+fn is_client_option(argument: &OsStr) -> bool {
+    matches!(
+        argument.to_str(),
+        Some("--screen" | "--state" | "--server" | "--char" | "--run-js-ui-script")
+    )
 }
 
 fn build_native_extension(root: &Path) -> Result<ExitStatus, String> {

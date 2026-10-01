@@ -9,7 +9,7 @@ Native startup runs the existing synchronous JavaScript UI automation API agains
 - [ ] `--run-js-ui-script <path>` loads the chosen UTF-8 script through production startup and synchronously compiles it before frame-driven consumption. QuickJS must not access Godot objects.
 - [ ] Preserve all ten original action variants and the original `ui.*`, `env`, state aliases, and key-chord parser semantics. Missing environment values are empty strings.
 - [ ] Execute queued actions in order on the main thread, after the native client frame, without a GameClient bind during input dispatch. Waits and deadlines advance by frame delta; no blocking or UI-thread sleeps.
-- [ ] Stop consumption and report an explicit error on failed actions, invalid timing, unknown/unconverted keys, missing or hidden frames, or unmet state/frame deadlines. Never bypass authentication or substitute callbacks.
+- [ ] Report explicit errors for failed actions, invalid timing, unknown/unconverted keys, missing or hidden frames, or unmet state/frame deadlines. Never bypass authentication or substitute callbacks.
 
 ### Native input and waits
 
@@ -44,11 +44,12 @@ Native startup runs the existing synchronous JavaScript UI automation API agains
 
 ## Known gaps (current cycle)
 
-- [ ] Consumer source is not compile/runtime acceptance. Main owns locked dependency compilation, startup integration, and fixture GREEN evidence.
+- Native startup and launcher routing now recognize the script path; startup attaches the dedicated priority-2 host. Connecting derives from an active Login bridge awaiting its reply. Compilation and native fixture GREEN remain pending.
+- [ ] Native action errors currently stop the queue. The original wait runner records a timeout and advances past that wait; timeout-continuation compatibility remains unresolved.
 - [ ] Supplied first-runtime evidence is genuine RED: authored Login mounted, but no script credential entry or Connect click. Login fixture alone cannot prove all ten actions, key/modifier behavior, every state wait, or timeout/error boundaries.
 
 ## Out of scope
 
 - Global world/UI input ownership changes; existing feature-specific native routes remain authoritative.
 - Auction House, Mail, quest, Bank, and Trade host conversion or new IPC consumers.
-- Extra JS fixtures, export/distribution acceptance, and full Godot conversion parity.
+- Export/distribution acceptance and full Godot conversion parity.

@@ -23,6 +23,14 @@ use godot::{
 use peercred_ipc::{Connection, Server};
 use tokio::{sync::oneshot, task::JoinSet};
 
+pub(crate) fn dump_tree(client: &Gd<Node>, filter: Option<&str>) -> Response {
+    tree::dump_tree(client, filter)
+}
+
+pub(crate) fn dump_ui_tree(client: &Gd<Node>, filter: Option<&str>) -> Response {
+    ui_tree::dump_mounted_ui(client, filter)
+}
+
 struct Command {
     request: Request,
     respond: oneshot::Sender<Response>,

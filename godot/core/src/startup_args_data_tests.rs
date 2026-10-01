@@ -98,15 +98,17 @@ fn server_and_character_are_owned_optional_values() {
         StartupArgs {
             target: None,
             server: None,
-            character: None
+            character: None,
+            js_script: None,
         }
     );
 }
 
 #[test]
 fn script_option_is_accepted_with_login_startup() {
-    parse(&["--screen", "login", "--run-js-ui-script", "debug/login.js"])
+    let parsed = parse(&["--screen", "login", "--run-js-ui-script", "debug/login.js"])
         .expect("the existing JS script option must reach native startup");
+    assert_eq!(parsed.js_script.as_deref(), Some("debug/login.js"));
 }
 
 #[test]
@@ -118,6 +120,9 @@ fn invalid_missing_and_unknown_options_report_explicit_errors() {
         vec!["--char", "--server"],
         vec!["--server", ""],
         vec!["--char", ""],
+        vec!["--run-js-ui-script"],
+        vec!["--run-js-ui-script", "--screen"],
+        vec!["--run-js-ui-script", ""],
     ] {
         assert!(parse(&args).unwrap_err().contains(args[0]), "{args:?}");
     }
