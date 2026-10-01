@@ -21,7 +21,8 @@ func run_test() -> void:
 		return
 	if not await wait_state(func(s): return s.reply_received and s.screen == "CharacterSelect" and s.character_count > 0, 20000, "character select"):
 		return
-	await wait_frames(30)
+	if not await wait_state(func(_s): return client.get_node_or_null("CharacterSelectUI") != null, 20000, "the character select UI"):
+		return
 	if not await enter_world(character):
 		return
 	var overlay := client.get_node("FpsOverlay") as CanvasLayer
