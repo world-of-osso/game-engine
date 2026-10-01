@@ -30,6 +30,9 @@ use shared::protocol::{
     TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
+    AppearanceCollectionUpdate, CreatureTooltip, CreatureTooltipQuery, TooltipChannel,
+};
+use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, CloseInteraction, DurabilityStateUpdate,
     EquipmentSnapshot, InteractNpc, InteractionChannel, InteractionClosed, InteractionFailed,
     InteractionOpened, InventoryDelta, InventoryError, InventorySnapshot, MerchantChannel,
@@ -138,6 +141,10 @@ pub enum AccountEvent {
     Chat(ChatMessage),
     /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
     GroupNotice(String),
+    /// The server's tooltip data for one creature entry.
+    CreatureTooltip(CreatureTooltip),
+    /// The account's learned appearances.
+    Appearances(AppearanceCollectionUpdate),
 }
 
 pub(crate) enum MailMessage {
@@ -364,6 +371,13 @@ impl Account {
     pub fn send_set_specialization(&self, spec_id: u32) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, TalentChannel>(SetSpecialization { spec_id })
+            .map_err(SessionError)
+    }
+
+    /// `CreatureTooltipQuery`; the server answers `CreatureTooltip` for the entry.
+    pub fn send_creature_tooltip_query(&self, entry: u32) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, TooltipChannel>(CreatureTooltipQuery { entry })
             .map_err(SessionError)
     }
 
@@ -667,6 +681,14 @@ impl Account {
         }
         if message.is::<ChatMessage>() {
             output.push(AccountEvent::Chat(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<CreatureTooltip>() {
+            output.push(AccountEvent::CreatureTooltip(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<AppearanceCollectionUpdate>() {
+            output.push(AccountEvent::Appearances(decode(message)?));
             return Ok(());
         }
         if Self::is_group_message(&message) {

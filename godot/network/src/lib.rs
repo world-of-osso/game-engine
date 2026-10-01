@@ -208,6 +208,9 @@ impl NetworkBridge {
             .receive::<InventoryError>()
             .receive::<DurabilityStateUpdate>()
             .receive::<RestStateUpdate>()
+            // Unit tooltip data and the account's appearance collection (unit-tooltip.md).
+            .receive::<protocol::CreatureTooltip>()
+            .receive::<protocol::AppearanceCollectionUpdate>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
             // Party/raid roster, member states, invites and results (group-frames.md).

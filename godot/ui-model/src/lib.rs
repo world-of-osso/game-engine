@@ -125,8 +125,6 @@ pub mod cast_failed_text;
 pub mod casting_bar_frame_component;
 #[path = "../../../src/ui/screens/main_action_bar_component.rs"]
 pub mod main_action_bar_component;
-#[path = "../../../src/ui/screens/spell_tooltip_component.rs"]
-pub mod spell_tooltip_component;
 #[path = "../../../src/ui/screens/spellbook_frame_component.rs"]
 pub mod spellbook_frame_component;
 #[path = "../../../src/ui/ui_errors_data.rs"]
@@ -207,8 +205,12 @@ pub(crate) mod csv_records;
 pub mod item_catalog;
 #[path = "../../../src/game/item_icons.rs"]
 pub mod item_icons;
+#[path = "../../../src/game/item_stats.rs"]
+pub mod item_stats;
 #[path = "../../../src/game/item_tooltip.rs"]
 pub mod item_tooltip;
+// Native GameTooltip content and placement (docs/specs/unit-tooltip.md).
+pub mod game_tooltip;
 pub mod merchant;
 #[path = "../../../src/game/merchant_data.rs"]
 pub mod merchant_data;

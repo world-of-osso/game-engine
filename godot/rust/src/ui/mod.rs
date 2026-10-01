@@ -20,6 +20,7 @@ use game_engine_ui_model::entrance_difficulty_component::{
     EntranceBarState, apply_entrance_bar_postsetup, entrance_difficulty_screen,
 };
 use game_engine_ui_model::game_menu_component::GameMenuViewModel;
+use game_engine_ui_model::game_tooltip::{GameTooltipView, game_tooltip_screen};
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, inworld_unit_frames_screen,
 };
@@ -33,12 +34,10 @@ use game_engine_ui_model::mirror_timer_data::MirrorTimersData;
 use game_engine_ui_model::objective_tracker_component::{
     ObjectiveTrackerState, objective_tracker_screen,
 };
-use game_engine_ui_model::spell_tooltip_component::{SpellTooltipState, spell_tooltip_screen};
 use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
 use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
-use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, tooltip_frame_screen};
 use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
@@ -420,11 +419,25 @@ pub fn create_login_ui(width: f32, height: f32) -> Result<Gd<RegistryUi>, String
 }
 
 impl RegistryUi {
-    /// Physical point: no hit, blocking frame, or frame with a click action.
-    pub(crate) fn pointer_action_at(&self, at: Vector2) -> Option<Option<String>> {
+    /// The topmost mouse-enabled frame under the physical point.
+    pub(crate) fn pointer_frame_at(&self, at: Vector2) -> Option<u64> {
         let model = self.model.as_ref()?;
-        let projection = self.projection.as_ref()?;
-        projection.pointer_action_at(&model.registry, at)
+        let frame = self
+            .projection
+            .as_ref()?
+            .pointer_frame_at(&model.registry, at)?;
+        Some(frame.id)
+    }
+
+    /// The click action of frame `id` or its nearest ancestor with one.
+    pub(crate) fn frame_click_action(&self, id: u64) -> Option<String> {
+        projection::frame_click_action(&self.model.as_ref()?.registry, id)
+    }
+
+    /// The physical screen rect of frame `id` as projected.
+    pub(crate) fn frame_id_rect(&self, id: u64) -> Option<Rect2> {
+        let node = self.projection.as_ref()?.node(id)?;
+        node.is_visible_in_tree().then(|| node.get_global_rect())
     }
 
     /// Route this canvas's slot clicks and pointer releases through the shared cursor
@@ -617,14 +630,9 @@ impl RegistryUi {
         self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
     }
 
-    /// Project the original authored item tooltip without a second formatter.
-    pub(crate) fn show_item_tooltip(&mut self, state: TooltipPresentation) -> Result<(), String> {
-        self.show_viewport_screen(state, tooltip_frame_screen, ScreenPostsetup::None)
-    }
-
-    /// Initialize a dedicated RegistryUi instance for the spell tooltip.
-    pub fn show_spell_tooltip(&mut self, state: SpellTooltipState) -> Result<(), String> {
-        self.show_viewport_screen(state, spell_tooltip_screen, ScreenPostsetup::None)
+    /// Initialize a dedicated RegistryUi instance for `GameTooltip` and its comparison tooltips.
+    pub(crate) fn show_game_tooltip(&mut self, view: GameTooltipView) -> Result<(), String> {
+        self.show_viewport_screen(view, game_tooltip_screen, ScreenPostsetup::None)
     }
 
     /// Mount the shared authored Retail corpse-loot frame.
