@@ -132,10 +132,11 @@ impl UiProjection {
         }
         let rect = node.get_global_rect();
         let [left, right, top, bottom] = frame.hit_rect_insets.map(|inset| inset * scale);
-        at.x >= rect.position.x + left
-            && at.x <= rect.position.x + rect.size.x - right
-            && at.y >= rect.position.y + top
-            && at.y <= rect.position.y + rect.size.y - bottom
+        let inside_x =
+            at.x >= rect.position.x + left && at.x <= rect.position.x + rect.size.x - right;
+        let inside_y =
+            at.y >= rect.position.y + top && at.y <= rect.position.y + rect.size.y - bottom;
+        inside_x && inside_y
     }
 
     pub fn grab_focus(&self, id: u64) {
@@ -165,10 +166,8 @@ impl UiProjection {
 
     /// Viewport-level release reaches item drags even without slider capture.
     pub fn handle_pointer(&mut self, event: &Gd<InputEvent>) {
-        if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>()
-            && button.get_button_index() == godot::global::MouseButton::LEFT
-            && !button.is_pressed()
-        {
+        let release = left_pointer_release(event);
+        if let Some(button) = release.as_ref() {
             self.pending
                 .borrow_mut()
                 .push_back(UiInput::PointerUp(button.get_global_position()));
@@ -180,10 +179,7 @@ impl UiProjection {
                 capture.id,
                 slider_percent(motion.get_global_position().x, capture.x, capture.width),
             ));
-        } else if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>()
-            && button.get_button_index() == godot::global::MouseButton::LEFT
-            && !button.is_pressed()
-        {
+        } else if let Some(button) = release {
             self.pending.borrow_mut().push_back(UiInput::Slider(
                 capture.id,
                 slider_percent(button.get_global_position().x, capture.x, capture.width),
@@ -767,6 +763,13 @@ fn emit(pending: &PendingInputs, input: UiInput) -> Callable {
     Callable::from_fn("registry-input", move |_| {
         pending.borrow_mut().push_back(input.clone())
     })
+}
+
+fn left_pointer_release(event: &Gd<InputEvent>) -> Option<Gd<InputEventMouseButton>> {
+    let button = event.clone().try_cast::<InputEventMouseButton>().ok()?;
+    let left = button.get_button_index() == godot::global::MouseButton::LEFT;
+    let released = !button.is_pressed();
+    (left && released).then_some(button)
 }
 
 /// Original cursor hit policy walks from the mouse-enabled frame to its action.
