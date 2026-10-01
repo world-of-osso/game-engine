@@ -198,10 +198,12 @@ fn load_player(
     if let Some(time_ms) = time_override_ms {
         let duration = model.sequences[default_sequence_index(model)].duration;
         let phase = fixed_sequence_phase_ms(time_ms, duration);
-        let advanced = player.bind_mut().advance_time_ms(phase);
-        if !advanced {
+        let sampled = player.bind_mut().seek_fixed_time_ms(phase);
+        if let Err(error) = sampled {
             player.free();
-            return Err("Cannot sample fixed sky bone animation phase".into());
+            return Err(format!(
+                "Cannot sample fixed sky bone animation phase: {error}"
+            ));
         }
         player.call("set_paused", &[true.to_variant()]);
     }
