@@ -6,13 +6,14 @@
 use std::f32::consts::FRAC_PI_2;
 
 use shared::{
-    components::PresenceStatus,
+    components::{Health, Mana, MovementSpeed, PresenceStatus},
     protocol::{
         AcceptTrade, BagSlotItem, CancelTrade, CombatChannel, CombatEvent, CombatEventType,
         EmoteIntent, EmoteKind, GroupInviteIntent, GroupUninviteIntent, InitiateTrade, ItemStack,
         QuestChannel, QuestEntrySnapshot, QuestLogSnapshot, QuestObjectiveKind,
-        QuestObjectiveSnapshot, QuestRepeatability, StopSpellCast, TradeChannel,
-        TradePartySnapshot, TradePhase, TradeSnapshot, TradeStateUpdate,
+        QuestObjectiveSnapshot, QuestRepeatability, RestAreaKindSnapshot, RestChannel,
+        RestSnapshot, RestStateUpdate, StopSpellCast, TradeChannel, TradePartySnapshot, TradePhase,
+        TradeSnapshot, TradeStateUpdate,
     },
 };
 
@@ -674,6 +675,47 @@ fn check_combat_log(run: &mut Run) -> Result<(), String> {
     )
 }
 
+/// `status character-stats` from the roster entry (Input Fixture, level 10 human
+/// paladin), the replicated unit (health, mana, speed, 1250 copper, Away), the server's
+/// rest state (an inn, 1200/30000 rested XP) and the zone.
+fn check_character_stats(run: &mut Run) -> Result<(), String> {
+    let mut players = run.app.world_mut().query::<(Entity, &Player)>();
+    let local = players
+        .iter(run.app.world())
+        .find(|(_, player)| player.name == NAME)
+        .map(|(entity, _)| entity)
+        .ok_or("the selected player is not spawned")?;
+    run.app.world_mut().entity_mut(local).insert((
+        Health {
+            current: 87.0,
+            max: 100.0,
+        },
+        Mana {
+            current: 40.0,
+            max: 60.0,
+        },
+        MovementSpeed(7.0),
+    ));
+    send::<_, RestChannel>(
+        run.app,
+        RestStateUpdate {
+            snapshot: Some(RestSnapshot {
+                in_rest_area: true,
+                rest_area_kind: Some(RestAreaKindSnapshot::Inn),
+                rested_xp: 1200,
+                rested_xp_max: 30000,
+            }),
+            message: None,
+            error: None,
+        },
+    );
+    expect_eventually(
+        run,
+        &["status", "character-stats"],
+        "name: Input Fixture\nlevel: 10\nrace: 1\nclass: 2\nhealth: 87/100\nmana: 40/60\nsecondary_resource: -\nmovement_speed: 7.00\ngold: 12s 50c\npresence: afk\nin_combat: false\nin_rest_area: true\nrest_area_kind: inn\nrested_xp: 1200\nrested_xp_max: 30000\nzone_id: 12",
+    )
+}
+
 fn check_spawn_position(run: &mut Run) -> Result<(), String> {
     let map = run.expect_text(&["map", "position"])?;
     expect_lines(
@@ -937,6 +979,7 @@ pub(super) fn run(
     check_map_requests(&mut run)?;
     check_social_and_combat(&mut run)?;
     check_items_and_quests(&mut run)?;
+    check_character_stats(&mut run)?;
     check_interact(&mut run)?;
     check_trade(&mut run)?;
     check_combat_log(&mut run)?;
@@ -947,7 +990,7 @@ pub(super) fn run(
     check_stopped_forward(&mut run)?;
     finish(&mut run, readers)?;
     println!(
-        "PASS: public CLI status network/sound/terrain, map position/target/waypoint, group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, quest interact, trade, combat log/recap, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
+        "PASS: public CLI status network/sound/terrain, map position/target/waypoint, group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
     );
     Ok(())
 }
