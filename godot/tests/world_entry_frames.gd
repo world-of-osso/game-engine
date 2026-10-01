@@ -17,6 +17,7 @@ extends SceneTree
 ## settled process-frame intervals; these are not GPU or presentation timings.
 
 const PASSWORD := "fbtest"
+const Readiness = preload("res://tests/world_entry_readiness.gd")
 
 var client: Node
 var last_usec := 0
@@ -28,6 +29,7 @@ var transition_ms: Array[float] = []
 var settled_ms: Array[float] = []
 var world_ms: Array[float] = []
 var memory: Dictionary = {}
+var workload_snapshots: Dictionary = {}
 var script_started_usec := 0
 ## Frames over the threshold after the loading screen hid: [seconds since hide, ms].
 var slow_world: Array = []
@@ -119,13 +121,14 @@ func run_test() -> void:
 	var settled := false
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		if client.account_state().world_objects.pending == 0:
+		if Readiness.is_ready(client.account_state()):
 			settled = true
 			break
 	var settled_s := (Time.get_ticks_usec() - world_started_usec) / 1e6
 	var measurement_started_usec := Time.get_ticks_usec()
 	var settled_pending_changed := false
 	if settled:
+		workload_snapshots["queue_drained"] = snapshot_workload(client.account_state())
 		record_phase("queue_drained")
 		phase = "settled"
 		last_usec = measurement_started_usec
@@ -138,6 +141,7 @@ func run_test() -> void:
 				settled_pending_changed = true
 	var settled_elapsed_s := (Time.get_ticks_usec() - measurement_started_usec) / 1e6 if settled else 0.0
 	phase = "done"
+	workload_snapshots["measurement_end"] = snapshot_workload(client.account_state())
 	record_phase("settled_end" if settled else "queue_timeout")
 	var objects: Dictionary = client.account_state().world_objects
 	var sorted := world_ms.duplicate()
@@ -149,6 +153,10 @@ func run_test() -> void:
 		"settled_elapsed_s": settled_elapsed_s, "settled_pending_changed": settled_pending_changed,
 		"frame_limit_ms": frame_limit, "loading_limit_ms": loading_limit,
 		"memory": memory, "objects": objects, "queue_drained": settled,
+		"workload_snapshots": workload_snapshots,
+		"measurement_scope": "all current requested terrain jobs/object jobs/unit visuals at stationary initialworld workload; monitored throughout60s, not global gameworld terminal",
+		# This test-first stage still uses object-only readiness/live checks; MAIN corrects after RED.
+		"readiness_predicate": "world_objects.pending == 0 (source-equivalent test-first stage)",
 		"startup_scope": "script initialize through character selection; launch/import excluded",
 	}))
 	print("FIXTURE MEMORY ", resident_memory())
@@ -173,6 +181,13 @@ func run_test() -> void:
 	print("FIXTURE WORLD_ENTRY_FRAMES_DONE")
 	client.free()
 	quit(0)
+
+func snapshot_workload(state: Dictionary) -> Dictionary:
+	return {
+		"terrain": state.terrain.duplicate(true),
+		"world_objects": state.world_objects.duplicate(true),
+		"unit_visuals_pending": state.unit_visuals_pending,
+	}
 
 ## VmRSS and VmHWM of this process (/proc/self/status).
 func resident_memory() -> Dictionary:
