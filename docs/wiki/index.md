@@ -9,7 +9,7 @@ Last updated: 2026-09-29.
 
 [Foreign-chat World rejection](systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) at `5f6782b5`: MAIN observed GREEN; independent gate1406 accepted bounded PASS. Bounded mounted-hit rejection, not cross-layer winner/global ownership acceptance; existing exclusions retained.
 
-[Occupied startup equipment](systems/godot-conversion.md#occupied-startup-equipment--authentic-red-integration-pending): test `57b30f57`, actual startup RED101 with exact bags/authenticated READY but equipment empty before Equip input. Minimal account/merchant `ee2d3e47` committed; transport1419 `2d1829fc` committed; integration Depot build/verifier1421 active, runtime GREEN pending. Startup inventory remains missing, independent of appearance/meshes; tooltip gate1415/docs `2142e85f` retained.
+MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 Engine subsystems and how they work.
 

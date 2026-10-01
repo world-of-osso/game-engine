@@ -18,7 +18,7 @@ Standalone bag tooltip native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + 
 
 ### Occupied startup equipment inventory
 
-- [ ] Apply authoritative occupied startup `EquipmentSnapshot` before Equip input, independently of replicated `EquipmentAppearance`/meshes. Test `57b30f57` requires exactly MainHand item25/count1/GUID9170105, distinct from bag sword9170005, unchanged exact bags and no carried icon/split/popup before EquipArm; later authoritative replacement must retain one Equip/two Destroy. Authentic MAIN runtime exit101 observes equipment empty after exact bags/authenticated READY. Minimal account/merchant consumer `ee2d3e47` committed; transport1419 `2d1829fc` committed; integration Depot build/verifier1421 active, runtime GREEN pending. Occupied startup remains missing. [Exact scope and proof](../wiki/systems/godot-conversion.md#occupied-startup-equipment--authentic-red-integration-pending). No separate-owner architecture, appearance derivation or server/protocol change; protected Mail/Auction branches untouched, outstanding ownership inquiry is not a freeze. Tooltip gate1415 acceptance/docs `2142e85f` retained.
+- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand case: MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 ### Graphics bloom (bounded native proof)
 
