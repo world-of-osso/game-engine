@@ -51,7 +51,7 @@ func run_test() -> void:
 	if not await wait_until(func(): return spells().catalog_ready and spells().known.has(ARCANE_INTELLECT), 60000, "spell catalog"):
 		return
 	await wait_frames(60)
-	for step in [action_bar, spellbook, buff, world_unit, unit_frames, merchant, minimap, cooldown]:
+	for step in [action_bar, spellbook, buff, world_unit, unit_frames, merchant, minimap, cooldown, nameplate]:
 		if not await step.call():
 			return
 	print("FIXTURE TOOLTIPS_LIVE_DONE")
@@ -230,6 +230,47 @@ func cooldown() -> bool:
 		return fail_state("Cooldown did not count down", tooltip())
 	await capture("12-cooldown-countdown.png")
 	return true
+
+## A creature's nameplate (Bevy NameplatePicker: the plate before the model behind it):
+## its unit tooltip at the default anchor.
+func nameplate() -> bool:
+	await press(KEY_ESCAPE)
+	var view := root.get_visible_rect()
+	var plate := {}
+	# Tab (TargetNearest) cycles nearby NPCs; a targeted enemy shows its plate.
+	for attempt in range(12):
+		await press(KEY_TAB)
+		for frame in range(30):
+			await process_frame
+			plate = visible_plate(view)
+			if not plate.is_empty():
+				break
+		if not plate.is_empty():
+			break
+	if plate.is_empty():
+		fail("No visible creature nameplate: %s" % client.nameplate_state())
+		return false
+	await move_mouse(plate.name_rect.get_center())
+	if not await wait_until(func(): return tooltip().title == plate.name and has_line(tooltip(), "Level "), 8000, "nameplate tooltip for " + plate.name):
+		return fail_state("Nameplate tooltip", tooltip())
+	var state := tooltip()
+	print("FIXTURE NAMEPLATE ", state)
+	if not has_line(state, "Creature ID: ") or not at_default_anchor(state):
+		return fail_state("Nameplate tooltip lines or anchor", state)
+	await capture("13-nameplate.png")
+	return true
+
+## A fully shown, unoccluded creature plate inside the viewport.
+func visible_plate(view: Rect2) -> Dictionary:
+	var plates: Dictionary = client.nameplate_state()
+	for id in plates:
+		var plate: Dictionary = plates[id]
+		if plate.name == character or plate.occluded or plate.alpha < 0.99:
+			continue
+		if not plate.has("name_rect") or not view.grow(-40.0).encloses(plate.frame_rect):
+			continue
+		return plate
+	return {}
 
 # --- helpers ---
 
