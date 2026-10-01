@@ -106,7 +106,7 @@ impl Session {
         Ok(())
     }
 
-    fn observe(&mut self, app: &mut App, line: &str) -> Result<(), String> {
+    fn send_phase_responses(&mut self, app: &mut App, line: &str) -> Result<(), String> {
         bags::reject_runtime_error(line)?;
         if !line.starts_with("FIXTURE MERCHANT_CURSOR_") {
             return Ok(());
@@ -345,7 +345,7 @@ fn run_until_done(
     while Instant::now() < deadline {
         tick_peer(app, &mut session, &mut remote)?;
         for line in lines.try_iter() {
-            session.observe(app, line.trim())?;
+            session.send_phase_responses(app, line.trim())?;
         }
         session.respond(app)?;
         if let Some(status) = child
