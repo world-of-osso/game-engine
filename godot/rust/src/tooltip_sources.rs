@@ -21,7 +21,9 @@ use game_engine_ui_model::game_tooltip::hud::{
 use game_engine_ui_model::game_tooltip::item::{
     auction_row_item, item_game_tooltip, named_item, without_sell_price,
 };
-use game_engine_ui_model::game_tooltip::merchant::merchant_tooltip;
+use game_engine_ui_model::game_tooltip::merchant::{
+    merchant_tooltip, repair_all_tooltip, repair_item_tooltip, sell_all_junk_tooltip,
+};
 use game_engine_ui_model::game_tooltip::spell::{
     SpellTooltipInput, aura_tooltip, spell_tooltip, unknown_spell_tooltip,
 };
@@ -60,13 +62,14 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 15] = [
+        const SOURCES: [Source; 16] = [
             GameClient::action_button_tooltip,
             GameClient::spellbook_tooltip,
             GameClient::chat_link_tooltip,
             GameClient::bag_slot_tooltip,
             GameClient::paperdoll_tooltip,
             GameClient::merchant_tooltip,
+            GameClient::merchant_button_tooltip,
             GameClient::loot_tooltip,
             GameClient::mail_attachment_tooltip,
             GameClient::inbox_item_tooltip,
@@ -226,6 +229,46 @@ impl GameClient {
         Some(HoveredTooltip {
             tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
             item: Some(item),
+            health: None,
+        })
+    }
+
+    /// The service buttons' `OnEnter` (MF.xml:207-211, 240-252, 300-303) and the last-sale
+    /// slot's `MerchantBuyBackButton_OnEnter` (`SetBuybackItem`, MF.lua:1078-1082), all
+    /// `ANCHOR_RIGHT`.
+    fn merchant_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let session = &self.merchant.session;
+        if !session.is_open() {
+            return None;
+        }
+        let ui = hit.ui.bind();
+        let (owner, button) =
+            named_ancestor(ui.registry()?, hit.frame, |frame| match name_of(frame)? {
+                name @ ("MerchantSellAllJunkButton"
+                | "MerchantRepairAllButton"
+                | "MerchantRepairItemButton"
+                | "MerchantBuyBackItem") => Some(name.to_owned()),
+                _ => None,
+            })?;
+        drop(ui);
+        let (tooltip, item) = match button.as_str() {
+            "MerchantSellAllJunkButton" => (sell_all_junk_tooltip(), None),
+            "MerchantRepairItemButton" => (repair_item_tooltip(), None),
+            "MerchantRepairAllButton" => (
+                repair_all_tooltip(u64::from(session.repair_cost), session.money)?,
+                None,
+            ),
+            _ => {
+                let last = session.merchant.last_buyback()?;
+                let tooltip =
+                    merchant_tooltip(last.item_id, &last.name, last.quality, last.count, None);
+                let item = named_item(last.item_id, &last.name, last.quality, last.count);
+                (tooltip, Some(item))
+            }
+        };
+        Some(HoveredTooltip {
+            tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
+            item,
             health: None,
         })
     }

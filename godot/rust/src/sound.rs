@@ -18,6 +18,7 @@ use godot::classes::{
 use godot::prelude::*;
 
 use crate::sound_footsteps::Footsteps;
+use crate::sound_ui_kits::UiKits;
 
 struct Channel {
     player: Gd<AudioStreamPlayer>,
@@ -222,6 +223,7 @@ pub struct NativeSound {
     ambient: Channel,
     effects: Gd<AudioStreamPlayer>,
     footsteps: Footsteps,
+    pub(crate) ui_kits: UiKits,
 }
 
 #[godot_api]
@@ -235,6 +237,7 @@ impl INode for NativeSound {
             ambient: Channel::new("Ambient"),
             effects: AudioStreamPlayer::new_alloc(),
             footsteps: Footsteps::new(),
+            ui_kits: UiKits::new(),
         }
     }
 
@@ -249,10 +252,13 @@ impl INode for NativeSound {
         self.effects.set_stream(&click_stream());
         let footsteps = self.footsteps.root.clone();
         self.base_mut().add_child(&footsteps);
+        let ui_kits = self.ui_kits.root.clone();
+        self.base_mut().add_child(&ui_kits);
     }
 
     fn exit_tree(&mut self) {
         self.stop();
+        self.ui_kits.stop();
         self.effects.stop();
         self.effects.set_stream(Gd::<AudioStream>::null_arg());
         self.music.player.set_stream(Gd::<AudioStream>::null_arg());

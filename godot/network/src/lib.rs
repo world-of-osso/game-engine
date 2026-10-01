@@ -246,6 +246,8 @@ impl NetworkBridge {
             .receive::<protocol::GuildBankFailed>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
+            // Players' social emotes, played on their models.
+            .receive::<protocol::EmoteEvent>()
             // Party/raid roster, member states, invites and results (group-frames.md).
             .receive_group()
             .connect(server_addr, client_id)

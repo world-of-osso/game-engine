@@ -12,7 +12,7 @@ func fog_inputs() -> void:
 	base_inputs()
 	material.set_shader_parameter("base_texture", texture_color(FLOOR))
 	material.set_shader_parameter("second_texture", texture_color(Color.WHITE))
-	material.set_shader_parameter("shader_id", 0x10)
+	material.set_shader_parameter("pixel_shader", 1)
 	material.set_shader_parameter("render_flags", 1)
 	material.set_shader_parameter("fog_mode", 1)
 	material.set_shader_parameter("fog_opacity", 1.0)

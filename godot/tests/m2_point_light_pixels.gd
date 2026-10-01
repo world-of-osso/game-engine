@@ -76,7 +76,6 @@ func fixture_scene() -> void:
 func m2_material() -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = load("res://shaders/m2.gdshader")
-	material.set_shader_parameter("effect_mode", 0)
 	material.set_shader_parameter("base_texture", solid_texture(Color(0.5, 0.4, 0.3, 1.0)))
 	material.set_shader_parameter("base_color", Color.WHITE)
 	material.set_shader_parameter("transparency", 1.0)

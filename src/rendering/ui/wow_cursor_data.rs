@@ -19,6 +19,10 @@ pub enum ActiveWowCursor {
     Speak,
     Taxi,
     Buy,
+    /// `BUY_ERROR_CURSOR`: over a vendor item the player can't afford.
+    UnableBuy,
+    /// `ShowRepairCursor` (`InRepairMode`).
+    Repair,
     Trainer,
 }
 
@@ -35,6 +39,8 @@ impl ActiveWowCursor {
             Self::Speak => 4_675_660,
             Self::Taxi => 4_675_662,
             Self::Buy => 4_675_621,
+            Self::UnableBuy => 4_675_674,
+            Self::Repair => 4_675_654,
             Self::Trainer => 4_675_664,
         }
     }

@@ -129,7 +129,11 @@ impl GameClient {
             if click.right || click.shift {
                 return Ok(());
             }
-            let target = CursorTarget::Location(ItemLocation::Equipment(slot));
+            let location = ItemLocation::Equipment(slot);
+            if let Some(effect) = self.merchant.session.repair_click(location) {
+                return Ok(self.apply_merchant_effect(effect)?);
+            }
+            let target = CursorTarget::Location(location);
             return self.send_cursor_click(target);
         }
         match action {
