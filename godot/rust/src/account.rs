@@ -17,6 +17,7 @@ use game_engine_session::{
 };
 use game_engine_ui_model::bank_data::{BankRequest, GuildBankRequest};
 use game_engine_ui_model::trade::TradeRequest;
+use shared::components::StandState;
 use shared::protocol::{
     AcceptTrade, CancelTrade, CancelTradeAccept, ClearTradeItem, ConfirmTrade, DeclineTrade,
     InitiateTrade, SetTradeMoney, TradeChannel, TradeStateUpdate,
@@ -31,8 +32,8 @@ use shared::protocol::{
     MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestFailed, QuestGiverStatusMultiple,
     QuestGiverStatusQuery, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
     RestStateUpdate, SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged,
-    SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TalentChannel,
-    TransferAborted, TransferChannel, WorldPortAck,
+    SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned,
+    StandStateIntent, TalentChannel, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     AppearanceCollectionUpdate, CreatureTooltip, CreatureTooltipQuery, TooltipChannel,
@@ -788,6 +789,13 @@ impl Account {
     pub fn send_emote(&self, intent: EmoteIntent) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, ChatChannel>(intent)
+            .map_err(SessionError)
+    }
+
+    /// `CMSG_STAND_STATE_CHANGE`: ask the server to stand, sit, sleep or kneel.
+    pub fn send_stand_state(&self, state: StandState) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(StandStateIntent { state })
             .map_err(SessionError)
     }
 
