@@ -16,6 +16,8 @@ var mc_pointer := Vector2.ZERO
 var mc_sale_texture: Texture2D
 var mc_shift_npc: Variant
 var mc_close_ui_id := 0
+var mc_outside_target: Variant
+var mc_outside_auto_attack: Variant
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -55,6 +57,10 @@ func run_test() -> void:
 	if not await mc_buyback(client):
 		return
 	if not await mc_last_buyback(client):
+		return
+	if not await mc_world_cursor_release(client):
+		return
+	if not await mc_foreign_cursor_release(client):
 		return
 	if not await mc_vendor_cursor_close(client):
 		return
@@ -571,6 +577,245 @@ func mc_last_buyback_quiet(client: Node, committed: bool) -> bool:
 			fail("Last-sale900ms quiet changed; committed=%s state=%s" % [committed, client.merchant_state()])
 			return false
 	return true
+
+func mc_outside_capture_target(client: Node) -> void:
+	var state: Dictionary = client.target_state()
+	mc_outside_target = state.target
+	mc_outside_auto_attack = state.auto_attack
+
+func mc_outside_state_matches(client: Node, held: bool) -> bool:
+	var target: Dictionary = client.target_state()
+	if target.target != mc_outside_target or target.auto_attack != mc_outside_auto_attack:
+		return false
+	if not mc_close_vendor_matches(client, held) or not mc_last_buyback_art_matches(client, true):
+		return false
+	return mc_last_buyback_no_modal(client) and mc_outside_cursor_ignores(client)
+
+func mc_outside_wait(client: Node, held: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if mc_outside_state_matches(client, held):
+			return true
+	fail("Outside cursor state missing held=%s target/autoattack/source white/Linen9/912/list1/art/no modal: %s; no runtime RED claim" % [held, client.merchant_state()])
+	return false
+
+func mc_outside_quiet(client: Node, held: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_QUIET_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if not mc_outside_state_matches(client, held):
+			fail("Outside cursor900ms quiet changed held=%s target/autoattack/catalog/bag/money/art/modal: %s" % [held, client.merchant_state()])
+			return false
+	return true
+
+func mc_outside_cursor_ignores(client: Node) -> bool:
+	var icon := client.find_child(MC_CURSOR, true, false) as Control
+	if icon == null:
+		return true
+	if icon.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		return false
+	for node in icon.find_children("*", "Control", true, false):
+		if (node as Control).mouse_filter != Control.MOUSE_FILTER_IGNORE:
+			return false
+	return true
+
+func mc_outside_active_hit(host: Node, point: Vector2) -> Control:
+	var own := host as Control
+	if own != null and own.is_visible_in_tree() and own.mouse_filter != Control.MOUSE_FILTER_IGNORE and own.get_global_rect().has_point(point):
+		return own
+	for node in host.find_children("*", "Control", true, false):
+		var control := node as Control
+		if control.is_visible_in_tree() and control.mouse_filter != Control.MOUSE_FILTER_IGNORE and control.get_global_rect().has_point(point):
+			return control
+	return null
+
+func mc_outside_origin(client: Node) -> Dictionary:
+	var ui := client.get_node_or_null("MerchantUI")
+	var source := mc_control(client, MC_SOURCE)
+	var canvas := mc_control(client, "RegistryCanvas")
+	if ui == null or source == null or canvas == null or not ui.is_ancestor_of(source):
+		fail("Outside setup requires actual own MerchantItem1/RegistryCanvas")
+		return {}
+	var rect := source.get_global_rect()
+	var scale := canvas.get_global_transform().get_scale().x
+	if not source.is_visible_in_tree() or source.mouse_filter != Control.MOUSE_FILTER_STOP or not rect.has_area() or scale <= 0:
+		fail("Outside setup requires visible mouseSTOP source with positive live scale/area")
+		return {}
+	if canvas.mouse_filter != Control.MOUSE_FILTER_IGNORE or not root.get_visible_rect().encloses(rect):
+		fail("Outside setup requires IGNORE canvas and source inside viewport")
+		return {}
+	return {"source_id": source.get_instance_id(), "rect": rect, "start": rect.get_center(), "scale": scale}
+
+func mc_outside_origin_matches(client: Node, origin: Dictionary) -> bool:
+	var source := mc_control(client, MC_SOURCE)
+	var canvas := mc_control(client, "RegistryCanvas")
+	if source == null or canvas == null or source.get_instance_id() != origin.source_id:
+		return false
+	if not source.is_visible_in_tree() or source.mouse_filter != Control.MOUSE_FILTER_STOP or source.get_global_rect() != origin.rect:
+		return false
+	return canvas.mouse_filter == Control.MOUSE_FILTER_IGNORE and canvas.get_global_transform().get_scale().x == origin.scale
+
+func mc_outside_travel_matches(origin: Dictionary, point: Vector2) -> bool:
+	var viewport := root.get_visible_rect()
+	return viewport.has_area() and viewport.has_point(point) and not origin.rect.has_point(point) and origin.start.distance_to(point) / origin.scale >= 4.0
+
+func mc_world_point(client: Node, origin: Dictionary) -> Vector2:
+	var viewport := root.get_visible_rect()
+	# Deterministic interior fractions, never calibrated pixel coordinates.
+	for fraction in [Vector2(0.5, 0.5), Vector2(0.25, 0.25), Vector2(0.75, 0.25), Vector2(0.25, 0.75), Vector2(0.75, 0.75)]:
+		var point: Vector2 = viewport.position + viewport.size * fraction
+		if mc_world_geometry_matches(client, origin, point):
+			print("MERCHANT CURSOR WORLD GEOMETRY viewport=", viewport, " fraction=", fraction, " point=", point, " source_rect=", origin.rect, " scale=", origin.scale, " no visible active Control hit across actual client")
+			return point
+	fail("Outside World SETUP FAILED: no credible interior grid point with actual no-hit controls and >=4 logical travel; not native-policy RED")
+	return Vector2.INF
+
+func mc_world_geometry_matches(client: Node, origin: Dictionary, point: Vector2) -> bool:
+	return mc_outside_origin_matches(client, origin) and mc_outside_travel_matches(origin, point) and mc_outside_cursor_ignores(client) and mc_outside_active_hit(client, point) == null
+
+func mc_world_cursor_release(client: Node) -> bool:
+	if not mc_last_buyback_state_matches(client, true):
+		fail("Outside World setup requires original last-sale final Merchant tab/Linen9/912/first buyback1price13/no held")
+		return false
+	mc_outside_capture_target(client)
+	var origin := mc_outside_origin(client)
+	if origin.is_empty():
+		return false
+	var point := mc_world_point(client, origin)
+	if point == Vector2.INF:
+		return false
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_WORLD_PICKUP_ARM")
+	mc_motion(origin.start, false)
+	await process_frame
+	if not mc_world_geometry_matches(client, origin, point):
+		fail("Outside World SETUP FAILED: point/source changed before pickup")
+		return false
+	mc_edge(origin.start, true)
+	if not await mc_outside_wait(client, true) or not await mc_outside_quiet(client, true):
+		return false
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_WORLD_HELD")
+	return await mc_world_release_held(client, origin, point)
+
+func mc_world_release_held(client: Node, origin: Dictionary, point: Vector2) -> bool:
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_WORLD_RELEASE_ARM")
+	mc_motion(point, true)
+	if not await mc_outside_wait(client, true) or not await mc_outside_quiet(client, true):
+		return false
+	if not mc_world_geometry_matches(client, origin, point):
+		fail("Outside World SETUP FAILED: active Control hit/source/viewport/travel changed before release; no policy RED")
+		return false
+	mc_edge(point, false)
+	if not await mc_outside_wait(client, false) or not await mc_outside_quiet(client, false):
+		return false
+	print("MERCHANT CURSOR WORLD actual no-hit physical release clears vendor cursor/no destroy; Linen9/912/source white/list1/catalog/target/autoattack unchanged900ms; zero requests required by peer")
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_WORLD_DONE")
+	return await mc_outside_quiet(client, false)
+
+func mc_foreign_chat_tab(client: Node) -> Control:
+	var merchant := client.get_node_or_null("MerchantUI")
+	var chat := client.get_node_or_null("ChatFrameUI")
+	if merchant == null or chat == null or merchant == chat or merchant.is_ancestor_of(chat) or chat.is_ancestor_of(merchant):
+		return null
+	var tab := chat.find_child("ChatFrame1TabsTab0", true, false) as Control
+	if tab == null or not chat.is_ancestor_of(tab) or not tab.is_visible_in_tree() or tab.mouse_filter != Control.MOUSE_FILTER_STOP:
+		return null
+	return tab
+
+func mc_foreign_chat_presentation(client: Node) -> Array:
+	var tab := mc_foreign_chat_tab(client)
+	if tab == null:
+		return []
+	# Literal public Control presentation, no invented selected-tab diagnostic.
+	return [tab.get_instance_id(), tab.get_global_rect(), tab.modulate, tab.self_modulate]
+
+func mc_foreign_geometry_matches(client: Node, origin: Dictionary, point: Vector2) -> bool:
+	var tab := mc_foreign_chat_tab(client)
+	if tab == null or not tab.get_global_rect().has_area() or tab.get_global_rect().get_center() != point:
+		return false
+	if not mc_outside_origin_matches(client, origin) or not mc_outside_travel_matches(origin, point) or not mc_outside_cursor_ignores(client):
+		return false
+	return mc_outside_active_hit(client.get_node("MerchantUI"), point) == null
+
+func mc_foreign_cursor_release(client: Node) -> bool:
+	if not mc_last_buyback_state_matches(client, true) or not mc_outside_state_matches(client, false):
+		fail("Outside foreign setup requires completed World clear with unchanged original last-sale final")
+		return false
+	var origin := mc_outside_origin(client)
+	var tab := mc_foreign_chat_tab(client)
+	if origin.is_empty() or tab == null:
+		fail("Outside foreign SETUP FAILED: actual distinct mounted ChatFrameUI/ChatFrame1TabsTab0/source missing")
+		return false
+	var point := tab.get_global_rect().get_center()
+	if not mc_foreign_geometry_matches(client, origin, point):
+		fail("Outside foreign SETUP FAILED: actual mouseSTOP chat center overlaps own MerchantUI hits or invalid viewport/travel")
+		return false
+	print("MERCHANT CURSOR FOREIGN GEOMETRY tab=", tab.get_path(), " rect=", tab.get_global_rect(), " point=", point, " source_rect=", origin.rect, " scale=", origin.scale, " outside all MerchantUI active hits; mounted negative claim only")
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_FOREIGN_PICKUP_ARM")
+	if not await mc_foreign_pickup(client, origin, point):
+		return false
+	if not await mc_foreign_release_held(client, origin, point):
+		return false
+	return await mc_foreign_reset(client, origin)
+
+func mc_foreign_pickup(client: Node, origin: Dictionary, point: Vector2) -> bool:
+	mc_motion(origin.start, false)
+	await process_frame
+	if not mc_foreign_geometry_matches(client, origin, point):
+		fail("Outside foreign SETUP FAILED: geometry changed before fresh vendor pickup")
+		return false
+	mc_edge(origin.start, true)
+	if not await mc_outside_wait(client, true) or not await mc_outside_quiet(client, true):
+		return false
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_FOREIGN_HELD")
+	return true
+
+func mc_foreign_release_held(client: Node, origin: Dictionary, point: Vector2) -> bool:
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_FOREIGN_RELEASE_ARM")
+	mc_motion(point, true)
+	if not await mc_outside_wait(client, true) or not await mc_outside_quiet(client, true):
+		return false
+	if not mc_foreign_geometry_matches(client, origin, point):
+		fail("Outside foreign SETUP FAILED: mounted chat/source/hit geometry changed before release")
+		return false
+	# Capture settled hover presentation; release must not change tab presentation.
+	var presentation := mc_foreign_chat_presentation(client)
+	# NO press on Chat: MerchantUI owns pickup/release; foreign mounted hit blocks.
+	mc_edge(point, false)
+	if not await mc_outside_wait(client, true) or not await mc_foreign_quiet(client, presentation):
+		return false
+	print("MERCHANT CURSOR FOREIGN actual ChatFrame1TabsTab0 release retains Linen carried image centered/source white9/money912/list1/no modal/targetautoattack/tab stable900ms; zero requests; Some(None) blocking claim NOT action forwarding/global winner")
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_FOREIGN_RETAINED")
+	return true
+
+func mc_foreign_quiet(client: Node, presentation: Array) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_QUIET_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if not mc_outside_state_matches(client, true) or mc_foreign_chat_presentation(client) != presentation:
+			fail("Outside foreign900ms quiet changed held/source/bag/money/catalog/target/autoattack/visible chat tab presentation")
+			return false
+	return true
+
+func mc_foreign_reset(client: Node, origin: Dictionary) -> bool:
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_RESET_ARM")
+	mc_motion(origin.start, false)
+	await process_frame
+	if not mc_outside_origin_matches(client, origin) or not mc_outside_state_matches(client, true):
+		fail("Outside preparatory reset requires original actual vendor source with cursor already held")
+		return false
+	# Merchant -> MerchantItem nonbag clears locally. Not inventory Return/World/Escape.
+	mc_edge(origin.start, true)
+	await process_frame
+	mc_edge(origin.start, false)
+	if not await mc_outside_wait(client, false) or not await mc_outside_quiet(client, false):
+		return false
+	if not mc_last_buyback_state_matches(client, true):
+		fail("Outside reset did not restore unchanged close initial predicate")
+		return false
+	print("MERCHANT CURSOR FOREIGN RESET same-point original vendor click clears already-held cursor locally; no request/Linen9/912/list1/catalog/targetautoattack quiet900ms")
+	print("FIXTURE MERCHANT_CURSOR_OUTSIDE_RESET_DONE")
+	return await mc_outside_quiet(client, false)
 
 func mc_vendor_cursor_close(client: Node) -> bool:
 	# Last-sale authority changed close inputs; original five cases remain unchanged.
