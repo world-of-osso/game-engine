@@ -193,7 +193,7 @@ fn check_terrain(run: &mut Run, tiles: &str) -> Result<(), String> {
         &[
             "map_name: azeroth".into(),
             "initial_tile: 32,48".into(),
-            "load_radius: 1".into(),
+            "initial_tiles: 9".into(),
             format!("loaded_tiles: {tiles}"),
             "pending_tiles: 0".into(),
             "failed_tiles: 0".into(),
@@ -225,9 +225,9 @@ fn check_hover(run: &mut Run) -> Result<(), String> {
         return Err(format!("hover --npc answered {npc}"));
     }
     run.wait_marker("HOVER_NPC Fixture Vendor")?;
-    let point = run.expect_text(&["hover", "--x", "5", "--y", "5"])?;
-    if point.trim() != "cursor at (5, 5)" {
-        return Err(format!("hover --x 5 --y 5 answered {point}"));
+    let point = run.expect_text(&["hover", "--x", "640", "--y", "40"])?;
+    if point.trim() != "cursor at (640, 40)" {
+        return Err(format!("hover --x 640 --y 40 answered {point}"));
     }
     run.wait_marker("HOVER_POINT")?;
     match run.cli(&["hover", "--npc", "Nobody"])? {
