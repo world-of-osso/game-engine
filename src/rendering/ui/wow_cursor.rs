@@ -24,6 +24,8 @@ pub struct WowCursorAssets {
     pub speak: Handle<Image>,
     pub taxi: Handle<Image>,
     pub buy: Handle<Image>,
+    pub unable_buy: Handle<Image>,
+    pub repair: Handle<Image>,
     pub trainer: Handle<Image>,
 }
 
@@ -39,6 +41,8 @@ impl WowCursorAssets {
             ActiveWowCursor::Speak => self.speak.clone(),
             ActiveWowCursor::Taxi => self.taxi.clone(),
             ActiveWowCursor::Buy => self.buy.clone(),
+            ActiveWowCursor::UnableBuy => self.unable_buy.clone(),
+            ActiveWowCursor::Repair => self.repair.clone(),
             ActiveWowCursor::Trainer => self.trainer.clone(),
         }
     }
@@ -94,6 +98,14 @@ fn load_cursor_assets(images: &mut Assets<Image>) -> Option<WowCursorAssets> {
         buy: load_cursor_image(
             images,
             "/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Buy.blp",
+        )?,
+        unable_buy: load_cursor_image(
+            images,
+            "/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/UnableBuy.blp",
+        )?,
+        repair: load_cursor_image(
+            images,
+            "/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Repair.blp",
         )?,
         trainer: load_cursor_image(
             images,
