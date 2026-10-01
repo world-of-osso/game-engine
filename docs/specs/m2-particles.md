@@ -23,6 +23,7 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 - [x] Draw one pooled `MultiMeshInstance3D` per (model FDID, emitter index), shared by every placement; pool capacity = sum of placement capacities capped at 4096.
 - [x] Update and draw only the emitters of doodads that are drawn (scenery distance, WMO group portal cull) and whose box is in the view frustum; fade their particles with the doodad's scenery fade.
 - [x] Creature display models draw their emitters (WebWowViewerCpp `animationManager.cpp` `calcParticleEmitters` runs for every M2 object), pooled per (model FDID, emitter) like doodads, updated while the unit is shown and its model box is in the view frustum, at the Options density captured when the visual attaches.
+- [x] Item models units hold (creature virtual items and armor, player equipment) draw their emitters on their item nodes, idle while the item is hidden (unsheathed state); Warpweaver Hashom's staff (148608) has four.
 - [x] Particles take the scene fog (`m2ParticleShader.frag.slang` `makeFog2` with the particle's blend mode: additive and modulating blends fog toward black/white/grey, `validateFogColor`).
 - [x] Persisted startup `particleEffectsEnabled = false` spawns no particle pools or emitters. An authenticated actual-Azeroth portal fixture proves this state boundary; it does not prove pixels, audibility, live toggling, or density.
 - [ ] The in-world portal matches retail framing (small white sparkles inside the blue sheet). Captured only, not compared by pixels.
