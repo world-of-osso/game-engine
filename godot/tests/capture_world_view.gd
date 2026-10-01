@@ -78,11 +78,12 @@ func hide_wmo_liquids() -> int:
 	return liquids.size()
 
 func enter_world() -> bool:
-	var deadline := Time.get_ticks_msec() + 20000
+	# The character select UI appears once asset startup is over (`assets_starting`).
+	var deadline := Time.get_ticks_msec() + 120000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1:
+		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1 and client.get_node_or_null("CharacterSelectUI") != null and not state.assets_starting:
 			break
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	if ui == null:
