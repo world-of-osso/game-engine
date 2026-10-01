@@ -146,13 +146,6 @@ fn compose_player_pixels(
     if let Some(pixels) = type6 {
         textures.insert(6, pixels);
     }
-    insert_player_eye_pixels(
-        &mut textures,
-        compositor,
-        &choices.materials,
-        layout_id,
-        &decoded,
-    )?;
     Ok(textures)
 }
 
@@ -196,22 +189,6 @@ fn select_player_head_pixels(
     } else {
         Ok(head)
     }
-}
-
-fn insert_player_eye_pixels(
-    textures: &mut HashMap<u32, TexturePixels>,
-    compositor: &CharTextureData,
-    materials: &[(u16, u32)],
-    layout_id: u32,
-    decoded: &HashMap<u32, TexturePixels>,
-) -> Result<(), String> {
-    if let Some(fdid) = compositor.replacement_texture_fdid(materials, layout_id, 19) {
-        let pixels = decoded
-            .get(&fdid)
-            .ok_or_else(|| format!("missing player eye texture FDID {fdid}"))?;
-        textures.insert(19, pixels.clone());
-    }
-    Ok(())
 }
 
 /// A player's body model parsed, its customization composed and equipment resolved,
