@@ -61,6 +61,35 @@ October 1, 2026: the [native IPC specification](../../specs/native-ipc.md#scene-
 
 Original six-diagnostic independent1531 acceptance above is retained as historical bounded proof only, not export acceptance. Broad full semantic parity, UI/actions, performance, general shutdown/resource behavior and root formatting remain open; this checkpoint clears none of them.
 
+## Native IPC request coverage
+
+October 1, 2026 (agent `tooling`, branch `tooling`). The [native IPC specification](../../specs/native-ipc.md) owns the behavior; this is the per-request status of the 129 original requests. Proof is the real `game-engine-cli` against the live client: `native_input_fixture dev-ipc` (fixture server decodes the sent intents and seeds bags, quest log, presence, rest state, trade and combat replies), `native_input_fixture charselect-export`, `native_debug_screen_fixture m2debug|debugcharacter|skyboxdebug`, and the unchanged `native_ipc_fixture`. Evidence: `data/diagnostics/tooling-2026-10-01/`.
+
+| Requests | Status | Proof |
+| --- | --- | --- |
+| Ping, Screenshot, Performance, DumpTree, DumpUiTree, DumpScene | served (other session) | `native_ipc_fixture` PASS on the tooling lib |
+| ExportScene | semantic per screen (InWorld, CharSelect, M2Debug, DebugCharacter, SkyboxDebug); window export elsewhere | RED generic root → GREEN for all five screens |
+| NetworkStatus, SoundStatus, MapPosition, SetCameraDirection, ScriptedMovementForward/Stop, HoverAt/HoverNpc | served (devtools) | dev-ipc |
+| TerrainStatus | + load radius, server-requested and heightmap tiles, model cache, terrain/liquid materials | dev-ipc RED/GREEN |
+| MapTarget, MapWaypointAdd (with auto-walk), MapWaypointClear; zone after moving | served | dev-ipc RED/GREEN; walk 6 yd west ends in the goal radius with one stop input |
+| GroupRoster, GroupStatus, GroupInvite, GroupUninvite, Emote, SpellCast, SpellStop | served | dev-ipc, server-decoded intents |
+| QuestList, QuestWatch, QuestShow, QuestInteract | served | dev-ipc (seeded log; `InteractNpc` decoded) |
+| BagsStatus, InventoryList/Search/Whereis, ItemInfo, PresenceStatus, CharacterStatsStatus | served | dev-ipc (seeded bags, presence, rest state) |
+| GuildVaultStatus, WarbankStatus | served | dev-ipc empty state only; contents path not process-proved |
+| TradeStatus and the nine trade actions | served; actions answer on the next `TradeStateUpdate` | dev-ipc: status, initiate, cancel, refused accept; the other six actions are mapped, not individually proved |
+| CombatLog, CombatRecap | served over received `CombatEvent`s | dev-ipc |
+| LootTakeAll | served | no process proof: the canonical `game-engine-cli` binary predates `quest take-loot` and agents may not build the root crate |
+| Auction (10), Mail (3), Profession (3) | not ported | the other session owns these features; native state exists for auction and mail |
+| Inspect (2), Duel (4), Calendar (4), Guild (5), Friends/Who/Ignore and presence changes (10), PvP (4), LFG (5), Barber (4), Death (5), Achievements, Currencies (3), Reputations (2), Collections (6) | not ported | no native state and no receive for their server updates; the IPC needs the feature first |
+| EncounterJournalStatus | not ported | its data module (`encounter_journal_data.rs`) is Bevy-bound and the native client has no journal |
+| EquippedGearStatus, EquipmentSet, EquipmentClear, ExportCharacter | not ported | they read or edit the original's model-path `Equipment` component and per-slot durability snapshot, which the native client replaced with appearance-resolved equipment |
+
+Findings while porting:
+
+- Terrain height, area and footstep surface now locate the chunk by index arithmetic (TrinityCore `GridMap::getHeight`), not by authored MCNK bounds, which leave sub-millimetre gaps (azeroth 31_48 ends at z -0.00068): positions there had no height and no area (zone 0 after moving, waypoint paths without ground). The original's `TerrainHeightmap` keeps the bounds test.
+- The first item-catalog lookup blocks the client's main thread on the catalog `OnceLock` while the background load runs (eu-stack: `InventoryState::apply_snapshot` → `item_catalog::catalog`), over 30 s on a loaded host. Not fixed here.
+- `character_select::sky` tests `fixed_zero_duration_samples_requested_concrete_bone_track` and `zero_duration_retains_requested_original_phase` fail on the tooling branch; neither file differs from master.
+
 ## Occupied startup equipment — bounded MAIN-observed GREEN
 
 Authoritative startup `EquipmentSnapshot` inventory, separate from replicated `EquipmentAppearance`/meshes. Pending-GREEN docs `cf9c3d63` are superseded within this bounded case. Native `ee2d3e47` + `2d1829fc` changes the minimum three paths: typed receive in `godot/network/src/lib.rs` after `InventorySnapshot` and before `InventoryDelta`, original account `NpcMessage::Equipment` decode, and original `InventoryState.apply_equipment_snapshot` application in merchant. No separate owner, new architecture, Appearance translator or server/protocol change.
