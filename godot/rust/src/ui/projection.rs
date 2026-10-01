@@ -27,6 +27,10 @@ const PARTS_NODE: &str = "Parts";
 #[derive(Clone)]
 pub enum UiInput {
     Click(u64),
+    FrameClick {
+        id: u64,
+        at: Vector2,
+    },
     /// A right-click, or a Shift-left-click, on a frame with an `onclick` action.
     AltClick {
         id: u64,
@@ -34,6 +38,7 @@ pub enum UiInput {
         shift: bool,
     },
     PointerDown(u64),
+    PointerUp(Vector2),
     Focus(u64),
     Blur(u64),
     Text(u64, String),
@@ -96,6 +101,49 @@ impl UiProjection {
         self.nodes.get(&id).cloned()
     }
 
+    /// None means world; Some(None) means a blocking frame without a click action.
+    pub fn pointer_action_at(
+        &self,
+        registry: &FrameRegistry,
+        at: Vector2,
+    ) -> Option<Option<String>> {
+        let mut candidates: Vec<_> = registry
+            .frames_iter()
+            .filter(|frame| frame.visible && frame.mouse_enabled)
+            .collect();
+        candidates.sort_by(|a, b| {
+            b.strata
+                .cmp(&a.strata)
+                .then(b.frame_level.cmp(&a.frame_level))
+                .then(b.raise_order.cmp(&a.raise_order))
+        });
+        let frame = candidates
+            .into_iter()
+            .find(|frame| self.frame_contains_pointer(frame, registry.ui_scale, at))?;
+        // Match click_frame's action result without changing edit-box focus.
+        let action = if frame.is_editbox() {
+            None
+        } else {
+            frame.onclick.clone().filter(|action| !action.is_empty())
+        };
+        Some(action)
+    }
+
+    fn frame_contains_pointer(&self, frame: &Frame, scale: f32, at: Vector2) -> bool {
+        let Some(node) = self.nodes.get(&frame.id) else {
+            return false;
+        };
+        if !node.is_visible_in_tree() {
+            return false;
+        }
+        let rect = node.get_global_rect();
+        let [left, right, top, bottom] = frame.hit_rect_insets.map(|inset| inset * scale);
+        at.x >= rect.position.x + left
+            && at.x <= rect.position.x + rect.size.x - right
+            && at.y >= rect.position.y + top
+            && at.y <= rect.position.y + rect.size.y - bottom
+    }
+
     pub fn grab_focus(&self, id: u64) {
         if let Some(node) = self.nodes.get(&id) {
             node.clone().grab_focus();
@@ -121,8 +169,16 @@ impl UiProjection {
             .any(|input| matches!(input, UiInput::PointerDown(_)))
     }
 
-    /// Viewport-level motion/release keeps capture after the pointer leaves the slider.
+    /// Viewport-level release reaches item drags even without slider capture.
     pub fn handle_pointer(&mut self, event: &Gd<InputEvent>) {
+        if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>()
+            && button.get_button_index() == godot::global::MouseButton::LEFT
+            && !button.is_pressed()
+        {
+            self.pending
+                .borrow_mut()
+                .push_back(UiInput::PointerUp(button.get_global_position()));
+        }
         let capture = *self.slider_capture.borrow();
         let Some(capture) = capture else { return };
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
@@ -749,7 +805,10 @@ fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>)
         let left = event.get_button_index() == godot::global::MouseButton::LEFT;
         let shift = event.is_shift_pressed();
         let input = match (left, right) {
-            (true, _) if !shift => UiInput::Click(id),
+            (true, _) if !shift => UiInput::FrameClick {
+                id,
+                at: event.get_global_position(),
+            },
             (true, _) | (_, true) => UiInput::AltClick { id, right, shift },
             _ => return,
         };
