@@ -171,6 +171,7 @@ pub struct GameClient {
     terrain: terrain::streaming::StreamedTerrain,
     terrain_materials: terrain::material::TerrainMaterials,
     world_objects: terrain::objects::TerrainObjects,
+    ground_detail: terrain::ground_detail::GroundDetail,
     global_wmo: wmo::global::GlobalWmoScene,
     wmo_collision: wmo::collision::WmoCollisionBodies,
     world_lighting: lighting::WorldLighting,
@@ -269,6 +270,7 @@ impl INode3D for GameClient {
             terrain: terrain::streaming::StreamedTerrain::new(data_root.clone()),
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
+            ground_detail: terrain::ground_detail::GroundDetail::new(data_root.clone()),
             global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone()),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
@@ -617,6 +619,7 @@ impl GameClient {
             objects.set("particles", &particles);
         }
         state.set("world_objects", &objects);
+        state.set("ground_detail", &self.ground_detail.state());
         if let Some(particles) = self.world.particle_state() {
             state.set("unit_particles", &particles);
         }
@@ -1518,6 +1521,10 @@ impl GameClient {
             ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
             ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
             ("Sky", |c, _| Ok(c.place_sky()?)),
+            ("Ground detail", |c, _| {
+                c.update_ground_detail();
+                Ok(())
+            }),
             ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
             ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
@@ -1712,6 +1719,7 @@ impl GameClient {
             self.mailbox.close();
             self.terrain_materials.reset();
             self.world_objects.reset();
+            self.ground_detail.reset();
             self.global_wmo.reset();
             self.wmo_collision.reset();
             self.account.session.screen = SessionScreen::Loading;
@@ -1725,6 +1733,7 @@ impl GameClient {
         self.world_camera.reset();
         self.terrain_materials.reset();
         self.world_objects.reset();
+        self.ground_detail.reset();
         self.global_wmo.reset();
         self.wmo_collision.reset();
         self.world_lighting.reset();
@@ -1782,6 +1791,7 @@ impl GameClient {
             self.world.update_lighting(Some(light.clone()));
             self.game_objects.update_lighting(Some(light.clone()));
             self.world_objects.update_lighting(&light);
+            self.ground_detail.update_lighting(&light);
             self.global_wmo.update_lighting(&light);
             self.terrain_materials.update_lighting(light);
         }
@@ -1800,6 +1810,16 @@ impl GameClient {
         let time_ms = clock.bind().elapsed_time_ms() as u32;
         self.world_lighting.place_sky(camera, time_ms);
         Ok(())
+    }
+
+    /// Ground clutter around the camera, once it moved this frame.
+    fn update_ground_detail(&mut self) {
+        let Some(camera) = self.world_camera.position() else {
+            return;
+        };
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.ground_detail
+            .update(&mut parent, &self.terrain, camera);
     }
 
     fn attach_world_objects(&mut self) {
@@ -1929,6 +1949,7 @@ impl GameClient {
         self.entrance_bar.close();
         self.terrain_materials.reset();
         self.world_objects.reset();
+        self.ground_detail.reset();
         self.global_wmo.reset();
         self.wmo_collision.reset();
         self.spell_effects.reset();
