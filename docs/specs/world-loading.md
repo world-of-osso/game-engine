@@ -26,4 +26,4 @@ The loading screen shown on world entry and map transfers hides only once the wo
 
 ## Measured
 
-Northshire Abbey (azeroth_32_48, 986 ADT placements plus 268-355 MODD doodads of its WMOs), headless client on a private server, on a shared, loaded host: loading took 2.8-5.8 s (median 4.4 s, 6 runs) before the object gate and 5.5-19.2 s (median 8.4 s, 7 runs) after. Before the tile prioritisation it took 14-50 s, with the center tile waiting behind about 6,000 neighbouring placements.
+Northshire Abbey (azeroth_32_48, 986 ADT placements plus 268-355 MODD doodads of its WMOs), headless client on a private server, on a shared, loaded host: loading took 2.8-5.8 s (median 4.4 s, 6 runs) before the object gate and 5.5-19.2 s (median 8.4 s, 7 runs) after. Before the tile prioritisation it took 14-50 s, with the center tile waiting behind about 6,000 neighbouring placements. On October 1, 2026 (after the master 3f0779e6 merge) two runs on a heavily loaded 24-thread host took 129.6 s (load average about 60) and 51.5 s (about 25); both passed the first-frame checks. Under that load these figures say nothing about the gate's own cost.
