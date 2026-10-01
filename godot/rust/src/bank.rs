@@ -318,28 +318,7 @@ impl GameClient {
             self.banks.reset();
             return Ok(());
         }
-        let money = self
-            .world
-            .local_player_id()
-            .and_then(|id| self.replica.unit(id)?.gold())
-            .unwrap_or(0);
-        let stacks = BagStacks::from_inventory(&self.merchant.session.inventory);
-        for (inventory, icons, wallet) in [
-            (
-                &mut self.banks.bank.inventory,
-                &mut self.banks.bank.icons,
-                &mut self.banks.bank.money,
-            ),
-            (
-                &mut self.banks.guild.inventory,
-                &mut self.banks.guild.icons,
-                &mut self.banks.guild.money,
-            ),
-        ] {
-            *inventory = stacks.clone();
-            *icons = ItemIcons(item_icon_fdid);
-            *wallet = money;
-        }
+        self.feed_bank_sessions();
         let interactive =
             self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed();
         if interactive {
@@ -356,6 +335,23 @@ impl GameClient {
         );
         self.sync_bank_ui()?;
         Ok(self.sync_guild_bank_ui()?)
+    }
+
+    /// Bags, money and item icons the sessions read; the server owns all three.
+    fn feed_bank_sessions(&mut self) {
+        let money = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.gold())
+            .unwrap_or(0);
+        let stacks = BagStacks::from_inventory(&self.merchant.session.inventory);
+        let banks = &mut self.banks;
+        banks.bank.inventory = stacks.clone();
+        banks.bank.icons = ItemIcons(item_icon_fdid);
+        banks.bank.money = money;
+        banks.guild.inventory = stacks;
+        banks.guild.icons = ItemIcons(item_icon_fdid);
+        banks.guild.money = money;
     }
 
     fn poll_bank_input(&mut self) -> Result<(), FrameError> {
