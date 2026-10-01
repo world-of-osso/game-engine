@@ -50,6 +50,8 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   LiquidTypeXTexture           FDID 2261065
   ComponentTextureFileData     FDID 1278239
   ComponentModelFileData       FDID 1349053
+  GroundEffectTexture          FDID 1308499
+  GroundEffectDoodad           FDID 1308057
 """
 
 import csv
@@ -484,6 +486,20 @@ TABLES = {
             ("RaceID", ("u8", 2)),
             ("PositionIndex", ("i8", 3)),
         ],
+    ),
+    # WoWDBDefs layout D93D5678: Density, Sound, DoodadID[4], DoodadWeight[4], SplatDensity[4].
+    # Detail doodad scatter (solarityclient terrain/detail_doodad/scatter.rs).
+    "GroundEffectTexture": (
+        0xD93D5678,
+        [("ID", "id"), ("Density", ("int", 0, 0))]
+        + [(f"DoodadID_{i}", ("u16", 2, i)) for i in range(4)]
+        + [(f"DoodadWeight_{i}", ("u8", 3, i)) for i in range(4)],
+    ),
+    # WoWDBDefs layout CFD94A21: ModelFileID, Flags, Animscale, Pushscale, Size_variation_min/max,
+    # Rotation_variation_min/max, TerrainColorGradingRampID.
+    "GroundEffectDoodad": (
+        0xCFD94A21,
+        [("ID", "id"), ("ModelFileID", ("int", 0, 0)), ("Flags", ("int", 1, 0))],
     ),
 }
 
