@@ -29,6 +29,9 @@ const SIT := 97
 const SIT_UP := 98
 const KNEEL_DOWN := 114
 const KNEEL := 115
+## How long the sitter holds each phase: the observer sees it through server and
+## replication latency (a loaded private server stalls up to seconds).
+const PHASE_HOLD_MS := 6000
 
 var NAME := OS.get_environment("STAND_CHARACTER")
 var OTHER := OS.get_environment("STAND_OTHER")
@@ -92,20 +95,20 @@ func sit() -> void:
 	if not await expect_clips(animation, [SIT_DOWN, SIT], "X sits down"):
 		return
 	await capture("stand-state-sit.png")
-	await wait_ms(2000)
+	await wait_ms(PHASE_HOLD_MS)
 	announce("stand")
 	await tap(KEY_X)
 	if not await expect_clips(animation, [SIT_UP, STAND], "X stands up"):
 		return
 	await capture("stand-state-stand.png")
-	await wait_ms(2000)
+	await wait_ms(PHASE_HOLD_MS)
 	announce("kneel")
 	if not await send_line("/kneel"):
 		return
 	if not await expect_clips(animation, [KNEEL_DOWN, KNEEL], "/kneel"):
 		return
 	await capture("stand-state-kneel.png")
-	await wait_ms(2000)
+	await wait_ms(PHASE_HOLD_MS)
 	announce("walk")
 	push_key(KEY_W, true)
 	await wait_ms(600)
@@ -115,9 +118,9 @@ func sit() -> void:
 		return
 	if not await expect_clips(animation, [STAND], "Stand after walking out of /kneel"):
 		return
-	await wait_ms(2000)
+	await wait_ms(PHASE_HOLD_MS)
 	announce("done")
-	await wait_ms(2000)
+	await wait_ms(PHASE_HOLD_MS)
 	print("FIXTURE STAND_STATE_DONE")
 	quit(0)
 
