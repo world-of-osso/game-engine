@@ -1,6 +1,6 @@
 ## 2026-10-01 — Native JS negative startup bounded docs audit
 
-[Evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) adds tests-only absent-focus typing rejection/successor suppression and distinguishes historical parse-error setup from RED and observer-owned exit from production auto-exit. Independent1568 report/MAIN acceptance pending; broad JS/root-format FULL goal and retained warnings remain open. Three owned docs only; no code/tests/build/runtime/delegation/operations or index change.
+[Evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) adds tests-only absent-focus typing rejection/successor suppression and distinguishes historical parse-error setup from RED and observer-owned exit from production auto-exit. MAIN accepts independent1568 bounded source/readability/supplied-runtime PASS; broad JS/root-format FULL goal and retained warnings remain open. Three owned docs only; no code/tests/build/runtime/delegation/operations or index change.
 
 ## 2026-10-01 — Native JS bounded docs audit
 
