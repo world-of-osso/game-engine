@@ -120,13 +120,7 @@ impl UiProjection {
         let frame = candidates
             .into_iter()
             .find(|frame| self.frame_contains_pointer(frame, registry.ui_scale, at))?;
-        // Match click_frame's action result without changing edit-box focus.
-        let action = if frame.is_editbox() {
-            None
-        } else {
-            frame.onclick.clone().filter(|action| !action.is_empty())
-        };
-        Some(action)
+        Some(frame_click_action(registry, frame.id))
     }
 
     fn frame_contains_pointer(&self, frame: &Frame, scale: f32, at: Vector2) -> bool {
@@ -773,6 +767,17 @@ fn emit(pending: &PendingInputs, input: UiInput) -> Callable {
     Callable::from_fn("registry-input", move |_| {
         pending.borrow_mut().push_back(input.clone())
     })
+}
+
+/// Original cursor hit policy walks from the mouse-enabled frame to its action.
+fn frame_click_action(registry: &FrameRegistry, mut id: u64) -> Option<String> {
+    loop {
+        let frame = registry.get(id)?;
+        if let Some(action) = frame.onclick.as_ref() {
+            return (!action.is_empty()).then(|| action.clone());
+        }
+        id = frame.parent_id?;
+    }
 }
 
 fn connect_pointer_down(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {

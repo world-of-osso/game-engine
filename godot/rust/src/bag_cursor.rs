@@ -24,11 +24,27 @@ use crate::ui::RegistryUi;
 const CURSOR_UI: &str = "CursorItemUI";
 /// The original cursor icon is above every frame and ignores pointer input.
 const CURSOR_LAYER: i32 = 100;
+/// Original OnReceiveDrag threshold, measured in logical UI pixels.
+const DRAG_THRESHOLD: f32 = 4.0;
+
+pub(crate) enum BagInput {
+    Click {
+        action: String,
+        click: Click,
+        at: Option<Vector2>,
+    },
+    Release {
+        at: Vector2,
+        /// No frame is World; a blocking frame can lack a cursor action.
+        action: Option<Option<String>>,
+    },
+}
 
 #[derive(Default)]
 pub(crate) struct BagCursor {
     pub(crate) item: CursorItem,
     split: Option<StackSplitState>,
+    picked_at: Option<(Vector2, CursorTarget)>,
     pub(crate) ui: Option<Gd<RegistryUi>>,
 }
 
@@ -57,10 +73,55 @@ impl BagCursor {
         }
         self.item = CursorItem::Empty;
         self.split = None;
+        self.picked_at = None;
     }
 }
 
 impl GameClient {
+    pub(super) fn dispatch_bag_cursor_input(&mut self, input: BagInput) -> Result<(), FrameError> {
+        match input {
+            BagInput::Click { action, click, at } => {
+                self.bags.cursor.picked_at = None;
+                let was_empty = self.bags.cursor.item.is_empty();
+                self.dispatch_bag_action(&action, click)?;
+                if was_empty && !self.bags.cursor.item.is_empty() {
+                    self.bags.cursor.picked_at = at
+                        .zip(self.bags.cursor.item.source())
+                        .map(|(at, source)| (at, CursorTarget::Location(source)));
+                }
+                Ok(())
+            }
+            BagInput::Release { at, action } => self.send_bag_drag_release(at, action),
+        }
+    }
+
+    fn send_bag_drag_release(
+        &mut self,
+        at: Vector2,
+        action: Option<Option<String>>,
+    ) -> Result<(), FrameError> {
+        let Some((picked_at, picked_target)) = self.bags.cursor.picked_at.take() else {
+            return Ok(());
+        };
+        let distance = picked_at.distance_to(at);
+        if distance < DRAG_THRESHOLD {
+            return Ok(());
+        }
+        let Some(target) = bag_release_target(action)? else {
+            return Ok(());
+        };
+        if target == picked_target {
+            return Ok(());
+        }
+        let session = &self.merchant.session;
+        let effect = self
+            .bags
+            .cursor
+            .item
+            .click(target, &session.inventory, &session.merchant);
+        self.send_cursor_effect(effect)
+    }
+
     pub(super) fn clear_stale_bag_cursor(&mut self) {
         let session = &self.merchant.session;
         self.bags
@@ -307,6 +368,21 @@ impl GameClient {
         }
         self.bags.cursor.ui = Some(ui);
         Ok(())
+    }
+}
+
+fn bag_release_target(action: Option<Option<String>>) -> Result<Option<CursorTarget>, String> {
+    match action {
+        None => Ok(Some(CursorTarget::World)),
+        Some(Some(action))
+            if action
+                .starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) =>
+        {
+            parse_bag_location(&action)
+                .map(CursorTarget::Location)
+                .map(Some)
+        }
+        Some(_) => Ok(None),
     }
 }
 
