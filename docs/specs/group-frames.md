@@ -38,8 +38,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ### Party frame (raid-style `CompactPartyFrame`)
 - [x] Raid-style party frames are the project default. This is a user decision: Retail's own default is `UseRaidStylePartyFrames = 0` (EMP:276), whose classic frame needs a portrait.
-- [x] Placement: `CompactPartyFrame`, 98 × (14 + 5×44), left of the player frame.
-  - Right edge 12 px left of `PlayerFrame` (x −391..−293 from screen centre); bottom 152, level with the cluster.
+- [x] Placement: `CompactPartyFrame`, 98 × (14 + 5×44), at the Retail Modern preset: TOPLEFT on `CompactRaidFrameManager`'s TOPRIGHT at (0, −7) (EMP:290-295). The 222 × 140 manager starts collapsed at UIParent TOPLEFT (−200, −140) (Blizzard_CompactRaidFrameManager.xml:113, .lua:93, :335), so the frame's top-left is (22, −147) from UIParent's top-left and it grows downward.
   - Title "Party" (`PARTY`, `GameFontNormalSmall`, CRG title 50×14).
 - [x] Members `CompactPartyFrameMember1..5`, each 98×44: the Edit Mode default 72×36 + (26, 8) (EMP:280-281).
   - Order: the player first, then the others in roster order (`CRFSort_Group`).
@@ -123,6 +122,8 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - Promote from the raid frame menu (09); Partyc left via the player frame menu (10).
 - [x] Out of interest range: in `run7-white-background/04-out-of-range-*`, Partya ~103 yd away (beyond the 100 yd interest radius) kept her live health and position on b/c.
 
+- [x] Godot client, live (2026-09-30), two headless clients on a private server (UDP 5103); captures in `data/diagnostics/showbugs-2026-09-30/group/`: Fbshowbugs types `/invite Fbshowwar`; Fbshowwar's `PARTY_INVITE` popup (invitee-00) is clicked Accept; both show the party at the top left, the player first, with live health and mana (`inviter-01`, `invitee-01`); `/leave` removes it on both (`*-02`). Not covered live in Godot: target highlight, offline/dead, member menus, raid frames, ready check frame, frame clicks.
+
 ## Tests asserting this spec
 
 - shared-protocol:
@@ -137,7 +138,10 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - level-up resend;
   - member states carrying health/power/ghost/debuffs, sent only on change, resent after relog.
 - game-engine:
-  - `src/game/group_state_tests.rs`: roster/live-state lifecycle, ready marks and decay, menu entries by role.
+  - `src/game/group_state_tests.rs`: roster/live-state lifecycle (a state ahead of its roster is kept until the roster decides), ready marks and decay, menu entries by role.
+  - `godot/network/src/wire_tests.rs::native_bridge_receives_group_messages_in_channel_order`.
+  - `godot/rust/src/party_frames.rs`: party order, live bars, Dead/Offline, range, target highlight; invite popup accept/cancel/timeout.
+  - `godot/rust/src/chat_tests.rs::group_commands_become_group_requests`.
   - `src/game/networking/group_tests.rs`: inbox handling, invite cancel, chat lines, commands reaching the worker.
   - `src/scenes/group_frames/tests.rs`: frames, placement and clicks:
     - party order, bars, class colour, range, dead/offline, selection, debuffs;
