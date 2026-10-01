@@ -204,7 +204,8 @@ fn real_mask_display_hides_scalp_and_enables_head_geosets() {
 #[test]
 fn live_helm_display_resolves_to_runtime_model_path() {
     let data = OutfitData::load(Path::new("data"));
-    let display = data.resolve_display_info(1128);
+    // Human (1) male (0): ComponentModelFileData picks the race/sex helm model.
+    let display = data.resolve_display_info(1128, 1, 0);
 
     assert!(
         !display.model_fdids.is_empty(),
