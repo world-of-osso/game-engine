@@ -1,6 +1,6 @@
-## 2026-10-01 — Native ExportScene source/test-first checkpoint
+## 2026-10-01 — Native ExportScene bounded MAIN-observed GREEN
 
-[Evidence SSOT](systems/godot-conversion.md#native-exportscene--sourcetest-first-checkpoint-green-pending) records original shared schema `30413fe6`, metadata/wiring `cdbcc95d`, consumer `6962c1d9` and current write-error fixture `c33da2a8`. Actual `d1981968` public CLI RED follows READY (native635186, Depot `330ww90wlr0`, parent1); matching build/GREEN runtime and independent gate remain pending. Historical six-diagnostic acceptance does not prove export; broad semantics/UI/actions/performance/shutdown/root formatting remain open. Two owned wiki paths only; no new page/index or code/tests/build/runtime/gate/delegation/operations.
+[Evidence SSOT](systems/godot-conversion.md#native-exportscene--accepted-bounded-pass) records MAIN-accepted independent1573 bounded PASS at `3ea4580c`: shared original JSON, actual native public export/write error, compensated transforms, retained legacy decoder and root check0. Post-READY `d1981968` RED and introduced re-export warning remain historical. Native runtime0/Depot0 are retained by source equivalence after the include correction. Full semantics/UI/actions/performance/shutdown remain open; root formatting still fails.
 
 ## 2026-10-01 — LiquidObject missing rows knowledge preservation
 
