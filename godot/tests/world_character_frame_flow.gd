@@ -47,8 +47,15 @@ func run_test() -> void:
 		return
 	if not await cf_equip_by_drag(GLADIUS, "CharacterMainHandSlot", "MainHand", "02-gladius-equipped.png"):
 		return
+	var armor_before := cf_stat("Armor:")
+	if armor_before < 0 or cf_stat("Stamina:") <= 0:
+		fail("Attributes not shown: armor %d stamina %d" % [armor_before, cf_stat("Stamina:")])
+		return
 	if not await cf_equip_by_drag(VEST, "CharacterChestSlot", "Chest", "03-vest-equipped.png"):
 		return
+	if not await wait_for(func(_s): return cf_stat("Armor:") > armor_before, "Armor above %d in the stats pane" % armor_before):
+		return
+	print("FIXTURE CF_ARMOR ", armor_before, " -> ", cf_stat("Armor:"), " stamina ", cf_stat("Stamina:"))
 	if not await cf_hover_tooltip():
 		return
 	if not await cf_unequip_weapon():
@@ -283,6 +290,15 @@ func cf_error_shown(text: String) -> bool:
 		if label.text == text and label.is_visible_in_tree():
 			return true
 	return false
+
+# The stats pane value of a label ("Armor:"), digits only; -1 when it is not shown.
+func cf_stat(label: String) -> int:
+	for index in range(1, 8):
+		var name := cf_control("CharacterStatsPaneStat%dLabel" % index)
+		if name is Label and name.text == label and name.is_visible_in_tree():
+			var value := cf_control("CharacterStatsPaneStat%dValue" % index) as Label
+			return int(value.text.replace(",", ""))
+	return -1
 
 func cf_bag(state: Dictionary, item_id: int) -> Dictionary:
 	for item in state.bags:
