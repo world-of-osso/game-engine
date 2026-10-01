@@ -41,8 +41,9 @@ func run_test() -> void:
 		if decline == null or not decline.is_visible_in_tree():
 			fail("EULA Decline button missing")
 			return
+		# The client quits during the click's frames, so the marker precedes it.
+		print("FIXTURE EULA_DECLINE_CLICKING")
 		await click(decline)
-		print("FIXTURE EULA_DECLINE_CLICKED")
 		var deadline := Time.get_ticks_msec() + DECLINE_WAIT_MS
 		while Time.get_ticks_msec() < deadline:
 			await process_frame
@@ -80,16 +81,20 @@ func wait_eula(client: Node) -> Control:
 	return null
 
 func expect_login_without_eula(client: Node) -> void:
-	var deadline := Time.get_ticks_msec() + 2000
-	while Time.get_ticks_msec() < deadline:
-		await process_frame
-		if client.get_node_or_null("Eula") != null:
-			fail("EULA screen shown after acceptance")
+	var deadline := Time.get_ticks_msec() + EULA_WAIT_MS
+	while not login_visible(client):
+		if Time.get_ticks_msec() > deadline:
+			fail("Startup did not show Login")
 			return
-	if not login_visible(client):
-		fail("Startup did not show Login")
-		return
-	print("PASS: startup skipped the accepted EULA")
+		await process_frame
+	# Observe past the frames in which a gated startup would have covered Login.
+	var observe_until := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < observe_until:
+		await process_frame
+		if client.get_node_or_null("Eula") != null or not login_visible(client):
+			fail("EULA screen covered Login")
+			return
+	print("PASS: startup showed Login without the EULA screen")
 	quit(0)
 
 func eula_control(client: Node, name: String) -> Control:
