@@ -513,13 +513,7 @@ pub struct QuestLogStatusSnapshot {
     pub watched_quest_ids: Vec<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum GroupRole {
-    Tank,
-    Healer,
-    Damage,
-    None,
-}
+pub use crate::ipc::GroupRole;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CombatLogEventKind {
