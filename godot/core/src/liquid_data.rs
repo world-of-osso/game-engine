@@ -12,6 +12,17 @@ use crate::csv_util::parse_csv_records;
 
 pub use crate::asset::adt_format::adt_tex::FIRST_LIQUID_OBJECT;
 
+/// LiquidType 2 "Ocean". Its LiquidObject layers (all on object 42, which has no DB2 row)
+/// are flat at sea level and store LVF 2 depth-only vertices, not their material's LVF 0
+/// (wowdev ADT/v18 SMLiquidInstance: "≥ WoD ... assumes both 0.0 for LVF = 2"; noggit3
+/// `liquid_layer.cpp`: "lvf 2 is only used for flat water at height 0"; WebWowViewerCpp
+/// `LiquidInstance.cpp` `createAdtVertexData` singles out liquid_type 2). Across the active
+/// build's 52,882 root ADTs every type 2 vertex block is 81 bytes, and every other block,
+/// the Kul Tiras, Zandalar and Nazjatar oceans on object 42 included, has its material's
+/// LVF size.
+pub const OCEAN_LIQUID_TYPE: u32 = 2;
+const OCEAN_LVF: u8 = 2;
+
 /// Texture slots per LiquidType (`FrameCountTexture[6]`).
 pub const TEXTURE_SLOTS: usize = 6;
 
@@ -180,28 +191,34 @@ impl LiquidCatalog {
     }
 
     /// The liquid material of an MH2O instance (`liquid_type`, `liquid_object_or_lvf`).
+    /// A LiquidObject without a DB2 row (ocean object 42 and a few authored IDs the shipped
+    /// table omits) takes the instance's own `liquid_type` with no flow, as WebWowViewerCpp
+    /// `CSqliteDB::getLiquidObjectData` does.
     pub fn liquid_material(
         &self,
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
-        let (type_id, flow_direction, flow_speed) = if liquid_object >= FIRST_LIQUID_OBJECT {
-            let object = self
-                .objects
-                .get(&u32::from(liquid_object))
-                .ok_or_else(|| format!("LiquidObject {liquid_object} has no DB2 row"))?;
-            (object.liquid_type, object.flow_direction, object.flow_speed)
-        } else {
-            (u32::from(liquid_type), 0.0, 0.0)
+        let object = (liquid_object >= FIRST_LIQUID_OBJECT)
+            .then(|| self.objects.get(&u32::from(liquid_object)))
+            .flatten();
+        let (type_id, flow_direction, flow_speed) = match object {
+            Some(object) => (object.liquid_type, object.flow_direction, object.flow_speed),
+            None => (u32::from(liquid_type), 0.0, 0.0),
         };
         let row = self
             .types
             .get(&type_id)
             .ok_or_else(|| format!("LiquidType {type_id} has no DB2 row"))?;
-        let lvf = *self
+        let material_lvf = *self
             .material_lvf
             .get(&u32::from(row.material_id))
             .ok_or_else(|| format!("LiquidMaterial {} has no DB2 row", row.material_id))?;
+        let lvf = if type_id == OCEAN_LIQUID_TYPE && liquid_object >= FIRST_LIQUID_OBJECT {
+            OCEAN_LVF
+        } else {
+            material_lvf
+        };
         let (texture_slots, color_source) = self.texture_slots(type_id, row)?;
         Ok(LiquidMaterial {
             liquid_type: type_id,
