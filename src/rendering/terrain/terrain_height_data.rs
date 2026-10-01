@@ -113,10 +113,12 @@ pub fn bevy_to_tile_coords(bx: f32, bz: f32) -> (u32, u32) {
 }
 
 /// Try to get height from a single chunk. Returns None if (bx, bz) is outside this chunk.
+/// Both edges belong to the chunk: an edge is shared with the neighbor and the heights
+/// agree there, and an f32 position just past a tile row's origin rounds onto it.
 pub fn sample_chunk_height(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Option<f32> {
     let local_x = g.origin_x - bx;
     let local_z = bz - g.origin_z;
-    if !(0.0..CHUNK_SIZE).contains(&local_x) || !(0.0..CHUNK_SIZE).contains(&local_z) {
+    if !(0.0..=CHUNK_SIZE).contains(&local_x) || !(0.0..=CHUNK_SIZE).contains(&local_z) {
         return None;
     }
     let col = (local_z / UNIT_SIZE).floor() as usize;
