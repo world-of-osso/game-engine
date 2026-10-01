@@ -1849,3 +1849,27 @@ models/197068.m2
 models/19706800.skin
 models/189958.m2
 models/18995800.skin
+
+# Player swatch/eyesight tests: Eyesight textures and the tattoo the seeded Night Elf draws.
+textures/5326923.blp
+textures/3622962.blp
+textures/3622974.blp
+textures/3622977.blp
+textures/4705407.blp
+textures/3622959.blp
+textures/3622960.blp
+textures/3622961.blp
+textures/3622963.blp
+textures/3622964.blp
+textures/3622965.blp
+textures/3622966.blp
+textures/3622967.blp
+textures/3622972.blp
+textures/3622973.blp
+textures/3622975.blp
+textures/3622976.blp
+textures/3622978.blp
+textures/3622979.blp
+textures/3636577.blp
+textures/3613861.blp
+textures/3613868.blp

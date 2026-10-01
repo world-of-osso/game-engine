@@ -844,4 +844,14 @@ mod swatch_tests {
             }
         }
     }
+
+    /// Eyesight (ChrCustomizationOption Requirement 0) is every class's option: a Night
+    /// Elf rogue's default "Both" (choice 45114, req 141) hides eye geoset group 51.
+    #[test]
+    fn night_elf_rogue_wears_the_eyesight_default() {
+        let db = load_customization_db(&data_root()).unwrap();
+        let chosen = select_player_choices(&db, 4, 1, 4, &CharacterAppearance::default()).unwrap();
+        assert!(chosen.choice_ids.contains(&45114));
+        assert!(chosen.geosets.contains(&(51, 0)));
+    }
 }

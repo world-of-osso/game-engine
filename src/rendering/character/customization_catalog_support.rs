@@ -17,10 +17,11 @@ pub(super) fn legacy_choice_visible(
     }
 }
 
-/// Demon Hunter-only option labels on the Night Elf and Blood Elf models.
+/// Demon Hunter-only option labels on the Night Elf and Blood Elf models. Eyesight is
+/// every class's (option Requirement 0, "Both" ChrCustomizationReq 141).
 pub(super) fn option_visible_for_class(race: u8, class: u8, opt_type: OptionType) -> bool {
     match opt_type {
-        OptionType::Horns | OptionType::Blindfold | OptionType::EyeStyle | OptionType::Eyesight => {
+        OptionType::Horns | OptionType::Blindfold | OptionType::EyeStyle => {
             !matches!(race, 4 | 10) || class == 12
         }
         _ => true,
