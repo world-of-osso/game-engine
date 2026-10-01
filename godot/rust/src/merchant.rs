@@ -104,6 +104,10 @@ impl GameClient {
             }
             self.mailbox.session.close();
         }
+        self.apply_npc_message(message)
+    }
+
+    fn apply_npc_message(&mut self, message: NpcMessage) -> Result<(), String> {
         let session = &mut self.merchant.session;
         match message {
             NpcMessage::Opened(opened) => match opened.kind {
