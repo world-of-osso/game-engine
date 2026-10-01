@@ -1,3 +1,7 @@
+## 2026-09-30 — Startup equipment bounded acceptance reconciled
+
+MAIN read FULL and accepts independent1429 bounded PASS. [Acceptance SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) retains exact startup/actions, byte-equivalent extraction/direct4/helper18, required rendering assembly and original15-second merchant0/Loading2738ms/strict3opens3closes/successful child exit. Earlier pending entries and failures remain historical; auth cause, ObjectDB leak, inherited debt and full conversion remain unresolved. Docs only; no tests/builds/operations.
+
 ## [2026-09-30] audit | Original-bound merchant runtime passes; independent gate pending
 
 [SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending): `51a3e85f` final log0, Loading2738ms under original15 seconds, strict three opens/closes and placement/reset/pointer/quiet-reopen proof, normal child success. Newly observed one ObjectDB leak warning is unattributed; shutdown investigation deferred, no clean-resource/general-shutdown acceptance or pre-existing claim. Independent1429 pending MAIN acceptance; native5a unchanged, no redundant build/tests.

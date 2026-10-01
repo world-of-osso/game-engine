@@ -35,7 +35,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ## Native Godot coverage
 
-- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand case: Single startup MainHand inventory has fresh native `5a3ebf7b` build/actions proof and source-verified own readability resolution; combined gate OPEN because merchant-click exits101 before login on isolated rendering resources. Fixture-only `54eaef69` corrects the required links; fresh fixture build/merchant retry and read-only1425 acceptance pending. Prior runtime failures and Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
+- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand startup native `5a3ebf7b` and original15-second merchant regression have MAIN-accepted independent1429 bounded PASS. Historical failures, inherited readability debt and unchanged startup/tooltip/pure proofs retained; no auth fix, general reliability or clean-resource/general-shutdown acceptance. Main goal/full conversion remain OPEN. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 The `[x]` requirements above preserve legacy implementation status; they are not native parity acceptance. Native coverage remains partial; [conversion evidence](../wiki/systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) owns exact saved proof and limitations.
 
