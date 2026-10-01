@@ -35,6 +35,7 @@ extends SceneTree
 const PASSWORD := "fbtest"
 const POLYMORPH := 118
 const FROSTBOLT := 116
+const FROST_SPEC := 64
 const SHEEP_DISPLAYS := [856, 857]
 const ANIM_STAND := 0
 const ANIM_WALK := 4
@@ -198,7 +199,13 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	if not await wait_for(func(s): return s.catalog_ready and s.known.has(POLYMORPH) and s.known.has(FROSTBOLT) and s.level == 10, 60000, "level-10 mage with Polymorph"):
+	# A level-10 mage without a chosen spec gets the server's first spec, Arcane 62,
+	# whose Arcane Blast replaces Frostbolt; Frost 64 keeps it.
+	var spec_error: String = client.set_specialization(FROST_SPEC)
+	if spec_error != "":
+		fail("SetSpecialization %d: %s" % [FROST_SPEC, spec_error])
+		return
+	if not await wait_for(func(s): return s.catalog_ready and s.known.has(POLYMORPH) and s.known.has(FROSTBOLT) and s.level == 10, 60000, "level-10 Frost mage with Polymorph and Frostbolt"):
 		return
 	local_id = client.account_state().local_player_id
 	# Nearby objects stream first; the far valley keeps streaming for many minutes, so

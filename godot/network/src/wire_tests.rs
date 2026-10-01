@@ -61,6 +61,41 @@ fn native_mailbox_requests_preserve_object_mail_and_sparse_attachment_slot() {
 }
 
 #[test]
+fn native_bridge_sends_set_specialization_on_the_talent_channel() {
+    use shared::protocol::{SetSpecialization, TalentChannel};
+    #[derive(Resource, Default)]
+    struct Requests(Vec<SetSpecialization>);
+    fn capture(
+        mut receivers: Query<&mut MessageReceiver<SetSpecialization>>,
+        mut requests: ResMut<Requests>,
+    ) {
+        for mut receiver in &mut receivers {
+            requests.0.extend(receiver.receive());
+        }
+    }
+    fn install(app: &mut App) {
+        app.init_resource::<Requests>();
+        app.add_systems(Update, capture);
+    }
+    let (mut server, address) = start_fixture_server_with(install);
+    let mut host = Host::connect(address, 8231);
+    await_connected(&mut server, &mut host);
+    host.bridge
+        .send::<_, TalentChannel>(SetSpecialization { spec_id: 64 })
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while server.world().resource::<Requests>().0.is_empty() && Instant::now() < deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(
+        server.world().resource::<Requests>().0,
+        vec![SetSpecialization { spec_id: 64 }]
+    );
+    host.stop();
+}
+
+#[test]
 fn native_mailbox_replication_reaches_host_without_an_npc_marker() {
     use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
     let (mut server, address) = start_fixture_server();
