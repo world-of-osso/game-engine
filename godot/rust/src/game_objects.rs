@@ -1,4 +1,5 @@
-//! Real replicated mailbox M2s, resolved through build-pinned GameObjectDisplayInfo.
+//! Real replicated mailbox and Guild Vault M2s, resolved through build-pinned
+//! GameObjectDisplayInfo.
 use crate::{
     assets::{
         build_model,
@@ -12,7 +13,7 @@ use game_engine_core::csv_util::parse_csv_line;
 use game_engine_network::replica::Unit;
 use godot::{classes::Node3D, prelude::*};
 use shared::components::{Position, Rotation};
-use shared::protocol::{GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
+use shared::protocol::{GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo};
 use std::{collections::HashMap, path::PathBuf};
 
 struct ObjectNode {
@@ -62,7 +63,7 @@ impl GameObjects {
             light: None,
         }
     }
-    /// Whether `id` is a shown mailbox.
+    /// Whether `id` is a shown mailbox or Guild Vault.
     pub fn contains(&self, id: u64) -> bool {
         self.objects.contains_key(&id)
     }
@@ -76,7 +77,10 @@ impl GameObjects {
         info: &GameObjectInfo,
     ) -> Result<(), String> {
         let id = unit.server_id;
-        if info.go_type != GAMEOBJECT_TYPE_MAILBOX {
+        if !matches!(
+            info.go_type,
+            GAMEOBJECT_TYPE_MAILBOX | GAMEOBJECT_TYPE_GUILD_BANK
+        ) {
             self.remove(id);
             return Ok(());
         }

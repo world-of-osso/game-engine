@@ -154,7 +154,7 @@ impl Session {
                     items: if self.bag {
                         vec![BagSlotItem {
                             slot: 0,
-                            stack: linen(),
+                            item: linen(),
                         }]
                     } else {
                         vec![]
