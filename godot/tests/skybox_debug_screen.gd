@@ -349,10 +349,14 @@ func check_sky_pixels() -> bool:
 		return reject("Actual authored sky root is invisible")
 	sky.visible = false
 	var hidden := await capture("sky-hidden.png")
+	if not is_instance_valid(sky):
+		return reject("Authored sky freed before hide/restore completed")
 	sky.visible = was_visible
 	var restored := await capture("sky-restored.png")
 	if hidden == null or restored == null:
 		return false
+	if shown.get_size() != hidden.get_size() or shown.get_size() != restored.get_size():
+		return reject("Shown/hidden/restored capture extents differ")
 	var mask: Array[Vector2i] = []
 	for y in range(0, shown.get_height(), 2):
 		for x in range(0, shown.get_width(), 2):
@@ -430,6 +434,8 @@ func pixel_delta(a: Image, b: Image, point: Vector2i) -> float:
 	return maxf(absf(p.r - q.r), maxf(absf(p.g - q.g), absf(p.b - q.b)))
 
 func coherent(a: Image, b: Image, mask: Array[Vector2i]) -> bool:
+	if a.get_size() != b.get_size():
+		return false
 	for point in mask:
 		if pixel_delta(a, b, point) > PIXEL_DELTA:
 			return false
