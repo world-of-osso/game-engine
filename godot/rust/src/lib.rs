@@ -23,6 +23,7 @@ mod damage_meter;
 mod debug_character;
 mod display_options;
 mod entrance_bar;
+mod eula;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
 #[path = "../../../src/game/faction_reaction.rs"]
@@ -190,7 +191,7 @@ pub struct GameClient {
     scripted_movement: game_engine_network::movement_control::ScriptedMovement,
     world_minutes: f32,
     server_hostname: String,
-    startup_customize: bool,
+    startup_panel: Option<startup::StartupPanel>,
     targeting: targeting::Targeting,
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
@@ -284,7 +285,7 @@ impl INode3D for GameClient {
             scripted_movement: Default::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
-            startup_customize: false,
+            startup_panel: None,
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
@@ -2022,7 +2023,7 @@ impl GameClient {
                 }
             }
         }
-        self.apply_startup_customize(screen)?;
+        self.apply_startup_panel(screen)?;
         self.set_account_ui_visibility(screen);
         let name = GString::from(format!("{screen:?}").as_str());
         self.base_mut()
