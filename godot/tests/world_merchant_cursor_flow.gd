@@ -277,13 +277,17 @@ func mc_split_shift_edge(point: Vector2, down: bool) -> void:
 	mc_pointer = point
 	root.push_input(event, true)
 
+func mc_split_control(client: Node, control_name: String) -> Control:
+	var ui := client.get_node_or_null("CursorItemUI")
+	return ui.find_child(control_name, true, false) as Control if ui != null else null
+
 func mc_split_picker_matches(client: Node, amount: String) -> bool:
-	var picker := client.find_child("StackSplitFrame", true, false) as Control
+	var picker := mc_split_control(client, "StackSplitFrame")
 	if amount.is_empty():
 		return picker == null or not picker.is_visible_in_tree()
 	var source := mc_control(client, MC_SLOT)
 	var canvas := mc_control(client, "RegistryCanvas")
-	var label := client.find_child("StackSplitText", true, false) as Label
+	var label := mc_split_control(client, "StackSplitText") as Label
 	if picker == null or not picker.is_visible_in_tree() or source == null or canvas == null or label == null or not label.is_visible_in_tree() or label.text != amount:
 		return false
 	# Original frame_state and authored SSF geometry, NOT native calibration.
@@ -331,7 +335,7 @@ func mc_split_wait(client: Node, count: int, held: bool, money: int, locked: boo
 		await process_frame
 		if mc_split_state_matches(client, count, held, money, locked, amount):
 			return true
-	var picker := client.find_child("StackSplitFrame", true, false) as Control
+	var picker := mc_split_control(client, "StackSplitFrame")
 	var source := mc_control(client, MC_SLOT)
 	fail("Split sale state missing count%s held%s money%s locked%s pickertext%s; picker_rect=%s owner_rect=%s state=%s; anchor defect is unproved until native run" % [count, held, money, locked, amount, picker.get_global_rect() if picker != null else Rect2(), source.get_global_rect() if source != null else Rect2(), client.merchant_state()])
 	return false
