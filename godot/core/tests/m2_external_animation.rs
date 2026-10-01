@@ -1,4 +1,7 @@
-use game_engine_core::{asset::m2_format::m2_anim::unpack_rotation, m2};
+use game_engine_core::{
+    asset::m2_format::m2_anim::{self, unpack_rotation},
+    m2,
+};
 use std::path::Path;
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -81,19 +84,52 @@ fn missing_external_bytes_leave_external_sequences_empty() {
     }
 }
 
+/// Bone tracks of any kind (translation, rotation, scale) with keys in sequence `index`.
+fn populated_any_tracks(model: &m2::Model, index: usize) -> usize {
+    fn keyed<T>(track: &m2_anim::AnimTrack<T>, index: usize) -> bool {
+        track
+            .sequences
+            .get(index)
+            .is_some_and(|(times, values)| !times.is_empty() && !values.is_empty())
+    }
+    model
+        .bone_tracks
+        .iter()
+        .map(|bone| {
+            usize::from(keyed(&bone.translation, index))
+                + usize::from(keyed(&bone.rotation, index))
+                + usize::from(keyed(&bone.scale, index))
+        })
+        .sum()
+}
+
 #[test]
-fn malformed_human_female_track_does_not_discard_other_tracks() {
+fn human_female_matched_skeleton_reads_every_external_track() {
     let model = parse_hd("1000764", |fdid| {
         (fdid == 1000800).then(|| fixture("1000800.anim"))
     });
     let index = sequence_index(&model, 74);
-    assert!(populated_tracks(&model, index) > 10);
     assert!(
-        model.bone_tracks[128].rotation.sequences[index]
+        !model.bone_tracks[128].rotation.sequences[index]
             .0
             .is_empty()
     );
     assert!(!model.global_sequences.is_empty());
+}
+
+#[test]
+fn malformed_human_female_track_does_not_discard_other_tracks() {
+    let anim = fixture("1000800.anim");
+    let full = parse_hd("1000764", |fdid| (fdid == 1000800).then(|| anim.clone()));
+    // Cutting the file shortens its trailing AFSB chunk, so the last track overruns it.
+    let truncated = parse_hd("1000764", |fdid| {
+        (fdid == 1000800).then(|| anim[..anim.len() - 16].to_vec())
+    });
+    let index = sequence_index(&full, 74);
+    let full_tracks = populated_any_tracks(&full, index);
+    let kept_tracks = populated_any_tracks(&truncated, index);
+    assert_eq!(full_tracks, 197);
+    assert_eq!(kept_tracks, full_tracks - 1);
 }
 
 #[test]
