@@ -20,7 +20,7 @@ pub mod ui {
         pub mod static_popup_component {
             pub const STATIC_POPUP_PANEL_STYLE: &str = "static_popup";
         }
-        pub(crate) use crate::inworld_hud_art;
+        pub(crate) use crate::bags_bar_art;
         pub(crate) use crate::screen_title;
         pub use crate::{
             auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
@@ -161,10 +161,10 @@ pub mod loot_frame_data;
 // Merchant frame, backpack and stack split (docs/specs/merchant-frame.md, cursor-item.md).
 #[path = "../../../src/ui/screens/bag_frame_component.rs"]
 pub mod bag_frame_component;
+#[path = "../../../src/ui/screens/bags_bar_art.rs"]
+pub(crate) mod bags_bar_art;
 #[path = "../../../src/ui/screens/bags_bar_component.rs"]
 pub mod bags_bar_component;
-#[path = "../../../src/ui/screens/inworld_hud_art.rs"]
-pub(crate) mod inworld_hud_art;
 #[path = "../../../src/ui/screens/merchant_frame_component.rs"]
 pub mod merchant_frame_component;
 #[path = "../../../src/ui/screens/quest_art.rs"]

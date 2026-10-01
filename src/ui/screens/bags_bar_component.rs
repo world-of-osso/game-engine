@@ -4,7 +4,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
-use crate::ui::screens::inworld_hud_art::{BACKPACK, BAG_SLOT_EMPTY, SheetCrop};
+use crate::ui::screens::bags_bar_art::{BACKPACK, BAG_SLOT_EMPTY, SheetCrop};
 
 struct DynName(String);
 
