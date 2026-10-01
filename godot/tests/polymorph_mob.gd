@@ -472,11 +472,13 @@ func cast(spell: int, what: String) -> bool:
 	print("FIXTURE ACCEPTED t=%.3f %s" % [grab_time(), what])
 	return true
 
-## Close framing from the mage's front-left (as spellcast_anim.gd): POLY_CAMERA_DISTANCE
-## (default 7) yards at POLY_ORBIT (default -1.2) radians from behind the player.
+## Close framing from the mage's front-right: POLY_CAMERA_DISTANCE (default 7) yards at
+## POLY_ORBIT (default 1.2) radians from behind the player. The mirrored front-left framing of
+## spellcast_anim.gd (-1.2) puts the camera in the oak beside the mage: its M2 collision pulls
+## the 7 yd orbit in to 3.6-5.7 yd from -1.35 to -0.3.
 func camera_goal() -> Vector2:
 	var distance := float(OS.get_environment("POLY_CAMERA_DISTANCE")) if OS.get_environment("POLY_CAMERA_DISTANCE") != "" else 7.0
-	var offset := float(OS.get_environment("POLY_ORBIT")) if OS.get_environment("POLY_ORBIT") != "" else -1.2
+	var offset := float(OS.get_environment("POLY_ORBIT")) if OS.get_environment("POLY_ORBIT") != "" else 1.2
 	return Vector2(distance, offset)
 
 ## Places the orbit directly, while loading, so the first in-world frame is already framed.
