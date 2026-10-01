@@ -47,7 +47,15 @@ References:
 - [x] Left-click pickup to the cursor, buy by dropping on a bag slot (`BuyItem.destination`), sell by dropping on the frame, Shift-click quantity (`StackSplitFrame`): [cursor-item](cursor-item.md).
 - [x] `MerchantSellAllJunkButton` (36×36, `SpellIcon-256x256-SellJunk`): RIGHT at RepairAll LEFT +80 at a repairer, else BOTTOMRIGHT −148,33 (MF.lua:933-954); enabled (not desaturated) while a poor bag item has a sell price (`GetNumJunkItems`, MF.lua:196-198); hidden on the buyback tab. Native direct-action behavior is specified below; Retail's confirmation (MF.lua:1054-1063) is not the native client contract.
 - [x] Bag item names/quality and their full item tooltips come from the client item catalog (ItemSparse): [cursor-item](cursor-item.md).
-- [ ] The per-item repair cursor (`MerchantRepairItemButton`), guild-bank repair, the Sell All Junk hover tooltip, and the stats/armor/damage lines of item tooltips.
+- [x] `MerchantRepairItemButton` (36×36, `SpellIcon-256x256-Repair`, RIGHT at RepairAll LEFT −8, MF.lua:948-960) shows with Repair All and is always enabled. A click toggles the repair cursor (`ShowRepairCursor`/`HideRepairCursor`, MF.xml:305-313); while it is shown the button's `ButtonHilight-Square` stays lit (additive, MF.lua:136-142) and the cursor is `Interface/CURSOR/Crosshair/Repair`.
+  - A left click on an item (a CharacterFrame paperdoll slot or a bag slot) with the repair cursor sends `RepairItem { item_guid: Some(guid) }` instead of picking it up. The cursor stays until the button is clicked again or the frame hides (`ResetCursor`, MF.lua:167).
+  - Only equipped items carry durability; the server ignores a bag item's guid (game-server `docs/specs/merchant.md`).
+- [x] Button tooltips (`ANCHOR_RIGHT`): Sell All Junk "Sell All Junk Items" (MF.xml:207-211); Repair An Item "Repair an Item" (MF.xml:300-303); Repair All, when something is damaged, "Repair All Items", the cost as a money line and, when it exceeds the player's money, "Insufficient funds to repair all items" in red (MF.xml:240-252). The last-sale slot shows its buyback item (`MerchantBuyBackButton_OnEnter`, MF.lua:1078-1082).
+- [x] Sounds: `IG_CHARACTER_INFO_OPEN`/`_CLOSE` when the frame shows/hides (MF.lua:158, 174), `IG_MAINMENU_OPTION_CHECKBOX_ON` from the page buttons (MF.lua:574, 581), `ITEM_REPAIR` from Repair All (MF.xml:256). Files are the kits' `SoundKitEntry` Oggs under `data/sounds/ui/`.
+- [x] The mouse wheel over the frame pages back (up) or forward (down) when that page button is shown and enabled, and never reaches the camera (`MerchantFrame_OnMouseWheel`, MF.lua:177-187).
+- [x] Over a vendor item on the merchant tab the cursor is Buy, or UnableBuy (`BUY_ERROR_CURSOR`) when the player can't afford it (MF.lua:126-134).
+- [ ] Guild-bank repair (`MerchantGuildBankRepairButton`, `RepairAllItems(true)`): `RepairItem` has no guild flag and the server's guild ranks have no `GR_RIGHT_WITHDRAW_REPAIR` (persisted `GuildRankData` change).
+- [ ] The stats/armor/damage lines of merchant item tooltips (Retail `SetMerchantItem` shows the full item tooltip; the native cell tooltip keeps name, stack count and stock).
 - [ ] NPC portrait in the portrait ring, the filter dropdown, alternate currencies (`ExtendedCost` items are not sold), and the refund confirmation popup.
 
 ## Godot client
@@ -56,7 +64,8 @@ References:
 - [x] The frame, backpack and StackSplitFrame are the shared components above, driven by the same server messages; right-click buy and sell, buyback (tab and last-sale slot), Repair All, paging, tabs, and vendor Shift-click split with its keys.
 - [x] Escape, the close button and `InteractionClosed` close the frame; the first two send `CloseInteraction`.
 - [x] Repair All and Sell All Junk execute directly, without a confirmation dialog. An eligible Merchant-tab junk click sends `SellAllJunkItems` immediately; common-only inventory and the Buyback tab send none. Bags, money and repair cost remain server-owned and change only from authoritative updates.
-- [ ] Cursor item (pickup, drag-buy, drop-sell, bag split), tooltips, direct Sell All Junk, the gossip frame, Retail ContainerFrame art.
+- [x] Merchant cell, service-button and last-sale tooltips; the repair cursor; sounds; wheel paging; Buy/UnableBuy cursors (`native_input_fixture merchant-tooltips`, live `godot/tests/world_merchant_live_flow.gd`).
+- [ ] Cursor item (pickup, drag-buy, drop-sell, bag split) full acceptance, the gossip frame, Retail ContainerFrame art.
 
 Native cursor coverage is partial, not wholly unconverted: [current bounded Buy + whole/split sale acceptance](../wiki/systems/godot-conversion.md#native-merchant-split-cursor-sale--main-accepted-bounded-pass). The unchecked combined requirement above is not full native acceptance.
 
@@ -74,5 +83,5 @@ Native cursor coverage is partial, not wholly unconverted: [current bounded Buy 
 - `src/ui/screens/merchant_frame_component_tests.rs`: Sell All Junk placement with and without repair, disabled icon, hidden on buyback, the frame's drop action; `src/scenes/merchant_frame/tests.rs`: junk detection (Ruined Pelt vs Linen Cloth), historical Bevy confirmation behavior. Native direct services: `godot/ui-model/tests/merchant_junk.rs` and `godot/tests/world_merchant_services_flow.gd` assert immediate requests without confirmation, no optimistic mutation, and authoritative results.
 - `src/scenes/tooltip_frame/mod.rs` tests: merchant cell tooltip.
 - `src/ui/js_automation.rs` test: `ui.rightClick`.
-- Godot: `godot/ui-model/tests/merchant.rs` (session over world.db vendors), `godot/network/src/wire_tests.rs` (`NpcFlags`, `Gold`, `VendorInventory` over UDP), `godot/rust/src/merchant.rs` tests (interact range, split keys), live `godot/tests/world_merchant_flow.gd` (`data/diagnostics/merchant-godot-20260928/`).
+- Godot: `godot/ui-model/tests/merchant_repair.rs` (repair cursor toggle, guid requests, close reset, button placement, click sounds), `godot/ui-model/src/game_tooltip/merchant.rs` tests (service tooltips), `godot/core/src/ui_sound_kits.rs` tests, `godot/ui-model/tests/merchant.rs` (session over world.db vendors), `godot/network/src/wire_tests.rs` (`NpcFlags`, `Gold`, `VendorInventory` over UDP), `godot/rust/src/merchant.rs` tests (interact range, split keys), live `godot/tests/world_merchant_flow.gd` (`data/diagnostics/merchant-godot-20260928/`).
 - Live evidence: `data/diagnostics/merchant-20260924/`; drag buy, split, drop-sell, Sell All Junk and bundle buys: `data/diagnostics/cursoritems-20260926/run1/` (tree/shot 03-28).
