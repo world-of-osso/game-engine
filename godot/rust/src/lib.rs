@@ -166,6 +166,8 @@ pub struct GameClient {
     game_menu_drag: Option<game_menu::drag::OptionsDrag>,
     logout: game_engine_session::logout::LogoutState,
     in_rest_area: bool,
+    /// The server's last rest state (IPC `status character-stats`).
+    rest: Option<shared::protocol::RestSnapshot>,
     account: Account,
     sound: Option<Gd<sound::NativeSound>>,
     area_parents: HashMap<u32, u32>,
@@ -274,6 +276,7 @@ impl INode3D for GameClient {
             game_menu_drag: None,
             logout: Default::default(),
             in_rest_area: false,
+            rest: None,
             account: Account::new(data_root.clone()),
             sound: None,
             area_parents: HashMap::new(),
@@ -1608,7 +1611,8 @@ impl GameClient {
             AccountEvent::Feedback => self.show_session_feedback()?,
             AccountEvent::WorldReset => self.reset_world()?,
             AccountEvent::RestState(update) => {
-                self.in_rest_area = update.snapshot.is_some_and(|rest| rest.in_rest_area);
+                self.in_rest_area = update.snapshot.as_ref().is_some_and(|rest| rest.in_rest_area);
+                self.rest = update.snapshot;
             }
             AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
@@ -1921,6 +1925,7 @@ impl GameClient {
         self.mailbox.reset();
         self.trade.reset();
         self.in_rest_area = false;
+        self.rest = None;
         self.character_preview.reset();
         self.creation_scene.reset();
         self.physical_input.clear();

@@ -17,7 +17,7 @@ impl crate::GameClient {
             Request::CombatRecap { target } => {
                 format_combat_recap(&self.ipc_combat_events, target.as_deref())
             }
-            request => return Err(request),
+            request => return self.character_request(request),
         }))
     }
 
