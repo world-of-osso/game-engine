@@ -259,9 +259,12 @@ fn trade_item(prefix: &str, slot: usize, recipient: bool, item: Option<&TradeIte
             (10.0, &item.name_color, "LEFT"),
         ));
     }
-    let action = match (recipient, item) {
-        (false, Some(_)) => format!("{ACTION_PLAYER_SLOT_PREFIX}{slot}"),
-        _ => String::new(),
+    // Every player slot is `ClickTradeButton` (TradeFrame.xml:108-116): an empty one
+    // takes the cursor item.
+    let action = if recipient {
+        String::new()
+    } else {
+        format!("{ACTION_PLAYER_SLOT_PREFIX}{slot}")
     };
     let background = Element::default();
     out.extend(item_slot(

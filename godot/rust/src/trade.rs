@@ -2,6 +2,7 @@
 //! `TradeStateUpdate` opens, fills and ends the authored TradeFrame; frame clicks, the
 //! money entry, bag right-clicks, `/trade` and the unit menu only send requests.
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget};
 use game_engine_ui_model::trade::{
     NativeTradeView, TradeRequest, TradeSession, money_texts, parse_money,
 };
@@ -102,6 +103,43 @@ impl GameClient {
             .offer(bag_action, &self.merchant.session.inventory);
         self.send_trade(request)?;
         Ok(true)
+    }
+
+    pub(super) fn trade_input_owner(&self, owner: i64) -> bool {
+        self.trade
+            .ui
+            .as_ref()
+            .is_some_and(|ui| ui.instance_id().to_i64() == owner)
+    }
+
+    /// A TradeFrame click from the shared cursor queue: a slot with an item on the
+    /// cursor takes it (`ClickTradeButton`); every other click is the frame's own.
+    pub(super) fn trade_cursor_click(
+        &mut self,
+        action: &str,
+        target: Option<CursorTarget>,
+    ) -> Result<(), FrameError> {
+        if let Some(CursorTarget::TradeSlot(slot)) = target
+            && !self.bags.cursor.item.is_empty()
+        {
+            return Ok(self.place_trade_item(slot)?);
+        }
+        let request = self.trade.session.click(action);
+        Ok(self.send_trade(request)?)
+    }
+
+    /// The cursor item dropped on a trade slot; the cursor empties and the server's
+    /// snapshot shows the offer.
+    pub(super) fn place_trade_item(&mut self, slot: u8) -> Result<(), SessionError> {
+        let request = self.trade.session.place(
+            usize::from(slot),
+            &self.bags.cursor.item,
+            &self.merchant.session.inventory,
+        );
+        if request.is_some() {
+            self.bags.cursor.item = CursorItem::Empty;
+        }
+        self.send_trade(request)
     }
 
     /// Escape's `CloseAllWindows` hides TradeFrame; `TradeFrame_OnHide` cancels.

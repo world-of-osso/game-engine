@@ -108,7 +108,7 @@ fn both_sides_show_seven_slots_at_the_retail_offsets() {
 }
 
 #[test]
-fn offered_items_show_names_in_quality_colour_and_only_the_players_click() {
+fn offered_items_show_names_in_quality_colour_and_only_player_slots_click() {
     let reg = build(open_trade());
     assert_eq!(fontstring_text(&reg, "TradePlayerItem1Name"), "Linen Cloth");
     assert_eq!(
@@ -120,7 +120,10 @@ fn offered_items_show_names_in_quality_colour_and_only_the_players_click() {
         Some("trade_player_slot:0")
     );
     assert_eq!(onclick(&reg, "TradeRecipientItem2ItemButton"), None);
-    assert_eq!(onclick(&reg, "TradePlayerItem2ItemButton"), None);
+    assert_eq!(
+        onclick(&reg, "TradePlayerItem7ItemButton").as_deref(),
+        Some("trade_player_slot:6")
+    );
     // An empty seventh slot shows the enchant icon.
     assert!(exists(&reg, "TradePlayerItem7EnchantIcon"));
 }

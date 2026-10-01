@@ -821,7 +821,12 @@ impl RegistryUi {
             ScreenPostsetup::Trade,
             registry,
             parent,
-        )
+        )?;
+        // Slot clicks and drops share the cursor queue with the bags.
+        self.enable_cursor_inputs();
+        // TradeFrame.xml:143 `toplevel="true"`.
+        self.toplevel = true;
+        Ok(())
     }
 
     pub fn show_auction_gossip(
