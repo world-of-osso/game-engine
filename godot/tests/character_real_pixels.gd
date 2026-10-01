@@ -325,8 +325,13 @@ func check_textures(case: Dictionary, draws: Array, canvases: Dictionary, proble
 		checked[kind] = true
 		var texture: Texture2D = (draw.node as MeshInstance3D).get_surface_override_material(0).get_shader_parameter("base_texture")
 		var want: Variant = canvases.get(kind)
+		if texture == null and want == null:
+			# No material reaches the type (a Demon Hunter-only layer on another class):
+			# neither side has a texture; its pixels are counted as untextured.
+			print("  texture type %d of mesh part %d: none bound, none composed" % [kind, draw.part])
+			continue
 		if texture == null or want == null:
-			problems.append("texture type %d: bound %s, oracle %s" % [kind, texture, want])
+			problems.append("texture type %d of mesh part %d: bound %s, oracle %s" % [kind, draw.part, texture, want])
 			continue
 		var got := texture.get_image()
 		got.convert(Image.FORMAT_RGBA8)
