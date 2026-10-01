@@ -440,6 +440,8 @@ pub struct SpellEffects {
     /// Newest kit starts, oldest first, bounded.
     started: Vec<KitStart>,
     seed: u32,
+    /// Melee vocal chance rolls (`spell_melee`).
+    vocal_seed: u32,
     /// Main-thread time spent on spell visuals this frame so far, and in the last frame.
     busy: Duration,
     frame_ms: f32,
@@ -473,6 +475,7 @@ impl SpellEffects {
             root: None,
             started: Vec::new(),
             seed: 0,
+            vocal_seed: 0,
             busy: Duration::ZERO,
             frame_ms: 0.0,
         }

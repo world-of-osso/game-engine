@@ -2265,3 +2265,7 @@ Floating combat text starts at per-number camera-plane offsets from the retail W
 ## 2026-09-30 — SettingsReload reconciliation
 
 Linked [accepted bounded two-process proof](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof) from fixture workflow, loot/conversion specs, matrix and index. Accepted `/tmp/claude/verify-native-settings-reload.md`: bounded saved-artifact functional reload and scoped Rust formatting PASS at `fc303c77`. Byte equality only at post-spawn/post-load observation boundaries; both children deliberately SIGKILL/reap/join, not normal shutdown. Saved build provenance is caller-supplied; parent exit 0 lacks a log footer. Partial/full conversion and shutdown gaps remain open; inherited 42 Options records do not upgrade all-options/geometry acceptance.
+
+## [2026-09-30] fix | Audio/visual parity gaps (avfix)
+
+M2 point lights fall off as retail's squared linear ramp; melee sounds apply the reverse-engineered 1.12 rules (miss whoosh, exertion and injury chances, chest armour, Material flags; dagger size 8 and the Pierce columns stay unknown); WMO group liquids draw with their LiquidType materials; scene fog is the full `makeFog2` (height, artistic, end and sun fog). See [godot-torch-rendering](investigations/godot-torch-rendering.md), [spell-visuals](systems/spell-visuals.md#melee-sounds), [northshire-pale-water](investigations/northshire-pale-water.md#wmo-liquids-mliq), [retail-lighting](systems/retail-lighting.md#scene-fog-godot). Water specular power stays 1.0: no retail source.

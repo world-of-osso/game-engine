@@ -40,17 +40,14 @@ uniform vec3 direct = vec3(0.0);
 // Godot world direction the sunlight travels.
 uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
 uniform vec3 specular_color = vec3(0.0);
-// Scene fog in linear RGB, as the terrain shader.
-uniform vec3 fog_color;
-uniform vec2 fog_range;
-uniform float fog_density;
-uniform float fog_opacity;
-uniform int fog_mode = 0;
+#include "res://shaders/retail_fog.gdshaderinc"
 
 // MapSceneRenderer.cpp:204 binds uExteriorSpecularColor.a, the specular power, as 1.0.
 const float SPECULAR_POWER = 1.0;
 const float DEGREES = 0.017453292;
 
+// WMO liquids carry their texture coordinates (wmoGroupGeom.cpp:566-575).
+uniform bool mesh_uv = false;
 varying vec3 wow_position;
 varying float vertex_depth;
 
@@ -101,15 +98,9 @@ vec3 swamp_bump(sampler2D normals, vec4 near_uv, vec4 far_uv, float flatten) {
 	return normalize(bump);
 }
 
-vec3 apply_retail_fog(vec3 color, float distance_to_camera) {
-	float amount = 0.0;
-	if (fog_mode == 1) {
-		// commonFogFunctions.slang calculateLegacyFog, without height fog.
-		float exp_fog = exp(-max(0.0, distance_to_camera - fog_range.x) * fog_density);
-		float end_fade = clamp(1.42857146 * (1.0 - distance_to_camera / fog_range.y), 0.0, 1.0);
-		amount = 1.0 - min(exp_fog, end_fade);
-	}
-	return mix(color, linear_to_gamma(fog_color), amount * fog_opacity);
+// makeFog2 on the liquid's view-space fragment (liquid materials blend as mode 2).
+vec3 apply_retail_fog(vec3 color, vec3 view_position, mat4 inv_view) {
+	return retail_fog(color, (inv_view * vec4(view_position, 1.0)).xyz, inv_view[3].xyz, 2);
 }
 
 void vertex() {
@@ -150,7 +141,7 @@ void fragment() {
 	vec2 scroll = vec2(
 		scroll_component(time, cos(flow_angle) * flow_speed),
 		scroll_component(time, sin(flow_angle) * flow_speed));  // v35
-	vec2 uv = wow_position.xy * 0.06;  // v7
+	vec2 uv = mesh_uv ? UV : wow_position.xy * 0.06;  // v7
 	vec4 v58 = vec4(uv / 32.0, -(uv + 0.5) / 32.0);
 	vec4 v59 = vec4((f6 * 32.0 * f16 * v58.xy + scroll).yx, (f6 * 32.0 * f16 * v58.zw + scroll).yx);
 	v58 = vec4((f6 * v58.xy + scroll).yx, (f6 * v58.zw + scroll).yx);
@@ -230,7 +221,7 @@ void fragment() {
 	float fog_fade = ramp(fog_range.x, fog_range.y * 0.5, distance_to_camera);
 	float alpha = (shore + (1.0 - shore) * sqrt(fog_fade)) * authored_depth;
 
-	color = apply_retail_fog(color, distance_to_camera);
+	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = gamma_to_linear(max(color, vec3(0.0)));
 	ALPHA = alpha;
 }

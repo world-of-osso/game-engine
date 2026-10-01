@@ -324,6 +324,17 @@ impl WorldUnits {
             .map_or((None, None), |entry| (entry.item_id, entry.display_info_id))
     }
 
+    /// `Item` ID of unit `id`'s worn chest, shown or hidden.
+    pub(crate) fn unit_chest_item(&self, id: u64) -> Option<u32> {
+        self.units
+            .get(&id)
+            .and_then(UnitNode::equipment)?
+            .entries
+            .iter()
+            .find(|entry| entry.slot == EquipmentVisualSlot::Chest)?
+            .item_id
+    }
+
     /// Unit `id`'s cast clip has a missile release event yet to fire.
     pub(crate) fn unit_awaits_missile_release(&self, id: u64) -> bool {
         self.units
