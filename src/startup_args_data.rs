@@ -14,6 +14,10 @@ pub struct StartupArgs {
     pub server: Option<String>,
     pub character: Option<String>,
     pub js_script: Option<String>,
+    pub skybox_fdid: Option<u32>,
+    pub light_skybox_id: Option<u32>,
+    pub skybox_time_ms: Option<u32>,
+    pub skybox_verify: bool,
 }
 
 impl StartupArgs {
@@ -23,9 +27,21 @@ impl StartupArgs {
         let mut index = 0;
         while index < args.len() {
             let flag = args[index].as_str();
+            if flag == "--skybox-verify" {
+                parsed.skybox_verify = true;
+                index += 1;
+                continue;
+            }
             if !matches!(
                 flag,
-                "--screen" | "--state" | "--server" | "--char" | "--run-js-ui-script"
+                "--screen"
+                    | "--state"
+                    | "--server"
+                    | "--char"
+                    | "--run-js-ui-script"
+                    | "--skybox-fdid"
+                    | "--light-skybox-id"
+                    | "--skybox-time-ms"
             ) {
                 return Err(format!("unknown client option '{flag}'"));
             }
@@ -35,6 +51,9 @@ impl StartupArgs {
             }
             parsed.assign_first_value(flag, value)?;
             index += 2;
+        }
+        if parsed.skybox_fdid.is_some() && parsed.light_skybox_id.is_some() {
+            return Err("--skybox-fdid and --light-skybox-id cannot be used together".to_owned());
         }
         Ok(parsed)
     }
@@ -49,10 +68,25 @@ impl StartupArgs {
             "--run-js-ui-script" if self.js_script.is_none() => {
                 self.js_script = Some(value.to_owned());
             }
+            "--skybox-fdid" if self.skybox_fdid.is_none() => {
+                self.skybox_fdid = Some(parse_u32_option(flag, value)?);
+            }
+            "--light-skybox-id" if self.light_skybox_id.is_none() => {
+                self.light_skybox_id = Some(parse_u32_option(flag, value)?);
+            }
+            "--skybox-time-ms" if self.skybox_time_ms.is_none() => {
+                self.skybox_time_ms = Some(parse_u32_option(flag, value)?);
+            }
             _ => {}
         }
         Ok(())
     }
+}
+
+fn parse_u32_option(flag: &str, value: &str) -> Result<u32, String> {
+    value
+        .parse()
+        .map_err(|_| format!("invalid {flag} value '{value}': expected u32 (0..=4294967295)"))
 }
 
 fn parse_target(flag: &str, value: &str) -> Result<StartupTarget, String> {
