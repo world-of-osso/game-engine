@@ -3,6 +3,8 @@
 //! (`Blizzard_MainMenuBarBagButtons/Mainline/MainMenuBarBagButtons.lua`). `AddLine` without
 //! a colour is `NORMAL_FONT_COLOR`; the first line uses the header font.
 
+use game_engine_core::minimap_data::ZonePvp;
+
 use super::GameTooltip;
 use crate::tooltip_presentation::{
     TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipLineState, TooltipPresentation,
@@ -28,23 +30,35 @@ fn text_tooltip(
     )
 }
 
-/// `MinimapZoneTextButtonMixin:OnEnter` + `Minimap_SetTooltip` without PvP zone types: the
-/// white zone, the gold subzone (empty when it equals the zone) and
+/// `MinimapZoneTextButtonMixin:OnEnter` + `Minimap_SetTooltip` (Minimap.lua:126-136,
+/// 213-249): the white zone; the subzone (empty when it equals the zone) in the PvP colour,
+/// with `SANCTUARY_TERRITORY` or `FACTION_CONTROLLED_TERRITORY` "(%s Territory)" below it
+/// (a friendly or hostile zone with no faction name shows neither); then
 /// `MicroButtonTooltipText(WORLDMAP_BUTTON, "TOGGLEWORLDMAP")` "World Map (M)" in gold.
-pub fn zone_tooltip(zone: &str, subzone: &str, world_map_key: Option<&str>) -> GameTooltip {
+pub fn zone_tooltip(
+    zone: &str,
+    subzone: &str,
+    pvp: ZonePvp,
+    controlling_faction: Option<&str>,
+    world_map_key: Option<&str>,
+) -> GameTooltip {
     let subzone = if subzone == zone { "" } else { subzone };
+    let color = pvp.text_color();
+    let line = |text: String| TooltipLineState::colored(text, color);
+    let mut lines = match (pvp, controlling_faction) {
+        (ZonePvp::Sanctuary, _) => vec![line(subzone.into()), line("(Sanctuary)".into())],
+        (ZonePvp::Friendly | ZonePvp::Hostile, Some(faction)) => {
+            vec![line(subzone.into()), line(format!("({faction} Territory)"))]
+        }
+        (ZonePvp::Friendly | ZonePvp::Hostile, None) => Vec::new(),
+        (ZonePvp::Normal, _) => vec![line(subzone.into())],
+    };
     let button = match world_map_key {
         Some(key) => format!("World Map ({key})"),
         None => "World Map".to_owned(),
     };
-    text_tooltip(
-        zone,
-        TOOLTIP_WHITE,
-        vec![
-            TooltipLineState::colored(subzone, NORMAL),
-            TooltipLineState::colored(button, NORMAL),
-        ],
-    )
+    lines.push(TooltipLineState::colored(button, NORMAL));
+    text_tooltip(zone, TOOLTIP_WHITE, lines)
 }
 
 /// `MiniMapTrackingButtonMixin:OnEnter` (Minimap.lua:800-805): `TRACKING` and the wrapped
@@ -85,6 +99,16 @@ pub fn clock_tooltip(realm_time: &str, local_time: &str) -> GameTooltip {
             TooltipLineState::colored("Click to show clock settings.", NORMAL),
         ],
     )
+}
+
+/// `GameTime_GetFormattedTime(hour, minute, true)`: `TIME_TWELVEHOURAM`/`PM` "%d:%02d AM".
+pub fn twelve_hour_time(hour: u32, minute: u32) -> String {
+    let suffix = if hour % 24 >= 12 { "PM" } else { "AM" };
+    let hour = match hour % 12 {
+        0 => 12,
+        hour => hour,
+    };
+    format!("{hour}:{minute:02} {suffix}")
 }
 
 /// `GameTimeFrame_OnUpdate` with the clock shown and no invites: `GAMETIME_TOOLTIP_TOGGLE_CALENDAR`.
@@ -160,6 +184,13 @@ mod tests {
         );
         assert_eq!(tooltip.content.lines[0].left_color, NORMAL);
         assert_eq!(tooltip.content.lines[0].right_color, TOOLTIP_WHITE);
+    }
+
+    #[test]
+    fn times_read_in_twelve_hours() {
+        assert_eq!(twelve_hour_time(18, 7), "6:07 PM");
+        assert_eq!(twelve_hour_time(0, 30), "12:30 AM");
+        assert_eq!(twelve_hour_time(12, 0), "12:00 PM");
     }
 
     #[test]
