@@ -1,4 +1,4 @@
-//! Physical vendor pickup -> embedded backpack release; owned authoritative BuyItem peer.
+//! Physical vendor buy -> embedded backpack pickup -> merchant background whole-stack sale.
 use super::*;
 use shared::protocol::{
     BuyItem, BuybackItemRequest, DestroyItem, EquipItem, InventoryDelta, InventorySlotChange,
@@ -13,6 +13,7 @@ const DESTINATION: ItemLocation = ItemLocation::Bag { bag: 0, slot: 0 };
 #[derive(Resource, Default)]
 struct Requests {
     buys: Vec<BuyItem>,
+    sells: Vec<SellItem>,
     forbidden: Vec<String>,
 }
 
@@ -40,7 +41,9 @@ fn receive_merchant(
     for mut receiver in &mut buys {
         requests.buys.extend(receiver.receive());
     }
-    collect_forbidden(&mut sells, &mut requests);
+    for mut receiver in &mut sells {
+        requests.sells.extend(receiver.receive());
+    }
     collect_forbidden(&mut junk, &mut requests);
     collect_forbidden(&mut buybacks, &mut requests);
     collect_forbidden(&mut repairs, &mut requests);
@@ -74,6 +77,12 @@ enum Phase {
     Held,
     Request,
     Delta,
+    BuyDone,
+    SalePickupArm,
+    SalePickup,
+    SaleHeld,
+    SaleRequest,
+    SaleDelta,
     Drain,
 }
 
@@ -83,14 +92,16 @@ struct Session {
     selected: Option<Entity>,
     opens: usize,
     buys: usize,
+    sells: usize,
     commit: bool,
+    sell_commit: bool,
 }
 
 impl Session {
     fn advance(&mut self, phase: Phase) {
         println!(
-            "MERCHANT CURSOR PHASE {phase:?} opens={} buys={}",
-            self.opens, self.buys
+            "MERCHANT CURSOR PHASE {phase:?} opens={} buys={} sells={}",
+            self.opens, self.buys, self.sells
         );
         self.phase = phase;
         self.since = Instant::now();
@@ -148,7 +159,28 @@ impl Session {
                 self.require_quiet()?;
                 self.commit = true;
             }
-            (Phase::Delta, "FIXTURE MERCHANT_CURSOR_DONE") => {
+            (Phase::Delta, "FIXTURE MERCHANT_CURSOR_BUY_DONE") => {
+                self.require_quiet()?;
+                self.advance(Phase::BuyDone);
+            }
+            (Phase::BuyDone, "FIXTURE MERCHANT_CURSOR_SALE_PICKUP_ARM") => {
+                self.advance(Phase::SalePickupArm)
+            }
+            (Phase::SalePickupArm, "FIXTURE MERCHANT_CURSOR_SALE_PRESS_ARM") => {
+                self.advance(Phase::SalePickup)
+            }
+            (Phase::SalePickup, "FIXTURE MERCHANT_CURSOR_SALE_PICKED_UP") => {
+                self.require_quiet()?;
+                self.advance(Phase::SaleHeld);
+            }
+            (Phase::SaleHeld, "FIXTURE MERCHANT_CURSOR_SALE_DROP_ARM") => {
+                self.advance(Phase::SaleRequest)
+            }
+            (Phase::SaleRequest, "FIXTURE MERCHANT_CURSOR_SELL_COMMIT") if !self.sell_commit => {
+                self.require_quiet()?;
+                self.sell_commit = true;
+            }
+            (Phase::SaleDelta, "FIXTURE MERCHANT_CURSOR_DONE") => {
                 self.require_quiet()?;
                 self.advance(Phase::Drain);
             }
@@ -164,7 +196,7 @@ impl Session {
 
     fn respond(&mut self, app: &mut App) -> Result<(), String> {
         self.respond_to_interaction(app)?;
-        self.receive_buy(app)?;
+        self.receive_requests(app)?;
         if self.phase == Phase::Request {
             if self.commit && self.buys == 1 {
                 send_purchase(
@@ -176,6 +208,17 @@ impl Session {
                 return Err(format!(
                     "merchant-cursor missing exact BuyItem/COMMIT; buys={} commit={}",
                     self.buys, self.commit
+                ));
+            }
+        }
+        if self.phase == Phase::SaleRequest {
+            if self.sell_commit && self.sells == 1 {
+                send_sale(app, self.selected.ok_or("sale requires selected player")?);
+                self.advance(Phase::SaleDelta);
+            } else if self.since.elapsed() > REQUEST_WAIT {
+                return Err(format!(
+                    "merchant-cursor missing exact SellItem/SELL_COMMIT; sells={} commit={}",
+                    self.sells, self.sell_commit
                 ));
             }
         }
@@ -214,7 +257,7 @@ impl Session {
         Ok(())
     }
 
-    fn receive_buy(&mut self, app: &mut App) -> Result<(), String> {
+    fn receive_requests(&mut self, app: &mut App) -> Result<(), String> {
         let requests = std::mem::take(&mut *app.world_mut().resource_mut::<Requests>());
         if !requests.forbidden.is_empty() {
             return Err(format!(
@@ -244,6 +287,28 @@ impl Session {
             self.buys += 1;
             println!(
                 "MERCHANT CURSOR DECODED {request:?} count=1; delta and Gold withheld until COMMIT"
+            );
+        }
+        for request in requests.sells {
+            let expected = SellItem {
+                npc: vendor.ok_or("SellItem requires owned vendor")?,
+                item_guid: 9_182_589,
+                count: 0,
+            };
+            if self.phase != Phase::SaleRequest
+                || self.buys != 1
+                || !self.commit
+                || self.sells != 0
+                || request != expected
+            {
+                return Err(format!(
+                    "unexpected/duplicate SellItem {request:?} in {:?}; count={}",
+                    self.phase, self.sells
+                ));
+            }
+            self.sells += 1;
+            println!(
+                "MERCHANT CURSOR DECODED {request:?} count=1; delta and Gold withheld until SELL_COMMIT"
             );
         }
         Ok(())
@@ -309,6 +374,21 @@ fn send_purchase(app: &mut App, selected: Entity) {
     println!("MERCHANT CURSOR AUTHORITATIVE bag0/slot0 guid9182589 Linen2589 count1 Gold975");
 }
 
+fn send_sale(app: &mut App, selected: Entity) {
+    send::<_, InventoryChannel>(
+        app,
+        InventoryDelta {
+            changes: vec![InventorySlotChange {
+                location: DESTINATION,
+                item: None,
+            }],
+        },
+    );
+    // Local ItemSparse row2589 SellPrice13, one authoritative Linen Cloth.
+    app.world_mut().entity_mut(selected).insert(Gold(988));
+    println!("MERCHANT CURSOR AUTHORITATIVE bag0/slot0 empty Gold988; Linen1 SellPrice13");
+}
+
 fn tick_peer(
     app: &mut App,
     session: &mut Session,
@@ -339,7 +419,9 @@ fn run_until_done(
         selected: None,
         opens: 0,
         buys: 0,
+        sells: 0,
         commit: false,
+        sell_commit: false,
     };
     let deadline = Instant::now() + TIMEOUT + Duration::from_secs(180);
     while Instant::now() < deadline {
@@ -358,7 +440,12 @@ fn run_until_done(
             ));
         }
         if session.phase == Phase::Drain && session.since.elapsed() >= QUIET {
-            if session.opens != 1 || session.buys != 1 || !session.commit {
+            if session.opens != 1
+                || session.buys != 1
+                || session.sells != 1
+                || !session.commit
+                || !session.sell_commit
+            {
                 return Err(
                     "merchant-cursor final interaction/request/barrier totals failed".into(),
                 );
@@ -368,8 +455,8 @@ fn run_until_done(
         thread::sleep(TICK);
     }
     Err(format!(
-        "merchant-cursor timed out; phase={:?} opens={} buys={}",
-        session.phase, session.opens, session.buys
+        "merchant-cursor timed out; phase={:?} opens={} buys={} sells={}",
+        session.phase, session.opens, session.buys, session.sells
     ))
 }
 
@@ -399,7 +486,7 @@ pub(super) fn run(
         (Err(error), _) | (_, Err(error)) => Err(error),
         (Ok(()), Ok(())) => {
             println!(
-                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; deliberate kill/reap/readers drained, NOT normal shutdown proof"
+                "PASS: MERCHANT_CURSOR physical vendor pickup, exact once BuyItem destination bag0/slot0, pre-delta COMMIT empty/1000/cursor cleared, authoritative Linen1/975; physical locked bag0/slot0 pickup to own merchant background, exact once SellItem guid9182589 count0, pre-delta SELL_COMMIT Linen1/975/cursor cleared, authoritative empty/988; deliberate kill/reap/readers drained, NOT normal shutdown or full cursor acceptance"
             );
             Ok(())
         }

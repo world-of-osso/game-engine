@@ -7,8 +7,13 @@ const MC_SOURCE := "MerchantItem1"
 const MC_SOURCE_ICON := "MerchantItem1ItemButtonIcon"
 const MC_SLOT := "ContainerFrame0Slot0"
 const MC_CURSOR := "CursorItemIcon"
+const MC_COLOR_TOLERANCE := 0.03
+# Original merchant_frame_component: column gap (164,176), below title,
+# above bottom controls; ACTION_FRAME = merchant_frame on MerchantFrame itself.
+const MC_SALE_BACKGROUND := Vector2(170.0, 145.0)
 
 var mc_pointer := Vector2.ZERO
+var mc_sale_texture: Texture2D
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -36,6 +41,9 @@ func run_test() -> void:
 		return
 	print("FIXTURE MERCHANT_CURSOR_VENDOR_OPEN")
 	if not await mc_buy_drag(client):
+		return
+	print("FIXTURE MERCHANT_CURSOR_BUY_DONE")
+	if not await mc_sale_drag(client):
 		return
 	print("FIXTURE MERCHANT_CURSOR_DONE")
 	# Parent owns deliberate kill/reap/readers drain; not shutdown proof.
@@ -105,6 +113,122 @@ func mc_buy_drag(client: Node) -> bool:
 	if not await mc_quiet_state(client, 1, false, 975):
 		return false
 	print("MERCHANT CURSOR FINAL bag0/slot0 Linen2589 count1 money975 rendered icon, cursor hidden; GUID only peer-visible")
+	return true
+
+func mc_sale_drag(client: Node) -> bool:
+	if not mc_embedded_bag(client):
+		return false
+	var source := mc_control(client, MC_SLOT)
+	var frame := mc_control(client, "MerchantFrame")
+	var canvas := mc_control(client, "RegistryCanvas")
+	var texture := mc_texture(mc_control(client, MC_SLOT + "Icon"))
+	if source == null or frame == null or canvas == null or texture == null:
+		fail("Sale requires actual bought bag0/slot0 icon and own MerchantFrame/canvas")
+		return false
+	mc_sale_texture = texture.texture
+	print("FIXTURE MERCHANT_CURSOR_SALE_PICKUP_ARM")
+	if not await mc_sale_wait_state(client, 1, false, 975, false):
+		return false
+	if not await mc_sale_quiet_state(client, 1, false, 975, false):
+		return false
+	var start := source.get_global_rect().get_center()
+	var finish := frame.get_global_transform() * MC_SALE_BACKGROUND
+	var scale := canvas.get_global_transform().get_scale().x
+	if scale <= 0 or start.distance_to(finish) / scale < 4.0 or not mc_sale_background_matches(client, finish):
+		fail("Sale target must be own merchant_frame background, >=4 logical px from bag0/slot0")
+		return false
+	print("MERCHANT CURSOR SALE GEOMETRY source=", source.get_path(), " target=", frame.get_path(), " action=merchant_frame start=", start, " finish=", finish, " scale=", scale)
+	print("FIXTURE MERCHANT_CURSOR_SALE_PRESS_ARM")
+	mc_motion(start, false)
+	await process_frame
+	mc_edge(start, true)
+	if not await mc_sale_wait_state(client, 1, true, 975, true):
+		return false
+	if not await mc_sale_quiet_state(client, 1, true, 975, true):
+		return false
+	print("MERCHANT CURSOR SALE PICKUP bag0/slot0 Linen1 unchanged; original source RGB0.5 alpha1, cursor textured/centered; money975")
+	print("FIXTURE MERCHANT_CURSOR_SALE_PICKED_UP")
+	print("FIXTURE MERCHANT_CURSOR_SALE_DROP_ARM")
+	source = mc_control(client, MC_SLOT)
+	if source == null or not source.get_global_rect().has_point(start) or not mc_sale_background_matches(client, finish):
+		fail("Sale source/own background moved or became covered while physical Left held")
+		return false
+	mc_motion(finish, true)
+	# Prove source/cursor remain valid at destination before physical release.
+	if not await mc_sale_wait_state(client, 1, true, 975, true):
+		return false
+	if not await mc_sale_quiet_state(client, 1, true, 975, true):
+		return false
+	if not mc_sale_background_matches(client, finish):
+		fail("Sale release background became covered")
+		return false
+	mc_edge(finish, false)
+	if not await mc_sale_wait_state(client, 1, false, 975, false):
+		return false
+	if not await mc_sale_quiet_state(client, 1, false, 975, false):
+		return false
+	print("MERCHANT CURSOR SELL COMMIT pre-delta Linen1/money975/source white/cursor hidden; peer must decode guid9182589 count0")
+	print("FIXTURE MERCHANT_CURSOR_SELL_COMMIT")
+	if not await mc_sale_wait_state(client, 0, false, 988, false):
+		return false
+	if not await mc_sale_quiet_state(client, 0, false, 988, false):
+		return false
+	print("MERCHANT CURSOR SALE FINAL bags=[] money988 rendered empty cursor hidden; vendor Linen price25 pack1 unchanged")
+	return true
+
+func mc_sale_background_matches(client: Node, point: Vector2) -> bool:
+	var ui := client.get_node_or_null("MerchantUI")
+	var frame := mc_control(client, "MerchantFrame")
+	if ui == null or frame == null or not ui.is_ancestor_of(frame) or not frame.is_visible_in_tree() or not frame.get_global_rect().has_point(point):
+		return false
+	if (frame.get_global_transform() * MC_SALE_BACKGROUND).distance_to(point) > 0.1:
+		return false
+	# Projected mouse-enabled/action controls STOP; visual parts IGNORE.
+	# Reject title, buttons, cells, backpack or any other actionable coverage.
+	for node in ui.find_children("*", "Control", true, false):
+		var control := node as Control
+		if control != frame and control.is_visible_in_tree() and control.mouse_filter != Control.MOUSE_FILTER_IGNORE and control.get_global_rect().has_point(point):
+			return false
+	return frame.mouse_filter == Control.MOUSE_FILTER_STOP
+
+func mc_sale_source_matches(client: Node, count: int, locked: bool) -> bool:
+	if count == 0:
+		return mc_texture(mc_control(client, MC_SLOT + "Icon")) == null
+	var texture := mc_texture(mc_control(client, MC_SLOT + "Icon"))
+	if texture == null or texture.texture != mc_sale_texture:
+		return false
+	# Same original shared BagFrameComponent oracle as world_bags_cursor_flow:
+	# ImagePart vertex color is self_modulate, multiplied by ancestor modulate.
+	var tint := texture.self_modulate
+	var ancestor: Node = texture
+	while ancestor != null and ancestor != client:
+		if ancestor is CanvasItem:
+			tint *= (ancestor as CanvasItem).modulate
+		ancestor = ancestor.get_parent()
+	var expected_rgb := 0.5 if locked else 1.0
+	return absf(tint.r - expected_rgb) <= MC_COLOR_TOLERANCE and absf(tint.g - expected_rgb) <= MC_COLOR_TOLERANCE and absf(tint.b - expected_rgb) <= MC_COLOR_TOLERANCE and absf(tint.a - 1.0) <= MC_COLOR_TOLERANCE
+
+func mc_sale_state_matches(client: Node, count: int, held: bool, money: int, locked: bool) -> bool:
+	return mc_state_matches(client, count, held, money) and mc_sale_source_matches(client, count, locked)
+
+func mc_sale_wait_state(client: Node, count: int, held: bool, money: int, locked: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if mc_sale_state_matches(client, count, held, money, locked):
+			return true
+	var texture := mc_texture(mc_control(client, MC_SLOT + "Icon"))
+	var observed_tint := str(texture.self_modulate) if texture != null else "missing"
+	fail("Merchant sale state missing: count%s held%s money%s locked%s source_self_modulate=%s pointer=%s state=%s; RED meaning requires actual native run" % [count, held, money, locked, observed_tint, mc_pointer, client.merchant_state()])
+	return false
+
+func mc_sale_quiet_state(client: Node, count: int, held: bool, money: int, locked: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_QUIET_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if not mc_sale_state_matches(client, count, held, money, locked):
+			fail("Merchant sale quiet phase changed source lock/texture/count/cursor/inventory/money/modal: " + str(client.merchant_state()))
+			return false
 	return true
 
 func mc_control(client: Node, control_name: String) -> Control:
