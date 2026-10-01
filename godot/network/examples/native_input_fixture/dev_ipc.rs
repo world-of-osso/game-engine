@@ -345,19 +345,72 @@ fn wait_server(run: &mut Run, what: &str, seen: impl Fn(&Requests) -> bool) -> R
     Ok(())
 }
 
-/// `map target` without a target and `map waypoint add|clear` around the spawn.
+/// `map target` without a target and `map waypoint add|clear` on the spawn point, which
+/// the player already stands on: no walk.
 fn check_map_requests(run: &mut Run) -> Result<(), String> {
     expect_exact(run, &["map", "target"], "map_target: none\ndistance: -")?;
     expect_exact(
         run,
-        &["map", "waypoint", "add", "--x=-8940.5", "--y=12.25"],
-        "zone_id: 12\nposition: -8949.00,0.00\nwaypoint: -8940.50,12.25\ngraveyard_marker: -",
+        &["map", "waypoint", "add", "--x=-8949", "--y=0"],
+        "zone_id: 12\nposition: -8949.00,0.00\nwaypoint: -8949.00,0.00\ngraveyard_marker: -",
     )?;
     expect_exact(
         run,
         &["map", "waypoint", "clear"],
         "zone_id: 12\nposition: -8949.00,0.00\nwaypoint: -\ngraveyard_marker: -",
     )
+}
+
+/// `map waypoint add` 6 yd west: the player walks west (forward along facing -X), stops
+/// within the goal radius and the waypoint clears, with one stop input.
+fn check_waypoint_walk(run: &mut Run) -> Result<(), String> {
+    let (x, z) = position(&run.expect_text(&["map", "position"])?)?;
+    let goal = (x - 6.0, z);
+    take_inputs(run.app);
+    let before = stops(run);
+    let added = run.expect_text(&[
+        "map",
+        "waypoint",
+        "add",
+        &format!("--x={}", goal.0),
+        &format!("--y={}", goal.1),
+    ])?;
+    expect_lines(
+        "map waypoint add",
+        &added,
+        &[format!("waypoint: {:.2},{:.2}", goal.0, goal.1)],
+    )?;
+    let mut moving = 0;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let map = loop {
+        run.pump_for(Duration::from_millis(250))?;
+        for input in take_inputs(run.app) {
+            let [dx, dy, dz] = input.direction;
+            if (dx + 1.0).abs() > 0.05 || dy.abs() > 0.01 || dz.abs() > 0.05 || !input.running {
+                return Err(format!("waypoint walk input is not west: {input:?}"));
+            }
+            moving += 1;
+        }
+        let map = run.expect_text(&["map", "position"])?;
+        if field(&map, "waypoint")? == "-" {
+            break map;
+        }
+        if Instant::now() >= deadline {
+            return Err(format!("the waypoint never cleared:\n{map}"));
+        }
+    };
+    run.pump_for(RELEASE_DRAIN + RELEASE_QUIET)?;
+    take_inputs(run.app);
+    let (end_x, end_z) = position(&map)?;
+    let off = ((end_x - goal.0).powi(2) + (end_z - goal.1).powi(2)).sqrt();
+    // The original stops within 0.8 yd; one run-speed frame may pass the radius.
+    if moving == 0 || off > 1.0 || stops(run) != before + 1 {
+        return Err(format!(
+            "waypoint walk: {moving} moving inputs, ended {off:.2} yd from the goal, {} stops",
+            stops(run) - before
+        ));
+    }
+    ensure_release_reported(run.app, "waypoint walk")
 }
 
 /// Group, emote and spell requests reach the server as the original intents.
@@ -988,9 +1041,10 @@ pub(super) fn run(
     check_export(&mut run)?;
     check_timed_forward(&mut run)?;
     check_stopped_forward(&mut run)?;
+    check_waypoint_walk(&mut run)?;
     finish(&mut run, readers)?;
     println!(
-        "PASS: public CLI status network/sound/terrain, map position/target/waypoint, group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
+        "PASS: public CLI status network/sound/terrain, map position/target/waypoint (walk), group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
     );
     Ok(())
 }
