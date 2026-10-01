@@ -215,9 +215,8 @@ func foreign_chat_release(client: Node) -> bool:
 	left_edge(target, false)
 	if not await wait_cursor(client, true) or not await quiet_drag_state(client, INITIAL, true) or not await clear_local_pickup(client):
 		return false
-	# Prefix keeps the existing strict peer marker protocol unchanged. Its Arm(0)
-	# phase rejects any SwapItem here; forbidden request oracle remains active.
-	print("BAGS DRAG NEGATIVE FIXTURE BAGS_DRAG_FOREIGN_CHAT")
+	# Peer requires this fourth quiet phase before arming any swap request.
+	print("FIXTURE BAGS_DRAG_FOREIGN_CHAT")
 	return true
 
 func swap_case(client: Node, delivery: String) -> bool:
