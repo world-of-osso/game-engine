@@ -418,8 +418,8 @@ use bevy_replicon::bytes::Bytes;
 use lightyear::prelude::{LinkOf, NetworkTarget, Replicate, ReplicationSender, server};
 use shared::{
     components::{
-        CombatStatus, CreatureMotion, MovementControl, Npc, Player, Position, Rotation,
-        SheathState, StandState, UnitPose,
+        CombatStatus, CreatureMotion, MovementControl, Npc, Player, PlayerStandState, Position,
+        Rotation, SheathState, StandState, UnitPose,
     },
     protocol::{
         CombatChannel, CombatEvent, CombatEventType, InputChannel, PlayerInput, RestChannel,
@@ -1060,6 +1060,41 @@ fn native_bridge_receives_unit_pose_changes() {
     server.world_mut().entity_mut(entity).insert(ready);
     await_unit(&mut server, &mut host, id, "standing criminal", |unit| {
         unit.get::<UnitPose>() == Some(&ready)
+    });
+    assert_eq!(position_x(host.unit(id).unwrap()), Some(100.0));
+    host.stop();
+}
+
+/// A player's replicated `PlayerStandState` reaches the host with its unit, and a
+/// stand-state-only change (sitting down, then kneeling) arrives on its own.
+#[test]
+fn native_bridge_receives_player_stand_state_changes() {
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8195);
+    await_connected(&mut server, &mut host);
+    let entity = server
+        .world_mut()
+        .spawn((
+            fixture_player("Sitter"),
+            Position {
+                x: 100.0,
+                y: 5.0,
+                z: 1.0,
+            },
+            PlayerStandState(StandState::Sit),
+            Replicate::to_clients(NetworkTarget::All),
+        ))
+        .id();
+    let id = entity.to_bits();
+    await_unit(&mut server, &mut host, id, "sitting player", |unit| {
+        unit.get::<PlayerStandState>() == Some(&PlayerStandState(StandState::Sit))
+    });
+    server
+        .world_mut()
+        .entity_mut(entity)
+        .insert(PlayerStandState(StandState::Kneel));
+    await_unit(&mut server, &mut host, id, "kneeling player", |unit| {
+        unit.get::<PlayerStandState>() == Some(&PlayerStandState(StandState::Kneel))
     });
     assert_eq!(position_x(host.unit(id).unwrap()), Some(100.0));
     host.stop();

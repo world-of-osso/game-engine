@@ -80,11 +80,11 @@ Architecture decisions and feature designs.
 
 - [charcreate-invalid-customization-combos](investigations/charcreate-invalid-customization-combos.md) — Tan swatch + face 27 rendered a teal body: overlay/tint layer blend modes were copied opaquely; Death Knight/NPC/transmog choices were offered because ChrCustomizationReq/ReqChoice were not evaluated.
 - [godot-torch-rendering](investigations/godot-torch-rendering.md) — particledebug torch vs solarity/WebWowViewerCpp: halo quad needed bone billboarding and the flame's M2 point light was never rendered; both added, remaining gaps listed.
-- [world-entry-stalls](investigations/world-entry-stalls.md) — Godot world entry blocked one frame 17-28 s building every replicated unit's visual synchronously, and ADT objects overran their 8 ms budget with whole-model/WMO units; visuals and objects now load on AssetLoader workers and the main thread builds within budgets.
+- [world-entry-stalls](investigations/world-entry-stalls.md) — historical synchronous-loading fix and retained integrated run1/run2 failures; readiness predicate GREEN4/4, both nominal settled windows invalid, no retained baseline.
 - [godot-stormwind-fps](investigations/godot-stormwind-fps.md) — Godot Stormwind at 13–20 FPS: per-frame doodad/NPC animation outweighed ~6.4k draws; retail scenery distance, NPC animation LOD and WMO portal culling bring it to ~20–25 FPS and ~4.3–5k draws; drawn-doodad animation remains.
 - [campsite-fog-and-wmo-selection](investigations/campsite-fog-and-wmo-selection.md) — Campsites 7/25 fully fogged by FogEnd-0 LightData read as a linear range; now the reference exponential fog. Cultists' Quay lost its WMO to an origin-distance radius; now selected by extents. Its blue is WMO MFOG fog, not Light/ZoneLight.
 - [native-audio-shutdown-leaks](investigations/native-audio-shutdown-leaks.md) — `741344ca` native audio fixture passes bounded headless playback/state behavior; pure-GDScript timing comparison links shutdown leaks to deferred audio cleanup without proving every native reference owner or supporting a delay.
-- [northshire-pale-water](investigations/northshire-pale-water.md) — Pale flat streams: dropped MH2O LVF 0 depths, a procedural placeholder material and constant colours; now the retail LiquidType water material with LightData river colours, refraction and underwater fog; [unresolved native LiquidObject rows](investigations/northshire-pale-water.md#native-liquidobject-missing-rows--unresolved) preserve bounded MAIN content/container evidence.
+- [northshire-pale-water](investigations/northshire-pale-water.md) — Pale flat streams: dropped MH2O LVF 0 depths, a procedural placeholder material and constant colours; now the retail LiquidType water material with LightData river colours, refraction and underwater fog; [LiquidObject IDs without DB2 rows](investigations/northshire-pale-water.md#liquidobject-ids-without-db2-rows--resolved): row-less objects take the MH2O liquid_type, and Ocean (type 2) object layers are LVF 2.
 - [showcase-client-bugs](investigations/showcase-client-bugs.md) — Mage showcase bugs: world-X combat text lanes collapsed, target plate took the camera fade, robe geosets and texture paste order ignored, player staff never sheathed, Dead pose skipped AnimationData fallback, stale cached `.skel` behind the `.anim` out-of-bounds reads.
 - [depot-cross-worktree-freshness](investigations/depot-cross-worktree-freshness.md) — A/B/A remote build failure was stale shared Cargo target artifacts, not snapshot collection; lock-held staged-source refresh rebuilds dependencies and passes, while local extension-load verification remains pending.
 - [camera-collision-recovery-lag](investigations/camera-collision-recovery-lag.md) — Follow camera stalled behind a running player after any collision pull-in: recovery measured the lagging camera pose; now recovers from the stored pulled-in distance.
@@ -121,7 +121,7 @@ Root cause analyses and debug findings.
 - [helmet-hide-rules](investigations/helmet-hide-rules.md) — HelmetGeosetData/Vis + ItemDisplayInfo.GeosetGroup for hair hiding
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
-- [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` authored M2 black output remains separate from ordinary InWorld procedural sky
+- [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — authored cloud zero-opacity source and bounded original/native dark-phase RGB match; active-phase/coastal parity open, separate from ordinary InWorld procedural sky
 - [charselect-ground-patch-dark-terrain](investigations/charselect-ground-patch-dark-terrain.md) — corrected terrain normals and removed campsite workaround plane
 - [character-select-waterfall-loading](investigations/character-select-waterfall-loading.md) — split shadows, primary backdrop filtering, UV/timing, and terrain-attached mist emitter forwarding; waterfall visibility is accepted, while scene brightness remains separate
 - [character-select-lighting-overwrite](investigations/character-select-lighting-overwrite.md) — sky overwrite root cause, M2 light-record and attachment-clock correction, environmental-sun ownership; no Retail brightness match claimed
@@ -142,7 +142,7 @@ Root cause analyses and debug findings.
 External resources and asset lists.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Clients, renderers, viewers, editors, format libraries
-- [test-assets](reference/test-assets.md) — Available local test files with paths and use cases
+- [test-assets](reference/test-assets.md) — Available local test files; [Zaralda fixture](reference/test-assets.md#zaralda-native-merchant-fixture-2026-10-01) blocked 0/3, linked server SSOT for data/CLI proof and native limits
 - [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries
 - [audio-libraries](reference/audio-libraries.md) — Audio engines and spatial audio tools (AudioNimbus, etc.)
 

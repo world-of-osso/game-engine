@@ -10,7 +10,7 @@ use game_engine::ui::ui_errors::UiErrors;
 use lightyear::prelude::Message as NetworkMessage;
 use shared::protocol::{
     DestroyItem, EquipItem, EquipmentSnapshot, InventoryChannel, InventoryDelta, InventoryError,
-    InventorySnapshot, SplitItem, SwapItem,
+    InventorySnapshot, SplitItem, SwapItem, UseItem,
 };
 
 use crate::game_state::GameState;
@@ -83,6 +83,7 @@ struct InventorySenders<'w, 's> {
     equip: MessageSenders<'w, 's, EquipItem>,
     split: MessageSenders<'w, 's, SplitItem>,
     destroy: MessageSenders<'w, 's, DestroyItem>,
+    use_item: MessageSenders<'w, 's, UseItem>,
 }
 
 fn send_inventory_requests(
@@ -95,6 +96,7 @@ fn send_inventory_requests(
             InventoryRequest::Equip(equip) => send(&mut senders.equip, equip),
             InventoryRequest::Split(split) => send(&mut senders.split, split),
             InventoryRequest::Destroy(destroy) => send(&mut senders.destroy, destroy),
+            InventoryRequest::Use(use_item) => send(&mut senders.use_item, use_item),
         }
     }
 }

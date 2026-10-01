@@ -1,3 +1,7 @@
+## 2026-10-01 — Retained skybox/performance bounded reconciliation
+
+[[authored-skybox-black-output]] records source zero opacity and bounded 100000 ms original/native RGB match, preserving active timeout, coastal phase-ready gap and oracle SETUP failures. [[world-entry-stalls]] records actual run1/run2 failures and readiness RED/GREEN without settled/baseline/budget/leak acceptance. Retained/conversion goals remain open; docs only.
+
 ## 2026-10-01 — M2 free material-null errors
 
 [[godot-material-null-free]]: M2 batches bound materials as surface overrides, which Godot releases before freeing the RenderingServer instance; a batch freed before its first draw read the freed material. `eb619da4` binds them as the material override; regression `godot/tests/m2_free_material.gd`. [[rendering-pipeline#godot-m2-batch-materials]] notes the binding.
@@ -16,7 +20,7 @@
 
 ## 2026-10-01 — LiquidObject missing rows knowledge preservation
 
-[Investigation SSOT](investigations/northshire-pale-water.md#native-liquidobject-missing-rows--unresolved) preserves supplied MAIN base/copy, cached content identity and bounded XFTH membership evidence; authoritative consumer/overlay semantics remain unresolved. Docs only, no new independent data/runtime proof.
+[Investigation SSOT](investigations/northshire-pale-water.md#liquidobject-ids-without-db2-rows--resolved) preserves supplied MAIN base/copy, cached content identity and bounded XFTH membership evidence; authoritative consumer/overlay semantics remain unresolved. Docs only, no new independent data/runtime proof.
 
 ## 2026-10-01 — Native JS negative startup bounded docs audit
 
@@ -78,6 +82,10 @@ MAIN read FULL and accepts independent1429 bounded PASS. [Acceptance SSOT](syste
 MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records fresh Depot `04kwqv77h7` build0/runtime0, pre-Equip GUID9170105, authoritative GUID9170005 replacement, exact one Equip/two Destroy and original popup flow. Intentional child3934038 kill/reap/readers0 is not shutdown; broader coverage excluded. Supersedes pending-GREEN docs `cf9c3d63`.
 
 # Wiki Log
+
+## 2026-10-01 — Zaralda fixture acceptance blocker
+
+Updated [[test-assets]] and index with prepared/executed `7903cb5e` fixture and native BLOCKED 0/3. Linked [server Midnight SSOT](../../../game-server/docs/wiki/investigations/midnight-economy-content.md#native-acceptance-blocker) rather than duplicating catalog/data/CLI facts. No runtime fix, new probe, build or service operation; concurrent engine work preserved. Overall goal open.
 
 ## [2026-09-30] systems | Login handshake timeout
 
@@ -2425,6 +2433,13 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 
 [Race and sex item files](systems/character-rendering.md#race-and-sex-item-files-2026-10-01): Component*FileData texture/model selection, ChrModel body chain, wowdev geoset group table, native sheath links, skinned collections with both model columns, player social emotes; named-character and 62-way race fixtures.
 
+
+## 2026-10-01 — Player stand state (standstate)
+
+[Animation](systems/animation.md): players hold the replicated `PlayerStandState` pose (SitGround 97, Sleep 100, SitChairLow/Med/High 102-104, KneelLoop 115) with down/up clips 96/98, 99/101, 114/116 on a change; X (`SITORSTAND`) and /sit, /sleep, /kneel send `StandStateIntent`; sit/sleep/kneel no longer play from `EmoteEvent`. Chairs (`GAMEOBJECT_TYPE_CHAIR`) render and right-click seats. Live: `godot/tests/player_stand_state_live.gd` (sitter, observer, `STAND_FOOD=1` bread phase); evidence `data/diagnostics/standstate2-2026-10-01/`.
+## 2026-10-01 — LiquidObject IDs without DB2 rows (liquidobj)
+
+[Resolved](investigations/northshire-pale-water.md#liquidobject-ids-without-db2-rows--resolved): IDs 42 and 13134/13136–13139 have no LiquidObject row in the build or its hotfixes; 42 is the ocean object (4.5M layers, 458 maps). Row-less objects take their MH2O liquid_type (WebWowViewerCpp `getLiquidObjectData`), and LiquidType 2 Ocean object layers are LVF 2 depth-only. A world-wide scan of 52,882 root ADTs leaves 0 omitted layers. Live Adventurer's Rest: 133 errors → 0.
 
 ## 2026-10-01 — Grounded character/clothing pixels (appearpix)
 
