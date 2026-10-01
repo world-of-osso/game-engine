@@ -11,11 +11,12 @@
 use game_engine_core::spell_catalog::SpellTextContext;
 use game_engine_ui_model::bag_data::{InventorySlot, InventoryState};
 use game_engine_ui_model::buff_frame_component::buff_button_at;
+use game_engine_ui_model::character_frame::{paperdoll_button, parse_equipment_slot_action};
 use game_engine_ui_model::chat_frame_component::chat_spell_link_at;
 use game_engine_ui_model::game_tooltip::hud::{
     backpack_tooltip, calendar_tooltip, clock_tooltip, empty_bag_slot_tooltip,
-    minimap_mouseover_tooltip, tracking_tooltip, twelve_hour_time, unread_mail_tooltip,
-    zoom_tooltip,
+    empty_paperdoll_slot_tooltip, minimap_mouseover_tooltip, tracking_tooltip, twelve_hour_time,
+    unread_mail_tooltip, zoom_tooltip,
 };
 use game_engine_ui_model::game_tooltip::item::{
     auction_row_item, item_game_tooltip, named_item, without_sell_price,
@@ -32,7 +33,7 @@ use game_engine_ui_model::minimap::{MINIMAP_ZOOM_IN, MINIMAP_ZOOM_OUT};
 use game_engine_ui_model::tooltip_presentation::{
     TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation,
 };
-use shared::protocol::{ActionRef, LootContent, MailAttachment, MailHeader};
+use shared::protocol::{ActionRef, ItemLocation, LootContent, MailAttachment, MailHeader};
 use ui_toolkit::frame::Frame;
 
 use crate::GameClient;
@@ -58,11 +59,12 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 13] = [
+        const SOURCES: [Source; 14] = [
             GameClient::action_button_tooltip,
             GameClient::spellbook_tooltip,
             GameClient::chat_link_tooltip,
             GameClient::bag_slot_tooltip,
+            GameClient::paperdoll_tooltip,
             GameClient::merchant_tooltip,
             GameClient::loot_tooltip,
             GameClient::mail_attachment_tooltip,
@@ -172,6 +174,26 @@ impl GameClient {
             return None;
         }
         self.item_owned(hit, owner, OwnerSide::BagSlot, item.clone())
+    }
+
+    /// `PaperDollItemSlotButton_OnEnter` (PaperDollFrame.lua): `SetInventoryItem`, `ANCHOR_RIGHT`;
+    /// an empty slot shows its slot name. None while the cursor holds an item.
+    fn paperdoll_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, slot) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            parse_equipment_slot_action(frame.onclick.as_deref()?)
+        })?;
+        drop(ui);
+        if !self.bags.cursor.item.is_empty() {
+            return None;
+        }
+        let location = ItemLocation::Equipment(slot);
+        if let Some(item) = self.merchant.session.inventory.item_at(location) {
+            return self.item_owned(hit, owner, OwnerSide::Right, item.clone());
+        }
+        let tooltip = empty_paperdoll_slot_tooltip(paperdoll_button(slot)?.label);
+        let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
+        Some(HoveredTooltip::text(tooltip))
     }
 
     /// `MerchantItem{n}`: `SetMerchantItem` on the merchant tab, `SetBuybackItem` on buyback.

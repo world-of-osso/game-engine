@@ -615,6 +615,9 @@ pub struct WorldUnits {
     light: Option<TerrainLight>,
     /// Units whose death clip started since `take_deaths`.
     deaths: Vec<u64>,
+    /// Visual requests owned by another scene (the paperdoll model), and their arrivals.
+    detached: Vec<u64>,
+    detached_arrived: Vec<(u64, Result<VisualParts, String>)>,
 }
 
 impl WorldUnits {
@@ -630,7 +633,52 @@ impl WorldUnits {
             arrived: VecDeque::new(),
             light: None,
             deaths: Vec::new(),
+            detached: Vec::new(),
+            detached_arrived: Vec::new(),
         }
+    }
+
+    /// The appearance of the local player's newest requested visual.
+    pub fn local_player_appearance(&self) -> Option<&UnitAppearance> {
+        self.units.get(&self.local_player_id?)?.appearance.as_ref()
+    }
+
+    /// Load `appearance` for a scene outside the world; `take_detached_visual` hands it out.
+    pub fn request_detached_visual(&mut self, appearance: &UnitAppearance) -> u64 {
+        let id = self.models.request(appearance, SheathState::Unarmed);
+        self.detached.push(id);
+        id
+    }
+
+    /// Main thread: the nodes of detached request `id` once loaded. Superseded arrivals
+    /// keep their decoded textures.
+    pub fn take_detached_visual(&mut self, id: u64) -> Option<Result<Gd<Node3D>, String>> {
+        let mut taken = None;
+        for (request, loaded) in std::mem::take(&mut self.detached_arrived) {
+            match loaded {
+                Ok(parts) if request == id => {
+                    taken = Some(self.models.build_visual(parts, None));
+                }
+                Err(error) if request == id => taken = Some(Err(error)),
+                Ok(parts) => self.models.discard(parts),
+                Err(_) => {}
+            }
+        }
+        taken
+    }
+
+    /// Place a player visual's weapons for `sheath`, as the world sheath sync does.
+    pub fn place_player_weapons(
+        &mut self,
+        visual: &Gd<Node3D>,
+        appearance: &UnitAppearance,
+        sheath: SheathState,
+    ) -> Result<(), String> {
+        let UnitAppearance::Player(_, equipment) = appearance else {
+            return Ok(());
+        };
+        let placements = self.models.player_weapon_placements(equipment, sheath)?;
+        place_items(visual, &placements)
     }
 
     pub fn upsert(&mut self, parent: &mut Gd<Node3D>, snapshot: Unit) {
@@ -688,6 +736,11 @@ impl WorldUnits {
         self.arrived.extend(self.models.poll());
         let started = Instant::now();
         while let Some((request, loaded)) = self.arrived.pop_front() {
+            if let Some(index) = self.detached.iter().position(|id| *id == request) {
+                self.detached.swap_remove(index);
+                self.detached_arrived.push((request, loaded));
+                continue;
+            }
             let loading = self
                 .units
                 .iter_mut()

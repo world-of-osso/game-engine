@@ -141,6 +141,12 @@ pub fn backpack_tooltip(free_slots: usize) -> GameTooltip {
 }
 
 /// `BaseBagSlotButtonMixin:OnEnterInternal` for an empty bag slot: `EQUIP_CONTAINER`.
+/// `PaperDollItemSlotButton_OnEnter` without an item: `GameTooltip:SetText` of the slot's
+/// `<SLOT>SLOT` global ("Head"), in the default white.
+pub fn empty_paperdoll_slot_tooltip(label: &str) -> GameTooltip {
+    text_tooltip(label, TOOLTIP_WHITE, Vec::new())
+}
+
 pub fn empty_bag_slot_tooltip() -> GameTooltip {
     text_tooltip("Equip Container", TOOLTIP_WHITE, Vec::new())
 }
@@ -170,6 +176,13 @@ mod tests {
                     .map(|line| (line.left_text.as_str(), line.right_text.as_str())),
             )
             .collect()
+    }
+
+    #[test]
+    fn an_empty_paperdoll_slot_shows_only_its_white_slot_name() {
+        let head = empty_paperdoll_slot_tooltip("Head");
+        assert_eq!(rows(&head), [("Head", "")]);
+        assert_eq!(head.content.title_color, TOOLTIP_WHITE);
     }
 
     #[test]
