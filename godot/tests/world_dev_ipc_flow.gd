@@ -35,6 +35,9 @@ func run_test() -> void:
 	var expected := Vector3(-sin(CAMERA_YAW) * cos(CAMERA_PITCH), sin(CAMERA_PITCH), -cos(CAMERA_YAW) * cos(CAMERA_PITCH))
 	if not await observe(client, "camera direction", func(): return camera_forward().dot(expected) > 0.999):
 		return
+	# The camera eases into place; the parent's next request reads where it settles.
+	if not await camera_settled():
+		return
 	print("FIXTURE DEV_IPC_CAMERA forward=%s" % camera_forward())
 	if not await check_export(client):
 		return
@@ -69,6 +72,20 @@ func tooltip_title(client: Node) -> String:
 	var tooltip: Dictionary = client.tooltip_state()
 	return tooltip.title if tooltip.visible else ""
 
+func camera_settled() -> bool:
+	var still := 0
+	var last := Transform3D()
+	var deadline := Time.get_ticks_msec() + OBSERVE_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var current := root.get_viewport().get_camera_3d().global_transform
+		still = still + 1 if current.is_equal_approx(last) else 0
+		last = current
+		if still >= 30:
+			return true
+	fail("Camera did not settle after camera set")
+	return false
+
 func camera_forward() -> Vector3:
 	var camera := root.get_viewport().get_camera_3d()
 	return -camera.global_basis.z if camera != null else Vector3.ZERO
@@ -100,6 +117,8 @@ func check_export(client: Node) -> bool:
 			"Camera":
 				var camera := root.get_viewport().get_camera_3d()
 				checked = absf(child.props.Camera.fov - camera.fov) < 0.001 and matches(child, camera.global_transform)
+				if not checked:
+					print("live camera fov=%.3f %s" % [camera.fov, camera.global_transform])
 			"EnvironmentSun":
 				var sun := client.find_child("Sun", true, false) as DirectionalLight3D
 				checked = sun != null and child.props.Light.kind == "DirectionalLight3D" and absf(child.props.Light.intensity - sun.light_energy) < 0.0001 and matches(child, sun.global_transform)
