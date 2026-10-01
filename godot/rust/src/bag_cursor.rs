@@ -23,6 +23,7 @@ use ui_toolkit::widget_def::Element;
 use crate::GameClient;
 use crate::frame_error::FrameError;
 use crate::ui::RegistryUi;
+use crate::window_stack::UiHit;
 
 const CURSOR_UI: &str = "CursorItemUI";
 /// The original cursor icon is above every frame and ignores pointer input.
@@ -118,7 +119,7 @@ impl GameClient {
             self.merchant_cursor_click(action, click)?;
         } else if self.character_frame_input_owner(owner) {
             self.character_frame_click(action, click)?;
-        } else {
+        } else if !self.bank_cursor_press(owner, action, click)? {
             self.dispatch_bag_action(action, click)?;
         }
         if was_empty && !self.bags.cursor.item.is_empty() {
@@ -142,6 +143,14 @@ impl GameClient {
         }
         // The drop target is the topmost frame of any canvas, not the pickup's own.
         let hit = self.ui_hit_at(physical_at)?;
+        if let Some(UiHit {
+            owner,
+            action: Some(action),
+        }) = &hit
+            && self.bank_cursor_drop(*owner, action)?
+        {
+            return Ok(());
+        }
         let Some(target) = bag_release_target(hit.map(|hit| hit.action))? else {
             return Ok(());
         };

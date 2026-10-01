@@ -10,6 +10,7 @@ use godot::prelude::*;
 use crate::GameClient;
 use crate::bag_cursor::BagInput;
 use crate::frame_error::FrameError;
+use crate::tooltips::HoveredFrame;
 use crate::ui::RegistryUi;
 use crate::ui::input_queue::in_arrival_order;
 
@@ -71,13 +72,30 @@ impl GameClient {
 
     /// Topmost native UI frame under a physical viewport point; `None` is the world.
     pub(super) fn ui_hit_at(&mut self, at: Vector2) -> Result<Option<UiHit>, String> {
-        let canvases = self.registry_uis()?.into_iter().map(|ui| {
-            let hit = ui.bind().pointer_action_at(at).map(|action| UiHit {
-                owner: ui.instance_id().to_i64(),
-                action,
+        Ok(self.ui_frame_at(at, &[])?.map(|hit| UiHit {
+            owner: hit.ui.instance_id().to_i64(),
+            action: hit.ui.bind().frame_click_action(hit.frame),
+        }))
+    }
+
+    /// [`Self::ui_hit_at`]'s frame over every canvas but `skip`.
+    pub(super) fn ui_frame_at(
+        &mut self,
+        at: Vector2,
+        skip: &[Option<Gd<RegistryUi>>],
+    ) -> Result<Option<HoveredFrame>, String> {
+        let canvases = self
+            .registry_uis()?
+            .into_iter()
+            .filter(|ui| !skip.iter().flatten().any(|other| other == ui))
+            .map(|ui| {
+                let frame = ui.bind().pointer_frame_at(at);
+                let hit = frame.map(|frame| HoveredFrame {
+                    ui: ui.clone(),
+                    frame,
+                });
+                (stack_key(&ui), hit)
             });
-            (stack_key(&ui), hit)
-        });
         Ok(topmost_hit(canvases.collect::<Vec<_>>()))
     }
 
@@ -128,6 +146,8 @@ impl GameClient {
         closed |= self.close_auction_window()?;
         closed |= self.close_merchant_window()?;
         closed |= self.close_character_window();
+        closed |= self.close_bank_window()?;
+        closed |= self.close_guild_bank_window()?;
         Ok(closed)
     }
 

@@ -1,5 +1,6 @@
 //! Native ADT geometry and streamed texture resources. World lighting/readiness are separate.
 mod assets;
+pub(crate) mod doodad_collision;
 pub(crate) mod material;
 pub(crate) mod objects;
 mod probe;

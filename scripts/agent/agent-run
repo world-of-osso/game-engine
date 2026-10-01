@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Run a command inside the capped agents.slice, grouped per agent, so that
+#   systemctl --user stop agents-<name>.slice   stops everything one agent started
+#   systemctl --user stop agents.slice          stops everything every agent started
+# and the whole group never takes more than the slice's CPU/memory cap
+# (~/.config/systemd/user/agents.slice).
+#
+# Usage: scripts/agent/agent-run <agent-name> <command> [args...]
+# The command runs in the foreground in the current directory with the current
+# environment; its output and exit code are passed through.
+set -euo pipefail
+if [ $# -lt 2 ]; then
+    echo "usage: $0 <agent-name> <command> [args...]" >&2
+    exit 2
+fi
+name=$(printf '%s' "$1" | tr -c 'a-zA-Z0-9_\n' '_')
+shift
+exec systemd-run --user --scope --quiet --collect \
+    --slice="agents-${name}.slice" \
+    --unit="agent-${name}-$$-${RANDOM}" \
+    --nice=10 \
+    -- ionice -c 3 "$@"

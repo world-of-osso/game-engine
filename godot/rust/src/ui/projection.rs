@@ -102,12 +102,12 @@ impl UiProjection {
         self.nodes.get(&id).cloned()
     }
 
-    /// None means world; Some(None) means a blocking frame without a click action.
-    pub fn pointer_action_at(
+    /// The topmost visible mouse-enabled frame containing the physical point.
+    pub fn pointer_frame_at<'a>(
         &self,
-        registry: &FrameRegistry,
+        registry: &'a FrameRegistry,
         at: Vector2,
-    ) -> Option<Option<String>> {
+    ) -> Option<&'a Frame> {
         let mut candidates: Vec<_> = registry
             .frames_iter()
             .filter(|frame| frame.visible && frame.mouse_enabled)
@@ -118,10 +118,9 @@ impl UiProjection {
                 .then(b.frame_level.cmp(&a.frame_level))
                 .then(b.raise_order.cmp(&a.raise_order))
         });
-        let frame = candidates
+        candidates
             .into_iter()
-            .find(|frame| self.frame_contains_pointer(frame, registry.ui_scale, at))?;
-        Some(frame_click_action(registry, frame.id))
+            .find(|frame| self.frame_contains_pointer(frame, registry.ui_scale, at))
     }
 
     fn frame_contains_pointer(&self, frame: &Frame, scale: f32, at: Vector2) -> bool {
@@ -768,7 +767,7 @@ fn left_pointer_release(event: &Gd<InputEvent>) -> Option<Gd<InputEventMouseButt
 }
 
 /// Original cursor hit policy walks from the mouse-enabled frame to its action.
-fn frame_click_action(registry: &FrameRegistry, mut id: u64) -> Option<String> {
+pub(crate) fn frame_click_action(registry: &FrameRegistry, mut id: u64) -> Option<String> {
     loop {
         let frame = registry.get(id)?;
         if let Some(action) = frame.onclick.as_ref() {
