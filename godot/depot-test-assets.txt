@@ -160,6 +160,17 @@ models/2904370.m2
 db2/12.1.0.69933/Item.csv
 db2/12.1.0.69933/ItemSparse.csv
 db2/12.1.0.69933/ItemSubClass.csv
+# game-engine-ui-model item_stats / game_tooltip: armor, damage, stat and faction tables
+db2/12.1.0.69933/ItemArmorQuality.csv
+db2/12.1.0.69933/ItemArmorTotal.csv
+db2/12.1.0.69933/ArmorLocation.csv
+db2/12.1.0.69933/ItemArmorShield.csv
+db2/12.1.0.69933/ItemDamageOneHand.csv
+db2/12.1.0.69933/ItemDamageOneHandCaster.csv
+db2/12.1.0.69933/ItemDamageTwoHand.csv
+db2/12.1.0.69933/ItemDamageTwoHandCaster.csv
+db2/12.1.0.69933/RandPropPoints.csv
+db2/12.1.0.69933/Faction.csv
 db2/12.1.0.69933/JournalInstanceEntrance.csv
 db2/12.1.0.69933/JournalInstance.csv
 db2/12.1.0.69933/Map.csv

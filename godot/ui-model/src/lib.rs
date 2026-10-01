@@ -207,8 +207,12 @@ pub(crate) mod csv_records;
 pub mod item_catalog;
 #[path = "../../../src/game/item_icons.rs"]
 pub mod item_icons;
+#[path = "../../../src/game/item_stats.rs"]
+pub mod item_stats;
 #[path = "../../../src/game/item_tooltip.rs"]
 pub mod item_tooltip;
+// Native GameTooltip content and placement (docs/specs/unit-tooltip.md).
+pub mod game_tooltip;
 pub mod merchant;
 #[path = "../../../src/game/merchant_data.rs"]
 pub mod merchant_data;
