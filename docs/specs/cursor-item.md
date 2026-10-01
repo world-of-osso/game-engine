@@ -33,6 +33,14 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [ ] Item stats, armor and weapon damage/speed lines: the client has no item-level budget tables (the server computes them in `item_stats.rs`).
 - [ ] Deferred (user): alternate currencies, guild-bank repair, per-item repair cursor, action-bar item drag.
 
+## Native Godot coverage
+
+The `[x]` requirements above preserve legacy implementation status; they are not native parity acceptance. Native coverage remains partial; [conversion evidence](../wiki/systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending) owns exact saved proof and limitations.
+
+- Actual authenticated/readied slot0 click in `/tmp/claude/native-bags-cursor-first-red.log` fails unconverted `bag_slot:0:0`, parent exit101; intentional child SIGKILL is not normal shutdown.
+- `9e301fb5` shares original `CursorItem` policy and portable icon; `2b3fa596` implements native bag pickup/source-return, Escape, stale clearing, swap and split consumer. Build/runtime/independent verification pending; existing ten bag-window/bar tests do not cover these changes.
+- Right-gear equip, world DestroyItem, drag release, item tooltips, NPC cursor/visibility and global window ownership remain missing or unproved. No full cursor/native parity claim.
+
 ## Tests asserting this spec
 
 - `src/game/cursor_item_tests.rs`: pick up and swap, put back, equip and unequip, split drop / sell / destroy counts, sell only with a vendor open, destroy confirm (poor, rare, heirloom), vendor item bought into the dropped slot, buyback cells not picked up, stale cursor clears.
