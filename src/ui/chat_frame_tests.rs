@@ -183,6 +183,7 @@ fn event(kind: CombatLogKind, spell_id: Option<u32>) -> CombatLogEvent {
         resisted: 0,
         blocked: 0,
         crit: false,
+        glancing: false,
         periodic: false,
         kind,
     }

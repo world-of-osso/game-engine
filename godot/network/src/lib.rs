@@ -40,6 +40,17 @@ use shared::protocol::{
 /// Trait bound for decoding messages carried by this transport boundary.
 pub use lightyear::prelude::Message as WireMessage;
 
+/// Seconds without a packet from the server before Netcode drops the link, in both
+/// directions: the server reads this timeout from the client's connect token. The
+/// vendored Netcode server issues its own tokens with 10 s (`CLIENT_TIMEOUT_SECS`,
+/// vendor/lightyear_netcode/src/server.rs:34).
+const CLIENT_TIMEOUT_SECS: i32 = 10;
+/// How long the Netcode handshake (connection request and challenge) may take before the
+/// client gives up. A live local or remote server answers within a round trip.
+pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+/// The `Disconnected` reason of a handshake that ran out of `HANDSHAKE_TIMEOUT`.
+pub const HANDSHAKE_TIMEOUT_REASON: &str =
+    "Failed to connect: the server did not answer within 5 seconds.";
 const NETWORK_HZ: u128 = 60;
 const NANOS_PER_SECOND: u128 = 1_000_000_000;
 const SIMULATION_INTERVAL: Duration = Duration::from_millis(50);
@@ -369,7 +380,7 @@ fn connect_transport(
     let netcode = client_network::NetcodeClient::new(
         auth,
         client_network::NetcodeConfig {
-            client_timeout_secs: 60,
+            client_timeout_secs: CLIENT_TIMEOUT_SECS,
             ..default()
         },
     )
@@ -382,17 +393,49 @@ fn connect_transport(
             netcode,
         ))
         .id();
+    let started = world.resource::<Time<Real>>().elapsed();
+    world
+        .entity_mut(entity)
+        .insert(HandshakeDeadline(started + HANDSHAKE_TIMEOUT));
     world.trigger(client_network::Connect { entity });
     Ok(())
 }
 
+/// `Time<Real>` elapsed by which the Netcode handshake must have connected.
+#[derive(Component)]
+struct HandshakeDeadline(Duration);
+
+/// The handshake ran out of time; the link was dropped for it.
+#[derive(Component)]
+struct HandshakeTimedOut;
+
+/// Drop a link whose Netcode handshake has not connected by its deadline.
+fn expire_handshake(
+    pending: Query<(Entity, &HandshakeDeadline, Has<client_network::Connected>)>,
+    time: Res<Time<Real>>,
+    mut commands: Commands,
+) {
+    for (entity, deadline, connected) in &pending {
+        if connected {
+            commands.entity(entity).remove::<HandshakeDeadline>();
+        } else if time.elapsed() >= deadline.0 {
+            commands
+                .entity(entity)
+                .remove::<HandshakeDeadline>()
+                .insert(HandshakeTimedOut);
+            commands.trigger(client_network::Disconnect { entity });
+        }
+    }
+}
+
 fn install_lifecycle(app: &mut App, events: Sender<Event>) {
+    app.add_systems(PreUpdate, expire_handshake);
     app.add_systems(
         PostUpdate,
         move |verified: Query<(), Added<protocol::ProtocolVerified>>,
               rejected: Query<&protocol::ProtocolRejected, Added<protocol::ProtocolRejected>>,
               disconnected: Query<
-            &client_network::Disconnected,
+            (&client_network::Disconnected, Has<HandshakeTimedOut>),
             Added<client_network::Disconnected>,
         >| {
             for () in &verified {
@@ -405,9 +448,14 @@ fn install_lifecycle(app: &mut App, events: Sender<Event>) {
                     .send(Event::ProtocolRejected(reason.clone()))
                     .expect("host event receiver closed");
             }
-            for state in &disconnected {
+            for (state, timed_out) in &disconnected {
+                let reason = if timed_out {
+                    Some(HANDSHAKE_TIMEOUT_REASON.to_owned())
+                } else {
+                    state.reason.clone()
+                };
                 events
-                    .send(Event::Disconnected(state.reason.clone()))
+                    .send(Event::Disconnected(reason))
                     .expect("host event receiver closed");
             }
         },
