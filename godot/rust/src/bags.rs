@@ -161,7 +161,7 @@ impl GameClient {
             let registry = host.registry().ok_or("Bags registry missing")?;
             [registry.screen_width, registry.screen_height]
         };
-        let bags: Vec<_> = self
+        let mut bags: Vec<_> = self
             .merchant
             .session
             .inventory
@@ -173,6 +173,7 @@ impl GameClient {
                 (bag.index, [w, h])
             })
             .collect();
+        bags.sort_by_key(|(index, _)| *index);
         for (index, position) in container_positions(&bags, screen) {
             ui.bind_mut()
                 .set_window_position(&format!("ContainerFrame{index}"), position)?;
