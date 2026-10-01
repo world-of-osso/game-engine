@@ -190,3 +190,31 @@ fn bars_of_units_without_plates_are_dropped() {
     casts.advance(0.05, |unit| unit != UNIT);
     assert!(casts.get(UNIT).is_none());
 }
+
+#[test]
+fn a_failure_before_the_replicated_removal_keeps_the_bar_interrupted() {
+    let mut casts = PlateCasts::default();
+    casts.observe(UNIT, Some(&bolt(1.0, true)));
+    casts.spell_failure(UNIT, BOLT, CastFailReason::Interrupted, None);
+    // The same cast is still replicated for a frame or two.
+    casts.observe(UNIT, Some(&bolt(1.0, true)));
+    run(&mut casts, 0.1);
+    casts.observe(UNIT, Some(&bolt(1.0, true)));
+    assert_eq!(casts.get(UNIT).unwrap().bar_type, BarType::Interrupted);
+    casts.observe(UNIT, None);
+    assert_eq!(casts.get(UNIT).unwrap().bar_type, BarType::Interrupted);
+    // After the gap the same spell is a new cast.
+    casts.observe(UNIT, Some(&bolt(1.0, true)));
+    assert_eq!(casts.get(UNIT).unwrap().bar_type, BarType::Standard);
+}
+
+#[test]
+fn a_finished_cast_still_replicated_does_not_restart() {
+    let mut casts = PlateCasts::default();
+    casts.observe(UNIT, Some(&bolt(1.9, true)));
+    run(&mut casts, 0.2);
+    assert!(casts.get(UNIT).unwrap().full);
+    casts.observe(UNIT, Some(&bolt(1.9, true)));
+    let bar = casts.get(UNIT).unwrap();
+    assert!(!bar.casting && bar.full);
+}
