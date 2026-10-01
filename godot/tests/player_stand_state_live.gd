@@ -9,6 +9,11 @@ extends SceneTree
 ## - STAND_ROLE=observer: enters the world, turns to face STAND_OTHER and records its
 ##   model's animation ID per announced phase. It passes when the other player sat down
 ##   (96 → 97), stood up (98 → 0) and knelt (115).
+## - STAND_FOOD=1 (sitter): instead of the X//kneel phases it announces "need_damage" and
+##   waits for its health to drop (the operator damages it), right-clicks the Tough Hunk of
+##   Bread in backpack slot 0 (the food sits it down: 96 → 97) and requires its health to
+##   rise while seated, then announces "eating" and waits, seated, for a hit (the operator
+##   moves it next to a hostile creature) to stand it up: health drops and the pose ends.
 ## Environment: GODOT_TEST_SERVER (127.0.0.1:<port>, never :5000), STAND_ACCOUNT (password
 ## fbtest), STAND_CHARACTER (card 0), GODOT_TEST_CAPTURE_DIR; for two clients also
 ## STAND_SYNC (a directory both share) and, for the observer, STAND_OTHER (the sitter's
@@ -60,7 +65,9 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	if role == "sitter":
+	if role == "sitter" and OS.get_environment("STAND_FOOD") == "1":
+		await eat()
+	elif role == "sitter":
 		await sit()
 	elif role == "observer":
 		await observe()
@@ -113,6 +120,68 @@ func sit() -> void:
 	await wait_ms(2000)
 	print("FIXTURE STAND_STATE_DONE")
 	quit(0)
+
+# --- Food ----------------------------------------------------------------------------
+
+func eat() -> void:
+	var animation := local_animation()
+	var full: float = client.account_state().local_player_health
+	announce("need_damage")
+	if not await wait_until(func(state): return state.local_player_health < full, 120000, "damage"):
+		return
+	await wait_ms(1500)
+	var hurt: float = client.account_state().local_player_health
+	print("FIXTURE HURT %s of %s" % [hurt, full])
+	var backpack := client.find_child("MainMenuBarBackpackButton", true, false) as Control
+	if backpack == null or not backpack.is_visible_in_tree():
+		fail("No visible backpack button")
+		return
+	await pointer_click(backpack.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+	await wait_ms(1000)
+	var bread := client.find_child("ContainerFrame0Slot0", true, false) as Control
+	if bread == null or not bread.is_visible_in_tree():
+		fail("Backpack slot 0 not shown")
+		return
+	await pointer_click(bread.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
+	if not await expect_clips(animation, [SIT_DOWN, SIT], "Bread sits down"):
+		return
+	await pointer_click(backpack.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+	var samples: Array = []
+	for _second in 6:
+		await wait_ms(1000)
+		samples.append(client.account_state().local_player_health)
+	print("FIXTURE EATING_HEALTH ", samples)
+	if samples[-1] <= hurt or animation.current_animation_id() != SIT:
+		fail("Eating seated did not heal: %s from %s, clip %d" % [samples, hurt, animation.current_animation_id()])
+		return
+	await capture("food-eating.png")
+	var fed: float = client.account_state().local_player_health
+	announce("eating")
+	var hit := func(state): return state.local_player_health < fed and animation.current_animation_id() != SIT
+	if not await wait_until(hit, 120000, "a hit to stand the eater up"):
+		return
+	print("FIXTURE HIT health %s clip %d" % [client.account_state().local_player_health, animation.current_animation_id()])
+	await wait_ms(300)
+	await capture("food-hit.png")
+	announce("done")
+	print("FIXTURE FOOD_DONE")
+	quit(0)
+
+func pointer_click(point: Vector2, button: int) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	root.push_input(motion, true)
+	await process_frame
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.position = point
+		event.global_position = point
+		event.button_index = button
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+	await process_frame
 
 func local_animation() -> WowAnimationPlayer:
 	var model := client.find_child("PlayerModel", true, false)
