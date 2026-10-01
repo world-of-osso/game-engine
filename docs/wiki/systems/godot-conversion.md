@@ -9,12 +9,14 @@ Authoritative startup `EquipmentSnapshot` inventory, separate from replicated `E
 | Capability | Evidence / boundary |
 | --- | --- |
 | Fixture / historical RED | Test `57b30f57`: `godot/network/examples/native_input_fixture/bags_actions.rs` and `godot/tests/world_bags_actions_flow.gd`. Historical first-red log exit101 observed empty equipment before Equip input after authenticated READY/exact bags. |
-| Fresh build | Depot `04kwqv77h7`, `/tmp/claude/native-equipment-startup-first-green-build.log` exit0; existing WMO build warning only. |
+| Historical GREEN build | Depot `04kwqv77h7`, `/tmp/claude/native-equipment-startup-first-green-build.log` exit0; existing WMO build warning only. |
 | Before Equip input | Actual `/tmp/claude/native-equipment-startup-first-green.log` exit0 reaches authenticated READY/equips0/destroys0. Actual read-only inventory oracle observes exactly MainHand item25/count1/GUID9170105 before EquipARM, distinct from bag sword9170005; exact bags unchanged, no carried icon/popup/split. |
 | Later authority/actions | GDScript oracle proves authoritative MainHand replacement GUID9170005 after exactly one EquipItem bag0/slot5; exactly two DestroyItem bag0/slots2 and3 count0. Full original PoorNo/Rare wrong-Unicode/inert/DELETE typing and acceptance flow retained. |
-| Lifecycle / independent gate | Owned child3934038 intentionally SIGKILLed/reaped, reader_errors0; NOT normal shutdown. Independent1421 active/report pending, not accepted until MAIN confirms. |
+| Lifecycle / independent gate | Owned child3934038 intentionally SIGKILLed/reaped, reader_errors0; NOT normal shutdown. Gate1421 found new direct cyclomatic complexity 20→21 in `receive_npc_message` from the Equipment arm; not zero own readability. Followup1423 active; acceptance pending MAIN's actual proof/report. |
 
-**MAIN observed GREEN** for this single startup MainHand inventory case only. No occupied mesh/paperdoll, multislot, reset/race/all-timing, new server semantics or full-conversion acceptance. [Tooltip1415 acceptance](#standalone-bag-item-tooltip--red-integration-proof-pending)/docs `2142e85f` retained. Full conversion remains open.
+`5a3ebf7b` changes only four added lines in [merchant.rs](../../../godot/rust/src/merchant.rs): existing lifecycle prelude remains in `receive_npc_message`, then private `apply_npc_message` runs the original match. Mail/Auction prelude, match contents and ordering are unchanged. MAIN's literal metric check falsified vendor-lookup extraction as a fix; no such change was made. Fresh native build and updated actions/merchant-click followup remain pending. No post-split metric clearance or gate acceptance is claimed; inherited decoder length/cyclomatic 23→25 and twelve foreign readability findings remain uncleared.
+
+**Historical MAIN observed GREEN** for this single startup MainHand inventory case at `ee2d3e47` + `2d1829fc` only. Saved first-GREEN build/runtime exit0 remains functional history; `5a3ebf7b` invalidates current integration proof, not those historical results. No occupied mesh/paperdoll, multislot, reset/race/all-timing, new server semantics or full-conversion acceptance. [Tooltip1415 acceptance](#standalone-bag-item-tooltip--red-integration-proof-pending)/docs `2142e85f` retained. Full conversion remains open.
 
 ## Native standalone bags — bounded window and cursor PASS
 

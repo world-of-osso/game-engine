@@ -18,7 +18,7 @@ Standalone bag tooltip native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + 
 
 ### Occupied startup equipment inventory
 
-- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand case: MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
+- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand case: Historical MAIN-observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. After lifecycle/application split `5a3ebf7b`, fresh integration proof and independent1423 acceptance remain pending; gate1421 found new own readability, not a clean gate. Tooltip1415/docs `2142e85f` acceptance retained. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 ### Graphics bloom (bounded native proof)
 
