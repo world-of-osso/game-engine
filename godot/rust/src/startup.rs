@@ -109,6 +109,7 @@ impl GameClient {
                 self.open_game_menu()
             }
             ScreenArg::ParticleDebug => self.open_particle_debug(),
+            ScreenArg::M2Debug => self.open_m2_debug(),
             _ => Err(format!(
                 "--screen {} is not yet implemented in Godot",
                 screen.as_cli_str()

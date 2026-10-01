@@ -39,6 +39,7 @@ mod lighting;
 mod loading;
 mod logout;
 mod loot;
+mod m2_debug;
 mod mail;
 mod merchant;
 mod minimap;

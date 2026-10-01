@@ -112,10 +112,12 @@ func check_cli() -> bool:
 	model.visible = true
 	var shown := await capture()
 	save(hidden, "model-hidden.png")
-	var cli_pixels := changed_pixels(shot, hidden)
+	# Lossy WebP noise alone also differs from the hidden frame; count only pixels the
+	# live frame shows the wolf at too.
 	var live_pixels := changed_pixels(shown, hidden)
+	var cli_pixels := shared_changed_pixels(shot, shown, hidden)
 	print("FIXTURE M2DEBUG_MODEL_PIXELS cli=%d live=%d" % [cli_pixels, live_pixels])
-	if cli_pixels < MIN_MODEL_PIXELS:
-		fail("CLI screenshot shows only %d model pixels" % cli_pixels)
+	if live_pixels < MIN_MODEL_PIXELS or cli_pixels < live_pixels * 0.8:
+		fail("CLI screenshot shows %d of the live frame's %d model pixels" % [cli_pixels, live_pixels])
 		return false
 	return true

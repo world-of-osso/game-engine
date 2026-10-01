@@ -124,6 +124,18 @@ func wait_node(name: String) -> Node:
 	fail("Startup did not mount " + name)
 	return null
 
+# Pixels where both `a` and `b` differ from `base`: what both show over it.
+func shared_changed_pixels(a: Image, b: Image, base: Image) -> int:
+	var count := 0
+	for y in range(0, base.get_height(), 2):
+		for x in range(0, base.get_width(), 2):
+			if differs(a.get_pixel(x, y), base.get_pixel(x, y)) and differs(b.get_pixel(x, y), base.get_pixel(x, y)):
+				count += 1
+	return count
+
+func differs(p: Color, q: Color) -> bool:
+	return maxf(absf(p.r - q.r), maxf(absf(p.g - q.g), absf(p.b - q.b))) > PIXEL_DELTA
+
 func settle(ms: int) -> void:
 	var until := Time.get_ticks_msec() + ms
 	while Time.get_ticks_msec() < until:
