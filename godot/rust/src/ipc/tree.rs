@@ -7,10 +7,10 @@ use godot::{
 };
 
 pub(super) fn scene_root(client: &Gd<Node>) -> Result<Gd<Node>, String> {
-    let tree = client
-        .get_tree()
-        .ok_or("native IPC: client is outside the scene tree")?;
-    Ok(tree.get_root().upcast())
+    if !client.is_inside_tree() {
+        return Err("native IPC: client is outside the scene tree".into());
+    }
+    Ok(client.get_tree().get_root().upcast())
 }
 
 pub(super) fn dump_tree(client: &Gd<Node>, filter: Option<&str>) -> Response {
