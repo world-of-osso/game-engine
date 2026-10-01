@@ -534,13 +534,12 @@ fn reward_panel(title: &str, text: &str, rewards: &RewardView) -> Element {
         &mut y,
     ));
     elements.extend(rewards_section(rewards, true, CONTENT, &mut y));
-    // QuestFrameRewardPanel_OnShow: a choice is required before completing.
-    let ready = rewards.choices.is_empty() || rewards.selected_choice.is_some();
+    // Always enabled; QuestRewardCompleteButton_OnClick reports a missing choice.
     elements.extend(left_button(
         "QuestFrameCompleteQuestButton",
         "Complete Quest",
         COMPLETE_ACTION,
-        ready,
+        true,
         120.0,
     ));
     elements

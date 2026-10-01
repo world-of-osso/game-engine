@@ -317,6 +317,7 @@ impl GameClient {
                     self.quests.pending_abandon = Some(quest_id);
                     self.group_frames.popups.push(popup);
                 }
+                QuestUiEffect::Error(text) => self.add_world_error(text)?,
             }
         }
         Ok(())

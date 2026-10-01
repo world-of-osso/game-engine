@@ -272,15 +272,15 @@ fn turn_in_needs_a_reward_choice_and_then_sends_the_chosen_index() {
         },
     );
     let reward = render_frame(&runtime);
-    assert!(
+    assert_eq!(
         click(
             &reward,
             "QuestFrameCompleteQuestButton",
             &mut runtime,
             &mut ui
-        )
-        .is_empty(),
-        "Complete Quest sends nothing before a choice"
+        ),
+        [QuestUiEffect::Error("You must choose a reward.")],
+        "Complete Quest only shows the error before a choice"
     );
     assert!(
         click(
@@ -479,5 +479,43 @@ fn watched_unfinished_objectives_are_the_outlined_areas() {
     assert!(
         runtime.watched_objective_areas().is_empty(),
         "a finished quest shows its turn-in pin, not its areas"
+    );
+}
+
+#[test]
+fn complete_quest_takes_a_lone_reward_choice_without_a_click() {
+    let mut runtime = QuestRuntime::default();
+    let mut ui = QuestUiState::default();
+    runtime.show_reward(
+        "Marshal McBride".into(),
+        QuestGiverOfferReward {
+            npc: MCBRIDE,
+            quest_id: BEATING_THEM_BACK,
+            title: "Beating Them Back!".into(),
+            reward_text: "Well done, $N.".into(),
+            rewards: QuestRewards {
+                money: 0,
+                items: Vec::new(),
+                choice_items: vec![QuestRewardItem {
+                    item_id: 2249,
+                    name: "Militia Buckler".into(),
+                    count: 1,
+                }],
+            },
+        },
+    );
+    let reward = render_frame(&runtime);
+    assert_eq!(
+        sent(click(
+            &reward,
+            "QuestFrameCompleteQuestButton",
+            &mut runtime,
+            &mut ui
+        )),
+        [R::ChooseReward {
+            npc: MCBRIDE,
+            quest_id: BEATING_THEM_BACK,
+            choice: Some(0)
+        }]
     );
 }
