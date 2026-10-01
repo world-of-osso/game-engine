@@ -1,5 +1,5 @@
 //! Unchanged debug/login.js through root startup, authored Login and real loopback auth.
-//! Optional modes: timeout-continuation or offline-actions (real input/dumps, no auth).
+//! Optional modes: timeout-continuation, offline-actions, noneditable-type (no auth).
 //! MAIN builds/runs this fixture; requires an existing root launcher and GODOT_BIN.
 //! No external server. Passwords are masked before writing persistent diagnostics.
 
@@ -37,6 +37,13 @@ const OFFLINE_SCRIPT: &str = concat!(
     "ui.waitForState(\"Connecting\", 0.05);\n",
     "ui.dumpUiTree();\n",
 );
+const NONEDITABLE_TYPE_SCRIPT: &str = concat!(
+    "ui.waitForFrame(\"ConnectButton\", 5.0);\n",
+    "ui.click(\"BlizzardThanks\");\n",
+    "ui.type(\"x\");\n",
+    "ui.dumpUiTree();\n",
+);
+const NO_FOCUSED_EDITOR: &str = "native JS automation: ui.type requires a focused native editor";
 const STATE_TIMEOUT: &str =
     "native JS automation: timed out waiting for state Connecting after 0.05s";
 const FRAME_TIMEOUT: &str =
@@ -47,6 +54,7 @@ enum Mode {
     Login,
     TimeoutContinuation,
     OfflineActions,
+    NoneditableType,
 }
 
 impl Mode {
@@ -56,8 +64,9 @@ impl Mode {
             [] => Ok(Self::Login),
             [mode] if mode == "timeout-continuation" => Ok(Self::TimeoutContinuation),
             [mode] if mode == "offline-actions" => Ok(Self::OfflineActions),
+            [mode] if mode == "noneditable-type" => Ok(Self::NoneditableType),
             _ => Err(
-                "SETUP: usage: native_js_automation_fixture [timeout-continuation|offline-actions]"
+                "SETUP: usage: native_js_automation_fixture [timeout-continuation|offline-actions|noneditable-type]"
                     .into(),
             ),
         }
@@ -68,6 +77,7 @@ impl Mode {
             Self::Login => "login",
             Self::TimeoutContinuation => "timeout-continuation",
             Self::OfflineActions => "offline-actions",
+            Self::NoneditableType => "noneditable-type",
         }
     }
 }
@@ -238,6 +248,12 @@ fn launch(
             let path = artifacts.join("offline-actions.js");
             fs::write(&path, OFFLINE_SCRIPT)
                 .map_err(|error| format!("SETUP: write offline-actions script: {error}"))?;
+            path
+        }
+        Mode::NoneditableType => {
+            let path = artifacts.join("noneditable-type.js");
+            fs::write(&path, NONEDITABLE_TYPE_SCRIPT)
+                .map_err(|error| format!("SETUP: write noneditable-type script: {error}"))?;
             path
         }
     };
@@ -463,6 +479,40 @@ fn assert_offline_actions(
     Ok(())
 }
 
+fn is_ui_dump_record(output: &Output) -> bool {
+    output.stdout && output.line.contains(" [") && output.line.contains(" alpha=")
+}
+
+fn assert_noneditable_type(
+    lines: &[Output],
+    artifacts: &Path,
+    auth_count: usize,
+) -> Result<(), String> {
+    for marker in ["login-ready", "observed-noneditable-type"] {
+        if !artifacts.join(marker).is_file() {
+            return Err(format!(
+                "SETUP/UNCLASSIFIED: noneditable-type missing observation {marker}; not action RED"
+            ));
+        }
+    }
+    if auth_count != 0 {
+        return Err("FEATURE: noneditable-type requires zero decoded auth".into());
+    }
+    let rejected_type = lines.iter().any(|output| {
+        !output.stdout && output.line.trim().strip_prefix("ERROR: ") == Some(NO_FOCUSED_EDITOR)
+    });
+    if !rejected_type {
+        return Err("SETUP/UNCLASSIFIED: exact production no-focused-editor diagnostic absent; not queue-stop RED".into());
+    }
+    if lines.iter().any(is_ui_dump_record) {
+        return Err("FEATURE RED: rejected ui.type still ran successor stdout UI dump".into());
+    }
+    println!(
+        "PASS: noneditable-type exact no-focused-editor rejection, no successor live UI dump, unchanged editors and absent focus with mounted Login stable900ms, zero decoded auth and observer-owned normal exit0; bounded feature only"
+    );
+    Ok(())
+}
+
 fn create_artifacts(root: &Path) -> Result<PathBuf, String> {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -593,6 +643,7 @@ fn run_fixture() -> Result<(), String> {
         Mode::Login => assert_login_result(&lines, &artifacts, auth_count),
         Mode::TimeoutContinuation => assert_timeout_continuation(&lines, &artifacts, auth_count),
         Mode::OfflineActions => assert_offline_actions(&lines, &artifacts, auth_count),
+        Mode::NoneditableType => assert_noneditable_type(&lines, &artifacts, auth_count),
     }
 }
 
