@@ -35,6 +35,8 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ## Native Godot coverage
 
+Prepared independent native merchant-cursor test `d825108c`/`2c00a751`, registered by MAIN `3cb53ab4`, is **test-only, not production implementation or actual RED proof**. First Native Depot/authenticated RED remains pending. [Fixture oracle and exclusions](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--test-only-preparation-red-pending) owns pickup → exact embedded bag destination, withheld authoritative updates and deliberate cleanup; [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing requirements and accepted startup1429/tooltip1415 proofs are unchanged.
+
 - [ ] Preserve authoritative startup equipment across required coverage. Single MainHand startup native `5a3ebf7b` and original15-second merchant regression have MAIN-accepted independent1429 bounded PASS. Historical failures, inherited readability debt and unchanged startup/tooltip/pure proofs retained; no auth fix, general reliability or clean-resource/general-shutdown acceptance. Main goal/full conversion remain OPEN. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 The `[x]` requirements above preserve legacy implementation status; they are not native parity acceptance. Native coverage remains partial; [conversion evidence](../wiki/systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) owns exact saved proof and limitations.
