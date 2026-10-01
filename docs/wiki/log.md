@@ -1,3 +1,7 @@
+## 2026-10-01 — Godot M2 batch materials on WebWowViewer retail rules
+
+[[m2-format#batch-shaders]] now records retail pixel/vertex shader resolution, render flags 0x2/0x8/0x10, texture weights, float-quaternion texture transforms and wrap flags; [[rendering-pipeline#godot-m2-batch-materials]] records the Godot binder/shader and its real-model oracle proof (16 named batches, baseline 14/16 RED). Parity row added (Partial: decals, transparent sort, Bevy/Retail comparisons open).
+
 ## 2026-10-01 — Native JS bounded docs audit
 
 [Evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) records MAIN Login GREEN `ea9c4482`, independent1537 functional subset PASS/overall FAIL, five runtime action variants and genuine timeout RED `73cb16e0`/`61bfdc12`. Root script routing and native contract links corrected; pending fixes, unresolved MH2O errors, warnings and conversion/shutdown/transferred exclusions retained. No new page or index change.
