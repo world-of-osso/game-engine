@@ -145,6 +145,7 @@ impl GameClient {
         closed |= self.close_mailbox_window()?;
         closed |= self.close_auction_window()?;
         closed |= self.close_merchant_window()?;
+        closed |= self.close_character_window();
         closed |= self.close_bank_window()?;
         closed |= self.close_guild_bank_window()?;
         Ok(closed)

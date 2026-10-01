@@ -2,6 +2,7 @@
 
 use game_engine_ui_model::bag_data::InventoryRequest;
 use game_engine_ui_model::bag_frame_component::parse_bag_slot_action;
+use game_engine_ui_model::character_frame::parse_equipment_slot_action;
 use game_engine_ui_model::cursor_item::{CursorEffect, CursorItem, CursorTarget};
 use game_engine_ui_model::cursor_item_component::{CursorItemFrameState, cursor_item_screen};
 use game_engine_ui_model::item_catalog::item_catalog_entry;
@@ -95,7 +96,12 @@ impl GameClient {
                 owner,
                 at,
                 physical_at,
-            } => self.send_bag_drag_release(owner, at, physical_at),
+            } => {
+                if self.character_frame_input_owner(owner) {
+                    self.release_character_frame_pointer();
+                }
+                self.send_bag_drag_release(owner, at, physical_at)
+            }
         }
     }
 
@@ -111,6 +117,8 @@ impl GameClient {
         let target = cursor_action_target(action)?;
         if self.merchant_input_owner(owner) {
             self.merchant_cursor_click(action, click)?;
+        } else if self.character_frame_input_owner(owner) {
+            self.character_frame_click(action, click)?;
         } else if self.mail_input_owner(owner) {
             self.mail_cursor_click(action, click)?;
         } else if !self.bank_cursor_press(owner, action, click)? {
@@ -435,6 +443,9 @@ fn bag_release_target(action: Option<Option<String>>) -> Result<Option<CursorTar
 }
 
 pub(super) fn cursor_action_target(action: &str) -> Result<Option<CursorTarget>, String> {
+    if let Some(slot) = parse_equipment_slot_action(action) {
+        return Ok(Some(CursorTarget::Location(ItemLocation::Equipment(slot))));
+    }
     if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
         return parse_bag_location(action)
             .map(CursorTarget::Location)
