@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use game_engine_core::adt::parse_root;
 use game_engine_core::asset::adt_format::adt_tex::parse_mh2o;
-use game_engine_core::liquid_data::{LiquidCatalog, LiquidShader, WaterColorSource};
+use game_engine_core::liquid_data::{
+    LiquidCatalog, LiquidMaterial, LiquidShader, WaterColorSource,
+};
 
 fn data_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
@@ -162,7 +164,8 @@ const OBJECTLESS_PAIRS: [(u16, u16); 6] = [
 ];
 
 /// WebWowViewerCpp `CSqliteDB::getLiquidObjectData`: without a LiquidObject row the layer's
-/// own MH2O liquid_type is the LiquidType, with no flow.
+/// own MH2O liquid_type is the LiquidType, with no flow. Ocean 42 stores LVF 2 depth-only
+/// vertices; the others their material's LVF 0.
 #[test]
 fn objectless_liquid_layers_use_their_mh2o_liquid_type() {
     let catalog = catalog();
@@ -171,9 +174,14 @@ fn objectless_liquid_layers_use_their_mh2o_liquid_type() {
             .liquid_material(liquid_type, liquid_object)
             .unwrap_or_else(|error| panic!("({liquid_type}, {liquid_object}): {error}"));
         let direct = catalog.liquid_material(liquid_type, 0).expect("LiquidType");
-        assert_eq!(material, direct, "({liquid_type}, {liquid_object})");
+        let lvf = if liquid_object == 42 { 2 } else { 0 };
+        assert_eq!(
+            material,
+            LiquidMaterial { lvf, ..direct },
+            "({liquid_type}, {liquid_object})"
+        );
         assert_eq!(u32::from(liquid_type), material.liquid_type);
-        assert_eq!((material.material_id, material.lvf), (1, 0));
+        assert_eq!(material.material_id, 1);
         assert_eq!(material.shader, LiquidShader::Water);
         assert_eq!((material.flow_direction, material.flow_speed), (0.0, 0.0));
     }
@@ -197,7 +205,9 @@ fn mh2o_chunk(adt: &[u8]) -> &[u8] {
     panic!("root ADT has no MH2O");
 }
 
-/// Every Adventurer's Rest layer, 133 of them on objectless LiquidObjects, has a material.
+/// Every Adventurer's Rest layer, 133 of them on objectless LiquidObjects, has a material
+/// whose LVF reads its whole vertex block: ocean depths at sea level, river heights and
+/// depths.
 #[test]
 fn adventurers_rest_tiles_resolve_every_liquid_layer() {
     let catalog = catalog();
@@ -205,12 +215,20 @@ fn adventurers_rest_tiles_resolve_every_liquid_layer() {
     for fdid in [5_493_433, 5_493_438] {
         let bytes =
             std::fs::read(data_root().join(format!("terrain/{fdid}.adt"))).expect("cached ADT");
-        let water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
-        for layer in water.chunks.iter().flat_map(|chunk| &chunk.layers) {
+        let mut water = parse_mh2o(mh2o_chunk(&bytes)).expect("MH2O");
+        for layer in water.chunks.iter_mut().flat_map(|chunk| &mut chunk.layers) {
             let key = (layer.liquid_type, layer.liquid_object);
-            catalog
+            let material = catalog
                 .liquid_material(key.0, key.1)
                 .unwrap_or_else(|error| panic!("{fdid} {key:?}: {error}"));
+            layer
+                .decode_object_vertices(material.lvf)
+                .unwrap_or_else(|error| panic!("{fdid} {key:?}: {error}"));
+            if !layer.object_vertex_bytes.is_empty() {
+                assert_eq!(layer.vertex_depths.len(), 81, "{fdid} {key:?}");
+                let heights = if key == (2, 42) { 0 } else { 81 };
+                assert_eq!(layer.vertex_heights.len(), heights, "{fdid} {key:?}");
+            }
             objectless += usize::from(OBJECTLESS_PAIRS.contains(&key));
         }
     }
