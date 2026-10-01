@@ -54,6 +54,8 @@ func run_test() -> void:
 		return
 	if not await mc_buyback(client):
 		return
+	if not await mc_last_buyback(client):
+		return
 	if not await mc_vendor_cursor_close(client):
 		return
 	print("FIXTURE MERCHANT_CURSOR_DONE")
@@ -438,10 +440,142 @@ func mc_buyback_quiet(client: Node, committed: bool) -> bool:
 			return false
 	return true
 
-func mc_vendor_cursor_close(client: Node) -> bool:
-	# Append to unchanged Buyback final Linen7/938/empty list/tab retained.
+func mc_last_buyback(client: Node) -> bool:
 	if not mc_buyback_state_matches(client, true):
-		mc_close_fail(client, "missing unchanged five-case final state")
+		fail("Last-sale case requires unchanged original five-case final state")
+		return false
+	print("FIXTURE MERCHANT_CURSOR_LAST_BUYBACK_SEED")
+	if not await mc_last_buyback_wait_seed(client):
+		return false
+	if not await mc_buyback_click(client, "MerchantFrameTab1"):
+		return false
+	if not await mc_last_buyback_wait(client, false) or not await mc_last_buyback_quiet(client, false):
+		return false
+	print("MERCHANT CURSOR LAST BUYBACK TAB own Merchant/title/vendor25/last Linen image/name/count2/price26; bagLinen7/money938/two names/source white/no held/picker/popup/Menu900ms")
+	print("FIXTURE MERCHANT_CURSOR_LAST_BUYBACK_TAB_OPEN")
+	print("FIXTURE MERCHANT_CURSOR_LAST_BUYBACK_REQUEST_ARM")
+	if not await mc_last_buyback_click(client):
+		return false
+	if not await mc_last_buyback_wait(client, false) or not await mc_last_buyback_quiet(client, false):
+		return false
+	print("MERCHANT CURSOR LAST BUYBACK COMMIT pre-authority Linen7/938/two entries/lastcount2price26/no held/no picker900ms; exact npc4294966979 slot1 NOT0 only peer-visible")
+	print("FIXTURE MERCHANT_CURSOR_LAST_BUYBACK_COMMIT")
+	if not await mc_last_buyback_wait(client, true) or not await mc_last_buyback_quiet(client, true):
+		return false
+	print("MERCHANT CURSOR LAST BUYBACK FINAL Linen9/912/one name/original slot0 Linen1price13; actual last-sale Linen image/name/price13/count1 hidden/Merchant tab/source white/no held/picker/popup/Menu900ms; fixture authority NOT server pricing/autostack/remap proof")
+	return true
+
+func mc_last_buyback_wait_seed(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.merchant_state()
+		if state.buyback == ["Linen Cloth", "Linen Cloth"] and mc_shift_inventory_matches(state, 7, 938):
+			return true
+	fail("Last-sale two-entry seed missing with unchanged Linen7/938: " + str(client.merchant_state()))
+	return false
+
+func mc_last_buyback_click(client: Node) -> bool:
+	var ui := client.get_node_or_null("MerchantUI")
+	var control := mc_control(client, "MerchantBuyBackItem")
+	if ui == null or control == null or not ui.is_ancestor_of(control) or not control.is_visible_in_tree() or not control.get_global_rect().has_area():
+		fail("Last-sale Left requires actual visible owned MerchantBuyBackItem")
+		return false
+	var point := control.get_global_rect().get_center()
+	mc_motion(point, false)
+	await process_frame
+	control = mc_control(client, "MerchantBuyBackItem")
+	if control == null or not ui.is_ancestor_of(control) or not control.is_visible_in_tree() or not control.get_global_rect().has_point(point):
+		fail("Last-sale control moved/disappeared before physical Left")
+		return false
+	mc_edge(point, true)
+	await process_frame
+	mc_edge(point, false)
+	await process_frame
+	return true
+
+func mc_last_buyback_art_matches(client: Node, committed: bool) -> bool:
+	var control := mc_control(client, "MerchantBuyBackItem")
+	var ui := client.get_node_or_null("MerchantUI")
+	if control == null or ui == null or not ui.is_ancestor_of(control) or not control.is_visible_in_tree() or not control.get_global_rect().has_area():
+		return false
+	var name_label := mc_control(client, "MerchantBuyBackItemName") as Label
+	var count := mc_control(client, "MerchantBuyBackItemItemButtonCount") as Label
+	var price := mc_control(client, "MerchantBuyBackItemMoneyFrameAmount0") as Label
+	if name_label == null or price == null or not name_label.is_visible_in_tree() or not price.is_visible_in_tree():
+		return false
+	if name_label.text != "Linen Cloth" or price.text != ("13" if committed else "26"):
+		return false
+	if committed:
+		if count != null and count.is_visible_in_tree():
+			return false
+	elif count == null or not count.is_visible_in_tree() or count.text != "2":
+		return false
+	var extra_price := mc_control(client, "MerchantBuyBackItemMoneyFrameAmount1")
+	if extra_price != null and extra_price.is_visible_in_tree():
+		return false
+	return mc_last_buyback_image_matches(client)
+
+func mc_last_buyback_image_matches(client: Node) -> bool:
+	var texture := mc_texture(mc_control(client, "MerchantBuyBackItemItemButtonIcon"))
+	if texture == null or mc_sale_texture == null:
+		return false
+	var actual := texture.texture.get_image()
+	var expected := mc_sale_texture.get_image()
+	if actual == null or expected == null:
+		return false
+	return actual.get_size() == expected.get_size() and actual.get_format() == expected.get_format() and actual.get_data() == expected.get_data()
+
+func mc_last_buyback_no_modal(client: Node) -> bool:
+	if not mc_buyback_no_picker(client):
+		return false
+	for node in client.find_children("*", "PopupMenu", true, false):
+		if (node as PopupMenu).visible:
+			return false
+	return true
+
+func mc_last_buyback_state_matches(client: Node, committed: bool) -> bool:
+	var state: Dictionary = client.merchant_state()
+	var count := 9 if committed else 7
+	var money := 912 if committed else 938
+	var names := ["Linen Cloth"] if committed else ["Linen Cloth", "Linen Cloth"]
+	if not mc_shift_inventory_matches(state, count, money) or state.buyback != names or state.split_open:
+		return false
+	var frame := mc_control(client, "MerchantFrame")
+	var tab := mc_control(client, "MerchantFrameTab1")
+	var title := mc_control(client, "MerchantFrameTitleText") as Label
+	if frame == null or tab == null or title == null:
+		return false
+	if not frame.is_visible_in_tree() or not tab.is_visible_in_tree() or not title.is_visible_in_tree() or title.text != VENDOR:
+		return false
+	if not mc_source_matches(client) or not mc_buyback_image_matches(client) or not mc_sale_source_matches(client, count, false):
+		return false
+	if not mc_split_render_matches(client, count) or not mc_shift_money_matches(client, money):
+		return false
+	return mc_cursor_matches(client, false) and mc_last_buyback_no_modal(client) and mc_last_buyback_art_matches(client, committed)
+
+func mc_last_buyback_wait(client: Node, committed: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if mc_last_buyback_state_matches(client, committed):
+			return true
+	fail("Last-sale missing actual last control/bag/money/list/no cursor/modal; committed=%s state=%s; no runtime RED claim" % [committed, client.merchant_state()])
+	return false
+
+func mc_last_buyback_quiet(client: Node, committed: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_QUIET_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if not mc_last_buyback_state_matches(client, committed):
+			fail("Last-sale900ms quiet changed; committed=%s state=%s" % [committed, client.merchant_state()])
+			return false
+	return true
+
+func mc_vendor_cursor_close(client: Node) -> bool:
+	# Last-sale authority changed close inputs; original five cases remain unchanged.
+	if not mc_last_buyback_state_matches(client, true):
+		mc_close_fail(client, "missing last-sale final Linen9/912/remaining first entry")
 		return false
 	print("FIXTURE MERCHANT_CURSOR_CLOSE_CATALOG_ARM")
 	# Tab1 is Merchant; Tab2 is Buyback, never catalog return.
@@ -455,7 +589,7 @@ func mc_vendor_cursor_close(client: Node) -> bool:
 		return false
 	if not await mc_close_wait(client, true, false) or not await mc_close_quiet(client, true, false):
 		return false
-	print("MERCHANT CURSOR CLOSE COMMIT pre-ack: locally closed, merchant and backpack controls hidden (MerchantUI root may remain), carried icon hidden, Linen7/Gold938 unchanged/no picker/popup/Menu900ms")
+	print("MERCHANT CURSOR CLOSE COMMIT pre-ack: locally closed, merchant and backpack controls hidden (MerchantUI root may remain), carried icon hidden, Linen9/Gold912 unchanged/no picker/popup/Menu900ms")
 	print("FIXTURE MERCHANT_CURSOR_CLOSE_COMMIT")
 	# Closed state cannot reveal an idempotent InteractionClosed. This explicit
 	# marker is accepted ONLY after the peer sent the ordinary protocol ack;
@@ -465,7 +599,7 @@ func mc_vendor_cursor_close(client: Node) -> bool:
 	print("FIXTURE MERCHANT_CURSOR_CLOSE_ACK_QUIET_ARM")
 	if not await mc_close_quiet(client, true, false):
 		return false
-	print("MERCHANT CURSOR CLOSE FINAL ack phase then closed900ms; Linen7/Gold938/no carried icon/merchant and backpack controls hidden (MerchantUI root may remain)/no picker/popup/Menu; peer opens1/Buy2/Sell2/Buyback1/Close1, five inventory barriers plus close barrier")
+	print("MERCHANT CURSOR CLOSE FINAL ack phase then closed900ms; Linen9/Gold912/no carried icon/merchant and backpack controls hidden (MerchantUI root may remain)/no picker/popup/Menu; peer opens1/Buy2/Sell2/Buyback2/Close1, six inventory barriers plus close barrier")
 	return true
 
 func mc_close_pickup_release(client: Node) -> bool:
@@ -487,7 +621,7 @@ func mc_close_pickup_release(client: Node) -> bool:
 	mc_edge(start, true)
 	if not await mc_close_wait(client, false, true) or not await mc_close_quiet(client, false, true):
 		return false
-	print("MERCHANT CURSOR CLOSE PICKUP Left held900ms: textured centered Linen vendor cursor, source bagLinen7/Gold938 unchanged/no extra Buy")
+	print("MERCHANT CURSOR CLOSE PICKUP Left held900ms: textured centered Linen vendor cursor, source bagLinen9/Gold912 unchanged/no extra Buy")
 	print("FIXTURE MERCHANT_CURSOR_CLOSE_PICKED_UP")
 	source = mc_control(client, MC_SOURCE)
 	if source == null or source.get_instance_id() != source_id or not source.get_global_rect().has_point(start):
@@ -532,14 +666,14 @@ func mc_close_click(client: Node) -> bool:
 	return true
 
 func mc_close_inventory_matches(state: Dictionary) -> bool:
-	if state.money != 938 or state.bags.size() != 1:
+	if state.money != 912 or state.bags.size() != 1:
 		return false
 	var item: Dictionary = state.bags[0]
-	return item.bag == 0 and item.slot == 0 and item.item_id == 2589 and item.name == "Linen Cloth" and item.count == 7
+	return item.bag == 0 and item.slot == 0 and item.item_id == 2589 and item.name == "Linen Cloth" and item.count == 9
 
 func mc_close_vendor_matches(client: Node, held: bool) -> bool:
 	var state: Dictionary = client.merchant_state()
-	if not mc_shift_inventory_matches(state, 7, 938) or state.buyback != [] or state.split_open:
+	if not mc_shift_inventory_matches(state, 9, 912) or state.buyback != ["Linen Cloth"] or state.split_open:
 		return false
 	var frame := mc_control(client, "MerchantFrame")
 	var tab := mc_control(client, "MerchantFrameTab1")
@@ -548,9 +682,9 @@ func mc_close_vendor_matches(client: Node, held: bool) -> bool:
 		return false
 	if not frame.is_visible_in_tree() or not tab.is_visible_in_tree() or not title.is_visible_in_tree() or title.text != VENDOR:
 		return false
-	if not mc_source_matches(client) or not mc_buyback_image_matches(client) or not mc_shift_money_matches(client, 938):
+	if not mc_source_matches(client) or not mc_buyback_image_matches(client) or not mc_shift_money_matches(client, 912):
 		return false
-	if not mc_sale_source_matches(client, 7, false) or not mc_split_render_matches(client, 7):
+	if not mc_sale_source_matches(client, 9, false) or not mc_split_render_matches(client, 9):
 		return false
 	if held and not mc_split_cursor_image_matches(client):
 		return false
