@@ -8,6 +8,7 @@ mod assets;
 mod auction;
 mod auras;
 mod auto_attack;
+mod background_load;
 mod bag_cursor;
 mod bag_destroy;
 mod bags;
@@ -23,9 +24,9 @@ mod damage_meter;
 mod debug_character;
 mod display_options;
 mod entrance_bar;
-mod eula;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
+mod eula;
 #[path = "../../../src/game/faction_reaction.rs"]
 mod faction_reaction;
 mod frame_error;
@@ -269,10 +270,10 @@ impl INode3D for GameClient {
             chat: Default::default(),
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
-            minimap: minimap::Minimap::default(),
+            minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
             quests: quests::QuestHud::default(),
-            entrance_bar: entrance_bar::EntranceBar::default(),
+            entrance_bar: entrance_bar::EntranceBar::new(&data_root),
             damage_meter: damage_meter::DamageMeterHud::default(),
             group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,

@@ -44,6 +44,7 @@ use shared::protocol::SpellGo;
 
 use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::build_model;
+use crate::background_load::BackgroundLoad;
 use crate::particles::{ParticlePools, PlacedParticles, view_basis};
 use crate::replicated::is_unit;
 use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
@@ -358,43 +359,29 @@ pub struct CastSeen {
 /// The spell visual catalog, loaded on a worker thread from client start: building it
 /// from the CSVs takes seconds (1.3M `SoundKitEntry` rows), which on the main thread at the
 /// first cast froze the client through the whole cast (26-30 s on a loaded machine).
-struct Catalog {
-    worker: Option<std::thread::JoinHandle<Result<SpellVisualCatalog, String>>>,
-    loaded: Option<Result<SpellVisualCatalog, String>>,
+fn load_catalog(data_root: &std::path::Path) -> BackgroundLoad<Result<SpellVisualCatalog, String>> {
+    let db2 = data_root.join(DB2_DIR);
+    let cache = data_root
+        .join("cache")
+        .join(SpellVisualCatalog::cache_file_name());
+    BackgroundLoad::start("spell-visuals", move || {
+        SpellVisualCatalog::load(&db2, &cache).map_err(|error| format!("Spell visuals: {error}"))
+    })
 }
 
-impl Catalog {
-    fn load(data_root: &std::path::Path) -> Self {
-        let db2 = data_root.join(DB2_DIR);
-        let cache = data_root
-            .join("cache")
-            .join(SpellVisualCatalog::cache_file_name());
-        let worker = std::thread::spawn(move || {
-            SpellVisualCatalog::load(&db2, &cache)
-                .map_err(|error| format!("Spell visuals: {error}"))
-        });
-        Self {
-            worker: Some(worker),
-            loaded: None,
-        }
-    }
-
-    /// The catalog once the worker is done; `None` while it loads, so no frame waits.
-    fn get(&mut self) -> Option<Result<&SpellVisualCatalog, String>> {
-        if let Some(worker) = self.worker.take_if(|worker| worker.is_finished()) {
-            let loaded = worker
-                .join()
-                .unwrap_or_else(|_| Err("Spell visuals: the catalog worker panicked".into()));
-            self.loaded = Some(loaded);
-        }
-        let loaded = self.loaded.as_ref()?;
-        Some(loaded.as_ref().map_err(Clone::clone))
-    }
+/// The loaded catalog, `None` while its worker runs.
+fn poll_catalog(
+    catalog: &mut BackgroundLoad<Result<SpellVisualCatalog, String>>,
+) -> Result<Option<&SpellVisualCatalog>, String> {
+    let loaded = catalog
+        .poll()
+        .map(|loaded| loaded.as_ref().map_err(Clone::clone));
+    loaded.transpose()
 }
 
 pub struct SpellEffects {
     data_root: PathBuf,
-    catalog: Catalog,
+    catalog: BackgroundLoad<Result<SpellVisualCatalog, String>>,
     assets: SpellAssets,
     /// Spells whose kit assets were prefetched.
     prefetched: HashSet<u32>,
@@ -436,7 +423,7 @@ const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
     pub fn new(data_root: PathBuf) -> Self {
-        let catalog = Catalog::load(&data_root);
+        let catalog = load_catalog(&data_root);
         Self {
             assets: SpellAssets::new(data_root.clone()),
             data_root,
@@ -469,7 +456,7 @@ impl SpellEffects {
     /// The visual catalog; `None` while it loads: casts and swings seen meanwhile show no
     /// kits, and replicated casts and auras start theirs once it has loaded.
     fn catalog(&mut self) -> Result<Option<&SpellVisualCatalog>, String> {
-        self.catalog.get().transpose()
+        poll_catalog(&mut self.catalog)
     }
 
     /// Kit starts since the world loaded, oldest first.
@@ -1231,7 +1218,7 @@ impl SpellEffects {
             return Ok(());
         }
         let context = Self::caster_context(units, world, caster);
-        let Some(catalog) = self.catalog.get().transpose()? else {
+        let Some(catalog) = poll_catalog(&mut self.catalog)? else {
             return Ok(());
         };
         for &spell in spells {
