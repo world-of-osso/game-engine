@@ -146,13 +146,6 @@ fn compose_player_pixels(
     if let Some(pixels) = type6 {
         textures.insert(6, pixels);
     }
-    insert_player_eye_pixels(
-        &mut textures,
-        compositor,
-        &choices.materials,
-        layout_id,
-        &decoded,
-    )?;
     Ok(textures)
 }
 
@@ -196,22 +189,6 @@ fn select_player_head_pixels(
     } else {
         Ok(head)
     }
-}
-
-fn insert_player_eye_pixels(
-    textures: &mut HashMap<u32, TexturePixels>,
-    compositor: &CharTextureData,
-    materials: &[(u16, u32)],
-    layout_id: u32,
-    decoded: &HashMap<u32, TexturePixels>,
-) -> Result<(), String> {
-    if let Some(fdid) = compositor.replacement_texture_fdid(materials, layout_id, 19) {
-        let pixels = decoded
-            .get(&fdid)
-            .ok_or_else(|| format!("missing player eye texture FDID {fdid}"))?;
-        textures.insert(19, pixels.clone());
-    }
-    Ok(())
 }
 
 /// A player's body model parsed, its customization composed and equipment resolved,
@@ -633,7 +610,7 @@ mod tests {
         })
         .unwrap();
         let body = &composed[&1];
-        assert_eq!((body.1, body.2), (1024, 512));
+        assert_eq!((body.1, body.2), (2048, 1024));
         assert!(
             body.0
                 .chunks_exact(4)
@@ -866,5 +843,15 @@ mod swatch_tests {
                 }
             }
         }
+    }
+
+    /// Eyesight (ChrCustomizationOption Requirement 0) is every class's option: a Night
+    /// Elf rogue's default "Both" (choice 45114, req 141) hides eye geoset group 51.
+    #[test]
+    fn night_elf_rogue_wears_the_eyesight_default() {
+        let db = load_customization_db(&data_root()).unwrap();
+        let chosen = select_player_choices(&db, 4, 1, 4, &CharacterAppearance::default()).unwrap();
+        assert!(chosen.choice_ids.contains(&45114));
+        assert!(chosen.geosets.contains(&(51, 0)));
     }
 }

@@ -63,6 +63,7 @@ fn shield_env_batch_binds_both_textures_clamped() {
             pixel_shader: 12,
             vertex_shader: 3,
             textures: vec![Some(1036765), Some(249237)],
+            texture_types: vec![0, 0],
             texture_wrap: 0,
             texture_transforms: [None, None],
             texture_weights: [Some(0), None, None],

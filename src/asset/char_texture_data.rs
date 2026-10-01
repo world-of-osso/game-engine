@@ -300,10 +300,12 @@ impl CharTextureData {
         layout_id: u32,
         load: &mut impl FnMut(u32) -> Option<(Vec<u8>, u32, u32)>,
     ) {
+        // Items alpha-blend over the body (Wow.exe Paste, solarityclient composer.rs
+        // `alpha_blend`): straight alpha, blend mode 9.
         let item_layer = TextureLayer {
             texture_type: 1,
             layer: 0,
-            blend_mode: 0,
+            blend_mode: 9,
             section_bitmask: 0,
             target_id: 0,
             layout_id,
