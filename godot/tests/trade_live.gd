@@ -58,6 +58,7 @@ func run_test() -> void:
 
 func trade_items_and_money() -> bool:
 	var before := money()
+	var wool_before := bag_count(WOOL)
 	if role == "a":
 		if not await target_partner_by_click() or not await menu_trade():
 			return false
@@ -66,7 +67,10 @@ func trade_items_and_money() -> bool:
 	var item := LINEN if role == "a" else PEACEBLOOM
 	if not await offer(item) or not await type_money(10000 if role == "a" else 5000):
 		return false
-	if not await wait_trade(func(t): return t.window_open and slot_item(t.other, 0) == (PEACEBLOOM if role == "a" else LINEN) and t.other.gold == (5000 if role == "a" else 10000), "both offers"):
+	# Side a also drops Wool from the cursor on the "Will not be traded" slot.
+	if role == "a" and not await place_on_slot(WOOL, 7):
+		return false
+	if not await wait_trade(func(t): return t.window_open and slot_item(t.other, 0) == (PEACEBLOOM if role == "a" else LINEN) and t.other.gold == (5000 if role == "a" else 10000) and slot_item(t.player if role == "a" else t.other, 6) == WOOL, "both offers"):
 		return false
 	await capture("1-offers")
 	if not await barrier("offered"):
@@ -98,8 +102,8 @@ func trade_items_and_money() -> bool:
 		return false
 	var delta := money() - before
 	var expected := -20000 + 5000 if role == "a" else 20000 - 5000
-	if delta != expected or bag_count(item) != 0:
-		return fail("exchange mismatch: money delta %d (want %d), %d left of %d" % [delta, expected, bag_count(item), item])
+	if delta != expected or bag_count(item) != 0 or bag_count(WOOL) != wool_before:
+		return fail("exchange mismatch: money delta %d (want %d), %d left of %d, wool %d (was %d)" % [delta, expected, bag_count(item), item, bag_count(WOOL), wool_before])
 	if not await wait_error("Trade complete."):
 		return false
 	await capture("4-complete")
@@ -194,10 +198,17 @@ func open_trade(tag: String) -> bool:
 		await click(control("StaticPopup1Button1"))
 	if not await wait_trade(func(t): return t.window_open and t.other.name == partner, "open trade window"):
 		return false
-	var backpack := control("ContainerFrame0")
-	if backpack == null or not backpack.is_visible_in_tree():
-		return fail("backpack not opened with the trade")
+	# Retail TradeFrame does not open bags; the player opens the backpack to offer.
+	if not await open_backpack():
+		return false
 	return await barrier("open-" + tag)
+
+func open_backpack() -> bool:
+	var backpack := control("ContainerFrame0")
+	if backpack != null and backpack.is_visible_in_tree():
+		return true
+	await press("MainMenuBarBackpackButton")
+	return await wait_until(func(): var frame := control("ContainerFrame0"); return frame != null and frame.is_visible_in_tree(), "backpack opened")
 
 func target_partner_by_click() -> bool:
 	var id := partner_id()
@@ -227,6 +238,15 @@ func offer(item_id: int) -> bool:
 		if entry.item_id == item_id and entry.bag == 0:
 			await click_at(control("ContainerFrame0Slot%d" % entry.slot).get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
 			return true
+	return fail("no %d in the backpack: %s" % [item_id, client.merchant_state().bags])
+
+## Left-click the bag item onto the cursor, then click trade slot `slot` (1-7).
+func place_on_slot(item_id: int, slot: int) -> bool:
+	for entry in client.merchant_state().bags:
+		if entry.item_id == item_id and entry.bag == 0:
+			await click(control("ContainerFrame0Slot%d" % entry.slot))
+			await press("TradePlayerItem%dItemButton" % slot)
+			return await wait_trade(func(t): return slot_item(t.player, slot - 1) == item_id, "%d in trade slot %d" % [item_id, slot])
 	return fail("no %d in the backpack: %s" % [item_id, client.merchant_state().bags])
 
 ## Type the amount in the gold/silver boxes and press Enter.

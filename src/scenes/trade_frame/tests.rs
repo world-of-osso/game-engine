@@ -63,9 +63,10 @@ fn cancel_withdraws_an_accept_first_and_offered_items_click_back() {
         Some(TradeAction::Cancel)
     );
     assert_eq!(
-        trade_click("trade_player_slot:3", &open),
-        Some(TradeAction::ClearItem(3))
+        trade_click("trade_player_slot:0", &open),
+        Some(TradeAction::ClearItem(0))
     );
+    assert_eq!(trade_click("trade_player_slot:3", &open), None);
     assert_eq!(trade_click("bank_close", &open), None);
 }
 

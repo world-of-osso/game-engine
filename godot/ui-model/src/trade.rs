@@ -3,6 +3,7 @@
 use crate::bag_data::{InventoryState, stack_slot};
 use crate::bag_frame_component::parse_bag_slot_action;
 use crate::bank_art::SlotItem;
+use crate::cursor_item::CursorItem;
 use crate::merchant_data::quality_color;
 use crate::popup::{PopupOutcome, PopupResult, PopupSpec, PopupStack};
 use crate::trade_frame_component::{
@@ -219,6 +220,30 @@ impl TradeSession {
             slot: free as u8,
             item_guid: item.item_guid,
             stack_count: u16::try_from(item.count).ok()?,
+        }))
+    }
+
+    /// `ClickTradeButton(slot)` with an item on the cursor offers it there, the
+    /// "Will not be traded" slot included (TradeFrame.xml:108-116); a split cursor
+    /// offers its count.
+    pub fn place(
+        &self,
+        slot: usize,
+        cursor: &CursorItem,
+        inventory: &InventoryState,
+    ) -> Option<TradeRequest> {
+        self.player()?;
+        let CursorItem::Inventory { from, count, .. } = cursor else {
+            return None;
+        };
+        if slot >= TRADE_SLOTS {
+            return None;
+        }
+        let item = inventory.item_at(*from)?;
+        Some(TradeRequest::SetItem(SetTradeItem {
+            slot: u8::try_from(slot).ok()?,
+            item_guid: item.item_guid,
+            stack_count: u16::try_from(*count).ok()?,
         }))
     }
 
