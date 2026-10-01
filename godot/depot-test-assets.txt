@@ -1910,3 +1910,6 @@ models/197068.m2
 models/19706800.skin
 models/189958.m2
 models/18995800.skin
+# creature texture prefetch: instance portal glowball batch fades in from zero opacity.
+models/197012.m2
+models/19701200.skin
