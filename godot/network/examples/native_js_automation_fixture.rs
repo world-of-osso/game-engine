@@ -11,7 +11,7 @@ use std::{
     io::{BufRead, BufReader, Read, Write},
     net::{SocketAddr, UdpSocket},
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    process::{Child, Command, ExitStatus, Stdio},
     sync::mpsc::{self, Receiver, Sender},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -268,21 +268,49 @@ fn launch(
     Ok((child, receiver))
 }
 
+fn record_output(
+    output: Result<Output, String>,
+    log: &mut fs::File,
+    lines: &mut Vec<Output>,
+) -> Result<(), String> {
+    let output = output?;
+    writeln!(log, "{}", output.line)
+        .map_err(|error| format!("SETUP: write diagnostics: {error}"))?;
+    if output.password_leaked {
+        return Err("FEATURE: child exposed raw LOGIN_PASS; diagnostic copy masked".into());
+    }
+    if output.line.trim_start().starts_with("SCRIPT ERROR:") {
+        return Err(format!(
+            "SETUP/UNCLASSIFIED: child GDScript failed; not feature RED: {}",
+            output.line
+        ));
+    }
+    lines.push(output);
+    Ok(())
+}
+
 fn drain_output(
     receiver: &Receiver<Result<Output, String>>,
     log: &mut fs::File,
     lines: &mut Vec<Output>,
 ) -> Result<(), String> {
     for output in receiver.try_iter() {
-        let output = output?;
-        writeln!(log, "{}", output.line)
-            .map_err(|error| format!("SETUP: write diagnostics: {error}"))?;
-        if output.password_leaked {
-            return Err("FEATURE: child exposed raw LOGIN_PASS; diagnostic copy masked".into());
-        }
-        lines.push(output);
+        record_output(output, log, lines)?;
     }
     Ok(())
+}
+
+fn read_after_exit(
+    receiver: &Receiver<Result<Output, String>>,
+    log: &mut fs::File,
+    lines: &mut Vec<Output>,
+) -> Result<bool, String> {
+    // Readers can still be draining after waitpid; require their channel closure.
+    match receiver.recv_timeout(Duration::from_millis(10)) {
+        Ok(output) => record_output(output, log, lines).map(|()| false),
+        Err(mpsc::RecvTimeoutError::Disconnected) => Ok(true),
+        Err(mpsc::RecvTimeoutError::Timeout) => Ok(false),
+    }
 }
 
 fn assert_dump(lines: &[&str]) -> Result<(), String> {
@@ -346,10 +374,7 @@ fn assert_timeout_continuation(
     Ok(())
 }
 
-fn run_fixture() -> Result<(), String> {
-    let mode = Mode::from_args()?;
-    let root = fixture_support::checkout_root_from_executable("native_js_automation_fixture")
-        .map_err(|error| format!("SETUP: {error}"))?;
+fn create_artifacts(root: &Path) -> Result<PathBuf, String> {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|error| format!("SETUP: diagnostics clock: {error}"))?
@@ -359,59 +384,60 @@ fn run_fixture() -> Result<(), String> {
         std::process::id()
     ));
     fs::create_dir_all(&artifacts).map_err(|error| format!("SETUP: artifacts: {error}"))?;
-    let mut log =
-        fs::File::create(artifacts.join("native.log")).map_err(|error| error.to_string())?;
-    let (mut app, address) = start_server()?;
-    let (mut child, receiver) = launch(&root, address, &artifacts, mode)?;
-    println!(
-        "ARTIFACTS: {} own client PID={} loopback={address}",
-        artifacts.display(),
-        child.0.id()
-    );
+    Ok(artifacts)
+}
+
+fn pump_child_and_server(
+    app: &mut App,
+    child: &mut OwnedChild,
+    receiver: &Receiver<Result<Output, String>>,
+    log: &mut fs::File,
+    artifacts: &Path,
+    mode: Mode,
+) -> Result<(Vec<Output>, usize, ExitStatus), String> {
     let deadline = Instant::now() + TIMEOUT;
     let mut lines = Vec::new();
     let mut auth_count = 0;
     let mut exited = None;
     loop {
         app.update();
-        authenticate(&mut app, &mut auth_count, mode)?;
-        drain_output(&receiver, &mut log, &mut lines)?;
+        authenticate(app, &mut auth_count, mode)?;
+        drain_output(receiver, log, &mut lines)?;
         if exited.is_none() {
             exited = child
                 .0
                 .try_wait()
                 .map_err(|error| format!("SETUP: own child status: {error}"))?;
         }
-        if exited.is_some() {
-            // Readers can still be draining after waitpid; require their channel closure.
-            match receiver.recv_timeout(Duration::from_millis(10)) {
-                Ok(output) => {
-                    let output = output?;
-                    writeln!(log, "{}", output.line).map_err(|error| error.to_string())?;
-                    if output.password_leaked {
-                        return Err(
-                            "FEATURE: child exposed raw password; diagnostic copy masked".into(),
-                        );
-                    }
-                    lines.push(output);
-                }
-                Err(mpsc::RecvTimeoutError::Disconnected) => break,
-                Err(mpsc::RecvTimeoutError::Timeout) => {}
-            }
+        if exited.is_some() && read_after_exit(receiver, log, &mut lines)? {
+            break;
         }
-        if Instant::now() >= deadline {
-            return Err(format!(
-                "{}: 180-second bounded deadline; forced own-child cleanup is not shutdown proof",
-                if artifacts.join("login-ready").is_file() {
-                    "FEATURE/UNCLASSIFIED"
-                } else {
-                    "SETUP/UNCLASSIFIED"
-                }
-            ));
-        }
+        require_before_deadline(deadline, artifacts)?;
         thread::sleep(Duration::from_millis(5));
     }
     let status = exited.ok_or("SETUP: missing own child exit status")?;
+    Ok((lines, auth_count, status))
+}
+
+fn require_before_deadline(deadline: Instant, artifacts: &Path) -> Result<(), String> {
+    if Instant::now() < deadline {
+        return Ok(());
+    }
+    let classification = if artifacts.join("login-ready").is_file() {
+        "FEATURE/UNCLASSIFIED"
+    } else {
+        "SETUP/UNCLASSIFIED"
+    };
+    Err(format!(
+        "{classification}: 180-second bounded deadline; forced own-child cleanup is not shutdown proof"
+    ))
+}
+
+fn classify_child_exit(
+    status: ExitStatus,
+    lines: &[Output],
+    artifacts: &Path,
+) -> Result<(), String> {
     if !status.success() {
         let unknown_flag = lines.iter().any(|line| {
             line.line
@@ -431,9 +457,14 @@ fn run_fixture() -> Result<(), String> {
             }
         ));
     }
-    if mode == Mode::TimeoutContinuation {
-        return assert_timeout_continuation(&lines, &artifacts, auth_count);
-    }
+    Ok(())
+}
+
+fn assert_login_result(
+    lines: &[Output],
+    artifacts: &Path,
+    auth_count: usize,
+) -> Result<(), String> {
     if auth_count != 1 || !artifacts.join("observed-charselect").is_file() {
         return Err(
             "FEATURE: missing exact authenticated request or authored CharSelect observation"
@@ -450,6 +481,29 @@ fn run_fixture() -> Result<(), String> {
         "PASS: unchanged login.js, authored credentials/click, exact protocol auth, real CharSelect and stdout UI dump; bounded feature only"
     );
     Ok(())
+}
+
+fn run_fixture() -> Result<(), String> {
+    let mode = Mode::from_args()?;
+    let root = fixture_support::checkout_root_from_executable("native_js_automation_fixture")
+        .map_err(|error| format!("SETUP: {error}"))?;
+    let artifacts = create_artifacts(&root)?;
+    let mut log =
+        fs::File::create(artifacts.join("native.log")).map_err(|error| error.to_string())?;
+    let (mut app, address) = start_server()?;
+    let (mut child, receiver) = launch(&root, address, &artifacts, mode)?;
+    println!(
+        "ARTIFACTS: {} own client PID={} loopback={address}",
+        artifacts.display(),
+        child.0.id()
+    );
+    let (lines, auth_count, status) =
+        pump_child_and_server(&mut app, &mut child, &receiver, &mut log, &artifacts, mode)?;
+    classify_child_exit(status, &lines, &artifacts)?;
+    match mode {
+        Mode::Login => assert_login_result(&lines, &artifacts, auth_count),
+        Mode::TimeoutContinuation => assert_timeout_continuation(&lines, &artifacts, auth_count),
+    }
 }
 
 fn main() {
