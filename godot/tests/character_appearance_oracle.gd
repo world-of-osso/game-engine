@@ -15,15 +15,17 @@ extends RefCounted
 #   7 screen, 9 straight alpha, 15 inferred alpha).
 # - Region paste and scaling: solarityclient character_component/composer.rs
 #   (authored mip whose width fits, or Wow.exe's exact 2x PasteScale; alpha_blend >> 8).
+#   HD sections need 4x for legacy item files: repeated PasteScale (no stock reference).
 # - Item textures: solarityclient character_component/atlas.rs ITEM_PRIORITIES and
 #   adjusted_item_priority (build 12340 CCharacterComponent), pasted after customization.
 # - Item files by race/sex: ComponentTextureFileData (GenderIndex 0 male, 1 female,
 #   2/3 either; ClassID 0 any) along the ChrRaces texture fallback chain, then race 0.
 # - Geosets: WMVx ModelDefaultsGeosetModifier (0 and every x01), CharacterDefaults (ears
-#   702), ModernCharCustomGeosetModifier (customization type/id, face 3201),
+#   702), ModernCharCustomGeosetModifier (customization type/id, face 3202),
 #   CharEyeGlowGeosetBasedGeosetModifier (group 17 cleared unless a death knight), then
 #   solarityclient geoset.rs apply_equipment_geosets order with wowdev.wiki
-#   DB/ItemDisplayInfo modern groups (gloves [1] 23, boots [1] 20, chest [3] 22 / [4] 28).
+#   DB/ItemDisplayInfo modern groups (gloves [1] 23, chest [3] 22 / [4] 28, boots [1]
+#   20: 2002 for 0, else 2000 + value).
 
 const DATA := "res://../data/"
 const BUILD := "res://../data/db2/12.1.0.69933/"
