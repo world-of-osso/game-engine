@@ -1611,7 +1611,10 @@ fn main() {
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
             portal_particles::run(&mut app, &mut child, lines, reader, screen)
         }
-        StartupScreen::DevIpc => dev_ipc::run(&mut app, &mut child, lines, reader, root, address),
+        StartupScreen::DevIpc => {
+            dev_ipc::install(&mut app);
+            dev_ipc::run(&mut app, &mut child, lines, reader, root, address)
+        }
         StartupScreen::CharSelectExport => {
             charselect_export::run(&mut app, &mut child, lines, reader, root)
         }

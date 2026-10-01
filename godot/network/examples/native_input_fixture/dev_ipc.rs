@@ -5,7 +5,52 @@
 //! the decoded `PlayerInput`s and the markers the observing GDScript prints.
 use std::f32::consts::FRAC_PI_2;
 
+use shared::protocol::{
+    EmoteIntent, EmoteKind, GroupInviteIntent, GroupUninviteIntent, StopSpellCast,
+};
+
 use super::*;
+
+/// Group, emote and stop-cast messages the client sent, as the server decoded them.
+#[derive(Resource, Default)]
+struct Requests {
+    invites: Vec<String>,
+    uninvites: Vec<String>,
+    emotes: Vec<EmoteKind>,
+    stops: usize,
+}
+
+pub(super) fn install(app: &mut App) {
+    app.init_resource::<Requests>();
+    app.add_systems(Update, receive);
+}
+
+fn receive(
+    mut invites: Query<&mut MessageReceiver<GroupInviteIntent>>,
+    mut uninvites: Query<&mut MessageReceiver<GroupUninviteIntent>>,
+    mut emotes: Query<&mut MessageReceiver<EmoteIntent>>,
+    mut stops: Query<&mut MessageReceiver<StopSpellCast>>,
+    mut requests: ResMut<Requests>,
+) {
+    for mut receiver in &mut invites {
+        requests
+            .invites
+            .extend(receiver.receive().map(|intent| intent.name));
+    }
+    for mut receiver in &mut uninvites {
+        requests
+            .uninvites
+            .extend(receiver.receive().map(|intent| intent.name));
+    }
+    for mut receiver in &mut emotes {
+        requests
+            .emotes
+            .extend(receiver.receive().map(|intent| intent.emote));
+    }
+    for mut receiver in &mut stops {
+        requests.stops += receiver.receive().count();
+    }
+}
 
 const MARKER_WAIT: Duration = Duration::from_secs(60);
 const CLI_DEADLINE: Duration = Duration::from_secs(8);
@@ -197,12 +242,111 @@ fn check_terrain(run: &mut Run, tiles: &str) -> Result<(), String> {
             format!("loaded_tiles: {tiles}"),
             "pending_tiles: 0".into(),
             "failed_tiles: 0".into(),
+            "load_radius: 1".into(),
+            "server_requested_tiles: 0".into(),
+            format!("heightmap_tiles: {tiles}"),
         ],
     )?;
+    for counter in ["m2_model_cache_entries", "terrain_material_assets"] {
+        match field(&terrain, counter)?.parse::<u64>() {
+            Ok(count) if count > 0 => {}
+            _ => return Err(format!("status terrain has no {counter}:\n{terrain}")),
+        }
+    }
     match field(&terrain, "process_rss_kb")?.parse::<u64>() {
         Ok(kb) if kb > 0 => Ok(()),
         _ => Err(format!("status terrain has no process RSS:\n{terrain}")),
     }
+}
+
+/// Runs `args`, which must answer exactly `expected`.
+fn expect_exact(run: &mut Run, args: &[&str], expected: &str) -> Result<(), String> {
+    let text = run.expect_text(args)?;
+    if text.trim_end() != expected {
+        return Err(format!(
+            "CLI {args:?} answered\n{text}\nexpected\n{expected}"
+        ));
+    }
+    Ok(())
+}
+
+/// Steps the server until `seen` holds, or fails after a few seconds.
+fn wait_server(run: &mut Run, what: &str, seen: impl Fn(&Requests) -> bool) -> Result<(), String> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !seen(run.app.world().resource::<Requests>()) {
+        if Instant::now() >= deadline {
+            return Err(format!("the server never decoded {what}"));
+        }
+        run.pump()?;
+        thread::sleep(TICK);
+    }
+    Ok(())
+}
+
+/// `map target` without a target and `map waypoint add|clear` around the spawn.
+fn check_map_requests(run: &mut Run) -> Result<(), String> {
+    expect_exact(run, &["map", "target"], "map_target: none\ndistance: -")?;
+    expect_exact(
+        run,
+        &["map", "waypoint", "add", "--x=-8940.5", "--y=12.25"],
+        "zone_id: 12\nposition: -8949.00,0.00\nwaypoint: -8940.50,12.25\ngraveyard_marker: -",
+    )?;
+    expect_exact(
+        run,
+        &["map", "waypoint", "clear"],
+        "zone_id: 12\nposition: -8949.00,0.00\nwaypoint: -\ngraveyard_marker: -",
+    )
+}
+
+/// Group, emote and spell requests reach the server as the original intents.
+fn check_social_and_combat(run: &mut Run) -> Result<(), String> {
+    expect_exact(run, &["group", "roster"], "group_roster: 0\n-")?;
+    expect_exact(
+        run,
+        &["group", "status"],
+        "in_group: false\nis_raid: false\nmembers: 0\nready_check: -\npending_invite: -\nlast_message: -",
+    )?;
+    expect_exact(
+        run,
+        &["group", "invite", "--name", "Bob"],
+        "group invite submitted for Bob",
+    )?;
+    wait_server(run, "GroupInviteIntent Bob", |r| r.invites == ["Bob"])?;
+    expect_exact(
+        run,
+        &["group", "uninvite", "--name", "Bob"],
+        "group uninvite submitted for Bob",
+    )?;
+    wait_server(run, "GroupUninviteIntent Bob", |r| r.uninvites == ["Bob"])?;
+    expect_exact(run, &["emote", "wave"], "emote submitted Wave")?;
+    wait_server(run, "EmoteIntent Wave", |r| r.emotes == [EmoteKind::Wave])?;
+    match run.cli(&["spell", "cast", "--spell", "1464"])? {
+        Err(error) if error.contains("no current target selected") => {}
+        other => return Err(format!("untargeted spell cast answered {other:?}")),
+    }
+    let casts_before = run.app.world().resource::<Incoming>().casts.len();
+    expect_exact(
+        run,
+        &["spell", "cast", "--spell", "1464", "--target", "none"],
+        "spell cast submitted spell=1464 target=-",
+    )?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let casts = &run.app.world().resource::<Incoming>().casts;
+        if let Some(cast) = casts.get(casts_before) {
+            if cast.spell_id != Some(1464) || cast.target_entity.is_some() {
+                return Err(format!("spell cast decoded as {cast:?}"));
+            }
+            break;
+        }
+        if Instant::now() >= deadline {
+            return Err("the server never decoded the spell cast".into());
+        }
+        run.pump()?;
+        thread::sleep(TICK);
+    }
+    expect_exact(run, &["spell", "stop"], "spell stop submitted")?;
+    wait_server(run, "StopSpellCast", |r| r.stops == 1)
 }
 
 fn check_spawn_position(run: &mut Run) -> Result<(), String> {
@@ -333,6 +477,8 @@ fn check_timed_forward(run: &mut Run) -> Result<(), String> {
     if !(-8943.0..=-8941.5).contains(&x) || z.abs() > 0.2 {
         return Err(format!("1 s at yaw 90 ended at {x},{z}:\n{map}"));
     }
+    // The zone stays the last one found, even on the edge of a tile not loaded.
+    expect_lines("map position after moving", &map, &["zone_id: 12".into()])?;
     Ok(())
 }
 
@@ -462,6 +608,8 @@ pub(super) fn run(
     check_sound(&mut run)?;
     check_terrain(&mut run, &tiles)?;
     check_spawn_position(&mut run)?;
+    check_map_requests(&mut run)?;
+    check_social_and_combat(&mut run)?;
     check_hover(&mut run)?;
     check_camera(&mut run)?;
     check_export(&mut run)?;
@@ -469,7 +617,7 @@ pub(super) fn run(
     check_stopped_forward(&mut run)?;
     finish(&mut run, readers)?;
     println!(
-        "PASS: public CLI status network/sound/terrain, map position, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
+        "PASS: public CLI status network/sound/terrain, map position/target/waypoint, group, emote, spell cast/stop, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
     );
     Ok(())
 }
