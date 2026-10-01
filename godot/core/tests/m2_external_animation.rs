@@ -82,16 +82,39 @@ fn missing_external_bytes_leave_external_sequences_empty() {
 }
 
 #[test]
-fn malformed_human_female_track_does_not_discard_other_tracks() {
+fn human_female_external_tracks_fit_their_afsb_chunk() {
     let model = parse_hd("1000764", |fdid| {
         (fdid == 1000800).then(|| fixture("1000800.anim"))
     });
     let index = sequence_index(&model, 74);
+    assert_eq!(model.bone_tracks[128].rotation.sequences[index].0.len(), 91);
     assert!(populated_tracks(&model, index) > 10);
-    assert!(
-        model.bone_tracks[128].rotation.sequences[index]
-            .0
-            .is_empty()
+}
+
+/// `1000800.anim` with its AFSB chunk 16 bytes short: bone 128's rotation keys, the last
+/// data in the chunk, now run past it.
+fn truncated_human_female_anim() -> Vec<u8> {
+    let mut anim = fixture("1000800.anim");
+    assert_eq!(&anim[40..44], b"AFSB");
+    let size = u32::from_le_bytes(anim[44..48].try_into().unwrap());
+    anim[44..48].copy_from_slice(&(size - 16).to_le_bytes());
+    anim.truncate(anim.len() - 16);
+    anim
+}
+
+#[test]
+fn overrunning_track_is_empty_without_discarding_other_tracks() {
+    let complete = parse_hd("1000764", |fdid| {
+        (fdid == 1000800).then(|| fixture("1000800.anim"))
+    });
+    let model = parse_hd("1000764", |fdid| {
+        (fdid == 1000800).then(truncated_human_female_anim)
+    });
+    let index = sequence_index(&model, 74);
+    assert!(model.bone_tracks[128].rotation.sequences[index].0.is_empty());
+    assert_eq!(
+        populated_tracks(&model, index),
+        populated_tracks(&complete, index) - 1
     );
     assert!(!model.global_sequences.is_empty());
 }
