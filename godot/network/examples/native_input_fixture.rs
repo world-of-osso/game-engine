@@ -43,6 +43,8 @@ mod bags_cursor;
 mod bags_drag;
 #[path = "native_input_fixture/bank.rs"]
 mod bank;
+#[path = "native_input_fixture/charselect_export.rs"]
+mod charselect_export;
 #[path = "native_input_fixture/dev_ipc.rs"]
 mod dev_ipc;
 #[path = "fixture_support/mod.rs"]
@@ -132,6 +134,7 @@ enum StartupScreen {
     PortalDensity,
     Trade,
     DevIpc,
+    CharSelectExport,
 }
 
 impl StartupScreen {
@@ -167,9 +170,10 @@ impl StartupScreen {
             Some("portal-density") => Self::PortalDensity,
             Some("trade") => Self::Trade,
             Some("dev-ipc") => Self::DevIpc,
+            Some("charselect-export") => Self::CharSelectExport,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, keybinds, sound, sound-click, merchant-click, merchant-cursor, merchant-services, merchant-tooltips, ui-ownership, loot, bags, bags-actions, bags-cursor, bags-drag, bank, guild-bank, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled, portal-density, trade or dev-ipc"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, keybinds, sound, sound-click, merchant-click, merchant-cursor, merchant-services, merchant-tooltips, ui-ownership, loot, bags, bags-actions, bags-cursor, bags-drag, bank, guild-bank, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled, portal-density, trade, dev-ipc or charselect-export"
                 )
             }
         };
@@ -182,7 +186,7 @@ impl StartupScreen {
 
     fn as_str(self) -> &'static str {
         match self {
-            Self::CharSelect | Self::Menu => "charselect",
+            Self::CharSelect | Self::Menu | Self::CharSelectExport => "charselect",
             Self::InWorld
             | Self::Overlay
             | Self::Swimming
@@ -465,6 +469,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::Menu => "res://tests/world_menu_flow.gd",
         StartupScreen::Trade => "res://tests/world_trade_flow.gd",
         StartupScreen::DevIpc => "res://tests/world_dev_ipc_flow.gd",
+        StartupScreen::CharSelectExport => "res://tests/charselect_export_flow.gd",
         _ => "res://tests/world_input_flow.gd",
     }
 }
@@ -503,6 +508,7 @@ fn launch_godot(
             | StartupScreen::PortalDensity
             | StartupScreen::Trade
             | StartupScreen::DevIpc
+            | StartupScreen::CharSelectExport
     ) {
         std::env::var_os("GODOT_BIN")
             .map(PathBuf::from)
@@ -564,6 +570,7 @@ fn launch_godot(
                     | StartupScreen::PortalDensity
                     | StartupScreen::Trade
                     | StartupScreen::DevIpc
+                    | StartupScreen::CharSelectExport
             ) {
                 &["--"][..]
             } else {
@@ -572,7 +579,10 @@ fn launch_godot(
         )
         .args(["--screen", screen.as_str()])
         .args(
-            if !matches!(screen, StartupScreen::CharSelect | StartupScreen::Menu) {
+            if !matches!(
+                screen,
+                StartupScreen::CharSelect | StartupScreen::Menu | StartupScreen::CharSelectExport
+            ) {
                 &["--char", "iNpUt fIxTuRe", "--server"][..]
             } else {
                 &["--server"][..]
@@ -755,7 +765,10 @@ fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> 
         },
         ..equipped.clone()
     };
-    let characters = if !matches!(screen, StartupScreen::CharSelect | StartupScreen::Menu) {
+    let characters = if !matches!(
+        screen,
+        StartupScreen::CharSelect | StartupScreen::Menu | StartupScreen::CharSelectExport
+    ) {
         vec![unequipped, equipped, collection]
     } else {
         vec![equipped, unequipped, collection]
@@ -1531,6 +1544,7 @@ fn main() {
             | StartupScreen::BagsActions
             | StartupScreen::Trade
             | StartupScreen::DevIpc
+            | StartupScreen::CharSelectExport
     ) {
         assert!(
             launcher.is_file(),
@@ -1598,6 +1612,9 @@ fn main() {
             portal_particles::run(&mut app, &mut child, lines, reader, screen)
         }
         StartupScreen::DevIpc => dev_ipc::run(&mut app, &mut child, lines, reader, root, address),
+        StartupScreen::CharSelectExport => {
+            charselect_export::run(&mut app, &mut child, lines, reader, root)
+        }
         StartupScreen::CharSelect | StartupScreen::InWorld | StartupScreen::Overlay => {
             run_fixture(&mut app, &mut child, lines, reader, screen)
         }
