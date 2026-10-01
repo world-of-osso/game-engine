@@ -211,6 +211,12 @@ impl NetworkBridge {
             // Unit tooltip data and the account's appearance collection (unit-tooltip.md).
             .receive::<protocol::CreatureTooltip>()
             .receive::<protocol::AppearanceCollectionUpdate>()
+            // Bank and guild bank contents, logs and refusals (bank-frame.md).
+            .receive::<protocol::BankContents>()
+            .receive::<protocol::BankFailed>()
+            .receive::<protocol::GuildBankContents>()
+            .receive::<protocol::GuildBankLog>()
+            .receive::<protocol::GuildBankFailed>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
             // Party/raid roster, member states, invites and results (group-frames.md).
