@@ -61,7 +61,9 @@ func run_test() -> void:
 	await click(backpack)
 	if not await wait_container(client, 0, false):
 		return
-	if not await wait_item_tooltip_hidden(client):
+	# The pointer stays on the backpack button: its own tooltip
+	# (MainMenuBarBackpackButton OnEnter, "Backpack") replaces the item tooltip.
+	if not await wait_tooltip_title(client, "Backpack"):
 		return
 	var bag_one := await wait_bag_button(client, BAG_ONE)
 	if bag_one == null:
@@ -314,6 +316,16 @@ func check_item_tooltip_rect(client: Node, panel: Control, owner_slot: int) -> b
 		fail("Original left/above/clamped tooltip geometry: expected=%s observed=%s owner=%s scale=%s" % [Rect2(expected_position, expected_size), observed, owner_rect, scale])
 		return false
 	return true
+
+func wait_tooltip_title(client: Node, title: String) -> bool:
+	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = client.tooltip_state()
+		if state.visible and state.title == title:
+			return true
+	fail("Tooltip did not become %s: %s" % [title, client.tooltip_state()])
+	return false
 
 func wait_item_tooltip_hidden(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + BAG_WAIT_MS
