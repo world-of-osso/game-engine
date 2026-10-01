@@ -8,6 +8,7 @@ mod assets;
 mod auction;
 mod auras;
 mod auto_attack;
+mod bags;
 mod camera;
 mod char_create;
 mod character_select;
@@ -44,6 +45,7 @@ mod particle_debug;
 mod particles;
 mod party_frames;
 mod player_spells;
+mod replicated;
 mod scene;
 mod sound;
 mod sound_client;
@@ -70,7 +72,7 @@ use std::{collections::HashMap, path::PathBuf};
 use account::{Account, AccountEvent};
 use frame_error::FrameError;
 use game_engine_core::client_options_data::{ClientOptionsFile, load_options_file_with_legacy};
-use game_engine_network::UnitSnapshot;
+use game_engine_network::replica::{Replica, ReplicationBatch, Schema, UnitChange};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     char_create_component::{CREATE_NAME_INPUT, CharCreateAction, CharCreateMode},
@@ -139,7 +141,8 @@ pub struct GameClient {
     account: Account,
     sound: Option<Gd<sound::NativeSound>>,
     area_parents: HashMap<u32, u32>,
-    units: HashMap<u64, UnitSnapshot>,
+    /// Every replicated entity of the connection, the client's only copy.
+    replica: Replica,
     world: world::WorldUnits,
     spell_effects: spell_effects::SpellEffects,
     terrain: terrain::streaming::StreamedTerrain,
@@ -161,6 +164,7 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
+    bags: bags::Bags,
     mailbox: mail::Mailbox,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
@@ -244,13 +248,14 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
+            bags: bags::Bags::default(),
             mailbox: mail::Mailbox::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
-            units: HashMap::new(),
+            replica: Replica::default(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
             world: world::WorldUnits::new(data_root),
             server_hostname: if cfg!(debug_assertions) {
@@ -374,6 +379,12 @@ impl INode3D for GameClient {
             }
             Ok(false) => {}
         }
+        if self.bags_key(key.get_keycode()) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
         match self.open_chat_from_key(&key) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -438,6 +449,7 @@ impl INode3D for GameClient {
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
+            ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),
             ("Loot", |c, _| c.update_loot()),
@@ -501,6 +513,9 @@ impl INode3D for GameClient {
     }
 
     fn exit_tree(&mut self) {
+        // The display server keeps the custom cursor texture until it is replaced; left
+        // set, it outlives RenderingServer and its RID leaks at exit.
+        self.set_world_cursor(None);
         self.stop_sound();
         if let Err(error) = self.account.stop() {
             godot_error!("Account shutdown failed: {error}");
@@ -605,7 +620,13 @@ impl GameClient {
         state.set("gameplay_input_allowed", session.gameplay_input_allowed());
         state.set("status", session.feedback.as_deref().unwrap_or(""));
         state.set("character_count", session.characters.len() as i64);
-        state.set("unit_count", self.units.len() as i64);
+        state.set(
+            "unit_count",
+            self.replica
+                .units()
+                .filter(|unit| replicated::is_unit(*unit))
+                .count() as i64,
+        );
         state.set("world_attached", self.world.root().is_some());
         state.set(
             "zone_id",
@@ -670,7 +691,11 @@ impl GameClient {
             &self
                 .world
                 .local_player_id()
-                .and_then(|id| self.units.get(&id)?.movement_speed)
+                .and_then(|id| {
+                    self.replica
+                        .unit(id)?
+                        .get::<shared::components::MovementSpeed>()
+                })
                 .map(|speed| speed.0.to_variant())
                 .unwrap_or_default(),
         );
@@ -679,7 +704,7 @@ impl GameClient {
             &self
                 .world
                 .local_player_id()
-                .and_then(|id| self.units.get(&id)?.health)
+                .and_then(|id| self.replica.unit(id)?.get::<shared::components::Health>())
                 .map(|health| health.current.to_variant())
                 .unwrap_or_default(),
         );
@@ -883,6 +908,9 @@ impl GameClient {
             if let Some(ui) = ui {
                 visit(ui)?;
             }
+        }
+        if let Some(ui) = &mut self.bags.ui {
+            visit(ui)?;
         }
         self.merchant.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
@@ -1327,7 +1355,7 @@ impl GameClient {
         self.world
             .select_local_player(self.account.session.selected_character_name.as_deref());
         self.world
-            .update_visibility(&self.units, self.world_minutes);
+            .update_visibility(&self.replica, self.world_minutes);
         self.account
             .session
             .finish_reconnect(self.world.local_player_node().is_some());
@@ -1350,22 +1378,12 @@ impl GameClient {
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
-            AccountEvent::GameObjectUpdated(object) => {
-                let mut parent = self.to_gd().upcast::<Node3D>();
-                self.game_objects.upsert(&mut parent, object)?;
-            }
             AccountEvent::Mail(message) => self.receive_mail(message)?,
-            AccountEvent::UnitUpdated(unit) => {
-                let mut parent = self.to_gd().upcast::<Node3D>();
-                self.world.upsert(&mut parent, &unit);
-                let previous = self
-                    .units
-                    .get(&unit.server_id)
-                    .and_then(|old| old.auras.as_ref());
-                if previous != unit.auras.as_ref() {
-                    self.auras.aura_set_changed(unit.server_id, true);
-                }
-                self.units.insert(unit.server_id, unit);
+            AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
+            AccountEvent::Replication(batch) => self.apply_replication(batch)?,
+            AccountEvent::ReplicationEnded => {
+                self.replica.clear();
+                self.project_replication()?;
             }
             AccountEvent::RosterChanged => self.sync_character_select_state()?,
             AccountEvent::CharacterCreated { success, error } => {
@@ -1377,16 +1395,70 @@ impl GameClient {
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
-            AccountEvent::UnitRemoved(id) => {
-                self.game_objects.remove(id);
-                self.mailbox.close_for(id);
-                self.loot.lootable.remove(&id);
-                self.world.remove(id);
-                self.units.remove(&id);
-                self.auras.aura_set_changed(id, false);
-            }
         }
         Ok(())
+    }
+
+    /// A new connection: the previous connection's entities leave the world first.
+    fn start_replication(&mut self, schema: std::sync::Arc<Schema>) -> Result<(), String> {
+        self.replica.clear();
+        self.project_replication()?;
+        self.replica = Replica::new(schema);
+        Ok(())
+    }
+
+    fn apply_replication(&mut self, batch: ReplicationBatch) -> Result<(), String> {
+        self.replica
+            .apply(batch)
+            .map_err(|error| format!("Replication: {error}"))?;
+        self.project_replication()
+    }
+
+    /// Update the world node of each changed player or creature, and the node of each
+    /// changed game object, from their replicated components; an entity that stops being
+    /// either, or despawns, loses its node. Every change is applied; failures are joined.
+    fn project_replication(&mut self) -> Result<(), String> {
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        let mut errors = Vec::new();
+        for change in self.replica.drain_changes() {
+            let (server_id, components) = match change {
+                UnitChange::Changed {
+                    server_id,
+                    components,
+                } => (server_id, components),
+                UnitChange::Despawned(server_id) => {
+                    self.remove_replicated(server_id);
+                    continue;
+                }
+            };
+            let unit = self.replica.unit(server_id).expect("changed entity exists");
+            if replicated::is_unit(unit) {
+                self.world.upsert(&mut parent, unit);
+                if self
+                    .replica
+                    .changed::<shared::components::UnitAuras>(components)
+                {
+                    self.auras.aura_set_changed(server_id, true);
+                }
+            } else if let Some(info) = unit.get::<shared::protocol::GameObjectInfo>() {
+                errors.extend(self.game_objects.upsert(&mut parent, unit, info).err());
+            } else {
+                self.remove_replicated(server_id);
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
+        }
+    }
+
+    fn remove_replicated(&mut self, server_id: u64) {
+        self.game_objects.remove(server_id);
+        self.mailbox.close_for(server_id);
+        self.loot.lootable.remove(&server_id);
+        self.world.remove(server_id);
+        self.auras.aura_set_changed(server_id, false);
     }
 
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
@@ -1601,7 +1673,8 @@ impl GameClient {
         self.wmo_collision.reset();
         self.spell_effects.reset();
         self.world.reset();
-        self.units.clear();
+        self.replica.clear();
+        self.replica.drain_changes();
         self.auras.reset();
         self.terrain.reset()
     }

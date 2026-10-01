@@ -17,12 +17,13 @@ pub mod ui {
     }
 
     pub mod screens {
+        pub(crate) use crate::bags_bar_art;
         pub(crate) use crate::screen_title;
         pub use crate::{
-            auction_house_frame_component, bag_frame_component, bank_art, buff_frame_component,
-            compact_unit_frame_component, default_button_atlas, game_menu_component,
-            group_frames_component, inworld_unit_frames_component, loot_frame_component,
-            mail_frame_component, menu_primitives, merchant_frame_component,
+            auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
+            buff_frame_component, compact_unit_frame_component, default_button_atlas,
+            game_menu_component, group_frames_component, inworld_unit_frames_component,
+            loot_frame_component, mail_frame_component, menu_primitives, merchant_frame_component,
             objective_tracker_component, options_menu_active_sections, options_menu_component,
             options_menu_sections, quest_art, ready_check_frame_component,
             stack_split_frame_component, static_popup_component, trash_button_component,
@@ -175,6 +176,10 @@ pub mod loot_frame_data;
 // Merchant frame, backpack and stack split (docs/specs/merchant-frame.md, cursor-item.md).
 #[path = "../../../src/ui/screens/bag_frame_component.rs"]
 pub mod bag_frame_component;
+#[path = "../../../src/ui/screens/bags_bar_art.rs"]
+pub(crate) mod bags_bar_art;
+#[path = "../../../src/ui/screens/bags_bar_component.rs"]
+pub mod bags_bar_component;
 #[path = "../../../src/ui/screens/merchant_frame_component.rs"]
 pub mod merchant_frame_component;
 #[path = "../../../src/ui/screens/quest_art.rs"]
@@ -189,6 +194,8 @@ pub mod stack_split_frame_component;
 
 #[path = "../../../src/game/bag_data.rs"]
 pub mod bag_data;
+#[path = "../../../src/container_layout_data.rs"]
+pub mod container_layout_data;
 #[path = "../../../src/game/spell_catalog/csv_records.rs"]
 pub(crate) mod csv_records;
 #[path = "../../../src/game/item_catalog.rs"]
@@ -201,6 +208,8 @@ pub mod merchant_data;
 pub mod paths;
 #[path = "../../../src/game/stack_split.rs"]
 pub mod stack_split;
+#[path = "../../../src/window_manager/mod.rs"]
+pub mod window_manager;
 #[path = "../../../src/rendering/ui/wow_cursor_data.rs"]
 pub mod wow_cursor_data;
 

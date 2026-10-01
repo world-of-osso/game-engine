@@ -35,3 +35,7 @@ ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-co
 taffy = "0.10.1"
 # Decode the existing authored KTX2 UI assets without converting their source files.
 ktx2-rw = "0.2.4"
+
+[dev-dependencies]
+# `Replica::for_tests` builds replicated units without a server.
+game-engine-network = { path = "../network", features = ["test-util"] }

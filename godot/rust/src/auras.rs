@@ -7,6 +7,9 @@
 
 use std::collections::HashMap;
 use std::f32::consts::TAU;
+
+use crate::replicated::UnitFields;
+use shared::components::UnitAuras;
 use std::time::Instant;
 
 use game_engine_session::SessionScreen;
@@ -161,16 +164,14 @@ fn counted_down(mut auras: Vec<AuraInstance>, elapsed: f32) -> Vec<AuraInstance>
 impl GameClient {
     /// Displayable auras of `unit` now.
     fn unit_auras(&self, unit: u64) -> Vec<AuraInstance> {
-        let Some(views) = self.units.get(&unit).and_then(|unit| unit.auras.as_ref()) else {
+        let Some(views) = self
+            .replica
+            .unit(unit)
+            .and_then(|unit| unit.get::<UnitAuras>())
+        else {
             return Vec::new();
         };
-        let name_of = |caster: u64| {
-            let unit = self.units.get(&caster)?;
-            unit.player
-                .as_ref()
-                .map(|player| player.name.clone())
-                .or_else(|| unit.npc.as_ref().map(|npc| npc.name.clone()))
-        };
+        let name_of = |caster: u64| Some(self.replica.unit(caster)?.name()?.to_owned());
         let casters = AuraCasterLookup {
             local_player: self.world.local_player_id(),
             name_of: &name_of,
@@ -190,11 +191,14 @@ impl GameClient {
     }
 
     fn reaction_to(&mut self, unit: u64) -> Reaction {
-        let target = self.units.get(&unit).and_then(|unit| unit.faction_template);
+        let target = self
+            .replica
+            .unit(unit)
+            .and_then(UnitFields::faction_template);
         let viewer = self
             .world
             .local_player_id()
-            .and_then(|player| self.units.get(&player)?.faction_template);
+            .and_then(|player| self.replica.unit(player)?.faction_template());
         match self.nameplates.templates(&self.data_root) {
             Ok(templates) => reaction(
                 target.and_then(|id| templates.get(&id)),
@@ -209,9 +213,9 @@ impl GameClient {
         let player_is_target = self.world.local_player_id() == Some(target);
         let reaction = self.reaction_to(target);
         let npc = self
-            .units
-            .get(&target)
-            .is_some_and(|unit| unit.npc.is_some());
+            .replica
+            .unit(target)
+            .is_some_and(|unit| unit.has::<shared::components::Npc>());
         let view = TargetAuraView {
             player_is_target,
             friendly: player_is_target || reaction == Reaction::Friendly,

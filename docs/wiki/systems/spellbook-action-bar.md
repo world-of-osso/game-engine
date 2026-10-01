@@ -4,7 +4,7 @@ Contract: [spec](../../specs/spellbook-action-bar.md). Code: `godot/rust/src/spe
 
 ## Flow
 
-- `godot/network` subscribes to the spell messages and snapshots `CastState`, `UnitPowers`, `UnitAuras` into `UnitSnapshot`. `Account` keeps `PlayerSpells` (known spells, spec, 120 slots, cooldowns + GCD) and the last 64 `CombatLogEvent`s with a sequence counter; `CastFailed` becomes `AccountEvent::CastFailed`.
+- `godot/network` subscribes to the spell messages and replicates `CastState`, `UnitPowers`, `UnitAuras` into the host `Replica` ([[godot-replication]]). `Account` keeps `PlayerSpells` (known spells, spec, 120 slots, cooldowns + GCD) and the last 64 `CombatLogEvent`s with a sequence counter; `CastFailed` becomes `AccountEvent::CastFailed`.
 - `GameClient::update_spells` runs after targeting each frame: keys `ActionSlot1..12` and bar clicks send `SpellCastIntent { spell_id, spell: name, target_entity: targeting.target }` on `CombatChannel`; P toggles the book; then the bar, cast bar and book re-sync. Errors close the spell UI; they do not end the session. Committed `hud.show_action_bars` sets visibility on the cached `MainActionBarUI` during sync, leaving slot snapshots and key casts intact. Hidden bar hover is ignored; restoring visibility reuses the same UI and makes pointer casts available again.
 - Cooldown shown on a button = max(spell cooldown, GCD if the spell's `StartRecoveryTime` > 0).
 - **Auto-attack** (`godot/rust/src/auto_attack.rs`). Selecting a unit never attacks it. The client sends `AttackSwing` (`CMSG_ATTACK_SWING`) in three cases:
