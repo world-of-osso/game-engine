@@ -102,6 +102,7 @@ fn native_auction_all_rows_are_reachable() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     let mut s = AuctionSession::default();
     s.open(99);
     s.opened(AuctionHouseOpened {
@@ -180,6 +181,7 @@ fn open_session() -> AuctionSession {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     let mut s = AuctionSession::default();
     s.open(99);
     s.opened(AuctionHouseOpened {

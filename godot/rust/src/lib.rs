@@ -85,9 +85,9 @@ mod ui;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
+mod waypoint_path;
 mod window_stack;
 mod wmo;
-mod waypoint_path;
 mod world;
 mod world_map;
 mod world_models;
@@ -1479,6 +1479,10 @@ impl GameClient {
                 Ok(c.update_skybox_debug_options()?)
             }),
             ("Account", |c, _| c.poll_account()),
+            ("Item data", |c, _| {
+                c.receive_item_catalog();
+                Ok(())
+            }),
             ("Unit visuals", |c, _| {
                 c.world.attach_loaded_visuals(&c.replica);
                 Ok(())
@@ -1614,7 +1618,10 @@ impl GameClient {
             AccountEvent::Feedback => self.show_session_feedback()?,
             AccountEvent::WorldReset => self.reset_world()?,
             AccountEvent::RestState(update) => {
-                self.in_rest_area = update.snapshot.as_ref().is_some_and(|rest| rest.in_rest_area);
+                self.in_rest_area = update
+                    .snapshot
+                    .as_ref()
+                    .is_some_and(|rest| rest.in_rest_area);
                 self.rest = update.snapshot;
             }
             AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,

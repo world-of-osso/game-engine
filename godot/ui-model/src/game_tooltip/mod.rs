@@ -388,13 +388,14 @@ pub fn place_comparisons(
     placed
 }
 
-/// Tests measure text with the repository's fonts.
+/// Tests measure text with the repository's fonts and read the loaded item catalog.
 #[cfg(test)]
 pub(crate) fn set_test_data_root() {
     crate::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .expect("tooltip test data root");
+    crate::item_catalog::wait_for_item_catalog();
 }
 
 #[cfg(test)]

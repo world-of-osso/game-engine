@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Once, OnceLock};
 
 use crate::spell_catalog::SPELL_DB2_BUILD;
 use crate::spell_catalog::csv_records::CsvTable;
@@ -57,6 +57,8 @@ pub struct ItemCatalog {
     items: HashMap<u32, ItemCatalogEntry>,
     /// `ItemSubClass.DisplayName_lang` by (ClassID, SubClassID).
     subclass_names: HashMap<(u8, u8), String>,
+    /// Each item's base-appearance icon (`item_icons`).
+    appearance_icons: HashMap<u32, u32>,
 }
 
 impl ItemCatalog {
@@ -70,6 +72,16 @@ impl ItemCatalog {
             .map(String::as_str)
     }
 
+    /// `C_Item.GetItemIconByID`: the base appearance's icon; items without an appearance
+    /// (trade goods, consumables) use `Item.IconFileDataID`.
+    pub fn icon_fdid(&self, item_id: u32) -> Option<u32> {
+        self.appearance_icons.get(&item_id).copied().or_else(|| {
+            self.get(item_id)
+                .map(|entry| entry.icon_fdid)
+                .filter(|icon| *icon != 0)
+        })
+    }
+
     pub fn len(&self) -> usize {
         self.items.len()
     }
@@ -79,36 +91,58 @@ impl ItemCatalog {
     }
 }
 
-fn catalog() -> &'static ItemCatalog {
-    static CATALOG: OnceLock<ItemCatalog> = OnceLock::new();
-    CATALOG.get_or_init(|| {
-        let dir = crate::paths::resolve_data_path(db2_dir(Path::new("")));
-        load_item_catalog(&dir).unwrap_or_else(|err| {
-            #[cfg(not(godot_host))]
-            bevy::log::error!("item catalog unavailable: {err}");
-            #[cfg(godot_host)]
-            eprintln!("item catalog unavailable: {err}");
-            ItemCatalog::default()
-        })
-    })
+static CATALOG: OnceLock<ItemCatalog> = OnceLock::new();
+
+/// The catalog once its background load is done, `None` until then: as Retail's
+/// `C_Item.GetItemInfo` returns nil until `GET_ITEM_INFO_RECEIVED`, no caller waits for
+/// the ~175k-row ItemSparse parse. The first call starts the load.
+pub fn item_catalog() -> Option<&'static ItemCatalog> {
+    warm_item_catalog();
+    CATALOG.get()
 }
 
-/// Catalog entry of `item_id`; the catalog loads on first use.
+/// Catalog entry of `item_id`; `None` while the catalog loads.
 pub fn item_catalog_entry(item_id: u32) -> Option<&'static ItemCatalogEntry> {
-    catalog().get(item_id)
+    item_catalog()?.get(item_id)
 }
 
 /// The item's subclass name (`GetItemInfo` itemSubType): "Sword", "Cloth".
 pub fn item_subclass_name(entry: &ItemCatalogEntry) -> Option<&'static str> {
-    catalog().subclass_name(entry.class_id, entry.subclass_id)
+    item_catalog()?.subclass_name(entry.class_id, entry.subclass_id)
 }
 
-/// Load the catalog on a background thread so the first bag or tooltip that needs
-/// it does not stall a frame on the ~175k-row ItemSparse parse.
+/// Start loading the catalog on a background thread, once.
 pub fn warm_item_catalog() {
-    std::thread::spawn(|| {
-        catalog();
+    static STARTED: Once = Once::new();
+    STARTED.call_once(|| {
+        std::thread::Builder::new()
+            .name("item-catalog".into())
+            .spawn(|| {
+                CATALOG.get_or_init(load_client_catalog);
+            })
+            .expect("spawn the item catalog loader");
     });
+}
+
+/// The catalog, waiting for its load. For tests and offline tools: a frame never waits.
+pub fn wait_for_item_catalog() -> &'static ItemCatalog {
+    warm_item_catalog();
+    CATALOG.wait()
+}
+
+fn load_client_catalog() -> ItemCatalog {
+    let dir = crate::paths::resolve_data_path(db2_dir(Path::new("")));
+    let loaded = load_item_catalog(&dir).and_then(|mut catalog| {
+        catalog.appearance_icons = crate::item_icons::load_item_icons()?;
+        Ok(catalog)
+    });
+    loaded.unwrap_or_else(|err| {
+        #[cfg(not(godot_host))]
+        bevy::log::error!("item catalog unavailable: {err}");
+        #[cfg(godot_host)]
+        eprintln!("item catalog unavailable: {err}");
+        ItemCatalog::default()
+    })
 }
 
 fn db2_dir(data_dir: &Path) -> PathBuf {
@@ -203,7 +237,7 @@ pub(crate) fn parse_item_catalog(table: &CsvTable) -> Result<ItemCatalog, String
     )?;
     Ok(ItemCatalog {
         items,
-        subclass_names: HashMap::new(),
+        ..Default::default()
     })
 }
 

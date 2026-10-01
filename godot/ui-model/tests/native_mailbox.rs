@@ -62,6 +62,7 @@ fn configure_assets() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
 }
 
 fn contents(object: u64, mails: Vec<MailHeader>) -> MailboxContents {
