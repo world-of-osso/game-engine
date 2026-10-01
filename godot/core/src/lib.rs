@@ -27,12 +27,12 @@ pub mod char_texture_query_data;
 pub mod character_creation_icon_mask_data;
 #[path = "../../../src/character_model_data.rs"]
 pub mod character_model_data;
-#[path = "../../../src/game/equipment/component_file_data.rs"]
-mod component_file_data;
 #[path = "../../../src/client_options_data.rs"]
 pub mod client_options_data;
 #[cfg(test)]
 mod client_options_data_tests;
+#[path = "../../../src/game/equipment/component_file_data.rs"]
+mod component_file_data;
 #[path = "../../../src/scenes/char_create/background_data.rs"]
 pub mod creation_scene_data;
 #[path = "../../../src/game/creatures/creature_display_data.rs"]
@@ -63,6 +63,8 @@ mod ground_effect_data_tests;
 pub mod input_bindings_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
 pub mod light_lookup_data;
+#[path = "../../../src/rendering/lighting/light_lookup_types.rs"]
+pub mod light_lookup_types;
 pub mod lighting_assets;
 pub mod liquid_data;
 #[path = "../../../src/game/state/loading_readiness.rs"]
@@ -91,6 +93,7 @@ pub mod quest_area_data;
 pub mod realm_preset_data;
 #[path = "../../../src/scenes/scene_snapshot_data.rs"]
 pub mod scene_snapshot;
+pub mod skybox_debug_data;
 pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
