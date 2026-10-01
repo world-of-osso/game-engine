@@ -1,0 +1,12 @@
+[package]
+name = "pw-video-cat"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Standalone tool, not a member of the repository workspace.
+[workspace]
+
+[dependencies]
+pipewire = "0.9"
+libc = "0.2"
