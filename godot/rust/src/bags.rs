@@ -11,6 +11,8 @@ use godot::prelude::*;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use game_engine_core::input_bindings_data::InputAction;
+
 use crate::GameClient;
 use crate::frame_error::FrameError;
 use crate::replicated::UnitFields;
@@ -100,6 +102,48 @@ impl Bags {
         }
         !open.is_empty()
     }
+
+    /// Retail `ToggleBackpack_Individual` (ContainerFrame.lua:157-164): an open
+    /// backpack closes every bag.
+    fn toggle_backpack(&mut self) {
+        if self.windows.is_open(WindowId::Bag(0)) {
+            self.close_all_bags(None);
+        } else {
+            self.windows.open(WindowId::Bag(0));
+        }
+    }
+
+    /// Retail `ToggleBag_Individual(id)` (ContainerFrame.lua:178-195): only a held bag
+    /// toggles, and closing the backpack closes every bag.
+    fn toggle_bag(&mut self, id: usize, held: &[usize]) {
+        if !held.contains(&id) {
+            return;
+        }
+        if !self.windows.is_open(WindowId::Bag(id)) {
+            self.windows.open(WindowId::Bag(id));
+        } else if id == 0 {
+            self.close_all_bags(None);
+        } else {
+            self.windows.close(WindowId::Bag(id));
+        }
+    }
+
+    /// Retail `ToggleAllBags` (ContainerFrame.lua:1923-1957): close every open bag, then
+    /// reopen all of them unless every held bag was already open.
+    fn toggle_all_bags(&mut self, held: &[usize]) {
+        let open = held
+            .iter()
+            .filter(|id| self.windows.is_open(WindowId::Bag(**id)))
+            .count();
+        for id in held {
+            self.windows.close(WindowId::Bag(*id));
+        }
+        if open < held.len() {
+            for id in held {
+                self.windows.open(WindowId::Bag(*id));
+            }
+        }
+    }
 }
 
 impl GameClient {
@@ -111,6 +155,7 @@ impl GameClient {
         self.sync_npc_bags();
         self.clear_stale_bag_cursor();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
+            self.apply_bag_bindings();
             self.poll_window_inputs()?;
         }
         let view = self.bags_view();
@@ -123,6 +168,39 @@ impl GameClient {
         ui.bind_mut().set_state(view)?;
         self.place_bags(&mut ui)?;
         Ok(self.sync_bag_cursor()?)
+    }
+
+    /// Retail `OPENALLBAGS`, `TOGGLEBACKPACK` and `TOGGLEBAG1-4` (Bindings_Standard.xml:1203-1223).
+    fn apply_bag_bindings(&mut self) {
+        const BAG_ACTIONS: [InputAction; 6] = [
+            InputAction::OpenAllBags,
+            InputAction::ToggleBackpack,
+            InputAction::ToggleBag1,
+            InputAction::ToggleBag2,
+            InputAction::ToggleBag3,
+            InputAction::ToggleBag4,
+        ];
+        let input = self.physical_input.gameplay_state(self.keyboard_free());
+        let bindings = &self.client_options.bindings;
+        let pressed: Vec<InputAction> = BAG_ACTIONS
+            .into_iter()
+            .filter(|action| bindings.is_just_pressed(*action, &input))
+            .collect();
+        let held: Vec<usize> = self
+            .merchant
+            .session
+            .inventory
+            .bags
+            .iter()
+            .map(|bag| bag.index)
+            .collect();
+        for action in pressed {
+            match (action, action.toggled_bag()) {
+                (_, Some(id)) => self.bags.toggle_bag(id, &held),
+                (InputAction::OpenAllBags, None) => self.bags.toggle_all_bags(&held),
+                _ => self.bags.toggle_backpack(),
+            }
+        }
     }
 
     /// NPC windows that open every bag on show and close them on hide (Retail
@@ -318,6 +396,37 @@ mod tests {
         assert_eq!(open_bags(&bags), [WindowId::Bag(1)]);
         assert!(!bags.close_all_bags(Some(WindowId::Mail)));
         assert_eq!(open_bags(&bags), [WindowId::Bag(1)]);
+    }
+
+    #[test]
+    fn toggle_all_bags_opens_every_held_bag_until_all_are_open() {
+        let mut bags = Bags::default();
+        bags.windows.open(WindowId::Bag(2));
+        bags.toggle_all_bags(&[0, 1, 2]);
+        assert_eq!(
+            open_bags(&bags),
+            [WindowId::Bag(0), WindowId::Bag(1), WindowId::Bag(2)]
+        );
+        bags.toggle_all_bags(&[0, 1, 2]);
+        assert!(open_bags(&bags).is_empty());
+    }
+
+    #[test]
+    fn closing_the_backpack_closes_every_bag_but_a_side_bag_closes_alone() {
+        let mut bags = Bags::default();
+        bags.toggle_backpack();
+        bags.toggle_bag(4, &[0, 1, 4]);
+        bags.toggle_bag(3, &[0, 1, 4]);
+        assert_eq!(open_bags(&bags), [WindowId::Bag(0), WindowId::Bag(4)]);
+        bags.toggle_bag(4, &[0, 1, 4]);
+        assert_eq!(open_bags(&bags), [WindowId::Bag(0)]);
+        bags.toggle_bag(1, &[0, 1, 4]);
+        bags.toggle_bag(0, &[0, 1, 4]);
+        assert!(open_bags(&bags).is_empty());
+        bags.toggle_bag(1, &[0, 1, 4]);
+        bags.toggle_backpack();
+        bags.toggle_backpack();
+        assert!(open_bags(&bags).is_empty());
     }
 
     #[test]

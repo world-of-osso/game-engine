@@ -198,6 +198,8 @@ pub enum InputAction {
     ZoomIn,
     ZoomOut,
     TargetNearest,
+    TargetPreviousEnemy,
+    AssistTarget,
     TargetSelf,
     ActionSlot1,
     ActionSlot2,
@@ -223,10 +225,16 @@ pub enum InputAction {
     ToggleQuestLog,
     ToggleWorldMap,
     ToggleFramerate,
+    OpenAllBags,
+    ToggleBackpack,
+    ToggleBag1,
+    ToggleBag2,
+    ToggleBag3,
+    ToggleBag4,
 }
 
 impl InputAction {
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 48] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -242,6 +250,8 @@ impl InputAction {
         Self::ZoomIn,
         Self::ZoomOut,
         Self::TargetNearest,
+        Self::TargetPreviousEnemy,
+        Self::AssistTarget,
         Self::TargetSelf,
         Self::ActionSlot1,
         Self::ActionSlot2,
@@ -267,6 +277,12 @@ impl InputAction {
         Self::ToggleQuestLog,
         Self::ToggleWorldMap,
         Self::ToggleFramerate,
+        Self::OpenAllBags,
+        Self::ToggleBackpack,
+        Self::ToggleBag1,
+        Self::ToggleBag2,
+        Self::ToggleBag3,
+        Self::ToggleBag4,
     ];
 
     pub fn key(self) -> &'static str {
@@ -280,6 +296,7 @@ impl InputAction {
             .or_else(|| action_slot_from_key(key))
             .or_else(|| audio_action_from_key(key))
             .or_else(|| interface_action_from_key(key))
+            .or_else(|| bag_action_from_key(key))
     }
 
     pub fn label(self) -> &'static str {
@@ -299,6 +316,9 @@ impl InputAction {
             return meta;
         }
         if let Some(meta) = self.interface_meta() {
+            return meta;
+        }
+        if let Some(meta) = self.bag_meta() {
             return meta;
         }
         self.non_action_slot_meta()
@@ -365,6 +385,43 @@ impl InputAction {
         ))
     }
 
+    /// Retail `Bindings_Standard.xml:1203-1223` bag bindings with the client's default
+    /// keys (the user's Retail `bindings-cache.wtf` unbinds SHIFT-B and F8-F11 from
+    /// them). Single-slot model: TOGGLEBACKPACK's second Retail key, F12, is not bound.
+    fn bag_meta(self) -> Option<InputActionMeta> {
+        let (key, label, binding) = match self {
+            Self::OpenAllBags => ("open_all_bags", "Open All Bags", keyboard(BindingKey::KeyB)),
+            Self::ToggleBackpack => (
+                "toggle_backpack",
+                "Toggle Backpack",
+                InputBinding::ShiftKeyboard(BindingKey::KeyB),
+            ),
+            Self::ToggleBag1 => ("toggle_bag_1", "Toggle Bag 1", keyboard(BindingKey::F8)),
+            Self::ToggleBag2 => ("toggle_bag_2", "Toggle Bag 2", keyboard(BindingKey::F9)),
+            Self::ToggleBag3 => ("toggle_bag_3", "Toggle Bag 3", keyboard(BindingKey::F10)),
+            Self::ToggleBag4 => ("toggle_bag_4", "Toggle Bag 4", keyboard(BindingKey::F11)),
+            _ => return None,
+        };
+        Some(input_action_meta(
+            key,
+            label,
+            BindingSection::Bags,
+            Some(binding),
+        ))
+    }
+
+    /// Container id a `TOGGLEBAGn` binding toggles: `ToggleBag(5 - n)`
+    /// (`Bindings_Standard.xml:1209-1220`), so F8..F11 run left to right along the bag bar.
+    pub fn toggled_bag(self) -> Option<usize> {
+        Some(match self {
+            Self::ToggleBag1 => 4,
+            Self::ToggleBag2 => 3,
+            Self::ToggleBag3 => 2,
+            Self::ToggleBag4 => 1,
+            _ => return None,
+        })
+    }
+
     fn non_action_slot_meta(self) -> InputActionMeta {
         match self {
             Self::MoveForward => movement_meta("move_forward", "Move Forward", BindingKey::KeyW),
@@ -385,6 +442,17 @@ impl InputAction {
             Self::TargetNearest => {
                 targeting_meta("target_nearest", "Target Nearest", BindingKey::Tab)
             }
+            // `TARGETPREVIOUSENEMY`: `TargetNearestEnemy(true)` (Bindings_Standard.xml:998).
+            Self::TargetPreviousEnemy => input_action_meta(
+                "target_previous_enemy",
+                "Target Previous Enemy",
+                BindingSection::Targeting,
+                Some(InputBinding::ShiftKeyboard(BindingKey::Tab)),
+            ),
+            // `ASSISTTARGET`: `AssistUnit("target")` (Bindings_Standard.xml:1174).
+            Self::AssistTarget => {
+                targeting_meta("assist_target", "Assist Target", BindingKey::KeyF)
+            }
             Self::TargetSelf => targeting_meta("target_self", "Target Self", BindingKey::F1),
             Self::ToggleMute => input_action_meta(
                 "toggle_mute",
@@ -403,6 +471,12 @@ impl InputAction {
             | Self::ToggleQuestLog
             | Self::ToggleWorldMap
             | Self::ToggleFramerate => unreachable!("panel toggles handled by interface_meta"),
+            Self::OpenAllBags
+            | Self::ToggleBackpack
+            | Self::ToggleBag1
+            | Self::ToggleBag2
+            | Self::ToggleBag3
+            | Self::ToggleBag4 => unreachable!("bag toggles handled by bag_meta"),
             Self::ActionSlot1
             | Self::ActionSlot2
             | Self::ActionSlot3
@@ -446,16 +520,18 @@ pub enum BindingSection {
     ActionBar,
     Audio,
     Interface,
+    Bags,
 }
 
 impl BindingSection {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Movement,
         Self::Camera,
         Self::Targeting,
         Self::ActionBar,
         Self::Audio,
         Self::Interface,
+        Self::Bags,
     ];
 
     pub fn key(self) -> &'static str {
@@ -466,6 +542,7 @@ impl BindingSection {
             Self::ActionBar => "action_bar",
             Self::Audio => "audio",
             Self::Interface => "interface",
+            Self::Bags => "bags",
         }
     }
 
@@ -477,6 +554,7 @@ impl BindingSection {
             "action_bar" => Self::ActionBar,
             "audio" => Self::Audio,
             "interface" => Self::Interface,
+            "bags" => Self::Bags,
             _ => return None,
         })
     }
@@ -489,6 +567,7 @@ impl BindingSection {
             Self::ActionBar => "Action Bar",
             Self::Audio => "Audio",
             Self::Interface => "Interface",
+            Self::Bags => "Bags",
         }
     }
 }
@@ -746,6 +825,8 @@ fn camera_action_from_key(key: &str) -> Option<InputAction> {
 fn targeting_action_from_key(key: &str) -> Option<InputAction> {
     Some(match key {
         "target_nearest" => InputAction::TargetNearest,
+        "target_previous_enemy" => InputAction::TargetPreviousEnemy,
+        "assist_target" => InputAction::AssistTarget,
         "target_self" => InputAction::TargetSelf,
         _ => return None,
     })
@@ -786,6 +867,18 @@ fn interface_action_from_key(key: &str) -> Option<InputAction> {
     })
 }
 
+fn bag_action_from_key(key: &str) -> Option<InputAction> {
+    Some(match key {
+        "open_all_bags" => InputAction::OpenAllBags,
+        "toggle_backpack" => InputAction::ToggleBackpack,
+        "toggle_bag_1" => InputAction::ToggleBag1,
+        "toggle_bag_2" => InputAction::ToggleBag2,
+        "toggle_bag_3" => InputAction::ToggleBag3,
+        "toggle_bag_4" => InputAction::ToggleBag4,
+        _ => return None,
+    })
+}
+
 fn audio_action_from_key(key: &str) -> Option<InputAction> {
     match key {
         "toggle_mute" => Some(InputAction::ToggleMute),
@@ -815,6 +908,7 @@ pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
         BindingSection::ActionBar => action_bar_section_actions(),
         BindingSection::Audio => audio_section_actions(),
         BindingSection::Interface => interface_section_actions(),
+        BindingSection::Bags => bag_section_actions(),
     }
 }
 
@@ -843,7 +937,23 @@ fn camera_section_actions() -> &'static [InputAction] {
 }
 
 fn targeting_section_actions() -> &'static [InputAction] {
-    &[InputAction::TargetNearest, InputAction::TargetSelf]
+    &[
+        InputAction::TargetNearest,
+        InputAction::TargetPreviousEnemy,
+        InputAction::AssistTarget,
+        InputAction::TargetSelf,
+    ]
+}
+
+fn bag_section_actions() -> &'static [InputAction] {
+    &[
+        InputAction::OpenAllBags,
+        InputAction::ToggleBackpack,
+        InputAction::ToggleBag1,
+        InputAction::ToggleBag2,
+        InputAction::ToggleBag3,
+        InputAction::ToggleBag4,
+    ]
 }
 
 fn action_bar_section_actions() -> &'static [InputAction] {

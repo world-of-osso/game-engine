@@ -10,7 +10,7 @@ use std::time::Instant;
 use game_engine_core::{
     creature_health_scaling_data::CreatureHealthByLevel,
     input_bindings_data::{BindingMouseButton, InputAction, InputState},
-    target_selection_data::{next_target, opaque_to_alpha_mask},
+    target_selection_data::{next_target, opaque_to_alpha_mask, previous_target},
 };
 use game_engine_network::replica::Unit;
 use game_engine_session::SessionScreen;
@@ -430,6 +430,14 @@ impl GameClient {
         if bindings.is_just_pressed(InputAction::TargetNearest, &input) {
             let sorted = self.selectable_npcs_nearest_first();
             self.targeting.target = next_target(&sorted, self.targeting.target);
+        } else if bindings.is_just_pressed(InputAction::TargetPreviousEnemy, &input) {
+            let sorted = self.selectable_npcs_nearest_first();
+            self.targeting.target = previous_target(&sorted, self.targeting.target);
+        } else if bindings.is_just_pressed(InputAction::AssistTarget, &input) {
+            // `AssistUnit("target")`: take the target's own target; none keeps ours.
+            if let Some(assisted) = self.assisted_target() {
+                self.targeting.target = Some(assisted);
+            }
         } else if bindings.is_just_pressed(InputAction::TargetSelf, &input) {
             self.targeting.target = self.world.local_player_id();
         } else if self
@@ -441,6 +449,14 @@ impl GameClient {
             // `deselectOnClick` CVar (Blizzard_SettingsDefinitions_Frame/Controls.lua:43-47).
             self.targeting.target = Some(unit);
         }
+    }
+
+    fn assisted_target(&self) -> Option<u64> {
+        let target = self.replica.unit(self.targeting.target?)?.unit_target()?;
+        self.replica
+            .unit(target)
+            .is_some_and(is_unit)
+            .then_some(target)
     }
 
     fn unit_under_pointer(&self) -> Option<u64> {
