@@ -45,6 +45,8 @@ The `[x]` requirements above preserve legacy implementation status; they are not
 
 Bounded foreign-chat World rejection at `5f6782b5` is **MAIN observed GREEN; independent gate1406 accepted bounded PASS**. Captured physical-point mounted hits block only own-no-hit World candidates; own hits are unchanged, not cross-layer winner arbitration. [Owned evidence and exclusions](../wiki/systems/godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) records actual RED/GREEN and same-build regressions; no full global/NPC ownership, world-drag, scale/threshold-boundary, overlap-winner, tooltip or shutdown acceptance.
 
+Standalone bag hover: test `7e7b70af` has actual pre-bridge build exit0/runtime RED exit101; native `ac7c16d7` is committed, shared extraction pending. Integration compile, tooltip GREEN and independent gate remain pending; test-only `1c00b32a` adds placement/hiding assertions, not runtime proof. [Owned tooltip checkpoint](../wiki/systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending) preserves exact scopes and prior accepted exclusions.
+
 ## Tests asserting this spec
 
 - `src/game/cursor_item_tests.rs`: pick up and swap, put back, equip and unequip, split drop / sell / destroy counts, sell only with a vendor open, destroy confirm (poor, rare, heirloom), vendor item bought into the dropped slot, buyback cells not picked up, stale cursor clears.

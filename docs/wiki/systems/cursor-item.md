@@ -17,6 +17,8 @@ How the client picks items up onto the cursor, drops them, splits stacks and sho
 
 [Foreign-chat World rejection](godot-conversion.md#foreign-chat-world-rejection--bounded-main-observed-green) at `5f6782b5` is MAIN observed GREEN, independent gate1406 accepted bounded PASS. Captured physical-point mounted hits reject only own-no-hit World candidates; own hits stay unchanged. This does not establish cross-layer winners or clear existing coverage exclusions.
 
+[Standalone bag tooltip checkpoint](godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): authentic hover RED; committed native `ac7c16d7` uses own projected bag hit and authoritative slot with shared original formatter/presentation. Extraction, integration compile, tooltip GREEN and independent gate pending; test followup is not runtime proof. Prior foreign gate/exclusions unchanged.
+
 ## Gotchas
 
 - Keyboard ownership: the split frame and edit-box popups read `KeyboardInput` directly and force `UiInputMode::Text`, so digits don't fire action-bar keybinds.
