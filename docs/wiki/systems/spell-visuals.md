@@ -313,6 +313,12 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
 - `polymorph-realtime-1x.mp4`, `polymorph-realtime-halfspeed.mp4`, `contact-sheet-realtime.png`, `stills-realtime-grab/`: the same fixture with `POLY_GRAB`, one JPEG per 100 ms of wall-clock time; timing is true, motion is choppy (about 8 fps).
 - `stills-realtime/`: an earlier run with the camera behind trees, which shows the full Polymorph cast bar.
 
+**Recording with audio (2026-10-01, `data/diagnostics/polymorph-2026-10-01/`).** `POLY_GRAB` now grabs the first frame of every 1/30 s wall-clock slot (JPEG encoding on `WorkerThreadPool`), records the Master bus with an `AudioEffectRecord` from the first frame on (`audio.wav`), and prints fixture events and spell sounds with `t=` on that timeline. `scripts/agent/grab-video.py` muxes it into a 30 fps H.264 + AAC MP4 and writes timing, per-event audio RMS and a contact sheet. The client needs a mixing audio driver: run Godot with `--audio-driver PulseAudio` and `PULSE_SINK` set to a `pactl load-module module-null-sink`, so nothing plays on the desktop. On game-server 40241f5, a level-10 mage with no chosen spec gets Arcane 62, which replaces Frostbolt with Arcane Blast. The fixture now sends `set_specialization(64)` (Frost) after entering the world. Findings:
+- The grab keeps up with rendering, but in-world the client rendered only 5-7 fps in the headless cage while the machine had a load average of about 20. The main thread was CPU-bound and the network/grab threads were nearly idle. Building the `game-engine-godot` crate at opt-level 2 (an experiment, not committed) raised the rate from 5.2 to 6.7 fps.
+- Main-thread stalls of over 10 s during streaming time out netcode, and the client re-enters the world with a new player entity.
+- The spy chases along the ridge and then fights, turns into a sheep and wanders several yards up in the air above the mage. The 2026-09-30 video showed it on the ground.
+- The breaking Frostbolt restores the spy's display (t=33.28) about 0.5 s before the client's impact sound (t=33.77).
+
 **Sounds for every spell (2026-09-29, `data/diagnostics/spellcast-anim-2026-09-29c/sounds-all/`).** The fixture logs each spell's SoundKit, file, unit, source (`kit`, `missile`, `voice`) and start/stop times. Setup: game-server dd45440, shared-protocol d252965, fresh DB, UDP 5083. All three scenarios exit 0.
 
 - **Paladin** (`paladin/`):
