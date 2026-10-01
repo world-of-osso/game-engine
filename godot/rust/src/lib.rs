@@ -1678,7 +1678,7 @@ impl GameClient {
                     (delta_ms / 1000.0) as f32,
                 );
             }
-            self.world.apply_animation_lod(camera, frame);
+            self.world.apply_animation_lod(camera, &frustum, frame);
         }
     }
 

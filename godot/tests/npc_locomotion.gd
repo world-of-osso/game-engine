@@ -108,7 +108,7 @@ func find_moving_creature(units: Node3D, player: Node3D) -> Node3D:
 func watch(creature: Node3D, player: Node3D) -> void:
 	var model := creature.find_child("NpcModel", true, false) as Node3D
 	var animation := animation_of(creature)
-	var on_screen := model.get_node("OnScreen") as VisibleOnScreenNotifier3D
+	var camera := client_camera(creature)
 	var probe := Probe.new()
 	probe.skeleton = model.get_node("Skeleton3D") as Skeleton3D
 	probe.animation = animation
@@ -132,7 +132,7 @@ func watch(creature: Node3D, player: Node3D) -> void:
 		last = creature.global_position
 		last_at = now
 		var id: int = animation.current_animation_id()
-		print("TRACE %s moved %.3f yd, animation %d, on screen %s" % [creature.name, moved, id, on_screen.is_on_screen()])
+		print("TRACE %s moved %.3f yd, animation %d, in view %s" % [creature.name, moved, id, camera.is_position_in_frustum(model.global_position)])
 		# Between the two thresholds the client is still interpolating toward the last position.
 		if moved > MOVING_YARDS:
 			still_since = -1
@@ -143,7 +143,7 @@ func watch(creature: Node3D, player: Node3D) -> void:
 				return
 			if standing_moves > 0:
 				continue
-			if not walked and aligned and on_screen.is_on_screen():
+			if not walked and aligned and camera.is_position_in_frustum(model.global_position):
 				release_turn()
 				walk_id = id
 				walked = await prove_bones_move(creature, probe, id)
@@ -246,3 +246,8 @@ func click_control(control: Control) -> void:
 func fail(message: String) -> void:
 	push_error(message)
 	quit(1)
+
+## The client's world camera: the NPC animation LOD samples a model only while its
+## bounds are in this camera's view frustum.
+func client_camera(creature: Node3D) -> Camera3D:
+	return creature.get_parent().get_parent().get_node("WorldCamera") as Camera3D

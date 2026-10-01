@@ -674,9 +674,12 @@ impl TerrainObjects {
         let placement = &objects.wmos[spawn.index];
         let tile = spawn.tile;
         let mut wmo_node = spawn.build.finish();
-        let liquid_errors =
-            self.liquids
-                .add(&spawn.asset, &mut wmo_node.node, &self.resolver, &self.data_root);
+        let liquid_errors = self.liquids.add(
+            &spawn.asset,
+            &mut wmo_node.node,
+            &self.resolver,
+            &self.data_root,
+        );
         wmo_node.batch_errors.extend(liquid_errors);
         let model = &mut wmo_node.node;
         let position = placement_position(placement.position, tile.0, tile.1);
@@ -1025,7 +1028,7 @@ fn group_batches(wmo: &Gd<Node3D>) -> HashMap<u16, Vec<Gd<Node3D>>> {
     groups
 }
 
-fn affine(transform: Transform3D) -> Affine3A {
+pub(crate) fn affine(transform: Transform3D) -> Affine3A {
     let column = |vector: Vector3| Vec3::new(vector.x, vector.y, vector.z);
     Affine3A::from_cols(
         column(transform.basis.col_a()).into(),
