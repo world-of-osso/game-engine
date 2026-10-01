@@ -10,10 +10,12 @@ use game_engine_ui_model::loot_frame_data::{
 };
 use godot::classes::{MeshInstance3D, SphereMesh, StandardMaterial3D, base_material_3d};
 use godot::prelude::*;
+use shared::components::Npc;
 
 use crate::GameClient;
 use crate::account::LootMessage;
 use crate::frame_error::FrameError;
+use crate::replicated::is_unit;
 use crate::ui::RegistryUi;
 
 const LOOT_UI: &str = "LootUI";
@@ -56,7 +58,7 @@ impl GameClient {
         match message {
             LootMessage::Lootable(update) => {
                 // Match the original replication-map boundary: unknown corpses are ignored.
-                if self.units.contains_key(&update.corpse) {
+                if self.replica.unit(update.corpse).is_some_and(is_unit) {
                     if update.lootable {
                         self.loot.lootable.insert(update.corpse);
                     } else {
@@ -83,7 +85,7 @@ impl GameClient {
     /// True means this is a lootable NPC corpse, including an out-of-range one.
     pub(super) fn send_corpse_loot(&self, id: u64) -> Result<bool, FrameError> {
         let is_lootable_npc = self.loot.lootable.contains(&id)
-            && self.units.get(&id).is_some_and(|unit| unit.npc.is_some());
+            && self.replica.unit(id).is_some_and(|unit| unit.has::<Npc>());
         if !is_lootable_npc {
             return Ok(false);
         }

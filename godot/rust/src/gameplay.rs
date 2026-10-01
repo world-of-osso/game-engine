@@ -14,6 +14,7 @@ use game_engine_core::{
 };
 use glam::Vec3;
 use shared::{
+    components::MovementSpeed,
     movement::{RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
     protocol::PlayerInput,
 };
@@ -535,7 +536,7 @@ impl crate::GameClient {
         if let Some(speed) = self
             .world
             .local_player_id()
-            .and_then(|id| self.units.get(&id)?.movement_speed)
+            .and_then(|id| self.replica.unit(id)?.get::<MovementSpeed>())
         {
             self.player_movement.adopt_server_speed(speed.0);
         }
