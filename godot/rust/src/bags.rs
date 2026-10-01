@@ -147,6 +147,9 @@ impl GameClient {
         click: game_engine_ui_model::merchant::Click,
     ) -> Result<(), FrameError> {
         if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
+            if let Some(handled) = self.mail_bag_slot_click(action, click) {
+                return Ok(handled?);
+            }
             self.bag_cursor_click(action, click)
         } else {
             Ok(self.toggle_bag_action(action)?)

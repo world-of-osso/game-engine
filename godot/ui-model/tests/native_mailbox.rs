@@ -116,6 +116,27 @@ fn click_with(s: &mut MailSession, action: &str, texts: &MailTexts, money: u64) 
     s.click(action, texts, money, &InventoryState::default())
 }
 
+/// The server carrying out `action` and resending the inbox.
+fn serve(s: &mut MailSession, mail_id: u64, action: MailAction) {
+    let mut mails = s.contents.clone().unwrap().mails;
+    if let Some(index) = mails.iter().position(|m| m.mail_id == mail_id) {
+        let mail = &mut mails[index];
+        mail.read = true;
+        match action {
+            MailAction::TakeMoney => mail.money = 0,
+            MailAction::TakeAttachment { slot } => {
+                mail.attachments.retain(|a| a.slot != slot);
+                mail.cod = 0;
+            }
+            MailAction::Return | MailAction::Delete => {
+                mails.remove(index);
+            }
+            MailAction::MarkRead => {}
+        }
+    }
+    s.receive_contents(contents(BOX, mails));
+}
+
 fn apply(texts: &mut MailTexts, effect: &MailEffect) {
     for (name, text) in &effect.edits {
         texts.insert(name, text.clone());
@@ -291,14 +312,9 @@ fn delete_returns_player_mail_with_contents_and_confirms_destroying_the_rest() {
         request(2, MailAction::Return)
     );
     assert_eq!(s.selected, None);
-    s.receive_contents(contents(BOX, s.contents.clone().unwrap().mails));
-    s.click(
-        "mail_open:3",
-        &MailTexts::new(),
-        0,
-        &InventoryState::default(),
-    );
-    s.receive_contents(contents(BOX, s.contents.clone().unwrap().mails));
+    serve(&mut s, 2, MailAction::Return);
+    click(&mut s, "mail_open:3");
+    serve(&mut s, 3, MailAction::MarkRead);
     let item = click(&mut s, "mail_delete");
     let spec = item.popup.unwrap();
     assert_eq!(
@@ -313,7 +329,7 @@ fn delete_returns_player_mail_with_contents_and_confirms_destroying_the_rest() {
         request(3, MailAction::Delete)
     );
     assert_eq!(s.selected, None);
-    s.receive_contents(contents(BOX, s.contents.clone().unwrap().mails));
+    serve(&mut s, 3, MailAction::Delete);
     click(&mut s, "mail_open:5");
     let spec = click(&mut s, "mail_delete").popup.unwrap();
     assert_eq!(
@@ -336,7 +352,7 @@ fn reply_fills_the_send_form_and_a_sent_reply_returns_to_the_inbox() {
     configure_assets();
     let mut s = open(vec![player_mail(6), mail(7)]);
     click(&mut s, "mail_open:7");
-    s.receive_contents(contents(BOX, s.contents.clone().unwrap().mails));
+    serve(&mut s, 7, MailAction::MarkRead);
     assert!(click(&mut s, "mail_reply").edits.is_empty()); // Auction House mail.
     click(&mut s, "mail_open:6");
     let mut texts = MailTexts::new();
@@ -575,4 +591,107 @@ fn unread_senders_survive_closing_the_mailbox_but_not_a_new_connection() {
     assert_eq!(s.pending_senders, vec!["Postalpha".to_string()]);
     s.reset();
     assert!(s.pending_senders.is_empty());
+}
+
+#[test]
+fn each_popup_answers_only_for_its_own_request() {
+    configure_assets();
+    let mut cod = player_mail(3);
+    cod.money = 0;
+    cod.cod = 50_000;
+    let mut s = open(vec![mail(2), cod]);
+    s.receive_contents(contents(BOX, s.contents.clone().unwrap().mails));
+    click(&mut s, "mail_open:2");
+    s.receive_contents(contents(BOX, {
+        let mut read = mail(2);
+        read.read = true;
+        let mut cod = player_mail(3);
+        cod.money = 0;
+        cod.cod = 50_000;
+        vec![read, cod]
+    }));
+    assert_eq!(
+        click(&mut s, "mail_delete").popup.unwrap().key,
+        DELETE_MAIL_POPUP
+    );
+    assert_eq!(s.confirming(), Some(DELETE_MAIL_POPUP));
+    // The C.O.D. alert's Close must not answer the delete still on screen.
+    click(&mut s, "mail_open:3");
+    assert_eq!(s.confirming(), None); // Another mail opened: the delete prompt is stale.
+    let alert = click_with(&mut s, "mail_take_item:7", &MailTexts::new(), 10);
+    assert_eq!(alert.popup.unwrap().key, COD_ALERT_POPUP);
+    assert_eq!(s.popup_result(COD_ALERT_POPUP, true), None);
+    assert_eq!(s.popup_result(DELETE_MAIL_POPUP, true), None);
+    // A C.O.D. prompt is answered only by its own popup.
+    click_with(&mut s, "mail_take_item:7", &MailTexts::new(), 50_000);
+    assert_eq!(s.confirming(), Some(COD_POPUP));
+    assert_eq!(s.popup_result(DELETE_MAIL_POPUP, true), None);
+    assert_eq!(
+        s.popup_result(COD_POPUP, true),
+        request(3, MailAction::TakeAttachment { slot: 7 })
+    );
+    // Closing the open mail drops its prompt.
+    s.failed(MailFailed {
+        object: BOX,
+        error: MailError::Internal,
+    });
+    click_with(&mut s, "mail_take_item:7", &MailTexts::new(), 50_000);
+    click(&mut s, "mail_open_close");
+    assert_eq!(s.confirming(), None);
+    assert_eq!(s.popup_result(COD_POPUP, true), None);
+}
+
+#[test]
+fn only_contents_showing_the_request_done_end_it() {
+    configure_assets();
+    let mut s = open(vec![mail(9)]);
+    assert_eq!(
+        click(&mut s, "mail_open:9").outgoing,
+        request(9, MailAction::MarkRead)
+    );
+    // An unrelated resend (delivery tick, another sender) leaves the request pending.
+    s.receive_contents(contents(BOX, vec![mail(9), mail(10)]));
+    assert!(s.busy());
+    let mut read = mail(9);
+    read.read = true;
+    s.receive_contents(contents(BOX, vec![read.clone(), mail(10)]));
+    assert!(!s.busy());
+    click(&mut s, "mail_take_item:7");
+    s.receive_contents(contents(BOX, vec![read.clone()]));
+    assert!(s.busy());
+    read.attachments.clear();
+    s.receive_contents(contents(BOX, vec![read.clone()]));
+    assert!(!s.busy());
+    click(&mut s, "mail_take_money");
+    read.money = 0;
+    s.receive_contents(contents(BOX, vec![read.clone()]));
+    assert!(!s.busy());
+    // Emptied Auction House mail is deleted without a prompt; only its absence ends it.
+    assert_eq!(
+        click(&mut s, "mail_delete").outgoing,
+        request(9, MailAction::Delete)
+    );
+    s.receive_contents(contents(BOX, vec![read, mail(10)]));
+    assert!(s.busy());
+    s.receive_contents(contents(BOX, vec![mail(10)]));
+    assert!(!s.busy());
+}
+
+#[test]
+fn the_form_keeps_its_attachments_while_a_send_is_in_flight() {
+    configure_assets();
+    let mut s = open(vec![]);
+    let inventory = bags(&[(40, "Linen Cloth", 20, false), (41, "Wool Cloth", 5, false)]);
+    let mut texts = MailTexts::from([(TO_BOX, "Fbbravo".to_string())]);
+    let attached = s.attach(inventory.slot(0, 0).unwrap(), &texts, &inventory);
+    apply(&mut texts, &attached);
+    assert!(
+        s.click("mail_send", &texts, 1_000, &inventory)
+            .outgoing
+            .is_some()
+    );
+    let late = s.attach(inventory.slot(0, 1).unwrap(), &texts, &inventory);
+    assert_eq!(late, MailEffect::default());
+    assert_eq!(s.attachments, vec![40]);
+    assert!(s.is_attached(40) && !s.is_attached(41));
 }

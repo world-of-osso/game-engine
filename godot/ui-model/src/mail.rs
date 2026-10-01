@@ -171,8 +171,8 @@ pub struct MailSession {
     pub attachments: Vec<u64>,
     /// `SendMailCODButton` checked.
     pub cod_mode: bool,
-    /// The request a confirmation popup stands for.
-    confirm: Option<MailRequest>,
+    /// The confirmation popup on screen for the open mail and the request it stands for.
+    confirm: Option<(&'static str, MailRequest)>,
     open_all: Option<Skipped>,
     /// `SendMailFrame.sendMode == "reply"`: a sent reply returns to the inbox.
     replying: bool,
@@ -189,6 +189,28 @@ impl MailSession {
     }
     pub fn opening_all(&self) -> bool {
         self.open_all.is_some()
+    }
+    /// The confirmation popup that still answers for the open mail.
+    pub fn confirming(&self) -> Option<&'static str> {
+        self.confirm.map(|(key, _)| key)
+    }
+    /// Attached bag items are locked in the bags.
+    pub fn is_attached(&self, item_guid: u64) -> bool {
+        self.attachments.contains(&item_guid)
+    }
+    /// Escape closes the open mail first; false when none is open.
+    pub fn close_open_mail(&mut self) -> bool {
+        let open = self.selected.is_some();
+        self.select(None);
+        open
+    }
+    /// Opening another mail, or none, drops the open mail's confirmation
+    /// (`OpenMailFrame_OnHide` hides `DELETE_MAIL`).
+    fn select(&mut self, mail_id: Option<u64>) {
+        if self.selected != mail_id {
+            self.confirm = None;
+        }
+        self.selected = mail_id;
     }
 
     /// Only the real object's UseGameObject request authorizes a later role/contents pair.
@@ -222,14 +244,18 @@ impl MailSession {
         if self.expected != Some(contents.object) {
             return;
         }
-        if matches!(self.pending, Some(Pending::Request(_))) {
+        // The server also resends the inbox on its own (delivery, expiry, other
+        // senders); only contents showing the request done answer it.
+        if let Some(Pending::Request(request)) = self.pending
+            && request_done(request, &contents.mails)
+        {
             self.pending = None;
         }
         if self
             .selected
             .is_some_and(|id| !contents.mails.iter().any(|m| m.mail_id == id))
         {
-            self.selected = None;
+            self.select(None);
         }
         self.page = self
             .page
@@ -342,7 +368,7 @@ impl MailSession {
         match action {
             frame::ACTION_TAB_INBOX => self.tab = MailFrameTab::Inbox,
             frame::ACTION_TAB_SEND => self.tab = MailFrameTab::Send,
-            frame::ACTION_OPEN_CLOSE => self.selected = None,
+            frame::ACTION_OPEN_CLOSE => self.select(None),
             frame::ACTION_PREV => self.page = self.page.saturating_sub(1),
             frame::ACTION_NEXT => {
                 if self.page + 1 < self.mails().len().div_ceil(PAGE_SIZE) {
@@ -383,7 +409,7 @@ impl MailSession {
             else {
                 return MailEffect::default();
             };
-            self.selected = Some(id);
+            self.select(Some(id));
             if read {
                 return MailEffect::default();
             }
@@ -425,10 +451,13 @@ impl MailSession {
             );
         }
         if cod > 0 {
-            self.confirm = self.object.map(|object| MailRequest {
-                object,
-                mail_id: id,
-                action,
+            self.confirm = self.object.map(|object| {
+                let take = MailRequest {
+                    object,
+                    mail_id: id,
+                    action,
+                };
+                (COD_POPUP, take)
             });
             let text = format!("Accepting this item will cost:\n{}", money_text(cod));
             return popup(COD_POPUP, text, "Accept", Some("Cancel"));
@@ -469,7 +498,7 @@ impl MailSession {
             action: MailAction::Delete,
         };
         if !mail.can_delete() {
-            self.selected = None;
+            self.select(None);
             return self
                 .request(mail.mail_id, MailAction::Return)
                 .map_or_else(MailEffect::default, MailEffect::request);
@@ -492,11 +521,11 @@ impl MailSession {
         };
         match text {
             Some((key, text)) => {
-                self.confirm = Some(delete);
+                self.confirm = Some((key, delete));
                 popup(key, text, "Accept", Some("Cancel"))
             }
             None => {
-                self.selected = None;
+                self.select(None);
                 self.request(mail.mail_id, MailAction::Delete)
                     .map_or_else(MailEffect::default, MailEffect::request)
             }
@@ -544,7 +573,11 @@ impl MailSession {
         texts: &MailTexts,
         inventory: &InventoryState,
     ) -> MailEffect {
-        if self.object.is_none() || item.is_empty() || self.attachments.contains(&item.item_guid) {
+        if self.object.is_none()
+            || self.busy()
+            || item.is_empty()
+            || self.attachments.contains(&item.item_guid)
+        {
             return MailEffect::default();
         }
         if item.soulbound {
@@ -603,12 +636,16 @@ impl MailSession {
         if !POPUP_KEYS.contains(&key) {
             return None;
         }
-        let request = self.confirm.take()?;
+        let (shown, request) = self.confirm?;
+        if shown != key {
+            return None;
+        }
+        self.confirm = None;
         if !accepted || self.busy() || self.object != Some(request.object) {
             return None;
         }
         if request.action == MailAction::Delete {
-            self.selected = None;
+            self.select(None);
         }
         self.pending = Some(Pending::Request(request));
         Some(MailOutgoing::Request(request))
@@ -680,6 +717,19 @@ impl MailSession {
             busy: self.busy(),
             opening_all: self.opening_all(),
         }
+    }
+}
+
+/// Whether `mails` shows `request` carried out.
+fn request_done(request: MailRequest, mails: &[MailHeader]) -> bool {
+    let Some(mail) = mails.iter().find(|mail| mail.mail_id == request.mail_id) else {
+        return true;
+    };
+    match request.action {
+        MailAction::MarkRead => mail.read,
+        MailAction::TakeMoney => mail.money == 0,
+        MailAction::TakeAttachment { slot } => !mail.attachments.iter().any(|a| a.slot == slot),
+        MailAction::Return | MailAction::Delete => false,
     }
 }
 
