@@ -610,7 +610,7 @@ mod tests {
         })
         .unwrap();
         let body = &composed[&1];
-        assert_eq!((body.1, body.2), (1024, 512));
+        assert_eq!((body.1, body.2), (2048, 1024));
         assert!(
             body.0
                 .chunks_exact(4)

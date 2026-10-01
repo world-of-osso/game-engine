@@ -114,11 +114,12 @@ pub(crate) fn runtime_textures_from_layout(
     width: u32,
     height: u32,
 ) -> CompositedModelTextures {
+    // The body binds the whole ChrModelMaterial canvas (HD 2048x1024); the HD head crop
+    // keeps its half-size section.
     if width == HD_TEXTURE_WIDTH && height == HD_TEXTURE_HEIGHT {
-        let (body_pixels, body_w, body_h) = scale_to(&pixels, width, height, width / 2, height / 2);
         let head = runtime_texture_for_section(data, pixels.clone(), layout_id, width, height, 9);
         return CompositedModelTextures {
-            body: (body_pixels, body_w, body_h),
+            body: (pixels, width, height),
             head,
             hair: None,
         };

@@ -108,7 +108,7 @@ fn missing_layout_and_missing_decoded_image_keep_original_absence_behavior() {
 }
 
 #[test]
-fn hd_body_head_and_hair_keep_nearest_neighbor_crop_bytes() {
+fn hd_body_keeps_its_material_canvas_and_head_hair_keep_their_crops() {
     let data = CharTextureData::from_parts(
         vec![TextureLayer {
             texture_type: 6,
@@ -147,7 +147,8 @@ fn hd_body_head_and_hair_keep_nearest_neighbor_crop_bytes() {
     let result = data
         .composite_model_textures_with(&[(10, 3)], &[], 103, 1, texture)
         .unwrap();
-    assert_eq!((result.body.1, result.body.2), (1024, 512));
+    // ChrModelMaterial: the HD body (type 1) canvas is 2048x1024, bound unscaled.
+    assert_eq!((result.body.1, result.body.2), (2048, 1024));
     assert_eq!(&result.body.0[..4], &[1, 2, 3, 255]);
     assert_eq!(
         result.head.as_ref().map(|h| (h.1, h.2, &h.0[..4])),
