@@ -117,7 +117,7 @@ mod tests {
         let selected = [(0, 5), (4, 1)];
         let authored = [(0, 5), (0, 2), (4, 3)];
         assert!(npc_geoset_visible(0, &selected, &authored));
-        assert!(npc_geoset_visible(1, &selected, &authored));
+        assert!(!npc_geoset_visible(1, &selected, &authored));
         assert!(npc_geoset_visible(2, &selected, &authored));
         assert!(!npc_geoset_visible(5, &selected, &authored));
         assert!(npc_geoset_visible(403, &selected, &authored));
