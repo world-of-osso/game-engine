@@ -11,7 +11,7 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 - [x] Tokio handles only wire values/channels. Godot objects, registry reads, viewport readback and response construction stay on the main thread; no unsafe `Send` implementation.
 - [ ] Main-thread exit disconnects capture callbacks, stops and joins the worker, cancels connection tasks and removes only the own-PID socket. Never scan/remove another instance's sockets or replace Godot's process signal handlers.
 - [x] Preserve all 129 original request definitions through the shared wire source (accepted six-diagnostic source proof).
-- [ ] After MAIN integrates `ExportScene`, the other 122 consumers dispatch to `Response::Error`, not successful placeholders or gameplay side effects. All 129 variants deserialize through shared definitions; exhaustive runtime coverage remains unproved.
+- [ ] Requests the client does not serve dispatch to `Response::Error` (`native IPC: unported request …`), not successful placeholders or gameplay side effects; the unported set and reasons are in the [conversion wiki](../wiki/systems/godot-conversion.md#native-ipc-request-coverage). All 129 variants deserialize through shared definitions; exhaustive runtime coverage remains unproved.
 - [x] The unchanged fixture exits normally within its 10-second bound and removes its own-PID socket.
 
 ### Diagnostic surface
@@ -35,17 +35,26 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 - [x] Other screens (login, loading, character creation, menus, particle/selection/nameplate debug) had no original `SceneTree` (the original answered `no scene tree available to export`). They export the live containing Window as the root with selected actual `Camera3D` (`Camera { fov }`), `Light3D` (`Light { kind: native class, intensity: energy }`) and M2 roots by `m2_source_path` metadata (`Object { kind: "M2" }`); nonsemantic groups are skipped and their local transforms accumulated; empty/malformed metadata fails explicitly.
 - [x] Never infer model paths from names, bounds, skeletons or batches; terrain chunks, doodads and UI are not exported as nodes (the original exported none of them).
 
-### Dev-tool requests
+### Client requests
 
-The client answers these from its live state (`godot/rust/src/ipc/dev.rs`) in the original response text; other requests still reach the unported error.
+The client answers these from its live state (`godot/rust/src/ipc/dev.rs`, `world.rs`, `items.rs`) in the original response text; other requests reach the unported error.
 
 - [x] `status network`: bridge endpoint, game state, Netcode `Connected`, client id, zone, replicated entity count, local player, chat messages.
 - [x] `status sound`: sound node present, mute and master/ambient volumes from options, ambience playing, playing audio players.
-- [x] `status terrain`: map, the map request's tile, initial/loaded/pending/failed tiles, process memory. The original's Bevy asset-store and cache counters have no native source and are not reported.
-- [x] `map position`: zone and the local player's x,z; the native client has no waypoint or graveyard marker (`-`). No local player is an error.
+- [x] `status terrain`: map, the map request's tile, load radius, initial/loaded/pending/failed tiles, server-requested tiles, heightmap (parsed) tiles, process memory, parsed-model cache entries, terrain and liquid material counts. The original's Bevy asset-store counters (images, meshes, M2/effect materials, composited textures, model byte estimates) have no native store and are not reported.
+- [x] Zone: the MCNK area under the local player and its root zone; a position no loaded chunk answers keeps the last zone (original `CurrentZone`).
+- [x] `map position`, `map waypoint add|clear` (the reply is the position text; scripted movement clears the waypoint): zone, the local player's x,z, waypoint; no death state, so no graveyard marker (`-`). No local player is an error.
+- [x] `map target`: `none`, `missing`, or the target's name, server entity, x,z and ground distance from the local player.
 - [x] `camera set`: the original angle validation and reply; the live camera follows the new orbit.
 - [x] `movement forward|stop`: the original duration/heading validation; forward steps along the heading for the duration, manual movement input or a modal cancels it, stop reports one stop input.
 - [x] `hover --x/--y|--npc`: pointer motion through the root window at the point or the nearest named NPC in front of the camera (1 yd above its origin), driving hover tooltips; outside the window or no such NPC is an error.
+- [x] `group roster|status`, `group invite|uninvite`, `emote`, `spell cast|stop`: the original texts; the intents go to the server (not connected is the original error; a spell target defaults to the current target, `none` or a server entity).
+- [x] `quest list|watch|show`: the replicated quest log and watch list.
+- [x] `quest interact`: the nearest NPC of that name is targeted and looted (lootable corpse, auto-loot off), only targeted (other corpse) or interacted with; else the nearest game object of that name is used (a mailbox expects to open); else the player of that name is targeted. The server checks range.
+- [x] `loot take-all` (`quest take-loot`): `LootSlot` for every slot of the open loot window; the reply lists them; no window is an error.
+- [x] `status bags`, `inventory list|search|whereis`: the live bags (the original read the last auction-house inventory query), with the item catalog's required level; the guild vault and Warband bank (`status guild-vault|warbank`) list the last contents the server sent, without item names, as the original.
+- [x] `item info`: the DB2 item catalog (`ItemSparse`, including `ExpansionID`); the appearance is known when the item is in the bags or equipped. The original read a generated item table its line parser never matched.
+- [x] `presence status`: the local player's replicated presence.
 
 ## How it works
 
@@ -66,6 +75,7 @@ The client answers these from its live state (`godot/rust/src/ipc/dev.rs`) in th
 ## Tests asserting this spec
 
 - `native_debug_screen_fixture m2debug|debugcharacter|skyboxdebug --skybox-fdid 525142` — public CLI `export-scene`; `godot/tests/{m2debug,debugcharacter,skyboxdebug}_screen_flow.gd` check labels, props and transforms against the live nodes.
+- `native_input_fixture dev-ipc` (`godot/network/examples/native_input_fixture/dev_ipc.rs`) — every client request above through the public CLI against the fixture server: exact replies, the intents the server decodes (group invite/uninvite, emote, spell cast/stop, `InteractNpc`), seeded bags/quest log/presence.
 - `native_input_fixture charselect-export` (`godot/tests/charselect_export_flow.gd`) and `native_input_fixture dev-ipc` (`world_dev_ipc_flow.gd` `check_export`) — character select and in-world snapshots against the live scene.
 
 - `godot/network/examples/native_ipc_fixture.rs` — parent invokes actual public CLI after native READY; retained six diagnostics/captures/normal-exit checks plus public `export-scene` before captures, exact plain-text response and written JSON. A directory output path must produce the original explicit write error; later capture requests still run.
@@ -91,7 +101,7 @@ Export RED at `d1981968`, October 1, 2026: `/tmp/claude/native-export-scene-firs
 
 ## Out of scope
 
-- The other 122 IPC consumers after export integration, including Auction House, Mail, quest, Bank and Trade actions: explicit unported errors only; native gameplay/UI ownership is unchanged.
+- Requests whose native feature does not exist (no state and no server-update receive) stay unported; see the [coverage matrix](../wiki/systems/godot-conversion.md#native-ipc-request-coverage).
 - JS automation, other exports and debug-screen conversions: separate requests/features, not silently covered by `DumpScene` or this selected-node `ExportScene`.
 - CLI/wire redesign, stale socket cleanup, UID authorization, process signal replacement, synthetic screenshots/performance and alternate renderer paths: not authorized.
 - Shared integration, dependency/lock changes, deployment, operational proof, readability/check/final gates and broad conversion acceptance: MAIN-owned.
