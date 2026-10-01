@@ -164,8 +164,8 @@ impl GameClient {
         Ok(())
     }
 
-    /// Per frame, after targeting: right-click interaction, the hover cursor, frame input,
-    /// then the frame's presentation.
+    /// Per frame, after targeting and the shared window input poll (`update_bags`):
+    /// right-click interaction, the hover cursor, then the frame's presentation.
     pub(super) fn update_merchant(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.merchant.session.merchant.close();
@@ -184,7 +184,6 @@ impl GameClient {
             self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed();
         if interactive {
             self.right_click_interact()?;
-            self.poll_merchant_input()?;
         }
         let cursor = interactive.then(|| self.hover_cursor()).flatten();
         self.set_world_cursor(cursor);
@@ -347,17 +346,6 @@ impl GameClient {
             .ok_or_else(|| format!("Godot rejected cursor texture {}", path.display()))
     }
 
-    fn poll_merchant_input(&mut self) -> Result<(), FrameError> {
-        let Some(mut ui) = self.merchant.ui.clone() else {
-            return Ok(());
-        };
-        let inputs = ui.bind_mut().drain_bag_inputs()?;
-        for input in inputs {
-            self.dispatch_bag_cursor_input(input)?;
-        }
-        Ok(())
-    }
-
     pub(super) fn merchant_input_owner(&self, owner: i64) -> bool {
         self.merchant
             .ui
@@ -424,8 +412,7 @@ impl GameClient {
         }
     }
 
-    /// Keys the open frames own: the StackSplitFrame takes digits, arrows, Backspace,
-    /// Enter and Escape; Escape then closes the MerchantFrame (`CloseAllWindows`).
+    /// Keys the open StackSplitFrame owns: digits, arrows, Backspace, Enter and Escape.
     pub(super) fn merchant_key(&mut self, key: Key) -> Result<bool, SessionError> {
         if let Some(key) = split_key(key)
             && let Some(effect) = self.merchant.session.split_key(key)
@@ -433,12 +420,16 @@ impl GameClient {
             self.apply_merchant_effect(effect)?;
             return Ok(true);
         }
-        if key == Key::ESCAPE && self.merchant.session.is_open() {
-            let effect = self.merchant.session.close();
-            self.apply_merchant_effect(effect)?;
-            return Ok(true);
-        }
         Ok(false)
+    }
+
+    pub(super) fn close_merchant_window(&mut self) -> Result<bool, SessionError> {
+        if !self.merchant.session.is_open() {
+            return Ok(false);
+        }
+        let effect = self.merchant.session.close();
+        self.apply_merchant_effect(effect)?;
+        Ok(true)
     }
 
     fn sync_merchant_ui(&mut self) -> Result<(), String> {
@@ -616,7 +607,9 @@ impl GameClient {
             return false;
         }
         let buttons = self.merchant_close_rect(scale);
-        if title_hit(rect, button.get_position(), scale, buttons.as_slice()) {
+        if title_hit(rect, button.get_position(), scale, buttons.as_slice())
+            && self.merchant_owns_point(button.get_position())
+        {
             self.merchant.drag = Some(WindowDrag::begin(
                 button.get_position() / scale,
                 [rect[0], rect[1]],
@@ -624,6 +617,17 @@ impl GameClient {
             return true;
         }
         false
+    }
+
+    /// A window raised over the title owns the press instead of the merchant.
+    fn merchant_owns_point(&mut self, at: Vector2) -> bool {
+        let Some(ui) = self.merchant.ui.clone() else {
+            return false;
+        };
+        self.ui_owns_point(&ui, at).unwrap_or_else(|error| {
+            godot_error!("Merchant title hit-test: {error}");
+            false
+        })
     }
 
     fn merchant_close_rect(&self, scale: f32) -> Vec<[f32; 4]> {

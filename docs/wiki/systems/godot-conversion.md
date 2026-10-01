@@ -28,6 +28,21 @@ MAIN `51a3e85f` restores15 seconds and retains clock tracing. Actual `/tmp/claud
 
 **Historical MAIN observed GREEN** for this single startup MainHand inventory case at `ee2d3e47` + `2d1829fc` only. Saved first-GREEN build/runtime exit0 remains functional history; fresh native5a build/actions proof now covers the same single startup case, and original-bound vendor regression now has accepted independent bounded PASS above. No Appearance/occupied mesh/paperdoll, all slots/races, global cursor, all timings/global cross-type transport ordering, new server semantics or full-conversion acceptance. [Tooltip1415 acceptance](#standalone-bag-item-tooltip--red-integration-proof-pending)/docs `2142e85f` retained. Full conversion remains open.
 
+## Native Direct Services — implemented route, GREEN/gate pending
+
+The [canonical merchant contract](../../specs/merchant-frame.md#godot-client) requires direct Repair All and Sell All Junk without confirmation. `ea23f059` implements the missing `ACTION_SELL_ALL_JUNK` model route, guarded by Merchant tab and existing Poor-quality/positive-catalog-sell-price eligibility; it updates that feature contract in the same commit. Existing direct Repair All (`item_guid: None`) is unchanged. Retail/Bevy confirmation tests are historical source, not native compatibility or fallback requirements. Original per-item repair remains excluded.
+
+Tests `4b3173b5` plus protocol-slot correction `9ec2b8c6`, root registration `3acd7369`, and modal oracle `84155d82` define the independent `merchant-services` fixture. [Test handoff](/tmp/claude/native-merchant-direct-services-test.md) records prepared assertions, not current execution acceptance. `84155d82` corrects a false oracle: always-mounted empty `StaticPopupRoot` is not an actual dialog; visible numbered `StaticPopup` dialogs are checked instead. Earlier rejected modal run is not route RED.
+
+| Boundary | Valid observed evidence / pending proof |
+| --- | --- |
+| Model RED | FULL [second cargo log](/tmp/claude/native-merchant-services-model-second-red-full-cargo.log) and [parent log](/tmp/claude/native-merchant-services-model-second-red.log): exit101, three pass/one fail. Eligible Poor Pelt action yields `None`, expected `Some(Request { npc: 4294966979, request: SellAllJunk })`; Common-only, Buyback-tab and direct Repair tests pass. Historical pre-route evidence, not current GREEN. |
+| Physical Repair All | FULL [second runtime RED log](/tmp/claude/native-merchant-services-second-runtime-red.log): exact one decoded `RepairItem { npc: 4294966979, item_guid: None }`; Poor2/Linen3/Gold1000/cost16 unchanged through900ms before REPAIR_COMMIT. Only peer authority yields Gold984/cost0; disabled repeat stays quiet before Junk arm. Existing direct behavior, not a new repair fix. |
+| Physical Junk RED | Enabled junk click reaches JUNK_COMMIT with Poor2/Linen3/Gold984 unchanged and no confirmation through900ms; no Yes/No keys. Six-second request timeout: `phase=JunkRequest repair=1 junk=0; authority unchanged`, parent101. Missing request, not missing enablement or popup. |
+| Current route / gate | `ea23f059` source implemented; fresh matching build, model GREEN, runtime GREEN and MAIN acceptance pending. [Current report placeholder](/tmp/claude/verify-native-merchant-direct-services.md): **PENDING**, no accepted gate ID. |
+
+Earlier seven-case merchant gates retain their exact historical scopes; unverified outside-nine UI ownership remains handed to its owner. No UI ownership/AH/Mail/Quest/Bank/GuildTrade acceptance. Owned runtime child intentionally killed/reaped/readers0: not normal shutdown. Fixture Gold/catalog values do not prove production-server pricing; no generalized fix or full conversion completion. Full goal remains **OPEN**.
+
 ## Native merchant cursor buy — MAIN-accepted bounded PASS
 
 MAIN reports bounded GREEN at native `837e2c1e` + `b073e4dd`, tests `d825108c`/`2c00a751`, root registration `3cb53ab4`, superseding prepared `e5c98513` and RED/source checkpoint `7ec8c814`. MAIN read FULL and accepts independent gate1446 **bounded functional/source/format/five-flow PASS**. [Acceptance report](/tmp/claude/verify-native-merchant-cursor-buy.md) is the report SSOT; it supersedes gate-pending docs `588ec432`. Fixture `merchant-cursor` is not a user screen. [Invocation](../../remote-builds.md#native-merchant-cursor-fixture).
