@@ -107,8 +107,8 @@ func quiet_drag_state(client: Node, expected: Array, held: bool) -> bool:
 					if item[0] == bag and item[1] == slot:
 						count = item[2]
 				if not slot_render_matches(client, bag, slot, count, held and bag == 0 and slot == 0):
-				fail("Drag quiet slot mismatch bag%s/slot%s count%s held%s" % [bag, slot, count, held])
-				return false
+					fail("Drag quiet slot mismatch bag%s/slot%s count%s held%s" % [bag, slot, count, held])
+					return false
 	return true
 
 func clear_local_pickup(client: Node) -> bool:
