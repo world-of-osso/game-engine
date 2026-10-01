@@ -21,6 +21,11 @@ const MIN_DISTANCE := 0.5
 const MAX_DISTANCE := 20.0
 const POSE_EPSILON := 0.0002
 const PIXEL_DELTA := 2.0 / 255.0
+# Encoded screenshot tolerance, declared before runtime; allows texture/output rounding.
+const FOG_PIXEL_EPSILON := 0.025
+const FOG_COLOR := Color(0.18, 0.2, 0.23)
+const FOG_START := 15.0
+const FOG_END := 45.0
 
 var client: Node
 var scene: Node3D
@@ -53,6 +58,8 @@ func run_test() -> void:
 	if not check_composition():
 		return
 	if not check_pose(0.0, START_DISTANCE):
+		return
+	if not await check_rendered_fog():
 		return
 	if not await check_orbit_input():
 		return
@@ -252,10 +259,72 @@ func check_composition() -> bool:
 		# LightSkyboxID 653 has audited flags 0b01111. Both retain baseline + fog.
 		if planes != 1 or other_geometry == 0:
 			return reject("Default forced-source mode lacks reference plane/procedural baseline")
-		if not fog:
-			return reject("Default forced-source mode lacks original procedural fog")
-	print("FIXTURE COMPOSITION verify=", verify_only, " planes=", planes, " other_geometry=", other_geometry, " fog=", fog)
+	# Stock fog must remain off: reference ShaderMaterial owns radial linear fog.
+	if fog:
+		return reject("Stock Environment fog would double-apply shader-owned fog")
+	print("FIXTURE COMPOSITION verify=", verify_only, " planes=", planes, " other_geometry=", other_geometry, " stock_fog=", fog)
 	return true
+
+func check_rendered_fog() -> bool:
+	if verify_only:
+		return true # No reference actors and black hidden-sky assertion below.
+	var plane := scene.get_node_or_null("SkyboxDebugGroundPlane") as MeshInstance3D
+	if plane == null:
+		return reject("Missing actual production reference plane")
+	var material := plane.get_active_material(0) as ShaderMaterial
+	if material == null:
+		return reject("Reference plane lacks actual shader-owned fog material")
+	var original: bool = material.get_shader_parameter("linear_fog_enabled")
+	if not original:
+		return reject("Default forced-source reference shader fog is disabled")
+	var enabled := await capture("fog-enabled.png")
+	material.set_shader_parameter("linear_fog_enabled", false)
+	var disabled := await capture("fog-disabled.png")
+	material.set_shader_parameter("linear_fog_enabled", original)
+	var restored := await capture("fog-restored.png")
+	if enabled == null or disabled == null:
+		return false
+	if restored == null:
+		return false
+	return compare_radial_fog(enabled, disabled, restored, plane)
+
+func compare_radial_fog(enabled: Image, disabled: Image, restored: Image, plane: MeshInstance3D) -> bool:
+	var counts := PackedInt32Array([0, 0, 0])
+	var max_error := 0.0
+	var bounds := plane.get_aabb()
+	for y in range(8, enabled.get_height() - 8, 8):
+		for x in range(8, enabled.get_width() - 8, 8):
+			var point := Vector2i(x, y)
+			var origin := camera.project_ray_origin(Vector2(point) + Vector2(0.5, 0.5))
+			var direction := camera.project_ray_normal(Vector2(point) + Vector2(0.5, 0.5))
+			if direction.y >= -0.001:
+				continue
+			var hit := origin + direction * (-origin.y / direction.y)
+			var local_hit := plane.to_local(hit)
+			if absf(local_hit.x) > bounds.size.x * 0.5 - 1.0:
+				continue
+			if absf(local_hit.z) > bounds.size.z * 0.5 - 1.0:
+				continue
+			var distance := camera.global_position.distance_to(hit)
+			var weight := clampf((distance - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0)
+			var expected := disabled.get_pixelv(point).lerp(FOG_COLOR, weight)
+			var actual := enabled.get_pixelv(point)
+			var error := rgb_error(actual, expected)
+			max_error = maxf(max_error, error)
+			if error > FOG_PIXEL_EPSILON:
+				return reject("Rendered radial fog mismatch at %s distance=%.4f error=%.6f" % [point, distance, error])
+			if pixel_delta(enabled, restored, point) > PIXEL_DELTA:
+				return reject("Reference fog restoration changed ground pixel at %s" % point)
+			var band := 0 if weight == 0.0 else (2 if weight == 1.0 else 1)
+			counts[band] += 1
+	for band in 3:
+		if counts[band] < 10:
+			return reject("Insufficient rendered fog samples in near/transition/far band %d: %d" % [band, counts[band]])
+	print("FIXTURE RADIAL_FOG near/transition/far=", counts, " max_error=", max_error)
+	return true
+
+func rgb_error(a: Color, b: Color) -> float:
+	return maxf(absf(a.r - b.r), maxf(absf(a.g - b.g), absf(a.b - b.b)))
 
 func check_pose(yaw: float, distance: float) -> bool:
 	if not is_instance_valid(camera) or not is_instance_valid(sky):
