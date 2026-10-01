@@ -43,6 +43,8 @@ pub(crate) struct Merchant {
     pub(super) drag: Option<WindowDrag>,
     /// Shown last frame: `OnShow` / `OnHide` play their sounds on a change.
     shown: bool,
+    /// Item icon FDIDs already looked up in local CASC.
+    cached_icons: std::collections::HashSet<u32>,
     cursor: Option<ActiveWowCursor>,
     /// Loaded cursor art; `None` caches a kind whose art failed to load.
     cursor_textures: Vec<(ActiveWowCursor, Option<Gd<ImageTexture>>)>,
@@ -495,6 +497,7 @@ impl GameClient {
     fn sync_merchant_ui(&mut self) -> Result<(), String> {
         self.load_merchant_position()?;
         let states = self.merchant_states();
+        self.cache_merchant_icons(&states);
         let scale = self.effective_ui_scale();
         if let Some(ui) = self.merchant.ui.as_mut() {
             ui.bind_mut().set_ui_scale(scale)?;
@@ -515,6 +518,29 @@ impl GameClient {
         }
         self.merchant.ui = Some(ui);
         self.place_merchant()
+    }
+
+    /// Item icons come from local CASC into `data/textures` before the frame draws them,
+    /// as the quest frame does for its rewards.
+    fn cache_merchant_icons(&mut self, states: &MerchantStates) {
+        let frame = &states.frame;
+        let cells = frame.cells.iter().chain(&frame.last_buyback);
+        let slots = states.bags.bags.iter().flat_map(|bag| &bag.slots);
+        let new: Vec<u32> = cells
+            .map(|cell| cell.icon_fdid)
+            .chain(slots.map(|slot| slot.icon_fdid))
+            .filter(|&fdid| fdid != 0 && self.merchant.cached_icons.insert(fdid))
+            .collect();
+        if new.is_empty() {
+            return;
+        }
+        let resolver = crate::assets::creature::local_resolver(&self.data_root);
+        for fdid in new {
+            let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
+            if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
+                godot_warn!("Merchant item icon FDID {fdid} is not in local CASC");
+            }
+        }
     }
 
     fn merchant_states(&self) -> MerchantStates {

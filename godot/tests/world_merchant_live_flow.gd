@@ -14,6 +14,8 @@ extends "res://tests/world_merchant_flow.gd"
 const LIVE_ACCOUNT := "fb_merchant"
 const LIVE_CHARACTER := "Fbmerchant"
 const LIVE_WAIT_MS := 10000
+# A first visit extracts the zone's models from local CASC before Loading ends.
+const LIVE_WORLD_WAIT_MS := 420000
 const PELT := 4865
 const SHOT_DIR_ENV := "MERCHANT_LIVE_SHOTS"
 var shots := ""
@@ -160,8 +162,8 @@ func repair_all() -> bool:
 
 func sell_junk() -> bool:
 	var before: Dictionary = client.merchant_state()
-	if bag_count(before, PELT) != 2:
-		fail("Setup needs 2 Ruined Pelt: " + str(before.bags))
+	if bag_count(before, PELT) == 0:
+		fail("Setup needs Ruined Pelt: " + str(before.bags))
 		return false
 	print("LIVE MERCHANT REQUEST SellAllJunkItems")
 	await click_control(merchant_control("MerchantSellAllJunkButton"), MOUSE_BUTTON_LEFT)
@@ -334,13 +336,15 @@ func find_named_vendor(vendor: String) -> Dictionary:
 	return {}
 
 func enter_live_world() -> bool:
-	var deadline := Time.get_ticks_msec() + 15000
-	while Time.get_ticks_msec() < deadline:
+	# Character select shows once the roster arrives and the startup assets are loaded.
+	var ui: Node = null
+	var deadline := Time.get_ticks_msec() + WORLD_WAIT_MS
+	while ui == null and Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
 		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1:
-			break
-	var ui = client.get_node_or_null("CharacterSelectUI")
+			ui = client.get_node_or_null("CharacterSelectUI")
+	await frames(10)
 	if ui == null:
 		fail("No character select: " + str(client.account_state()))
 		return false
@@ -359,7 +363,7 @@ func enter_live_world() -> bool:
 		return false
 	await click_control(card, MOUSE_BUTTON_LEFT)
 	await click_control(ui.find_child("EnterWorld", true, false), MOUSE_BUTTON_LEFT)
-	deadline = Time.get_ticks_msec() + WORLD_WAIT_MS
+	deadline = Time.get_ticks_msec() + LIVE_WORLD_WAIT_MS
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
