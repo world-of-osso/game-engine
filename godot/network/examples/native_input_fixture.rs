@@ -35,6 +35,8 @@ use shared::{
 
 #[path = "native_input_fixture/bags.rs"]
 mod bags;
+#[path = "native_input_fixture/bags_actions.rs"]
+mod bags_actions;
 #[path = "native_input_fixture/bags_cursor.rs"]
 mod bags_cursor;
 #[path = "fixture_support/mod.rs"]
@@ -92,6 +94,7 @@ enum StartupScreen {
     MerchantClick,
     Loot,
     Bags,
+    BagsActions,
     BagsCursor,
     Footsteps,
     ResetWindows,
@@ -116,6 +119,7 @@ impl StartupScreen {
             Some("merchant-click") => Self::MerchantClick,
             Some("loot") => Self::Loot,
             Some("bags") => Self::Bags,
+            Some("bags-actions") => Self::BagsActions,
             Some("bags-cursor") => Self::BagsCursor,
             Some("footsteps") => Self::Footsteps,
             Some("reset-windows") => Self::ResetWindows,
@@ -125,7 +129,7 @@ impl StartupScreen {
             Some("portal-density") => Self::PortalDensity,
             Some(other) => {
                 panic!(
-                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, loot, bags, bags-cursor, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled or portal-density"
+                    "unknown fixture startup screen: {other}; expected inworld, overlay, swimming, menu, logout, sound, sound-click, merchant-click, loot, bags, bags-actions, bags-cursor, footsteps, reset-windows, settings-reload, portal-particles-enabled, portal-particles-disabled or portal-density"
                 )
             }
         };
@@ -148,6 +152,7 @@ impl StartupScreen {
             | Self::MerchantClick
             | Self::Loot
             | Self::Bags
+            | Self::BagsActions
             | Self::BagsCursor
             | Self::Footsteps
             | Self::ResetWindows
@@ -348,6 +353,7 @@ impl FixtureConfig {
             StartupScreen::Menu
                 | StartupScreen::Loot
                 | StartupScreen::Bags
+                | StartupScreen::BagsActions
                 | StartupScreen::BagsCursor
         ) {
             return;
@@ -375,6 +381,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
         StartupScreen::Loot => "res://tests/world_loot_options_flow.gd",
         StartupScreen::Bags => "res://tests/world_bags_flow.gd",
+        StartupScreen::BagsActions => "res://tests/world_bags_actions_flow.gd",
         StartupScreen::BagsCursor => "res://tests/world_bags_cursor_flow.gd",
         StartupScreen::PortalParticlesEnabled | StartupScreen::PortalParticlesDisabled => {
             "res://tests/world_portal_particles_flow.gd"
@@ -406,6 +413,7 @@ fn launch_godot(
             | StartupScreen::MerchantClick
             | StartupScreen::Loot
             | StartupScreen::Bags
+            | StartupScreen::BagsActions
             | StartupScreen::BagsCursor
             | StartupScreen::Footsteps
             | StartupScreen::ResetWindows
@@ -455,6 +463,7 @@ fn launch_godot(
                     | StartupScreen::MerchantClick
                     | StartupScreen::Loot
                     | StartupScreen::Bags
+                    | StartupScreen::BagsActions
                     | StartupScreen::BagsCursor
                     | StartupScreen::Footsteps
                     | StartupScreen::ResetWindows
@@ -526,13 +535,19 @@ fn launch_godot(
             output,
             sender.clone(),
             false,
-            matches!(screen, StartupScreen::Bags | StartupScreen::BagsCursor),
+            matches!(
+                screen,
+                StartupScreen::Bags | StartupScreen::BagsActions | StartupScreen::BagsCursor
+            ),
         ),
         read_output(
             errors,
             sender,
             true,
-            matches!(screen, StartupScreen::Bags | StartupScreen::BagsCursor),
+            matches!(
+                screen,
+                StartupScreen::Bags | StartupScreen::BagsActions | StartupScreen::BagsCursor
+            ),
         ),
     ];
     (child, receiver, readers)
@@ -1397,6 +1412,7 @@ fn main() {
             | StartupScreen::PortalParticlesEnabled
             | StartupScreen::PortalParticlesDisabled
             | StartupScreen::PortalDensity
+            | StartupScreen::BagsActions
     ) {
         assert!(
             launcher.is_file(),
@@ -1424,6 +1440,7 @@ fn main() {
         StartupScreen::MerchantClick => merchant_click::run(&mut app, &mut child, lines, reader),
         StartupScreen::Loot => loot::run(&mut app, &mut child, lines, reader),
         StartupScreen::Bags => bags::run(&mut app, &mut child, lines, reader),
+        StartupScreen::BagsActions => bags_actions::run(&mut app, &mut child, lines, reader),
         StartupScreen::BagsCursor => bags_cursor::run(&mut app, &mut child, lines, reader),
         StartupScreen::SettingsReload => settings_reload::run(
             &mut app,
