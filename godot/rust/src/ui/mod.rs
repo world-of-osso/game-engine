@@ -39,7 +39,7 @@ use game_engine_ui_model::spellbook_frame_component::{
 use game_engine_ui_model::stack_split_frame_component::StackSplitFrameState;
 use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, tooltip_frame_screen};
 use game_engine_ui_model::world_map_frame_component::{
-    WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
+    WORLD_MAP_QUEST_AREAS, WorldMapFrameState, apply_world_map_postsetup, world_map_frame_screen,
 };
 use game_engine_ui_model::{
     CharacterCreateModel, CharacterSelectModel, GameMenuModel, LoadingModel, LoginModel,
@@ -54,7 +54,7 @@ use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::button::ButtonState;
-use ui_toolkit::widgets::texture::TextureSource;
+use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
 use projection::{UiInput, UiProjection};
 use ui_parent::UiParent;
@@ -96,6 +96,8 @@ struct RegistryModel {
 
 #[derive(Clone, Copy)]
 enum ScreenPostsetup {
+    /// The world map, with the dynamic texture its objective area overlay shows.
+    WorldMapWithQuestAreas(DynamicTextureId),
     None,
     Login,
     CharacterSelect,
@@ -118,6 +120,12 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Auction => {}
+            ScreenPostsetup::WorldMapWithQuestAreas(texture) => {
+                if let Some(state) = self.shared.get::<WorldMapFrameState>() {
+                    apply_world_map_postsetup(state, &mut self.registry);
+                }
+                set_dynamic_texture(&mut self.registry, WORLD_MAP_QUEST_AREAS.0, texture);
+            }
             ScreenPostsetup::WorldMap => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
@@ -488,13 +496,13 @@ impl RegistryUi {
     }
 
     /// Initialize a dedicated RegistryUi instance for the shared world map frame.
-    pub fn show_world_map(&mut self, mut state: WorldMapFrameState) -> Result<(), String> {
+    pub fn show_world_map(&mut self, state: WorldMapFrameState) -> Result<(), String> {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
         let [width, height] = state.viewport;
         let mut registry = FrameRegistry::new(width, height);
-        state.quest_area_texture = Some(registry.create_dynamic_texture(1, 1, vec![0; 4])?);
+        let quest_areas = registry.create_dynamic_texture(1, 1, vec![0; 4])?;
         let mut shared = SharedContext::new();
         shared.insert(state);
         let mut model = RegistryModel {
@@ -502,7 +510,7 @@ impl RegistryUi {
             shared,
             registry,
             icon_masks: Default::default(),
-            postsetup: ScreenPostsetup::WorldMap,
+            postsetup: ScreenPostsetup::WorldMapWithQuestAreas(quest_areas),
         };
         model.sync();
         let viewport = self
@@ -643,19 +651,16 @@ impl RegistryUi {
     /// (`QUEST_AREA_TEXTURE_SIZE`).
     pub fn set_world_map(
         &mut self,
-        mut state: WorldMapFrameState,
+        state: WorldMapFrameState,
         overlay: Option<Vec<u8>>,
     ) -> Result<(), String> {
         let model = self
             .model
             .as_mut()
             .ok_or("World map UI is not initialized")?;
-        let texture = model
-            .shared
-            .get::<WorldMapFrameState>()
-            .and_then(|current| current.quest_area_texture)
-            .ok_or("World map quest area texture missing")?;
-        state.quest_area_texture = Some(texture);
+        let ScreenPostsetup::WorldMapWithQuestAreas(texture) = model.postsetup else {
+            return Err("World map quest area texture missing".into());
+        };
         let redraw = overlay.is_some();
         if let Some(rgba) = overlay {
             let [width, height] =
@@ -1727,6 +1732,18 @@ pub struct MerchantStates {
     pub frame: MerchantFrameState,
     pub bags: BagFrameState,
     pub split: StackSplitFrameState,
+}
+
+/// Point the texture frame `name` at the host-owned dynamic `texture`.
+fn set_dynamic_texture(registry: &mut FrameRegistry, name: &str, texture: DynamicTextureId) {
+    let Some(id) = registry.get_by_name(name) else {
+        return;
+    };
+    if let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::Texture(data)) = frame.widget_data.as_mut()
+    {
+        data.source = TextureSource::Dynamic(texture);
+    }
 }
 
 /// Register `metal_frame` (`PortraitFrameTemplate` border) from the composed atlas sheet.
