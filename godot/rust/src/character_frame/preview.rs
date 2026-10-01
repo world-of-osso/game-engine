@@ -235,3 +235,27 @@ fn bind_sheet_light(visual: &Gd<Node3D>) {
         material.set_shader_parameter("sun_direction", &sun.to_variant());
     }
 }
+
+/// Visual slots of a player appearance, for automation.
+pub(super) fn appearance_slots(appearance: Option<&UnitAppearance>) -> VarArray {
+    let mut slots = VarArray::new();
+    if let Some(UnitAppearance::Player(_, equipment)) = appearance {
+        for entry in &equipment.entries {
+            slots.push(&format!("{:?}", entry.slot).to_variant());
+        }
+    }
+    slots
+}
+
+impl ModelPreview {
+    /// The shown model, its appearance's visual slots and whether a re-dress is loading.
+    pub(super) fn snapshot(&self, state: &mut VarDictionary) {
+        let model = self.scene.as_ref().and_then(|scene| scene.model.as_ref());
+        state.set("model_shown", model.is_some());
+        let bounds = model.map(mesh_bounds).unwrap_or_default();
+        state.set("model_bounds", &bounds.to_variant());
+        state.set("model_pending", self.pending.is_some());
+        state.set("model_slots", &appearance_slots(self.shown.as_ref()));
+        state.set("model_yaw", self.yaw);
+    }
+}

@@ -714,6 +714,12 @@ impl GameClient {
         self.merchant_snapshot()
     }
 
+    /// The CharacterFrame: open, model preview slots and the paperdoll tooltip.
+    #[func]
+    fn character_frame_state(&self) -> VarDictionary {
+        self.character_frame_snapshot()
+    }
+
     #[func]
     fn auction_state(&self) -> VarDictionary {
         self.auction_snapshot()
