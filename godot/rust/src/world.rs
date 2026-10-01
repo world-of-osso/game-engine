@@ -83,6 +83,8 @@ struct UnitNode {
     main_hand_subclass: Option<u8>,
     /// The particle emitters of `visual`'s creature model.
     particles: Option<PlacedParticles>,
+    /// The particle emitters of `visual`'s item models, on each item model node.
+    item_particles: Vec<(PlacedParticles, Gd<Node3D>)>,
     /// The clip of a held social emote (/sit, /dance) the player shows while still.
     emote: Option<u16>,
 }
@@ -245,6 +247,7 @@ fn spawn_unit(
         weapon: MeleeWeapon::Unarmed,
         main_hand_subclass: None,
         particles: None,
+        item_particles: Vec::new(),
         emote: None,
     }
 }
@@ -352,6 +355,8 @@ fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldMo
     if unit.appearance.is_none() {
         unit.animation = None;
         unit.sheath = None;
+        unit.particles = None;
+        unit.item_particles.clear();
         if let Some(previous) = unit.visual.take() {
             previous.free();
         }
@@ -369,6 +374,10 @@ fn attach_unit_visual(
     particles: Option<(&mut ParticlePools, &std::path::Path)>,
 ) {
     let model_particles = loaded.as_ref().ok().and_then(VisualParts::particles);
+    let item_particles = loaded
+        .as_ref()
+        .map(|parts| parts.item_particles(models.data_root()))
+        .unwrap_or_default();
     let appearance = unit
         .appearance
         .as_ref()
@@ -387,6 +396,7 @@ fn attach_unit_visual(
         previous.free();
     }
     unit.particles = None;
+    unit.item_particles.clear();
     match replacement {
         Ok(visual) => {
             if let Err(error) = crate::targeting::attach_pick_area(&visual, server_id) {
@@ -394,17 +404,34 @@ fn attach_unit_visual(
             }
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
-            if let (Some((pools, texture_dir)), Some(model_particles), Some(model)) = (
-                particles,
-                model_particles,
-                visual.try_get_node_as::<Node3D>("NpcModel"),
-            ) {
-                let (placed, errors) =
-                    pools.place(&model_particles, &model, server_id as u32, texture_dir);
-                for error in errors {
-                    godot_error!("{}: {error}", appearance.describe_unit(server_id));
+            if let Some((pools, texture_dir)) = particles {
+                if let (Some(model_particles), Some(model)) = (
+                    model_particles,
+                    visual.try_get_node_as::<Node3D>("NpcModel"),
+                ) {
+                    let (placed, errors) =
+                        pools.place(&model_particles, &model, server_id as u32, texture_dir);
+                    for error in errors {
+                        godot_error!("{}: {error}", appearance.describe_unit(server_id));
+                    }
+                    unit.particles = Some(placed);
                 }
-                unit.particles = Some(placed);
+                for (slot, item_particles) in item_particles {
+                    let Some(item) = visual
+                        .find_child_ex(&format!("Equipment{slot:?}"))
+                        .owned(false)
+                        .done()
+                        .and_then(|node| node.try_cast::<Node3D>().ok())
+                    else {
+                        continue;
+                    };
+                    let seed = (server_id as u32).wrapping_add(slot as u32 + 1);
+                    let (placed, errors) = pools.place(&item_particles, &item, seed, texture_dir);
+                    for error in errors {
+                        godot_error!("{} {slot:?}: {error}", appearance.describe_unit(server_id));
+                    }
+                    unit.item_particles.push((placed, item));
+                }
             }
             unit.visual = Some(visual);
             unit.visual_player_model = appearance.player_model();
@@ -704,12 +731,32 @@ impl WorldUnits {
     /// while particle effects are off.
     pub fn particle_state(&self) -> Option<VarDictionary> {
         let pools = self.particles.as_ref()?;
-        let placed: Vec<_> = self.units.values().filter_map(|unit| unit.particles.as_ref()).collect();
+        let placed: Vec<_> = self
+            .units
+            .values()
+            .filter_map(|unit| unit.particles.as_ref())
+            .collect();
         let mut state = VarDictionary::new();
         state.set("units", placed.len() as i64);
         state.set(
             "emitters",
-            placed.iter().map(|placed| placed.emitter_count()).sum::<usize>() as i64,
+            placed
+                .iter()
+                .map(|placed| placed.emitter_count())
+                .sum::<usize>() as i64,
+        );
+        let items: Vec<_> = self
+            .units
+            .values()
+            .flat_map(|unit| unit.item_particles.iter().map(|(placed, _)| placed))
+            .collect();
+        state.set("item_models", items.len() as i64);
+        state.set(
+            "item_emitters",
+            items
+                .iter()
+                .map(|placed| placed.emitter_count())
+                .sum::<usize>() as i64,
         );
         state.set("pools", pools.pool_count() as i64);
         state.set("drawn", pools.drawn() as i64);
@@ -732,12 +779,14 @@ impl WorldUnits {
         let view = view_basis(camera);
         pools.begin_frame();
         for unit in self.units.values_mut() {
-            let (Some(placed), Some(model)) = (
-                unit.particles.as_mut(),
-                unit.visual
-                    .as_ref()
-                    .and_then(|visual| visual.try_get_node_as::<Node3D>("NpcModel")),
-            ) else {
+            if unit.particles.is_none() && unit.item_particles.is_empty() {
+                continue;
+            }
+            let Some(model) = unit.visual.as_ref().and_then(|visual| {
+                visual
+                    .try_get_node_as::<Node3D>("NpcModel")
+                    .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))
+            }) else {
                 continue;
             };
             let bounds = crate::world_models::mesh_bounds(&model);
@@ -749,10 +798,20 @@ impl WorldUnits {
                     crate::terrain::objects::affine(model.get_global_transform()),
                 )
                 .box_in_frustum(frustum);
-            if in_frustum {
-                placed.update_and_draw(&model, delta, 1.0, &view, pools);
-            } else {
-                placed.defer(delta);
+            if let Some(placed) = unit.particles.as_mut() {
+                if in_frustum {
+                    placed.update_and_draw(&model, delta, 1.0, &view, pools);
+                } else {
+                    placed.defer(delta);
+                }
+            }
+            for (placed, item) in &mut unit.item_particles {
+                // A hidden item (no attachment for its sheath state) emits nothing.
+                if in_frustum && item.is_visible_in_tree() {
+                    placed.update_and_draw(item, delta, 1.0, &view, pools);
+                } else {
+                    placed.defer(delta);
+                }
             }
         }
         pools.end_frame();

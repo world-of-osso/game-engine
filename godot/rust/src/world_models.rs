@@ -144,6 +144,32 @@ impl VisualParts {
             Self::Player(_) => None,
         }
     }
+
+    /// The particle emitters of the item models the visual attaches (a creature's virtual
+    /// items and armor models, a player's equipment), by the slot their node is named for.
+    pub fn item_particles(
+        &self,
+        data_root: &std::path::Path,
+    ) -> Vec<(EquipmentSlot, std::rc::Rc<crate::particles::ModelParticles>)> {
+        let models: Vec<_> = match self {
+            Self::Creature { gear, .. } => gear
+                .items
+                .iter()
+                .map(|(model, _)| model)
+                .chain(&gear.armor_models)
+                .collect(),
+            Self::Player(parts) => parts.runtime_models().iter().collect(),
+        };
+        models
+            .into_iter()
+            .filter_map(|model| {
+                let cached = crate::assets::creature::cached_model(data_root, model.fdid)?;
+                let particles =
+                    crate::particles::ModelParticles::from_model(model.fdid, &cached.model)?;
+                Some((model.slot, particles))
+            })
+            .collect()
+    }
 }
 
 /// The catalogs unit visuals read, shared by the main thread and the workers; each
@@ -289,6 +315,10 @@ pub(crate) struct WorldModels {
 }
 
 impl WorldModels {
+    pub fn data_root(&self) -> &std::path::Path {
+        &self.catalogs.data_root
+    }
+
     pub fn new(data_root: PathBuf) -> Self {
         let catalogs = Arc::new(VisualCatalogs {
             outfit: OutfitData::load(&data_root),
