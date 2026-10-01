@@ -92,10 +92,10 @@ func texture(node: Control) -> TextureRect:
 	return null
 
 func charselect_account_ready(state: Dictionary) -> bool:
-	var login_completed := saw_credentials and saw_connect and state.reply_received
+	var login_completed: bool = saw_credentials and saw_connect and state.reply_received
 	if not login_completed:
 		return false
-	var roster_matches := state.screen == "CharacterSelect" and state.character_count == 1
+	var roster_matches: bool = state.screen == "CharacterSelect" and state.character_count == 1
 	return roster_matches
 
 func charselect_presentation_ready(selection: CanvasLayer, selected: Label, enter: Button) -> bool:
@@ -124,10 +124,10 @@ func world_account_ready(state: Dictionary) -> bool:
 	return state.unit_count == 1 and state.world_attached and state.gameplay_input_allowed
 
 func terrain_ready(terrain: Dictionary) -> bool:
-	var map_idle := terrain.map == "azeroth" and terrain.pending_count == 0
+	var map_idle: bool = terrain.map == "azeroth" and terrain.pending_count == 0
 	if not map_idle:
 		return false
-	var tiles_ready := terrain.failures.is_empty() and not terrain.parsed_tiles.is_empty()
+	var tiles_ready: bool = terrain.failures.is_empty() and not terrain.parsed_tiles.is_empty()
 	if not tiles_ready:
 		return false
 	for tile in terrain.parsed_tiles:
@@ -194,7 +194,7 @@ func merchant_item_content_matches(name_label: Label, icon: TextureRect, count: 
 		return false
 	if icon == null or icon.texture != vendor_texture:
 		return false
-	var count_hidden := count == null or not count.is_visible_in_tree()
+	var count_hidden: bool = count == null or not count.is_visible_in_tree()
 	return count_hidden and visible_label_matches(price, "25")
 
 func source_matches() -> bool:
@@ -273,17 +273,17 @@ func merchant_account_matches(account: Dictionary) -> bool:
 	return account.screen == "InWorld" and account.selected_character_id == 17
 
 func merchant_session_matches(state: Dictionary) -> bool:
-	var session_open := state.open and state.npc == npc_id
+	var session_open: bool = state.open and state.npc == npc_id
 	if not session_open:
 		return false
-	var vendor_matches := state.vendor_name == VENDOR and state.items == ["Linen Cloth"]
+	var vendor_matches: bool = state.vendor_name == VENDOR and state.items == ["Linen Cloth"]
 	return vendor_matches
 
 func inventory_item_matches(item: Dictionary, count: int) -> bool:
-	var slot_matches := item.bag == 0 and item.slot == 0
+	var slot_matches: bool = item.bag == 0 and item.slot == 0
 	if not slot_matches:
 		return false
-	var content_matches := item.item_id == 2589 and item.name == "Linen Cloth" and item.count == count
+	var content_matches: bool = item.item_id == 2589 and item.name == "Linen Cloth" and item.count == count
 	return content_matches
 
 func inventory_authority_matches(state: Dictionary, count: int) -> bool:
@@ -304,10 +304,10 @@ func cursor_and_popup_absent() -> bool:
 	return true
 
 func merchant_presentation_matches(count: int, money: int, amount: String) -> bool:
-	var source_and_bag_match := client.get_node_or_null("GameMenuUI") == null and source_matches() and bag_matches(count)
+	var source_and_bag_match: bool = client.get_node_or_null("GameMenuUI") == null and source_matches() and bag_matches(count)
 	if not source_and_bag_match:
 		return false
-	var money_and_picker_match := money_matches(money) and picker_matches(amount)
+	var money_and_picker_match: bool = money_matches(money) and picker_matches(amount)
 	return money_and_picker_match
 
 func authority_matches(count: int, money: int, amount: String = "") -> bool:
@@ -351,9 +351,9 @@ func observe_buy(index: int, before_count: int, before_money: int, after_count: 
 
 func mount_world_client() -> bool:
 	artifacts = OS.get_environment("NATIVE_JS_WORLD_ARTIFACTS")
-	var artifacts_available := not artifacts.is_empty()
-	var client_class_available := artifacts_available and ClassDB.class_exists("GameClient")
-	var native_classes_available := client_class_available and ClassDB.class_exists("WowAnimationPlayer")
+	var artifacts_available: bool = not artifacts.is_empty()
+	var client_class_available: bool = artifacts_available and ClassDB.class_exists("GameClient")
+	var native_classes_available: bool = client_class_available and ClassDB.class_exists("WowAnimationPlayer")
 	if not native_classes_available:
 		fail("SETUP: owned artifacts and current native classes required")
 		return false
