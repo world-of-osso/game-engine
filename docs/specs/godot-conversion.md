@@ -4,10 +4,13 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 ## What it must do
 
-### Standalone bags (implemented host, runtime proof pending)
+### Standalone bags (bounded window proof, cursor pending)
 
-- [ ] Preserve original standalone backpack/bag visibility through authored HUD and input actions, authoritative inventory updates, and NPC-window lifecycle. Test commits `67870535`/`a3e34213` and host `91bbc703` do not establish GREEN. [Evidence and integration boundaries](../wiki/systems/godot-conversion.md#native-standalone-bags--red-host-implementation-proof-pending): baseline Depot `d11bz93c7w` compiled; actual runtime RED exits 101 after authoritative inventory readiness because `MainMenuBarBackpackButton` is missing. Portable manager/layout APIs from agents 1343/1344 remain pending; standalone visibility still requires runtime proof.
-- [ ] Preserve cursor pickup/drop, split, equip, destroy, tooltips, audio, drag, per-character persistence and NPC toggles. These remain parity gaps. The host shares `MerchantSession.inventory`, retains the old NPC embedded backpack and hides the standalone duplicate while vendor/mail is open; this is not proof of a unified window owner. Full conversion remains open; later coordinated evidence must establish actual GREEN before upgrading status.
+- [x] Bounded saved-artifact/runtime proof preserves authored left backpack/bag1 toggles, right-backpack no-op, authoritative snapshot16+8/counts3+2, sorted gap8 placement, absent bag2 inert and Escape closing without menu; no invented B binding. Independent window gate accepts saved native `8b8dfa7b` and supplemental fixture `2da013a8`, plus ten portable tests. [Exact evidence and limits](../wiki/systems/godot-conversion.md#native-standalone-bags--bounded-window-pass-cursor-proof-pending).
+- [ ] Preserve authoritative inventory updates and NPC-window lifecycle/global window ownership beyond this snapshot fixture. Embedded NPC backpack remains retained; native duplicate suppression is source-only, not NPC visibility acceptance.
+- [ ] Preserve full [cursor contract](cursor-item.md#native-godot-coverage). Actual authenticated slot0 RED exits101; portable `9e301fb5` original policy/icon and native `2b3fa596` pickup/source-return/Escape/stale/swap/split consumer are implemented, with build/runtime/independent gate pending. Right-gear, world DestroyItem, drag release, tooltips, NPC cursor/visibility, audio and saved positions remain missing or unproved.
+
+Actual Bevy `cargo check --locked -p game-engine --bin game-engine` passed with three historical warnings; plain root check was launcher-only. `9f954a3b` removes one own unused re-export but is not rechecked: no current warning-free/root source-pin claim. Inherited declarative bag-bar length finding remains deferred. Fixture children intentionally SIGKILL; normal shutdown deferred. Full conversion stays open.
 
 ### Graphics bloom (bounded native proof)
 
