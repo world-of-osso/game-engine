@@ -105,6 +105,22 @@ const FIXTURES := [
 	},
 ]
 
+# Every playable race (ChrRaces with a ChrRaceXChrModel body), both sexes, in one outfit:
+# the warrior starter set, Cloaked Hood and Blackrock Pauldrons, sword and shield drawn.
+const SWEEP_RACES := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 36, 37, 52, 70, 75, 76, 84, 85]
+# Dracthyr dragon form (52, 70): ChrRaces has no model fallback and Cloaked Hood (model
+# resource 17420) no Dracthyr file, so no helmet is worn.
+const SWEEP_HELMLESS := [52, 70]
+const SWEEP_ITEMS := [
+	{"slot": "Head", "item_id": 1280, "inventory_type": 1},
+	{"slot": "Shoulder", "item_id": 1445, "inventory_type": 3},
+	{"slot": "Shirt", "item_id": 38, "inventory_type": 4},
+	{"slot": "Legs", "item_id": 39, "inventory_type": 7},
+	{"slot": "Feet", "item_id": 40, "inventory_type": 8},
+	{"slot": "MainHand", "item_id": 25, "inventory_type": 21},
+	{"slot": "OffHand", "item_id": 2362, "inventory_type": 14},
+]
+
 var capture_dir := DEFAULT_CAPTURE_DIR
 var failures: Array[String] = []
 
@@ -133,8 +149,8 @@ func run() -> void:
 	camera.make_current()
 	var only := OS.get_environment("CHAREQUIP_FIXTURES").split(",", false)
 	var loader = ClassDB.instantiate("WowAssetLoader")
-	for fixture in FIXTURES:
-		if only.is_empty() or only.has(fixture.name):
+	for fixture in FIXTURES + sweep_fixtures():
+		if only.is_empty() or only.has(fixture.name) or (only.has("Sweep") and fixture.name.begins_with("Sweep")):
 			await check_fixture(loader, camera, fixture)
 	if failures.is_empty():
 		print("FIXTURE PASS all character fixtures")
@@ -143,6 +159,19 @@ func run() -> void:
 		for failure in failures:
 			print("FIXTURE FAIL ", failure)
 		quit(1)
+
+func sweep_fixtures() -> Array:
+	var fixtures := []
+	for race in SWEEP_RACES:
+		for sex in [0, 1]:
+			var attachments := {"EquipmentMainHand": 1, "EquipmentOffHand": 0, "EquipmentShoulderLeft": 6, "EquipmentShoulderRight": 5}
+			if not SWEEP_HELMLESS.has(race):
+				attachments["EquipmentHead"] = 11
+			fixtures.append({
+				"name": "Sweep%d_%d" % [race, sex], "race": race, "sex": sex, "class": 1, "sheath": 1,
+				"anim": 0, "time_ms": 0.0, "items": SWEEP_ITEMS, "attachments": attachments,
+			})
+	return fixtures
 
 func fail(fixture: Dictionary, message: String) -> void:
 	failures.append("%s: %s" % [fixture.name, message])
