@@ -5,14 +5,15 @@ times.txt, audio.wav, audio.txt) into a 30 fps H.264 + AAC MP4 and check it.
 Usage: grab-video.py <grab_dir> <fixture_log> <out_dir> [name]
 
 Writes to <out_dir>:
-  <name>.mp4        frames at their wall-clock durations, resampled to constant 30 fps
-                    (a frame that lasted longer is repeated), audio from the first frame on
+  <name>.mp4        constant 30 fps: each 1/30 s slot shows the newest grab at or before
+                    it (a frame that lasted longer is repeated), audio from the first frame on
   timing.txt        ffprobe stream durations, achieved grab rate, frame-interval stats
   audio-check.txt   RMS (dBFS) of the MP4's audio around every `FIXTURE ... t=` event
   contact-sheet.png one MP4 frame per fixture MARK/event, labelled with its time
 """
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -36,13 +37,25 @@ def read_audio_meta(grab: Path) -> dict:
     return meta
 
 
-def encode(grab: Path, mp4: Path, meta: dict) -> None:
+def link_cfr_frames(grab: Path, times: np.ndarray, end: float, work: Path) -> Path:
+    """One link per 1/30 s output slot to the newest grab at or before the slot's start
+    (the concat demuxer would round its durations to 1/25 s)."""
+    work.mkdir(exist_ok=True)
+    for old in work.glob("*.jpg"):
+        old.unlink()
+    for slot in range(int(np.ceil(end * 30))):
+        index = max(int(np.searchsorted(times, slot / 30, side="right")) - 1, 0)
+        (work / f"cfr-{slot:06d}.jpg").symlink_to(grab / f"grab-{index:05d}.jpg")
+    return work / "cfr-%06d.jpg"
+
+
+def encode(grab: Path, mp4: Path, meta: dict, times: np.ndarray, work: Path) -> None:
+    pattern = link_cfr_frames(grab.resolve(), times, meta["end_s"], work)
     run(
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-        "-f", "concat", "-safe", "0", "-i", str(grab / "frames.txt"),
+        "-framerate", "30", "-i", str(pattern),
         "-itsoffset", f"{meta['audio_start_s']:.6f}", "-i", str(grab / "audio.wav"),
         "-map", "0:v", "-map", "1:a",
-        "-fps_mode", "cfr", "-r", "30",
         "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "192k", "-ar", str(RATE),
         "-t", f"{meta['end_s']:.6f}", "-movflags", "+faststart", str(mp4),
@@ -101,7 +114,7 @@ def read_events(log: Path) -> list[tuple[float, str, str]]:
     events = []
     for line in log.read_text(errors="replace").splitlines():
         match = EVENT.match(line)
-        if match:
+        if match and match[1] != "FPS":
             events.append((float(match[2]), match[1], match[3][:110]))
     return events
 
@@ -154,8 +167,9 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     meta = read_audio_meta(grab)
     mp4 = out / f"{name}.mp4"
-    encode(grab, mp4, meta)
     times = np.loadtxt(grab / "times.txt", ndmin=1)
+    encode(grab, mp4, meta, times, out / "cfr-links")
+    shutil.rmtree(out / "cfr-links")
     timing = [f"{s['codec_type']} {s['codec_name']}: duration {s.get('duration')} s, "
               f"frames {s.get('nb_frames')}, rate {s.get('avg_frame_rate') or s.get('sample_rate')}"
               for s in stream_durations(mp4)]
