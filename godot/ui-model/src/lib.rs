@@ -181,6 +181,12 @@ pub mod loot_frame_component;
 #[path = "../../../src/loot_frame_data.rs"]
 pub mod loot_frame_data;
 
+// Native CharacterFrame / paperdoll (docs/specs/character-frame.md).
+pub mod character_frame;
+#[path = "../../../src/ui/screens/character_frame_component.rs"]
+pub mod character_frame_component;
+pub mod micro_menu;
+
 #[path = "../../../src/game/cursor_item.rs"]
 pub mod cursor_item;
 #[path = "../../../src/ui/screens/cursor_item_component.rs"]

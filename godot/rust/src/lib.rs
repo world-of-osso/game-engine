@@ -14,6 +14,7 @@ mod bags;
 mod bank;
 mod camera;
 mod char_create;
+mod character_frame;
 mod character_select;
 mod chat;
 mod combat_text;
@@ -175,6 +176,7 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
+    character_frame: character_frame::CharacterFrame,
     tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
     banks: bank::Banks,
@@ -263,6 +265,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
+            character_frame: character_frame::CharacterFrame::default(),
             tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
             banks: bank::Banks::default(),
@@ -701,6 +704,12 @@ impl GameClient {
         self.merchant_snapshot()
     }
 
+    /// The CharacterFrame: open, model preview slots and the paperdoll tooltip.
+    #[func]
+    fn character_frame_state(&self) -> VarDictionary {
+        self.character_frame_snapshot()
+    }
+
     #[func]
     fn auction_state(&self) -> VarDictionary {
         self.auction_snapshot()
@@ -930,6 +939,7 @@ impl GameClient {
         }
         self.tooltips.visit_uis(&mut visit)?;
         self.merchant.visit_uis(&mut visit)?;
+        self.character_frame.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.mailbox.ui {
             visit(ui)?;
         }
@@ -1386,6 +1396,7 @@ impl GameClient {
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
+            ("Character frame", |c, _| c.update_character_frame()),
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Mailbox", |c, _| c.update_mailbox()),

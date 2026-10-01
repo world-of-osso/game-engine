@@ -340,7 +340,10 @@ fn bind_liquid_material(material: &mut Gd<ShaderMaterial>, native: &NativeLiquid
         WaterColorSource::Wmo => 2,
     };
     material.set_shader_parameter("color_source", &color_source.to_variant());
-    let frame_counts = native.slots.each_ref().map(|frames| frames.len().max(1) as f32);
+    let frame_counts = native
+        .slots
+        .each_ref()
+        .map(|frames| frames.len().max(1) as f32);
     material.set_shader_parameter(
         "frame_counts_0",
         &Vector3::new(frame_counts[0], frame_counts[1], frame_counts[2]).to_variant(),
