@@ -52,10 +52,15 @@ impl StartupArgs {
             parsed.assign_first_value(flag, value)?;
             index += 2;
         }
-        if parsed.skybox_fdid.is_some() && parsed.light_skybox_id.is_some() {
+        parsed.reject_conflicting_skybox_ids()?;
+        Ok(parsed)
+    }
+
+    fn reject_conflicting_skybox_ids(&self) -> Result<(), String> {
+        if self.skybox_fdid.is_some() && self.light_skybox_id.is_some() {
             return Err("--skybox-fdid and --light-skybox-id cannot be used together".to_owned());
         }
-        Ok(parsed)
+        Ok(())
     }
 
     fn assign_first_value(&mut self, flag: &str, value: &str) -> Result<(), String> {
