@@ -241,7 +241,7 @@ func run_case(case: Dictionary) -> Array[String]:
 	await process_frame
 	for draw in draws:
 		draw.mesh = (draw.node as MeshInstance3D).bake_mesh_from_current_skeleton_pose().surface_get_arrays(0)
-		var material := (draw.node as MeshInstance3D).material_override as ShaderMaterial
+		var material := (draw.node as MeshInstance3D).get_active_material(0) as ShaderMaterial
 		if material == null:
 			problems.append("mesh part %d has no batch material" % draw.part)
 			model.free()
@@ -327,7 +327,7 @@ func check_textures(case: Dictionary, draws: Array, canvases: Dictionary, proble
 		if kind == 0 or checked.has(kind):
 			continue
 		checked[kind] = true
-		var material := (draw.node as MeshInstance3D).material_override as ShaderMaterial
+		var material := (draw.node as MeshInstance3D).get_active_material(0) as ShaderMaterial
 		if material == null:
 			problems.append("mesh part %d has no batch material" % draw.part)
 			continue
