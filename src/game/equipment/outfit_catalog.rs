@@ -263,6 +263,38 @@ impl OutfitData {
         Ok(self.resolve_runtime_model(display_info_id, race, sex))
     }
 
+    /// Each model column of display `display_info_id` as race `race`/sex `sex` wears it,
+    /// with that column's material as its texture.
+    pub fn try_resolve_column_models(
+        &self,
+        display_info_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Result<Vec<(u32, [u32; 3])>, String> {
+        let data = self.loaded_result()?;
+        let Some(display) =
+            crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, display_info_id)?
+        else {
+            return Ok(Vec::new());
+        };
+        self.check_model_paths(&display)?;
+        let columns = display
+            .model_resource_columns
+            .iter()
+            .zip(display.model_material_resource_columns);
+        Ok(columns
+            .filter(|(model, _)| **model != 0)
+            .filter_map(|(&model, material)| {
+                let fdid = self.select_model_fdid(data, model, race, sex)?;
+                let texture = (material != 0)
+                    .then(|| self.material_texture_fdid(data, material, race, sex))
+                    .flatten()
+                    .unwrap_or(0);
+                Some((fdid, [texture, 0, 0]))
+            })
+            .collect())
+    }
+
     pub fn resolve_runtime_model(
         &self,
         display_info_id: u32,
