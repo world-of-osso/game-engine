@@ -189,6 +189,11 @@ pub struct GameClient {
     player_movement: gameplay::PlayerMovement,
     /// IPC `ScriptedMovementForward`: forward steps for a bounded time.
     scripted_movement: game_engine_network::movement_control::ScriptedMovement,
+    /// IPC `MapWaypointAdd`: the map waypoint (world x, z).
+    map_waypoint: Option<(f32, f32)>,
+    /// The last area (and its zone) found under the local player; kept where no tile
+    /// answers, as the original's `CurrentZone`.
+    current_zone: Option<(u32, u32)>,
     world_minutes: f32,
     server_hostname: String,
     startup_customize: bool,
@@ -283,6 +288,8 @@ impl INode3D for GameClient {
             framerate_toggled: false,
             player_movement: gameplay::PlayerMovement::default(),
             scripted_movement: Default::default(),
+            map_waypoint: None,
+            current_zone: None,
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             startup_customize: false,
@@ -1543,6 +1550,7 @@ impl GameClient {
             }
         }
         self.physical_input.finish_frame();
+        self.track_zone();
         if let Err(error) = self.update_sound() {
             frame_error::report_once(&format!("Sound update failed: {error}"));
         }
@@ -1912,6 +1920,8 @@ impl GameClient {
         self.creation_scene.reset();
         self.physical_input.clear();
         self.player_movement = gameplay::PlayerMovement::default();
+        self.map_waypoint = None;
+        self.current_zone = None;
         if let Some(ui) = self.errors_ui.as_mut() {
             ui.bind_mut().clear_errors()?;
             ui.set_visible(false);

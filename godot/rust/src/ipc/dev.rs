@@ -52,7 +52,7 @@ impl crate::GameClient {
             Request::HoverNpc { name } => self
                 .npc_screen_point(&name)
                 .and_then(|point| self.hover_at(point)),
-            request => return Err(request),
+            request => return self.world_request(request),
         };
         Ok(match answer {
             Ok(text) => Response::Text(text),
@@ -123,7 +123,11 @@ impl crate::GameClient {
         flat + spatial
     }
 
-    /// The streamed map's request and tile state, and this process's memory.
+    /// The streamed map's request and tile state, this process's memory and the native
+    /// model and material caches. Tiles are loaded once parsed: their heights and areas
+    /// answer lookups (the original's heightmap tiles). The original's Bevy asset-store
+    /// counters (images, meshes, M2 and effect materials, composited textures, model
+    /// byte estimates) have no native store and are not reported.
     fn terrain_status(&self) -> String {
         let state = self.terrain.state();
         let memory = current_process_memory_kb();
@@ -131,28 +135,37 @@ impl crate::GameClient {
             .terrain
             .primary_tile()
             .map_or_else(|| "-".into(), |(y, x)| format!("{y},{x}"));
+        let (terrain_materials, water_materials) = self.terrain_materials.material_counts();
         format!(
-            "map_name: {}\ninitial_tile: {primary}\ninitial_tiles: {}\nloaded_tiles: {}\npending_tiles: {}\nfailed_tiles: {}\nprocess_rss_kb: {}\nprocess_anon_kb: {}\nprocess_data_kb: {}",
+            "map_name: {}\ninitial_tile: {primary}\nload_radius: {}\ninitial_tiles: {}\nloaded_tiles: {}\npending_tiles: {}\nfailed_tiles: {}\nserver_requested_tiles: {}\nheightmap_tiles: {}\nprocess_rss_kb: {}\nprocess_anon_kb: {}\nprocess_data_kb: {}\nm2_model_cache_entries: {}\nterrain_material_assets: {terrain_materials}\nwater_material_assets: {water_materials}",
             state.map.as_deref().unwrap_or("-"),
+            crate::terrain::streaming::LOAD_RADIUS,
             self.terrain.initial_tiles().len(),
             state.parsed_tiles.len(),
             state.pending_tiles.len(),
             state.failures.len(),
+            self.terrain.requested_tile_count(),
+            state.parsed_tiles.len(),
             memory.rss_kb,
             memory.anon_kb,
             memory.data_kb,
+            crate::assets::creature::model_cache_entries(),
         )
     }
 
-    /// The native client has no map waypoint or graveyard marker state.
-    fn map_position(&self) -> Result<String, String> {
+    /// `format_map_position`. The native client has no death state, so no graveyard
+    /// marker.
+    pub(super) fn map_position(&self) -> Result<String, String> {
         let origin = self
             .world
             .local_player_transform()
             .ok_or("map position requires a local player")?
             .origin;
+        let waypoint = self
+            .map_waypoint
+            .map_or_else(|| "-".into(), |(x, y)| format!("{x:.2},{y:.2}"));
         Ok(format!(
-            "zone_id: {}\nposition: {:.2},{:.2}\nwaypoint: -\ngraveyard_marker: -",
+            "zone_id: {}\nposition: {:.2},{:.2}\nwaypoint: {waypoint}\ngraveyard_marker: -",
             self.current_zone_id().unwrap_or(0),
             origin.x,
             origin.z
@@ -189,6 +202,8 @@ impl crate::GameClient {
         }
         self.scripted_movement
             .start(duration_secs, heading_degrees)?;
+        // The original clears the map waypoint only once the run is accepted.
+        self.map_waypoint = None;
         Ok("scripted movement started".into())
     }
 

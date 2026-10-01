@@ -56,6 +56,11 @@ pub(crate) struct TerrainMaterials {
 }
 
 impl TerrainMaterials {
+    /// Terrain chunk materials and liquid materials built so far.
+    pub fn material_counts(&self) -> (usize, usize) {
+        (self.materials.len(), self.water.material_count())
+    }
+
     pub fn attached_tiles(&self) -> &BTreeSet<(u32, u32)> {
         &self.attached
     }

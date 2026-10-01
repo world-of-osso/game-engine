@@ -72,9 +72,25 @@ impl GameClient {
         if self.account.session.screen != SessionScreen::InWorld {
             return None;
         }
-        let position = self.world.local_player_transform()?.origin;
-        let area = self.terrain.area_id_at(position.x, position.z)?;
-        Some(root_area(&self.area_parents, area))
+        self.current_zone.map(|(_, zone)| zone)
+    }
+
+    /// The original `track_player_zone`: the MCNK area under the local player and its
+    /// root zone; a position no loaded chunk answers keeps the previous zone.
+    pub(super) fn track_zone(&mut self) {
+        if self.account.session.screen != SessionScreen::InWorld {
+            return;
+        }
+        let Some(position) = self.world.local_player_transform().map(|t| t.origin) else {
+            return;
+        };
+        let Some(area) = self.terrain.area_id_at(position.x, position.z) else {
+            return;
+        };
+        if self.current_zone.is_some_and(|(current, _)| current == area) {
+            return;
+        }
+        self.current_zone = Some((area, root_area(&self.area_parents, area)));
     }
 
     pub(super) fn update_footsteps(&mut self) -> Result<(), String> {

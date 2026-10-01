@@ -146,6 +146,11 @@ pub(crate) struct CachedModel {
 static MODELS: LazyLock<Mutex<HashMap<PathBuf, Arc<CachedModel>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// Parsed models held by the process-wide cache.
+pub(crate) fn model_cache_entries() -> usize {
+    MODELS.lock().expect("model cache").len()
+}
+
 /// Model `fdid`, extracted and parsed once per process (workers load it ahead of the
 /// main thread); a failure is not kept, so the next use tries again.
 pub(crate) fn load_model_files(
