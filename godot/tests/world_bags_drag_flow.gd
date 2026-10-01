@@ -39,6 +39,8 @@ func run_test() -> void:
 		return
 	if not await quiet_releases(client):
 		return
+	if not await foreign_chat_release(client):
+		return
 	for delivery in ["SEPARATED", "RAPID", "CLICK"]:
 		if not await swap_case(client, delivery):
 			return
@@ -167,6 +169,55 @@ func quiet_releases(client: Node) -> bool:
 	if not await wait_cursor(client, true) or not await quiet_drag_state(client, INITIAL, true) or not await clear_local_pickup(client):
 		return false
 	print("FIXTURE BAGS_DRAG_FRAME_RELEASE")
+	return true
+
+func foreign_chat_point(client: Node) -> Vector2:
+	var bags := client.get_node_or_null("BagsUI")
+	var chat := client.get_node_or_null("ChatFrameUI")
+	if bags == null or chat == null or bags == chat:
+		fail("Foreign release requires distinct actual BagsUI and ChatFrameUI hosts")
+		return Vector2.INF
+	var tab := authored_control(chat, "ChatFrame1TabsTab0")
+	if tab == null or not chat.is_ancestor_of(tab) or bags.is_ancestor_of(tab) or not tab.is_visible_in_tree() or tab.mouse_filter != Control.MOUSE_FILTER_STOP:
+		fail("Foreign chat tab must be visible and mouse-blocking under ChatFrameUI, not BagsUI")
+		return Vector2.INF
+	var rect := tab.get_global_rect()
+	var point := rect.get_center()
+	if not rect.has_area() or not rect.has_point(point) or not root.get_visible_rect().has_point(point):
+		fail("Foreign chat tab requires valid visible viewport geometry")
+		return Vector2.INF
+	# RegistryCanvas/full-screen layout parents and visual parts are IGNORE.
+	# Check actual mouse hit controls, not every enclosing container rectangle.
+	for node in bags.find_children("*", "Control", true, false):
+		var control := node as Control
+		if control.is_visible_in_tree() and control.mouse_filter != Control.MOUSE_FILTER_IGNORE and control.get_global_rect().has_point(point):
+			fail("Foreign chat center overlaps own BagsUI hit control: " + str(control.get_path()))
+			return Vector2.INF
+	print("BAGS DRAG FOREIGN chat=", tab.get_path(), " rect=", rect, " point=", point, " outside BagsUI hit controls")
+	return point
+
+func foreign_chat_release(client: Node) -> bool:
+	var source := point_in_slot(client, SOURCE_SLOT)
+	var target := foreign_chat_point(client)
+	if source == Vector2.INF or target == Vector2.INF or source.distance_to(target) < DRAG_MIN:
+		fail("Authored source-to-foreign-chat drag path missing/too short")
+		return false
+	move_pointer(source, cursor_pointer, false)
+	await process_frame
+	left_edge(source, true)
+	if not await wait_cursor(client, true) or not await wait_slot_render(client, 0, 0, 3, true):
+		return false
+	if not inventory_matches(client, INITIAL):
+		fail("Foreign chat drag pickup mutated authoritative inventory")
+		return false
+	move_pointer(target, source, true)
+	await process_frame
+	left_edge(target, false)
+	if not await wait_cursor(client, true) or not await quiet_drag_state(client, INITIAL, true) or not await clear_local_pickup(client):
+		return false
+	# Prefix keeps the existing strict peer marker protocol unchanged. Its Arm(0)
+	# phase rejects any SwapItem here; forbidden request oracle remains active.
+	print("BAGS DRAG NEGATIVE FIXTURE BAGS_DRAG_FOREIGN_CHAT")
 	return true
 
 func swap_case(client: Node, delivery: String) -> bool:
