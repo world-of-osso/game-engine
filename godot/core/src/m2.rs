@@ -50,6 +50,8 @@ pub struct Model {
     pub bone_tracks: std::sync::Arc<Vec<BoneAnimTracks>>,
     pub global_sequences: Vec<u32>,
     pub texture_types: Vec<u32>,
+    /// M2Texture flags (0x1 wrap U, 0x2 wrap V), indexed like `texture_types`.
+    pub texture_flags: Vec<u32>,
     pub texture_fdids: Vec<u32>,
     pub texture_lookup: Vec<u16>,
     pub texture_unit_lookup: Vec<i16>,
@@ -366,6 +368,7 @@ pub fn parse_model_with_skeleton(
         bone_tracks: std::sync::Arc::new(bone_tracks),
         global_sequences,
         texture_types: format::parse_texture_types(chunks.md20)?,
+        texture_flags: format::parse_texture_flags(chunks.md20)?,
         texture_fdids,
         texture_lookup: format::parse_texture_lookup(chunks.md20)?,
         texture_unit_lookup: format::parse_texture_unit_lookup(chunks.md20)?,

@@ -1,6 +1,9 @@
 extends SceneTree
 
+const Oracle := preload("res://tests/m2_wwv_oracle.gd")
 const SHADER_PATH := "res://shaders/m2.gdshader"
+const TEX := [Color(0.4, 0.3, 0.2, 0.6), Color(0.2, 0.5, 0.7, 0.4), Color(0.9, 0.6, 0.3, 0.7), Color(0.5, 0.5, 0.5, 0.8)]
+const WEIGHTS := Vector3(0.9, 0.6, 0.3)
 const SIZE := 64
 const TOLERANCE := 0.018
 
@@ -71,16 +74,18 @@ func fixture() -> void:
 	viewport.add_child(instance)
 
 func base_inputs() -> void:
-	material.set_shader_parameter("effect_mode", 1)
-	material.set_shader_parameter("base_texture", texture_color(Color(0.4, 0.3, 0.2, 0.6)))
-	material.set_shader_parameter("second_texture", texture_color(Color(0.2, 0.5, 0.7, 0.4)))
-	material.set_shader_parameter("base_color", Color.WHITE)
-	material.set_shader_parameter("uv_mode_1", 0)
-	material.set_shader_parameter("uv_mode_2", 0)
-	material.set_shader_parameter("uv_offset_1", Vector2.ZERO)
-	material.set_shader_parameter("uv_offset_2", Vector2.ZERO)
+	material.set_shader_parameter("pixel_shader", 1)
+	material.set_shader_parameter("vertex_shader", 0)
+	material.set_shader_parameter("base_texture", texture_color(TEX[0]))
+	material.set_shader_parameter("second_texture", texture_color(TEX[1]))
+	material.set_shader_parameter("third_texture", texture_color(TEX[2]))
+	material.set_shader_parameter("fourth_texture", texture_color(TEX[3]))
+	material.set_shader_parameter("texture_wrap", 255)
+	material.set_shader_parameter("texture_matrix_1", Basis.IDENTITY)
+	material.set_shader_parameter("texture_matrix_2", Basis.IDENTITY)
+	material.set_shader_parameter("texture_weights", Vector3.ONE)
+	material.set_shader_parameter("mesh_color", Vector3.ONE)
 	material.set_shader_parameter("transparency", 1.0)
-	material.set_shader_parameter("alpha_test", 0.0)
 	material.set_shader_parameter("render_flags", 3)
 	material.set_shader_parameter("gx_blend", 0)
 	material.set_shader_parameter("ambient", Vector3.ONE)
@@ -92,6 +97,10 @@ func base_inputs() -> void:
 	material.set_shader_parameter("fog_color", Vector3.ZERO)
 	material.set_shader_parameter("fog_range", Vector2.ZERO)
 	material.set_shader_parameter("fog_opacity", 0.0)
+
+# A matrix translating texture coordinates by `offset` (the shader's (u, v, 1) mat3).
+func offset_matrix(offset: Vector2) -> Basis:
+	return Basis(Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), Vector3(offset.x, offset.y, 1.0))
 
 func pixel() -> Color:
 	await process_frame
@@ -118,10 +127,7 @@ func over_black(authored: Color, alpha: float) -> Color:
 func assert_unlit_without_sun() -> bool:
 	viewport.remove_child(sun)
 	material.set_shader_parameter("base_texture", texture_color(Color(0.4, 0.3, 0.2)))
-	material.set_shader_parameter("second_texture", texture_color(Color.WHITE))
-	material.set_shader_parameter("shader_id", 0x10)
-	material.set_shader_parameter("render_flags", 3)
-	if not await assert_pixel("effect unlit without sun", Color(0.4, 0.3, 0.2)):
+	if not await assert_pixel("unlit without sun", Color(0.4, 0.3, 0.2)):
 		return false
 	material.set_shader_parameter("render_flags", 1)
 	material.set_shader_parameter("fog_mode", 1)
@@ -130,19 +136,25 @@ func assert_unlit_without_sun() -> bool:
 	material.set_shader_parameter("fog_density", log(2.0))
 	material.set_shader_parameter("fog_opacity", 1.0)
 	material.set_shader_parameter("fog_color", Color(0.0, 0.0, 1.0).srgb_to_linear())
-	if not await assert_pixel("effect unlit fogged without sun", Color(0.2, 0.15, 0.6)):
-		return false
-	material.set_shader_parameter("effect_mode", 0)
-	var single_gamma := (Color(0.4, 0.3, 0.2).srgb_to_linear() * Color(0.5, 0.75, 1.0)).linear_to_srgb()
-	material.set_shader_parameter("render_flags", 3)
-	material.set_shader_parameter("fog_mode", 0)
-	if not await assert_pixel("single unlit without sun", single_gamma):
-		return false
-	material.set_shader_parameter("render_flags", 1)
-	material.set_shader_parameter("fog_mode", 1)
-	if not await assert_pixel("single unlit fogged without sun", single_gamma * 0.5 + Color(0.0, 0.0, 0.5)):
+	if not await assert_pixel("unlit fogged without sun", Color(0.2, 0.15, 0.6)):
 		return false
 	viewport.add_child(sun)
+	return true
+
+# Every calcM2FragMaterial combiner over four known texels, unlit and opaque:
+# matDiffuse + specular (m2shader_text.slang adds specular after calcLight).
+func assert_combiners() -> bool:
+	material.set_shader_parameter("texture_weights", WEIGHTS)
+	material.set_shader_parameter("mesh_color", Vector3(0.8, 0.9, 1.0))
+	for pixel_shader in 37:
+		material.set_shader_parameter("pixel_shader", pixel_shader)
+		var frag := Oracle.fragment(pixel_shader, TEX[0], TEX[1], TEX[2], TEX[3], Vector3(0.8, 0.9, 1.0), WEIGHTS)
+		var rgb: Vector3 = frag[0] + frag[1] * Vector3(0.8, 0.9, 1.0)
+		var expected := Color(clampf(rgb.x, 0.0, 1.0), clampf(rgb.y, 0.0, 1.0), clampf(rgb.z, 0.0, 1.0))
+		if not await assert_pixel("pixel shader %d" % pixel_shader, expected):
+			return false
+	material.set_shader_parameter("texture_weights", Vector3.ONE)
+	material.set_shader_parameter("mesh_color", Vector3.ONE)
 	return true
 
 func run_cases() -> void:
@@ -156,58 +168,63 @@ func run_cases() -> void:
 	if not await assert_unlit_without_sun():
 		return
 	base_inputs()
-	var ids := [0x4014, 0x10, 0x11, 0x4016, 0x8015, 0x8001, 0x8002, 0x8003]
-	var expected := [
-		Color(0.16, 0.3, 0.28),
-		Color(0.08, 0.15, 0.14),
-		Color(0.08, 0.15, 0.14),
-		Color(0.16, 0.3, 0.28),
-		Color(0.48, 0.5, 0.48),
-		Color(0.304, 0.3, 0.232),
-		Color(0.48, 0.5, 0.48),
-		Color(0.448, 0.42, 0.368),
-	]
-	var alpha := [0.48, 0.6, 0.24, 0.6, 1.0, 1.0, 1.0, 1.0]
-	for index in ids.size():
-		material.set_shader_parameter("shader_id", ids[index])
-		# Blend over black; texture equations run in authored space before output gamma encoding.
-		if not await assert_pixel("combiner 0x%x" % ids[index], over_black(expected[index], alpha[index])):
-			return
-	material.set_shader_parameter("shader_id", 0x9999)
-	if not await assert_pixel("original default combiner is first texel", over_black(Color(0.4, 0.3, 0.2), 0.6)):
+	if not await assert_combiners():
 		return
-	material.set_shader_parameter("shader_id", 0x10)
-	material.set_shader_parameter("alpha_test", 0.61)
-	if not await assert_pixel("alpha below test discarded", Color.BLACK):
+	material.set_shader_parameter("pixel_shader", 1)
+	# AlphaKey discards a combiner alpha below 128/255 (calcM2FragMaterial blendMode 1).
+	material.set_shader_parameter("gx_blend", 1)
+	material.set_shader_parameter("base_texture", texture_color(Color(0.4, 0.3, 0.2, 0.49)))
+	if not await assert_pixel("alpha key below 128/255 discarded", Color.BLACK):
 		return
-	material.set_shader_parameter("alpha_test", 0.6)
-	if not await assert_pixel("alpha at test retained", over_black(expected[1], 0.6)):
+	material.set_shader_parameter("base_texture", texture_color(Color(0.4, 0.3, 0.2, 0.51)))
+	if not await assert_pixel("alpha key at 0.51 retained", Color(0.4, 0.3, 0.2)):
 		return
-	material.set_shader_parameter("alpha_test", 0.0)
+	# Alpha blending: finalOpacity = discardAlpha * meshOpacity.
+	material.set_shader_parameter("gx_blend", 2)
+	material.set_shader_parameter("base_texture", texture_color(Color(0.4, 0.3, 0.2, 0.6)))
 	material.set_shader_parameter("transparency", 0.5)
-	if not await assert_pixel("transparency multiplies alpha", over_black(expected[1], 0.3)):
+	if not await assert_pixel("mesh opacity multiplies texture alpha", over_black(Color(0.4, 0.3, 0.2), 0.3)):
+		return
+	material.set_shader_parameter("transparency", 0.00005)
+	if not await assert_pixel("near-zero mesh opacity skips the batch", Color.BLACK):
 		return
 	material.set_shader_parameter("transparency", 1.0)
+	material.set_shader_parameter("gx_blend", 0)
+	material.set_shader_parameter("pixel_shader", 0)
 	material.set_shader_parameter("base_texture", stripe(Color.RED, Color.GREEN))
-	material.set_shader_parameter("second_texture", texture_color(Color.WHITE))
-	material.set_shader_parameter("uv_mode_1", 1)
-	if not await assert_pixel("first texture UV2", Color(0.0, 1.0, 0.0)):
+	material.set_shader_parameter("vertex_shader", 10)
+	if not await assert_pixel("Diffuse_T2 samples the first texture at UV2", Color(0.0, 1.0, 0.0)):
 		return
-	material.set_shader_parameter("uv_mode_1", 0)
-	material.set_shader_parameter("uv_offset_1", Vector2(0.5, 0.0))
-	if not await assert_pixel("first texture offset", Color(0.0, 1.0, 0.0)):
+	material.set_shader_parameter("vertex_shader", 10)
+	material.set_shader_parameter("texture_matrix_2", offset_matrix(Vector2(0.5, 0.0)))
+	if not await assert_pixel("Diffuse_T2 uses texture matrix 2", Color(1.0, 0.0, 0.0)):
 		return
-	material.set_shader_parameter("uv_offset_1", Vector2.ZERO)
+	material.set_shader_parameter("texture_matrix_2", Basis.IDENTITY)
+	material.set_shader_parameter("vertex_shader", 0)
+	material.set_shader_parameter("texture_matrix_1", offset_matrix(Vector2(0.5, 0.0)))
+	if not await assert_pixel("texture matrix 1 moves the first texture", Color(0.0, 1.0, 0.0)):
+		return
+	material.set_shader_parameter("texture_matrix_1", Basis.IDENTITY)
+	# Without its wrap flag, U clamps: 0.25 + 1.0 stays on the right texel, not wrapping left.
+	material.set_shader_parameter("texture_matrix_1", offset_matrix(Vector2(1.0, 0.0)))
+	material.set_shader_parameter("texture_wrap", 255 & ~1)
+	if not await assert_pixel("clamped U holds the edge texel", Color(0.0, 1.0, 0.0)):
+		return
+	material.set_shader_parameter("texture_wrap", 255)
+	if not await assert_pixel("wrapped U repeats", Color(1.0, 0.0, 0.0)):
+		return
+	material.set_shader_parameter("texture_matrix_1", Basis.IDENTITY)
+	material.set_shader_parameter("pixel_shader", 5)
 	material.set_shader_parameter("base_texture", texture_color(Color.WHITE))
 	material.set_shader_parameter("second_texture", stripe(Color.RED, Color.GREEN))
-	material.set_shader_parameter("uv_mode_2", 1)
-	if not await assert_pixel("second texture UV2", Color(0.0, 1.0, 0.0)):
+	material.set_shader_parameter("vertex_shader", 2)
+	if not await assert_pixel("Diffuse_T1_T2 samples the second texture at UV2", Color(0.0, 1.0, 0.0)):
 		return
-	material.set_shader_parameter("uv_mode_2", 0)
-	material.set_shader_parameter("uv_offset_2", Vector2(0.5, 0.0))
-	if not await assert_pixel("second texture offset", Color(0.0, 1.0, 0.0)):
+	material.set_shader_parameter("vertex_shader", 7)
+	if not await assert_pixel("Diffuse_T1_T1 samples the second texture at UV1", Color(1.0, 0.0, 0.0)):
 		return
-	material.set_shader_parameter("uv_offset_2", Vector2.ZERO)
+	material.set_shader_parameter("pixel_shader", 1)
+	material.set_shader_parameter("vertex_shader", 0)
 	material.set_shader_parameter("base_texture", texture_color(Color(0.4, 0.3, 0.2)))
 	material.set_shader_parameter("second_texture", texture_color(Color.WHITE))
 	material.set_shader_parameter("render_flags", 2)
@@ -215,10 +232,17 @@ func run_cases() -> void:
 	material.set_shader_parameter("horizon_ambient", Vector3(0.4, 0.4, 0.4))
 	material.set_shader_parameter("ground_ambient", Vector3(0.4, 0.4, 0.4))
 	material.set_shader_parameter("direct", Vector3(0.3, 0.3, 0.3))
-	if not await assert_pixel("effect lit hemisphere and direct", Color(0.4, 0.3, 0.2) * 0.74):
+	if not await assert_pixel("lit hemisphere and direct", Color(0.4, 0.3, 0.2) * 0.74):
 		return
+	# The specular term is added after lighting: Opaque_AddAlpha's tex2 * tex2.a.
+	material.set_shader_parameter("pixel_shader", 13)
+	material.set_shader_parameter("second_texture", texture_color(Color(0.2, 0.1, 0.0, 0.5)))
+	if not await assert_pixel("specular after lighting", Color(0.4, 0.3, 0.2) * 0.74 + Color(0.1, 0.05, 0.0)):
+		return
+	material.set_shader_parameter("pixel_shader", 1)
+	material.set_shader_parameter("second_texture", texture_color(Color.WHITE))
 	material.set_shader_parameter("render_flags", 3)
-	if not await assert_pixel("effect unlit", Color(0.4, 0.3, 0.2)):
+	if not await assert_pixel("unlit", Color(0.4, 0.3, 0.2)):
 		return
 	material.set_shader_parameter("fog_mode", 1)
 	# Half fog at the fixture distance of 2: exp(-(2 - 1) * ln 2).
@@ -227,42 +251,29 @@ func run_cases() -> void:
 	material.set_shader_parameter("fog_opacity", 1.0)
 	material.set_shader_parameter("fog_color", Color(0.0, 0.0, 1.0).srgb_to_linear())
 	material.set_shader_parameter("render_flags", 1)
-	if not await assert_pixel("effect unlit fogged", Color(0.2, 0.15, 0.6)):
+	if not await assert_pixel("unlit fogged", Color(0.2, 0.15, 0.6)):
 		return
 	# calculateLegacyFog end fade: 1.42857 * (1 - 2 / (2 / 0.65)) leaves half the colour.
 	material.set_shader_parameter("fog_density", 0.0)
 	material.set_shader_parameter("fog_range", Vector2(0.0, 2.0 / 0.65))
-	if not await assert_pixel("effect unlit end fade", Color(0.2, 0.15, 0.6)):
+	if not await assert_pixel("unlit end fade", Color(0.2, 0.15, 0.6)):
 		return
 	# Fog starts at fog_range.x: nothing is fogged before it.
 	material.set_shader_parameter("fog_density", log(2.0))
 	material.set_shader_parameter("fog_range", Vector2(2.0, 100.0))
-	if not await assert_pixel("effect unlit before fog start", Color(0.4, 0.3, 0.2)):
+	if not await assert_pixel("unlit before fog start", Color(0.4, 0.3, 0.2)):
 		return
 	material.set_shader_parameter("fog_range", Vector2(1.0, 100.0))
 	material.set_shader_parameter("render_flags", 2)
-	if not await assert_pixel("effect lit unfogged", Color(0.4, 0.3, 0.2) * 0.74):
+	if not await assert_pixel("lit unfogged", Color(0.4, 0.3, 0.2) * 0.74):
 		return
-	material.set_shader_parameter("effect_mode", 0)
-	material.set_shader_parameter("base_color", Color(0.5, 0.5, 0.5))
+	# The batch colour multiplies the texel in authored space.
+	material.set_shader_parameter("mesh_color", Vector3(0.5, 0.75, 1.0))
 	material.set_shader_parameter("render_flags", 3)
 	material.set_shader_parameter("fog_mode", 0)
-	# Single-texture path multiplies texture, base colour and vertex colour in linear space.
-	var single_linear := Color(0.4, 0.3, 0.2).srgb_to_linear() * Color(0.5, 0.5, 0.5).srgb_to_linear() * Color(0.5, 0.75, 1.0)
-	var single_gamma := single_linear.linear_to_srgb()
-	if not await assert_pixel("single base and vertex colour", single_gamma):
+	var single_gamma := Color(0.4 * 0.5, 0.3 * 0.75, 0.2)
+	if not await assert_pixel("mesh colour", single_gamma):
 		return
-	material.set_shader_parameter("base_color", Color(0.5, 0.5, 0.5, 0.5))
-	material.set_shader_parameter("transparency", 0.5)
-	material.set_shader_parameter("alpha_test", 0.26)
-	if not await assert_pixel("single combined alpha below test", Color.BLACK):
-		return
-	material.set_shader_parameter("alpha_test", 0.25)
-	if not await assert_pixel("single combined alpha at test", over_black(single_gamma, 0.25)):
-		return
-	material.set_shader_parameter("alpha_test", 0.0)
-	material.set_shader_parameter("base_color", Color(0.5, 0.5, 0.5))
-	material.set_shader_parameter("transparency", 1.0)
 	material.set_shader_parameter("render_flags", 2)
 	var lit_single := single_gamma * 0.74
 	if not await assert_pixel("single lit", lit_single):
@@ -292,10 +303,8 @@ func run_cases() -> void:
 		return
 	material.set_shader_parameter("fog_mode", 0)
 	material.set_shader_parameter("render_flags", 2)
-	material.set_shader_parameter("effect_mode", 1)
+	material.set_shader_parameter("mesh_color", Vector3.ONE)
 	material.set_shader_parameter("base_texture", texture_color(Color(0.4, 0.4, 0.4)))
-	material.set_shader_parameter("second_texture", texture_color(Color.WHITE))
-	material.set_shader_parameter("shader_id", 0x10)
 	material.set_shader_parameter("ambient", Vector3(0.25, 0.25, 0.25))
 	material.set_shader_parameter("horizon_ambient", Vector3(0.25, 0.25, 0.25))
 	material.set_shader_parameter("ground_ambient", Vector3(0.25, 0.25, 0.25))

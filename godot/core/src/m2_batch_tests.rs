@@ -139,7 +139,7 @@ fn authored_material_texture_animation_and_opacity_resolution() {
     }];
     let anim = |value| TextureAnimTracks {
         translation: track([value, 0.0, 0.0]),
-        rotation: track([0; 4]),
+        rotation: track([0.0; 4]),
         scale: track([1.0; 3]),
     };
     model.texture_animations = vec![anim(0.25), anim(0.75)];
