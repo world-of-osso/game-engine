@@ -3,7 +3,7 @@
 //! (`UI-HUD-MicroMenu-<Name>-Up`) and `Blizzard_MainMenuBarBagButtons` (`bag-main`,
 //! `bag-border-empty`).
 
-pub(super) use super::bags_bar_art::{BACKPACK, BAG_SLOT_EMPTY, SheetCrop};
+pub(super) use super::bags_bar_art::SheetCrop;
 
 /// `interface/hud/uiminimap.blp`, 512x512.
 const MINIMAP_SHEET: u32 = 4_618_651;
