@@ -469,7 +469,7 @@ pub(super) fn run(
     check_stopped_forward(&mut run)?;
     finish(&mut run, readers)?;
     println!(
-        "PASS: public CLI status network/sound/terrain, map position, hover, camera set and scripted movement forward/stop drove the live native client"
+        "PASS: public CLI status network/sound/terrain, map position, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
     );
     Ok(())
 }
