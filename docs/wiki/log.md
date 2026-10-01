@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-30] audit | Actions verifier PASS; readability followup and drag RED pending
+
+[Existing evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass) records independent1377 functional/compile/format PASS, accepted own input complexity/length and neutral resolve naming findings, not clean readability. `ed135319` preserves startup→popup→chat→binding precedence and names `dispatch_bag_destroy_results`; followup proof pending. Test-only `233cbd63` compiles via Depot `0ml790cpjz`, full stdout/stderr saved, existing WMO warning only. Main rerunning actions after input change; actual drag RED pending. Historical capture limitations/failed builds and unchanged root/pure proof retained; no full-goal, shutdown, drag PASS or startup-equipment/mesh claim.
+
 ## [2026-09-30] audit | Bounded native equip/destroy GREEN; verifier pending
 
 Reconciled existing conversion/cursor specs, parity matrix and wiki against `/tmp/claude/native-bags-proof-ledger.md`, `/tmp/claude/cursor-destroy-popup-proof-ledger.md` and actual `/tmp/claude/native-bags-actions-first-green.log`. [Exact evidence](systems/godot-conversion.md#native-standalone-bags--bounded-window-and-cursor-pass): shared original popup/key `bf1b1a73` pure10/10; native fix `a0b295b4`, read-only diagnostics `6bc3cde0`, Depot `jv155pp2xb` exit0 with existing WMO warning only. Main-observed actions parent0 proves one Equip/two Destroy, authoritative bags empty/MainHand retained, PoorNo quiet/cursor cleared, rare disabled+Enter inert, Unicode32/scalar Backspace/lowercase DELETE. Historical texture wrong-boundary failure, actual right-click RED, equip→world-drop RED, import and match-arm build failures retained. Independent actions verifier pending, not accepted gate; full goal, drag, meshes/startup equipment, NPC/global owner and normal shutdown unproved. Docs only; no tests, ops or delegation.
