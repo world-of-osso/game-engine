@@ -226,6 +226,109 @@ fn interspersed_client_pairs_follow_native_engine_arguments() {
 }
 
 #[test]
+fn skybox_original_value_options_follow_engine_arguments_in_client_order() {
+    for (asset_flag, asset_id) in [("--skybox-fdid", "120191"), ("--light-skybox-id", "42")] {
+        let fixture = Fixture::new();
+        let output = fixture.launch(&[
+            "--headless",
+            asset_flag,
+            asset_id,
+            "--rendering-method",
+            "gl_compatibility",
+            "--screen",
+            "skyboxdebug",
+            "--skybox-time-ms",
+            "43200000",
+            "--verbose",
+            "--skybox-verify",
+        ]);
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(
+            fixture.godot_args(),
+            [
+                "--path",
+                fixture.directory.join("godot").to_str().unwrap(),
+                "--headless",
+                "--rendering-method",
+                "gl_compatibility",
+                "--verbose",
+                "--",
+                asset_flag,
+                asset_id,
+                "--screen",
+                "skyboxdebug",
+                "--skybox-time-ms",
+                "43200000",
+                "--skybox-verify",
+            ]
+            .map(hex),
+            "{asset_flag} must reach native client, preserving engine argument order"
+        );
+    }
+}
+
+#[test]
+fn skybox_verify_is_valueless_and_does_not_consume_next_engine_argument() {
+    let fixture = Fixture::new();
+    let output = fixture.launch(&[
+        "--skybox-verify",
+        "--verbose",
+        "--screen",
+        "skyboxdebug",
+        "--headless",
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        fixture.godot_args(),
+        [
+            "--path",
+            fixture.directory.join("godot").to_str().unwrap(),
+            "--verbose",
+            "--headless",
+            "--",
+            "--skybox-verify",
+            "--screen",
+            "skyboxdebug",
+        ]
+        .map(hex)
+    );
+}
+
+#[test]
+fn skybox_explicit_separator_preserves_original_options_without_duplication() {
+    let fixture = Fixture::new();
+    let output = fixture.launch(&[
+        "--screen",
+        "skyboxdebug",
+        "--skybox-time-ms",
+        "0",
+        "--verbose",
+        "--",
+        "--light-skybox-id",
+        "4294967295",
+        "--skybox-verify",
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        fixture.godot_args(),
+        [
+            "--path",
+            fixture.directory.join("godot").to_str().unwrap(),
+            "--verbose",
+            "--",
+            "--screen",
+            "skyboxdebug",
+            "--skybox-time-ms",
+            "0",
+            "--light-skybox-id",
+            "4294967295",
+            "--skybox-verify",
+        ]
+        .map(hex)
+    );
+}
+
+#[test]
 fn particle_debug_screen_reaches_godot_client_arguments() {
     let fixture = Fixture::new();
     let output = fixture.launch(&["--screen", "particledebug"]);

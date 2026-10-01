@@ -5,7 +5,7 @@
 //! requests the server expects (docs/specs/merchant-frame.md).
 
 use shared::protocol::{
-    BuybackItem, BuybackList, InventoryDelta, InventorySnapshot, VendorInventory,
+    BuybackItem, BuybackList, InventoryDelta, InventorySnapshot, ItemLocation, VendorInventory,
 };
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::SharedContext;
@@ -21,8 +21,8 @@ use crate::merchant_data::{
 };
 use crate::merchant_frame_component::{
     ACTION_BUYBACK_LAST, ACTION_CLOSE, ACTION_ITEM_PREFIX, ACTION_PAGE_NEXT, ACTION_PAGE_PREV,
-    ACTION_REPAIR_ALL, ACTION_SELL_ALL_JUNK, ACTION_TAB_BUYBACK, ACTION_TAB_MERCHANT, CellTint,
-    MerchantCell, MerchantFrameState, merchant_frame_screen,
+    ACTION_REPAIR_ALL, ACTION_REPAIR_ITEM, ACTION_SELL_ALL_JUNK, ACTION_TAB_BUYBACK,
+    ACTION_TAB_MERCHANT, CellTint, MerchantCell, MerchantFrameState, merchant_frame_screen,
 };
 use crate::stack_split::{StackSplitOwner, StackSplitState};
 use crate::stack_split_frame_component::{
@@ -91,6 +91,8 @@ pub struct MerchantSession {
     /// `GetRepairAllCost`, from `DurabilityStateUpdate`.
     pub repair_cost: u32,
     pub split: Option<StackSplitState>,
+    /// `InRepairMode()`: `MerchantRepairItemButton` shows the repair cursor (MF.xml:305-313).
+    pub repair_mode: bool,
 }
 
 impl MerchantSession {
@@ -131,9 +133,11 @@ impl MerchantSession {
         Some(MerchantEffect::CloseInteraction { npc })
     }
 
+    /// The frame closing resets the cursor (`ResetCursor`, MF.lua:167).
     fn close_frame(&mut self) {
         self.merchant.close();
         self.split = None;
+        self.repair_mode = false;
     }
 
     /// A click on a MerchantFrame or StackSplitFrame action (MerchantFrame.lua:632-693).
@@ -174,6 +178,8 @@ impl MerchantSession {
             ACTION_TAB_MERCHANT => self.merchant.set_tab(MerchantTab::Merchant),
             ACTION_TAB_BUYBACK => self.merchant.set_tab(MerchantTab::Buyback),
             ACTION_REPAIR_ALL => return Some(MerchantRequest::Repair { item_guid: None }),
+            // `ShowRepairCursor` / `HideRepairCursor`.
+            ACTION_REPAIR_ITEM if self.merchant.can_repair => self.repair_mode = !self.repair_mode,
             ACTION_SELL_ALL_JUNK
                 if self.merchant.tab == MerchantTab::Merchant && has_junk(&self.inventory) =>
             {
@@ -210,6 +216,26 @@ impl MerchantSession {
                 slot: self.merchant.buyback.get(index)?.slot,
             }),
         }
+    }
+
+    /// A left click on an item while the repair cursor is shown repairs it
+    /// (`PickupContainerItem` / `PickupInventoryItem` in repair mode → `RepairItem`);
+    /// `None` outside repair mode, where the click belongs to the cursor item.
+    pub fn repair_click(&mut self, location: ItemLocation) -> Option<Option<MerchantEffect>> {
+        if !self.repair_mode {
+            return None;
+        }
+        let npc = self.merchant.npc?;
+        Some(
+            self.inventory
+                .item_at(location)
+                .map(|item| MerchantEffect::Request {
+                    npc,
+                    request: MerchantRequest::Repair {
+                        item_guid: Some(item.item_guid),
+                    },
+                }),
+        )
     }
 
     /// Right-clicking a bag item on the merchant tab sells the stack
@@ -297,6 +323,7 @@ impl MerchantSession {
     pub fn frame_state(&self) -> MerchantFrameState {
         MerchantFrameState {
             has_junk: has_junk(&self.inventory),
+            repair_mode: self.repair_mode,
             ..build_frame_state(&self.merchant, self.money, u64::from(self.repair_cost))
         }
     }
@@ -396,6 +423,17 @@ fn vendor_split(merchant: &MerchantState, index: usize, money: u64) -> Option<St
         .flatten()
 }
 
+/// The `PlaySound` of a MerchantFrame button that fired: the page buttons
+/// (MF.lua:574, 581) and Repair All (MF.xml:256). Disabled buttons have no action.
+pub fn click_sound(action: &str) -> Option<u32> {
+    use game_engine_core::ui_sound_kits::{IG_MAINMENU_OPTION_CHECKBOX_ON, ITEM_REPAIR};
+    match action {
+        ACTION_PAGE_PREV | ACTION_PAGE_NEXT => Some(IG_MAINMENU_OPTION_CHECKBOX_ON),
+        ACTION_REPAIR_ALL => Some(ITEM_REPAIR),
+        _ => None,
+    }
+}
+
 /// `C_MerchantFrame.GetNumJunkItems() > 0`: a poor bag item a vendor buys.
 fn has_junk(inventory: &InventoryState) -> bool {
     inventory.slots.iter().flatten().any(|item| {
@@ -424,6 +462,7 @@ fn build_frame_state(merchant: &MerchantState, money: u64, repair_cost: u64) -> 
         next_enabled: merchant.page + 1 < merchant.page_count(),
         // `GetRepairAllCost()` enables Repair All while anything is damaged.
         repair: merchant.can_repair.then_some(repair_cost > 0),
+        repair_mode: false,
         last_buyback: merchant.last_buyback().map(|item| MerchantCell {
             action: ACTION_BUYBACK_LAST.into(),
             ..buyback_cell(item, money, 0)
@@ -497,8 +536,15 @@ pub fn merchant_screen(ctx: &SharedContext) -> Element {
 }
 
 /// Window placement after each rebuild: the backpack in the container slot at the
-/// bottom right (the Bevy window manager's `container_positions`).
+/// bottom right (the Bevy window manager's `container_positions`). Also blends the
+/// repair-item `HighlightTexture` additively (`alphaMode="ADD"`, MF.xml:316).
 pub fn place_merchant_windows(registry: &mut FrameRegistry) {
+    if let Some(id) = registry.get_by_name("MerchantRepairItemButtonHighlight")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &mut frame.widget_data
+    {
+        texture.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+    }
     let (width, height) = (registry.screen_width, registry.screen_height);
     let Some(id) = registry.get_by_name("ContainerFrame0") else {
         return;

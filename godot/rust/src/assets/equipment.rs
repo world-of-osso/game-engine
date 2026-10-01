@@ -21,8 +21,8 @@ use super::{
     creature::{cache_model_textures, load_model_files},
 };
 use crate::equipment_appearance_data::{
-    EquipmentSlot, RuntimeModelAppearance, model_attachment_id, runtime_mesh_part_allowed,
-    slot_uses_bound_joints,
+    EquipmentSlot, RuntimeModelAppearance, collection_mesh_part_in_slot, is_collection_model,
+    model_attachment_id, runtime_mesh_part_allowed, slot_uses_bound_joints,
 };
 
 #[path = "../../../../src/asset/m2_format/m2_bone_names.rs"]
@@ -213,9 +213,14 @@ impl EquipmentContext<'_> {
         } else {
             None
         };
+        let collection = is_collection_model(authored_path);
         let (mut item, missing) =
             build_model_filtered(parsed, &path, &definition.skin_fdids, None, |part| {
-                runtime_mesh_part_allowed(definition.slot, part)
+                if collection {
+                    collection_mesh_part_in_slot(definition.slot, part)
+                } else {
+                    runtime_mesh_part_allowed(definition.slot, part)
+                }
             })?;
         if !missing.is_empty() {
             item.free();
@@ -224,7 +229,7 @@ impl EquipmentContext<'_> {
                 definition.slot, definition.fdid
             ));
         }
-        item.set_name(&format!("Equipment{:?}", definition.slot));
+        item.set_name(&self.unused_item_name(definition.slot));
         item.set_transform(native_transform(
             &self.transforms.resolve(definition.slot, authored_path),
         ));
@@ -249,6 +254,26 @@ impl EquipmentContext<'_> {
             .get_node_or_null(&format!("Skeleton3D/AttachmentBone{id}/Attachment{id}"))
             .and_then(|node| node.try_cast::<Node3D>().ok())
             .ok_or_else(|| format!("Equipment {slot:?} requires missing character attachment {id}"))
+    }
+
+    /// `Equipment{slot}`, numbered from 2 for a slot's further models (a belt's buckle
+    /// and its collection).
+    fn unused_item_name(&self, slot: EquipmentSlot) -> String {
+        let base = format!("Equipment{slot:?}");
+        let taken = |name: &str| {
+            self.character
+                .find_child_ex(name)
+                .owned(false)
+                .done()
+                .is_some()
+        };
+        if !taken(&base) {
+            return base;
+        }
+        (2..)
+            .map(|index| format!("{base}{index}"))
+            .find(|name| !taken(name))
+            .expect("some numbered name is free")
     }
 
     fn bound_skin(&self, model: &m2::Model) -> Result<Gd<Skin>, String> {

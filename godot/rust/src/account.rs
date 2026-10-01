@@ -25,7 +25,7 @@ use shared::protocol::{
     ActionBarSnapshot, AttackStart, AttackStop, AttackStopped, AttackSwing, AuthChannel,
     CastFailed, CharacterListUpdate, ChatChannel, ChatMessage, CombatChannel, CombatEvent,
     CombatLogEvent, CreateCharacter, CreateCharacterResponse, DamageMeterSnapshot, DeleteCharacter,
-    DeleteCharacterResponse, DungeonDifficultySet, EmoteIntent, EnterWorldResponse,
+    DeleteCharacterResponse, DungeonDifficultySet, EmoteEvent, EmoteIntent, EnterWorldResponse,
     ForcedDisconnect, InputChannel, InstanceChannel, InstanceInfo, InstanceLockInfo,
     KnownSpellsSnapshot, LoadTerrain, LoginResponse, MirrorTimerPause, MirrorTimerStart,
     MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestFailed, QuestGiverStatusMultiple,
@@ -159,6 +159,8 @@ pub enum AccountEvent {
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
+    /// A player's social emote, played on its model.
+    Emote(EmoteEvent),
     /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
     GroupNotice(String),
     /// Quest giver dialog traffic and quest results.
@@ -909,6 +911,10 @@ impl Account {
         }
         if message.is::<ChatMessage>() {
             output.push(AccountEvent::Chat(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<EmoteEvent>() {
+            output.push(AccountEvent::Emote(decode(message)?));
             return Ok(());
         }
         if message.is::<CreatureTooltip>() {

@@ -268,7 +268,7 @@ func material_state(doodad: Node3D) -> Array:
 	var state := []
 	for mesh in doodad.find_children("Batch*", "MeshInstance3D", false, false):
 		var material := (mesh as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial
-		state.append([material.get_shader_parameter("mesh_color"), material.get_shader_parameter("transparency"), material.get_shader_parameter("uv_offset_1")])
+		state.append([material.get_shader_parameter("mesh_color"), material.get_shader_parameter("transparency"), material.get_shader_parameter("texture_matrix_1")])
 	return state
 
 # Ten cull frames from `eye` looking at `target`, each after the shared material clock

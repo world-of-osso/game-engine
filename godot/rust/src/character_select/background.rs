@@ -153,7 +153,7 @@ impl Background {
     fn sync_sky(&mut self, root: &mut Gd<Node3D>) -> Result<(), String> {
         if self.sky.is_none() {
             let path = self.data_root.join("models/skyboxes/costalislandskybox.m2");
-            let sky = SkyModel::load(&self.data_root, CAMPSITE_SKY_FDID, &path)?;
+            let sky = SkyModel::load_model(&self.data_root, &path, CAMPSITE_SKY_FDID, None)?;
             root.add_child(&sky.node);
             self.sky = Some(sky);
         }

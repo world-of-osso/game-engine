@@ -50,6 +50,8 @@ pub struct Model {
     pub bone_tracks: std::sync::Arc<Vec<BoneAnimTracks>>,
     pub global_sequences: Vec<u32>,
     pub texture_types: Vec<u32>,
+    /// M2Texture flags (0x1 wrap U, 0x2 wrap V), indexed like `texture_types`.
+    pub texture_flags: Vec<u32>,
     pub texture_fdids: Vec<u32>,
     pub texture_lookup: Vec<u16>,
     pub texture_unit_lookup: Vec<i16>,
@@ -113,24 +115,6 @@ pub fn resolve_render_batches(
         },
         fdid_path,
     )
-}
-
-/// The batch colour's RGB track, the pixel shader's `meshColor` (authored gamma space).
-pub fn batch_color_track<'a>(
-    model: &'a Model,
-    batch: &ResolvedBatch,
-) -> Option<&'a AnimTrack<[f32; 3]>> {
-    batch
-        .color_opacity_track_index
-        .and_then(|index| model.color_tracks.get(index))
-        .map(|tracks| &tracks.color)
-}
-
-/// `meshColor` at time zero; white without a colour.
-pub fn batch_mesh_color(model: &Model, batch: &ResolvedBatch) -> [f32; 3] {
-    batch_color_track(model, batch)
-        .and_then(|track| m2_anim::evaluate_vec3_track(track, 0, 0))
-        .unwrap_or([1.0; 3])
 }
 
 /// FileDataIDs for the primary geometry skin and optional external skeleton.
@@ -366,6 +350,7 @@ pub fn parse_model_with_skeleton(
         bone_tracks: std::sync::Arc::new(bone_tracks),
         global_sequences,
         texture_types: format::parse_texture_types(chunks.md20)?,
+        texture_flags: format::parse_texture_flags(chunks.md20)?,
         texture_fdids,
         texture_lookup: format::parse_texture_lookup(chunks.md20)?,
         texture_unit_lookup: format::parse_texture_unit_lookup(chunks.md20)?,

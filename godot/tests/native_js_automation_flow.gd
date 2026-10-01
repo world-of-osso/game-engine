@@ -14,6 +14,7 @@ var saw_authored_click := false
 var saw_connect_press := false
 var saw_offline_typed := false
 var saw_offline_deleted := false
+var saw_negative_editor_change := false
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -51,6 +52,10 @@ func observe_offline_text(text: String) -> void:
 	elif text == "abc" and saw_offline_typed:
 		saw_offline_deleted = true
 
+func observe_negative_editor_change(_text: String) -> void:
+	if mode == "noneditable-type":
+		saw_negative_editor_change = true
+
 func observe_authored_click() -> void:
 	saw_connect_press = true
 	observe_credentials()
@@ -62,9 +67,11 @@ func observe_node(node: Node) -> void:
 		username = node
 		username.text_changed.connect(observe_credentials)
 		username.text_changed.connect(observe_offline_text)
+		username.text_changed.connect(observe_negative_editor_change)
 	elif node.name == "PasswordInput" and node is LineEdit:
 		password = node
 		password.text_changed.connect(observe_credentials)
+		password.text_changed.connect(observe_negative_editor_change)
 	elif node.name == "ConnectButton" and node is Button:
 		connect_button = node
 		connect_button.pressed.connect(observe_authored_click)
@@ -111,10 +118,63 @@ func observe_offline_actions(login: CanvasLayer) -> void:
 	await process_frame
 	quit(0)
 
+func negative_login_is_mounted(login: CanvasLayer) -> bool:
+	var state: Dictionary = client.account_state()
+	var editors_visible := username.is_visible_in_tree() and password.is_visible_in_tree()
+	var login_visible := login.is_inside_tree() and login.visible and connect_button.is_visible_in_tree()
+	var awaiting_login: bool = state.screen == "Login" and not state.reply_received
+	return editors_visible and login_visible and awaiting_login
+
+func observe_noneditable_type(login: CanvasLayer) -> void:
+	var label := client.find_child("BlizzardThanks", true, false) as Label
+	if label == null:
+		fail("SETUP: noneditable-type requires actual authored BlizzardThanks label")
+		return
+	var label_has_area := label.size.x > 0 and label.size.y > 0
+	var label_is_clickable: bool = label.is_visible_in_tree() and label_has_area
+	if not label_is_clickable:
+		fail("SETUP: noneditable-type requires actual visible authored BlizzardThanks label with click area")
+		return
+	if root.gui_get_focus_owner() != null:
+		fail("SETUP: noneditable-type requires actual absent focus; no artificial focus mutation")
+		return
+	var editors_empty := username.text.is_empty() and password.text.is_empty()
+	if not editors_empty:
+		fail("SETUP: noneditable-type requires empty authored editors")
+		return
+	var initial_username := username.text
+	var initial_password := password.text
+	var deadline := Time.get_ticks_msec() + 900
+	while true:
+		if not negative_login_is_mounted(login):
+			fail("FEATURE: noneditable-type did not retain actual mounted visible Login stable900ms", true)
+			return
+		if root.gui_get_focus_owner() != null:
+			fail("SETUP: noneditable-type absent-focus seam changed; not queue-stop RED")
+			return
+		var editors_unchanged := username.text == initial_username and password.text == initial_password
+		if not editors_unchanged or saw_negative_editor_change:
+			fail("FEATURE: noneditable-type changed actual editor values", true)
+			return
+		if saw_connect_press or saw_credentials:
+			fail("FEATURE: noneditable-type clicked Connect or entered credentials", true)
+			return
+		if Time.get_ticks_msec() >= deadline:
+			break
+		await process_frame
+	if not mark("observed-noneditable-type"):
+		return
+	print("OBSERVE: noneditable-type actual absent focus, unchanged editors and mounted visible Login stable900ms without Connect; parent owns exact terminal diagnostic/no successor dump/Auth0 assertions")
+	# Production terminal errors stop only the runtime, not Godot. Observer owns exit0.
+	client.queue_free()
+	await process_frame
+	quit(0)
+
 func run() -> void:
 	artifacts = OS.get_environment("NATIVE_JS_ARTIFACTS")
 	mode = OS.get_environment("NATIVE_JS_MODE")
-	if mode != "" and mode != "login" and mode != "timeout-continuation" and mode != "offline-actions":
+	var known_modes := ["", "login", "timeout-continuation", "offline-actions", "noneditable-type"]
+	if mode not in known_modes:
 		fail("SETUP: unknown native JS observer mode")
 		return
 	if artifacts.is_empty() or ((mode == "" or mode == "login") and (OS.get_environment("LOGIN_USER").is_empty() or OS.get_environment("LOGIN_PASS").is_empty())):
@@ -156,6 +216,9 @@ func run() -> void:
 		return
 	if mode == "offline-actions":
 		await observe_offline_actions(login)
+		return
+	if mode == "noneditable-type":
+		await observe_noneditable_type(login)
 		return
 	var deadline := Time.get_ticks_msec() + 15000
 	while Time.get_ticks_msec() < deadline:

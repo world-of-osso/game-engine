@@ -3,6 +3,7 @@
 //! MAIN calls `start` in ready, `poll` on the main thread each process frame,
 //! and drops this value in exit_tree, before Godot singleton teardown.
 
+mod export;
 mod tree;
 mod ui_tree;
 
@@ -111,6 +112,7 @@ impl NativeIpc {
             Request::DumpUiTree { filter } => ui_tree::dump_mounted_ui(client, filter.as_deref()),
             // The original scene dispatcher ignores this filter.
             Request::DumpScene { filter: _ } => tree::dump_scene(client),
+            Request::ExportScene { output_path } => export::export_scene(client, &output_path),
             Request::Performance => self.performance(client),
             Request::Screenshot => {
                 self.queue_screenshot(client, command.respond);

@@ -27,6 +27,8 @@ pub mod char_texture_query_data;
 pub mod character_creation_icon_mask_data;
 #[path = "../../../src/character_model_data.rs"]
 pub mod character_model_data;
+#[path = "../../../src/game/equipment/component_file_data.rs"]
+mod component_file_data;
 #[path = "../../../src/client_options_data.rs"]
 pub mod client_options_data;
 #[cfg(test)]
@@ -67,9 +69,8 @@ pub mod liquid_data;
 pub mod loading_readiness;
 pub mod m2;
 pub mod m2_billboard;
-#[path = "../../../src/asset/m2_effect_uv_data.rs"]
-pub mod m2_effect_uv_data;
 pub mod m2_lights;
+pub mod m2_material;
 pub mod m2_particles;
 #[path = "../../../src/asset/m2_texture_composite_data.rs"]
 pub mod m2_texture_composite_data;
@@ -88,10 +89,13 @@ mod nameplate_visibility_data_tests;
 pub mod quest_area_data;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
+#[path = "../../../src/scenes/scene_snapshot_data.rs"]
+pub mod scene_snapshot;
 pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
 pub mod ui_layout_data;
+pub mod ui_sound_kits;
 #[path = "../../../src/sound/wmo_surface_data.rs"]
 pub mod wmo_surface_data;
 #[cfg(test)]
@@ -128,11 +132,12 @@ pub mod outfit_data;
 mod outfit_data_tests;
 #[path = "../../../src/game/outfit_listfile.rs"]
 mod outfit_listfile;
+pub mod player_model_data;
 #[path = "../../../src/player_physics_data.rs"]
 pub mod player_physics_data;
+pub mod retail_fog;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
-pub mod retail_fog;
 pub mod sky_bodies;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;

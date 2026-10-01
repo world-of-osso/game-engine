@@ -66,6 +66,7 @@ fn configure_assets() {
 
 #[test]
 fn trade_refusal_preserves_snapshot_but_authoritative_end_closes_window() {
+    configure_assets();
     let mut session = open();
     let before = session.snapshot.clone();
     assert!(session.window_open());
@@ -85,6 +86,7 @@ fn trade_refusal_preserves_snapshot_but_authoritative_end_closes_window() {
 
 #[test]
 fn invitation_accept_decline_timeout_are_exact_and_once_and_stale_answers_are_ignored() {
+    configure_assets();
     for (outcome, expected) in [
         (PopupOutcome::Accepted, TradeRequest::Accept),
         (PopupOutcome::Cancelled, TradeRequest::Decline),
@@ -124,6 +126,7 @@ fn invitation_accept_decline_timeout_are_exact_and_once_and_stale_answers_are_ig
 
 #[test]
 fn server_cancel_and_outgoing_invitation_never_leave_a_popup_or_open_window() {
+    configure_assets();
     let mut session = TradeSession::default();
     let mut popups = PopupStack::default();
     session.receive(update(
@@ -150,6 +153,7 @@ fn server_cancel_and_outgoing_invitation_never_leave_a_popup_or_open_window() {
 
 #[test]
 fn close_sends_cancel_once_and_stays_closed_until_authoritative_end() {
+    configure_assets();
     let mut session = open();
     assert_eq!(session.close(), Some(TradeRequest::Cancel));
     assert!(session.close().is_none());
@@ -163,6 +167,7 @@ fn close_sends_cancel_once_and_stays_closed_until_authoritative_end() {
 
 #[test]
 fn offers_use_original_whole_stack_first_free_and_duplicate_guards_without_inventory_mutation() {
+    configure_assets();
     let mut inventory = InventoryState::default();
     inventory.apply_snapshot(&InventorySnapshot {
         bags: vec![BagContents {
@@ -199,6 +204,7 @@ fn offers_use_original_whole_stack_first_free_and_duplicate_guards_without_inven
 
 #[test]
 fn cursor_item_placed_in_any_slot_including_will_not_be_traded() {
+    configure_assets();
     let mut inventory = InventoryState::default();
     inventory.apply_snapshot(&InventorySnapshot {
         bags: vec![BagContents {
@@ -241,6 +247,7 @@ fn cursor_item_placed_in_any_slot_including_will_not_be_traded() {
 
 #[test]
 fn cancel_withdraws_accept_close_cancels_and_money_and_clear_wait_for_authority() {
+    configure_assets();
     let mut session = open();
     session.snapshot.as_mut().unwrap().player.slots[0] = Some(item(81));
     let before = session.snapshot.clone();

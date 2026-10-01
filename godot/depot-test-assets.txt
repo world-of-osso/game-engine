@@ -144,6 +144,8 @@ ItemDisplayInfo.csv
 TextureFileData.csv
 ItemDisplayInfoMaterialRes.csv
 ModelFileData.csv
+db2/12.1.0.69933/ComponentTextureFileData.csv
+db2/12.1.0.69933/ComponentModelFileData.csv
 models/skyboxes/11xp_cloudsky01.m2
 models/322057.wmo
 models/623712.m2
@@ -1902,3 +1904,9 @@ textures/451151.blp
 textures/451153.blp
 textures/878975.blp
 textures/971416.blp
+models/1036844.m2
+models/103684400.skin
+models/197068.m2
+models/19706800.skin
+models/189958.m2
+models/18995800.skin
