@@ -224,7 +224,7 @@ impl GameClient {
             if self.offer_trade_item(action)? {
                 return Ok(());
             }
-            return self.send_bag_use_request(location);
+            return self.send_bag_equip_request(location);
         }
         if click.shift && self.bags.cursor.item.is_empty() {
             self.open_bag_split(location);
@@ -233,9 +233,7 @@ impl GameClient {
         self.send_cursor_click(CursorTarget::Location(location))
     }
 
-    /// `UseContainerItem`: an equippable item is equipped, any other used
-    /// (`CMSG_USE_ITEM`; the server casts its on-use spell, if any).
-    fn send_bag_use_request(&self, location: ItemLocation) -> Result<(), FrameError> {
+    fn send_bag_equip_request(&self, location: ItemLocation) -> Result<(), FrameError> {
         let Some(item) = self.merchant.session.inventory.item_at(location) else {
             return Ok(());
         };
@@ -244,8 +242,6 @@ impl GameClient {
         if can_equip {
             let request = InventoryRequest::Equip(EquipItem { from: location });
             self.account.send_inventory_request(&request)?;
-        } else {
-            self.account.send_use_item(location)?;
         }
         Ok(())
     }
