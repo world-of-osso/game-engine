@@ -26,6 +26,8 @@ This page covers the client vendor. The spec is [merchant-frame](../../specs/mer
 
 ## Godot
 
+[Current bounded native Buy + whole/split sale acceptance](godot-conversion.md#native-merchant-split-cursor-sale--main-accepted-bounded-pass) owns acceptance status and exclusions; not full merchant/cursor parity.
+
 - `godot/rust/src/merchant.rs`: right-click interact (targets, then `InteractNpc` within 5 yd), the hover cursor (`wow_cursor_data::npc_cursor`, `Input.set_custom_mouse_cursor` with the `Interface/CURSOR` BLPs), the `MerchantUI` RegistryUi, Escape before the target/game menu. The native `MerchantFrame` alone uses `ui_layout.ron` selected-character placement and 24-logical-unit title drag at effective UI scale; close excludes title capture, release saves, resize clamps, and Options reset clears cached placement. Its backpack and split frame remain separate. Native Panel L/R ordering, coexistence and raise parity remain open.
 - `godot/ui-model/src/merchant.rs` (`MerchantSession`): the Bevy scene logic without ECS — frame/bag/split states, `click_frame` / `click_bag` / `split_key` → `MerchantEffect` (a request or `CloseInteraction`).
 - The shared data files (`merchant_data`, `bag_data`, `stack_split`, `item_catalog`, `item_icons`, `wow_cursor_data`) compile in `godot/ui-model` with `--cfg godot_host` (its `build.rs`), which drops their Bevy `Resource`/`Message` derives; item tables read from `ui-model::paths::set_data_root`.
