@@ -446,20 +446,6 @@ impl Account {
             .map_err(SessionError)
     }
 
-    /// `CMSG_USE_ITEM` for the bag item at `location` (`UseContainerItem`).
-    pub fn send_use_item(
-        &self,
-        location: shared::protocol::ItemLocation,
-    ) -> Result<(), SessionError> {
-        use shared::protocol::{InventoryChannel, UseItem};
-        self.bridge()?
-            .send::<_, InventoryChannel>(UseItem {
-                location,
-                target: None,
-            })
-            .map_err(SessionError)
-    }
-
     pub fn send_use_game_object(&self, object: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InteractionChannel>(UseGameObject { object })
