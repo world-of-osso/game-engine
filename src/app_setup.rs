@@ -763,14 +763,17 @@ mod tests {
                     .disable::<bevy::app::TerminalCtrlCHandlerPlugin>(),
             );
 
+            // Bevy 0.19's LightPlugin registers its own light gizmo group (bevy_light's
+            // bevy_gizmos feature), which creates GizmoConfigStore and GizmoHandles even
+            // with gizmos disabled. The default group and gizmo rendering stay off.
+            let default_group = app
+                .world()
+                .get_resource::<bevy::prelude::GizmoConfigStore>()
+                .and_then(|store| store.get_config::<bevy::prelude::DefaultGizmoConfigGroup>())
+                .is_some();
+            assert_eq!(default_group, enable_gizmos);
             assert_eq!(
-                app.world()
-                    .contains_resource::<bevy::prelude::GizmoConfigStore>(),
-                enable_gizmos,
-            );
-            assert_eq!(
-                app.world()
-                    .contains_resource::<bevy::gizmos::GizmoHandles>(),
+                app.is_plugin_added::<bevy::gizmos_render::GizmoRenderPlugin>(),
                 enable_gizmos,
             );
         }

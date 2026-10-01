@@ -60,7 +60,12 @@ impl Plugin for GameStatePlugin {
 
 fn init_state(app: &mut App, has_server: bool, initial_state: Option<GameState>) {
     let accepted_eula = crate::client_options::load_eula_accepted();
-    let (state, post_eula) = resolve_startup_state(has_server, initial_state, accepted_eula);
+    let (state, post_eula) = resolve_startup_state(
+        has_server,
+        initial_state,
+        accepted_eula,
+        eula_gate_enabled(),
+    );
     app.insert_state(state);
     if let Some(post_eula) = post_eula {
         app.insert_resource(PostEulaState(post_eula));
@@ -71,8 +76,9 @@ fn resolve_startup_state(
     has_server: bool,
     initial_state: Option<GameState>,
     accepted_eula: bool,
+    eula_enabled: bool,
 ) -> (GameState, Option<GameState>) {
-    if should_gate_eula(has_server, initial_state, accepted_eula) {
+    if eula_enabled && should_gate_eula(has_server, initial_state, accepted_eula) {
         return (
             GameState::Eula,
             Some(initial_state.unwrap_or(GameState::Login)),
@@ -87,17 +93,17 @@ fn resolve_startup_state(
     }
 }
 
+/// The EULA gate is opt-in (`ENABLE_EULA`) and `SKIP_EULA` overrides it; read once at
+/// startup so the decision itself stays a pure function of its inputs.
+fn eula_gate_enabled() -> bool {
+    std::env::var_os("ENABLE_EULA").is_some() && std::env::var_os("SKIP_EULA").is_none()
+}
+
 fn should_gate_eula(
     has_server: bool,
     initial_state: Option<GameState>,
     accepted_eula: bool,
 ) -> bool {
-    if std::env::var_os("SKIP_EULA").is_some() {
-        return false;
-    }
-    if std::env::var_os("ENABLE_EULA").is_none() {
-        return false;
-    }
     has_server
         && !accepted_eula
         && initial_state
@@ -812,11 +818,11 @@ mod tests {
     #[test]
     fn startup_with_server_and_unaccepted_eula_skips_gate_by_default() {
         assert_eq!(
-            resolve_startup_state(true, None, false),
+            resolve_startup_state(true, None, false, false),
             (GameState::Login, None)
         );
         assert_eq!(
-            resolve_startup_state(true, Some(GameState::Connecting), false),
+            resolve_startup_state(true, Some(GameState::Connecting), false, false),
             (GameState::Connecting, None)
         );
     }
@@ -824,61 +830,32 @@ mod tests {
     #[test]
     fn startup_without_server_or_with_accepted_eula_skips_gate() {
         assert_eq!(
-            resolve_startup_state(false, None, false),
+            resolve_startup_state(false, None, false, false),
             (GameState::InWorld, None)
         );
         assert_eq!(
-            resolve_startup_state(true, Some(GameState::Login), true),
+            resolve_startup_state(true, Some(GameState::Login), true, false),
             (GameState::Login, None)
         );
     }
 
     #[test]
     fn startup_with_enable_eula_and_unaccepted_eula_enters_gate() {
-        let guard = EnvVarGuard::set("ENABLE_EULA", Some("1"));
-
         assert_eq!(
-            resolve_startup_state(true, None, false),
+            resolve_startup_state(true, None, false, true),
             (GameState::Eula, Some(GameState::Login))
         );
         assert_eq!(
-            resolve_startup_state(true, Some(GameState::Connecting), false),
+            resolve_startup_state(true, Some(GameState::Connecting), false, true),
             (GameState::Eula, Some(GameState::Connecting))
         );
-
-        drop(guard);
     }
 
     #[test]
     fn explicit_eula_state_defaults_back_to_login_after_acceptance() {
         assert_eq!(
-            resolve_startup_state(true, Some(GameState::Eula), true),
+            resolve_startup_state(true, Some(GameState::Eula), true, false),
             (GameState::Eula, Some(GameState::Login))
         );
-    }
-
-    struct EnvVarGuard {
-        key: &'static str,
-        old_value: Option<std::ffi::OsString>,
-    }
-
-    impl EnvVarGuard {
-        fn set(key: &'static str, value: Option<&str>) -> Self {
-            let old_value = std::env::var_os(key);
-            match value {
-                Some(value) => unsafe { std::env::set_var(key, value) },
-                None => unsafe { std::env::remove_var(key) },
-            }
-            Self { key, old_value }
-        }
-    }
-
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            match &self.old_value {
-                Some(value) => unsafe { std::env::set_var(self.key, value) },
-                None => unsafe { std::env::remove_var(self.key) },
-            }
-        }
     }
 }

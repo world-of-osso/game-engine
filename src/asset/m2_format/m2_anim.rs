@@ -297,8 +297,8 @@ fn parse_anim_track<T: Copy>(
             });
         match (keyframes, source) {
             (Ok(keyframes), _) => sequences.push(keyframes),
-            // One track of an `.anim` file running past its chunk (HumanFemale HD
-            // 1000800.anim, bone 128) leaves that sequence's track without keyframes.
+            // One track of an `.anim` file running past its chunk leaves that
+            // sequence's track without keyframes; the other tracks still load.
             (Err(error), SequenceData::External(_)) => {
                 eprintln!(
                     "M2 sequence {i}: .anim track at {block_offset:#x}: {error}; no keyframes"
