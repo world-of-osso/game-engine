@@ -30,9 +30,9 @@ pub(crate) use crate::asset::read_bytes::{
     unorm16_to_f32,
 };
 pub(crate) use parser::{
-    parse_chunks, parse_materials, parse_model_flags, parse_texture_flags, parse_texture_lookup,
-    parse_texture_types, parse_texture_unit_lookup, parse_transparency_lookup, parse_txid,
-    parse_uv_animation_lookup, parse_vertices, resolve_indices,
+    parse_chunks, parse_materials, parse_model_flags, parse_texture_lookup, parse_texture_types,
+    parse_texture_unit_lookup, parse_transparency_lookup, parse_txid, parse_uv_animation_lookup,
+    parse_vertices, resolve_indices,
 };
 
 pub(crate) const MD20_VERSION_OFFSET: usize = 0x04;
