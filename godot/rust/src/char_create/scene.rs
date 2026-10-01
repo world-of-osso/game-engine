@@ -97,10 +97,10 @@ impl CreationScene {
             scene.orbit.drag(drag);
         }
         let dropdown = state.open_dropdown.and_then(|id| {
-            db.option_by_id(state.selected_race, state.selected_sex, id)
+            db.option_by_id(state.customization_race(), state.selected_sex, id)
                 .map(|option| option.option_type)
         });
-        let presentation = db.presentation_for(state.selected_race, state.selected_sex);
+        let presentation = db.presentation_for(state.customization_race(), state.selected_sex);
         scene.orbit.ease_toward(dropdown, presentation, delta_secs);
         scene.place_camera(aspect);
         Ok(())
@@ -157,7 +157,7 @@ impl Scene {
         db: &CustomizationDb,
     ) -> Result<(), String> {
         let key = CharacterKey {
-            race: state.selected_race,
+            race: state.customization_race(),
             class: state.selected_class,
             appearance: state.appearance.clone(),
         };
