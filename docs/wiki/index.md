@@ -134,7 +134,7 @@ Root cause analyses and debug findings.
 - [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Final `292a2fb2`/Depot `tt4c247nl1`: four cases, rejection/retry, bags 11/money 32756 and LOOT_DONE observed. Full exit 101 after DONE is fixture timeout, not historical RenderingServer-null; shutdown deferred, verifier 1314 pending, clean acceptance open.
 - [Native Options and loot money overflow](systems/godot-conversion.md#native-options-and-loot-money-overflow--bounded-main-rendering-final-gate-pending) — 42 main Options records at scales 1/0.75/1.25 without overflow; 93×38/font-12 money Label has three visible lines and contained paint/shadow; original captions main-inspected. Caption-2 RED corrected at `292a2fb2`; independent final pending.
 
-- [Native merchant cursor buy checkpoint](systems/godot-conversion.md#native-merchant-cursor-buy--main-observed-bounded-green-gates-pending) — MAIN-observed bounded GREEN at `837e2c1e`/`b073e4dd`: matching Depot build and five full runtimes exit0; independent gate1446/readability pending, not accepted until MAIN confirms. Own embedded bag only; existing accepted scopes retained.
+- [Native merchant cursor buy checkpoint](systems/godot-conversion.md#native-merchant-cursor-buy--main-accepted-bounded-pass) — MAIN-accepted independent gate1446 bounded PASS at `837e2c1e`/`b073e4dd`: scoped functional/source/format/readability and matching build/five-flow evidence accepted. Own embedded bag only; existing accepted scopes retained.
 
 ## Reference
 
