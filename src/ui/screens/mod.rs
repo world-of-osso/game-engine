@@ -1,6 +1,7 @@
 pub mod achievement_frame_component;
 pub mod auction_house_frame_component;
 pub mod bag_frame_component;
+pub mod bags_bar_component;
 pub mod bank_art;
 pub mod bank_frame_component;
 pub mod barber_shop_frame_component;
@@ -32,6 +33,7 @@ pub mod guild_control_component;
 pub mod guild_frame_component;
 pub mod help_frame_component;
 pub mod inspect_frame_component;
+pub(super) mod inworld_hud_art;
 pub mod inworld_hud_component;
 pub mod inworld_selection_debug_component;
 pub mod inworld_unit_frames_component;
