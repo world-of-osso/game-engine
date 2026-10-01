@@ -104,6 +104,12 @@ fn server_and_character_are_owned_optional_values() {
 }
 
 #[test]
+fn script_option_is_accepted_with_login_startup() {
+    parse(&["--screen", "login", "--run-js-ui-script", "debug/login.js"])
+        .expect("the existing JS script option must reach native startup");
+}
+
+#[test]
 fn invalid_missing_and_unknown_options_report_explicit_errors() {
     for args in [
         vec!["--screen"],
