@@ -1,3 +1,7 @@
+## [2026-09-30] audit | Original-bound merchant runtime passes; independent gate pending
+
+[SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending): `51a3e85f` final log0, Loading2738ms under original15 seconds, strict three opens/closes and placement/reset/pointer/quiet-reopen proof, normal child success. Newly observed one ObjectDB leak warning is unattributed; shutdown investigation deferred, no clean-resource/general-shutdown acceptance or pre-existing claim. Independent1429 pending MAIN acceptance; native5a unchanged, no redundant build/tests.
+
 ## [2026-09-30] audit | Merchant diagnostic passes; original-bound acceptance pending
 
 [SSOT](systems/godot-conversion.md#isolated-merchant-fixture-rendering-gap--corrected-source-proof-pending) records rendering fix/build0, unexplained pre-auth retry101, and test-only `6bea` timing/strict merchant exit0 (Loading4162ms, normal child0). No auth-root-cause or180-second necessity claim. `51a3e85f` restores15 seconds; final retry/independent1429 pending. Native5a startup/readability and unchanged tooltip/pure proofs retained; combined gate OPEN, no general shutdown clearance.

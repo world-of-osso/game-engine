@@ -18,7 +18,7 @@ Standalone bag tooltip native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + 
 
 ### Occupied startup equipment inventory
 
-- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand native `5a3ebf7b` functional/readability proof remains accepted. Combined gate OPEN pending final original15-second merchant retry and independent1429; diagnostic success does not establish an auth fix or require180 seconds. Prior failures and unchanged startup/tooltip/pure proofs retained. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
+- [ ] Preserve authoritative startup equipment across required coverage. Single MainHand native `5a3ebf7b` functional/readability proof remains accepted. Combined gate OPEN pending independent1429 after final original15-second merchant runtime success; diagnostic success does not establish an auth fix or require180 seconds. Prior failures and unchanged startup/tooltip/pure proofs retained. [Exact evidence and exclusions](../wiki/systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green).
 
 ### Graphics bloom (bounded native proof)
 
