@@ -32,6 +32,7 @@ mod gameplay;
 mod ground;
 mod input;
 mod input_keys;
+mod ipc;
 mod lighting;
 mod loading;
 mod logout;
@@ -182,6 +183,7 @@ pub struct GameClient {
     auction: auction::Auction,
     auto_attack: auto_attack::AutoAttack,
     auras: auras::Auras,
+    ipc: Option<ipc::NativeIpc>,
     last_process_ms: f64,
 }
 
@@ -269,6 +271,7 @@ impl INode3D for GameClient {
             auction: auction::Auction::default(),
             auto_attack: auto_attack::AutoAttack::default(),
             auras: auras::Auras::default(),
+            ipc: None,
             last_process_ms: 0.0,
             replica: Replica::default(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
@@ -427,11 +430,13 @@ impl INode3D for GameClient {
 
     fn process(&mut self, delta: f64) {
         let started = std::time::Instant::now();
+        self.poll_native_ipc();
         self.run_frame(delta);
         self.last_process_ms = started.elapsed().as_secs_f64() * 1000.0;
     }
 
     fn exit_tree(&mut self) {
+        drop(self.ipc.take());
         // The display server keeps the custom cursor texture until it is replaced; left
         // set, it outlives RenderingServer and its RID leaks at exit.
         self.set_world_cursor(None);
@@ -444,6 +449,14 @@ impl INode3D for GameClient {
     fn ready(&mut self) {
         // Model animation nodes tick at priority 0 before this observer reads their selected clock.
         self.base_mut().set_process_priority(1);
+        match ipc::NativeIpc::start() {
+            Ok(service) => self.ipc = Some(service),
+            Err(error) => {
+                godot_error!("Cannot initialize client IPC: {error}");
+                self.base().get_tree().quit_ex().exit_code(1).done();
+                return;
+            }
+        }
         // The root viewport is still attaching children during ready.
         self.base_mut().call_deferred("apply_display_options", &[]);
         // Asset-backed initialization resumes from process after the worker completes.
@@ -1331,6 +1344,15 @@ impl GameClient {
             return Err(error.to_string());
         }
         Ok(())
+    }
+
+    fn poll_native_ipc(&mut self) {
+        let client = self.to_gd().upcast();
+        let result = self.ipc.as_mut().map(|service| service.poll(&client));
+        if let Some(Err(error)) = result {
+            godot_error!("Client IPC stopped: {error}");
+            drop(self.ipc.take());
+        }
     }
 
     /// A failure handling one event is reported and the next event still applies;

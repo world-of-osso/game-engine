@@ -32,7 +32,7 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 - `godot/rust/src/ipc/ui_tree.rs` — mounted registry traversal and original UI dump text/filter behavior.
 - `game_engine_network::ipc_wire` — MAIN-owned export of the single original wire definitions, not a native protocol copy.
 - `godot/rust/src/lib.rs` and `godot/rust/Cargo.toml` — MAIN-owned lifecycle hooks, registration and dependencies.
-- `src/bin/game-engine-cli.rs`, `src/ipc/mod.rs`, `src/dump.rs`, `src/ipc/plugin/scene.rs` — original public CLI, protocol and legacy diagnostic contracts; unchanged by this module.
+- `src/bin/game-engine-cli/`, `src/ipc/mod.rs`, `src/dump.rs`, `src/ipc/plugin/scene.rs` — original public CLI and legacy diagnostic contracts. Shared wire definitions are extracted to `src/ipc/wire.rs`; root API re-exports remain compatible.
 
 ## Tests asserting this spec
 
@@ -43,7 +43,7 @@ MAIN-observed pre-implementation RED: `/tmp/claude/native-ipc-third-runtime-red.
 
 ## Known gaps (current cycle)
 
-- [ ] MAIN must register `mod ipc`, store `Option<ipc::NativeIpc>`, call `start` in ready, call `poll(&Gd<Node>) -> Result<(), String>` every process frame, and drop/take it in exit_tree before Godot singleton teardown. Handle `poll` worker-disconnection errors by logging and dropping the service rather than repeatedly calling a dead worker.
+- Native hooks register `mod ipc`, store `Option<ipc::NativeIpc>`, start in ready, poll every process frame and take/drop in exit_tree before singleton teardown. A worker-disconnection error logs and drops the service. Compilation and runtime acceptance remain pending.
 - [ ] Native compilation and unchanged runtime fixture GREEN await MAIN. No local extension Cargo, client operations or final gate executed by the module worker.
 - [ ] Full semantic parity is unproved: native spatial names/model bounds are live, but legacy character race/gender/name/ID, background model/doodad counts, equipment-slot anchors and camera-frustum/raycast `is_displayed` semantics have no equivalent typed native snapshot here. Mesh/model `is_displayed` means actual Godot visibility-in-tree, not legacy occlusion/frustum evidence.
 - [ ] Focus transitions and numerical timing accuracy are not asserted by the existing fixture. Native frame time is observed wall-clock interval, not the legacy diagnostics smoothing algorithm.
