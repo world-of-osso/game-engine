@@ -15,6 +15,7 @@ const MC_SALE_BACKGROUND := Vector2(170.0, 145.0)
 var mc_pointer := Vector2.ZERO
 var mc_sale_texture: Texture2D
 var mc_shift_npc: Variant
+var mc_close_ui_id := 0
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
@@ -53,10 +54,15 @@ func run_test() -> void:
 		return
 	if not await mc_buyback(client):
 		return
+	if not await mc_vendor_cursor_close(client):
+		return
 	print("FIXTURE MERCHANT_CURSOR_DONE")
 	# Parent owns deliberate kill/reap/readers drain; not shutdown proof.
 	while true:
 		await process_frame
+		if not mc_close_closed_matches(client):
+			mc_close_fail(client, "terminal close drain changed")
+			return
 
 func open_vendor(client: Node, vendor: Dictionary) -> bool:
 	# Parent predicate is Fixture Bread; this independent catalog is Linen Cloth.
@@ -431,6 +437,162 @@ func mc_buyback_quiet(client: Node, committed: bool) -> bool:
 			fail("Buyback900ms quiet state changed; committed=%s state=%s" % [committed, client.merchant_state()])
 			return false
 	return true
+
+func mc_vendor_cursor_close(client: Node) -> bool:
+	# Append to unchanged Buyback final Linen7/938/empty list/tab retained.
+	if not mc_buyback_state_matches(client, true):
+		mc_close_fail(client, "missing unchanged five-case final state")
+		return false
+	print("FIXTURE MERCHANT_CURSOR_CLOSE_CATALOG_ARM")
+	# Tab1 is Merchant; Tab2 is Buyback, never catalog return.
+	if not await mc_buyback_click(client, "MerchantFrameTab1"):
+		return false
+	if not await mc_close_wait(client, false, false) or not await mc_close_quiet(client, false, false):
+		return false
+	if not await mc_close_pickup_release(client):
+		return false
+	if not await mc_close_click(client):
+		return false
+	if not await mc_close_wait(client, true, false) or not await mc_close_quiet(client, true, false):
+		return false
+	print("MERCHANT CURSOR CLOSE COMMIT pre-ack: locally closed, actual MerchantUI freed/frame and backpack not visible, carried icon hidden, Linen7/Gold938 unchanged/no picker/popup/Menu900ms")
+	print("FIXTURE MERCHANT_CURSOR_CLOSE_COMMIT")
+	# Closed state cannot reveal an idempotent InteractionClosed. This explicit
+	# marker is accepted ONLY after the peer sent the ordinary protocol ack;
+	# the following full900ms oracle interval therefore starts after that send.
+	if not await mc_close_quiet(client, true, false):
+		return false
+	print("FIXTURE MERCHANT_CURSOR_CLOSE_ACK_QUIET_ARM")
+	if not await mc_close_quiet(client, true, false):
+		return false
+	print("MERCHANT CURSOR CLOSE FINAL ack phase then closed900ms; Linen7/Gold938/no carried icon/no MerchantUI/backpack/picker/popup/Menu; peer opens1/Buy2/Sell2/Buyback1/Close1, five inventory barriers plus close barrier")
+	return true
+
+func mc_close_pickup_release(client: Node) -> bool:
+	var source := mc_control(client, MC_SOURCE)
+	var canvas := mc_control(client, "RegistryCanvas")
+	var ui := client.get_node_or_null("MerchantUI")
+	if source == null or canvas == null or ui == null or not ui.is_ancestor_of(source):
+		mc_close_fail(client, "pickup requires actual own MerchantItem1/canvas")
+		return false
+	var source_id := source.get_instance_id()
+	var start := source.get_global_rect().get_center()
+	var scale := canvas.get_global_transform().get_scale().x
+	if scale <= 0 or not source.is_visible_in_tree() or not source.get_global_rect().has_area():
+		mc_close_fail(client, "pickup source lacks visible scaled geometry")
+		return false
+	print("FIXTURE MERCHANT_CURSOR_CLOSE_PICKUP_ARM")
+	mc_motion(start, false)
+	await process_frame
+	mc_edge(start, true)
+	if not await mc_close_wait(client, false, true) or not await mc_close_quiet(client, false, true):
+		return false
+	print("MERCHANT CURSOR CLOSE PICKUP Left held900ms: textured centered Linen vendor cursor, source bagLinen7/Gold938 unchanged/no extra Buy")
+	print("FIXTURE MERCHANT_CURSOR_CLOSE_PICKED_UP")
+	source = mc_control(client, MC_SOURCE)
+	if source == null or source.get_instance_id() != source_id or not source.get_global_rect().has_point(start):
+		mc_close_fail(client, "release source changed identity or moved")
+		return false
+	if not source.is_visible_in_tree() or start.distance_to(mc_pointer) / scale >= 4.0:
+		mc_close_fail(client, "same-point release must remain below4 logical px on same visible source")
+		return false
+	print("FIXTURE MERCHANT_CURSOR_CLOSE_RELEASE_ARM")
+	# SAME point and SAME source, not a non-actionable background Release case.
+	mc_edge(start, false)
+	if not await mc_close_wait(client, false, true) or not await mc_close_quiet(client, false, true):
+		return false
+	print("MERCHANT CURSOR CLOSE HELD same-point/source release retains textured centered Linen cursor900ms, no inventory/money/request change")
+	print("FIXTURE MERCHANT_CURSOR_CLOSE_HELD")
+	return true
+
+func mc_close_click(client: Node) -> bool:
+	var ui := client.get_node_or_null("MerchantUI")
+	var frame := mc_control(client, "MerchantFrame")
+	var button := mc_control(client, "MerchantFrameCloseButton")
+	if ui == null or frame == null or button == null:
+		mc_close_fail(client, "missing actual own MerchantFrameCloseButton")
+		return false
+	if not ui.is_ancestor_of(frame) or not frame.is_ancestor_of(button) or not button.is_visible_in_tree() or not button.get_global_rect().has_area():
+		mc_close_fail(client, "close button lacks actual visible MerchantUI/frame ancestry")
+		return false
+	mc_close_ui_id = ui.get_instance_id()
+	var point := button.get_global_rect().get_center()
+	mc_motion(point, false)
+	if not await mc_close_wait(client, false, true):
+		return false
+	button = mc_control(client, "MerchantFrameCloseButton")
+	if button == null or not button.is_visible_in_tree() or not button.get_global_rect().has_point(point):
+		mc_close_fail(client, "close button moved/disappeared before own physical Left")
+		return false
+	print("FIXTURE MERCHANT_CURSOR_CLOSE_REQUEST_ARM")
+	mc_edge(point, true)
+	await process_frame
+	mc_edge(point, false)
+	await process_frame
+	return true
+
+func mc_close_inventory_matches(state: Dictionary) -> bool:
+	if state.money != 938 or state.bags.size() != 1:
+		return false
+	var item: Dictionary = state.bags[0]
+	return item.bag == 0 and item.slot == 0 and item.item_id == 2589 and item.name == "Linen Cloth" and item.count == 7
+
+func mc_close_vendor_matches(client: Node, held: bool) -> bool:
+	var state: Dictionary = client.merchant_state()
+	if not mc_shift_inventory_matches(state, 7, 938) or state.buyback != [] or state.split_open:
+		return false
+	var frame := mc_control(client, "MerchantFrame")
+	var tab := mc_control(client, "MerchantFrameTab1")
+	var title := mc_control(client, "MerchantFrameTitleText") as Label
+	if frame == null or tab == null or title == null:
+		return false
+	if not frame.is_visible_in_tree() or not tab.is_visible_in_tree() or not title.is_visible_in_tree() or title.text != VENDOR:
+		return false
+	if not mc_source_matches(client) or not mc_buyback_image_matches(client) or not mc_shift_money_matches(client, 938):
+		return false
+	if not mc_sale_source_matches(client, 7, false) or not mc_split_render_matches(client, 7):
+		return false
+	if held and not mc_split_cursor_image_matches(client):
+		return false
+	return mc_buyback_no_picker(client) and mc_cursor_matches(client, held)
+
+func mc_close_closed_matches(client: Node) -> bool:
+	var state: Dictionary = client.merchant_state()
+	if state.open or state.npc != null or state.split_open or not mc_close_inventory_matches(state):
+		return false
+	# Absence/hidden alone is insufficient: require the captured actual root FREED.
+	if mc_close_ui_id == 0 or is_instance_id_valid(mc_close_ui_id) or client.get_node_or_null("MerchantUI") != null:
+		return false
+	for control_name in ["MerchantFrame", "ContainerFrame0"]:
+		for node in client.find_children(control_name, "Control", true, false):
+			if (node as Control).is_visible_in_tree():
+				return false
+	return mc_buyback_no_picker(client) and mc_cursor_matches(client, false)
+
+func mc_close_state_matches(client: Node, closed: bool, held: bool) -> bool:
+	return mc_close_closed_matches(client) if closed else mc_close_vendor_matches(client, held)
+
+func mc_close_wait(client: Node, closed: bool, held: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if mc_close_state_matches(client, closed, held):
+			return true
+	mc_close_fail(client, "missing close state closed=%s held=%s" % [closed, held])
+	return false
+
+func mc_close_quiet(client: Node, closed: bool, held: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + MC_QUIET_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if not mc_close_state_matches(client, closed, held):
+			mc_close_fail(client, "900ms close quiet changed closed=%s held=%s" % [closed, held])
+			return false
+	return true
+
+func mc_close_fail(client: Node, reason: String) -> void:
+	var icon := client.find_child(MC_CURSOR, true, false) as Control
+	fail("Vendor cursor close: %s; state=%s pointer=%s MerchantUI=%s captured_root_alive=%s carried_icon_visible=%s; runtime counterexample required before any production patch, not NPC pointer-art evidence" % [reason, client.merchant_state(), mc_pointer, client.get_node_or_null("MerchantUI"), is_instance_id_valid(mc_close_ui_id) if mc_close_ui_id != 0 else false, icon != null and icon.is_visible_in_tree()])
 
 func mc_shift_cap(client: Node) -> bool:
 	if not await mc_shift_digit(client, KEY_4, 52, "4"):
