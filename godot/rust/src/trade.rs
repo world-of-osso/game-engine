@@ -6,7 +6,6 @@ use game_engine_ui_model::trade::{
     NativeTradeView, TradeRequest, TradeSession, money_texts, parse_money,
 };
 use game_engine_ui_model::trade_frame_component::MONEY_BOXES;
-use godot::global::Key;
 use godot::prelude::*;
 use shared::components::Player;
 use shared::protocol::{TradePartySnapshot, TradeStateUpdate};
@@ -105,14 +104,12 @@ impl GameClient {
         Ok(true)
     }
 
-    /// Escape closes the open window, which cancels the trade.
-    pub(super) fn trade_key(&mut self, key: Key) -> Result<bool, SessionError> {
-        if key != Key::ESCAPE || !self.trade.session.window_open() {
-            return Ok(false);
-        }
+    /// Escape's `CloseAllWindows` hides TradeFrame; `TradeFrame_OnHide` cancels.
+    pub(super) fn close_trade_window(&mut self) -> Result<bool, SessionError> {
         let request = self.trade.session.close();
+        let closed = request.is_some();
         self.send_trade(request)?;
-        Ok(true)
+        Ok(closed)
     }
 
     pub(super) fn update_trade(&mut self) -> Result<(), FrameError> {
