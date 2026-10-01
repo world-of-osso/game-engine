@@ -28,3 +28,20 @@ pub fn query_display(
     })
     .optional()
 }
+
+/// The skins a model shows by default: of the displays using `model_fdid`, the one
+/// with the most populated texture slots, lowest display ID for ties (import's
+/// `preferred_skins` table).
+pub fn query_preferred_skins(
+    conn: &Connection,
+    model_fdid: u32,
+) -> rusqlite::Result<Option<[u32; 3]>> {
+    conn.prepare(
+        "SELECT skin_fdid_0, skin_fdid_1, skin_fdid_2
+         FROM preferred_skins WHERE model_fdid = ?1",
+    )?
+    .query_row([model_fdid], |row| {
+        Ok([row.get(0)?, row.get(1)?, row.get(2)?])
+    })
+    .optional()
+}
