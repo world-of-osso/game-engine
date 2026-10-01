@@ -9,8 +9,8 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::bag_data::InventoryRequest;
 use game_engine_ui_model::character_frame::{
     ACTION_CLOSE, ACTION_MODEL, CharacterFrameView, MIN_LEVEL_FOR_ITEM_LEVEL, PAPERDOLL_BUTTONS,
-    average_equipped_item_level, class_background, level_line, paperdoll_button, paperdoll_slots,
-    parse_equipment_slot_action, race_background,
+    attribute_lines, average_equipped_item_level, class_background, level_line, paperdoll_button,
+    paperdoll_slots, parse_equipment_slot_action, race_background,
 };
 use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget};
 use game_engine_ui_model::damage_meter_data::class_color;
@@ -22,7 +22,7 @@ use game_engine_ui_model::micro_menu::{
 };
 use game_engine_ui_model::tooltip_presentation::{TooltipPresentation, append_item_id};
 use godot::prelude::*;
-use shared::components::{Player, UnitLevel};
+use shared::components::{CombatRatings, Player, UnitLevel, UnitStats};
 use shared::protocol::{EquipItem, EquipmentSlot, ItemLocation};
 
 use crate::GameClient;
@@ -257,6 +257,9 @@ impl GameClient {
         let level = unit
             .and_then(|unit| unit.get::<UnitLevel>())
             .map_or(1, |level| level.0);
+        let sheet =
+            unit.and_then(|unit| Some((unit.get::<UnitStats>()?, unit.get::<CombatRatings>()?)));
+        let attributes = attribute_lines(sheet);
         let (race_id, class_id, title) = player.as_ref().map_or((0, 0, String::new()), |player| {
             (player.race, player.class, player.name.clone())
         });
@@ -273,6 +276,7 @@ impl GameClient {
             slots,
             item_level: (level >= MIN_LEVEL_FOR_ITEM_LEVEL)
                 .then(|| self.equipped_item_level().to_string()),
+            attributes,
             race_id,
             class_id,
         }

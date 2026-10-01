@@ -61,7 +61,6 @@ fn icon(button: &str) -> Option<(f32, f32)> {
     })
 }
 
-
 /// `()` state: the menu has no data of its own.
 pub fn micro_menu_screen(_ctx: &SharedContext) -> Element {
     let width = MICRO_BUTTONS.len() as f32 * (BUTTON_W + GAP) - GAP;
