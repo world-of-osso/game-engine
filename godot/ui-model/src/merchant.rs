@@ -423,6 +423,17 @@ fn vendor_split(merchant: &MerchantState, index: usize, money: u64) -> Option<St
         .flatten()
 }
 
+/// The `PlaySound` of a MerchantFrame button that fired: the page buttons
+/// (MF.lua:574, 581) and Repair All (MF.xml:256). Disabled buttons have no action.
+pub fn click_sound(action: &str) -> Option<u32> {
+    use game_engine_core::ui_sound_kits::{IG_MAINMENU_OPTION_CHECKBOX_ON, ITEM_REPAIR};
+    match action {
+        ACTION_PAGE_PREV | ACTION_PAGE_NEXT => Some(IG_MAINMENU_OPTION_CHECKBOX_ON),
+        ACTION_REPAIR_ALL => Some(ITEM_REPAIR),
+        _ => None,
+    }
+}
+
 /// `C_MerchantFrame.GetNumJunkItems() > 0`: a poor bag item a vendor buys.
 fn has_junk(inventory: &InventoryState) -> bool {
     inventory.slots.iter().flatten().any(|item| {

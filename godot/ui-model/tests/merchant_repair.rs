@@ -195,3 +195,17 @@ fn repair_item_button_exists_only_at_a_repairer_on_the_merchant_tab() {
             .is_none()
     );
 }
+
+#[test]
+fn fired_page_and_repair_all_buttons_play_their_retail_sound_kits() {
+    use game_engine_ui_model::merchant::click_sound;
+    use game_engine_ui_model::merchant_frame_component::{
+        ACTION_PAGE_NEXT, ACTION_PAGE_PREV, ACTION_REPAIR_ALL, ACTION_SELL_ALL_JUNK,
+    };
+    // SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON (MF.lua:574, 581), ITEM_REPAIR (MF.xml:256).
+    assert_eq!(click_sound(ACTION_PAGE_PREV), Some(856));
+    assert_eq!(click_sound(ACTION_PAGE_NEXT), Some(856));
+    assert_eq!(click_sound(ACTION_REPAIR_ALL), Some(7994));
+    assert_eq!(click_sound(ACTION_REPAIR_ITEM), None);
+    assert_eq!(click_sound(ACTION_SELL_ALL_JUNK), None);
+}
