@@ -16,6 +16,8 @@ bevy_replicon = { version = "0.41.1", default-features = false, features = ["cli
 lightyear_replication = { version = "0.28", default-features = false }
 lightyear_transport = { version = "0.28", default-features = false }
 serde = "1"
+# Execute the original synchronous ui.* script compiler, without Godot objects in JS.
+quick-js = "0.4"
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 
 [dev-dependencies]

@@ -12,6 +12,8 @@ pub mod auction_house;
 pub mod auction_house_data;
 #[path = "game/aura_display_data.rs"]
 pub mod aura_display_data;
+#[path = "ui/automation_data.rs"]
+pub mod automation_data;
 #[path = "game/bag_data.rs"]
 pub mod bag_data;
 #[path = "game/bank_data.rs"]
