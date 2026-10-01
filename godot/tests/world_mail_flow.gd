@@ -13,9 +13,11 @@ const STEP_MS := 15000
 const LINEN := 2589
 const SILK := 4306
 const WOOL := 2592
+const COPPER_ORE := 2770
 const POSTAGE := 30
 const MONEY_SENT := 50000
 const COD := 10000
+const POCKET := 10000
 
 var sync_dir := ""
 var shots := ""
@@ -42,7 +44,6 @@ func run_test() -> void:
 	match role:
 		"sender": ok = await run_sender(client)
 		"recipient": ok = await run_recipient(client)
-		"recipient_return": ok = await run_recipient_return(client)
 		"sender_collect": ok = await run_sender_collect(client)
 		"verify_recipient": ok = await run_verify_recipient(client)
 		"verify_sender": ok = await run_verify_sender(client)
@@ -106,6 +107,15 @@ func run_sender(client: Node) -> bool:
 		return false
 	if not await send_and_wait(client, POSTAGE, -1, 0):
 		return false
+	# 6. and 7. for the recipient's Open All.
+	if not await fill_form(client, recipient_name, "Pocket money", "One gold.") or not await type_text(client, "SendMailMoneyGold", "1"):
+		return false
+	if not await send_and_wait(client, POCKET + POSTAGE, -1, 0):
+		return false
+	if not await attach(client, COPPER_ORE) or not await fill_form(client, recipient_name, "", "Ore."):
+		return false
+	if not await send_and_wait(client, POSTAGE, COPPER_ORE, 10):
+		return false
 	await shot("a07-all-sent.png")
 	write_flag("A1", str(client.mail_state().money))
 	return true
@@ -122,12 +132,12 @@ func run_recipient(client: Node) -> bool:
 	if not await open_mailbox(client):
 		return false
 	# Money and letters arrive at once; items to another account's character wait an hour.
-	if sorted(subjects(client)) != ["Gold for you", "Read after restart"]:
+	if sorted(subjects(client)) != ["Gold for you", "Pocket money", "Read after restart"]:
 		fail("Expected only instant mail before delivery: " + str(subjects(client)))
 		return false
 	await shot("b03-inbox-before-item-delivery.png")
 	write_flag("B1", "")
-	if not await wait_flag("D1") or not await wait_state(client, func(s): return s.mails.size() == 5, "delivered item mail"):
+	if not await wait_flag("D1") or not await wait_state(client, func(s): return s.mails.size() == 7, "delivered item mail"):
 		return false
 	await shot("b04-inbox-delivered.png")
 	# Money, then delete the emptied letter.
@@ -138,6 +148,16 @@ func run_recipient(client: Node) -> bool:
 	if not await wait_state(client, func(s): return s.money == gold + MONEY_SENT and not s.busy, "money taken"):
 		return false
 	await shot("b05-money-taken.png")
+	# Reply: Send Mail with the sender and "RE: subject"; a sent reply returns to the inbox.
+	if not await click_mail(client, "OpenMailReplyButton") or not await wait_state(client, func(s): return s.tab == "send" and s.texts.get("SendMailNameEditBox", "") == sender_name and s.texts.get("SendMailSubjectEditBox", "") == "RE: Gold for you", "reply form"):
+		return false
+	if not await type_text(client, "SendMailBodyEditBox", "Thanks!"):
+		return false
+	await shot("b05a-reply-form.png")
+	if not await send_and_wait(client, POSTAGE, -1, 0) or not await wait_state(client, func(s): return s.tab == "inbox", "back to inbox"):
+		return false
+	if not await select_mail(client, int(money_mail.id)) or not label_is(client, "OpenMailDeleteButton", "Delete"):
+		return false
 	if not await click_mail(client, "OpenMailDeleteButton") or not await wait_state(client, func(s): return mail_by_subject_in(s, "Gold for you").is_empty(), "letter deleted"):
 		return false
 	# The item.
@@ -162,13 +182,20 @@ func run_recipient(client: Node) -> bool:
 	if not await wait_state(client, func(s): return s.money == gold - COD and not s.busy, "C.O.D. paid") or not await wait_bag(client, SILK, silk + 10):
 		return false
 	await shot("b08-cod-paid.png")
-	return await return_and_close(client)
+	if not await return_mail(client):
+		return false
+	# Open All: the pocket money and the ore; the C.O.D. mail and empty mail are skipped.
+	gold = client.mail_state().money
+	var ore := bag_count(client, COPPER_ORE)
+	if not await click_mail(client, "OpenAllMail") or not await wait_state(client, func(s): return s.opening_all or s.money == gold + POCKET, "Open All started"):
+		return false
+	await shot("b11-opening-all.png")
+	if not await wait_state(client, func(s): return not s.opening_all and not s.busy and s.money == gold + POCKET, "Open All finished") or not await wait_bag(client, COPPER_ORE, ore + 10):
+		return false
+	await shot("b12-opened-all.png")
+	return await close_and_flag(client)
 
-# The returned mail is the last recipient step; `recipient_return` resumes a run here.
-func run_recipient_return(client: Node) -> bool:
-	return await open_mailbox(client) and await return_and_close(client)
-
-func return_and_close(client: Node) -> bool:
+func return_mail(client: Node) -> bool:
 	var back := mail_by_subject(client, "Please return")
 	if not await select_mail(client, int(back.id)) or not label_is(client, "OpenMailDeleteButton", "Return"):
 		return false
@@ -176,6 +203,9 @@ func return_and_close(client: Node) -> bool:
 	if not await click_mail(client, "OpenMailDeleteButton") or not await wait_state(client, func(s): return mail_by_subject_in(s, "Please return").is_empty(), "mail returned"):
 		return false
 	await shot("b10-after-return.png")
+	return true
+
+func close_and_flag(client: Node) -> bool:
 	if not await click_mail(client, "MailFrameCloseButton"):
 		return false
 	write_flag("B2", str(client.mail_state().money))
@@ -189,7 +219,7 @@ func run_sender_collect(client: Node) -> bool:
 	await shot("a08-minimap-cod-payment.png")
 	if not await wait_flag("D2") or not await open_mailbox(client):
 		return false
-	if not await wait_state(client, func(s): return s.mails.size() == 2, "C.O.D. payment and returned mail"):
+	if not await wait_state(client, func(s): return s.mails.size() == 3, "C.O.D. payment, reply and returned mail"):
 		return false
 	await shot("a09-inbox-payment-and-return.png")
 	var payment := mail_by_subject(client, "Silk Cloth (10)")
@@ -213,7 +243,7 @@ func run_sender_collect(client: Node) -> bool:
 	return true
 
 func run_verify_recipient(client: Node) -> bool:
-	if bag_count(client, LINEN) != 20 or bag_count(client, SILK) != 10:
+	if bag_count(client, LINEN) != 20 or bag_count(client, SILK) != 10 or bag_count(client, COPPER_ORE) != 10:
 		fail("Taken items did not persist: " + str(client.merchant_state().bags))
 		return false
 	if not await wait_minimap_mail(client, [sender_name]):
@@ -222,7 +252,7 @@ func run_verify_recipient(client: Node) -> bool:
 	if not await open_mailbox(client):
 		return false
 	var letter := mail_by_subject(client, "Read after restart")
-	if sorted(subjects(client)) != ["Linen Cloth (20)", "Read after restart", "Silk Cloth (10)"] or letter.read:
+	if sorted(subjects(client)) != ["Copper Ore (10)", "Linen Cloth (20)", "Pocket money", "Read after restart", "Silk Cloth (10)"] or letter.read:
 		fail("Mailbox after restart: " + str(client.mail_state().mails))
 		return false
 	if not await select_mail(client, int(letter.id)):
@@ -234,7 +264,7 @@ func run_verify_recipient(client: Node) -> bool:
 	return true
 
 func run_verify_sender(client: Node) -> bool:
-	if bag_count(client, WOOL) != 5 or bag_count(client, LINEN) != 0 or bag_count(client, SILK) != 0:
+	if bag_count(client, WOOL) != 5 or bag_count(client, LINEN) != 0 or bag_count(client, SILK) != 0 or bag_count(client, COPPER_ORE) != 0:
 		fail("Sender bags after restart: " + str(client.merchant_state().bags))
 		return false
 	if not await open_mailbox(client):

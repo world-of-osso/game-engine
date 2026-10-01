@@ -12,8 +12,8 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
     bag_frame_component::{ACTION_BAG_SLOT_PREFIX, parse_bag_slot_action},
     mail::{
-        MailEffect, MailOutgoing, MailSession, MailTexts, NativeMailView, bag_item,
-        can_use_mailbox, input_letters, input_names,
+        COD_POPUP, DELETE_MAIL_POPUP, DELETE_MONEY_POPUP, MailEffect, MailOutgoing, MailSession,
+        MailTexts, NativeMailView, bag_item, can_use_mailbox, input_letters, input_names,
     },
     mail_frame_component::{ACTION_CLOSE, FRAME_NAME, MONEY_BOXES, MailFrameTab},
     merchant::Click,
@@ -160,7 +160,7 @@ impl GameClient {
         if key != Key::ESCAPE || !self.mailbox.session.is_open() {
             return Ok(false);
         }
-        if self.mailbox.session.selected.take().is_none() {
+        if !self.mailbox.session.close_open_mail() {
             self.close_mailbox()?;
         }
         Ok(true)
@@ -172,6 +172,7 @@ impl GameClient {
             .unwrap_or(0)
     }
     pub(super) fn update_mailbox(&mut self) -> Result<(), FrameError> {
+        self.hide_stale_mail_popups();
         if self.account.session.screen != SessionScreen::InWorld {
             self.mailbox.close();
             return Ok(());
@@ -281,8 +282,8 @@ impl GameClient {
         click: Click,
     ) -> Result<(), FrameError> {
         if action.starts_with(ACTION_BAG_SLOT_PREFIX) {
-            if click.right && self.mailbox.session.tab == MailFrameTab::Send {
-                return Ok(self.attach_bag_item(action)?);
+            if let Some(handled) = self.mail_bag_slot_click(action, click) {
+                return Ok(handled?);
             }
             return self.bag_cursor_click(action, click);
         }
@@ -297,6 +298,37 @@ impl GameClient {
             &self.merchant.session.inventory,
         );
         Ok(self.apply_mail_effect(effect)?)
+    }
+    /// A bag slot click, from any bag, while the mailbox is open: attached items stay
+    /// locked, and a right-click while Send Mail shows attaches. None: the bags act.
+    pub(super) fn mail_bag_slot_click(
+        &mut self,
+        action: &str,
+        click: Click,
+    ) -> Option<Result<(), String>> {
+        if !self.mailbox.session.is_open() {
+            return None;
+        }
+        let (bag, slot) = parse_bag_slot_action(action)?;
+        let item = self.merchant.session.inventory.slot(bag, slot);
+        if item.is_some_and(|item| {
+            !item.is_empty() && self.mailbox.session.is_attached(item.item_guid)
+        }) {
+            return Some(Ok(()));
+        }
+        if click.right && self.mailbox.session.tab == MailFrameTab::Send {
+            return Some(self.attach_bag_item(action));
+        }
+        None
+    }
+    /// Confirmations whose open mail went away (`OpenMailFrame_OnHide`).
+    fn hide_stale_mail_popups(&mut self) {
+        let confirming = self.mailbox.session.confirming();
+        for key in [COD_POPUP, DELETE_MAIL_POPUP, DELETE_MONEY_POPUP] {
+            if confirming != Some(key) {
+                self.group_frames.popups.hide(key);
+            }
+        }
     }
     fn attach_bag_item(&mut self, action: &str) -> Result<(), String> {
         let (bag, slot) = parse_bag_slot_action(action)

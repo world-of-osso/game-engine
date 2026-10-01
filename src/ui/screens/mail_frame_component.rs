@@ -721,17 +721,20 @@ fn open_mail(open: &OpenMailView, busy: bool) -> Element {
         ));
         index += 1;
     }
+    // Retail shows the charge only in the attachment tooltip, which the native client
+    // lacks; it sits right of the caption, above the attachment rows.
     if open.cod > 0 {
+        let right = FRAME_W - 16.0;
         children.extend(label(
             "OpenMailCODAmountText".into(),
             "C.O.D.:",
-            (16.0, FRAME_H - 28.0 - 14.0, 60.0, 14.0),
-            (12.0, NORMAL_FONT_COLOR, "LEFT"),
+            (right - 150.0, text_y, 60.0, 12.0),
+            (10.0, NORMAL_FONT_COLOR, "RIGHT"),
         ));
         children.extend(money_display(
             "OpenMailCODAmount",
             open.cod,
-            (160.0, FRAME_H - 28.0),
+            (right, text_y + 12.0),
             false,
         ));
     }
