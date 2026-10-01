@@ -49,7 +49,7 @@ impl GameClient {
 
     fn bag_tooltip_state(&self) -> TooltipPresentation {
         let Some((item, owner, screen)) = self.hovered_bag_item() else {
-            return TooltipPresentation::default();
+            return self.minimap_mail_tooltip().unwrap_or_default();
         };
         let level = self
             .world

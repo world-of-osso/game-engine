@@ -25,6 +25,8 @@ pub const MINIMAP_ZONE_TEXT: &str = "MinimapZoneText";
 pub const MINIMAP_CLOCK_TEXT: &str = "TimeManagerClockTicker";
 pub const MINIMAP_ZOOM_IN: &str = "MinimapZoomIn";
 pub const MINIMAP_ZOOM_OUT: &str = "MinimapZoomOut";
+/// Retail `MiniMapMailFrame` (`Minimap.xml:92-145`).
+pub const MINIMAP_MAIL_FRAME: &str = "MiniMapMailFrame";
 pub const ACTION_ZOOM_IN: &str = "minimap:zoom_in";
 pub const ACTION_ZOOM_OUT: &str = "minimap:zoom_out";
 /// `MinimapZoneTextButtonMixin:OnClick`: `ToggleWorldMap`.
@@ -90,6 +92,8 @@ pub const ZOOM_OUT: SheetArt = hud(1.0, 18.0, 498.0, 507.0);
 pub const ZOOM_OUT_DOWN: SheetArt = hud(20.0, 37.0, 498.0, 507.0);
 const BUTTON: SheetArt = hud(491.0, 511.0, 100.0, 118.0);
 const TRACKING_UP: SheetArt = hud(459.0, 475.0, 198.0, 213.0);
+/// `ui-hud-minimap-mail-up`, 20×15 (`Minimap.xml:99`).
+const MAIL_UP: SheetArt = hud(463.0, 483.0, 140.0, 155.0);
 /// `UniqueCornersLayout` over `ui-hud-minimap-button` (`NineSliceLayouts.lua:399-410`).
 const CORNER_TOP_LEFT: SheetArt = hud(120.0, 126.0, 498.0, 504.0);
 const CORNER_TOP_RIGHT: SheetArt = hud(103.0, 110.0, 498.0, 504.0);
@@ -201,6 +205,8 @@ pub struct MinimapClusterState {
     pub zoom_buttons: bool,
     pub zoom: u8,
     pub blips: Vec<MinimapBlip>,
+    /// `MiniMapMailFrameMixin`: unread delivered mail (`HasNewMail`) shows the icon.
+    pub has_mail: bool,
     /// Composite registered in the host registry, drawn by `MinimapDisplay`.
     pub map_texture: Option<DynamicTextureId>,
 }
@@ -334,6 +340,9 @@ fn zoom_button(
 fn header(state: &MinimapClusterState) -> Element {
     let mut elements = border_top();
     elements.extend(tracking_button());
+    if state.has_mail {
+        elements.extend(mail_indicator());
+    }
     elements.extend(zone_text(state));
     elements.extend(clock_text(state));
     // GameTimeFrame 19×18 TOPLEFT at BorderTop TOPRIGHT +1.
@@ -439,8 +448,7 @@ fn border_top() -> Element {
 /// `Tracking` 17×17 RIGHT at BorderTop LEFT −2: `ui-hud-minimap-button` background and
 /// the 13×14 `ui-hud-minimap-tracking-up` button.
 fn tracking_button() -> Element {
-    let left = BORDER_LEFT - 2.0 - 17.0;
-    let top = BORDER_TOP + BORDER_H / 2.0 - 8.5;
+    let [left, top] = tracking_origin();
     let mut elements = art_texture(
         "MinimapClusterTrackingBackground".into(),
         BUTTON,
@@ -452,6 +460,48 @@ fn tracking_button() -> Element {
         [left + 2.0, top + 1.5, 13.0, 14.0],
     ));
     elements
+}
+
+fn tracking_origin() -> [f32; 2] {
+    [BORDER_LEFT - 2.0 - 17.0, BORDER_TOP + BORDER_H / 2.0 - 8.5]
+}
+
+/// `IndicatorFrame` TOPRIGHT at the Tracking button's BOTTOMRIGHT holds the 20×15
+/// `MailFrame` (`Minimap.xml:82-95`); mouse-enabled for its unread-mail tooltip.
+fn mail_indicator() -> Element {
+    let [left, top] = tracking_origin();
+    let coords = MAIL_UP.tex_coords();
+    rsx! {
+        r#frame {
+            name: {DynName(MINIMAP_MAIL_FRAME.into())},
+            width: 20.0,
+            height: 15.0,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            left: {left + 17.0 - 20.0},
+            top: {top + 17.0},
+            texture {
+                name: "MiniMapMailIcon",
+                width: 20.0,
+                height: 15.0,
+                texture_fdid: {MAIL_UP.fdid},
+                tex_coords: {coords.as_str()},
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
+        }
+    }
+}
+
+/// `MinimapMailFrameUpdate` / `FormatUnreadMailTooltip`: `HAVE_MAIL_FROM` with a line
+/// per sender, `HAVE_MAIL` without senders.
+pub fn mail_tooltip_lines(senders: &[String]) -> (&'static str, Vec<String>) {
+    if senders.is_empty() {
+        ("You have unread mail", Vec::new())
+    } else {
+        ("Unread mail from:", senders.to_vec())
+    }
 }
 
 fn art_texture(name: String, art: SheetArt, [x, y, width, height]: [f32; 4]) -> Element {

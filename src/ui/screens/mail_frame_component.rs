@@ -122,6 +122,9 @@ pub struct SendView {
     pub cod: bool,
     /// C.O.D. needs an attachment (MF.lua:1013).
     pub cod_enabled: bool,
+    /// `SendMailFrame_CanSend`: a recipient, a subject and a C.O.D. within
+    /// `MAX_COD_AMOUNT` (MF.lua:1106-1135).
+    pub can_send: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -153,30 +156,21 @@ pub struct MailFrameState {
     pub send: SendView,
     pub open: Option<OpenMailView>,
     pub money: u64,
-}
-
-/// Native receiving slice: authored inbox and letter, no sending or destructive actions.
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct ReceivingMailState {
-    pub frame: MailFrameState,
+    /// A mail request is in flight (`C_Mail.IsCommandPending`): mail buttons wait.
     pub busy: bool,
-}
-
-pub fn receiving_mail_screen(ctx: &SharedContext) -> Element {
-    let state = ctx
-        .get::<ReceivingMailState>()
-        .expect("ReceivingMailState must be in SharedContext");
-    build_mail_frame(&state.frame, true, state.busy)
+    /// `OpenAllMailMixin` is taking attachments: "Opening..." and disabled.
+    pub opening_all: bool,
 }
 
 pub fn mail_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<MailFrameState>()
         .expect("MailFrameState must be in SharedContext");
-    build_mail_frame(state, false, false)
+    build_mail_frame(state)
 }
 
-fn build_mail_frame(state: &MailFrameState, receiving_only: bool, busy: bool) -> Element {
+fn build_mail_frame(state: &MailFrameState) -> Element {
+    let busy = state.busy;
     let hide = !state.visible;
     let title = match state.tab {
         MailFrameTab::Inbox => "Inbox",
@@ -184,14 +178,12 @@ fn build_mail_frame(state: &MailFrameState, receiving_only: bool, busy: bool) ->
     };
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), title, ACTION_CLOSE);
     match state.tab {
-        MailFrameTab::Inbox => children.extend(inbox(state, receiving_only, busy)),
-        MailFrameTab::Send => children.extend(send_mail(state)),
+        MailFrameTab::Inbox => children.extend(inbox(state, busy)),
+        MailFrameTab::Send => children.extend(send_mail(state, busy)),
     }
-    if !receiving_only {
-        children.extend(tabs(state.tab));
-    }
+    children.extend(tabs(state.tab));
     if let Some(open) = &state.open {
-        children.extend(open_mail(open, receiving_only, busy));
+        children.extend(open_mail(open, busy));
     }
     rsx! {
         r#frame {
@@ -242,7 +234,7 @@ pub fn row_position(index: usize) -> (f32, f32) {
     (13.0, 70.0 + index as f32 * 45.0)
 }
 
-fn inbox(state: &MailFrameState, receiving_only: bool, busy: bool) -> Element {
+fn inbox(state: &MailFrameState, busy: bool) -> Element {
     let mut out = texture(
         "InboxFrameBg".into(),
         INBOX_BG,
@@ -281,11 +273,16 @@ fn inbox(state: &MailFrameState, receiving_only: bool, busy: bool) -> Element {
         (248.0, center_y - 7.0, 40.0, 14.0),
         (12.0, NORMAL_FONT_COLOR, "RIGHT"),
     ));
+    let open_all = if state.opening_all {
+        "Opening..."
+    } else {
+        "Open All"
+    };
     out.extend(panel_button(
         "OpenAllMail".into(),
-        "Open All",
+        open_all,
         ACTION_OPEN_ALL,
-        !receiving_only && !state.rows.is_empty(),
+        !busy && !state.opening_all && !state.rows.is_empty(),
         (
             TAB_FRAME_W / 2.0 - 21.0 - 60.0,
             center_y - 12.0,
@@ -425,7 +422,7 @@ pub fn send_attachment_position(index: usize) -> (f32, f32) {
     (x, y)
 }
 
-fn send_mail(state: &MailFrameState) -> Element {
+fn send_mail(state: &MailFrameState, busy: bool) -> Element {
     let send = &state.send;
     // `SendMailNameEditBox` 109×25 at 90,-30; Subject 220×20 below it (MF.xml:562-686).
     let mut out = label(
@@ -482,7 +479,7 @@ fn send_mail(state: &MailFrameState) -> Element {
             (-1.0, -1.0, 39.0, 39.0),
             WHITE,
         );
-        let action = if item.is_some() {
+        let action = if item.is_some() && !busy {
             format!("{ACTION_ATTACHMENT_PREFIX}{index}")
         } else {
             String::new()
@@ -504,7 +501,7 @@ fn send_mail(state: &MailFrameState) -> Element {
         "SendMailMailButton".into(),
         "Send",
         ACTION_SEND,
-        true,
+        send.can_send && !busy,
         (cancel_x - 80.0, top, 80.0, 22.0),
     ));
     out.extend(panel_button(
@@ -626,7 +623,7 @@ pub fn open_attachment_position(index: usize, rows: usize) -> (f32, f32) {
     (x, y)
 }
 
-fn open_mail(open: &OpenMailView, receiving_only: bool, busy: bool) -> Element {
+fn open_mail(open: &OpenMailView, busy: bool) -> Element {
     let prefix = OPEN_MAIL_NAME;
     let mut children = window_chrome(prefix, (FRAME_W, FRAME_H), "Open Mail", ACTION_OPEN_CLOSE);
     // "From:" / "Subject:" right-aligned at 105 (MF.xml:878-896).
@@ -716,7 +713,7 @@ fn open_mail(open: &OpenMailView, receiving_only: bool, busy: bool) -> Element {
             (x, y),
             Element::default(),
             Some(&attachment.item),
-            &if busy || (receiving_only && open.cod > 0) {
+            &if busy {
                 String::new()
             } else {
                 format!("{ACTION_TAKE_ITEM_PREFIX}{}", attachment.slot)
@@ -747,14 +744,14 @@ fn open_mail(open: &OpenMailView, receiving_only: bool, busy: bool) -> Element {
         "OpenMailReplyButton".into(),
         "Reply",
         ACTION_REPLY,
-        !receiving_only && open.can_reply,
+        !busy && open.can_reply,
         (close_x - 164.0, top, 82.0, 22.0),
     ));
     children.extend(panel_button(
         "OpenMailDeleteButton".into(),
         delete_label,
         ACTION_DELETE,
-        !receiving_only,
+        !busy,
         (close_x - 82.0, top, 82.0, 22.0),
     ));
     children.extend(panel_button(

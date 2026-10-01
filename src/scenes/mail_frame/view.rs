@@ -103,6 +103,7 @@ fn send_view(mail: &MailState, inventory: &InventoryState, money: u64) -> SendVi
         postage_unaffordable: mail.postage() > money,
         cod: mail.money_mode == SendMoneyMode::Cod,
         cod_enabled: !mail.attachments.is_empty(),
+        can_send: true,
     }
 }
 
@@ -132,5 +133,6 @@ pub fn mail_frame_state(
         send: send_view(mail, inventory, money),
         open: mail.opened().map(open_mail),
         money,
+        ..Default::default()
     }
 }
