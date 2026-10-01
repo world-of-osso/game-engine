@@ -361,7 +361,14 @@ fn stage_fixture_project(
     root: &Path,
     project: &Path,
 ) -> Result<(), String> {
-    for name in ["project.godot", "scenes", "shaders", "tests", "ui"] {
+    for name in [
+        "project.godot",
+        "rendering",
+        "scenes",
+        "shaders",
+        "tests",
+        "ui",
+    ] {
         link_required(&source.join(name), &project.join(name))?;
     }
     fs::copy(
