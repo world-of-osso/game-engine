@@ -88,6 +88,8 @@ mod nameplate_visibility_data_tests;
 pub mod quest_area_data;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
+#[path = "../../../src/scenes/scene_snapshot_data.rs"]
+pub mod scene_snapshot;
 pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
@@ -130,9 +132,9 @@ mod outfit_data_tests;
 mod outfit_listfile;
 #[path = "../../../src/player_physics_data.rs"]
 pub mod player_physics_data;
+pub mod retail_fog;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
-pub mod retail_fog;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]
