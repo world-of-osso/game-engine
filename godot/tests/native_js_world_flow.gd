@@ -92,7 +92,11 @@ func texture(node: Control) -> TextureRect:
 	return null
 
 func charselect_account_ready(state: Dictionary) -> bool:
-	return saw_credentials and saw_connect and state.reply_received and state.screen == "CharacterSelect" and state.character_count == 1
+	var login_completed := saw_credentials and saw_connect and state.reply_received
+	if not login_completed:
+		return false
+	var roster_matches := state.screen == "CharacterSelect" and state.character_count == 1
+	return roster_matches
 
 func charselect_presentation_ready(selection: CanvasLayer, selected: Label, enter: Button) -> bool:
 	if selection == null or not selection.visible:
@@ -120,7 +124,11 @@ func world_account_ready(state: Dictionary) -> bool:
 	return state.unit_count == 1 and state.world_attached and state.gameplay_input_allowed
 
 func terrain_ready(terrain: Dictionary) -> bool:
-	if terrain.map != "azeroth" or terrain.pending_count != 0 or not terrain.failures.is_empty() or terrain.parsed_tiles.is_empty():
+	var map_idle := terrain.map == "azeroth" and terrain.pending_count == 0
+	if not map_idle:
+		return false
+	var tiles_ready := terrain.failures.is_empty() and not terrain.parsed_tiles.is_empty()
+	if not tiles_ready:
 		return false
 	for tile in terrain.parsed_tiles:
 		if tile.chunk_count <= 0 or not FileAccess.file_exists(tile.root_path):
@@ -186,7 +194,8 @@ func merchant_item_content_matches(name_label: Label, icon: TextureRect, count: 
 		return false
 	if icon == null or icon.texture != vendor_texture:
 		return false
-	return (count == null or not count.is_visible_in_tree()) and visible_label_matches(price, "25")
+	var count_hidden := count == null or not count.is_visible_in_tree()
+	return count_hidden and visible_label_matches(price, "25")
 
 func source_matches() -> bool:
 	var name_label := control("MerchantItem1Name") as Label
@@ -264,10 +273,18 @@ func merchant_account_matches(account: Dictionary) -> bool:
 	return account.screen == "InWorld" and account.selected_character_id == 17
 
 func merchant_session_matches(state: Dictionary) -> bool:
-	return state.open and state.npc == npc_id and state.vendor_name == VENDOR and state.items == ["Linen Cloth"]
+	var session_open := state.open and state.npc == npc_id
+	if not session_open:
+		return false
+	var vendor_matches := state.vendor_name == VENDOR and state.items == ["Linen Cloth"]
+	return vendor_matches
 
 func inventory_item_matches(item: Dictionary, count: int) -> bool:
-	return item.bag == 0 and item.slot == 0 and item.item_id == 2589 and item.name == "Linen Cloth" and item.count == count
+	var slot_matches := item.bag == 0 and item.slot == 0
+	if not slot_matches:
+		return false
+	var content_matches := item.item_id == 2589 and item.name == "Linen Cloth" and item.count == count
+	return content_matches
 
 func inventory_authority_matches(state: Dictionary, count: int) -> bool:
 	# Visual starter gear is EquipmentAppearance, not an invented occupied inventory slot.
@@ -287,16 +304,24 @@ func cursor_and_popup_absent() -> bool:
 	return true
 
 func merchant_presentation_matches(count: int, money: int, amount: String) -> bool:
-	return client.get_node_or_null("GameMenuUI") == null and source_matches() and bag_matches(count) and money_matches(money) and picker_matches(amount)
+	var source_and_bag_match := client.get_node_or_null("GameMenuUI") == null and source_matches() and bag_matches(count)
+	if not source_and_bag_match:
+		return false
+	var money_and_picker_match := money_matches(money) and picker_matches(amount)
+	return money_and_picker_match
 
 func authority_matches(count: int, money: int, amount: String = "") -> bool:
 	var account: Dictionary = client.account_state()
 	var state: Dictionary = client.merchant_state()
-	if not merchant_account_matches(account) or not merchant_session_matches(state):
+	if not merchant_account_matches(account):
+		return false
+	if not merchant_session_matches(state):
 		return false
 	if state.money != money or state.split_open != (not amount.is_empty()):
 		return false
-	if not inventory_authority_matches(state, count) or not cursor_and_popup_absent():
+	if not inventory_authority_matches(state, count):
+		return false
+	if not cursor_and_popup_absent():
 		return false
 	return merchant_presentation_matches(count, money, amount)
 
@@ -326,7 +351,10 @@ func observe_buy(index: int, before_count: int, before_money: int, after_count: 
 
 func mount_world_client() -> bool:
 	artifacts = OS.get_environment("NATIVE_JS_WORLD_ARTIFACTS")
-	if artifacts.is_empty() or not ClassDB.class_exists("GameClient") or not ClassDB.class_exists("WowAnimationPlayer"):
+	var artifacts_available := not artifacts.is_empty()
+	var client_class_available := artifacts_available and ClassDB.class_exists("GameClient")
+	var native_classes_available := client_class_available and ClassDB.class_exists("WowAnimationPlayer")
+	if not native_classes_available:
 		fail("SETUP: owned artifacts and current native classes required")
 		return false
 	root.size = Vector2i(1920, 1080)
@@ -340,36 +368,67 @@ func mount_world_client() -> bool:
 	return true
 
 func observe_world_entry() -> bool:
-	if not await wait_until(charselect_ready, 150000, "authored-charselect") or not mark("charselect"):
+	if not await wait_until(charselect_ready, 150000, "authored-charselect"):
 		return false
-	if not await wait_until(loading_ready, 30000, "actual-loading") or not mark("loading"):
+	if not mark("charselect"):
 		return false
-	if not await wait_until(world_ready, 180000, "actual-world") or not snapshot("world-ready") or not mark("world-ready"):
+	if not await wait_until(loading_ready, 30000, "actual-loading"):
+		return false
+	if not mark("loading"):
+		return false
+	if not await wait_until(world_ready, 180000, "actual-world"):
+		return false
+	if not snapshot("world-ready"):
+		return false
+	if not mark("world-ready"):
 		return false
 	return true
 
 func observe_vendor_baseline() -> bool:
-	if not await wait_until(npc_ready, 30000, "replicated-npc") or not mark("npc-ready"):
+	if not await wait_until(npc_ready, 30000, "replicated-npc"):
+		return false
+	if not mark("npc-ready"):
 		return false
 	if not await wait_until(func(): return client.merchant_state().open and texture(control("MerchantItem1ItemButtonIcon")) != null, 6000, "merchant-mount"):
 		return false
 	npc_id = client.merchant_state().npc
 	vendor_texture = texture(control("MerchantItem1ItemButtonIcon")).texture
-	if not authority_matches(0, 1000) or not await quiet(0, 1000) or not snapshot("merchant-ready") or not mark("merchant-ready"):
+	if not authority_matches(0, 1000):
+		fail("actual vendor baseline/empty inventory/Gold1000 not stable")
+		return false
+	if not await quiet(0, 1000):
+		fail("actual vendor baseline/empty inventory/Gold1000 not stable")
+		return false
+	if not snapshot("merchant-ready"):
+		fail("actual vendor baseline/empty inventory/Gold1000 not stable")
+		return false
+	if not mark("merchant-ready"):
 		fail("actual vendor baseline/empty inventory/Gold1000 not stable")
 		return false
 	return true
 
 func observe_picker_edits() -> bool:
-	if not await wait_until(func(): return authority_matches(1, 975, "1"), 10000, "actual-picker1") or not snapshot("picker1") or not mark("picker1"):
+	if not await wait_until(func(): return authority_matches(1, 975, "1"), 10000, "actual-picker1"):
 		return false
-	if not await wait_until(func(): return authority_matches(1, 975, "2"), 6000, "actual-key2-picker") or not snapshot("picker2") or not mark("picker2"):
+	if not snapshot("picker1"):
+		return false
+	if not mark("picker1"):
+		return false
+	if not await wait_until(func(): return authority_matches(1, 975, "2"), 6000, "actual-key2-picker"):
+		return false
+	if not snapshot("picker2"):
+		return false
+	if not mark("picker2"):
 		return false
 	return true
 
 func observe_final_authority() -> void:
 	# Script has5s post-Enter wait then its own live dump. Observer never calls dumps.
-	if not await quiet(3, 925) or not snapshot("done") or not mark("done"):
+	if not await quiet(3, 925):
+		return
+	if not snapshot("done"):
+		return
+	if not mark("done"):
 		return
 	var deadline := Time.get_ticks_msec() + 4000
 	while Time.get_ticks_msec() < deadline:
