@@ -12,6 +12,7 @@ use game_engine_ui_model::stack_split_frame_component::{
     ACTION_CANCEL, ACTION_LEFT, ACTION_OKAY, ACTION_RIGHT, FRAME_W, StackSplitFrameState,
     stack_split_frame_screen,
 };
+use godot::classes::Control;
 use godot::global::Key;
 use godot::prelude::*;
 use shared::protocol::{EquipItem, ItemLocation};
@@ -386,11 +387,7 @@ impl GameClient {
         let StackSplitOwner::Bag(ItemLocation::Bag { bag, slot }) = split.owner else {
             return Err("Standalone split owner is not a bag slot".into());
         };
-        let ui = self.bags.ui.as_ref().ok_or("Split owner Bags UI missing")?;
-        let control = ui
-            .bind()
-            .frame_control(&format!("ContainerFrame{bag}Slot{slot}"))
-            .ok_or("Split owner bag slot missing")?;
+        let control = self.find_bag_split_owner(bag, slot)?;
         let rect = control.get_global_rect();
         let scale = self.effective_ui_scale();
         let mut state = StackSplitFrameState {
@@ -404,6 +401,17 @@ impl GameClient {
         state.x = rect.end().x / scale - FRAME_W;
         state.y = rect.position.y / scale - state.height();
         Ok(state)
+    }
+
+    fn find_bag_split_owner(&self, bag: u8, slot: u8) -> Result<Gd<Control>, String> {
+        let owner_name = format!("ContainerFrame{bag}Slot{slot}");
+        if self.merchant.session.is_open() && bag == 0 {
+            return self.merchant_frame_control(&owner_name);
+        }
+        let ui = self.bags.ui.as_ref().ok_or("Split owner Bags UI missing")?;
+        ui.bind()
+            .frame_control(&owner_name)
+            .ok_or_else(|| format!("Split owner bag slot {owner_name} missing"))
     }
 
     fn mount_bag_cursor(&mut self, view: CursorView, scale: f32) -> Result<(), String> {
