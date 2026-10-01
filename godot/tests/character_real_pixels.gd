@@ -209,7 +209,9 @@ func run_case(case: Dictionary) -> Array[String]:
 	var items := []
 	for item in case.items:
 		items.append({"slot": item.slot, "item_id": item.item_id})
-	var result: Dictionary = loader.load_player_customized(case.race, case.sex, case["class"], items, app.choices)
+	# Choices without a visible effect are not sent: the loader hides some (Demon Hunter
+	# blindfolds and horns, whose "None" is Retail's default) from other classes.
+	var result: Dictionary = loader.load_player_customized(case.race, case.sex, case["class"], items, appearance.visual_choices(app.choices))
 	if result.has("error"):
 		return ["load: %s" % result.error]
 	var model: Node3D = result.node
