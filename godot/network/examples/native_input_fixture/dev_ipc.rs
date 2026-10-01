@@ -19,6 +19,9 @@ use shared::{
 
 use super::*;
 
+#[path = "dev_ipc_mail.rs"]
+mod mail;
+
 /// Group, emote and stop-cast messages the client sent, as the server decoded them.
 #[derive(Resource, Default)]
 struct Requests {
@@ -31,6 +34,7 @@ struct Requests {
 pub(super) fn install(app: &mut App) {
     app.init_resource::<Requests>();
     app.add_systems(Update, (receive, answer_trades));
+    mail::install(app);
 }
 
 fn trade_party(name: &str) -> TradePartySnapshot {
@@ -1012,6 +1016,7 @@ fn run_checks(run: &mut Run, address: SocketAddr, tiles: &str) -> Result<(), Str
     check_timed_forward(run)?;
     check_stopped_forward(run)?;
     check_waypoint_walk(run)?;
+    mail::check_mail(run)?;
     Ok(())
 }
 
@@ -1054,7 +1059,7 @@ pub(super) fn run(
     }
     finish(&mut run, readers)?;
     println!(
-        "PASS: public CLI status network/sound/terrain, map position/target/waypoint (walk), group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
+        "PASS: public CLI status network/sound/terrain, map position/target/waypoint (walk), group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, character stats, quest interact, trade, combat log/recap, mail, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
     );
     Ok(())
 }
