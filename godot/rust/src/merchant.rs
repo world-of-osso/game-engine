@@ -662,7 +662,7 @@ fn bag_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarA
     bags
 }
 
-fn split_key(key: Key) -> Option<SplitKey> {
+pub(super) fn split_key(key: Key) -> Option<SplitKey> {
     Some(match key {
         Key::ENTER | Key::KP_ENTER => SplitKey::Enter,
         Key::ESCAPE => SplitKey::Escape,

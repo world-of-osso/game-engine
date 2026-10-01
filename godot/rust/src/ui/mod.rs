@@ -453,6 +453,18 @@ impl RegistryUi {
         self.initialize_model(model, size.x, size.y)
     }
 
+    /// Project the original cursor icon and authored stack-split picker.
+    pub(crate) fn show_cursor_item(
+        &mut self,
+        view: crate::bag_cursor::CursorView,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            view,
+            crate::bag_cursor::cursor_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize the authored bag strip and standalone containers.
     pub(crate) fn show_bags(&mut self, view: crate::bags::BagsView) -> Result<(), String> {
         self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::None)

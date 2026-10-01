@@ -8,6 +8,7 @@ mod assets;
 mod auction;
 mod auras;
 mod auto_attack;
+mod bag_cursor;
 mod bags;
 mod camera;
 mod char_create;
@@ -311,7 +312,12 @@ impl INode3D for GameClient {
         {
             return;
         }
-        if self.game_menu_ui.is_none() {
+        let split_key_event = self.bag_cursor_text_input()
+            && event
+                .clone()
+                .try_cast::<godot::classes::InputEventKey>()
+                .is_ok();
+        if self.game_menu_ui.is_none() && !split_key_event {
             self.physical_input.capture(&event);
         }
     }
@@ -325,6 +331,12 @@ impl INode3D for GameClient {
             return;
         }
         if key.is_echo() && key.get_keycode() == godot::global::Key::ESCAPE {
+            return;
+        }
+        if self.bag_cursor_key(key.get_keycode()) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
             return;
         }
         // Retail Escape closes the spellbook, then the world map, before the game menu.
@@ -841,6 +853,9 @@ impl GameClient {
             }
         }
         if let Some(ui) = &mut self.bags.ui {
+            visit(ui)?;
+        }
+        if let Some(ui) = &mut self.bags.cursor.ui {
             visit(ui)?;
         }
         self.merchant.visit_uis(&mut visit)?;
