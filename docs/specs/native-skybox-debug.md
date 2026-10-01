@@ -32,6 +32,7 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 ## Implementation inventory
 
 - `src/startup_args_data.rs` — shared flat `StartupArgs` fields and explicit CLI parsing.
+- `godot/core/src/skybox_debug_data.rs` — strict cached LightSkybox/LightParams reads through the original WDC5 decoder and shared flags; missing rows fail explicitly.
 - `launcher/src/main.rs` — original options routed to Godot user arguments.
 - `src/main.rs` — preserved Bevy skybox resource insertion.
 - `src/scenes/skybox_debug/mod.rs` — original scene, composition and camera behavior.
@@ -41,6 +42,7 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 ## Tests asserting this spec
 
 - `godot/core/src/startup_args_data_tests.rs` — parsed values, boundaries, verification, first-value/target semantics, missing/invalid values and mutual exclusion. Native core GREEN must be established on Depot.
+- `godot/core/src/skybox_debug_data.rs` tests — cached LightSkybox653 → FDID5412968/flags15, LightParams5615 → skybox653, and explicit unknown-row error; not runtime/render proof.
 - `launcher/tests/process.rs` — three `skybox` process cases asserting exact recorded Godot argv with fake build/Godot executables; not native runtime proof.
 - `src/scenes/skybox_debug/tests.rs` — legacy source, composition, FOV and camera-relative behavior references; not native acceptance.
 

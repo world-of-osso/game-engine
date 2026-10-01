@@ -55,6 +55,8 @@ terrain/777828.adt
 terrain/2847_31_37_obj0.adt
 
 # game-engine-core tests/: lighting, appearance, warband
+dbfilesclient/1308501.db2
+dbfilesclient/1334669.db2
 Light.csv
 LightData.csv
 ZoneLight.csv
