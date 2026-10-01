@@ -185,14 +185,15 @@ impl LiquidCatalog {
         liquid_type: u16,
         liquid_object: u16,
     ) -> Result<LiquidMaterial, String> {
-        let (type_id, flow_direction, flow_speed) = if liquid_object >= FIRST_LIQUID_OBJECT {
-            let object = self
-                .objects
-                .get(&u32::from(liquid_object))
-                .ok_or_else(|| format!("LiquidObject {liquid_object} has no DB2 row"))?;
-            (object.liquid_type, object.flow_direction, object.flow_speed)
-        } else {
-            (u32::from(liquid_type), 0.0, 0.0)
+        // LiquidMaterialManager.cpp:65-72: a LiquidObject row overrides the layer's
+        // LiquidType and adds its flow; the layer's own type stands when the object has no
+        // row (Northshire's objects 42 and 13136-13139 have none in DB2 or DBCache).
+        let object = (liquid_object >= FIRST_LIQUID_OBJECT)
+            .then(|| self.objects.get(&u32::from(liquid_object)))
+            .flatten();
+        let (type_id, flow_direction, flow_speed) = match object {
+            Some(object) => (object.liquid_type, object.flow_direction, object.flow_speed),
+            None => (u32::from(liquid_type), 0.0, 0.0),
         };
         let row = self
             .types

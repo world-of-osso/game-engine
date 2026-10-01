@@ -149,10 +149,18 @@ fn liquid_type_below_object_range_resolves_directly_and_ocean_uses_ocean_colours
     assert_eq!(shallow.wave_periods, [1.0, 0.4]);
 }
 
+/// Northshire tile 32_48 layers name LiquidObjects 42 and 13138, which have no DB2 row;
+/// WebWowViewerCpp then keeps the layer's LiquidType (LiquidMaterialManager.cpp:65-72).
 #[test]
-fn unknown_liquid_object_is_an_error() {
-    let error = catalog().liquid_material(5, 65_000).unwrap_err();
-    assert_eq!(error, "LiquidObject 65000 has no DB2 row");
+fn liquid_object_without_a_row_keeps_the_layer_liquid_type() {
+    let catalog = catalog();
+    let ocean = catalog.liquid_material(2, 42).unwrap();
+    assert_eq!(ocean.liquid_type, 2);
+    assert_eq!((ocean.flow_direction, ocean.flow_speed), (0.0, 0.0));
+    assert_eq!(ocean, catalog.liquid_material(2, 0).unwrap());
+    let river = catalog.liquid_material(81, 13_138).unwrap();
+    assert_eq!(river.liquid_type, 81);
+    assert_eq!(river, catalog.liquid_material(81, 0).unwrap());
 }
 
 #[test]
