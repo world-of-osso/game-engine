@@ -176,6 +176,8 @@ impl NetworkBridge {
             .receive::<EnterWorldResponse>()
             .receive::<LoadTerrain>()
             .receive::<NewWorld>()
+            // The realm's game time for the sky's time of day.
+            .receive::<protocol::LoginSetTimeSpeed>()
             .receive::<TransferAborted>()
             // Quest log for the quest log, the objective tracker and the map quest areas;
             // quest giver markers; the quest giver dialog pages and turn-in results.
