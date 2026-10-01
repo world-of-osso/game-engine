@@ -3,13 +3,37 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use game_engine_core::loading_readiness::{
-    GlobalWmoState, LoadingInput, LoadingReadiness, TileState, evaluate_world_loading,
+    GlobalWmoState, LoadingInput, TileState, evaluate_world_loading,
 };
 
 use crate::terrain::streaming::TerrainStreamState;
 
+/// The center tile's authored objects: placements done (attached with their collision, or
+/// failed and reported) of all queued, and WMO collision groups not built yet.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TileObjects {
+    pub done: usize,
+    pub total: usize,
+    pub collision_pending: usize,
+}
+
+impl TileObjects {
+    fn complete(self) -> bool {
+        self.done >= self.total && self.collision_pending == 0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NativeLoading {
+    pub complete: bool,
+    pub progress_percent: u8,
+    pub status_text: String,
+}
+
 /// `local_visual_settled`: the local player's model is attached, or failed and was
-/// reported; the loading screen does not show a world without it.
+/// reported; the loading screen does not show a world without it. Once the shared rules
+/// accept the center tile's terrain, its `objects` must be done too; `None` until they are
+/// queued. A WMO-only map has no tiles and finishes with its global WMO.
 pub(crate) fn evaluate_native_loading(
     player_position: Option<(f32, f32)>,
     local_visual_settled: bool,
@@ -17,7 +41,8 @@ pub(crate) fn evaluate_native_loading(
     attached: &BTreeSet<(u32, u32)>,
     unbuildable: &BTreeMap<(u32, u32), String>,
     global_wmo: GlobalWmoState,
-) -> LoadingReadiness {
+    objects: Option<TileObjects>,
+) -> NativeLoading {
     let center = player_position
         .map(|(x, z)| game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z));
     let center_tile = match center {
@@ -36,19 +61,47 @@ pub(crate) fn evaluate_native_loading(
         }
         _ => TileState::NotRequested,
     };
-    evaluate_world_loading(LoadingInput {
+    let terrain = evaluate_world_loading(LoadingInput {
         local_player_ready: player_position.is_some() && local_visual_settled,
         map_ready: stream.map.as_ref().is_some_and(|map| !map.is_empty())
             && stream.wdt_path.is_some()
             && stream.map_error.is_none(),
         global_wmo,
         center_tile,
-    })
+    });
+    let terrain = NativeLoading {
+        complete: terrain.complete,
+        progress_percent: terrain.progress_percent,
+        status_text: terrain.status_text.to_owned(),
+    };
+    if !terrain.complete || global_wmo != GlobalWmoState::None {
+        return terrain;
+    }
+    match objects {
+        Some(objects) if objects.complete() => terrain,
+        Some(TileObjects { done, total, .. }) => NativeLoading {
+            complete: false,
+            progress_percent: (86 + 13 * done / total.max(1)) as u8,
+            status_text: format!("Loading objects {done}/{total}..."),
+        },
+        None => NativeLoading {
+            complete: false,
+            progress_percent: 86,
+            status_text: "Loading objects...".into(),
+        },
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// No object waits: the terrain rules alone decide.
+    const DONE: Option<TileObjects> = Some(TileObjects {
+        done: 0,
+        total: 0,
+        collision_pending: 0,
+    });
 
     fn stream() -> TerrainStreamState {
         TerrainStreamState {
@@ -75,7 +128,8 @@ mod tests {
                 &stream(),
                 &attached,
                 &BTreeMap::new(),
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .progress_percent,
             35
@@ -89,7 +143,8 @@ mod tests {
                 &map,
                 &attached,
                 &BTreeMap::new(),
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .complete
         );
@@ -102,7 +157,8 @@ mod tests {
                 &map,
                 &attached,
                 &BTreeMap::new(),
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .complete
         );
@@ -115,7 +171,8 @@ mod tests {
                 &map,
                 &attached,
                 &BTreeMap::new(),
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .complete
         );
@@ -147,7 +204,8 @@ mod tests {
                 &map,
                 &neighbor,
                 &BTreeMap::new(),
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .complete
         );
@@ -160,6 +218,7 @@ mod tests {
             &attached,
             &BTreeMap::new(),
             GlobalWmoState::None,
+            DONE,
         );
         assert!(!character.complete);
         assert_eq!(character.status_text, "Initializing character...");
@@ -170,7 +229,8 @@ mod tests {
                 &map,
                 &attached,
                 &BTreeMap::new(),
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .complete
         );
@@ -182,7 +242,8 @@ mod tests {
                 &map,
                 &attached,
                 &BTreeMap::new(),
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .complete
         );
@@ -197,7 +258,8 @@ mod tests {
                 &map,
                 &attached,
                 &BTreeMap::new(),
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .status_text,
             "Terrain failed to load"
@@ -217,6 +279,7 @@ mod tests {
             &BTreeSet::new(),
             &unbuildable,
             GlobalWmoState::None,
+            DONE,
         );
         assert!(!readiness.complete);
         assert_eq!(readiness.status_text, "Terrain failed to load");
@@ -230,7 +293,8 @@ mod tests {
                 &map,
                 &attached,
                 &neighbour,
-                GlobalWmoState::None
+                GlobalWmoState::None,
+                DONE,
             )
             .complete
         );
@@ -250,6 +314,7 @@ mod tests {
                 &BTreeSet::new(),
                 &BTreeMap::new(),
                 global_wmo,
+                DONE,
             )
         };
         assert!(!loading(GlobalWmoState::Pending).complete);
@@ -258,5 +323,43 @@ mod tests {
             loading(GlobalWmoState::Failed).status_text,
             "Terrain failed to load"
         );
+    }
+
+    /// Northshire: 7399 placements on azeroth_32_48 with the player on it.
+    #[test]
+    fn center_tile_objects_hold_loading_until_attached_or_failed() {
+        let mut map = stream();
+        map.pending_tiles.clear();
+        let attached = BTreeSet::from([(32, 48)]);
+        let loading = |objects| {
+            evaluate_native_loading(
+                Some((-8949.0, 0.0)),
+                true,
+                &map,
+                &attached,
+                &BTreeMap::new(),
+                GlobalWmoState::None,
+                objects,
+            )
+        };
+        let queued = |done, collision_pending| {
+            Some(TileObjects {
+                done,
+                total: 7399,
+                collision_pending,
+            })
+        };
+        let unqueued = loading(None);
+        assert!(!unqueued.complete);
+        assert_eq!(unqueued.status_text, "Loading objects...");
+        let streaming = loading(queued(710, 0));
+        assert!(!streaming.complete);
+        assert_eq!(streaming.status_text, "Loading objects 710/7399...");
+        assert_eq!(streaming.progress_percent, 87);
+        // Every placement attached or failed, but a WMO group's collision is not built.
+        assert!(!loading(queued(7399, 3)).complete);
+        let ready = loading(queued(7399, 0));
+        assert!(ready.complete);
+        assert_eq!(ready.status_text, "Entering world...");
     }
 }

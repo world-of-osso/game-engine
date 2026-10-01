@@ -36,7 +36,10 @@ use crate::{
     },
     lighting::TerrainLight,
     particles::{ModelParticles, ParticlePools, PlacedParticles, view_basis},
-    terrain::{doodad_collision, scenery::SceneryDistance, streaming::StreamedTerrain, wmo_liquid::WmoLiquids},
+    terrain::{
+        doodad_collision, scenery::SceneryDistance, streaming::StreamedTerrain,
+        wmo_liquid::WmoLiquids,
+    },
     wmo::{
         assets::{LitDoodad, NativeWmoAsset, wmo_fog_volume},
         doodad_light::bind_doodad_light,
@@ -320,6 +323,26 @@ impl CulledWmo {
     }
 }
 
+/// Per tile, its placements done (attached or failed) and queued in all.
+#[derive(Default)]
+struct TileProgress(HashMap<Tile, (usize, usize)>);
+
+impl TileProgress {
+    fn add(&mut self, tile: Tile, placements: usize) {
+        self.0.entry(tile).or_default().1 += placements;
+    }
+
+    fn finish(&mut self, tile: Tile) {
+        if let Some((done, _)) = self.0.get_mut(&tile) {
+            *done += 1;
+        }
+    }
+
+    fn get(&self, tile: Tile) -> Option<(usize, usize)> {
+        self.0.get(&tile).copied()
+    }
+}
+
 pub(crate) struct TerrainObjects {
     name: &'static str,
     budget: Duration,
@@ -344,6 +367,9 @@ pub(crate) struct TerrainObjects {
     wmo_doodads: HashMap<u32, WmoDoodads>,
     doodads: Vec<CulledDoodad>,
     wmos: Vec<CulledWmo>,
+    progress: TileProgress,
+    /// The tile each ADT WMO was spawned from, for its MODD doodads' progress.
+    wmo_tiles: HashMap<u32, Tile>,
     /// Loaded doodad models, or why they cannot load, by FDID; kept across `reset` like
     /// the loader's record of what it loaded.
     models: HashMap<u32, Result<ParsedModel, String>>,
@@ -385,6 +411,8 @@ impl TerrainObjects {
             wmo_doodads: HashMap::new(),
             doodads: Vec::new(),
             wmos: Vec::new(),
+            progress: TileProgress::default(),
+            wmo_tiles: HashMap::new(),
             models: HashMap::new(),
             wmo_assets: HashMap::new(),
             light: None,
@@ -424,6 +452,26 @@ impl TerrainObjects {
         self.failures
     }
 
+    /// Placements of `tile` (its doodads and WMOs, and the MODD doodads of its WMOs once
+    /// those spawn) that are done, attached or failed, and in all; `None` until queued.
+    pub fn tile_progress(&self, tile: Tile) -> Option<(usize, usize)> {
+        self.progress.get(tile)
+    }
+
+    /// The tile a placement counts toward; `None` for the global WMO's doodads.
+    fn tile_of(&self, pending: Pending) -> Option<Tile> {
+        match pending {
+            Pending::Doodad(tile, _) | Pending::Wmo(tile, _) => Some(tile),
+            Pending::WmoDoodad(wmo, _) => self.wmo_tiles.get(&wmo).copied(),
+        }
+    }
+
+    fn finish_placement(&mut self, pending: Pending) {
+        if let Some(tile) = self.tile_of(pending) {
+            self.progress.finish(tile);
+        }
+    }
+
     pub fn sync(
         &mut self,
         parent: &mut Gd<Node3D>,
@@ -457,10 +505,14 @@ impl TerrainObjects {
                 Ok(_) => self.spawn(parent, terrain, pending),
                 Err(error) => Err(error),
             };
-            if let Err(error) = spawned {
+            if let Err(error) = &spawned {
                 // One broken authored object must not hide the rest of the scene.
                 self.failures += 1;
                 godot_error!("{}: {error}", self.name);
+            }
+            // A WMO being built finishes once `continue_wmo` places it.
+            if spawned.is_err() || self.building.is_none() {
+                self.finish_placement(pending);
             }
         }
         if let Err(error) = self.liquids.sample_clock(parent) {
@@ -548,10 +600,12 @@ impl TerrainObjects {
             if !self.queued_tiles.insert(tile) {
                 continue;
             }
+            self.progress.add(tile, 0);
             let Some(objects) = terrain.parsed_tiles[&tile].obj.as_ref() else {
                 godot_error!("{}: tile {tile:?} has no object companion", self.name);
                 continue;
             };
+            let queued = self.pending.len();
             for (index, doodad) in objects.doodads.iter().enumerate() {
                 let model = self.doodad_model_path(doodad);
                 if selection.doodad(doodad, model.as_deref(), tile) {
@@ -563,6 +617,7 @@ impl TerrainObjects {
                     self.pending.push_back(Pending::Wmo(tile, index));
                 }
             }
+            self.progress.add(tile, self.pending.len() - queued);
         }
     }
 
@@ -669,6 +724,7 @@ impl TerrainObjects {
             self.building = Some(spawn);
             return false;
         }
+        self.progress.finish(spawn.tile);
         let Some(objects) = terrain
             .parsed_tiles
             .get(&spawn.tile)
@@ -708,6 +764,8 @@ impl TerrainObjects {
             godot_error!("{}: {error}", self.name);
         }
         let doodads = spawn.asset.doodads(&spawn.doodad_sets);
+        self.wmo_tiles.insert(placement.unique_id, tile);
+        self.progress.add(tile, doodads.len());
         self.adopt_wmo(placement.unique_id, &wmo_node.node, doodads, culled);
         self.attach(parent, &wmo_node.node);
         true
@@ -783,8 +841,7 @@ impl TerrainObjects {
         let parsed = self.models[&fdid]
             .as_ref()
             .map_err(|error| format!("model {fdid}: {error}"))?;
-        let (mut model, missing) =
-            build_model(&parsed.model.model, &parsed.path, &[0; 3], None)?;
+        let (mut model, missing) = build_model(&parsed.model.model, &parsed.path, &[0; 3], None)?;
         if !missing.is_empty() {
             model.free();
             return Err(format!("model {fdid} missing textures {missing:?}"));
@@ -1012,6 +1069,8 @@ impl TerrainObjects {
         self.wmo_doodads.clear();
         self.doodads.clear();
         self.wmos.clear();
+        self.progress = TileProgress::default();
+        self.wmo_tiles.clear();
         self.light = None;
         self.liquids = WmoLiquids::default();
         self.failures = 0;

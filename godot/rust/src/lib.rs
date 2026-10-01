@@ -1721,6 +1721,15 @@ impl GameClient {
                 .adopt_wmo(wmo.unique_id, &wmo.node, wmo.doodads, wmo.culled);
         }
         let state = self.terrain.state();
+        let objects = position.and_then(|(x, z)| {
+            let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
+            let (done, total) = self.world_objects.tile_progress(tile)?;
+            Some(loading::TileObjects {
+                done,
+                total,
+                collision_pending: self.wmo_collision.tile_pending(tile)?,
+            })
+        });
         let readiness = loading::evaluate_native_loading(
             position,
             self.world.local_visual_settled(),
@@ -1728,11 +1737,12 @@ impl GameClient {
             self.terrain_materials.attached_tiles(),
             self.terrain_materials.failures(),
             global_wmo,
+            objects,
         );
         if let Some(ui) = self.loading_ui.as_mut() {
             ui.bind_mut().advance_loading(
                 readiness.progress_percent,
-                readiness.status_text,
+                &readiness.status_text,
                 delta,
             )?;
         }
