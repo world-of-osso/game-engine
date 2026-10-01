@@ -2392,3 +2392,7 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 - 2026-10-01: [Native player mail proof](systems/trade-and-mail.md#native-player-mail-proof-2026-10-01) rerun after merging master 3f0779e6 (uiown bags/Escape): Reply and Open All now live; Reply edit-box fix `ad8553f3`.
 
 - 2026-10-01: Bounded [native JS reconciliation](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail): independent1542 accepts Login/frame-deadline continuation and four readability fixes; root compilation PASS, overall FAIL on transferred quest rootfmt spacing. MAIN offline/world runtime0 covers ten variants combined, independent1547/1548 pending. Linked spec/matrix retain semantic, omitted-water, shutdown and full-conversion gaps; no source/tests/operations.
+
+## 2026-10-01 — Native JS bounded acceptance reconciliation
+
+[JS evidence SSOT](systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail) reconciles accepted1550 offline source-equivalent cleanup and1557 current world source/order/runtime17/17 readability. Ten combined variant examples only; historical failures, rootfmt FAIL, omitted-water errors/warnings and deferred shutdown retained. Broader goal OPEN; no new page/index change.
