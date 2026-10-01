@@ -496,7 +496,6 @@ func uo_auction_cases(client: Node) -> void:
 	await uo_end("A2_AUCTION_SERVER_CLOSE", client, "ah_opened=%s ah_visible_after_server_close=%s expect closed, 0 CloseInteraction" % [opened, uo_ah_visible(client)])
 
 const UO_CHARACTER := "CharacterFrameUI"
-const UO_EQUIP_SLOT := "CharacterHandsSlot"
 
 func uo_toggle_character(client: Node) -> void:
 	push_key(KEY_C, true)
@@ -504,26 +503,38 @@ func uo_toggle_character(client: Node) -> void:
 	push_key(KEY_C, false)
 	await uo_settle(300)
 
-# E1: the paperdoll Hands slot over the merchant's embedded backpack slot. A drag from
-# BagsUI bag1 (raised by the press, away from both) releases on the Hands slot: exactly
-# one SwapItem to the equipment slot, nothing to the covered bag slot.
+# Paperdoll slot name -> global centre, read while the CharacterFrame shows.
+func uo_paperdoll_centers(client: Node) -> Dictionary:
+	var centers := {}
+	var ui := uo_ui(client, UO_CHARACTER)
+	if ui == null:
+		return centers
+	for control in ui.find_children("Character*Slot", "Control", true, false):
+		if (control as Control).is_visible_in_tree():
+			centers[str(control.name)] = (control as Control).get_global_rect().get_center()
+	return centers
+
+# E1: a paperdoll slot over the merchant's embedded backpack slot. A drag from BagsUI
+# bag1 (raised by the press, away from both) releases on that paperdoll slot: exactly
+# one SwapItem to its equipment slot, nothing to the covered bag slot.
 func uo_equipment_case(client: Node) -> void:
 	await uo_toggle_character(client)
-	var hands := uo_center(client, UO_CHARACTER, UO_EQUIP_SLOT)
+	var slots := uo_paperdoll_centers(client)
 	var frame_ctl := uo_ctl(client, UO_CHARACTER, "CharacterFrame")
-	var frame_shown := uo_visible(frame_ctl)
-	var frame_rect := frame_ctl.get_global_rect() if frame_shown else Rect2()
+	var frame_rect := frame_ctl.get_global_rect() if uo_visible(frame_ctl) else Rect2()
 	await uo_toggle_character(client)
-	if not frame_shown or hands == Vector2.INF:
-		fail("C did not show the CharacterFrame with its Hands slot")
+	if slots.size() != 18:
+		fail("C did not show the CharacterFrame with 18 paperdoll slots: " + str(slots.keys()))
 		return
 	if not await uo_reopen(client, "E1"):
 		fail("vendor reopen for E1 failed")
 		return
 	if not uo_visible(uo_ctl(client, UO_BAGS, "ContainerFrame1")) and not await uo_open_bag1(client):
 		return
-	if not await uo_cover_embedded_slot(client, hands):
+	var target := await uo_cover_embedded_slot(client, slots)
+	if target.is_empty():
 		return
+	var point: Vector2 = slots[target]
 	await uo_toggle_character(client)
 	# Raise the CharacterFrame over the merchant: press an uncovered part of it.
 	var raise := uo_uncovered_frame_point(frame_rect)
@@ -532,44 +543,52 @@ func uo_equipment_case(client: Node) -> void:
 		return
 	await uo_click(raise)
 	await uo_settle(300)
-	var top_at_hands := uo_hover_path(hands)
+	var top_at_slot := uo_hover_path(point)
 	var source := uo_center(client, UO_BAGS, "ContainerFrame1Slot3")
-	print("UIOWN GEOMETRY E1 hands=", hands, " topmost=", top_at_hands, " source=", source, " source_hovered=", uo_hover_path(source))
-	if not top_at_hands.ends_with("/" + UO_EQUIP_SLOT) or source == Vector2.INF:
-		fail("E1 geometry: Hands slot not topmost over the embedded backpack")
+	print("UIOWN GEOMETRY E1 slot=", target, " at ", point, " topmost=", top_at_slot, " raise=", raise, " source=", source, " source_hovered=", uo_hover_path(source))
+	if not top_at_slot.ends_with("/" + target) or source == Vector2.INF:
+		fail("E1 geometry: " + target + " not topmost over the embedded backpack")
 		return
 	await uo_begin("E1_EQUIP_OVER_BAG")
-	await uo_drag(source, hands)
-	await uo_end("E1_EQUIP_OVER_BAG", client, "character_visible=%s expect exactly 1 SwapItem Bag{1,3} to Equipment(Hands), nothing to the covered ContainerFrame0 slot" % uo_visible(uo_ctl(client, UO_CHARACTER, "CharacterFrame")))
+	await uo_drag(source, point)
+	await uo_end("E1_EQUIP_OVER_BAG", client, "slot=%s character_visible=%s expect exactly 1 SwapItem Bag{1,3} to that Equipment slot, nothing to the covered ContainerFrame0 slot" % [target, uo_visible(uo_ctl(client, UO_CHARACTER, "CharacterFrame"))])
 	await uo_escape()
 	await uo_settle(300)
 
-# Drag the merchant by its title so one embedded backpack slot centres on `point`;
-# the hover there then names that slot (the merchant was raised by the press).
-func uo_cover_embedded_slot(client: Node, point: Vector2) -> bool:
+# Drag the merchant by its title so an embedded backpack slot centres on a paperdoll
+# slot, keeping the merchant on screen; the hover there then names that bag slot (the
+# title press raised the merchant). Returns the covering paperdoll slot's name.
+func uo_cover_embedded_slot(client: Node, slots: Dictionary) -> String:
 	var frame := uo_ctl(client, UO_MERCHANT, "MerchantFrame")
 	var canvas := uo_ctl(client, UO_MERCHANT, "RegistryCanvas")
 	var scale := canvas.get_global_transform().get_scale().x
-	for slot in range(16):
-		var name := "ContainerFrame0Slot%s" % slot
-		var center := uo_center(client, UO_MERCHANT, name)
-		if center == Vector2.INF:
-			continue
-		var m := frame.get_global_rect()
-		var shifted := m.position + point - center
-		if shifted.x < 0.0 or shifted.y < 0.0:
-			continue
-		var title := m.position + Vector2(m.size.x * 0.4, 10.0 * scale)
-		await drag_title(title, title + point - center)
-		await uo_settle(300)
-		var hovered := uo_hover_path(point)
-		print("UIOWN GEOMETRY E1 merchant=", frame.get_global_rect(), " embedded ", name, " at ", uo_center(client, UO_MERCHANT, name), " hovered=", hovered)
-		if hovered.ends_with("/" + name):
-			return true
-		fail("E1 geometry: " + name + " not under the Hands slot: " + hovered)
-		return false
-	fail("E1 geometry: no embedded backpack slot fits under the Hands slot")
-	return false
+	var screen := Vector2(root.size)
+	var m := frame.get_global_rect()
+	var bag := uo_ctl(client, UO_MERCHANT, "ContainerFrame0").get_global_rect()
+	var extent := m.merge(bag)
+	print("UIOWN GEOMETRY E1 merchant=", m, " embedded_bag0=", bag, " screen=", screen, " slots=", slots)
+	for target in slots:
+		var point: Vector2 = slots[target]
+		for slot in range(16):
+			var name := "ContainerFrame0Slot%s" % slot
+			var center := uo_center(client, UO_MERCHANT, name)
+			if center == Vector2.INF:
+				continue
+			var moved := extent
+			moved.position += point - center
+			if moved.position.x < 0.0 or moved.position.y < 0.0 or moved.end.x > screen.x or moved.end.y > screen.y:
+				continue
+			var title := m.position + Vector2(m.size.x * 0.4, 10.0 * scale)
+			await drag_title(title, title + point - center)
+			await uo_settle(300)
+			var hovered := uo_hover_path(point)
+			print("UIOWN GEOMETRY E1 moved merchant=", frame.get_global_rect(), " ", name, " at ", uo_center(client, UO_MERCHANT, name), " under ", target, " hovered=", hovered)
+			if hovered.ends_with("/" + name):
+				return target
+			fail("E1 geometry: " + name + " not under " + target + ": " + hovered)
+			return ""
+	fail("E1 geometry: no embedded backpack slot fits under a paperdoll slot")
+	return ""
 
 # A CharacterFrame point (not a paperdoll slot) the pointer reaches on top.
 func uo_uncovered_frame_point(rect: Rect2) -> Vector2:
