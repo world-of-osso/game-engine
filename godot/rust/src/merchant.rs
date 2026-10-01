@@ -464,9 +464,20 @@ impl GameClient {
                     .map(|registry| session.split_state(registry))
             })
             .unwrap_or_default();
+        let mut bags = session.bag_state();
+        let source = self.bags.cursor.item.source();
+        for bag in &mut bags.bags {
+            for (index, slot) in bag.slots.iter_mut().enumerate() {
+                slot.locked = source
+                    == Some(shared::protocol::ItemLocation::Bag {
+                        bag: bag.bag_index as u8,
+                        slot: index as u8,
+                    });
+            }
+        }
         MerchantStates {
             frame: session.frame_state(),
-            bags: session.bag_state(),
+            bags,
             split,
         }
     }
