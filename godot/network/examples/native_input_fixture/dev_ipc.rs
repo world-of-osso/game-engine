@@ -5,8 +5,13 @@
 //! the decoded `PlayerInput`s and the markers the observing GDScript prints.
 use std::f32::consts::FRAC_PI_2;
 
-use shared::protocol::{
-    EmoteIntent, EmoteKind, GroupInviteIntent, GroupUninviteIntent, StopSpellCast,
+use shared::{
+    components::PresenceStatus,
+    protocol::{
+        BagSlotItem, EmoteIntent, EmoteKind, GroupInviteIntent, GroupUninviteIntent, ItemStack,
+        QuestChannel, QuestEntrySnapshot, QuestLogSnapshot, QuestObjectiveKind,
+        QuestObjectiveSnapshot, QuestRepeatability, StopSpellCast,
+    },
 };
 
 use super::*;
@@ -349,6 +354,203 @@ fn check_social_and_combat(run: &mut Run) -> Result<(), String> {
     wait_server(run, "StopSpellCast", |r| r.stops == 1)
 }
 
+/// Bags (a Melted Candle stack and a Linen Cloth stack), one watched quest and Away
+/// presence, as the server sends them.
+fn seed_items_and_quests(app: &mut App) {
+    let stack = |item_guid, item_id| ItemStack {
+        item_guid,
+        item_id,
+        count: 3,
+        durability: None,
+        soulbound: false,
+    };
+    send::<_, InventoryChannel>(
+        app,
+        InventorySnapshot {
+            bags: vec![BagContents {
+                bag: 0,
+                size: 16,
+                items: vec![
+                    BagSlotItem {
+                        slot: 0,
+                        item: stack(755_001, 755),
+                    },
+                    BagSlotItem {
+                        slot: 1,
+                        item: stack(9_180_001, 2589),
+                    },
+                ],
+            }],
+        },
+    );
+    send::<_, QuestChannel>(
+        app,
+        QuestLogSnapshot {
+            entries: vec![QuestEntrySnapshot {
+                quest_id: 7,
+                title: "Fixture Quest".into(),
+                zone: "Elwynn Forest".into(),
+                completed: false,
+                repeatability: QuestRepeatability::Normal,
+                objectives: vec![QuestObjectiveSnapshot {
+                    text: "Kobold Vermin slain".into(),
+                    current: 3,
+                    required: 10,
+                    completed: false,
+                    kind: QuestObjectiveKind::Monster,
+                    object_id: 6,
+                }],
+                level: 1,
+                sort_id: 12,
+                objectives_text: String::new(),
+                completion_text: String::new(),
+                watched: true,
+                pois: Vec::new(),
+            }],
+            watched_quest_ids: vec![7],
+        },
+    );
+    let mut players = app.world_mut().query::<(Entity, &Player)>();
+    let local = players
+        .iter(app.world())
+        .find(|(_, player)| player.name == NAME)
+        .map(|(entity, _)| entity)
+        .expect("the selected player is spawned");
+    app.world_mut()
+        .entity_mut(local)
+        .insert(PresenceStatus::Afk);
+}
+
+/// Runs `args` until it answers exactly `expected`; the server's messages may still be
+/// on their way.
+fn expect_eventually(run: &mut Run, args: &[&str], expected: &str) -> Result<(), String> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let text = run.expect_text(args)?;
+        if text.trim_end() == expected {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            return Err(format!(
+                "CLI {args:?} answered\n{text}\nexpected\n{expected}"
+            ));
+        }
+        run.pump_for(Duration::from_millis(200))?;
+    }
+}
+
+/// Quest log, bags, stored items, item info and presence from the seeded state.
+fn check_items_and_quests(run: &mut Run) -> Result<(), String> {
+    seed_items_and_quests(run.app);
+    expect_eventually(
+        run,
+        &["quest", "list"],
+        "quests: 1\n7 Fixture Quest zone=Elwynn Forest repeat=normal completed=false objectives=1",
+    )?;
+    expect_exact(
+        run,
+        &["quest", "watch"],
+        "quest_watch: 1\n7 Fixture Quest [Kobold Vermin slain 3/10]",
+    )?;
+    expect_exact(
+        run,
+        &["quest", "show", "--id", "7"],
+        "quest_id: 7\ntitle: Fixture Quest\nzone: Elwynn Forest\nrepeatability: normal\ncompleted: false\nobjectives:\nKobold Vermin slain 3/10 completed=false",
+    )?;
+    expect_exact(run, &["quest", "show", "--id", "99"], "quest 99: not found")?;
+    // ItemSparse 12.1.0.69933: Melted Candle is Poor (0), Linen Cloth Common (1); both
+    // require level 0.
+    expect_eventually(
+        run,
+        &["status", "bags"],
+        "bags: 2\ngold: 1250\n0 755001 Melted Candle x3 q0 lvl0\n1 9180001 Linen Cloth x3 q1 lvl0",
+    )?;
+    expect_exact(
+        run,
+        &["inventory", "list"],
+        "inventory: 2\nbags:0 755001 755 Melted Candle x3\nbags:1 9180001 2589 Linen Cloth x3",
+    )?;
+    expect_exact(
+        run,
+        &["inventory", "search", "--text", "LINEN"],
+        "inventory search text=LINEN: 1\n[bags]\n1 9180001 2589 Linen Cloth x3",
+    )?;
+    expect_exact(
+        run,
+        &["inventory", "whereis", "--item-id", "755"],
+        "inventory whereis item_id=755: 1\nbags:0 755001 Melted Candle x3",
+    )?;
+    expect_exact(run, &["status", "guild-vault"], "guild_vault: 0\n-")?;
+    expect_exact(run, &["status", "warbank"], "warbank: 0\n-")?;
+    // ItemSparse 2589: item level 10, sells for 13, stacks to 1000, no binding.
+    expect_exact(
+        run,
+        &["item", "info", "--item-id", "2589"],
+        "item_id: 2589\nname: Linen Cloth\nquality: 1\nitem_level: 10\nrequired_level: 0\ninventory_type: 0\nsell_price: 13\nstackable: 1000\nbonding: 0\nexpansion_id: 0\nappearance_known: true",
+    )?;
+    expect_eventually(run, &["presence", "status"], "presence: afk")
+}
+
+/// `quest interact` right-clicks the vendor (interact) and targets the remote player;
+/// `map target` follows the target.
+fn check_interact(run: &mut Run) -> Result<(), String> {
+    let vendor = run
+        .app
+        .world()
+        .resource::<Incoming>()
+        .vendor
+        .ok_or("vendor missing")?;
+    let interactions = run.app.world().resource::<Incoming>().interactions.len();
+    expect_exact(
+        run,
+        &["quest", "interact", "--npc", "fixture vendor"],
+        "interact Fixture Vendor",
+    )?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while run.app.world().resource::<Incoming>().interactions.len() == interactions {
+        if Instant::now() >= deadline {
+            return Err("the server never decoded InteractNpc".into());
+        }
+        run.pump()?;
+        thread::sleep(TICK);
+    }
+    let npc = run.app.world().resource::<Incoming>().interactions[interactions].npc;
+    if npc != vendor.to_bits() {
+        return Err(format!(
+            "InteractNpc {npc} is not the vendor {}",
+            vendor.to_bits()
+        ));
+    }
+    // The vendor stands 2 yd west and 3 yd south of the player: sqrt(13) yd away.
+    expect_exact(
+        run,
+        &["map", "target"],
+        &format!(
+            "map_target: Fixture Vendor\nentity: {}\nposition: -8951.00,3.00\ndistance: 3.61",
+            vendor.to_bits()
+        ),
+    )?;
+    expect_exact(
+        run,
+        &["quest", "interact", "--npc", "remote fixture"],
+        "target Remote Fixture",
+    )?;
+    let target = run.expect_text(&["map", "target"])?;
+    expect_lines(
+        "map target",
+        &target,
+        &[
+            "map_target: Remote Fixture".into(),
+            "position: -8946.00,0.00".into(),
+            "distance: 3.00".into(),
+        ],
+    )?;
+    match run.cli(&["quest", "interact", "--npc", "Nobody"])? {
+        Err(error) if error.contains("no NPC, game object or player named Nobody") => Ok(()),
+        other => Err(format!("interact with nobody answered {other:?}")),
+    }
+}
+
 fn check_spawn_position(run: &mut Run) -> Result<(), String> {
     let map = run.expect_text(&["map", "position"])?;
     expect_lines(
@@ -610,6 +812,8 @@ pub(super) fn run(
     check_spawn_position(&mut run)?;
     check_map_requests(&mut run)?;
     check_social_and_combat(&mut run)?;
+    check_items_and_quests(&mut run)?;
+    check_interact(&mut run)?;
     check_hover(&mut run)?;
     check_camera(&mut run)?;
     check_export(&mut run)?;
@@ -617,7 +821,7 @@ pub(super) fn run(
     check_stopped_forward(&mut run)?;
     finish(&mut run, readers)?;
     println!(
-        "PASS: public CLI status network/sound/terrain, map position/target/waypoint, group, emote, spell cast/stop, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
+        "PASS: public CLI status network/sound/terrain, map position/target/waypoint, group, emote, spell cast/stop, quests, bags, inventory, storage, item info, presence, quest interact, hover, camera set, export-scene and scripted movement forward/stop drove the live native client"
     );
     Ok(())
 }
