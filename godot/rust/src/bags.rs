@@ -23,6 +23,7 @@ const BAGS_UI: &str = "BagsUI";
 pub(crate) struct Bags {
     windows: WindowManager,
     pub(crate) ui: Option<Gd<RegistryUi>>,
+    pub(crate) cursor: crate::bag_cursor::BagCursor,
     npc_backpack_open: bool,
 }
 
@@ -50,6 +51,7 @@ impl Bags {
             ui.free();
         }
         self.windows.close_all();
+        self.cursor.reset();
         self.npc_backpack_open = false;
     }
 }
@@ -61,6 +63,7 @@ impl GameClient {
             return Ok(());
         }
         self.sync_npc_backpack();
+        self.clear_stale_bag_cursor();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.poll_bag_actions()?;
         }
@@ -73,7 +76,7 @@ impl GameClient {
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
         self.place_bags(&mut ui)?;
-        Ok(())
+        Ok(self.sync_bag_cursor()?)
     }
 
     fn sync_npc_backpack(&mut self) {
@@ -90,6 +93,13 @@ impl GameClient {
             // The existing NPC owners retain their backpack, never a second visible copy.
             let npc_backpack = bag.bag_index == 0 && self.bags.npc_backpack_open;
             bag.visible = self.bags.windows.is_open(WindowId::Bag(bag.bag_index)) && !npc_backpack;
+            for (index, slot) in bag.slots.iter_mut().enumerate() {
+                slot.locked = self.bags.cursor.item.source()
+                    == Some(shared::protocol::ItemLocation::Bag {
+                        bag: bag.bag_index as u8,
+                        slot: index as u8,
+                    });
+            }
         }
         let money = self
             .world
@@ -115,7 +125,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn poll_bag_actions(&mut self) -> Result<(), String> {
+    fn poll_bag_actions(&mut self) -> Result<(), FrameError> {
         let Some(mut ui) = self.bags.ui.clone() else {
             return Ok(());
         };
@@ -124,12 +134,27 @@ impl GameClient {
             if action.is_empty() {
                 break;
             }
-            self.toggle_bag_action(&action)?;
+            self.dispatch_bag_action(&action, game_engine_ui_model::merchant::Click::LEFT)?;
         }
-        while let Some((action, _, _)) = ui.bind_mut().pop_alt_click() {
-            self.toggle_bag_action(&action)?;
+        while let Some((action, right, shift)) = ui.bind_mut().pop_alt_click() {
+            self.dispatch_bag_action(
+                &action,
+                game_engine_ui_model::merchant::Click { right, shift },
+            )?;
         }
         Ok(())
+    }
+
+    fn dispatch_bag_action(
+        &mut self,
+        action: &str,
+        click: game_engine_ui_model::merchant::Click,
+    ) -> Result<(), FrameError> {
+        if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {
+            self.bag_cursor_click(action, click)
+        } else {
+            Ok(self.toggle_bag_action(action)?)
+        }
     }
 
     fn toggle_bag_action(&mut self, action: &str) -> Result<(), String> {

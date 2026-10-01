@@ -370,6 +370,25 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// Original cursor requests; only server InventoryDelta changes local contents.
+    pub fn send_inventory_request(
+        &self,
+        request: &game_engine_ui_model::bag_data::InventoryRequest,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::bag_data::InventoryRequest;
+        use shared::protocol::InventoryChannel;
+        let bridge = self.bridge()?;
+        match request {
+            InventoryRequest::Swap(request) => bridge.send::<_, InventoryChannel>(request.clone()),
+            InventoryRequest::Equip(request) => bridge.send::<_, InventoryChannel>(request.clone()),
+            InventoryRequest::Split(request) => bridge.send::<_, InventoryChannel>(request.clone()),
+            InventoryRequest::Destroy(request) => {
+                bridge.send::<_, InventoryChannel>(request.clone())
+            }
+        }
+        .map_err(SessionError)
+    }
+
     pub fn send_loot_unit(&self, corpse: u64, auto: bool) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, LootChannel>(LootUnit { corpse, auto })
