@@ -4,6 +4,11 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 ## What it must do
 
+### Standalone bags (implemented host, runtime proof pending)
+
+- [ ] Preserve original standalone backpack/bag visibility through authored HUD and input actions, authoritative inventory updates, and NPC-window lifecycle. Test commits `67870535`/`a3e34213` and host `91bbc703` do not establish GREEN. [Evidence and integration boundaries](../wiki/systems/godot-conversion.md#native-standalone-bags--red-host-implementation-proof-pending): baseline Depot `d11bz93c7w` compiled; actual runtime RED exits 101 after authoritative inventory readiness because `MainMenuBarBackpackButton` is missing. Portable manager/layout APIs from agents 1343/1344 remain pending; standalone visibility still requires runtime proof.
+- [ ] Preserve cursor pickup/drop, split, equip, destroy, tooltips, audio, drag, per-character persistence and NPC toggles. These remain parity gaps. The host shares `MerchantSession.inventory`, retains the old NPC embedded backpack and hides the standalone duplicate while vendor/mail is open; this is not proof of a unified window owner. Full conversion remains open; later coordinated evidence must establish actual GREEN before upgrading status.
+
 ### Graphics bloom (bounded native proof)
 
 - [x] Persisted Bloom Enable (default off) and Bloom Intensity (default 0.08, range 0–1) control startup and live native 3D bloom without changing authored material emission or higher-layer 2D UI in the owned emitter fixture. Production `8c704b87` with Rust `90fc989b`/controller `72030edd` passes enabled startup, authored Off/On/intensity and persistence: disabled halo 0, low 0.21182088, high 1. Test `e60ec838` also passes disabled startup → first On after an existing camera, with exact UI/emission assertions. Both exit 0; the initial enabled run retains two unattributed ObjectDB instances warnings, absent in paired verbose and lazy runs, not proven fixed.

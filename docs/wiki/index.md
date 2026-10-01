@@ -5,6 +5,8 @@ Last updated: 2026-09-29.
 
 ## Systems
 
+- [Native standalone bags](systems/godot-conversion.md#native-standalone-bags--red-host-implementation-proof-pending) — Authored HUD RED exit 101; `91bbc703` host implemented, portable manager/layout APIs and visibility runtime proof pending. Full conversion open; inventory interactions and unified window ownership unproven.
+
 Engine subsystems and how they work.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
