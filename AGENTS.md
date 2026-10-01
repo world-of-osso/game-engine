@@ -84,6 +84,7 @@ src/
   - `link-worktree-data.py <canonical> <worktree>` links untracked `data/` into a worktree.
   - `seed-target.sh <repo> <dir>` reflink-clones a warm `CARGO_TARGET_DIR`; never start an agent on an empty one.
   - `headless-client.sh start|stop <target> <xdg> [args]` runs a client in a headless cage, off the user's display; `start-godot <checkout> <xdg> [godot args]` runs the Godot client (stop with `<checkout>/target`).
+  - `agent-run <agent-name> <cmd...>` is mandatory for every local build, test server, client and extraction an agent starts (cargo, game-server, Godot/cage, casc-local). It runs inside the capped `agents.slice` (12 cores, 26 GB). Stop everything one agent started with `systemctl --user stop agents-<name>.slice`, everything all agents started with `systemctl --user stop agents.slice`.
   - `record-window (--pid PID | --app-id ID) [-o out.mp4] [--fps 30] [--duration S] [--no-audio]` records one niri window plus that process's PipeWire audio stream to MP4 (H.264 VAAPI + AAC) until Ctrl-C, `--duration`, or the window closes. It calls niri's own `org.gnome.Mutter.ScreenCast` `RecordWindow` (no portal dialog); `pw-video-cat/` (built on first use) reads the LINEAR DMA-BUF stream. Audio is post-mixer: a muted stream records silence.
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
 - Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`

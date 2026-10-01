@@ -88,6 +88,17 @@ func seed_scaled_sound_options(config: String) -> bool:
 	options.close()
 	return true
 
+## Action buttons use GameTooltip_SetDefaultAnchor (ActionButton.lua:1070-1080, UberTooltips 1):
+## the tooltip's BOTTOMRIGHT 9 left of and 85 above UIParent's, in scaled UI units.
+func default_anchor_offset(tooltip: Control, scale: float) -> float:
+	var rect := tooltip.get_global_rect()
+	var expected := Vector2(root.size) - Vector2(9.0, 85.0) * scale
+	return rect.end.distance_to(expected)
+
+func game_tooltip(client: Node) -> Control:
+	var host := client.get_node_or_null("GameTooltipUI")
+	return host.find_child("TooltipFrame", true, false) as Control if host != null else null
+
 func check_scaled_spell_tooltip(client: Node, action: Control) -> bool:
 	var physical := action.get_global_rect().get_center()
 	var motion := InputEventMouseMotion.new()
@@ -95,16 +106,13 @@ func check_scaled_spell_tooltip(client: Node, action: Control) -> bool:
 	motion.global_position = physical
 	root.push_input(motion, true)
 	await wait_frames(4)
-	var host := client.get_node_or_null("SpellTooltipUI")
-	var tooltip := host.find_child("SpellTooltip", true, false) as Control if host != null else null
-	if tooltip == null or not tooltip.is_visible_in_tree():
-		fail("Known Slam action did not reveal authored spell tooltip")
+	var tooltip := game_tooltip(client)
+	if tooltip == null or not tooltip.is_visible_in_tree() or client.tooltip_state().title != "Slam":
+		fail("Known Slam action did not reveal its GameTooltip")
 		return false
 	var scale := 5.0 / 6.0
-	var rect := tooltip.get_global_rect()
-	var expected := Vector2(action.get_global_rect().position.x, action.get_global_rect().position.y - rect.size.y - 4.0 * scale)
-	if absf(tooltip.get_global_transform().get_scale().x - scale) > 0.01 or rect.position.distance_to(expected) > 2.0:
-		fail("Scaled spell tooltip %s not above live Slam action at %s" % [rect, expected])
+	if absf(tooltip.get_global_transform().get_scale().x - scale) > 0.01 or default_anchor_offset(tooltip, scale) > 2.0:
+		fail("Scaled Slam tooltip %s not at the default anchor" % tooltip.get_global_rect())
 		return false
 	return await capture_scaled_ui("sound-tooltip", tooltip)
 
@@ -121,14 +129,13 @@ func check_right_edge_tooltip(client: Node, bar: Node) -> bool:
 	motion.global_position = point
 	root.push_input(motion, true)
 	await wait_frames(4)
-	var host := client.get_node_or_null("SpellTooltipUI")
-	var tooltip := host.find_child("SpellTooltip", true, false) as Control if host != null else null
+	var tooltip := game_tooltip(client)
 	if tooltip == null or not tooltip.is_visible_in_tree() or not client.spells_state().tooltip.has("Slam"):
 		fail("Rightmost authored Slam button did not reveal its tooltip")
 		return false
-	var rect := tooltip.get_global_rect()
-	if absf(rect.end.x - root.size.x) > 2.0:
-		fail("Scaled tooltip did not clamp at physical viewport edge: %s vs %s" % [rect, root.size])
+	var scale := maxf(minf(800.0 / 1920.0, 720.0 / 1080.0), 2.0 / 3.0) * 1.25
+	if default_anchor_offset(tooltip, scale) > 2.0 or tooltip.get_global_rect().end.x > root.size.x:
+		fail("Scaled tooltip left the default anchor at the narrow viewport: %s vs %s" % [tooltip.get_global_rect(), root.size])
 		return false
 	if not await capture_scaled_ui("sound-tooltip-800-edge", tooltip):
 		return false

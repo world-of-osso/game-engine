@@ -289,6 +289,11 @@ impl AreaCatalog {
         self.areas.get(&area_id).map(|area| area.name.as_str())
     }
 
+    /// `GetZoneText`: the zone the area belongs to, its top-level ancestor.
+    pub fn zone(&self, area_id: u32) -> Option<&str> {
+        self.lineage(area_id).last().map(|area| area.name.as_str())
+    }
+
     /// Area then its ancestors, bounded against cyclic data.
     fn lineage(&self, area_id: u32) -> impl Iterator<Item = &AreaRow> {
         let mut next = Some(area_id);
