@@ -12,7 +12,7 @@ func run_test() -> void:
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var loading_wait_at := Time.get_ticks_msec()
-	if not await wait_screen(client, "Loading", 180000):
+	if not await wait_screen(client, "Loading", 15000):
 		return
 	print("MERCHANT CLICK AUTH STARTUP loading_wait_ms=", Time.get_ticks_msec() - loading_wait_at)
 	print("FIXTURE MERCHANT_CLICK_LOADING")
