@@ -92,6 +92,7 @@ pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
 pub mod ui_layout_data;
+pub mod ui_sound_kits;
 #[path = "../../../src/sound/wmo_surface_data.rs"]
 pub mod wmo_surface_data;
 #[cfg(test)]
@@ -130,9 +131,9 @@ mod outfit_data_tests;
 mod outfit_listfile;
 #[path = "../../../src/player_physics_data.rs"]
 pub mod player_physics_data;
+pub mod retail_fog;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
-pub mod retail_fog;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]

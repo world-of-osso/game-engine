@@ -6,17 +6,17 @@
 //! Escape, the close button or the server's `InteractionClosed` close it.
 
 use game_engine_core::input_bindings_data::{BindingMouseButton, InputState};
+use game_engine_core::ui_sound_kits::{IG_CHARACTER_INFO_CLOSE, IG_CHARACTER_INFO_OPEN};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::cursor_item::CursorTarget;
-use game_engine_ui_model::merchant::{Click, MerchantEffect, MerchantSession, SplitKey};
-use game_engine_ui_model::merchant_data::MerchantTab;
-use game_engine_ui_model::merchant_frame_component::{FRAME_H, FRAME_NAME, FRAME_W};
-use game_engine_ui_model::wow_cursor_data::{ActiveWowCursor, NpcCursorView, npc_cursor};
-use godot::classes::{
-    ImageTexture, Input, InputEvent, InputEventMouseButton, InputEventMouseMotion,
+use game_engine_ui_model::merchant::{
+    Click, MerchantEffect, MerchantSession, SplitKey, click_sound,
 };
+use game_engine_ui_model::merchant_data::MerchantTab;
+use game_engine_ui_model::merchant_frame_component::FRAME_NAME;
+use game_engine_ui_model::wow_cursor_data::{ActiveWowCursor, NpcCursorView, npc_cursor};
+use godot::classes::{ImageTexture, Input};
 use godot::global::Key;
-use godot::global::MouseButton;
 use godot::prelude::*;
 use shared::components::{Health, Npc};
 use shared::protocol::{InteractionKind, NpcFlags, NpcRole};
@@ -28,20 +28,21 @@ use crate::frame_error::{FrameError, SessionError, report_once};
 use crate::replicated::UnitFields;
 use crate::targeting::pick_unit;
 use crate::ui::{MerchantStates, RegistryUi};
-use crate::world_map::{WindowDrag, title_hit};
+use crate::world_map::WindowDrag;
 
 /// Bevy `INTERACT_RANGE`: the farthest a right-click interacts, in yards.
 const INTERACT_RANGE: f32 = 5.0;
 const MERCHANT_UI: &str = "MerchantUI";
-const DEFAULT_POSITION: [f32; 2] = [16.0, 104.0];
 
 #[derive(Default)]
 pub(crate) struct Merchant {
     pub(crate) session: MerchantSession,
-    ui: Option<Gd<RegistryUi>>,
-    position: Option<[f32; 2]>,
-    position_character: Option<u64>,
-    drag: Option<WindowDrag>,
+    pub(super) ui: Option<Gd<RegistryUi>>,
+    pub(super) position: Option<[f32; 2]>,
+    pub(super) position_character: Option<u64>,
+    pub(super) drag: Option<WindowDrag>,
+    /// Shown last frame: `OnShow` / `OnHide` play their sounds on a change.
+    shown: bool,
     cursor: Option<ActiveWowCursor>,
     /// Loaded cursor art; `None` caches a kind whose art failed to load.
     cursor_textures: Vec<(ActiveWowCursor, Option<Gd<ImageTexture>>)>,
@@ -168,6 +169,7 @@ impl GameClient {
     /// right-click interaction, the hover cursor, then the frame's presentation.
     pub(super) fn update_merchant(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
+            self.merchant.shown = false;
             self.merchant.session.merchant.close();
             self.merchant.session.split = None;
             self.merchant.free_ui();
@@ -192,7 +194,23 @@ impl GameClient {
             interactive.then(|| self.hover_cursor()).flatten()
         };
         self.set_world_cursor(cursor);
+        self.play_merchant_show_sound()?;
         Ok(self.sync_merchant_ui()?)
+    }
+
+    /// `PlaySound(SOUNDKIT.IG_CHARACTER_INFO_OPEN / _CLOSE)` in `MerchantFrame_OnShow` /
+    /// `OnHide` (MF.lua:158, 174).
+    fn play_merchant_show_sound(&mut self) -> Result<(), String> {
+        let open = self.merchant.session.is_open();
+        if open == self.merchant.shown {
+            return Ok(());
+        }
+        self.merchant.shown = open;
+        self.play_ui_sound_kit(if open {
+            IG_CHARACTER_INFO_OPEN
+        } else {
+            IG_CHARACTER_INFO_CLOSE
+        })
     }
 
     /// Bevy `right_click_interact`: the unit under the pointer, else the current target.
@@ -259,7 +277,10 @@ impl GameClient {
     fn hover_cursor(&mut self) -> Option<ActiveWowCursor> {
         let viewport = self.base().get_viewport()?;
         if viewport.gui_get_hovered_control().is_some() {
-            return Some(ActiveWowCursor::Default);
+            return Some(
+                self.merchant_item_cursor()
+                    .unwrap_or(ActiveWowCursor::Default),
+            );
         }
         let camera = viewport.get_camera_3d()?;
         let Some(id) = pick_unit(&camera, Vector2::from_array(self.physical_input.pointer()))
@@ -292,6 +313,37 @@ impl GameClient {
             lootable: self.loot.lootable.contains(&id),
             reaction,
         }))
+    }
+
+    /// `MerchantFrame_OnUpdate` (MF.lua:126-134): over a vendor item on the merchant tab
+    /// the Buy cursor, or `BUY_ERROR_CURSOR` when the player can't afford it.
+    fn merchant_item_cursor(&mut self) -> Option<ActiveWowCursor> {
+        let session = &self.merchant.session;
+        if !session.is_open() || session.merchant.tab != MerchantTab::Merchant {
+            return None;
+        }
+        let at = Vector2::from_array(self.physical_input.pointer());
+        let hit = self.ui_frame_at(at, &[]).ok()??;
+        if self.merchant.ui.as_ref() != Some(&hit.ui) {
+            return None;
+        }
+        let ui = hit.ui.bind();
+        let (_, index) = crate::tooltips::named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let n: usize = frame
+                .name
+                .as_deref()?
+                .strip_prefix("MerchantItem")?
+                .parse()
+                .ok()?;
+            n.checked_sub(1)
+        })?;
+        let session = &self.merchant.session;
+        let item = session.merchant.page_items().get(index)?;
+        Some(if session.money < u64::from(item.price) {
+            ActiveWowCursor::UnableBuy
+        } else {
+            ActiveWowCursor::Buy
+        })
     }
 
     /// The Retail cursor art in world; the system cursor elsewhere, or when the art
@@ -392,13 +444,16 @@ impl GameClient {
         crate::bag_cursor::cursor_action_target(action)
     }
 
-    fn merchant_click(&mut self, action: &str, click: Click) -> Result<(), FrameError> {
+    pub(super) fn merchant_click(&mut self, action: &str, click: Click) -> Result<(), FrameError> {
         let session = &mut self.merchant.session;
         let effect = if action.starts_with("bag_slot:") {
             session.click_bag(action, click)
         } else {
             session.click_frame(action, click)
         };
+        if let Some(kit) = click_sound(action) {
+            self.play_ui_sound_kit(kit)?;
+        }
         Ok(self.apply_merchant_effect(effect)?)
     }
 
@@ -492,186 +547,6 @@ impl GameClient {
         }
     }
 
-    fn load_merchant_position(&mut self) -> Result<(), String> {
-        if !self.merchant.session.is_open() {
-            self.merchant.position = None;
-            self.merchant.position_character = None;
-            self.merchant.drag = None;
-            return Ok(());
-        }
-        let id = self
-            .account
-            .session
-            .selected_character_id
-            .ok_or("Merchant requires selected server character ID")?;
-        if self.merchant.position_character == Some(id) {
-            return Ok(());
-        }
-        let path =
-            game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
-        self.merchant.position =
-            game_engine_core::ui_layout_data::window_position(&path, id, FRAME_NAME)?;
-        self.merchant.position_character = Some(id);
-        self.merchant.drag = None;
-        Ok(())
-    }
-
-    fn merchant_rect(&self) -> [f32; 4] {
-        let size = self
-            .base()
-            .get_viewport()
-            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
-                viewport.get_visible_rect().size
-            });
-        let scale = self.effective_ui_scale();
-        let viewport = size / scale;
-        let [x, y] = self.merchant.position.unwrap_or(DEFAULT_POSITION);
-        [
-            x.clamp(0.0, (viewport.x - FRAME_W).max(0.0)),
-            y.clamp(0.0, (viewport.y - FRAME_H).max(0.0)),
-            FRAME_W,
-            FRAME_H,
-        ]
-    }
-
-    fn place_merchant(&mut self) -> Result<(), String> {
-        if !self.merchant.session.is_open() {
-            return Ok(());
-        }
-        let [x, y, _, _] = self.merchant_rect();
-        self.merchant
-            .ui
-            .as_mut()
-            .ok_or("Merchant UI vanished")?
-            .bind_mut()
-            .set_window_position(FRAME_NAME, [x, y])
-    }
-
-    pub(super) fn reset_open_merchant_position(&mut self) -> Result<(), String> {
-        self.merchant.position = None;
-        self.merchant.drag = None;
-        self.place_merchant()
-    }
-
-    pub(super) fn merchant_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
-        if !self.merchant.session.is_open() || self.game_menu_ui.is_some() {
-            return false;
-        }
-        let rect = self.merchant_rect();
-        let scale = self.effective_ui_scale();
-        if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
-            return self.move_merchant(&motion, rect, scale);
-        }
-        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
-            return false;
-        };
-        self.press_merchant_title(&button, rect, scale)
-    }
-
-    fn move_merchant(
-        &mut self,
-        motion: &Gd<InputEventMouseMotion>,
-        rect: [f32; 4],
-        scale: f32,
-    ) -> bool {
-        let Some(drag) = &self.merchant.drag else {
-            return false;
-        };
-        let size = self
-            .base()
-            .get_viewport()
-            .map_or(Vector2::new(1280.0, 720.0), |viewport| {
-                viewport.get_visible_rect().size
-            })
-            / scale;
-        self.merchant.position = Some(drag.position(
-            motion.get_position() / scale,
-            [size.x, size.y],
-            [rect[2], rect[3]],
-        ));
-        if let Err(error) = self.place_merchant() {
-            godot_error!("Merchant drag: {error}");
-        }
-        true
-    }
-
-    fn press_merchant_title(
-        &mut self,
-        button: &Gd<InputEventMouseButton>,
-        rect: [f32; 4],
-        scale: f32,
-    ) -> bool {
-        if button.get_button_index() != MouseButton::LEFT {
-            return false;
-        }
-        if !button.is_pressed() && self.merchant.drag.take().is_some() {
-            self.persist_merchant_position();
-            return true;
-        }
-        if !button.is_pressed() {
-            return false;
-        }
-        let buttons = self.merchant_close_rect(scale);
-        if title_hit(rect, button.get_position(), scale, buttons.as_slice())
-            && self.merchant_owns_point(button.get_position())
-        {
-            self.merchant.drag = Some(WindowDrag::begin(
-                button.get_position() / scale,
-                [rect[0], rect[1]],
-            ));
-            return true;
-        }
-        false
-    }
-
-    /// A window raised over the title owns the press instead of the merchant.
-    fn merchant_owns_point(&mut self, at: Vector2) -> bool {
-        let Some(ui) = self.merchant.ui.clone() else {
-            return false;
-        };
-        self.ui_owns_point(&ui, at).unwrap_or_else(|error| {
-            godot_error!("Merchant title hit-test: {error}");
-            false
-        })
-    }
-
-    fn merchant_close_rect(&self, scale: f32) -> Vec<[f32; 4]> {
-        let Some(ui) = self.merchant.ui.as_ref() else {
-            return Vec::new();
-        };
-        let Some(node) = ui
-            .find_child_ex("MerchantFrameCloseButton")
-            .owned(false)
-            .done()
-        else {
-            return Vec::new();
-        };
-        let Ok(control) = node.try_cast::<godot::classes::Control>() else {
-            return Vec::new();
-        };
-        let rect = control.get_global_rect();
-        vec![[
-            rect.position.x / scale,
-            rect.position.y / scale,
-            rect.size.x / scale,
-            rect.size.y / scale,
-        ]]
-    }
-
-    fn persist_merchant_position(&self) {
-        let (Some(id), Some(position)) = (self.merchant.position_character, self.merchant.position)
-        else {
-            return;
-        };
-        let path =
-            game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
-        if let Err(error) =
-            game_engine_core::ui_layout_data::save_window_position(&path, id, FRAME_NAME, position)
-        {
-            godot_error!("Merchant placement: {error}");
-        }
-    }
-
     /// Automation view of the vendor session: vendor, cells, buyback, bags, equipment, money.
     pub(super) fn merchant_snapshot(&self) -> VarDictionary {
         let session = &self.merchant.session;
@@ -699,6 +574,13 @@ impl GameClient {
         state.set("money", session.money as i64);
         state.set("repair_cost", i64::from(session.repair_cost));
         state.set("split_open", session.split.is_some());
+        state.set("repair_mode", session.repair_mode);
+        let sounds: VarArray = self
+            .played_ui_sound_kits()
+            .into_iter()
+            .map(|kit| i64::from(kit).to_variant())
+            .collect();
+        state.set("ui_sounds", &sounds);
         state.set(
             "cursor",
             self.merchant
