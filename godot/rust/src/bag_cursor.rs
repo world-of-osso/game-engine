@@ -129,7 +129,10 @@ impl GameClient {
         }
     }
 
-    fn send_cursor_effect(&self, effect: Option<CursorEffect>) -> Result<(), FrameError> {
+    pub(super) fn send_cursor_effect(
+        &mut self,
+        effect: Option<CursorEffect>,
+    ) -> Result<(), FrameError> {
         match effect {
             None => Ok(()),
             Some(CursorEffect::Inventory(request)) => {
@@ -144,8 +147,12 @@ impl GameClient {
                     .ok_or("Cursor drop without vendor")?;
                 Ok(self.account.send_merchant_request(npc, &request)?)
             }
-            Some(CursorEffect::ConfirmDestroy(_)) => {
-                Err("Cursor world-drop confirmation is not converted".into())
+            Some(CursorEffect::ConfirmDestroy(confirm)) => {
+                self.group_frames
+                    .popups
+                    .push(game_engine_ui_model::cursor_item::destroy_popup(&confirm));
+                self.physical_input.clear_gameplay();
+                Ok(())
             }
         }
     }

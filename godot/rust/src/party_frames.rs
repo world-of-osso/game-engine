@@ -15,7 +15,7 @@ use game_engine_ui_model::compact_unit_frame_component::{
 use game_engine_ui_model::damage_meter_data::class_color;
 use game_engine_ui_model::group_frames_component::{GroupFramesState, RAID_GROUPS};
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
-use game_engine_ui_model::popup::{PopupOutcome, PopupSpec, PopupStack};
+use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec, PopupStack};
 use game_engine_ui_model::static_popup_component::{StaticPopupState, parse_popup_action};
 use godot::prelude::*;
 use shared::components::{Player, PowerType};
@@ -32,7 +32,7 @@ const PARTY_INVITE_POPUP: &str = "PARTY_INVITE";
 pub(crate) struct GroupFramesHud {
     frames: Option<Gd<RegistryUi>>,
     popups_ui: Option<Gd<RegistryUi>>,
-    popups: PopupStack,
+    pub(crate) popups: PopupStack,
 }
 
 impl GroupFramesHud {
@@ -204,16 +204,54 @@ fn sync_invite_popup(group: &GroupState, popups: &mut PopupStack) {
 
 /// Answers of closed invite popups: Accept joins; Decline and the timeout decline, as
 /// Retail's `PARTY_INVITE` `OnHide` does.
-fn invite_answers(popups: &mut PopupStack) -> Vec<bool> {
-    popups
-        .drain_results()
-        .into_iter()
+fn invite_answers(results: &[PopupResult]) -> Vec<bool> {
+    results
+        .iter()
         .filter(|result| result.key == PARTY_INVITE_POPUP)
         .map(|result| result.outcome == PopupOutcome::Accepted)
         .collect()
 }
 
+/// Original DELETE_GOOD_ITEM editbox limit, measured in Unicode characters.
+const POPUP_EDITBOX_LETTERS: usize = 32;
+
+fn type_popup_key(
+    entry: &mut game_engine_ui_model::popup::PopupEntry,
+    key: &godot::classes::InputEventKey,
+) {
+    if key.get_keycode() == godot::global::Key::BACKSPACE {
+        entry.typed.pop();
+    } else if let Some(character) = char::from_u32(key.get_unicode()) {
+        let below_limit = entry.typed.chars().count() < POPUP_EDITBOX_LETTERS;
+        if !character.is_control() && below_limit {
+            entry.typed.push(character);
+        }
+    }
+}
+
 impl GameClient {
+    /// Popup keyboard ownership precedes chat and gameplay bindings.
+    pub(super) fn static_popup_key(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        let Ok(key) = event.clone().try_cast::<godot::classes::InputEventKey>() else {
+            return false;
+        };
+        if !key.is_pressed() || !self.group_frames.popups.is_open() {
+            return false;
+        }
+        let stack = &mut self.group_frames.popups;
+        match key.get_keycode() {
+            godot::global::Key::ESCAPE => stack.cancel_top(),
+            godot::global::Key::ENTER | godot::global::Key::KP_ENTER => stack.accept_top(),
+            _ => {
+                let Some(entry) = stack.typing_target() else {
+                    return false;
+                };
+                type_popup_key(entry, &key);
+            }
+        }
+        true
+    }
+
     /// Per frame in the world: the invite popup's clicks and timeout, then the frames.
     pub(super) fn update_group_frames(&mut self, delta: f32) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
@@ -223,7 +261,10 @@ impl GameClient {
         self.poll_invite_popup_actions()?;
         let hud = &mut self.group_frames;
         hud.popups.tick(Duration::from_secs_f32(delta.max(0.0)));
-        for accept in invite_answers(&mut hud.popups) {
+        let results = hud.popups.drain_results();
+        self.resolve_bag_destroy_results(&results)?;
+        self.hide_stale_bag_destroy_popups();
+        for accept in invite_answers(&results) {
             self.account.group.pending_invite = None;
             self.account
                 .send_group(GroupCommand::RespondInvite(accept))?;
@@ -451,18 +492,22 @@ mod tests {
         assert_eq!(shown.len(), 1);
         assert_eq!(shown[0].spec.text, "Ann invites you to a group.");
         popups.resolve(shown[0].id, PopupOutcome::Accepted);
-        assert_eq!(invite_answers(&mut popups), [true]);
-        assert!(invite_answers(&mut popups).is_empty());
+        assert_eq!(invite_answers(&popups.drain_results()), [true]);
+        assert!(invite_answers(&popups.drain_results()).is_empty());
 
         sync_invite_popup(&group, &mut popups);
         group.pending_invite = None;
         sync_invite_popup(&group, &mut popups);
         assert!(popups.visible().is_empty());
-        assert!(invite_answers(&mut popups).is_empty());
+        assert!(invite_answers(&popups.drain_results()).is_empty());
 
         group.pending_invite = Some("Ann".into());
         sync_invite_popup(&group, &mut popups);
         popups.tick(Duration::from_secs_f32(GROUP_INVITE_TIMEOUT_SECS));
-        assert_eq!(invite_answers(&mut popups), [false], "the timeout declines");
+        assert_eq!(
+            invite_answers(&popups.drain_results()),
+            [false],
+            "the timeout declines"
+        );
     }
 }
