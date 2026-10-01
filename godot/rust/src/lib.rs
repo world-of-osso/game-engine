@@ -1732,13 +1732,18 @@ impl GameClient {
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
         let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
         if map_changed {
+            let _span = profile::span(|| "terrain.map_id".to_owned());
             self.world_map_id = Some(account::read_map_id(&self.data_root, &request.map_name)?);
         }
-        self.terrain.request_map(
-            request.map_name,
-            (request.initial_tile_y, request.initial_tile_x),
-        )?;
+        {
+            let _span = profile::span(|| "terrain.request_map".to_owned());
+            self.terrain.request_map(
+                request.map_name,
+                (request.initial_tile_y, request.initial_tile_x),
+            )?;
+        }
         if map_changed {
+            let _span = profile::span(|| "terrain.enter_loading".to_owned());
             self.world_camera.reset();
             self.world_lighting.reset();
             self.world.update_lighting(None);
