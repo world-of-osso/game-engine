@@ -39,6 +39,10 @@ func check_live() -> bool:
 	if not camera.current or camera.global_position.distance_to(Vector3(0, 1.8, 6)) > 0.01:
 		fail("Camera current=%s at %s, expected (0, 1.8, 6)" % [camera.current, camera.global_position])
 		return false
+	# Hold the idle pose so attached items stay where `export-scene` reads them.
+	for animation in scene.find_children("M2Animation", "", true, false):
+		animation.process_mode = Node.PROCESS_MODE_DISABLED
+	await settle(100)
 	return true
 
 func check_cli() -> bool:
