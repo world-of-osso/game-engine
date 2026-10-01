@@ -69,6 +69,8 @@ mod sound;
 mod sound_click;
 #[path = "native_input_fixture/swimming.rs"]
 mod swimming;
+#[path = "native_input_fixture/ui_ownership.rs"]
+mod ui_ownership;
 
 const NAME: &str = "Input Fixture";
 const SWIM_START: [f32; 3] = [-8558.0, 144.960_08, 522.0];
@@ -97,6 +99,7 @@ enum StartupScreen {
     SoundClick,
     MerchantClick,
     MerchantCursor,
+    UiOwnership,
     Loot,
     Bags,
     BagsActions,
@@ -124,6 +127,7 @@ impl StartupScreen {
             Some("sound-click") => Self::SoundClick,
             Some("merchant-click") => Self::MerchantClick,
             Some("merchant-cursor") => Self::MerchantCursor,
+            Some("ui-ownership") => Self::UiOwnership,
             Some("loot") => Self::Loot,
             Some("bags") => Self::Bags,
             Some("bags-actions") => Self::BagsActions,
@@ -159,6 +163,7 @@ impl StartupScreen {
             | Self::SoundClick
             | Self::MerchantClick
             | Self::MerchantCursor
+            | Self::UiOwnership
             | Self::Loot
             | Self::Bags
             | Self::BagsActions
@@ -391,6 +396,7 @@ fn fixture_script(screen: StartupScreen) -> &'static str {
         StartupScreen::SettingsReload => "res://tests/world_settings_reload_flow.gd",
         StartupScreen::MerchantClick => "res://tests/world_merchant_click_flow.gd",
         StartupScreen::MerchantCursor => "res://tests/world_merchant_cursor_flow.gd",
+        StartupScreen::UiOwnership => "res://tests/world_ui_ownership_flow.gd",
         StartupScreen::Loot => "res://tests/world_loot_options_flow.gd",
         StartupScreen::Bags => "res://tests/world_bags_flow.gd",
         StartupScreen::BagsActions => "res://tests/world_bags_actions_flow.gd",
@@ -425,6 +431,7 @@ fn launch_godot(
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
             | StartupScreen::MerchantCursor
+            | StartupScreen::UiOwnership
             | StartupScreen::Loot
             | StartupScreen::Bags
             | StartupScreen::BagsActions
@@ -477,6 +484,7 @@ fn launch_godot(
                     | StartupScreen::SoundClick
                     | StartupScreen::MerchantClick
                     | StartupScreen::MerchantCursor
+                    | StartupScreen::UiOwnership
                     | StartupScreen::Loot
                     | StartupScreen::Bags
                     | StartupScreen::BagsActions
@@ -743,7 +751,7 @@ fn respond_to_selection(
             .id();
         if matches!(
             screen,
-            StartupScreen::MerchantClick | StartupScreen::MerchantCursor
+            StartupScreen::MerchantClick | StartupScreen::MerchantCursor | StartupScreen::UiOwnership
         ) {
             app.world_mut()
                 .entity_mut(player)
@@ -1431,6 +1439,7 @@ fn main() {
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
             | StartupScreen::MerchantCursor
+            | StartupScreen::UiOwnership
             | StartupScreen::Loot
             | StartupScreen::Bags
             | StartupScreen::BagsCursor
@@ -1467,6 +1476,7 @@ fn main() {
         StartupScreen::SoundClick => sound_click::run(&mut app, &mut child, lines, reader),
         StartupScreen::MerchantClick => merchant_click::run(&mut app, &mut child, lines, reader),
         StartupScreen::MerchantCursor => merchant_cursor::run(&mut app, &mut child, lines, reader),
+        StartupScreen::UiOwnership => ui_ownership::run(&mut app, &mut child, lines, reader),
         StartupScreen::Loot => loot::run(&mut app, &mut child, lines, reader),
         StartupScreen::Bags => bags::run(&mut app, &mut child, lines, reader),
         StartupScreen::BagsActions => bags_actions::run(&mut app, &mut child, lines, reader),
