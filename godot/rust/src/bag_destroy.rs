@@ -47,7 +47,7 @@ impl GameClient {
         Ok(true)
     }
 
-    pub(super) fn resolve_bag_destroy_results(
+    pub(super) fn dispatch_bag_destroy_results(
         &mut self,
         results: &[PopupResult],
     ) -> Result<(), FrameError> {
