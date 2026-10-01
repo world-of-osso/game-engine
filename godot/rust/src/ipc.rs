@@ -7,6 +7,7 @@ mod dev;
 mod export;
 mod tree;
 mod ui_tree;
+mod world;
 
 use std::{
     cell::RefCell,

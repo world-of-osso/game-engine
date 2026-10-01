@@ -31,7 +31,7 @@ use shared::protocol::{
     MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestFailed, QuestGiverStatusMultiple,
     QuestGiverStatusQuery, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
     RestStateUpdate, SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged,
-    SpellCastIntent, SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned,
+    SpellCastIntent, SpellCooldownUpdate, StopSpellCast, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned,
     TalentChannel, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
@@ -423,6 +423,20 @@ impl Account {
                 spell: name.to_owned(),
                 target_entity: target,
             })
+            .map_err(SessionError)
+    }
+
+    /// IPC `spell cast`: the intent as given, by spell ID or name token.
+    pub fn send_spell_intent(&self, intent: SpellCastIntent) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(intent)
+            .map_err(SessionError)
+    }
+
+    /// `SpellStopCasting`: cancel the current cast.
+    pub fn send_stop_cast(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(StopSpellCast)
             .map_err(SessionError)
     }
 

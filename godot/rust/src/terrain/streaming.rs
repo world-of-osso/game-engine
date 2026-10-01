@@ -137,6 +137,11 @@ impl StreamedTerrain {
         self.primary_tile
     }
 
+    /// Tiles requested beyond the map request's initial square.
+    pub fn requested_tile_count(&self) -> usize {
+        self.requested_tiles.len()
+    }
+
     pub fn map_name(&self) -> Option<&str> {
         self.map.as_deref()
     }
@@ -511,11 +516,14 @@ fn validate_tile(tile: (u32, u32)) -> Result<(), String> {
     Ok(())
 }
 
+/// Tiles requested around a map request's primary tile, in each direction.
+pub(crate) const LOAD_RADIUS: u32 = 1;
+
 fn square_tiles(center: (u32, u32)) -> impl Iterator<Item = (u32, u32)> {
-    let start_y = center.0.saturating_sub(1);
-    let start_x = center.1.saturating_sub(1);
-    let end_y = (center.0 + 1).min(MAP_TILE_BOUND - 1);
-    let end_x = (center.1 + 1).min(MAP_TILE_BOUND - 1);
+    let start_y = center.0.saturating_sub(LOAD_RADIUS);
+    let start_x = center.1.saturating_sub(LOAD_RADIUS);
+    let end_y = (center.0 + LOAD_RADIUS).min(MAP_TILE_BOUND - 1);
+    let end_x = (center.1 + LOAD_RADIUS).min(MAP_TILE_BOUND - 1);
     (start_y..=end_y).flat_map(move |y| (start_x..=end_x).map(move |x| (y, x)))
 }
 

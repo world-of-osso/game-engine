@@ -998,6 +998,11 @@ impl WorldUnits {
         units
     }
 
+    /// The unit's replicated name.
+    pub fn unit_name(&self, id: u64) -> Option<&str> {
+        Some(self.units.get(&id)?.name.as_str())
+    }
+
     pub fn unit_node(&self, id: u64) -> Option<Gd<Node3D>> {
         Some(self.units.get(&id)?.node.clone())
     }
