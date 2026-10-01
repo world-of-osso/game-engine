@@ -113,7 +113,7 @@ func find_mailbox(client: Node, entry: int, display: int, fdid: int) -> Dictiona
 	for object in client.get_children():
 		if object is Node3D and object.has_meta("game_object_entry"):
 			objects.append({"name":str(object.name),"entry":object.get_meta("game_object_entry"),"position":object.global_position,"children":object.get_children().map(func(child): return str(child.name))})
-	print("MAIL_PICK_DIAGNOSTIC camera=", root.get_camera_3d().global_transform, " objects=", objects)
+	print("MAIL_PICK_DIAGNOSTIC camera=", root.get_camera_3d().global_transform, " objects=", objects, " replica=", client.mail_state().replicated_objects)
 	await capture_loot("mail-pick-failure.png")
 	fail("Actual replicated mailbox had no visible, pickable model triangle")
 	return {}
