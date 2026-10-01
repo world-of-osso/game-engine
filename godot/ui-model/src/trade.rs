@@ -241,7 +241,13 @@ impl TradeSession {
 
 fn items(party: &TradePartySnapshot) -> Vec<Option<TradeItemView>> {
     (0..TRADE_SLOTS)
-        .map(|slot| party.slots.get(slot).and_then(Option::as_ref).map(item_view))
+        .map(|slot| {
+            party
+                .slots
+                .get(slot)
+                .and_then(Option::as_ref)
+                .map(item_view)
+        })
         .collect()
 }
 
@@ -267,7 +273,13 @@ fn item_view(item: &TradeItemSnapshot) -> TradeItemView {
 /// `MoneyInputFrame_SetCopper`: gold blank when zero, silver and copper blank when
 /// the whole amount is zero; `[gold, silver, copper]`.
 pub fn money_texts(copper: u64) -> [String; 3] {
-    let shown = |value: u64, shown: bool| if shown { value.to_string() } else { String::new() };
+    let shown = |value: u64, shown: bool| {
+        if shown {
+            value.to_string()
+        } else {
+            String::new()
+        }
+    };
     let gold = copper / 10_000;
     [
         shown(gold, gold > 0),
@@ -280,7 +292,11 @@ pub fn money_texts(copper: u64) -> [String; 3] {
 pub fn parse_money(texts: [&str; 3]) -> Option<u64> {
     let part = |text: &str| -> Option<u64> {
         let text = text.trim();
-        if text.is_empty() { Some(0) } else { text.parse().ok() }
+        if text.is_empty() {
+            Some(0)
+        } else {
+            text.parse().ok()
+        }
     };
     let [gold, silver, copper] = texts.map(part);
     gold?

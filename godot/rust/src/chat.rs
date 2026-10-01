@@ -41,6 +41,8 @@ pub(crate) enum ChatRequest {
     Emote(EmoteKind),
     /// `/invite`, `/uninvite`, `/promote`, `/leave`, `/readycheck`.
     Group(GroupCommand),
+    /// `/trade`: `InitiateTrade("target")` (SlashCommands.lua:911-913).
+    TradeTarget,
 }
 
 /// Chat log, whisper partners and frame state. The log outlives the world, as the
@@ -124,6 +126,9 @@ impl ChatModel {
     pub fn submit(&mut self, line: &str) -> Option<ChatRequest> {
         self.close();
         self.state.remember_sent(line);
+        if is_trade_command(line) {
+            return Some(ChatRequest::TradeTarget);
+        }
         match parse_chat_input(line, self.whispers.reply_target.as_deref()) {
             ChatCommand::Send { channel, text } => {
                 if let ChatType::Whisper(target) = &channel {
@@ -219,6 +224,14 @@ pub(crate) enum ChatOpenKey {
 }
 
 /// The chat key a pressed, non-repeat key event is, if any.
+/// `/trade`, whatever follows it: the slash command ignores its argument.
+fn is_trade_command(line: &str) -> bool {
+    line.trim()
+        .split_whitespace()
+        .next()
+        .is_some_and(|word| word.eq_ignore_ascii_case("/trade"))
+}
+
 fn open_key(key: &Gd<InputEventKey>) -> Option<ChatOpenKey> {
     if !key.is_pressed() || key.is_echo() {
         return None;
@@ -464,6 +477,7 @@ impl crate::GameClient {
             }),
             ChatRequest::Emote(emote) => self.account.send_emote(EmoteIntent { emote }),
             ChatRequest::Group(command) => self.account.send_group(command),
+            ChatRequest::TradeTarget => return self.trade_with_target(),
         }
         .map_err(|error| error.0)
     }

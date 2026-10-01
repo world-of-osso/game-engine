@@ -1,0 +1,178 @@
+//! TargetFrame right-click menu (Retail `UnitPopup`; Bevy `rendering/ui/unit_frames.rs`
+//! `UnitFrameClick`): right-clicking the target frame of a player opens the authored
+//! `UnitFrameContextMenu` with the group entries and, for another player, Trade
+//! (`UnitPopupTradeButtonMixin:OnClick` → `InitiateTrade(unit)`). An entry's click runs
+//! it and closes the menu; a click outside closes it. Set/Clear Focus are not converted.
+use game_engine_ui_model::group_state::{GroupMenuEntry, group_menu_entries};
+use game_engine_ui_model::inworld_unit_frames_component::{
+    ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_CLOSE, ACTION_UNIT_MENU_SET_FOCUS,
+    ACTION_UNIT_MENU_TRADE, UNIT_MENU_W, UnitFrameMenuState, UnitMenuItem, unit_menu_height,
+};
+use godot::classes::{InputEvent, InputEventMouseButton};
+use godot::global::MouseButton;
+use godot::prelude::*;
+use shared::components::Player;
+
+use crate::GameClient;
+use crate::frame_error::{FrameError, SessionError};
+
+#[derive(Default)]
+pub(crate) struct UnitMenu {
+    /// The player the open menu acts on.
+    player: Option<String>,
+    pub state: UnitFrameMenuState,
+}
+
+/// Group entries, then Trade for another player.
+pub(crate) fn player_items(
+    group: &game_engine_ui_model::group_state::GroupState,
+    local: &str,
+    unit: &str,
+) -> Vec<UnitMenuItem> {
+    let mut items: Vec<UnitMenuItem> = group_menu_entries(group, local, unit)
+        .into_iter()
+        .map(|entry| UnitMenuItem {
+            name: format!("UnitFrameContextMenu{}", entry.frame_key()),
+            label: entry.label().into(),
+            action: entry.action().into(),
+        })
+        .collect();
+    if !unit.eq_ignore_ascii_case(local) {
+        items.push(UnitMenuItem {
+            name: "UnitFrameContextMenuTrade".into(),
+            label: "Trade".into(),
+            action: ACTION_UNIT_MENU_TRADE.into(),
+        });
+    }
+    items
+}
+
+fn inside([x, y, w, h]: [f32; 4], point: Vector2) -> bool {
+    point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h
+}
+
+impl GameClient {
+    /// Right-click on a player's TargetFrame opens the menu and any other right-click
+    /// closes it; a left press outside the open menu closes it. Clicks on its entries
+    /// reach the authored buttons. Returns whether the event opened the menu.
+    pub(super) fn unit_menu_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return false;
+        };
+        if !button.is_pressed() || self.game_menu_ui.is_some() {
+            return false;
+        }
+        let point = button.get_position();
+        match button.get_button_index() {
+            MouseButton::RIGHT => self.open_unit_menu(point),
+            MouseButton::LEFT if !self.unit_menu_rect_contains(point) => {
+                self.unit_menu = UnitMenu::default();
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn open_unit_menu(&mut self, point: Vector2) -> bool {
+        self.unit_menu = UnitMenu::default();
+        let on_target_frame = self
+            .targeting
+            .frame_ui()
+            .and_then(|ui| ui.bind().frame_rect("TargetFrame"))
+            .is_some_and(|(rect, _)| inside(rect, point));
+        let (Some(unit), Some(local)) = (
+            self.target_player_name(),
+            self.account.session.selected_character_name.clone(),
+        ) else {
+            return false;
+        };
+        if !on_target_frame {
+            return false;
+        }
+        let items = player_items(&self.account.group, &local, &unit);
+        self.unit_menu = UnitMenu {
+            state: self.unit_menu_state(unit.clone(), items, point),
+            player: Some(unit),
+        };
+        true
+    }
+
+    fn target_player_name(&self) -> Option<String> {
+        self.targeting_target()
+            .and_then(|id| self.replica.unit(id))
+            .and_then(|unit| unit.get::<Player>())
+            .map(|player| player.name.clone())
+    }
+
+    /// The menu at the pointer, kept on screen (Bevy `UnitFrameClick::menu_for`).
+    fn unit_menu_state(
+        &self,
+        title: String,
+        items: Vec<UnitMenuItem>,
+        point: Vector2,
+    ) -> UnitFrameMenuState {
+        let scale = self.effective_ui_scale();
+        let viewport = self
+            .base()
+            .get_viewport()
+            .map(|viewport| viewport.get_visible_rect().size / scale)
+            .unwrap_or_default();
+        let max_x = (viewport.x - UNIT_MENU_W).max(0.0);
+        let max_y = (viewport.y - unit_menu_height(items.len())).max(0.0);
+        UnitFrameMenuState {
+            visible: true,
+            title,
+            x: (point.x / scale).clamp(0.0, max_x),
+            y: (point.y / scale).clamp(0.0, max_y),
+            player_items: items,
+            difficulty_menu: None,
+        }
+    }
+
+    fn unit_menu_rect_contains(&self, point: Vector2) -> bool {
+        self.unit_menu.state.visible
+            && self
+                .targeting
+                .frame_ui()
+                .and_then(|ui| ui.bind().frame_rect("UnitFrameContextMenu"))
+                .is_some_and(|(rect, _)| inside(rect, point))
+    }
+
+    /// The menu's button clicks; the menu closes after any entry.
+    pub(super) fn poll_unit_menu_actions(&mut self) -> Result<(), FrameError> {
+        let Some(mut ui) = self.targeting.frame_ui().cloned() else {
+            return Ok(());
+        };
+        let error = ui.bind_mut().sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string().into());
+        }
+        loop {
+            let action = ui.bind_mut().pop_action().to_string();
+            if action.is_empty() {
+                return Ok(());
+            }
+            self.run_unit_menu_action(&action)?;
+        }
+    }
+
+    fn run_unit_menu_action(&mut self, action: &str) -> Result<(), SessionError> {
+        let menu = std::mem::take(&mut self.unit_menu);
+        let Some(unit) = menu.player.filter(|_| menu.state.visible) else {
+            return Ok(());
+        };
+        match action {
+            ACTION_UNIT_MENU_TRADE => self.initiate_trade(unit),
+            ACTION_UNIT_MENU_SET_FOCUS | ACTION_UNIT_MENU_CLEAR_FOCUS => self
+                .add_world_error("Focus is not converted to the native client.")
+                .map_err(SessionError),
+            ACTION_UNIT_MENU_CLOSE => Ok(()),
+            action => match GroupMenuEntry::from_action(action) {
+                Some(entry) => self.account.send_group(entry.command(&unit)),
+                None => Err(SessionError(format!(
+                    "Unit menu action not converted: {action}"
+                ))),
+            },
+        }
+    }
+}

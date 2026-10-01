@@ -26,6 +26,7 @@ pub(crate) struct Bags {
     pub(crate) tooltip_ui: Option<Gd<RegistryUi>>,
     pub(crate) cursor: crate::bag_cursor::BagCursor,
     npc_backpack_open: bool,
+    trade_backpack_open: bool,
 }
 
 #[derive(Clone, PartialEq)]
@@ -57,6 +58,7 @@ impl Bags {
         self.windows.close_all();
         self.cursor.reset();
         self.npc_backpack_open = false;
+        self.trade_backpack_open = false;
     }
 }
 
@@ -86,6 +88,12 @@ impl GameClient {
 
     fn sync_npc_backpack(&mut self) {
         let open = self.merchant.session.is_open() || self.mailbox.session.is_open();
+        // An open trade opens the standalone backpack and its end closes it.
+        let trading = self.trade.session.window_open();
+        if trading != self.bags.trade_backpack_open {
+            self.bags.windows.set_open(WindowId::Bag(0), trading);
+            self.bags.trade_backpack_open = trading;
+        }
         if open != self.bags.npc_backpack_open {
             self.bags.windows.set_open(WindowId::Bag(0), open);
             self.bags.npc_backpack_open = open;
