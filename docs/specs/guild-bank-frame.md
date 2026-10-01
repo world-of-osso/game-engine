@@ -38,6 +38,11 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
   - Banktwo, rank Member with tab 1 set to view, deposit and 2 stacks a day, plus 5g a day in gold, withdraws the Peacebloom and 5g.
   - The item log reads "Bankone deposited Peacebloom x 10" and "Banktwo withdrew Peacebloom x 10". The money log shows the tab purchase, the 50g deposit and the 5g withdrawal.
 
+- Native (Godot) client, `data/diagnostics/bank-live/` (2026-10-01, two clients, `godot/tests/bank_live.gd`):
+  - Bankone, Guild Master, opens the Stormwind vault, deposits 150g, buys tab 1 (100g) and deposits Linen x10.
+  - Banktwo, rank Member with the vault open, sees the tab and the Linen arrive, and withdraws the Linen; Bankone's slot empties.
+  - Item log: "Bankone deposited Linen Cloth x 10", "Banktwo withdrew Linen Cloth x 10". Money log: "Bankone deposited 150g", "Bankone purchased a guild bank tab for 100g".
+
 ## How it works
 - [banks](../wiki/systems/banks.md)
 
