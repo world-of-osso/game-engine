@@ -138,14 +138,6 @@ func switch_forms(ui: Node) -> bool:
 		if not shown(ui, "Form_%d_Selected" % form) or shown(ui, "Form_%d_Selected" % (1 - form)):
 			fail("Form_%d is not the selected form" % form)
 			return false
-		# The local install can lack some texture files while its CASC indices are still
-		# syncing (docs/wiki/systems/spell-visuals.md): a preview whose random choices
-		# use one is not shown, so re-roll the visage like a player pressing the dice.
-		for attempt in range(12):
-			if form == 0 or preview_mesh_count() > 0:
-				break
-			await click(ui.find_child("CharCreateRandomize", true, false))
-			await wait_frames(60)
 		print("FIXTURE FORM %s meshes=%d" % [shown, preview_mesh_count()])
 		if form == 1 and (preview_character() == dragon or preview_mesh_count() == 0):
 			fail("The visage form did not replace the dragon preview")
