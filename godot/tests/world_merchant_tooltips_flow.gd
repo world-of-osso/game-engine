@@ -203,7 +203,7 @@ func mt_wait_projection(client: Node, owner: String, expected: Dictionary, open:
 		await process_frame
 		if mt_authority(client, open) and mt_projection(client, owner, expected):
 			return true
-	fail("Merchant tooltip behavioral boundary: physical hover/display/placement/hide missing; owner=%s expected=%s state=%s" % [owner, expected, client.merchant_state()])
+	fail("Merchant tooltip behavioral boundary: physical hover/display/placement/hide missing; owner=%s expected=%s state=%s tooltip=%s" % [owner, expected, client.merchant_state(), client.tooltip_state()])
 	return false
 
 func mt_authority(client: Node, open: bool) -> bool:
