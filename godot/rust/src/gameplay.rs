@@ -12,6 +12,7 @@ use game_engine_core::{
         update_grounded,
     },
 };
+use game_engine_session::SessionScreen;
 use glam::Vec3;
 use shared::{
     components::MovementSpeed,
