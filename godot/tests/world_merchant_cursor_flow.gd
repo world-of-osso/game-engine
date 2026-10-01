@@ -337,6 +337,8 @@ func mc_split_wait(client: Node, count: int, held: bool, money: int, locked: boo
 			return true
 	var picker := mc_split_control(client, "StackSplitFrame")
 	var source := mc_control(client, MC_SLOT)
+	var cursor_texture := mc_texture(client.find_child(MC_CURSOR, true, false) as Control)
+	print("SPLIT HELD DIAGNOSTIC picker_matches=", mc_split_picker_matches(client, amount), " cursor_matches=", mc_cursor_matches(client, held), " same_cursor_texture=", cursor_texture != null and cursor_texture.texture == mc_sale_texture, " source_matches=", mc_sale_source_matches(client, count, locked), " render_matches=", mc_split_render_matches(client, count), " vendor_matches=", mc_source_matches(client))
 	fail("Split sale state missing count%s held%s money%s locked%s pickertext%s; picker_rect=%s owner_rect=%s state=%s; anchor defect is unproved until native run" % [count, held, money, locked, amount, picker.get_global_rect() if picker != null else Rect2(), source.get_global_rect() if source != null else Rect2(), client.merchant_state()])
 	return false
 
