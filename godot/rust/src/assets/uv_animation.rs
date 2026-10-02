@@ -1,6 +1,6 @@
 //! Effect UVs, batch colours and opacities share application time, independently of
 //! bone sequence playback.
-use game_engine_core::m2_material::{self, BatchBinding, MaterialTracks};
+use game_engine_core::m2_material::{self, BatchBinding, MaterialSample, MaterialTracks};
 use godot::{
     classes::{INode, Node, ShaderMaterial},
     prelude::*,
@@ -48,6 +48,8 @@ impl WowMaterialClock {
 struct AnimatedMaterial {
     material: Gd<ShaderMaterial>,
     binding: BatchBinding,
+    /// The sample last set on `material`; `None` before the first.
+    applied: Option<MaterialSample>,
 }
 
 #[derive(GodotClass)]
@@ -107,7 +109,11 @@ impl WowMaterialAnimation {
                     || binding.texture_weights.iter().any(Option::is_some)
                     || binding.texture_transforms.iter().any(Option::is_some)
             })
-            .map(|(material, binding)| AnimatedMaterial { material, binding })
+            .map(|(material, binding)| AnimatedMaterial {
+                material,
+                binding,
+                applied: None,
+            })
             .collect();
         if materials.is_empty() {
             return None;
@@ -135,7 +141,8 @@ impl WowMaterialAnimation {
         let elapsed_ms = clock.bind().elapsed_ms as u32;
         for entry in &mut self.materials {
             let sample = m2_material::sample_material(tracks, &entry.binding, elapsed_ms);
-            super::material::apply_sample(&mut entry.material, &sample);
+            super::material::apply_sample(&mut entry.material, &sample, entry.applied.as_ref());
+            entry.applied = Some(sample);
         }
     }
 }

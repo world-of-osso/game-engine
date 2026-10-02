@@ -160,10 +160,11 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<ObjectiveTrackerState>()
         .expect("ObjectiveTrackerState must be in SharedContext");
-    let hide = state.quests.is_empty();
+    // Retail hides an empty container outside Edit Mode (Blizzard_ObjectiveTrackerContainer.lua:99-107);
+    // here the "All Objectives" header always shows, as Retail's Edit Mode draws it with nothing tracked.
     let mut height = CONTAINER_HEADER_H;
     let mut contents = container_header(state.collapsed);
-    if !state.collapsed {
+    if !state.collapsed && !state.quests.is_empty() {
         contents.extend(quests_module(state, &mut height));
     }
     rsx! {
@@ -171,7 +172,6 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
             name: {DynName(TRACKER_FRAME.into())},
             width: TRACKER_W,
             height: {height},
-            hidden: hide,
             pos_type: "absolute",
             right: TRACKER_RIGHT,
             top: TRACKER_TOP,

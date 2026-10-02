@@ -62,6 +62,8 @@ struct UnitNode {
     /// The appearance of the newest requested visual.
     appearance: Option<UnitAppearance>,
     visual: Option<Gd<Node3D>>,
+    /// The parts of `visual` its animation LOD reads every frame.
+    lod_target: Option<LodTarget>,
     /// Visual request still loading and the sheath state its virtual items are placed
     /// for; `visual` shows the previous appearance until it arrives.
     loading: Option<(u64, SheathState)>,
@@ -95,6 +97,39 @@ struct UnitNode {
     /// The pose clip `stand_state` holds while the player stands still; cleared when it
     /// moves (the server stands it up).
     stand_anim: Option<u16>,
+}
+
+/// An NPC visual's model node, its bone animation and the merged bounds of its meshes,
+/// looked up once when the visual attaches.
+struct LodTarget {
+    model: Gd<Node3D>,
+    animation: Gd<WowAnimationPlayer>,
+    bounds: Aabb,
+}
+
+impl LodTarget {
+    fn of(visual: &Gd<Node3D>) -> Option<Self> {
+        let model = visual.try_get_node_as::<Node3D>("NpcModel")?;
+        Some(Self {
+            animation: model.try_get_node_as::<WowAnimationPlayer>("M2Animation")?,
+            bounds: crate::world_models::mesh_bounds(&model),
+            model,
+        })
+    }
+}
+
+impl UnitNode {
+    /// Frees the current visual and shows `visual` (already in the tree) instead.
+    fn replace_visual(&mut self, visual: Option<Gd<Node3D>>) {
+        if let Some(previous) = self.visual.take() {
+            previous.free();
+        }
+        // The emitters were placed on the previous visual's model and item nodes.
+        self.particles = None;
+        self.item_particles.clear();
+        self.lod_target = visual.as_ref().and_then(LodTarget::of);
+        self.visual = visual;
+    }
 }
 
 struct UnitMotion {
@@ -243,6 +278,7 @@ fn spawn_unit(
         motion: UnitMotion::new([position.x, position.y, position.z], yaw),
         appearance: None,
         visual: None,
+        lod_target: None,
         loading: None,
         visual_player_model: None,
         death_applied: false,
@@ -337,27 +373,37 @@ fn unit_sheath(snapshot: Unit) -> SheathState {
     }
 }
 
-/// Request the visual of a changed appearance; a unit without one loses its visual.
-fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
+fn resolve_unit_appearance(
+    snapshot: Unit,
+    models: &mut WorldModels,
+) -> Result<Option<UnitAppearance>, String> {
     let native_display = match snapshot.get::<Player>().filter(|_| {
         snapshot
             .get::<ModelDisplay>()
             .is_some_and(|model| model.display_id != 0)
     }) {
-        Some(player) => match models.player_native_display(player) {
-            Ok(display) => Some(display),
-            Err(error) => {
-                godot_error!("Player {} native display: {error}", snapshot.server_id);
-                return;
-            }
-        },
+        Some(player) => Some(models.player_native_display(player)?),
         None => None,
     };
-    let appearance = unit_appearance(snapshot, native_display);
+    Ok(unit_appearance(snapshot, native_display))
+}
+
+/// Request the visual of a changed appearance; a unit without one loses its visual.
+fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
+    let appearance = match resolve_unit_appearance(snapshot, models) {
+        Ok(appearance) => appearance,
+        Err(error) => {
+            godot_error!("Player {} native display: {error}", snapshot.server_id);
+            return;
+        }
+    };
     if unit.appearance == appearance {
         return;
     }
     let existing_appearance = unit.appearance.is_some();
+    if appearance.is_none() {
+        log_appearance_clear(unit, snapshot);
+    }
     unit.appearance = appearance;
     unit.loading = unit.appearance.as_ref().map(|appearance| {
         let sheath = unit_sheath(snapshot);
@@ -366,14 +412,50 @@ fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldMo
         (request, sheath)
     });
     if unit.appearance.is_none() {
-        unit.animation = None;
-        unit.sheath = None;
-        unit.particles = None;
-        unit.item_particles.clear();
-        if let Some(previous) = unit.visual.take() {
-            previous.free();
-        }
+        clear_unit_visual(unit);
     }
+}
+
+fn clear_unit_visual(unit: &mut UnitNode) {
+    unit.animation = None;
+    unit.sheath = None;
+    unit.replace_visual(None);
+}
+
+/// Observe Some -> None before changing the retained appearance or pending request.
+fn log_appearance_clear(unit: &UnitNode, snapshot: Unit) {
+    godot_print!(
+        "UNIT_APPEARANCE_CLEAR server_id={} prior_appearance={} prior_describe_unit={:?} prior_pending={} prior_request_id={:?} model_display={:?} npc_present={} player_present={} observed_process_frame={} observed_ticks_usec={}",
+        snapshot.server_id,
+        unit.appearance.is_some(),
+        unit.appearance
+            .as_ref()
+            .map(|appearance| appearance.describe_unit(snapshot.server_id)),
+        unit.loading.is_some(),
+        unit.loading.map(|(request, _)| request),
+        snapshot.get::<ModelDisplay>().map(|model| model.display_id),
+        snapshot.has::<Npc>(),
+        snapshot.has::<Player>(),
+        GodotEngine::singleton().get_process_frames(),
+        Time::singleton().get_ticks_usec(),
+    );
+}
+
+/// Observe actual node removal/reset, not an absent-ID removal attempt.
+fn log_unit_removal(event: &str, id: u64, unit: &UnitNode) {
+    godot_print!(
+        "{} server_id={} prior_appearance={} prior_describe_unit={:?} prior_pending={} prior_request_id={:?} observed_process_frame={} observed_ticks_usec={}",
+        event,
+        id,
+        unit.appearance.is_some(),
+        unit.appearance
+            .as_ref()
+            .map(|appearance| appearance.describe_unit(id)),
+        unit.loading.is_some(),
+        unit.loading.map(|(request, _)| request),
+        GodotEngine::singleton().get_process_frames(),
+        Time::singleton().get_ticks_usec(),
+    );
 }
 
 /// Observe the request after enqueueing it, not the worker's start time.
@@ -435,7 +517,7 @@ fn attach_unit_visual(
         .unwrap_or_default();
     let appearance = unit
         .appearance
-        .as_ref()
+        .clone()
         .expect("a loading unit has an appearance");
     let preserve_playback = unit.visual.is_some()
         && unit.visual_player_model.is_some()
@@ -447,11 +529,7 @@ fn attach_unit_visual(
     // A creature's load places its virtual items for `sheath`; a player's weapons are
     // placed by the sheath sync that follows the attach.
     unit.sheath = appearance.player_model().is_none().then_some(sheath);
-    if let Some(previous) = unit.visual.take() {
-        previous.free();
-    }
-    unit.particles = None;
-    unit.item_particles.clear();
+    unit.replace_visual(None);
     match replacement {
         Ok(visual) => {
             if let Err(error) = crate::targeting::attach_pick_area(&visual, server_id) {
@@ -459,6 +537,7 @@ fn attach_unit_visual(
             }
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
+            unit.replace_visual(Some(visual.clone()));
             if let Some((pools, texture_dir)) = particles {
                 if let (Some(model_particles), Some(model)) = (
                     model_particles,
@@ -488,7 +567,6 @@ fn attach_unit_visual(
                     unit.item_particles.push((placed, item));
                 }
             }
-            unit.visual = Some(visual);
             unit.visual_player_model = appearance.player_model();
         }
         Err(error) => {
@@ -1182,29 +1260,21 @@ impl WorldUnits {
     /// distance and whether its bounds are in the view frustum allow; players always
     /// sample.
     pub fn apply_animation_lod(&mut self, camera: Vector3, frustum: &[HalfSpace], frame: u64) {
-        for (id, unit) in &self.units {
+        for (id, unit) in &mut self.units {
             if unit.is_player {
                 continue;
             }
-            let Some(model) = unit
-                .visual
-                .as_ref()
-                .and_then(|visual| visual.try_get_node_as::<Node3D>("NpcModel"))
-            else {
+            let Some(target) = &mut unit.lod_target else {
                 continue;
             };
-            let Some(mut animation) = model.try_get_node_as::<WowAnimationPlayer>("M2Animation")
-            else {
-                continue;
-            };
-            let bounds = crate::world_models::mesh_bounds(&model);
             let lod = npc_animation_lod(
-                (bounds.position, bounds.end()),
-                crate::terrain::objects::affine(model.get_global_transform()),
+                (target.bounds.position, target.bounds.end()),
+                crate::terrain::objects::affine(target.model.get_global_transform()),
                 Vec3::new(camera.x, camera.y, camera.z),
                 frustum,
             );
-            animation
+            target
+                .animation
                 .bind_mut()
                 .set_sampling(lod.samples_frame(frame, *id));
         }
@@ -1212,6 +1282,7 @@ impl WorldUnits {
 
     pub fn remove(&mut self, id: u64) {
         if let Some(unit) = self.units.remove(&id) {
+            log_unit_removal("WORLD_UNIT_REMOVED", id, &unit);
             unit.node.free();
         }
         if self.local_player_id == Some(id) {
@@ -1221,6 +1292,9 @@ impl WorldUnits {
 
     pub fn reset(&mut self) {
         self.light = None;
+        for (id, unit) in &self.units {
+            log_unit_removal("WORLD_UNIT_RESET", *id, unit);
+        }
         if let Some(pools) = &mut self.particles {
             pools.reset();
         }

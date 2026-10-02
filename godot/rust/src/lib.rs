@@ -67,6 +67,7 @@ mod replicated;
 mod scene;
 mod scene_export;
 mod selection_debug;
+mod shader_warmup;
 mod sky_model;
 mod skybox_debug;
 mod sound;
@@ -112,8 +113,29 @@ use game_engine_ui_model::{
     },
     char_select_state_from_roster,
 };
-use godot::classes::{INode3D, Node3D, ProjectSettings};
+use godot::classes::{Engine as GodotEngine, INode3D, Node3D, ProjectSettings, Time};
 use godot::prelude::*;
+
+/// Observe projection removal; despawn has no surviving replica snapshot.
+fn log_replication_removal(server_id: u64, snapshot: Option<game_engine_network::replica::Unit>) {
+    godot_print!(
+        "REPLICATION_REMOVAL server_id={} reason={} snapshot_present={} model_display={:?} npc_present={:?} player_present={:?} observed_process_frame={} observed_ticks_usec={}",
+        server_id,
+        if snapshot.is_some() {
+            "nonunit"
+        } else {
+            "despawned"
+        },
+        snapshot.is_some(),
+        snapshot.and_then(|unit| unit
+            .get::<shared::components::ModelDisplay>()
+            .map(|model| model.display_id)),
+        snapshot.map(|unit| unit.has::<shared::components::Npc>()),
+        snapshot.map(|unit| unit.has::<shared::components::Player>()),
+        GodotEngine::singleton().get_process_frames(),
+        Time::singleton().get_ticks_usec(),
+    );
+}
 
 struct GameEngineExtension;
 
@@ -127,6 +149,7 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
         // Release cached shaders before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
             assets::material::clear_shared_shaders();
+            shader_warmup::clear();
             assets::clear_shared_meshes();
             wmo::scene::clear_shaders();
             particles::clear_quad_mesh();
@@ -145,6 +168,8 @@ pub struct GameClient {
     create_ui: Option<Gd<ui::RegistryUi>>,
     character_preview: character_select::CharacterPreview,
     campsite: CampsiteState,
+    /// The authored campsites, read off the main thread from the client's start.
+    campsites: background_load::BackgroundLoad<Result<CampsiteState, String>>,
     creation_scene: char_create::CreationScene,
     delete_confirmation: DeleteConfirmation,
     creation: Option<char_create::CharCreateState>,
@@ -276,6 +301,12 @@ impl INode3D for GameClient {
             startup_events: Vec::new(),
             character_preview: character_select::CharacterPreview::new(data_root.clone()),
             campsite: CampsiteState::default(),
+            campsites: {
+                let data_root = data_root.clone();
+                background_load::BackgroundLoad::start("campsites", move || {
+                    authored_campsites(&data_root)
+                })
+            },
             creation_scene: char_create::CreationScene::new(data_root.clone()),
             loading_ui: None,
             errors_ui: None,
@@ -497,7 +528,8 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, delta: f64) {
-        let started = Instant::now();
+        let started = std::time::Instant::now();
+        let _span = profile::span(|| "client.frame".to_owned());
         self.poll_native_ipc();
         self.run_frame(delta);
         self.last_process_ms = started.elapsed().as_secs_f64() * 1000.0;
@@ -1497,6 +1529,9 @@ impl GameClient {
     /// One frame of client steps (`process`, which times it).
     fn run_frame(&mut self, delta: f64) {
         if !self.poll_asset_startup() {
+            if let Err(error) = shader_warmup::compile_next() {
+                self.handle_frame_error("Shader compilation", error.into());
+            }
             self.receive_account_during_startup();
             self.physical_input.finish_frame();
             return;
@@ -1512,6 +1547,7 @@ impl GameClient {
                 Ok(c.update_skybox_debug_options()?)
             }),
             ("Account", |c, _| c.poll_account()),
+            ("Shader compilation", |c, _| Ok(c.compile_used_shaders()?)),
             ("Item data", |c, _| {
                 c.receive_item_catalog();
                 Ok(())
@@ -1739,6 +1775,7 @@ impl GameClient {
                     components,
                 } => (server_id, components),
                 UnitChange::Despawned(server_id) => {
+                    log_replication_removal(server_id, None);
                     self.remove_replicated(server_id);
                     continue;
                 }
@@ -1755,6 +1792,7 @@ impl GameClient {
             } else if let Some(info) = unit.get::<shared::protocol::GameObjectInfo>() {
                 errors.extend(self.game_objects.upsert(&mut parent, unit, info).err());
             } else {
+                log_replication_removal(server_id, Some(unit));
                 self.remove_replicated(server_id);
             }
         }
@@ -1938,15 +1976,21 @@ impl GameClient {
             let frame = godot::classes::Engine::singleton().get_process_frames();
             let delta_ms = self.base().get_process_delta_time() * 1000.0;
             // Portal culling first: it decides which WMO doodads are drawn this frame.
+            let span = profile::span(|| "cull.wmos".to_owned());
             self.world_objects.cull_wmos(camera, &frustum);
+            drop(span);
+            let span = profile::span(|| "cull.doodads".to_owned());
             self.world_objects
                 .cull_doodads(camera, &frustum, delta_ms, frame);
+            drop(span);
             if let Some(transform) = self.world_camera.transform() {
+                let _span = profile::span(|| "cull.particles".to_owned());
                 let delta = (delta_ms / 1000.0) as f32;
                 self.world_objects
                     .update_particles(transform, &frustum, delta);
                 self.world.update_particles(transform, &frustum, delta);
             }
+            let _span = profile::span(|| "cull.unit_animation_lod".to_owned());
             self.world.apply_animation_lod(camera, &frustum, frame);
         }
     }
@@ -1954,6 +1998,18 @@ impl GameClient {
     fn attach_terrain_materials(&mut self) -> Result<(), String> {
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.terrain_materials.sync(&mut parent, &self.terrain)
+    }
+
+    /// One used shader per login and loading screen frame, so character select and the
+    /// world take their shaders compiled.
+    fn compile_used_shaders(&self) -> Result<(), String> {
+        if matches!(
+            self.account.session.screen,
+            SessionScreen::Login | SessionScreen::Loading
+        ) {
+            shader_warmup::compile_next()?;
+        }
+        Ok(())
     }
 
     fn update_loading_readiness(&mut self, delta: f32) -> Result<(), FrameError> {
@@ -2228,12 +2284,19 @@ impl GameClient {
             self.account.session.selected_index,
         );
         self.delete_confirmation.clear();
-        let result =
-            authored_campsites(&self.data_root, self.campsite.selected_id).and_then(|campsite| {
-                self.campsite = campsite;
-                ui.bind_mut().set_state(state)?;
-                ui.bind_mut().set_state(self.campsite.clone())
-            });
+        let span = profile::span(|| "attach.campsites".to_owned());
+        let campsites = self.campsites.wait().clone();
+        drop(span);
+        let result = campsites.and_then(|campsite| {
+            self.campsite = CampsiteState {
+                selected_id: self.campsite.selected_id.or(campsite.selected_id),
+                ..campsite
+            };
+            let _span = profile::span(|| "attach.roster_state".to_owned());
+            ui.bind_mut().set_state(state)?;
+            let _span = profile::span(|| "attach.campsite_state".to_owned());
+            ui.bind_mut().set_state(self.campsite.clone())
+        });
         if let Err(error) = result {
             ui.free();
             return Err(error);
@@ -2349,10 +2412,8 @@ fn credential_field(credentials: &VarDictionary, name: &str) -> Result<String, S
 }
 
 /// Campsite selector entries from the authored Warband catalog, panel closed.
-fn authored_campsites(
-    data_root: &std::path::Path,
-    selected: Option<u32>,
-) -> Result<CampsiteState, String> {
+/// The authored campsites, the first selected.
+fn authored_campsites(data_root: &std::path::Path) -> Result<CampsiteState, String> {
     use game_engine_core::warband_scene_data::{read_authored_catalog, read_texture_kit_art};
     let catalog = read_authored_catalog(data_root)?;
     let kits: Vec<u32> = catalog
@@ -2362,7 +2423,7 @@ fn authored_campsites(
         .collect();
     let art = read_texture_kit_art(data_root, &kits)?;
     Ok(CampsiteState {
-        selected_id: selected.or_else(|| catalog.scenes.first().map(|scene| scene.id)),
+        selected_id: catalog.scenes.first().map(|scene| scene.id),
         scenes: catalog
             .scenes
             .iter()

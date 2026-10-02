@@ -22,7 +22,11 @@ rusqlite = { version = "0.35", features = ["bundled"] }
 # Convert native node rotations into the same quaternion math used by shared movement.
 glam = "0.32.0"
 # Compose masked character-creation icons and resize authored WMO overlays.
-image = { version = "0.25", default-features = false }
+# TGA addon art decodes on the UI texture workers.
+image = { version = "0.25", default-features = false, features = ["tga"] }
+# PNG UI art decodes on the UI texture workers (image 0.25's png needs png 0.18, which
+# the lockfile does not carry).
+png = "0.17"
 # Reuse the original local-CASC/listfile resolver and canonical FDID asset cache.
 osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resolver" }
 game-engine-network = { path = "../network" }
