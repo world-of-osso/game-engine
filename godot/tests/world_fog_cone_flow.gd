@@ -5,7 +5,7 @@ extends "res://tests/world_planets_flow.gd"
 ## shown and changes at least MIN_CONE_PIXELS of the frame (shown vs hidden, stable across
 ## two shown frames), but never the liquid drawn in front of it: of the pixels the liquids
 ## colour (cone hidden, liquids shown vs hidden) at most MAX_LIQUID_OVERPAINT change with
-## the cone. Environment as capture_world_view.gd, plus
+## the cone (pixels stable across two cone frames). Environment as capture_world_view.gd, plus
 ##   CONE_CASES   "name,minutes,yaw,pitch,distance" joined by ";"
 ## Twilight Highlands (-5138.5, -5567.8, 35; skybox 451101 flags 6): "noon,1440,2.6,0.05,15".
 
@@ -90,11 +90,16 @@ func check_liquids_in_front(shot: String, cone: Node3D) -> bool:
 		liquid.visible = true
 	cone.visible = true
 	await wait_frames(2)
+	await RenderingServer.frame_post_draw
+	var again := root.get_texture().get_image()
 	var liquid_pixels := 0
 	var overpainted := 0
 	for y in with_cone.get_height():
 		for x in with_cone.get_width():
 			var b := without_cone.get_pixel(x, y)
+			# Animated pixels (the idle player, particles) change between any two frames.
+			if channel_difference(with_cone.get_pixel(x, y), again.get_pixel(x, y)) >= 0.02:
+				continue
 			if channel_difference(b, dry.get_pixel(x, y)) > 0.05:
 				liquid_pixels += 1
 				if channel_difference(with_cone.get_pixel(x, y), b) > 0.05:
