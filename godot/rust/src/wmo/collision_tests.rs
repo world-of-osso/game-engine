@@ -287,50 +287,61 @@ fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
 /// entrance ramp. Kobold Miner 281565 spawns on the mouth floor at WoW z 62.95 (TDB).
 const JASPERLODE_OUTSIDE: [f32; 3] = [-9205.0, -599.0, 61.8];
 /// Up the entrance ramp (WMO group 6, from WoW x -9197) between the frame's posts and the
-/// rock, over the terrain hole of the mouth, then along the tunnel floor to the exploration
-/// trigger (Jasperlode 87, centre -9077.3, -552.9): a breadth-first search over
-/// `validate_move` on this ground, keeping a yard clear of every blocked move, split into
-/// legs of at most 4.5 yd. `godot/tests/world_quest_flow.gd` walks the same route.
-const JASPERLODE_ROUTE: [[f32; 3]; 39] = [
-    [-9200.5, -599.0, 61.7],
-    [-9196.0, -599.0, 61.5],
-    [-9191.5, -599.0, 61.4],
-    [-9187.0, -599.0, 61.2],
-    [-9182.5, -599.0, 61.1],
-    [-9178.0, -599.0, 61.0],
-    [-9173.5, -599.0, 60.8],
-    [-9169.0, -599.0, 60.7],
-    [-9164.5, -599.0, 60.5],
-    [-9160.0, -599.0, 60.4],
-    [-9160.0, -598.0, 60.0],
-    [-9158.0, -596.0, 59.3],
-    [-9153.8, -596.0, 59.0],
-    [-9149.6, -596.0, 58.6],
-    [-9145.4, -596.0, 58.3],
-    [-9141.2, -596.0, 57.9],
-    [-9137.0, -596.0, 57.6],
-    [-9134.5, -593.5, 57.7],
-    [-9132.0, -591.0, 57.7],
-    [-9129.5, -588.5, 57.8],
-    [-9129.5, -586.0, 57.8],
-    [-9129.5, -583.5, 57.9],
-    [-9126.9, -580.9, 58.2],
-    [-9124.3, -578.3, 58.4],
-    [-9121.7, -575.7, 58.7],
-    [-9119.1, -573.1, 58.9],
-    [-9116.5, -570.5, 59.2],
-    [-9114.0, -570.5, 60.0],
-    [-9112.0, -569.0, 60.1],
-    [-9110.0, -567.5, 60.2],
-    [-9106.0, -567.5, 60.8],
-    [-9102.0, -567.5, 61.4],
-    [-9098.0, -567.5, 62.0],
-    [-9094.9, -564.4, 61.6],
-    [-9091.8, -561.3, 61.1],
-    [-9088.7, -558.2, 60.7],
-    [-9085.6, -555.1, 60.2],
-    [-9082.5, -552.0, 59.8],
-    [-9079.0, -550.5, 59.7],
+/// rock (lane y -598.5 to -599.5), over the terrain hole of the mouth, then along the tunnel
+/// floor to the exploration trigger (Jasperlode 87, centre -9077.3, -552.9): a breadth-first
+/// search over `validate_move` on this ground keeping a yard clear of every blocked move,
+/// in WoW (x, y) legs of at most 4.5 yd (2.25 through the mouth).
+/// `godot/tests/world_quest_flow.gd` walks the same route.
+const JASPERLODE_ROUTE: [[f32; 2]; 49] = [
+    [-9202.75, -599.0],
+    [-9200.5, -599.0],
+    [-9198.25, -599.0],
+    [-9196.0, -599.0],
+    [-9193.75, -599.0],
+    [-9191.5, -599.0],
+    [-9189.25, -599.0],
+    [-9187.0, -599.0],
+    [-9184.75, -599.0],
+    [-9182.5, -599.0],
+    [-9180.25, -599.0],
+    [-9178.0, -599.0],
+    [-9175.75, -599.0],
+    [-9173.5, -599.0],
+    [-9171.25, -599.0],
+    [-9169.0, -599.0],
+    [-9166.75, -599.0],
+    [-9164.5, -599.0],
+    [-9162.25, -599.0],
+    [-9160.0, -599.0],
+    [-9160.0, -598.0],
+    [-9158.0, -596.0],
+    [-9153.8, -596.0],
+    [-9149.6, -596.0],
+    [-9145.4, -596.0],
+    [-9141.2, -596.0],
+    [-9137.0, -596.0],
+    [-9134.5, -593.5],
+    [-9132.0, -591.0],
+    [-9129.5, -588.5],
+    [-9129.5, -586.0],
+    [-9129.5, -583.5],
+    [-9126.9, -580.9],
+    [-9124.3, -578.3],
+    [-9121.7, -575.7],
+    [-9119.1, -573.1],
+    [-9116.5, -570.5],
+    [-9114.0, -570.5],
+    [-9112.0, -569.0],
+    [-9110.0, -567.5],
+    [-9106.0, -567.5],
+    [-9102.0, -567.5],
+    [-9098.0, -567.5],
+    [-9094.9, -564.4],
+    [-9091.8, -561.3],
+    [-9088.7, -558.2],
+    [-9085.6, -555.1],
+    [-9082.5, -552.0],
+    [-9079.0, -550.5],
 ];
 /// The route of the live quest run that stopped at the mouth (WoW -9175.0, -595.6, 62.0) and,
 /// at collapsing frame rates, fell through the world: on the terrain under the entrance rock
@@ -357,7 +368,7 @@ fn jasperlode() -> (StreamedTerrain, Vec<[Vec3; 3]>) {
 fn run_route(
     ground: &TerrainGround<'_>,
     start: [f32; 3],
-    route: &[[f32; 3]],
+    route: &[[f32; 2]],
     delta: f32,
     seconds: f32,
 ) -> (Vec3, f32) {
@@ -366,8 +377,8 @@ fn run_route(
     let mut lowest = feet.y;
     let mut next = 0;
     for _ in 0..(seconds / delta) as usize {
-        let [x, y, z] = route[next];
-        let to = (wow(x, y, z) - feet).with_y(0.0);
+        let [x, y] = route[next];
+        let to = (wow(x, y, 0.0) - feet).with_y(0.0);
         if to.length() < (shared::movement::RUN_SPEED * delta).max(1.0) {
             if next + 1 == route.len() {
                 break;
@@ -446,7 +457,7 @@ fn walking_into_the_jasperlode_hillside_never_drops_the_player() {
         let (feet, lowest) = run_route(
             &ground,
             JASPERLODE_UNDER_THE_ROCK,
-            &[[-9137.3, -592.9, 57.6]],
+            &[[-9137.3, -592.9]],
             delta,
             10.0,
         );
