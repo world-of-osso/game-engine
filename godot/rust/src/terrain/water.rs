@@ -169,8 +169,11 @@ impl WaterMaterials {
 
     fn create_surface(&mut self, native: &NativeLiquidMaterial) -> Result<LiquidSurface, String> {
         let shader = self.shader(native.params.shader)?;
+        let span = crate::profile::span(|| "water.set_shader".to_owned());
         let mut material = ShaderMaterial::new_gd();
         material.set_shader(&shader);
+        drop(span);
+        let _span = crate::profile::span(|| "water.textures".to_owned());
         bind_liquid_material(&mut material, native);
         for (name, image) in &native.globals {
             let texture = mipmapped_texture(image.width, image.height, &image.pixels)
