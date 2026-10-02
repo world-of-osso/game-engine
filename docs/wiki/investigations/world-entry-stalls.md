@@ -181,6 +181,34 @@ Remaining main-thread work over 100 ms on the loaded host, none of it these load
 
 Evidence: `data/diagnostics/stalls/` (`ab1-*`, `ab2-*`, `ab3-*` A/B logs, `red-drop-join*.log`, `green-drop-join.log`, `charselect-fix-*.log`).
 
+## Shader compilation ahead of need — 2026-10-02
+
+Branch `stalls`. Godot creates a `Shader`'s rendering-server shader, and compiles it, the first time something asks for its RID (`Shader::get_rid` → `_check_shader_rid` → `shader_create_from_code`, godot 4.7.2 `scene/resources/shader.cpp`); `ShaderMaterial::set_shader` asks. Every first use of an M2 pipeline variant, WMO variant, the terrain shader or a liquid shader therefore cost 10-50 ms of main-thread CPU in the frame that built the first material, 2-3 per character model. Retail ships its shaders precompiled.
+
+`shader_warmup.rs` records each shader the scene uses in `user://used_shaders.txt` (`m2 <gx_blend two_sided depth_test depth_write>`, `wmo <two_sided blended clamp_s clamp_t>`, `resource <res:// path>`). Later runs compile the recorded shaders one per frame (an opaque M2 pipeline's scenery-fade variant with it) during asset startup and on the login and loading screens, so character select and the world take compiled shaders. Compiled resource shaders stay loaded so `ResourceLoader` hands their users the same instances. The first run on a machine still compiles on first use; it records what later runs compile ahead.
+
+The authored campsite catalog (`WarbandScene*` and `UiTextureAtlas*` CSVs, 31-44 ms) was also read on the main thread when character select attached; a `campsites` `BackgroundLoad` reads it from client start.
+
+Measurements (`GAME_PROFILE_MS=5`, private server, debug build `37e1a3b9`, idle host, load 2.4-4.8; on-CPU ms from `profile.rs` spans; cold = no record, warm = the record a previous run left):
+
+| Phase | Cold | Warm |
+|---|---|---|
+| Character select, longest frame (fixture wall) | 136.4 ms, 1 frame over 100 | 53.9, 60.9, 78.5, 60.2 ms in 4 runs, none over 100 |
+| Character select, longest `client.frame` CPU | 122.2 ms | 50.3-66.6 ms |
+| Character select shader compiles on first use | 6 M2 (133 ms), 3 WMO (81 ms), terrain 16 ms, water 10 ms | none in 3 of 4 runs; one WMO variant (24 ms) not yet compiled when startup ended in 1 |
+| `player.build_body` max | 70.3 ms | 26.7-33.5 ms |
+| `screen.attach CharacterSelect` | 45-61 ms before the campsite move (`a70f1adb`) | 13-16 ms |
+| World entry shader compiles on first use | 9 M2 (185 ms), 5 WMO (125 ms), terrain 19, water 25 | none |
+| Warmup frames (asset startup, login, loading) | none | 11-17 compiles, 25-53 ms each |
+
+World entry still fails its 100 ms fixture policy on both: the warm run's slow frames came 10-23 s into the world with render CPU 40-96 ms (steady-state draw, not loads).
+
+Tests: `godot/tests/used_shaders.gd` (headless) was RED before each step (no compile entry point; then 0 of 2 and 2 of 3 recorded shaders compiled) and is GREEN; `background_load::tests::wait_takes_the_result_once_the_thread_is_done`. `water/terrain/liquid/wmo/m2_material` and `m2_scenery_fade` pixel fixtures pass on the final build.
+
+Remaining character select frames, all under 80 ms idle: campsite terrain tiles (`preview.background.materials` up to 39 ms), campsite objects (up to 33 ms), `sky.prepare_batches` 17-22 ms (2 sky variants, 6-9 ms each, are not recorded), character body build 27-34 ms.
+
+Evidence: `data/diagnostics/stalls/` (`w6-*`, `w7-*` final cold/warm logs, `w1`-`w5` earlier variants, `build-warm*.log`, `test-warm5.log`).
+
 ## Sources
 
 - `data/diagnostics/retained-performance-20261001/run1/` and `run2/` — actual `result.json` and `stdout.log`; manifests/config retained alongside them.
