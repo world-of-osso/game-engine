@@ -16,11 +16,11 @@ use serde::{Serialize, de::DeserializeOwned};
 use shared::{
     casting::CastState,
     components::{
-        CombatRatings, CombatStatus, CreatureMotion, DerivedStats, EquipmentAppearance, Gold,
-        GuildMembership, Health, Mana, ModelDisplay, Mounted, MovementControl, MovementSpeed, Npc,
-        Player, PlayerMotion, PlayerStandState, Position, PresenceStatus, Rotation, UnitAuras,
-        UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose, UnitPowers, UnitRunes, UnitStats,
-        UnitTarget, UnitThreatList, WorldArrival, Zone,
+        CombatRatings, CombatStatus, CreatureClassification, CreatureMotion, DerivedStats,
+        EquipmentAppearance, Gold, GuildMembership, Health, Mana, ModelDisplay, Mounted,
+        MovementControl, MovementSpeed, Npc, Player, PlayerMotion, PlayerStandState, Position,
+        PresenceStatus, Rotation, UnitAuras, UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose,
+        UnitPowers, UnitRunes, UnitStats, UnitTarget, UnitThreatList, WorldArrival, Zone,
     },
     level_scaling::LevelScaling,
     protocol::{GameObjectInfo, NpcFlags},
@@ -84,6 +84,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<CombatRatings>(),
         Codec::of::<DerivedStats>(),
         Codec::of::<PlayerStandState>(),
+        Codec::of::<CreatureClassification>(),
     ]
 }
 

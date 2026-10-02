@@ -7,6 +7,7 @@ use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
 use crate::ui::strata::FrameStrata;
+use shared::components::CreatureClassification;
 #[path = "class_bars/mod.rs"]
 pub mod class_bars;
 #[path = "inworld_unit_frames_art.rs"]
@@ -20,7 +21,10 @@ mod inworld_unit_frames_parts;
 #[path = "inworld_unit_frames_power.rs"]
 mod inworld_unit_frames_power;
 use class_bars::{ClassBarView, TextureView};
-use inworld_unit_frames_art::{COMBAT_ICON, HEALTH_BAR, REACTION_STRIP, REST_ICON, power_bar_art};
+use inworld_unit_frames_art::{
+    AtlasArt, BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR, BOSS_RARE_STAR_SIZE, COMBAT_ICON,
+    HEALTH_BAR, REACTION_STRIP, REST_ICON, power_bar_art,
+};
 use inworld_unit_frames_aura::target_auras;
 pub use inworld_unit_frames_aura::{
     MAX_TARGET_BUFFS, MAX_TARGET_DEBUFFS, TargetAuraView, set_target_auras, target_aura_icon,
@@ -104,6 +108,8 @@ pub struct UnitFrameState {
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
+    /// `UnitClassification`: elite and rare art around the target portrait slot.
+    pub classification: CreatureClassification,
     pub power: Option<PowerBarState>,
     /// The player's class resource bar as drawn this frame ([`class_bars`]).
     pub class_bar: Option<ClassBarView>,
@@ -124,6 +130,7 @@ impl UnitFrameState {
             health_text: String::new(),
             health_fraction: 0.0,
             reaction: None,
+            classification: CreatureClassification::Normal,
             power: None,
             class_bar: None,
             show_combat_icon: false,
@@ -304,7 +311,40 @@ fn target_frame_contents(state: &UnitFrameState) -> Element {
     rsx! {
         {reaction_strip("Target", state.reaction, 1.0)}
         {unit_frame_contents("Target", state)}
+        {classification_art(state.classification)}
         {target_auras(state, (TARGET_AURAS_LEFT, TARGET_AURAS_TOP))}
+    }
+}
+
+/// `TargetFrameMixin:CheckClassification` (TargetFrame.lua:436-445): the gold dragon for
+/// elites, the silver one for rare elites. The winged `UnitIsBossMob` dragon is not drawn.
+pub fn boss_portrait_art(classification: CreatureClassification) -> Option<AtlasArt> {
+    match classification {
+        CreatureClassification::RareElite => Some(BOSS_RARE_SILVER),
+        CreatureClassification::Elite => Some(BOSS_GOLD),
+        _ => None,
+    }
+}
+
+/// The rare star `BossIcon` (TargetFrame.lua:457-462).
+pub fn shows_rare_star(classification: CreatureClassification) -> bool {
+    matches!(
+        classification,
+        CreatureClassification::Rare | CreatureClassification::RareElite
+    )
+}
+
+/// The portrait slot the art frames is not drawn; the art sits where Retail places it.
+fn classification_art(classification: CreatureClassification) -> Element {
+    let portrait = boss_portrait_art(classification);
+    let portrait_art = portrait.unwrap_or(BOSS_GOLD);
+    let (portrait_w, portrait_h) = portrait_art.size();
+    let (portrait_x, portrait_y) = TARGET_BOSS_PORTRAIT;
+    let (star_x, star_y) = TARGET_BOSS_ICON_CENTRE;
+    let half_star = BOSS_RARE_STAR_SIZE / 2.0;
+    rsx! {
+        {art_texture(dyn_name("TargetBossPortraitFrameTexture".into()), &portrait_art, (portrait_x, portrait_y, portrait_w, portrait_h), portrait.is_none())}
+        {art_texture(dyn_name("TargetBossIcon".into()), &BOSS_RARE_STAR, (star_x - half_star, star_y - half_star, BOSS_RARE_STAR_SIZE, BOSS_RARE_STAR_SIZE), !shows_rare_star(classification))}
     }
 }
 
