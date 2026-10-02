@@ -3,29 +3,14 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    process::{Command, Stdio},
     thread,
     time::{Duration, Instant},
 };
 
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
-
-struct NativeProcess(Child);
-
-impl Drop for NativeProcess {
-    fn drop(&mut self) {
-        if matches!(self.0.try_wait(), Ok(None)) {
-            // Failure cleanup only; never evidence of normal native shutdown.
-            if let Err(error) = self.0.kill() {
-                eprintln!("Fixture failure cleanup: {error}");
-            }
-            if let Err(error) = self.0.wait() {
-                eprintln!("Fixture child reap: {error}");
-            }
-        }
-    }
-}
+use fixture_support::FixtureChild;
 
 fn executable(variable: &str) -> Result<PathBuf, String> {
     let path = std::env::var_os(variable)
@@ -37,13 +22,13 @@ fn executable(variable: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-fn wait_file(path: &Path, child: &mut NativeProcess) -> Result<(), String> {
+fn wait_file(path: &Path, child: &mut FixtureChild) -> Result<(), String> {
     let deadline = Instant::now() + Duration::from_secs(30);
     while Instant::now() < deadline {
         if path.is_file() {
             return Ok(());
         }
-        if let Some(status) = child.0.try_wait().map_err(|error| error.to_string())? {
+        if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
             return Err(format!(
                 "Native child exited {status} before {}",
                 path.display()
@@ -63,7 +48,7 @@ fn call_cli(
 ) -> Result<String, String> {
     let stdout = artifacts.join(format!("{name}.stdout"));
     let stderr = artifacts.join(format!("{name}.stderr"));
-    let mut child = NativeProcess(
+    let mut child = FixtureChild::spawn(
         Command::new(cli)
             .arg("--socket")
             .arg(socket)
@@ -73,13 +58,12 @@ fn call_cli(
             ))
             .stderr(Stdio::from(
                 fs::File::create(&stderr).map_err(|error| error.to_string())?,
-            ))
-            .spawn()
-            .map_err(|error| format!("SETUP: launch CLI: {error}"))?,
-    );
+            )),
+    )
+    .map_err(|error| format!("SETUP: launch CLI: {error}"))?;
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {
-        if let Some(status) = child.0.try_wait().map_err(|error| error.to_string())? {
+        if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
             let out = fs::read_to_string(stdout).map_err(|error| error.to_string())?;
             let err = fs::read_to_string(stderr).map_err(|error| error.to_string())?;
             if !status.success() {
@@ -133,7 +117,7 @@ fn run_fixture() -> Result<(), String> {
     for directory in ["config", "user-data"] {
         fs::create_dir_all(artifacts.join(directory)).map_err(|error| error.to_string())?;
     }
-    let mut native = NativeProcess(
+    let mut native = FixtureChild::spawn(
         Command::new(godot)
             .args(["--audio-driver", "Dummy", "--path"])
             .arg(repo.join("godot"))
@@ -154,15 +138,14 @@ fn run_fixture() -> Result<(), String> {
             .stderr(Stdio::from(
                 fs::File::create(artifacts.join("native.stderr"))
                     .map_err(|error| error.to_string())?,
-            ))
-            .spawn()
-            .map_err(|error| format!("SETUP: native Godot: {error}"))?,
-    );
+            )),
+    )
+    .map_err(|error| format!("SETUP: native Godot: {error}"))?;
     wait_file(&artifacts.join("ready"), &mut native)?;
-    let socket = PathBuf::from(format!("/tmp/game-engine-{}.sock", native.0.id()));
+    let socket = PathBuf::from(format!("/tmp/game-engine-{}.sock", native.id()));
     println!(
         "READY native PID={} socket={} artifacts={}",
-        native.0.id(),
+        native.id(),
         socket.display(),
         artifacts.display()
     );
@@ -225,7 +208,7 @@ fn run_fixture() -> Result<(), String> {
     fs::write(artifacts.join("finish"), "").map_err(|error| error.to_string())?;
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        if let Some(status) = native.0.try_wait().map_err(|error| error.to_string())? {
+        if let Some(status) = native.try_wait().map_err(|error| error.to_string())? {
             if !status.success() {
                 return Err(format!("Native assertions exited {status}"));
             }

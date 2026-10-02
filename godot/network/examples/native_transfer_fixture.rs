@@ -5,6 +5,7 @@
 
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
+use fixture_support::FixtureChild;
 
 use std::{
     io::{BufRead, BufReader},
@@ -104,7 +105,7 @@ fn start_server() -> (App, SocketAddr) {
 fn launch_godot(
     address: SocketAddr,
     global_wmo: bool,
-) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
+) -> (FixtureChild, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let project = fixture_support::checkout_root_from_executable("native_transfer_fixture")
         .unwrap_or_else(|error| panic!("{error}"))
@@ -119,19 +120,20 @@ fn launch_godot(
     } else {
         &["--headless"]
     };
-    let mut child = Command::new(binary)
-        .args(display_args)
-        .args([
-            "--path",
-            project.to_str().expect("UTF-8 Godot project path"),
-            "--script",
-            script,
-        ])
-        .env("GODOT_TEST_SERVER", address.to_string())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("start native Godot fixture process");
+    let mut child = FixtureChild::spawn(
+        Command::new(binary)
+            .args(display_args)
+            .args([
+                "--path",
+                project.to_str().expect("UTF-8 Godot project path"),
+                "--script",
+                script,
+            ])
+            .env("GODOT_TEST_SERVER", address.to_string())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )
+    .expect("start native Godot fixture process");
     let output = child.stdout.take().expect("read Godot stdout");
     let errors = child.stderr.take().expect("read Godot stderr");
     let (sender, receiver) = mpsc::channel();
@@ -397,15 +399,6 @@ fn main() {
     } else {
         run_fixture(&mut app, &mut child, lines, readers)
     };
-    if result.is_err()
-        && child
-            .try_wait()
-            .expect("inspect fixture child status")
-            .is_none()
-    {
-        child.kill().expect("terminate failed Godot fixture");
-        child.wait().expect("reap failed Godot fixture");
-    }
     if let Err(error) = result {
         panic!("native transfer fixture: {error}");
     }
