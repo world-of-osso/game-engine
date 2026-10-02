@@ -14,11 +14,13 @@ use game_engine_core::{
     npc_appearance_data::{AuthoredNpcAppearance, query_authored_npc_appearance},
     npc_appearance_selection_data::{NpcSelections, select_npc_choices, select_npc_type6_texture},
 };
-use godot::{classes::ImageTexture, prelude::*};
+use godot::{
+    classes::{Image, ImageTexture, image},
+    prelude::*,
+};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 use rusqlite::{Connection, OpenFlags};
 
-use super::material::texture_from_rgba;
 use crate::equipment_appearance_data::ResolvedEquipmentAppearance;
 
 pub(super) type TexturePixels = (Vec<u8>, u32, u32);
@@ -207,7 +209,7 @@ fn compose_replacement_textures(
     data_root: &Path,
     display_id: u32,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
-    let (composed, mut decoded) = load_and_compose_selected_pixels(
+    let (composed, decoded) = load_and_compose_selected_pixels(
         compositor, selected, layout_id, resolver, data_root, display_id,
     )?;
     let body = match appearance.baked_texture_fdid {
@@ -222,10 +224,13 @@ fn compose_replacement_textures(
     )? {
         textures.insert(6, type6);
     }
-    if let Some(fdid) = compositor.replacement_texture_fdid(&selected.materials, layout_id, 19) {
-        let pixels = decoded
-            .remove(&fdid)
-            .ok_or_else(|| format!("missing NPC texture FDID {fdid}"))?;
+    // Eyes (19) compose every selected layer on their own canvas: the Eyesight overlay
+    // (target 44) over the eye colour (target 25).
+    if let Some(pixels) =
+        compositor.composite_texture_type(&selected.materials, layout_id, 19, |fdid| {
+            decoded.get(&fdid).cloned()
+        })
+    {
         textures.insert(19, pixels);
     }
     Ok(textures)
@@ -317,6 +322,19 @@ pub(super) fn load_appearance_texture(
     Ok((rgba.pixels, rgba.width, rgba.height))
 }
 
+/// A composited character texture with its whole mip chain, as stock composes the atlas
+/// (solarityclient composer.rs `compose`); without mips it aliases when minified.
 fn make_texture((pixels, width, height): TexturePixels) -> Result<Gd<ImageTexture>, String> {
-    texture_from_rgba(&pixels, width, height)
+    let mut image = Image::create_from_data(
+        width as i32,
+        height as i32,
+        false,
+        image::Format::RGBA8,
+        &PackedByteArray::from(pixels.as_slice()),
+    )
+    .ok_or_else(|| format!("Godot rejected {width}x{height} character texture"))?;
+    if image.generate_mipmaps() != godot::global::Error::OK {
+        return Err(format!("cannot mipmap {width}x{height} character texture"));
+    }
+    ImageTexture::create_from_image(&image).ok_or_else(|| "Godot rejected character texture".into())
 }

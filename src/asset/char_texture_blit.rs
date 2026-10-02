@@ -114,11 +114,12 @@ pub(crate) fn runtime_textures_from_layout(
     width: u32,
     height: u32,
 ) -> CompositedModelTextures {
+    // The body binds the whole ChrModelMaterial canvas (HD 2048x1024); the HD head crop
+    // keeps its half-size section.
     if width == HD_TEXTURE_WIDTH && height == HD_TEXTURE_HEIGHT {
-        let (body_pixels, body_w, body_h) = scale_to(&pixels, width, height, width / 2, height / 2);
         let head = runtime_texture_for_section(data, pixels.clone(), layout_id, width, height, 9);
         return CompositedModelTextures {
-            body: (body_pixels, body_w, body_h),
+            body: (pixels, width, height),
             head,
             hair: None,
         };
@@ -227,12 +228,23 @@ pub(crate) fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, blen
         dst[di + 2] = src[si + 2];
         dst[di + 3] = 255;
     } else {
-        let inv = 255 - alpha;
-        dst[di] = ((alpha * src[si] as u16 + inv * dst[di] as u16) / 255) as u8;
-        dst[di + 1] = ((alpha * src[si + 1] as u16 + inv * dst[di + 1] as u16) / 255) as u8;
-        dst[di + 2] = ((alpha * src[si + 2] as u16 + inv * dst[di + 2] as u16) / 255) as u8;
-        dst[di + 3] = dst[di + 3].max(src[si + 3]);
+        source_over(dst, di, src, si);
     }
+}
+
+/// Straight-alpha "over" (WMVx CharacterTextureBuilder::mergeLayer, QPainter
+/// SourceOver): weights the destination by its own alpha, so a translucent layer on an
+/// empty canvas keeps its colour; over an opaque destination it is a plain lerp.
+fn source_over(dst: &mut [u8], di: usize, src: &[u8], si: usize) {
+    let source_alpha = u32::from(src[si + 3]);
+    let below = u32::from(dst[di + 3]) * (255 - source_alpha);
+    let alpha = source_alpha * 255 + below;
+    for channel in 0..3 {
+        let colour = u32::from(src[si + channel]) * source_alpha * 255
+            + u32::from(dst[di + channel]) * below;
+        dst[di + channel] = (colour / alpha) as u8;
+    }
+    dst[di + 3] = (alpha / 255) as u8;
 }
 
 pub(crate) fn scaled_section(section: TextureSection, divisor: u32) -> TextureSection {
@@ -273,6 +285,10 @@ pub(crate) fn scale_to(
     if src_w == dst_w && src_h == dst_h {
         return (src.to_vec(), dst_w, dst_h);
     }
+    if src_w * 2 <= dst_w && src_h * 2 <= dst_h && dst_w % src_w == 0 && dst_h % src_h == 0 {
+        let (expanded, w, h) = paste_scale(src, src_w, src_h);
+        return scale_to(&expanded, w, h, dst_w, dst_h);
+    }
     let mut out = vec![0u8; (dst_w * dst_h * 4) as usize];
     for y in 0..dst_h {
         for x in 0..dst_w {
@@ -286,4 +302,35 @@ pub(crate) fn scale_to(
         }
     }
     (out, dst_w, dst_h)
+}
+
+/// Wow.exe PasteScale (solarityclient composer.rs `blend_scaled_rect`): a 2x expansion
+/// where even texels copy the source and odd ones average their right/lower
+/// neighbours, truncating. Larger power-of-two expansions repeat it.
+fn paste_scale(src: &[u8], src_w: u32, src_h: u32) -> (Vec<u8>, u32, u32) {
+    let (w, h) = (src_w as usize, src_h as usize);
+    let mut out = vec![0u8; w * 2 * h * 2 * 4];
+    let texel = |x: usize, y: usize, channel: usize| u16::from(src[(y * w + x) * 4 + channel]);
+    for y in 0..h * 2 {
+        let (sy, ny) = (y / 2, (y / 2 + 1).min(h - 1));
+        for x in 0..w * 2 {
+            let (sx, nx) = (x / 2, (x / 2 + 1).min(w - 1));
+            for channel in 0..4 {
+                let value = match (x & 1, y & 1) {
+                    (0, 0) => texel(sx, sy, channel),
+                    (1, 0) => (texel(sx, sy, channel) + texel(nx, sy, channel)) / 2,
+                    (0, 1) => (texel(sx, sy, channel) + texel(sx, ny, channel)) / 2,
+                    _ => {
+                        (texel(sx, sy, channel)
+                            + texel(nx, sy, channel)
+                            + texel(sx, ny, channel)
+                            + texel(nx, ny, channel))
+                            / 4
+                    }
+                };
+                out[(y * w * 2 + x) * 4 + channel] = value as u8;
+            }
+        }
+    }
+    (out, src_w * 2, src_h * 2)
 }

@@ -16,7 +16,10 @@ use godot::{
 };
 use shared::{components::Player, protocol::CharacterListEntry};
 
-use crate::assets::player::load_player_model;
+use crate::{
+    assets::player::load_player_model,
+    scene_export::{SceneEntry, camera_entry, character_entry},
+};
 use background::{Background, wow_position};
 
 /// The roster character shown in the campsite.
@@ -127,6 +130,33 @@ impl CharacterPreview {
             self.scene_id = Some(id);
             self.reset();
         }
+    }
+
+    /// `CharSelectScene` (`char_select/scene_tree.rs`): background, the shown character,
+    /// camera and sun; `None` before the campsite loads.
+    pub fn scene_entry(&self) -> Result<Option<SceneEntry>, String> {
+        let Some(preview) = &self.preview else {
+            return Ok(None);
+        };
+        let mut children = vec![preview.background.scene_entry()?];
+        if let Some(shown) = &preview.shown {
+            let entry = &shown.entry;
+            children.push(character_entry(
+                "Character",
+                &shown.model,
+                entry.race,
+                entry.appearance.sex,
+                (Some(entry.name.clone()), Some(entry.character_id)),
+                &entry.equipment_appearance,
+            )?);
+        }
+        children.push(camera_entry(&preview.camera));
+        children.extend(preview.background.sun_entry());
+        Ok(Some(SceneEntry::scene(
+            "CharSelectScene",
+            Some(preview.root.clone()),
+            children,
+        )))
     }
 
     pub fn reset(&mut self) {

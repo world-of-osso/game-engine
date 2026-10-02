@@ -3,14 +3,16 @@ use super::*;
 const ITEM_CSV: &str = "ID,ClassID,SubclassID,Material,InventoryType,SheatheType,Sound_override_subclassID,IconFileDataID,ItemGroupSoundsID\n\
     2447,7,9,7,0,0,-1,133939,23\n\
     2589,7,5,8,0,0,-1,132889,7\n\
-    25,2,7,1,21,3,-1,135274,0\n";
+    25,2,7,1,21,3,-1,135274,0\n\
+    250223,4,0,3,12,0,-1,133323,24\n";
 
 /// The ItemSparse columns the catalog reads, values from build 12.1.0.69933.
-const SPARSE_CSV: &str = "ID,Description_lang,Display_lang,Stackable,MaxCount,SellPrice,ItemLevel,Bonding,RequiredLevel,InventoryType,OverallQualityID,ContainerSlots\n\
-    25,,\"Worn Shortsword\",1,0,3,1,2,1,21,1,0\n\
-    2589,,\"Linen Cloth\",1000,0,13,10,0,0,0,1,0\n\
-    2447,\"A quoted\r\nline break\",\"Peacebloom\",1000,0,5,5,0,0,0,1,0\n\
-    99999,,\"No Item Row\",1,0,1,1,0,0,0,1,0\n";
+const SPARSE_CSV: &str = "ID,Description_lang,Display_lang,Stackable,MaxCount,SellPrice,ItemLevel,Bonding,RequiredLevel,InventoryType,OverallQualityID,ContainerSlots,ExpansionID\n\
+    25,,\"Worn Shortsword\",1,0,3,1,2,1,21,1,0,0\n\
+    2589,,\"Linen Cloth\",1000,0,13,10,0,0,0,1,0,0\n\
+    2447,\"A quoted\r\nline break\",\"Peacebloom\",1000,0,5,5,0,0,0,1,0,0\n\
+    250223,,\"Soulcatcher's Charm\",1,0,265845,108,1,78,12,3,0,11\n\
+    99999,,\"No Item Row\",1,0,1,1,0,0,0,1,0,0\n";
 
 fn table(name: &str, text: &str) -> CsvTable {
     CsvTable::parse(Path::new(name), text).unwrap()
@@ -34,7 +36,7 @@ fn catalog() -> ItemCatalog {
 fn parses_class_and_icon_by_item_id() {
     let catalog = catalog();
 
-    assert_eq!(catalog.len(), 3);
+    assert_eq!(catalog.len(), 4);
     let linen = catalog.get(2589).unwrap();
     assert_eq!(
         (linen.class_id, linen.subclass_id, linen.icon_fdid),
@@ -72,6 +74,12 @@ fn item_sparse_adds_name_quality_stack_and_sell_price() {
         ("Linen Cloth", 1000, 13)
     );
     assert!(catalog.get(99999).is_none(), "sparse rows need an Item row");
+    let charm = catalog.get(250223).unwrap();
+    assert_eq!(
+        (charm.expansion_id, linen.expansion_id),
+        (11, 0),
+        "ExpansionID: Soulcatcher's Charm is a Midnight (11) item"
+    );
     // A quoted description may span lines (ItemSparse 151800 "Radiant Moonlight").
     let peacebloom = catalog.get(2447).unwrap();
     assert_eq!(
@@ -89,12 +97,14 @@ fn missing_icon_column_is_an_error() {
 
 #[test]
 fn retail_tables_name_linen_and_the_grey_ruined_pelt() {
-    let linen = item_catalog_entry(2589).expect("Linen Cloth in the pinned DB2 export");
+    let linen = wait_for_item_catalog()
+        .get(2589)
+        .expect("Linen Cloth in the pinned DB2 export");
     assert_eq!(
         (linen.name.as_str(), linen.quality, linen.sell_price),
         ("Linen Cloth", 1, 13)
     );
-    let pelt = item_catalog_entry(4865).expect("Ruined Pelt");
+    let pelt = wait_for_item_catalog().get(4865).expect("Ruined Pelt");
     assert_eq!(
         (pelt.name.as_str(), pelt.quality, pelt.stackable),
         ("Ruined Pelt", 0, 20)

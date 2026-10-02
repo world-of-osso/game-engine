@@ -22,6 +22,7 @@ use crate::{
     assets::player::load_player_model,
     m2_debug::{environment_node, ground_node, light_node, orbit_input},
     particle_debug::Orbit,
+    scene_export::{SceneEntry, character_entry, child_3d, debug_stage_entries},
 };
 
 const FOCUS: Vec3 = Vec3::new(0.0, 1.0, 0.0);
@@ -137,6 +138,7 @@ impl DebugCharacterConfig {
 #[class(base = Node3D, no_init)]
 pub struct WowDebugCharacter {
     base: Base<Node3D>,
+    config: DebugCharacterConfig,
     sensitivity: f32,
     orbit: Orbit,
     dragging: bool,
@@ -176,15 +178,73 @@ fn framing_orbit() -> Orbit {
     orbit
 }
 
+/// Model node names and their side's displays.
+const SIDES: [(&str, f32, Side); 2] = [
+    ("DebugCharacterGeoset", -SIDE_OFFSET, Side::Left),
+    ("DebugCharacterM2", SIDE_OFFSET, Side::Right),
+];
+
+#[derive(Clone, Copy)]
+enum Side {
+    Left,
+    Right,
+}
+
+impl DebugCharacterConfig {
+    fn side(&self, side: Side) -> &SideGear {
+        match side {
+            Side::Left => &self.left,
+            Side::Right => &self.right,
+        }
+    }
+}
+
 impl WowDebugCharacter {
-    fn attach_scene(&mut self, data_root: &Path, config: &DebugCharacterConfig) -> Result<(), String> {
+    /// `DebugCharacterScene`: both characters, sorted by label, with their equipment
+    /// slots, then the camera, light and ground.
+    pub(crate) fn scene_entry(&self) -> Result<SceneEntry, String> {
+        let root = self.base().clone().upcast::<Node3D>();
+        let mut characters = SIDES
+            .iter()
+            .map(|(name, _, side)| {
+                let model = child_3d(&root, name)?;
+                let equipment = self.config.equipment(self.config.side(*side));
+                let appearance = &self.config.appearance;
+                character_entry(
+                    name,
+                    &model,
+                    self.config.race,
+                    appearance.sex,
+                    (None, None),
+                    &equipment,
+                )
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        characters.sort_by(|a, b| a.label.cmp(&b.label));
+        characters.extend(debug_stage_entries(&root)?);
+        Ok(SceneEntry::scene(
+            "DebugCharacterScene",
+            Some(root),
+            characters,
+        ))
+    }
+
+    fn attach_scene(
+        &mut self,
+        data_root: &Path,
+        config: &DebugCharacterConfig,
+    ) -> Result<(), String> {
         let environment = environment_node(
             Color::from_rgb(0.05, 0.06, 0.08),
             Color::from_rgb(1.0, 0.95, 0.85),
         );
         let light = light_node(
             Color::from_rgb(1.0, 0.92, 0.8),
-            [-std::f32::consts::FRAC_PI_4, std::f32::consts::FRAC_PI_6, 0.0],
+            [
+                -std::f32::consts::FRAC_PI_4,
+                std::f32::consts::FRAC_PI_6,
+                0.0,
+            ],
         );
         let ground = ground_node(data_root, GROUND_SIZE, GROUND_UV_TILES)?;
         for node in [environment, light, ground] {
@@ -202,12 +262,10 @@ impl WowDebugCharacter {
             class: config.class,
             appearance: config.appearance.clone(),
         };
-        for (name, x, side) in [
-            ("DebugCharacterGeoset", -SIDE_OFFSET, &config.left),
-            ("DebugCharacterM2", SIDE_OFFSET, &config.right),
-        ] {
-            let mut model = load_player_model(data_root, &player, &config.equipment(side))
-                .map_err(|error| format!("{name}: {error}"))?;
+        for (name, x, side) in SIDES {
+            let mut model =
+                load_player_model(data_root, &player, &config.equipment(config.side(side)))
+                    .map_err(|error| format!("{name}: {error}"))?;
             model.set_name(name);
             model.set_position(Vector3::new(x, 0.0, 0.0));
             model.set_rotation(Vector3::new(0.0, -std::f32::consts::FRAC_PI_2, 0.0));
@@ -228,6 +286,7 @@ impl GameClient {
         let sensitivity = self.client_options.camera.mouse_sensitivity;
         let mut scene = Gd::from_init_fn(|base| WowDebugCharacter {
             base,
+            config: config.clone(),
             sensitivity,
             orbit: framing_orbit(),
             dragging: false,

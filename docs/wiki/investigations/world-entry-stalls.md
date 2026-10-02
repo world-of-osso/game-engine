@@ -87,9 +87,9 @@ Single runs at low load (GAME_PROFILE_MS on, branch before the merge):
 
 ## Remaining gaps
 
-- **First in-world frame** (163-326 ms of client time): HUD steps set up at once. "Minimap" takes 76-176 ms and loads its tiles and catalogs synchronously (`minimap.rs` `load_tile`). "Terrain materials" and "Entrance bar" add more. This is not in the Account or World objects steps; it is reported, not changed.
+- **First in-world frame** (163-326 ms of client time): HUD steps set up at once. "Minimap" takes 76-176 ms (133-602 ms at load 20-35) decoding its tiles synchronously (`minimap.rs` `load_tile`); its catalogs and the entrance bar's now load in the background ([catalog waits](#catalog-waits--2026-10-01)). "Terrain materials", "Damage meter" and "Nameplates" add more. Reported, not changed.
 - **Frames just before the loading screen hides** (up to 0.3-0.9 s under load), all covered by the loading screen:
-  - the `LoadTerrain` event: `read_map_id` and the map request, 52-618 ms;
+  - the `LoadTerrain` event, 52-2713 ms: under load 24 the `terrain.enter_loading` span (showing the Loading screen and resetting the world) took 507 ms, `terrain.map_id` and `terrain.request_map` under 50 ms;
   - showing the Loading screen: 43-275 ms;
   - "Character preview" at the character-select → loading transition: 0.4-2.2 s.
 - **Units of work above the 8 ms budget.** The budgets are checked before each unit of work. The units are now small, but they still exceed 8 ms:
@@ -102,8 +102,61 @@ Single runs at low load (GAME_PROFILE_MS on, branch before the merge):
 - **No retail source:** none was found for the loading-screen wait set, or for how retail streams assets on its threads (see Fix).
 - **Tests not run on Depot:** `world_models` and `wmo::scene` unit tests need `data/` files that are not in `godot/depot-test-assets.txt`. They fail there with missing-file errors, as on master. `m2_submesh_arrays` (core) and the `loading` tests pass.
 
+## Retained integrated performance — 2026-10-01
+
+These are actual failed workloads, not a retained-original baseline or accepted settled performance. Historical A/B results above retain their original object-only definition of “settled”; do not apply that definition to the integrated measurements.
+
+| Case | Actual observations | Proof boundary |
+| --- | --- | --- |
+| Run1, exit1 | Loading 22.068802 s, maximum loading frame 8053.257 ms. Object pending briefly 0, then final 5803. Seven memory phases; nominal window 60.172530 s. | Duration adequate, readiness unstable: invalid settled window. Raw distributions/logs remain useful; loading and post-hide fixture limits failed. |
+| Readiness test | Pure behavioral RED at `f52e58c9`: 2 fail/2 pass; `bfc4e373` GREEN 4/4. Predicate requires terrain pending 0, object pending 0 and unit-visual pending 0; observation also monitors unchanged parsed tiles. | Fixes diagnostic readiness, not a production streaming-terminal signal or successful runtime performance case. |
+| Run2, exit1 | Loading 172.615 s, maximum loading frame 2429.502 ms; drain 251.532 s. Nominal window 60.077 s; readiness changed even though object pending ended at 0. | Invalid settled window again. Final object zero does not override changed readiness or fixture-limit failures. |
+| Memory/environment | Seven phase samples preserved; run2 RSS around 3 GB, HWM 3189628 KiB. Shared-host contention, degraded FIFO pacing and unsupported disabled-VSync request retained. | Lifetime process HWM, not per-phase allocation/VRAM/leak proof. No isolated performance baseline, product-budget violation or shutdown acceptance. |
+
+Run1's root measurement error was treating one empty object queue as terminal readiness: terrain polling can expose another parsed tile before the later object-sync step queues its placements. Loading hidden intentionally precedes full surrounding streaming. The corrected fixture monitors all three pending counts and parsed-tile stability; run2 still rejects its window. Do not substitute a longer sleep or relax fixture thresholds (1000 ms loading / 100 ms after hide). These policies are not supplied product budgets.
+
+`scripts/performance/measure.py` retains wall-clock phase arrays, nearest-rank distributions, seven `/proc` RSS/HWM samples, combined logs, exit status and before/after input snapshots; `test_measure.py` has retained targeted GREEN9/9 at `2c92ff3f`, not native performance acceptance. No baseline supplied: comparison remains a gap across workload/assets/options/cache/hardware/resolution/renderer/server/camera/sampling/resource limits. Checkout HEAD observations are not native binary provenance; run records separately identify the supplied `f23343bb` native artifact with retained build-ID/tool-return limits.
+
+Only new owned dev account `fb_perf_01a0dea2` / character `Fbretainperf` was used; no server restart or existing-account changes were authorized. Account data remains retained; no supported deletion was observed. Pre-existing spell-attachment errors belong to another owner: report, do not repair. Water, appearance and remaining tooling handoffs remain outside this scope. [[authored-skybox-black-output#Retained original/native evidence — 2026-10-01|Skybox evidence]] has its own dark-phase parity limits; neither investigation closes the retained goal or full conversion.
+
+## Catalog waits — 2026-10-01
+
+The longest loading frame at world entry was the first `NpcMessage::Inventory`: 9.2, 9.7 and 54.9 s (`PROFILE account.event Npc(Inventory)`, load 8-15). `item_catalog::catalog()` was a `OnceLock::get_or_init` that `warm_item_catalog` started on a spawned thread, so `InventoryState::apply_snapshot` → `stack_slot` on the main thread waited for the whole `ItemSparse.csv` parse (49 MB, 213,415 items; 12.6-77 s on the shared host). Retail never waits: `C_Item.GetItemInfo` returns nil and the item updates on `GET_ITEM_INFO_RECEIVED`.
+
+The same wait or a synchronous first use on the main thread, all fixed on branch `catalogwait`:
+
+| Table | Was | Now |
+|---|---|---|
+| Item catalog + item icons (`src/game/item_catalog.rs`, `item_icons.rs`) | main thread waited in `get_or_init`; icons parsed synchronously in `stack_slot` | one background load holds both; readers get `None`. Items received meanwhile show `INV_Misc_QuestionMark` and no name, their tooltip the red `RETRIEVING_ITEM_INFO`; the "Item data" frame step calls `InventoryState::refresh_item_data` in the first frame the catalog is loaded |
+| NPC gear rows (`world_models.rs` `VisualCatalogs.gear`) | `WorldUnits::upsert` read them with `get_or_init` while the unit-visuals worker loaded them | `loaded_gear()` never waits; weapon class, NPC pose and player stand state resolve when the unit's visual arrives (every visual load reads the rows first) |
+| Spell visual catalog (`spell_effects.rs`) | the first cast `join`ed the worker | `BackgroundLoad` poll; casts and swings meanwhile show no kits, replicated casts and auras start theirs once it loads |
+| Entrance difficulty catalog (`entrance_bar.rs`) | loaded in the first in-world frame (273-372 ms "Entrance bar") | loads from client start; the bar stays hidden until it is |
+| Minimap `AreaTable`/`ChrRaces` (`minimap.rs`) | loaded in the first in-world frame | loads from client start; no zone text, and quest headers unnamed, until it is |
+
+Measurements (`godot/tests/world_entry_frames.gd`, `GAME_PROFILE_MS=50`, private server, character with 13 bag and equipment items, debug builds; base `7e666dfe` = master `b3e546e2` + event labels):
+
+| Run | Load | Longest loading frame | Its cause | Item catalog loaded after |
+|---|---|---|---|---|
+| base 2 | 8.5-11.2 | 9222 ms | Npc(Inventory) 9188 ms | — |
+| base probe | 8.4-15.1 | 55038 ms | Npc(Inventory) 54912 ms | — |
+| base 3 | 6.6-14.3 | 9731 ms | Npc(Inventory) 9697 ms | — |
+| fix 2 (`7b31ceb5`) | 4.6-6.4 | 243 ms | — | — |
+| fix 3 (`1417f847`) | 6.8-29.7 | 1612 ms | Replication 596 + LoadTerrain 608 + Screen(Loading) 372 | 77.2 s |
+| fix 4 (`81e0db3f`) | 20-28 | 4298 ms | LoadTerrain 2713 ms (before its spans) | 36.5 s |
+| fix 5 (LoadTerrain spans) | 24-27 | 1038 ms | LoadTerrain → `terrain.enter_loading` 507 ms | 29.4 s |
+
+In no fix run does an inventory event or the "Item data" step reach 50 ms; "Entrance bar" took 273 ms in fix 3 and stays under 50 ms from `81e0db3f`. The first in-world frame was 385-1595 ms in base and 401-1865 ms in the fix runs, dominated by "Minimap" tile decoding (see Remaining gaps) at very different host loads; it is not comparable across these runs.
+
+Proof: `godot/ui-model/tests/item_catalog_pending.rs` was RED on master (`apply_snapshot waited 7.64 s`) and is GREEN; it asserts the pending slots and retrieving tooltip, then Linen Cloth, Ruined Pelt and the equipped Worn Shortsword after `refresh_item_data`. Live: `godot/tests/world_entry_item_data.gd` requires the inventory to arrive before the catalog, then the catalog's names, icons and quality in bags and equipment and the white Linen Cloth tooltip (PASS at `bae583ab`, capture `item-data-linen-tooltip.png`). `background_load` and `world_models` unit tests cover the non-blocking reads. The preserved Bevy client shares the item catalog change (its inventory gets the same refresh system) but was not compiled.
+
+Not fixed: the Character preview step at character select takes 1.0-16.4 s; the character model build there loads `CustomizationDb`, `OutfitData`, the 143 MB community listfile and the player model tables synchronously. That is before Enter World.
+
 ## Sources
 
+- `data/diagnostics/retained-performance-20261001/run1/` and `run2/` — actual `result.json` and `stdout.log`; manifests/config retained alongside them.
+- `/tmp/claude/retained-conversion-20/{performance-run1-verification.md,perf-settled-boundary.md,readiness-red.log,readiness-green.log,performance-runner1.log,performance-runner2.log,C.md}` — arithmetic/source-boundary audit, test proof and runner status; run2 rounded summary is not a separate settled distribution.
+- [measure.py](../../../scripts/performance/measure.py), [test_measure.py](../../../scripts/performance/test_measure.py), [world_entry_frames.gd](../../../godot/tests/world_entry_frames.gd), [world_entry_readiness.gd](../../../godot/tests/world_entry_readiness.gd) — runner and diagnostic readiness contract.
+- `data/diagnostics/catalogwait-2026-10-01/` — catalog-wait runs (`world-entry-{base,fix}-*.log`, `item-data-fix-*.log`, `red-test.log`, `uimodel-test-2.log`, `godot-lib-test-3.log`).
 - `data/diagnostics/firstload-2026-09-30/ab/` — the original first-load A/B logs with the step timings.
 - `/home/osso/.worktrees/.worldentry-artifacts/runs/` — this A/B's client logs (not in the repo).
 

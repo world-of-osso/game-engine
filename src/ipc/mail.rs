@@ -4,10 +4,12 @@
 use std::sync::mpsc;
 
 use bevy::prelude::*;
-use shared::protocol::MailHeader;
 
 use crate::ipc::{Request, Response};
 use crate::mail_data::{MailDraft, MailRequest, MailState};
+
+#[path = "mail_format.rs"]
+mod mail_format;
 
 pub(crate) fn queue_mail_ipc_request(
     state: &MailState,
@@ -52,51 +54,18 @@ pub(crate) fn queue_mail_ipc_request(
 }
 
 pub(crate) fn format_mail_status(state: &MailState) -> String {
-    let mut lines = vec![
-        format!(
-            "mailbox: {}",
-            state
-                .object
-                .map_or_else(|| "closed".to_string(), |object| format!("open {object}"))
-        ),
-        format!("pending_mail: {}", state.pending_senders.join(", ")),
-        format!("sent: {}", state.sent),
-        format!("inbox: {}", state.mails().len()),
-    ];
-    lines.extend(state.mails().iter().map(format_mail));
-    lines.join("\n")
-}
-
-fn format_mail(mail: &MailHeader) -> String {
-    let items = mail
-        .attachments
-        .iter()
-        .map(|attached| {
-            format!(
-                "{}:{}x{}",
-                attached.slot, attached.item.item_id, attached.item.count
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-    format!(
-        "{} from={} subject={} money={} cod={} items=[{}] read={} returned={} expires_at={}",
-        mail.mail_id,
-        mail.sender,
-        mail.subject,
-        mail.money,
-        mail.cod,
-        items,
-        mail.read,
-        mail.returned,
-        mail.expires_at
+    mail_format::format_mail_status(
+        state.object,
+        &state.pending_senders,
+        state.sent,
+        state.mails(),
     )
 }
 
 #[cfg(test)]
 mod tests {
     use bevy::ecs::system::RunSystemOnce;
-    use shared::protocol::{ItemStack, MailAction, MailAttachment, MailboxContents};
+    use shared::protocol::{ItemStack, MailAction, MailAttachment, MailHeader, MailboxContents};
 
     use super::*;
 

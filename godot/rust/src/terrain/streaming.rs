@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread::{self, JoinHandle};
 
+use game_engine_core::asset::adt_format::adt::ChunkHeightGrid;
+
 use super::assets::{NativeMapWdt, NativeTerrainAssets, NativeTerrainTile};
 
 const MAP_TILE_BOUND: u32 = 64;
@@ -86,6 +88,8 @@ pub(crate) struct StreamedTerrain {
     generation: u64,
     map: Option<String>,
     initial_tiles: BTreeSet<(u32, u32)>,
+    /// The tile the current map request named, `(tile_y, tile_x)`.
+    primary_tile: Option<(u32, u32)>,
     pending_map: bool,
     pub(crate) map_wdt: Option<NativeMapWdt>,
     pub(crate) parsed_tiles: BTreeMap<(u32, u32), NativeTerrainTile>,
@@ -120,6 +124,7 @@ impl StreamedTerrain {
             generation: 0,
             map: None,
             initial_tiles: BTreeSet::new(),
+            primary_tile: None,
             pending_map: false,
             map_wdt: None,
             parsed_tiles: BTreeMap::new(),
@@ -130,29 +135,45 @@ impl StreamedTerrain {
         }
     }
 
+    pub fn primary_tile(&self) -> Option<(u32, u32)> {
+        self.primary_tile
+    }
+
+    /// Tiles requested beyond the map request's initial square.
+    pub fn requested_tile_count(&self) -> usize {
+        self.requested_tiles.len()
+    }
+
     pub fn map_name(&self) -> Option<&str> {
         self.map.as_deref()
     }
 
     pub fn height_at(&self, x: f32, z: f32) -> Option<f32> {
+        let grid = self.chunk_grid_at(x, z)?;
+        Some(game_engine_core::terrain_height_data::sample_located_chunk_height(grid, x, z))
+    }
+
+    /// The parsed chunk grid index arithmetic places Bevy (x, z) in.
+    fn chunk_grid_at(&self, x: f32, z: f32) -> Option<&ChunkHeightGrid> {
+        let (tile, (index_x, index_y)) =
+            game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
         self.parsed_tiles
-            .values()
-            .flat_map(|tile| &tile.root.height_grids)
-            .find_map(|grid| game_engine_core::terrain_height_data::sample_chunk_height(grid, x, z))
+            .get(&tile)?
+            .root
+            .height_grids
+            .iter()
+            .find(|grid| grid.index_x == index_x && grid.index_y == index_y)
     }
 
     pub fn area_id_at(&self, x: f32, z: f32) -> Option<u32> {
-        use game_engine_core::asset::adt_format::adt::CHUNK_SIZE;
-        use game_engine_core::terrain_height_data::bevy_to_tile_coords;
-
-        let root = &self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?.root;
-        let grid = root.height_grids.iter().find(|grid| {
-            (0.0..CHUNK_SIZE).contains(&(grid.origin_x - x))
-                && (0.0..CHUNK_SIZE).contains(&(z - grid.origin_z))
-        })?;
-        root.chunks
+        let (tile, (index_x, index_y)) =
+            game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
+        self.parsed_tiles
+            .get(&tile)?
+            .root
+            .chunks
             .iter()
-            .find(|chunk| chunk.index_x == grid.index_x && chunk.index_y == grid.index_y)
+            .find(|chunk| chunk.index_x == index_x && chunk.index_y == index_y)
             .map(|chunk| chunk.area_id)
             .filter(|&area_id| area_id != 0)
     }
@@ -162,16 +183,11 @@ impl StreamedTerrain {
         x: f32,
         z: f32,
     ) -> Option<game_engine_core::footstep_data::FootstepSurface> {
-        use game_engine_core::asset::adt_format::adt::CHUNK_SIZE;
-        use game_engine_core::terrain_height_data::bevy_to_tile_coords;
-
-        let tile = self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?;
-        let grid = tile.root.height_grids.iter().find(|grid| {
-            (0.0..CHUNK_SIZE).contains(&(grid.origin_x - x))
-                && (0.0..CHUNK_SIZE).contains(&(z - grid.origin_z))
-        })?;
-        tile.chunk_surfaces
-            .get(&(grid.index_x, grid.index_y))
+        let (tile, chunk) = game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
+        self.parsed_tiles
+            .get(&tile)?
+            .chunk_surfaces
+            .get(&chunk)
             .copied()
     }
 
@@ -234,7 +250,7 @@ impl StreamedTerrain {
     pub fn request_map(&mut self, map: String, tile: (u32, u32)) -> Result<(), String> {
         validate_tile(tile)?;
         if self.map.as_ref() != Some(&map) {
-            return self.begin_map(map, square_tiles(tile).collect());
+            return self.begin_map(map, tile, square_tiles(tile).collect());
         }
         self.request_tile(tile)
     }
@@ -251,7 +267,7 @@ impl StreamedTerrain {
         }
         let initial_tiles = tiles.iter().copied().chain([primary]).collect();
         if self.map.as_ref() != Some(&map) {
-            return self.begin_map(map, initial_tiles);
+            return self.begin_map(map, primary, initial_tiles);
         }
         for tile in initial_tiles {
             self.request_tile(tile)?;
@@ -262,10 +278,12 @@ impl StreamedTerrain {
     fn begin_map(
         &mut self,
         map: String,
+        primary: (u32, u32),
         initial_tiles: BTreeSet<(u32, u32)>,
     ) -> Result<(), String> {
         self.reset()?;
         self.map = Some(map.clone());
+        self.primary_tile = Some(primary);
         self.initial_tiles = initial_tiles;
         self.pending_map = true;
         self.send(WorkerRequest::Map {
@@ -319,6 +337,7 @@ impl StreamedTerrain {
             .ok_or("Terrain generation overflow")?;
         self.map = None;
         self.initial_tiles.clear();
+        self.primary_tile = None;
         self.pending_map = false;
         self.map_wdt = None;
         self.parsed_tiles.clear();
@@ -501,11 +520,14 @@ fn validate_tile(tile: (u32, u32)) -> Result<(), String> {
     Ok(())
 }
 
+/// Tiles requested around a map request's primary tile, in each direction.
+pub(crate) const LOAD_RADIUS: u32 = 1;
+
 fn square_tiles(center: (u32, u32)) -> impl Iterator<Item = (u32, u32)> {
-    let start_y = center.0.saturating_sub(1);
-    let start_x = center.1.saturating_sub(1);
-    let end_y = (center.0 + 1).min(MAP_TILE_BOUND - 1);
-    let end_x = (center.1 + 1).min(MAP_TILE_BOUND - 1);
+    let start_y = center.0.saturating_sub(LOAD_RADIUS);
+    let start_x = center.1.saturating_sub(LOAD_RADIUS);
+    let end_y = (center.0 + LOAD_RADIUS).min(MAP_TILE_BOUND - 1);
+    let end_x = (center.1 + LOAD_RADIUS).min(MAP_TILE_BOUND - 1);
     (start_y..=end_y).flat_map(move |y| (start_x..=end_x).map(move |x| (y, x)))
 }
 
@@ -655,7 +677,10 @@ mod tests {
         tile.chunk_surfaces.insert((0, 1), FootstepSurface::Stone);
         assert_eq!(stream.surface_at(x - 1.0, z + 1.0), None);
         stream.parsed_tiles.insert((32, 48), tile);
-        assert_eq!(stream.surface_at(x, z + 1.0), Some(FootstepSurface::Grass));
+        assert_eq!(
+            stream.surface_at(x - 1.0, z + 1.0),
+            Some(FootstepSurface::Grass)
+        );
         let adjacent = tile_chunk_origin_x(&stream.parsed_tiles[&(32, 48)], 0, 1) - 1.0;
         assert_eq!(
             stream.surface_at(adjacent, z + 1.0),
@@ -937,8 +962,12 @@ mod tests {
         stream
             .request_map_tiles("azeroth".into(), (31, 37), &[(31, 36), (31, 37), (31, 36)])
             .unwrap();
+        assert_eq!(stream.primary_tile(), Some((31, 37)));
+        assert_eq!(stream.initial_tiles().len(), 2);
         started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
         stream.request_map("azeroth".into(), (31, 36)).unwrap();
+        // A same-map request adds a tile; the map request's tile stays.
+        assert_eq!(stream.primary_tile(), Some((31, 37)));
         release_tx.send(()).unwrap();
         wait_for(&mut stream, |state| {
             !state.pending_map && state.pending_tiles.is_empty() && state.failures.len() == 2
@@ -953,6 +982,8 @@ mod tests {
         });
         let failed_tiles: BTreeSet<_> = stream.state().failures.iter().map(|f| f.tile).collect();
         assert_eq!(failed_tiles, BTreeSet::from([(31, 36), (31, 37), (31, 38)]));
+        stream.reset().unwrap();
+        assert_eq!(stream.primary_tile(), None);
     }
 
     #[test]

@@ -93,7 +93,7 @@ pub(super) fn load_material(
     skin_texture_fdids: &[u32; 3],
     path: &GString,
     missing: &mut PackedInt32Array,
-    replacement: Option<&Gd<ImageTexture>>,
+    replacements: Option<&HashMap<u32, Gd<ImageTexture>>>,
 ) -> Result<(Gd<ShaderMaterial>, BatchBinding), String> {
     let texture_dir = Path::new(
         &ProjectSettings::singleton()
@@ -116,9 +116,14 @@ pub(super) fn load_material(
     if let Some(fade) = fade {
         material.set_meta(SCENERY_FADE_SHADER_META, &fade.to_variant());
     }
+    // Every slot of a replaceable type takes that type's texture, the second eye slot
+    // as much as the first (WebWowViewerCpp getBlpTextureData per texture index).
     for (slot, fdid) in binding.textures.iter().enumerate() {
+        let replacement = replacements
+            .zip(binding.texture_types.get(slot).filter(|kind| **kind != 0))
+            .and_then(|(textures, kind)| textures.get(kind));
         let texture = match (slot, replacement) {
-            (0, Some(texture)) => Some(texture.clone()),
+            (_, Some(texture)) => Some(texture.clone()),
             (0, None) => fdid
                 .map(|fdid| base_texture(fdid, &batch.overlays, &texture_dir, missing))
                 .transpose()?
@@ -295,8 +300,7 @@ impl SceneryFade {
             .iter_shared()
             .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
             .filter_map(|mesh| {
-                let material: Gd<ShaderMaterial> =
-                    mesh.get_surface_override_material(0)?.try_cast().ok()?;
+                let material: Gd<ShaderMaterial> = mesh.get_active_material(0)?.try_cast().ok()?;
                 let authored = material.get_shader()?;
                 let fade = material
                     .has_meta(SCENERY_FADE_SHADER_META)

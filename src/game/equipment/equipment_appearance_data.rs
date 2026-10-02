@@ -1,4 +1,5 @@
 use super::outfit_data::{OutfitData, OutfitResult};
+use crate::asset::m2_format::m2_anim::M2Bone;
 use serde::{Deserialize, Serialize};
 use shared::components::{EquipmentAppearance, EquipmentVisualSlot};
 use std::collections::HashSet;
@@ -467,9 +468,18 @@ pub fn is_collection_model(path: &Path) -> bool {
         .contains("item/objectcomponents/collections/")
 }
 
-/// Body armor and every `item/objectcomponents/collections/` model (a cloak, belt or
-/// bracer collection as much as a helmet one) is skinned to the character's joints.
-pub fn slot_uses_bound_joints(slot: EquipmentSlot, m2_path: &Path) -> bool {
+/// Body armor and skeletal collections bind to character joints. A waist base
+/// mesh with one untransformed non-key root is attachment-local, even under
+/// `collections/` (Zaralda's 6378872); WMVx belts use BELT_BUCKLE, not Ground.
+pub fn slot_uses_bound_joints(
+    slot: EquipmentSlot,
+    m2_path: &Path,
+    bones: &[M2Bone],
+    mesh_parts: impl IntoIterator<Item = u16>,
+) -> bool {
+    if slot == EquipmentSlot::Waist && is_rigid_waist_base_mesh(bones, mesh_parts) {
+        return false;
+    }
     matches!(
         slot,
         EquipmentSlot::Chest
@@ -478,6 +488,21 @@ pub fn slot_uses_bound_joints(slot: EquipmentSlot, m2_path: &Path) -> bool {
             | EquipmentSlot::Legs
             | EquipmentSlot::Feet
     ) || is_collection_model(m2_path)
+}
+
+fn is_rigid_waist_base_mesh(bones: &[M2Bone], mesh_parts: impl IntoIterator<Item = u16>) -> bool {
+    let untransformed_root = matches!(
+        bones,
+        [M2Bone {
+            key_bone_id: -1,
+            flags: 0,
+            parent_bone_id: -1,
+            ..
+        }]
+    );
+    let mut parts = mesh_parts.into_iter();
+    let base_mesh_only = parts.next() == Some(0) && parts.all(|part| part == 0);
+    untransformed_root && base_mesh_only
 }
 
 /// Whether a collection model's mesh part belongs to `slot`: a collection file is shared
@@ -648,9 +673,120 @@ mod tests {
         assert_eq!(model_attachment_id(EquipmentSlot::OffHand, shield), 0);
         assert_eq!(model_attachment_id(EquipmentSlot::OffHand, sword), 2);
         assert_eq!(model_attachment_id(EquipmentSlot::MainHand, sword), 1);
-        assert!(slot_uses_bound_joints(EquipmentSlot::Head, collection));
-        assert!(!slot_uses_bound_joints(EquipmentSlot::Head, sword));
-        assert!(slot_uses_bound_joints(EquipmentSlot::Chest, sword));
+        assert!(slot_uses_bound_joints(
+            EquipmentSlot::Head,
+            collection,
+            &[],
+            [2101]
+        ));
+        assert!(!slot_uses_bound_joints(
+            EquipmentSlot::Head,
+            sword,
+            &[],
+            [0]
+        ));
+        assert!(slot_uses_bound_joints(
+            EquipmentSlot::Chest,
+            sword,
+            &[],
+            [0]
+        ));
+    }
+
+    #[test]
+    fn rigid_waist_base_mesh_uses_authored_attachment_53() {
+        // Zaralda display 138959: FDID 6378872, SKIN part 0; all 1839 vertices
+        // reference this single attachment-local root, not a character joint.
+        let root = rigid_waist_root();
+        let mesh_parts = [0];
+        let path =
+            Path::new("item/objectcomponents/collections/belt_leather_questbloodelf_b_01.m2");
+        let bound = slot_uses_bound_joints(EquipmentSlot::Waist, path, &[root], mesh_parts);
+        let attachment = (!bound).then(|| model_attachment_id(EquipmentSlot::Waist, path));
+        assert_eq!(attachment, Some(53));
+        assert!(runtime_mesh_part_allowed(EquipmentSlot::Waist, 0));
+    }
+
+    fn rigid_waist_root() -> M2Bone {
+        M2Bone {
+            key_bone_id: -1,
+            flags: 0,
+            parent_bone_id: -1,
+            submesh_id: 0,
+            name_crc: 3_962_896_125,
+            pivot: [0.014494737, 0.0, -0.20134047],
+        }
+    }
+
+    #[test]
+    fn skeletal_waist_collections_keep_binding_and_group_18() {
+        let path = Path::new("item/objectcomponents/collections/belt.m2");
+        let root = rigid_waist_root();
+        for parts in [vec![1801], vec![1802], vec![0, 1801], vec![]] {
+            assert!(slot_uses_bound_joints(
+                EquipmentSlot::Waist,
+                path,
+                &[root.clone()],
+                parts
+            ));
+        }
+        for bone in [
+            M2Bone {
+                flags: 0x200,
+                ..root.clone()
+            },
+            M2Bone {
+                parent_bone_id: 0,
+                ..root.clone()
+            },
+            M2Bone {
+                key_bone_id: 0,
+                ..root.clone()
+            },
+        ] {
+            assert!(slot_uses_bound_joints(
+                EquipmentSlot::Waist,
+                path,
+                &[bone],
+                [0]
+            ));
+        }
+        assert!(slot_uses_bound_joints(
+            EquipmentSlot::Waist,
+            path,
+            &[root.clone(), root],
+            [0]
+        ));
+        assert!(slot_uses_bound_joints(EquipmentSlot::Waist, path, &[], [0]));
+        assert!(collection_mesh_part_in_slot(EquipmentSlot::Waist, 1801));
+        assert!(collection_mesh_part_in_slot(EquipmentSlot::Waist, 1802));
+        assert!(!collection_mesh_part_in_slot(EquipmentSlot::Waist, 0));
+    }
+
+    #[test]
+    fn rigid_root_does_not_change_other_slots_collection_binding() {
+        let path = Path::new("item/objectcomponents/collections/belt.m2");
+        for slot in [
+            EquipmentSlot::Head,
+            EquipmentSlot::ShoulderLeft,
+            EquipmentSlot::ShoulderRight,
+            EquipmentSlot::Back,
+            EquipmentSlot::Chest,
+            EquipmentSlot::Hands,
+            EquipmentSlot::Wrist,
+            EquipmentSlot::Legs,
+            EquipmentSlot::Feet,
+            EquipmentSlot::MainHand,
+            EquipmentSlot::OffHand,
+            EquipmentSlot::Ranged,
+        ] {
+            assert!(slot_uses_bound_joints(
+                slot,
+                path,
+                &[rigid_waist_root()],
+                [0]
+            ));
+        }
     }
 
     #[test]
@@ -793,11 +929,23 @@ mod tests {
         assert_eq!(bracer.len(), 1);
         assert_eq!(bracer[0].slot, EquipmentSlot::Wrist);
         let collection = Path::new("item/objectcomponents/collections/belt.m2");
-        assert!(slot_uses_bound_joints(EquipmentSlot::Waist, collection));
-        assert!(slot_uses_bound_joints(EquipmentSlot::Back, collection));
+        assert!(slot_uses_bound_joints(
+            EquipmentSlot::Waist,
+            collection,
+            &[],
+            [1801]
+        ));
+        assert!(slot_uses_bound_joints(
+            EquipmentSlot::Back,
+            collection,
+            &[],
+            [1501]
+        ));
         assert!(!slot_uses_bound_joints(
             EquipmentSlot::Waist,
-            Path::new("item/objectcomponents/waist/buckle.m2")
+            Path::new("item/objectcomponents/waist/buckle.m2"),
+            &[],
+            [0]
         ));
     }
 

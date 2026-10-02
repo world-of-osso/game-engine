@@ -305,6 +305,11 @@ impl WorldLighting {
         Ok(())
     }
 
+    /// The attached sun, once the first sample placed it.
+    pub fn sun(&self) -> Option<Gd<DirectionalLight3D>> {
+        self.sun.clone()
+    }
+
     pub fn reset(&mut self) {
         self.sun = None;
         self.sky = None;

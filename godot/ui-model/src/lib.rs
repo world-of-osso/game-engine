@@ -83,6 +83,9 @@ mod char_select_delete_confirm_component;
 pub mod char_select_top_nav_component;
 #[path = "../../../src/ui/screens/default_button_atlas.rs"]
 pub mod default_button_atlas;
+// First-login legal acceptance (`src/scenes/eula/mod.rs`).
+#[path = "../../../src/ui/screens/eula_component.rs"]
+pub mod eula_component;
 #[path = "../../../src/ui/screens/entrance_difficulty_component.rs"]
 pub mod entrance_difficulty_component;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
@@ -173,6 +176,10 @@ pub mod guild_bank;
 #[path = "../../../src/ui/screens/guild_bank_frame_component.rs"]
 pub mod guild_bank_frame_component;
 pub mod mail;
+#[path = "../../../src/ipc/mail_format.rs"]
+pub mod mail_format;
+#[path = "../../../src/ipc/format_shared.rs"]
+pub mod ipc_format;
 #[path = "../../../src/ui/screens/mail_frame_component.rs"]
 pub mod mail_frame_component;
 
@@ -233,6 +240,8 @@ pub mod objective_tracker_component;
 #[path = "../../../src/ui/screens/stack_split_frame_component.rs"]
 pub mod stack_split_frame_component;
 
+#[path = "../../../src/game/auction_house_data.rs"]
+pub mod auction_house_data;
 #[path = "../../../src/game/bag_data.rs"]
 pub mod bag_data;
 #[path = "../../../src/container_layout_data.rs"]

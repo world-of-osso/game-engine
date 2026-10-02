@@ -40,6 +40,10 @@ struct LiquidSurface {
 }
 
 impl WaterMaterials {
+    pub fn material_count(&self) -> usize {
+        self.materials.len()
+    }
+
     /// A layer whose liquid material is unavailable is reported and left out, as an
     /// unbuildable tile is.
     pub fn build(

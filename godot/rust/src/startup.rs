@@ -15,6 +15,14 @@ use godot::{
 
 use crate::GameClient;
 
+/// A panel `--screen` opens over its screen: `charcreate-customize`'s Customize mode or
+/// `campsitepopup`'s character-select campsite panel.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum StartupPanel {
+    Customize,
+    Campsites,
+}
+
 fn read_startup_arguments() -> Result<StartupArgs, String> {
     let arguments = Os::singleton()
         .get_cmdline_user_args()
@@ -56,17 +64,20 @@ impl GameClient {
     pub(super) fn initialize_startup(&mut self) -> Result<(), String> {
         let arguments = read_startup_arguments()?;
         let explicit_server = arguments.server.is_some();
-        if let Some(server) = arguments.server {
-            self.server_hostname = RealmPreset::from_alias(&server)
+        if let Some(server) = arguments.server.as_deref() {
+            self.server_hostname = RealmPreset::from_alias(server)
                 .map(|preset| preset.hostname().to_owned())
-                .unwrap_or(server);
+                .unwrap_or_else(|| server.to_owned());
         }
-        self.account.startup_options.preselected_name = arguments.character;
+        self.account.startup_options.preselected_name = arguments.character.clone();
         self.attach_login_ui()?;
+        if self.eula_precedes_startup(arguments.target.as_ref()) {
+            self.open_eula()?;
+        }
         match arguments.target {
             None => Ok(()),
             Some(StartupTarget::Screen(screen)) => {
-                self.start_requested_screen(screen, explicit_server)
+                self.start_requested_screen(screen, explicit_server, &arguments)
             }
             Some(StartupTarget::Connecting) => {
                 Err("--state connecting is not yet implemented in Godot".into())
@@ -85,13 +96,20 @@ impl GameClient {
         &mut self,
         screen: ScreenArg,
         explicit_server: bool,
+        arguments: &StartupArgs,
     ) -> Result<(), String> {
         match screen {
-            ScreenArg::Login => Ok(()),
+            // Login is attached above; the legal screen, when shown, precedes it.
+            ScreenArg::Login | ScreenArg::Eula => Ok(()),
             ScreenArg::CharSelect => self.connect_for_startup(None, false),
+            ScreenArg::CampsitePopup => {
+                self.startup_panel = Some(StartupPanel::Campsites);
+                self.connect_for_startup(None, false)
+            }
             ScreenArg::InWorld => self.connect_for_startup(None, true),
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => {
-                self.startup_customize = screen == ScreenArg::CharCreateCustomize;
+                self.startup_panel =
+                    (screen == ScreenArg::CharCreateCustomize).then_some(StartupPanel::Customize);
                 if explicit_server {
                     self.connect_for_startup(Some(SessionScreen::CharacterCreate), false)
                 } else {
@@ -103,15 +121,21 @@ impl GameClient {
                 self.account.session.screen = SessionScreen::Loading;
                 self.show_account_screen(SessionScreen::Loading)
             }
-            ScreenArg::GameMenu => {
+            ScreenArg::GameMenu | ScreenArg::OptionsMenu => {
                 self.account.session.screen = SessionScreen::GameMenu;
                 self.show_account_screen(SessionScreen::GameMenu)?;
-                self.open_game_menu()
+                self.open_game_menu()?;
+                if screen == ScreenArg::OptionsMenu {
+                    self.show_game_menu_options()?;
+                }
+                Ok(())
             }
             ScreenArg::ParticleDebug => self.open_particle_debug(),
+            ScreenArg::SkyboxDebug => self.open_skybox_debug(arguments),
             ScreenArg::M2Debug => self.open_m2_debug(),
             ScreenArg::SelectionDebug => self.open_selection_debug(),
             ScreenArg::DebugCharacter => self.open_debug_character(),
+            ScreenArg::NameplateDebug => self.open_nameplate_debug(),
             _ => Err(format!(
                 "--screen {} is not yet implemented in Godot",
                 screen.as_cli_str()
@@ -142,16 +166,24 @@ impl GameClient {
         self.update_login_status("Connecting...", true)
     }
 
-    pub(super) fn apply_startup_customize(&mut self, screen: SessionScreen) -> Result<(), String> {
-        if !self.startup_customize || screen != SessionScreen::CharacterCreate {
-            return Ok(());
+    /// Opens the requested startup panel once its screen is first shown.
+    pub(super) fn apply_startup_panel(&mut self, screen: SessionScreen) -> Result<(), String> {
+        match (self.startup_panel, screen) {
+            (Some(StartupPanel::Customize), SessionScreen::CharacterCreate) => {
+                let creation = self
+                    .creation
+                    .as_mut()
+                    .ok_or("Startup customization has no creation state")?;
+                creation.mode = CharCreateMode::Customize;
+                self.startup_panel = None;
+                self.sync_creation_ui()
+            }
+            (Some(StartupPanel::Campsites), SessionScreen::CharacterSelect) => {
+                self.campsite.panel_visible = true;
+                self.startup_panel = None;
+                self.sync_campsite_state()
+            }
+            _ => Ok(()),
         }
-        let creation = self
-            .creation
-            .as_mut()
-            .ok_or("Startup customization has no creation state")?;
-        creation.mode = CharCreateMode::Customize;
-        self.startup_customize = false;
-        self.sync_creation_ui()
     }
 }

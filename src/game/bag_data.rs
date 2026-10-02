@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use shared::protocol::{
     BagContents, DestroyItem, EquipItem, EquipmentSlot, EquipmentSnapshot, InventoryDelta,
-    InventorySnapshot, ItemDurability, ItemLocation, ItemStack, SplitItem, SwapItem,
+    InventorySnapshot, ItemDurability, ItemLocation, ItemStack, SplitItem, SwapItem, UseItem,
 };
 
 /// Texture FDIDs for bag frames and slots.
@@ -116,18 +116,27 @@ impl InventorySlot {
 /// A server stack shown in a bag or equipment slot. The server sends ids and
 /// counts only; name and quality come from the item catalog.
 pub fn stack_slot(stack: &ItemStack) -> InventorySlot {
-    let entry = crate::item_catalog::item_catalog_entry(stack.item_id);
-    InventorySlot {
-        icon_fdid: crate::item_icons::item_icon_fdid(stack.item_id).unwrap_or(UNKNOWN_ICON_FDID),
+    with_item_data(InventorySlot {
         count: stack.count,
-        quality: entry.map_or(ItemQuality::Common, |entry| {
-            ItemQuality::from_id(entry.quality)
-        }),
-        name: entry.map(|entry| entry.name.clone()).unwrap_or_default(),
         item_guid: stack.item_guid,
         item_id: stack.item_id,
         soulbound: stack.soulbound,
         durability: stack.durability,
+        ..Default::default()
+    })
+}
+
+/// `slot` with its item's icon, quality and name. While the catalog loads, the item
+/// has `INV_Misc_QuestionMark` and no name until `InventoryState::refresh_item_data`.
+fn with_item_data(slot: InventorySlot) -> InventorySlot {
+    let entry = crate::item_catalog::item_catalog_entry(slot.item_id);
+    InventorySlot {
+        icon_fdid: crate::item_icons::item_icon_fdid(slot.item_id).unwrap_or(UNKNOWN_ICON_FDID),
+        quality: entry.map_or(ItemQuality::Common, |entry| {
+            ItemQuality::from_id(entry.quality)
+        }),
+        name: entry.map(|entry| entry.name.clone()).unwrap_or_default(),
+        ..slot
     }
 }
 
@@ -155,6 +164,7 @@ pub enum InventoryRequest {
     Equip(EquipItem),
     Split(SplitItem),
     Destroy(DestroyItem),
+    Use(UseItem),
 }
 
 /// Runtime inventory state for all bags and the equipped items.
@@ -326,6 +336,17 @@ impl InventoryState {
                         self.equipment.remove(&slot);
                     }
                 },
+            }
+        }
+    }
+
+    /// Resolve again every item's icon, quality and name: items that arrived while the
+    /// item catalog loaded get their data once it is loaded (`GET_ITEM_INFO_RECEIVED`).
+    pub fn refresh_item_data(&mut self) {
+        let items = self.slots.iter_mut().flatten();
+        for slot in items.chain(self.equipment.values_mut()) {
+            if slot.item_id != 0 {
+                *slot = with_item_data(std::mem::take(slot));
             }
         }
     }

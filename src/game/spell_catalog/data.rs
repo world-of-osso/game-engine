@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{build, cache, render, tabs};
 
-pub use super::tabs::{SpecTabInfo, SpellbookTabIndex, SpellbookTabKind};
+pub use super::tabs::{PrimaryStat, SpecTabInfo, SpellbookTabIndex, SpellbookTabKind};
 
 pub const SPELL_DB2_BUILD: &str = "12.1.0.69933";
 
@@ -52,10 +52,13 @@ pub struct CatalogEffect {
     /// Raw DB value; a few rows hold negative counts.
     pub chain_targets: i32,
     pub radius_yd: f32,
-    /// Points scale with caster spell/attack power (`EffectBonusCoefficient`,
-    /// `BonusCoefficientFromAP`; see `build::DAMAGE_OR_HEAL_EFFECTS`) or level
-    /// (`ScalingClass` + `Coefficient`), so `base_points` alone is not the tooltip value.
-    pub caster_scaled: bool,
+    /// `EffectBonusCoefficient` and `BonusCoefficientFromAP` when the points scale with
+    /// the caster's spell and attack power (see `build::DAMAGE_OR_HEAL_EFFECTS`), else 0.
+    pub spell_power_coefficient: f32,
+    pub attack_power_coefficient: f32,
+    /// Points scale with level (`ScalingClass` + `Coefficient`), from ExpectedStat data
+    /// the client does not have.
+    pub level_scaled: bool,
 }
 
 /// Whether casting the spell starts the caster's auto-attack on its target, a client
@@ -167,7 +170,7 @@ impl SpellCatalogData {
     }
 }
 
-/// The viewing player's state that description `$?` conditions test.
+/// The viewing player's state that description tokens read.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SpellTextContext {
     pub known_spells: Vec<u32>,
@@ -175,6 +178,14 @@ pub struct SpellTextContext {
     pub auras: Vec<u32>,
     /// Active `ChrSpecialization` id.
     pub spec_id: Option<u32>,
+    /// The player's replicated spell and attack power; `None` before they arrive.
+    pub caster_power: Option<CasterPower>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct CasterPower {
+    pub spell_power: f32,
+    pub attack_power: f32,
 }
 
 pub struct SpellCatalogPaths {

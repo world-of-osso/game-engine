@@ -10,6 +10,22 @@
 
 [Ground detail](systems/terrain.md#ground-detail-godot): 12340 detail-doodad scatter/mesh port matching solarityclient's native fixtures; retail GroundEffect CSV exports; live Northshire clutter fixture. Spec [ground-detail](../specs/ground-detail.md).
 
+## 2026-10-01 — Catalog waits at world entry
+
+[[world-entry-stalls#catalog-waits--2026-10-01]]: the first inventory snapshot waited 9.2-54.9 s in `OnceLock::get_or_init` for the background item catalog load. Item catalog/icons, NPC gear rows and the spell visual catalog are now read without waiting; the entrance and minimap catalogs load from client start. Items received early update when the catalog loads (`GET_ITEM_INFO_RECEIVED` model); spec line in [cursor-item](../specs/cursor-item.md). Character-select model catalogs remain synchronous.
+
+## 2026-10-01 — Retained skybox/performance bounded reconciliation
+
+[[authored-skybox-black-output]] records source zero opacity and bounded 100000 ms original/native RGB match, preserving active timeout, coastal phase-ready gap and oracle SETUP failures. [[world-entry-stalls]] records actual run1/run2 failures and readiness RED/GREEN without settled/baseline/budget/leak acceptance. Retained/conversion goals remain open; docs only.
+
+## 2026-10-01 — M2 free material-null errors
+
+[[godot-material-null-free]]: M2 batches bound materials as surface overrides, which Godot releases before freeing the RenderingServer instance; a batch freed before its first draw read the freed material. `eb619da4` binds them as the material override; regression `godot/tests/m2_free_material.gd`. [[rendering-pipeline#godot-m2-batch-materials]] notes the binding.
+
+## 2026-10-01 — Native SkyboxDebug source/test-first docs audit
+
+[Evidence SSOT](systems/godot-conversion.md#native-skyboxdebug--sourcetest-first-contribution-runtime-green-pending) records contribution through `da694c79`/`f786be27`, original CLI transport, cached no-fallback source and owned renderer/controller/environment. Supplied parser/launcher RED/GREEN are bounded; MAIN's actual pre-production Vulkan/CASC startup rejected the screen and exited1. Current build/new independent gate pending, no native runtime GREEN; core data-helper tests unexecuted. [Architecture](systems/skybox.md#native-offline-skyboxdebug) separates shader-owned fog and legacy fallback. Pixel/default-source/fog/physical-unit/bone/shutdown gaps and root quest-format FAIL retained; no other feature closure. Three owned docs only; no index/new page, code/build/runtime/tests/delegation/operations.
+
 ## 2026-10-01 — Godot M2 batch materials on WebWowViewer retail rules
 
 [[m2-format#batch-shaders]] now records retail pixel/vertex shader resolution, render flags 0x2/0x8/0x10, texture weights, float-quaternion texture transforms and wrap flags; [[rendering-pipeline#godot-m2-batch-materials]] records the Godot binder/shader and its real-model oracle proof (16 named batches, baseline 14/16 RED). Parity row added (Partial: decals, transparent sort, Bevy/Retail comparisons open).
@@ -20,7 +36,7 @@
 
 ## 2026-10-01 — LiquidObject missing rows knowledge preservation
 
-[Investigation SSOT](investigations/northshire-pale-water.md#native-liquidobject-missing-rows--unresolved) preserves supplied MAIN base/copy, cached content identity and bounded XFTH membership evidence; authoritative consumer/overlay semantics remain unresolved. Docs only, no new independent data/runtime proof.
+[Investigation SSOT](investigations/northshire-pale-water.md#liquidobject-ids-without-db2-rows--resolved) preserves supplied MAIN base/copy, cached content identity and bounded XFTH membership evidence; authoritative consumer/overlay semantics remain unresolved. Docs only, no new independent data/runtime proof.
 
 ## 2026-10-01 — Native JS negative startup bounded docs audit
 
@@ -82,6 +98,10 @@ MAIN read FULL and accepts independent1429 bounded PASS. [Acceptance SSOT](syste
 MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` + `2d1829fc`, test `57b30f57`. Independent1421 active/report pending, not accepted until MAIN confirms. Tooltip1415/docs `2142e85f` acceptance retained. [SSOT](systems/godot-conversion.md#occupied-startup-equipment--bounded-main-observed-green) records fresh Depot `04kwqv77h7` build0/runtime0, pre-Equip GUID9170105, authoritative GUID9170005 replacement, exact one Equip/two Destroy and original popup flow. Intentional child3934038 kill/reap/readers0 is not shutdown; broader coverage excluded. Supersedes pending-GREEN docs `cf9c3d63`.
 
 # Wiki Log
+
+## 2026-10-01 — Zaralda fixture acceptance blocker
+
+Updated [[test-assets]] and index with prepared/executed `7903cb5e` fixture and native BLOCKED 0/3. Linked [server Midnight SSOT](../../../game-server/docs/wiki/investigations/midnight-economy-content.md#native-acceptance-blocker) rather than duplicating catalog/data/CLI facts. No runtime fix, new probe, build or service operation; concurrent engine work preserved. Overall goal open.
 
 ## [2026-09-30] systems | Login handshake timeout
 
@@ -2429,3 +2449,22 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 
 [Race and sex item files](systems/character-rendering.md#race-and-sex-item-files-2026-10-01): Component*FileData texture/model selection, ChrModel body chain, wowdev geoset group table, native sheath links, skinned collections with both model columns, player social emotes; named-character and 62-way race fixtures.
 
+
+## 2026-10-01 — Player stand state (standstate)
+
+[Animation](systems/animation.md): players hold the replicated `PlayerStandState` pose (SitGround 97, Sleep 100, SitChairLow/Med/High 102-104, KneelLoop 115) with down/up clips 96/98, 99/101, 114/116 on a change; X (`SITORSTAND`) and /sit, /sleep, /kneel send `StandStateIntent`; sit/sleep/kneel no longer play from `EmoteEvent`. Chairs (`GAMEOBJECT_TYPE_CHAIR`) render and right-click seats. Live: `godot/tests/player_stand_state_live.gd` (sitter, observer, `STAND_FOOD=1` bread phase); evidence `data/diagnostics/standstate2-2026-10-01/`.
+## 2026-10-01 — LiquidObject IDs without DB2 rows (liquidobj)
+
+[Resolved](investigations/northshire-pale-water.md#liquidobject-ids-without-db2-rows--resolved): IDs 42 and 13134/13136–13139 have no LiquidObject row in the build or its hotfixes; 42 is the ocean object (4.5M layers, 458 maps). Row-less objects take their MH2O liquid_type (WebWowViewerCpp `getLiquidObjectData`), and LiquidType 2 Ocean object layers are LVF 2 depth-only. A world-wide scan of 52,882 root ADTs leaves 0 omitted layers. Live Adventurer's Rest: 133 errors → 0.
+
+## 2026-10-01 — Grounded character/clothing pixels (appearpix)
+
+[Grounded appearance pixels](systems/character-rendering.md#grounded-appearance-pixels-2026-10-01): independent DB2/texture oracle and close-up pixel test over the player loader; fixes to item alpha, PasteScale, mipmaps, eye layers and slots, translucent canvases, full HD body canvas, group-0/ears/face geosets, Eyesight for every class.
+
+## 2026-10-01 — Native IPC request coverage and semantic ExportScene (tooling)
+
+[Native IPC request coverage](systems/godot-conversion.md#native-ipc-request-coverage): semantic ExportScene per screen, map target/waypoint auto-walk, group/emote/spell, quests, items, presence, character stats, trade (deferred replies), combat log; per-request not-ported reasons; index-based terrain chunk lookup fixing the zone-0/no-height gap.
+
+## 2026-10-01 — Godot Wayland exit hang (investigation)
+
+[godot-wayland-exit-hang](investigations/godot-wayland-exit-hang.md): quit() hangs root-caused to Godot 4.7.2 WaylandThread::destroy() roundtrip race; upstream PR #123946 removes it (0/180 vs 14/190).

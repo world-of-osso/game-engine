@@ -230,7 +230,6 @@ pub(super) struct Wdc5RowRef {
 struct Wdc5Section {
     file_offset: usize,
     record_count: usize,
-    string_table_size: usize,
     id_list_offset: usize,
 }
 
@@ -265,7 +264,6 @@ fn parse_wdc5_section(
     Ok(Wdc5Section {
         file_offset,
         record_count,
-        string_table_size,
         id_list_offset: wdc5_id_list_offset(
             file_offset,
             record_count,

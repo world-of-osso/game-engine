@@ -34,11 +34,35 @@ func run_test() -> void:
 		if title == null or title.text != "Fixture Guild" or bag == null or not bag.is_visible_in_tree():
 			fail("GuildBanker did not show authoritative guild title/backpack")
 			return
+		if not await check_tab_title(host):
+			return
 		print("FIXTURE GUILD_BANK_OPEN_DONE")
 		client.free()
 		quit(0)
 		return
 	fail("Native GuildBankUI absent after authenticated authoritative GuildBanker open")
+
+# GB.xml:195-199: the tab title ("Supplies  (Full Access)") is one unwrapped line.
+# GUILD_BANK_SCREENSHOT=<png> saves the open frame (needs GODOT_TEST_VISUAL=1).
+func check_tab_title(host: Node) -> bool:
+	await process_frame
+	var shot := OS.get_environment("GUILD_BANK_SCREENSHOT")
+	if not shot.is_empty():
+		await RenderingServer.frame_post_draw
+		if root.get_texture().get_image().save_png(shot) != OK:
+			fail("Could not save " + shot)
+			return false
+		print("GUILD_BANK SCREENSHOT ", shot)
+	for name in ["GuildBankFrameTabTitle", "GuildBankFrameTabTitleAccess"]:
+		var label := host.find_child(name, true, false) as Label
+		if label == null or not label.is_visible_in_tree():
+			fail("Guild bank tab title label %s missing" % name)
+			return false
+		print("GUILD_BANK TAB_TITLE ", name, " text=", label.text, " lines=", label.get_line_count(), " rect=", label.get_global_rect())
+		if label.get_line_count() != 1:
+			fail("%s wraps onto %d lines" % [name, label.get_line_count()])
+			return false
+	return true
 
 func find_vault(client: Node) -> Dictionary:
 	var deadline := Time.get_ticks_msec() + 15000

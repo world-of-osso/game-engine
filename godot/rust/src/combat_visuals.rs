@@ -17,11 +17,13 @@ impl GameClient {
     ) -> Result<(), FrameError> {
         match message {
             CombatMessage::Event(event) => {
+                self.record_combat_event(&event);
                 let voiced = self.spell_effects.observe_melee(&event, &self.world);
                 self.world.apply_combat_event(&event)?;
                 Ok(voiced?)
             }
             CombatMessage::SpellGo(go) => {
+                self.nameplates.casts.spell_go(go.caster, go.spell_id);
                 self.auto_attack_post_cast(&go)?;
                 let started = Instant::now();
                 let shown = self
@@ -29,6 +31,18 @@ impl GameClient {
                     .spell_go(&go, &self.replica, &mut self.world);
                 self.spell_effects.add_busy(started.elapsed());
                 Ok(shown?)
+            }
+            CombatMessage::SpellFailure(failure) => {
+                let interrupter = failure
+                    .failed_by
+                    .and_then(|unit| self.cast_interrupter(unit));
+                self.nameplates.casts.spell_failure(
+                    failure.caster,
+                    failure.spell_id,
+                    failure.reason,
+                    interrupter,
+                );
+                Ok(())
             }
             CombatMessage::AttackStart(start) => {
                 self.receive_attack_start(&start);

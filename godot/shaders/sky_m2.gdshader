@@ -1,10 +1,11 @@
 shader_type spatial;
 render_mode unshaded, fog_disabled, cull_back, blend_mix, depth_draw_never, shadows_disabled;
 
-uniform sampler2D base_texture : source_color, repeat_enable;
-uniform sampler2D second_texture : source_color, repeat_enable;
-uniform sampler2D third_texture : source_color, repeat_enable;
-uniform sampler2D fourth_texture : source_color, repeat_enable;
+// Original sky uploads mip0 only; keep shared native mips but never sample them here.
+uniform sampler2D base_texture : source_color, filter_linear, repeat_enable;
+uniform sampler2D second_texture : source_color, filter_linear, repeat_enable;
+uniform sampler2D third_texture : source_color, filter_linear, repeat_enable;
+uniform sampler2D fourth_texture : source_color, filter_linear, repeat_enable;
 uniform vec4 base_color : source_color = vec4(1.0);
 uniform float transparency = 1.0;
 // The model alpha (M2Object::setAlpha): stars' night brightness, skybox blend weights.
@@ -20,18 +21,6 @@ uniform int uv_mode_3 = 0;
 uniform int uv_mode_4 = 0;
 uniform vec2 uv_offset_1;
 uniform vec2 uv_offset_2;
-
-vec3 linear_to_gamma(vec3 linear_color) {
-	vec3 low = linear_color * 12.92;
-	vec3 high = 1.055 * pow(max(linear_color, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
-	return mix(high, low, lessThanEqual(linear_color, vec3(0.0031308)));
-}
-
-vec3 gamma_to_linear(vec3 gamma_color) {
-	vec3 low = gamma_color / 12.92;
-	vec3 high = pow((max(gamma_color, vec3(0.0)) + 0.055) / 1.055, vec3(2.4));
-	return mix(high, low, lessThanEqual(gamma_color, vec3(0.04045)));
-}
 
 vec4 combine_textures(vec4 first, vec4 second, vec4 third, vec4 fourth) {
 	if (combine_mode == 0xE || combine_mode == 0x11) {
@@ -65,20 +54,18 @@ void vertex() {
 void fragment() {
 	vec2 first_uv = (uv_mode_1 == 1 ? UV2 : UV) + uv_offset_1;
 	vec4 first = texture(base_texture, first_uv);
-	vec4 color = vec4(linear_to_gamma(first.rgb), first.a);
+	// source_color samples are already linear, matching the original WGSL stages.
+	vec4 color = first;
 	if (has_second_texture) {
 		vec2 second_uv = (uv_mode_2 == 1 ? UV2 : UV) + uv_offset_2;
 		vec4 second = texture(second_texture, second_uv);
-		second.rgb = linear_to_gamma(second.rgb);
 		vec4 third = second;
 		vec4 fourth = third;
 		if (has_third_texture) {
 			third = texture(third_texture, uv_mode_3 == 1 ? UV2 : UV);
-			third.rgb = linear_to_gamma(third.rgb);
 		}
 		if (has_fourth_texture) {
 			fourth = texture(fourth_texture, uv_mode_4 == 1 ? UV2 : UV);
-			fourth.rgb = linear_to_gamma(fourth.rgb);
 		}
 		color = combine_textures(color, second, third, fourth);
 	}
@@ -87,6 +74,6 @@ void fragment() {
 	if (color.a < alpha_test) {
 		discard;
 	}
-	ALBEDO = gamma_to_linear(color.rgb);
+	ALBEDO = color.rgb;
 	ALPHA = color.a;
 }

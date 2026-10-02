@@ -28,7 +28,9 @@ use crate::{
         read_model,
     },
     particle_debug::Orbit,
+    scene_export::{SceneEntry, child_3d, debug_stage_entries, m2_source},
 };
+use game_engine_core::scene_snapshot::NodeProps;
 
 /// `creature/wolf/wolf.m2`, the original screen's reference model.
 const MODEL_FDID: u32 = 126487;
@@ -134,6 +136,22 @@ impl WowM2Debug {
         Ok(())
     }
 
+    /// `M2DebugScene`: Camera, Light, Ground and the reference model.
+    pub(crate) fn scene_entry(&self) -> Result<SceneEntry, String> {
+        let root = self.base().clone().upcast::<Node3D>();
+        let model = child_3d(&root, "M2DebugReferenceModel")?;
+        let mut children = debug_stage_entries(&root)?;
+        children.push(SceneEntry::new(
+            "ReferenceModel",
+            Some(model.clone()),
+            NodeProps::Object {
+                kind: "reference-model".into(),
+                model: m2_source(&model)?,
+            },
+        ));
+        Ok(SceneEntry::scene("M2DebugScene", Some(root), children))
+    }
+
     fn load_model(&mut self) -> Result<Gd<Node3D>, String> {
         let resolver = local_resolver(&self.data_root);
         let path = cache_model_files(&resolver, &self.data_root, MODEL_FDID)?;
@@ -180,7 +198,9 @@ pub(crate) fn light_node(color: Color, [x, y, z]: [f32; 3]) -> Gd<Node> {
     light.set_name("Light");
     light.set_color(color);
     light.set_shadow(true);
-    light.set_quaternion(Quaternion::new(rotation.x, rotation.y, rotation.z, rotation.w));
+    light.set_quaternion(Quaternion::new(
+        rotation.x, rotation.y, rotation.z, rotation.w,
+    ));
     light.upcast()
 }
 
