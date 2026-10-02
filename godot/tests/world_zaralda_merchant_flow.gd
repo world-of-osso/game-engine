@@ -185,6 +185,22 @@ func fail(message: String) -> void:
 	push_error(message)
 	if is_instance_valid(client):
 		var observation := {"failure": message, "account": client.account_state()}
+		var units = client.get_node_or_null("WorldUnits")
+		var unit_observations := []
+		var world_camera = camera()
+		if units != null and world_camera != null:
+			for unit in units.get_children():
+				if not unit is Node3D:
+					continue
+				var area = unit.find_child("UnitPick", true, false) as Area3D
+				var point = world_camera.unproject_position(unit.global_position + Vector3.UP * 0.8)
+				unit_observations.append({"name": str(unit.name), "position": unit.global_position,
+					"visible": unit.is_visible_in_tree(), "mesh_count": unit.find_children("*", "MeshInstance3D", true, false).size(),
+					"pick_entity": area.get_meta("unit_server_id") if area != null else null,
+					"projected": point, "frustum": world_camera.is_position_in_frustum(unit.global_position + Vector3.UP * 0.8),
+					"ray_pick": UnitPicker.pick(world_camera, point)})
+		observation["units"] = unit_observations
+		observation["camera_position"] = world_camera.global_position if world_camera != null else null
 		var loading = client.get_node_or_null("LoadingUI")
 		for label_name in ["LoadingProgressText", "LoadingStatusText"]:
 			var label = loading.find_child(label_name, true, false) if loading != null else null
