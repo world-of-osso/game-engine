@@ -75,6 +75,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md) — steady-state in-world frame benchmark; main thread CPU-bound in Godot's renderer; `9cf5cc0b` sets only changed M2 material-animation inputs (Stormwind idle p50 77 → 37 ms); remaining draw-call and skinned-AABB leads.
 - [godot-wayland-exit-hang](investigations/godot-wayland-exit-hang.md) — client never exits after `quit()` (exit 124): Godot 4.7.2 `WaylandThread::destroy()` wakes its events thread with a racy roundtrip (godotengine/godot#123059); PR #123946 patch 0/180 vs 14/190 hangs; launcher pins the patched build (0/120).
 - [godot-material-null-free](investigations/godot-material-null-free.md) — freeing an M2 logged four `Parameter "material" is null` errors per batch (footsteps/keybinds fixtures): MeshInstance3D releases surface override materials before its RenderingServer instance (godotengine/godot#85817); `eb619da4` binds batch materials as the material override, read through `get_active_material(0)`.
 - [local-animation-loading-gate](investigations/local-animation-loading-gate.md) — first cursor GREEN fails before readiness after async world entry; `f7b137fb` gates local animation on InWorld without suppressing missing-visual errors. `76487261` import fix reaches READY; `40497cb7` fixes actual cursor event-pointer DataMismatch and final UI/network flow exits0. Independent bounded cursor PASS accepted; no exact request-timing claim.
