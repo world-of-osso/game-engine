@@ -330,27 +330,37 @@ fn unit_sheath(snapshot: Unit) -> SheathState {
     }
 }
 
-/// Request the visual of a changed appearance; a unit without one loses its visual.
-fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
+fn resolve_unit_appearance(
+    snapshot: Unit,
+    models: &mut WorldModels,
+) -> Result<Option<UnitAppearance>, String> {
     let native_display = match snapshot.get::<Player>().filter(|_| {
         snapshot
             .get::<ModelDisplay>()
             .is_some_and(|model| model.display_id != 0)
     }) {
-        Some(player) => match models.player_native_display(player) {
-            Ok(display) => Some(display),
-            Err(error) => {
-                godot_error!("Player {} native display: {error}", snapshot.server_id);
-                return;
-            }
-        },
+        Some(player) => Some(models.player_native_display(player)?),
         None => None,
     };
-    let appearance = unit_appearance(snapshot, native_display);
+    Ok(unit_appearance(snapshot, native_display))
+}
+
+/// Request the visual of a changed appearance; a unit without one loses its visual.
+fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
+    let appearance = match resolve_unit_appearance(snapshot, models) {
+        Ok(appearance) => appearance,
+        Err(error) => {
+            godot_error!("Player {} native display: {error}", snapshot.server_id);
+            return;
+        }
+    };
     if unit.appearance == appearance {
         return;
     }
     let existing_appearance = unit.appearance.is_some();
+    if appearance.is_none() {
+        log_appearance_clear(unit, snapshot);
+    }
     unit.appearance = appearance;
     unit.loading = unit.appearance.as_ref().map(|appearance| {
         let sheath = unit_sheath(snapshot);
@@ -359,12 +369,52 @@ fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldMo
         (request, sheath)
     });
     if unit.appearance.is_none() {
-        unit.animation = None;
-        unit.sheath = None;
-        if let Some(previous) = unit.visual.take() {
-            previous.free();
-        }
+        clear_unit_visual(unit);
     }
+}
+
+fn clear_unit_visual(unit: &mut UnitNode) {
+    unit.animation = None;
+    unit.sheath = None;
+    if let Some(previous) = unit.visual.take() {
+        previous.free();
+    }
+}
+
+/// Observe Some -> None before changing the retained appearance or pending request.
+fn log_appearance_clear(unit: &UnitNode, snapshot: Unit) {
+    godot_print!(
+        "UNIT_APPEARANCE_CLEAR server_id={} prior_appearance={} prior_describe_unit={:?} prior_pending={} prior_request_id={:?} model_display={:?} npc_present={} player_present={} observed_process_frame={} observed_ticks_usec={}",
+        snapshot.server_id,
+        unit.appearance.is_some(),
+        unit.appearance
+            .as_ref()
+            .map(|appearance| appearance.describe_unit(snapshot.server_id)),
+        unit.loading.is_some(),
+        unit.loading.map(|(request, _)| request),
+        snapshot.get::<ModelDisplay>().map(|model| model.display_id),
+        snapshot.has::<Npc>(),
+        snapshot.has::<Player>(),
+        GodotEngine::singleton().get_process_frames(),
+        Time::singleton().get_ticks_usec(),
+    );
+}
+
+/// Observe actual node removal/reset, not an absent-ID removal attempt.
+fn log_unit_removal(event: &str, id: u64, unit: &UnitNode) {
+    godot_print!(
+        "{} server_id={} prior_appearance={} prior_describe_unit={:?} prior_pending={} prior_request_id={:?} observed_process_frame={} observed_ticks_usec={}",
+        event,
+        id,
+        unit.appearance.is_some(),
+        unit.appearance
+            .as_ref()
+            .map(|appearance| appearance.describe_unit(id)),
+        unit.loading.is_some(),
+        unit.loading.map(|(request, _)| request),
+        GodotEngine::singleton().get_process_frames(),
+        Time::singleton().get_ticks_usec(),
+    );
 }
 
 /// Observe the request after enqueueing it, not the worker's start time.
@@ -1049,6 +1099,7 @@ impl WorldUnits {
 
     pub fn remove(&mut self, id: u64) {
         if let Some(unit) = self.units.remove(&id) {
+            log_unit_removal("WORLD_UNIT_REMOVED", id, &unit);
             unit.node.free();
         }
         if self.local_player_id == Some(id) {
@@ -1058,6 +1109,9 @@ impl WorldUnits {
 
     pub fn reset(&mut self) {
         self.light = None;
+        for (id, unit) in &self.units {
+            log_unit_removal("WORLD_UNIT_RESET", *id, unit);
+        }
         self.units.clear();
         self.deaths.clear();
         self.local_player_id = None;
