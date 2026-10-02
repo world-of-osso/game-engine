@@ -382,7 +382,7 @@ Run from the repository root only in the main-owned offscreen Wayland Vulkan cag
 ```sh
 mkdir -p data/diagnostics/render-scale-red/config/world-of-osso data/diagnostics/render-scale-red/xdg-data
 printf '(graphics:(renderScale: 0.75, uiScale: 1.0))\n' > data/diagnostics/render-scale-red/config/world-of-osso/options_settings.ron
-XDG_CONFIG_HOME="$PWD/data/diagnostics/render-scale-red/config" XDG_DATA_HOME="$PWD/data/diagnostics/render-scale-red/xdg-data" GODOT_TEST_CAPTURE_DIR="$PWD/data/diagnostics/render-scale-red/captures" "${GODOT_BIN:-$HOME/.cache/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64}" --path godot --display-driver wayland --rendering-driver vulkan --audio-driver Dummy --script res://tests/render_scale_buffers.gd -- --screen gamemenu
+XDG_CONFIG_HOME="$PWD/data/diagnostics/render-scale-red/config" XDG_DATA_HOME="$PWD/data/diagnostics/render-scale-red/xdg-data" GODOT_TEST_CAPTURE_DIR="$PWD/data/diagnostics/render-scale-red/captures" "${GODOT_BIN:-$HOME/.cache/game-engine/godot/4.7.2-pr123946/godot-4.7.2-pr123946}" --path godot --display-driver wayland --rendering-driver vulkan --audio-driver Dummy --script res://tests/render_scale_buffers.gd -- --screen gamemenu
 ```
 
 Source: [Godot conversion spec](../../specs/godot-conversion.md), `godot/rust/src/{display_options,lib,game_menu}.rs`.
