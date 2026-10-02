@@ -38,7 +38,7 @@ struct Progress {
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
     root: &Path,
     address: SocketAddr,
@@ -73,7 +73,7 @@ pub(super) fn run(
                 reader.join().map_err(|_| "Godot output reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
+        for line in lines.after_selection(progress.selected.is_some()) {
             advance_marker(app, &mut progress, line.trim(), &token_path)?;
         }
         check_inputs(app, &mut progress)?;
@@ -160,7 +160,7 @@ fn advance_marker(
         return Err(format!("Godot logout runtime error: {line}"));
     }
     match (progress.stage, line) {
-        (Stage::Loading, "FIXTURE LOGOUT_LOADING") if progress.selected.is_some() => {
+        (Stage::Loading, "FIXTURE LOGOUT_LOADING") => {
             send::<_, TerrainChannel>(
                 app,
                 LoadTerrain {

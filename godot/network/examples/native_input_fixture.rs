@@ -3,6 +3,7 @@
 //! at target/debug/examples/native_input_fixture; most modes also need the root launcher.
 
 use std::{
+    cell::RefCell,
     fs,
     io::{BufRead, BufReader},
     net::{SocketAddr, UdpSocket},
@@ -481,7 +482,7 @@ fn launch_godot(
     address: SocketAddr,
     screen: StartupScreen,
     map_verify: bool,
-) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
+) -> (Child, ClientLines, Vec<thread::JoinHandle<()>>) {
     let binary = if matches!(
         screen,
         StartupScreen::SettingsReload
@@ -659,7 +660,7 @@ fn launch_godot(
             ),
         ),
     ];
-    (child, receiver, readers)
+    (child, ClientLines::new(receiver), readers)
 }
 
 fn read_output(
@@ -695,6 +696,47 @@ fn read_output(
             }
         }
     })
+}
+
+/// Godot output lines in arrival order. The client prints its Loading marker as it sends
+/// SelectCharacter, so that marker and every later line stay queued until this peer has
+/// processed the selection.
+struct ClientLines {
+    receiver: Receiver<String>,
+    held: RefCell<Option<String>>,
+}
+
+impl ClientLines {
+    fn new(receiver: Receiver<String>) -> Self {
+        Self {
+            receiver,
+            held: RefCell::new(None),
+        }
+    }
+
+    fn after_selection(&self, selected: bool) -> Vec<String> {
+        let mut lines = Vec::new();
+        let mut held = self.held.borrow_mut();
+        while let Some(line) = held.take().or_else(|| self.receiver.try_recv().ok()) {
+            if !selected && is_loading_marker(line.trim()) {
+                *held = Some(line);
+                break;
+            }
+            lines.push(line);
+        }
+        lines
+    }
+
+    /// Every queued line, for flows without a character selection and for diagnostics
+    /// after the client has exited.
+    fn remaining(&self) -> Vec<String> {
+        self.after_selection(true)
+    }
+}
+
+fn is_loading_marker(line: &str) -> bool {
+    line == "FIXTURE LOADING_OBSERVED"
+        || (line.starts_with("FIXTURE ") && line.ends_with("_LOADING"))
 }
 
 fn starter_equipment() -> EquipmentAppearance {
@@ -1215,7 +1257,7 @@ fn accept_phase_line(
 fn run_fixture(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     reader: Vec<thread::JoinHandle<()>>,
     screen: StartupScreen,
 ) -> Result<(), String> {
@@ -1252,14 +1294,7 @@ fn run_fixture(
                 }
             }
         }
-        for line in lines.try_iter() {
-            let previous = &phase;
-            if *previous == Phase::AwaitLoading
-                && line.trim() == "FIXTURE LOADING_OBSERVED"
-                && selected.is_none()
-            {
-                return Err("Loading was observed before character selection".into());
-            }
+        for line in lines.after_selection(selected.is_some()) {
             let previous_phase = phase;
             let next_start = line.trim().ends_with("_START") && line.starts_with("FIXTURE ");
             if next_start

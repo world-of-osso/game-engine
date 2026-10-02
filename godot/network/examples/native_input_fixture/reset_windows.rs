@@ -441,7 +441,7 @@ fn stage_fixture_csv(data: &Path) -> Result<(), String> {
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    mut lines: Receiver<String>,
+    mut lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
     repo: &Path,
     config: &FixtureConfig,
@@ -466,10 +466,10 @@ pub(super) fn run(
                 reader.join().map_err(|_| "Godot output reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
+        for line in lines.after_selection(selected.is_some()) {
             saved |= line.trim() == "FIXTURE MAP_SAVED";
             reopened |= line.trim() == "FIXTURE MAP_REOPENED";
-            observe_reset_line(app, &line, selected.is_some(), &mut loading, &mut passed)?;
+            observe_reset_line(app, &line, &mut loading, &mut passed)?;
         }
         if let Some(status) = status {
             verify_reset_process_exit(status, saved, reopened, passed)?;
@@ -555,11 +555,10 @@ fn verify_completed_reset(
 fn observe_reset_line(
     app: &mut App,
     line: &str,
-    selected: bool,
     loading: &mut bool,
     passed: &mut bool,
 ) -> Result<(), String> {
-    if line.trim() == "FIXTURE RESET_LOADING" && selected && !*loading {
+    if line.trim() == "FIXTURE RESET_LOADING" && !*loading {
         send::<_, TerrainChannel>(
             app,
             LoadTerrain {

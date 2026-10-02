@@ -4,7 +4,7 @@ use super::*;
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
     screen: StartupScreen,
 ) -> Result<(), String> {
@@ -43,16 +43,16 @@ fn join_readers_if_exited(
 }
 
 fn read_fixture_output(
-    lines: &Receiver<String>,
+    lines: &ClientLines,
     app: &mut App,
     screen: StartupScreen,
     selected: Option<Entity>,
     stage: &mut i32,
 ) -> Result<(), String> {
-    for line in lines.try_iter() {
+    for line in lines.after_selection(selected.is_some()) {
         let line = line.trim();
         reject_fixture_error(line)?;
-        advance_fixture_stage(app, screen, selected, stage, line)?;
+        advance_fixture_stage(app, screen, stage, line)?;
     }
     Ok(())
 }
@@ -74,12 +74,11 @@ pub(super) fn reject_fixture_error(line: &str) -> Result<(), String> {
 fn advance_fixture_stage(
     app: &mut App,
     screen: StartupScreen,
-    selected: Option<Entity>,
     stage: &mut i32,
     line: &str,
 ) -> Result<(), String> {
     match line {
-        "FIXTURE PORTAL_LOADING" if *stage == 0 && selected.is_some() => {
+        "FIXTURE PORTAL_LOADING" if *stage == 0 => {
             send::<_, TerrainChannel>(
                 app,
                 LoadTerrain {

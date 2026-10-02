@@ -94,13 +94,13 @@ impl Session {
         Ok(())
     }
 
-    fn observe(&mut self, app: &mut App, line: &str, selected: bool) -> Result<(), String> {
+    fn observe(&mut self, app: &mut App, line: &str) -> Result<(), String> {
         bags::reject_runtime_error(line)?;
         if !line.starts_with("FIXTURE BAGS_DRAG_") {
             return Ok(());
         }
         match self.phase {
-            Phase::Loading if line == "FIXTURE BAGS_DRAG_LOADING" && selected => {
+            Phase::Loading if line == "FIXTURE BAGS_DRAG_LOADING" => {
                 send::<_, TerrainChannel>(
                     app,
                     LoadTerrain {
@@ -259,11 +259,7 @@ fn send_delta(app: &mut App) {
     );
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     app.init_resource::<Requests>();
     app.add_systems(Update, receive);
     let mut selected = None;
@@ -279,8 +275,8 @@ fn run_until_done(
         app.update();
         respond_to_login(app, StartupScreen::BagsDrag)?;
         respond_to_selection(app, StartupScreen::BagsDrag, &mut selected, &mut remote)?;
-        for line in lines.try_iter() {
-            session.observe(app, line.trim(), selected.is_some())?;
+        for line in lines.after_selection(selected.is_some()) {
+            session.observe(app, line.trim())?;
         }
         session.respond(app)?;
         if let Some(status) = child
@@ -312,12 +308,12 @@ fn run_until_done(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut result = run_until_done(app, child, &lines);
     let cleanup = bags::cleanup_owned_child(child, readers);
-    for line in lines.try_iter() {
+    for line in lines.remaining() {
         if let Err(error) = bags::reject_runtime_error(line.trim()) {
             result = Err(match result {
                 Ok(()) => error,
