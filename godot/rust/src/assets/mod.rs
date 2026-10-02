@@ -274,8 +274,13 @@ pub(crate) const M2_SOURCE_META: &str = "m2_source_path";
 const M2_MESH_PART_META: &str = "m2_mesh_part";
 
 fn m2_bounds(model: &m2::Model) -> Aabb {
-    let [min_x, min_y, min_z] = model.bounding_box_min;
-    let [max_x, max_y, max_z] = model.bounding_box_max;
+    wow_aabb(model.bounding_box_min, model.bounding_box_max)
+}
+
+/// A WoW model-local (min, max) box in engine axes.
+pub(crate) fn wow_aabb(min: [f32; 3], max: [f32; 3]) -> Aabb {
+    let [min_x, min_y, min_z] = min;
+    let [max_x, max_y, max_z] = max;
     // `wow_vec3` negates WoW Y into engine -Z, so the extremes swap on that axis.
     let min = Vector3::new(min_x, min_z, -max_y);
     let max = Vector3::new(max_x, max_z, -min_y);
@@ -425,9 +430,9 @@ pub(super) fn build_model_filtered(
         if let Some(skin) = &skin {
             instance.set_skin(skin);
             instance.set_skeleton_path("../Skeleton3D");
-            // Culled by the header box like WebWowViewerCpp `M2Object::createAABB`; it holds
-            // every sequence's bounds, and without it Godot re-derives the AABB from the bones
-            // after every pose write.
+            // Culled by the header box like WebWowViewerCpp `M2Object::createAABB` until the
+            // animation player sets the playing sequence's bounds; without a custom AABB Godot
+            // re-derives it from the bones after every pose write.
             instance.set_custom_aabb(bounds);
         }
         // Bound as the material override, which GeometryInstance3D clears from its
@@ -437,8 +442,9 @@ pub(super) fn build_model_filtered(
         instance.set_material_override(&material);
         root.add_child(&instance);
     }
-    if let Some(player) = player {
+    if let Some(mut player) = player {
         root.add_child(&player);
+        player.bind_mut().apply_sequence_bounds();
     }
     if let Some(mut animation) = material_animation {
         animation.set_name("M2MaterialAnimation");

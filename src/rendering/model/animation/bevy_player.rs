@@ -367,6 +367,7 @@ mod tests {
                 frequency: 32767,
                 replay: [0, 0],
                 variation_next: -1,
+                bounds: [[0.0; 3]; 2],
             }],
             bone_tracks: Arc::from([BoneAnimTracks {
                 translation: AnimTrack {
@@ -567,6 +568,7 @@ mod tests {
                     frequency: 32767,
                     replay: [0, 0],
                     variation_next: -1,
+                    bounds: [[0.0; 3]; 2],
                 })
                 .collect();
             Arc::make_mut(&mut model.bone_tracks)[0]
@@ -674,6 +676,7 @@ mod tests {
                     frequency: 32767,
                     replay: [0, 0],
                     variation_next: -1,
+                    bounds: [[0.0; 3]; 2],
                 })
                 .collect();
             let tracks = &mut Arc::make_mut(&mut model.bone_tracks)[0];
