@@ -3118,6 +3118,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_replicon",
+ "libc",
  "lightyear",
  "lightyear_messages",
  "lightyear_replication",

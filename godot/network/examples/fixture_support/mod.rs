@@ -1,4 +1,63 @@
-use std::path::{Path, PathBuf};
+use std::{
+    ops::{Deref, DerefMut},
+    os::unix::process::CommandExt,
+    path::{Path, PathBuf},
+    process::{Child, Command},
+};
+
+/// A client process the fixture owns. It leads its own process group, so dropping it
+/// (on return, early `?`, or panic unwind) SIGKILLs the whole group: a wrapper such as
+/// `sh -c` or cage cannot outlive the fixture or leave the real Godot process behind.
+/// The kernel also SIGKILLs the leader if the fixture dies without unwinding (SIGINT).
+pub struct FixtureChild(Child);
+
+impl FixtureChild {
+    pub fn spawn(command: &mut Command) -> std::io::Result<Self> {
+        command.process_group(0);
+        // SAFETY: prctl is async-signal-safe and touches no parent state.
+        unsafe {
+            command.pre_exec(|| {
+                if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) == 0 {
+                    Ok(())
+                } else {
+                    Err(std::io::Error::last_os_error())
+                }
+            });
+        }
+        command.spawn().map(Self)
+    }
+}
+
+impl Deref for FixtureChild {
+    type Target = Child;
+
+    fn deref(&self) -> &Child {
+        &self.0
+    }
+}
+
+impl DerefMut for FixtureChild {
+    fn deref_mut(&mut self) -> &mut Child {
+        &mut self.0
+    }
+}
+
+impl Drop for FixtureChild {
+    fn drop(&mut self) {
+        let group = self.0.id() as libc::pid_t;
+        // Group members outlive an exited leader, so kill the group unconditionally.
+        // SAFETY: kill has no memory-safety preconditions.
+        if unsafe { libc::kill(-group, libc::SIGKILL) } != 0 {
+            let error = std::io::Error::last_os_error();
+            if error.raw_os_error() != Some(libc::ESRCH) {
+                eprintln!("Kill fixture client group {group}: {error}");
+            }
+        }
+        if let Err(error) = self.0.wait() {
+            eprintln!("Reap fixture client {group}: {error}");
+        }
+    }
+}
 
 pub fn checkout_root_from_executable(name: &str) -> Result<PathBuf, String> {
     let executable = std::env::current_exe()
@@ -50,6 +109,63 @@ mod tests {
             workspace
         );
         std::fs::remove_dir_all(workspace).unwrap();
+    }
+
+    /// Present and not a zombie awaiting its (new) parent's reap.
+    fn running(pid: libc::pid_t) -> bool {
+        std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| {
+            !stat
+                .rsplit(')')
+                .next()
+                .unwrap()
+                .trim_start()
+                .starts_with('Z')
+        })
+    }
+
+    fn process_gone(pid: libc::pid_t) -> bool {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while running(pid) {
+            if std::time::Instant::now() >= deadline {
+                return false;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        true
+    }
+
+    #[test]
+    fn panic_kills_wrapped_client_group() {
+        use std::io::BufRead;
+        let pids = std::sync::Mutex::new(Vec::new());
+        let unwound = std::panic::catch_unwind(|| {
+            // The wrapper's grandchild stands in for Godot under `sh -c` / cage.
+            let mut child = FixtureChild::spawn(
+                Command::new("sh")
+                    .args(["-c", "sleep 300 & echo $!; wait"])
+                    .stdout(std::process::Stdio::piped()),
+            )
+            .unwrap();
+            let mut line = String::new();
+            std::io::BufReader::new(child.stdout.take().unwrap())
+                .read_line(&mut line)
+                .unwrap();
+            let mut pids = pids.lock().unwrap();
+            pids.push(child.id() as libc::pid_t);
+            pids.push(line.trim().parse::<libc::pid_t>().unwrap());
+            assert!(running(pids[1]), "grandchild {} not running", pids[1]);
+            drop(pids);
+            panic!("fixture failure mid-run");
+        });
+        assert!(unwound.is_err());
+        let pids = pids.into_inner().unwrap();
+        assert_eq!(pids.len(), 2);
+        for pid in pids {
+            assert!(
+                process_gone(pid),
+                "process {pid} survived the fixture panic"
+            );
+        }
     }
 
     #[test]

@@ -5,6 +5,7 @@
 
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
+use fixture_support::FixtureChild;
 
 use std::{
     io::{BufRead, BufReader},
@@ -114,7 +115,7 @@ fn start_server() -> (App, SocketAddr) {
     (app, address)
 }
 
-fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, thread::JoinHandle<()>) {
+fn launch_godot(address: SocketAddr) -> (FixtureChild, Receiver<String>, thread::JoinHandle<()>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let project = fixture_support::checkout_root_from_executable("native_reconnect_fixture")
         .unwrap_or_else(|error| panic!("{error}"))
@@ -124,19 +125,20 @@ fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, thread::JoinHa
     } else {
         &["--headless"]
     };
-    let mut child = Command::new(binary)
-        .args(display_args)
-        .args([
-            "--path",
-            project.to_str().expect("UTF-8 Godot project path"),
-            "--script",
-            "res://tests/world_reconnect_flow.gd",
-        ])
-        .env("GODOT_TEST_SERVER", address.to_string())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .expect("start native Godot fixture process");
+    let mut child = FixtureChild::spawn(
+        Command::new(binary)
+            .args(display_args)
+            .args([
+                "--path",
+                project.to_str().expect("UTF-8 Godot project path"),
+                "--script",
+                "res://tests/world_reconnect_flow.gd",
+            ])
+            .env("GODOT_TEST_SERVER", address.to_string())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit()),
+    )
+    .expect("start native Godot fixture process");
     let output = child.stdout.take().expect("read Godot stdout");
     let (sender, receiver) = mpsc::channel();
     let reader = thread::spawn(move || {
@@ -394,15 +396,6 @@ fn main() {
     println!("FIXTURE ENDPOINT {address}");
     let (mut child, lines, reader) = launch_godot(address);
     let result = run_fixture(&mut app, &mut child, lines, reader);
-    if result.is_err()
-        && child
-            .try_wait()
-            .expect("inspect fixture child status")
-            .is_none()
-    {
-        child.kill().expect("terminate failed Godot fixture");
-        child.wait().expect("reap failed Godot fixture");
-    }
     if let Err(error) = result {
         panic!("native reconnect fixture: {error}");
     }

@@ -21,5 +21,7 @@ quick-js = "0.4"
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 
 [dev-dependencies]
+# Fixtures kill their owned client process group (kill(-pgid)) and set PR_SET_PDEATHSIG.
+libc = "0.2"
 # Tap decoded fingerprints before shared's validation without consuming the messages.
 lightyear_messages = { version = "0.28", default-features = false }
