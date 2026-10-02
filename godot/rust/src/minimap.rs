@@ -84,9 +84,11 @@ impl Minimap {
                 load_catalogs(&catalog_root)
             }),
             resolver: None,
-            tile_loader: AssetLoader::new("minimap-tiles", 1, move |(map, key)| {
-                load_tile(&resolver, &tile_root, map, *key)
-            }),
+            tile_loader: AssetLoader::new(
+                "minimap-tiles",
+                1,
+                move |(map, key): &(String, TileKey)| load_tile(&resolver, &tile_root, map, *key),
+            ),
             tiles: HashMap::new(),
             tiles_arrived: false,
             chrome: HashMap::new(),
