@@ -119,3 +119,29 @@ fn sound_and_bindings_actions_project_reset_and_commit() {
         m.committed_bindings.binding(InputAction::MoveForward)
     );
 }
+
+#[test]
+fn interact_key_icons_choice_projects_and_commits_the_icon_cvars() {
+    use game_engine_core::client_options_data::InteractKeyIcons;
+    let mut m = model();
+    m.category = OptionsCategory::Accessibility;
+    assert_eq!(
+        build_view_model(&m).options.hud.interact_key_icons,
+        InteractKeyIcons::Default
+    );
+    let action = parse_toggle_action("options_toggle:interact_key_icons:2").unwrap();
+    assert!(apply_toggle(action, &mut m));
+    assert_eq!(
+        build_view_model(&m).options.hud.interact_key_icons,
+        InteractKeyIcons::ShowAll
+    );
+    assert!(!apply_toggle("interact_key_icons:9", &mut m));
+    let snapshot = apply_snapshot(&mut m);
+    let mut output = HudOptionsFile::default();
+    apply_hud_file_snapshot(&mut output, &snapshot.hud);
+    assert!(output.soft_target.icon_game_object && output.soft_target.low_priority_icons);
+    assert_eq!(
+        output.soft_target.interact_key_icons(),
+        InteractKeyIcons::ShowAll
+    );
+}

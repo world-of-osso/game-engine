@@ -1,6 +1,7 @@
 //! Shared Options UI policy. Runtime resources, input events and persistence remain host-owned.
 use crate::client_options_data::{
-    self, CameraOptionsFile, GraphicsOptionsFile, HudOptionsFile, SoundOptionsFile,
+    self, CameraOptionsFile, GraphicsOptionsFile, HudOptionsFile, InteractKeyIcons,
+    SoftTargetOptions, SoundOptionsFile,
 };
 use crate::input_bindings_data::{
     BindingSection, InputAction, InputBinding, InputBindingsData, actions_for_section,
@@ -101,6 +102,7 @@ pub struct HudDraft {
     pub show_target_marker: bool,
     pub auto_loot: bool,
     pub soft_target_interact: bool,
+    pub soft_target: SoftTargetOptions,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }
@@ -171,6 +173,7 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
         show_target_marker: hud.show_target_marker,
         auto_loot: hud.auto_loot,
         soft_target_interact: hud.soft_target_interact,
+        soft_target: hud.soft_target,
         show_fps_overlay: hud.show_fps_overlay,
         chat_font_size: hud.chat_font_size,
     }
@@ -225,6 +228,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         show_target_marker: h.show_target_marker,
         auto_loot: h.auto_loot,
         soft_target_interact: h.soft_target_interact,
+        interact_key_icons: h.soft_target.interact_key_icons(),
         show_fps_overlay: h.show_fps_overlay,
         chat_font_size: h.chat_font_size,
     }
@@ -615,9 +619,20 @@ fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
         "auto_loot" => hud.auto_loot = !hud.auto_loot,
         "soft_target_interact" => hud.soft_target_interact = !hud.soft_target_interact,
         "show_fps_overlay" => hud.show_fps_overlay = !hud.show_fps_overlay,
-        _ => return false,
+        _ => {
+            let Some(choice) = interact_key_icons_choice(key) else {
+                return false;
+            };
+            hud.soft_target.set_interact_key_icons(choice);
+        }
     }
     true
+}
+
+/// `interact_key_icons:<1|2|3>`: a choice of the "Interact Key Icons" dropdown.
+fn interact_key_icons_choice(key: &str) -> Option<InteractKeyIcons> {
+    let value = key.strip_prefix("interact_key_icons:")?.parse().ok()?;
+    InteractKeyIcons::from_value(value)
 }
 
 pub fn reset_category_defaults(model: &mut OptionsModel) {
@@ -716,6 +731,7 @@ pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.show_target_marker = d.show_target_marker;
     h.auto_loot = d.auto_loot;
     h.soft_target_interact = d.soft_target_interact;
+    h.soft_target = d.soft_target;
     h.show_fps_overlay = d.show_fps_overlay;
     h.chat_font_size = d
         .chat_font_size
