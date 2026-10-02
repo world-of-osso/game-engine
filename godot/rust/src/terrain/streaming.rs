@@ -5,8 +5,6 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread::{self, JoinHandle};
 
-use game_engine_core::asset::adt_format::adt::ChunkHeightGrid;
-
 use super::assets::{NativeMapWdt, NativeTerrainAssets, NativeTerrainTile};
 
 const MAP_TILE_BOUND: u32 = 64;
@@ -150,21 +148,26 @@ impl StreamedTerrain {
         self.map.as_deref()
     }
 
+    /// The terrain height at Bevy (x, z); `None` off the parsed tiles and in a terrain hole,
+    /// which has no terrain (TrinityCore `GridMap::getHeight` returns `INVALID_HEIGHT` there;
+    /// `chunk_geometry` draws no quad).
     pub fn height_at(&self, x: f32, z: f32) -> Option<f32> {
-        let grid = self.chunk_grid_at(x, z)?;
-        Some(game_engine_core::terrain_height_data::sample_located_chunk_height(grid, x, z))
-    }
-
-    /// The parsed chunk grid index arithmetic places Bevy (x, z) in.
-    fn chunk_grid_at(&self, x: f32, z: f32) -> Option<&ChunkHeightGrid> {
-        let (tile, (index_x, index_y)) =
-            game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
-        self.parsed_tiles
-            .get(&tile)?
-            .root
+        use game_engine_core::terrain_height_data::{
+            bevy_to_chunk_coords, located_quad, sample_located_chunk_height,
+        };
+        let (tile, (index_x, index_y)) = bevy_to_chunk_coords(x, z);
+        let root = &self.parsed_tiles.get(&tile)?.root;
+        let grid = root
             .height_grids
             .iter()
-            .find(|grid| grid.index_x == index_x && grid.index_y == index_y)
+            .find(|grid| grid.index_x == index_x && grid.index_y == index_y)?;
+        let (row, col) = located_quad(grid, x, z);
+        let hole = root
+            .chunks
+            .iter()
+            .find(|chunk| chunk.index_x == index_x && chunk.index_y == index_y)
+            .is_some_and(|chunk| chunk.hole_at(row, col));
+        (!hole).then(|| sample_located_chunk_height(grid, x, z))
     }
 
     pub fn area_id_at(&self, x: f32, z: f32) -> Option<u32> {
