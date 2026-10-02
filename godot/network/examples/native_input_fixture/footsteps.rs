@@ -4,7 +4,7 @@ use super::*;
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut selected = None;
@@ -42,13 +42,13 @@ fn join_readers_if_exited(
 }
 
 fn read_fixture_output(
-    lines: &Receiver<String>,
+    lines: &ClientLines,
     app: &mut App,
     selected: Option<Entity>,
     stage: &mut u8,
     saw_forward: &mut bool,
 ) -> Result<(), String> {
-    for line in lines.try_iter() {
+    for line in lines.after_selection(selected.is_some()) {
         let line = line.trim();
         reject_fixture_error(line)?;
         advance_fixture_stage(app, selected, stage, saw_forward, line)?;
@@ -103,7 +103,7 @@ fn advance_fixture_stage(
     line: &str,
 ) -> Result<(), String> {
     match line {
-        "FIXTURE FOOTSTEPS_LOADING" if *stage == 0 && selected.is_some() => {
+        "FIXTURE FOOTSTEPS_LOADING" if *stage == 0 => {
             if !take_inputs(app).is_empty() {
                 return Err("PlayerInput arrived during withheld terrain Loading".into());
             }

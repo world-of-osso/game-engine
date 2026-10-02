@@ -124,7 +124,8 @@ const CLI_DEADLINE: Duration = Duration::from_secs(120);
 struct Run<'a> {
     app: &'a mut App,
     child: &'a mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
+    selected: Option<Entity>,
     cli: PathBuf,
     socket: PathBuf,
     artifacts: PathBuf,
@@ -136,7 +137,7 @@ impl Run<'_> {
     /// One server step plus the Godot output since the last step.
     fn pump(&mut self) -> Result<(), String> {
         self.app.update();
-        for line in self.lines.try_iter() {
+        for line in self.lines.after_selection(self.selected.is_some()) {
             let line = line.trim().trim_start_matches("GODOT_STDERR: ");
             if line.starts_with("SCRIPT ERROR") || line.contains("res://tests/world_dev_ipc") {
                 return Err(format!("Godot dev IPC flow: {line}"));
@@ -937,16 +938,19 @@ fn check_stopped_forward(run: &mut Run) -> Result<(), String> {
 /// Answers login and selection, sends the terrain on Loading, and returns the READY
 /// marker's loaded tile count.
 fn wait_ready(run: &mut Run) -> Result<String, String> {
-    let mut selected = None;
     let mut remote = None;
     let deadline = Instant::now() + TIMEOUT;
     while Instant::now() < deadline {
         run.pump()?;
         respond_to_login(run.app, StartupScreen::DevIpc)?;
-        respond_to_selection(run.app, StartupScreen::DevIpc, &mut selected, &mut remote)?;
+        respond_to_selection(
+            run.app,
+            StartupScreen::DevIpc,
+            &mut run.selected,
+            &mut remote,
+        )?;
         if let Some(index) = run.markers.iter().position(|marker| marker == "LOADING") {
             run.markers.remove(index);
-            selected.ok_or("Loading before character selection")?;
             send::<_, TerrainChannel>(
                 run.app,
                 LoadTerrain {
@@ -1023,7 +1027,7 @@ fn run_checks(run: &mut Run, address: SocketAddr, tiles: &str) -> Result<(), Str
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
     root: &Path,
     address: SocketAddr,
@@ -1039,6 +1043,7 @@ pub(super) fn run(
         app,
         child,
         lines,
+        selected: None,
         cli,
         artifacts,
         markers: Vec::new(),

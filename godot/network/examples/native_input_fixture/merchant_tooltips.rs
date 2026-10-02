@@ -339,12 +339,12 @@ fn tick_peer(
 fn run_iteration(
     app: &mut App,
     child: &mut Child,
-    lines: &Receiver<String>,
+    lines: &ClientLines,
     session: &mut Session,
     remote: &mut Option<Entity>,
 ) -> Result<(), String> {
     tick_peer(app, session, remote)?;
-    for line in lines.try_iter() {
+    for line in lines.after_selection(session.selected.is_some()) {
         session.receive_marker(app, line.trim())?;
     }
     session.receive_requests(app)?;
@@ -360,11 +360,7 @@ fn run_iteration(
     Ok(())
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     app.init_resource::<Requests>();
     app.add_systems(Update, (receive_merchant, receive_inventory));
     let mut session = Session {
@@ -394,13 +390,14 @@ fn run_until_done(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let result = run_until_done(app, child, &lines);
     let cleanup = bags::cleanup_owned_child(child, readers);
     let drain = lines
-        .try_iter()
+        .remaining()
+        .into_iter()
         .try_for_each(|line| bags::reject_runtime_error(line.trim()));
     result.and(cleanup).and(drain)?;
     println!("MERCHANT TOOLTIPS Open1 and zero transactions; forced cleanup, NOT shutdown proof");

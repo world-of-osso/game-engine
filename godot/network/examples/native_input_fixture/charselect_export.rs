@@ -12,7 +12,7 @@ const CLI_DEADLINE: Duration = Duration::from_secs(30);
 struct Run<'a> {
     app: &'a mut App,
     child: &'a mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     markers: Vec<String>,
 }
 
@@ -20,7 +20,7 @@ impl Run<'_> {
     fn pump(&mut self) -> Result<(), String> {
         self.app.update();
         respond_to_login(self.app, StartupScreen::CharSelectExport)?;
-        for line in self.lines.try_iter() {
+        for line in self.lines.remaining() {
             let line = line.trim().trim_start_matches("GODOT_STDERR: ");
             if line.starts_with("SCRIPT ERROR") || line.contains("res://tests/charselect_export") {
                 return Err(format!("Godot char-select export flow: {line}"));
@@ -132,7 +132,7 @@ fn finish(run: &mut Run, readers: Vec<thread::JoinHandle<()>>) -> Result<(), Str
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
     root: &Path,
 ) -> Result<(), String> {

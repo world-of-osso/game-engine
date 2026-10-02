@@ -94,7 +94,7 @@ fn opened(app: &mut App, object: u64) {
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let probe = std::env::var("GUILD_BANK_OPENING_PROBE").as_deref() == Ok("1");
@@ -114,11 +114,11 @@ pub(super) fn run(
         if selected.is_some() && vault.is_none() {
             vault = Some(spawn_vault(app));
         }
-        for line in lines.try_iter() {
+        for line in lines.after_selection(selected.is_some()) {
             let line = line.trim();
             bags::reject_runtime_error(line)?;
             match line {
-                "FIXTURE GUILD_BANK_LOADING" if selected.is_some() && !loading => {
+                "FIXTURE GUILD_BANK_LOADING" if !loading => {
                     loading = true;
                     send::<_, TerrainChannel>(
                         app,
@@ -161,7 +161,7 @@ pub(super) fn run(
                     .map_err(|_| "guild bank output reader panicked")?;
             }
             // Drain final stdout after reader join on the next iteration.
-            for line in lines.try_iter() {
+            for line in lines.remaining() {
                 bags::reject_runtime_error(line.trim())?;
                 if line.trim() == "FIXTURE GUILD_BANK_OPEN_DONE" && opened_once {
                     done = true;

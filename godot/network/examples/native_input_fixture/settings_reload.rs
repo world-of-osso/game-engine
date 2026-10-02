@@ -115,6 +115,13 @@ impl Session {
         Ok(())
     }
 
+    fn selected(&self, pass: Pass) -> bool {
+        match pass {
+            Pass::Save => self.player.is_some(),
+            Pass::Load => self.reload_selected,
+        }
+    }
+
     fn corpse(&self) -> Result<u64, String> {
         self.corpse
             .ok_or_else(|| "settings marker before selected player and corpse".into())
@@ -296,7 +303,7 @@ impl Progress {
 fn run_pass(
     app: &mut App,
     child: &mut Child,
-    lines: &Receiver<String>,
+    lines: &ClientLines,
     session: &mut Session,
     pass: Pass,
 ) -> Result<(), String> {
@@ -319,7 +326,7 @@ fn run_pass(
                 "settings {pass:?} child exited before owned cleanup: {status}"
             ));
         }
-        for line in lines.try_iter() {
+        for line in lines.after_selection(session.selected(pass)) {
             progress.observe(app, session, pass, line.trim())?;
         }
         session.respond_to_loot(app, pass, progress.ready)?;
@@ -392,7 +399,7 @@ fn cleanup_pass_result<T>(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
     context: FixtureContext<'_>,
 ) -> Result<(), String> {

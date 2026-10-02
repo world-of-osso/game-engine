@@ -95,7 +95,7 @@ impl FixtureProgress {
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut progress = FixtureProgress::new();
@@ -139,10 +139,10 @@ fn join_readers_on_exit(
 
 fn consume_fixture_lines(
     app: &mut App,
-    lines: &Receiver<String>,
+    lines: &ClientLines,
     progress: &mut FixtureProgress,
 ) -> Result<(), String> {
-    for line in lines.try_iter() {
+    for line in lines.after_selection(progress.selected.is_some()) {
         let line = line.trim();
         if line.starts_with("GODOT_STDERR: ERROR:")
             || line.starts_with("GODOT_STDERR: SCRIPT ERROR:")
@@ -161,8 +161,8 @@ fn advance_fixture_marker(
 ) -> Result<(), String> {
     match (progress.stage, line) {
         (Stage::Loading, "FIXTURE LOADING_OBSERVED") => {
-            if progress.selected.is_none() || !take_inputs(app).is_empty() {
-                return Err("Loading sent input or preceded selection".into());
+            if !take_inputs(app).is_empty() {
+                return Err("Loading sent input".into());
             }
             send::<_, TerrainChannel>(
                 app,
