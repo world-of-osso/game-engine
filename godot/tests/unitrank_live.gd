@@ -43,16 +43,14 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	var unit: Dictionary = await find_unit()
-	if unit.is_empty():
+	if (await find_unit()).is_empty():
 		return
-	await move_mouse(unit.point)
-	if not await wait_until(func(): return tooltip().title == creature and has_line(tooltip(), level_line), 8000, "%s tooltip with %s" % [creature, level_line]):
+	# The creature wanders: follow its current screen point while waiting.
+	if not await track_until(func(): return tooltip().title == creature and has_line(tooltip(), level_line), false, "%s tooltip with %s" % [creature, level_line]):
 		return
 	print("FIXTURE WORLD_TOOLTIP ", tooltip())
 	await capture("01-world-tooltip.png")
-	await click_point(unit.point, MOUSE_BUTTON_LEFT)
-	if not await wait_until(func(): return client.target_state().target_name == creature, 8000, "%s targeted" % creature):
+	if not await track_until(func(): return client.target_state().target_name == creature, true, "%s targeted" % creature):
 		return
 	var star := control("UnitFramesUI", "TargetBossIcon")
 	var dragon := control("UnitFramesUI", "TargetBossPortraitFrameTexture")
@@ -69,27 +67,51 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+## Hover (or left-click) the creature where it is now until `done`, for 10 s.
+func track_until(done: Callable, click: bool, what: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 10000
+	while Time.get_ticks_msec() < deadline:
+		var point = unit_point()
+		if point != null:
+			if click:
+				await click_point(point, MOUSE_BUTTON_LEFT)
+			else:
+				await move_mouse(point)
+		else:
+			await process_frame
+		if done.call():
+			return true
+	fail("Timed out waiting for %s: tooltip=%s target=%s" % [what, tooltip(), client.target_state()])
+	return false
+
+## The creature's pick point on screen when the native ray selects it, else null.
+func unit_point():
+	var units = client.get_node_or_null("WorldUnits")
+	if units == null:
+		return null
+	for unit in units.get_children():
+		if str(unit.name) != creature:
+			continue
+		var area := unit.find_child("UnitPick", true, false) as Area3D
+		if area == null:
+			continue
+		var world_point := (area.get_child(0) as Node3D).global_position
+		if not camera().is_position_in_frustum(world_point):
+			continue
+		var point := camera().unproject_position(world_point)
+		if UnitPicker.pick(camera(), point) == area.get_meta("unit_server_id"):
+			return point
+	return null
+
 ## The creature's pick shape centre on screen, selected by the native ray; turn until seen.
 func find_unit() -> Dictionary:
 	var deadline := Time.get_ticks_msec() + 60000
 	var turned := 0
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		var units = client.get_node_or_null("WorldUnits")
-		if units == null:
-			continue
-		for unit in units.get_children():
-			if str(unit.name) != creature:
-				continue
-			var area := unit.find_child("UnitPick", true, false) as Area3D
-			if area == null:
-				continue
-			var world_point := (area.get_child(0) as Node3D).global_position
-			if not camera().is_position_in_frustum(world_point):
-				continue
-			var point := camera().unproject_position(world_point)
-			if UnitPicker.pick(camera(), point) == area.get_meta("unit_server_id"):
-				return {"point": point}
+		var point = unit_point()
+		if point != null:
+			return {"point": point}
 		if turned < 60:
 			push_key(KEY_RIGHT, true)
 			await wait_frames(3)
@@ -188,7 +210,6 @@ func click_point(point: Vector2, button: MouseButton) -> void:
 		event.position = point
 		event.global_position = point
 		event.button_index = button
-		event.button_mask = (1 << (button - 1)) if pressed else 0
 		event.pressed = pressed
 		root.push_input(event, true)
 		await process_frame
