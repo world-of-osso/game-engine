@@ -1,16 +1,17 @@
 extends SceneTree
 
-# Godot compiles an M2 shader variant when a material first takes it, 25-50 ms of
-# main-thread time, so the first model of each pipeline stalled character select and
-# world entry. Each pipeline a model uses is recorded in user://, and a later run
-# compiles the recorded pipelines ahead of need, one per call.
+# Godot compiles a shader when a material first takes it, 10-50 ms of main-thread time,
+# so the first model of each M2 pipeline, the terrain and each liquid stalled character
+# select and world entry. Each shader the scene uses is recorded in user://, and a later
+# run compiles the recorded shaders ahead of need, one per call.
 
 const DATA := "res://../data/models/"
 # Single-batch doodad model (FDID 1016191).
 const MODEL := 1016191
-const PIPELINES := "user://m2_shader_pipelines.txt"
-# Mod blend, two-sided, no depth test or write: a pipeline the model does not use.
-const RECORDED := "4 1 0 0"
+const USED := "user://used_shaders.txt"
+# An M2 pipeline the model does not use (Mod blend, two-sided, no depth test or write)
+# and a liquid shader.
+const RECORDED := ["m2 4 1 0 0", "resource res://shaders/water.gdshader"]
 
 var saved = null
 
@@ -27,12 +28,12 @@ func _initialize() -> void:
 
 func restore() -> void:
 	if saved != null:
-		FileAccess.open(PIPELINES, FileAccess.WRITE).store_string(saved)
-	elif FileAccess.file_exists(PIPELINES):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(PIPELINES))
+		FileAccess.open(USED, FileAccess.WRITE).store_string(saved)
+	elif FileAccess.file_exists(USED):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(USED))
 
 func lines() -> PackedStringArray:
-	return FileAccess.get_file_as_string(PIPELINES).split("\n", false)
+	return FileAccess.get_file_as_string(USED).split("\n", false)
 
 ## Calls until nothing is left to compile; the number compiled, or -1 on error.
 func compile_all(loader: Object) -> int:
@@ -48,20 +49,20 @@ func compile_all(loader: Object) -> int:
 	return compiled
 
 func check() -> void:
-	if FileAccess.file_exists(PIPELINES):
-		saved = FileAccess.get_file_as_string(PIPELINES)
-	FileAccess.open(PIPELINES, FileAccess.WRITE).store_string(RECORDED + "\n")
+	if FileAccess.file_exists(USED):
+		saved = FileAccess.get_file_as_string(USED)
+	FileAccess.open(USED, FileAccess.WRITE).store_string("\n".join(RECORDED) + "\n")
 	var loader = ClassDB.instantiate("WowAssetLoader")
 	var compiled := compile_all(loader)
-	if compiled != 1:
-		fail("compiled %d pipelines from a file recording 1" % compiled)
+	if compiled != RECORDED.size():
+		fail("compiled %d shaders from a file recording %d" % [compiled, RECORDED.size()])
 		return
 	var result: Dictionary = loader.load_m2(DATA + "%d.m2" % MODEL)
 	if result.has("error"):
 		fail("%d load: %s" % [MODEL, result.error])
 		return
 	var recorded := lines()
-	if recorded.size() < 2 or recorded[0] != RECORDED:
+	if recorded.size() <= RECORDED.size() or recorded.slice(0, RECORDED.size()) != PackedStringArray(RECORDED):
 		fail("model %d recorded no pipeline after %s: %s" % [MODEL, RECORDED, recorded])
 		return
 	var unique := {}
@@ -72,8 +73,9 @@ func check() -> void:
 		return
 	# The model's own shaders compiled as it loaded; its scenery-fade shaders did not.
 	compiled = compile_all(loader)
-	if compiled != recorded.size() - 1:
-		fail("compiled %d of the model's %d pipelines" % [compiled, recorded.size() - 1])
+	var model_pipelines := recorded.size() - RECORDED.size()
+	if compiled != model_pipelines:
+		fail("compiled %d of the model's %d pipelines" % [compiled, model_pipelines])
 		return
 	result.node.free()
 	result = loader.load_m2(DATA + "%d.m2" % MODEL)
@@ -84,7 +86,7 @@ func check() -> void:
 	if lines() != recorded:
 		fail("reloading the model changed the record: %s" % [lines()])
 		return
-	print("PASS: model %d recorded %s after %s; each recorded pipeline compiled once" % [
-		MODEL, recorded.slice(1), RECORDED])
+	print("PASS: model %d recorded %s after %s; each recorded shader compiled once" % [
+		MODEL, recorded.slice(RECORDED.size()), RECORDED])
 	restore()
 	quit(0)

@@ -66,6 +66,7 @@ mod quests;
 mod replicated;
 mod scene;
 mod scene_export;
+mod shader_warmup;
 mod selection_debug;
 mod skybox_debug;
 mod sound;
@@ -126,6 +127,7 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
         // Release cached shaders before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
             assets::material::clear_shared_shaders();
+            shader_warmup::clear();
             assets::clear_shared_meshes();
             wmo::scene::clear_shaders();
             particles::clear_quad_mesh();
@@ -1471,7 +1473,7 @@ impl GameClient {
     /// One frame of client steps (`process`, which times it).
     fn run_frame(&mut self, delta: f64) {
         if !self.poll_asset_startup() {
-            if let Err(error) = assets::material::compile_next_used_shader() {
+            if let Err(error) = shader_warmup::compile_next() {
                 self.handle_frame_error("Shader compilation", error.into());
             }
             self.receive_account_during_startup();
@@ -1882,14 +1884,14 @@ impl GameClient {
         self.terrain_materials.sync(&mut parent, &self.terrain)
     }
 
-    /// One used M2 pipeline per login and loading screen frame, so character select and
-    /// the world take their shaders compiled.
+    /// One used shader per login and loading screen frame, so character select and the
+    /// world take their shaders compiled.
     fn compile_used_shaders(&self) -> Result<(), String> {
         if matches!(
             self.account.session.screen,
             SessionScreen::Login | SessionScreen::Loading
         ) {
-            assets::material::compile_next_used_shader()?;
+            shader_warmup::compile_next()?;
         }
         Ok(())
     }

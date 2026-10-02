@@ -10,8 +10,7 @@ use game_engine_core::{
 };
 use godot::{
     classes::{
-        ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ResourceLoader, Shader,
-        ShaderMaterial, image, mesh,
+        ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, Shader, ShaderMaterial, image, mesh,
     },
     prelude::*,
 };
@@ -239,11 +238,7 @@ impl WaterMaterials {
             return Ok(shader.clone());
         }
         let path = shader_path(kind);
-        let shader = ResourceLoader::singleton()
-            .load(path)
-            .ok_or_else(|| format!("Cannot load liquid shader {path}"))?
-            .try_cast::<Shader>()
-            .map_err(|_| format!("Liquid shader {path} has wrong type"))?;
+        let shader = crate::shader_warmup::load_shader(path)?;
         self.shaders.insert(kind, shader.clone());
         Ok(shader)
     }

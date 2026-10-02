@@ -9,7 +9,7 @@ use game_engine_core::{adt, blp};
 use godot::{
     classes::{
         ArrayMesh, CollisionShape3D, ConcavePolygonShape3D, Image, ImageTexture, MeshInstance3D,
-        Node3D, ResourceLoader, Shader, ShaderMaterial, StaticBody3D, image,
+        Node3D, Shader, ShaderMaterial, StaticBody3D, image,
     },
     prelude::*,
 };
@@ -160,12 +160,7 @@ impl TerrainMaterials {
         if let Some(shader) = &self.shader {
             return Ok(shader.clone());
         }
-        let resource = ResourceLoader::singleton()
-            .load("res://shaders/terrain.gdshader")
-            .ok_or("Cannot load native terrain shader")?;
-        let shader = resource
-            .try_cast::<Shader>()
-            .map_err(|_| "Native terrain shader resource has wrong type")?;
+        let shader = crate::shader_warmup::load_shader("res://shaders/terrain.gdshader")?;
         self.shader = Some(shader.clone());
         Ok(shader)
     }
