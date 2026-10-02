@@ -115,11 +115,7 @@ fn update(app: &mut App, trade: Option<TradeSnapshot>, message: Option<&str>) {
     );
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     let mut selected = None;
     let mut remote = None;
     let mut stage = 0;
@@ -130,10 +126,10 @@ fn run_until_done(
         app.update();
         respond_to_login(app, StartupScreen::Trade)?;
         respond_to_selection(app, StartupScreen::Trade, &mut selected, &mut remote)?;
-        for line in lines.try_iter() {
+        for line in lines.after_selection(selected.is_some()) {
             bags::reject_runtime_error(line.trim())?;
             match line.trim() {
-                "FIXTURE TRADE_LOADING" if stage == 0 && selected.is_some() => {
+                "FIXTURE TRADE_LOADING" if stage == 0 => {
                     send::<_, TerrainChannel>(
                         app,
                         LoadTerrain {
@@ -197,7 +193,7 @@ fn run_until_done(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let result = run_until_done(app, child, &lines);

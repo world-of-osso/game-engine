@@ -4,7 +4,7 @@ use super::*;
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut selected = None;
@@ -31,14 +31,8 @@ pub(super) fn run(
                 reader.join().map_err(|_| "Godot output reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
-            observe_line(
-                app,
-                line.trim(),
-                selected.is_some(),
-                &mut loading,
-                &mut passed,
-            )?;
+        for line in lines.after_selection(selected.is_some()) {
+            observe_line(app, line.trim(), &mut loading, &mut passed)?;
         }
         if let Some(status) = status {
             if status.success() && passed && opens == 3 && closes == 3 {
@@ -143,7 +137,6 @@ fn send_vendor_inventory(app: &mut App, npc: u64) {
 fn observe_line(
     app: &mut App,
     line: &str,
-    selected: bool,
     loading: &mut bool,
     passed: &mut bool,
 ) -> Result<(), String> {
@@ -156,7 +149,7 @@ fn observe_line(
         return Err(format!("Godot merchant-click runtime error: {line}"));
     }
     match line {
-        "FIXTURE MERCHANT_CLICK_LOADING" if selected && !*loading => {
+        "FIXTURE MERCHANT_CLICK_LOADING" if !*loading => {
             send::<_, TerrainChannel>(
                 app,
                 LoadTerrain {
@@ -167,8 +160,8 @@ fn observe_line(
             );
             *loading = true;
         }
-        "FIXTURE MERCHANT_CLICK_PLACED" if *loading && selected => {}
-        "FIXTURE MERCHANT_CLICK_DONE" if *loading && selected => *passed = true,
+        "FIXTURE MERCHANT_CLICK_PLACED" if *loading => {}
+        "FIXTURE MERCHANT_CLICK_DONE" if *loading => *passed = true,
         line if line.starts_with("FIXTURE MERCHANT_CLICK_") => {
             return Err(format!("out-of-order merchant-click marker: {line}"));
         }

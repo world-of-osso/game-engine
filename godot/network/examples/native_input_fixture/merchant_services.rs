@@ -466,12 +466,12 @@ fn tick_peer(
 fn run_iteration(
     app: &mut App,
     child: &mut Child,
-    lines: &Receiver<String>,
+    lines: &ClientLines,
     session: &mut Session,
     remote: &mut Option<Entity>,
 ) -> Result<(), String> {
     tick_peer(app, session, remote)?;
-    for line in lines.try_iter() {
+    for line in lines.after_selection(session.selected.is_some()) {
         session.receive_marker(app, line.trim())?;
     }
     session.receive_interaction(app)?;
@@ -502,11 +502,7 @@ fn register_service_receivers(app: &mut App) {
     );
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     register_service_receivers(app);
     let mut session = Session::new(Instant::now());
     let mut remote = None;
@@ -530,17 +526,21 @@ fn run_until_done(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut result = run_until_done(app, child, &lines);
     let cleanup = bags::cleanup_owned_child(child, readers);
-    for line in lines.try_iter() {
-        if let Err(error) = bags::reject_runtime_error(line.trim()) {
-            result = Err(error);
-        }
-        if line.starts_with("FIXTURE MERCHANT_SERVICES_") {
-            result = Err(format!("services marker after cleanup: {line}"));
+    for line in lines.remaining() {
+        let error = bags::reject_runtime_error(line.trim()).err().or_else(|| {
+            line.starts_with("FIXTURE MERCHANT_SERVICES_")
+                .then(|| format!("services marker after cleanup: {line}"))
+        });
+        if let Some(error) = error {
+            result = Err(match result {
+                Ok(()) => error,
+                Err(original) => format!("{original}; {error}"),
+            });
         }
     }
     match (result, cleanup) {

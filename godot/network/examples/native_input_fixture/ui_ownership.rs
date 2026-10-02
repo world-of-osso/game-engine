@@ -168,7 +168,7 @@ impl Session {
             .vendor
             .map(Entity::to_bits);
         match line {
-            "FIXTURE UIOWN_LOADING" if self.selected.is_some() => send::<_, TerrainChannel>(
+            "FIXTURE UIOWN_LOADING" => send::<_, TerrainChannel>(
                 app,
                 LoadTerrain {
                     map_name: "azeroth".into(),
@@ -241,11 +241,7 @@ impl Session {
     }
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     app.init_resource::<Requests>();
     app.init_resource::<AuctionOpens>();
     app.add_systems(Update, (receive, receive_auction));
@@ -265,7 +261,7 @@ fn run_until_done(
             &mut session.selected,
             &mut remote,
         )?;
-        for line in lines.try_iter() {
+        for line in lines.after_selection(session.selected.is_some()) {
             session.observe(app, line.trim())?;
         }
         session.respond(app);
@@ -286,7 +282,7 @@ fn run_until_done(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let result = run_until_done(app, child, &lines);

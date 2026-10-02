@@ -4,7 +4,7 @@ use super::*;
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut selected = None;
@@ -23,8 +23,8 @@ pub(super) fn run(
                 reader.join().map_err(|_| "Godot output reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
-            observe_line(app, line.trim(), selected, &mut loading, &mut passed)?;
+        for line in lines.after_selection(selected.is_some()) {
+            observe_line(app, line.trim(), &mut loading, &mut passed)?;
         }
         if let Some(status) = status {
             if status.success() && passed {
@@ -47,7 +47,6 @@ pub(super) fn run(
 fn observe_line(
     app: &mut App,
     line: &str,
-    selected: Option<Entity>,
     loading: &mut bool,
     passed: &mut bool,
 ) -> Result<(), String> {
@@ -58,7 +57,7 @@ fn observe_line(
         return Ok(());
     }
     match line {
-        "FIXTURE SPELL_CLICK_LOADING" if selected.is_some() && !*loading => {
+        "FIXTURE SPELL_CLICK_LOADING" if !*loading => {
             send::<_, TerrainChannel>(
                 app,
                 LoadTerrain {
