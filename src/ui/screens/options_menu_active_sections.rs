@@ -12,6 +12,7 @@ use super::options_menu_component::{
     SoundOptionsView, keybinding_clear_action, keybinding_rebind_action, keybinding_section_action,
 };
 use super::options_menu_sections;
+use crate::client_options_data::InteractKeyIcons;
 use crate::input_bindings::BindingSection;
 
 #[path = "options_menu_active_sections_keybindings.rs"]
@@ -32,6 +33,7 @@ const OPTIONS_TRACK_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TRACK_FILL: &str = "0.43,0.31,0.10,0.92";
 const OPTIONS_TOGGLE_W: f32 = 170.0;
 const OPTIONS_TOGGLE_H: f32 = 28.0;
+const CHOICE_SEGMENT_W: f32 = 140.0;
 const OPTIONS_TOGGLE_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TOGGLE_FILL: &str = "0.43,0.31,0.10,0.92";
 const OPTIONS_TOGGLE_BORDER: &str = "1px solid 0.32,0.24,0.10,0.75";
@@ -110,18 +112,19 @@ pub fn interface_body(hud: &HudOptionsView) -> Element {
     )
 }
 
-pub fn accessibility_body(graphics: &GraphicsOptionsView) -> Element {
-    content_stack(accessibility_items(graphics))
+pub fn accessibility_body(graphics: &GraphicsOptionsView, hud: &HudOptionsView) -> Element {
+    content_stack(accessibility_items(graphics, hud))
 }
 
 fn accessibility_ui_scale_item(ui_scale: f32) -> Element {
     slider_row("ui_scale", "UI Scale", ui_scale, UI_SCALE_MIN, UI_SCALE_MAX)
 }
 
-fn accessibility_items(graphics: &GraphicsOptionsView) -> Element {
+fn accessibility_items(graphics: &GraphicsOptionsView, hud: &HudOptionsView) -> Element {
     [
         accessibility_ui_scale_item(graphics.ui_scale),
         accessibility_colorblind_item(graphics.colorblind_mode),
+        interact_key_icons_row(hud.interact_key_icons),
         accessibility_info_rows(),
     ]
     .into_iter()
@@ -131,6 +134,86 @@ fn accessibility_items(graphics: &GraphicsOptionsView) -> Element {
 
 fn accessibility_colorblind_item(colorblind_mode: bool) -> Element {
     toggle_row("colorblind_mode", "Colorblind Mode", colorblind_mode)
+}
+
+/// Retail Accessibility "Interact Key Icons" dropdown (Accessibility.lua:176-221), its
+/// three choices side by side.
+fn interact_key_icons_row(selected: InteractKeyIcons) -> Element {
+    let key = "interact_key_icons";
+    let choices: Element = InteractKeyIcons::ALL
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, choice)| choice_segment(key, index, choice, choice == selected))
+        .collect();
+    rsx! {
+        r#frame {
+            name: {DynName(format!("ChoiceRow{key}"))},
+            width: {OPTIONS_ROW_W},
+            height: 44.0,
+            {row_label(&format!("ChoiceLabel{key}"), "Interact Key Icons")}
+            r#frame {
+                name: {DynName(format!("Choice{key}"))},
+                width: {CHOICE_SEGMENT_W * 3.0},
+                height: {OPTIONS_TOGGLE_H},
+                background_color: OPTIONS_TOGGLE_BG,
+                border: OPTIONS_TOGGLE_BORDER,
+                pos_type: "absolute",
+                left: "100%",
+                top: "50%",
+                translate_x: "-100%",
+                translate_y: "-50%",
+                margin_left: "-8",
+                {choices}
+            }
+        }
+    }
+}
+
+/// One choice: highlighted when selected, else clickable (`options_toggle:{key}:{value}`).
+fn choice_segment(key: &str, index: usize, choice: InteractKeyIcons, selected: bool) -> Element {
+    let name = format!("Choice{key}{}", choice.value());
+    let action = toggle_action(&format!("{key}:{}", choice.value()));
+    let (fill, text) = if selected {
+        (OPTIONS_TOGGLE_FILL, OPTIONS_TOGGLE_TEXT_ACTIVE)
+    } else {
+        ("0,0,0,0", OPTIONS_TOGGLE_TEXT_IDLE)
+    };
+    let hit = if selected {
+        Vec::new()
+    } else {
+        rsx! {
+            r#frame {
+                name: {DynName(format!("{name}Hit"))},
+                width: {CHOICE_SEGMENT_W},
+                height: {OPTIONS_TOGGLE_H},
+                onclick: {action.as_str()},
+            }
+        }
+    };
+    rsx! {
+        r#frame {
+            name: {DynName(name.clone())},
+            width: {CHOICE_SEGMENT_W},
+            height: {OPTIONS_TOGGLE_H},
+            background_color: fill,
+            pos_type: "absolute",
+            left: {CHOICE_SEGMENT_W * index as f32},
+            top: 0.0,
+            fontstring {
+                name: {DynName(format!("{name}Label"))},
+                width: {CHOICE_SEGMENT_W},
+                height: {OPTIONS_TOGGLE_H},
+                text: {choice.label()},
+                font_size: 14.0,
+                color: text,
+                justify_h: "CENTER",
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
+            {hit}
+        }
+    }
 }
 
 fn accessibility_info_rows() -> Element {

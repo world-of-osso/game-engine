@@ -58,6 +58,8 @@ fn model() -> GameMenuViewModel {
                 show_target_marker: true,
                 auto_loot: false,
                 soft_target_interact: false,
+                interact_key_icons:
+                    game_engine_ui_model::client_options_data::InteractKeyIcons::Default,
                 show_fps_overlay: true,
                 chat_font_size: 10.0,
             },

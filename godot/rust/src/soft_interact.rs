@@ -7,8 +7,10 @@
 //! Blizzard_Gamepad/Core.lua:83-88): `SoftTargetInteractArc` 0 ("No yaw arc allowance, must
 //! be directly in front"), `SoftTargetInteractRange` 10 ("limited to tab targeting and
 //! individual interact ranges"), `SoftTargetIconInteract` 1, `SoftTargetIconGameObject` 0,
-//! `SoftTargetLowPriorityIcons` 0.
+//! `SoftTargetLowPriorityIcons` 0. They live in `hud.softTarget` of the options file; the
+//! Accessibility "Interact Key Icons" choice sets the icon ones.
 
+use game_engine_core::client_options_data::{SoftTargetArc, SoftTargetOptions};
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
@@ -25,10 +27,9 @@ use crate::frame_error::FrameError;
 use crate::game_objects::game_object_cursor;
 use crate::nameplates::plate_anchor;
 
-/// `SoftTargetInteractRange` default.
-const SOFT_TARGET_INTERACT_RANGE: f32 = 10.0;
 /// Every interaction the client sends (NPC, mailbox, vault, chair) is limited to
-/// TrinityCore `INTERACTION_DISTANCE` (ObjectDefines.h:24), within the soft range.
+/// TrinityCore `INTERACTION_DISTANCE` (ObjectDefines.h:24): `SoftTargetInteractRange` is
+/// "limited to tab targeting and individual interact ranges".
 const INTERACTION_DISTANCE: f32 = 5.0;
 /// Width of "directly in front" for a unit: TrinityCore `HasInLine` widened by the
 /// target's size (Position.cpp:192-200), a creature's `DEFAULT_PLAYER_COMBAT_REACH`
@@ -66,17 +67,20 @@ pub(crate) struct SoftCandidate {
     pub kind: SoftKind,
 }
 
-/// The nearest interactable candidate directly in front of the player at `feet` facing the
-/// horizontal unit vector `forward`, within interact range.
+/// The nearest interactable candidate within `SoftTargetInteractArc` of the player at `feet`
+/// facing the horizontal unit vector `forward`, and within interact range.
 pub(crate) fn soft_interact_target(
     feet: Vector3,
     forward: Vector3,
     candidates: &[SoftCandidate],
+    options: &SoftTargetOptions,
 ) -> Option<u64> {
-    let range = SOFT_TARGET_INTERACT_RANGE.min(INTERACTION_DISTANCE);
+    let range = options.interact_range.min(INTERACTION_DISTANCE);
     candidates
         .iter()
-        .filter(|candidate| interactable(candidate.kind) && in_line(feet, forward, candidate))
+        .filter(|candidate| {
+            interactable(candidate.kind) && in_arc(options.interact_arc, feet, forward, candidate)
+        })
         .map(|candidate| (feet.distance_to(candidate.position), candidate.id))
         .filter(|(distance, _)| *distance <= range)
         .min_by(|a, b| a.0.total_cmp(&b.0))
@@ -93,9 +97,13 @@ fn interactable(kind: SoftKind) -> bool {
     }
 }
 
-/// TrinityCore `HasInLine` with no extra width: in the front half (`HasInArc(M_PI)`) and
-/// the facing line within the target's size.
-fn in_line(feet: Vector3, forward: Vector3, candidate: &SoftCandidate) -> bool {
+/// `SoftTargetInteractArc`. Retail publishes only the CVar help text, no angles:
+/// - 0, "directly in front": TrinityCore `HasInLine` with no extra width, the front half
+///   (`HasInArc(M_PI)`) and the facing line within the target's size.
+/// - 1, "in front yaw arc": TrinityCore's in-front test, `isInFront` with its default arc
+///   `M_PI` (Object.h:371), the front half.
+/// - 2, "anywhere in targeting area": no direction test.
+fn in_arc(arc: SoftTargetArc, feet: Vector3, forward: Vector3, candidate: &SoftCandidate) -> bool {
     let offset = candidate.position - feet;
     let ground = Vector3::new(offset.x, 0.0, offset.z);
     let along = ground.dot(forward);
@@ -103,19 +111,34 @@ fn in_line(feet: Vector3, forward: Vector3, candidate: &SoftCandidate) -> bool {
         SoftKind::Unit(_) => UNIT_LINE_WIDTH,
         SoftKind::GameObject(_) => OBJECT_LINE_WIDTH,
     };
-    along >= 0.0 && (ground - forward * along).length() < width
+    match arc {
+        SoftTargetArc::DirectlyInFront => {
+            along >= 0.0 && (ground - forward * along).length() < width
+        }
+        SoftTargetArc::InFront => along >= 0.0,
+        SoftTargetArc::Anywhere => true,
+    }
 }
 
-/// The icon above the soft interact target: `SetUnitCursorTexture` (the unit's cursor art),
-/// and the object's cursor over a game object (`SoftTargetIconGameObject` 1, on by user
-/// decision; Retail defaults it to 0).
-pub(crate) fn soft_target_icon(kind: SoftKind) -> Option<ActiveWowCursor> {
-    match kind {
-        SoftKind::GameObject(cursor) => Some(cursor),
-        // `SoftTargetLowPriorityIcons` 0: a lootable corpse already shows its loot effect.
-        SoftKind::Unit(ActiveWowCursor::Loot) => None,
-        SoftKind::Unit(cursor) => Some(cursor),
-    }
+/// The icon above the soft interact target, set by the Interact Key Icons CVars:
+/// - a unit's cursor art (`SetUnitCursorTexture`) with `SoftTargetIconInteract`;
+/// - a lootable corpse's only with `SoftTargetLowPriorityIcons` too, "Show interact icons
+///   even when there is other visual indicators, such as quest or loot effects";
+/// - a game object's cursor with `SoftTargetIconGameObject`, "Show icon for soft interact
+///   game objects (interactable objects you cannot normally target)" (Wow.exe CVar help).
+pub(crate) fn soft_target_icon(
+    kind: SoftKind,
+    options: &SoftTargetOptions,
+) -> Option<ActiveWowCursor> {
+    let shown = match kind {
+        SoftKind::GameObject(_) => options.icon_game_object,
+        SoftKind::Unit(ActiveWowCursor::Loot) => {
+            options.icon_interact && options.low_priority_icons
+        }
+        SoftKind::Unit(_) => options.icon_interact,
+    };
+    let (SoftKind::GameObject(cursor) | SoftKind::Unit(cursor)) = kind;
+    shown.then_some(cursor)
 }
 
 /// The icon's size in pixels: `SoftTargetNameplateSize` on a unit's plate, and the world
@@ -175,7 +198,8 @@ impl GameClient {
             .filter_map(|id| self.soft_candidate(id))
             .collect();
         let forward = Vector3::new(yaw.sin(), 0.0, yaw.cos());
-        let id = soft_interact_target(feet, forward, &candidates)?;
+        let options = self.client_options.hud.soft_target;
+        let id = soft_interact_target(feet, forward, &candidates, &options)?;
         candidates
             .iter()
             .find(|candidate| candidate.id == id)
@@ -225,7 +249,7 @@ impl GameClient {
     /// The icon's bottom-centre on screen, its cursor and its size.
     fn soft_icon_placement(&self) -> Option<(Vector2, ActiveWowCursor, f32)> {
         let (id, kind) = self.soft_interact.target?;
-        let cursor = soft_target_icon(kind)?;
+        let cursor = soft_target_icon(kind, &self.client_options.hud.soft_target)?;
         let camera = self.base().get_viewport()?.get_camera_3d()?;
         let bottom = match kind {
             // The world text icon stands on top of the object's model bounds.
@@ -266,7 +290,7 @@ impl GameClient {
             return state;
         };
         state.set("target", id as i64);
-        if let Some(cursor) = soft_target_icon(kind) {
+        if let Some(cursor) = soft_target_icon(kind, &self.client_options.hud.soft_target) {
             state.set("icon", format!("{cursor:?}").as_str());
         }
         if let Some(icon) = self
@@ -309,6 +333,7 @@ mod tests {
     use shared::protocol::NpcFlags;
 
     use super::*;
+    use game_engine_core::client_options_data::InteractKeyIcons;
 
     /// A WoW world point `(x, y, z)` in a frame isometric to the client's (ground plane
     /// X/Z, height Y); selection only measures distances and angles.
@@ -378,7 +403,12 @@ mod tests {
         // Brother Danil 1.21 yd and Dermot Johns 4.63 yd ahead, both within 1.15 yd of the
         // facing line; Godric Rothgar is 7.15 yd away.
         let feet = at(-8902.09, -113.82, 82.03);
-        let target = soft_interact_target(feet, facing(355f32.to_radians()), &northshire_vendors());
+        let target = soft_interact_target(
+            feet,
+            facing(355f32.to_radians()),
+            &northshire_vendors(),
+            &retail(),
+        );
         assert_eq!(target, Some(DANIL));
     }
 
@@ -387,14 +417,19 @@ mod tests {
         // Brother Danil is 3.0 yd away but 2.88 yd off the facing line; Dermot Johns is
         // 4.8 yd straight ahead.
         let feet = at(-8902.5, -115.6, 82.03);
-        let target = soft_interact_target(feet, facing(0.0), &northshire_vendors());
+        let target = soft_interact_target(feet, facing(0.0), &northshire_vendors(), &retail());
         assert_eq!(target, Some(DERMOT));
     }
 
     #[test]
     fn nothing_behind_or_beyond_interact_range() {
         let feet = at(-8902.09, -113.82, 82.03);
-        let behind = soft_interact_target(feet, facing(175f32.to_radians()), &northshire_vendors());
+        let behind = soft_interact_target(
+            feet,
+            facing(175f32.to_radians()),
+            &northshire_vendors(),
+            &retail(),
+        );
         assert_eq!(behind, None);
         // Dermot Johns straight ahead at 6.79 yd: inside SoftTargetInteractRange 10 but
         // past the 5 yd interaction distance.
@@ -402,6 +437,7 @@ mod tests {
             at(-8904.5, -115.33, 82.03),
             facing(0.0),
             &northshire_vendors(),
+            &retail(),
         );
         assert_eq!(far, None);
     }
@@ -414,7 +450,7 @@ mod tests {
         let mut candidates = northshire_vendors().to_vec();
         candidates.push(npc(6, 0, Reaction::Hostile, at(-8900.5, -115.5, 82.0)));
         candidates.push(npc(2, 0, Reaction::Friendly, at(-8899.5, -115.5, 82.0)));
-        let target = soft_interact_target(feet, facing(0.0), &candidates);
+        let target = soft_interact_target(feet, facing(0.0), &candidates, &retail());
         assert_eq!(target, Some(DERMOT));
     }
 
@@ -423,12 +459,115 @@ mod tests {
         let feet = at(-9459.0, 45.8229, 56.44);
         let mailbox = [goldshire_mailbox()];
         assert_eq!(
-            soft_interact_target(feet, facing(0.0), &mailbox),
+            soft_interact_target(feet, facing(0.0), &mailbox, &retail()),
             Some(MAILBOX)
         );
         // 3 yd ahead but 0.5 yd off the line, past the object's 0.389 yd size.
         let off_line = at(-9459.0, 45.3229, 56.44);
-        assert_eq!(soft_interact_target(off_line, facing(0.0), &mailbox), None);
+        assert_eq!(
+            soft_interact_target(off_line, facing(0.0), &mailbox, &retail()),
+            None
+        );
+    }
+
+    /// Retail defaults: Interact Key Icons "NPCs Only (Default)".
+    fn retail() -> SoftTargetOptions {
+        SoftTargetOptions::default()
+    }
+
+    fn icons(choice: InteractKeyIcons) -> SoftTargetOptions {
+        let mut options = SoftTargetOptions::default();
+        options.set_interact_key_icons(choice);
+        options
+    }
+
+    fn goldshire_chair() -> SoftKind {
+        // world.db Goldshire Wooden Chair (gameobject guid 26246, type 7).
+        SoftKind::GameObject(ActiveWowCursor::Interact)
+    }
+
+    #[test]
+    fn default_icons_show_npc_cursors_only() {
+        let [danil, dermot, _] = northshire_vendors();
+        assert_eq!(
+            soft_target_icon(danil.kind, &retail()),
+            Some(ActiveWowCursor::Buy)
+        );
+        assert_eq!(
+            soft_target_icon(dermot.kind, &retail()),
+            Some(ActiveWowCursor::Buy)
+        );
+        // Marshal McBride (npcflag 3: gossip + quest giver) shows the speak bubble.
+        let mcbride = npc(79970, 3, Reaction::Friendly, Vector3::ZERO);
+        assert_eq!(
+            soft_target_icon(mcbride.kind, &retail()),
+            Some(ActiveWowCursor::Speak)
+        );
+        // SoftTargetIconGameObject 0: no icon over the mailbox or a chair.
+        assert_eq!(soft_target_icon(goldshire_mailbox().kind, &retail()), None);
+        assert_eq!(soft_target_icon(goldshire_chair(), &retail()), None);
+        // SoftTargetLowPriorityIcons 0: no icon over a corpse that already sparkles.
+        let corpse = SoftKind::Unit(ActiveWowCursor::Loot);
+        assert_eq!(soft_target_icon(corpse, &retail()), None);
+    }
+
+    #[test]
+    fn show_all_adds_object_and_loot_icons_and_show_none_hides_all() {
+        let all = icons(InteractKeyIcons::ShowAll);
+        assert_eq!(
+            soft_target_icon(goldshire_mailbox().kind, &all),
+            Some(ActiveWowCursor::Mail)
+        );
+        assert_eq!(
+            soft_target_icon(goldshire_chair(), &all),
+            Some(ActiveWowCursor::Interact)
+        );
+        let corpse = SoftKind::Unit(ActiveWowCursor::Loot);
+        assert_eq!(soft_target_icon(corpse, &all), Some(ActiveWowCursor::Loot));
+        let none = icons(InteractKeyIcons::ShowNone);
+        let [danil, _, _] = northshire_vendors();
+        assert_eq!(soft_target_icon(danil.kind, &none), None);
+        assert_eq!(soft_target_icon(goldshire_mailbox().kind, &none), None);
+    }
+
+    #[test]
+    fn arc_1_takes_the_front_half_and_arc_2_any_direction() {
+        // Brother Danil 3.0 yd away, 0.91 yd ahead and 2.88 yd beside the facing line;
+        // Dermot Johns 4.8 yd straight ahead.
+        let feet = at(-8902.5, -115.6, 82.03);
+        let mut options = retail();
+        options.interact_arc = SoftTargetArc::InFront;
+        let target = soft_interact_target(feet, facing(0.0), &northshire_vendors(), &options);
+        assert_eq!(target, Some(DANIL));
+        // Facing away, both vendors are behind: only arc 2 still takes the nearest.
+        let away = facing(std::f32::consts::PI);
+        assert_eq!(
+            soft_interact_target(feet, away, &northshire_vendors(), &options),
+            None
+        );
+        options.interact_arc = SoftTargetArc::Anywhere;
+        assert_eq!(
+            soft_interact_target(feet, away, &northshire_vendors(), &options),
+            Some(DANIL)
+        );
+    }
+
+    #[test]
+    fn interact_range_setting_limits_selection() {
+        // Brother Danil 1.21 yd straight ahead.
+        let feet = at(-8902.09, -113.82, 82.03);
+        let forward = facing(355f32.to_radians());
+        let mut options = retail();
+        options.interact_range = 1.0;
+        assert_eq!(
+            soft_interact_target(feet, forward, &northshire_vendors(), &options),
+            None
+        );
+        options.interact_range = 2.0;
+        assert_eq!(
+            soft_interact_target(feet, forward, &northshire_vendors(), &options),
+            Some(DANIL)
+        );
     }
 
     #[test]
@@ -436,29 +575,5 @@ mod tests {
         let [danil, _, _] = northshire_vendors();
         assert_eq!(soft_icon_size(danil.kind), 19.0);
         assert_eq!(soft_icon_size(goldshire_mailbox().kind), 32.0);
-    }
-
-    #[test]
-    fn icons_follow_the_unit_cursor() {
-        let [danil, dermot, _] = northshire_vendors();
-        assert_eq!(soft_target_icon(danil.kind), Some(ActiveWowCursor::Buy));
-        assert_eq!(soft_target_icon(dermot.kind), Some(ActiveWowCursor::Buy));
-        // Marshal McBride (npcflag 3: gossip + quest giver) shows the speak bubble.
-        let mcbride = npc(79970, 3, Reaction::Friendly, Vector3::ZERO);
-        assert_eq!(soft_target_icon(mcbride.kind), Some(ActiveWowCursor::Speak));
-        // SoftTargetIconGameObject 1 (user decision): the object's cursor over it.
-        assert_eq!(
-            soft_target_icon(goldshire_mailbox().kind),
-            Some(ActiveWowCursor::Mail)
-        );
-        assert_eq!(
-            soft_target_icon(SoftKind::GameObject(ActiveWowCursor::Interact)),
-            Some(ActiveWowCursor::Interact)
-        );
-        // SoftTargetLowPriorityIcons 0: no icon over a corpse that already sparkles.
-        assert_eq!(
-            soft_target_icon(SoftKind::Unit(ActiveWowCursor::Loot)),
-            None
-        );
     }
 }
