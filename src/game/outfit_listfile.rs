@@ -40,10 +40,6 @@ fn load_model_paths(data_root: &Path) -> Result<Arc<HashMap<u32, String>>, Strin
     Ok(paths)
 }
 
-pub(crate) fn lookup_fdid(data_root: &Path, fdid: u32) -> Result<Option<String>, String> {
-    Ok(load_model_paths(data_root)?.get(&fdid).cloned())
-}
-
 pub(crate) fn find_fdids_by_name(
     data_root: &Path,
     model_name: &str,

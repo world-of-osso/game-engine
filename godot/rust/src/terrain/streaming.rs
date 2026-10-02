@@ -5,8 +5,6 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread::{self, JoinHandle};
 
-use game_engine_core::asset::adt_format::adt::ChunkHeightGrid;
-
 use super::assets::{NativeMapWdt, NativeTerrainAssets, NativeTerrainTile};
 
 const MAP_TILE_BOUND: u32 = 64;
@@ -81,7 +79,9 @@ pub(crate) struct TerrainStreamState {
 }
 
 pub(crate) struct StreamedTerrain {
-    requests: Option<Sender<WorkerRequest>>,
+    /// Dropped with the stream, which ends the worker after the read in hand; nothing
+    /// waits for it.
+    requests: Sender<WorkerRequest>,
     results: Receiver<WorkerResult>,
     worker: Option<JoinHandle<()>>,
     terminal_error: Option<String>,
@@ -117,7 +117,7 @@ impl StreamedTerrain {
             .spawn(move || run_worker(reader, incoming, outgoing));
         let worker = worker.expect("Cannot spawn native terrain asset worker");
         Self {
-            requests: Some(requests),
+            requests,
             results,
             worker: Some(worker),
             terminal_error: None,
@@ -148,21 +148,26 @@ impl StreamedTerrain {
         self.map.as_deref()
     }
 
+    /// The terrain height at Bevy (x, z); `None` off the parsed tiles and in a terrain hole,
+    /// which has no terrain (TrinityCore `GridMap::getHeight` returns `INVALID_HEIGHT` there;
+    /// `chunk_geometry` draws no quad).
     pub fn height_at(&self, x: f32, z: f32) -> Option<f32> {
-        let grid = self.chunk_grid_at(x, z)?;
-        Some(game_engine_core::terrain_height_data::sample_located_chunk_height(grid, x, z))
-    }
-
-    /// The parsed chunk grid index arithmetic places Bevy (x, z) in.
-    fn chunk_grid_at(&self, x: f32, z: f32) -> Option<&ChunkHeightGrid> {
-        let (tile, (index_x, index_y)) =
-            game_engine_core::terrain_height_data::bevy_to_chunk_coords(x, z);
-        self.parsed_tiles
-            .get(&tile)?
-            .root
+        use game_engine_core::terrain_height_data::{
+            bevy_to_chunk_coords, located_quad, sample_located_chunk_height,
+        };
+        let (tile, (index_x, index_y)) = bevy_to_chunk_coords(x, z);
+        let root = &self.parsed_tiles.get(&tile)?.root;
+        let grid = root
             .height_grids
             .iter()
-            .find(|grid| grid.index_x == index_x && grid.index_y == index_y)
+            .find(|grid| grid.index_x == index_x && grid.index_y == index_y)?;
+        let (row, col) = located_quad(grid, x, z);
+        let hole = root
+            .chunks
+            .iter()
+            .find(|chunk| chunk.index_x == index_x && chunk.index_y == index_y)
+            .is_some_and(|chunk| chunk.hole_at(row, col));
+        (!hole).then(|| sample_located_chunk_height(grid, x, z))
     }
 
     pub fn area_id_at(&self, x: f32, z: f32) -> Option<u32> {
@@ -392,8 +397,6 @@ impl StreamedTerrain {
 
     fn send(&self, request: WorkerRequest) -> Result<(), String> {
         self.requests
-            .as_ref()
-            .expect("worker request channel exists")
             .send(request)
             .map_err(|_| "Native terrain worker is unavailable".into())
     }
@@ -459,17 +462,6 @@ impl StreamedTerrain {
             _ => {}
         }
         Ok(())
-    }
-}
-
-impl Drop for StreamedTerrain {
-    fn drop(&mut self) {
-        self.requests.take();
-        if let Some(worker) = self.worker.take() {
-            if let Err(panic) = worker.join() {
-                eprintln!("Native terrain worker panicked: {}", panic_message(panic));
-            }
-        }
     }
 }
 
@@ -839,6 +831,35 @@ mod tests {
         assert_eq!(stream.water_surface_at(-1.0, 1.0), Some(12.0));
         assert_eq!(stream.water_surface_at(-5.0, 1.0), None);
         assert_eq!(stream.water_surface_at(1.0, 1.0), None);
+    }
+
+    /// Dropping the stream returns while its worker still reads a file: the owner (the
+    /// character select campsite, left on Enter World) never waits for it.
+    #[test]
+    fn dropping_the_stream_does_not_wait_for_the_read_in_hand() {
+        let (started, start) = mpsc::channel();
+        let (release, gate) = mpsc::channel();
+        let mut stream = StreamedTerrain::with_reader(ControlledReader {
+            assets: cached_assets(),
+            started,
+            release: Mutex::new(gate),
+        });
+        stream.request_map("azeroth".into(), (32, 48)).unwrap();
+        start
+            .recv_timeout(Duration::from_secs(5))
+            .expect("worker reads the WDT");
+        let releaser = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(1));
+            release.send(()).expect("worker waits for release");
+        });
+        let dropping = Instant::now();
+        drop(stream);
+        let waited = dropping.elapsed();
+        releaser.join().unwrap();
+        assert!(
+            waited < Duration::from_millis(500),
+            "drop waited {waited:?} for the read in hand"
+        );
     }
 
     #[test]

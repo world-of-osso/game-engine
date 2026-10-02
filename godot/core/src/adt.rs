@@ -51,6 +51,13 @@ pub struct Chunk {
     pub shadow_map: Option<[u8; 512]>,
 }
 
+impl Chunk {
+    /// Whether quad `(row, col)` is a hole, which `chunk_geometry` leaves undrawn.
+    pub fn hole_at(&self, row: usize, col: usize) -> bool {
+        adt_geometry::terrain_hole_at(self.holes_low_res, self.holes_high_res, col, row)
+    }
+}
+
 /// MCNK positions, normals, UVs, and original Bevy winding for a parsed chunk.
 /// `tile_coords` are `(tile_y, tile_x)` when the authored tile is known.
 pub fn chunk_geometry(chunk: &Chunk, tile_coords: Option<(u32, u32)>) -> Geometry {

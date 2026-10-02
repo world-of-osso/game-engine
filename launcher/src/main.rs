@@ -28,7 +28,7 @@ fn launch() -> Result<i32, String> {
     let root = root.as_path();
     let godot = match env::var_os("GODOT_BIN") {
         Some(path) => PathBuf::from(path),
-        None => ensure_cached_godot()?,
+        None => pinned_godot(root)?,
     };
     validate_godot(&godot)?;
     let args = route_arguments(env::args_os().skip(1))?;
@@ -142,33 +142,26 @@ fn exec_godot(root: &Path, godot: &Path, args: Vec<OsString>) -> Result<i32, Str
     Err(format!("cannot launch Godot {}: {error}", godot.display()))
 }
 
-const GODOT_VERSION: &str = "4.7.2";
-const GODOT_EXECUTABLE: &str = "Godot_v4.7.2-stable_linux.x86_64";
-const GODOT_ZIP_URL: &str = "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip";
-/// From the release's SHA512-SUMS.txt.
-const GODOT_ZIP_SHA512: &str = "9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65";
+const GODOT_VERSION: &str = "4.7.2-pr123946";
+const GODOT_BUILD_SCRIPT: &str = "scripts/godot/build-patched-godot.sh";
+/// Official 4.7.2 plus upstream godotengine/godot#123946, as built by `GODOT_BUILD_SCRIPT`.
+const GODOT_SHA512: &str = include_str!("../../scripts/godot/godot-4.7.2-pr123946.sha512");
 
-/// Pinned Godot under the user cache, downloaded and checksum-verified on first use.
-fn ensure_cached_godot() -> Result<PathBuf, String> {
-    let version_dir = godot_cache_dir()?.join(GODOT_VERSION);
-    let executable = version_dir.join(GODOT_EXECUTABLE);
-    if executable.is_file() {
-        return Ok(executable);
-    }
+/// Pinned patched Godot under the user cache, checksum-verified on every launch.
+fn pinned_godot(root: &Path) -> Result<PathBuf, String> {
+    let executable = godot_cache_dir()?
+        .join(GODOT_VERSION)
+        .join(format!("godot-{GODOT_VERSION}"));
+    verify_pinned_godot(&executable, GODOT_SHA512.trim()).map_err(|error| {
+        format!(
+            "{error}; build Godot {GODOT_VERSION} with {}",
+            root.join(GODOT_BUILD_SCRIPT).display()
+        )
+    })?;
     eprintln!(
-        "game-engine-launcher: downloading Godot {GODOT_VERSION} to {}",
-        version_dir.display()
+        "game-engine-launcher: Godot {GODOT_VERSION} {}",
+        executable.display()
     );
-    let staging = version_dir.with_extension(format!("partial-{}", process::id()));
-    let installed = install_godot(&staging).and_then(|()| {
-        fs::rename(&staging, &version_dir)
-            .map_err(|error| format!("cannot install {}: {error}", version_dir.display()))
-    });
-    if staging.exists() {
-        fs::remove_dir_all(&staging)
-            .map_err(|error| format!("cannot remove {}: {error}", staging.display()))?;
-    }
-    installed?;
     Ok(executable)
 }
 
@@ -180,59 +173,24 @@ fn godot_cache_dir() -> Result<PathBuf, String> {
     Ok(cache.join("game-engine/godot"))
 }
 
-fn install_godot(staging: &Path) -> Result<(), String> {
-    fs::create_dir_all(staging)
-        .map_err(|error| format!("cannot create {}: {error}", staging.display()))?;
-    let zip = staging.join("godot.zip");
-    run_tool(
-        Command::new("curl")
-            .args([
-                "--fail",
-                "--location",
-                "--silent",
-                "--show-error",
-                "--output",
-            ])
-            .arg(&zip)
-            .arg(GODOT_ZIP_URL),
-    )?;
-    verify_sha512(&zip)?;
-    run_tool(
-        Command::new("unzip")
-            .arg("-q")
-            .arg(&zip)
-            .arg(GODOT_EXECUTABLE)
-            .arg("-d")
-            .arg(staging),
-    )?;
-    fs::remove_file(&zip).map_err(|error| format!("cannot remove {}: {error}", zip.display()))
-}
-
-fn verify_sha512(zip: &Path) -> Result<(), String> {
+fn verify_pinned_godot(executable: &Path, expected: &str) -> Result<(), String> {
+    if !executable.is_file() {
+        return Err(format!("Godot {} is missing", executable.display()));
+    }
     let output = Command::new("sha512sum")
-        .arg(zip)
+        .arg(executable)
         .output()
         .map_err(|error| format!("cannot run sha512sum: {error}"))?;
     if !output.status.success() {
-        return Err(format!("sha512sum failed on {}", zip.display()));
+        return Err(format!("sha512sum failed on {}", executable.display()));
     }
     let actual = String::from_utf8_lossy(&output.stdout);
     let actual = actual.split_whitespace().next().unwrap_or("");
-    if actual != GODOT_ZIP_SHA512 {
+    if actual != expected {
         return Err(format!(
-            "Godot download {GODOT_ZIP_URL} has SHA-512 {actual}, expected {GODOT_ZIP_SHA512}"
+            "Godot {} has SHA-512 {actual}, expected {expected}",
+            executable.display()
         ));
-    }
-    Ok(())
-}
-
-fn run_tool(command: &mut Command) -> Result<(), String> {
-    let program = command.get_program().to_string_lossy().into_owned();
-    let status = command
-        .status()
-        .map_err(|error| format!("cannot run {program}: {error}"))?;
-    if !status.success() {
-        return Err(format!("{program} exited with {status}"));
     }
     Ok(())
 }
@@ -257,5 +215,40 @@ fn exit_code(status: ExitStatus) -> i32 {
             Some(signal) => 128 + signal,
             None => 1,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// SHA-512 of "abc" (FIPS 180-2 example).
+    const ABC_SHA512: &str = "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f";
+
+    fn file_containing_abc(name: &str) -> PathBuf {
+        let path = env::temp_dir().join(format!("game-engine-launcher-{}-{name}", process::id()));
+        fs::write(&path, "abc").unwrap();
+        path
+    }
+
+    #[test]
+    fn pinned_hash_is_accepted() {
+        let path = file_containing_abc("accepted");
+        let result = verify_pinned_godot(&path, ABC_SHA512);
+        fs::remove_file(&path).unwrap();
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
+    fn other_hash_is_refused() {
+        let path = file_containing_abc("refused");
+        let expected = ABC_SHA512.replace('d', "e");
+        let result = verify_pinned_godot(&path, &expected);
+        fs::remove_file(&path).unwrap();
+        let error = result.unwrap_err();
+        assert!(
+            error.contains(&format!("SHA-512 {ABC_SHA512}, expected {expected}")),
+            "{error}"
+        );
     }
 }

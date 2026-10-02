@@ -25,6 +25,8 @@ pub const ACTION_PAGE_NEXT: &str = "merchant_page_next";
 pub const ACTION_TAB_MERCHANT: &str = "merchant_tab:merchant";
 pub const ACTION_TAB_BUYBACK: &str = "merchant_tab:buyback";
 pub const ACTION_REPAIR_ALL: &str = "merchant_repair_all";
+/// `MerchantGuildBankRepairButton`: `RepairAllItems(true)` (MF.xml:318-397).
+pub const ACTION_GUILD_REPAIR: &str = "merchant_guild_repair";
 /// `MerchantRepairItemButton`: toggles the repair cursor (MF.xml:305-313).
 pub const ACTION_REPAIR_ITEM: &str = "merchant_repair_item";
 pub const ACTION_BUYBACK_LAST: &str = "merchant_buyback_last";
@@ -71,6 +73,8 @@ const fn merchant_art(rect: (f32, f32, f32, f32)) -> AtlasArt {
 const BOT_FRAME: AtlasArt = merchant_art((1.0, 333.0, 1.0, 62.0));
 /// `SpellIcon-256x256-RepairAll`.
 const REPAIR_ALL_ICON: AtlasArt = merchant_art((1.0, 73.0, 138.0, 210.0));
+/// `SpellIcon-256x256-RepairAllGuild` (UiTextureAtlasMember 23481).
+const GUILD_REPAIR_ICON: AtlasArt = merchant_art((75.0, 147.0, 138.0, 210.0));
 /// `SpellIcon-256x256-Repair`.
 const REPAIR_ICON: AtlasArt = merchant_art((75.0, 147.0, 64.0, 136.0));
 /// `SpellIcon-256x256-SellJunk`.
@@ -158,6 +162,8 @@ pub struct MerchantFrameState {
     pub repair: Option<bool>,
     /// `InRepairMode()`: `MerchantRepairItemButton` keeps its highlight locked (MF.lua:136-142).
     pub repair_mode: bool,
+    /// `CanGuildBankRepair()`: `MerchantGuildBankRepairButton` shows beside Repair All.
+    pub guild_repair: bool,
     /// Most recent sale for `MerchantBuyBackItem` on the merchant tab.
     pub last_buyback: Option<MerchantCell>,
     pub money: u64,
@@ -392,10 +398,11 @@ fn merchant_tab_extras(state: &MerchantFrameState) -> Element {
     if let Some(page_text) = &state.page_text {
         children.extend(paging(page_text, state.prev_enabled, state.next_enabled));
     }
-    if let Some(enabled) = state.repair {
-        children.extend(repair_buttons(enabled, state.repair_mode));
+    let layout = state.repair.map(|_| RepairLayout::new(state.guild_repair));
+    if let (Some(enabled), Some(layout)) = (state.repair, &layout) {
+        children.extend(repair_buttons(layout, enabled, state.repair_mode));
     }
-    children.extend(sell_all_junk_button(state.repair.is_some(), state.has_junk));
+    children.extend(sell_all_junk_button(layout.as_ref(), state.has_junk));
     children.extend(buyback_slot(state.last_buyback.as_ref()));
     children
 }
@@ -487,7 +494,42 @@ fn page_button(
 
 /// The 36×36 service buttons along the bottom edge (BOTTOMRIGHT at BOTTOMLEFT …,33).
 const SERVICE_Y: f32 = FRAME_H - 33.0 - 36.0;
-const REPAIR_ALL_X: f32 = 118.0 - 36.0;
+const SERVICE_SIZE: f32 = 36.0;
+
+/// `MerchantFrame_UpdateRepairButtons` (MF.lua:933-960): left edges of the repair
+/// buttons and the right edge of Sell All Junk at a repairer.
+struct RepairLayout {
+    repair_all: f32,
+    repair_item: f32,
+    /// `MerchantGuildBankRepairButton` when `CanGuildBankRepair()`.
+    guild: Option<f32>,
+    sell_junk_right: f32,
+}
+
+impl RepairLayout {
+    fn new(guild: bool) -> Self {
+        if guild {
+            // RepairAll BOTTOMRIGHT at BOTTOMLEFT 96,33; RepairItem RIGHT at its LEFT -9;
+            // SellJunk RIGHT at its LEFT +128; the guild button LEFT at its RIGHT +8 (MF.xml:320-322).
+            let repair_all = 96.0 - SERVICE_SIZE;
+            Self {
+                repair_all,
+                repair_item: repair_all - 9.0 - SERVICE_SIZE,
+                guild: Some(96.0 + 8.0),
+                sell_junk_right: repair_all + 128.0,
+            }
+        } else {
+            // RepairAll at 118,33; RepairItem LEFT -8; SellJunk LEFT +80.
+            let repair_all = 118.0 - SERVICE_SIZE;
+            Self {
+                repair_all,
+                repair_item: repair_all - 8.0 - SERVICE_SIZE,
+                guild: None,
+                sell_junk_right: repair_all + 80.0,
+            }
+        }
+    }
+}
 
 struct ServiceButton<'a> {
     name: &'a str,
@@ -499,13 +541,14 @@ struct ServiceButton<'a> {
     highlight: Option<bool>,
 }
 
-/// `MerchantRepairAllButton` 36×36, BOTTOMRIGHT at BOTTOMLEFT 118,33, and
-/// `MerchantRepairItemButton` RIGHT at its LEFT −8 (MF.lua:948-960, no guild bank).
-/// The item button is always enabled; its highlight stays lit in repair mode.
-fn repair_buttons(enabled: bool, repair_mode: bool) -> Element {
+/// `MerchantRepairAllButton`, `MerchantRepairItemButton` and, for a guild repairer,
+/// `MerchantGuildBankRepairButton`, all 36×36. The guild button is enabled with Repair
+/// All (`GetRepairAllCost`, MF.lua:922-931); the item button is always enabled and its
+/// highlight stays lit in repair mode.
+fn repair_buttons(layout: &RepairLayout, enabled: bool, repair_mode: bool) -> Element {
     let mut children = service_button(ServiceButton {
         name: "MerchantRepairAllButton",
-        x: REPAIR_ALL_X,
+        x: layout.repair_all,
         icon: &REPAIR_ALL_ICON,
         enabled,
         action: ACTION_REPAIR_ALL,
@@ -513,26 +556,32 @@ fn repair_buttons(enabled: bool, repair_mode: bool) -> Element {
     });
     children.extend(service_button(ServiceButton {
         name: "MerchantRepairItemButton",
-        x: REPAIR_ALL_X - 8.0 - 36.0,
+        x: layout.repair_item,
         icon: &REPAIR_ICON,
         enabled: true,
         action: ACTION_REPAIR_ITEM,
         highlight: Some(repair_mode),
     }));
+    if let Some(x) = layout.guild {
+        children.extend(service_button(ServiceButton {
+            name: "MerchantGuildBankRepairButton",
+            x,
+            icon: &GUILD_REPAIR_ICON,
+            enabled,
+            action: ACTION_GUILD_REPAIR,
+            highlight: None,
+        }));
+    }
     children
 }
 
-/// `MerchantSellAllJunkButton` 36×36: RIGHT at RepairAll LEFT +80 with a repairer
-/// (MF.lua:943), else BOTTOMRIGHT at BOTTOMRIGHT -148,33 (MF.lua:954).
-fn sell_all_junk_button(repairer: bool, enabled: bool) -> Element {
-    let right = if repairer {
-        REPAIR_ALL_X + 80.0
-    } else {
-        FRAME_W - 148.0
-    };
+/// `MerchantSellAllJunkButton` 36×36: placed by the repair layout at a repairer
+/// (MF.lua:943-946), else BOTTOMRIGHT at BOTTOMRIGHT -148,33 (MF.lua:954).
+fn sell_all_junk_button(repair: Option<&RepairLayout>, enabled: bool) -> Element {
+    let right = repair.map_or(FRAME_W - 148.0, |layout| layout.sell_junk_right);
     service_button(ServiceButton {
         name: "MerchantSellAllJunkButton",
-        x: right - 36.0,
+        x: right - SERVICE_SIZE,
         icon: &SELL_JUNK_ICON,
         enabled,
         action: ACTION_SELL_ALL_JUNK,

@@ -6,11 +6,11 @@ extends SceneTree
 ##   WORLD_ENTRY_FRAME_MS       longest frame allowed once the loading screen hides
 ##                              (default 100)
 ##   WORLD_ENTRY_SETTLE_S       seconds after the loading screen hides within which
-##                              world_objects.pending must reach 0 (default 300)
+##                              terrain/object/unit-visual readiness must settle (default 300)
 ## The loading screen may cover world-entry loading, but no frame, loading or not, may
 ## block for seconds: the longest loading frame is reported, and must stay under
 ## WORLD_ENTRY_LOADING_FRAME_MS (default 1000). After the loading screen hides, every
-## frame until the object queue drains, and a bounded settled observation after,
+## frame until terrain/object/unit-visual readiness settles, and a bounded observation after,
 ## must stay under WORLD_ENTRY_FRAME_MS. These limits are fixture policy, NOT product
 ## budgets. WORLD_ENTRY_MEASURE_S controls settled observation (60–300 s, default 60).
 ## PERF_PHASE / PERF_REPORT JSON records separate startup, loading, queue drain and
@@ -138,8 +138,14 @@ func run_test() -> void:
 		while last_usec - measurement_started_usec < int(measure_s * 1e6) and Time.get_ticks_msec() < deadline:
 			await process_frame
 			var observed: Dictionary = client.account_state()
+			var observed_process_frame := Engine.get_process_frames()
+			var observed_ticks_usec := Time.get_ticks_usec()
 			var same_tiles: bool = observed.terrain.parsed_tiles == workload_snapshots.queue_drained.terrain.parsed_tiles
 			if not Readiness.is_ready(observed) or not same_tiles:
+				if not settled_pending_changed:
+					workload_snapshots["first_readiness_change"] = snapshot_workload(observed)
+					workload_snapshots.first_readiness_change.observed_process_frame = observed_process_frame
+					workload_snapshots.first_readiness_change.observed_ticks_usec = observed_ticks_usec
 				settled_pending_changed = true
 	var settled_elapsed_s := (Time.get_ticks_usec() - measurement_started_usec) / 1e6 if settled else 0.0
 	phase = "done"
@@ -173,9 +179,9 @@ func run_test() -> void:
 	if not slow_world.is_empty():
 		failures.append("%d frames after the loading screen hid exceeded %.0f ms" % [slow_world.size(), frame_limit])
 	if settled_pending_changed:
-		failures.append("world_objects.pending changed during settled observation")
+		failures.append("terrain/object/unit-visual readiness or parsed tile set changed during settled observation")
 	if not settled:
-		failures.append("world_objects.pending did not reach 0 within %.0f s: %s" % [settle_s, objects])
+		failures.append("terrain/object/unit-visual readiness did not settle within %.0f s: %s" % [settle_s, workload_snapshots.measurement_end])
 	if not failures.is_empty():
 		fail("; ".join(failures))
 		return
@@ -185,6 +191,8 @@ func run_test() -> void:
 
 func snapshot_workload(state: Dictionary) -> Dictionary:
 	return {
+		"observed_process_frame": Engine.get_process_frames(),
+		"observed_ticks_usec": Time.get_ticks_usec(),
 		"terrain": state.terrain.duplicate(true),
 		"world_objects": state.world_objects.duplicate(true),
 		"unit_visuals_pending": state.unit_visuals_pending,

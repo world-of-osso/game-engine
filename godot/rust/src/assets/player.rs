@@ -264,11 +264,18 @@ pub(crate) fn build_player_model(
     parts: PlayerParts,
 ) -> Result<Gd<Node3D>, String> {
     let resolver = local_resolver(data_root);
+    let span = crate::profile::span(|| "player.insert_textures".to_owned());
     insert_decoded_textures(data_root, parts.textures)?;
+    drop(span);
+    let span = crate::profile::span(|| "player.appearance_textures".to_owned());
     let prepared = parts.appearance.into_prepared()?;
+    drop(span);
     let parsed = &parts.model.model;
     let path = GString::from(parts.model.path.to_string_lossy().as_ref());
+    let span = crate::profile::span(|| "player.build_body".to_owned());
     let (mut model, missing) = build_model(parsed, &path, &[0; 3], Some(&prepared.body))?;
+    drop(span);
+    let _span = crate::profile::span(|| "player.attachments".to_owned());
     if !missing.is_empty() {
         godot_warn!(
             "Player {} missing authored texture FDIDs: {missing:?}",
@@ -423,7 +430,7 @@ fn prepare_player_appearance(
     Ok(PlayerAppearanceParts {
         body: AppearanceParts {
             source: "player",
-            textures: pixels,
+            textures: super::appearance::mip_chains(pixels),
             selected_geosets: selected.geosets,
             authored_geosets: Vec::new(),
             equipment_geosets: equipment.outfit.geoset_overrides.clone(),

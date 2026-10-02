@@ -52,7 +52,6 @@ pub struct AssetLoader<K, T> {
     queues: Shared<K>,
     results: Receiver<(K, Result<T, String>)>,
     states: HashMap<K, LoadState>,
-    workers: Vec<thread::JoinHandle<()>>,
 }
 
 impl<K, T> AssetLoader<K, T>
@@ -77,24 +76,22 @@ where
         ));
         let (done, results) = mpsc::channel();
         let load: Arc<LoadFn<K, T>> = Arc::new(load);
-        let workers = (0..workers.max(1))
-            .map(|index| {
-                let worker = Worker {
-                    queues: Arc::clone(&queues),
-                    load: Arc::clone(&load),
-                    done: done.clone(),
-                };
-                thread::Builder::new()
-                    .name(format!("{name}-{index}"))
-                    .spawn(move || worker.run())
-                    .expect("spawn asset loader worker")
-            })
-            .collect();
+        for index in 0..workers.max(1) {
+            let worker = Worker {
+                queues: Arc::clone(&queues),
+                load: Arc::clone(&load),
+                done: done.clone(),
+            };
+            // Detached: a dropped loader never waits for the task in hand.
+            thread::Builder::new()
+                .name(format!("{name}-{index}"))
+                .spawn(move || worker.run())
+                .expect("spawn asset loader worker");
+        }
         Self {
             queues,
             results,
             states: HashMap::new(),
-            workers,
         }
     }
 
@@ -202,15 +199,12 @@ fn next_task<K>(queues: &Shared<K>) -> Option<Task<K>> {
 
 impl<K, T> Drop for AssetLoader<K, T> {
     fn drop(&mut self) {
-        // Workers finish the task in hand and skip the queued ones.
+        // Workers finish the task in hand and skip the queued ones; nothing waits for them.
         let (lock, wake) = &*self.queues;
         if let Ok(mut queues) = lock.lock() {
             queues.closed = true;
         }
         wake.notify_all();
-        for worker in self.workers.drain(..) {
-            let _ = worker.join();
-        }
     }
 }
 
