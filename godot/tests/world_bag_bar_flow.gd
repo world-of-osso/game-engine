@@ -5,7 +5,7 @@ extends "res://tests/world_character_frame_flow.gd"
 # (`PutItemInBag` -> SwapItem to Equipment(Bag1)); the slot shows the bag's icon, the
 # backpack count "(N)" rises by the freed backpack slot plus the bag's 8, and clicking the
 # slot opens ContainerFrame1 with 8 slots. Dropping Linen Cloth (2589) on
-# CharacterBag1Slot shows the server's "That item does not go in that slot.".
+# CharacterBag1Slot shows the server's refusal, "This item cannot be equipped.".
 # BagBarExpandToggle collapses the four bag slots (the reagent slot moves up to the
 # toggle) and expands them again.
 #
@@ -16,7 +16,7 @@ const BB_ACCOUNT := "fb_bagclient"
 const BAG := 856
 const BAG_SIZE := 8
 const CLOTH := 2589
-const WRONG_SLOT := "That item does not go in that slot."
+const NOT_EQUIPPABLE := "This item cannot be equipped."
 
 func run_test() -> void:
 	root.size = Vector2i(1600, 900)
@@ -44,7 +44,7 @@ func run_test() -> void:
 		return
 	if not await bb_open_container():
 		return
-	if not await bb_wrong_slot():
+	if not await bb_refused():
 		return
 	if not await bb_collapse_and_expand():
 		return
@@ -93,16 +93,16 @@ func bb_open_container() -> bool:
 	print("FIXTURE BB_CONTAINER_OPEN ContainerFrame1 %d slots" % BAG_SIZE)
 	return true
 
-func bb_wrong_slot() -> bool:
+func bb_refused() -> bool:
 	var source := cf_bag(client.merchant_state(), CLOTH)
 	await cf_drag(cf_bag_control(source.bag, source.slot), bb_control("CharacterBag1Slot"))
-	if not await wait_for(func(_s): return cf_error_shown(WRONG_SLOT), "server error " + WRONG_SLOT, 5000):
+	if not await wait_for(func(_s): return cf_error_shown(NOT_EQUIPPABLE), "server error " + NOT_EQUIPPABLE, 5000):
 		return false
 	if bb_shown("CharacterBag1SlotIconTexture"):
 		fail("Refused cloth shows in CharacterBag1Slot")
 		return false
-	await cf_capture("04-wrong-slot.png")
-	print("FIXTURE BB_REFUSED ", WRONG_SLOT)
+	await cf_capture("04-refused.png")
+	print("FIXTURE BB_REFUSED ", NOT_EQUIPPABLE)
 	return true
 
 func bb_collapse_and_expand() -> bool:
