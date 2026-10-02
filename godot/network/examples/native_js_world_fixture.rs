@@ -4,13 +4,14 @@
 
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
+use fixture_support::FixtureChild;
 
 use std::{
     fs,
     io::{BufRead, BufReader, Read, Write},
     net::{SocketAddr, UdpSocket},
     path::{Path, PathBuf},
-    process::{Child, Command, ExitStatus, Stdio},
+    process::{Command, ExitStatus, Stdio},
     sync::mpsc::{self, Receiver, Sender},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -503,23 +504,6 @@ fn mark(artifacts: &Path, name: &str) -> Result<(), String> {
         .map_err(|error| format!("SETUP: marker {name}: {error}"))
 }
 
-struct OwnedChild(Child);
-impl Drop for OwnedChild {
-    fn drop(&mut self) {
-        match self.0.try_wait() {
-            Ok(Some(_)) => return,
-            Ok(None) => {}
-            Err(error) => eprintln!("Own child status: {error}"),
-        }
-        if let Err(error) = self.0.kill() {
-            eprintln!("Own PID forced cleanup: {error}");
-        }
-        if let Err(error) = self.0.wait() {
-            eprintln!("Own PID reap: {error}");
-        }
-    }
-}
-
 struct Output {
     line: String,
     stdout: bool,
@@ -557,7 +541,7 @@ fn launch(
     root: &Path,
     artifacts: &Path,
     address: SocketAddr,
-) -> Result<(OwnedChild, Receiver<Result<Output, String>>), String> {
+) -> Result<(FixtureChild, Receiver<Result<Output, String>>), String> {
     let launcher = require_file(
         root.join("target/debug/game-engine-launcher"),
         "production root launcher",
@@ -585,7 +569,7 @@ fn launch(
         "()",
     )
     .map_err(|error| format!("SETUP: isolated settings: {error}"))?;
-    let mut child = OwnedChild(
+    let mut child = FixtureChild::spawn(
         Command::new(launcher)
             .current_dir(root)
             .args(["--headless", "--audio-driver", "Dummy", "--path"])
@@ -612,18 +596,17 @@ fn launch(
             .env("LOGIN_PASS", PASSWORD)
             .env("NATIVE_JS_WORLD_ARTIFACTS", artifacts)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|error| format!("SETUP: root launch: {error}"))?,
-    );
+            .stderr(Stdio::piped()),
+    )
+    .map_err(|error| format!("SETUP: root launch: {error}"))?;
     let (sender, receiver) = mpsc::channel();
     collect_output(
-        child.0.stdout.take().ok_or("SETUP: stdout pipe")?,
+        child.stdout.take().ok_or("SETUP: stdout pipe")?,
         sender.clone(),
         true,
     );
     collect_output(
-        child.0.stderr.take().ok_or("SETUP: stderr pipe")?,
+        child.stderr.take().ok_or("SETUP: stderr pipe")?,
         sender,
         false,
     );
@@ -671,14 +654,14 @@ fn create_artifacts_and_log(root: &Path) -> Result<(PathBuf, fs::File), String> 
 }
 
 fn poll_child_exit_and_drain_output(
-    child: &mut OwnedChild,
+    child: &mut FixtureChild,
     exited: &mut Option<ExitStatus>,
     receiver: &Receiver<Result<Output, String>>,
     log: &mut fs::File,
     lines: &mut Vec<Output>,
 ) -> Result<bool, String> {
     if exited.is_none() {
-        *exited = child.0.try_wait().map_err(|error| error.to_string())?;
+        *exited = child.try_wait().map_err(|error| error.to_string())?;
     }
     if exited.is_some() {
         match receiver.recv_timeout(Duration::from_millis(10)) {
@@ -694,7 +677,7 @@ fn pump_peer_and_child_output_until_readers_close(
     app: &mut App,
     peer: &mut Peer,
     artifacts: &Path,
-    child: &mut OwnedChild,
+    child: &mut FixtureChild,
     receiver: &Receiver<Result<Output, String>>,
     log: &mut fs::File,
 ) -> Result<(Option<ExitStatus>, Vec<Output>), String> {
@@ -762,7 +745,7 @@ fn run_fixture() -> Result<(), String> {
     println!(
         "ARTIFACTS {} owned client PID={} loopback={address}",
         artifacts.display(),
-        child.0.id()
+        child.id()
     );
     let mut peer = Peer::new();
     let (exited, lines) = pump_peer_and_child_output_until_readers_close(

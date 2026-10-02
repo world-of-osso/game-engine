@@ -31,6 +31,7 @@ use shared::{
 
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
+use fixture_support::FixtureChild;
 #[path = "native_npc_visual_fixture/nameplate_casts.rs"]
 mod nameplate_casts;
 
@@ -536,32 +537,33 @@ fn launch_godot(
     project: &Path,
     address: SocketAddr,
     mode: Mode,
-) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
+) -> (FixtureChild, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
-    let mut child = Command::new(binary)
-        .args(["--headless", "--path"])
-        .arg(project)
-        .args([
-            "--script",
-            match mode {
-                Mode::Visual => "res://tests/world_npc_visual_flow.gd",
-                Mode::Nameplates => "res://tests/world_nameplate_options_flow.gd",
-                Mode::NameplateCasts => "res://tests/world_nameplate_casts_flow.gd",
-            },
-        ])
-        .env("GODOT_TEST_SERVER", address.to_string())
-        .env(
-            "XDG_CONFIG_HOME",
-            project.parent().expect("isolated root").join("config"),
-        )
-        .env(
-            "XDG_DATA_HOME",
-            project.parent().expect("isolated root").join("user-data"),
-        )
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("start native Godot fixture process");
+    let mut child = FixtureChild::spawn(
+        Command::new(binary)
+            .args(["--headless", "--path"])
+            .arg(project)
+            .args([
+                "--script",
+                match mode {
+                    Mode::Visual => "res://tests/world_npc_visual_flow.gd",
+                    Mode::Nameplates => "res://tests/world_nameplate_options_flow.gd",
+                    Mode::NameplateCasts => "res://tests/world_nameplate_casts_flow.gd",
+                },
+            ])
+            .env("GODOT_TEST_SERVER", address.to_string())
+            .env(
+                "XDG_CONFIG_HOME",
+                project.parent().expect("isolated root").join("config"),
+            )
+            .env(
+                "XDG_DATA_HOME",
+                project.parent().expect("isolated root").join("user-data"),
+            )
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )
+    .expect("start native Godot fixture process");
     let stdout = child.stdout.take().expect("read Godot stdout");
     let stderr = child.stderr.take().expect("read Godot stderr");
     let (sender, receiver) = mpsc::channel();
@@ -1100,10 +1102,6 @@ fn main() {
     } else {
         run_nameplate_fixture(&mut app, &mut child, lines, reader)
     };
-    if result.is_err() && child.try_wait().expect("inspect Godot status").is_none() {
-        child.kill().expect("terminate failed Godot fixture");
-        child.wait().expect("reap failed Godot fixture");
-    }
     if let Err(error) = result {
         panic!("{error}");
     }

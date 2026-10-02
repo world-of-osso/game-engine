@@ -10,33 +10,18 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    process::{Command, Stdio},
     thread,
     time::{Duration, Instant},
 };
 
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
+use fixture_support::FixtureChild;
 
 const READY_TIMEOUT: Duration = Duration::from_secs(90);
 const CLI_TIMEOUT: Duration = Duration::from_secs(20);
 const EXIT_TIMEOUT: Duration = Duration::from_secs(60);
-
-struct NativeProcess(Child);
-
-impl Drop for NativeProcess {
-    fn drop(&mut self) {
-        if matches!(self.0.try_wait(), Ok(None)) {
-            // Failure cleanup only; never evidence of normal native shutdown.
-            if let Err(error) = self.0.kill() {
-                eprintln!("Fixture failure cleanup: {error}");
-            }
-            if let Err(error) = self.0.wait() {
-                eprintln!("Fixture child reap: {error}");
-            }
-        }
-    }
-}
 
 fn executable(variable: &str) -> Result<PathBuf, String> {
     let path = std::env::var_os(variable)
@@ -48,13 +33,13 @@ fn executable(variable: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-fn wait_file(path: &Path, child: &mut NativeProcess, timeout: Duration) -> Result<(), String> {
+fn wait_file(path: &Path, child: &mut FixtureChild, timeout: Duration) -> Result<(), String> {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
         if path.is_file() {
             return Ok(());
         }
-        if let Some(status) = child.0.try_wait().map_err(|error| error.to_string())? {
+        if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
             return Err(format!(
                 "Native child exited {status} before {}",
                 path.display()
@@ -74,7 +59,7 @@ fn call_cli(
 ) -> Result<(), String> {
     let stdout = artifacts.join(format!("{name}.stdout"));
     let stderr = artifacts.join(format!("{name}.stderr"));
-    let mut child = NativeProcess(
+    let mut child = FixtureChild::spawn(
         Command::new(cli)
             .arg("--socket")
             .arg(socket)
@@ -84,13 +69,12 @@ fn call_cli(
             ))
             .stderr(Stdio::from(
                 fs::File::create(&stderr).map_err(|error| error.to_string())?,
-            ))
-            .spawn()
-            .map_err(|error| format!("SETUP: launch CLI: {error}"))?,
-    );
+            )),
+    )
+    .map_err(|error| format!("SETUP: launch CLI: {error}"))?;
     let deadline = Instant::now() + CLI_TIMEOUT;
     loop {
-        if let Some(status) = child.0.try_wait().map_err(|error| error.to_string())? {
+        if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
             if !status.success() {
                 let err = fs::read_to_string(stderr).map_err(|error| error.to_string())?;
                 return Err(format!("CLI {name} {args:?} exited {status}: {err}"));
@@ -111,34 +95,36 @@ fn launch(
     screen: &str,
     client_args: &[String],
     artifacts: &Path,
-) -> Result<NativeProcess, String> {
+) -> Result<FixtureChild, String> {
     for directory in ["config", "user-data"] {
         fs::create_dir_all(artifacts.join(directory)).map_err(|error| error.to_string())?;
     }
     let script = format!("res://tests/{screen}_screen_flow.gd");
-    let child = Command::new(godot)
-        .args(["--audio-driver", "Dummy", "--path"])
-        .arg(repo.join("godot"))
-        .args(["-s", &script, "--", "--screen", screen])
-        .args(client_args)
-        .env("GODOT_DEBUG_SCREEN_ARTIFACTS", artifacts)
-        .env("XDG_CONFIG_HOME", artifacts.join("config"))
-        .env("XDG_DATA_HOME", artifacts.join("user-data"))
-        .stdout(Stdio::from(
-            fs::File::create(artifacts.join("native.log")).map_err(|error| error.to_string())?,
-        ))
-        .stderr(Stdio::from(
-            fs::File::create(artifacts.join("native.stderr")).map_err(|error| error.to_string())?,
-        ))
-        .spawn()
-        .map_err(|error| format!("SETUP: native Godot: {error}"))?;
-    Ok(NativeProcess(child))
+    FixtureChild::spawn(
+        Command::new(godot)
+            .args(["--audio-driver", "Dummy", "--path"])
+            .arg(repo.join("godot"))
+            .args(["-s", &script, "--", "--screen", screen])
+            .args(client_args)
+            .env("GODOT_DEBUG_SCREEN_ARTIFACTS", artifacts)
+            .env("XDG_CONFIG_HOME", artifacts.join("config"))
+            .env("XDG_DATA_HOME", artifacts.join("user-data"))
+            .stdout(Stdio::from(
+                fs::File::create(artifacts.join("native.log"))
+                    .map_err(|error| error.to_string())?,
+            ))
+            .stderr(Stdio::from(
+                fs::File::create(artifacts.join("native.stderr"))
+                    .map_err(|error| error.to_string())?,
+            )),
+    )
+    .map_err(|error| format!("SETUP: native Godot: {error}"))
 }
 
-fn wait_exit(native: &mut NativeProcess, socket: &Path) -> Result<(), String> {
+fn wait_exit(native: &mut FixtureChild, socket: &Path) -> Result<(), String> {
     let deadline = Instant::now() + EXIT_TIMEOUT;
     loop {
-        if let Some(status) = native.0.try_wait().map_err(|error| error.to_string())? {
+        if let Some(status) = native.try_wait().map_err(|error| error.to_string())? {
             if !status.success() {
                 return Err(format!("Native assertions exited {status}"));
             }
@@ -175,10 +161,10 @@ fn run_fixture(screen: &str, client_args: &[String]) -> Result<PathBuf, String> 
     ));
     let mut native = launch(&godot, &repo, screen, client_args, &artifacts)?;
     wait_file(&artifacts.join("ready"), &mut native, READY_TIMEOUT)?;
-    let socket = PathBuf::from(format!("/tmp/game-engine-{}.sock", native.0.id()));
+    let socket = PathBuf::from(format!("/tmp/game-engine-{}.sock", native.id()));
     println!(
         "READY native PID={} socket={}",
-        native.0.id(),
+        native.id(),
         socket.display()
     );
     let screenshot = artifacts.join("screen.webp");
