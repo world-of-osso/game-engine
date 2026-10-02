@@ -57,6 +57,7 @@ fn vendor() -> MerchantState {
         VendorInventory {
             npc: 0x0000_0001_0000_04BD,
             can_repair: false,
+            guild_repair_money: None,
             items: vec![VendorItem {
                 slot: 3,
                 item_id: 159,
@@ -67,6 +68,7 @@ fn vendor() -> MerchantState {
                 max_stack: 20,
                 num_available: None,
                 usable: true,
+                max_durability: None,
             }],
         },
         "Innkeeper Farley".into(),

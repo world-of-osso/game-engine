@@ -1,42 +1,43 @@
 //! Merchant and buyback tooltip content (docs/specs/merchant-frame.md).
 
-use super::{GameTooltip, TooltipRecord};
-use crate::merchant_data::quality_color;
+use shared::protocol::{BuybackItem, ItemDurability};
+
+use super::GameTooltip;
+use super::item::named_item;
+use crate::bag_data::InventorySlot;
+use crate::merchant_data::{MerchantState, MerchantTab};
 use crate::tooltip_presentation::{
-    TOOLTIP_WHITE, TooltipLineState, TooltipPresentation, parse_rgba,
+    TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipLineState, TooltipPresentation,
+    description_lines,
 };
 
-/// Concrete merchant name/quality, bundle count and finite stock; placement appends the ID.
-pub fn merchant_tooltip(
-    item_id: u32,
-    name: &str,
-    quality: u8,
-    count: u32,
-    stock: Option<u32>,
-) -> GameTooltip {
-    let mut lines = Vec::new();
-    if count > 1 {
-        lines.push(TooltipLineState::key_value(
-            "Stack Count",
-            count.to_string(),
-        ));
+/// The item of cell `index` as `MerchantItemButton_OnEnter` shows it (MF.lua:710-724):
+/// `SetMerchantItem` on the merchant tab, the full item tooltip of one purchase with a
+/// new item's durability (`DURABILITY_TEMPLATE`); `SetBuybackItem` on the buyback tab.
+pub fn merchant_cell_item(merchant: &MerchantState, index: usize) -> Option<InventorySlot> {
+    match merchant.tab {
+        MerchantTab::Merchant => {
+            let item = merchant.page_items().get(index)?;
+            Some(InventorySlot {
+                durability: item
+                    .max_durability
+                    .map(|max| ItemDurability { current: max, max }),
+                ..named_item(item.item_id, &item.name, item.quality, item.stack_count)
+            })
+        }
+        MerchantTab::Buyback => merchant.buyback.get(index).map(buyback_item),
     }
-    if let Some(stock) = stock {
-        lines.push(TooltipLineState::key_value("In Stock", stock.to_string()));
-    }
-    GameTooltip::new(
-        TooltipPresentation {
-            title: name.to_owned(),
-            title_color: parse_rgba(quality_color(quality)),
-            lines,
-            ..Default::default()
-        },
-        Some(TooltipRecord::Item(item_id)),
-    )
+}
+
+/// `SetBuybackItem`: the sold stack.
+pub fn buyback_item(item: &BuybackItem) -> InventorySlot {
+    named_item(item.item_id, &item.name, item.quality, item.count)
 }
 
 /// `RED_FONT_COLOR`.
 const RED_FONT_COLOR: [f32; 4] = [1.0, 0.1, 0.1, 1.0];
+/// `GUILDBANK_REPAIR_INSUFFICIENT_FUNDS`.
+const INSUFFICIENT_FUNDS: &str = "Insufficient funds to repair all items";
 
 /// A button tooltip: `GameTooltip:SetText(text)` in `HIGHLIGHT_FONT_COLOR`.
 fn button_tooltip(title: &str, lines: Vec<TooltipLineState>) -> GameTooltip {
@@ -72,166 +73,223 @@ pub fn repair_all_tooltip(cost: u64, money: u64) -> Option<GameTooltip> {
     let mut lines = vec![TooltipLineState::money(String::new(), cost)];
     if cost > money {
         lines.push(TooltipLineState::colored(
-            "Insufficient funds to repair all items",
+            INSUFFICIENT_FUNDS,
             RED_FONT_COLOR,
         ));
     }
     Some(button_tooltip("Repair All Items", lines))
 }
 
+/// `MerchantGuildBankRepairButton` `OnEnter` (MF.xml:332-364): with something to repair,
+/// `REPAIR_ALL_ITEMS` and the cost, then `GUILDBANK_REPAIR` (wrapped, `NORMAL_FONT_COLOR`)
+/// over the guild money left for repairs as a highlight line. When the cost exceeds it,
+/// `GUILDBANK_REPAIR_PERSONAL` and the difference if the player's money covers that,
+/// else `GUILDBANK_REPAIR_INSUFFICIENT_FUNDS` in red. `guild_money` is the guild money the
+/// player may spend (`min(GetGuildBankWithdrawMoney(), GetGuildBankMoney())`).
+pub fn guild_repair_tooltip(cost: u64, guild_money: u64, money: u64) -> Option<GameTooltip> {
+    if cost == 0 {
+        return None;
+    }
+    let mut lines = vec![TooltipLineState::money(String::new(), cost)];
+    lines.extend(description_lines(
+        "Remaining amount for today's Guild Bank repairs:",
+        TOOLTIP_DESCRIPTION_COLOR,
+    ));
+    lines.push(TooltipLineState::money(String::new(), guild_money));
+    if cost > guild_money {
+        let personal = cost - guild_money;
+        if money >= personal {
+            lines.extend(description_lines(
+                "Personal amount to be spent:",
+                TOOLTIP_DESCRIPTION_COLOR,
+            ));
+            lines.push(TooltipLineState::money(String::new(), personal));
+        } else {
+            lines.push(TooltipLineState::colored(
+                INSUFFICIENT_FUNDS,
+                RED_FONT_COLOR,
+            ));
+        }
+    }
+    Some(button_tooltip("Repair All Items", lines))
+}
+
 #[cfg(test)]
 mod tests {
-    use shared::protocol::{BuybackItem, VendorInventory, VendorItem};
+    use shared::protocol::{
+        BuybackItem, EquipmentSlot, EquipmentSnapshot, EquippedItem, ItemStack, VendorInventory,
+        VendorItem,
+    };
 
-    use super::{merchant_tooltip, repair_all_tooltip, repair_item_tooltip, sell_all_junk_tooltip};
-    use crate::game_tooltip::{GameTooltip, TooltipRecord, TooltipScreen, place};
+    use super::{
+        guild_repair_tooltip, merchant_cell_item, repair_all_tooltip, repair_item_tooltip,
+        sell_all_junk_tooltip,
+    };
+    use crate::bag_data::InventoryState;
+    use crate::game_tooltip::TooltipRecord;
+    use crate::game_tooltip::item::{comparisons, item_game_tooltip};
+    use crate::item_tooltip::GREEN_FONT_COLOR;
     use crate::merchant_data::{MerchantState, MerchantTab};
-    use crate::tooltip_presentation::{TooltipLineState, item_id_line};
+    use crate::tooltip_presentation::{
+        TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, description_lines,
+    };
 
-    fn vendor(count: u32, stock: Option<u32>) -> VendorInventory {
-        VendorInventory {
-            npc: 4294966979,
-            can_repair: false,
-            items: vec![VendorItem {
-                slot: 0,
-                item_id: 2589,
-                name: "Fixture Linen Bundle".into(),
-                quality: 2,
-                price: 25,
-                stack_count: count,
-                max_stack: 20,
-                num_available: stock,
-                usable: true,
-            }],
+    fn vendor_item(item_id: u32, name: &str, count: u32, durability: Option<u32>) -> VendorItem {
+        VendorItem {
+            slot: 0,
+            item_id,
+            name: name.into(),
+            quality: 1,
+            price: 25,
+            stack_count: count,
+            max_stack: 20,
+            num_available: Some(7),
+            usable: true,
+            max_durability: durability,
         }
     }
 
-    fn tooltip_for_cell(merchant: &MerchantState) -> GameTooltip {
+    fn merchant(items: Vec<VendorItem>) -> MerchantState {
         super::super::set_test_data_root();
-        let (item_id, name, quality, count, stock) = merchant.cell_item(0).unwrap();
-        merchant_tooltip(item_id, name, quality, count, stock)
-    }
-
-    fn assert_content(
-        tooltip: GameTooltip,
-        item_id: u32,
-        name: &str,
-        color: [f32; 4],
-        rows: &[(&str, &str)],
-    ) {
-        assert!(tooltip.content.visible);
-        assert_eq!(tooltip.content.title, name);
-        assert_eq!(tooltip.content.title_color, color);
-        assert_eq!(tooltip.record, Some(TooltipRecord::Item(item_id)));
-        let mut expected: Vec<_> = rows
-            .iter()
-            .map(|&(label, value)| TooltipLineState::key_value(label, value))
-            .collect();
-        assert_eq!(tooltip.content.lines, expected);
-        expected.push(item_id_line(item_id));
-        let placed = place(
-            tooltip,
-            TooltipScreen {
-                size: [1280.0, 720.0],
-                cursor: [0.0, 0.0],
+        let mut merchant = MerchantState::default();
+        merchant.apply_inventory(
+            VendorInventory {
+                npc: 4294966979,
+                can_repair: false,
+                guild_repair_money: None,
+                items,
             },
+            "Fixture Vendor".into(),
         );
-        assert_eq!(placed.lines, expected);
+        merchant
+    }
+
+    fn rows(lines: &[TooltipLineState]) -> Vec<(&str, &str)> {
+        lines
+            .iter()
+            .map(|line| (line.left_text.as_str(), line.right_text.as_str()))
+            .collect()
     }
 
     #[test]
-    fn finite_bundle_has_stack_and_stock_rows_then_common_item_id() {
-        let mut merchant = MerchantState::default();
-        merchant.apply_inventory(vendor(5, Some(7)), "Fixture Vendor".into());
-        assert_content(
-            tooltip_for_cell(&merchant),
-            2589,
-            "Fixture Linen Bundle",
-            [0.12, 1.0, 0.0, 1.0],
-            &[("Stack Count", "5"), ("In Stock", "7")],
+    fn a_vendor_weapon_shows_its_full_item_tooltip_at_full_durability() {
+        let merchant = merchant(vec![vendor_item(25, "Fixture Vendor Sword", 1, Some(20))]);
+        let sword = merchant_cell_item(&merchant, 0).unwrap();
+        let tooltip = item_game_tooltip(&sword, Some(1));
+        assert_eq!(tooltip.content.title, "Fixture Vendor Sword");
+        assert_eq!(tooltip.record, Some(TooltipRecord::Item(25)));
+        // SetMerchantItem: a new, unbound item; ItemSparse 25 binds when equipped.
+        assert_eq!(
+            rows(&tooltip.content.lines),
+            vec![
+                ("Item Level 1", ""),
+                ("Binds when equipped", ""),
+                ("Main Hand", "Sword"),
+                ("1 - 1 Damage", "Speed 2.60"),
+                ("(0.4 damage per second)", ""),
+                ("Durability 20 / 20", ""),
+                ("Sell Price:", ""),
+            ]
         );
+        assert_eq!(tooltip.content.lines.last().unwrap().money, Some(3));
     }
 
     #[test]
-    fn single_unlimited_item_has_neither_stack_nor_stock_row() {
-        let mut inventory = vendor(1, None);
-        inventory.items[0].item_id = 4865;
-        inventory.items[0].name = "Fixture Single Pelt".into();
-        inventory.items[0].quality = 0;
-        let mut merchant = MerchantState::default();
-        merchant.apply_inventory(inventory, "Fixture Vendor".into());
-        assert_content(
-            tooltip_for_cell(&merchant),
-            4865,
-            "Fixture Single Pelt",
-            [0.62, 0.62, 0.62, 1.0],
-            &[],
-        );
+    fn a_vendor_bundle_prices_its_whole_purchase_without_durability() {
+        let merchant = merchant(vec![vendor_item(2589, "Fixture Linen Bundle", 5, None)]);
+        let linen = merchant_cell_item(&merchant, 0).unwrap();
+        assert_eq!(linen.durability, None);
+        let tooltip = item_game_tooltip(&linen, None);
+        assert_eq!(rows(&tooltip.content.lines), vec![("Sell Price:", "")]);
+        assert_eq!(tooltip.content.lines[0].money, Some(13 * 5));
+        assert_eq!(merchant_cell_item(&merchant, 1), None);
     }
 
     #[test]
-    fn refreshed_bundle_uses_count_two_and_keeps_zero_stock_visible() {
-        let mut merchant = MerchantState::default();
-        merchant.apply_inventory(vendor(5, Some(7)), "Fixture Vendor".into());
-        let before = tooltip_for_cell(&merchant);
-        merchant.apply_inventory(vendor(2, Some(0)), String::new());
-        assert_content(
-            tooltip_for_cell(&merchant),
-            2589,
-            "Fixture Linen Bundle",
-            [0.12, 1.0, 0.0, 1.0],
-            &[("Stack Count", "2"), ("In Stock", "0")],
-        );
-        assert_content(
-            before,
-            2589,
-            "Fixture Linen Bundle",
-            [0.12, 1.0, 0.0, 1.0],
-            &[("Stack Count", "5"), ("In Stock", "7")],
-        );
-    }
-
-    #[test]
-    fn buyback_three_uses_concrete_name_and_rare_quality_without_stock() {
-        let mut merchant = MerchantState::default();
-        merchant.apply_inventory(vendor(5, Some(7)), "Fixture Vendor".into());
+    fn buyback_cells_show_the_sold_stack() {
+        let mut merchant = merchant(vec![vendor_item(25, "Fixture Vendor Sword", 1, Some(20))]);
         merchant.buyback.push(BuybackItem {
             slot: 0,
             item_id: 2589,
             name: "Fixture Returned Linen".into(),
             quality: 3,
             count: 3,
-            price: 12,
+            price: 39,
         });
         merchant.set_tab(MerchantTab::Buyback);
-        assert_content(
-            tooltip_for_cell(&merchant),
-            2589,
-            "Fixture Returned Linen",
-            [0.0, 0.44, 0.87, 1.0],
-            &[("Stack Count", "3")],
+        let linen = merchant_cell_item(&merchant, 0).unwrap();
+        assert_eq!(
+            (linen.item_id, linen.name.as_str(), linen.count),
+            (2589, "Fixture Returned Linen", 3)
         );
+        let tooltip = item_game_tooltip(&linen, None);
+        assert_eq!(tooltip.content.lines[0].money, Some(13 * 3));
     }
 
     #[test]
-    fn titles_keep_the_merchant_quality_map() {
-        for (quality, color) in [
-            (0, [0.62, 0.62, 0.62, 1.0]),
-            (1, [1.0, 1.0, 1.0, 1.0]),
-            (2, [0.12, 1.0, 0.0, 1.0]),
-            (3, [0.0, 0.44, 0.87, 1.0]),
-            (4, [0.64, 0.21, 0.93, 1.0]),
-            (5, [1.0, 0.5, 0.0, 1.0]),
-            (6, [0.9, 0.8, 0.5, 1.0]),
-            (7, [0.9, 0.8, 0.5, 1.0]),
-            (255, [1.0, 1.0, 1.0, 1.0]),
-        ] {
-            let mut inventory = vendor(1, None);
-            inventory.items[0].quality = quality;
-            let mut merchant = MerchantState::default();
-            merchant.apply_inventory(inventory, "Fixture Vendor".into());
-            assert_eq!(tooltip_for_cell(&merchant).content.title_color, color);
-        }
+    fn shift_compares_a_vendor_axe_with_the_equipped_sword() {
+        let merchant = merchant(vec![vendor_item(3191, "Arced War Axe", 1, Some(75))]);
+        let axe = merchant_cell_item(&merchant, 0).unwrap();
+        let mut inventory = InventoryState::default();
+        inventory.apply_equipment_snapshot(&EquipmentSnapshot {
+            items: vec![EquippedItem {
+                slot: EquipmentSlot::MainHand,
+                item: ItemStack {
+                    item_guid: 9,
+                    item_id: 25,
+                    count: 1,
+                    durability: None,
+                    soulbound: true,
+                },
+            }],
+        });
+        let shopping = comparisons(&axe, &inventory, Some(10));
+        assert_eq!(shopping.len(), 1);
+        assert_eq!(shopping[0].header, "Equipped");
+        assert_eq!(shopping[0].tooltip.title, "Worn Shortsword");
+        let gain = shopping[0]
+            .tooltip
+            .lines
+            .iter()
+            .find(|line| line.left_text == "+2.1 Damage Per Second")
+            .expect("damage gain");
+        assert_eq!(gain.left_color, GREEN_FONT_COLOR);
+    }
+
+    #[test]
+    fn guild_repair_shows_the_cost_and_the_guild_money_left() {
+        assert!(guild_repair_tooltip(0, 984, 1000).is_none());
+        let remaining = description_lines(
+            "Remaining amount for today's Guild Bank repairs:",
+            TOOLTIP_DESCRIPTION_COLOR,
+        );
+        let covered = guild_repair_tooltip(16, 984, 0).unwrap();
+        assert_eq!(covered.content.title, "Repair All Items");
+        let mut expected = vec![TooltipLineState::money(String::new(), 16)];
+        expected.extend(remaining.clone());
+        expected.push(TooltipLineState::money(String::new(), 984));
+        assert_eq!(covered.content.lines, expected);
+
+        // 10 copper of guild money: the player's 1100 covers the other 1006.
+        let personal = guild_repair_tooltip(1016, 10, 1100).unwrap();
+        let mut expected = vec![TooltipLineState::money(String::new(), 1016)];
+        expected.extend(remaining.clone());
+        expected.push(TooltipLineState::money(String::new(), 10));
+        expected.extend(description_lines(
+            "Personal amount to be spent:",
+            TOOLTIP_DESCRIPTION_COLOR,
+        ));
+        expected.push(TooltipLineState::money(String::new(), 1006));
+        assert_eq!(personal.content.lines, expected);
+
+        let short = guild_repair_tooltip(1016, 10, 5).unwrap();
+        assert_eq!(
+            short.content.lines.last().unwrap(),
+            &TooltipLineState::colored(
+                "Insufficient funds to repair all items",
+                [1.0, 0.1, 0.1, 1.0]
+            )
+        );
     }
 
     #[test]
