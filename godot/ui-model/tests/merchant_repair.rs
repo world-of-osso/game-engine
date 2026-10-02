@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use game_engine_ui_model::merchant::{Click, MerchantEffect, MerchantSession};
 use game_engine_ui_model::merchant_data::MerchantRequest;
 use game_engine_ui_model::merchant_frame_component::{
-    ACTION_REPAIR_ITEM, ACTION_TAB_BUYBACK, merchant_frame_screen,
+    ACTION_GUILD_REPAIR, ACTION_REPAIR_ITEM, ACTION_TAB_BUYBACK, merchant_frame_screen,
 };
 use shared::protocol::{
     BagContents, BagSlotItem, EquipmentSlot, EquipmentSnapshot, EquippedItem, InventorySnapshot,
@@ -20,6 +20,11 @@ const SWORD_GUID: u64 = 9_180_025;
 const LINEN_GUID: u64 = 9_182_589;
 
 fn session(can_repair: bool) -> MerchantSession {
+    guild_session(can_repair, None)
+}
+
+/// `guild_money`: the server's `VendorInventory.guild_repair_money` (`CanGuildBankRepair`).
+fn guild_session(can_repair: bool, guild_money: Option<u64>) -> MerchantSession {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -36,6 +41,7 @@ fn session(can_repair: bool) -> MerchantSession {
         VendorInventory {
             npc: NPC,
             can_repair,
+            guild_repair_money: guild_money,
             items: vec![],
         },
         "Fixture Vendor".into(),
@@ -209,4 +215,71 @@ fn fired_page_and_repair_all_buttons_play_their_retail_sound_kits() {
     assert_eq!(click_sound(ACTION_REPAIR_ALL), Some(7994));
     assert_eq!(click_sound(ACTION_REPAIR_ITEM), None);
     assert_eq!(click_sound(ACTION_SELL_ALL_JUNK), None);
+}
+
+fn left_top(registry: &FrameRegistry, name: &str) -> (Val, Val) {
+    let id = registry
+        .get_by_name(name)
+        .unwrap_or_else(|| panic!("{name}"));
+    let frame = registry.get(id).unwrap();
+    (frame.position.left, frame.position.top)
+}
+
+#[test]
+fn guild_bank_repair_shows_for_a_guild_repairer_and_moves_the_service_buttons() {
+    let repairer = guild_session(true, Some(984));
+    let reg = registry(&repairer);
+    // MerchantFrame_UpdateRepairButtons with CanGuildBankRepair (MF.lua:936-946): RepairAll
+    // BOTTOMRIGHT at 96,33; RepairItem RIGHT at its LEFT -9; SellJunk RIGHT at its LEFT +128;
+    // the guild button LEFT at RepairAll RIGHT +8 (MF.xml:320-322).
+    let (all_left, all_top) = left_top(&reg, "MerchantRepairAllButton");
+    assert_eq!(all_left, Val::Px(60.0));
+    assert_eq!(left_top(&reg, "MerchantRepairItemButton").0, Val::Px(15.0));
+    assert_eq!(
+        left_top(&reg, "MerchantGuildBankRepairButton"),
+        (Val::Px(104.0), all_top)
+    );
+    assert_eq!(
+        left_top(&reg, "MerchantSellAllJunkButton").0,
+        Val::Px(152.0)
+    );
+    let id = reg.get_by_name("MerchantGuildBankRepairButton").unwrap();
+    assert_eq!(
+        reg.get(id).unwrap().onclick.as_deref(),
+        Some(ACTION_GUILD_REPAIR)
+    );
+
+    // A rank without the right (or no guild) and a non-repairer show no guild button.
+    for session in [guild_session(true, None), guild_session(false, Some(984))] {
+        let reg = registry(&session);
+        assert!(reg.get_by_name("MerchantGuildBankRepairButton").is_none());
+    }
+    assert_eq!(
+        left_top(&registry(&session(true)), "MerchantRepairAllButton").0,
+        Val::Px(82.0)
+    );
+}
+
+#[test]
+fn guild_bank_repair_sends_a_guild_repair_all_and_plays_item_repair() {
+    let mut repairer = guild_session(true, Some(0));
+    assert_eq!(
+        repairer.click_frame(ACTION_GUILD_REPAIR, Click::LEFT),
+        Some(MerchantEffect::Request {
+            npc: NPC,
+            request: MerchantRequest::GuildRepairAll,
+        })
+    );
+    assert_eq!(
+        game_engine_ui_model::merchant::click_sound(ACTION_GUILD_REPAIR),
+        Some(7994)
+    );
+    // Nothing damaged disables it with Repair All (GetRepairAllCost, MF.lua:922-931).
+    repairer.repair_cost = 0;
+    let reg = registry(&repairer);
+    let id = reg.get_by_name("MerchantGuildBankRepairButton").unwrap();
+    let action = reg.get(id).unwrap().onclick.clone().unwrap_or_default();
+    assert!(action.is_empty(), "disabled guild repair has no action");
+    let mut no_right = guild_session(true, None);
+    assert_eq!(no_right.click_frame(ACTION_GUILD_REPAIR, Click::LEFT), None);
 }
