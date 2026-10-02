@@ -372,6 +372,8 @@ pub fn spell_cast_intent(spell_id: u32, spell_name: &str, target: Option<u64>) -
         spell_id: Some(spell_id),
         spell: spell_name.to_string(),
         target_entity: target,
+        // The preserved Bevy client finds no LOS witness ray.
+        witness: None,
     }
 }
 
