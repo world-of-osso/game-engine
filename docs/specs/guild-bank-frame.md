@@ -44,6 +44,8 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
   - Banktwo, rank Member with the vault open, sees the tab and the Linen arrive, and withdraws the Linen; Bankone's slot empties.
   - Item log: "Bankone deposited Linen Cloth x 10", "Banktwo withdrew Linen Cloth x 10". Money log: "Bankone deposited 150g", "Bankone purchased a guild bank tab for 100g".
 
+- Guild repair (native, `data/diagnostics/merchant3-20261001/live/g-7-guild-money-log.png`): the Money Log reads "Fbguildfour deposited 10g" and "Fbguildfour withdrew 16c for repairs".
+
 ## How it works
 - [banks](../wiki/systems/banks.md)
 
