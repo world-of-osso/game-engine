@@ -1,7 +1,7 @@
 //! Authored sky M2s (character-select skyboxes, in-world stars): M2 geometry and texture
 //! stages drawn behind world depth, with an overall model alpha (WebWowViewerCpp
 //! `M2Object::setAlpha`, as `map.cpp` sets the stars' and `SkyBoxCollector` the skyboxes').
-use std::path::Path;
+use std::{ops::RangeInclusive, path::Path};
 
 use game_engine_core::{
     asset::m2_format::m2_anim::{evaluate_i16_track, evaluate_vec3_track},
@@ -22,6 +22,8 @@ mod sky_time;
 use sky_time::fixed_sequence_phase_ms;
 
 const SHADER_PATH: &str = "res://shaders/sky_m2.gdshader";
+/// Godot's lowest material render priority; batch `n` in draw order takes this + n.
+const FIRST_BATCH_PRIORITY: i32 = -128;
 const RENDER_MODE: &str =
     "render_mode unshaded, fog_disabled, cull_back, blend_mix, depth_draw_never, shadows_disabled;";
 
@@ -94,13 +96,26 @@ impl SkyModel {
         Ok(sky)
     }
 
-    /// Moves every batch's render priority by `base`, so the model sorts by sky-view order
-    /// (stars, discs, skyboxes, fog cone) ahead of the world's transparent surfaces.
-    pub fn offset_render_priority(&mut self, base: i32) {
-        for material in &mut self.materials {
-            let priority = material.get_render_priority() + base;
+    /// Moves the batches' render priorities (built from `FIRST_BATCH_PRIORITY` in draw
+    /// order) to start at the first of `band`, so the model sorts by sky-view order (stars,
+    /// discs, skyboxes, fog cone) ahead of the world's transparent surfaces. Fails when the
+    /// batches do not fit in `band`.
+    pub fn place_render_priorities(&mut self, band: RangeInclusive<i32>) -> Result<(), String> {
+        let shift = band.start() - FIRST_BATCH_PRIORITY;
+        let priorities: Vec<i32> = self
+            .materials
+            .iter()
+            .map(|material| material.get_render_priority() + shift)
+            .collect();
+        if let Some(outside) = priorities.iter().find(|priority| !band.contains(priority)) {
+            return Err(format!(
+                "Sky batch render priority {outside} outside its band {band:?}"
+            ));
+        }
+        for (material, priority) in self.materials.iter_mut().zip(priorities) {
             material.set_render_priority(priority);
         }
+        Ok(())
     }
 
     /// The model alpha every batch's transparency is multiplied by.
@@ -181,7 +196,12 @@ fn prepare_batches(model: &m2::Model, data_root: &Path) -> Result<Vec<PreparedBa
                 )
             })?;
             let mesh = assets::build_batch_mesh(model, submesh)?;
-            let material = build_material(&batch, &shader, data_root, order as i32 - 128)?;
+            let material = build_material(
+                &batch,
+                &shader,
+                data_root,
+                order as i32 + FIRST_BATCH_PRIORITY,
+            )?;
             Ok((batch, mesh, material))
         })
         .collect()
