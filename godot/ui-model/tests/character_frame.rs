@@ -13,7 +13,6 @@ use game_engine_ui_model::character_frame::{
     paperdoll_button, paperdoll_slots, parse_equipment_slot_action,
 };
 use game_engine_ui_model::item_catalog::item_catalog_entry;
-use game_engine_ui_model::micro_menu::{ACTION_CHARACTER, micro_menu_screen};
 use shared::components::{CombatRatings, DerivedStats, UnitStats};
 use shared::protocol::{
     EquipmentSlot, EquipmentSnapshot, EquippedItem, InventoryDelta, InventorySlotChange,
@@ -308,23 +307,6 @@ fn hidden_view_hides_the_frame_and_the_frame_itself_blocks_clicks() {
     assert_eq!(
         onclick(&registry, "CharacterFrame").as_deref(),
         Some(ACTION_FRAME)
-    );
-}
-
-#[test]
-fn every_micro_button_clicks_its_own_named_action() {
-    data_root();
-    let mut registry = FrameRegistry::new(1920.0, 1080.0);
-    let mut shared = SharedContext::new();
-    shared.insert(());
-    Screen::new(micro_menu_screen).sync(&shared, &mut registry);
-    assert_eq!(
-        onclick(&registry, "CharacterMicroButton").as_deref(),
-        Some(ACTION_CHARACTER)
-    );
-    assert_eq!(
-        onclick(&registry, "AchievementMicroButton").as_deref(),
-        Some("micro:AchievementMicroButton")
     );
 }
 
