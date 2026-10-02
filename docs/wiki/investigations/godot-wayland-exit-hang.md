@@ -24,4 +24,12 @@ Official 4.7.2: 14/190. Self-built 4.7.2 unpatched: 2/60 (one of each mode). Sel
 PR #123946: 0/120 m2_animation, 0/60 m2_material_pixels. Evidence:
 `data/diagnostics/quithang-2026-10-01/`.
 
-**Status.** The fix needs a patched Godot binary; the launcher pins the official release.
+**Status.** The launcher and shell helpers pin patched Godot `4.7.2-pr123946`: official
+4.7.2-stable plus `scripts/godot/pr123946-wayland-exit-hang.patch`, built by
+`scripts/godot/build-patched-godot.sh` with the official release toolchain (buildroot SDK
+godot-2023.08.x-4, accesskit-c 0.22.3, SCons 4.10.1, `production=yes`) and SHA-512 pinned in
+`scripts/godot/godot-4.7.2-pr123946.sha512`. No fallback to the official binary. The patch
+touches only `platform/linuxbsd/wayland/`, so other platforms need no patched build.
+
+**Retirement.** Drop the patch, build script and pin, and return to an official release
+download, once a Godot release contains #123946.
