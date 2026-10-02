@@ -36,6 +36,11 @@ impl<T: Send + 'static> BackgroundLoad<T> {
     pub(crate) fn loaded(&self) -> Option<&T> {
         self.loaded.as_ref()
     }
+
+    /// Own the result taken by an earlier `poll`.
+    pub(crate) fn into_loaded(self) -> Option<T> {
+        self.loaded
+    }
 }
 
 #[cfg(test)]
