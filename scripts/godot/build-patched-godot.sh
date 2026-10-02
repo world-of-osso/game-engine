@@ -12,6 +12,14 @@
 # release that contains #123946.
 set -euo pipefail
 
+# Usage: build-patched-godot.sh [--jobs N]   (default 2 parallel compile jobs)
+jobs=2
+case "${1:-}" in
+  --jobs) jobs=$2 ;;
+  "") ;;
+  *) echo "usage: $0 [--jobs N]" >&2; exit 2 ;;
+esac
+
 here=$(cd "$(dirname "$0")" && pwd)
 . "$here/pinned.sh"
 tag=4.7.2-stable
@@ -64,7 +72,7 @@ git -C "$src" apply "$here/pr123946-wayland-exit-hang.patch"
 # PYTHONHASHSEED: editor/editor_builders.py embeds Python hash() of the docs, randomized
 # per process otherwise, so the binary would differ on every build.
 (cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946 PYTHONHASHSEED=0 uvx --from scons==4.10.1 scons \
-  -j"$(nproc)" verbose=yes warnings=no progress=no redirect_build_objects=no \
+  -j"$jobs" verbose=yes warnings=no progress=no redirect_build_objects=no \
   platform=linuxbsd arch=x86_64 production=yes accesskit_sdk_path="$accesskit" target=editor)
 
 built=$src/bin/godot.linuxbsd.editor.x86_64
