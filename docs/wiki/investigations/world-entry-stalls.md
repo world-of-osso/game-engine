@@ -171,7 +171,7 @@ Measurements (`GAME_PROFILE_MS=50`, private server, debug builds, host load from
 | Preview drop on Enter World | `screen.preview_reset` 124 ms (load 5), 1252-2114 ms (load 20-36) | under 50 ms at load 13-22 |
 | LoadTerrain | 289 ms (load 5) | 72.9 ms (load 13, `4dbb590e`) |
 | Longest loading frame | 594 ms (load 5) | 309.5 ms (load 13) |
-| "Minimap" step | 133-602 ms (catalogwait) | not over 50 ms in three runs |
+| "Minimap" step | 133-602 ms (catalogwait runs) | at most 54 ms (load 22, `95788a28`); under 50 ms in the other runs |
 
 Tests: `asset_loader::tests::dropping_the_loader_does_not_wait_for_the_load_in_hand` and `terrain::streaming::tests::dropping_the_stream_does_not_wait_for_the_read_in_hand` were RED (drop waited 1.00 s and 1.10 s for the held task) and are GREEN; `mip_chain_tests` pin the averaging; `outfit_data_tests` covers model resolution without the listfile. Live fixture `godot/tests/charselect_preview_frames.gd` selects two characters in turn and fails on any frame over 100 ms; it still fails on the loaded host.
 
