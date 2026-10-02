@@ -398,7 +398,7 @@ fn cleanup_pass_result<T>(
 
 pub(super) fn run(
     app: &mut App,
-    child: &mut Child,
+    child: &mut FixtureChild,
     lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
     context: FixtureContext<'_>,

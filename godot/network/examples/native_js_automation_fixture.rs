@@ -5,13 +5,14 @@
 
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
+use fixture_support::FixtureChild;
 
 use std::{
     fs,
     io::{BufRead, BufReader, Read, Write},
     net::{SocketAddr, UdpSocket},
     path::{Path, PathBuf},
-    process::{Child, Command, ExitStatus, Stdio},
+    process::{Command, ExitStatus, Stdio},
     sync::mpsc::{self, Receiver, Sender},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -167,25 +168,6 @@ fn authenticate(app: &mut App, count: &mut usize, mode: Mode) -> Result<(), Stri
     Ok(())
 }
 
-struct OwnedChild(Child);
-
-impl Drop for OwnedChild {
-    fn drop(&mut self) {
-        match self.0.try_wait() {
-            Ok(Some(_)) => return,
-            Ok(None) => {}
-            Err(error) => eprintln!("Own child status: {error}"),
-        }
-        // Own PID only. Forced cleanup is not shutdown or leak-freedom proof.
-        if let Err(error) = self.0.kill() {
-            eprintln!("Own child forced cleanup: {error}");
-        }
-        if let Err(error) = self.0.wait() {
-            eprintln!("Own child reap: {error}");
-        }
-    }
-}
-
 struct Output {
     line: String,
     password_leaked: bool,
@@ -225,7 +207,7 @@ fn launch(
     address: SocketAddr,
     artifacts: &Path,
     mode: Mode,
-) -> Result<(OwnedChild, Receiver<Result<Output, String>>), String> {
+) -> Result<(FixtureChild, Receiver<Result<Output, String>>), String> {
     let launcher = require_file(
         root.join("target/debug/game-engine-launcher"),
         "root launcher",
@@ -265,7 +247,7 @@ fn launch(
         fs::create_dir_all(artifacts.join(directory))
             .map_err(|error| format!("SETUP: artifacts: {error}"))?;
     }
-    let mut child = OwnedChild(
+    let mut child = FixtureChild::spawn(
         Command::new(launcher)
             .current_dir(root)
             .args(["--headless", "--audio-driver", "Dummy", "--path"])
@@ -294,18 +276,17 @@ fn launch(
             .env("NATIVE_JS_MODE", mode.observer_mode())
             .env("NATIVE_JS_CHARACTER", CHARACTER)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|error| format!("SETUP: launch root client: {error}"))?,
-    );
+            .stderr(Stdio::piped()),
+    )
+    .map_err(|error| format!("SETUP: launch root client: {error}"))?;
     let (sender, receiver) = mpsc::channel();
     collect_output(
-        child.0.stdout.take().ok_or("SETUP: missing stdout pipe")?,
+        child.stdout.take().ok_or("SETUP: missing stdout pipe")?,
         sender.clone(),
         true,
     );
     collect_output(
-        child.0.stderr.take().ok_or("SETUP: missing stderr pipe")?,
+        child.stderr.take().ok_or("SETUP: missing stderr pipe")?,
         sender,
         false,
     );
@@ -528,7 +509,7 @@ fn create_artifacts(root: &Path) -> Result<PathBuf, String> {
 
 fn pump_child_and_server(
     app: &mut App,
-    child: &mut OwnedChild,
+    child: &mut FixtureChild,
     receiver: &Receiver<Result<Output, String>>,
     log: &mut fs::File,
     artifacts: &Path,
@@ -544,7 +525,6 @@ fn pump_child_and_server(
         drain_output(receiver, log, &mut lines)?;
         if exited.is_none() {
             exited = child
-                .0
                 .try_wait()
                 .map_err(|error| format!("SETUP: own child status: {error}"))?;
         }
@@ -634,7 +614,7 @@ fn run_fixture() -> Result<(), String> {
     println!(
         "ARTIFACTS: {} own client PID={} loopback={address}",
         artifacts.display(),
-        child.0.id()
+        child.id()
     );
     let (lines, auth_count, status) =
         pump_child_and_server(&mut app, &mut child, &receiver, &mut log, &artifacts, mode)?;

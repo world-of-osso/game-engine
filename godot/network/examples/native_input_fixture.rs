@@ -50,6 +50,7 @@ mod charselect_export;
 mod dev_ipc;
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
+use fixture_support::FixtureChild;
 #[path = "native_input_fixture/footsteps.rs"]
 mod footsteps;
 #[path = "native_input_fixture/guild_bank.rs"]
@@ -482,7 +483,7 @@ fn launch_godot(
     address: SocketAddr,
     screen: StartupScreen,
     map_verify: bool,
-) -> (Child, ClientLines, Vec<thread::JoinHandle<()>>) {
+) -> (FixtureChild, ClientLines, Vec<thread::JoinHandle<()>>) {
     let binary = if matches!(
         screen,
         StartupScreen::SettingsReload
@@ -534,103 +535,106 @@ fn launch_godot(
     } else {
         &[]
     };
-    let mut child = Command::new(binary)
-        .current_dir(root)
-        .args(display_args)
-        .args(step_args)
-        .args([
-            "--path",
-            project.to_str().expect("UTF-8 Godot project path"),
-            "--script",
-            fixture_script(screen),
-        ])
-        .args(
-            if matches!(
-                screen,
-                StartupScreen::Menu
-                    | StartupScreen::Sound
-                    | StartupScreen::SoundClick
-                    | StartupScreen::MerchantClick
-                    | StartupScreen::MerchantCursor
-                    | StartupScreen::MerchantServices
-                    | StartupScreen::MerchantTooltips
-                    | StartupScreen::UiOwnership
-                    | StartupScreen::Keybinds
-                    | StartupScreen::Loot
-                    | StartupScreen::Bags
-                    | StartupScreen::BagsActions
-                    | StartupScreen::BagsCursor
-                    | StartupScreen::BagsDrag
-                    | StartupScreen::Bank
-                    | StartupScreen::GuildBank
-                    | StartupScreen::Footsteps
-                    | StartupScreen::ResetWindows
-                    | StartupScreen::SettingsReload
-                    | StartupScreen::PortalParticlesEnabled
-                    | StartupScreen::PortalParticlesDisabled
-                    | StartupScreen::PortalDensity
-                    | StartupScreen::Trade
-                    | StartupScreen::DevIpc
-                    | StartupScreen::CharSelectExport
-            ) {
-                &["--"][..]
-            } else {
-                &[][..]
-            },
-        )
-        .args(["--screen", screen.as_str()])
-        .args(
-            if !matches!(
-                screen,
-                StartupScreen::CharSelect | StartupScreen::Menu | StartupScreen::CharSelectExport
-            ) {
-                &["--char", "iNpUt fIxTuRe", "--server"][..]
-            } else {
-                &["--server"][..]
-            },
-        )
-        .arg(address.to_string())
-        .env("GODOT_TEST_STARTUP_SCREEN", screen.as_str())
-        .env("GODOT_TEST_MAP_VERIFY", if map_verify { "1" } else { "0" })
-        .env(
-            "GODOT_TEST_SWIMMING",
-            if screen == StartupScreen::Swimming {
-                "1"
-            } else {
-                "0"
-            },
-        )
-        .env(
-            "GODOT_TEST_OVERLAY_ONLY",
-            if screen == StartupScreen::Overlay {
-                "1"
-            } else {
-                "0"
-            },
-        )
-        .env("CARGO", env!("CARGO"))
-        .env("XDG_CONFIG_HOME", &config.home)
-        .env(
-            "XDG_DATA_HOME",
-            project
-                .parent()
-                .expect("Godot project root")
-                .join("user-data"),
-        )
-        .env("GODOT_TEST_SERVER", address.to_string())
-        .env(
-            "GODOT_TEST_PARTICLES",
-            match screen {
-                StartupScreen::PortalParticlesEnabled => "enabled",
-                StartupScreen::PortalParticlesDisabled => "disabled",
-                StartupScreen::PortalDensity => "density",
-                _ => "",
-            },
-        )
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("start root launcher for native Godot fixture");
+    let mut child = FixtureChild::spawn(
+        Command::new(binary)
+            .current_dir(root)
+            .args(display_args)
+            .args(step_args)
+            .args([
+                "--path",
+                project.to_str().expect("UTF-8 Godot project path"),
+                "--script",
+                fixture_script(screen),
+            ])
+            .args(
+                if matches!(
+                    screen,
+                    StartupScreen::Menu
+                        | StartupScreen::Sound
+                        | StartupScreen::SoundClick
+                        | StartupScreen::MerchantClick
+                        | StartupScreen::MerchantCursor
+                        | StartupScreen::MerchantServices
+                        | StartupScreen::MerchantTooltips
+                        | StartupScreen::UiOwnership
+                        | StartupScreen::Keybinds
+                        | StartupScreen::Loot
+                        | StartupScreen::Bags
+                        | StartupScreen::BagsActions
+                        | StartupScreen::BagsCursor
+                        | StartupScreen::BagsDrag
+                        | StartupScreen::Bank
+                        | StartupScreen::GuildBank
+                        | StartupScreen::Footsteps
+                        | StartupScreen::ResetWindows
+                        | StartupScreen::SettingsReload
+                        | StartupScreen::PortalParticlesEnabled
+                        | StartupScreen::PortalParticlesDisabled
+                        | StartupScreen::PortalDensity
+                        | StartupScreen::Trade
+                        | StartupScreen::DevIpc
+                        | StartupScreen::CharSelectExport
+                ) {
+                    &["--"][..]
+                } else {
+                    &[][..]
+                },
+            )
+            .args(["--screen", screen.as_str()])
+            .args(
+                if !matches!(
+                    screen,
+                    StartupScreen::CharSelect
+                        | StartupScreen::Menu
+                        | StartupScreen::CharSelectExport
+                ) {
+                    &["--char", "iNpUt fIxTuRe", "--server"][..]
+                } else {
+                    &["--server"][..]
+                },
+            )
+            .arg(address.to_string())
+            .env("GODOT_TEST_STARTUP_SCREEN", screen.as_str())
+            .env("GODOT_TEST_MAP_VERIFY", if map_verify { "1" } else { "0" })
+            .env(
+                "GODOT_TEST_SWIMMING",
+                if screen == StartupScreen::Swimming {
+                    "1"
+                } else {
+                    "0"
+                },
+            )
+            .env(
+                "GODOT_TEST_OVERLAY_ONLY",
+                if screen == StartupScreen::Overlay {
+                    "1"
+                } else {
+                    "0"
+                },
+            )
+            .env("CARGO", env!("CARGO"))
+            .env("XDG_CONFIG_HOME", &config.home)
+            .env(
+                "XDG_DATA_HOME",
+                project
+                    .parent()
+                    .expect("Godot project root")
+                    .join("user-data"),
+            )
+            .env("GODOT_TEST_SERVER", address.to_string())
+            .env(
+                "GODOT_TEST_PARTICLES",
+                match screen {
+                    StartupScreen::PortalParticlesEnabled => "enabled",
+                    StartupScreen::PortalParticlesDisabled => "disabled",
+                    StartupScreen::PortalDensity => "density",
+                    _ => "",
+                },
+            )
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )
+    .expect("start root launcher for native Godot fixture");
     let output = child.stdout.take().expect("read Godot stdout");
     let errors = child.stderr.take().expect("read Godot stderr");
     let (sender, receiver) = mpsc::channel();
@@ -1657,15 +1661,6 @@ fn main() {
             run_fixture(&mut app, &mut child, lines, reader, screen)
         }
     };
-    if result.is_err()
-        && child
-            .try_wait()
-            .expect("inspect fixture child status")
-            .is_none()
-    {
-        child.kill().expect("terminate failed Godot fixture");
-        child.wait().expect("reap failed Godot fixture");
-    }
     if let Err(error) = result {
         panic!("native input fixture: {error}");
     }

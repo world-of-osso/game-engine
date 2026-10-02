@@ -440,7 +440,7 @@ fn stage_fixture_csv(data: &Path) -> Result<(), String> {
 
 pub(super) fn run(
     app: &mut App,
-    child: &mut Child,
+    child: &mut FixtureChild,
     mut lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
     repo: &Path,
