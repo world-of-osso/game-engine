@@ -60,6 +60,8 @@ pub fn cast_failed_text(
         CastFailReason::TargetTooLowLevel => "Target is too low level",
         // SPELL_FAILED_INTERRUPTED, SPELL_FAILED_INTERRUPTED_COMBAT
         CastFailReason::Interrupted | CastFailReason::InterruptedCombat => "Interrupted",
+        // SPELL_FAILED_LINE_OF_SIGHT
+        CastFailReason::LineOfSight => "Target not in line of sight",
     };
     text.to_string()
 }

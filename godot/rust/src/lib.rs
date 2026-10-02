@@ -40,6 +40,7 @@ mod input_keys;
 mod ipc;
 mod js_automation;
 mod lighting;
+mod line_of_sight;
 mod loading;
 mod logout;
 mod loot;
@@ -217,6 +218,8 @@ pub struct GameClient {
     world_lighting: lighting::WorldLighting,
     /// `Map.db2` ID of the map whose terrain is loaded; lighting selects its Light rows.
     world_map_id: Option<u32>,
+    /// Witness rays for casts over the LOS bake.
+    line_of_sight: line_of_sight::LineOfSight,
     world_camera: camera::WorldCamera,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
@@ -338,6 +341,7 @@ impl INode3D for GameClient {
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_map_id: None,
+            line_of_sight: line_of_sight::LineOfSight::new(&data_root),
             world_camera: camera::WorldCamera::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,

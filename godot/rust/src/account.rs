@@ -33,7 +33,8 @@ use shared::protocol::{
     QuestGiverStatusQuery, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
     RestStateUpdate, SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged,
     SpellCastIntent, SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned,
-    StandStateIntent, StopSpellCast, TalentChannel, TransferAborted, TransferChannel, WorldPortAck,
+    StandStateIntent, StopSpellCast, TalentChannel, TransferAborted, TransferChannel, WitnessRay,
+    WorldPortAck,
 };
 use shared::protocol::{
     AppearanceCollectionUpdate, CreatureTooltip, CreatureTooltipQuery, TooltipChannel,
@@ -409,13 +410,14 @@ impl Account {
     }
 
     /// `CastSpellByID`: the server validates the cast against `target` (server entity
-    /// bits; `None` lets it use the replicated target) and answers with `CastState`,
-    /// cooldowns and combat log, or `CastFailed`.
+    /// bits; `None` lets it use the replicated target) and its line of sight `witness`,
+    /// and answers with `CastState`, cooldowns and combat log, or `CastFailed`.
     pub fn send_cast(
         &self,
         spell_id: u32,
         name: &str,
         target: Option<u64>,
+        witness: Option<WitnessRay>,
     ) -> Result<(), SessionError> {
         if self.session.screen != SessionScreen::InWorld || !self.session.gameplay_input_allowed() {
             return Ok(());
@@ -425,6 +427,7 @@ impl Account {
                 spell_id: Some(spell_id),
                 spell: name.to_owned(),
                 target_entity: target,
+                witness,
             })
             .map_err(SessionError)
     }
