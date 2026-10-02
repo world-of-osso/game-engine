@@ -162,10 +162,10 @@ func find_zaralda_body() -> Dictionary:
 		if area == null:
 			continue
 		# Observed posed torso ray hits Zaralda; proxy-shape center did not.
-		var body_point := unit.global_position + Vector3.UP * 0.8
+		var body_point: Vector3 = unit.global_position + Vector3.UP * 0.8
 		if not world_camera.is_position_in_frustum(body_point):
 			continue
-		var point := world_camera.unproject_position(body_point)
+		var point: Vector2 = world_camera.unproject_position(body_point)
 		var entity = area.get_meta("unit_server_id")
 		if UnitPicker.pick(world_camera, point) == entity:
 			return {"id": entity, "name": ZARALDA, "point": point}
