@@ -532,11 +532,15 @@ pub(super) fn run(
     let mut result = run_until_done(app, child, &lines);
     let cleanup = bags::cleanup_owned_child(child, readers);
     for line in lines.remaining() {
-        if let Err(error) = bags::reject_runtime_error(line.trim()) {
-            result = Err(error);
-        }
-        if line.starts_with("FIXTURE MERCHANT_SERVICES_") {
-            result = Err(format!("services marker after cleanup: {line}"));
+        let error = bags::reject_runtime_error(line.trim()).err().or_else(|| {
+            line.starts_with("FIXTURE MERCHANT_SERVICES_")
+                .then(|| format!("services marker after cleanup: {line}"))
+        });
+        if let Some(error) = error {
+            result = Err(match result {
+                Ok(()) => error,
+                Err(original) => format!("{original}; {error}"),
+            });
         }
     }
     match (result, cleanup) {
