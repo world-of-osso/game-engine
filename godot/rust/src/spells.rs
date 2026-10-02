@@ -413,7 +413,11 @@ impl GameClient {
         if self.auto_attack_on_cast(spell_id, target)? {
             return Ok(());
         }
-        self.account.send_cast(spell_id, &name, target)?;
+        let witness = self.cast_witness(target).unwrap_or_else(|error| {
+            report_once(&error);
+            None
+        });
+        self.account.send_cast(spell_id, &name, target, witness)?;
         self.spells.sent.push(spell_id);
         Ok(())
     }
