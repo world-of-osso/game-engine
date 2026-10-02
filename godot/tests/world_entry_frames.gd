@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Frame times from Enter World until the world has settled. Environment:
+## Frame times from Enter World through initial drain and live-world observation. Environment:
 ##   GODOT_TEST_SERVER          server address (a private test server)
 ##   WORLD_ENTRY_ACCOUNT / WORLD_ENTRY_CHARACTER   account (password fbtest) and character
 ##   WORLD_ENTRY_FRAME_MS       longest frame allowed once the loading screen hides
@@ -12,9 +12,11 @@ extends SceneTree
 ## WORLD_ENTRY_LOADING_FRAME_MS (default 1000). After the loading screen hides, every
 ## frame until terrain/object/unit-visual readiness settles, and a bounded observation after,
 ## must stay under WORLD_ENTRY_FRAME_MS. These limits are fixture policy, NOT product
-## budgets. WORLD_ENTRY_MEASURE_S controls settled observation (60–300 s, default 60).
-## PERF_PHASE / PERF_REPORT JSON records separate startup, loading, queue drain and
-## settled process-frame intervals; these are not GPU or presentation timings.
+## budgets. WORLD_ENTRY_MEASURE_S controls live-world observation (60–300 s, default 60).
+## PERF_PHASE / PERF_REPORT JSON records separate startup, loading, initial queue drain
+## and post-drain process-frame intervals; these are not GPU or presentation timings.
+## Moving NPCs may enqueue work during observation. Queue/tile changes are diagnostics,
+## not failures; existing settled_* record names identify the post-initial-drain phase.
 
 const PASSWORD := "fbtest"
 const Readiness = preload("res://tests/world_entry_readiness.gd")
@@ -162,8 +164,8 @@ func run_test() -> void:
 		"frame_limit_ms": frame_limit, "loading_limit_ms": loading_limit,
 		"memory": memory, "objects": objects, "queue_drained": settled,
 		"workload_snapshots": workload_snapshots,
-		"measurement_scope": "all current requested terrain jobs/object jobs/unit visuals at stationary initialworld workload; monitored throughout60s, not global gameworld terminal",
-		"readiness_predicate": "terrain.pending_count == 0; world_objects.pending == 0; unit_visuals_pending == 0; parsed tile set unchanged throughout observation",
+		"measurement_scope": "live-world observation after initial requested work drained; dynamic queues and parsed tile changes retained as workload context, not failures",
+		"readiness_predicate": "initial drain only: terrain.pending_count == 0; world_objects.pending == 0; unit_visuals_pending == 0; later queue/tile activity is diagnostic",
 		"startup_scope": "script initialize through character selection; launch/import excluded",
 	}))
 	print("FIXTURE MEMORY ", resident_memory())
@@ -178,8 +180,6 @@ func run_test() -> void:
 		failures.append("a loading frame took %.1f ms (limit %.0f)" % [max_of(loading_ms), loading_limit])
 	if not slow_world.is_empty():
 		failures.append("%d frames after the loading screen hid exceeded %.0f ms" % [slow_world.size(), frame_limit])
-	if settled_pending_changed:
-		failures.append("terrain/object/unit-visual readiness or parsed tile set changed during settled observation")
 	if not settled:
 		failures.append("terrain/object/unit-visual readiness did not settle within %.0f s: %s" % [settle_s, workload_snapshots.measurement_end])
 	if not failures.is_empty():

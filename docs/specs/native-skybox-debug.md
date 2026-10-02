@@ -111,7 +111,13 @@ Run4 at fixture `6520c861` runtime-proves first-invalid-snapshot capture without
 - Supplied run5 first-invalid sample: frame2045/tick90286277, terrain0/objects0/visuals1. Latest matching NPC4294959785/display36654 request121: queued frame2044/tick90178477, consumed frame2045/tick90335984. All14 same-ID requests report `existing_appearance=false`; removal/reinsert versus retained appearance clear remains unresolved. Future logs cannot retrospectively prove run5 cause.
 - Diagnostic-only `d52d9c0f` adds lifecycle observations without changing workload, readiness predicate, measurement window, queues or appearance behavior. Actual run6 evidence follows; independent audit accepts bounded source/emission/provenance, not steady performance.
 
-### Actual run5/6 evidence
+### Live-world measurement policy — corrected premise
+
+Moving NPCs can enqueue visual work after initial loading drains. Continuous empty queues or unchanged parsed tiles are not performance acceptance requirements. Initial readiness remains a phase boundary; subsequent queue/tile changes, first-change clocks and end state remain workload context, not failure gates. Observe the full requested interval without selecting a quiet window or freezing the world. Existing duration, frame-time and memory/report validation remain unchanged fixture policy, not product budgets.
+
+Existing `settled_*` report names identify the post-initial-drain observation phase, not a claim that the world stayed idle. `settled_queue_stable=false` remains truthful diagnostic information and no longer adds a runner gap. Historical run1–6 process outcomes and rejected-quiescence classifications below remain unmodified records of the old policy; they do not establish a game/server malfunction or automatically invalidate dynamic-world timing measurements. Missing comparative inputs still prohibit improvement/parity claims.
+
+## Actual run5/6 evidence
 
 Evidence: `/tmp/claude/retained-conversion-20/CURRENT.md`, `performance-run6-attribution-summary.json`, and immutable `data/diagnostics/retained-performance-20261001/run{5,6}/result.json` / `stdout.log`. Primary results/events supersede stale source-only or runtime-pending headings. Run6 Depot `p7prn8z8k6` build0 records source observation `0b3e829e526b13236aff676275b6ae6c1ff82bcb`, native SHA-256 `2c9b919a73633ef8ccf8955c5a51c3b3ace0b70b375c0525ad166821ea7d87d8`; this is not a frozen-checkout or deployed-server-source attestation. Run5 used previous Depot `4mpjg3p4jr`, not this artifact.
 
@@ -168,7 +174,7 @@ Original `sync_skybox_to_camera` uses `OrbitCamera.focus`, not arbitrary camera 
 - [x] Final bounded scope audit16–20: independent report `/tmp/claude/retained-conversion-20/final-independent-verification.md` accepts source/render evidence and measurement coherence at `ded19eb7`, while rejecting settled-window acceptance. This completes evidence accounting, not retained/full-conversion acceptance. Historical mip timeout124 remains recorded; later pinned synthetic mip assertion/process proof is above. Inherited format/build warnings and other remaining gaps stay open.
 - [ ] Supply authoritative default `Light.map2703` data, currently absent: explicit default-source blocker, no fallback.
 - [ ] Complete remaining source/animation/input coverage; bounded offline same-scene live FOV/sensitivity is runtime-observed, not all Options acceptance; current owned-fixture normal-exit proof is bounded above, not general shutdown.
-- [ ] Establish a valid settled performance window and comparable baseline; readiness changes invalidate steady claims.
+- [ ] Establish comparable baseline inputs before improvement/parity claims. Dynamic live-world queue activity is measurement context, not an acceptance failure.
 - [ ] Complete retained skybox acceptance under the linked conversion contract. General shutdown is deferred; transferred character/clothing, water/appearance/tooling and whole conversion remain open.
 
 ## Out of scope
