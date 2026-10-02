@@ -61,7 +61,9 @@ git clone --quiet --depth 1 --branch "$tag" https://github.com/godotengine/godot
 }
 git -C "$src" apply "$here/pr123946-wayland-exit-hang.patch"
 
-(cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946 uvx --from scons==4.10.1 scons \
+# PYTHONHASHSEED: editor/editor_builders.py embeds Python hash() of the docs, randomized
+# per process otherwise, so the binary would differ on every build.
+(cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946 PYTHONHASHSEED=0 uvx --from scons==4.10.1 scons \
   -j"$(nproc)" verbose=yes warnings=no progress=no redirect_build_objects=no \
   platform=linuxbsd arch=x86_64 production=yes accesskit_sdk_path="$accesskit" target=editor)
 
