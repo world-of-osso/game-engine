@@ -1,7 +1,7 @@
 //! WMO root and raw group data (WoW local coordinates, no Bevy mesh).
 use std::collections::BTreeMap;
 
-use crate::asset::wmo_format::parser;
+use crate::{asset::wmo_format::parser, m2_lights::PointLight};
 use glam::{Mat3, Quat, Vec3};
 
 pub use crate::asset::wmo_format::mesh_data::{WmoBatchType, WmoMeshBatch};
@@ -25,6 +25,36 @@ impl Group {
     pub fn batches(&self, root: Option<&WmoRootData>) -> Vec<WmoMeshBatch> {
         crate::asset::wmo_format::mesh_data::build_group_batches(&self.header, &self.geometry, root)
     }
+}
+
+/// The MOLP point lights a group draws for its placement's active `doodad_sets`, each at its
+/// WMO-local engine position (WebWowViewerCpp `WmoGroupObject` builds a `CPointLight` per
+/// light of each active set's MLSP range; `CPointLight.cpp`: colour x intensity,
+/// attenuation start/end).
+pub fn active_point_lights(group: &Group, doodad_sets: &[u16]) -> Vec<([f32; 3], PointLight)> {
+    let mut sets: Vec<u16> = doodad_sets.to_vec();
+    sets.sort_unstable();
+    sets.dedup();
+    let lights = &group.geometry.point_lights;
+    sets.into_iter()
+        .filter_map(|set| group.geometry.point_light_sets.get(usize::from(set)))
+        .flat_map(|&(offset, count)| {
+            (offset..offset.saturating_add(count)).map(|index| index as usize)
+        })
+        .filter_map(|index| lights.get(index))
+        .map(|light| {
+            let [x, y, z] = light.position;
+            (
+                parser::wmo_local_to_bevy(x, y, z),
+                PointLight {
+                    color: light.color.map(|channel| channel * light.intensity),
+                    attenuation_start: light.attenuation_start,
+                    attenuation_end: light.attenuation_end,
+                    visible: true,
+                },
+            )
+        })
+        .collect()
 }
 
 pub fn parse_group(bytes: &[u8]) -> Result<Group, String> {

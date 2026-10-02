@@ -342,10 +342,26 @@ pub struct WmoNewLight {
     pub outer_color: [f32; 4],
 }
 
+/// MOLP: a group point light (WebWowViewerCpp `map_object_point_light`, 44 bytes).
+#[derive(Clone, Debug, PartialEq)]
+pub struct WmoPointLight {
+    pub light_id: u32,
+    /// RGB from the BGRA bytes, 0..1.
+    pub color: [f32; 3],
+    pub position: [f32; 3],
+    pub attenuation_start: f32,
+    pub attenuation_end: f32,
+    pub intensity: f32,
+}
+
 pub struct RawGroupData {
     pub triangle_materials: Vec<WmoTriangleMaterial>,
     pub doodad_refs: Vec<u16>,
     pub light_refs: Vec<u16>,
+    /// MOLP point lights.
+    pub point_lights: Vec<WmoPointLight>,
+    /// MLSP: per doodad set, the (offset, count) range of `point_lights` it lights.
+    pub point_light_sets: Vec<(u32, u32)>,
     pub liquid: Option<WmoLiquid>,
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
