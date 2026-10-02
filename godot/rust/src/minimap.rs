@@ -366,8 +366,8 @@ impl GameClient {
             .iter()
             .filter_map(|(&unit, status)| {
                 let kind = match status {
-                    QuestGiverStatus::Available => BlipKind::QuestAvailable,
-                    QuestGiverStatus::Reward => BlipKind::QuestTurnIn,
+                    QuestGiverStatus::Available(_) => BlipKind::QuestAvailable,
+                    QuestGiverStatus::Reward(_) => BlipKind::QuestTurnIn,
                     _ => return None,
                 };
                 let position = self.replica.unit(unit)?.get::<Position>()?;
