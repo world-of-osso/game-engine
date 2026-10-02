@@ -1471,6 +1471,9 @@ impl GameClient {
     /// One frame of client steps (`process`, which times it).
     fn run_frame(&mut self, delta: f64) {
         if !self.poll_asset_startup() {
+            if let Err(error) = assets::material::compile_next_used_shader() {
+                self.handle_frame_error("Shader compilation", error.into());
+            }
             self.receive_account_during_startup();
             self.physical_input.finish_frame();
             return;
@@ -1486,6 +1489,7 @@ impl GameClient {
                 Ok(c.update_skybox_debug_options()?)
             }),
             ("Account", |c, _| c.poll_account()),
+            ("Shader compilation", |c, _| Ok(c.compile_used_shaders()?)),
             ("Item data", |c, _| {
                 c.receive_item_catalog();
                 Ok(())
@@ -1876,6 +1880,18 @@ impl GameClient {
     fn attach_terrain_materials(&mut self) -> Result<(), String> {
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.terrain_materials.sync(&mut parent, &self.terrain)
+    }
+
+    /// One used M2 pipeline per login and loading screen frame, so character select and
+    /// the world take their shaders compiled.
+    fn compile_used_shaders(&self) -> Result<(), String> {
+        if matches!(
+            self.account.session.screen,
+            SessionScreen::Login | SessionScreen::Loading
+        ) {
+            assets::material::compile_next_used_shader()?;
+        }
+        Ok(())
     }
 
     fn update_loading_readiness(&mut self, delta: f32) -> Result<(), FrameError> {

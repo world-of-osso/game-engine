@@ -2,8 +2,9 @@
 
 use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -22,6 +23,9 @@ use godot::{
 };
 
 const SHADER_PATH: &str = "res://shaders/m2.gdshader";
+/// The pipelines models have used, one per line, so later runs compile their shaders
+/// ahead of need (retail ships its shaders precompiled).
+const USED_PIPELINES_PATH: &str = "user://m2_shader_pipelines.txt";
 const RENDER_MODE: &str =
     "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
 /// The shader's texture uniforms, one per batch texture slot.
@@ -43,6 +47,14 @@ thread_local! {
     /// `batch_shaders` by pipeline state.
     static BATCH_SHADERS: RefCell<HashMap<Pipeline, (Gd<Shader>, Option<Gd<Shader>>)>> =
         RefCell::new(HashMap::new());
+    /// `USED_PIPELINES_PATH`, read on first use.
+    static USED_PIPELINES: RefCell<Option<UsedPipelines>> = const { RefCell::new(None) };
+}
+
+#[derive(Default)]
+struct UsedPipelines {
+    used: Vec<Pipeline>,
+    compiled: HashSet<Pipeline>,
 }
 
 /// A batch's base texture: the file itself, or the file with its character overlays
@@ -83,6 +95,91 @@ pub(crate) fn clear_shared_shaders() {
     SHADERS.with_borrow_mut(HashMap::clear);
     TEXTURES.with_borrow_mut(HashMap::clear);
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
+    USED_PIPELINES.with_borrow_mut(|used| *used = None);
+}
+
+/// Compiles the shaders of the next pipeline models have used that this run has not
+/// compiled yet: Godot compiles a shader when a material first takes it, 25-50 ms of
+/// main-thread time each. False once every used pipeline is compiled.
+pub(crate) fn compile_next_used_shader() -> Result<bool, String> {
+    let next = with_used_pipelines(|pipelines| {
+        let next = pipelines
+            .used
+            .iter()
+            .copied()
+            .find(|pipeline| !pipelines.compiled.contains(pipeline))?;
+        pipelines.compiled.insert(next);
+        Some(next)
+    });
+    let Some(pipeline) = next else {
+        return Ok(false);
+    };
+    let _span = crate::profile::span(|| format!("material.compile {pipeline:?}"));
+    let (shader, fade) = batch_shaders(pipeline)?;
+    for shader in std::iter::once(shader).chain(fade) {
+        // The RID creates the rendering server's shader, which compiles it.
+        shader.get_rid();
+    }
+    Ok(true)
+}
+
+fn with_used_pipelines<R>(f: impl FnOnce(&mut UsedPipelines) -> R) -> R {
+    USED_PIPELINES.with_borrow_mut(|pipelines| f(pipelines.get_or_insert_with(read_used_pipelines)))
+}
+
+fn used_pipelines_path() -> PathBuf {
+    PathBuf::from(
+        ProjectSettings::singleton()
+            .globalize_path(USED_PIPELINES_PATH)
+            .to_string(),
+    )
+}
+
+fn read_used_pipelines() -> UsedPipelines {
+    let path = used_pipelines_path();
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => {
+            godot_error!("Cannot read {}: {error}", path.display());
+            String::new()
+        }
+    };
+    let mut used = Vec::new();
+    for line in text.lines() {
+        match Pipeline::parse(line) {
+            Some(pipeline) if !used.contains(&pipeline) => used.push(pipeline),
+            Some(_) => {}
+            None => godot_error!("{}: malformed pipeline {line:?}", path.display()),
+        }
+    }
+    UsedPipelines {
+        used,
+        compiled: HashSet::new(),
+    }
+}
+
+/// Appends a pipeline a model uses to `USED_PIPELINES_PATH` the first time any run uses it.
+fn record_used_pipeline(pipeline: Pipeline) {
+    let new = with_used_pipelines(|pipelines| {
+        let new = !pipelines.used.contains(&pipeline);
+        if new {
+            pipelines.used.push(pipeline);
+        }
+        new
+    });
+    if !new {
+        return;
+    }
+    let path = used_pipelines_path();
+    let appended = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .and_then(|mut file| writeln!(file, "{}", pipeline.line()));
+    if let Err(error) = appended {
+        godot_error!("Cannot record M2 pipeline in {}: {error}", path.display());
+    }
 }
 
 /// The batch's material and the binding its animation samples.
@@ -210,6 +307,34 @@ impl Pipeline {
         })
     }
 
+    /// `USED_PIPELINES_PATH` line: GX blend, then two-sided, depth test and depth write as 0/1.
+    fn line(self) -> String {
+        format!(
+            "{} {} {} {}",
+            self.gx_blend,
+            u8::from(self.two_sided),
+            u8::from(self.depth_test),
+            u8::from(self.depth_write)
+        )
+    }
+
+    fn parse(line: &str) -> Option<Self> {
+        let flag = |field: &str| match field {
+            "0" => Some(false),
+            "1" => Some(true),
+            _ => None,
+        };
+        match line.split(' ').collect::<Vec<_>>()[..] {
+            [gx_blend, two_sided, depth_test, depth_write] => Some(Self {
+                gx_blend: gx_blend.parse().ok()?,
+                two_sided: flag(two_sided)?,
+                depth_test: flag(depth_test)?,
+                depth_write: flag(depth_write)?,
+            }),
+            _ => None,
+        }
+    }
+
     fn opaque(self) -> bool {
         self.gx_blend <= 1
     }
@@ -271,6 +396,7 @@ fn batch_shaders(pipeline: Pipeline) -> Result<(Gd<Shader>, Option<Gd<Shader>>),
     let fade = scenery_fade_variant(&source, pipeline)?.map(|fade| shared_shader(&fade));
     BATCH_SHADERS
         .with_borrow_mut(|shaders| shaders.insert(pipeline, (shader.clone(), fade.clone())));
+    record_used_pipeline(pipeline);
     Ok((shader, fade))
 }
 
