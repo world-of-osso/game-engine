@@ -151,29 +151,42 @@ pub(super) fn load_material(
     apply_sample(
         &mut material,
         &m2_material::sample_material(tracks, &binding, 0),
+        None,
     );
     Ok((material, binding))
 }
 
-/// The animated inputs of a batch material at one time.
+/// Sets the animated inputs of a batch material at one time that differ from `applied`,
+/// the sample last set on it (every input when `None`). Each set makes Godot rebuild the
+/// material's uniform buffer, so unchanged inputs are not set again.
 pub(super) fn apply_sample(
     material: &mut Gd<ShaderMaterial>,
     sample: &m2_material::MaterialSample,
+    applied: Option<&m2_material::MaterialSample>,
 ) {
-    material.set_shader_parameter(
-        "mesh_color",
-        &Vector3::from_array(sample.mesh_color).to_variant(),
-    );
-    material.set_shader_parameter("transparency", &sample.opacity.to_variant());
-    material.set_shader_parameter(
-        "texture_weights",
-        &Vector3::from_array(sample.texture_weights).to_variant(),
-    );
-    for (name, matrix) in ["texture_matrix_1", "texture_matrix_2"]
+    if applied.is_none_or(|applied| applied.mesh_color != sample.mesh_color) {
+        material.set_shader_parameter(
+            "mesh_color",
+            &Vector3::from_array(sample.mesh_color).to_variant(),
+        );
+    }
+    if applied.is_none_or(|applied| applied.opacity != sample.opacity) {
+        material.set_shader_parameter("transparency", &sample.opacity.to_variant());
+    }
+    if applied.is_none_or(|applied| applied.texture_weights != sample.texture_weights) {
+        material.set_shader_parameter(
+            "texture_weights",
+            &Vector3::from_array(sample.texture_weights).to_variant(),
+        );
+    }
+    for (index, name) in ["texture_matrix_1", "texture_matrix_2"]
         .into_iter()
-        .zip(sample.texture_matrices)
+        .enumerate()
     {
-        material.set_shader_parameter(name, &texture_basis(matrix).to_variant());
+        let matrix = sample.texture_matrices[index];
+        if applied.is_none_or(|applied| applied.texture_matrices[index] != matrix) {
+            material.set_shader_parameter(name, &texture_basis(matrix).to_variant());
+        }
     }
 }
 
