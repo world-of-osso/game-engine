@@ -174,6 +174,7 @@ fn png_texture(bytes: &[u8], desaturate: bool) -> Result<Gd<ImageTexture>, Strin
 
 impl PlateArt {
     fn load() -> Result<Self, String> {
+        let _span = crate::profile::span(|| "nameplates.art".to_owned());
         let skin = |bytes: &[u8]| png_texture(bytes, false);
         let fill = |bytes: &[u8]| png_texture(bytes, true);
         Ok(Self {
