@@ -5,7 +5,7 @@ use game_engine_core::player_physics_data::{
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 use glam::Vec3;
-use shared::ground::{Ground, STEP_UP_HEIGHT, Surface};
+use shared::ground::{FLOOR_SEARCH_DEPTH, Ground, STEP_UP_HEIGHT, Surface};
 use shared::movement::{MAX_SLOPE_ANGLE, is_swimming};
 
 use crate::terrain::streaming::StreamedTerrain;
@@ -39,15 +39,28 @@ impl TerrainGround<'_> {
             .is_some_and(|map| map.global_wmo.is_some())
     }
 
-    fn sample(&self, feet: Vec3) -> Option<Ground> {
-        let terrain = if self.is_global_wmo() {
+    /// The terrain height under `feet`; a map made of one global WMO has none.
+    fn terrain_height(&self, feet: Vec3) -> Option<f32> {
+        if self.is_global_wmo() {
             None
         } else {
             self.terrain.height_at(feet.x, feet.z)
-        };
+        }
+    }
+
+    /// Whether terrain, or a WMO floor within `FLOOR_SEARCH_DEPTH`, lies over `feet`.
+    fn covered(&self, feet: Vec3) -> bool {
+        self.terrain_height(feet)
+            .is_some_and(|height| height > feet.y)
+            || self
+                .sample(feet + Vec3::Y * FLOOR_SEARCH_DEPTH)
+                .is_some_and(|ground| ground.height > feet.y)
+    }
+
+    fn sample(&self, feet: Vec3) -> Option<Ground> {
         shared::ground::ground_at(
             feet,
-            terrain,
+            self.terrain_height(feet),
             self.terrain
                 .map_wdt
                 .as_ref()
@@ -64,13 +77,20 @@ impl TerrainGround<'_> {
     }
 
     /// The original order: stop short of a WMO wall, then apply the slope and step rules.
+    /// A move to where no ground is within reach but ground lies above (a hillside, or a WMO
+    /// floor over a terrain hole) stops, as an underwater cliff stops a swimmer: walking on
+    /// would put the feet under the world's surface, with nothing to land on.
     pub fn validate_move(&self, current: Vec3, proposed: Vec3, snap: bool) -> Vec3 {
         let proposed = clamp_movement_to_walls(current, proposed, self.walls);
+        let target = self.sample(proposed.with_y(current.y));
+        if target.is_none() && self.covered(proposed.with_y(current.y)) {
+            return current;
+        }
         validate_movement_slope(
             current,
             proposed,
             self.sample(current).map(ground_sample),
-            self.sample(proposed.with_y(current.y)).map(ground_sample),
+            target.map(ground_sample),
             snap,
             MAX_SLOPE_ANGLE,
             STEP_UP_HEIGHT,

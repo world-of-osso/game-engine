@@ -23,6 +23,13 @@ use shared::{
 
 use crate::swim::{at_swim_surface, swim_height};
 
+/// The longest movement step. A slower frame moves in several, so the walls, slope, step
+/// and ground rules apply along its whole path as at 60 frames a second; one long step
+/// passed over the hillside at the Jasperlode Mine's mouth into no ground and fell through
+/// the world. The original client resolves a frame's travel by continuous collision substeps
+/// (solarityclient `player_movement/interval.rs`, 762E00).
+const MAX_STEP_SECONDS: f32 = 1.0 / 60.0;
+
 pub(crate) struct PlayerMovement {
     pub running: bool,
     pub autorun: bool,
@@ -31,7 +38,7 @@ pub(crate) struct PlayerMovement {
     direction: MoveDirection,
     /// Whether the swimmer floats at the water surface.
     at_surface: bool,
-    /// Whether the last swim step changed height, for a vertical-only input.
+    /// Whether the last `predict` changed the swimmer's height, for a vertical-only input.
     swim_rose: bool,
     /// Whether the previous `predict` left the player walking on dry ground.
     wading: bool,
@@ -188,6 +195,7 @@ impl PlayerMovement {
         self.speed_modifier = speed / self.reported_speed;
     }
 
+    /// Move `delta` seconds, in steps of at most `MAX_STEP_SECONDS`.
     pub fn predict(
         &mut self,
         position: Vec3,
@@ -197,10 +205,24 @@ impl PlayerMovement {
         delta: f32,
     ) -> Vec3 {
         self.swim_rose = false;
+        let steps = (delta / MAX_STEP_SECONDS).ceil().max(1.0);
+        (0..steps as u32).fold(position, |position, _| {
+            self.step(position, &frame, jump_pressed, ground, delta / steps)
+        })
+    }
+
+    fn step(
+        &mut self,
+        position: Vec3,
+        frame: &MovementFrame,
+        jump_pressed: bool,
+        ground: &crate::ground::TerrainGround<'_>,
+        delta: f32,
+    ) -> Vec3 {
         let position = if self.swimming {
-            self.swim(position, &frame, ground, delta)
+            self.swim(position, frame, ground, delta)
         } else {
-            self.walk(position, &frame, jump_pressed, ground, delta)
+            self.walk(position, frame, jump_pressed, ground, delta)
         };
         let was_swimming = self.swimming;
         let wading = self.wading && self.grounded;
@@ -296,7 +318,7 @@ impl PlayerMovement {
             _ => None,
         };
         let y = swim_height(moved.y, rise, surface, floor, self.at_surface);
-        self.swim_rose = y != current.y;
+        self.swim_rose |= y != current.y;
         self.at_surface = at_swim_surface(y, surface);
         self.grounded = floor.is_some_and(|floor| y <= floor + 0.05);
         moved.with_y(y)

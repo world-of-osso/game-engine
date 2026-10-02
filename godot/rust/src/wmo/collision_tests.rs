@@ -282,3 +282,179 @@ fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
     assert!(feet.x < -8784.0, "stopped on the way up at {feet}");
     assert!(feet.y > 95.5, "not back on the top step: {feet}");
 }
+
+/// Outside the Jasperlode Mine (azeroth_33_49, WMO 111538), on the terrain in front of the
+/// entrance ramp. Kobold Miner 281565 spawns on the mouth floor at WoW z 62.95 (TDB).
+const JASPERLODE_OUTSIDE: [f32; 3] = [-9205.0, -599.0, 61.8];
+/// Up the entrance ramp (WMO group 6, from WoW x -9197) between the frame's posts and the
+/// rock, over the terrain hole of the mouth, then along the tunnel floor to the exploration
+/// trigger (Jasperlode 87, centre -9077.3, -552.9): a breadth-first search over
+/// `validate_move` on this ground, keeping a yard clear of every blocked move, split into
+/// legs of at most 4.5 yd. `godot/tests/world_quest_flow.gd` walks the same route.
+const JASPERLODE_ROUTE: [[f32; 3]; 39] = [
+    [-9200.5, -599.0, 61.7],
+    [-9196.0, -599.0, 61.5],
+    [-9191.5, -599.0, 61.4],
+    [-9187.0, -599.0, 61.2],
+    [-9182.5, -599.0, 61.1],
+    [-9178.0, -599.0, 61.0],
+    [-9173.5, -599.0, 60.8],
+    [-9169.0, -599.0, 60.7],
+    [-9164.5, -599.0, 60.5],
+    [-9160.0, -599.0, 60.4],
+    [-9160.0, -598.0, 60.0],
+    [-9158.0, -596.0, 59.3],
+    [-9153.8, -596.0, 59.0],
+    [-9149.6, -596.0, 58.6],
+    [-9145.4, -596.0, 58.3],
+    [-9141.2, -596.0, 57.9],
+    [-9137.0, -596.0, 57.6],
+    [-9134.5, -593.5, 57.7],
+    [-9132.0, -591.0, 57.7],
+    [-9129.5, -588.5, 57.8],
+    [-9129.5, -586.0, 57.8],
+    [-9129.5, -583.5, 57.9],
+    [-9126.9, -580.9, 58.2],
+    [-9124.3, -578.3, 58.4],
+    [-9121.7, -575.7, 58.7],
+    [-9119.1, -573.1, 58.9],
+    [-9116.5, -570.5, 59.2],
+    [-9114.0, -570.5, 60.0],
+    [-9112.0, -569.0, 60.1],
+    [-9110.0, -567.5, 60.2],
+    [-9106.0, -567.5, 60.8],
+    [-9102.0, -567.5, 61.4],
+    [-9098.0, -567.5, 62.0],
+    [-9094.9, -564.4, 61.6],
+    [-9091.8, -561.3, 61.1],
+    [-9088.7, -558.2, 60.7],
+    [-9085.6, -555.1, 60.2],
+    [-9082.5, -552.0, 59.8],
+    [-9079.0, -550.5, 59.7],
+];
+/// The route of the live quest run that stopped at the mouth (WoW -9175.0, -595.6, 62.0) and,
+/// at collapsing frame rates, fell through the world: on the terrain under the entrance rock
+/// straight east into the mouth's terrain hole.
+const JASPERLODE_UNDER_THE_ROCK: [f32; 3] = [-9185.0, -598.0, 61.5];
+
+fn jasperlode() -> (StreamedTerrain, Vec<[Vec3; 3]>) {
+    let terrain = load("azeroth", (33, 49), |terrain| {
+        terrain.parsed_tiles.contains_key(&(33, 49))
+    });
+    let triangles = world_triangles(
+        terrain.parsed_tiles[&(33, 49)]
+            .wmo_floors
+            .iter()
+            .map(|(_, wmo)| wmo),
+        wow(-9140.0, -575.0, 60.0),
+        120.0,
+    );
+    (terrain, triangles)
+}
+
+/// Run along `route` (WoW positions) from `start` at `delta` seconds a frame for at most
+/// `seconds`, steering at the next point; the feet at the end and the lowest feet height.
+fn run_route(
+    ground: &TerrainGround<'_>,
+    start: [f32; 3],
+    route: &[[f32; 3]],
+    delta: f32,
+    seconds: f32,
+) -> (Vec3, f32) {
+    let mut movement = crate::gameplay::PlayerMovement::default();
+    let mut feet = wow(start[0], start[1], start[2]);
+    let mut lowest = feet.y;
+    let mut next = 0;
+    for _ in 0..(seconds / delta) as usize {
+        let [x, y, z] = route[next];
+        let to = (wow(x, y, z) - feet).with_y(0.0);
+        if to.length() < (shared::movement::RUN_SPEED * delta).max(1.0) {
+            if next + 1 == route.len() {
+                break;
+            }
+            next += 1;
+            continue;
+        }
+        let frame = crate::gameplay::MovementFrame {
+            direction: to.normalize().to_array(),
+            speed: shared::movement::RUN_SPEED,
+            vertical: 0.0,
+        };
+        feet = movement.predict(feet, frame, false, ground, delta);
+        lowest = lowest.min(feet.y);
+    }
+    (feet, lowest)
+}
+
+fn walk_into_jasperlode(delta: f32) {
+    let (terrain, triangles) = jasperlode();
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+    };
+    let (feet, lowest) = run_route(&ground, JASPERLODE_OUTSIDE, &JASPERLODE_ROUTE, delta, 60.0);
+    let center = wow(-9077.3, -552.9, 60.3);
+    assert!(
+        (feet - center).with_y(0.0).length() < 4.0,
+        "stopped at WoW ({:.1}, {:.1}, {:.1})",
+        feet.x,
+        -feet.z,
+        feet.y
+    );
+    assert!(lowest > 55.0, "fell to {lowest}");
+}
+
+/// Retail walks up the Jasperlode Mine's entrance ramp, over the terrain hole of the mouth
+/// (no terrain there: TrinityCore `GridMap::getHeight` returns `INVALID_HEIGHT` in a hole),
+/// and along the tunnel floor to the exploration trigger.
+#[test]
+fn player_walks_up_the_jasperlode_ramp_into_the_mine() {
+    walk_into_jasperlode(1.0 / 60.0);
+}
+
+/// A collapsing frame rate takes the same walk: the move does not skip the ground rules.
+#[test]
+fn player_walks_into_the_jasperlode_mine_at_two_frames_a_second() {
+    walk_into_jasperlode(0.5);
+}
+
+/// The hole of the mine mouth has no terrain; the terrain beside it does.
+#[test]
+fn jasperlode_mouth_hole_has_no_terrain_height() {
+    let (terrain, _) = jasperlode();
+    let beside = wow(-9176.0, -595.8, 0.0);
+    let hole = wow(-9172.0, -595.8, 0.0);
+    let height = terrain
+        .height_at(beside.x, beside.z)
+        .expect("terrain beside the hole");
+    assert!((height - 61.5).abs() < 0.1, "{height}");
+    assert_eq!(terrain.height_at(hole.x, hole.z), None);
+}
+
+/// The live run's walk from under the entrance rock east into the mouth stops at the hole's
+/// edge at 60 frames a second and at two; it never drops the player through the world.
+#[test]
+fn walking_into_the_jasperlode_hillside_never_drops_the_player() {
+    let (terrain, triangles) = jasperlode();
+    let walls = |origin, direction, length| ray_hit(&triangles, origin, direction, length);
+    let ground = TerrainGround {
+        terrain: &terrain,
+        walls: &walls,
+    };
+    for delta in [1.0 / 60.0, 0.5, 2.0] {
+        let (feet, lowest) = run_route(
+            &ground,
+            JASPERLODE_UNDER_THE_ROCK,
+            &[[-9137.3, -592.9, 57.6]],
+            delta,
+            10.0,
+        );
+        assert!(
+            lowest > 60.0,
+            "{delta} s frames fell to {lowest} at WoW ({:.1}, {:.1})",
+            feet.x,
+            -feet.z
+        );
+    }
+}
