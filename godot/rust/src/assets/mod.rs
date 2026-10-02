@@ -262,7 +262,8 @@ fn image_from_rgba(decoded: blp::RgbaImage) -> Result<Gd<Image>, String> {
     .ok_or_else(|| "Godot rejected decoded BLP image".into())
 }
 
-fn wow_vec3(value: [f32; 3]) -> Vector3 {
+/// A WoW model-space vector in the model root's Godot axes.
+pub(crate) fn wow_vec3(value: [f32; 3]) -> Vector3 {
     Vector3::new(value[0], value[2], -value[1])
 }
 

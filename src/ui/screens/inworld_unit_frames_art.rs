@@ -50,8 +50,14 @@ pub const fn art(fdid: u32, atlas: (f32, f32), rect: (f32, f32, f32, f32)) -> At
 
 /// `UI-HUD-UnitFrame-Player-PortraitOff` (16107): name tab over a health and power slot.
 pub const FRAME_PORTRAIT_OFF: AtlasArt = unit_frame((195.0, 328.0, 160.0, 211.0));
+/// `UI-HUD-UnitFrame-Player-PortraitOn` (16110), 198×71: PlayerFrame's `FrameTexture`.
+pub const PLAYER_PORTRAIT_ON: AtlasArt = unit_frame((1.0, 199.0, 87.0, 158.0));
+/// `UI-HUD-UnitFrame-Target-PortraitOn` (16118), 192×67: TargetFrame's `FrameTexture`.
+pub const TARGET_PORTRAIT_ON: AtlasArt = unit_frame((1.0, 193.0, 229.0, 296.0));
 /// `UI-HUD-UnitFrame-Player-PortraitOn-Bar-Health` (16108), 124×20 like the slot.
 pub const HEALTH_BAR: AtlasArt = unit_frame((705.0, 829.0, 213.0, 233.0));
+/// `UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health` (16111), 126×20.
+pub const TARGET_HEALTH_BAR: AtlasArt = unit_frame((195.0, 321.0, 213.0, 233.0));
 /// `UI-HUD-UnitFrame-Target-PortraitOn-Type` (16713): reaction strip behind the target name.
 pub const REACTION_STRIP: AtlasArt = unit_frame((195.0, 330.0, 235.0, 253.0));
 /// `UI-HUD-UnitFrame-Player-CombatIcon` (16779).

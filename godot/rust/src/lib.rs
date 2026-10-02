@@ -91,6 +91,7 @@ mod ui;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
+mod unit_portraits;
 mod vignettes;
 mod waypoint_path;
 mod window_stack;

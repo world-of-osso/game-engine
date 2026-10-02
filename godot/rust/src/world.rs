@@ -1018,21 +1018,37 @@ impl WorldUnits {
         id
     }
 
-    /// Main thread: the nodes of detached request `id` once loaded. Superseded arrivals
-    /// keep their decoded textures.
+    /// Main thread: the nodes of detached request `id` once loaded.
     pub fn take_detached_visual(&mut self, id: u64) -> Option<Result<Gd<Node3D>, String>> {
-        let mut taken = None;
-        for (request, loaded) in std::mem::take(&mut self.detached_arrived) {
-            match loaded {
-                Ok(parts) if request == id => {
-                    taken = Some(self.models.build_visual(parts, None));
-                }
-                Err(error) if request == id => taken = Some(Err(error)),
-                Ok(parts) => self.models.discard(parts),
-                Err(_) => {}
+        let index = self
+            .detached_arrived
+            .iter()
+            .position(|(request, _)| *request == id)?;
+        let (_, loaded) = self.detached_arrived.swap_remove(index);
+        Some(loaded.and_then(|parts| self.models.build_visual(parts, None)))
+    }
+
+    /// Drop detached request `id`, superseded by its scene: an arrival is discarded,
+    /// keeping its decoded textures.
+    pub fn cancel_detached_visual(&mut self, id: u64) {
+        if let Some(index) = self.detached.iter().position(|request| *request == id) {
+            self.detached.swap_remove(index);
+        }
+        if let Some(index) = self
+            .detached_arrived
+            .iter()
+            .position(|(request, _)| *request == id)
+        {
+            let (_, loaded) = self.detached_arrived.swap_remove(index);
+            if let Ok(parts) = loaded {
+                self.models.discard(parts);
             }
         }
-        taken
+    }
+
+    /// The appearance of unit `id`'s newest requested visual.
+    pub fn unit_appearance(&self, id: u64) -> Option<&UnitAppearance> {
+        self.units.get(&id)?.appearance.as_ref()
     }
 
     /// Place a player visual's weapons for `sheath`, as the world sheath sync does.
