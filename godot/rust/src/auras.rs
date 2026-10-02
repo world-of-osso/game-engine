@@ -106,20 +106,23 @@ impl Auras {
         Ok(texture)
     }
 
-    /// `art` cut from its atlas, loaded once per crop.
+    /// `art` cut from its atlas, loaded once per crop; `None` while its file loads.
     fn class_bar_swipe(
         &mut self,
         art: &AtlasArt,
         ui: &RegistryUi,
-    ) -> Result<Gd<Texture2D>, String> {
+    ) -> Result<Option<Gd<Texture2D>>, String> {
         if let Some((loaded, texture)) = &self.class_bar_swipe
             && loaded == art
         {
-            return Ok(texture.clone());
+            return Ok(Some(texture.clone()));
         }
         let registry = ui.registry().ok_or("Class bar swipe before the UI model")?;
-        let (image, _) =
-            crate::ui::assets::load_source(&TextureSource::FileDataId(art.fdid), registry)?;
+        let Some((image, _)) =
+            crate::ui::assets::load_source(&TextureSource::FileDataId(art.fdid), registry)?
+        else {
+            return Ok(None);
+        };
         let (left, right, top, bottom) = art.rect;
         let scale = image.get_width() as f32 / art.atlas.0;
         let region = [
@@ -130,25 +133,26 @@ impl Auras {
         ];
         let texture = crate::ui::assets::sub_texture(&image, region);
         self.class_bar_swipe = Some((*art, texture.clone()));
-        Ok(texture)
+        Ok(Some(texture))
     }
 
+    /// The cooldown edge; `None` while its file loads, or when it failed (reported).
     fn edge_texture(&mut self, ui: &RegistryUi) -> Option<Gd<Texture2D>> {
-        self.edge
-            .get_or_insert_with(|| {
-                let registry = ui.registry()?;
-                match crate::ui::assets::load_source(
-                    &TextureSource::FileDataId(EDGE_FDID),
-                    registry,
-                ) {
-                    Ok((texture, _)) => Some(texture),
-                    Err(error) => {
-                        crate::frame_error::report_once(&format!("Cooldown edge: {error}"));
-                        None
-                    }
+        if let Some(edge) = &self.edge {
+            return edge.clone();
+        }
+        let registry = ui.registry()?;
+        let edge =
+            match crate::ui::assets::load_source(&TextureSource::FileDataId(EDGE_FDID), registry) {
+                Ok(None) => return None,
+                Ok(Some((texture, _))) => Some(texture),
+                Err(error) => {
+                    crate::frame_error::report_once(&format!("Cooldown edge: {error}"));
+                    None
                 }
-            })
-            .clone()
+            };
+        self.edge = Some(edge.clone());
+        edge
     }
 }
 
@@ -271,7 +275,10 @@ impl GameClient {
             let Some(control) = ui.bind().frame_control(&texture.name) else {
                 continue;
             };
-            let art = self.auras.class_bar_swipe(&texture.art, &ui.bind())?;
+            // Drawn from the frame its file has arrived.
+            let Some(art) = self.auras.class_bar_swipe(&texture.art, &ui.bind())? else {
+                continue;
+            };
             sync_class_bar_swipe(control, &art, progress);
         }
         Ok(())

@@ -16,7 +16,15 @@ October 1, 2026: contribution snapshot through `da694c79`/`f786be27`; **no nativ
 
 **Open:** full original-expected pixel parity; default-source correctness and legacy fallback incompatibility; shader-fog oracle (an Environment-only observation cannot prove custom fog); Bevy/Godot physical-unit equivalence; wide and zero-duration bone cases; independent live rendering/input proof; general shutdown/resource cleanliness. Root formatting retains the known quest comment-spacing **FAIL**. No other feature is closed by this contribution; whole-client conversion remains OPEN.
 
-Source inventory and exact contract live in the linked spec; this evidence table is the contribution ledger. No index/new page required.
+Source inventory and exact contract live in the linked spec; the table above is historical contribution evidence. Later retained runtime evidence supersedes its pending labels only within the exact scopes recorded in that spec.
+
+### Retained loading/frame diagnostics — actual run5/6, 2026-10-02
+
+[Retained run5/6 evidence](../../specs/native-skybox-debug.md#actual-run56-evidence) owns exact measurements and limits. Read `/tmp/claude/retained-conversion-20/CURRENT.md` and `performance-run6-attribution-summary.json` against immutable `data/diagnostics/retained-performance-20261001/run6/result.json` / `stdout.log`, not stale summary headings. Diagnostic-only `d52d9c0f` observes replica removal, actual unit removal/reset and appearance clear; it changes no readiness predicate, workload, measurement window or appearance behavior. Depot `p7prn8z8k6` build0 records source observation `0b3e829e526b13236aff676275b6ae6c1ff82bcb` and native SHA-256 `2c9b919a73633ef8ccf8955c5a51c3b3ace0b70b375c0525ad166821ea7d87d8`, not frozen-checkout or deployed-server-source proof. Run5 belongs to prior Depot `4mpjg3p4jr`.
+
+Run5 child1/no timeout retains INVALID nominal steady evidence and request121 source/time correlation, without retrospective removal-versus-clear attribution. Run6 child1/no timeout has all 2137 nominal-window intervals below fixture100ms policy, but readiness changes still make steady evidence **INVALID**. First-invalid NPC4294959728/request97 is correlated by request/result clocks, not directly captured private pending-key evidence; it has no matching removal. General churn—113 requests/113 active consumes, 17 replica despawns/17 actual removals, zero clear/reset events—includes repeated removal/reintroduction of OTHER NPCs4294959785/4294959768, not proof of first-invalid same-ID re-entry. Authoritative server cause remains unproved.
+
+Bounded independent run6 verification remains pending, not PASS. No controlled improvement baseline, general shutdown or full-conversion acceptance; retained/full conversion remains OPEN. Historical run5 and earlier proof retain their original bounds.
 
 ## Native JS automation — bounded Login GREEN, overall gate FAIL
 

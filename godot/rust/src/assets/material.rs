@@ -85,6 +85,17 @@ pub(crate) fn clear_shared_shaders() {
     BATCH_SHADERS.with_borrow_mut(HashMap::clear);
 }
 
+/// Compiles `pipeline`'s shader and, when opaque, its scenery-fade shader: Godot
+/// compiles a shader when a material first takes it.
+pub(crate) fn compile_pipeline(pipeline: Pipeline) -> Result<(), String> {
+    let (shader, fade) = batch_shaders(pipeline)?;
+    for shader in std::iter::once(shader).chain(fade) {
+        // The RID creates the rendering server's shader, which compiles it.
+        shader.get_rid();
+    }
+    Ok(())
+}
+
 /// The batch's material and the binding its animation samples.
 pub(super) fn load_material(
     model: &m2::Model,
@@ -111,8 +122,11 @@ pub(super) fn load_material(
     let binding = m2_material::batch_binding(model, unit, skin_texture_fdids)?;
     let pipeline = Pipeline::of(batch)?;
     let (shader, fade) = batch_shaders(pipeline)?;
+    let span = crate::profile::span(|| "material.set_shader".to_owned());
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
+    drop(span);
+    let _span = crate::profile::span(|| "material.parameters".to_owned());
     if let Some(fade) = fade {
         material.set_meta(SCENERY_FADE_SHADER_META, &fade.to_variant());
     }
@@ -151,29 +165,42 @@ pub(super) fn load_material(
     apply_sample(
         &mut material,
         &m2_material::sample_material(tracks, &binding, 0),
+        None,
     );
     Ok((material, binding))
 }
 
-/// The animated inputs of a batch material at one time.
+/// Sets the animated inputs of a batch material at one time that differ from `applied`,
+/// the sample last set on it (every input when `None`). Each set makes Godot rebuild the
+/// material's uniform buffer, so unchanged inputs are not set again.
 pub(super) fn apply_sample(
     material: &mut Gd<ShaderMaterial>,
     sample: &m2_material::MaterialSample,
+    applied: Option<&m2_material::MaterialSample>,
 ) {
-    material.set_shader_parameter(
-        "mesh_color",
-        &Vector3::from_array(sample.mesh_color).to_variant(),
-    );
-    material.set_shader_parameter("transparency", &sample.opacity.to_variant());
-    material.set_shader_parameter(
-        "texture_weights",
-        &Vector3::from_array(sample.texture_weights).to_variant(),
-    );
-    for (name, matrix) in ["texture_matrix_1", "texture_matrix_2"]
+    if applied.is_none_or(|applied| applied.mesh_color != sample.mesh_color) {
+        material.set_shader_parameter(
+            "mesh_color",
+            &Vector3::from_array(sample.mesh_color).to_variant(),
+        );
+    }
+    if applied.is_none_or(|applied| applied.opacity != sample.opacity) {
+        material.set_shader_parameter("transparency", &sample.opacity.to_variant());
+    }
+    if applied.is_none_or(|applied| applied.texture_weights != sample.texture_weights) {
+        material.set_shader_parameter(
+            "texture_weights",
+            &Vector3::from_array(sample.texture_weights).to_variant(),
+        );
+    }
+    for (index, name) in ["texture_matrix_1", "texture_matrix_2"]
         .into_iter()
-        .zip(sample.texture_matrices)
+        .enumerate()
     {
-        material.set_shader_parameter(name, &texture_basis(matrix).to_variant());
+        let matrix = sample.texture_matrices[index];
+        if applied.is_none_or(|applied| applied.texture_matrices[index] != matrix) {
+            material.set_shader_parameter(name, &texture_basis(matrix).to_variant());
+        }
     }
 }
 
@@ -189,8 +216,8 @@ fn texture_basis([m00, m10, m01, m11, tx, ty]: TextureMatrix) -> Basis {
 /// The GPU state WebWowViewer's createM2Material derives from a batch's material:
 /// GX blend, backface culling off for render flag 0x4, depth test off for 0x8 and depth
 /// write off for 0x10.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-struct Pipeline {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct Pipeline {
     gx_blend: u8,
     two_sided: bool,
     depth_test: bool,
@@ -205,6 +232,34 @@ impl Pipeline {
             depth_test: batch.render_flags & 0x8 == 0,
             depth_write: batch.render_flags & 0x10 == 0,
         })
+    }
+
+    /// GX blend, then two-sided, depth test and depth write as 0/1.
+    pub(crate) fn line(self) -> String {
+        format!(
+            "{} {} {} {}",
+            self.gx_blend,
+            u8::from(self.two_sided),
+            u8::from(self.depth_test),
+            u8::from(self.depth_write)
+        )
+    }
+
+    pub(crate) fn parse(line: &str) -> Option<Self> {
+        let flag = |field: &str| match field {
+            "0" => Some(false),
+            "1" => Some(true),
+            _ => None,
+        };
+        match line.split(' ').collect::<Vec<_>>()[..] {
+            [gx_blend, two_sided, depth_test, depth_write] => Some(Self {
+                gx_blend: gx_blend.parse().ok()?,
+                two_sided: flag(two_sided)?,
+                depth_test: flag(depth_test)?,
+                depth_write: flag(depth_write)?,
+            }),
+            _ => None,
+        }
     }
 
     fn opaque(self) -> bool {
@@ -256,6 +311,7 @@ fn batch_shaders(pipeline: Pipeline) -> Result<(Gd<Shader>, Option<Gd<Shader>>),
     if let Some(shaders) = BATCH_SHADERS.with_borrow(|shaders| shaders.get(&pipeline).cloned()) {
         return Ok(shaders);
     }
+    let _span = crate::profile::span(|| format!("material.shaders {pipeline:?}"));
     let source = ResourceLoader::singleton()
         .load(SHADER_PATH)
         .ok_or_else(|| format!("Cannot load M2 shader {SHADER_PATH}"))?
@@ -267,6 +323,7 @@ fn batch_shaders(pipeline: Pipeline) -> Result<(Gd<Shader>, Option<Gd<Shader>>),
     let fade = scenery_fade_variant(&source, pipeline)?.map(|fade| shared_shader(&fade));
     BATCH_SHADERS
         .with_borrow_mut(|shaders| shaders.insert(pipeline, (shader.clone(), fade.clone())));
+    crate::shader_warmup::record(crate::shader_warmup::UsedShader::M2(pipeline));
     Ok((shader, fade))
 }
 
@@ -431,6 +488,7 @@ fn base_texture(
     if let Some(texture) = TEXTURES.with_borrow(|textures| textures.get(&key).cloned()) {
         return Ok(Some(texture));
     }
+    let _span = crate::profile::span(|| format!("material.base_texture {fdid}"));
     let Some((mut pixels, width, height)) = load_texture(fdid, dir, missing)? else {
         return Ok(None);
     };
@@ -454,6 +512,7 @@ pub(crate) fn shared_texture(
     if let Some(texture) = TEXTURES.with_borrow(|textures| textures.get(&key).cloned()) {
         return Ok(Some(texture));
     }
+    let _span = crate::profile::span(|| format!("material.shared_texture {fdid}"));
     let bytes = match fs::read(texture_path(fdid, dir)) {
         Ok(bytes) => bytes,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {

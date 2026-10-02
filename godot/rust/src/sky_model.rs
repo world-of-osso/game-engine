@@ -82,13 +82,18 @@ impl SkyModel {
             return Err(context("missing cached model".to_string()));
         }
         let source = GString::from(model_path.to_string_lossy().as_ref());
+        let span = crate::profile::span(|| "sky.read_model".to_owned());
         let model = assets::read_model(&source).map_err(&context)?;
+        drop(span);
         let duration = model
             .sequences
             .get(default_sequence_index(&model))
             .map_or(0, |sequence| sequence.duration);
         let time_override_ms = phase(duration);
+        let span = crate::profile::span(|| "sky.prepare_batches".to_owned());
         let prepared = prepare_batches(&model, data_root).map_err(&context)?;
+        drop(span);
+        let _span = crate::profile::span(|| "sky.assemble".to_owned());
         let mut sky = assemble_sky(model, prepared, time_override_ms).map_err(&context)?;
         sky.node.set_name(&format!("AuthoredSky{fdid}"));
         sky.node
@@ -412,8 +417,10 @@ fn build_material(
         return Err("Sky shader render mode signature changed".into());
     }
     let shader_source = source.replace(RENDER_MODE, &variant);
+    let span = crate::profile::span(|| "sky.set_shader".to_owned());
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&crate::assets::material::shared_shader(&shader_source));
+    drop(span);
     material.set_render_priority(priority);
     let texture_dir = data_root.join("textures");
     let mut missing = PackedInt32Array::new();
