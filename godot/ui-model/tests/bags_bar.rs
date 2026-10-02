@@ -243,3 +243,15 @@ fn expand_toggle_collapses_the_four_bag_slots() {
     );
     assert!(!hidden("MainMenuBarBackpackButton"));
 }
+
+#[test]
+fn backpack_draws_only_its_round_art_without_a_square_button_skin() {
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    Screen::new(bags_bar_screen).sync(&SharedContext::new(), &mut registry);
+    // MainMenuBarBackpackButton is an ItemButton with only the bag-main atlas; Retail
+    // draws no square behind it.
+    match &frame(&registry, "MainMenuBarBackpackButton").widget_data {
+        Some(WidgetData::Button(button)) => assert!(!button.use_default_skin),
+        other => panic!("backpack is not a button: {other:?}"),
+    }
+}
