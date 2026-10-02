@@ -600,7 +600,7 @@ fn verify_fresh_process(config: &Path, project: &Path) -> Result<(), String> {
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             PathBuf::from(std::env::var_os("HOME").expect("HOME for pinned Godot"))
-                .join(".cache/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64")
+                .join(".cache/game-engine/godot/4.7.2-pr123946/godot-4.7.2-pr123946")
         });
     let output = Command::new(binary)
         .args(["--headless", "--path"])
