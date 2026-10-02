@@ -59,8 +59,13 @@ impl Sky {
             return Err(context("missing cached model".to_string()));
         }
         let source = GString::from(model_path.to_string_lossy().as_ref());
+        let span = crate::profile::span(|| "sky.read_model".to_owned());
         let model = assets::read_model(&source).map_err(&context)?;
+        drop(span);
+        let span = crate::profile::span(|| "sky.prepare_batches".to_owned());
         let prepared = prepare_batches(&model, data_root).map_err(&context)?;
+        drop(span);
+        let _span = crate::profile::span(|| "sky.assemble".to_owned());
         let mut sky = assemble_sky(model, prepared, time_override_ms).map_err(&context)?;
         sky.node.set_name(&format!("AuthoredSky{fdid}"));
         sky.node
