@@ -1544,7 +1544,9 @@ impl RegistryUi {
         let Some(model) = self.model.as_mut() else {
             return Err("Login model not initialized".into());
         };
+        let span = crate::profile::span(|| "ui.model_sync".to_owned());
         model.sync();
+        drop(span);
         let Some(projection) = self.projection.as_mut() else {
             return Err("Native projection not initialized".into());
         };

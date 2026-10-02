@@ -200,8 +200,17 @@ impl UiProjection {
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) -> Result<(), String> {
+        let known = self.nodes.len();
+        let _span = crate::profile::span(|| format!("projection.sync {known} frames"));
+        let span = crate::profile::span(|| "projection.intrinsics".to_owned());
         let intrinsics = self.measure_intrinsics(registry)?;
+        drop(span);
+        let span = crate::profile::span(|| "projection.layout".to_owned());
         let bounds = layout::compute_layout_with_intrinsics(registry, &intrinsics)?;
+        drop(span);
+        let created = std::cell::Cell::new(0);
+        let nodes_span =
+            crate::profile::span(|| format!("projection.nodes {} created", created.get()));
         let current: HashSet<u64> = registry.frames_iter().map(|frame| frame.id).collect();
         for id in self.nodes.keys().copied().collect::<Vec<_>>() {
             if !current.contains(&id) {
@@ -227,12 +236,14 @@ impl UiProjection {
                     .upcast::<godot::classes::Node>()
                     .add_child(&node);
                 self.nodes.insert(frame.id, node);
+                created.set(created.get() + 1);
             }
             self.update_node(frame, rect, &bounds, registry)?;
             registry
                 .set_computed_layout(frame.id, rect.clone())
                 .map_err(str::to_owned)?;
         }
+        drop(nodes_span);
         registry.resolve_pending_writes();
         registry.render_dirty.clear();
         registry.rect_dirty.clear();
