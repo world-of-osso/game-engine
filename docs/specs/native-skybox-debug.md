@@ -148,6 +148,10 @@ Exact 30 logs: `data/diagnostics/retained-options-pinned-acceptance/`. Inputs/re
 
 First live PID1940217 was Cage in allocator code, a transient observation, not a proven persistent hang. Post-unload `--collect` unit defaults are not valid exit-status evidence. Old wrapped direct exit0 observations demonstrate intermittence, not a root fix for old124. No hung Godot stack was captured in this case; individual historical124 exits cannot be attributed to an unobserved race. The old semantic timeout124 remains historical, not retroactive PASS. Current owned Options normal-exit boundary is no longer unsupported; this does not prove general shutdown beyond this fixture. Earlier native GL sampler/old mip124 cases were not retested and are not relabeled. Default Map2703 data, settled performance/comparable baseline and retained/full-conversion gaps remain open.
 
+## Pinned mip-sampler process proof
+
+`data/diagnostics/retained-mipmap-pinned-acceptance/` retains exact argv/input hashes, full stdout/stderr, two GPU captures and outer exit0 at1.436866s. Existing canonical `4.7.2-pr123946` replaces the obsolete official-runtime input of the historical124 case; shader and fixture are unchanged. Explicit control and production sampler each pass three concrete green-mip pixel assertions. Cage `-D` directly records Godot child normal exit0. Current DLL is the run6 diagnostic artifact recorded above. This closes this synthetic fixture's bounded assertion/process boundary, not original-asset visual parity or general shutdown. Historical124 cause remains unknown; no code/driver/compositor change or forced cleanup was made. Independent artifact audit pending.
+
 ## Known gaps (current cycle)
 
 - [x] Final bounded scope audit16–20: independent report `/tmp/claude/retained-conversion-20/final-independent-verification.md` accepts source/render evidence and measurement coherence at `ded19eb7`, while rejecting settled-window acceptance. This completes evidence accounting, not retained/full-conversion acceptance. Mip timeout124, inherited format/build warnings and remaining gaps stay open.
