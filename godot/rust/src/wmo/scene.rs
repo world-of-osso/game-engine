@@ -10,14 +10,14 @@ use game_engine_core::{asset::wmo_format::parser::WmoMaterialDef, wmo};
 use godot::{
     classes::{
         ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ResourceLoader, Shader,
-        ShaderMaterial, image, mesh,
+        ShaderMaterial, geometry_instance_3d::ShadowCastingSetting, image, mesh,
     },
     obj::{EngineBitfield, EngineEnum},
     prelude::*,
 };
 use osso_asset_resolver::CascListfileResolver;
 
-use super::assets::NativeWmoAsset;
+use super::assets::{NativeWmoAsset, group_casts_shadow};
 use crate::lighting::TerrainLight;
 
 const SHADER_PATH: &str = "res://shaders/wmo.gdshader";
@@ -252,6 +252,9 @@ impl WmoBuild {
             instance.set_name(&format!("Group{}_Batch{index}", prepared.group_index));
             instance.set_mesh(&build_batch_mesh(&prepared));
             instance.set_surface_override_material(0, &material);
+            if !group_casts_shadow(prepared.group_flags) {
+                instance.set_cast_shadows_setting(ShadowCastingSetting::OFF);
+            }
             self.root.add_child(&instance);
         }
         true
@@ -915,6 +918,28 @@ mod tests {
         assert!(emissive.streams.uv2.is_some());
         assert!(emissive.streams.second_mocv_alpha.is_some());
         assert_batch_textures_decode(&batches, &resolver, &data_root);
+    }
+
+    /// Garrison farm: group 0 is EXTERIOR, group 1 only INTERIOR. Only the doodads
+    /// group 0's MODR references (2-8 of the default set) cast shadows; group 1's
+    /// default and interior-set doodads (0, 1, 9-13, 29-82) do not.
+    #[test]
+    fn garrison_farm_casts_shadows_from_exterior_group_and_its_doodads_only() {
+        let (asset, _, _) = read_asset(892_927);
+        let shadows = asset.shadow_groups();
+        assert!(shadows.casts(&[0]));
+        assert!(!shadows.casts(&[1]));
+        let doodads = asset.doodads(&[0, 2]);
+        let (casting, silent): (Vec<_>, Vec<_>) =
+            doodads.iter().partition(|(doodad, _)| shadows.casts(&doodad.groups));
+        let indices = |doodads: &[&assets::LitDoodad]| -> Vec<u16> {
+            doodads.iter().map(|(doodad, _)| doodad.index).collect()
+        };
+        assert_eq!(indices(&casting), (2..=8).collect::<Vec<_>>());
+        let mut expected: Vec<u16> = vec![0, 1];
+        expected.extend(9..=13);
+        expected.extend(29..=82);
+        assert_eq!(indices(&silent), expected);
     }
 
     /// Garrison farm: MOMT 16 (MapObjDiffuseTerrain) and 7.

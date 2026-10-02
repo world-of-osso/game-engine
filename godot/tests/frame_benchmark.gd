@@ -7,7 +7,8 @@ extends SceneTree
 ##   orbit  the camera yaw sweeps one full turn around the standing character
 ##   walk   real key input: W runs forward for BENCH_WALK_S seconds (default 2), S backpedals
 ##          the same distance back (run 7 yd/s, backpedal 4.5 yd/s), repeatedly
-## Environment: GODOT_TEST_SERVER, BENCH_ACCOUNT (password fbtest), BENCH_CHARACTER.
+## Environment: GODOT_TEST_SERVER, BENCH_ACCOUNT (password fbtest), BENCH_CHARACTER;
+## BENCH_SCREENSHOT=<png> saves the settled idle view before measuring.
 ## Place the character with `game-server-admin set-position|teleport` while it is offline.
 ## Each segment prints `BENCH_MARK <segment> start|end` (for an external profiler) and
 ## `BENCH_SEGMENT {json}`: wall-clock frame interval percentiles, per-frame means of the
@@ -38,6 +39,7 @@ var process_ms: Array[float] = []
 var physics_ms: Array[float] = []
 var render_ms: Array[float] = []
 var draw_calls: Array[float] = []
+var shadow_draw_calls: Array[float] = []
 var gpu_ms: Array[float] = []
 var main_cpu_ms: Array[float] = []
 var last_cpu_ns := 0
@@ -58,6 +60,8 @@ func _process(_delta: float) -> bool:
 		render_ms.append(RenderingServer.viewport_get_measured_render_time_cpu(root.get_viewport_rid())
 			+ RenderingServer.get_frame_setup_time_cpu())
 		draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+		shadow_draw_calls.append(root.get_render_info(Viewport.RENDER_INFO_TYPE_SHADOW,
+			Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME))
 		gpu_ms.append(RenderingServer.viewport_get_measured_render_time_gpu(root.get_viewport_rid()))
 		main_cpu_ms.append((cpu_ns - last_cpu_ns) / 1e6)
 		add_render_areas()
@@ -99,6 +103,9 @@ func run_test() -> void:
 	var spawn := Vector2(player.position.x, player.position.z)
 	print("BENCH_SCENE ", JSON.stringify({"character": character, "spawn": [spawn.x, spawn.y],
 		"objects": client.account_state().world_objects, "load": load_average()}))
+	if OS.get_environment("BENCH_SCREENSHOT") != "":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(OS.get_environment("BENCH_SCREENSHOT"))
 	if OS.get_environment("BENCH_NODES") == "1":
 		print("BENCH_NODES ", JSON.stringify(node_census(root)))
 	await measure("idle", segment_s, func(_t: float): pass)
@@ -135,7 +142,7 @@ func measure(segment: String, seconds: float, step: Callable) -> void:
 	finish(segment, {})
 
 func begin(segment: String) -> void:
-	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls, gpu_ms, main_cpu_ms]:
+	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls, shadow_draw_calls, gpu_ms, main_cpu_ms]:
 		samples.clear()
 	area_ms.clear()
 	print("BENCH_MARK %s start" % segment)
@@ -153,7 +160,8 @@ func finish(segment: String, extra: Dictionary) -> void:
 		"p99_ms": percentile(sorted, 0.99), "max_ms": sorted.back() if not sorted.is_empty() else 0.0,
 		"mean_ms": mean(intervals), "client_process_ms": mean(client_ms),
 		"godot_process_max_1s_ms": mean(process_ms), "physics_max_1s_ms": mean(physics_ms),
-		"render_cpu_ms": mean(render_ms), "draw_calls": mean(draw_calls), "load": load_average(),
+		"render_cpu_ms": mean(render_ms), "draw_calls": mean(draw_calls),
+		"shadow_draw_calls": mean(shadow_draw_calls), "load": load_average(),
 		"render_gpu_ms": mean(gpu_ms), "main_thread_cpu_ms": mean(main_cpu_ms),
 	}
 	if not area_ms.is_empty():

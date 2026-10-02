@@ -2496,3 +2496,7 @@ Added [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md): be
 ## 2026-10-02 — Shader compilation ahead of need (stalls)
 
 Added "Shader compilation ahead of need" to [world-entry-stalls](investigations/world-entry-stalls.md): used M2/WMO/terrain/liquid shaders recorded in `user://used_shaders.txt` and compiled during startup, login and loading; campsite catalog off the main thread. Idle character select max frame 136 ms cold, 54-79 ms warm.
+
+## 2026-10-02 — Shadow and depth passes
+
+Updated [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md): interior WMO groups/doodads cast no shadows, two cascades (retail `shadowNumCascades 2`), depth pre-pass off. Stormwind idle p50 45.9 -> 34.9 ms, shadow draws 2.46k -> 1.40k.
