@@ -1,6 +1,7 @@
 //! In-world MinimapCluster (docs/specs/minimap.md) over the shared cluster screen: the
 //! round north-up composite of the local-CASC `world/minimaps/<map>/mapXX_YY.blp` tiles
 //! under the player, the facing arrow, quest-giver blips from `QuestGiverStatusMultiple`,
+//! creature vignettes (`crate::vignettes`),
 //! the subzone text in its PvP colour, the local-time clock and calendar day. Hovering the
 //! map shows the zoom buttons; the wheel over it zooms, as `MinimapMixin:OnMouseWheel`.
 
@@ -13,15 +14,16 @@ use game_engine_core::asset_loader::{AssetLoader, Priority};
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_core::minimap_data::{
     AreaCatalog, FACTION_GROUP_ALLIANCE, FACTION_GROUP_HORDE, MinimapView, TileImage, TileKey,
-    ZonePvp, compose, parse_race_faction_groups, sample, tile_path, tint_quest_areas, zoom_in,
-    zoom_out,
+    VignetteRow, ZonePvp, compose, parse_race_faction_groups, parse_vignettes, sample, tile_path,
+    tint_quest_areas, zoom_in, zoom_out,
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::game_tooltip::GameTooltip;
 use game_engine_ui_model::game_tooltip::hud::zone_tooltip;
 use game_engine_ui_model::minimap::{
     ACTION_TOGGLE_WORLD_MAP, ACTION_ZOOM_IN, ACTION_ZOOM_OUT, BlipKind, MINIMAP_ARROW,
-    MINIMAP_DISPLAY, MINIMAP_ZONE_TEXT, MinimapBlip, MinimapClusterState, minimap_texture_fdids,
+    MINIMAP_BLIP_PREFIX, MINIMAP_DISPLAY, MINIMAP_VIGNETTE_PREFIX, MINIMAP_ZONE_TEXT, MinimapBlip,
+    MinimapClusterState, minimap_texture_fdids,
 };
 use game_engine_ui_model::world_map_view_data::arrow_rotation;
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, Time};
@@ -64,6 +66,7 @@ pub(crate) struct Minimap {
 struct Catalogs {
     areas: AreaCatalog,
     races: HashMap<u8, u32>,
+    vignettes: HashMap<u32, VignetteRow>,
 }
 
 struct Tile {
@@ -95,6 +98,11 @@ impl Minimap {
             drawn: None,
             quest_areas: (Vec::new(), 0),
         }
+    }
+
+    /// `Vignette.csv` rows, once the catalogs loaded.
+    pub(crate) fn vignette_rows(&self) -> Option<&HashMap<u32, VignetteRow>> {
+        Some(&self.catalogs.loaded()?.as_ref().ok()?.vignettes)
     }
 
     /// `AreaTable` name of `area_id` (the quest log's zone headers share the catalog).
@@ -207,9 +215,11 @@ fn load_catalogs(data_root: &std::path::Path) -> Result<Catalogs, String> {
     };
     let (areas, areas_path) = open(data_root.join("AreaTable.csv"))?;
     let (races, races_path) = open(data_root.join(DB2_DIR).join("ChrRaces.csv"))?;
+    let (vignettes, vignettes_path) = open(data_root.join(DB2_DIR).join("Vignette.csv"))?;
     Ok(Catalogs {
         areas: AreaCatalog::parse(areas, &areas_path)?,
         races: parse_race_faction_groups(races, &races_path)?,
+        vignettes: parse_vignettes(vignettes, &vignettes_path)?,
     })
 }
 
@@ -342,6 +352,11 @@ impl GameClient {
         });
         let (hour, minute, day) = local_time();
         let view = MinimapView::new(position, self.minimap.zoom);
+        let mut blips = self.quest_blips(&view);
+        if let Some(Ok(catalogs)) = self.minimap.catalogs.loaded() {
+            let sightings = crate::vignettes::sightings(&self.replica, &catalogs.vignettes)?;
+            blips.extend(crate::vignettes::minimap_blips(&view, &sightings));
+        }
         Ok(MinimapClusterState {
             zone_text,
             zone_color: pvp.map_or([1.0, 0.82, 0.0, 1.0], |pvp| pvp.text_color()),
@@ -350,7 +365,7 @@ impl GameClient {
             arrow_rotation: arrow_rotation(yaw),
             zoom_buttons: self.minimap.hovered,
             zoom: self.minimap.zoom,
-            blips: self.quest_blips(&view),
+            blips,
             has_mail: !self.mailbox.session.pending_senders.is_empty(),
             map_texture: None,
         })
@@ -366,8 +381,8 @@ impl GameClient {
             .iter()
             .filter_map(|(&unit, status)| {
                 let kind = match status {
-                    QuestGiverStatus::Available => BlipKind::QuestAvailable,
-                    QuestGiverStatus::Reward => BlipKind::QuestTurnIn,
+                    QuestGiverStatus::Available(_) => BlipKind::QuestAvailable,
+                    QuestGiverStatus::Reward(_) => BlipKind::QuestTurnIn,
                     _ => return None,
                 };
                 let position = self.replica.unit(unit)?.get::<Position>()?;
@@ -599,16 +614,19 @@ impl GameClient {
         {
             result.set("zone_text", text.text.as_str());
         }
-        let blips = registry
-            .frames_iter()
-            .filter(|frame| {
-                frame
-                    .name
-                    .as_deref()
-                    .is_some_and(|name| name.starts_with("MinimapBlip"))
-            })
-            .count();
-        result.set("blips", blips as i64);
+        let count = |prefix: &str| {
+            registry
+                .frames_iter()
+                .filter(|frame| {
+                    frame
+                        .name
+                        .as_deref()
+                        .is_some_and(|name| name.starts_with(prefix))
+                })
+                .count() as i64
+        };
+        result.set("blips", count(MINIMAP_BLIP_PREFIX));
+        result.set("vignettes", count(MINIMAP_VIGNETTE_PREFIX));
     }
 }
 

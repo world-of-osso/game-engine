@@ -4,7 +4,7 @@ use std::path::Path;
 use game_engine_core::minimap_data::{
     AreaCatalog, FACTION_GROUP_ALLIANCE, FACTION_GROUP_HORDE, MISSING_TILE_COLOR, MinimapView,
     OUTDOOR_DIAMETERS, TILE_YARDS, TileImage, ZonePvp, clock_text, compose,
-    parse_race_faction_groups, tile_path, tint_quest_areas, zoom_in, zoom_out,
+    parse_race_faction_groups, parse_vignettes, tile_path, tint_quest_areas, zoom_in, zoom_out,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
 
@@ -209,4 +209,23 @@ fn quest_area_tints_only_inside_its_polygon_with_a_brighter_rim() {
         rim[0] > fill[0],
         "rim {rim:?} is not brighter than the fill {fill:?}"
     );
+}
+
+/// Vignette.csv rows of build 12.1.0.69933: Doomwalker (ShowOnMap, HasTooltip), Gift
+/// of the Brokenhearted (DontShowOnMinimap) and War Supply Crate (HideOnContinentMaps).
+#[test]
+fn vignette_flags_place_doomwalker_on_both_maps() {
+    let csv = "ID,Name_lang,PlayerConditionID,VisibleTrackingQuestID,QuestFeedbackEffectID,Flags,MaxHeight,MinHeight,VignetteType,RewardQuestID,UiWidgetSetID,UiMapPinInfoID,ObjectiveType\n\
+        6520,Doomwalker,0,60214,1152,263170,100,0,0,0,0,3,0\n\
+        2665,\"Gift of the Brokenhearted\",0,50582,88,512,30,-30,0,0,0,0,0\n\
+        2967,\"War Supply Crate\",0,0,1109,66630,0,0,0,0,0,0,0\n";
+    let vignettes = parse_vignettes(Cursor::new(csv), Path::new("Vignette.csv")).unwrap();
+    let doomwalker = &vignettes[&6520];
+    assert_eq!(doomwalker.name, "Doomwalker");
+    assert!(doomwalker.on_minimap() && doomwalker.on_world_map());
+    assert!(!doomwalker.hide_on_continent_maps());
+    let gift = &vignettes[&2665];
+    assert_eq!(gift.name, "Gift of the Brokenhearted");
+    assert!(!gift.on_minimap() && !gift.on_world_map());
+    assert!(vignettes[&2967].hide_on_continent_maps());
 }

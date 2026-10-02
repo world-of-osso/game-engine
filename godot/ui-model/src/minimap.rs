@@ -25,6 +25,9 @@ pub const MINIMAP_ZONE_TEXT: &str = "MinimapZoneText";
 pub const MINIMAP_CLOCK_TEXT: &str = "TimeManagerClockTicker";
 pub const MINIMAP_ZOOM_IN: &str = "MinimapZoomIn";
 pub const MINIMAP_ZOOM_OUT: &str = "MinimapZoomOut";
+/// Name prefixes of quest-giver and vignette blips, followed by the unit.
+pub const MINIMAP_BLIP_PREFIX: &str = "MinimapBlip";
+pub const MINIMAP_VIGNETTE_PREFIX: &str = "MinimapVignette";
 /// Retail `MiniMapMailFrame` (`Minimap.xml:92-145`).
 pub const MINIMAP_MAIL_FRAME: &str = "MiniMapMailFrame";
 pub const ACTION_ZOOM_IN: &str = "minimap:zoom_in";
@@ -116,6 +119,18 @@ pub const QUEST_TURN_IN: SheetArt = SheetArt {
     sheet: (1024.0, 1024.0),
     crop: (593.0, 625.0, 730.0, 762.0),
 };
+/// `VignetteKill` and `VignetteKillElite` (UiTextureAtlasMember 4733, 4737) on the same
+/// `ObjectIconsAtlas` sheet.
+pub const VIGNETTE_KILL: SheetArt = SheetArt {
+    fdid: 1_121_272,
+    sheet: (1024.0, 1024.0),
+    crop: (599.0, 663.0, 197.0, 261.0),
+};
+pub const VIGNETTE_KILL_ELITE: SheetArt = SheetArt {
+    fdid: 1_121_272,
+    sheet: (1024.0, 1024.0),
+    crop: (203.0, 267.0, 395.0, 459.0),
+};
 /// UiTextureAtlas 1994 (256×256): `ui-hud-calendar-<day>-up`, 21×19 cells.
 const CALENDAR_FDID: u32 = 4_618_663;
 
@@ -182,6 +197,8 @@ pub enum BlipKind {
     QuestAvailable,
     /// Yellow `?`: `QuestGiverStatus::Reward`.
     QuestTurnIn,
+    /// A creature vignette (`VignetteKill`, `VignetteKillElite`).
+    Vignette { elite: bool },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -277,15 +294,17 @@ fn player_arrow([cx, cy]: [f32; 2]) -> Element {
 }
 
 fn blip(blip: &MinimapBlip) -> Element {
-    let art = match blip.kind {
-        BlipKind::QuestAvailable => QUEST_AVAILABLE,
-        BlipKind::QuestTurnIn => QUEST_TURN_IN,
+    let (prefix, art) = match blip.kind {
+        BlipKind::QuestAvailable => (MINIMAP_BLIP_PREFIX, QUEST_AVAILABLE),
+        BlipKind::QuestTurnIn => (MINIMAP_BLIP_PREFIX, QUEST_TURN_IN),
+        BlipKind::Vignette { elite: false } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL),
+        BlipKind::Vignette { elite: true } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL_ELITE),
     };
     let [right, down] = blip.offset;
     let x = MAP_LEFT + MAP_SIZE * (0.5 + right) - BLIP_SIZE / 2.0;
     let y = MAP_TOP + MAP_SIZE * (0.5 + down) - BLIP_SIZE / 2.0;
     art_texture(
-        format!("MinimapBlip{}", blip.unit),
+        format!("{prefix}{}", blip.unit),
         art,
         [x, y, BLIP_SIZE, BLIP_SIZE],
     )

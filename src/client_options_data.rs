@@ -4,6 +4,7 @@ use crate::camera_control_data::{
 use crate::input_bindings_data::InputBindingsData;
 use crate::nameplate_style_data::NameplateStyle;
 use crate::realm_preset_data::{RealmPreset, default_realm_preset};
+use crate::soft_target_data::SoftTargetOptions;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -236,6 +237,13 @@ pub struct HudOptionsFile {
     pub show_target_marker: bool,
     #[serde(default, rename = "autoLoot")]
     pub auto_loot: bool,
+    /// Retail `softTargetInteract` keyboard bit: Controls "Enable Interact Key"
+    /// (Controls.lua:72-86), off by default (`SoftTargetInteract` 1, gamepad only).
+    #[serde(default, rename = "softTargetInteract")]
+    pub soft_target_interact: bool,
+    /// The other soft interact CVars.
+    #[serde(default, rename = "softTarget")]
+    pub soft_target: SoftTargetOptions,
     pub show_fps_overlay: bool,
     #[serde(default = "default_chat_font_size", rename = "chatFontSize")]
     pub chat_font_size: f32,
@@ -252,6 +260,8 @@ impl Default for HudOptionsFile {
             show_health_bars: true,
             show_target_marker: true,
             auto_loot: false,
+            soft_target_interact: false,
+            soft_target: SoftTargetOptions::default(),
             show_fps_overlay: false,
             chat_font_size: default_chat_font_size(),
         }
@@ -287,6 +297,7 @@ impl GraphicsOptionsFile {
         Ok(())
     }
 }
+
 impl HudOptionsFile {
     pub fn clamped(mut self) -> Self {
         self.nameplate_distance = self
@@ -301,7 +312,8 @@ impl HudOptionsFile {
 }
 impl ClientOptionsFile {
     pub fn validate(&self) -> Result<(), String> {
-        self.graphics.validate()
+        self.graphics.validate()?;
+        self.hud.soft_target.validate()
     }
     pub fn clamped(mut self) -> Self {
         self.camera = self.camera.clamped();

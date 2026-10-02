@@ -27,7 +27,9 @@ use godot::{
     },
     prelude::*,
 };
-use shared::components::{Health, Npc, Player, UnitLevel, UnitPowers, UnitRunes};
+use shared::components::{
+    CreatureClassification, Health, Npc, Player, UnitLevel, UnitPowers, UnitRunes,
+};
 use shared::level_scaling::{LevelScaling, level_for_viewer};
 
 use crate::replicated::{UnitFields, is_unit};
@@ -306,6 +308,7 @@ fn target_frame_state(
         )
     });
     state.level_text = target_level_text(level, viewer_level);
+    state.classification = unit_classification(unit);
     if let Some(health) = unit.get::<Health>() {
         let (current, max) = (
             (health.current * health_multiplier).round(),
@@ -315,6 +318,13 @@ fn target_frame_state(
         state.health_fraction = fraction(health.current, health.max);
     }
     state
+}
+
+/// `UnitClassification`: a creature's replicated rank; players are "normal".
+pub(crate) fn unit_classification(unit: Unit) -> CreatureClassification {
+    unit.get::<CreatureClassification>()
+        .copied()
+        .unwrap_or(CreatureClassification::Normal)
 }
 
 /// The health multiplier a tuned `unit` has for a viewer of `viewer_level`; 1 untuned.

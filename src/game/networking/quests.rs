@@ -403,11 +403,11 @@ fn send<C: Channel, M: NetworkMessage + Clone>(senders: &mut MessageSenders<M>, 
 /// hidden, as with Retail's default "Trivial Quests" tracking off.
 pub fn quest_indicator(status: QuestGiverStatus) -> QuestIndicator {
     match status {
-        QuestGiverStatus::None | QuestGiverStatus::LowLevelAvailable => QuestIndicator::None,
-        QuestGiverStatus::Unavailable => QuestIndicator::Unavailable,
-        QuestGiverStatus::Incomplete => QuestIndicator::Incomplete,
-        QuestGiverStatus::Available => QuestIndicator::Available,
-        QuestGiverStatus::Reward => QuestIndicator::TurnIn,
+        QuestGiverStatus::None | QuestGiverStatus::Trivial(_) => QuestIndicator::None,
+        QuestGiverStatus::Future(_) => QuestIndicator::Unavailable,
+        QuestGiverStatus::Incomplete(_) => QuestIndicator::Incomplete,
+        QuestGiverStatus::Available(_) => QuestIndicator::Available,
+        QuestGiverStatus::Reward(_) => QuestIndicator::TurnIn,
     }
 }
 

@@ -204,20 +204,30 @@ impl crate::GameClient {
             .map_err(|_| "emote sender unavailable".into())
     }
 
-    fn spell_cast_ipc(&self, spell: &str, target: Option<&str>) -> Result<String, String> {
+    fn spell_cast_ipc(&mut self, spell: &str, target: Option<&str>) -> Result<String, String> {
         if !self.connected() {
             return Err("spell cast is unavailable: not connected".into());
         }
         let target_entity = resolve_spell_target(target, self.targeting_target())?;
         let (spell_id, spell) = resolve_spell_identifier(spell)?;
         let target_text = target_entity.map_or_else(|| "-".into(), |id| id.to_string());
+        let witness = self.cast_witness(target_entity)?;
+        let witness_text = witness.map_or_else(
+            || "-".into(),
+            |ray| format!("{:?}->{:?}", ray.start, ray.end),
+        );
         self.account
             .send_spell_intent(SpellCastIntent {
                 spell_id,
                 spell: spell.clone(),
                 target_entity,
+                witness,
             })
-            .map(|()| format!("spell cast submitted spell={spell} target={target_text}"))
+            .map(|()| {
+                format!(
+                    "spell cast submitted spell={spell} target={target_text} witness={witness_text}"
+                )
+            })
             .map_err(|_| "spell cast is unavailable: not connected".into())
     }
 

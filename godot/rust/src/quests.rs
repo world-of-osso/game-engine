@@ -7,7 +7,8 @@
 //!   (`QuestGiverHello`); detail, progress and reward pages follow the server;
 //! - L toggles `QuestLogFrame`; Abandon asks through the `ABANDON_QUEST` popup;
 //! - every mirrored quest giver is queried for its marker (`QuestGiverStatusQuery`) and
-//!   wears the `interface/buttons/talktome*.m2` of that marker, facing the camera.
+//!   wears the `interface/buttons/talktome*.m2` of that marker on its model's
+//!   above-character attachment (M2 attachment 18), facing the camera.
 
 use std::collections::{HashMap, HashSet};
 
@@ -43,7 +44,9 @@ use ui_toolkit::widgets::texture::TextureSource;
 
 use crate::account::{NpcMessage, QuestMessage};
 use crate::assets::creature::{cache_model_files, cache_model_textures, local_resolver};
-use crate::assets::{build_model, read_model};
+use crate::assets::{
+    M2_ABOVE_CHARACTER_META, M2_BOUNDS_META, M2_SOURCE_META, build_model, read_model,
+};
 use crate::frame_error::FrameError;
 use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
@@ -53,8 +56,6 @@ use crate::{GameClient, world_models::bind_visual_light};
 const PANEL_LEFT: f32 = 16.0;
 const WINDOW_TOP: f32 = 104.0;
 const PANEL_GAP: f32 = 16.0;
-/// Bevy `QUEST_INDICATOR_Y`: the marker above the NPC origin, in the unit's space.
-const MARKER_HEIGHT: f32 = 3.5;
 const MARKER_NODE: &str = "QuestMarker";
 
 #[derive(Default)]
@@ -558,8 +559,7 @@ impl GameClient {
             unit.add_child(&marker);
             self.quests.markers.insert(npc, fdid);
         }
-        self.face_markers_to_camera();
-        Ok(())
+        self.place_markers()
     }
 
     fn marker_node(&self, npc: u64) -> Option<Gd<Node3D>> {
@@ -586,34 +586,70 @@ impl GameClient {
         }
         model.set_name(MARKER_NODE);
         model.set_meta("model_file_data_id", &(fdid as i64).to_variant());
-        model.set_position(Vector3::new(0.0, MARKER_HEIGHT, 0.0));
+        // Shown once `place_markers` finds the unit's model.
+        model.set_visible(false);
         bind_visual_light(&model, None);
         Ok(model)
     }
 
-    /// The talktome glyphs face M2 +X: yaw each marker so +X points at the camera.
-    fn face_markers_to_camera(&mut self) {
-        let Some(camera) = self
+    /// Each marker stands on its unit's above-character attachment (the visual's scale
+    /// included), hidden while the unit's model loads; the talktome glyphs face M2 +X,
+    /// so each is yawed for +X to point at the camera.
+    fn place_markers(&mut self) -> Result<(), String> {
+        let eye = self
             .base()
             .get_viewport()
             .and_then(|viewport| viewport.get_camera_3d())
-        else {
-            return;
-        };
-        let eye = camera.get_global_position();
+            .map(|camera| camera.get_global_position());
         let npcs: Vec<u64> = self.quests.markers.keys().copied().collect();
         for npc in npcs {
             let Some(mut marker) = self.marker_node(npc) else {
                 continue;
             };
-            let at = marker.get_global_position();
-            let (dx, dz) = (eye.x - at.x, eye.z - at.z);
-            if dx == 0.0 && dz == 0.0 {
+            let anchor = match self.world.unit_visual(npc) {
+                Some(visual) => above_character_anchor(&visual)
+                    .map_err(|error| format!("Quest giver {npc}: {error}"))?,
+                None => None,
+            };
+            let Some(anchor) = anchor else {
+                marker.set_visible(false);
                 continue;
+            };
+            marker.set_global_position(anchor);
+            marker.set_visible(true);
+            if let Some(eye) = eye {
+                let (dx, dz) = (eye.x - anchor.x, eye.z - anchor.z);
+                if dx != 0.0 || dz != 0.0 {
+                    marker.set_global_rotation(Vector3::new(0.0, (-dz).atan2(dx), 0.0));
+                }
             }
-            marker.set_global_rotation(Vector3::new(0.0, (-dz).atan2(dx), 0.0));
         }
+        Ok(())
     }
+}
+
+/// The global above-character point of a unit `visual`'s M2 model (the visual itself or
+/// its model root child), or none while it shows no model.
+fn above_character_anchor(visual: &Gd<Node3D>) -> Result<Option<Vector3>, String> {
+    let Some(model) = std::iter::once(visual.clone())
+        .chain(
+            visual
+                .get_children()
+                .iter_shared()
+                .filter_map(|child| child.try_cast::<Node3D>().ok()),
+        )
+        .find(|node| node.has_meta(M2_BOUNDS_META))
+    else {
+        return Ok(None);
+    };
+    if !model.has_meta(M2_ABOVE_CHARACTER_META) {
+        return Err(format!(
+            "model {} has no above-character attachment (18)",
+            model.get_meta(M2_SOURCE_META).to::<GString>()
+        ));
+    }
+    let point = model.get_meta(M2_ABOVE_CHARACTER_META).to::<Vector3>();
+    Ok(Some(model.get_global_transform() * point))
 }
 
 #[godot_api(secondary)]

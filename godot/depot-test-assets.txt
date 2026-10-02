@@ -1960,3 +1960,11 @@ textures/187138.blp
 textures/187127.blp
 textures/187125.blp
 textures/187100.blp
+
+# game-engine-core tests/m2_overhead.rs: Gnombus the X-Terminator and Huntress Jalin
+models/900914.m2
+models/90091400.skin
+models/900914.skel
+models/921844.m2
+models/92184400.skin
+models/921844.skel
