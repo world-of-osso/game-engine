@@ -105,6 +105,7 @@ fn decode_blp_bytes(path: &str, bytes: &[u8]) -> Result<game_engine_core::blp::R
 }
 
 fn load_file(path: &str) -> Result<Gd<ImageTexture>, String> {
+    let _span = crate::profile::span(|| format!("ui.load_file {path}"));
     let bytes = load_bytes(path)?;
     if path.to_ascii_lowercase().ends_with(".ktx2") {
         return decode_ktx(path, &bytes);

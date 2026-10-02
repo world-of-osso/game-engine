@@ -1,32 +1,75 @@
 //! Connect local-player terrain areas and persisted options to native audio.
 
-use std::{fs::File, io::BufReader};
+use std::{collections::HashMap, fs::File, io::BufReader, path::Path};
 
 use game_engine_core::area_zone_data::{load_area_parents, root_area};
 use game_engine_session::SessionScreen;
 use godot::classes::INode;
 use godot::prelude::*;
 
-use crate::{GameClient, sound::NativeSound};
+use crate::{
+    GameClient,
+    background_load::BackgroundLoad,
+    sound::{NativeSound, ZoneTracks, read_zone_tracks},
+    sound_footsteps::{FootstepFiles, read_footstep_files},
+};
+
+/// Sound tables read from local data on a thread from client start: zone parents, zone
+/// music and ambience, and footsteps (whose files the 143 MB community listfile names).
+pub(crate) struct SoundData {
+    area_parents: Result<HashMap<u32, u32>, String>,
+    zone_tracks: Result<ZoneTracks, String>,
+    footsteps: Result<FootstepFiles, String>,
+}
+
+pub(crate) fn start_sound_data(data_root: &Path) -> BackgroundLoad<SoundData> {
+    let data_root = data_root.to_owned();
+    BackgroundLoad::start("sound-data", move || SoundData {
+        area_parents: read_area_parents(&data_root),
+        zone_tracks: read_zone_tracks(&data_root),
+        footsteps: read_footstep_files(&data_root),
+    })
+}
+
+fn read_area_parents(data_root: &Path) -> Result<HashMap<u32, u32>, String> {
+    let path = data_root.join("AreaTable.csv");
+    let file =
+        File::open(&path).map_err(|error| format!("Cannot open {}: {error}", path.display()))?;
+    load_area_parents(BufReader::new(file), &path)
+}
 
 impl GameClient {
-    pub(super) fn initialize_sound(&mut self) -> Result<(), String> {
-        let path = self.data_root.join("AreaTable.csv");
-        let file = File::open(&path)
-            .map_err(|error| format!("Cannot open {}: {error}", path.display()))?;
-        self.area_parents = load_area_parents(BufReader::new(file), &path)?;
+    pub(super) fn initialize_sound(&mut self) {
         let mut sound = Gd::<NativeSound>::from_init_fn(NativeSound::init);
         sound.set_name("NativeSound");
         self.base_mut().add_child(&sound);
-        let loaded = sound.bind_mut().load_catalog(&self.data_root);
-        if let Err(error) = loaded {
-            sound.queue_free();
-            return Err(error);
+        self.sound = Some(sound);
+    }
+
+    /// Hand the sound tables to native audio once their thread is done; until then no
+    /// zone music, ambience or footstep plays.
+    pub(super) fn apply_loaded_sound(&mut self) -> Result<(), String> {
+        let Some(load) = self.sound_data.as_mut() else {
+            return Ok(());
+        };
+        if load.poll().is_none() {
+            return Ok(());
         }
-        if let Err(error) = sound.bind_mut().load_footsteps(&self.data_root) {
+        let data = self
+            .sound_data
+            .take()
+            .and_then(BackgroundLoad::into_loaded)
+            .expect("polled above");
+        let mut sound = self.sound.clone().expect("created at startup");
+        let mut sound = sound.bind_mut();
+        if let Err(error) = data
+            .footsteps
+            .and_then(|files| sound.apply_footsteps(files))
+        {
             godot_error!("Native footsteps unavailable: {error}");
         }
-        self.sound = Some(sound);
+        sound.apply_zone_tracks(data.zone_tracks?);
+        self.area_parents = Some(data.area_parents?);
         Ok(())
     }
 
@@ -87,13 +130,16 @@ impl GameClient {
         let Some(area) = self.terrain.area_id_at(position.x, position.z) else {
             return;
         };
+        let Some(parents) = &self.area_parents else {
+            return;
+        };
         if self
             .current_zone
             .is_some_and(|(current, _)| current == area)
         {
             return;
         }
-        self.current_zone = Some((area, root_area(&self.area_parents, area)));
+        self.current_zone = Some((area, root_area(parents, area)));
     }
 
     pub(super) fn update_footsteps(&mut self) -> Result<(), String> {

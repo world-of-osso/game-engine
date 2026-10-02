@@ -121,7 +121,43 @@ fn dropping_the_loader_skips_queued_jobs() {
     });
     drop(loader);
     releaser.join().unwrap();
-    assert_eq!(runs.try_iter().collect::<Vec<_>>(), vec![1]);
+    // The worker ends after its load, dropping the load function and its sender.
+    assert_eq!(runs.iter().collect::<Vec<_>>(), vec![1]);
+}
+
+/// Dropping the loader returns while a worker still holds a load: the owner (the
+/// character select campsite, left on Enter World) never waits for it.
+#[test]
+fn dropping_the_loader_does_not_wait_for_the_load_in_hand() {
+    let (release, gate) = mpsc::channel::<()>();
+    let gate = Mutex::new(gate);
+    let (began, begun) = mpsc::channel();
+    let began = Mutex::new(began);
+    let (ran, runs) = mpsc::channel();
+    let mut loader = AssetLoader::new("test", 1, move |&fdid: &u32| {
+        if fdid == 189_077 {
+            began.lock().unwrap().send(()).unwrap();
+            gate.lock().unwrap().recv().unwrap();
+        }
+        ran.send(fdid).unwrap();
+        Ok(())
+    });
+    loader.request(189_077, Priority::Now);
+    loader.request(189_078, Priority::Now);
+    begun.recv_timeout(Duration::from_secs(2)).unwrap();
+    let releaser = thread::spawn(move || {
+        thread::sleep(Duration::from_secs(1));
+        release.send(()).unwrap();
+    });
+    let dropping = Instant::now();
+    drop(loader);
+    let waited = dropping.elapsed();
+    releaser.join().unwrap();
+    assert_eq!(runs.iter().collect::<Vec<_>>(), vec![189_077]);
+    assert!(
+        waited < Duration::from_millis(500),
+        "drop waited {waited:?} for the load in hand"
+    );
 }
 
 #[test]

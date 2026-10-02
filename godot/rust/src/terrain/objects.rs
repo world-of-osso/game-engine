@@ -1109,9 +1109,12 @@ impl TerrainObjects {
     }
 
     pub fn reset(&mut self) {
+        let span = crate::profile::span(|| "objects.reset.free_root".to_owned());
         if let Some(root) = self.root.take() {
             root.free();
         }
+        drop(span);
+        let _span = crate::profile::span(|| "objects.reset.clear".to_owned());
         self.queued_tiles.clear();
         self.pending.clear();
         self.waiting.clear();

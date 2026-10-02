@@ -81,7 +81,9 @@ pub(crate) struct TerrainStreamState {
 }
 
 pub(crate) struct StreamedTerrain {
-    requests: Option<Sender<WorkerRequest>>,
+    /// Dropped with the stream, which ends the worker after the read in hand; nothing
+    /// waits for it.
+    requests: Sender<WorkerRequest>,
     results: Receiver<WorkerResult>,
     worker: Option<JoinHandle<()>>,
     terminal_error: Option<String>,
@@ -117,7 +119,7 @@ impl StreamedTerrain {
             .spawn(move || run_worker(reader, incoming, outgoing));
         let worker = worker.expect("Cannot spawn native terrain asset worker");
         Self {
-            requests: Some(requests),
+            requests,
             results,
             worker: Some(worker),
             terminal_error: None,
@@ -392,8 +394,6 @@ impl StreamedTerrain {
 
     fn send(&self, request: WorkerRequest) -> Result<(), String> {
         self.requests
-            .as_ref()
-            .expect("worker request channel exists")
             .send(request)
             .map_err(|_| "Native terrain worker is unavailable".into())
     }
@@ -459,17 +459,6 @@ impl StreamedTerrain {
             _ => {}
         }
         Ok(())
-    }
-}
-
-impl Drop for StreamedTerrain {
-    fn drop(&mut self) {
-        self.requests.take();
-        if let Some(worker) = self.worker.take() {
-            if let Err(panic) = worker.join() {
-                eprintln!("Native terrain worker panicked: {}", panic_message(panic));
-            }
-        }
     }
 }
 
@@ -839,6 +828,35 @@ mod tests {
         assert_eq!(stream.water_surface_at(-1.0, 1.0), Some(12.0));
         assert_eq!(stream.water_surface_at(-5.0, 1.0), None);
         assert_eq!(stream.water_surface_at(1.0, 1.0), None);
+    }
+
+    /// Dropping the stream returns while its worker still reads a file: the owner (the
+    /// character select campsite, left on Enter World) never waits for it.
+    #[test]
+    fn dropping_the_stream_does_not_wait_for_the_read_in_hand() {
+        let (started, start) = mpsc::channel();
+        let (release, gate) = mpsc::channel();
+        let mut stream = StreamedTerrain::with_reader(ControlledReader {
+            assets: cached_assets(),
+            started,
+            release: Mutex::new(gate),
+        });
+        stream.request_map("azeroth".into(), (32, 48)).unwrap();
+        start
+            .recv_timeout(Duration::from_secs(5))
+            .expect("worker reads the WDT");
+        let releaser = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(1));
+            release.send(()).expect("worker waits for release");
+        });
+        let dropping = Instant::now();
+        drop(stream);
+        let waited = dropping.elapsed();
+        releaser.join().unwrap();
+        assert!(
+            waited < Duration::from_millis(500),
+            "drop waited {waited:?} for the read in hand"
+        );
     }
 
     #[test]
