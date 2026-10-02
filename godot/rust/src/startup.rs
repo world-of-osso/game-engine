@@ -55,7 +55,10 @@ impl GameClient {
         };
         result?;
         self.asset_startup = None;
+        let span = crate::profile::span(|| "startup.sound".to_owned());
         self.initialize_sound()?;
+        drop(span);
+        let _span = crate::profile::span(|| "startup.screens".to_owned());
         self.initialize_startup()?;
         self.sync_registry_ui_scale()?;
         Ok(true)

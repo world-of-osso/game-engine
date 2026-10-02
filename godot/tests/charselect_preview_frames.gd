@@ -18,7 +18,8 @@ var client: Node
 var last_usec := 0
 var measuring := false
 var frames_ms: Array[float] = []
-## Frames over the limit: [seconds since measuring started, ms].
+## Frames over the limit: [seconds since measuring started, ms, the client's main-thread
+## process ms, the viewport's render CPU ms].
 var slow: Array = []
 var measure_started_usec := 0
 var frame_limit := 100.0
@@ -38,7 +39,9 @@ func _process(_delta: float) -> bool:
 		var ms := (now - last_usec) / 1000.0
 		frames_ms.append(ms)
 		if ms > frame_limit:
-			slow.append([(now - measure_started_usec) / 1e6, ms])
+			var rid := root.get_viewport_rid()
+			slow.append([(now - measure_started_usec) / 1e6, ms, client.process_ms(),
+				RenderingServer.viewport_get_measured_render_time_cpu(rid) + RenderingServer.get_frame_setup_time_cpu()])
 	last_usec = now
 	return false
 
@@ -51,6 +54,7 @@ func run_test() -> void:
 		return
 	var limit := OS.get_environment("CHARSELECT_FRAME_MS")
 	frame_limit = float(limit) if limit != "" else 100.0
+	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var error = client.connect_account(server, account, PASSWORD, false)
@@ -82,7 +86,7 @@ func run_test() -> void:
 	print("FIXTURE CHARSELECT_PREVIEW shown=%s frames=%d median_ms=%.1f max_ms=%.1f over_%d_ms=%d" % [
 		shown, frames_ms.size(), frames_ms[frames_ms.size() / 2], frames_ms.back(),
 		int(frame_limit), slow.size()])
-	print("FIXTURE SLOW_FRAMES ", slow.map(func(f): return "%.1fs:%.0fms" % f))
+	print("FIXTURE SLOW_FRAMES ", slow.map(func(f): return "%.1fs:%.0fms(client %.0f render %.0f)" % f))
 	if not slow.is_empty():
 		fail("%d character select frames exceeded %.0f ms" % [slow.size(), frame_limit])
 		return
