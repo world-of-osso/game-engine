@@ -1,6 +1,6 @@
 //! Sun and moon discs (WebWowViewerCpp map.cpp `createPlanetMesh`, `planetShader`): one
 //! camera-facing quad per disc on a 12-yard sphere around the camera, drawn in the sky view
-//! after the stars.
+//! after the stars (`PLANETS_PRIORITY`).
 
 use std::path::Path;
 
@@ -42,6 +42,7 @@ impl Planets {
                 .ok_or_else(|| format!("Planet texture {fdid} missing"))?;
             let mut material = ShaderMaterial::new_gd();
             material.set_shader(&shader);
+            material.set_render_priority(super::PLANETS_PRIORITY);
             material.set_shader_parameter("planet_texture", &texture.to_variant());
             let mut quad = QuadMesh::new_gd();
             quad.set_size(Vector2::ONE);

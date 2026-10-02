@@ -146,6 +146,15 @@ pub(crate) struct WorldLighting {
     previous: Option<LightValues>,
 }
 
+/// Render priorities of the sky models, in WebWowViewerCpp's sky-view draw order (dome,
+/// stars, planets, skybox models, 0x4 fog cone; `ViewsObjects.cpp:40-55`). Godot draws
+/// transparents by priority first, so these stay below the world's (0): the sky view draws
+/// before the world, and water or particles in front of the far plane blend over it.
+const STARS_PRIORITY: i32 = -100;
+pub(super) const PLANETS_PRIORITY: i32 = -80;
+const SKYBOX_PRIORITY: i32 = -60;
+pub(super) const FOG_CONE_PRIORITY: i32 = -40;
+
 const SKY_DOME_SHADER: &str = "res://shaders/sky_dome.gdshader";
 
 impl WorldLighting {
@@ -209,8 +218,9 @@ impl WorldLighting {
     /// night alpha.
     fn sync_stars(&mut self, catalog: &LightingCatalog, alpha: Option<f32>) -> Result<(), String> {
         if self.stars.is_none() && alpha.is_some() {
-            let stars =
+            let mut stars =
                 SkyModel::load_model(&catalog.data_root, &catalog.stars_path, STARS_FDID, None)?;
+            stars.offset_render_priority(STARS_PRIORITY);
             self.root
                 .as_mut()
                 .expect("attached root")
@@ -245,12 +255,13 @@ impl WorldLighting {
             if !self.skyboxes.contains_key(&draw.fdid) {
                 let path = assets::cache_sky_model(&catalog.data_root, draw.fdid)
                     .map_err(|error| format!("Skybox {}: {error}", draw.fdid))?;
-                let model = match fraction {
+                let mut model = match fraction {
                     Some(fraction) => {
                         SkyModel::load_at_fraction(&catalog.data_root, &path, draw.fdid, fraction)?
                     }
                     None => SkyModel::load_model(&catalog.data_root, &path, draw.fdid, None)?,
                 };
+                model.offset_render_priority(SKYBOX_PRIORITY);
                 self.root
                     .as_mut()
                     .expect("attached root")

@@ -31,6 +31,7 @@ impl FogCone {
             .ok_or_else(|| format!("Fog cone shader {SHADER_PATH} failed to load"))?;
         let mut material = ShaderMaterial::new_gd();
         material.set_shader(&shader);
+        material.set_render_priority(super::FOG_CONE_PRIORITY);
         let mut node = MeshInstance3D::new_alloc();
         node.set_name("SkyFogCone");
         node.set_mesh(&cone_mesh());
@@ -38,8 +39,6 @@ impl FogCone {
         node.set_cast_shadows_setting(
             godot::classes::geometry_instance_3d::ShadowCastingSetting::OFF,
         );
-        // Sorted after the skybox models, which also sit on the camera.
-        node.set_sorting_offset(1.0);
         node.set_visible(false);
         root.add_child(&node);
         Ok(Self { node, material })
