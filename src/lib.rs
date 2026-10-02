@@ -52,6 +52,8 @@ pub mod collection;
 pub mod combat_feedback;
 #[path = "game/communities_data.rs"]
 pub mod communities_data;
+#[path = "game/equipment/component_file_data.rs"]
+mod component_file_data;
 pub mod container_layout_data;
 #[path = "game/cooldown_data.rs"]
 pub mod cooldown_data;
@@ -64,8 +66,6 @@ pub mod creature_display;
 pub mod creature_display_data;
 #[path = "game/creature_health_scaling_data.rs"]
 pub mod creature_health_scaling_data;
-#[path = "game/equipment/component_file_data.rs"]
-mod component_file_data;
 pub mod csv_util;
 pub mod currency;
 #[path = "game/cursor_item.rs"]
@@ -207,6 +207,7 @@ pub mod scene_graph_utils;
 pub mod scene_tree;
 pub mod screen_arg_data;
 pub mod screenshot;
+pub mod soft_target_data;
 #[path = "sound/music_zone_cache.rs"]
 pub mod sound_music_zone_cache;
 #[path = "sound/spell_cast_data.rs"]

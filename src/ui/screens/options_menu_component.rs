@@ -184,7 +184,7 @@ pub struct HudOptionsView {
     pub show_target_marker: bool,
     pub auto_loot: bool,
     pub soft_target_interact: bool,
-    pub interact_key_icons: crate::client_options_data::InteractKeyIcons,
+    pub interact_key_icons: crate::soft_target_data::InteractKeyIcons,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }
