@@ -113,14 +113,25 @@ safeguards).
 
 - Draw-call volume: doodads ~4.6k, terrain ~1.9k, units ~1.1k of 7.8k draws (Stormwind, hiding each root).
   Instancing identical static doodads or merging terrain chunks would cut it.
-- Skinned M2 culling bounds (branch `skinaabb`, `9258b339`): skinned batches now use the header
-  `bounding_box` as `custom_aabb` (WebWowViewerCpp `M2Object::createAABB`). It contains every
-  `M2Sequence.bounds` of 8667/8705 local M2s (the 38 others are collection armor, which keeps bone-derived
-  bounds). Stormwind idle symbolized perf: `mesh_get_aabb` 1.73 ms -> absent, `update_dirty_instances`
-  3.1 -> 2.5 ms. But draws rose 6915/6860 -> 7327 (shadow 1412/1381 -> 1660), +3-6% in every segment: the
-  header box is larger than the bone AABB of the current pose (larger than the Stand bounds by >5% for 29%
-  of models). p50 was not comparable (host load 7-20; 3 of 5 runs failed to settle). WebWowViewerCpp
-  replaces the header box with the current sequence's `bounds` on every animation change
-  (`m2Object.cpp` `isNeedUpdateBB`/`getAnimatinonBB`), which is tighter; not implemented.
+- Skinned M2 culling bounds (branch `skinaabb`). `9258b339` gave skinned batches the header `bounding_box`
+  as `custom_aabb` (WebWowViewerCpp `M2Object::createAABB`): `mesh_get_aabb` left the profile, but draws rose
+  3-6% because the header box is larger than the posed bounds. `ae10e313` replaces it with the playing
+  sequence's `M2Sequence.bounds` on every sequence change, as WebWowViewerCpp does (`m2Object.cpp:1216-1232`,
+  `isNeedUpdateBB`/`getAnimatinonBB`); an empty box keeps the previous one. Stormwind idle, symbolized
+  call-graph perf, `data/diagnostics/seqbounds-2026-10-02/cg{1,2}-*`:
+
+  | build | draws | shadow draws | `mesh_get_aabb` (main thread) | load |
+  |---|---|---|---|---|
+  | master | 6882 / 6918 | - / 1405 | 3.8% / 5.0% (3.0 / 2.2 ms) | 12.4 / 6.4 |
+  | header box | 7265 | 1624 | 0.02% | 4.6 |
+  | sequence bounds | 6988 / 6965 | 1453 / 1441 | absent | 5.5 / 7.3 |
+
+  The header box's first run did not settle (load 14.7). p50 is not comparable at this load (31-74 ms
+  across runs of one build). Owl.m2's posed vertices stay inside each of its 31 sequences' bounds within
+  0.004 (`m2_skinned_bounds.gd`). Crossfades switch the box at once, as in WebWowViewerCpp.
+- Global-sequence bone tracks are not played (`AnimationState::sample_sequence` reads sub-array `index`, not
+  sub-array 0 at the global sequence's time). 2171/3818 local multi-bone M2s have such tracks; boar.m2's bone 0
+  translation (+0.282 x, global sequence 1) is dropped in 16 of 17 sequences, so the boar renders 0.28 back
+  and pokes 0.2-1.1 outside its sequence bounds.
 - `Node3D::_propagate_transform_changed` 1.4 ms self, reached from extension `set_quaternion`/`set_position`
   calls during idle (callers lost at Rust frames).
