@@ -155,7 +155,7 @@ First live PID1940217 was Cage in allocator code, a transient observation, not a
 
 ## Known gaps (current cycle)
 
-- [x] Final bounded scope audit16–20: independent report `/tmp/claude/retained-conversion-20/final-independent-verification.md` accepts source/render evidence and measurement coherence at `ded19eb7`, while rejecting settled-window acceptance. This completes evidence accounting, not retained/full-conversion acceptance. Historical mip timeout124 remains recorded; later pinned synthetic mip assertion/process proof is below. Inherited format/build warnings and other remaining gaps stay open.
+- [x] Final bounded scope audit16–20: independent report `/tmp/claude/retained-conversion-20/final-independent-verification.md` accepts source/render evidence and measurement coherence at `ded19eb7`, while rejecting settled-window acceptance. This completes evidence accounting, not retained/full-conversion acceptance. Historical mip timeout124 remains recorded; later pinned synthetic mip assertion/process proof is above. Inherited format/build warnings and other remaining gaps stay open.
 - [ ] Supply authoritative default `Light.map2703` data, currently absent: explicit default-source blocker, no fallback.
 - [ ] Complete remaining source/animation/input coverage; bounded offline same-scene live FOV/sensitivity is runtime-observed, not all Options acceptance; current owned-fixture normal-exit proof is bounded above, not general shutdown.
 - [ ] Establish a valid settled performance window and comparable baseline; readiness changes invalidate steady claims.
