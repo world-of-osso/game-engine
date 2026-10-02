@@ -57,11 +57,13 @@ func point_in_slot(client: Node, control_name: String) -> Vector2:
 	return control.get_global_rect().get_center()
 
 func inert_frame_point(client: Node) -> Vector2:
-	# bag_toggle:2 is not a cursor target, and no authoritative bag2 exists.
+	# BagBarExpandToggle only toggles the bar on its own click (MainMenuBarBagButtons.lua:382,
+	# BagBarExpandToggleMixin); it takes no cursor item. A bag slot is no candidate: its
+	# click and OnReceiveDrag call PutItemInBag (MainMenuBarBagButtons.lua:69-95).
 	# Unlike the mouse-disabled container/title, this authored button blocks World.
-	var control := authored_control(client, "CharacterBag1Slot")
+	var control := authored_control(client, "BagBarExpandToggle")
 	if control == null or not control.is_visible_in_tree() or control.mouse_filter == Control.MOUSE_FILTER_IGNORE:
-		fail("Missing authored mouse-blocking, cursor-inert absent-bag button")
+		fail("Missing authored mouse-blocking, cursor-inert bag bar toggle")
 		return Vector2.INF
 	return control.get_global_rect().get_center()
 
