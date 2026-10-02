@@ -4,8 +4,10 @@ extends "res://tests/capture_world_view.gd"
 ## 7D5150/7D5E70): beyond the streamed tiles the distant terrain stands in the scene fog's
 ## colour against the sky. Environment as capture_world_view.gd; each VIEW_PLAN shot
 ## requires WDL tiles shown and the Horizon node to change at least MIN_HORIZON_PIXELS of
-## the frame (shown vs hidden).
+## the frame (shown vs hidden). Westfall, Sentinel Hill (-10600, 1050): VIEW_PLAN
+## "c,1440,2.4,-0.15,40,4" sees the Elwynn hills beyond the streamed tiles.
 
+## Floor of sky pixels the horizon must cover (VIEW_HORIZON_MIN overrides).
 const MIN_HORIZON_PIXELS := 2000
 
 func run_test() -> void:
@@ -42,7 +44,7 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-## Pixels the horizon itself changes: differing by more than 0.05 in any channel between
+## Sky pixels the horizon covers: blue in the hidden frame, differing by more than 0.05 in any channel between
 ## the frames with `horizon` shown and hidden, and by less than 0.02 between two shown
 ## frames around the hidden one (so swaying foliage and particles do not count; every
 ## second pixel, counted four times).
@@ -65,11 +67,14 @@ func check_pixels(shot: String, horizon: Node3D) -> bool:
 			var a := shown.get_pixel(x, y)
 			var b := hidden.get_pixel(x, y)
 			var c := again.get_pixel(x, y)
-			if channel_difference(a, b) > 0.05 and channel_difference(a, c) < 0.02:
+			# The horizon stands against the sky: a blue hidden pixel it covers.
+			var sky := b.b > b.r + 0.1 and b.b > b.g + 0.02
+			if sky and channel_difference(a, b) > 0.05 and channel_difference(a, c) < 0.02:
 				changed += 4
 	print("FIXTURE HORIZON_PIXELS %s changed=%d" % [shot, changed])
-	if changed < MIN_HORIZON_PIXELS:
-		fail("%s: horizon changes %d pixels (< %d)" % [shot, changed, MIN_HORIZON_PIXELS])
+	var minimum := int(OS.get_environment("VIEW_HORIZON_MIN")) if OS.get_environment("VIEW_HORIZON_MIN") != "" else MIN_HORIZON_PIXELS
+	if changed < minimum:
+		fail("%s: horizon covers %d sky pixels (< %d)" % [shot, changed, minimum])
 		return false
 	return true
 
