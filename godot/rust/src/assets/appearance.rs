@@ -330,6 +330,7 @@ fn make_texture(chain: MipChain) -> Result<Gd<ImageTexture>, String> {
         width,
         height,
     } = chain;
+    let _span = crate::profile::span(|| format!("appearance.make_texture {width}x{height}"));
     let image = Image::create_from_data(
         width as i32,
         height as i32,
