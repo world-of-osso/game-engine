@@ -1860,6 +1860,10 @@ models/130629.m2
 models/13062900.skin
 textures/130630.blp
 textures/1067600.blp
+# Sun and moon discs (sky_bodies PLANET_FDIDS), cached by every LightingCatalog
+textures/186220.blp
+textures/4629581.blp
+textures/4629582.blp
 textures/130628.blp
 textures/186934.blp
 textures/186936.blp
