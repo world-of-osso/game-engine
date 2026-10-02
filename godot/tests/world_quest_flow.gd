@@ -430,6 +430,7 @@ func explore(quest_id: int, outside: Array, route: Array, radius: float) -> bool
 			await capture("stuck-%d.png" % quest_id)
 			fail("Could not walk to %s on the way into the trigger of %d from %s" % [point, quest_id, player_position()])
 			return false
+		print("FIXTURE LEG ", point, " at ", player_position(), " fps ", Engine.get_frames_per_second())
 		if log_entry(client.quest_state(), quest_id).get("completed", false):
 			break
 	print("FIXTURE IN_TRIGGER? ", quest_id, " player ", player_position(), " center ", route[-1])
@@ -833,23 +834,31 @@ func face_unit(id: int) -> void:
 ## Walk to within `yards` of the engine point `target`.
 func walk_to(target: Vector3, yards: float) -> bool:
 	var deadline := Time.get_ticks_msec() + 45000
-	var step := 0
+	var target_2d := Vector2(target.x, target.z)
+	var from := player_position()
+	var frame := 0
 	while Time.get_ticks_msec() < deadline:
-		var to: Vector3 = target - player_position()
-		if Vector2(to.x, to.z).length() <= yards:
+		var here := player_position()
+		# A slow frame covers several yards: the point is reached when the frame's path
+		# passed within `yards` of it.
+		var path := Geometry2D.get_closest_point_to_segment(target_2d, Vector2(from.x, from.z), Vector2(here.x, here.z))
+		if path.distance_to(target_2d) <= yards:
 			push_key(KEY_W, false)
 			await frames(5)
 			return true
+		from = here
 		# Stop to turn: a slow frame turns far past the heading, and walking on while the
 		# turn keys settle walks a circle off the route.
+		var to: Vector3 = target - here
 		var want := atan2(to.x, to.z)
 		if abs(wrapf(want - yaw(), -PI, PI)) >= 0.15:
 			push_key(KEY_W, false)
 			await face_direction(want)
+			from = player_position()
 		push_key(KEY_W, true)
-		await frames(6)
-		step += 1
-		if step % 20 == 0:
+		await process_frame
+		frame += 1
+		if frame % 60 == 0:
 			print("FIXTURE WALK ", player_position(), " yaw ", yaw(), " to ", target, " fps ", Engine.get_frames_per_second())
 	push_key(KEY_W, false)
 	return false
