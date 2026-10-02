@@ -63,16 +63,24 @@ const SPRAY_YARDS := 8.0
 const FIRES := 8
 ## WoW world positions: amid the vineyard fire spawns; outside each mine's exploration
 ## trigger (Fargodeep 197, radius 9; Jasperlode 87, radius 30) and the walk to its centre.
-## Jasperlode's trigger lies deep in the mine, under the hill: the walk enters at the
-## mine's south mouth and follows the tunnel floor (waypoints from the server's WMO
-## ground).
+## Jasperlode's trigger lies deep in the mine, under the hill: the walk goes up the
+## entrance ramp of the mine's south mouth between the frame's posts and the rock, then
+## along the tunnel floor (the route of the client's ground test
+## godot/rust/src/wmo/collision_tests.rs JASPERLODE_ROUTE).
 const VINEYARD_AT := [-9050.0, -325.0, 74.0]
 const FARGODEEP_OUTSIDE_AT := [-9781.2, 157.8, 25.4]
 const FARGODEEP_ROUTE := [[-9796.2, 157.8, 25.4]]
-const JASPERLODE_OUTSIDE_AT := [-9185.0, -598.0, 61.5]
-const JASPERLODE_ROUTE := [[-9170.0, -595.4, 62.6], [-9137.3, -592.9, 57.6], [-9132.3, -580.4, 57.5],
-	[-9122.3, -575.4, 59.0], [-9119.8, -566.0, 59.0], [-9112.3, -560.4, 60.9], [-9097.3, -560.4, 62.5],
-	[-9077.3, -552.9, 60.3]]
+const JASPERLODE_OUTSIDE_AT := [-9205.0, -599.0, 61.8]
+const JASPERLODE_ROUTE := [[-9202.75, -599.0], [-9200.5, -599.0], [-9198.25, -599.0], [-9196.0, -599.0], [-9193.75, -599.0],
+	[-9191.5, -599.0], [-9189.25, -599.0], [-9187.0, -599.0], [-9184.75, -599.0], [-9182.5, -599.0],
+	[-9180.25, -599.0], [-9178.0, -599.0], [-9175.75, -599.0], [-9173.5, -599.0], [-9171.25, -599.0],
+	[-9169.0, -599.0], [-9166.75, -599.0], [-9164.5, -599.0], [-9162.25, -599.0], [-9160.0, -599.0],
+	[-9160.0, -598.0], [-9158.0, -596.0], [-9153.8, -596.0], [-9149.6, -596.0], [-9145.4, -596.0],
+	[-9141.2, -596.0], [-9137.0, -596.0], [-9134.5, -593.5], [-9132.0, -591.0], [-9129.5, -588.5],
+	[-9129.5, -586.0], [-9129.5, -583.5], [-9126.9, -580.9], [-9124.3, -578.3], [-9121.7, -575.7],
+	[-9119.1, -573.1], [-9116.5, -570.5], [-9114.0, -570.5], [-9112.0, -569.0], [-9110.0, -567.5],
+	[-9106.0, -567.5], [-9102.0, -567.5], [-9098.0, -567.5], [-9094.9, -564.4], [-9091.8, -561.3],
+	[-9088.7, -558.2], [-9085.6, -555.1], [-9082.5, -552.0], [-9079.0, -550.5]]
 const HUNT_MS := 900000
 const MUST_CHOOSE := "You must choose a reward."
 ## WoW world positions about three yards from each NPC's spawn.
@@ -416,11 +424,13 @@ func explore(quest_id: int, outside: Array, route: Array, radius: float) -> bool
 		return false
 	for index in route.size():
 		var point: Array = route[index]
-		var target := Vector3(point[0], point[2], -point[1])
+		# walk_to steers on the WoW (x, y) of the point.
+		var target := Vector3(point[0], 0.0, -point[1])
 		if not await walk_to(target, radius * 0.5 if index == route.size() - 1 else 2.0):
 			await capture("stuck-%d.png" % quest_id)
 			fail("Could not walk to %s on the way into the trigger of %d from %s" % [point, quest_id, player_position()])
 			return false
+		print("FIXTURE LEG ", point, " at ", player_position(), " fps ", Engine.get_frames_per_second())
 		if log_entry(client.quest_state(), quest_id).get("completed", false):
 			break
 	print("FIXTURE IN_TRIGGER? ", quest_id, " player ", player_position(), " center ", route[-1])
@@ -824,18 +834,31 @@ func face_unit(id: int) -> void:
 ## Walk to within `yards` of the engine point `target`.
 func walk_to(target: Vector3, yards: float) -> bool:
 	var deadline := Time.get_ticks_msec() + 45000
-	var step := 0
+	var target_2d := Vector2(target.x, target.z)
+	var from := player_position()
+	var frame := 0
 	while Time.get_ticks_msec() < deadline:
-		var to: Vector3 = target - player_position()
-		if Vector2(to.x, to.z).length() <= yards:
+		var here := player_position()
+		# A slow frame covers several yards: the point is reached when the frame's path
+		# passed within `yards` of it.
+		var path := Geometry2D.get_closest_point_to_segment(target_2d, Vector2(from.x, from.z), Vector2(here.x, here.z))
+		if path.distance_to(target_2d) <= yards:
 			push_key(KEY_W, false)
 			await frames(5)
 			return true
-		await face_direction(atan2(to.x, to.z))
+		from = here
+		# Stop to turn: a slow frame turns far past the heading, and walking on while the
+		# turn keys settle walks a circle off the route.
+		var to: Vector3 = target - here
+		var want := atan2(to.x, to.z)
+		if abs(wrapf(want - yaw(), -PI, PI)) >= 0.15:
+			push_key(KEY_W, false)
+			await face_direction(want)
+			from = player_position()
 		push_key(KEY_W, true)
-		await frames(6)
-		step += 1
-		if step % 20 == 0:
+		await process_frame
+		frame += 1
+		if frame % 60 == 0:
 			print("FIXTURE WALK ", player_position(), " yaw ", yaw(), " to ", target, " fps ", Engine.get_frames_per_second())
 	push_key(KEY_W, false)
 	return false
