@@ -8,6 +8,7 @@ mod assets;
 mod auction;
 mod auras;
 mod auto_attack;
+mod background_load;
 mod bag_cursor;
 mod bag_destroy;
 mod bags;
@@ -23,9 +24,9 @@ mod damage_meter;
 mod debug_character;
 mod display_options;
 mod entrance_bar;
-mod eula;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
+mod eula;
 #[path = "../../../src/game/faction_reaction.rs"]
 mod faction_reaction;
 mod frame_error;
@@ -86,9 +87,9 @@ mod ui;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
+mod waypoint_path;
 mod window_stack;
 mod wmo;
-mod waypoint_path;
 mod world;
 mod world_map;
 mod world_models;
@@ -269,10 +270,10 @@ impl INode3D for GameClient {
             chat: Default::default(),
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
-            minimap: minimap::Minimap::default(),
+            minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
             quests: quests::QuestHud::default(),
-            entrance_bar: entrance_bar::EntranceBar::default(),
+            entrance_bar: entrance_bar::EntranceBar::new(&data_root),
             damage_meter: damage_meter::DamageMeterHud::default(),
             group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,
@@ -1480,6 +1481,10 @@ impl GameClient {
                 Ok(c.update_skybox_debug_options()?)
             }),
             ("Account", |c, _| c.poll_account()),
+            ("Item data", |c, _| {
+                c.receive_item_catalog();
+                Ok(())
+            }),
             ("Unit visuals", |c, _| {
                 c.world.attach_loaded_visuals(&c.replica);
                 Ok(())
@@ -1615,7 +1620,10 @@ impl GameClient {
             AccountEvent::Feedback => self.show_session_feedback()?,
             AccountEvent::WorldReset => self.reset_world()?,
             AccountEvent::RestState(update) => {
-                self.in_rest_area = update.snapshot.as_ref().is_some_and(|rest| rest.in_rest_area);
+                self.in_rest_area = update
+                    .snapshot
+                    .as_ref()
+                    .is_some_and(|rest| rest.in_rest_area);
                 self.rest = update.snapshot;
             }
             AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
@@ -1724,13 +1732,18 @@ impl GameClient {
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
         let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
         if map_changed {
+            let _span = profile::span(|| "terrain.map_id".to_owned());
             self.world_map_id = Some(account::read_map_id(&self.data_root, &request.map_name)?);
         }
-        self.terrain.request_map(
-            request.map_name,
-            (request.initial_tile_y, request.initial_tile_x),
-        )?;
+        {
+            let _span = profile::span(|| "terrain.request_map".to_owned());
+            self.terrain.request_map(
+                request.map_name,
+                (request.initial_tile_y, request.initial_tile_x),
+            )?;
+        }
         if map_changed {
+            let _span = profile::span(|| "terrain.enter_loading".to_owned());
             self.world_camera.reset();
             self.world_lighting.reset();
             self.world.update_lighting(None);
@@ -2274,6 +2287,13 @@ fn account_event_kind(event: &AccountEvent) -> String {
         AccountEvent::LoadTerrain(_) => "LoadTerrain".into(),
         AccountEvent::NewWorld(_) => "NewWorld".into(),
         AccountEvent::Combat(_) => "Combat".into(),
+        AccountEvent::Replication(_) => "Replication".into(),
+        AccountEvent::Npc(account::NpcMessage::Inventory(_)) => "Npc(Inventory)".into(),
+        AccountEvent::Npc(account::NpcMessage::Equipment(_)) => "Npc(Equipment)".into(),
+        AccountEvent::Npc(account::NpcMessage::InventoryChanged(_)) => {
+            "Npc(InventoryChanged)".into()
+        }
+        AccountEvent::Npc(_) => "Npc".into(),
         _ => "other".into(),
     }
 }

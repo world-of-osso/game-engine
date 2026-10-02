@@ -556,18 +556,22 @@ fn player_movement_clip(
 }
 
 /// Resolve the held animation of a changed replicated pose; an unmapped pose holds none.
+/// Until the gear rows load the pose stays unresolved; the visual's arrival resolves it.
 fn sync_unit_pose(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
     let pose = snapshot.get::<UnitPose>().copied();
     if unit.is_player || unit.pose == pose {
         return;
     }
-    unit.pose = pose;
     let Some(pose) = pose else {
+        unit.pose = None;
         unit.pose_anim = None;
         return;
     };
-    unit.pose_anim = models
-        .gear()
+    let Some(gear) = models.loaded_gear().transpose() else {
+        return;
+    };
+    unit.pose = Some(pose);
+    unit.pose_anim = gear
         .and_then(|gear| gear.pose_anim_id(&pose))
         .unwrap_or_else(|error| {
             godot_error!(
@@ -581,12 +585,16 @@ fn sync_unit_pose(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels)
 
 /// Resolve the pose clip of a player's changed replicated stand state; a dead player
 /// holds none. A change of a stand state already seen sits down or stands up through the
-/// pose's transition clips.
+/// pose's transition clips. Until the gear rows load the stand state stays unresolved;
+/// the visual's arrival resolves it.
 fn sync_player_stand_state(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
     let state = snapshot.get::<PlayerStandState>().map(|state| state.0);
     if !unit.is_player || unit.stand_state == state {
         return;
     }
+    let Some(gear) = models.loaded_gear().transpose() else {
+        return;
+    };
     if unit.stand_state.is_some()
         && let Some(mut animation) = unit
             .visual
@@ -603,8 +611,7 @@ fn sync_player_stand_state(unit: &mut UnitNode, snapshot: Unit, models: &mut Wor
         unit.stand_anim = None;
         return;
     };
-    unit.stand_anim = models
-        .gear()
+    unit.stand_anim = gear
         .and_then(|gear| stand::stand_state_anim(state, gear))
         .unwrap_or_else(|error| {
             godot_error!("Player {} {state:?}: {error}", snapshot.server_id);
@@ -808,7 +815,9 @@ impl WorldUnits {
             .get::<CombatStatus>()
             .is_some_and(|status| status.0);
         request_unit_visual(unit, snapshot, &mut self.models);
-        (unit.weapon, unit.main_hand_subclass) = combat::unit_weapon_class(unit, &mut self.models);
+        if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
+            (unit.weapon, unit.main_hand_subclass) = class;
+        }
         sync_unit_sheath(unit, snapshot, &mut self.models);
         sync_unit_pose(unit, snapshot, &mut self.models);
         sync_player_stand_state(unit, snapshot, &mut self.models);
@@ -849,6 +858,12 @@ impl WorldUnits {
             let (_, sheath) = unit.loading.take().expect("matched a loading unit");
             attach_unit_visual(unit, id, loaded, sheath, &self.models, self.light.as_ref());
             if let Some(snapshot) = replica.unit(id) {
+                // Every visual load read the gear rows, so the weapon and pose resolve now.
+                if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
+                    (unit.weapon, unit.main_hand_subclass) = class;
+                }
+                sync_unit_pose(unit, snapshot, &mut self.models);
+                sync_player_stand_state(unit, snapshot, &mut self.models);
                 sync_unit_sheath(unit, snapshot, &mut self.models);
                 if sync_unit_death(unit, snapshot) {
                     self.deaths.push(id);
@@ -1102,10 +1117,6 @@ impl WorldUnits {
     /// Player `server_id`'s social emote: a /wave plays once over its stance, a held
     /// emote replaces its standing clip until it moves. A unit not in view is ignored.
     pub fn receive_emote(&mut self, server_id: u64, emote: EmoteKind) -> Result<(), String> {
-        let Some(clip) = emotes::emote_clip(emote, self.models.gear()?)? else {
-            return Ok(());
-        };
-        let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         let Some(unit) = self.units.get_mut(&server_id) else {
             return Ok(());
         };
@@ -1116,6 +1127,10 @@ impl WorldUnits {
         else {
             return Ok(());
         };
+        let Some(clip) = emotes::emote_clip(emote, self.models.visual_gear()?)? else {
+            return Ok(());
+        };
+        let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         let missing = || format!("Player {} has no {emote:?} clip", unit.name);
         match clip {
             emotes::EmoteClip::Held(id) => {
