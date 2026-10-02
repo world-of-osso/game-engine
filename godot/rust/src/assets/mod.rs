@@ -405,8 +405,9 @@ pub(super) fn build_model_filtered(
             .iter()
             .map(|batch| (batch.material.clone(), batch.binding.clone())),
     );
+    let bounds = m2_bounds(model);
     let mut root = Node3D::new_alloc();
-    root.set_meta(M2_BOUNDS_META, &m2_bounds(model).to_variant());
+    root.set_meta(M2_BOUNDS_META, &bounds.to_variant());
     root.set_meta(M2_SOURCE_META, &path.to_variant());
     root.add_child(&skeleton);
     for (batch_index, (batch, mesh_part)) in batches.into_iter().zip(mesh_parts).enumerate() {
@@ -424,6 +425,10 @@ pub(super) fn build_model_filtered(
         if let Some(skin) = &skin {
             instance.set_skin(skin);
             instance.set_skeleton_path("../Skeleton3D");
+            // Culled by the header box like WebWowViewerCpp `M2Object::createAABB`; it holds
+            // every sequence's bounds, and without it Godot re-derives the AABB from the bones
+            // after every pose write.
+            instance.set_custom_aabb(bounds);
         }
         // Bound as the material override, which GeometryInstance3D clears from its
         // RenderingServer instance before releasing: a surface override is released
