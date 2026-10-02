@@ -3,10 +3,11 @@
 # Runs one Godot test script <runs> times in a headless cage and counts runs whose process
 # is still alive after RUN_LIMIT_SECS (default 90). On a hang it writes every
 # thread's stack (eu-stack) of the Godot and cage processes to <out_dir>/hang-<n>.stack.
-# Exits 1 when any run hung. GODOT_BIN selects the Godot binary.
+# Exits 1 when any run hung. GODOT_BIN overrides the pinned patched Godot.
 set -uo pipefail
 checkout=$1; runs=$2; out=$3; script=$4; shift 4
-godot=${GODOT_BIN:-${XDG_CACHE_HOME:-$HOME/.cache}/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64}
+. "$(dirname "$0")/../godot/pinned.sh"
+godot=${GODOT_BIN:-$GODOT_PINNED}
 mkdir -p "$out/xdg/config" "$out/xdg/data"
 if [ ! -f "$checkout/godot/.godot/extension_list.cfg" ]; then
   XDG_CONFIG_HOME="$out/xdg/config" XDG_DATA_HOME="$out/xdg/data" \

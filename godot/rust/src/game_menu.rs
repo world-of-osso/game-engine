@@ -69,7 +69,7 @@ impl GameClient {
         let camera = policy::camera_draft_from_file(&file.camera);
         let hud = policy::hud_draft_from_file(&file.hud);
         OptionsModel {
-            logged_in: true,
+            logged_in: self.base().get_node_or_null("SkyboxDebug").is_none(),
             view: GameMenuView::MainMenu,
             category: OptionsCategory::Sound,
             modal_position: drag::initial_position(
@@ -121,10 +121,13 @@ impl GameClient {
             }
             return Ok(true);
         }
-        if key != godot::global::Key::ESCAPE
-            || self.account.session.screen != SessionScreen::InWorld
-            || !self.account.session.gameplay_input_allowed()
-        {
+        if key != godot::global::Key::ESCAPE {
+            return Ok(false);
+        }
+        let gameplay_menu_allowed = self.account.session.screen == SessionScreen::InWorld
+            && self.account.session.gameplay_input_allowed();
+        let offline_sky_present = self.base().get_node_or_null("SkyboxDebug").is_some();
+        if !gameplay_menu_allowed && !offline_sky_present {
             return Ok(false);
         }
         self.open_game_menu()?;
