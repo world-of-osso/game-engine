@@ -113,8 +113,14 @@ safeguards).
 
 - Draw-call volume: doodads ~4.6k, terrain ~1.9k, units ~1.1k of 7.8k draws (Stormwind, hiding each root).
   Instancing identical static doodads or merging terrain chunks would cut it.
-- Skinned M2 culling bounds: WebWowViewerCpp `M2Object::createAABB` culls by the header `bounding_box`; Godot
-  recomputes each posed skinned batch mesh's AABB from its bones every frame (`mesh_get_aabb`, 2.1 ms in
-  Stormwind idle; `custom_aabb` would match the reference).
+- Skinned M2 culling bounds (branch `skinaabb`, `9258b339`): skinned batches now use the header
+  `bounding_box` as `custom_aabb` (WebWowViewerCpp `M2Object::createAABB`). It contains every
+  `M2Sequence.bounds` of 8667/8705 local M2s (the 38 others are collection armor, which keeps bone-derived
+  bounds). Stormwind idle symbolized perf: `mesh_get_aabb` 1.73 ms -> absent, `update_dirty_instances`
+  3.1 -> 2.5 ms. But draws rose 6915/6860 -> 7327 (shadow 1412/1381 -> 1660), +3-6% in every segment: the
+  header box is larger than the bone AABB of the current pose (larger than the Stand bounds by >5% for 29%
+  of models). p50 was not comparable (host load 7-20; 3 of 5 runs failed to settle). WebWowViewerCpp
+  replaces the header box with the current sequence's `bounds` on every animation change
+  (`m2Object.cpp` `isNeedUpdateBB`/`getAnimatinonBB`), which is tighter; not implemented.
 - `Node3D::_propagate_transform_changed` 1.4 ms self, reached from extension `set_quaternion`/`set_position`
   calls during idle (callers lost at Rust frames).
