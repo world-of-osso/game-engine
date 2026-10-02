@@ -135,13 +135,27 @@ pub fn bevy_to_chunk_coords(bx: f32, bz: f32) -> ((u32, u32), (u32, u32)) {
 /// Height of Bevy (x, z) in the chunk that index arithmetic places it in
 /// (`bevy_to_chunk_coords`), clamped onto the chunk's edges.
 pub fn sample_located_chunk_height(g: &ChunkHeightGrid, bx: f32, bz: f32) -> f32 {
-    let local_x = (g.origin_x - bx).clamp(0.0, CHUNK_SIZE);
-    let local_z = (bz - g.origin_z).clamp(0.0, CHUNK_SIZE);
-    let col = ((local_z / UNIT_SIZE).floor() as usize).min(7);
-    let row = ((local_x / UNIT_SIZE).floor() as usize).min(7);
+    let (local_x, local_z) = located_chunk_offset(g, bx, bz);
+    let (row, col) = located_quad(g, bx, bz);
     let frac_x = (local_z - col as f32 * UNIT_SIZE) / UNIT_SIZE;
     let frac_z = (local_x - row as f32 * UNIT_SIZE) / UNIT_SIZE;
     interpolate_quad_height(g, row, col, frac_x, frac_z)
+}
+
+/// The quad `(row, col)` of Bevy (x, z) in the chunk `bevy_to_chunk_coords` places it in,
+/// clamped onto the chunk's edges: the MCNK hole bit cell (`terrain_hole_at(.., col, row)`).
+pub fn located_quad(g: &ChunkHeightGrid, bx: f32, bz: f32) -> (usize, usize) {
+    let (local_x, local_z) = located_chunk_offset(g, bx, bz);
+    let row = ((local_x / UNIT_SIZE).floor() as usize).min(7);
+    let col = ((local_z / UNIT_SIZE).floor() as usize).min(7);
+    (row, col)
+}
+
+fn located_chunk_offset(g: &ChunkHeightGrid, bx: f32, bz: f32) -> (f32, f32) {
+    (
+        (g.origin_x - bx).clamp(0.0, CHUNK_SIZE),
+        (bz - g.origin_z).clamp(0.0, CHUNK_SIZE),
+    )
 }
 
 /// Try to get height from a single chunk. Returns None if (bx, bz) is outside this chunk.
