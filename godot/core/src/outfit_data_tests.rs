@@ -109,3 +109,32 @@ fn missing_data_root_is_an_error_not_an_empty_outfit() {
     let catalog = OutfitData::load(Path::new("/nonexistent/outfit-data-root"));
     assert!(catalog.try_resolve_outfit(1, 1, 0).is_err());
 }
+
+/// Item models resolve from the DB2 tables alone (`ModelFileData` maps a model resource to
+/// its FDIDs and local CASC extracts by FDID): the 143 MB community listfile is not read.
+#[test]
+fn runtime_models_resolve_without_the_community_listfile() {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data")
+        .canonicalize()
+        .unwrap();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target")
+        .join(format!("outfit-no-listfile-{}", std::process::id()));
+    if fixture.exists() {
+        std::fs::remove_dir_all(&fixture).unwrap();
+    }
+    std::fs::create_dir_all(&fixture).unwrap();
+    for entry in std::fs::read_dir(&source).unwrap() {
+        let name = entry.unwrap().file_name();
+        if name != "community-listfile.csv" {
+            std::os::unix::fs::symlink(source.join(&name), fixture.join(&name)).unwrap();
+        }
+    }
+    let catalog = OutfitData::load(&fixture);
+    let sword = catalog.try_resolve_runtime_model(1542, 1, 0);
+    let mace = catalog.try_resolve_runtime_model(18730, 1, 0);
+    std::fs::remove_dir_all(&fixture).unwrap();
+    assert_eq!(sword.unwrap(), Some((148132, [148134, 0, 0])));
+    assert_eq!(mace.unwrap(), Some((143001, [142735, 0, 0])));
+}

@@ -45,7 +45,7 @@ pub(crate) struct PreparedAppearance {
 /// prepare it; `into_prepared` makes the textures on the main thread.
 pub(crate) struct AppearanceParts {
     pub(super) source: &'static str,
-    pub(super) textures: HashMap<u32, TexturePixels>,
+    pub(super) textures: HashMap<u32, MipChain>,
     pub(super) selected_geosets: Vec<(u16, u16)>,
     pub(super) authored_geosets: Vec<(u16, u16)>,
     pub(super) equipment_geosets: Vec<(u16, u16)>,
@@ -119,7 +119,7 @@ impl NpcAppearances {
         Ok(Some(PreparedNpc {
             appearance: AppearanceParts {
                 source: "NPC",
-                textures,
+                textures: mip_chains(textures),
                 selected_geosets: selected.geosets,
                 authored_geosets: appearance.geosets,
                 equipment_geosets: armor.outfit.geoset_overrides.clone(),
@@ -324,17 +324,114 @@ pub(super) fn load_appearance_texture(
 
 /// A composited character texture with its whole mip chain, as stock composes the atlas
 /// (solarityclient composer.rs `compose`); without mips it aliases when minified.
-fn make_texture((pixels, width, height): TexturePixels) -> Result<Gd<ImageTexture>, String> {
-    let mut image = Image::create_from_data(
+fn make_texture(chain: MipChain) -> Result<Gd<ImageTexture>, String> {
+    let MipChain {
+        data,
+        width,
+        height,
+    } = chain;
+    let image = Image::create_from_data(
         width as i32,
         height as i32,
-        false,
+        true,
         image::Format::RGBA8,
-        &PackedByteArray::from(pixels.as_slice()),
+        &PackedByteArray::from(data.as_slice()),
     )
     .ok_or_else(|| format!("Godot rejected {width}x{height} character texture"))?;
-    if image.generate_mipmaps() != godot::global::Error::OK {
-        return Err(format!("cannot mipmap {width}x{height} character texture"));
-    }
     ImageTexture::create_from_image(&image).ok_or_else(|| "Godot rejected character texture".into())
+}
+
+/// An RGBA8 texture with its mipmaps, level 0 first and each level half the previous
+/// down to 1x1, made on a worker so the main thread only uploads it.
+pub(crate) struct MipChain {
+    data: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+pub(super) fn mip_chains(textures: HashMap<u32, TexturePixels>) -> HashMap<u32, MipChain> {
+    textures
+        .into_iter()
+        .map(|(kind, pixels)| (kind, mip_chain(pixels)))
+        .collect()
+}
+
+/// Godot's `Image::generate_mipmaps` for RGBA8 (`_generate_po2_mipmap` with
+/// `average_4_uint8`, godot core/io/image.cpp): each texel of a level is the rounded mean of
+/// the 2x2 block above it; a 1-texel-wide or -high level repeats its edge.
+fn mip_chain((pixels, width, height): TexturePixels) -> MipChain {
+    let mut data = pixels;
+    let (mut level_start, mut w, mut h) = (0, width as usize, height as usize);
+    while w > 1 || h > 1 {
+        let (next_w, next_h) = ((w >> 1).max(1), (h >> 1).max(1));
+        let right = if w == 1 { 0 } else { 4 };
+        let down = if h == 1 { 0 } else { w * 4 };
+        let next_start = data.len();
+        data.reserve(next_w * next_h * 4);
+        for y in 0..next_h {
+            for x in 0..next_w {
+                let up = level_start + y * 2 * down + x * 2 * right;
+                for channel in 0..4 {
+                    let texel = |offset: usize| u32::from(data[up + offset + channel]);
+                    let sum = texel(0) + texel(right) + texel(down) + texel(down + right);
+                    data.push(((sum + 2) >> 2) as u8);
+                }
+            }
+        }
+        (level_start, w, h) = (next_start, next_w, next_h);
+    }
+    MipChain {
+        data,
+        width,
+        height,
+    }
+}
+
+#[cfg(test)]
+mod mip_chain_tests {
+    use super::*;
+
+    /// Each level averages 2x2 blocks with rounding, down to 1x1.
+    #[test]
+    fn levels_average_two_by_two_blocks_down_to_one_texel() {
+        let texel = |value: u8| [value, 255 - value, value / 2, 255];
+        let pixels: Vec<u8> = [
+            10, 20, 30, 41, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 161,
+        ]
+        .into_iter()
+        .flat_map(texel)
+        .collect();
+        let chain = mip_chain((pixels.clone(), 4, 4));
+        assert_eq!((chain.width, chain.height), (4, 4));
+        assert_eq!(chain.data.len(), (16 + 4 + 1) * 4);
+        assert_eq!(&chain.data[..64], pixels.as_slice());
+        // Level 1, top left: (10 + 20 + 50 + 60 + 2) >> 2 = 35 in red, 220 in green,
+        // (5 + 10 + 25 + 30 + 2) >> 2 = 18 in blue.
+        assert_eq!(&chain.data[64..68], &[35, 220, 18, 255]);
+        // Top right block 30, 41, 70, 80: (221 + 2) >> 2 = 55.
+        assert_eq!(chain.data[68], 55);
+        // Bottom left block 90, 100, 130, 140: (460 + 2) >> 2 = 115.
+        assert_eq!(chain.data[72], 115);
+        // Bottom right block 110, 120, 150, 161: (541 + 2) >> 2 = 135.
+        assert_eq!(chain.data[76], 135);
+        // Level 2 averages level 1's red 35, 55, 115, 135: (340 + 2) >> 2 = 85.
+        assert_eq!(chain.data[80], 85);
+    }
+
+    /// A level one texel high repeats its row, as Godot's down step of 0 does.
+    #[test]
+    fn a_single_row_halves_only_its_width() {
+        let pixels: Vec<u8> = [8_u8, 16, 33, 64]
+            .into_iter()
+            .flat_map(|v| [v; 4])
+            .collect();
+        let chain = mip_chain((pixels, 4, 1));
+        // Levels 4x1, 2x1, 1x1.
+        assert_eq!(chain.data.len(), (4 + 2 + 1) * 4);
+        // (8 + 16 + 8 + 16 + 2) >> 2 = 12; (33 + 64 + 33 + 64 + 2) >> 2 = 49.
+        assert_eq!(chain.data[16], 12);
+        assert_eq!(chain.data[20], 49);
+        // (12 + 49 + 12 + 49 + 2) >> 2 = 31.
+        assert_eq!(chain.data[24], 31);
+    }
 }

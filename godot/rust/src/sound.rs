@@ -17,7 +17,7 @@ use godot::classes::{
 };
 use godot::prelude::*;
 
-use crate::sound_footsteps::Footsteps;
+use crate::sound_footsteps::{FootstepFiles, Footsteps};
 use crate::sound_ui_kits::UiKits;
 
 struct Channel {
@@ -206,6 +206,38 @@ fn music_file_id(path: &Path) -> Option<u32> {
         .and_then(|stem| stem.parse().ok())
 }
 
+/// Local zone music and ambience: track files and each zone's tracks.
+pub(crate) struct ZoneTracks {
+    tracks: Vec<PathBuf>,
+    music: HashMap<u32, Vec<usize>>,
+    ambient: HashMap<u32, Vec<usize>>,
+}
+
+/// Read the zone track catalogs under `data_root`; touches no Godot object, so it runs
+/// on any thread.
+pub(crate) fn read_zone_tracks(data_root: &Path) -> Result<ZoneTracks, String> {
+    let (tracks, indices) = discover_tracks(data_root)?;
+    let mut music =
+        read_music_zone_catalog(open_catalog(data_root, "music_zone_links.csv")?, &indices)
+            .map_err(|error| {
+                format!(
+                    "{}: {error}",
+                    data_root.join("music_zone_links.csv").display()
+                )
+            })?;
+    let ambient = read_ambient_zone_catalog(
+        open_catalog(data_root, "music_manifest.csv")?,
+        &data_root.join("music_manifest.csv"),
+        &indices,
+    )?;
+    strip_ambient_tracks_from_music_catalog(&mut music, &ambient);
+    Ok(ZoneTracks {
+        tracks,
+        music,
+        ambient,
+    })
+}
+
 fn open_catalog(root: &Path, name: &str) -> Result<BufReader<File>, String> {
     let path = root.join(name);
     File::open(&path)
@@ -358,29 +390,22 @@ impl NativeSound {
     }
 
     pub fn load_catalog(&mut self, data_root: &Path) -> Result<(), String> {
-        let (tracks, indices) = discover_tracks(data_root)?;
-        let mut music =
-            read_music_zone_catalog(open_catalog(data_root, "music_zone_links.csv")?, &indices)
-                .map_err(|error| {
-                    format!(
-                        "{}: {error}",
-                        data_root.join("music_zone_links.csv").display()
-                    )
-                })?;
-        let ambient = read_ambient_zone_catalog(
-            open_catalog(data_root, "music_manifest.csv")?,
-            &data_root.join("music_manifest.csv"),
-            &indices,
-        )?;
-        strip_ambient_tracks_from_music_catalog(&mut music, &ambient);
+        self.apply_zone_tracks(read_zone_tracks(data_root)?);
+        Ok(())
+    }
+
+    pub fn apply_zone_tracks(&mut self, zone_tracks: ZoneTracks) {
         self.stop();
-        self.tracks = tracks;
+        self.tracks = zone_tracks.tracks;
         self.cache.clear();
-        self.music.by_zone = music;
-        self.ambient.by_zone = ambient;
+        self.music.by_zone = zone_tracks.music;
+        self.ambient.by_zone = zone_tracks.ambient;
         self.music.cursors.clear();
         self.ambient.cursors.clear();
-        Ok(())
+    }
+
+    pub fn apply_footsteps(&mut self, files: FootstepFiles) -> Result<(), String> {
+        self.footsteps.apply(files)
     }
 
     pub fn sync(&mut self, zone: Option<u32>, settings: &SoundOptionsFile) -> Result<(), String> {

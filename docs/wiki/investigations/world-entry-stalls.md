@@ -149,13 +149,44 @@ In no fix run does an inventory event or the "Item data" step reach 50 ms; "Entr
 
 Proof: `godot/ui-model/tests/item_catalog_pending.rs` was RED on master (`apply_snapshot waited 7.64 s`) and is GREEN; it asserts the pending slots and retrieving tooltip, then Linen Cloth, Ruined Pelt and the equipped Worn Shortsword after `refresh_item_data`. Live: `godot/tests/world_entry_item_data.gd` requires the inventory to arrive before the catalog, then the catalog's names, icons and quality in bags and equipment and the white Linen Cloth tooltip (PASS at `bae583ab`, capture `item-data-linen-tooltip.png`). `background_load` and `world_models` unit tests cover the non-blocking reads. The preserved Bevy client shares the item catalog change (its inventory gets the same refresh system) but was not compiled.
 
-Not fixed: the Character preview step at character select takes 1.0-16.4 s; the character model build there loads `CustomizationDb`, `OutfitData`, the 143 MB community listfile and the player model tables synchronously. That is before Enter World.
+Fixed later on branch `stalls` ([below](#character-select-and-enter-world-loads--2026-10-01)): the Character preview step at character select takes 1.0-16.4 s; the character model build there loads `CustomizationDb`, `OutfitData`, the 143 MB community listfile and the player model tables synchronously. That is before Enter World.
+
+## Character select and Enter World loads — 2026-10-01
+
+Branch `stalls`. Each was a synchronous load or wait on the main thread; each now runs on a thread from client start or from the request, and its result applies when it arrives.
+
+| Stall | Root cause | Now |
+|---|---|---|
+| Character preview 1.0-16.4 s per selected character | `load_character` built the model in one frame: `CustomizationDb`, outfit tables, model extraction, texture composition; `try_resolve_runtime_model` read and indexed the 143 MB community listfile only to discard the path | customization catalog loads from client start (`BackgroundLoad`); `prepare_player_parts` runs on a `character-preview` thread; the camera frames the shot once the presentation is known, the model appears when loaded; runtime item models resolve through `ModelFileData` by FDID, no listfile |
+| 327 ms in the frame CASC startup ends (shown at character select) | `initialize_sound` read `AreaTable`, the zone music catalogs and the footstep files; footsteps scan the community listfile (no `FootstepTerrainLookup`/`SoundKitEntry` DB2 is extracted, so the scan stays) | a `sound-data` thread reads them from client start; the "Sound data" step hands them to `NativeSound`; until then no zone music, ambience or footstep plays |
+| Minimap tile decode, first in-world frame | every tile under the view extracted and decoded synchronously | `minimap-tiles` `AssetLoader`; the composite redraws as tiles arrive |
+| LoadTerrain → `terrain.enter_loading` (catalogwait's 507 ms) | (1) dropping the campsite preview joined its terrain worker and world-objects `AssetLoader` workers, waiting for each worker's read or parse in hand (`preview_reset.drop` 58 ms idle, 1.2-2.1 s at load 20-36); (2) the loading screen was built twice | `AssetLoader` and `StreamedTerrain` no longer join on drop: the worker finishes its task and exits, the result is discarded (CASC cache writes are temp-file + rename, so exit mid-task leaves no partial file); the loading screen already up is kept |
+| `player.appearance_textures` 21-225 ms when a model shows | `Image::generate_mipmaps` on the main thread per composed texture | the worker builds the mip chain with Godot's RGBA8 algorithm (`_generate_po2_mipmap`, `average_4_uint8`, godot `core/io/image.cpp`); the main thread only creates the image |
+
+Measurements (`GAME_PROFILE_MS=50`, private server, debug builds, host load from other agents 3-36 throughout; every main-thread cost scales 3-10x with load, so compare within a row):
+
+| Phase | Before (`50971f03` spans build) | After |
+|---|---|---|
+| Character select, longest frame | 3663 ms (client 3491), load 4.5 | 227 ms at load 19 (`4dbb590e`); 439 ms at load 2 before the sound fix, all from `startup.sound` |
+| Preview drop on Enter World | `screen.preview_reset` 124 ms (load 5), 1252-2114 ms (load 20-36) | under 50 ms at load 13-22 |
+| LoadTerrain | 289 ms (load 5) | 72.9 ms (load 13, `4dbb590e`) |
+| Longest loading frame | 594 ms (load 5) | 309.5 ms (load 13) |
+| "Minimap" step | 133-602 ms (catalogwait runs) | at most 54 ms (load 22, `95788a28`); under 50 ms in the other runs |
+
+Tests: `asset_loader::tests::dropping_the_loader_does_not_wait_for_the_load_in_hand` and `terrain::streaming::tests::dropping_the_stream_does_not_wait_for_the_read_in_hand` were RED (drop waited 1.00 s and 1.10 s for the held task) and are GREEN; `mip_chain_tests` pin the averaging; `outfit_data_tests` covers model resolution without the listfile. Live fixture `godot/tests/charselect_preview_frames.gd` selects two characters in turn and fails on any frame over 100 ms; it still fails on the loaded host.
+
+Remaining main-thread work over 100 ms on the loaded host, none of it these loads:
+- Authored UI textures are read and decoded on the main thread at every use, uncached (`ui/assets.rs` `load_file`): `screen.attach CharacterSelect` 133-690 ms, the loading screen 95-357 ms, and the first in-world frames (`4719247.blp` 255 ms in Targeting, `135891.blp` 148 ms in Spells).
+- Godot node construction: `player.build_body` 27-45 ms idle, 112-429 ms loaded; campsite objects and materials 12-38 ms idle, 90-190 ms loaded.
+
+Evidence: `data/diagnostics/stalls/` (`ab1-*`, `ab2-*`, `ab3-*` A/B logs, `red-drop-join*.log`, `green-drop-join.log`, `charselect-fix-*.log`).
 
 ## Sources
 
 - `data/diagnostics/retained-performance-20261001/run1/` and `run2/` — actual `result.json` and `stdout.log`; manifests/config retained alongside them.
 - `/tmp/claude/retained-conversion-20/{performance-run1-verification.md,perf-settled-boundary.md,readiness-red.log,readiness-green.log,performance-runner1.log,performance-runner2.log,C.md}` — arithmetic/source-boundary audit, test proof and runner status; run2 rounded summary is not a separate settled distribution.
 - [measure.py](../../../scripts/performance/measure.py), [test_measure.py](../../../scripts/performance/test_measure.py), [world_entry_frames.gd](../../../godot/tests/world_entry_frames.gd), [world_entry_readiness.gd](../../../godot/tests/world_entry_readiness.gd) — runner and diagnostic readiness contract.
+- `data/diagnostics/stalls/` — character select and Enter World A/B runs (`ab1`-`ab3`), drop-join RED/GREEN test logs.
 - `data/diagnostics/catalogwait-2026-10-01/` — catalog-wait runs (`world-entry-{base,fix}-*.log`, `item-data-fix-*.log`, `red-test.log`, `uimodel-test-2.log`, `godot-lib-test-3.log`).
 - `data/diagnostics/firstload-2026-09-30/ab/` — the original first-load A/B logs with the step timings.
 - `/home/osso/.worktrees/.worldentry-artifacts/runs/` — this A/B's client logs (not in the repo).
