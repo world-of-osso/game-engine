@@ -38,6 +38,7 @@ var process_ms: Array[float] = []
 var physics_ms: Array[float] = []
 var render_ms: Array[float] = []
 var draw_calls: Array[float] = []
+var shadow_draw_calls: Array[float] = []
 var gpu_ms: Array[float] = []
 var main_cpu_ms: Array[float] = []
 var last_cpu_ns := 0
@@ -58,6 +59,8 @@ func _process(_delta: float) -> bool:
 		render_ms.append(RenderingServer.viewport_get_measured_render_time_cpu(root.get_viewport_rid())
 			+ RenderingServer.get_frame_setup_time_cpu())
 		draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+		shadow_draw_calls.append(root.get_render_info(Viewport.RENDER_INFO_TYPE_SHADOW,
+			Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME))
 		gpu_ms.append(RenderingServer.viewport_get_measured_render_time_gpu(root.get_viewport_rid()))
 		main_cpu_ms.append((cpu_ns - last_cpu_ns) / 1e6)
 		add_render_areas()
@@ -135,7 +138,7 @@ func measure(segment: String, seconds: float, step: Callable) -> void:
 	finish(segment, {})
 
 func begin(segment: String) -> void:
-	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls, gpu_ms, main_cpu_ms]:
+	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls, shadow_draw_calls, gpu_ms, main_cpu_ms]:
 		samples.clear()
 	area_ms.clear()
 	print("BENCH_MARK %s start" % segment)
@@ -153,7 +156,8 @@ func finish(segment: String, extra: Dictionary) -> void:
 		"p99_ms": percentile(sorted, 0.99), "max_ms": sorted.back() if not sorted.is_empty() else 0.0,
 		"mean_ms": mean(intervals), "client_process_ms": mean(client_ms),
 		"godot_process_max_1s_ms": mean(process_ms), "physics_max_1s_ms": mean(physics_ms),
-		"render_cpu_ms": mean(render_ms), "draw_calls": mean(draw_calls), "load": load_average(),
+		"render_cpu_ms": mean(render_ms), "draw_calls": mean(draw_calls),
+		"shadow_draw_calls": mean(shadow_draw_calls), "load": load_average(),
 		"render_gpu_ms": mean(gpu_ms), "main_thread_cpu_ms": mean(main_cpu_ms),
 	}
 	if not area_ms.is_empty():
