@@ -40,6 +40,7 @@ mod input_keys;
 mod ipc;
 mod js_automation;
 mod lighting;
+mod line_of_sight;
 mod loading;
 mod logout;
 mod loot;
@@ -70,6 +71,7 @@ mod selection_debug;
 mod shader_warmup;
 mod sky_model;
 mod skybox_debug;
+mod soft_interact;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
@@ -90,6 +92,7 @@ mod ui;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
+mod vignettes;
 mod waypoint_path;
 mod window_stack;
 mod wmo;
@@ -217,6 +220,8 @@ pub struct GameClient {
     world_lighting: lighting::WorldLighting,
     /// `Map.db2` ID of the map whose terrain is loaded; lighting selects its Light rows.
     world_map_id: Option<u32>,
+    /// Witness rays for casts over the LOS bake.
+    line_of_sight: line_of_sight::LineOfSight,
     world_camera: camera::WorldCamera,
     physical_input: input::PhysicalInput,
     client_options: ClientOptionsFile,
@@ -242,6 +247,7 @@ pub struct GameClient {
     startup_panel: Option<startup::StartupPanel>,
     targeting: targeting::Targeting,
     nameplates: nameplates::Nameplates,
+    soft_interact: soft_interact::SoftInteract,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
@@ -338,6 +344,7 @@ impl INode3D for GameClient {
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_map_id: None,
+            line_of_sight: line_of_sight::LineOfSight::new(&data_root),
             world_camera: camera::WorldCamera::default(),
             physical_input: input::PhysicalInput::default(),
             client_options,
@@ -355,6 +362,7 @@ impl INode3D for GameClient {
             startup_panel: None,
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
+            soft_interact: soft_interact::SoftInteract::default(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
@@ -798,6 +806,12 @@ impl GameClient {
     #[func]
     fn aura_state(&self) -> VarDictionary {
         self.auras_snapshot()
+    }
+
+    /// The soft interact target, its icon and the icon's screen rect.
+    #[func]
+    fn soft_interact_state(&self) -> VarDictionary {
+        self.soft_interact_snapshot()
     }
 
     /// The vendor session: open vendor, its items, buyback, bag items, money, cursor.
@@ -1574,6 +1588,7 @@ impl GameClient {
             }),
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
+            ("Soft interact", |c, _| c.update_soft_interact()),
             ("Mailbox", |c, _| c.update_mailbox()),
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
@@ -1626,6 +1641,7 @@ impl GameClient {
                 Ok(())
             }),
             ("Nameplates", |c, d| Ok(c.update_nameplates(d)?)),
+            ("Soft interact icon", |c, _| c.sync_soft_interact_icon()),
             ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
                 c.cull_world_objects();

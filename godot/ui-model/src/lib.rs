@@ -21,16 +21,15 @@ pub mod ui {
         pub(crate) use crate::screen_title;
         pub use crate::{
             auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
-            bank_frame_component, guild_bank_frame_component,
-            buff_frame_component, compact_unit_frame_component, cursor_item_component,
-            default_button_atlas, game_menu_component, group_frames_component,
-            inworld_unit_frames_component, loot_frame_component, mail_frame_component,
-            menu_primitives, merchant_frame_component, objective_tracker_component,
-            options_menu_active_sections, options_menu_component, options_menu_sections, quest_art,
-            quest_frame_component, quest_log_frame_component,
+            bank_frame_component, buff_frame_component, compact_unit_frame_component,
+            cursor_item_component, default_button_atlas, game_menu_component,
+            group_frames_component, guild_bank_frame_component, inworld_unit_frames_component,
+            loot_frame_component, mail_frame_component, menu_primitives, merchant_frame_component,
+            objective_tracker_component, options_menu_active_sections, options_menu_component,
+            options_menu_sections, quest_art, quest_frame_component, quest_log_frame_component,
             ready_check_frame_component, selection_debug_component, stack_split_frame_component,
-            static_popup_component,
-            trash_button_component, world_map_frame_art, world_map_frame_component,
+            static_popup_component, trash_button_component, world_map_frame_art,
+            world_map_frame_component,
         };
 
         #[cfg(test)]
@@ -84,10 +83,10 @@ pub mod char_select_top_nav_component;
 #[path = "../../../src/ui/screens/default_button_atlas.rs"]
 pub mod default_button_atlas;
 // First-login legal acceptance (`src/scenes/eula/mod.rs`).
-#[path = "../../../src/ui/screens/eula_component.rs"]
-pub mod eula_component;
 #[path = "../../../src/ui/screens/entrance_difficulty_component.rs"]
 pub mod entrance_difficulty_component;
+#[path = "../../../src/ui/screens/eula_component.rs"]
+pub mod eula_component;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
 pub mod trash_button_component;
 // `--screen selectiondebug` (src/scenes/selection_debug/mod.rs).
@@ -148,6 +147,7 @@ pub use game_engine_core::input_bindings_data as input_bindings;
 pub use game_engine_core::nameplate_style_data;
 pub use game_engine_core::nameplate_style_data as nameplate_style;
 pub use game_engine_core::quest_area_data;
+pub use game_engine_core::soft_target_data;
 
 #[path = "../../../src/ui/screens/game_menu_component.rs"]
 pub mod game_menu_component;
@@ -175,11 +175,11 @@ pub mod bank_frame_component;
 pub mod guild_bank;
 #[path = "../../../src/ui/screens/guild_bank_frame_component.rs"]
 pub mod guild_bank_frame_component;
+#[path = "../../../src/ipc/format_shared.rs"]
+pub mod ipc_format;
 pub mod mail;
 #[path = "../../../src/ipc/mail_format.rs"]
 pub mod mail_format;
-#[path = "../../../src/ipc/format_shared.rs"]
-pub mod ipc_format;
 #[path = "../../../src/ui/screens/mail_frame_component.rs"]
 pub mod mail_frame_component;
 

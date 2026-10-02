@@ -219,7 +219,10 @@ fn advance_marker(
         (Stage::Countdown, "FIXTURE LOGOUT_CANCELLED") if progress.saw_cancel_input => {
             progress.stage = Stage::Cancelled
         }
-        (Stage::Cancelled, "FIXTURE LOGOUT_REPEATED") => progress.stage = Stage::Repeated,
+        (Stage::Cancelled, "FIXTURE LOGOUT_REPEATED") => {
+            ensure_release_reported(app, progress.stage)?;
+            progress.stage = Stage::Repeated;
+        }
         (Stage::Repeated, "FIXTURE LOGOUT_EXPIRED") => {
             verify_token(token_path, progress.saved_token.as_deref())?;
             progress.stage = Stage::Expired;
@@ -280,9 +283,20 @@ fn advance_marker(
 }
 
 fn check_inputs(app: &mut App, progress: &mut Progress) -> Result<(), String> {
+    // Held-W packets can decode after the client's later CANCELLED marker; they stay valid
+    // until the release's stop arrives, and nothing may follow that stop.
+    let releasing =
+        progress.stage == Stage::Cancelled && app.world().resource::<Incoming>().unreported_release;
+    let stops = app.world().resource::<Incoming>().stops;
     let inputs = take_inputs(app);
     if progress.stage == Stage::Countdown {
         progress.saw_cancel_input |= assert_forward_input(inputs)?;
+    } else if releasing {
+        assert_forward_input(inputs)?;
+        let incoming = app.world().resource::<Incoming>();
+        if incoming.stops > stops && incoming.unreported_release {
+            return Err("Cancelled: movement PlayerInput followed the W release stop".into());
+        }
     } else if !inputs.is_empty() {
         return Err(format!(
             "Unexpected decoded PlayerInput during {:?}: {inputs:?}",

@@ -78,6 +78,8 @@ pub fn hud_draft(hud: &HudOptions) -> HudDraft {
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
         auto_loot: hud.auto_loot,
+        soft_target_interact: hud.soft_target_interact,
+        soft_target: hud.soft_target,
         show_fps_overlay: hud.show_fps_overlay,
         chat_font_size: hud.chat_font_size,
     }
@@ -136,6 +138,8 @@ pub fn apply_hud_snapshot(h: &mut HudOptions, d: &HudDraft) {
     h.show_health_bars = file.show_health_bars;
     h.show_target_marker = file.show_target_marker;
     h.auto_loot = file.auto_loot;
+    h.soft_target_interact = file.soft_target_interact;
+    h.soft_target = file.soft_target;
     h.show_fps_overlay = file.show_fps_overlay;
     h.chat_font_size = file.chat_font_size;
 }

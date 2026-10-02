@@ -14,7 +14,7 @@ use game_engine_ui_model::world_map_frame_component::{
     WorldMapFrameState, WorldMapLayout, world_map_texture_fdids,
 };
 use game_engine_ui_model::world_map_view_data::{
-    WorldMapData, WorldMapPlayer, WorldMapRequest, engine_to_world, player_map,
+    MapVignette, WorldMapData, WorldMapPlayer, WorldMapRequest, engine_to_world, player_map,
     world_map_frame_state, zoom_in, zoom_out,
 };
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
@@ -233,9 +233,22 @@ impl GameClient {
         })
     }
 
+    /// The `onWorldMap` vignettes near the player; none until the catalogs load.
+    fn world_map_vignettes(&self) -> Result<Vec<MapVignette>, String> {
+        let (Some(rows), Some(map_id)) = (self.minimap.vignette_rows(), self.world_map_id) else {
+            return Ok(Vec::new());
+        };
+        let sightings = crate::vignettes::sightings(&self.replica, rows)?;
+        Ok(crate::vignettes::map_vignettes(map_id, &sightings))
+    }
+
     fn world_map_view(&self) -> Option<WorldMapFrameState> {
         let data = self.world_map.data()?;
         let player = self.world_map_player();
+        let vignettes = self
+            .world_map_vignettes()
+            .inspect_err(|error| godot_error!("World map vignettes: {error}"))
+            .unwrap_or_default();
         Some(world_map_frame_state(
             data,
             WorldMapRequest {
@@ -246,6 +259,7 @@ impl GameClient {
                 player: player.as_ref(),
                 quests: &self.account.quests.log,
                 quest_areas: &self.account.quests.watched_objective_areas(),
+                vignettes: &vignettes,
             },
         ))
     }

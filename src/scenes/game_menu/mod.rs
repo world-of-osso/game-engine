@@ -433,6 +433,8 @@ fn snapshot_hud_options(snapshot: &ApplySnapshot) -> HudOptions {
         show_health_bars: snapshot.hud.show_health_bars,
         show_target_marker: snapshot.hud.show_target_marker,
         auto_loot: snapshot.hud.auto_loot,
+        soft_target_interact: snapshot.hud.soft_target_interact,
+        soft_target: snapshot.hud.soft_target,
         show_fps_overlay: snapshot.hud.show_fps_overlay,
         chat_font_size: snapshot.hud.chat_font_size,
     }

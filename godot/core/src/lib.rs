@@ -55,11 +55,11 @@ pub mod footstep_data;
 mod footstep_data_tests;
 #[path = "../../../src/geoset_visibility_data.rs"]
 pub mod geoset_visibility_data;
+pub mod ground_detail;
 #[path = "../../../src/sound/ground_effect_data.rs"]
 pub mod ground_effect_data;
 #[cfg(test)]
 mod ground_effect_data_tests;
-pub mod ground_detail;
 pub mod horizon;
 #[path = "../../../src/input_bindings_data.rs"]
 pub mod input_bindings_data;
@@ -96,6 +96,8 @@ pub mod realm_preset_data;
 #[path = "../../../src/scenes/scene_snapshot_data.rs"]
 pub mod scene_snapshot;
 pub mod skybox_debug_data;
+#[path = "../../../src/soft_target_data.rs"]
+pub mod soft_target_data;
 pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
@@ -144,9 +146,9 @@ pub mod player_physics_data;
 pub mod retail_fog;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
-pub mod sky_bodies;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;
+pub mod sky_bodies;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]
 pub mod sky_cubemap_data;
 #[path = "../../../src/rendering/skybox/sky_lightdata_data.rs"]

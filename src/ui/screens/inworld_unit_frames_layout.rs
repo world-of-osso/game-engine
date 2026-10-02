@@ -84,6 +84,26 @@ pub(super) const TARGET_AURAS_TOP: f32 = HEALTH_Y + HEALTH_H + RETAIL_TARGET_HEA
     - (100.0 - RETAIL_FRAME_TEXTURE.1) / 2.0
     - AURA_START.1;
 
+/// Retail-frame points mapped into the portrait-off art through the health slot both share:
+/// Retail's 126×20 health bar's top-left is at (`RETAIL_TARGET_HEALTH_LEFT`, 100 −
+/// `RETAIL_TARGET_HEALTH_BOTTOM` − 20) of its 232×100 frame.
+const RETAIL_TARGET_TO_ART: (f32, f32) = (
+    BAR_X - RETAIL_TARGET_HEALTH_LEFT,
+    HEALTH_Y - (100.0 - RETAIL_TARGET_HEALTH_BOTTOM - HEALTH_H),
+);
+/// `BossPortraitFrameTexture` (80×79) for elites and rare elites: TOPRIGHT at (-11, -8) of
+/// the 232×100 frame (TargetFrame.lua:436-443, TargetFrame.xml:93-97).
+pub(super) const TARGET_BOSS_PORTRAIT: (f32, f32) = (
+    232.0 - 11.0 - 80.0 + RETAIL_TARGET_TO_ART.0,
+    8.0 + RETAIL_TARGET_TO_ART.1,
+);
+/// `BossIcon` star centred on the 58×58 `Portrait`'s BOTTOM, the portrait TOPRIGHT at
+/// (-26, -19) (TargetFrame.xml:62-66,281-284).
+pub(super) const TARGET_BOSS_ICON_CENTRE: (f32, f32) = (
+    232.0 - 26.0 - 58.0 / 2.0 + RETAIL_TARGET_TO_ART.0,
+    19.0 + 58.0 + RETAIL_TARGET_TO_ART.1,
+);
+
 pub(super) const GOLD_TEXT: &str = "1.0,0.82,0.0,1.0";
 pub(super) const VALUE_TEXT: &str = "1.0,1.0,1.0,1.0";
 pub(super) const UNIT_FONT: &str = "FrizQuadrata";

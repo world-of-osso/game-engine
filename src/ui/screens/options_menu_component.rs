@@ -183,6 +183,8 @@ pub struct HudOptionsView {
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub auto_loot: bool,
+    pub soft_target_interact: bool,
+    pub interact_key_icons: crate::soft_target_data::InteractKeyIcons,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }
@@ -477,7 +479,7 @@ fn category_body(model: &OptionsViewModel) -> Element {
         OptionsCategory::Nameplates => options_menu_active_sections::nameplates_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => {
-            options_menu_active_sections::accessibility_body(&model.graphics)
+            options_menu_active_sections::accessibility_body(&model.graphics, &model.hud)
         }
         OptionsCategory::Keybindings => {
             options_menu_active_sections::keybindings_body(&model.bindings)

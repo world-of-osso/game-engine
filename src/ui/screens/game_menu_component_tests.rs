@@ -81,6 +81,8 @@ fn hud_view() -> HudOptionsView {
         show_health_bars: true,
         show_target_marker: true,
         auto_loot: false,
+        soft_target_interact: false,
+        interact_key_icons: crate::soft_target_data::InteractKeyIcons::Default,
         show_fps_overlay: true,
         chat_font_size: 10.0,
     }
