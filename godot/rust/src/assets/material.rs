@@ -189,7 +189,7 @@ fn texture_basis([m00, m10, m01, m11, tx, ty]: TextureMatrix) -> Basis {
 /// The GPU state WebWowViewer's createM2Material derives from a batch's material:
 /// GX blend, backface culling off for render flag 0x4, depth test off for 0x8 and depth
 /// write off for 0x10.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct Pipeline {
     gx_blend: u8,
     two_sided: bool,
@@ -256,6 +256,7 @@ fn batch_shaders(pipeline: Pipeline) -> Result<(Gd<Shader>, Option<Gd<Shader>>),
     if let Some(shaders) = BATCH_SHADERS.with_borrow(|shaders| shaders.get(&pipeline).cloned()) {
         return Ok(shaders);
     }
+    let _span = crate::profile::span(|| format!("material.shaders {pipeline:?}"));
     let source = ResourceLoader::singleton()
         .load(SHADER_PATH)
         .ok_or_else(|| format!("Cannot load M2 shader {SHADER_PATH}"))?
@@ -431,6 +432,7 @@ fn base_texture(
     if let Some(texture) = TEXTURES.with_borrow(|textures| textures.get(&key).cloned()) {
         return Ok(Some(texture));
     }
+    let _span = crate::profile::span(|| format!("material.base_texture {fdid}"));
     let Some((mut pixels, width, height)) = load_texture(fdid, dir, missing)? else {
         return Ok(None);
     };
@@ -454,6 +456,7 @@ pub(crate) fn shared_texture(
     if let Some(texture) = TEXTURES.with_borrow(|textures| textures.get(&key).cloned()) {
         return Ok(Some(texture));
     }
+    let _span = crate::profile::span(|| format!("material.shared_texture {fdid}"));
     let bytes = match fs::read(texture_path(fdid, dir)) {
         Ok(bytes) => bytes,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
