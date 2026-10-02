@@ -31,6 +31,9 @@ const fn default_mouse_sensitivity() -> f32 {
 const fn default_camera_fov_degrees() -> f32 {
     DEFAULT_CAMERA_FOV_DEGREES
 }
+const fn default_soft_target_interact() -> bool {
+    true
+}
 const fn default_particle_effects_enabled() -> bool {
     true
 }
@@ -237,8 +240,12 @@ pub struct HudOptionsFile {
     #[serde(default, rename = "autoLoot")]
     pub auto_loot: bool,
     /// Retail `softTargetInteract` keyboard bit: Controls "Enable Interact Key"
-    /// (Controls.lua:72-86), off by default (`SoftTargetInteract` 1, gamepad only).
-    #[serde(default, rename = "softTargetInteract")]
+    /// (Controls.lua:72-86). On by default by user decision (2026-10-02); Retail defaults
+    /// to `SoftTargetInteract` 1, gamepad only.
+    #[serde(
+        default = "default_soft_target_interact",
+        rename = "softTargetInteract"
+    )]
     pub soft_target_interact: bool,
     pub show_fps_overlay: bool,
     #[serde(default = "default_chat_font_size", rename = "chatFontSize")]
@@ -256,7 +263,7 @@ impl Default for HudOptionsFile {
             show_health_bars: true,
             show_target_marker: true,
             auto_loot: false,
-            soft_target_interact: false,
+            soft_target_interact: default_soft_target_interact(),
             show_fps_overlay: false,
             chat_font_size: default_chat_font_size(),
         }

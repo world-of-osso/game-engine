@@ -232,7 +232,7 @@ impl Default for HudOptions {
             show_health_bars: true,
             show_target_marker: true,
             auto_loot: false,
-            soft_target_interact: false,
+            soft_target_interact: true,
             show_fps_overlay: false,
             chat_font_size: default_chat_font_size(),
         }

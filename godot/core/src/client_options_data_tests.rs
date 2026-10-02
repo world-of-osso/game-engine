@@ -59,3 +59,16 @@ fn invalid_graphics_and_invalid_sound_fail() {
     assert!(invalid.validate().unwrap_err().contains("SSAO"));
     assert!(ron::de::from_str::<ClientOptionsFile>("(sound:(master_volume:\"loud\",))").is_err());
 }
+
+#[test]
+fn soft_interact_is_on_by_default_and_for_files_saved_before_it() {
+    // User decision 2026-10-02: Enable Interact Key on, unlike Retail (gamepad only).
+    let file = ClientOptionsFile::default();
+    assert!(file.hud.soft_target_interact);
+    let saved = ron::ser::to_string(&file)
+        .unwrap()
+        .replace("softTargetInteract:true,", "");
+    assert!(!saved.contains("softTargetInteract"));
+    let restored: ClientOptionsFile = ron::de::from_str(&saved).unwrap();
+    assert!(restored.hud.soft_target_interact);
+}
