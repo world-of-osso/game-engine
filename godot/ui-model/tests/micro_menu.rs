@@ -58,7 +58,13 @@ fn tooltip_rows(view: &MicroMenuView, name: &str, key: Option<&str>) -> Option<V
     let tooltip = micro_button_tooltip(view, index(name), key)?;
     Some(
         std::iter::once(tooltip.content.title.clone())
-            .chain(tooltip.content.lines.iter().map(|line| line.left_text.clone()))
+            .chain(
+                tooltip
+                    .content
+                    .lines
+                    .iter()
+                    .map(|line| line.left_text.clone()),
+            )
             .collect(),
     )
 }
@@ -125,8 +131,14 @@ fn hover_shows_the_mouseover_atlas_and_an_open_window_pushes_its_button() {
     };
     let registry = build(view);
     // UI-HUD-MicroMenu-SpecTalents-Mouseover over ButtonBG-Up.
-    assert_eq!(crop(&registry, "PlayerSpellsMicroButtonArt0"), (67.0, 253.0));
-    assert_eq!(crop(&registry, "PlayerSpellsMicroButtonArt1"), (529.0, 253.0));
+    assert_eq!(
+        crop(&registry, "PlayerSpellsMicroButtonArt0"),
+        (67.0, 253.0)
+    );
+    assert_eq!(
+        crop(&registry, "PlayerSpellsMicroButtonArt1"),
+        (529.0, 253.0)
+    );
     // UI-HUD-MicroMenu-Questlog-Down over ButtonBG-Down.
     assert_eq!(crop(&registry, "QuestLogMicroButtonArt0"), (67.0, 169.0));
     assert_eq!(crop(&registry, "QuestLogMicroButtonArt1"), (463.0, 1.0));

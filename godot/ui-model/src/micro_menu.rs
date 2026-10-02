@@ -103,7 +103,12 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "ProfessionMicroButton",
         title: "Professions",
         binding: Some(InputAction::ToggleProfessions),
-        art: art((397.0, 337.0), (397.0, 169.0), (397.0, 85.0), (397.0, 253.0)),
+        art: art(
+            (397.0, 337.0),
+            (397.0, 169.0),
+            (397.0, 85.0),
+            (397.0, 253.0),
+        ),
         unavailable: Some(SYSTEM_DISABLED),
     },
     // `PlayerSpellsUtil.TogglePlayerSpellsFrame`: the native spellbook.
@@ -111,7 +116,12 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "PlayerSpellsMicroButton",
         title: "Talents & Spellbook",
         binding: Some(InputAction::ToggleTalents),
-        art: art((529.0, 337.0), (529.0, 169.0), (529.0, 85.0), (529.0, 253.0)),
+        art: art(
+            (529.0, 337.0),
+            (529.0, 169.0),
+            (529.0, 85.0),
+            (529.0, 253.0),
+        ),
         unavailable: None,
     },
     // No achievement earned and not `CanShowAchievementUI`: disabled with `minLevel`
@@ -136,15 +146,27 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "HousingMicroButton",
         title: "Housing Dashboard",
         binding: None,
-        art: art((331.0, 337.0), (331.0, 169.0), (331.0, 85.0), (331.0, 253.0)),
-        unavailable: Some(Unavailable::Reason("This action is not available right now")),
+        art: art(
+            (331.0, 337.0),
+            (331.0, 169.0),
+            (331.0, 85.0),
+            (331.0, 253.0),
+        ),
+        unavailable: Some(Unavailable::Reason(
+            "This action is not available right now",
+        )),
     },
     // `C_Club.IsEnabled() and not BNConnected()`.
     MicroButton {
         name: "GuildMicroButton",
         title: "Guild & Communities",
         binding: None,
-        art: art((265.0, 421.0), (199.0, 421.0), (199.0, 337.0), (265.0, 337.0)),
+        art: art(
+            (265.0, 421.0),
+            (199.0, 421.0),
+            (199.0, 337.0),
+            (265.0, 337.0),
+        ),
         unavailable: Some(Unavailable::Reason(
             "Unavailable\n\nBlizzard services are currently unavailable.",
         )),
@@ -185,7 +207,12 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "MainMenuMicroButton",
         title: "Game Menu",
         binding: None,
-        art: art((133.0, 421.0), (133.0, 253.0), (133.0, 169.0), (133.0, 337.0)),
+        art: art(
+            (133.0, 421.0),
+            (133.0, 253.0),
+            (133.0, 169.0),
+            (133.0, 337.0),
+        ),
         unavailable: None,
     },
 ];
