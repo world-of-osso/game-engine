@@ -331,6 +331,7 @@ fn make_texture(chain: MipChain) -> Result<Gd<ImageTexture>, String> {
         height,
     } = chain;
     let _span = crate::profile::span(|| format!("appearance.make_texture {width}x{height}"));
+    let image_span = crate::profile::span(|| "appearance.make_texture.image".to_owned());
     let image = Image::create_from_data(
         width as i32,
         height as i32,
@@ -339,6 +340,7 @@ fn make_texture(chain: MipChain) -> Result<Gd<ImageTexture>, String> {
         &PackedByteArray::from(data.as_slice()),
     )
     .ok_or_else(|| format!("Godot rejected {width}x{height} character texture"))?;
+    drop(image_span);
     ImageTexture::create_from_image(&image).ok_or_else(|| "Godot rejected character texture".into())
 }
 
