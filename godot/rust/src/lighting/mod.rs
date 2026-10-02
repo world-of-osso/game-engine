@@ -1,6 +1,7 @@
 //! Native scene-light resources sampled from authored map-position/time data.
 
 pub(crate) mod assets;
+mod fog_cone;
 mod planets;
 
 use std::collections::HashMap;
@@ -21,7 +22,7 @@ use godot::{
 };
 
 use assets::{LightingCatalog, LightingSample, WaterLight};
-use game_engine_core::sky_bodies::{PlanetDraw, STARS_FDID, SkyboxDraw};
+use game_engine_core::sky_bodies::{LIGHT_SKYBOX_FINAL_FOG, PlanetDraw, STARS_FDID, SkyboxDraw};
 
 use crate::sky_model::SkyModel;
 
@@ -141,6 +142,7 @@ pub(crate) struct WorldLighting {
     /// LightSkybox models by FDID, with the day fraction a flag 0x1 skybox is held at.
     skyboxes: HashMap<u32, (SkyModel, Option<f32>)>,
     planets: Option<planets::Planets>,
+    fog_cone: Option<fog_cone::FogCone>,
     previous: Option<LightValues>,
 }
 
@@ -190,6 +192,11 @@ impl WorldLighting {
         self.sync_stars(catalog, stars_alpha)?;
         self.sync_skyboxes(catalog, &values.5, minutes)?;
         self.sync_planets(catalog, &values.6, values.3.specular)?;
+        let final_fog = values
+            .5
+            .iter()
+            .any(|draw| draw.flags & LIGHT_SKYBOX_FINAL_FOG != 0);
+        self.sync_fog_cone(final_fog, fog.end_fog_color, stops[5], &light.fog)?;
         self.sun
             .as_mut()
             .expect("attached sun")
@@ -280,6 +287,25 @@ impl WorldLighting {
         Ok(())
     }
 
+    /// map.cpp: the 0x4 fog cone draws after the skybox models while one has flag 0x4.
+    fn sync_fog_cone(
+        &mut self,
+        shown: bool,
+        end_fog_color: [f32; 3],
+        sky_fog: [f32; 3],
+        fog: &FogUniforms,
+    ) -> Result<(), String> {
+        if self.fog_cone.is_none() {
+            let root = self.root.as_mut().expect("attached root");
+            self.fog_cone = Some(fog_cone::FogCone::load(root)?);
+        }
+        self.fog_cone
+            .as_mut()
+            .expect("loaded above")
+            .sync(shown, end_fog_color, sky_fog, fog);
+        Ok(())
+    }
+
     /// Sky models sit on the camera (WebWowViewerCpp's sky view drops the view
     /// translation) and play their animation at `time_ms`.
     pub fn place_sky(&mut self, camera: Vector3, time_ms: u32) {
@@ -289,6 +315,9 @@ impl WorldLighting {
         }
         if let Some(planets) = self.planets.as_mut() {
             planets.place(camera);
+        }
+        if let Some(cone) = self.fog_cone.as_mut() {
+            cone.place(camera);
         }
         for (model, fraction) in self.skyboxes.values_mut() {
             if model.node.is_visible() {
@@ -342,6 +371,7 @@ impl WorldLighting {
         self.stars = None;
         self.skyboxes.clear();
         self.planets = None;
+        self.fog_cone = None;
         if let Some(root) = self.root.take() {
             root.free();
         }
