@@ -27,7 +27,7 @@ GODOT = Path.home() / ".cache/game-engine/godot/4.7.2-pr123946/godot-4.7.2-pr123
 AGENT_RUN = "/syncthing/Sync/Projects/world-of-osso/game-engine/scripts/agent/agent-run"
 
 
-def find_godot(checkout):
+def find_godot(godot, checkout):
     marker = f"--path {checkout}/godot -s res://tests/frame_benchmark.gd"
     for proc in Path("/proc").iterdir():
         if not proc.name.isdigit():
@@ -36,7 +36,7 @@ def find_godot(checkout):
             cmdline = (proc / "cmdline").read_bytes().replace(b"\0", b" ").decode()
         except OSError:
             continue
-        if cmdline.startswith(str(GODOT)) and marker in cmdline:
+        if cmdline.startswith(godot) and marker in cmdline:
             return int(proc.name)
     return None
 
@@ -52,6 +52,9 @@ def main():
     parser.add_argument("--perf", action="store_true")
     parser.add_argument("--call-graph", action="store_true",
                         help="with --perf, record DWARF call graphs (inclusive cost per caller)")
+    parser.add_argument("--godot", default=str(GODOT),
+                        help="Godot binary (default: the pinned one); a build with debug symbols "
+                             "lets --perf resolve engine functions")
     parser.add_argument("--gpu-profile", action="store_true",
                         help="run Godot with --gpu-profile, so segments report render_areas")
     parser.add_argument("--timeout", type=int, default=1500)
@@ -72,7 +75,7 @@ def main():
     Path(env["XDG_CONFIG_HOME"]).mkdir(parents=True, exist_ok=True)
     env.update(item.split("=", 1) for item in args.env)
     profile = " --gpu-profile" if args.gpu_profile else ""
-    godot = f"{GODOT}{profile} --path {checkout}/godot -s res://tests/frame_benchmark.gd"
+    godot = f"{args.godot}{profile} --path {checkout}/godot -s res://tests/frame_benchmark.gd"
     command = ["cage", "--", "sh", "-c", f"exec {godot} >> {log} 2>&1"]
     if args.agent:
         command = [AGENT_RUN, args.agent] + command
@@ -92,7 +95,7 @@ def main():
             mark = re.match(r"BENCH_MARK (\w+) (start|end)", line)
             if mark and args.perf:
                 if mark[2] == "start":
-                    pid = find_godot(checkout)
+                    pid = find_godot(args.godot, checkout)
                     perf = subprocess.Popen(
                         ["perf", "record", "-q", "-F", "997", "-t", str(pid),
                          "-o", f"{log}.{mark[1]}.perf.data"]
@@ -106,14 +109,14 @@ def main():
                 done_at = time.time()
         seen = len(lines)
         if done_at is not None and time.time() - done_at > 20:
-            pid = find_godot(checkout)
+            pid = find_godot(args.godot, checkout)
             if pid:
                 os.kill(pid, signal.SIGKILL)
                 with log.open("a") as out:
                     out.write(f"killed hung Godot {pid}\n")
             break
     if runner.poll() is None:
-        pid = find_godot(checkout)
+        pid = find_godot(args.godot, checkout)
         if pid:
             os.kill(pid, signal.SIGKILL)
     runner.wait()
