@@ -20,7 +20,8 @@ use shared::{
         EquipmentAppearance, Gold, GuildMembership, Health, Mana, ModelDisplay, Mounted,
         MovementControl, MovementSpeed, Npc, Player, PlayerMotion, PlayerStandState, Position,
         PresenceStatus, Rotation, UnitAuras, UnitFactionTemplate, UnitFlags, UnitLevel, UnitPose,
-        UnitPowers, UnitRunes, UnitStats, UnitTarget, UnitThreatList, WorldArrival, Zone,
+        UnitPowers, UnitRunes, UnitStats, UnitTarget, UnitThreatList, UnitVignette, WorldArrival,
+        Zone,
     },
     level_scaling::LevelScaling,
     protocol::{GameObjectInfo, NpcFlags},
@@ -85,6 +86,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<DerivedStats>(),
         Codec::of::<PlayerStandState>(),
         Codec::of::<CreatureClassification>(),
+        Codec::of::<UnitVignette>(),
     ]
 }
 

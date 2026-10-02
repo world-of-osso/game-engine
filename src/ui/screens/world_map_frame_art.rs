@@ -86,6 +86,10 @@ pub const TAXI_ALLIANCE: MapArt = art(OBJECT_ICONS.0, OBJECT_ICONS.1, (627.0, 65
 pub const TAXI_HORDE: MapArt = art(OBJECT_ICONS.0, OBJECT_ICONS.1, (627.0, 659.0, 832.0, 864.0));
 /// `TaxiNode_Neutral` (6619).
 pub const TAXI_NEUTRAL: MapArt = art(OBJECT_ICONS.0, OBJECT_ICONS.1, (627.0, 659.0, 866.0, 898.0));
+/// `VignetteKill` (4947) and `VignetteKillElite` (4951), 32×32.
+pub const VIGNETTE_KILL: MapArt = art(OBJECT_ICONS.0, OBJECT_ICONS.1, (599.0, 663.0, 197.0, 261.0));
+pub const VIGNETTE_KILL_ELITE: MapArt =
+    art(OBJECT_ICONS.0, OBJECT_ICONS.1, (203.0, 267.0, 395.0, 459.0));
 /// `UI-QuestPoi-QuestNumber` (23605): numbered objective circle.
 pub const QUEST_NUMBER: MapArt = art(QUEST_POI.0, QUEST_POI.1, (67.0, 99.0, 35.0, 67.0));
 /// `UI-QuestPoi-QuestBangTurnIn` (25009): completed quest turn-in.
