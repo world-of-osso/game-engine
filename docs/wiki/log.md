@@ -1,3 +1,7 @@
+## 2026-10-01 — Launcher pins patched Godot 4.7.2-pr123946
+
+[[godot-wayland-exit-hang]]: launcher and shell helpers now use official 4.7.2 plus upstream PR #123946, built by `scripts/godot/build-patched-godot.sh` and SHA-512 pinned; missing or mismatched binary fails with build instructions, no fallback. `PYTHONHASHSEED=0` makes the build bit-reproducible (`editor/editor_builders.py` embeds Python `hash()` of the docs). Pinned binary: 0/120 hangs of `m2_animation.gd` via `quit-hang-loop.sh` (`data/diagnostics/godotpatch-2026-10-01/loop-anim-seeded.txt`). Retire when an official release contains #123946.
+
 ## 2026-10-01 — Catalog waits at world entry
 
 [[world-entry-stalls#catalog-waits--2026-10-01]]: the first inventory snapshot waited 9.2-54.9 s in `OnceLock::get_or_init` for the background item catalog load. Item catalog/icons, NPC gear rows and the spell visual catalog are now read without waiting; the entrance and minimap catalogs load from client start. Items received early update when the catalog loads (`GET_ITEM_INFO_RECEIVED` model); spec line in [cursor-item](../specs/cursor-item.md). Character-select model catalogs remain synchronous.

@@ -2,8 +2,9 @@
 # Usage: headless-client.sh start <target_dir> <xdg_config_home> [game args...]
 #        headless-client.sh start-godot <checkout> <xdg_config_home> [godot args...]
 #        headless-client.sh stop <target_dir>   (for start-godot: <checkout>/target)
-# Runs the Bevy client, or the Godot client from <checkout>/godot with pinned Godot 4.7.2
-# (or GODOT_BIN), inside a headless cage compositor (nothing appears on the user's display).
+# Runs the Bevy client, or the Godot client from <checkout>/godot with the pinned patched
+# Godot (scripts/godot/pinned.sh, or GODOT_BIN), inside a headless cage compositor
+# (nothing appears on the user's display).
 set -euo pipefail
 cmd=$1; T=$2; pidf="$T/headless-client.pid"
 if [ "$cmd" = stop ]; then
@@ -17,7 +18,8 @@ fi
 X=$3; shift 3
 if [ "$cmd" = start-godot ]; then
   checkout=$T; T="$checkout/target"; pidf="$T/headless-client.pid"; mkdir -p "$T"
-  godot=${GODOT_BIN:-${XDG_CACHE_HOME:-$HOME/.cache}/game-engine/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64}
+  . "$(dirname "$0")/../godot/pinned.sh"
+  godot=${GODOT_BIN:-$GODOT_PINNED}
   XDG_CONFIG_HOME="$X" WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 WLR_RENDERER=vulkan \
     setsid cage -- "$godot" --path "$checkout/godot" "$@" > "$T/headless-client.log" 2>&1 < /dev/null &
   echo $! > "$pidf"; echo "cage pid $(cat $pidf); log $T/headless-client.log"; exit 0
