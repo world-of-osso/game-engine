@@ -1,19 +1,20 @@
 extends "res://tests/bank_live.gd"
 
 ## Guild bank repair and full vendor item tooltips against a private server
-## (docs/specs/merchant-frame.md). One Guild Master funds the Ironforge Guild Vault,
-## walks (admin set-position) to Grenil Steelfury, a weaponsmith who repairs, hovers a
-## weapon (full item tooltip, Shift comparison with the equipped sword), repairs with the
-## guild bank, and reads the repair in the vault's Money Log. Environment:
+## (docs/specs/merchant-frame.md). One Guild Master funds the Stormwind Guild Vault, is
+## moved (admin set-position) to Janos Hammerknuckle, the Northshire weaponsmith who
+## repairs, hovers a weapon (full item tooltip, Shift comparison with the equipped sword),
+## repairs with the guild bank, and reads the repair in the vault's Money Log. Environment:
 ##   GODOT_TEST_SERVER   private server address
 ##   BANK_CHARACTER      the Guild Master (account BANK_ACCOUNT, password fbtest)
 ##   BANK_SHOTS          screenshot directory
 ##   BANK_ADMIN          game-server-admin binary
 ## Real input only; every result is the server's.
 
-const VENDOR := "Grenil Steelfury"
-const IRONFORGE_VAULT := ["-4902.5", "-994.5", "504.5"]
-const AT_GRENIL := ["-4911.0", "-996.0", "502.6"]
+const VENDOR := "Janos Hammerknuckle"
+# bank_live.gd's Stormwind vault spot; Janos stands at -8909.5,-104.2,82.0.
+const STORMWIND_VAULT := ["-8928.5", "614.0", "100.6"]
+const AT_JANOS := ["-8907.0", "-106.5", "82.6"]
 const DEPOSIT_GOLD := 10
 const ITEM_REPAIR := 7994
 
@@ -30,7 +31,7 @@ func run_test() -> void:
 		return
 	if not await enter_world(OS.get_environment("BANK_CHARACTER")):
 		return
-	for step in [Callable(self, "fund_guild"), Callable(self, "open_grenil"), Callable(self, "weapon_tooltip"), Callable(self, "guild_repair"), Callable(self, "money_log")]:
+	for step in [Callable(self, "fund_guild"), Callable(self, "open_vendor"), Callable(self, "weapon_tooltip"), Callable(self, "guild_repair"), Callable(self, "money_log")]:
 		if not await step.call():
 			return
 	print("FIXTURE MERCHANT_GUILD_LIVE_DONE")
@@ -43,11 +44,19 @@ func move_to(spot: Array) -> bool:
 	print("FIXTURE MOVE ", spot, " ", code, " ", output)
 	if code != 0:
 		return fail("set-position failed")
+	var target := Vector2(float(spot[0]), float(spot[1]))
+	# The client mirrors WoW x,y as Godot x,-z.
+	if not await wait_until(func():
+		var state: Dictionary = client.account_state()
+		var at = state.local_player_position
+		return at != null and Vector2(at.x, -at.z).distance_to(target) < 2.0 and state.terrain.pending_count == 0, "arrival at %s" % [spot]):
+		return false
 	await wait_frames(120)
+	print("FIXTURE AT ", client.account_state().local_player_position)
 	return true
 
-func open_ironforge_vault() -> bool:
-	if not await move_to(IRONFORGE_VAULT):
+func open_vault_at_stormwind() -> bool:
+	if not await move_to(STORMWIND_VAULT):
 		return false
 	if not await click_pickable(func(node): return node.has_meta("game_object_name") and str(node.get_meta("game_object_name")) == VAULT, "game_object_server_id"):
 		return false
@@ -55,7 +64,7 @@ func open_ironforge_vault() -> bool:
 
 ## The Guild Master deposits 10g: the only guild money the repair can use.
 func fund_guild() -> bool:
-	if not await open_ironforge_vault():
+	if not await open_vault_at_stormwind():
 		return false
 	if not await money_prompt("GuildBankFrameDepositButton", "GuildBankMoney", "GuildBankMoneyPopupAccept", DEPOSIT_GOLD, money() - DEPOSIT_GOLD * 10000):
 		return false
@@ -64,8 +73,8 @@ func fund_guild() -> bool:
 	await tap(KEY_ESCAPE)
 	return await wait_until(func(): return not shown("GuildBankFrame"), "vault closed")
 
-func open_grenil() -> bool:
-	if not await move_to(AT_GRENIL):
+func open_vendor() -> bool:
+	if not await move_to(AT_JANOS):
 		return false
 	if not await click_pickable(func(node): return str(node.name) == VENDOR, "unit_server_id"):
 		return false
@@ -77,11 +86,11 @@ func open_grenil() -> bool:
 		return fail("Expected damaged gear and the Guild Master's 10g: " + str(state))
 	if not shown("MerchantGuildBankRepairButton"):
 		return fail("MerchantGuildBankRepairButton not shown")
-	await capture("2-grenil-guild-repair-button")
+	await capture("2-janos-guild-repair-button")
 	return true
 
-## MerchantItem1 (Cutlass): SetMerchantItem's full tooltip, then Shift compares it with the
-## equipped Worn Shortsword.
+## MerchantItem1 (Shortsword): SetMerchantItem's full tooltip, then Shift compares it with
+## the equipped Worn Shortsword.
 func weapon_tooltip() -> bool:
 	var cell := control("MerchantItem1")
 	await hover(cell.get_global_rect().get_center())
@@ -92,14 +101,13 @@ func weapon_tooltip() -> bool:
 	if not (has_line(lines, " Damage|Speed ") and has_line(lines, "damage per second") and has_line(lines, "Durability ") and has_line(lines, "Sell Price:") and has_line(lines, "Item ID: ")):
 		return fail("Vendor weapon tooltip lacks full stats: " + str(lines))
 	await capture("3-weapon-tooltip")
-	push_key(KEY_SHIFT, 0, true)
+	await push_shift(true)
 	var compared := await wait_until(func(): return client.tooltip_state().shopping.size() >= 1, "Shift comparison")
 	if compared:
 		var shopping: Dictionary = client.tooltip_state().shopping[0]
 		print("FIXTURE WEAPON_COMPARE ", shopping.header, " ", shopping.title, " ", shopping.lines)
 		await capture("4-weapon-compare")
-	push_key(KEY_SHIFT, 0, false)
-	await wait_frames(3)
+	await push_shift(false)
 	return compared
 
 func guild_repair() -> bool:
@@ -125,7 +133,7 @@ func guild_repair() -> bool:
 	return await wait_until(func(): return not client.merchant_state().open, "merchant closed")
 
 func money_log() -> bool:
-	if not await open_ironforge_vault():
+	if not await open_vault_at_stormwind():
 		return false
 	await press("GuildBankFrameTab3")
 	if not await wait_until(func(): return log_lines().any(func(line): return line.contains(" for repairs")), "repair in the money log"):
@@ -150,3 +158,13 @@ func hover(point: Vector2) -> void:
 	Input.warp_mouse(point)
 	root.push_input(motion, true)
 	await wait_frames(4)
+
+## Shift down or up as a key event carrying the modifier state.
+func push_shift(pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = KEY_SHIFT
+	event.physical_keycode = KEY_SHIFT
+	event.pressed = pressed
+	event.shift_pressed = pressed
+	root.push_input(event, true)
+	await wait_frames(3)
