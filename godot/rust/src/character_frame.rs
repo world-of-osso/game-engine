@@ -17,7 +17,8 @@ use game_engine_ui_model::damage_meter_data::class_color;
 use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::micro_menu::{
-    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PREFIX, ACTION_SPELLBOOK,
+    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PLAYER_SPELLS, ACTION_QUEST_LOG, MICRO_BUTTONS,
+    MicroMenuView, OpenWindows, micro_button_index, unavailable_message,
 };
 use godot::prelude::*;
 use shared::components::{CombatRatings, DerivedStats, Player, UnitLevel, UnitStats};
@@ -78,8 +79,10 @@ impl GameClient {
             return Ok(());
         }
         self.sync_micro_menu()?;
+        if self.account.session.gameplay_input_allowed() {
+            self.poll_micro_menu_inputs()?;
+        }
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
-            self.poll_character_frame_inputs()?;
             let input = self.physical_input.gameplay_state(self.keyboard_free());
             if self
                 .client_options
@@ -157,7 +160,7 @@ impl GameClient {
         Ok(self.account.send_inventory_request(&request)?)
     }
 
-    fn poll_character_frame_inputs(&mut self) -> Result<(), FrameError> {
+    fn poll_micro_menu_inputs(&mut self) -> Result<(), FrameError> {
         if let Some(mut micro) = self.character_frame.micro_ui.clone() {
             loop {
                 let action = micro.bind_mut().pop_action().to_string();
@@ -170,25 +173,63 @@ impl GameClient {
         Ok(())
     }
 
-    /// A micro-menu button: its native window toggles; one without a native window
-    /// reports that it is not converted.
-    fn micro_button_click(&mut self, action: &str) -> Result<(), String> {
+    /// A micro-menu button toggles its native window; a button whose window is not
+    /// converted yet shows its Retail unavailable line in the error frame.
+    fn micro_button_click(&mut self, action: &str) -> Result<(), FrameError> {
         match action {
             ACTION_CHARACTER => self.toggle_character_frame(),
-            ACTION_SPELLBOOK => self.toggle_spellbook()?,
-            ACTION_MAIN_MENU => self.open_game_menu()?,
-            _ => godot_error!(
-                "Micro menu {} is not converted: no native window",
-                action.trim_start_matches(ACTION_PREFIX)
-            ),
+            ACTION_PLAYER_SPELLS => self.toggle_spellbook()?,
+            ACTION_QUEST_LOG => self.toggle_quest_log(),
+            ACTION_MAIN_MENU => self.toggle_game_menu_from_micro_button()?,
+            _ => match unavailable_message(action) {
+                Some(message) => self.add_world_error(&message)?,
+                None => return Err(format!("Unknown micro menu action {action}").into()),
+            },
         }
         Ok(())
     }
 
+    /// `MainMenuMicroButtonMixin:OnClick`: hides a shown GameMenuFrame, else
+    /// `CloseAllWindows` and shows it.
+    fn toggle_game_menu_from_micro_button(&mut self) -> Result<(), FrameError> {
+        if self.game_menu_ui.is_some() {
+            self.close_game_menu();
+            return Ok(());
+        }
+        self.close_all_windows()?;
+        Ok(self.open_game_menu()?)
+    }
+
+    pub(crate) fn micro_menu_view(&self) -> MicroMenuView {
+        let (hovered, pressed) = self
+            .character_frame
+            .micro_ui
+            .as_ref()
+            .map(|ui| {
+                let ui = ui.bind();
+                let hovered = ui.hovered_button().map(|(name, _)| name);
+                (hovered, ui.pushed_button())
+            })
+            .unwrap_or_default();
+        MicroMenuView {
+            open: OpenWindows {
+                character: self.character_frame.open,
+                player_spells: self.spellbook_open(),
+                quest_log: self.quests.log_open(),
+                game_menu: self.game_menu_ui.is_some(),
+            },
+            hovered: hovered.as_deref().and_then(micro_button_index),
+            pressed: pressed.as_deref().and_then(micro_button_index),
+        }
+    }
+
     fn sync_micro_menu(&mut self) -> Result<(), String> {
         let scale = self.effective_ui_scale();
+        let view = self.micro_menu_view();
         if let Some(ui) = self.character_frame.micro_ui.as_mut() {
-            return ui.bind_mut().set_ui_scale(scale);
+            let mut host = ui.bind_mut();
+            host.set_ui_scale(scale)?;
+            return host.set_state(view);
         }
         self.drawable_fdid(4_708_813);
         let mut ui = RegistryUi::new_alloc();
@@ -197,7 +238,7 @@ impl GameClient {
         let shown = {
             let mut host = ui.bind_mut();
             host.set_ui_scale(scale)
-                .and_then(|()| host.show_micro_menu())
+                .and_then(|()| host.show_micro_menu(view))
         };
         if let Err(error) = shown {
             ui.free();
@@ -337,6 +378,12 @@ impl GameClient {
     pub(super) fn character_frame_snapshot(&self) -> VarDictionary {
         let mut state = VarDictionary::new();
         state.set("open", self.character_frame.open);
+        let view = self.micro_menu_view();
+        let mut micro = VarDictionary::new();
+        for (index, button) in MICRO_BUTTONS.iter().enumerate() {
+            micro.set(button.name, format!("{:?}", view.state(index)).as_str());
+        }
+        state.set("micro", &micro);
         self.character_frame.preview.snapshot(&mut state);
         state.set(
             "world_slots",

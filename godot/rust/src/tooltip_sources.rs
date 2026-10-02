@@ -33,6 +33,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{TargetAuraView, target
 use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::mail_frame_component::ACTION_OPEN_PREFIX;
 use game_engine_ui_model::main_action_bar_component::parse_action_button;
+use game_engine_ui_model::micro_menu::{MICRO_BUTTONS, micro_button_index, micro_button_tooltip};
 use game_engine_ui_model::minimap::{MINIMAP_ZOOM_IN, MINIMAP_ZOOM_OUT};
 use game_engine_ui_model::tooltip_presentation::{
     TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation,
@@ -63,7 +64,7 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 16] = [
+        const SOURCES: [Source; 17] = [
             GameClient::action_button_tooltip,
             GameClient::spellbook_tooltip,
             GameClient::chat_link_tooltip,
@@ -77,6 +78,7 @@ impl GameClient {
             GameClient::auction_tooltip,
             GameClient::quest_reward_tooltip,
             GameClient::bag_bar_tooltip,
+            GameClient::micro_menu_tooltip,
             GameClient::player_aura_tooltip,
             GameClient::target_aura_tooltip,
             GameClient::hud_frame_tooltip,
@@ -383,6 +385,22 @@ impl GameClient {
         drop(ui);
         let tooltip = bag_bar_button_tooltip(&self.merchant.session.inventory, bag);
         let tooltip = self.owned_by(hit, owner, OwnerSide::Left, tooltip)?;
+        Some(HoveredTooltip::text(tooltip))
+    }
+
+    /// `MainMenuBarMicroButtonMixin:EvaluateTooltipVisibility`: `ANCHOR_RIGHT`.
+    fn micro_menu_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, index) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            micro_button_index(name_of(frame)?)
+        })?;
+        drop(ui);
+        let key = MICRO_BUTTONS[index]
+            .binding
+            .and_then(|action| self.client_options.bindings.binding(action))
+            .map(|binding| binding.display());
+        let tooltip = micro_button_tooltip(&self.micro_menu_view(), index, key.as_deref())?;
+        let tooltip = self.owned_by(hit, owner, OwnerSide::Right, tooltip)?;
         Some(HoveredTooltip::text(tooltip))
     }
 
