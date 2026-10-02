@@ -2175,6 +2175,11 @@ impl GameClient {
     }
 
     fn attach_loading_ui(&mut self) -> Result<(), String> {
+        // Entering a world shows the loading screen for both the map's LoadTerrain and the
+        // session's Enter World transition; the screen already up keeps its progress.
+        if self.loading_ui.as_ref().is_some_and(|ui| ui.is_visible()) {
+            return Ok(());
+        }
         let mut ui = ui::RegistryUi::new_alloc();
         self.base_mut().add_child(&ui);
         let error = ui.bind_mut().show_loading();
