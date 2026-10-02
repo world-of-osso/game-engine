@@ -8,13 +8,14 @@ extends "res://tests/world_merchant_live_flow.gd"
 # Required environment (no credential/server defaults): GODOT_TEST_SERVER=127.0.0.1:5197,
 # ZARALDA_TEST_USERNAME, ZARALDA_TEST_PASSWORD, ZARALDA_TEST_CHARACTER,
 # ZARALDA_TEST_SHOTS=<absolute persistent directory>. Capture stdout to that directory.
-# Bounded cold first visit: 240s world wait for local CASC only; never use CDN.
+# Bounded cold first visit: 600s world wait for local CASC only; never use CDN.
+# Observed center tile had 2,134/4,298 placements after the former 240s budget.
 # No buy/sell/repair/junk input. Merchant snapshot exposes names, not item IDs;
 # the authored item tooltip independently supplies the matching Item ID.
 # Native NPC template ID is not exposed here: main must retain server identity evidence.
 
 const ZARALDA := "Zaralda"
-const ZARALDA_WORLD_WAIT_MS := 240000
+const ZARALDA_WORLD_WAIT_MS := 600000
 const MIDNIGHT_ITEMS := {
 	244586: "Smuggler's Leather Wristbands",
 	244589: "Scout's Scaled Bracers",
