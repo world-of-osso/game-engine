@@ -1744,17 +1744,22 @@ impl GameClient {
         }
         if map_changed {
             let _span = profile::span(|| "terrain.enter_loading".to_owned());
+            let span = profile::span(|| "terrain.enter_loading.reset".to_owned());
             self.world_camera.reset();
             self.world_lighting.reset();
             self.world.update_lighting(None);
             // Replication may precede LoadTerrain; entity despawns own object lifetime.
             self.game_objects.update_lighting(None);
             self.mailbox.close();
+            drop(span);
+            let span = profile::span(|| "terrain.enter_loading.reset_terrain".to_owned());
             self.terrain_materials.reset();
             self.world_objects.reset();
             self.global_wmo.reset();
             self.wmo_collision.reset();
+            drop(span);
             self.account.session.screen = SessionScreen::Loading;
+            let _screen = profile::span(|| "terrain.enter_loading.show_screen".to_owned());
             self.show_account_screen(SessionScreen::Loading)?;
         }
         Ok(())
@@ -2035,6 +2040,7 @@ impl GameClient {
             self.sync_logout_overlay()?;
         }
         if screen != SessionScreen::CharacterSelect {
+            let _span = profile::span(|| "screen.preview_reset".to_owned());
             self.character_preview.reset();
         }
         if screen != SessionScreen::InWorld
@@ -2043,6 +2049,7 @@ impl GameClient {
         {
             ui.bind_mut().clear_errors()?;
         }
+        let span = profile::span(|| format!("screen.attach {screen:?}"));
         match screen {
             SessionScreen::CharacterSelect => self.attach_character_ui()?,
             SessionScreen::CharacterCreate => self.attach_create_ui()?,
@@ -2061,6 +2068,8 @@ impl GameClient {
                 }
             }
         }
+        drop(span);
+        let _span = profile::span(|| "screen.startup_panel".to_owned());
         self.apply_startup_panel(screen)?;
         self.set_account_ui_visibility(screen);
         let name = GString::from(format!("{screen:?}").as_str());

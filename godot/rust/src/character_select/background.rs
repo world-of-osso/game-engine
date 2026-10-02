@@ -100,7 +100,9 @@ impl Background {
         minutes: f32,
         camera: Vector3,
     ) -> Result<(), String> {
+        let span = crate::profile::span(|| "preview.background.terrain_poll".to_owned());
         self.terrain.poll()?;
+        drop(span);
         let state = self.terrain.state();
         if let Some(error) = state.map_error {
             return Err(format!("Character background map: {error}"));
@@ -111,14 +113,21 @@ impl Background {
                 failure.tile, failure.error
             ));
         }
+        let span = crate::profile::span(|| "preview.background.lighting".to_owned());
         self.sync_lighting(root, model, minutes, camera)?;
+        drop(span);
+        let span = crate::profile::span(|| "preview.background.materials".to_owned());
         self.materials.sync(root, &self.terrain)?;
+        drop(span);
         // Campsite tiles are fixed authored scenery: a tile that cannot render fails the
         // background exactly like a tile that cannot parse.
         if let Some(error) = self.materials.failures().values().next() {
             return Err(format!("Character background {error}"));
         }
+        let span = crate::profile::span(|| "preview.background.objects".to_owned());
         self.objects.sync(root, &self.terrain);
+        drop(span);
+        let _span = crate::profile::span(|| "preview.background.sky".to_owned());
         self.sync_sky(root)
     }
 
