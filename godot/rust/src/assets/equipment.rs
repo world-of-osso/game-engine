@@ -197,11 +197,16 @@ impl EquipmentContext<'_> {
             )
         })?;
         let authored_path = Path::new(&authored);
-        let bound = slot_uses_bound_joints(definition.slot, authored_path);
-        let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
         let cached = load_model_files(self.resolver, self.data_root, definition.fdid)?;
-        let path = GString::from(cached.path.to_string_lossy().as_ref());
         let parsed = &cached.model;
+        let bound = slot_uses_bound_joints(
+            definition.slot,
+            authored_path,
+            &parsed.bones,
+            parsed.submeshes.iter().map(|mesh| mesh.mesh_part_id),
+        );
+        let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
+        let path = GString::from(cached.path.to_string_lossy().as_ref());
         cache_model_textures(
             self.resolver,
             self.data_root,
@@ -213,7 +218,7 @@ impl EquipmentContext<'_> {
         } else {
             None
         };
-        let collection = is_collection_model(authored_path);
+        let collection = bound && is_collection_model(authored_path);
         let (mut item, missing) =
             build_model_filtered(parsed, &path, &definition.skin_fdids, None, |part| {
                 if collection {
@@ -414,6 +419,28 @@ mod tests {
         // An unknown CRC on a non-key bone past the character's bones has no joint.
         let unknown = [crc(-1, 22), crc(-1, 11), crc(6, 0), crc(-1, 99)];
         assert!(map_equipment_bones(&character, &unknown).is_err());
+    }
+
+    #[test]
+    fn skeletal_waist_missing_root_joint_remains_an_error() {
+        let path = Path::new("item/objectcomponents/collections/belt.m2");
+        let character = [bone(0), bone(6)];
+        let item = [m2::Bone {
+            flags: 0x200,
+            name_crc: 3_962_896_125,
+            ..bone(-1)
+        }];
+        assert!(slot_uses_bound_joints(
+            EquipmentSlot::Waist,
+            path,
+            &item,
+            [1801]
+        ));
+        assert!(
+            map_equipment_bones(&character, &item)
+                .unwrap_err()
+                .contains("no character joint")
+        );
     }
 
     #[test]
