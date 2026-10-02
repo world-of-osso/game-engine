@@ -214,7 +214,9 @@ impl TerrainMaterials {
                 collision,
             ));
         }
+        let span = crate::profile::span(|| "terrain.water".to_owned());
         let water = self.water.build(&parsed.root, &parsed.liquid_materials)?;
+        drop(span);
         // Allocate manual-lifetime nodes only after all fallible resource construction.
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Tile{}_{}", tile.0, tile.1));
@@ -235,8 +237,10 @@ impl TerrainMaterials {
         shader: &Gd<Shader>,
     ) -> Result<Gd<ShaderMaterial>, String> {
         let inputs = ChunkMaterialInputs::new(parsed, layers)?;
+        let span = crate::profile::span(|| "terrain.set_shader".to_owned());
         let mut material = ShaderMaterial::new_gd();
         material.set_shader(shader);
+        drop(span);
         material.set_shader_parameter("config", &vector4(inputs.config).to_variant());
         self.bind_layer_textures(&mut material, &inputs.textures)?;
         for slot in 0..4 {
