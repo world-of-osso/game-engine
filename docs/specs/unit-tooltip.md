@@ -26,7 +26,8 @@ References:
 - [x] Grey (poor) items never appear in the Drops section: loot turns them into coins (game-server `loot.md`).
 - [x] Collected state is the account collection the server sends (`AppearanceCollectionUpdate`, `AccountAppearances`); a newly learned appearance updates an open tooltip.
 - [x] IPC `hover --npc NAME` / `hover --x X --y Y` puts the cursor on the nearest on-screen NPC of that name or on a window point, for headless proof.
-- [ ] Not built: health bar under the name (TDR:130-141), PvP and classification lines ("Elite", "Rare", "Level ??" for bosses and skull levels), level colour by difficulty, class-coloured class name, tooltip fade-out, the `Cursor` and `Nameplate` world-cursor anchor types, gameobject tooltips.
+- [x] Classification on the level line from the replicated `CreatureClassification` (`creature_template.rank`): `UNIT_TYPE_PLUS_LEVEL_TEMPLATE` "Level %d Elite %s" for elites, `UNIT_TYPE_LETHAL_LEVEL_TEMPLATE` "Level ?? %s" for world bosses (GlobalStrings 10997-10999); rares and rare elites put `MAP_LEGEND_RARE` "Rare" / `MAP_LEGEND_RAREELITE` "Rare Elite" in the elite slot (the client builds this line in C++; no Lua source, so the rare wording is unverified). Timber: "Level 10 Rare Beast" live at `d4b40930` (`godot/tests/unitrank_live.gd`, `data/diagnostics/unitrank-2026-10-02/`). The TargetFrame draws `CheckClassification`'s gold or silver dragon and rare star (TargetFrame.lua:436-462) at their Retail anchors around the undrawn portrait.
+- [ ] Not built: health bar under the name (TDR:130-141), PvP lines, "Level ??" for skull levels, level colour by difficulty, class-coloured class name, tooltip fade-out, the `Cursor` and `Nameplate` world-cursor anchor types, gameobject tooltips.
 
 ## Tests asserting this spec
 
