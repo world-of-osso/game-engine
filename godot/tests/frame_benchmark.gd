@@ -12,7 +12,11 @@ extends SceneTree
 ## Each segment prints `BENCH_MARK <segment> start|end` (for an external profiler) and
 ## `BENCH_SEGMENT {json}`: wall-clock frame interval percentiles, per-frame means of the
 ## client's own process time and the viewport's render CPU time, and the means of Godot's
-## TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the longest step of the last second).
+## TIME_PROCESS/TIME_PHYSICS_PROCESS monitors (each the longest step of the last second),
+## the viewport's GPU render time, and the main thread's on-CPU time per frame
+## (/proc/thread-self/schedstat), so a frame splits into main-thread work and waiting.
+## Run with Godot's --gpu-profile and `render_areas` adds the mean CPU ms per frame of each
+## renderer timestamp area (the time until the next timestamp), the 15 largest.
 ## Reports only; frame-time budgets are not asserted (they depend on host load).
 
 const PASSWORD := "fbtest"
@@ -34,6 +38,10 @@ var process_ms: Array[float] = []
 var physics_ms: Array[float] = []
 var render_ms: Array[float] = []
 var draw_calls: Array[float] = []
+var gpu_ms: Array[float] = []
+var main_cpu_ms: Array[float] = []
+var last_cpu_ns := 0
+var area_ms := {}
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -41,6 +49,7 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	# Wall clock: Godot caps the process delta, so the delta hides a stall.
 	var now := Time.get_ticks_usec()
+	var cpu_ns := thread_cpu_ns()
 	if recording and last_usec > 0:
 		intervals.append((now - last_usec) / 1000.0)
 		client_ms.append(client.process_ms())
@@ -49,7 +58,11 @@ func _process(_delta: float) -> bool:
 		render_ms.append(RenderingServer.viewport_get_measured_render_time_cpu(root.get_viewport_rid())
 			+ RenderingServer.get_frame_setup_time_cpu())
 		draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+		gpu_ms.append(RenderingServer.viewport_get_measured_render_time_gpu(root.get_viewport_rid()))
+		main_cpu_ms.append((cpu_ns - last_cpu_ns) / 1e6)
+		add_render_areas()
 	last_usec = now
+	last_cpu_ns = cpu_ns
 	return false
 
 func run_test() -> void:
@@ -122,8 +135,9 @@ func measure(segment: String, seconds: float, step: Callable) -> void:
 	finish(segment, {})
 
 func begin(segment: String) -> void:
-	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls]:
+	for samples in [intervals, client_ms, process_ms, physics_ms, render_ms, draw_calls, gpu_ms, main_cpu_ms]:
 		samples.clear()
+	area_ms.clear()
 	print("BENCH_MARK %s start" % segment)
 	recording = true
 	last_usec = 0
@@ -140,9 +154,28 @@ func finish(segment: String, extra: Dictionary) -> void:
 		"mean_ms": mean(intervals), "client_process_ms": mean(client_ms),
 		"godot_process_max_1s_ms": mean(process_ms), "physics_max_1s_ms": mean(physics_ms),
 		"render_cpu_ms": mean(render_ms), "draw_calls": mean(draw_calls), "load": load_average(),
+		"render_gpu_ms": mean(gpu_ms), "main_thread_cpu_ms": mean(main_cpu_ms),
 	}
+	if not area_ms.is_empty():
+		var names := area_ms.keys()
+		names.sort_custom(func(a, b): return area_ms[a] > area_ms[b])
+		var areas := {}
+		for name in names.slice(0, 15):
+			areas[name] = area_ms[name] / sorted.size()
+		report["render_areas"] = areas
 	report.merge(extra)
 	print("BENCH_SEGMENT ", JSON.stringify(report))
+
+## CPU ms between consecutive renderer timestamps of the last captured frame, per area.
+func add_render_areas() -> void:
+	var device := RenderingServer.get_rendering_device()
+	var count := device.get_captured_timestamps_count() if device != null else 0
+	for i in range(count - 1):
+		var name := device.get_captured_timestamp_name(i)
+		if name.begins_with("<") or name.begins_with(">"):
+			continue
+		var ms := (device.get_captured_timestamp_cpu_time(i + 1) - device.get_captured_timestamp_cpu_time(i)) / 1000.0
+		area_ms[name] = area_ms.get(name, 0.0) + ms
 
 ## Per class: nodes, nodes with process/physics process enabled, visible 3D nodes.
 func node_census(top: Node) -> Dictionary:
@@ -171,6 +204,11 @@ func mean(values: Array[float]) -> float:
 	for value in values:
 		total += value
 	return total / values.size() if not values.is_empty() else 0.0
+
+## The main thread's scheduled run time (/proc/thread-self/schedstat), in nanoseconds.
+func thread_cpu_ns() -> int:
+	var file := FileAccess.open("/proc/thread-self/schedstat", FileAccess.READ)
+	return int(file.get_line().split(" ")[0]) if file != null else 0
 
 func load_average() -> String:
 	var file := FileAccess.open("/proc/loadavg", FileAccess.READ)

@@ -2,7 +2,7 @@
 """Run godot/tests/frame_benchmark.gd in a headless cage and profile each segment.
 
 Usage: frame-benchmark.py --checkout DIR --server HOST:PORT --account A --character C
-           --log FILE [--agent NAME] [--perf [--call-graph]]
+           --log FILE [--agent NAME] [--perf [--call-graph]] [--gpu-profile]
            [--place X Y Z --admin game-server-admin --admin-socket SOCK] [KEY=VALUE ...]
 
 --place puts the offline character back at WoW position X Y Z first (its facing is kept;
@@ -52,6 +52,8 @@ def main():
     parser.add_argument("--perf", action="store_true")
     parser.add_argument("--call-graph", action="store_true",
                         help="with --perf, record DWARF call graphs (inclusive cost per caller)")
+    parser.add_argument("--gpu-profile", action="store_true",
+                        help="run Godot with --gpu-profile, so segments report render_areas")
     parser.add_argument("--timeout", type=int, default=1500)
     parser.add_argument("--place", nargs=3)
     parser.add_argument("--admin")
@@ -69,7 +71,8 @@ def main():
     env.setdefault("XDG_CONFIG_HOME", str(Path.home() / ".cache/frame-benchmark/xdg"))
     Path(env["XDG_CONFIG_HOME"]).mkdir(parents=True, exist_ok=True)
     env.update(item.split("=", 1) for item in args.env)
-    godot = f"{GODOT} --path {checkout}/godot -s res://tests/frame_benchmark.gd"
+    profile = " --gpu-profile" if args.gpu_profile else ""
+    godot = f"{GODOT}{profile} --path {checkout}/godot -s res://tests/frame_benchmark.gd"
     command = ["cage", "--", "sh", "-c", f"exec {godot} >> {log} 2>&1"]
     if args.agent:
         command = [AGENT_RUN, args.agent] + command
