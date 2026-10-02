@@ -31,7 +31,16 @@ fn load_bytes(path: &str) -> Result<Vec<u8>, String> {
     fs::read(asset_path(path)).map_err(|error| format!("Read authored UI asset {path}: {error}"))
 }
 
+thread_local! {
+    /// Parsed font files shared by every UI: Godot caches glyphs per font and size, so
+    /// one `FontFile` serves all labels.
+    static FONTS: RefCell<HashMap<GameFont, Gd<FontFile>>> = RefCell::new(HashMap::new());
+}
+
 pub fn load_font(font: GameFont) -> Result<Gd<FontFile>, String> {
+    if let Some(loaded) = FONTS.with_borrow(|fonts| fonts.get(&font).cloned()) {
+        return Ok(loaded);
+    }
     let _span = crate::profile::span(|| format!("ui.load_font {font:?}"));
     let path = match font {
         GameFont::FrizQuadrata => "data/fonts/FRIZQT__.TTF",
@@ -40,6 +49,7 @@ pub fn load_font(font: GameFont) -> Result<Gd<FontFile>, String> {
     let bytes = load_bytes(path)?;
     let mut resource = FontFile::new_gd();
     resource.set_data(&PackedByteArray::from(bytes.as_slice()));
+    FONTS.with_borrow_mut(|fonts| fonts.insert(font, resource.clone()));
     Ok(resource)
 }
 
