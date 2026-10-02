@@ -6,7 +6,7 @@
 //! not shown.
 
 use crate::bag_data::InventorySlot;
-use crate::item_catalog::{ItemCatalogEntry, item_catalog_entry, item_subclass_name};
+use crate::item_catalog::{ItemCatalogEntry, item_catalog, item_subclass_name};
 use crate::item_stats::{ItemStat, item_armor, item_stats, weapon_damage};
 use crate::merchant_data::quality_color;
 
@@ -17,6 +17,9 @@ use crate::tooltip_presentation::{
 
 /// `RED_FONT_COLOR`.
 pub const RED_FONT_COLOR: [f32; 4] = [1.0, 0.125, 0.125, 1.0];
+/// `RETRIEVING_ITEM_INFO`: the red title of an item whose data has not arrived
+/// (`ContainerFrameItemButtonMixin:OnUpdateTooltip` while `GetItemInfo` is nil).
+pub const RETRIEVING_ITEM_INFO: &str = "Retrieving item information";
 /// `GREEN_FONT_COLOR`: secondary stats.
 pub const GREEN_FONT_COLOR: [f32; 4] = [0.1, 1.0, 0.1, 1.0];
 const ITEM_CLASS_WEAPON: u8 = 2;
@@ -34,7 +37,17 @@ struct TooltipItem<'a> {
 
 pub fn item_tooltip(slot: &InventorySlot, player_level: Option<u16>) -> TooltipPresentation {
     let item = TooltipItem { slot, player_level };
-    let entry = item_catalog_entry(slot.item_id);
+    let Some(catalog) = item_catalog() else {
+        return TooltipPresentation {
+            visible: true,
+            x: 0.0,
+            y: 0.0,
+            title: RETRIEVING_ITEM_INFO.into(),
+            title_color: RED_FONT_COLOR,
+            lines: Vec::new(),
+        };
+    };
+    let entry = catalog.get(slot.item_id);
     TooltipPresentation {
         visible: true,
         x: 0.0,

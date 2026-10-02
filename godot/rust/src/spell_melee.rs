@@ -74,7 +74,10 @@ impl SpellEffects {
             return Ok(());
         };
         let roll = self.vocal_roll();
-        let sound = self.catalog()?.exertion_sound(voice, result, roll).cloned();
+        let Some(catalog) = self.catalog()? else {
+            return Ok(());
+        };
+        let sound = catalog.exertion_sound(voice, result, roll).cloned();
         self.play_melee(sound, event.attacker, SoundSource::Voice, world)
     }
 
@@ -119,7 +122,10 @@ impl SpellEffects {
         let Some(&voice) = self.voices.get(&unit) else {
             return Ok(());
         };
-        let sound = self.catalog()?.unit_sound(voice, sound).cloned();
+        let Some(catalog) = self.catalog()? else {
+            return Ok(());
+        };
+        let sound = catalog.unit_sound(voice, sound).cloned();
         self.play_melee(sound, unit, SoundSource::Voice, world)
     }
 
@@ -131,7 +137,10 @@ impl SpellEffects {
         let Some(hand) = self.hand(unit, world) else {
             return Ok(());
         };
-        let sound = self.catalog()?.swing_sound(hand, result).cloned();
+        let Some(catalog) = self.catalog()? else {
+            return Ok(());
+        };
+        let sound = catalog.swing_sound(hand, result).cloned();
         self.play_melee(sound, unit, SoundSource::Swing, world)
     }
 
@@ -146,7 +155,9 @@ impl SpellEffects {
             return Ok(());
         };
         let roll = self.vocal_roll();
-        let catalog = self.catalog()?;
+        let Some(catalog) = self.catalog()? else {
+            return Ok(());
+        };
         let impact = catalog
             .impact_sound(attacker, victim, swing.result)
             .cloned();

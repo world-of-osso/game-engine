@@ -110,7 +110,10 @@ impl SpellEffects {
         let Some(visual) = self.visual(aura.spell_id, aura.caster, units, world)? else {
             return Ok(Vec::new());
         };
-        let kits = self.catalog()?.kits(visual, event);
+        let Some(catalog) = self.catalog()? else {
+            return Ok(Vec::new());
+        };
+        let kits = catalog.kits(visual, event);
         let hits = [aura.unit];
         let cast_units = CastUnits {
             caster: aura.caster,

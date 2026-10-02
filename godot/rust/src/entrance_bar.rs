@@ -16,6 +16,7 @@ use godot::classes::FontFile;
 use godot::prelude::*;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::background_load::BackgroundLoad;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
 const DB2_DIR: &str = "db2/12.1.0.69933";
@@ -32,9 +33,11 @@ const BOX_EASE_RATE: f32 = 12.0;
 const SPINNER_SECS: f32 = 2.0;
 const SPINNER_TURN: f32 = -4.0 * std::f32::consts::PI;
 
-#[derive(Default)]
 pub(crate) struct EntranceBar {
-    catalog: Option<Result<EntranceCatalog, String>>,
+    /// Loaded from client start; the bar stays hidden until it is.
+    catalog: BackgroundLoad<Result<EntranceCatalog, String>>,
+    /// The load failure was reported.
+    catalog_failure_reported: bool,
     font: Option<Gd<FontFile>>,
     ui: Option<Gd<RegistryUi>>,
     /// The entrance the player stands at, and its 2D distance.
@@ -50,6 +53,23 @@ pub(crate) struct EntranceBar {
 }
 
 impl EntranceBar {
+    pub(crate) fn new(data_root: &std::path::Path) -> Self {
+        let db2 = data_root.join(DB2_DIR);
+        Self {
+            catalog: BackgroundLoad::start("entrance-catalog", move || EntranceCatalog::load(&db2)),
+            catalog_failure_reported: false,
+            font: None,
+            ui: None,
+            target: None,
+            shown: None,
+            recheck_in: 0.0,
+            frame_alpha: 0.0,
+            bar_alpha: 0.0,
+            box_left: None,
+            spinner: None,
+        }
+    }
+
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
@@ -61,7 +81,7 @@ impl EntranceBar {
     }
 
     fn catalog(&self) -> Option<&EntranceCatalog> {
-        self.catalog.as_ref()?.as_ref().ok()
+        self.catalog.loaded()?.as_ref().ok()
     }
 
     pub(crate) fn close(&mut self) {
@@ -164,15 +184,17 @@ impl GameClient {
             self.entrance_bar.close();
             return Ok(());
         }
-        if self.entrance_bar.catalog.is_none() {
-            let loaded = EntranceCatalog::load(&self.data_root.join(DB2_DIR));
-            if let Err(error) = &loaded {
-                godot_error!("Entrance difficulty bar disabled: {error}");
+        let bar = &mut self.entrance_bar;
+        match bar.catalog.poll() {
+            None => return Ok(()),
+            Some(Err(error)) => {
+                if !bar.catalog_failure_reported {
+                    godot_error!("Entrance difficulty bar disabled: {error}");
+                    bar.catalog_failure_reported = true;
+                }
+                return Ok(());
             }
-            self.entrance_bar.catalog = Some(loaded);
-        }
-        if self.entrance_bar.catalog().is_none() {
-            return Ok(());
+            Some(Ok(_)) => {}
         }
         self.track_entrance(delta);
         self.poll_entrance_bar_actions()?;
