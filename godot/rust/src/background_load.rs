@@ -32,6 +32,19 @@ impl<T: Send + 'static> BackgroundLoad<T> {
         self.loaded.as_ref()
     }
 
+    /// The result, waiting for the thread when it still loads.
+    pub(crate) fn wait(&mut self) -> &T {
+        if let Some(worker) = self.worker.take() {
+            let loaded = worker
+                .join()
+                .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+            self.loaded = Some(loaded);
+        }
+        self.loaded
+            .as_ref()
+            .expect("a background load has its thread or its result")
+    }
+
     /// The result taken by an earlier `poll`.
     pub(crate) fn loaded(&self) -> Option<&T> {
         self.loaded.as_ref()
@@ -68,5 +81,25 @@ mod tests {
             std::thread::yield_now();
         }
         assert_eq!(table.loaded(), Some(&vec![2589, 4865]));
+    }
+
+    /// `wait` blocks until the thread is done, then keeps its result.
+    #[test]
+    fn wait_takes_the_result_once_the_thread_is_done() {
+        let (release, gate) = std::sync::mpsc::channel::<()>();
+        let mut table = BackgroundLoad::start("test-table", move || {
+            gate.recv().expect("released");
+            vec![2589_u32, 4865]
+        });
+        let releaser = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(50));
+            release.send(()).expect("thread waiting");
+        });
+        let started = Instant::now();
+        assert_eq!(table.wait(), &vec![2589, 4865]);
+        assert!(started.elapsed() >= Duration::from_millis(50));
+        releaser.join().expect("releaser");
+        assert_eq!(table.wait(), &vec![2589, 4865]);
+        assert_eq!(table.poll(), Some(&vec![2589, 4865]));
     }
 }

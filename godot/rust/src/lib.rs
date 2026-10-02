@@ -66,8 +66,8 @@ mod quests;
 mod replicated;
 mod scene;
 mod scene_export;
-mod shader_warmup;
 mod selection_debug;
+mod shader_warmup;
 mod skybox_debug;
 mod sound;
 mod sound_client;
@@ -146,6 +146,8 @@ pub struct GameClient {
     create_ui: Option<Gd<ui::RegistryUi>>,
     character_preview: character_select::CharacterPreview,
     campsite: CampsiteState,
+    /// The authored campsites, read off the main thread from the client's start.
+    campsites: background_load::BackgroundLoad<Result<CampsiteState, String>>,
     creation_scene: char_create::CreationScene,
     delete_confirmation: DeleteConfirmation,
     creation: Option<char_create::CharCreateState>,
@@ -268,6 +270,12 @@ impl INode3D for GameClient {
             startup_events: Vec::new(),
             character_preview: character_select::CharacterPreview::new(data_root.clone()),
             campsite: CampsiteState::default(),
+            campsites: {
+                let data_root = data_root.clone();
+                background_load::BackgroundLoad::start("campsites", move || {
+                    authored_campsites(&data_root)
+                })
+            },
             creation_scene: char_create::CreationScene::new(data_root.clone()),
             loading_ui: None,
             errors_ui: None,
@@ -2167,10 +2175,13 @@ impl GameClient {
         );
         self.delete_confirmation.clear();
         let span = profile::span(|| "attach.campsites".to_owned());
-        let campsites = authored_campsites(&self.data_root, self.campsite.selected_id);
+        let campsites = self.campsites.wait().clone();
         drop(span);
         let result = campsites.and_then(|campsite| {
-            self.campsite = campsite;
+            self.campsite = CampsiteState {
+                selected_id: self.campsite.selected_id.or(campsite.selected_id),
+                ..campsite
+            };
             let _span = profile::span(|| "attach.roster_state".to_owned());
             ui.bind_mut().set_state(state)?;
             let _span = profile::span(|| "attach.campsite_state".to_owned());
@@ -2291,10 +2302,8 @@ fn credential_field(credentials: &VarDictionary, name: &str) -> Result<String, S
 }
 
 /// Campsite selector entries from the authored Warband catalog, panel closed.
-fn authored_campsites(
-    data_root: &std::path::Path,
-    selected: Option<u32>,
-) -> Result<CampsiteState, String> {
+/// The authored campsites, the first selected.
+fn authored_campsites(data_root: &std::path::Path) -> Result<CampsiteState, String> {
     use game_engine_core::warband_scene_data::{read_authored_catalog, read_texture_kit_art};
     let catalog = read_authored_catalog(data_root)?;
     let kits: Vec<u32> = catalog
@@ -2304,7 +2313,7 @@ fn authored_campsites(
         .collect();
     let art = read_texture_kit_art(data_root, &kits)?;
     Ok(CampsiteState {
-        selected_id: selected.or_else(|| catalog.scenes.first().map(|scene| scene.id)),
+        selected_id: catalog.scenes.first().map(|scene| scene.id),
         scenes: catalog
             .scenes
             .iter()
