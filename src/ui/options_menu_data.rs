@@ -1,12 +1,12 @@
 //! Shared Options UI policy. Runtime resources, input events and persistence remain host-owned.
 use crate::client_options_data::{
-    self, CameraOptionsFile, GraphicsOptionsFile, HudOptionsFile, InteractKeyIcons,
-    SoftTargetOptions, SoundOptionsFile,
+    self, CameraOptionsFile, GraphicsOptionsFile, HudOptionsFile, SoundOptionsFile,
 };
 use crate::input_bindings_data::{
     BindingSection, InputAction, InputBinding, InputBindingsData, actions_for_section,
 };
 use crate::nameplate_style_data::{NameplateStyle, StyleSlider};
+use crate::soft_target_data::{InteractKeyIcons, SoftTargetOptions};
 use crate::ui::screens::game_menu_component::{GameMenuView, GameMenuViewModel};
 use crate::ui::screens::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,

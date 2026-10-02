@@ -10,8 +10,8 @@
 //! `SoftTargetLowPriorityIcons` 0. They live in `hud.softTarget` of the options file; the
 //! Accessibility "Interact Key Icons" choice sets the icon ones.
 
-use game_engine_core::client_options_data::{SoftTargetArc, SoftTargetOptions};
 use game_engine_core::input_bindings_data::InputAction;
+use game_engine_core::soft_target_data::{SoftTargetArc, SoftTargetOptions};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
 use godot::classes::{
@@ -333,7 +333,7 @@ mod tests {
     use shared::protocol::NpcFlags;
 
     use super::*;
-    use game_engine_core::client_options_data::InteractKeyIcons;
+    use game_engine_core::soft_target_data::InteractKeyIcons;
 
     /// A WoW world point `(x, y, z)` in a frame isometric to the client's (ground plane
     /// X/Z, height Y); selection only measures distances and angles.

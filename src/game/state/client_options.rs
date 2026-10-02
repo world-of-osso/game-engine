@@ -202,8 +202,8 @@ impl GraphicsOptions {
     }
 }
 
-pub use game_engine::client_options_data::SoftTargetOptions;
 pub use game_engine::nameplate_style::NameplateStyle;
+pub use game_engine::soft_target_data::SoftTargetOptions;
 pub use game_engine::ui::screens::options_menu_component::NameplateBarThickness;
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]

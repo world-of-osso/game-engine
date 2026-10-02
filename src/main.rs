@@ -38,7 +38,9 @@ mod cache_source_mtime;
 mod cache_sqlite;
 #[path = "realm_preset_data.rs"]
 mod realm_preset_data;
-use game_engine::{camera_control_data, input_bindings_data, nameplate_style_data};
+use game_engine::{
+    camera_control_data, input_bindings_data, nameplate_style_data, soft_target_data,
+};
 mod cli_args;
 mod collision;
 mod csv_util;

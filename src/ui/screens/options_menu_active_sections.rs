@@ -12,8 +12,8 @@ use super::options_menu_component::{
     SoundOptionsView, keybinding_clear_action, keybinding_rebind_action, keybinding_section_action,
 };
 use super::options_menu_sections;
-use crate::client_options_data::InteractKeyIcons;
 use crate::input_bindings::BindingSection;
+use crate::soft_target_data::InteractKeyIcons;
 
 #[path = "options_menu_active_sections_keybindings.rs"]
 mod keybindings_section;

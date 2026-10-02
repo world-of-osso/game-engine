@@ -62,7 +62,7 @@ fn invalid_graphics_and_invalid_sound_fail() {
 
 #[test]
 fn soft_interact_settings_default_to_retail_and_persist() {
-    use crate::client_options_data::{InteractKeyIcons, SoftTargetArc};
+    use crate::soft_target_data::{InteractKeyIcons, SoftTargetArc};
     let file = ClientOptionsFile::default();
     assert!(!file.hud.soft_target_interact);
     let soft = file.hud.soft_target;
@@ -93,7 +93,7 @@ fn soft_interact_settings_default_to_retail_and_persist() {
 
 #[test]
 fn interact_key_icons_dropdown_sets_and_reads_the_icon_cvars() {
-    use crate::client_options_data::{InteractKeyIcons, SoftTargetOptions};
+    use crate::soft_target_data::{InteractKeyIcons, SoftTargetOptions};
     let mut soft = SoftTargetOptions::default();
     soft.set_interact_key_icons(InteractKeyIcons::ShowAll);
     assert!(

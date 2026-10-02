@@ -122,7 +122,7 @@ fn sound_and_bindings_actions_project_reset_and_commit() {
 
 #[test]
 fn interact_key_icons_choice_projects_and_commits_the_icon_cvars() {
-    use game_engine_core::client_options_data::InteractKeyIcons;
+    use game_engine_core::soft_target_data::InteractKeyIcons;
     let mut m = model();
     m.category = OptionsCategory::Accessibility;
     assert_eq!(
