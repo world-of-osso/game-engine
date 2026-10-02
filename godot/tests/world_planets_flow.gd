@@ -36,7 +36,7 @@ func run_test() -> void:
 			fail("%s: disc %s not shown (%s)" % [fields[0], fields[2], disc])
 			return
 		var camera := client.get_node("WorldCamera") as Camera3D
-		var centre := camera.unproject_position(disc.global_position)
+		var centre := await aim(camera, disc, float(fields[3]), float(fields[4]), float(fields[5]))
 		var in_view := not camera.is_position_behind(disc.global_position) and Rect2(Vector2.ZERO, Vector2(root.size)).has_point(centre)
 		print("FIXTURE PLANET %s fdid=%s centre=%s in_view=%s direction=%s" % [fields[0], fields[2], centre, in_view, (disc.global_position - camera.global_position).normalized()])
 		if not in_view:
@@ -48,6 +48,21 @@ func run_test() -> void:
 	print("FIXTURE WORLD_PLANETS_DONE")
 	client.free()
 	quit(0)
+
+## Turns the orbit camera from (`yaw`, `pitch`) until the disc projects near the screen
+## centre (raising the pitch lowers the disc on screen; raising the yaw moves it right).
+func aim(camera: Camera3D, disc: MeshInstance3D, yaw: float, pitch: float, distance: float) -> Vector2:
+	var centre := camera.unproject_position(disc.global_position)
+	for step in 8:
+		if not camera.is_position_behind(disc.global_position) and centre.distance_to(Vector2(root.size) / 2) < 120:
+			break
+		yaw -= clampf((centre.x - root.size.x / 2) * 0.0008, -0.5, 0.5)
+		pitch = clampf(pitch + clampf((root.size.y / 2 - centre.y) * 0.0004, -0.3, 0.3), -1.4, 1.4)
+		client.set_camera_orbit(yaw, pitch, distance)
+		await wait_frames(3)
+		centre = camera.unproject_position(disc.global_position)
+	print("FIXTURE AIM yaw=%s pitch=%s" % [yaw, pitch])
+	return centre
 
 func check_disc(shot: String, disc: MeshInstance3D, centre: Vector2i) -> bool:
 	await RenderingServer.frame_post_draw
