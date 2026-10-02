@@ -47,6 +47,20 @@ impl WowAssetLoader {
         result_image(read_asset(&path).and_then(|data| blp::decode_rgba(&data)))
     }
 
+    /// Compiles the next used M2 pipeline's shaders (`material::compile_next_used_shader`):
+    /// `{compiled}`, false once none remain, or `{error}`.
+    #[func]
+    fn compile_next_used_shader(&self) -> VarDictionary {
+        match material::compile_next_used_shader() {
+            Ok(compiled) => {
+                let mut result = VarDictionary::new();
+                result.set("compiled", compiled);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
     #[func]
     fn load_m2(&self, path: GString) -> VarDictionary {
         model_result(load_model_node(&path))
