@@ -2460,3 +2460,15 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 ## 2026-10-01 — Godot Wayland exit hang (investigation)
 
 [godot-wayland-exit-hang](investigations/godot-wayland-exit-hang.md): quit() hangs root-caused to Godot 4.7.2 WaylandThread::destroy() roundtrip race; upstream PR #123946 removes it (0/180 vs 14/190).
+
+## 2026-10-01 — Zaralda appearance and rigid-waist evidence (task-date update)
+
+Updated [model/gear investigation](investigations/npc-stance-gear.md#zaralda-rigid-waist-binding-verified-task-date-2026-10-01), fixture reference and index. Independent appearance report preserves 113,120 rows; unavailable encrypted geosets exclude completeness. Recorded matched protocol/InWorld, actual binding failure, fix 016b0fce/207aea4e and supplied Depot z7mpr71q0v CPU 27/27 only. Commit timestamps are 2026-10-01 -0500; task evidence date retained, not a new verification timestamp. New native build/window gate pending main; overall goal open. Docs only; no tests/builds/commits.
+
+## 2026-10-01 — Zaralda derived-friendly/native boundary (evidence date)
+
+Recorded supplied retained binding PASS, 116-mesh/frustum/posed-torso native evidence and body-point/cold-setup fixture revisions 17d77fcb/d2084de7. Linked server faction SSOT; merchant-window acceptance remains pending main. Evidence dated October 1, not a new runtime verification timestamp. Docs-only update; no code/data/PLAN changes, commits, builds, tests or service actions.
+
+## 2026-10-01 — Zaralda final observed-proof reconciliation (task evidence)
+
+Updated existing Zaralda SSOT and linked specs/reference/index: native-friendly exit0 / 529.10s now observes actual merchant pick/title/tooltip/backpack/close. Retained historical RED attempts, independent gate114 source/import proof and renderer/cache limits; gate116 artifact audit gives scoped PASS for the saved native flow and three current AH receipts. Server SSOT separates current three AH receipts from pinned old-binary performance. Prior uncommitted docs preserved; no tests, builds, commits, data/source/PLAN edits or service operations.
