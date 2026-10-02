@@ -68,6 +68,7 @@ mod scene;
 mod scene_export;
 mod selection_debug;
 mod shader_warmup;
+mod sky_model;
 mod skybox_debug;
 mod sound;
 mod sound_client;
@@ -96,7 +97,7 @@ mod world;
 mod world_map;
 mod world_models;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, time::Instant};
 
 use account::{Account, AccountEvent};
 use frame_error::FrameError;
@@ -209,6 +210,8 @@ pub struct GameClient {
     terrain: terrain::streaming::StreamedTerrain,
     terrain_materials: terrain::material::TerrainMaterials,
     world_objects: terrain::objects::TerrainObjects,
+    ground_detail: terrain::ground_detail::GroundDetail,
+    horizon: terrain::horizon::WorldHorizon,
     global_wmo: wmo::global::GlobalWmoScene,
     wmo_collision: wmo::collision::WmoCollisionBodies,
     world_lighting: lighting::WorldLighting,
@@ -231,6 +234,10 @@ pub struct GameClient {
     /// answers, as the original's `CurrentZone`.
     current_zone: Option<(u32, u32)>,
     world_minutes: f32,
+    /// The server's game time: `(second of day, speed, received)`; drives `world_minutes`
+    /// unless automation fixed the time of day.
+    world_clock: Option<(u32, f32, Instant)>,
+    world_minutes_fixed: bool,
     server_hostname: String,
     startup_panel: Option<startup::StartupPanel>,
     targeting: targeting::Targeting,
@@ -273,8 +280,11 @@ impl INode3D for GameClient {
             data_root.clone(),
         );
         let graphics = &client_options.graphics;
+        let mut world = world::WorldUnits::new(data_root.clone());
         if graphics.particle_effects_enabled {
-            world_objects.enable_particles(f32::from(graphics.particle_density) / 100.0);
+            let density = f32::from(graphics.particle_density) / 100.0;
+            world_objects.enable_particles(density);
+            world.enable_particles(density);
         }
         Self {
             base,
@@ -322,6 +332,8 @@ impl INode3D for GameClient {
             terrain: terrain::streaming::StreamedTerrain::new(data_root.clone()),
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
+            ground_detail: terrain::ground_detail::GroundDetail::new(data_root.clone()),
+            horizon: terrain::horizon::WorldHorizon::new(data_root.clone()),
             global_wmo: wmo::global::GlobalWmoScene::new(data_root.clone()),
             wmo_collision: wmo::collision::WmoCollisionBodies::default(),
             world_lighting: lighting::WorldLighting::default(),
@@ -338,6 +350,8 @@ impl INode3D for GameClient {
             current_zone: None,
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
+            world_clock: None,
+            world_minutes_fixed: false,
             startup_panel: None,
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
@@ -359,7 +373,7 @@ impl INode3D for GameClient {
             last_process_ms: 0.0,
             replica: Replica::default(),
             spell_effects: spell_effects::SpellEffects::new(data_root.clone()),
-            world: world::WorldUnits::new(data_root),
+            world,
             server_hostname: if cfg!(debug_assertions) {
                 "127.0.0.1:5000"
             } else {
@@ -676,6 +690,11 @@ impl GameClient {
             objects.set("particles", &particles);
         }
         state.set("world_objects", &objects);
+        state.set("ground_detail", &self.ground_detail.state());
+        state.set("horizon_tiles", self.horizon.shown_count() as i64);
+        if let Some(particles) = self.world.particle_state() {
+            state.set("unit_particles", &particles);
+        }
         state.set(
             "unit_visuals_pending",
             &(self.world.visuals_pending() as i64).to_variant(),
@@ -915,10 +934,18 @@ impl GameClient {
         self.world_camera.set_orbit(yaw, pitch, distance);
     }
 
-    /// Automation: the time of day (0..2880 half-minutes) the world light samples.
+    /// Automation: the time of day (0..2880 half-minutes) the world light samples, from now
+    /// on instead of the server's game time.
     #[func]
     fn set_world_minutes(&mut self, minutes: f32) {
         self.world_minutes = minutes.rem_euclid(2880.0);
+        self.world_minutes_fixed = true;
+    }
+
+    /// The time of day (0..2880 half-minutes) the world light samples.
+    #[func]
+    fn world_minutes(&self) -> f32 {
+        self.world_minutes
     }
 
     #[func]
@@ -1572,6 +1599,10 @@ impl GameClient {
             ("Spell visuals", |c, d| Ok(c.update_spell_visuals(d)?)),
             ("Player movement", |c, _| c.send_player_input()),
             ("Terrain", |c, _| Ok(c.poll_terrain()?)),
+            ("World time", |c, _| {
+                c.advance_world_time();
+                Ok(())
+            }),
             ("World lighting", |c, _| Ok(c.update_world_lighting()?)),
             (
                 "Terrain materials",
@@ -1589,6 +1620,11 @@ impl GameClient {
             }),
             ("Login fade", |c, d| Ok(c.advance_login_fade(d)?)),
             ("World camera", |c, d| Ok(c.update_world_camera(d)?)),
+            ("Sky", |c, _| Ok(c.place_sky()?)),
+            ("Ground detail", |c, _| {
+                c.update_ground_detail();
+                Ok(())
+            }),
             ("Nameplates", |c, d| Ok(c.update_nameplates(d)?)),
             ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
@@ -1666,6 +1702,9 @@ impl GameClient {
                     .as_ref()
                     .is_some_and(|rest| rest.in_rest_area);
                 self.rest = update.snapshot;
+            }
+            AccountEvent::GameTime(time) => {
+                self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
             }
             AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
@@ -1798,6 +1837,8 @@ impl GameClient {
             let span = profile::span(|| "terrain.enter_loading.reset_terrain".to_owned());
             self.terrain_materials.reset();
             self.world_objects.reset();
+            self.ground_detail.reset();
+            self.horizon.reset();
             self.global_wmo.reset();
             self.wmo_collision.reset();
             drop(span);
@@ -1813,6 +1854,8 @@ impl GameClient {
         self.world_camera.reset();
         self.terrain_materials.reset();
         self.world_objects.reset();
+        self.ground_detail.reset();
+        self.horizon.reset();
         self.global_wmo.reset();
         self.wmo_collision.reset();
         self.world_lighting.reset();
@@ -1845,6 +1888,16 @@ impl GameClient {
         Ok(())
     }
 
+    /// The server's game time advanced to now, unless automation fixed the time of day.
+    fn advance_world_time(&mut self) {
+        if let (Some((second, speed, received)), false) =
+            (self.world_clock, self.world_minutes_fixed)
+        {
+            let elapsed = received.elapsed().as_secs_f64();
+            self.world_minutes = game_engine_core::world_time::half_minutes(second, speed, elapsed);
+        }
+    }
+
     fn update_world_lighting(&mut self) -> Result<(), String> {
         let mut parent = self.to_gd().upcast::<Node3D>();
         let Some(wdt) = self.terrain.map_wdt.as_ref() else {
@@ -1870,10 +1923,37 @@ impl GameClient {
             self.world.update_lighting(Some(light.clone()));
             self.game_objects.update_lighting(Some(light.clone()));
             self.world_objects.update_lighting(&light);
+            self.ground_detail.update_lighting(&light);
+            self.horizon.update_lighting(&light);
             self.global_wmo.update_lighting(&light);
             self.terrain_materials.update_lighting(light);
         }
         Ok(())
+    }
+
+    /// Sky models follow the camera after it moved this frame.
+    fn place_sky(&mut self) -> Result<(), String> {
+        let Some(camera) = self.world_camera.position() else {
+            return Ok(());
+        };
+        let clock = self
+            .base()
+            .try_get_node_as::<assets::uv_animation::WowMaterialClock>("/root/M2MaterialClock")
+            .ok_or("Sky models require /root/M2MaterialClock")?;
+        let time_ms = clock.bind().elapsed_time_ms() as u32;
+        self.world_lighting.place_sky(camera, time_ms);
+        Ok(())
+    }
+
+    /// Ground clutter around the camera, once it moved this frame.
+    fn update_ground_detail(&mut self) {
+        let Some(camera) = self.world_camera.position() else {
+            return;
+        };
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.ground_detail
+            .update(&mut parent, &self.terrain, camera);
+        self.horizon.update(&mut parent, &self.terrain, camera);
     }
 
     fn attach_world_objects(&mut self) {
@@ -1905,11 +1985,10 @@ impl GameClient {
             drop(span);
             if let Some(transform) = self.world_camera.transform() {
                 let _span = profile::span(|| "cull.particles".to_owned());
-                self.world_objects.update_particles(
-                    transform,
-                    &frustum,
-                    (delta_ms / 1000.0) as f32,
-                );
+                let delta = (delta_ms / 1000.0) as f32;
+                self.world_objects
+                    .update_particles(transform, &frustum, delta);
+                self.world.update_particles(transform, &frustum, delta);
             }
             let _span = profile::span(|| "cull.unit_animation_lod".to_owned());
             self.world.apply_animation_lod(camera, &frustum, frame);
@@ -2026,6 +2105,8 @@ impl GameClient {
         self.entrance_bar.close();
         self.terrain_materials.reset();
         self.world_objects.reset();
+        self.ground_detail.reset();
+        self.horizon.reset();
         self.global_wmo.reset();
         self.wmo_collision.reset();
         self.spell_effects.reset();

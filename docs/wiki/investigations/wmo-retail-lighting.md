@@ -133,7 +133,11 @@ Proof: `cargo test -p game-engine-godot --lib doodad_light` 4/4 (the three examp
 
 Live (Fbfps at the indoor Stormwind spot, WoW (-8785.9, 820.7, 97.65); `data/diagnostics/wmodoodadcost-20260928/`): `master-15b3715c.png` vs `after-6cb884ec.png` differ in 20,234 pixels, all on WMO doodads (banners, lamps, crates and sacks, the weapon rack; `lighting-diff-mask.png`); WMO walls, floor, terrain and the player are unchanged. The props near the lamps turn warmer and the weapon rack darker (`lighting-compare.png`, left master, right branch). No Retail capture of this spot exists to compare against.
 
-Not ported: the reference's per-group MOCV sampling for doodads (`wmoGroupObject.cpp` `assignInteriorParams`, commented out there), M2 fog's interior sun mix, and MNLD/MOLT point lights.
+Not ported: the reference's per-group MOCV sampling for doodads (`wmoGroupObject.cpp` `assignInteriorParams`, commented out there), M2 fog's interior sun mix, and MNLD/MOLT point lights (MOLP: below).
+
+## Godot: WMO group point lights (MOLP, branch `worldvis`)
+
+Each group's MOLP lights (44-byte `map_object_point_light`: BGRA colour, position, attenuation start/end, intensity) in the MLSP (offset, count) range of each active doodad set (set 0 and the placement's) become `Group<g>_Light<i>` `OmniLight3D` children of the WMO node (`godot/rust/src/wmo/point_lights.rs`, core `wmo::active_point_lights`), encoded as the M2 point lights: colour x intensity, range = attenuation end, start / end in the specular parameter, retail's squared ramp in the opaque shaders (WebWowViewerCpp `wmoGroupObject.cpp:270-287`, `CPointLight.cpp`, `pointLight.frag.slang`). A group with MOLP but no MLSP (Stormwind harbor docks 248081) lights nothing, as in the reference. The Stockade's `stormwindjail_001` set 0 has 12 orange torches. Not ported: MOP2/MLSK animated lights and MNLD (`CEngineLight`), spot lights (MOLS), and placement scale on the range.
 
 ## WMO fog
 

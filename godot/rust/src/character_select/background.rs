@@ -13,12 +13,16 @@ use game_engine_core::scene_snapshot::NodeProps;
 use crate::{
     lighting::{TerrainLight, WorldLighting},
     scene_export::{SceneEntry, light_entry, m2_source},
+    sky_model::SkyModel,
     terrain::objects::WMO_MODEL_META,
     terrain::{material::TerrainMaterials, streaming::StreamedTerrain},
     world_models::bind_visual_light,
 };
 
-use super::{objects::CampsiteObjects, sky::Sky};
+use super::objects::CampsiteObjects;
+
+/// The campsite's authored sky, `costalislandskybox.m2`.
+const CAMPSITE_SKY_FDID: u32 = 525142;
 
 pub(super) struct Background {
     pub scene: WarbandSceneEntry,
@@ -28,7 +32,7 @@ pub(super) struct Background {
     lighting: WorldLighting,
     light: Option<TerrainLight>,
     objects: CampsiteObjects,
-    sky: Option<Sky>,
+    sky: Option<SkyModel>,
     data_root: PathBuf,
 }
 
@@ -161,7 +165,8 @@ impl Background {
 
     fn sync_sky(&mut self, root: &mut Gd<Node3D>) -> Result<(), String> {
         if self.sky.is_none() {
-            let sky = Sky::load(&self.data_root)?;
+            let path = self.data_root.join("models/skyboxes/costalislandskybox.m2");
+            let sky = SkyModel::load_model(&self.data_root, &path, CAMPSITE_SKY_FDID, None)?;
             root.add_child(&sky.node);
             self.sky = Some(sky);
         }

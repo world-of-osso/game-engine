@@ -616,6 +616,13 @@ fn build_mcnk_data(
         sound_emitters,
         blend_batches,
         detail_doodad_disable,
+        texture_selection: std::array::from_fn(|row| {
+            u16::from_le_bytes([
+                header.low_quality_texture_map[row * 2],
+                header.low_quality_texture_map[row * 2 + 1],
+            ])
+        }),
+        detail_exclusion: header.no_effect_doodad.to_le_bytes(),
         holes_low_res: header._holes_low_res,
         holes_high_res: flags.high_res_holes.then_some(header._holes_high_res),
         heights,

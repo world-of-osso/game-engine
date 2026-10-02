@@ -444,7 +444,11 @@ impl TerrainObjects {
     /// Draws M2 particle emitters of doodads spawned from now on, emitting at
     /// `density` (0.1..=1) of their authored rates.
     pub fn enable_particles(&mut self, density: f32) {
-        self.particles = Some(ParticlePools::new(density));
+        let mut pools = ParticlePools::new(density);
+        if let Some(light) = &self.light {
+            pools.update_lighting(light);
+        }
+        self.particles = Some(pools);
     }
 
     /// Changes the density default without replacing pools or placed emitters.
@@ -1110,6 +1114,9 @@ impl TerrainObjects {
             bind_visual_light(root, Some(light));
         }
         self.liquids.update_lighting(light);
+        if let Some(particles) = self.particles.as_mut() {
+            particles.update_lighting(light);
+        }
         self.light = Some(light.clone());
     }
 

@@ -43,12 +43,15 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   ChrCustomizationSkinnedModel FDID 3460183
   ChrModelTextureLayer         FDID 3548976
   LightParams                  FDID 1334669
+  LightSkybox                  FDID 1308501
   LiquidType                   FDID 1371380
   LiquidMaterial               FDID 1132538
   LiquidObject                 FDID 1308058
   LiquidTypeXTexture           FDID 2261065
   ComponentTextureFileData     FDID 1278239
   ComponentModelFileData       FDID 1349053
+  GroundEffectTexture          FDID 1308499
+  GroundEffectDoodad           FDID 1308057
 """
 
 import csv
@@ -428,7 +431,13 @@ TABLES = {
             ("OceanShallowAlpha", ("float", 8, 0)),
             ("OceanDeepAlpha", ("float", 9, 0)),
             ("Flags", ("int", 10, 0)),
+            ("LightSkyboxID", 3),
         ],
+    ),
+    # WoWDBDefs layout 9D4956FF: Name, Flags, SkyboxFileDataID, CelestialSkyboxFileDataID.
+    "LightSkybox": (
+        0x9D4956FF,
+        [("ID", "id"), ("Flags", 1), ("SkyboxFileDataID", 2), ("CelestialSkyboxFileDataID", 3)],
     ),
     # WoWDBDefs layout D1ECEEC9. WebWowViewerCpp reads Color[0..1], Float[0..17], Int[0..3] and
     # Coefficient[0..3].
@@ -477,6 +486,20 @@ TABLES = {
             ("RaceID", ("u8", 2)),
             ("PositionIndex", ("i8", 3)),
         ],
+    ),
+    # WoWDBDefs layout D93D5678: Density, Sound, DoodadID[4], DoodadWeight[4], SplatDensity[4].
+    # Detail doodad scatter (solarityclient terrain/detail_doodad/scatter.rs).
+    "GroundEffectTexture": (
+        0xD93D5678,
+        [("ID", "id"), ("Density", ("int", 0, 0))]
+        + [(f"DoodadID_{i}", ("u16", 2, i)) for i in range(4)]
+        + [(f"DoodadWeight_{i}", ("u8", 3, i)) for i in range(4)],
+    ),
+    # WoWDBDefs layout CFD94A21: ModelFileID, Flags, Animscale, Pushscale, Size_variation_min/max,
+    # Rotation_variation_min/max, TerrainColorGradingRampID.
+    "GroundEffectDoodad": (
+        0xCFD94A21,
+        [("ID", "id"), ("ModelFileID", ("int", 0, 0)), ("Flags", ("int", 1, 0))],
     ),
 }
 

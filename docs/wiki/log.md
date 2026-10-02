@@ -2,6 +2,18 @@
 
 [[godot-wayland-exit-hang]]: launcher and shell helpers now use official 4.7.2 plus upstream PR #123946, built by `scripts/godot/build-patched-godot.sh` and SHA-512 pinned; missing or mismatched binary fails with build instructions, no fallback. `PYTHONHASHSEED=0` makes the build bit-reproducible (`editor/editor_builders.py` embeds Python `hash()` of the docs). Pinned binary: 0/120 hangs of `m2_animation.gd` via `quit-hang-loop.sh` (`data/diagnostics/godotpatch-2026-10-01/loop-anim-seeded.txt`). Retire when an official release contains #123946.
 
+## 2026-10-01 — Server game time, WDL horizon, item particles (worldvis)
+
+[Retail lighting](systems/retail-lighting.md#sky-dome-godot): time of day from `LoginSetTimeSpeed`. [Terrain](systems/terrain.md#horizon-godot): WDL horizon. [m2-particles](../specs/m2-particles.md): item model emitters.
+
+## 2026-10-01 — In-world LightSkybox models (worldvis)
+
+[Retail lighting](systems/retail-lighting.md#sky-dome-godot): LightSkybox models collected over the LightParams blend (SkyBoxCollector) and drawn on the camera; Twilight Highlands fixture.
+
+## 2026-10-01 — Godot ground detail (worldvis)
+
+[Ground detail](systems/terrain.md#ground-detail-godot): 12340 detail-doodad scatter/mesh port matching solarityclient's native fixtures; retail GroundEffect CSV exports; live Northshire clutter fixture. Spec [ground-detail](../specs/ground-detail.md).
+
 ## 2026-10-01 — Catalog waits at world entry
 
 [[world-entry-stalls#catalog-waits--2026-10-01]]: the first inventory snapshot waited 9.2-54.9 s in `OnceLock::get_or_init` for the background item catalog load. Item catalog/icons, NPC gear rows and the spell visual catalog are now read without waiting; the entrance and minimap catalogs load from client start. Items received early update when the catalog loads (`GET_ITEM_INFO_RECEIVED` model); spec line in [cursor-item](../specs/cursor-item.md). Character-select model catalogs remain synchronous.

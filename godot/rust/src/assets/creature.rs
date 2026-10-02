@@ -172,6 +172,12 @@ pub(crate) fn load_model_files(
     Ok(cached)
 }
 
+/// Model `fdid` if a worker already parsed it (`load_model_files`), without file work.
+pub(crate) fn cached_model(data_root: &Path, fdid: u32) -> Option<Arc<CachedModel>> {
+    let key = data_root.join("models").join(format!("{fdid}.m2"));
+    MODELS.lock().expect("model cache").get(&key).cloned()
+}
+
 /// Texture FDIDs some worker already decoded for the main thread's shared textures.
 static DECODED: LazyLock<Mutex<HashSet<u32>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
@@ -301,8 +307,9 @@ fn creature_texture_fdids(
     model: &m2::Model,
     slots: &[u32; 3],
 ) -> Result<BTreeSet<u32>, String> {
+    // The same batches the native material binds, zero-opacity ones included.
     let batches =
-        m2::resolve_render_batches(model, slots, false, |fdid| resolver.resolve_path(fdid))?;
+        m2::resolve_render_batches(model, slots, true, |fdid| resolver.resolve_path(fdid))?;
     let mut textures = BTreeSet::from_iter(slots.iter().copied().filter(|fdid| *fdid != 0));
     for batch in batches {
         textures.extend(batch.texture_fdid);
@@ -355,6 +362,19 @@ mod tests {
         assert!(textures.contains(&987654321));
         assert!(textures.contains(&126280));
         assert!(!textures.contains(&0));
+    }
+
+    #[test]
+    fn collects_textures_of_batches_whose_opacity_starts_at_zero() {
+        // Instance portal 197012 fades its glowball.blp batch in from zero opacity; the
+        // native material still binds that batch's texture.
+        let data_root = cached_data_root();
+        let resolver = local_resolver(&data_root);
+        let model = std::fs::read(data_root.join("models/197012.m2")).unwrap();
+        let skin = std::fs::read(data_root.join("models/19701200.skin")).unwrap();
+        let parsed = m2::parse_model(&model, &skin).unwrap();
+        let textures = creature_texture_fdids(&resolver, &parsed, &[0; 3]).unwrap();
+        assert!(textures.contains(&1068808), "{textures:?}");
     }
 
     #[test]
