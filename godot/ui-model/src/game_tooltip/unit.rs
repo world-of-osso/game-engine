@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use shared::components::CreatureClassification;
 use shared::faction_reaction::Reaction;
 use shared::protocol::{CreatureTooltip, TooltipItem};
 use shared::transmog::AppearanceCollection;
@@ -77,6 +78,7 @@ pub struct NpcTooltipInput<'a> {
     pub name: &'a str,
     pub reaction: Reaction,
     pub level: Option<u8>,
+    pub classification: CreatureClassification,
     /// Name of the unit's reputation faction (`Faction.ReputationIndex` >= 0).
     pub faction: Option<&'a str>,
     /// The server's answer for the unit's creature entry, once it arrived.
@@ -103,6 +105,34 @@ pub fn npc_tooltip(input: &NpcTooltipInput, collection: &AppearanceCollection) -
     )
 }
 
+/// `UNIT_TYPE_LEVEL_TEMPLATE` "Level %d %s", for elites `UNIT_TYPE_PLUS_LEVEL_TEMPLATE`
+/// "Level %d Elite %s", for world bosses `UNIT_TYPE_LETHAL_LEVEL_TEMPLATE` "Level ?? %s"
+/// (GlobalStrings 10997-10999; without a type `UNIT_LEVEL_TEMPLATE`,
+/// `UNIT_PLUS_LEVEL_TEMPLATE`, `UNIT_LETHAL_LEVEL_TEMPLATE`, 10253-10255). Rares put
+/// `MAP_LEGEND_RARE` "Rare" or `MAP_LEGEND_RAREELITE` "Rare Elite" where elites put "Elite".
+pub fn npc_level_text(
+    level: u8,
+    classification: CreatureClassification,
+    kind: Option<&str>,
+) -> String {
+    let level = match classification {
+        CreatureClassification::WorldBoss => "??".to_owned(),
+        _ => level.to_string(),
+    };
+    let rank = match classification {
+        CreatureClassification::Elite => Some("Elite"),
+        CreatureClassification::Rare => Some("Rare"),
+        CreatureClassification::RareElite => Some("Rare Elite"),
+        _ => None,
+    };
+    ["Level", &level]
+        .into_iter()
+        .chain(rank)
+        .chain(kind)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// Subname, level and type, reputation faction.
 fn npc_identity_lines(input: &NpcTooltipInput) -> Vec<TooltipLineState> {
     let mut lines = Vec::new();
@@ -115,10 +145,7 @@ fn npc_identity_lines(input: &NpcTooltipInput) -> Vec<TooltipLineState> {
         let kind = input
             .data
             .and_then(|data| creature_type_name(data.creature_type));
-        let text = match kind {
-            Some(kind) => format!("Level {level} {kind}"),
-            None => format!("Level {level}"),
-        };
+        let text = npc_level_text(level, input.classification, kind);
         lines.push(TooltipLineState::colored(text, TOOLTIP_WHITE));
     }
     if let Some(faction) = input.faction {
@@ -385,9 +412,49 @@ mod tests {
             name: "Defias Thug",
             reaction: Reaction::Hostile,
             level: Some(3),
+            classification: CreatureClassification::Normal,
             faction: None,
             data: Some(data),
         }
+    }
+
+    /// Timber (world.db creature_template 1132: level 10, rank 4, type 1 Beast).
+    #[test]
+    fn timber_reads_level_10_rare_beast() {
+        super::super::set_test_data_root();
+        let data = CreatureTooltip {
+            entry: 1_132,
+            subname: String::new(),
+            creature_type: 1,
+            drops: Vec::new(),
+            vendor_items: Vec::new(),
+        };
+        let input = NpcTooltipInput {
+            entry: 1_132,
+            name: "Timber",
+            reaction: Reaction::Hostile,
+            level: Some(10),
+            classification: CreatureClassification::Rare,
+            faction: None,
+            data: Some(&data),
+        };
+        let tooltip = npc_tooltip(&input, &AppearanceCollection::default());
+        assert_eq!(rows(&tooltip), [(None, "Level 10 Rare Beast", "")]);
+    }
+
+    #[test]
+    fn elite_rare_elite_and_world_boss_level_lines() {
+        use CreatureClassification::{Elite, RareElite, WorldBoss};
+        // Hogger (448): level 11 elite humanoid.
+        assert_eq!(
+            npc_level_text(11, Elite, Some("Humanoid")),
+            "Level 11 Elite Humanoid"
+        );
+        assert_eq!(npc_level_text(12, RareElite, None), "Level 12 Rare Elite");
+        assert_eq!(
+            npc_level_text(63, WorldBoss, Some("Dragonkin")),
+            "Level ?? Dragonkin"
+        );
     }
 
     #[test]
@@ -446,6 +513,7 @@ mod tests {
             name: "Stormwind Guard",
             reaction: Reaction::Friendly,
             level: Some(30),
+            classification: CreatureClassification::Normal,
             faction: Some("Stormwind"),
             data: None,
         };
@@ -475,6 +543,7 @@ mod tests {
             name: "Corina Steele",
             reaction: Reaction::Friendly,
             level: Some(10),
+            classification: CreatureClassification::Normal,
             faction: Some("Stormwind"),
             data: Some(&data),
         };

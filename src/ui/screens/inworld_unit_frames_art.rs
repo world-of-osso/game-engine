@@ -60,6 +60,22 @@ pub const COMBAT_ICON: AtlasArt = unit_frame((1007.0, 1023.0, 133.0, 149.0));
 /// atlas 2075 `interface/hud/uiunitframerestingflipbook.blp`.
 pub const REST_ICON: AtlasArt = art(4_659_635, (512.0, 512.0), (1.0, 61.0, 1.0, 61.0));
 
+/// UiTextureAtlas 2130 `interface/hud/uiunitframeboss.blp`.
+const UNIT_FRAME_BOSS: (u32, (f32, f32)) = (4_703_659, (256.0, 256.0));
+
+const fn unit_frame_boss(rect: (f32, f32, f32, f32)) -> AtlasArt {
+    art(UNIT_FRAME_BOSS.0, UNIT_FRAME_BOSS.1, rect)
+}
+
+/// `UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold` (17120): the elite dragon, 80×79.
+pub const BOSS_GOLD: AtlasArt = unit_frame_boss((1.0, 81.0, 84.0, 163.0));
+/// `ui-hud-unitframe-target-portraiton-boss-rare-silver` (19019): the rare elite dragon.
+pub const BOSS_RARE_SILVER: AtlasArt = unit_frame_boss((1.0, 81.0, 165.0, 244.0));
+/// `UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star` (17122), drawn at its 20×20
+/// override size.
+pub const BOSS_RARE_STAR: AtlasArt = unit_frame_boss((83.0, 109.0, 148.0, 174.0));
+pub const BOSS_RARE_STAR_SIZE: f32 = 20.0;
+
 /// Retail power bar texture: `UI-HUD-UnitFrame-Player-PortraitOff-Bar-<Power>` where the
 /// atlas has a 124×10 portrait-off variant, the portrait-on one for mana, and the
 /// `PowerBarColor[...].atlas` fill for spec powers (`PowerBarColorUtil.lua`).

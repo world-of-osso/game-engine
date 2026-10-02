@@ -23,7 +23,9 @@ use bevy_replicon::{
 use lightyear::prelude::{
     LinkOf, NetworkTarget, Replicate, ReplicationReceiver, VisibilityExt, client as client_network,
 };
-use shared::components::{Health, Npc, Player, Position, UnitAuras, UnitLevel};
+use shared::components::{
+    CreatureClassification, Health, Npc, Player, Position, UnitAuras, UnitLevel,
+};
 
 use super::{Replica, ReplicationBatch, Schema, Unit, UnitChange, receive::acknowledgments};
 use crate::{SIMULATION_INTERVAL, connect_transport, wire_tests::start_fixture_server};
@@ -364,6 +366,21 @@ fn replica_matches_stock_replicon_client_over_udp() {
         session.frames().iter().any(|frame| !frame.acks.is_empty()),
         "scenario produced acknowledged mutate messages"
     );
+}
+
+/// Timber (world.db creature_template 1132, rank 4) reaches the native replica as a rare.
+#[test]
+fn creature_classification_reaches_the_replica() {
+    let mut session = Session::start(9103);
+    let timber = Npc {
+        template_id: 1_132,
+        name: "Timber".into(),
+    };
+    let timber = session.spawn((timber, position(7.0), CreatureClassification::Rare));
+    session.until("timber spawn", timber, |unit| {
+        unit.and_then(|unit| unit.get::<CreatureClassification>().copied())
+            == Some(CreatureClassification::Rare)
+    });
 }
 
 /// Replay one captured session through both clients with a different frame split.

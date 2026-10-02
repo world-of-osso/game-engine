@@ -18,6 +18,7 @@ use shared::protocol::GameObjectInfo;
 use crate::GameClient;
 use crate::frame_error::FrameError;
 use crate::replicated::UnitFields;
+use crate::targeting::unit_classification;
 use crate::tooltips::{HoveredFrame, HoveredTooltip, named_ancestor};
 use crate::unit_pick::pick_unit;
 
@@ -146,6 +147,7 @@ impl GameClient {
             }));
         }
         let npc = unit.get::<Npc>()?.clone();
+        let classification = unit_classification(unit);
         let faction = self.unit_faction_name(id);
         Some(npc_tooltip(
             &NpcTooltipInput {
@@ -153,6 +155,7 @@ impl GameClient {
                 name: &npc.name,
                 reaction,
                 level,
+                classification,
                 faction: faction.as_deref(),
                 data: self.tooltips.creature(npc.template_id),
             },
