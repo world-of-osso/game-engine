@@ -12,7 +12,7 @@ use game_engine_core::{
 use godot::{
     classes::{
         Cubemap, DirectionalLight3D, Environment, Image, Node3D, ShaderMaterial, WorldEnvironment,
-        environment, image,
+        directional_light_3d, environment, image,
     },
     prelude::*,
 };
@@ -176,6 +176,9 @@ impl WorldLighting {
         let mut sun = DirectionalLight3D::new_alloc();
         sun.set_name("Sun");
         sun.set_shadow(true);
+        // Two cascades, as the retail client writes `shadowNumCascades 2` for shadow
+        // quality Medium (`graphicsShadowQuality 2`, `_retail_/WTF/Config.wtf`).
+        sun.set_shadow_mode(directional_light_3d::ShadowMode::PARALLEL_2_SPLITS);
         root.add_child(&sun);
         self.sun = Some(sun);
         self.root = Some(root);
