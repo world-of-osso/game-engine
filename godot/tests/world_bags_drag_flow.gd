@@ -37,6 +37,8 @@ func run_test() -> void:
 		return
 	if not check_container(client, 0, 16, 0, "3") or not check_container(client, 1, 8, 7, "2"):
 		return
+	if not await catalog_icon_arrival(client):
+		return
 	if not await quiet_releases(client):
 		return
 	if not await foreign_chat_release(client):
@@ -103,9 +105,52 @@ func quiet_drag_state(client: Node, expected: Array, held: bool) -> bool:
 					if item[0] == bag and item[1] == slot:
 						count = item[2]
 				if not slot_render_matches(client, bag, slot, count, held and bag == 0 and slot == 0):
-					fail("Drag quiet slot mismatch bag%s/slot%s count%s held%s" % [bag, slot, count, held])
+					fail("Drag quiet slot mismatch bag%s/slot%s count%s held%s render=%s" % [bag, slot, count, held, describe_slot_render(client, bag, slot)])
 					return false
 	return true
+
+# The item catalog loads on a worker thread for ~13 s; until then the snapshot items show
+# INV_Misc_QuestionMark (bag_data.rs). Every frame across the switch to the item's own
+# icon keeps both stacks drawn: icon art, untinted, with their count.
+func catalog_icon_arrival(client: Node) -> bool:
+	var first := icon_atlas(client)
+	if first == 0:
+		fail("Catalog icon arrival: bag0/slot0 starts without icon art")
+		return false
+	var deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		for item in INITIAL:
+			if not slot_render_matches(client, item[0], item[1], item[2], false):
+				fail("Catalog icon arrival slot mismatch bag%s/slot%s render=%s" % [item[0], item[1], describe_slot_render(client, item[0], item[1])])
+				return false
+		if icon_atlas(client) != first:
+			print("BAGS DRAG CATALOG ICON ARRIVED")
+			return true
+	fail("Catalog icon arrival: bag0/slot0 kept its first icon for 60 s")
+	return false
+
+func icon_atlas(client: Node) -> int:
+	var texture := rendered_texture(authored_control(client, "ContainerFrame0Slot0Icon"))
+	if texture == null:
+		return 0
+	var atlas := texture.texture as AtlasTexture
+	return atlas.atlas.get_instance_id() if atlas != null else texture.texture.get_instance_id()
+
+func describe_slot_render(client: Node, bag: int, slot: int) -> String:
+	var prefix := "ContainerFrame%sSlot%s" % [bag, slot]
+	var icon := authored_control(client, prefix + "Icon")
+	var texture := rendered_texture(icon)
+	var label := authored_control(client, prefix + "Count") as Label
+	var tint := Color(0, 0, 0, 0)
+	if texture != null:
+		tint = texture.self_modulate
+		var ancestor: Node = texture
+		while ancestor != null and ancestor != client:
+			if ancestor is CanvasItem:
+				tint *= (ancestor as CanvasItem).modulate
+			ancestor = ancestor.get_parent()
+	return "icon=%s texture=%s tint=%s label=%s" % [icon != null, texture.texture.resource_path if texture != null else "none", tint, "none" if label == null else "%s:'%s'" % [label.is_visible_in_tree(), label.text]]
 
 func clear_local_pickup(client: Node) -> bool:
 	if not await click_slot(client, SOURCE_SLOT) or not await wait_cursor(client, false):
