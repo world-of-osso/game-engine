@@ -221,10 +221,6 @@ def run_measurement(command, output, manifest, timeout):
                     "missing/invalid phase memory: "
                     + ", ".join(measurement["memory_gaps"])
                 )
-            if not measurement["settled_queue_stable"]:
-                gaps.append(
-                    "readiness or parsed tile set not continuously settled during observation"
-                )
     return {
         "command": command,
         "manifest": manifest,

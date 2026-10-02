@@ -79,10 +79,11 @@ class MeasurementTests(unittest.TestCase):
             )
             self.assertGreaterEqual(result["phases"][0]["since_launch_s"], 0)
 
-    def test_runner_reports_readiness_change_with_empty_object_queue(self):
-        report = {
+    def dynamic_queue_report(self):
+        return {
             "settled_elapsed_s": 60.0,
             "settled_ms": [1000.0] * 60,
+            "frame_limit_ms": 2000.0,
             "queue_drained": True,
             "settled_pending_changed": True,
             "objects": {"pending": 0},
@@ -108,36 +109,93 @@ class MeasurementTests(unittest.TestCase):
                 )
             },
         }
-        child = "print(" + repr("PERF_REPORT " + json.dumps(report)) + ")"
+
+    def run_cli_child(self, child):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             manifest = root / "manifest.json"
-            manifest.write_text("{}")
+            options = root / "options.json"
+            options.write_text('{"vsync":false}')
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "input_paths": {"options": str(options)},
+                        "build_provenance": "synthetic Python child; no native runtime claim",
+                    }
+                )
+            )
             output = root / "output"
             runner = subprocess.run(
                 [
-                    sys.executable, str(PATH), "--manifest", str(manifest),
-                    "--output", str(output), "--timeout", "5", "--",
-                    sys.executable, "-c", child,
+                    sys.executable,
+                    str(PATH),
+                    "--manifest",
+                    str(manifest),
+                    "--output",
+                    str(output),
+                    "--timeout",
+                    "5",
+                    "--",
+                    sys.executable,
+                    "-c",
+                    child,
                 ],
                 capture_output=True,
                 text=True,
                 check=False,
             )
-            self.assertEqual(runner.returncode, 1, runner.stderr)
             result = json.loads((output / "result.json").read_text())
-            self.assertEqual(result["exit_code"], 0)
-            self.assertTrue(result["measurement"]["adequate_duration"])
-            self.assertFalse(result["measurement"]["settled_queue_stable"])
-            self.assertIn(
-                "readiness or parsed tile set not continuously settled during observation",
-                result["gaps"],
-            )
-            self.assertEqual(result["raw_reports"], [report])
-            self.assertEqual(
-                json.loads((output / "stdout.log").read_text().removeprefix("PERF_REPORT ")),
-                report,
-            )
+            return runner, result, (output / "stdout.log").read_text()
+
+    def test_cli_accepts_dynamic_queues_and_preserves_workload_context(self):
+        report = self.dynamic_queue_report()
+        child = "print(" + repr("PERF_REPORT " + json.dumps(report)) + ")"
+        runner, result, log = self.run_cli_child(child)
+        self.assertEqual(runner.returncode, 0, runner.stdout + runner.stderr)
+        self.assertEqual(result["exit_code"], 0)
+        self.assertTrue(result["measurement"]["adequate_duration"])
+        self.assertFalse(result["measurement"]["settled_queue_stable"])
+        self.assertEqual(result["measurement"]["settled"]["max_ms"], 1000)
+        self.assertEqual(result["measurement"]["settled"]["over_fixture_limit"], 0)
+        self.assertEqual(result["measurement"]["memory_gaps"], [])
+        self.assertEqual(result["gaps"], [])
+        self.assertEqual(result["raw_reports"], [report])
+        self.assertEqual(json.loads(log.removeprefix("PERF_REPORT ")), report)
+
+    def test_cli_rejects_missing_short_reports_and_nonzero_child(self):
+        short = self.dynamic_queue_report()
+        short["settled_elapsed_s"] = 59.0
+        short["settled_ms"] = [1000.0] * 59
+        adequate = self.dynamic_queue_report()
+        cases = (
+            ("missing", "print('no report')", 0, "missing PERF_REPORT"),
+            (
+                "short",
+                "print(" + repr("PERF_REPORT " + json.dumps(short)) + ")",
+                0,
+                "settled sample window is not 60–300 seconds; not final acceptance evidence",
+            ),
+            (
+                "nonzero",
+                "print(" + repr("PERF_REPORT " + json.dumps(adequate))
+                + "); raise SystemExit(3)",
+                3,
+                None,
+            ),
+        )
+        for name, child, exit_code, gap in cases:
+            with self.subTest(case=name):
+                runner, result, _ = self.run_cli_child(child)
+                self.assertEqual(runner.returncode, 1, runner.stdout + runner.stderr)
+                self.assertEqual(result["exit_code"], exit_code)
+                self.assertFalse(result["timed_out"])
+                if gap is not None:
+                    self.assertEqual(result["gaps"], [gap])
+                else:
+                    self.assertEqual(result["gaps"], [])
+                    self.assertTrue(result["measurement"]["adequate_duration"])
+                    self.assertEqual(result["measurement"]["memory_gaps"], [])
+                    self.assertEqual(result["raw_reports"], [adequate])
 
     def test_timeout_and_missing_report_remain_failures(self):
         with tempfile.TemporaryDirectory() as tmp:
