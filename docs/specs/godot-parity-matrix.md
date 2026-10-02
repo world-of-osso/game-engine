@@ -14,6 +14,8 @@ Main-observed [LDR controller evidence](../wiki/systems/godot-conversion.md#ldr-
 
 [Native merchant cursor proof matrix](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--main-accepted-bounded-pass): MAIN-accepted independent gate1446 bounded PASS at `837e2c1e`/`b073e4dd`: scoped functional/source/format/readability and matching build/five-flow evidence accepted. First vendor → own embedded bag only; no parity status promoted. Accepted startup1429/tooltip1415 and existing merchant-click/bag proof scopes remain unchanged.
 
+Visual acceptance follows [the conversion contract](godot-conversion.md#cross-engine-acceptance). Retained goal20 evidence is bounded/open, not whole-project PASS: see [skybox proof limits](native-skybox-debug.md#retained-proof-limits--2026-10-01). No transferred capability is closed by the visual clarification.
+
 **Current result: 0 handled.** All rows remain required. Bevy is authorized only as the headless networking transport worker; it is not a UI, scene, rendering, audio, input, gameplay, diagnostic, or CLI fallback.
 
 Status vocabulary: **Partial** — bounded implementation/runtime evidence with acceptance gaps; **Missing** — no Godot implementation and proof; **Blocked** — a specific known dependency prevents a Godot implementation/proof; **Handled** — implementation and current proof. `None` means no Godot parity proof, not that the Bevy behavior lacks proof.
