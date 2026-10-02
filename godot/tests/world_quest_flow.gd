@@ -204,7 +204,7 @@ func check_kills() -> bool:
 			await capture("06b-kill-credit.png")
 			captured = true
 		# The worg pack can kill the level-1 warrior: revive (setup, not credit) and go on.
-		if not client.account_state().get("local_player_alive", true):
+		if player_dead():
 			print("FIXTURE DIED ", entry.objectives)
 			if not admin(["revive", character_name()]) or not await teleport(WORG_FIELD_AT):
 				return false
@@ -218,7 +218,7 @@ func check_kills() -> bool:
 	print("FIXTURE HUNTED ", log_entry(client.quest_state(), QUEST).objectives, " alive ", client.account_state().get("local_player_alive"))
 	if not await wait_quest(func(s): return log_entry(s, QUEST).get("completed", false), "worg objective complete"):
 		return false
-	if not client.account_state().get("local_player_alive", true) and not admin(["revive", character_name()]):
+	if player_dead() and not admin(["revive", character_name()]):
 		return false
 	print("FIXTURE COMPLETED ", log_entry(client.quest_state(), QUEST))
 	return true
@@ -371,7 +371,7 @@ func check_reward_choice() -> bool:
 	return true
 
 func check_fixed_reward() -> bool:
-	if not await take_quest(MILLY_AT, MILLY, FIXED_QUEST, FIXED_TITLE):
+	if not in_log(client.quest_state(), FIXED_QUEST) and not await take_quest(MILLY_AT, MILLY, FIXED_QUEST, FIXED_TITLE):
 		return false
 	if not await put_out_fires():
 		return false
@@ -434,6 +434,12 @@ func put_out_fires() -> bool:
 		var entry := log_entry(client.quest_state(), FIXED_QUEST)
 		if entry.get("completed", false):
 			break
+		# Vineyard mobs can kill the level-1 warrior: revive (setup, not credit) and go on.
+		if player_dead():
+			print("FIXTURE DIED ", entry.objectives)
+			if not admin(["revive", character_name()]) or not await teleport(VINEYARD_AT):
+				return false
+			continue
 		var fire := nearest_living(FIRE)
 		if fire.is_empty():
 			await frames(30)
@@ -462,6 +468,10 @@ func put_out_fires() -> bool:
 	print("FIXTURE FIRES ", log_entry(client.quest_state(), FIXED_QUEST))
 	await tap(KEY_ESCAPE)
 	return true
+
+func player_dead() -> bool:
+	var health = client.account_state().get("local_player_health")
+	return health != null and float(health) <= 0.0
 
 func bag_entry(item_id: int) -> Dictionary:
 	for item in client.merchant_state().bags:
