@@ -94,6 +94,15 @@ impl SkyModel {
         Ok(sky)
     }
 
+    /// Moves every batch's render priority by `base`, so the model sorts by sky-view order
+    /// (stars, discs, skyboxes, fog cone) ahead of the world's transparent surfaces.
+    pub fn offset_render_priority(&mut self, base: i32) {
+        for material in &mut self.materials {
+            let priority = material.get_render_priority() + base;
+            material.set_render_priority(priority);
+        }
+    }
+
     /// The model alpha every batch's transparency is multiplied by.
     pub fn set_alpha(&mut self, alpha: f32) {
         for material in &mut self.materials {
