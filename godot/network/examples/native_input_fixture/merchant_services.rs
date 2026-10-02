@@ -258,6 +258,7 @@ impl Session {
             let expected = RepairItem {
                 npc: NPC,
                 item_guid: None,
+                guild_bank: false,
             };
             let first = self.phase == Phase::RepairRequest && self.repairs == 0;
             if !first || request != expected {
