@@ -140,6 +140,8 @@ func run_test() -> void:
 			var observed: Dictionary = client.account_state()
 			var same_tiles: bool = observed.terrain.parsed_tiles == workload_snapshots.queue_drained.terrain.parsed_tiles
 			if not Readiness.is_ready(observed) or not same_tiles:
+				if not settled_pending_changed:
+					workload_snapshots["first_readiness_change"] = snapshot_workload(observed)
 				settled_pending_changed = true
 	var settled_elapsed_s := (Time.get_ticks_usec() - measurement_started_usec) / 1e6 if settled else 0.0
 	phase = "done"
