@@ -341,12 +341,7 @@ fn build_material(
     if source.matches(RENDER_MODE).count() != 1 {
         return Err("Sky shader render mode signature changed".into());
     }
-    let variant_source = source.replace(RENDER_MODE, &variant);
-    let shader_source = if skybox_batch_needs_effect_combine(batch) {
-        variant_source
-    } else {
-        configure_static_sampler_source(&variant_source)?
-    };
+    let shader_source = source.replace(RENDER_MODE, &variant);
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&crate::assets::material::shared_shader(&shader_source));
     material.set_render_priority(priority);
@@ -394,58 +389,6 @@ fn build_material(
     // Soft cloud edges: original sky path never applies generic M2 alpha cutouts.
     material.set_shader_parameter("alpha_test", &0.0f32.to_variant());
     Ok(material)
-}
-
-// Match the original skybox path's advanced-batch predicate, not asset identities.
-fn skybox_batch_needs_effect_combine(batch: &ResolvedBatch) -> bool {
-    if batch.texture_count > 1 {
-        return true;
-    }
-    let supports_runtime_combine = matches!(
-        batch.shader_id,
-        0x0010 | 0x0011 | 0x4014 | 0x4016 | 0x8001 | 0x8002 | 0x8003 | 0x8012 | 0x8015 | 0x8016
-    );
-    let uses_advanced_source = [
-        batch.texture_2_fdid.is_some(),
-        batch.texture_anim.is_some(),
-        batch.texture_anim_2.is_some(),
-        batch.use_uv_2_1,
-        batch.use_uv_2_2,
-        batch.use_env_map_2,
-    ]
-    .into_iter()
-    .any(|enabled| enabled);
-    supports_runtime_combine && uses_advanced_source
-}
-
-fn configure_static_sampler_source(source: &str) -> Result<String, String> {
-    let signatures = [
-        "base_texture",
-        "second_texture",
-        "third_texture",
-        "fourth_texture",
-    ]
-    .map(|name| format!("uniform sampler2D {name} : source_color, repeat_enable;"));
-    let has_expected_slots = source.matches("uniform sampler2D ").count() == signatures.len();
-    let has_expected_hints = signatures
-        .iter()
-        .all(|signature| source.matches(signature.as_str()).count() == 1);
-    if !(has_expected_slots && has_expected_hints) {
-        return Err(
-            "Sky shader sampler signature changed: expected four source_color, repeat_enable slots"
-                .into(),
-        );
-    }
-    // Original static sky uploads RGBA mip 0 with linear clamp sampling.
-    Ok(signatures
-        .iter()
-        .fold(source.to_string(), |variant, signature| {
-            let static_signature = signature.replace(
-                "source_color, repeat_enable",
-                "source_color, filter_linear, repeat_disable",
-            );
-            variant.replace(signature, &static_signature)
-        }))
 }
 
 fn load_stage(

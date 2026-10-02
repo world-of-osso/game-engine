@@ -1,6 +1,7 @@
 extends SceneTree
 
-# Synthetic source-mip unit test, not FDID/assets or full-scene parity.
+# Original f23343bb contract: production sky samples linear mip0, even when
+# native shared textures retain authored mips. Not FDID/assets or full-scene parity.
 # MAIN runs with a real GPU; optional SKYBOX_MIPMAP_SHOTS saves both 64x64 PNGs.
 const SHADER_PATH: String = "res://shaders/sky_m2.gdshader"
 const SIZE: int = 64
@@ -155,7 +156,7 @@ func encoded_pixel(image: Image, point: Vector2i) -> Vector4i:
 		int(round(color.b * 255.0)), int(round(color.a * 255.0))
 	)
 
-func check_case(label: String, material: Material) -> bool:
+func check_case(label: String, material: Material, expected: Vector3i) -> bool:
 	quad.material_override = material
 	# Observe two actual completed draws, not sleeps or caller-driven stage advances.
 	for _draw in range(2):
@@ -183,13 +184,13 @@ func check_case(label: String, material: Material) -> bool:
 	for point in SAMPLE_POINTS:
 		var actual: Vector4i = encoded_pixel(image, point)
 		var pixel_passed: bool = (
-			absi(actual.x - MIP_CODES.x) <= CODE_TOLERANCE
-			and absi(actual.y - MIP_CODES.y) <= CODE_TOLERANCE
-			and absi(actual.z - MIP_CODES.z) <= CODE_TOLERANCE
+			absi(actual.x - expected.x) <= CODE_TOLERANCE
+			and absi(actual.y - expected.y) <= CODE_TOLERANCE
+			and absi(actual.z - expected.z) <= CODE_TOLERANCE
 			and actual.w == 255
 		)
 		passed = passed and pixel_passed
-		print(label, " pixel=", point, " expected_green=", Vector4i(0, 128, 0, 255),
+		print(label, " pixel=", point, " expected=", Vector4i(expected.x, expected.y, expected.z, 255),
 			" actual=", actual, " ", "PASS" if pixel_passed else "FAIL")
 	return passed
 
@@ -204,7 +205,7 @@ func run_cases() -> void:
 	if finished:
 		return
 	build_fixture()
-	control_passed = await check_case("explicit_mipmap_control", create_control_material())
+	control_passed = await check_case("explicit_mipmap_control", create_control_material(), MIP_CODES)
 	if finished:
 		return
 	if not control_passed:
@@ -219,12 +220,12 @@ func run_cases() -> void:
 		return
 	print("SOURCE shader_sha256=", FileAccess.get_sha256(SHADER_PATH),
 		" script_sha256=", FileAccess.get_sha256("res://tests/skybox_mipmap_sampling.gd"))
-	var production_passed: bool = await check_case("production_sky_sampler", create_production_material(shader))
+	var production_passed: bool = await check_case("production_sky_mip0", create_production_material(shader), BASE_CODES)
 	if finished:
 		return
 	if not production_passed:
-		fail("RED", "control passed; actual production sky sampler failed authored-green-mip oracle")
+		fail("RED", "control passed; actual production sky sampler failed original red-mip0 oracle")
 		return
 	finished = true
-	print("PASS: production sky sampler consumes authored smaller mips; falsifies no-mip hypothesis for this synthetic source-mip unit, not full asset/scene parity")
+	print("PASS: explicit mipmap control consumes authored green levels; production sky samples original red mip0; synthetic sampler contract only, not full asset/scene parity")
 	quit(0)

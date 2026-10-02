@@ -3,6 +3,7 @@ extends SceneTree
 # MAIN GPU invocation (no new flags):
 # godot --path godot -s res://tests/skybox_static_sampler.gd -- --screen skyboxdebug
 #   --skybox-fdid 525142 --skybox-verify --skybox-time-ms 100000
+# Original f23343bb sampler: Repeat U/V, linear mip0 on every sky path.
 # Synthetic sampler witnesses using the actual authored Fog21 shader object.
 # Not a coastal image-parity test; sampler success falsifies only this lead.
 const SIZE: int = 64
@@ -12,7 +13,7 @@ const TOLERANCE: int = 2
 const RED_CODES: Vector4i = Vector4i(128, 0, 0, 255)
 const BLUE_CODES: Vector4i = Vector4i(0, 0, 128, 255)
 const LEVEL_SIZES: Array[int] = [64, 32, 16, 8, 4, 2, 1]
-const CLAMP_POINTS: Array[Vector2i] = [
+const REPEAT_POINTS: Array[Vector2i] = [
 	Vector2i(20, 30), Vector2i(22, 34), Vector2i(41, 30), Vector2i(43, 34),
 ]
 const MIP_POINTS: Array[Vector2i] = [Vector2i(28, 28), Vector2i(32, 32), Vector2i(36, 36)]
@@ -241,7 +242,7 @@ func create_control(texture: ImageTexture) -> StandardMaterial3D:
 	var material: StandardMaterial3D = StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	material.texture_repeat = false
+	material.texture_repeat = true
 	material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	material.albedo_color = Color.WHITE
 	material.albedo_texture = texture
@@ -299,15 +300,16 @@ func check_case(label: String, material: Material, minified: bool) -> bool:
 		fail("SETUP", label + ": quad visibility/opaque black background invalid")
 		return false
 	var passed: bool = true
-	var points: Array[Vector2i] = MIP_POINTS if minified else CLAMP_POINTS
+	var points: Array[Vector2i] = MIP_POINTS if minified else REPEAT_POINTS
 	for point in points:
-		var expected: Vector4i = RED_CODES if minified or point.x < (SIZE >> 1) else BLUE_CODES
+		var expected: Vector4i = RED_CODES if minified or point.x >= (SIZE >> 1) else BLUE_CODES
 		var actual: Vector4i = encoded_pixel(image, point)
 		var matches: bool = (absi(actual.x - expected.x) <= TOLERANCE
 			and absi(actual.y - expected.y) <= TOLERANCE
 			and absi(actual.z - expected.z) <= TOLERANCE and actual.w == expected.w)
 		passed = passed and matches
 		# The quad projects to [16,48); pixel centers supply independent witness UVs.
+		# U below 0 wraps to the blue half; U above 1 wraps to the red half.
 		var quad_uv: Vector2 = (Vector2(point) + Vector2(0.5, 0.5) - Vector2(16, 16)) / 32.0
 		var witness_uv: Vector2 = quad_uv * 64.0 if minified else quad_uv * 2.0 - Vector2(0.5, 0.5)
 		print(label, " pixel=", point, " witness_uv=", witness_uv, " actual=", actual,
@@ -328,33 +330,33 @@ func run_cases() -> void:
 		if error != OK:
 			fail("SETUP", "cannot create optional capture directory: " + shots_directory)
 			return
-	print("LIMITS setup=30s GPU_cases=20s; isolated synthetic clamp/mip0 only;",
+	print("LIMITS setup=30s GPU_cases=20s; isolated synthetic repeat/mip0 only;",
 		" no production actor/material/clock mutation; no coastal parity/all-mismatch attribution")
 	build_viewport()
 	var gradient: ImageTexture = create_texture(false)
 	var mips: ImageTexture = create_texture(true)
 	if finished:
 		return
-	var clamp_control: bool = await check_case("control_clamp_linear_no_mip", create_control(gradient), false)
+	var repeat_control: bool = await check_case("control_repeat_linear_no_mip", create_control(gradient), false)
 	if finished:
 		return
 	var mip_control: bool = await check_case("control_static_mip0", create_control(mips), true)
 	if finished:
 		return
-	controls_passed = clamp_control and mip_control
+	controls_passed = repeat_control and mip_control
 	if not controls_passed:
-		fail("SETUP", "linear NO-MIP repeat=false controls failed; production not evaluated")
+		fail("SETUP", "linear NO-MIP repeat=true controls failed; production not evaluated")
 		return
-	var clamp_passed: bool = await check_case("production_static_clamp", create_production_material(gradient), false)
+	var repeat_passed: bool = await check_case("production_static_repeat", create_production_material(gradient), false)
 	if finished:
 		return
 	var mip_passed: bool = await check_case("production_static_mip0", create_production_material(mips), true)
 	if finished:
 		return
-	print("RESULT controls=PASS clamp=", clamp_passed, " mip0=", mip_passed)
-	if not clamp_passed or not mip_passed:
-		fail("RED", "controls passed; actual authored Fog21 shader violates static clamp and/or mip0 contract")
+	print("RESULT controls=PASS repeat=", repeat_passed, " mip0=", mip_passed)
+	if not repeat_passed or not mip_passed:
+		fail("RED", "controls passed; actual authored Fog21 shader violates original repeat and/or mip0 contract")
 		return
 	finished = true
-	print("PASS: actual Fog21 shader satisfies synthetic static clamp/mip0 witnesses; falsifies this sampler lead only, not coastal parity")
+	print("PASS: actual Fog21 shader satisfies synthetic original repeat/mip0 witnesses; falsifies this sampler lead only, not coastal parity")
 	quit(0)
