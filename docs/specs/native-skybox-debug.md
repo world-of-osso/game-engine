@@ -20,6 +20,7 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 ### Camera and live rendering
 
 - [ ] Start orbit focus at (0, 1, 0), distance 7.5; honor the existing camera FOV option. Left drag orbits and wheel zooms. Add no new controls.
+- [ ] Escape may open the existing main-menu/Options overlay in offline SkyboxDebug, without authentication or Log Out. Camera FOV and mouse-sensitivity edits persist to existing settings and apply to the retained scene immediately; menu input must not orbit the camera. Preserve existing Escape/Done/Resume semantics and InWorld menu gating.
 - [ ] Display live authored sky geometry, textures/materials and animation, maintaining the original camera-relative sky behavior and time-dependent evaluation. Fixed bone time preserves original `f32` conversion/remainder for positive-duration clips and the requested `f32` phase for zero-duration clips; it must not enter ordinary advancement, which clamps zero-duration time to zero.
 - [ ] Preserve texture FDIDs/images, source flags/identity metadata, render priority, culling, blending, geometry, camera and animation. Visual acceptance follows [the conversion contract](godot-conversion.md#cross-engine-acceptance); forced mip-0 sampling is not a product requirement.
 - [ ] Prove rendered authored content and real orbit/zoom input independently in the running native scene. Parser acceptance, scene dispatch or a nonempty screenshot alone cannot establish parity.
