@@ -217,6 +217,28 @@ mod asset_references_tests {
     }
 }
 
+/// M2 attachment id 18, above the character: WMVx `AttachmentPosition::ABOVE_CHARACTER`
+/// (`GameConstants.h:237`); worldofwhatever draws quest giver icons there
+/// (`UI/WorldFrame.cc:262`, `600-616`).
+pub const ABOVE_CHARACTER_ATTACHMENT: u32 = 18;
+
+/// Position of the model's above-character attachment in its bind pose, in model units
+/// (WoW axes, z up), or none when the model has no such attachment.
+pub fn above_character_position(model: &Model) -> Option<[f32; 3]> {
+    let attachment = if model.attachment_lookup.is_empty() {
+        model
+            .attachments
+            .iter()
+            .find(|attachment| attachment.id == ABOVE_CHARACTER_ATTACHMENT)
+    } else {
+        let index = *model
+            .attachment_lookup
+            .get(ABOVE_CHARACTER_ATTACHMENT as usize)?;
+        model.attachments.get(usize::try_from(index).ok()?)
+    }?;
+    Some(attachment.position)
+}
+
 /// Parse the primary skin. Models with external SKID skeletons require the separate skeleton bytes.
 /// Sequences kept in external `.anim` files get no keyframes.
 /// A track whose sampled value never changes: every key of every sequence holds the

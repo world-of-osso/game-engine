@@ -1360,6 +1360,11 @@ impl WorldUnits {
         Some(self.units.get(&id)?.node.clone())
     }
 
+    /// The model unit `id` shows, once one has loaded.
+    pub fn unit_visual(&self, id: u64) -> Option<Gd<Node3D>> {
+        self.units.get(&id)?.visual.clone()
+    }
+
     pub fn local_player_node(&self) -> Option<Gd<Node3D>> {
         Some(self.units.get(&self.local_player_id?)?.node.clone())
     }

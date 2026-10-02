@@ -432,15 +432,45 @@ fn tracker_title_opens_the_log_on_that_quest() {
     assert_eq!(ui.log_selected, Some(BEATING_THEM_BACK));
 }
 
+/// Each Retail quest giver status wears its `interface/buttons/talktome*` model
+/// (FDIDs from data/community-listfile.csv); trivial quests show none.
 #[test]
-fn markers_use_the_talktome_models_and_hide_trivial_quests() {
-    let marker = |status| quest_marker_model(status);
-    assert_eq!(marker(QuestGiverStatus::Available), Some(130_731));
-    assert_eq!(marker(QuestGiverStatus::Reward), Some(130_738));
-    assert_eq!(marker(QuestGiverStatus::Unavailable), Some(130_734));
-    assert_eq!(marker(QuestGiverStatus::Incomplete), Some(130_735));
-    assert_eq!(marker(QuestGiverStatus::LowLevelAvailable), None);
-    assert_eq!(marker(QuestGiverStatus::None), None);
+fn markers_use_the_talktome_model_of_each_status_kind() {
+    use QuestGiverStatus::*;
+    use QuestMarkerClass::*;
+    let cases = [
+        (Available(Normal), Some(130_731)),        // talktome.m2
+        (Reward(Normal), Some(130_738)),           // talktomequestionmark.m2
+        (Incomplete(Normal), Some(130_735)),       // talktomequestion_grey.m2
+        (Future(Normal), Some(130_734)),           // talktomegrey.m2
+        (Available(Repeatable), Some(5_374_195)),  // talktome_repeatable.m2
+        (Reward(Repeatable), Some(5_374_197)),     // talktomequestion_repeatable.m2
+        (Incomplete(Repeatable), Some(5_374_198)), // talktomequestion_repeatable_grey.m2
+        (Available(Legendary), Some(3_489_738)),   // talktomeorange_new.m2
+        (Reward(Legendary), Some(3_491_680)),      // talktome_new_questionlegendary.m2
+        (Incomplete(Legendary), Some(5_152_919)),  // talktome_new_questionlegendary_grey.m2
+        (Future(Legendary), Some(5_390_227)),      // talktome_legendary_locked.m2
+        (Available(Important), Some(5_217_338)),   // talktome_important.m2
+        (Reward(Important), Some(5_217_340)),      // talktomequestion_important.m2
+        (Incomplete(Important), Some(5_217_341)),  // talktomequestion_important_grey.m2
+        (Future(Important), Some(5_390_225)),      // talktome_important_locked.m2
+        (Available(Meta), Some(5_374_191)),        // talktome_wrapper.m2
+        (Reward(Meta), Some(5_374_193)),           // talktomequestion_wrapper.m2
+        (Incomplete(Meta), Some(5_374_194)),       // talktomequestion_wrapper_grey.m2
+        (Available(Campaign), Some(3_486_398)),    // talktome_journey.m2
+        (Reward(Campaign), Some(3_486_399)),       // talktomequestion_journey.m2
+        (Incomplete(Campaign), Some(3_486_410)),   // talktomequestion_journey_grey.m2
+        (Future(Campaign), Some(5_390_226)),       // talktome_journey_locked.m2
+        (Available(Calling), Some(3_605_006)),     // talktome_callings.m2
+        (Reward(Calling), Some(3_753_369)),        // talktome_callingsquestion.m2
+        (Incomplete(Calling), Some(3_486_410)),    // talktomequestion_journey_grey.m2
+        (Trivial(Normal), Option::None),
+        (Trivial(Legendary), Option::None),
+        (QuestGiverStatus::None, Option::None),
+    ];
+    for (status, fdid) in cases {
+        assert_eq!(quest_marker_model(status), fdid, "{status:?}");
+    }
 }
 
 #[test]
