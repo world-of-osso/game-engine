@@ -111,26 +111,27 @@ mod tests {
         std::fs::remove_dir_all(workspace).unwrap();
     }
 
+    /// Present and not a zombie awaiting its (new) parent's reap.
+    fn running(pid: libc::pid_t) -> bool {
+        std::fs::read_to_string(format!("/proc/{pid}/stat")).is_ok_and(|stat| {
+            !stat
+                .rsplit(')')
+                .next()
+                .unwrap()
+                .trim_start()
+                .starts_with('Z')
+        })
+    }
+
     fn process_gone(pid: libc::pid_t) -> bool {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while std::time::Instant::now() < deadline {
-            // Gone, or a zombie awaiting its (new) parent's reap: no longer running.
-            match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
-                Err(_) => return true,
-                Ok(stat)
-                    if stat
-                        .rsplit(')')
-                        .next()
-                        .unwrap()
-                        .trim_start()
-                        .starts_with('Z') =>
-                {
-                    return true;
-                }
-                Ok(_) => std::thread::sleep(std::time::Duration::from_millis(20)),
+        while running(pid) {
+            if std::time::Instant::now() >= deadline {
+                return false;
             }
+            std::thread::sleep(std::time::Duration::from_millis(20));
         }
-        false
+        true
     }
 
     #[test]
@@ -152,7 +153,7 @@ mod tests {
             let mut pids = pids.lock().unwrap();
             pids.push(child.id() as libc::pid_t);
             pids.push(line.trim().parse::<libc::pid_t>().unwrap());
-            assert!(!process_gone(pids[1]), "grandchild {} not running", pids[1]);
+            assert!(running(pids[1]), "grandchild {} not running", pids[1]);
             drop(pids);
             panic!("fixture failure mid-run");
         });

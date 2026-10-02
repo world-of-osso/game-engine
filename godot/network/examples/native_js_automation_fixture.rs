@@ -525,7 +525,6 @@ fn pump_child_and_server(
         drain_output(receiver, log, &mut lines)?;
         if exited.is_none() {
             exited = child
-                .0
                 .try_wait()
                 .map_err(|error| format!("SETUP: own child status: {error}"))?;
         }
