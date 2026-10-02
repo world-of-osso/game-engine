@@ -465,7 +465,9 @@ fn bag_release_target(action: Option<Option<String>>) -> Result<Option<CursorTar
 }
 
 pub(super) fn cursor_action_target(action: &str) -> Result<Option<CursorTarget>, String> {
-    if let Some(slot) = parse_equipment_slot_action(action) {
+    if let Some(slot) =
+        parse_equipment_slot_action(action).or_else(|| crate::bags::bag_slot_target(action))
+    {
         return Ok(Some(CursorTarget::Location(ItemLocation::Equipment(slot))));
     }
     if action.starts_with(game_engine_ui_model::bag_frame_component::ACTION_BAG_SLOT_PREFIX) {

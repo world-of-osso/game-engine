@@ -4,7 +4,9 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
-use crate::ui::screens::bags_bar_art::{BACKPACK, BAG_SLOT_EMPTY, SheetCrop};
+use crate::ui::screens::bags_bar_art::{
+    BACKPACK, BAG_ARROW, BAG_SLOT, BAG_SLOT_EMPTY, REAGENT_SLOT, REAGENT_SLOT_EMPTY, SheetCrop,
+};
 
 struct DynName(String);
 
@@ -21,6 +23,16 @@ pub(super) const BAG_SLOT_SIZE: f32 = 30.0;
 pub(super) const BACKPACK_SIZE: f32 = 48.0;
 pub(super) const BAG_SLOT_GAP: f32 = 0.0;
 pub(super) const BAG_COUNT: usize = 4;
+/// `BagBarExpandToggle`: 10x16 between the backpack and `CharacterBag0Slot`.
+const EXPAND_TOGGLE_W: f32 = 10.0;
+const EXPAND_TOGGLE_H: f32 = 16.0;
+/// Reagent bag container (`Enum.BagIndex.ReagentBag`).
+const REAGENT_BAG: usize = 5;
+/// `CircularItemButtonTemplate` `CircleMask`: TOPLEFT 2,-2 and BOTTOMRIGHT -4,4 of the
+/// 30x30 slot clip its full-size `icon` (ItemButtonTemplate.xml:5-21).
+const ICON_INSET: f32 = 2.0;
+const ICON_SIZE: f32 = BAG_SLOT_SIZE - 6.0;
+pub const ACTION_BAG_BAR_EXPAND_TOGGLE: &str = "bag_bar_expand_toggle";
 const MONEY_DISPLAY_W: f32 = 160.0;
 const MONEY_DISPLAY_H: f32 = 14.0;
 const MONEY_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
@@ -31,12 +43,16 @@ const COUNT_H: f32 = 14.0;
 const COUNT_BELOW_CENTRE: f32 = 10.0;
 const WHITE: &str = "1.0,1.0,1.0,1.0";
 
-/// Player money in total copper, matching the original money updater, and the free slots
-/// over every bag (`C_Container.CalculateTotalNumberOfFreeBagSlots`).
+/// Player money in total copper, matching the original money updater, the free slots
+/// over every bag (`C_Container.CalculateTotalNumberOfFreeBagSlots`), the icon of the bag
+/// equipped in each bag slot (bags 1-4, then the reagent bag) and whether
+/// `BagBarExpandToggle` collapsed the four bag slots.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BagBarState {
     pub money: u64,
     pub free_slots: usize,
+    pub bag_icons: [Option<u32>; 5],
+    pub collapsed: bool,
 }
 
 pub fn bags_bar_screen(ctx: &SharedContext) -> Element {
@@ -57,33 +73,59 @@ fn format_money(money: u64) -> String {
     }
 }
 
-/// Bags chained leftward from the backpack, vertically centred on it, as in Retail. Money
-/// (not part of the Retail bar) sits left of the bags.
-fn bag_bar(state: Option<BagBarState>) -> Element {
-    let bags_w = BAG_COUNT as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
-    let total_w = MONEY_DISPLAY_W + bags_w + BACKPACK_SIZE;
+/// `BagsBarMixin:Layout` with `Enum.BagsDirection.Left`: the backpack at the right, then
+/// `BagBarExpandToggle`, then every shown bag button chained leftward, vertically centred
+/// on the backpack. Collapsed, the four bag slots hide and the reagent slot, which stays
+/// shown, chains on from the toggle (BagsBar.lua:62-107, MainMenuBarBagButtons.lua:259,
+/// 391). Money (not part of the Retail bar) sits left of the bags.
+fn bag_bar(synced: Option<BagBarState>) -> Element {
+    let state = synced.unwrap_or_default();
+    // GetBagBarLength counts hidden bag buttons too: the bar keeps its length.
+    let bags_w = (BAG_COUNT + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
+    let total_w = MONEY_DISPLAY_W + bags_w + EXPAND_TOGGLE_W + BACKPACK_SIZE;
     let backpack_x = total_w - BACKPACK_SIZE;
+    let toggle_x = backpack_x - EXPAND_TOGGLE_W;
     let centre_y = |size: f32| (BAGS_BAR_H - size) / 2.0;
-    let bags: Element = (0..BAG_COUNT)
+    let shown_bags = if state.collapsed { 0 } else { BAG_COUNT };
+    let slot_x = |i: usize| toggle_x - (i + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
+    let bags: Element = (0..shown_bags)
         .flat_map(|i| {
-            // CharacterBag0Slot sits next to the backpack.
-            let x = backpack_x - (i + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
+            // CharacterBag0Slot (bag 1) sits next to the toggle.
+            let icon = state.bag_icons[i];
             let slot = BagSlot {
                 name: format!("CharacterBag{i}Slot"),
                 index: i + 1,
                 size: BAG_SLOT_SIZE,
-                art: BAG_SLOT_EMPTY,
+                art: if icon.is_some() {
+                    BAG_SLOT
+                } else {
+                    BAG_SLOT_EMPTY
+                },
+                icon,
             };
-            bag_slot(slot, x, centre_y(BAG_SLOT_SIZE), Vec::new())
+            bag_slot(slot, slot_x(i), centre_y(BAG_SLOT_SIZE), Vec::new())
         })
         .collect();
+    let reagent_icon = state.bag_icons[REAGENT_BAG - 1];
+    let reagent = BagSlot {
+        name: "CharacterReagentBag0Slot".to_string(),
+        index: REAGENT_BAG,
+        size: BAG_SLOT_SIZE,
+        art: if reagent_icon.is_some() {
+            REAGENT_SLOT
+        } else {
+            REAGENT_SLOT_EMPTY
+        },
+        icon: reagent_icon,
+    };
     let backpack = BagSlot {
         name: "MainMenuBarBackpackButton".to_string(),
         index: 0,
         size: BACKPACK_SIZE,
         art: BACKPACK,
+        icon: None,
     };
-    let count = state.map_or_else(Vec::new, |s| backpack_count(s.free_slots));
+    let count = synced.map_or_else(Vec::new, |s| backpack_count(s.free_slots));
     rsx! {
         r#frame {
             name: "BagsBar",
@@ -93,8 +135,41 @@ fn bag_bar(state: Option<BagBarState>) -> Element {
             right: {BAGS_BAR_RIGHT},
             bottom: {BAGS_BAR_BOTTOM},
             {bag_slot(backpack, backpack_x, centre_y(BACKPACK_SIZE), count)}
+            {expand_toggle(toggle_x, centre_y(EXPAND_TOGGLE_H), state.collapsed)}
             {bags}
-            {money_display(centre_y(MONEY_DISPLAY_H), state.map(|s| s.money))}
+            {bag_slot(reagent, slot_x(shown_bags), centre_y(BAG_SLOT_SIZE), Vec::new())}
+            {money_display(centre_y(MONEY_DISPLAY_H), synced.map(|s| s.money))}
+        }
+    }
+}
+
+/// `BagBarExpandToggleMixin:GetRotation`: the left-pointing arrow turns by pi while the
+/// bar is expanded (MainMenuBarBagButtons.lua:404-425).
+fn expand_toggle(x: f32, y: f32, collapsed: bool) -> Element {
+    let rotation = if collapsed { 0.0 } else { std::f32::consts::PI };
+    let coords = BAG_ARROW.tex_coords();
+    rsx! {
+        button {
+            name: "BagBarExpandToggle",
+            width: {EXPAND_TOGGLE_W},
+            height: {EXPAND_TOGGLE_H},
+            text: "",
+            font_size: 8.0,
+            onclick: ACTION_BAG_BAR_EXPAND_TOGGLE,
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+            texture {
+                name: "BagBarExpandToggleNormalTexture",
+                width: {EXPAND_TOGGLE_W},
+                height: {EXPAND_TOGGLE_H},
+                texture_fdid: {BAG_ARROW.fdid},
+                tex_coords: {coords.as_str()},
+                rotation: {rotation},
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
         }
     }
 }
@@ -145,12 +220,18 @@ struct BagSlot {
     index: usize,
     size: f32,
     art: SheetCrop,
+    /// The equipped bag's icon, under the slot art (`BaseBagSlotButtonMixin:UpdateTextures`).
+    icon: Option<u32>,
 }
 
 fn bag_slot(slot: BagSlot, x: f32, y: f32, overlay: Element) -> Element {
     let action = bag_toggle_action(slot.index);
     let art_name = DynName(format!("{}Art", slot.name));
     let coords = slot.art.tex_coords();
+    let icon = slot
+        .icon
+        .map(|fdid| bag_icon(format!("{}IconTexture", slot.name), fdid))
+        .unwrap_or_default();
     rsx! {
         button {
             name: DynName(slot.name),
@@ -162,6 +243,7 @@ fn bag_slot(slot: BagSlot, x: f32, y: f32, overlay: Element) -> Element {
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
+            {icon}
             texture {
                 name: art_name,
                 width: {slot.size},
@@ -173,6 +255,26 @@ fn bag_slot(slot: BagSlot, x: f32, y: f32, overlay: Element) -> Element {
                 top: 0.0,
             }
             {overlay}
+        }
+    }
+}
+
+/// The bag's `icon`, cropped to the `CircleMask` rect; the round mask itself is applied
+/// by the host to every `*SlotIconTexture`.
+fn bag_icon(name: String, fdid: u32) -> Element {
+    let low = ICON_INSET / BAG_SLOT_SIZE;
+    let high = (ICON_INSET + ICON_SIZE) / BAG_SLOT_SIZE;
+    let coords = format!("{low},{high},{low},{high}");
+    rsx! {
+        texture {
+            name: DynName(name),
+            width: {ICON_SIZE},
+            height: {ICON_SIZE},
+            texture_fdid: fdid,
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            left: {ICON_INSET},
+            top: {ICON_INSET},
         }
     }
 }

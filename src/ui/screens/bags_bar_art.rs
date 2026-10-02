@@ -44,3 +44,11 @@ const fn bag(left: f32, right: f32, top: f32, bottom: f32) -> SheetCrop {
 pub(super) const BACKPACK: SheetCrop = bag(1.0, 97.0, 1.0, 97.0);
 /// `bag-border-empty-2x` (member 16751): an empty bag slot.
 pub(super) const BAG_SLOT_EMPTY: SheetCrop = bag(295.0, 356.0, 64.0, 125.0);
+/// `bag-border-2x` (member 16750): a bag slot holding a bag.
+pub(super) const BAG_SLOT: SheetCrop = bag(295.0, 356.0, 1.0, 62.0);
+/// `bag-reagent-border-2x` (member 16753): the reagent bag slot holding a bag.
+pub(super) const REAGENT_SLOT: SheetCrop = bag(358.0, 419.0, 64.0, 125.0);
+/// `bag-reagent-border-empty-2x` (member 16754): the empty reagent bag slot.
+pub(super) const REAGENT_SLOT_EMPTY: SheetCrop = bag(421.0, 482.0, 1.0, 62.0);
+/// `bag-arrow-2x` (member 16749): `BagBarExpandToggle`, pointing left unrotated.
+pub(super) const BAG_ARROW: SheetCrop = bag(484.0, 504.0, 1.0, 33.0);
