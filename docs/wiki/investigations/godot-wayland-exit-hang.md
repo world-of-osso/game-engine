@@ -28,7 +28,8 @@ PR #123946: 0/120 m2_animation, 0/60 m2_material_pixels. Evidence:
 4.7.2-stable plus `scripts/godot/pr123946-wayland-exit-hang.patch`, built by
 `scripts/godot/build-patched-godot.sh` with the official release toolchain (buildroot SDK
 godot-2023.08.x-4, accesskit-c 0.22.3, SCons 4.10.1, `production=yes`) and SHA-512 pinned in
-`scripts/godot/godot-4.7.2-pr123946.sha512`. No fallback to the official binary. The patch
+`scripts/godot/godot-4.7.2-pr123946.sha512`; `PYTHONHASHSEED=0` makes the build
+bit-reproducible. Pinned binary: 0/120 hangs (`data/diagnostics/godotpatch-2026-10-01/loop-anim-seeded.txt`). No fallback to the official binary. The patch
 touches only `platform/linuxbsd/wayland/`, so other platforms need no patched build.
 
 **Retirement.** Drop the patch, build script and pin, and return to an official release
