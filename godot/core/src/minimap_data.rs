@@ -353,3 +353,67 @@ pub fn parse_race_faction_groups<R: BufRead>(
     }
     Ok(races)
 }
+
+/// One `Vignette` DB2 row as the maps read it: `Name_lang` and `Flags`
+/// (TrinityCore `VignetteFlags`, DBCEnums.h).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VignetteRow {
+    pub name: String,
+    pub flags: u32,
+}
+
+const VIGNETTE_SHOW_ON_MAP: u32 = 0x2;
+const VIGNETTE_DONT_SHOW_ON_MINIMAP: u32 = 0x200;
+const VIGNETTE_HIDE_ON_CONTINENT_MAPS: u32 = 0x1_0000;
+
+impl VignetteRow {
+    /// `VignetteInfo.onMinimap`: every vignette without `DontShowOnMinimap`.
+    pub fn on_minimap(&self) -> bool {
+        self.flags & VIGNETTE_DONT_SHOW_ON_MINIMAP == 0
+    }
+
+    /// `VignetteInfo.onWorldMap` (`VignetteDataProviderMixin:ShouldShowVignette`):
+    /// `ShowOnMap`.
+    pub fn on_world_map(&self) -> bool {
+        self.flags & VIGNETTE_SHOW_ON_MAP != 0
+    }
+
+    /// `HideOnContinentMaps`: drawn on zone maps only.
+    pub fn hide_on_continent_maps(&self) -> bool {
+        self.flags & VIGNETTE_HIDE_ON_CONTINENT_MAPS != 0
+    }
+}
+
+/// `Vignette.csv` rows by `ID`.
+pub fn parse_vignettes<R: BufRead>(
+    mut reader: R,
+    path: &Path,
+) -> Result<HashMap<u32, VignetteRow>, String> {
+    let mut header = String::new();
+    reader
+        .read_line(&mut header)
+        .map_err(|err| format!("read {} header: {err}", path.display()))?;
+    let headers = parse_csv_line_trimmed(header.trim_end_matches(['\r', '\n']));
+    let (id, name, flags) = (
+        header_index(&headers, "ID", path)?,
+        header_index(&headers, "Name_lang", path)?,
+        header_index(&headers, "Flags", path)?,
+    );
+    let mut vignettes = HashMap::new();
+    for line in reader.lines() {
+        let line = line.map_err(|err| format!("read {} row: {err}", path.display()))?;
+        let fields = parse_csv_line_trimmed(&line);
+        let parse = |index: usize| {
+            fields
+                .get(index)
+                .and_then(|value| value.parse::<u32>().ok())
+                .ok_or_else(|| format!("{}: bad row {line}", path.display()))
+        };
+        let row = VignetteRow {
+            name: fields.get(name).cloned().unwrap_or_default(),
+            flags: parse(flags)?,
+        };
+        vignettes.insert(parse(id)?, row);
+    }
+    Ok(vignettes)
+}

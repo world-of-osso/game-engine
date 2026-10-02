@@ -24,7 +24,7 @@ use lightyear::prelude::{
     LinkOf, NetworkTarget, Replicate, ReplicationReceiver, VisibilityExt, client as client_network,
 };
 use shared::components::{
-    CreatureClassification, Health, Npc, Player, Position, UnitAuras, UnitLevel,
+    CreatureClassification, Health, Npc, Player, Position, UnitAuras, UnitLevel, UnitVignette,
 };
 
 use super::{Replica, ReplicationBatch, Schema, Unit, UnitChange, receive::acknowledgments};
@@ -380,6 +380,27 @@ fn creature_classification_reaches_the_replica() {
     session.until("timber spawn", timber, |unit| {
         unit.and_then(|unit| unit.get::<CreatureClassification>().copied())
             == Some(CreatureClassification::Rare)
+    });
+}
+
+/// Doomwalker (world.db creature_template 167749) carries Vignette 6520 until the
+/// server removes it on death.
+#[test]
+fn unit_vignette_reaches_the_replica_and_leaves_it() {
+    let mut session = Session::start(9104);
+    let doomwalker = Npc {
+        template_id: 167_749,
+        name: "Doomwalker".into(),
+    };
+    let doomwalker = session.spawn((doomwalker, position(7.0), UnitVignette(6_520)));
+    session.until("doomwalker spawn", doomwalker, |unit| {
+        unit.and_then(|unit| unit.get::<UnitVignette>().copied()) == Some(UnitVignette(6_520))
+    });
+    session.edit(doomwalker, |entity| {
+        entity.remove::<UnitVignette>();
+    });
+    session.until("vignette removed", doomwalker, |unit| {
+        unit.is_some_and(|unit| !unit.has::<UnitVignette>())
     });
 }
 
