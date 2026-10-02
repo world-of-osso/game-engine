@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Mean main-thread ms per frame of each GAME_PROFILE_MS span, per frame_benchmark segment.
+"""Mean main-thread wall and on-CPU ms per frame of each GAME_PROFILE_MS span, per
+frame_benchmark segment.
 
 Usage: frame-spans.py LOG [TOP]
 Run the benchmark with GAME_PROFILE_MS=0 so every span prints. Spans nest (a step span
@@ -14,7 +15,9 @@ import sys
 
 def main():
     path, top = sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 25
-    segment, totals, frames = None, collections.defaultdict(collections.Counter), {}
+    segment, frames = None, {}
+    totals = collections.defaultdict(collections.Counter)
+    cpu = collections.defaultdict(collections.Counter)
     for line in open(path, errors="replace"):
         mark = re.match(r"BENCH_MARK (\w+) (start|end)", line)
         if mark:
@@ -24,14 +27,15 @@ def main():
             report = json.loads(line.split(" ", 1)[1])
             frames[report["segment"]] = report["frames"]
             continue
-        span = re.match(r"PROFILE (.+) ms=([\d.]+)$", line.strip())
+        span = re.match(r"PROFILE (.+) ms=([\d.]+)(?: cpu=([\d.]+))?", line.strip())
         if span and segment:
             totals[segment][span[1]] += float(span[2])
+            cpu[segment][span[1]] += float(span[3] or 0)
     for name, counter in totals.items():
         count = frames.get(name) or 1
-        print(f"== {name}: {count} frames")
+        print(f"== {name}: {count} frames (wall ms, on-CPU ms)")
         for label, total in counter.most_common(top):
-            print(f"{total / count:8.2f} ms  {label}")
+            print(f"{total / count:8.2f} {cpu[name][label] / count:8.2f}  {label}")
 
 
 if __name__ == "__main__":
