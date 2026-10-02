@@ -24,7 +24,11 @@ Source inventory and exact contract live in the linked spec; the table above is 
 
 Run5 child1/no timeout retains INVALID nominal steady evidence and request121 source/time correlation, without retrospective removal-versus-clear attribution. Run6 child1/no timeout has all 2137 nominal-window intervals below fixture100ms policy, but readiness changes still make steady evidence **INVALID**. First-invalid NPC4294959728/request97 is correlated by request/result clocks, not directly captured private pending-key evidence; it has no matching removal. General churn—113 requests/113 active consumes, 17 replica despawns/17 actual removals, zero clear/reset events—includes repeated removal/reintroduction of OTHER NPCs4294959785/4294959768, not proof of first-invalid same-ID re-entry. Authoritative server cause remains unproved.
 
-Bounded independent run6 verification remains pending, not PASS. No controlled improvement baseline, general shutdown or full-conversion acceptance; retained/full conversion remains OPEN. Historical run5 and earlier proof retain their original bounds.
+[Independent lifecycle audit and pending follow-up](../../specs/native-skybox-debug.md#actual-run56-evidence) accepts bounded source/emission/provenance, rejects steady acceptance, and records the trivial effect-revealing naming fix with final compile/verifier pending. Historical run5 and earlier proof retain their original bounds.
+
+[Accepted pinned mip proof](../../specs/native-skybox-debug.md#pinned-mip-sampler-process-proof) covers synthetic assertions and normal child/outer exits only. [Actual authored-pose proof](../../specs/native-skybox-debug.md#pinned-authored-pose--bounded-actual-runtime) covers raw-M2-derived fixed coastal local/global poses without test writes; leaks and natural-live, zero-duration-authored, GPU pose and shutdown exclusions remain. Exact artifacts, revisions and measurements live only in the spec. [Camera focus invariant](../../specs/native-skybox-debug.md#camera-focus-invariant--rejected-arbitrary-translation-gap) rejects arbitrary translation as a gap: original behavior and existing drag/wheel observer share orbit focus.
+
+Missing default Light data, absent controlled baseline, invalid steady windows and bounded dynamic-window observations remain limitations. Transferred ownership and full conversion remain **OPEN**; no clean-resource/general-shutdown acceptance.
 
 ## Native JS automation — bounded Login GREEN, overall gate FAIL
 
