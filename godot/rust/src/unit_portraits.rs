@@ -174,8 +174,12 @@ impl Portrait {
         bind_sheet_light(&model);
         scene.root.add_child(&model);
         scene.model = Some(model.clone());
-        frame_portrait(&mut scene.camera, &model)
-            .map_err(|error| format!("{} portrait: {error}", self.slot.frame))
+        if let Err(error) = frame_portrait(&mut scene.camera, &model) {
+            // No camera to frame it: show no model rather than a stale view.
+            scene.remove_model();
+            return Err(format!("{} portrait: {error}", self.slot.frame));
+        }
+        Ok(())
     }
 
     fn snapshot(&self) -> VarDictionary {
