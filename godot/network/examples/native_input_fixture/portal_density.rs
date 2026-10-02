@@ -5,7 +5,7 @@ use shared::protocol::{NewWorld, TransferChannel};
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut selected = None;
@@ -48,27 +48,22 @@ fn join_readers_if_exited(
 }
 
 fn read_fixture_output(
-    lines: &Receiver<String>,
+    lines: &ClientLines,
     app: &mut App,
     selected: Option<Entity>,
     stage: &mut i32,
 ) -> Result<(), String> {
-    for line in lines.try_iter() {
+    for line in lines.after_selection(selected.is_some()) {
         let line = line.trim();
         portal_particles::reject_fixture_error(line)?;
-        advance_fixture_stage(app, selected, stage, line)?;
+        advance_fixture_stage(app, stage, line)?;
     }
     Ok(())
 }
 
-fn advance_fixture_stage(
-    app: &mut App,
-    selected: Option<Entity>,
-    stage: &mut i32,
-    line: &str,
-) -> Result<(), String> {
+fn advance_fixture_stage(app: &mut App, stage: &mut i32, line: &str) -> Result<(), String> {
     match (*stage, line) {
-        (0, "FIXTURE DENSITY_LOADING") if selected.is_some() => {
+        (0, "FIXTURE DENSITY_LOADING") => {
             send::<_, TerrainChannel>(
                 app,
                 LoadTerrain {

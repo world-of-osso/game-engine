@@ -25,7 +25,7 @@ struct Progress {
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut progress = Progress {
@@ -52,7 +52,7 @@ pub(super) fn run(
                 reader.join().map_err(|_| "Godot output reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
+        for line in lines.after_selection(progress.selected.is_some()) {
             advance_marker(app, &mut progress, line.trim())?;
         }
         check_inputs(app, &mut progress)?;
@@ -94,8 +94,8 @@ fn advance_marker(app: &mut App, progress: &mut Progress, line: &str) -> Result<
             progress.stage = Stage::Loading;
         }
         (Stage::Loading, "FIXTURE MENU_LOADING") => {
-            if progress.selected.is_none() || !take_inputs(app).is_empty() {
-                return Err("menu world loading preceded selection or sent input".into());
+            if !take_inputs(app).is_empty() {
+                return Err("menu world loading sent input".into());
             }
             send::<_, TerrainChannel>(
                 app,

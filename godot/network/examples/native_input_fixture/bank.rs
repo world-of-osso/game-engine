@@ -418,11 +418,7 @@ impl Session {
     }
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     app.init_resource::<Requests>();
     app.add_systems(Update, receive);
     let mut selected = None;
@@ -439,7 +435,7 @@ fn run_until_done(
             }
         }
         if let Some(session) = &mut session {
-            for line in lines.try_iter() {
+            for line in lines.after_selection(true) {
                 session.observe(app, line.trim())?;
             }
             session.requests(app)?;
@@ -458,12 +454,12 @@ fn run_until_done(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut result = run_until_done(app, child, &lines);
     let cleanup = bags::cleanup_owned_child(child, readers);
-    for line in lines.try_iter() {
+    for line in lines.remaining() {
         if let Err(error) = bags::reject_runtime_error(line.trim()) {
             result = Err(error);
         }

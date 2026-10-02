@@ -98,11 +98,7 @@ fn observe(app: &mut App, line: &str, phase: &mut Phase) -> Result<(), String> {
     Ok(())
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     let mut selected = None;
     let mut remote = None;
     let mut phase = Phase::Loading;
@@ -112,12 +108,8 @@ fn run_until_done(
         app.update();
         respond_to_login(app, StartupScreen::Bags)?;
         respond_to_selection(app, StartupScreen::Bags, &mut selected, &mut remote)?;
-        // The client prints Loading as it sends SelectCharacter; leave its lines queued
-        // until this peer has processed the selection.
-        if selected.is_some() {
-            for line in lines.try_iter() {
-                observe(app, line.trim(), &mut phase)?;
-            }
+        for line in lines.after_selection(selected.is_some()) {
+            observe(app, line.trim(), &mut phase)?;
         }
         if let Some(status) = child
             .try_wait()
@@ -162,13 +154,13 @@ pub(super) fn cleanup_owned_child(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut result = run_until_done(app, child, &lines);
     // Cleanup is unconditional, including runtime errors; readers must be joined.
     let cleanup = cleanup_owned_child(child, readers);
-    for line in lines.try_iter() {
+    for line in lines.remaining() {
         if let Err(error) = reject_runtime_error(line.trim()) {
             result = Err(match result {
                 Ok(()) => error,

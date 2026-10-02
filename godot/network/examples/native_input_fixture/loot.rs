@@ -193,7 +193,7 @@ impl Session {
             return self.reach.observe(app, line).map(|_| ());
         }
         match line {
-            "FIXTURE LOOT_LOADING" if self.corpse.is_some() && !self.loading => {
+            "FIXTURE LOOT_LOADING" if !self.loading => {
                 send::<_, TerrainChannel>(
                     app,
                     LoadTerrain {
@@ -424,7 +424,7 @@ impl Session {
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     app.init_resource::<Requests>();
@@ -454,7 +454,7 @@ pub(super) fn run(
                 reader.join().map_err(|_| "Godot output reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
+        for line in lines.after_selection(selected.is_some()) {
             session.observe(app, line.trim())?;
         }
         session.respond(app)?;

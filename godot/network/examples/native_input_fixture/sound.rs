@@ -4,7 +4,7 @@ use super::*;
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut selected = None;
@@ -22,7 +22,7 @@ pub(super) fn run(
                 reader.join().map_err(|_| "Godot output reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
+        for line in lines.after_selection(selected.is_some()) {
             let line = line.trim();
             if line.starts_with("GODOT_STDERR: ERROR:")
                 || line.starts_with("GODOT_STDERR: SCRIPT ERROR:")
@@ -30,7 +30,7 @@ pub(super) fn run(
                 return Err(format!("Godot sound runtime error: {line}"));
             }
             match line {
-                "FIXTURE SOUND_LOADING" if stage == 0 && selected.is_some() => {
+                "FIXTURE SOUND_LOADING" if stage == 0 => {
                     send::<_, TerrainChannel>(
                         app,
                         LoadTerrain {

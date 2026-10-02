@@ -1215,11 +1215,7 @@ fn tick_peer(
     Ok(())
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     app.init_resource::<Requests>();
     app.add_systems(Update, (receive_merchant, receive_inventory));
     let mut remote = None;
@@ -1245,7 +1241,7 @@ fn run_until_done(
     let deadline = Instant::now() + TIMEOUT + Duration::from_secs(180);
     while Instant::now() < deadline {
         tick_peer(app, &mut session, &mut remote)?;
-        for line in lines.try_iter() {
+        for line in lines.after_selection(session.selected.is_some()) {
             session.send_phase_responses(app, line.trim())?;
         }
         session.respond(app)?;
@@ -1277,12 +1273,12 @@ fn run_until_done(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut result = run_until_done(app, child, &lines);
     let cleanup = bags::cleanup_owned_child(child, readers);
-    for line in lines.try_iter() {
+    for line in lines.remaining() {
         if let Err(error) = bags::reject_runtime_error(line.trim()) {
             result = Err(match result {
                 Ok(()) => error,

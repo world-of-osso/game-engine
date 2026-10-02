@@ -112,13 +112,12 @@ fn observe(
     app: &mut App,
     line: &str,
     phase: &mut Phase,
-    selected: bool,
     remote: Option<Entity>,
 ) -> Result<(), String> {
     bags::reject_runtime_error(line)?;
     let vendor = app.world().resource::<Incoming>().vendor;
     match line {
-        "FIXTURE KEYBINDS_LOADING" if selected && *phase == Phase::Loading => {
+        "FIXTURE KEYBINDS_LOADING" if *phase == Phase::Loading => {
             send::<_, TerrainChannel>(
                 app,
                 LoadTerrain {
@@ -154,11 +153,7 @@ fn observe(
     Ok(())
 }
 
-fn run_until_done(
-    app: &mut App,
-    child: &mut Child,
-    lines: &Receiver<String>,
-) -> Result<(), String> {
+fn run_until_done(app: &mut App, child: &mut Child, lines: &ClientLines) -> Result<(), String> {
     let mut selected = None;
     let mut remote = None;
     let mut phase = Phase::Loading;
@@ -168,8 +163,8 @@ fn run_until_done(
         app.update();
         respond_to_login(app, StartupScreen::Keybinds)?;
         respond_to_selection(app, StartupScreen::Keybinds, &mut selected, &mut remote)?;
-        for line in lines.try_iter() {
-            observe(app, line.trim(), &mut phase, selected.is_some(), remote)?;
+        for line in lines.after_selection(selected.is_some()) {
+            observe(app, line.trim(), &mut phase, remote)?;
         }
         let interactions =
             std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().interactions);
@@ -195,7 +190,7 @@ fn run_until_done(
 pub(super) fn run(
     app: &mut App,
     child: &mut Child,
-    lines: Receiver<String>,
+    lines: ClientLines,
     readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let result = run_until_done(app, child, &lines);
