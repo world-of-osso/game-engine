@@ -6,6 +6,7 @@ extends "res://tests/world_merchant_click_flow.gd"
 # durability 20. Vendor/buyback names and quality intentionally differ from ItemSparse,
 # proving peer cell content is not replaced by the catalog's.
 const MT_WAIT_MS := 6000
+const MT_CATALOG_WAIT_MS := 120000
 const MT_QUIET_MS := 900
 const MT_TOLERANCE := 2.0
 const MT_VENDOR_ITEMS := ["Fixture Linen Bundle", "Fixture Single Pelt", "Fixture Vendor Sword"]
@@ -37,6 +38,13 @@ func run_test() -> void:
 		fail("Merchant tooltips require authenticated selected fixture roster")
 		return
 	print("FIXTURE MERCHANT_TOOLTIPS_READY")
+	# The item catalog loads off the main thread (9-55 s); every tooltip here reads it.
+	var catalog_deadline := Time.get_ticks_msec() + MT_CATALOG_WAIT_MS
+	while not client.merchant_state().item_catalog_loaded:
+		if Time.get_ticks_msec() > catalog_deadline:
+			fail("Item catalog did not load")
+			return
+		await process_frame
 	var vendor := await find_vendor(client)
 	if vendor.is_empty() or not await open_vendor(client, vendor):
 		return
