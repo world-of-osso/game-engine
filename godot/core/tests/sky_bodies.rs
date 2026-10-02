@@ -1,5 +1,7 @@
 //! Stars alpha over the day (DayNightLightHolder::updatePlanetsAndStars).
-use game_engine_core::sky_bodies::{SkyboxDraw, skybox_draws, stars_alpha};
+use game_engine_core::sky_bodies::{
+    PLANET_FDIDS, PlanetDraw, SkyboxDraw, planet_draws, skybox_draws, stars_alpha,
+};
 
 #[test]
 fn stars_shine_at_midnight_and_vanish_by_day() {
@@ -56,4 +58,49 @@ fn a_later_skybox_fades_the_earlier_ones_and_a_shared_one_keeps_the_larger_weigh
     );
     let shared = |params| (params == 1 || params == 2).then_some((130_636, 0));
     assert_eq!(skybox_draws(&[(1, 0.3), (2, 0.6)], shared)[0].alpha, 0.6);
+}
+
+fn assert_direction(actual: [f32; 3], expected: [f32; 3]) {
+    for axis in 0..3 {
+        assert!(
+            (actual[axis] - expected[axis]).abs() < 1e-3,
+            "{actual:?} vs {expected:?}"
+        );
+    }
+}
+
+#[test]
+fn noon_sun_stands_near_the_zenith_at_unit_scale() {
+    let planets = planet_draws(1440.0, 0.0, 0.0, 0.0);
+    let fdids: Vec<_> = planets.iter().map(|planet| planet.fdid).collect();
+    assert_eq!(fdids, PLANET_FDIDS);
+    // sunPhiTable at day 0.5: phi 0.0873, theta 0.7854 -> WoW (0.0617, 0.0617, 0.9962).
+    assert_direction(planets[0].direction, [0.0617, 0.9962, -0.0617]);
+    assert_eq!(planets[0].scale, 1.0);
+    // The moons sit 100 degrees from the zenith (below the horizon) at moonScale 1.5.
+    assert!(planets[1].direction[1] < -0.17);
+    assert!((planets[1].scale - 1.5 * 2.2).abs() < 1e-5);
+    assert!((planets[2].scale - 1.5 * 1.2).abs() < 1e-5);
+}
+
+#[test]
+fn midnight_moons_rise_on_either_side_and_the_sun_is_below() {
+    let planets = planet_draws(0.0, 0.0, 0.0, 0.0);
+    // moonPhiTable 0.6109 with moonTheta 0.7854 and moon2Theta 2.3562.
+    assert_direction(planets[1].direction, [0.4056, 0.8192, -0.4056]);
+    assert_direction(planets[2].direction, [-0.4056, 0.8192, -0.4056]);
+    assert!((planets[1].scale - 2.2).abs() < 1e-5);
+    assert!((planets[2].scale - 1.2).abs() < 1e-5);
+    assert!(planets[0].direction[1] < -0.17);
+}
+
+#[test]
+fn light_params_flags_hide_the_sun_the_moons_or_every_planet() {
+    let fdids = |planets: Vec<PlanetDraw>| planets.iter().map(|p| p.fdid).collect::<Vec<_>>();
+    // 0x4 hides the sun, 0x8 both moons; a blend under one half still shows them.
+    assert_eq!(fdids(planet_draws(0.0, 1.0, 0.0, 0.0)), PLANET_FDIDS[1..]);
+    assert_eq!(fdids(planet_draws(0.0, 0.0, 1.0, 0.0)), PLANET_FDIDS[..1]);
+    assert_eq!(fdids(planet_draws(0.0, 0.4, 0.4, 0.0)), PLANET_FDIDS);
+    // 0x100 (custom sun position) sets every planet's alpha to zero.
+    assert!(planet_draws(0.0, 0.0, 0.0, 1.0).is_empty());
 }

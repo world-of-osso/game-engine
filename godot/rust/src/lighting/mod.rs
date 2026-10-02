@@ -1,6 +1,7 @@
 //! Native scene-light resources sampled from authored map-position/time data.
 
 pub(crate) mod assets;
+mod planets;
 
 use std::collections::HashMap;
 
@@ -20,7 +21,7 @@ use godot::{
 };
 
 use assets::{LightingCatalog, LightingSample, WaterLight};
-use game_engine_core::sky_bodies::{STARS_FDID, SkyboxDraw};
+use game_engine_core::sky_bodies::{PlanetDraw, STARS_FDID, SkyboxDraw};
 
 use crate::sky_model::SkyModel;
 
@@ -32,6 +33,7 @@ type LightValues = (
     WaterLight,
     Option<f32>,
     Vec<SkyboxDraw>,
+    Vec<PlanetDraw>,
 );
 
 #[derive(Clone)]
@@ -138,6 +140,7 @@ pub(crate) struct WorldLighting {
     stars: Option<SkyModel>,
     /// LightSkybox models by FDID, with the day fraction a flag 0x1 skybox is held at.
     skyboxes: HashMap<u32, (SkyModel, Option<f32>)>,
+    planets: Option<planets::Planets>,
     previous: Option<LightValues>,
 }
 
@@ -175,6 +178,7 @@ impl WorldLighting {
             sample.water.clone(),
             stars_alpha,
             sample.skyboxes.clone(),
+            sample.planets.clone(),
         );
         if self.previous.as_ref() == Some(&values) {
             return Ok(None);
@@ -185,6 +189,7 @@ impl WorldLighting {
         bind_sky_dome(self.sky.as_mut().expect("attached sky"), &stops, &light.fog);
         self.sync_stars(catalog, stars_alpha)?;
         self.sync_skyboxes(catalog, &values.5, minutes)?;
+        self.sync_planets(catalog, &values.6, values.3.specular)?;
         self.sun
             .as_mut()
             .expect("attached sun")
@@ -257,12 +262,33 @@ impl WorldLighting {
         Ok(())
     }
 
+    /// map.cpp: the sun and moon discs draw in the sky view while visible.
+    fn sync_planets(
+        &mut self,
+        catalog: &LightingCatalog,
+        draws: &[PlanetDraw],
+        color: [f32; 3],
+    ) -> Result<(), String> {
+        if self.planets.is_none() {
+            let root = self.root.as_mut().expect("attached root");
+            self.planets = Some(planets::Planets::load(root, &catalog.data_root)?);
+        }
+        self.planets
+            .as_mut()
+            .expect("loaded above")
+            .sync(draws, color);
+        Ok(())
+    }
+
     /// Sky models sit on the camera (WebWowViewerCpp's sky view drops the view
     /// translation) and play their animation at `time_ms`.
     pub fn place_sky(&mut self, camera: Vector3, time_ms: u32) {
         if let Some(stars) = self.stars.as_mut().filter(|stars| stars.node.is_visible()) {
             stars.node.set_global_position(camera);
             stars.sample(time_ms);
+        }
+        if let Some(planets) = self.planets.as_mut() {
+            planets.place(camera);
         }
         for (model, fraction) in self.skyboxes.values_mut() {
             if model.node.is_visible() {
@@ -315,6 +341,7 @@ impl WorldLighting {
         self.sky = None;
         self.stars = None;
         self.skyboxes.clear();
+        self.planets = None;
         if let Some(root) = self.root.take() {
             root.free();
         }

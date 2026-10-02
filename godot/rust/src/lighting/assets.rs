@@ -17,7 +17,11 @@ use game_engine_core::{
         FogKeyframes, FogResult, parse_fog_keyframes, sample_fog_blend, sun_fog_direction,
     },
     retail_light_data::{RetailLightColors, RetailLightData, scene_light},
-    sky_bodies::{LIGHT_PARAMS_HIDE_STARS, STARS_FDID, SkyboxDraw, skybox_draws, stars_alpha},
+    sky_bodies::{
+        LIGHT_PARAMS_HIDE_MOONS, LIGHT_PARAMS_HIDE_STARS, LIGHT_PARAMS_HIDE_SUN,
+        LIGHT_PARAMS_SUN_POSITION, PLANET_FDIDS, PlanetDraw, STARS_FDID, SkyboxDraw, planet_draws,
+        skybox_draws, stars_alpha,
+    },
     sky_lightdata_data::{RetailFog, SkyColorSet, retail_fog, sample_light_blend},
 };
 
@@ -54,6 +58,8 @@ pub(crate) struct LightingSample {
     /// The stars model's alpha, `None` when no stars are drawn.
     pub stars_alpha: Option<f32>,
     pub skyboxes: Vec<SkyboxDraw>,
+    /// The sun and moon discs shown at this time and Light.
+    pub planets: Vec<PlanetDraw>,
 }
 
 /// Scene inputs of the retail water material in authored RGB (WebWowViewerCpp
@@ -93,6 +99,7 @@ impl LightingCatalog {
         let skyboxes = parse_light_skyboxes(&db2.join("LightSkybox.csv"), &params_skybox)?;
         let stars_path =
             cache_stars(data_root).map_err(|error| format!("Stars model {STARS_FDID}: {error}"))?;
+        cache_planet_textures(data_root)?;
         Ok(Self {
             lights,
             zone_lights,
@@ -148,6 +155,12 @@ impl LightingCatalog {
             water,
             stars_alpha: stars_alpha(minutes, self.blend_flag(&weights, LIGHT_PARAMS_HIDE_STARS)),
             skyboxes: skybox_draws(&weights, |params| self.skyboxes.get(&params).copied()),
+            planets: planet_draws(
+                minutes,
+                self.blend_flag(&weights, LIGHT_PARAMS_HIDE_SUN),
+                self.blend_flag(&weights, LIGHT_PARAMS_HIDE_MOONS),
+                self.blend_flag(&weights, LIGHT_PARAMS_SUN_POSITION),
+            ),
         })
     }
 
@@ -245,6 +258,18 @@ impl LightingCatalog {
 /// lookups: the sky loader reads textures by FDID).
 fn cache_stars(data_root: &Path) -> Result<PathBuf, String> {
     cache_sky_model(data_root, STARS_FDID)
+}
+
+/// Extracts the sun and moon disc textures from local CASC.
+fn cache_planet_textures(data_root: &Path) -> Result<(), String> {
+    let resolver = local_resolver(data_root);
+    for fdid in PLANET_FDIDS {
+        let destination = data_root.join("textures").join(format!("{fdid}.blp"));
+        resolver
+            .ensure_cached(fdid, &destination)
+            .ok_or_else(|| format!("planet texture {fdid} not in local CASC"))?;
+    }
+    Ok(())
 }
 
 /// Extracts sky model `fdid` (stars, a LightSkybox) with its skin and batch textures from
