@@ -29,7 +29,7 @@ use game_engine_network::replica::{Replica, Unit};
 use glam::{Affine3A, Vec3};
 use godot::{
     builtin::{Transform3D, Vector3},
-    classes::Node3D,
+    classes::{Engine as GodotEngine, Node3D, Time},
     prelude::*,
 };
 use shared::components::{
@@ -350,10 +350,21 @@ fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldMo
     if unit.appearance == appearance {
         return;
     }
+    let existing_appearance = unit.appearance.is_some();
     unit.appearance = appearance;
     unit.loading = unit.appearance.as_ref().map(|appearance| {
         let sheath = unit_sheath(snapshot);
-        (models.request(appearance, sheath), sheath)
+        let request = models.request(appearance, sheath);
+        godot_print!(
+            "UNIT_VISUAL_REQUEST server_id={} request_id={} existing_appearance={} describe_unit={:?} observed_process_frame={} observed_ticks_usec={}",
+            snapshot.server_id,
+            request,
+            existing_appearance,
+            appearance.describe_unit(snapshot.server_id),
+            GodotEngine::singleton().get_process_frames(),
+            Time::singleton().get_ticks_usec(),
+        );
+        (request, sheath)
     });
     if unit.appearance.is_none() {
         unit.animation = None;
@@ -855,8 +866,26 @@ impl WorldUnits {
                 }
                 continue;
             };
+            let observed_process_frame = GodotEngine::singleton().get_process_frames();
+            let observed_ticks_usec = Time::singleton().get_ticks_usec();
             let (_, sheath) = unit.loading.take().expect("matched a loading unit");
+            let prepared_result_ok = loaded.is_ok();
+            let existing_visual = unit.visual.is_some();
             attach_unit_visual(unit, id, loaded, sheath, &self.models, self.light.as_ref());
+            godot_print!(
+                "UNIT_VISUAL_RESULT_CONSUMED server_id={} request_id={} existing_visual={} describe_unit={:?} prepared_result_ok={} visual_attached={} observed_process_frame={} observed_ticks_usec={}",
+                id,
+                request,
+                existing_visual,
+                unit.appearance
+                    .as_ref()
+                    .expect("matched a loading appearance")
+                    .describe_unit(id),
+                prepared_result_ok,
+                unit.visual.is_some(),
+                observed_process_frame,
+                observed_ticks_usec,
+            );
             if let Some(snapshot) = replica.unit(id) {
                 // Every visual load read the gear rows, so the weapon and pose resolve now.
                 if let Some(class) = combat::unit_weapon_class(unit, &self.models) {

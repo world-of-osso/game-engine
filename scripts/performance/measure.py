@@ -222,7 +222,9 @@ def run_measurement(command, output, manifest, timeout):
                     + ", ".join(measurement["memory_gaps"])
                 )
             if not measurement["settled_queue_stable"]:
-                gaps.append("object queue not continuously settled during observation")
+                gaps.append(
+                    "readiness or parsed tile set not continuously settled during observation"
+                )
     return {
         "command": command,
         "manifest": manifest,
