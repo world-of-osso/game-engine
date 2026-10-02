@@ -183,6 +183,7 @@ pub struct HudOptionsView {
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub auto_loot: bool,
+    pub soft_target_interact: bool,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }

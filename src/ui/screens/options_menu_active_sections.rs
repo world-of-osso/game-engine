@@ -192,6 +192,12 @@ pub fn hud_body(hud: &HudOptionsView) -> Element {
             ),
             // `autoLootDefault` (Controls: Auto Loot); Shift inverts it.
             toggle_row("auto_loot", "Auto Loot", hud.auto_loot),
+            // `ENABLE_INTERACT_TEXT` (Controls: Enable Interact Key, Controls.lua:72-86).
+            toggle_row(
+                "soft_target_interact",
+                "Enable Interact Key",
+                hud.soft_target_interact,
+            ),
         ]
         .into_iter()
         .flatten()

@@ -205,6 +205,7 @@ pub enum InputAction {
     TargetPreviousEnemy,
     AssistTarget,
     TargetSelf,
+    InteractTarget,
     ActionSlot1,
     ActionSlot2,
     ActionSlot3,
@@ -240,7 +241,7 @@ pub enum InputAction {
 }
 
 impl InputAction {
-    pub const ALL: [Self; 50] = [
+    pub const ALL: [Self; 51] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -259,6 +260,7 @@ impl InputAction {
         Self::TargetPreviousEnemy,
         Self::AssistTarget,
         Self::TargetSelf,
+        Self::InteractTarget,
         Self::ActionSlot1,
         Self::ActionSlot2,
         Self::ActionSlot3,
@@ -474,6 +476,15 @@ impl InputAction {
                 targeting_meta("assist_target", "Assist Target", BindingKey::KeyF)
             }
             Self::TargetSelf => targeting_meta("target_self", "Target Self", BindingKey::F1),
+            // `INTERACTTARGET`: `InteractUnit("anyinteract")` (Bindings_Standard.xml:1171).
+            // Unbound by default: Retail's interact key tutorial warns when no key is
+            // assigned (Blizzard_Tutorials_Frame_Tutorials.lua:94-99).
+            Self::InteractTarget => input_action_meta(
+                "interact_target",
+                "Interact With Target",
+                BindingSection::Targeting,
+                None,
+            ),
             Self::ToggleMute => input_action_meta(
                 "toggle_mute",
                 "Toggle Mute",
@@ -850,6 +861,7 @@ fn targeting_action_from_key(key: &str) -> Option<InputAction> {
         "target_previous_enemy" => InputAction::TargetPreviousEnemy,
         "assist_target" => InputAction::AssistTarget,
         "target_self" => InputAction::TargetSelf,
+        "interact_target" => InputAction::InteractTarget,
         _ => return None,
     })
 }
@@ -966,6 +978,7 @@ fn targeting_section_actions() -> &'static [InputAction] {
         InputAction::TargetPreviousEnemy,
         InputAction::AssistTarget,
         InputAction::TargetSelf,
+        InputAction::InteractTarget,
     ]
 }
 

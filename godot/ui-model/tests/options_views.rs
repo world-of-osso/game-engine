@@ -57,6 +57,7 @@ fn model() -> GameMenuViewModel {
                 show_health_bars: true,
                 show_target_marker: true,
                 auto_loot: false,
+                soft_target_interact: false,
                 show_fps_overlay: true,
                 chat_font_size: 10.0,
             },
