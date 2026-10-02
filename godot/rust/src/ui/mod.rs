@@ -693,9 +693,12 @@ impl RegistryUi {
     }
 
     /// The Retail micro menu row.
-    pub(crate) fn show_micro_menu(&mut self) -> Result<(), String> {
+    pub(crate) fn show_micro_menu(
+        &mut self,
+        view: game_engine_ui_model::micro_menu::MicroMenuView,
+    ) -> Result<(), String> {
         self.show_viewport_screen(
-            (),
+            view,
             game_engine_ui_model::micro_menu::micro_menu_screen,
             ScreenPostsetup::None,
         )
@@ -1455,6 +1458,19 @@ impl RegistryUi {
             let name = frame.name.clone()?;
             (button.hovered && frame.visible)
                 .then_some((name, [rect.x, rect.y, rect.width, rect.height]))
+        })
+    }
+
+    /// Name of the button held down (`ButtonState::Pushed` from a press).
+    pub fn pushed_button(&self) -> Option<String> {
+        let model = self.model.as_ref()?;
+        model.registry.frames_iter().find_map(|frame| {
+            let WidgetData::Button(button) = frame.widget_data.as_ref()? else {
+                return None;
+            };
+            (button.state == ButtonState::Pushed && frame.visible)
+                .then(|| frame.name.clone())
+                .flatten()
         })
     }
 
