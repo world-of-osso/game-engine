@@ -6,32 +6,15 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::sync::OnceLock;
 
 use crate::csv_util::{header_index, parse_csv_line};
 
+/// The item's icon; `None` while the item catalog loads (see `ItemCatalog::icon_fdid`).
 pub fn item_icon_fdid(item_id: u32) -> Option<u32> {
-    static ICONS: OnceLock<HashMap<u32, u32>> = OnceLock::new();
-    ICONS
-        .get_or_init(|| {
-            load_item_icons().unwrap_or_else(|err| {
-                #[cfg(not(godot_host))]
-                bevy::log::error!("item icons unavailable: {err}");
-                #[cfg(godot_host)]
-                eprintln!("item icons unavailable: {err}");
-                HashMap::new()
-            })
-        })
-        .get(&item_id)
-        .copied()
-        .or_else(|| {
-            crate::item_catalog::item_catalog_entry(item_id)
-                .map(|entry| entry.icon_fdid)
-                .filter(|icon| *icon != 0)
-        })
+    crate::item_catalog::item_catalog()?.icon_fdid(item_id)
 }
 
-fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
+pub(crate) fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
     let appearance_icons = read_columns(
         &crate::paths::resolve_data_path("ItemAppearance.csv"),
         ["ID", "DefaultIconFileDataID", "ID"],
@@ -118,12 +101,18 @@ mod tests {
     fn brotherhood_of_thieves_reward_resolves_from_retail_tables() {
         // Brotherhood of Thieves (18) choice reward 5580.
         // ItemModifiedAppearance 2132 → ItemAppearance 1885.
-        assert_eq!(item_icon_fdid(5580), Some(133_057));
+        assert_eq!(
+            crate::item_catalog::wait_for_item_catalog().icon_fdid(5580),
+            Some(133_057)
+        );
     }
 
     #[test]
     fn items_without_an_appearance_use_the_item_icon() {
         // Linen Cloth 2589 has no ItemModifiedAppearance row; Item.IconFileDataID 132889.
-        assert_eq!(item_icon_fdid(2589), Some(132_889));
+        assert_eq!(
+            crate::item_catalog::wait_for_item_catalog().icon_fdid(2589),
+            Some(132_889)
+        );
     }
 }

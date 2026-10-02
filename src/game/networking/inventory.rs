@@ -31,7 +31,7 @@ impl Plugin for InventoryNetworkPlugin {
         add_message_route::<InventoryError>(app, handler);
         app.add_systems(
             Update,
-            send_inventory_requests.run_if(in_state(GameState::InWorld)),
+            (send_inventory_requests, receive_item_catalog).run_if(in_state(GameState::InWorld)),
         );
         app.add_systems(OnExit(GameState::InWorld), reset_inventory);
     }
@@ -105,6 +105,15 @@ fn send<M: NetworkMessage + Clone>(senders: &mut MessageSenders<M>, message: M) 
     for mut sender in senders.iter_mut() {
         sender.send::<InventoryChannel>(message.clone());
     }
+}
+
+/// Items that arrived while the item catalog loaded get their data once it is loaded.
+fn receive_item_catalog(mut resolved: Local<bool>, mut inventory: ResMut<InventoryState>) {
+    if *resolved || game_engine::item_catalog::item_catalog().is_none() {
+        return;
+    }
+    *resolved = true;
+    inventory.refresh_item_data();
 }
 
 fn reset_inventory(mut inventory: ResMut<InventoryState>) {

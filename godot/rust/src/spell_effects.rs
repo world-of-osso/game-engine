@@ -44,6 +44,7 @@ use shared::protocol::SpellGo;
 
 use crate::animation::{ActionPriority, WowAnimationPlayer};
 use crate::assets::build_model;
+use crate::background_load::BackgroundLoad;
 use crate::particles::{ParticlePools, PlacedParticles, view_basis};
 use crate::replicated::is_unit;
 use crate::spell_assets::{EffectModel, SpellAsset, SpellAssets, kit_assets};
@@ -358,58 +359,29 @@ pub struct CastSeen {
 /// The spell visual catalog, loaded on a worker thread from client start: building it
 /// from the CSVs takes seconds (1.3M `SoundKitEntry` rows), which on the main thread at the
 /// first cast froze the client through the whole cast (26-30 s on a loaded machine).
-struct Catalog {
-    worker: Option<std::thread::JoinHandle<Result<SpellVisualCatalog, String>>>,
-    loaded: Option<Result<SpellVisualCatalog, String>>,
+fn load_catalog(data_root: &std::path::Path) -> BackgroundLoad<Result<SpellVisualCatalog, String>> {
+    let db2 = data_root.join(DB2_DIR);
+    let cache = data_root
+        .join("cache")
+        .join(SpellVisualCatalog::cache_file_name());
+    BackgroundLoad::start("spell-visuals", move || {
+        SpellVisualCatalog::load(&db2, &cache).map_err(|error| format!("Spell visuals: {error}"))
+    })
 }
 
-impl Catalog {
-    fn load(data_root: &std::path::Path) -> Self {
-        let db2 = data_root.join(DB2_DIR);
-        let cache = data_root
-            .join("cache")
-            .join(SpellVisualCatalog::cache_file_name());
-        let worker = std::thread::spawn(move || {
-            SpellVisualCatalog::load(&db2, &cache)
-                .map_err(|error| format!("Spell visuals: {error}"))
-        });
-        Self {
-            worker: Some(worker),
-            loaded: None,
-        }
-    }
-
-    /// The catalog once the worker is done, without waiting for it.
-    fn try_get(&mut self) -> Option<Result<&SpellVisualCatalog, String>> {
-        if self
-            .worker
-            .as_ref()
-            .is_some_and(|worker| !worker.is_finished())
-        {
-            return None;
-        }
-        Some(self.get())
-    }
-
-    /// The catalog, waiting for the worker when a cast needs it before it is done.
-    fn get(&mut self) -> Result<&SpellVisualCatalog, String> {
-        if let Some(worker) = self.worker.take() {
-            let loaded = worker
-                .join()
-                .unwrap_or_else(|_| Err("Spell visuals: the catalog worker panicked".into()));
-            self.loaded = Some(loaded);
-        }
-        self.loaded
-            .as_ref()
-            .expect("the worker's result replaces it")
-            .as_ref()
-            .map_err(Clone::clone)
-    }
+/// The loaded catalog, `None` while its worker runs.
+fn poll_catalog(
+    catalog: &mut BackgroundLoad<Result<SpellVisualCatalog, String>>,
+) -> Result<Option<&SpellVisualCatalog>, String> {
+    let loaded = catalog
+        .poll()
+        .map(|loaded| loaded.as_ref().map_err(Clone::clone));
+    loaded.transpose()
 }
 
 pub struct SpellEffects {
     data_root: PathBuf,
-    catalog: Catalog,
+    catalog: BackgroundLoad<Result<SpellVisualCatalog, String>>,
     assets: SpellAssets,
     /// Spells whose kit assets were prefetched.
     prefetched: HashSet<u32>,
@@ -451,7 +423,7 @@ const STARTED_KEEP: usize = 64;
 
 impl SpellEffects {
     pub fn new(data_root: PathBuf) -> Self {
-        let catalog = Catalog::load(&data_root);
+        let catalog = load_catalog(&data_root);
         Self {
             assets: SpellAssets::new(data_root.clone()),
             data_root,
@@ -481,8 +453,10 @@ impl SpellEffects {
         }
     }
 
-    fn catalog(&mut self) -> Result<&SpellVisualCatalog, String> {
-        self.catalog.get()
+    /// The visual catalog; `None` while it loads: casts and swings seen meanwhile show no
+    /// kits, and replicated casts and auras start theirs once it has loaded.
+    fn catalog(&mut self) -> Result<Option<&SpellVisualCatalog>, String> {
+        poll_catalog(&mut self.catalog)
     }
 
     /// Kit starts since the world loaded, oldest first.
@@ -599,6 +573,9 @@ impl SpellEffects {
             .filter_map(|unit| Some((unit.server_id, voice_source(unit)?)))
             .collect();
         self.forget_freed_effects();
+        if self.catalog()?.is_none() {
+            return Ok(());
+        }
         errors.extend(self.sync_auras(units, world).err());
         let ended: Vec<u64> = self
             .held
@@ -753,7 +730,10 @@ impl SpellEffects {
         world: &WorldUnits,
     ) -> Result<Option<u32>, String> {
         let context = Self::caster_context(units, world, caster);
-        Ok(self.catalog()?.visual_for_spell(spell_id, &context))
+        let Some(catalog) = self.catalog()? else {
+            return Ok(None);
+        };
+        Ok(catalog.visual_for_spell(spell_id, &context))
     }
 
     /// Start `spell_id`'s kits for `event`; returns the looping clips started on the
@@ -769,7 +749,10 @@ impl SpellEffects {
         let Some(visual) = self.visual(spell_id, cast_units.caster, units, world)? else {
             return Ok(Vec::new());
         };
-        let kits = self.catalog()?.kits(visual, event);
+        let Some(catalog) = self.catalog()? else {
+            return Ok(Vec::new());
+        };
+        let kits = catalog.kits(visual, event);
         let looping = self.start_kits(spell_id, event, cast_units, kits, KitHold::Cast, world)?;
         Ok(looping
             .into_iter()
@@ -893,7 +876,9 @@ impl SpellEffects {
             return Ok(());
         };
         let sounds: Vec<KitSound> = {
-            let catalog = self.catalog()?;
+            let Some(catalog) = self.catalog()? else {
+                return Ok(());
+            };
             kit.unit_sounds
                 .iter()
                 .filter_map(|&sound| catalog.unit_sound(voice, sound).cloned())
@@ -961,7 +946,9 @@ impl SpellEffects {
         let Some(visual) = self.visual(go.spell_id, go.caster, units, world)? else {
             return Ok(None);
         };
-        let catalog = self.catalog()?;
+        let Some(catalog) = self.catalog()? else {
+            return Ok(None);
+        };
         let (Some(missile), Some(speed)) =
             (catalog.missile(visual), catalog.missile_speed(go.spell_id))
         else {
@@ -1065,7 +1052,10 @@ impl SpellEffects {
         launch: &MissileLaunch,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
-        let kits = self.catalog()?.kits(launch.visual_id, VisualEvent::Impact);
+        let Some(catalog) = self.catalog()? else {
+            return Ok(());
+        };
+        let kits = catalog.kits(launch.visual_id, VisualEvent::Impact);
         let cast_units = CastUnits {
             caster: launch.caster,
             target: launch.primary,
@@ -1228,10 +1218,9 @@ impl SpellEffects {
             return Ok(());
         }
         let context = Self::caster_context(units, world, caster);
-        let Some(catalog) = self.catalog.try_get() else {
+        let Some(catalog) = poll_catalog(&mut self.catalog)? else {
             return Ok(());
         };
-        let catalog = catalog?;
         for &spell in spells {
             if !self.prefetched.insert(spell) {
                 continue;
