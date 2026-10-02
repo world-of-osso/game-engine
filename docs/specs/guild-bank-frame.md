@@ -23,7 +23,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [x] Withdrawal plate: `GUILDBANK_REMAINING_MONEY` with `N Stacks`, `None` or `Unlimited`.
 - [x] Money bar: `Available Amount:` shows the withdraw allowance, or `Unlimited`. The guild money sits at BOTTOMRIGHT, with Deposit and Withdraw buttons (100×21). Withdraw is disabled without an allowance.
 - [x] Buy screen (Guild Master, buy tab selected): "Do you wish to purchase this tab?", "(n/6 tabs purchased)", the price and a Purchase button (124×21). Purchase opens `CONFIRM_BUY_GUILDBANK_TAB`, and accepting sends `GuildBankBuyTab`. Non-leaders see `NO_GUILDBANK_TABS`.
-- [x] Log and Money Log modes query their log. They list Retail lines: "X deposited Linen Cloth x 20 ( 1 min ago )", "withdrew", "purchased a guild bank tab for".
+- [x] Log and Money Log modes query their log. They list Retail lines: "X deposited Linen Cloth x 20 ( 1 min ago )", "withdrew", "purchased a guild bank tab for", and guild repairs "X withdrew 1g 50s 16c for repairs" (`GUILDBANK_REPAIR_MONEY_FORMAT`, GB.lua:797-798).
 - [x] Info mode shows the tab text. The Guild Master gets an edit box and Save, which sends `GuildBankSetTabText`.
 
 ### Actions
@@ -43,6 +43,8 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
   - Bankone, Guild Master, opens the Stormwind vault, deposits 150g, buys tab 1 (100g) and deposits Linen x10.
   - Banktwo, rank Member with the vault open, sees the tab and the Linen arrive, and withdraws the Linen; Bankone's slot empties.
   - Item log: "Bankone deposited Linen Cloth x 10", "Banktwo withdrew Linen Cloth x 10". Money log: "Bankone deposited 150g", "Bankone purchased a guild bank tab for 100g".
+
+- Guild repair (native, `data/diagnostics/merchant3-20261001/live/shots/g-7-guild-money-log.png`): the Money Log reads "Fbguildfour deposited 10g" and "Fbguildfour withdrew 16c for repairs".
 
 ## How it works
 - [banks](../wiki/systems/banks.md)
@@ -73,4 +75,4 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [ ] The log is not a scrolling message frame: only the last 21 lines show.
 
 ## Out of scope
-- Tab name/icon editing UI (the icon picker is deferred), item moves inside the bank, search, guild repairs, and the Guild Control UI.
+- Tab name/icon editing UI (the icon picker is deferred), item moves inside the bank, search, and the Guild Control UI. Guild repairs are made at a merchant ([merchant-frame](merchant-frame.md)); the rank's repair right is set with game-server-admin `set-guild-bank-rights <guild> <rank> repair 0|1`.
