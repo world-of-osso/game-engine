@@ -9,6 +9,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 
+use game_engine_core::asset_loader::{AssetLoader, Priority};
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_core::minimap_data::{
     AreaCatalog, FACTION_GROUP_ALLIANCE, FACTION_GROUP_HORDE, MinimapView, TileImage, TileKey,
@@ -45,8 +46,12 @@ pub(crate) struct Minimap {
     /// `AreaTable` and `ChrRaces`, loaded from client start.
     catalogs: BackgroundLoad<Result<Catalogs, String>>,
     resolver: Option<CascListfileResolver>,
+    /// Tiles extracted and decoded on a worker; the composite shows each once it arrives.
+    tile_loader: AssetLoader<(String, TileKey), Option<Tile>>,
     /// Decoded tiles by map directory and key; None where the install has no tile.
     tiles: HashMap<(String, TileKey), Option<Tile>>,
+    /// A tile arrived since the composite was drawn.
+    tiles_arrived: bool,
     /// Whether each chrome texture FDID is on disk.
     chrome: HashMap<u32, bool>,
     /// Map and view of the current composite, and its pixels.
@@ -68,14 +73,22 @@ struct Tile {
 
 impl Minimap {
     pub(crate) fn new(data_root: &std::path::Path) -> Self {
-        let data_root = data_root.to_owned();
+        let catalog_root = data_root.to_owned();
+        let tile_root = data_root.to_owned();
+        let resolver = crate::assets::creature::local_resolver(data_root);
         Self {
             ui: None,
             zoom: 0,
             hovered: false,
-            catalogs: BackgroundLoad::start("minimap-catalogs", move || load_catalogs(&data_root)),
+            catalogs: BackgroundLoad::start("minimap-catalogs", move || {
+                load_catalogs(&catalog_root)
+            }),
             resolver: None,
+            tile_loader: AssetLoader::new("minimap-tiles", 1, move |(map, key)| {
+                load_tile(&resolver, &tile_root, map, *key)
+            }),
             tiles: HashMap::new(),
+            tiles_arrived: false,
             chrome: HashMap::new(),
             drawn: None,
             quest_areas: (Vec::new(), 0),
@@ -112,36 +125,21 @@ impl Minimap {
             .get_or_insert_with(|| crate::assets::creature::local_resolver(data_root))
     }
 
-    /// Decode one tile out of local CASC once; an ocean or unlisted tile stays None.
-    fn load_tile(&mut self, data_root: &std::path::Path, map: &str, key: TileKey) {
-        let slot = (map.to_owned(), key);
-        if self.tiles.contains_key(&slot) {
-            return;
+    /// Request the tiles of `keys` on `map`, and keep those that arrived; a tile that
+    /// failed to decode is reported and stays empty.
+    fn receive_tiles(&mut self, map: &str, keys: impl IntoIterator<Item = TileKey>) {
+        for key in keys {
+            self.tile_loader
+                .request((map.to_owned(), key), Priority::Now);
         }
-        let path = tile_path(map, key);
-        let resolver = self.resolver(data_root);
-        let tile = resolver.lookup_path(&path).and_then(|fdid| {
-            let cache = data_root.join("textures").join(format!("{fdid}.blp"));
-            let file = resolver.ensure_cached(fdid, &cache)?;
-            let decoded = std::fs::read(&file)
-                .map_err(|error| error.to_string())
-                .and_then(|bytes| game_engine_core::blp::decode_rgba(&bytes));
-            match decoded {
-                Ok(rgba) => Some(Tile {
-                    fdid,
-                    image: TileImage {
-                        pixels: rgba.pixels,
-                        width: rgba.width,
-                        height: rgba.height,
-                    },
-                }),
-                Err(error) => {
-                    godot_warn!("Minimap tile {path} (FDID {fdid}): {error}");
-                    None
-                }
-            }
-        });
-        self.tiles.insert(slot, tile);
+        for (slot, tile) in self.tile_loader.poll() {
+            let tile = tile.unwrap_or_else(|error| {
+                godot_warn!("{error}");
+                None
+            });
+            self.tiles.insert(slot, tile);
+            self.tiles_arrived = true;
+        }
     }
 
     fn tile(&self, map: &str, key: TileKey) -> Option<&Tile> {
@@ -166,6 +164,36 @@ impl Minimap {
             self.chrome.insert(fdid, found);
         }
     }
+}
+
+/// Worker: tile `key` of `map` out of local CASC, decoded; `None` for an ocean or
+/// unlisted tile.
+fn load_tile(
+    resolver: &CascListfileResolver,
+    data_root: &std::path::Path,
+    map: &str,
+    key: TileKey,
+) -> Result<Option<Tile>, String> {
+    let path = tile_path(map, key);
+    let Some(fdid) = resolver.lookup_path(&path) else {
+        return Ok(None);
+    };
+    let cache = data_root.join("textures").join(format!("{fdid}.blp"));
+    let Some(file) = resolver.ensure_cached(fdid, &cache) else {
+        return Ok(None);
+    };
+    let rgba = std::fs::read(&file)
+        .map_err(|error| error.to_string())
+        .and_then(|bytes| game_engine_core::blp::decode_rgba(&bytes))
+        .map_err(|error| format!("Minimap tile {path} (FDID {fdid}): {error}"))?;
+    Ok(Some(Tile {
+        fdid,
+        image: TileImage {
+            pixels: rgba.pixels,
+            width: rgba.width,
+            height: rgba.height,
+        },
+    }))
 }
 
 fn load_catalogs(data_root: &std::path::Path) -> Result<Catalogs, String> {
@@ -353,9 +381,11 @@ impl GameClient {
     fn minimap_composite(&mut self, position: [f32; 2]) -> Option<(u32, Vec<u8>)> {
         let map = self.terrain.map_name()?.to_owned();
         let view = MinimapView::new(position, self.minimap.zoom);
+        self.minimap.receive_tiles(&map, view.tiles());
         let pixel_yards = view.diameter / COMPOSITE_PX as f32;
         let areas = self.minimap_quest_areas();
         if let Some((drawn_map, drawn, _)) = &self.minimap.drawn
+            && !self.minimap.tiles_arrived
             && *drawn_map == map
             && self.minimap.quest_areas.0 == areas
             && drawn.diameter == view.diameter
@@ -364,10 +394,7 @@ impl GameClient {
         {
             return None;
         }
-        for key in view.tiles() {
-            let _span = crate::profile::span(|| format!("minimap.load_tile {key:?}"));
-            self.minimap.load_tile(&self.data_root, &map, key);
-        }
+        self.minimap.tiles_arrived = false;
         let _span = crate::profile::span(|| "minimap.compose".to_owned());
         let minimap = &self.minimap;
         let mut pixels = compose(&view, COMPOSITE_PX, |key| {
