@@ -227,8 +227,11 @@ impl CharacterPreview {
         self.loading = None;
         if let Some(mut preview) = self.preview.take() {
             preview.background.clear_nodes();
-            let _span = crate::profile::span(|| "preview_reset.root".to_owned());
-            preview.root.free();
+            let span = crate::profile::span(|| "preview_reset.root".to_owned());
+            preview.root.clone().free();
+            drop(span);
+            let _span = crate::profile::span(|| "preview_reset.drop".to_owned());
+            drop(preview);
         }
     }
 
