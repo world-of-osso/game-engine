@@ -18,7 +18,10 @@ use game_engine_core::{
 };
 use glam::{Affine3A, Vec3};
 use godot::{
-    classes::{ConcavePolygonShape3D, Node3D},
+    classes::{
+        ConcavePolygonShape3D, MeshInstance3D, Node3D,
+        geometry_instance_3d::ShadowCastingSetting,
+    },
     prelude::*,
 };
 use osso_asset_resolver::CascListfileResolver;
@@ -41,7 +44,7 @@ use crate::{
         wmo_liquid::WmoLiquids,
     },
     wmo::{
-        assets::{LitDoodad, NativeWmoAsset, wmo_fog_volume},
+        assets::{LitDoodad, NativeWmoAsset, ShadowGroups, wmo_fog_volume},
         doodad_light::bind_doodad_light,
         portals::{HalfSpace, WmoPortals},
         scene::WmoBuild,
@@ -295,6 +298,7 @@ pub(crate) struct CulledWmo {
     fog: WmoFogVolume,
     world_from_local: Affine3A,
     groups: HashMap<u16, Vec<Gd<Node3D>>>,
+    shadow_groups: ShadowGroups,
     /// Per group index, whether the last cull drew it; `None` before the first.
     drawn: Option<Vec<bool>>,
 }
@@ -311,6 +315,7 @@ impl CulledWmo {
             fog: wmo_fog_volume(asset),
             world_from_local,
             groups: group_batches(node),
+            shadow_groups: asset.shadow_groups(),
             drawn: None,
         }
     }
@@ -969,7 +974,8 @@ impl TerrainObjects {
         let placed = self.wmo_doodads.get_mut(&wmo).expect("queued WMO doodads");
         let (doodad, light) = placed.doodads[index].clone();
         let mut parent = placed.node.clone();
-        let wmo_groups = Some((placed.culled, doodad.groups.clone()));
+        let culled = placed.culled;
+        let wmo_groups = Some((culled, doodad.groups.clone()));
         placed.remaining -= 1;
         if placed.remaining == 0 {
             self.wmo_doodads.remove(&wmo);
@@ -987,6 +993,9 @@ impl TerrainObjects {
         ));
         model.set_scale(Vector3::ONE * doodad.scale);
         bind_visual_light(model, self.light.as_ref());
+        if !self.wmos[culled].shadow_groups.casts(&doodad.groups) {
+            disable_shadows(model);
+        }
         parent.add_child(&*model);
         // Retail 12340 gates WMO-attached doodads by the same scenery distance as ADT
         // doodads (solarityclient `terrain_frame/m2/doodad_scene.rs`, 799B70 admission).
@@ -1148,6 +1157,16 @@ impl TerrainObjects {
         self.failures = 0;
         if let Some(pools) = &mut self.particles {
             pools.reset();
+        }
+    }
+}
+
+/// A model whose batch meshes cast no directional shadow. Runs before its `SceneryFade`
+/// records each batch's authored casting.
+fn disable_shadows(model: &Gd<Node3D>) {
+    for child in model.get_children().iter_shared() {
+        if let Ok(mut mesh) = child.try_cast::<MeshInstance3D>() {
+            mesh.set_cast_shadows_setting(ShadowCastingSetting::OFF);
         }
     }
 }
