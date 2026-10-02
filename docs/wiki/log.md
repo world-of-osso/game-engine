@@ -2452,3 +2452,7 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 ## 2026-10-01 — Native IPC request coverage and semantic ExportScene (tooling)
 
 [Native IPC request coverage](systems/godot-conversion.md#native-ipc-request-coverage): semantic ExportScene per screen, map target/waypoint auto-walk, group/emote/spell, quests, items, presence, character stats, trade (deferred replies), combat log; per-request not-ported reasons; index-based terrain chunk lookup fixing the zone-0/no-height gap.
+
+## 2026-10-01 — Godot Wayland exit hang (investigation)
+
+[godot-wayland-exit-hang](investigations/godot-wayland-exit-hang.md): quit() hangs root-caused to Godot 4.7.2 WaylandThread::destroy() roundtrip race; upstream PR #123946 removes it (0/180 vs 14/190).
