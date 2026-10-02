@@ -3,18 +3,23 @@ extends SceneTree
 ## TargetFrame and PlayerFrame portraits against a private server.
 ## Environment:
 ##   GODOT_TEST_SERVER        server address (a private test server)
-##   PORTRAIT_ACCOUNT / PORTRAIT_CHARACTER  account (password fbtest) and a character in
-##                            sight of Marshal McBride (world.db creature 197, Northshire)
+##   PORTRAIT_ACCOUNT / PORTRAIT_CHARACTER  account (password fbtest) and a character
 ##   PORTRAIT_ADMIN           game-server-admin binary for that server (its
 ##                            GAME_SERVER_ADMIN_SOCKET in the environment)
 ##   PORTRAIT_SHOTS           screenshot directory
-## Targets Marshal McBride, then teleports beside Timber (1132, rank 4 rare) and targets
-## it: each target's portrait is its own model, masked round at the Retail anchor; the
+## Teleports beside Marshal McBride (world.db creature 197) and targets him, then beside
+## Timber (1132, rank 4 rare) and targets it: each target's portrait is its own model, masked round at the Retail anchor; the
 ## rare star sits on the portrait's bottom and the target of target clears the frame.
 
 const PASSWORD := "fbtest"
-## world.db content_creature spawn of Timber (map 0), a few yards off.
-const TIMBER_SPAWN := [0, -5170.0, -24.0, 387.0]
+## world.db content_creature spawns (map 0), a few yards off: McBride inside Northshire
+## Abbey, Timber at Iceflow Lake.
+const MCBRIDE_SPAWN := [0, -8920.0, -137.5, 81.0]
+## On Timber's spawn point: it wanders within 8 yards and aggroes the player there.
+const TIMBER_SPAWN := [0, -5176.4, -24.0, 386.5]
+## The warrior's Auto Attack and the action bar keys.
+const ATTACK := 88163
+const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 ## TargetFrame.xml:58-74: Portrait 58×58 TOPRIGHT (-26, -19) of the 232×100 frame; its
 ## CircleMask from the portrait's TOPLEFT (0, -1) to its BOTTOMRIGHT (-1, 0).
 const TARGET_PORTRAIT := Rect2(148, 19, 58, 58)
@@ -54,15 +59,15 @@ func run_test() -> void:
 	if player.is_empty():
 		return
 	creature = "Marshal McBride"
+	if not await teleport(MCBRIDE_SPAWN):
+		return
 	var mcbride = await target_portrait()
 	if mcbride.is_empty():
 		return
 	await capture("01-mcbride.png")
-	if not teleport_beside_timber():
-		return
-	if not await wait_until(func(): return client.account_state().terrain.pending_count == 0, 60000, "terrain at Timber"):
-		return
 	creature = "Timber"
+	if not await teleport(TIMBER_SPAWN):
+		return
 	var timber = await target_portrait()
 	if timber.is_empty():
 		return
@@ -81,11 +86,16 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
-## Target `creature` and wait for its portrait; checked like every portrait.
+## Target `creature` (Tab, nearest first) and wait for its portrait; checked like every
+## portrait.
 func target_portrait() -> Dictionary:
-	if (await find_unit()).is_empty():
-		return {}
-	if not await track_until(func(): return client.target_state().target_name == creature, MOUSE_BUTTON_LEFT, "%s targeted" % creature):
+	for attempt in range(20):
+		if client.target_state().target_name == creature:
+			break
+		await press(KEY_TAB)
+		await wait_frames(6)
+	if client.target_state().target_name != creature:
+		fail("Tab never targeted %s: %s" % [creature, client.target_state()])
 		return {}
 	return await shown_portrait("TargetFramePortrait", TARGET_PORTRAIT, TARGET_MASK_RECT, "TargetFrame", "creature display")
 
@@ -136,9 +146,11 @@ func check_star(portrait: Dictionary) -> bool:
 ## Attack Timber so it targets the player: the target-of-target frame shows clear of the
 ## whole TargetFrame.
 func check_target_of_target() -> bool:
+	await press(BAR_KEYS[client.spells_state().bar.find(ATTACK)])
 	var tot := control("UnitFramesUI", "TargetOfTargetFrame")
-	if not await track_until(func(): return tot.is_visible_in_tree(), MOUSE_BUTTON_RIGHT, "Timber targeting the player"):
+	if not await wait_until(func(): return tot.is_visible_in_tree(), 15000, "Timber targeting the player"):
 		return false
+	await wait_frames(30)
 	var target := control("UnitFramesUI", "TargetFrame").get_global_rect()
 	if tot.get_global_rect().intersects(target):
 		fail("TargetOfTargetFrame %s overlaps TargetFrame %s" % [tot.get_global_rect(), target])
@@ -146,14 +158,24 @@ func check_target_of_target() -> bool:
 	print("FIXTURE TOT rect=%s target_frame=%s" % [tot.get_global_rect(), target])
 	return true
 
-func teleport_beside_timber() -> bool:
+## Teleport the character to `spawn` (map, x, y, z) and wait for the terrain there.
+func teleport(spawn: Array) -> bool:
 	var output := []
-	var args := ["teleport", character] + TIMBER_SPAWN.map(func(value): return str(value))
+	var args := ["teleport", character] + spawn.map(func(value): return str(value))
 	var code := OS.execute(OS.get_environment("PORTRAIT_ADMIN"), args, output, true)
 	print("FIXTURE TELEPORT ", args, " -> ", code, " ", output)
 	if code != 0:
 		fail("Teleport failed: %s" % [output])
 		return false
+	var at := Vector2(spawn[1], spawn[2])
+	var arrived := func():
+		var state: Dictionary = client.account_state()
+		# Godot (x, height, -y) of the WoW position.
+		var position = state.local_player_position
+		return position != null and Vector2(position.x, -position.z).distance_to(at) < 5.0 and state.terrain.pending_count == 0
+	if not await wait_until(arrived, 60000, "arrival at %s" % [spawn]):
+		return false
+	await wait_frames(60)
 	return true
 
 func opaque_fraction(image: Image) -> float:
@@ -176,67 +198,9 @@ func image_difference(first: Image, second: Image) -> float:
 			total += absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) + absf(a.a - b.a)
 	return total / float(4 * first.get_width() * first.get_height())
 
-## Hover-click the creature where it is now with `button` until `done`, for 10 s.
-func track_until(done: Callable, button: MouseButton, what: String) -> bool:
-	var deadline := Time.get_ticks_msec() + 10000
-	while Time.get_ticks_msec() < deadline:
-		var point = unit_point()
-		if point != null:
-			await click_point(point, button)
-		else:
-			await process_frame
-		if done.call():
-			return true
-	fail("Timed out waiting for %s: target=%s" % [what, client.target_state()])
-	return false
-
-## The creature's pick point on screen when the native ray selects it, else null.
-func unit_point():
-	var units = client.get_node_or_null("WorldUnits")
-	if units == null:
-		return null
-	for unit in units.get_children():
-		if str(unit.name) != creature:
-			continue
-		var area := unit.find_child("UnitPick", true, false) as Area3D
-		if area == null:
-			continue
-		var world_point := (area.get_child(0) as Node3D).global_position
-		if not camera().is_position_in_frustum(world_point):
-			continue
-		var point := camera().unproject_position(world_point)
-		if UnitPicker.pick(camera(), point) == area.get_meta("unit_server_id"):
-			return point
-	return null
-
-## The creature's pick shape centre on screen, selected by the native ray; turn until seen.
-func find_unit() -> Dictionary:
-	var deadline := Time.get_ticks_msec() + 60000
-	var turned := 0
-	while Time.get_ticks_msec() < deadline:
-		await process_frame
-		var point = unit_point()
-		if point != null:
-			return {"point": point}
-		if turned < 60:
-			push_key(KEY_RIGHT, true)
-			await wait_frames(3)
-			push_key(KEY_RIGHT, false)
-			turned += 1
-	var names := []
-	var units = client.get_node_or_null("WorldUnits")
-	if units != null:
-		for unit in units.get_children():
-			names.append(str(unit.name))
-	fail("%s is not visible and unoccluded; units %s" % [creature, names])
-	return {}
-
 func control(host: String, name: String) -> Control:
 	var ui := client.get_node_or_null(host)
 	return ui.find_child(name, true, false) as Control if ui != null else null
-
-func camera() -> Camera3D:
-	return root.get_viewport().get_camera_3d()
 
 func enter_world() -> bool:
 	var deadline := Time.get_ticks_msec() + 60000
@@ -276,12 +240,14 @@ func wait_until(predicate: Callable, timeout_ms: int, what: String) -> bool:
 	fail("Timed out waiting for %s: target=%s" % [what, client.target_state()])
 	return false
 
-func push_key(code: Key, pressed: bool) -> void:
-	var event := InputEventKey.new()
-	event.keycode = code
-	event.physical_keycode = code
-	event.pressed = pressed
-	root.push_input(event, true)
+func press(code: Key) -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = code
+		event.physical_keycode = code
+		event.pressed = pressed
+		root.push_input(event, true)
+		await wait_frames(2)
 
 func move_mouse(point: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
@@ -319,4 +285,5 @@ func wait_frames(count: int) -> void:
 
 func fail(message: String) -> void:
 	push_error(message)
+	root.get_texture().get_image().save_png(shots + "fail.png")
 	quit(1)

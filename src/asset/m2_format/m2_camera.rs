@@ -41,12 +41,14 @@ fn read_array(
     Ok((count, start))
 }
 
+/// The first key of a track's first sequence; `None` when the track is not animated (no
+/// sequences, or a first sequence without keys).
 fn find_first_spline_key(
     md20: &[u8],
     track: usize,
     key_size: usize,
     label: &str,
-) -> Result<usize, String> {
+) -> Result<Option<usize>, String> {
     md20.get(track..track + TRACK_SIZE)
         .ok_or_else(|| format!("{label} track header truncated"))?;
     let (times_count, timestamps) = read_array(
@@ -61,43 +63,58 @@ fn find_first_spline_key(
         ARRAY_ENTRY_SIZE,
         &format!("{label} values"),
     )?;
-    if times_count == 0 || times_count != values_count {
+    if times_count != values_count {
         return Err(format!(
-            "{label} requires matching nonempty timestamp/value sequences"
+            "{label} requires matching timestamp/value sequences"
         ));
+    }
+    if times_count == 0 {
+        return Ok(None);
     }
     let (time_keys, _) = read_array(md20, timestamps, 4, &format!("{label} first timestamps"))?;
     let (value_keys, first_key) =
         read_array(md20, values, key_size, &format!("{label} first values"))?;
-    if time_keys == 0 || time_keys != value_keys {
-        return Err(format!(
-            "{label} first spline requires matching nonempty keys"
-        ));
+    if time_keys != value_keys {
+        return Err(format!("{label} first spline requires matching keys"));
     }
-    Ok(first_key)
+    Ok((time_keys > 0).then_some(first_key))
 }
 
 fn read_first_spline<const N: usize>(
     md20: &[u8],
     track: usize,
     label: &str,
-) -> Result<[f32; N], String> {
-    let first_key = find_first_spline_key(md20, track, N * SPLINE_COMPONENTS * 4, label)?;
+) -> Result<Option<[f32; N]>, String> {
+    let Some(first_key) = find_first_spline_key(md20, track, N * SPLINE_COMPONENTS * 4, label)?
+    else {
+        return Ok(None);
+    };
     let mut coordinates = [0.0; N];
     for (index, coordinate) in coordinates.iter_mut().enumerate() {
         *coordinate = read_f32(md20, first_key + index * 4)?;
     }
-    Ok(coordinates)
+    Ok(Some(coordinates))
+}
+
+/// An animated offset (position, target, roll): zero when the track has no key.
+fn read_first_offset<const N: usize>(
+    md20: &[u8],
+    track: usize,
+    label: &str,
+) -> Result<[f32; N], String> {
+    Ok(read_first_spline(md20, track, label)?.unwrap_or([0.0; N]))
 }
 
 fn md20_cameras(md20: &[u8]) -> Result<(usize, usize), String> {
     if md20.get(..4) != Some(b"MD20") {
         return Err("Invalid MD20 magic".into());
     }
+    // Cataclysm (272) through Legion and later (274) share the header's camera array and
+    // the camera record with its FoV track (wowdev.wiki M2, `M2Camera`).
     let version = read_u32(md20, 4)?;
-    if version != 274 {
+    if !(272..=274).contains(&version) {
         return Err(format!(
-            "Unsupported M2 camera version {version}; expected 274"
+            "Unsupported M2 camera version {version}; expected 272..=274"
         ));
     }
     read_array(md20, CAMERA_ARRAY_OFFSET, CAMERA_RECORD_SIZE, "camera")
@@ -108,16 +125,17 @@ fn parse_camera_record(md20: &[u8], offset: usize) -> Result<M2CameraSnapshot, S
         read_vec3(md20, offset + 32).map_err(|error| format!("camera position: {error}"))?;
     let target_base =
         read_vec3(md20, offset + 64).map_err(|error| format!("camera target: {error}"))?;
-    let position_offset = read_first_spline::<3>(md20, offset + 12, "camera position")?;
-    let target_offset = read_first_spline::<3>(md20, offset + 44, "camera target")?;
+    let position_offset = read_first_offset::<3>(md20, offset + 12, "camera position")?;
+    let target_offset = read_first_offset::<3>(md20, offset + 44, "camera target")?;
     let position = std::array::from_fn(|index| position_base[index] + position_offset[index]);
     let target = std::array::from_fn(|index| target_base[index] + target_offset[index]);
     Ok(M2CameraSnapshot {
         camera_type: read_i32(md20, offset)?,
         position,
         target,
-        roll: read_first_spline::<1>(md20, offset + 76, "camera roll")?[0],
-        fov: read_first_spline::<1>(md20, offset + 96, "camera fov")?[0],
+        roll: read_first_offset::<1>(md20, offset + 76, "camera roll")?[0],
+        fov: read_first_spline::<1>(md20, offset + 96, "camera fov")?
+            .ok_or("camera fov has no key")?[0],
         near_clip: read_f32(md20, offset + 8)?,
         far_clip: read_f32(md20, offset + 4)?,
     })
@@ -245,6 +263,19 @@ mod tests {
         assert_eq!(portrait.position, [101.0, 22.0, 33.0]);
         assert_eq!(portrait.target, [44.0, 55.0, 66.0]);
         assert_eq!(parse_camera_snapshot(&file).unwrap().camera_type, -1);
+    }
+
+    /// A Cataclysm-era (version 272) model whose position track has no sequence: the
+    /// camera sits at its base position.
+    #[test]
+    fn version_272_camera_without_position_keys_sits_at_its_base() {
+        let mut file = model_with_camera();
+        write_u32(&mut file, 8 + 4, 272);
+        write_u32(&mut file, 8 + CAMERA_OFFSET + 12 + 4, 0);
+        write_u32(&mut file, 8 + CAMERA_OFFSET + 12 + 12, 0);
+        let camera = parse_camera_snapshot(&file).unwrap();
+        assert_eq!(camera.position, [10.0, 20.0, 30.0]);
+        assert_eq!(camera.target, [44.0, 55.0, 66.0]);
     }
 
     #[test]
