@@ -1,6 +1,7 @@
 //! Complete root/group WMO payload acquisition through the shared local CASC resolver.
 
 use std::{
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -40,6 +41,35 @@ impl NativeWmoAsset {
             (doodad, light)
         })
         .collect()
+    }
+
+    pub fn shadow_groups(&self) -> ShadowGroups {
+        ShadowGroups(
+            self.groups
+                .iter()
+                .filter(|group| group_casts_shadow(group.group.header.flags))
+                .map(|group| group.index as u16)
+                .collect(),
+        )
+    }
+}
+
+/// Whether a group with MOGP `flags` casts directional shadows: EXTERIOR (0x8) or
+/// EXTERIOR_LIT (0x40). Retail collects only those groups, and the MODR doodads they
+/// reference, into its shadow maps (solarityclient
+/// `terrain_frame/world_model/shadow.rs` `prepare_shadow_draws`, `group.flags() & 0x48`).
+pub(crate) fn group_casts_shadow(flags: u32) -> bool {
+    flags & 0x48 != 0
+}
+
+/// The groups of one WMO that cast directional shadows.
+#[derive(Default)]
+pub(crate) struct ShadowGroups(HashSet<u16>);
+
+impl ShadowGroups {
+    /// Whether a doodad referenced by `groups` (their MODR) casts: one of them does.
+    pub fn casts(&self, groups: &[u16]) -> bool {
+        groups.iter().any(|group| self.0.contains(group))
     }
 }
 
