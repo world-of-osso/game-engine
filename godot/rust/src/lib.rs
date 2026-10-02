@@ -1858,16 +1858,22 @@ impl GameClient {
             let frame = godot::classes::Engine::singleton().get_process_frames();
             let delta_ms = self.base().get_process_delta_time() * 1000.0;
             // Portal culling first: it decides which WMO doodads are drawn this frame.
+            let span = profile::span(|| "cull.wmos".to_owned());
             self.world_objects.cull_wmos(camera, &frustum);
+            drop(span);
+            let span = profile::span(|| "cull.doodads".to_owned());
             self.world_objects
                 .cull_doodads(camera, &frustum, delta_ms, frame);
+            drop(span);
             if let Some(transform) = self.world_camera.transform() {
+                let _span = profile::span(|| "cull.particles".to_owned());
                 self.world_objects.update_particles(
                     transform,
                     &frustum,
                     (delta_ms / 1000.0) as f32,
                 );
             }
+            let _span = profile::span(|| "cull.unit_animation_lod".to_owned());
             self.world.apply_animation_lod(camera, &frustum, frame);
         }
     }
