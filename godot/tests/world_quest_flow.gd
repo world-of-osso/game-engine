@@ -63,16 +63,24 @@ const SPRAY_YARDS := 8.0
 const FIRES := 8
 ## WoW world positions: amid the vineyard fire spawns; outside each mine's exploration
 ## trigger (Fargodeep 197, radius 9; Jasperlode 87, radius 30) and the walk to its centre.
-## Jasperlode's trigger lies deep in the mine, under the hill: the walk enters at the
-## mine's south mouth and follows the tunnel floor (waypoints from the server's WMO
-## ground).
+## Jasperlode's trigger lies deep in the mine, under the hill: the walk goes up the
+## entrance ramp of the mine's south mouth between the frame's posts and the rock, then
+## along the tunnel floor (the route of the client's ground test
+## godot/rust/src/wmo/collision_tests.rs JASPERLODE_ROUTE).
 const VINEYARD_AT := [-9050.0, -325.0, 74.0]
 const FARGODEEP_OUTSIDE_AT := [-9781.2, 157.8, 25.4]
 const FARGODEEP_ROUTE := [[-9796.2, 157.8, 25.4]]
-const JASPERLODE_OUTSIDE_AT := [-9185.0, -598.0, 61.5]
-const JASPERLODE_ROUTE := [[-9170.0, -595.4, 62.6], [-9137.3, -592.9, 57.6], [-9132.3, -580.4, 57.5],
-	[-9122.3, -575.4, 59.0], [-9119.8, -566.0, 59.0], [-9112.3, -560.4, 60.9], [-9097.3, -560.4, 62.5],
-	[-9077.3, -552.9, 60.3]]
+const JASPERLODE_OUTSIDE_AT := [-9205.0, -599.0, 61.8]
+const JASPERLODE_ROUTE := [[-9200.5, -599.0, 61.7], [-9196.0, -599.0, 61.5], [-9191.5, -599.0, 61.4], [-9187.0, -599.0, 61.2],
+	[-9182.5, -599.0, 61.1], [-9178.0, -599.0, 61.0], [-9173.5, -599.0, 60.8], [-9169.0, -599.0, 60.7],
+	[-9164.5, -599.0, 60.5], [-9160.0, -599.0, 60.4], [-9160.0, -598.0, 60.0], [-9158.0, -596.0, 59.3],
+	[-9153.8, -596.0, 59.0], [-9149.6, -596.0, 58.6], [-9145.4, -596.0, 58.3], [-9141.2, -596.0, 57.9],
+	[-9137.0, -596.0, 57.6], [-9134.5, -593.5, 57.7], [-9132.0, -591.0, 57.7], [-9129.5, -588.5, 57.8],
+	[-9129.5, -586.0, 57.8], [-9129.5, -583.5, 57.9], [-9126.9, -580.9, 58.2], [-9124.3, -578.3, 58.4],
+	[-9121.7, -575.7, 58.7], [-9119.1, -573.1, 58.9], [-9116.5, -570.5, 59.2], [-9114.0, -570.5, 60.0],
+	[-9112.0, -569.0, 60.1], [-9110.0, -567.5, 60.2], [-9106.0, -567.5, 60.8], [-9102.0, -567.5, 61.4],
+	[-9098.0, -567.5, 62.0], [-9094.9, -564.4, 61.6], [-9091.8, -561.3, 61.1], [-9088.7, -558.2, 60.7],
+	[-9085.6, -555.1, 60.2], [-9082.5, -552.0, 59.8], [-9079.0, -550.5, 59.7]]
 const HUNT_MS := 900000
 const MUST_CHOOSE := "You must choose a reward."
 ## WoW world positions about three yards from each NPC's spawn.
