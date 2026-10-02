@@ -43,6 +43,7 @@ fn item(slot: u32, item_id: u32, name: &str, price: u32) -> VendorItem {
         max_stack: 1,
         num_available: None,
         usable: true,
+        max_durability: None,
     }
 }
 
@@ -51,6 +52,7 @@ fn godric() -> VendorInventory {
     VendorInventory {
         npc: GODRIC,
         can_repair: true,
+        guild_repair_money: None,
         items: vec![
             item(0, 2379, "Tarnished Chain Vest", 89),
             item(1, 2381, "Tarnished Chain Leggings", 90),
@@ -77,6 +79,7 @@ fn danil() -> VendorInventory {
     VendorInventory {
         npc: DANIL,
         can_repair: false,
+        guild_repair_money: None,
         items: vec![
             bundle(0, 4540, "Tough Hunk of Bread", 25),
             bundle(1, 159, "Refreshing Spring Water", 5),

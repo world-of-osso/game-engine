@@ -20,9 +20,10 @@ use crate::merchant_data::{
     BUYBACK_ITEMS_PER_PAGE, MerchantRequest, MerchantState, MerchantTab, quality_color,
 };
 use crate::merchant_frame_component::{
-    ACTION_BUYBACK_LAST, ACTION_CLOSE, ACTION_ITEM_PREFIX, ACTION_PAGE_NEXT, ACTION_PAGE_PREV,
-    ACTION_REPAIR_ALL, ACTION_REPAIR_ITEM, ACTION_SELL_ALL_JUNK, ACTION_TAB_BUYBACK,
-    ACTION_TAB_MERCHANT, CellTint, MerchantCell, MerchantFrameState, merchant_frame_screen,
+    ACTION_BUYBACK_LAST, ACTION_CLOSE, ACTION_GUILD_REPAIR, ACTION_ITEM_PREFIX, ACTION_PAGE_NEXT,
+    ACTION_PAGE_PREV, ACTION_REPAIR_ALL, ACTION_REPAIR_ITEM, ACTION_SELL_ALL_JUNK,
+    ACTION_TAB_BUYBACK, ACTION_TAB_MERCHANT, CellTint, MerchantCell, MerchantFrameState,
+    merchant_frame_screen,
 };
 use crate::stack_split::{StackSplitOwner, StackSplitState};
 use crate::stack_split_frame_component::{
@@ -178,6 +179,10 @@ impl MerchantSession {
             ACTION_TAB_MERCHANT => self.merchant.set_tab(MerchantTab::Merchant),
             ACTION_TAB_BUYBACK => self.merchant.set_tab(MerchantTab::Buyback),
             ACTION_REPAIR_ALL => return Some(MerchantRequest::Repair { item_guid: None }),
+            // `if CanGuildBankRepair() then RepairAllItems(true)` (MF.xml:368-375).
+            ACTION_GUILD_REPAIR if self.merchant.guild_repair_money.is_some() => {
+                return Some(MerchantRequest::GuildRepairAll);
+            }
             // `ShowRepairCursor` / `HideRepairCursor`.
             ACTION_REPAIR_ITEM if self.merchant.can_repair => self.repair_mode = !self.repair_mode,
             ACTION_SELL_ALL_JUNK
@@ -424,12 +429,13 @@ fn vendor_split(merchant: &MerchantState, index: usize, money: u64) -> Option<St
 }
 
 /// The `PlaySound` of a MerchantFrame button that fired: the page buttons
-/// (MF.lua:574, 581) and Repair All (MF.xml:256). Disabled buttons have no action.
+/// (MF.lua:574, 581), Repair All (MF.xml:256) and the guild bank repair (MF.xml:372).
+/// Disabled buttons have no action.
 pub fn click_sound(action: &str) -> Option<u32> {
     use game_engine_core::ui_sound_kits::{IG_MAINMENU_OPTION_CHECKBOX_ON, ITEM_REPAIR};
     match action {
         ACTION_PAGE_PREV | ACTION_PAGE_NEXT => Some(IG_MAINMENU_OPTION_CHECKBOX_ON),
-        ACTION_REPAIR_ALL => Some(ITEM_REPAIR),
+        ACTION_REPAIR_ALL | ACTION_GUILD_REPAIR => Some(ITEM_REPAIR),
         _ => None,
     }
 }
@@ -463,6 +469,8 @@ fn build_frame_state(merchant: &MerchantState, money: u64, repair_cost: u64) -> 
         // `GetRepairAllCost()` enables Repair All while anything is damaged.
         repair: merchant.can_repair.then_some(repair_cost > 0),
         repair_mode: false,
+        // `CanMerchantRepair() and CanGuildBankRepair()` (MF.lua:935-946).
+        guild_repair: merchant.can_repair && merchant.guild_repair_money.is_some(),
         last_buyback: merchant.last_buyback().map(|item| MerchantCell {
             action: ACTION_BUYBACK_LAST.into(),
             ..buyback_cell(item, money, 0)

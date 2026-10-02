@@ -22,7 +22,8 @@ use game_engine_ui_model::game_tooltip::item::{
     auction_row_item, item_game_tooltip, named_item, without_sell_price,
 };
 use game_engine_ui_model::game_tooltip::merchant::{
-    merchant_tooltip, repair_all_tooltip, repair_item_tooltip, sell_all_junk_tooltip,
+    buyback_item, guild_repair_tooltip, merchant_cell_item, repair_all_tooltip,
+    repair_item_tooltip, sell_all_junk_tooltip,
 };
 use game_engine_ui_model::game_tooltip::spell::{
     SpellTooltipInput, aura_tooltip, spell_tooltip, unknown_spell_tooltip,
@@ -212,7 +213,8 @@ impl GameClient {
         Some(HoveredTooltip::text(tooltip))
     }
 
-    /// `MerchantItem{n}`: `SetMerchantItem` on the merchant tab, `SetBuybackItem` on buyback.
+    /// `MerchantItem{n}`: `SetMerchantItem` on the merchant tab, `SetBuybackItem` on buyback;
+    /// the full item tooltip, compared on Shift (`GameTooltip_ShowCompareItem`, MF.lua:714).
     fn merchant_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let merchant = &self.merchant.session.merchant;
         if !merchant.is_open() {
@@ -223,17 +225,11 @@ impl GameClient {
             indexed(frame, "MerchantItem")?.checked_sub(1)
         })?;
         drop(ui);
-        let (item_id, name, quality, count, stock) = merchant.cell_item(index)?;
-        let item = named_item(item_id, name, quality, count);
-        let tooltip = merchant_tooltip(item_id, name, quality, count, stock);
-        Some(HoveredTooltip {
-            tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
-            item: Some(item),
-            health: None,
-        })
+        let item = merchant_cell_item(merchant, index)?;
+        self.item_owned(hit, owner, OwnerSide::Right, item)
     }
 
-    /// The service buttons' `OnEnter` (MF.xml:207-211, 240-252, 300-303) and the last-sale
+    /// The service buttons' `OnEnter` (MF.xml:207-211, 240-252, 300-303, 332-364) and the last-sale
     /// slot's `MerchantBuyBackButton_OnEnter` (`SetBuybackItem`, MF.lua:1078-1082), all
     /// `ANCHOR_RIGHT`.
     fn merchant_button_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
@@ -247,30 +243,31 @@ impl GameClient {
                 name @ ("MerchantSellAllJunkButton"
                 | "MerchantRepairAllButton"
                 | "MerchantRepairItemButton"
+                | "MerchantGuildBankRepairButton"
                 | "MerchantBuyBackItem") => Some(name.to_owned()),
                 _ => None,
             })?;
         drop(ui);
-        let (tooltip, item) = match button.as_str() {
-            "MerchantSellAllJunkButton" => (sell_all_junk_tooltip(), None),
-            "MerchantRepairItemButton" => (repair_item_tooltip(), None),
-            "MerchantRepairAllButton" => (
-                repair_all_tooltip(u64::from(session.repair_cost), session.money)?,
-                None,
-            ),
+        let cost = u64::from(session.repair_cost);
+        let tooltip = match button.as_str() {
+            "MerchantSellAllJunkButton" => sell_all_junk_tooltip(),
+            "MerchantRepairItemButton" => repair_item_tooltip(),
+            "MerchantRepairAllButton" => repair_all_tooltip(cost, session.money)?,
+            "MerchantGuildBankRepairButton" => {
+                let guild_money = session.merchant.guild_repair_money?;
+                guild_repair_tooltip(cost, guild_money, session.money)?
+            }
             _ => {
-                let last = session.merchant.last_buyback()?;
-                let tooltip =
-                    merchant_tooltip(last.item_id, &last.name, last.quality, last.count, None);
-                let item = named_item(last.item_id, &last.name, last.quality, last.count);
-                (tooltip, Some(item))
+                let last = buyback_item(session.merchant.last_buyback()?);
+                return self.item_owned(hit, owner, OwnerSide::Right, last);
             }
         };
-        Some(HoveredTooltip {
-            tooltip: self.owned_by(hit, owner, OwnerSide::Right, tooltip)?,
-            item,
-            health: None,
-        })
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
     }
 
     /// `LootFrameElement{n}`: `SetLootItem` for item slots; money slots have no tooltip.
