@@ -115,7 +115,21 @@ Run4 at fixture `6520c861` runtime-proves first-invalid-snapshot capture without
 
 Moving NPCs can enqueue visual work after initial loading drains. Continuous empty queues or unchanged parsed tiles are not performance acceptance requirements. Initial readiness remains a phase boundary; subsequent queue/tile changes, first-change clocks and end state remain workload context, not failure gates. Observe the full requested interval without selecting a quiet window or freezing the world. Fixture `4c0a736d` preserves initial drain, the 60s observation duration, 100ms frame-time and 1000ms loading thresholds, and memory/report validation. These remain fixture policy, not product budgets; no runtime performance improvement is claimed.
 
-Existing `settled_*` report names identify the post-initial-drain observation phase, not a claim that the world stayed idle. `settled_queue_stable=false` remains truthful diagnostic information and no longer adds a runner gap. MAIN run7 and independent verification remain pending; no new GREEN is claimed. Independent Python agent1712 removes the runner gap under the same policy. Historical run1–6 process outcomes and rejected-quiescence classifications below remain unmodified records of the old policy; they do not establish a game/server malfunction or automatically invalidate dynamic-world timing measurements. Missing comparative inputs still prohibit improvement/parity claims.
+Existing `settled_*` report names identify the post-initial-drain observation phase, not a claim that the world stayed idle. `settled_queue_stable=false` remains truthful diagnostic information and no longer adds a runner gap. Actual run7 evidence follows; complete-case FAIL is the loading stall, not queue activity. Runner `e7bbb552` removes the queue gap under the same policy. Agent1712's saved RED/GREEN has 11 tests passing; this is development proof, not final audit. Independent policy-fix verification remains pending. Historical run1–6 process outcomes and rejected-quiescence classifications below remain unmodified records of the old policy; they do not establish a game/server malfunction or automatically invalidate dynamic-world timing measurements. Missing comparative inputs still prohibit improvement/parity claims.
+
+## Actual run7 evidence — 2026-10-02
+
+Primary artifacts: `data/diagnostics/retained-performance-20261001/run7/{result.json,stdout.log}`; `/tmp/claude/retained-conversion-20/performance-run7-attribution-summary.json`, `performance-run7-command.json` and full outer `performance-run7-runner-{stdout,stderr}.log`. Actual fixture/runner policy is `4c0a736d`/`e7bbb552`; initial drain, sample duration and thresholds are unchanged.
+
+| Boundary | Actual observation | Proof limit |
+|---|---|---|
+| Process/loading | Child1/outer1, no timeout; wall80.963711s. Loading10.054524s/max2941.742ms, two intervals exceed unchanged1000ms policy | **Complete-case FAIL: actual loading stall**; no suppressed interval or invented budget |
+| Initial drain/post-drain | Drain6.776047s; post-drain60.025227s, adequate duration, 2055 frames; p50/p95/p99/max29.077/36.304/47.166/65.361ms, zero over100ms | Valid bounded dynamic-world frame observation, not idle-window or complete-case PASS |
+| Queue context | First activity frame1309/tick27481551: unit visuals1/terrain0/objects0; `settled_queue_stable=false` | Context only; no queue-failure gap or continuous-empty-queue acceptance gate |
+| Memory | Seven RSS/HWM markers, no missing markers; endRSS2445324KiB/HWM3294432KiB | Observations, not leak-free or resource-cleanliness proof |
+| Inputs/provenance | Seven of seven input hashes unchanged; native Depot `2x2qqvn5dt`, SHA-256 `a7f523bc608285c8ec3ee1ef6180aacad57d78a1e80ad4435db5687f8d30b3df`. Checkout `e7bbb552` → docs-only `29a5e21a` during run | Actual result's checkout-change gap preserved, not rerun or erased; not whole-checkout/server attestation |
+
+No controlled baseline, performance-improvement, server-bug, GPU-time/VRAM, leak-free or general-shutdown claim. Independent policy-fix proof remains pending despite saved agent1712 development tests. Historical run6 frame/memory evidence remains valid as dynamic observations; its captured child1 is not retroactively process PASS. Full conversion remains OPEN.
 
 ## Actual run5/6 evidence
 
