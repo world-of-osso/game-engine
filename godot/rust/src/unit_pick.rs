@@ -1,6 +1,7 @@
 //! Unit click selection against the triangles a unit draws. A click ray selects the unit
 //! whose visible, currently posed triangle it reaches first; world geometry in front
-//! occludes it. Each unit's `UnitPick` box only rejects units the ray misses entirely
+//! occludes it; an M2 doodad's collision hull is not a drawn surface and never does.
+//! Each unit's `UnitPick` box only rejects units the ray misses entirely
 //! (the broad phase); it never decides a hit, so an animation-extent header box cannot
 //! swallow a nearer unit. Like the Bevy client's `MeshRayCast`, triangles are skinned
 //! on the CPU with the skeleton's current bone palette, the pose that is rendered.
@@ -16,6 +17,11 @@ use godot::{
         ShaderMaterial, Skeleton3D, mesh,
     },
     prelude::*,
+};
+
+use crate::{
+    targeting::UNIT_PICK_LAYER,
+    wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
 };
 
 /// Area metadata: the unit's server id; the broad-phase box of its visual.
@@ -70,6 +76,7 @@ fn broad_phase(
     let mut query = PhysicsRayQueryParameters3D::create(ray.origin, end)
         .expect("Godot could not allocate the pick ray parameters");
     query.set_collide_with_areas(true);
+    query.set_collision_mask(TERRAIN_LAYER | WMO_LAYER | UNIT_PICK_LAYER);
     // The camera can sit inside a unit's box.
     query.set_hit_from_inside(true);
     let mut excluded = Array::new();
