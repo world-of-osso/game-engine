@@ -169,7 +169,7 @@ fn tracker_renders_headers_titles_and_lines_at_the_retail_anchor() {
 }
 
 #[test]
-fn collapsing_hides_blocks_and_empty_tracker_is_hidden() {
+fn collapsing_hides_blocks_and_empty_tracker_shows_only_its_header() {
     let runtime = runtime(vec![entry(7, "Kobold Camp Cleanup", 3)], vec![7]);
     let collapsed = build(ObjectiveTrackerState::from_runtime(&runtime, true, false));
     assert!(collapsed.get_by_name("QuestBlock7HeaderText").is_none());
@@ -192,7 +192,17 @@ fn collapsing_hides_blocks_and_empty_tracker_is_hidden() {
     );
 
     let empty = build(ObjectiveTrackerState::default());
-    assert!(!visible(&empty, TRACKER_FRAME));
+    assert!(visible(&empty, TRACKER_FRAME));
+    assert_eq!(
+        fontstring_text(&empty, "ObjectiveTrackerFrameHeaderText"),
+        "All Objectives"
+    );
+    assert!(
+        empty
+            .get_by_name("QuestObjectiveTrackerHeaderText")
+            .is_none()
+    );
+    assert!((rect(&empty, TRACKER_FRAME).height - 32.0).abs() < 1.0);
 }
 
 #[test]
