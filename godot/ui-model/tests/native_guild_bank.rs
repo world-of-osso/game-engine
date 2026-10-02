@@ -172,6 +172,29 @@ fn log_refresh_and_stale_log_answers_follow_original_provider_ordering() {
 }
 
 #[test]
+fn the_money_log_shows_guild_repairs_in_retail_wording() {
+    let mut session = opened();
+    session.set_mode(GuildBankMode::MoneyLog);
+    // GUILDBANK_REPAIR_MONEY_FORMAT "%s withdrew %s for repairs" (GB.lua:797-798).
+    session.apply_log(GuildBankLog {
+        tab: None,
+        entries: vec![GuildBankLogEntry {
+            kind: GuildBankLogKind::RepairMoney,
+            actor: "Alice".into(),
+            item_id: 0,
+            item_name: String::new(),
+            count: 0,
+            copper: 15_016,
+            seconds_ago: 5,
+        }],
+    });
+    assert_eq!(
+        session.frame_state().log_lines,
+        vec!["Alice withdrew 1g 50s 16c for repairs ( 1 min ago )"]
+    );
+}
+
+#[test]
 fn tabs_permissions_and_allowances_are_server_supplied_not_invented_rules() {
     let mut session = opened();
     for (deposit, withdrawals, suffix) in [

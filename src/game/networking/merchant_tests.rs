@@ -47,6 +47,7 @@ fn vest() -> VendorItem {
         max_stack: 1,
         num_available: None,
         usable: true,
+        max_durability: None,
     }
 }
 
@@ -66,6 +67,7 @@ fn vendor_list_opens_the_frame_with_the_npc_name_and_buyback_fills_it() {
         vec![VendorInventory {
             npc: GODRIC_SERVER,
             can_repair: true,
+            guild_repair_money: None,
             items: vec![vest()],
         }],
     );
@@ -102,6 +104,7 @@ fn refusals_show_the_retail_error_and_interaction_end_closes_the_frame() {
         vec![VendorInventory {
             npc: GODRIC_SERVER,
             can_repair: true,
+            guild_repair_money: None,
             items: vec![vest()],
         }],
     );
