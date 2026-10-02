@@ -30,7 +30,7 @@ use game_engine_network::replica::{Replica, Unit};
 use glam::{Affine3A, Vec3};
 use godot::{
     builtin::{Transform3D, Vector3},
-    classes::Node3D,
+    classes::{Engine as GodotEngine, Node3D, Time},
     prelude::*,
 };
 use shared::components::{
@@ -357,10 +357,13 @@ fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldMo
     if unit.appearance == appearance {
         return;
     }
+    let existing_appearance = unit.appearance.is_some();
     unit.appearance = appearance;
     unit.loading = unit.appearance.as_ref().map(|appearance| {
         let sheath = unit_sheath(snapshot);
-        (models.request(appearance, sheath), sheath)
+        let request = models.request(appearance, sheath);
+        log_visual_request(appearance, snapshot.server_id, request, existing_appearance);
+        (request, sheath)
     });
     if unit.appearance.is_none() {
         unit.animation = None;
@@ -371,6 +374,48 @@ fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldMo
             previous.free();
         }
     }
+}
+
+/// Observe the request after enqueueing it, not the worker's start time.
+fn log_visual_request(
+    appearance: &UnitAppearance,
+    id: u64,
+    request: u64,
+    existing_appearance: bool,
+) {
+    godot_print!(
+        "UNIT_VISUAL_REQUEST server_id={} request_id={} existing_appearance={} describe_unit={:?} observed_process_frame={} observed_ticks_usec={}",
+        id,
+        request,
+        existing_appearance,
+        appearance.describe_unit(id),
+        GodotEngine::singleton().get_process_frames(),
+        Time::singleton().get_ticks_usec(),
+    );
+}
+
+/// Observe the result after the attachment attempt, not worker completion or request take.
+fn log_visual_result(
+    unit: &UnitNode,
+    id: u64,
+    request: u64,
+    existing_visual: bool,
+    prepared_result_ok: bool,
+) {
+    godot_print!(
+        "UNIT_VISUAL_RESULT_CONSUMED server_id={} request_id={} existing_visual={} describe_unit={:?} prepared_result_ok={} visual_attached={} observed_process_frame={} observed_ticks_usec={}",
+        id,
+        request,
+        existing_visual,
+        unit.appearance
+            .as_ref()
+            .expect("matched a loading appearance")
+            .describe_unit(id),
+        prepared_result_ok,
+        unit.visual.is_some(),
+        GodotEngine::singleton().get_process_frames(),
+        Time::singleton().get_ticks_usec(),
+    );
 }
 
 /// Replace `unit`'s visual with the loaded one of its newest request.
@@ -1001,6 +1046,8 @@ impl WorldUnits {
                 continue;
             };
             let (_, sheath) = unit.loading.take().expect("matched a loading unit");
+            let prepared_result_ok = loaded.is_ok();
+            let existing_visual = unit.visual.is_some();
             let texture_dir = self.data_root.join("textures");
             let pools = self.particles.as_mut().map(|pools| {
                 if let Some(root) = self.root.as_mut() {
@@ -1017,6 +1064,7 @@ impl WorldUnits {
                 self.light.as_ref(),
                 pools,
             );
+            log_visual_result(unit, id, request, existing_visual, prepared_result_ok);
             if let Some(snapshot) = replica.unit(id) {
                 // Every visual load read the gear rows, so the weapon and pose resolve now.
                 if let Some(class) = combat::unit_weapon_class(unit, &self.models) {

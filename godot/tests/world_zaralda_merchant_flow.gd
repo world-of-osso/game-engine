@@ -8,13 +8,14 @@ extends "res://tests/world_merchant_live_flow.gd"
 # Required environment (no credential/server defaults): GODOT_TEST_SERVER=127.0.0.1:5197,
 # ZARALDA_TEST_USERNAME, ZARALDA_TEST_PASSWORD, ZARALDA_TEST_CHARACTER,
 # ZARALDA_TEST_SHOTS=<absolute persistent directory>. Capture stdout to that directory.
-# Bounded cold first visit: 240s world wait for local CASC only; never use CDN.
+# Bounded cold first visit: 600s world wait for local CASC only; never use CDN.
+# Observed center tile had 2,134/4,298 placements after the former 240s budget.
 # No buy/sell/repair/junk input. Merchant snapshot exposes names, not item IDs;
 # the authored item tooltip independently supplies the matching Item ID.
 # Native NPC template ID is not exposed here: main must retain server identity evidence.
 
 const ZARALDA := "Zaralda"
-const ZARALDA_WORLD_WAIT_MS := 240000
+const ZARALDA_WORLD_WAIT_MS := 600000
 const MIDNIGHT_ITEMS := {
 	244586: "Smuggler's Leather Wristbands",
 	244589: "Scout's Scaled Bracers",
@@ -50,7 +51,7 @@ func run_test() -> void:
 		return
 	if not await enter_zaralda_world():
 		return
-	var npc := await find_named_vendor(ZARALDA)
+	var npc := await find_zaralda_body()
 	if npc.is_empty():
 		return
 	print("ZARALDA PICK server_entity=", npc.id, " point=", npc.point)
@@ -147,6 +148,31 @@ func enter_zaralda_world() -> bool:
 	fail("Timed out entering Zaralda world (local CASC only): " + str(client.account_state()))
 	return false
 
+func find_zaralda_body() -> Dictionary:
+	var deadline := Time.get_ticks_msec() + NPC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var units = client.get_node_or_null("WorldUnits")
+		var world_camera = camera()
+		if units == null or world_camera == null:
+			continue
+		var unit = units.get_node_or_null(ZARALDA) as Node3D
+		if unit == null:
+			continue
+		var area = unit.find_child("UnitPick", true, false) as Area3D
+		if area == null:
+			continue
+		# Observed posed torso ray hits Zaralda; proxy-shape center did not.
+		var body_point: Vector3 = unit.global_position + Vector3.UP * 0.8
+		if not world_camera.is_position_in_frustum(body_point):
+			continue
+		var point: Vector2 = world_camera.unproject_position(body_point)
+		var entity = area.get_meta("unit_server_id")
+		if UnitPicker.pick(world_camera, point) == entity:
+			return {"id": entity, "name": ZARALDA, "point": point}
+	fail("Zaralda's posed torso is not ray-pickable")
+	return {}
+
 func inspect_midnight_item(state: Dictionary) -> bool:
 	for item_id in MIDNIGHT_ITEMS:
 		var item_name: String = MIDNIGHT_ITEMS[item_id]
@@ -185,6 +211,22 @@ func fail(message: String) -> void:
 	push_error(message)
 	if is_instance_valid(client):
 		var observation := {"failure": message, "account": client.account_state()}
+		var units = client.get_node_or_null("WorldUnits")
+		var unit_observations := []
+		var world_camera = camera()
+		if units != null and world_camera != null:
+			for unit in units.get_children():
+				if not unit is Node3D:
+					continue
+				var area = unit.find_child("UnitPick", true, false) as Area3D
+				var point = world_camera.unproject_position(unit.global_position + Vector3.UP * 0.8)
+				unit_observations.append({"name": str(unit.name), "position": unit.global_position,
+					"visible": unit.is_visible_in_tree(), "mesh_count": unit.find_children("*", "MeshInstance3D", true, false).size(),
+					"pick_entity": area.get_meta("unit_server_id") if area != null else null,
+					"projected": point, "frustum": world_camera.is_position_in_frustum(unit.global_position + Vector3.UP * 0.8),
+					"ray_pick": UnitPicker.pick(world_camera, point)})
+		observation["units"] = unit_observations
+		observation["camera_position"] = world_camera.global_position if world_camera != null else null
 		var loading = client.get_node_or_null("LoadingUI")
 		for label_name in ["LoadingProgressText", "LoadingStatusText"]:
 			var label = loading.find_child(label_name, true, false) if loading != null else null

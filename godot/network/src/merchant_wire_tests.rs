@@ -38,6 +38,7 @@ fn native_bridge_receives_merchant_messages_in_channel_order() {
     let inventory = VendorInventory {
         npc: 4294966979,
         can_repair: true,
+        guild_repair_money: None,
         items: vec![VendorItem {
             slot: 0,
             item_id: 2589,
@@ -48,6 +49,7 @@ fn native_bridge_receives_merchant_messages_in_channel_order() {
             max_stack: 200,
             num_available: Some(3),
             usable: true,
+            max_durability: None,
         }],
     };
     let buyback = BuybackList {

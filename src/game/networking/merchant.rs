@@ -151,9 +151,22 @@ fn send_merchant_requests(
             MerchantRequest::Buyback { slot } => {
                 send(&mut senders.buyback, BuybackItemRequest { npc, slot })
             }
-            MerchantRequest::Repair { item_guid } => {
-                send(&mut senders.repair, RepairItem { npc, item_guid })
-            }
+            MerchantRequest::Repair { item_guid } => send(
+                &mut senders.repair,
+                RepairItem {
+                    npc,
+                    item_guid,
+                    guild_bank: false,
+                },
+            ),
+            MerchantRequest::GuildRepairAll => send(
+                &mut senders.repair,
+                RepairItem {
+                    npc,
+                    item_guid: None,
+                    guild_bank: true,
+                },
+            ),
         }
     }
 }

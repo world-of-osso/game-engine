@@ -173,17 +173,6 @@ impl OutfitData {
         Ok(())
     }
 
-    fn check_model_paths(&self, display: &DisplayInfoResolved) -> Result<(), String> {
-        for &resource_id in &display.model_resource_ids {
-            let fdids =
-                crate::outfit_catalog_db::load_cached_model_fdids(&self.data_dir, resource_id)?;
-            for fdid in fdids {
-                crate::outfit_listfile::lookup_fdid(&self.data_dir, fdid)?;
-            }
-        }
-        Ok(())
-    }
-
     pub fn resolve_item_display_id(&self, item_id: u32) -> Result<u32, String> {
         let data = self.loaded_result()?;
         let conn = crate::cache_sqlite::open_read_only(&data.cache_path)?;
@@ -256,7 +245,7 @@ impl OutfitData {
         else {
             return Ok(None);
         };
-        self.check_model_paths(&display)?;
+        self.check_model_resources(&display)?;
         for &id in &display.model_material_resource_ids {
             crate::outfit_catalog_db::load_cached_material_texture_fdids(&self.data_dir, id)?;
         }
@@ -277,7 +266,7 @@ impl OutfitData {
         else {
             return Ok(Vec::new());
         };
-        self.check_model_paths(&display)?;
+        self.check_model_resources(&display)?;
         let columns = display
             .model_resource_columns
             .iter()

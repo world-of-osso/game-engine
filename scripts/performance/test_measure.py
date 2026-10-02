@@ -3,6 +3,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -77,6 +78,66 @@ class MeasurementTests(unittest.TestCase):
                 result["measurement"]["memory"]["settled_end"]["VmRSS_kib"], 123
             )
             self.assertGreaterEqual(result["phases"][0]["since_launch_s"], 0)
+
+    def test_runner_reports_readiness_change_with_empty_object_queue(self):
+        report = {
+            "settled_elapsed_s": 60.0,
+            "settled_ms": [1000.0] * 60,
+            "queue_drained": True,
+            "settled_pending_changed": True,
+            "objects": {"pending": 0},
+            "workload_snapshots": {
+                "first_readiness_change": {
+                    "terrain": {"pending_count": 0, "parsed_tiles": [[1, 2]]},
+                    "world_objects": {"pending": 0},
+                    "unit_visuals_pending": 1,
+                    "observed_process_frame": 42,
+                    "observed_ticks_usec": 123456,
+                }
+            },
+            "memory": {
+                phase: {"VmRSS_kib": 123, "VmHWM_kib": 234}
+                for phase in (
+                    "script_start",
+                    "client_mounted",
+                    "character_selected",
+                    "enter_world",
+                    "loading_hidden",
+                    "queue_drained",
+                    "settled_end",
+                )
+            },
+        }
+        child = "print(" + repr("PERF_REPORT " + json.dumps(report)) + ")"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = root / "manifest.json"
+            manifest.write_text("{}")
+            output = root / "output"
+            runner = subprocess.run(
+                [
+                    sys.executable, str(PATH), "--manifest", str(manifest),
+                    "--output", str(output), "--timeout", "5", "--",
+                    sys.executable, "-c", child,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(runner.returncode, 1, runner.stderr)
+            result = json.loads((output / "result.json").read_text())
+            self.assertEqual(result["exit_code"], 0)
+            self.assertTrue(result["measurement"]["adequate_duration"])
+            self.assertFalse(result["measurement"]["settled_queue_stable"])
+            self.assertIn(
+                "readiness or parsed tile set not continuously settled during observation",
+                result["gaps"],
+            )
+            self.assertEqual(result["raw_reports"], [report])
+            self.assertEqual(
+                json.loads((output / "stdout.log").read_text().removeprefix("PERF_REPORT ")),
+                report,
+            )
 
     def test_timeout_and_missing_report_remain_failures(self):
         with tempfile.TemporaryDirectory() as tmp:

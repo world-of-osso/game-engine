@@ -39,7 +39,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## Tests asserting this spec
 
-- `equipment_appearance_data::tests::{rigid_waist_base_mesh_uses_authored_attachment_53,skeletal_waist_collections_keep_binding_and_group_18,rigid_root_does_not_change_other_slots_collection_binding}`; native `assets::equipment::tests::{native_waist_base_mesh_and_skeletal_collection_keep_their_parts,skeletal_waist_missing_root_joint_remains_an_error}` — bounded waist policy and required-joint errors; native rendered acceptance pending.
+- `equipment_appearance_data::tests::{rigid_waist_base_mesh_uses_authored_attachment_53,skeletal_waist_collections_keep_binding_and_group_18,rigid_root_does_not_change_other_slots_collection_binding}`; native `assets::equipment::tests::{native_waist_base_mesh_and_skeletal_collection_keep_their_parts,skeletal_waist_missing_root_joint_remains_an_error}` — bounded waist policy and required-joint errors; later genuine Zaralda native-friendly exit0 is [observed scoped visual proof](../wiki/investigations/npc-stance-gear.md#native-fixture-boundary-follow-up-evidence-date-2026-10-01), independent artifact gate116 scoped PASS; encrypted-geoset completeness unproven.
 
 - `src/game/creatures/npc_gear_data_tests.rs` — Stockade poses (guard emote 333, criminal Sleep/Sit, rifleman 214), guard sword/shield and rifleman rifle attachments per sheath state, guard display 2989 armor rows.
 - `src/game/networking/npc_animation_tests.rs::stockade_guard_and_criminals_hold_their_authored_poses`, `::stockade_guard_draws_and_sheathes_sword_and_shield` — real models 2989/35069: played sequence IDs and item parent bones.

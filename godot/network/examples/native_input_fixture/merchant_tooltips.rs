@@ -11,6 +11,7 @@ const MARKERS: &[&str] = &[
     "VENDOR_OPEN",
     "VENDOR",
     "SINGLE",
+    "WEAPON",
     "EMPTY_CELL",
     "REFRESH_ARM",
     "REFRESHED",
@@ -218,6 +219,7 @@ fn send_catalog(app: &mut App, npc: u64, count: u32, stock: u32) {
         VendorInventory {
             npc,
             can_repair: true,
+            guild_repair_money: None,
             items: vec![
                 VendorItem {
                     slot: 0,
@@ -229,6 +231,7 @@ fn send_catalog(app: &mut App, npc: u64, count: u32, stock: u32) {
                     max_stack: 1000,
                     num_available: Some(stock),
                     usable: true,
+                    max_durability: None,
                 },
                 VendorItem {
                     slot: 1,
@@ -240,6 +243,20 @@ fn send_catalog(app: &mut App, npc: u64, count: u32, stock: u32) {
                     max_stack: 20,
                     num_available: None,
                     usable: true,
+                    max_durability: None,
+                },
+                // Worn Shortsword: SetMerchantItem shows a new item's full stats and durability.
+                VendorItem {
+                    slot: 2,
+                    item_id: 25,
+                    name: "Fixture Vendor Sword".into(),
+                    quality: 1,
+                    price: 13,
+                    stack_count: 1,
+                    max_stack: 1,
+                    num_available: None,
+                    usable: true,
+                    max_durability: Some(20),
                 },
             ],
         },

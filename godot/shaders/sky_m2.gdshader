@@ -1,11 +1,10 @@
 shader_type spatial;
 render_mode unshaded, fog_disabled, cull_back, blend_mix, depth_draw_never, shadows_disabled;
 
-// Original sky uploads mip0 only; keep shared native mips but never sample them here.
-uniform sampler2D base_texture : source_color, filter_linear, repeat_enable;
-uniform sampler2D second_texture : source_color, filter_linear, repeat_enable;
-uniform sampler2D third_texture : source_color, filter_linear, repeat_enable;
-uniform sampler2D fourth_texture : source_color, filter_linear, repeat_enable;
+uniform sampler2D base_texture : source_color, repeat_enable;
+uniform sampler2D second_texture : source_color, repeat_enable;
+uniform sampler2D third_texture : source_color, repeat_enable;
+uniform sampler2D fourth_texture : source_color, repeat_enable;
 uniform vec4 base_color : source_color = vec4(1.0);
 uniform float transparency = 1.0;
 // The model alpha (M2Object::setAlpha): stars' night brightness, skybox blend weights.

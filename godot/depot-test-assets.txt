@@ -1949,3 +1949,10 @@ textures/3622979.blp
 textures/3636577.blp
 textures/3613861.blp
 textures/3613868.blp
+# Jasperlode Mine (azeroth_33_49): ground and WMO walls of the mine walk
+textures/186770.blp
+textures/187115.blp
+textures/187138.blp
+textures/187127.blp
+textures/187125.blp
+textures/187100.blp
