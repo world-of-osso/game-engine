@@ -253,6 +253,7 @@ fn bag_slot(slot: BagSlot, x: f32, y: f32, overlay: Element) -> Element {
                 height: {slot.size},
                 text: "",
                 font_size: 8.0,
+                button_default_skin: false,
                 onclick: {action.as_str()},
                 pos_type: "absolute",
                 pos_x: x,
