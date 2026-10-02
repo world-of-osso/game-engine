@@ -2,7 +2,7 @@
 //! paperdoll clicks and drops go through the shared cursor item (`bag_cursor.rs`).
 //! docs/specs/character-frame.md.
 
-mod preview;
+pub(crate) mod preview;
 
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
@@ -75,6 +75,9 @@ impl CharacterFrame {
 impl GameClient {
     pub(super) fn update_character_frame(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
+            if let Some((id, _)) = self.character_frame.preview.pending.take() {
+                self.world.cancel_detached_visual(id);
+            }
             self.character_frame.reset();
             return Ok(());
         }

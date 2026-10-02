@@ -90,7 +90,7 @@ fn read_first_spline<const N: usize>(
     Ok(coordinates)
 }
 
-fn parse_md20_camera(md20: &[u8]) -> Result<M2CameraSnapshot, String> {
+fn md20_cameras(md20: &[u8]) -> Result<(usize, usize), String> {
     if md20.get(..4) != Some(b"MD20") {
         return Err("Invalid MD20 magic".into());
     }
@@ -100,10 +100,10 @@ fn parse_md20_camera(md20: &[u8]) -> Result<M2CameraSnapshot, String> {
             "Unsupported M2 camera version {version}; expected 274"
         ));
     }
-    let (count, offset) = read_array(md20, CAMERA_ARRAY_OFFSET, CAMERA_RECORD_SIZE, "camera")?;
-    if count == 0 {
-        return Err("No authored camera in MD20".into());
-    }
+    read_array(md20, CAMERA_ARRAY_OFFSET, CAMERA_RECORD_SIZE, "camera")
+}
+
+fn parse_camera_record(md20: &[u8], offset: usize) -> Result<M2CameraSnapshot, String> {
     let position_base =
         read_vec3(md20, offset + 32).map_err(|error| format!("camera position: {error}"))?;
     let target_base =
@@ -123,10 +123,34 @@ fn parse_md20_camera(md20: &[u8]) -> Result<M2CameraSnapshot, String> {
     })
 }
 
+fn parse_md20_camera(md20: &[u8]) -> Result<M2CameraSnapshot, String> {
+    let (count, offset) = md20_cameras(md20)?;
+    if count == 0 {
+        return Err("No authored camera in MD20".into());
+    }
+    parse_camera_record(md20, offset)
+}
+
 /// Extract camera index zero at its first track key; does not evaluate animation.
 pub fn parse_camera_snapshot(m2_file: &[u8]) -> Result<M2CameraSnapshot, String> {
     let chunks = super::parse_chunks(m2_file)?;
     parse_md20_camera(chunks.md20)
+}
+
+/// M2 camera type of the unit-frame portrait camera (`SetPortraitTexture`); 1 is the
+/// character-info camera, -1 a flyby.
+pub const PORTRAIT_CAMERA_TYPE: i32 = 0;
+
+/// The model's portrait camera at its first track key.
+pub fn parse_portrait_camera(m2_file: &[u8]) -> Result<M2CameraSnapshot, String> {
+    let chunks = super::parse_chunks(m2_file)?;
+    let md20 = chunks.md20;
+    let (count, offset) = md20_cameras(md20)?;
+    let record = (0..count)
+        .map(|index| offset + index * CAMERA_RECORD_SIZE)
+        .find(|&record| read_i32(md20, record).is_ok_and(|kind| kind == PORTRAIT_CAMERA_TYPE))
+        .ok_or_else(|| format!("No portrait camera among {count} MD20 cameras"))?;
+    parse_camera_record(md20, record)
 }
 
 #[cfg(test)]
@@ -196,6 +220,31 @@ mod tests {
         assert_eq!(snapshot.roll, 0.1);
         assert_eq!(snapshot.fov, 0.8);
         assert_eq!((snapshot.near_clip, snapshot.far_clip), (0.2, 500.0));
+    }
+
+    #[test]
+    fn portrait_camera_is_the_camera_of_type_zero() {
+        let mut file = model_with_camera();
+        let error = super::parse_portrait_camera(&file).unwrap_err();
+        assert!(error.contains("No portrait camera among 1"), "{error}");
+        // The camera array moved to free space as two copies of the flyby record (track
+        // offsets are MD20-absolute), the second retyped as the portrait camera with its
+        // base position moved.
+        let flyby: Vec<u8> =
+            file[8 + CAMERA_OFFSET..8 + CAMERA_OFFSET + super::CAMERA_RECORD_SIZE].to_vec();
+        let array = 0x480;
+        let second = array + super::CAMERA_RECORD_SIZE;
+        file[8 + array..8 + second].copy_from_slice(&flyby);
+        file[8 + second..8 + second + flyby.len()].copy_from_slice(&flyby);
+        write_u32(&mut file, 8 + 0x110, 2);
+        write_u32(&mut file, 8 + 0x114, array as u32);
+        write_u32(&mut file, 8 + second, 0);
+        write_f32(&mut file, 8 + second + 32, 100.0);
+        let portrait = super::parse_portrait_camera(&file).unwrap();
+        assert_eq!(portrait.camera_type, 0);
+        assert_eq!(portrait.position, [101.0, 22.0, 33.0]);
+        assert_eq!(portrait.target, [44.0, 55.0, 66.0]);
+        assert_eq!(parse_camera_snapshot(&file).unwrap().camera_type, -1);
     }
 
     #[test]
