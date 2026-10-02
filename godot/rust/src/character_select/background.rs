@@ -237,10 +237,15 @@ impl Background {
     }
 
     pub fn clear_nodes(&mut self) {
+        let span = crate::profile::span(|| "preview_reset.sky".to_owned());
         if let Some(sky) = self.sky.take() {
             sky.node.free();
         }
+        drop(span);
+        let span = crate::profile::span(|| "preview_reset.objects".to_owned());
         self.objects.reset();
+        drop(span);
+        let _span = crate::profile::span(|| "preview_reset.materials".to_owned());
         self.materials.reset();
         self.lighting.reset();
     }
