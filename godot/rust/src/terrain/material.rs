@@ -9,7 +9,7 @@ use game_engine_core::{adt, blp};
 use godot::{
     classes::{
         ArrayMesh, CollisionShape3D, ConcavePolygonShape3D, Image, ImageTexture, MeshInstance3D,
-        Node3D, ResourceLoader, Shader, ShaderMaterial, StaticBody3D, image,
+        Node3D, Shader, ShaderMaterial, StaticBody3D, image,
     },
     prelude::*,
 };
@@ -160,12 +160,7 @@ impl TerrainMaterials {
         if let Some(shader) = &self.shader {
             return Ok(shader.clone());
         }
-        let resource = ResourceLoader::singleton()
-            .load("res://shaders/terrain.gdshader")
-            .ok_or("Cannot load native terrain shader")?;
-        let shader = resource
-            .try_cast::<Shader>()
-            .map_err(|_| "Native terrain shader resource has wrong type")?;
+        let shader = crate::shader_warmup::load_shader("res://shaders/terrain.gdshader")?;
         self.shader = Some(shader.clone());
         Ok(shader)
     }
@@ -214,7 +209,9 @@ impl TerrainMaterials {
                 collision,
             ));
         }
+        let span = crate::profile::span(|| "terrain.water".to_owned());
         let water = self.water.build(&parsed.root, &parsed.liquid_materials)?;
+        drop(span);
         // Allocate manual-lifetime nodes only after all fallible resource construction.
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Tile{}_{}", tile.0, tile.1));
@@ -235,8 +232,10 @@ impl TerrainMaterials {
         shader: &Gd<Shader>,
     ) -> Result<Gd<ShaderMaterial>, String> {
         let inputs = ChunkMaterialInputs::new(parsed, layers)?;
+        let span = crate::profile::span(|| "terrain.set_shader".to_owned());
         let mut material = ShaderMaterial::new_gd();
         material.set_shader(shader);
+        drop(span);
         material.set_shader_parameter("config", &vector4(inputs.config).to_variant());
         self.bind_layer_textures(&mut material, &inputs.textures)?;
         for slot in 0..4 {

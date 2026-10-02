@@ -3102,6 +3102,7 @@ dependencies = [
  "image 0.25.10",
  "ktx2-rw",
  "peercred-ipc",
+ "png",
  "ron 0.8.1",
  "rusqlite",
  "serde",
