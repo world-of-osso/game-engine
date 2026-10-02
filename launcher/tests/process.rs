@@ -520,31 +520,13 @@ fn launches_without_local_cargo_context() {
     assert!(fixture.log().starts_with("depot-build.py\t"));
 }
 
-const FAKE_CURL: &str = r#"#!/usr/bin/env python3
-import os
-import sys
-
-with open(os.environ['FAKE_LOG'], 'a', encoding='ascii') as log:
-    print('curl', *sys.argv[1:], sep='\t', file=log)
-output = sys.argv[sys.argv.index('--output') + 1]
-with open(output, 'wb') as body:
-    body.write(b'not the pinned Godot release')
-"#;
-
 impl Fixture {
-    /// Launch without GODOT_BIN, resolving Godot from `cache` with a fake `curl` first on PATH.
+    /// Launch without GODOT_BIN, resolving the pinned Godot from `cache`.
     fn launch_with_cache(&self, cache: &Path) -> Output {
-        let bin = self.directory.join("bin");
-        fs::create_dir_all(&bin).unwrap();
-        let curl = bin.join("curl");
-        fs::write(&curl, FAKE_CURL).unwrap();
-        fs::set_permissions(&curl, fs::Permissions::from_mode(0o755)).unwrap();
-        let path = format!("{}:{}", bin.display(), env::var("PATH").unwrap());
         Command::new(env!("CARGO_BIN_EXE_game-engine-launcher"))
             .env("CARGO", &self.cargo)
             .env_remove("GODOT_BIN")
             .env("XDG_CACHE_HOME", cache)
-            .env("PATH", path)
             .env("FAKE_LOG", self.directory.join("log"))
             .env("GAME_ENGINE_ROOT", &self.directory)
             .output()
@@ -553,43 +535,37 @@ impl Fixture {
 }
 
 #[test]
-fn cached_godot_launches_without_download() {
+fn missing_pinned_godot_names_build_script_and_prevents_build() {
     let fixture = Fixture::new();
-    let cache = fixture.directory.join("cache");
-    let version = cache.join("game-engine/godot/4.7.2");
-    fs::create_dir_all(&version).unwrap();
-    let cached = version.join("Godot_v4.7.2-stable_linux.x86_64");
-    fs::copy(&fixture.godot, &cached).unwrap();
-    let output = fixture.launch_with_cache(&cache);
-    assert!(output.status.success(), "{output:?}");
-    let roles: Vec<_> = fixture
-        .log()
-        .lines()
-        .map(|line| line.split('\t').next().unwrap().to_owned())
-        .collect();
-    // The cached copy keeps the fake's basename-derived role.
-    assert_eq!(
-        roles,
-        ["depot-build.py", "Godot_v4.7.2-stable_linux.x86_64"]
+    let output = fixture.launch_with_cache(&fixture.directory.join("cache"));
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let pinned = "cache/game-engine/godot/4.7.2-pr123946/godot-4.7.2-pr123946 is missing";
+    assert!(stderr.contains(pinned), "{stderr}");
+    assert!(
+        stderr.contains("scripts/godot/build-patched-godot.sh"),
+        "{stderr}"
     );
+    assert!(fixture.log().is_empty(), "nothing may run");
 }
 
 #[test]
-fn checksum_mismatch_installs_nothing_and_prevents_build() {
+fn unpinned_godot_is_refused_before_build() {
     let fixture = Fixture::new();
     let cache = fixture.directory.join("cache");
+    let version = cache.join("game-engine/godot/4.7.2-pr123946");
+    fs::create_dir_all(&version).unwrap();
+    // Any binary other than the pinned build is refused, even in the pinned slot.
+    fs::copy(&fixture.godot, version.join("godot-4.7.2-pr123946")).unwrap();
     let output = fixture.launch_with_cache(&cache);
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("SHA-512"), "{stderr}");
-    assert!(fixture.log().starts_with("curl\t"));
-    assert_eq!(fixture.log().lines().count(), 1, "cargo must not run");
-    let godot_cache = cache.join("game-engine/godot");
-    assert_eq!(
-        fs::read_dir(&godot_cache).unwrap().count(),
-        0,
-        "no partial install left"
+    assert!(
+        stderr.contains("scripts/godot/build-patched-godot.sh"),
+        "{stderr}"
     );
+    assert!(fixture.log().is_empty(), "nothing may run");
 }
 
 #[test]
