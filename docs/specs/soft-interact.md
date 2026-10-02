@@ -41,3 +41,4 @@ References:
 - `game_objects::tests`: Mail/Interact cursors by type; the icon anchor on top of the Goldshire Mailbox (26784, 199999.m2) and a Goldshire Wooden Chair (26246, 198115.m2).
 - `client_options_data_tests::soft_interact_is_on_by_default_and_for_files_saved_before_it`.
 - `godot/tests/world_soft_interact_live.gd` on a private server: the Buy icon appears above Brother Danil, and E opens his MerchantFrame.
+- `godot/tests/world_soft_interact_object_live.gd` on a private server with a fresh options directory: the 32 px Mail icon stands on the Goldshire Mailbox's model top, and the Interact gears on a Goldshire Wooden Chair's.
