@@ -47,12 +47,22 @@ func run_test() -> void:
 	push_key(KEY_M, false)
 	if not await wait_until(func(): return vignette_pin() != {}, 15000, "a world map vignette pin"):
 		return
-	await wait_frames(30)
 	print("FIXTURE WORLD_MAP ", client.world_map_state().map_name, " ", vignette_pin())
 	await capture("02-world-map-vignette.png")
+	for sample in range(10):
+		await wait_frames(30)
+		print("FIXTURE SAMPLE %d minimap=%s pin=%s units=%s" % [sample, client.minimap_state().get("vignettes", 0), vignette_pin(), unit_names()])
 	print("FIXTURE VIGNETTES_LIVE_DONE")
 	client.free()
 	quit(0)
+
+func unit_names() -> Array:
+	var names := []
+	var units = client.get_node_or_null("WorldUnits")
+	if units != null:
+		for unit in units.get_children():
+			names.append(str(unit.name))
+	return names
 
 func vignette_pin() -> Dictionary:
 	var state: Dictionary = client.world_map_state()
