@@ -365,8 +365,10 @@ impl GameClient {
             return None;
         }
         for key in view.tiles() {
+            let _span = crate::profile::span(|| format!("minimap.load_tile {key:?}"));
             self.minimap.load_tile(&self.data_root, &map, key);
         }
+        let _span = crate::profile::span(|| "minimap.compose".to_owned());
         let minimap = &self.minimap;
         let mut pixels = compose(&view, COMPOSITE_PX, |key| {
             minimap.tile(&map, key).map(|tile| &tile.image)
@@ -401,10 +403,14 @@ impl GameClient {
         let Some((position, yaw)) = self.minimap_player() else {
             return Ok(());
         };
+        let span = crate::profile::span(|| "minimap.cluster_state".to_owned());
         let state = self.minimap_cluster_state(position, yaw)?;
         let data_root = self.data_root.clone();
+        drop(span);
+        let span = crate::profile::span(|| "minimap.chrome".to_owned());
         self.minimap
             .cache_chrome(&data_root, &minimap_texture_fdids(&state));
+        drop(span);
         let composite = self.minimap_composite(position);
         if let Some(ui) = self.minimap.ui.as_mut() {
             return ui.bind_mut().set_minimap(state, composite);

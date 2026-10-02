@@ -18,7 +18,7 @@ use godot::{
 use shared::{components::Player, protocol::CharacterListEntry};
 
 use crate::{
-    assets::player::load_player_model,
+    assets::player::{build_player_model, prepare_player_parts},
     scene_export::{SceneEntry, camera_entry, character_entry},
 };
 use background::{Background, wow_position};
@@ -179,6 +179,7 @@ impl CharacterPreview {
             return Ok(());
         };
         if self.preview.is_none() {
+            let _span = crate::profile::span(|| "preview.load_scene".to_owned());
             self.preview = Some(self.load_scene(parent)?);
         }
         let shown = self
@@ -186,6 +187,7 @@ impl CharacterPreview {
             .as_ref()
             .and_then(|preview| preview.shown.as_ref());
         if shown.map(|shown| &shown.entry) != Some(character) {
+            let _span = crate::profile::span(|| "preview.load_character".to_owned());
             let next = self.load_character(character)?;
             let preview = self.preview.as_mut().expect("scene loaded above");
             if let Some(previous) = preview.shown.replace(next) {
@@ -195,6 +197,7 @@ impl CharacterPreview {
             preview.root.add_child(&shown.model);
             preview.background.bind_light(&shown.model);
         }
+        let _span = crate::profile::span(|| "preview.scene_sync".to_owned());
         self.preview
             .as_mut()
             .expect("scene loaded above")
@@ -222,6 +225,7 @@ impl CharacterPreview {
 
     fn load_character(&mut self, character: &CharacterListEntry) -> Result<Shown, String> {
         if self.customization.is_none() {
+            let _span = crate::profile::span(|| "preview.customization_db".to_owned());
             self.customization = Some(load_customization_db(&self.data_root)?);
         }
         let db = self.customization.as_ref().expect("catalog loaded above");
@@ -232,8 +236,12 @@ impl CharacterPreview {
             class: character.class,
             appearance: character.appearance.clone(),
         };
-        let mut model =
-            load_player_model(&self.data_root, &player, &character.equipment_appearance)?;
+        let parts = {
+            let _span = crate::profile::span(|| "preview.prepare_player_parts".to_owned());
+            prepare_player_parts(&self.data_root, &player, &character.equipment_appearance)?
+        };
+        let _span = crate::profile::span(|| "preview.build_player_model".to_owned());
+        let mut model = build_player_model(&self.data_root, parts)?;
         model.set_name("SelectedCharacter");
         model.set_scale(Vector3::ONE * presentation.customize_scale.max(0.01));
         Ok(Shown {
