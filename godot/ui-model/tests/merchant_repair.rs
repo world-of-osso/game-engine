@@ -24,6 +24,7 @@ fn session(can_repair: bool) -> MerchantSession {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     let mut session = MerchantSession {
         money: 1000,
         repair_cost: 16,

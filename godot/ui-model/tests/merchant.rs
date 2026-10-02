@@ -29,6 +29,7 @@ fn data_root() {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
 }
 
 fn item(slot: u32, item_id: u32, name: &str, price: u32) -> VendorItem {

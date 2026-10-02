@@ -30,6 +30,7 @@ fn data_root() {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
 }
 
 fn stack(guid: u64, item_id: u32) -> ItemStack {

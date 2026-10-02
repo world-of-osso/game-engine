@@ -1,5 +1,5 @@
 use super::*;
-use crate::item_catalog::item_catalog_entry;
+use crate::item_catalog::wait_for_item_catalog;
 
 fn entry(item_id: u32) -> &'static ItemCatalogEntry {
     #[cfg(godot_host)]
@@ -7,7 +7,9 @@ fn entry(item_id: u32) -> &'static ItemCatalogEntry {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .expect("item stat test data root");
-    item_catalog_entry(item_id).unwrap_or_else(|| panic!("item {item_id} in the catalog"))
+    wait_for_item_catalog()
+        .get(item_id)
+        .unwrap_or_else(|| panic!("item {item_id} in the catalog"))
 }
 
 #[test]

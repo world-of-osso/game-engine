@@ -1,3 +1,7 @@
+## 2026-10-01 — Catalog waits at world entry
+
+[[world-entry-stalls#catalog-waits--2026-10-01]]: the first inventory snapshot waited 9.2-54.9 s in `OnceLock::get_or_init` for the background item catalog load. Item catalog/icons, NPC gear rows and the spell visual catalog are now read without waiting; the entrance and minimap catalogs load from client start. Items received early update when the catalog loads (`GET_ITEM_INFO_RECEIVED` model); spec line in [cursor-item](../specs/cursor-item.md). Character-select model catalogs remain synchronous.
+
 ## 2026-10-01 — Retained skybox/performance bounded reconciliation
 
 [[authored-skybox-black-output]] records source zero opacity and bounded 100000 ms original/native RGB match, preserving active timeout, coastal phase-ready gap and oracle SETUP failures. [[world-entry-stalls]] records actual run1/run2 failures and readiness RED/GREEN without settled/baseline/budget/leak acceptance. Retained/conversion goals remain open; docs only.

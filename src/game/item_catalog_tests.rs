@@ -97,12 +97,14 @@ fn missing_icon_column_is_an_error() {
 
 #[test]
 fn retail_tables_name_linen_and_the_grey_ruined_pelt() {
-    let linen = item_catalog_entry(2589).expect("Linen Cloth in the pinned DB2 export");
+    let linen = wait_for_item_catalog()
+        .get(2589)
+        .expect("Linen Cloth in the pinned DB2 export");
     assert_eq!(
         (linen.name.as_str(), linen.quality, linen.sell_price),
         ("Linen Cloth", 1, 13)
     );
-    let pelt = item_catalog_entry(4865).expect("Ruined Pelt");
+    let pelt = wait_for_item_catalog().get(4865).expect("Ruined Pelt");
     assert_eq!(
         (pelt.name.as_str(), pelt.quality, pelt.stackable),
         ("Ruined Pelt", 0, 20)
