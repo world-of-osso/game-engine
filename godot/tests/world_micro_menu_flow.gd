@@ -92,7 +92,12 @@ func mb_toggle(name: String) -> bool:
 		if not mb_expect_states(others, "Disabled"):
 			return false
 		await cf_capture("02-game-menu-open.png")
-	await mb_click(name)
+		# The native game menu's full-screen dim takes the pointer, so the second
+		# click cannot reach the button; Escape (`ToggleGameMenu`) closes it.
+		await tap(KEY_ESCAPE)
+		await frames(4)
+	else:
+		await mb_click(name)
 	if mb_open(name) or mb_states()[name] != "Normal":
 		fail("%s did not close its window: open %s, state %s" % [name, mb_open(name), mb_states()[name]])
 		return false
