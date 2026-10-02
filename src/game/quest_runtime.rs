@@ -13,7 +13,7 @@ use shared::protocol::{
     GossipMenu, GossipMenuOption, NpcRole, QuestEntrySnapshot, QuestFailedReason,
     QuestGiverOfferReward, QuestGiverQuestComplete, QuestGiverQuestDetails, QuestGiverQuestEntry,
     QuestGiverQuestList, QuestGiverRequestItems, QuestGiverStatus, QuestLogSnapshot,
-    QuestLogUpdate, QuestPoiSnapshot,
+    QuestLogUpdate, QuestMarkerClass, QuestPoiSnapshot,
 };
 
 #[cfg_attr(not(godot_host), derive(Resource))]
@@ -324,17 +324,50 @@ pub const TALKTOME_UNAVAILABLE_FDID: u32 = 130_734;
 /// `interface/buttons/talktomequestion_grey.m2`: grey `?`.
 pub const TALKTOME_INCOMPLETE_FDID: u32 = 130_735;
 
-/// The `talktome` marker M2 floating over a quest giver with `status`. Trivial
-/// (`LowLevelAvailable`) quests show none: Retail's "Trivial Quests" tracking defaults
-/// to off (`InterfaceOverrides.lua:239`, `Settings.Default.False`).
+/// The `talktome` marker M2 floating over a quest giver with `status`, by the
+/// `interface/buttons/talktome*` names of each kind in the community listfile. Trivial
+/// quests show none: Retail's "Trivial Quests" tracking defaults to off
+/// (`PROXY_TRIVIAL_QUEST_FILTERING`, `InterfaceOverrides.lua:296`, `Settings.Default.False`).
+/// An unfinished calling wears the campaign `?`, as `QuestUtil.GetQuestIconActive` gives
+/// both `CampaignInProgressQuestIcon` (`QuestUtils.lua:186`).
 pub fn quest_marker_model(status: QuestGiverStatus) -> Option<u32> {
-    match status {
-        QuestGiverStatus::None | QuestGiverStatus::LowLevelAvailable => None,
-        QuestGiverStatus::Unavailable => Some(TALKTOME_UNAVAILABLE_FDID),
-        QuestGiverStatus::Incomplete => Some(TALKTOME_INCOMPLETE_FDID),
-        QuestGiverStatus::Available => Some(TALKTOME_AVAILABLE_FDID),
-        QuestGiverStatus::Reward => Some(TALKTOME_TURN_IN_FDID),
-    }
+    use QuestMarkerClass::*;
+    let fdid = match status {
+        QuestGiverStatus::None | QuestGiverStatus::Trivial(_) => return None,
+        QuestGiverStatus::Future(class) => match class {
+            Important => 5_390_225, // talktome_important_locked.m2
+            Campaign => 5_390_226,  // talktome_journey_locked.m2
+            Legendary => 5_390_227, // talktome_legendary_locked.m2
+            Normal | Repeatable | Meta | Calling => TALKTOME_UNAVAILABLE_FDID,
+        },
+        QuestGiverStatus::Incomplete(class) => match class {
+            Normal => TALKTOME_INCOMPLETE_FDID,
+            Repeatable => 5_374_198, // talktomequestion_repeatable_grey.m2
+            Meta => 5_374_194,       // talktomequestion_wrapper_grey.m2
+            Calling | Campaign => 3_486_410, // talktomequestion_journey_grey.m2
+            Legendary => 5_152_919,  // talktome_new_questionlegendary_grey.m2
+            Important => 5_217_341,  // talktomequestion_important_grey.m2
+        },
+        QuestGiverStatus::Available(class) => match class {
+            Normal => TALKTOME_AVAILABLE_FDID,
+            Repeatable => 5_374_195, // talktome_repeatable.m2
+            Meta => 5_374_191,       // talktome_wrapper.m2
+            Calling => 3_605_006,    // talktome_callings.m2
+            Campaign => 3_486_398,   // talktome_journey.m2
+            Legendary => 3_489_738,  // talktomeorange_new.m2
+            Important => 5_217_338,  // talktome_important.m2
+        },
+        QuestGiverStatus::Reward(class) => match class {
+            Normal => TALKTOME_TURN_IN_FDID,
+            Repeatable => 5_374_197, // talktomequestion_repeatable.m2
+            Meta => 5_374_193,       // talktomequestion_wrapper.m2
+            Calling => 3_753_369,    // talktome_callingsquestion.m2
+            Campaign => 3_486_399,   // talktomequestion_journey.m2
+            Legendary => 3_491_680,  // talktome_new_questionlegendary.m2
+            Important => 5_217_340,  // talktomequestion_important.m2
+        },
+    };
+    Some(fdid)
 }
 
 /// `LOOT_ITEM_PUSHED_SELF` / `LOOT_ITEM_PUSHED_SELF_MULTIPLE`.

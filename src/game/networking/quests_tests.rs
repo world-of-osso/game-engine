@@ -3,7 +3,7 @@ use game_engine::network_runtime::messages::Inbox;
 use game_engine::quest_runtime::QuestDialogPage;
 use shared::protocol::{
     GossipMenu, QuestEntrySnapshot, QuestFailedReason, QuestGiverQuestEntry, QuestGiverQuestState,
-    QuestGiverStatusEntry, QuestRepeatability, QuestRewards,
+    QuestGiverStatusEntry, QuestMarkerClass, QuestRepeatability, QuestRewards,
 };
 
 use super::*;
@@ -305,7 +305,7 @@ fn quest_giver_markers_follow_the_server_status() {
         vec![QuestGiverStatusMultiple {
             statuses: vec![QuestGiverStatusEntry {
                 npc: WILLEM_SERVER,
-                status: QuestGiverStatus::Available,
+                status: QuestGiverStatus::Available(QuestMarkerClass::Normal),
             }],
         }],
     );
@@ -323,7 +323,7 @@ fn quest_giver_markers_follow_the_server_status() {
         vec![QuestGiverStatusMultiple {
             statuses: vec![QuestGiverStatusEntry {
                 npc: WILLEM_SERVER,
-                status: QuestGiverStatus::Incomplete,
+                status: QuestGiverStatus::Incomplete(QuestMarkerClass::Normal),
             }],
         }],
     );
@@ -340,15 +340,15 @@ fn quest_giver_markers_follow_the_server_status() {
 #[test]
 fn trivial_quests_show_no_marker_like_retail_default_tracking() {
     assert_eq!(
-        quest_indicator(QuestGiverStatus::LowLevelAvailable),
+        quest_indicator(QuestGiverStatus::Trivial(QuestMarkerClass::Normal)),
         QuestIndicator::None
     );
     assert_eq!(
-        quest_indicator(QuestGiverStatus::Reward),
+        quest_indicator(QuestGiverStatus::Reward(QuestMarkerClass::Normal)),
         QuestIndicator::TurnIn
     );
     assert_eq!(
-        quest_indicator(QuestGiverStatus::Unavailable),
+        quest_indicator(QuestGiverStatus::Future(QuestMarkerClass::Normal)),
         QuestIndicator::Unavailable
     );
 }
