@@ -76,6 +76,8 @@ fn resolve_spell_cast_intent(
         spell_id,
         spell: spell_token,
         target_entity: target_bits,
+        // The preserved Bevy client finds no LOS witness ray.
+        witness: None,
     })
 }
 
