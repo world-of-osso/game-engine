@@ -1,3 +1,7 @@
+## 2026-10-01 — Launcher pins patched Godot 4.7.2-pr123946
+
+[[godot-wayland-exit-hang]]: launcher and shell helpers now use official 4.7.2 plus upstream PR #123946, built by `scripts/godot/build-patched-godot.sh` and SHA-512 pinned; missing or mismatched binary fails with build instructions, no fallback. `PYTHONHASHSEED=0` makes the build bit-reproducible (`editor/editor_builders.py` embeds Python `hash()` of the docs). Pinned binary: 0/120 hangs of `m2_animation.gd` via `quit-hang-loop.sh` (`data/diagnostics/godotpatch-2026-10-01/loop-anim-seeded.txt`). Retire when an official release contains #123946.
+
 ## 2026-10-01 — Catalog waits at world entry
 
 [[world-entry-stalls#catalog-waits--2026-10-01]]: the first inventory snapshot waited 9.2-54.9 s in `OnceLock::get_or_init` for the background item catalog load. Item catalog/icons, NPC gear rows and the spell visual catalog are now read without waiting; the entrance and minimap catalogs load from client start. Items received early update when the catalog loads (`GET_ITEM_INFO_RECEIVED` model); spec line in [cursor-item](../specs/cursor-item.md). Character-select model catalogs remain synchronous.
@@ -2460,3 +2464,15 @@ M2 point lights fall off as retail's squared linear ramp; melee sounds apply the
 ## 2026-10-01 — Godot Wayland exit hang (investigation)
 
 [godot-wayland-exit-hang](investigations/godot-wayland-exit-hang.md): quit() hangs root-caused to Godot 4.7.2 WaylandThread::destroy() roundtrip race; upstream PR #123946 removes it (0/180 vs 14/190).
+
+## 2026-10-01 — Zaralda appearance and rigid-waist evidence (task-date update)
+
+Updated [model/gear investigation](investigations/npc-stance-gear.md#zaralda-rigid-waist-binding-verified-task-date-2026-10-01), fixture reference and index. Independent appearance report preserves 113,120 rows; unavailable encrypted geosets exclude completeness. Recorded matched protocol/InWorld, actual binding failure, fix 016b0fce/207aea4e and supplied Depot z7mpr71q0v CPU 27/27 only. Commit timestamps are 2026-10-01 -0500; task evidence date retained, not a new verification timestamp. New native build/window gate pending main; overall goal open. Docs only; no tests/builds/commits.
+
+## 2026-10-01 — Zaralda derived-friendly/native boundary (evidence date)
+
+Recorded supplied retained binding PASS, 116-mesh/frustum/posed-torso native evidence and body-point/cold-setup fixture revisions 17d77fcb/d2084de7. Linked server faction SSOT; merchant-window acceptance remains pending main. Evidence dated October 1, not a new runtime verification timestamp. Docs-only update; no code/data/PLAN changes, commits, builds, tests or service actions.
+
+## 2026-10-01 — Zaralda final observed-proof reconciliation (task evidence)
+
+Updated existing Zaralda SSOT and linked specs/reference/index: native-friendly exit0 / 529.10s now observes actual merchant pick/title/tooltip/backpack/close. Retained historical RED attempts, independent gate114 source/import proof and renderer/cache limits; gate116 artifact audit gives scoped PASS for the saved native flow and three current AH receipts. Server SSOT separates current three AH receipts from pinned old-binary performance. Prior uncommitted docs preserved; no tests, builds, commits, data/source/PLAN edits or service operations.

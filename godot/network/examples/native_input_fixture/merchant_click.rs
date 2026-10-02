@@ -123,6 +123,7 @@ fn send_vendor_inventory(app: &mut App, npc: u64) {
         VendorInventory {
             npc,
             can_repair: false,
+            guild_repair_money: None,
             items: vec![VendorItem {
                 slot: 0,
                 item_id: 4540,
@@ -133,6 +134,7 @@ fn send_vendor_inventory(app: &mut App, npc: u64) {
                 max_stack: 20,
                 num_available: None,
                 usable: true,
+                max_durability: None,
             }],
         },
     );

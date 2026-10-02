@@ -1218,6 +1218,7 @@ fn native_bridge_receives_vendor_flags_gold_and_inventory() {
     let inventory = VendorInventory {
         npc: vendor.to_bits(),
         can_repair: true,
+        guild_repair_money: None,
         items: vec![VendorItem {
             slot: 0,
             item_id: 2488,
@@ -1228,6 +1229,7 @@ fn native_bridge_receives_vendor_flags_gold_and_inventory() {
             max_stack: 1,
             num_available: None,
             usable: true,
+            max_durability: None,
         }],
     };
     let mut senders = server

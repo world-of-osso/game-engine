@@ -625,6 +625,13 @@ impl GameClient {
         state.set("equipment", &equipment_items(&session.inventory));
         state.set("money", session.money as i64);
         state.set("repair_cost", i64::from(session.repair_cost));
+        // `GetGuildBankWithdrawMoney` capped by the bank; -1 without `CanGuildBankRepair`.
+        state.set(
+            "guild_repair_money",
+            merchant
+                .guild_repair_money
+                .map_or(-1, |copper| copper as i64),
+        );
         state.set("split_open", session.split.is_some());
         state.set("repair_mode", session.repair_mode);
         let sounds: VarArray = self
