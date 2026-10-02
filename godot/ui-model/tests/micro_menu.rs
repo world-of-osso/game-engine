@@ -4,7 +4,7 @@
 
 use game_engine_ui_model::micro_menu::{
     ACTION_CHARACTER, MICRO_BUTTONS, MicroButtonState, MicroMenuView, OpenWindows,
-    micro_button_index, micro_button_tooltip, micro_menu_screen,
+    micro_button_index, micro_button_tooltip, micro_menu_screen, unavailable_message,
 };
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -70,7 +70,7 @@ fn tooltip_rows(view: &MicroMenuView, name: &str, key: Option<&str>) -> Option<V
 }
 
 #[test]
-fn retail_order_with_native_windows_enabled_and_the_rest_disabled() {
+fn retail_order_with_every_button_lit() {
     let names: Vec<_> = MICRO_BUTTONS.iter().map(|button| button.name).collect();
     assert_eq!(
         names,
@@ -90,30 +90,28 @@ fn retail_order_with_native_windows_enabled_and_the_rest_disabled() {
         ]
     );
     let view = MicroMenuView::default();
-    let enabled: Vec<_> = (0..MICRO_BUTTONS.len())
-        .filter(|&i| view.state(i) == MicroButtonState::Normal)
-        .map(|i| MICRO_BUTTONS[i].name)
-        .collect();
-    assert_eq!(
-        enabled,
-        [
-            "CharacterMicroButton",
-            "PlayerSpellsMicroButton",
-            "QuestLogMicroButton",
-            "MainMenuMicroButton",
-        ]
-    );
+    // Every button is lit (user decision 2026-10-02), including those whose window is
+    // not converted yet.
+    assert!((0..MICRO_BUTTONS.len()).all(|i| view.state(i) == MicroButtonState::Normal));
 }
 
 #[test]
-fn a_disabled_button_draws_its_disabled_atlas_at_half_alpha_and_does_not_click() {
+fn an_unconverted_button_is_lit_clickable_and_says_why_on_click() {
     let registry = build(MicroMenuView::default());
-    let (state, alpha, _) = button_state(&registry, "StoreMicroButton");
-    assert_eq!(state, ButtonState::Disabled);
-    assert_eq!(alpha, 0.5);
-    // UI-HUD-MicroMenu-ButtonBG-Up, UI-HUD-MicroMenu-Shop-Disabled.
-    assert_eq!(crop(&registry, "StoreMicroButtonArt0"), (67.0, 253.0));
-    assert_eq!(crop(&registry, "StoreMicroButtonArt1"), (463.0, 253.0));
+    let (state, alpha, onclick) = button_state(&registry, "StoreMicroButton");
+    assert_eq!((state, alpha), (ButtonState::Normal, 1.0));
+    assert_eq!(onclick.as_deref(), Some("micro:StoreMicroButton"));
+    // Not UI-HUD-MicroMenu-Shop-Disabled.
+    assert_ne!(crop(&registry, "StoreMicroButtonArt1"), (463.0, 253.0));
+    assert_eq!(
+        unavailable_message("micro:StoreMicroButton").as_deref(),
+        Some("The shop is currently unavailable.")
+    );
+    assert_eq!(
+        unavailable_message("micro:AchievementMicroButton").as_deref(),
+        Some("This feature becomes available at level 10.")
+    );
+    assert_eq!(unavailable_message(ACTION_CHARACTER), None);
     let (state, alpha, onclick) = button_state(&registry, "CharacterMicroButton");
     assert_eq!((state, alpha), (ButtonState::Normal, 1.0));
     assert_eq!(onclick.as_deref(), Some(ACTION_CHARACTER));
@@ -164,7 +162,7 @@ fn the_character_button_draws_the_portrait_shadow_and_pushed_shadow_when_open() 
 }
 
 #[test]
-fn tooltips_name_the_button_and_its_binding_and_say_why_a_button_is_disabled() {
+fn tooltips_name_the_button_and_its_binding() {
     let view = MicroMenuView::default();
     assert_eq!(
         tooltip_rows(&view, "CharacterMicroButton", Some("C")).unwrap(),
@@ -172,17 +170,12 @@ fn tooltips_name_the_button_and_its_binding_and_say_why_a_button_is_disabled() {
     );
     assert_eq!(
         tooltip_rows(&view, "StoreMicroButton", None).unwrap(),
-        ["Shop", "The shop is currently unavailable."]
+        ["Shop"]
     );
     assert_eq!(
         tooltip_rows(&view, "AchievementMicroButton", Some("Y")).unwrap(),
-        [
-            "Achievements (Y)",
-            "This feature becomes available at level 10."
-        ]
+        ["Achievements (Y)"]
     );
-    let store = micro_button_tooltip(&view, index("StoreMicroButton"), None).unwrap();
-    assert_eq!(store.content.lines[0].left_color, [1.0, 0.125, 0.125, 1.0]);
 }
 
 #[test]

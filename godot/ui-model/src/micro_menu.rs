@@ -12,11 +12,8 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::game_tooltip::GameTooltip;
-use crate::item_tooltip::RED_FONT_COLOR;
 use crate::quest_art::DynName;
-use crate::tooltip_presentation::{
-    TOOLTIP_WHITE, TooltipLineState, TooltipPresentation, description_lines,
-};
+use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipLineState, TooltipPresentation};
 
 pub const MICRO_MENU: &str = "MicroMenuContainer";
 pub const ACTION_PREFIX: &str = "micro:";
@@ -259,9 +256,6 @@ impl MicroMenuView {
                 MicroButtonState::Disabled
             };
         }
-        if MICRO_BUTTONS[index].unavailable.is_some() {
-            return MicroButtonState::Disabled;
-        }
         let open = match index {
             CHARACTER => self.open.character,
             PLAYER_SPELLS => self.open.player_spells,
@@ -304,14 +298,7 @@ pub fn micro_button_tooltip(
         None => button.title.to_owned(),
     };
     let lines = match view.state(index) {
-        MicroButtonState::Disabled if view.open.game_menu => return None,
-        MicroButtonState::Disabled => match button.unavailable? {
-            Unavailable::Reason(reason) => description_lines(reason, RED_FONT_COLOR),
-            Unavailable::MinLevel(level) => description_lines(
-                &format!("This feature becomes available at level {level}."),
-                RED_FONT_COLOR,
-            ),
-        },
+        MicroButtonState::Disabled => return None,
         _ => Vec::<TooltipLineState>::new(),
     };
     Some(GameTooltip::new(
@@ -323,6 +310,20 @@ pub fn micro_button_tooltip(
         },
         None,
     ))
+}
+
+/// The message a click on a button without a native window shows in the error frame:
+/// its Retail unavailable line. Buttons stay lit (user decision 2026-10-02); the window
+/// they open is not converted yet.
+pub fn unavailable_message(action: &str) -> Option<String> {
+    let name = action.strip_prefix(ACTION_PREFIX)?;
+    let button = MICRO_BUTTONS.iter().find(|button| button.name == name)?;
+    Some(match button.unavailable? {
+        Unavailable::Reason(reason) => reason.to_owned(),
+        Unavailable::MinLevel(level) => {
+            format!("This feature becomes available at level {level}.")
+        }
+    })
 }
 
 pub fn micro_menu_screen(ctx: &SharedContext) -> Element {
