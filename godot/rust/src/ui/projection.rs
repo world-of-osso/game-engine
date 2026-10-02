@@ -62,6 +62,13 @@ mod slider_tests {
     }
 }
 
+/// A part's art: its texture and atlas region, absent (failed, reported), or loading.
+enum Art {
+    Ready((Gd<Texture2D>, [f32; 4])),
+    Absent,
+    Loading,
+}
+
 /// Projected visuals of one frame; unchanged parts keep their Godot nodes.
 #[derive(PartialEq)]
 struct FrameVisual {
@@ -79,6 +86,10 @@ pub struct UiProjection {
     fonts: HashMap<GameFont, Option<Gd<godot::classes::FontFile>>>,
     /// Loaded art and atlas regions; `None` caches art that failed to load.
     textures: HashMap<String, Option<(Gd<Texture2D>, [f32; 4])>>,
+    /// Frames drawn without art whose file still loads, redrawn when files arrive.
+    waiting: HashSet<u64>,
+    /// `assets::arrived_file_textures` when the waiting frames were last redrawn.
+    arrived: u64,
 }
 
 impl UiProjection {
@@ -94,6 +105,8 @@ impl UiProjection {
             slider_capture: Rc::new(RefCell::new(None)),
             fonts: HashMap::new(),
             textures: HashMap::new(),
+            waiting: HashSet::new(),
+            arrived: 0,
         }
     }
 
@@ -247,12 +260,18 @@ impl UiProjection {
                         .done();
                     (measured.x, measured.y)
                 }
-                Some(WidgetData::Texture(data)) => {
-                    let Some(texture) = self.texture(&data.source, registry) else {
+                Some(WidgetData::Texture(data)) => match self.source(&data.source, registry) {
+                    Art::Ready((image, region)) => {
+                        let texture = assets::sub_texture(&image, region);
+                        (texture.get_width() as f32, texture.get_height() as f32)
+                    }
+                    Art::Absent => continue,
+                    // Laid out again with its size once its file arrives.
+                    Art::Loading => {
+                        self.waiting.insert(frame.id);
                         continue;
-                    };
-                    (texture.get_width() as f32, texture.get_height() as f32)
-                }
+                    }
+                },
                 _ => continue,
             };
             sizes.insert(frame.id, size);
@@ -348,33 +367,39 @@ impl UiProjection {
     }
 
     /// Cached decoded source and atlas region; dynamic textures are re-read every time.
-    /// Art that fails to load is reported once and draws absent, as in the Bevy client.
-    fn source(
-        &mut self,
-        source: &TextureSource,
-        registry: &FrameRegistry,
-    ) -> Option<(Gd<Texture2D>, [f32; 4])> {
-        let load = || {
-            assets::load_source(source, registry)
-                .inspect_err(|error| report_once(&format!("UI texture {source:?}: {error}")))
-                .ok()
-        };
-        if matches!(source, TextureSource::Dynamic(_)) {
-            return load();
+    /// Art that fails to load is reported once and draws absent, as in the Bevy client;
+    /// `Loading` while its file is decoded.
+    fn source(&mut self, source: &TextureSource, registry: &FrameRegistry) -> Art {
+        let key = format!("{source:?}");
+        if let Some(loaded) = self.textures.get(&key) {
+            return loaded.clone().map_or(Art::Absent, Art::Ready);
         }
-        self.textures
-            .entry(format!("{source:?}"))
-            .or_insert_with(load)
-            .clone()
+        let loaded = match assets::load_source(source, registry) {
+            Ok(None) => return Art::Loading,
+            Ok(Some(loaded)) => Some(loaded),
+            Err(error) => {
+                report_once(&format!("UI texture {source:?}: {error}"));
+                None
+            }
+        };
+        if !matches!(source, TextureSource::Dynamic(_)) {
+            self.textures.insert(key, loaded.clone());
+        }
+        loaded.map_or(Art::Absent, Art::Ready)
     }
 
-    fn texture(
-        &mut self,
-        source: &TextureSource,
-        registry: &FrameRegistry,
-    ) -> Option<Gd<Texture2D>> {
-        let (image, region) = self.source(source, registry)?;
-        Some(assets::sub_texture(&image, region))
+    /// Lay out and draw again the frames waiting for art once more files have arrived.
+    pub fn draw_arrived_textures(&mut self, registry: &mut FrameRegistry) -> Result<(), String> {
+        let arrived = assets::arrived_file_textures();
+        if arrived == self.arrived || self.waiting.is_empty() {
+            self.arrived = arrived;
+            return Ok(());
+        }
+        self.arrived = arrived;
+        for id in std::mem::take(&mut self.waiting) {
+            self.visuals.remove(&id);
+        }
+        self.sync(registry)
     }
 
     fn update_node(
@@ -409,7 +434,11 @@ impl UiProjection {
                 .iter()
                 .any(|part| matches!(part.source, Some(TextureSource::Dynamic(_))));
         if dynamic_redraw || self.visuals.get(&frame.id) != Some(&visual) {
-            self.sync_parts(&node, &visual, registry)?;
+            if self.sync_parts(&node, &visual, registry)? {
+                self.waiting.insert(frame.id);
+            } else {
+                self.waiting.remove(&frame.id);
+            }
             self.visuals.insert(frame.id, visual);
         }
         match &frame.widget_data {
@@ -434,19 +463,22 @@ impl UiProjection {
         Ok(())
     }
 
+    /// Rebuild `node`'s parts; `true` when art of a part is still loading.
     fn sync_parts(
         &mut self,
         node: &Gd<Control>,
         visual: &FrameVisual,
         registry: &FrameRegistry,
-    ) -> Result<(), String> {
+    ) -> Result<bool, String> {
+        let mut loading = false;
         let mut container = node.get_node_as::<Control>(PARTS_NODE);
         for mut child in container.get_children().iter_shared() {
             container.remove_child(&child);
             child.queue_free();
         }
         for (index, part) in visual.images.iter().enumerate() {
-            let mut control = self.image_part(part, registry)?;
+            let (mut control, part_loading) = self.image_part(part, registry)?;
+            loading |= part_loading;
             control.set_name(&format!("Part{index}"));
             control.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
             control.set_position(Vector2::new(part.rect[0], part.rect[1]));
@@ -476,31 +508,33 @@ impl UiProjection {
             container.add_child(&label);
             label.set_size(node.get_size());
         }
-        Ok(())
+        Ok(loading)
     }
 
+    /// The control drawing `part`, and whether its art is still loading.
     fn image_part(
         &mut self,
         part: &ImagePart,
         registry: &FrameRegistry,
-    ) -> Result<Gd<Control>, String> {
+    ) -> Result<(Gd<Control>, bool), String> {
         let Some(source) = &part.source else {
             let mut rect = ColorRect::new_alloc();
             rect.set_color(color(part.color));
-            return Ok(rect.upcast());
+            return Ok((rect.upcast(), false));
         };
         let mut rect = TextureRect::new_alloc();
         rect.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
         rect.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
         rect.set_self_modulate(color(part.color));
-        // Missing art leaves the part empty.
-        if let Some((image, region)) = self.source(source, registry) {
-            let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, region);
-            rect.set_texture(&assets::sub_texture(&image, crop));
+        // Missing art, and art still loading, leaves the part empty.
+        let art = self.source(source, registry);
+        if let Art::Ready((image, region)) = &art {
+            let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, *region);
+            rect.set_texture(&assets::sub_texture(image, crop));
             rect.set_flip_h(flip_x);
             rect.set_flip_v(flip_y);
         }
-        Ok(rect.upcast())
+        Ok((rect.upcast(), matches!(art, Art::Loading)))
     }
 
     fn style_label(&mut self, label: &mut Gd<Label>, text: &TextPart) -> Result<(), String> {

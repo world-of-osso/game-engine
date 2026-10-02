@@ -396,6 +396,17 @@ impl RegistryModel {
 
 #[godot_api]
 impl ICanvasLayer for RegistryUi {
+    /// Frames drawn without art whose file was still loading show it once it arrives.
+    fn process(&mut self, _delta: f64) {
+        let (Some(model), Some(projection)) = (self.model.as_mut(), self.projection.as_mut())
+        else {
+            return;
+        };
+        if let Err(error) = projection.draw_arrived_textures(&mut model.registry) {
+            crate::frame_error::report_once(&format!("UI textures: {error}"));
+        }
+    }
+
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
         if let Some(projection) = self.projection.as_mut() {
             projection.handle_pointer(&event);
