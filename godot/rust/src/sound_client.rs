@@ -62,7 +62,10 @@ impl GameClient {
             .expect("polled above");
         let mut sound = self.sound.clone().expect("created at startup");
         let mut sound = sound.bind_mut();
-        if let Err(error) = data.footsteps.and_then(|files| sound.apply_footsteps(files)) {
+        if let Err(error) = data
+            .footsteps
+            .and_then(|files| sound.apply_footsteps(files))
+        {
             godot_error!("Native footsteps unavailable: {error}");
         }
         sound.apply_zone_tracks(data.zone_tracks?);
