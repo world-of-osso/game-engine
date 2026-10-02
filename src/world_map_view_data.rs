@@ -71,6 +71,21 @@ pub struct WorldMapPlayer {
     pub faction: Option<Faction>,
 }
 
+/// A vignette the server shows near the player (`C_VignetteInfo.GetVignetteInfo`)
+/// whose `Vignette` row has `ShowOnMap` (`VignetteInfo.onWorldMap`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct MapVignette {
+    /// `Vignette.Name_lang`.
+    pub name: String,
+    /// `VignetteKillElite` rather than `VignetteKill`.
+    pub elite: bool,
+    /// `HideOnContinentMaps`.
+    pub hide_on_continent_maps: bool,
+    pub map_id: u32,
+    /// World position (Retail axes).
+    pub position: [f32; 3],
+}
+
 /// Retail world axes of an engine (Y-up) position: `x` north, `y` west, `z` up.
 pub fn engine_to_world([x, y, z]: [f32; 3]) -> [f32; 3] {
     [x, -z, y]
@@ -95,6 +110,7 @@ pub struct WorldMapRequest<'a> {
     pub quests: &'a [QuestEntrySnapshot],
     /// Objective areas to outline (`QuestRuntime::watched_objective_areas`).
     pub quest_areas: &'a [&'a QuestPoiSnapshot],
+    pub vignettes: &'a [MapVignette],
 }
 
 /// The map the frame opens on: the player's best map.
@@ -123,6 +139,7 @@ pub fn world_map_frame_state(data: &WorldMapData, request: WorldMapRequest) -> W
         pins.extend(quest_pins(catalog, map_id, request.quests));
         quest_areas = quest_area_polygons(catalog, map_id, request.quest_areas);
     }
+    pins.extend(vignette_pins(catalog, map_id, kind, request.vignettes));
     // Retail draws flight points on zone maps only.
     if kind == Some(map_type::ZONE) {
         let faction = request.player.and_then(|player| player.faction);
@@ -252,6 +269,38 @@ fn quest_pins(catalog: &UiMapCatalog, map_id: u32, quests: &[QuestEntrySnapshot]
         });
     }
     pins
+}
+
+/// `VignetteDataProviderMixin`: a pin wherever `C_VignetteInfo.GetVignettePosition`
+/// places the vignette, on zone and continent maps (`HideOnContinentMaps` keeps it off
+/// continents).
+fn vignette_pins(
+    catalog: &UiMapCatalog,
+    map_id: u32,
+    kind: Option<u8>,
+    vignettes: &[MapVignette],
+) -> Vec<MapPin> {
+    let shown = |vignette: &&MapVignette| match kind {
+        Some(map_type::ZONE) => true,
+        Some(map_type::CONTINENT) => !vignette.hide_on_continent_maps,
+        _ => false,
+    };
+    vignettes
+        .iter()
+        .filter(shown)
+        .filter_map(|vignette| {
+            let [x, y] = catalog.map_position(map_id, vignette.map_id, vignette.position)?;
+            Some(MapPin {
+                pin_type: MapPinType::Vignette {
+                    elite: vignette.elite,
+                },
+                label: vignette.name.clone(),
+                badge: String::new(),
+                x,
+                y,
+            })
+        })
+        .collect()
 }
 
 fn flight_pins(data: &WorldMapData, map_id: u32, faction: Option<Faction>) -> Vec<MapPin> {

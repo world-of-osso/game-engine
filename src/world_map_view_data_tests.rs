@@ -52,6 +52,7 @@ fn state_with_quests(
             player: Some(player),
             quests,
             quest_areas: &[],
+            vignettes: &[],
         },
     )
 }
@@ -257,6 +258,7 @@ fn hovering_a_zone_on_the_continent_highlights_it() {
             player: Some(&player),
             quests: &[],
             quest_areas: &[],
+            vignettes: &[],
         },
     );
     let highlight = view.highlight.unwrap();
@@ -281,6 +283,7 @@ fn objective_areas_outline_on_zone_and_continent_maps_only() {
                 player: None,
                 quests: &[],
                 quest_areas: &areas,
+                vignettes: &[],
             },
         )
     };
@@ -297,4 +300,62 @@ fn objective_areas_outline_on_zone_and_continent_maps_only() {
     assert!(width > 0.0 && width < 0.05, "40 yd span {width} of Elwynn");
     // The world map (947) draws no objective areas.
     assert!(view(947).quest_areas.is_empty());
+}
+
+/// Doomwalker (creature_template 167749, Vignette 6520 `ShowOnMap`, elite) at its
+/// world.db spawn in Tanaris, map 1.
+fn doomwalker(hide_on_continent_maps: bool) -> MapVignette {
+    MapVignette {
+        name: "Doomwalker".into(),
+        elite: true,
+        hide_on_continent_maps,
+        map_id: 1,
+        position: [-8502.32, -4474.17, 11.2417],
+    }
+}
+
+fn vignette_pins_on(data: &WorldMapData, map_id: u32, vignettes: &[MapVignette]) -> Vec<MapPin> {
+    world_map_frame_state(
+        data,
+        WorldMapRequest {
+            visible: true,
+            viewport: [1280.0, 720.0],
+            map_id,
+            hovered: None,
+            player: None,
+            quests: &[],
+            quest_areas: &[],
+            vignettes,
+        },
+    )
+    .pins
+    .into_iter()
+    .filter(|pin| matches!(pin.pin_type, MapPinType::Vignette { .. }))
+    .collect()
+}
+
+#[test]
+fn doomwalkers_vignette_pins_tanaris_and_kalimdor() {
+    let data = data();
+    let shown = [doomwalker(false)];
+    let tanaris = vignette_pins_on(data, 71, &shown);
+    assert_eq!(tanaris.len(), 1);
+    assert_eq!(tanaris[0].pin_type, MapPinType::Vignette { elite: true });
+    assert_eq!(tanaris[0].label, "Doomwalker");
+    assert!((0.0..1.0).contains(&tanaris[0].x) && (0.0..1.0).contains(&tanaris[0].y));
+    let kalimdor = vignette_pins_on(data, 12, &shown);
+    assert_eq!(kalimdor.len(), 1);
+    assert_eq!(
+        zoom_in(data, 12, [kalimdor[0].x, kalimdor[0].y]),
+        Some(71),
+        "the Kalimdor pin lies on Tanaris"
+    );
+    assert!(
+        vignette_pins_on(data, 947, &shown).is_empty(),
+        "not on Azeroth"
+    );
+
+    let zone_only = [doomwalker(true)];
+    assert_eq!(vignette_pins_on(data, 71, &zone_only).len(), 1);
+    assert!(vignette_pins_on(data, 12, &zone_only).is_empty());
 }
