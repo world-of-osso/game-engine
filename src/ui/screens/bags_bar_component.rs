@@ -232,29 +232,47 @@ fn bag_slot(slot: BagSlot, x: f32, y: f32, overlay: Element) -> Element {
         .icon
         .map(|fdid| bag_icon(format!("{}IconTexture", slot.name), fdid))
         .unwrap_or_default();
+    let art: Element = rsx! {
+        texture {
+            name: art_name,
+            width: {slot.size},
+            height: {slot.size},
+            texture_fdid: {slot.art.fdid},
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+        }
+    };
+    let children: Element = icon.into_iter().chain(art).chain(overlay).collect();
+    if slot.index == 0 {
+        return rsx! {
+            button {
+                name: DynName(slot.name),
+                width: {slot.size},
+                height: {slot.size},
+                text: "",
+                font_size: 8.0,
+                onclick: {action.as_str()},
+                pos_type: "absolute",
+                pos_x: x,
+                pos_y: y,
+                {children}
+            }
+        };
+    }
+    // BaseBagSlotButtonMixin:OnLoadInternal `RegisterForClicks("AnyUp")`: a bag slot takes
+    // right clicks too; the backpack overrides it and keeps left clicks.
     rsx! {
-        button {
+        r#frame {
             name: DynName(slot.name),
             width: {slot.size},
             height: {slot.size},
-            text: "",
-            font_size: 8.0,
             onclick: {action.as_str()},
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
-            {icon}
-            texture {
-                name: art_name,
-                width: {slot.size},
-                height: {slot.size},
-                texture_fdid: {slot.art.fdid},
-                tex_coords: {coords.as_str()},
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-            }
-            {overlay}
+            {children}
         }
     }
 }
