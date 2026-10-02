@@ -363,7 +363,7 @@ fn unit_sheath(snapshot: Unit) -> SheathState {
     }
 }
 
-fn resolve_unit_appearance(
+fn load_unit_appearance(
     snapshot: Unit,
     models: &mut WorldModels,
 ) -> Result<Option<UnitAppearance>, String> {
@@ -380,7 +380,7 @@ fn resolve_unit_appearance(
 
 /// Request the visual of a changed appearance; a unit without one loses its visual.
 fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldModels) {
-    let appearance = match resolve_unit_appearance(snapshot, models) {
+    let appearance = match load_unit_appearance(snapshot, models) {
         Ok(appearance) => appearance,
         Err(error) => {
             godot_error!("Player {} native display: {error}", snapshot.server_id);
