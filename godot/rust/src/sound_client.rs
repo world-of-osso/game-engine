@@ -18,11 +18,14 @@ impl GameClient {
         let mut sound = Gd::<NativeSound>::from_init_fn(NativeSound::init);
         sound.set_name("NativeSound");
         self.base_mut().add_child(&sound);
+        let span = crate::profile::span(|| "startup.sound_catalog".to_owned());
         let loaded = sound.bind_mut().load_catalog(&self.data_root);
+        drop(span);
         if let Err(error) = loaded {
             sound.queue_free();
             return Err(error);
         }
+        let _span = crate::profile::span(|| "startup.footsteps".to_owned());
         if let Err(error) = sound.bind_mut().load_footsteps(&self.data_root) {
             godot_error!("Native footsteps unavailable: {error}");
         }
