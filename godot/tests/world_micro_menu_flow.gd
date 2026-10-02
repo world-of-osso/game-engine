@@ -104,10 +104,11 @@ func mb_toggle(name: String) -> bool:
 	print("FIXTURE MICRO_TOGGLE ", name)
 	return true
 
-# A disabled button opens nothing and its tooltip names it with the Retail reason.
+# A button whose window is not converted yet is lit, opens nothing, and its tooltip is
+# the Retail title only; the click shows the Retail unavailable line as an error.
 func mb_disabled(name: String) -> bool:
-	if mb_states()[name] != "Disabled":
-		fail("%s is %s, expected Disabled" % [name, mb_states()[name]])
+	if mb_states()[name] != "Normal":
+		fail("%s is %s, expected Normal" % [name, mb_states()[name]])
 		return false
 	await mb_click(name)
 	for native in NATIVE:
@@ -118,10 +119,10 @@ func mb_disabled(name: String) -> bool:
 	await frames(8)
 	var state: Dictionary = client.tooltip_state()
 	var expected: Array = DISABLED[name]
-	if not state.visible or state.title != expected[0] or state.lines.is_empty() or not state.lines[0].begins_with(expected[1]):
+	if not state.visible or not state.title.begins_with(expected[0]) or not state.lines.is_empty():
 		fail("%s tooltip: %s" % [name, state])
 		return false
-	print("FIXTURE MICRO_DISABLED ", name, " ", state.lines[0])
+	print("FIXTURE MICRO_UNCONVERTED ", name, " ", state.title)
 	return true
 
 # Character Info open (pushed portrait button) with the pointer on Talents & Spellbook

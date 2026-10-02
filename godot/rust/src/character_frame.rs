@@ -18,7 +18,7 @@ use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::micro_menu::{
     ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PLAYER_SPELLS, ACTION_QUEST_LOG, MICRO_BUTTONS,
-    MicroMenuView, OpenWindows, micro_button_index,
+    MicroMenuView, OpenWindows, micro_button_index, unavailable_message,
 };
 use godot::prelude::*;
 use shared::components::{CombatRatings, DerivedStats, Player, UnitLevel, UnitStats};
@@ -173,15 +173,18 @@ impl GameClient {
         Ok(())
     }
 
-    /// An enabled micro-menu button toggles its native window; the others are disabled
-    /// (`micro_menu::MICRO_BUTTONS`) and never click.
+    /// A micro-menu button toggles its native window; a button whose window is not
+    /// converted yet shows its Retail unavailable line in the error frame.
     fn micro_button_click(&mut self, action: &str) -> Result<(), FrameError> {
         match action {
             ACTION_CHARACTER => self.toggle_character_frame(),
             ACTION_PLAYER_SPELLS => self.toggle_spellbook()?,
             ACTION_QUEST_LOG => self.toggle_quest_log(),
             ACTION_MAIN_MENU => self.toggle_game_menu_from_micro_button()?,
-            _ => return Err(format!("Micro menu action {action} has no native window").into()),
+            _ => match unavailable_message(action) {
+                Some(message) => self.add_world_error(&message)?,
+                None => return Err(format!("Unknown micro menu action {action}").into()),
+            },
         }
         Ok(())
     }
